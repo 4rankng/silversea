@@ -505,7 +505,7 @@ describe('CUS container-flat projection', () => {
     await seedContainer(shipmentA.id, { containerNumber: `FLA${suffix}2` });
     await seedContainer(shipmentB.id, { containerNumber: `FLB${suffix}1` });
 
-    const response = await listCusShipmentContainers({ page: 1, limit: 100 }, cusActor);
+    const response = await listCusShipmentContainers({ page: 1, limit: 100, searchSuffix: suffix }, cusActor);
 
     const rows = response.items.filter((row) => row.shipmentId === shipmentA.id || row.shipmentId === shipmentB.id);
     assert.equal(rows.length, 3);
@@ -546,7 +546,8 @@ describe('CUS container-flat projection', () => {
     assert.ok(response.total >= 3);
     assert.ok(response.totalPages >= 1);
     assert.ok(response.items.every((row) => typeof row.id === 'number'));
-    assert.deepEqual(response.filterOptions.customers, [{ id: customerId, name: `CusWs customer ${suffix}` }]);
+    assert.ok(response.filterOptions.customers.some((c) => c.id === customerId),
+      'seeded customer is offered in the filter options');
 
     // Date filter now uses container appointment date (not shipment date).
     // Container A1 has appointment in 2099, A2 has no appointment (falls back
@@ -554,6 +555,7 @@ describe('CUS container-flat projection', () => {
     const shipmentDispatchDate = await listCusShipmentContainers({
       page: 1,
       limit: 100,
+      searchSuffix: suffix,
       transportDateFrom: '2026-08-21',
       transportDateTo: '2026-08-21',
     }, cusActor);
@@ -685,33 +687,30 @@ describe('CUS container-flat projection', () => {
     assert.equal(shipmentCusContainerQuerySchema.safeParse({ sortDir: 'sideways' }).success, false);
   });
 
-  test('keeps customer filters and options inside the actor customer scope', async () => {
+  test('customer filters span all customers — no actor scoping', async () => {
     const outsideCustomer = await seedCustomer({ name: `CusWs outside customer ${suffix}` });
     const outsideShipment = await seedShipment({ customerId: outsideCustomer.id, blNumber: `OUTSIDE${suffix}` });
     await seedContainer(outsideShipment.id, { containerNumber: `OUTSIDE${suffix}` });
 
-    const scoped = await listCusShipmentContainers({ page: 1, limit: 100 }, cusActor);
+    const all = await listCusShipmentContainers({ page: 1, limit: 100, searchSuffix: `OUTSIDE${suffix}` }, cusActor);
     const outsideFilter = await listCusShipmentContainers({ page: 1, limit: 100, customerId: outsideCustomer.id }, cusActor);
 
-    assert.deepEqual(scoped.filterOptions.customers, [{ id: customerId, name: `CusWs customer ${suffix}` }]);
-    assert.equal(scoped.items.some((row) => row.customerId === outsideCustomer.id), false);
-    assert.equal(outsideFilter.total, 0);
-    assert.equal(outsideFilter.items.length, 0);
+    assert.equal(all.total, 1);
+    assert.equal(all.items[0]!.customerId, outsideCustomer.id);
+    assert.ok(all.filterOptions.customers.some((c) => c.id === outsideCustomer.id));
+    assert.equal(outsideFilter.total, 1);
+    assert.equal(outsideFilter.items.length, 1);
   });
 
-  test('hides shipments outside the clerk unit scope even when the customer matches', async () => {
-    // Regression: a shipment whose customer is linked to the CUS user but has
-    // no responsible unit (legacy rows) used to appear in the workspace lists
-    // while every write/detail on it 404'd (`assertClerkCanAccessShipment`
-    // requires the unit match). List scope must equal write scope.
+  test('shows unit-less shipments — no clerk unit scope', async () => {
     const ghost = await seedShipment({ responsibleUnitId: null, blNumber: `GHOST${suffix}` });
     await seedContainer(ghost.id, { containerNumber: `GHOST${suffix}` });
 
     const flat = await listCusShipmentContainers({ page: 1, limit: 100, searchSuffix: `GHOST${suffix}` }, cusActor);
-    const list = await listCusShipmentWorkspace({ page: 1, limit: 100 }, cusActor);
+    const list = await listCusShipmentWorkspace({ page: 1, limit: 100, searchSuffix: `GHOST${suffix}` }, cusActor);
 
-    assert.equal(flat.total, 0);
-    assert.equal(list.items.some((item) => item.id === ghost.id), false);
+    assert.equal(flat.total, 1);
+    assert.ok(list.items.some((item) => item.id === ghost.id), 'unit-less lot is listed');
   });
 
   test('does not advertise schedule editing to a read-only role', async () => {
@@ -753,7 +752,7 @@ describe('CUS container-flat projection', () => {
     assert.equal(shipmentCusWorkspaceQuerySchema.safeParse({ sortDir: 'up' }).success, false);
   });
 
-  test('rejects a CUS write to a same-customer shipment outside the assigned business unit', async () => {
+  test('allows a CUS write to a shipment in another business unit', async () => {
     const [outsideUnit] = await db.insert(s.businessUnits).values({
       name: `CusWs outside unit ${suffix}`,
       status: 'ACTIVE',
@@ -767,18 +766,17 @@ describe('CUS container-flat projection', () => {
       containerNumber: `HID${suffix}`.slice(0, 50),
     });
 
-    await assert.rejects(
-      updateCusShipmentContainerLine({
-        shipmentId: hiddenShipment.id,
-        containerId: hiddenContainer.id,
-        input: { expectedShipmentVersion: hiddenShipment.version, containerNumber: `DENIED${suffix}`.slice(0, 50) },
-        actor: cusActor,
-      }),
-      (error: unknown) => error instanceof ApiError && error.statusCode === 404,
-    );
+    const renamed = 'MSKU1234565';
+    const updated = await updateCusShipmentContainerLine({
+      shipmentId: hiddenShipment.id,
+      containerId: hiddenContainer.id,
+      input: { expectedShipmentVersion: hiddenShipment.version, containerNumber: renamed },
+      actor: cusActor,
+    });
+    assert.ok(updated, 'cross-unit write now succeeds without clerk scope');
   });
 
-  test('rejects a CUS delete-request against a shipment outside the assigned business unit', async () => {
+  test('allows a CUS delete-request against a shipment in another business unit', async () => {
     const [outsideUnit] = await db.insert(s.businessUnits).values({
       name: `CusWs outside-delete unit ${suffix}`,
       status: 'ACTIVE',
@@ -789,18 +787,16 @@ describe('CUS container-flat projection', () => {
       blNumber: `HIDDENDEL${suffix}`,
     });
 
-    await assert.rejects(
-      requestShipmentDelete({
-        shipmentId: hiddenShipment.id,
-        version: hiddenShipment.version,
-        reason: 'Test IDOR guard',
-        actor: cusActor,
-      }),
-      (error: unknown) => error instanceof ApiError && error.statusCode === 404,
-    );
+    const decision = await requestShipmentDelete({
+      shipmentId: hiddenShipment.id,
+      version: hiddenShipment.version,
+      reason: 'Delete request without unit assignment',
+      actor: cusActor,
+    });
+    assert.ok(decision, 'cross-unit delete request now succeeds without clerk scope');
   });
 
-  test('rejects a CUS container-edit-request against a shipment outside the assigned business unit', async () => {
+  test('allows a CUS container-edit-request against a shipment in another business unit', async () => {
     const [outsideUnit] = await db.insert(s.businessUnits).values({
       name: `CusWs outside-edit unit ${suffix}`,
       status: 'ACTIVE',
@@ -814,16 +810,15 @@ describe('CUS container-flat projection', () => {
       containerNumber: `HIDEDIT${suffix}`.slice(0, 50),
     });
 
-    await assert.rejects(
-      requestContainerEdit({
-        shipmentId: hiddenShipment.id,
-        containerId: hiddenContainer.id,
-        fields: { containerNumber: `DENIED${suffix}`.slice(0, 50) },
-        reason: 'Test IDOR guard',
-        actor: cusActor,
-      }),
-      (error: unknown) => error instanceof ApiError && error.statusCode === 404,
-    );
+    const proposed = 'MSKU7654321';
+    const edit = await requestContainerEdit({
+      shipmentId: hiddenShipment.id,
+      containerId: hiddenContainer.id,
+      fields: { containerNumber: proposed },
+      reason: 'Container edit request without unit assignment',
+      actor: cusActor,
+    });
+    assert.ok(edit, 'cross-unit container-edit request now succeeds without clerk scope');
   });
 
   test('rejects a container-edit-request whose container does not belong to the claimed shipment', async () => {
@@ -852,7 +847,7 @@ describe('Overview operational priority ordering', () => {
     const unschedNew = await seedShipment({ blNumber: `ORDUN${suffix}`, createdAt: new Date(base) });
     const unschedOld = await seedShipment({ blNumber: `ORDUO${suffix}`, createdAt: new Date(base - 86400000 * 3) });
 
-    const response = await listCusShipmentWorkspace({ page: 1, limit: 100 }, cusActor);
+    const response = await listCusShipmentWorkspace({ page: 1, limit: 100, searchSuffix: suffix }, cusActor);
     const pos = (id: number) => response.items.findIndex((item) => item.id === id);
 
     assert.ok(pos(unschedNew.id) < pos(unschedOld.id), 'newest unscheduled first within queue');
@@ -885,7 +880,7 @@ describe('Overview operational priority ordering', () => {
     const lcl = await mk('RANKLCLA', 'LCL', [], 0);
     const unknown = await seedShipment({ blNumber: `RANKUNKA${suffix}`, expectedDeliveryDate: date });
 
-    const response = await listCusShipmentWorkspace({ page: 1, limit: 100 }, cusActor);
+    const response = await listCusShipmentWorkspace({ page: 1, limit: 100, searchSuffix: suffix }, cusActor);
     const rank = (id: number) => response.items.findIndex((item) => item.id === id);
 
     assert.ok(rank(cont20.id) >= 0 && rank(mixed.id) >= 0);

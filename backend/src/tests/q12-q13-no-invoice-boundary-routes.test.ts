@@ -226,25 +226,26 @@ describe('Q12/Q13 no-invoice route boundaries', () => {
     }
   });
 
-  test('clerk bootstrap only exposes assigned customers and business units', async () => {
+  test('clerk bootstrap exposes every customer and business unit — no scoping', async () => {
     const response = await request('/api/catalogs/bootstrap', { token: clerkToken });
     assert.equal(response.status, 200);
 
     const customerNames = new Set((response.body.customers as Array<{ name: string }>).map((item) => item.name));
     const businessUnitNames = new Set((response.body.businessUnits as Array<{ name: string }>).map((item) => item.name));
 
+    // Scoped and hidden fixtures alike must be listed for staff roles.
     assert.ok(customerNames.has(`Q12Q13 scoped customer ${suffix}`));
-    assert.ok(!customerNames.has(`Q12Q13 hidden customer ${suffix}`));
+    assert.ok(customerNames.has(`Q12Q13 hidden customer ${suffix}`));
     assert.ok(businessUnitNames.has(`Q12 scoped unit ${suffix}`));
-    assert.ok(!businessUnitNames.has(`Q12 hidden unit ${suffix}`));
+    assert.ok(businessUnitNames.has(`Q12 hidden unit ${suffix}`));
   });
 
-  test('clerk bootstrap returns empty scoped lists when no customer or unit is assigned', async () => {
+  test('clerk bootstrap lists are full for clerks without any assignment', async () => {
     const unassignedClerkToken = sign(await mkUser(`q12q13-clerk-empty-${suffix}`, Role.CUS));
     const response = await request('/api/catalogs/bootstrap', { token: unassignedClerkToken });
     assert.equal(response.status, 200);
-    assert.deepEqual(response.body.customers, []);
-    assert.deepEqual(response.body.businessUnits, []);
+    assert.ok((response.body.customers as Array<{ name: string }>).length > 0);
+    assert.ok((response.body.businessUnits as Array<{ name: string }>).length > 0);
   });
 
   test('config CRUD persists policy-configurable approval titles and only bumps version on policy change', async () => {

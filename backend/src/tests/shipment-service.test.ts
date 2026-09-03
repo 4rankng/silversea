@@ -538,7 +538,7 @@ describe('listShipmentsPaginated', () => {
     assert.equal(row!.vehiclePlateSummary, null);
   });
 
-  test('preserves clerk scope filtering even when projected rows have multiple related records', async () => {
+  test('returns every shipment regardless of assignment — projections stay deduplicated', async () => {
     const scopedCustomer = await mkCustomer();
     const otherCustomer = await mkCustomer();
     const scopedUnit = await mkBusinessUnit();
@@ -600,10 +600,13 @@ describe('listShipmentsPaginated', () => {
       truckId: truck.id,
     });
 
-    const result = await listShipmentsPaginated({ actor, page: 1, limit: 10 });
-    assert.equal(result.total, 1);
-    assert.equal(result.items.length, 1);
-    assert.equal(result.items[0]!.id, visible.id);
+    const result = await listShipmentsPaginated({ actor, page: 1, limit: 200 });
+    const ids = result.items.map((item: { id: number }) => item.id);
+    assert.ok(ids.includes(visible.id), 'same-unit shipment is listed');
+    assert.ok(ids.includes(hiddenWrongUnit.id), 'other-unit shipment is listed');
+    assert.ok(ids.includes(hiddenWrongCustomer.id), 'other-customer shipment is listed');
+    // Two fulfillments + two trips on `visible` must not duplicate its row.
+    assert.equal(ids.filter((id: number) => id === visible.id).length, 1);
   });
 
   test('keeps pagination totals and page boundaries stable with multi-row projections', async () => {

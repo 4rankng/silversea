@@ -731,9 +731,7 @@ export function ShipmentContainerLedger({
                           <span className="shipment-container-ledger__missing-fields-text">
                             <span className="shipment-container-ledger__missing-fields-label">Chưa cập nhật:</span>
                             <span className="shipment-container-ledger__missing-fields-list" role="list" aria-label="Thông tin còn thiếu">
-                              {row.missingFields.map((field) => (
-                                <span key={field.code} role="listitem">{field.label}</span>
-                              ))}
+                              {row.missingFields.map((field) => <span key={field.code} role="listitem">{field.label}</span>)}
                             </span>
                           </span>
                         </span>

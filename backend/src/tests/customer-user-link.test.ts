@@ -4,6 +4,7 @@ import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import express from 'express';
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
 import { eq, inArray } from 'drizzle-orm';
 import { CustomerAccountType, Role } from '@tingting/shared';
 import { db, client } from '../db';
@@ -31,6 +32,7 @@ let customerUserId: number;
 let managerUserId: number;
 let clerkUserId: number;
 let accountantUserId: number;
+let legacyClerkUserId: number;
 let server: http.Server;
 let baseUrl: string;
 
@@ -76,6 +78,7 @@ after(async () => {
   if (customerUserId) await db.delete(s.users).where(eq(s.users.id, customerUserId));
   if (managerUserId) await db.delete(s.users).where(eq(s.users.id, managerUserId));
   if (clerkUserId) await db.delete(s.users).where(eq(s.users.id, clerkUserId));
+  if (legacyClerkUserId) await db.delete(s.users).where(eq(s.users.id, legacyClerkUserId));
   if (accountantUserId) await db.delete(s.users).where(eq(s.users.id, accountantUserId));
   if (businessUnitId) await db.delete(s.businessUnits).where(eq(s.businessUnits.id, businessUnitId));
   if (customerId) await db.delete(s.customers).where(eq(s.customers.id, customerId));
@@ -174,18 +177,19 @@ describe('customer account linkage', () => {
     await db.delete(s.users).where(eq(s.users.id, user.id));
   });
 
-  test('rejects creating an ACTIVE clerk without a valid assignment scope', async () => {
-    await assert.rejects(
-      createUser({
-        username: `clerk-unscoped-${suffix}`,
-        password: 'admin123',
-        role: Role.CUS,
-      }),
-      /Nhân viên chứng từ ACTIVE phải có ít nhất một đơn vị phụ trách/,
-    );
+  test('creates an ACTIVE clerk without any assignment scope', async () => {
+    const clerk = await createUser({
+      username: `clerk-unscoped-${suffix}`,
+      password: 'admin123',
+      role: Role.CUS,
+    });
+    clerkUserId = clerk.id;
+    assert.deepEqual(clerk.customerIds, []);
+    assert.deepEqual(clerk.businessUnitIds, []);
+    assert.deepEqual(clerk.shipmentIds, []);
   });
 
-  test('rejects non-admin clerk scope assignment mutations', async () => {
+  test('rejects customer/unit/shipment links on a CUS account', async () => {
     await assert.rejects(
       createUser({
         username: `clerk-non-admin-${suffix}`,
@@ -195,7 +199,7 @@ describe('customer account linkage', () => {
         businessUnitIds: [businessUnitId],
         assignmentAdminOnly: true,
       }),
-      /Chỉ quản trị viên mới có thể quản lý phạm vi nhân viên chứng từ/,
+      /Chỉ tài khoản khách hàng hoặc kế toán mới được liên kết khách hàng/,
     );
   });
 
@@ -361,26 +365,37 @@ describe('customer account linkage', () => {
     });
   });
 
-  test('rejects clearing scope from an ACTIVE clerk account', async () => {
+  test('clearing scope from a clerk account succeeds — links are no longer meaningful', async () => {
     const clerk = await createUser({
-      username: `scoped-clerk-${suffix}`,
+      username: `clerk-clear-${suffix}`,
       password: 'admin123',
       role: Role.CUS,
-      customerIds: [customerId],
-      businessUnitIds: [businessUnitId],
     });
     clerkUserId = clerk.id;
 
-    await assert.rejects(
-      updateUser(clerk.id, { businessUnitIds: [], customerIds: [] }),
-      /Nhân viên chứng từ ACTIVE phải có ít nhất một đơn vị phụ trách/,
-    );
+    const updated = await updateUser(clerk.id, { businessUnitIds: [], customerIds: [] });
+    assert.deepEqual(updated.customerIds, []);
+    assert.deepEqual(updated.businessUnitIds, []);
   });
 
   test('accepts current customer scope for CLERK and ACCOUNTANT tokens', async () => {
+    // CUS customer links can no longer be created through the user API, so
+    // the legacy linked-clerk row is inserted at the DB level purely to keep
+    // exercising the middleware token-vs-DB equality path.
+    const [legacyClerk] = await db.insert(s.users).values({
+      username: `legacy-linked-clerk-${suffix}`,
+      fullName: 'Legacy linked clerk',
+      passwordHash: await bcrypt.hash('admin123', 10),
+      role: Role.CUS,
+      status: 'ACTIVE',
+      customerId,
+    }).returning();
+    legacyClerkUserId = legacyClerk.id;
+    await db.insert(s.userCustomerLinks).values({ userId: legacyClerk.id, customerId });
+
     const clerkToken = jwt.sign({
-      userId: clerkUserId,
-      username: `scoped-clerk-${suffix}`,
+      userId: legacyClerk.id,
+      username: legacyClerk.username,
       role: Role.CUS,
       customerId,
       customerIds: [customerId],
@@ -409,10 +424,10 @@ describe('customer account linkage', () => {
   });
 
   test('tokens issued by the login route pass the first authenticated request for scoped roles', async () => {
-    for (const identifier of [
-      `scoped-clerk-${suffix}`,
-      `accountant-scoped-${suffix}`,
-    ]) {
+    for (const [identifier, userId] of [
+      [`legacy-linked-clerk-${suffix}`, legacyClerkUserId],
+      [`accountant-scoped-${suffix}`, accountantUserId],
+    ] as const) {
       const login = await fetch(`${baseUrl}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -425,23 +440,24 @@ describe('customer account linkage', () => {
         headers: { Authorization: `Bearer ${loginBody.token}` },
       });
       assert.equal(me.status, 200, `${identifier} first authenticated request should succeed`);
+      assert.ok(userId > 0);
     }
   });
 
   test('rejects stale CLERK scope through API and asset query-token authentication', async () => {
     const token = jwt.sign({
-      userId: clerkUserId,
-      username: `scoped-clerk-${suffix}`,
+      userId: legacyClerkUserId,
+      username: `legacy-linked-clerk-${suffix}`,
       role: Role.CUS,
       customerId,
       customerIds: [customerId],
     }, config.jwtSecret);
 
-    await updateUser(clerkUserId, {
-      customerIds: [secondaryCustomerId],
-      businessUnitIds: [businessUnitId],
-      assignmentAdminOnly: false,
-    });
+    // Simulate an assignment change directly at the DB level (the user API no
+    // longer manages clerk links): after the link set changes, the old token
+    // must fail the middleware equality check.
+    await db.delete(s.userCustomerLinks).where(eq(s.userCustomerLinks.userId, legacyClerkUserId));
+    await db.insert(s.userCustomerLinks).values({ userId: legacyClerkUserId, customerId: secondaryCustomerId });
     for (const url of [
       `${baseUrl}/protected`,
       `${baseUrl}/protected-asset?token=${encodeURIComponent(token)}`,
@@ -451,13 +467,7 @@ describe('customer account linkage', () => {
       });
       assert.equal(response.status, 401);
     }
-    await updateUser(clerkUserId, {
-      customerIds: [customerId],
-      businessUnitIds: [businessUnitId],
-      assignmentAdminOnly: false,
-    });
   });
-
   test('rejects a scoped ACCOUNTANT token immediately after its customer scope changes', async () => {
     const token = jwt.sign({
       userId: accountantUserId,
@@ -478,16 +488,14 @@ describe('customer account linkage', () => {
   });
 
   test('hides assignment metadata from accountant-scoped user listing', async () => {
-    const scopedClerk = clerkUserId
-      ? await authenticate(`scoped-clerk-${suffix}`, 'admin123')
+    const scopedClerk = legacyClerkUserId
+      ? { id: legacyClerkUserId }
       : await createUser({
         username: `scoped-clerk-list-${suffix}`,
         password: 'admin123',
         role: Role.CUS,
-        customerIds: [customerId],
-        businessUnitIds: [businessUnitId],
       });
-    if (!clerkUserId) clerkUserId = scopedClerk.id;
+    if (!legacyClerkUserId) clerkUserId = scopedClerk.id;
 
     const users = await listUsers(Role.ACCOUNTANT);
     const listed = users.items.find((user) => user.id === scopedClerk.id);
@@ -495,128 +503,6 @@ describe('customer account linkage', () => {
     assert.deepEqual(listed?.customerIds, []);
     assert.deepEqual(listed?.businessUnitIds, []);
     assert.deepEqual(listed?.shipmentIds, []);
-  });
-
-  test('unit deactivation preserves the ACTIVE clerk assignment invariant', async () => {
-    const [primaryUnit, alternativeUnit] = await db.insert(s.businessUnits).values([
-      {
-        code: `CUL-P-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
-        name: `Clerk lifecycle primary ${suffix}`,
-        status: 'ACTIVE',
-      },
-      {
-        code: `CUL-A-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
-        name: `Clerk lifecycle alternative ${suffix}`,
-        status: 'ACTIVE',
-      },
-    ]).returning();
-    const clerk = await createUser({
-      username: `clerk-unit-lifecycle-${suffix}`,
-      password: 'admin123',
-      role: Role.CUS,
-      customerIds: [customerId],
-      businessUnitIds: [primaryUnit.id],
-    });
-
-    try {
-      await assert.rejects(
-        updateBusinessUnit(primaryUnit.id, { status: 'INACTIVE' }),
-        /đơn vị hoạt động duy nhất/,
-      );
-      const [stillActive] = await db.select({ status: s.businessUnits.status })
-        .from(s.businessUnits)
-        .where(eq(s.businessUnits.id, primaryUnit.id));
-      assert.equal(stillActive.status, 'ACTIVE');
-
-      await updateUser(clerk.id, {
-        businessUnitIds: [primaryUnit.id, alternativeUnit.id],
-      });
-      const deactivated = await updateBusinessUnit(primaryUnit.id, { status: 'INACTIVE' });
-      assert.equal(deactivated.status, 'INACTIVE');
-      const refreshed = await authenticate(`clerk-unit-lifecycle-${suffix}`, 'admin123');
-      assert.deepEqual(refreshed.businessUnitIds, [alternativeUnit.id]);
-
-      await updateBusinessUnit(primaryUnit.id, { status: 'ACTIVE' });
-      const race = await Promise.allSettled([
-        updateUser(clerk.id, { businessUnitIds: [primaryUnit.id] }),
-        updateBusinessUnit(primaryUnit.id, { status: 'INACTIVE' }),
-      ]);
-      assert.equal(
-        race.filter((result) => result.status === 'fulfilled').length,
-        1,
-        'assignment and deactivation serialize so exactly one conflicting operation commits',
-      );
-      const afterRace = await authenticate(`clerk-unit-lifecycle-${suffix}`, 'admin123');
-      assert.ok(afterRace.businessUnitIds.length > 0, 'ACTIVE clerk retains at least one ACTIVE unit');
-    } finally {
-      await db.delete(s.users).where(eq(s.users.id, clerk.id));
-      await db.delete(s.businessUnits).where(eq(s.businessUnits.id, primaryUnit.id));
-      await db.delete(s.businessUnits).where(eq(s.businessUnits.id, alternativeUnit.id));
-    }
-  });
-
-  test('concurrent deactivation of different units preserves an ACTIVE clerk unit', async () => {
-    const units = await db.insert(s.businessUnits).values([
-      {
-        code: `CUL-R1-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
-        name: `Clerk race unit one ${suffix}`,
-        status: 'ACTIVE',
-      },
-      {
-        code: `CUL-R2-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
-        name: `Clerk race unit two ${suffix}`,
-        status: 'ACTIVE',
-      },
-    ]).returning();
-    const unitIds = units.map((unit) => unit.id);
-    const clerk = await createUser({
-      username: `clerk-unit-race-${suffix}`,
-      password: 'admin123',
-      role: Role.CUS,
-      customerIds: [customerId],
-      businessUnitIds: unitIds,
-    });
-
-    try {
-      const outcomes: Array<{
-        winners: number;
-        loserStatusCodes: unknown[];
-        activeUnits: number;
-      }> = [];
-      for (let trial = 0; trial < 20; trial += 1) {
-        await db.update(s.businessUnits)
-          .set({ status: 'ACTIVE' })
-          .where(inArray(s.businessUnits.id, unitIds));
-        const results = await Promise.allSettled(
-          unitIds.map((unitId) => updateBusinessUnit(unitId, { status: 'INACTIVE' })),
-        );
-        const activeUnits = await db.select({
-          id: s.businessUnits.id,
-          status: s.businessUnits.status,
-        })
-          .from(s.businessUnits)
-          .where(inArray(s.businessUnits.id, unitIds));
-        outcomes.push({
-          winners: results.filter((result) => result.status === 'fulfilled').length,
-          loserStatusCodes: results
-            .filter((result) => result.status === 'rejected')
-            .map((result) => result.reason?.statusCode),
-          activeUnits: activeUnits.filter((unit) => unit.status === 'ACTIVE').length,
-        });
-      }
-      assert.ok(
-        outcomes.every((outcome) => (
-          outcome.winners === 1
-          && outcome.loserStatusCodes.length === 1
-          && outcome.loserStatusCodes[0] === 409
-          && outcome.activeUnits >= 1
-        )),
-        `each trial must have one 409 loser and an active unit: ${JSON.stringify(outcomes)}`,
-      );
-    } finally {
-      await db.delete(s.users).where(eq(s.users.id, clerk.id));
-      await db.delete(s.businessUnits).where(inArray(s.businessUnits.id, unitIds));
-    }
   });
 
   test('rejects clearing links from an ACTIVE customer account', async () => {

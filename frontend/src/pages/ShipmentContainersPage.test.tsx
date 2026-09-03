@@ -176,8 +176,12 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     ]);
     expect(rowWarning.querySelector('.shipment-container-ledger__missing-fields-text')).toBeTruthy();
     expect(rowWarning.textContent).not.toContain(',');
-    expect(missingDateIdentityCell.contains(rowWarning)).toBe(true);
-    expect(missingDateIdentityCell.querySelector('.shipment-container-ledger__multiline')?.lastElementChild).toBe(rowWarning);
+    // The missing-fields warning lives in the multiline Trạng thái stack
+    // (badge + warning), not in the identity cell.
+    const missingDateStatusCell = unassignedRow!.querySelector('td[data-label="Trạng thái"]');
+    expect(missingDateStatusCell?.contains(rowWarning)).toBe(true);
+    expect(missingDateStatusCell?.querySelector('.shipment-container-ledger__multiline')?.lastElementChild).toBe(rowWarning);
+    expect(missingDateIdentityCell.contains(rowWarning)).toBe(false);
     expect(identityCell.querySelector('[data-icon]')).toBeNull();
     expect(screen.queryByText('Sửa')).toBeNull();
     expect(screen.getByText((_, element) => element?.classList.contains('ds-pagination__summary') === true && element.textContent === 'Trang này có 2 / 2 container phù hợp')).toBeTruthy();

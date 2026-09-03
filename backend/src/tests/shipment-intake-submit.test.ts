@@ -458,7 +458,7 @@ describe('shipment intake submission', () => {
     assert.equal(handoffs.length, 1);
   });
 
-  test('denies ACCOUNTANT and an unscoped CLERK without mutation', async () => {
+  test('denies ACCOUNTANT but allows an unscoped CLERK to submit for dispatch', async () => {
     const accountant = await actor(Role.ACCOUNTANT);
     const clerk = await actor(Role.CUS);
     const ref = await references();
@@ -466,7 +466,8 @@ describe('shipment intake submission', () => {
       customerId: ref.customer.id,
       routeId: ref.route.id,
       cargoMode: 'LCL',
-      bookingRef: `BOOK-LCL-${suffix}`,
+      tradeDirection: 'IMPORT',
+      blNumber: `BL-LCL-DENY-${suffix}`,
       operationalSiteId: ref.site.id,
       pickupWarehouseSiteId: ref.warehouse.id,
       packageType: 'Pallet',
@@ -475,27 +476,34 @@ describe('shipment intake submission', () => {
       cargoVolumeCbm: '1.5',
       expectedDeliveryDate: '2026-08-03',
       shipmentCode: `INTAKE-LCL-${suffix}`,
+      status: 'READY_FOR_DISPATCH',
+      closingAt: new Date('2026-08-05T08:00:00.000Z'),
     }).returning();
     shipmentIds.push(shipment.id);
 
-    for (const [currentActor, expectedStatus, label] of [
-      [accountant, 403, 'accountant'],
-      [clerk, 404, 'clerk'],
-    ] as const) {
-      const key = `submit-${label}-${suffix}`;
-      idempotencyKeys.push(key);
-      await assert.rejects(
-        submitShipmentForDispatch({
-          shipmentId: shipment.id,
-          expectedVersion: shipment.version,
-          idempotencyKey: key,
-          actor: currentActor,
-        }),
-        (error: unknown) => error instanceof ApiError && error.statusCode === expectedStatus,
-      );
-    }
-    const [unchanged] = await db.select().from(s.shipments).where(eq(s.shipments.id, shipment.id));
-    assert.equal(unchanged.status, 'PENDING_DATE');
+    // ACCOUNTANT stays blocked by the role gate (403 fires before readiness checks).
+    const accountantKey = `submit-accountant-${suffix}`;
+    idempotencyKeys.push(accountantKey);
+    await assert.rejects(
+      submitShipmentForDispatch({
+        shipmentId: shipment.id,
+        expectedVersion: shipment.version,
+        idempotencyKey: accountantKey,
+        actor: accountant,
+      }),
+      (error: unknown) => error instanceof ApiError && error.statusCode === 403,
+    );
+
+    // CLERK has no assignment scope anymore — submit succeeds like any staff role.
+    const clerkKey = `submit-clerk-${suffix}`;
+    idempotencyKeys.push(clerkKey);
+    const clerkResult = await submitShipmentForDispatch({
+      shipmentId: shipment.id,
+      expectedVersion: shipment.version,
+      idempotencyKey: clerkKey,
+      actor: clerk,
+    });
+    assert.ok(clerkResult.result.shipment, 'clerk submit succeeds');
   });
 });
 

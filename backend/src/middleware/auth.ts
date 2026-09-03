@@ -49,11 +49,12 @@ function sameCustomerScope(currentIds: number[], tokenIds: number[], payload: Au
   return payload.customerIds != null && tokenIds.length === currentIds.length && tokenIds.every((id, idx) => id === currentIds[idx]);
 }
 
-// Only customer-portal accounts carry the customer link set on their token.
-// Staff roles (CUS, ACCOUNTANT, ...) are not customer-scoped — every staff user
-// sees the full customer/shipment catalogs; assignments are not enforced.
+// CUSTOMER portal accounts, plus CUS/ACCOUNTANT staff whose link sets are
+// carried as inert token metadata: no query path enforces staff scopes
+// anymore (clerk scope was removed), so the links neither restrict nor
+// invalidate sessions unless admin assignments actually change.
 function roleUsesCustomerScope(role: string): boolean {
-  return role === Role.CUSTOMER;
+  return role === Role.CUSTOMER || role === Role.CUS || role === Role.ACCOUNTANT;
 }
 
 export interface AuthUser {
@@ -69,9 +70,10 @@ export interface AuthUser {
    */
   customerId?: number | null;
   /**
-   * Full customer link set for CUSTOMER (portal) users. Used by scoped portal
-   * routes and token revalidation when assignments change. Staff roles are not
-   * customer-scoped; their tokens carry no customer link set.
+   * Full customer link set for CUSTOMER (portal) accounts — enforced by the
+   * portal row-scope. For CUS/ACCOUNTANT staff the set is inert metadata:
+   * no query path enforces staff scopes anymore; it only feeds the token
+   * revalidation check that forces re-login when admin assignments change.
    */
   customerIds?: number[];
 }

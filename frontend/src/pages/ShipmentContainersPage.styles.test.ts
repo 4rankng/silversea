@@ -83,8 +83,10 @@ describe('shipment detail workboard styling', () => {
 
   it('uses one compact, wrapping type scale for every dispatch status and keeps the status column narrow', () => {
     expect(ledgerSource).toContain('shipment-container-ledger__dispatch-badge--${row.dispatchStatus.toLowerCase()}');
-    expect(css).toMatch(/\.shipment-container-ledger__col--notes\s*\{[^}]*width:\s*14%;/);
-    expect(css).toMatch(/\.shipment-container-ledger__col--status\s*\{[^}]*width:\s*7%;/);
+    // The multiline status cell (badge + missing-fields warning) needs a wider
+    // column than the old single-badge 7%; notes gave up 2% to fund it.
+    expect(css).toMatch(/\.shipment-container-ledger__col--notes\s*\{[^}]*width:\s*12%;/);
+    expect(css).toMatch(/\.shipment-container-ledger__col--status\s*\{[^}]*width:\s*12%;/);
     expect(css).toMatch(/\.shipment-container-ledger__dispatch-badge\s*\{[^}]*max-width:\s*100%;[^}]*font-size:\s*11px;[^}]*line-height:\s*1\.4;[^}]*white-space:\s*normal;/);
   });
 
