@@ -93,7 +93,7 @@ export function TripHeader({
           </button>
         )}
         {hasOverflowActions && (
-          <details className="header-overflow">
+          <details className="header-overflow" data-dropdown>
             <summary className="btn btn--ghost" aria-label="Mở các thao tác khác">
               <MoreHorizontal size={18} />
             </summary>

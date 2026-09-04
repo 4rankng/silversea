@@ -5,6 +5,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { BRAND } from '../../brand';
 import { routes, titleForPath } from '../../lib/routes';
 import { CustomerPortalScopeProvider, useCustomerPortalScope } from './CustomerPortalScope';
+import { useDropdownDismiss } from '../../hooks/useDropdownDismiss';
 import { UuiSelectField } from '../../design-system';
 import './CustomerPortalLayout.css';
 
@@ -29,6 +30,9 @@ function CustomerPortalLayoutBody({ children }: { children: React.ReactNode }) {
   const [accountOpen, setAccountOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const accountButtonRef = useRef<HTMLButtonElement>(null);
+  // The account popover joins the global click-away / Escape dismissal layer
+  // (the nav drawer keeps its own backdrop dismissal).
+  useDropdownDismiss(accountOpen, () => setAccountOpen(false));
 
   useEffect(() => {
     if (!menuOpen && !accountOpen) return;
@@ -96,6 +100,7 @@ function CustomerPortalLayoutBody({ children }: { children: React.ReactNode }) {
           ref={accountButtonRef}
           type="button"
           className="customer-shell__icon-button customer-shell__account-button"
+          data-dropdown-root={accountOpen ? '' : undefined}
           aria-label="Mở menu tài khoản"
           aria-expanded={accountOpen}
           aria-controls="customer-account-popover"
@@ -178,7 +183,7 @@ function CustomerPortalLayoutBody({ children }: { children: React.ReactNode }) {
       </div>
 
       {accountOpen && (
-        <div id="customer-account-popover" className="customer-shell__account-popover">
+        <div id="customer-account-popover" className="customer-shell__account-popover" data-dropdown-root>
           <strong>{identity}</strong>
           <span>{user?.email || 'Tài khoản khách hàng'}</span>
           <button type="button" onClick={handleLogout}><LogOut size={17} /> Đăng xuất</button>

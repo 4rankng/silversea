@@ -14,6 +14,7 @@ import { ROLE_LABELS } from '@tingting/shared';
 import type { Role } from '@tingting/shared';
 import type { SidebarProps, SectionName } from './types';
 import { useSidebarAnimations } from '../../hooks/useSidebarAnimations';
+import { useDropdownDismiss } from '../../hooks/useDropdownDismiss';
 import { BRAND } from '../../brand';
 
 function getRoleLabel(role: Role): string {
@@ -47,6 +48,8 @@ export function Sidebar({
 }: SidebarProps) {
   const animRef = useSidebarAnimations();
   const asideRef = useRef<HTMLElement>(null);
+  // The footer user menu joins the global click-away / Escape dismissal layer.
+  useDropdownDismiss(userMenuOpen, onCloseUserMenu);
 
   useEffect(() => {
     if (!isMobileViewport || !sidebarOpen) return;
@@ -231,7 +234,7 @@ export function Sidebar({
           {navSections.map(section => renderNavSection(section.label, section.key))}
         </nav>
 
-        <div className="sidebar-footer">
+        <div className="sidebar-footer" data-dropdown-root={userMenuOpen ? '' : undefined}>
           <button className="sidebar-user" onClick={onToggleUserMenu} aria-expanded={userMenuOpen} aria-label="Menu người dùng">
             <div className="avatar">
               <User size={18} />

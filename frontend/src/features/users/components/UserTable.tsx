@@ -4,7 +4,8 @@ import {
   ArrowUpDown, ArrowUp, ArrowDown, Building2,
   Users, ShieldCheck, UserCog,
 } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useDropdownDismiss } from '../../../hooks/useDropdownDismiss';
 import { Role, ROLE_LABELS, ROLE_PILL, FilterKey } from '../utils';
 import type { UserRow } from '../utils';
 import { StatusStrip, StatusSwatch } from '../../../components/shared/StatusStrip';
@@ -459,14 +460,8 @@ function MobileCardList({ filtered, canManage, canDelete, canEditDriversOnly, tr
   onDelete: (id: number) => void;
 }) {
   const [activeMenuId, setActiveMenuId] = useState<number | null>(null);
-
-  // Close dropdown on click outside
-  useEffect(() => {
-    if (activeMenuId === null) return;
-    const handleClose = () => setActiveMenuId(null);
-    document.addEventListener('click', handleClose);
-    return () => document.removeEventListener('click', handleClose);
-  }, [activeMenuId]);
+  // The kebab menu joins the global click-away / Escape dismissal layer.
+  useDropdownDismiss(activeMenuId !== null, () => setActiveMenuId(null));
 
   return (
     <div className="mobile-only">
@@ -517,7 +512,7 @@ function MobileCardList({ filtered, canManage, canDelete, canEditDriversOnly, tr
                 </div>
 
                 {editable && canManage && canDelete && (
-                  <div className="users-mobile-card__menu">
+                  <div className="users-mobile-card__menu" data-dropdown-root={activeMenuId === u.id ? '' : undefined}>
                     <button
                       className="kebab-btn"
                       aria-label={`Mở thao tác cho ${u.fullName || u.username || 'tài khoản'}`}
