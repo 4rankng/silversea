@@ -67,7 +67,9 @@ async function openEditModal() {
   // menuOpenId matches, so the first match is the mobile one in jsdom.
   expect(await screen.findAllByText('Biển Bạc')).toBeTruthy();
   fireEvent.click(await screen.findByText('Sửa'));
-  expect(await screen.findByText(/Sửa khách hàng — Biển Bạc/)).toBeTruthy();
+  // New polished header: 'Sửa khách hàng' is the eyebrow above the title.
+  expect(await screen.findByText('Sửa khách hàng')).toBeTruthy();
+  expect(screen.getAllByText('Biển Bạc').length).toBeGreaterThan(0);
 }
 
 async function saveFromModal() {
@@ -104,7 +106,7 @@ describe('CustomersPage mutation error surfacing', () => {
 
     // The modal must stay open so the user can retry or cancel — the error is
     // NOT routed to the table slot that sits behind the modal overlay.
-    expect(screen.getByText(/Sửa khách hàng — Biển Bạc/)).toBeTruthy();
+    expect(screen.getByText('Sửa khách hàng')).toBeTruthy();
   });
 
   it('toasts non-409 mutation errors verbatim without the governance hint', async () => {
@@ -120,6 +122,6 @@ describe('CustomersPage mutation error surfacing', () => {
       message: 'MST đã tồn tại',
       duration: 7000,
     });
-    expect(screen.getByText(/Sửa khách hàng — Biển Bạc/)).toBeTruthy();
+    expect(screen.getByText('Sửa khách hàng')).toBeTruthy();
   });
 });
