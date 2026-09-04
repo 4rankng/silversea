@@ -337,9 +337,11 @@ const PORT_NAME_ALIASES: Record<string, string> = {
 export async function seedProdPorts(): Promise<void> {
   console.log(`Seeding prod ports/yards (${prodPorts.length})...`);
   const sheetNames = new Set(prodPorts.map((p) => fold(p.name)));
-  const existingPorts = await db.select({ id: s.ports.id, code: s.ports.code, name: s.ports.name })
-    .from(s.ports)
-    .where(isNull(s.ports.deletedAt));
+  // Include soft-deleted rows: ports.code is a FULL unique index, so a
+  // soft-deleted row still owns its code. Matching one reactivates it under
+  // the sheet's identity instead of crashing on the code collision.
+  const existingPorts = await db.select({ id: s.ports.id, code: s.ports.code, name: s.ports.name, deletedAt: s.ports.deletedAt })
+    .from(s.ports);
   for (const p of prodPorts) {
     // Match by code first, then by (aliased) folded name — the canonical
     // seeder (seed-ports.ts, July extract) may own the row under a different
@@ -382,21 +384,24 @@ export async function seedProdPorts(): Promise<void> {
         && existingPorts.some((row) => row.id !== target.id && row.code === p.code);
       const newCode = codeCollision ? target.code : (p.code ?? target.code);
       await db.update(s.ports)
-        .set({ ...enrichValues, name: p.name, code: newCode, updatedAt: new Date() })
+        .set({ ...enrichValues, name: p.name, code: newCode, deletedAt: null, updatedAt: new Date() })
         .where(eq(s.ports.id, target.id));
-      console.log(`  port: ${p.name}${fold(target.name) !== fold(p.name) ? ` (was: ${target.name})` : ''}`);
+      console.log(`  port: ${p.name}${fold(target.name) !== fold(p.name) ? ` (was: ${target.name})` : ''}${target.deletedAt != null ? ' (reactivated)' : ''}`);
       target.name = p.name;
       target.code = newCode;
+      target.deletedAt = null;
     } else {
       const [created] = await db.insert(s.ports)
         .values({ ...enrichValues, name: p.name, code: p.code ?? undefined })
-        .returning({ id: s.ports.id, code: s.ports.code, name: s.ports.name });
+        .returning({ id: s.ports.id, code: s.ports.code, name: s.ports.name, deletedAt: s.ports.deletedAt });
       existingPorts.push(created!);
     }
   }
   // Hard-delete ports the sheet dropped (e.g. Cảng Hoàng Diệu) — guarded by
-  // lift-pricing references so priced ports are never orphaned.
+  // lift-pricing references so priced ports are never orphaned. Soft-deleted
+  // rows stay deleted (they may still own their code in the unique index).
   for (const row of existingPorts) {
+    if (row.deletedAt != null) continue;
     const keptBySheet = sheetNames.has(fold(row.name)) || Object.values(PORT_NAME_ALIASES).includes(fold(row.name));
     if (keptBySheet) continue;
     const [priced] = await db.select({ n: count() })
