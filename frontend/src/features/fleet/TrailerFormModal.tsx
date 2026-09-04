@@ -56,12 +56,15 @@ export function TrailerFormModal({ saving, item, onsave, oncancel, isOpen }: {
   return (
     <Modal
       isOpen={isOpen}
-      title={item ? `Sửa rơ-moóc ${item.licensePlate}` : 'Thêm rơ-moóc'}
+      title={item ? item.licensePlate : 'Thêm rơ-moóc'}
+      subtitle={item ? 'Sửa rơ-moóc' : undefined}
+      polished
       onClose={oncancel}
       onConfirm={handleSave}
       maxWidth={600}
       footer={
         <div className="fleet-form-actions">
+          <p className="modal__hint"><span className="modal__req-mark">*</span> Trường bắt buộc</p>
           <button type="button" className="btn btn--secondary btn--sm" onClick={oncancel}>
             <X size={14} /> Hủy
           </button>

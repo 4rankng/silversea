@@ -19,8 +19,9 @@
   opacity: 1;
 }
 .confirm-box {
-  background: var(--surface, #fff);
-  border: 1px solid var(--line);
+  position: relative;
+  background: linear-gradient(160deg, var(--surface, #fff) 0%, var(--surface-2, #f8faf9) 55%);
+  border: 1px solid color-mix(in srgb, var(--accent) 14%, var(--line));
   border-radius: var(--r);
   width: 100%;
   max-width: 400px;
@@ -28,9 +29,35 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
+  box-shadow: 0 20px 50px -20px rgba(16, 23, 42, .18);
   /* anime.js handles opacity/scale animation */
   opacity: 1;
   transform: none;
+}
+/* Corner accent decorations — guideline visual language */
+.confirm-box::before,
+.confirm-box::after {
+  content: "";
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid var(--accent);
+  opacity: .55;
+  pointer-events: none;
+}
+.confirm-box::before {
+  top: -1px;
+  left: -1px;
+  border-right: none;
+  border-bottom: none;
+  border-radius: var(--r) 0 0 0;
+}
+.confirm-box::after {
+  top: -1px;
+  right: -1px;
+  border-left: none;
+  border-bottom: none;
+  border-radius: 0 var(--r) 0 0;
 }
 .confirm-body {
   display: flex;

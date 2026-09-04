@@ -449,6 +449,25 @@ export function FormGroup({ label, helpText, error, children, style }: FormGroup
   );
 }
 
+/* ─── Modal chips (status badges for polished dialogs) ──────────────────── */
+
+export function ModalChip({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+  return <span className={`modal__chip ${className}`}>{children}</span>;
+}
+
+export function ModalChipLive({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="modal__chip modal__chip--live">
+      <span className="modal__chip-dot" />
+      {children}
+    </span>
+  );
+}
+
+export function ModalChipGhost({ children }: { children: React.ReactNode }) {
+  return <span className="modal__chip modal__chip--ghost">{children}</span>;
+}
+
 /* ─── Modal ─────────────────────────────────────────────────────────────── */
 
 interface ModalProps {
@@ -459,9 +478,15 @@ interface ModalProps {
   footer?: React.ReactNode;
   onConfirm?: () => void;
   maxWidth?: number | string;
+  /** Eyebrow text displayed above the title (polished variant). */
+  subtitle?: string;
+  /** Right-aligned slot in the header — typically status chips. */
+  headerRight?: React.ReactNode;
+  /** Enable the polished visual treatment (corner accents, gradient, eyebrow). */
+  polished?: boolean;
 }
 
-export function Modal({ isOpen, title, onClose, children, footer, onConfirm, maxWidth = 480 }: ModalProps) {
+export function Modal({ isOpen, title, onClose, children, footer, onConfirm, maxWidth = 480, subtitle, headerRight, polished }: ModalProps) {
   const titleId = useId();
   const portalTarget = usePortalTarget();
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -483,11 +508,12 @@ export function Modal({ isOpen, title, onClose, children, footer, onConfirm, max
   // Forward maxWidth via CSS variable so mobile overrides (max-width: 100%) win.
   const cssVars = { '--modal-max-w': typeof maxWidth === 'number' ? `${maxWidth}px` : maxWidth } as React.CSSProperties;
   const densityClass = hasOperationalDensity(currentPathname()) ? ' modal--operational-density' : '';
+  const polishedClass = polished ? ' modal--polished' : '';
   return createPortal(
     visible ? (
       <div
         ref={overlayRef}
-        className={`modal${densityClass}`}
+        className={`modal${densityClass}${polishedClass}`}
         onClick={handleClose}
         role="dialog"
         aria-modal="true"
@@ -500,7 +526,11 @@ export function Modal({ isOpen, title, onClose, children, footer, onConfirm, max
           onClick={(e) => e.stopPropagation()}
         >
           <div className="modal__head">
-            <h3 id={titleId} className="modal__title">{title}</h3>
+            <div>
+              {subtitle && <p className="modal__eyebrow">{subtitle}</p>}
+              <h3 id={titleId} className="modal__title">{title}</h3>
+            </div>
+            {headerRight && <div className="modal__head-right">{headerRight}</div>}
             <Tooltip label="Đóng (Esc)" side="bottom">
               <button
                 className="btn btn--ghost btn--icon btn--sm modal__close"

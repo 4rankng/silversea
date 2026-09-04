@@ -29,23 +29,31 @@ describe('SupplierListPage dispatch worksheet styling', () => {
     expect(css).toMatch(/__cell--linked > span[\s\S]*?white-space:\s*normal !important;/);
   });
 
-  it('uses the shared paired-field modal grid (CustomersPage form contract)', () => {
+  it('builds the edit modal on the untitled-ui kit with sectioned fields', () => {
     const page = readFileSync(resolve(process.cwd(), 'src/pages/SupplierListPage.tsx'), 'utf8');
 
     expect(page).toContain('maxWidth={960}');
-    // Auto-fit paired-field grid — the same contract as CustomersPage's
-    // modal: fields pair up on wide canvases and stack one-per-row on narrow
-    // ones without a bespoke per-page breakpoint ladder.
-    expect(page).toMatch(/const pairedFieldGridStyle = \{[\s\S]*?repeat\(auto-fit, minmax\(220px, 1fr\)\)/);
-    expect(page).toMatch(/const pairedFieldGridStyle = \{[\s\S]*?gap: 12,/);
-    expect((page.match(/<div style=\{pairedFieldGridStyle\}>/g) ?? []).length).toBe(4);
-    // Shared field skin + the formStyles label contract, not page-local CSS.
-    expect(page).toContain("import { labelStyle } from '../utils/formStyles';");
-    expect(page).toContain('className="field"');
-    expect(page).toContain('className="input"');
+    // Untitled-UI react-aria inputs (label + icon live on the component), not
+    // the raw .field/.input skin.
+    expect(page).toContain("import { Input } from '../components/untitled-ui/base/input/input';");
+    expect(page).toContain("import { TextArea } from '../components/untitled-ui/base/textarea/textarea';");
+    expect(page).not.toContain('pairedFieldGridStyle');
+    expect(page).not.toContain("from '../utils/formStyles'");
+    // Sectioned form: icon-chip headings group the profile, payment-term,
+    // and note fields on one canvas.
+    expect((page.match(/<FormSectionHeading icon=\{[A-Za-z2]+\}>/g) ?? []).length).toBe(3);
+    expect(page).toContain('Thông tin nhà xe');
+    expect(page).toContain('Điều khoản thanh toán');
+    expect(page).toContain('Ghi chú');
+    // The required name gates the submit; fields pair up on wide canvases via
+    // the shared responsive grid instead of a bespoke breakpoint ladder.
+    expect(page).toContain('isRequired');
+    expect(page).toContain('grid grid-cols-1 gap-4 sm:grid-cols-2');
     expect(page).toContain('placeholder="Ví dụ: 0312…"');
     expect(page).toContain('placeholder="Ví dụ: 15"');
-    expect(page).toContain('<textarea id="supp-note"');
+    expect(page).toContain('placeholder="Ví dụ: 30"');
+    // Footer keeps the shared button contract.
     expect(page).toContain('btn btn--secondary btn--sm');
+    expect(page).toContain('btn btn--primary btn--sm');
   });
 });

@@ -49,12 +49,15 @@ export function DriverFormModal({ saving, item, onsave, oncancel, isOpen }: {
   return (
     <Modal
       isOpen={isOpen}
-      title={item ? `Sửa lái xe ${item.name}` : 'Thêm lái xe'}
+      title={item ? item.name : 'Thêm lái xe'}
+      subtitle={item ? 'Sửa lái xe' : undefined}
+      polished
       onClose={oncancel}
       onConfirm={handleSave}
       maxWidth={620}
       footer={
         <div className="fleet-form-actions">
+          <p className="modal__hint"><span className="modal__req-mark">*</span> Trường bắt buộc</p>
           <button className="btn btn--secondary btn--sm" onClick={oncancel}>
             <X size={14} /> Hủy
           </button>

@@ -30,13 +30,19 @@
 
 /* wireframe variants */
 .btn--primary {
-  background: var(--accent-2);
+  background: linear-gradient(180deg, var(--accent), var(--accent-2));
   color: var(--fg-on-brand);
   border-color: var(--accent-2);
+  box-shadow: 0 10px 22px -10px color-mix(in srgb, var(--accent) 50%, transparent);
 }
 .btn--primary:hover {
-  background: var(--accent-ink);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 90%, white), var(--accent-ink));
   border-color: var(--accent-ink);
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px -10px color-mix(in srgb, var(--accent) 60%, transparent);
+}
+.btn--primary:active {
+  transform: translateY(0);
 }
 .d-btn-primary:hover:not(:disabled) {
   background-color: var(--brand-hover);

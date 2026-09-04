@@ -82,12 +82,15 @@ export function TruckFormModal({
   return (
     <Modal
       isOpen={isOpen}
-      title={item ? `Sửa xe ${item.licensePlate}` : "Thêm xe đầu kéo"}
+      title={item ? item.licensePlate : "Thêm xe đầu kéo"}
+      subtitle={item ? 'Sửa xe' : undefined}
+      polished
       onClose={oncancel}
       onConfirm={handleSave}
       maxWidth={920}
       footer={
         <div className="fleet-form-actions">
+          <p className="modal__hint"><span className="modal__req-mark">*</span> Trường bắt buộc</p>
           <button className="btn btn--secondary btn--sm" onClick={oncancel}>
             <X size={14} /> Hủy
           </button>

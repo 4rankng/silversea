@@ -1,16 +1,19 @@
-import { useState, useEffect, useMemo, type CSSProperties } from 'react';
+import { useState, useEffect, useMemo, type CSSProperties, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Users, UserCheck, Plus, Download, Search,
   MoreHorizontal, Pencil, Trash2, X, Save, Loader2,
+  Building2, Hash, User, Phone, Landmark, Clock, FileText,
+  type LucideIcon,
 } from 'lucide-react';
 import { useConfirm } from '../components/UI';
 import { api } from '../lib/api';
-import { labelStyle } from '../utils/formStyles';
+import { Input } from '../components/untitled-ui/base/input/input';
+import { TextArea } from '../components/untitled-ui/base/textarea/textarea';
 import { downloadCSV } from '../lib/csv';
 import { nextTableSort, readTableSort } from '../lib/table-sort';
 import { SortHeader } from '../components/shared/SortHeader';
-import { PageHeader, KPI, StatusPill, Modal } from '../components/UI';
+import { PageHeader, KPI, StatusPill, Modal, ModalChipLive } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { EmptyState, Pagination, useTableQueryState } from '../design-system';
 import type { Supplier } from '@tingting/shared';
@@ -45,11 +48,19 @@ const STATUS_LABELS: Record<string, string> = {
   INACTIVE: 'Ngừng hoạt động',
 };
 
-const pairedFieldGridStyle = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-  gap: 12,
-} as const;
+/** Section caption used to group the supplier form fields — an icon chip, an
+ * uppercase label, and a hairline divider that fills the remaining width. */
+function FormSectionHeading({ icon: Icon, children }: { icon: LucideIcon; children: ReactNode }) {
+  return (
+    <div className="mb-3 flex items-center gap-2">
+      <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-brand-50 text-fg-brand-secondary">
+        <Icon className="size-3.5" strokeWidth={2.25} />
+      </span>
+      <h4 className="whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-tertiary">{children}</h4>
+      <div className="h-px flex-1 bg-border-secondary" />
+    </div>
+  );
+}
 
 export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen }: {
   item?: Supplier; saving: boolean; onsave: (d: Record<string, unknown>) => void; oncancel: () => void; isOpen: boolean;
@@ -94,12 +105,22 @@ export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen }: {
   return (
     <Modal
       isOpen={isOpen}
-      title={item ? `Sửa nhà cung cấp — ${item.name}` : 'Thêm nhà cung cấp'}
+      title={item ? item.name : 'Thêm nhà cung cấp'}
+      subtitle={item ? 'Sửa nhà cung cấp' : undefined}
+      polished
+      headerRight={
+        item ? (
+          <>
+            <ModalChipLive>Đang hoạt động</ModalChipLive>
+          </>
+        ) : undefined
+      }
       onClose={oncancel}
       onConfirm={handleSave}
       maxWidth={960}
       footer={
         <>
+          <p className="modal__hint"><span className="modal__req-mark">*</span> Trường bắt buộc</p>
           <button type="button" className="btn btn--secondary btn--sm" onClick={oncancel}>
             <X size={14} /> Hủy
           </button>
@@ -110,46 +131,82 @@ export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen }: {
         </>
       }
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <div style={pairedFieldGridStyle}>
-          <div className="field">
-            <label htmlFor="supp-name" style={labelStyle}>Tên nhà xe <span style={{ color: 'var(--danger)' }}>*</span></label>
-            <input id="supp-name" className="input" value={name} onChange={e => setName(e.target.value)} placeholder="Ví dụ: Garage Auto 123" autoFocus />
-          </div>
-          <div className="field">
-            <label htmlFor="supp-short-name" style={labelStyle}>Tên viết tắt</label>
-            <input id="supp-short-name" className="input" value={shortName} onChange={e => setShortName(e.target.value)} placeholder="Để trống sẽ dùng tên đầy đủ" />
+      <div className="flex flex-col gap-6">
+        <div>
+          <FormSectionHeading icon={Building2}>Thông tin nhà xe</FormSectionHeading>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Input
+              label="Tên nhà xe"
+              isRequired
+              icon={Building2}
+              value={name}
+              onChange={setName}
+              placeholder="Ví dụ: Garage Auto 123"
+              autoFocus
+            />
+            <Input
+              label="Tên viết tắt"
+              icon={Hash}
+              value={shortName}
+              onChange={setShortName}
+              placeholder="Để trống sẽ dùng tên đầy đủ"
+            />
+            <Input
+              label="Mã số thuế"
+              icon={Landmark}
+              value={taxCode}
+              onChange={setTaxCode}
+              placeholder="Ví dụ: 0312…"
+            />
+            <Input
+              label="Người liên hệ"
+              icon={User}
+              value={contactPerson}
+              onChange={setContactPerson}
+              placeholder="Ví dụ: Anh Tuấn · Kế toán"
+            />
+            <Input
+              label="Điện thoại"
+              icon={Phone}
+              value={phone}
+              onChange={setPhone}
+              placeholder="Ví dụ: 0912…"
+            />
           </div>
         </div>
-        <div style={pairedFieldGridStyle}>
-          <div className="field">
-            <label htmlFor="supp-tax" style={labelStyle}>Mã số thuế</label>
-            <input id="supp-tax" className="input" value={taxCode} onChange={e => setTaxCode(e.target.value)} placeholder="Ví dụ: 0312…" />
-          </div>
-          <div className="field">
-            <label htmlFor="supp-contact" style={labelStyle}>Người liên hệ</label>
-            <input id="supp-contact" className="input" value={contactPerson} onChange={e => setContactPerson(e.target.value)} placeholder="Ví dụ: Anh Tuấn · Kế toán" />
+
+        <div>
+          <FormSectionHeading icon={Clock}>Điều khoản thanh toán</FormSectionHeading>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Input
+              label="Hạn thanh toán Chi hộ (ngày)"
+              icon={Clock}
+              type="number"
+              inputProps={{ min: 0, max: 365 }}
+              value={chiHoDueDays}
+              onChange={setChiHoDueDays}
+              placeholder="Ví dụ: 15"
+            />
+            <Input
+              label="Hạn thanh toán Cước (ngày)"
+              icon={Clock}
+              type="number"
+              inputProps={{ min: 0, max: 365 }}
+              value={cuocDueDays}
+              onChange={setCuocDueDays}
+              placeholder="Ví dụ: 30"
+            />
           </div>
         </div>
-        <div style={pairedFieldGridStyle}>
-          <div className="field">
-            <label htmlFor="supp-phone" style={labelStyle}>Điện thoại</label>
-            <input id="supp-phone" className="input" value={phone} onChange={e => setPhone(e.target.value)} placeholder="Ví dụ: 0912…" />
-          </div>
-          <div className="field">
-            <label htmlFor="supp-chiho-due" style={labelStyle}>Hạn thanh toán Chi hộ (ngày)</label>
-            <input id="supp-chiho-due" className="input" type="number" min={0} max={365} value={chiHoDueDays} onChange={e => setChiHoDueDays(e.target.value)} placeholder="Ví dụ: 15" />
-          </div>
-        </div>
-        <div style={pairedFieldGridStyle}>
-          <div className="field">
-            <label htmlFor="supp-cuoc-due" style={labelStyle}>Hạn thanh toán Cước (ngày)</label>
-            <input id="supp-cuoc-due" className="input" type="number" min={0} max={365} value={cuocDueDays} onChange={e => setCuocDueDays(e.target.value)} placeholder="Ví dụ: 30" />
-          </div>
-          <div className="field">
-            <label htmlFor="supp-note" style={labelStyle}>Ghi chú</label>
-            <textarea id="supp-note" className="input" value={note} onChange={e => setNote(e.target.value)} placeholder="Ghi chú thêm…" />
-          </div>
+
+        <div>
+          <FormSectionHeading icon={FileText}>Ghi chú</FormSectionHeading>
+          <TextArea
+            value={note}
+            onChange={setNote}
+            placeholder="Ghi chú thêm…"
+            rows={3}
+          />
         </div>
       </div>
     </Modal>

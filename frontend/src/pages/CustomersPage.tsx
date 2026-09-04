@@ -9,7 +9,7 @@ import { downloadCSV } from '../lib/csv';
 import { nextTableSort, readTableSort } from '../lib/table-sort';
 import { SortHeader } from '../components/shared/SortHeader';
 import { labelStyle } from '../utils/formStyles';
-import { PageHeader, FilterPill, StatusPill, Modal } from '../components/UI';
+import { PageHeader, FilterPill, StatusPill, Modal, ModalChipLive } from '../components/UI';
 import { SummaryRail } from '../design-system';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { EmptyState, Pagination, useTableQueryState } from '../design-system';
@@ -143,11 +143,17 @@ export function CustomerFormModal({ item, saving, onsave, oncancel, isOpen }: {
   return (
     <Modal
       isOpen={isOpen}
-      title={item ? `Sửa khách hàng — ${item.shortName || item.name}` : 'Thêm khách hàng'}
+      title={item ? (item.shortName || item.name) : 'Thêm khách hàng'}
+      subtitle={item ? 'Sửa khách hàng' : undefined}
+      polished
+      headerRight={
+        item ? <ModalChipLive>Đang hoạt động</ModalChipLive> : undefined
+      }
       onClose={oncancel}
       onConfirm={handleSave}
       footer={
         <>
+          <p className="modal__hint"><span className="modal__req-mark">*</span> Trường bắt buộc</p>
           <button className="btn btn--ghost btn--sm" onClick={oncancel}>
             <X size={14} /> Hủy
           </button>

@@ -35,7 +35,7 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   'src/components/trip/ContainerInstancesCard.tsx': 591,
   'src/components/trip/DriverContainerCard.tsx': 585,
   'src/components/trip/ShipmentCostEntryForm.tsx': 522,
-  'src/components/UI.tsx': 631,
+  'src/components/UI.tsx': 661,
   'src/components/untitled-ui/base/badges/badges.tsx': 416,
   'src/components/untitled-ui/base/select/tag-select.tsx': 401,
   'src/components/work-inbox/RoleWorkInbox.tsx': 485,

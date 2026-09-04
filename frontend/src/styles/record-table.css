@@ -71,7 +71,11 @@
 
 .record-table tbody td {
   padding: 10px 12px;
-  vertical-align: top;
+  /* Row content centers vertically to match the canonical centered status
+     strip (top: 50% + translateY(-50%)) — top-aligned text in rows whose
+     height is driven by taller cells (action buttons, wrapped names) floats
+     visibly above the strip's midline. */
+  vertical-align: middle;
   border-bottom: 1px solid var(--line);
   color: var(--fg-2);
   min-width: 0;

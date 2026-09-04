@@ -83,17 +83,23 @@ describe('dispatch catalogs (≤640px) — thead must be display:none, not clip-
 });
 
 describe('debt list — operational canvas hand-off to card list', () => {
-  it('hides the desktop table and shows the mobile card list at ≤1500px', () => {
+  it('hides the desktop table and shows the mobile card list at ≤820px', () => {
+    // 1500px was superseded: the desktop record-table survives down to the
+    // shared utilities.css 820px mobile hand-off (container-query cards cover
+    // the gap between).
     expect(debtListCss).toMatch(
-      /@media\s*\(max-width:\s*1500px\)\s*\{[\s\S]*?\.debt-list-page\s+\.desktop-only\s*\{\s*display:\s*none\s*!important;[\s\S]*?\.debt-list-page\s+\.mobile-only\s*\{\s*display:\s*block;/,
+      /@media\s*\(max-width:\s*820px\)\s*\{[\s\S]*?\.debt-list-page\s+\.desktop-only\s*\{\s*display:\s*none\s*!important;[\s\S]*?\.debt-list-page\s+\.mobile-only\s*\{\s*display:\s*block;/,
     );
   });
 });
 
 describe('payable list — operational canvas hand-off to card list', () => {
-  it('hides the desktop table and shows the mobile card list at ≤1500px', () => {
+  it('hides the desktop table and shows the mobile card list at ≤1100px', () => {
+    // Deliberate exception to the 820px hand-off: the payables columns carry
+    // a ~900px content floor (scrollWidth-probed), so the card list fires at
+    // 1100px instead of forcing horizontal scroll below it.
     expect(payableListCss).toMatch(
-      /@media\s*\(max-width:\s*1500px\)\s*\{[\s\S]*?\.payables-page\s+\.desktop-only\s*\{\s*display:\s*none\s*!important;[\s\S]*?\.payables-page\s+\.mobile-only\s*\{\s*display:\s*block;/,
+      /@media\s*\(max-width:\s*1100px\)\s*\{[\s\S]*?\.payables-page\s+\.desktop-only\s*\{\s*display:\s*none\s*!important;[\s\S]*?\.payables-page\s+\.mobile-only\s*\{\s*display:\s*block;/,
     );
   });
 });
