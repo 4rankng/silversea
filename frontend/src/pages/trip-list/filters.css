@@ -223,7 +223,8 @@
   display: contents;
 }
 .trip-list-page .filter-pill .ds-uui-select__control,
-.trip-list-page .filter-pill .ds-uui-select__control > button {
+.trip-list-page .filter-pill .ds-uui-select__control > button,
+.trip-list-page .filter-pill .ds-uui-select__control > [role='group'] {
   background: transparent;
   border: 0;
   border-radius: 0;
@@ -243,7 +244,8 @@
   transition: none;
 }
 .trip-list-page .filter-pill .ds-uui-select__control > button:focus,
-.trip-list-page .filter-pill .ds-uui-select__control > button:focus-visible {
+.trip-list-page .filter-pill .ds-uui-select__control > button:focus-visible,
+.trip-list-page .filter-pill .ds-uui-select__control > [role='group']:focus-within {
   outline: none;
   box-shadow: none;
 }
@@ -252,6 +254,26 @@
   padding: 0;
   width: 100%;
   gap: 6px;
+}
+/* Searchable combobox variant (>= 5 options, e.g. the customer filter): the
+   sized element is a `[data-combobox-value]` wrapper (icon + input), not a
+   static `<span>` inside a `<button>` — same "no nested chrome" treatment,
+   applied to that wrapper, plus the input's own text styling. */
+.trip-list-page .filter-pill .ds-uui-select__control > [role='group'] [data-combobox-value] {
+  min-height: 0;
+  padding: 0;
+  width: 100%;
+  gap: 6px;
+}
+.trip-list-page .filter-pill .ds-uui-select__control > [role='group'] input {
+  font: inherit;
+  font-size: var(--filter-control-font-size);
+  font-weight: 600;
+  color: inherit;
+  -webkit-text-fill-color: currentColor;
+}
+.trip-list-page .filter-pill .ds-uui-select__control > [role='group'] span {
+  color: inherit;
 }
 .trip-list-page .filter-pill .ds-uui-select__control svg[aria-hidden='true'] {
   display: none;

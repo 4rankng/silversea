@@ -532,7 +532,8 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith(`/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=${today}&transportDateTo=${today}&dispatchStatus=UNASSIGNED`));
     await screen.findByText('CONT-001');
     const filtersGroup = document.querySelector('.shipments-detail-filters__group--selects') as HTMLElement;
-    expect(within(filtersGroup).getByRole('button', { name: /Trạng thái/i })).toHaveTextContent('Chưa điều xe');
+    // The status list is long enough that UuiSelectField renders it as a searchable combobox.
+    expect(within(filtersGroup).getByRole('combobox', { name: /Trạng thái/i })).toHaveValue('Chưa điều xe');
     expect(screen.getAllByText('Chưa điều xe').length).toBeGreaterThanOrEqual(1);
 
     fireEvent.click(screen.getByRole('button', { name: 'Xóa bộ lọc' }));
@@ -552,7 +553,7 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
 
     await screen.findByText('CONT-001');
     const filtersGroup = document.querySelector('.shipments-detail-filters__group--selects') as HTMLElement;
-    fireEvent.click(within(filtersGroup).getByRole('button', { name: /Trạng thái/i }));
+    fireEvent.click(within(filtersGroup).getByRole('combobox', { name: /Trạng thái/i }));
     for (const label of ['Chưa điều xe', 'Đã phân xe', 'Đã tạo chuyến', 'Đang chạy', 'Hoàn thành']) {
       expect(screen.getByRole('option', { name: label })).toBeTruthy();
     }

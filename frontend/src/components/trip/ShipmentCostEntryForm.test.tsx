@@ -143,8 +143,10 @@ describe('ShipmentCostEntryForm', () => {
     expect(screen.queryByText('Đổ dầu Km30')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: /Thêm chi phí/ }));
-    // UuiSelectField pattern: trigger button -> options render
-    fireEvent.click(await screen.findByRole('button', { name: /Loại chi phí/i }));
+    // UuiSelectField renders a button trigger for short option lists, or a
+    // searchable combobox input once the list is long enough — the cost-type
+    // list here has more than a few entries.
+    fireEvent.click(await screen.findByRole('combobox', { name: /Loại chi phí/i }));
     const options = screen.getAllByRole('option').map((option) => option.textContent);
     expect(options).not.toContain('Tiền dầu');
   });

@@ -122,8 +122,8 @@ describe('customer account scope', () => {
       />,
     );
 
-    // UuiSelectField pattern: trigger button -> click option
-    const roleTrigger = screen.getByRole('button', { name: /Vai trò/i });
+    // The role list is long enough that UuiSelectField renders it as a searchable combobox.
+    const roleTrigger = screen.getByRole('combobox', { name: /Vai trò/i });
     fireEvent.click(roleTrigger);
     fireEvent.click(screen.getByRole('option', { name: /Khách hàng/i }));
 
@@ -265,7 +265,7 @@ describe('customer account scope', () => {
       />,
     );
 
-    const roleTrigger = screen.getByRole('button', { name: /Vai trò/i });
+    const roleTrigger = screen.getByRole('combobox', { name: /Vai trò/i });
     fireEvent.click(roleTrigger);
     fireEvent.click(screen.getByRole('option', { name: /Nhân viên Chứng từ/i }));
 
@@ -388,7 +388,7 @@ describe('customer account scope', () => {
       />,
     );
 
-    const roleTrigger = screen.getByRole('button', { name: /Vai trò/i });
+    const roleTrigger = screen.getByRole('combobox', { name: /Vai trò/i });
     fireEvent.click(roleTrigger);
     fireEvent.click(screen.getByRole('option', { name: /Kế toán/i }));
 

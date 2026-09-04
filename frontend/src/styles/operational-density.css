@@ -48,14 +48,16 @@
 /* The adapter owns its complete compact-control geometry. Keeping this out of
    individual dialogs prevents a field wrapper from adding a second boundary
    or drifting away from the native input beside it. */
-.ds-uui-select--operational .ds-uui-select__control > button {
+.ds-uui-select--operational .ds-uui-select__control > button,
+.ds-uui-select--operational .ds-uui-select__control > [role='group'] {
   min-height: var(--control-compact-h);
   border-radius: var(--r-sm);
   font-size: var(--control-compact-font-size);
   line-height: var(--control-compact-line-height);
 }
 
-.ds-uui-select--operational .ds-uui-select__control > button > span {
+.ds-uui-select--operational .ds-uui-select__control > button > span,
+.ds-uui-select--operational .ds-uui-select__control > [role='group'] [data-combobox-value] {
   min-height: calc(var(--control-compact-h) - 2px);
 }
 
@@ -63,8 +65,11 @@
    alone is not enough. Keep the selected value on the same operational type
    scale as the native input immediately beside it. The value is single-line
    by design (the vendored `truncate` intent): a narrow trigger column must
-   ellipsize, not wrap the row taller. */
-.ds-uui-select--operational .ds-uui-select__control > button > span p {
+   ellipsize, not wrap the row taller.
+   The searchable combobox variant (>= 5 options) renders `[role='group']` +
+   `input` instead of `button` + `span > p` — same intent, different markup. */
+.ds-uui-select--operational .ds-uui-select__control > button > span p,
+.ds-uui-select--operational .ds-uui-select__control > [role='group'] span p {
   font-size: var(--control-compact-font-size);
   line-height: var(--control-compact-line-height);
   white-space: nowrap;
@@ -147,17 +152,20 @@
     padding-inline: 16px;
   }
 
-  .ds-uui-select--operational .ds-uui-select__control > button {
+  .ds-uui-select--operational .ds-uui-select__control > button,
+  .ds-uui-select--operational .ds-uui-select__control > [role='group'] {
     min-height: var(--control-touch-h);
     font-size: var(--control-compact-touch-font-size);
     line-height: var(--control-compact-touch-line-height);
   }
 
-  .ds-uui-select--operational .ds-uui-select__control > button > span {
+  .ds-uui-select--operational .ds-uui-select__control > button > span,
+  .ds-uui-select--operational .ds-uui-select__control > [role='group'] [data-combobox-value] {
     min-height: calc(var(--control-touch-h) - 2px);
   }
 
-  .ds-uui-select--operational .ds-uui-select__control > button > span p {
+  .ds-uui-select--operational .ds-uui-select__control > button > span p,
+  .ds-uui-select--operational .ds-uui-select__control > [role='group'] span p {
     font-size: var(--control-compact-touch-font-size);
     line-height: var(--control-compact-touch-line-height);
   }

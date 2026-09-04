@@ -180,7 +180,7 @@ describe('TripPodReviewPanel', () => {
       />,
     );
 
-    const vatTrigger = screen.getByRole('button', { name: /Thuế VAT khi hoàn thành/i });
+    const vatTrigger = screen.getByRole('combobox', { name: /Thuế VAT khi hoàn thành/i });
     fireEvent.click(vatTrigger);
     const vatOption = await screen.findByRole('option', { name: '8%' });
     fireEvent.click(vatOption);
@@ -220,7 +220,7 @@ describe('TripPodReviewPanel', () => {
       />,
     );
 
-    const vatTrigger = screen.getByRole('button', { name: /Thuế VAT khi hoàn thành/i });
+    const vatTrigger = screen.getByRole('combobox', { name: /Thuế VAT khi hoàn thành/i });
     fireEvent.click(vatTrigger);
     const vatOption = await screen.findByRole('option', { name: '8%' });
     fireEvent.click(vatOption);

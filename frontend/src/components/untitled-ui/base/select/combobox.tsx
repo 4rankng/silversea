@@ -21,6 +21,8 @@ interface ComboBoxProps extends Omit<AriaComboBoxProps<SelectItemType>, "childre
     icon?: FC | ReactNode;
     /** Open the options when the input group is clicked or touched. */
     openOnPress?: boolean;
+    /** Extra classes for the trigger group — the element that actually renders the visible boundary. */
+    triggerClassName?: string;
     children: AriaListBoxProps<SelectItemType>["children"];
 }
 
@@ -31,12 +33,13 @@ interface ComboBoxValueProps extends AriaGroupProps {
     shortcutClassName?: string;
     icon?: FC | ReactNode;
     openOnPress?: boolean;
+    triggerClassName?: string;
     onFocus?: FocusEventHandler;
     onPointerEnter?: PointerEventHandler;
     ref?: Ref<HTMLDivElement>;
 }
 
-const ComboBoxValue = ({ size, shortcut, placeholder, shortcutClassName, icon: IconProp, openOnPress, ref, ...otherProps }: ComboBoxValueProps) => {
+const ComboBoxValue = ({ size, shortcut, placeholder, shortcutClassName, icon: IconProp, openOnPress, triggerClassName, ref, ...otherProps }: ComboBoxValueProps) => {
     const state = useContext(ComboBoxStateContext);
 
     const value = state?.selectedItem?.value || null;
@@ -57,40 +60,63 @@ const ComboBoxValue = ({ size, shortcut, placeholder, shortcutClassName, icon: I
             onClick={handleClick}
             className={({ isFocusWithin, isDisabled }) =>
                 cx(
-                    "relative flex w-full items-center gap-2 rounded-lg border border-primary bg-primary outline-focus-ring transition duration-100 ease-linear",
+                    "relative flex w-full items-center rounded-lg border border-primary bg-primary outline-focus-ring transition duration-100 ease-linear",
                     isDisabled && "cursor-not-allowed opacity-50",
                     isFocusWithin && "border-brand outline-2 outline-offset-1",
-
-                    // Icon styles
-                    "*:data-icon:shrink-0 *:data-icon:text-fg-quaternary",
-
-                    sizes[size].root,
+                    triggerClassName,
                 )
             }
         >
-            {isReactComponent(IconProp) ? (
-                <IconProp data-icon className="pointer-events-none" aria-hidden="true" />
-            ) : isValidElement(IconProp) ? (
-                IconProp
-            ) : (
-                <SearchLg data-icon className="pointer-events-none" aria-hidden="true" />
-            )}
-
-            <div className="relative flex w-full items-center">
-                {inputValue && (
-                    <span className={cx("absolute top-1/2 z-0 inline-flex w-full -translate-y-1/2 truncate", sizes[size].textContainer)} aria-hidden="true">
-                        <p className={cx("font-medium text-primary", sizes[size].text)}>{first}</p>
-                        {last && <p className={cx("-ml-0.75 text-tertiary", sizes[size].text)}>{last}</p>}
-                    </span>
+            {/*
+             * `sizes[size].root` (padding + min-height) lives on this inner wrapper,
+             * not on the AriaGroup above — mirroring Select, where the trigger
+             * <button> carries no sizing of its own and simply grows to fit its
+             * inner value span. That keeps a combobox and a plain select the same
+             * rendered height for a given `size`: both are sized by one inner
+             * flex element, with the outer boundary just auto-fitting around it.
+             * (Putting `sizes[size].root`'s min-height directly on the group, as
+             * before, stacked its own floor on top of the input's, rendering
+             * ~18px taller than the equivalent select trigger.)
+             */}
+            <div
+                data-combobox-value
+                className={cx(
+                    "flex w-full items-center gap-2",
+                    // Icon styles
+                    "*:data-icon:shrink-0 *:data-icon:text-fg-quaternary",
+                    sizes[size].root,
+                )}
+            >
+                {isReactComponent(IconProp) ? (
+                    <IconProp data-icon className="pointer-events-none" aria-hidden="true" />
+                ) : isValidElement(IconProp) ? (
+                    IconProp
+                ) : (
+                    <SearchLg data-icon className="pointer-events-none" aria-hidden="true" />
                 )}
 
-                <AriaInput
-                    placeholder={placeholder}
-                    className={cx(
-                        "z-10 w-full appearance-none bg-transparent text-transparent caret-alpha-black/90 placeholder:text-placeholder focus:outline-hidden disabled:cursor-not-allowed",
-                        sizes[size].text,
+                <div className="relative flex w-full items-center">
+                    {inputValue && (
+                        <span className={cx("absolute top-1/2 z-0 inline-flex w-full -translate-y-1/2 truncate", sizes[size].textContainer)} aria-hidden="true">
+                            <p className={cx("font-medium text-primary", sizes[size].text)}>{first}</p>
+                            {last && <p className={cx("-ml-0.75 text-tertiary", sizes[size].text)}>{last}</p>}
+                        </span>
                     )}
-                />
+
+                    <AriaInput
+                        placeholder={placeholder}
+                        className={cx(
+                            "z-10 w-full appearance-none bg-transparent text-transparent caret-alpha-black/90 placeholder:text-placeholder focus:outline-hidden disabled:cursor-not-allowed",
+                            sizes[size].text,
+                        )}
+                        // The app's global `:focus-visible` rule (base.css) is unlayered, so it
+                        // always beats the layered `focus:outline-hidden` utility above and draws
+                        // its own outline directly on this input — nested inside the parent
+                        // group's own focus ring (the one that actually communicates "focused"
+                        // here). An inline style outranks any stylesheet rule, layered or not.
+                        style={{ outline: 'none' }}
+                    />
+                </div>
             </div>
 
             {shortcut && (
@@ -123,6 +149,8 @@ export const ComboBox = ({
     icon,
     openOnPress = false,
     hideRequiredIndicator,
+    triggerClassName,
+    className,
     ...otherProps
 }: ComboBoxProps) => {
     const placeholderRef = useRef<HTMLDivElement>(null);
@@ -147,7 +175,17 @@ export const ComboBox = ({
         <SelectContext.Provider value={{ size }}>
             <AriaComboBox menuTrigger="focus" {...otherProps}>
                 {(state) => (
-                    <div data-input-size={size} className="flex flex-col gap-1.5">
+                    <div
+                        data-input-size={size}
+                        className={cx(
+                            "flex flex-col gap-1.5",
+                            // `state` here is the children render-prop's shape (adds `defaultChildren`);
+                            // `className` expects the sibling className render-prop's shape (adds
+                            // `defaultClassName`). Both extend the same `ComboBoxRenderProps` and neither
+                            // extra field is read by any caller, so the cast is safe.
+                            typeof className === "function" ? className(state as unknown as Parameters<typeof className>[0]) : className,
+                        )}
+                    >
                         {otherProps.label && (
                             <Label isRequired={hideRequiredIndicator ? false : state.isRequired} tooltip={otherProps.tooltip}>
                                 {otherProps.label}
@@ -161,6 +199,7 @@ export const ComboBox = ({
                             shortcutClassName={shortcutClassName}
                             icon={icon}
                             openOnPress={openOnPress}
+                            triggerClassName={triggerClassName}
                             size={size}
                             // This is a workaround to correctly calculating the trigger width
                             // while using ResizeObserver wasn't 100% reliable.

@@ -121,6 +121,13 @@
 }
 
 .detailed-plan-filters__date-shortcut {
+  /* Track is a fixed 34px with 2px padding on all sides (30px inner
+     height); the UUIButton "sm" size ships min-h-[34px] plus 6px vertical
+     padding, which overflows that inner space and pushes the active pill's
+     border out of alignment. Shrink both to fit. */
+  min-height: 30px !important;
+  padding-top: 4px !important;
+  padding-bottom: 4px !important;
   min-width: 0;
   border: 1px solid transparent;
   border-radius: 6px;

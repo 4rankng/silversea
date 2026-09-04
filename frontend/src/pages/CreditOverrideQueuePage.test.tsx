@@ -253,8 +253,9 @@ describe('CreditOverrideQueuePage', () => {
     expect(screen.getByText('Các đề nghị mới sẽ xuất hiện tại đây.')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Xóa bộ lọc' })).toBeNull();
 
-    // Open status filter and select 'Đã duyệt'
-    const statusTrigger = screen.getByRole('button', { name: /Trạng thái/ });
+    // Open status filter and select 'Đã duyệt' — the status list is long
+    // enough that UuiSelectField renders it as a searchable combobox.
+    const statusTrigger = screen.getByRole('combobox', { name: /Trạng thái/ });
     fireEvent.click(statusTrigger);
     const approvedOption = await screen.findByRole('option', { name: 'Đã duyệt' });
     fireEvent.click(approvedOption);

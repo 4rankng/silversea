@@ -76,7 +76,8 @@
    filter bar's align-items: center, that extra height lifts the select
    above its search/reset neighbors. Trim it to 32px so every control in
    the row shares one height. */
-.penalty-filter-bar .ds-uui-select__control button > span { min-height: 32px; }
+.penalty-filter-bar .ds-uui-select__control button > span,
+.penalty-filter-bar .ds-uui-select__control [role='group'] [data-combobox-value] { min-height: 32px; }
 
 .penalty-filter-bar__reset {
   display: inline-flex;

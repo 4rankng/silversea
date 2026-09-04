@@ -29,9 +29,11 @@ describe('PeriodFilter', () => {
     expect(modeToggle.className).toContain('d-join-vertical');
     expect(modeToggle.className).toContain('lg:d-join-horizontal');
 
-    // UuiSelectField uses button triggers, not combobox role
-    const triggers = screen.getAllByRole('button').filter(b => b.getAttribute('aria-haspopup') === 'listbox');
-    expect(triggers).toHaveLength(2);
+    // UuiSelectField renders a button trigger for short option lists, or a
+    // searchable combobox input once the list is long enough (month/year here).
+    const buttonTriggers = screen.getAllByRole('button').filter(b => b.getAttribute('aria-haspopup') === 'listbox');
+    const comboboxTriggers = screen.queryAllByRole('combobox');
+    expect(buttonTriggers.length + comboboxTriggers.length).toBe(2);
   });
 
   it('renders the range inputs as a two-column block with full-width fields', () => {

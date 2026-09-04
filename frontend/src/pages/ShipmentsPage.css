@@ -107,7 +107,8 @@
    + control) upward relative to its neighbors instead of just growing the
    control downward. Trim it to 32px so every field in the row shares one
    box height and one label baseline. */
-.cus-worksheet-toolbar .ds-uui-select__control button > span { min-height: 32px; }
+.cus-worksheet-toolbar .ds-uui-select__control button > span,
+.cus-worksheet-toolbar .ds-uui-select__control [role='group'] [data-combobox-value] { min-height: 32px; }
 
 .cus-search-field {
   position: relative;

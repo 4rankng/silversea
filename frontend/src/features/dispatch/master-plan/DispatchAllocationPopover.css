@@ -273,7 +273,8 @@
    grid's align-items: start, the select's control box overhangs its
    row-mates by 2px and drags the hint line down with it. Trim it to 32px
    so all three fields in the row share one control height. */
-.dispatch-allocation-popover__fields .ds-uui-select__control button > span { min-height: 32px; }
+.dispatch-allocation-popover__fields .ds-uui-select__control button > span,
+.dispatch-allocation-popover__fields .ds-uui-select__control [role='group'] [data-combobox-value] { min-height: 32px; }
 
 .dispatch-allocation-popover__carrier select[aria-invalid='true'] {
   border-color: var(--danger);

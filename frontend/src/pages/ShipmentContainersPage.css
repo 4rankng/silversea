@@ -50,7 +50,8 @@
    UuiSelectField.css's boundary selectors don't reach it, so its 36px
    border-box sits 2px taller than the text-input wrapper's 34px. Trim the
    inner value span to 32px so both control families share one row line. */
-.shipments-detail-filters .ds-uui-select__control button > span { min-height: 32px; }
+.shipments-detail-filters .ds-uui-select__control button > span,
+.shipments-detail-filters .ds-uui-select__control [role='group'] [data-combobox-value] { min-height: 32px; }
 .shipments-detail-filter--search input { padding-left: 30px; }
 .shipments-detail-filter--search input { text-transform: uppercase; }
 .shipments-detail-filters__footer { display: flex; grid-column: 2 / -1; min-width: 0; align-items: end; justify-content: flex-end; }
