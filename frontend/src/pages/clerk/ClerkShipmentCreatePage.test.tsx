@@ -159,7 +159,7 @@ describe('ClerkShipmentCreatePage', () => {
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
 
     expect(screen.getByText('Hàng nguyên container (Cont)')).toBeTruthy();
-    expect(screen.getByText('Hàng lẻ (Lẻ)')).toBeTruthy();
+    expect(screen.getByText('Hàng lẻ')).toBeTruthy();
     // No customer-facing FCL/LCL jargon anywhere on the create form.
     expect(screen.queryByText(/FCL|LCL/)).toBeNull();
 
@@ -284,7 +284,7 @@ describe('ClerkShipmentCreatePage', () => {
   it('creates and selects a route from the visible shipment-intake action', async () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Thông tin hàng' });
-    fireEvent.click(screen.getByRole('radio', { name: 'Hàng lẻ (Lẻ)' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Hàng lẻ' }));
     await screen.findByRole('heading', { name: 'Điểm vận hành & tuyến' });
 
     const addButton = screen.getByRole('button', { name: 'Thêm tuyến đường' });
@@ -316,7 +316,7 @@ describe('ClerkShipmentCreatePage', () => {
   it('keeps the selected route when route creation is cancelled', async () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Thông tin hàng' });
-    fireEvent.click(screen.getByRole('radio', { name: 'Hàng lẻ (Lẻ)' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Hàng lẻ' }));
     await screen.findByRole('heading', { name: 'Điểm vận hành & tuyến' });
     await choose('Tuyến đường', '11');
 
