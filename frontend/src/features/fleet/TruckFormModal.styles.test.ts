@@ -24,7 +24,8 @@ describe("TruckFormModal desktop density", () => {
     expect(styles).toMatch(
       /\.truck-alert-field--oil-calculator\s*\{[\s\S]*?grid-column:\s*1 \/ -1[\s\S]*?display:\s*flex/,
     );
-    expect(source).toContain("truck-alert-fields");
+    expect(source).toContain('label="Lịch bảo trì"');
+    expect(source).toContain("TruckDateField");
   });
 
   it("uses the shared compact control contract and a stable desktop grid", () => {
@@ -68,13 +69,13 @@ describe("TruckFormModal desktop density", () => {
   });
 
   it("uses the field labels once, with explicit htmlFor on every input", () => {
-    expect(source).toMatch(/<label htmlFor="truck-plate">/);
-    expect(source).toMatch(/<label htmlFor="truck-vehicleClass">/);
-    expect(source).toMatch(/<label htmlFor="truck-brand">/);
-    expect(source).toMatch(/<label htmlFor="truck-towCapacityTons">/);
+    expect(source).toMatch(/label="Biển số xe đầu kéo"/);
+    expect(source).toMatch(/label="Loại hình xe"/);
+    expect(source).toMatch(/label="Hãng xe"/);
+    expect(source).toMatch(/label="Trọng tài kéo"/);
     // Date fields use TruckDateField subcomponent with htmlFor={id}
     expect(source).toMatch(/id="truck-inspection"/);
     expect(source).toMatch(/id="truck-insurance"/);
-    expect(source).toMatch(/<label htmlFor="truck-note">/);
+    expect(source).toContain('label="Ghi chú"');
   });
 });

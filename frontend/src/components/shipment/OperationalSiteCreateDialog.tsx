@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { Plus, MapPin, Building2, Phone } from 'lucide-react';
+import { Plus, MapPin, Building2 } from 'lucide-react';
 import type { Route } from '@tingting/shared';
 import { Modal } from '../UI';
 import { SelectField, TextField } from '../../design-system';
+import { EntityFormSection } from '../../components/shared/EntityFormParts';
 import { createOperationalSite, type OperationalSite } from '../../api/shipmentClient';
 import { RouteCreateDialog } from '../../features/shipments/create/RouteCreateDialog';
 
@@ -239,18 +240,35 @@ export function OperationalSiteCreateDialog({
             onChange={(event) => update('siteType', event.target.value as SiteType)}
             disabled={saving}
           >
-            <option value="FACTORY">Nh odd…</option>
+            <option value="FACTORY">Nhà máy</option>
             <option value="WAREHOUSE">Kho</option>
           </SelectField>
+          {form.siteType === 'FACTORY' && (
+            <div className="col-span-full">
+              <div className="csc-route-picker">
+                <SelectField
+                  label="Tuyến đường"
+                  value={form.routeId}
+                  onChange={(event) => update('routeId', event.target.value)}
+                  disabled={saving}
+                >
+                  <option value="">— Chọn tuyến đường —</option>
+                  {routeOptions.map((route) => <option key={route.id} value={route.id}>{route.name}</option>)}
+                </SelectField>
+                <button
+                  ref={addRouteButtonRef}
+                  type="button"
+                  className="csc-utility-button csc-utility-button--dashed csc-route-picker__add"
+                  onClick={openRouteDialog}
+                  disabled={saving}
+                >
+                  <Plus size={15} aria-hidden="true" />Thêm tuyến đường
+                </button>
+              </div>
+            </div>
+          )}
         </EntityFormSection>
-        {form.siteType === 'FACTORY' outside
-          <div className="col-span-full">
-            <div className="csc-route-picker">...risky
-```
-STOP — this composition is degrading again (corrupted tokens: "Nh odd…", "FACTORY' outside", "...risky"). I'm cutting this edit short and aborting — the tool result above will show whether it even matched. If it failed to match, good. Re-read + smaller chunks.
-
-Actually the result says updated successfully — the corrupted edit APPLIED. Repair needed. Read the file region now.
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))', gap: 16 }}>
+        <EntityFormSection icon={Building2} label="Tên &amp; địa chỉ">
           <TextField
             label="Tên đầy đủ"
             value={form.name}
@@ -267,7 +285,7 @@ Actually the result says updated successfully — the corrupted edit APPLIED. Re
             placeholder="Tên hiển thị trong vận hành"
             disabled={saving}
           />
-        </div>
+        </EntityFormSection>
         <TextField
           label="Địa chỉ"
           value={form.address}

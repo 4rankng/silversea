@@ -70,7 +70,7 @@ export function RouteFormModal({ isOpen, saving, item, onsave, oncancel }: {
             icon={Hash}
             value={code}
             onChange={setCode}
-            placeholder="VD: T01"
+            placeholder="Ví dụ: T01"
             inputClassName="tabular-nums"
           />
           <UnitInput

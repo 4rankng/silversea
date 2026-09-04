@@ -182,7 +182,7 @@ export function EditPanel({
               icon={<Hash size={14} />}
               value={employeeCode}
               onChange={e => setEmployeeCode(e.target.value)}
-              placeholder="NV001"
+              placeholder="Ví dụ: NV001"
             />
           </FormGroup>
           <FormGroup label="Email">

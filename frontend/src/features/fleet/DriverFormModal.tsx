@@ -100,7 +100,7 @@ export function DriverFormModal({ saving, item, onsave, oncancel, isOpen }: {
             icon={BadgeCheck}
             value={licenseNumber}
             onChange={setLicenseNumber}
-            placeholder="GPLX"
+            placeholder="Ví dụ: B2"
             inputClassName="tabular-nums"
           />
           <div className="field">

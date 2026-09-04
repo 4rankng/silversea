@@ -70,6 +70,7 @@ export function RouteCreateDialog({ isOpen, onClose, onCreated }: RouteCreateDia
   return (
     <Modal
       isOpen={isOpen}
+      polished
       title="Thêm tuyến đường"
       onClose={close}
       onConfirm={() => void submit()}

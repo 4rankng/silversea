@@ -62,7 +62,7 @@ export function UnitInput({ label, unit, icon, value, onChange, placeholder, min
 export function RequiredHint() {
   return (
     <p className="modal__hint">
-      <span className="modal__req-mark">*</span> Trường bắt buộc
+      <span className="modal__req-mark" aria-hidden="true">*</span> Trường bắt buộc
     </p>
   );
 }

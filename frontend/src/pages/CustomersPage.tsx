@@ -9,7 +9,7 @@ import { api, ApiError } from '../lib/api';
 import { downloadCSV } from '../lib/csv';
 import { nextTableSort, readTableSort } from '../lib/table-sort';
 import { SortHeader } from '../components/shared/SortHeader';
-import { PageHeader, FilterPill, StatusPill, Modal, ModalChipLive } from '../components/UI';
+import { PageHeader, FilterPill, StatusPill, Modal, ModalChip, ModalChipLive } from '../components/UI';
 import { Input } from '../components/untitled-ui/base/input/input';
 import { EntityFormSection, UnitInput, RequiredHint } from '../components/shared/EntityFormParts';
 import { SummaryRail } from '../design-system';
@@ -143,9 +143,13 @@ export function CustomerFormModal({ item, saving, onsave, oncancel, isOpen }: {
       title={item ? (item.shortName || item.name) : 'Thêm khách hàng'}
       subtitle={item ? 'Sửa khách hàng' : undefined}
       polished
+      ariaLabel={item ? `Sửa khách hàng ${item.shortName || item.name}` : 'Thêm khách hàng'}
       headerRight={
-        item ? <ModalChipLive>Đang hoạt động</ModalChipLive> : undefined
+        !item ? undefined : item.status === CustomerStatus.LOCKED
+          ? <ModalChip>Tạm khoá</ModalChip>
+          : <ModalChipLive>Đang hoạt động</ModalChipLive>
       }
+      maxWidth={620}
       onClose={oncancel}
       onConfirm={handleSave}
       footer={

@@ -4,6 +4,7 @@ import { Modal } from '../../components/UI';
 import { Input } from '../../components/untitled-ui/base/input/input';
 import { TextArea } from '../../components/untitled-ui/base/textarea/textarea';
 import { EntityFormSection, UnitInput, RequiredHint } from '../../components/shared/EntityFormParts';
+import { DateInput } from '../../design-system/forms/DateInput';
 import { TrailerType, TRAILER_TYPE_LABELS } from '@tingting/shared';
 import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
 // Own stylesheet — see TruckFormModal: keeps the dialog styled on any route
@@ -127,12 +128,11 @@ export function TrailerFormModal({ saving, item, onsave, oncancel, isOpen }: {
           />
           <div className="field">
             <label htmlFor="trailer-inspectionDeadline">Hạn đăng kiểm</label>
-            <input
+            <DateInput
               id="trailer-inspectionDeadline"
               className="input"
-              type="date"
               value={inspectionDeadline}
-              onChange={e => setInspectionDeadline(e.target.value)}
+              onChange={setInspectionDeadline}
             />
           </div>
         </EntityFormSection>

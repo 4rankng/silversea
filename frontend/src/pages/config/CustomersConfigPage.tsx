@@ -431,13 +431,7 @@ export default function CustomersConfigPage() {
       {crud.error && <div style={{ textAlign: 'center', color: 'var(--danger)', marginTop: 12 }}>{crud.error}</div>}
 
       {/* Modal for adding a new customer */}
-      <Modal
-        isOpen={crud.showAddForm && !crud.editingId}
-        title="Thêm khách hàng mới"
-        polished
-        onClose={crud.cancelForm}
-        maxWidth={600}
-      >
+      <Modal isOpen={crud.showAddForm && !crud.editingId} title="Thêm khách hàng mới" polished onClose={crud.cancelForm} maxWidth={600}>
         <div style={{ padding: '8px 4px' }}>
           <CustomerForm
             saving={crud.saving}
@@ -454,13 +448,7 @@ export default function CustomersConfigPage() {
         const item = customers.find(x => x.id === crud.editingId);
         if (!item) return null;
         return (
-          <Modal
-            isOpen={true}
-            title="Chỉnh sửa thông tin khách hàng"
-            polished
-            onClose={crud.cancelForm}
-            maxWidth={600}
-          >
+          <Modal isOpen={true} title="Chỉnh sửa thông tin khách hàng" polished onClose={crud.cancelForm} maxWidth={600}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20, padding: '8px 4px' }}>
               <CustomerForm
                 item={item}
