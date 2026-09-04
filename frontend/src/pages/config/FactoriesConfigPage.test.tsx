@@ -113,7 +113,8 @@ describe('FactoriesConfigPage', () => {
 
   it('edits a site through the modal with a version-checked patch', async () => {
     renderPage();
-    fireEvent.click(await screen.findByText('Nhà máy A'));
+    // Rows are no longer clickable — editing goes through the row-action button.
+    fireEvent.click((await screen.findAllByTitle('Sửa điểm vận hành'))[0]);
 
     // Field labels are not wired with htmlFor — reach the input by value.
     const nameInput = await screen.findByDisplayValue('Nhà máy A');
@@ -132,7 +133,7 @@ describe('FactoriesConfigPage', () => {
   it('surfaces the stale-version conflict instead of failing silently', async () => {
     updateMock.mockRejectedValueOnce(new Error('Dữ liệu vừa bị người khác thay đổi. Tải lại trang và thử lại.'));
     renderPage();
-    fireEvent.click(await screen.findByText('Nhà máy A'));
+    fireEvent.click((await screen.findAllByTitle('Sửa điểm vận hành'))[0]);
     fireEvent.click(await screen.findByRole('button', { name: 'Cập nhật' }));
     expect(await screen.findByText(/Dữ liệu vừa bị/i, undefined, { timeout: 3000 })).toBeTruthy();
   });

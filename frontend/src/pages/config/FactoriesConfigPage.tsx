@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Pencil } from 'lucide-react';
 
-
-import { PageHeader, Panel, Modal } from '../../components/UI';
+import { PageHeader, Modal } from '../../components/UI';
 import { Alert } from '../../components/shared/Alert';
 import { useToast } from '../../components/shared/Toast';
 import { Field } from '../../components/config/Field';
@@ -11,6 +11,10 @@ import { FormActions } from '../../components/config/FormActions';
 import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
 import { configClient } from '../../api/configClient';
 import { qk } from '../../api/keys';
+import { SortHeader } from '../../components/shared/SortHeader';
+import { nextTableSort, sortClientSide, type TableSortState } from '../../lib/table-sort';
+import '../../styles/record-table.css';
+import '../../styles/operational-table-typography.css';
 import {
   listAdminOperationalSites,
   updateAdminOperationalSite,
@@ -59,6 +63,8 @@ export default function FactoriesConfigPage() {
   const { toast } = useToast();
   const [search, setSearch] = useState('');
   const [customerFilter, setCustomerFilter] = useState('');
+  const [sort, setSort] = useState<TableSortState | null>(null);
+  const handleSort = (key: string) => setSort(current => nextTableSort(current, key));
   const [editing, setEditing] = useState<AdminOperationalSite | null>(null);
   const [draft, setDraft] = useState<SiteDraft | null>(null);
   const [saving, setSaving] = useState(false);
@@ -83,13 +89,19 @@ export default function FactoriesConfigPage() {
 
   const filtered = useMemo(() => {
     const needle = search.trim().toLowerCase();
-    return sites.filter((site) => {
+    const matched = sites.filter((site) => {
       if (customerFilter && String(site.customerId) !== customerFilter) return false;
       if (!needle) return true;
       return [site.code, site.name, site.shortName, site.address, site.customerName]
         .some((value) => (value || '').toLowerCase().includes(needle));
     });
-  }, [sites, search, customerFilter]);
+    return sortClientSide(matched, sort, {
+      customerName: s => s.customerName,
+      code: s => s.code,
+      name: s => s.name,
+      address: s => s.address,
+    }, (a, b) => a.id - b.id);
+  }, [sites, search, customerFilter, sort]);
 
   function openEdit(site: AdminOperationalSite) {
     setEditing(site);
@@ -139,7 +151,7 @@ export default function FactoriesConfigPage() {
         onBack={() => navigate('/config')}
         iconName="company-profile"
       />
-      <Panel flush>
+      <div className="table-wrap">
         <div className="toolbar">
           <input
             className="input"
@@ -167,25 +179,27 @@ export default function FactoriesConfigPage() {
           </span>
         </div>
         <div className="table-scroll">
-          <table className="tt-table" style={{ minWidth: 1060 }}>
+          <div className="record-table-wrap">
+          <table className="record-table ops-table factories-table">
             <caption className="sr-only">Danh mục nhà máy / kho theo khách hàng</caption>
             <thead>
               <tr>
-                <th style={{ width: 44 }}>STT</th>
-                <th style={{ width: '10%' }}>Khách hàng</th>
-                <th style={{ width: '7%' }}>Mã</th>
-                <th style={{ width: '22%' }}>Tên</th>
-                <th style={{ width: '8%' }}>Loại</th>
-                <th style={{ width: '6%' }}>Tuyến</th>
-                <th style={{ width: '23%' }}>Địa chỉ</th>
-                <th style={{ width: '9%' }}>Liên hệ</th>
-                <th style={{ width: '12%' }}>Trạng thái</th>
+                <th className="num">STT</th>
+                <SortHeader label="Khách hàng" sortKey="customerName" sort={sort} onSortChange={handleSort} />
+                <SortHeader label="Mã" sortKey="code" sort={sort} onSortChange={handleSort} />
+                <SortHeader label="Tên" sortKey="name" sort={sort} onSortChange={handleSort} />
+                <th>Loại</th>
+                <th>Tuyến</th>
+                <SortHeader label="Địa chỉ" sortKey="address" sort={sort} onSortChange={handleSort} />
+                <th>Liên hệ</th>
+                <th>Trạng thái</th>
+                <th style={{ width: 56 }}></th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 && (
                 <tr className="cfg-empty-row">
-                  <td colSpan={9} style={{ textAlign: 'center', padding: '28px 12px', color: 'var(--fg-3)' }}>
+                  <td colSpan={10} data-label="" style={{ textAlign: 'center', padding: '28px 12px', color: 'var(--fg-3)' }}>
                     {sitesQuery.isLoading
                       ? 'Đang tải…'
                       : 'Chưa có nhà máy / kho nào. Nhà máy mới được tạo từ form nhận lô hàng của CUS.'}
@@ -193,31 +207,14 @@ export default function FactoriesConfigPage() {
                 </tr>
               )}
               {filtered.map((site, index) => (
-                <tr
-                  key={site.id}
-                  tabIndex={0}
-                  role="button"
-                  aria-label={`Chỉnh sửa ${site.name}`}
-                  style={{ cursor: 'pointer', ...(site.isActive ? undefined : { opacity: 0.62 }) }}
-                  onClick={() => openEdit(site)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault();
-                      openEdit(site);
-                    }
-                  }}
-                >
-                  <td className="num">{index + 1}</td>
+                <tr key={site.id} style={site.isActive ? undefined : { opacity: 0.62 }}>
+                  <td className="num" data-label="STT">{index + 1}</td>
                   <td data-label="Khách hàng">{site.customerName}</td>
                   <td data-label="Mã" style={{ color: 'var(--fg-2)' }}>{site.code}</td>
-                  <td data-label="Tên" style={{ fontWeight: 600, color: 'var(--fg-1)' }}>{site.name}</td>
-                  <td data-label="Loại">
-                    {site.siteType === 'FACTORY'
-                      ? <span className="badge badge--info">Nhà máy</span>
-                      : <span className="badge">Kho</span>}
-                  </td>
+                  <td data-label="Tên"><div className="row-strong">{site.name}</div></td>
+                  <td data-label="Loại">{site.siteType === 'FACTORY' ? 'Nhà máy' : 'Kho'}</td>
                   <td data-label="Tuyến" style={{ color: 'var(--fg-2)' }}>{site.siteType === 'FACTORY' ? (site.routeName ?? '—') : '—'}</td>
-                  <td data-label="Địa chỉ" style={{ color: 'var(--fg-2)', fontSize: 13 }}>{site.address}</td>
+                  <td data-label="Địa chỉ" style={{ color: 'var(--fg-2)', fontSize: 13 }}>{site.address || '—'}</td>
                   <td data-label="Liên hệ" style={{ color: 'var(--fg-2)', fontSize: 13 }}>
                     {site.contactName || site.contactPhone
                       ? [site.contactName, site.contactPhone].filter(Boolean).join(' · ')
@@ -225,15 +222,27 @@ export default function FactoriesConfigPage() {
                   </td>
                   <td data-label="Trạng thái">
                     {site.isActive
-                      ? <span className="cfg-pill cfg-pill--success">Đang dùng</span>
-                      : <span className="cfg-pill cfg-pill--neutral">Đã ngưng</span>}
+                      ? <span style={{ color: 'var(--success)', fontWeight: 500 }}>Đang dùng</span>
+                      : <span style={{ color: 'var(--fg-3)' }}>Đã ngưng</span>}
+                  </td>
+                  <td data-label="" className="record-table__action">
+                    <div className="row-actions">
+                      <button
+                        className="row-action"
+                        title="Sửa điểm vận hành"
+                        onClick={() => openEdit(site)}
+                      >
+                        <Pencil size={14} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          </div>
         </div>
-      </Panel>
+      </div>
 
       <Modal
         isOpen={!!editing}
