@@ -216,26 +216,37 @@ before(async () => {
 });
 
 describe('master-data workbook analysis', () => {
-  test('classifies the source workbook counts without importing blank customer/route templates', async () => {
+  test('classifies the 4.9 delivery workbook counts (ports/routes/drivers, blocked specs and roles)', async () => {
     const directory = path.dirname(fileURLToPath(import.meta.url));
-    const sourcePath = path.resolve(directory, '../../../docs/quytrinh/File Khách Hàng/29.7 - DATA PM.xlsx');
+    const sourcePath = path.resolve(directory, '../../../docs/customer-data/4.9 - Import data form.xlsx');
     const source = await readFile(sourcePath);
     const response = await requestJson('POST', '/api/config/master-data-imports/analyze', {
       file: source,
-      filename: '29.7 - DATA PM.xlsx',
+      filename: '4.9 - Import data form.xlsx',
     });
     assert.ok(response.status === 200 || response.status === 201);
     const batch = response.body.batch as { id: number; summary: Record<string, number>; rows: Array<Record<string, unknown>> };
     await trackBatch(batch.id);
+    // Expected counts come from the tracked customer workbook itself — the
+    // sep-2026 parser contract against the CURRENT 4.9 delivery (the 29.7
+    // workbook this test previously used was removed from the repo).
     assert.equal(batch.summary['operational_site.ACCEPTED'], 8);
-    assert.equal(batch.summary['port.ACCEPTED'], 17);
-    assert.equal(batch.summary['port.TEMPLATE'], 2);
-    assert.equal(batch.summary['driver.ACCEPTED'], 32);
-    assert.equal(batch.summary['customer.ACCEPTED'] ?? 0, 0);
-    assert.equal(batch.summary['route.ACCEPTED'] ?? 0, 0);
-    assert.ok(batch.rows.some((row) => row.entityType === 'organization'
+    assert.equal(batch.summary['operational_site.BLOCKED'], 1);
+    assert.equal(batch.summary['port.ACCEPTED'], 29);
+    assert.equal(batch.summary['route.ACCEPTED'], 3);
+    assert.equal(batch.summary['customer.ACCEPTED'], 2);
+    assert.equal(batch.summary['driver.ACCEPTED'], 39);
+    assert.equal(batch.summary['truck_spec.ACCEPTED'], 38);
+    assert.equal(batch.summary['trailer_spec.ACCEPTED'], 37);
+    assert.ok(batch.rows.some((row) => row.entityType === 'operational_site'
       && row.classification === 'BLOCKED'
-      && row.reasonCode === 'AMBIGUOUS_ORGANIZATION_ROLE'));
+      && row.reasonCode === 'MISSING_REQUIRED_FIELDS'));
+    assert.ok(batch.rows.some((row) => row.entityType === 'truck_spec'
+      && row.classification === 'BLOCKED'
+      && row.reasonCode === 'INVALID_PLATE'));
+    assert.ok(batch.rows.some((row) => row.entityType === 'staff_user'
+      && row.classification === 'BLOCKED'
+      && row.reasonCode === 'UNKNOWN_ROLE_GROUP'));
   });
 
   test('rejects unauthorized roles before analysis and rejects a fake XLSX signature', async () => {
