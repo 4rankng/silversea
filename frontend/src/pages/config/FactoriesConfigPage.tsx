@@ -176,14 +176,14 @@ export default function FactoriesConfigPage() {
             <thead>
               <tr>
                 <th style={{ width: 54 }}>STT</th>
-                <th>Khách hàng</th>
-                <th>Mã</th>
-                <th>Tên</th>
-                <th>Loại</th>
-                <th>Tuyến</th>
-                <th>Địa chỉ</th>
-                <th>Liên hệ</th>
-                <th>Trạng thái</th>
+                <th style={{ width: '10%' }}>Khách hàng</th>
+                <th style={{ width: '9%' }}>Mã</th>
+                <th style={{ width: '20%' }}>Tên</th>
+                <th style={{ width: '8%' }}>Loại</th>
+                <th style={{ width: '9%' }}>Tuyến</th>
+                <th style={{ width: '21%' }}>Địa chỉ</th>
+                <th style={{ width: '9%' }}>Liên hệ</th>
+                <th style={{ width: '10%' }}>Trạng thái</th>
               </tr>
             </thead>
             <tbody>

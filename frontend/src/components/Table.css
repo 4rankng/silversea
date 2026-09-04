@@ -506,6 +506,13 @@ tbody tr:last-child td { border-bottom: none; }
   border-bottom: 1px solid var(--line);
   color: var(--ink);
   vertical-align: middle;
+  /* The unscoped `tbody td { white-space: nowrap }` base above is right for
+     auto-layout operational grids, but .tt-table is fixed-layout: equal-share
+     columns turn nowrap into text painting over the neighbouring cells.
+     Fixed-layout config tables re-declare wrapping on the cell (same contract
+     the container ledger guard test pins for record tables). */
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .tt-table tbody tr { cursor: pointer; transition: background 0.2s ease; }
 .tt-table tbody tr:hover { background: rgba(0, 177, 79, 0.04); }

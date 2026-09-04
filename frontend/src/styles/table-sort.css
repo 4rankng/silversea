@@ -18,6 +18,13 @@
   text-transform: inherit;
   color: inherit;
   cursor: pointer;
+  /* Header cells break words freely (record-table's overflow-wrap: anywhere
+     is right for the label text), but the sort button must never split a
+     single word mid-token ("CONTANE R"). Multi-word labels still wrap at
+     spaces; an oversized single word overflows visibly instead of chopping. */
+  overflow-wrap: normal;
+  word-break: normal;
+  white-space: normal;
 }
 
 .table-sort-button:focus-visible {
