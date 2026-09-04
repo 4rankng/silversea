@@ -26,10 +26,12 @@ function renderPage() {
 }
 
 async function uploadAndAnalyze() {
-  const file = new File(['xlsx'], 'master.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-  fireEvent.change(screen.getByLabelText('Tệp Master Data (.xlsx)'), { target: { files: [file] } });
+  const dataForm = new File(['data-form'], 'Data form.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const userRole = new File(['user-role'], 'User & Role.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  fireEvent.change(screen.getByLabelText('Data form.xlsx (khách hàng, nhà máy, tuyến, cảng, xe)'), { target: { files: [dataForm] } });
+  fireEvent.change(screen.getByLabelText('User & Role.xlsx (nhân sự, tài xế)'), { target: { files: [userRole] } });
   fireEvent.click(screen.getByRole('button', { name: /Kiểm tra dữ liệu/ }));
-  await waitFor(() => expect(mocks.analyze).toHaveBeenCalledWith(file));
+  await waitFor(() => expect(mocks.analyze).toHaveBeenCalledWith(expect.objectContaining({ dataForm, userRole })));
 }
 
 describe('MasterDataImportPage', () => {

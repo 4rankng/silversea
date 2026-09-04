@@ -39,8 +39,8 @@ async function renderWithAnalyzedBatch() {
       <MasterDataImportPage />
     </MemoryRouter>,
   );
-  const input = document.getElementById('master-data-file') as HTMLInputElement;
-  fireEvent.change(input, { target: { files: [new File(['x'], 'master.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })] } });
+  const input = document.getElementById('master-data-file-form') as HTMLInputElement;
+  fireEvent.change(input, { target: { files: [new File(['x'], 'Data form.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })] } });
   fireEvent.click(screen.getByRole('button', { name: /Kiểm tra dữ liệu/ }));
   expect(await screen.findByText(/Khách hàng · 3 dòng/)).toBeTruthy();
 }
