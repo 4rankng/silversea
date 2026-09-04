@@ -171,19 +171,19 @@ export default function FactoriesConfigPage() {
           </span>
         </div>
         <div className="table-scroll">
-          <table className="tt-table">
+          <table className="tt-table" style={{ minWidth: 1060 }}>
             <caption className="sr-only">Danh mục nhà máy / kho theo khách hàng</caption>
             <thead>
               <tr>
-                <th style={{ width: 54 }}>STT</th>
+                <th style={{ width: 44 }}>STT</th>
                 <th style={{ width: '10%' }}>Khách hàng</th>
-                <th style={{ width: '9%' }}>Mã</th>
-                <th style={{ width: '20%' }}>Tên</th>
+                <th style={{ width: '7%' }}>Mã</th>
+                <th style={{ width: '22%' }}>Tên</th>
                 <th style={{ width: '8%' }}>Loại</th>
-                <th style={{ width: '9%' }}>Tuyến</th>
-                <th style={{ width: '21%' }}>Địa chỉ</th>
+                <th style={{ width: '6%' }}>Tuyến</th>
+                <th style={{ width: '23%' }}>Địa chỉ</th>
                 <th style={{ width: '9%' }}>Liên hệ</th>
-                <th style={{ width: '10%' }}>Trạng thái</th>
+                <th style={{ width: '12%' }}>Trạng thái</th>
               </tr>
             </thead>
             <tbody>
