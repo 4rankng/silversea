@@ -149,6 +149,10 @@ export const shipmentCusWorkspaceOperationalSummarySchema = z.object({
   // notification, exposed so the CUS chip and the dispatch grid cannot drift.
   orderIssuedContainers: z.number().int().nonnegative(),
   transportDateEditable: z.boolean(),
+  // Mirrors softDeleteShipment's live-trip guard exactly (direct trip link OR
+  // via a fulfillment) so the CUS delete action never offers a request the
+  // backend is guaranteed to reject.
+  deletable: z.boolean(),
 }).strict();
 
 export const shipmentCusWorkspaceDocumentCustodySchema = z.object({

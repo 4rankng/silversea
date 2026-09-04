@@ -180,17 +180,19 @@ export function CusShipmentRow({
             {primarySignal && PrimarySignalIcon && <span className={`cus-attention-label cus-attention-label--${primarySignal.tone}`}><PrimarySignalIcon size={13} aria-hidden="true" /> {primarySignal.label}</span>}
           </div>
           <div className="cus-row-actions__buttons">
-            <UUIButton
-              size="sm"
-              color="secondary"
-              className="cus-dashboard-delete"
-              aria-label={`Yêu cầu xóa lô hàng ${identity}`}
-              onPress={() => onOpenAction(item, 'delete')}
-              isDisabled={editing || pendingDelete}
-              iconLeading={<Trash2 size={16} aria-hidden="true" />}
-            >
-              Xóa
-            </UUIButton>
+            {item.operational.deletable && (
+              <UUIButton
+                size="sm"
+                color="secondary"
+                className="cus-dashboard-delete"
+                aria-label={`Yêu cầu xóa lô hàng ${identity}`}
+                onPress={() => onOpenAction(item, 'delete')}
+                isDisabled={editing || pendingDelete}
+                iconLeading={<Trash2 size={16} aria-hidden="true" />}
+              >
+                Xóa
+              </UUIButton>
+            )}
             <UUIButton
               id={'cus-dashboard-detail-' + item.id}
               size="sm"
@@ -203,7 +205,7 @@ export function CusShipmentRow({
               isDisabled={editing}
               iconTrailing={ChevronRight}
             >
-              Xem chi tiết
+              Chi tiết
             </UUIButton>
           </div>
         </div>

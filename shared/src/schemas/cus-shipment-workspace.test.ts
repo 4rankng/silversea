@@ -132,7 +132,9 @@ test('CUS workspace list item supports explicit unavailable custody state', () =
       plateAssignedContainers: 0,
       missingCarrierContainers: 0,
       missingPlateContainers: 1,
+      orderIssuedContainers: 0,
       transportDateEditable: true,
+      deletable: true,
     },
     finance: {
       customerInvoiceTotal: null,
@@ -221,7 +223,9 @@ test('CUS accounting confirmation response includes the Debit Note identity', ()
       plateAssignedContainers: 0,
       missingCarrierContainers: 0,
       missingPlateContainers: 0,
+      orderIssuedContainers: 0,
       transportDateEditable: true,
+      deletable: true,
     },
     finance: {
       customerInvoiceTotal: null,

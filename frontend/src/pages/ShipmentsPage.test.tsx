@@ -99,6 +99,7 @@ const row: ShipmentCusWorkspaceListItem = {
     missingCarrierContainers: 0,
     missingPlateContainers: 0,
     transportDateEditable: true,
+    deletable: true,
   },
   finance: {
     customerInvoiceTotal: '12000000',
@@ -339,7 +340,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     // datetime, with the container-type mix of that group.
     expect(surface.getByText('09:30 12/8/2026 · Nhà máy ABC · 1x40HC')).toBeTruthy();
     expect(surface.getByText('16:30 12/8/2026 · Nhà máy ABC · 1x20GP')).toBeTruthy();
-    expect(masterRowDetailButton().textContent).toContain('Xem chi tiết');
+    expect(masterRowDetailButton().textContent).toContain('Chi tiết');
     expect(document.querySelector('.cus-mobile-list')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Chọn cột hiển thị' })).toBeNull();
 
@@ -408,7 +409,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     const statusCell = within(masterRow()).getByText('Sẵn sàng điều xe').closest('td');
     expect(statusCell).toBeTruthy();
     expect(statusCell?.querySelector('.cus-row-actions__summary')).toBeTruthy();
-    expect(within(statusCell!).getByRole('button', { name: /Mở chi tiết lô hàng BILL-12345/ }).textContent).toContain('Xem chi tiết');
+    expect(within(statusCell!).getByRole('button', { name: /Mở chi tiết lô hàng BILL-12345/ }).textContent).toContain('Chi tiết');
     expect(css).toContain('.cus-dashboard-detail {');
     expect(css).toContain('border-top: 1px solid var(--line) !important;');
     expect(css).toContain('justify-content: space-between !important;');

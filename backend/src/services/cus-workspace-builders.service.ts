@@ -87,6 +87,15 @@ function buildOperationalSummary(
   const transportDateEditable = actor.role === Role.CUS
     && support.locksByShipment.get(row.shipment.id) == null;
 
+  // Some trips link to a shipment directly (`trips.shipmentId`, e.g. a
+  // combined/consolidated trip created outside the per-container fulfillment
+  // flow) instead of through a container's fulfillment. `orderIssuedContainers`
+  // above only walks fulfillment-linked trips, so it can read zero while such
+  // a direct trip still exists — check both, matching softDeleteShipment's
+  // live-trip guard so this flag never disagrees with what delete will do.
+  const hasDirectLiveTrip = (support.tripsByShipment.get(row.shipment.id)?.length ?? 0) > 0;
+  const deletable = orderIssuedContainers === 0 && !hasDirectLiveTrip;
+
   return {
     scheduleReadiness,
     vehicleReadiness,
@@ -98,6 +107,7 @@ function buildOperationalSummary(
     missingPlateContainers,
     orderIssuedContainers,
     transportDateEditable,
+    deletable,
   };
 }
 

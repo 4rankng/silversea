@@ -976,25 +976,17 @@
 .cus-attention-label--danger { color: var(--danger); }
 .cus-attention-label--info { color: var(--info, #2563eb); }
 .cus-dashboard-detail {
-  width: 100%;
   min-height: 34px;
-  margin-top: 1px;
-  padding: 8px 0 0 !important;
-  border-top: 1px solid var(--line) !important;
-  border-radius: 0 !important;
   color: var(--accent-ink) !important;
   font-size: 12px;
   font-weight: var(--fw-semibold);
   white-space: nowrap;
-  justify-content: space-between !important;
-  text-align: left;
 }
 .cus-dashboard-detail:hover {
   background: transparent !important;
   color: var(--accent-2) !important;
 }
 .cus-dashboard-detail:focus-visible {
-  border-radius: 6px !important;
   outline-offset: 3px;
 }
 .cus-create-shipment { white-space: nowrap; }
@@ -1370,13 +1362,29 @@
   flex-wrap: wrap;
   gap: 5px;
   align-items: center;
+  justify-content: space-between !important;
+  margin-top: 1px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line) !important;
 }
 
 .cus-dashboard-delete {
   min-height: 34px;
+  padding-inline: 8px;
   font-size: 12px;
   font-weight: var(--fw-semibold);
   white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* The Trạng thái column (fixed table-layout, ~150-170px of usable width at
+   every breakpoint down to the mobile card view) never has room for "Xóa" +
+   "Chi tiết" as full-text buttons side by side. Drop the "Xóa" label and
+   keep the icon so the pair never wraps onto two lines — the aria-label
+   still names the action for assistive tech. */
+.cus-dashboard-delete[data-text],
+.cus-dashboard-delete [data-text] {
+  display: none !important;
 }
 
 .cus-signals {
