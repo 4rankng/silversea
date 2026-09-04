@@ -18,8 +18,7 @@
       },
       "context": [
         "ROADMAP.md",
-        "plans/silversea-prd-roadmap/plan.md",
-        "docs/prd/business-logic-qa-proposals.md"
+        "plans/silversea-prd-roadmap/plan.md"
       ],
       "qa": [
         "pnpm context:check"
@@ -57,7 +56,7 @@
         "keywords": ["database", "drizzle", "schema", "migration", "postgres"]
       },
       "context": [
-        "backend/src/db/schema.ts",
+        "backend/src/db/schema/index.ts",
         "backend/package.json"
       ],
       "qa": [
@@ -107,8 +106,7 @@
       "context": [
         "shared/src/calculations/round.ts",
         "shared/src/calculations/tripTotals.ts",
-        "shared/src/calculations/tripTotals.test.ts",
-        "docs/prd/business-logic-qa-proposals.md"
+        "shared/src/calculations/tripTotals.test.ts"
       ],
       "qa": [
         "cd shared && npx tsc",
