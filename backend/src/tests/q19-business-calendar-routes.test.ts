@@ -34,8 +34,6 @@ let server: http.Server;
 let baseUrl: string;
 let adminToken: string;
 let managerToken: string;
-let accountantId: number;
-let managerId: number;
 
 async function mkUser(username: string, role: Role) {
   const [user] = await db.insert(s.users).values({
@@ -94,9 +92,8 @@ before(async () => {
   });
   adminToken = sign(await mkUser(`q19-admin-${suffix}`, Role.ADMIN));
   const manager = await mkUser(`q19-manager-${suffix}`, Role.MANAGER);
-  managerId = manager.id;
   managerToken = sign(manager);
-  accountantId = (await mkUser(`q19-accountant-${suffix}`, Role.ACCOUNTANT)).id;
+  await mkUser(`q19-accountant-${suffix}`, Role.ACCOUNTANT);
 });
 
 after(async () => {

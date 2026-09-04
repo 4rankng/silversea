@@ -39,7 +39,6 @@ const seedPenalties: SeedPenalty[] = [
   { driver: 'B', amount: 400_000, date: '2026-01-20', status: 'ACTIVE' },
   { driver: 'B', amount: 50_000, date: '2025-12-31', status: 'ACTIVE' },
 ];
-const yearStart = `${new Date().getFullYear()}-01-01`;
 
 async function request(path: string, token = adminToken) {
   const response = await fetch(`${baseUrl}/api${path}`, {
@@ -51,12 +50,6 @@ async function request(path: string, token = adminToken) {
 
 function sign(userId: number, username: string, role: Role) {
   return jwt.sign({ userId, username, role }, config.jwtSecret);
-}
-
-/** Mirror of the frontend computeStreak / service streak formula. */
-function expectedStreakDays(lastPenaltyDate: string | null, createdAt: Date) {
-  const anchor = lastPenaltyDate ? new Date(lastPenaltyDate).getTime() : createdAt.getTime();
-  return Math.max(0, Math.floor((Date.now() - anchor) / DAY_MS));
 }
 
 // ── Legacy client-side helpers, transplanted verbatim from

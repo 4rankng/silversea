@@ -17,7 +17,6 @@ import {
 } from '../middleware/material-write';
 
 const routesRoot = path.resolve(process.cwd(), 'src/routes');
-const configRoutePath = path.join(routesRoot, 'config.ts');
 const catalogCrudRoutePath = path.join(routesRoot, 'config/catalog-crud.routes.ts');
 const applicationEntryPath = path.resolve(process.cwd(), 'src/index.ts');
 

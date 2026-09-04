@@ -1,6 +1,5 @@
 import { createHash } from 'node:crypto';
 import path from 'node:path';
-import bcrypt from 'bcryptjs';
 import ExcelJS from 'exceljs';
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import { Role } from '@tingting/shared';

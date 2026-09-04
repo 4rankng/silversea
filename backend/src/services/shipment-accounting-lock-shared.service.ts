@@ -5,13 +5,10 @@
 // snapshot / reads / confirm / custody leaves import these one-way.
 import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import { createHash } from 'node:crypto';
-import {
-  Role,
-  type ShipmentChargeProposalField,
-} from '@tingting/shared';
+import { type ShipmentChargeProposalField } from '@tingting/shared';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
-import type { AuthUser } from '../middleware/auth';
+
 import type { Tx } from './trip-shared';
 import { effectiveAmount } from './billing-document.service';
 

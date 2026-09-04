@@ -50,7 +50,7 @@ async function testFetch(urlPath: string, options: TestFetchOptions = {}) {
       ...(options.token ? { Authorization: `Bearer ${options.token}` } : {}),
     },
   });
-  return { status: res.status, body: await res.json() as any };
+  return { status: res.status, body: await res.json() as Record<string, unknown> };
 }
 
 before(async () => {

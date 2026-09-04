@@ -7,7 +7,7 @@
  *
  * Part of plans/260817-2148-seed-full-coverage.
  */
-import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { createExpense } from '../services/expense.service';

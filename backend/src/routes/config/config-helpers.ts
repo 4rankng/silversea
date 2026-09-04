@@ -26,7 +26,7 @@ import {
 } from '@tingting/shared';
 import type { Request } from 'express';
 import { COMPANY_INFO_SETTING_KEYS, companyInfoFromSettings } from '../../services/company-info.service';
-import { upsertFuelConfigInTx, getFuelConfig, getFuelConfigUpdatedAt } from '../../services/config.service';
+import { upsertFuelConfigInTx, getFuelConfigUpdatedAt } from '../../services/config.service';
 import {
   updateSalaryPeriodDefaultInTx,
   upsertSalaryPeriodOverrideInTx,

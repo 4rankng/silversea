@@ -18,7 +18,7 @@ import { CARGO_MODE } from '../db/schema';
 import { and, asc, desc, eq, ilike, inArray, isNull, lte, ne, or, sql } from 'drizzle-orm';
 import type { SQL } from 'drizzle-orm';
 import { localDateInBusinessZone, round2dp, TripStatus } from '@tingting/shared';
-import type { Tx } from './trip-shared';
+
 import { escapeLikeTerm } from '../lib/format';
 import { operationalName } from '../db/master-data-name';
 import type { DispatchCarrierKey, DispatchSummary } from '@tingting/shared';

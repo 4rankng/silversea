@@ -2,7 +2,7 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { db } from '../../db';
 import * as s from '../../db/schema';
-import { and, eq, isNull, like, ne, sql } from 'drizzle-orm';
+import { and, eq, isNull, ne, sql } from 'drizzle-orm';
 import { ApiError } from '../../errors';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { getUser } from '../../middleware/auth';
@@ -10,37 +10,22 @@ import { requireRoles } from '../../middleware/casbin';
 import { Role, TxnType } from '@tingting/shared';
 import { createCrudRouter } from '../utils/crud-factory';
 import { operationalName } from '../../db/master-data-name';
-import { runIdempotent, resolveIdempotencyKey } from '../../services/idempotency.service';
-import { cacheInvalidate, cacheInvalidatePattern } from '../../lib/redis';
+
+import { cacheInvalidatePattern } from '../../lib/redis';
 import { REPORT_CACHE_KEYS } from '../../lib/report-cache';
 import * as H from './config-helpers';
-import type { CustomerMutationPayload, PenaltyReasonPayload, DriverPayload, SupplierPayload, ForwarderExpenseTypePayload, ExpenseCategoryPayload } from './config-helpers';
-import {
-  lockApplicationOwnedUniqueness,
-  lockApplicationOwnedUniquenessSet,
-} from '../../services/application-owned-uniqueness.service';
+import { CustomerMutationPayload, PenaltyReasonPayload, DriverPayload, ExpenseCategoryPayload } from './config-helpers';
+import { lockApplicationOwnedUniqueness } from '../../services/application-owned-uniqueness.service';
 import { getBootstrapData, getPricing, syncTrailerFields, validateCustomerUniqueness } from '../../services/config.service';
 import { getPenaltyStats } from '../../services/reporting.service';
 import { restrictRouteCreateForIntake } from '../../services/route-intake.service';
 import { restrictCustomerCreateForIntake, intakeCreatedBy } from '../../services/customer-intake.service';
 import { assertTireSerialAvailable } from '../../services/tire.service';
-import { requestOrApplyGovernedConfigAction } from '../../services/price-config-governance.service';
+
 import debitNoteTemplatesRouter from './debit-note-templates.routes';
 import masterDataImportRouter from './master-data-import.routes';
 import driverUserBindingRouter from './driver-user-binding.routes';
-import {
-  customerSchema, customerUpdateSchema, truckSchema, trailerSchema, routeSchema,
-  cargoTypeSchema, pricingTableSchema, roadAllowanceSchema,
-  fuelConfigSchema, penaltyReasonSchema, driverSchema,
-  managementFeeSchema, capTableSchema, truckCapSchema,
-  supplierSchema, expenseCategorySchema,
-  containerTypeSchema, sealTypeSchema, portSchema,
-  dispatchZoneSchema, dispatchZoneUpdateSchema,
-  forwarderExpenseTypeSchema,
-  tireSchema, installTireSchema, disposeTireSchema, transferTireSchema, tirePositionSchema,
-  fuelNormSchema, weightPricingTierSchema, liftPricingSchema, ancillaryRevenueSchema,
-  businessCalendarDaySchema,
-} from '@tingting/shared';
+import { customerSchema, customerUpdateSchema, truckSchema, trailerSchema, routeSchema, cargoTypeSchema, pricingTableSchema, roadAllowanceSchema, penaltyReasonSchema, driverSchema, managementFeeSchema, capTableSchema, truckCapSchema, supplierSchema, expenseCategorySchema, containerTypeSchema, sealTypeSchema, portSchema, dispatchZoneSchema, dispatchZoneUpdateSchema, forwarderExpenseTypeSchema, tireSchema, tirePositionSchema, fuelNormSchema, weightPricingTierSchema, liftPricingSchema, ancillaryRevenueSchema, businessCalendarDaySchema } from '@tingting/shared';
 
 // Catalog CRUD routes (T3c split) — the 26 crud-factory mounts plus the
 // bootstrap/pricing endpoints, moved verbatim from routes/config.ts.

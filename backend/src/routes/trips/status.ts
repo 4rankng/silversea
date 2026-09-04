@@ -4,14 +4,14 @@
  */
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { Role, TripStatus, NotificationType } from '@tingting/shared';
+import { TripStatus, NotificationType } from '@tingting/shared';
 import { ApiError } from '../../errors';
 import { dispatchTripWriteCommand, transitionTripWriteCommand } from '../../services/trip-command.service';
 import { requestCompletedTripCancellation, requestTripFinancialClose } from '../../services/adjustment-governance.service';
-import { registerAuditEvent } from '../../services/audit-registry';
+
 import { AuditEvent } from '../../services/audit-types';
 import { asyncHandler } from '../../middleware/asyncHandler';
-import { requireRoles } from '../../middleware/casbin';
+
 import { getUser } from '../../middleware/auth';
 import * as tripService from '../../services/trip.service';
 import { getTripStatusOr404 } from '../../services/trip-mutations.service';

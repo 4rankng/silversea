@@ -21,9 +21,7 @@ import { createTripPair } from '../../services/trip-pairs.service';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency.service';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { parsePagination } from '../utils/pagination';
-import {
-  getExpectedVersion, tripListSortQuerySchema,
-} from './trips-shared';
+import { tripListSortQuerySchema } from './trips-shared';
 import { invalidateReportCaches } from '../../lib/report-cache';
 
 const router = Router();

@@ -48,23 +48,7 @@ import {
   splitContainers,
   joinContainers,
 } from './billing-document-identity.service';
-import {
-  type TripClaimSeed,
-  tripSourceIds,
-  previewRecoverableTripIds,
-  persistedClaimTripIds,
-  replaceActiveTripClaims,
-  assertDraftDocumentLinesEditable,
-  documentLedgerAdjustment,
-  assertRecoverableSourcesClaimable,
-  assertTripSourcesClaimable,
-  renderSourceVersion,
-  renderSourceChangedAt,
-  lineColumnSourceVersion,
-  lineColumnSourceChangedAt,
-  loadLineProvenance,
-  listDocumentCorrections,
-} from './billing-document-invariants.service';
+import { tripSourceIds, previewRecoverableTripIds, persistedClaimTripIds, replaceActiveTripClaims, assertDraftDocumentLinesEditable, documentLedgerAdjustment, assertRecoverableSourcesClaimable, assertTripSourcesClaimable, renderSourceVersion, renderSourceChangedAt, lineColumnSourceVersion, lineColumnSourceChangedAt, loadLineProvenance, listDocumentCorrections } from './billing-document-invariants.service';
 import { postDebitNoteDelta } from './billing-document-posting.service';
 
 // Template CRUD, draft generation, and the shared money/checksum/VAT helpers

@@ -17,21 +17,6 @@ import { generateDraft, saveDocument } from '../services/billing-document.servic
 import { recordPaymentReceipt } from '../services/payment-allocation.service';
 import type { AuthUser } from '../middleware/auth';
 
-/** Minimal valid PDF (header + one empty page + trailer). */
-function minimalPdf(label: string): { buffer: Buffer; mimetype: string; originalname: string; size: number } {
-  const content = `%PDF-1.4
-1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
-2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj
-3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 595 842]/Contents 4 0 R>>endobj
-4 0 obj<</Length ${label.length}>>stream
-${label}
-endstream endobj
-trailer<</Root 1 0 R>>
-%%EOF`;
-  const buffer = Buffer.from(content, 'utf8');
-  return { buffer, mimetype: 'application/pdf', originalname: `${label}.pdf`, size: buffer.length };
-}
-
 export async function seedCustomerAr(actors: {
   cus: AuthUser;
   accountant: AuthUser;

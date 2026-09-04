@@ -1,6 +1,6 @@
 import { and, eq, inArray, isNull, lte, sql } from 'drizzle-orm';
 import type { Role } from '@tingting/shared';
-import { db } from '../db';
+
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';

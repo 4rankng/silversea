@@ -1,7 +1,7 @@
 // Trip Status Machine — Status transition logic and validation
 // transitionTripStatus with all role checks, guard conditions, and ledger integration
 
-import { db } from '../db';
+
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { eq, and, isNull, ne, sql } from 'drizzle-orm';

@@ -1,9 +1,7 @@
 // Extracted verbatim from the original schema.ts split; behavior identical.
 // Regenerate via drizzle-kit against the barrel: db/schema/index.ts.
 
-import {
-  boolean, date, doublePrecision, index, integer, jsonb, numeric, pgTable, serial, smallint, text, timestamp, uniqueIndex, varchar,
-} from 'drizzle-orm/pg-core';
+import { boolean, date, doublePrecision, index, integer, jsonb, pgTable, serial, smallint, text, timestamp, uniqueIndex, varchar } from 'drizzle-orm/pg-core';
 import { customerAccountTypeEnum, deleteRequestStatusEnum, notificationTypeEnum, roleEnum, schedulerRunStatusEnum } from './_enums';
 // ─── Config tables ───────────────────────────────────────────────────────────
 export const users = pgTable('users', {

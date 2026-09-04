@@ -12,8 +12,8 @@ import multer from 'multer';
 import sharp from 'sharp';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import * as s from '../../db/schema';
-import { and, desc, eq, isNull, lte, sql } from 'drizzle-orm';
-import type { Tx } from '../../services/trip-shared';
+import { and, eq } from 'drizzle-orm';
+
 import { ApiError } from '../../errors';
 import {
   assertForwarderTripScope, assertForwarderMutableTripScope,

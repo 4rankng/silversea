@@ -48,7 +48,6 @@ const uniqueTaxCode = () => `0310${String(Date.now()).slice(-6)}`;
 
 const createdCustomerIds: number[] = [];
 const createdUserIds: number[] = [];
-const createdBusinessUnitIds: number[] = [];
 
 let server: http.Server;
 let baseUrl: string;

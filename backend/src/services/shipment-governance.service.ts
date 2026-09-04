@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { Role } from '@tingting/shared';
-import { db } from '../db';
+
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import type { AuthUser } from '../middleware/auth';
@@ -8,7 +8,7 @@ import { runInTx } from '../lib/tx';
 import type { Tx } from './trip-shared';
 import { softDeleteShipment } from './shipment-lifecycle.service';
 import { isPastRunCutoff } from './container-date-filter';
-import { IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
+
 
 export { isPastRunCutoff } from './container-date-filter';
 
@@ -158,7 +158,7 @@ export async function decideShipmentDeleteRequest(args: {
       return { action: rejected, deleted: false };
     }
 
-    const deleted = await softDeleteShipment(args.shipmentId, {
+    await softDeleteShipment(args.shipmentId, {
       version: action.originalVersion,
       deletedBy: args.actor.userId,
       allowedStatuses: CUS_DELETE_ALLOWED_STATUSES,

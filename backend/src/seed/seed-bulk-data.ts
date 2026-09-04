@@ -49,7 +49,6 @@ import * as s from '../db/schema';
 // A single, well-known BL number marks the bulk-seeded data. The probe is
 // cheap (a unique-indexed query) and avoids any "row count" guesswork.
 const BULK_MARKER_BL = 'BULK-MARKER-DO-NOT-DELETE';
-const BULK_TAX_CODE_PREFIX = '03'; // 0300xxxxxx range
 const BULK_BL_PREFIX = 'BULK-IMP-';
 const BULK_BR_PREFIX = 'BULK-EXP-';
 const BULK_TRIP_PREFIX = 'BULK-TR-';
@@ -67,10 +66,6 @@ const FACTORY_PREFIXES = [
   'KCN Vân Trung', 'KCN Đồng Văn', 'KCN Yên Phong', 'KCN Tiên Sơn',
   'KCN Thăng Long', 'KCN Quế Võ', 'KCN Phú Nghĩa', 'KCN Khai Quang',
   'KCN Bình Xuyên', 'KCN Bắc Ninh', 'KCN Hải Phòng', 'KCN Đình Vũ',
-];
-const WAREHOUSE_PREFIXES = [
-  'Kho Tổng', 'Kho Trung chuyển', 'Kho Logistics', 'Kho Hàng Hóa',
-  'Kho Bảo quản', 'Kho Xuất nhập', 'Kho Container', 'Kho Hải quan',
 ];
 const FIRST_NAMES = [
   'Văn', 'Hữu', 'Đức', 'Thị', 'Văn', 'Thị', 'Quang', 'Thành', 'Trung', 'Minh',
@@ -146,15 +141,6 @@ function makeRng(seed: number) {
 }
 const rng = makeRng(20260820);
 const pick = <T>(arr: readonly T[]): T => arr[Math.floor(rng() * arr.length)]!;
-const pickN = <T>(arr: readonly T[], n: number): T[] => {
-  const copy = [...arr];
-  const out: T[] = [];
-  for (let i = 0; i < n && copy.length; i++) {
-    const idx = Math.floor(rng() * copy.length);
-    out.push(copy.splice(idx, 1)[0]!);
-  }
-  return out;
-};
 const randInt = (min: number, max: number) => min + Math.floor(rng() * (max - min + 1));
 const randFloatStr = (min: number, max: number, dp = 0) => {
   const v = min + rng() * (max - min);
@@ -263,9 +249,6 @@ function genCompanyName(): string {
 }
 function genFactoryAddress(): string {
   return `${pick(FACTORY_PREFIXES)}, ${pick(CITIES_NORTH)}`;
-}
-function genWarehouseAddress(): string {
-  return `${pick(WAREHOUSE_PREFIXES)} ${pick(CITIES_NORTH)}`;
 }
 
 // ─── Date helpers ────────────────────────────────────────────────────────────
@@ -576,7 +559,7 @@ export async function seedBulkData(): Promise<{ created: boolean; stats: Record<
       const numContainers = randInt(1, 2);
       for (let cIdx = 0; cIdx < numContainers; cIdx++) {
         const containerNumber = genContainerNumber(usedContainerNumbers);
-        const [_typeCode, typeId] = pick(containerTypeEntries) as [string, number];
+        const [, typeId] = pick(containerTypeEntries) as [string, number];
         const weight = randInt(15_000, 25_500);
         const [pickupPortId, dropoffPortId] = isImport
           ? [pick(portPickupIds), pick(portDropoffIds)]

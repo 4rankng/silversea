@@ -21,9 +21,7 @@ import { requestTripExpenseDecision } from '../../services/approval.service';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency.service';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { throwValidation } from '../../lib/validation';
-import {
-  getExpectedVersion, tripExpenseDecisionRequestSchema,
-} from './trips-shared';
+import { tripExpenseDecisionRequestSchema } from './trips-shared';
 
 const router = Router();
 

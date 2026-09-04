@@ -1,21 +1,10 @@
-import { config } from '../config';
+
 import { db } from '../db';
 import * as s from '../db/schema';
 import { operationalName } from '../db/master-data-name';
 import { eq, ne, and, isNull, isNotNull, or, desc, asc, gte, lte, sql, inArray, aliasedTable } from 'drizzle-orm';
 import { ApiError } from '../errors';
-import {
-  computeVehicleAlerts,
-  DRIVER_FULFILLMENT_PROGRESS_SEQUENCE,
-  DRIVER_PROGRESS_EVENT_LABELS,
-  DriverProgressEventType,
-  Role,
-  round2dp,
-  TripStatus,
-  TxnType,
-  type DriverIncidentalCostType,
-  type VehicleAlert,
-} from '@tingting/shared';
+import { computeVehicleAlerts, DriverProgressEventType, round2dp, TripStatus, TxnType, type VehicleAlert } from '@tingting/shared';
 
 import { computeSalary } from './attendance.service';
 import { listFuelEvidenceReviewsForTrip } from './fuel-evidence-review.service';
@@ -25,7 +14,7 @@ import { getTripInstructions } from './trip-instructions.service';
 import { storageService } from './storage.service';
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
 import { getActiveTruckIdForDriver } from './truck-driver-assignment.service';
-import { assertTripShipmentAccountingUnlocked, getShipmentAccountingLockSummary } from './shipment-accounting-lock.service';
+import { getShipmentAccountingLockSummary } from './shipment-accounting-lock.service';
 import type { Tx } from './trip-shared';
 import {
   assertTripOwnedByDriver,

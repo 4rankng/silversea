@@ -1,5 +1,5 @@
 import { and, asc, count, desc, eq, isNull, sql, type SQL } from 'drizzle-orm';
-import { Role, OPS_EXPENSE_TYPE_DEFAULTS, recoverableCostListQuerySchema } from '@tingting/shared';
+import { OPS_EXPENSE_TYPE_DEFAULTS, recoverableCostListQuerySchema } from '@tingting/shared';
 import type { z } from 'zod';
 import { db } from '../db';
 import * as s from '../db/schema';

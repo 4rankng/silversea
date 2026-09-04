@@ -8,8 +8,8 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import * as s from '../../db/schema';
-import { and, desc, eq, isNull, lte, sql } from 'drizzle-orm';
-import type { Tx } from '../../services/trip-shared';
+import { eq, sql } from 'drizzle-orm';
+
 import { ApiError } from '../../errors';
 import { throwValidation } from '../../lib/validation';
 import {

@@ -4,20 +4,18 @@
  */
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { Role, TripStatus, updateTripFiguresSchema } from '@tingting/shared';
+import { TripStatus, updateTripFiguresSchema } from '@tingting/shared';
 import { AuditEvent } from '../../services/audit-types';
-import { ApiError } from '../../errors';
+
 import { requestTripFinancialChange } from '../../services/adjustment-governance.service';
 import { loadTripStatusVersion } from '../../services/trip-queries.service';
 import { asyncHandler } from '../../middleware/asyncHandler';
-import { requireRoles } from '../../middleware/casbin';
+
 import { getUser } from '../../middleware/auth';
 import * as tripService from '../../services/trip.service';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency.service';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
-import {
-  getExpectedVersion,
-} from './trips-shared';
+
 import { invalidateReportCaches } from '../../lib/report-cache';
 
 const router = Router();

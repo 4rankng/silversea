@@ -5,12 +5,7 @@ import { eq, inArray } from 'drizzle-orm';
 import { db, client } from '../db';
 import * as s from '../db/schema';
 import { Role } from '@tingting/shared';
-import {
-  evaluateRecoverableEligibility,
-  getRecoverableCost,
-  listRecoverableCosts,
-  type RecoverableEligibilityState,
-} from '../services/recoverable-cost.service';
+import { getRecoverableCost, listRecoverableCosts, type RecoverableEligibilityState } from '../services/recoverable-cost.service';
 
 // Column sorting for the recoverable-costs ledger: whitelisted keys, numeric
 // money ordering, the replicated variance/eligibility/evidence expressions,
@@ -163,7 +158,7 @@ describe('listRecoverableCosts column sorting', () => {
     // ── Eligibility/evidence set (anpha): one row per state branch, each with
     // a distinct evidence tier so the two sorts are independently observable.
     const tripEli = await seedTrip(customerAnpha, routeId, anphaShipment, null);
-    const readyId = await seedExpense(tripEli, {
+    await seedExpense(tripEli, {
       approvalStatus: 'PENDING',
       buyAmount: '100000', sellAmount: '150000',
       invoiceNumber: null, invoiceDate: null, noInvoiceEvidenceTypes: [],

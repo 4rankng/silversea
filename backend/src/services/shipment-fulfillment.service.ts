@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
 import { Role, canonicalShipmentStatus } from '@tingting/shared';
 
 import { db } from '../db';

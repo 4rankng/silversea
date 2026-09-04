@@ -4,16 +4,16 @@
  */
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { Role, tripContainerBatchSchema, upsertTripInstructionsSchema } from '@tingting/shared';
+import { tripContainerBatchSchema, upsertTripInstructionsSchema } from '@tingting/shared';
 import { asyncHandler } from '../../middleware/asyncHandler';
-import { requireRoles } from '../../middleware/casbin';
+
 import { getUser } from '../../middleware/auth';
-import { listTripContainers, batchUpsertTripContainers } from '../../services/forwarder.service';
+import { batchUpsertTripContainers } from '../../services/forwarder.service';
 import * as tripService from '../../services/trip.service';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency.service';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { throwValidation } from '../../lib/validation';
-import { getExpectedVersion } from './trips-shared';
+
 import { invalidateReportCaches } from '../../lib/report-cache';
 
 const router = Router();

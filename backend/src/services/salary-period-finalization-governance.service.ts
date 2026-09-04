@@ -1,7 +1,7 @@
 import { FINANCIAL_ROLES } from '@tingting/shared';
 import { eq } from 'drizzle-orm';
 
-import { db } from '../db';
+
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';

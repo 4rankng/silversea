@@ -214,7 +214,7 @@ export async function listShipmentStatusHistory(shipmentId: number, tx?: Tx) {
   return rows.map((row) => normalizeShipmentStatusHistoryRow(row));
 }
 
-export async function getShipmentDetail(id: number, actor?: AuthUser): Promise<ShipmentDetail> {
+export async function getShipmentDetail(id: number, _actor?: AuthUser): Promise<ShipmentDetail> {
   // Fetch the shipment first so a missing row 404s cleanly rather than
   // returning an empty payload.
   const shipment = await getShipment(id);

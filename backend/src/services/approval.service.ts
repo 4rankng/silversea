@@ -1,7 +1,7 @@
 import * as s from '../db/schema';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { FINANCIAL_ROLES } from '@tingting/shared';
-import { db } from '../db';
+
 import { runInTx } from '../lib/tx';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';

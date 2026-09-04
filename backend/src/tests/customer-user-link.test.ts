@@ -5,18 +5,11 @@ import type { AddressInfo } from 'node:net';
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { eq, inArray } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { CustomerAccountType, Role } from '@tingting/shared';
 import { db, client } from '../db';
 import * as s from '../db/schema';
-import {
-  authenticate,
-  createUser,
-  deleteUser,
-  listUsers,
-  updateBusinessUnit,
-  updateUser,
-} from '../services/user.service';
+import { authenticate, createUser, deleteUser, listUsers, updateUser } from '../services/user.service';
 import { assetAuthMiddleware, authMiddleware } from '../middleware/auth';
 import authRoutes from '../routes/auth';
 import { config } from '../config';

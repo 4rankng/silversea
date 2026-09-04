@@ -16,9 +16,8 @@ import {
   type ShipmentCusMissingField,
   type ShipmentCusMissingFieldCode,
 } from '@tingting/shared';
-import { sql } from 'drizzle-orm';
+
 import { CARGO_MODE } from '../db/schema';
-import * as s from '../db/schema';
 import {
   trimOrNull, businessDateNow, sumMoney, sumDecimal, toNumber,
   effectiveBillingLineAmount, billOrBookNumberFor,
@@ -26,10 +25,7 @@ import {
 import { getShipmentFinanceConfirmationSummary } from './shipment-accounting-lock.service';
 import { filterContainersByDateRange, isPastRunCutoff } from './container-date-filter';
 import type { AuthUser } from '../middleware/auth';
-import type {
-  ShipmentRow, ShipmentListRow, WorkspaceSupport, ContainerRow, AssignmentRow,
-  RecoveryFactRow, BillingLineRow, DeclarationRow, LockRow, DebitNoteRow, CustodyRow, TripRow,
-} from './cus-shipment-workspace-reads.service';
+import { ShipmentRow, ShipmentListRow, WorkspaceSupport, ContainerRow, AssignmentRow } from './cus-shipment-workspace-reads.service';
 
 function buildOperationalSummary(
   row: ShipmentListRow,

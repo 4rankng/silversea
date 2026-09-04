@@ -7,38 +7,14 @@
  * the dependency direction is writes → reads only, never the reverse.
  * `cus-shipment-workspace.service.ts` remains the facade importers target.
  */
-import {
-  Role,
-  ShipmentCusBucket,
-  ShipmentDocumentCustody,
-  ShipmentStatus,
-  SHIPMENT_CUS_BUCKET_LABELS,
-  SHIPMENT_DOCUMENT_CUSTODY_LABELS,
-  SHIPMENT_CUS_MISSING_FIELD_LABELS,
-  canonicalShipmentStatus,
-  localDateInBusinessZone,
-  type DispatchClassification,
-  type ShipmentCusContainerQuery,
-  type ShipmentCusContainerSortKey,
-  type ShipmentCusWorkspaceSortKey,
-  type ShipmentCusMissingField,
-  type ShipmentCusMissingFieldCode,
-  type ShipmentCusWorkspaceContainerLine,
-  type ShipmentCusWorkspaceFieldAccess,
-  type ShipmentCusWorkspaceDetail,
-  type ShipmentCusWorkspaceListItem,
-  type ShipmentCusWorkspaceListResponse,
-  type ShipmentCusWorkspaceQuery,
-  type ShipmentCusContainerFlatResponse,
-  type ShipmentCusContainerFlatRow,
-} from '@tingting/shared';
-import { and, asc, count, desc, eq, gte, ilike, inArray, isNull, lte, ne, or, sql, type Column, type SQL } from 'drizzle-orm';
-import { alias } from 'drizzle-orm/pg-core';
+import { Role, ShipmentCusBucket, ShipmentStatus, localDateInBusinessZone, type DispatchClassification, type ShipmentCusContainerQuery, type ShipmentCusWorkspaceDetail, type ShipmentCusWorkspaceListResponse, type ShipmentCusWorkspaceQuery, type ShipmentCusContainerFlatResponse, type ShipmentCusContainerFlatRow } from '@tingting/shared';
+import { and, asc, count, desc, eq, gte, ilike, inArray, isNull, lte, ne, or, sql, type SQL } from 'drizzle-orm';
+
 
 import { db } from '../db';
 import * as s from '../db/schema';
 import { CARGO_MODE } from '../db/schema';
-import { operationalName } from '../db/master-data-name';
+
 import { ApiError } from '../errors';
 import type { AuthUser } from '../middleware/auth';
 import type { Tx } from './trip-shared';
@@ -46,32 +22,15 @@ import {
   getShipmentFinanceConfirmationSummaries,
   getShipmentFinanceConfirmationSummary,
 } from './shipment-accounting-lock.service';
-import { filterContainersByDateRange, isPastRunCutoff } from './container-date-filter';
 
-import {
-  CUSTOMER_OPERATIONAL_NAME, ROUTE_OPERATIONAL_NAME, SITE_OPERATIONAL_NAME,
-  plannedCarrier, actualCarrier, billingSourceTrip, billingExpenseTrip, liftPort,
-  containerTransportDateSql, containerDispatchRankSql, CONTAINER_DISPATCH_RANKS,
-  containerCarrierNameSql, containerSnapshotLiftSiteSql, billOrBookNumberSortSql,
-  CONTAINER_SORT_SQL, workspaceBucketRankSql, WORKSPACE_SORT_SQL,
-  activeTripCarrierTypeSql, activePlannedCarrierTypeSql, activeCarrierTypeSql,
-  activeTripPlateSql, activePlannedPlateSql, portRowExistsSql,
-  siteSnapshotHalfIsObjectSql, trimmedPresentSql, containerMissingBitsSql,
-  containerIncompleteSql, cargoRankSql,
-} from './cus-workspace-sql.service';
-import {
-  toNumber, toMoneyString, sumMoney, sumDecimal, businessDateNow,
-  deriveTransportDateFromContainerAppointments,
-  effectiveBillingLineAmount, billOrBookNumberFor, trimOrNull,
-} from './cus-workspace-mapping.service';
+
+import { CUSTOMER_OPERATIONAL_NAME, ROUTE_OPERATIONAL_NAME, SITE_OPERATIONAL_NAME, plannedCarrier, actualCarrier, billingSourceTrip, billingExpenseTrip, liftPort, containerTransportDateSql, containerDispatchRankSql, CONTAINER_DISPATCH_RANKS, CONTAINER_SORT_SQL, WORKSPACE_SORT_SQL, activeCarrierTypeSql, containerIncompleteSql, cargoRankSql } from './cus-workspace-sql.service';
+import { billOrBookNumberFor, trimOrNull } from './cus-workspace-mapping.service';
 
 export * from './cus-workspace-sql.service';
 export * from './cus-workspace-mapping.service';
 
-import {
-  buildOperationalSummary, buildListItem, resolveLiftSite, resolveDropoffSite,
-  buildContainerLine, containerMissingFields, shipmentFieldAccess,
-} from './cus-workspace-builders.service';
+import { buildListItem, buildContainerLine, containerMissingFields, shipmentFieldAccess } from './cus-workspace-builders.service';
 
 type Executor = typeof db | Tx;
 export type ShipmentRow = typeof s.shipments.$inferSelect;

@@ -225,7 +225,7 @@ export function parseSitesV2(workbook: ExcelJS.Workbook, rows: ParsedRow[]): voi
   const last = lastRelevantRow(sheet, 3, [1, 2]);
   for (let rowNumber = 3; rowNumber <= last; rowNumber += 1) {
     const { values, hasFormula } = cellsForRow(sheet, rowNumber, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]);
-    const [name, code, shortName, customerCode, , address, contactName, contactPhone,
+    const [name, code, , customerCode, , address, contactName, contactPhone,
       warehouseContactInfo, note, liftInfo, dropInfo, cleaningInfo, mapsUrl] = values;
     if (!values.some(Boolean)) { rows.push(templateRow(sheet.name, rowNumber, 'operational_site')); continue; }
     if (hasFormula) { rows.push(blockedRow(sheet.name, rowNumber, 'operational_site', 'FORMULA_NOT_ALLOWED', 'Ô dữ liệu chứa công thức và không được phép nhập.')); continue; }
@@ -262,7 +262,7 @@ export function parseRoutesV2(workbook: ExcelJS.Workbook, rows: ParsedRow[]): vo
   const last = lastRelevantRow(sheet, 3, [1, 2]);
   for (let rowNumber = 3; rowNumber <= last; rowNumber += 1) {
     const { values, hasFormula } = cellsForRow(sheet, rowNumber, [1, 2, 3, 4, 5, 6, 7]);
-    const [code, name, shortName, loadPoint, km, tolls, note] = values;
+    const [code, , shortName, loadPoint, km, tolls, note] = values;
     if (!values.some(Boolean)) { rows.push(templateRow(sheet.name, rowNumber, 'route')); continue; }
     if (hasFormula) { rows.push(blockedRow(sheet.name, rowNumber, 'route', 'FORMULA_NOT_ALLOWED', 'Ô dữ liệu chứa công thức và không được phép nhập.')); continue; }
     if (!code) { rows.push(blockedRow(sheet.name, rowNumber, 'route', 'MISSING_REQUIRED_FIELDS', 'Thiếu mã tuyến.')); continue; }

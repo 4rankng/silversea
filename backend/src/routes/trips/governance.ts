@@ -4,19 +4,17 @@
  */
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { Role, tripReopenRequestSchema } from '@tingting/shared';
-import { ApiError } from '../../errors';
+import { tripReopenRequestSchema } from '@tingting/shared';
+
 import { requestTripReopen } from '../../services/adjustment-governance.service';
-import { AuditEvent } from '../../services/audit-types';
+
 import { asyncHandler } from '../../middleware/asyncHandler';
-import { requireRoles } from '../../middleware/casbin';
+
 import { getUser } from '../../middleware/auth';
 import * as tripService from '../../services/trip.service';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency.service';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
-import {
-  getExpectedVersion, getRequiredGovernanceReason,
-} from './trips-shared';
+
 import { invalidateReportCaches } from '../../lib/report-cache';
 
 const router = Router();

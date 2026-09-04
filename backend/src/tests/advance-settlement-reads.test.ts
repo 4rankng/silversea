@@ -134,14 +134,14 @@ describe('advance settlement read paths', () => {
     const mine = all.filter((row) => mySettlementIds.includes(row.id));
     assert.equal(mine.length, 2);
 
-    const withRequests = mine.find((row) => row.id === mySettlementIds[0])!;
-    assert.ok(Array.isArray((withRequests as any).linkedRequests));
-    const linkedAmounts = (withRequests as any).linkedRequests.map((r: any) => r.amount);
+    const withRequests = mine.find((row) => row.id === mySettlementIds[0]) as (typeof mine)[number] & { linkedRequests?: Array<{ amount: unknown }> };
+    assert.ok(Array.isArray(withRequests.linkedRequests));
+    const linkedAmounts = (withRequests.linkedRequests ?? []).map((r) => r.amount);
     assert.ok(linkedAmounts.includes('1000000'));
     assert.ok(linkedAmounts.includes('500000'));
 
-    const withExpenses = mine.find((row) => row.id === mySettlementIds[1])!;
-    const linkedExpenses = (withExpenses as any).linkedExpenses as Array<Record<string, unknown>>;
+    const withExpenses = mine.find((row) => row.id === mySettlementIds[1]) as (typeof mine)[number] & { linkedExpenses?: Array<Record<string, unknown>> };
+    const linkedExpenses = withExpenses.linkedExpenses;
     assert.ok(Array.isArray(linkedExpenses));
     assert.equal(linkedExpenses.length, 1);
     // buyAmount = the adjusted (or original) snapshot amount, re-pinned after
