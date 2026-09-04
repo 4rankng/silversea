@@ -83,14 +83,14 @@ describe('SupplierListPage server-side sort headers', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Trang sau' }));
     await waitFor(() => expect(lastGetUrl()).toContain('page=2'));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Tên' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tên nhà xe' }));
     await waitFor(() => {
       expect(lastGetUrl()).toContain('page=1');
       expect(lastGetUrl()).toContain('sortBy=name');
       expect(lastGetUrl()).toContain('sortDir=asc');
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Tên' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tên nhà xe' }));
     await waitFor(() => {
       expect(lastGetUrl()).toContain('sortDir=desc');
       expect(lastGetUrl()).toContain('page=1');
@@ -102,10 +102,10 @@ describe('SupplierListPage server-side sort headers', () => {
     expect(await screen.findAllByText('Garage Auto 123')).toBeTruthy();
 
     const sortKeys: Array<[string, string]> = [
+      ['Tên viết tắt', 'shortName'],
       ['Người liên hệ', 'contactPerson'],
       ['SĐT', 'phone'],
       ['Mã số thuế', 'taxCode'],
-      ['KH liên kết', 'linkedCustomer'],
       ['Công nợ', 'payable'],
     ];
     for (const [label, key] of sortKeys) {
