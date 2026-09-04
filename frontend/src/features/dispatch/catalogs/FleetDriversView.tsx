@@ -6,18 +6,16 @@
  * DISPATCHER role cannot make.
  */
 import { useMemo, useState } from 'react';
-import { Users, UserCheck, Truck as TruckIcon } from 'lucide-react';
+import { Users } from 'lucide-react';
 import { Plus } from '@untitledui/icons';
 import { KPI } from '../../../components/UI';
 import { Breadcrumbs } from '../../../components/shared/Breadcrumbs';
 import { SkeletonTable } from '../../../components/shared/Skeleton';
 import { SortHeader } from '../../../components/shared/SortHeader';
-import { BadgeWithDot } from '../../../components/untitled-ui/base/badges/badges';
 import { Button } from '../../../components/untitled-ui/base/buttons/button';
 import { useTrucksAndDrivers } from '../../../hooks/useCatalogQueries';
 import { usePageAnimations } from '../../../hooks/animations';
 import { nextTableSort, sortClientSide, type TableSortState } from '../../../lib/table-sort';
-import { DRIVER_STATUS } from '../../fleet';
 import { DriverFormModal } from '../../fleet/DriverFormModal';
 import { CatalogTableShell } from './CatalogTableShell';
 import { useCatalogCreate } from './useCatalogCreate';

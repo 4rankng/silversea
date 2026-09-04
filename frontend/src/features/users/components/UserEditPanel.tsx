@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import {
   ShieldCheck, KeyRound, Loader2, Save, User, Eye, EyeOff,
-  Mail, Phone, AtSign, Lock, Building2, Package, Hash,
+  Mail, AtSign, Lock, Building2, Package, Hash,
 } from 'lucide-react';
 import { Drawer, Btn, FormGroup } from '../../../components/UI';
 import { ROLE_LABELS } from '../utils';
@@ -73,7 +73,6 @@ export function EditPanel({
   const nameValid = fullName.trim().length > 0;
   const usernameValid = username.trim().length > 0;
   const emailError = email.trim().length > 0 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  const phoneError = phone.trim().length > 0 && !/^[\d\s+()-]{8,}$/.test(phone);
   const pwValid = password.length >= 6;
   const pwError = password.length > 0 && !pwValid;
   const customerScopeRequired = role === Role.CUSTOMER && status !== 'INACTIVE';

@@ -13,7 +13,7 @@ import { SkeletonTable } from '../../../components/shared/Skeleton';
 import { SortHeader } from '../../../components/shared/SortHeader';
 import { BadgeWithDot } from '../../../components/untitled-ui/base/badges/badges';
 import { Button } from '../../../components/untitled-ui/base/buttons/button';
-import { useSuppliers, useAllCustomers } from '../../../hooks/useCatalogQueries';
+import { useSuppliers } from '../../../hooks/useCatalogQueries';
 import { usePageAnimations } from '../../../hooks/animations';
 import { SUPPLIER_TYPE_LABELS } from '@tingting/shared';
 import { nextTableSort, type TableSortState } from '../../../lib/table-sort';
@@ -31,7 +31,6 @@ export function SuppliersView() {
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<TableSortState | null>(null);
   const create = useCatalogCreate('/suppliers');
-  const { data: customers = [] } = useAllCustomers();
 
   // Server-side pagination + search + sort (same contract as the admin page);
   // typing resets to page 1 after a short debounce, sorting resets immediately.

@@ -7,7 +7,7 @@ import { qk } from '../api/keys';
 import { useAuth } from '../hooks/useAuth';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { useTableQueryState } from '../design-system/hooks/useTableQueryState';
-import { useAllCustomers, useTrucksAndDrivers } from '../hooks/useCatalogQueries';
+import { useAllCustomers } from '../hooks/useCatalogQueries';
 import { useUserMutations } from '../features/users/hooks/useUserMutations';
 import { UserTable } from '../features/users/components/UserTable';
 import { AddPanel, EditPanel } from '../features/users/components/UserForm';
@@ -76,8 +76,6 @@ export default function UsersPage() {
 
   // Load trucks once for the driver "Xe phân công" field + the table "Xe" plate
   // column — reuses the combined trucks+drivers cache (qk.catalogs.trucksDrivers).
-  const { data: trucksAndDrivers } = useTrucksAndDrivers();
-  const truckList = useMemo(() => trucksAndDrivers?.trucks ?? [], [trucksAndDrivers]);
   const { data: customerList = [] } = useAllCustomers();
   const { data: shipmentScopeData } = useQuery({
     queryKey: qk.catalogs.userScopeShipments,
@@ -86,15 +84,6 @@ export default function UsersPage() {
     enabled: canManageClerkScope,
   });
   const shipmentOptions = shipmentScopeData?.items ?? [];
-  const truckMap = useMemo(() => {
-    const m = new Map<number, string>();
-    truckList.forEach(t => m.set(t.id, t.licensePlate));
-    return m;
-  }, [truckList]);
-  const customerMap = useMemo(
-    () => new Map(customerList.map(customer => [customer.id, customer.name])),
-    [customerList],
-  );
   const businessUnitMap = useMemo(
     () => new Map(businessUnits.map((unit) => [unit.id, unit.name])),
     [businessUnits],
@@ -220,8 +209,6 @@ export default function UsersPage() {
         canManage={canManage}
         canDelete={canDelete}
         canEditDriversOnly={canEditDriversOnly}
-        truckMap={truckMap}
-        customerMap={customerMap}
         businessUnitMap={businessUnitMap}
         deleting={deleting}
         currentUserId={me?.userId}

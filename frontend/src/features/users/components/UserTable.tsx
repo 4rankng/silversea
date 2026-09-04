@@ -1,6 +1,6 @@
 import {
   Plus, Pencil, Trash2,
-  Loader2, KeyRound, Mail, Phone, Search, UserX, MoreVertical, X,
+  Loader2, KeyRound, Mail, Search, UserX, MoreVertical, X,
   ArrowUpDown, ArrowUp, ArrowDown, Building2,
   Users, ShieldCheck, UserCog,
 } from 'lucide-react';
@@ -31,9 +31,6 @@ interface UserTableProps {
   canDelete?: boolean;
   /** Accountant scope: may open the edit Drawer for DRIVER rows only. */
   canEditDriversOnly?: boolean;
-  /** truckId → licensePlate, for the "Xe" column on driver rows. */
-  truckMap?: Map<number, string>;
-  customerMap?: Map<number, string>;
   businessUnitMap?: Map<number, string>;
   deleting: number | null;
   currentUserId?: number;
@@ -99,49 +96,11 @@ function canEditRow(u: UserRow, canManage: boolean, canEditDriversOnly: boolean)
   return canManage || (canEditDriversOnly && u.role === Role.DRIVER);
 }
 
-/** Resolve the assigned truck's license plate for a driver row, if any. */
-function getPlate(u: UserRow, truckMap?: Map<number, string>) {
-  return u.role === Role.DRIVER && u.assignedTruckId != null ? truckMap?.get(u.assignedTruckId) : undefined;
-}
-
-function getCustomerScopeLabel(u: UserRow, customerMap?: Map<number, string>) {
-  if (u.role !== Role.CUSTOMER && u.role !== Role.ACCOUNTANT) return undefined;
-  const ids = u.customerIds?.length ? u.customerIds : u.customerId ? [u.customerId] : [];
-  if (ids.length === 0) {
-    return u.role === Role.ACCOUNTANT ? 'Phạm vi tài chính toàn công ty' : 'Chưa liên kết khách hàng';
-  }
-  const names = ids.map(id => customerMap?.get(id) ?? 'Khách hàng không còn trong danh mục');
-  return u.role === Role.ACCOUNTANT ? `Phạm vi kế toán: ${names.join(', ')}` : names.join(', ');
-}
-
-function getClerkScopeLabel(
-  u: UserRow,
-  customerMap?: Map<number, string>,
-  businessUnitMap?: Map<number, string>,
-) {
-  if (u.role !== Role.CUS) return undefined;
-  const parts: string[] = [];
-  const unitIds = u.businessUnitIds ?? [];
-  if (unitIds.length > 0) {
-    const unitNames = unitIds.map((id) => businessUnitMap?.get(id) ?? 'Đơn vị không còn trong danh mục');
-    parts.push(`Đơn vị: ${unitNames.join(', ')}`);
-  }
-  const customerIds = u.customerIds?.length ? u.customerIds : u.customerId ? [u.customerId] : [];
-  if (customerIds.length > 0) {
-    const names = customerIds.map((id) => customerMap?.get(id) ?? 'Khách hàng không còn trong danh mục');
-    parts.push(`Khách hàng: ${names.join(', ')}`);
-  }
-  if ((u.shipmentIds?.length ?? 0) > 0) {
-    parts.push(`Lô chỉ định: ${u.shipmentIds!.length}`);
-  }
-  return parts.length > 0 ? parts.join(' · ') : 'Chưa gán phạm vi';
-}
-
 export function UserTable({
   paginated, filteredTotal, roleCounts, total, staffCount, driverCount, inactiveCount,
   filter, search, canManage, canDelete = canManage, canEditDriversOnly = false,
-  truckMap, deleting, currentUserId,
-  customerMap, businessUnitMap,
+  deleting, currentUserId,
+  businessUnitMap,
   onFilterChange, onSearchChange, onEdit, onDelete, onAdd,
   sortBy, sortOrder, onSort,
   currentPage, pageSize, onPageChange,
@@ -249,8 +208,6 @@ export function UserTable({
           canManage={canManage}
           canDelete={canDelete}
           canEditDriversOnly={canEditDriversOnly}
-          truckMap={truckMap}
-          customerMap={customerMap}
           businessUnitMap={businessUnitMap}
           deleting={deleting}
           currentUserId={currentUserId}
@@ -267,8 +224,6 @@ export function UserTable({
           canManage={canManage}
           canDelete={canDelete}
           canEditDriversOnly={canEditDriversOnly}
-          truckMap={truckMap}
-          customerMap={customerMap}
           businessUnitMap={businessUnitMap}
           deleting={deleting}
           currentUserId={currentUserId}
@@ -313,8 +268,8 @@ export function UserTable({
 /* ── Desktop table (inside panel) ─────────────────────────────────────────── */
 
 function DesktopTable({
-  filtered, canManage, canDelete: _canDelete, canEditDriversOnly, truckMap, deleting: _deleting, currentUserId,
-  customerMap, businessUnitMap,
+  filtered, canManage, canDelete: _canDelete, canEditDriversOnly, deleting: _deleting, currentUserId,
+  businessUnitMap,
   onEdit, onDelete: _onDelete,
   sortBy, sortOrder, onSort,
 }: {
@@ -322,8 +277,6 @@ function DesktopTable({
   canManage: boolean;
   canDelete: boolean;
   canEditDriversOnly: boolean;
-  truckMap?: Map<number, string>;
-  customerMap?: Map<number, string>;
   businessUnitMap?: Map<number, string>;
   deleting: number | null;
   currentUserId?: number;
@@ -446,13 +399,11 @@ function DesktopTable({
 
 /* ── Mobile card list (inside panel) ──────────────────────────────────────── */
 
-function MobileCardList({ filtered, canManage, canDelete, canEditDriversOnly, truckMap, customerMap, businessUnitMap, deleting, currentUserId, onEdit, onDelete }: {
+function MobileCardList({ filtered, canManage, canDelete, canEditDriversOnly, businessUnitMap, deleting, currentUserId, onEdit, onDelete }: {
   filtered: UserRow[];
   canManage: boolean;
   canDelete: boolean;
   canEditDriversOnly: boolean;
-  truckMap?: Map<number, string>;
-  customerMap?: Map<number, string>;
   businessUnitMap?: Map<number, string>;
   deleting: number | null;
   currentUserId?: number;
