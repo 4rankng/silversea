@@ -23,6 +23,9 @@ export default tseslint.config(
       // Understand-Anything knowledge graph + transient .trash-* snapshots
       // are gitignored plugin output, not lintable source.
       '.ua/**',
+      // `make deploy` build worktrees — full repo copies of past states,
+      // not source of truth.
+      '.deploy-worktrees/**',
       // Tooling & deployment scripts
       'deploy/**',
       'e2e/**',
