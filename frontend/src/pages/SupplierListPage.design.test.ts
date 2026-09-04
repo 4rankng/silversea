@@ -39,16 +39,19 @@ describe('SupplierListPage dispatch worksheet styling', () => {
     expect(page).toContain("import { TextArea } from '../components/untitled-ui/base/textarea/textarea';");
     expect(page).not.toContain('pairedFieldGridStyle');
     expect(page).not.toContain("from '../utils/formStyles'");
-    // Sectioned form: icon-chip headings group the profile, payment-term,
-    // and note fields on one canvas.
-    expect((page.match(/<FormSectionHeading icon=\{[A-Za-z2]+\}>/g) ?? []).length).toBe(3);
+    // Sectioned form: the shared EntityFormSection primitive (icon chip +
+    // uppercase label + hairline divider, 2-col field grid) groups the
+    // profile, payment-term, and note fields; the footer carries the shared
+    // required-field hint.
+    expect(page).toContain("import { EntityFormSection, UnitInput, RequiredHint } from '../components/shared/EntityFormParts';");
+    expect((page.match(/<EntityFormSection icon=\{[A-Za-z2]+\} label=/g) ?? []).length).toBe(3);
     expect(page).toContain('Thông tin nhà xe');
     expect(page).toContain('Điều khoản thanh toán');
     expect(page).toContain('Ghi chú');
-    // The required name gates the submit; fields pair up on wide canvases via
-    // the shared responsive grid instead of a bespoke breakpoint ladder.
+    expect(page).toContain('<RequiredHint />');
+    // The required name gates the submit; the section primitive owns the
+    // responsive 2-col field grid.
     expect(page).toContain('isRequired');
-    expect(page).toContain('grid grid-cols-1 gap-4 sm:grid-cols-2');
     expect(page).toContain('placeholder="Ví dụ: 0312…"');
     expect(page).toContain('placeholder="Ví dụ: 15"');
     expect(page).toContain('placeholder="Ví dụ: 30"');
