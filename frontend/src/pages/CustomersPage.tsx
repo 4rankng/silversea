@@ -3,13 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import {
   Plus, Download, Search,
   MoreHorizontal, Pencil, Trash2, X, Save, Loader2, Truck,
+  Building2, Hash, Landmark, MapPin, User, Phone, Clock,
 } from 'lucide-react';
 import { api, ApiError } from '../lib/api';
 import { downloadCSV } from '../lib/csv';
 import { nextTableSort, readTableSort } from '../lib/table-sort';
 import { SortHeader } from '../components/shared/SortHeader';
-import { labelStyle } from '../utils/formStyles';
 import { PageHeader, FilterPill, StatusPill, Modal, ModalChipLive } from '../components/UI';
+import { Input } from '../components/untitled-ui/base/input/input';
+import { EntityFormSection, UnitInput, RequiredHint } from '../components/shared/EntityFormParts';
 import { SummaryRail } from '../design-system';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { EmptyState, Pagination, useTableQueryState } from '../design-system';
@@ -48,12 +50,6 @@ const STATUS_LABELS: Record<string, string> = {
   [CustomerStatus.ACTIVE]: 'Hoạt động',
   [CustomerStatus.LOCKED]: 'Tạm khoá',
 };
-
-const pairedFieldGridStyle = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-  gap: 12,
-} as const;
 
 function riskDot(debt: number | null, limit: number | null) {
   if (!debt || !limit || limit === 0) return 'low';
@@ -154,7 +150,7 @@ export function CustomerFormModal({ item, saving, onsave, oncancel, isOpen }: {
       onConfirm={handleSave}
       footer={
         <>
-          <p className="modal__hint"><span className="modal__req-mark">*</span> Trường bắt buộc</p>
+          <RequiredHint />
           <button className="btn btn--ghost btn--sm" onClick={oncancel}>
             <X size={14} /> Hủy
           </button>
@@ -165,75 +161,93 @@ export function CustomerFormModal({ item, saving, onsave, oncancel, isOpen }: {
         </>
       }
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <div style={pairedFieldGridStyle}>
-          <div className="field">
-            <label htmlFor="cust-name" style={labelStyle}>Tên đầy đủ <span style={{ color: 'var(--danger)' }}>*</span></label>
-            <input id="cust-name" className="input" value={name} onChange={e => setName(e.target.value)} placeholder="Tên pháp lý dùng trên chứng từ, báo cáo" autoFocus />
-          </div>
-          <div className="field">
-            <label htmlFor="cust-short-name" style={labelStyle}>Tên ngắn <span style={{ color: 'var(--danger)' }}>*</span></label>
-            <input id="cust-short-name" className="input" value={shortName} onChange={e => setShortName(e.target.value)} placeholder="Tên hiển thị trong vận hành" />
-          </div>
-        </div>
-        <div style={pairedFieldGridStyle}>
-          <div className="field">
-            <label htmlFor="cust-tax" style={labelStyle}>Mã số thuế</label>
-            <input id="cust-tax" className="input" value={taxCode} onChange={e => setTaxCode(e.target.value)} placeholder="0312…" />
-          </div>
-          <div className="field">
-            <label htmlFor="cust-address" style={labelStyle}>Địa chỉ</label>
-            <input id="cust-address" className="input" value={contactInfo} onChange={e => setContactInfo(e.target.value)} placeholder="Địa chỉ khách hàng" />
-          </div>
-        </div>
-        <div style={pairedFieldGridStyle}>
-          <div className="field">
-            <label htmlFor="cust-contact" style={labelStyle}>Người liên hệ</label>
-            <input id="cust-contact" className="input" value={contactPerson} onChange={e => setContactPerson(e.target.value)} placeholder="Anh Tuấn · Kế toán" />
-          </div>
-          <div className="field">
-            <label htmlFor="cust-phone" style={labelStyle}>SĐT Liên hệ</label>
-            <input id="cust-phone" className="input" value={phone} onChange={e => setPhone(e.target.value)} placeholder="0912…" />
-          </div>
-        </div>
-        <div style={pairedFieldGridStyle}>
-          <div className="field">
-            <label htmlFor="cust-director" style={labelStyle}>Giám đốc</label>
-            <input id="cust-director" className="input" value={accountantName} onChange={e => setAccountantName(e.target.value)} placeholder="Tên giám đốc" />
-          </div>
-          <div className="field">
-            <label htmlFor="cust-accountant-phone" style={labelStyle}>SĐT Kế toán</label>
-            <input id="cust-accountant-phone" className="input" value={accountantPhone} onChange={e => setAccountantPhone(e.target.value)} placeholder="0912…" />
-          </div>
-        </div>
-        <div style={pairedFieldGridStyle}>
-          <div className="field">
-            <label htmlFor="cust-agency-fee-term" style={labelStyle}>Hạn TT Chi hộ (ngày)</label>
-            <input
-              id="cust-agency-fee-term"
-              className="input"
-              type="number"
-              min={0}
-              max={3650}
-              value={agencyFeePaymentTermDays}
-              onChange={e => setAgencyFeePaymentTermDays(e.target.value)}
-              placeholder="Ví dụ: 15"
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="cust-freight-term" style={labelStyle}>Hạn TT Cước (ngày)</label>
-            <input
-              id="cust-freight-term"
-              className="input"
-              type="number"
-              min={0}
-              max={3650}
-              value={freightPaymentTermDays}
-              onChange={e => setFreightPaymentTermDays(e.target.value)}
-              placeholder="Ví dụ: 30"
-            />
-          </div>
-        </div>
+      <div className="flex flex-col gap-6">
+        <EntityFormSection icon={Building2} label="Thông tin khách hàng">
+          <Input
+            label="Tên đầy đủ"
+            isRequired
+            icon={Building2}
+            value={name}
+            onChange={setName}
+            placeholder="Tên pháp lý dùng trên chứng từ, báo cáo"
+            autoFocus
+          />
+          <Input
+            label="Tên ngắn"
+            isRequired
+            icon={Hash}
+            value={shortName}
+            onChange={setShortName}
+            placeholder="Tên hiển thị trong vận hành"
+          />
+          <Input
+            label="Mã số thuế"
+            icon={Landmark}
+            value={taxCode}
+            onChange={setTaxCode}
+            placeholder="0312…"
+            inputClassName="tabular-nums"
+          />
+          <Input
+            label="Địa chỉ"
+            icon={MapPin}
+            value={contactInfo}
+            onChange={setContactInfo}
+            placeholder="Địa chỉ khách hàng"
+          />
+          <Input
+            label="Người liên hệ"
+            icon={User}
+            value={contactPerson}
+            onChange={setContactPerson}
+            placeholder="Anh Tuấn · Kế toán"
+          />
+          <Input
+            label="SĐT Liên hệ"
+            icon={Phone}
+            value={phone}
+            onChange={setPhone}
+            placeholder="0912…"
+            inputClassName="tabular-nums"
+          />
+        </EntityFormSection>
+        <EntityFormSection icon={Landmark} label="Kế toán &amp; điều khoản">
+          <Input
+            label="Giám đốc"
+            icon={User}
+            value={accountantName}
+            onChange={setAccountantName}
+            placeholder="Tên giám đốc"
+          />
+          <Input
+            label="SĐT Kế toán"
+            icon={Phone}
+            value={accountantPhone}
+            onChange={setAccountantPhone}
+            placeholder="0912…"
+            inputClassName="tabular-nums"
+          />
+          <UnitInput
+            label="Hạn TT Chi hộ"
+            unit="ngày"
+            icon={Clock}
+            value={agencyFeePaymentTermDays}
+            onChange={setAgencyFeePaymentTermDays}
+            min={0}
+            max={3650}
+            placeholder="Ví dụ: 15"
+          />
+          <UnitInput
+            label="Hạn TT Cước"
+            unit="ngày"
+            icon={Clock}
+            value={freightPaymentTermDays}
+            onChange={setFreightPaymentTermDays}
+            min={0}
+            max={3650}
+            placeholder="Ví dụ: 30"
+          />
+        </EntityFormSection>
       </div>
     </Modal>
   );

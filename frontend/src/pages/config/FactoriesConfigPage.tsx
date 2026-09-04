@@ -238,6 +238,8 @@ export default function FactoriesConfigPage() {
       <Modal
         isOpen={!!editing}
         title={editing ? `Chỉnh sửa ${editing.name}` : ''}
+        subtitle="Điểm vận hành"
+        polished
         onClose={() => { setEditing(null); setDraft(null); }}
         maxWidth={640}
       >

@@ -434,6 +434,7 @@ export default function CustomersConfigPage() {
       <Modal
         isOpen={crud.showAddForm && !crud.editingId}
         title="Thêm khách hàng mới"
+        polished
         onClose={crud.cancelForm}
         maxWidth={600}
       >
@@ -456,6 +457,7 @@ export default function CustomersConfigPage() {
           <Modal
             isOpen={true}
             title="Chỉnh sửa thông tin khách hàng"
+            polished
             onClose={crud.cancelForm}
             maxWidth={600}
           >

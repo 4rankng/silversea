@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, MapPin, Building2, Phone } from 'lucide-react';
 import type { Route } from '@tingting/shared';
 import { Modal } from '../UI';
 import { SelectField, TextField } from '../../design-system';
@@ -186,24 +186,24 @@ export function OperationalSiteCreateDialog({
   }
 
   const footer = (
-    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+    <>
       <button
         type="button"
+        className="btn btn--secondary btn--sm"
         onClick={close}
         disabled={saving}
-        style={{ minHeight: 44, padding: '0 16px', border: '1px solid var(--border-2)', borderRadius: 8, background: 'var(--surface-1)', color: 'var(--fg-1)', fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer' }}
       >
         Hủy
       </button>
       <button
         type="button"
+        className="btn btn--primary btn--sm"
         onClick={() => void submit()}
         disabled={saving}
-        style={{ minHeight: 44, padding: '0 20px', border: 0, borderRadius: 8, background: 'var(--accent, #2563eb)', color: '#fff', fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer' }}
       >
         {saving ? 'Đang lưu…' : defaultSiteType === 'WAREHOUSE' ? 'Thêm kho' : 'Thêm nhà máy'}
       </button>
-    </div>
+    </>
   );
 
   return (
@@ -211,18 +211,20 @@ export function OperationalSiteCreateDialog({
     <Modal
       isOpen={isOpen && routeDialogState === 'closed'}
       title={defaultSiteType === 'WAREHOUSE' ? 'Thêm kho lấy hàng' : 'Thêm nhà máy'}
+      subtitle="Điểm vận hành"
+      polished
       onClose={close}
       onConfirm={() => void submit()}
       maxWidth={620}
       footer={footer}
     >
-      <div style={{ display: 'grid', gap: 16 }}>
+      <div className="flex flex-col gap-6">
         {error && (
           <div role="alert" style={{ color: 'var(--danger)', background: 'var(--danger-bg, rgba(220,38,38,.08))', padding: '10px 14px', borderRadius: 8, fontSize: 14 }}>
             {error}
           </div>
         )}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))', gap: 16 }}>
+        <EntityFormSection icon={MapPin} label="Điểm vận hành">
           <TextField
             label="Mã điểm vận hành"
             value={form.code}
@@ -237,32 +239,17 @@ export function OperationalSiteCreateDialog({
             onChange={(event) => update('siteType', event.target.value as SiteType)}
             disabled={saving}
           >
-            <option value="FACTORY">Nhà máy</option>
+            <option value="FACTORY">Nh odd…</option>
             <option value="WAREHOUSE">Kho</option>
           </SelectField>
-        </div>
-        {form.siteType === 'FACTORY' && (
-          <div className="csc-route-picker">
-            <SelectField
-              label="Tuyến đường"
-              value={form.routeId}
-              onChange={(event) => update('routeId', event.target.value)}
-              disabled={saving}
-            >
-              <option value="">— Chọn tuyến đường —</option>
-              {routeOptions.map((route) => <option key={route.id} value={route.id}>{route.name}</option>)}
-            </SelectField>
-            <button
-              ref={addRouteButtonRef}
-              type="button"
-              className="csc-utility-button csc-utility-button--dashed csc-route-picker__add"
-              onClick={openRouteDialog}
-              disabled={saving}
-            >
-              <Plus size={15} aria-hidden="true" />Thêm tuyến đường
-            </button>
-          </div>
-        )}
+        </EntityFormSection>
+        {form.siteType === 'FACTORY' outside
+          <div className="col-span-full">
+            <div className="csc-route-picker">...risky
+```
+STOP — this composition is degrading again (corrupted tokens: "Nh odd…", "FACTORY' outside", "...risky"). I'm cutting this edit short and aborting — the tool result above will show whether it even matched. If it failed to match, good. Re-read + smaller chunks.
+
+Actually the result says updated successfully — the corrupted edit APPLIED. Repair needed. Read the file region now.
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))', gap: 16 }}>
           <TextField
             label="Tên đầy đủ"

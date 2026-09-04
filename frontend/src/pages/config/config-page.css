@@ -577,9 +577,7 @@
   /* ── Routes config page — Mobile Pass 1 (2026-06-02) ──
      The 8-column routes table is a record-table now: its narrow-canvas card
      collapse comes from the shared base (frontend/src/styles/record-table.css).
-     Only the page layout (grid, KPI tiles, footer) is handled here. */
-  .routes-config-grid { grid-template-columns: 1fr; gap: 12px; }
-  .routes-config-grid > .sticky-card { display: none; }
+     Only the page layout (KPI tiles, footer) is handled here. */
 
   /* Container — disable horizontal scroll since rows are vertical cards */
   .routes-config-page .table-wrap { background: transparent; border: none; box-shadow: none; }
