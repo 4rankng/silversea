@@ -19,11 +19,6 @@ import {
 import type { Route } from '@tingting/shared';
 import './config-page.css';
 
-/**
- * Draft for the edit modal — UpdateOperationalSiteBody's mutables with every
- * nullable coerced to '' so controlled inputs always hold a string; save()
- * converts empties back to null.
- */
 type SiteDraft = {
   name: string;
   shortName: string;
@@ -32,9 +27,10 @@ type SiteDraft = {
   googleMapsUrl: string;
   contactName: string;
   contactPhone: string;
-  liftFeeInvoiceName: string;
-  liftFeeInvoiceAddress: string;
-  liftFeeTaxCode: string;
+  warehouseContactInfo: string;
+  liftInfo: string;
+  dropInfo: string;
+  cleaningInfo: string;
   strictRules: string;
   isActive: boolean;
 };
@@ -48,9 +44,10 @@ function draftFrom(site: AdminOperationalSite): SiteDraft {
     googleMapsUrl: site.googleMapsUrl || '',
     contactName: site.contactName || '',
     contactPhone: site.contactPhone || '',
-    liftFeeInvoiceName: site.liftFeeInvoiceName || '',
-    liftFeeInvoiceAddress: site.liftFeeInvoiceAddress || '',
-    liftFeeTaxCode: site.liftFeeTaxCode || '',
+    warehouseContactInfo: site.warehouseContactInfo || '',
+    liftInfo: site.liftInfo || '',
+    dropInfo: site.dropInfo || '',
+    cleaningInfo: site.cleaningInfo || '',
     strictRules: site.strictRules || '',
     isActive: site.isActive,
   };
@@ -71,8 +68,6 @@ export default function FactoriesConfigPage() {
     queryKey: qk.catalogs.adminOperationalSites,
     queryFn: listAdminOperationalSites,
   });
-  // Route options for the FACTORY canonical-route link. Read-only lookup,
-  // same source the intake dialog uses.
   const routesQuery = useQuery({
     queryKey: qk.catalogs.adminSiteRoutes,
     queryFn: () => configClient.getRoutesList(),
@@ -116,9 +111,10 @@ export default function FactoriesConfigPage() {
         googleMapsUrl: draft.googleMapsUrl || null,
         contactName: draft.contactName || null,
         contactPhone: draft.contactPhone || null,
-        liftFeeInvoiceName: draft.liftFeeInvoiceName || null,
-        liftFeeInvoiceAddress: draft.liftFeeInvoiceAddress || null,
-        liftFeeTaxCode: draft.liftFeeTaxCode || null,
+        warehouseContactInfo: draft.warehouseContactInfo || null,
+        liftInfo: draft.liftInfo || null,
+        dropInfo: draft.dropInfo || null,
+        cleaningInfo: draft.cleaningInfo || null,
         strictRules: draft.strictRules || null,
         isActive: draft.isActive,
       });
@@ -245,9 +241,6 @@ export default function FactoriesConfigPage() {
         onClose={() => { setEditing(null); setDraft(null); }}
         maxWidth={640}
       >
-        {/* Enter-key submits do nothing; the FormActions button is the single
-            save trigger (it is type=submit, so an onSubmit save here would
-            double-fire the patch). */}
         {editing && draft && (
           <form onSubmit={(e) => e.preventDefault()}>
             {error && <Alert variant="error" style="soft">{error}</Alert>}
@@ -298,18 +291,29 @@ export default function FactoriesConfigPage() {
                     onChange={(e) => setDraft({ ...draft, googleMapsUrl: e.target.value })} />
                 </Field>
               </div>
-              <Field label="Tên đơn vị xuất hóa đơn nâng hạ">
-                <input className="input" value={draft.liftFeeInvoiceName} maxLength={255}
-                  onChange={(e) => setDraft({ ...draft, liftFeeInvoiceName: e.target.value })} />
-              </Field>
-              <Field label="Mã số thuế nâng hạ">
-                <input className="input" value={draft.liftFeeTaxCode} maxLength={40}
-                  onChange={(e) => setDraft({ ...draft, liftFeeTaxCode: e.target.value })} />
-              </Field>
               <div style={{ gridColumn: 'span 2' }}>
-                <Field label="Địa chỉ xuất hóa đơn nâng hạ">
-                  <input className="input" value={draft.liftFeeInvoiceAddress} maxLength={2000}
-                    onChange={(e) => setDraft({ ...draft, liftFeeInvoiceAddress: e.target.value })} />
+                <Field label="Thông tin liên hệ kho">
+                  <textarea className="input" rows={2} value={draft.warehouseContactInfo} maxLength={2000}
+                    placeholder="Nhiều liên hệ, SĐT trong một ô..."
+                    onChange={(e) => setDraft({ ...draft, warehouseContactInfo: e.target.value })} />
+                </Field>
+              </div>
+              <div style={{ gridColumn: 'span 2' }}>
+                <Field label="Thông tin nâng/hạ">
+                  <textarea className="input" rows={2} value={draft.liftInfo} maxLength={2000}
+                    onChange={(e) => setDraft({ ...draft, liftInfo: e.target.value })} />
+                </Field>
+              </div>
+              <div style={{ gridColumn: 'span 2' }}>
+                <Field label="Thông tin hạ">
+                  <textarea className="input" rows={2} value={draft.dropInfo} maxLength={2000}
+                    onChange={(e) => setDraft({ ...draft, dropInfo: e.target.value })} />
+                </Field>
+              </div>
+              <div style={{ gridColumn: 'span 2' }}>
+                <Field label="Thông tin vệ sinh">
+                  <textarea className="input" rows={2} value={draft.cleaningInfo} maxLength={2000}
+                    onChange={(e) => setDraft({ ...draft, cleaningInfo: e.target.value })} />
                 </Field>
               </div>
               <div style={{ gridColumn: 'span 2' }}>

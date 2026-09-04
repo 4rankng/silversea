@@ -128,7 +128,6 @@ export function SuppliersView() {
       <SupplierFormModal
         isOpen={create.open}
         saving={create.saving}
-        customers={customers}
         onsave={create.create}
         oncancel={create.closeForm}
       />

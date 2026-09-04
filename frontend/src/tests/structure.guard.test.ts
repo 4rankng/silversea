@@ -26,7 +26,7 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   'src/design-system/forms/SearchableSelect.tsx': 481,
   'src/api/driverClient.ts': 650,
   'src/api/keys.ts': 562,
-  'src/api/shipmentClient.ts': 1091,
+  'src/api/shipmentClient.ts': 1099,
   'src/components/agent/AgentAssistant.tsx': 473,
   'src/components/billing/BillingDocumentBuilder.tsx': 716,
   'src/components/Layout.tsx': 843,

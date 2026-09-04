@@ -196,7 +196,6 @@ export function FleetVehiclesView() {
       <TruckFormModal
         isOpen={create.open}
         saving={create.saving}
-        trailers={trailers}
         onsave={create.create}
         oncancel={create.closeForm}
       />

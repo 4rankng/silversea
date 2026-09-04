@@ -3,91 +3,63 @@ import { Save, X, Loader2 } from "lucide-react";
 import { Modal } from "../../components/UI";
 import { DateInput } from "../../design-system/forms/DateInput";
 import {
-  TrailerType,
-  TRAILER_TYPE_LABELS,
   computeVehicleAlerts,
 } from "@tingting/shared";
 import type { Truck as TruckType, VehicleAlert } from "@tingting/shared";
-import { TRUCK_STATUS } from "./constants";
-import { UuiSelectField } from "../../design-system/forms/UuiSelectField";
 // Own stylesheet: this modal also renders on /fleet/vehicles (dispatch
 // catalogs), whose route chunk never loads the /fleet page cards that
 // normally pull FleetPage.css in. Without this import the dialog ships
 // unstyled outside /fleet.
 import "../../pages/FleetPage.css";
 
-/**
- * TruckForm rendered inside a Modal, laid out as the flat dense-dialog
- * contract (docs/design-guidelines.md): a 4-column field grid with no
- * section boxes or prose — labels carry the semantics — and the oil
- * next-due calculator as a single-line helper strip under the date matrix.
- *
- * N5 / A12: includes three user-keyed compliance/service date fields
- * (inspection / insurance / oil). Each shows a live alert badge derived from
- * computeVehicleAlerts — red (overdue) or amber (due within 30 days).
- */
 export function TruckFormModal({
   saving,
   item,
-  trailers,
   onsave,
   oncancel,
   isOpen,
 }: {
   saving: boolean;
   item?: TruckType;
-  trailers: Array<{ id: number; licensePlate: string; type: string }>;
   onsave: (d: Record<string, unknown>) => void;
   oncancel: () => void;
   isOpen: boolean;
 }) {
   const [plate, setPlate] = useState(item?.licensePlate || "");
-  const [currentTrailerId, setCurrentTrailerId] = useState<number | null>(
-    item?.currentTrailerId ?? null,
-  );
-  const [status, setStatus] = useState(item?.status || "ACTIVE");
-  // N5: date fields kept as '' when empty so <input type="date"> is controlled.
+  const [vehicleClass, setVehicleClass] = useState(item?.vehicleClass || "");
+  const [brand, setBrand] = useState(item?.brand || "");
+  const [towCapacityTons, setTowCapacityTons] = useState<string | number>(item?.towCapacityTons ?? "");
+  const [fuelLPer100kmLoaded, setFuelLPer100kmLoaded] = useState<string | number>(item?.fuelLPer100kmLoaded ?? "");
+  const [fuelLPer100kmEmpty, setFuelLPer100kmEmpty] = useState<string | number>(item?.fuelLPer100kmEmpty ?? "");
   const [nextInspectionDate, setNextInspectionDate] = useState(
     item?.nextInspectionDate ?? "",
   );
   const [insuranceExpiryDate, setInsuranceExpiryDate] = useState(
     item?.insuranceExpiryDate ?? "",
   );
-  const [lastOilServiceDate, setLastOilServiceDate] = useState(
-    item?.lastOilServiceDate ?? "",
-  );
-  // Oil helper inputs (NOT persisted): last change date + interval months. When
-  // both are set they compute a next-due that overwrites lastOilServiceDate.
-  // Managers can also ignore these and type next-due directly.
-  const [lastOilChangeDate, setLastOilChangeDate] = useState("");
-  const [oilIntervalMonths, setOilIntervalMonths] = useState(0);
+  const [note, setNote] = useState(item?.note || "");
+
   useEffect(() => {
     if (isOpen) {
       setPlate(item?.licensePlate || "");
-      setCurrentTrailerId(item?.currentTrailerId ?? null);
-      setStatus(item?.status || "ACTIVE");
+      setVehicleClass(item?.vehicleClass || "");
+      setBrand(item?.brand || "");
+      setTowCapacityTons(item?.towCapacityTons ?? "");
+      setFuelLPer100kmLoaded(item?.fuelLPer100kmLoaded ?? "");
+      setFuelLPer100kmEmpty(item?.fuelLPer100kmEmpty ?? "");
       setNextInspectionDate(item?.nextInspectionDate ?? "");
       setInsuranceExpiryDate(item?.insuranceExpiryDate ?? "");
-      setLastOilServiceDate(item?.lastOilServiceDate ?? "");
-      // Clear the oil helper so a stale computed value doesn't carry over.
-      setLastOilChangeDate("");
-      setOilIntervalMonths(0);
+      setNote(item?.note || "");
     }
-    // Reset form fields only when the modal opens or switches item; field-level
-    // deps intentionally omitted to avoid clobbering in-progress edits.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, item?.id]);
 
-  // Live alert badges for the in-form values (fall back to the persisted item
-  // when the field hasn't been touched yet, so opening the modal still shows
-  // the current alert state).
   const alerts = computeVehicleAlerts({
     nextInspectionDate:
       (nextInspectionDate || item?.nextInspectionDate) ?? null,
     insuranceExpiryDate:
       (insuranceExpiryDate || item?.insuranceExpiryDate) ?? null,
-    lastOilServiceDate:
-      (lastOilServiceDate || item?.lastOilServiceDate) ?? null,
+    lastOilServiceDate: null,
   });
   const alertFor = (
     field: "nextInspectionDate" | "insuranceExpiryDate" | "lastOilServiceDate",
@@ -97,13 +69,14 @@ export function TruckFormModal({
     if (!plate.trim()) return;
     onsave({
       licensePlate: plate.trim(),
-      currentTrailerId,
-      status,
-      // Empty string → null so the backend stores NULL (clears the date)
-      // rather than failing the YYYY-MM-DD regex.
+      vehicleClass: vehicleClass.trim() || undefined,
+      brand: brand.trim() || undefined,
+      towCapacityTons: towCapacityTons !== "" ? Number(towCapacityTons) : null,
+      fuelLPer100kmLoaded: fuelLPer100kmLoaded !== "" ? Number(fuelLPer100kmLoaded) : null,
+      fuelLPer100kmEmpty: fuelLPer100kmEmpty !== "" ? Number(fuelLPer100kmEmpty) : null,
       nextInspectionDate: nextInspectionDate || null,
       insuranceExpiryDate: insuranceExpiryDate || null,
-      lastOilServiceDate: lastOilServiceDate || null,
+      note: note.trim() || undefined,
     });
   };
   return (
@@ -112,9 +85,6 @@ export function TruckFormModal({
       title={item ? `Sửa xe ${item.licensePlate}` : "Thêm xe đầu kéo"}
       onClose={oncancel}
       onConfirm={handleSave}
-      // Keep the three operational identity fields and the reminder matrix on
-      // screen together on a standard desktop canvas. On narrow canvases the
-      // shared modal switches to its existing single-column bottom sheet.
       maxWidth={920}
       footer={
         <div className="fleet-form-actions">
@@ -137,9 +107,6 @@ export function TruckFormModal({
       }
     >
       <div className="fleet-form">
-        {/* Identity — flat 4-column row: plate spans two gutters, then the
-            trailer + status selects. No section box or prose; the labels are
-            the interface (dense-dialog contract). */}
         <div className="fleet-form__grid fleet-form__grid--truck">
           <div className="field fleet-form__field fleet-form__field--wide">
             <label htmlFor="truck-plate">
@@ -155,44 +122,60 @@ export function TruckFormModal({
             />
           </div>
           <div className="field fleet-form__field">
-            <label htmlFor="trailer-select">Rơ-moóc hiện tại</label>
-            <UuiSelectField
-              id="trailer-select"
-              label="Rơ-moóc hiện tại"
-              value={String(currentTrailerId ?? "")}
-              onChange={(e) =>
-                setCurrentTrailerId(
-                  e.target.value ? Number(e.target.value) : null,
-                )
-              }
-              options={[
-                { value: "", label: "— Không có —" },
-                ...trailers.map((t) => ({
-                  value: String(t.id),
-                  label: `${t.licensePlate} (${TRAILER_TYPE_LABELS[t.type as TrailerType] || t.type})`,
-                })),
-              ]}
-              hideLabel
+            <label htmlFor="truck-vehicleClass">Loại hình xe</label>
+            <input
+              id="truck-vehicleClass"
+              className="input"
+              value={vehicleClass}
+              onChange={(e) => setVehicleClass(e.target.value)}
+              placeholder="Loại hình xe"
             />
           </div>
           <div className="field fleet-form__field">
-            <label htmlFor="truck-status">Trạng thái</label>
-            <UuiSelectField
-              id="truck-status"
-              label="Trạng thái"
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              options={Object.entries(TRUCK_STATUS).map(([k, v]) => ({
-                value: k,
-                label: v,
-              }))}
-              hideLabel
+            <label htmlFor="truck-brand">Hãng xe</label>
+            <input
+              id="truck-brand"
+              className="input"
+              value={brand}
+              onChange={(e) => setBrand(e.target.value)}
+              placeholder="Hãng xe"
+            />
+          </div>
+          <div className="field fleet-form__field">
+            <label htmlFor="truck-towCapacityTons">Trọng tài kéo (tấn)</label>
+            <input
+              id="truck-towCapacityTons"
+              className="input"
+              type="number"
+              value={towCapacityTons}
+              onChange={(e) => setTowCapacityTons(e.target.value)}
+              placeholder="0"
+            />
+          </div>
+          <div className="field fleet-form__field">
+            <label htmlFor="truck-fuelLPer100kmLoaded">Mức dầu có hàng (L/100km)</label>
+            <input
+              id="truck-fuelLPer100kmLoaded"
+              className="input"
+              type="number"
+              value={fuelLPer100kmLoaded}
+              onChange={(e) => setFuelLPer100kmLoaded(e.target.value)}
+              placeholder="0"
+            />
+          </div>
+          <div className="field fleet-form__field">
+            <label htmlFor="truck-fuelLPer100kmEmpty">Mức dầu không hàng (L/100km)</label>
+            <input
+              id="truck-fuelLPer100kmEmpty"
+              className="input"
+              type="number"
+              value={fuelLPer100kmEmpty}
+              onChange={(e) => setFuelLPer100kmEmpty(e.target.value)}
+              placeholder="0"
             />
           </div>
         </div>
 
-        {/* N5 / A12: compliance & service date reminders. type=date gives a native
-            picker; the badge surfaces overdue/due state next to each field. */}
         <div className="truck-alert-fields">
           <TruckDateField
             id="truck-inspection"
@@ -203,92 +186,27 @@ export function TruckFormModal({
           />
           <TruckDateField
             id="truck-insurance"
-            label="Hạn bảo hiểm"
+            label="Hạn bảo hiểm TNDS"
             value={insuranceExpiryDate}
             onChange={setInsuranceExpiryDate}
             alert={alertFor("insuranceExpiryDate")}
           />
-          <TruckDateField
-            id="truck-oil"
-            label="Thay dầu kế tiếp"
-            value={lastOilServiceDate}
-            onChange={setLastOilServiceDate}
-            alert={alertFor("lastOilServiceDate")}
+        </div>
+
+        <div className="field fleet-form__field fleet-form__field--wide" style={{ marginTop: 12 }}>
+          <label htmlFor="truck-note">Ghi chú</label>
+          <textarea
+            id="truck-note"
+            className="input"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="Ghi chú"
+            rows={2}
           />
-          {/* Oil next-due can also be DERIVED from a last-change date + an
-                interval (months). Selecting both writes the computed next-due
-                into the field above; nothing extra is persisted. Rendered as a
-                single-line helper strip, subordinate to the date matrix. */}
-          <div className="field truck-alert-field truck-alert-field--oil-calculator">
-            <label
-              htmlFor="truck-oil-last"
-              className="truck-alert-field__label"
-            >
-              Tính hạn thay dầu
-            </label>
-            <div className="fleet-form__inline truck-oil-helper__controls">
-              <DateInput
-                id="truck-oil-last"
-                className="input"
-                aria-label="Lần thay dầu gần nhất"
-                value={lastOilChangeDate}
-                onChange={(v) => {
-                  setLastOilChangeDate(v);
-                  if (v && oilIntervalMonths) {
-                    const next = addMonthsIso(v, oilIntervalMonths);
-                    if (next) setLastOilServiceDate(next);
-                  }
-                }}
-              />
-              <UuiSelectField
-                id="truck-oil-interval"
-                label="Chu kỳ thay dầu (tháng)"
-                aria-label="Chu kỳ thay dầu (tháng)"
-                value={oilIntervalMonths ? String(oilIntervalMonths) : ""}
-                onChange={(e) => {
-                  const n = e.target.value ? Number(e.target.value) : 0;
-                  setOilIntervalMonths(n);
-                  if (lastOilChangeDate && n) {
-                    const next = addMonthsIso(lastOilChangeDate, n);
-                    if (next) setLastOilServiceDate(next);
-                  }
-                }}
-                options={[
-                  { value: "", label: "Chu kỳ…" },
-                  { value: "3", label: "3 tháng" },
-                  { value: "6", label: "6 tháng" },
-                  { value: "9", label: "9 tháng" },
-                  { value: "12", label: "12 tháng" },
-                ]}
-                hideLabel
-              />
-            </div>
-            <span className="truck-oil-helper__hint">
-              → tự điền hạn thay dầu kế tiếp
-            </span>
-          </div>
         </div>
       </div>
     </Modal>
   );
-}
-
-/**
- * Add `months` to an ISO 'YYYY-MM-DD' date, clamping the day to the target
- * month's length (e.g. Jan 31 + 1 month → Feb 28). Returns null for invalid /
- * partial input. Pure — no Date.now()/string parsing side effects.
- */
-function addMonthsIso(iso: string, months: number): string | null {
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
-  if (!m) return null;
-  const total = Number(m[1]) * 12 + (Number(m[2]) - 1) + months;
-  const year = Math.floor(total / 12);
-  const month = (total % 12) + 1; // 1-12
-  // day 0 of (month+1) → last day of `month`. month is 1-based here.
-  const lastDay = new Date(year, month, 0).getDate();
-  const dd = String(Math.min(Number(m[3]), lastDay)).padStart(2, "0");
-  const mm = String(month).padStart(2, "0");
-  return `${year}-${mm}-${dd}`;
 }
 
 /** One labelled date input with an optional overdue/due badge. */
@@ -303,8 +221,6 @@ function TruckDateField({
   label: string;
   value: string;
   onChange: (v: string) => void;
-  // computeVehicleAlerts only returns non-'ok' entries, so this is always
-  // overdue/due — typed as the full VehicleAlert for simplicity.
   alert?: VehicleAlert;
 }) {
   const badgeText = alert

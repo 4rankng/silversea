@@ -84,7 +84,7 @@ describe('CustomersPage server-side sort headers', () => {
     await waitFor(() => expect(lastGetUrl()).toContain('page=2'));
 
     // First click: fresh column starts ascending and jumps back to page 1.
-    fireEvent.click(screen.getByRole('button', { name: 'Khách hàng' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tên khách hàng' }));
     await waitFor(() => {
       expect(lastGetUrl()).toContain('page=1');
       expect(lastGetUrl()).toContain('sortBy=name');
@@ -92,7 +92,7 @@ describe('CustomersPage server-side sort headers', () => {
     });
 
     // Second click on the active column flips to descending.
-    fireEvent.click(screen.getByRole('button', { name: 'Khách hàng' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tên khách hàng' }));
     await waitFor(() => {
       expect(lastGetUrl()).toContain('sortDir=desc');
       expect(lastGetUrl()).toContain('page=1');
@@ -103,24 +103,24 @@ describe('CustomersPage server-side sort headers', () => {
     renderPage();
     expect(await screen.findAllByText('Biển Bạc')).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Công nợ' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Giám đốc' }));
     await waitFor(() => {
-      expect(lastGetUrl()).toContain('sortBy=debt');
+      expect(lastGetUrl()).toContain('sortBy=accountantName');
       expect(lastGetUrl()).toContain('sortDir=asc');
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Hạn mức TD' }));
-    await waitFor(() => expect(lastGetUrl()).toContain('sortBy=creditLimit'));
+    fireEvent.click(screen.getByRole('button', { name: 'Hạn TT Chi hộ' }));
+    await waitFor(() => expect(lastGetUrl()).toContain('sortBy=agencyFeePaymentTermDays'));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Liên hệ' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Người liên hệ' }));
     await waitFor(() => expect(lastGetUrl()).toContain('sortBy=contactPerson'));
 
     // The active column announces direction; inactive columns announce none.
     // (Query via the header buttons — the bare label text also appears in the
     // mobile card list.)
-    const header = screen.getByRole('button', { name: 'Liên hệ' }).closest('th');
+    const header = screen.getByRole('button', { name: 'Người liên hệ' }).closest('th');
     expect(header?.getAttribute('aria-sort')).toBe('ascending');
-    expect(screen.getByRole('button', { name: 'Hạn mức TD' }).closest('th')?.getAttribute('aria-sort')).toBe('none');
+    expect(screen.getByRole('button', { name: 'Hạn TT Chi hộ' }).closest('th')?.getAttribute('aria-sort')).toBe('none');
   });
 
   it('omits sort params entirely until a header is pressed', async () => {

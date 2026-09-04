@@ -49,11 +49,18 @@ export interface UserWithDriver extends UserPublic {
 export interface Driver {
   id: number;
   userId: number | null;
+  code: string | null;
   name: string;
+  idNumber: string | null;
+  licenseNumber: string | null;
+  licenseExpiryDate: string | null;
   phone: string | null;
   assignedTruckId: number | null;
   baseSalary: string | null;
   socialInsurance: string | null;
+  bankName: string | null;
+  bankAccount: string | null;
+  salaryType: string | null;
   status: DriverStatus;
   createdAt: string;
   updatedAt: string;
@@ -69,6 +76,10 @@ export interface Customer {
   contactPerson: string | null;
   phone: string | null;
   contactInfo: string | null;
+  accountantName: string | null;
+  accountantPhone: string | null;
+  agencyFeePaymentTermDays: number | null;
+  freightPaymentTermDays: number | null;
   creditLimit: string | null;
   creditWarningThreshold?: string | null;
   paymentTermDays?: number | null;
@@ -90,13 +101,16 @@ export interface Truck {
   trailerPlateNumber: string | null;
   trailerType: TrailerType | null;
   currentTrailerId: number | null;
+  vehicleClass: string | null;
+  brand: string | null;
+  towCapacityTons: number | null;
+  fuelLPer100kmLoaded: number | null;
+  fuelLPer100kmEmpty: number | null;
   status: TruckStatus;
-  // N5 / A12 + B4: user-keyed compliance/service dates (ISO 'YYYY-MM-DD' or null).
   nextInspectionDate: string | null;
   insuranceExpiryDate: string | null;
-  // NEXT oil-service due date (legacy name). Set directly or computed by the
-  // form from last-change + N months; only next-due is persisted.
   lastOilServiceDate: string | null;
+  note: string | null;
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
@@ -126,6 +140,11 @@ export interface Trailer {
   id: number;
   licensePlate: string;
   type: TrailerType;
+  maxPayloadTons: number | null;
+  maxAxleLoadFrontTons: number | null;
+  maxAxleLoadRearTons: number | null;
+  inspectionDeadline: string | null;
+  note: string | null;
   status: TrailerStatus;
   createdAt: string;
   updatedAt: string;
@@ -170,6 +189,9 @@ export interface Route {
   id: number;
   name: string;
   shortName?: string;
+  code: string | null;
+  loadPoint: string | null;
+  note: string | null;
   distanceKm: number | null;
   isMountain: boolean;
   fixedFuelAllowance: string | null;
@@ -752,8 +774,12 @@ export interface Port {
   address: string | null;
   city: string | null;
   notes: string | null;
-  // Zone code — DB-owned taxonomy (dispatch_zones), read via /dispatch-zones.
   dispatchZone: string | null;
+  classification: string | null;
+  legalEntity: string | null;
+  isLachHuyen: boolean;
+  opsPortalUrl: string | null;
+  position: string | null;
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;

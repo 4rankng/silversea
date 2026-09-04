@@ -28,9 +28,11 @@ describe("DriverFormModal desktop density", () => {
     );
   });
 
-  it("labels every field explicitly — selects hide the internal UUI label", () => {
-    expect(source).toMatch(/<label htmlFor="driver-status">Trạng thái<\/label>/);
-    expect(source).toContain("hideLabel");
+  it("labels every field explicitly — all inputs use explicit htmlFor labels", () => {
+    expect(source).toMatch(/<label htmlFor="driver-code">/);
+    expect(source).toMatch(/<label htmlFor="driver-name">/);
+    expect(source).toMatch(/<label htmlFor="driver-phone">/);
+    expect(source).toMatch(/<label htmlFor="driver-salaryType">/);
     expect(source).toContain("btn btn--secondary btn--sm");
   });
 });

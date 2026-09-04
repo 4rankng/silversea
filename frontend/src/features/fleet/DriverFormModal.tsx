@@ -2,39 +2,48 @@ import { useState, useEffect } from 'react';
 import { Save, X, Loader2 } from 'lucide-react';
 import { Modal } from '../../components/UI';
 import type { Driver } from '@tingting/shared';
-import { DRIVER_STATUS } from './constants';
-import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
 // Own stylesheet: this modal also renders on /fleet/drivers (dispatch
 // catalogs), whose route chunk never loads the /fleet page cards that
 // normally pull FleetPage.css in.
 import '../../pages/FleetPage.css';
 
-export function DriverFormModal({ saving, item, onsave, oncancel, isOpen, showSalary = true }: {
+export function DriverFormModal({ saving, item, onsave, oncancel, isOpen }: {
   saving: boolean; item?: Driver; onsave: (d: Record<string, unknown>) => void; oncancel: () => void; isOpen: boolean;
-  /** Dispatcher creates omit salary entirely — the payload strips it because
-   * DISPATCHER cannot make the governance action a salaried create routes
-   * into, so rendering an editable field would silently discard input. */
-  showSalary?: boolean;
 }) {
+  const [code, setCode] = useState(item?.code || '');
   const [name, setName] = useState(item?.name || '');
+  const [idNumber, setIdNumber] = useState(item?.idNumber || '');
+  const [licenseNumber, setLicenseNumber] = useState(item?.licenseNumber || '');
+  const [licenseExpiryDate, setLicenseExpiryDate] = useState(item?.licenseExpiryDate || '');
   const [phone, setPhone] = useState(item?.phone || '');
-  const [baseSalary, setBaseSalary] = useState<string | number>(item?.baseSalary || '');
-  const [status, setStatus] = useState(item?.status || 'ACTIVE');
+  const [bankName, setBankName] = useState(item?.bankName || '');
+  const [bankAccount, setBankAccount] = useState(item?.bankAccount || '');
+  const [salaryType, setSalaryType] = useState(item?.salaryType || '');
   useEffect(() => {
     if (isOpen) {
+      setCode(item?.code || '');
       setName(item?.name || '');
+      setIdNumber(item?.idNumber || '');
+      setLicenseNumber(item?.licenseNumber || '');
+      setLicenseExpiryDate(item?.licenseExpiryDate || '');
       setPhone(item?.phone || '');
-      setBaseSalary(item?.baseSalary || '');
-      setStatus(item?.status || 'ACTIVE');
+      setBankName(item?.bankName || '');
+      setBankAccount(item?.bankAccount || '');
+      setSalaryType(item?.salaryType || '');
     }
-  }, [isOpen, item?.id, item?.name, item?.phone, item?.baseSalary, item?.status]);
+  }, [isOpen, item?.id, item?.code, item?.name, item?.idNumber, item?.licenseNumber, item?.licenseExpiryDate, item?.phone, item?.bankName, item?.bankAccount, item?.salaryType]);
   const handleSave = () => {
     if (!name.trim()) return;
     onsave({
+      code: code.trim() || undefined,
       name: name.trim(),
+      idNumber: idNumber.trim() || undefined,
+      licenseNumber: licenseNumber.trim() || undefined,
+      licenseExpiryDate: licenseExpiryDate || null,
       phone: phone.trim() || undefined,
-      baseSalary: baseSalary ? Number(baseSalary) : undefined,
-      status,
+      bankName: bankName.trim() || undefined,
+      bankAccount: bankAccount.trim() || undefined,
+      salaryType: salaryType.trim() || undefined,
     });
   };
   return (
@@ -56,14 +65,20 @@ export function DriverFormModal({ saving, item, onsave, oncancel, isOpen, showSa
         </div>
       }
     >
-      {/* Compact 620px dialog → paired two-column grid (dense-dialog contract;
-          four columns are reserved for 900px+ dialogs). Name spans both
-          gutters, phone pairs with salary, and the assignment selects close
-          as a pair. Dispatcher creates hide salary, so phone then spans the
-          full row — no column slot ever sits empty. Selects carry an explicit
-          label + hideLabel so every label shares one type treatment. */}
       <div className="fleet-form">
         <div className="fleet-form__grid fleet-form__grid--driver">
+          <div className="field fleet-form__field fleet-form__field--wide">
+            <label htmlFor="driver-code">
+              Mã tài xế <span>*</span>
+            </label>
+            <input
+              id="driver-code"
+              className="input"
+              value={code}
+              onChange={e => setCode(e.target.value)}
+              placeholder="Ví dụ: TX001"
+            />
+          </div>
           <div className="field fleet-form__field fleet-form__field--wide">
             <label htmlFor="driver-name">
               Họ và tên <span>*</span>
@@ -77,7 +92,37 @@ export function DriverFormModal({ saving, item, onsave, oncancel, isOpen, showSa
               autoFocus
             />
           </div>
-          <div className={showSalary ? 'field fleet-form__field' : 'field fleet-form__field fleet-form__field--wide'}>
+          <div className="field fleet-form__field">
+            <label htmlFor="driver-idNumber">Số CCCD</label>
+            <input
+              id="driver-idNumber"
+              className="input"
+              value={idNumber}
+              onChange={e => setIdNumber(e.target.value)}
+              placeholder="Số CCCD"
+            />
+          </div>
+          <div className="field fleet-form__field">
+            <label htmlFor="driver-licenseNumber">GPLX</label>
+            <input
+              id="driver-licenseNumber"
+              className="input"
+              value={licenseNumber}
+              onChange={e => setLicenseNumber(e.target.value)}
+              placeholder="GPLX"
+            />
+          </div>
+          <div className="field fleet-form__field">
+            <label htmlFor="driver-licenseExpiryDate">Hạn bằng lái</label>
+            <input
+              id="driver-licenseExpiryDate"
+              className="input"
+              type="date"
+              value={licenseExpiryDate}
+              onChange={e => setLicenseExpiryDate(e.target.value)}
+            />
+          </div>
+          <div className="field fleet-form__field">
             <label htmlFor="driver-phone">Số điện thoại</label>
             <input
               id="driver-phone"
@@ -87,26 +132,34 @@ export function DriverFormModal({ saving, item, onsave, oncancel, isOpen, showSa
               placeholder="0912..."
             />
           </div>
-          {showSalary && <div className="field fleet-form__field">
-            <label htmlFor="driver-salary">Lương cơ bản (đ)</label>
-            <input
-              id="driver-salary"
-              className="input"
-              type="number"
-              value={baseSalary}
-              onChange={e => setBaseSalary(e.target.value)}
-              placeholder="0"
-            />
-          </div>}
           <div className="field fleet-form__field">
-            <label htmlFor="driver-status">Trạng thái</label>
-            <UuiSelectField
-              id="driver-status"
-              label="Trạng thái"
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              options={Object.entries(DRIVER_STATUS).map(([k, v]) => ({ value: k, label: v }))}
-              hideLabel
+            <label htmlFor="driver-bankName">Ngân hàng nhận tiền</label>
+            <input
+              id="driver-bankName"
+              className="input"
+              value={bankName}
+              onChange={e => setBankName(e.target.value)}
+              placeholder="Ngân hàng"
+            />
+          </div>
+          <div className="field fleet-form__field">
+            <label htmlFor="driver-bankAccount">Số TK nhận tiền</label>
+            <input
+              id="driver-bankAccount"
+              className="input"
+              value={bankAccount}
+              onChange={e => setBankAccount(e.target.value)}
+              placeholder="Số tài khoản"
+            />
+          </div>
+          <div className="field fleet-form__field">
+            <label htmlFor="driver-salaryType">Hình thức lương</label>
+            <input
+              id="driver-salaryType"
+              className="input"
+              value={salaryType}
+              onChange={e => setSalaryType(e.target.value)}
+              placeholder="Ví dụ: LUONG CUNG"
             />
           </div>
         </div>

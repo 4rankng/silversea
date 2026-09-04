@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { DriverFormModal } from './DriverFormModal';
 
 describe('DriverFormModal', () => {
-  it('renders the status select as one labelled control', () => {
+  it('renders the driver form fields', () => {
     render(
       <DriverFormModal
         isOpen
@@ -13,8 +13,10 @@ describe('DriverFormModal', () => {
       />,
     );
 
-    expect(screen.getAllByText('Trạng thái')).toHaveLength(1);
-    expect(screen.getByRole('button', { name: 'Hoạt động Trạng thái' })).toBeTruthy();
+    expect(screen.getByLabelText(/Mã tài xế/)).toBeTruthy();
+    expect(screen.getByLabelText(/Họ và tên/)).toBeTruthy();
+    expect(screen.getByLabelText(/Số CCCD/)).toBeTruthy();
+    expect(screen.getByLabelText(/GPLX/)).toBeTruthy();
   });
 
   it('renders one flat field grid — no boxed sections or prose headers', () => {
@@ -46,8 +48,8 @@ describe('DriverFormModal', () => {
     expect(screen.getByRole('button', { name: /Hủy/ }).className).toContain('btn--secondary');
   });
 
-  it('pairs fields on the driver grid — phone takes the full row when salary is hidden', () => {
-    const { rerender } = render(
+  it('renders the driver grid with all fields', () => {
+    render(
       <DriverFormModal
         isOpen
         saving={false}
@@ -57,22 +59,13 @@ describe('DriverFormModal', () => {
     );
 
     expect(document.querySelector('.fleet-form__grid')?.className).toContain('fleet-form__grid--driver');
-    expect(document.getElementById('driver-phone')?.closest('.fleet-form__field')?.className)
-      .not.toContain('fleet-form__field--wide');
-    expect(document.getElementById('driver-salary')).toBeTruthy();
-
-    rerender(
-      <DriverFormModal
-        isOpen
-        saving={false}
-        showSalary={false}
-        onsave={vi.fn()}
-        oncancel={vi.fn()}
-      />,
-    );
-
-    expect(document.getElementById('driver-phone')?.closest('.fleet-form__field')?.className)
-      .toContain('fleet-form__field--wide');
-    expect(document.getElementById('driver-salary')).toBeNull();
+    expect(document.getElementById('driver-code')).toBeTruthy();
+    expect(document.getElementById('driver-name')).toBeTruthy();
+    expect(document.getElementById('driver-phone')).toBeTruthy();
+    expect(document.getElementById('driver-idNumber')).toBeTruthy();
+    expect(document.getElementById('driver-licenseNumber')).toBeTruthy();
+    expect(document.getElementById('driver-bankName')).toBeTruthy();
+    expect(document.getElementById('driver-bankAccount')).toBeTruthy();
+    expect(document.getElementById('driver-salaryType')).toBeTruthy();
   });
 });

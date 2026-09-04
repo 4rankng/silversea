@@ -45,6 +45,7 @@ export const USER_FIELDS = {
   updatedAt: users.updatedAt,
   customerId: users.customerId,
   customerAccountType: users.customerAccountType,
+  employeeCode: users.employeeCode,
 };
 
 /** User fields + the linked driver profile (LEFT JOIN). Driver-* are null when no profile row. */
@@ -588,6 +589,7 @@ export async function createUserWithTx(tx: Tx, data: {
   email?: string;
   phone?: string;
   fullName?: string;
+  employeeCode?: string;
   password: string;
   role: string;
   status?: string;
@@ -661,6 +663,7 @@ export async function createUserWithTx(tx: Tx, data: {
   const [created] = await tx.insert(users).values({
     ...identity,
     fullName: data.fullName || null,
+    employeeCode: data.employeeCode?.trim() || null,
     passwordHash,
     role: data.role as (typeof users.role.enumValues)[number],
     status: data.status ?? 'ACTIVE',
@@ -736,6 +739,7 @@ export async function updateUserWithTx(id: number, data: {
   fullName?: string;
   email?: string;
   phone?: string;
+  employeeCode?: string;
   baseSalary?: number;
   socialInsurance?: number;
   customerId?: number | null;
@@ -893,6 +897,7 @@ export async function updateUserWithTx(id: number, data: {
   if (passwordHash) updates.passwordHash = passwordHash;
   if (data.username !== undefined) updates.username = data.username;
   if (data.fullName !== undefined) updates.fullName = data.fullName || null;
+  if (data.employeeCode !== undefined) updates.employeeCode = data.employeeCode || null;
   if (data.email !== undefined) updates.email = data.email || null;
   if (data.phone !== undefined) updates.phone = data.phone || null;
   updates.customerId = effectiveRole === Role.CUSTOMER ? nextCustomerIds[0] ?? null : null;
@@ -948,6 +953,7 @@ export async function updateUser(id: number, data: {
   fullName?: string;
   email?: string;
   phone?: string;
+  employeeCode?: string;
   baseSalary?: number;
   socialInsurance?: number;
   customerId?: number | null;

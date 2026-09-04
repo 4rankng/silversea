@@ -128,7 +128,7 @@ describe('SuppliersView (dispatcher read-only)', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Thêm nhà thầu phụ' }));
-    fireEvent.change(screen.getByLabelText(/tên nhà cung cấp/i), { target: { value: 'Nhà xe Mới' } });
+    fireEvent.change(screen.getByLabelText(/tên nhà xe/i), { target: { value: 'Nhà xe Mới' } });
     fireEvent.click(screen.getByRole('button', { name: 'Thêm nhà cung cấp' }));
 
     await waitFor(() => expect(apiPost).toHaveBeenCalledWith('/suppliers', expect.objectContaining({

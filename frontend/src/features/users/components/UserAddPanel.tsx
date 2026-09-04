@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import {
   ShieldCheck, Plus, Loader2, User, Eye, EyeOff,
-  Mail, Phone, AtSign, Lock, Building2, Package,
+  Mail, Phone, AtSign, Lock, Building2, Package, Hash,
 } from 'lucide-react';
 import { Drawer, Btn, FormGroup } from '../../../components/UI';
 import { ROLE_LABELS } from '../utils';
@@ -11,7 +11,7 @@ import { CustomerAccountType, Role } from '@tingting/shared';
 import type { Customer } from '@tingting/shared';
 import type { BusinessUnit, ShipmentScopeOption, CreateData } from '../utils';
 import { UuiSelectField } from '../../../design-system/forms/UuiSelectField';
-import { IconInput, DriverFields, CustomerScopeFields, SelectionScopeFields, type SelectionOption } from './UserFormFields';
+import { IconInput, CustomerScopeFields, SelectionScopeFields, type SelectionOption } from './UserFormFields';
 interface AddPanelProps {
   isOpen: boolean;
   saving: boolean;
@@ -31,11 +31,10 @@ export function AddPanel({
   const [username, setUsername] = useState('');
   const [email, setEmail]       = useState('');
   const [phone, setPhone]       = useState('');
+  const [employeeCode, setEmployeeCode] = useState('');
   const [role, setRole]         = useState<Role>(Role.DRIVER);
   const [password, setPassword] = useState('');
   const [showPw, setShowPw]     = useState(false);
-  const [baseSalary, setBaseSalary]           = useState('');
-  const [socialInsurance, setSocialInsurance] = useState('');
   const [customerIds, setCustomerIds] = useState<number[]>([]);
   const [customerAccountType, setCustomerAccountType] = useState<CustomerAccountType>(
     CustomerAccountType.SINGLE_ENTITY,
@@ -46,9 +45,9 @@ export function AddPanel({
   useEffect(() => {
     if (isOpen) {
       setFullName(''); setUsername(''); setEmail('');
-      setPhone(''); setRole(Role.DRIVER);
+      setPhone(''); setEmployeeCode('');
+      setRole(Role.DRIVER);
       setPassword(''); setShowPw(false);
-      setBaseSalary(''); setSocialInsurance('');
       setCustomerIds([]);
       setCustomerAccountType(CustomerAccountType.SINGLE_ENTITY);
       setBusinessUnitIds([]);
@@ -87,10 +86,8 @@ export function AddPanel({
   const handleSubmit = async () => {
     if (customerScopeInvalid) return;
     if (forwarderScopeInvalid) return;
-    const payload: CreateData = { fullName, username, email, phone, role, password };
+    const payload: CreateData = { fullName, username, email, phone, employeeCode, role, password };
     if (role === Role.DRIVER) {
-      payload.baseSalary = baseSalary;
-      payload.socialInsurance = socialInsurance;
       if (canManageClerkScope) payload.businessUnitIds = businessUnitIds;
     }
     if (role === Role.CUSTOMER) {
@@ -161,6 +158,14 @@ export function AddPanel({
           </FormGroup>
         </div>
         <div className="users-form-card">
+          <FormGroup label="Mã nhân viên">
+            <IconInput
+              icon={<Hash size={14} />}
+              value={employeeCode}
+              onChange={e => setEmployeeCode(e.target.value)}
+              placeholder="NV001"
+            />
+          </FormGroup>
           <FormGroup label="Email">
             <IconInput
               icon={<Mail size={14} />}
@@ -169,15 +174,6 @@ export function AddPanel({
               onChange={e => setEmail(e.target.value)}
               placeholder="nva@cty.vn"
               error={emailError}
-            />
-          </FormGroup>
-          <FormGroup label="Số điện thoại">
-            <IconInput
-              icon={<Phone size={14} />}
-              value={phone}
-              onChange={e => setPhone(e.target.value)}
-              placeholder="0912 345 678"
-              error={phoneError}
             />
           </FormGroup>
         </div>
@@ -225,29 +221,21 @@ export function AddPanel({
       </div>
 
       {/* Driver profile fields (only for DRIVER role) */}
-      {role === Role.DRIVER && (
-        <>
-          <DriverFields
-            baseSalary={baseSalary}
-            socialInsurance={socialInsurance}
-          />
-          {canManageClerkScope && (
-            <SelectionScopeFields
-              title="Đơn vị tính lương"
-              icon={<Building2 size={12} />}
-              helpText="Gán đơn vị cho lái xe để chốt lương theo phạm vi đơn vị ở Cài đặt ứng dụng. Có thể bỏ trống nếu lái xe vẫn thuộc phạm vi lương toàn công ty."
-              searchPlaceholder="Tìm đơn vị theo tên hoặc mã"
-              ariaLabel="Đơn vị tính lương của lái xe"
-              options={businessUnitOptions}
-              selectedIds={businessUnitIds}
-              setSelectedIds={setBusinessUnitIds}
-              required={false}
-              requiredMessage="Cần chọn ít nhất một đơn vị tính lương."
-              emptyText="Không tìm thấy đơn vị phù hợp."
-              summaryLabel="Đã chọn"
-            />
-          )}
-        </>
+      {role === Role.DRIVER && canManageClerkScope && (
+        <SelectionScopeFields
+          title="Đơn vị tính lương"
+          icon={<Building2 size={12} />}
+          helpText="Gán đơn vị cho lái xe để chốt lương theo phạm vi đơn vị ở Cài đặt ứng dụng. Có thể bỏ trống nếu lái xe vẫn thuộc phạm vi lương toàn công ty."
+          searchPlaceholder="Tìm đơn vị theo tên hoặc mã"
+          ariaLabel="Đơn vị tính lương của lái xe"
+          options={businessUnitOptions}
+          selectedIds={businessUnitIds}
+          setSelectedIds={setBusinessUnitIds}
+          required={false}
+          requiredMessage="Cần chọn ít nhất một đơn vị tính lương."
+          emptyText="Không tìm thấy đơn vị phù hợp."
+          summaryLabel="Đã chọn"
+        />
       )}
 
       {role === Role.CUSTOMER && (

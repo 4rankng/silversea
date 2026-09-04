@@ -17,28 +17,41 @@ import '../../pages/FleetPage.css';
  */
 export function TrailerFormModal({ saving, item, onsave, oncancel, isOpen }: {
   saving: boolean;
-  item?: { id: number; licensePlate: string; type: string; status: string };
+  item?: { id: number; licensePlate: string; type: string; maxPayloadTons?: number | null; maxAxleLoadFrontTons?: number | null; maxAxleLoadRearTons?: number | null; inspectionDeadline?: string | null; note?: string | null };
   onsave: (d: Record<string, unknown>) => void;
   oncancel: () => void;
   isOpen: boolean;
 }) {
   const [plate, setPlate] = useState(item?.licensePlate || '');
   const [type, setType] = useState<string>(item?.type || TrailerType.FT40);
-  const [status, setStatus] = useState(item?.status || 'ACTIVE');
+  const [maxPayloadTons, setMaxPayloadTons] = useState<string | number>(item?.maxPayloadTons ?? '');
+  const [maxAxleLoadFrontTons, setMaxAxleLoadFrontTons] = useState<string | number>(item?.maxAxleLoadFrontTons ?? '');
+  const [maxAxleLoadRearTons, setMaxAxleLoadRearTons] = useState<string | number>(item?.maxAxleLoadRearTons ?? '');
+  const [inspectionDeadline, setInspectionDeadline] = useState(item?.inspectionDeadline || '');
+  const [note, setNote] = useState(item?.note || '');
   useEffect(() => {
     if (isOpen) {
       setPlate(item?.licensePlate || '');
       setType(item?.type || TrailerType.FT40);
-      setStatus(item?.status || 'ACTIVE');
+      setMaxPayloadTons(item?.maxPayloadTons ?? '');
+      setMaxAxleLoadFrontTons(item?.maxAxleLoadFrontTons ?? '');
+      setMaxAxleLoadRearTons(item?.maxAxleLoadRearTons ?? '');
+      setInspectionDeadline(item?.inspectionDeadline || '');
+      setNote(item?.note || '');
     }
-    // Sync form fields from the edited item when the modal opens or the
-    // selected item changes. We intentionally key on isOpen/item?.id so
-    // typing in the inputs doesn't reset the form mid-edit.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, item?.id]);
   const handleSave = () => {
     if (!plate.trim()) return;
-    onsave({ licensePlate: plate.trim(), type, status });
+    onsave({
+      licensePlate: plate.trim(),
+      type,
+      maxPayloadTons: maxPayloadTons !== '' ? Number(maxPayloadTons) : null,
+      maxAxleLoadFrontTons: maxAxleLoadFrontTons !== '' ? Number(maxAxleLoadFrontTons) : null,
+      maxAxleLoadRearTons: maxAxleLoadRearTons !== '' ? Number(maxAxleLoadRearTons) : null,
+      inspectionDeadline: inspectionDeadline || null,
+      note: note.trim() || undefined,
+    });
   };
   return (
     <Modal
@@ -91,16 +104,56 @@ export function TrailerFormModal({ saving, item, onsave, oncancel, isOpen }: {
               />
             </div>
             <div className="fleet-form__field">
-              <UuiSelectField
-                id="trailer-status-input"
-                label="Trạng thái"
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-                options={[
-                  { value: 'ACTIVE', label: 'Hoạt động' },
-                  { value: 'MAINTENANCE', label: 'Bảo trì' },
-                  { value: 'INACTIVE', label: 'Ngưng' },
-                ]}
+              <label htmlFor="trailer-maxPayloadTons">Tải trọng tối đa (tấn)</label>
+              <input
+                id="trailer-maxPayloadTons"
+                className="input"
+                type="number"
+                value={maxPayloadTons}
+                onChange={e => setMaxPayloadTons(e.target.value)}
+                placeholder="0"
+              />
+            </div>
+            <div className="fleet-form__field">
+              <label htmlFor="trailer-maxAxleLoadFrontTons">Tải trọng dạt đầu (tấn)</label>
+              <input
+                id="trailer-maxAxleLoadFrontTons"
+                className="input"
+                type="number"
+                value={maxAxleLoadFrontTons}
+                onChange={e => setMaxAxleLoadFrontTons(e.target.value)}
+                placeholder="0"
+              />
+            </div>
+            <div className="fleet-form__field">
+              <label htmlFor="trailer-maxAxleLoadRearTons">Tải trọng dạt dưới (tấn)</label>
+              <input
+                id="trailer-maxAxleLoadRearTons"
+                className="input"
+                type="number"
+                value={maxAxleLoadRearTons}
+                onChange={e => setMaxAxleLoadRearTons(e.target.value)}
+                placeholder="0"
+              />
+            </div>
+            <div className="fleet-form__field">
+              <label htmlFor="trailer-inspectionDeadline">Hạn đăng kiểm</label>
+              <input
+                id="trailer-inspectionDeadline"
+                className="input"
+                type="date"
+                value={inspectionDeadline}
+                onChange={e => setInspectionDeadline(e.target.value)}
+              />
+            </div>
+            <div className="fleet-form__field fleet-form__field--wide">
+              <label htmlFor="trailer-note">Ghi chú</label>
+              <input
+                id="trailer-note"
+                className="input"
+                value={note}
+                onChange={e => setNote(e.target.value)}
+                placeholder="Ghi chú"
               />
             </div>
           </div>

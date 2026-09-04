@@ -73,12 +73,12 @@ const users: UserRow[] = [
   {
     id: 1, username: 'an', fullName: 'An Nguyễn', email: null, phone: null,
     role: Role.DRIVER, status: 'ACTIVE', createdAt: '2026-08-01T00:00:00.000Z',
-    driverId: null, assignedTruckId: null, baseSalary: null, socialInsurance: null,
+    employeeCode: null, driverId: null, assignedTruckId: null, baseSalary: null, socialInsurance: null,
   },
   {
     id: 2, username: 'binh', fullName: 'Bình Trần', email: null, phone: null,
     role: Role.ACCOUNTANT, status: 'ACTIVE', createdAt: '2026-08-02T00:00:00.000Z',
-    driverId: null, assignedTruckId: null, baseSalary: null, socialInsurance: null,
+    employeeCode: null, driverId: null, assignedTruckId: null, baseSalary: null, socialInsurance: null,
   },
 ];
 

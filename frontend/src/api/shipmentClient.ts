@@ -211,6 +211,10 @@ export interface OperationalSite {
   googleMapsUrl: string | null;
   contactName: string | null;
   contactPhone: string | null;
+  warehouseContactInfo: string | null;
+  liftInfo: string | null;
+  dropInfo: string | null;
+  cleaningInfo: string | null;
   liftFeeInvoiceName: string | null;
   liftFeeInvoiceAddress: string | null;
   liftFeeTaxCode: string | null;
@@ -745,6 +749,10 @@ export interface UpdateOperationalSiteBody {
   googleMapsUrl?: string | null;
   contactName?: string | null;
   contactPhone?: string | null;
+  warehouseContactInfo?: string | null;
+  liftInfo?: string | null;
+  dropInfo?: string | null;
+  cleaningInfo?: string | null;
   liftFeeInvoiceName?: string | null;
   liftFeeInvoiceAddress?: string | null;
   liftFeeTaxCode?: string | null;

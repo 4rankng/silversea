@@ -5,7 +5,6 @@ import {
   Users, ShieldCheck, UserCog,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { formatDate } from '../../../lib/format';
 import { Role, ROLE_LABELS, ROLE_PILL, FilterKey } from '../utils';
 import type { UserRow } from '../utils';
 import { StatusStrip, StatusSwatch } from '../../../components/shared/StatusStrip';
@@ -333,32 +332,32 @@ function DesktopTable({
   sortOrder: 'asc' | 'desc';
   onSort: (field: 'name' | 'role' | 'status' | 'date') => void;
 }) {
-  // 5 columns: Tài khoản, Liên hệ, Vai trò, Xe, Ngày tạo (status via left-edge strip)
-
   return (
     <div className="desktop-only">
       <div className="record-table-wrap">
         <table className="record-table ops-table" style={{ tableLayout: 'fixed' }}>
           <thead>
             <tr>
+              <th>Mã NV</th>
               <th aria-sort={sortBy === 'name' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}>
                 <button type="button" className="table-sort-button" onClick={() => onSort('name')}>
-                  Tài khoản
+                  Họ tên
                   {sortBy === 'name' ? (sortOrder === 'asc' ? <ArrowUp size={13} aria-hidden="true" /> : <ArrowDown size={13} aria-hidden="true" />) : <ArrowUpDown size={13} aria-hidden="true" className="table-sort-button__icon--idle" />}
                 </button>
               </th>
-              <th>Liên hệ</th>
+              <th>Tên đăng nhập</th>
               <th aria-sort={sortBy === 'role' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}>
                 <button type="button" className="table-sort-button" onClick={() => onSort('role')}>
-                  Vai trò
+                  Phân quyền
                   {sortBy === 'role' ? (sortOrder === 'asc' ? <ArrowUp size={13} aria-hidden="true" /> : <ArrowDown size={13} aria-hidden="true" />) : <ArrowUpDown size={13} aria-hidden="true" className="table-sort-button__icon--idle" />}
                 </button>
               </th>
-              <th>Xe</th>
-              <th aria-sort={sortBy === 'date' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}>
-                <button type="button" className="table-sort-button" onClick={() => onSort('date')}>
-                  Ngày tạo
-                  {sortBy === 'date' ? (sortOrder === 'asc' ? <ArrowUp size={13} aria-hidden="true" /> : <ArrowDown size={13} aria-hidden="true" />) : <ArrowUpDown size={13} aria-hidden="true" className="table-sort-button__icon--idle" />}
+              <th>Email</th>
+              <th>Bộ phận</th>
+              <th aria-sort={sortBy === 'status' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                <button type="button" className="table-sort-button" onClick={() => onSort('status')}>
+                  Trạng thái
+                  {sortBy === 'status' ? (sortOrder === 'asc' ? <ArrowUp size={13} aria-hidden="true" /> : <ArrowDown size={13} aria-hidden="true" />) : <ArrowUpDown size={13} aria-hidden="true" className="table-sort-button__icon--idle" />}
                 </button>
               </th>
             </tr>
@@ -366,7 +365,7 @@ function DesktopTable({
           <tbody>
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={5} data-label="">
+                <td colSpan={7} data-label="">
                   <div className="users-empty">
                     <img src={resolveEmptyIllustration('empty-users')} alt="" aria-hidden="true" className="users-empty__illustration" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                     <p className="users-empty__title">Không tìm thấy tài khoản</p>
@@ -379,9 +378,10 @@ function DesktopTable({
               const pill = ROLE_PILL[u.role] || { cls: 'pill pill--neutral', label: u.role };
               const isMe = u.id === currentUserId;
               const editable = canEditRow(u, canManage, canEditDriversOnly);
-              const plate = getPlate(u, truckMap);
-              const customerScope = getCustomerScopeLabel(u, customerMap);
-              const clerkScope = getClerkScopeLabel(u, customerMap, businessUnitMap);
+              const unitIds = u.businessUnitIds ?? [];
+              const unitNames = unitIds.length > 0
+                ? unitIds.map(id => businessUnitMap?.get(id) ?? '').filter(Boolean).join(', ')
+                : null;
               return (
                 <tr
                   key={u.id}
@@ -397,58 +397,41 @@ function DesktopTable({
                   tabIndex={editable ? 0 : undefined}
                   style={{ cursor: editable ? 'pointer' : 'default' }}
                 >
-                  <td data-label="Tài khoản" style={{ position: 'relative' }}>
+                  <td data-label="Mã NV" style={{ position: 'relative' }}>
                     <StatusStrip status={u.status} />
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <span style={{ fontFamily: 'var(--font-data)', fontSize: 12.5 }}>{u.employeeCode ?? '—'}</span>
+                  </td>
+                  <td data-label="Họ tên">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <RoleAvatar role={u.role} />
                       <div>
                         <div className="user-name">
-                          {u.fullName || u.username || <span style={{ color: 'var(--ink-3)', fontStyle: 'italic' }}>—</span>}
+                          {u.fullName || <span style={{ color: 'var(--ink-3)', fontStyle: 'italic' }}>—</span>}
                           {isMe && <span className="user-name__you">(bạn)</span>}
                         </div>
-                        {u.username && <div className="user-handle">{u.username}</div>}
                       </div>
                     </div>
                   </td>
-                  <td data-label="Liên hệ">
-                    <div className="user-contact">
-                      {u.email && (
-                        <div className="user-contact__row">
-                          <Mail size={13} />
-                          <span>{u.email}</span>
-                        </div>
-                      )}
-                      {u.phone && (
-                        <div className="user-contact__row">
-                          <Phone size={13} />
-                          <span>{u.phone}</span>
-                        </div>
-                      )}
-                      {!u.email && !u.phone && <span style={{ color: 'var(--ink-3)' }}>—</span>}
-                    </div>
+                  <td data-label="Tên đăng nhập">
+                    <span className="user-handle">{u.username || '—'}</span>
                   </td>
-                  <td data-label="Vai trò">
+                  <td data-label="Phân quyền">
                     <span className={pill.cls}><span className="dot" />{pill.label}</span>
-                    {customerScope && (
-                      <div className="user-customer-scope-label" title={customerScope}>
-                        <Building2 size={12} aria-hidden="true" />
-                        <span>{customerScope}</span>
-                      </div>
-                    )}
-                    {!customerScope && clerkScope && (
-                      <div className="user-customer-scope-label" title={clerkScope}>
-                        <Building2 size={12} aria-hidden="true" />
-                        <span>{clerkScope}</span>
-                      </div>
-                    )}
                   </td>
-                  <td data-label="Xe">
-                    {plate
-                      ? <span className="user-truck-plate">{plate}</span>
+                  <td data-label="Email">
+                    {u.email
+                      ? <span style={{ fontSize: 12.5 }}>{u.email}</span>
                       : <span style={{ color: 'var(--ink-4)' }}>—</span>}
                   </td>
-                  <td data-label="Ngày tạo" style={{ color: 'var(--ink-3)', whiteSpace: 'nowrap' }}>
-                    {formatDate(u.createdAt)}
+                  <td data-label="Bộ phận">
+                    {unitNames
+                      ? <span style={{ fontSize: 12.5 }}>{unitNames}</span>
+                      : <span style={{ color: 'var(--ink-4)' }}>—</span>}
+                  </td>
+                  <td data-label="Trạng thái" style={{ whiteSpace: 'nowrap' }}>
+                    <span className={u.status === 'ACTIVE' ? 'pill pill--success' : 'pill pill--danger'}>
+                      <span className="dot" />{u.status === 'ACTIVE' ? 'Hoạt động' : 'Bị khoá'}
+                    </span>
                   </td>
                 </tr>
               );
@@ -498,9 +481,10 @@ function MobileCardList({ filtered, canManage, canDelete, canEditDriversOnly, tr
           const pill = ROLE_PILL[u.role] || { cls: 'pill pill--neutral', label: u.role };
           const isMe = u.id === currentUserId;
           const editable = canEditRow(u, canManage, canEditDriversOnly);
-          const plate = getPlate(u, truckMap);
-          const customerScope = getCustomerScopeLabel(u, customerMap);
-          const clerkScope = getClerkScopeLabel(u, customerMap, businessUnitMap);
+          const unitIds = u.businessUnitIds ?? [];
+          const unitNames = unitIds.length > 0
+            ? unitIds.map(id => businessUnitMap?.get(id) ?? '').filter(Boolean).join(', ')
+            : null;
           return (
             <div
                   key={u.id}
@@ -522,10 +506,11 @@ function MobileCardList({ filtered, canManage, canDelete, canEditDriversOnly, tr
                 <RoleAvatar role={u.role} />
                 <div className="users-mobile-card__info">
                   <div className="users-mobile-card__name">
-                    {u.fullName || u.username || <span style={{ color: 'var(--ink-3)', fontStyle: 'italic' }}>—</span>}
+                    {u.fullName || <span style={{ color: 'var(--ink-3)', fontStyle: 'italic' }}>—</span>}
                     {isMe && <span className="user-name__you">(bạn)</span>}
                   </div>
                   <div className="users-mobile-card__identity-meta">
+                    {u.employeeCode && <span className="users-mobile-card__handle">{u.employeeCode}</span>}
                     {u.username && <span className="users-mobile-card__handle">{u.username}</span>}
                     <span className={`users-mobile-card__role ${pill.cls}`}><span className="dot" />{pill.label}</span>
                   </div>
@@ -566,32 +551,16 @@ function MobileCardList({ filtered, canManage, canDelete, canEditDriversOnly, tr
               </div>
               <div className="users-mobile-card__details">
                 <div className="users-mobile-card__detail-list">
-                  {plate && (
-                    <span className="user-truck-plate">{plate}</span>
-                  )}
-                  {customerScope && (
-                    <span className="users-mobile-card__detail">
-                      <Building2 size={12} /> {customerScope}
-                    </span>
-                  )}
-                  {!customerScope && clerkScope && (
-                    <span className="users-mobile-card__detail">
-                      <Building2 size={12} /> {clerkScope}
-                    </span>
-                  )}
                   {u.email && (
                     <span className="users-mobile-card__detail">
                       <Mail size={12} /> {u.email}
                     </span>
                   )}
-                  {u.phone && (
+                  {unitNames && (
                     <span className="users-mobile-card__detail">
-                      <Phone size={12} /> {u.phone}
+                      <Building2 size={12} /> {unitNames}
                     </span>
                   )}
-                  <span className="users-mobile-card__detail" style={{ color: 'var(--ink-4)' }}>
-                    {formatDate(u.createdAt)}
-                  </span>
                 </div>
               </div>
             </div>

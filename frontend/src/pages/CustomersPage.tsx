@@ -12,17 +12,12 @@ import { labelStyle } from '../utils/formStyles';
 import { PageHeader, FilterPill, StatusPill, Modal } from '../components/UI';
 import { SummaryRail } from '../design-system';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
-import { EmptyState, Pagination, UuiSelectField, useTableQueryState } from '../design-system';
+import { EmptyState, Pagination, useTableQueryState } from '../design-system';
 import { useToast } from '../components/shared/Toast';
 import { formatCurrency } from '../lib/format';
-import {
-  buildCustomerDebitNoteModeOptions,
-  describeCustomerDebitNoteMode,
-  type EditableCustomerDebitNoteMode,
-} from '../lib/customerDebitNoteMode';
-import type { Customer, LedgerEntry, Supplier } from '@tingting/shared';
+import type { Customer, LedgerEntry } from '@tingting/shared';
 import { CustomerStatus } from '@tingting/shared';
-import { useCustomerLedgerEntries, useSuppliers } from '../hooks/useQueries';
+import { useCustomerLedgerEntries } from '../hooks/useQueries';
 import { configClient } from '../api/configClient';
 import { qk } from '../api/keys';
 import { usePageAnimations } from '../hooks/animations';
@@ -95,28 +90,23 @@ export function buildCustomerDebtMap(entries: LedgerEntry[]): Map<number, number
 // looked cramped (5 fields squeezed into one table cell) and made it easy to
 // miss that edit mode had even opened. Modal gives proper breathing room.
 
-export function CustomerFormModal({ item, saving, onsave, oncancel, isOpen, suppliers }: {
-  item?: Customer; saving: boolean; onsave: (d: Record<string, unknown>) => void; oncancel: () => void; isOpen: boolean; suppliers: Supplier[];
+export function CustomerFormModal({ item, saving, onsave, oncancel, isOpen }: {
+  item?: Customer; saving: boolean; onsave: (d: Record<string, unknown>) => void; oncancel: () => void; isOpen: boolean;
 }) {
   const [name, setName] = useState(item?.name || '');
   const [shortName, setShortName] = useState(item?.shortName || item?.name || '');
   const [taxCode, setTaxCode] = useState(item?.taxCode || '');
   const [contactPerson, setContactPerson] = useState(item?.contactPerson || '');
   const [phone, setPhone] = useState(item?.phone || '');
-  const [creditLimit, setCreditLimit] = useState(item?.creditLimit || '');
-  const [paymentTermDays, setPaymentTermDays] = useState(
-    item?.paymentTermDays != null ? String(item.paymentTermDays) : '30',
+  const [contactInfo, setContactInfo] = useState(item?.contactInfo || '');
+  const [accountantName, setAccountantName] = useState(item?.accountantName || '');
+  const [accountantPhone, setAccountantPhone] = useState(item?.accountantPhone || '');
+  const [agencyFeePaymentTermDays, setAgencyFeePaymentTermDays] = useState(
+    item?.agencyFeePaymentTermDays != null ? String(item.agencyFeePaymentTermDays) : '',
   );
-  const [fuelSurchargeSharePct, setFuelSurchargeSharePct] = useState(
-    item?.fuelSurchargeSharePct != null ? String(item.fuelSurchargeSharePct) : '',
+  const [freightPaymentTermDays, setFreightPaymentTermDays] = useState(
+    item?.freightPaymentTermDays != null ? String(item.freightPaymentTermDays) : '',
   );
-  const [paymentDatePolicy, setPaymentDatePolicy] = useState(
-    item?.paymentDatePolicy ?? 'NEXT_BUSINESS_DAY',
-  );
-  const [status, setStatus] = useState<string>(item?.status || CustomerStatus.ACTIVE);
-  const [isCarrier, setIsCarrier] = useState(item?.isCarrier ?? false);
-  const [debitNoteMode, setDebitNoteMode] = useState<Customer['debitNoteMode']>(item?.debitNoteMode ?? 'MONTHLY');
-  const [linkedSupplierId, setLinkedSupplierId] = useState<number | null>(item?.linkedSupplierId ?? null);
 
   useEffect(() => {
     if (isOpen) {
@@ -125,14 +115,11 @@ export function CustomerFormModal({ item, saving, onsave, oncancel, isOpen, supp
       setTaxCode(item?.taxCode || '');
       setContactPerson(item?.contactPerson || '');
       setPhone(item?.phone || '');
-      setCreditLimit(item?.creditLimit || '');
-      setPaymentTermDays(item?.paymentTermDays != null ? String(item.paymentTermDays) : '30');
-      setFuelSurchargeSharePct(item?.fuelSurchargeSharePct != null ? String(item.fuelSurchargeSharePct) : '');
-      setPaymentDatePolicy(item?.paymentDatePolicy ?? 'NEXT_BUSINESS_DAY');
-      setStatus(item?.status || CustomerStatus.ACTIVE);
-      setIsCarrier(item?.isCarrier ?? false);
-      setDebitNoteMode(item?.debitNoteMode ?? 'MONTHLY');
-      setLinkedSupplierId(item?.linkedSupplierId ?? null);
+      setContactInfo(item?.contactInfo || '');
+      setAccountantName(item?.accountantName || '');
+      setAccountantPhone(item?.accountantPhone || '');
+      setAgencyFeePaymentTermDays(item?.agencyFeePaymentTermDays != null ? String(item.agencyFeePaymentTermDays) : '');
+      setFreightPaymentTermDays(item?.freightPaymentTermDays != null ? String(item.freightPaymentTermDays) : '');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally re-sync only when the target customer ID changes, not on every prop update
   }, [isOpen, item?.id]);
@@ -145,18 +132,13 @@ export function CustomerFormModal({ item, saving, onsave, oncancel, isOpen, supp
       taxCode: taxCode.trim() || undefined,
       contactPerson: contactPerson.trim() || undefined,
       phone: phone.trim() || undefined,
-      creditLimit: creditLimit ? Number(creditLimit) : undefined,
-      paymentTermDays: paymentTermDays ? Number(paymentTermDays) : null,
-      fuelSurchargeSharePct: fuelSurchargeSharePct ? Number(fuelSurchargeSharePct) : null,
-      paymentDatePolicy,
-      status,
-      isCarrier,
-      debitNoteMode,
-      linkedSupplierId: linkedSupplierId ?? null,
+      contactInfo: contactInfo.trim() || undefined,
+      accountantName: accountantName.trim() || undefined,
+      accountantPhone: accountantPhone.trim() || undefined,
+      agencyFeePaymentTermDays: agencyFeePaymentTermDays.trim() === '' ? null : Number(agencyFeePaymentTermDays),
+      freightPaymentTermDays: freightPaymentTermDays.trim() === '' ? null : Number(freightPaymentTermDays),
     });
   };
-  const debitNoteModeOptions = buildCustomerDebitNoteModeOptions(debitNoteMode);
-  const debitNoteModeDescription = describeCustomerDebitNoteMode(debitNoteMode);
 
   return (
     <Modal
@@ -192,13 +174,10 @@ export function CustomerFormModal({ item, saving, onsave, oncancel, isOpen, supp
             <label htmlFor="cust-tax" style={labelStyle}>Mã số thuế</label>
             <input id="cust-tax" className="input" value={taxCode} onChange={e => setTaxCode(e.target.value)} placeholder="0312…" />
           </div>
-          <UuiSelectField
-            id="cust-status"
-            label="Trạng thái"
-            value={status}
-            onChange={e => setStatus(e.target.value)}
-            options={Object.entries(STATUS_LABELS).map(([k, v]) => ({ value: k, label: v }))}
-          />
+          <div className="field">
+            <label htmlFor="cust-address" style={labelStyle}>Địa chỉ</label>
+            <input id="cust-address" className="input" value={contactInfo} onChange={e => setContactInfo(e.target.value)} placeholder="Địa chỉ khách hàng" />
+          </div>
         </div>
         <div style={pairedFieldGridStyle}>
           <div className="field">
@@ -206,94 +185,48 @@ export function CustomerFormModal({ item, saving, onsave, oncancel, isOpen, supp
             <input id="cust-contact" className="input" value={contactPerson} onChange={e => setContactPerson(e.target.value)} placeholder="Anh Tuấn · Kế toán" />
           </div>
           <div className="field">
-            <label htmlFor="cust-phone" style={labelStyle}>Điện thoại</label>
+            <label htmlFor="cust-phone" style={labelStyle}>SĐT Liên hệ</label>
             <input id="cust-phone" className="input" value={phone} onChange={e => setPhone(e.target.value)} placeholder="0912…" />
           </div>
         </div>
-        <div className="field">
-          <label htmlFor="cust-credit" style={labelStyle}>Hạn mức tín dụng (đ)</label>
-          <input id="cust-credit" className="input" type="number" value={creditLimit} onChange={e => setCreditLimit(e.target.value)} placeholder="0" />
+        <div style={pairedFieldGridStyle}>
+          <div className="field">
+            <label htmlFor="cust-director" style={labelStyle}>Giám đốc</label>
+            <input id="cust-director" className="input" value={accountantName} onChange={e => setAccountantName(e.target.value)} placeholder="Tên giám đốc" />
+          </div>
+          <div className="field">
+            <label htmlFor="cust-accountant-phone" style={labelStyle}>SĐT Kế toán</label>
+            <input id="cust-accountant-phone" className="input" value={accountantPhone} onChange={e => setAccountantPhone(e.target.value)} placeholder="0912…" />
+          </div>
         </div>
         <div style={pairedFieldGridStyle}>
           <div className="field">
-            <label htmlFor="cust-payment-term" style={labelStyle}>Thời hạn thanh toán (ngày)</label>
+            <label htmlFor="cust-agency-fee-term" style={labelStyle}>Hạn TT Chi hộ (ngày)</label>
             <input
-              id="cust-payment-term"
+              id="cust-agency-fee-term"
               className="input"
               type="number"
               min={0}
               max={3650}
-              value={paymentTermDays}
-              onChange={e => setPaymentTermDays(e.target.value)}
+              value={agencyFeePaymentTermDays}
+              onChange={e => setAgencyFeePaymentTermDays(e.target.value)}
+              placeholder="Ví dụ: 15"
             />
           </div>
           <div className="field">
-            <label htmlFor="cust-fuel-share" style={labelStyle}>Tỷ lệ chia sẻ phụ phí xăng dầu (%)</label>
+            <label htmlFor="cust-freight-term" style={labelStyle}>Hạn TT Cước (ngày)</label>
             <input
-              id="cust-fuel-share"
+              id="cust-freight-term"
               className="input"
               type="number"
               min={0}
-              max={100}
-              step="0.01"
-              value={fuelSurchargeSharePct}
-              onChange={e => setFuelSurchargeSharePct(e.target.value)}
-              placeholder="Để trống nếu không áp dụng"
+              max={3650}
+              value={freightPaymentTermDays}
+              onChange={e => setFreightPaymentTermDays(e.target.value)}
+              placeholder="Ví dụ: 30"
             />
-            <div style={{ marginTop: 6, fontSize: 12, lineHeight: 1.4, color: 'var(--ink-3)' }}>
-              Để trống nếu khách hàng không áp dụng phụ phí.
-            </div>
-          </div>
-          <UuiSelectField
-            id="cust-payment-date-policy"
-            label="Ngày đến hạn rơi vào ngày nghỉ"
-            value={paymentDatePolicy}
-            onChange={e => setPaymentDatePolicy(e.target.value as 'NEXT_BUSINESS_DAY' | 'CALENDAR_DAY')}
-            options={[
-              { value: 'NEXT_BUSINESS_DAY', label: 'Chuyển sang ngày làm việc tiếp theo' },
-              { value: 'CALENDAR_DAY', label: 'Giữ nguyên theo hợp đồng' },
-            ]}
-          />
-        </div>
-        <div style={pairedFieldGridStyle}>
-          <UuiSelectField
-            id="cust-debit-mode"
-            label="Giấy báo nợ"
-            value={debitNoteMode}
-            onChange={e => setDebitNoteMode(e.target.value as EditableCustomerDebitNoteMode)}
-            options={debitNoteModeOptions.map((option) => ({
-              value: option.value,
-              label: option.label,
-              disabled: option.disabled,
-            }))}
-          />
-          {debitNoteModeDescription && (
-            <div style={{ marginTop: 6, fontSize: 12, lineHeight: 1.4, color: 'var(--ink-3)' }}>
-              {debitNoteModeDescription}
-            </div>
-          )}
-          <div className="field" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', paddingBottom: 4 }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={isCarrier}
-                onChange={e => setIsCarrier(e.target.checked)}
-                style={{ width: 14, height: 14 }}
-              />
-              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-2)' }}>Đối tác vận tải (xe ngoài)</span>
-            </label>
           </div>
         </div>
-        <UuiSelectField
-          id="cust-linked-supplier"
-          label="Nhà cung cấp liên quan"
-          value={linkedSupplierId === null || linkedSupplierId === undefined ? '' : String(linkedSupplierId)}
-          onChange={e => setLinkedSupplierId(e.target.value ? Number(e.target.value) : null)}
-          options={[
-            { value: '', label: '-- Không liên kết --' },
-            ...suppliers.map(s => ({ value: String(s.id), label: s.name })),
-          ]}
-        />
       </div>
     </Modal>
   );
@@ -337,8 +270,6 @@ export default function CustomersPage() {
 
   const { rootRef } = usePageAnimations({ ready: !loading });
   const { data: ledgerEntries } = useCustomerLedgerEntries();
-  const { data: suppliersData } = useSuppliers(1, '');
-  const allSuppliers = suppliersData?.items ?? [];
 
   /**
    * Mutation failures must surface as a toast: the edit modal stays open and
@@ -593,36 +524,44 @@ export default function CustomersPage() {
         <div className="record-table-wrap">
           <table className="record-table ops-table" style={{ tableLayout: 'fixed' }}>
             <colgroup>
-              <col style={{ width: '44%' }} />
               <col style={{ width: '22%' }} />
-              <col style={{ width: '14%' }} />
-              <col style={{ width: '14%' }} />
+              <col style={{ width: '12%' }} />
+              <col style={{ width: '12%' }} />
+              <col style={{ width: '12%' }} />
+              <col style={{ width: '12%' }} />
+              <col style={{ width: '12%' }} />
+              <col style={{ width: '10%' }} />
+              <col style={{ width: '10%' }} />
               <col style={{ width: 60 }} />
             </colgroup>
             <thead>
               <tr>
-                <SortHeader label="Khách hàng" sortKey="name" sort={sort} onSortChange={applySort} />
-                <SortHeader label="Liên hệ" sortKey="contactPerson" sort={sort} onSortChange={applySort} />
-                <SortHeader label="Hạn mức TD" sortKey="creditLimit" sort={sort} onSortChange={applySort} style={thNumStyle} />
-                <SortHeader label="Công nợ" sortKey="debt" sort={sort} onSortChange={applySort} style={thNumStyle} />
+                <SortHeader label="Tên khách hàng" sortKey="name" sort={sort} onSortChange={applySort} />
+                <SortHeader label="Tên viết tắt" sortKey="shortName" sort={sort} onSortChange={applySort} />
+                <SortHeader label="Mã KH" sortKey="taxCode" sort={sort} onSortChange={applySort} />
+                <SortHeader label="Mã số thuế" sortKey="taxCode" sort={sort} onSortChange={applySort} />
+                <SortHeader label="Giám đốc" sortKey="accountantName" sort={sort} onSortChange={applySort} />
+                <SortHeader label="Người liên hệ" sortKey="contactPerson" sort={sort} onSortChange={applySort} />
+                <SortHeader label="Hạn TT Chi hộ" sortKey="agencyFeePaymentTermDays" sort={sort} onSortChange={applySort} style={thNumStyle} />
+                <SortHeader label="Hạn TT Cước" sortKey="freightPaymentTermDays" sort={sort} onSortChange={applySort} style={thNumStyle} />
                 <th style={{ width: 60 }}></th>
               </tr>
             </thead>
             <tbody>
               {loading && (
-                <tr><td colSpan={5} data-label="" style={{ textAlign: 'center', padding: 32, color: 'var(--ink-3)' }}>
+                <tr><td colSpan={9} data-label="" style={{ textAlign: 'center', padding: 32, color: 'var(--ink-3)' }}>
                   <Loader2 size={22} className="spin" style={{ display: 'inline-block', marginBottom: 8 }} />
                   <p style={{ fontSize: 13 }}>Đang tải…</p>
                 </td></tr>
               )}
               {error && (
-                <tr><td colSpan={5} data-label="" style={{ textAlign: 'center', padding: 32, color: 'var(--danger)' }}>
+                <tr><td colSpan={9} data-label="" style={{ textAlign: 'center', padding: 32, color: 'var(--danger)' }}>
                   <p>{error}</p>
                   <button className="btn btn--secondary btn--sm" style={{ marginTop: 8 }} onClick={() => refetchCustomers()}>Thử lại</button>
                 </td></tr>
               )}
               {!loading && filtered.length === 0 && (
-                <tr><td colSpan={5} data-label="" style={{ textAlign: 'center', padding: 32, color: 'var(--ink-3)' }}>
+                <tr><td colSpan={9} data-label="" style={{ textAlign: 'center', padding: 32, color: 'var(--ink-3)' }}>
                   <EmptyIllustration name="empty-clients" width={140} height={116} style={{ margin: '0 auto 8px', display: 'block' }} />
                   <div>Chưa có dữ liệu</div>
                 </td></tr>
@@ -633,40 +572,32 @@ export default function CustomersPage() {
                     onClick={() => navigate(`/customers/${c.id}`)}
                     onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/customers/${c.id}`); } }}
                   >
-                    <td data-label="Khách hàng" style={{ position: 'relative' }}>
+                    <td data-label="Tên khách hàng" style={{ position: 'relative' }}>
                       <StatusStrip status={c.status} />
-                      <div style={{ fontWeight: 600, display: 'flex', alignItems: 'flex-start', gap: 6, width: '100%', minWidth: 0, flexWrap: 'wrap' }}>
-                        <span style={{ wordBreak: 'break-word', whiteSpace: 'normal', minWidth: 0 }}>
-                          {c.shortName || c.name}
-                        </span>
-                        {c.linkedSupplierId && (
-                          <Badge variant="success" style={{ flexShrink: 0, marginTop: 1 }}>2 chiều</Badge>
-                        )}
-                        {c.isCarrier && (
-                          <span style={{ flexShrink: 0, fontSize: 12, fontWeight: 700, color: 'var(--info-text)', background: 'var(--info-soft)', border: '1px solid color-mix(in srgb, var(--info) 22%, transparent)', borderRadius: 4, padding: '1px 5px', letterSpacing: '0.02em', marginTop: 1, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-                            <Truck size={11} aria-hidden="true" /> Xe ngoài
-                          </span>
-                        )}
-                      </div>
-                      <div style={{ fontSize: 12, lineHeight: 1.35, color: 'var(--ink-3)', marginTop: 2 }}>{c.name}</div>
-                      {c.taxCode && <div style={{ fontSize: 12, lineHeight: 1.35, color: 'var(--ink-3)', marginTop: 2, fontFamily: 'var(--font-data)' }}>MST {c.taxCode}</div>}
-                    </td>
-                    <td data-label="Liên hệ">
-                      {c.contactPerson && <div style={{ fontWeight: 600 }}>{c.contactPerson}</div>}
-                      {(c.phone || c.contactInfo) && (
-                        <div style={{ fontSize: 12, lineHeight: 1.35, color: 'var(--ink-3)', marginTop: 2, fontFamily: 'var(--font-data)' }}>
-                          {c.phone || c.contactInfo}
-                        </div>
-                      )}
-                      {!c.contactPerson && !c.phone && !c.contactInfo && <span style={{ color: 'var(--ink-3)' }}>—</span>}
-                    </td>
-                    <td className="num" data-label="Hạn mức TD">
-                      {c.creditLimit ? formatCurrency(c.creditLimit) : '—'}
-                    </td>
-                    <td className="num" data-label="Công nợ">
-                      <span style={debtMap.get(c.id) ? { color: 'var(--danger)' } : { color: 'var(--ink-3)' }}>
-                        <Money value={debtMap.get(c.id) ?? 0} />
+                      <span style={{ wordBreak: 'break-word', whiteSpace: 'normal' }}>
+                        {c.name}
                       </span>
+                    </td>
+                    <td data-label="Tên viết tắt">
+                      {c.shortName || <span style={{ color: 'var(--ink-3)' }}>—</span>}
+                    </td>
+                    <td data-label="Mã KH">
+                      {c.shortName || <span style={{ color: 'var(--ink-3)' }}>—</span>}
+                    </td>
+                    <td data-label="Mã số thuế">
+                      {c.taxCode || <span style={{ color: 'var(--ink-3)' }}>—</span>}
+                    </td>
+                    <td data-label="Giám đốc">
+                      {c.accountantName || <span style={{ color: 'var(--ink-3)' }}>—</span>}
+                    </td>
+                    <td data-label="Người liên hệ">
+                      {c.contactPerson || <span style={{ color: 'var(--ink-3)' }}>—</span>}
+                    </td>
+                    <td className="num" data-label="Hạn TT Chi hộ">
+                      {c.agencyFeePaymentTermDays != null ? `${c.agencyFeePaymentTermDays} ngày` : '—'}
+                    </td>
+                    <td className="num" data-label="Hạn TT Cước">
+                      {c.freightPaymentTermDays != null ? `${c.freightPaymentTermDays} ngày` : '—'}
                     </td>
                     <td data-label="" className="record-table__action" style={{ position: 'relative' }}>
                       <div className="row-actions">
@@ -710,7 +641,6 @@ export default function CustomersPage() {
         isOpen={showAddForm || editingId != null}
         saving={saving}
         item={editingId != null ? customers.find(c => c.id === editingId) : undefined}
-        suppliers={allSuppliers}
         onsave={d => {
           if (editingId != null) doUpdate(editingId, d);
           else doCreate(d);

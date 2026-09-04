@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import {
   ShieldCheck, KeyRound, Loader2, Save, User, Eye, EyeOff,
-  Mail, Phone, AtSign, Lock, Building2, Package,
+  Mail, Phone, AtSign, Lock, Building2, Package, Hash,
 } from 'lucide-react';
 import { Drawer, Btn, FormGroup } from '../../../components/UI';
 import { ROLE_LABELS } from '../utils';
@@ -11,7 +11,7 @@ import { CustomerAccountType, Role } from '@tingting/shared';
 import type { Customer } from '@tingting/shared';
 import type { BusinessUnit, ShipmentScopeOption, UserRow, EditData } from '../utils';
 import { UuiSelectField } from '../../../design-system/forms/UuiSelectField';
-import { IconInput, DriverFields, CustomerScopeFields, SelectionScopeFields, type SelectionOption } from './UserFormFields';
+import { IconInput, CustomerScopeFields, SelectionScopeFields, type SelectionOption } from './UserFormFields';
 interface EditPanelProps {
   isOpen: boolean;
   user: UserRow;
@@ -37,12 +37,11 @@ export function EditPanel({
   const [username, setUsername] = useState(user.username ?? '');
   const [email, setEmail]       = useState(user.email ?? '');
   const [phone, setPhone]       = useState(user.phone ?? '');
+  const [employeeCode, setEmployeeCode] = useState(user.employeeCode ?? '');
   const [role, setRole]         = useState<Role>(user.role);
   const [status, setStatus]     = useState(user.status);
   const [password, setPassword] = useState('');
   const [showPw, setShowPw]     = useState(false);
-  const [baseSalary, setBaseSalary]           = useState(user.baseSalary ?? '');
-  const [socialInsurance, setSocialInsurance] = useState(user.socialInsurance ?? '');
   const [customerIds, setCustomerIds] = useState<number[]>(
     user.customerIds?.length ? user.customerIds : user.customerId ? [user.customerId] : [],
   );
@@ -58,12 +57,11 @@ export function EditPanel({
       setUsername(user.username ?? '');
       setEmail(user.email ?? '');
       setPhone(user.phone ?? '');
+      setEmployeeCode(user.employeeCode ?? '');
       setRole(user.role);
       setStatus(user.status);
       setPassword('');
       setShowPw(false);
-      setBaseSalary(user.baseSalary ?? '');
-      setSocialInsurance(user.socialInsurance ?? '');
       setCustomerIds(user.customerIds?.length ? user.customerIds : user.customerId ? [user.customerId] : []);
       setCustomerAccountType(user.customerAccountType ?? CustomerAccountType.SINGLE_ENTITY);
       setBusinessUnitIds(user.businessUnitIds ?? []);
@@ -105,10 +103,8 @@ export function EditPanel({
   const handleSubmit = async () => {
     if (customerScopeInvalid) return;
     if (forwarderScopeInvalid) return;
-    const payload: EditData = { fullName, username, email, phone, role, status, password };
+    const payload: EditData = { fullName, username, email, phone, employeeCode, role, status, password };
     if (role === Role.DRIVER) {
-      payload.baseSalary = baseSalary;
-      payload.socialInsurance = socialInsurance;
       if (canManageClerkScope) payload.businessUnitIds = businessUnitIds;
     }
     if (role === Role.CUSTOMER) {
@@ -182,6 +178,14 @@ export function EditPanel({
           </FormGroup>
         </div>
         <div className="users-form-card">
+          <FormGroup label="Mã nhân viên">
+            <IconInput
+              icon={<Hash size={14} />}
+              value={employeeCode}
+              onChange={e => setEmployeeCode(e.target.value)}
+              placeholder="NV001"
+            />
+          </FormGroup>
           <FormGroup label="Email">
             <IconInput
               icon={<Mail size={14} />}
@@ -191,15 +195,6 @@ export function EditPanel({
               placeholder="nva@cty.vn"
               error={emailError}
               disabled={canEditDriversOnly}
-            />
-          </FormGroup>
-          <FormGroup label="Số điện thoại">
-            <IconInput
-              icon={<Phone size={14} />}
-              value={phone}
-              onChange={e => setPhone(e.target.value)}
-              placeholder="0912 345 678"
-              error={phoneError}
             />
           </FormGroup>
         </div>
@@ -236,29 +231,21 @@ export function EditPanel({
       </div>
 
       {/* Driver profile fields (only for DRIVER role) */}
-      {role === Role.DRIVER && (
-        <>
-          <DriverFields
-            baseSalary={baseSalary}
-            socialInsurance={socialInsurance}
-          />
-          {!canEditDriversOnly && canManageClerkScope && (
-            <SelectionScopeFields
-              title="Đơn vị tính lương"
-              icon={<Building2 size={12} />}
-              helpText="Gán các đơn vị mà lái xe thuộc về để chốt lương theo đơn vị được cấu hình ở Cài đặt ứng dụng. Có thể để trống nếu lái xe vẫn thuộc phạm vi lương toàn công ty."
-              searchPlaceholder="Tìm đơn vị theo tên hoặc mã"
-              ariaLabel="Đơn vị tính lương của lái xe"
-              options={businessUnitOptions}
-              selectedIds={businessUnitIds}
-              setSelectedIds={setBusinessUnitIds}
-              required={false}
-              requiredMessage="Cần chọn ít nhất một đơn vị tính lương."
-              emptyText="Không tìm thấy đơn vị phù hợp."
-              summaryLabel="Đã chọn"
-            />
-          )}
-        </>
+      {role === Role.DRIVER && !canEditDriversOnly && canManageClerkScope && (
+        <SelectionScopeFields
+          title="Đơn vị tính lương"
+          icon={<Building2 size={12} />}
+          helpText="Gán các đơn vị mà lái xe thuộc về để chốt lương theo đơn vị được cấu hình ở Cài đặt ứng dụng. Có thể để trống nếu lái xe vẫn thuộc phạm vi lương toàn công ty."
+          searchPlaceholder="Tìm đơn vị theo tên hoặc mã"
+          ariaLabel="Đơn vị tính lương của lái xe"
+          options={businessUnitOptions}
+          selectedIds={businessUnitIds}
+          setSelectedIds={setBusinessUnitIds}
+          required={false}
+          requiredMessage="Cần chọn ít nhất một đơn vị tính lương."
+          emptyText="Không tìm thấy đơn vị phù hợp."
+          summaryLabel="Đã chọn"
+        />
       )}
 
       {role === Role.CUSTOMER && !canEditDriversOnly && (

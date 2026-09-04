@@ -13,6 +13,7 @@ const user: UserRow = {
   role: Role.ADMIN,
   status: 'ACTIVE',
   createdAt: '2026-07-28T00:00:00.000Z',
+  employeeCode: null,
   driverId: null,
   assignedTruckId: null,
   baseSalary: null,

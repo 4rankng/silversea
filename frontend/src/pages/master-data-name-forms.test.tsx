@@ -24,7 +24,7 @@ describe('master-data full and short name forms', () => {
 
   it('submits both customer names', () => {
     const onsave = vi.fn();
-    render(<CustomerFormModal isOpen saving={false} suppliers={[]} onsave={onsave} oncancel={vi.fn()} />);
+    render(<CustomerFormModal isOpen saving={false} onsave={onsave} oncancel={vi.fn()} />);
 
     fireEvent.change(screen.getByLabelText(/^Tên đầy đủ/), { target: { value: 'Công ty Cổ phần Biển Bạc Việt Nam' } });
     fireEvent.change(screen.getByLabelText(/^Tên ngắn/), { target: { value: 'Biển Bạc' } });
@@ -40,8 +40,8 @@ describe('master-data full and short name forms', () => {
     const onsave = vi.fn();
     render(<RouteFormModal isOpen saving={false} onsave={onsave} oncancel={vi.fn()} />);
 
-    fireEvent.change(screen.getByLabelText(/^Tên đầy đủ/), { target: { value: 'Cảng Hải Phòng - Nhà máy Biển Bạc tại Bắc Ninh' } });
-    fireEvent.change(screen.getByLabelText(/^Tên ngắn/), { target: { value: 'HP - Biển Bạc' } });
+    fireEvent.change(screen.getByLabelText(/^Tên tuyến/), { target: { value: 'Cảng Hải Phòng - Nhà máy Biển Bạc tại Bắc Ninh' } });
+    fireEvent.change(screen.getByLabelText(/^Tên rút gọn/), { target: { value: 'HP - Biển Bạc' } });
     fireEvent.click(screen.getByRole('button', { name: 'Thêm tuyến' }));
 
     expect(onsave).toHaveBeenCalledWith(expect.objectContaining({

@@ -623,6 +623,7 @@ export const createUserSchema = z.object({
   username: z.string().min(2).optional(),
   email: z.string().email().optional(),
   fullName: fullNameField,
+  employeeCode: z.string().max(20).optional(),
   phone: z.string().min(6).optional(),
   password: z.string().min(6),
   role: z.nativeEnum(Role),
@@ -646,6 +647,7 @@ export const updateUserSchema = z.object({
   password: z.string().min(6).optional(),
   username: z.string().min(1).max(100).optional(),
   fullName: fullNameField,
+  employeeCode: z.string().max(20).optional(),
   email: z.string().email().or(z.literal('')).optional(),
   phone: z.string().min(6).or(z.literal('')).optional(),
   // Driver-profile fields — upserted onto the linked `drivers` row when the

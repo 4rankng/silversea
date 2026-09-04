@@ -1,20 +1,15 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { usePageAnimations } from '../../hooks/animations';
 import { useBackShortcut } from '../../hooks/useBackShortcut';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { MapPin, Route, Plus, Pencil, Trash2, Loader2, X, Mountain } from 'lucide-react';
+import { Plus, Loader2, X, Pencil, Trash2 } from 'lucide-react';
 import { configClient } from '../../api/configClient';
-import { tripClient } from '../../api/tripClient';
-import { formatCurrency } from '../../lib/format';
 import { PageHeader, useConfirm } from '../../components/UI';
-import { calculateRoute } from '../../lib/maps';
-import { LeafletMap } from '../../components/shared/LeafletMap';
 import { useCRUD } from '../../hooks/useCRUD';
 import { qk } from '../../api/keys';
 import { SortHeader } from '../../components/shared/SortHeader';
 import { nextTableSort, sortClientSide, type TableSortState } from '../../lib/table-sort';
-import type { Route as RouteType, RoadAllowance } from '@tingting/shared';
 import '../../styles/record-table.css';
 import '../../styles/operational-table-typography.css';
 import './config-page.css';
@@ -26,27 +21,14 @@ export default function RoutesConfigPage() {
   const navigate = useNavigate();
   const handleBack = () => navigate('/config');
   useBackShortcut(handleBack);
-  const [routeFilter, setRouteFilter] = useState<'all' | 'plain' | 'mountain'>('all');
   const [search, setSearch] = useState('');
-  // Client-side column sort — full in-memory catalog plus derived columns
-  // (month usage from trips, 20/40ft prices from road allowances); null keeps
-  // the fetch order.
   const [sort, setSort] = useState<TableSortState | null>(null);
   const handleSort = (key: string) => setSort(current => nextTableSort(current, key));
   const [selectedRouteId, setSelectedRouteId] = useState<number | null>(null);
-  const [selectedRouteLegs, setSelectedRouteLegs] = useState<Array<{ origin: string; destination: string; km: number; loadingType: string; polylinePath: string | null }>>([]);
 
   const fetchData = useCallback(async () => {
-    const [routeList, tripRes, allowances] = await Promise.all([
-      configClient.getRoutesList(search || undefined),
-      tripClient.fetchAllTrips({}).then(r => r.items).catch(() => [] as Array<{ routeId?: number | null; departureDate?: string }>),
-      configClient.getRoadAllowances().catch(() => [] as RoadAllowance[]),
-    ]);
-    return {
-      routes: routeList,
-      trips: tripRes,
-      allowances,
-    };
+    const routeList = await configClient.getRoutesList(search || undefined);
+    return { routes: routeList };
   }, [search]);
 
   const { data, refetch } = useQuery({
@@ -61,96 +43,29 @@ export default function RoutesConfigPage() {
     return routes.find(r => r.id === selectedRouteId);
   }, [routes, selectedRouteId]);
 
-  useEffect(() => {
-    if (selectedRoute && selectedRoute.defaultLegs && Array.isArray(selectedRoute.defaultLegs)) {
-      const legs = (selectedRoute.defaultLegs as NonNullable<RouteType['defaultLegs']>).map((l) => ({
-        ...l,
-        polylinePath: null as string | null
-      }));
-      setSelectedRouteLegs(legs);
-
-      legs.forEach(async (leg, idx) => {
-        if (leg.origin && leg.destination && leg.origin !== leg.destination) {
-          try {
-            const res = await calculateRoute(leg.origin, leg.destination);
-            if (res.polylinePath) {
-              setSelectedRouteLegs(prev => prev.map((l, i) => i === idx ? { ...l, polylinePath: res.polylinePath } : l));
-            }
-          } catch { /* polyline fetch is decorative */ }
-        }
-      });
-    } else {
-      setSelectedRouteLegs([]);
-    }
-  }, [selectedRoute]);
-
-  const routeTripStats = useMemo(() => {
-    const stats = new Map<number, number>();
-    if (!data?.trips) return stats;
-    const now = new Date();
-    const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    data.trips.forEach((t) => {
-      const dep = t.departureDate || '';
-      if (dep.startsWith(thisMonth)) {
-        const rid = t.routeId;
-        if (rid) stats.set(rid, (stats.get(rid) || 0) + 1);
-      }
-    });
-    return stats;
-  }, [data?.trips]);
-
-  const routePriceMap = useMemo(() => {
-    const priceMap = new Map<number, { ft20?: number; ft40?: number }>();
-    if (!data?.allowances) return priceMap;
-    data.allowances.forEach((ra) => {
-      const rid = ra.routeId;
-      if (!rid) return;
-      const p = priceMap.get(rid) || {};
-      if (ra.trailerType === '20FT') p.ft20 = parseFloat(ra.baseAmount ?? '0');
-      if (ra.trailerType === '40FT') p.ft40 = parseFloat(ra.baseAmount ?? '0');
-      priceMap.set(rid, p);
-    });
-    return priceMap;
-  }, [data?.allowances]);
-
   const crud = useCRUD('/routes', async () => { await refetch(); });
   const { confirm, dialog: confirmDialog } = useConfirm();
 
-  const now = new Date();
-  const monthLabel = `${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getFullYear()).slice(-2)}`;
   const totalCount = routes.length;
-  const mountainCount = routes.filter(r => r.isMountain).length;
-  const usedThisMonth = routes.filter(r => (routeTripStats.get(r.id) || 0) > 0).length;
-
-  let popularRoute: RouteType | undefined;
-  let popularCount = 0;
-  routes.forEach(r => { const c = routeTripStats.get(r.id) || 0; if (c > popularCount) { popularCount = c; popularRoute = r; } });
 
   const filtered = useMemo(() => sortClientSide(
-    routes.filter(r => {
-      if (routeFilter === 'plain') return !r.isMountain;
-      if (routeFilter === 'mountain') return r.isMountain;
-      return true;
-    }),
+    routes,
     sort,
     {
-      name: r => r.shortName || r.name,
+      code: r => r.code,
+      name: r => r.name,
+      shortName: r => r.shortName,
+      loadPoint: r => r.loadPoint,
       distanceKm: r => r.distanceKm,
-      terrain: r => (r.isMountain ? 'mountain' : 'plain'),
-      tollsStations: r => r.tollsStations,
-      driverSalary: r => (r.driverSalary != null ? Number(r.driverSalary) : null),
-      price20ft: r => routePriceMap.get(r.id)?.ft20 ?? null,
-      price40ft: r => routePriceMap.get(r.id)?.ft40 ?? null,
-      monthUsage: r => routeTripStats.get(r.id) ?? 0,
     },
     (a, b) => b.id - a.id,
-  ), [routes, routeFilter, sort, routePriceMap, routeTripStats]);
+  ), [routes, sort]);
 
   return (
     <div ref={pageRef} className="cfg-page cfg-page--routes routes-config-page">
       <PageHeader
         title="Tuyến đường & Cự ly"
-        description={<><strong>{totalCount}</strong> tuyến đang quản lý · {mountainCount} tuyến núi · {usedThisMonth} tuyến chạy trong {monthLabel}</>}
+        description={<><strong>{totalCount}</strong> tuyến đang quản lý</>}
         onBack={handleBack}
         iconName="route-distance"
         action={
@@ -158,37 +73,6 @@ export default function RoutesConfigPage() {
         }
       />
 
-      <div className="kpi-grid" style={{ marginBottom: 20 }}>
-        <div className="kpi">
-          <div className="kpi__top"><span className="kpi__label">Tổng tuyến</span></div>
-          <div className="kpi__value">{totalCount}</div>
-          <div className="kpi__meta kpi__meta--up">Tất cả tuyến đang hoạt động</div>
-          <div className="kpi__watermark" aria-hidden="true"><MapPin size={72} /></div>
-        </div>
-        <div className="kpi kpi--success">
-          <div className="kpi__top"><span className="kpi__label">Đang sử dụng {monthLabel}</span></div>
-          <div className="kpi__value">{usedThisMonth}<span className="kpi__value-unit">/{totalCount}</span></div>
-          <div className="kpi__meta">{totalCount > 0 ? Math.round((usedThisMonth / totalCount) * 100) : 0}% tuyến có chuyến</div>
-          <div className="kpi__watermark" aria-hidden="true"><svg aria-hidden="true" width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
-        </div>
-        <div className="kpi kpi--warn">
-          <div className="kpi__top"><span className="kpi__label">Tuyến núi</span></div>
-          <div className="kpi__value">{mountainCount}</div>
-          <div className="kpi__meta">Định mức dầu cao hơn</div>
-          <div className="kpi__watermark" aria-hidden="true"><Mountain size={72} /></div>
-        </div>
-        <div className="kpi">
-          <div className="kpi__top"><span className="kpi__label">Phổ biến nhất</span></div>
-          <div className="kpi__value" style={{ fontSize: 16, lineHeight: 1.3 }}>{popularRoute ? (popularRoute.shortName || popularRoute.name) : '—'}</div>
-          <div className="kpi__meta">{popularCount > 0 ? `${popularCount} chuyến ${monthLabel}` : 'Chưa có dữ liệu'}</div>
-          <div className="kpi__watermark" aria-hidden="true"><Route size={72} /></div>
-        </div>
-      </div>
-
-      {/* Modal-based create/edit — was an inline tr form earlier; the cramped
-          layout hid the toll-station / fuel-allowance / driver-salary fields
-          that the trip-creation tip refers to, so users couldn't configure
-          them. Modal exposes them clearly with section grouping + hints. */}
       <RouteFormModal
         key={crud.editingId ?? (crud.showAddForm ? 'add' : 'closed')}
         isOpen={crud.showAddForm || crud.editingId != null}
@@ -210,10 +94,6 @@ export default function RoutesConfigPage() {
       }}>
         <div className="table-wrap" style={{ margin: 0 }}>
           <div className="toolbar">
-            {(['all', 'plain', 'mountain'] as const).map(f => {
-              const labels = { all: `Tất cả · ${totalCount}`, plain: `Đồng bằng · ${totalCount - mountainCount}`, mountain: `Tuyến núi · ${mountainCount}` };
-              return <button key={f} className={`filter-pill${routeFilter === f ? ' is-active' : ''}`} onClick={() => setRouteFilter(f)}>{labels[f]}</button>;
-            })}
             <div className="toolbar__spacer" />
             <div className="toolbar__search">
               <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
@@ -236,21 +116,17 @@ export default function RoutesConfigPage() {
             <table className="record-table ops-table routes-table">
               <thead>
                 <tr>
-                  <SortHeader label="Tuyến đường" sortKey="name" sort={sort} onSortChange={handleSort} />
-                  <SortHeader className="num" label="KM" sortKey="distanceKm" sort={sort} onSortChange={handleSort} />
-                  <SortHeader label="Loại" sortKey="terrain" sort={sort} onSortChange={handleSort} />
-                  <SortHeader className="num" label="Trạm thu phí" sortKey="tollsStations" sort={sort} onSortChange={handleSort} />
-                  <SortHeader className="num" label="Tiền KH" sortKey="driverSalary" sort={sort} onSortChange={handleSort} />
-                  <SortHeader className="num" label="Chuẩn 20ft" sortKey="price20ft" sort={sort} onSortChange={handleSort} />
-                  <SortHeader className="num" label="Chuẩn 40ft" sortKey="price40ft" sort={sort} onSortChange={handleSort} />
-                  <SortHeader className="num" label={`Sử dụng ${monthLabel}`} sortKey="monthUsage" sort={sort} onSortChange={handleSort} />
+                  <SortHeader label="Mã tuyến" sortKey="code" sort={sort} onSortChange={handleSort} />
+                  <SortHeader label="Tên tuyến" sortKey="name" sort={sort} onSortChange={handleSort} />
+                  <SortHeader label="Tên rút gọn" sortKey="shortName" sort={sort} onSortChange={handleSort} />
+                  <SortHeader label="Điểm đóng trả" sortKey="loadPoint" sort={sort} onSortChange={handleSort} />
+                  <SortHeader className="num" label="Khoảng cách" sortKey="distanceKm" sort={sort} onSortChange={handleSort} />
+                  <th>Ghi chú</th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.length === 0 && <tr><td colSpan={8} data-label="" style={{ textAlign: 'center', padding: '48px 12px', color: 'var(--ink-3)' }}>Chưa có dữ liệu</td></tr>}
+                {filtered.length === 0 && <tr><td colSpan={6} data-label="" style={{ textAlign: 'center', padding: '48px 12px', color: 'var(--ink-3)' }}>Chưa có dữ liệu</td></tr>}
                 {filtered.map(r => {
-                  const prices = routePriceMap.get(r.id);
-                  const trips = routeTripStats.get(r.id) || 0;
                   const isSelected = selectedRouteId === r.id;
                   return (
                     <tr
@@ -259,25 +135,14 @@ export default function RoutesConfigPage() {
                       onClick={() => setSelectedRouteId(isSelected ? null : r.id)}
                       style={{ cursor: 'pointer' }}
                     >
-                      <td data-label="Tuyến đường">
-                        <div className="row-strong">{r.shortName || r.name}</div>
-                        {r.shortName && r.shortName !== r.name && <div className="row-meta">{r.name}</div>}
-                        {r.fixedFuelAllowance && <div className="row-meta">Định mức dầu: {r.fixedFuelAllowance} L</div>}
+                      <td data-label="Mã tuyến" style={{ color: 'var(--fg-2)' }}>{r.code || '—'}</td>
+                      <td data-label="Tên tuyến">
+                        <div className="row-strong">{r.name}</div>
                       </td>
-                      <td className="num" data-label="KM">{r.distanceKm != null ? `${r.distanceKm}` : '—'}</td>
-                      <td data-label="Loại">
-                        {r.isMountain
-                          ? <span className="pill pill--warn"><span className="dot" />Tuyến núi</span>
-                          : <span className="pill pill--neutral">Đồng bằng</span>}
-                      </td>
-                      <td className="num" data-label="Trạm">{r.tollsStations != null ? r.tollsStations : '—'}</td>
-                      <td className="num" data-label="Tiền KH">{r.driverSalary ? formatCurrency(Number(r.driverSalary)) : '—'}</td>
-                      <td className="num" data-label="20ft">{prices?.ft20 ? formatCurrency(prices.ft20) : '—'}</td>
-                      <td className="num" data-label="40ft">{prices?.ft40 ? formatCurrency(prices.ft40) : '—'}</td>
-                      <td className="num" data-label={`Dùng ${monthLabel}`}>
-                        {trips > 0 ? <strong style={{ color: 'var(--success)' }}>{trips}</strong> : <span style={{ color: 'var(--ink-3)' }}>0</span>}
-                      </td>
-
+                      <td data-label="Tên rút gọn">{r.shortName || '—'}</td>
+                      <td data-label="Điểm đóng trả">{r.loadPoint || '—'}</td>
+                      <td className="num" data-label="Khoảng cách">{r.distanceKm != null ? `${r.distanceKm}` : '—'}</td>
+                      <td data-label="Ghi chú" style={{ color: 'var(--fg-2)', fontSize: 13, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.note || '—'}</td>
                     </tr>
                   );
                 })}
@@ -346,98 +211,31 @@ export default function RoutesConfigPage() {
                 {selectedRoute.shortName || selectedRoute.name}
               </div>
               {selectedRoute.shortName && selectedRoute.shortName !== selectedRoute.name && <div style={{ color: 'var(--fg-3)', fontSize: 12, marginBottom: 8 }}>{selectedRoute.name}</div>}
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-                <span className="pill pill--neutral">
-                  {selectedRoute.distanceKm ? `${selectedRoute.distanceKm} km` : '— km'}
-                </span>
-                {selectedRoute.isMountain ? (
-                  <span className="pill pill--warn"><span className="dot" />Tuyến núi</span>
-                ) : (
-                  <span className="pill pill--neutral">Đồng bằng</span>
-                )}
-              </div>
             </div>
 
-            {/* Map Visualization */}
-            <div>
-              <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--fg-3)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Bản đồ tuyến đường
-              </div>
-              {selectedRouteLegs.length > 0 ? (
-                <LeafletMap legs={selectedRouteLegs} height="220px" />
-              ) : (
-                <div style={{
-                  height: '220px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  background: 'var(--bg-2)',
-                  borderRadius: 'var(--app-radius-lg)',
-                  border: '1px dashed var(--line)',
-                  color: 'var(--fg-3)',
-                  fontSize: '13px'
-                }}>
-                  Chưa khai báo chặng để hiển thị bản đồ
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', background: 'var(--bg-2)', padding: '12px', borderRadius: 'var(--app-radius-md)' }}>
+              {selectedRoute.code && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                  <span style={{ color: 'var(--fg-3)' }}>Mã tuyến:</span>
+                  <strong style={{ color: 'var(--fg-1)' }}>{selectedRoute.code}</strong>
                 </div>
               )}
-            </div>
-
-            {/* Configuration default values */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', background: 'var(--bg-2)', padding: '12px', borderRadius: 'var(--app-radius-md)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                <span style={{ color: 'var(--fg-3)' }}>Định mức dầu:</span>
-                <strong style={{ color: 'var(--fg-1)' }}>
-                  {selectedRoute.fixedFuelAllowance ? `${selectedRoute.fixedFuelAllowance} L` : 'Theo công thức'}
-                </strong>
+                <span style={{ color: 'var(--fg-3)' }}>Khoảng cách:</span>
+                <strong style={{ color: 'var(--fg-1)' }}>{selectedRoute.distanceKm ? `${selectedRoute.distanceKm} km` : '—'}</strong>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                <span style={{ color: 'var(--fg-3)' }}>Trạm thu phí:</span>
-                <strong style={{ color: 'var(--fg-1)' }}>
-                  {selectedRoute.tollsStations != null ? `${selectedRoute.tollsStations} trạm` : '—'}
-                </strong>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                <span style={{ color: 'var(--fg-3)' }}>Tiền kết hợp:</span>
-                <strong style={{ color: 'var(--fg-1)' }}>
-                  {selectedRoute.driverSalary ? formatCurrency(Number(selectedRoute.driverSalary)) : 'Theo công thức'}
-                </strong>
-              </div>
-            </div>
-
-            {/* Default legs itinerary */}
-            <div>
-              <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--fg-3)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Lộ trình chi tiết ({selectedRouteLegs.length})
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '180px', overflowY: 'auto' }}>
-                {selectedRouteLegs.length === 0 ? (
-                  <div style={{ fontSize: '13px', color: 'var(--fg-3)', fontStyle: 'italic' }}>Chưa cấu hình chặng mặc định.</div>
-                ) : (
-                  selectedRouteLegs.map((leg, i) => (
-                    <div key={i} style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '4px',
-                      background: 'var(--bg-2)',
-                      padding: '8px 10px',
-                      borderRadius: 'var(--app-radius-sm)'
-                    }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--fg-2)' }}>Chặng {i + 1}</span>
-                        <span style={{ fontSize: '11px', color: 'var(--fg-3)' }}>
-                          {leg.km} km · {leg.loadingType === 'HANG' ? 'Có hàng' : 'Vỏ rỗng'}
-                        </span>
-                      </div>
-                      <div style={{ fontSize: '12px', color: 'var(--fg-1)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <span style={{ color: 'var(--success)' }}>●</span> {leg.origin}
-                      </div>
-                      <div style={{ fontSize: '12px', color: 'var(--fg-1)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <span style={{ color: 'var(--danger)' }}>●</span> {leg.destination}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
+              {selectedRoute.loadPoint && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                  <span style={{ color: 'var(--fg-3)' }}>Điểm đóng trả:</span>
+                  <strong style={{ color: 'var(--fg-1)' }}>{selectedRoute.loadPoint}</strong>
+                </div>
+              )}
+              {selectedRoute.note && (
+                <div style={{ fontSize: '13px' }}>
+                  <span style={{ color: 'var(--fg-3)' }}>Ghi chú:</span>
+                  <div style={{ color: 'var(--fg-1)', marginTop: 4 }}>{selectedRoute.note}</div>
+                </div>
+              )}
             </div>
           </div>
         )}

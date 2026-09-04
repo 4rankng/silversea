@@ -40,10 +40,16 @@ const truck = (overrides: Partial<Truck> = {}): Truck => ({
   trailerPlateNumber: null,
   trailerType: null,
   currentTrailerId: null,
+  vehicleClass: null,
+  brand: null,
+  towCapacityTons: null,
+  fuelLPer100kmLoaded: null,
+  fuelLPer100kmEmpty: null,
   status: TruckStatus.ACTIVE,
   nextInspectionDate: null,
   insuranceExpiryDate: null,
   lastOilServiceDate: null,
+  note: null,
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
   deletedAt: null,
@@ -53,11 +59,18 @@ const truck = (overrides: Partial<Truck> = {}): Truck => ({
 const driver = (overrides: Partial<Driver> = {}): Driver => ({
   id: 10,
   userId: null,
+  code: null,
   name: 'Nguyễn Văn B',
+  idNumber: null,
+  licenseNumber: null,
+  licenseExpiryDate: null,
   phone: '0901234567',
   assignedTruckId: 1,
   baseSalary: null,
   socialInsurance: null,
+  bankName: null,
+  bankAccount: null,
+  salaryType: null,
   status: DriverStatus.ACTIVE,
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
@@ -72,10 +85,10 @@ describe('FleetDriversView (dispatcher read-only)', () => {
     fleetState.error = null;
   });
 
-  it('renders driver rows with name, phone, assigned plate, status', () => {
+  it('renders driver rows with Excel columns', () => {
     fleetState.data = {
       trucks: [truck()],
-      drivers: [driver(), driver({ id: 11, name: 'Trần Thị C', phone: null, assignedTruckId: null, status: DriverStatus.INACTIVE })],
+      drivers: [driver(), driver({ id: 11, name: 'Trần Thị C', phone: null, assignedTruckId: null })],
     };
     render(
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
@@ -86,9 +99,7 @@ describe('FleetDriversView (dispatcher read-only)', () => {
     expect(screen.getByText('Nguyễn Văn B')).toBeTruthy();
     expect(screen.getByText('0901234567')).toBeTruthy();
     expect(screen.getByText('0901234567').closest('td')).toHaveAttribute('data-label', 'Số điện thoại');
-    expect(screen.getByText('51H-123.45')).toBeTruthy();
     expect(screen.getByText('Trần Thị C')).toBeTruthy();
-    expect(screen.getByText('Ngưng')).toBeTruthy();
   });
 
   it('shows loading then empty states', () => {
@@ -140,11 +151,9 @@ describe('FleetDriversView (dispatcher read-only)', () => {
 
     await waitFor(() => expect(apiPost).toHaveBeenCalledWith('/drivers', expect.objectContaining({
       name: 'Trần Văn Mới',
-      // baseSalary must be stripped: DISPATCHER cannot make the governance
-      // action a salaried driver create would route into.
-      status: 'ACTIVE',
     })));
     expect(apiPost.mock.calls[0]?.[1]).not.toHaveProperty('baseSalary');
+    expect(apiPost.mock.calls[0]?.[1]).not.toHaveProperty('status');
     await waitFor(() => expect(invalidateAllCatalogs).toHaveBeenCalled());
   });
 });

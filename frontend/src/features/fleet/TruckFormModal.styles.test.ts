@@ -16,7 +16,7 @@ const operationalStyles = readFileSync(
 );
 
 describe("TruckFormModal desktop density", () => {
-  it("uses a wide desktop dialog and a three-field reminder row", () => {
+  it("uses a wide desktop dialog and a two-field reminder row", () => {
     expect(source).toMatch(/maxWidth=\{920\}/);
     expect(styles).toMatch(
       /\.truck-alert-fields\s*\{[\s\S]*?grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\)/,
@@ -24,7 +24,7 @@ describe("TruckFormModal desktop density", () => {
     expect(styles).toMatch(
       /\.truck-alert-field--oil-calculator\s*\{[\s\S]*?grid-column:\s*1 \/ -1[\s\S]*?display:\s*flex/,
     );
-    expect(source).toContain("truck-oil-helper__controls");
+    expect(source).toContain("truck-alert-fields");
   });
 
   it("uses the shared compact control contract and a stable desktop grid", () => {
@@ -67,14 +67,14 @@ describe("TruckFormModal desktop density", () => {
     expect(styles).toContain(".modal__body .fleet-form .field .input");
   });
 
-  it("uses the field labels once, with the select control labelled for assistive technology", () => {
-    expect(source).toMatch(/id="trailer-select"[\s\S]*?hideLabel/);
-    expect(source).toMatch(/id="truck-status"[\s\S]*?hideLabel/);
-    expect(source).not.toMatch(
-      /id="trailer-select"[\s\S]*?wrapperClassName="input"/,
-    );
-    expect(source).not.toMatch(
-      /id="truck-status"[\s\S]*?wrapperClassName="input"/,
-    );
+  it("uses the field labels once, with explicit htmlFor on every input", () => {
+    expect(source).toMatch(/<label htmlFor="truck-plate">/);
+    expect(source).toMatch(/<label htmlFor="truck-vehicleClass">/);
+    expect(source).toMatch(/<label htmlFor="truck-brand">/);
+    expect(source).toMatch(/<label htmlFor="truck-towCapacityTons">/);
+    // Date fields use TruckDateField subcomponent with htmlFor={id}
+    expect(source).toMatch(/id="truck-inspection"/);
+    expect(source).toMatch(/id="truck-insurance"/);
+    expect(source).toMatch(/<label htmlFor="truck-note">/);
   });
 });

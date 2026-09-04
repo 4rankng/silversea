@@ -32,20 +32,16 @@ export function FleetDriversView() {
   const { data: fleetData, isLoading: loading, error } = useTrucksAndDrivers();
   const create = useCatalogCreate('/drivers');
   const saveDriver = (body: Record<string, unknown>) => {
-    const driverFields = { ...body };
-    delete driverFields.baseSalary;
-    return create.create(driverFields);
+    return create.create(body);
   };
 
   const drivers = useMemo(() => fleetData?.drivers ?? [], [fleetData?.drivers]);
   const trucks = useMemo(() => fleetData?.trucks ?? [], [fleetData?.trucks]);
 
-  const { plateByTruck, activeCount, assignedCount } = useMemo(() => {
+  const { plateByTruck } = useMemo(() => {
     const plateByTruck = new Map(trucks.map((t) => [t.id, t.licensePlate]));
-    const activeCount = drivers.filter((d) => d.status === 'ACTIVE').length;
-    const assignedCount = drivers.filter((d) => d.assignedTruckId).length;
-    return { plateByTruck, activeCount, assignedCount };
-  }, [drivers, trucks]);
+    return { plateByTruck };
+  }, [trucks]);
 
   const needle = search.trim().toLowerCase();
   const filtered = useMemo(() => {
@@ -53,21 +49,25 @@ export function FleetDriversView() {
     return drivers.filter(
       (d) =>
         d.name.toLowerCase().includes(needle) ||
+        (d.code ?? '').toLowerCase().includes(needle) ||
         (d.phone ?? '').toLowerCase().includes(needle) ||
         (d.assignedTruckId ? plateByTruck.get(d.assignedTruckId) ?? '' : '').toLowerCase().includes(needle),
     );
   }, [drivers, needle, plateByTruck]);
 
-  // Full catalog is already client-side (unpaginated lookup table), so sorting
-  // happens locally with the shared contract: empty cells last, id tiebreaker.
   const rows = useMemo(
     () => sortClientSide(filtered, sort, {
+      code: (d) => d.code,
       name: (d) => d.name,
+      idNumber: (d) => d.idNumber,
+      licenseNumber: (d) => d.licenseNumber,
+      licenseExpiryDate: (d) => d.licenseExpiryDate,
       phone: (d) => d.phone,
-      assignedPlate: (d) => (d.assignedTruckId ? plateByTruck.get(d.assignedTruckId) : null),
-      status: (d) => d.status,
+      bankName: (d) => d.bankName,
+      bankAccount: (d) => d.bankAccount,
+      salaryType: (d) => d.salaryType,
     }, (a, b) => a.id - b.id),
-    [filtered, sort, plateByTruck],
+    [filtered, sort],
   );
   const applySort = (key: string) => setSort((current) => nextTableSort(current, key));
 
@@ -88,19 +88,17 @@ export function FleetDriversView() {
       {create.error && <div className="dispatch-catalogs__error">{create.error}</div>}
       <div className="kpi-grid" style={{ marginBottom: 16 }}>
         <KPI label="Tổng tài xế" value={drivers.length} unit="người" icon={Users} />
-        <KPI label="Đang hoạt động" value={activeCount} unit="người" icon={UserCheck} variant="success" />
-        <KPI label="Đã gán xe" value={assignedCount} unit="người" icon={TruckIcon} variant="info" />
       </div>
       {error && <div className="dispatch-catalogs__error">Không thể tải dữ liệu</div>}
       <CatalogTableShell
         search={search}
         onSearchChange={setSearch}
-        searchPlaceholder="Tìm tên, SĐT hoặc biển số xe…"
+        searchPlaceholder="Tìm mã, tên, SĐT hoặc biển số xe…"
         totalLabel={`${filtered.length}/${drivers.length} tài xế`}
       >
         {loading ? (
           <div role="status">
-            <SkeletonTable rows={6} cols={4} />
+            <SkeletonTable rows={6} cols={9} />
             <span className="sr-only">Đang tải…</span>
           </div>
         ) : !error && filtered.length === 0 ? (
@@ -111,25 +109,29 @@ export function FleetDriversView() {
           <table className="dispatch-catalogs__table">
             <thead>
               <tr>
+                <SortHeader label="Mã tài xế" sortKey="code" sort={sort} onSortChange={applySort} />
                 <SortHeader label="Họ tên" sortKey="name" sort={sort} onSortChange={applySort} />
+                <SortHeader label="Số CCCD" sortKey="idNumber" sort={sort} onSortChange={applySort} />
+                <SortHeader label="GPLX" sortKey="licenseNumber" sort={sort} onSortChange={applySort} />
+                <SortHeader label="Hạn bằng lái" sortKey="licenseExpiryDate" sort={sort} onSortChange={applySort} />
                 <SortHeader label="Số điện thoại" sortKey="phone" sort={sort} onSortChange={applySort} />
-                <SortHeader label="Xe đang gán" sortKey="assignedPlate" sort={sort} onSortChange={applySort} />
-                <SortHeader label="Trạng thái" sortKey="status" sort={sort} onSortChange={applySort} />
+                <SortHeader label="Ngân hàng nhận tiền" sortKey="bankName" sort={sort} onSortChange={applySort} />
+                <SortHeader label="Số TK nhận tiền" sortKey="bankAccount" sort={sort} onSortChange={applySort} />
+                <SortHeader label="Hình thức lương" sortKey="salaryType" sort={sort} onSortChange={applySort} />
               </tr>
             </thead>
             <tbody>
               {rows.map((d) => (
                 <tr key={d.id}>
-                  <td data-label="Họ tên" style={{ fontWeight: 600 }}>{d.name}</td>
+                  <td data-label="Mã tài xế" style={{ fontWeight: 600 }}>{d.code ?? '—'}</td>
+                  <td data-label="Họ tên">{d.name}</td>
+                  <td data-label="Số CCCD">{d.idNumber ?? '—'}</td>
+                  <td data-label="GPLX">{d.licenseNumber ?? '—'}</td>
+                  <td data-label="Hạn bằng lái">{d.licenseExpiryDate ?? '—'}</td>
                   <td data-label="Số điện thoại">{d.phone ?? '—'}</td>
-                  <td data-label="Xe đang gán" className="dispatch-catalogs__plate">
-                    {d.assignedTruckId ? plateByTruck.get(d.assignedTruckId) ?? '—' : '—'}
-                  </td>
-                  <td data-label="Trạng thái">
-                    <BadgeWithDot size="sm" color={d.status === 'ACTIVE' ? 'success' : 'gray'}>
-                      {DRIVER_STATUS[d.status] || d.status}
-                    </BadgeWithDot>
-                  </td>
+                  <td data-label="Ngân hàng nhận tiền">{d.bankName ?? '—'}</td>
+                  <td data-label="Số TK nhận tiền">{d.bankAccount ?? '—'}</td>
+                  <td data-label="Hình thức lương">{d.salaryType ?? '—'}</td>
                 </tr>
               ))}
             </tbody>
@@ -139,7 +141,6 @@ export function FleetDriversView() {
       <DriverFormModal
         isOpen={create.open}
         saving={create.saving}
-        showSalary={false}
         onsave={saveDriver}
         oncancel={create.closeForm}
       />

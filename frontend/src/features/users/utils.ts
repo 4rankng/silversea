@@ -31,6 +31,7 @@ export interface UserRow {
   id: number;
   username: string | null;
   fullName: string | null;
+  employeeCode: string | null;
   email: string | null;
   phone: string | null;
   role: Role;
@@ -53,6 +54,7 @@ export interface EditData {
   username: string;
   email: string;
   phone: string;
+  employeeCode?: string;
   role: Role;
   status: string;
   password: string;
@@ -71,6 +73,7 @@ export interface CreateData {
   email: string;
   phone: string;
   fullName: string;
+  employeeCode?: string;
   role: Role;
   password: string;
   // Driver-profile fields — sent only when role === DRIVER.
