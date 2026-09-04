@@ -4,7 +4,7 @@ import { Role } from '@tingting/shared';
 import { db } from '../db/index.js';
 import * as s from '../db/schema/index.js';
 import {
-  prodStaff, prodRoleAccounts, prodDrivers, prodCustomers, prodSites, prodRoutes,
+  prodStaff, prodDrivers, prodCustomers, prodSites, prodRoutes,
   prodTractors, prodTrailers, prodPorts, prodCarriers,
 } from './data/prod-master-data.js';
 import { seedReference } from './seed-reference';
@@ -18,9 +18,12 @@ import { upsertPartnerFromTaxCode } from '../services/legal-partner.service';
 import { reassignTruckDriverInTx } from '../services/truck-driver-assignment.service';
 
 // ─── Prod seed: real customer master data only ───────────────────────────────
-// Loads the 2026-09-04 ("4.9") Excel delivery (staff, shared role accounts,
-// drivers, customers, sites, routes, ports, fleet, carrier suppliers) and
-// intentionally EXCLUDES every demo generator (sample customers, demo
+// Loads the 2026-09-04 two-file delivery: master data from "4.9 - Import
+// data form.xlsx" (drivers, customers, sites, routes, ports, fleet, carrier
+// suppliers) and staff accounts from "User & Role.xlsx" (NV001..NV022 with
+// R_* role codes — the account authority). Shared role logins such as
+// ketoan/dieuvan/cus are STAGING-only and are never seeded here.
+// Intentionally EXCLUDES every demo generator (sample customers, demo
 // shipments/trips, bulk rows, demo AR/AP, CUS demo scope).
 // Idempotent: every step upserts by a stable natural key (username, name,
 // tax code, code, plate). Stale rows from earlier deliveries that the sheet
@@ -39,7 +42,7 @@ const ROLE_BY_GROUP: Record<string, Role> = {
   'CUS': Role.CUS,
 };
 
-// Shared role accounts (User sheet) key on the customer's R_* permission codes.
+// Staff accounts key on the customer's R_* permission codes (User & Role.xlsx).
 const ROLE_BY_CODE: Record<string, Role> = {
   R_ADMIN: Role.ADMIN,
   R_ACC: Role.ACCOUNTANT,
@@ -63,11 +66,19 @@ const foldPlate = (raw: string): string => {
 };
 
 export async function seedProdUsers(passwordHash: string): Promise<void> {
-  console.log('Seeding prod staff logins (Nhân viên sheet)...');
-  for (const u of prodStaff) {
-    const role = ROLE_BY_GROUP[u.roleGroup];
+  console.log('Seeding prod staff logins (User & Role.xlsx: NV001..NV022)...');
+  // The bootstrap admin is prepended (not in the sheet) so a fresh provision
+  // gets it from the seed itself; it must run FIRST — it releases employee
+  // code NV001 for the sheet's Nguyễn Thị Phương (unique index).
+  const staffWithAdmin = [{
+    username: 'admin', employeeCode: 'ADMIN', fullName: 'Quản trị viên',
+    roleCode: null as string | null, roleGroup: 'Ban Giám Đốc' as string | null,
+  }, ...prodStaff];
+  for (const u of staffWithAdmin) {
+    const role = u.username === 'admin' ? Role.ADMIN
+      : (ROLE_BY_CODE[u.roleCode ?? ''] ?? ROLE_BY_GROUP[u.roleGroup ?? '']);
     if (!role) {
-      console.log(`  ! unknown role group ${u.roleGroup} for ${u.username}`);
+      console.log(`  ! unknown role for ${u.username} (${u.roleCode ?? u.roleGroup})`);
       continue;
     }
     const [existing] = await db.select({ id: s.users.id })
@@ -76,9 +87,10 @@ export async function seedProdUsers(passwordHash: string): Promise<void> {
       .limit(1);
     if (existing) {
       // Refresh roster fields only — never reset a password the account
-      // owner may have changed since the account was created.
+      // owner may have changed since the account was created. Email clears
+      // to null: accounts carry no email in User & Role.xlsx.
       await db.update(s.users)
-        .set({ employeeCode: u.employeeCode, fullName: u.fullName, role, status: 'ACTIVE', updatedAt: new Date() })
+        .set({ employeeCode: u.employeeCode, fullName: u.fullName, role, email: null, status: 'ACTIVE', updatedAt: new Date() })
         .where(eq(s.users.id, existing.id));
     } else {
       await db.insert(s.users).values({
@@ -87,35 +99,7 @@ export async function seedProdUsers(passwordHash: string): Promise<void> {
       });
     }
   }
-  console.log(`  staff logins: ${prodStaff.length}`);
-}
-
-export async function seedProdRoleAccounts(passwordHash: string): Promise<void> {
-  console.log('Seeding prod shared role accounts (User sheet: admin/ketoan/dieuvan/cus)...');
-  for (const u of prodRoleAccounts) {
-    const role = ROLE_BY_CODE[u.roleCode] ?? ROLE_BY_GROUP[u.roleCode];
-    if (!role) {
-      console.log(`  ! unknown role code ${u.roleCode} for ${u.username}`);
-      continue;
-    }
-    const [existing] = await db.select({ id: s.users.id })
-      .from(s.users)
-      .where(eq(sql`lower(btrim(${s.users.username}))`, norm(u.username)))
-      .limit(1);
-    if (existing) {
-      // An existing account (the bootstrap admin) keeps its display name and
-      // password; only the roster fields sync from the sheet.
-      await db.update(s.users)
-        .set({ employeeCode: u.employeeCode, role, email: u.email, status: 'ACTIVE', updatedAt: new Date() })
-        .where(eq(s.users.id, existing.id));
-    } else {
-      await db.insert(s.users).values({
-        username: u.username, employeeCode: u.employeeCode, fullName: u.fullName, email: u.email,
-        passwordHash, role, status: 'ACTIVE',
-      });
-    }
-  }
-  console.log(`  role accounts: ${prodRoleAccounts.length}`);
+  console.log(`  staff logins: ${staffWithAdmin.length} (admin + NV001..NV022)`);
 }
 
 export async function seedProdDrivers(passwordHash: string): Promise<void> {
@@ -588,7 +572,6 @@ export async function seedProd(): Promise<void> {
   await seedPorts();
   await seedVehiclesFromExcel();
   await seedProdUsers(passwordHash);
-  await seedProdRoleAccounts(passwordHash);
   await seedProdDrivers(passwordHash);
   await seedProdCustomers();
   await seedProdSites();
