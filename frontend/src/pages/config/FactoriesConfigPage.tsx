@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Factory, Warehouse } from 'lucide-react';
+
 
 import { PageHeader, Panel, Modal } from '../../components/UI';
 import { Alert } from '../../components/shared/Alert';
@@ -217,8 +217,8 @@ export default function FactoriesConfigPage() {
                   <td data-label="Tên" style={{ fontWeight: 600, color: 'var(--fg-1)' }}>{site.name}</td>
                   <td data-label="Loại">
                     {site.siteType === 'FACTORY'
-                      ? <span className="badge badge--info"><Factory size={12} style={{ verticalAlign: -2 }} /> Nhà máy</span>
-                      : <span className="badge"><Warehouse size={12} style={{ verticalAlign: -2 }} /> Kho</span>}
+                      ? <span className="badge badge--info">Nhà máy</span>
+                      : <span className="badge">Kho</span>}
                   </td>
                   <td data-label="Tuyến" style={{ color: 'var(--fg-2)' }}>{site.siteType === 'FACTORY' ? (site.routeName ?? '—') : '—'}</td>
                   <td data-label="Địa chỉ" style={{ color: 'var(--fg-2)', fontSize: 13 }}>{site.address}</td>

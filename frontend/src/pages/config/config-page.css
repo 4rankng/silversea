@@ -26,7 +26,6 @@
 .cfg-page .tt-table tbody td {
   padding: 14px 18px;
   vertical-align: middle;
-  overflow: hidden;
 }
 .cfg-page .tt-table tbody td.num { }
 
@@ -430,10 +429,14 @@
   }
 }
 
-/* The desktop shell leaves a 1112px operational canvas at a 1440px viewport.
-   Eight-column configuration grids do not fit that canvas; switch to labelled
-   records before they require a horizontal scroll. */
-@media (max-width: 1500px) {
+/* The desktop shell leaves ~352px of sidebar/panel chrome outside the table
+   canvas. The factories table (the only tt-table under .cfg-page today) has
+   a pinned 1060px min-width, so it still fits without scrolling down to a
+   ~1412px viewport — common laptop widths (1440/1466/1512) were tipping into
+   the card layout at the old 1500px cutoff even though the table fit fine.
+   Switch to labelled records only once the canvas would actually force a
+   horizontal scroll. */
+@media (max-width: 1400px) {
   .cfg-page .tt-table thead th { padding: 11px 12px; }
   .cfg-page .tt-table tbody td { padding: 12px 12px; }
   .cfg-page .toolbar { padding: 12px 14px 4px; gap: 8px; }
