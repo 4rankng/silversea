@@ -28,9 +28,11 @@ export interface MasterImportBatch {
   rows: MasterImportRow[];
 }
 
-export async function analyzeMasterData(file: File) {
+export async function analyzeMasterData(files: { file?: File; dataForm?: File; userRole?: File }) {
   const form = new FormData();
-  form.append('file', file);
+  if (files.file) form.append('file', files.file);
+  if (files.dataForm) form.append('dataForm', files.dataForm);
+  if (files.userRole) form.append('userRole', files.userRole);
   return api.postForm<{ batch: MasterImportBatch; replayed: boolean }>(
     '/config/master-data-imports/analyze',
     form,

@@ -5,7 +5,7 @@ import { db } from '../db/index.js';
 import * as s from '../db/schema/index.js';
 import {
   prodStaff, prodDrivers, prodCustomers, prodSites, prodRoutes,
-  prodTractors, prodTrailers,
+  prodTractors, prodTrailers, prodPorts,
 } from './data/prod-master-data.js';
 import { seedReference } from './seed-reference';
 import { seedLiftPricing } from './seed-lift-pricing';
@@ -47,6 +47,7 @@ export async function seedProdUsers(passwordHash: string): Promise<void> {
     }
     const values = {
       username: u.username,
+      employeeCode: u.employeeCode,
       fullName: u.fullName,
       passwordHash,
       role,
@@ -93,14 +94,24 @@ export async function seedProdDrivers(passwordHash: string): Promise<void> {
       .from(s.drivers)
       .where(eq(sql`lower(btrim(${s.drivers.name}))`, norm(d.name)))
       .limit(1);
+    const driverValues = {
+      userId,
+      phone: d.phone,
+      code: d.code,
+      idNumber: d.idNumber,
+      licenseNumber: d.licenseNumber,
+      licenseExpiryDate: d.licenseExpiryDate,
+      bankName: d.bankName,
+      bankAccount: d.bankAccount,
+      salaryType: d.salaryType,
+      status: 'ACTIVE',
+    } as const;
     if (existingDriver) {
       await db.update(s.drivers)
-        .set({ userId, phone: d.phone, status: 'ACTIVE', updatedAt: new Date() })
+        .set({ ...driverValues, updatedAt: new Date() })
         .where(eq(s.drivers.id, existingDriver.id));
     } else {
-      await db.insert(s.drivers).values({
-        userId, name: d.name, phone: d.phone, status: 'ACTIVE',
-      });
+      await db.insert(s.drivers).values({ name: d.name, ...driverValues });
     }
   }
   console.log(`  drivers: ${prodDrivers.length}`);
@@ -116,6 +127,8 @@ export async function seedProdCustomers(): Promise<void> {
       taxCode: c.taxCode,
       contactPerson: c.director,
       phone: c.directorPhone,
+      accountantName: c.accountantName,
+      accountantPhone: c.accountantPhone,
       contactInfo: c.email,
       paymentTermDays: c.paymentTermCuocDays,
       status: 'ACTIVE',
@@ -170,7 +183,12 @@ export async function seedProdSites(): Promise<void> {
       address: site.address ?? '',
       strictRules: site.note,
       googleMapsUrl: site.mapsUrl,
+      contactName: site.contactName,
       contactPhone: site.contactPhone,
+      warehouseContactInfo: site.warehouseContactInfo,
+      liftInfo: site.liftInfo,
+      dropInfo: site.dropInfo,
+      cleaningInfo: site.cleaningInfo,
       updatedAt: new Date(),
     } as const;
     const [existing] = await db.select({ id: s.operationalSites.id })
@@ -197,8 +215,12 @@ export async function seedProdRoutes(): Promise<void> {
   for (const r of prodRoutes) {
     const values = {
       name: r.name,
+      code: r.code,
       shortName: r.shortName ?? '',
+      loadPoint: r.loadPoint,
+      note: r.note,
       distanceKm: r.distanceKm,
+      tollsStations: r.tolls,
       isMountain: false,
     };
     const [existing] = await db.select({ id: s.routes.id })
@@ -219,59 +241,123 @@ export async function seedProdRoutes(): Promise<void> {
   }
 }
 
+export async function seedProdPorts(): Promise<void> {
+  console.log(`Seeding prod ports/yards (${prodPorts.length})...`);
+  for (const p of prodPorts) {
+    // The canonical seeder (seed-ports.ts, July extract) may already own this
+    // port under a different display name for the same code (e.g. "TC - HICT"
+    // vs this sheet's "Cảng Lạch Huyện - HICT") — match by code FIRST so we
+    // enrich the existing row instead of colliding on the unique code index.
+    // Only the new descriptive fields are set on an existing row; name/code
+    // stay owned by whichever seeder created the row first.
+    const enrichValues = {
+      address: p.address,
+      classification: p.classification,
+      legalEntity: p.legalEntity,
+      isLachHuyen: p.isLachHuyen,
+      opsPortalUrl: p.opsPortalUrl,
+      position: p.position,
+    } as const;
+    const [existingByCode] = p.code
+      ? await db.select({ id: s.ports.id })
+        .from(s.ports)
+        .where(and(isNull(s.ports.deletedAt), eq(s.ports.code, p.code)))
+        .limit(1)
+      : [undefined];
+    const [existing] = existingByCode
+      ? [existingByCode]
+      : await db.select({ id: s.ports.id })
+        .from(s.ports)
+        .where(and(
+          isNull(s.ports.deletedAt),
+          eq(sql`lower(btrim(${s.ports.name}))`, norm(p.name)),
+        ))
+        .limit(1);
+    if (existing) {
+      await db.update(s.ports)
+        .set({ ...enrichValues, updatedAt: new Date() })
+        .where(eq(s.ports.id, existing.id));
+    } else {
+      await db.insert(s.ports).values({ ...enrichValues, name: p.name, code: p.code ?? undefined });
+    }
+  }
+  console.log(`  ports: ${prodPorts.length}`);
+}
+
 export async function seedProdFleetExtras(): Promise<void> {
-  console.log('Seeding fleet units new since the July extract (trucks + trailers + pairings)...');
-  const fleetPlates = new Set(
-    (await db.select({ plate: s.trucks.licensePlate }).from(s.trucks)).map(t => t.plate),
-  );
+  console.log('Seeding fleet spec data (trucks, trailers, pairings)...');
+  const numToStr = (v: number | null): string | null => (v == null ? null : String(v));
+
+  // Tractors: upsert the sheet's spec fields, merging over the July extract
+  // (trailerPlateNumber/trailerType stay owned by the canonical seeder).
   for (const t of prodTractors) {
-    if (fleetPlates.has(t.plate)) continue;
+    const values = {
+      vehicleClass: t.vehicleClass,
+      brand: t.brand,
+      towCapacityTons: numToStr(t.towCapacityTons),
+      fuelLPer100kmLoaded: numToStr(t.fuelLPer100kmLoaded),
+      fuelLPer100kmEmpty: numToStr(t.fuelLPer100kmEmpty),
+      preferredRoute: t.preferredRoute,
+      note: t.note,
+    };
     const [existing] = await db.select({ id: s.trucks.id })
       .from(s.trucks)
       .where(eq(s.trucks.licensePlate, t.plate))
       .limit(1);
-    if (existing) continue;
-    await db.insert(s.trucks).values({ licensePlate: t.plate, status: 'ACTIVE' });
-    console.log(`  truck: ${t.plate}`);
+    if (existing) {
+      await db.update(s.trucks)
+        .set({ ...values, updatedAt: new Date() })
+        .where(eq(s.trucks.id, existing.id));
+    } else {
+      await db.insert(s.trucks).values({ licensePlate: t.plate, status: 'ACTIVE', ...values });
+      console.log(`  truck added: ${t.plate}`);
+    }
   }
-  const driverByNormName = new Map(
-    (await db.select({ id: s.drivers.id, name: s.drivers.name }).from(s.drivers))
-      .map(d => [norm(d.name), d.id]),
-  );
-  for (const t of prodTractors) {
-    if (!t.driverName) continue;
-    const driverId = driverByNormName.get(norm(t.driverName));
-    if (!driverId) continue;
-    const [truckRow] = await db.select({ id: s.trucks.id })
-      .from(s.trucks)
-      .where(eq(s.trucks.licensePlate, t.plate))
+  // Trailers: the fleet sheet maps 1:1 (plate + spec fields), so trailer
+  // rows are created here — type stays null where Loại Moóc is blank.
+  for (const t of prodTrailers) {
+    const values = {
+      type: (t.type === '20FT' || t.type === '40FT' ? t.type : null) as '20FT' | '40FT' | null,
+      maxPayloadTons: numToStr(t.maxPayloadTons),
+      maxAxleLoadFrontTons: numToStr(t.maxAxleLoadFrontTons),
+      maxAxleLoadRearTons: numToStr(t.maxAxleLoadRearTons),
+      inspectionDeadline: t.inspectionDeadline,
+      note: t.note,
+    };
+    const [existing] = await db.select({ id: s.trailers.id })
+      .from(s.trailers)
+      .where(eq(s.trailers.licensePlate, t.plate))
       .limit(1);
-    if (!truckRow) continue;
-    const [existingAssignment] = await db.select({ id: s.truckDriverAssignments.id })
-      .from(s.truckDriverAssignments)
-      .where(and(
-        eq(s.truckDriverAssignments.truckId, truckRow.id),
-        isNull(s.truckDriverAssignments.endsAt),
-      ))
-      .limit(1);
-    if (existingAssignment) continue;
-    await db.insert(s.truckDriverAssignments).values({ truckId: truckRow.id, driverId });
+    if (existing) {
+      await db.update(s.trailers)
+        .set({ ...values, updatedAt: new Date() })
+        .where(eq(s.trailers.id, existing.id));
+    } else {
+      await db.insert(s.trailers).values({ licensePlate: t.plate, status: 'ACTIVE', ...values });
+    }
   }
-  // Trailer ROWS are intentionally NOT created: the sheet carries no trailer
-  // type (a NOT NULL enum), and the canonical fleet seeder tracks trailers as
-  // plates on trucks (trailerPlateNumber). Only the tractor<->trailer pairing
-  // from the Mooc sheet is applied.
+  // Pairing: tractor <- trailer (Mooc sheet), stored as trailerPlateNumber
+  // (the canonical plate link) and currentTrailerId (the FK the app reads).
   for (const t of prodTrailers) {
     if (!t.pairedTractor) continue;
+    const [trailerRow] = await db.select({ id: s.trailers.id })
+      .from(s.trailers)
+      .where(eq(s.trailers.licensePlate, t.plate))
+      .limit(1);
     const [truckRow] = await db.select({ id: s.trucks.id })
       .from(s.trucks)
       .where(eq(s.trucks.licensePlate, t.pairedTractor))
       .limit(1);
     if (!truckRow) continue;
     await db.update(s.trucks)
-      .set({ trailerPlateNumber: t.plate, updatedAt: new Date() })
+      .set({
+        trailerPlateNumber: t.plate,
+        currentTrailerId: trailerRow?.id ?? null,
+        updatedAt: new Date(),
+      })
       .where(eq(s.trucks.id, truckRow.id));
   }
+  console.log(`  trailers: ${prodTrailers.length}, pairings applied`);
 }
 
 export async function seedProd(): Promise<void> {
@@ -291,6 +377,7 @@ export async function seedProd(): Promise<void> {
   await seedProdCustomers();
   await seedProdSites();
   await seedProdRoutes();
+  await seedProdPorts();
   await seedProdFleetExtras();
   console.log('');
   console.log('✅ Prod seed complete (master data only — no demo rows).');

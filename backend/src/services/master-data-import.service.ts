@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import path from 'node:path';
+import bcrypt from 'bcryptjs';
 import ExcelJS from 'exceljs';
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import { Role } from '@tingting/shared';
@@ -23,12 +24,29 @@ import {
   enqueueStorageDelete,
   STORAGE_DELETE_MODE,
 } from './durable-effect.service';
+import {
+  applyFleetSpecs,
+  applyReferenceEntities,
+  parseCustomersV2,
+  parseDriversV2,
+  parsePortsV2,
+  parseRoutesV2,
+  parseSitesV2,
+  parseStaffUsers,
+  parseTrailerSpecs,
+  parseTruckSpecs,
+  type CustomerPayload,
+  type RoutePayload,
+  type StaffUserPayload,
+  type TrailerSpecPayload,
+  type TruckSpecPayload,
+} from './master-data-import-sep2026.service';
 
-type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+export type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Classification = typeof s.masterImportRowClassificationEnum.enumValues[number];
 
 export const MASTER_IMPORT_MAX_BYTES = 15 * 1024 * 1024;
-export const MASTER_IMPORT_PARSER_VERSION = 'silversea-master-v2';
+export const MASTER_IMPORT_PARSER_VERSION = 'silversea-master-v3';
 export const MASTER_IMPORT_APPLY_ENDPOINT = 'master-data-import.apply';
 export const MASTER_IMPORT_REJECT_ENDPOINT = 'master-data-import.reject';
 export const MASTER_IMPORT_XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
@@ -46,7 +64,7 @@ export interface MasterWorkbookFile {
   size: number;
 }
 
-interface SitePayload {
+export interface SitePayload {
   kind: 'operational_site';
   customerCode: string;
   code: string;
@@ -60,20 +78,38 @@ interface SitePayload {
   liftFeeInvoiceAddress: string | null;
   liftFeeTaxCode: string | null;
   strictRules: string | null;
+  // Sep-2026 sheet ("Nhà máy & Kho") additions — null from the legacy parser.
+  warehouseContactInfo: string | null;
+  liftInfo: string | null;
+  dropInfo: string | null;
+  cleaningInfo: string | null;
 }
 
-interface PortPayload {
+export interface PortPayload {
   kind: 'port';
   code: string;
   name: string;
   address: string | null;
   webUrl: string | null;
+  // Sep-2026 sheet ("Cảng & Bãi") additions — null from the legacy parser.
+  classification: string | null;
+  legalEntity: string | null;
+  isLachHuyen: boolean;
+  position: string | null;
 }
 
-interface DriverPayload {
+export interface DriverPayload {
   kind: 'driver';
   name: string;
   phone: string | null;
+  // Sep-2026 sheet ("Lái xe") additions — null from the legacy parser.
+  code: string | null;
+  idNumber: string | null;
+  licenseNumber: string | null;
+  licenseExpiryDate: string | null;
+  bankName: string | null;
+  bankAccount: string | null;
+  salaryType: string | null;
 }
 
 interface FleetPayload {
@@ -84,9 +120,10 @@ interface FleetPayload {
   driverName: string | null;
 }
 
-type AcceptedPayload = SitePayload | PortPayload | DriverPayload | FleetPayload;
+type AcceptedPayload = SitePayload | PortPayload | DriverPayload | FleetPayload
+  | CustomerPayload | RoutePayload | TruckSpecPayload | TrailerSpecPayload | StaffUserPayload;
 
-interface ParsedRow {
+export interface ParsedRow {
   sheetName: string;
   rowNumber: number;
   entityType: string;
@@ -158,11 +195,11 @@ function sha256(value: Buffer | string): string {
   return createHash('sha256').update(value).digest('hex');
 }
 
-function normalizeSpaces(value: string): string {
+export function normalizeSpaces(value: string): string {
   return value.replace(/\s+/g, ' ').trim();
 }
 
-function normalizeLookup(value: string): string {
+export function normalizeLookup(value: string): string {
   return normalizeSpaces(value)
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
@@ -170,7 +207,7 @@ function normalizeLookup(value: string): string {
     .toUpperCase();
 }
 
-function normalizeIdentifier(value: string): string {
+export function normalizeIdentifier(value: string): string {
   return normalizeSpaces(value).toUpperCase().replace(/\s+/g, '');
 }
 
@@ -182,7 +219,7 @@ function extractLabeledValue(source: string, labels: string[], maxLength: number
   return null;
 }
 
-function stableCode(prefix: string, value: string, maxLength: number): string {
+export function stableCode(prefix: string, value: string, maxLength: number): string {
   const normalized = normalizeLookup(value)
     .replace(/[^A-Z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
@@ -210,7 +247,7 @@ function cellValue(cell: ExcelJS.Cell): { text: string; formula: boolean } {
   return { text: normalizeSpaces(cell.text || String(value ?? '')), formula: false };
 }
 
-function cellsForRow(sheet: ExcelJS.Worksheet, rowNumber: number, columns: number[]): {
+export function cellsForRow(sheet: ExcelJS.Worksheet, rowNumber: number, columns: number[]): {
   values: string[];
   hasFormula: boolean;
 } {
@@ -218,7 +255,7 @@ function cellsForRow(sheet: ExcelJS.Worksheet, rowNumber: number, columns: numbe
   return { values: cells.map((cell) => cell.text), hasFormula: cells.some((cell) => cell.formula) };
 }
 
-function lastRelevantRow(sheet: ExcelJS.Worksheet, startRow: number, columns: number[]): number {
+export function lastRelevantRow(sheet: ExcelJS.Worksheet, startRow: number, columns: number[]): number {
   for (let rowNumber = sheet.rowCount; rowNumber >= startRow; rowNumber -= 1) {
     if (columns.some((column) => cellValue(sheet.getCell(rowNumber, column)).text !== '')) {
       return rowNumber;
@@ -227,7 +264,7 @@ function lastRelevantRow(sheet: ExcelJS.Worksheet, startRow: number, columns: nu
   return startRow;
 }
 
-function classifiedRow(input: Omit<ParsedRow, 'naturalKey' | 'payload'> & {
+export function classifiedRow(input: Omit<ParsedRow, 'naturalKey' | 'payload'> & {
   naturalKey?: string | null;
   payload?: AcceptedPayload | null;
 }): ParsedRow {
@@ -238,7 +275,7 @@ function classifiedRow(input: Omit<ParsedRow, 'naturalKey' | 'payload'> & {
   };
 }
 
-function templateRow(sheetName: string, rowNumber: number, entityType: string): ParsedRow {
+export function templateRow(sheetName: string, rowNumber: number, entityType: string): ParsedRow {
   return classifiedRow({
     sheetName,
     rowNumber,
@@ -249,7 +286,7 @@ function templateRow(sheetName: string, rowNumber: number, entityType: string): 
   });
 }
 
-function blockedRow(
+export function blockedRow(
   sheetName: string,
   rowNumber: number,
   entityType: string,
@@ -425,6 +462,10 @@ function parseSites(workbook: ExcelJS.Workbook, rows: ParsedRow[]): void {
       liftFeeInvoiceAddress: billingText || null,
       liftFeeTaxCode: billingText.match(/\b\d{10,14}\b/)?.[0] ?? null,
       strictRules: strictRules || null,
+      warehouseContactInfo: null,
+      liftInfo: null,
+      dropInfo: null,
+      cleaningInfo: null,
     };
     rows.push(classifiedRow({
       sheetName: sheet.name,
@@ -466,6 +507,10 @@ function parsePorts(workbook: ExcelJS.Workbook, rows: ParsedRow[]): void {
       name,
       address: address || null,
       webUrl: /^https?:\/\//i.test(webUrl) ? webUrl : null,
+      classification: null,
+      legalEntity: null,
+      isLachHuyen: false,
+      position: null,
     };
     rows.push(classifiedRow({
       sheetName: sheet.name,
@@ -521,6 +566,13 @@ function parseDrivers(workbook: ExcelJS.Workbook, rows: ParsedRow[]): Set<string
       kind: 'driver',
       name,
       phone: normalizedPhone || null,
+      code: null,
+      idNumber: null,
+      licenseNumber: null,
+      licenseExpiryDate: null,
+      bankName: null,
+      bankAccount: null,
+      salaryType: null,
     };
     const normalizedTaxCode = normalizeIdentifier(taxCode);
     const naturalKey = normalizedTaxCode
@@ -715,11 +767,24 @@ async function parseWorkbook(buffer: Buffer): Promise<ParsedWorkbook> {
   parsePorts(workbook, rows);
   addExampleSheetRows(workbook, rows);
 
+  // Sep-2026 delivery sheets (Data form.xlsx + User & Role.xlsx, merged into
+  // one workbook by the route before this parse runs). No-ops when absent.
+  parseCustomersV2(workbook, rows);
+  parseSitesV2(workbook, rows);
+  parseRoutesV2(workbook, rows);
+  parsePortsV2(workbook, rows);
+  parseDriversV2(workbook, rows);
+  parseTruckSpecs(workbook, rows);
+  parseTrailerSpecs(workbook, rows);
+  parseStaffUsers(workbook, rows);
+
   const knownSheets = new Set([
     'THÔNG TIN NCC', 'THÔNG TIN KH', 'NHÀ MÁY', 'TUYẾN ĐƯỜNG',
     'LOẠI HÌNH XE', 'MẪU BÁO GIÁ', 'THÔNG TIN CẢNG BÃI',
     'DS NHÂN SỰ', 'MẪU DEBIT LONG MINH',
     'ÁNH XẠ KHÁCH HÀNG',
+    'Khách hàng', 'Nhà máy & Kho', 'Tuyến đường', 'Cảng & Bãi',
+    'Đầu kéo', 'Mooc', 'User', 'Lái xe', 'Nhà xe',
   ]);
   for (const sheet of workbook.worksheets) {
     if (!knownSheets.has(sheet.name)) {
@@ -772,7 +837,7 @@ function inspectXlsxArchive(buffer: Buffer): void {
   if (entryCount === 0 || !hasContentTypes) throw new ApiError(415, 'Gói tệp không phải XLSX hợp lệ.');
 }
 
-function validateWorkbookFile(file: MasterWorkbookFile): void {
+export function validateWorkbookFile(file: MasterWorkbookFile): void {
   if (!file || !Buffer.isBuffer(file.buffer)) throw new ApiError(400, 'Tệp XLSX là bắt buộc.');
   if (file.size < 1 || file.buffer.length < 4) throw new ApiError(400, 'Tệp XLSX trống.');
   if (file.size > MASTER_IMPORT_MAX_BYTES || file.buffer.length > MASTER_IMPORT_MAX_BYTES) {
@@ -789,6 +854,19 @@ function validateWorkbookFile(file: MasterWorkbookFile): void {
   }
   inspectXlsxArchive(file.buffer);
 }
+
+// The Sep-2026 delivery is two separate workbooks (Data form.xlsx + User &
+// Role.xlsx). Rather than plumb a second file through the hardened
+// hash/private-storage/replay/apply-time-reparse machinery above, each file
+// is validated independently, then their worksheets (cell values only — no
+// styles/formulas needed by the parsers) are copied into one synthetic
+// workbook. That single buffer flows through the existing single-file
+// pipeline unchanged. Sheet names never collide between the two source files
+// or with the legacy single-file sheets, so row identity (sheetName:rowNumber)
+// stays unambiguous.
+// Implementation lives in master-data-import-sep2026.service.ts (LOC budget);
+// re-exported here so route imports don't need to know about the split.
+export { mergeWorkbookFiles } from './master-data-import-sep2026.service';
 
 function batchRowToDto(
   batch: typeof s.masterImportBatches.$inferSelect,
@@ -1014,7 +1092,7 @@ export async function getMasterImportBatch(
   return loadBatchDto(batchId);
 }
 
-function increment(counts: Record<string, number>, key: string): void {
+export function increment(counts: Record<string, number>, key: string): void {
   counts[key] = (counts[key] ?? 0) + 1;
 }
 
@@ -1041,12 +1119,24 @@ async function applyParsedRows(
   const customerByTax = new Map(customerRows
     .filter((row) => row.taxCode)
     .map((row) => [normalizeIdentifier(row.taxCode!), row]));
+  // Sep-2026 sites/customers reference the customer directly by shortName
+  // (e.g. "LOGCOM"), not through the legacy internal-code→tax-code mapping.
+  const customerByShortName = new Map(customerRows
+    .filter((row) => row.shortName)
+    .map((row) => [normalizeLookup(row.shortName), row]));
   const counts: Record<string, number> = {};
+
+  // Sep-2026 customer/route/staff-user sheets — split out to
+  // ../services/master-data-import-sep2026.service.ts (LOC budget). Must run
+  // before the operational_site loop below, which resolves customers via
+  // customerByTax/customerByShortName (mutated in place by this call).
+  await applyReferenceEntities(tx, parsed.rows, persistedBySource, counts, customerByTax, customerByShortName);
 
   for (const row of parsed.rows.filter((candidate) => candidate.classification === 'ACCEPTED' && candidate.payload?.kind === 'operational_site')) {
     const payload = row.payload as SitePayload;
     const taxCode = parsed.customerTaxCodeByInternalCode.get(payload.customerCode);
-    const customer = taxCode ? customerByTax.get(taxCode) : undefined;
+    const customer = (taxCode ? customerByTax.get(taxCode) : undefined)
+      ?? customerByShortName.get(payload.customerCode);
     if (!customer) throw new ApiError(409, 'Không tìm thấy khách hàng chuẩn cho điểm vận hành đã phân tích.');
     await lockActiveCustomerIds(tx, [customer.id], 'Không tìm thấy khách hàng chuẩn cho điểm vận hành đã phân tích.');
     const [existing] = await tx.select().from(s.operationalSites).where(and(
@@ -1071,6 +1161,10 @@ async function applyParsedRows(
       liftFeeInvoiceAddress: payload.liftFeeInvoiceAddress,
       liftFeeTaxCode: payload.liftFeeTaxCode,
       strictRules: payload.strictRules,
+      warehouseContactInfo: payload.warehouseContactInfo ?? existing?.warehouseContactInfo ?? null,
+      liftInfo: payload.liftInfo ?? existing?.liftInfo ?? null,
+      dropInfo: payload.dropInfo ?? existing?.dropInfo ?? null,
+      cleaningInfo: payload.cleaningInfo ?? existing?.cleaningInfo ?? null,
       updatedBy: actorId,
       updatedAt: new Date(),
     };
@@ -1085,23 +1179,33 @@ async function applyParsedRows(
 
   const existingPorts = await tx.select().from(s.ports);
   const portsByCode = new Map(existingPorts.filter((row) => row.code).map((row) => [row.code!, row]));
+  const portsByName = new Map(existingPorts.map((row) => [normalizeLookup(row.name), row]));
   for (const row of parsed.rows.filter((candidate) => candidate.classification === 'ACCEPTED' && candidate.payload?.kind === 'port')) {
     const payload = row.payload as PortPayload;
-    const existing = portsByCode.get(payload.code);
+    // A port may already exist under a different display name for the same
+    // code (legacy seeder curated shorter names, e.g. "TC - HICT"). Match by
+    // code first so re-applying doesn't collide on the unique code index.
+    const existing = portsByCode.get(payload.code) ?? portsByName.get(normalizeLookup(payload.name));
     if (existing?.deletedAt) {
       throw new ApiError(409, 'Cảng/bãi chuẩn đã bị ngưng; không tự động kích hoạt lại.');
     }
     const values = {
-      name: payload.name,
-      code: payload.code,
-      address: payload.address,
-      notes: payload.webUrl ? `Trang tác nghiệp: ${payload.webUrl}` : null,
+      name: existing?.name ?? payload.name,
+      code: existing?.code ?? payload.code,
+      address: payload.address ?? existing?.address ?? null,
+      notes: payload.webUrl ? `Trang tác nghiệp: ${payload.webUrl}` : (existing?.notes ?? null),
+      classification: payload.classification ?? existing?.classification ?? null,
+      legalEntity: payload.legalEntity ?? existing?.legalEntity ?? null,
+      isLachHuyen: payload.isLachHuyen || (existing?.isLachHuyen ?? false),
+      opsPortalUrl: payload.webUrl ?? existing?.opsPortalUrl ?? null,
+      position: payload.position ?? existing?.position ?? null,
       updatedAt: new Date(),
     };
     const entity = existing
       ? (await tx.update(s.ports).set(values).where(eq(s.ports.id, existing.id)).returning({ id: s.ports.id }))[0]
       : (await tx.insert(s.ports).values({ ...values, deletedAt: null }).returning({ id: s.ports.id }))[0];
-    portsByCode.set(payload.code, { ...(existing ?? {}), ...values, id: entity.id } as typeof s.ports.$inferSelect);
+    portsByCode.set(values.code, { ...(existing ?? {}), ...values, id: entity.id } as typeof s.ports.$inferSelect);
+    portsByName.set(normalizeLookup(values.name), { ...(existing ?? {}), ...values, id: entity.id } as typeof s.ports.$inferSelect);
     await tx.update(s.masterImportRowResults).set({ appliedEntityType: 'port', appliedEntityId: entity.id })
       .where(eq(s.masterImportRowResults.id, persistedBySource.get(`${row.sheetName}:${row.rowNumber}`)!.id));
     increment(counts, 'port');
@@ -1111,6 +1215,7 @@ async function applyParsedRows(
   const driversByIdentity = new Map(existingDrivers.map((row) => [`${normalizeLookup(row.name)}:${normalizeIdentifier(row.phone ?? '')}`, row]));
   const driversByName = new Map(existingDrivers.map((row) => [normalizeLookup(row.name), row]));
   const driversById = new Map(existingDrivers.map((row) => [row.id, row]));
+  const driversByCode = new Map(existingDrivers.filter((row) => row.code).map((row) => [row.code!, row]));
   const previouslyAppliedDriverRows = await tx.select({
     naturalKeyHash: s.masterImportRowResults.naturalKeyHash,
     appliedEntityId: s.masterImportRowResults.appliedEntityId,
@@ -1131,6 +1236,7 @@ async function applyParsedRows(
       ? priorDriverIdByNaturalKeyHash.get(persistedSourceRow.naturalKeyHash)
       : undefined;
     const mappedExisting = (priorDriverId ? driversById.get(priorDriverId) : undefined)
+      ?? (payload.code ? driversByCode.get(payload.code) : undefined)
       ?? driversByIdentity.get(identity);
     const existing = mappedExisting
       ? await lockDriverRowForUpdate(tx, mappedExisting.id, 'Không tìm thấy tài xế chuẩn cho biển số đã phân tích.')
@@ -1138,14 +1244,26 @@ async function applyParsedRows(
     if (existing && (existing.deletedAt != null || existing.status !== 'ACTIVE')) {
       throw new ApiError(409, 'Tài xế chuẩn đang ngưng hoạt động; không tự động kích hoạt lại.');
     }
+    const driverValues = {
+      name: payload.name,
+      phone: payload.phone,
+      code: payload.code ?? existing?.code ?? null,
+      idNumber: payload.idNumber ?? existing?.idNumber ?? null,
+      licenseNumber: payload.licenseNumber ?? existing?.licenseNumber ?? null,
+      licenseExpiryDate: payload.licenseExpiryDate ?? existing?.licenseExpiryDate ?? null,
+      bankName: payload.bankName ?? existing?.bankName ?? null,
+      bankAccount: payload.bankAccount ?? existing?.bankAccount ?? null,
+      salaryType: payload.salaryType ?? existing?.salaryType ?? null,
+    };
     const entity = existing
-      ? (await tx.update(s.drivers).set({ name: payload.name, phone: payload.phone, updatedAt: new Date() })
+      ? (await tx.update(s.drivers).set({ ...driverValues, updatedAt: new Date() })
         .where(eq(s.drivers.id, existing.id)).returning({ id: s.drivers.id }))[0]
-      : (await tx.insert(s.drivers).values({ name: payload.name, phone: payload.phone, status: 'ACTIVE' }).returning({ id: s.drivers.id }))[0];
-    const resolved = { ...(existing ?? {}), id: entity.id, name: payload.name, phone: payload.phone } as typeof s.drivers.$inferSelect;
+      : (await tx.insert(s.drivers).values({ ...driverValues, status: 'ACTIVE' }).returning({ id: s.drivers.id }))[0];
+    const resolved = { ...(existing ?? {}), id: entity.id, ...driverValues } as typeof s.drivers.$inferSelect;
     driversByIdentity.set(identity, resolved);
     driversByName.set(normalizeLookup(payload.name), resolved);
     driversById.set(entity.id, resolved);
+    if (driverValues.code) driversByCode.set(driverValues.code, resolved);
     if (persistedSourceRow.naturalKeyHash) {
       priorDriverIdByNaturalKeyHash.set(persistedSourceRow.naturalKeyHash, entity.id);
     }
@@ -1227,6 +1345,11 @@ async function applyParsedRows(
       .where(eq(s.masterImportRowResults.id, persistedBySource.get(`${row.sheetName}:${row.rowNumber}`)!.id));
     increment(counts, 'fleet');
   }
+
+  // Sep-2026 tractor/trailer spec sheets (Đầu kéo, Mooc) — split out to
+  // ../services/master-data-import-sep2026.service.ts (LOC budget).
+  await applyFleetSpecs(tx, parsed.rows, persistedBySource, counts, actorId, trucksByPlate, trailersByPlate, driversByName);
+
   return counts;
 }
 

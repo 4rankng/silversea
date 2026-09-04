@@ -15,6 +15,9 @@ export const users = pgTable('users', {
   // audit log messages so users see "Quản lý Lê Văn Tài khóa chuyến" instead
   // of the email "Quản lý giamdoc@nepo.vn khóa chuyến #76".
   fullName: varchar('full_name', { length: 255 }),
+  // Mã NV from the customer's staff/role sheet (e.g. "NV001"). Nullable —
+  // legacy/non-staff logins predate the sheet.
+  employeeCode: varchar('employee_code', { length: 20 }).unique(),
   passwordHash: text('password_hash').notNull(),
   role: roleEnum('role').notNull().default('DRIVER'),
   status: varchar('status', { length: 20 }).notNull().default('ACTIVE'),

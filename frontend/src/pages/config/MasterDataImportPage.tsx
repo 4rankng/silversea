@@ -25,7 +25,10 @@ const classificationColors: Record<MasterImportClassification, string> = {
 
 export default function MasterDataImportPage() {
   const navigate = useNavigate();
-  const [file, setFile] = useState<File | null>(null);
+  const [legacyFile, setLegacyFile] = useState<File | null>(null);
+  const [dataFormFile, setDataFormFile] = useState<File | null>(null);
+  const [userRoleFile, setUserRoleFile] = useState<File | null>(null);
+  const hasAnyFile = Boolean(legacyFile || dataFormFile || userRoleFile);
   const [batch, setBatch] = useState<MasterImportBatch | null>(null);
   const [busy, setBusy] = useState<'ANALYZE' | 'APPLY' | 'REJECT' | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -50,9 +53,15 @@ export default function MasterDataImportPage() {
   const applySort = (key: string) => setSort((current) => nextTableSort(current, key));
 
   async function analyze() {
-    if (!file) { setError('Vui lòng chọn tệp Excel (.xlsx)'); return; }
+    if (!hasAnyFile) { setError('Vui lòng chọn ít nhất một tệp Excel (.xlsx)'); return; }
     setBusy('ANALYZE'); setError(null);
-    try { setBatch((await analyzeMasterData(file)).batch); }
+    try {
+      setBatch((await analyzeMasterData({
+        file: legacyFile ?? undefined,
+        dataForm: dataFormFile ?? undefined,
+        userRole: userRoleFile ?? undefined,
+      })).batch);
+    }
     catch (reason) { setError(reason instanceof Error ? reason.message : 'Không thể kiểm tra tệp dữ liệu'); }
     finally { setBusy(null); }
   }
@@ -106,10 +115,20 @@ export default function MasterDataImportPage() {
       <PageHeader title="Nạp dữ liệu nền tảng" iconName="settings" description="Kiểm tra trước, xử lý các dòng chưa hợp lệ, rồi mới cập nhật danh mục hệ thống." />
 
       <section style={{ border: '1px solid var(--border-2)', borderRadius: 10, padding: 18, display: 'grid', gap: 14, background: 'var(--surface-1)' }}>
-        <label htmlFor="master-data-file" style={{ fontWeight: 700 }}>Tệp Master Data (.xlsx)</label>
-        <input id="master-data-file" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" disabled={Boolean(busy)} onChange={(event) => { setFile(event.target.files?.[0] ?? null); setBatch(null); setError(null); }} style={{ minHeight: 44, width: '100%', border: '1px solid var(--border-2)', borderRadius: 8, padding: 8 }} />
+        <div style={{ display: 'grid', gap: 6 }}>
+          <label htmlFor="master-data-file-form" style={{ fontWeight: 700 }}>Data form.xlsx (khách hàng, nhà máy, tuyến, cảng, xe)</label>
+          <input id="master-data-file-form" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" disabled={Boolean(busy)} onChange={(event) => { setDataFormFile(event.target.files?.[0] ?? null); setBatch(null); setError(null); }} style={{ minHeight: 44, width: '100%', border: '1px solid var(--border-2)', borderRadius: 8, padding: 8 }} />
+        </div>
+        <div style={{ display: 'grid', gap: 6 }}>
+          <label htmlFor="master-data-file-role" style={{ fontWeight: 700 }}>User & Role.xlsx (nhân sự, tài xế)</label>
+          <input id="master-data-file-role" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" disabled={Boolean(busy)} onChange={(event) => { setUserRoleFile(event.target.files?.[0] ?? null); setBatch(null); setError(null); }} style={{ minHeight: 44, width: '100%', border: '1px solid var(--border-2)', borderRadius: 8, padding: 8 }} />
+        </div>
+        <details>
+          <summary style={{ cursor: 'pointer', color: 'var(--fg-3)', fontSize: 14 }}>Tệp Master Data cũ (một tệp duy nhất)</summary>
+          <input id="master-data-file-legacy" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" disabled={Boolean(busy)} onChange={(event) => { setLegacyFile(event.target.files?.[0] ?? null); setBatch(null); setError(null); }} style={{ minHeight: 44, width: '100%', border: '1px solid var(--border-2)', borderRadius: 8, padding: 8, marginTop: 8 }} />
+        </details>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <button type="button" onClick={() => void analyze()} disabled={!file || Boolean(busy)} style={{ minHeight: 44, padding: '0 18px', display: 'inline-flex', alignItems: 'center', gap: 8, border: 0, borderRadius: 8, background: 'var(--accent, #2563eb)', color: '#fff', fontWeight: 700, cursor: busy ? 'not-allowed' : 'pointer' }}><Upload size={17} />{busy === 'ANALYZE' ? 'Đang kiểm tra…' : 'Kiểm tra dữ liệu'}</button>
+          <button type="button" onClick={() => void analyze()} disabled={!hasAnyFile || Boolean(busy)} style={{ minHeight: 44, padding: '0 18px', display: 'inline-flex', alignItems: 'center', gap: 8, border: 0, borderRadius: 8, background: 'var(--accent, #2563eb)', color: '#fff', fontWeight: 700, cursor: busy ? 'not-allowed' : 'pointer' }}><Upload size={17} />{busy === 'ANALYZE' ? 'Đang kiểm tra…' : 'Kiểm tra dữ liệu'}</button>
           {batch && <span style={{ alignSelf: 'center', color: 'var(--fg-3)', fontSize: 14 }}><FileSpreadsheet size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} />{batch.sourceFileName}</span>}
         </div>
       </section>
@@ -170,7 +189,7 @@ export default function MasterDataImportPage() {
           {batch.status === 'ANALYZED' && <>
           <TextField label="Lý do từ chối" value={rejectReason} onChange={(event) => setRejectReason(event.target.value)} placeholder="Nhập lý do khi không sử dụng đợt dữ liệu này" maxLength={2000} disabled={Boolean(busy)} />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))', gap: 10 }}>
-            <button type="button" onClick={() => { setBatch(null); setFile(null); }} disabled={Boolean(busy)} style={{ minHeight: 48, border: '1px solid var(--border-2)', borderRadius: 8, background: 'var(--surface-1)', fontWeight: 700 }}><RotateCcw size={17} style={{ verticalAlign: 'middle', marginRight: 7 }} />Chọn tệp đã sửa</button>
+            <button type="button" onClick={() => { setBatch(null); setLegacyFile(null); setDataFormFile(null); setUserRoleFile(null); }} disabled={Boolean(busy)} style={{ minHeight: 48, border: '1px solid var(--border-2)', borderRadius: 8, background: 'var(--surface-1)', fontWeight: 700 }}><RotateCcw size={17} style={{ verticalAlign: 'middle', marginRight: 7 }} />Chọn tệp đã sửa</button>
             <button type="button" onClick={() => void reject()} disabled={Boolean(busy)} style={{ minHeight: 48, border: '1px solid var(--danger)', borderRadius: 8, background: 'var(--surface-1)', color: 'var(--danger)', fontWeight: 700 }}><XCircle size={17} style={{ verticalAlign: 'middle', marginRight: 7 }} />{busy === 'REJECT' ? 'Đang từ chối…' : 'Từ chối đợt nhập'}</button>
             <button type="button" onClick={() => void apply()} disabled={Boolean(busy) || blockedCount > 0} title={blockedCount > 0 ? 'Cần sửa tất cả dòng chưa hợp lệ trước khi áp dụng' : undefined} style={{ minHeight: 48, border: 0, borderRadius: 8, background: blockedCount > 0 ? 'var(--fg-3)' : '#047857', color: '#fff', fontWeight: 700 }}><CheckCircle2 size={17} style={{ verticalAlign: 'middle', marginRight: 7 }} />{busy === 'APPLY' ? 'Đang áp dụng…' : 'Áp dụng dữ liệu hợp lệ'}</button>
           </div></>}

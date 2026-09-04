@@ -20,6 +20,14 @@ export const trucks = pgTable('trucks', {
   // directly OR compute it from "last change + N months"; only the resolved
   // next-due is persisted. Legacy column name retained (deployed in 0049).
   lastOilServiceDate: date('last_oil_service_date'),
+  // Spec-sheet fields from the customer's tractor master-data sheet.
+  vehicleClass: varchar('vehicle_class', { length: 100 }),
+  brand: varchar('brand', { length: 100 }),
+  towCapacityTons: numeric('tow_capacity_tons', { precision: 6, scale: 1 }),
+  fuelLPer100kmLoaded: numeric('fuel_l_per_100km_loaded', { precision: 6, scale: 2 }),
+  fuelLPer100kmEmpty: numeric('fuel_l_per_100km_empty', { precision: 6, scale: 2 }),
+  preferredRoute: varchar('preferred_route', { length: 255 }),
+  note: text('note'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   deletedAt: timestamp('deleted_at'),
@@ -28,7 +36,13 @@ export const trucks = pgTable('trucks', {
 export const trailers = pgTable('trailers', {
   id: serial('id').primaryKey(),
   licensePlate: varchar('license_plate', { length: 20 }).notNull().unique(),
-  type: trailerTypeEnum('type').notNull(),
+  // Nullable: the customer's fleet sheet usually leaves Loại Moóc blank.
+  type: trailerTypeEnum('type'),
+  maxPayloadTons: numeric('max_payload_tons', { precision: 6, scale: 1 }),
+  maxAxleLoadFrontTons: numeric('max_axle_load_front_tons', { precision: 6, scale: 1 }),
+  maxAxleLoadRearTons: numeric('max_axle_load_rear_tons', { precision: 6, scale: 1 }),
+  inspectionDeadline: date('inspection_deadline'),
+  note: text('note'),
   status: trailerStatusEnum('status').default('ACTIVE').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -45,6 +59,14 @@ export const drivers = pgTable('drivers', {
   // BHXH/BHYT monthly contribution — tracked SEPARATELY for cost allocation; NOT part of daily_rate
   // or trip-salary auto-fill (Pete 2026-06: baseSalary only — base/std_days, no socialInsurance)
   socialInsurance: numeric('social_insurance', { precision: 15, scale: 0 }).default('0'),
+  // HR identity + payout fields from the customer's driver master-data sheet.
+  code: varchar('code', { length: 50 }),
+  idNumber: varchar('id_number', { length: 20 }),
+  licenseNumber: varchar('license_number', { length: 20 }),
+  licenseExpiryDate: date('license_expiry_date'),
+  bankName: varchar('bank_name', { length: 160 }),
+  bankAccount: varchar('bank_account', { length: 80 }),
+  salaryType: varchar('salary_type', { length: 50 }),
   status: driverStatusEnum('status').default('ACTIVE'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -180,6 +202,10 @@ export const customers = pgTable('customers', {
   contactPerson: varchar('contact_person', { length: 255 }),
   phone: varchar('phone', { length: 20 }),
   contactInfo: text('contact_info'),
+  // Customer master-data sheet: the accountant contact is a separate person
+  // from the director (contactPerson/phone above).
+  accountantName: varchar('accountant_name', { length: 255 }),
+  accountantPhone: varchar('accountant_phone', { length: 20 }),
   creditLimit: numeric('credit_limit', { precision: 15, scale: 0 }),
   // Wave 3 M5.3: credit-warning threshold (percentage of creditLimit, e.g. 0.8
   // = warn at 80% utilization). NULL = no warning (use the global default).
@@ -249,6 +275,12 @@ export const routes = pgTable('routes', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 255 }).notNull(),
   shortName: varchar('short_name', { length: 255 }).notNull().default(''),
+  // Business code from the customer's route sheet (Mã Tuyến) — distinct from
+  // the surrogate id; not enforced unique since legacy rows predate the sheet.
+  code: varchar('code', { length: 80 }),
+  // Full load/unload point address (Điểm đóng/trả), as free text.
+  loadPoint: text('load_point'),
+  note: text('note'),
   distanceKm: integer('distance_km'),
   isMountain: boolean('is_mountain').default(false),
   fixedFuelAllowance: numeric('fixed_fuel_allowance', { precision: 10, scale: 2 }),
@@ -318,6 +350,12 @@ export const ports = pgTable('ports', {
   // Dispatch zone code — validated against dispatch_zones at the boundary;
   // plain varchar, no FK (repo rule).
   dispatchZone: varchar('dispatch_zone', { length: 32 }),
+  // Fields from the customer's port/yard master-data sheet (Cảng & Bãi).
+  classification: varchar('classification', { length: 20 }), // Cảng | Bãi
+  legalEntity: varchar('legal_entity', { length: 255 }), // Pháp nhân
+  isLachHuyen: boolean('is_lach_huyen').default(false).notNull(), // Thuộc Lạch Huyện
+  opsPortalUrl: text('ops_portal_url'), // Web tác nghiệp
+  position: varchar('position', { length: 255 }), // Vị trí
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   deletedAt: timestamp('deleted_at'),
@@ -396,6 +434,15 @@ export const operationalSites = pgTable('operational_sites', {
   googleMapsUrl: text('google_maps_url'),
   contactName: varchar('contact_name', { length: 120 }),
   contactPhone: varchar('contact_phone', { length: 30 }),
+  // Free-text warehouse contact block from the sheet (Thông tin liên hệ kho) —
+  // often multiple names/phones in one cell, distinct from the single
+  // contactName/contactPhone pair above.
+  warehouseContactInfo: text('warehouse_contact_info'),
+  // Operational lift/drop/cleaning coordination info (Thông tin nâng/hạ/vệ
+  // sinh) — distinct from the lift/drop/cleaning INVOICE fields below.
+  liftInfo: text('lift_info'),
+  dropInfo: text('drop_info'),
+  cleaningInfo: text('cleaning_info'),
   liftFeeInvoiceName: varchar('lift_fee_invoice_name', { length: 255 }),
   liftFeeInvoiceAddress: text('lift_fee_invoice_address'),
   liftFeeTaxCode: varchar('lift_fee_tax_code', { length: 40 }),
