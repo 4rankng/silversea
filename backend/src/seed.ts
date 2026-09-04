@@ -92,28 +92,48 @@ export async function seed() {
   // drivers.user_id pointing to users.id. Without this link, getDriverByUserId()
   // throws NoDriverProfileError (404) and the portal is unusable.
   //
-  // Look up user IDs by email since onConflictDoNothing() may have no-oped.
-  const userAccounts = await db.select({ id: schema.users.id, email: schema.users.email })
+  // Look up user IDs by username (canonical demo identity — survives DBs
+  // where the account was synced with a different email/phone), falling
+  // back to the demo email for pre-wipe databases.
+  const userAccounts = await db.select({ id: schema.users.id, username: schema.users.username, email: schema.users.email })
     .from(schema.users)
     .where(isNull(schema.users.deletedAt));
   const userByEmail = new Map(userAccounts.map(u => [u.email, u.id]));
+  const userByUsername = new Map(userAccounts.map(u => [u.username, u.id]));
 
   const driverSeeds = [
-    { userId: userByEmail.get('laixe@nepo.vn') ?? null, name: 'Phạm Văn Hùng',  phone: '0900000003', baseSalary: '5000000', status: 'ACTIVE' as const },
-    { userId: userByEmail.get('thu@nepo.vn') ?? null,   name: 'Nguyễn Văn Thụ', phone: '0900000010', baseSalary: '4500000', status: 'ACTIVE' as const },
-    { userId: userByEmail.get('quyet@nepo.vn') ?? null, name: 'Lê Văn Quyết',   phone: '0900000012', baseSalary: '4500000', status: 'ACTIVE' as const },
-    { userId: userByEmail.get('pho@nepo.vn') ?? null,   name: 'Nguyễn Văn Phố', phone: '0900000011', baseSalary: '5000000', status: 'ACTIVE' as const },
-  ];
+    { username: 'laixe', email: 'laixe@nepo.vn', name: 'Phạm Văn Hùng',  phone: '0900000003', baseSalary: '5000000', status: 'ACTIVE' as const },
+    { username: 'thu',   email: 'thu@nepo.vn',   name: 'Nguyễn Văn Thụ', phone: '0900000010', baseSalary: '4500000', status: 'ACTIVE' as const },
+    { username: 'quyet', email: 'quyet@nepo.vn', name: 'Lê Văn Quyết',   phone: '0900000012', baseSalary: '4500000', status: 'ACTIVE' as const },
+    { username: 'pho',   email: 'pho@nepo.vn',   name: 'Nguyễn Văn Phố', phone: '0900000011', baseSalary: '5000000', status: 'ACTIVE' as const },
+  ].map((d) => ({
+    userId: userByUsername.get(d.username) ?? userByEmail.get(d.email) ?? null,
+    name: d.name,
+    phone: d.phone,
+    baseSalary: d.baseSalary,
+    status: d.status,
+  }));
 
   // Use onConflictDoNothing with a unique constraint on (name) if it exists,
-  // otherwise check by name before inserting to stay idempotent.
-  const existingDrivers = await db.select({ name: schema.drivers.name })
-    .from(schema.drivers);
+  // otherwise check by name before inserting to stay idempotent. The
+  // user_id check matters on prod-synced DBs: the linked DRIVER user may
+  // already own an ACTIVE driver row under a different name, and
+  // drivers_active_user_uniq_idx (one active driver per user) would reject
+  // the demo insert — skip it, the user already has a driver profile.
+  const existingDrivers = await db.select({
+    name: schema.drivers.name,
+    userId: schema.drivers.userId,
+  }).from(schema.drivers)
+    .where(isNull(schema.drivers.deletedAt));
   const existingDriverNames = new Set(existingDrivers.map(d => d.name));
+  const existingDriverUserIds = new Set(
+    existingDrivers.map(d => d.userId).filter((id): id is number => id != null),
+  );
 
   let driverCount = 0;
   for (const driver of driverSeeds) {
     if (existingDriverNames.has(driver.name)) continue;
+    if (driver.userId != null && existingDriverUserIds.has(driver.userId)) continue;
     await db.insert(schema.drivers).values(driver);
     driverCount++;
   }
@@ -124,6 +144,25 @@ export async function seed() {
     }
   } else {
     console.log('✅ Drivers already exist, skipping.');
+  }
+
+  // Link same-named unlinked driver rows to the resolved demo accounts —
+  // drivers created by an earlier run (or a roster whose phones diverged
+  // from the demo users') stay functional for the driver portal and the
+  // dispatch driver-validity check (userId + ACTIVE DRIVER user).
+  for (const d of driverSeeds) {
+    if (d.userId == null) continue;
+    const linked = await db.update(schema.drivers)
+      .set({ userId: d.userId })
+      .where(and(
+        eq(schema.drivers.name, d.name),
+        isNull(schema.drivers.userId),
+        isNull(schema.drivers.deletedAt),
+      ))
+      .returning({ id: schema.drivers.id });
+    if (linked.length > 0) {
+      console.log(`  🔗 driver "${d.name}" ← user_id=${d.userId}`);
+    }
   }
 
   // ─── Backfill drivers.user_id by phone ─────────────────────────────────
@@ -1167,14 +1206,15 @@ export async function seedShipments(passwordHash: string) {
 
     // Use createShipment so the row gets the canonical shipmentCode + an
     // initial status-history row, matching the production path.
+    const routeId = s.routeName === 'NEWEB' ? ROUTE_NEWEB
+      : s.routeName === 'ASKEY' ? ROUTE_ASKEY
+      : s.routeName === 'SUNRISE' ? ROUTE_SUNRISE
+      : null;
     const shipment = await createShipment({
       customerId: s.customerId,
       tradeDirection: s.tradeDirection,
       cargoMode: 'FCL',
-      routeId: s.routeName === 'NEWEB' ? ROUTE_NEWEB
-        : s.routeName === 'ASKEY' ? ROUTE_ASKEY
-        : s.routeName === 'SUNRISE' ? ROUTE_SUNRISE
-        : null,
+      routeId,
       blNumber: s.tradeDirection === 'IMPORT' ? s.ref : undefined,
       bookingRef: s.tradeDirection === 'EXPORT' ? s.ref : undefined,
       expectedDeliveryDate: s.expectedDeliveryDate,
@@ -1214,6 +1254,10 @@ export async function seedShipments(passwordHash: string) {
           ? CONTAINER_TYPE_40HC
           : CONTAINER_TYPE_40DC,
         shippingLineName: s.tradeDirection === 'IMPORT' ? 'MSC' : 'ONE',
+        // FCL dispatch reads the route off the CONTAINER, so the shipment's
+        // route must be stamped onto every container or the dispatch order
+        // rejects it ("Container chưa có tuyến đường hợp lệ").
+        routeId,
         pickupPortId,
         dropoffPortId,
         operationalSiteId: c.factoryCode ? factorySiteIds.get(c.factoryCode) ?? null : null,
