@@ -1,7 +1,7 @@
 .PHONY: dev stop down setup seed migrate generate build studio help \
         logs-db logs-redis infra demo demo-push demo-deploy demo-health demo-capture-rollback \
         db-backup db-drift-check demo-db-backup \
-        deploy deploy-prepare deploy-advance deploy-push deploy-capture-rollback deploy-db-backup deploy-health \
+        deploy deploy-check deploy-advance deploy-push deploy-capture-rollback deploy-db-backup deploy-health \
         deploy-seed deploy-server-setup
 
 # ─── Ports (silversea — de-conflicted from nepocorp) ─────────────────────────
@@ -285,35 +285,33 @@ PROD_SERVER   := silversea.tingting.vip
 PROD_PATH     := /opt/silversea
 PROD_COMPOSE  := docker compose -f deploy/docker-compose.silversea.yml
 PROD_BRANCH   := prod
-PROD_WORKTREE := .deploy-worktrees/prod
 
-deploy-prepare: ## Ensure prod branch + clean build worktree exist
-	@git fetch origin main
-	@if git show-ref --verify --quiet refs/heads/$(PROD_BRANCH); then \
-		echo "$(PROD_BRANCH) @ $$(git rev-parse --short $(PROD_BRANCH)) — deploying AS-IS (no auto fast-forward; advance prod deliberately)"; \
-	else \
-		git branch $(PROD_BRANCH) origin/main; \
-		echo "Created $(PROD_BRANCH) from origin/main @ $$(git rev-parse --short $(PROD_BRANCH))"; \
-	fi
-	@if git worktree list --porcelain | grep -qF "worktree $(CURDIR)/$(PROD_WORKTREE)"; then \
-		git -C $(PROD_WORKTREE) checkout -q $(PROD_BRANCH); \
-	else \
-		git worktree add $(PROD_WORKTREE) $(PROD_BRANCH); \
-	fi
-	@if [ -n "$$(git -C $(PROD_WORKTREE) status --porcelain)" ]; then \
-		echo "❌ $(PROD_WORKTREE) is dirty — refusing to build prod images from an unclean tree." >&2; \
+deploy-check: ## Refuse to deploy unless HEAD is the prod branch on a clean tree (no worktree)
+	@if [ "$$(git rev-parse --abbrev-ref HEAD)" != "$(PROD_BRANCH)" ]; then \
+		echo "❌ make deploy must run ON the $(PROD_BRANCH) branch (you are on '$$(git rev-parse --abbrev-ref HEAD)')." >&2; \
+		echo "    git checkout $(PROD_BRANCH) && git merge --ff-only origin/main" >&2; \
+		echo "    (or run 'make deploy-advance' from any branch to fast-forward prod first)" >&2; \
 		exit 1; \
 	fi
+	@if [ -n "$$(git status --porcelain)" ]; then \
+		echo "❌ working tree is dirty — refusing to build prod images from uncommitted changes." >&2; \
+		exit 1; \
+	fi
+	@echo "$(PROD_BRANCH) @ $$(git rev-parse --short HEAD) — deploying this checkout AS-IS (no auto fast-forward; advance deliberately)"
 
-deploy-advance: deploy-prepare ## Advance prod branch to origin/main (fast-forward; operator verb before `make deploy`)
-	@git -C $(PROD_WORKTREE) fetch origin
-	@git -C $(PROD_WORKTREE) merge --ff-only origin/main
-	@echo "$(PROD_BRANCH) advanced to $$(git -C $(PROD_WORKTREE) rev-parse --short HEAD)"
+deploy-advance: ## Fast-forward prod branch to origin/main (run from any branch; creates prod if missing)
+	@git fetch origin
+	@if [ "$$(git rev-parse --abbrev-ref HEAD)" = "$(PROD_BRANCH)" ]; then \
+		git merge --ff-only origin/main; \
+	else \
+		git fetch . origin/main:$(PROD_BRANCH); \
+	fi
+	@echo "$(PROD_BRANCH) advanced to $$(git rev-parse --short $(PROD_BRANCH))"
 
-deploy-push: deploy-prepare ## Build + push :prod images from the prod worktree
-	@echo "Building from $(PROD_BRANCH) @ $$(git -C $(PROD_WORKTREE) rev-parse --short HEAD)"
-	@$(MAKE) --no-print-directory -C $(PROD_WORKTREE)/backend push IMAGE_TAG=prod
-	@$(MAKE) --no-print-directory -C $(PROD_WORKTREE)/frontend push IMAGE_TAG=prod
+deploy-push: deploy-check ## Build + push :prod images from the CURRENT checkout
+	@echo "Building from $(PROD_BRANCH) @ $$(git rev-parse --short HEAD)"
+	@$(MAKE) --no-print-directory -C backend push IMAGE_TAG=prod
+	@$(MAKE) --no-print-directory -C frontend push IMAGE_TAG=prod
 
 deploy-capture-rollback: ## Record running prod backend/frontend images before cutover
 	@ssh root@$(PROD_SERVER) "set -eu; cd $(PROD_PATH); rollback_dir=.deploy-rollbacks; mkdir -p \"\$$rollback_dir\"; backend_container=\$$($(PROD_COMPOSE) ps -q backend); frontend_container=\$$($(PROD_COMPOSE) ps -q frontend); if [ -z \"\$$backend_container\" ] && [ -z \"\$$frontend_container\" ]; then echo 'First deploy — no running backend/frontend to capture.'; exit 0; fi; test -n \"\$$backend_container\" || { echo 'Only frontend running; refusing partial rollback capture.' >&2; exit 1; }; test -n \"\$$frontend_container\" || { echo 'Only backend running; refusing partial rollback capture.' >&2; exit 1; }; backend_image_id=\$$(docker inspect --format='{{.Image}}' \"\$$backend_container\"); frontend_image_id=\$$(docker inspect --format='{{.Image}}' \"\$$frontend_container\"); backend_digest=\$$(docker image inspect --format='{{if .RepoDigests}}{{index .RepoDigests 0}}{{end}}' \"\$$backend_image_id\"); frontend_digest=\$$(docker image inspect --format='{{if .RepoDigests}}{{index .RepoDigests 0}}{{end}}' \"\$$frontend_image_id\"); snapshot=\"\$$rollback_dir/pre-cutover-\$$(date -u +%Y%m%dT%H%M%SZ).env\"; { printf 'BACKEND_IMAGE_ID=%s\\n' \"\$$backend_image_id\"; printf 'BACKEND_REPO_DIGEST=%s\\n' \"\$$backend_digest\"; printf 'FRONTEND_IMAGE_ID=%s\\n' \"\$$frontend_image_id\"; printf 'FRONTEND_REPO_DIGEST=%s\\n' \"\$$frontend_digest\"; } > \"\$$snapshot\"; ln -sfn \"\$$(basename \"\$$snapshot\")\" \"\$$rollback_dir/latest\"; echo \"Rollback snapshot retained: $(PROD_PATH)/\$$snapshot\"; cat \"\$$snapshot\""
@@ -362,10 +360,10 @@ deploy-server-setup: ## One-time prod server provisioning (docker, TLS+certbot, 
 deploy-seed: ## Run the prod master-data seed on the server (idempotent upserts; node dist/seed/seed-prod.js)
 	@ssh root@$(PROD_SERVER) "cd $(PROD_PATH) && $(PROD_COMPOSE) run --rm --no-deps backend node dist/seed/seed-prod.js"
 
-deploy: ## Deploy prod (silversea.tingting.vip) — ships prod branch AS-IS, keeps DB
+deploy: deploy-check ## Deploy prod (silversea.tingting.vip) — run from the prod branch; ships it AS-IS, keeps DB
 	@echo "=== Deploying prod to $(PROD_SERVER) ==="
 	@echo ""
-	@echo "1/3  Building + pushing :prod images from the $(PROD_BRANCH) worktree..."
+	@echo "1/3  Building + pushing :prod images from this $(PROD_BRANCH) checkout..."
 	@$(MAKE) --no-print-directory deploy-push
 	@echo ""
 	@echo "2/3  Rollback capture → pull → DB backup → migrate → recreate backend+frontend on $(PROD_SERVER) (DB volume untouched)..."
