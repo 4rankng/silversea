@@ -43,10 +43,8 @@ const ROLE_BY_GROUP: Record<string, Role> = {
 };
 
 // Staff accounts key on the customer's R_* permission codes (User & Role.xlsx).
-// R_ADMIN ("Quản trị viên / Giám đốc") is a business title, NOT the app's
-// technical ADMIN superuser — directors map to MANAGER (Quản lý).
 const ROLE_BY_CODE: Record<string, Role> = {
-  R_ADMIN: Role.MANAGER,
+  R_ADMIN: Role.ADMIN,
   R_ACC: Role.ACCOUNTANT,
   R_DIS: Role.DISPATCHER,
   R_CUS: Role.CUS,
