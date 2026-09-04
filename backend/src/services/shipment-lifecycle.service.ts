@@ -11,7 +11,7 @@
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { CARGO_MODE } from '../db/schema';
-import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
 import { canonicalShipmentStatus, Role, TripStatus, TripPodStatus } from '@tingting/shared';
@@ -482,22 +482,17 @@ export async function cancelShipmentFulfillment(args: {
 
 // ─── Soft delete ────────────────────────────────────────────────────────────
 //
-// Only date-pending or CANCELED shipments may be tombstoned by default — once
-// a trip exists (DISPATCHED / IN_TRANSIT / PENDING_EXPENSE_APPROVAL /
-// COMPLETED), the audit trail and linked trips must be preserved. Callers
-// should prefer CANCELED for an in-flight cancellation; soft-delete is the
-// "remove a mistakenly-created draft" path.
-//
-// `allowedStatuses` lets a specific caller widen this for a status that is
-// still pre-trip (e.g. READY_FOR_DISPATCH: a carrier is allocated but no trip
-// row exists yet) without loosening the default for every caller — the
-// DISPATCHED-and-later boundary above must never be crossed by any caller.
-
-const PRE_TRIP_DELETABLE_STATUSES = ['PENDING_DATE', 'CANCELED'] as const;
+// Deletion boundary (CTO rule 2026-09-04): a shipment may be tombstoned while
+// NONE of its containers has been dispatched — no live (non-deleted,
+// non-CANCELED) trip row is linked to the shipment, directly or through a
+// fulfillment. Carrier allocations (PLANNED, no trip yet) and canceled legs do
+// not block deletion; once any container is dispatched the shipment must go
+// through the cancel flow instead, so the audit trail and linked trips are
+// preserved.
 
 export async function softDeleteShipment(
   shipmentId: number,
-  options: { deletedBy?: number | null; version: number; allowedStatuses?: readonly string[] },
+  options: { deletedBy?: number | null; version: number },
   transaction?: Tx,
 ) {
   const execute = async (tx: Tx) => {
@@ -515,14 +510,22 @@ export async function softDeleteShipment(
       );
     }
 
-    const currentStatus = canonicalShipmentStatus(existing.status);
-    const allowedStatuses = options.allowedStatuses ?? PRE_TRIP_DELETABLE_STATUSES;
-    if (currentStatus == null || !allowedStatuses.includes(currentStatus)) {
+    const [liveTrip] = await tx.select({ id: s.trips.id })
+      .from(s.trips)
+      .leftJoin(s.shipmentFulfillments, eq(s.trips.fulfillmentId, s.shipmentFulfillments.id))
+      .where(and(
+        isNull(s.trips.deletedAt),
+        ne(s.trips.status, 'CANCELED'),
+        or(
+          eq(s.trips.shipmentId, shipmentId),
+          eq(s.shipmentFulfillments.shipmentId, shipmentId),
+        ),
+      ))
+      .limit(1);
+    if (liveTrip) {
       throw new ApiError(
         409,
-        options.allowedStatuses
-          ? 'Không thể xóa lô hàng đã có chuyến điều xe hoặc đã hoàn thành.'
-          : 'Chỉ có thể xóa lô hàng ở trạng thái Mới tạo hoặc Đã hủy.',
+        'Không thể xóa lô hàng đã có container được điều xe. Chỉ xóa được khi mọi container chưa phát lệnh.',
       );
     }
 

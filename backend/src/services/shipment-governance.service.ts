@@ -20,13 +20,11 @@ export { isPastRunCutoff } from './container-date-filter';
 
 const ACTIVE_GOVERNANCE_STATUSES = ['PENDING_CHECK', 'PENDING_APPROVAL', 'RETURNED_FOR_EVIDENCE'] as const;
 
-// CUS-initiated deletion (direct or admin-approved) may tombstone a shipment
-// through READY_FOR_DISPATCH — a carrier allocation with no trip row yet —
-// but never DISPATCHED/IN_TRANSIT/PENDING_EXPENSE_APPROVAL/COMPLETED, where a
-// real trip exists and soft-delete would orphan it (same boundary
-// `softDeleteShipment` enforces by default for every other caller; this only
-// adds the one additional pre-trip status this flow needs).
-const CUS_DELETE_ALLOWED_STATUSES = ['PENDING_DATE', 'READY_FOR_DISPATCH', 'CANCELED'] as const;
+// CUS-initiated deletion (direct or admin-approved) shares the
+// `softDeleteShipment` boundary: tombstoning is allowed while no container has
+// been dispatched (no live trip linked directly or through a fulfillment), so
+// a carrier allocation without a trip may still be removed but a dispatched
+// shipment never can.
 
 /**
  * CUS requests deletion of a shipment.
@@ -60,7 +58,6 @@ export async function requestShipmentDelete(args: {
       const deleted = await softDeleteShipment(args.shipmentId, {
         version: args.version,
         deletedBy: args.actor.userId,
-        allowedStatuses: CUS_DELETE_ALLOWED_STATUSES,
       }, tx);
       return { action: null, deleted, pendingApproval: false };
     }
@@ -161,7 +158,6 @@ export async function decideShipmentDeleteRequest(args: {
     await softDeleteShipment(args.shipmentId, {
       version: action.originalVersion,
       deletedBy: args.actor.userId,
-      allowedStatuses: CUS_DELETE_ALLOWED_STATUSES,
     }, tx);
 
     const [approved] = await tx.update(s.governanceActions).set({

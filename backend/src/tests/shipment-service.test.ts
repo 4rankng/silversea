@@ -11,7 +11,8 @@
  *   - getShipment / listShipments: 404 on missing; pagination + filters; excludes soft-deleted.
  *   - updateShipment: optimistic-lock bump; 409 on stale version.
  *   - transitionShipmentStatus: legal edges only; idempotent same-status; history rows; 404.
- *   - softDeleteShipment: only NEW/CANCELED; version-guarded.
+ *   - softDeleteShipment: blocked only while a live (non-canceled) trip is
+ *     linked to the shipment; version-guarded.
  *   - snapshotContainersIntoTrip: copies rows once, idempotent on retry.
  *   - formatShipmentCode: pure unit checks.
  */
@@ -1272,16 +1273,63 @@ describe('softDeleteShipment', () => {
     assert.ok(!rows.some((r) => r.id === shipment.id));
   });
 
-  test('refuses to delete an DISPATCHED shipment with 409', async () => {
+  test('removes a READY_FOR_DISPATCH shipment (carrier allocated, nothing dispatched)', async () => {
     const customer = await mkCustomer();
     const shipment = await createShipment({ customerId: customer.id, closingAt: '2026-08-05T08:00:00.000Z' });
     createdShipmentIds.push(shipment.id);
 
-    const inflight = await transitionShipmentStatus(shipment.id, 'DISPATCHED');
+    const ready = await transitionShipmentStatus(shipment.id, 'READY_FOR_DISPATCH');
+    const deleted = await softDeleteShipment(shipment.id, { version: ready.version });
+    assert.ok(deleted.deletedAt);
+  });
+
+  test('refuses with 409 while a live trip is linked to the shipment', async () => {
+    const customer = await mkCustomer();
+    const shipment = await createShipment({ customerId: customer.id });
+    createdShipmentIds.push(shipment.id);
+
+    await mkTripForShipment({ customerId: customer.id, shipmentId: shipment.id, status: 'CREATED' });
     await assert.rejects(
-      () => softDeleteShipment(shipment.id, { version: inflight.version }),
+      () => softDeleteShipment(shipment.id, { version: shipment.version }),
       (err: unknown) => err instanceof Error && 'statusCode' in err && err.statusCode === 409,
     );
+  });
+
+  test('refuses with 409 when the live trip is linked only through a fulfillment', async () => {
+    const customer = await mkCustomer();
+    const shipment = await createShipment({ customerId: customer.id });
+    createdShipmentIds.push(shipment.id);
+
+    const [fulfillment] = await db.insert(s.shipmentFulfillments).values({
+      shipmentId: shipment.id,
+      fulfillmentType: 'FCL_CONTAINER',
+      cargoMode: 'FCL',
+      sourceShipmentVersion: shipment.version,
+      siteSnapshot: {},
+      plannedCarrierType: 'OWN',
+    }).returning();
+    const trip = await mkTripForShipment({
+      customerId: customer.id,
+      shipmentId: shipment.id,
+      fulfillmentId: fulfillment.id,
+      status: 'IN_TRANSIT',
+    });
+    // Drop the direct link so the guard must resolve through the fulfillment.
+    await db.update(s.trips).set({ shipmentId: null }).where(eq(s.trips.id, trip.id));
+    await assert.rejects(
+      () => softDeleteShipment(shipment.id, { version: shipment.version }),
+      (err: unknown) => err instanceof Error && 'statusCode' in err && err.statusCode === 409,
+    );
+  });
+
+  test('allows deletion when the only linked trips are CANCELED', async () => {
+    const customer = await mkCustomer();
+    const shipment = await createShipment({ customerId: customer.id });
+    createdShipmentIds.push(shipment.id);
+
+    await mkTripForShipment({ customerId: customer.id, shipmentId: shipment.id, status: 'CANCELED' });
+    const deleted = await softDeleteShipment(shipment.id, { version: shipment.version });
+    assert.ok(deleted.deletedAt);
   });
 
   test('refuses a stale version with 409', async () => {
