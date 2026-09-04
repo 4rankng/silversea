@@ -1,11 +1,11 @@
 import bcrypt from 'bcryptjs';
-import { and, eq, isNull, sql } from 'drizzle-orm';
+import { and, count, eq, isNull, sql } from 'drizzle-orm';
 import { Role } from '@tingting/shared';
 import { db } from '../db/index.js';
 import * as s from '../db/schema/index.js';
 import {
-  prodStaff, prodDrivers, prodCustomers, prodSites, prodRoutes,
-  prodTractors, prodTrailers, prodPorts,
+  prodStaff, prodRoleAccounts, prodDrivers, prodCustomers, prodSites, prodRoutes,
+  prodTractors, prodTrailers, prodPorts, prodCarriers,
 } from './data/prod-master-data.js';
 import { seedReference } from './seed-reference';
 import { seedLiftPricing } from './seed-lift-pricing';
@@ -14,64 +14,121 @@ import { seedPricingTables } from './seed-pricing-tables';
 import { seedOperationalSites } from './seed-operational-sites';
 import { seedPorts } from './seed-ports';
 import { seedVehiclesFromExcel } from './seed-vehicles-from-excel';
+import { upsertPartnerFromTaxCode } from '../services/legal-partner.service';
+import { reassignTruckDriverInTx } from '../services/truck-driver-assignment.service';
 
 // ─── Prod seed: real customer master data only ───────────────────────────────
-// Loads the 2026-09-03 Excel delivery (staff/roles, drivers, customers, sites,
-// routes, fleet) and intentionally EXCLUDES every demo generator (sample
-// customers, demo shipments/trips, bulk rows, demo AR/AP, CUS demo scope).
+// Loads the 2026-09-04 ("4.9") Excel delivery (staff, shared role accounts,
+// drivers, customers, sites, routes, ports, fleet, carrier suppliers) and
+// intentionally EXCLUDES every demo generator (sample customers, demo
+// shipments/trips, bulk rows, demo AR/AP, CUS demo scope).
 // Idempotent: every step upserts by a stable natural key (username, name,
-// tax code, code, plate).
+// tax code, code, plate). Stale rows from earlier deliveries that the sheet
+// no longer lists are HARD-deleted when nothing references them.
 
 const ROLE_BY_GROUP: Record<string, Role> = {
   'Ban Giám Đốc': Role.MANAGER,
+  'Giám đốc': Role.MANAGER,
+  'PGĐ': Role.MANAGER,
   'Kế toán': Role.ACCOUNTANT,
+  'Kế Toán': Role.ACCOUNTANT,
   'Ops': Role.OPS,
   'Điều vận': Role.DISPATCHER,
+  'Điều Vận': Role.DISPATCHER,
   'Cus': Role.CUS,
+  'CUS': Role.CUS,
+};
+
+// Shared role accounts (User sheet) key on the customer's R_* permission codes.
+const ROLE_BY_CODE: Record<string, Role> = {
+  R_ADMIN: Role.ADMIN,
+  R_ACC: Role.ACCOUNTANT,
+  R_DIS: Role.DISPATCHER,
+  R_CUS: Role.CUS,
+  R_OPS: Role.OPS,
 };
 
 const norm = (v: string | null | undefined): string => (v ?? '').trim().toLowerCase();
 
+// Diacritic-fold so sheet corrections (Diệp -> Điệp) still match loaded rows.
+const fold = (v: string | null | undefined): string => (v ?? '')
+  .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  .replace(/đ/g, 'd').replace(/Đ/g, 'D')
+  .trim().toLowerCase();
+
+const foldPlate = (raw: string): string => {
+  const squashed = raw.replace(/\s+/g, '').replace(',', '.');
+  const m = squashed.match(/^(\d{2}[A-Za-z]{1,2})-?(\d{2,5})\.?(\d{2})$/);
+  return m ? `${m[1]!}-${m[2]!}.${m[3]!}` : raw.replace(/\s+/g, '');
+};
+
 export async function seedProdUsers(passwordHash: string): Promise<void> {
-  console.log('Seeding prod staff + driver logins...');
-  // The sheet lists only NV001..NV022; the shared admin login is a bootstrap
-  // entry prepended here so a fresh provision gets it from the seed itself.
-  const staffWithAdmin = [{
-    username: 'admin', employeeCode: 'ADMIN', fullName: 'Quản trị viên', roleGroup: 'Ban Giám Đốc',
-  }, ...prodStaff];
-  for (const u of staffWithAdmin) {
-    const role = u.username === 'admin' ? Role.ADMIN : ROLE_BY_GROUP[u.roleGroup];
+  console.log('Seeding prod staff logins (Nhân viên sheet)...');
+  for (const u of prodStaff) {
+    const role = ROLE_BY_GROUP[u.roleGroup];
     if (!role) {
       console.log(`  ! unknown role group ${u.roleGroup} for ${u.username}`);
       continue;
     }
-    const values = {
-      username: u.username,
-      employeeCode: u.employeeCode,
-      fullName: u.fullName,
-      passwordHash,
-      role,
-      status: 'ACTIVE',
-    };
     const [existing] = await db.select({ id: s.users.id })
       .from(s.users)
       .where(eq(sql`lower(btrim(${s.users.username}))`, norm(u.username)))
       .limit(1);
     if (existing) {
+      // Refresh roster fields only — never reset a password the account
+      // owner may have changed since the account was created.
       await db.update(s.users)
-        .set({ ...values, updatedAt: new Date() })
+        .set({ employeeCode: u.employeeCode, fullName: u.fullName, role, status: 'ACTIVE', updatedAt: new Date() })
         .where(eq(s.users.id, existing.id));
     } else {
-      await db.insert(s.users).values(values);
+      await db.insert(s.users).values({
+        username: u.username, employeeCode: u.employeeCode, fullName: u.fullName,
+        passwordHash, role, status: 'ACTIVE',
+      });
     }
   }
-  console.log(`  staff: ${staffWithAdmin.length} (admin + nv001..nv022)`);
+  console.log(`  staff logins: ${prodStaff.length}`);
+}
+
+export async function seedProdRoleAccounts(passwordHash: string): Promise<void> {
+  console.log('Seeding prod shared role accounts (User sheet: admin/ketoan/dieuvan/cus)...');
+  for (const u of prodRoleAccounts) {
+    const role = ROLE_BY_CODE[u.roleCode] ?? ROLE_BY_GROUP[u.roleCode];
+    if (!role) {
+      console.log(`  ! unknown role code ${u.roleCode} for ${u.username}`);
+      continue;
+    }
+    const [existing] = await db.select({ id: s.users.id })
+      .from(s.users)
+      .where(eq(sql`lower(btrim(${s.users.username}))`, norm(u.username)))
+      .limit(1);
+    if (existing) {
+      // An existing account (the bootstrap admin) keeps its display name and
+      // password; only the roster fields sync from the sheet.
+      await db.update(s.users)
+        .set({ employeeCode: u.employeeCode, role, email: u.email, status: 'ACTIVE', updatedAt: new Date() })
+        .where(eq(s.users.id, existing.id));
+    } else {
+      await db.insert(s.users).values({
+        username: u.username, employeeCode: u.employeeCode, fullName: u.fullName, email: u.email,
+        passwordHash, role, status: 'ACTIVE',
+      });
+    }
+  }
+  console.log(`  role accounts: ${prodRoleAccounts.length}`);
 }
 
 export async function seedProdDrivers(passwordHash: string): Promise<void> {
   console.log('Seeding prod drivers (+ DRIVER user logins)...');
+  // Driver profiles are matched in JS (code first, then diacritic-folded
+  // name) so sheet spelling fixes (Diệp -> Điệp) update the loaded row
+  // instead of forking a duplicate.
+  const profiles = await db.select({ id: s.drivers.id, code: s.drivers.code, name: s.drivers.name })
+    .from(s.drivers)
+    .where(isNull(s.drivers.deletedAt));
   for (const d of prodDrivers) {
-    // DRIVER login: username = the sheet's driver code, password Abc123.
+    // DRIVER login: username = the sheet's driver code, password Abc123 for
+    // new accounts only — existing logins keep their current password.
     const [existingUser] = await db.select({ id: s.users.id })
       .from(s.users)
       .where(eq(sql`lower(btrim(${s.users.username}))`, norm(d.username)))
@@ -80,7 +137,7 @@ export async function seedProdDrivers(passwordHash: string): Promise<void> {
     if (existingUser) {
       userId = existingUser.id;
       await db.update(s.users)
-        .set({ role: Role.DRIVER, fullName: d.name, passwordHash, status: 'ACTIVE', updatedAt: new Date() })
+        .set({ role: Role.DRIVER, fullName: d.name, status: 'ACTIVE', updatedAt: new Date() })
         .where(eq(s.users.id, existingUser.id));
     } else {
       const [created] = await db.insert(s.users).values({
@@ -89,11 +146,8 @@ export async function seedProdDrivers(passwordHash: string): Promise<void> {
       }).returning({ id: s.users.id });
       userId = created!.id;
     }
-    // Driver profile row linked to the login.
-    const [existingDriver] = await db.select({ id: s.drivers.id })
-      .from(s.drivers)
-      .where(eq(sql`lower(btrim(${s.drivers.name}))`, norm(d.name)))
-      .limit(1);
+    const matched = profiles.find((row) => (row.code != null && norm(row.code) === norm(d.code))
+      || fold(row.name) === fold(d.name));
     const driverValues = {
       userId,
       phone: d.phone,
@@ -106,10 +160,10 @@ export async function seedProdDrivers(passwordHash: string): Promise<void> {
       salaryType: d.salaryType,
       status: 'ACTIVE',
     } as const;
-    if (existingDriver) {
+    if (matched) {
       await db.update(s.drivers)
-        .set({ ...driverValues, updatedAt: new Date() })
-        .where(eq(s.drivers.id, existingDriver.id));
+        .set({ ...driverValues, name: d.name, updatedAt: new Date() })
+        .where(eq(s.drivers.id, matched.id));
     } else {
       await db.insert(s.drivers).values({ name: d.name, ...driverValues });
     }
@@ -211,7 +265,7 @@ export async function seedProdSites(): Promise<void> {
 }
 
 export async function seedProdRoutes(): Promise<void> {
-  console.log('Seeding prod routes (5)...');
+  console.log('Seeding prod routes (Tuyến đường sheet)...');
   for (const r of prodRoutes) {
     const values = {
       name: r.name,
@@ -239,17 +293,58 @@ export async function seedProdRoutes(): Promise<void> {
     }
     console.log(`  route: ${r.name}`);
   }
+  // Hard-delete routes from earlier deliveries that the sheet no longer
+  // lists (Đồng Văn I/III, Nếnh, Nếnh 2...). Guarded by live references so
+  // pricing-owned routes (ASKEY / Hải Phòng-NEWEB / SUNRISE+  SJ) survive.
+  const kept = new Set(prodRoutes.map((r) => norm(r.name)));
+  const allRoutes = await db.select({ id: s.routes.id, name: s.routes.name })
+    .from(s.routes)
+    .where(isNull(s.routes.deletedAt));
+  for (const row of allRoutes) {
+    if (kept.has(norm(row.name))) continue;
+    const refs = await Promise.all([
+      db.select({ n: count() }).from(s.trips).where(eq(s.trips.routeId, row.id)),
+      db.select({ n: count() }).from(s.shipments).where(eq(s.shipments.routeId, row.id)),
+      db.select({ n: count() }).from(s.pricingTables).where(eq(s.pricingTables.routeId, row.id)),
+      db.select({ n: count() }).from(s.roadAllowances).where(eq(s.roadAllowances.routeId, row.id)),
+      db.select({ n: count() }).from(s.weightPricingTiers).where(eq(s.weightPricingTiers.routeId, row.id)),
+      db.select({ n: count() }).from(s.fuelNorms).where(eq(s.fuelNorms.routeId, row.id)),
+      db.select({ n: count() }).from(s.operationalSites).where(eq(s.operationalSites.routeId, row.id)),
+      db.select({ n: count() }).from(s.routePolylines).where(eq(s.routePolylines.routeId, row.id)),
+    ]);
+    const total = refs.reduce((sum, [r]) => sum + Number(r?.n ?? 0), 0);
+    if (total === 0) {
+      await db.delete(s.routes).where(eq(s.routes.id, row.id));
+      console.log(`  route deleted (stale, unreferenced): ${row.name}`);
+    } else {
+      console.log(`  route kept (referenced by ${total} rows): ${row.name}`);
+    }
+  }
 }
+
+// July-extract rows the 4.9 sheet renamed — mapping the loaded display name
+// to the sheet's new name lets the upsert enrich ONE row (and adopt the new
+// identity) instead of forking a second row for the same physical port.
+// Keys AND values are diacritic-folded (fold()-space) since lookups compare
+// folded names.
+const PORT_NAME_ALIASES: Record<string, string> = {
+  'cang xanh - green port': 'cang green port',
+  'cang xanh vip - vip green port': 'cang vipgreenport',
+  'hateco - hhit': 'cang hateco',
+  'icd': 'bai icd tan cang',
+};
 
 export async function seedProdPorts(): Promise<void> {
   console.log(`Seeding prod ports/yards (${prodPorts.length})...`);
+  const sheetNames = new Set(prodPorts.map((p) => fold(p.name)));
+  const existingPorts = await db.select({ id: s.ports.id, code: s.ports.code, name: s.ports.name })
+    .from(s.ports)
+    .where(isNull(s.ports.deletedAt));
   for (const p of prodPorts) {
-    // The canonical seeder (seed-ports.ts, July extract) may already own this
-    // port under a different display name for the same code (e.g. "TC - HICT"
-    // vs this sheet's "Cảng Lạch Huyện - HICT") — match by code FIRST so we
-    // enrich the existing row instead of colliding on the unique code index.
-    // Only the new descriptive fields are set on an existing row; name/code
-    // stay owned by whichever seeder created the row first.
+    // Match by code first, then by (aliased) folded name — the canonical
+    // seeder (seed-ports.ts, July extract) may own the row under a different
+    // display name for the same code (e.g. "TC - HICT" for HICT). The sheet
+    // is authoritative: a matched row adopts its name and code.
     const enrichValues = {
       address: p.address,
       classification: p.classification,
@@ -258,27 +353,60 @@ export async function seedProdPorts(): Promise<void> {
       opsPortalUrl: p.opsPortalUrl,
       position: p.position,
     } as const;
-    const [existingByCode] = p.code
-      ? await db.select({ id: s.ports.id })
-        .from(s.ports)
-        .where(and(isNull(s.ports.deletedAt), eq(s.ports.code, p.code)))
-        .limit(1)
-      : [undefined];
-    const [existing] = existingByCode
-      ? [existingByCode]
-      : await db.select({ id: s.ports.id })
-        .from(s.ports)
-        .where(and(
-          isNull(s.ports.deletedAt),
-          eq(sql`lower(btrim(${s.ports.name}))`, norm(p.name)),
-        ))
-        .limit(1);
-    if (existing) {
+    const matched = existingPorts.find((row) => (p.code != null && row.code === p.code)
+      || fold(row.name) === fold(p.name)
+      || PORT_NAME_ALIASES[fold(row.name)] === fold(p.name));
+    // The July seeder re-inserts its original rows on every seed run, so a
+    // name/alias match can land on a stale duplicate while the canonical row
+    // (matched earlier by its own sheet entry) already carries the sheet's
+    // code. Resolve before writing: the code holder wins, the duplicate goes.
+    let target = matched;
+    if (matched && p.code != null) {
+      const holder = existingPorts.find((row) => row.id !== matched.id && row.code === p.code);
+      if (holder) {
+        const [dupPriced] = await db.select({ n: count() })
+          .from(s.liftPricing)
+          .where(eq(s.liftPricing.portId, matched.id));
+        if (Number(dupPriced?.n ?? 0) === 0) {
+          await db.delete(s.ports).where(eq(s.ports.id, matched.id));
+          console.log(`  port duplicate removed: ${matched.name} (code ${p.code} kept by ${holder.name})`);
+          target = holder;
+        } else {
+          console.log(`  ! code ${p.code} held by ${holder.name}; enriching ${matched.name} under its old code`);
+          target = matched;
+        }
+      }
+    }
+    if (target) {
+      const codeCollision = p.code != null
+        && existingPorts.some((row) => row.id !== target.id && row.code === p.code);
+      const newCode = codeCollision ? target.code : (p.code ?? target.code);
       await db.update(s.ports)
-        .set({ ...enrichValues, updatedAt: new Date() })
-        .where(eq(s.ports.id, existing.id));
+        .set({ ...enrichValues, name: p.name, code: newCode, updatedAt: new Date() })
+        .where(eq(s.ports.id, target.id));
+      console.log(`  port: ${p.name}${fold(target.name) !== fold(p.name) ? ` (was: ${target.name})` : ''}`);
+      target.name = p.name;
+      target.code = newCode;
     } else {
-      await db.insert(s.ports).values({ ...enrichValues, name: p.name, code: p.code ?? undefined });
+      const [created] = await db.insert(s.ports)
+        .values({ ...enrichValues, name: p.name, code: p.code ?? undefined })
+        .returning({ id: s.ports.id, code: s.ports.code, name: s.ports.name });
+      existingPorts.push(created!);
+    }
+  }
+  // Hard-delete ports the sheet dropped (e.g. Cảng Hoàng Diệu) — guarded by
+  // lift-pricing references so priced ports are never orphaned.
+  for (const row of existingPorts) {
+    const keptBySheet = sheetNames.has(fold(row.name)) || Object.values(PORT_NAME_ALIASES).includes(fold(row.name));
+    if (keptBySheet) continue;
+    const [priced] = await db.select({ n: count() })
+      .from(s.liftPricing)
+      .where(eq(s.liftPricing.portId, row.id));
+    if (Number(priced?.n ?? 0) === 0) {
+      await db.delete(s.ports).where(eq(s.ports.id, row.id));
+      console.log(`  port deleted (stale, no pricing): ${row.name}`);
+    } else {
+      console.log(`  port kept (has ${priced!.n} lift-pricing rows): ${row.name}`);
     }
   }
   console.log(`  ports: ${prodPorts.length}`);
@@ -287,6 +415,29 @@ export async function seedProdPorts(): Promise<void> {
 export async function seedProdFleetExtras(): Promise<void> {
   console.log('Seeding fleet spec data (trucks, trailers, pairings)...');
   const numToStr = (v: number | null): string | null => (v == null ? null : String(v));
+
+  // Earlier loads stored plates exactly as typed in the sheet (commas,
+  // stray spaces: "15RM-023,26", "15H - 15077"). Normalize loaded plates to
+  // the canonical shape first so the plate-keyed upserts below hit the
+  // existing rows instead of forking duplicates.
+  const truckRows = await db.select({ id: s.trucks.id, plate: s.trucks.licensePlate }).from(s.trucks);
+  for (const row of truckRows) {
+    const normalized = foldPlate(row.plate);
+    if (normalized !== row.plate) {
+      await db.update(s.trucks).set({ licensePlate: normalized, updatedAt: new Date() })
+        .where(eq(s.trucks.id, row.id));
+      console.log(`  truck plate normalized: ${row.plate} -> ${normalized}`);
+    }
+  }
+  const trailerRows = await db.select({ id: s.trailers.id, plate: s.trailers.licensePlate }).from(s.trailers);
+  for (const row of trailerRows) {
+    const normalized = foldPlate(row.plate);
+    if (normalized !== row.plate) {
+      await db.update(s.trailers).set({ licensePlate: normalized, updatedAt: new Date() })
+        .where(eq(s.trailers.id, row.id));
+      console.log(`  trailer plate normalized: ${row.plate} -> ${normalized}`);
+    }
+  }
 
   // Tractors: upsert the sheet's spec fields, merging over the July extract
   // (trailerPlateNumber/trailerType stay owned by the canonical seeder).
@@ -357,7 +508,66 @@ export async function seedProdFleetExtras(): Promise<void> {
       })
       .where(eq(s.trucks.id, truckRow.id));
   }
-  console.log(`  trailers: ${prodTrailers.length}, pairings applied`);
+  // Tractor -> driver assignment ("Đang ghép với lái xe" column). Uses the
+  // app's own reassignment service (1 xe 1 lái semantics, idempotent no-op
+  // when the pair is already assigned).
+  const driversForFleet = await db.select({ id: s.drivers.id, name: s.drivers.name })
+    .from(s.drivers)
+    .where(and(isNull(s.drivers.deletedAt), eq(s.drivers.status, 'ACTIVE')));
+  let assigned = 0;
+  for (const t of prodTractors) {
+    if (!t.driverName) continue;
+    const [truckRow] = await db.select({ id: s.trucks.id })
+      .from(s.trucks)
+      .where(eq(s.trucks.licensePlate, t.plate))
+      .limit(1);
+    const driver = driversForFleet.find((d) => fold(d.name) === fold(t.driverName));
+    if (!truckRow || !driver) {
+      console.log(`  ! no truck/driver for pairing ${t.plate} <-> ${t.driverName}`);
+      continue;
+    }
+    await db.transaction(async (tx) => {
+      await reassignTruckDriverInTx(tx, {
+        truckId: truckRow.id, driverId: driver.id, createdBy: null, skipAdvisoryLock: true,
+      });
+    });
+    assigned += 1;
+  }
+  console.log(`  trailers: ${prodTrailers.length}, pairings applied, drivers assigned: ${assigned}`);
+}
+
+export async function seedProdCarriers(): Promise<void> {
+  console.log('Seeding prod carrier suppliers (Nhà xe sheet)...');
+  for (const c of prodCarriers) {
+    const partnerId = await upsertPartnerFromTaxCode(c.taxCode);
+    const [existing] = await db.select({ id: s.suppliers.id })
+      .from(s.suppliers)
+      .where(and(
+        isNull(s.suppliers.deletedAt),
+        partnerId != null
+          ? and(eq(s.suppliers.partnerId, partnerId), sql`lower(btrim(${s.suppliers.name})) = ${norm(c.name)}`)
+          : sql`lower(btrim(${s.suppliers.name})) = ${norm(c.name)}`,
+      ))
+      .limit(1);
+    const values = {
+      name: c.name,
+      shortName: c.shortName,
+      contactPerson: c.contactPerson,
+      phone: c.phone,
+      taxCode: c.taxCode,
+      partnerId,
+      types: ['CARRIER'],
+      primaryType: 'CARRIER',
+      status: 'ACTIVE',
+      updatedAt: new Date(),
+    };
+    if (existing) {
+      await db.update(s.suppliers).set(values).where(eq(s.suppliers.id, existing.id));
+    } else {
+      await db.insert(s.suppliers).values(values);
+    }
+  }
+  console.log(`  carriers: ${prodCarriers.length}`);
 }
 
 export async function seedProd(): Promise<void> {
@@ -373,12 +583,14 @@ export async function seedProd(): Promise<void> {
   await seedPorts();
   await seedVehiclesFromExcel();
   await seedProdUsers(passwordHash);
+  await seedProdRoleAccounts(passwordHash);
   await seedProdDrivers(passwordHash);
   await seedProdCustomers();
   await seedProdSites();
   await seedProdRoutes();
   await seedProdPorts();
   await seedProdFleetExtras();
+  await seedProdCarriers();
   console.log('');
   console.log('✅ Prod seed complete (master data only — no demo rows).');
 }
