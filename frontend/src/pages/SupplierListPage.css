@@ -1,6 +1,7 @@
-/* ── Operational canvas (<=1500px) — hand off to mobile card list before the
-   supplier table forces horizontal scroll. ────────────────────────────── */
-@media (max-width: 1500px) {
+/* ── Mobile canvas (<=768px) — the record-table already stacks its own rows
+   down to 360px via container queries, so it stays the desktop-only view
+   on any laptop/tablet width; the dedicated card list is for touch phones. */
+@media (max-width: 768px) {
   .suppliers-page .desktop-only { display: none !important; }
   .suppliers-page .mobile-only  { display: block; }
 }
