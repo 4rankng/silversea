@@ -19,6 +19,8 @@ function PasswordModal({
       title="Đổi mật khẩu"
       onClose={onClose}
       onConfirm={onSave}
+      maxWidth={520}
+      polished
       footer={
         <>
           <button className="btn btn--secondary btn--sm" onClick={onClose}>Hủy</button>
@@ -38,7 +40,7 @@ function PasswordModal({
           {error}
         </Alert>
       )}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div className="modal-form-grid">
         <FormGroup label="Mật khẩu hiện tại">
           <div className="input-icon">
             <Lock size={16} />
@@ -63,18 +65,20 @@ function PasswordModal({
             />
           </div>
         </FormGroup>
-        <FormGroup label="Xác nhận mật khẩu mới">
-          <div className="input-icon">
-            <Lock size={16} />
-            <input
-              className="input"
-              type="password"
-              value={form.confirmPassword}
-              onChange={e => onFormChange({ ...form, confirmPassword: e.target.value })}
-              placeholder="Nhập lại mật khẩu mới"
-            />
-          </div>
-        </FormGroup>
+        <div className="modal-form-grid__full">
+          <FormGroup label="Xác nhận mật khẩu mới">
+            <div className="input-icon">
+              <Lock size={16} />
+              <input
+                className="input"
+                type="password"
+                value={form.confirmPassword}
+                onChange={e => onFormChange({ ...form, confirmPassword: e.target.value })}
+                placeholder="Nhập lại mật khẩu mới"
+              />
+            </div>
+          </FormGroup>
+        </div>
       </div>
     </Modal>
   );

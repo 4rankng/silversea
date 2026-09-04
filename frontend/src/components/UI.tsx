@@ -484,9 +484,12 @@ interface ModalProps {
   headerRight?: React.ReactNode;
   /** Enable the polished visual treatment (corner accents, gradient, eyebrow). */
   polished?: boolean;
+  /** Explicit accessible dialog name. Needed when `title` is a display name
+   * (e.g. the entity's own name) so the dialog still announces the action. */
+  ariaLabel?: string;
 }
 
-export function Modal({ isOpen, title, onClose, children, footer, onConfirm, maxWidth = 480, subtitle, headerRight, polished }: ModalProps) {
+export function Modal({ isOpen, title, onClose, children, footer, onConfirm, maxWidth = 480, subtitle, headerRight, polished, ariaLabel }: ModalProps) {
   const titleId = useId();
   const portalTarget = usePortalTarget();
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -517,7 +520,8 @@ export function Modal({ isOpen, title, onClose, children, footer, onConfirm, max
         onClick={handleClose}
         role="dialog"
         aria-modal="true"
-        aria-labelledby={titleId}
+        aria-labelledby={ariaLabel ? undefined : titleId}
+        aria-label={ariaLabel}
       >
         <div
           ref={contentRef}

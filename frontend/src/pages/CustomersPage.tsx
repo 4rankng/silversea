@@ -21,6 +21,7 @@ import { useCustomerLedgerEntries } from '../hooks/useQueries';
 import { configClient } from '../api/configClient';
 import { qk } from '../api/keys';
 import { usePageAnimations } from '../hooks/animations';
+import { useDropdownDismiss } from '../hooks/useDropdownDismiss';
 import { ClickableCard } from '../components/shared/ClickableCard';
 import { Badge } from '../components/shared/Badge';
 import { StatusStrip, StatusDot } from '../components/shared/StatusStrip';
@@ -249,6 +250,8 @@ export default function CustomersPage() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<number | null>(null);
   const [menuOpenId, setMenuOpenId] = useState<number | null>(null);
+  // Row kebab menus join the global click-away / Escape dismissal layer.
+  useDropdownDismiss(menuOpenId !== null, () => setMenuOpenId(null));
   const navigate = useNavigate();
 
   const table = useTableQueryState<Customer, CustomerTableFilters>({
@@ -605,7 +608,7 @@ export default function CustomersPage() {
                     <td className="num" data-label="Hạn TT Cước">
                       {c.freightPaymentTermDays != null ? `${c.freightPaymentTermDays} ngày` : '—'}
                     </td>
-                    <td data-label="" className="record-table__action" style={{ position: 'relative' }}>
+                    <td data-label="" className="record-table__action" data-dropdown-root={menuOpenId === c.id ? '' : undefined} style={{ position: 'relative' }}>
                       <div className="row-actions">
                         <button className="row-action" aria-label={`Mở thao tác cho ${c.shortName || c.name}`} onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === c.id ? null : c.id); }}>
                           <MoreHorizontal size={14} />

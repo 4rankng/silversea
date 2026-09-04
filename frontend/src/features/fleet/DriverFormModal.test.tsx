@@ -19,7 +19,7 @@ describe('DriverFormModal', () => {
     expect(screen.getByLabelText(/GPLX/)).toBeTruthy();
   });
 
-  it('renders one flat field grid — no boxed sections or prose headers', () => {
+  it('groups fields into labeled sections', () => {
     render(
       <DriverFormModal
         isOpen
@@ -29,10 +29,9 @@ describe('DriverFormModal', () => {
       />,
     );
 
-    expect(screen.queryByText('Hồ sơ lái xe')).toBeNull();
-    expect(screen.queryByText('Phân công')).toBeNull();
+    expect(screen.getByText('Thông tin lái xe')).toBeTruthy();
+    expect(screen.getByText('Tài khoản nhận lương')).toBeTruthy();
     expect(document.querySelector('.fleet-form__section')).toBeNull();
-    expect(document.querySelectorAll('.fleet-form__grid')).toHaveLength(1);
   });
 
   it('cancels with the bordered secondary action, never a ghost', () => {
@@ -48,7 +47,7 @@ describe('DriverFormModal', () => {
     expect(screen.getByRole('button', { name: /Hủy/ }).className).toContain('btn--secondary');
   });
 
-  it('renders the driver grid with all fields', () => {
+  it('renders the remaining fields and gates save on the required name', () => {
     render(
       <DriverFormModal
         isOpen
@@ -58,14 +57,11 @@ describe('DriverFormModal', () => {
       />,
     );
 
-    expect(document.querySelector('.fleet-form__grid')?.className).toContain('fleet-form__grid--driver');
-    expect(document.getElementById('driver-code')).toBeTruthy();
-    expect(document.getElementById('driver-name')).toBeTruthy();
-    expect(document.getElementById('driver-phone')).toBeTruthy();
-    expect(document.getElementById('driver-idNumber')).toBeTruthy();
-    expect(document.getElementById('driver-licenseNumber')).toBeTruthy();
-    expect(document.getElementById('driver-bankName')).toBeTruthy();
-    expect(document.getElementById('driver-bankAccount')).toBeTruthy();
-    expect(document.getElementById('driver-salaryType')).toBeTruthy();
+    expect(screen.getByLabelText('Hạn bằng lái')).toBeTruthy();
+    expect(screen.getByLabelText('Số điện thoại')).toBeTruthy();
+    expect(screen.getByLabelText('Ngân hàng nhận tiền')).toBeTruthy();
+    expect(screen.getByLabelText('Số TK nhận tiền')).toBeTruthy();
+    expect(screen.getByLabelText('Hình thức lương')).toBeTruthy();
+    expect((screen.getByRole('button', { name: /Thêm lái xe/ }) as HTMLButtonElement).disabled).toBe(true);
   });
 });

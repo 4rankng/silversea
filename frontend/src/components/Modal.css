@@ -247,6 +247,19 @@
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
+/* ─── Responsive form grid (drop-in for single-column dialog bodies) ───── */
+.modal-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.modal-form-grid--3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.modal-form-grid > .modal-form-grid__full {
+  grid-column: 1 / -1;
+}
+
 /* Required-field dot indicator (polished variant) */
 .modal--polished .field--required > label::after {
   content: "";
@@ -257,6 +270,22 @@
   background: var(--accent-2);
   margin-left: 4px;
   vertical-align: middle;
+}
+
+/* Numeric unit suffix inside entity forms ("ngày", "tấn", "L/100km") */
+.entity-unit-wrap {
+  position: relative;
+  width: 100%;
+}
+.entity-unit-suffix {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-3);
 }
 
 @media (max-width: 640px) {
@@ -379,5 +408,10 @@
 
   .modal__head-right {
     display: none;
+  }
+
+  .modal-form-grid,
+  .modal-form-grid--3 {
+    grid-template-columns: 1fr;
   }
 }

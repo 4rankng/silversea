@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
-import { labelStyle } from '../../utils/formStyles';
-import { Loader2, Save, X } from 'lucide-react';
+import { Loader2, Save, X, Hash, Route as RouteIcon, MapPin, Tag, FileText } from 'lucide-react';
 import { Modal } from '../../components/UI';
+import { Input } from '../../components/untitled-ui/base/input/input';
+import { TextArea } from '../../components/untitled-ui/base/textarea/textarea';
+import { EntityFormSection, UnitInput, RequiredHint } from '../../components/shared/EntityFormParts';
 import type { Route as RouteType } from '@tingting/shared';
 
 export function RouteFormModal({ isOpen, saving, item, onsave, oncancel }: {
@@ -38,20 +40,19 @@ export function RouteFormModal({ isOpen, saving, item, onsave, oncancel }: {
     });
   };
 
-  const sectionLabelStyle = {
-    fontSize: 12, lineHeight: 1.35, fontWeight: 700, color: 'var(--fg-3)', textTransform: 'uppercase' as const,
-    letterSpacing: '0.08em', marginBottom: 8, marginTop: 4,
-  };
-
   return (
     <Modal
       isOpen={isOpen}
-      title={item ? `Sửa tuyến — ${item.shortName || item.name}` : 'Thêm tuyến đường mới'}
+      title={item ? (item.shortName || item.name) : 'Thêm tuyến đường mới'}
+      subtitle={item ? 'Sửa tuyến' : undefined}
+      polished
+      ariaLabel={item ? `Sửa tuyến — ${item.shortName || item.name}` : 'Thêm tuyến đường mới'}
       maxWidth={640}
       onClose={oncancel}
       onConfirm={handleSave}
       footer={
         <>
+          <RequiredHint />
           <button type="button" className="btn btn--secondary btn--sm" onClick={oncancel}>
             <X size={14} /> Hủy
           </button>
@@ -62,38 +63,62 @@ export function RouteFormModal({ isOpen, saving, item, onsave, oncancel }: {
         </>
       }
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-        <div>
-          <div style={sectionLabelStyle}>Thông tin cơ bản</div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" style={{ marginBottom: 14 }}>
-            <div className="field">
-              <label htmlFor="route-code" style={labelStyle}>Mã tuyến</label>
-              <input id="route-code" className="input" value={code} onChange={e => setCode(e.target.value)} placeholder="VD: T01" />
-            </div>
-            <div className="field">
-              <label htmlFor="route-distance" style={labelStyle}>Khoảng cách (km)</label>
-              <input id="route-distance" className="input" type="number" value={distance} onChange={e => setDistance(e.target.value)} placeholder="0" />
-            </div>
+      <div className="flex flex-col gap-6">
+        <EntityFormSection icon={RouteIcon} label="Thông tin tuyến">
+          <Input
+            label="Mã tuyến"
+            icon={Hash}
+            value={code}
+            onChange={setCode}
+            placeholder="VD: T01"
+            inputClassName="tabular-nums"
+          />
+          <UnitInput
+            label="Khoảng cách"
+            unit="km"
+            icon={RouteIcon}
+            value={distance}
+            onChange={setDistance}
+            min={0}
+            placeholder="0"
+          />
+          <Input
+            label="Tên tuyến"
+            isRequired
+            icon={MapPin}
+            value={name}
+            onChange={setName}
+            placeholder="Tên dùng trên báo cáo"
+            autoFocus
+          />
+          <Input
+            label="Tên rút gọn"
+            isRequired
+            icon={Tag}
+            value={shortName}
+            onChange={setShortName}
+            placeholder="Tên hiển thị trong vận hành"
+          />
+          <div className="col-span-full">
+            <Input
+              label="Điểm đóng trả"
+              icon={MapPin}
+              value={loadPoint}
+              onChange={setLoadPoint}
+              placeholder="Điểm đóng hoặc trả hàng"
+            />
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" style={{ marginBottom: 14 }}>
-            <div className="field">
-              <label htmlFor="route-name" style={labelStyle}>Tên tuyến <span style={{ color: 'var(--danger)' }}>*</span></label>
-              <input id="route-name" className="input" value={name} onChange={e => setName(e.target.value)} placeholder="Tên dùng trên báo cáo" autoFocus />
-            </div>
-            <div className="field">
-              <label htmlFor="route-short-name" style={labelStyle}>Tên rút gọn <span style={{ color: 'var(--danger)' }}>*</span></label>
-              <input id="route-short-name" className="input" value={shortName} onChange={e => setShortName(e.target.value)} placeholder="Tên hiển thị trong vận hành" />
-            </div>
+        </EntityFormSection>
+        <EntityFormSection icon={FileText} label="Ghi chú">
+          <div className="col-span-full">
+            <TextArea
+              value={note}
+              onChange={setNote}
+              placeholder="Vé cầu đường, lưu ý đặc biệt..."
+              rows={3}
+            />
           </div>
-          <div className="field" style={{ marginBottom: 14 }}>
-            <label htmlFor="route-load-point" style={labelStyle}>Điểm đóng trả</label>
-            <input id="route-load-point" className="input" value={loadPoint} onChange={e => setLoadPoint(e.target.value)} placeholder="Điểm đóng hoặc trả hàng" />
-          </div>
-          <div className="field">
-            <label htmlFor="route-note" style={labelStyle}>Ghi chú</label>
-            <textarea id="route-note" className="input" rows={3} value={note} onChange={e => setNote(e.target.value)} placeholder="Vé cầu đường, lưu ý đặc biệt..." />
-          </div>
-        </div>
+        </EntityFormSection>
       </div>
     </Modal>
   );

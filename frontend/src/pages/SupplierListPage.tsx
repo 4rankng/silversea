@@ -1,20 +1,21 @@
-import { useState, useEffect, useMemo, type CSSProperties, type ReactNode } from 'react';
+import { useState, useEffect, useMemo, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Users, UserCheck, Plus, Download, Search,
   MoreHorizontal, Pencil, Trash2, X, Save, Loader2,
   Building2, Hash, User, Phone, Landmark, Clock, FileText,
-  type LucideIcon,
 } from 'lucide-react';
 import { useConfirm } from '../components/UI';
 import { api } from '../lib/api';
 import { Input } from '../components/untitled-ui/base/input/input';
 import { TextArea } from '../components/untitled-ui/base/textarea/textarea';
+import { EntityFormSection, UnitInput, RequiredHint } from '../components/shared/EntityFormParts';
 import { downloadCSV } from '../lib/csv';
 import { nextTableSort, readTableSort } from '../lib/table-sort';
 import { SortHeader } from '../components/shared/SortHeader';
-import { PageHeader, KPI, StatusPill, Modal, ModalChipLive } from '../components/UI';
+import { PageHeader, KPI, StatusPill, Modal, ModalChip, ModalChipLive } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
+import { useDropdownDismiss } from '../hooks/useDropdownDismiss';
 import { EmptyState, Pagination, useTableQueryState } from '../design-system';
 import type { Supplier } from '@tingting/shared';
 import { CONFIG } from '@tingting/shared';
@@ -47,20 +48,6 @@ const STATUS_LABELS: Record<string, string> = {
   ACTIVE: 'Hoạt động',
   INACTIVE: 'Ngừng hoạt động',
 };
-
-/** Section caption used to group the supplier form fields — an icon chip, an
- * uppercase label, and a hairline divider that fills the remaining width. */
-function FormSectionHeading({ icon: Icon, children }: { icon: LucideIcon; children: ReactNode }) {
-  return (
-    <div className="mb-3 flex items-center gap-2">
-      <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-brand-50 text-fg-brand-secondary">
-        <Icon className="size-3.5" strokeWidth={2.25} />
-      </span>
-      <h4 className="whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-tertiary">{children}</h4>
-      <div className="h-px flex-1 bg-border-secondary" />
-    </div>
-  );
-}
 
 export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen }: {
   item?: Supplier; saving: boolean; onsave: (d: Record<string, unknown>) => void; oncancel: () => void; isOpen: boolean;
@@ -108,19 +95,18 @@ export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen }: {
       title={item ? item.name : 'Thêm nhà cung cấp'}
       subtitle={item ? 'Sửa nhà cung cấp' : undefined}
       polished
+      ariaLabel={item ? `Sửa nhà cung cấp — ${item.name}` : 'Thêm nhà cung cấp'}
       headerRight={
-        item ? (
-          <>
-            <ModalChipLive>Đang hoạt động</ModalChipLive>
-          </>
-        ) : undefined
+        !item ? undefined : item.status === 'ACTIVE'
+          ? <ModalChipLive>Đang hoạt động</ModalChipLive>
+          : <ModalChip>Ngừng hoạt động</ModalChip>
       }
       onClose={oncancel}
       onConfirm={handleSave}
       maxWidth={960}
       footer={
         <>
-          <p className="modal__hint"><span className="modal__req-mark">*</span> Trường bắt buộc</p>
+          <RequiredHint />
           <button type="button" className="btn btn--secondary btn--sm" onClick={oncancel}>
             <X size={14} /> Hủy
           </button>
@@ -132,82 +118,81 @@ export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen }: {
       }
     >
       <div className="flex flex-col gap-6">
-        <div>
-          <FormSectionHeading icon={Building2}>Thông tin nhà xe</FormSectionHeading>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Input
-              label="Tên nhà xe"
-              isRequired
-              icon={Building2}
-              value={name}
-              onChange={setName}
-              placeholder="Ví dụ: Garage Auto 123"
-              autoFocus
-            />
-            <Input
-              label="Tên viết tắt"
-              icon={Hash}
-              value={shortName}
-              onChange={setShortName}
-              placeholder="Để trống sẽ dùng tên đầy đủ"
-            />
-            <Input
-              label="Mã số thuế"
-              icon={Landmark}
-              value={taxCode}
-              onChange={setTaxCode}
-              placeholder="Ví dụ: 0312…"
-            />
-            <Input
-              label="Người liên hệ"
-              icon={User}
-              value={contactPerson}
-              onChange={setContactPerson}
-              placeholder="Ví dụ: Anh Tuấn · Kế toán"
-            />
-            <Input
-              label="Điện thoại"
-              icon={Phone}
-              value={phone}
-              onChange={setPhone}
-              placeholder="Ví dụ: 0912…"
-            />
-          </div>
-        </div>
-
-        <div>
-          <FormSectionHeading icon={Clock}>Điều khoản thanh toán</FormSectionHeading>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Input
-              label="Hạn thanh toán Chi hộ (ngày)"
-              icon={Clock}
-              type="number"
-              inputProps={{ min: 0, max: 365 }}
-              value={chiHoDueDays}
-              onChange={setChiHoDueDays}
-              placeholder="Ví dụ: 15"
-            />
-            <Input
-              label="Hạn thanh toán Cước (ngày)"
-              icon={Clock}
-              type="number"
-              inputProps={{ min: 0, max: 365 }}
-              value={cuocDueDays}
-              onChange={setCuocDueDays}
-              placeholder="Ví dụ: 30"
-            />
-          </div>
-        </div>
-
-        <div>
-          <FormSectionHeading icon={FileText}>Ghi chú</FormSectionHeading>
-          <TextArea
-            value={note}
-            onChange={setNote}
-            placeholder="Ghi chú thêm…"
-            rows={3}
+        <EntityFormSection icon={Building2} label="Thông tin nhà xe">
+          <Input
+            label="Tên nhà xe"
+            isRequired
+            icon={Building2}
+            value={name}
+            onChange={setName}
+            placeholder="Ví dụ: Garage Auto 123"
+            autoFocus
           />
-        </div>
+          <Input
+            label="Tên viết tắt"
+            icon={Hash}
+            value={shortName}
+            onChange={setShortName}
+            placeholder="Để trống sẽ dùng tên đầy đủ"
+          />
+          <Input
+            label="Mã số thuế"
+            icon={Landmark}
+            value={taxCode}
+            onChange={setTaxCode}
+            placeholder="Ví dụ: 0312…"
+            inputClassName="tabular-nums"
+          />
+          <Input
+            label="Người liên hệ"
+            icon={User}
+            value={contactPerson}
+            onChange={setContactPerson}
+            placeholder="Ví dụ: Anh Tuấn · Kế toán"
+          />
+          <Input
+            label="Điện thoại"
+            icon={Phone}
+            value={phone}
+            onChange={setPhone}
+            placeholder="Ví dụ: 0912…"
+            inputClassName="tabular-nums"
+          />
+        </EntityFormSection>
+
+        <EntityFormSection icon={Clock} label="Điều khoản thanh toán">
+          <UnitInput
+            label="Hạn thanh toán Chi hộ"
+            unit="ngày"
+            icon={Clock}
+            value={chiHoDueDays}
+            onChange={setChiHoDueDays}
+            min={0}
+            max={365}
+            placeholder="Ví dụ: 15"
+          />
+          <UnitInput
+            label="Hạn thanh toán Cước"
+            unit="ngày"
+            icon={Clock}
+            value={cuocDueDays}
+            onChange={setCuocDueDays}
+            min={0}
+            max={365}
+            placeholder="Ví dụ: 30"
+          />
+        </EntityFormSection>
+
+        <EntityFormSection icon={FileText} label="Ghi chú">
+          <div className="col-span-full">
+            <TextArea
+              value={note}
+              onChange={setNote}
+              placeholder="Ghi chú thêm…"
+              rows={3}
+            />
+          </div>
+        </EntityFormSection>
       </div>
     </Modal>
   );
@@ -222,6 +207,8 @@ export default function SupplierListPage() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<number | null>(null);
   const [menuOpenId, setMenuOpenId] = useState<number | null>(null);
+  // Row kebab menus join the global click-away / Escape dismissal layer.
+  useDropdownDismiss(menuOpenId !== null, () => setMenuOpenId(null));
 
   const { confirm, dialog: confirmDialog } = useConfirm();
 
@@ -520,7 +507,7 @@ export default function SupplierListPage() {
                     <td className="suppliers-page__cell suppliers-page__cell--data suppliers-page__cell--money num" data-label="Công nợ">
                       <Money value={payableBySupplier.get(s.id) ?? 0} />
                     </td>
-                    <td className="suppliers-page__cell suppliers-page__cell--actions record-table__action" data-label="" style={{ position: 'relative' }}>
+                    <td className="suppliers-page__cell suppliers-page__cell--actions record-table__action" data-label="" data-dropdown-root={menuOpenId === s.id ? '' : undefined} style={{ position: 'relative' }}>
                       <div className="row-actions">
                         <button className="row-action" onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === s.id ? null : s.id); }}>
                           <MoreHorizontal size={14} />

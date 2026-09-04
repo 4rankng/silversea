@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Save, X, Loader2 } from 'lucide-react';
+import { Save, X, Loader2, Hash, User, CreditCard, BadgeCheck, Phone, Landmark, Wallet, Banknote } from 'lucide-react';
 import { Modal } from '../../components/UI';
+import { Input } from '../../components/untitled-ui/base/input/input';
+import { EntityFormSection, RequiredHint } from '../../components/shared/EntityFormParts';
+import { DateInput } from '../../design-system/forms/DateInput';
 import type { Driver } from '@tingting/shared';
-// Own stylesheet: this modal also renders on /fleet/drivers (dispatch
-// catalogs), whose route chunk never loads the /fleet page cards that
-// normally pull FleetPage.css in.
-import '../../pages/FleetPage.css';
 
 export function DriverFormModal({ saving, item, onsave, oncancel, isOpen }: {
   saving: boolean; item?: Driver; onsave: (d: Record<string, unknown>) => void; oncancel: () => void; isOpen: boolean;
@@ -52,12 +51,13 @@ export function DriverFormModal({ saving, item, onsave, oncancel, isOpen }: {
       title={item ? item.name : 'Thêm lái xe'}
       subtitle={item ? 'Sửa lái xe' : undefined}
       polished
+      ariaLabel={item ? `Sửa lái xe ${item.name}` : 'Thêm lái xe'}
       onClose={oncancel}
       onConfirm={handleSave}
       maxWidth={620}
       footer={
-        <div className="fleet-form-actions">
-          <p className="modal__hint"><span className="modal__req-mark">*</span> Trường bắt buộc</p>
+        <>
+          <RequiredHint />
           <button className="btn btn--secondary btn--sm" onClick={oncancel}>
             <X size={14} /> Hủy
           </button>
@@ -65,107 +65,86 @@ export function DriverFormModal({ saving, item, onsave, oncancel, isOpen }: {
             {saving ? <Loader2 size={14} className="spin" /> : <Save size={14} />}
             {item ? 'Cập nhật' : 'Thêm lái xe'}
           </button>
-        </div>
+        </>
       }
     >
-      <div className="fleet-form">
-        <div className="fleet-form__grid fleet-form__grid--driver">
-          <div className="field fleet-form__field fleet-form__field--wide">
-            <label htmlFor="driver-code">
-              Mã tài xế <span>*</span>
-            </label>
-            <input
-              id="driver-code"
-              className="input"
-              value={code}
-              onChange={e => setCode(e.target.value)}
-              placeholder="Ví dụ: TX001"
-            />
-          </div>
-          <div className="field fleet-form__field fleet-form__field--wide">
-            <label htmlFor="driver-name">
-              Họ và tên <span>*</span>
-            </label>
-            <input
-              id="driver-name"
-              className="input"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              placeholder="Ví dụ: Nguyễn Văn A"
-              autoFocus
-            />
-          </div>
-          <div className="field fleet-form__field">
-            <label htmlFor="driver-idNumber">Số CCCD</label>
-            <input
-              id="driver-idNumber"
-              className="input"
-              value={idNumber}
-              onChange={e => setIdNumber(e.target.value)}
-              placeholder="Số CCCD"
-            />
-          </div>
-          <div className="field fleet-form__field">
-            <label htmlFor="driver-licenseNumber">GPLX</label>
-            <input
-              id="driver-licenseNumber"
-              className="input"
-              value={licenseNumber}
-              onChange={e => setLicenseNumber(e.target.value)}
-              placeholder="GPLX"
-            />
-          </div>
-          <div className="field fleet-form__field">
+      <div className="flex flex-col gap-6">
+        <EntityFormSection icon={User} label="Thông tin lái xe">
+          <Input
+            label="Mã tài xế"
+            icon={Hash}
+            value={code}
+            onChange={setCode}
+            placeholder="Ví dụ: TX001"
+            inputClassName="tabular-nums"
+          />
+          <Input
+            label="Họ và tên"
+            isRequired
+            icon={User}
+            value={name}
+            onChange={setName}
+            placeholder="Ví dụ: Nguyễn Văn A"
+            autoFocus
+          />
+          <Input
+            label="Số CCCD"
+            icon={CreditCard}
+            value={idNumber}
+            onChange={setIdNumber}
+            placeholder="Số CCCD"
+            inputClassName="tabular-nums"
+          />
+          <Input
+            label="GPLX"
+            icon={BadgeCheck}
+            value={licenseNumber}
+            onChange={setLicenseNumber}
+            placeholder="GPLX"
+            inputClassName="tabular-nums"
+          />
+          <div className="field">
             <label htmlFor="driver-licenseExpiryDate">Hạn bằng lái</label>
-            <input
+            <DateInput
               id="driver-licenseExpiryDate"
               className="input"
-              type="date"
               value={licenseExpiryDate}
-              onChange={e => setLicenseExpiryDate(e.target.value)}
+              onChange={setLicenseExpiryDate}
             />
           </div>
-          <div className="field fleet-form__field">
-            <label htmlFor="driver-phone">Số điện thoại</label>
-            <input
-              id="driver-phone"
-              className="input"
-              value={phone}
-              onChange={e => setPhone(e.target.value)}
-              placeholder="0912..."
-            />
-          </div>
-          <div className="field fleet-form__field">
-            <label htmlFor="driver-bankName">Ngân hàng nhận tiền</label>
-            <input
-              id="driver-bankName"
-              className="input"
-              value={bankName}
-              onChange={e => setBankName(e.target.value)}
-              placeholder="Ngân hàng"
-            />
-          </div>
-          <div className="field fleet-form__field">
-            <label htmlFor="driver-bankAccount">Số TK nhận tiền</label>
-            <input
-              id="driver-bankAccount"
-              className="input"
-              value={bankAccount}
-              onChange={e => setBankAccount(e.target.value)}
-              placeholder="Số tài khoản"
-            />
-          </div>
-          <div className="field fleet-form__field">
-            <label htmlFor="driver-salaryType">Hình thức lương</label>
-            <input
-              id="driver-salaryType"
-              className="input"
-              value={salaryType}
-              onChange={e => setSalaryType(e.target.value)}
-              placeholder="Ví dụ: LUONG CUNG"
-            />
-          </div>
-        </div>
+          <Input
+            label="Số điện thoại"
+            icon={Phone}
+            value={phone}
+            onChange={setPhone}
+            placeholder="0912..."
+            inputClassName="tabular-nums"
+          />
+        </EntityFormSection>
+        <EntityFormSection icon={Landmark} label="Tài khoản nhận lương">
+          <Input
+            label="Ngân hàng nhận tiền"
+            icon={Landmark}
+            value={bankName}
+            onChange={setBankName}
+            placeholder="Ngân hàng"
+          />
+          <Input
+            label="Số TK nhận tiền"
+            icon={Wallet}
+            value={bankAccount}
+            onChange={setBankAccount}
+            placeholder="Số tài khoản"
+            inputClassName="tabular-nums"
+          />
+          <Input
+            label="Hình thức lương"
+            icon={Banknote}
+            value={salaryType}
+            onChange={setSalaryType}
+            placeholder="Ví dụ: LUONG CUNG"
+          />
+        </EntityFormSection>
       </div>
     </Modal>
   );

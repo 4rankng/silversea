@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
-import { Save, X, Loader2 } from "lucide-react";
+import { Save, X, Loader2, Truck, Tag, Factory, Weight, Fuel, Calendar, FileText } from "lucide-react";
 import { Modal } from "../../components/UI";
+import { Input } from "../../components/untitled-ui/base/input/input";
+import { TextArea } from "../../components/untitled-ui/base/textarea/textarea";
+import { EntityFormSection, UnitInput, RequiredHint } from "../../components/shared/EntityFormParts";
 import { DateInput } from "../../design-system/forms/DateInput";
 import {
   computeVehicleAlerts,
@@ -85,12 +88,13 @@ export function TruckFormModal({
       title={item ? item.licensePlate : "Thêm xe đầu kéo"}
       subtitle={item ? 'Sửa xe' : undefined}
       polished
+      ariaLabel={item ? `Sửa xe đầu kéo ${item.licensePlate}` : "Thêm xe đầu kéo"}
       onClose={oncancel}
       onConfirm={handleSave}
       maxWidth={920}
       footer={
-        <div className="fleet-form-actions">
-          <p className="modal__hint"><span className="modal__req-mark">*</span> Trường bắt buộc</p>
+        <>
+          <RequiredHint />
           <button className="btn btn--secondary btn--sm" onClick={oncancel}>
             <X size={14} /> Hủy
           </button>
@@ -106,80 +110,67 @@ export function TruckFormModal({
             )}
             {item ? "Cập nhật" : "Thêm xe"}
           </button>
-        </div>
+        </>
       }
     >
-      <div className="fleet-form">
-        <div className="fleet-form__grid fleet-form__grid--truck">
-          <div className="field fleet-form__field fleet-form__field--wide">
-            <label htmlFor="truck-plate">
-              Biển số xe đầu kéo <span>*</span>
-            </label>
-            <input
-              id="truck-plate"
-              className="input"
-              value={plate}
-              onChange={(e) => setPlate(e.target.value)}
-              placeholder="Ví dụ: 60C-12345"
-              autoFocus
-            />
-          </div>
-          <div className="field fleet-form__field">
-            <label htmlFor="truck-vehicleClass">Loại hình xe</label>
-            <input
-              id="truck-vehicleClass"
-              className="input"
-              value={vehicleClass}
-              onChange={(e) => setVehicleClass(e.target.value)}
-              placeholder="Loại hình xe"
-            />
-          </div>
-          <div className="field fleet-form__field">
-            <label htmlFor="truck-brand">Hãng xe</label>
-            <input
-              id="truck-brand"
-              className="input"
-              value={brand}
-              onChange={(e) => setBrand(e.target.value)}
-              placeholder="Hãng xe"
-            />
-          </div>
-          <div className="field fleet-form__field">
-            <label htmlFor="truck-towCapacityTons">Trọng tài kéo (tấn)</label>
-            <input
-              id="truck-towCapacityTons"
-              className="input"
-              type="number"
-              value={towCapacityTons}
-              onChange={(e) => setTowCapacityTons(e.target.value)}
-              placeholder="0"
-            />
-          </div>
-          <div className="field fleet-form__field">
-            <label htmlFor="truck-fuelLPer100kmLoaded">Mức dầu có hàng (L/100km)</label>
-            <input
-              id="truck-fuelLPer100kmLoaded"
-              className="input"
-              type="number"
-              value={fuelLPer100kmLoaded}
-              onChange={(e) => setFuelLPer100kmLoaded(e.target.value)}
-              placeholder="0"
-            />
-          </div>
-          <div className="field fleet-form__field">
-            <label htmlFor="truck-fuelLPer100kmEmpty">Mức dầu không hàng (L/100km)</label>
-            <input
-              id="truck-fuelLPer100kmEmpty"
-              className="input"
-              type="number"
-              value={fuelLPer100kmEmpty}
-              onChange={(e) => setFuelLPer100kmEmpty(e.target.value)}
-              placeholder="0"
-            />
-          </div>
-        </div>
+      <div className="flex flex-col gap-6">
+        <EntityFormSection icon={Truck} label="Thông tin xe">
+          <Input
+            label="Biển số xe đầu kéo"
+            isRequired
+            icon={Truck}
+            value={plate}
+            onChange={setPlate}
+            placeholder="Ví dụ: 60C-12345"
+            autoFocus
+            inputClassName="uppercase tabular-nums"
+          />
+          <Input
+            label="Loại hình xe"
+            icon={Tag}
+            value={vehicleClass}
+            onChange={setVehicleClass}
+            placeholder="Loại hình xe"
+          />
+          <Input
+            label="Hãng xe"
+            icon={Factory}
+            value={brand}
+            onChange={setBrand}
+            placeholder="Hãng xe"
+          />
+          <UnitInput
+            label="Trọng tài kéo"
+            unit="tấn"
+            icon={Weight}
+            value={String(towCapacityTons)}
+            onChange={setTowCapacityTons}
+            min={0}
+            placeholder="0"
+          />
+          <UnitInput
+            label="Mức dầu có hàng"
+            unit="L/100km"
+            icon={Fuel}
+            value={String(fuelLPer100kmLoaded)}
+            onChange={setFuelLPer100kmLoaded}
+            min={0}
+            placeholder="0"
+            padClassName="pr-20"
+          />
+          <UnitInput
+            label="Mức dầu không hàng"
+            unit="L/100km"
+            icon={Fuel}
+            value={String(fuelLPer100kmEmpty)}
+            onChange={setFuelLPer100kmEmpty}
+            min={0}
+            placeholder="0"
+            padClassName="pr-20"
+          />
+        </EntityFormSection>
 
-        <div className="truck-alert-fields">
+        <EntityFormSection icon={Calendar} label="Lịch bảo trì">
           <TruckDateField
             id="truck-inspection"
             label="Hạn đăng kiểm"
@@ -194,19 +185,18 @@ export function TruckFormModal({
             onChange={setInsuranceExpiryDate}
             alert={alertFor("insuranceExpiryDate")}
           />
-        </div>
+        </EntityFormSection>
 
-        <div className="field fleet-form__field fleet-form__field--wide" style={{ marginTop: 12 }}>
-          <label htmlFor="truck-note">Ghi chú</label>
-          <textarea
-            id="truck-note"
-            className="input"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            placeholder="Ghi chú"
-            rows={2}
-          />
-        </div>
+        <EntityFormSection icon={FileText} label="Ghi chú">
+          <div className="col-span-full">
+            <TextArea
+              value={note}
+              onChange={setNote}
+              placeholder="Ghi chú"
+              rows={2}
+            />
+          </div>
+        </EntityFormSection>
       </div>
     </Modal>
   );

@@ -19,6 +19,8 @@ function ProfileModal({
       title="Thông tin cá nhân"
       onClose={onClose}
       onConfirm={onSave}
+      maxWidth={560}
+      polished
       footer={
         <>
           <button className="btn btn--secondary btn--sm" onClick={onClose}>Hủy</button>
@@ -38,7 +40,7 @@ function ProfileModal({
           {error}
         </Alert>
       )}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div className="modal-form-grid">
         <FormGroup label="Tên đăng nhập">
           <div className="input-icon">
             <User size={16} />
