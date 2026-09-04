@@ -1,8 +1,6 @@
-.PHONY: dev stop down setup seed migrate generate build studio help \
-        logs-db logs-redis infra demo demo-push demo-deploy demo-health demo-capture-rollback \
-        db-backup db-drift-check demo-db-backup \
-        deploy deploy-check deploy-advance deploy-push deploy-capture-rollback deploy-db-backup deploy-health \
-        deploy-seed deploy-server-setup
+.PHONY: dev stop down setup migrate generate build help \
+        db-backup db-recreate db-drift-check \
+        demo deploy deploy-advance deploy-db-backup deploy-seed deploy-server-setup
 
 # ─── Ports (silversea — de-conflicted from nepocorp) ─────────────────────────
 # PostgreSQL: 5441  |  Redis: 6391  |  Backend: 3001  |  Frontend: 7174  |  Adminer: 8083
@@ -44,11 +42,6 @@ dev: ## Start everything (db, redis, backend, frontend)
 		(cd frontend && npx vite --port 7174) & \
 		wait'
 
-# ─── Infrastructure only ──────────────────────────────────────────────────────
-infra: ## Start only db and redis (+ adminer)
-	@docker compose -f docker-compose.dev.yml up -d --wait 2>/dev/null || \
-		docker-compose -f docker-compose.dev.yml up -d
-
 # ─── Database ──────────────────────────────────────────────────────────────────
 DB_CONTAINER := silversea-db
 DB_NAME      := silversea
@@ -56,13 +49,6 @@ DB_USER      := postgres
 
 migrate: db-backup ## Run database migrations (drizzle-kit) — backs up first, fails closed
 	cd backend && npx drizzle-kit migrate
-
-# Apply the single baseline through Drizzle so the migration journal remains
-# authoritative. The baseline creates its required extensions and has no
-# foreign-key ordering dependency.
-migrate-sql: db-backup
-	@cd backend && DATABASE_URL=postgres://$(DB_USER):postgres@localhost:5441/$(DB_NAME) npx drizzle-kit migrate
-	@echo "✅ Single baseline migration applied"
 
 # Drop and recreate the database from scratch (dev/staging — loses all data).
 db-recreate:
@@ -117,23 +103,18 @@ db-drift-check: ## Assert drizzle-kit generate is a no-op on a clean tree
 	fi
 	@echo "✅ No drift: drizzle-kit generate is a no-op on the clean tree"
 
-seed: ## Seed database with sample data
-	cd backend && pnpm seed
-
-setup: infra ## First-time setup: infra + recreate DB + migrate + seed
+setup: ## First-time setup: start infra, recreate DB, migrate, seed
+	@docker compose -f docker-compose.dev.yml up -d --wait 2>/dev/null || \
+		docker-compose -f docker-compose.dev.yml up -d
 	@sleep 2
 	@$(MAKE) db-recreate
-	@$(MAKE) migrate-sql
+	@$(MAKE) migrate
 	@echo "Seeding database..."
 	@cd backend && pnpm seed
 	@echo ""
 	@echo "Setup complete! Run 'make dev' to start the app."
 	@echo "  Frontend: http://localhost:7174"
 	@echo "  Backend:  http://localhost:3001/api/health"
-
-# ─── Studio (Drizzle ORM GUI) ─────────────────────────────────────────────────
-studio: ## Open Drizzle Studio
-	cd backend && npx drizzle-kit studio
 
 # ─── Build ─────────────────────────────────────────────────────────────────────
 build: ## Build shared + backend + frontend
@@ -150,15 +131,6 @@ stop: ## Stop backend/frontend (keep db/redis)
 down: ## Stop everything including db and redis
 	@docker compose -f docker-compose.dev.yml down 2>/dev/null || \
 		docker-compose -f docker-compose.dev.yml down
-
-# ─── Logs ──────────────────────────────────────────────────────────────────────
-logs-db: ## Show database logs
-	@docker compose -f docker-compose.dev.yml logs -f db 2>/dev/null || \
-		docker-compose -f docker-compose.dev.yml logs -f db
-
-logs-redis: ## Show redis logs
-	@docker compose -f docker-compose.dev.yml logs -f redis 2>/dev/null || \
-		docker-compose -f docker-compose.dev.yml logs -f redis
 
 # ─── Demo deploy (vantai.tingting.vip) ─────────────────────────────────────────
 # Deploys the current working tree to the demo server. The demo stack already
@@ -182,100 +154,41 @@ DEMO_SERVER := vantai.tingting.vip
 DEMO_PATH   := /opt/vantai
 DEMO_COMPOSE := docker compose -f deploy/docker-compose.prod.yml
 
-demo-capture-rollback: ## Record running demo backend/frontend images before a cutover
+demo: ## Deploy the current tree to staging (vantai.tingting.vip) — keeps existing DB
+	@echo "=== Deploying to $(DEMO_SERVER) ==="
+	@echo "1/4  Building + pushing :latest images..."
+	@$(MAKE) --no-print-directory -C backend push
+	@$(MAKE) --no-print-directory -C frontend push
+	@echo "2/4  Rollback capture + image pull on $(DEMO_SERVER) (DB volume untouched)..."
 	@ssh root@$(DEMO_SERVER) "set -eu; cd $(DEMO_PATH); rollback_dir=.deploy-rollbacks; mkdir -p \"\$$rollback_dir\"; backend_container=\$$($(DEMO_COMPOSE) ps -q backend); frontend_container=\$$($(DEMO_COMPOSE) ps -q frontend); test -n \"\$$backend_container\" || { echo 'No running backend container; refusing cutover without rollback image.' >&2; exit 1; }; test -n \"\$$frontend_container\" || { echo 'No running frontend container; refusing cutover without rollback image.' >&2; exit 1; }; backend_image_id=\$$(docker inspect --format='{{.Image}}' \"\$$backend_container\"); frontend_image_id=\$$(docker inspect --format='{{.Image}}' \"\$$frontend_container\"); backend_digest=\$$(docker image inspect --format='{{if .RepoDigests}}{{index .RepoDigests 0}}{{end}}' \"\$$backend_image_id\"); frontend_digest=\$$(docker image inspect --format='{{if .RepoDigests}}{{index .RepoDigests 0}}{{end}}' \"\$$frontend_image_id\"); snapshot=\"\$$rollback_dir/pre-cutover-\$$(date -u +%Y%m%dT%H%M%SZ).env\"; { printf 'BACKEND_IMAGE_ID=%s\\n' \"\$$backend_image_id\"; printf 'BACKEND_REPO_DIGEST=%s\\n' \"\$$backend_digest\"; printf 'FRONTEND_IMAGE_ID=%s\\n' \"\$$frontend_image_id\"; printf 'FRONTEND_REPO_DIGEST=%s\\n' \"\$$frontend_digest\"; } > \"\$$snapshot\"; ln -sfn \"\$$(basename \"\$$snapshot\")\" \"\$$rollback_dir/latest\"; echo \"Rollback snapshot retained: $(DEMO_PATH)/\$$snapshot\"; cat \"\$$snapshot\""
-
-demo-db-backup: ## Server-side pg_dump of the demo DB before a deploy migrate (fails the deploy on failure)
+	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) pull backend frontend"
+	@echo "3/4  Server DB backup + migrate + cutover..."
 	@ssh root@$(DEMO_SERVER) "set -eu; cd $(DEMO_PATH); mkdir -p .db-backups; pg_container=\$$($(DEMO_COMPOSE) ps -q postgres); test -n \"\$$pg_container\" || { echo 'No postgres container running' >&2; exit 1; }; pg_env_of() { docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' \"\$$1\"; }; pg_user=\$$(pg_env_of \"\$$pg_container\" | sed -n 's/^POSTGRES_USER=//p' | head -1); pg_db=\$$(pg_env_of \"\$$pg_container\" | sed -n 's/^POSTGRES_DB=//p' | head -1); pg_user=\$${pg_user:-postgres}; pg_db=\$${pg_db:-\$$pg_user}; backup=\".db-backups/db-\$$(date -u +%Y%m%dT%H%M%SZ).dump\"; docker exec -i \"\$$pg_container\" pg_dump -U \"\$$pg_user\" -Fc \"\$$pg_db\" > \"\$$backup\"; size=\$$(wc -c < \"\$$backup\" | tr -d ' '); if [ \"\$$size\" -lt 1024 ]; then echo \"Backup suspiciously small (\$$size bytes) — aborting deploy\" >&2; exit 1; fi; echo \"✅ Server DB backup: $(DEMO_PATH)/\$$backup (\$$size bytes) [user=\$$pg_user db=\$$pg_db]\""
-
-demo: ## Deploy silversea to demo (vantai.tingting.vip) — keeps existing DB
-	@echo "=== Deploying silversea to $(DEMO_SERVER) ==="
-	@echo ""
-	@echo "1/3  Building + pushing images to GHCR (with BuildKit cache)..."
-	@cd backend && $(MAKE) push
-	@cd frontend && $(MAKE) push
-	@echo ""
-	@echo "2/3  Recording rollback images, then pulling, migrating, and restarting services on $(DEMO_SERVER) (DB volume untouched)..."
-	@$(MAKE) --no-print-directory demo-capture-rollback
-	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) pull backend frontend"
-	@echo "Backing up the server DB before migrate..."
-	@$(MAKE) --no-print-directory demo-db-backup
-	@echo "Running pending migrations with the pulled backend image before cutover..."
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && flock -w 900 .deploy-migrate.lock $(DEMO_COMPOSE) run --rm --no-deps backend npx drizzle-kit migrate"
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) rm -sf backend frontend || true"
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) up -d --no-deps backend frontend"
-	@echo ""
-	@echo "3/3  Public backend and frontend acceptance checks..."
-	@$(MAKE) --no-print-directory demo-health
-	@echo ""
-	@echo "✅ Demo deployed: https://$(DEMO_SERVER)  (use approved staging credentials)"
-
-demo-push: ## Build + push demo images only (no server-side changes)
-	@cd backend && $(MAKE) push
-	@cd frontend && $(MAKE) push
-
-demo-local: ## Build images locally only (fast, native platform, no push)
-	@cd backend && $(MAKE) build-local
-	@cd frontend && $(MAKE) build-local
-	@echo ""
-	@echo "✅ Local builds complete:"
-	@echo "   Backend: ghcr.io/4rankng/transting-backend:local"
-	@echo "   Frontend: ghcr.io/4rankng/transting-frontend:local"
-	@echo ""
-	@echo "Run with: docker compose -f deploy/docker-compose.prod.yml up -d backend frontend"
-
-demo-deploy: ## Pull + restart + migrate on the demo server (no rebuild)
-	@$(MAKE) --no-print-directory demo-capture-rollback
-	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) pull backend frontend"
-	@$(MAKE) --no-print-directory demo-db-backup
-	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && flock -w 900 .deploy-migrate.lock $(DEMO_COMPOSE) run --rm --no-deps backend npx drizzle-kit migrate"
-	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) rm -sf backend frontend || true"
-	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) up -d --no-deps backend frontend"
-	@$(MAKE) --no-print-directory demo-health
-
-demo-health: ## Check public demo backend and frontend endpoints
+	@echo "4/4  Public health checks..."
 	@echo "  Backend: https://$(DEMO_SERVER)/api/health"
-	@attempt=1; \
-	while [ "$$attempt" -le 12 ]; do \
-		if response="$$(curl -fsS --max-time 10 https://$(DEMO_SERVER)/api/health 2>/dev/null)"; then \
-			printf '%s\n' "$$response" | sed 's/^/    /'; \
-			exit 0; \
-		fi; \
-		if [ "$$attempt" -eq 12 ]; then \
-			echo "    ⚠️  health check failed after 12 attempts — check logs:"; \
-			echo "    ssh root@$(DEMO_SERVER) 'cd $(DEMO_PATH) && $(DEMO_COMPOSE) logs --tail=80 backend'"; \
-			exit 1; \
-		fi; \
-		echo "    Waiting for backend readiness ($$attempt/12)..."; \
-		sleep 5; \
-		attempt=$$((attempt + 1)); \
+	@for i in $$(seq 1 12); do \
+		resp=$$(curl -fsS --max-time 10 https://$(DEMO_SERVER)/api/health 2>/dev/null) && { echo "    $$resp"; break; }; \
+		[ $$i -eq 12 ] && { echo "    ⚠️  backend health failed after 12 attempts — logs: ssh root@$(DEMO_SERVER) 'cd $(DEMO_PATH) && $(DEMO_COMPOSE) logs --tail=80 backend'" >&2; exit 1; }; \
+		echo "    waiting ($$i/12)..."; sleep 5; \
 	done
 	@echo "  Frontend: https://$(DEMO_SERVER)/"
-	@attempt=1; \
-	while [ "$$attempt" -le 12 ]; do \
-		if curl -fsS --max-time 10 -o /dev/null https://$(DEMO_SERVER)/; then \
-			echo "    public HTTP check passed"; \
-			exit 0; \
-		fi; \
-		if [ "$$attempt" -eq 12 ]; then \
-			echo "    ⚠️  frontend HTTP check failed after 12 attempts — check logs:"; \
-			echo "    ssh root@$(DEMO_SERVER) 'cd $(DEMO_PATH) && $(DEMO_COMPOSE) logs --tail=80 frontend'"; \
-			exit 1; \
-		fi; \
-		echo "    Waiting for frontend readiness ($$attempt/12)..."; \
-		sleep 5; \
-		attempt=$$((attempt + 1)); \
+	@for i in $$(seq 1 12); do \
+		curl -fsS --max-time 10 -o /dev/null https://$(DEMO_SERVER)/ && { echo "    public HTTP check passed"; break; }; \
+		[ $$i -eq 12 ] && { echo "    ⚠️  frontend HTTP check failed after 12 attempts — logs: ssh root@$(DEMO_SERVER) 'cd $(DEMO_PATH) && $(DEMO_COMPOSE) logs --tail=80 frontend'" >&2; exit 1; }; \
+		echo "    waiting ($$i/12)..."; sleep 5; \
 	done
+	@echo ""
+	@echo "✅ Demo deployed: https://$(DEMO_SERVER)"
 
 # ─── Prod deploy (silversea.tingting.vip) ─────────────────────────────────────
 # `make deploy` ships the `prod` branch AS-IS (no auto fast-forward): advance
-# prod deliberately (`git branch -f prod origin/main && git push origin prod`
-# from a fetched main), then deploy exactly what it points to.
-#
-# Images build in a dedicated clean worktree (.deploy-worktrees/prod) so the
-# interactive session's dirty tree is never swept into a prod image, and are
-# pushed as :prod (+ :prod-<sha>) — a separate channel from demo's :latest, so
-# neither flow can clobber the other's pull target.
+# prod deliberately (`make deploy-advance` from any branch), then run deploy
+# ON the prod branch — it refuses to run elsewhere or on a dirty tree, and
+# builds :prod images straight from that checkout (a separate channel from
+# demo's :latest, so neither flow can clobber the other's pull target).
 #
 # Prereqs: one-time `make deploy-server-setup` (docker, nginx, certbot SSL,
 # /opt/silversea stack files); SSH access to root@silversea.tingting.vip;
@@ -286,19 +199,6 @@ PROD_PATH     := /opt/silversea
 PROD_COMPOSE  := docker compose -f deploy/docker-compose.silversea.yml
 PROD_BRANCH   := prod
 
-deploy-check: ## Refuse to deploy unless HEAD is the prod branch on a clean tree (no worktree)
-	@if [ "$$(git rev-parse --abbrev-ref HEAD)" != "$(PROD_BRANCH)" ]; then \
-		echo "❌ make deploy must run ON the $(PROD_BRANCH) branch (you are on '$$(git rev-parse --abbrev-ref HEAD)')." >&2; \
-		echo "    git checkout $(PROD_BRANCH) && git merge --ff-only origin/main" >&2; \
-		echo "    (or run 'make deploy-advance' from any branch to fast-forward prod first)" >&2; \
-		exit 1; \
-	fi
-	@if [ -n "$$(git status --porcelain)" ]; then \
-		echo "❌ working tree is dirty — refusing to build prod images from uncommitted changes." >&2; \
-		exit 1; \
-	fi
-	@echo "$(PROD_BRANCH) @ $$(git rev-parse --short HEAD) — deploying this checkout AS-IS (no auto fast-forward; advance deliberately)"
-
 deploy-advance: ## Fast-forward prod branch to origin/main (run from any branch; creates prod if missing)
 	@git fetch origin
 	@if [ "$$(git rev-parse --abbrev-ref HEAD)" = "$(PROD_BRANCH)" ]; then \
@@ -308,51 +208,8 @@ deploy-advance: ## Fast-forward prod branch to origin/main (run from any branch;
 	fi
 	@echo "$(PROD_BRANCH) advanced to $$(git rev-parse --short $(PROD_BRANCH))"
 
-deploy-push: deploy-check ## Build + push :prod images from the CURRENT checkout
-	@echo "Building from $(PROD_BRANCH) @ $$(git rev-parse --short HEAD)"
-	@$(MAKE) --no-print-directory -C backend push IMAGE_TAG=prod
-	@$(MAKE) --no-print-directory -C frontend push IMAGE_TAG=prod
-
-deploy-capture-rollback: ## Record running prod backend/frontend images before cutover
-	@ssh root@$(PROD_SERVER) "set -eu; cd $(PROD_PATH); rollback_dir=.deploy-rollbacks; mkdir -p \"\$$rollback_dir\"; backend_container=\$$($(PROD_COMPOSE) ps -q backend); frontend_container=\$$($(PROD_COMPOSE) ps -q frontend); if [ -z \"\$$backend_container\" ] && [ -z \"\$$frontend_container\" ]; then echo 'First deploy — no running backend/frontend to capture.'; exit 0; fi; test -n \"\$$backend_container\" || { echo 'Only frontend running; refusing partial rollback capture.' >&2; exit 1; }; test -n \"\$$frontend_container\" || { echo 'Only backend running; refusing partial rollback capture.' >&2; exit 1; }; backend_image_id=\$$(docker inspect --format='{{.Image}}' \"\$$backend_container\"); frontend_image_id=\$$(docker inspect --format='{{.Image}}' \"\$$frontend_container\"); backend_digest=\$$(docker image inspect --format='{{if .RepoDigests}}{{index .RepoDigests 0}}{{end}}' \"\$$backend_image_id\"); frontend_digest=\$$(docker image inspect --format='{{if .RepoDigests}}{{index .RepoDigests 0}}{{end}}' \"\$$frontend_image_id\"); snapshot=\"\$$rollback_dir/pre-cutover-\$$(date -u +%Y%m%dT%H%M%SZ).env\"; { printf 'BACKEND_IMAGE_ID=%s\\n' \"\$$backend_image_id\"; printf 'BACKEND_REPO_DIGEST=%s\\n' \"\$$backend_digest\"; printf 'FRONTEND_IMAGE_ID=%s\\n' \"\$$frontend_image_id\"; printf 'FRONTEND_REPO_DIGEST=%s\\n' \"\$$frontend_digest\"; } > \"\$$snapshot\"; ln -sfn \"\$$(basename \"\$$snapshot\")\" \"\$$rollback_dir/latest\"; echo \"Rollback snapshot retained: $(PROD_PATH)/\$$snapshot\"; cat \"\$$snapshot\""
-
-deploy-db-backup: ## Server-side pg_dump of the prod DB before the deploy migrate
-deploy-db-backup: ## Server-side pg_dump of the prod DB before the deploy migrate (fails the deploy on failure)
+deploy-db-backup: ## Server-side pg_dump of the prod DB (fails on failure) — run before manual prod data changes
 	bash deploy/silversea-server-db-backup.sh
-
-deploy-health: ## Check public prod backend and frontend endpoints
-	@echo "  Backend: https://$(PROD_SERVER)/api/health"
-	@attempt=1; \
-	while [ "$$attempt" -le 12 ]; do \
-		if response="$$(curl -fsS --max-time 10 https://$(PROD_SERVER)/api/health 2>/dev/null)"; then \
-			printf '%s\n' "$$response" | sed 's/^/    /'; \
-			exit 0; \
-		fi; \
-		if [ "$$attempt" -eq 12 ]; then \
-			echo "    ⚠️  health check failed after 12 attempts — check logs:"; \
-			echo "    ssh root@$(PROD_SERVER) 'cd $(PROD_PATH) && $(PROD_COMPOSE) logs --tail=80 backend'"; \
-			exit 1; \
-		fi; \
-		echo "    Waiting for backend readiness ($$attempt/12)..."; \
-		sleep 5; \
-		attempt=$$((attempt + 1)); \
-	done
-	@echo "  Frontend: https://$(PROD_SERVER)/"
-	@attempt=1; \
-	while [ "$$attempt" -le 12 ]; do \
-		if curl -fsS --max-time 10 -o /dev/null https://$(PROD_SERVER)/; then \
-			echo "    public HTTP check passed"; \
-			exit 0; \
-		fi; \
-		if [ "$$attempt" -eq 12 ]; then \
-			echo "    ⚠️  frontend HTTP check failed after 12 attempts — check logs:"; \
-			echo "    ssh root@$(PROD_SERVER) 'cd $(PROD_PATH) && $(PROD_COMPOSE) logs --tail=80 frontend'"; \
-			exit 1; \
-		fi; \
-		echo "    Waiting for frontend readiness ($$attempt/12)..."; \
-		sleep 5; \
-		attempt=$$((attempt + 1)); \
-	done
 
 deploy-server-setup: ## One-time prod server provisioning (docker, TLS+certbot, hardening, stack files)
 	bash deploy/setup-silversea-server.sh
@@ -360,24 +217,41 @@ deploy-server-setup: ## One-time prod server provisioning (docker, TLS+certbot, 
 deploy-seed: ## Run the prod master-data seed on the server (idempotent upserts; node dist/seed/seed-prod.js)
 	@ssh root@$(PROD_SERVER) "cd $(PROD_PATH) && $(PROD_COMPOSE) run --rm --no-deps backend node dist/seed/seed-prod.js"
 
-deploy: deploy-check ## Deploy prod (silversea.tingting.vip) — run from the prod branch; ships it AS-IS, keeps DB
-	@echo "=== Deploying prod to $(PROD_SERVER) ==="
-	@echo ""
-	@echo "1/3  Building + pushing :prod images from this $(PROD_BRANCH) checkout..."
-	@$(MAKE) --no-print-directory deploy-push
-	@echo ""
-	@echo "2/3  Rollback capture → pull → DB backup → migrate → recreate backend+frontend on $(PROD_SERVER) (DB volume untouched)..."
-	@$(MAKE) --no-print-directory deploy-capture-rollback
+deploy: ## Deploy prod (silversea.tingting.vip) — run from the prod branch; ships it AS-IS, keeps DB
+	@if [ "$$(git rev-parse --abbrev-ref HEAD)" != "$(PROD_BRANCH)" ]; then \
+		echo "❌ make deploy must run ON the $(PROD_BRANCH) branch (you are on '$$(git rev-parse --abbrev-ref HEAD)')." >&2; \
+		echo "    git checkout $(PROD_BRANCH) && git merge --ff-only origin/main   (or: make deploy-advance)" >&2; \
+		exit 1; \
+	fi
+	@if [ -n "$$(git status --porcelain)" ]; then \
+		echo "❌ working tree is dirty — refusing to build prod images from uncommitted changes." >&2; \
+		exit 1; \
+	fi
+	@echo "=== Deploying prod @ $$(git rev-parse --short HEAD) to $(PROD_SERVER) (AS-IS; DB preserved) ==="
+	@echo "1/4  Building + pushing :prod images from this $(PROD_BRANCH) checkout..."
+	@$(MAKE) --no-print-directory -C backend push IMAGE_TAG=prod
+	@$(MAKE) --no-print-directory -C frontend push IMAGE_TAG=prod
+	@echo "2/4  Rollback capture + image pull on $(PROD_SERVER) (DB volume untouched)..."
+	@ssh root@$(PROD_SERVER) "set -eu; cd $(PROD_PATH); rollback_dir=.deploy-rollbacks; mkdir -p \"\$$rollback_dir\"; backend_container=\$$($(PROD_COMPOSE) ps -q backend); frontend_container=\$$($(PROD_COMPOSE) ps -q frontend); if [ -z \"\$$backend_container\" ] && [ -z \"\$$frontend_container\" ]; then echo 'First deploy — no running backend/frontend to capture.'; exit 0; fi; test -n \"\$$backend_container\" || { echo 'Only frontend running; refusing partial rollback capture.' >&2; exit 1; }; test -n \"\$$frontend_container\" || { echo 'Only backend running; refusing partial rollback capture.' >&2; exit 1; }; backend_image_id=\$$(docker inspect --format='{{.Image}}' \"\$$backend_container\"); frontend_image_id=\$$(docker inspect --format='{{.Image}}' \"\$$frontend_container\"); backend_digest=\$$(docker image inspect --format='{{if .RepoDigests}}{{index .RepoDigests 0}}{{end}}' \"\$$backend_image_id\"); frontend_digest=\$$(docker image inspect --format='{{if .RepoDigests}}{{index .RepoDigests 0}}{{end}}' \"\$$frontend_image_id\"); snapshot=\"\$$rollback_dir/pre-cutover-\$$(date -u +%Y%m%dT%H%M%SZ).env\"; { printf 'BACKEND_IMAGE_ID=%s\\n' \"\$$backend_image_id\"; printf 'BACKEND_REPO_DIGEST=%s\\n' \"\$$backend_digest\"; printf 'FRONTEND_IMAGE_ID=%s\\n' \"\$$frontend_image_id\"; printf 'FRONTEND_REPO_DIGEST=%s\\n' \"\$$frontend_digest\"; } > \"\$$snapshot\"; ln -sfn \"\$$(basename \"\$$snapshot\")\" \"\$$rollback_dir/latest\"; echo \"Rollback snapshot retained: $(PROD_PATH)/\$$snapshot\"; cat \"\$$snapshot\""
 	@ssh root@$(PROD_SERVER) "cd $(PROD_PATH) && $(PROD_COMPOSE) pull backend frontend"
-	@echo "Backing up the prod DB before migrate..."
-	@$(MAKE) --no-print-directory deploy-db-backup
-	@echo "Running pending migrations with the pulled backend image before cutover..."
+	@echo "3/4  Server DB backup + migrate + cutover..."
+	@bash deploy/silversea-server-db-backup.sh
 	@ssh root@$(PROD_SERVER) "cd $(PROD_PATH) && flock -w 900 .deploy-migrate.lock $(PROD_COMPOSE) run --rm --no-deps backend npx drizzle-kit migrate"
 	@ssh root@$(PROD_SERVER) "cd $(PROD_PATH) && $(PROD_COMPOSE) rm -sf backend frontend || true"
 	@ssh root@$(PROD_SERVER) "cd $(PROD_PATH) && $(PROD_COMPOSE) up -d --no-deps backend frontend"
-	@echo ""
-	@echo "3/3  Public backend and frontend acceptance checks..."
-	@$(MAKE) --no-print-directory deploy-health
+	@echo "4/4  Public health checks..."
+	@echo "  Backend: https://$(PROD_SERVER)/api/health"
+	@for i in $$(seq 1 12); do \
+		resp=$$(curl -fsS --max-time 10 https://$(PROD_SERVER)/api/health 2>/dev/null) && { echo "    $$resp"; break; }; \
+		[ $$i -eq 12 ] && { echo "    ⚠️  backend health failed after 12 attempts — logs: ssh root@$(PROD_SERVER) 'cd $(PROD_PATH) && $(PROD_COMPOSE) logs --tail=80 backend'" >&2; exit 1; }; \
+		echo "    waiting ($$i/12)..."; sleep 5; \
+	done
+	@echo "  Frontend: https://$(PROD_SERVER)/"
+	@for i in $$(seq 1 12); do \
+		curl -fsS --max-time 10 -o /dev/null https://$(PROD_SERVER)/ && { echo "    public HTTP check passed"; break; }; \
+		[ $$i -eq 12 ] && { echo "    ⚠️  frontend HTTP check failed after 12 attempts — logs: ssh root@$(PROD_SERVER) 'cd $(PROD_PATH) && $(PROD_COMPOSE) logs --tail=80 frontend'" >&2; exit 1; }; \
+		echo "    waiting ($$i/12)..."; sleep 5; \
+	done
 	@echo ""
 	@echo "✅ Prod deployed: https://$(PROD_SERVER)"
 
