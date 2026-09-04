@@ -300,11 +300,15 @@
  *  Operational canvas (≤1500px) — the desktop shell leaves less than the
  *  table's natural width for the debt ledger at 1440px viewport, and even
  *  less at tablet widths. Hand off to the established mobile card list
- *  before the table forces horizontal scroll. Mirrors the same 1500px
- *  threshold the config + trip-list polish uses.
+ *  the record-table already stacks its own rows down to 360px via container
+ *  queries, so it stays the desktop-only view on any laptop/tablet width;
+ *  the dedicated card list is for touch phones. Matches the shared
+ *  .desktop-only/.mobile-only breakpoint in utilities.css exactly — a lower
+ *  page-local value would create a dead zone where this rule says "desktop"
+ *  but the global !important rule still forces mobile.
  * ════════════════════════════════════════════════════════════════════════════ */
 
-@media (max-width: 1500px) {
+@media (max-width: 820px) {
   .debt-list-page .desktop-only { display: none !important; }
   .debt-list-page .mobile-only { display: block; }
   .debt-list-page .m-card { padding: 12px 14px; }

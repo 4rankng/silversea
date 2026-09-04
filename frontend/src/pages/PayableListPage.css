@@ -192,11 +192,12 @@
 /* ============================================================================
  * Operational canvas (<=1500px) — the desktop shell leaves less than the
  * payable ledger's natural width for the 5+ column table at 1440px
- * viewport, and even less at tablet widths. Hand off to the established
- * mobile card list before the table forces horizontal scroll. Mirrors
- * the same 1500px threshold the config + trip-list polish uses.
+ * viewport, and even less at tablet widths. Unlike the customer/debt/
+ * supplier record-tables, this one's columns have a real ~900px content
+ * floor (verified via scrollWidth probe) — cannot drop to the 768px
+ * phone-only threshold those pages use without forcing horizontal scroll.
  * ========================================================================== */
-@media (max-width: 1500px) {
+@media (max-width: 1100px) {
   .payables-page .desktop-only { display: none !important; }
   .payables-page .mobile-only { display: block; }
   .payables-page .m-card { padding: 12px 14px; }

@@ -1,7 +1,10 @@
-/* ── Mobile canvas (<=768px) — the record-table already stacks its own rows
+/* ── Mobile canvas (<=820px, matching the shared .desktop-only/.mobile-only
+   breakpoint in utilities.css — a lower page-local value here would create
+   a dead zone where this rule says "desktop" but the global !important
+   rule still forces mobile) — the record-table already stacks its own rows
    down to 360px via container queries, so it stays the desktop-only view
    on any laptop/tablet width; the dedicated card list is for touch phones. */
-@media (max-width: 768px) {
+@media (max-width: 820px) {
   .suppliers-page .desktop-only { display: none !important; }
   .suppliers-page .mobile-only  { display: block; }
 }

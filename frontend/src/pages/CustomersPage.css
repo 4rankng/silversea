@@ -1,6 +1,10 @@
-/* ── Operational canvas (<=1500px) — hand off to mobile card list before the
-   customer table forces horizontal scroll. ─────────────────────────────── */
-@media (max-width: 1500px) {
+/* ── Mobile canvas (<=820px, matching the shared .desktop-only/.mobile-only
+   breakpoint in utilities.css — a lower page-local value here would create
+   a dead zone where this rule says "desktop" but the global !important
+   rule still forces mobile) — the record-table already stacks its own rows
+   down to 360px via container queries, so it stays the desktop-only view
+   on any laptop/tablet width; the dedicated card list is for touch phones. */
+@media (max-width: 820px) {
   .customers-page .desktop-only { display: none !important; }
   .customers-page .mobile-only  { display: block; }
 }
