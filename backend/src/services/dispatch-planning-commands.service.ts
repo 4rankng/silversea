@@ -440,9 +440,6 @@ export async function issueOrderCreateOrUpdate(
       throw new ApiError(409, 'Nhà xe ngoài không còn hiệu lực.');
     }
     externalCarrierVehicleId = input.externalCarrierVehicleId ?? null;
-    if (requiresPlannedCarrier && externalCarrierVehicleId == null) {
-      throw new ApiError(400, 'Vui lòng chọn xe của nhà xe.');
-    }
     const [carrierVehicle] = externalCarrierVehicleId == null
       ? []
       : await tx.select().from(s.carrierFleetVehicles)

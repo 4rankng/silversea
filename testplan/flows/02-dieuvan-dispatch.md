@@ -380,6 +380,32 @@
 
 ---
 
+### TC-DV-DISPATCH-018 — Phát lệnh xe ngoài với biển số tự do (không cần xe trong database) (regression 2026-09-05)
+
+- **Mã PRD:** Bug fix 2026-09-05 — phát lệnh FCL cho xe ngoài bị chặn với lỗi "Vui lòng chọn xe của nhà xe" khi biển số chưa có trong danh mục `carrierFleetVehicles`
+- **Vai trò:** `dieuvan` (DISPATCHER)
+- **Mức độ:** P0
+- **Thiết bị:** Desktop (1440×900)
+- **Tiền điều kiện:**
+  - Lô FCL READY_FOR_DISPATCH đã được phân bổ cho nhà xe ngoài (ví dụ Biên Đông) với 1 container 40'.
+  - Nhà xe ngoài đã chọn có `carrierFleetVehicles` rỗng hoặc không chứa biển số cần dùng (xe mới, chưa đăng ký trong catalog).
+- **Các bước:**
+  1. Đăng nhập `dieuvan`. Mở `/dispatch-detail` (Kế hoạch chi tiết).
+  2. Tìm fulfillment đã phân xe ngoài (Biên Đông). Ở cột "Biển số", chọn nhà xe ngoài và nhập biển số tự do (ví dụ `15C-222.33`) — không chọn từ dropdown fleet.
+  3. Nhập tên tài xế: "Nguyen Van X". Nhập SĐT: "0912344565".
+  4. Đặt giờ chạy và giờ kết thúc hợp lệ.
+  5. Bấm "Phát lệnh".
+- **Kết quả mong đợi (Pass):**
+  - Lệnh phát hành thành công, **không** bị lỗi "Vui lòng chọn xe của nhà xe".
+  - Trip được tạo với `externalPlateNumber = '15C-222.33'` và `externalCarrierVehicleId = null` (vì xe không có trong catalog).
+  - Biển số hiển thị đúng trên Kế hoạch chi tiết sau khi phát lệnh.
+- **Kỳ vọng sai (Fail nếu):**
+  - Vẫn trả lỗi 400 "Vui lòng chọn xe của nhà xe" (hành vi cũ — đã fix).
+  - Biển số bị mất hoặc hiển thị sai sau khi phát lệnh.
+- **Bằng chứng:** ảnh dialog "Phát lệnh" khi nhập biển số tự do + ảnh trip đã tạo trong DB (`external_plate_number`, `external_carrier_vehicle_id`) + ảnh Kế hoạch chi tiết sau phát lệnh
+
+---
+
 ### TC-DV-DISPATCH-017 — Warning "Chưa có nhà xe ngoài nào được cấu hình" phải ẩn khi đã nhập OWN allocation (regression 2026-09-05)
 
 - **Mã PRD:** Bug fix 2026-09-05 — dialog "Phân bổ nhà xe" hiển thị liên tục warning "Chưa có nhà xe ngoài nào được cấu hình. Liên hệ Quản trị viên để bật cờ isCarrier…" ngay cả khi dispatcher đã nhập OWN allocation hợp lệ. Warning misleading khiến dispatcher nghĩ hệ thống không nhận diện dữ liệu đã nhập.
