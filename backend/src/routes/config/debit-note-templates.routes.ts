@@ -140,7 +140,7 @@ router.post('/', asyncHandler(async (req: Request, res: Response) => {
       transaction: tx,
     }),
   });
-  res.status(201).json({ ...result, replayed });
+  res.status(201).json({ ...result.action, appliedRow: result.appliedRow, replayed });
 }));
 
 // PUT /:id — update (full form; transactional single-default enforcement)
@@ -169,7 +169,7 @@ router.put('/:id', asyncHandler(async (req: Request, res: Response) => {
       transaction: tx,
     }),
   });
-  res.json({ ...result, replayed });
+  res.json({ ...result.action, appliedRow: result.appliedRow, replayed });
 }));
 
 // DELETE /:id — soft delete. Deleting the active default may leave zero defaults;
@@ -196,7 +196,7 @@ router.delete('/:id', asyncHandler(async (req: Request, res: Response) => {
       transaction: tx,
     }),
   });
-  res.json({ ...result, replayed });
+  res.json({ ...result.action, appliedRow: result.appliedRow, replayed });
 }));
 
 export default router;

@@ -3,25 +3,24 @@ import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { after, before, describe, it } from 'node:test';
 import express from 'express';
-import { eq, inArray, like, or } from 'drizzle-orm';
+import { and, eq, inArray, like, or, sql } from 'drizzle-orm';
 import { Role } from '@tingting/shared';
 import { client, db } from '../db';
 import * as s from '../db/schema';
 import { disconnectRedis } from '../lib/redis';
 import { globalErrorHandler } from '../middleware/errorHandler';
 import configRoutes from '../routes/config';
-import governanceActionsRoutes from '../routes/financial/governance-actions.routes';
-import paymentsRoutes from '../routes/financial/payments.routes';
 
 /**
- * Edit forms resend the full record on every save. Governed updates must
- * therefore compare incoming values against the current row (value-diff), not
- * key presence — otherwise every edit of drivers, penalty-reasons,
- * expense-categories, or forwarder-expense-types queues a PRICE_CONFIG_CHANGE
- * even when the material fields are byte-identical.
+ * Product decision 2026-09-05: the maker → checker → approver queue is
+ * removed for governed config. Every permitted maker's mutation applies
+ * directly. Value-diff semantics still decide whether the write is recorded
+ * as an APPROVED PRICE_CONFIG audit action (material field changed) or skips
+ * governance entirely (unchanged material values in a full edit-form
+ * payload). These tests pin that contract: rows always change immediately,
+ * and the audit action exists exactly when a material value changed.
  *
- * Maker is MANAGER (non-ADMIN) so the queue path is exercised regardless of
- * any ADMIN immediate-apply behavior.
+ * Maker is MANAGER (non-ADMIN) to prove no role is queued anymore.
  */
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const idempotencyKeys: string[] = [];
@@ -29,10 +28,10 @@ const driverIds: number[] = [];
 const penaltyReasonIds: number[] = [];
 const forwarderExpenseTypeIds: number[] = [];
 const expenseCategoryIds: number[] = [];
-const governanceActionIds: number[] = [];
 let actorIds: number[] = [];
 let server: http.Server;
 let baseUrl = '';
+let makerId = 0;
 
 async function api(
   method: string,
@@ -40,7 +39,6 @@ async function api(
   body?: Record<string, unknown>,
   idempotencyKey?: string,
   expectedUpdatedAt?: string,
-  actorIndex = 0,
 ) {
   if (idempotencyKey) idempotencyKeys.push(idempotencyKey);
   const response = await fetch(`${baseUrl}${path}`, {
@@ -49,7 +47,6 @@ async function api(
       'Content-Type': 'application/json',
       ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
       ...(expectedUpdatedAt ? { 'If-Unmodified-Since': expectedUpdatedAt } : {}),
-      'X-Test-Actor': String(actorIndex),
     },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
@@ -63,28 +60,16 @@ function isGovernancePending(body: Record<string, unknown>): boolean {
   return body != null && typeof body === 'object' && 'actionKind' in body && body.status === 'PENDING_CHECK';
 }
 
-async function approvePendingAction(action: Record<string, unknown>) {
-  const actionId = Number(action.id);
-  governanceActionIds.push(actionId);
-  assert.equal(action.status, 'PENDING_CHECK', JSON.stringify(action));
-  const checked = await api(
-    'POST',
-    `/api/governance-actions/${actionId}/check`,
-    { expectedVersion: Number(action.version) },
-    `material-check-${suffix}-${actionId}`,
-    undefined,
-    1,
-  );
-  assert.equal(checked.status, 200, JSON.stringify(checked.body));
-  const approved = await api(
-    'POST',
-    `/api/governance-actions/${actionId}/approve`,
-    { expectedVersion: Number(checked.body.version) },
-    `material-approve-${suffix}-${actionId}`,
-    undefined,
-    2,
-  );
-  assert.equal(approved.status, 200, JSON.stringify(approved.body));
+/** APPROVED PRICE_CONFIG audit actions authored by this run's maker. */
+async function approvedPriceConfigActionCount(): Promise<number> {
+  const [row] = await db.select({ count: sql<number>`count(*)` })
+    .from(s.governanceActions)
+    .where(and(
+      eq(s.governanceActions.makerId, makerId),
+      eq(s.governanceActions.status, 'APPROVED'),
+      eq(s.governanceActions.actionKind, 'PRICE_CONFIG_CHANGE'),
+    ));
+  return Number(row?.count ?? 0);
 }
 
 before(async () => {
@@ -97,29 +82,25 @@ before(async () => {
     await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.createdBy, staleIds));
     await db.delete(s.users).where(inArray(s.users.id, staleIds));
   }
-  const actors = await db.insert(s.users).values([
+  const [maker] = await db.insert(s.users).values([
     { username: `material-gov-maker-${suffix}`, passwordHash: 'x', role: Role.MANAGER, status: 'ACTIVE' },
-    { username: `material-gov-checker-${suffix}`, passwordHash: 'x', role: Role.ACCOUNTANT, status: 'ACTIVE' },
-    { username: `material-gov-approver-${suffix}`, passwordHash: 'x', role: Role.ADMIN, status: 'ACTIVE' },
-  ]).returning({ id: s.users.id, role: s.users.role }) as Array<{ id: number; role: Role }>;
-  actorIds = actors.map((actor) => actor.id);
+  ]).returning({ id: s.users.id }) as Array<{ id: number }>;
+  makerId = maker!.id;
+  actorIds = [maker!.id];
 
   const app = express();
   app.use(express.json());
-  app.use((req, _res, next) => {
-    const actor = actors[Number(req.header('X-Test-Actor') ?? 0)] ?? actors[0]!;
-    req.user = {
-      userId: actor.id,
-      username: `material-gov-${actor.role}`,
+  app.use((_req, _res, next) => {
+    _req.user = {
+      userId: maker!.id,
+      username: `material-gov-maker-${suffix}`,
       email: null,
       fullName: null,
-      role: actor.role,
+      role: Role.MANAGER,
     };
     next();
   });
   app.use('/api', configRoutes);
-  app.use('/api', governanceActionsRoutes);
-  app.use('/api', paymentsRoutes);
   app.use(globalErrorHandler);
 
   server = http.createServer(app);
@@ -145,9 +126,6 @@ after(async () => {
   if (expenseCategoryIds.length > 0) {
     await db.delete(s.expenseCategories).where(inArray(s.expenseCategories.id, expenseCategoryIds));
   }
-  if (governanceActionIds.length > 0) {
-    await db.delete(s.governanceActions).where(inArray(s.governanceActions.id, governanceActionIds));
-  }
   if (actorIds.length > 0) {
     await db.delete(s.notifications).where(inArray(s.notifications.userId, actorIds));
     await db.delete(s.governanceActions).where(or(
@@ -158,13 +136,6 @@ after(async () => {
     await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.createdBy, actorIds));
     await db.delete(s.users).where(inArray(s.users.id, actorIds));
   }
-  const staleUsers = await db.select({ id: s.users.id }).from(s.users)
-    .where(like(s.users.username, 'material-gov-%'));
-  if (staleUsers.length > 0) {
-    const staleIds = staleUsers.map((user) => user.id);
-    await db.delete(s.governanceActions).where(inArray(s.governanceActions.makerId, staleIds));
-    await db.delete(s.users).where(inArray(s.users.id, staleIds));
-  }
   if (idempotencyKeys.length > 0) {
     await db.delete(s.idempotencyKeys)
       .where(inArray(s.idempotencyKeys.idempotencyKey, [...new Set(idempotencyKeys)]));
@@ -173,9 +144,10 @@ after(async () => {
   await client.end();
 });
 
-describe('value-diff governance for material config updates', () => {
-  it('queues a driver salary change but lets an unchanged-salary full-payload edit through directly', async () => {
-    // Create without salary fields → not governed → direct row.
+describe('direct-apply governance for material config updates', () => {
+  it('applies a driver salary change directly with an audit action, and a same-salary edit without one', async () => {
+    const auditBefore = await approvedPriceConfigActionCount();
+
     const created = await api('POST', '/api/drivers', {
       name: `Material driver ${suffix}`,
       phone: '0900001122',
@@ -187,8 +159,9 @@ describe('value-diff governance for material config updates', () => {
       .where(eq(s.drivers.id, Number(created.body.id)));
     assert.ok(driver);
 
-    // Full edit-form payload introducing a salary → material → PENDING_CHECK.
-    const pending = await api(
+    // Full edit-form payload introducing a salary → material → applies
+    // directly and records an APPROVED audit action.
+    const applied = await api(
       'PUT',
       `/api/drivers/${driver.id}`,
       {
@@ -202,15 +175,17 @@ describe('value-diff governance for material config updates', () => {
       `material-driver-salary-${suffix}`,
       driver.updatedAt.toISOString(),
     );
-    assert.equal(pending.status, 201, JSON.stringify(pending.body));
-    assert.ok(isGovernancePending(pending.body), `expected governed queue, got: ${JSON.stringify(pending.body)}`);
-    await approvePendingAction(pending.body);
+    assert.equal(applied.status, 200, JSON.stringify(applied.body));
+    assert.ok(!isGovernancePending(applied.body), `expected direct row, got: ${JSON.stringify(applied.body)}`);
 
     const [withSalary] = await db.select().from(s.drivers)
       .where(eq(s.drivers.id, driver.id));
     assert.equal(withSalary.baseSalary, '7000000');
+    assert.equal(await approvedPriceConfigActionCount(), auditBefore + 1,
+      'material salary change must record an APPROVED audit action');
 
-    // Same full payload, salary byte-identical, only the name changes → direct.
+    // Same full payload, salary byte-identical, only the name changes →
+    // direct update, no additional audit action.
     const direct = await api(
       'PUT',
       `/api/drivers/${driver.id}`,
@@ -228,25 +203,30 @@ describe('value-diff governance for material config updates', () => {
     assert.equal(direct.status, 200, JSON.stringify(direct.body));
     assert.ok(!isGovernancePending(direct.body), `expected direct row, got: ${JSON.stringify(direct.body)}`);
     assert.equal(direct.body.name, `Material driver renamed ${suffix}`);
+    assert.equal(await approvedPriceConfigActionCount(), auditBefore + 1,
+      'unchanged material values must not record another audit action');
   });
 
-  it('queues a penalty default-amount change but lets an unchanged-amount severity edit through directly', async () => {
-    // Penalty creates always carry defaultAmount → governed.
+  it('applies a penalty create and amount change directly with audit actions', async () => {
+    const auditBefore = await approvedPriceConfigActionCount();
+
+    // Penalty creates always carry defaultAmount → governed → direct apply.
     const created = await api('POST', '/api/penalty-reasons', {
       reasonText: `Material penalty ${suffix}`,
       defaultAmount: 500000,
       severity: 'mid',
     }, `material-penalty-create-${suffix}`);
     assert.equal(created.status, 201, JSON.stringify(created.body));
-    assert.ok(isGovernancePending(created.body), `expected governed create, got: ${JSON.stringify(created.body)}`);
-    await approvePendingAction(created.body);
+    assert.ok(!isGovernancePending(created.body), `expected direct row, got: ${JSON.stringify(created.body)}`);
 
     const [reason] = await db.select().from(s.penaltyReasons)
       .where(eq(s.penaltyReasons.reasonText, `Material penalty ${suffix}`));
     assert.ok(reason);
     penaltyReasonIds.push(reason.id);
+    assert.equal(await approvedPriceConfigActionCount(), auditBefore + 1,
+      'governed create must record an APPROVED audit action');
 
-    // Full payload, same defaultAmount, different severity → direct.
+    // Full payload, same defaultAmount, different severity → direct, no action.
     const direct = await api(
       'PUT',
       `/api/penalty-reasons/${reason.id}`,
@@ -261,11 +241,13 @@ describe('value-diff governance for material config updates', () => {
     assert.equal(direct.status, 200, JSON.stringify(direct.body));
     assert.ok(!isGovernancePending(direct.body), `expected direct row, got: ${JSON.stringify(direct.body)}`);
     assert.equal(direct.body.severity, 'high');
+    assert.equal(await approvedPriceConfigActionCount(), auditBefore + 1,
+      'unchanged defaultAmount must not record another audit action');
 
-    // Changed defaultAmount → governed.
+    // Changed defaultAmount → material → direct apply WITH audit action.
     const [afterDirect] = await db.select().from(s.penaltyReasons)
       .where(eq(s.penaltyReasons.id, reason.id));
-    const pending = await api(
+    const applied = await api(
       'PUT',
       `/api/penalty-reasons/${reason.id}`,
       {
@@ -276,12 +258,16 @@ describe('value-diff governance for material config updates', () => {
       `material-penalty-amount-${suffix}`,
       afterDirect.updatedAt.toISOString(),
     );
-    assert.equal(pending.status, 201, JSON.stringify(pending.body));
-    assert.ok(isGovernancePending(pending.body), `expected governed queue, got: ${JSON.stringify(pending.body)}`);
-    governanceActionIds.push(Number(pending.body.id));
+    assert.equal(applied.status, 200, JSON.stringify(applied.body));
+    assert.ok(!isGovernancePending(applied.body), `expected direct row, got: ${JSON.stringify(applied.body)}`);
+    assert.equal(String(applied.body.defaultAmount), '800000');
+    assert.equal(await approvedPriceConfigActionCount(), auditBefore + 2,
+      'material defaultAmount change must record an APPROVED audit action');
   });
 
-  it('queues a forwarder policy change but lets an unchanged-policy full-payload edit through directly', async () => {
+  it('applies forwarder policy creates and changes directly with audit actions', async () => {
+    const auditBefore = await approvedPriceConfigActionCount();
+
     const created = await api('POST', '/api/forwarder-expense-types', {
       code: `MAT${suffix.slice(-6).toUpperCase()}`,
       name: `Material expense ${suffix}`,
@@ -297,15 +283,16 @@ describe('value-diff governance for material config updates', () => {
       vatRate: '0.080',
     }, `material-fwd-create-${suffix}`);
     assert.equal(created.status, 201, JSON.stringify(created.body));
-    assert.ok(isGovernancePending(created.body), `expected governed create, got: ${JSON.stringify(created.body)}`);
-    await approvePendingAction(created.body);
+    assert.ok(!isGovernancePending(created.body), `expected direct row, got: ${JSON.stringify(created.body)}`);
 
     const [expenseType] = await db.select().from(s.forwarderExpenseTypes)
       .where(eq(s.forwarderExpenseTypes.code, `MAT${suffix.slice(-6).toUpperCase()}`));
     assert.ok(expenseType);
     forwarderExpenseTypeIds.push(expenseType.id);
+    assert.equal(await approvedPriceConfigActionCount(), auditBefore + 1,
+      'governed create must record an APPROVED audit action');
 
-    // Full edit-form payload with byte-identical policy → direct rename.
+    // Full edit-form payload with byte-identical policy → direct rename, no action.
     const direct = await api(
       'PUT',
       `/api/forwarder-expense-types/${expenseType.id}`,
@@ -329,11 +316,13 @@ describe('value-diff governance for material config updates', () => {
     assert.equal(direct.status, 200, JSON.stringify(direct.body));
     assert.ok(!isGovernancePending(direct.body), `expected direct row, got: ${JSON.stringify(direct.body)}`);
     assert.equal(direct.body.name, `Material expense renamed ${suffix}`);
+    assert.equal(await approvedPriceConfigActionCount(), auditBefore + 1,
+      'unchanged policy must not record another audit action');
 
-    // Tightened per-item limit → governed.
+    // Tightened per-item limit → material → direct apply WITH audit action.
     const [afterDirect] = await db.select().from(s.forwarderExpenseTypes)
       .where(eq(s.forwarderExpenseTypes.id, expenseType.id));
-    const pending = await api(
+    const applied = await api(
       'PUT',
       `/api/forwarder-expense-types/${expenseType.id}`,
       {
@@ -342,13 +331,16 @@ describe('value-diff governance for material config updates', () => {
       `material-fwd-limit-${suffix}`,
       afterDirect.updatedAt.toISOString(),
     );
-    assert.equal(pending.status, 201, JSON.stringify(pending.body));
-    assert.ok(isGovernancePending(pending.body), `expected governed queue, got: ${JSON.stringify(pending.body)}`);
-    governanceActionIds.push(Number(pending.body.id));
+    assert.equal(applied.status, 200, JSON.stringify(applied.body));
+    assert.ok(!isGovernancePending(applied.body), `expected direct row, got: ${JSON.stringify(applied.body)}`);
+    assert.equal(await approvedPriceConfigActionCount(), auditBefore + 2,
+      'material policy change must record an APPROVED audit action');
   });
 
-  it('queues an expense-category policy change but lets a name-only edit through directly', async () => {
-    // Creates always carry policy fields → governed.
+  it('applies expense-category creates and policy changes directly with audit actions', async () => {
+    const auditBefore = await approvedPriceConfigActionCount();
+
+    // Creates always carry policy fields → governed → direct apply.
     const created = await api('POST', '/api/expense-categories', {
       name: `Material expense category ${suffix}`,
       isRenewable: true,
@@ -356,15 +348,17 @@ describe('value-diff governance for material config updates', () => {
       status: 'ACTIVE',
     }, `material-expense-cat-create-${suffix}`);
     assert.equal(created.status, 201, JSON.stringify(created.body));
-    assert.ok(isGovernancePending(created.body), `expected governed create, got: ${JSON.stringify(created.body)}`);
-    await approvePendingAction(created.body);
+    assert.ok(!isGovernancePending(created.body), `expected direct row, got: ${JSON.stringify(created.body)}`);
 
     const [category] = await db.select().from(s.expenseCategories)
       .where(eq(s.expenseCategories.name, `Material expense category ${suffix}`));
     assert.ok(category);
     expenseCategoryIds.push(category.id);
+    assert.equal(await approvedPriceConfigActionCount(), auditBefore + 1,
+      'governed create must record an APPROVED audit action');
 
-    // Full edit-form payload, policy byte-identical, only the name changes → direct.
+    // Full edit-form payload, policy byte-identical, only the name changes →
+    // direct, no additional action.
     const direct = await api(
       'PUT',
       `/api/expense-categories/${category.id}`,
@@ -380,11 +374,13 @@ describe('value-diff governance for material config updates', () => {
     assert.equal(direct.status, 200, JSON.stringify(direct.body));
     assert.ok(!isGovernancePending(direct.body), `expected direct row, got: ${JSON.stringify(direct.body)}`);
     assert.equal(direct.body.name, `Material expense category renamed ${suffix}`);
+    assert.equal(await approvedPriceConfigActionCount(), auditBefore + 1,
+      'unchanged policy must not record another audit action');
 
-    // Changed reminderLeadDays → governed.
+    // Changed reminderLeadDays → material → direct apply WITH audit action.
     const [afterDirect] = await db.select().from(s.expenseCategories)
       .where(eq(s.expenseCategories.id, category.id));
-    const pending = await api(
+    const applied = await api(
       'PUT',
       `/api/expense-categories/${category.id}`,
       {
@@ -396,8 +392,9 @@ describe('value-diff governance for material config updates', () => {
       `material-expense-cat-lead-days-${suffix}`,
       afterDirect.updatedAt.toISOString(),
     );
-    assert.equal(pending.status, 201, JSON.stringify(pending.body));
-    assert.ok(isGovernancePending(pending.body), `expected governed queue, got: ${JSON.stringify(pending.body)}`);
-    governanceActionIds.push(Number(pending.body.id));
+    assert.equal(applied.status, 200, JSON.stringify(applied.body));
+    assert.ok(!isGovernancePending(applied.body), `expected direct row, got: ${JSON.stringify(applied.body)}`);
+    assert.equal(await approvedPriceConfigActionCount(), auditBefore + 2,
+      'material policy change must record an APPROVED audit action');
   });
 });

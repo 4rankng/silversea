@@ -51,8 +51,9 @@ let originalGpsRows: Array<{ key: string; value: string }> = [];
 let originalLlmRows: Array<{ key: string; value: string }> = [];
 let originalSalaryDefault: typeof s.salaryPeriods.$inferSelect | null = null;
 
-function expectPendingGovernance(body: Record<string, unknown>) {
-  assert.equal(body.status, 'PENDING_CHECK');
+/** Governed config mutations apply directly: APPROVED audit action, applied row. */
+function expectApprovedGovernance(body: Record<string, unknown>) {
+  assert.equal(body.status, 'APPROVED');
   assert.equal(body.subjectType, 'PRICE_CONFIG');
   assert.equal(body.actionKind, 'PRICE_CONFIG_CHANGE');
 }
@@ -525,22 +526,12 @@ describe('Q23 focused settings/config replay closure', () => {
     assert.equal(salaryDefaultReplay.status, 200);
     assert.equal(salaryDefaultFirst.body.replayed, false);
     assert.equal(salaryDefaultReplay.body.replayed, true);
-    expectPendingGovernance(salaryDefaultFirst.body);
-    const salaryDefaultUnchanged = await requestJson('/api/salary-periods/default', { token: adminToken });
-    assert.deepEqual(salaryDefaultUnchanged.body, salaryDefaultRead.body);
-    const salaryDefaultChecked = await checkAction(
-      Number(salaryDefaultFirst.body.id),
-      Number(salaryDefaultFirst.body.version),
-    );
-    assert.equal(salaryDefaultChecked.status, 200);
-    const salaryDefaultApproved = await approveAction(
-      Number(salaryDefaultFirst.body.id),
-      Number(salaryDefaultChecked.body.version),
-    );
-    assert.equal(salaryDefaultApproved.status, 200);
-    const salaryDefaultAfterApproval = await requestJson('/api/salary-periods/default', { token: adminToken });
-    assert.equal(salaryDefaultAfterApproval.body.defaultStartDay, salaryDefaultPayload.defaultStartDay);
-    assert.equal(salaryDefaultAfterApproval.body.defaultEndDay, salaryDefaultPayload.defaultEndDay);
+    // Maker-checker removed (2026-09-05): the governed PUT applies directly
+    // and records an APPROVED audit action — no check/approve roundtrip.
+    expectApprovedGovernance(salaryDefaultFirst.body);
+    const salaryDefaultApplied = await requestJson('/api/salary-periods/default', { token: adminToken });
+    assert.equal(salaryDefaultApplied.body.defaultStartDay, salaryDefaultPayload.defaultStartDay);
+    assert.equal(salaryDefaultApplied.body.defaultEndDay, salaryDefaultPayload.defaultEndDay);
 
     const overrideKey = `q23-salary-override-${suffix}`;
     const overridePayload = {
@@ -573,29 +564,8 @@ describe('Q23 focused settings/config replay closure', () => {
       [false, true],
     );
     const overrideCreateAction = overrideA.body.replayed ? overrideB.body : overrideA.body;
-    expectPendingGovernance(overrideCreateAction);
-    const overrideListBeforeApproval = await requestJson('/api/salary-periods', { token: adminToken });
-    assert.equal(
-      Array.isArray(overrideListBeforeApproval.body.items)
-        ? overrideListBeforeApproval.body.items.some((item) => (
-          item
-          && typeof item === 'object'
-          && item.month === overridePayload.month
-          && item.year === overridePayload.year
-        ))
-        : false,
-      false,
-    );
-    const overrideChecked = await checkAction(
-      Number(overrideCreateAction.id),
-      Number(overrideCreateAction.version),
-    );
-    assert.equal(overrideChecked.status, 200);
-    const overrideApproved = await approveAction(
-      Number(overrideCreateAction.id),
-      Number(overrideChecked.body.version),
-    );
-    assert.equal(overrideApproved.status, 200);
+    expectApprovedGovernance(overrideCreateAction);
+    // Maker-checker removed: the override row is visible immediately.
     const overrideListAfterApproval = await requestJson('/api/salary-periods', { token: adminToken });
     const approvedOverride = Array.isArray(overrideListAfterApproval.body.items)
       ? overrideListAfterApproval.body.items.find((item) => (
@@ -627,23 +597,7 @@ describe('Q23 focused settings/config replay closure', () => {
       body: { ...overridePayload, label: `Q23 Updated ${suffix}` },
     });
     assert.equal(overrideUpdate.status, 201);
-    expectPendingGovernance(overrideUpdate.body);
-    const overrideUnchangedBeforeApproval = await requestJson('/api/salary-periods', { token: adminToken });
-    const overrideBeforeUpdateApproval = Array.isArray(overrideUnchangedBeforeApproval.body.items)
-      ? overrideUnchangedBeforeApproval.body.items.find((item) => (
-        item
-        && typeof item === 'object'
-        && Number(item.id) === overrideId
-      ))
-      : undefined;
-    assert.equal(overrideBeforeUpdateApproval?.label, overridePayload.label);
-    const overrideUpdateChecked = await checkAction(Number(overrideUpdate.body.id), Number(overrideUpdate.body.version));
-    assert.equal(overrideUpdateChecked.status, 200);
-    const overrideUpdateApproved = await approveAction(
-      Number(overrideUpdate.body.id),
-      Number(overrideUpdateChecked.body.version),
-    );
-    assert.equal(overrideUpdateApproved.status, 200);
+    expectApprovedGovernance(overrideUpdate.body);
     const overrideListAfterUpdate = await requestJson('/api/salary-periods', { token: adminToken });
     const updatedOverride = Array.isArray(overrideListAfterUpdate.body.items)
       ? overrideListAfterUpdate.body.items.find((item) => (
@@ -662,25 +616,7 @@ describe('Q23 focused settings/config replay closure', () => {
       expectedUpdatedAt: String(updatedOverride?.updatedAt),
     });
     assert.equal(overrideDelete.status, 201);
-    expectPendingGovernance(overrideDelete.body);
-    const overrideStillPresent = await requestJson('/api/salary-periods', { token: adminToken });
-    assert.equal(
-      Array.isArray(overrideStillPresent.body.items)
-        ? overrideStillPresent.body.items.some((item) => (
-          item
-          && typeof item === 'object'
-          && Number(item.id) === overrideId
-        ))
-        : false,
-      true,
-    );
-    const overrideDeleteChecked = await checkAction(Number(overrideDelete.body.id), Number(overrideDelete.body.version));
-    assert.equal(overrideDeleteChecked.status, 200);
-    const overrideDeleteApproved = await approveAction(
-      Number(overrideDelete.body.id),
-      Number(overrideDeleteChecked.body.version),
-    );
-    assert.equal(overrideDeleteApproved.status, 200);
+    expectApprovedGovernance(overrideDelete.body);
     const overrideListAfterDelete = await requestJson('/api/salary-periods', { token: adminToken });
     assert.equal(
       Array.isArray(overrideListAfterDelete.body.items)
@@ -716,28 +652,7 @@ describe('Q23 focused settings/config replay closure', () => {
       [false, true],
     );
     const templateCreateAction = templateA.body.replayed ? templateB.body : templateA.body;
-    expectPendingGovernance(templateCreateAction);
-    const templateListBeforeApproval = await requestJson('/api/debit-note-templates', { token: adminToken });
-    assert.equal(
-      Array.isArray(templateListBeforeApproval.body.items)
-        ? templateListBeforeApproval.body.items.some((item) => (
-          item
-          && typeof item === 'object'
-          && item.name === templatePayload.name
-        ))
-        : false,
-      false,
-    );
-    const templateChecked = await checkAction(
-      Number(templateCreateAction.id),
-      Number(templateCreateAction.version),
-    );
-    assert.equal(templateChecked.status, 200);
-    const templateApproved = await approveAction(
-      Number(templateCreateAction.id),
-      Number(templateChecked.body.version),
-    );
-    assert.equal(templateApproved.status, 200);
+    expectApprovedGovernance(templateCreateAction);
     const templateListAfterApproval = await requestJson('/api/debit-note-templates', { token: adminToken });
     const approvedTemplate = Array.isArray(templateListAfterApproval.body.items)
       ? templateListAfterApproval.body.items.find((item) => (
@@ -768,16 +683,7 @@ describe('Q23 focused settings/config replay closure', () => {
       body: { ...templatePayload, name: `Q23 Template Updated ${suffix}` },
     });
     assert.equal(templateUpdate.status, 200);
-    expectPendingGovernance(templateUpdate.body);
-    const templateBeforeUpdateApproval = await requestJson(`/api/debit-note-templates/${templateId}`, { token: adminToken });
-    assert.equal(templateBeforeUpdateApproval.body.name, templatePayload.name);
-    const templateUpdateChecked = await checkAction(Number(templateUpdate.body.id), Number(templateUpdate.body.version));
-    assert.equal(templateUpdateChecked.status, 200);
-    const templateUpdateApproved = await approveAction(
-      Number(templateUpdate.body.id),
-      Number(templateUpdateChecked.body.version),
-    );
-    assert.equal(templateUpdateApproved.status, 200);
+    expectApprovedGovernance(templateUpdate.body);
     const templateAfterUpdate = await requestJson(`/api/debit-note-templates/${templateId}`, { token: adminToken });
     assert.equal(templateAfterUpdate.body.name, `Q23 Template Updated ${suffix}`);
 
@@ -789,16 +695,7 @@ describe('Q23 focused settings/config replay closure', () => {
       expectedUpdatedAt: String(templateAfterUpdate.body.updatedAt),
     });
     assert.equal(templateDelete.status, 200);
-    expectPendingGovernance(templateDelete.body);
-    const templateStillPresent = await requestJson(`/api/debit-note-templates/${templateId}`, { token: adminToken });
-    assert.equal(templateStillPresent.status, 200);
-    const templateDeleteChecked = await checkAction(Number(templateDelete.body.id), Number(templateDelete.body.version));
-    assert.equal(templateDeleteChecked.status, 200);
-    const templateDeleteApproved = await approveAction(
-      Number(templateDelete.body.id),
-      Number(templateDeleteChecked.body.version),
-    );
-    assert.equal(templateDeleteApproved.status, 200);
+    expectApprovedGovernance(templateDelete.body);
     const templateAfterDelete = await requestJson(`/api/debit-note-templates/${templateId}`, { token: adminToken });
     assert.equal(templateAfterDelete.status, 404);
 
