@@ -77,6 +77,60 @@ A task is done **only when all** are true:
 5. Docs updated if user-visible behavior, commands, or architecture changed.
 6. All QA artifacts saved under `qa/`.
 7. `.ua/` knowledge base is current (see *Knowledge Base* below).
+8. For any UI-facing bug or feature: the **UI verification contract** below is satisfied per claim.
+
+---
+
+## UI verification contract (anti-lying rule)
+
+Applies to every bug fix or feature with a user-visible surface, in local dev (`http://localhost:7174`) or staging (`https://vantai.tingting.vip/`).
+
+### The claim ladder — never skip a rung, always state which rung you are on
+
+| Rung | Label to use verbatim | What it means |
+|---|---|---|
+| 0 | `NOT TESTED` | No code executed against this path. Reasoning only. |
+| 1 | `CODE-READ ONLY` | Read the code/schema. No execution. |
+| 2 | `DB/API VERIFIED` | Ran SQL or hit the API directly. **The UI was never driven.** |
+| 3 | `UI DRIVEN` | Clicked the actual control in a real browser session, captured the resulting DOM/screenshot, and confirmed the DB side effect. |
+
+**Rules:**
+- The words *tested*, *verified*, *works end-to-end*, *confirmed*, *fixed and tested* are reserved for **rung 3 only**. Rung 2 must be reported as "DB/API verified, UI not driven".
+- Reasoning from code + a DB query is **rung 2**, never rung 3. Presenting it as rung 3 is a hard failure of this contract.
+- One rung label **per bug/claim**, not per session. If bug A is rung 3 and bug B is rung 1, say so per bug. Never let bug A's evidence imply coverage of bug B.
+
+### Rung 3 requires artifacts — no artifact, no claim
+
+A `UI DRIVEN` claim is only valid if all four exist and are referenced by path in the report:
+1. **Screenshot after the click** → `qa/<YYYY-MM-DD>_<scope>_ui-<step>.png`
+2. **Post-click DOM/text assertion** showing the expected success or error state (the actual toast/row/status text, quoted).
+3. **DB side-effect proof** — the query and its row output (e.g. new `trip` row, updated status).
+4. **Driver log** → `qa/<YYYY-MM-DD>_<scope>_ui-driver.log` — the script/commands run, exit status.
+
+Auth for headless runs: use the `puppeteer-spa-auth` skill (`evaluateOnNewDocument` to inject the token **before** first navigation) — otherwise the SPA silently redirects to login and you will screenshot a login page and call it a pass.
+
+### Mandatory coverage report — end every UI task with this block
+
+```
+## Verification coverage
+| Claim / bug | Rung | Evidence | Not covered |
+|---|---|---|---|
+| <bug A>     | UI DRIVEN | qa/…png, qa/…log, trip id=14 | mobile viewport, FORWARDER role |
+| <bug B>     | DB/API VERIFIED | psql output | never clicked "Thêm nhà xe" |
+```
+
+The **Not covered** column must never be empty or "n/a". If you genuinely cannot think of an untested edge, list at least: other roles, mobile viewport, staging vs local, and error/rollback path. Omitting this block means the task is not done.
+
+### Prohibited phrasings
+
+- ❌ "Verified: the fix works end-to-end" without rung-3 artifacts for *that specific* claim.
+- ❌ Reporting multiple bugs under one blanket "tested and fixed".
+- ❌ "should now work", "this will fix it" dressed up as verification.
+- ❌ Silently downgrading: if you tried to drive the UI and the driver failed, report `NOT TESTED — driver failed: <reason>`, never fall back to rung 2 wording that sounds like rung 3.
+
+### When you cannot drive the UI
+
+Say so immediately and in the first sentence of the report: *"I could not drive the UI for X because Y. Rung: DB/API VERIFIED only."* Then ask whether to invest in the driver or hand the click-through to the user. Do **not** proceed to a confident summary.
 
 ---
 
