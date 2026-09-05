@@ -68,6 +68,7 @@ screenshot_filter_check.mjs
 playwright-report/
 test-results/
 playwright-results.json
+.playwright-cli/
 
 # AI workflow artifacts (local only)
 plans/

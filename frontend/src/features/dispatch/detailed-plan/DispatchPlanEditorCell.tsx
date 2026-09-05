@@ -477,6 +477,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
         classification: result.classification,
         isCombined: result.isCombined,
       });
+    } catch {
       // Keep the modal and draft open — the caller surfaced the banner error.
       setError('Không thể lưu kế hoạch. Kiểm tra thông báo của bảng và thử lại.');
     } finally {

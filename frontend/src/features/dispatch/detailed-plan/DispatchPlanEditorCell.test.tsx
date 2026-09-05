@@ -274,6 +274,9 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
 
     fireEvent.click([...screen.getAllByRole('button')].find((b) => b.textContent?.includes('Lưu thay đổi'))!);
     await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));
+    // A successful save must not surface the "cannot save" failure banner
+    // (regression: a mangled try/catch made this fire unconditionally).
+    expect(screen.queryByText(/Không thể lưu kế hoạch/)).toBeNull();
     // The parent would swap in the freshly plated row — mirror that here.
     rerender(
       <DispatchPlanEditorCell
@@ -289,5 +292,14 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
     await waitFor(() => expect(document.querySelector('.dispatch-assignment-dialog__issue-driver')?.textContent).toContain('Phạm Văn Hùng'));
     await waitFor(() => expect(issueButton().disabled).toBe(false));
     expect(screen.queryByText(/Lưu thay đổi điều phối ở trên trước khi phát lệnh/)).toBeNull();
+  });
+
+  it('surfaces the failure banner when the plan save is rejected', async () => {
+    const onAtomicSave = vi.fn().mockRejectedValue(new Error('Lô hàng đã thay đổi.'));
+    renderCell(row(), { onAtomicSave });
+    await openDialog();
+    fireEvent.click([...screen.getAllByRole('button')].find((b) => b.textContent?.includes('Lưu thay đổi'))!);
+    await waitFor(() => expect(screen.getByText(/Không thể lưu kế hoạch/)).toBeTruthy());
+    expect(screen.getByText(/Chỉnh sửa điều phối/)).toBeTruthy();
   });
 });
