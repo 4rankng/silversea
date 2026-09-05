@@ -7,7 +7,7 @@ export type CustomerCreateInput = z.infer<typeof customerSchema>;
 export type CustomerIntakeData = Omit<CustomerCreateInput,
   | 'creditLimit' | 'creditWarningThreshold' | 'paymentTermDays' | 'paymentDatePolicy'
   | 'fuelSurchargeSharePct' | 'debitNoteMode' | 'debitNoteTemplateId' | 'linkedSupplierId'
-  | 'status'
+  | 'status' | 'isCarrier'
 >;
 
 /**
@@ -22,11 +22,13 @@ export type CustomerIntakeData = Omit<CustomerCreateInput,
 export function restrictCustomerCreateForIntake(data: CustomerCreateInput, role: Role): CustomerIntakeData {
   if (role !== Role.CUS && role !== Role.DISPATCHER) return data;
   // CUS/DISPATCHER intake must not set commercial-identity fields; strip them
-  // explicitly so the restricted list stays visible at a glance.
+  // explicitly so the restricted list stays visible at a glance. Keep in
+  // sync with the `Omit<…, …>` type above; missing both sides lets a
+  // material field through and breaks the gate-bypass guarantee.
   const restricted = new Set([
     'creditLimit', 'creditWarningThreshold', 'paymentTermDays', 'paymentDatePolicy',
     'fuelSurchargeSharePct', 'debitNoteMode', 'debitNoteTemplateId', 'linkedSupplierId',
-    'status',
+    'status', 'isCarrier',
   ]);
   return Object.fromEntries(
     Object.entries(data).filter(([key]) => !restricted.has(key)),

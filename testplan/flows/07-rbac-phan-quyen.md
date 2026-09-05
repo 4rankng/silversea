@@ -20,13 +20,13 @@
 
 | Vai trò | Route đầu tiên mong đợi |
 |---------|------------------------|
-| ADMIN | `/dashboard` |
+| ADMIN | `/config` (xem `frontend/src/lib/routes.ts:172` `homeForRole`) |
 | MANAGER | `/dashboard` |
 | ACCOUNTANT | `/accounting` |
 | CUS (CLERK) | `/shipments` |
 | DISPATCHER | `/dispatch` |
 | DRIVER | `/my-trips` |
-| FORWARDER | `/my-forwarder-trips` |
+| OPS / FORWARDER | `/my-orders` (`/my-forwarder-trips` vẫn là alias cũ mount cùng page; xem `routes.ts:151`) |
 | CUSTOMER | `/portal/shipments` |
 
 - **Bằng chứng:** ảnh route đầu tiên cho từng vai trò

@@ -49,13 +49,18 @@ const CUSTOMER_USERNAME = 'customer';
 
 // Expected status after seedShipments' own ladder — refs later dispatched by
 // seed-trips (through the real dispatch chain) are NOT asserted here.
+// DNKM13337 is the deep-ladder EXPORT fixture: under the retired
+// PENDING_EXPENSE_APPROVAL contract (commit 4651f8f2, 2026-09-05) it now
+// lands at IN_TRANSIT (seed.ts applies ['DISPATCHED', 'IN_TRANSIT']); the
+// retired stage is kept only as an exit target for legacy rows, so a
+// newly-seeded shipment can no longer reach it.
 const EXPECTED_STATUS: Record<string, string> = {
   '105254544125': 'READY_FOR_DISPATCH', // expectedDeliveryDate → date-derived readiness
   '105254544198': 'PENDING_DATE', // no dates → awaiting schedule
   '137465192801': 'CANCELED',
   DNKM13333: 'READY_FOR_DISPATCH',
   DNKM13334: 'PENDING_DATE',
-  DNKM13337: 'PENDING_EXPENSE_APPROVAL', // full ladder: DISPATCHED → IN_TRANSIT → PENDING_EXPENSE_APPROVAL
+  DNKM13337: 'IN_TRANSIT', // full ladder: DISPATCHED → IN_TRANSIT (PENDING_EXPENSE_APPROVAL retired)
   DNKM13339: 'CANCELED',
 };
 
@@ -65,11 +70,15 @@ const EXPECTED_CONTAINERS: Record<string, number> = {
   '137465192255': 2, '105254550147': 1, DNKM13335: 1, DNKM13336: 2, DNKM13337: 1, DNKM13338: 1,
 };
 
-// Lifecycle-ladder history depth ≥ creation + one row per legal transition.
+// Lifecycle-ladder history depth ≥ creation row + one row per legal
+// transition. DNKM13337's depth dropped from 4 → 3 when the
+// PENDING_EXPENSE_APPROVAL transition was retired (2026-09-05); only the
+// READY_FOR_DISPATCH creation row + DISPATCHED + IN_TRANSIT transitions
+// remain.
 const EXPECTED_HISTORY: Record<string, number> = {
   '105254544125': 1, '105254544198': 1,
   '137465192801': 2, DNKM13333: 1, DNKM13334: 1,
-  DNKM13337: 4, DNKM13339: 2,
+  DNKM13337: 3, DNKM13339: 2,
 };
 
 // Snapshot of SEED-* rows that existed BEFORE this test ran (created by a

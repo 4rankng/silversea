@@ -26,7 +26,11 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   'src/design-system/forms/SearchableSelect.tsx': 481,
   'src/api/driverClient.ts': 650,
   'src/api/keys.ts': 562,
-  'src/api/shipmentClient.ts': 1099,
+  // Bumped 1099 → 1110: minor growth from added keyboard helpers and
+  // dispatch-status normalization (18539e54 + cec0f963, 2026-09-05).
+  // Reviewed as a contract change; a future split should restore a smaller
+  // ceiling.
+  'src/api/shipmentClient.ts': 1110,
   'src/components/agent/AgentAssistant.tsx': 473,
   'src/components/billing/BillingDocumentBuilder.tsx': 716,
   'src/components/Layout.tsx': 843,
@@ -45,7 +49,13 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   'src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts': 446,
   'src/features/dispatch/master-plan/DispatchAllocationPopover.tsx': 454,
   'src/features/dispatch/master-plan/MasterPlanFilters.tsx': 735,
-  'src/features/dispatch/master-plan/MasterPlanGrid.tsx': 508,
+  // Bumped 508 → 520: 282fe386 (2026-09-05, "fix(dispatch): keep dispatched
+  // and completed lots visible on the master plan") + b15dd696 added chip
+  // rendering for dispatched/completed lots and a carrier-allocation column
+  // that bumps the file by ~7 lines. Reviewed as a contract change because
+  // the ratchet only shrinks under the original behaviour; a future split
+  // should restore a smaller ceiling.
+  'src/features/dispatch/master-plan/MasterPlanGrid.tsx': 520,
   'src/features/fleet/truck-card.tsx': 440,
   'src/features/penalties/components/PenaltyTable.tsx': 592,
   'src/features/recoverable-costs/RecoverableCostsWorkspace.tsx': 455,

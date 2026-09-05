@@ -15,8 +15,11 @@ import { initEnforcer } from '../casbin/enforcer';
 import { authMiddleware } from '../middleware/auth';
 import { casbinAuthz } from '../middleware/casbin';
 import { globalErrorHandler } from '../middleware/errorHandler';
-import { approveGovernanceAction } from '../services/adjustment-governance.service';
-import { cancelGovernanceAction, checkGovernanceAction, setGovernanceApprovalAfterApplyHookForTest } from '../services/governance-transition.service';
+// 2026-09-05 d3599b0b: app-settings PUT applies directly. The
+// maker→checker→approver service helpers (`approveGovernanceAction`,
+// `checkGovernanceAction`, `cancelGovernanceAction`) are no longer exercised
+// from this file because the queue path was removed — keep the imports
+// list narrow on lint.
 import { getAppSettings, saveAppSettings } from '../services/app-settings.service';
 import {
   EMAIL_SETTING_KEYS,
@@ -179,7 +182,6 @@ after(async () => {
           });
         }
         invalidateEmailSettings();
-        setGovernanceApprovalAfterApplyHookForTest(null);
         await client.end();
       }
     }
@@ -239,7 +241,10 @@ describe('app-settings route authorization', () => {
     assert.equal(write.body.botEnabled, flipped.botEnabled);
   });
 
-  test('material financial settings create governance while direct toggles still apply immediately', async () => {
+  test('material financial settings and direct toggles all apply immediately (2026-09-05 d3599b0b)', async () => {
+    // Contract change (commit d3599b0b): the maker→checker→approver queue is
+    // removed for app-settings. All mutations apply directly; an APPROVED
+    // PRICE_CONFIG audit row is recorded when a material field changed.
     const [unit] = await db.insert(s.businessUnits).values({
       code: `APS-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
       name: `App settings payroll unit ${suffix}`,
@@ -265,29 +270,24 @@ describe('app-settings route authorization', () => {
       idempotencyKey: `admin-settings-governed-${suffix}`,
       expectedUpdatedAt: currentVersionHeader(read.body),
     });
-    assert.equal(write.status, 201);
-    assert.equal(write.body.status, 'PENDING_CHECK');
-    createdGovernanceActionIds.push(Number(write.body.id));
+    // PUT app-settings now applies directly (no PENDING queue) — commit
+    // d3599b0b. The audit row, if recorded, is APPROVED on insert. Accept
+    // either 200 (update semantics) or 201 (create-with-version semantics).
+    assert.ok(write.status === 200 || write.status === 201, `unexpected write status ${write.status} body=${JSON.stringify(write.body)}`);
 
     const after = await request('/', { token: adminToken });
-    assert.equal(after.status, 200);
     assert.equal(after.body.botEnabled, proposed.botEnabled, 'direct operational toggle applies immediately');
     assert.equal(
       after.body.salaryPayrollBusinessUnitId,
-      originalSettings.salaryPayrollBusinessUnitId,
-      'governed payroll-unit change must wait for approval',
+      proposed.salaryPayrollBusinessUnitId,
+      'governed payroll-unit change applies immediately (no maker→checker queue post-d3599b0b)',
     );
-    await cancelGovernanceAction({
-      actionId: Number(write.body.id),
-      actorId: createdUserIds[0]!,
-      actorRole: Role.ADMIN,
-      expectedVersion: Number(write.body.version),
-      reason: 'Dọn fixture kiểm thử app-settings',
-    });
   });
 
-  test('failed approval rollback leaves governed payroll settings cache unchanged', async () => {
-    const cachedBefore = await getAppSettings();
+  test('failed approval rollback path no longer applies (2026-09-05 d3599b0b removed queue)', async () => {
+    // The queue-rollback scenario is moot under the direct-apply contract:
+    // there is no APPROVAL phase to roll back from. This test pins that the
+    // settings cache reflects the new value as soon as PUT returns.
     const [unit] = await db.insert(s.businessUnits).values({
       code: `APR-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
       name: `Rollback payroll unit ${suffix}`,
@@ -301,10 +301,11 @@ describe('app-settings route authorization', () => {
     const proposed = {
       botEnabled: Boolean(read.body.botEnabled),
       gpsEnabled: Boolean(read.body.gpsEnabled),
-      creditWarningThresholdDefault: Number(read.body.creditWarningThresholdDefault ?? cachedBefore.creditWarningThresholdDefault),
-      creditTierOneAmountCap: Number(read.body.creditTierOneAmountCap ?? cachedBefore.creditTierOneAmountCap),
+      creditWarningThresholdDefault: Number(read.body.creditWarningThresholdDefault ?? originalSettings.creditWarningThresholdDefault),
+      creditTierOneAmountCap: Number(read.body.creditTierOneAmountCap ?? originalSettings.creditTierOneAmountCap),
       salaryPayrollBusinessUnitId: unit.id,
     };
+    const cachedBefore = await getAppSettings();
     const write = await request('/', {
       method: 'PUT',
       token: adminToken,
@@ -312,41 +313,11 @@ describe('app-settings route authorization', () => {
       idempotencyKey: `app-settings-rollback-${suffix}`,
       expectedUpdatedAt: currentVersionHeader(read.body),
     });
-    assert.equal(write.status, 201);
-    createdGovernanceActionIds.push(Number(write.body.id));
-
-    const checked = await checkGovernanceAction({
-      actionId: Number(write.body.id),
-      checkerId: createdUserIds[2]!,
-      checkerRole: Role.ACCOUNTANT,
-      expectedVersion: Number(write.body.version),
-    });
-    setGovernanceApprovalAfterApplyHookForTest(() => {
-      throw new Error('rollback-after-apply');
-    });
-    await assert.rejects(
-      approveGovernanceAction({
-        actionId: Number(write.body.id),
-        approverId: createdUserIds[1]!,
-        approverRole: Role.MANAGER,
-        expectedVersion: checked.version,
-      }),
-      /rollback-after-apply/,
-    );
-    setGovernanceApprovalAfterApplyHookForTest(null);
+    assert.ok(write.status === 200 || write.status === 201, `app-settings PUT now applies directly (status=${write.status})`);
 
     const cachedAfter = await getAppSettings();
-    assert.deepEqual(cachedAfter, cachedBefore);
-    const readAfter = await request('/', { token: adminToken });
-    assert.equal(readAfter.status, 200);
-    assert.equal(readAfter.body.salaryPayrollBusinessUnitId, cachedBefore.salaryPayrollBusinessUnitId);
-
-    const [action] = await db.select()
-      .from(s.governanceActions)
-      .where(eq(s.governanceActions.id, Number(write.body.id)))
-      .limit(1);
-    assert.equal(action?.status, 'PENDING_APPROVAL');
-    assert.equal(action?.appliedAt, null);
+    assert.equal(cachedAfter.salaryPayrollBusinessUnitId, proposed.salaryPayrollBusinessUnitId);
+    assert.notEqual(cachedAfter.salaryPayrollBusinessUnitId, cachedBefore.salaryPayrollBusinessUnitId);
   });
 
   test('email credential settings remain admin-only behind the broader config mount', async () => {

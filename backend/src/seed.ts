@@ -996,7 +996,7 @@ export async function seedShipments(passwordHash: string) {
     contactName: string;
     contactPhone: string;
     closingAt?: string;
-    advanceTo?: 'DISPATCHED' | 'IN_TRANSIT' | 'PENDING_EXPENSE_APPROVAL' | 'COMPLETED' | 'CANCELED';
+    advanceTo?: 'DISPATCHED' | 'IN_TRANSIT' | 'COMPLETED' | 'CANCELED';
     containers?: Array<{
       containerNumber: string;
       sealNumber: string;
@@ -1133,7 +1133,7 @@ export async function seedShipments(passwordHash: string) {
       pickupLocation: 'Kho Biển Bạc', deliveryLocation: 'TC - HICT',
       contactName: 'Trịnh Văn Hà', contactPhone: '02438888888',
       closingAt: '2026-08-11T08:00:00.000Z',
-      advanceTo: 'PENDING_EXPENSE_APPROVAL',
+      advanceTo: 'IN_TRANSIT',
       containers: [
         { containerNumber: 'MAGU2468720', sealNumber: 'SL8371065', cargoWeightKg: 19300 },
       ],
@@ -1282,14 +1282,12 @@ export async function seedShipments(passwordHash: string) {
       const ladder: Record<NonNullable<ShipmentSeed['advanceTo']>, readonly string[]> = {
         DISPATCHED: ['DISPATCHED'],
         IN_TRANSIT: ['DISPATCHED', 'IN_TRANSIT'],
-        PENDING_EXPENSE_APPROVAL: ['DISPATCHED', 'IN_TRANSIT', 'PENDING_EXPENSE_APPROVAL'],
-        COMPLETED: ['DISPATCHED', 'IN_TRANSIT', 'PENDING_EXPENSE_APPROVAL', 'COMPLETED'],
+        COMPLETED: ['DISPATCHED', 'IN_TRANSIT', 'COMPLETED'],
         CANCELED: ['CANCELED'],
       };
       const reasons: Record<string, string> = {
         DISPATCHED: 'Điều vận',
         IN_TRANSIT: 'Đang vận chuyển',
-        PENDING_EXPENSE_APPROVAL: 'Giao hàng',
         COMPLETED: 'Hoàn tất duyệt chi phí',
         CANCELED: 'Khách hủy lô hàng',
       };
