@@ -3,10 +3,11 @@ import { usePageAnimations } from '../../hooks/animations';
 import { useBackShortcut } from '../../hooks/useBackShortcut';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Plus, Loader2, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Loader2, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { configClient } from '../../api/configClient';
 import { PageHeader, useConfirm } from '../../components/UI';
 import { useCRUD } from '../../hooks/useCRUD';
+import { useDropdownDismiss } from '../../hooks/useDropdownDismiss';
 import { qk } from '../../api/keys';
 import { SortHeader } from '../../components/shared/SortHeader';
 import { nextTableSort, sortClientSide, type TableSortState } from '../../lib/table-sort';
@@ -24,6 +25,8 @@ export default function RoutesConfigPage() {
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<TableSortState | null>(null);
   const handleSort = (key: string) => setSort(current => nextTableSort(current, key));
+  const [menuOpenId, setMenuOpenId] = useState<number | null>(null);
+  useDropdownDismiss(menuOpenId !== null, () => setMenuOpenId(null));
 
   const fetchData = useCallback(async () => {
     const routeList = await configClient.getRoutesList(search || undefined);
@@ -121,28 +124,41 @@ export default function RoutesConfigPage() {
                   <td data-label="Điểm đóng trả">{r.loadPoint || '—'}</td>
                   <td className="num" data-label="Khoảng cách">{r.distanceKm != null ? `${r.distanceKm}` : '—'}</td>
                   <td data-label="Ghi chú" style={{ color: 'var(--fg-2)', fontSize: 13, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.note || '—'}</td>
-                  <td data-label="" className="record-table__action">
+                  <td
+                    data-label=""
+                    className="record-table__action"
+                    data-dropdown-root={menuOpenId === r.id ? '' : undefined}
+                    style={{ position: 'relative' }}
+                  >
                     <div className="row-actions">
                       <button
                         className="row-action"
-                        title="Sửa tuyến"
-                        onClick={() => crud.setEditingId(r.id)}
+                        title="Tùy chọn"
+                        onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === r.id ? null : r.id); }}
                       >
-                        <Pencil size={14} />
-                      </button>
-                      <button
-                        className="row-action"
-                        title="Xóa tuyến"
-                        disabled={crud.deleting === r.id}
-                        onClick={async () => {
-                          const ok = await confirm(`Xóa tuyến "${r.name}"?`, { confirmLabel: 'Xóa', variant: 'danger' });
-                          if (ok) crud.doDelete(r.id);
-                        }}
-                        style={{ color: 'var(--danger)' }}
-                      >
-                        {crud.deleting === r.id ? <Loader2 size={14} className="spin" /> : <Trash2 size={14} />}
+                        <MoreHorizontal size={14} />
                       </button>
                     </div>
+                    {menuOpenId === r.id && (
+                      <div style={{
+                        position: 'absolute', right: 12, top: '100%', marginTop: 4, zIndex: 20,
+                        background: '#fff', border: '1px solid var(--line)', borderRadius: 8,
+                        boxShadow: '0 4px 14px rgba(10,10,10,0.06)', overflow: 'hidden', minWidth: 140,
+                      }} onClick={(e) => e.stopPropagation()}>
+                        <button style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', fontSize: 12.5, border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', color: 'var(--ink)' }}
+                          onClick={() => { setMenuOpenId(null); crud.setEditingId(r.id); }}>
+                          <Pencil size={13} /> Sửa
+                        </button>
+                        <button style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', fontSize: 12.5, border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', color: 'var(--danger)' }}
+                          disabled={crud.deleting === r.id}
+                          onClick={async () => {
+                            const ok = await confirm(`Xóa tuyến "${r.name}"?`, { confirmLabel: 'Xóa', variant: 'danger' });
+                            if (ok) { setMenuOpenId(null); crud.doDelete(r.id); }
+                          }}>
+                          {crud.deleting === r.id ? <Loader2 size={13} className="spin" /> : <Trash2 size={13} />} Xoá
+                        </button>
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))}

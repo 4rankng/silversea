@@ -9,6 +9,8 @@ import { Alert } from '../shared/Alert';
 import { useCRUD } from '../../hooks/useCRUD';
 import type { PaginatedResponse } from '@tingting/shared';
 import { qk } from '../../api/keys';
+import '../../styles/record-table.css';
+import '../../styles/operational-table-typography.css';
 import '../../pages/config/config-page.css';
 
 interface CrudColumn<T> {
@@ -115,7 +117,8 @@ export function CrudTable<T extends { id: number }>({
           </button>
         </div>
         <div className="table-scroll">
-          <table className="tt-table">
+          <div className="record-table-wrap">
+          <table className="record-table ops-table">
             <caption className="sr-only">{title}</caption>
             <thead>
               <tr>
@@ -130,7 +133,7 @@ export function CrudTable<T extends { id: number }>({
             <tbody>
               {items.length === 0 && !crud.showAddForm && (
                 <tr className="cfg-empty-row">
-                  <td colSpan={colSpan + 1} style={{ textAlign: 'center' }}>
+                  <td colSpan={colSpan + 1} data-label="" style={{ textAlign: 'center' }}>
                     <EmptyState
                       illustration={`/assets/illustrations/${emptyIllustration}`}
                       title={emptyTitle}
@@ -162,7 +165,7 @@ export function CrudTable<T extends { id: number }>({
                     aria-label={`Chỉnh sửa ${title.toLowerCase()} thứ ${i + 1}`}
                     title="Nhấp để chỉnh sửa hoặc xóa"
                   >
-                    <td className="num">{i + 1}</td>
+                    <td className="num" data-label="STT">{i + 1}</td>
                     {columns.map(col => (
                       <td key={col.header} className={col.className} data-label={col.header}>
                         {col.render(item, i, isActive, items)}
@@ -173,6 +176,7 @@ export function CrudTable<T extends { id: number }>({
               })}
             </tbody>
           </table>
+          </div>
         </div>
       </Panel>
       {crud.error && (
