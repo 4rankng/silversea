@@ -103,6 +103,41 @@ README applies (silent redirect to `/dispatch`).
    - **Then** the row drops out cleanly.
    - **Reference**: [`02-dieuvan-dispatch.md` TC-DV-DISPATCH-013](../flows/02-dieuvan-dispatch.md#tc-dv-dispatch-013---bộ-lọc-ngày-kế-hoạch-tổng-quát-hiển-thị-lô-đã-phân-nhà-xe-theo-appointment-container).
 
+7. **DISP-MP-07 — Display is SHIPMENT-LEVEL (1 lô = 1 dòng kể cả nhiều container)**
+   - **Given** a FCL shipment READY_FOR_DISPATCH có ≥ 5 container (ví dụ 5×40HC) và 1 lô LCL có ≥ 10 dòng hàng lẻ
+   - **When** the dispatcher lands on `/dispatch`
+   - **Then** mỗi lô hiển thị **đúng 1 dòng duy nhất** trên bảng — không rã theo container
+   - **And** UI **không** hiển thị các cột "Số cont", "Biển số xe", "Cảng nâng/hạ" riêng từng container (chỉ tổng số lượng + khối lượng cộng gộp)
+   - **Reference**: [`02-dieuvan-dispatch.md` TC-DV-DISPATCH-020](../flows/02-dieuvan-dispatch.md#tc-dv-dispatch-020).
+
+8. **DISP-MP-08 — Pending-date shipments are hidden from `/dispatch`**
+   - **Given** 1 lô READY_FOR_DISPATCH (đủ `Ngày giao hàng`) và 1 lô PENDING_DATE (thiếu `Ngày giao hàng`)
+   - **When** the dispatcher views /dispatch hoặc search theo BL của lô PENDING
+   - **Then** chỉ lô READY_FOR_DISPATCH xuất hiện; lô PENDING_DATE hoàn toàn vắng mặt kể cả khi xóa filter ngày
+   - **Reference**: [`02-dieuvan-dispatch.md` TC-DV-DISPATCH-027](../flows/02-dieuvan-dispatch.md#tc-dv-dispatch-027).
+
+9. **DISP-MP-09 — Multi-vendor allocation (1 lô → nhiều nhà xe)**
+   - **Given** a FCL READY_FOR_DISPATCH có ≥ 4 container (tổng hợp 20'+40') và OWN + ít nhất 1 EXTERNAL carrier đều active
+   - **When** the dispatcher mở dialog "Phân bổ nhà xe", thêm ≥ 2 dòng nhà xe (OWN + EXTERNAL) với tổng số cont khớp nhu cầu, lưu
+   - **Then** chip trên master plan hiển thị cả OWN lẫn EXTERNAL (ví dụ `[OWN: 2×40'] [Biên Đông: 2×40']`)
+   - **And** `/dispatch-detail` mở ra đúng N dòng container, pre-fill nhà xe đúng theo phân bổ (không random sai)
+   - **Reference**: [`02-dieuvan-dispatch.md` TC-DV-DISPATCH-021](../flows/02-dieuvan-dispatch.md#tc-dv-dispatch-021).
+
+10. **DISP-MP-10 — Allocation validation: tổng phân bổ > tổng cont → chặn lưu**
+    - **Given** a FCL READY_FOR_DISPATCH có 2×40' (0×20'), OWN + 1 EXTERNAL active
+    - **When** the dispatcher nhập OWN = 2×40', EXTERNAL = 1×40' (cố tình vượt 1)
+    - **Then** bảng "Tổng phân bổ" hiển thị cảnh báo "vượt tổng cont" bằng tiếng Việt
+    - **And** nút "Lưu phân bổ" **disabled** (hoặc backend trả 4xx nếu click)
+    - **And** không có row mới nào được tạo trong `shipment_fulfillments`
+    - **Reference**: [`02-dieuvan-dispatch.md` TC-DV-DISPATCH-022](../flows/02-dieuvan-dispatch.md#tc-dv-dispatch-022).
+
+11. **DISP-MP-11 — Auto-split trigger: lưu overview → `/dispatch-detail` xuất hiện N dòng pre-fill nhà xe**
+    - **Given** a FCL READY_FOR_DISPATCH có 3×40', OWN + EXTERNAL đều active
+    - **When** the dispatcher phân bổ (OWN 2×40', EXTERNAL 1×40') và lưu thành công
+    - **Then** chuyển sang `/dispatch-detail` thấy đúng 3 dòng container; 2 dòng pre-fill OWN, 1 dòng pre-fill EXTERNAL (khớp đúng phân bổ)
+    - **And** cột biển số xe đang trống trên cả 3 dòng (chưa gán)
+    - **Reference**: [`02-dieuvan-dispatch.md` TC-DV-DISPATCH-023](../flows/02-dieuvan-dispatch.md#tc-dv-dispatch-023).
+
 ### Test steps
 
 1. Log in as `dieuvan`.
@@ -198,6 +233,45 @@ containers (so the auto-split is meaningful).
      plate / driver). The next `Phát lệnh` from the detail plan can
      re-link a fresh fulfillment if needed.
    - **Reference**: [`02-dieuvan-dispatch.md` TC-DV-DISPATCH-012](../flows/02-dieuvan-dispatch.md#tc-dv-dispatch-012---phân-xe-lại-khi-tác-vụ-điều-xe-bị-mấttái-cấu-trúc-fallback).
+
+7. **DISP-DP-07 — Display is CONTAINER-LEVEL (1 cont = 1 dòng, không theo lô)**
+   - **Given** dispatcher mở `/dispatch-detail` với 1 lô FCL 1 cont và 1 lô FCL 5 cont cùng hiển thị
+   - **When** quan sát bảng
+   - **Then** tổng số dòng = 6 dòng (không phải 2 dòng theo lô); mỗi dòng có Số Cont (hoặc "Chưa có số"), Loại Cont, Trọng lượng, Nhà xe (pre-fill), Biển số (đang trống)
+   - **And** **không** dùng Expandable Rows (đã lỗi thời)
+   - **Reference**: [`02-dieuvan-dispatch.md` TC-DV-DISPATCH-024](../flows/02-dieuvan-dispatch.md#tc-dv-dispatch-024).
+
+8. **DISP-DP-08 — Vendor (Nhà xe) pre-filled từ Overview**
+   - **Given** dispatcher đã lưu phân bổ ở `/dispatch` với OWN 2×40' + EXTERNAL 1×40'
+   - **When** chuyển sang `/dispatch-detail` cho cùng lô
+   - **Then** cột "Nhà xe" trên mỗi dòng container đã được điền sẵn đúng theo phân bổ (2 dòng OWN, 1 dòng EXTERNAL)
+   - **And** cột "Biển số" đang trống (chưa gán)
+   - **Reference**: [`02-dieuvan-dispatch.md` TC-DV-DISPATCH-023](../flows/02-dieuvan-dispatch.md#tc-dv-dispatch-023).
+
+9. **DISP-DP-09 — Push notification tới Lái xe khi gán biển số Xe nhà**
+   - **Given** dispatcher gán biển số OWN (gắn với `laixe`) cho 1 dòng container Xe nhà, lưu
+   - **When** `laixe` đăng nhập app Lái xe trong vòng 5 giây
+   - **Then** chuyến xuất hiện trong tab "Lệnh mới" ngay lập tức
+   - **And** push notification hiển thị tiếng Việt "Chuyến được điều phối" (hoặc tương đương)
+   - **And** push xảy ra **trước** khi Ops đổi lệnh giấy (kể cả khi lô chưa `Đã phân xe` hẳn — miễn là 1 dòng Xe nhà đã có biển số)
+   - **Reference**: [`02-dieuvan-dispatch.md` TC-DV-DISPATCH-026](../flows/02-dieuvan-dispatch.md#tc-dv-dispatch-026).
+
+10. **DISP-DP-10 — Lô chỉ chuyển "Đã phân xe" khi TẤT CẢ container đã gán biển số**
+    - **Given** lô FCL 3×40HC, đã pre-fill nhà xe, tài khoản OWN có biển số trong master data
+    - **When** dispatcher gán biển số cho dòng 1 (lưu); gán dòng 2 (lưu); để dòng 3 **trống** (lưu)
+    - **Then** sau mỗi bước lô vẫn ở trạng thái cũ (không `DISPATCHED`); DB `shipments.status` không đổi
+    - **And** chỉ khi đủ cả 3 dòng có biển số → lô mới chuyển `Đã phân xe`
+    - **Reference**: [`02-dieuvan-dispatch.md` TC-DV-DISPATCH-025](../flows/02-dieuvan-dispatch.md#tc-dv-dispatch-025).
+
+11. **DISP-DP-12 — Phân loại chuyến: Đơn (1 chiều), Kẹp (2 chiều khép kín), Kết hợp (ghép chuyến)**
+    - **Given** dispatcher đang ở `/dispatch-detail` sau khi pre-fill nhà xe
+    - **When** đánh dấu phân loại cho từng dòng:
+      - Đơn: 1 trip 1 chiều, không liên kết kẹp, phí đường × 1 bình thường
+      - Kẹp: 2 trip cùng xe + cùng tài xế + cùng tuyến 2 chiều + thời gian không chồng lấn → liên kết cặp, phí VETC/đường chỉ tính 1 lần cho lộ trình khép kín
+      - Kết hợp: ≥ 2 dòng container (cùng lô hoặc khác lô) gộp vào 1 xe, cùng tuyến, khung giờ overlap → 1 trip link N fulfillments
+    - **Then** mỗi dòng hiển thị phân loại đúng; trip tạo ra khớp mô hình; phí đường / VETC tính đúng theo bảng so sánh tại `docs/prd/QuyTrinhO2C.md` §2b
+    - **And** Kẹp không hợp lệ (khác tài xế, khác tuyến, thời gian chồng lấn, hoặc khác biển số) → không cho kẹp, cảnh báo "Không đủ điều kiện kẹp hàng", phí đường không được hưởng ưu đãi
+    - **Reference**: [`02-dieuvan-dispatch.md` TC-DV-DISPATCH-007](../flows/02-dieuvan-dispatch.md), TC-DV-DISPATCH-008 (kẹp invalid), TC-DV-DISPATCH-029 (ghép cùng lô), TC-DV-DISPATCH-030 (ghép khác lô), TC-DV-DISPATCH-031 (kẹp invalid vì đổi tài xế), TC-DV-DISPATCH-032 (Đơn happy path).
 
 ### Test steps
 

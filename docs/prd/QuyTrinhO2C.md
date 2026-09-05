@@ -105,24 +105,125 @@ stateDiagram-v2
 
 Điều vận xử lý qua 2 bước: Kế hoạch tổng quát (phân bổ nhà vận tải) → Kế hoạch chi tiết (gán xe cụ thể) → Phát lệnh.
 
-### 2a. Kế Hoạch Tổng Quát — Phân Bổ Nhà Vận Tải
+### 2a. Kế Hoạch Tổng Quát — Phân Bổ Nhà Vận Tải (theo Lô hàng)
 
-Điều vận xem các lô sẵn sàng điều xe, phân bổ nhà vận tải (xe nhà / thuê ngoài) theo từng loại container. Hệ thống tự tách mỗi container thành 1 dòng vận chuyển riêng.
+**Mức dữ liệu: trải phẳng ở cấp Lô hàng (Shipment Level).** Một lô hàng lớn — dù có 5, 10 hay 20 container — chỉ hiển thị **1 dòng duy nhất** trên màn này. Màn này *không* hiển thị số cont, biển số xe, hay cảng nâng/hạ riêng từng container; chỉ lấy thông tin chung + cộng gộp (sum).
+
+**Điều kiện hiển thị:** API tải lô theo **toàn bộ dải trạng thái vận hành** (`READY_FOR_DISPATCH` → `DISPATCHED` → `IN_TRANSIT` → `COMPLETED`) để lô không biến mất giữa chừng khi đã phân bổ/phát lệnh/hoàn thành (regression 2026-09-05: lô 1 cont hoàn thành biến mất khỏi màn này). Chỉ lô **Chờ chốt lịch** (thiếu `Ngày giao hàng`, chưa tới lượt điều vận) và lô **Đã hủy** là không xuất hiện. Lô `COMPLETED` vẫn hiển thị nhưng **khóa phân bổ** (nút "Phân bổ nhà xe" vô hiệu — hệ thống chỉ cho đổi nhà xe khi lô còn `READY_FOR_DISPATCH`).
+
+**Phân bổ đa nhà vận tải (multi-vendor):** 1 lô có thể được chia cho nhiều nhà xe chạy (ví dụ `SS: 2×40HC` + `HÀ AN: 2×40HC`). Mỗi dòng phân bổ gồm: `[Dropdown nhà xe] + [Số lượng Cont 20'] + [Số lượng Cont 40']`. Điều vận bấm `+` để thêm nhà xe mới.
+
+**Quy tắc validation:**
+
+- Tổng số cont đã phân bổ **không được vượt quá** tổng số lượng cont của lô (theo từng loại 20'/40'). Nếu vượt → hệ thống chặn lưu, hiển thị lỗi tiếng Việt.
+- Hỗ trợ **lưu phân bổ một phần** (`PARTIALLY_ALLOCATED`) — Điều vận có thể phân bổ trước một phần rồi bổ sung sau. Trạng thái cuối là `FULLY_ALLOCATED` khi đã khớp đủ.
+
+**Trigger tự động sau khi lưu:** Hệ thống tự động **auto-split** lô thành N dòng container tương ứng ở **Kế Hoạch Chi Tiết** (2b), đồng thời **điền sẵn (pre-fill)** tên nhà xe cho từng dòng để Điều vận tiếp tục gán biển số.
 
 Gợi ý theo vùng: ưu tiên xe nhà có điểm hạ bãi hôm trước (D-1) hoặc điểm lấy hàng hôm sau (D+1) cùng vùng.
 
-### 2b. Kế Hoạch Chi Tiết — Gán Xe Cụ Thể
+### 2b. Kế Hoạch Chi Tiết — Gán Xe Cụ Thể (theo Container)
 
-Mỗi dòng vận chuyển được gán biển số xe + tài xế cụ thể. Có thể chọn phân loại chuyến:
+**Mức dữ liệu: trải phẳng ở cấp Container.** Mỗi dòng ứng với 1 container (chuyến xe). Không dùng dòng mở rộng (no expandable rows).
 
-| Phân loại | Ghi chú |
-|-----------|---------|
-| Đơn | 1 chiều |
-| Kẹp | 2 chiều |
-| Kết hợp | Ghép chuyến |
-| Lẻ | Hàng lẻ |
+Cột **Nhà xe** trên mỗi dòng đã được **pre-fill tự động** từ kết quả phân bổ ở Kế Hoạch Tổng Quát (2a). Điều vận chỉ cần gán tiếp **Biển số xe**:
 
-> Phân loại là nhãn thao tác theo từng dòng vận chuyển. Riêng đánh dấu "ghép chuyến" áp ở cấp lô hàng — hai thông tin độc lập.
+- **Xe nhà (In-house):** Dropdown Searchable lấy từ Master Data Đội xe (chỉ các xe thuộc quyền quản lý công ty).
+- **Xe ngoài (Subcontractor):** Dropdown Searchable lấy từ danh sách xe của riêng Vendor đó; **đồng thời cho phép nhập tay tự do (free-text)** khi xe mới chưa có trong catalog. Trường hợp Điều vận để trống biển số, CUS sẽ bổ sung sau khi liên hệ nhà xe ngoài.
+
+**Trigger trạng thái lô:** Lô chỉ chuyển sang **Đã phân xe** khi **TẤT CẢ** các dòng container thuộc cùng lô đã được điền đủ cột Biển số xe. Nếu 1 dòng còn trống → lô vẫn ở trạng thái cũ.
+
+**Push notification tới Lái xe:** Ngay khi một dòng container thuộc nhóm Xe nhà được gán biển số hoàn tất, hệ thống lập tức bắn Push Notification "Chuyến được điều phối" và hiển thị chuyến trên App của Lái xe đó (kể cả khi Ops chưa lấy được lệnh giấy).
+
+Có thể chọn **phân loại chuyến** cho mỗi dòng vận chuyển. Đây là nhãn thao tác ở cấp dòng (fulfillment); riêng đánh dấu **ghép chuyến** ở cấp lô hàng — hai thông tin độc lập. Có 4 loại:
+
+#### a) Cont đơn (Đơn — 1 chiều)
+
+1 xe chở 1 container đi 1 chiều, trả về rỗng.
+
+```mermaid
+flowchart LR
+  A[Cảng A] -- "xe A · 1×40HC · Bill X1" --> B[Nhà máy KH]
+  B -. "xe quay về rỗng" .-> A
+```
+
+**Khi dùng:** Lô FCL đơn lẻ, không có chiều về hợp lý, hoặc lộ trình 1 chiều không có hàng ngược.
+
+**Hệ thống xử lý:** 1 fulfillment = 1 trip. Phí VETC / phí đường tính 1 lần bình thường. Không có ràng buộc ghép.
+
+#### b) Cont kẹp (Kẹp — 2 chiều khép kín)
+
+Cùng 1 xe + cùng tài xế chạy **2 chuyến** trong 1 lộ trình khép kín — chiều đi có hàng, chiều về cũng có hàng (thường là cont rỗng trả về cảng, hoặc 1 lô khác cùng tuyến ngược).
+
+```mermaid
+flowchart LR
+  subgraph Cặp kẹp hợp lệ
+    direction LR
+    A[Cảng A] -- "xe A · 1×40HC · Bill X1" --> B[Nhà máy KH]
+    B -- "xe A · 1×40HC rỗng" --> A
+  end
+```
+
+**Điều kiện ghép kẹp hợp lệ:**
+
+- Cùng biển số xe
+- Cùng tài xế
+- Cùng lộ trình 2 chiều
+- Thời gian **không chồng lấn** (chiều đi xong rồi mới tới chiều về)
+
+**Hệ thống xử lý:**
+
+- 2 trips được liên kết thành **1 cặp kẹp** (audit log ghi nhận)
+- Phí VETC / phí đường chỉ tính **1 lần cho cả lộ trình khép kín** (không nhân đôi khi chiều về đi qua cùng trạm thu phí)
+- Doanh thu, trạng thái và các chi phí khác vẫn **độc lập** giữa 2 trips (mỗi trip có doanh thu riêng cho lô mình)
+- Thiếu 1 trong 4 điều kiện trên → không cho kẹp, cảnh báo "Không đủ điều kiện kẹp hàng"
+
+#### c) Cont kết hợp (Ghép chuyến)
+
+Nhiều container (có thể từ nhiều lô khác nhau) **gộp vào cùng 1 xe, cùng 1 chuyến**, đi cùng tuyến trong cùng khoảng thời gian.
+
+```mermaid
+flowchart LR
+  A[Cảng A] -- "xe A · 1×40HC + 1×20HC<br/>Bill X1 + Bill Y1" --> B[Nhà máy KH]
+```
+
+**Hai kiểu ghép:**
+
+| Kiểu | Đặc điểm | Ví dụ |
+|------|----------|-------|
+| **Ghép cùng lô** | Nhiều container của 1 lô FCL (đã auto-split ở `/dispatch-detail`) → 1 đầu kéo + rơ-moóc chở cả | Lô 5×40HC → 1 đầu kéo chở 2×40HC/chuyến × 3 chuyến |
+| **Ghép khác lô** | Container từ nhiều lô khác nhau (khác KH hoặc cùng KH) hợp tuyến | Lô X đi Bắc Ninh + Lô Y đi Bắc Ninh cùng ngày → ghép 1 xe |
+
+**Điều kiện ghép:**
+
+- Cùng tuyến (điểm nâng → điểm hạ nằm trên cùng trục đường)
+- Thời gian chạy overlap chấp nhận được
+- Tổng khối lượng ≤ tải trọng xe
+- Tổng số cont ≤ số slot của xe (xe 40' → 2 slot 20' hoặc 1 slot 40'; đầu kéo + rơ-moóc thì tăng slot)
+
+**Hệ thống xử lý:**
+
+- Tạo **1 trip duy nhất** cho cả nhóm cont ghép (không phải 2 trip riêng)
+- Trip đó link tới **nhiều fulfillments** (mỗi fulfillment = 1 container)
+- Phí đường / VETC: chia theo số container hoặc theo thỏa thuận (tuỳ cấu hình kế toán)
+- Doanh thu: mỗi fulfillment vẫn giữ doanh thu của lô mình
+
+#### d) Hàng lẻ (Lẻ)
+
+Lô hàng LCL — không phải nguyên container. Nhập quy cách, số lượng, khối lượng, CBM. Phân loại này tách riêng với 3 mô hình cont ở trên.
+
+#### Bảng so sánh nhanh — 3 mô hình cont
+
+| Tiêu chí | Đơn | Kẹp | Kết hợp |
+|----------|-----|-----|---------|
+| Số trip | 1 | 2 (liên kết cặp) | 1 |
+| Số fulfillment | 1 | 2 | ≥ 2 |
+| Số xe vật lý | 1 | 1 (đi 2 chiều) | 1 |
+| Phí đường / VETC | 1 lần | **1 lần cho cả lộ trình khép kín** (không nhân đôi) | 1 lần (chia theo cont) |
+| Cùng biển số | — | **Bắt buộc** | **Bắt buộc** |
+| Cùng tuyến | — | **Bắt buộc** (ngược chiều) | **Bắt buộc** (cùng chiều) |
+| Cùng tài xế | — | **Bắt buộc** | Không bắt buộc |
+| Push Lái xe | Khi gán biển số | Khi gán biển số (cả 2 trips) | Khi gán biển số (1 trip cho cả nhóm) |
 
 Trạng thái phát lệnh theo từng dòng vận chuyển: **Chưa xếp xe → Đã gán biển số → Đã phát lệnh**.
 
