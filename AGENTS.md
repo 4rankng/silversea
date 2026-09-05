@@ -41,6 +41,16 @@ Every task runs: **Understand → Plan → Implement → QA → Fix → Re-QA �
 - If a gate is red, fix the **root cause** — never weaken tests, `eslint-disable`, broaden types, or skip/delete failing tests.
 - Never self-approve: authoring and review are separate passes. For non-trivial changes, hand off to `code-reviewer`/`verifier`.
 
+### Test-claim honesty (no fake "verified")
+
+A claim that a fix "works" or was "tested" must be backed by **evidence from exercising the running system**, never from reading code or querying the DB alone.
+
+- **Verification = interaction.** UI fixes → actually click the flow via browser automation (agent-browser / Playwright MCP) against local dev `:7174` or staging, and report the observed result (row state flipped, toast, DB row created). Backend fixes → a real API call or a passing test that exercises the changed path. Code reasoning + DB inspection = *analysis*, and must be labeled as such.
+- **Forbidden phrasing without tool evidence:** "Verified", "tested", "works end-to-end", "confirmed fixed". If it wasn't exercised, write **"untested — reasoned from code only"**.
+- **Every fix report ends with a Tested / Not tested split** — list explicitly what was clicked/called and the observed outcome, then what was *not* exercised (e.g. other browsers, staging, the save path, edge cases). The Not tested list is mandatory, not optional.
+- **State the environment** for any UI claim: local dev or staging, account used, and the concrete object tested (BL / shipment code / plate).
+- If you run out of budget or hit a blocker mid-test, say so and stop — never downgrade the claim to keep the report looking complete.
+
 ## QA gates (run after every implementation)
 
 Run from repo root. **All gates the change can affect must be green.**
@@ -98,6 +108,18 @@ Applies to every bug fix or feature with a user-visible surface, in local dev (`
 - The words *tested*, *verified*, *works end-to-end*, *confirmed*, *fixed and tested* are reserved for **rung 3 only**. Rung 2 must be reported as "DB/API verified, UI not driven".
 - Reasoning from code + a DB query is **rung 2**, never rung 3. Presenting it as rung 3 is a hard failure of this contract.
 - One rung label **per bug/claim**, not per session. If bug A is rung 3 and bug B is rung 1, say so per bug. Never let bug A's evidence imply coverage of bug B.
+
+### Default action: click
+
+For a UI bug, the **expected and default action is to click the actual button** in a real browser and observe the real outcome. Reasoning from code is the fallback, not the shortcut.
+
+- **Do not avoid clicking.** Phrases like "the user can verify in their browser", "the logic clearly handles this", "I've reasoned through it, looks correct", "skipping the click to save time" are all **refusals to test** — treat them as such and click.
+- **Do not be afraid of the click.** A red error toast, a 500, a broken dialog — that is *useful evidence*. Catching it in QA is the whole point. Clicking and seeing the failure is better than reasoning and reporting a fake pass.
+- **Do not be lazy about setup.** If the browser driver / auth / dev server isn't ready, **set it up first** (puppeteer-spa-auth skill, `make dev`, seed data), then click. Don't downgrade the claim because the harness was inconvenient.
+- **No "I'll do it later".** A click promised after the report is a click that will never happen. Click before writing "fixed".
+- **No "I see the dialog is already open, let me just describe it".** Describe = rung 1. Click = rung 3. The difference is non-negotiable.
+
+If, after genuinely trying, the UI cannot be driven (sandbox without browser, environment broken, blocker outside your control), say so in the first sentence with the reason, label as `NOT TESTED` or `DB/API VERIFIED` as appropriate, and ask whether to invest in the driver or hand off the click-through. Never paper over the gap with confident-sounding prose.
 
 ### Rung 3 requires artifacts — no artifact, no claim
 
