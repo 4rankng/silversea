@@ -71,11 +71,17 @@ export async function seed() {
       // Legacy rows (e.g. a pre-wipe `laixe` with NULL email/phone) keep
       // their account but must carry the canonical contact identity so the
       // driver↔user phone backfill below can link them.
+      // Also ensure password hash is current — staging-synced DBs may carry
+      // a different hash that prevents demo login.
+      const needsUpdate: Record<string, unknown> = {};
       if (!existingUser.email || !existingUser.phone) {
-        await db.update(schema.users).set({
-          email: canonicalUser.email,
-          phone: canonicalUser.phone,
-        }).where(eq(schema.users.id, existingUser.id));
+        needsUpdate.email = canonicalUser.email;
+        needsUpdate.phone = canonicalUser.phone;
+      }
+      // Always sync password hash so demo accounts work after devdb sync
+      needsUpdate.passwordHash = canonicalUser.passwordHash;
+      if (Object.keys(needsUpdate).length > 0) {
+        await db.update(schema.users).set(needsUpdate).where(eq(schema.users.id, existingUser.id));
       }
       continue;
     }
