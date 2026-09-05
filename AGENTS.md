@@ -1,6 +1,6 @@
 # AGENTS.md — Silversea Agent Contract
 
-Every bugfix/feature: update `testplan/` first, re-test before marking done.
+Every bugfix/feature: update `testplan/` first, re-test before marking done. **Every user-reported bug must also land a regression case in `testplan/`** (repro steps + expected behavior + case ID) before its fix is reported done, so the same bug cannot regress silently — cite the case ID in the fix report and re-run it before any deploy.
 
 ## Git workflow: trunk-based on `main` only
 
@@ -40,16 +40,7 @@ Every task runs: **Understand → Plan → Implement → QA → Fix → Re-QA �
 - No stubs, mocks, `test.skip`, `TODO` placeholders, or fake data.
 - If a gate is red, fix the **root cause** — never weaken tests, `eslint-disable`, broaden types, or skip/delete failing tests.
 - Never self-approve: authoring and review are separate passes. For non-trivial changes, hand off to `code-reviewer`/`verifier`.
-
-### Test-claim honesty (no fake "verified")
-
-A claim that a fix "works" or was "tested" must be backed by **evidence from exercising the running system**, never from reading code or querying the DB alone.
-
-- **Verification = interaction.** UI fixes → actually click the flow via browser automation (agent-browser / Playwright MCP) against local dev `:7174` or staging, and report the observed result (row state flipped, toast, DB row created). Backend fixes → a real API call or a passing test that exercises the changed path. Code reasoning + DB inspection = *analysis*, and must be labeled as such.
-- **Forbidden phrasing without tool evidence:** "Verified", "tested", "works end-to-end", "confirmed fixed". If it wasn't exercised, write **"untested — reasoned from code only"**.
-- **Every fix report ends with a Tested / Not tested split** — list explicitly what was clicked/called and the observed outcome, then what was *not* exercised (e.g. other browsers, staging, the save path, edge cases). The Not tested list is mandatory, not optional.
-- **State the environment** for any UI claim: local dev or staging, account used, and the concrete object tested (BL / shipment code / plate).
-- If you run out of budget or hit a blocker mid-test, say so and stop — never downgrade the claim to keep the report looking complete.
+- **Never claim "tested" or "verified" without browser interaction evidence.** Reading code, running API calls, or querying the database does NOT count as testing. If you clicked a button in the browser and saw the result, say what you clicked and what happened. If you didn't interact with the UI, say "NOT TESTED — I only analyzed the code." Lying about testing is worse than not testing.
 
 ## QA gates (run after every implementation)
 
@@ -108,6 +99,7 @@ Applies to every bug fix or feature with a user-visible surface, in local dev (`
 - The words *tested*, *verified*, *works end-to-end*, *confirmed*, *fixed and tested* are reserved for **rung 3 only**. Rung 2 must be reported as "DB/API verified, UI not driven".
 - Reasoning from code + a DB query is **rung 2**, never rung 3. Presenting it as rung 3 is a hard failure of this contract.
 - One rung label **per bug/claim**, not per session. If bug A is rung 3 and bug B is rung 1, say so per bug. Never let bug A's evidence imply coverage of bug B.
+- State the environment for any UI claim: local dev or staging, account used, and the concrete object tested (BL / shipment code / plate).
 
 ### Default action: click
 

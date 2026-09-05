@@ -215,8 +215,11 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved, returnFo
         shipment.id,
         {
           expectedVersion: shipment.version,
+          // An untouched row (0/0, e.g. the default own-fleet row when the
+          // whole shipment goes to an external carrier) isn't a real
+          // allocation — the backend rejects a carrier with zero containers.
           carrierAllocations: rows
-            .filter((row) => row.carrierKey)
+            .filter((row) => row.carrierKey && (Number(row.count20 || 0) > 0 || Number(row.count40 || 0) > 0))
             .map((row) => {
               const option = options.find((candidate) => candidate.key === row.carrierKey);
               return {

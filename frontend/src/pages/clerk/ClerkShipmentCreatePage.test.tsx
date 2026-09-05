@@ -36,6 +36,7 @@ vi.mock('../../components/UI', () => ({
   Drawer: ({ isOpen, onClose, title, children }: {
     isOpen: boolean; onClose?: () => void; title?: string; children: React.ReactNode;
   }) => isOpen ? <div role="dialog" aria-label={title}>{children}<button type="button" onClick={onClose}>Đóng</button></div> : null,
+  ModalCompactContext: require('react').createContext(false),
 }));
 
 import ClerkShipmentCreatePage from './ClerkShipmentCreatePage';

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useId, useMemo, useRef, useState } from 'react';
+import React, { createContext, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowLeft, ArrowDownRight, ArrowUpRight, X } from 'lucide-react';
 import { animate, utils, spring } from 'animejs';
@@ -13,11 +13,10 @@ import { Badge as UIBadge, BadgeWithDot as UIBadgeWithDot } from './untitled-ui/
 import { Label as UILabel } from './untitled-ui/base/input/label';
 import { HintText as UIHintText } from './untitled-ui/base/input/hint-text';
 
-/* ─── Polished-modal compact context ─────────────────────────────────────── */
+/* Polished-modal compact context. */
 export const ModalCompactContext = createContext(false);
 
 /* ─── Shared overlay animation defaults ──────────────────────────────────── */
-
 const overlayEntrance: EntranceFn = (overlay, content, prefersReduced) => {
   if (prefersReduced) {
     utils.set(overlay, { opacity: 1 });
@@ -45,7 +44,6 @@ const overlayExit: ExitFn = (overlay, content, onDone) => {
 };
 
 /* ─── Extracted shared style constants ──────────────────────────────────── */
-
 const FLEX_ROW: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
@@ -53,7 +51,6 @@ const FLEX_ROW: React.CSSProperties = {
 };
 
 /* ─── Portal target helper ──────────────────────────────────────────────── */
-
 function usePortalTarget() {
   const [target, setTarget] = useState<HTMLElement | null>(null);
   useEffect(() => {
@@ -111,7 +108,6 @@ export function useConfirmShortcuts(opts: {
 }
 
 /* ─── KPI Metric Card ───────────────────────────────────────────────────── */
-
 export interface KPITrend {
   /** Numeric series for the sparkline. Empty array = no sparkline drawn. */
   data: number[];
@@ -194,7 +190,6 @@ export function KPI({ label, value, unit, icon: Icon, assetIconName, meta, varia
 }
 
 /* ─── Page Header ───────────────────────────────────────────────────────── */
-
 interface PageHeaderProps {
   title: React.ReactNode;
   /** Retained for call-site compatibility; route descriptions are no longer page chrome. */
@@ -498,8 +493,6 @@ export function Modal({ isOpen, title, onClose, children, footer, onConfirm, max
   const overlayRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
-  const polishedCtx = useMemo(() => ({ compact: Boolean(polished) }), [polished]);
-
   const { visible, handleClose, overlayToken } = useAnimatedOverlay({
     overlayRef,
     contentRef,
@@ -551,7 +544,7 @@ export function Modal({ isOpen, title, onClose, children, footer, onConfirm, max
             </Tooltip>
           </div>
           <div className="modal__body">
-            <ModalCompactContext.Provider value={polishedCtx.compact}>
+            <ModalCompactContext.Provider value={Boolean(polished)}>
               {children}
             </ModalCompactContext.Provider>
           </div>

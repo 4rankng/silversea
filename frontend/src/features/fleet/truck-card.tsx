@@ -125,7 +125,6 @@ function FleetStatusLegend({ maintenance = true }: { maintenance?: boolean }) {
 }
 
 // ─── DetailModal — shared view dialog with edit/delete actions ────────────────
-
 function DetailModal({ isOpen, title, onClose, details, onEdit, onDelete, deleting, itemId }: { isOpen: boolean; title: string; onClose: () => void; details: Array<{ label: string; value: React.ReactNode }>; onEdit: () => void; onDelete?: () => void; deleting: number | null; itemId: number }) {
   const primary = details[0];
   const status = details.find((d) => d.label === "Trạng thái");
@@ -191,6 +190,9 @@ export function TruckCard({ trucks, driverByTruck, trailers, crud }: { trucks: T
   const { data: tires = [] } = useTires();
   const active = trucks.filter((t) => t.status === "ACTIVE").length;
   const maint = trucks.filter((t) => t.status === "MAINTENANCE").length;
+  const askDeleteTruck = async (id: number) => {
+    if (await confirm('Xóa xe đầu kéo này?', { variant: 'danger', confirmLabel: 'Xóa' })) crud.doDelete(id);
+  };
   const tireCountByTruck = useMemo(() => {
     const counts = new Map<number, number>();
     (tires as Tire[]).forEach((tire) => {
@@ -353,12 +355,7 @@ export function TruckCard({ trucks, driverByTruck, trailers, crud }: { trucks: T
                   <button
                     className="btn btn--ghost btn--sm"
                     style={{ color: "var(--danger)" }}
-                    onClick={async (e) => {
-                      e.stopPropagation();
-                      if (await confirm('Xóa xe đầu kéo này?', { variant: 'danger', confirmLabel: 'Xóa' })) {
-                        crud.doDelete(t.id);
-                      }
-                    }}
+                    onClick={(e) => { e.stopPropagation(); askDeleteTruck(t.id); }}
                   >
                     Xóa
                   </button>
@@ -391,9 +388,7 @@ export function TruckCard({ trucks, driverByTruck, trailers, crud }: { trucks: T
         onDelete={async () => {
           const id = viewingId;
           setViewingId(null);
-          if (id != null && await confirm('Xóa xe đầu kéo này?', { variant: 'danger', confirmLabel: 'Xóa' })) {
-            crud.doDelete(id);
-          }
+          if (id != null) await askDeleteTruck(id);
         }}
         details={(() => {
           const t = viewingId != null ? trucks.find((x) => x.id === viewingId) : null;

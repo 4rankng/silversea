@@ -84,8 +84,10 @@ export function validateCarrierAllocations(
       errors.push(`Số lượng của "${option.label}" phải là số nguyên không âm.`);
       return;
     }
+    // A row left at 0/0 (e.g. the default own-fleet row nobody touched
+    // because the whole shipment goes to an external carrier) isn't an
+    // error — it's just not participating in this allocation.
     if (parsed20 === 0 && parsed40 === 0) {
-      errors.push(`Dòng "${option.label}" phải có ít nhất một số lượng 20' hoặc 40'.`);
       return;
     }
     assigned20 += parsed20;

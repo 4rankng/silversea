@@ -52,16 +52,43 @@ beforeEach(() => {
 });
 
 describe('DispatchAllocationPopover', () => {
-  it('shows the empty-allocation error once at row level', async () => {
+  it('does not flag an untouched 0/0 row as an error', async () => {
     render(<DispatchAllocationPopover shipment={shipment()} onClose={vi.fn()} onSaved={vi.fn()} />);
 
     await waitFor(() => screen.getByLabelText(/Nhà xe dòng 1/));
 
-    expect(screen.getAllByText('Dòng "Đội xe nội bộ SilverSea" phải có ít nhất một số lượng 20\' hoặc 40\'.')).toHaveLength(1);
-    expect(screen.queryByText('Nhập số lượng cho ít nhất một loại container.')).toBeNull();
+    // A row nobody has filled in yet (e.g. the default own-fleet row when the
+    // whole shipment ends up going to an external carrier) isn't an error —
+    // it just isn't participating in the allocation (regression: this used
+    // to hard-block "Thêm nhà xe" flows with a misleading own-fleet message).
+    expect(screen.queryByText(/phải có ít nhất một số lượng/)).toBeNull();
     expect(screen.getByLabelText("Số container 20' dòng 1")).not.toHaveAttribute('aria-invalid', 'true');
     expect(screen.getByLabelText("Số container 40' dòng 1")).not.toHaveAttribute('aria-invalid', 'true');
-    expect((screen.getByRole('button', { name: 'Lưu phân bổ' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('saves an external-only allocation, leaving the default own-fleet row untouched (regression)', async () => {
+    const onSaved = vi.fn();
+    vi.mocked(saveShipmentCarrierAllocations).mockResolvedValue({
+      shipment: { id: 1, version: 5 },
+      assignments: [],
+    } as never);
+    render(<DispatchAllocationPopover shipment={shipment()} onClose={vi.fn()} onSaved={onSaved} />);
+
+    await waitFor(() => screen.getByLabelText(/Nhà xe dòng 1/));
+    fireEvent.click(screen.getByRole('button', { name: /Thêm nhà xe/ }));
+    await waitFor(() => screen.getByLabelText(/Nhà xe dòng 2/));
+    fireEvent.change(screen.getByLabelText("Số container 20' dòng 2"), { target: { value: '2' } });
+    fireEvent.change(screen.getByLabelText("Số container 40' dòng 2"), { target: { value: '2' } });
+
+    expect((screen.getByRole('button', { name: 'Lưu phân bổ' }) as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu phân bổ' }));
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalled());
+    // The untouched OWN row must not be sent — the backend rejects a carrier
+    // with zero containers.
+    expect(saveShipmentCarrierAllocations).toHaveBeenCalledWith(1, expect.objectContaining({
+      carrierAllocations: [expect.objectContaining({ carrierType: 'EXTERNAL', externalCarrierId: 77, count20: 2, count40: 2 })],
+    }), undefined, 'partial');
   });
 
   it('blocks save on over-allocation (MAX mode)', async () => {
@@ -212,5 +239,45 @@ describe('DispatchAllocationPopover', () => {
     await waitFor(() => expect(screen.queryByText(/Không tải được danh sách nhà xe ngoài/)).toBeNull());
     fireEvent.click(screen.getByLabelText(/Nhà xe dòng 1/));
     expect(screen.getByRole('option', { name: 'HÀ AN' })).toBeTruthy();
+  });
+
+  it('lists every active external carrier alongside OWN so the user can pick any vendor', async () => {
+    render(<DispatchAllocationPopover shipment={shipment()} onClose={vi.fn()} onSaved={vi.fn()} />);
+
+    await waitFor(() => expect(screen.getByLabelText(/Nhà xe dòng 1/)).not.toBeDisabled());
+    fireEvent.click(screen.getByLabelText(/Nhà xe dòng 1/));
+
+    expect(screen.getByRole('option', { name: 'Đội xe nội bộ SilverSea' })).toBeTruthy();
+    expect(screen.getByRole('option', { name: 'HÀ AN' })).toBeTruthy();
+    expect(screen.getByRole('option', { name: 'Nam Phong' })).toBeTruthy();
+    // No warning when external carriers exist — the empty-state copy must not
+    // surface alongside a healthy catalog.
+    expect(screen.queryByText(/Chưa có nhà xe ngoài nào được cấu hình/)).toBeNull();
+  });
+
+  it('adds a second row pre-populated with an external carrier and lets the user pick it', async () => {
+    render(<DispatchAllocationPopover shipment={shipment()} onClose={vi.fn()} onSaved={vi.fn()} />);
+
+    await waitFor(() => expect(screen.getByLabelText(/Nhà xe dòng 1/)).not.toBeDisabled());
+    fireEvent.click(screen.getByRole('button', { name: /Thêm nhà xe/ }));
+
+    await waitFor(() => expect(screen.getByLabelText(/Nhà xe dòng 2/)).toBeInTheDocument());
+    expect((screen.getByLabelText(/Nhà xe dòng 2/) as HTMLSelectElement).value).toMatch(/EXTERNAL:77/);
+    expect((screen.getByLabelText(/Nhà xe dòng 1/) as HTMLSelectElement).value).toMatch(/OWN$/);
+    expect((screen.getByRole('button', { name: /Thêm nhà xe/ }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('warns the user when bootstrap returns zero external carriers so it is not mistaken for a bug', async () => {
+    vi.mocked(tripClient.getBootstrap).mockResolvedValue({ externalCarriers: [] } as never);
+    render(<DispatchAllocationPopover shipment={shipment()} onClose={vi.fn()} onSaved={vi.fn()} />);
+
+    await waitFor(() => expect(screen.getByLabelText(/Nhà xe dòng 1/)).not.toBeDisabled());
+    fireEvent.click(screen.getByLabelText(/Nhà xe dòng 1/));
+
+    expect(screen.getByRole('option', { name: 'Đội xe nội bộ SilverSea' })).toBeTruthy();
+    expect(screen.queryByRole('option', { name: 'HÀ AN' })).toBeNull();
+    expect(screen.getByText(/Chưa có nhà xe ngoài nào được cấu hình/)).toBeTruthy();
+    expect(screen.getByText(/Quản trị viên/)).toBeTruthy();
+    expect((screen.getByRole('button', { name: /Thêm nhà xe/ }) as HTMLButtonElement).disabled).toBe(true);
   });
 });

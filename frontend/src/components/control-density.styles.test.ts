@@ -14,8 +14,8 @@ describe('shared control density', () => {
   it('defines compact, default, and touch-safe control tokens', () => {
     const tokens = read('src/styles/tokens.css');
 
-    expect(tokens).toMatch(/--control-compact-h:\s*34px;/);
-    expect(tokens).toMatch(/--control-default-h:\s*40px;/);
+    expect(tokens).toMatch(/--control-compact-h:\s*30px;/);
+    expect(tokens).toMatch(/--control-default-h:\s*34px;/);
     expect(tokens).toMatch(/--control-touch-h:\s*44px;/);
     expect(tokens).toMatch(/--control-compact-font-size:\s*var\(--fs-xs\);/);
     expect(tokens).toMatch(/--control-compact-line-height:\s*18px;/);

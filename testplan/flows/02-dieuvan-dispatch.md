@@ -259,6 +259,35 @@
   - Không cập nhật được trip sau khi đổi.
 - **Bằng chứng:** ảnh dialog trước/sau + ảnh ô điều phối sau refresh + ảnh Network 200
 
+### TC-DV-DISPATCH-014 — Dialog "Phân bổ nhà xe" hiển thị đầy đủ nhà xe ngoài (EXTERNAL) trong dropdown, không chỉ "Đội xe nội bộ SilverSea"
+
+- **Mã PRD:** Bug fix 2026-09-05 — dropdown nhà xe trong dialog "Phân bổ nhà xe" (Kế hoạch tổng quát) chỉ hiển thị option OWN, không hiển thị nhà xe ngoài dù `/catalogs/bootstrap` đã trả `externalCarriers` hợp lệ
+- **Vai trò:** `dieuvan` (DISPATCHER)
+- **Mức độ:** P0
+- **Thiết bị:** Desktop (1440×900)
+- **Tiền điều kiện:**
+  - Backend `/api/v1/catalogs/bootstrap` trả về `externalCarriers` có ít nhất 1 nhà xe đang `isActive: true` (ví dụ HÀ AN, Nam Phong, Biên Đông).
+  - Lô FCL đã READY_FOR_DISPATCH hiển thị trên `/dispatch` (Kế hoạch tổng quát), cột "Phân bổ nhà xe" đang "Chưa phân bổ".
+- **Các bước:**
+  1. Đăng nhập `dieuvan`. Mở `/dispatch`.
+  2. Tại cột "Phân bổ nhà xe" của 1 lô FCL, bấm "Chỉnh sửa phân bổ nhà xe" → dialog "Phân bổ nhà xe" mở ra.
+  3. Bấm vào dropdown "Nhà xe" ở dòng "Phân bổ 1". Quan sát các option hiển thị.
+  4. Bấm "Thêm nhà xe". Bấm dropdown "Nhà xe" ở dòng "Phân bổ 2". Quan sát.
+  5. Chọn 1 nhà xe ngoài (EXTERNAL) cho dòng 1, nhập số container. Bấm "Lưu phân bổ".
+  6. Mở lại dialog "Phân bổ nhà xe" cho cùng lô đó. Quan sát dropdown vẫn có nhà xe ngoài.
+- **Kết quả mong đợi (Pass):**
+  - Dropdown "Nhà xe" hiển thị **tất cả** option: "Đội xe nội bộ SilverSea" + toàn bộ nhà xe ngoài `isActive: true` từ `bootstrap.externalCarriers` (label lấy từ `carrier.name`).
+  - "Thêm nhà xe" tạo được dòng mới, dropdown dòng mới cũng liệt kê nhà xe ngoài còn trống (không trùng với dòng đã chọn).
+  - Lưu thành công với nhà xe ngoài: chip "Phân bổ nhà xe" trên master plan hiển thị cả OWN (nếu có) lẫn EXTERNAL (ví dụ "Biên Đông: 1x40'").
+  - Mở lại dialog sau khi lưu: dropdown vẫn đầy đủ nhà xe ngoài (không bị reset về chỉ OWN).
+- **Kỳ vọng sai (Fail nếu):**
+  - Dropdown chỉ có 1 option "Đội xe nội bộ SilverSea", không có nhà xe ngoài nào (hành vi cũ — đã fix).
+  - Có nhà xe ngoài trong dropdown nhưng bấm "Thêm nhà xe" không thêm được dòng mới hoặc không cho chọn nhà xe ngoài.
+  - Không có cảnh báo khi `externalCarriers` rỗng/lỗi — user tưởng chỉ có OWN.
+- **Bằng chứng:** ảnh dialog đang mở dropdown nhà xe (thấy cả OWN + EXTERNAL) + ảnh 2 dòng với 2 nhà xe khác nhau + ảnh chip sau khi lưu + ảnh Network `/api/v1/catalogs/bootstrap` chứa `externalCarriers` không rỗng
+
+---
+
 ### TC-DV-DISPATCH-013 — Bộ lọc ngày "Kế hoạch tổng quát" hiển thị lô đã phân nhà xe theo appointment container
 
 - **Mã PRD:** Bug fix 2026-08-29 — bộ lọc ngày đang không hiển thị lô đã phân nhà xe
@@ -300,3 +329,4 @@
 | __/__/__ | TC-DV-DISPATCH-011 | | | Concurrent dispatch | |
 | __/__/__ | TC-DV-DISPATCH-012 | | | Phân xe lại khi tác vụ bị mất (fallback) | |
 | __/__/__ | TC-DV-DISPATCH-013 | | | Filter ngày hiển thị lô đã phân nhà xe (appointment) | |
+| __/__/__ | TC-DV-DISPATCH-014 | | | Dropdown nhà xe ngoài trong dialog Phân bổ nhà xe (regression 2026-09-05) | |
