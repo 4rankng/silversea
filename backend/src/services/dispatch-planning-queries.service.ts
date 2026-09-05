@@ -72,8 +72,12 @@ export async function listDispatchHandoffs(input: ListDispatchHandoffsInput) {
 
   // Filter set shared by the page query and the status-count query so the
   // two can never skew apart (count must describe the same filtered set).
+  // DISPATCHED lots are included: a partial re-submission resets the handoff
+  // to UNSEEN while containers are already rolling — the dispatcher must
+  // still see (and accept) it or the remaining legs go invisible
+  // (2026-09-05 prod incident on a 2-container lot).
   const filters = [
-    eq(s.shipments.status, 'READY_FOR_DISPATCH'),
+    inArray(s.shipments.status, ['READY_FOR_DISPATCH', 'DISPATCHED']),
     accountantCustomerIds ? inArray(s.shipments.customerId, accountantCustomerIds) : undefined,
     input.urgency ? eq(s.dispatchHandoffs.priority, input.urgency) : undefined,
     date ? eq(sql`date(${s.dispatchHandoffs.vehicleNeededBy})`, date) : undefined,
