@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# Compile gate (incident 2026-09-05: a mid-refactor file with corrupted JSX
+# reached main via a sweep commit and main did not compile for ~20 minutes).
+# AGENTS.md already mandates "QA gates -> commit"; this makes the compile bar
+# mechanical. Gate = the working tree must typecheck when staged files touch it.
+set -euo pipefail
+
+root="$(git rev-parse --show-toplevel)"
+fe=0; be=0
+while IFS= read -r f; do
+  case "$f" in
+    frontend/src/*.ts|frontend/src/*.tsx) fe=1 ;;
+    backend/src/*.ts|backend/src/*.tsx) be=1 ;;
+  esac
+done < <(git -C "$root" diff --cached --name-only)
+
+fail=0
+if [ "$fe" -eq 1 ]; then
+  echo "[pre-commit] typechecking frontend…"
+  (cd "$root/frontend" && pnpm exec tsc --noEmit) || fail=1
+fi
+if [ "$be" -eq 1 ]; then
+  echo "[pre-commit] typechecking backend…"
+  (cd "$root/backend" && pnpm exec tsc --noEmit -p tsconfig.build.json) || fail=1
+fi
+
+if [ "$fail" -eq 1 ]; then
+  echo "" >&2
+  echo "✗ pre-commit typecheck FAILED — commit refused." >&2
+  echo "  Fix the errors above. Escape hatch: git commit --no-verify" >&2
+  echo "  (if you must bypass, say why in the commit body — a red main is worse)." >&2
+  exit 1
+fi
+exit 0

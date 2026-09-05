@@ -2,6 +2,7 @@
   "name": "tingting",
   "private": true,
   "scripts": {
+    "prepare": "git config core.hooksPath scripts/githooks || true",
     "dev": "make dev",
     "setup": "make setup",
     "build": "pnpm --dir shared build && pnpm --dir backend build && pnpm --dir frontend build",

@@ -57,6 +57,8 @@ Run from repo root. **All gates the change can affect must be green.**
 
 Scope to what the change touches — never skip a gate it could affect. Shared contracts, Drizzle schemas, financial calculations (`shared/src/calculations/`), or RBAC changes → full set including E2E.
 
+**Mechanical compile gate:** a versioned pre-commit hook (`scripts/githooks/pre-commit`, wired by `git config core.hooksPath scripts/githooks` — also auto-wired on `pnpm install` via the root `prepare` script) runs the typecheck table above whenever staged files touch a project, and refuses the commit on failure. This enforces "QA gates → commit" for every session sharing this checkout, including sweep commits. Escape hatch: `git commit --no-verify` (justify in the commit body — a red `main` is worse than a delayed commit).
+
 ## QA artifacts (`qa/` — mandatory)
 
 Every QA run → one artifact under `qa/`. Pass or fail.
