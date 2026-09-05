@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
+import { ShipmentStatus } from '@tingting/shared';
 import type { ShipmentListItem } from '../../../api/shipmentClient';
 import { Badge } from '../../../components/untitled-ui/base/badges/badges';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
@@ -264,6 +265,10 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
           {items.map((item) => {
             const urgency = cutoffUrgency(item.customsCutoffAt);
             const portGroupLines = aggregateContainerPortGroupLines(item, scheduleDate);
+            // A completed lot's allocation is history — the backend rejects
+            // carrier changes once the lot leaves READY_FOR_DISPATCH, so the
+            // button must not invite the attempt.
+            const allocationLocked = item.status === ShipmentStatus.COMPLETED;
             return (
               <tr key={item.id} className="master-plan-grid__row">
                 <td className="master-plan-grid__cell" data-label="Thời gian & lịch trình">
@@ -392,6 +397,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                   className="master-plan-grid__cell master-plan-grid__cell--action"
                   data-label="Phân bổ nhà xe"
                   onClick={(event) => {
+                    if (allocationLocked) return;
                     if ((event.target as HTMLElement).closest('button')) return;
                     const trigger = event.currentTarget.querySelector<HTMLButtonElement>('.master-plan-grid__allocation-trigger');
                     if (!trigger) return;
@@ -404,6 +410,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                     color="tertiary"
                     noTextPadding
                     aria-label="Chỉnh sửa phân bổ nhà xe"
+                    isDisabled={allocationLocked}
                     className="master-plan-grid__allocation-trigger"
                     // The press target may be button's inner text span — resolve
                     // back to the button itself for focus restoration.

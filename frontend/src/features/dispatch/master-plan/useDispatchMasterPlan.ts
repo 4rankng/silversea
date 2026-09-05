@@ -37,9 +37,10 @@ export const EMPTY_MASTER_PLAN_FILTERS: MasterPlanFilters = {
 
 /**
  * Data hook for the dispatch master-plan screen ("Kế hoạch Tổng quát"):
- * READY_FOR_DISPATCH shipments only, server-side filters + pagination, with a
- * request-id race guard so a slow earlier response can never overwrite a newer
- * one (request-id race guard).
+ * the full operational range (READY_FOR_DISPATCH through COMPLETED) so a lot
+ * stays visible after it dispatches or completes, server-side filters +
+ * pagination, with a request-id race guard so a slow earlier response can
+ * never overwrite a newer one (request-id race guard).
  */
 export function useDispatchMasterPlan() {
   const [filters, setFilters] = useState<MasterPlanFilters>(EMPTY_MASTER_PLAN_FILTERS);
@@ -94,7 +95,16 @@ export function useDispatchMasterPlan() {
     setLoading(true);
     setError(null);
     listShipments({
-      status: ShipmentStatus.READY_FOR_DISPATCH,
+      // Operational range — mirrors the dispatch queue / detail-plan gates so
+      // a lot never vanishes from the planning board mid-life (2026-09-05
+      // customer report: fully completed 1-container lot missing).
+      status: [
+        ShipmentStatus.READY_FOR_DISPATCH,
+        ShipmentStatus.DISPATCHED,
+        ShipmentStatus.IN_TRANSIT,
+        ShipmentStatus.PENDING_EXPENSE_APPROVAL,
+        ShipmentStatus.COMPLETED,
+      ],
       page,
       limit: PAGE_SIZE,
       ...(debouncedQ ? { q: debouncedQ } : {}),

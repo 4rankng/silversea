@@ -921,7 +921,8 @@ export async function listShipments(params?: {
   page?: number;
   limit?: number;
   customerId?: number;
-  status?: ShipmentStatus;
+  /** Single status or a comma-serialized status set (dispatch master plan). */
+  status?: ShipmentStatus | ShipmentStatus[];
   q?: string;
   tradeDirection?: 'IMPORT' | 'EXPORT';
   blNumber?: string;
@@ -943,7 +944,9 @@ export async function listShipments(params?: {
   if (params?.page != null) query.set('page', String(params.page));
   if (params?.limit != null) query.set('limit', String(params.limit));
   if (params?.customerId != null) query.set('customerId', String(params.customerId));
-  if (params?.status != null) query.set('status', params.status);
+  if (params?.status != null) {
+    query.set('status', Array.isArray(params.status) ? params.status.join(',') : params.status);
+  }
   if (params?.q) query.set('q', params.q);
   if (params?.tradeDirection) query.set('tradeDirection', params.tradeDirection);
   if (params?.blNumber) query.set('blNumber', params.blNumber);

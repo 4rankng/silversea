@@ -17,6 +17,7 @@ import {
   buildShipmentSearchPredicate,
   normalizeShipmentRow,
   normalizeShipmentStatusValue,
+  shipmentStatusCondition,
   type ListShipmentsOptions,
 } from './shipment-queries.service';
 import { resolveShipmentPricingProjection } from './pricing.service';
@@ -65,11 +66,7 @@ export async function listShipments(options: ListShipmentsOptions = {}) {
     conditions.push(eq(s.shipments.customerId, options.customerId));
   }
   if (options.status != null) {
-    conditions.push(options.status === 'PENDING_DATE'
-      ? inArray(s.shipments.status, ['NEW', 'PENDING_DATE'])
-      : options.status === 'NEW'
-        ? inArray(s.shipments.status, ['NEW', 'PENDING_DATE', 'READY_FOR_DISPATCH'])
-        : eq(s.shipments.status, options.status));
+    conditions.push(shipmentStatusCondition(options.status));
   }
   const searchPredicate = buildShipmentSearchPredicate(options.q);
   if (searchPredicate) {

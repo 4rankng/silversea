@@ -19,7 +19,7 @@
 import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { eq, inArray } from 'drizzle-orm';
-import { Role } from '@tingting/shared';
+import { Role, ShipmentStatus } from '@tingting/shared';
 
 import { client, db } from '../db';
 import * as s from '../db/schema';
@@ -389,6 +389,43 @@ describe('listShipmentsPaginated', () => {
 
     assert.deepEqual(result.items.map((row) => row.id), [shipment.id]);
     assert.equal(result.total, 1);
+  });
+
+  test('dispatch master plan keeps a fully completed lot visible via the multi-status filter (regression 2026-09-05)', async () => {
+    const customer = await mkCustomer();
+    const shipment = await createShipment({ customerId: customer.id });
+    createdShipmentIds.push(shipment.id);
+    await db.update(s.shipments).set({ status: ShipmentStatus.COMPLETED }).where(eq(s.shipments.id, shipment.id));
+
+    // The dispatch master plan passes the full operational range in one
+    // request; a lot that finished its transport must survive that filter
+    // instead of vanishing from Kế hoạch Tổng quát (2026-09-05 customer
+    // report: single-container lot disappeared once its driver completed).
+    const masterPlan = await listShipmentsPaginated({
+      customerId: customer.id,
+      status: [
+        ShipmentStatus.READY_FOR_DISPATCH,
+        ShipmentStatus.DISPATCHED,
+        ShipmentStatus.IN_TRANSIT,
+        ShipmentStatus.PENDING_EXPENSE_APPROVAL,
+        ShipmentStatus.COMPLETED,
+      ],
+      page: 1,
+      limit: 20,
+    });
+    assert.deepEqual(masterPlan.items.map((row) => row.id), [shipment.id]);
+    assert.equal(masterPlan.total, 1);
+
+    // The legacy single-status planning filter keeps its old semantics: a
+    // completed lot is not READY_FOR_DISPATCH, so planning-only callers
+    // still exclude it.
+    const planningOnly = await listShipmentsPaginated({
+      customerId: customer.id,
+      status: ShipmentStatus.READY_FOR_DISPATCH,
+      page: 1,
+      limit: 20,
+    });
+    assert.equal(planningOnly.total, 0);
   });
 
   test('projects deterministic FCL summaries from containers, fulfillments, and live trips', async () => {
@@ -1179,7 +1216,7 @@ describe('updateShipment (optimistic lock)', () => {
 });
 
 describe('transitionShipmentStatus', () => {
-  test('READY_FOR_DISPATCH → DISPATCHED → IN_TRANSIT → PENDING_EXPENSE_APPROVAL → COMPLETED writes one history row each', async () => {
+  test('READY_FOR_DISPATCH → DISPATCHED → IN_TRANSIT → COMPLETED writes one history row each (PENDING_EXPENSE_APPROVAL retired 2026-09-05)', async () => {
     const customer = await mkCustomer();
     const shipment = await createShipment({ customerId: customer.id, closingAt: '2026-08-05T08:00:00.000Z' });
     createdShipmentIds.push(shipment.id);
@@ -1192,20 +1229,22 @@ describe('transitionShipmentStatus', () => {
     const running = await transitionShipmentStatus(shipment.id, 'IN_TRANSIT');
     assert.equal(running.status, 'IN_TRANSIT');
 
-    const delivered = await transitionShipmentStatus(shipment.id, 'PENDING_EXPENSE_APPROVAL');
-    assert.equal(delivered.status, 'PENDING_EXPENSE_APPROVAL');
-
+    // IN_TRANSIT now closes directly to COMPLETED (commit 4651f8f2 retired
+    // PENDING_EXPENSE_APPROVAL as a new-shipment destination). The retired
+    // stage is still kept in LEGAL_TRANSITIONS only so legacy rows parked
+    // there can transition out — see shipment-status-transitions.service.ts
+    // :50 and the deferred-expense-management comment there.
     const closed = await transitionShipmentStatus(shipment.id, 'COMPLETED');
     assert.equal(closed.status, 'COMPLETED');
 
     const history = await db.select().from(s.shipmentStatusHistory)
       .where(eq(s.shipmentStatusHistory.shipmentId, shipment.id))
       .orderBy(s.shipmentStatusHistory.id);
-    // 1 creation row + 4 transitions = 5
-    assert.equal(history.length, 5);
+    // 1 creation row + 3 transitions = 4
+    assert.equal(history.length, 4);
     assert.deepEqual(
       history.map((h) => h.toStatus),
-      ['READY_FOR_DISPATCH', 'DISPATCHED', 'IN_TRANSIT', 'PENDING_EXPENSE_APPROVAL', 'COMPLETED'],
+      ['READY_FOR_DISPATCH', 'DISPATCHED', 'IN_TRANSIT', 'COMPLETED'],
     );
     assert.equal(history[1].reason, 'Bắt đầu vận chuyển');
   });
@@ -1229,13 +1268,15 @@ describe('transitionShipmentStatus', () => {
     const shipment = await createShipment({ customerId: customer.id });
     createdShipmentIds.push(shipment.id);
 
-    // PENDING_DATE → PENDING_EXPENSE_APPROVAL is not a legal edge.
+    // PENDING_DATE → PENDING_EXPENSE_APPROVAL is not a legal edge (the retired
+    // stage is only in LEGAL_TRANSITIONS as an exit target for legacy rows).
     await assert.rejects(
       () => transitionShipmentStatus(shipment.id, 'PENDING_EXPENSE_APPROVAL'),
       (err: unknown) => err instanceof Error && 'statusCode' in err && err.statusCode === 409,
     );
 
-    // COMPLETED has no outgoing edges.
+    // COMPLETED has no outgoing edges — drive through the retired-then-collapsed
+    // path used in the prior test, then attempt to leave COMPLETED.
     const ready = await updateShipment(shipment.id, {
       version: shipment.version,
       closingAt: '2026-08-05T08:00:00.000Z',
@@ -1243,7 +1284,6 @@ describe('transitionShipmentStatus', () => {
     assert.equal(ready.status, 'READY_FOR_DISPATCH');
     await transitionShipmentStatus(shipment.id, 'DISPATCHED');
     await transitionShipmentStatus(shipment.id, 'IN_TRANSIT');
-    await transitionShipmentStatus(shipment.id, 'PENDING_EXPENSE_APPROVAL');
     await transitionShipmentStatus(shipment.id, 'COMPLETED');
     await assert.rejects(
       () => transitionShipmentStatus(shipment.id, 'DISPATCHED'),

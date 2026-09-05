@@ -998,7 +998,10 @@ export async function loadShipmentListAppointmentGroups(
 export interface ListShipmentsOptions {
   customerId?: number;
   customerIds?: number[];
-  status?: ShipmentStatus;
+  /** Single status (legacy NEW/PENDING_DATE expansions apply) or an explicit
+   *  status set — the dispatch master plan passes the full operational set so
+   *  a lot stays visible after it dispatches or completes. */
+  status?: ShipmentStatus | ShipmentStatus[];
   q?: string;
   /** W4 20260805_03 filter: limit to one trade direction. */
   tradeDirection?: 'IMPORT' | 'EXPORT';
@@ -1028,6 +1031,22 @@ export interface ListShipmentsOptions {
   actor?: AuthUser;
 }
 
+/**
+ * WHERE condition for the list status filter. A single status keeps the legacy
+ * NEW/PENDING_DATE bucket expansions; an explicit status set (dispatch master
+ * plan's operational range) is matched verbatim with no expansions.
+ */
+export function shipmentStatusCondition(status: ShipmentStatus | ShipmentStatus[]): SQL {
+  if (Array.isArray(status)) {
+    return inArray(s.shipments.status, status);
+  }
+  return status === 'PENDING_DATE'
+    ? inArray(s.shipments.status, ['NEW', 'PENDING_DATE'])
+    : status === 'NEW'
+      ? inArray(s.shipments.status, ['NEW', 'PENDING_DATE', 'READY_FOR_DISPATCH'])
+      : eq(s.shipments.status, status);
+}
+
 /** listShipmentsPaginated result extended with the full-filtered-set summary. */
 
 export async function listShipmentsPaginated(options: ListShipmentsOptions & { page?: number }) {
@@ -1042,11 +1061,7 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
     conditions.push(eq(s.shipments.customerId, options.customerId));
   }
   if (options.status != null) {
-    conditions.push(options.status === 'PENDING_DATE'
-      ? inArray(s.shipments.status, ['NEW', 'PENDING_DATE'])
-      : options.status === 'NEW'
-        ? inArray(s.shipments.status, ['NEW', 'PENDING_DATE', 'READY_FOR_DISPATCH'])
-        : eq(s.shipments.status, options.status));
+    conditions.push(shipmentStatusCondition(options.status));
   }
   const searchPredicate = buildShipmentSearchPredicate(options.q);
   if (searchPredicate) {

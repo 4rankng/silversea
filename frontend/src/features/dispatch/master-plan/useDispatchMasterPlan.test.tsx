@@ -1,5 +1,6 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { ShipmentStatus } from '@tingting/shared';
 import { useDispatchMasterPlan } from './useDispatchMasterPlan';
 
 vi.mock('../../../api/shipmentClient', async (importOriginal) => {
@@ -58,6 +59,23 @@ describe('useDispatchMasterPlan zone truck presence', () => {
       zoneLabel: 'Lạch Huyện',
       items: [],
     });
+  });
+
+  it('requests the full operational status set so dispatched and completed lots stay visible', async () => {
+    renderHook(() => useDispatchMasterPlan());
+
+    await waitFor(() => expect(listShipmentsMock).toHaveBeenCalled());
+    expect(listShipmentsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: [
+          ShipmentStatus.READY_FOR_DISPATCH,
+          ShipmentStatus.DISPATCHED,
+          ShipmentStatus.IN_TRANSIT,
+          ShipmentStatus.PENDING_EXPENSE_APPROVAL,
+          ShipmentStatus.COMPLETED,
+        ],
+      }),
+    );
   });
 
   it('fetches zone presence from the first active zone for today', async () => {

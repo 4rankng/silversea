@@ -189,13 +189,19 @@ coreRoutes.get('/', asyncHandler(async (req: Request, res: Response) => {
   }
 
   // Validate the status filter early — an invalid enum value would otherwise
-  // silently return an empty list, hiding a client bug.
-  let status: ShipmentStatus | undefined;
+  // silently return an empty list, hiding a client bug. Comma-separated sets
+  // are also accepted so the dispatch master plan can fetch the full
+  // operational range (READY_FOR_DISPATCH → COMPLETED) in one request.
+  let status: ShipmentStatus | ShipmentStatus[] | undefined;
   if (statusVal !== undefined) {
-    if (!Object.values(ShipmentStatus).includes(statusVal as ShipmentStatus)) {
+    const requested = statusVal.split(',').map((part) => part.trim()).filter((part) => part.length > 0);
+    const invalid = requested.find((part) => !Object.values(ShipmentStatus).includes(part as ShipmentStatus));
+    if (requested.length === 0 || invalid) {
       return res.status(400).json({ error: 'Trạng thái lô hàng không hợp lệ' });
     }
-    status = statusVal as ShipmentStatus;
+    status = requested.length === 1
+      ? requested[0] as ShipmentStatus
+      : requested as ShipmentStatus[];
   }
 
   // W4 20260805_03 §"Bổ sung các trường Filter tìm kiếm": trade direction,

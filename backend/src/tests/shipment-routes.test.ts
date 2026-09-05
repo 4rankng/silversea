@@ -999,6 +999,21 @@ describe('GET /', () => {
     assert.ok(r.data.items.some((x: { id: number }) => x.id === draft.id));
   });
 
+  test('filters by a comma-separated status set (dispatch master plan)', async () => {
+    const draft = await mkShipmentViaService();
+    // Explicit status sets match verbatim — no NEW/PENDING_DATE bucket
+    // expansion — so query the status the fresh draft actually lands in.
+    const r = await testFetch(`/?customerId=${customerId}&status=${encodeURIComponent('PENDING_DATE,COMPLETED')}`, { token: adminToken });
+    assert.equal(r.status, 200);
+    assert.ok(r.data.items.some((x: { id: number }) => x.id === draft.id),
+      'status set includes the matching draft');
+  });
+
+  test('rejects an invalid status inside a comma-separated set', async () => {
+    const r = await testFetch(`/?status=${encodeURIComponent('NEW,BOGUS')}`, { token: adminToken });
+    assert.equal(r.status, 400);
+  });
+
   test('supports server-side q search across code, BL, booking, customer, factory, and shipping line', async () => {
     const searchCustomer = await mkCustomer();
     // Import shipments carry a Bill; export shipments carry a Booking — the
