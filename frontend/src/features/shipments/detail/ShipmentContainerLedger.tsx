@@ -710,9 +710,6 @@ export function ShipmentContainerLedger({
                         ? <span className="shipment-container-ledger__plate">{row.plateNumber}</span>
                         : <BadgeWithDot size="sm" color="warning" className="shipment-container-ledger__plate--missing">Chưa gán biển số</BadgeWithDot>}
                       {missingVehicleToday && <small className="shipment-container-ledger__vehicle-guidance">Phối hợp Điều vận hoặc tự phân xe trước giờ chạy.</small>}
-                      {!vehicleEditable && row.vehicleReadOnlyReason && (
-                        <small className="shipment-container-ledger__read-only-reason">{row.vehicleReadOnlyReason}</small>
-                      )}
                     </div>)}
                   </td>
                   <td data-label="Ghi chú" className={cellClassName(row.shipmentNotesEditable, 'notes')}>

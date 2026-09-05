@@ -1057,9 +1057,6 @@ export async function listCusShipmentContainers(
       shipmentNotesEditable: shipmentEditable,
       carrierEditable: line.permissions.carrierEditable,
       plateEditable: line.permissions.plateEditable,
-      vehicleReadOnlyReason: line.permissions.carrierEditable || line.permissions.plateEditable
-        ? null
-        : line.fieldAccess.carrierType.reason,
       liftSiteEditable: line.permissions.liftSiteEditable,
       dropoffSiteEditable: line.permissions.dropoffSiteEditable,
       routeEditable: line.permissions.routeEditable,

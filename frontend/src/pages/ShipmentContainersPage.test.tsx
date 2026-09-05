@@ -45,7 +45,6 @@ const response: ShipmentCusContainerFlatResponse = {
       liftSite: 'Bãi CY', dropoffSite: 'Nhà máy Hải Phòng', transportDate: today, closingAt: null, plannedReturnAt: `${today}T08:00:00.000Z`, customerAppointmentAt: null,
       customerNotes: 'Lưu ca sáng', operationalNotes: 'Ưu tiên cổng 2', shipmentScheduleEditable: false, shipmentNotesEditable: false,
       informationStatus: 'COMPLETE', missingFields: [],
-      vehicleReadOnlyReason: 'Container đã có chuyến thực tế; hãy dùng luồng điều chỉnh điều vận.',
       raw: { containerNumber: 'CONT-001', containerTypeId: 1, cargoWeightKg: '25000', cargoVolumeCbm: '52.5' }, fieldAccess: directContainerAccess,
       shipmentFieldAccess: directShipmentAccess,
       carrierEditable: false, plateEditable: false, liftSiteEditable: false, dropoffSiteEditable: false, routeEditable: false, customerAppointmentEditable: false, scheduleEditable: false,
@@ -63,7 +62,6 @@ const response: ShipmentCusContainerFlatResponse = {
         { code: 'DROPOFF_SITE', label: 'Điểm trả hàng' },
         { code: 'APPOINTMENT', label: 'Lịch hẹn' },
       ],
-      vehicleReadOnlyReason: null,
       raw: { containerNumber: 'CONT-002', containerTypeId: 2, cargoWeightKg: null, cargoVolumeCbm: null }, fieldAccess: directContainerAccess,
       shipmentFieldAccess: directShipmentAccess,
       carrierEditable: true, plateEditable: true, liftSiteEditable: true, dropoffSiteEditable: true, routeEditable: true, customerAppointmentEditable: true, scheduleEditable: true,
@@ -357,7 +355,7 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     expect(plateChip.className).not.toContain('button');
   });
 
-  it('explains why a trip-bound vehicle cell is read-only', async () => {
+  it('keeps a trip-bound vehicle cell read-only', async () => {
     apiGet.mockResolvedValueOnce(response);
     render(<MemoryRouter><ShipmentContainersPage /></MemoryRouter>);
 
@@ -365,7 +363,6 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     expect(vehicleCell?.getAttribute('data-label')).toBe('Phân xe');
     expect(vehicleCell?.classList.contains('shipment-container-ledger__editable-cell')).toBe(false);
     expect(within(vehicleCell!).queryByRole('button', { name: /Chỉnh sửa phân xe CONT-001/ })).toBeNull();
-    expect(within(vehicleCell!).getByText('Container đã có chuyến thực tế; hãy dùng luồng điều chỉnh điều vận.')).toBeTruthy();
   });
 
   it('opens value-cell editors with click, Enter, and Space without pencil controls', async () => {

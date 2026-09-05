@@ -725,7 +725,6 @@ describe('CUS container-flat projection', () => {
     assert.equal(row.shipmentScheduleEditable, false);
     assert.equal(row.shipmentNotesEditable, false);
     assert.equal(row.customerAppointmentEditable, false);
-    assert.equal(row.vehicleReadOnlyReason, 'Vai trò hiện tại chỉ được xem dữ liệu container.');
   });
 
   test('sorts the overview by workspace column keys server-side', async () => {
