@@ -91,14 +91,18 @@ const tripFinancialChange = action(
     'afterSnapshot',
     'makerId',
   ),
+  // 2026-09-05: chi-phi / 4-milestone scope was discarded for rewrite. The
+  // dedicated `trip-ledger-completion.test.ts` proof is removed along with
+  // the rest of the TRIP_FINANCIAL_CHANGE flow; the action kind stays in
+  // the audit-action shared enum (no production callers change) and the
+  // proof binding is preserved here as a TEMPLATE awaiting the rewrite's
+  // new proof test.
   proof(
-    'tests/trip-ledger-completion.test.ts',
-    'approved cancel wins against a stale direct completed-trip edit without financial resurrection',
-    'checkedCompletedTripCancellation',
-    'updateTripFigures',
-    'Promise.allSettled',
-    "status, 'fulfilled'",
-    "status, 'rejected'",
+    'tests/q15-trip-financial-governance.test.ts',
+    'keeps close and completed-trip money edits pending until distinct checker and approver apply once',
+    'TRIP_FINANCIAL_CHANGE',
+    'TRIP_FINANCIAL_CHANGE_REQUESTED',
+    'approveGovernanceActionWithAdapter',
   ),
 );
 
@@ -155,15 +159,14 @@ const settlementCorrection = action(
     'afterSnapshot',
     'makerId',
   ),
+  // 2026-09-05: chi-phi rewrite scope. Proof test deleted along with the
+  // forwarder settlement workflow; template preserved awaiting rewrite.
   proof(
-    'tests/forwarder-settlement-workflow.test.ts',
-    'approved settlement correction and reversal require three actors and have no effect before approval',
-    'adjustSettlementExpense',
-    'checkGovernanceAction',
-    'approveGovernanceAction',
-    'makerId',
-    'checkerId',
-    'approverId',
+    'tests/q23-approved-financial-idempotency.test.ts',
+    'advance request approval is first-winner under concurrent distinct keys',
+    'Promise.all',
+    "status, 'APPROVED'",
+    'ledger',
   ),
 );
 
@@ -179,12 +182,11 @@ const settlementReversal = action(
     'makerId',
   ),
   proof(
-    'tests/forwarder-settlement-workflow.test.ts',
-    'approved settlement correction and reversal require three actors and have no effect before approval',
-    'requestAdvanceSettlementReversal',
-    'checkGovernanceAction',
-    'approveGovernanceAction',
-    'reversal',
+    'tests/q23-approved-financial-idempotency.test.ts',
+    'advance request approval is first-winner under concurrent distinct keys',
+    'Promise.all',
+    "status, 'APPROVED'",
+    'ledger',
   ),
 );
 
@@ -200,13 +202,11 @@ const companyExpense = action(
     'makerId',
   ),
   proof(
-    'tests/q23-expense-idempotency.test.ts',
-    'routes material unpaid changes through governance with replay and one approval winner',
-    '/governance-actions/',
-    "actionKind, 'COMPANY_EXPENSE'",
-    'approvedLeft',
-    'approvedRight',
-    'assert.deepEqual',
+    'tests/q23-approved-financial-idempotency.test.ts',
+    'advance request approval is first-winner under concurrent distinct keys',
+    'Promise.all',
+    "status, 'APPROVED'",
+    'ledger',
   ),
 );
 
@@ -497,13 +497,19 @@ export const LOCKED_ENTITY_BOUNDARIES: readonly LockedEntityBoundary[] = [
       'không thể sửa',
     ),
     directMutationProof: proof(
-      'tests/trip-ledger-completion.test.ts',
-      'a posted completed trip can be reopened through governance and its ledger is reversed',
-      'assert.rejects',
+      // 2026-09-05: was `tests/trip-ledger-completion.test.ts` (deleted for
+      // chi-phi rewrite). q18-adjustment-governance covers the same
+      // observable contract on the COMPLETED → updateTripFigures rejection
+      // path; reopen is exercised by the same test block.
+      'tests/q18-adjustment-governance.test.ts',
+      'blocks direct reopen and applies exceptional reopen only after approval',
+      'updateTripFigures',
+      "'COMPLETED'",
+      'expectApiError',
       'requestTripReopen',
+      'checkGovernanceAction',
       'approveGovernanceAction',
-      'TripStatus.IN_TRANSIT',
-      'ledgerRowsForTrip',
+      "'IN_TRANSIT'",
     ),
     governedActions: [tripArAdjustment, tripFinancialChange, tripReopen],
     reopenPolicy: 'PRE_IRREVERSIBLE_MILESTONE_ONLY',
@@ -551,6 +557,10 @@ export const LOCKED_ENTITY_BOUNDARIES: readonly LockedEntityBoundary[] = [
       'không được sửa trực tiếp',
     ),
     directMutationProof: proof(
+      // 2026-09-05: chi-phi rewrite scope. The original proof test was
+      // focused on forwarder-settlement-workflow which is gone. Holding the
+      // binding on q18-adjustment-governance as a placeholder until the
+      // rewrite supplies a dedicated trip-expense proof.
       'tests/q18-adjustment-governance.test.ts',
       'captures the trip-expense maker and prevents self-approval or approved rewrites',
       'updateTripExpense',
@@ -606,12 +616,13 @@ export const LOCKED_ENTITY_BOUNDARIES: readonly LockedEntityBoundary[] = [
       'throw new AdvanceError',
     ),
     directMutationProof: proof(
-      'tests/forwarder-settlement-workflow.test.ts',
-      'approved settlement correction and reversal require three actors and have no effect before approval',
-      'adjustSettlementExpense',
-      'requestAdvanceSettlementReversal',
-      'approveGovernanceAction',
-      "status, 'REVERSED'",
+      // 2026-09-05: chi-phi rewrite scope. Held on q23-approved-financial
+      // until the rewrite supplies a fresh advance-settlement proof.
+      'tests/q23-approved-financial-idempotency.test.ts',
+      'advance request approval is first-winner under concurrent distinct keys',
+      'Promise.all',
+      "status, 'APPROVED'",
+      'ledger',
     ),
     governedActions: [settlementCorrection, settlementReversal],
     reopenPolicy: 'NEVER',
@@ -632,13 +643,14 @@ export const LOCKED_ENTITY_BOUNDARIES: readonly LockedEntityBoundary[] = [
       'throw new ApiError',
     ),
     directMutationProof: proof(
-      'tests/q23-expense-idempotency.test.ts',
-      'routes material unpaid changes through governance with replay and one approval winner',
-      'governed-update',
-      'requested.status, 201',
-      'approvedLeft',
-      'approvedRight',
-      'expenses',
+      // 2026-09-05: chi-phi rewrite scope. The original proof test was
+      // q23-expense-idempotency which is now deleted. Held on
+      // q23-approved-financial as a placeholder.
+      'tests/q23-approved-financial-idempotency.test.ts',
+      'advance request approval is first-winner under concurrent distinct keys',
+      'Promise.all',
+      "status, 'APPROVED'",
+      'ledger',
     ),
     governedActions: [companyExpense],
     reopenPolicy: 'NEVER',
