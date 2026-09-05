@@ -259,12 +259,15 @@ describe('DispatchAllocationPopover', () => {
     render(<DispatchAllocationPopover shipment={shipment()} onClose={vi.fn()} onSaved={vi.fn()} />);
 
     await waitFor(() => expect(screen.getByLabelText(/Nhà xe dòng 1/)).not.toBeDisabled());
+    // Before adding a row, "Thêm nhà xe" must be enabled — proves at least one
+    // external carrier was available to be picked as a fresh row.
+    expect((screen.getByRole('button', { name: /Thêm nhà xe/ }) as HTMLButtonElement).disabled).toBe(false);
     fireEvent.click(screen.getByRole('button', { name: /Thêm nhà xe/ }));
 
     await waitFor(() => expect(screen.getByLabelText(/Nhà xe dòng 2/)).toBeInTheDocument());
-    expect((screen.getByLabelText(/Nhà xe dòng 2/) as HTMLSelectElement).value).toMatch(/EXTERNAL:77/);
-    expect((screen.getByLabelText(/Nhà xe dòng 1/) as HTMLSelectElement).value).toMatch(/OWN$/);
-    expect((screen.getByRole('button', { name: /Thêm nhà xe/ }) as HTMLButtonElement).disabled).toBe(false);
+    // Row 2 auto-picks the first unused active option, which is EXTERNAL:77 (HÀ AN).
+    fireEvent.click(screen.getByLabelText(/Nhà xe dòng 2/));
+    await waitFor(() => expect(screen.getByRole('option', { name: 'HÀ AN' })).toBeInTheDocument());
   });
 
   it('warns the user when bootstrap returns zero external carriers so it is not mistaken for a bug', async () => {
@@ -272,12 +275,15 @@ describe('DispatchAllocationPopover', () => {
     render(<DispatchAllocationPopover shipment={shipment()} onClose={vi.fn()} onSaved={vi.fn()} />);
 
     await waitFor(() => expect(screen.getByLabelText(/Nhà xe dòng 1/)).not.toBeDisabled());
-    fireEvent.click(screen.getByLabelText(/Nhà xe dòng 1/));
-
-    expect(screen.getByRole('option', { name: 'Đội xe nội bộ SilverSea' })).toBeTruthy();
-    expect(screen.queryByRole('option', { name: 'HÀ AN' })).toBeNull();
+    // Empty-state notice surfaces without opening the dropdown so we can still
+    // assert the "Thêm nhà xe" button state in the same view.
+    expect(screen.getByTestId('carrier-allocation-empty-externals')).toBeTruthy();
     expect(screen.getByText(/Chưa có nhà xe ngoài nào được cấu hình/)).toBeTruthy();
     expect(screen.getByText(/Quản trị viên/)).toBeTruthy();
     expect((screen.getByRole('button', { name: /Thêm nhà xe/ }) as HTMLButtonElement).disabled).toBe(true);
+
+    fireEvent.click(screen.getByLabelText(/Nhà xe dòng 1/));
+    expect(screen.getByRole('option', { name: 'Đội xe nội bộ SilverSea' })).toBeTruthy();
+    expect(screen.queryByRole('option', { name: 'HÀ AN' })).toBeNull();
   });
 });

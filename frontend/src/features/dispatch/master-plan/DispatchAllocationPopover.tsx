@@ -66,6 +66,7 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved, returnFo
   const [error, setError] = useState<string | null>(null);
   const [optionsLoading, setOptionsLoading] = useState(true);
   const [optionsError, setOptionsError] = useState(false);
+  const [optionsEmpty, setOptionsEmpty] = useState(false);
   const [optionsReloadKey, setOptionsReloadKey] = useState(0);
   const dialogRef = useRef<HTMLDivElement>(null);
 
@@ -73,6 +74,7 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved, returnFo
     let cancelled = false;
     setOptionsLoading(true);
     setOptionsError(false);
+    setOptionsEmpty(false);
     tripClient.getBootstrap().then((bootstrap) => {
       if (cancelled) return;
       const external = (bootstrap.externalCarriers ?? []).map((carrier) => ({
@@ -83,6 +85,12 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved, returnFo
         isActive: carrier.isActive,
       }));
       setOptions([OWN_CARRIER_OPTION, ...external]);
+      // Surface the "only OWN available" state explicitly so a dispatcher does
+      // not assume the "Thêm nhà xe" button is broken when no external
+      // carriers are configured yet. The notice points them at the admin role
+      // (only ADMIN can flip `customers.isCarrier = true` via the catalog
+      // CRUD, see `customer-intake.service.ts`).
+      setOptionsEmpty(external.length === 0);
       setOptionsLoading(false);
     }).catch(() => {
       if (cancelled) return;
@@ -419,6 +427,13 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved, returnFo
           <div className="dispatch-allocation-popover__notice is-warning" role="alert">
             <span>Không tải được danh sách nhà xe ngoài. Bạn vẫn có thể dùng đội xe nội bộ hoặc thử tải lại.</span>
             <UUIButton size="sm" color="secondary" onPress={() => setOptionsReloadKey((key) => key + 1)}>Tải lại</UUIButton>
+          </div>
+        )}
+        {optionsEmpty && !optionsError && (
+          <div className="dispatch-allocation-popover__notice is-warning" role="status" data-testid="carrier-allocation-empty-externals">
+            <span>
+              Chưa có nhà xe ngoài nào được cấu hình. Liên hệ Quản trị viên để đánh dấu khách hàng là nhà xe (isCarrier = true) trong danh mục Khách hàng.
+            </span>
           </div>
         )}
         <div className={`dispatch-allocation-popover__notice dispatch-allocation-popover__allocation-note is-${allocationState}`} role={allocationState === 'error' ? 'alert' : 'status'}>
