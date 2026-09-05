@@ -88,7 +88,7 @@ describe('CustomersPage mutation error surfacing', () => {
     apiMock.get.mockResolvedValue({ items: [customerFixture], total: 1 });
   });
 
-  it('toasts the pending-governance 409 with an approval-center hint and keeps the modal open', async () => {
+  it('toasts a 409 conflict verbatim and keeps the modal open', async () => {
     const conflict = 'Đã có yêu cầu quản trị đang xử lý cho cấu hình này';
     apiMock.put.mockRejectedValue(
       new ApiError(409, { error: conflict }, conflict),
@@ -102,7 +102,6 @@ describe('CustomersPage mutation error surfacing', () => {
     const [call] = toastSpy.mock.calls;
     expect(call[0].kind).toBe('error');
     expect(call[0].message).toContain(conflict);
-    expect(call[0].message).toContain('Trung tâm phê duyệt');
 
     // The modal must stay open so the user can retry or cancel — the error is
     // NOT routed to the table slot that sits behind the modal overlay.

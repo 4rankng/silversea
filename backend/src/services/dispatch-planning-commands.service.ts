@@ -248,8 +248,13 @@ export async function issueOrderCreateOrUpdate(
     .for('update');
   if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng.');
   const shipmentStatus = canonicalShipmentStatus(shipment.status);
-  if (shipmentStatus !== 'READY_FOR_DISPATCH' && shipmentStatus !== 'DISPATCHED') {
-    throw new ApiError(409, 'Lô hàng chưa sẵn sàng điều xe hoặc đã kết thúc.');
+  // Per-container issuance: only terminal shipments block new orders. A
+  // partially-completed lot (or a legacy row parked at the retired
+  // PENDING_EXPENSE_APPROVAL stage) must keep its remaining planned
+  // carriers issuable — otherwise the 2nd container of a 2-container lot
+  // gets stranded after the 1st completes (2026-09-05 prod bug).
+  if (shipmentStatus === 'COMPLETED' || shipmentStatus === 'CANCELED') {
+    throw new ApiError(409, 'Lô hàng đã kết thúc, không thể phát lệnh.');
   }
   const [fulfillment] = await tx.select().from(s.shipmentFulfillments)
     .where(and(

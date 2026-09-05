@@ -1649,17 +1649,15 @@ describe('Phase 4 driver fulfillment execution', () => {
     );
   });
 
-  test('driver full-close path: multi-fulfillment partial close advances shipment to PENDING_EXPENSE_APPROVAL (not stuck at DISPATCHED)', async () => {
-    // Field-reported regression 2026-08-29: when a shipment has multiple
-    // required fulfillments but only the driver-owned one has a trip, the
-    // original `allCompletedViaDriverClose` branch required EVERY
-    // required fulfillment to have a COMPLETED trip — so the shipment
-    // stayed at DISPATCHED (and the CUS badge read "Đang chạy") even
-    // though this trip was actually done. The fix adds an
-    // `anyFulfillmentCompletedViaDriver` branch that lifts the shipment
-    // to PENDING_EXPENSE_APPROVAL when at least one driver-closed trip
-    // is complete; the remaining planned carriers stay on the container
-    // badge as PLANNED.
+  test('driver full-close path: multi-fulfillment partial close keeps the shipment operational at DISPATCHED (expense stage retired)', async () => {
+    // 2026-09-05 contract change: the PENDING_EXPENSE_APPROVAL stage is
+    // retired (expense management deferred). A partially-completed
+    // multi-container lot must stay DISPATCHED so dispatchers can still
+    // see the closed leg's order and issue the remaining planned carrier;
+    // only when every required fulfillment closes does the lot complete.
+    // (Historical note: the 2026-08-29 fix this test pinned advanced the
+    // shipment to PENDING_EXPENSE_APPROVAL, which made the whole lot
+    // vanish from the dispatcher screens before the queue was widened.)
     const actor = await createDriverPrincipal('driver-full-close-multi-fulfillment');
     const { fulfillment, trip } = await createOwnedFulfillmentTrip(actor.driver.id, TripStatus.IN_TRANSIT);
 
@@ -1729,20 +1727,19 @@ describe('Phase 4 driver fulfillment execution', () => {
     });
     assert.equal(completed.trip.status, TripStatus.COMPLETED);
 
-    // The shipment must advance to PENDING_EXPENSE_APPROVAL (not stay at
-    // DISPATCHED, not jump to COMPLETED) — the second planned carrier
-    // has no trip yet, so the full COMPLETED gate is still pending.
+    // The shipment must stay operational at DISPATCHED (not COMPLETED) —
+    // the second planned carrier has no trip yet, so the full COMPLETED
+    // gate is still pending and the remaining leg stays issuable.
     const [shipment] = await db.select({ status: s.shipments.status })
       .from(s.shipments).where(eq(s.shipments.id, fulfillment.shipmentId)).limit(1);
-    assert.equal(shipment?.status, 'PENDING_EXPENSE_APPROVAL');
+    assert.equal(shipment?.status, 'DISPATCHED');
   });
 
   test('recompute: every required fulfillment\'s trip is CANCELED, current IN_TRANSIT rewinds to DISPATCHED (27.8 trial regression 2026-08-29)', async () => {
     // Field-reported symptom: shipment 263800 sat at IN_TRANSIT forever
     // because its only required fulfillment's trip was CANCELED and the
     // recompute branches (allCompletedViaDriverClose, allCompletedAndAccepted,
-    // allAwaitingApproval, anyFulfillmentCompletedViaDriver, anyInTransit)
-    // all missed — no transition fired. CUS/Dispatcher kept reading
+    // anyInTransit) all missed — no transition fired. CUS/Dispatcher kept reading
     // "Đang chạy" indefinitely. The fix adds a rewind-to-DISPATCHED branch
     // when current=IN_TRANSIT and no progress branch can fire, so the
     // planner's queue surfaces the lot for re-allocation.

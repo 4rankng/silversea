@@ -380,17 +380,20 @@ describe('O2C trip close readiness authority', () => {
     await assert.rejects(() => db.transaction((tx) => requireTripCloseReadiness(tx, tripId)), /e-POD hiện tại chưa được duyệt/);
   });
 
-  test('synthetic LCL scope completion moves submitted or accepted e-POD trips to pending approval without a hidden general scope', async () => {
+  test('synthetic LCL scope completion keeps submitted or accepted e-POD trips running (expense stage retired)', async () => {
+    // 2026-09-05: the PENDING_EXPENSE_APPROVAL stage is retired. A trip that
+    // submitted its e-POD but has not been driver-full-closed keeps the
+    // shipment IN_TRANSIT — mirroring the FCL skip-kế toán contract above.
     for (const submissionStatus of ['SUBMITTED', 'ACCEPTED'] as const) {
       const fixture = await createExpenseScopeRecomputeFixture({ cargoMode: 'LCL', submissionStatus });
       try {
         const recomputed = await recomputeShipmentCompletion(fixture.shipment.id, { changedBy: userIds[1] });
-        assert.equal(recomputed.status, 'PENDING_EXPENSE_APPROVAL');
+        assert.equal(recomputed.status, 'IN_TRANSIT');
         const [persisted] = await db.select({ status: s.shipments.status })
           .from(s.shipments)
           .where(eq(s.shipments.id, fixture.shipment.id))
           .limit(1);
-        assert.equal(persisted?.status, 'PENDING_EXPENSE_APPROVAL');
+        assert.equal(persisted?.status, 'IN_TRANSIT');
       } finally {
         await fixture.cleanup();
       }

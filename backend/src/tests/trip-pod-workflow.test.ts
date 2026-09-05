@@ -346,14 +346,17 @@ describe('trip pod review workflow', () => {
     assert.equal(reviewed.replayed, false);
     assert.equal(reviewed.submissionStatus, TripPodStatus.ACCEPTED);
     assert.equal(reviewed.tripStatus, TripStatus.IN_TRANSIT);
-    assert.equal(reviewed.shipment.status, 'PENDING_EXPENSE_APPROVAL');
+    // Expense-approval stage retired (2026-09-05): an accepted e-POD on a
+    // still-running trip no longer parks the shipment — it stays IN_TRANSIT
+    // until the driver full-closes the trip.
+    assert.equal(reviewed.shipment.status, 'IN_TRANSIT');
 
     await setTripExpenseCompletion(trip.id, null, false, clerkUser.id);
     const reopened = await getShipmentDetail(fixture.shipment.id, actorFromUser(clerkUser));
     assert.equal(reopened.shipment.status, 'IN_TRANSIT');
     await setTripExpenseCompletion(trip.id, null, true, clerkUser.id);
     const readyAgain = await getShipmentDetail(fixture.shipment.id, actorFromUser(clerkUser));
-    assert.equal(readyAgain.shipment.status, 'PENDING_EXPENSE_APPROVAL');
+    assert.equal(readyAgain.shipment.status, 'IN_TRANSIT');
 
     const detail = await getShipmentDetail(fixture.shipment.id, actorFromUser(clerkUser));
     assert.equal(detail.podReviews.length, 1);
@@ -514,7 +517,7 @@ describe('trip pod review workflow', () => {
     });
 
     assert.equal(disposition.replayed, false);
-    assert.equal(disposition.shipment.status, 'PENDING_EXPENSE_APPROVAL');
+    assert.equal(disposition.shipment.status, 'IN_TRANSIT');
 
     const [updatedCanceled] = await db.select().from(s.shipmentFulfillments)
       .where(inArray(s.shipmentFulfillments.id, [fixture.fulfillments[1]!.id]));

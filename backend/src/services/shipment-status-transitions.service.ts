@@ -44,7 +44,9 @@ const LEGAL_TRANSITIONS: Record<string, readonly string[]> = {
   PENDING_DATE: ['READY_FOR_DISPATCH', 'CANCELED'],
   READY_FOR_DISPATCH: ['DISPATCHED', 'CANCELED'],
   DISPATCHED: ['IN_TRANSIT', 'CANCELED'],
-  IN_TRANSIT: ['DISPATCHED', 'PENDING_EXPENSE_APPROVAL', 'CANCELED'],
+  IN_TRANSIT: ['DISPATCHED', 'COMPLETED', 'CANCELED'],
+  // Expense-management stage retired (2026-09-05, deferred): kept reachable in
+  // the map only so legacy rows parked there can transition out.
   PENDING_EXPENSE_APPROVAL: ['DISPATCHED', 'IN_TRANSIT', 'COMPLETED', 'CANCELED'],
   COMPLETED: [],
   CANCELED: [],
@@ -263,11 +265,9 @@ export async function recomputeShipmentCompletion(
     // Distinguish the "some planned carriers have not dispatched yet" case
     // (mixed shipment — at least one trip exists, some fulfillments still
     // pending) from the "no trips at all" case. The former should continue
-    // through the recompute so a driver-completed trip can lift the
-    // shipment off DISPATCHED → PENDING_EXPENSE_APPROVAL (see
-    // `anyFulfillmentCompletedViaDriver` below). The latter (every
-    // required fulfillment missing its trip) still falls back to the
-    // DISPATCHED rewind so the workboard doesn't get stuck.
+    // through the recompute so the completed leg's evidence is honored;
+    // the latter falls back to the DISPATCHED rewind so the workboard
+    // doesn't get stuck.
     const anyRequiredTripDispatched = requiredFulfillments.some((row) => {
       const linkedTrips = tripsByFulfillment.get(row.id) ?? [];
       return linkedTrips.length >= 1;
@@ -291,31 +291,7 @@ export async function recomputeShipmentCompletion(
         );
     }
 
-    const allCompleted = requiredFulfillments.every((row) => {
-      const trip = tripsByFulfillment.get(row.id)?.[0];
-      return trip != null && trip.status === 'COMPLETED';
-    });
-    const allExpenseScopesComplete = requiredFulfillments.every((row) => {
-      const trip = tripsByFulfillment.get(row.id)?.[0];
-      return trip != null && hasCompletedExpenseScopes(
-        trip.id,
-        containersByTrip.get(trip.id) ?? [],
-        completedExpenseScopeKeys,
-      );
-    });
     const anyInTransit = trips.some((trip) => trip.status === TripStatus.IN_TRANSIT);
-    const allAwaitingApproval = requiredFulfillments.every((row) => {
-      const trip = tripsByFulfillment.get(row.id)?.[0];
-      const latestSubmissionStatus = trip == null ? null : latestSubmissionByTripId.get(trip.id) ?? null;
-      return trip != null
-        && latestSubmissionStatus != null
-        && hasCompletedExpenseScopes(
-          trip.id,
-          containersByTrip.get(trip.id) ?? [],
-          completedExpenseScopeKeys,
-        )
-        && (latestSubmissionStatus === TripPodStatus.SUBMITTED || latestSubmissionStatus === TripPodStatus.ACCEPTED);
-    });
     const allCompletedAndAccepted = requiredFulfillments.every((row) => {
       const trip = tripsByFulfillment.get(row.id)?.[0];
       return trip != null && trip.status === 'COMPLETED'
@@ -368,8 +344,6 @@ export async function recomputeShipmentCompletion(
     // jumps to COMPLETED. A shipment with another leg actively IN_TRANSIT
     // must stay operational (RUNNING) instead — the partial close would
     // otherwise pin a physically moving load under "Chờ duyệt phí".
-    const anyFulfillmentCompletedViaDriver = requiredFulfillments.some(completedViaDriver);
-
     let targetStatus: ShipmentStatus = 'DISPATCHED';
     let reason = 'Tự động cập nhật theo tình trạng điều xe hiện tại.';
     if (allCompletedAndAccepted) {
@@ -382,22 +356,6 @@ export async function recomputeShipmentCompletion(
     } else if (allCompletedViaDriverClose) {
       targetStatus = 'COMPLETED';
       reason = 'Tài xế đã hoàn thành chuyến. Lô hàng chuyển sang Hoàn thành (kế toán review sẽ xử lý chi phí sau).';
-    } else if (allAwaitingApproval || (allCompleted && allExpenseScopesComplete)) {
-      targetStatus = 'PENDING_EXPENSE_APPROVAL';
-      reason = 'Tự động chuyển sang Chờ duyệt phí khi mọi tác vụ đã nộp đủ hồ sơ chờ kế toán/CUS duyệt.';
-    } else if (anyFulfillmentCompletedViaDriver && !anyInTransit) {
-      // Multi-fulfillment partial close: at least one driver-closed trip is
-      // complete, but other planned carriers are still pending. Advance the
-      // shipment so the CUS workspace badge + Dispatcher trips list show
-      // "Chờ duyệt phí" (the trip-level container badge already shows
-      // "Hoàn thành" via dispatchStatus) instead of a stale "Đang chạy".
-      // The remaining planned carriers are still tracked at the container
-      // level (dispatchStatus = PLANNED) and will be re-evaluated when the
-      // next trip is dispatched. When the last required fulfillment
-      // eventually closes, `allCompletedViaDriverClose` fires and the
-      // shipment jumps to COMPLETED.
-      targetStatus = 'PENDING_EXPENSE_APPROVAL';
-      reason = 'Tài xế đã hoàn thành một phần lô hàng. Chuyển sang Chờ duyệt phí cho phần đã đóng; những tác vụ còn lại sẽ được cập nhật khi phát lệnh tiếp.';
     } else if (anyInTransit) {
       // Advance a DISPATCHED shipment to IN_TRANSIT only when every required
       // fulfillment has a dispatched trip: a partially-dispatched shipment
@@ -438,7 +396,7 @@ export async function recomputeShipmentCompletion(
     }
     if (
       current === 'DISPATCHED'
-      && (targetStatus === 'PENDING_EXPENSE_APPROVAL' || targetStatus === 'COMPLETED')
+      && targetStatus === 'COMPLETED'
     ) {
       currentRow = await transitionShipmentStatus(shipmentId, 'IN_TRANSIT', {
         reason: 'Khôi phục trạng thái Đang chạy trước khi ghi nhận hồ sơ vận hành.',
@@ -446,13 +404,9 @@ export async function recomputeShipmentCompletion(
       }, tx);
       current = 'IN_TRANSIT';
     }
-    if (current === 'IN_TRANSIT' && targetStatus === 'COMPLETED') {
-      currentRow = await transitionShipmentStatus(shipmentId, 'PENDING_EXPENSE_APPROVAL', {
-        reason: 'Ghi nhận bước Chờ duyệt phí trước khi hoàn thành.',
-        changedBy: options.changedBy ?? null,
-      }, tx);
-      current = 'PENDING_EXPENSE_APPROVAL';
-    }
+    // Expense-management stage retired: IN_TRANSIT closes straight to
+    // COMPLETED; a legacy row parked at PENDING_EXPENSE_APPROVAL transitions
+    // directly to its target below (both edges are legal).
     if (current === targetStatus) return currentRow;
     return transitionShipmentStatus(shipmentId, targetStatus, {
       reason,
