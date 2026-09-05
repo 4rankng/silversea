@@ -19,10 +19,11 @@ interface LiftPricing {
 
 const DIR_LABELS: Record<string, string> = { LIFT_UP: 'Nâng', LIFT_DOWN: 'Hạ' };
 
-function LiftPricingForm({ saving, item, onsave, oncancel, ports, containerTypes }: {
+function LiftPricingForm({ saving, item, onsave, oncancel, ports, containerTypes, onDelete, deleting }: {
   saving: boolean; item?: LiftPricing; onsave: (d: Record<string, unknown>) => void; oncancel: () => void;
   ports: Array<{ id: number; name: string }>;
   containerTypes: Array<{ id: number; code: string; name: string }>;
+  onDelete?: () => Promise<void>; deleting?: boolean;
 }) {
   const [portId, setPortId] = useState(String(item?.portId ?? ''));
   const [containerTypeId, setContainerTypeId] = useState(String(item?.containerTypeId ?? ''));
@@ -79,7 +80,7 @@ function LiftPricingForm({ saving, item, onsave, oncancel, ports, containerTypes
       <div style={{ flex: 1, minWidth: 120 }}>
         <Field label="Đơn giá (₫)"><input className="input" value={unitPrice} onChange={e => setUnitPrice(e.target.value)} placeholder="1200000" /></Field>
       </div>
-      <FormActions saving={saving} isedit={!!item} oncancel={oncancel} onsave={() => {
+      <FormActions saving={saving} isedit={!!item} oncancel={oncancel} ondelete={onDelete} deleting={deleting} onsave={() => {
         if (!portId || !containerTypeId || !unitPrice.trim()) return;
         onsave({ portId: Number(portId), containerTypeId: Number(containerTypeId), direction, loadState, unitPrice });
       }} />
@@ -109,7 +110,7 @@ export default function LiftPricingConfigPage() {
           { header: 'Hàng/Rỗng', render: (r) => r.loadState === 'EMPTY' ? 'Rỗng' : 'Hàng' },
           { header: 'Ngày hiệu lực', render: (r) => r.effectiveDate },
         ]}
-        renderForm={(p) => <LiftPricingForm saving={p.saving} item={p.item} onsave={p.onSave} oncancel={p.onCancel} ports={ports} containerTypes={containerTypes} />}
+        renderForm={(p) => <LiftPricingForm saving={p.saving} item={p.item} onsave={p.onSave} oncancel={p.onCancel} ports={ports} containerTypes={containerTypes} onDelete={p.onDelete} deleting={p.deleting} />}
       />
     </div>
   );

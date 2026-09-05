@@ -24,8 +24,9 @@ const TYPE_LABELS: Record<string, string> = {
   OTHER: 'Khác',
 };
 
-function AncillaryRevenueForm({ saving, item, onsave, oncancel }: {
+function AncillaryRevenueForm({ saving, item, onsave, oncancel, onDelete, deleting }: {
   saving: boolean; item?: AncillaryRevenue; onsave: (d: Record<string, unknown>) => void; oncancel: () => void;
+  onDelete?: () => Promise<void>; deleting?: boolean;
 }) {
   const [type, setType] = useState<string>(item?.type || 'LCL');
   const [amount, setAmount] = useState(item?.amount || '');
@@ -52,7 +53,7 @@ function AncillaryRevenueForm({ saving, item, onsave, oncancel }: {
       <div style={{ flex: 2, minWidth: 150 }}>
         <Field label="Ghi chú (bắt buộc khi hoàn tiền)"><input className="input" value={note} onChange={e => setNote(e.target.value)} placeholder="Lý do…" /></Field>
       </div>
-      <FormActions saving={saving} isedit={!!item} oncancel={oncancel} onsave={() => {
+      <FormActions saving={saving} isedit={!!item} oncancel={oncancel} ondelete={onDelete} deleting={deleting} onsave={() => {
         if (!amount.trim()) return;
         const amt = Number(amount);
         if (amt < 0 && !note.trim()) return; // refund requires note
@@ -81,7 +82,7 @@ export default function AncillaryRevenueConfigPage() {
           { header: 'Ngày', render: (r) => r.date },
           { header: 'Ghi chú', render: (r) => r.note ?? '—' },
         ]}
-        renderForm={(p) => <AncillaryRevenueForm saving={p.saving} item={p.item} onsave={p.onSave} oncancel={p.onCancel} />}
+        renderForm={(p) => <AncillaryRevenueForm saving={p.saving} item={p.item} onsave={p.onSave} oncancel={p.onCancel} onDelete={p.onDelete} deleting={p.deleting} />}
       />
     </div>
   );

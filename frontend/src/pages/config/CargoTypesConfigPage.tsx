@@ -6,8 +6,9 @@ import { Field } from '../../components/config/Field';
 import { CrudTable } from '../../components/config/CrudTable';
 import type { CargoType } from '@tingting/shared';
 
-function CargoTypeForm({ saving, item, onsave, oncancel }: {
+function CargoTypeForm({ saving, item, onsave, oncancel, onDelete, deleting }: {
   saving: boolean; item?: CargoType; onsave: (d: Record<string, unknown>) => void; oncancel: () => void;
+  onDelete?: () => Promise<void>; deleting?: boolean;
 }) {
   const [name, setName] = useState(item?.name || '');
   return (
@@ -15,7 +16,7 @@ function CargoTypeForm({ saving, item, onsave, oncancel }: {
       <div style={{ flex: 2, minWidth: 200 }}>
         <Field label="Tên loại hàng"><input className="input" value={name} onChange={e => setName(e.target.value)} placeholder="Ví dụ: Cát, đá…" /></Field>
       </div>
-      <FormActions saving={saving} isedit={!!item} oncancel={oncancel} onsave={() => { if (!name.trim()) return; onsave({ name: name.trim() }); }} />
+      <FormActions saving={saving} isedit={!!item} oncancel={oncancel} onsave={() => { if (!name.trim()) return; onsave({ name: name.trim() }); }} ondelete={onDelete} deleting={deleting} />
     </InlineForm>
   );
 }
@@ -34,7 +35,7 @@ export default function CargoTypesConfigPage() {
       columns={[
         { header: 'Tên loại hàng', render: (ct) => <span style={{ fontWeight: 600, color: 'var(--fg-1)' }}>{ct.name}</span> },
       ]}
-      renderForm={(p) => <CargoTypeForm saving={p.saving} item={p.item} onsave={p.onSave} oncancel={p.onCancel} />}
+      renderForm={(p) => <CargoTypeForm saving={p.saving} item={p.item} onsave={p.onSave} oncancel={p.onCancel} onDelete={p.onDelete} deleting={p.deleting} />}
     />
     </div>
   );

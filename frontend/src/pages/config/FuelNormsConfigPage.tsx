@@ -48,12 +48,13 @@ function validate(input: {
   return errors;
 }
 
-function FuelNormForm({ saving, item, onsave, oncancel, routes }: {
+function FuelNormForm({ saving, item, onsave, oncancel, routes, onDelete, deleting }: {
   saving: boolean;
   item?: FuelNorm;
   onsave: (d: Record<string, unknown>) => void;
   oncancel: () => void;
   routes: RouteType[];
+  onDelete?: () => Promise<void>; deleting?: boolean;
 }) {
   const [routeId, setRouteId] = useState(item?.routeId ?? 0);
   const [loaded, setLoaded] = useState(item?.loadedLitersPer100Km || '');
@@ -158,7 +159,7 @@ function FuelNormForm({ saving, item, onsave, oncancel, routes }: {
           <div className="field-error" style={{ color: 'var(--danger, #c0392b)', fontSize: 12, marginTop: 4 }}>{fieldError('effectiveDate')}</div>
         )}
       </div>
-      <FormActions saving={saving} isedit={!!item} oncancel={oncancel} onsave={handleSave} />
+      <FormActions saving={saving} isedit={!!item} oncancel={oncancel} ondelete={onDelete} deleting={deleting} onsave={handleSave} />
     </InlineForm>
   );
 }
@@ -194,6 +195,8 @@ export default function FuelNormsConfigPage() {
             onsave={p.onSave}
             oncancel={p.onCancel}
             routes={routes}
+            onDelete={p.onDelete}
+            deleting={p.deleting}
           />
         )}
       />

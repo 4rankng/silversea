@@ -18,8 +18,9 @@ interface DispatchZoneRow extends DispatchZoneOption {
 
 type ZoneChoice = string;
 
-function PortForm({ saving, item, zoneOptions, onsave, oncancel }: {
+function PortForm({ saving, item, zoneOptions, onsave, oncancel, onDelete, deleting }: {
   saving: boolean; item?: Port; zoneOptions: Array<{ value: ZoneChoice; label: string }>; onsave: (d: Record<string, unknown>) => void; oncancel: () => void;
+  onDelete?: () => Promise<void>; deleting?: boolean;
 }) {
   const [name, setName] = useState(item?.name || '');
   const [shortName, setShortName] = useState(item?.shortName || '');
@@ -146,6 +147,8 @@ function PortForm({ saving, item, zoneOptions, onsave, oncancel }: {
         saving={saving}
         isedit={!!item}
         oncancel={oncancel}
+        ondelete={onDelete}
+        deleting={deleting}
         onsave={() => {
           if (!name.trim()) return;
           onsave({
@@ -166,8 +169,9 @@ function PortForm({ saving, item, zoneOptions, onsave, oncancel }: {
   );
 }
 
-function ZoneForm({ saving, item, onsave, oncancel }: {
+function ZoneForm({ saving, item, onsave, oncancel, onDelete, deleting }: {
   saving: boolean; item?: DispatchZoneRow; onsave: (d: Record<string, unknown>) => void; oncancel: () => void;
+  onDelete?: () => void | Promise<void>; deleting?: boolean;
 }) {
   const [code, setCode] = useState(item?.code ?? '');
   const [label, setLabel] = useState(item?.label ?? '');
@@ -226,6 +230,8 @@ function ZoneForm({ saving, item, onsave, oncancel }: {
         saving={saving}
         isedit={!!item}
         oncancel={oncancel}
+        ondelete={onDelete}
+        deleting={deleting}
         onsave={() => {
           if (!label.trim()) return;
           onsave(item
@@ -308,7 +314,7 @@ export default function PortsConfigPage() {
           ),
         },
       ]}
-      renderForm={(p) => <PortForm saving={p.saving} item={p.item} zoneOptions={zoneOptions} onsave={p.onSave} oncancel={p.onCancel} />}
+      renderForm={(p) => <PortForm saving={p.saving} item={p.item} zoneOptions={zoneOptions} onsave={p.onSave} oncancel={p.onCancel} onDelete={p.onDelete} deleting={p.deleting} />}
     />
 
     {user?.role === Role.ADMIN && (
@@ -338,6 +344,8 @@ export default function PortsConfigPage() {
           item={p.item}
           onsave={(d) => { p.onSave(d); refreshZones(); }}
           oncancel={p.onCancel}
+          onDelete={p.onDelete}
+          deleting={p.deleting}
         />
       )}
     />

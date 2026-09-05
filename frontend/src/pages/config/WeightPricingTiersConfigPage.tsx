@@ -15,8 +15,9 @@ interface WeightPricingTier {
   effectiveDate: string;
 }
 
-function TierForm({ saving, item, onsave, oncancel }: {
+function TierForm({ saving, item, onsave, oncancel, onDelete, deleting }: {
   saving: boolean; item?: WeightPricingTier; onsave: (d: Record<string, unknown>) => void; oncancel: () => void;
+  onDelete?: () => Promise<void>; deleting?: boolean;
 }) {
   const [minKg, setMinKg] = useState(item?.minKg || '0');
   const [maxKg, setMaxKg] = useState(item?.maxKg || '');
@@ -33,7 +34,7 @@ function TierForm({ saving, item, onsave, oncancel }: {
       <div style={{ flex: 1, minWidth: 120 }}>
         <Field label="Giá/kg (₫)"><input className="input" value={pricePerKg} onChange={e => setPricePerKg(e.target.value)} placeholder="4500" /></Field>
       </div>
-      <FormActions saving={saving} isedit={!!item} oncancel={oncancel} onsave={() => {
+      <FormActions saving={saving} isedit={!!item} oncancel={oncancel} ondelete={onDelete} deleting={deleting} onsave={() => {
         if (!maxKg.trim() || !pricePerKg.trim()) return;
         onsave({ minKg, maxKg, pricePerKg });
       }} />
@@ -57,7 +58,7 @@ export default function WeightPricingTiersConfigPage() {
           { header: 'Giá/kg (₫)', render: (t) => Number(t.pricePerKg).toLocaleString('vi-VN') },
           { header: 'Ngày hiệu lực', render: (t) => t.effectiveDate },
         ]}
-        renderForm={(p) => <TierForm saving={p.saving} item={p.item} onsave={p.onSave} oncancel={p.onCancel} />}
+        renderForm={(p) => <TierForm saving={p.saving} item={p.item} onsave={p.onSave} oncancel={p.onCancel} onDelete={p.onDelete} deleting={p.deleting} />}
       />
     </div>
   );

@@ -6,11 +6,13 @@ import { Field } from '../../components/config/Field';
 import { CrudTable } from '../../components/config/CrudTable';
 import type { TirePosition } from '@tingting/shared';
 
-function TirePositionForm({ saving, item, onsave, oncancel }: {
+function TirePositionForm({ saving, item, onsave, oncancel, onDelete, deleting }: {
   saving: boolean;
   item?: TirePosition;
   onsave: (d: Record<string, unknown>) => void;
   oncancel: () => void;
+  onDelete?: () => Promise<void>;
+  deleting?: boolean;
 }) {
   const [name, setName] = useState(item?.name || '');
 
@@ -25,6 +27,8 @@ function TirePositionForm({ saving, item, onsave, oncancel }: {
         saving={saving}
         isedit={!!item}
         oncancel={oncancel}
+        ondelete={onDelete}
+        deleting={deleting}
         onsave={() => {
           if (!name.trim()) return;
           onsave({
@@ -63,6 +67,8 @@ export default function TirePositionsConfigPage() {
             item={p.item}
             onsave={p.onSave}
             oncancel={p.onCancel}
+            onDelete={p.onDelete}
+            deleting={p.deleting}
           />
         )}
       />

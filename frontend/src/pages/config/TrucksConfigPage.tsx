@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { usePageAnimations } from '../../hooks/animations';
-import { StatusPill } from '../../components/UI';
+import { StatusPill, ModalChip, ModalChipLive } from '../../components/UI';
 import { UuiSelectField } from '../../design-system';
 import { InlineForm } from '../../components/config/InlineForm';
 import { FormActions } from '../../components/config/FormActions';
@@ -12,8 +12,9 @@ const TRUCK_STATUS_LABELS: Record<string, string> = {
   ACTIVE: 'Hoạt động', MAINTENANCE: 'Bảo trì', INACTIVE: 'Ngưng',
 };
 
-function TruckForm({ saving, item, onsave, oncancel }: {
+function TruckForm({ saving, item, onsave, oncancel, onDelete, deleting }: {
   saving: boolean; item?: Truck; onsave: (d: Record<string, unknown>) => void; oncancel: () => void;
+  onDelete?: () => Promise<void>; deleting?: boolean;
 }) {
   const [plate, setPlate] = useState(item?.licensePlate || '');
   const [status, setStatus] = useState(item?.status || 'ACTIVE');
@@ -30,7 +31,7 @@ function TruckForm({ saving, item, onsave, oncancel }: {
           options={Object.entries(TRUCK_STATUS_LABELS).map(([k, v]) => ({ value: k, label: v }))}
         />
       </div>
-      <FormActions saving={saving} isedit={!!item} oncancel={oncancel} onsave={() => { if (!plate.trim()) return; onsave({ licensePlate: plate.trim(), status }); }} />
+      <FormActions saving={saving} isedit={!!item} oncancel={oncancel} onsave={() => { if (!plate.trim()) return; onsave({ licensePlate: plate.trim(), status }); }} ondelete={onDelete} deleting={deleting} />
     </InlineForm>
   );
 }
@@ -51,7 +52,10 @@ export default function TrucksConfigPage() {
         { header: 'Biển số', render: (t) => <span style={{ fontWeight: 600, color: 'var(--fg-1)', fontFamily: 'var(--font-data)' }}>{t.licensePlate}</span> },
         { header: 'Trạng thái', render: (t) => <StatusPill variant={t.status === 'ACTIVE' ? 'success' : t.status === 'MAINTENANCE' ? 'warn' : 'neutral'}>{TRUCK_STATUS_LABELS[t.status] || t.status}</StatusPill> },
       ]}
-      renderForm={(p) => <TruckForm saving={p.saving} item={p.item} onsave={p.onSave} oncancel={p.onCancel} />}
+      renderForm={(p) => <TruckForm saving={p.saving} item={p.item} onsave={p.onSave} oncancel={p.onCancel} onDelete={p.onDelete} deleting={p.deleting} />}
+      modalChip={(t) => t.status === 'ACTIVE'
+        ? <ModalChipLive>Hoạt động</ModalChipLive>
+        : <ModalChip>{TRUCK_STATUS_LABELS[t.status] || t.status}</ModalChip>}
     />
     </div>
   );

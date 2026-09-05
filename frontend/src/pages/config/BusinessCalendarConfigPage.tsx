@@ -19,11 +19,15 @@ function BusinessCalendarForm({
   saving,
   onsave,
   oncancel,
+  onDelete,
+  deleting,
 }: {
   item?: BusinessCalendarDay;
   saving: boolean;
   onsave: (data: Record<string, unknown>) => void;
   oncancel: () => void;
+  onDelete?: () => Promise<void>;
+  deleting?: boolean;
 }) {
   const [calendarDate, setCalendarDate] = useState(item?.calendarDate ?? '');
   const [name, setName] = useState(item?.name ?? '');
@@ -73,6 +77,8 @@ function BusinessCalendarForm({
         saving={saving}
         isedit={!!item}
         oncancel={oncancel}
+        ondelete={onDelete}
+        deleting={deleting}
         onsave={() => {
           if (!calendarDate || !name.trim()) return;
           onsave({ calendarDate, name: name.trim(), isWorkingDay });
@@ -134,6 +140,8 @@ export default function BusinessCalendarConfigPage() {
             saving={props.saving}
             onsave={props.onSave}
             oncancel={props.onCancel}
+            onDelete={props.onDelete}
+            deleting={props.deleting}
           />
         )}
       />

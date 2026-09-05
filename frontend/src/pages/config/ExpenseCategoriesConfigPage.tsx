@@ -7,8 +7,9 @@ import { Field } from '../../components/config/Field';
 import { CrudTable } from '../../components/config/CrudTable';
 import type { ExpenseCategory } from '@tingting/shared';
 
-function ExpenseCategoryForm({ saving, item, onsave, oncancel }: {
+function ExpenseCategoryForm({ saving, item, onsave, oncancel, onDelete, deleting }: {
   saving: boolean; item?: ExpenseCategory; onsave: (d: Record<string, unknown>) => void; oncancel: () => void;
+  onDelete?: () => Promise<void>; deleting?: boolean;
 }) {
   const [name, setName] = useState(item?.name || '');
   const [isRenewable, setIsRenewable] = useState(item?.isRenewable ?? false);
@@ -50,6 +51,8 @@ function ExpenseCategoryForm({ saving, item, onsave, oncancel }: {
         saving={saving}
         isedit={!!item}
         oncancel={oncancel}
+        ondelete={onDelete}
+        deleting={deleting}
         onsave={() => {
           if (!name.trim()) return;
           onsave({
@@ -134,6 +137,8 @@ export default function ExpenseCategoriesConfigPage() {
           item={p.item}
           onsave={p.onSave}
           oncancel={p.onCancel}
+          onDelete={p.onDelete}
+          deleting={p.deleting}
         />
       )}
     />

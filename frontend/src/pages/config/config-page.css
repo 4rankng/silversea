@@ -142,6 +142,14 @@
   margin-bottom: 6px;
   letter-spacing: 0;
 }
+/* InlineForm rows mix plain Field inputs with UuiSelectField; the kit select
+ * labels its control with an 8px grid gap, so plain labels match it here or
+ * the two label stacks drift 2px apart in the same row. */
+.cfg-page .cfg-form-grid .field > label,
+.cfg-page .modal .field > label,
+.cfg-page td .field > label {
+  margin-bottom: 8px;
+}
 .cfg-page .cfg-field-hint {
   font-size: var(--fs-2xs);
   color: var(--ink-3);

@@ -502,13 +502,13 @@ export default function PenaltyReasonsConfigPage() {
       )}
 
       {/* ── Add Modal ── */}
-      <Modal isOpen={crud.showAddForm && !crud.editingId} title="Thêm lỗi vi phạm mới" onClose={crud.cancelForm} maxWidth={460}>
+      <Modal isOpen={crud.showAddForm && !crud.editingId} title="Thêm lỗi vi phạm mới" onClose={crud.cancelForm} maxWidth={460} polished>
         <PenaltyReasonForm saving={crud.saving} onSave={crud.doCreate} onCancel={crud.cancelForm} existingReasons={items} />
       </Modal>
 
       {/* ── Edit Modal ── */}
       {editingItem && (
-        <Modal isOpen={true} title="Chỉnh sửa lỗi vi phạm" onClose={crud.cancelForm} maxWidth={460}>
+        <Modal isOpen={true} title="Chỉnh sửa lỗi vi phạm" onClose={crud.cancelForm} maxWidth={460} polished>
           <PenaltyReasonForm item={editingItem} saving={crud.saving} onSave={(d) => crud.doUpdate(editingItem.id, d)} onCancel={crud.cancelForm} existingReasons={items} />
         </Modal>
       )}

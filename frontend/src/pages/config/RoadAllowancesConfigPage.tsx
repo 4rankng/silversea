@@ -14,9 +14,10 @@ const TRAILER_TYPE_LABELS: Record<string, string> = {
   [TrailerType.FT20]: '20ft', [TrailerType.FT40]: '40ft',
 };
 
-function RoadAllowanceForm({ saving, item, onsave, oncancel, routes }: {
+function RoadAllowanceForm({ saving, item, onsave, oncancel, routes, onDelete, deleting }: {
   saving: boolean; item?: RoadAllowance; onsave: (d: Record<string, unknown>) => void; oncancel: () => void;
   routes: RouteType[];
+  onDelete?: () => Promise<void>; deleting?: boolean;
 }) {
   const [routeId, setRouteId] = useState(item?.routeId || 0);
   const [trailerType, setTrailerType] = useState(item?.trailerType || TrailerType.FT20);
@@ -45,7 +46,7 @@ function RoadAllowanceForm({ saving, item, onsave, oncancel, routes }: {
       <div style={{ flex: 1, minWidth: 120 }}>
         <Field label="Mức cơ bản (đ)"><input className="input" type="number" value={baseAmount} onChange={e => setBaseAmount(e.target.value)} placeholder="0" /></Field>
       </div>
-      <FormActions saving={saving} isedit={!!item} oncancel={oncancel} onsave={() => { if (!routeId || !baseAmount) return; onsave({ routeId: routeId, trailerType: trailerType, baseAmount: Number(baseAmount) }); }} />
+      <FormActions saving={saving} isedit={!!item} oncancel={oncancel} ondelete={onDelete} deleting={deleting} onsave={() => { if (!routeId || !baseAmount) return; onsave({ routeId: routeId, trailerType: trailerType, baseAmount: Number(baseAmount) }); }} />
     </InlineForm>
   );
 }
@@ -74,7 +75,7 @@ export default function RoadAllowancesConfigPage() {
         { header: 'Loại rơ-moóc', render: (ra) => <span className="badge badge-outline">{TRAILER_TYPE_LABELS[ra.trailerType] || ra.trailerType}</span> },
         { header: 'Mức cơ bản', className: 'num', render: (ra) => <span style={{ color: 'var(--fg-1)' }}>{formatCurrency(ra.baseAmount)}</span> },
       ]}
-      renderForm={(p) => <RoadAllowanceForm saving={p.saving} item={p.item} onsave={p.onSave} oncancel={p.onCancel} routes={routes} />}
+      renderForm={(p) => <RoadAllowanceForm saving={p.saving} item={p.item} onsave={p.onSave} oncancel={p.onCancel} routes={routes} onDelete={p.onDelete} deleting={p.deleting} />}
     />
     </div>
   );

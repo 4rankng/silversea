@@ -10,9 +10,10 @@ import { useAllCustomers, useContainerTypes, useRoutesDropdown } from '../../hoo
 import type { PricingTable, Customer, Route as RouteType, ContainerType } from '@tingting/shared';
 import { DateInput } from '../../design-system/forms/DateInput';
 
-function PricingForm({ saving, item, onsave, oncancel, customers, routes, containerTypes }: {
+function PricingForm({ saving, item, onsave, oncancel, customers, routes, containerTypes, onDelete, deleting }: {
   saving: boolean; item?: PricingTable; onsave: (d: Record<string, unknown>) => void; oncancel: () => void;
   customers: Customer[]; routes: RouteType[]; containerTypes: ContainerType[];
+  onDelete?: () => Promise<void>; deleting?: boolean;
 }) {
   const [customerId, setCustomerId] = useState(item?.customerId || 0);
   const [routeId, setRouteId] = useState(item?.routeId || 0);
@@ -64,7 +65,7 @@ function PricingForm({ saving, item, onsave, oncancel, customers, routes, contai
       <div style={{ flex: 1, minWidth: 140 }}>
         <Field label="Hiệu lực từ"><DateInput className="input" value={effectiveDate} onChange={setEffectiveDate} /></Field>
       </div>
-      <FormActions saving={saving} isedit={!!item} oncancel={oncancel} onsave={() => { if (!customerId || !routeId || !price || !effectiveDate) return; onsave({ customerId, routeId, price: Number(price), rateKey: rateKey || null, containerTypeId: containerTypeId ? Number(containerTypeId) : null, effectiveDate }); }} />
+      <FormActions saving={saving} isedit={!!item} oncancel={oncancel} ondelete={onDelete} deleting={deleting} onsave={() => { if (!customerId || !routeId || !price || !effectiveDate) return; onsave({ customerId, routeId, price: Number(price), rateKey: rateKey || null, containerTypeId: containerTypeId ? Number(containerTypeId) : null, effectiveDate }); }} />
     </InlineForm>
   );
 }
@@ -103,7 +104,7 @@ export default function PricingTablesConfigPage() {
         { header: 'Hiệu lực từ', render: (pt) => pt.effectiveDate || '—' },
         { header: 'Giá', className: 'num', render: (pt) => <span style={{ color: 'var(--fg-1)' }}>{formatCurrency(pt.price)}</span> },
       ]}
-      renderForm={(p) => <PricingForm saving={p.saving} item={p.item} onsave={p.onSave} oncancel={p.onCancel} customers={customers} routes={routes} containerTypes={containerTypes} />}
+      renderForm={(p) => <PricingForm saving={p.saving} item={p.item} onsave={p.onSave} oncancel={p.onCancel} customers={customers} routes={routes} containerTypes={containerTypes} onDelete={p.onDelete} deleting={p.deleting} />}
     />
     </div>
   );

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { usePageAnimations } from '../../hooks/animations';
-import { StatusPill } from '../../components/UI';
+import { StatusPill, ModalChip, ModalChipLive } from '../../components/UI';
 import { UuiSelectField } from '../../design-system';
 import { InlineForm } from '../../components/config/InlineForm';
 import { FormActions } from '../../components/config/FormActions';
@@ -9,8 +9,9 @@ import { CrudTable } from '../../components/config/CrudTable';
 import { TRAILER_STATUS_LABELS, TRAILER_TYPE_LABELS } from '@tingting/shared';
 import type { Trailer } from '@tingting/shared';
 
-function TrailerForm({ saving, item, onsave, oncancel }: {
+function TrailerForm({ saving, item, onsave, oncancel, onDelete, deleting }: {
   saving: boolean; item?: Trailer; onsave: (d: Record<string, unknown>) => void; oncancel: () => void;
+  onDelete?: () => Promise<void>; deleting?: boolean;
 }) {
   const [plate, setPlate] = useState(item?.licensePlate || '');
   const [type, setType] = useState(item?.type || '40FT');
@@ -36,7 +37,7 @@ function TrailerForm({ saving, item, onsave, oncancel }: {
           options={Object.entries(TRAILER_STATUS_LABELS).map(([k, v]) => ({ value: k, label: v }))}
         />
       </div>
-      <FormActions saving={saving} isedit={!!item} oncancel={oncancel} onsave={() => { if (!plate.trim()) return; onsave({ licensePlate: plate.trim(), type, status }); }} />
+      <FormActions saving={saving} isedit={!!item} oncancel={oncancel} onsave={() => { if (!plate.trim()) return; onsave({ licensePlate: plate.trim(), type, status }); }} ondelete={onDelete} deleting={deleting} />
     </InlineForm>
   );
 }
@@ -58,7 +59,10 @@ export default function TrailersConfigPage() {
         { header: 'Loại', render: (t) => <span style={{ color: 'var(--fg-2)' }}>{TRAILER_TYPE_LABELS[t.type] || t.type}</span> },
         { header: 'Trạng thái', render: (t) => <StatusPill variant={t.status === 'ACTIVE' ? 'success' : t.status === 'MAINTENANCE' ? 'warn' : 'neutral'}>{TRAILER_STATUS_LABELS[t.status] || t.status}</StatusPill> },
       ]}
-      renderForm={(p) => <TrailerForm saving={p.saving} item={p.item} onsave={p.onSave} oncancel={p.onCancel} />}
+      renderForm={(p) => <TrailerForm saving={p.saving} item={p.item} onsave={p.onSave} oncancel={p.onCancel} onDelete={p.onDelete} deleting={p.deleting} />}
+      modalChip={(t) => t.status === 'ACTIVE'
+        ? <ModalChipLive>Hoạt động</ModalChipLive>
+        : <ModalChip>{TRAILER_STATUS_LABELS[t.status] || t.status}</ModalChip>}
     />
     </div>
   );
