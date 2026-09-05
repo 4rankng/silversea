@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
-import { tripClient } from '../../../api/tripClient';
 import {
   saveShipmentCarrierAllocations,
   type ShipmentListItem,
@@ -14,6 +13,7 @@ import { Button as UUIButton } from '../../../components/untitled-ui/base/button
 import { CloseButton } from '../../../components/untitled-ui/base/buttons/close-button';
 import { Input as UUIInput } from '../../../components/untitled-ui/base/input/input';
 import { UuiSelectField } from '../../../design-system';
+import { useCarrierAllocationOptions } from './useCarrierAllocationOptions';
 import './DispatchAllocationPopover.css';
 
 const OWN_CARRIER_OPTION: CarrierAllocationOption = {
@@ -60,45 +60,11 @@ interface DispatchAllocationPopoverProps {
  * allowed), save via the existing carrier-allocations API with 409 retry.
  */
 export function DispatchAllocationPopover({ shipment, onClose, onSaved, returnFocusTarget }: DispatchAllocationPopoverProps) {
-  const [options, setOptions] = useState<CarrierAllocationOption[]>([OWN_CARRIER_OPTION]);
+  const { options, loading: optionsLoading, error: optionsError, empty: optionsEmpty, reload: reloadOptions } = useCarrierAllocationOptions();
   const [rows, setRows] = useState<AllocationRow[]>(() => prefillRows(shipment));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [optionsLoading, setOptionsLoading] = useState(true);
-  const [optionsError, setOptionsError] = useState(false);
-  const [optionsEmpty, setOptionsEmpty] = useState(false);
-  const [optionsReloadKey, setOptionsReloadKey] = useState(0);
   const dialogRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    setOptionsLoading(true);
-    setOptionsError(false);
-    setOptionsEmpty(false);
-    tripClient.getBootstrap().then((bootstrap) => {
-      if (cancelled) return;
-      const external = (bootstrap.externalCarriers ?? []).map((carrier) => ({
-        key: carrierOptionKey('EXTERNAL', carrier.id),
-        label: carrier.name,
-        carrierType: 'EXTERNAL' as const,
-        externalCarrierId: carrier.id,
-        isActive: carrier.isActive,
-      }));
-      setOptions([OWN_CARRIER_OPTION, ...external]);
-      // Surface the "only OWN available" state explicitly so a dispatcher does
-      // not assume the "Thêm nhà xe" button is broken when no external
-      // carriers are configured yet. The notice points them at the admin role
-      // (only ADMIN can flip `customers.isCarrier = true` via the catalog
-      // CRUD, see `customer-intake.service.ts`).
-      setOptionsEmpty(external.length === 0);
-      setOptionsLoading(false);
-    }).catch(() => {
-      if (cancelled) return;
-      setOptionsError(true);
-      setOptionsLoading(false);
-    });
-    return () => { cancelled = true; };
-  }, [optionsReloadKey]);
 
   useEffect(() => {
     // Focus the dialog's close control so keyboard users land somewhere
@@ -426,14 +392,12 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved, returnFo
         {optionsError && (
           <div className="dispatch-allocation-popover__notice is-warning" role="alert">
             <span>Không tải được danh sách nhà xe ngoài. Bạn vẫn có thể dùng đội xe nội bộ hoặc thử tải lại.</span>
-            <UUIButton size="sm" color="secondary" onPress={() => setOptionsReloadKey((key) => key + 1)}>Tải lại</UUIButton>
+            <UUIButton size="sm" color="secondary" onPress={reloadOptions}>Tải lại</UUIButton>
           </div>
         )}
         {optionsEmpty && !optionsError && (
           <div className="dispatch-allocation-popover__notice is-warning" role="status" data-testid="carrier-allocation-empty-externals">
-            <span>
-              Chưa có nhà xe ngoài nào được cấu hình. Liên hệ Quản trị viên để đánh dấu khách hàng là nhà xe (isCarrier = true) trong danh mục Khách hàng.
-            </span>
+            <span>Chưa có nhà xe ngoài nào được cấu hình. Liên hệ Quản trị viên để bật cờ isCarrier trong danh mục Khách hàng.</span>
           </div>
         )}
         <div className={`dispatch-allocation-popover__notice dispatch-allocation-popover__allocation-note is-${allocationState}`} role={allocationState === 'error' ? 'alert' : 'status'}>
