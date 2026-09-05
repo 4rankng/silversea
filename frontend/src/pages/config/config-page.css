@@ -15,11 +15,15 @@
   white-space: nowrap;
 }
 
-/* Same chop family: record-table's shared `overflow-wrap: anywhere` breaks
-   Vietnamese caps headers mid-token when auto layout squeezes a column; a
-   nowrap header makes the auto layout honor that header's intrinsic width.
-   Opt-in per column via CrudColumn className (th + td). */
-.cfg-page .record-table thead th.cfg-th-nowrap { white-space: nowrap; }
+/* Headers wrap at word boundaries only: record-table's shared
+   `overflow-wrap: anywhere` lets auto layout break Vietnamese caps headers
+   mid-token (PHA/N LOẠI, NGHIỆ/P) when a column gets squeezed. Keeping
+   anywhere off the headers lets each column shrink to its longest word
+   instead, which the row content below wraps to absorb. */
+.cfg-page .record-table thead th {
+  overflow-wrap: normal;
+  word-break: normal;
+}
 
 /* ── Table density: sparse config rows don't need 24px vertical td padding ── */
 .cfg-page .tt-table thead th {

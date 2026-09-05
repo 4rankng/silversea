@@ -268,18 +268,15 @@ export default function PortsConfigPage() {
       columns={[
         {
           header: 'Tên cảng/bãi',
-          className: 'cfg-th-nowrap',
           render: (p) => <span style={{ fontWeight: 600, color: 'var(--fg-1)' }}>{p.name}</span>,
         },
         { header: 'Mã cảng', render: (p) => <span style={{ color: 'var(--fg-2)', whiteSpace: 'nowrap' }}>{p.code || '—'}</span> },
         {
           header: 'Phân loại',
-          className: 'cfg-th-nowrap',
           render: (p) => <span style={{ color: 'var(--fg-2)' }}>{p.classification || '—'}</span>,
         },
         {
           header: 'Pháp nhân',
-          className: 'cfg-th-nowrap',
           render: (p) => <span style={{ color: 'var(--fg-2)', fontSize: 13 }}>{p.legalEntity || '—'}</span>,
         },
         {
@@ -288,14 +285,12 @@ export default function PortsConfigPage() {
         },
         {
           header: 'Thuộc Lạch Huyện',
-          className: 'cfg-th-nowrap',
           render: (p) => p.isLachHuyen
             ? <span className="badge badge--success">Có</span>
             : <span style={{ color: 'var(--fg-3)' }}>—</span>,
         },
         {
           header: 'Web tác nghiệp',
-          className: 'cfg-th-nowrap',
           render: (p) => p.opsPortalUrl
             ? <a href={p.opsPortalUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', fontSize: 13 }}>{p.opsPortalUrl}</a>
             : <span style={{ color: 'var(--fg-3)' }}>—</span>,
