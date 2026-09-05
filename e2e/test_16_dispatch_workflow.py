@@ -20,7 +20,16 @@ VIEWPORTS = [
 
 CONTROL_MIN_SIZE = 44
 REPO_ROOT = Path(__file__).resolve().parent.parent
-MASTER_DATA_FIXTURE = next((REPO_ROOT / "docs/quytrinh").rglob("29.7 - DATA PM.xlsx"))
+MASTER_DATA_FIXTURE = next(
+    (REPO_ROOT / "docs/quytrinh").rglob("29.7 - DATA PM.xlsx"),
+    None,
+)
+if MASTER_DATA_FIXTURE is None:
+    # The DATA PM workbook is a customer delivery, not a repo artifact — the
+    # suite documents master-data-import behavior that needs it. Skip loudly
+    # instead of crashing run_all with a bare traceback.
+    print("SKIP SUITE 16: master-data fixture 'docs/quytrinh/29.7 - DATA PM.xlsx' not present (customer delivery, not committed).")
+    sys.exit(0)
 
 ROLE_SURFACES = {
     "admin": "/config/master-data-import",

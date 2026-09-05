@@ -54,7 +54,8 @@ for (const requiredCopy of [
 
 for (const requiredToken of [
   '--color-primary: #005A2D',
-  '--accent-2: #005A2D',
+  // f9bd16bc muted the accent palette; accent-2 is intentionally #2D6B54 now
+  '--accent-2: #2D6B54',
   '--accent-ink: #00361B',
   '--brand: #005A2D',
   '--brand-hover: #00361B',

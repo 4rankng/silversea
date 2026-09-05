@@ -312,6 +312,107 @@
 
 ---
 
+### TC-DV-DISPATCH-015 — Dialog "Phân bổ nhà xe" nhận diện dữ liệu nhà xe đã nhập và cho phép lưu
+
+- **Mã PRD:** Bug fix regression — dialog "Phân bổ nhà xe" (Kế hoạch tổng quát) không nhận diện dữ liệu nhà xe đã nhập, dẫn đến trạng thái "Chưa phân đủ" hiển thị sai hoặc không cho phép lưu khi dữ liệu đã hợp lệ
+- **Vai trò:** `dieuvan` (DISPATCHER)
+- **Mức độ:** P0
+- **Thiết bị:** Desktop (1440×900)
+- **Tiền điều kiện:**
+  - Lô FCL READY_FOR_DISPATCH có 2 container 40' (0 container 20').
+  - Dialog "Phân bổ nhà xe" đã mở, hiện dòng "Phân bổ 1" với dropdown "Nhà xe" và 2 ô input container.
+- **Các bước:**
+  1. Đăng nhập `dieuvan`. Mở `/dispatch`. Tìm lô FCL có 2 container 40'. Bấm "Chỉnh sửa phân bổ nhà xe".
+  2. Trong dialog, chọn "Đội xe nội bộ SilverSea" từ dropdown "Nhà xe".
+  3. Nhập `0` vào ô "Container 20'" và `1` vào ô "Container 40'".
+  4. Quan sát: bảng "Tổng phân bổ" cập nhật đúng (Đã phân = 1x40', Còn lại = 1x40').
+  5. Quan sát: trạng thái hiển thị "Chưa phân đủ" (không phải "Cần điều chỉnh") và nút "Lưu phân bổ" **được phép bấm** (enabled).
+  6. Bấm "Lưu phân bổ". Kiểm tra: lưu thành công, dialog đóng, chip trên master plan hiển thị "SilverSea: 1x40'".
+  7. Mở lại dialog cho cùng lô đó. Kiểm tra: dữ liệu "Đội xe nội bộ SilverSea" với 1x40' được giữ nguyên (prefill đúng).
+  8. Thêm dòng "Phân bổ 2", chọn nhà xe ngoài (ví dụ HÀ AN), nhập `0` container 20' và `1` container 40'.
+  9. Quan sát: bảng "Tổng phân bổ" cập nhật (Đã phân = 2x40', Còn lại = 0). Trạng thái chuyển sang "Đã phân đủ".
+  10. Bấm "Lưu phân bổ". Kiểm tra: lưu thành công, chip hiển thị cả 2 nhà xe.
+- **Kết quả mong đợi (Pass):**
+  - Bước 4: Tổng phân bổ cập nhật ngay khi nhập số container (không cần bấm nút nào khác).
+  - Bước 5: Trạng thái "Chưa phân đủ" hiển thị đúng (không nhầm thành lỗi), nút "Lưu phân bổ" enabled.
+  - Bước 6: Lưu thành công với `carrierType: 'OWN'`, `count40: 1`. Version shipment tăng.
+  - Bước 7: Mở lại dialog → dữ liệu prefill đúng từ `carrierAllocationSummary` (không reset về空白).
+  - Bước 9: Tổng phânổ = 2x40' = nhu cầu → "Đã phân đủ".
+  - Bước 10: Lưu thành công cả 2 nhà xe (OWN + EXTERNAL).
+- **Kỳ vọng sai (Fail nếu):**
+  - Nhập số container nhưng bảng "Tổng phân bổ" không cập nhật (Đã phân vẫn = 0).
+  - Trạng thái hiển thị "Cần điều chỉnh" hoặc nút "Lưu phân bổ" bị disabled dù dữ liệu hợp lệ.
+  - Mở lại dialog mà dữ liệu đã nhập bị reset về空白 (prefill không hoạt động).
+  - Lưu thành công nhưng chip không hiển thị trên master plan.
+  - Backend trả lỗi "Mỗi nhà xe chỉ được xuất hiện một lần" dù chọn 2 nhà xe khác nhau.
+- **Bằng chứng:** ảnh dialog sau khi nhập dữ liệu (bảng tổng phân bổ cập nhật) + ảnh nút "Lưu phân bổ" enabled + ảnh chip trên master plan sau lưu + ảnh dialog mở lại (prefill đúng) + ảnh Network 200 khi lưu
+
+---
+
+### TC-DV-DISPATCH-016 — Lưu phân bổ một phần (partial) và bổ sung sau
+
+- **Mã PRD:** Bug fix regression — phân bổ một phần không được lưu hoặc dữ liệu bị mất khi bổ sung sau
+- **Vai trò:** `dieuvan` (DISPATCHER)
+- **Mức độ:** P0
+- **Thiết bị:** Desktop (1440×900)
+- **Tiền điều kiện:** Lô FCL READY_FOR_DISPATCH có 2 container 40' (0 container 20').
+- **Các bước:**
+  1. Đăng nhập `dieuvan`. Mở `/dispatch`. Tìm lô FCL có 2 container 40'. Bấm "Chỉnh sửa phân bổ nhà xe".
+  2. Chọn "Đội xe nội bộ SilverSea", nhập `0` container 20' và `1` container 40'.
+  3. Bấm "Lưu phân bổ". Kiểm tra: lưu thành công (mode = partial, cho phép under-allocation).
+  4. Quan sát master plan: chip hiển thị "SilverSea: 1x40'", trạng thái lô = "PARTIALLY_ALLOCATED".
+  5. Mở lại dialog cho cùng lô đó. Kiểm tra: dữ liệu "SilverSea: 1x40'" được giữ nguyên.
+  6. Thêm dòng "Phân bổ 2", chọn nhà xe ngoài, nhập `0` container 20' và `1` container 40'.
+  7. Bấm "Lưu phân bổ". Kiểm tra: lưu thành công, trạng thái lô chuyển sang "FULLY_ALLOCATED".
+  8. Kiểm tra DB: `shipment_fulfillments` có 2 rows, mỗi row `plannedCarrierType` đúng (1 OWN, 1 EXTERNAL).
+- **Kết quả mong đợi (Pass):**
+  - Bước 3: Lưu partial thành công, không bị lỗi "Phân bổ chưa khớp".
+  - Bước 4: Master plan chip cập nhật đúng, allocationStatus = PARTIALLY_ALLOCATED.
+  - Bước 5: Prefill đúng dữ liệu đã lưu (không reset).
+  - Bước 7: Lưu lần 2 thành công, allocationStatus = FULLY_ALLOCATED.
+  - Bước 8: DB đúng 2 fulfillments, mỗi cái plannedCarrierType riêng.
+- **Kỳ vọng sai (Fail nếu):**
+  - Lưu partial bị lỗi "Phân bổ nhà xe chưa khớp" (backend reject partial).
+  - Dữ liệu bị mất khi mở lại dialog (prefill sai).
+  - Lưu lần 2 bị lỗi 409 version conflict (version không tăng sau lần lưu đầu).
+  - DB có fulfillments với plannedCarrierType sai hoặc thiếu.
+- **Bằng chứng:** ảnh dialog lần 1 + ảnh master plan sau lần 1 (chip + status) + ảnh dialog lần 2 (prefill) + ảnh master plan sau lần 2 + query DB `shipment_fulfillments`
+
+---
+
+### TC-DV-DISPATCH-017 — Warning "Chưa có nhà xe ngoài nào được cấu hình" phải ẩn khi đã nhập OWN allocation (regression 2026-09-05)
+
+- **Mã PRD:** Bug fix 2026-09-05 — dialog "Phân bổ nhà xe" hiển thị liên tục warning "Chưa có nhà xe ngoài nào được cấu hình. Liên hệ Quản trị viên để bật cờ isCarrier…" ngay cả khi dispatcher đã nhập OWN allocation hợp lệ. Warning misleading khiến dispatcher nghĩ hệ thống không nhận diện dữ liệu đã nhập.
+- **Vai trò:** `dieuvan` (DISPATCHER)
+- **Mức độ:** P1
+- **Thiết bị:** Desktop (1440×900)
+- **Tiền điều kiện:**
+  - Backend `/api/v1/catalogs/bootstrap` trả về `externalCarriers: []` (zero nhà xe ngoài). Chỉ có "Đội xe nội bộ SilverSea".
+  - Lô FCL READY_FOR_DISPATCH có 2 container 40' (0 container 20').
+- **Các bước:**
+  1. Đăng nhập `dieuvan`. Mở `/dispatch`. Tìm lô FCL có 2 container 40'. Bấm "Chỉnh sửa phân bổ nhà xe".
+  2. Quan sát ngay khi dialog mở (chưa nhập gì): warning "Chưa có nhà xe ngoài nào được cấu hình…" **phải hiển thị** (giải thích vì sao nút "+ Thêm nhà xe" bị disabled).
+  3. Chọn "Đội xe nội bộ SilverSea" từ dropdown "Nhà xe".
+  4. Nhập `0` vào ô "Container 20'" và `1` vào ô "Container 40'".
+  5. Quan sát bảng "Tổng phân bổ": Đã phân 40' = 1, Còn lại 40' = 1.
+  6. Quan sát: warning "Chưa có nhà xe ngoài nào được cấu hình…" **phải ẩn** (không còn hiển thị trong DOM). Status "Chưa phân đủ" và bottom note "Có thể lưu phân bổ hiện tại và bổ sung sau…" vẫn hiển thị.
+  7. Bấm "Lưu phân bổ". Kiểm tra: lưu thành công.
+  9. Mở lại dialog cho cùng lô đó. Nhập tiếp `0` container 20' và `1` container 40' vào dòng hiện có (cùng OWN). Quan sát: warning vẫn ẩn.
+- **Kết quả mong đợi (Pass):**
+  - Bước 2: Warning hiển thị khi chưa có allocation nào.
+  - Bước 5: Tổng phân bổ cập nhật đúng (Đã phân 40' = 1, Còn lại 40' = 1).
+  - Bước 6: Warning ẩn sau khi nhập OWN allocation hợp lệ. Status "Chưa phân đủ" vẫn đúng (partial), bottom note vẫn đúng (có thể lưu + bổ sung sau).
+  - Bước 7: Lưu thành công, chip master plan hiển thị "SilverSea: 1x40'", allocationStatus = PARTIALLY_ALLOCATED.
+  - Bước 9: Warning vẫn ẩn khi có allocation hợp lệ, kể cả khi nhập thêm số container vào dòng hiện có.
+- **Kỳ vọng sai (Fail nếu):**
+  - Warning vẫn hiển thị sau khi nhập OWN + số container > 0 (hành vi cũ — đã fix). Dispatcher thấy warning tưởng hệ thống không nhận diện dữ liệu.
+  - Warning ẩn cả khi chưa nhập gì (mất thông tin hữu ích về config).
+  - Bảng "Tổng phân bổ" không cập nhật khi nhập số container.
+  - Nút "Lưu phân bổ" bị disabled dù dữ liệu OWN hợp lệ.
+- **Bằng chứng:** ảnh dialog ngay khi mở (warning hiển thị) + ảnh dialog sau khi nhập OWN + 1x40' (warning ẩn, summary cập nhật, status "Chưa phân đủ") + ảnh master plan chip sau lưu + ảnh Network 200 khi lưu + ảnh `/api/v1/catalogs/bootstrap` response có `externalCarriers: []`
+
+---
+
 ## Bảng nghiệm thu — Luồng Điều xe (Điều vận)
 
 | Ngày thử | Mã TC | Người thử | Kết quả | Ghi chú | Bằng chứng |
@@ -330,3 +431,6 @@
 | __/__/__ | TC-DV-DISPATCH-012 | | | Phân xe lại khi tác vụ bị mất (fallback) | |
 | __/__/__ | TC-DV-DISPATCH-013 | | | Filter ngày hiển thị lô đã phân nhà xe (appointment) | |
 | __/__/__ | TC-DV-DISPATCH-014 | | | Dropdown nhà xe ngoài trong dialog Phân bổ nhà xe (regression 2026-09-05) | |
+| __/__/__ | TC-DV-DISPATCH-015 | | | Nhận diện dữ liệu nhà xe đã nhập + lưu + prefill khi mở lại (regression) | |
+| __/__/__ | TC-DV-DISPATCH-016 | | | Lưu partial + bổ sung sau + prefill (regression) | |
+| __/__/__ | TC-DV-DISPATCH-017 | | | Warning "Chưa có nhà xe ngoài nào được cấu hình" ẩn khi đã nhập OWN (regression 2026-09-05) | |

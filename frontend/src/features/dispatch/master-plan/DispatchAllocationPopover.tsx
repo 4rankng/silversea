@@ -95,6 +95,10 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved, returnFo
     count40: demand.count40 - validation.assigned40,
   }), [demand, validation.assigned20, validation.assigned40]);
 
+  const hasUserAllocations = rows.some(
+    (row) => Number(row.count20 || 0) > 0 || Number(row.count40 || 0) > 0,
+  );
+
   const allocationState = validation.errors.length > 0
     ? 'error'
     : remaining.count20 === 0 && remaining.count40 === 0
@@ -395,7 +399,7 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved, returnFo
             <UUIButton size="sm" color="secondary" onPress={reloadOptions}>Tải lại</UUIButton>
           </div>
         )}
-        {optionsEmpty && !optionsError && (
+        {optionsEmpty && !optionsError && !hasUserAllocations && (
           <div className="dispatch-allocation-popover__notice is-warning" role="status" data-testid="carrier-allocation-empty-externals">
             <span>Chưa có nhà xe ngoài nào được cấu hình. Liên hệ Quản trị viên để bật cờ isCarrier trong danh mục Khách hàng.</span>
           </div>

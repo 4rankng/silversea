@@ -32,7 +32,7 @@ import {
 } from '../services/email-settings.service';
 import {
   governedConfigVersionFromUpdatedAt,
-  requestGovernedConfigAction,
+  requestOrApplyGovernedConfigAction,
 } from '../services/price-config-governance.service';
 import { ApiError } from '../errors';
 import { resolveIdempotencyKey, runIdempotent } from '../services/idempotency.service';
@@ -198,7 +198,7 @@ appSettingsRouter.put(
         }
         if (materialChange) {
           const governedState = await getGovernedFinancialPolicyState(tx);
-          return requestGovernedConfigAction({
+          const outcome = await requestOrApplyGovernedConfigAction({
             resource: GOVERNED_APP_SETTINGS_RESOURCE,
             operation: governedState.updatedAt ? 'UPDATE' : 'CREATE',
             subjectId: null,
@@ -212,6 +212,7 @@ appSettingsRouter.put(
             makerRole: req.user?.role ?? Role.ADMIN,
             transaction: tx,
           });
+          return outcome.appliedRow ?? outcome.action;
         }
         if (directSaved) {
           return { ...directSaved.settings, updatedAt: directSaved.updatedAt };

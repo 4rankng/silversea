@@ -286,4 +286,27 @@ describe('DispatchAllocationPopover', () => {
     expect(screen.getByRole('option', { name: 'Đội xe nội bộ SilverSea' })).toBeTruthy();
     expect(screen.queryByRole('option', { name: 'HÀ AN' })).toBeNull();
   });
+
+  it('hides the empty-externals notice once the dispatcher enters a valid OWN allocation (regression 2026-09-05)', async () => {
+    vi.mocked(tripClient.getBootstrap).mockResolvedValue({ externalCarriers: [] } as never);
+    render(<DispatchAllocationPopover shipment={shipment()} onClose={vi.fn()} onSaved={vi.fn()} />);
+
+    await waitFor(() => expect(screen.getByLabelText(/Nhà xe dòng 1/)).not.toBeDisabled());
+    // Pre-condition: notice is visible before any data is entered.
+    expect(screen.getByTestId('carrier-allocation-empty-externals')).toBeTruthy();
+
+    // Dispatcher enters a valid OWN allocation (1x40' container) — the summary
+    // table should reflect it and the misleading "no external carriers
+    // configured" notice must disappear so the dispatcher knows the entered
+    // OWN data is recognised by the system.
+    fireEvent.change(screen.getByLabelText("Số container 40' dòng 1"), { target: { value: '1' } });
+
+    // The 40' row's "Đã phân" cell should now read 1 — proving the entered
+    // OWN data was registered in the summary table.
+    const rows = screen.getAllByRole('row');
+    const fortyRow = rows.find((row) => row.textContent?.includes("40'"));
+    expect(fortyRow?.textContent).toMatch(/1/);
+    expect(screen.queryByTestId('carrier-allocation-empty-externals')).toBeNull();
+    expect(screen.queryByText(/Chưa có nhà xe ngoài nào được cấu hình/)).toBeNull();
+  });
 });

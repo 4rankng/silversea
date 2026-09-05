@@ -142,7 +142,9 @@ setup: ## First-time setup: start infra, recreate DB, migrate, seed
 		docker-compose -f docker-compose.dev.yml up -d
 	@sleep 2
 	@$(MAKE) db-recreate
-	@$(MAKE) migrate
+	@# db-backup gate would abort here: a freshly recreated DB dumps <1KB.
+	@# Nothing to back up on a fresh recreate — migrate without the backup hook.
+	@cd backend && npx drizzle-kit migrate
 	@echo "Seeding database..."
 	@cd backend && pnpm seed
 	@echo ""

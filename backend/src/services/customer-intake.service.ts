@@ -7,7 +7,7 @@ export type CustomerCreateInput = z.infer<typeof customerSchema>;
 export type CustomerIntakeData = Omit<CustomerCreateInput,
   | 'creditLimit' | 'creditWarningThreshold' | 'paymentTermDays' | 'paymentDatePolicy'
   | 'fuelSurchargeSharePct' | 'debitNoteMode' | 'debitNoteTemplateId' | 'linkedSupplierId'
-  | 'status' | 'isCarrier'
+  | 'status'
 >;
 
 /**
@@ -26,7 +26,7 @@ export function restrictCustomerCreateForIntake(data: CustomerCreateInput, role:
   const restricted = new Set([
     'creditLimit', 'creditWarningThreshold', 'paymentTermDays', 'paymentDatePolicy',
     'fuelSurchargeSharePct', 'debitNoteMode', 'debitNoteTemplateId', 'linkedSupplierId',
-    'status', 'isCarrier',
+    'status',
   ]);
   return Object.fromEntries(
     Object.entries(data).filter(([key]) => !restricted.has(key)),

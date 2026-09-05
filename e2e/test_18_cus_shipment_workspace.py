@@ -576,7 +576,13 @@ def main() -> bool:
             # filter surfaces it.
             fixture_warning = page.locator(f"text=BLCUS{BOOK_SUFFIX_STORED}")
             fixture_warning.first.wait_for(timeout=10_000)
-            status_select = page.locator("select", has=page.locator("option[value='UNASSIGNED']")).first
+            # Trạng thái filter is a React Aria UuiSelectField — the app has
+            # no native <select> (ESLint @tingting/no-native-select guard), so
+            # open the field's trigger and pick the "Chưa điều xe" (UNASSIGNED)
+            # option from the portalled listbox.
+            status_field = page.locator(".shipments-detail-filter").filter(
+                has=page.get_by_text("Trạng thái", exact=True),
+            ).first
             with page.expect_response(
                 lambda response: (
                     "/api/shipments/cus-workspace/containers?" in response.url
@@ -585,12 +591,15 @@ def main() -> bool:
                 ),
                 timeout=10_000,
             ):
-                status_select.select_option("UNASSIGNED")
+                status_field.get_by_role("button").first.click()
+                page.get_by_role("option", name="Chưa điều xe").first.click()
             page.wait_for_function(
                 "() => new URLSearchParams(location.search).get('dispatchStatus') === 'UNASSIGNED'",
                 timeout=5_000,
             )
-            active_filter_visible = status_select.input_value() == "UNASSIGNED"
+            active_filter_visible = (
+                status_field.get_by_role("button").first.inner_text().strip().startswith("Chưa điều xe")
+            )
             page.goto(f"{BASE_URL}/shipments-detail?dateScope=all&searchSuffix={BOOK_SUFFIX_QUERY}")
             wait_for_page_ready(page)
             # The responsive ledger keeps a second semantic table in the DOM;

@@ -86,11 +86,11 @@ router.post('/', asyncHandler(async (req: Request, res: Response) => {
       makerRole: actor.role,
       transaction: tx,
     }),
-    getEntityId: (action) => action.id,
+    getEntityId: (outcome) => outcome.action.id,
   });
-  res.locals.auditEntityId = result.id;
-  res.locals.auditEntityKey = result.subjectKey;
-  res.status(statusCode).json({ ...result, replayed });
+  res.locals.auditEntityId = result.action.id;
+  res.locals.auditEntityKey = result.action.subjectKey;
+  res.status(statusCode).json({ ...result.action, replayed });
 }));
 
 router.put('/:id', asyncHandler(async (req: Request, res: Response) => {
@@ -115,11 +115,11 @@ router.put('/:id', asyncHandler(async (req: Request, res: Response) => {
       expectedVersion,
       transaction: tx,
     }),
-    getEntityId: (action) => action.id,
+    getEntityId: (outcome) => outcome.action.id,
   });
-  res.locals.auditEntityId = result.id;
-  res.locals.auditEntityKey = result.subjectKey;
-  res.status(statusCode).json({ ...result, replayed });
+  res.locals.auditEntityId = result.action.id;
+  res.locals.auditEntityKey = result.action.subjectKey;
+  res.status(statusCode).json({ ...result.action, replayed });
 }));
 
 router.delete('/:id', asyncHandler(async (req: Request, res: Response) => {
@@ -142,11 +142,11 @@ router.delete('/:id', asyncHandler(async (req: Request, res: Response) => {
       expectedVersion,
       transaction: tx,
     }),
-    getEntityId: (action) => action.id,
+    getEntityId: (outcome) => outcome.action.id,
   });
-  res.locals.auditEntityId = result.id;
-  res.locals.auditEntityKey = result.subjectKey;
-  res.status(statusCode).json({ ...result, replayed });
+  res.locals.auditEntityId = result.action.id;
+  res.locals.auditEntityKey = result.action.subjectKey;
+  res.status(statusCode).json({ ...result.action, replayed });
 }));
 
 export default router;

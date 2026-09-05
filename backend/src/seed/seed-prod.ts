@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import { and, count, eq, isNull, sql } from 'drizzle-orm';
+import { and, count, eq, isNull, or, sql } from 'drizzle-orm';
 import { Role } from '@tingting/shared';
 import { db } from '../db/index.js';
 import * as s from '../db/schema/index.js';
@@ -14,13 +14,12 @@ import { seedPricingTables } from './seed-pricing-tables';
 import { seedOperationalSites } from './seed-operational-sites';
 import { seedPorts } from './seed-ports';
 import { seedVehiclesFromExcel } from './seed-vehicles-from-excel';
-import { upsertPartnerFromTaxCode } from '../services/legal-partner.service';
 import { reassignTruckDriverInTx } from '../services/truck-driver-assignment.service';
 
 // ─── Prod seed: real customer master data only ───────────────────────────────
 // Loads the 2026-09-04 two-file delivery: master data from "4.9 - Import
 // data form.xlsx" (drivers, customers, sites, routes, ports, fleet, carrier
-// suppliers) and staff accounts from "User & Role.xlsx" (NV001..NV022 with
+// customers flagged isCarrier) and staff accounts from "User & Role.xlsx" (NV001..NV022 with
 // R_* role codes — the account authority). Shared role logins such as
 // ketoan/dieuvan/cus are STAGING-only and are never seeded here.
 // Intentionally EXCLUDES every demo generator (sample customers, demo
@@ -526,34 +525,38 @@ export async function seedProdFleetExtras(): Promise<void> {
 }
 
 export async function seedProdCarriers(): Promise<void> {
-  console.log('Seeding prod carrier suppliers (Nhà xe sheet)...');
+  console.log('Seeding prod carrier customers with isCarrier=true (Nhà xe sheet)...');
+  // Carriers live in the CUSTOMERS table: every dispatch/allocation surface
+  // (bootstrap externalCarriers, Phân bổ nhà xe, trip reassign, carrier AP)
+  // filters customers.isCarrier. An earlier revision wrote these rows as
+  // CARRIER-typed suppliers — a table no carrier surface reads — so the
+  // allocation dialog saw zero external carriers in production.
   for (const c of prodCarriers) {
-    const partnerId = await upsertPartnerFromTaxCode(c.taxCode);
-    const [existing] = await db.select({ id: s.suppliers.id })
-      .from(s.suppliers)
+    const matchTax = c.taxCode ? eq(sql`lower(btrim(${s.customers.taxCode}))`, norm(c.taxCode)) : undefined;
+    const matchName = eq(sql`lower(btrim(${s.customers.name}))`, norm(c.name));
+    const [existing] = await db.select({ id: s.customers.id })
+      .from(s.customers)
       .where(and(
-        isNull(s.suppliers.deletedAt),
-        partnerId != null
-          ? and(eq(s.suppliers.partnerId, partnerId), sql`lower(btrim(${s.suppliers.name})) = ${norm(c.name)}`)
-          : sql`lower(btrim(${s.suppliers.name})) = ${norm(c.name)}`,
+        isNull(s.customers.deletedAt),
+        ...(matchTax ? [or(matchTax, matchName)!] : [matchName]),
       ))
       .limit(1);
     const values = {
       name: c.name,
       shortName: c.shortName,
+      taxCode: c.taxCode,
       contactPerson: c.contactPerson,
       phone: c.phone,
-      taxCode: c.taxCode,
-      partnerId,
-      types: ['CARRIER'],
-      primaryType: 'CARRIER',
+      contactInfo: c.address,
+      isCarrier: true,
       status: 'ACTIVE',
+      debitNoteMode: 'MONTHLY',
       updatedAt: new Date(),
-    };
+    } as const;
     if (existing) {
-      await db.update(s.suppliers).set(values).where(eq(s.suppliers.id, existing.id));
+      await db.update(s.customers).set(values).where(eq(s.customers.id, existing.id));
     } else {
-      await db.insert(s.suppliers).values(values);
+      await db.insert(s.customers).values(values);
     }
   }
   console.log(`  carriers: ${prodCarriers.length}`);

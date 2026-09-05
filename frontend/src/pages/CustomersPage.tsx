@@ -5,7 +5,7 @@ import {
   MoreHorizontal, Pencil, Trash2, X, Save, Loader2, Truck,
   Building2, Hash, Landmark, MapPin, User, Phone, Clock,
 } from 'lucide-react';
-import { api, ApiError } from '../lib/api';
+import { api } from '../lib/api';
 import { downloadCSV } from '../lib/csv';
 import { nextTableSort, readTableSort } from '../lib/table-sort';
 import { SortHeader } from '../components/shared/SortHeader';
@@ -104,6 +104,7 @@ export function CustomerFormModal({ item, saving, onsave, oncancel, isOpen }: {
   const [freightPaymentTermDays, setFreightPaymentTermDays] = useState(
     item?.freightPaymentTermDays != null ? String(item.freightPaymentTermDays) : '',
   );
+  const [isCarrier, setIsCarrier] = useState(item?.isCarrier ?? false);
 
   useEffect(() => {
     if (isOpen) {
@@ -117,6 +118,7 @@ export function CustomerFormModal({ item, saving, onsave, oncancel, isOpen }: {
       setAccountantPhone(item?.accountantPhone || '');
       setAgencyFeePaymentTermDays(item?.agencyFeePaymentTermDays != null ? String(item.agencyFeePaymentTermDays) : '');
       setFreightPaymentTermDays(item?.freightPaymentTermDays != null ? String(item.freightPaymentTermDays) : '');
+      setIsCarrier(item?.isCarrier ?? false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally re-sync only when the target customer ID changes, not on every prop update
   }, [isOpen, item?.id]);
@@ -134,6 +136,7 @@ export function CustomerFormModal({ item, saving, onsave, oncancel, isOpen }: {
       accountantPhone: accountantPhone.trim() || undefined,
       agencyFeePaymentTermDays: agencyFeePaymentTermDays.trim() === '' ? null : Number(agencyFeePaymentTermDays),
       freightPaymentTermDays: freightPaymentTermDays.trim() === '' ? null : Number(freightPaymentTermDays),
+      isCarrier,
     });
   };
 
@@ -222,6 +225,18 @@ export function CustomerFormModal({ item, saving, onsave, oncancel, isOpen }: {
           />
         </EntityFormSection>
         <EntityFormSection icon={Landmark} label="Kế toán &amp; điều khoản">
+          <div className="col-span-full">
+            <label className="flex items-center gap-2 cursor-pointer select-none text-sm" style={{ minHeight: 32 }}>
+              <input
+                type="checkbox"
+                checked={isCarrier}
+                onChange={(e) => setIsCarrier(e.target.checked)}
+                style={{ width: 16, height: 16, accentColor: 'var(--accent)' }}
+              />
+              <Truck size={14} />
+              <span>Nhà xe (đối tác vận tải ngoài)</span>
+            </label>
+          </div>
           <Input
             size="sm"
             label="Giám đốc"
@@ -310,17 +325,11 @@ export default function CustomersPage() {
 
   /**
    * Mutation failures must surface as a toast: the edit modal stays open and
-   * would otherwise cover the table-slot error row below it. For the
-   * pending-governance 409, point the user at the approval center where the
-   * blocking request can be approved/rejected.
+   * would otherwise cover the table-slot error row below it.
    */
   const toastMutationError = (e: unknown, fallback: string) => {
-    const status = e instanceof ApiError ? e.status : null;
     const baseMessage = e instanceof Error && e.message ? e.message : fallback;
-    const hint = status === 409
-      ? ' Đang có yêu cầu chỉnh sửa khách hàng này chờ xử lý — kiểm tra Trung tâm phê duyệt trước khi sửa tiếp.'
-      : '';
-    toast({ kind: 'error', message: baseMessage + hint, duration: 7000 });
+    toast({ kind: 'error', message: baseMessage, duration: 7000 });
   };
 
   const debtMap = useMemo(() => {
@@ -351,23 +360,8 @@ export default function CustomersPage() {
   async function doCreate(body: Record<string, unknown>) {
     setSaving(true);
     try {
-      // Customer create goes through PRICE_CONFIG_CHANGE governance because it
-      // affects credit terms and AR aging. The API returns the governance
-      // action, NOT the customer record. We must surface that to the user,
-      // otherwise the modal closes and the customer "vanishes" from the list
-      // (it actually exists as a PENDING_CHECK approval elsewhere).
-      const result = await api.post<{ actionKind?: string; status?: string; reason?: string }>('/customers', body);
-      if (result && typeof result === 'object' && 'actionKind' in result && result.actionKind === 'PRICE_CONFIG_CHANGE') {
-        toast({
-          kind: 'info',
-          message: result.status === 'PENDING_CHECK'
-            ? 'Yêu cầu tạo khách hàng đã gửi — đang chờ phê duyệt. Khách hàng sẽ xuất hiện trong danh sách sau khi được duyệt.'
-            : 'Yêu cầu tạo khách hàng đã được ghi nhận và đang chờ kiểm tra.',
-          duration: 7000,
-        });
-      } else {
-        toast({ kind: 'success', message: 'Đã tạo khách hàng' });
-      }
+      await api.post('/customers', body);
+      toast({ kind: 'success', message: 'Đã tạo khách hàng' });
       setShowAddForm(false);
       await refetchCustomers();
     } catch (e: unknown) { toastMutationError(e, 'Lỗi lưu'); } finally { setSaving(false); }
@@ -376,19 +370,8 @@ export default function CustomersPage() {
   async function doUpdate(id: number, body: Record<string, unknown>) {
     setSaving(true);
     try {
-      // Edits to credit-bearing fields also go through PRICE_CONFIG_CHANGE
-      // approval — same caveat as doCreate. Show a toast so the user knows
-      // the change is pending, not silently lost.
-      const result = await api.put<{ actionKind?: string; status?: string }>(`/customers/${id}`, body);
-      if (result && typeof result === 'object' && 'actionKind' in result && result.actionKind === 'PRICE_CONFIG_CHANGE') {
-        toast({
-          kind: 'info',
-          message: 'Yêu cầu cập nhật khách hàng đã gửi — đang chờ phê duyệt.',
-          duration: 7000,
-        });
-      } else {
-        toast({ kind: 'success', message: 'Đã cập nhật khách hàng' });
-      }
+      await api.put(`/customers/${id}`, body);
+      toast({ kind: 'success', message: 'Đã cập nhật khách hàng' });
       await refetchCustomers();
       setEditingId(null);
       setMenuOpenId(null);

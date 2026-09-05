@@ -419,12 +419,13 @@ export async function requestGovernedConfigAction(input: {
 }
 
 /**
- * ADMIN is the final authority on governed price configuration: their request
- * is recorded as an APPROVED governance action (full audit trail) and applied
- * in the same transaction — no pending queue. Non-admin makers still go
- * through maker → checker → approver. Application failures roll the whole
- * write back, and any older pending request for the same subject dies at its
- * own apply-time version check.
+ * Product decision (2026-09-05): the maker → checker → approver queue is
+ * removed for governed price configuration. Every maker permitted by
+ * assertCanMakeGovernanceAction has their change recorded as an APPROVED
+ * governance action (full audit trail with before/after snapshots) and
+ * applied in the same transaction — no pending queue. Application failures
+ * roll the whole write back, and any older pending request for the same
+ * subject dies at its own apply-time version check.
  */
 export type GovernedConfigOutcome = {
   action: GovernanceActionRow;
@@ -435,10 +436,6 @@ export type GovernedConfigOutcome = {
 export async function requestOrApplyGovernedConfigAction(
   input: Parameters<typeof requestGovernedConfigAction>[0],
 ): Promise<GovernedConfigOutcome> {
-  if (input.makerRole !== Role.ADMIN) {
-    const action = await requestGovernedConfigAction(input);
-    return { action, appliedRow: null };
-  }
   const definition = getDefinition(input.resource);
   assertCanMakeGovernanceAction(definition.actionKind, input.makerRole);
   const reason = resolveReason(definition, input.operation, input.reason);
@@ -511,22 +508,9 @@ export async function requestGovernedCrudCreate(input: {
   makerRole: string;
   transaction?: Tx;
 }) {
-  return requestGovernedConfigAction({
-    resource: input.resource,
-    operation: 'CREATE',
-    subjectId: null,
-    subjectKey: createSubjectKey(input.resource, input.data),
-    originalVersion: 0,
-    beforeRow: null,
-    afterData: input.data,
-    reason: input.reason,
-    makerId: input.makerId,
-    makerRole: input.makerRole,
-    transaction: input.transaction,
-  });
+  return requestOrApplyGovernedCrudCreate(input);
 }
 
-/** ADMIN makers apply immediately (final authority); others queue as before. */
 export async function requestOrApplyGovernedCrudCreate(input: {
   resource: string;
   data: CrudData;
@@ -560,33 +544,9 @@ export async function requestGovernedCrudUpdate(input: {
   expectedUpdatedAt: Date;
   transaction?: Tx;
 }) {
-  const definition = getCrudDefinition(input.resource);
-  assertCanMakeGovernanceAction(definition.actionKind, input.makerRole);
-  const reason = resolveReason(definition, 'UPDATE', input.reason);
-  const execute = async (tx: Tx) => {
-    const row = await lockResourceRow(tx, definition, input.id);
-    const updatedAt = assertGovernedUpdatedAt(row, definition.resource);
-    if (updatedAt.getTime() !== input.expectedUpdatedAt.getTime()) {
-      throw new ApiError(409, 'Dữ liệu đã được người khác cập nhật. Vui lòng tải lại trước khi lưu.');
-    }
-    return requestGovernedConfigAction({
-      resource: definition.resource,
-      operation: 'UPDATE',
-      subjectId: Number(row.id),
-      subjectKey: null,
-      originalVersion: configVersionFromUpdatedAt(updatedAt),
-      beforeRow: row,
-      afterData: input.data,
-      reason,
-      makerId: input.makerId,
-      makerRole: input.makerRole,
-      transaction: tx,
-    });
-  };
-  return runInTx(input.transaction, execute);
+  return requestOrApplyGovernedCrudUpdate(input);
 }
 
-/** ADMIN makers apply immediately (final authority); others queue as before. */
 export async function requestOrApplyGovernedCrudUpdate(input: Parameters<typeof requestGovernedCrudUpdate>[0]) {
   const definition = getCrudDefinition(input.resource);
   assertCanMakeGovernanceAction(definition.actionKind, input.makerRole);
@@ -623,33 +583,9 @@ export async function requestGovernedCrudDelete(input: {
   expectedUpdatedAt: Date;
   transaction?: Tx;
 }) {
-  const definition = getCrudDefinition(input.resource);
-  assertCanMakeGovernanceAction(definition.actionKind, input.makerRole);
-  const reason = resolveReason(definition, 'DELETE', input.reason);
-  const execute = async (tx: Tx) => {
-    const row = await lockResourceRow(tx, definition, input.id);
-    const updatedAt = assertGovernedUpdatedAt(row, definition.resource);
-    if (updatedAt.getTime() !== input.expectedUpdatedAt.getTime()) {
-      throw new ApiError(409, 'Dữ liệu đã được người khác cập nhật. Vui lòng tải lại trước khi lưu.');
-    }
-    return requestGovernedConfigAction({
-      resource: definition.resource,
-      operation: 'DELETE',
-      subjectId: Number(row.id),
-      subjectKey: null,
-      originalVersion: configVersionFromUpdatedAt(updatedAt),
-      beforeRow: row,
-      afterData: null,
-      reason,
-      makerId: input.makerId,
-      makerRole: input.makerRole,
-      transaction: tx,
-    });
-  };
-  return runInTx(input.transaction, execute);
+  return requestOrApplyGovernedCrudDelete(input);
 }
 
-/** ADMIN makers apply immediately (final authority); others queue as before. */
 export async function requestOrApplyGovernedCrudDelete(input: Parameters<typeof requestGovernedCrudDelete>[0]) {
   const definition = getCrudDefinition(input.resource);
   assertCanMakeGovernanceAction(definition.actionKind, input.makerRole);
