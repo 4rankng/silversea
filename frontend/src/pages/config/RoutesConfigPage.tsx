@@ -114,7 +114,7 @@ export default function RoutesConfigPage() {
             </thead>
             <tbody>
               {filtered.length === 0 && <tr><td colSpan={7} data-label="" style={{ textAlign: 'center', padding: '48px 12px', color: 'var(--ink-3)' }}>Chưa có dữ liệu</td></tr>}
-              {filtered.map(r => (
+              {filtered.map((r, index) => (
                 <tr key={r.id}>
                   <td data-label="Mã tuyến" style={{ color: 'var(--fg-2)' }}>{r.code || '—'}</td>
                   <td data-label="Tên tuyến">
@@ -141,9 +141,12 @@ export default function RoutesConfigPage() {
                     </div>
                     {menuOpenId === r.id && (
                       <div style={{
-                        position: 'absolute', right: 12, top: '100%', marginTop: 4, zIndex: 20,
+                        position: 'absolute', right: 12, zIndex: 20,
                         background: '#fff', border: '1px solid var(--line)', borderRadius: 8,
                         boxShadow: '0 4px 14px rgba(10,10,10,0.06)', overflow: 'hidden', minWidth: 140,
+                        ...(index >= filtered.length - 2 && filtered.length > 2
+                          ? { bottom: '100%', marginBottom: 4 }
+                          : { top: '100%', marginTop: 4 }),
                       }} onClick={(e) => e.stopPropagation()}>
                         <button style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', fontSize: 12.5, border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', color: 'var(--ink)' }}
                           onClick={() => { setMenuOpenId(null); crud.setEditingId(r.id); }}>

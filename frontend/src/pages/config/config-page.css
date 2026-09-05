@@ -15,6 +15,12 @@
   white-space: nowrap;
 }
 
+/* Same chop family: record-table's shared `overflow-wrap: anywhere` breaks
+   Vietnamese caps headers mid-token when auto layout squeezes a column; a
+   nowrap header makes the auto layout honor that header's intrinsic width.
+   Opt-in per column via CrudColumn className (th + td). */
+.cfg-page .record-table thead th.cfg-th-nowrap { white-space: nowrap; }
+
 /* ── Table density: sparse config rows don't need 24px vertical td padding ── */
 .cfg-page .tt-table thead th {
   padding: 13px 18px;
