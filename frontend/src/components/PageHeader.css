@@ -39,10 +39,9 @@
 }
 .page-actions {
   display: flex;
-  gap: 10px;
-  align-items: flex-start;
+  gap: 8px;
+  align-items: center;
   flex-wrap: wrap;
-  min-height: 44px;
 }
 
 /* Route identity lives in the sidebar and browser title. Keep only controls

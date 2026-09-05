@@ -324,8 +324,8 @@
 }
 
 /* Primary + secondary rail/mobile actions inherit the Global .btn--primary /
- * .btn--secondary recipe (green gradient + --shadow-brand). tc-rail-btn and
- * tc-mobile-btn remain layout-only (full width / flex sizing). */
+ * .btn--secondary recipe. tc-rail-btn and tc-mobile-btn remain layout-only
+ * (full width / flex sizing). */
 
 /* ── Mobile save bar ── */
 .tc-edit-mobile-bar {

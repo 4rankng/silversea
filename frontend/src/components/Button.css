@@ -6,10 +6,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
+  gap: 6px;
   min-height: var(--control-default-h);
-  padding: 8px 14px;
-  border-radius: 10px;
+  padding: 5px 12px;
+  border-radius: 8px;
   font-family: var(--font-body);
   font-size: var(--fs-sm);
   font-weight: 600;
@@ -30,19 +30,16 @@
 
 /* wireframe variants */
 .btn--primary {
-  background: linear-gradient(180deg, var(--accent), var(--accent-2));
+  background: var(--accent);
   color: var(--fg-on-brand);
-  border-color: var(--accent-2);
-  box-shadow: 0 10px 22px -10px color-mix(in srgb, var(--accent) 50%, transparent);
+  border-color: var(--accent);
 }
 .btn--primary:hover {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 90%, white), var(--accent-ink));
-  border-color: var(--accent-ink);
-  transform: translateY(-1px);
-  box-shadow: 0 14px 28px -10px color-mix(in srgb, var(--accent) 60%, transparent);
+  background: var(--accent-2);
+  border-color: var(--accent-2);
 }
 .btn--primary:active {
-  transform: translateY(0);
+  background: var(--accent-ink);
 }
 .d-btn-primary:hover:not(:disabled) {
   background-color: var(--brand-hover);
@@ -72,9 +69,9 @@
   background: var(--danger-text);
   border-color: var(--danger-text);
 }
-.btn--sm { min-height: var(--control-compact-h); padding: 6px 10px; font-size: var(--fs-xs); line-height: 1.35; }
-.btn--lg { padding: 12px 18px; font-size: 15px; border-radius: 12px; min-height: 46px; }
-.btn--icon { width: var(--control-default-h); min-width: var(--control-default-h); height: var(--control-default-h); min-height: var(--control-default-h); padding: 0; }
+.btn--sm { min-height: var(--control-compact-h); padding: 4px 8px; font-size: var(--fs-xs); line-height: 1.35; }
+.btn--lg { padding: 8px 16px; font-size: 15px; border-radius: 10px; min-height: 40px; }
+.btn--icon { width: var(--control-default-h); min-width: var(--control-default-h); height: var(--control-default-h); min-height: var(--control-default-h); padding: 0; border-radius: 8px; }
 .btn--icon.btn--sm { width: var(--control-compact-h); min-width: var(--control-compact-h); height: var(--control-compact-h); min-height: var(--control-compact-h); padding: 0; }
 
 /* Legacy single-dash variants (.btn-primary/.btn-secondary/.btn-ghost/.btn-sm/

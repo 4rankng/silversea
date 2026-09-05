@@ -2,7 +2,7 @@ import { useState, useMemo, memo } from "react";
 import { Link } from "react-router-dom";
 import { EmptyIllustration } from "../../components/shared";
 import { Truck, Plus, Pencil, Trash2, X, Loader2, ArrowRight } from "lucide-react";
-import { Panel, StatusPill, Modal } from "../../components/UI";
+import { Panel, StatusPill, Modal, useConfirm } from "../../components/UI";
 import { StatusStrip } from "../../components/shared/StatusStrip";
 import { useCRUD } from "../../hooks/useCRUD";
 import { useTires } from "../../hooks/useTireQueries";
@@ -138,6 +138,7 @@ function DetailModal({ isOpen, title, onClose, details, onEdit, onDelete, deleti
 
 export function TrailerCard({ trailers, trucks, crud }: { trailers: Array<{ id: number; licensePlate: string; type: string; status: string }>; trucks: TruckType[]; crud: ReturnType<typeof useCRUD> }) {
   const [viewingId, setViewingId] = useState<number | null>(null);
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const { data: tires = [] } = useTires();
   // Build reverse lookup: trailerId → truck plate, so we can show which đầu
   // kéo each rơ-moóc is currently coupled to.
@@ -312,9 +313,11 @@ export function TrailerCard({ trailers, trucks, crud }: { trailers: Array<{ id: 
                   <button
                     className="btn btn--ghost btn--sm"
                     style={{ color: "var(--danger)" }}
-                    onClick={(e) => {
+                    onClick={async (e) => {
                       e.stopPropagation();
-                      crud.doDelete(t.id);
+                      if (await confirm('Xóa rơ-moóc này?', { variant: 'danger', confirmLabel: 'Xóa' })) {
+                        crud.doDelete(t.id);
+                      }
                     }}
                   >
                     Xóa
@@ -353,10 +356,12 @@ export function TrailerCard({ trailers, trucks, crud }: { trailers: Array<{ id: 
           setViewingId(null);
           if (id != null) crud.setEditingId(id);
         }}
-        onDelete={() => {
+        onDelete={async () => {
           const id = viewingId;
           setViewingId(null);
-          if (id != null) crud.doDelete(id);
+          if (id != null && await confirm('Xóa rơ-moóc này?', { variant: 'danger', confirmLabel: 'Xóa' })) {
+            crud.doDelete(id);
+          }
         }}
         details={(() => {
           const t = viewingId != null ? trailers.find((x) => x.id === viewingId) : null;
@@ -382,6 +387,7 @@ export function TrailerCard({ trailers, trucks, crud }: { trailers: Array<{ id: 
         }}
         oncancel={crud.cancelForm}
       />
+      {confirmDialog}
     </Panel>
   );
 }

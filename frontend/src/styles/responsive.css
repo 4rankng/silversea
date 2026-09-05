@@ -329,7 +329,7 @@
   .page-actions .btn,
   .header-actions .btn,
   .page-header .btn:not(.btn--icon),
-  .page-header .btn-primary { flex: 1 1 180px; min-width: 0; justify-content: center; min-height: 44px; }
+  .page-header .btn-primary { min-height: 40px; }
   .trip-detail-title { font-size: var(--fs-xl); gap: 8px; line-height: 1.2; }
   .trip-detail-title > span { flex: 1 1 auto; min-width: 0; }
   .trip-detail-subtitle { margin-left: 0; font-size: var(--fs-xs); }

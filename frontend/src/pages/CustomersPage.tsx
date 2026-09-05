@@ -9,7 +9,7 @@ import { api, ApiError } from '../lib/api';
 import { downloadCSV } from '../lib/csv';
 import { nextTableSort, readTableSort } from '../lib/table-sort';
 import { SortHeader } from '../components/shared/SortHeader';
-import { PageHeader, FilterPill, StatusPill, Modal, ModalChip, ModalChipLive } from '../components/UI';
+import { PageHeader, FilterPill, StatusPill, Modal, ModalChip, ModalChipLive, useConfirm } from '../components/UI';
 import { Input } from '../components/untitled-ui/base/input/input';
 import { EntityFormSection, UnitInput, RequiredHint } from '../components/shared/EntityFormParts';
 import { SummaryRail } from '../design-system';
@@ -385,7 +385,10 @@ export default function CustomersPage() {
     } catch (e: unknown) { toastMutationError(e, 'Lỗi cập nhật'); } finally { setSaving(false); }
   }
 
+  const { confirm, dialog: confirmDialog } = useConfirm();
+
   async function doDelete(id: number) {
+    if (!await confirm('Xóa khách hàng này?', { variant: 'danger', confirmLabel: 'Xóa' })) return;
     setDeleting(id);
     try {
       await api.delete(`/customers/${id}`);
@@ -674,6 +677,7 @@ export default function CustomersPage() {
         }}
         oncancel={() => { setEditingId(null); setShowAddForm(false); }}
       />
+      {confirmDialog}
     </div>
   );
 }

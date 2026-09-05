@@ -1,4 +1,5 @@
 import { useState, type CSSProperties } from 'react';
+import { useConfirm } from '../UI';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronDown, FileText, Download, History, Pencil, Plus, Receipt, Trash2 } from 'lucide-react';
 import { useToast } from '../shared/Toast';
@@ -41,6 +42,7 @@ export default function BillingDocumentsPanel({
   onBuilderClose,
 }: Props) {
   const { toast: showToast } = useToast();
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const queryClient = useQueryClient();
   const [localBuilderOpen, setLocalBuilderOpen] = useState(false);
   const [editing, setEditing] = useState<BillingDocument | null>(null);
@@ -96,7 +98,7 @@ export default function BillingDocumentsPanel({
   };
 
   const removeDoc = async (doc: BillingDocument) => {
-    if (!window.confirm('Xóa tài liệu này?')) return;
+    if (!await confirm('Xóa tài liệu này?', { variant: 'danger', confirmLabel: 'Xóa' })) return;
     try {
       await financialClient.deleteBillingDocument(doc.id);
       showToast({ kind: 'success', message: 'Đã xóa.' });
@@ -187,6 +189,7 @@ export default function BillingDocumentsPanel({
           onSaved={refresh}
         />
       )}
+      {confirmDialog}
     </div>
   );
 }

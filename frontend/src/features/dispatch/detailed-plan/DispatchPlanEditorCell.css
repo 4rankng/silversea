@@ -111,12 +111,11 @@
   height: 26px;
   padding: 0;
   color: #fff;
-  background: linear-gradient(180deg, #1eae6b 0%, #0f7a47 100%);
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: #4A9E7D;
+  border: 1px solid transparent;
   border-radius: 999px;
-  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.16), 0 0 0 1px rgba(15, 122, 71, 0.1);
   cursor: pointer;
-  transition: filter 120ms ease, box-shadow 120ms ease, transform 120ms ease;
+  transition: background 120ms ease;
 }
 
 .dispatch-assignment-cell__quick-issue svg {
@@ -124,15 +123,11 @@
 }
 
 .dispatch-assignment-cell__quick-issue:hover:not(:disabled) {
-  filter: brightness(1.06);
-  box-shadow: 0 3px 8px rgba(16, 24, 40, 0.22), 0 0 0 1px rgba(15, 122, 71, 0.14);
-  transform: translateY(-1px);
+  background: #3D8B6E;
 }
 
 .dispatch-assignment-cell__quick-issue:active:not(:disabled) {
-  filter: brightness(0.95);
-  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.16);
-  transform: translateY(0);
+  background: #2D6B54;
 }
 
 .dispatch-assignment-cell__quick-issue:focus-visible {
@@ -232,22 +227,17 @@
 }
 
 .dispatch-assignment-dialog__issue-btn {
-  background: linear-gradient(180deg, #1eae6b 0%, #0f7a47 100%);
+  background: #4A9E7D;
   border-color: transparent;
-  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.14), 0 0 0 1px rgba(15, 122, 71, 0.1);
-  transition: filter 120ms ease, box-shadow 120ms ease, transform 120ms ease;
+  transition: background 120ms ease;
 }
 
 .dispatch-assignment-dialog__issue-btn:hover:not(:disabled) {
-  filter: brightness(1.05);
-  box-shadow: 0 4px 10px rgba(16, 24, 40, 0.2), 0 0 0 1px rgba(15, 122, 71, 0.14);
-  transform: translateY(-1px);
+  background: #3D8B6E;
 }
 
 .dispatch-assignment-dialog__issue-btn:active:not(:disabled) {
-  filter: brightness(0.95);
-  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.14);
-  transform: translateY(0);
+  background: #2D6B54;
 }
 
 .dispatch-assignment-dialog__issue-btn:focus-visible {

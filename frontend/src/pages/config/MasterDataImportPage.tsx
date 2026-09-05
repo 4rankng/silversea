@@ -111,7 +111,7 @@ export default function MasterDataImportPage() {
 
   return (
     <div style={{ maxWidth: 1120, margin: '0 auto', minWidth: 0 }}>
-      <button type="button" onClick={() => navigate('/config')} style={{ minHeight: 44, display: 'inline-flex', alignItems: 'center', gap: 7, border: 0, background: 'none', color: 'var(--fg-2)', cursor: 'pointer' }}><ArrowLeft size={18} />Quay lại cấu hình</button>
+      <button type="button" onClick={() => navigate('/config')} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, border: 0, background: 'none', color: 'var(--fg-2)', cursor: 'pointer' }}><ArrowLeft size={16} />Quay lại cấu hình</button>
       <PageHeader title="Nạp dữ liệu nền tảng" iconName="settings" description="Kiểm tra trước, xử lý các dòng chưa hợp lệ, rồi mới cập nhật danh mục hệ thống." />
 
       <section style={{ border: '1px solid var(--border-2)', borderRadius: 10, padding: 18, display: 'grid', gap: 14, background: 'var(--surface-1)' }}>
@@ -128,7 +128,7 @@ export default function MasterDataImportPage() {
           <input id="master-data-file-legacy" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" disabled={Boolean(busy)} onChange={(event) => { setLegacyFile(event.target.files?.[0] ?? null); setBatch(null); setError(null); }} style={{ minHeight: 44, width: '100%', border: '1px solid var(--border-2)', borderRadius: 8, padding: 8, marginTop: 8 }} />
         </details>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <button type="button" onClick={() => void analyze()} disabled={!hasAnyFile || Boolean(busy)} style={{ minHeight: 44, padding: '0 18px', display: 'inline-flex', alignItems: 'center', gap: 8, border: 0, borderRadius: 8, background: 'var(--accent, #2563eb)', color: '#fff', fontWeight: 700, cursor: busy ? 'not-allowed' : 'pointer' }}><Upload size={17} />{busy === 'ANALYZE' ? 'Đang kiểm tra…' : 'Kiểm tra dữ liệu'}</button>
+          <button type="button" onClick={() => void analyze()} disabled={!hasAnyFile || Boolean(busy)} className="btn btn--primary"><Upload size={14} />{busy === 'ANALYZE' ? 'Đang kiểm tra…' : 'Kiểm tra dữ liệu'}</button>
           {batch && <span style={{ alignSelf: 'center', color: 'var(--fg-3)', fontSize: 14 }}><FileSpreadsheet size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} />{batch.sourceFileName}</span>}
         </div>
       </section>

@@ -203,7 +203,7 @@ export default function TruckOwnersConfigPage() {
       />
 
       <div style={{ marginBottom: 16 }}>
-        <button className="btn btn--secondary" style={{ minHeight: 44, display: 'inline-flex', alignItems: 'center', gap: 8 }} onClick={handleBack}>
+        <button className="btn btn--secondary" onClick={handleBack}>
           <ArrowLeft size={14} /> Quay lại danh sách xe
         </button>
       </div>
@@ -220,7 +220,7 @@ export default function TruckOwnersConfigPage() {
             Hiện tại: <strong style={{ color: 'var(--fg-1)' }}>{activeOwners.length}</strong> đối tác · {items.length - activeOwners.length} bản ghi lịch sử
           </div>
           {!showAddForm && (
-            <button className="btn btn--primary" style={{ minHeight: 44, display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => setShowAddForm(true)}>
+            <button className="btn btn--primary" onClick={() => setShowAddForm(true)}>
               <Plus size={14} /> Thêm đối tác
             </button>
           )}

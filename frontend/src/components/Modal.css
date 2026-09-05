@@ -180,7 +180,7 @@
 }
 .modal--polished .modal__title {
   font-family: var(--font-display);
-  font-size: 28px;
+  font-size: var(--fs-lg);
   font-weight: 700;
   letter-spacing: -.01em;
 }
@@ -190,6 +190,10 @@
   gap: 8px;
   margin-left: auto;
   flex-shrink: 0;
+}
+
+.modal--polished .modal__head-right {
+  padding-right: 36px;
 }
 
 /* Polished divider between header/body and body/footer */

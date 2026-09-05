@@ -121,13 +121,13 @@
     --color-alpha-white: rgb(255 255 255);
     --color-alpha-black: rgb(0 0 0);
 
-    /* TransTing brand greens — brand-600 = --brand #005A2D, brand-500 = --accent #10B956 */
+    /* TransTing brand greens — brand-600 = --brand #005A2D, brand-500 = --accent #4A9E7D */
     --color-brand-50: #F2FAF5;
     --color-brand-100: #E0F3E7;
     --color-brand-200: #C2E6D0;
     --color-brand-300: #93D5AC;
     --color-brand-400: #52C47C;
-    --color-brand-500: #10B956;
+    --color-brand-500: #4A9E7D;
     --color-brand-600: #005A2D;
     --color-brand-700: #004A25;
     --color-brand-800: #06391D;

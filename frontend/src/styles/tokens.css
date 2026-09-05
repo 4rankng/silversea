@@ -32,7 +32,7 @@
   --color-secondary: #4D5852;
   --color-secondary-content: #FFFFFF;
 
-  --color-accent: #10B956;
+  --color-accent: #4A9E7D;
   --color-accent-content: #06264A;
 
   --color-neutral: #101513;
@@ -84,8 +84,8 @@
   --line-3: #AEB8B2;
   --line-strong: #BAC5BE;
 
-  --accent: #10B956;
-  --accent-2: #005A2D;
+  --accent: #4A9E7D;
+  --accent-2: #2D6B54;
   --accent-soft: #E8F8EE;
   --accent-ink: #00361B;
 
@@ -98,7 +98,7 @@
   --brand: #005A2D;
   --brand-hover: #00361B;
   --brand-soft: #E6F7EE;
-  --brand-2: #10B956;
+  --brand-2: #4A9E7D;
   --brand-grad: #005A2D;
   --brand-glow: none;
 
@@ -206,8 +206,8 @@
   --driver-measure: 720px;
   /* Control density contract: compact operational tools, regular forms, and
      a touch-safe minimum. Keep --control-h as the shell-compatible alias. */
-  --control-compact-h: 34px;
-  --control-default-h: 40px;
+  --control-compact-h: 30px;
+  --control-default-h: 34px;
   --control-touch-h: 44px;
   --control-compact-font-size: var(--fs-xs);
   --control-compact-line-height: 18px;
