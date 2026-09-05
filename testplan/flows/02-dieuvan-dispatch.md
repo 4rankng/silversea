@@ -439,6 +439,31 @@
 
 ---
 
+### TC-DV-DISPATCH-019 — Lô hàng có 1 cont hoàn thành vẫn hiển thị trên màn Điều vận (regression 2026-09-05)
+
+- **Mã PRD:** Bug fix 2026-09-05 — lô hàng FCL có 1 container đã hoàn thành vận chuyển bị mất hiển thị cả lô trên màn Điều vận (Kế hoạch chi tiết)
+- **Vai trò:** `dieuvan` (DISPATCHER)
+- **Mức độ:** P0
+- **Thiết bị:** Desktop (1440×900)
+- **Tiền điều kiện:**
+  - Lô FCL có 2 container, mỗi container 1 fulfillment. Container A đã phát lệnh và hoàn thành (trip status = COMPLETED, shipment status đã chuyển sang PENDING_EXPENSE_APPROVAL hoặc COMPLETED). Container B chưa phát lệnh (fulfillment chưa có trip).
+- **Các bước:**
+  1. Đăng nhập `dieuvan`. Mở `/dispatch-detail` (Kế hoạch chi tiết).
+  2. Tìm lô FCL có 2 container. Kiểm tra: cả 2 fulfillment phải hiển thị trên danh sách.
+  3. Quan sát fulfillment container A: trip đã tạo, status chip = "Hoàn thành".
+  4. Quan sát fulfillment container B: chưa có trip, status chip = "Chưa phát lệnh".
+  5. Mở `/dispatch` (Kế hoạch tổng quát). Kiểm tra: lô vẫn hiển thị trong danh sách.
+- **Kết quả mong đợi (Pass):**
+  - Cả 2 fulfillment hiển thị trên Kế hoạch chi tiết, kể cả fulfillment container A đã hoàn thành.
+  - Lô vẫn hiển thị trên Kế hoạch tổng quát.
+  - Không bị mất hiển thị cả lô khi 1 container hoàn thành.
+- **Kỳ vọng sai (Fail nếu):**
+  - Fulfillment container A bị ẩn hoặc cả lô biến mất (hành vi cũ — đã fix).
+  - Không thấy fulfillment đã hoàn thành trên Kế hoạch chi tiết.
+- **Bằng chứng:** ảnh Kế hoạch chi tiết thấy cả 2 fulfillment + ảnh Kế hoạch tổng quát thấy lô + query DB `shipments.status` cho thấy status đã chuyển sang PENDING_EXPENSE_APPROVAL/COMPLETED
+
+---
+
 ## Bảng nghiệm thu — Luồng Điều xe (Điều vận)
 
 | Ngày thử | Mã TC | Người thử | Kết quả | Ghi chú | Bằng chứng |
@@ -460,3 +485,5 @@
 | __/__/__ | TC-DV-DISPATCH-015 | | | Nhận diện dữ liệu nhà xe đã nhập + lưu + prefill khi mở lại (regression) | |
 | __/__/__ | TC-DV-DISPATCH-016 | | | Lưu partial + bổ sung sau + prefill (regression) | |
 | __/__/__ | TC-DV-DISPATCH-017 | | | Warning "Chưa có nhà xe ngoài nào được cấu hình" ẩn khi đã nhập OWN (regression 2026-09-05) | |
+| __/__/__ | TC-DV-DISPATCH-018 | | | Phát lệnh xe ngoài với biển số tự do (regression 2026-09-05) | |
+| __/__/__ | TC-DV-DISPATCH-019 | | | Lô hàng 1 cont hoàn thành vẫn hiển thị trên màn Điều vận (regression 2026-09-05) | |

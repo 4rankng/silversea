@@ -237,7 +237,7 @@ export async function listDispatchQueue(input: ListDispatchQueueInput) {
   const filters = [
     isNull(s.shipmentFulfillments.canceledAt),
     isNotNull(s.dispatchHandoffs.id),
-    inArray(s.shipments.status, ['READY_FOR_DISPATCH', 'DISPATCHED']),
+    inArray(s.shipments.status, ['READY_FOR_DISPATCH', 'DISPATCHED', 'IN_TRANSIT', 'PENDING_EXPENSE_APPROVAL', 'COMPLETED']),
     accountantCustomerIds ? inArray(s.shipments.customerId, accountantCustomerIds) : undefined,
     input.urgency ? eq(s.dispatchHandoffs.priority, input.urgency) : undefined,
     date ? eq(dispatchDetailTransportDateSql(), date) : undefined,
