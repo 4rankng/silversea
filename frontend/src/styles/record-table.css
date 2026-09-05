@@ -137,13 +137,13 @@
 
   .record-table tbody tr {
     display: block;
-    /* clip-path instead of overflow:hidden: clips background/border to the
-       rounded corners but does NOT clip absolutely-positioned children like
-       dropdown menus — so they can escape the row boundary. */
-    clip-path: inset(0 round var(--app-radius-md, var(--r, 12px)));
     border: 1px solid var(--line);
     border-radius: var(--app-radius-md, var(--r, 12px));
     background: var(--surface);
+    /* No overflow: hidden or clip-path — absolutely-positioned dropdowns
+       must escape the row boundary. border-radius alone gives the visual
+       rounded corners; background doesn't need clipping because the row
+       background is a solid color. */
   }
 
   .record-table tbody td {
