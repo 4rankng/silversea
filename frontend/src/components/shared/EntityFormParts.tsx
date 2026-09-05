@@ -1,8 +1,9 @@
-import { type ReactNode } from 'react';
+import { type ReactNode, useContext } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { InputBase, TextField } from '../untitled-ui/base/input/input';
 import { Label } from '../untitled-ui/base/input/label';
 import { DateInput } from '../../design-system/forms/DateInput';
+import { ModalCompactContext } from '../UI';
 
 /** Section caption used to group entity-form fields — an icon chip, an
  * uppercase label, and a hairline divider that fills the remaining width.
@@ -17,7 +18,7 @@ export function EntityFormSection({ icon: Icon, label, children }: { icon: Lucid
         <h4 className="whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-tertiary">{label}</h4>
         <div className="h-px flex-1 bg-border-secondary" />
       </div>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {children}
       </div>
   </section>
@@ -27,7 +28,7 @@ export function EntityFormSection({ icon: Icon, label, children }: { icon: Lucid
 /** Numeric input with an in-field unit suffix ("ngày", "tấn", "L/100km").
  * Composes the kit's TextField + InputBase so the label stays associated
  * with the input for free; the suffix is a pointer-events-none overlay. */
-export function UnitInput({ label, unit, icon, value, onChange, placeholder, min, max, isRequired, autoFocus, padClassName = 'pr-12' }: {
+export function UnitInput({ label, unit, icon, value, onChange, placeholder, min, max, isRequired, autoFocus, size, padClassName = 'pr-12' }: {
   label: string;
   unit: string;
   icon?: LucideIcon;
@@ -38,11 +39,14 @@ export function UnitInput({ label, unit, icon, value, onChange, placeholder, min
   max?: number;
   isRequired?: boolean;
   autoFocus?: boolean;
+  size?: 'sm' | 'md';
   /** Extra right padding class so text never runs under the suffix. */
   padClassName?: string;
 }) {
+  const compact = useContext(ModalCompactContext);
+  const resolvedSize = size ?? (compact ? 'sm' : 'md');
   return (
-    <TextField value={value} onChange={onChange} autoFocus={autoFocus} isRequired={isRequired}>
+    <TextField value={value} onChange={onChange} autoFocus={autoFocus} isRequired={isRequired} size={resolvedSize}>
       <Label isRequired={isRequired}>{label}</Label>
       <div className="entity-unit-wrap">
         <InputBase

@@ -6,6 +6,7 @@ import { HintText } from "@/components/untitled-ui/base/input/hint-text";
 import { Label } from "@/components/untitled-ui/base/input/label";
 import { Tooltip, TooltipTrigger } from "@/components/untitled-ui/base/tooltip/tooltip";
 import { cx, sortCx } from "@/utils/cx";
+import { ModalCompactContext } from "@/components/UI";
 
 export interface InputBaseProps extends Omit<AriaInputProps, "size"> {
     /** Tooltip message on hover. */
@@ -253,7 +254,7 @@ export interface InputProps
 }
 
 export const Input = ({
-    size = "md",
+    size,
     placeholder,
     icon: Icon,
     label,
@@ -272,8 +273,10 @@ export const Input = ({
     type = "text",
     ...props
 }: InputProps) => {
+    const compact = useContext(ModalCompactContext);
+    const resolvedSize = size ?? (compact ? "sm" : "md");
     return (
-        <TextField aria-label={!label ? placeholder : undefined} {...props} size={size} className={className}>
+        <TextField aria-label={!label ? placeholder : undefined} {...props} size={resolvedSize} className={className}>
             {({ isRequired, isInvalid }) => (
                 <>
                     {label && (

@@ -1,5 +1,5 @@
 .PHONY: dev stop down setup migrate generate build help \
-        db-backup db-recreate db-drift-check devdb \
+        db-backup db-recreate db-drift-check devdb devdb-prod devdb-sync \
         demo deploy deploy-advance deploy-db-backup deploy-seed deploy-server-setup
 
 # ─── Ports (silversea — de-conflicted from nepocorp) ─────────────────────────
@@ -103,20 +103,27 @@ db-drift-check: ## Assert drizzle-kit generate is a no-op on a clean tree
 	fi
 	@echo "✅ No drift: drizzle-kit generate is a no-op on the clean tree"
 
-# Pull the staging database down into the local dev database. The staging
-# postgres is discovered from the running container's env (creds differ from
-# repo compose — never hardcode them); the dump streams through the laptop so
-# nothing is staged on the server. Local dev data is destroyed: dev DBs are
-# disposable (see memory: no-backup-local-dev).
+# Pull a remote DB (staging or prod) into the local dev DB. Read-only against
+# the remote: the remote postgres is discovered from the running container's
+# env (creds differ from repo compose — never hardcode them) and the dump
+# streams through the laptop so nothing is staged on the server. Local dev data
+# is destroyed: dev DBs are disposable (see memory: no-backup-local-dev).
 devdb: ## Sync staging DB (vantai.tingting.vip) → local dev DB — REPLACES local dev data
+	@$(MAKE) --no-print-directory devdb-sync DEVDB_LABEL=staging DEVDB_SERVER=$(DEMO_SERVER) DEVDB_PATH=$(DEMO_PATH) DEVDB_COMPOSE="$(DEMO_COMPOSE)"
+
+devdb-prod: ## Sync prod DB (silversea.tingting.vip) → local dev DB — REPLACES local dev data
+	@$(MAKE) --no-print-directory devdb-sync DEVDB_LABEL=prod DEVDB_SERVER=$(PROD_SERVER) DEVDB_PATH=$(PROD_PATH) DEVDB_COMPOSE="$(PROD_COMPOSE)"
+
+# Internal worker for devdb / devdb-prod (params via DEVDB_* variable overrides).
+devdb-sync:
 	@test -n "$$(docker ps -q -f name=^silversea-db$$)" || { echo "❌ Local DB container 'silversea-db' is not running — run 'make dev' first (db only: docker compose -f docker-compose.dev.yml up -d db)." >&2; exit 1; }
 	@mkdir -p backups
-	@dump="backups/staging-devdb-$$(date +%Y%m%d-%H%M%S).dump"; \
-	echo "1/3  Dumping staging DB on $(DEMO_SERVER)..."; \
-	ssh root@$(DEMO_SERVER) "set -eu; cd $(DEMO_PATH); pg_container=\$$($(DEMO_COMPOSE) ps -q postgres); test -n \"\$$pg_container\" || { echo 'No postgres container running on staging' >&2; exit 1; }; pg_env_of() { docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' \"\$$1\"; }; pg_user=\$$(pg_env_of \"\$$pg_container\" | sed -n 's/^POSTGRES_USER=//p' | head -1); pg_db=\$$(pg_env_of \"\$$pg_container\" | sed -n 's/^POSTGRES_DB=//p' | head -1); pg_user=\$${pg_user:-postgres}; pg_db=\$${pg_db:-\$$pg_user}; echo \"     staging: user=\$$pg_user db=\$$pg_db\" >&2; docker exec \"\$$pg_container\" pg_dump -U \"\$$pg_user\" -Fc \"\$$pg_db\"" > "$$dump"; \
+	@dump="backups/$(DEVDB_LABEL)-devdb-$$(date +%Y%m%d-%H%M%S).dump"; \
+	echo "1/3  Dumping $(DEVDB_LABEL) DB on $(DEVDB_SERVER)..."; \
+	ssh root@$(DEVDB_SERVER) "set -eu; cd $(DEVDB_PATH); pg_container=\$$($(DEVDB_COMPOSE) ps -q postgres); test -n \"\$$pg_container\" || { echo 'No postgres container running on $(DEVDB_LABEL)' >&2; exit 1; }; pg_env_of() { docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' \"\$$1\"; }; pg_user=\$$(pg_env_of \"\$$pg_container\" | sed -n 's/^POSTGRES_USER=//p' | head -1); pg_db=\$$(pg_env_of \"\$$pg_container\" | sed -n 's/^POSTGRES_DB=//p' | head -1); pg_user=\$${pg_user:-postgres}; pg_db=\$${pg_db:-\$$pg_user}; echo \"     $(DEVDB_LABEL): user=\$$pg_user db=\$$pg_db\" >&2; docker exec \"\$$pg_container\" pg_dump -U \"\$$pg_user\" -Fc \"\$$pg_db\"" > "$$dump"; \
 	status=$$?; size=$$(wc -c < "$$dump" | tr -d ' '); \
 	if [ $$status -ne 0 ] || [ "$$size" -lt 1024 ]; then \
-		echo "❌ Staging dump failed (exit $$status, $$size bytes) — aborting, local DB untouched. Kept for inspection: $$dump" >&2; \
+		echo "❌ $(DEVDB_LABEL) dump failed (exit $$status, $$size bytes) — aborting, local DB untouched. Kept for inspection: $$dump" >&2; \
 		exit 1; \
 	fi; \
 	echo "     ✅ Dump: $$dump ($$size bytes)"; \
@@ -128,7 +135,7 @@ devdb: ## Sync staging DB (vantai.tingting.vip) → local dev DB — REPLACES lo
 	echo "3/3  Post-restore sanity:"; \
 	docker exec $(DB_CONTAINER) psql -U $(DB_USER) -d $(DB_NAME) -tAc "SELECT '     tables=' || count(*) FROM information_schema.tables WHERE table_schema='public';"; \
 	docker exec $(DB_CONTAINER) psql -U $(DB_USER) -d $(DB_NAME) -tAc "SELECT '     users=' || count(*) FROM users;" 2>/dev/null || true; \
-	echo "✅ Local dev DB now mirrors staging ($(DEMO_SERVER)). Dump kept: $$dump"
+	echo "✅ Local dev DB now mirrors $(DEVDB_LABEL) ($(DEVDB_SERVER)). Dump kept: $$dump"
 
 setup: ## First-time setup: start infra, recreate DB, migrate, seed
 	@docker compose -f docker-compose.dev.yml up -d --wait 2>/dev/null || \

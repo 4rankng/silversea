@@ -117,9 +117,10 @@ export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen }: {
         </>
       }
     >
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-4">
         <EntityFormSection icon={Building2} label="Thông tin nhà xe">
           <Input
+            size="sm"
             label="Tên nhà xe"
             isRequired
             icon={Building2}
@@ -129,6 +130,7 @@ export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen }: {
             autoFocus
           />
           <Input
+            size="sm"
             label="Tên viết tắt"
             icon={Hash}
             value={shortName}
@@ -136,6 +138,7 @@ export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen }: {
             placeholder="Để trống sẽ dùng tên đầy đủ"
           />
           <Input
+            size="sm"
             label="Mã số thuế"
             icon={Landmark}
             value={taxCode}
@@ -144,6 +147,7 @@ export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen }: {
             inputClassName="tabular-nums"
           />
           <Input
+            size="sm"
             label="Người liên hệ"
             icon={User}
             value={contactPerson}
@@ -151,6 +155,7 @@ export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen }: {
             placeholder="Ví dụ: Anh Tuấn · Kế toán"
           />
           <Input
+            size="sm"
             label="Điện thoại"
             icon={Phone}
             value={phone}
@@ -162,6 +167,7 @@ export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen }: {
 
         <EntityFormSection icon={Clock} label="Điều khoản thanh toán">
           <UnitInput
+            size="sm"
             label="Hạn thanh toán Chi hộ"
             unit="ngày"
             icon={Clock}
@@ -172,6 +178,7 @@ export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen }: {
             placeholder="Ví dụ: 15"
           />
           <UnitInput
+            size="sm"
             label="Hạn thanh toán Cước"
             unit="ngày"
             icon={Clock}

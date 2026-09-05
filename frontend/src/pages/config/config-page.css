@@ -557,19 +557,17 @@
 }
 
 /* ── Desktop: routes-table layout ────────────────────────────────────
-   Uses table-layout: fixed + explicit widths so the first column
-   ("Tuyến đường") doesn't over-expand to 600+px (it has unbreakable
-   city names like "Hải Phòng - Tân Vũ - Thượng Bằng La, Lào Cai")
-   and leave 300px+ of whitespace on the right of the card. */
+   Uses table-layout: fixed + explicit widths so columns distribute
+   evenly across the 7-column layout (Mã tuyến, Tên tuyến, Tên rút gọn,
+   Điểm đóng trả, Khoảng cách, Ghi chú, actions). */
 .routes-table { min-width: 980px; table-layout: fixed; width: 100%; }
-.routes-table thead th:nth-child(1) { width: 35%; }   /* Tuyến đường */
-.routes-table thead th:nth-child(2) { width: 7%;  }   /* KM */
-.routes-table thead th:nth-child(3) { width: 11%; }   /* Loại */
-.routes-table thead th:nth-child(4) { width: 11%; }   /* Trạm thu phí */
-.routes-table thead th:nth-child(5) { width: 8%;  }   /* Tiền KH */
-.routes-table thead th:nth-child(6) { width: 9%;  }   /* Chuẩn 20ft */
-.routes-table thead th:nth-child(7) { width: 9%;  }   /* Chuẩn 40ft */
-.routes-table thead th:nth-child(8) { width: 10%; }   /* Sử dụng 06/26 */
+.routes-table thead th:nth-child(1) { width: 12%; }   /* Mã tuyến */
+.routes-table thead th:nth-child(2) { width: 20%; }   /* Tên tuyến */
+.routes-table thead th:nth-child(3) { width: 16%; }   /* Tên rút gọn */
+.routes-table thead th:nth-child(4) { width: 18%; }   /* Điểm đóng trả */
+.routes-table thead th:nth-child(5) { width: 10%; }   /* Khoảng cách */
+.routes-table thead th:nth-child(6) { width: 16%; }   /* Ghi chú */
+.routes-table thead th:nth-child(7) { width: 8%;  }   /* actions */
 /* Keep content inside its assigned column. The previous `overflow: visible`
    let long route names draw on top of the type badge and numeric columns.
    The action cell is excluded — it hosts the row's absolutely-positioned

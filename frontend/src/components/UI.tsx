@@ -1,4 +1,4 @@
-import React, { useEffect, useId, useRef, useState } from 'react';
+import React, { createContext, useContext, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowLeft, ArrowDownRight, ArrowUpRight, X } from 'lucide-react';
 import { animate, utils, spring } from 'animejs';
@@ -12,6 +12,9 @@ import { Button as UIButton, type ButtonProps as UIButtonProps } from './untitle
 import { Badge as UIBadge, BadgeWithDot as UIBadgeWithDot } from './untitled-ui/base/badges/badges';
 import { Label as UILabel } from './untitled-ui/base/input/label';
 import { HintText as UIHintText } from './untitled-ui/base/input/hint-text';
+
+/* ─── Polished-modal compact context ─────────────────────────────────────── */
+export const ModalCompactContext = createContext(false);
 
 /* ─── Shared overlay animation defaults ──────────────────────────────────── */
 
@@ -495,6 +498,8 @@ export function Modal({ isOpen, title, onClose, children, footer, onConfirm, max
   const overlayRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
+  const polishedCtx = useMemo(() => ({ compact: Boolean(polished) }), [polished]);
+
   const { visible, handleClose, overlayToken } = useAnimatedOverlay({
     overlayRef,
     contentRef,
@@ -546,7 +551,9 @@ export function Modal({ isOpen, title, onClose, children, footer, onConfirm, max
             </Tooltip>
           </div>
           <div className="modal__body">
-            {children}
+            <ModalCompactContext.Provider value={polishedCtx.compact}>
+              {children}
+            </ModalCompactContext.Provider>
           </div>
           {footer && (
             <div className="modal__foot">

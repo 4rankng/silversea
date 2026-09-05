@@ -165,9 +165,10 @@ export function CustomerFormModal({ item, saving, onsave, oncancel, isOpen }: {
         </>
       }
     >
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-4">
         <EntityFormSection icon={Building2} label="Thông tin khách hàng">
           <Input
+            size="sm"
             label="Tên đầy đủ"
             isRequired
             icon={Building2}
@@ -177,6 +178,7 @@ export function CustomerFormModal({ item, saving, onsave, oncancel, isOpen }: {
             autoFocus
           />
           <Input
+            size="sm"
             label="Tên ngắn"
             isRequired
             icon={Hash}
@@ -185,6 +187,7 @@ export function CustomerFormModal({ item, saving, onsave, oncancel, isOpen }: {
             placeholder="Tên hiển thị trong vận hành"
           />
           <Input
+            size="sm"
             label="Mã số thuế"
             icon={Landmark}
             value={taxCode}
@@ -193,6 +196,7 @@ export function CustomerFormModal({ item, saving, onsave, oncancel, isOpen }: {
             inputClassName="tabular-nums"
           />
           <Input
+            size="sm"
             label="Địa chỉ"
             icon={MapPin}
             value={contactInfo}
@@ -200,6 +204,7 @@ export function CustomerFormModal({ item, saving, onsave, oncancel, isOpen }: {
             placeholder="Địa chỉ khách hàng"
           />
           <Input
+            size="sm"
             label="Người liên hệ"
             icon={User}
             value={contactPerson}
@@ -207,6 +212,7 @@ export function CustomerFormModal({ item, saving, onsave, oncancel, isOpen }: {
             placeholder="Anh Tuấn · Kế toán"
           />
           <Input
+            size="sm"
             label="SĐT Liên hệ"
             icon={Phone}
             value={phone}
@@ -217,6 +223,7 @@ export function CustomerFormModal({ item, saving, onsave, oncancel, isOpen }: {
         </EntityFormSection>
         <EntityFormSection icon={Landmark} label="Kế toán &amp; điều khoản">
           <Input
+            size="sm"
             label="Giám đốc"
             icon={User}
             value={accountantName}
@@ -224,6 +231,7 @@ export function CustomerFormModal({ item, saving, onsave, oncancel, isOpen }: {
             placeholder="Tên giám đốc"
           />
           <Input
+            size="sm"
             label="SĐT Kế toán"
             icon={Phone}
             value={accountantPhone}
@@ -232,6 +240,7 @@ export function CustomerFormModal({ item, saving, onsave, oncancel, isOpen }: {
             inputClassName="tabular-nums"
           />
           <UnitInput
+            size="sm"
             label="Hạn TT Chi hộ"
             unit="ngày"
             icon={Clock}
@@ -242,6 +251,7 @@ export function CustomerFormModal({ item, saving, onsave, oncancel, isOpen }: {
             placeholder="Ví dụ: 15"
           />
           <UnitInput
+            size="sm"
             label="Hạn TT Cước"
             unit="ngày"
             icon={Clock}

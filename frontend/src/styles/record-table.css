@@ -137,7 +137,9 @@
 
   .record-table tbody tr {
     display: block;
-    overflow: hidden;
+    /* overflow: clip (not hidden) so absolutely-positioned dropdowns escape
+       the row boundary while still clipping content to the rounded corners. */
+    overflow: clip;
     border: 1px solid var(--line);
     border-radius: var(--app-radius-md, var(--r, 12px));
     background: var(--surface);

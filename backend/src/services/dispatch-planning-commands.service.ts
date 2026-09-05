@@ -386,7 +386,8 @@ export async function issueOrderCreateOrUpdate(
     if (!trailer || trailer.deletedAt || trailer.status !== 'ACTIVE') {
       throw new ApiError(409, 'Rơ-moóc không còn hiệu lực.');
     }
-    vehicleCapacityKg = inferredVehicleCapacityKg(trailer.type ?? truck.trailerType);
+    const resolvedTrailerType = trailer.type ?? truck.trailerType;
+    vehicleCapacityKg = inferredVehicleCapacityKg(resolvedTrailerType);
     if (fulfillment.shipmentContainerId != null) {
       const [container] = await tx.select({
         code: s.containerTypes.code,
@@ -397,7 +398,14 @@ export async function issueOrderCreateOrUpdate(
         .leftJoin(s.containerTypes, eq(s.shipmentContainers.containerTypeId, s.containerTypes.id))
         .where(eq(s.shipmentContainers.id, fulfillment.shipmentContainerId))
         .limit(1);
-      if (container?.code && trailer.type !== inferTrailerTypeFromContainerCode(container.code)) {
+      // Master-data imports usually leave Loại Moóc blank (see trailers.type
+      // comment) — only block on a mismatch we can actually prove, not on
+      // missing data.
+      if (
+        container?.code
+        && resolvedTrailerType != null
+        && resolvedTrailerType !== inferTrailerTypeFromContainerCode(container.code)
+      ) {
         throw new ApiError(409, 'Rơ-moóc không phù hợp với loại container.');
       }
       containerTypeId = container?.containerTypeId ?? containerTypeId;

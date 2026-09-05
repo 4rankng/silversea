@@ -160,8 +160,8 @@ async function createShipmentFixture(args: {
   return { shipment, container };
 }
 
-async function createOwnedResources(options: { trailerType?: '20FT' | '40FT' } = {}) {
-  const trailerType = options.trailerType ?? '20FT';
+async function createOwnedResources(options: { trailerType?: '20FT' | '40FT' | null } = {}) {
+  const trailerType = options.trailerType === undefined ? '20FT' : options.trailerType;
   const plateSuffix = `${suffix.slice(-6)}${String(createdTrailerIds.length).padStart(2, '0')}`;
   const [trailer] = await db.insert(s.trailers).values({
     licensePlate: `51R-${plateSuffix}`.slice(0, 20),
@@ -505,6 +505,32 @@ describe('dispatch fulfillment workflow routes', () => {
       }, Role.DRIVER),
       `/my-trips/${accepted.fulfillmentId}`,
     );
+  });
+
+  test('dispatch succeeds when trailer type is unrecorded (master-data import leaves it blank)', async () => {
+    const accepted = await createAcceptedFulfillment();
+    const resources = await createOwnedResources({ trailerType: null });
+
+    const dispatch = await apiFetch<{
+      trip: { id: number; trailerId: number | null };
+    }>(`/${accepted.shipmentId}/dispatch`, {
+      method: 'POST',
+      token: managerToken,
+      body: {
+        fulfillmentId: accepted.fulfillmentId,
+        expectedVersion: accepted.fulfillmentVersion,
+        plannedStartAt: '2026-08-01T09:00:00+07:00',
+        plannedEndAt: '2026-08-01T13:00:00+07:00',
+        endTimeConfirmed: true,
+        carrierType: 'OWN',
+        truckId: resources.truck.id,
+        driverId: resources.driver.id,
+        trailerId: resources.trailer.id,
+      },
+    });
+    assert.equal(dispatch.status, 201);
+    assert.equal(dispatch.data.trip.trailerId, resources.trailer.id);
+    createdTripIds.push(dispatch.data.trip.id);
   });
 
   test('external carrier dispatch creates no internal notification or push claim', async () => {
