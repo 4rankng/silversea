@@ -1469,4 +1469,116 @@ describe('dispatch fulfillment workflow routes', () => {
       client.options.debug = originalDebug;
     }
   });
+
+  // Regression 2026-09-05: listDispatchQueue and listDispatchDetailPlanRows
+  // used to filter shipments to ['READY_FOR_DISPATCH', 'DISPATCHED'] only. A
+  // container completing its trip advances the shipment status past
+  // DISPATCHED (IN_TRANSIT / PENDING_EXPENSE_APPROVAL / COMPLETED), which
+  // silently dropped the row (and, for a multi-container lot, every sibling
+  // fulfillment) from both dispatcher screens. Fixed in 4572173b by widening
+  // the status filter; these tests pin that filter so it cannot regress.
+  test('dispatch queue keeps a fully completed single-container shipment visible (regression 2026-09-05)', async () => {
+    const customer = await createCustomer(`Completed lot ${suffix}-${createdCustomerIds.length}`);
+    const route = await createRoute();
+    const accepted = await createAcceptedFulfillment({ customerId: customer.id, routeId: route.id });
+    const resources = await createOwnedResources();
+
+    const dispatch = await apiFetch<{ trip: { id: number } }>(`/${accepted.shipmentId}/dispatch`, {
+      method: 'POST',
+      token: managerToken,
+      body: {
+        fulfillmentId: accepted.fulfillmentId,
+        expectedVersion: accepted.fulfillmentVersion,
+        plannedStartAt: '2026-08-06T08:00:00+07:00',
+        plannedEndAt: '2026-08-06T12:00:00+07:00',
+        endTimeConfirmed: true,
+        carrierType: 'OWN',
+        truckId: resources.truck.id,
+        driverId: resources.driver.id,
+        trailerId: resources.trailer.id,
+      },
+    });
+    assert.equal(dispatch.status, 201);
+    createdTripIds.push(dispatch.data.trip.id);
+
+    // Simulate the driver finishing the lot's only container: trip completes
+    // and the shipment status advances beyond DISPATCHED.
+    await db.update(s.trips).set({ status: 'COMPLETED' }).where(eq(s.trips.id, dispatch.data.trip.id));
+    await db.update(s.shipments).set({ status: 'COMPLETED' }).where(eq(s.shipments.id, accepted.shipmentId));
+
+    const queue = await apiFetch<{ items: Array<{ shipmentId: number; fulfillmentId: number; taskStatus: string }> }>(
+      `/dispatch-queue?limit=10&q=${encodeURIComponent(customer.name)}`,
+      { token: managerToken },
+    );
+    assert.equal(queue.status, 200);
+    assert.equal(queue.data.items.length, 1);
+    assert.equal(queue.data.items[0]?.shipmentId, accepted.shipmentId);
+    assert.equal(queue.data.items[0]?.fulfillmentId, accepted.fulfillmentId);
+  });
+
+  test('dispatch detail plan keeps every container visible when only one of a multi-container lot has completed (regression 2026-09-05)', async () => {
+    const customer = await createCustomer(`Partial completion ${suffix}-${createdCustomerIds.length}`);
+    const route = await createRoute();
+    const accepted = await createAcceptedFulfillment({ customerId: customer.id, routeId: route.id });
+
+    // Second container on the SAME shipment/lot — mirrors an FCL booking with
+    // more than one container, added directly (bypassing the handoff-accept
+    // flow, which is exercised elsewhere) since only the row-visibility query
+    // is under test here.
+    const containerTypeB = await createContainerType(`40Q${createdContainerTypeIds.length}`);
+    const [shipmentRow] = await db.select({ version: s.shipments.version })
+      .from(s.shipments).where(eq(s.shipments.id, accepted.shipmentId));
+    const [containerB] = await db.insert(s.shipmentContainers).values({
+      shipmentId: accepted.shipmentId,
+      containerTypeId: containerTypeB.id,
+      containerNumber: `MSCU${String(300000 + accepted.shipmentId).slice(-6)}2`,
+      createdBy: adminUserId,
+    }).returning();
+    const [fulfillmentB] = await db.insert(s.shipmentFulfillments).values({
+      shipmentId: accepted.shipmentId,
+      fulfillmentType: 'FCL_CONTAINER',
+      cargoMode: 'FCL',
+      shipmentContainerId: containerB!.id,
+      sourceShipmentVersion: shipmentRow!.version,
+      siteSnapshot: {},
+      plannedCarrierType: 'OWN',
+      createdBy: adminUserId,
+    }).returning();
+
+    const resources = await createOwnedResources();
+    const dispatch = await apiFetch<{ trip: { id: number } }>(`/${accepted.shipmentId}/dispatch`, {
+      method: 'POST',
+      token: managerToken,
+      body: {
+        fulfillmentId: accepted.fulfillmentId,
+        expectedVersion: accepted.fulfillmentVersion,
+        plannedStartAt: '2026-08-06T08:00:00+07:00',
+        plannedEndAt: '2026-08-06T12:00:00+07:00',
+        endTimeConfirmed: true,
+        carrierType: 'OWN',
+        truckId: resources.truck.id,
+        driverId: resources.driver.id,
+        trailerId: resources.trailer.id,
+      },
+    });
+    assert.equal(dispatch.status, 201);
+    createdTripIds.push(dispatch.data.trip.id);
+
+    // Container A completes; container B's fulfillment never got a trip. The
+    // shipment status advances past DISPATCHED — before the fix this hid the
+    // WHOLE lot (both fulfillments), stranding container B.
+    await db.update(s.trips).set({ status: 'COMPLETED' }).where(eq(s.trips.id, dispatch.data.trip.id));
+    await db.update(s.shipments).set({ status: 'IN_TRANSIT' }).where(eq(s.shipments.id, accepted.shipmentId));
+
+    const detail = await apiFetch<{ items: Array<{ fulfillmentId: number; taskStatus: string }> }>(
+      `/dispatch-detail-plan-rows?limit=10&q=${encodeURIComponent(customer.name)}`,
+      { token: managerToken },
+    );
+    assert.equal(detail.status, 200);
+    const byFulfillmentId = new Map(detail.data.items.map((item) => [item.fulfillmentId, item]));
+    assert.ok(byFulfillmentId.has(accepted.fulfillmentId), 'completed container must stay visible');
+    assert.ok(byFulfillmentId.has(fulfillmentB!.id), 'sibling pending container must stay visible');
+    assert.equal(byFulfillmentId.get(accepted.fulfillmentId)?.taskStatus, 'DISPATCHED');
+    assert.equal(byFulfillmentId.get(fulfillmentB!.id)?.taskStatus, 'READY');
+  });
 });
