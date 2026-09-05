@@ -12,21 +12,20 @@
 }
 
 .carrier-allocation-summary__chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 32px;
-  padding: 6px 10px;
-  border: 1px solid var(--border-2);
-  border-radius: 999px;
-  background: var(--surface-2, #f8fafc);
-  color: var(--fg-1);
-  font-size: 13px;
-  line-height: 1.4;
+  display: block;
   min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  color: var(--fg-2);
+  font-size: var(--ops-table-meta-size, 13px);
+  font-weight: var(--fw-medium, 500);
+  line-height: var(--ops-table-meta-line-height, 1.4);
 }
 
-.carrier-allocation-summary__chip strong,
+.carrier-allocation-summary__chip strong {
+  font-weight: var(--fw-semibold, 600);
+}
+
 .carrier-allocation-summary__chip span {
   overflow-wrap: anywhere;
 }
