@@ -561,8 +561,11 @@
 .routes-table thead th:nth-child(7) { width: 9%;  }   /* Chuẩn 40ft */
 .routes-table thead th:nth-child(8) { width: 10%; }   /* Sử dụng 06/26 */
 /* Keep content inside its assigned column. The previous `overflow: visible`
-   let long route names draw on top of the type badge and numeric columns. */
-.routes-table tbody td { overflow: hidden; }
+   let long route names draw on top of the type badge and numeric columns.
+   The action cell is excluded — it hosts the row's absolutely-positioned
+   kebab dropdown, which `overflow: hidden` would clip against its own tiny
+   cell box. */
+.routes-table tbody td:not(.record-table__action) { overflow: hidden; }
 .routes-table tbody td:nth-child(1) {
   white-space: normal;
   overflow-wrap: anywhere;
@@ -573,7 +576,7 @@
   -webkit-line-clamp: 2;
   overflow: hidden;
 }
-.routes-table tbody td:nth-child(n+2) {
+.routes-table tbody td:nth-child(n+2):not(.record-table__action) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
