@@ -1,7 +1,8 @@
-import { type ComponentType, type HTMLAttributes, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { InputBase, TextField } from '../untitled-ui/base/input/input';
 import { Label } from '../untitled-ui/base/input/label';
+import { DateInput } from '../../design-system/forms/DateInput';
 
 /** Section caption used to group entity-form fields — an icon chip, an
  * uppercase label, and a hairline divider that fills the remaining width.
@@ -29,7 +30,7 @@ export function EntityFormSection({ icon: Icon, label, children }: { icon: Lucid
 export function UnitInput({ label, unit, icon, value, onChange, placeholder, min, max, isRequired, autoFocus, padClassName = 'pr-12' }: {
   label: string;
   unit: string;
-  icon?: ComponentType<HTMLAttributes<HTMLOrSVGElement>>;
+  icon?: LucideIcon;
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
@@ -55,6 +56,24 @@ export function UnitInput({ label, unit, icon, value, onChange, placeholder, min
         <span className="entity-unit-suffix" aria-hidden="true">{unit}</span>
       </div>
     </TextField>
+  );
+}
+
+/** Labelled date row on the kit's label plus the design-system buffered
+ * DateInput, so date fields match the kit chrome inside sectioned entity
+ * forms. labelSuffix renders trailing label content (e.g. truck due/overdue
+ * badges). */
+export function DateField({ id, label, value, onChange, isRequired, labelSuffix }: {
+  id: string; label: string; value: string; onChange: (value: string) => void; isRequired?: boolean; labelSuffix?: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col items-start justify-start gap-1.5">
+      <Label htmlFor={id} isRequired={isRequired}>
+        {label}
+        {labelSuffix}
+      </Label>
+      <DateInput id={id} className="input" value={value} onChange={onChange} />
+    </div>
   );
 }
 

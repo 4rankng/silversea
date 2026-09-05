@@ -3,8 +3,7 @@ import { Save, X, Loader2, Truck, Tag, Factory, Weight, Fuel, Calendar, FileText
 import { Modal } from "../../components/UI";
 import { Input } from "../../components/untitled-ui/base/input/input";
 import { TextArea } from "../../components/untitled-ui/base/textarea/textarea";
-import { EntityFormSection, UnitInput, RequiredHint } from "../../components/shared/EntityFormParts";
-import { DateInput } from "../../design-system/forms/DateInput";
+import { EntityFormSection, UnitInput, DateField, RequiredHint } from "../../components/shared/EntityFormParts";
 import {
   computeVehicleAlerts,
 } from "@tingting/shared";
@@ -222,18 +221,16 @@ function TruckDateField({
       : `Còn ${alert.daysUntil} ngày`
     : null;
   return (
-    <div className="field truck-alert-field">
-      <label htmlFor={id} className="truck-alert-field__label">
-        {label}
-        {badgeText && (
-          <span
-            className={`truck-alert-badge truck-alert-badge--${alert!.status}`}
-          >
-            {badgeText}
-          </span>
-        )}
-      </label>
-      <DateInput id={id} className="input" value={value} onChange={onChange} />
-    </div>
+    <DateField
+      id={id}
+      label={label}
+      labelSuffix={badgeText ? (
+        <span className={`truck-alert-badge truck-alert-badge--${alert!.status}`}>
+          {badgeText}
+        </span>
+      ) : undefined}
+      value={value}
+      onChange={onChange}
+    />
   );
 }

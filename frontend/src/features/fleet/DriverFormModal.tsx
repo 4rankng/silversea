@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react';
 import { Save, X, Loader2, Hash, User, CreditCard, BadgeCheck, Phone, Landmark, Wallet, Banknote } from 'lucide-react';
 import { Modal } from '../../components/UI';
 import { Input } from '../../components/untitled-ui/base/input/input';
-import { EntityFormSection, RequiredHint } from '../../components/shared/EntityFormParts';
-import { DateInput } from '../../design-system/forms/DateInput';
+import { EntityFormSection, DateField, RequiredHint } from '../../components/shared/EntityFormParts';
 import type { Driver } from '@tingting/shared';
 
 export function DriverFormModal({ saving, item, onsave, oncancel, isOpen }: {
@@ -103,15 +102,12 @@ export function DriverFormModal({ saving, item, onsave, oncancel, isOpen }: {
             placeholder="Ví dụ: B2"
             inputClassName="tabular-nums"
           />
-          <div className="field">
-            <label htmlFor="driver-licenseExpiryDate">Hạn bằng lái</label>
-            <DateInput
-              id="driver-licenseExpiryDate"
-              className="input"
-              value={licenseExpiryDate}
-              onChange={setLicenseExpiryDate}
-            />
-          </div>
+          <DateField
+            id="driver-licenseExpiryDate"
+            label="Hạn bằng lái"
+            value={licenseExpiryDate}
+            onChange={setLicenseExpiryDate}
+          />
           <Input
             label="Số điện thoại"
             icon={Phone}

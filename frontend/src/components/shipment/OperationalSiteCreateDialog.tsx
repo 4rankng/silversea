@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Plus, MapPin, Building2 } from 'lucide-react';
+import { Plus, MapPin, Building2, Phone } from 'lucide-react';
 import type { Route } from '@tingting/shared';
 import { Modal } from '../UI';
 import { SelectField, TextField } from '../../design-system';
@@ -285,16 +285,18 @@ export function OperationalSiteCreateDialog({
             placeholder="Tên hiển thị trong vận hành"
             disabled={saving}
           />
+          <div className="col-span-full">
+            <TextField
+              label="Địa chỉ"
+              value={form.address}
+              onChange={(event) => update('address', event.target.value)}
+              maxLength={2000}
+              placeholder="Số, đường, phường, quận, tỉnh"
+              disabled={saving}
+            />
+          </div>
         </EntityFormSection>
-        <TextField
-          label="Địa chỉ"
-          value={form.address}
-          onChange={(event) => update('address', event.target.value)}
-          maxLength={2000}
-          placeholder="Số, đường, phường, quận, tỉnh"
-          disabled={saving}
-        />
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))', gap: 16 }}>
+        <EntityFormSection icon={Phone} label="Liên hệ">
           <TextField
             label="Người liên hệ"
             value={form.contactName}
@@ -309,15 +311,17 @@ export function OperationalSiteCreateDialog({
             maxLength={30}
             disabled={saving}
           />
-        </div>
-        <TextField
-          label="Liên kết Google Maps (không bắt buộc)"
-          value={form.googleMapsUrl}
-          onChange={(event) => update('googleMapsUrl', event.target.value)}
-          maxLength={2000}
-          placeholder="https://maps.google.com/…"
-          disabled={saving}
-        />
+          <div className="col-span-full">
+            <TextField
+              label="Liên kết Google Maps (không bắt buộc)"
+              value={form.googleMapsUrl}
+              onChange={(event) => update('googleMapsUrl', event.target.value)}
+              maxLength={2000}
+              placeholder="https://maps.google.com/…"
+              disabled={saving}
+            />
+          </div>
+        </EntityFormSection>
       </div>
     </Modal>
     <RouteCreateDialog

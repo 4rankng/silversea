@@ -40,7 +40,7 @@ function PasswordModal({
           {error}
         </Alert>
       )}
-      <div className="modal-form-grid">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <FormGroup label="Mật khẩu hiện tại">
           <div className="input-icon">
             <Lock size={16} />
@@ -65,7 +65,7 @@ function PasswordModal({
             />
           </div>
         </FormGroup>
-        <div className="modal-form-grid__full">
+        <div className="col-span-full">
           <FormGroup label="Xác nhận mật khẩu mới">
             <div className="input-icon">
               <Lock size={16} />

@@ -40,7 +40,7 @@ function ProfileModal({
           {error}
         </Alert>
       )}
-      <div className="modal-form-grid">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <FormGroup label="Tên đăng nhập">
           <div className="input-icon">
             <User size={16} />

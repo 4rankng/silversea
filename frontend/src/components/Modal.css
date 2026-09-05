@@ -260,19 +260,6 @@
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
-/* ─── Responsive form grid (drop-in for single-column dialog bodies) ───── */
-.modal-form-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-}
-.modal-form-grid--3 {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-.modal-form-grid > .modal-form-grid__full {
-  grid-column: 1 / -1;
-}
-
 /* Required-field dot indicator (polished variant) */
 .modal--polished .field--required > label::after {
   content: "";
@@ -421,10 +408,5 @@
 
   .modal__head-right {
     display: none;
-  }
-
-  .modal-form-grid,
-  .modal-form-grid--3 {
-    grid-template-columns: 1fr;
   }
 }

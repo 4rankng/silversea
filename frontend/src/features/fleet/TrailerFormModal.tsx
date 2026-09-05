@@ -3,8 +3,7 @@ import { Save, X, Loader2, Truck, Weight, FileText } from 'lucide-react';
 import { Modal } from '../../components/UI';
 import { Input } from '../../components/untitled-ui/base/input/input';
 import { TextArea } from '../../components/untitled-ui/base/textarea/textarea';
-import { EntityFormSection, UnitInput, RequiredHint } from '../../components/shared/EntityFormParts';
-import { DateInput } from '../../design-system/forms/DateInput';
+import { EntityFormSection, UnitInput, DateField, RequiredHint } from '../../components/shared/EntityFormParts';
 import { TrailerType, TRAILER_TYPE_LABELS } from '@tingting/shared';
 import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
 // Own stylesheet — see TruckFormModal: keeps the dialog styled on any route
@@ -126,15 +125,12 @@ export function TrailerFormModal({ saving, item, onsave, oncancel, isOpen }: {
             min={0}
             placeholder="0"
           />
-          <div className="field">
-            <label htmlFor="trailer-inspectionDeadline">Hạn đăng kiểm</label>
-            <DateInput
-              id="trailer-inspectionDeadline"
-              className="input"
-              value={inspectionDeadline}
-              onChange={setInspectionDeadline}
-            />
-          </div>
+          <DateField
+            id="trailer-inspectionDeadline"
+            label="Hạn đăng kiểm"
+            value={inspectionDeadline}
+            onChange={setInspectionDeadline}
+          />
         </EntityFormSection>
         <EntityFormSection icon={FileText} label="Ghi chú">
           <div className="col-span-full">
