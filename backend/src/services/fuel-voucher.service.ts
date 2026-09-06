@@ -31,25 +31,25 @@ export interface FuelVoucherData {
 
 export async function buildFuelVoucherData(tripId: number): Promise<FuelVoucherData> {
   const [row] = await db.select({
-    tripCode: s.trips.tripCode,
-    departureDate: s.trips.departureDate,
+    tripCode: s.tripsComposite.tripCode,
+    departureDate: s.tripsComposite.departureDate,
     routeName: s.routes.name,
     truckPlate: s.trucks.licensePlate,
     driverName: s.drivers.name,
-    fuelLiters: s.trips.fuelLiters,
-    fuelActualUnitPrice: s.trips.fuelActualUnitPrice,
-    totalFuelCost: s.trips.totalFuelCost,
-    fuelPriceApplied: s.trips.fuelPriceApplied,
-    fuelSupplierId: s.trips.fuelSupplierId,
+    fuelLiters: s.tripsComposite.fuelLiters,
+    fuelActualUnitPrice: s.tripsComposite.fuelActualUnitPrice,
+    totalFuelCost: s.tripsComposite.totalFuelCost,
+    fuelPriceApplied: s.tripsComposite.fuelPriceApplied,
+    fuelSupplierId: s.tripsComposite.fuelSupplierId,
     supplierName: s.suppliers.name,
     supplierNote: s.suppliers.note,
   })
-    .from(s.trips)
-    .leftJoin(s.routes, eq(s.trips.routeId, s.routes.id))
-    .leftJoin(s.trucks, eq(s.trips.truckId, s.trucks.id))
-    .leftJoin(s.drivers, eq(s.trips.driverId, s.drivers.id))
-    .leftJoin(s.suppliers, eq(s.trips.fuelSupplierId, s.suppliers.id))
-    .where(eq(s.trips.id, tripId))
+    .from(s.tripsComposite)
+    .leftJoin(s.routes, eq(s.tripsComposite.routeId, s.routes.id))
+    .leftJoin(s.trucks, eq(s.tripsComposite.truckId, s.trucks.id))
+    .leftJoin(s.drivers, eq(s.tripsComposite.driverId, s.drivers.id))
+    .leftJoin(s.suppliers, eq(s.tripsComposite.fuelSupplierId, s.suppliers.id))
+    .where(eq(s.tripsComposite.id, tripId))
     .limit(1);
 
   if (!row) throw new ApiError(404, 'Không tìm thấy chuyến đi');
