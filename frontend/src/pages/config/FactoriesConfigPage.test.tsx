@@ -114,12 +114,16 @@ describe('FactoriesConfigPage', () => {
   it('explains how to create the first site when the catalog is empty', async () => {
     listMock.mockResolvedValue([]);
     renderPage();
-    expect(await screen.findByText(/Tạo mới bằng nút "Tạo mới" hoặc từ form nhận lô hàng của CUS/)).toBeTruthy();
+    expect(await screen.findByText(/Dùng nút "Tạo mới" hoặc form nhận lô của CUS/)).toBeTruthy();
   });
 
   it('creates a site from the toolbar button through the customer-picker dialog', async () => {
     renderPage();
-    fireEvent.click(await screen.findByRole('button', { name: /Tạo mới/ }));
+    // The button stays disabled until the customer catalog resolves — the
+    // picker cannot work without it.
+    const createButton = await screen.findByRole('button', { name: /Tạo mới/ });
+    await waitFor(() => expect(createButton).not.toBeDisabled());
+    fireEvent.click(createButton);
     const dialog = await screen.findByRole('dialog', { name: 'Thêm nhà máy' });
 
     // The page passes no fixed customer, so the dialog owns the picker.

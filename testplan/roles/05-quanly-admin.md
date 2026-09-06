@@ -523,7 +523,14 @@ Same as `04-ketoan.md` Flow 12.
   (luồng CUS vẫn giữ nguyên, song song).
 - **QA:** driver `scripts/test-factory-customer-create.mjs` (flow A) hoặc thủ công: tạo nhà máy cho
   một khách chưa có nhà máy → hàng mới hiện trong bảng; mở dialog sửa thấy đúng dữ liệu vừa nhập.
-- **Đã chạy 2026-09-06 (local, UI-driven): PASS** — artifacts `qa/2026-09-06_factory-customer-creation/`.
+- **Bug bắt được khi kiểm thử 2026-09-06 (đã sửa):** form khách hàng ở `/config/customers` gửi
+  `null` cho các trường tùy chọn bỏ trống (taxCode, contactPerson, phone, contactInfo, creditLimit)
+  → backend 400 "Expected string, received null" vì `customerSchema` khai báo `.optional()` (chấp
+  nhận thiếu khóa, từ chối null). Fix: bỏ trống → không gửi khóa (`undefined`). QA thêm: tạo khách
+  hàng mới chỉ điền tên + tên ngắn + hạn thanh toán, bỏ trống mọi trường tùy chọn → phải thành
+  công (201) và lưu đúng `shortName`/`paymentTermDays`.
+- **Đã chạy 2026-09-06 (local, UI-driven): PASS** — artifacts `qa/2026-09-06_factory-customer-creation/`
+  (flow A tạo nhà máy; flow D tạo khách hàng config với tên ngắn + hạn TT 30 ngày, POST 201).
 
 ## Negative / RBAC table (MANAGER + ADMIN)
 

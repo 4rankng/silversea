@@ -155,7 +155,7 @@ export default function FactoriesConfigPage() {
     <div className="cfg-page cfg-page--factories fade-up">
       <PageHeader
         title="Nhà máy / Kho"
-        description="Danh mục nhà máy và kho lấy hàng của từng khách hàng. Tạo mới ngay tại đây hoặc trong form nhận lô hàng của CUS; trang này để quản trị xem, chỉnh và ngưng hoạt động."
+        description="Danh mục nhà máy và kho lấy hàng của từng khách hàng. Tạo mới tại đây hoặc từ form nhận lô của CUS."
         onBack={() => navigate('/config')}
         iconName="company-profile"
       />
@@ -181,7 +181,7 @@ export default function FactoriesConfigPage() {
             />
           </div>
           <div style={{ flex: 1 }} />
-          <button className="btn btn--primary" onClick={() => setCreateOpen(true)}>
+          <button className="btn btn--primary" onClick={() => setCreateOpen(true)} disabled={customersQuery.isLoading}>
             <Plus size={14} /> Tạo mới
           </button>
           <span className="cfg-page__summary">
@@ -213,7 +213,7 @@ export default function FactoriesConfigPage() {
                   <td colSpan={10} data-label="" style={{ textAlign: 'center', padding: '28px 12px', color: 'var(--fg-3)' }}>
                     {sitesQuery.isLoading
                       ? 'Đang tải…'
-                      : 'Chưa có nhà máy / kho nào. Tạo mới bằng nút "Tạo mới" hoặc từ form nhận lô hàng của CUS.'}
+                      : 'Chưa có nhà máy / kho nào. Dùng nút "Tạo mới" hoặc form nhận lô của CUS.'}
                   </td>
                 </tr>
               )}
@@ -374,6 +374,12 @@ export default function FactoriesConfigPage() {
           setCreateOpen(false);
           toast({ kind: 'success', message: 'Đã tạo nhà máy / kho.' });
           await queryClient.invalidateQueries({ queryKey: qk.catalogs.adminOperationalSites });
+        }}
+        // Inline route creation must refresh the page's route catalog too — the
+        // dialog's internal createdRoutes list is wiped on reopen, so without
+        // this the next create session would not see the new route.
+        onRouteCreated={() => {
+          void queryClient.invalidateQueries({ queryKey: qk.catalogs.adminSiteRoutes });
         }}
       />
     </div>

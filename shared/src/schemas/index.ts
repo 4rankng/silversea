@@ -679,7 +679,9 @@ export const isoDateOnlySchema = z.string()
 
 export const customerSchema = z.object({
   name: z.string().trim().min(1, 'Tên đầy đủ là bắt buộc').max(255),
-  shortName: z.string().trim().min(1, 'Tên ngắn là bắt buộc').max(255).optional(),
+  // Blank (not absent) is a deliberate clear: displays fall back to `name`
+  // everywhere via `shortName || name`, so '' is the representable "unset".
+  shortName: z.string().trim().max(255).optional(),
   taxCode: z.string().optional(),
   contactPerson: z.string().optional(),
   phone: z.string().optional(),

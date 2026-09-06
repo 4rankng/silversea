@@ -168,14 +168,11 @@ export function CustomerForm({ saving, item, onsave, oncancel }: {
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
         <button type="button" className="btn btn--secondary" onClick={oncancel} disabled={saving}>Hủy</button>
         <button type="button" className="btn btn--primary" onClick={() => {
-          if (!name.trim()) return;
-          const threshold = fromThresholdPercent(creditWarningThreshold);
-          if (creditWarningThreshold.trim() && threshold == null) return;
-          const termDays = paymentTermDays.trim() === '' ? null : Number(paymentTermDays);
-          if (termDays !== null && (!Number.isInteger(termDays) || termDays < 0 || termDays > 3650)) return;
           onsave({
             name: name.trim(),
-            shortName: shortName.trim() || undefined,
+            // Sent even when blank: '' is the deliberate "clear" for the
+            // operational label (displays fall back to the full name).
+            shortName: shortName.trim(),
             // Empty optionals are OMITTED, not nulled — customerSchema declares
             // these .optional() (absent ok, null rejected), so a null payload
             // fails create/update with "Expected string, received null".
@@ -184,14 +181,16 @@ export function CustomerForm({ saving, item, onsave, oncancel }: {
             phone: phone.trim() || undefined,
             contactInfo: contactInfo.trim() || undefined,
             creditLimit: creditLimit ? String(creditLimit) : undefined,
-            creditWarningThreshold: threshold,
-            paymentTermDays: termDays,
+            creditWarningThreshold: fromThresholdPercent(creditWarningThreshold),
+            paymentTermDays: paymentTermDays.trim() === '' ? null : Number(paymentTermDays),
             status,
             debitNoteMode,
             debitNoteTemplateId,
             isCarrier,
           });
-        }} disabled={saving}>
+        }} disabled={saving || !name.trim()
+          || (Boolean(creditWarningThreshold.trim()) && fromThresholdPercent(creditWarningThreshold) == null)
+          || (paymentTermDays.trim() !== '' && (!Number.isInteger(Number(paymentTermDays)) || Number(paymentTermDays) < 0 || Number(paymentTermDays) > 3650))}>
           {saving && <Loader2 size={14} className="spin" style={{ marginRight: 6 }} />}
           {item ? 'Cập nhật' : 'Thêm mới'}
         </button>

@@ -224,6 +224,25 @@ async function pickByPlaceholder(page, substr, query, log) {
 
 const result = { date: new Date().toISOString(), flowA: {}, flowB: {}, log: [] };
 
+/** ISO-6346 container check digit — the backend rejects numbers whose format
+ *  is right but check digit wrong ("Sai số kiểm tra"). Table per spec: A=10,
+ *  B=12, … skipping multiples of 11. Verified against CSQU3054383 → 3. */
+const ISO_LETTER_VALUES = {
+  A: 10, B: 12, C: 13, D: 14, E: 15, F: 16, G: 17, H: 18, I: 19, J: 20, K: 21,
+  L: 23, M: 24, N: 25, O: 26, P: 27, Q: 28, R: 29, S: 30, T: 31, U: 32,
+  V: 34, W: 35, X: 36, Y: 37, Z: 38,
+};
+function iso6346ContainerNo(ownerCode, sixDigits) {
+  const serial = `${ownerCode}${sixDigits}`.toUpperCase();
+  let sum = 0;
+  for (let i = 0; i < 10; i++) {
+    const value = /\d/.test(serial[i]) ? Number(serial[i]) : ISO_LETTER_VALUES[serial[i]];
+    sum += value * 2 ** i;
+  }
+  const r = sum % 11;
+  return serial + (r === 10 ? 0 : r);
+}
+
 // ─── Flow A: admin creates a factory from /config/factories ─────────────────
 const adminToken = await login("admin");
 const custRes = await api(adminToken, "GET", "/customers", undefined, { query: { page: 1, limit: 5 } });
@@ -337,7 +356,7 @@ await withSession(cusToken, async (page, ctx) => {
   // Identity-section fields have visible labels; container-row fields render
   // hideLabel + placeholder, so they are driven by placeholder instead.
   const billNo = `BK-QA-${STAMP}`;
-  const containerNo = `MSCU${String(Date.now()).slice(-7)}`;
+  const containerNo = iso6346ContainerNo("MSCU", String(Date.now()).slice(-6));
   const pickupIso = new Date(Date.now() + 24 * 3600 * 1000).toISOString().slice(0, 16);
   // Capture the save's HTTP outcome so a 400 is diagnosable from result.json.
   const saveResponses = [];
@@ -459,6 +478,27 @@ await withSession(adminToken, async (page, ctx) => {
   result.flowD.pass = Boolean(
     row && row.shortName === `Đông Á ${STAMP}` && row.paymentTermDays === 30,
   );
+
+  // Edit pass: clearing Tên ngắn must actually persist (regression for the
+  // "shortName silently unclearable" review finding).
+  if (row) {
+    const rowClicked = await page.evaluate((nm) => {
+      const tr = Array.from(document.querySelectorAll("tr"))
+        .find((t) => (t.textContent ?? "").includes(nm));
+      if (!tr) return false;
+      tr.click();
+      return true;
+    }, configCustName);
+    await sleep(900);
+    await dialogFill(page, "Tên ngắn", "", ctx.log);
+    await page.screenshot({ path: join(ROOT, "D03_edit_clear_shortname.png") });
+    await dialogClickButton(page, "^Cập nhật$", ctx.log);
+    await sleep(2200);
+    const recheck = await api(adminToken, "GET", "/customers", undefined, { query: { search: configCustName, limit: 5 } });
+    const updated = (recheck.data?.items ?? []).find((c) => c.name === configCustName);
+    result.flowD.editRowClicked = rowClicked;
+    result.flowD.shortNameCleared = updated ? !(updated.shortName ?? "").trim() : null;
+  }
 }, { artifactDir: ROOT, name: ".", headless: STANDARD_HEADLESS });
 
 result.flowA.pass = Boolean(result.flowA.apiCreated && result.flowA.rowVisible);
@@ -473,6 +513,7 @@ result.flowC.pass = Boolean(
   && result.flowC?.containerSaved
   && result.flowC?.factoryLinked,
 );
+result.flowD.pass = Boolean(result.flowD?.pass && result.flowD?.shortNameCleared === true);
 result.pass = result.flowA.pass && result.flowB.pass && (result.flowC?.pass ?? false) && (result.flowD?.pass ?? false);
 
 writeArtifact(ROOT, "result.json", result);
