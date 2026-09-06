@@ -246,6 +246,44 @@ export async function deleteOpsExpensePhoto(userId: number, photoId: number): Pr
   await deleteStorageKeysIfUnreferenced([photo.storageKey]);
 }
 
+export interface OpsExpensePhotoRow {
+  id: number;
+  storageKey: string;
+  url: string;
+  uploadedAt: string;
+}
+
+/** Photo list for receipt review — the author or any approver may read it. */
+export async function listOpsExpensePhotos(
+  userId: number,
+  isApprover: boolean,
+  expenseId: number,
+): Promise<OpsExpensePhotoRow[]> {
+  const [entry] = await db
+    .select({ id: s.opsExpenseEntries.id, paidById: s.opsExpenseEntries.paidById })
+    .from(s.opsExpenseEntries)
+    .where(eq(s.opsExpenseEntries.id, expenseId))
+    .limit(1);
+  if (!entry || (!isApprover && entry.paidById !== userId)) {
+    throw new ApiError(404, 'Không tìm thấy khoản chi.');
+  }
+  const photos = await db
+    .select({
+      id: s.opsExpensePhotos.id,
+      storageKey: s.opsExpensePhotos.storageKey,
+      uploadedAt: s.opsExpensePhotos.uploadedAt,
+    })
+    .from(s.opsExpensePhotos)
+    .where(eq(s.opsExpensePhotos.opsExpenseId, expenseId))
+    .orderBy(s.opsExpensePhotos.id);
+  return photos.map((photo) => ({
+    id: photo.id,
+    storageKey: photo.storageKey,
+    url: `/api/photos/${encodeURIComponent(photo.storageKey)}`,
+    uploadedAt: photo.uploadedAt.toISOString(),
+  }));
+}
+
 /** REJECTED → PENDING after the author re-attaches evidence. */
 export async function resendOpsExpense(userId: number, expenseId: number) {
   const [entry] = await db
@@ -347,6 +385,30 @@ export async function recomputeOpsSettlementTotal(
     .update(s.opsSettlements)
     .set({ totalAmount: (row?.total ?? '0').toString(), updatedAt: new Date() })
     .where(eq(s.opsSettlements.id, settlementId));
+}
+
+/** Active expense-type catalog for the OPS declaration form (grouped by
+ * requires_invoice on the client). Scoped copy of the config catalog so OPS
+ * needs no config:read grant. */
+export async function listActiveOpsExpenseTypes(): Promise<Array<{
+  id: number;
+  code: string;
+  name: string;
+  requiresInvoice: boolean | null;
+}>> {
+  return db
+    .select({
+      id: s.forwarderExpenseTypes.id,
+      code: s.forwarderExpenseTypes.code,
+      name: s.forwarderExpenseTypes.name,
+      requiresInvoice: s.forwarderExpenseTypes.requiresInvoice,
+    })
+    .from(s.forwarderExpenseTypes)
+    .where(and(
+      eq(s.forwarderExpenseTypes.status, 'ACTIVE'),
+      isNull(s.forwarderExpenseTypes.deletedAt),
+    ))
+    .orderBy(s.forwarderExpenseTypes.name);
 }
 
 export interface OpsExpenseListRow {

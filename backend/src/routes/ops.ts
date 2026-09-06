@@ -26,6 +26,8 @@ import {
   decideOpsExpense,
   deleteOpsExpense,
   deleteOpsExpensePhoto,
+  listActiveOpsExpenseTypes,
+  listOpsExpensePhotos,
   listOpsExpenses,
   resendOpsExpense,
   updateOpsExpense,
@@ -92,6 +94,12 @@ router.post('/wallet/advance-requests', OPS_ONLY, asyncHandler(async (req: Reque
 }));
 
 // ── Khoản chi của Ops ───────────────────────────────────────────────────────
+
+// Active expense-type catalog for the declaration form (no config:read grant
+// needed for OPS).
+router.get('/expense-types', OPS_ONLY, asyncHandler(async (_req: Request, res: Response) => {
+  res.json({ items: await listActiveOpsExpenseTypes() });
+}));
 
 const expenseCreateSchema = z.object({
   shipmentId: z.number().int().positive(),
@@ -181,6 +189,15 @@ router.post('/expenses/:id/photos', OPS_ONLY, asyncHandler(async (req: Request, 
 router.delete('/expense-photos/:id', OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
   await deleteOpsExpensePhoto(getUser(req).userId, parseId(req.params.id));
   res.json({ success: true });
+}));
+
+// Receipt review: the author or an approver (ADMIN/MANAGER/ACCOUNTANT) may
+// list an expense's photos — accounting must see the evidence before deciding.
+router.get('/expenses/:id/photos', asyncHandler(async (req: Request, res: Response) => {
+  const user = getUser(req);
+  const isApprover = [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT].includes(user.role as Role);
+  if (!isApprover && user.role !== Role.OPS) throw new ApiError(403, 'Không có quyền truy cập.');
+  res.json({ items: await listOpsExpensePhotos(user.userId, isApprover, parseId(req.params.id)) });
 }));
 
 // ── Đề nghị thanh toán ──────────────────────────────────────────────────────

@@ -413,6 +413,21 @@ export const PAGE_CATALOG = {
     pathPattern: '/my-settlements/:id',
     requiresParams: ['id'],
   },
+
+  /* ── Ops field operations (docs/prd/OpsVanHanh.md) ─────────────────── */
+
+  opsOrders: {
+    title: 'Kế hoạch làm hàng',
+    path: '/ops/orders',
+  },
+  opsFleetTracking: {
+    title: 'Theo dõi phương tiện',
+    path: '/ops/fleet-tracking',
+  },
+  opsWallet: {
+    title: 'Quỹ tạm ứng',
+    path: '/ops/wallet',
+  },
 } as const satisfies Record<string, PageCatalogEntry>;
 
 export type PageCatalogKey = keyof typeof PAGE_CATALOG;

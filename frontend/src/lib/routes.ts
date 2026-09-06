@@ -111,6 +111,12 @@ export const routes = {
   mySettlementNew: PAGE_CATALOG.mySettlementNew.path,
   mySettlementDetail: (id: number | string) => PAGE_CATALOG.mySettlementDetail.path({ id }),
 
+  /* ── Ops field operations (OpsVanHanh) ───────────────────────────────── */
+
+  opsOrders: PAGE_CATALOG.opsOrders.path,
+  opsFleetTracking: PAGE_CATALOG.opsFleetTracking.path,
+  opsWallet: PAGE_CATALOG.opsWallet.path,
+
   /* ── Dispatch planning ───────────────────────────────────────────────── */
 
   // /dispatch = Kế hoạch Tổng quát, /dispatch-detail = Kế hoạch Chi tiết —
