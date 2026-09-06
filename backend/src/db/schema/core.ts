@@ -2,7 +2,7 @@
 // Regenerate via drizzle-kit against the barrel: db/schema/index.ts.
 
 import { boolean, date, doublePrecision, index, integer, jsonb, pgTable, serial, smallint, text, timestamp, uniqueIndex, varchar } from 'drizzle-orm/pg-core';
-import { customerAccountTypeEnum, deleteRequestStatusEnum, notificationTypeEnum, roleEnum, schedulerRunStatusEnum } from './_enums';
+import { customerAccountTypeEnum, notificationTypeEnum, roleEnum, schedulerRunStatusEnum } from './_enums';
 // ─── Config tables ───────────────────────────────────────────────────────────
 export const users = pgTable('users', {
   id: serial('id').primaryKey(),
@@ -254,20 +254,4 @@ export const idempotencyKeys = pgTable('idempotency_keys', {
   uniqueIndex('idempotency_keys_endpoint_key_uniq')
     .on(table.endpoint, table.idempotencyKey),
   index('idempotency_keys_entity_idx').on(table.entityType, table.entityId),
-]);
-
-
-export const deleteRequests = pgTable('delete_requests', {
-  id: serial('id').primaryKey(),
-  entityType: varchar('entity_type', { length: 50 }).notNull(),
-  entityId: integer('entity_id').notNull(),
-  requestedBy: integer('requested_by').notNull(),
-  reason: text('reason'),
-  status: deleteRequestStatusEnum('status').notNull().default('PENDING'),
-  reviewedBy: integer('reviewed_by'),
-  reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-}, (table) => [
-  index('delete_requests_status_idx').on(table.status),
 ]);

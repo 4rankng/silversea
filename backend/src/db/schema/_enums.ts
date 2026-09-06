@@ -243,8 +243,3 @@ export const driverIncidentalCostTypeEnum = applicationEnum([
   'OTHER',
 ]);
 
-// ─── O2C delete-requests queue (260801-2200) ────────────────────────────────
-// When a row is out-of-session (beyond the idle window) and not approved, the
-// actor cannot delete it directly — they file a delete request that an Admin/
-// MANAGER reviews. Approving executes the delete in a transaction.
-export const deleteRequestStatusEnum = applicationEnum(['PENDING', 'APPROVED', 'REJECTED']);

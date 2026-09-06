@@ -150,30 +150,6 @@ export const ancillaryRevenue = pgTable('ancillary_revenue', {
 ]);
 
 
-// O2C B1: fuel-surcharge (phụ phí xăng dầu) configuration. The customer's
-// pricing template (MẪU BÁO GIÁ) computes: phụ phí = (giá dầu hiện tại − giá dầu
-// gốc) × định mức lít/km × số km × tỷ lệ chia sẻ % (per customer). This table
-// stores the per-customer share rate + the global base/current fuel prices live
-// in app_settings (fuelPriceApplied). Each row defines how much of the fuel
-// surcharge a customer bears (e.g. Long Minh 2%, ASKEY 4%, Sunrise 2.5%).
-export const fuelSurchargeConfigs = pgTable('fuel_surcharge_configs', {
-  id: serial('id').primaryKey(),
-  customerId: integer('customer_id').notNull(),
-  // Tỷ lệ chia sẻ % (e.g. 0.02 = 2%). The customer's share of the fuel-cost
-  // delta. NULL or 0 = customer pays no surcharge.
-  shareRate: numeric('share_rate', { precision: 5, scale: 4 }).notNull().default('0'),
-  // Base fuel price (giá dầu gốc) locked at contract signing. The surcharge
-  // formula compares the current fuel price against this baseline.
-  baseFuelPrice: numeric('base_fuel_price', { precision: 10, scale: 0 }).notNull(),
-  effectiveDate: date('effective_date').notNull().defaultNow(),
-  note: text('note'),
-  createdBy: integer('created_by'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
-  deletedAt: timestamp('deleted_at'),
-}, (table) => [
-  uniqueIndex('fuel_surcharge_customer_active_uniq').on(table.customerId).where(sql`${table.deletedAt} is null`),
-]);
 
 
 // M12.1: per-route / per-truck fuel norms. Replaces the singleton fuel_config

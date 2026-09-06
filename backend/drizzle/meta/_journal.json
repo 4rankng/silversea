@@ -351,6 +351,13 @@
       "when": 1788670154717,
       "tag": "0049_lush_black_tom",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1788673348903,
+      "tag": "0050_ancient_grey_gargoyle",
+      "breakpoints": true
     }
   ]
 }
