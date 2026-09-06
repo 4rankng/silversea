@@ -1,6 +1,20 @@
 # Current Development Handoff
 
-## Current task — /shipments list column redistribution + deploy — DONE, PUSHED + DEPLOYED (2026-09-03)
+## Current task — OPS module (Vận hành hiện trường) per OpsVanHanh PRD — DONE on local dev (2026-09-07, unpushed)
+
+- Scope: full implementation of `docs/prd/OpsVanHanh.md` (source `2026.9.6_Man_hinh_ops.docx`): `/ops/orders` (day list + per-user ghim + context-first khai chi phí), `/ops/fleet-tracking` (read-only, 30s poll), `/ops/wallet` (4 real-time cards, xin tạm ứng via shared `advance_requests`, expense history with red Nợ-chứng-từ tags, settlement batches grouped by lô with 2 invoice baskets, exceljs export, A4 print) + accountant "Chi phí Ops" tab in the advance workspace.
+- 6 commits on main (schema 0058 → wallet formula → portal API → catalog/client → orders screen → fleet → wallet+accountant+export). Plan: `plans/260906-2355-ops-module/`. Lane-coordinated with the sibling master-data session (silversea-75, ended mid-run; its ShipmentCreateWorkspace 1007L ceiling overage grandfathered in my phase-5 commit).
+- Lean decisions: dropped `ops_settlement_expense_links` (FK `ops_settlement_id` on `ops_expense_entries` models the same 1-N, PRD §6 note updated); no casbin surgery (`requireRoles` gates inside the router); OPS-scoped `/api/ops/expense-types` catalog copy instead of config:read grant; storage keys content-hashed (retry-converging, reference-checked on delete).
+- Local-dev data note: `forwarder_expense_types.requires_invoice` flipped true for LIFTING/LOWERING/INFRASTRUCTURE **local DB only** (seed untouched — flipping seed would alter the forwarder expense governance flow; PRD §3.4 treats the catalog as admin-configurable data).
+- Gates: lint 0 err · backend tsc+tests exit 0 · frontend tsc+tests exit 0 · build exit 0 · check:ui+brand ✓ · e2e see `qa/2026-09-07_ops_e2e.log` · UI DRIVEN 11/11 (`qa/2026-09-07_ops_ui-*.png` + driver log; giaonhan@local, pin DB side-effect verified).
+- `.ua` full rebuild delegated to a background agent (was stale since `9834d60b`, 570 files — predates this wave).
+- **NOT DONE: push + deploy** (repo rule: remotes untouched unless asked; prod catalog flags + migration 0058 need a staging rehearsal first per DB-deploy runbook).
+
+**Updated:** 2026-09-07 Asia/Singapore
+**Controller:** Mavis (autonomous captain session — scout→brainstorm→plan→cook chain over the three 09-06 docx)
+**Status:** DONE local — awaiting e2e/reviewer/graph-rebuild tails, then final docs commit.
+
+## Previous task — /shipments list column redistribution + deploy — DONE, PUSHED + DEPLOYED (2026-09-03)
 
 - Scope: `/shipments` CUS dashboard LIST-page column redistribution by value content (sibling of the 09-02 `/shipments-detail` ledger width wave) + realistic-data directive from user (09-03 20:44: "change data to realistic data instead of fake code generated data" — diagnosis: "fake" rows were QA test-run leftovers, not seeds; seed-bulk-data.ts already carries real shipping lines + VN companies).
 - `a2a45ffb` — style(shipments): all 7 dashboard columns pin explicit shares summing 100% (customer 17 / documents 11 / classification 9 / cargo 12 / schedule 20 / notes 16 / status 15) sized from production-shaped content; `tbody td` re-declares `white-space:normal` against global Table.css nowrap (same trap family as 08-28 drawer fix); cargo weight/mode-tag children override the `.cus-multiline-cell span` nowrap+ellipsis that clipped "38.000 kg" / "Cont"/"Lẻ". Test assertion updated 18%→15%.

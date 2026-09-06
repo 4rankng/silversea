@@ -82,7 +82,10 @@ SUITE_TIMEOUT_SECONDS="${SILVERSEA_SUITE_TIMEOUT_SECONDS:-300}"
 
 for suite in "${SUITES[@]}"; do
     SCRIPT="$DIR/test_${suite}_*.py"
-    MATCH=$(ls $SCRIPT 2>/dev/null | head -1)
+    # `|| true` keeps `set -o pipefail` from aborting the whole runner when a
+    # suite number has no script (e.g. 12-14, 17) — the ⚠️ branch below is the
+    # intended handling for gaps.
+    MATCH=$(ls $SCRIPT 2>/dev/null | head -1 || true)
     if [ -z "$MATCH" ]; then
         echo "⚠️  No test script for suite $suite"
         continue

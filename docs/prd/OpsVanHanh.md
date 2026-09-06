@@ -1,7 +1,8 @@
 # PRD: Vận Hành Hiện Trường (Ops) — Kế hoạch làm hàng · Theo dõi xe · Quỹ tạm ứng
 
 **Dự án:** TTransport — Silver Sea
-**Ngày:** 2026-09-06 · **Trạng thái:** Đang triển khai
+**Ngày:** 2026-09-06 · **Cập nhật:** 2026-09-07 · **Trạng thái:** Đã triển khai
+(local dev — schema, API, 3 màn hình, tab kế toán; staging/prop chờ deploy)
 **Phạm vi tài liệu:** Module làm việc của Nhân viên Hiện trường (Ops, `Role.OPS`), chạy
 song song trên Web PC và trình duyệt điện thoại (responsive web — không phải app native,
 không phải PWA).
@@ -221,7 +222,11 @@ stateDiagram-v2
 | `ops_expense_entries` | shipment_id, shipment_container_id?, expense_type_code, amount, paid_by_id, approval_status, approved_by_id?, rejection_reason?, ops_settlement_id?, paid_at | Khoản chi theo lô của Ops |
 | `ops_expense_photos` | ops_expense_id, storage_key, uploaded_by_id, uploaded_at | Ảnh biên lai (serve `/api/photos/…`) |
 | `ops_settlements` | code (unique), ops_user_id, status, total_amount, note?, approved_by_id?/at?, rejection_reason? | Đề nghị thanh toán |
-| `ops_settlement_expense_links` | ops_settlement_id, ops_expense_id (unique cặp) | Khoản chi thuộc phiếu |
+
+> **Ghi chú triển khai (2026-09-07):** bảng nối `ops_settlement_expense_links`
+> của bản nháp đã được **bỏ** — cột `ops_settlement_id` ngay trên
+> `ops_expense_entries` mô tả cùng quan hệ 1-N mà không cần ghi kép; khi từ
+> chối phiếu, hệ thống gỡ liên kết các khoản để chúng rơi vào phiếu kế tiếp.
 
 **Bảng tái sử dụng (nguyên trạng):** `shipments` + `shipment_containers` (dữ liệu lô),
 `trucks`/`trailers`/`trips` + `driver_progress_events` (theo dõi xe), `advance_requests`
