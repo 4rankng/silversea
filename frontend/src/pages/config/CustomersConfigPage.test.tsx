@@ -23,6 +23,10 @@ vi.mock('../../hooks/useBackShortcut', () => ({
   useBackShortcut: () => {},
 }));
 
+vi.mock('../../hooks/useDropdownDismiss', () => ({
+  useDropdownDismiss: () => {},
+}));
+
 // Auth identity is mutable per test: null (no provider, full mode) by
 // default; the dispatcher-mode tests point it at a DISPATCHER user.
 const authState = vi.hoisted(() => ({ context: null as null | { user: { userId: number; username: string; role: string } } }));
@@ -115,21 +119,26 @@ describe('CustomersConfigPage client-side sorting', () => {
   });
 });
 
-// DISPATCHER now has full edit/delete access (matching CUS). Row-click
-// editing and the hint text are visible for all catalog-editor roles.
+// DISPATCHER now has full edit/delete access (matching CUS). The action
+// column and per-row menu render for all catalog-editor roles.
 describe('CustomersConfigPage dispatcher edit/delete access', () => {
   afterEach(() => { authState.context = null; });
 
-  it('shows create button and row-click edit affordance for DISPATCHER', async () => {
+  it('shows the create button and per-row action menu for DISPATCHER', async () => {
     authState.context = { user: { userId: 9, username: 'dieuvan', role: 'DISPATCHER' } };
     const { container } = renderPage();
     await screen.findByText('Khách hàng An');
 
     expect(screen.getByRole('button', { name: /Thêm khách hàng/ })).toBeInTheDocument();
-    const row = container.querySelector('.cfg-customer-table tbody tr');
-    expect(row).not.toBeNull();
-    const rowEl = row as HTMLElement;
-    expect(rowEl.style.cursor).toBe('pointer');
-    expect(screen.getByText(/Nhấn vào một hàng/)).toBeInTheDocument();
+    expect(container.querySelectorAll('.cfg-customer-table thead th')).toHaveLength(13);
+    expect(container.querySelector('.record-table__action')).not.toBeNull();
+  });
+
+  it('renders the action column for full catalog editors', async () => {
+    const { container } = renderPage();
+    await screen.findByText('Khách hàng An');
+
+    expect(container.querySelectorAll('.cfg-customer-table thead th')).toHaveLength(13);
+    expect(container.querySelector('.record-table__action')).not.toBeNull();
   });
 });

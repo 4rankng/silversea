@@ -3,12 +3,13 @@ import { usePageAnimations } from '../../hooks/animations';
 import { useBackShortcut } from '../../hooks/useBackShortcut';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Users, Plus } from 'lucide-react';
+import { Users, Plus, Loader2, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { PageHeader, useConfirm, Modal } from '../../components/UI';
 import { configClient } from '../../api/configClient';
 import { tripClient } from '../../api/tripClient';
 import { downloadCSV } from '../../lib/csv';
 import { useCRUD } from '../../hooks/useCRUD';
+import { useDropdownDismiss } from '../../hooks/useDropdownDismiss';
 import { qk } from '../../api/keys';
 import { SortHeader } from '../../components/shared/SortHeader';
 import { nextTableSort, sortClientSide, type TableSortState } from '../../lib/table-sort';
@@ -31,6 +32,8 @@ export default function CustomersConfigPage() {
   // server sort to call; null keeps the fetch order.
   const [sort, setSort] = useState<TableSortState | null>(null);
   const handleSort = (key: string) => setSort(current => nextTableSort(current, key));
+  const [menuOpenId, setMenuOpenId] = useState<number | null>(null);
+  useDropdownDismiss(menuOpenId !== null, () => setMenuOpenId(null));
 
   const { data, refetch } = useQuery({
     queryKey: qk.tripForm.customersConfig(search),
@@ -207,10 +210,6 @@ export default function CustomersConfigPage() {
             />
           </div>
         </div>
-        <div style={{ padding: '6px 12px 8px', display: 'flex', alignItems: 'center', gap: 6, color: 'var(--fg-3)', fontSize: 12 }}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
-          Nhấn vào một hàng để xem chi tiết và chỉnh sửa khách hàng
-        </div>
         <div className="table-scroll">
           <div className="record-table-wrap">
           <table className="record-table ops-table cfg-customer-table">
@@ -228,17 +227,13 @@ export default function CustomersConfigPage() {
                 <SortHeader label="Email" sortKey="contactInfo" sort={sort} onSortChange={handleSort} />
                 <SortHeader className="num" label="Hạn Thanh Toán Chi hộ (Ngày)" sortKey="agencyFeePaymentTermDays" sort={sort} onSortChange={handleSort} />
                 <SortHeader className="num" label="Hạn Thanh Toán Cước (Ngày)" sortKey="paymentTermDays" sort={sort} onSortChange={handleSort} />
+                <th style={{ width: 88 }}></th>
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 && <tr className="cfg-empty-row"><td colSpan={12} data-label="" style={{ textAlign: 'center', padding: '48px 12px', color: 'var(--ink-3)' }}>Chưa có dữ liệu</td></tr>}
-              {filtered.map(c => (
-                <tr
-                  key={c.id}
-                  onClick={() => crud.setEditingId(c.id)}
-                  style={{ cursor: 'pointer' }}
-                  title="Nhấp để chỉnh sửa hoặc xóa"
-                >
+              {filtered.length === 0 && <tr className="cfg-empty-row"><td colSpan={13} data-label="" style={{ textAlign: 'center', padding: '48px 12px', color: 'var(--ink-3)' }}>Chưa có dữ liệu</td></tr>}
+              {filtered.map((c, index) => (
+                <tr key={c.id}>
                   <td data-label="Tên Khách hàng"><div className="row-strong">{c.name}</div></td>
                   <td data-label="Tên viết tắt">{c.shortName || '—'}</td>
                   <td data-label="Mã KH">{c.code || '—'}</td>
@@ -251,6 +246,45 @@ export default function CustomersConfigPage() {
                   <td data-label="Email" style={{ overflowWrap: 'anywhere' }}>{c.contactInfo || '—'}</td>
                   <td className="num" data-label="Hạn Thanh Toán Chi hộ (Ngày)">{c.agencyFeePaymentTermDays ?? '—'}</td>
                   <td className="num" data-label="Hạn Thanh Toán Cước (Ngày)">{c.paymentTermDays ?? '—'}</td>
+                  <td
+                    data-label=""
+                    className="record-table__action"
+                    data-dropdown-root={menuOpenId === c.id ? '' : undefined}
+                    style={{ position: 'relative' }}
+                  >
+                    <div className="row-actions">
+                      <button
+                        className="row-action"
+                        title="Tùy chọn"
+                        onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === c.id ? null : c.id); }}
+                      >
+                        <MoreHorizontal size={14} />
+                      </button>
+                    </div>
+                    {menuOpenId === c.id && (
+                      <div style={{
+                        position: 'absolute', right: 12, zIndex: 20,
+                        background: '#fff', border: '1px solid var(--line)', borderRadius: 8,
+                        boxShadow: '0 4px 14px rgba(10,10,10,0.06)', overflow: 'hidden', minWidth: 140,
+                        ...(index >= filtered.length - 2 && filtered.length > 2
+                          ? { bottom: '100%', marginBottom: 4 }
+                          : { top: '100%', marginTop: 4 }),
+                      }} onClick={(e) => e.stopPropagation()}>
+                        <button style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', fontSize: 12.5, border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', color: 'var(--ink)' }}
+                          onClick={() => { setMenuOpenId(null); crud.setEditingId(c.id); }}>
+                          <Pencil size={13} /> Sửa
+                        </button>
+                        <button style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', fontSize: 12.5, border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', color: 'var(--danger)' }}
+                          disabled={crud.deleting === c.id}
+                          onClick={async () => {
+                            const ok = await confirm(`Xóa khách hàng "${c.name}"?`, { confirmLabel: 'Xóa', variant: 'danger' });
+                            if (ok) { setMenuOpenId(null); crud.doDelete(c.id); }
+                          }}>
+                          {crud.deleting === c.id ? <Loader2 size={13} className="spin" /> : <Trash2 size={13} />} Xoá
+                        </button>
+                      </div>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -276,13 +310,13 @@ export default function CustomersConfigPage() {
         </div>
       </Modal>
 
-      {/* Modal for editing/deleting an existing customer */}
+      {/* Modal for editing an existing customer */}
       {(() => {
         const item = customers.find(x => x.id === crud.editingId);
         if (!item) return null;
         return (
           <Modal isOpen={true} title="Chỉnh sửa thông tin khách hàng" polished onClose={crud.cancelForm} maxWidth={600}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 20, padding: '8px 4px' }}>
+            <div style={{ padding: '8px 4px' }}>
               <CustomerForm
                 item={item}
                 saving={crud.saving}
@@ -291,27 +325,6 @@ export default function CustomersConfigPage() {
                 }}
                 oncancel={crud.cancelForm}
               />
-              <div style={{ borderTop: '1px solid var(--line)', paddingTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
-                <button
-                  type="button"
-                  className="btn btn--ghost"
-                  style={{ color: 'var(--danger)', borderColor: 'var(--danger-soft)', cursor: 'pointer' }}
-                  disabled={crud.deleting === item.id || crud.saving}
-                  onClick={async (e) => {
-                    e.stopPropagation();
-                    const ok = await confirm(`Bạn có chắc chắn muốn xóa khách hàng "${item.name}" này?`, {
-                      confirmLabel: 'Xóa',
-                      variant: 'danger',
-                    });
-                    if (ok) {
-                      await crud.doDelete(item.id);
-                      crud.cancelForm();
-                    }
-                  }}
-                >
-                  {crud.deleting === item.id ? 'Đang xóa...' : 'Xóa khách hàng này'}
-                </button>
-              </div>
             </div>
           </Modal>
         );
