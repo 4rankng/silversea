@@ -146,7 +146,7 @@ stgdb: ## Sync prod DB (silversea.tingting.vip) → staging DB (vantai) — REPL
 	@set -eu; \
 	echo "1/5  Dumping prod DB ($(PROD_SERVER))..."; \
 	dump="/tmp/silversea-stgdb-$$(date -u +%Y%m%dT%H%M%SZ).dump"; \
-	ssh root@$(PROD_SERVER) "set -eu; pg_container=\$$($(PROD_COMPOSE) ps -q postgres); test -n \"\$$pg_container\" || { echo 'No postgres container on prod' >&2; exit 1; }; pg_env_of() { docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' \"\$$1\"; }; pg_user=\$$(pg_env_of \"\$$pg_container\" | sed -n 's/^POSTGRES_USER=//p' | head -1); pg_db=\$$(pg_env_of \"\$$pg_container\" | sed -n 's/^POSTGRES_DB=//p' | head -1); docker exec \"\$$pg_container\" pg_dump -U \"\$${pg_user:-postgres}\" -Fc \"\$${pg_db:-\$$pg_user}\"" > "$$dump"; \
+	ssh root@$(PROD_SERVER) "set -eu; cd $(PROD_PATH); pg_container=\$$($(PROD_COMPOSE) ps -q postgres); test -n \"\$$pg_container\" || { echo 'No postgres container on prod' >&2; exit 1; }; pg_env_of() { docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' \"\$$1\"; }; pg_user=\$$(pg_env_of \"\$$pg_container\" | sed -n 's/^POSTGRES_USER=//p' | head -1); pg_db=\$$(pg_env_of \"\$$pg_container\" | sed -n 's/^POSTGRES_DB=//p' | head -1); docker exec \"\$$pg_container\" pg_dump -U \"\$${pg_user:-postgres}\" -Fc \"\$${pg_db:-\$$pg_user}\"" > "$$dump"; \
 	size=$$(wc -c < "$$dump" | tr -d ' '); \
 	if [ "$$size" -lt 1024 ]; then echo "❌ prod dump suspiciously small ($$size bytes) — aborting, staging untouched" >&2; exit 1; fi; \
 	echo "     ✅ prod dump: $$dump ($$size bytes)"; \
