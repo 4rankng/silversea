@@ -6,6 +6,7 @@ import { Role, TripStatus, type CreateTripPairInput } from '@tingting/shared';
 
 import { client, db } from '../db';
 import * as s from '../db/schema';
+import { insertTripComposite } from '../services/trip-composite.service';
 import {
   approveGovernanceAction,
   requestTripFinancialClose,
@@ -66,7 +67,7 @@ function assertOneWinnerOneConflict<T>(
 }
 
 async function mkTrip(seed: TripSeed) {
-  const [trip] = await db.insert(s.trips).values({
+  const trip = await insertTripComposite(db, {
     tripCode: `O01-RACE-${suffix}-${createdTripIds.length + 1}`,
     customerId: createdCustomerIds[0]!,
     truckId: createdTruckIds[0]!,
@@ -85,7 +86,7 @@ async function mkTrip(seed: TripSeed) {
     canonicalDestination: seed.canonicalDestination,
     cargoWeightKg: '12000',
     vehicleCapacityKg: '18000',
-  }).returning();
+  });
   createdTripIds.push(trip.id);
   return trip;
 }

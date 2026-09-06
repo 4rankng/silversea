@@ -23,6 +23,7 @@ import { Role, ShipmentStatus } from '@tingting/shared';
 
 import { client, db } from '../db';
 import * as s from '../db/schema';
+import { insertTripComposite } from '../services/trip-composite.service';
 import {
   createShipment,
   getShipment,
@@ -83,7 +84,7 @@ async function mkRouteAndCargo() {
 async function mkTrip(customerId: number) {
   // Minimal scaffolding: a route + cargo type are required (NOT NULL) on trips.
   const { route, cargoType } = await mkRouteAndCargo();
-  const [trip] = await db.insert(s.trips).values({
+  const trip = await insertTripComposite(db, {
     tripCode: `SS-${suffix}-${createdTripIds.length}`.slice(0, 50),
     customerId,
     routeId: route.id,
@@ -91,7 +92,7 @@ async function mkTrip(customerId: number) {
     status: 'CREATED',
     departureDate: '2026-07-25',
     carrierType: 'OWN',
-  }).returning();
+  });
   createdTripIds.push(trip.id);
   return trip;
 }
@@ -108,7 +109,7 @@ async function mkTripForShipment(input: {
 }) {
   const { route, cargoType } = await mkRouteAndCargo();
   const carrierType = input.carrierType ?? 'OWN';
-  const [trip] = await db.insert(s.trips).values({
+  const trip = await insertTripComposite(db, {
     tripCode: `SS-${suffix}-${createdTripIds.length}`.slice(0, 50),
     customerId: input.customerId,
     routeId: route.id,
@@ -122,7 +123,7 @@ async function mkTripForShipment(input: {
     externalEntityId: carrierType === 'EXTERNAL' ? input.externalCarrierId ?? null : null,
     externalEntityType: carrierType === 'EXTERNAL' && input.externalCarrierId != null ? 'CUSTOMER' : null,
     externalPlateNumber: carrierType === 'EXTERNAL' ? input.externalPlateNumber ?? null : null,
-  }).returning();
+  });
   createdTripIds.push(trip.id);
   return trip;
 }

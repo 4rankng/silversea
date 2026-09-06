@@ -3,6 +3,7 @@ import { after, before, describe, test } from 'node:test';
 import { inArray } from 'drizzle-orm';
 import { client, db } from '../db';
 import * as s from '../db/schema';
+import { insertTripComposite } from '../services/trip-composite.service';
 import { disconnectRedis } from '../lib/redis';
 import { getProfitabilityReport } from '../services/profitability.service';
 
@@ -51,7 +52,7 @@ before(async () => {
   }).returning({ id: s.shipments.id });
   shipmentIds.push(sourceShipment.id);
 
-  const trips = await db.insert(s.trips).values(customers.map((customer, index) => ({
+  const trips = await Promise.all(customers.map((customer, index) => insertTripComposite(db, {
     tripCode: `PAG-${suffix}-${index}`.slice(0, 50),
     shipmentId: index === 0 ? sourceShipment.id : null,
     customerId: customer.id,
@@ -63,7 +64,7 @@ before(async () => {
     revenue: '1000000',
     totalCost: '400000',
     grossProfit: '600000',
-  }))).returning({ id: s.trips.id, version: s.trips.version, customerId: s.trips.customerId });
+  })));
   tripIds.push(...trips.map((trip) => trip.id));
 
   const postings = await db.insert(s.tripFinancialPostings).values(trips.map((trip) => ({
@@ -102,7 +103,7 @@ before(async () => {
     };
   }));
 
-  const [historicalTrip] = await db.insert(s.trips).values({
+  const historicalTrip = await insertTripComposite(db, {
     tripCode: `PAG-HIST-${suffix}`.slice(0, 50),
     customerId: customers[0].id,
     routeId,
@@ -113,7 +114,7 @@ before(async () => {
     revenue: '1000000',
     totalCost: '400000',
     grossProfit: '600000',
-  }).returning({ id: s.trips.id, version: s.trips.version });
+  });
   tripIds.push(historicalTrip.id);
   const [historicalPosting] = await db.insert(s.tripFinancialPostings).values({
     tripId: historicalTrip.id,

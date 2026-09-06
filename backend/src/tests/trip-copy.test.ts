@@ -7,7 +7,7 @@ import {
   buildCopiedTripValues,
 } from '../services/trip-mutations.service';
 
-type TripRow = typeof schema.trips.$inferSelect;
+type TripRow = typeof schema.tripsComposite.$inferSelect;
 type TripLegRow = typeof schema.tripLegs.$inferSelect;
 
 describe('trip copy field contract', () => {

@@ -2,6 +2,7 @@ import { and, asc, desc, eq, isNull } from 'drizzle-orm';
 import { TripPodStatus } from '@tingting/shared';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
+import { tripCompositeSelect } from './trip-composite.service';
 import type { Tx } from './trip-shared';
 
 export interface TripCloseEvidenceSnapshot {
@@ -37,10 +38,13 @@ export async function lockTripCloseAggregate(tx: Tx, tripId: number) {
       .for('update');
   }
 
-  const [trip] = await tx.select().from(s.trips)
+  const [trip] = await tx.select(tripCompositeSelect())
+    .from(s.trips)
+    .leftJoin(s.tripFinancialState, eq(s.tripFinancialState.tripId, s.trips.id))
+    .leftJoin(s.tripCarrierInfo, eq(s.tripCarrierInfo.tripId, s.trips.id))
     .where(and(eq(s.trips.id, tripId), isNull(s.trips.deletedAt)))
     .limit(1)
-    .for('update');
+    .for('update', { of: [s.trips] });
   if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
   return trip;
 }

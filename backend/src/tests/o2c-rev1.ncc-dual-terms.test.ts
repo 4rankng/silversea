@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { db, client } from '../db';
 import * as s from '../db/schema';
+import { insertTripComposite } from '../services/trip-composite.service';
 import { resolveSupplierPaymentDueDate } from '../services/business-calendar.service';
 import { LedgerService } from '../services/ledger.service';
 import { disconnectRedis } from '../lib/redis';
@@ -143,7 +144,7 @@ describe('O2C rev1 §B0 — NCC dual payment terms', () => {
     }).returning({ id: s.routes.id });
     createdRouteIds.push(route.id);
 
-    const [trip] = await db.insert(s.trips).values({
+    const trip = await insertTripComposite(db, {
       tripCode: `O2C-${Date.now()}`,
       customerId: customer.id,
       routeId: route.id,
@@ -155,7 +156,7 @@ describe('O2C rev1 §B0 — NCC dual payment terms', () => {
       revenue: '0',           // zero out the customer-revenue branch
       driverSalary: '0',
       status: 'IN_TRANSIT',
-    }).returning({ id: s.trips.id, tripCode: s.trips.tripCode });
+    });
     createdTripIds.push(trip.id);
     createdLedgerTxnIds.push(trip.id);
 
@@ -212,7 +213,7 @@ describe('O2C rev1 §B0 — NCC dual payment terms', () => {
       isBulk: false,
     }).returning({ id: s.cargoTypes.id });
     createdCargoTypeIds.push(cargoType.id);
-    const [trip] = await db.insert(s.trips).values({
+    const trip = await insertTripComposite(db, {
       tripCode: `O2C-CARRIER-${Date.now()}`,
       customerId: customer.id,
       routeId: route.id,
@@ -225,7 +226,7 @@ describe('O2C rev1 §B0 — NCC dual payment terms', () => {
       revenue: '0',
       driverSalary: '0',
       status: 'IN_TRANSIT',
-    }).returning({ id: s.trips.id, tripCode: s.trips.tripCode });
+    });
     createdTripIds.push(trip.id);
     createdLedgerTxnIds.push(trip.id);
 

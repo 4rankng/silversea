@@ -4,6 +4,7 @@ import { eq, inArray } from 'drizzle-orm';
 import { Role, TripStatus } from '@tingting/shared';
 import { db, client } from '../db';
 import * as s from '../db/schema';
+import { insertTripComposite } from '../services/trip-composite.service';
 import {
   approveGovernanceAction,
   checkGovernanceAction,
@@ -114,7 +115,7 @@ async function setupTrip(opts: SetupOptions = {}) {
   createdRouteIds.push(route.id);
   createdCargoTypeIds.push(cargoType.id);
 
-  const [trip] = await db.insert(s.trips).values({
+  const trip = await insertTripComposite(db, {
     tripCode: `PG-${suffix}`.slice(0, 50),
     customerId: customer.id,
     routeId: route.id,
@@ -126,7 +127,7 @@ async function setupTrip(opts: SetupOptions = {}) {
     // POD-recovery gate (O2C): must be recorded before completion.
     podRecoveredAt: new Date(),
     podRecoveredBy: admin.id,
-  }).returning();
+  });
   createdTripIds.push(trip.id);
   await attachCloseReadiness(trip.id, trip.version, customer.id, maker.id, checker.id);
 
@@ -260,7 +261,7 @@ describe('completion photo-evidence gate', () => {
     const { admin, maker, checker, approver, customer, route, cargoType } = await setupTrip({ requiresPhotos: false });
     // Insert a fresh IN_TRANSIT trip without podRecoveredAt to isolate the POD gate.
     const suffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    const [noPodTrip] = await db.insert(s.trips).values({
+    const noPodTrip = await insertTripComposite(db, {
       tripCode: `PG-NPOD-${suffix}`.slice(0, 50),
       customerId: customer.id,
       routeId: route.id,
@@ -270,7 +271,7 @@ describe('completion photo-evidence gate', () => {
       revenue: '5000000',
       carrierType: 'OWN',
       // podRecoveredAt deliberately omitted.
-    }).returning();
+    });
     createdTripIds.push(noPodTrip.id);
     await attachCloseReadiness(noPodTrip.id, noPodTrip.version, customer.id, maker.id, checker.id);
     await insertPhoto(noPodTrip.id, admin.id, 'OTHER');

@@ -34,7 +34,7 @@ export const PORT_OPERATIONAL_NAME = operationalName(s.ports.shortName, s.ports.
 export type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 export type LiveTripRow = Pick<
-  typeof s.trips.$inferSelect,
+  typeof s.tripsComposite.$inferSelect,
   | 'id'
   | 'version'
   | 'tripCode'
@@ -60,26 +60,26 @@ export type LiveTripRow = Pick<
 /** Shared post-write trip projection — kept identical to LiveTripRow. */
 
 export const LIVE_TRIP_RETURNING = {
-  id: s.trips.id,
-  version: s.trips.version,
-  tripCode: s.trips.tripCode,
-  status: s.trips.status,
-  shipmentId: s.trips.shipmentId,
-  fulfillmentId: s.trips.fulfillmentId,
-  carrierType: s.trips.carrierType,
-  truckId: s.trips.truckId,
-  driverId: s.trips.driverId,
-  trailerId: s.trips.trailerId,
-  plannedStartAt: s.trips.plannedStartAt,
-  plannedEndAt: s.trips.plannedEndAt,
-  externalEntityId: s.trips.externalEntityId,
-  externalEntityType: s.trips.externalEntityType,
-  externalPlateNumber: s.trips.externalPlateNumber,
-  externalDriverName: s.trips.externalDriverName,
-  externalDriverPhone: s.trips.externalDriverPhone,
-  createdBy: s.trips.createdBy,
-  createdAt: s.trips.createdAt,
-  updatedAt: s.trips.updatedAt,
+  id: s.tripsComposite.id,
+  version: s.tripsComposite.version,
+  tripCode: s.tripsComposite.tripCode,
+  status: s.tripsComposite.status,
+  shipmentId: s.tripsComposite.shipmentId,
+  fulfillmentId: s.tripsComposite.fulfillmentId,
+  carrierType: s.tripsComposite.carrierType,
+  truckId: s.tripsComposite.truckId,
+  driverId: s.tripsComposite.driverId,
+  trailerId: s.tripsComposite.trailerId,
+  plannedStartAt: s.tripsComposite.plannedStartAt,
+  plannedEndAt: s.tripsComposite.plannedEndAt,
+  externalEntityId: s.tripsComposite.externalEntityId,
+  externalEntityType: s.tripsComposite.externalEntityType,
+  externalPlateNumber: s.tripsComposite.externalPlateNumber,
+  externalDriverName: s.tripsComposite.externalDriverName,
+  externalDriverPhone: s.tripsComposite.externalDriverPhone,
+  createdBy: s.tripsComposite.createdBy,
+  createdAt: s.tripsComposite.createdAt,
+  updatedAt: s.tripsComposite.updatedAt,
 };
 
 export type DispatchActor = AuthUser & { role: Role.ADMIN | Role.MANAGER | Role.DISPATCHER };

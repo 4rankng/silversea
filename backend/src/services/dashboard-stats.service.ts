@@ -107,6 +107,16 @@ export async function getDashboardStats(options: { includeExecutive?: boolean } 
       gte(completionBusinessDate, monthStart),
       sql`${completionBusinessDate} < ${monthEnd}`,
     );
+    // Trips-split: composite-view twin of officialTripPeriod for the queries
+    // that read financial columns (a fragment bound to the `trips` table
+    // cannot resolve inside a FROM trips_composite query).
+    const officialCompositeCompletionDate = sql<string>`(${s.tripsComposite.completedAt} AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Ho_Chi_Minh')::date`;
+    const officialTripPeriodComposite = and(
+      isNull(s.tripsComposite.deletedAt),
+      sql`${s.tripsComposite.completedAt} is not null`,
+      gte(officialCompositeCompletionDate, monthStart),
+      sql`${officialCompositeCompletionDate} < ${monthEnd}`,
+    );
 
     const [
       [stats],
@@ -150,14 +160,14 @@ export async function getDashboardStats(options: { includeExecutive?: boolean } 
         isNull(s.trips.deletedAt),
         eq(s.trips.status, TripStatus.CREATED),
       )),
-      db.select({ count: sql<number>`count(*)` }).from(s.trips).where(and(
-        officialTripPeriod,
-        eq(s.trips.status, TripStatus.COMPLETED),
+      db.select({ count: sql<number>`count(*)` }).from(s.tripsComposite).where(and(
+        officialTripPeriodComposite,
+        eq(s.tripsComposite.status, TripStatus.COMPLETED),
         sql`(
-          coalesce(${s.trips.revenue}, 0) <= 0
-          OR coalesce(${s.trips.fuelLiters}, 0) <= 0
-          OR coalesce(${s.trips.totalRoadAllowance}, 0) <= 0
-          OR coalesce(${s.trips.driverSalary}, 0) <= 0
+          coalesce(${s.tripsComposite.revenue}, 0) <= 0
+          OR coalesce(${s.tripsComposite.fuelLiters}, 0) <= 0
+          OR coalesce(${s.tripsComposite.totalRoadAllowance}, 0) <= 0
+          OR coalesce(${s.tripsComposite.driverSalary}, 0) <= 0
         )`,
       )),
       db.select({
@@ -173,17 +183,17 @@ export async function getDashboardStats(options: { includeExecutive?: boolean } 
       getRenewalReminders(db),
       db.select().from(s.fuelConfig).where(isNull(s.fuelConfig.deletedAt)).limit(1),
       db.select({
-        tripId: s.trips.id,
-        fuelLiters: s.trips.fuelLiters,
+        tripId: s.tripsComposite.id,
+        fuelLiters: s.tripsComposite.fuelLiters,
         totalKm: sql<number>`coalesce(sum(${s.tripLegs.km}), 0)`,
       })
-        .from(s.trips)
-        .leftJoin(s.tripLegs, eq(s.tripLegs.tripId, s.trips.id))
+        .from(s.tripsComposite)
+        .leftJoin(s.tripLegs, eq(s.tripLegs.tripId, s.tripsComposite.id))
         .where(and(
-          officialTripPeriod,
-          eq(s.trips.status, TripStatus.COMPLETED),
+          officialTripPeriodComposite,
+          eq(s.tripsComposite.status, TripStatus.COMPLETED),
         ))
-        .groupBy(s.trips.id),
+        .groupBy(s.tripsComposite.id),
     ]);
 
     const topShareholder = resolveTopShareholder(capRows);

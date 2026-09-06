@@ -3,6 +3,7 @@ import { after, before, describe, test } from 'node:test';
 import { inArray } from 'drizzle-orm';
 import { client, db } from '../db';
 import * as s from '../db/schema';
+import { insertTripComposite } from '../services/trip-composite.service';
 import { adminHealth, customerWorkInbox, financialWorkInbox, managerDecisionInbox, operationsWorkInbox, pageWorkInboxItems } from '../services/work-inbox.service';
 import { resolveCustomerDeliveryDispute } from '../services/customer-delivery-response.service';
 import { Role, type ManagerWorkInboxItem, type WorkInboxItemBase } from '@tingting/shared';
@@ -75,7 +76,7 @@ before(async () => {
   }).returning();
   fulfillmentIds.push(fulfillment.id);
   readyTripCode = `READY-${suffix}`.slice(0, 50);
-  const [trip] = await db.insert(s.trips).values({
+  const trip = await insertTripComposite(db, {
     tripCode: readyTripCode,
     customerId: customer.id,
     routeId: route.id,
@@ -85,7 +86,7 @@ before(async () => {
     departureDate: '2026-08-22',
     podRecoveredAt: new Date('2026-08-22T08:00:00.000Z'),
     arSnapshotDirty: false,
-  }).returning();
+  });
   readyTripId = trip.id;
   tripIds.push(trip.id);
   const [pod] = await db.insert(s.tripPodSubmissions).values({

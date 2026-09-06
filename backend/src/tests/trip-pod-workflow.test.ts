@@ -13,6 +13,7 @@ import {
 
 import { client, db } from '../db';
 import * as s from '../db/schema';
+import { insertTripComposite } from '../services/trip-composite.service';
 import type { AuthUser } from '../middleware/auth';
 import { ApiError } from '../errors';
 import { recordDriverFulfillmentProgress } from '../services/driver.service';
@@ -199,7 +200,7 @@ async function createFulfillmentTrip(args: {
   driverId: number;
   status?: typeof s.trips.$inferSelect.status;
 }) {
-  const [trip] = await db.insert(s.trips).values({
+  const trip = await insertTripComposite(db, {
     tripCode: `P5-${args.tag}-${suffix}-${createdTripIds.length + 1}`.slice(0, 50),
     customerId: args.customerId,
     routeId: args.routeId,
@@ -221,7 +222,7 @@ async function createFulfillmentTrip(args: {
     podRecoveredBy: args.driverId,
     paperOrderCollectedAt: new Date('2026-08-01T07:30:00.000Z'),
     paperOrderCollectedBy: 900001,
-  }).returning();
+  });
   createdTripIds.push(trip.id);
   await db.insert(s.tripExpenseCompletionScopes).values({
     tripId: trip.id,

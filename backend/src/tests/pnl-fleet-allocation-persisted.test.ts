@@ -4,6 +4,7 @@ import { inArray } from 'drizzle-orm';
 
 import { client, db } from '../db';
 import * as s from '../db/schema';
+import { insertTripComposite } from '../services/trip-composite.service';
 import { cacheInvalidatePattern, disconnectRedis } from '../lib/redis';
 import { getPnlReport } from '../services/pnl.service';
 
@@ -44,12 +45,12 @@ describe('persisted fleet fixed-cost allocation', () => {
     }).returning({ id: s.truckFinancialProfileVersions.id });
     ids.profiles.push(profile.id);
 
-    const [trip] = await db.insert(s.trips).values({
+    const trip = await insertTripComposite(db, {
       tripCode: `PF-${suffix}`.slice(0, 50), customerId: customer.id, routeId: route.id,
       cargoTypeId: cargoType.id, truckId: truck.id, carrierType: 'OWN', status: 'COMPLETED',
       departureDate: '2098-06-15', completedAt: new Date('2098-06-15T05:00:00.000Z'),
       revenue: '30000', totalCost: '12000', grossProfit: '18000',
-    }).returning({ id: s.trips.id, version: s.trips.version });
+    });
     ids.trips.push(trip.id);
     const [posting] = await db.insert(s.tripFinancialPostings).values({
       tripId: trip.id, version: 1, tripVersion: trip.version, status: 'ACTIVE',

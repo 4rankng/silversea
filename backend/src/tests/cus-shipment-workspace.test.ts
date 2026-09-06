@@ -17,6 +17,7 @@ import { eq, inArray } from 'drizzle-orm';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
+import { insertTripComposite } from '../services/trip-composite.service';
 import { Role, shipmentCusContainerQuerySchema, shipmentCusWorkspaceQuerySchema } from '@tingting/shared';
 import type { AuthUser } from '../middleware/auth';
 import { getCusShipmentWorkspaceDetail, listCusShipmentContainers, listCusShipmentWorkspace, updateCusShipmentContainerLine } from '../services/cus-shipment-workspace.service';
@@ -1618,14 +1619,14 @@ describe('Container workboard "Chưa cập nhật" completeness', () => {
     const canceled = await seedShipment({ blNumber: `CX-${marker}`, cargoMode: 'FCL', expectedDeliveryDate: '2026-08-20' });
     const canceledContainer = await seedContainer(canceled.id, { containerNumber: `CX-${marker}`.slice(0, 50) });
     const canceledFulfillment = await seedFulfillment(canceled.id, canceledContainer.id);
-    const [canceledTrip] = await db.insert(s.trips).values({
+    const canceledTrip = await insertTripComposite(db, {
       fulfillmentId: canceledFulfillment.id,
       customerId,
       routeId: (await seedRoute()).id,
       status: 'CANCELED',
       carrierType: 'OWN',
       departureDate: '2026-08-20',
-    }).returning();
+    });
     createdTripIds.push(canceledTrip.id);
 
     const unassignedResponse = await listCusShipmentContainers({
@@ -1660,14 +1661,14 @@ describe('Container workboard "Chưa cập nhật" completeness', () => {
     const done = await seedShipment({ blNumber: `HT-${marker}`, cargoMode: 'FCL', expectedDeliveryDate: '2026-08-20' });
     const doneContainer = await seedContainer(done.id, { containerNumber: `HT-${marker}`.slice(0, 50) });
     const doneFulfillment = await seedFulfillment(done.id, doneContainer.id);
-    const [doneTrip] = await db.insert(s.trips).values({
+    const doneTrip = await insertTripComposite(db, {
       fulfillmentId: doneFulfillment.id,
       customerId,
       routeId: (await seedRoute()).id,
       status: 'COMPLETED',
       carrierType: 'OWN',
       departureDate: '2026-08-20',
-    }).returning();
+    });
     createdTripIds.push(doneTrip.id);
 
     // PLANNED badge: carrier assigned, trip not yet created.
