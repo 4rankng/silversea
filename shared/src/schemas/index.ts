@@ -726,6 +726,15 @@ export const truckSchema = z.object({
   nextInspectionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
   insuranceExpiryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
   lastOilServiceDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  // Spec-sheet fields from the tractor master-data sheet. TruckFormModal sends
+  // all of these; without them here zod strips the edit and the save silently
+  // reverts (numbers arrive as null when cleared, strings as undefined).
+  vehicleClass: z.string().trim().max(100).optional().nullable(),
+  brand: z.string().trim().max(100).optional().nullable(),
+  towCapacityTons: nonNegNumeric.optional().nullable(),
+  fuelLPer100kmLoaded: nonNegNumeric.optional().nullable(),
+  fuelLPer100kmEmpty: nonNegNumeric.optional().nullable(),
+  note: z.string().optional().nullable(),
 });
 
 export const trailerSchema = z.object({
@@ -795,6 +804,11 @@ export const routeSchema = z.object({
   fixedFuelAllowance: nonNegNumeric.nullable().optional(),
   tollsStations: nonNegNumeric.nullable().optional(),
   driverSalary: nonNegNumeric.nullable().optional(),
+  // RouteFormModal edits these alongside the names (the config table renders
+  // MÃ TUYẾN / ĐIỂM ĐÓNG/TRẢ / GHI CHÚ columns); sent as null when cleared.
+  code: z.string().trim().max(80).optional().nullable(),
+  loadPoint: z.string().optional().nullable(),
+  note: z.string().optional().nullable(),
   defaultLegs: z.array(z.object({
     origin: z.string(),
     destination: z.string(),
@@ -914,6 +928,16 @@ export const driverSchema = z.object({
   baseSalary: nonNegNumeric.optional(),
   socialInsurance: nonNegNumeric.optional(),
   status: z.nativeEnum(DriverStatus).optional().default(DriverStatus.ACTIVE),
+  // Identity + payroll-routing fields from DriverFormModal (drivers table
+  // columns since the fleet sheet import). licenseExpiryDate is ISO
+  // 'YYYY-MM-DD' or null when cleared; strings arrive as undefined when blank.
+  code: z.string().trim().max(50).optional().nullable(),
+  idNumber: z.string().trim().max(20).optional().nullable(),
+  licenseNumber: z.string().trim().max(20).optional().nullable(),
+  licenseExpiryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  bankName: z.string().trim().max(160).optional().nullable(),
+  bankAccount: z.string().trim().max(80).optional().nullable(),
+  salaryType: z.string().trim().max(50).optional().nullable(),
 });
 
 export const managementFeeSchema = z.object({
