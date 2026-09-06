@@ -151,6 +151,6 @@ DB lean-down vs `docs/prd/` + `testplan/` audit; every change prod-preflight-ver
 - Index trim: no-op with evidence — `scheduler_run_logs_job_started_idx` EXPLAIN-proven load-bearing on prod.
 
 ### Open follow-ups
-- **Trips split** (user-locked, next): trips (~25 ops cols) + trip_financial_state + trip_carrier_info; 191-file blast radius; staged spec in plans/. Staging strategy: backfill-first dual-read to avoid big-bang.
+- **Trips split — SHIPPED 2026-09-06** (stages B/C/D same day): `trips` 99→47 ops columns; financial block → `trip_financial_state` (44 cols), carrier block → `trip_carrier_info` (8 cols), both 1:1 by tripId; `trips_composite` view preserves the full-row read shape (migrations 0054–0056; 268/268 byte-identical value probe across the cutover). Deploy = single shot per plans/260906-1032-db-lean-down/prod-deploy-plan.md.
 - Multi-seal migration completion → then drop `trip_containers.seal_number` mirror.
 - QuyTrinhO2C Confluence page needs the same state-machine update (this repo doc updated 2026-09-06).

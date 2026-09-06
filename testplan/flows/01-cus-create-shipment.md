@@ -410,6 +410,59 @@
 
 ---
 
+## 1.9 — Free-text inputs trong form tạo lô (báo cáo khách hàng 2026-09-06)
+
+> **Nguồn:** Frank Ng relay 2026-09-06 — "Trường nào cho phép input text được CTO nhớ cho phép nhập text
+> nhé, vẫn còn nhiều chỗ chỉ cho phép chọn dropdown". Hai trường còn dropdown-only đã được mở:
+> `Quy cách đóng gói` (free-text) và `Loại container` (+ Thêm inline). Các trường catalog khác
+> (Tuyến đường, Nhà máy, Cảng nâng/hạ, Kho lấy hàng) đã có sẵn nút "+ Thêm" để mở rộng danh mục.
+
+### TC-CUS-CREATE-019 — `Quy cách đóng gói` cho phép nhập text tự do
+
+- **Vai trò:** `cus`
+- **Mức độ:** P0
+- **Nguồn:** báo cáo khách hàng 2026-09-06 — "vẫn còn nhiều chỗ chỉ cho phép chọn dropdown"
+- **Các bước:**
+  1. Ở form tạo lô, chọn khách hàng, chọn hình thức Nhập khẩu, nhập số Bill.
+  2. Chuyển sang chế độ **Hàng lẻ** (LCL).
+  3. Tìm trường "Quy cách đóng gói".
+- **Kết quả mong đợi (Pass):**
+  - Trường là `<input type="text">` tự do, **không phải** dropdown (không có `role="combobox"`,
+    không có `aria-haspopup="listbox"`).
+  - Schema backend chấp nhận `packageType` dạng string tối đa 100 ký tự
+    (`shared/src/schemas/index.ts:1402`).
+  - Nhập giá trị bất kỳ (`Thùng carton 5 lớp`, `Bao jumbo 1 tấn`, `Pallet gỗ`, …) đều lưu được
+    và xuất hiện đúng ở lô đã tạo.
+  - Giá trị cũ `Pallet` / `Roll` / `Carton` vẫn hợp lệ (backward compatible).
+- **Kỳ vọng sai (Fail nếu):** trường bị ép về dropdown; không nhập được giá trị ngoài 3 lựa chọn cũ.
+- **Bằng chứng:** ảnh trường dạng input tự do + DB `shipments.package_type` đúng giá trị nhập.
+
+---
+
+### TC-CUS-CREATE-020 — Tạo Loại container inline từ form tạo lô, tự chọn sau khi tạo
+
+- **Vai trò:** `cus`
+- **Mức độ:** P0
+- **Nguồn:** báo cáo khách hàng 2026-09-06 — "vẫn còn nhiều chỗ chỉ cho phép chọn dropdown"
+- **Các bước:**
+  1. Ở form tạo lô, chọn khách hàng, chọn Nhập khẩu, nhập số Bill.
+  2. Ở dòng container, cột "Loại container", bấm nút **+ Thêm** cạnh dropdown.
+  3. Nhập mã (vd `45HC`), tên (vd `Container 45' High Cube`), ghi chú (tùy chọn).
+  4. Bấm "Thêm loại container".
+  5. Tiếp tục tạo lô FCL.
+- **Kết quả mong đợi (Pass):**
+  - Dialog "Thêm loại container" mở với 3 trường: Mã (bắt buộc, max 20), Tên (bắt buộc, max 50), Ghi chú
+    (tùy chọn, max 500).
+  - Tạo thành công qua `POST /api/container-types` → 201, không 403.
+  - Dialog đóng, loại container mới **tự chọn** cho dòng container đang tạo.
+  - Lô tạo xong, container mở ra xem thấy đúng `containerTypeId` mới.
+- **Kỳ vọng sai (Fail nếu):** 403 dead-end; loại mới không tự chọn; bấm nút không phản hồi;
+  catalog cache không cập nhật.
+- **Bằng chứng:** Network POST `/api/container-types` → 201 + ảnh dialog đã điền + ảnh dropdown sau
+  khi tạo + DB `shipment_containers.container_type_id` đúng ID mới.
+
+---
+
 ## Ghi chú hồi quy 2026-09-05 — Màn "Danh sách container" (/shipments-detail) mặc định lọc theo hôm nay
 
 - **Hành vi thiết kế (không phải bug):** trang danh sách container (hiển thị theo cont) mặc định lọc
@@ -445,4 +498,6 @@
 | __/__/__ | TC-CUS-CREATE-016 | | | Dropdown nhà máy theo khách hàng | |
 | __/__/__ | TC-CUS-CREATE-017 | | | Tạo nhà máy inline + tự chọn | |
 | __/__/__ | TC-CUS-CREATE-018 | | | Form KH inline có địa chỉ | |
+| __/__/__ | TC-CUS-CREATE-019 | | | Quy cách đóng gói free-text | |
+| __/__/__ | TC-CUS-CREATE-020 | | | Tạo Loại container inline + tự chọn | |
 | __/__/__ | TC-CUS-CREATE-019 | | | Tạo cảng/bãi inline từ ô container | |
