@@ -109,7 +109,7 @@ export const configClient = {
   getAllCustomers: (search?: string) =>
     fetchAllPaginated<Customer>(CONFIG.CUSTOMERS, search ? { search } : undefined),
 
-  createCustomer: (data: { name: string; taxCode?: string; contactPerson?: string; phone?: string }) =>
+  createCustomer: (data: { name: string; taxCode?: string; contactPerson?: string; phone?: string; contactInfo?: string }) =>
     api.post<Customer>(CONFIG.CUSTOMERS, data),
 
   getSalaryPeriodResolve: (month: number, year: number) =>

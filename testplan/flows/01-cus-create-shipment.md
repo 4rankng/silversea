@@ -326,6 +326,70 @@
 
 ---
 
+## 1.8 — Nhà máy/kho trong form tạo lô (báo cáo khách hàng 2026-09-06)
+
+> **Nguồn:** Frank Ng relay 2026-09-06 — "Khi cus tạo lô hàng mới, nhà máy không có dropdown lựa
+>> chọn và cũng không nhập mới được". Đã xác minh trên mã hiện tại: dropdown nhà máy tải theo khách
+>> hàng đã chọn (`GET /api/shipments/operational-sites?customerId=`) và nút "Thêm nhà máy" đã có sẵn;
+>> các case dưới pin hành vi này để không hồi quy.
+
+### TC-CUS-CREATE-016 — Dropdown nhà máy hiển thị đúng theo khách hàng đã chọn
+
+- **Vai trò:** `cus`
+- **Mức độ:** P0
+- **Thiết bị:** Desktop (1440×900)
+- **Tiền điều kiện:** Đăng nhập `cus`, mở `/shipments/new`; khách hàng được chọn có ≥1 nhà máy active
+- **Các bước:**
+  1. Chọn khách hàng có nhà máy (vd LOGCOM).
+  2. Để chế độ FCL: kiểm tra dropdown "Nhà máy" của dòng container.
+  3. Chuyển sang LCL: kiểm tra dropdown nhà máy ở cấp lô.
+  4. Đổi sang khách hàng khác.
+- **Kết quả mong đợi (Pass):**
+  - Dropdown hiển thị đúng các nhà máy ACTIVE của khách hàng đã chọn (nhà máy "Đã ngưng" không hiện).
+  - Đổi khách hàng → danh sách nhà máy tải lại theo khách hàng mới, chọn cũ được reset.
+  - Không lỗi "Không thể tải danh sách nhà máy của khách hàng" khi API hoạt động bình thường.
+- **Kỳ vọng sai (Fail nếu):** dropdown trống với khách hàng có nhà máy active; danh sách không đổi khi đổi khách hàng.
+- **Bằng chứng:** ảnh dropdown mở cho 2 khách hàng khác nhau
+
+---
+
+### TC-CUS-CREATE-017 — Tạo nhà máy inline từ form tạo lô, tự chọn sau khi tạo
+
+- **Vai trò:** `cus`
+- **Mức độ:** P0
+- **Tiền điều kiện:** đã chọn khách hàng ở form tạo lô
+- **Các bước:**
+  1. Bấm "Thêm nhà máy" cạnh dropdown nhà máy.
+  2. Nhập mã (`NM-INLINE-01`), tên đầy đủ, tên ngắn, địa chỉ; chọn tuyến đường.
+  3. Bấm "Thêm nhà máy" trong dialog.
+  4. Tiếp tục tạo lô hàng (FCL).
+- **Kết quả mong đợi (Pass):**
+  - Tạo thành công (POST `/api/shipments/operational-sites` → 201), không 403.
+  - Dialog đóng, nhà máy mới tự xuất hiện và **được tự chọn** cho lô/container đang tạo.
+  - Chưa chọn khách hàng mà bấm "Thêm nhà máy" → toast hướng dẫn chọn khách hàng trước (không im lặng).
+- **Kỳ vọng sai (Fail nếu):** 403/409 dead-end; nhà máy mới không tự chọn; bấm nút không phản ứng.
+- **Bằng chứng:** Network (POST → 201) + ảnh dropdown sau khi tạo
+
+---
+
+### TC-CUS-CREATE-018 — Form thêm khách hàng inline có đủ thông tin liên hệ
+
+- **Vai trò:** `cus`
+- **Mức độ:** P1
+- **Nguồn:** báo cáo khách hàng 2026-09-06 — "Form thêm mới của khách hàng đang không được đầy đủ thông tin"
+- **Các bước:**
+  1. Ở form tạo lô, bấm "Thêm khách hàng".
+  2. Nhập tên, mã số thuế, SĐT, người liên hệ **và địa chỉ / thông tin liên hệ khác**.
+  3. Bấm "Thêm khách hàng".
+- **Kết quả mong đợi (Pass):**
+  - Dialog có trường "Địa chỉ / thông tin liên hệ khác"; giá trị lưu vào `contactInfo` (response có trường).
+  - Khách hàng mới tự chọn trong dropdown (giữ nguyên hành vi TC-CUS-CREATE-012).
+  - Các trường credit/billing vẫn bị strip phía backend (identity-only).
+- **Kỳ vọng sai (Fail nếu):** thiếu trường địa chỉ; `contactInfo` không lưu; credit fields lọt qua.
+- **Bằng chứng:** response POST có `contactInfo` + ảnh dialog
+
+---
+
 ## Ghi chú hồi quy 2026-09-05 — Màn "Danh sách container" (/shipments-detail) mặc định lọc theo hôm nay
 
 - **Hành vi thiết kế (không phải bug):** trang danh sách container (hiển thị theo cont) mặc định lọc
@@ -358,3 +422,6 @@
 | __/__/__ | TC-CUS-CREATE-013 | | | CUS create-only (PUT/DELETE 403) | |
 | __/__/__ | TC-CUS-CREATE-014 | | | Dispatcher tạo KH inline | |
 | __/__/__ | TC-CUS-CREATE-015 | | | Vai trò khác bị chặn | |
+| __/__/__ | TC-CUS-CREATE-016 | | | Dropdown nhà máy theo khách hàng | |
+| __/__/__ | TC-CUS-CREATE-017 | | | Tạo nhà máy inline + tự chọn | |
+| __/__/__ | TC-CUS-CREATE-018 | | | Form KH inline có địa chỉ | |

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Pencil } from 'lucide-react';
+import { Pencil, Plus } from 'lucide-react';
 
 import { PageHeader, Modal } from '../../components/UI';
 import { Alert } from '../../components/shared/Alert';
@@ -13,6 +13,7 @@ import { configClient } from '../../api/configClient';
 import { qk } from '../../api/keys';
 import { SortHeader } from '../../components/shared/SortHeader';
 import { nextTableSort, sortClientSide, type TableSortState } from '../../lib/table-sort';
+import { OperationalSiteCreateDialog } from '../../components/shipment/OperationalSiteCreateDialog';
 import '../../styles/record-table.css';
 import '../../styles/operational-table-typography.css';
 import {
@@ -69,6 +70,7 @@ export default function FactoriesConfigPage() {
   const [draft, setDraft] = useState<SiteDraft | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
 
   const sitesQuery = useQuery({
     queryKey: qk.catalogs.adminOperationalSites,
@@ -77,6 +79,12 @@ export default function FactoriesConfigPage() {
   const routesQuery = useQuery({
     queryKey: qk.catalogs.adminSiteRoutes,
     queryFn: () => configClient.getRoutesList(),
+  });
+  // Full customer catalog for the create dialog's customer picker (the site
+  // list itself only exposes customers that already have a site).
+  const customersQuery = useQuery({
+    queryKey: qk.catalogs.allCustomers,
+    queryFn: () => configClient.getAllCustomers(),
   });
   const routes: Route[] = routesQuery.data ?? [];
 
@@ -147,7 +155,7 @@ export default function FactoriesConfigPage() {
     <div className="cfg-page cfg-page--factories fade-up">
       <PageHeader
         title="Nhà máy / Kho"
-        description="Danh mục nhà máy và kho lấy hàng của từng khách hàng. Tạo mới diễn ra ngay trong form nhận lô hàng của CUS; trang này để quản trị xem, chỉnh và ngưng hoạt động."
+        description="Danh mục nhà máy và kho lấy hàng của từng khách hàng. Tạo mới ngay tại đây hoặc trong form nhận lô hàng của CUS; trang này để quản trị xem, chỉnh và ngưng hoạt động."
         onBack={() => navigate('/config')}
         iconName="company-profile"
       />
@@ -173,6 +181,9 @@ export default function FactoriesConfigPage() {
             />
           </div>
           <div style={{ flex: 1 }} />
+          <button className="btn btn--primary" onClick={() => setCreateOpen(true)}>
+            <Plus size={14} /> Tạo mới
+          </button>
           <span className="cfg-page__summary">
             <strong>{filtered.length}</strong> mục
             {sites.length !== filtered.length && ` / ${sites.length}`}
@@ -202,7 +213,7 @@ export default function FactoriesConfigPage() {
                   <td colSpan={10} data-label="" style={{ textAlign: 'center', padding: '28px 12px', color: 'var(--fg-3)' }}>
                     {sitesQuery.isLoading
                       ? 'Đang tải…'
-                      : 'Chưa có nhà máy / kho nào. Nhà máy mới được tạo từ form nhận lô hàng của CUS.'}
+                      : 'Chưa có nhà máy / kho nào. Tạo mới bằng nút "Tạo mới" hoặc từ form nhận lô hàng của CUS.'}
                   </td>
                 </tr>
               )}
@@ -352,6 +363,19 @@ export default function FactoriesConfigPage() {
           </form>
         )}
       </Modal>
+
+      <OperationalSiteCreateDialog
+        isOpen={createOpen}
+        customers={(customersQuery.data ?? []).map((customer) => ({ id: customer.id, name: customer.name }))}
+        defaultSiteType="FACTORY"
+        routes={routes}
+        onClose={() => setCreateOpen(false)}
+        onCreated={async () => {
+          setCreateOpen(false);
+          toast({ kind: 'success', message: 'Đã tạo nhà máy / kho.' });
+          await queryClient.invalidateQueries({ queryKey: qk.catalogs.adminOperationalSites });
+        }}
+      />
     </div>
   );
 }

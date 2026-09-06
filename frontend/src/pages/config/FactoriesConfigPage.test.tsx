@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { ToastProvider } from '../../components/shared/Toast';
@@ -18,6 +18,7 @@ vi.mock('../../api/shipmentClient', async (importOriginal) => {
     ...actual,
     listAdminOperationalSites: vi.fn(),
     updateAdminOperationalSite: vi.fn(),
+    createOperationalSite: vi.fn(),
   };
 });
 
@@ -28,13 +29,16 @@ vi.mock('../../api/configClient', async (importOriginal) => {
     configClient: {
       ...actual.configClient,
       getRoutesList: vi.fn(),
+      getAllCustomers: vi.fn(),
     },
   };
 });
 
 const listMock = vi.mocked(shipmentClientModule.listAdminOperationalSites);
 const updateMock = vi.mocked(shipmentClientModule.updateAdminOperationalSite);
+const createSiteMock = vi.mocked(shipmentClientModule.createOperationalSite);
 const routesMock = vi.mocked(configClientModule.configClient.getRoutesList);
+const customersMock = vi.mocked(configClientModule.configClient.getAllCustomers);
 
 const factory = {
   id: 11,
@@ -89,7 +93,9 @@ function renderPage() {
 beforeEach(() => {
   listMock.mockReset().mockResolvedValue([factory, warehouse]);
   updateMock.mockReset();
+  createSiteMock.mockReset().mockResolvedValue({ ...factory, id: 99, code: 'NEW-1', name: 'Nhà máy Mới' });
   routesMock.mockReset().mockResolvedValue([{ id: 7, name: 'Tuyến Lạch Huyện' } as never]);
+  customersMock.mockReset().mockResolvedValue([{ id: 4, name: 'Khách A' } as never]);
 });
 
 describe('FactoriesConfigPage', () => {
@@ -105,10 +111,34 @@ describe('FactoriesConfigPage', () => {
     expect(listMock).toHaveBeenCalledOnce();
   });
 
-  it('explains that intake creates sites when the catalog is empty', async () => {
+  it('explains how to create the first site when the catalog is empty', async () => {
     listMock.mockResolvedValue([]);
     renderPage();
-    expect(await screen.findByText(/Nhà máy mới được tạo từ form nhận lô hàng của CUS/)).toBeTruthy();
+    expect(await screen.findByText(/Tạo mới bằng nút "Tạo mới" hoặc từ form nhận lô hàng của CUS/)).toBeTruthy();
+  });
+
+  it('creates a site from the toolbar button through the customer-picker dialog', async () => {
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: /Tạo mới/ }));
+    const dialog = await screen.findByRole('dialog', { name: 'Thêm nhà máy' });
+
+    // The page passes no fixed customer, so the dialog owns the picker.
+    fireEvent.click(within(dialog).getByRole('button', { name: /Khách hàng/ }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Khách A' }));
+
+    fireEvent.change(within(dialog).getByLabelText('Mã điểm vận hành'), { target: { value: 'NEW-1' } });
+    fireEvent.change(within(dialog).getByLabelText('Tên đầy đủ'), { target: { value: 'Nhà máy Mới' } });
+    fireEvent.change(within(dialog).getByLabelText('Tên ngắn'), { target: { value: 'NM Mới' } });
+    fireEvent.change(within(dialog).getByLabelText('Địa chỉ'), { target: { value: 'Hải Phòng' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: /Tuyến đường/ }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Tuyến Lạch Huyện' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Thêm nhà máy' }));
+
+    await waitFor(() => expect(createSiteMock).toHaveBeenCalledWith(expect.objectContaining({
+      customerId: 4,
+      code: 'NEW-1',
+      siteType: 'FACTORY',
+    })));
   });
 
   it('edits a site through the modal with a version-checked patch', async () => {

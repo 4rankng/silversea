@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import type { Customer } from '@tingting/shared';
 import { configClient } from '../../../api/configClient';
 import { Modal } from '../../../components/UI';
-import { UTextField } from './uui-fields';
+import { UTextField, UTextAreaField } from './uui-fields';
 
 interface CustomerCreateDialogProps {
   isOpen: boolean;
@@ -15,6 +15,7 @@ export function CustomerCreateDialog({ isOpen, onClose, onCreated }: CustomerCre
   const [taxCode, setTaxCode] = useState('');
   const [contactPerson, setContactPerson] = useState('');
   const [phone, setPhone] = useState('');
+  const [contactInfo, setContactInfo] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -24,6 +25,7 @@ export function CustomerCreateDialog({ isOpen, onClose, onCreated }: CustomerCre
     setTaxCode('');
     setContactPerson('');
     setPhone('');
+    setContactInfo('');
     setError(null);
   }, [isOpen]);
 
@@ -52,6 +54,7 @@ export function CustomerCreateDialog({ isOpen, onClose, onCreated }: CustomerCre
         taxCode: taxCode.trim() || undefined,
         contactPerson: contactPerson.trim() || undefined,
         phone: phone.trim() || undefined,
+        contactInfo: contactInfo.trim() || undefined,
       });
       onCreated(customer);
     } catch (submitError) {
@@ -106,6 +109,15 @@ export function CustomerCreateDialog({ isOpen, onClose, onCreated }: CustomerCre
           onChange={(event) => { setContactPerson(event.target.value); setError(null); }}
           maxLength={120}
           placeholder="Không bắt buộc"
+          disabled={saving}
+        />
+        <UTextAreaField
+          label="Địa chỉ / thông tin liên hệ khác"
+          value={contactInfo}
+          onChange={(event) => { setContactInfo(event.target.value); setError(null); }}
+          rows={2}
+          maxLength={2000}
+          placeholder="Địa chỉ, email, ghi chú… (không bắt buộc)"
           disabled={saving}
         />
         <button type="button" className="btn btn--primary csc-customer-dialog__submit" onClick={() => void submit()} disabled={saving}>

@@ -509,6 +509,22 @@ Same as `04-ketoan.md` Flow 12.
 
 ---
 
+## Ghi chú hồi quy 2026-09-06 — Nút "Tạo mới" trên danh mục Nhà máy / Kho
+
+- **Nguồn:** báo cáo khách hàng (Frank Ng relay, 2026-09-06): "Danh sách nhà máy đang không có nút
+  tạo mới" (x2, nhấn mạnh admin role).
+- **Hành vi mới:** `/config/factories` có nút **Tạo mới** ở toolbar → dialog tạo nhà máy/kho với bộ
+  chọn **Khách hàng** (toàn bộ danh mục khách hàng, không chỉ khách đã có nhà máy), mã, tên đầy đủ,
+  tên ngắn, địa chỉ, liên hệ, Google Maps, tuyến đường (bắt buộc với nhà máy). Tạo qua
+  `POST /api/shipments/operational-sites` — quyền ADMIN/MANAGER/CUS/DISPATCHER
+  (`SHIPMENT_INTAKE_MUTATION_ROLES`). Sau khi tạo: hàng mới xuất hiện (invalidate query), toast
+  xác nhận.
+- **Trước đó:** trang chỉ xem/sửa/ngưng hoạt động — tạo mới chỉ diễn ra trong form nhận lô của CUS
+  (luồng CUS vẫn giữ nguyên, song song).
+- **QA:** driver `scripts/test-factory-customer-create.mjs` (flow A) hoặc thủ công: tạo nhà máy cho
+  một khách chưa có nhà máy → hàng mới hiện trong bảng; mở dialog sửa thấy đúng dữ liệu vừa nhập.
+- **Đã chạy 2026-09-06 (local, UI-driven): PASS** — artifacts `qa/2026-09-06_factory-customer-creation/`.
+
 ## Negative / RBAC table (MANAGER + ADMIN)
 
 | Action                                  | MANAGER | ADMIN | Other roles |

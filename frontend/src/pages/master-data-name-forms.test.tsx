@@ -87,6 +87,58 @@ describe('master-data full and short name forms', () => {
     })));
   });
 
+  it('requires a customer and submits the picked customer in picker mode', async () => {
+    createOperationalSite.mockResolvedValue({
+      id: 21,
+      customerId: 9,
+      code: 'BB-X',
+      name: 'Nhà máy Kiểm thử',
+      shortName: 'KT',
+      siteType: 'FACTORY',
+      routeId: 11,
+      address: 'Bắc Ninh',
+      googleMapsUrl: null,
+      contactName: null,
+      contactPhone: null,
+      liftFeeInvoiceName: null,
+      liftFeeInvoiceAddress: null,
+      liftFeeTaxCode: null,
+      strictRules: null,
+      version: 1,
+    });
+    render(
+      <OperationalSiteCreateDialog
+        isOpen
+        customers={[{ id: 9, name: 'Công ty Biển Bạc' }]}
+        routes={[{ id: 11, name: 'Tuyến Kiểm thử' }]}
+        onClose={vi.fn()}
+        onCreated={vi.fn()}
+      />,
+    );
+    const dialog = screen.getByRole('dialog', { name: 'Thêm nhà máy' });
+
+    fireEvent.change(within(dialog).getByLabelText('Mã điểm vận hành'), { target: { value: 'BB-X' } });
+    fireEvent.change(within(dialog).getByLabelText('Tên đầy đủ'), { target: { value: 'Nhà máy Kiểm thử' } });
+    fireEvent.change(within(dialog).getByLabelText('Tên ngắn'), { target: { value: 'KT' } });
+    fireEvent.change(within(dialog).getByLabelText('Địa chỉ'), { target: { value: 'Bắc Ninh' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: /Tuyến đường/ }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Tuyến Kiểm thử' }));
+
+    // Everything filled but the customer — submit is blocked with guidance.
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Thêm nhà máy' }));
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Vui lòng chọn khách hàng');
+
+    // Pick the owning customer and submit again.
+    fireEvent.click(within(dialog).getByRole('button', { name: /Khách hàng/ }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Công ty Biển Bạc' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Thêm nhà máy' }));
+
+    await waitFor(() => expect(createOperationalSite).toHaveBeenCalledWith(expect.objectContaining({
+      customerId: 9,
+      code: 'BB-X',
+    })));
+  });
+
   it('creates a route below the factory route selector and selects it', async () => {
     const onRouteCreated = vi.fn();
     createRoute.mockResolvedValue({ id: 12, name: 'Cảng Cát Lái — KCN Sóng Thần', shortName: 'Cát Lái — Sóng Thần' });

@@ -120,6 +120,30 @@
 - **Bằng chứng:** ảnh dropdown KH ở 2 tài khoản + ảnh 2 danh sách lô giống nhau + Network GET /api/customers
 
 
+### TC-RBAC-014 — CUS/Dispatcher allowance danh mục KH + điểm vận hành (route-scoped, POST-only)
+
+- **Mức độ:** P0
+- **Nguồn:** báo cáo khách hàng 2026-09-06 (nghi "CUS không tự tạo mới được khách hàng") — đã xác
+  minh trên local: quyền hoạt động đúng. Case này pin allowance để không bị gỡ/mất khớp path.
+- **Các bước:**
+  1. Đăng nhập `cus`. GET `/api/customers?page=1` → 200 (đầy đủ danh mục).
+  2. POST `/api/customers` (name + taxCode + contactInfo) → 201; response **không có** creditLimit /
+     paymentTermDays / debitNoteMode (intake strip).
+  3. POST `/api/customers` kèm `paymentTermDays` → 201 nhưng trường bị strip khỏi kết quả lưu.
+  4. GET `/api/shipments/operational-sites?customerId=<id>` → 200.
+  5. POST `/api/shipments/operational-sites` (customerId, code, name, shortName, siteType, routeId
+     active, address) → 201.
+  6. PUT + DELETE `/api/customers/:id` → 403 (create-only).
+- **Kết quả mong đợi (Pass):** đúng như trên. Allowance route-scoped nằm trong
+  `backend/src/middleware/casbin.ts` (`hasRouteScopedRoleAllowance`) và khớp path thật `/api/customers`
+  vì config router mount tại `/api` (path tương đối `/customers`).
+- **Kỳ vọng sai (Fail nếu):** 403 khi CUS GET/POST customers; KH intake lọt credit fields;
+  PUT/DELETE thành công; POST site bị chặn với CUS.
+- **Bằng chứng:** Network từng bước + backend `customer-intake-create.test.ts` và
+  `dispatcher-catalog-create-authz.test.ts` (15/15 pass 2026-09-06, local)
+
+---
+
 ## 7.4 — Create-only: xóa trong phiên hiện tại
 
 ### TC-RBAC-006 — Create-only xóa sai sót trong phiên hiện tại
@@ -247,3 +271,4 @@
 | __/__/__ | TC-RBAC-011 | | | First-approve-wins | |
 | __/__/__ | TC-RBAC-012 | | | Sidebar theo vai trò | |
 | __/__/__ | TC-RBAC-013 | | | Staff thấy toàn bộ KH/lô | |
+| __/__/__ | TC-RBAC-014 | | | CUS allowance KH + site (POST-only) | |

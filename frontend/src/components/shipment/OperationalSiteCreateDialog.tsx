@@ -9,7 +9,13 @@ import { RouteCreateDialog } from '../../features/shipments/create/RouteCreateDi
 
 interface OperationalSiteCreateDialogProps {
   isOpen: boolean;
-  customerId: number;
+  /**
+   * Fixed owning customer (shipment-intake caller). Omit — and pass
+   * `customers` instead — to render a customer picker (admin master-data page).
+   */
+  customerId?: number;
+  /** Customer options for picker mode; ignored when `customerId` is given. */
+  customers?: Array<{ id: number; name: string }>;
   /** Default site type preselected when the dialog opens. */
   defaultSiteType?: 'FACTORY' | 'WAREHOUSE';
   routes: Array<{ id: number; name: string }>;
@@ -57,6 +63,7 @@ const EMPTY_FORM: SiteFormState = {
 export function OperationalSiteCreateDialog({
   isOpen,
   customerId,
+  customers,
   defaultSiteType = 'FACTORY',
   routes,
   onClose,
@@ -64,6 +71,8 @@ export function OperationalSiteCreateDialog({
   onRouteCreated,
 }: OperationalSiteCreateDialogProps) {
   const [form, setForm] = useState<SiteFormState>(EMPTY_FORM);
+  // Picker-mode customer selection (string id; '' = none chosen yet).
+  const [customerChoice, setCustomerChoice] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [routeDialogState, setRouteDialogState] = useState<'closed' | 'opening' | 'open' | 'returning'>('closed');
@@ -83,6 +92,7 @@ export function OperationalSiteCreateDialog({
       return;
     }
     setForm({ ...EMPTY_FORM, siteType: defaultSiteType });
+    setCustomerChoice('');
     setError(null);
     setCreatedRoutes([]);
   }, [isOpen, defaultSiteType]);
@@ -146,6 +156,7 @@ export function OperationalSiteCreateDialog({
   ];
 
   function validate(): string | null {
+    if (customerId == null && !customerChoice) return 'Vui lòng chọn khách hàng';
     if (!form.code.trim()) return 'Vui lòng nhập mã điểm vận hành';
     if (!form.name.trim()) return 'Vui lòng nhập tên điểm vận hành';
     if (!form.shortName.trim()) return 'Vui lòng nhập tên ngắn';
@@ -164,7 +175,7 @@ export function OperationalSiteCreateDialog({
     setError(null);
     try {
       const created = await createOperationalSite({
-        customerId,
+        customerId: customerId ?? Number(customerChoice),
         code: form.code.trim(),
         name: form.name.trim(),
         shortName: form.shortName.trim(),
@@ -226,6 +237,21 @@ export function OperationalSiteCreateDialog({
           </div>
         )}
         <EntityFormSection icon={MapPin} label="Điểm vận hành">
+          {customerId == null && (
+            <div className="col-span-full">
+              <SelectField
+                label="Khách hàng"
+                value={customerChoice}
+                onChange={(event) => { setCustomerChoice(event.target.value); setError(null); }}
+                disabled={saving}
+              >
+                <option value="">— Chọn khách hàng —</option>
+                {(customers ?? []).map((customer) => (
+                  <option key={customer.id} value={customer.id}>{customer.name}</option>
+                ))}
+              </SelectField>
+            </div>
+          )}
           <TextField
             label="Mã điểm vận hành"
             value={form.code}

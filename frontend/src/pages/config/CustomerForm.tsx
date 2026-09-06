@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, Truck } from 'lucide-react';
-import { Modal } from '../../components/UI';
 import { UuiSelectField } from '../../design-system';
 import {
   buildCustomerDebitNoteModeOptions,
@@ -37,11 +36,15 @@ export function CustomerForm({ saving, item, onsave, oncancel }: {
   saving: boolean; item?: Customer; onsave: (d: Record<string, unknown>) => void; oncancel: () => void;
 }) {
   const [name, setName] = useState(item?.name || '');
+  const [shortName, setShortName] = useState(item?.shortName || '');
   const [taxCode, setTaxCode] = useState(item?.taxCode || '');
   const [contactPerson, setContactPerson] = useState(item?.contactPerson || '');
   const [phone, setPhone] = useState(item?.phone || '');
   const [contactInfo, setContactInfo] = useState(item?.contactInfo || '');
   const [creditLimit, setCreditLimit] = useState(item?.creditLimit || '');
+  const [paymentTermDays, setPaymentTermDays] = useState(
+    item?.paymentTermDays != null ? String(item.paymentTermDays) : '',
+  );
   const [creditWarningThreshold, setCreditWarningThreshold] = useState(toThresholdPercent(item?.creditWarningThreshold));
   const [status, setStatus] = useState(item?.status || 'ACTIVE');
   const [isCarrier, setIsCarrier] = useState(item?.isCarrier ?? false);
@@ -64,6 +67,15 @@ export function CustomerForm({ saving, item, onsave, oncancel }: {
         </Field>
         <Field label="Mã số thuế">
           <input className="input" value={taxCode} onChange={e => setTaxCode(e.target.value)} placeholder="Nhập MST…" />
+        </Field>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <Field label="Tên ngắn">
+          <input className="input" value={shortName} onChange={e => setShortName(e.target.value)} placeholder="Tên viết tắt dùng trong vận hành…" />
+        </Field>
+        <Field label="Hạn thanh toán (ngày)">
+          <input className="input" type="number" min="0" max="3650" value={paymentTermDays} onChange={e => setPaymentTermDays(e.target.value)} placeholder="Mặc định hệ thống" />
         </Field>
       </div>
 
@@ -159,14 +171,21 @@ export function CustomerForm({ saving, item, onsave, oncancel }: {
           if (!name.trim()) return;
           const threshold = fromThresholdPercent(creditWarningThreshold);
           if (creditWarningThreshold.trim() && threshold == null) return;
+          const termDays = paymentTermDays.trim() === '' ? null : Number(paymentTermDays);
+          if (termDays !== null && (!Number.isInteger(termDays) || termDays < 0 || termDays > 3650)) return;
           onsave({
             name: name.trim(),
-            taxCode: taxCode.trim() || null,
-            contactPerson: contactPerson.trim() || null,
-            phone: phone.trim() || null,
-            contactInfo: contactInfo.trim() || null,
-            creditLimit: creditLimit ? String(creditLimit) : null,
+            shortName: shortName.trim() || undefined,
+            // Empty optionals are OMITTED, not nulled — customerSchema declares
+            // these .optional() (absent ok, null rejected), so a null payload
+            // fails create/update with "Expected string, received null".
+            taxCode: taxCode.trim() || undefined,
+            contactPerson: contactPerson.trim() || undefined,
+            phone: phone.trim() || undefined,
+            contactInfo: contactInfo.trim() || undefined,
+            creditLimit: creditLimit ? String(creditLimit) : undefined,
             creditWarningThreshold: threshold,
+            paymentTermDays: termDays,
             status,
             debitNoteMode,
             debitNoteTemplateId,
