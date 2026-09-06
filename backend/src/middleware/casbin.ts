@@ -66,6 +66,19 @@ function hasRouteScopedRoleAllowance(req: Request, resource: string) {
   ) {
     return true;
   }
+  // CUS may update or delete identity fields on customers and routes from the
+  // catalog management pages. POST already allowed above for create; PUT/DELETE
+  // extends the same pattern to edit and undo recent creates. Financial/cost
+  // fields are stripped by intake restriction services; the beforeDelete hook
+  // enforces a 1-day age gate so only recently created entities are deletable.
+  if (
+    resource === 'config'
+    && req.user.role === Role.CUS
+    && (req.method === 'PUT' || req.method === 'DELETE')
+    && /^\/(customers|routes)\/\d+\/?$/.test(req.path)
+  ) {
+    return true;
+  }
   // Other Dispatcher catalog creates: DISPATCHER may POST exactly the three
   // resource-catalog rows it staffs dispatch plans from (trucks, drivers,
   // suppliers). Every other config write stays Casbin-denied, and

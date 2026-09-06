@@ -18,8 +18,8 @@ import { CustomerMutationPayload, PenaltyReasonPayload, DriverPayload, ExpenseCa
 import { lockApplicationOwnedUniqueness } from '../../services/application-owned-uniqueness.service';
 import { getBootstrapData, getPricing, syncTrailerFields, validateCustomerUniqueness } from '../../services/config.service';
 import { getPenaltyStats } from '../../services/reporting.service';
-import { restrictRouteCreateForIntake } from '../../services/route-intake.service';
-import { restrictCustomerCreateForIntake, intakeCreatedBy } from '../../services/customer-intake.service';
+import { restrictRouteCreateForIntake, restrictRouteUpdateForIntake } from '../../services/route-intake.service';
+import { restrictCustomerCreateForIntake, restrictCustomerUpdateForIntake, intakeCreatedBy } from '../../services/customer-intake.service';
 import { assertTireSerialAvailable } from '../../services/tire.service';
 
 import debitNoteTemplatesRouter from './debit-note-templates.routes';
@@ -219,7 +219,9 @@ router.use('/customers', createCrudRouter(s.customers, customerSchema, {
     const createdBy = intakeCreatedBy(actor.role, actor.userId);
     return createdBy == null ? data : { ...data, createdBy };
   },
-  beforeUpdate: async (id, data, _req, tx) => {
+  beforeUpdate: async (id, data, req, tx) => {
+    const actor = getUser(req);
+    data = restrictCustomerUpdateForIntake(data, actor.role) as typeof data;
     if (data.name !== undefined && data.shortName === undefined) {
       const [current] = await tx.select({ shortName: s.customers.shortName })
         .from(s.customers)
@@ -249,7 +251,17 @@ router.use('/customers', createCrudRouter(s.customers, customerSchema, {
       await H.markCompletedFuelSurchargeTripsDirty(tx, { customerId: item.id });
     }
   },
-  beforeDelete: (id, _req, tx) => H.lockCatalogDelete(tx, 'customer', id),
+  beforeDelete: async (id, req, tx) => {
+    const actor = getUser(req);
+    if (actor.role === Role.CUS) {
+      const [row] = await tx.select({ createdAt: s.customers.createdAt })
+        .from(s.customers).where(eq(s.customers.id, id)).limit(1);
+      if (row && Date.now() - row.createdAt.getTime() > 24 * 60 * 60 * 1000) {
+        throw new ApiError(403, 'Chỉ được xóa khách hàng trong vòng 1 ngày sau khi tạo.');
+      }
+    }
+    await H.lockCatalogDelete(tx, 'customer', id);
+  },
 }));
 router.use(
   '/business-calendar',
@@ -333,7 +345,9 @@ router.use('/routes', createCrudRouter(s.routes, routeSchema, {
     { ...data, shortName: data.shortName?.trim() || data.name.trim() },
     getUser(req).role,
   ),
-  beforeUpdate: async (id, data, _req, tx) => {
+  beforeUpdate: async (id, data, req, tx) => {
+    const actor = getUser(req);
+    data = restrictRouteUpdateForIntake(data, actor.role) as typeof data;
     if (data.name !== undefined && data.shortName === undefined) {
       const [current] = await tx.select({ shortName: s.routes.shortName })
         .from(s.routes)
@@ -343,7 +357,17 @@ router.use('/routes', createCrudRouter(s.routes, routeSchema, {
     }
     return data;
   },
-  beforeDelete: (id, _req, tx) => H.lockCatalogDelete(tx, 'route', id),
+  beforeDelete: async (id, req, tx) => {
+    const actor = getUser(req);
+    if (actor.role === Role.CUS) {
+      const [row] = await tx.select({ createdAt: s.routes.createdAt })
+        .from(s.routes).where(eq(s.routes.id, id)).limit(1);
+      if (row && Date.now() - row.createdAt.getTime() > 24 * 60 * 60 * 1000) {
+        throw new ApiError(403, 'Chỉ được xóa tuyến đường trong vòng 1 ngày sau khi tạo.');
+      }
+    }
+    await H.lockCatalogDelete(tx, 'route', id);
+  },
 }));
 router.use('/cargo-types', createCrudRouter(s.cargoTypes, cargoTypeSchema, {
   beforeDelete: (id, _req, tx) => H.lockCatalogDelete(tx, 'cargo-type', id),
