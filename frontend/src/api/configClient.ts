@@ -89,6 +89,9 @@ export const configClient = {
 
   getPorts: () => fetchAllPaginated<Port>(CONFIG.PORTS),
 
+  createPort: (data: { name: string; code?: string; address?: string }) =>
+    api.post<Port>(CONFIG.PORTS, data),
+
   getTirePositions: () => fetchAllPaginated<TirePosition>(CONFIG.TIRE_POSITIONS),
   createTirePosition: (data: { name: string; sortOrder?: number; status?: 'ACTIVE' | 'INACTIVE' }) =>
     api.post<TirePosition>(CONFIG.TIRE_POSITIONS, data),

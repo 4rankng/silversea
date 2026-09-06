@@ -372,6 +372,26 @@
 
 ---
 
+### TC-CUS-CREATE-019 — Tạo cảng/bãi inline ngay từ ô Cảng nâng/hạ của container
+
+- **Vai trò:** `cus`
+- **Mức độ:** P0
+- **Nguồn:** báo cáo khách hàng 2026-09-06 14:02 — "Trường nào cho phép input text được CTO nhớ cho phép nhập text nhé, vẫn còn nhiều chỗ chỉ cho chọn dropdown"
+- **Các bước:**
+  1. Đăng nhập `cus`, mở `/shipments/new`, chọn khách hàng (FCL).
+  2. Ở dòng container, focus ô **Cảng nâng** → bấm nút **Thêm** trong ô.
+  3. Dialog "Thêm cảng / bãi": nhập tên cảng, mã (tùy chọn), địa chỉ (tùy chọn) → bấm "Thêm cảng / bãi".
+  4. Làm tương tự kiểm tra ô **Cảng hạ** và ô **Tuyến đường** (nút Thêm mở dialog tạo tuyến).
+- **Kết quả mong đợi (Pass):**
+  - POST `/api/ports` → 201 với CUS (allowance route-scoped POST-only, giống customers).
+  - Dialog đóng, cảng mới **tự chọn** vào đúng ô đã yêu cầu; không cần mở lại dropdown.
+  - Cảng mới xuất hiện trong dropdown Cảng nâng/hạ cho lần sau.
+  - PUT/DELETE `/api/ports/:id` với CUS vẫn 403 (create-only).
+- **Kỳ vọng sai (Fail nếu):** 403 khi tạo; cảng không tự chọn; nút Thêm không xuất hiện trong ô.
+- **Bằng chứng:** Network POST 201 + ảnh ô cảng sau khi tạo (`qa/2026-09-06_factory-customer-creation/` flow E)
+
+---
+
 ### TC-CUS-CREATE-018 — Form thêm khách hàng inline có đủ thông tin liên hệ
 
 - **Vai trò:** `cus`
@@ -425,3 +445,4 @@
 | __/__/__ | TC-CUS-CREATE-016 | | | Dropdown nhà máy theo khách hàng | |
 | __/__/__ | TC-CUS-CREATE-017 | | | Tạo nhà máy inline + tự chọn | |
 | __/__/__ | TC-CUS-CREATE-018 | | | Form KH inline có địa chỉ | |
+| __/__/__ | TC-CUS-CREATE-019 | | | Tạo cảng/bãi inline từ ô container | |

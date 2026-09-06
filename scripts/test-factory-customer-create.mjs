@@ -501,6 +501,48 @@ await withSession(adminToken, async (page, ctx) => {
   }
 }, { artifactDir: ROOT, name: ".", headless: STANDARD_HEADLESS });
 
+// ─── Flow E: inline port create from a container cell (Cảng nâng) ────────────
+const qaPortName = `Cảng QA ${STAMP}`;
+await withSession(cusToken, async (page, ctx) => {
+  installPageLogging(page, ctx.log);
+  await page.goto(`${FRONTEND}/shipments/new`, { waitUntil: "networkidle2", timeout: 30_000 });
+  await sleep(3000);
+
+  // Any customer unlocks the FCL container row cells.
+  await pickCombobox(page, "Khách hàng", "", ctx.log);
+  await sleep(1200);
+
+  const opened = await page.evaluate(() => {
+    const td = Array.from(document.querySelectorAll("td"))
+      .find((t) => (t.textContent ?? "").includes("Chọn cảng nâng"));
+    if (!td) return "cell-not-found";
+    const btn = [...td.querySelectorAll("button")].find((b) => /thêm/i.test(b.textContent ?? ""));
+    if (!btn) return "button-not-found";
+    btn.click();
+    return "clicked";
+  });
+  await sleep(900);
+  result.flowE = { openResult: opened };
+  await dialogFill(page, "Tên cảng / bãi", qaPortName, ctx.log);
+  await dialogFill(page, "Mã", `QA${STAMP.slice(0, 6)}`, ctx.log);
+  await page.screenshot({ path: join(ROOT, "E01_port_dialog.png") });
+  await dialogClickButton(page, "^Thêm cảng / bãi$", ctx.log);
+  await sleep(2200);
+  await page.screenshot({ path: join(ROOT, "E02_port_autoselect.png"), fullPage: true });
+
+  result.flowE.portAutoSelected = await page.evaluate(
+    (nm) => document.body.innerText.includes(nm), qaPortName,
+  );
+  result.flowE.routeCellHasAdd = await page.evaluate(() => {
+    const td = Array.from(document.querySelectorAll("td"))
+      .find((t) => (t.textContent ?? "").includes("Chọn tuyến đường"));
+    return Boolean(td && [...td.querySelectorAll("button")].some((b) => /thêm/i.test(b.textContent ?? "")));
+  });
+  const portsRes = await api(adminToken, "GET", "/ports", undefined, { query: { limit: 100 } });
+  const portRow = (portsRes.data?.items ?? []).find((p) => p.name === qaPortName);
+  result.flowE.portCreated = portRow ? { id: portRow.id, code: portRow.code } : null;
+}, { artifactDir: ROOT, name: ".", headless: STANDARD_HEADLESS });
+
 result.flowA.pass = Boolean(result.flowA.apiCreated && result.flowA.rowVisible);
 result.flowB.pass = Boolean(
   result.flowB.customerCreated?.contactInfo
@@ -514,11 +556,18 @@ result.flowC.pass = Boolean(
   && result.flowC?.factoryLinked,
 );
 result.flowD.pass = Boolean(result.flowD?.pass && result.flowD?.shortNameCleared === true);
-result.pass = result.flowA.pass && result.flowB.pass && (result.flowC?.pass ?? false) && (result.flowD?.pass ?? false);
+result.flowE.pass = Boolean(
+  result.flowE?.portCreated
+  && result.flowE?.portAutoSelected
+  && result.flowE?.routeCellHasAdd
+  && result.flowE?.openResult === "clicked",
+);
+result.pass = result.flowA.pass && result.flowB.pass && (result.flowC?.pass ?? false) && (result.flowD?.pass ?? false) && (result.flowE?.pass ?? false);
 
 writeArtifact(ROOT, "result.json", result);
 console.log(`\nflowA (admin factories create):        ${result.flowA.pass ? "PASS" : "FAIL"} ${JSON.stringify(result.flowA.apiCreated ?? {})}`);
 console.log(`flowB (CUS inline customer+factory):  ${result.flowB.pass ? "PASS" : "FAIL"} customer=${JSON.stringify(result.flowB.customerCreated ?? {})} factory=${JSON.stringify(result.flowB.factoryCreated ?? {})}`);
 console.log(`flowC (CUS saves lot with both new):  ${result.flowC.pass ? "PASS" : "FAIL"} url=${result.flowC?.postSubmitUrl}`);
 console.log(`flowD (admin customer form fields):   ${result.flowD.pass ? "PASS" : "FAIL"} ${JSON.stringify(result.flowD?.created ?? {})}`);
+console.log(`flowE (inline port create from cell): ${result.flowE.pass ? "PASS" : "FAIL"} ${JSON.stringify(result.flowE ?? {})}`);
 process.exit(result.pass ? 0 : 1);

@@ -36,7 +36,8 @@ import { ShipmentContainerEditor } from './ShipmentContainerEditor';
 import { ShipmentContainerCell } from './ShipmentContainerCell';
 import { ShippingLineAddDialog } from './ShippingLineAddDialog';
 import { RouteCreateDialog } from './RouteCreateDialog';
-import type { Route } from '@tingting/shared';
+import { PortCreateDialog } from './PortCreateDialog';
+import type { Port, Route } from '@tingting/shared';
 import { useShipmentCreateWorkflow } from './use-shipment-create-workflow';
 import { Modal } from '../../../components/UI';
 import '../../../pages/clerk/ClerkShipmentCreatePage.css';
@@ -93,6 +94,10 @@ export function ShipmentCreateWorkspace() {
   const shippingLineAddButtonRef = useRef<HTMLButtonElement>(null);
   const [routeDialogOpen, setRouteDialogOpen] = useState(false);
   const routeAddButtonRef = useRef<HTMLButtonElement>(null);
+  // Container-row target for the route dialog (null = the LCL form-level field).
+  const [routeDialogTargetKey, setRouteDialogTargetKey] = useState<string | null>(null);
+  // Port dialog + which container cell asked for it.
+  const [portDialog, setPortDialog] = useState<{ open: boolean; target: { key: string; field: 'pickupPortId' | 'dropoffPortId' } | null }>({ open: false, target: null });
   const [customerDialogOpen, setCustomerDialogOpen] = useState(false);
   const customerAddButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -245,13 +250,36 @@ export function ShipmentCreateWorkspace() {
 
   function closeRouteDialog() {
     setRouteDialogOpen(false);
+    setRouteDialogTargetKey(null);
     queueMicrotask(() => routeAddButtonRef.current?.focus());
   }
 
   function handleRouteCreated(route: Route) {
     addRouteToCatalog(route);
-    update('routeId', String(route.id));
+    if (routeDialogTargetKey) {
+      updateContainer(routeDialogTargetKey, 'routeId', String(route.id));
+    } else {
+      update('routeId', String(route.id));
+    }
     closeRouteDialog();
+  }
+
+  function closePortDialog() {
+    setPortDialog({ open: false, target: null });
+  }
+
+  /**
+   * A port/yard created inline from a container cell (Cảng nâng/hạ) joins the
+   * catalog and is selected straight into the cell that asked for it.
+   */
+  function handlePortCreated(port: Port) {
+    setCatalogs((current) => current ? {
+      ...current,
+      ports: [...(current.ports ?? []).filter((item) => item.id !== port.id), port],
+    } : current);
+    const target = portDialog.target;
+    if (target) updateContainer(target.key, target.field, String(port.id));
+    setPortDialog({ open: false, target: null });
   }
 
   function closeCustomerDialog() {
@@ -679,18 +707,28 @@ export function ShipmentCreateWorkspace() {
                     fieldId={`container-${row.key}-route`}
                     error={issueByField.get(`container-${row.key}-route`)}
                   >
-                    <SearchableField
-                      id={`container-${row.key}-route`}
-                      label="Tuyến đường"
-                      hideLabel
-                      required
-                      value={row.routeId}
-                      onChange={(value) => updateContainer(row.key, 'routeId', value)}
-                      options={routeOptions}
-                      placeholder="Chọn tuyến đường"
-                      disabled={Boolean(saving)}
-                      error={issueByField.get(`container-${row.key}-route`)}
-                    />
+                    <div className="csc-route-picker">
+                      <SearchableField
+                        id={`container-${row.key}-route`}
+                        label="Tuyến đường"
+                        hideLabel
+                        required
+                        value={row.routeId}
+                        onChange={(value) => updateContainer(row.key, 'routeId', value)}
+                        options={routeOptions}
+                        placeholder="Chọn tuyến đường"
+                        disabled={Boolean(saving)}
+                        error={issueByField.get(`container-${row.key}-route`)}
+                      />
+                      <button
+                        type="button"
+                        className="csc-utility-button csc-utility-button--dashed csc-route-picker__add"
+                        onClick={() => { setRouteDialogTargetKey(row.key); setRouteDialogOpen(true); }}
+                        disabled={Boolean(saving)}
+                      >
+                        <Plus size={15} aria-hidden="true" />Thêm
+                      </button>
+                    </div>
                   </ShipmentContainerCell>
                   <ShipmentContainerCell
                     label="Cảng nâng"
@@ -699,7 +737,17 @@ export function ShipmentCreateWorkspace() {
                     fieldId={`container-${row.key}-pickup-port`}
                     error={issueByField.get(`container-${row.key}-pickup-port`)}
                   >
-                    <SearchableField id={`container-${row.key}-pickup-port`} label="Cảng nâng" hideLabel value={row.pickupPortId} onChange={(value) => updateContainer(row.key, 'pickupPortId', value)} options={portOptions} placeholder="Chọn cảng nâng" disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-pickup-port`)} />
+                    <div className="csc-route-picker">
+                      <SearchableField id={`container-${row.key}-pickup-port`} label="Cảng nâng" hideLabel value={row.pickupPortId} onChange={(value) => updateContainer(row.key, 'pickupPortId', value)} options={portOptions} placeholder="Chọn cảng nâng" disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-pickup-port`)} />
+                      <button
+                        type="button"
+                        className="csc-utility-button csc-utility-button--dashed csc-route-picker__add"
+                        onClick={() => setPortDialog({ open: true, target: { key: row.key, field: 'pickupPortId' } })}
+                        disabled={Boolean(saving)}
+                      >
+                        <Plus size={15} aria-hidden="true" />Thêm
+                      </button>
+                    </div>
                   </ShipmentContainerCell>
                   <ShipmentContainerCell
                     label="Cảng hạ"
@@ -708,7 +756,17 @@ export function ShipmentCreateWorkspace() {
                     fieldId={`container-${row.key}-dropoff-port`}
                     error={issueByField.get(`container-${row.key}-dropoff-port`)}
                   >
-                    <SearchableField id={`container-${row.key}-dropoff-port`} label="Cảng hạ" hideLabel value={row.dropoffPortId} onChange={(value) => updateContainer(row.key, 'dropoffPortId', value)} options={portOptions} placeholder="Chọn cảng hạ" disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-dropoff-port`)} />
+                    <div className="csc-route-picker">
+                      <SearchableField id={`container-${row.key}-dropoff-port`} label="Cảng hạ" hideLabel value={row.dropoffPortId} onChange={(value) => updateContainer(row.key, 'dropoffPortId', value)} options={portOptions} placeholder="Chọn cảng hạ" disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-dropoff-port`)} />
+                      <button
+                        type="button"
+                        className="csc-utility-button csc-utility-button--dashed csc-route-picker__add"
+                        onClick={() => setPortDialog({ open: true, target: { key: row.key, field: 'dropoffPortId' } })}
+                        disabled={Boolean(saving)}
+                      >
+                        <Plus size={15} aria-hidden="true" />Thêm
+                      </button>
+                    </div>
                   </ShipmentContainerCell>
                   <ShipmentContainerCell
                     label="Trọng lượng (kg)"
@@ -836,6 +894,11 @@ export function ShipmentCreateWorkspace() {
         isOpen={routeDialogOpen}
         onClose={closeRouteDialog}
         onCreated={handleRouteCreated}
+      />
+      <PortCreateDialog
+        isOpen={portDialog.open}
+        onClose={closePortDialog}
+        onCreated={handlePortCreated}
       />
       <CustomerCreateDialog
         isOpen={customerDialogOpen}
