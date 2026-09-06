@@ -47,12 +47,11 @@ export async function getOpsFleet(userId: number): Promise<OpsFleetTruckItem[]> 
   if (trucks.length === 0) return [];
   const truckIds = trucks.map((truck) => truck.truckId);
 
-  // Live trips always show; completed trips count only when recent (the "Đã
-  // hoàn thành" tile is "mới nhất của xe trong ngày" — bounded to the last
-  // week keeps the scan cheap without a strict same-day cutoff).
-  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-    .toISOString()
-    .slice(0, 10);
+  // Live trips always show. Completed trips are candidates only when they
+  // finished today (VN local) — "Đã hoàn thành" is the newest completion of
+  // the day, so long hauls that departed days ago still count.
+  const vnToday = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
+  const vnStartOfToday = new Date(`${vnToday}T00:00:00+07:00`);
   const trips = await db
     .select({
       id: s.trips.id,
@@ -73,14 +72,14 @@ export async function getOpsFleet(userId: number): Promise<OpsFleetTruckItem[]> 
       ne(s.trips.status, 'CANCELED'),
       or(
         inArray(s.trips.status, ['CREATED', 'IN_TRANSIT']),
-        gte(s.trips.departureDate, weekAgo),
+        gte(s.trips.completedAt, vnStartOfToday),
       )!,
     ))
     .orderBy(desc(s.trips.updatedAt));
 
   // Per truck keep: the live trip (IN_TRANSIT beats CREATED), else the newest
-  // COMPLETED when it finished today, else nothing.
-  const today = new Date().toISOString().slice(0, 10);
+  // COMPLETED — the query above already bounds completed candidates to
+  // "finished today (VN)", so any COMPLETED row here qualifies.
   const picked = new Map<number, (typeof trips)[number]>();
   for (const trip of trips) {
     if (trip.truckId == null) continue; // inArray already implies membership
@@ -91,8 +90,7 @@ export async function getOpsFleet(userId: number): Promise<OpsFleetTruckItem[]> 
       )) {
         picked.set(trip.truckId, trip);
       }
-    } else if (!picked.has(trip.truckId) && trip.completedAt
-      && trip.completedAt.toISOString().slice(0, 10) === today) {
+    } else if (!picked.has(trip.truckId)) {
       picked.set(trip.truckId, trip);
     }
   }
@@ -139,6 +137,23 @@ export async function getOpsFleet(userId: number): Promise<OpsFleetTruckItem[]> 
       updatedAt: isoOrNull(trip?.updatedAt ?? null),
     };
   });
+}
+
+/** Active truck→ops assignments with names, for the admin fleet control. */
+export async function listActiveTruckOpsAssignments(): Promise<Array<{
+  truckId: number;
+  opsUserId: number;
+  opsUserName: string | null;
+}>> {
+  return db
+    .select({
+      truckId: s.truckOpsAssignments.truckId,
+      opsUserId: s.truckOpsAssignments.opsUserId,
+      opsUserName: s.users.fullName,
+    })
+    .from(s.truckOpsAssignments)
+    .leftJoin(s.users, eq(s.users.id, s.truckOpsAssignments.opsUserId))
+    .where(eq(s.truckOpsAssignments.isActive, true));
 }
 
 /**

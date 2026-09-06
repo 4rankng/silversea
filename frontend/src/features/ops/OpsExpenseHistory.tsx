@@ -6,6 +6,7 @@ import {
   useResendOpsExpense,
 } from '../../hooks/useOpsQueries';
 import type { OpsExpenseRow, OpsExpenseStatus } from '../../api/opsClient';
+import { useConfirm } from '../../components/UI';
 import { OpsExpensePhotosModal } from './OpsExpensePhotosModal';
 import { formatVnd } from './opsStatus';
 
@@ -37,6 +38,7 @@ export function OpsExpenseHistory() {
   const { data, isLoading } = useOpsWalletExpenses(status);
   const deleteExpense = useDeleteOpsExpense();
   const resendExpense = useResendOpsExpense();
+  const { confirm, dialog } = useConfirm();
   const [photosFor, setPhotosFor] = useState<number | null>(null);
 
   const items = data?.items ?? [];
@@ -107,7 +109,15 @@ export function OpsExpenseHistory() {
                     </button>
                   )}
                   {row.approvalStatus !== 'APPROVED' && row.opsSettlementId == null && (
-                    <button type="button" className="btn-secondary ops-danger" onClick={() => void deleteExpense.mutateAsync(row.id).catch(() => undefined)}>
+                    <button
+                      type="button"
+                      className="btn-secondary ops-danger"
+                      aria-label={`Xóa khoản chi ${row.shipmentCode ?? row.id}`}
+                      onClick={() => void confirm(
+                        `Xóa khoản chi ${row.expenseTypeName ?? row.expenseTypeCode} ${formatVnd(row.amount)} ₫?`,
+                        { variant: 'danger', confirmLabel: 'Xóa' },
+                      ).then((ok) => (ok ? deleteExpense.mutateAsync(row.id) : undefined)).catch(() => undefined)}
+                    >
                       <Trash2 size={13} />
                     </button>
                   )}
@@ -125,6 +135,7 @@ export function OpsExpenseHistory() {
       {photosFor != null && (
         <OpsExpensePhotosModal expenseId={photosFor} canDelete onClose={() => setPhotosFor(null)} />
       )}
+      {dialog}
     </section>
   );
 }

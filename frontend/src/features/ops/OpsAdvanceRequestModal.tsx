@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Loader2, X } from 'lucide-react';
-import { useQueryClient } from '@tanstack/react-query';
-import { useCreateOpsAdvanceRequest, opsKeys } from '../../hooks/useOpsQueries';
+import { useCreateOpsAdvanceRequest } from '../../hooks/useOpsQueries';
 import { useToast } from '../../components/shared/Toast';
 import { formatVnd } from './opsStatus';
 
@@ -10,7 +9,6 @@ import { formatVnd } from './opsStatus';
 export function OpsAdvanceRequestModal({ onClose }: { onClose: () => void }) {
   const createAdvance = useCreateOpsAdvanceRequest();
   const { toast } = useToast();
-  const queryClient = useQueryClient();
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
 
@@ -20,10 +18,6 @@ export function OpsAdvanceRequestModal({ onClose }: { onClose: () => void }) {
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     if (!canSubmit) return;
-    // Optimistic per PRD §5.2: pending nothing yet — the advance only counts
-    // once approved; patch the cache so the UI acknowledges immediately, then
-    // reconcile via refetch.
-    queryClient.invalidateQueries({ queryKey: opsKeys.walletSummary() });
     try {
       await createAdvance.mutateAsync({ amount: Number(amountClean), reason: reason.trim() });
       toast({ kind: 'success', message: 'Đã gửi yêu cầu tạm ứng — chờ duyệt.' });

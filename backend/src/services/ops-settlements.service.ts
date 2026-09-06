@@ -15,7 +15,7 @@ async function generateOpsSettlementCode(tx: Tx, now: Date = new Date()): Promis
   const yy = String(now.getFullYear()).slice(-2);
   const mm = String(now.getMonth() + 1).padStart(2, '0');
   const prefix = `OS-${yy}${mm}`;
-  await tx.execute(sql`SELECT pg_advisory_xact_lock(6201, hashtext(${prefix}))`);
+  await tx.execute(sql`SELECT pg_advisory_xact_lock(6301, hashtext(${prefix}))`);
   const [row] = await tx
     .select({ maxCode: sql<string | null>`max(${s.opsSettlements.code})` })
     .from(s.opsSettlements)
@@ -35,9 +35,10 @@ async function generateOpsSettlementCode(tx: Tx, now: Date = new Date()): Promis
 export async function createOpsSettlement(
   userId: number,
   note?: string | null,
+  transaction?: Tx,
 ) {
-  return db.transaction(async (tx) => {
-    await tx.execute(sql`SELECT pg_advisory_xact_lock(6202, ${userId})`);
+  const run = async (tx: Tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(6302, ${userId})`);
 
     const entries = await tx
       .select({ id: s.opsExpenseEntries.id, amount: s.opsExpenseEntries.amount })
@@ -71,7 +72,8 @@ export async function createOpsSettlement(
         entries.map((entry) => entry.id),
       ));
     return settlement;
-  });
+  };
+  return transaction ? run(transaction) : db.transaction(run);
 }
 
 export async function listOpsSettlements(filters: {
@@ -185,6 +187,7 @@ export async function decideOpsSettlement(
   settlementId: number,
   decision: 'APPROVED' | 'REJECTED',
   reason?: string,
+  transaction?: Tx,
 ) {
   const [settlement] = await db
     .select()
@@ -216,24 +219,37 @@ export async function decideOpsSettlement(
         approvedAt: new Date(),
         updatedAt: new Date(),
       })
-      .where(eq(s.opsSettlements.id, settlementId))
+      // Conditional write: a concurrent decision on the same batch cannot
+      // double-apply.
+      .where(and(
+        eq(s.opsSettlements.id, settlementId),
+        eq(s.opsSettlements.status, 'PENDING'),
+      ))
       .returning();
+    if (!updated) throw new ApiError(400, 'Phiếu đã được xử lý.');
     return updated;
   }
 
   const trimmed = reason?.trim();
   if (!trimmed) throw new ApiError(400, 'Cần lý do từ chối.');
 
-  return db.transaction(async (tx) => {
+  const run = async (tx: Tx) => {
     const [updated] = await tx
       .update(s.opsSettlements)
       .set({ status: 'REJECTED', rejectionReason: trimmed, updatedAt: new Date() })
-      .where(eq(s.opsSettlements.id, settlementId))
+      .where(and(
+        eq(s.opsSettlements.id, settlementId),
+        eq(s.opsSettlements.status, 'PENDING'),
+      ))
       .returning();
+    if (!updated) throw new ApiError(400, 'Phiếu đã được xử lý.');
+    // Rejected batch: every frozen entry returns to the open pool for the
+    // next batch (PRD §5.4 "khoản rơi khỏi phiếu").
     await tx
       .update(s.opsExpenseEntries)
       .set({ opsSettlementId: null, updatedAt: new Date() })
       .where(eq(s.opsExpenseEntries.opsSettlementId, settlementId));
     return updated;
-  });
+  };
+  return transaction ? run(transaction) : db.transaction(run);
 }

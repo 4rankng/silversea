@@ -5,9 +5,12 @@
  */
 import { db } from '../db';
 import * as s from '../db/schema';
-import { and, desc, eq, exists, inArray, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, exists, inArray, isNull, ne, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { storageService } from './storage.service';
+
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+type Executor = typeof db | Tx;
 
 export type OpsExpenseDecision = 'APPROVED' | 'REJECTED';
 
@@ -85,13 +88,14 @@ async function getEditableExpense(userId: number, expenseId: number) {
 }
 
 async function attachPhotoRows(
-  executor: typeof db,
+  executor: Executor,
   expenseId: number,
   uploadedById: number,
   storageKeys: string[],
 ): Promise<void> {
   const unique = [...new Set(storageKeys.filter((key) => key && key.trim()))];
   if (unique.length === 0) return;
+  for (const key of unique) assertOwnStorageKey(uploadedById, key);
   await executor
     .insert(s.opsExpensePhotos)
     .values(unique.map((storageKey) => ({
@@ -102,15 +106,28 @@ async function attachPhotoRows(
     .onConflictDoNothing();
 }
 
+/** Ops receipt keys are `ops-expense-photos/<uploader-uid>/<sha256>.<ext>` —
+ *  the uid segment must be the caller so the photo gate can't be satisfied
+ *  with another pipeline's (or another user's) object. */
+const OPS_PHOTO_KEY_RE = /^ops-expense-photos\/(\d+)\/[0-9a-f]{32}\.(jpg|png)$/;
+export function assertOwnStorageKey(userId: number, key: string): void {
+  const match = key.match(OPS_PHOTO_KEY_RE);
+  if (!match || Number(match[1]) !== userId) {
+    throw new ApiError(400, 'Ảnh biên lai không hợp lệ.');
+  }
+}
+
 export async function createOpsExpense(
   userId: number,
   input: CreateOpsExpenseInput,
+  transaction?: Tx,
 ) {
+  const executor: Executor = transaction ?? db;
   const amount = parseOpsMoney(input.amount);
   assertValidPaidAt(input.paidAt);
   await assertActiveExpenseType(input.expenseTypeCode);
 
-  const [shipment] = await db
+  const [shipment] = await executor
     .select({ id: s.shipments.id })
     .from(s.shipments)
     .where(and(eq(s.shipments.id, input.shipmentId), isNull(s.shipments.deletedAt)))
@@ -121,7 +138,7 @@ export async function createOpsExpense(
     await assertContainerInShipment(input.shipmentId, input.shipmentContainerId);
   }
 
-  const [entry] = await db
+  const [entry] = await executor
     .insert(s.opsExpenseEntries)
     .values({
       shipmentId: input.shipmentId,
@@ -135,7 +152,7 @@ export async function createOpsExpense(
     .returning();
 
   if (input.photoStorageKeys?.length) {
-    await attachPhotoRows(db, entry.id, userId, input.photoStorageKeys);
+    await attachPhotoRows(executor, entry.id, userId, input.photoStorageKeys);
   }
   return entry;
 }
@@ -147,7 +164,9 @@ export async function updateOpsExpense(
     'amount' | 'paidAt' | 'note' | 'shipmentContainerId' | 'expenseTypeCode'>> & {
     shipmentContainerId?: number | null;
   },
+  transaction?: Tx,
 ) {
+  const executor: Executor = transaction ?? db;
   const entry = await getEditableExpense(userId, expenseId);
   const next: Record<string, unknown> = { updatedAt: new Date() };
 
@@ -170,22 +189,49 @@ export async function updateOpsExpense(
     next.shipmentContainerId = patch.shipmentContainerId;
   }
 
-  const [updated] = await db
+  // Conditional write: the pre-read above produces friendly field errors, but
+  // the freeze/approve race is closed here — the update only lands while the
+  // entry is still unlinked and not approved.
+  const [updated] = await executor
     .update(s.opsExpenseEntries)
     .set(next)
-    .where(eq(s.opsExpenseEntries.id, expenseId))
+    .where(and(
+      eq(s.opsExpenseEntries.id, expenseId),
+      eq(s.opsExpenseEntries.paidById, userId),
+      ne(s.opsExpenseEntries.approvalStatus, 'APPROVED'),
+      isNull(s.opsExpenseEntries.opsSettlementId),
+    ))
     .returning();
+  if (!updated) {
+    throw new ApiError(409, 'Khoản chi vừa thay đổi trạng thái (duyệt / lập phiếu). Tải lại và thử lại.');
+  }
   return updated;
 }
 
-export async function deleteOpsExpense(userId: number, expenseId: number): Promise<void> {
+export async function deleteOpsExpense(
+  userId: number,
+  expenseId: number,
+  transaction?: Tx,
+): Promise<void> {
+  const executor: Executor = transaction ?? db;
   await getEditableExpense(userId, expenseId);
-  const photos = await db
+  const photos = await executor
     .select({ storageKey: s.opsExpensePhotos.storageKey })
     .from(s.opsExpensePhotos)
     .where(eq(s.opsExpensePhotos.opsExpenseId, expenseId));
-  await db.delete(s.opsExpensePhotos).where(eq(s.opsExpensePhotos.opsExpenseId, expenseId));
-  await db.delete(s.opsExpenseEntries).where(eq(s.opsExpenseEntries.id, expenseId));
+  const [deleted] = await executor
+    .delete(s.opsExpenseEntries)
+    .where(and(
+      eq(s.opsExpenseEntries.id, expenseId),
+      eq(s.opsExpenseEntries.paidById, userId),
+      ne(s.opsExpenseEntries.approvalStatus, 'APPROVED'),
+      isNull(s.opsExpenseEntries.opsSettlementId),
+    ))
+    .returning({ id: s.opsExpenseEntries.id });
+  if (!deleted) {
+    throw new ApiError(409, 'Khoản chi vừa thay đổi trạng thái (duyệt / lập phiếu). Tải lại và thử lại.');
+  }
+  await executor.delete(s.opsExpensePhotos).where(eq(s.opsExpensePhotos.opsExpenseId, expenseId));
   await deleteStorageKeysIfUnreferenced(photos.map((photo) => photo.storageKey));
 }
 
@@ -214,6 +260,7 @@ export async function attachOpsExpensePhoto(
   storageKey: string,
 ) {
   await getEditableExpense(userId, expenseId);
+  assertOwnStorageKey(userId, storageKey);
   const [photo] = await db
     .insert(s.opsExpensePhotos)
     .values({ opsExpenseId: expenseId, storageKey, uploadedById: userId })
@@ -284,9 +331,11 @@ export async function listOpsExpensePhotos(
   }));
 }
 
-/** REJECTED → PENDING after the author re-attaches evidence. */
-export async function resendOpsExpense(userId: number, expenseId: number) {
-  const [entry] = await db
+/** REJECTED → PENDING after the author re-attaches evidence (PRD §5.3 —
+ *  resend without at least one receipt photo is refused). */
+export async function resendOpsExpense(userId: number, expenseId: number, transaction?: Tx) {
+  const executor: Executor = transaction ?? db;
+  const [entry] = await executor
     .select()
     .from(s.opsExpenseEntries)
     .where(eq(s.opsExpenseEntries.id, expenseId))
@@ -295,39 +344,47 @@ export async function resendOpsExpense(userId: number, expenseId: number) {
   if (entry.approvalStatus !== 'REJECTED') {
     throw new ApiError(400, 'Chỉ khoản bị từ chối mới cần gửi lại.');
   }
-  if (entry.opsSettlementId != null) {
-    throw new ApiError(400, 'Khoản chi đã nằm trong đề nghị thanh toán.');
+  const [photo] = await executor
+    .select({ id: s.opsExpensePhotos.id })
+    .from(s.opsExpensePhotos)
+    .where(eq(s.opsExpensePhotos.opsExpenseId, expenseId))
+    .limit(1);
+  if (!photo) {
+    throw new ApiError(400, 'Cần bổ sung ảnh biên lai trước khi gửi lại.');
   }
-  const [updated] = await db
+  const [updated] = await executor
     .update(s.opsExpenseEntries)
     .set({ approvalStatus: 'PENDING', rejectionReason: null, updatedAt: new Date() })
-    .where(eq(s.opsExpenseEntries.id, expenseId))
+    .where(and(
+      eq(s.opsExpenseEntries.id, expenseId),
+      eq(s.opsExpenseEntries.paidById, userId),
+      eq(s.opsExpenseEntries.approvalStatus, 'REJECTED'),
+      isNull(s.opsExpenseEntries.opsSettlementId),
+    ))
     .returning();
+  if (!updated) {
+    throw new ApiError(409, 'Khoản chi vừa thay đổi trạng thái. Tải lại và thử lại.');
+  }
   return updated;
 }
 
 /**
- * Accounting decision on a PENDING entry. Approving requires at least one
- * receipt photo (PRD §5.4 — đỏ-tag entries cannot be approved); rejecting
- * requires a reason and, when the entry is frozen in a settlement, unlinks it
- * and recomputes that settlement's total so the batch stays consistent.
+ * Accounting decision on a PENDING entry. Both branches use a conditional
+ * write (`WHERE approval_status = 'PENDING'`) inside a transaction so a
+ * concurrent settlement freeze can't interleave: whichever side takes the row
+ * lock first wins, and the loser sees a 0-row update instead of corrupting
+ * the batch. Approving requires at least one receipt photo (PRD §5.4 —
+ * đỏ-tag entries cannot be approved); rejecting requires a reason and, when
+ * the entry is frozen in a settlement, unlinks it and recomputes that
+ * settlement's total so the batch stays consistent.
  */
 export async function decideOpsExpense(
   approverId: number,
   expenseId: number,
   decision: OpsExpenseDecision,
   reason?: string,
+  transaction?: Tx,
 ) {
-  const [entry] = await db
-    .select()
-    .from(s.opsExpenseEntries)
-    .where(eq(s.opsExpenseEntries.id, expenseId))
-    .limit(1);
-  if (!entry) throw new ApiError(404, 'Không tìm thấy khoản chi.');
-  if (entry.approvalStatus !== 'PENDING') {
-    throw new ApiError(400, 'Chỉ khoản đang chờ duyệt mới được xử lý.');
-  }
-
   if (decision === 'APPROVED') {
     const [photo] = await db
       .select({ id: s.opsExpensePhotos.id })
@@ -337,39 +394,67 @@ export async function decideOpsExpense(
     if (!photo) {
       throw new ApiError(400, 'Khoản chi chưa có ảnh biên lai — không thể duyệt.');
     }
-    const [updated] = await db
-      .update(s.opsExpenseEntries)
-      .set({
-        approvalStatus: 'APPROVED',
-        approvedById: approverId,
-        approvedAt: new Date(),
-        rejectionReason: null,
-        updatedAt: new Date(),
-      })
-      .where(eq(s.opsExpenseEntries.id, expenseId))
-      .returning();
-    return updated;
+    const run = async (tx: Tx) => {
+      const [updated] = await tx
+        .update(s.opsExpenseEntries)
+        .set({
+          approvalStatus: 'APPROVED',
+          approvedById: approverId,
+          approvedAt: new Date(),
+          rejectionReason: null,
+          updatedAt: new Date(),
+        })
+        .where(and(
+          eq(s.opsExpenseEntries.id, expenseId),
+          eq(s.opsExpenseEntries.approvalStatus, 'PENDING'),
+        ))
+        .returning();
+      if (!updated) throw staleExpenseDecision(tx, expenseId);
+      return updated;
+    };
+    return transaction ? run(transaction) : db.transaction(run);
   }
 
   const trimmed = reason?.trim();
   if (!trimmed) throw new ApiError(400, 'Cần lý do từ chối.');
 
-  return db.transaction(async (tx) => {
+  const run = async (tx: Tx) => {
     const [updated] = await tx
       .update(s.opsExpenseEntries)
       .set({ approvalStatus: 'REJECTED', rejectionReason: trimmed, updatedAt: new Date() })
-      .where(eq(s.opsExpenseEntries.id, expenseId))
+      .where(and(
+        eq(s.opsExpenseEntries.id, expenseId),
+        eq(s.opsExpenseEntries.approvalStatus, 'PENDING'),
+      ))
       .returning();
-    if (entry.opsSettlementId != null) {
-      // The entry leaves its batch; the batch total follows.
+    if (!updated) throw staleExpenseDecision(tx, expenseId);
+    // RETURNING carries the row's live link: if a settlement froze this entry
+    // between the pre-check and now, the link is non-null and the entry must
+    // leave the batch with the total recomputed.
+    if (updated.opsSettlementId != null) {
       await tx
         .update(s.opsExpenseEntries)
         .set({ opsSettlementId: null, updatedAt: new Date() })
         .where(eq(s.opsExpenseEntries.id, expenseId));
-      await recomputeOpsSettlementTotal(tx, entry.opsSettlementId);
+      await recomputeOpsSettlementTotal(tx, updated.opsSettlementId);
     }
     return updated;
-  });
+  };
+  return transaction ? run(transaction) : db.transaction(run);
+}
+
+/** Distinguish 404 from an already-decided entry after a 0-row update. */
+async function staleExpenseDecision(
+  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  expenseId: number,
+): Promise<never> {
+  const [row] = await tx
+    .select({ id: s.opsExpenseEntries.id })
+    .from(s.opsExpenseEntries)
+    .where(eq(s.opsExpenseEntries.id, expenseId))
+    .limit(1);
+  if (!row) throw new ApiError(404, 'Không tìm thấy khoản chi.');
+  throw new ApiError(400, 'Chỉ khoản đang chờ duyệt mới được xử lý.');
 }
 
 /** Sum of the still-linked entries; used after rejects unlink entries. */

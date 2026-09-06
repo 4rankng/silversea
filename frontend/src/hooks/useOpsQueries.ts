@@ -49,7 +49,8 @@ export function useOpsOrders(date: string, q?: string) {
 export function useToggleShipmentPin(date: string, q?: string) {
   const invalidateOrders = useInvalidateOps();
   return useMutation({
-    mutationFn: (shipmentId: number) => opsClient.togglePin(shipmentId),
+    mutationFn: ({ shipmentId, pinned }: { shipmentId: number; pinned: boolean }) =>
+      opsClient.setPin(shipmentId, pinned),
     onSettled: () => invalidateOrders(),
   });
 }
@@ -79,9 +80,30 @@ export function useOpsWalletExpenses(status?: OpsExpenseStatus) {
 }
 
 export function useCreateOpsExpense() {
+  const queryClient = useQueryClient();
   const invalidate = useInvalidateOps();
   return useMutation({
     mutationFn: opsClient.createExpense,
+    // Optimistic wallet patch (PRD §5.2): Số dư ↓ and Chờ duyệt ↑ the moment
+    // the author saves; the server refetch on settle reconciles.
+    onMutate: async (variables) => {
+      await queryClient.cancelQueries({ queryKey: opsKeys.walletSummary() });
+      const previous = queryClient.getQueryData<OpsWalletSummary>(opsKeys.walletSummary());
+      if (previous) {
+        const amount = BigInt(variables.amount.toString());
+        queryClient.setQueryData(opsKeys.walletSummary(), {
+          ...previous,
+          pending: (BigInt(previous.pending) + amount).toString(),
+          balance: (BigInt(previous.balance) - amount).toString(),
+        });
+      }
+      return { previous };
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(opsKeys.walletSummary(), context.previous);
+      }
+    },
     onSettled: () => invalidate(),
   });
 }

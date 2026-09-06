@@ -133,8 +133,9 @@ export const opsClient = {
   // ── Kế hoạch làm hàng ──
   getOrders: (date: string, q?: string) =>
     api.get<{ date: string; items: OpsOrderItem[] }>(`/ops/orders${qs({ date, q })}`),
-  togglePin: (shipmentId: number) =>
-    api.post<{ pinned: boolean }>(`/ops/orders/shipment-pins/${shipmentId}/toggle`, {}),
+  /** PUT set-semantics: a replayed request converges instead of toggling. */
+  setPin: (shipmentId: number, pinned: boolean) =>
+    api.put<{ pinned: boolean }>(`/ops/orders/shipment-pins/${shipmentId}`, { pinned }),
 
   // ── Ví ──
   getWalletSummary: () => api.get<OpsWalletSummary>('/ops/wallet/summary'),
@@ -182,9 +183,27 @@ export const opsClient = {
     api.post<OpsSettlementListItem>('/ops/settlements', note ? { note } : {}),
   getSettlement: (id: number) =>
     api.get<OpsSettlementDetail>(`/ops/settlements/${id}`),
+  /** Blob download via the authed api client — plain <a href> would 401
+   *  because authMiddleware reads only the Authorization header. */
+  downloadSettlementExport: async (id: number, code: string, admin = false) => {
+    const blob = await api.getBlob(`/ops/${admin ? 'admin/' : ''}settlements/${id}/export`);
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `${code}.xlsx`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  },
 
   // ── Fleet ──
   getFleet: () => api.get<{ items: OpsFleetTruck[] }>('/ops/fleet'),
+  getTruckOpsAssignments: () =>
+    api.get<{ items: Array<{ truckId: number; opsUserId: number; opsUserName: string | null }> }>(
+      '/ops/trucks/ops-assignments'),
+  setTruckOpsAssignment: (truckId: number, opsUserId: number | null) =>
+    api.put<{ opsUserId: number | null }>(`/ops/trucks/${truckId}/ops-assignment`, { opsUserId }),
 
   // ── Duyệt (kế toán/quản lý) ──
   getAdminExpenses: (filters: { status?: OpsExpenseStatus; opsUserId?: number } = {}) =>

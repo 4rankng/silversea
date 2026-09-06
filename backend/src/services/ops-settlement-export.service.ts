@@ -9,11 +9,14 @@ import { formatVND } from '../lib/format';
 
 const MONEY_FORMAT = '#,##0';
 
-export async function exportOpsSettlementXlsx(settlementId: number): Promise<{
+export async function exportOpsSettlementXlsx(
+  settlementId: number,
+  preloaded?: Awaited<ReturnType<typeof getOpsSettlementDetail>>,
+): Promise<{
   buffer: Buffer;
   filename: string;
 }> {
-  const { settlement, grouping } = await getOpsSettlementDetail(settlementId);
+  const { settlement, grouping } = preloaded ?? await getOpsSettlementDetail(settlementId);
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet(`ĐNTT ${settlement.code}`);
 

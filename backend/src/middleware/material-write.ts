@@ -95,6 +95,18 @@ const MATERIAL_WRITE_RULES: readonly MaterialWriteRule[] = [
   { method: 'POST', endpoint: 'master-data-import.reject', pattern: /^\/api\/config\/master-data-imports\/[^/]+\/reject$/ },
   { method: 'POST', endpoint: 'master-data-import.analyze', pattern: /^\/api\/config\/master-data-imports\/(analyze|dry-run)$/ },
   { method: 'POST', endpoint: 'config.driver-user-bindings.bind', pattern: /^\/api\/config\/driver-user-bindings\/[^/]+$/ },
+  // Ops field-operations portal (OpsVanHanh) — financial cash commands run
+  // runIdempotent in routes/ops.ts with these durable endpoints.
+  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.OPS_EXPENSE_CREATE, pattern: /^\/api\/ops\/expenses$/ },
+  { method: 'PATCH', endpoint: IDEMPOTENCY_ENDPOINTS.OPS_EXPENSE_UPDATE, pattern: /^\/api\/ops\/expenses\/[^/]+$/ },
+  { method: 'DELETE', endpoint: IDEMPOTENCY_ENDPOINTS.OPS_EXPENSE_DELETE, pattern: /^\/api\/ops\/expenses\/[^/]+$/ },
+  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.OPS_EXPENSE_RESEND, pattern: /^\/api\/ops\/expenses\/[^/]+\/resend$/ },
+  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.OPS_EXPENSE_APPROVE, pattern: /^\/api\/ops\/admin\/expenses\/[^/]+\/approve$/ },
+  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.OPS_EXPENSE_REJECT, pattern: /^\/api\/ops\/admin\/expenses\/[^/]+\/reject$/ },
+  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.OPS_SETTLEMENT_CREATE, pattern: /^\/api\/ops\/settlements$/ },
+  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.OPS_SETTLEMENT_APPROVE, pattern: /^\/api\/ops\/admin\/settlements\/[^/]+\/approve$/ },
+  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.OPS_SETTLEMENT_REJECT, pattern: /^\/api\/ops\/admin\/settlements\/[^/]+\/reject$/ },
+  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.OPS_ADVANCE_REQUEST_CREATE, pattern: /^\/api\/ops\/wallet\/advance-requests$/ },
   { method: 'PUT', endpoint: 'admin.app-settings.email.update', pattern: /^\/api\/admin\/app-settings\/email$/ },
   { method: 'PUT', endpoint: 'admin.app-settings.update', pattern: /^\/api\/admin\/app-settings$/ },
   { method: 'POST', endpoint: 'admin.financial-reporting-policy.request', pattern: /^\/api\/admin\/app-settings\/financial-reporting\/policy\/requests$/ },

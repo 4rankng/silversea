@@ -60,7 +60,9 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
         const uploaded1 = await opsClient.uploadExpensePhoto(compressed);
         uploaded.push({ storageKey: uploaded1.storageKey, name: file.name });
       }
-      setPhotos((current) => [...current, ...uploaded]);
+      // Server caps photoStorageKeys at 20 per expense (zod); enforce the
+      // same bound client-side so Save can never 400 on the count.
+      setPhotos((current) => [...current, ...uploaded].slice(0, 20));
     } catch (error) {
       toast({ kind: 'error', message: error instanceof Error ? error.message : 'Tải ảnh thất bại.' });
     } finally {

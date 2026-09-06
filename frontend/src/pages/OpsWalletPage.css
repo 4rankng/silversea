@@ -73,7 +73,6 @@
 
 .ops-wallet-card strong {
   font-size: 20px;
-  font-variant-numeric: tabular-nums;
 }
 
 .ops-wallet-card--balance strong {
@@ -143,7 +142,6 @@
 }
 
 .ops-money {
-  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 

@@ -6,7 +6,7 @@ import {
   useDecideOpsExpense,
   useDecideOpsSettlement,
 } from '../../hooks/useOpsQueries';
-import type { OpsExpenseRow, OpsExpenseStatus } from '../../api/opsClient';
+import { opsClient, type OpsExpenseRow, type OpsExpenseStatus } from '../../api/opsClient';
 import { useToast } from '../../components/shared/Toast';
 import { OpsExpensePhotosModal } from './OpsExpensePhotosModal';
 import { OpsSettlementSheet } from './OpsSettlementsPanel';
@@ -34,6 +34,8 @@ export function OpsAccountantTab() {
   const [photosFor, setPhotosFor] = useState<number | null>(null);
   const [rejecting, setRejecting] = useState<OpsExpenseRow | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [rejectingSettlement, setRejectingSettlement] = useState<{ id: number; code: string } | null>(null);
+  const [settlementReason, setSettlementReason] = useState('');
   const [sheetFor, setSheetFor] = useState<number | null>(null);
   const sheet = useAdminOpsSettlement(sheetFor);
 
@@ -182,6 +184,14 @@ export function OpsAccountantTab() {
                     >
                       <Check size={13} /> Duyệt phiếu
                     </button>
+                    <button
+                      type="button"
+                      className="btn-secondary ops-danger"
+                      aria-label={`Từ chối phiếu ${item.code}`}
+                      onClick={() => { setRejectingSettlement(item); setSettlementReason(''); }}
+                    >
+                      <X size={13} />
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -192,6 +202,51 @@ export function OpsAccountantTab() {
           </table>
         </div>
       </section>
+
+      {rejectingSettlement && (
+        <div className="ops-modal-backdrop" role="dialog" aria-modal="true" aria-label={`Từ chối phiếu ${rejectingSettlement.code}`}>
+          <form
+            className="ops-modal"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (!settlementReason.trim()) return;
+              void decideSettlement
+                .mutateAsync({ id: rejectingSettlement.id, decision: 'reject', reason: settlementReason.trim() })
+                .then(() => {
+                  toast({ kind: 'success', message: `Đã trả về ${rejectingSettlement.code} — các khoản chi mở lại.` });
+                  setRejectingSettlement(null);
+                })
+                .catch((error: unknown) => toast({
+                  kind: 'error',
+                  message: error instanceof Error ? error.message : 'Từ chối phiếu thất bại.',
+                }));
+            }}
+          >
+            <header className="ops-modal__head">
+              <h2>Từ chối phiếu {rejectingSettlement.code}</h2>
+              <button type="button" aria-label="Đóng" onClick={() => setRejectingSettlement(null)}>✕</button>
+            </header>
+            <div className="ops-modal__body">
+              <label className="ops-form-note">
+                Lý do từ chối * (các khoản chi trong phiếu sẽ mở lại cho phiếu kế tiếp)
+                <textarea
+                  value={settlementReason}
+                  onChange={(event) => setSettlementReason(event.target.value)}
+                  rows={3}
+                  required
+                />
+              </label>
+            </div>
+            <footer className="ops-modal__foot">
+              <div />
+              <div className="ops-modal__actions">
+                <button type="button" className="btn-secondary" onClick={() => setRejectingSettlement(null)}>Đóng</button>
+                <button type="submit" className="btn-primary" disabled={!settlementReason.trim()}>Từ chối</button>
+              </div>
+            </footer>
+          </form>
+        </div>
+      )}
 
       {photosFor != null && (
         <OpsExpensePhotosModal expenseId={photosFor} onClose={() => setPhotosFor(null)} />
@@ -240,9 +295,18 @@ export function OpsAccountantTab() {
             <header className="ops-modal__head">
               <h2>{sheet.data.settlement.code}</h2>
               <div className="ops-modal__head-actions">
-                <a className="btn-secondary" href={`/api/ops/admin/settlements/${sheetFor}/export`} download>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => void opsClient
+                    .downloadSettlementExport(sheetFor, sheet.data.settlement.code, true)
+                    .catch((error: unknown) => toast({
+                      kind: 'error',
+                      message: error instanceof Error ? error.message : 'Tải Excel thất bại.',
+                    }))}
+                >
                   Excel
-                </a>
+                </button>
                 <button type="button" aria-label="Đóng" onClick={() => setSheetFor(null)}>✕</button>
               </div>
             </header>

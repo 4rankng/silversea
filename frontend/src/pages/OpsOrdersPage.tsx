@@ -47,7 +47,7 @@ export default function OpsOrdersPage() {
         items: [updated, ...current.items.filter((item) => item.id !== order.id)],
       });
     }
-    void togglePin.mutateAsync(order.id).catch(() => undefined);
+    void togglePin.mutateAsync({ shipmentId: order.id, pinned: !order.pinned }).catch(() => undefined);
   }
 
   return (

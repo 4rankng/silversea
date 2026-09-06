@@ -65,13 +65,18 @@ async function mkUser(username: string, role: Role) {
 
 async function api(
   path: string,
-  init: { method?: string; token?: string; body?: unknown } = {},
+  init: { method?: string; token?: string; body?: unknown; idempotencyKey?: string } = {},
 ) {
   const headers: Record<string, string> = {};
   if (init.body !== undefined) headers['Content-Type'] = 'application/json';
   if (init.token) headers.Authorization = `Bearer ${init.token}`;
+  const method = init.method ?? 'GET';
+  // Material ops endpoints run runIdempotent and require the key; the test
+  // client sends a fresh one per call (replay behavior is not under test
+  // here — the idempotency service has its own suite).
+  if (method !== 'GET') headers['Idempotency-Key'] = init.idempotencyKey ?? `test-${Math.random()}`;
   const response = await fetch(`${baseUrl}/api/ops${path}`, {
-    method: init.method ?? 'GET',
+    method,
     headers,
     body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
   });
@@ -205,10 +210,14 @@ describe('ops orders + pins (PRD §3)', () => {
     assert.ok(codes.includes(`OPS-${suffix}-1`));
   });
 
-  test('pin toggles per user and floats the row to the top', async () => {
-    const on = await api(`/orders/shipment-pins/${createdShipmentIds[0]}/toggle`, { method: 'POST', token: opsToken });
+  test('pins are per-user PUT-set state and float the row to the top', async () => {
+    const on = await api(`/orders/shipment-pins/${createdShipmentIds[0]}`, { method: 'PUT', token: opsToken, body: { pinned: true } });
     assert.equal(on.status, 200);
     assert.equal(on.body.pinned, true);
+
+    // Replay converges (PUT semantics), it does not flip back.
+    const replay = await api(`/orders/shipment-pins/${createdShipmentIds[0]}`, { method: 'PUT', token: opsToken, body: { pinned: true } });
+    assert.equal(replay.body.pinned, true);
 
     const list = (await api(`/orders?date=${isoDate}`, { token: opsToken })).body.items;
     assert.equal(list[0].shipmentCode, `OPS-${suffix}-1`);
@@ -219,7 +228,7 @@ describe('ops orders + pins (PRD §3)', () => {
     const otherRow = other.find((item: any) => item.shipmentCode === `OPS-${suffix}-1`);
     assert.equal(otherRow.pinned, false);
 
-    const off = await api(`/orders/shipment-pins/${createdShipmentIds[0]}/toggle`, { method: 'POST', token: opsToken });
+    const off = await api(`/orders/shipment-pins/${createdShipmentIds[0]}`, { method: 'PUT', token: opsToken, body: { pinned: false } });
     assert.equal(off.body.pinned, false);
   });
 });
@@ -299,9 +308,21 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
     const noPhoto = await api(`/admin/expenses/${created.body.id}/approve`, { method: 'POST', token: accountantToken });
     assert.equal(noPhoto.status, 400);
 
+    // Attach validates the key shape and owner segment.
+    const foreignKey = await api(`/expenses/${created.body.id}/photos`, {
+      method: 'POST', token: opsToken,
+      body: { storageKey: `ops-expense-photos/${opsUser.id + 1}/${'a'.repeat(32)}.jpg` },
+    });
+    assert.equal(foreignKey.status, 400);
+    const garbageKey = await api(`/expenses/${created.body.id}/photos`, {
+      method: 'POST', token: opsToken,
+      body: { storageKey: 'expense-photos/99/whatever.jpg' },
+    });
+    assert.equal(garbageKey.status, 400);
+
     const attached = await api(`/expenses/${created.body.id}/photos`, {
       method: 'POST', token: opsToken,
-      body: { storageKey: `ops-expense-photos/${opsUser.id}/test-${suffix}.jpg` },
+      body: { storageKey: `ops-expense-photos/${opsUser.id}/${'a'.repeat(32)}.jpg` },
     });
     assert.equal(attached.status, 201);
 
@@ -309,9 +330,21 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
     const photosForAccountant = await api(`/expenses/${created.body.id}/photos`, { token: accountantToken });
     assert.equal(photosForAccountant.status, 200);
     assert.equal(photosForAccountant.body.items.length, 1);
-    assert.ok(photosForAccountant.body.items[0].url.startsWith('/api/photos/'));
+    // storage_key is encodeURIComponent'd into the URL (slashes → %2F); the
+    // serving router decodes it back.
+    assert.ok(decodeURIComponent(photosForAccountant.body.items[0].url)
+      .startsWith('/api/photos/ops-expense-photos/'));
     const photosForStranger = await api(`/expenses/${created.body.id}/photos`, { token: ops2Token });
     assert.equal(photosForStranger.status, 404);
+
+    // The served URL passes the photos allowlist (404 = recognized shape but
+    // no object on disk in tests; 400 would mean the prefix is still missing
+    // from isProtectedPhotoStorageKey).
+    const served = await fetch(`http://localhost:3001${photosForAccountant.body.items[0].url}`, {
+      headers: { Authorization: `Bearer ${accountantToken}` },
+    });
+    assert.notEqual(served.status, 400);
+    assert.equal(served.status, 404);
 
     const approved = await api(`/admin/expenses/${created.body.id}/approve`, { method: 'POST', token: accountantToken });
     assert.equal(approved.status, 200);
@@ -324,7 +357,7 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
     assert.equal(edit.status, 400);
   });
 
-  test('reject requires reason; author can fix + resend', async () => {
+  test('reject requires reason; author must re-attach a photo before resend', async () => {
     const created = await api('/expenses', {
       method: 'POST', token: opsToken,
       body: { shipmentId, expenseTypeCode: noInvoiceCode, amount: '80000', paidAt: isoDate, note: 'Cân xe' },
@@ -347,6 +380,14 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
     assert.equal(edited.status, 200);
     assert.equal(edited.body.amount, '90000');
 
+    // Resend without any receipt photo is refused (PRD §5.3).
+    const noPhotoResend = await api(`/expenses/${created.body.id}/resend`, { method: 'POST', token: opsToken });
+    assert.equal(noPhotoResend.status, 400);
+
+    await api(`/expenses/${created.body.id}/photos`, {
+      method: 'POST', token: opsToken,
+      body: { storageKey: `ops-expense-photos/${opsUser.id}/${'b'.repeat(32)}.png` },
+    });
     const resent = await api(`/expenses/${created.body.id}/resend`, { method: 'POST', token: opsToken });
     assert.equal(resent.status, 200);
     assert.equal(resent.body.approvalStatus, 'PENDING');
@@ -373,9 +414,9 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
   test('expense history flags missing photos (nợ chứng từ)', async () => {
     const res = await api('/wallet/expenses', { token: opsToken });
     const withPhoto = res.body.items.find((item: any) => item.amount === '350000');
-    const withoutPhoto = res.body.items.find((item: any) => item.amount === '90000');
     assert.equal(withPhoto.hasPhoto, true);
-    assert.equal(withoutPhoto.hasPhoto, false);
+    const resentWithPhoto = res.body.items.find((item: any) => item.amount === '90000');
+    assert.equal(resentWithPhoto.hasPhoto, true, 'resend flow re-attached a receipt');
   });
 
   test('advance request creation lands PENDING in the shared table', async () => {
@@ -394,6 +435,11 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
       body: { shipmentId, expenseTypeCode: noInvoiceCode, amount: '150000', paidAt: isoDate },
     });
     createdExpenseIds.push(created.body.id);
+
+    // Freshly created without any receipt → "Nợ chứng từ" until a photo lands.
+    const history = await api('/wallet/expenses', { token: opsToken });
+    const debtEntry = history.body.items.find((item: any) => item.amount === '150000');
+    assert.equal(debtEntry.hasPhoto, false);
 
     const settlement = await api('/settlements', { method: 'POST', token: opsToken, body: { note: 'cuối ngày' } });
     assert.equal(settlement.status, 201);
@@ -432,6 +478,33 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
     assert.match(exported.headers.get('content-type') ?? '', /spreadsheetml/);
     const bytes = await exported.arrayBuffer();
     assert.ok(bytes.byteLength > 1000, 'xlsx workbook is non-trivial');
+
+    // Batch reject: the frozen 10k entry returns to the open pool.
+    const second = await api('/settlements', { method: 'POST', token: opsToken });
+    assert.equal(second.status, 201);
+    createdSettlementIds.push(second.body.id);
+    assert.equal(second.body.totalAmount, '10000');
+
+    const rejectNoReason = await api(`/admin/settlements/${second.body.id}/reject`, {
+      method: 'POST', token: accountantToken, body: {},
+    });
+    assert.equal(rejectNoReason.status, 400);
+
+    const rejectedBatch = await api(`/admin/settlements/${second.body.id}/reject`, {
+      method: 'POST', token: accountantToken, body: { reason: 'Thiếu chứng từ gốc' },
+    });
+    assert.equal(rejectedBatch.status, 200);
+    assert.equal(rejectedBatch.body.status, 'REJECTED');
+
+    const reopened = await api('/wallet/expenses', { token: opsToken });
+    const reopenedEntry = reopened.body.items.find((item: any) => item.amount === '10000');
+    assert.equal(reopenedEntry.opsSettlementId, null);
+
+    // A new batch can pick the reopened entry up again.
+    const third = await api('/settlements', { method: 'POST', token: opsToken });
+    assert.equal(third.status, 201);
+    createdSettlementIds.push(third.body.id);
+    assert.equal(third.body.totalAmount, '10000');
   });
 });
 

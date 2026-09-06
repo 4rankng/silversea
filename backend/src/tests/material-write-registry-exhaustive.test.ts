@@ -39,6 +39,11 @@ const REVIEWED_NON_MATERIAL_MUTATIONS = new Map<string, string>([
   ['driver.ts|PUT|/trips/:tripId/cost-submission-note', 'Driver cost-submission Ghi chú autosave (27.8 §2): replaceable per-trip note column written by full overwrite, replay-safe without a durable boundary; no financial figure mutation.'],
   ['shipments/core.routes.ts|POST|/operational-sites', 'Reference-data CRUD (factory/warehouse master). Upsert keyed by the (customerId, code) partial unique index — replaying the same payload updates the existing row instead of duplicating, so no durable command boundary is needed. No financial or shipment-lifecycle mutation.'],
   ['shipments/core.routes.ts|PATCH|/operational-sites/:id', 'Reference-data CRUD (factory/warehouse master). Version-checked partial update — a replay hits the stale-version 409 guard instead of applying twice, and identity fields (customer, code, site type) are immutable. No financial or shipment-lifecycle mutation.'],
+  ['ops.ts|PUT|/orders/shipment-pins/:shipmentId', 'Per-user bookmark upsert keyed by (user_id, shipment_id) with PUT set-semantics; a replay converges on the requested pinned state. No business entity mutation.'],
+  ['ops.ts|POST|/expense-photos/upload', 'Content-hash storage-object upload; replaying the same photo converges on one object and creates no DB row until an explicit attach.'],
+  ['ops.ts|POST|/expenses/:id/photos', 'Attach keyed by the unique (ops_expense_id, storage_key) pair with onConflictDoNothing — a replay converges instead of duplicating evidence.'],
+  ['ops.ts|DELETE|/expense-photos/:id', 'Idempotent single-row photo deletion; the storage object is removed only when no other row references it.'],
+  ['ops.ts|PUT|/trucks/:truckId/ops-assignment', 'Replaceable ops-oversight config: deactivate-then-insert converges to one active row per truck; a replay lands the same end state.'],
 ]);
 
 const REVIEWED_SERVICE_DURABLE_BOUNDARIES = new Map<string, {

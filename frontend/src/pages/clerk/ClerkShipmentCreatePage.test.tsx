@@ -478,14 +478,17 @@ describe('ClerkShipmentCreatePage', () => {
     await choose('Khách hàng', '7');
     await choose('Tuyến đường', '12');
     await choose('Nhà máy', '41');
-    expect(screen.getByText('Cái Mép — Mỹ Phước', { selector: '.csc-container-cell__display' })).toBeTruthy();
+    // MasterDataNhaMay §3.2: the factory owns the route — choosing nhà máy 41
+    // (routeId 11) overrides the manual route-12 pick and locks the cell to
+    // the factory's configured route.
+    expect(screen.getByText('Cát Lái — Sóng Thần', { selector: '.csc-container-cell__display' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
     await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledWith(
       expect.objectContaining({ routeId: null, operationalSiteId: null }),
       expect.any(String),
     ));
     await waitFor(() => expect(mocks.saveContainers).toHaveBeenCalledWith(90, expect.objectContaining({
-      containers: [expect.objectContaining({ routeId: 12, operationalSiteId: 41 })],
+      containers: [expect.objectContaining({ routeId: 11, operationalSiteId: 41 })],
     })));
   });
 

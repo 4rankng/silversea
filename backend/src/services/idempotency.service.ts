@@ -109,6 +109,18 @@ export const IDEMPOTENCY_ENDPOINTS = {
   COMMISSIONS_CREATE: 'commissions.create',
   PENALTIES_CREATE: 'penalties.create',
   PENALTIES_CANCEL: 'penalties.cancel',
+  // Ops field-operations portal (OpsVanHanh): financial cash commands with
+  // durable response replays.
+  OPS_EXPENSE_CREATE: 'ops.expenses.create',
+  OPS_EXPENSE_UPDATE: 'ops.expenses.update',
+  OPS_EXPENSE_DELETE: 'ops.expenses.delete',
+  OPS_EXPENSE_RESEND: 'ops.expenses.resend',
+  OPS_EXPENSE_APPROVE: 'ops.expenses.approve',
+  OPS_EXPENSE_REJECT: 'ops.expenses.reject',
+  OPS_SETTLEMENT_CREATE: 'ops.settlements.create',
+  OPS_SETTLEMENT_APPROVE: 'ops.settlements.approve',
+  OPS_SETTLEMENT_REJECT: 'ops.settlements.reject',
+  OPS_ADVANCE_REQUEST_CREATE: 'ops.advance-requests.create',
   DRIVER_PROGRESS: 'driver.progress',
   DRIVER_FULFILLMENT_COMPLETE: 'driver.fulfillment.complete',
   TRIP_POD_CREATE: 'trips.pod.create',

@@ -16,6 +16,10 @@ import { usePageAnimations } from '../../../hooks/animations';
 import { invalidateAllCatalogs } from '../../../api/keys';
 import { reassignTruckDriver } from '../../../api/dispatchPlanningClient';
 import { AssignDriverDialog } from './AssignDriverDialog';
+import { AssignOpsDialog } from '../../ops/AssignOpsDialog';
+import { opsClient } from '../../../api/opsClient';
+import { useAuth } from '../../../hooks/useAuth';
+import { useQuery } from '@tanstack/react-query';
 import { nextTableSort, sortClientSide, type TableSortState } from '../../../lib/table-sort';
 import { TRUCK_STATUS } from '../../fleet';
 import { TruckFormModal } from '../../fleet/TruckFormModal';
@@ -28,6 +32,19 @@ import type { Truck as TruckType } from '@tingting/shared';
 
 export function FleetVehiclesView() {
   const { rootRef } = usePageAnimations({ ready: true });
+  const auth = useAuth();
+  const isAdmin = auth?.user?.role === 'ADMIN';
+  // OpsVanHanh §2: only ADMIN configures "Ops phụ trách".
+  const { data: opsAssignments } = useQuery({
+    queryKey: ['ops', 'truck-ops-assignments'],
+    queryFn: () => opsClient.getTruckOpsAssignments(),
+    enabled: isAdmin,
+    staleTime: 30_000,
+  });
+  const opsByTruck = new Map(
+    (opsAssignments?.items ?? []).map((item) => [item.truckId, item.opsUserName]),
+  );
+  const [assignOpsTruck, setAssignOpsTruck] = useState<TruckType | null>(null);
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<TableSortState | null>(null);
   const { data: fleetData, isLoading: loading, error } = useTrucksAndDrivers();
@@ -195,6 +212,16 @@ export function FleetVehiclesView() {
                         >
                           Phân công lái xe
                         </button>
+                        {isAdmin && (
+                          <button
+                            type="button"
+                            className="btn btn--secondary btn--sm"
+                            onClick={() => setAssignOpsTruck(t)}
+                            title={opsByTruck.get(t.id) ? `Ops: ${opsByTruck.get(t.id)}` : 'Chưa gán Ops'}
+                          >
+                            Ops phụ trách{opsByTruck.get(t.id) ? ' •' : ''}
+                          </button>
+                        )}
                         <button
                           type="button"
                           className="btn btn--danger-outline btn--sm"
@@ -232,6 +259,13 @@ export function FleetVehiclesView() {
         onsave={saveAssign}
         oncancel={() => setAssignOpen(false)}
       />
+      {assignOpsTruck && (
+        <AssignOpsDialog
+          truck={assignOpsTruck}
+          currentOpsName={opsByTruck.get(assignOpsTruck.id) ?? null}
+          onClose={() => setAssignOpsTruck(null)}
+        />
+      )}
     </div>
   );
 }

@@ -5,6 +5,7 @@ import {
   useCreateOpsSettlement,
   useOpsSettlement,
 } from '../../hooks/useOpsQueries';
+import { opsClient } from '../../api/opsClient';
 import { useToast } from '../../components/shared/Toast';
 import { formatVnd } from './opsStatus';
 
@@ -87,13 +88,18 @@ export function OpsSettlementsPanel() {
             <header className="ops-modal__head">
               <h2>{detail.data.settlement.code}</h2>
               <div className="ops-modal__head-actions">
-                <a
+                <button
+                  type="button"
                   className="btn-secondary"
-                  href={`/api/ops/settlements/${detailId}/export`}
-                  download
+                  onClick={() => void opsClient
+                    .downloadSettlementExport(detailId, detail.data.settlement.code)
+                    .catch((error: unknown) => toast({
+                      kind: 'error',
+                      message: error instanceof Error ? error.message : 'Tải Excel thất bại.',
+                    }))}
                 >
                   <Download size={14} /> Excel
-                </a>
+                </button>
                 <button type="button" className="btn-secondary" onClick={() => window.print()}>
                   <Printer size={14} /> In
                 </button>

@@ -5,12 +5,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '../components/shared/Toast';
 import OpsOrdersPage from './OpsOrdersPage';
 
-const { apiGet, apiPost } = vi.hoisted(() => ({ apiGet: vi.fn(), apiPost: vi.fn() }));
+const { apiGet, apiPost, apiPut } = vi.hoisted(() => ({ apiGet: vi.fn(), apiPost: vi.fn(), apiPut: vi.fn() }));
 vi.mock('../lib/api', async (importOriginal) => ({
   ...await importOriginal<typeof import('../lib/api')>(),
   api: {
     get: apiGet,
     post: apiPost,
+    put: apiPut,
     patch: vi.fn(),
     delete: vi.fn(),
     upload: vi.fn(),
@@ -78,10 +79,10 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     expect(screen.getByText('Đang vận chuyển')).toBeInTheDocument();
   });
 
-  it('optimistically pins a row to the top and posts the toggle', async () => {
+  it('optimistically pins a row to the top and puts the new state', async () => {
     // Keep the mutation pending so the optimistic cache patch is not yet
     // reconciled by the refetch (the mock server does not persist pins).
-    apiPost.mockReturnValue(new Promise(() => {}));
+    apiPut.mockReturnValue(new Promise(() => {}));
     renderPage();
     await screen.findByText('SS-A');
 
@@ -95,7 +96,7 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
       expect(firstCode?.textContent).toBe('SS-B');
     });
     await waitFor(() => {
-      expect(apiPost).toHaveBeenCalledWith('/ops/orders/shipment-pins/22/toggle', {});
+      expect(apiPut).toHaveBeenCalledWith('/ops/orders/shipment-pins/22', { pinned: true });
     });
   });
 

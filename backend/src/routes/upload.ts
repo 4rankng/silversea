@@ -672,6 +672,7 @@ export function isProtectedPhotoStorageKey(key: string): boolean {
     || /^expense-photos\/\d+\//.test(key)
     || /^fuel-evidence\/\d+\/\d+\//.test(key)
     || /^debit-note-templates\/\d+\//.test(key)
+    || /^ops-expense-photos\/\d+\//.test(key)
     || isCompanyLogoStorageKey(key);
 }
 
@@ -693,6 +694,7 @@ photosRouter.get('/{*path}', asyncHandler(async (req: Request, res: Response) =>
   const expenseMatch = key.match(/^expense-photos\/(\d+)\//);
   const fuelEvidenceMatch = key.match(/^fuel-evidence\/(\d+)\/(\d+)\//);
   const templateLogoMatch = key.match(/^debit-note-templates\/(\d+)\//);
+  const opsExpenseMatch = key.match(/^ops-expense-photos\/(\d+)\//);
   if (!isProtectedPhotoStorageKey(key)) {
     return res.status(400).json({ error: 'Đường dẫn ảnh không hợp lệ' });
   }
@@ -740,6 +742,16 @@ photosRouter.get('/{*path}', asyncHandler(async (req: Request, res: Response) =>
     }
     // allow → fall through to serve (MANAGER/ACCOUNTANT/ADMIN, or an ACTIVE
     // forwarder reading an own-owned trip-expense receipt).
+  } else if (opsExpenseMatch) {
+    // Ops cash-expense receipts: readable by the authoring Ops (the uid
+    // segment) and by the approver roles that review the evidence
+    // (OpsVanHanh §5.4). Everyone else — including other Ops — is denied.
+    const user = getUser(req);
+    const ownerUid = parseInt(opsExpenseMatch[1], 10);
+    const isApprover = [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT].includes(user.role as Role);
+    if (user.userId !== ownerUid && !isApprover) {
+      return res.status(403).json({ error: 'Không có quyền truy cập ảnh này' });
+    }
   } else if (templateLogoMatch) {
     // Debit-note template logos are config artifacts (company letterheads), not
     // financial evidence. Readable by office staff only (ADMIN/MANAGER/ACCOUNTANT);

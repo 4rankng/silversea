@@ -88,16 +88,19 @@ export async function listOpsOrders(
       rows.map((row) => row.id),
     ));
 
-  const byShipment = new Map<number, { ids: number[]; numbers: string[] }>();
+  const byShipment = new Map<number, Array<{ id: number; number: string | null }>>();
   for (const container of containers) {
-    const bucket = byShipment.get(container.shipmentId) ?? { ids: [], numbers: [] };
-    bucket.ids.push(container.id);
-    if (container.containerNumber) bucket.numbers.push(container.containerNumber);
+    const bucket = byShipment.get(container.shipmentId) ?? [];
+    bucket.push({ id: container.id, number: container.containerNumber });
     byShipment.set(container.shipmentId, bucket);
   }
 
   return rows.map((row) => {
-    const bucket = byShipment.get(row.id) ?? { ids: [], numbers: [] };
+    // id↔number pairs stay aligned; only numbered vỏ enter the two projected
+    // arrays so the expense form's value/label zip can never mispair.
+    const numbered = (byShipment.get(row.id) ?? []).filter(
+      (pair): pair is { id: number; number: string } => pair.number != null,
+    );
     return {
       id: row.id,
       shipmentCode: row.shipmentCode,
@@ -108,22 +111,22 @@ export async function listOpsOrders(
       routeName: row.routeName,
       pinned: row.pinnedAt != null,
       pinnedAt: row.pinnedAt,
-      containerCount: bucket.numbers.length,
-      containerNumbers: bucket.numbers,
-      containerIds: bucket.ids,
+      containerCount: numbered.length,
+      containerNumbers: numbered.map((pair) => pair.number),
+      containerIds: numbered.map((pair) => pair.id),
     };
   });
 }
 
 /**
- * Toggle the caller's personal pin on a shipment. Unpin removes the row so
- * "pinned" never goes stale. Idempotent per (user, shipment) by the unique
- * index; the toggle returns the resulting state for the optimistic UI to
- * reconcile against.
+ * Set (or clear) the caller's personal pin on a shipment. PUT semantics — a
+ * replayed request converges on the requested state instead of flipping it;
+ * re-pinning refreshes pinned_at so the newest pin stays on top.
  */
-export async function toggleShipmentPin(
+export async function setShipmentPin(
   userId: number,
   shipmentId: number,
+  pinned: boolean,
 ): Promise<{ pinned: boolean }> {
   const [shipment] = await db
     .select({ id: s.shipments.id })
@@ -132,19 +135,19 @@ export async function toggleShipmentPin(
     .limit(1);
   if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng');
 
-  const [existing] = await db
-    .select({ id: s.userShipmentPins.id })
-    .from(s.userShipmentPins)
-    .where(and(
+  if (!pinned) {
+    await db.delete(s.userShipmentPins).where(and(
       eq(s.userShipmentPins.userId, userId),
       eq(s.userShipmentPins.shipmentId, shipmentId),
-    ))
-    .limit(1);
-
-  if (existing) {
-    await db.delete(s.userShipmentPins).where(eq(s.userShipmentPins.id, existing.id));
+    ));
     return { pinned: false };
   }
-  await db.insert(s.userShipmentPins).values({ userId, shipmentId });
+  await db
+    .insert(s.userShipmentPins)
+    .values({ userId, shipmentId, pinnedAt: new Date() })
+    .onConflictDoUpdate({
+      target: [s.userShipmentPins.userId, s.userShipmentPins.shipmentId],
+      set: { pinnedAt: new Date() },
+    });
   return { pinned: true };
 }
