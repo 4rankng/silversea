@@ -407,7 +407,6 @@ describe('listShipmentsPaginated', () => {
         ShipmentStatus.READY_FOR_DISPATCH,
         ShipmentStatus.DISPATCHED,
         ShipmentStatus.IN_TRANSIT,
-        ShipmentStatus.PENDING_EXPENSE_APPROVAL,
         ShipmentStatus.COMPLETED,
       ],
       page: 1,
@@ -1268,10 +1267,10 @@ describe('transitionShipmentStatus', () => {
     const shipment = await createShipment({ customerId: customer.id });
     createdShipmentIds.push(shipment.id);
 
-    // PENDING_DATE → PENDING_EXPENSE_APPROVAL is not a legal edge (the retired
-    // stage is only in LEGAL_TRANSITIONS as an exit target for legacy rows).
+    // PENDING_DATE → COMPLETED is not a legal edge (must pass through
+    // READY_FOR_DISPATCH → DISPATCHED → IN_TRANSIT first).
     await assert.rejects(
-      () => transitionShipmentStatus(shipment.id, 'PENDING_EXPENSE_APPROVAL'),
+      () => transitionShipmentStatus(shipment.id, 'COMPLETED'),
       (err: unknown) => err instanceof Error && 'statusCode' in err && err.statusCode === 409,
     );
 

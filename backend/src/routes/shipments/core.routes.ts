@@ -87,9 +87,9 @@ const completeShipmentDirectSchema = z.object({
   confirmZeroRevenue: z.boolean().optional(),
   // Allow the routine close to override the trip photo-evidence gate for trips
   // that legitimately have no CONTAINER/SEAL photo yet (mirrors the per-trip
-  // `confirmNoPhoto` override in transitionTripStatus). Without this, a
-  // PENDING_EXPENSE_APPROVAL shipment whose trips have no photos could never be
-  // closed directly, even though PRD Bước 5 only requires e-POD + POD paper +
+  // `confirmNoPhoto` override in transitionTripStatus). Without this, an
+  // IN_TRANSIT shipment whose trips have no photos could never be closed
+  // directly, even though PRD Bước 5 only requires e-POD + POD paper +
   // expense scope + VAT.
   confirmNoPhoto: z.boolean().optional(),
   trips: z.array(z.object({

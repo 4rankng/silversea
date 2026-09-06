@@ -775,15 +775,15 @@ async function buildShipmentPageConditions(
     ]));
   } else if (query.bucket === ShipmentCusBucket.PENDING_LOCK) {
     // Driver full-close lands on COMPLETED (LOCKED bucket); the unlocked
-    // "Chờ khóa" tab is only for the partial-close PENDING_EXPENSE_APPROVAL
-    // state and the disabled accountant flow's own advances.
+    // "Chờ khóa" tab was only for the partial-close PENDING_EXPENSE_APPROVAL
+    // state (retired 2026-09-05) and the disabled accountant flow's advances.
+    // No live status feeds it now; the bucket stays in the vocabulary until
+    // the close-readiness redesign repurposes or removes the tab.
     conditions.push(sql`not ${activeLockExists}`);
-    conditions.push(inArray(s.shipments.status, [
-      ShipmentStatus.PENDING_EXPENSE_APPROVAL,
-    ]));
+    conditions.push(sql`false`);
   } else if (query.bucket === ShipmentCusBucket.NEW) {
     conditions.push(sql`not ${activeLockExists}`);
-    conditions.push(sql`${s.shipments.status} not in (${ShipmentStatus.DISPATCHED}, ${ShipmentStatus.IN_TRANSIT}, ${ShipmentStatus.PENDING_EXPENSE_APPROVAL}, ${ShipmentStatus.COMPLETED})`);
+    conditions.push(sql`${s.shipments.status} not in (${ShipmentStatus.DISPATCHED}, ${ShipmentStatus.IN_TRANSIT}, ${ShipmentStatus.COMPLETED})`);
   }
   // Detail-only completeness triage: real FCL container rows whose applicable
   // operational fields are not yet filled. LCL lots are explicitly excluded —

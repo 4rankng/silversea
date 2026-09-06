@@ -24,7 +24,6 @@ export const BILLABLE_TRIP_STATUSES = [TripStatus.COMPLETED] as const;
  * `shipment.service.ts`'s `LEGAL_TRANSITIONS`:
  *
  *   PENDING_DATE ──► READY_FOR_DISPATCH ──► DISPATCHED ──► IN_TRANSIT
- *                                                       ──► PENDING_EXPENSE_APPROVAL
  *                                                       ──► COMPLETED
  *
  * The PRD requires one canonical shipment status field with five operational
@@ -38,7 +37,6 @@ export enum ShipmentStatus {
   READY_FOR_DISPATCH = 'READY_FOR_DISPATCH',
   DISPATCHED = 'DISPATCHED',
   IN_TRANSIT = 'IN_TRANSIT',
-  PENDING_EXPENSE_APPROVAL = 'PENDING_EXPENSE_APPROVAL',
   COMPLETED = 'COMPLETED',
   CANCELED = 'CANCELED',
 }
@@ -240,7 +238,6 @@ export const SHIPMENT_STATUS_LABELS: Record<ShipmentStatus, string> = {
   [ShipmentStatus.READY_FOR_DISPATCH]: 'Sẵn sàng điều xe',
   [ShipmentStatus.DISPATCHED]: 'Đã phân xe',
   [ShipmentStatus.IN_TRANSIT]: 'Đang chạy',
-  [ShipmentStatus.PENDING_EXPENSE_APPROVAL]: 'Chờ duyệt phí',
   [ShipmentStatus.COMPLETED]: 'Hoàn thành',
   [ShipmentStatus.CANCELED]: 'Đã hủy',
 };
@@ -271,10 +268,10 @@ export function canonicalShipmentStatus(status: ShipmentStatus | string | null |
     case 'IN_PROGRESS':
       return ShipmentStatus.DISPATCHED;
     case ShipmentStatus.IN_TRANSIT:
-      return ShipmentStatus.IN_TRANSIT;
-    case ShipmentStatus.PENDING_EXPENSE_APPROVAL:
+    // Legacy pre-2026 rows carry 'DELIVERED'; no live rows exist (verified
+    // 2026-09-06) — read them as still-in-transit.
     case 'DELIVERED':
-      return ShipmentStatus.PENDING_EXPENSE_APPROVAL;
+      return ShipmentStatus.IN_TRANSIT;
     case ShipmentStatus.COMPLETED:
     case 'CLOSED':
       return ShipmentStatus.COMPLETED;

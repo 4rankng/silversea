@@ -152,7 +152,6 @@ function workspaceBucketRankSql(): SQL {
       where sal.shipment_id = ${s.shipments.id} and sal.released_at is null
     ) or ${s.shipments.status} = 'COMPLETED' then 3
     when ${s.shipments.status} in ('DISPATCHED', 'IN_TRANSIT') then 2
-    when ${s.shipments.status} = 'PENDING_EXPENSE_APPROVAL' then 1
     else 0
   end`;
 }

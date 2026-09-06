@@ -129,7 +129,7 @@ export const schedulerRunStatusEnum = applicationEnum(['RUNNING', 'SUCCESS', 'FA
 // service, router, RBAC, and frontend are subsequent Wave 0 checkboxes.
 export const shipmentStatusEnum = applicationEnum([
   'NEW', 'PENDING_DATE', 'READY_FOR_DISPATCH', 'DISPATCHED', 'IN_TRANSIT',
-  'PENDING_EXPENSE_APPROVAL', 'COMPLETED', 'CANCELED',
+  'COMPLETED', 'CANCELED',
 ]);
 
 export const shipmentDocumentTypeEnum = applicationEnum([

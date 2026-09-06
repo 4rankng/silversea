@@ -580,7 +580,7 @@ async function createReadyDirectCloseFixture() {
     cargoMode: 'LCL',
   });
   const [shipment] = await db.update(s.shipments).set({
-    status: ShipmentStatus.PENDING_EXPENSE_APPROVAL,
+    status: ShipmentStatus.IN_TRANSIT,
     updatedAt: new Date(),
   }).where(eq(s.shipments.id, createdShipment.id)).returning();
   const [fulfillment] = await db.insert(s.shipmentFulfillments).values({

@@ -219,8 +219,8 @@ export async function completeShipmentDirect(args: {
       if (shipment.version !== args.expectedVersion) {
         throw new ApiError(409, 'Lô hàng đã bị người khác cập nhật. Vui lòng tải lại.');
       }
-      if (canonicalShipmentStatus(shipment.status) !== 'PENDING_EXPENSE_APPROVAL') {
-        throw new ApiError(409, 'Chỉ có thể chốt trực tiếp lô hàng đang chờ duyệt phí.');
+      if (canonicalShipmentStatus(shipment.status) !== 'IN_TRANSIT') {
+        throw new ApiError(409, 'Chỉ có thể chốt trực tiếp lô hàng đang chạy.');
       }
 
       const { requiredFulfillments } = await loadShipmentCloseAuthorityContext(tx, shipment.id);

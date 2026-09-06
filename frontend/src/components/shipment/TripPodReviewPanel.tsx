@@ -410,7 +410,7 @@ export function TripPodReviewPanel({
         </div>
       )}
 
-      {canComplete && shipmentStatus === 'PENDING_EXPENSE_APPROVAL' && (
+      {canComplete && shipmentStatus === 'IN_TRANSIT' && (
         <div className="shipment-pod-review__completion">
           <div className="shipment-pod-review__completion-copy">
             <strong>Kế toán hoàn thành lô hàng và chuyển số liệu sang công nợ</strong>

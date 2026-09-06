@@ -83,6 +83,5 @@ export type ShipmentStatus =
   | 'READY_FOR_DISPATCH'
   | 'DISPATCHED'
   | 'IN_TRANSIT'
-  | 'PENDING_EXPENSE_APPROVAL'
   | 'COMPLETED'
   | 'CANCELED';

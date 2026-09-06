@@ -104,8 +104,7 @@ const STATUSES = [
   'PENDING_DATE', 'PENDING_DATE',                   // 2/16 PENDING_DATE
   'READY_FOR_DISPATCH', 'READY_FOR_DISPATCH', 'READY_FOR_DISPATCH', // 3/16
   'DISPATCHED', 'DISPATCHED',                       // 2/16
-  'IN_TRANSIT', 'IN_TRANSIT', 'IN_TRANSIT',         // 3/16
-  'PENDING_EXPENSE_APPROVAL',                       // 1/16
+  'IN_TRANSIT', 'IN_TRANSIT', 'IN_TRANSIT', 'IN_TRANSIT', // 4/16
   'COMPLETED', 'COMPLETED',                         // 2/16
   'CANCELED',                                       // 1/16
 ];
@@ -507,7 +506,7 @@ export async function seedBulkData(): Promise<{ created: boolean; stats: Record<
       routeId: routeId ?? null,
       tradeDirection: isImport ? 'IMPORT' : 'EXPORT',
       cargoMode,
-      status: status as 'NEW' | 'PENDING_DATE' | 'READY_FOR_DISPATCH' | 'DISPATCHED' | 'IN_TRANSIT' | 'PENDING_EXPENSE_APPROVAL' | 'COMPLETED' | 'CANCELED',
+      status: status as 'NEW' | 'PENDING_DATE' | 'READY_FOR_DISPATCH' | 'DISPATCHED' | 'IN_TRANSIT' | 'COMPLETED' | 'CANCELED',
       blNumber: finalBlNumber,
       bookingRef: finalBookingRef,
       expectedDeliveryDate: expectedDeliveryDate.toISOString().slice(0, 10),
@@ -535,8 +534,7 @@ export async function seedBulkData(): Promise<{ created: boolean; stats: Record<
       READY_FOR_DISPATCH: ['NEW', 'PENDING_DATE', 'READY_FOR_DISPATCH'],
       DISPATCHED: ['NEW', 'PENDING_DATE', 'READY_FOR_DISPATCH', 'DISPATCHED'],
       IN_TRANSIT: ['NEW', 'PENDING_DATE', 'READY_FOR_DISPATCH', 'DISPATCHED', 'IN_TRANSIT'],
-      PENDING_EXPENSE_APPROVAL: ['NEW', 'PENDING_DATE', 'READY_FOR_DISPATCH', 'DISPATCHED', 'IN_TRANSIT', 'PENDING_EXPENSE_APPROVAL'],
-      COMPLETED: ['NEW', 'PENDING_DATE', 'READY_FOR_DISPATCH', 'DISPATCHED', 'IN_TRANSIT', 'PENDING_EXPENSE_APPROVAL', 'COMPLETED'],
+      COMPLETED: ['NEW', 'PENDING_DATE', 'READY_FOR_DISPATCH', 'DISPATCHED', 'IN_TRANSIT', 'COMPLETED'],
       CANCELED: ['NEW', 'CANCELED'],
     };
     const ladderSteps = ladder[status] ?? ['NEW'];
@@ -545,8 +543,8 @@ export async function seedBulkData(): Promise<{ created: boolean; stats: Record<
       const fromStatus: string | null = stepIdx === 0 ? null : (ladderSteps[stepIdx - 1] ?? null);
       statusHistoryBuffer.push({
         shipmentId: shipment!.id,
-        fromStatus: fromStatus as 'NEW' | 'PENDING_DATE' | 'READY_FOR_DISPATCH' | 'DISPATCHED' | 'IN_TRANSIT' | 'PENDING_EXPENSE_APPROVAL' | 'COMPLETED' | 'CANCELED' | null,
-        toStatus: toStatus as 'NEW' | 'PENDING_DATE' | 'READY_FOR_DISPATCH' | 'DISPATCHED' | 'IN_TRANSIT' | 'PENDING_EXPENSE_APPROVAL' | 'COMPLETED' | 'CANCELED',
+        fromStatus: fromStatus as 'NEW' | 'PENDING_DATE' | 'READY_FOR_DISPATCH' | 'DISPATCHED' | 'IN_TRANSIT' | 'COMPLETED' | 'CANCELED' | null,
+        toStatus: toStatus as 'NEW' | 'PENDING_DATE' | 'READY_FOR_DISPATCH' | 'DISPATCHED' | 'IN_TRANSIT' | 'COMPLETED' | 'CANCELED',
         reason: `Bulk seed (${toStatus})`,
         changedBy: createdBy,
         changedAt: dateOffset(createdAt, stepIdx),
@@ -555,7 +553,7 @@ export async function seedBulkData(): Promise<{ created: boolean; stats: Record<
 
     // Containers + fulfillment rows: 1–2 per shipment, but only when status
     // has reached READY_FOR_DISPATCH (dispatch readiness requires them).
-    if (['READY_FOR_DISPATCH', 'DISPATCHED', 'IN_TRANSIT', 'PENDING_EXPENSE_APPROVAL', 'COMPLETED'].includes(status) && !isMarker) {
+    if (['READY_FOR_DISPATCH', 'DISPATCHED', 'IN_TRANSIT', 'COMPLETED'].includes(status) && !isMarker) {
       const numContainers = randInt(1, 2);
       for (let cIdx = 0; cIdx < numContainers; cIdx++) {
         const containerNumber = genContainerNumber(usedContainerNumbers);
@@ -621,7 +619,7 @@ export async function seedBulkData(): Promise<{ created: boolean; stats: Record<
     .where(and(
       isNull(s.shipments.deletedAt),
       sql`${s.shipments.blNumber} LIKE 'BULK-%' OR ${s.shipments.bookingRef} LIKE 'BULK-%'`,
-      inArray(s.shipments.status, ['DISPATCHED', 'IN_TRANSIT', 'PENDING_EXPENSE_APPROVAL', 'COMPLETED']),
+      inArray(s.shipments.status, ['DISPATCHED', 'IN_TRANSIT', 'COMPLETED']),
     ))
     .limit(NUM_SHIPMENTS);
   // Most recent N for the trip pool, in arrival order so older history is
@@ -640,7 +638,6 @@ export async function seedBulkData(): Promise<{ created: boolean; stats: Record<
     // each dispatchable shipment one trip here.
     const tripStatus =
       sh.status === 'COMPLETED' ? 'COMPLETED' :
-      sh.status === 'PENDING_EXPENSE_APPROVAL' ? 'COMPLETED' :
       sh.status === 'IN_TRANSIT' ? 'IN_TRANSIT' :
       sh.status === 'DISPATCHED' ? 'CREATED' :
       'CREATED';

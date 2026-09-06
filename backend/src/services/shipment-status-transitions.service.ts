@@ -29,7 +29,6 @@ import {
 // "booking → documents → dispatch → delivery → debit-note":
 //
 //   PENDING_DATE ──► READY_FOR_DISPATCH ──► DISPATCHED ──► IN_TRANSIT
-//                                                    ──► PENDING_EXPENSE_APPROVAL
 //                                                    ──► COMPLETED
 //                            ▲                    │
 //                            └────────────────────┘
@@ -45,9 +44,6 @@ const LEGAL_TRANSITIONS: Record<string, readonly string[]> = {
   READY_FOR_DISPATCH: ['DISPATCHED', 'CANCELED'],
   DISPATCHED: ['IN_TRANSIT', 'CANCELED'],
   IN_TRANSIT: ['DISPATCHED', 'COMPLETED', 'CANCELED'],
-  // Expense-management stage retired (2026-09-05, deferred): kept reachable in
-  // the map only so legacy rows parked there can transition out.
-  PENDING_EXPENSE_APPROVAL: ['DISPATCHED', 'IN_TRANSIT', 'COMPLETED', 'CANCELED'],
   COMPLETED: [],
   CANCELED: [],
 };

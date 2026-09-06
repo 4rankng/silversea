@@ -458,7 +458,7 @@ describe('CUS shipment workspace projection — container classification', () =>
 describe('CUS shipment workspace projection — inline edit authority', () => {
   test('keeps schedule and notes inline-editable after dispatch while the shipment is unlocked', async () => {
     const shipment = await seedShipment({
-      status: 'PENDING_EXPENSE_APPROVAL',
+      status: 'IN_TRANSIT',
       bookingRef: 'BOOK-RAW-01',
       closingAt: new Date('2026-08-20T01:00:00.000Z'),
       customerNotes: 'Ghi chú khách hàng',
@@ -1382,7 +1382,7 @@ describe('Overview operational priority ordering', () => {
     const shipment = await seedShipment({
       blNumber: `WS-POST-HANDOFF-${marker}`,
       cargoMode: 'FCL',
-      status: 'PENDING_EXPENSE_APPROVAL',
+      status: 'IN_TRANSIT',
       routeId: route.id,
     });
     const container = await seedContainer(shipment.id, {

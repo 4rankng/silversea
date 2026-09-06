@@ -71,7 +71,7 @@ describe('useDispatchMasterPlan zone truck presence', () => {
           ShipmentStatus.READY_FOR_DISPATCH,
           ShipmentStatus.DISPATCHED,
           ShipmentStatus.IN_TRANSIT,
-          ShipmentStatus.PENDING_EXPENSE_APPROVAL,
+          ShipmentStatus.IN_TRANSIT,
           ShipmentStatus.COMPLETED,
         ],
       }),

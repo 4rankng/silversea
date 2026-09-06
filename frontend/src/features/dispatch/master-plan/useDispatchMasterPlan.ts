@@ -102,7 +102,6 @@ export function useDispatchMasterPlan() {
         ShipmentStatus.READY_FOR_DISPATCH,
         ShipmentStatus.DISPATCHED,
         ShipmentStatus.IN_TRANSIT,
-        ShipmentStatus.PENDING_EXPENSE_APPROVAL,
         ShipmentStatus.COMPLETED,
       ],
       page,

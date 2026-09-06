@@ -96,7 +96,7 @@ describe('TripPodReviewPanel', () => {
       <TripPodReviewPanel
         shipmentId={42}
         shipmentVersion={7}
-        shipmentStatus={ShipmentStatus.PENDING_EXPENSE_APPROVAL}
+        shipmentStatus={ShipmentStatus.IN_TRANSIT}
         items={[makeItem()]}
         canReview
         canComplete
@@ -132,7 +132,7 @@ describe('TripPodReviewPanel', () => {
       <TripPodReviewPanel
         shipmentId={42}
         shipmentVersion={7}
-        shipmentStatus={ShipmentStatus.PENDING_EXPENSE_APPROVAL}
+        shipmentStatus={ShipmentStatus.IN_TRANSIT}
         items={[makeItem({
           currentSubmission: null,
           tripStatus: 'CREATED',
@@ -171,7 +171,7 @@ describe('TripPodReviewPanel', () => {
       <TripPodReviewPanel
         shipmentId={42}
         shipmentVersion={7}
-        shipmentStatus={ShipmentStatus.PENDING_EXPENSE_APPROVAL}
+        shipmentStatus={ShipmentStatus.IN_TRANSIT}
         items={[makeItem({ tripStatus: 'IN_TRANSIT', tripVersion: 3 })]}
         canReview
         canComplete
@@ -211,7 +211,7 @@ describe('TripPodReviewPanel', () => {
       <TripPodReviewPanel
         shipmentId={42}
         shipmentVersion={7}
-        shipmentStatus={ShipmentStatus.PENDING_EXPENSE_APPROVAL}
+        shipmentStatus={ShipmentStatus.IN_TRANSIT}
         items={[makeItem({ tripStatus: 'IN_TRANSIT', tripVersion: 3 })]}
         canReview
         canComplete
@@ -245,7 +245,7 @@ describe('TripPodReviewPanel', () => {
       <TripPodReviewPanel
         shipmentId={42}
         shipmentVersion={7}
-        shipmentStatus={ShipmentStatus.PENDING_EXPENSE_APPROVAL}
+        shipmentStatus={ShipmentStatus.IN_TRANSIT}
         items={[makeItem({ tripStatus: 'IN_TRANSIT' })]}
         canReview
         canComplete={false}

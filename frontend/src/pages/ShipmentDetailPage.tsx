@@ -32,7 +32,6 @@ const STATUS_DOT_CLASS: Record<ShipmentStatus, string> = {
   READY_FOR_DISPATCH: 'shipment-detail__dot--warning',
   DISPATCHED: 'shipment-detail__dot--info',
   IN_TRANSIT: 'shipment-detail__dot--info',
-  PENDING_EXPENSE_APPROVAL: 'shipment-detail__dot--warning',
   COMPLETED: 'shipment-detail__dot--success',
   CANCELED: 'shipment-detail__dot--danger',
 };

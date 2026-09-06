@@ -147,7 +147,7 @@ async function prepareReadyForDirectClose() {
   await db.delete(s.tripExpenseCompletionScopes).where(eq(s.tripExpenseCompletionScopes.tripId, tripId));
   await replacePod('ACCEPTED');
   await db.update(s.shipments).set({
-    status: 'PENDING_EXPENSE_APPROVAL',
+    status: 'IN_TRANSIT',
     updatedAt: new Date(),
   }).where(eq(s.shipments.id, shipmentId));
   await db.update(s.trips).set({
@@ -311,7 +311,7 @@ async function createExpenseScopeRecomputeFixture(args: {
 
 async function prepareFixtureForDirectClose(shipmentIdForFixture: number, tripIdForFixture: number) {
   await db.update(s.shipments).set({
-    status: 'PENDING_EXPENSE_APPROVAL',
+    status: 'IN_TRANSIT',
     updatedAt: new Date(),
   }).where(eq(s.shipments.id, shipmentIdForFixture));
   await db.update(s.trips).set({
