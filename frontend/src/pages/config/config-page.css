@@ -617,6 +617,69 @@
   }
 }
 
+/* ── Tabular below the shared card fold ──────────────────────────────
+   Product call (2026-09-06): master-data catalogs stay tabular whenever
+   the columns fit without corruption — the labelled-card fold is the
+   LAST resort, not the laptop default. The shared base (record-table.css)
+   folds every record-table at container ≤1100px, a threshold tuned for
+   8-column ledgers; the 6-7 column customers/routes catalogs stay
+   readable as tables well below that. Re-arm tabular display for exactly
+   these two tables across 680-1100px; the shared base keeps full
+   ownership below 680px (cards, then phone pair-ups) and of every other
+   record-table on the platform (dispatch grids, expense ledger). */
+@container (min-width: 680px) and (max-width: 1100px) {
+  .cfg-page .cfg-customer-table,
+  .cfg-page .routes-table {
+    display: table;
+  }
+  .cfg-page .cfg-customer-table thead,
+  .cfg-page .routes-table thead {
+    display: table-header-group;
+  }
+  .cfg-page .cfg-customer-table tbody,
+  .cfg-page .routes-table tbody {
+    display: table-row-group;
+  }
+  .cfg-page .cfg-customer-table tbody tr,
+  .cfg-page .routes-table tbody tr {
+    display: table-row;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+  .cfg-page .cfg-customer-table tbody td,
+  .cfg-page .routes-table tbody td {
+    display: table-cell;
+    padding: 10px 12px;
+    border: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .cfg-page .cfg-customer-table tbody td::before,
+  .cfg-page .routes-table tbody td::before {
+    content: none;
+  }
+  /* Routes keeps its desktop fixed-layout geometry in this window, minus
+     the 980px floor (percentages scale with the container). */
+  .cfg-page .routes-table {
+    min-width: 0;
+    table-layout: fixed;
+  }
+  .cfg-page .routes-table tbody td:not(.record-table__action) {
+    overflow: hidden;
+  }
+  .cfg-page .routes-table tbody td:nth-child(n+2):not(.record-table__action) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .cfg-page .routes-table tbody td:nth-child(1) .row-strong {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+  }
+}
+
 /* ── Responsive overrides (from responsive.css decomposition) ── */
 @media (max-width: 1500px) {
   /* ── Routes config page — Mobile Pass 1 (2026-06-02) ──
