@@ -1,0 +1,84 @@
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter } from 'react-router-dom';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ToastProvider } from '../components/shared/Toast';
+import OpsWalletPage from './OpsWalletPage';
+
+const { apiGet, apiPost } = vi.hoisted(() => ({ apiGet: vi.fn(), apiPost: vi.fn() }));
+vi.mock('../lib/api', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../lib/api')>(),
+  api: { get: apiGet, post: apiPost, patch: vi.fn(), delete: vi.fn(), upload: vi.fn() },
+}));
+
+function renderPage() {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={client}>
+      <ToastProvider>
+        <MemoryRouter>
+          <OpsWalletPage />
+        </MemoryRouter>
+      </ToastProvider>
+    </QueryClientProvider>,
+  );
+}
+
+const expense = (overrides: Record<string, unknown> = {}) => ({
+  id: 1, shipmentId: 10, shipmentCode: 'SS-1', containerNumber: 'TSTU0000001',
+  expenseTypeCode: 'CANXE', expenseTypeName: 'Cân xe', requiresInvoice: false,
+  amount: '90000', paidAt: '2026-09-07', note: null, approvalStatus: 'PENDING',
+  rejectionReason: null, opsSettlementId: null, hasPhoto: false, paidById: 7,
+  paidByName: 'Ops A', createdAt: '2026-09-07T00:00:00.000Z',
+  ...overrides,
+});
+
+describe('OpsWalletPage (OpsVanHanh §5)', () => {
+  beforeEach(() => {
+    apiGet.mockReset();
+    apiPost.mockReset();
+    apiGet.mockImplementation((url: string) => {
+      if (url.startsWith('/ops/wallet/summary')) {
+        return Promise.resolve({
+          totalAdvance: '2000000', approved: '350000', pending: '90000',
+          rejected: '0', balance: '1560000',
+        });
+      }
+      if (url.startsWith('/ops/wallet/expenses')) return Promise.resolve({ items: [expense()] });
+      if (url.startsWith('/ops/settlements')) return Promise.resolve({ items: [] });
+      return Promise.resolve({ items: [] });
+    });
+  });
+
+  it('renders the four cards with the server-computed formula', async () => {
+    renderPage();
+    expect(await screen.findByText(/1\.560\.000/)).toBeInTheDocument();
+    // Card labels also appear in the history status column — assert presence.
+    expect(screen.getAllByText('Đã duyệt').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Chờ duyệt').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Bị từ chối').length).toBeGreaterThan(0);
+  });
+
+  it('flags entries without photos as Nợ chứng từ', async () => {
+    renderPage();
+    expect(await screen.findByText('Nợ chứng từ')).toBeInTheDocument();
+  });
+
+  it('submits an advance request with amount + reason', async () => {
+    apiPost.mockResolvedValue({ id: 99, status: 'PENDING' });
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: /Xin Tạm Ứng/ }));
+
+    const amountInput = await screen.findByLabelText(/Số tiền \(VND\)/);
+    fireEvent.change(amountInput, { target: { value: '500000' } });
+    fireEvent.change(screen.getByLabelText(/Lý do \/ Ghi chú/), { target: { value: 'ứng phí cảng' } });
+    fireEvent.click(screen.getByRole('button', { name: /Gửi yêu cầu/ }));
+
+    await waitFor(() => {
+      expect(apiPost).toHaveBeenCalledWith('/ops/wallet/advance-requests', {
+        amount: 500000,
+        reason: 'ứng phí cảng',
+      });
+    });
+  });
+});

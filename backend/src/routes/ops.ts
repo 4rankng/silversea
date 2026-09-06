@@ -38,6 +38,7 @@ import {
   getOpsSettlementDetail,
   listOpsSettlements,
 } from '../services/ops-settlements.service';
+import { exportOpsSettlementXlsx } from '../services/ops-settlement-export.service';
 import { getOpsFleet, setTruckOpsAssignment } from '../services/ops-fleet.service';
 
 const OPS_ONLY = requireRoles(Role.OPS);
@@ -221,6 +222,26 @@ router.get('/settlements/:id', OPS_ONLY, asyncHandler(async (req: Request, res: 
     throw new ApiError(404, 'Không tìm thấy đề nghị thanh toán.');
   }
   res.json(detail);
+}));
+
+async function sendOpsSettlementXlsx(res: Response, settlementId: number) {
+  const { buffer, filename } = await exportOpsSettlementXlsx(settlementId);
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+  res.send(buffer);
+}
+
+router.get('/settlements/:id/export', OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
+  const user = getUser(req);
+  const detail = await getOpsSettlementDetail(parseId(req.params.id));
+  if (detail.settlement.opsUserId !== user.userId) {
+    throw new ApiError(404, 'Không tìm thấy đề nghị thanh toán.');
+  }
+  await sendOpsSettlementXlsx(res, detail.settlement.id);
+}));
+
+router.get('/admin/settlements/:id/export', OPS_APPROVERS, asyncHandler(async (req: Request, res: Response) => {
+  await sendOpsSettlementXlsx(res, parseId(req.params.id));
 }));
 
 // ── Màn hình 2: Theo dõi phương tiện (/ops/fleet-tracking) ──────────────────

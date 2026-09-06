@@ -286,6 +286,7 @@ export function getNavItems(
         // Vận hành hiện trường (OpsVanHanh) — kế hoạch làm hàng là màn chính.
         { key: 'ops-orders', label: 'Kế hoạch làm hàng', path: routes.opsOrders, icon: ClipboardList, section: 'my-work' as SectionName },
         { key: 'ops-fleet-tracking', label: 'Theo dõi phương tiện', path: routes.opsFleetTracking, icon: Activity, section: 'my-work' as SectionName },
+        { key: 'ops-wallet', label: 'Quỹ tạm ứng', path: routes.opsWallet, icon: Wallet, section: 'my-work' as SectionName },
         // Công việc của tôi (My Work)
         { key: 'my-orders', label: 'Lệnh giao nhận', path: routes.myOrders, icon: Package, section: 'my-work' as SectionName },
         { key: 'my-advances', label: 'Yêu cầu Tạm ứng', path: routes.myAdvances, icon: Wallet, section: 'my-work' as SectionName },

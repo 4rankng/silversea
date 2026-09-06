@@ -1,0 +1,345 @@
+/* Ops portal — Quỹ tạm ứng (OpsVanHanh §5) + shared wallet/table pieces. */
+
+.ops-wallet {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ops-wallet__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.ops-wallet__bar h1 {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 20px;
+  margin: 0;
+}
+
+.ops-wallet__cards {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 10px;
+}
+
+@media (max-width: 900px) {
+  .ops-wallet__cards {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .ops-wallet__cards {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ops-wallet-card {
+  border: 1px solid var(--line, #e3ded5);
+  border-radius: 12px;
+  background: var(--bg-1, #fff);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ops-wallet-card--balance {
+  background: var(--ink, #1c1c1c);
+  border-color: var(--ink, #1c1c1c);
+  color: #fff;
+}
+
+.ops-wallet-card--balance small {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.ops-wallet-card__label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--fg-3, #6b7280);
+}
+
+.ops-wallet-card--balance .ops-wallet-card__label {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.ops-wallet-card strong {
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ops-wallet-card--balance strong {
+  font-size: 24px;
+}
+
+.ops-wallet__section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ops-wallet__section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ops-wallet__section-head h2 {
+  font-size: 16px;
+  margin: 0;
+}
+
+.ops-wallet__filters {
+  display: inline-flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.ops-wallet__filters button {
+  border: 1px solid var(--line, #d8d3cb);
+  background: var(--bg-1, #fff);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--fg-2, #555);
+  min-height: 32px;
+}
+
+.ops-wallet__filters button.is-active {
+  background: var(--ink, #1c1c1c);
+  border-color: var(--ink, #1c1c1c);
+  color: #fff;
+}
+
+.ops-wallet__scroll {
+  overflow-x: auto;
+  border: 1px solid var(--line, #e3ded5);
+  border-radius: 12px;
+  background: var(--bg-1, #fff);
+}
+
+.ops-wallet__table {
+  width: 100%;
+  min-width: 880px;
+}
+
+.ops-wallet__table th,
+.ops-wallet__table td {
+  padding: 10px 12px;
+  font-size: 13px;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.ops-money {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ops-doc-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: none;
+  background: transparent;
+  color: var(--ok, #16a34a);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 32px;
+}
+
+.ops-doc-state.is-debt {
+  color: var(--err, #dc2626);
+}
+
+.ops-reject-reason {
+  color: var(--fg-3, #6b7280);
+  font-size: 12px;
+}
+
+.ops-row-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.ops-row-actions .btn-secondary {
+  min-height: 32px;
+  padding: 0 10px;
+}
+
+.ops-danger {
+  color: var(--err, #dc2626);
+}
+
+.ops-ok {
+  color: var(--ok, #16a34a);
+}
+
+.ops-modal__head-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ops-wallet__empty {
+  text-align: center;
+  color: var(--fg-3, #6b7280);
+  padding: 24px 0 !important;
+}
+
+.ops-wallet__loading {
+  display: flex;
+  justify-content: center;
+  padding: 16px;
+  color: var(--fg-3, #6b7280);
+}
+
+/* ── Photo grid (viewer modal) ──────────────────────────────────────────── */
+
+.ops-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 10px;
+}
+
+.ops-photo-grid__item {
+  position: relative;
+  margin: 0;
+}
+
+.ops-photo-grid__item > button {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border: 1px solid var(--line, #e3ded5);
+  border-radius: 10px;
+  overflow: hidden;
+  padding: 0;
+  background: none;
+  cursor: zoom-in;
+}
+
+.ops-photo-grid__item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ops-photo-grid__remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(20, 20, 20, 0.65);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.ops-photo-grid__loading,
+.ops-photo-grid__empty {
+  color: var(--fg-3, #6b7280);
+  font-size: 13px;
+}
+
+/* ── Settlement sheet (screen + A4 print) ───────────────────────────────── */
+
+.ops-settlement-sheet h3 {
+  margin: 0 0 4px;
+  font-size: 16px;
+}
+
+.ops-settlement-sheet > p {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: var(--fg-2, #555);
+}
+
+.ops-settlement-sheet h4 {
+  margin: 12px 0 6px;
+  font-size: 13px;
+}
+
+.ops-settlement-sheet__table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.ops-settlement-sheet__table th,
+.ops-settlement-sheet__table td {
+  border-bottom: 1px solid var(--line, #eee);
+  padding: 6px 8px;
+  font-size: 12px;
+  text-align: left;
+}
+
+.ops-settlement-sheet__subtotal td {
+  font-weight: 600;
+}
+
+.ops-settlement-sheet__group-total {
+  font-weight: 600;
+  font-size: 13px;
+  margin: 4px 0 8px;
+}
+
+.ops-settlement-sheet__grand {
+  font-weight: 700;
+  font-size: 14px;
+  margin: 10px 0;
+}
+
+.ops-settlement-sheet__signatures {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 24px;
+}
+
+.ops-settlement-sheet__signatures span {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.ops-settlement-sheet__signatures small {
+  font-weight: 400;
+  color: var(--fg-3, #6b7280);
+}
+
+/* A4 print: only the sheet survives. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .ops-settlement-sheet,
+  .ops-settlement-sheet * {
+    visibility: visible;
+  }
+
+  .ops-settlement-sheet {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    padding: 24px;
+  }
+}

@@ -38,9 +38,9 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // Raised 856 → 858: added driver notifications bottom-nav entry + Bell import.
   // Raised 858 → 861: OPS "Kế hoạch làm hàng" sidebar entry + ClipboardList
   // import (OpsVanHanh §3).
-  // Raised 861 → 862: OPS "Theo dõi phương tiện" entry (OpsVanHanh §4). A
-  // future sidebar split should restore a smaller ceiling.
-  'src/components/Layout.tsx': 862,
+  // Raised 861 → 863: OPS "Theo dõi phương tiện" + "Quỹ tạm ứng" entries
+  // (OpsVanHanh §4–§5). A future sidebar split should restore a smaller ceiling.
+  'src/components/Layout.tsx': 863,
   'src/components/shipment/TripPodReviewPanel.tsx': 588,
   'src/components/trip/AncillaryFeesCard.tsx': 607,
   'src/components/trip/ContainerInstancesCard.tsx': 591,

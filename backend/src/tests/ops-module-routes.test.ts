@@ -305,6 +305,14 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
     });
     assert.equal(attached.status, 201);
 
+    // Receipt review: the approver can list the photos; another Ops cannot.
+    const photosForAccountant = await api(`/expenses/${created.body.id}/photos`, { token: accountantToken });
+    assert.equal(photosForAccountant.status, 200);
+    assert.equal(photosForAccountant.body.items.length, 1);
+    assert.ok(photosForAccountant.body.items[0].url.startsWith('/api/photos/'));
+    const photosForStranger = await api(`/expenses/${created.body.id}/photos`, { token: ops2Token });
+    assert.equal(photosForStranger.status, 404);
+
     const approved = await api(`/admin/expenses/${created.body.id}/approve`, { method: 'POST', token: accountantToken });
     assert.equal(approved.status, 200);
     assert.equal(approved.body.approvalStatus, 'APPROVED');
@@ -414,6 +422,16 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
     });
     createdExpenseIds.push(after.body.id);
     assert.equal(after.body.opsSettlementId, null);
+
+    // Excel export downloads for the owner (accountant variant covered by
+    // role matrix above).
+    const exported = await fetch(`${baseUrl}/api/ops/settlements/${settlement.body.id}/export`, {
+      headers: { Authorization: `Bearer ${opsToken}` },
+    });
+    assert.equal(exported.status, 200);
+    assert.match(exported.headers.get('content-type') ?? '', /spreadsheetml/);
+    const bytes = await exported.arrayBuffer();
+    assert.ok(bytes.byteLength > 1000, 'xlsx workbook is non-trivial');
   });
 });
 

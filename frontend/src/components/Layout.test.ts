@@ -92,6 +92,7 @@ describe('getNavItems', () => {
     [Role.OPS, [
       ['Kế hoạch làm hàng', '/ops/orders'],
       ['Theo dõi phương tiện', '/ops/fleet-tracking'],
+      ['Quỹ tạm ứng', '/ops/wallet'],
       ['Lệnh giao nhận', '/my-orders'],
       ['Yêu cầu Tạm ứng', '/my-advances'],
       ['Phiếu thanh toán / Hoàn ứng', '/my-settlements'],

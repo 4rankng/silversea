@@ -6,12 +6,13 @@ import { Tabs } from '../design-system';
 import type { TabItem } from '../design-system';
 import AdminAdvancesPage from './AdminAdvancesPage';
 import AdminAdvanceSettlementsPage from './AdminAdvanceSettlementsPage';
+import { OpsAccountantTab } from '../features/ops/OpsAccountantTab';
 import './AdvanceWorkspacePage.css';
 
-export type AdvanceWorkspaceView = 'requests' | 'settlements';
+export type AdvanceWorkspaceView = 'requests' | 'settlements' | 'ops-expenses';
 
 export function resolveAdvanceWorkspaceView(value: string | null): AdvanceWorkspaceView {
-  return value === 'settlements' ? 'settlements' : 'requests';
+  return value === 'settlements' || value === 'ops-expenses' ? value : 'requests';
 }
 
 export function buildAdvanceWorkspaceSearch(
@@ -33,6 +34,8 @@ export default function AdvanceWorkspacePage() {
   const tabs: TabItem[] = [
     { id: 'requests', label: 'Yêu cầu tạm ứng' },
     { id: 'settlements', label: 'Phiếu hoàn ứng' },
+    // OpsVanHanh §5.4: accounting reviews Ops cash expenses + payment batches.
+    { id: 'ops-expenses', label: 'Chi phí Ops' },
   ];
 
   const handleTabChange = (id: string) => {
@@ -76,18 +79,24 @@ export default function AdvanceWorkspacePage() {
       >
         <div className="advance-workspace__section-heading">
           <h2 id={`advance-workspace-${activeView}-heading`}>
-            {activeView === 'requests' ? 'Yêu cầu tạm ứng' : 'Phiếu hoàn ứng'}
+            {activeView === 'requests'
+              ? 'Yêu cầu tạm ứng'
+              : activeView === 'settlements' ? 'Phiếu hoàn ứng' : 'Chi phí Ops'}
           </h2>
           <p>
             {activeView === 'requests'
               ? 'Xem yêu cầu của giao nhận và gửi đề nghị duyệt hoặc từ chối.'
-              : 'Đối chiếu chi phí, số tiền hoàn lại và xử lý phiếu theo thẩm quyền.'}
+              : activeView === 'settlements'
+                ? 'Đối chiếu chi phí, số tiền hoàn lại và xử lý phiếu theo thẩm quyền.'
+                : 'Duyệt/từ chối khoản chi hiện trường của Ops và chốt đề nghị thanh toán.'}
           </p>
         </div>
 
         {activeView === 'requests'
           ? <AdminAdvancesPage embedded />
-          : <AdminAdvanceSettlementsPage embedded />}
+          : activeView === 'settlements'
+            ? <AdminAdvanceSettlementsPage embedded />
+            : <OpsAccountantTab />}
       </section>
     </div>
   );
