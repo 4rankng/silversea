@@ -60,11 +60,46 @@ Bảng **Nhà máy** là nơi *duy nhất* giữ khoá ngoại tới Tuyến đ�
 
 **Snapshot khi phát lệnh:** fulfillment đã phát lệnh phải chụp lại (snapshot) các trường vận hành của nhà máy để dữ liệu không trôi khi quản trị viên sửa master data về sau.
 
+### 2.1 Lưu Trữ Hỗn Hợp (Hybrid Storage)
+
+Bảng `shipments` phải hỗ trợ **cả hai** cách lưu cho các trường **Khách hàng, Nhà máy,
+Tuyến đường, Cảng nâng, Cảng hạ**:
+
+| Case | Người dùng làm gì | Backend lưu | Trường ID |
+|------|-------------------|-------------|-----------|
+| **Case 1 — Luồng chuẩn** | Chọn từ danh sách xổ xuống | `Customer_ID`, `Factory_ID`, `Route_ID`, `Port_ID` | **có giá trị** |
+| **Case 2 — Lệnh chạy ngoài** | Gõ text mới hoàn toàn | `Raw_Customer_Name`, `Raw_Factory_Name`, `Raw_Route_Name`, `Raw_Port_Name` | **`null`** |
+
+```mermaid
+flowchart TD
+  A["User nhập trường<br/>Khách hàng / Nhà máy / Tuyến / Cảng"] --> B{"Chọn từ<br/>danh mục?"}
+  B -- "Có" --> C["Case 1<br/>lưu *_ID<br/>Raw_* = null"]
+  B -- "Không — gõ text tự do" --> D["Case 2<br/>*_ID = null<br/>lưu Raw_*"]
+  D --> E["⛔ KHÔNG insert vào<br/>bảng Danh mục gốc"]
+```
+
+**Quy tắc bắt buộc:**
+
+1. **Loại trừ lẫn nhau:** với mỗi trường, đúng **một** trong hai vế có giá trị. Không
+   bao giờ có cả `Customer_ID` lẫn `Raw_Customer_Name` cùng khác `null`, và không bao
+   giờ cả hai cùng `null` khi trường đó bắt buộc.
+2. **Guardrail — không làm rác master data:** free text ở Case 2 **tuyệt đối không**
+   được tự động `INSERT` vào bảng danh mục gốc (`customers`, `operational_sites`,
+   `routes`, `ports`). Danh mục của Kế toán phải sạch.
+3. **Trộn được trong cùng một lô:** một lô chạy ngoài có thể có Khách hàng là text tự do
+   nhưng Cảng hạ chọn từ danh mục — hai trường độc lập nhau.
+4. **Hiển thị đồng nhất:** mọi màn đọc (danh sách lô, chi tiết, điều vận, app lái xe,
+   báo cáo, bản in) phải hiển thị `COALESCE(tên từ ID, Raw_*)` — người xem không phân
+   biệt được nguồn, ngoài **nhãn "Chạy ngoài"** (§4.4).
+5. **Không suy ra tuyến/vị trí:** Case 2 không có `Factory_ID` ⇒ không có gì để derive.
+   Tuyến và vị trí ở lô chạy ngoài là text người dùng nhập, không phải giá trị auto-fill.
+
 ---
 
-## 3. Yêu Cầu Giao Diện (Frontend)
+## 3. Yêu Cầu Giao Diện — Luồng Chuẩn (Frontend)
 
-Áp dụng cho **Form Tạo Lô Hàng** (CUS) và mọi form điều vận có chọn nhà máy.
+Áp dụng cho **Form Tạo Lô Hàng** (CUS) và mọi form điều vận có chọn nhà máy,
+**khi checkbox "Lệnh chạy ngoài" KHÔNG được tích** (§4.1).
 
 ### 3.1 Cascading Dropdown (đổ dữ liệu tuần tự)
 
