@@ -814,13 +814,13 @@ async function applyTripGovernanceAction(
       status: 'IN_TRANSIT' as const,
       completedAt: null,
     } : {}),
-    version: sql`${s.tripsComposite.version} + 1`,
+    version: sql`${s.trips.version} + 1`,
     updatedAt: new Date(),
   }).where(and(
-    eq(s.tripsComposite.id, trip.id),
-    eq(s.tripsComposite.version, action.originalVersion),
-    ...(kind === 'TRIP_REOPEN' ? [eq(s.tripsComposite.status, 'COMPLETED')] : []),
-  )).returning({ id: s.tripsComposite.id });
+    eq(s.trips.id, trip.id),
+    eq(s.trips.version, action.originalVersion),
+    ...(kind === 'TRIP_REOPEN' ? [eq(s.trips.status, 'COMPLETED')] : []),
+  )).returning({ id: s.trips.id });
   if (!versionedTrip) {
     throw new ApiError(409, 'Dữ liệu gốc đã thay đổi; yêu cầu này không thể áp dụng');
   }
