@@ -32,6 +32,7 @@ import {
   Anchor,
   Container,
   Activity,
+  Bell,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { api } from '../lib/api';
@@ -295,6 +296,7 @@ export function getNavItems(
       return [
         // Công việc của tôi (My Work) - same section for PC and mobile consistency
         { key: 'my-trips', label: 'Hành trình của tôi', mobileLabel: 'Hành trình', path: routes.myTrips, icon: Route, section: 'my-work' as SectionName },
+        { key: 'my-notifications', label: 'Thông báo', path: routes.myNotifications, icon: Bell, section: 'my-work' as SectionName },
         { key: 'my-earnings', label: 'Thu nhập', path: routes.myEarnings, icon: DollarSign, section: 'my-work' as SectionName },
         { key: 'my-penalties', label: 'Kỷ luật', path: routes.myPenalties, icon: AlertTriangle, section: 'my-work' as SectionName },
       ];

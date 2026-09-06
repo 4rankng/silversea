@@ -60,6 +60,7 @@ const DriverTripDetailPage = lazy(() => import('./pages/DriverTripDetailPage'));
 const DriverTripPodPage = lazy(() => import('./pages/DriverTripPodPage'));
 const DriverEarningsPage = lazy(() => import('./pages/DriverEarningsPage'));
 const DriverPenaltyPage = lazy(() => import('./pages/DriverPenaltyPage'));
+const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
 const ForwarderTripsPage = lazy(() => import('./pages/ForwarderTripsPage'));
 const ForwarderTripDetailPage = lazy(() => import('./pages/ForwarderTripDetailPage'));
 const ForwarderAdvancesPage = lazy(() => import('./pages/ForwarderAdvancesPage'));
@@ -359,6 +360,7 @@ export function AppRoutes() {
           <Route path="/my-trips/:id/pod" element={driverOnly(page(<DriverTripPodPage />))} />
           <Route path="/my-earnings" element={driverOnly(page(<DriverEarningsPage />))} />
           <Route path="/my-payslips" element={driverOnly(page(<DriverPayslipsPage />))} />
+          <Route path="/notifications" element={driverOnly(page(<NotificationsPage />))} />
           <Route path="/my-orders" element={opsOnly(page(<ForwarderTripsPage />))} />
           <Route path="/my-forwarder-trips" element={opsOnly(page(<ForwarderTripsPage />))} />
           <Route path="/my-forwarder-trips/:id" element={opsOnly(page(<ForwarderTripDetailPage />))} />

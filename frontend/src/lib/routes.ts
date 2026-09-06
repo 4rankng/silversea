@@ -99,6 +99,7 @@ export const routes = {
   myPayslips: PAGE_CATALOG.myPayslips.path,
   myEarnings: PAGE_CATALOG.myEarnings.path,
   myPenalties: PAGE_CATALOG.myPenalties.path,
+  myNotifications: '/notifications',
 
   /* ── Forwarder portal ──────────────────────────────────────────────── */
 
@@ -240,6 +241,7 @@ const titleRules: TitleRule[] = [
   { test: p => p.startsWith(routes.portalDebitNotes), title: 'Giấy báo nợ' },
   { test: p => p.startsWith(routes.portalStatement), title: 'Sao kê công nợ' },
   { test: p => p === routes.myTwoOrders, title: PAGE_CATALOG.myTwoOrders.title },
+  { test: p => p === routes.myNotifications, title: 'Thông báo' },
   { test: p => p.startsWith(routes.myTrips), title: PAGE_CATALOG.myTrips.title },
   { test: p => p.startsWith(routes.myPayslips), title: PAGE_CATALOG.myPayslips.title },
   { test: p => p.startsWith(routes.myEarnings), title: PAGE_CATALOG.myEarnings.title },
