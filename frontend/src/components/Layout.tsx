@@ -262,6 +262,10 @@ export function getNavItems(
         ...(hasCapability('recoverable_costs.read') ? [
           { key: 'recoverable-costs', label: 'Chi phí cần kiểm tra', path: routes.recoverableCosts, icon: Receipt, section: 'reconciliation' as SectionName },
         ] : []),
+
+        // Danh mục (Master Data) — CUS can add/edit customers and routes
+        { key: 'customers', label: 'Khách hàng', path: routes.configCustomers, icon: Users, section: 'master-data' as SectionName },
+        { key: 'config-routes', label: 'Tuyến đường', path: routes.configRoutes, icon: Route, section: 'master-data' as SectionName },
       ];
     }
 
@@ -342,6 +346,7 @@ export function getNavSections(role: Role | string): NavSection[] {
       return [
         { key: 'document-ops', label: 'Nghiệp vụ Chứng từ' },
         { key: 'reconciliation', label: 'Đối soát' },
+        { key: 'master-data', label: 'Danh mục' },
       ];
     case Role.OPS:
       return [{ key: 'my-work', label: 'Công việc của tôi' }];

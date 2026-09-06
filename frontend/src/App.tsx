@@ -187,6 +187,9 @@ export function AppRoutes() {
   );
   // /users is the single home for everyone; accountants get scoped (driver-only) access.
   const officeStaffOnly = (el: ReactElement) => (isAdmin || currentRole === Role.MANAGER || currentRole === Role.ACCOUNTANT ? el : <Navigate to={homeRedirect} replace />);
+  // Catalog management pages (customers, routes) — CUS can add/edit identity
+  // fields; financial/cost fields are stripped by the backend intake services.
+  const catalogEditorOnly = (el: ReactElement) => (isAdmin || currentRole === Role.MANAGER || currentRole === Role.ACCOUNTANT || isCus ? el : <Navigate to={homeRedirect} replace />);
   const accountantOnly = (el: ReactElement) => (currentRole === Role.ACCOUNTANT ? el : <Navigate to={homeRedirect} replace />);
   const shipmentReaderOnly = (el: ReactElement) => (
     canReadShipmentRoutes(currentRole)
@@ -291,7 +294,7 @@ export function AppRoutes() {
           <Route path="/config/trailers" element={adminOnly(page(<TrailersConfigPage />))} />
           <Route path="/config/trucks" element={adminOnly(page(<TrucksConfigPage />))} />
           <Route path="/config/trucks/:truckId/owners" element={adminOnly(page(<TruckOwnersConfigPage />))} />
-          <Route path="/config/routes" element={adminOnly(page(<RoutesConfigPage />))} />
+          <Route path="/config/routes" element={catalogEditorOnly(page(<RoutesConfigPage />))} />
           <Route path="/config/business-calendar" element={strictAdminOnly(page(<BusinessCalendarConfigPage />))} />
           <Route path="/config/cargo-types" element={adminOnly(page(<CargoTypesConfigPage />))} />
           <Route path="/config/pricing-tables" element={officeStaffOnly(page(<PricingTablesConfigPage />))} />
@@ -308,7 +311,7 @@ export function AppRoutes() {
           <Route path="/config/company-info" element={officeStaffOnly(page(<CompanyInfoConfigPage />))} />
           <Route path="/config/trip-expense" element={adminOnly(page(<TripExpenseConfigPage />))} />
           <Route path="/config/cap-table" element={adminOnly(page(<CapTableConfigPage />))} />
-          <Route path="/config/customers" element={adminOnly(page(<CustomersConfigPage />))} />
+          <Route path="/config/customers" element={catalogEditorOnly(page(<CustomersConfigPage />))} />
           <Route path="/config/management-fees" element={<Navigate to="/config" replace />} />
           <Route path="/config/salary-periods" element={adminOnly(page(<SalaryPeriodConfigPage />))} />
           <Route path="/config/expense-categories" element={adminOnly(page(<ExpenseCategoriesConfigPage />))} />
