@@ -80,12 +80,16 @@ export async function upsertTripFinancialState(
   patch: Record<string, unknown>,
 ): Promise<void> {
   if (Object.keys(patch).length === 0) return;
+  // Defaults fill NOT NULL columns on the INSERT branch only. The
+  // conflict-update SET carries just the patch keys, so an incidental upsert
+  // (snapshot capture, posting, status transition without a vat override)
+  // never clobbers financial values it did not intend to touch.
   const values = withFinancialDefaults(patch);
   await exec.insert(s.tripFinancialState)
     .values({ tripId, ...values } as typeof s.tripFinancialState.$inferInsert)
     .onConflictDoUpdate({
       target: s.tripFinancialState.tripId,
-      set: { ...values, updatedAt: new Date() },
+      set: { ...patch, updatedAt: new Date() } as Partial<typeof s.tripFinancialState.$inferInsert>,
     });
 }
 
@@ -96,12 +100,14 @@ export async function upsertTripCarrierInfo(
   patch: Record<string, unknown>,
 ): Promise<void> {
   if (Object.keys(patch).length === 0) return;
+  // Same insert-only-defaults rule as upsertTripFinancialState: an update
+  // patch must never reset carrierType back to 'OWN'.
   const values = { ...patch, carrierType: (patch.carrierType as string | null | undefined) ?? 'OWN' };
   await exec.insert(s.tripCarrierInfo)
     .values({ tripId, ...values } as typeof s.tripCarrierInfo.$inferInsert)
     .onConflictDoUpdate({
       target: s.tripCarrierInfo.tripId,
-      set: { ...values, updatedAt: new Date() },
+      set: { ...patch, updatedAt: new Date() } as Partial<typeof s.tripCarrierInfo.$inferInsert>,
     });
 }
 
