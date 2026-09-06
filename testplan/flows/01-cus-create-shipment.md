@@ -372,7 +372,10 @@
 
 ---
 
-### TC-CUS-CREATE-019 — Tạo cảng/bãi inline ngay từ ô Cảng nâng/hạ của container
+### TC-CUS-CREATE-025 — Tạo cảng/bãi inline ngay từ ô Cảng nâng/hạ của container
+
+> **Ghi chú đánh số:** case này trước đây mang mã `TC-CUS-CREATE-019`, **trùng** với case
+> "Quy cách đóng gói free-text" ở §1.9. Đổi thành `-025` ngày 2026-09-06 để hết trùng mã.
 
 - **Vai trò:** `cus`
 - **Mức độ:** P0
@@ -538,6 +541,242 @@
 
 ---
 
+## 1.11 — Lệnh chạy ngoài & Combobox nhập text tự do (đặc tả master-data 2026-09-06)
+
+> **Nguồn:** `2026.9.6_Logic_nghiep_vu.docx` Phần 1 §2–§3 · PRD
+> [`docs/prd/MasterDataNhaMay.md`](../../docs/prd/MasterDataNhaMay.md) §2.1 và §4.
+>
+> **Bản chất:** cuốc xe vãng lai (tối ưu xe rỗng) không có khách/nhà máy/cảng trong danh
+> mục. Form phải cho gõ text tự do, lưu vào `Raw_*` với ID = `null`, và **tuyệt đối
+> không** thêm chuỗi đó vào bảng danh mục gốc.
+>
+> ⚠️ **Phân biệt với "tạo mới inline"** (`TC-CUS-CREATE-012 / -017 / -020 / -025`): nút
+> `+ Tạo mới` **có** ghi vào master data. Text tự do thì **không**. Hai cơ chế cùng tồn tại.
+
+### TC-CUS-CREATE-026 — Checkbox "Lệnh chạy ngoài" hiện đúng vị trí, mặc định tắt
+
+- **Vai trò:** `cus`
+- **Mức độ:** P0
+- **Thiết bị:** Desktop + Mobile (390 × 844)
+- **Các bước:**
+  1. Đăng nhập `cus`, mở `/shipments/new`.
+  2. Quan sát vùng đầu form **trước khi cuộn**.
+  3. Trên mobile, lặp lại bước 2.
+- **Kết quả mong đợi (Pass):**
+  - Checkbox nhãn chính xác `Lệnh chạy ngoài (Tối ưu xe rỗng)` nằm ở **đầu form**, thấy được không cần cuộn (cả desktop lẫn mobile).
+  - Mặc định **KHÔNG tích**.
+  - Vùng chạm ≥ 44 px trên mobile; label bấm được (không chỉ ô vuông).
+- **Kỳ vọng sai (Fail nếu):** checkbox nằm cuối form / phải cuộn mới thấy; mặc định đã tích; sai nhãn.
+- **Bằng chứng:** ảnh đầu form desktop + ảnh đầu form mobile
+
+---
+
+### TC-CUS-CREATE-027 — Tích cờ ⇒ mở khoá Tuyến đường + Vị trí; bỏ tích ⇒ khoá lại
+
+- **Vai trò:** `cus`
+- **Mức độ:** **P0** (giao thoa trực tiếp với `TC-CUS-CREATE-021`)
+- **Tiền điều kiện:** có khách hàng với ≥ 1 nhà máy đã gắn tuyến
+- **Các bước:**
+  1. **Không** tích cờ. Chọn khách hàng → chọn nhà máy. Ghi lại trạng thái 2 trường `Tuyến đường`, `Vị trí đóng/trả hàng`.
+  2. Tích cờ `Lệnh chạy ngoài`. Quan sát lại 2 trường đó.
+  3. Gõ tay một tuyến khác vào ô `Tuyến đường`.
+  4. **Bỏ tích** cờ. Quan sát.
+- **Kết quả mong đợi (Pass):**
+  - Bước 1: cả 2 trường **read-only** và auto-fill đúng theo nhà máy (hành vi `TC-CUS-CREATE-021` giữ nguyên).
+  - Bước 2: cả 2 trường **mở khoá**, nhập tay được.
+  - Bước 3: text gõ tay được giữ lại.
+  - Bước 4: hệ thống **cảnh báo tiếng Việt** rằng các trường phải chọn lại từ danh mục trước khi lưu; **không** âm thầm xoá dữ liệu người dùng đã gõ.
+- **Kỳ vọng sai (Fail nếu):** tích cờ mà trường vẫn khoá; bỏ tích mà lưu được text tự do; bật/tắt cờ xoá trắng form.
+- **Bằng chứng:** ảnh 4 bước theo thứ tự
+
+---
+
+### TC-CUS-CREATE-028 — Tích cờ ⇒ bypass validation định mức cước phí
+
+- **Vai trò:** `cus`
+- **Mức độ:** **P0**
+- **Tiền điều kiện:** có tuyến/khách hàng mà luồng chuẩn **bắt buộc** phải có định mức cước phí
+- **Các bước:**
+  1. **Không** tích cờ. Điền lô thiếu định mức cước phí. Bấm Lưu.
+  2. Tích cờ `Lệnh chạy ngoài`. Bấm Lưu lại với đúng dữ liệu đó.
+- **Kết quả mong đợi (Pass):**
+  - Bước 1: **bị chặn**, lỗi tiếng Việt về định mức cước phí (hành vi cũ giữ nguyên).
+  - Bước 2: **lưu thành công**, lô sang Điều vận được ngay.
+  - Lô lưu với `is_ad_hoc = true` trong DB.
+- **Kỳ vọng sai (Fail nếu):** cờ không bypass được; hoặc cờ bypass luôn cả validation an toàn (xem `TC-CUS-CREATE-029`).
+- **Bằng chứng:** ảnh lỗi bước 1 + ảnh lưu thành công bước 2 + truy vấn DB `is_ad_hoc`
+
+---
+
+### TC-CUS-CREATE-029 — Bypass CHỈ áp dụng cho cước phí, không nới validation an toàn (negative)
+
+- **Vai trò:** `cus`
+- **Mức độ:** **P0** (chống hổng dữ liệu)
+- **Các bước:** tích cờ `Lệnh chạy ngoài`, rồi lần lượt thử lưu với:
+  1. Số container sai chuẩn ISO-6346 (sai chữ số kiểm tra).
+  2. Ngày giao dự kiến không hợp lệ / trước ngày lấy hàng.
+  3. Số lượng container = `0` hoặc âm.
+  4. Bỏ trống trường bắt buộc (ví dụ: Khách hàng).
+- **Kết quả mong đợi (Pass):**
+  - **Cả 4 lần đều bị chặn** với lỗi tiếng Việt cụ thể — cờ chạy ngoài **không** nới các validation này.
+- **Kỳ vọng sai (Fail nếu):** bất kỳ trường hợp nào lọt qua vì đang bật cờ.
+- **Bằng chứng:** ảnh 4 thông báo lỗi
+
+---
+
+### TC-CUS-CREATE-030 — Gõ text tự do ⇒ lưu Raw_*, ID = null
+
+- **Vai trò:** `cus`
+- **Mức độ:** **P0** (case lõi của đặc tả)
+- **Các bước:**
+  1. Tích cờ `Lệnh chạy ngoài`.
+  2. Ô **Khách hàng**: gõ chuỗi chắc chắn không có trong danh mục, ví dụ `KH VÃNG LAI QA 0906`. Rời trường (blur).
+  3. Làm tương tự với **Nhà máy**, **Tuyến đường**, **Cảng nâng**, **Cảng hạ** (mỗi ô một chuỗi lạ riêng).
+  4. Điền nốt trường bắt buộc, bấm Lưu.
+  5. Truy vấn DB bản ghi lô vừa tạo.
+- **Kết quả mong đợi (Pass):**
+  - Chuỗi lạ **giữ nguyên trong ô sau khi blur** — không bị xoá, không tự nhảy về mục gần giống.
+  - Lô lưu thành công.
+  - DB: `customer_id`, `factory_id` (`operational_site_id`), `route_id`, cảng nâng/hạ **đều `null`**; các trường `raw_customer_name`, `raw_factory_name`, `raw_route_name`, `raw_port_*` chứa **đúng chuỗi đã gõ**, không cắt, không đổi hoa/thường.
+- **Kỳ vọng sai (Fail nếu):** text bị mất khi blur; lưu ID của bản ghi gần giống; `Raw_*` rỗng trong khi ID cũng `null` (mất dữ liệu).
+- **Bằng chứng:** ảnh form trước khi lưu + kết quả `SELECT` bản ghi lô
+
+---
+
+### TC-CUS-CREATE-031 — Guardrail: text tự do KHÔNG được insert vào master data
+
+- **Vai trò:** `cus` (+ `admin` đối chiếu)
+- **Mức độ:** **P0** (bảo vệ danh mục của Kế toán)
+- **Tiền điều kiện:** ghi lại số bản ghi trước khi thử:
+  ```sql
+  SELECT (SELECT count(*) FROM customers)         AS kh,
+         (SELECT count(*) FROM operational_sites) AS nm,
+         (SELECT count(*) FROM routes)            AS tuyen,
+         (SELECT count(*) FROM ports)             AS cang;
+  ```
+- **Các bước:**
+  1. Chạy truy vấn trên, ghi lại 4 con số (gọi là `C0`).
+  2. Thực hiện trọn vẹn `TC-CUS-CREATE-030` (tạo lô chạy ngoài với 5 chuỗi lạ).
+  3. Chạy lại truy vấn (gọi là `C1`).
+  4. Đăng nhập `admin`, mở trang Khách hàng / Nhà máy / Tuyến / Cảng, tìm 5 chuỗi lạ.
+- **Kết quả mong đợi (Pass):**
+  - `C1 == C0` — **cả 4 con số không đổi**.
+  - Không tìm thấy chuỗi lạ nào trong 4 trang danh mục của admin.
+  - Dropdown ở form tạo lô mới **không** gợi ý các chuỗi lạ đó.
+- **Kỳ vọng sai (Fail nếu):** bất kỳ bảng danh mục nào tăng số bản ghi; chuỗi lạ xuất hiện trong danh mục.
+- **Bằng chứng:** 2 kết quả truy vấn cạnh nhau + ảnh 4 trang danh mục sau khi tìm
+
+---
+
+### TC-CUS-CREATE-032 — Trộn ID và text tự do trong cùng một lô
+
+- **Vai trò:** `cus`
+- **Mức độ:** P1
+- **Các bước:**
+  1. Tích cờ. Ô **Khách hàng**: gõ text lạ. Ô **Cảng hạ**: **chọn** một cảng có sẵn từ dropdown.
+  2. Lưu, rồi truy vấn DB.
+- **Kết quả mong đợi (Pass):**
+  - `customer_id = null` + `raw_customer_name` có giá trị.
+  - `cảng hạ id` **có giá trị** + `raw` của cảng hạ = `null`.
+  - Hai trường độc lập — không trường nào ép trường kia sang cùng chế độ.
+- **Kỳ vọng sai (Fail nếu):** chọn dropdown ở 1 ô mà ô kia bị ép về ID (hoặc ngược lại).
+- **Bằng chứng:** kết quả `SELECT` cho thấy trạng thái hỗn hợp
+
+---
+
+### TC-CUS-CREATE-033 — Combobox: xổ chọn, lọc, giữ text lạ, đóng đúng cách
+
+- **Vai trò:** `cus`
+- **Mức độ:** P0
+- **Áp dụng cho cả 5 ô:** Khách hàng · Nhà máy · Tuyến đường · Cảng nâng · Cảng hạ
+- **Các bước (lặp cho từng ô):**
+  1. Bấm mũi tên → danh sách xổ ra.
+  2. Gõ một phần tên có thật, **không dấu, chữ thường** (ví dụ `hai phong` cho `Hải Phòng`).
+  3. Dùng `↑`/`↓` rồi `Enter` để chọn mục đang tô sáng.
+  4. Xoá, gõ chuỗi lạ, bấm `Esc`.
+  5. Xoá, gõ chuỗi lạ, click ra vùng trống ngoài form.
+- **Kết quả mong đợi (Pass):**
+  - Bước 1: xổ đủ danh mục.
+  - Bước 2: lọc đúng — **không phân biệt hoa/thường và không phân biệt dấu tiếng Việt**.
+  - Bước 3: `Enter` chọn được mục tô sáng; `Esc` đóng danh sách.
+  - Bước 4 & 5: danh sách đóng **nhưng chuỗi lạ vẫn còn nguyên trong ô** (không bị revert, không bị xoá).
+  - Giá trị text tự do **nhìn phân biệt được** với giá trị chọn từ danh mục (chú thích "mới" hoặc tương đương).
+- **Kỳ vọng sai (Fail nếu):** gõ `hai phong` không ra `Hải Phòng`; `Esc`/click-ngoài xoá mất text; không phân biệt được 2 loại giá trị.
+- **Bằng chứng:** ảnh từng bước cho ít nhất 2 trong 5 ô + ảnh trạng thái phân biệt
+
+---
+
+### TC-CUS-CREATE-034 — Nút "+ Tạo mới" vẫn ghi master data thật, kể cả khi cờ đang bật
+
+- **Vai trò:** `cus`
+- **Mức độ:** **P0** (chống lẫn lộn 2 cơ chế)
+- **Các bước:**
+  1. Tích cờ `Lệnh chạy ngoài`.
+  2. Ở ô **Khách hàng**, bấm nút `+ Tạo mới`, điền form phụ, xác nhận.
+  3. Truy vấn `SELECT count(*) FROM customers` trước/sau.
+  4. Mở form tạo lô **mới**, tìm khách hàng vừa tạo trong dropdown.
+- **Kết quả mong đợi (Pass):**
+  - Nút `+ Tạo mới` **vẫn hiển thị và dùng được** khi cờ bật.
+  - `customers` **tăng đúng 1** bản ghi (khác hẳn `TC-CUS-CREATE-031`).
+  - Khách hàng mới **tự chọn** vào ô và **xuất hiện trong dropdown** ở form sau.
+  - Lô lưu với `customer_id` **có giá trị**, `raw_customer_name = null`.
+- **Kỳ vọng sai (Fail nếu):** cờ ẩn/vô hiệu hoá nút `+ Tạo mới`; hoặc `+ Tạo mới` chỉ lưu text tự do mà không tạo bản ghi.
+- **Bằng chứng:** 2 kết quả `count(*)` + ảnh dropdown form sau
+
+---
+
+### TC-CUS-CREATE-035 — Lô chạy ngoài hiển thị đủ xuôi dòng, không ô trống
+
+- **Vai trò:** `cus` → `dieuvan` → `laixe`
+- **Mức độ:** **P0** (đọc `Raw_*` ở mọi màn)
+- **Tiền điều kiện:** lô chạy ngoài từ `TC-CUS-CREATE-030`
+- **Các bước:**
+  1. `cus`: mở danh sách lô và chi tiết lô đó.
+  2. `dieuvan`: mở màn điều vận, phân xe + phát lệnh cho lô đó.
+  3. `laixe`: mở app, xem thẻ tổng quát và thẻ chi tiết của lệnh.
+- **Kết quả mong đợi (Pass):**
+  - Cả 3 màn hiển thị **tên khách hàng / nhà máy / tuyến / cảng bằng chuỗi đã gõ** — không ô trống, không chữ `null`, không `undefined`, không mã số trần.
+  - Danh sách + chi tiết lô có **nhãn "Chạy ngoài"** (chữ màu, **không** badge nền/chấm tròn).
+  - `dieuvan` phân xe và phát lệnh **không bị chặn** vì thiếu `Factory_ID`.
+- **Kỳ vọng sai (Fail nếu):** bất kỳ màn nào hiện ô trống/`null`; điều vận bị chặn; nhãn dùng badge nền.
+- **Bằng chứng:** ảnh 3 màn + ảnh nhãn "Chạy ngoài"
+
+---
+
+### TC-CUS-CREATE-036 — Mở lại lô chạy ngoài để sửa: cờ và text giữ nguyên
+
+- **Vai trò:** `cus`
+- **Mức độ:** P1
+- **Các bước:**
+  1. Mở lô chạy ngoài ở chế độ sửa.
+  2. Đổi một trường không liên quan (ví dụ ghi chú), lưu lại.
+  3. Mở lại lần nữa.
+- **Kết quả mong đợi (Pass):**
+  - Checkbox `Lệnh chạy ngoài` vẫn ở trạng thái **tích**.
+  - Các ô master data hiển thị lại **đúng chuỗi `Raw_*`** đã lưu.
+  - Lưu lại **không** biến `Raw_*` thành ID, **không** tạo bản ghi danh mục mới (`count(*)` không đổi).
+- **Kỳ vọng sai (Fail nếu):** cờ mất sau khi mở lại; ô master data trống; lưu lại sinh bản ghi danh mục.
+- **Bằng chứng:** ảnh form mở lại + `count(*)` trước/sau
+
+---
+
+### TC-CUS-CREATE-037 — Kế toán & báo cáo: lô chạy ngoài không lẫn vào công nợ khách hàng
+
+- **Vai trò:** `ketoan`
+- **Mức độ:** P1
+- **Tiền điều kiện:** ≥ 1 lô chạy ngoài (không `Customer_ID`) + ≥ 1 lô chuẩn của khách hàng thật
+- **Các bước:**
+  1. Mở báo cáo/công nợ theo khách hàng.
+  2. Mở báo cáo theo tuyến.
+- **Kết quả mong đợi (Pass):**
+  - Lô chạy ngoài **không** được gộp vào công nợ của bất kỳ khách hàng nào trong danh mục.
+  - Báo cáo gom lô chạy ngoài vào nhóm riêng nhãn **"Chạy ngoài"**, **không** nhét vào nhóm `null` / nhóm trống.
+  - Tổng tiền toàn báo cáo vẫn khớp (không mất dòng).
+- **Kỳ vọng sai (Fail nếu):** lô chạy ngoài gắn nhầm vào khách hàng khác; biến mất khỏi báo cáo.
+- **Bằng chứng:** ảnh 2 báo cáo + đối chiếu tổng
+
+---
+
 ## Bảng nghiệm thu — Luồng Tạo lô hàng (CUS)
 
 | Ngày thử | Mã TC | Người thử | Kết quả | Ghi chú | Bằng chứng |
@@ -562,8 +801,25 @@
 | __/__/__ | TC-CUS-CREATE-018 | | | Form KH inline có địa chỉ | |
 | __/__/__ | TC-CUS-CREATE-019 | | | Quy cách đóng gói free-text | |
 | __/__/__ | TC-CUS-CREATE-020 | | | Tạo Loại container inline + tự chọn | |
-| __/__/__ | TC-CUS-CREATE-019 | | | Tạo cảng/bãi inline từ ô container | |
 | __/__/__ | TC-CUS-CREATE-021 | | | Nhà máy tự điền + khóa Tuyến/Vị trí (FCL) | |
 | __/__/__ | TC-CUS-CREATE-022 | | | Nhà máy tự điền (LCL) + chưa tuyến vẫn chọn tay | |
 | __/__/__ | TC-CUS-CREATE-023 | | | Backend chốt nhà máy ↔ tuyến | |
 | __/__/__ | TC-CUS-CREATE-024 | | | Factory bắt buộc có tuyến | |
+| __/__/__ | TC-CUS-CREATE-025 | | | Tạo cảng/bãi inline từ ô container (đổi từ mã -019 trùng) | |
+
+**§1.11 — Lệnh chạy ngoài & combobox text tự do**
+
+| Ngày thử | Mã TC | Người thử | Kết quả | Ghi chú | Bằng chứng |
+|-----------|-------|-----------|---------|---------|------------|
+| __/__/__ | TC-CUS-CREATE-026 | | | Checkbox đầu form, mặc định tắt | |
+| __/__/__ | TC-CUS-CREATE-027 | | | Cờ mở/khoá Tuyến + Vị trí | |
+| __/__/__ | TC-CUS-CREATE-028 | | | Bypass định mức cước phí | |
+| __/__/__ | TC-CUS-CREATE-029 | | | Không nới validation an toàn (P0) | |
+| __/__/__ | TC-CUS-CREATE-030 | | | Text tự do → Raw_*, ID null (P0) | |
+| __/__/__ | TC-CUS-CREATE-031 | | | Guardrail: master data không đổi (P0) | |
+| __/__/__ | TC-CUS-CREATE-032 | | | Trộn ID + text trong 1 lô | |
+| __/__/__ | TC-CUS-CREATE-033 | | | Combobox: lọc, giữ text, đóng đúng | |
+| __/__/__ | TC-CUS-CREATE-034 | | | "+ Tạo mới" vẫn ghi master data (P0) | |
+| __/__/__ | TC-CUS-CREATE-035 | | | Hiển thị xuôi dòng, không ô trống (P0) | |
+| __/__/__ | TC-CUS-CREATE-036 | | | Mở lại để sửa: cờ + text giữ nguyên | |
+| __/__/__ | TC-CUS-CREATE-037 | | | Không lẫn vào công nợ khách hàng | |

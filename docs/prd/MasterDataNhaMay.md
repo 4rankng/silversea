@@ -131,3 +131,89 @@ Ngay khi chọn xong `[Nhà máy]`:
 | Nhà máy chưa cấu hình tuyến | Chặn lưu lô, báo lỗi tiếng Việt chỉ đích danh nhà máy cần bổ sung tuyến |
 | Khách hàng chưa có nhà máy nào | Dropdown rỗng + link tạo nhanh nhà máy (theo mẫu tạo nhanh khách hàng hiện có) |
 | Nhà máy bị vô hiệu hoá (`is_active = false`) | Không xuất hiện trong dropdown tạo mới; lô cũ đã tham chiếu vẫn hiển thị bình thường |
+
+---
+
+## 4. Lệnh Chạy Ngoài (Ad-hoc Orders)
+
+**Bài toán nghiệp vụ:** khi có cuốc xe vãng lai để **tối ưu xe rỗng**, điều vận cần đẩy
+lệnh sang thật nhanh. Khách hàng / nhà máy / cảng của cuốc đó thường **không** có trong
+danh mục, và **không đáng** để thêm vào danh mục (chạy một lần rồi thôi).
+
+### 4.1 Cờ đánh dấu (checkbox)
+
+Ngay **đầu Form Khởi tạo lô** — trước mọi trường khác:
+
+```text
+[ ] Lệnh chạy ngoài (Tối ưu xe rỗng)
+```
+
+| Trạng thái | Hành vi form |
+|------------|--------------|
+| **Không tích** (mặc định) | Luồng chuẩn — toàn bộ §3 áp dụng: cascading, auto-fill, khoá read-only, validation định mức cước phí đầy đủ |
+| **Tích** | Bypass validation khắt khe về **định mức cước phí**; mở khoá `Tuyến đường` + `Vị trí đóng/trả hàng` cho nhập tay; các trường master data chuyển sang chấp nhận text tự do |
+
+**Ràng buộc:**
+
+- Checkbox đặt ở vị trí **cố định đầu form**, nhìn thấy được mà không cần cuộn.
+- Bật/tắt cờ **giữa chừng** không xoá dữ liệu người dùng đã gõ; chỉ đổi tập validation
+  và trạng thái khoá của trường. Tắt cờ trên form đang có text tự do ⇒ cảnh báo các
+  trường cần chọn lại từ danh mục trước khi lưu.
+- Cờ lưu vào lô (`is_ad_hoc`) và **hiển thị lại** khi mở/sửa lô.
+- Bypass chỉ áp dụng cho **định mức cước phí**. Các validation an toàn dữ liệu **vẫn
+  giữ nguyên**: định dạng số container ISO-6346, ngày hợp lệ, số lượng > 0, trường bắt
+  buộc không rỗng.
+
+### 4.2 Component nhập liệu — Combobox (Creatable Select)
+
+Các trường **Khách hàng, Nhà máy, Tuyến đường, Cảng nâng, Cảng hạ** chuyển từ dropdown
+thuần sang **Combobox**:
+
+| Khả năng | Yêu cầu |
+|----------|---------|
+| **Xổ chọn** | Bấm mũi tên ⇒ xổ danh sách danh mục; gõ ⇒ lọc theo chuỗi con, không phân biệt hoa/thường và dấu tiếng Việt |
+| **Gõ text tự do** | Chuỗi không khớp mục nào vẫn **giữ lại được** làm giá trị của trường (Case 2), không bị xoá khi blur |
+| **Phân biệt trực quan** | Giá trị chọn từ danh mục và giá trị text tự do phải **nhìn ra được là khác nhau** (ví dụ: text tự do kèm chú thích "mới") |
+| **Bàn phím** | ↑/↓ duyệt, `Enter` chọn mục đang tô sáng — hoặc chốt text tự do khi không có mục nào tô sáng, `Esc` đóng |
+| **Đóng đúng cách** | Click ra ngoài / `Esc` đóng danh sách và **giữ** text đã gõ — xem quy ước dropdown dismissal hiện có |
+
+### 4.3 Phân biệt "text tự do" với "tạo mới inline"
+
+Đây là **hai cơ chế khác nhau** và không được lẫn lộn:
+
+| | **Text tự do** (§4.2) | **Tạo mới inline** (nút `+ Tạo mới`) |
+|---|---|---|
+| Thao tác | Gõ chuỗi rồi rời trường | Bấm nút, điền form phụ, xác nhận |
+| Ghi vào master data | **Không bao giờ** | **Có** — tạo bản ghi thật |
+| Lưu ở lô | `Raw_*` (ID = `null`) | `*_ID` trỏ bản ghi mới |
+| Dùng khi | Cuốc vãng lai một lần | Khách/nhà máy thật, sẽ dùng lại |
+
+Nút `+ Tạo mới` (test case `TC-CUS-CREATE-012 / -017 / -019 / -020`) **vẫn giữ nguyên**
+hành vi hiện có. Cờ "Lệnh chạy ngoài" **không** vô hiệu hoá nút này.
+
+### 4.4 Hệ quả xuôi dòng (downstream)
+
+| Phân hệ | Hành vi với lô chạy ngoài |
+|---------|---------------------------|
+| **Danh sách lô / chi tiết** | Hiển thị nhãn **"Chạy ngoài"** (chữ màu, không badge) cạnh mã lô |
+| **Điều vận** | Phân xe / phát lệnh bình thường; không chặn vì thiếu `Factory_ID` |
+| **App lái xe** | Các khối lộ trình đọc từ `Raw_*` khi không có ID — không hiện ô trống |
+| **Kế toán / công nợ** | Lô không có `Customer_ID` **không** gộp vào công nợ khách hàng nào; đối soát thủ công |
+| **Báo cáo theo khách hàng / tuyến** | Nhóm riêng **"Chạy ngoài"**, không nhét vào nhóm `null` |
+| **Master data** | Số bản ghi danh mục **không đổi** sau khi tạo lô chạy ngoài |
+
+### 4.5 Tiêu chí nghiệm thu (§4)
+
+1. Checkbox hiện ở đầu form, mặc định **không tích**, nhãn đúng `Lệnh chạy ngoài (Tối ưu xe rỗng)`.
+2. Tích cờ ⇒ `Tuyến đường` + `Vị trí đóng/trả hàng` **mở khoá**; bỏ tích ⇒ khoá lại theo §3.2.
+3. Tích cờ ⇒ lưu được lô **thiếu định mức cước phí**; không tích ⇒ vẫn bị chặn như cũ.
+4. Gõ khách hàng mới hoàn toàn ⇒ lô lưu với `Customer_ID = null` **và** `Raw_Customer_Name` = đúng chuỗi đã gõ.
+5. Sau khi lưu, **`SELECT count(*)` của `customers` / `operational_sites` / `routes` / `ports` không đổi**.
+6. Lô chạy ngoài hiển thị đủ tên ở danh sách, chi tiết, màn điều vận và app lái xe — không ô trống, không hiện `null`.
+7. Trộn được: cùng một lô có Khách hàng free-text và Cảng hạ chọn từ danh mục.
+8. Combobox: xổ chọn được, lọc được, gõ text lạ giữ nguyên sau blur, `Esc`/click-ngoài không mất text.
+9. Nút `+ Tạo mới` vẫn tạo bản ghi master data thật, kể cả khi cờ đang bật.
+10. Mở lại lô chạy ngoài để sửa ⇒ checkbox vẫn ở trạng thái tích.
+
+Bộ test case: [`testplan/flows/01-cus-create-shipment.md`](../../testplan/flows/01-cus-create-shipment.md) §1.11
+(`TC-CUS-CREATE-025` … `TC-CUS-CREATE-034`).

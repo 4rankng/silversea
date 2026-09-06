@@ -100,6 +100,49 @@ to the driver's plate.
    - **Then** the page shows the empty-state illustration + copy
      (`Bạn chưa có chuyến nào`) and a refresh control.
 
+> ### ⚠️ Spec delta — `2026.8.27_Man_hinh_lai_xe.docx` vs. criteria above
+>
+> The driver-app spec defines a **different** tab set and card anatomy from what
+> `DRV-LIST-02` / `DRV-LIST-03` describe as currently built. Both are recorded here;
+> the docx is the **target**, the criteria above are the **current** behaviour.
+> Do not delete either until the migration lands.
+>
+> | Item | Current (`DRV-LIST-02/03`) | Spec target (`ManHinhLaiXe.md` §1–§2.1) |
+> |------|----------------------------|------------------------------------------|
+> | Sub-tabs | `Hôm nay` / `Đang chạy` / `Lịch sử` | `Lệnh mới` / `Đã nhận` / `Lịch sử` |
+> | Card unit | 1 card per **trip** | 1 card per **container / shipment** |
+> | Card header | `Mã chuyến` (mono) | `[Tag: ĐƠN/KẸP/KẾT HỢP]` + `Giờ đóng / trả: HH:MM - DD/MM` |
+> | Card body | `Khách hàng`, `Tuyến`, `Tài xế` + plate subtext | `Nhà máy`↔`Cảng nâng`, `Tuyến đường`↔`Cảng hạ`, `Cont: [Số] - [Loại]` |
+> | Card footer | status pill | `Xem chi tiết & Nhận lệnh` |
+>
+> **Open decision:** whether the status pill survives the migration (project convention
+> elsewhere is coloured text, no badge). Flag to product before implementing.
+>
+> Target-state cases: `TC-LX-NHANLENH-014` … `-020` in
+> [`../flows/03-laixe-nhan-lenh.md`](../flows/03-laixe-nhan-lenh.md) §3.7.
+
+7. **DRV-LIST-07 — Sub-tabs match the spec set** *(target state)*
+   - **Then** the `Hành trình` screen shows exactly three sub-tabs in order:
+     `Lệnh mới` | `Đã nhận` | `Lịch sử`, and the bottom navigation keeps
+     its **existing 4 tabs** (no tab added or removed in this phase).
+   - **Case**: `TC-LX-NHANLENH-014`.
+
+8. **DRV-LIST-08 — Layer-1 card anatomy** *(target state)*
+   - **Then** each container renders as its own card carrying, in order:
+     the `ĐƠN`/`KẸP`/`KẾT HỢP` tag plus `Giờ đóng / trả`; `Nhà máy`
+     left-aligned with `Cảng nâng` right-aligned; `Tuyến đường` left with
+     `Cảng hạ` right; `Cont: [Số Cont] - [Loại cont]`; and the footer
+     `Xem chi tiết & Nhận lệnh`.
+   - **Case**: `TC-LX-NHANLENH-015`.
+
+9. **DRV-LIST-09 — Paired shipments render as an adjacent combo**
+   - **Given** two shipments sharing a pair (`KẸP` or `KẾT HỢP`)
+   - **Then** their two cards render **adjacent as one visual combo**,
+     never split across the list, each carrying the shared tag.
+   - For `KẾT HỢP`, the second card is **locked** until the first
+     completes delivery; for `KẸP`, both run in parallel with no lock.
+   - **Cases**: `TC-LX-NHANLENH-011`, `-012`, `TC-GHEP-009` … `-011`.
+
 ### Test steps
 
 1. Log in as `laixe` on a 390 × 844 mobile viewport (Chrome dev-tools
@@ -206,6 +249,59 @@ matches the logged-in user).
    - **Evidence**: dev-tools network — the `photo` request returns
      `200` (not `401`), and the image is visible on the card.
 
+9. **DRV-DET-09 — Layer-2 detail carries all seven spec blocks**
+   - **Given** a shipment card opened full-screen
+   - **Then** the detail screen contains all seven blocks from
+     `ManHinhLaiXe.md` §2.2, in order:
+     1. **Lộ trình** — `Tuyến đường`, `Nhà máy`, `Cảng nâng`, `Cảng hạ`
+     2. **Hàng hoá** — `Loại Cont`, `Số Cont`, `Số Chì` + `📷 Chụp ảnh Cont/Chì`
+     3. **Liên hệ** — warehouse contact name + a **tap-to-call** phone number
+     4. **Thông tin hoá đơn** — lift/drop invoice info + cleaning invoice info
+     5. **Quy định tại điểm làm hàng** — sourced from the factory's driver note
+     6. **Thông tin xe** — `Biển số Đầu kéo` + `Biển số Mooc`
+     7. **Thao tác** — the sticky CTA (see `DRV-DET-10`)
+   - Block 4 reads `liftFeeInvoice*` / `dropFeeInvoice*` / `cleaningInvoice*`
+     and block 5 reads `strictRules` from the factory master data
+     (`MasterDataNhaMay.md`); a field with no data renders `—`, never
+     `null` / `undefined` / an unlabelled blank.
+   - **Case**: `TC-LX-NHANLENH-016`.
+   - **Evidence**: stitched full-scroll screenshot with the 7 blocks numbered.
+
+10. **DRV-DET-10 — Primary CTA is sticky at the bottom**
+    - **Given** a detail screen taller than the viewport (375 × 667)
+    - **Then** `Nhận lệnh vận chuyển` stays **pinned to the bottom** and
+      visible at every scroll position, ≥ 48 px tall, respecting
+      `env(safe-area-inset-bottom)`, and the page reserves bottom padding
+      so the CTA never covers the last block's content.
+    - **Case**: `TC-LX-NHANLENH-017`.
+    - **Evidence**: screenshots at top / middle / bottom scroll positions.
+
+11. **DRV-DET-11 — Cont/Seal photos carry a real capture timestamp**
+    - **When** the driver uses `📷 Chụp ảnh Cont/Chì`
+    - **Then** the camera opens directly (not only a gallery picker) and the
+      stored image carries the **actual capture timestamp** — not the upload
+      or review time — in `Asia/Ho_Chi_Minh`, within 1 minute of the device
+      clock, and visible on playback.
+    - **Case**: `TC-LX-NHANLENH-018`.
+
+12. **DRV-DET-12 — Expense module stays hidden behind the feature flag**
+    - **Then** neither the `Nhập chi phí lô hàng` form nor the
+      `Báo cáo đổ dầu` form renders anywhere in the driver app this phase —
+      no button, no menu entry, and no route reachable by typing the URL.
+    - **But** the backend `trips` schema already carries the columns/relations
+      for `Tiền nâng`, `Tiền hạ`, `Chi phí phát sinh`, `Tiền đường`,
+      `Xăng dầu`, and `Hình ảnh biên lai`, ready for the next phase.
+    - **Case**: `TC-LX-NHANLENH-019`.
+    - **Evidence**: screenshots of all 4 tabs + `\d trips` schema dump.
+
+13. **DRV-DET-13 — Ops step is bypassed this phase**
+    - **Given** Điều vận has just assigned a plate
+    - **Then** a push notification fires, the card lands in `Lệnh mới`, and
+      the driver can tap `Nhận lệnh vận chuyển` **immediately** — no Ops
+      confirmation gate in between. Tapping records the **trip-start
+      timestamp** and moves the card to `Đã nhận`.
+    - **Case**: `TC-LX-NHANLENH-020`.
+
 ### Test steps
 
 1. Log in as `laixe`. Open a trip from `/my-trips`.
@@ -282,6 +378,47 @@ owner.
    - **Then** a file picker opens; the selected file is uploaded
      and shown in the section's list with name, size, and a
      remove button (until submit).
+
+7. **DRV-POD-07 — Completion routes through e-POD, never around it**
+   - **When** the driver taps `Hoàn tất lệnh vận chuyển` after dropping the
+     container at the destination yard
+   - **Then** the trip does **not** close; the app navigates straight to the
+     e-POD upload screen and the trip stays in its running state until
+     e-POD is done. Backing out returns to trip detail without leaving the
+     trip in a half-closed state.
+   - **Case**: `TC-LX-TIENDO-018`.
+
+8. **DRV-POD-08 — Both photo slots are mandatory and gate the CTA**
+   - **Then** the screen exposes exactly two upload areas —
+     `Phiếu bãi / Phiếu hạ` and `Biên bản giao nhận` (the latter **must
+     carry a stamp or signature**) — and `HOÀN THÀNH CHUYẾN` stays disabled
+     until **both** uploads report **100 %**.
+   - Calling the completion API directly with a missing photo is rejected
+     server-side; there is no bypass.
+   - **Case**: `TC-LX-TIENDO-019`.
+
+9. **DRV-POD-09 — On-device compression before upload**
+   - **Given** a ≥ 4 MB camera original
+   - **Then** the bytes actually transmitted are **materially smaller** than
+     the original (compression happens **on the phone**, before transfer),
+     while the document text stays legible — compression must not destroy
+     the evidence. A progress bar is shown; the upload completes in
+     acceptable time on Slow 3G.
+   - **Case**: `TC-LX-TIENDO-020`.
+   - **Evidence**: original file size vs. request `Content-Length`.
+
+10. **DRV-POD-10 — e-POD photos carry the real capture timestamp**
+    - **Then** both images carry the **capture** time (not upload, not
+      review), in `Asia/Ho_Chi_Minh`, within 1 minute of the device clock,
+      readable both in the driver app and on the accountant's review screen.
+    - **Case**: `TC-LX-TIENDO-021`.
+
+11. **DRV-POD-11 — Completion moves the card to Lịch sử and syncs dispatch**
+    - **When** `HOÀN THÀNH CHUYẾN` is tapped with both photos in place
+    - **Then** the card leaves `Đã nhận`, appears under `Lịch sử`, never
+      reappears in `Lệnh mới`, and the dispatcher dashboard reflects
+      completion **without any manual action** on their side.
+    - **Case**: `TC-LX-TIENDO-022`.
 
 ### Test steps
 

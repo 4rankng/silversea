@@ -351,7 +351,7 @@ common access pattern is a phone browser.
    - **Then** ô trạng thái của xe đó đi đúng chuỗi `Chờ nhận lệnh` →
      `Đang vận chuyển` → `Đã hoàn thành`, khớp mốc thời gian thao tác trên app.
 
-**Test case**: [`TC-OPS-XE-001` … `TC-OPS-XE-005`](../flows/05-ops-quy-chi-phi.md#52--màn-hình-2-theo-dõi-phương-tiện-được-giao-opsfleet-tracking).
+**Test case**: [`TC-OPS-XE-001` … `TC-OPS-XE-006`](../flows/05-ops-quy-chi-phi.md#52--màn-hình-2-theo-dõi-phương-tiện-được-giao-opsfleet-tracking).
 
 ## Flow 9 — Ví tạm ứng & chi phí (/ops/wallet)
 
@@ -412,7 +412,7 @@ common access pattern is a phone browser.
     - **Then** khoản đã nằm trong một phiếu đã quyết toán **không** bị gom lại vào
       đề nghị thanh toán mới.
 
-**Test case**: [`TC-OPS-VI-001` … `TC-OPS-VI-011`](../flows/05-ops-quy-chi-phi.md#53--màn-hình-3-quỹ-tạm-ứng-cá-nhân--chi-phí-opswallet).
+**Test case**: [`TC-OPS-VI-001` … `TC-OPS-VI-014`](../flows/05-ops-quy-chi-phi.md#53--màn-hình-3-quỹ-tạm-ứng-cá-nhân--chi-phí-opswallet).
 
 ## Negative / RBAC table (OPS)
 

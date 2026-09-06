@@ -15,6 +15,10 @@
 >
 > **Ghi chú lịch sử:** slot Luồng 5 trước đây là "Chi phí phát sinh (Ops)" đã bị gỡ 2026-09.
 > Tệp này thay thế slot đó bằng đặc tả Ops mới ngày 2026-09-06.
+>
+> **Hợp nhất 2026-09-07:** từng tồn tại song song một tệp `05-ops-vi.md` viết cho **cùng
+> đặc tả này** với dải mã `TC-OPS-VI-*` **trùng** dải mã ở §5.3 dưới đây. Tệp đó đã được
+> gộp vào đây và xoá. **Tệp này là bản chuẩn duy nhất cho Luồng 5.**
 
 ---
 
@@ -29,13 +33,18 @@
 - **Các bước:**
   1. Đăng nhập `giaonhan`, mở `/ops/orders`.
   2. Đọc danh sách mặc định.
-  3. Đổi bộ chọn ngày sang một ngày cụ thể trong quá khứ.
+  3. Đổi bộ chọn ngày sang một ngày cụ thể trong quá khứ, rồi sang một ngày tương lai.
+  4. Tìm kiếm theo mã lô, theo tên khách hàng, theo số container.
 - **Kết quả mong đợi (Pass):**
+  - Bộ chọn ngày **mặc định hôm nay**; trục ngày = `expected_delivery_date` (Ngày giao dự kiến).
   - Hiển thị **toàn bộ lô hàng của công ty** trong ngày — không giới hạn theo lô được gán riêng cho Ops này.
-  - Bộ chọn ngày đổi được sang ngày cụ thể; danh sách tải lại đúng ngày đã chọn.
-  - Nhãn tiếng Việt; nút chạm ≥ 48 px trên mobile; không cuộn ngang.
-- **Kỳ vọng sai (Fail nếu):** chỉ thấy lô của riêng mình; không đổi được ngày.
-- **Bằng chứng:** ảnh danh sách hôm nay + ảnh sau khi đổi ngày
+  - **Bỏ qua lô đã hủy.**
+  - Cột đầy đủ: `Mã lô` | `Khách hàng` | `Tuyến` | `Cont` (số lượng + danh sách số vỏ) | `Bill/Booking` | `Trạng thái` | hành động.
+  - `Trạng thái` hiển thị **chữ màu, KHÔNG badge nền / chấm tròn** (quy ước dự án).
+  - Tra cứu được ngày quá khứ **và** tương lai; tìm kiếm khớp cả 3 tiêu chí; URL giữ trạng thái ngày/tìm kiếm.
+  - Nhãn tiếng Việt; nút chạm ≥ 44 px trên mobile; **bảng giữ dạng tabular tới giới hạn container 680px**; không cuộn ngang.
+- **Kỳ vọng sai (Fail nếu):** chỉ thấy lô của riêng mình; lô đã hủy vẫn hiện; badge nền ở cột Trạng thái; không đổi được ngày.
+- **Bằng chứng:** ảnh danh sách hôm nay + ảnh sau khi đổi ngày + ảnh kết quả tìm kiếm
 
 ---
 
@@ -77,16 +86,24 @@
 
 - **Vai trò:** `giaonhan`
 - **Mức độ:** P0
+- **Tiền điều kiện:** 1 lô **IMPORT** có `bl_number` + ≥ 2 vỏ cont; 1 lô **EXPORT** có `booking_ref`
 - **Các bước:**
-  1. Mở `/ops/orders`, click vào một lô hàng cụ thể (ghi lại Số Bill + Số Cont của lô).
+  1. Mở `/ops/orders`, click vào lô **IMPORT** (ghi lại Số Bill + danh sách vỏ của lô).
   2. Đọc form "Khai báo chi phí" vừa mở.
   3. Thử sửa trực tiếp ô Số Bill / Số Cont.
+  4. Mở danh sách `Số Cont` và danh sách `Loại phí`.
+  5. Thử nhập Số tiền = `0`, số âm, và số có phần thập phân.
+  6. Lặp lại bước 1–2 với lô **EXPORT**.
 - **Kết quả mong đợi (Pass):**
   - Form mở ra với tiêu đề **"Khai báo chi phí"**.
-  - `[Số Bill]` và `[Số Cont]` **đã điền sẵn đúng** giá trị của lô vừa click — Ops không gõ tay.
-  - Ops chỉ còn phải nhập: **Loại phí**, **Số tiền**, **Upload ảnh biên lai**.
-- **Kỳ vọng sai (Fail nếu):** Số Bill/Cont trống, hoặc phải chọn lại lô trong form.
-- **Bằng chứng:** ảnh form với 2 trường auto-fill
+  - `[Mã lô]`, `[Số Bill]`, `[Số Cont]` **đã điền sẵn đúng** giá trị của lô vừa click, ở trạng thái **readonly** — Ops không gõ tay, không sửa được.
+  - **Đúng chiều Bill:** lô IMPORT hiện `bl_number`; lô EXPORT hiện `booking_ref`. Không lẫn ngược.
+  - `Số Cont`: chọn 1 vỏ trong danh sách vỏ **của đúng lô đó**; lô nhiều vỏ có thêm lựa chọn **"Phí chung lô"** (không gắn vỏ riêng).
+  - `Loại phí` nhóm theo **"Có hóa đơn" / "Không hóa đơn"**, suy từ cột `requires_invoice` (không hard-code theo tên).
+  - `Số tiền`: chỉ nhận **nguyên dương**, VND, **không phần thập phân** — cả 3 giá trị ở bước 5 đều bị chặn.
+  - Ops chỉ còn phải nhập: **Loại phí**, **Số tiền**, **Upload ảnh biên lai** (ảnh **không bắt buộc** — xem `TC-OPS-VI-006`), **Ghi chú** (tùy chọn).
+- **Kỳ vọng sai (Fail nếu):** Số Bill/Cont trống hoặc sửa được; Bill/Booking ngược chiều; thiếu "Phí chung lô" ở lô nhiều vỏ; lưu được số tiền ≤ 0 hoặc thập phân; bắt buộc phải có ảnh.
+- **Bằng chứng:** ảnh form IMPORT + ảnh form EXPORT + ảnh 3 lỗi số tiền
 
 ---
 
@@ -114,14 +131,15 @@
 - **Mức độ:** P0
 - **Tiền điều kiện:** xe `15C-284.56` được cấu hình do `giaonhan` quản lý
 - **Các bước:**
-  1. `giaonhan` mở `/ops/fleet-tracking`, ghi lại danh sách hiện có.
+  1. `giaonhan` mở `/ops/fleet-tracking`, ghi lại danh sách hiện có. **Không tải lại trang nữa.**
   2. `dieuvan` gán 1 chuyến mới cho xe `15C-284.56`.
-  3. `giaonhan` tải lại `/ops/fleet-tracking`.
+  3. Chờ tối đa **30 giây** trên màn của `giaonhan` — **không** bấm F5.
 - **Kết quả mong đợi (Pass):**
-  - Chuyến mới **tự động xuất hiện** trên màn của `giaonhan` — không cần thao tác nhận/claim.
-  - Backend map `Vehicles` (xe Ops quản lý) × `Trips` (chuyến Điều vận phân công).
-- **Kỳ vọng sai (Fail nếu):** Ops phải bấm nút để nhận chuyến; chuyến không xuất hiện.
-- **Bằng chứng:** ảnh trước/sau + ảnh thao tác gán của `dieuvan`
+  - Chuyến mới **tự động xuất hiện** trên màn của `giaonhan` trong ≤ 30 s nhờ tự làm mới (polling 30 s) — **không** cần tải lại tay, không cần thao tác nhận/claim.
+  - Backend map `truck_ops_assignments` (xe Ops quản lý) × `trips` (chuyến Điều vận phân công).
+  - Việc gán xe ↔ Ops do **Admin** cấu hình ở trang Đội xe (trường "Ops phụ trách"); một xe chỉ có **một** Ops active.
+- **Kỳ vọng sai (Fail nếu):** Ops phải bấm nút/F5 để thấy chuyến; chuyến không xuất hiện.
+- **Bằng chứng:** ảnh trước/sau **kèm đồng hồ** + ảnh thao tác gán của `dieuvan`
 
 ---
 
@@ -180,6 +198,19 @@
 
 ---
 
+### TC-OPS-XE-006 — Ops chưa được gán xe nào: trang trống có hướng dẫn
+
+- **Vai trò:** tài khoản OPS chưa được gán xe
+- **Mức độ:** P1
+- **Các bước:** đăng nhập tài khoản OPS chưa được Admin gán xe, mở `/ops/fleet-tracking`.
+- **Kết quả mong đợi (Pass):**
+  - Trang trống hiển thị thông điệp **"Chưa có xe nào được giao cho bạn quản lý"** + gợi ý liên hệ Admin.
+  - **Không** lỗi JS, không bảng rỗng không nhãn, không spinner treo.
+- **Kỳ vọng sai (Fail nếu):** màn trắng; lỗi console; hiện toàn bộ đội xe của công ty.
+- **Bằng chứng:** ảnh trang trống + console sạch
+
+---
+
 ## 5.3 — Màn hình 3: Quỹ tạm ứng cá nhân & Chi phí (`/ops/wallet`)
 
 ### TC-OPS-VI-001 — Xin tạm ứng: nút ghim đầu màn, đẩy sang Kế toán ở trạng thái Pending
@@ -218,18 +249,22 @@
 
 - **Vai trò:** `giaonhan`
 - **Mức độ:** P0
-- **Tiền điều kiện:** tài khoản có đủ 4 loại dữ liệu (đã ứng, đã duyệt, chờ duyệt, bị từ chối)
+- **Tiền điều kiện (dữ liệu chốt để tính tay được):** tạm ứng **đã duyệt** `1.000.000`;
+  chi `APPROVED` `300.000`; chi `PENDING` `200.000`; chi `REJECTED` `100.000`
 - **Các bước:**
   1. Mở `/ops/wallet`. Đọc 4 card trên cùng.
-  2. Lấy `Tổng tiền đã ứng`, `Đã duyệt`, `Chờ duyệt` từ dữ liệu; tính tay.
+  2. Đối chiếu với phép tính tay theo công thức PRD.
 - **Kết quả mong đợi (Pass):**
   - Đủ 4 card: `[SỐ DƯ HIỆN TẠI]`, `[Đã duyệt]`, `[Chờ duyệt]`, `[Bị từ chối]`.
-  - `SỐ DƯ HIỆN TẠI` = `Tổng tiền đã ứng − (Đã duyệt + Chờ duyệt)` — khớp phép tính tay.
+  - `SỐ DƯ HIỆN TẠI` = `Tổng tiền đã ứng − (Đã duyệt + Chờ duyệt)`
+    = `1.000.000 − (300.000 + 200.000)` = **`500.000`** — khớp chính xác đến từng đồng.
+  - `[Đã duyệt]` = `300.000` (**xanh lá**); `[Chờ duyệt]` = `200.000` (**vàng/cam**); `[Bị từ chối]` = `100.000` (**đỏ**).
+  - **`REJECTED` KHÔNG bị trừ vào số dư** — đây là vế dễ sai nhất của công thức.
   - `[SỐ DƯ HIỆN TẠI]` dùng **font to nhất, nổi bật nhất** trong 4 card.
-  - Màu: `Đã duyệt` = **xanh lá**, `Chờ duyệt` = **vàng/cam**, `Bị từ chối` = **đỏ**.
   - Tiền VND định dạng `vi-VN`, không có phần thập phân.
-- **Kỳ vọng sai (Fail nếu):** sai công thức; 4 card cùng cỡ chữ; sai màu quy ước.
-- **Bằng chứng:** ảnh 4 card + bảng đối chiếu phép tính tay
+  - Có **unit test** phủ đúng công thức này (không chỉ kiểm bằng mắt).
+- **Kỳ vọng sai (Fail nếu):** ra số khác `500.000`; `REJECTED` làm giảm số dư; 4 card cùng cỡ chữ; sai màu quy ước.
+- **Bằng chứng:** ảnh 4 card + truy vấn DB đối chiếu + log unit test công thức
 
 ---
 
@@ -257,14 +292,18 @@
 - **Tiền điều kiện:** có 1 khoản chi 300.000 ₫ đang `Chờ duyệt`
 - **Các bước:**
   1. Ghi `[SỐ DƯ HIỆN TẠI]`, `[Chờ duyệt]`, `[Bị từ chối]`.
-  2. `ketoan` **Từ chối** khoản 300.000 ₫ (lý do: ảnh mờ).
-  3. `giaonhan` mở lại `/ops/wallet`.
+  2. `ketoan` thử **Từ chối** khoản 300.000 ₫ **bỏ trống lý do**.
+  3. `ketoan` **Từ chối** với lý do "ảnh mờ".
+  4. `giaonhan` mở lại `/ops/wallet`, xem dòng bị từ chối.
+  5. `giaonhan` bấm **Chụp lại / Gửi lại** trên dòng đó, bổ sung ảnh, gửi.
 - **Kết quả mong đợi (Pass):**
-  - Backend đặt `Status = Rejected`.
-  - `[Chờ duyệt]` **giảm** 300.000 ₫; `[Bị từ chối]` **tăng** 300.000 ₫.
-  - `[SỐ DƯ HIỆN TẠI]` **tăng ngược** đúng 300.000 ₫.
-- **Kỳ vọng sai (Fail nếu):** tiền bị trừ 2 lần; số dư không cộng ngược.
-- **Bằng chứng:** ảnh 4 card trước/sau + ảnh thao tác từ chối
+  - Bước 2: **bị chặn** — từ chối **bắt buộc có lý do**.
+  - Bước 3: backend đặt `Status = Rejected`.
+  - Bước 4: `[Chờ duyệt]` **giảm** 300.000 ₫; `[Bị từ chối]` **tăng** 300.000 ₫;
+    `[SỐ DƯ HIỆN TẠI]` **tăng ngược** đúng 300.000 ₫; dòng hiển thị **lý do từ chối**.
+  - Bước 5: gửi lại **đổi trạng thái dòng cũ** về `Chờ duyệt` (`[Chờ duyệt]` +300.000, số dư −300.000) — **không** tạo dòng chi mới (không nhân đôi khoản chi).
+- **Kỳ vọng sai (Fail nếu):** từ chối được mà không cần lý do; tiền bị trừ 2 lần; số dư không cộng ngược; gửi lại sinh dòng trùng.
+- **Bằng chứng:** ảnh 4 card ở 3 thời điểm + ảnh lý do từ chối + `SELECT` cho thấy vẫn 1 dòng chi
 
 ---
 
@@ -370,6 +409,64 @@
 
 ---
 
+### TC-OPS-VI-012 — Phiếu có mã riêng và khóa danh sách khoản chi tham gia
+
+- **Vai trò:** `giaonhan`
+- **Mức độ:** **P0** (chống gom trùng)
+- **Tiền điều kiện:** đã tạo 1 đề nghị thanh toán ở `TC-OPS-VI-009`
+- **Các bước:**
+  1. Đọc mã phiếu vừa tạo; ghi lại danh sách khoản chi thuộc phiếu.
+  2. Quay lại `/ops/orders`, khai thêm **1 khoản chi mới**.
+  3. Mở lại phiếu cũ.
+  4. Bấm `[Tạo Đề Nghị Thanh Toán]` lần thứ hai.
+- **Kết quả mong đợi (Pass):**
+  - Phiếu mang **mã phiếu riêng, duy nhất**.
+  - Danh sách khoản chi của phiếu cũ **bị khóa** — khoản mới ở bước 2 **không** lọt vào phiếu cũ.
+  - Phiếu thứ hai chứa **đúng khoản mới**, không gom lại khoản đã thuộc phiếu trước.
+  - Tổng tiền mỗi phiếu khớp tổng các khoản của chính nó.
+- **Kỳ vọng sai (Fail nếu):** khoản chi nằm trong 2 phiếu cùng lúc; phiếu cũ tự nuốt khoản mới; trùng mã phiếu.
+- **Bằng chứng:** ảnh 2 phiếu + `SELECT` bảng liên kết khoản chi ↔ phiếu
+
+---
+
+### TC-OPS-VI-013 — Bản in A4 của phiếu (sổ phụ đính kèm hồ sơ giấy)
+
+- **Vai trò:** `giaonhan`
+- **Mức độ:** P1
+- **Các bước:**
+  1. Trên phiếu vừa tạo, bấm **In phiếu**.
+  2. Xem bản xem trước khi in (print preview).
+- **Kết quả mong đợi (Pass):**
+  - Bản in **khổ A4**, **không** có menu / sidebar / khung điều hướng của app.
+  - Đủ nội dung: mã phiếu, tên Ops, kỳ đối soát, bảng kê theo lô chia 2 rổ, tổng từng rổ, tổng chung.
+  - Có **ô ký tên** để đính kèm hồ sơ chứng từ gốc gửi Kế toán.
+  - Bảng không bị cắt cột khi in; xuống trang không cắt đôi dòng.
+- **Kỳ vọng sai (Fail nếu):** in ra kèm sidebar; mất cột; thiếu ô ký tên.
+- **Bằng chứng:** ảnh print preview + file PDF in ra
+
+---
+
+### TC-OPS-VI-014 — Chặn duyệt cả phiếu khi còn khoản chưa duyệt; khoản đã duyệt bị khóa
+
+- **Vai trò:** `ketoan`
+- **Mức độ:** **P0**
+- **Tiền điều kiện:** phiếu có ≥ 2 khoản, trong đó ≥ 1 khoản còn `PENDING`
+- **Các bước:**
+  1. `ketoan` duyệt 1 khoản trong phiếu, để lại ≥ 1 khoản `PENDING`.
+  2. Thử **duyệt cả phiếu** ngay lúc này.
+  3. Thử sửa / xoá khoản vừa được duyệt (cả trên UI của `ketoan` lẫn của `giaonhan`).
+  4. Duyệt nốt khoản cuối, rồi duyệt phiếu.
+- **Kết quả mong đợi (Pass):**
+  - Bước 2: **bị chặn** với thông báo tiếng Việt — phiếu chỉ duyệt được khi **mọi khoản** đã `APPROVED`.
+  - Bước 3: khoản `APPROVED` **khóa vĩnh viễn** — không sửa, không xoá được từ bất kỳ vai trò nào.
+    (Đối chiếu: khoản `PENDING` / `REJECTED` thì **người nhập** vẫn sửa/xoá được.)
+  - Bước 4: duyệt phiếu thành công ⇒ phiếu chốt trạng thái **"Đã quyết toán"**.
+  - Duyệt phiếu **không** đổi lại công thức ví (khoản `APPROVED` đã trừ từ lúc duyệt khoản).
+- **Kỳ vọng sai (Fail nếu):** duyệt được phiếu khi còn khoản `PENDING`; khoản đã duyệt vẫn sửa/xoá được; số dư nhảy lần hai khi duyệt phiếu.
+- **Bằng chứng:** ảnh lỗi bước 2 + ảnh nút sửa/xoá bị khóa + ảnh 4 card trước/sau duyệt phiếu
+
+---
+
 ## 5.4 — Phân quyền
 
 ### TC-OPS-RBAC-001 — Vai trò khác không vào được `/ops/*`
@@ -409,6 +506,7 @@
 | __/__/__ | TC-OPS-XE-003 | | | Trạng thái đồng bộ từ Lái xe | |
 | __/__/__ | TC-OPS-XE-004 | | | Read-only tuyệt đối | |
 | __/__/__ | TC-OPS-XE-005 | | | Chỉ thấy xe được giao | |
+| __/__/__ | TC-OPS-XE-006 | | | Trang trống khi chưa gán xe | |
 | __/__/__ | TC-OPS-VI-001 | | | Xin tạm ứng → Pending | |
 | __/__/__ | TC-OPS-VI-002 | | | Duyệt → số dư tăng | |
 | __/__/__ | TC-OPS-VI-003 | | | 4 card đúng công thức + màu | |
@@ -420,5 +518,8 @@
 | __/__/__ | TC-OPS-VI-009 | | | Đề nghị TT: gom lô + 2 rổ | |
 | __/__/__ | TC-OPS-VI-010 | | | Export + sync Kế toán | |
 | __/__/__ | TC-OPS-VI-011 | | | Duyệt cuối: đủ ảnh / nợ ảnh | |
+| __/__/__ | TC-OPS-VI-012 | | | Phiếu có mã riêng + khóa danh sách (P0) | |
+| __/__/__ | TC-OPS-VI-013 | | | Bản in A4 có ô ký tên | |
+| __/__/__ | TC-OPS-VI-014 | | | Chặn duyệt phiếu khi còn PENDING (P0) | |
 | __/__/__ | TC-OPS-RBAC-001 | | | Vai trò khác bị chặn | |
 | __/__/__ | TC-OPS-RBAC-002 | | | Ops không vào màn văn phòng | |

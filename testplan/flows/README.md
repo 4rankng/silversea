@@ -4,12 +4,22 @@
 > luồng nghiệp vụ chính trong quy trình Order-to-Cash (O2C). Mỗi vai trò có một tệp riêng chứa
 > toàn bộ các flow mà vai trò đó sở hữu hoặc tham gia.
 >
-> **Nguồn chân lý:** Mọi tiêu chí được dẫn xuất từ:
-> - `docs/prd/O2C Flow.md` — Quy trình O2C end-to-end
-> - `docs/prd/quytrinh-o2c-qa-test-plan.md` — 20 test cases O2C (TC-MO2C-00 → TC-MO2C-19)
-> - `docs/regression-testing/*.md` — 17 tệp hồi quy ~470+ test cases
-> - `docs/prd/Module1.docx` … `Module12.docx` — 12 phân hệ PRD
-> - `docs/prd/business-logic-qa-proposals.md` — 23 quy tắc Q01–Q23
+> **Nguồn chân lý (cập nhật 2026-09-07):** Mọi tiêu chí được dẫn xuất từ các PRD đang có
+> hiệu lực trong [`docs/prd/`](../../docs/prd/README.md):
+>
+> | PRD | Phạm vi | Luồng tương ứng |
+> |-----|---------|-----------------|
+> | [`QuyTrinhO2C.md`](../../docs/prd/QuyTrinhO2C.md) | Quy trình O2C end-to-end | 1, 2, 3, 4, 6 |
+> | [`MasterDataNhaMay.md`](../../docs/prd/MasterDataNhaMay.md) | Khách hàng–Nhà máy–Tuyến–Vị trí; lệnh chạy ngoài | 1 (§1.10, §1.11) |
+> | [`LoHangKepKetHop.md`](../../docs/prd/LoHangKepKetHop.md) | Lô hàng Kẹp & Kết hợp | 9 |
+> | [`OpsVanHanh.md`](../../docs/prd/OpsVanHanh.md) | 3 màn hình Ops hiện trường | 5 |
+> | [`ManHinhLaiXe.md`](../../docs/prd/ManHinhLaiXe.md) | App Lái xe: thẻ 2 lớp, e-POD | 3, 4 |
+>
+> ⚠️ Các nguồn cũ từng được trích ở đây — `docs/prd/O2C Flow.md`,
+> `docs/prd/quytrinh-o2c-qa-test-plan.md`, `docs/regression-testing/*.md`,
+> `docs/prd/business-logic-qa-proposals.md` — **không còn tồn tại trong repo**.
+> 12 tệp `Module*.docx` đã chuyển vào `docs/prd/archive/`, chỉ để tra cứu lịch sử,
+> **không** phải nguồn chân lý hiện hành.
 >
 > **Quy ước:** Tất cả test case viết bằng tiếng Việt. Thuật ngữ kỹ thuật giữ nguyên tiếng Anh khi cần.
 > Mỗi test case có mã định danh, vai trò, tiền điều kiện, các bước, kết quả mong đợi và cột bằng chứng.
@@ -34,10 +44,17 @@ Mới tạo (NEW) → Đã phân xe (DISPATCHED) → Đang chạy (IN_TRANSIT) �
 | 2 | **Điều xe / Phân bổ chuyến** | Điều vận (DISPATCHER) | CUS (bàn giao) | `02-dieuvan-dispatch.md` |
 | 3 | **Nhận lệnh & Kích hoạt chuyến** | Lái xe (DRIVER) | Điều vận (phát lệnh) | `03-laixe-nhan-lenh.md` |
 | 4 | **Cập nhật tiến độ & e-POD** | Lái xe (DRIVER) | — | `04-laixe-tien-do-epod.md` |
-| 5 | ~~Chi phí phát sinh (Ops)~~ (flow retired; ops expense plan deleted 2026-09) | — | — | — |
+| 5 | **Kế hoạch làm hàng, Theo dõi xe & Quỹ tạm ứng (Ops)** | Ops / Hiện trường (OPS) | Kế toán (duyệt), Điều vận (gán chuyến) | `05-ops-quy-chi-phi.md` |
 | 6 | **Duyệt e-POD & Chốt O2C** | Kế toán (ACCOUNTANT) / CUS | — | `06-ketoan-chot-o2c.md` |
 | 7 | **RBAC & Phân quyền** | Tất cả 8 vai trò | — | `07-rbac-phan-quyen.md` |
 | 8 | **Cổng Khách hàng** | Khách hàng (CUSTOMER) | — | `08-customer-portal.md` |
+| 9 | **Ghép chuyến Kẹp & Kết hợp** | Điều vận (DISPATCHER) | Lái xe, Kế toán | `09-kep-kethop-ghep-chuyen.md` |
+
+> **Lịch sử slot Luồng 5.** Slot này từng là "Chi phí phát sinh (Ops)" gắn trạng thái
+> `PENDING_EXPENSE_APPROVAL` + tự cấn trừ tạm ứng; toàn bộ cơ chế đó **đã dừng và xoá**
+> ngày 2026-09-05 (commit `58a330af`) và **không được dựng lại**. Tệp hiện tại là đặc tả
+> Ops **mới** ngày 2026-09-06 (3 màn `/ops/*`). Một tệp trùng lặp `05-ops-vi.md` đã được
+> gộp vào `05-ops-quy-chi-phi.md` và xoá ngày 2026-09-07.
 
 ---
 
@@ -52,7 +69,7 @@ Mật khẩu chung: `Abc123`. URL local: `http://localhost:7174`
 | `ketoan` | ACCOUNTANT | Kế toán: ghi chi phí, duyệt e-POD, chốt O2C |
 | `cus` | CLERK (CUS) | Chứng từ: tạo lô, kiểm tra POD |
 | `dieuvan` | DISPATCHER | Điều vận: ghép chuyến, phân xe, phát lệnh |
-| `giaonhan` | FORWARDER | Hiện trường: tạm ứng, khoản chi hộ |
+| `giaonhan` | OPS (FORWARDER cũ) | Hiện trường: kế hoạch làm hàng, theo dõi xe, ví tạm ứng |
 | `laixe` | DRIVER | Lái xe: nhận lệnh, cập nhật tiến độ, e-POD |
 | `thu`, `pho`, `quyet` | DRIVER | Lái xe dự phòng (multi-driver test) |
 | `customer` | CUSTOMER | Cổng khách hàng: theo dõi lô, giấy báo nợ |

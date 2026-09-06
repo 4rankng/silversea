@@ -256,6 +256,104 @@
 
 ---
 
+## 4.5 — Cổng e-POD bắt buộc & xử lý ảnh (đặc tả app lái xe 2026-08-27)
+
+> **Nguồn:** `2026.8.27_Man_hinh_lai_xe.docx` Phần 4 · PRD
+> [`docs/prd/ManHinhLaiXe.md`](../../docs/prd/ManHinhLaiXe.md) §4.
+>
+> Đặc tả yêu cầu: bấm `Hoàn tất lệnh vận chuyển` **không** kết thúc chuyến ngay mà
+> **nhảy bắt buộc** sang màn Upload E-POD; ảnh phải **tự nén trên máy** và **gắn
+> timestamp thực tế**; nút `HOÀN THÀNH CHUYẾN` chỉ sáng khi **cả 2 ảnh đạt 100%**.
+
+### TC-LX-TIENDO-018 — "Hoàn tất lệnh vận chuyển" nhảy bắt buộc sang màn E-POD
+
+- **Vai trò:** `laixe`
+- **Mức độ:** **P0**
+- **Thiết bị:** Mobile (375 × 667)
+- **Tiền điều kiện:** chuyến đang `IN_TRANSIT`, đã hạ cont tại cảng hạ, chưa nộp e-POD
+- **Các bước:**
+  1. Ở tab `Đã nhận` / `Đang chạy`, mở chuyến, bấm `Hoàn tất lệnh vận chuyển`.
+  2. Quan sát điều hướng ngay sau khi bấm.
+  3. Thử bấm nút back của trình duyệt/thiết bị.
+- **Kết quả mong đợi (Pass):**
+  - App **không** kết thúc chuyến ngay; **chuyển thẳng sang màn Upload E-POD**.
+  - Chuyến vẫn ở trạng thái đang chạy cho tới khi hoàn tất e-POD.
+  - Back quay lại chi tiết chuyến an toàn — **không** để chuyến rơi vào trạng thái nửa vời.
+- **Kỳ vọng sai (Fail nếu):** chuyến kết thúc luôn mà bỏ qua e-POD; back làm hỏng trạng thái.
+- **Bằng chứng:** ảnh trước/sau khi bấm + ảnh trạng thái chuyến
+
+---
+
+### TC-LX-TIENDO-019 — Màn E-POD: đúng 2 khu vực tải ảnh, cả hai bắt buộc
+
+- **Vai trò:** `laixe`
+- **Mức độ:** P0
+- **Các bước:**
+  1. Ở màn E-POD, đọc nhãn 2 khu vực tải ảnh.
+  2. Tải **chỉ** ảnh khu vực 1. Quan sát nút `HOÀN THÀNH CHUYẾN`.
+  3. Tải nốt ảnh khu vực 2.
+- **Kết quả mong đợi (Pass):**
+  - Đúng **2 khu vực**: `Phiếu bãi / Phiếu hạ` và `Biên bản giao nhận` (biên bản **phải có dấu / chữ ký**).
+  - Sau bước 2 (mới 1 ảnh): nút `HOÀN THÀNH CHUYẾN` **vẫn mờ / không bấm được**.
+  - Sau bước 3 (đủ 2 ảnh, tiến trình **100%**): nút **sáng** và bấm được.
+  - Không có đường vòng nào kết thúc chuyến khi thiếu ảnh (kể cả gọi API trực tiếp → bị chặn).
+- **Kỳ vọng sai (Fail nếu):** nút sáng khi mới 1 ảnh; nút sáng khi upload còn đang chạy (< 100%); API cho phép đóng chuyến thiếu ảnh.
+- **Bằng chứng:** ảnh nút mờ sau 1 ảnh + ảnh nút sáng sau 2 ảnh + Network 4xx của API trực tiếp
+
+---
+
+### TC-LX-TIENDO-020 — Ảnh e-POD tự nén trên thiết bị trước khi tải lên
+
+- **Vai trò:** `laixe`
+- **Mức độ:** P1
+- **Tiền điều kiện:** ảnh gốc dung lượng lớn (≥ 4 MB, ví dụ ảnh camera 12 MP)
+- **Các bước:**
+  1. Ghi lại dung lượng file gốc.
+  2. Tải ảnh đó vào khu vực `Phiếu bãi / Phiếu hạ`.
+  3. Mở DevTools → Network, xem `Content-Length` của request upload.
+  4. Mở lại ảnh đã lưu, kiểm tra còn đọc được nội dung phiếu.
+- **Kết quả mong đợi (Pass):**
+  - Kích thước **truyền đi nhỏ hơn đáng kể** file gốc (nén xảy ra **trên máy**, trước khi truyền).
+  - Ảnh sau nén **vẫn đọc rõ** chữ/số trên phiếu — nén không phá mất bằng chứng.
+  - Trên mạng chậm (Slow 3G) vẫn tải xong trong thời gian chấp nhận được, có thanh tiến trình.
+- **Kỳ vọng sai (Fail nếu):** upload nguyên file gốc; ảnh nén tới mức không đọc được phiếu.
+- **Bằng chứng:** dung lượng gốc vs `Content-Length` + ảnh sau nén phóng to
+
+---
+
+### TC-LX-TIENDO-021 — Ảnh e-POD gắn timestamp thực tế
+
+- **Vai trò:** `laixe`
+- **Mức độ:** P0
+- **Các bước:**
+  1. Ghi giờ thiết bị. Chụp và tải cả 2 ảnh e-POD.
+  2. Xem lại 2 ảnh trong hồ sơ chuyến (cả trên app lái xe và màn duyệt của Kế toán).
+- **Kết quả mong đợi (Pass):**
+  - Cả 2 ảnh mang **timestamp thực tế lúc chụp**, xem lại được ở cả 2 phía.
+  - Giờ theo `Asia/Ho_Chi_Minh`, lệch ≤ 1 phút so với đồng hồ thiết bị.
+  - Timestamp là **giờ chụp**, không phải giờ upload hay giờ duyệt.
+- **Kỳ vọng sai (Fail nếu):** thiếu timestamp; sai múi giờ; dùng giờ upload.
+- **Bằng chứng:** ảnh đồng hồ thiết bị + 2 ảnh e-POD có timestamp + ảnh màn Kế toán
+
+---
+
+### TC-LX-TIENDO-022 — Hoàn thành ⇒ thẻ sang tab Lịch sử ⇒ đồng bộ Dashboard Điều vận
+
+- **Vai trò:** `laixe` → `dieuvan`
+- **Mức độ:** P0
+- **Các bước:**
+  1. `laixe` bấm `HOÀN THÀNH CHUYẾN` (sau khi đủ 2 ảnh).
+  2. Kiểm tra 3 tab con của `Hành trình`.
+  3. `dieuvan` mở dashboard, không thao tác gì đặc biệt.
+- **Kết quả mong đợi (Pass):**
+  - Thẻ **rời** tab `Đã nhận` và **xuất hiện ở tab `Lịch sử`**.
+  - Dashboard Điều vận phản ánh trạng thái hoàn thành **không cần thao tác thủ công**.
+  - Không xuất hiện lại ở `Lệnh mới`.
+- **Kỳ vọng sai (Fail nếu):** thẻ kẹt ở tab cũ; điều vận phải bấm gì đó mới thấy cập nhật.
+- **Bằng chứng:** ảnh 3 tab con + ảnh dashboard điều vận trước/sau
+
+---
+
 ## Bảng nghiệm thu — Luồng e-POD & Hoàn thành chuyến (Lái xe)
 
 > **Đã discard (sẽ làm lại):** TC-LX-TIENDO-001 → 006 (4 Milestone vận hành, Tiền đường, Nhiên liệu, Container/Seal) bị loại do luồng nghiệp vụ sẽ được thiết kế lại.
@@ -273,3 +371,8 @@
 | __/__/__ | TC-LX-TIENDO-015 | | | Không hoàn thành chuyến nếu gửi e-POD lỗi | |
 | __/__/__ | TC-LX-TIENDO-016 | | | Bố cục 2 thẻ e-POD không đè nhau | |
 | __/__/__ | TC-LX-TIENDO-017 | | | e-POD submit giữ "Đang chạy"; chỉ "HOÀN THÀNH CHUYẾN" mới chuyển "Hoàn thành" (skip kế toán) | |
+| __/__/__ | TC-LX-TIENDO-018 | | | Nhảy bắt buộc sang màn E-POD (P0) | |
+| __/__/__ | TC-LX-TIENDO-019 | | | 2 khu vực ảnh, gate 100% mới sáng nút (P0) | |
+| __/__/__ | TC-LX-TIENDO-020 | | | Ảnh tự nén trên máy | |
+| __/__/__ | TC-LX-TIENDO-021 | | | Timestamp thực tế lúc chụp (P0) | |
+| __/__/__ | TC-LX-TIENDO-022 | | | Sang tab Lịch sử + đồng bộ Điều vận (P0) | |

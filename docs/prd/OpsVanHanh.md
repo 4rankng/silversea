@@ -251,8 +251,9 @@ maker-checker, tự cấn trừ tạm ứng, áp giá nâng/hạ tự động th
 
 ## 9. Tiêu chí nghiệm thu (tóm tắt)
 
-Chi tiết regression: `testplan/flows/05-ops-vi.md` (TC-OPS-VI-*) và
-`testplan/roles/06-vanhanh.md` (OPS-ORD-*, OPS-TRK-*, OPS-WAL-*). Điểm P0:
+Chi tiết regression: [`testplan/flows/05-ops-quy-chi-phi.md`](../../testplan/flows/05-ops-quy-chi-phi.md)
+(`TC-OPS-KH-*`, `TC-OPS-XE-*`, `TC-OPS-VI-*`, `TC-OPS-RBAC-*`) và
+[`testplan/roles/06-vanhanh.md`](../../testplan/roles/06-vanhanh.md) Flow 7–9. Điểm P0:
 
 1. RBAC: chỉ OPS vào được 3 route; vai trò khác bị chuyển hướng.
 2. Ghim per-user, đứng đầu danh sách, sống sót qua reload.

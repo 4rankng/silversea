@@ -260,6 +260,156 @@
 
 ---
 
+## 3.7 — Cấu trúc thẻ 2 lớp & điều hướng (đặc tả app lái xe 2026-08-27)
+
+> **Nguồn:** `2026.8.27_Man_hinh_lai_xe.docx` · PRD
+> [`docs/prd/ManHinhLaiXe.md`](../../docs/prd/ManHinhLaiXe.md) §1–§3.
+>
+> Bộ case này nghiệm thu **cấu trúc UI** mà đặc tả quy định chi tiết (Lớp 1 thẻ tổng
+> quát, Lớp 2 thẻ chi tiết 7 khối, nút sticky, tab điều hướng) — phần chưa được phủ bởi
+> các case luồng ở §3.1–§3.6.
+
+### TC-LX-NHANLENH-014 — Điều hướng: 4 tab đáy + 3 tab con của "Hành trình"
+
+- **Vai trò:** `laixe`
+- **Mức độ:** P1
+- **Thiết bị:** Mobile (375 × 667)
+- **Các bước:**
+  1. Đăng nhập `laixe`. Quan sát thanh điều hướng đáy.
+  2. Mở màn `Hành trình` (`/my-trips`). Quan sát các tab con.
+  3. Bấm lần lượt từng tab con.
+- **Kết quả mong đợi (Pass):**
+  - Thanh đáy giữ đúng **4 tab** như thiết kế hiện tại (không thêm/bớt tab trong phase này).
+  - Màn `Hành trình` có đúng **3 tab con** theo thứ tự: `Lệnh mới` | `Đã nhận` | `Lịch sử`.
+  - Mỗi tab lọc đúng tập lệnh tương ứng; tab đang chọn có trạng thái active rõ ràng.
+  - Thanh đáy tôn trọng `env(safe-area-inset-bottom)` — không bị notch/gesture bar che.
+- **Kỳ vọng sai (Fail nếu):** sai số lượng/thứ tự tab; lệnh xuất hiện sai tab.
+- **Bằng chứng:** ảnh thanh đáy + ảnh 3 tab con
+
+---
+
+### TC-LX-NHANLENH-015 — Lớp 1: thẻ tổng quát đủ 5 vùng, đúng căn lề
+
+- **Vai trò:** `laixe`
+- **Mức độ:** P0
+- **Thiết bị:** Mobile (375 × 667)
+- **Tiền điều kiện:** tài xế có ≥ 1 lệnh đơn ở tab `Lệnh mới`
+- **Các bước:**
+  1. Mở tab `Lệnh mới`, đọc kỹ 1 thẻ.
+  2. Đối chiếu từng vùng với PRD §2.1.
+- **Kết quả mong đợi (Pass):** thẻ hiển thị đủ và đúng bố cục:
+  | Vùng | Nội dung |
+  |------|----------|
+  | Header | `[Tag: ĐƠN]` + `Giờ đóng / trả: HH:MM - DD/MM` |
+  | Dòng 1 | `Nhà máy` **căn lề trái** · `Cảng nâng` **căn lề phải** |
+  | Dòng 2 | `Tuyến đường` **căn lề trái** · `Cảng hạ` **căn lề phải** |
+  | Dòng 3 | `Cont: [Số Cont] - [Loại cont]` (ví dụ `40'HC`) |
+  | Footer | `Xem chi tiết & Nhận lệnh` |
+  - Mỗi **container** là **một thẻ** riêng (không gộp nhiều cont vào 1 thẻ).
+  - Không cuộn ngang; cỡ chữ đọc được ngoài nắng.
+- **Kỳ vọng sai (Fail nếu):** thiếu vùng bất kỳ; sai căn lề trái/phải; thiếu tag hoặc giờ đóng/trả; gộp cont.
+- **Bằng chứng:** ảnh thẻ có chú thích từng vùng
+
+---
+
+### TC-LX-NHANLENH-016 — Lớp 2: thẻ chi tiết đủ 7 khối
+
+- **Vai trò:** `laixe`
+- **Mức độ:** **P0**
+- **Thiết bị:** Mobile
+- **Tiền điều kiện:** lệnh có nhà máy đã cấu hình hoá đơn nâng/hạ, hoá đơn vệ sinh,
+  `note dành cho lái xe`, và người phụ trách kho bãi kèm số điện thoại
+- **Các bước:**
+  1. Bấm vào thẻ ở tab `Lệnh mới` → mở **toàn màn hình**.
+  2. Cuộn hết màn, đối chiếu 7 khối với PRD §2.2.
+- **Kết quả mong đợi (Pass):** đủ 7 khối, đúng nội dung:
+  | Khối | Phải có |
+  |------|---------|
+  | 1 — Lộ trình | `Tuyến đường`, `Nhà máy`, `Cảng nâng`, `Cảng hạ` |
+  | 2 — Hàng hoá | `Loại Cont`, `Số Cont`, `Số Chì` + nút `📷 Chụp ảnh Cont/Chì` |
+  | 3 — Liên hệ | Tên người phụ trách kho bãi + **số điện thoại bấm gọi được** |
+  | 4 — Hoá đơn | Thông tin xuất HĐ nâng / hạ + HĐ vệ sinh |
+  | 5 — Quy định điểm làm hàng | Nội dung lấy từ `note dành cho lái xe` của nhà máy |
+  | 6 — Thông tin xe | `Biển số Đầu kéo` + `Biển số Mooc` |
+  | 7 — Thao tác | Nút `Nhận lệnh vận chuyển` |
+  - Khối 4 lấy từ master data nhà máy (`liftFeeInvoice*`, `dropFeeInvoice*`, `cleaningInvoice*`); Khối 5 lấy từ `strictRules`.
+  - Trường không có dữ liệu hiển thị `—`, **không** hiện `null` / `undefined` / ô trống không nhãn.
+- **Kỳ vọng sai (Fail nếu):** thiếu khối bất kỳ; khối 4/5 lấy sai nguồn; hiện `null`.
+- **Bằng chứng:** ảnh cuộn full màn chi tiết (nối ảnh) có đánh số 7 khối
+
+---
+
+### TC-LX-NHANLENH-017 — Khối 7: nút "Nhận lệnh vận chuyển" sticky đáy màn
+
+- **Vai trò:** `laixe`
+- **Mức độ:** P0
+- **Thiết bị:** Mobile (375 × 667 — màn ngắn để ép cuộn)
+- **Các bước:**
+  1. Mở thẻ chi tiết. Ghi vị trí nút `Nhận lệnh vận chuyển`.
+  2. Cuộn xuống đáy, rồi cuộn ngược lên đầu.
+- **Kết quả mong đợi (Pass):**
+  - Nút **ghim cố định ở đáy màn hình**, **luôn nhìn thấy** ở mọi vị trí cuộn.
+  - Nút không bị nội dung đè lên; chiều cao chạm ≥ 48 px.
+  - Tôn trọng `env(safe-area-inset-bottom)`.
+  - Nội dung cuối trang không bị nút che khuất (có padding đáy bù).
+- **Kỳ vọng sai (Fail nếu):** phải cuộn xuống đáy mới thấy nút; nút che mất nội dung cuối.
+- **Bằng chứng:** ảnh ở 3 vị trí cuộn (đầu / giữa / cuối)
+
+---
+
+### TC-LX-NHANLENH-018 — Khối 2: chụp ảnh Cont/Chì có timestamp
+
+- **Vai trò:** `laixe`
+- **Mức độ:** P0
+- **Thiết bị:** Mobile (camera thật hoặc giả lập)
+- **Các bước:**
+  1. Ở thẻ chi tiết, bấm `📷 Chụp ảnh Cont/Chì`, chụp 1 ảnh.
+  2. Xem lại ảnh vừa tải trong lệnh.
+  3. Đối chiếu thời điểm chụp với đồng hồ thiết bị.
+- **Kết quả mong đợi (Pass):**
+  - Mở được camera trực tiếp (không chỉ chọn từ thư viện).
+  - Ảnh lưu kèm **timestamp thực tế lúc chụp**, hiển thị được khi xem lại.
+  - Timestamp khớp giờ thiết bị theo `Asia/Ho_Chi_Minh` (lệch ≤ 1 phút).
+- **Kỳ vọng sai (Fail nếu):** ảnh không có timestamp; timestamp là giờ upload thay vì giờ chụp; sai múi giờ.
+- **Bằng chứng:** ảnh đã tải kèm timestamp + ảnh đồng hồ thiết bị
+
+---
+
+### TC-LX-NHANLENH-019 — Module chi phí ẩn sau feature flag (phase này)
+
+- **Vai trò:** `laixe`
+- **Mức độ:** P1
+- **Các bước:**
+  1. Rà toàn bộ app lái xe (4 tab + thẻ chi tiết + luồng hoàn thành chuyến).
+  2. Tìm form `Nhập chi phí lô hàng` và form `Báo cáo đổ dầu`.
+  3. Kiểm tra schema DB bảng `trips`.
+- **Kết quả mong đợi (Pass):**
+  - **Frontend không render** cả 2 form ở bất kỳ đâu trong phase này.
+  - Không có nút/menu dẫn tới chúng; không có route lộ ra khi gõ URL trực tiếp.
+  - **Backend/DB đã có sẵn** cột/bảng quan hệ để lưu: `Tiền nâng`, `Tiền hạ`, `Chi phí phát sinh`, `Tiền đường`, `Xăng dầu`, `Hình ảnh biên lai`.
+- **Kỳ vọng sai (Fail nếu):** form chi phí/đổ dầu hiện ra; hoặc DB thiếu cột đã cam kết cho phase sau.
+- **Bằng chứng:** ảnh 4 tab + kết quả `\d trips` (hoặc schema dump)
+
+---
+
+### TC-LX-NHANLENH-020 — Bypass Ops: nhận lệnh ngay khi Điều vận gán xe
+
+- **Vai trò:** `dieuvan` → `laixe`
+- **Mức độ:** **P0** (quy tắc phase này)
+- **Các bước:**
+  1. `dieuvan` gán biển số xe cho một lệnh của `laixe`.
+  2. `laixe` mở app **không** thao tác gì thêm.
+  3. Bấm `Nhận lệnh vận chuyển` ngay.
+- **Kết quả mong đợi (Pass):**
+  - App bắn **Push Notification** ngay khi điều vận gán xe xong.
+  - Thẻ xuất hiện ở tab `Lệnh mới`.
+  - **Không** có bước xác nhận nào của Ops chắn giữa — lái xe nhận lệnh được ngay.
+  - Bấm nhận ⇒ ghi **Timestamp bắt đầu chạy** ⇒ thẻ chuyển sang tab `Đã nhận`.
+- **Kỳ vọng sai (Fail nếu):** thẻ kẹt chờ Ops xác nhận; không có push; không ghi timestamp bắt đầu.
+- **Bằng chứng:** ảnh push + ảnh thẻ 2 tab trước/sau + giá trị timestamp trong DB
+
+---
+
 ## Bảng nghiệm thu — Luồng Nhận lệnh (Lái xe)
 
 | Ngày thử | Mã TC | Người thử | Kết quả | Ghi chú | Bằng chứng |
@@ -277,3 +427,10 @@
 | __/__/__ | TC-LX-NHANLENH-011 | | | Cặp KẸP 2 thẻ dính liền | |
 | __/__/__ | TC-LX-NHANLENH-012 | | | KẾT HỢP khóa nối tiếp | |
 | __/__/__ | TC-LX-NHANLENH-013 | | | Tách cặp → thẻ thường | |
+| __/__/__ | TC-LX-NHANLENH-014 | | | 4 tab đáy + 3 tab con | |
+| __/__/__ | TC-LX-NHANLENH-015 | | | Lớp 1: thẻ tổng quát 5 vùng | |
+| __/__/__ | TC-LX-NHANLENH-016 | | | Lớp 2: thẻ chi tiết 7 khối (P0) | |
+| __/__/__ | TC-LX-NHANLENH-017 | | | Nút sticky đáy màn | |
+| __/__/__ | TC-LX-NHANLENH-018 | | | Ảnh Cont/Chì có timestamp | |
+| __/__/__ | TC-LX-NHANLENH-019 | | | Module chi phí ẩn, DB sẵn cột | |
+| __/__/__ | TC-LX-NHANLENH-020 | | | Bypass Ops, nhận lệnh ngay (P0) | |

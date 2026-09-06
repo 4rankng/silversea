@@ -130,6 +130,99 @@ applies (silent redirect to `/shipments`).
    - **Then** no matches are found in any user-visible string (only
      internal `useAuth` references are allowed).
 
+9. **CUS-SHIP-09 — Factory selection auto-fills and locks route + location**
+   - **Given** the ad-hoc flag (`CUS-SHIP-10`) is **off**
+   - **When** the user picks a customer, then a factory that has a route
+     configured
+   - **Then** `Tuyến đường` and `Vị trí đóng/trả hàng` are filled from the
+     factory record and rendered **read-only**; the factory dropdown lists
+     **only** that customer's factories; changing customer resets the
+     factory choice.
+   - **Spec**: `docs/prd/MasterDataNhaMay.md` §3.
+   - **Cases**: `TC-CUS-CREATE-021` … `-024`.
+   - **Evidence**: screenshot of the two locked fields after selection.
+
+10. **CUS-SHIP-10 — Ad-hoc order flag (`Lệnh chạy ngoài`)**
+    - **Given** a CUS user on `/shipments/new`
+    - **When** they inspect the top of the form without scrolling
+    - **Then** a checkbox labelled exactly
+      `Lệnh chạy ngoài (Tối ưu xe rỗng)` is present and **unchecked by
+      default**, on both desktop and mobile (tap target ≥ 44 px).
+    - **When** it is checked
+    - **Then** `Tuyến đường` and `Vị trí đóng/trả hàng` **unlock** for manual
+      entry, and cước-phí quota validation is bypassed so the shipment can
+      be saved and handed to Điều vận immediately.
+    - **When** it is unchecked again while free text is present
+    - **Then** the user is warned (Vietnamese) that those fields must be
+      re-picked from the catalogue — typed data is **not** silently wiped.
+    - The flag persists on the shipment (`is_ad_hoc`) and is still checked
+      when the shipment is reopened for editing.
+    - **Spec**: `docs/prd/MasterDataNhaMay.md` §4.1.
+    - **Cases**: `TC-CUS-CREATE-026`, `-027`, `-028`, `-036`.
+    - **Evidence**: screenshots of the flag off → on → off sequence.
+
+11. **CUS-SHIP-11 — Ad-hoc bypass is scoped to cước phí only**
+    - **Given** the ad-hoc flag is **on**
+    - **When** the user submits with an ISO-6346-invalid container number,
+      an invalid/inverted date pair, a quantity ≤ 0, or an empty required
+      field
+    - **Then** **every one** of those is still rejected with a specific
+      Vietnamese error. The flag never relaxes data-safety validation.
+    - **Cases**: `TC-CUS-CREATE-029`.
+    - **Evidence**: 4 error screenshots.
+
+12. **CUS-SHIP-12 — Free text stores `Raw_*` with a null ID, and never
+    touches master data**
+    - **Given** the ad-hoc flag is on
+    - **When** the user types a string matching no catalogue row into
+      `Khách hàng`, `Nhà máy`, `Tuyến đường`, `Cảng nâng`, or `Cảng hạ`
+      and saves
+    - **Then** the typed string survives blur, the shipment stores
+      `Raw_<field>_Name` with the corresponding `*_ID = null`, and
+      `count(*)` of `customers`, `operational_sites`, `routes`, and `ports`
+      is **unchanged**.
+    - ID and free text are **mutually exclusive per field**, and a single
+      shipment may mix both modes across different fields.
+    - **Spec**: `docs/prd/MasterDataNhaMay.md` §2.1.
+    - **Cases**: `TC-CUS-CREATE-030`, `-031`, `-032`.
+    - **Evidence**: before/after `count(*)` queries + the shipment row.
+
+13. **CUS-SHIP-13 — Free text vs. inline create are distinct mechanisms**
+    - **Given** the ad-hoc flag is on
+    - **When** the user clicks `+ Tạo mới` instead of typing free text
+    - **Then** the button is still available, a real master-data row **is**
+      created, it is auto-selected, it appears in later dropdowns, and the
+      shipment stores the **ID** (not `Raw_*`).
+    - Typing free text must never create a row; `+ Tạo mới` must always
+      create one. The flag changes neither behaviour.
+    - **Cases**: `TC-CUS-CREATE-034` (contrast with `-031`).
+    - **Evidence**: `count(*)` +1 vs. `count(*)` unchanged, side by side.
+
+14. **CUS-SHIP-14 — Combobox behaviour on all five master-data fields**
+    - **Given** `Khách hàng`, `Nhà máy`, `Tuyến đường`, `Cảng nâng`,
+      `Cảng hạ`
+    - **Then** each one: opens a catalogue list on the arrow; filters by
+      substring **ignoring case and Vietnamese diacritics** (`hai phong`
+      matches `Hải Phòng`); supports `↑`/`↓` + `Enter`; and on `Esc` or
+      outside-click **closes the list while keeping the typed text**.
+    - A free-text value must be visually distinguishable from a
+      catalogue-selected value.
+    - **Cases**: `TC-CUS-CREATE-033`.
+    - **Evidence**: per-field screenshots of filter + retained text.
+
+15. **CUS-SHIP-15 — Ad-hoc shipments render fully downstream**
+    - **Given** a saved ad-hoc shipment
+    - **Then** the shipment list, shipment detail, dispatcher board, and the
+      driver app all show the typed names — **no empty cells, no `null`, no
+      `undefined`**; the list/detail carry a `Chạy ngoài` marker rendered as
+      **coloured text, not a badge**; and dispatch is not blocked by the
+      missing `Factory_ID`.
+    - Accounting: an ad-hoc shipment is **not** folded into any catalogue
+      customer's receivables; reports group it under its own `Chạy ngoài`
+      bucket rather than a `null` group.
+    - **Cases**: `TC-CUS-CREATE-035`, `-037`.
+    - **Evidence**: screenshots across the three roles + report grouping.
+
 ### Test steps (manual)
 
 1. `pnpm dev` is up; `pgrep -f vite` confirms.
