@@ -103,9 +103,11 @@ describe('getNavItems', () => {
     [Role.DISPATCHER, [
       ['Kế hoạch tổng quát', '/dispatch'],
       ['Kế hoạch chi tiết', '/dispatch-detail'],
-      ['Danh mục Xe nội bộ', '/fleet/vehicles'],
-      ['Danh mục Tài xế', '/fleet/drivers'],
-      ['Nhà thầu phụ', '/suppliers'],
+      ['Xe nội bộ', '/fleet/vehicles'],
+      ['Tài xế', '/fleet/drivers'],
+      ['Nhà thầu', '/suppliers'],
+      ['Khách hàng', '/config/customers'],
+      ['Tuyến đường', '/config/routes'],
     ]],
     [Role.CUSTOMER, [
       ['Lô hàng của tôi', '/portal/shipments'],
@@ -252,9 +254,12 @@ describe('getNavItems', () => {
   });
 
   it('gives CUS a shipment-first scoped workflow without broad finance links', () => {
-    const items = getNavItems(Role.CUS, undefined, undefined, ['recoverable_costs.read']);
+    // recoverable-costs left the CUS clerk's hands (2026-09-06): the role no
+    // longer carries recoverable_costs.* capabilities (policy.csv), so the
+    // default CUS capability set must render no reconciliation entry.
+    const items = getNavItems(Role.CUS, undefined, undefined, []);
     expect(items[0]).toEqual(expect.objectContaining({ key: 'shipments', path: '/shipments' }));
-    expect(items.some((item) => item.key === 'recoverable-costs')).toBe(true);
+    expect(items.some((item) => item.key === 'recoverable-costs')).toBe(false);
     expect(items.some((item) => ['debt', 'payables', 'treasury', 'profit'].includes(item.key))).toBe(false);
   });
 
@@ -278,7 +283,7 @@ describe('getNavItems', () => {
 
 describe('getPageTitle', () => {
   it('uses dispatcher language for the shared supplier route', () => {
-    expect(getPageTitle('/suppliers', Role.DISPATCHER)).toBe('Nhà thầu phụ');
+    expect(getPageTitle('/suppliers', Role.DISPATCHER)).toBe('Nhà thầu');
     expect(getPageTitle('/suppliers', Role.ADMIN)).toBe('Nhà cung cấp');
   });
 });

@@ -189,7 +189,9 @@ export function AppRoutes() {
   const officeStaffOnly = (el: ReactElement) => (isAdmin || currentRole === Role.MANAGER || currentRole === Role.ACCOUNTANT ? el : <Navigate to={homeRedirect} replace />);
   // Catalog management pages (customers, routes) — CUS can add/edit identity
   // fields; financial/cost fields are stripped by the backend intake services.
-  const catalogEditorOnly = (el: ReactElement) => (isAdmin || currentRole === Role.MANAGER || currentRole === Role.ACCOUNTANT || isCus ? el : <Navigate to={homeRedirect} replace />);
+  // DISPATCHER reaches the same pages create-only (Casbin grants POST on
+  // customers/routes; the pages hide edit/delete for that role).
+  const catalogEditorOnly = (el: ReactElement) => (isAdmin || currentRole === Role.MANAGER || currentRole === Role.ACCOUNTANT || isCus || currentRole === Role.DISPATCHER ? el : <Navigate to={homeRedirect} replace />);
   const accountantOnly = (el: ReactElement) => (currentRole === Role.ACCOUNTANT ? el : <Navigate to={homeRedirect} replace />);
   const shipmentReaderOnly = (el: ReactElement) => (
     canReadShipmentRoutes(currentRole)

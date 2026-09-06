@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Customer, TripDetail } from '@tingting/shared';
 
 const getAllCustomers = vi.fn();
@@ -21,6 +21,13 @@ vi.mock('../../hooks/animations', () => ({
 
 vi.mock('../../hooks/useBackShortcut', () => ({
   useBackShortcut: () => {},
+}));
+
+// Auth identity is mutable per test: null (no provider, full mode) by
+// default; the dispatcher-mode tests point it at a DISPATCHER user.
+const authState = vi.hoisted(() => ({ context: null as null | { user: { userId: number; username: string; role: string } } }));
+vi.mock('../../hooks/useAuth', () => ({
+  useAuth: () => authState.context,
 }));
 
 vi.mock('../../hooks/useCRUD', () => ({
@@ -120,5 +127,26 @@ describe('CustomersConfigPage client-side sorting', () => {
     await waitFor(() => expect(nameOrder(container)).toEqual([
       'Khách hàng Cường', 'Khách hàng Bình', 'Khách hàng An',
     ]));
+  });
+});
+
+// DISPATCHER create-only mode: Casbin grants POST /customers but no
+// PUT/DELETE, so the page must expose the create button while row-click
+// editing stays unreachable for that role.
+describe('CustomersConfigPage dispatcher create-only mode', () => {
+  afterEach(() => { authState.context = null; });
+
+  it('keeps the create button and drops the row-click edit affordance', async () => {
+    authState.context = { user: { userId: 9, username: 'dieuvan', role: 'DISPATCHER' } };
+    const { container } = renderPage();
+    await screen.findByText('Khách hàng An');
+
+    expect(screen.getByRole('button', { name: /Thêm khách hàng/ })).toBeInTheDocument();
+    const row = container.querySelector('.cfg-customer-table tbody tr');
+    expect(row).not.toBeNull();
+    const rowEl = row as HTMLElement;
+    expect(rowEl.getAttribute('onclick')).toBeNull();
+    expect(rowEl.style.cursor).toBe('');
+    expect(screen.queryByText(/Nhấn vào một hàng/)).not.toBeInTheDocument();
   });
 });

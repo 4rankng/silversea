@@ -243,9 +243,16 @@ export function getNavItems(
         { key: 'dispatch-detailed-plan', label: 'Kế hoạch chi tiết', path: routes.dispatchDetailedPlan, icon: Route, section: 'dispatch-planning' as SectionName },
 
         // Quản lý Tài nguyên (Resources) per spec
-        { key: 'fleet-vehicles', label: 'Danh mục Xe nội bộ', path: routes.fleetVehicles, icon: Truck, section: 'resources' as SectionName },
-        { key: 'fleet-drivers', label: 'Danh mục Tài xế', path: routes.fleetDrivers, icon: Users, section: 'resources' as SectionName },
-        { key: 'suppliers', label: 'Nhà thầu phụ', path: routes.suppliers, icon: Store, section: 'resources' as SectionName },
+        { key: 'fleet-vehicles', label: 'Xe nội bộ', path: routes.fleetVehicles, icon: Truck, section: 'resources' as SectionName },
+        { key: 'fleet-drivers', label: 'Tài xế', path: routes.fleetDrivers, icon: Users, section: 'resources' as SectionName },
+        { key: 'suppliers', label: 'Nhà thầu', path: routes.suppliers, icon: Store, section: 'resources' as SectionName },
+
+        // Danh mục (Master Data) — dispatchers may add the missing customer or
+        // route while staffing dispatch plans. Create-only: Casbin grants
+        // DISPATCHER POST on customers/routes, and both catalog pages hide the
+        // edit/delete affordances for this role.
+        { key: 'customers', label: 'Khách hàng', path: routes.configCustomers, icon: Users, section: 'master-data' as SectionName },
+        { key: 'config-routes', label: 'Tuyến đường', path: routes.configRoutes, icon: Route, section: 'master-data' as SectionName },
       ];
     }
 
@@ -340,13 +347,17 @@ export function getNavSections(role: Role | string): NavSection[] {
     case Role.DISPATCHER:
       return [
         { key: 'dispatch-planning', label: 'Điều độ Phương tiện' },
-        { key: 'resources', label: 'Quản lý Tài nguyên' },
+        { key: 'resources', label: 'Quản Lý' },
+        // Catalog create-only group (customers, routes). Not 'Danh mục' — the
+        // user's label philosophy dropped that prefix — and not 'Quản Lý',
+        // which the resources group above already owns.
+        { key: 'master-data', label: 'Khai báo' },
       ];
     case Role.CUS:
       return [
         { key: 'document-ops', label: 'Nghiệp vụ Chứng từ' },
         { key: 'reconciliation', label: 'Đối soát' },
-        { key: 'master-data', label: 'Danh mục' },
+        { key: 'master-data', label: 'Quản Lý' },
       ];
     case Role.OPS:
       return [{ key: 'my-work', label: 'Công việc của tôi' }];
@@ -366,7 +377,7 @@ function getRoleLabel(role: Role | string): string {
 
 export function getPageTitle(pathname: string, role?: Role | string): string {
   if (pathname.startsWith(routes.suppliers) && role && getModernRole(role) === Role.DISPATCHER) {
-    return 'Nhà thầu phụ';
+    return 'Nhà thầu';
   }
   return titleForPath(pathname, role ? getModernRole(role) : undefined);
 }

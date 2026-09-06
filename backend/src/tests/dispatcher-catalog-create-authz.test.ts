@@ -56,6 +56,27 @@ describe('Dispatcher resource-catalog create authorization', () => {
       }
     });
 
+    it('lets DISPATCHER create customers from the catalog page (create-only)', async () => {
+      // The dispatch catalog pages are create-only for this role: POST passes
+      // (intake strips financially material fields server-side) while PUT/
+      // DELETE stay Casbin-denied, unlike CUS which owns the full allowance.
+      assert.deepEqual(await authorize(Role.DISPATCHER, 'POST', '/customers'), {
+        nextCalled: true,
+        statusCode: 200,
+      });
+      for (const [method, path] of [
+        ['PUT', '/customers/1'],
+        ['DELETE', '/customers/1'],
+        ['PUT', '/routes/1'],
+        ['DELETE', '/routes/1'],
+      ] as const) {
+        assert.deepEqual(await authorize(Role.DISPATCHER, method, path), {
+          nextCalled: false,
+          statusCode: 403,
+        }, `${method} ${path}`);
+      }
+    });
+
     it('keeps DISPATCHER mutations closed everywhere else', async () => {
       // Same three tables — update/delete are not route-scoped allowances.
       for (const [method, path] of [

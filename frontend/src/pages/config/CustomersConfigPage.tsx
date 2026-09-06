@@ -10,6 +10,8 @@ import { tripClient } from '../../api/tripClient';
 import { formatCurrency } from '../../lib/format';
 import { downloadCSV } from '../../lib/csv';
 import { useCRUD } from '../../hooks/useCRUD';
+import { useAuth } from '../../hooks/useAuth';
+import { Role } from '@tingting/shared';
 import { qk } from '../../api/keys';
 import { SortHeader } from '../../components/shared/SortHeader';
 import { nextTableSort, sortClientSide, type TableSortState } from '../../lib/table-sort';
@@ -22,6 +24,10 @@ import './config-page.css';
 
 export default function CustomersConfigPage() {
   const { rootRef: pageRef } = usePageAnimations({ ready: true, selectors: ['.cfg-row'] });
+  // DISPATCHER reaches this page create-only: Casbin grants POST /customers
+  // but no PUT/DELETE, so row-click editing (and the delete inside the edit
+  // modal) must stay unreachable for that role.
+  const createOnly = useAuth()?.user?.role === Role.DISPATCHER;
   const navigate = useNavigate();
   const handleBack = () => navigate('/config');
   useBackShortcut(handleBack);
@@ -210,7 +216,7 @@ export default function CustomersConfigPage() {
         </div>
         <div style={{ padding: '6px 12px 8px', display: 'flex', alignItems: 'center', gap: 6, color: 'var(--fg-3)', fontSize: 12 }}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
-          Nhấn vào một hàng để xem chi tiết và chỉnh sửa khách hàng
+          {createOnly ? 'Thêm khách hàng mới bằng nút Thêm khách hàng' : 'Nhấn vào một hàng để xem chi tiết và chỉnh sửa khách hàng'}
         </div>
         <div className="table-scroll">
           <div className="record-table-wrap">
@@ -234,9 +240,9 @@ export default function CustomersConfigPage() {
                 return (
                   <tr
                     key={c.id}
-                    onClick={() => crud.setEditingId(c.id)}
-                    style={{ cursor: 'pointer' }}
-                    title="Nhấp để chỉnh sửa hoặc xóa"
+                    onClick={createOnly ? undefined : () => crud.setEditingId(c.id)}
+                    style={createOnly ? undefined : { cursor: 'pointer' }}
+                    title={createOnly ? undefined : 'Nhấp để chỉnh sửa hoặc xóa'}
                   >
                     <td data-label="Khách hàng">
                       <div className="row-strong"><span className={`risk-dot risk-dot--${risk}`} />{c.name}</div>

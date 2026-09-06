@@ -15,10 +15,15 @@ import '../../styles/record-table.css';
 import '../../styles/operational-table-typography.css';
 import './config-page.css';
 import { RouteFormModal } from './route-form-modal';
+import { useAuth } from '../../hooks/useAuth';
+import { Role } from '@tingting/shared';
 
 
 export default function RoutesConfigPage() {
   const { rootRef: pageRef } = usePageAnimations({ ready: true, selectors: ['.cfg-row'] });
+  // DISPATCHER reaches this page create-only: Casbin grants POST /routes but
+  // no PUT/DELETE, so the per-row Sửa/Xoá menu must not render for that role.
+  const createOnly = useAuth()?.user?.role === Role.DISPATCHER;
   const navigate = useNavigate();
   const handleBack = () => navigate('/config');
   useBackShortcut(handleBack);
@@ -109,11 +114,11 @@ export default function RoutesConfigPage() {
                 <SortHeader label="Điểm đóng trả" sortKey="loadPoint" sort={sort} onSortChange={handleSort} />
                 <SortHeader className="num" label="Khoảng cách" sortKey="distanceKm" sort={sort} onSortChange={handleSort} />
                 <th>Ghi chú</th>
-                <th style={{ width: 88 }}></th>
+                {!createOnly && <th style={{ width: 88 }}></th>}
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 && <tr><td colSpan={7} data-label="" style={{ textAlign: 'center', padding: '48px 12px', color: 'var(--ink-3)' }}>Chưa có dữ liệu</td></tr>}
+              {filtered.length === 0 && <tr><td colSpan={createOnly ? 6 : 7} data-label="" style={{ textAlign: 'center', padding: '48px 12px', color: 'var(--ink-3)' }}>Chưa có dữ liệu</td></tr>}
               {filtered.map((r, index) => (
                 <tr key={r.id}>
                   <td data-label="Mã tuyến" style={{ color: 'var(--fg-2)' }}>{r.code || '—'}</td>
@@ -124,6 +129,7 @@ export default function RoutesConfigPage() {
                   <td data-label="Điểm đóng trả">{r.loadPoint || '—'}</td>
                   <td className="num" data-label="Khoảng cách">{r.distanceKm != null ? `${r.distanceKm}` : '—'}</td>
                   <td data-label="Ghi chú" style={{ color: 'var(--fg-2)', fontSize: 13, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.note || '—'}</td>
+                  {!createOnly && (
                   <td
                     data-label=""
                     className="record-table__action"
@@ -163,6 +169,7 @@ export default function RoutesConfigPage() {
                       </div>
                     )}
                   </td>
+                  )}
                 </tr>
               ))}
             </tbody>
