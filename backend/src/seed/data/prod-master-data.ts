@@ -5,7 +5,10 @@ export interface ProdStaffSeed { username: string; employeeCode: string; fullNam
 export interface ProdDriverSeed { code: string; username: string; name: string; idNumber: string | null; licenseNumber: string | null; licenseExpiryDate: string | null; phone: string | null; bankName: string | null; bankAccount: string | null; salaryType: string | null; }
 export interface ProdCustomerSeed { name: string; shortName: string | null; code: string; taxCode: string | null; address: string | null; director: string | null; directorPhone: string | null; accountantName: string | null; accountantPhone: string | null; email: string | null; paymentTermChiHoDays: number | null; paymentTermCuocDays: number | null; }
 export interface ProdSiteSeed { name: string; code: string; shortName: string | null; customerCode: string | null; routeName: string | null; address: string | null; note: string | null; contactName: string | null; contactPhone: string | null; warehouseContactInfo: string | null; liftInfo: string | null; dropInfo: string | null; cleaningInfo: string | null; mapsUrl: string | null; }
-export interface ProdRouteSeed { name: string; code: string; fullName: string; shortName: string; loadPoint: string | null; distanceKm: number | null; tolls: number | null; note: string | null; }
+// name = sheet column "Tên tuyến" (full name) — the seeded DB `name`;
+// shortName = "Tên tuyến rút gọn". Do not split Tên tuyến into a separate
+// unused field: seed-prod persists `name` verbatim.
+export interface ProdRouteSeed { name: string; code: string; shortName: string; loadPoint: string | null; distanceKm: number | null; tolls: number | null; note: string | null; }
 export interface ProdTractorSeed { plate: string; driverName: string | null; vehicleClass: string | null; brand: string | null; towCapacityTons: number | null; fuelLPer100kmLoaded: number | null; fuelLPer100kmEmpty: number | null; inspectionDeadline: string | null; insuranceExpiry: string | null; preferredRoute: string | null; note: string | null; }
 export interface ProdTrailerSeed { plate: string; pairedTractor: string | null; type: string | null; maxPayloadTons: number | null; maxAxleLoadFrontTons: number | null; maxAxleLoadRearTons: number | null; inspectionDeadline: string | null; note: string | null; }
 export interface ProdPortSeed { name: string; code: string | null; classification: string | null; legalEntity: string | null; address: string | null; isLachHuyen: boolean; opsPortalUrl: string | null; position: string | null; }
@@ -803,9 +806,8 @@ export const prodSites: ProdSiteSeed[] = [
 
 export const prodRoutes: ProdRouteSeed[] = [
   {
-    "name": "KCN Đồng Văn",
+    "name": "KCN Đồng Văn, Ninh Bình",
     "code": "KCN Đồng Văn",
-    "fullName": "KCN Đồng Văn, Ninh Bình",
     "shortName": "KCN ĐỒNG VĂN, HÀ NAM",
     "loadPoint": null,
     "distanceKm": 120,
@@ -813,9 +815,8 @@ export const prodRoutes: ProdRouteSeed[] = [
     "note": null
   },
   {
-    "name": "KCN Quế Võ",
+    "name": "KCN Quế Võ, Nam Sơn, Bắc Ninh",
     "code": "KCN Quế Võ",
-    "fullName": "KCN Quế Võ, Nam Sơn, Bắc Ninh",
     "shortName": "KCN QUẾ VÕ, BẮC NINH",
     "loadPoint": null,
     "distanceKm": 100,
@@ -823,9 +824,8 @@ export const prodRoutes: ProdRouteSeed[] = [
     "note": null
   },
   {
-    "name": "KCN Vân Trung",
+    "name": "KCN Vân Trung, Nếnh, Bắc Ninh",
     "code": "KCN Vân Trung",
-    "fullName": "KCN Vân Trung, Nếnh, Bắc Ninh",
     "shortName": "KCN VÂN TRUNG, BẮC GIANG",
     "loadPoint": null,
     "distanceKm": 120,
