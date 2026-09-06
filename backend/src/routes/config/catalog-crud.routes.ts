@@ -207,8 +207,14 @@ router.use('/customers', createCrudRouter(s.customers, customerSchema, {
       if (req.user && [Role.CUS, Role.DISPATCHER].includes(req.user.role as Role)) return false;
       return H.hasMaterialCustomerConfigChange(data as CustomerMutationPayload);
     },
-    shouldGovernUpdate: (_id, data, _req, current) => H.hasMaterialCustomerUpdate(data as CustomerMutationPayload, current),
-    shouldGovernDelete: () => true,
+    shouldGovernUpdate: (_id, data, req, current) => {
+      if (req.user && [Role.CUS, Role.DISPATCHER].includes(req.user.role as Role)) return false;
+      return H.hasMaterialCustomerUpdate(data as CustomerMutationPayload, current);
+    },
+    shouldGovernDelete: (_id, req) => {
+      if (req.user && req.user.role === Role.CUS) return false;
+      return true;
+    },
   },
   beforeCreate: async (input, req, tx) => {
     const actor = getUser(req);

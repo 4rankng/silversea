@@ -54,15 +54,15 @@ function hasRouteScopedRoleAllowance(req: Request, resource: string) {
   ) {
     return true;
   }
-  // CUS also needs to read the customer catalog to populate the shipment-
-  // create dropdown. DISPATCHER already has config:read via Casbin policy;
-  // CUS does not, so this route-scoped GET bypass bridges the gap.
-  // Updates and deletes remain Casbin-denied.
+  // CUS also needs to read the customer and route catalogs to populate the
+  // shipment-create dropdown and the catalog management pages. DISPATCHER
+  // already has config:read via Casbin policy; CUS does not, so this
+  // route-scoped GET bypass bridges the gap.
   if (
     resource === 'config'
     && req.user.role === Role.CUS
     && req.method === 'GET'
-    && /^\/customers(\/|\?|$)/.test(req.path)
+    && /^\/(customers|routes)(\/|\?|$)/.test(req.path)
   ) {
     return true;
   }
