@@ -16,8 +16,29 @@ describe('config catalog tables stay tabular below the shared card fold', () => 
   it('re-arms tabular display for the two catalogs across 680-1100px', () => {
     expect(css).toContain('@container (min-width: 680px) and (max-width: 1100px)');
     expect(css).toContain('.cfg-page .cfg-customer-table,\n  .cfg-page .routes-table {\n    display: table;\n  }');
+    // The full display-chain restoration — dropping any one of these re-folds
+    // the table while leaving the rest of the block looking correct.
+    expect(css).toContain('display: table-header-group;');
+    expect(css).toContain('display: table-row-group;');
+    expect(css).toContain('display: table-row;');
+    expect(css).toContain('display: table-cell;');
     // The card fold's data-label eyebrows must be off in the tabular window.
     expect(css).toContain('.cfg-page .cfg-customer-table tbody td::before,\n  .cfg-page .routes-table tbody td::before {\n    content: none;\n  }');
+  });
+
+  it('re-arms the row hover wash the counter-block would otherwise outrank', () => {
+    // .cfg-page …tbody tr { background: transparent } ties the shared
+    // tr:hover wash on cascade order, killing hover in-window; the explicit
+    // re-arm must exist and out-specify it.
+    expect(css).toContain('@media (hover: hover) and (pointer: fine)');
+    expect(css).toContain('.cfg-page .cfg-customer-table tbody tr:hover,\n  .cfg-page .routes-table tbody tr:hover {\n    background: color-mix(in srgb, var(--fg-1) 2%, var(--surface));\n  }');
+  });
+
+  it('restores the routes kebab padding without relying on import order', () => {
+    // The shared base zeroes .record-table tbody td.record-table__action at
+    // the same specificity the counter-block uses for td; the explicit
+    // (0,3,2) rule removes the source-order dependency.
+    expect(css).toContain('.cfg-page .routes-table tbody td.record-table__action {\n    padding: 10px 12px;\n  }');
   });
 
   it('keeps routes fixed-layout geometry (minus the 980px floor) in the window', () => {

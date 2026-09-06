@@ -645,6 +645,9 @@
     display: table-row;
     border: 0;
     border-radius: 0;
+    /* Outranks the shared tr:hover wash and tr.is-selected edge for the
+       window — both re-armed below (hover) or must be re-armed here first
+       if selection ever lands on these tables. */
     background: transparent;
   }
   .cfg-page .cfg-customer-table tbody td,
@@ -653,6 +656,12 @@
     padding: 10px 12px;
     border: 0;
     border-bottom: 1px solid var(--line);
+  }
+  /* The shared base zeroes the action cell at (0,2,2) — same specificity as
+     the td rule above, which would make the kebab padding depend on CSS
+     import order. State it explicitly instead. */
+  .cfg-page .routes-table tbody td.record-table__action {
+    padding: 10px 12px;
   }
   .cfg-page .cfg-customer-table tbody td::before,
   .cfg-page .routes-table tbody td::before {
@@ -677,6 +686,17 @@
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
     overflow: hidden;
+  }
+}
+
+/* Hover re-arm: the transparent-tr counter above ties (and by source order
+   beats) the shared .record-table tbody tr:hover wash inside the window.
+   Restate it at higher specificity; the value matches the shared base, so
+   behavior is identical outside the window where the base already applies. */
+@media (hover: hover) and (pointer: fine) {
+  .cfg-page .cfg-customer-table tbody tr:hover,
+  .cfg-page .routes-table tbody tr:hover {
+    background: color-mix(in srgb, var(--fg-1) 2%, var(--surface));
   }
 }
 
