@@ -52,18 +52,6 @@ const configSchema = z.object({
   // (qwen3-vl-32b-instruct → qwen3.7-plus) are hardcoded constants in
   // services/ocr.service.ts — change them in code, not here.
   openrouterApiKey: z.string().default(''),
-  // Bách Khoa GPS provider (dvbk.vn) — live vehicle positions. Optional; the
-  // live-fleet endpoint degrades to an empty result when these are unset.
-  // HTTPS base avoids sending credentials over plaintext (host redirects HTTP→HTTPS).
-  bachKhoaApiUrl: z.string().url().default('https://dvbk.vn/BachKhoaAPI/'),
-  bachKhoaUsername: z.string().default(''),
-  bachKhoaPassword: z.string().default(''),
-  bachKhoaTimeoutMs: z.coerce.number().int().positive().default(8000),
-  // Which source to read live positions from:
-  //  - 'auto'   : try the public API; on empty/access-denied, fall back to the portal (default)
-  //  - 'api'    : documented /BachKhoaAPI/GetInfoCar only (needs vendor API-gateway access)
-  //  - 'portal' : web-portal /Home/get_AllTIBase only (session-cookie login)
-  bachKhoaProvider: z.enum(['auto', 'api', 'portal']).default('auto'),
   // Map4D place search (api.map4d.vn) — the map/search provider the Bách Khoa
   // portal embeds. Replaces OpenStreetMap/Nominatim for place autocomplete +
   // geocoding. The key alone authenticates (passed as ?key=, no portal login).
@@ -114,11 +102,6 @@ const raw = {
   nodeEnv: process.env.NODE_ENV,
   googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY,
   openrouterApiKey: process.env.OPENROUTER_API_KEY,
-  bachKhoaApiUrl: process.env.BACH_KHOA_API_URL,
-  bachKhoaUsername: process.env.BACH_KHOA_USERNAME,
-  bachKhoaPassword: process.env.BACH_KHOA_PASSWORD,
-  bachKhoaTimeoutMs: process.env.BACH_KHOA_TIMEOUT_MS,
-  bachKhoaProvider: process.env.BACH_KHOA_PROVIDER,
   map4dApiKey: process.env.MAP4D_API_KEY,
   map4dApiUrl: process.env.MAP4D_API_URL,
   corsOrigin: process.env.CORS_ORIGIN,
@@ -143,11 +126,6 @@ const withDefaults = {
   nodeEnv: raw.nodeEnv || 'development',
   googleMapsApiKey: raw.googleMapsApiKey || '',
   openrouterApiKey: raw.openrouterApiKey || '',
-  bachKhoaApiUrl: raw.bachKhoaApiUrl || 'https://dvbk.vn/BachKhoaAPI/',
-  bachKhoaUsername: raw.bachKhoaUsername || '',
-  bachKhoaPassword: raw.bachKhoaPassword || '',
-  bachKhoaTimeoutMs: raw.bachKhoaTimeoutMs || 8000,
-  bachKhoaProvider: raw.bachKhoaProvider || 'auto',
   map4dApiKey: raw.map4dApiKey || '',
   map4dApiUrl: raw.map4dApiUrl || 'https://api.map4d.vn',
   corsOrigin: raw.corsOrigin || '',
@@ -186,11 +164,6 @@ export const config = result.success ? result.data : configSchema.parse({
   nodeEnv: 'development',
   googleMapsApiKey: '',
   openrouterApiKey: '',
-  bachKhoaApiUrl: 'https://dvbk.vn/BachKhoaAPI/',
-  bachKhoaUsername: '',
-  bachKhoaPassword: '',
-  bachKhoaTimeoutMs: 8000,
-  bachKhoaProvider: 'auto',
   map4dApiKey: '',
   map4dApiUrl: 'https://api.map4d.vn',
   corsOrigin: '',

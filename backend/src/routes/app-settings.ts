@@ -16,13 +16,11 @@ import {
 import { asyncHandler } from '../middleware/asyncHandler';
 import { requireRoles } from '../middleware/casbin';
 import {
-  applySavedAppSettings,
   getAppSettingsFrom,
   getAppSettings,
   getGovernedFinancialPolicyState,
   getAppSettingsUpdatedAt,
   GOVERNED_APP_SETTINGS_RESOURCE,
-  saveDirectAppSettingsInTx,
 } from '../services/app-settings.service';
 import { maskKey } from '../services/crypto';
 import {
@@ -51,21 +49,10 @@ const APP_SETTINGS_COMMANDS = {
   TRUCK_PROFILE_REQUEST: 'admin.truck-financial-profile.request',
 } as const;
 
-function hasDirectAppSettingsChange(previous: AppSettings, next: AppSettings): boolean {
-  return previous.gpsEnabled !== next.gpsEnabled;
-}
-
 function hasFinancialPolicyAppSettingsChange(previous: AppSettings, next: AppSettings): boolean {
   return previous.creditWarningThresholdDefault !== next.creditWarningThresholdDefault
     || previous.creditTierOneAmountCap !== next.creditTierOneAmountCap
     || previous.salaryPayrollBusinessUnitId !== next.salaryPayrollBusinessUnitId;
-}
-
-function directAppSettingsOnly(previous: AppSettings, next: AppSettings) {
-  return {
-    ...previous,
-    gpsEnabled: next.gpsEnabled,
-  };
 }
 
 function financialPolicyOnly(settings: AppSettings) {
@@ -173,7 +160,6 @@ appSettingsRouter.put(
     );
     const expectedUpdatedAt = parseExpectedUpdatedAt(req);
     const previous = await getAppSettings();
-    const directChange = hasDirectAppSettingsChange(previous, next);
     const materialChange = hasFinancialPolicyAppSettingsChange(previous, next);
     const { result, replayed } = await runIdempotent({
       endpoint: APP_SETTINGS_COMMANDS.GENERAL_UPDATE,
@@ -190,10 +176,6 @@ appSettingsRouter.put(
           'Thiếu phiên bản cài đặt ứng dụng. Vui lòng tải lại trước khi cập nhật.',
         );
         const current = await getAppSettingsFrom(tx);
-        let directSaved = null as Awaited<ReturnType<typeof saveDirectAppSettingsInTx>> | null;
-        if (directChange) {
-          directSaved = await saveDirectAppSettingsInTx(tx, current, next);
-        }
         if (materialChange) {
           const governedState = await getGovernedFinancialPolicyState(tx);
           const outcome = await requestOrApplyGovernedConfigAction({
@@ -212,15 +194,9 @@ appSettingsRouter.put(
           });
           return outcome.appliedRow ?? outcome.action;
         }
-        if (directSaved) {
-          return { ...directSaved.settings, updatedAt: directSaved.updatedAt };
-        }
         return { ...current, updatedAt: currentUpdatedAt };
       },
     });
-    if (!replayed && directChange) {
-      await applySavedAppSettings(previous, directAppSettingsOnly(previous, next));
-    }
     const status = materialChange ? (replayed ? 200 : 201) : 200;
     res.status(status).json({ ...result, replayed });
   }),

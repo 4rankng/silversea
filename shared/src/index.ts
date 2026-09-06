@@ -21,7 +21,6 @@ export {
   NO_INVOICE_REQUIRED_SCOPE, NO_INVOICE_APPROVAL_TITLES, NO_INVOICE_APPROVAL_TITLE_LABELS, NO_INVOICE_DEFAULT_CATEGORY_ALIASES,
   NotificationType, NOTIFICATION_TYPE_LABELS, PUSH_RULES,
   CONFIG, FINANCIAL, REPORTS, DRIVER, SYSTEM, AUTH, TRIPS, SHIPMENTS, CATALOGS, FORWARDER, PORTAL, WORKSPACES, NOTIFICATIONS, SALARY,
-  TRACKING,
   CarrierType, SettlementMethod, ApprovalStatus, DebitNoteMode,
   TruckCapRole,
   CARRIER_TYPE_LABELS, SETTLEMENT_METHOD_LABELS, APPROVAL_STATUS_LABELS,
@@ -77,8 +76,6 @@ export type {
   BillingDocumentAdjustmentRequest,
   BillingLineRenderData, DebitNoteColumnVariable, DebitNoteTemplateColumn,
   DebitNoteTemplate, DebitNoteTemplateSnapshot,
-  LiveFleetVehicle, LiveFleetResponse, LiveFleetStatus, LiveFleetDetails, LiveFleetLeg,
-  GpsStop,
   DispatchCarrierKey, DispatchSummary, DispatchPortOption, TruckSuggestion,
 } from './types';
 
@@ -142,7 +139,6 @@ export {
   tireSchema, installTireSchema, disposeTireSchema, transferTireSchema, tirePositionSchema,
   generateBillingDocumentSchema, saveBillingDocumentSchema, billingDocumentLineSchema, billingDocumentAdjustmentRequestSchema, billingDocumentIssueRequestSchema,
   debitNoteTemplateSchema, debitNoteColumnSchema, debitNoteColumnVariableSchema, defaultDebitNoteColumns, defaultPaymentStatementColumns,
-  bachKhoaVehicleSchema, bachKhoaResponseSchema, parseBachKhoaResponse,
   geotagSchema, GEOTAG_ENTITY_TYPES, GEOTAG_SOURCES, GEOTAG_PATHS,
   customerVisibleEventContentSchema, createCustomerVisibleEventSchema,
   acknowledgeCustomerEventSchema, recoverableCostListQuerySchema,
@@ -261,7 +257,6 @@ export type {
   TireInput, InstallTireInput,
   GenerateBillingDocumentInput, SaveBillingDocumentInput, BillingDocumentAdjustmentRequestInput, BillingDocumentLineInput,
   DebitNoteTemplateInput, DebitNoteColumnInput, DebitNoteColumnVariableInput,
-  BachKhoaVehicle,
   GeotagInput, GeotagEntityType, GeotagSource, PhotoGeotag,
   CreateShipmentInput, UpdateShipmentInput, TransitionShipmentStatusInput,
   AttachShipmentDocumentInput, ShipmentContainerBatchInput, DispatchShipmentInput,
@@ -314,8 +309,6 @@ export type {
 } from './schemas/ocr-settings';
 
 // ─── Admin Bách Khoa GPS credentials ────────────────────────────────────────
-export { GPS_SETTINGS_PATHS, gpsSettingsUpdateSchema } from './schemas/gps-settings';
-export type { GpsSettingsResponse, GpsSettingsUpdate } from './schemas/gps-settings';
 
 // ─── Q22 source/dependent authority policy ─────────────────────────────────
 export {

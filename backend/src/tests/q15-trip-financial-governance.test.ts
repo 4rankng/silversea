@@ -17,7 +17,6 @@ import { initAuditService } from '../services/audit.service';
 import { transitionTripStatus } from '../services/trip-status-machine.service';
 import { matchDeclaredMaterialWrite } from '../middleware/material-write';
 import { updateTripFigures } from '../services/trip-mutations.service';
-import { processTripGpsCaptureJobForAction } from '../services/trip-gps-capture-job.service';
 import { approveGovernanceAction } from '../services/adjustment-governance.service';
 import {
   approveGovernanceActionWithAdapter,
@@ -266,7 +265,6 @@ after(async () => {
       .where(inArray(s.idempotencyKeys.idempotencyKey, idempotencyKeys));
   }
   if (tripIds.length > 0) {
-    await db.delete(s.tripGpsCaptureJobs).where(inArray(s.tripGpsCaptureJobs.tripId, tripIds));
     await db.delete(s.notifications).where(and(
       eq(s.notifications.relatedEntityType, 'trips'),
       inArray(s.notifications.relatedEntityId, tripIds),
@@ -653,12 +651,6 @@ describe('Q15 trip financial governance', () => {
       notificationsBeforeReplay.map((row) => row.userId),
       [tripDriver.userId],
     );
-    const [gpsFailureJob] = await db.select().from(s.tripGpsCaptureJobs)
-      .where(eq(s.tripGpsCaptureJobs.governanceActionId, Number(close.body.id)))
-      .limit(1);
-    assert.equal(gpsFailureJob.status, 'RETRY');
-    assert.equal(gpsFailureJob.attemptCount, 1);
-    assert.equal(gpsFailureJob.lastError, 'capture:no_car_id');
     const approveReplay = await api('POST', `/api/governance-actions/${close.body.id}/approve`, {
       expectedVersion: checked.body.version,
     }, 2, firstApprove.status === 200 ? approveKeyA : approveKeyB);
@@ -675,9 +667,6 @@ describe('Q15 trip financial governance', () => {
         eq(s.notifications.relatedEntityId, trip.id),
       ));
     assert.deepEqual(notificationsAfterReplay, notificationsBeforeReplay);
-    const [gpsReplayJob] = await db.select().from(s.tripGpsCaptureJobs)
-      .where(eq(s.tripGpsCaptureJobs.id, gpsFailureJob.id)).limit(1);
-    assert.equal(gpsReplayJob.attemptCount, 1);
     assert.ok(await waitForAuditEvent(actors[2]!.id, 'TRIP_COMPLETED', trip.id));
 
     const viewer = await api('GET', `/api/governance-actions?subjectType=TRIP&subjectId=${trip.id}`, undefined, 3);
@@ -1224,107 +1213,6 @@ describe('Q15 trip financial governance', () => {
       ),
       /quản trị/,
     );
-  });
-
-  it('retains GPS failures, recovers stale leases, retries derivation, and deduplicates delivery', async () => {
-    const trip = await createInTransitTrip();
-    const close = await api('POST', `/api/trips/${trip.id}/complete`, {
-      expectedVersion: trip.version,
-      reason: 'Kiểm thử hàng đợi GPS bền vững',
-    }, 1, `q15-gps-close-${suffix}`);
-    actionIds.push(Number(close.body.id));
-    const checked = await api('POST', `/api/governance-actions/${close.body.id}/check`, {
-      expectedVersion: close.body.version,
-    }, 0, `q15-gps-check-${suffix}`);
-    await api('POST', `/api/governance-actions/${close.body.id}/approve`, {
-      expectedVersion: checked.body.version,
-    }, 2, `q15-gps-approve-${suffix}`);
-    const [job] = await db.select().from(s.tripGpsCaptureJobs)
-      .where(eq(s.tripGpsCaptureJobs.governanceActionId, Number(close.body.id))).limit(1);
-    assert.equal(job.status, 'RETRY');
-    assert.match(job.lastError ?? '', /no_car_id/);
-
-    const retryNow = new Date('2026-07-28T08:00:00.000Z');
-    await db.update(s.tripGpsCaptureJobs).set({
-      status: 'RUNNING',
-      leaseToken: 'dead-worker',
-      leaseExpiresAt: new Date(retryNow.getTime() - 1),
-      nextAttemptAt: new Date(retryNow.getTime() - 1),
-    }).where(eq(s.tripGpsCaptureJobs.id, job.id));
-    const recovered = await processTripGpsCaptureJobForAction(Number(close.body.id), {
-      now: () => retryNow,
-      capture: async () => ({
-        tripId: trip.id,
-        status: 'ok',
-        pointCount: 2,
-        legsDerived: 0,
-        legsTotal: 1,
-      }),
-      derive: async () => {
-        throw new Error('osm unavailable');
-      },
-    });
-    assert.equal(recovered?.status, 'RETRY');
-    assert.match(recovered?.lastError ?? '', /osm unavailable/);
-
-    await db.update(s.tripGpsCaptureJobs).set({
-      nextAttemptAt: new Date(retryNow.getTime() - 1),
-    }).where(eq(s.tripGpsCaptureJobs.id, job.id));
-    let captureCalls = 0;
-    const successful = await processTripGpsCaptureJobForAction(Number(close.body.id), {
-      now: () => retryNow,
-      capture: async () => {
-        captureCalls += 1;
-        return {
-          tripId: trip.id,
-          status: 'ok',
-          pointCount: 2,
-          legsDerived: 0,
-          legsTotal: 1,
-        };
-      },
-      derive: async () => ({ legsDerived: 1, legsTotal: 1 }),
-    });
-    assert.equal(successful?.status, 'SUCCEEDED');
-    const duplicate = await processTripGpsCaptureJobForAction(Number(close.body.id), {
-      now: () => retryNow,
-      capture: async () => {
-        captureCalls += 1;
-        throw new Error('duplicate delivery must not run');
-      },
-    });
-    assert.equal(duplicate?.status, 'SUCCEEDED');
-    assert.equal(captureCalls, 1);
-  });
-
-  it('lets the active approval context apply close and commit the GPS job atomically', async () => {
-    const trip = await createInTransitTrip();
-    const close = await api('POST', `/api/trips/${trip.id}/complete`, {
-      expectedVersion: trip.version,
-      reason: 'Kiểm thử mất tiến trình ngay sau commit',
-    }, 1, `q15-gps-outbox-close-${suffix}`);
-    actionIds.push(Number(close.body.id));
-    const checked = await api('POST', `/api/governance-actions/${close.body.id}/check`, {
-      expectedVersion: close.body.version,
-    }, 0, `q15-gps-outbox-check-${suffix}`);
-    const approved = await approveGovernanceAction({
-      actionId: Number(close.body.id),
-      approverId: actors[2]!.id,
-      approverRole: actors[2]!.role,
-      expectedVersion: Number(checked.body.version),
-    });
-    assert.equal(approved.status, 'APPROVED');
-    assert.ok(approved.appliedAt);
-    const [completed] = await db.select().from(s.trips)
-      .where(eq(s.trips.id, trip.id))
-      .limit(1);
-    assert.equal(completed.status, TripStatus.COMPLETED);
-    const [job] = await db.select().from(s.tripGpsCaptureJobs)
-      .where(eq(s.tripGpsCaptureJobs.governanceActionId, approved.id))
-      .limit(1);
-    assert.equal(job.status, 'PENDING');
-    assert.equal(job.attemptCount, 0);
-    assert.equal(job.lastError, null);
   });
 
   it('declares close and completed cancellation as material writes', () => {

@@ -50,14 +50,6 @@ export const SHIPMENTS = {
   RECOVERY_FACTS: (shipmentId: number) => `/shipments/${shipmentId}/recovery-facts`,
 } as const;
 
-// ─── Tracking (live GPS vehicle positions) ────────────────────────────────────
-// Live fleet positions joined to active IN_TRANSIT trips. Mounted on the trips
-// router so it inherits trips-read RBAC; cached server-side via Redis and the
-// Bách Khoa provider credentials never reach the client.
-export const TRACKING = {
-  LIVE_FLEET: '/trips/live-fleet',
-} as const;
-
 // ─── Geotag (mobile phone GPS geotagging on photo submission) ─────────────────
 // Event-driven: capture a phone GPS fix the instant a portal user submits a
 // photo (container/seal, port receipt, fuel pump). Mounted at /api/geotag with

@@ -10,9 +10,6 @@ const vndCapSchema = z.number()
 
 /** Runtime feature switches exposed in the Admin application-settings page. */
 export const appSettingsSchema = z.object({
-  // Bách Khoa live GPS sync. When off, the live-fleet endpoint stops pulling
-  // from the provider and the admin credentials are retained for easy re-enable.
-  gpsEnabled: z.boolean(),
   // Q01/Q02: default early-warning threshold used when a customer does not
   // define its own override (e.g. 0.8 = 80%).
   creditWarningThresholdDefault: creditWarningThresholdSchema.default(0.8),

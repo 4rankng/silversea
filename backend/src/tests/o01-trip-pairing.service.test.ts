@@ -99,36 +99,11 @@ describe('trip pairing service', () => {
         canonicalDestination: 'Cảng Cát Lái',
       }),
       { vehicleCapacityKg: 15000 },
-      { distanceKm: null },
     );
 
     assert.equal(result.eligible, false);
     assert.ok(result.blockingCodes.includes('IMPOSSIBLE_REPOSITION'));
     assert.equal(result.emptyDistanceKm, null);
-  });
-
-  test('requires sufficient reposition travel buffer when route exists', () => {
-    const result = buildTripPairSnapshot(
-      trip({
-        tripId: 11,
-        plannedEndAt: '2026-07-27T11:00:00.000Z',
-        canonicalDestination: 'Kho Sóng Thần',
-      }),
-      trip({
-        tripId: 22,
-        plannedStartAt: '2026-07-27T12:00:00.000Z',
-        plannedEndAt: '2026-07-27T16:00:00.000Z',
-        canonicalOrigin: 'ICD Long Bình',
-        canonicalDestination: 'Cảng Cát Lái',
-      }),
-      { vehicleCapacityKg: 15000, averageRepositionSpeedKph: 30, stopBufferMinutes: 20 },
-      { distanceKm: 45 },
-    );
-
-    assert.equal(result.eligible, false);
-    assert.equal(result.actualGapMinutes, 60);
-    assert.equal(result.requiredGapMinutes, 110);
-    assert.ok(result.blockingCodes.includes('INSUFFICIENT_TRAVEL_BUFFER'));
   });
 
   test('rejects overload when either trip exceeds the truck capacity', () => {

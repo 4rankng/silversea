@@ -13,7 +13,6 @@ import {
 import { submitGeotag } from '../services/geotag.service';
 import { upsertPartnerFromTaxCode } from '../services/legal-partner.service';
 import { subscribe } from '../services/push.service';
-import { enqueueTripGpsCaptureJob } from '../services/trip-gps-capture-job.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const createdUserIds: number[] = [];
@@ -107,8 +106,6 @@ after(async () => {
     ));
   }
   if (createdGovernanceActionIds.length > 0) {
-    await db.delete(s.tripGpsCaptureJobs)
-      .where(inArray(s.tripGpsCaptureJobs.governanceActionId, createdGovernanceActionIds));
     await db.delete(s.governanceActions)
       .where(inArray(s.governanceActions.id, createdGovernanceActionIds));
   }
@@ -253,37 +250,6 @@ describe('application-owned uniqueness runtime paths', () => {
         });
       }),
       /different payload/,
-    );
-  });
-
-  test('deduplicates GPS capture jobs by governance action and rejects mismatched trip reuse', async () => {
-    const maker = await mkUser(Role.ADMIN, 'gps-maker');
-    const trip = await mkTrip('gps-main');
-    const otherTrip = await mkTrip('gps-other');
-    const action = await mkGovernanceAction(trip.id, maker.id);
-
-    await db.transaction(async (tx) => {
-      await enqueueTripGpsCaptureJob(tx, {
-        governanceActionId: action.id,
-        tripId: trip.id,
-      });
-      await enqueueTripGpsCaptureJob(tx, {
-        governanceActionId: action.id,
-        tripId: trip.id,
-      });
-    });
-
-    const rows = await db.select().from(s.tripGpsCaptureJobs)
-      .where(eq(s.tripGpsCaptureJobs.governanceActionId, action.id));
-    assert.equal(rows.length, 1);
-    assert.equal(rows[0]?.tripId, trip.id);
-
-    await assert.rejects(
-      () => db.transaction((tx) => enqueueTripGpsCaptureJob(tx, {
-        governanceActionId: action.id,
-        tripId: otherTrip.id,
-      })),
-      /đã trỏ tới chuyến khác/,
     );
   });
 

@@ -75,21 +75,3 @@ img { display: block; }
   transform: none;
 }
 
-/* ============================================================================
- * Leaflet overrides
- * ========================================================================== */
-/* The zoom control (.leaflet-control) is z-index 800 by default.
-   The popup pane (.leaflet-popup-pane) is z-index 700 by default.
-   Raise the popup pane above the controls. Scope under .leaflet-container for
-   higher specificity so we beat Leaflet's own rule without resorting to
-   !important. */
-.leaflet-container .leaflet-popup-pane {
-  z-index: 850;
-}
-
-.leaflet-touch .leaflet-control-zoom a,
-.leaflet-control-zoom a {
-  width: 44px;
-  height: 44px;
-  line-height: 44px;
-}

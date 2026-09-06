@@ -182,31 +182,6 @@ export function useDispatchData() {
   });
 }
 
-/**
- * Live fleet positions — polled every 25s to match the backend GPS cache TTL.
- * Mirrors the `useUnreadCount` / `useBadgeCounts` polling precedent. Degrades
- * gracefully: `data.error` is set when the provider is unavailable.
- *
- * `enabled` defaults on (Dispatch page). Trip-detail passes `enabled` gated to
- * IN_TRANSIT trips so viewing a completed/cancelled trip doesn't poll the GPS
- * cache forever.
- */
-export function useLiveFleet(options?: { enabled?: boolean }) {
-  // The Bách Khoa feature toggle is the master switch: when the admin has it
-  // off, the endpoint returns no vehicles and we shouldn't poll it at all.
-  const { data: appSettings } = useAppSettings();
-  const gpsEnabled = appSettings?.gpsEnabled ?? false;
-  return useQuery({
-    queryKey: qk.liveFleet.all,
-    queryFn: () => tripClient.getLiveFleet(),
-    enabled: (options?.enabled ?? true) && gpsEnabled,
-    refetchInterval: 10_000,
-    staleTime: 0,
-    refetchOnWindowFocus: true,
-    retry: 1,
-  });
-}
-
 export function useBadgeCounts(options?: { enabled?: boolean }) {
   return useQuery<{ dispatchCount: number; penaltiesCount: number }>({
     queryKey: qk.trips.badgeCounts,

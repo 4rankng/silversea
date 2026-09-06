@@ -51,7 +51,6 @@ after(async () => {
     await db.delete(s.tripExpenses).where(inArray(s.tripExpenses.id, createdExpenseIds));
   }
   if (createdTripIds.length > 0) {
-    await db.delete(s.tripGpsCaptureJobs).where(inArray(s.tripGpsCaptureJobs.tripId, createdTripIds));
     await db.delete(s.notifications).where(inArray(s.notifications.relatedEntityId, createdTripIds));
     await db.delete(s.driverWorkDays).where(inArray(s.driverWorkDays.tripId, createdTripIds));
     await db.delete(s.governanceActions).where(inArray(s.governanceActions.subjectId, createdTripIds));

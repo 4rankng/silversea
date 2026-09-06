@@ -46,7 +46,6 @@ import {
 } from './trip-mutations.service';
 import { removeTripWorkDays, syncTripWorkDays } from './attendance.service';
 import { persistNotificationInTx } from './notification.service';
-import { enqueueTripGpsCaptureJob } from './trip-gps-capture-job.service';
 import {
   createFinancialPosting,
   getActiveFinancialPosting,
@@ -596,10 +595,6 @@ async function applyTripGovernanceAction(
       relatedEntityType: 'trips',
       relatedEntityId: completed.id,
       targetDriverId: completed.driverId ?? undefined,
-    });
-    await enqueueTripGpsCaptureJob(tx, {
-      governanceActionId: action.id,
-      tripId: completed.id,
     });
     const financialPosting = await getActiveFinancialPosting(tx, completed.id)
       ?? await createFinancialPosting(tx, {

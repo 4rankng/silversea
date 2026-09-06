@@ -293,7 +293,6 @@ export async function seedProdRoutes(): Promise<void> {
       db.select({ n: count() }).from(s.weightPricingTiers).where(eq(s.weightPricingTiers.routeId, row.id)),
       db.select({ n: count() }).from(s.fuelNorms).where(eq(s.fuelNorms.routeId, row.id)),
       db.select({ n: count() }).from(s.operationalSites).where(eq(s.operationalSites.routeId, row.id)),
-      db.select({ n: count() }).from(s.routePolylines).where(eq(s.routePolylines.routeId, row.id)),
     ]);
     const total = refs.reduce((sum, [r]) => sum + Number(r?.n ?? 0), 0);
     if (total === 0) {

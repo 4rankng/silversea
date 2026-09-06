@@ -244,8 +244,6 @@ after(async () => {
       ));
     const actionIds = actionRows.map((action) => action.id);
     if (actionIds.length > 0) {
-      await db.delete(s.tripGpsCaptureJobs)
-        .where(inArray(s.tripGpsCaptureJobs.governanceActionId, actionIds));
     }
     await db.delete(s.notifications).where(and(
       eq(s.notifications.relatedEntityType, 'trips'),

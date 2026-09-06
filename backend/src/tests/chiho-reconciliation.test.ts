@@ -67,9 +67,6 @@ after(async () => {
       await db.delete(s.ledger).where(inArray(s.ledger.txnId, allTxnIds));
     }
     if (createdTripIds.length > 0) {
-      await db.delete(s.tripGpsCaptureJobs).where(inArray(s.tripGpsCaptureJobs.tripId, createdTripIds));
-      await db.delete(s.tripGpsTracks).where(inArray(s.tripGpsTracks.tripId, createdTripIds));
-      await db.delete(s.routePolylines).where(inArray(s.routePolylines.sourceTripId, createdTripIds));
       await db.delete(s.tripPhotos).where(inArray(s.tripPhotos.tripId, createdTripIds));
       await db.delete(s.tripLegs).where(inArray(s.tripLegs.tripId, createdTripIds));
     }

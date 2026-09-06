@@ -2,8 +2,6 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Loader2, Shuffle, FilePen, X } from 'lucide-react';
 import { api } from '../lib/api';
-import { useLiveFleet } from '../hooks/useTripQueries';
-import { LiveTrackingCard } from '../features/trip-detail/components/LiveTrackingCard';
 import { Modal, Drawer } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { Spinner } from '../components/shared/Spinner';
@@ -18,7 +16,7 @@ import { UuiSelectField } from '../design-system';
 import { useTripDetailPage } from '../features/trip-detail';
 import {
   TripHeader, KpiStrip, BasicInfoCard, ContainersCard, FinancialCard,
-  FuelCard, ServiceCostsCard, JourneyCard,
+  FuelCard, ServiceCostsCard,
   ExternalCarrierCard, PhotosCard,
 } from '../features/trip-detail';
 
@@ -34,7 +32,6 @@ export default function TripDetailPage() {
   const [governanceReason, setGovernanceReason] = useState('');
   // Only poll live GPS when this trip is actually in transit — a completed /
   // cancelled trip never has a live vehicle, so avoid polling the cache forever.
-  const { data: liveFleet } = useLiveFleet({ enabled: page.trip?.status === TripStatus.IN_TRANSIT });
 
   const handleBack = () => navigate('/trips');
   useBackShortcut(handleBack);
@@ -92,7 +89,6 @@ export default function TripDetailPage() {
         readOnly: true,
       }
     : permissions;
-  const liveVehicle = liveFleet?.vehicles.find((v) => v.tripId === trip.id) ?? null;
   const displayError = ui.actionError || page.error;
 
   /* ── Main render ───────────────────────────────────────────────────── */
@@ -192,15 +188,9 @@ export default function TripDetailPage() {
         <div className="trip-col trip-col--main">
           {trip.legs && trip.legs.length > 0 && (
             <div className="anim d3 tdp-card tdp-m1">
-              <JourneyCard trip={trip} derived={derived} liveVehicle={liveVehicle} />
             </div>
           )}
 
-          {liveVehicle && (
-            <div className="anim d3 tdp-card">
-              <LiveTrackingCard vehicle={liveVehicle} />
-            </div>
-          )}
 
           <div className="anim d3 tdp-card tdp-m2">
             <ServiceCostsCard tripId={trip.id} readOnly={effectivePermissions.readOnly} />

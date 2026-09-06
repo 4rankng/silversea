@@ -2,9 +2,6 @@ import { and, desc, eq, inArray, isNull, or } from 'drizzle-orm';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { appSettingsSchema, type AppSettings } from '@tingting/shared';
-import { cacheInvalidate } from '../lib/redis';
-import { getGpsSettings, invalidateGpsSettings } from './gps/settings';
-import { invalidateGpsProvider } from './gps/providers';
 import { ApiError } from '../errors';
 import {
   buildGovernedConfigSnapshot,
@@ -15,7 +12,6 @@ import {
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 const KEYS = {
-  gps: 'app.gps_enabled',
   creditWarningThresholdDefault: 'credit.warning_threshold_default',
   creditTierOneAmountCap: 'credit.tier_one_amount_cap',
   salaryPayrollBusinessUnitId: 'salary.payroll_business_unit_id',
@@ -38,10 +34,6 @@ type GovernedFinancialPolicyState = AppSettingsFinancialPolicy & {
 
 let cached: AppSettings | null = null;
 
-function parseBooleanSetting(value: string | undefined, fallback: boolean): boolean {
-  return value === undefined ? fallback : value === 'true';
-}
-
 function parseNumberSetting(value: string | undefined, fallback: number): number {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
@@ -53,7 +45,6 @@ export async function getAppSettingsUpdatedAt(
   const [row] = await q.select({ updatedAt: s.appSettings.updatedAt })
     .from(s.appSettings)
     .where(inArray(s.appSettings.key, [
-      KEYS.gps,
       KEYS.creditWarningThresholdDefault,
       KEYS.creditTierOneAmountCap,
       KEYS.salaryPayrollBusinessUnitId,
@@ -67,7 +58,6 @@ async function readAppSettingsRows(q: typeof db | Tx = db) {
     .select()
     .from(s.appSettings)
     .where(inArray(s.appSettings.key, [
-      KEYS.gps,
       KEYS.creditWarningThresholdDefault,
       KEYS.creditTierOneAmountCap,
       KEYS.salaryPayrollBusinessUnitId,
@@ -76,11 +66,9 @@ async function readAppSettingsRows(q: typeof db | Tx = db) {
 
 function settingsFromRows(
   rows: Array<{ key: string; value: string | null }>,
-  gpsEnabledDefault: boolean,
 ): AppSettings {
   const values = new Map(rows.map((row) => [row.key, row.value]));
   return {
-    gpsEnabled: parseBooleanSetting(values.get(KEYS.gps) ?? undefined, gpsEnabledDefault),
     creditWarningThresholdDefault: parseNumberSetting(values.get(KEYS.creditWarningThresholdDefault) ?? undefined, 0.8),
     creditTierOneAmountCap: Math.trunc(parseNumberSetting(values.get(KEYS.creditTierOneAmountCap) ?? undefined, 0)),
     salaryPayrollBusinessUnitId: (() => {
@@ -94,11 +82,7 @@ export async function getAppSettingsFrom(
   q: typeof db | Tx,
 ): Promise<AppSettings> {
   const rows = await readAppSettingsRows(q);
-  // Default gpsEnabled to whether credentials are configured, so existing
-  // deployments migrate cleanly: those with creds stay ON, those without start OFF.
-  const creds = await getGpsSettings();
-  const gpsEnabledDefault = !!(creds.username && creds.password);
-  return settingsFromRows(rows, gpsEnabledDefault);
+  return settingsFromRows(rows);
 }
 
 export async function getAppSettings(): Promise<AppSettings> {
@@ -119,7 +103,7 @@ export async function getGovernedFinancialPolicyState(
       KEYS.creditTierOneAmountCap,
       KEYS.salaryPayrollBusinessUnitId,
     ]));
-  const settings = settingsFromRows(rows, false);
+  const settings = settingsFromRows(rows);
   const updatedAt = rows.reduce<Date | null>((latest, row) => {
     if (!(row.updatedAt instanceof Date)) return latest;
     if (!latest || row.updatedAt.getTime() > latest.getTime()) return row.updatedAt;
@@ -130,16 +114,6 @@ export async function getGovernedFinancialPolicyState(
     creditTierOneAmountCap: settings.creditTierOneAmountCap,
     salaryPayrollBusinessUnitId: settings.salaryPayrollBusinessUnitId,
     updatedAt,
-  };
-}
-
-function mergeDirectSettings(
-  current: AppSettings,
-  next: AppSettings,
-): AppSettings {
-  return {
-    ...current,
-    gpsEnabled: next.gpsEnabled,
   };
 }
 
@@ -207,38 +181,6 @@ async function upsertAppSettingsEntries(
   return now.toISOString();
 }
 
-export async function saveAppSettingsInTx(
-  tx: Tx,
-  previous: AppSettings,
-  next: AppSettings,
-): Promise<{ settings: AppSettings; updatedAt: string }> {
-  await validateFinancialPolicySettings(tx, {
-    creditWarningThresholdDefault: next.creditWarningThresholdDefault,
-    creditTierOneAmountCap: next.creditTierOneAmountCap,
-    salaryPayrollBusinessUnitId: next.salaryPayrollBusinessUnitId,
-  });
-  const updatedAt = await upsertAppSettingsEntries(tx, [
-    [KEYS.gps, String(next.gpsEnabled)],
-    [KEYS.creditWarningThresholdDefault, String(next.creditWarningThresholdDefault)],
-    [KEYS.creditTierOneAmountCap, String(next.creditTierOneAmountCap)],
-    [KEYS.salaryPayrollBusinessUnitId, String(next.salaryPayrollBusinessUnitId ?? '')],
-  ]);
-  void previous;
-  return { settings: next, updatedAt };
-}
-
-export async function saveDirectAppSettingsInTx(
-  tx: Tx,
-  current: AppSettings,
-  next: AppSettings,
-): Promise<{ settings: AppSettings; updatedAt: string }> {
-  const merged = mergeDirectSettings(current, next);
-  const updatedAt = await upsertAppSettingsEntries(tx, [
-    [KEYS.gps, String(merged.gpsEnabled)],
-  ]);
-  return { settings: merged, updatedAt };
-}
-
 export async function saveFinancialPolicyAppSettingsInTx(
   tx: Tx,
   current: AppSettings,
@@ -254,23 +196,10 @@ export async function saveFinancialPolicyAppSettingsInTx(
   return { settings: merged, updatedAt };
 }
 
-export async function applySavedAppSettings(
-  previous: AppSettings,
-  next: AppSettings,
-): Promise<AppSettings> {
-  cached = next;
-  if (previous.gpsEnabled !== next.gpsEnabled) {
-    invalidateGpsSettings();
-    invalidateGpsProvider();
-    await cacheInvalidate('gps:live');
-  }
-  return next;
-}
-
 export async function saveAppSettings(next: AppSettings): Promise<AppSettings> {
   const previous = await getAppSettings();
-  await db.transaction((tx) => saveAppSettingsInTx(tx, previous, next));
-  return applySavedAppSettings(previous, next);
+  await db.transaction((tx) => saveFinancialPolicyAppSettingsInTx(tx, previous, next));
+  return getAppSettings();
 }
 
 function assertGovernedFinancialPolicyUnchanged(

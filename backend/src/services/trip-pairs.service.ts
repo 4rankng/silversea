@@ -10,7 +10,6 @@ import { db } from '../db';
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
-import { getDistance } from './maps.service';
 import {
   breakTripPairOnCancellation,
   breakTripPairOnLateCompletion,
@@ -372,14 +371,6 @@ export async function createTripPair(
       throw new ApiError(422, 'Tải trọng xe phải thống nhất giữa hai chuyến ghép');
     }
 
-    let repositionDistanceKm: number | null = null;
-    if (locked.first.canonicalDestination && locked.second.canonicalOrigin) {
-      const reposition = await getDistance(
-        locked.first.canonicalDestination.trim(),
-        locked.second.canonicalOrigin.trim(),
-      );
-      repositionDistanceKm = reposition.selected?.km ?? null;
-    }
     const evaluation = buildTripPairSnapshot(
       {
         tripId: locked.first.id,
@@ -403,9 +394,6 @@ export async function createTripPair(
       },
       {
         vehicleCapacityKg: firstCapacity,
-      },
-      {
-        distanceKm: repositionDistanceKm,
       },
     );
 

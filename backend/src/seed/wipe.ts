@@ -43,8 +43,7 @@ export const WIPE_TABLES = {
   tripsChildren: [
     'trip_expense_completion_scopes', 'trip_expense_photos', 'trip_expenses',
     'trip_container_seals', 'trip_containers', 'trip_instructions',
-    'trip_photos', 'trip_gps_tracks', 'trip_gps_capture_jobs',
-    'vehicle_last_positions', 'trip_legs', 'trip_pairs', 'trips',
+    'trip_photos', 'trip_legs', 'trip_pairs', 'trips',
     'trip_code_counters', 'driver_progress_events', 'driver_incidental_costs',
     'driver_work_days', 'trip_pod_files', 'trip_pod_submissions',
   ],
@@ -83,7 +82,7 @@ export const WIPE_TABLES = {
   ],
   // 7. Routes / pricing
   routesPricing: [
-    'route_polylines', 'ancillary_revenue', 'lift_pricing',
+    'ancillary_revenue', 'lift_pricing',
     'weight_pricing_tiers', 'road_allowances', 'pricing_tables',
     'cargo_types', 'routes',
   ],

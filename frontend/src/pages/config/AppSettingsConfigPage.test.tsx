@@ -49,7 +49,6 @@ const mocks = vi.hoisted(() => ({
   },
   appSettings: {
     data: {
-      gpsEnabled: false,
       creditWarningThresholdDefault: 0.8,
       creditTierOneAmountCap: 1000000,
       salaryPayrollBusinessUnitId: null,
@@ -64,12 +63,6 @@ const mocks = vi.hoisted(() => ({
       openrouterKeySet: true,
       openrouterKeyMasked: '••••••••ocr1',
     },
-    isLoading: false,
-    isError: false,
-    error: null,
-  },
-  gpsSettings: {
-    data: { username: '', passwordSet: false, passwordMasked: '' },
     isLoading: false,
     isError: false,
     error: null,
@@ -122,11 +115,6 @@ vi.mock('../../hooks/useOcrSettings', () => ({
   useSaveOcrSettings: () => mutationResult(mocks.saveOcrSettings),
 }));
 
-vi.mock('../../hooks/useGpsSettings', () => ({
-  useGpsSettings: () => mocks.gpsSettings,
-  useSaveGpsSettings: () => mutationResult(),
-}));
-
 vi.mock('../../api/userClient', () => ({
   userClient: {
     getBusinessUnits: vi.fn().mockResolvedValue({ items: [] }),
@@ -171,11 +159,9 @@ describe('AppSettingsConfigPage', () => {
       history: [],
       pendingRequest: null,
     };
-    mocks.appSettings.data.gpsEnabled = false;
     mocks.ocrSettings.data.enabled = true;
     mocks.ocrSettings.data.openrouterKeySet = true;
     mocks.saveAppSettings.mockReset().mockResolvedValue({
-      gpsEnabled: false,
       creditWarningThresholdDefault: 0.75,
       creditTierOneAmountCap: 1500000,
       salaryPayrollBusinessUnitId: null,
@@ -243,8 +229,7 @@ describe('AppSettingsConfigPage', () => {
 
     await waitFor(() => {
       expect(mocks.saveAppSettings).toHaveBeenCalledWith({
-        gpsEnabled: false,
-        creditWarningThresholdDefault: 0.75,
+          creditWarningThresholdDefault: 0.75,
         creditTierOneAmountCap: 1500000,
         salaryPayrollBusinessUnitId: null,
       });

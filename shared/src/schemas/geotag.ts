@@ -5,10 +5,8 @@ import { z } from 'zod';
  *
  * Captures an accurate phone GPS fix at the moment a portal user submits a
  * photo (container/seal, port receipt, fuel pump, …) so the photo's claimed
- * location is provable for anti-fraud + compliance. The phone-GPS capture is
- * genuinely greenfield on the client — the existing GPS subsystem
- * (trip_gps_tracks / vehicle_last_positions) is server-pulled from the Bách
- * Khoa hardware tracker and never touches navigator.geolocation.
+ * location is provable for anti-fraud + compliance. The phone-GPS capture
+ * uses navigator.geolocation directly from the portal client.
  *
  * The capture layer (warm-fix watchPosition) lives in the frontend; this file
  * is the shared wire contract consumed by the backend route + service.

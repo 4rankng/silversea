@@ -11,6 +11,5 @@ export { ContainersCard } from './components/ContainersCard';
 export { FinancialCard } from './components/FinancialCard';
 export { FuelCard } from './components/FuelCard';
 export { ServiceCostsCard } from './components/ServiceCostsCard';
-export { JourneyCard } from './components/JourneyCard';
 export { ExternalCarrierCard } from './components/ExternalCarrierCard';
 export { PhotosCard } from './components/PhotosCard';

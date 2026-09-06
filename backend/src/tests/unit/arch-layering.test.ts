@@ -39,9 +39,6 @@ const DB_CLIENT_IMPORT_BASELINE = new Set([
   // upload.ts — route+service hybrid (photo-record executor fns predate the
   //   split waves); extraction is its own mini-wave, not a drive-by.
   'src/routes/upload.ts',
-  // admin-gps.ts — GPS backfill/setup transactions with advisory-lock +
-  //   idempotency interplay; needs the gps service extraction wave.
-  'src/routes/admin-gps.ts',
   // expense.ts — passes db as executor into expense services (listExpenses etc.
   //   take q: typeof db); fix by making those services default q themselves.
   'src/routes/expense.ts',

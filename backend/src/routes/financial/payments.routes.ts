@@ -53,7 +53,6 @@ import { AuditEvent } from '../../services/audit-types';
 import { IDEMPOTENCY_ENDPOINTS, resolveIdempotencyKey, runIdempotent } from '../../services/idempotency.service';
 import { ApiError } from '../../errors';
 import { parseActionId } from './governance-action-input';
-import { processTripGpsCaptureJobForAction } from '../../services/trip-gps-capture-job.service';
 import {
   PROFIT_DISTRIBUTION_TRANSACTION_OPTIONS,
   runProfitDistributionWithSerializationRetry,
@@ -342,10 +341,6 @@ router.post(
         relatedEntityType: 'trips',
         relatedEntityId: result.subjectId ?? undefined,
       });
-    }
-
-    if (result.actionKind === 'TRIP_FINANCIAL_CLOSE' && result.subjectId != null) {
-      await processTripGpsCaptureJobForAction(result.id);
     }
 
     if (result.actionKind === 'TRIP_FINANCIAL_CLOSE') {

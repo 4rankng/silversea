@@ -192,7 +192,6 @@ describe('app-settings route authorization', () => {
   test('manager can read app settings but cannot write them', async () => {
     const read = await request('/', { token: managerToken });
     assert.equal(read.status, 200);
-    assert.equal(typeof read.body.gpsEnabled, 'boolean');
 
     const write = await request('/', {
       method: 'PUT',
@@ -222,7 +221,6 @@ describe('app-settings route authorization', () => {
     assert.ok(read.body.updatedAt == null || typeof read.body.updatedAt === 'string');
 
     const flipped = {
-      gpsEnabled: !originalSettings.gpsEnabled,
       creditWarningThresholdDefault: originalSettings.creditWarningThresholdDefault,
       creditTierOneAmountCap: originalSettings.creditTierOneAmountCap,
       salaryPayrollBusinessUnitId: originalSettings.salaryPayrollBusinessUnitId,
@@ -235,7 +233,6 @@ describe('app-settings route authorization', () => {
       expectedUpdatedAt: currentVersionHeader(read.body),
     });
     assert.equal(write.status, 200);
-    assert.equal(write.body.gpsEnabled, flipped.gpsEnabled);
   });
 
   test('material financial settings and direct toggles all apply immediately (2026-09-05 d3599b0b)', async () => {
@@ -254,7 +251,6 @@ describe('app-settings route authorization', () => {
     assert.equal(read.status, 200);
 
     const proposed = {
-      gpsEnabled: Boolean(read.body.gpsEnabled),
       creditWarningThresholdDefault: Number(read.body.creditWarningThresholdDefault ?? originalSettings.creditWarningThresholdDefault),
       creditTierOneAmountCap: Number(read.body.creditTierOneAmountCap ?? originalSettings.creditTierOneAmountCap),
       salaryPayrollBusinessUnitId: unit.id,
@@ -294,7 +290,6 @@ describe('app-settings route authorization', () => {
     const read = await request('/', { token: adminToken });
     assert.equal(read.status, 200);
     const proposed = {
-      gpsEnabled: Boolean(read.body.gpsEnabled),
       creditWarningThresholdDefault: Number(read.body.creditWarningThresholdDefault ?? originalSettings.creditWarningThresholdDefault),
       creditTierOneAmountCap: Number(read.body.creditTierOneAmountCap ?? originalSettings.creditTierOneAmountCap),
       salaryPayrollBusinessUnitId: unit.id,

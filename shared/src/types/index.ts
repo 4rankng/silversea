@@ -486,13 +486,6 @@ export interface TripLeg {
   km: number;
   loadingType: LoadingType;
   calculatedLiters: string | null;
-  polylinePath: string | null;
-  /** Geocoded/route-derived coordinate of this leg's origin stop, so the map can
-   *  place a numbered marker even when no captured route polyline exists.
-   *  Null when the place could not be resolved (route endpoint or geocode). */
-  originCoord?: { lat: number; lng: number } | null;
-  /** Coordinate of this leg's destination stop (same resolution strategy). */
-  destinationCoord?: { lat: number; lng: number } | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -1198,15 +1191,6 @@ export interface TripInstruction {
   updatedAt: string;
 }
 
-/** A real GPS waypoint from the truck's Bách Khoa stop report — used to place
- *  numbered map markers at actual driven stop coordinates. */
-export interface GpsStop {
-  lat: number;
-  lng: number;
-  address?: string | null;
-  startTime?: string | null;
-}
-
 export interface TripDetail extends Trip {
   legs: TripLeg[];
   driver?: Driver;
@@ -1219,11 +1203,6 @@ export interface TripDetail extends Trip {
   pairing?: TripPairSummary | null;
   instructions?: TripInstruction | null;
   accountingLock: ShipmentAccountingLockSummary | null;
-  /** The vehicle's full real GPS trail (Bách Khoa), captured at completion.
-   *  The complete driven path — drawn on the trip map as the real route.
-   *  `stops` are the truck's ordered significant stops (real GPS waypoints) so
-   *  the map can render numbered markers at every real stop 1..N. */
-  gpsTrail?: { encodedPolyline: string; distanceKm: number; pointCount: number; stops: GpsStop[] } | null;
 }
 
 export interface ShipmentAccountingLockSummary {
@@ -2247,96 +2226,3 @@ export interface SalaryPeriodRange {
   label: string;
 }
 
-// ─── Live Fleet Tracking (Bách Khoa GPS) ──────────────────────────────────────
-
-/**
- * Normalized GPS status bucket. The backend derives this from Bách Khoa's
- * free-text `CarStatus` (e.g. "Mất tín hiệu", "Dừng") plus the report's
- * freshness, so the frontend can color markers consistently.
- */
-export type LiveFleetStatus = 'moving' | 'stopped' | 'offline';
-
-/** One planned leg of a trip's route, with its cached polyline for map drawing. */
-export interface LiveFleetLeg {
-  sequence: number;
-  origin: string;
-  destination: string;
-  loadingType: LoadingType;   // HANG = đi (loaded), VO = về (empty return)
-  polylinePath: string | null;
-}
-
-/**
- * A single tracked vehicle: a live GPS reading joined to its active
- * IN_TRANSIT trip. Only trucks currently on an active trip are returned.
- */
-export interface LiveFleetVehicle {
-  // Identity / join key
-  truckId: number;
-  licensePlate: string;
-  deviceId: string | null;
-  // Live GPS telemetry (Bách Khoa GetInfoCar)
-  lat: number;
-  lng: number;
-  speed: number;            // km/h
-  angle: number;            // heading, degrees
-  address: string | null;
-  status: LiveFleetStatus;
-  ignitionOn: boolean;      // Acc "Bật" / "Tắt"
-  fuel: number | null;      // Oil sensor reading; null when no sensor fitted
-  gpsDriverName: string | null;
-  lastSeenAt: string;       // ISO timestamp of the device report
-  stale: boolean;           // report older than the staleness threshold
-  // Active/recent trip context (joined server-side). Null when the truck has no
-  // recent trip (fleet-overview mode shows such trucks at their last-known spot).
-  tripId: number | null;
-  tripCode: string | null;
-  driverName: string | null;
-  customerName: string | null;
-  routeName: string | null;
-  /** Planned route legs (with polylines) for drawing the remaining path to the destination. */
-  legs?: LiveFleetLeg[];
-  /** Extended telemetry from the portal endpoint (null when only the public API is used). */
-  details?: LiveFleetDetails | null;
-}
-
-/** Response shape for GET /api/trips/live-fleet. */
-export interface LiveFleetResponse {
-  vehicles: LiveFleetVehicle[];
-  stale: boolean;           // true when every vehicle is stale OR provider down
-  fetchedAt: string;        // ISO timestamp of this response
-  error?: string;           // present when the provider is unavailable / misconfigured
-}
-
-/**
- * Extended telemetry only the web-portal endpoint exposes (the documented public
- * API returns just position/speed/fuel/ignition). All fields nullable because
- * devices vary — e.g. no camera, no odometer, no driver-license RFID.
- */
-export interface LiveFleetDetails {
-  // Vehicle
-  modelCar: string | null;
-  odometerKm: number | null;        // total km run
-  kmToday: number | null;           // km driven today
-  // Engine & power
-  engineSince: string | null;       // ignition last turned on (dd/MM/yyyy HH:mm)
-  doorStatus: string | null;        // "Đóng" / "Mở"
-  airConditioning: string | null;   // "Bật" / "Tắt"
-  batteryV: string | null;          // battery voltage
-  // Driving behaviour
-  drivingTime: string | null;       // driving time this session "HH:mm:ss"
-  drivingTimeToday: string | null;  // driving time today "HH:mm:ss"
-  stopCount: number | null;         // stops today
-  overSpeedCount: number | null;    // overspeed events today
-  parkedTime: string | null;        // parked/stopped duration
-  // Fuel
-  fuelPercent: number | null;       // 0-100
-  // Connectivity
-  signalDb: number | null;          // GSM signal strength
-  // Driver (from device RFID; may differ from the assigned driver)
-  driverLicense: string | null;
-  driverPhone: string | null;
-  licenseIssued: string | null;     // dd/MM/yyyy
-  licenseExpiry: string | null;     // dd/MM/yyyy
-  // Camera
-  cameraImage: string | null;       // latest snapshot URL
-}

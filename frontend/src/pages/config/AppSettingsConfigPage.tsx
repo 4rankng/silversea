@@ -16,7 +16,6 @@ import {
   useSaveEmailSettings,
   useTruckFinancialProfiles,
 } from '../../hooks/useAppSettings';
-import { useGpsSettings, useSaveGpsSettings } from '../../hooks/useGpsSettings';
 import { useOcrSettings, useSaveOcrSettings } from '../../hooks/useOcrSettings';
 import { usePageAnimations } from '../../hooks/animations';
 import { userClient } from '../../api/userClient';
@@ -26,7 +25,6 @@ import { FinancePolicySection, type FinanceTab } from '../../features/app-settin
 import { OperationalPolicySection } from '../../features/app-settings/OperationalPolicySection';
 import { OcrSection } from '../../features/app-settings/OcrSection';
 import { EmailSection } from '../../features/app-settings/EmailSection';
-import { GpsSection } from '../../features/app-settings/GpsSection';
 import {
   formatViMonth,
   fromThresholdPercent,
@@ -49,13 +47,10 @@ export default function AppSettingsConfigPage() {
   const requestFinancialPolicy = useRequestFinancialReportingPolicy();
   const ocrSettings = useOcrSettings();
   const saveOcrSettings = useSaveOcrSettings();
-  const gpsSettings = useGpsSettings();
-  const saveGpsSettings = useSaveGpsSettings();
   const { confirm, dialog: confirmDialog } = useConfirm();
   const [activeFinanceTab, setActiveFinanceTab] = useState<FinanceTab>('policy');
 
   const [features, setFeatures] = useState<AppSettings>({
-    gpsEnabled: false,
     creditWarningThresholdDefault: 0.8,
     creditTierOneAmountCap: 0,
     salaryPayrollBusinessUnitId: null,
@@ -68,13 +63,10 @@ export default function AppSettingsConfigPage() {
   });
   const [ocrEnabled, setOcrEnabled] = useState(false);
   const [ocrOpenrouterKey, setOcrOpenrouterKey] = useState('');
-  const [gpsUsername, setGpsUsername] = useState('');
-  const [gpsPassword, setGpsPassword] = useState('');
   const [resendApiKey, setResendApiKey] = useState('');
   const [generalMessage, setGeneralMessage] = useState<string | null>(null);
   const [ocrMessage, setOcrMessage] = useState<string | null>(null);
   const [emailMessage, setEmailMessage] = useState<string | null>(null);
-  const [gpsMessage, setGpsMessage] = useState<string | null>(null);
   const [policyEffectiveFrom, setPolicyEffectiveFrom] = useState('');
   const [policyThresholdPercent, setPolicyThresholdPercent] = useState('');
   const [policyMessage, setPolicyMessage] = useState<string | null>(null);
@@ -104,10 +96,6 @@ export default function AppSettingsConfigPage() {
   }, [ocrSettings.data]);
 
   useEffect(() => {
-    if (gpsSettings.data) setGpsUsername(gpsSettings.data.username);
-  }, [gpsSettings.data]);
-
-  useEffect(() => {
     if (!financialPolicy.data) return;
     setPolicyEffectiveFrom(financialPolicy.data.currentVietnamMonthStart);
     setPolicyThresholdPercent(
@@ -131,10 +119,6 @@ export default function AppSettingsConfigPage() {
     setTruckUsefulLifeMonths(current?.usefulLifeMonths != null ? String(current.usefulLifeMonths) : '');
     setTruckMonthlyFixedCost(current?.monthlyFixedCost ?? '');
   }, [truckProfiles.data]);
-
-  const updateFeature = (key: keyof AppSettings) => {
-    setFeatures((current) => ({ ...current, [key]: !current[key] }));
-  };
 
   const saveGeneralSettings = async () => {
     const threshold = fromThresholdPercent(creditWarningPercent);
@@ -270,59 +254,12 @@ export default function AppSettingsConfigPage() {
     }
   };
 
-  const saveGps = async () => {
-    setGpsMessage(null);
-    try {
-      // The gpsEnabled toggle lives in this panel, so saving the panel must
-      // also persist the toggle. Previously only the credentials were saved
-      // here, which silently dropped the toggle flip — a user who turned GPS
-      // off in this panel and then refreshed found it back on.
-      const tasks: Promise<unknown>[] = [];
-      const previous = appSettings.data;
-      if (previous && previous.gpsEnabled !== features.gpsEnabled) {
-        tasks.push(saveAppSettings.mutateAsync({
-          ...previous,
-          gpsEnabled: features.gpsEnabled,
-        }));
-      }
-      // Credentials are only meaningful while GPS is on. When the user has
-      // also typed something into the credential fields, send them along.
-      const hasCredentialEdit = gpsUsername.trim() !== '' || gpsPassword.trim() !== '';
-      if (features.gpsEnabled && hasCredentialEdit) {
-        tasks.push(
-          saveGpsSettings.mutateAsync({
-            username: gpsUsername.trim(),
-            ...(gpsPassword.trim() ? { password: gpsPassword } : {}),
-          }),
-        );
-      }
-      if (tasks.length === 0) return;
-      await Promise.all(tasks);
-      setGpsPassword('');
-      setGpsMessage('Đã lưu cài đặt định vị Bách Khoa.');
-    } catch {
-      setGpsMessage(null);
-    }
-  };
-
   const ocrOpenrouterKeySet = !!ocrSettings.data?.openrouterKeySet;
   const ocrHasKey = ocrOpenrouterKeySet || ocrOpenrouterKey.trim() !== '';
   const ocrChanged = !!ocrSettings.data && (
     ocrSettings.data.enabled !== ocrEnabled
     || ocrOpenrouterKey.trim() !== ''
   );
-  // Credentials are only required while the feature is enabled. When off, the
-  // fields are disabled and the save button stays inert — no validation pressure.
-  const gpsCredsRequired = features.gpsEnabled;
-  // The save button must also be enabled when the user has only flipped the
-  // gpsEnabled toggle in this panel — otherwise the toggle flip is lost on
-  // refresh because "Lưu cài đặt" (the only place that persists app_settings)
-  // sits in a different panel above.
-  const gpsToggleChanged = !!appSettings.data && appSettings.data.gpsEnabled !== features.gpsEnabled;
-  const gpsReady = gpsToggleChanged
-    || (gpsCredsRequired
-      && gpsUsername.trim() !== ''
-      && (gpsSettings.data?.passwordSet || gpsPassword.trim() !== ''));
   const creditThresholdValid = fromThresholdPercent(creditWarningPercent) != null;
   const creditTierCapValid = Number.isFinite(Number(creditTierOneCap))
     && Number(creditTierOneCap) >= 0
@@ -461,22 +398,6 @@ export default function AppSettingsConfigPage() {
           saveEmail={saveEmail}
           clearEmail={clearEmail}
           emailMessage={emailMessage}
-        />
-
-        <GpsSection
-          appSettings={appSettings}
-          saveAppSettings={saveAppSettings}
-          features={features}
-          updateFeature={updateFeature}
-          gpsSettings={gpsSettings}
-          saveGpsSettings={saveGpsSettings}
-          gpsUsername={gpsUsername}
-          setGpsUsername={setGpsUsername}
-          gpsPassword={gpsPassword}
-          setGpsPassword={setGpsPassword}
-          gpsReady={gpsReady}
-          saveGps={saveGps}
-          gpsMessage={gpsMessage}
         />
       </div>
       {confirmDialog}

@@ -1827,47 +1827,6 @@ export type SaveBillingDocumentInput = {
 export type BillingDocumentAdjustmentRequestInput = z.infer<typeof billingDocumentAdjustmentRequestSchema>;
 export type BillingDocumentIssueRequestInput = z.infer<typeof billingDocumentIssueRequestSchema>;
 
-// ─── Bách Khoa GPS (external third-party response) ───────────────────────────
-// The first external-response parse in the codebase. Bách Khoa's GetInfoCar
-// returns a JSON array with PascalCase fields and sloppy typing. Parse
-// defensively: permissive defaults so one bad row never fails the whole batch.
-
-export const bachKhoaVehicleSchema = z.object({
-  Message: z.string().catch(''),
-  NumberPlate: z.string().catch(''),
-  DeviceID: z.string().nullable().catch(null),
-  DriverName: z.string().nullable().catch(null),
-  DriverLicense: z.string().nullable().catch(null),
-  Date: z.string().nullable().catch(null),          // "HH:mm:ss - dd/MM/yyyy"
-  Lt: z.number().catch(0),
-  Ln: z.number().catch(0),
-  Address: z.string().nullable().catch(null),
-  Angle: z.number().catch(0),
-  CarStatus: z.string().nullable().catch(null),
-  Speed: z.number().catch(0),
-  Acc: z.string().nullable().catch(null),            // "Bật" (on) / "Tắt" (off)
-  Oil: z.number().nullable().catch(null),            // 0 when no fuel sensor fitted
-});
-
-export const bachKhoaResponseSchema = z.array(bachKhoaVehicleSchema);
-
-export type BachKhoaVehicle = z.infer<typeof bachKhoaVehicleSchema>;
-
-/**
- * Parse Bách Khoa's GetInfoCar payload into a clean array.
- *
- * The vendor returns EITHER a JSON array (success) OR a single object carrying
- * a `Message` error string with null fields — e.g. "Không có quyền truy cập"
- * (account lacks API access) or "Sai tài khoản hoặc mật khẩu" (bad credentials).
- * This helper normalizes both shapes: a non-array (error object) yields [].
- * Rows without a plate or with no GPS fix (0,0) are dropped.
- */
-export function parseBachKhoaResponse(raw: unknown): BachKhoaVehicle[] {
-  if (!Array.isArray(raw)) return [];
-  return bachKhoaResponseSchema.parse(raw).filter(
-    (v) => v.NumberPlate.trim() !== '' && !(v.Lt === 0 && v.Ln === 0),
-  );
-}
 export type BillingDocumentLineInput = z.infer<typeof billingDocumentLineSchema>;
 
 export * from './governance-action';

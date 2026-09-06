@@ -25,7 +25,6 @@ import {
   logDurableEffectRunSummary,
   processDueDurableEffectJobs,
 } from './services/durable-effect.service';
-import { processPendingTripGpsCaptureJobs } from './services/trip-gps-capture-job.service';
 import authRoutes from './routes/auth';
 import configRoutes, { auditLogRouter, catalogBootstrapRouter, salaryPeriodsRouter, salaryPeriodsAdminRouter, tireLifecycleRouter } from './routes/config';
 import tripRoutes from './routes/trips';
@@ -36,8 +35,6 @@ import expenseRoutes from './routes/expense';
 import driverRoutes from './routes/driver';
 import forwarderRoutes from './routes/forwarder';
 import forwarderAdminRoutes from './routes/forwarder-admin';
-import adminGpsRoutes from './routes/admin-gps';
-import gpsSettingsRoutes from './routes/gps-settings';
 import ocrSettingsRoutes from './routes/ocr-settings';
 import { appSettingsRouter } from './routes/app-settings';
 import { uploadRouter, photosRouter } from './routes/upload';
@@ -92,17 +89,6 @@ if (schedulerEnabled) {
     handler: async () => {
       const stats = await runReceivableReminderRetries();
       console.log(`[scheduler] receivable-reminder-retry: ${stats.retried} retried, ${stats.suppressed} suppressed, ${stats.escalated} escalated, ${stats.failed} failed`);
-    },
-  });
-
-  registerJob({
-    name: 'trip-gps-capture-retry',
-    cron: '* * * * *',
-    handler: async () => {
-      const jobs = await processPendingTripGpsCaptureJobs();
-      if (jobs.length > 0) {
-        console.log(`[scheduler] trip-gps-capture-retry: ${jobs.length} job(s) processed`);
-      }
     },
   });
 
@@ -176,9 +162,6 @@ app.use('/api/salary-periods', authMiddleware, casbinAuthz('config'), salaryPeri
 app.use('/api/driver/me', authMiddleware, casbinAuthz('driver_portal'), driverWorkInboxRouter, driverRoutes);
 app.use('/api/forwarder/me', authMiddleware, casbinAuthz('operations_portal'), forwarderWorkInboxRouter, forwarderRoutes);
 app.use('/api/forwarder-expenses', authMiddleware, casbinAuthz('financial'), forwarderAdminRoutes);
-// GPS route-DB admin (backfill + recapture) — MANAGER/ADMIN only (gps-admin action).
-app.use('/api/admin/gps', authMiddleware, casbinAuthz('gps-admin'), adminGpsRoutes);
-app.use('/api/admin/gps-settings', authMiddleware, requireRoles(Role.ADMIN), gpsSettingsRoutes);
 app.use('/api/admin/ocr-settings', authMiddleware, casbinAuthz('ocr-settings'), requireRoles(Role.ADMIN), ocrSettingsRoutes);
 app.use('/api/admin/app-settings', authMiddleware, casbinAuthz('config'), appSettingsRouter);
 app.use('/api/maps', authMiddleware, casbinAuthz('maps'), mapsRoutes);

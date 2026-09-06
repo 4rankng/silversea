@@ -32,10 +32,6 @@ export interface TripPairingVehicle {
   stopBufferMinutes?: number;
 }
 
-export interface TripPairingReposition {
-  distanceKm: number | null;
-}
-
 export interface TripPairingMetrics {
   emptyDistanceKm: number | null;
   combinedEfficiencyPercent: number | null;
@@ -107,7 +103,6 @@ export function buildTripPairSnapshot(
   first: TripPairingCandidate,
   second: TripPairingCandidate,
   vehicle: TripPairingVehicle,
-  reposition: TripPairingReposition = { distanceKm: null },
 ): TripPairingEvaluation {
   const [orderedFirst, orderedSecond] = orderCandidates(first, second);
   const blockingCodes: TripPairingBlockCode[] = [];
@@ -154,13 +149,10 @@ export function buildTripPairSnapshot(
 
   let emptyDistanceKm: number | null = 0;
   if (firstDestination && secondOrigin && firstDestination !== secondOrigin) {
-    const repositionKm = toFiniteNumber(reposition.distanceKm);
-    if (repositionKm == null || repositionKm < 0) {
-      blockingCodes.push('IMPOSSIBLE_REPOSITION');
-      emptyDistanceKm = null;
-    } else {
-      emptyDistanceKm = repositionKm;
-    }
+    // Cross-location pairs have no distance source (GPS route-DB removed);
+    // pairing requires the second trip to start where the first ended.
+    blockingCodes.push('IMPOSSIBLE_REPOSITION');
+    emptyDistanceKm = null;
   }
 
   let actualGapMinutes: number | null = null;

@@ -392,30 +392,6 @@ export const forwarderExpenseTypes = pgTable('forwarder_expense_types', {
 });
 
 
-export const routePolylines = pgTable('route_polylines', {
-  id: serial('id').primaryKey(),
-  originCleaned: varchar('origin_cleaned', { length: 255 }).notNull(),
-  destinationCleaned: varchar('destination_cleaned', { length: 255 }).notNull(),
-  encodedPolyline: text('encoded_polyline').notNull(),
-  pointCount: integer('point_count').notNull(),
-  distanceKm: numeric('distance_km', { precision: 10, scale: 2 }).notNull(),
-  sourceTripId: integer('source_trip_id'),
-  routeId: integer('route_id'),
-  derivedAt: timestamp('derived_at', { withTimezone: true }).defaultNow().notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-}, (table) => [
-  uniqueIndex('route_polylines_uniq_idx').on(table.originCleaned, table.destinationCleaned),
-]);
-
-/**
- * The full, lossless GPS breadcrumb trail a truck actually drove for one trip —
- * the raw ground truth captured from Bách Khoa (getJourney), before per-leg
- * slicing/derivation. Kept per the GPS-route-DB plan (user decision #2: "store
- * all") so routes can be re-derived later (e.g. consensus path) without re-hitting
- * the provider. 1:1 per trip (unique trip_id). `encoded_polyline` is the complete
- * trail; `status` is app-controlled ('ok' | 'partial' | 'empty' | 'failed').
- * `segment_matched` records whether per-leg derivation succeeded for every leg.
- */
 
 // Customer-owned factories and pickup warehouses. The database row is the
 // live master; issued fulfillments snapshot the operational fields that must

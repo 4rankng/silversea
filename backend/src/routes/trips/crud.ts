@@ -16,7 +16,6 @@ import { requireRoles } from '../../middleware/casbin';
 import { getUser } from '../../middleware/auth';
 import { config } from '../../config';
 import * as tripService from '../../services/trip.service';
-import * as gpsService from '../../services/gps.service';
 import { createTripPair } from '../../services/trip-pairs.service';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency.service';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
@@ -99,13 +98,6 @@ router.get('/summary', asyncHandler(async (req: Request, res: Response) => {
   res.json(await tripService.getTripsSummary(dateFrom, dateTo));
 }));
 
-// Live fleet — current GPS positions of trucks on an active IN_TRANSIT trip,
-// pulled from the Bách Khoa provider via a Redis pull-through cache. Declared
-// BEFORE /:id so 'live-fleet' is not parsed as an id. Inherits the trips-read
-// Casbin policy from the /api/trips mount in index.ts.
-router.get('/live-fleet', asyncHandler(async (_req: Request, res: Response) => {
-  res.json(await gpsService.getLiveFleet());
-}));
 
 router.post('/pairs', requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
   const payload = createTripPairSchema.parse(req.body);

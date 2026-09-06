@@ -161,12 +161,6 @@ export const qk = {
     tripDetail: (id: number) => ['trip-detail', String(id)] as const,
   },
 
-  /* ── Live fleet (GPS tracking) ──────────────────────────────────────── */
-
-  liveFleet: {
-    all: ['live-fleet'],
-  },
-
   /* ── Driver portal ──────────────────────────────────────────────────── */
 
   driver: {
@@ -456,10 +450,6 @@ export const qk = {
         filters?.cursor ?? null,
         filters?.limit ?? 25,
       ] as const,
-  },
-
-  gpsSettings: {
-    detail: ['gps-settings'] as const,
   },
 
   /* ── Trip-form catalogs (loaded on demand by the create/edit form) ── */
