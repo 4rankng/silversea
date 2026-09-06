@@ -496,24 +496,24 @@ export async function assertTripSourcesClaimable(
   }
 
   const trips = await tx.select({
-    id: s.trips.id,
-    tripCode: s.trips.tripCode,
-    customerId: s.trips.customerId,
-    shipmentId: s.trips.shipmentId,
-    fulfillmentId: s.trips.fulfillmentId,
-    status: s.trips.status,
-    departureDate: s.trips.departureDate,
-    completionDate: sql<string | null>`to_char(${s.trips.completedAt} at time zone 'Asia/Ho_Chi_Minh', 'YYYY-MM-DD')`,
-    revenue: s.trips.revenue,
-    fuelSurchargeAmount: s.trips.fuelSurchargeAmount,
+    id: s.tripsComposite.id,
+    tripCode: s.tripsComposite.tripCode,
+    customerId: s.tripsComposite.customerId,
+    shipmentId: s.tripsComposite.shipmentId,
+    fulfillmentId: s.tripsComposite.fulfillmentId,
+    status: s.tripsComposite.status,
+    departureDate: s.tripsComposite.departureDate,
+    completionDate: sql<string | null>`to_char(${s.tripsComposite.completedAt} at time zone 'Asia/Ho_Chi_Minh', 'YYYY-MM-DD')`,
+    revenue: s.tripsComposite.revenue,
+    fuelSurchargeAmount: s.tripsComposite.fuelSurchargeAmount,
     routeName: s.routes.name,
-    notes: s.trips.notes,
+    notes: s.tripsComposite.notes,
     truckPlate: s.trucks.licensePlate,
     trailerPlateNumber: s.trailers.licensePlate,
-    externalPlateNumber: s.trips.externalPlateNumber,
-    version: s.trips.version,
-    vatRate: s.trips.vatRate,
-    updatedAt: s.trips.updatedAt,
+    externalPlateNumber: s.tripsComposite.externalPlateNumber,
+    version: s.tripsComposite.version,
+    vatRate: s.tripsComposite.vatRate,
+    updatedAt: s.tripsComposite.updatedAt,
     financialPostingId: s.tripFinancialPostings.id,
     financialPostingVersion: s.tripFinancialPostings.version,
     financialPostingTripVersion: s.tripFinancialPostings.tripVersion,
@@ -527,21 +527,21 @@ export async function assertTripSourcesClaimable(
     cargoVolumeCbm: s.shipments.cargoVolumeCbm,
     packageCount: s.shipments.packageCount,
     packageType: s.shipments.packageType,
-  }).from(s.trips)
+  }).from(s.tripsComposite)
     .innerJoin(s.tripFinancialPostings, and(
-      eq(s.tripFinancialPostings.tripId, s.trips.id),
+      eq(s.tripFinancialPostings.tripId, s.tripsComposite.id),
       eq(s.tripFinancialPostings.status, 'ACTIVE'),
     ))
-    .leftJoin(s.routes, eq(s.trips.routeId, s.routes.id))
-    .leftJoin(s.trucks, eq(s.trips.truckId, s.trucks.id))
-    .leftJoin(s.trailers, eq(s.trips.trailerId, s.trailers.id))
-    .leftJoin(s.shipments, eq(s.trips.shipmentId, s.shipments.id))
+    .leftJoin(s.routes, eq(s.tripsComposite.routeId, s.routes.id))
+    .leftJoin(s.trucks, eq(s.tripsComposite.truckId, s.trucks.id))
+    .leftJoin(s.trailers, eq(s.tripsComposite.trailerId, s.trailers.id))
+    .leftJoin(s.shipments, eq(s.tripsComposite.shipmentId, s.shipments.id))
     .leftJoin(s.operationalSites, eq(s.shipments.operationalSiteId, s.operationalSites.id))
     .where(and(
-      inArray(s.trips.id, tripIds),
-      isNull(s.trips.deletedAt),
+      inArray(s.tripsComposite.id, tripIds),
+      isNull(s.tripsComposite.deletedAt),
     ))
-    .orderBy(s.trips.id) as CustomerDebitTripCandidate[];
+    .orderBy(s.tripsComposite.id) as CustomerDebitTripCandidate[];
   if (trips.length !== tripIds.length) {
     throw new ApiError(409, 'Có chuyến không còn tồn tại hoặc không còn gắn lô hàng hợp lệ. Vui lòng tạo lại bản nháp.');
   }

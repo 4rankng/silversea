@@ -128,17 +128,15 @@ async function loadShipmentDirectCloseResult(
     throw new ApiError(404, 'Không tìm thấy lô hàng.');
   }
 
-  const trips = await tx.select({
-    id: s.trips.id,
-    vatRate: s.trips.vatRate,
-  }).from(s.trips)
+  const trips = await tx.select({ id: s.tripsComposite.id, vatRate: s.tripsComposite.vatRate })
+    .from(s.tripsComposite)
     .where(and(
-      eq(s.trips.shipmentId, shipmentId),
-      isNull(s.trips.deletedAt),
-      eq(s.trips.status, TripStatus.COMPLETED),
-      ...(tripIds && tripIds.length > 0 ? [inArray(s.trips.id, tripIds)] : []),
+      eq(s.tripsComposite.shipmentId, shipmentId),
+      isNull(s.tripsComposite.deletedAt),
+      eq(s.tripsComposite.status, TripStatus.COMPLETED),
+      ...(tripIds && tripIds.length > 0 ? [inArray(s.tripsComposite.id, tripIds)] : []),
     ))
-    .orderBy(asc(s.trips.id));
+    .orderBy(asc(s.tripsComposite.id));
 
   return {
     shipment: normalizeShipmentRow(shipment),

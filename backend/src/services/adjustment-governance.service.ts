@@ -19,6 +19,7 @@ import {
   type PaymentDatePolicy,
 } from './business-calendar.service';
 import { lockTripFinancialAuthority } from './trip-financial-authority-lock.service';
+import { tripCompositeSelect } from './trip-composite.service';
 import { assertCanMakeGovernanceAction } from './governance-policy';
 // Import from the approval CORE (leaf), never the transition hub — the hub
 // aggregates this service via financial.service, and importing it back would
@@ -147,8 +148,12 @@ export async function requestTripArAdjustment(input: {
   }
 
   const execute = async (tx: Tx) => {
-    const [trip] = await tx.select().from(s.trips)
-      .where(eq(s.trips.id, input.tripId)).limit(1).for('update');
+    const [trip] = await tx.select(tripCompositeSelect())
+        .from(s.trips)
+        .leftJoin(s.tripFinancialState, eq(s.tripFinancialState.tripId, s.trips.id))
+        .leftJoin(s.tripCarrierInfo, eq(s.tripCarrierInfo.tripId, s.trips.id))
+        .where(eq(s.trips.id, input.tripId)).limit(1)
+        .for('update', { of: [s.trips] });
     if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
     if (trip.version !== input.expectedTripVersion) {
       throw new ApiError(409, 'Chuyến đi đã được thay đổi. Vui lòng tải lại.');
@@ -203,8 +208,12 @@ export async function requestTripReopen(input: {
   const reason = requireReason(input.reason);
   const execute = async (tx: Tx) => {
     await lockTripFinancialAuthority(tx, [input.tripId]);
-    const [trip] = await tx.select().from(s.trips)
-      .where(eq(s.trips.id, input.tripId)).limit(1).for('update');
+    const [trip] = await tx.select(tripCompositeSelect())
+        .from(s.trips)
+        .leftJoin(s.tripFinancialState, eq(s.tripFinancialState.tripId, s.trips.id))
+        .leftJoin(s.tripCarrierInfo, eq(s.tripCarrierInfo.tripId, s.trips.id))
+        .where(eq(s.trips.id, input.tripId)).limit(1)
+        .for('update', { of: [s.trips] });
     if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
     if (trip.status !== 'COMPLETED') {
       throw new ApiError(409, 'Chỉ có thể đề nghị mở lại chuyến đã chốt');
@@ -334,8 +343,12 @@ export async function requestTripFinancialChange(input: {
 
   const execute = async (tx: Tx) => {
     await lockTripFinancialAuthority(tx, [input.tripId]);
-    const [trip] = await tx.select().from(s.trips)
-      .where(eq(s.trips.id, input.tripId)).limit(1).for('update');
+    const [trip] = await tx.select(tripCompositeSelect())
+        .from(s.trips)
+        .leftJoin(s.tripFinancialState, eq(s.tripFinancialState.tripId, s.trips.id))
+        .leftJoin(s.tripCarrierInfo, eq(s.tripCarrierInfo.tripId, s.trips.id))
+        .where(eq(s.trips.id, input.tripId)).limit(1)
+        .for('update', { of: [s.trips] });
     if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
     if (trip.version !== input.expectedTripVersion) {
       throw new ApiError(409, 'Chuyến đi đã được thay đổi. Vui lòng tải lại.');
@@ -394,8 +407,12 @@ export async function requestCompletedTripCancellation(input: {
 
   const execute = async (tx: Tx) => {
     await lockTripFinancialAuthority(tx, [input.tripId]);
-    const [trip] = await tx.select().from(s.trips)
-      .where(eq(s.trips.id, input.tripId)).limit(1).for('update');
+    const [trip] = await tx.select(tripCompositeSelect())
+        .from(s.trips)
+        .leftJoin(s.tripFinancialState, eq(s.tripFinancialState.tripId, s.trips.id))
+        .leftJoin(s.tripCarrierInfo, eq(s.tripCarrierInfo.tripId, s.trips.id))
+        .where(eq(s.trips.id, input.tripId)).limit(1)
+        .for('update', { of: [s.trips] });
     if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
     if (trip.version !== input.expectedTripVersion) {
       throw new ApiError(409, 'Chuyến đi đã được thay đổi. Vui lòng tải lại.');
@@ -550,8 +567,12 @@ async function applyTripGovernanceAction(
   }
   const trip = kind === 'TRIP_FINANCIAL_CLOSE'
     ? await lockTripCloseAggregate(tx, action.subjectId)
-    : (await tx.select().from(s.trips)
-      .where(eq(s.trips.id, action.subjectId)).limit(1).for('update'))[0];
+    : (await tx.select(tripCompositeSelect())
+        .from(s.trips)
+        .leftJoin(s.tripFinancialState, eq(s.tripFinancialState.tripId, s.trips.id))
+        .leftJoin(s.tripCarrierInfo, eq(s.tripCarrierInfo.tripId, s.trips.id))
+        .where(eq(s.trips.id, action.subjectId)).limit(1)
+        .for('update', { of: [s.trips] }))[0];
   if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi gốc');
   if (trip.version !== action.originalVersion) {
     throw new ApiError(409, 'Dữ liệu gốc đã thay đổi; yêu cầu này không thể áp dụng');
@@ -793,13 +814,13 @@ async function applyTripGovernanceAction(
       status: 'IN_TRANSIT' as const,
       completedAt: null,
     } : {}),
-    version: sql`${s.trips.version} + 1`,
+    version: sql`${s.tripsComposite.version} + 1`,
     updatedAt: new Date(),
   }).where(and(
-    eq(s.trips.id, trip.id),
-    eq(s.trips.version, action.originalVersion),
-    ...(kind === 'TRIP_REOPEN' ? [eq(s.trips.status, 'COMPLETED')] : []),
-  )).returning({ id: s.trips.id });
+    eq(s.tripsComposite.id, trip.id),
+    eq(s.tripsComposite.version, action.originalVersion),
+    ...(kind === 'TRIP_REOPEN' ? [eq(s.tripsComposite.status, 'COMPLETED')] : []),
+  )).returning({ id: s.tripsComposite.id });
   if (!versionedTrip) {
     throw new ApiError(409, 'Dữ liệu gốc đã thay đổi; yêu cầu này không thể áp dụng');
   }

@@ -15,6 +15,7 @@ import {
 } from '@tingting/shared';
 import { db, client } from '../db';
 import * as s from '../db/schema';
+import { insertTripComposite } from '../services/trip-composite.service';
 import { config } from '../config';
 import { initEnforcer } from '../casbin/enforcer';
 import { authMiddleware } from '../middleware/auth';
@@ -272,7 +273,7 @@ before(async () => {
   }).returning();
   fulfillmentIds.push(fulfillment.id);
 
-  const [trip] = await db.insert(s.trips).values({
+  const trip = await insertTripComposite(db, {
     tripCode: `PORTAL-POD-${suffix}`.slice(0, 50),
     customerId: multiCustomer.id,
     routeId: route.id,
@@ -286,7 +287,7 @@ before(async () => {
     driverSalary: '100000',
     totalFuelCost: '0',
     carrierType: 'OWN',
-  }).returning();
+  });
   tripIds.push(trip.id);
 
   const [submission] = await db.insert(s.tripPodSubmissions).values({
@@ -332,6 +333,8 @@ after(async () => {
   }
   if (tripIds.length > 0) {
     await db.delete(s.tripContainers).where(inArray(s.tripContainers.tripId, tripIds));
+    await db.delete(s.tripFinancialState).where(inArray(s.tripFinancialState.tripId, tripIds));
+    await db.delete(s.tripCarrierInfo).where(inArray(s.tripCarrierInfo.tripId, tripIds));
     await db.delete(s.trips).where(inArray(s.trips.id, tripIds));
   }
   if (fulfillmentIds.length > 0) {

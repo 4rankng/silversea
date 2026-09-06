@@ -7,6 +7,7 @@ import { inArray } from 'drizzle-orm';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
+import { insertTripComposite } from '../services/trip-composite.service';
 import { getTripArStatus, getCustomerArSummary } from '../services/ar-status.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -23,11 +24,11 @@ async function setup() {
   createdRouteIds.push(route.id);
   const [cargo] = await db.insert(s.cargoTypes).values({ name: `M51 cargo ${suffix}-${createdCargoTypeIds.length}` }).returning();
   createdCargoTypeIds.push(cargo.id);
-  const [trip] = await db.insert(s.trips).values({
+  const trip = await insertTripComposite(db, {
     tripCode: `M51-${suffix}-${createdTripIds.length}`.slice(0, 50),
     customerId: customer.id, routeId: route.id, cargoTypeId: cargo.id,
     status: 'COMPLETED', departureDate: '2026-07-01', carrierType: 'OWN',
-  }).returning();
+  });
   createdTripIds.push(trip.id);
   return { customer, trip };
 }
@@ -50,6 +51,8 @@ async function mkLedger(entityId: number, txnId: number, txnType: string, debit:
 after(async () => {
   try {
     if (createdLedgerIds.length > 0) await db.delete(s.ledger).where(inArray(s.ledger.id, createdLedgerIds));
+    if (createdTripIds.length > 0) await db.delete(s.tripFinancialState).where(inArray(s.tripFinancialState.tripId, createdTripIds));
+    if (createdTripIds.length > 0) await db.delete(s.tripCarrierInfo).where(inArray(s.tripCarrierInfo.tripId, createdTripIds));
     if (createdTripIds.length > 0) await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
     if (createdCargoTypeIds.length > 0) await db.delete(s.cargoTypes).where(inArray(s.cargoTypes.id, createdCargoTypeIds));
     if (createdRouteIds.length > 0) await db.delete(s.routes).where(inArray(s.routes.id, createdRouteIds));

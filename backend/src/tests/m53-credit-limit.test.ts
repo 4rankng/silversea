@@ -5,6 +5,7 @@ import { eq, inArray, sql } from 'drizzle-orm';
 import { Role, TripStatus } from '@tingting/shared';
 import { db, client } from '../db';
 import * as s from '../db/schema';
+import { insertTripComposite } from '../services/trip-composite.service';
 import { getAppSettings, saveAppSettings } from '../services/app-settings.service';
 import {
   approveCreditOverrideRequest,
@@ -144,7 +145,7 @@ async function mkTierBoundaryRequest(input: {
 }
 
 async function mkLiveTrip(customerId: number, routeId: number, cargoTypeId: number, revenue: string, status: TripStatus) {
-  const [trip] = await db.insert(s.trips).values({
+  const trip = await insertTripComposite(db, {
     tripCode: `M53-TRP-${createdTripIds.length}-${suffix}`.slice(0, 50),
     customerId,
     routeId,
@@ -157,7 +158,7 @@ async function mkLiveTrip(customerId: number, routeId: number, cargoTypeId: numb
     revenueEmptyReturn: revenue,
     revenueCombine: '0',
     revenueOriginal: revenue,
-  }).returning();
+  });
   createdTripIds.push(trip.id);
   return trip;
 }

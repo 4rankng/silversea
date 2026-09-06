@@ -4,6 +4,7 @@ import { and, eq, inArray } from 'drizzle-orm';
 
 import { client, db } from '../db';
 import * as s from '../db/schema';
+import { insertTripComposite } from '../services/trip-composite.service';
 import { TxnType, type AppSettings } from '@tingting/shared';
 import { getAppSettings, saveAppSettings } from '../services/app-settings.service';
 import {
@@ -40,6 +41,8 @@ after(async () => {
       await db.delete(s.salaryConfirmations).where(inArray(s.salaryConfirmations.driverId, driverIds));
     }
     if (tripIds.length > 0) {
+      await db.delete(s.tripFinancialState).where(inArray(s.tripFinancialState.tripId, tripIds));
+      await db.delete(s.tripCarrierInfo).where(inArray(s.tripCarrierInfo.tripId, tripIds));
       await db.delete(s.trips).where(inArray(s.trips.id, tripIds));
     }
     if (driverIds.length > 0) {
@@ -87,7 +90,7 @@ async function createCompletedSalaryTrip(
   const resolvedRoute = route ?? (await db.insert(s.routes).values({ name: `Q09 route ${suffix}` }).returning())[0]!;
   const resolvedCargoType = cargoType ?? (await db.insert(s.cargoTypes).values({ name: `Q09 cargo ${suffix}` }).returning())[0]!;
 
-  const [trip] = await db.insert(s.trips).values({
+  const trip = await insertTripComposite(db, {
     tripCode: `Q09-${tag}-${suffix}`.slice(0, 50),
     customerId: resolvedCustomer.id,
     routeId: resolvedRoute.id,
@@ -100,7 +103,7 @@ async function createCompletedSalaryTrip(
     revenue: '0',
     driverSalary: String(amount),
     totalRoadAllowance: '0',
-  }).returning();
+  });
   tripIds.push(trip.id);
 
   const [ledger] = await db.insert(s.ledger).values({

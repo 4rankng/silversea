@@ -21,6 +21,9 @@ import { requirePersistedTripGovernanceAuthorization } from './trip-governance-a
 import { assertActiveApprovalApplication } from './governance-action-core.service';
 import { LedgerService } from './ledger.service';
 import {
+  getTripCompositeInTx, splitTripPatch, tripCompositeSelect, upsertTripCarrierInfo, upsertTripFinancialState,
+} from './trip-composite.service';
+import {
   applyCommittedLegacyFuelFreeze,
   assertCustomerCommissionWithinRevenue,
   resolveRevenue,
@@ -139,10 +142,15 @@ export async function updateTripFigures(
     // 1. Fetch trip and check lock status
     // Both paths now observe the committed winner before derived financial
     // work begins: trip authority -> parent shipment -> trip row.
-    const [trip] = await tx.select().from(s.trips)
+    // Trips-split: composed row (ops + financial + carrier sidecars); the row
+    // lock stays on trips only (`of`), matching the pre-split lock footprint.
+    const [trip] = await tx.select(tripCompositeSelect())
+      .from(s.trips)
+      .leftJoin(s.tripFinancialState, eq(s.tripFinancialState.tripId, s.trips.id))
+      .leftJoin(s.tripCarrierInfo, eq(s.tripCarrierInfo.tripId, s.trips.id))
       .where(eq(s.trips.id, tripId))
       .limit(1)
-      .for('update');
+      .for('update', { of: [s.trips] });
     if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
     // O2C: costs stay editable after COMPLETED (no hard-freeze). A financial
     // edit on a completed trip requires a governed correction (the caller has
@@ -491,8 +499,11 @@ export async function updateTripFigures(
     // existed (A3.1).
 
         // 6. Update derived fields and increment version
+    // Trips-split: the mixed patch routes to trips (ops, incl. the version
+    // optimistic-lock guard) + both sidecars. The 409 guard keeps its exact
+    // pre-split semantics — it fires on the trips row's version check.
     const nextVersion = trip.version + 1;
-    const [updated] = await tx.update(s.trips).set({
+    const { ops: tripOpsPatch, financial: financialPatch, carrier: carrierPatch } = splitTripPatch({
       version: nextVersion,
       customerId: data.customerId ?? trip.customerId,
       departureDate: data.departureDate ?? trip.departureDate,
@@ -545,11 +556,18 @@ export async function updateTripFigures(
       driverId: data.driverId !== undefined ? data.driverId : trip.driverId,
       trailerType: data.trailerType !== undefined ? (data.trailerType as '20FT' | '40FT' | null) : trip.trailerType,
       updatedAt: new Date(),
-    }).where(and(eq(s.trips.id, tripId), eq(s.trips.version, trip.version))).returning();
+    });
+    const [updatedOpsRow] = await tx.update(s.trips)
+      .set(tripOpsPatch as typeof s.trips.$inferInsert)
+      .where(and(eq(s.trips.id, tripId), eq(s.trips.version, trip.version))).returning();
 
-    if (!updated) {
+    if (!updatedOpsRow) {
       throw new ApiError(409, 'Dữ liệu đã bị thay đổi bởi người khác. Vui lòng tải lại trang.');
     }
+    await upsertTripFinancialState(tx, tripId, financialPatch);
+    await upsertTripCarrierInfo(tx, tripId, carrierPatch);
+    const updated = await getTripCompositeInTx(tx, tripId);
+    if (!updated) throw new Error(`trip ${tripId} composed row missing after figure update`);
 
     if (tripStatus === TripStatus.COMPLETED) {
       const previousPosting = await getActiveFinancialPosting(tx, trip.id)

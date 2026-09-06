@@ -4,6 +4,7 @@ import { inArray } from 'drizzle-orm';
 
 import { client, db } from '../db';
 import * as s from '../db/schema';
+import { insertTripComposite } from '../services/trip-composite.service';
 import { getTrips } from '../services/trip-queries.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -52,7 +53,7 @@ async function mkTrip(input: {
   const customer = await mkCustomer();
   const route = await mkRoute();
   const cargoType = await mkCargoType();
-  const [row] = await db.insert(s.trips).values({
+  const row = await insertTripComposite(db, {
     tripCode: `Q20-${suffix}-${createdTripIds.length}`.slice(0, 50),
     customerId: customer.id,
     routeId: route.id,
@@ -63,9 +64,6 @@ async function mkTrip(input: {
     carrierType: 'OWN',
     revenue: '1000000',
     grossProfit: '250000',
-  }).returning({
-    id: s.trips.id,
-    tripCode: s.trips.tripCode,
   });
   createdTripIds.push(row.id);
   return row;
@@ -119,6 +117,8 @@ describe('Q20 start-date operational trip queries', () => {
 after(async () => {
   try {
     if (createdTripIds.length > 0) {
+      await db.delete(s.tripFinancialState).where(inArray(s.tripFinancialState.tripId, createdTripIds));
+      await db.delete(s.tripCarrierInfo).where(inArray(s.tripCarrierInfo.tripId, createdTripIds));
       await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
     }
     if (createdCargoTypeIds.length > 0) {

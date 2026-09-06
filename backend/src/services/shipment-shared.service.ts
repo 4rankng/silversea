@@ -11,6 +11,7 @@ import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { TripPodStatus } from '@tingting/shared';
 import type { Tx } from './trip-shared';
+import { applyTripPatch } from './trip-composite.service';
 import { resolveFreightPrice } from './pricing.service';
 
 const SYNTHETIC_LCL_FULFILLMENT_SCOPE_PREFIX = '__fulfillment_lcl:';
@@ -125,6 +126,8 @@ export async function assertShipmentDirectCloseTripReadiness(
   }
 }
 
+// Trips-split: ops keys come from trips; the pricing/revenue keys come from
+// the trip_financial_state sidecar (vatRate/revenue*/pricing* moved there).
 export type ShipmentAuthorityTripRow = Pick<
   typeof s.trips.$inferSelect,
   'id'
@@ -136,15 +139,17 @@ export type ShipmentAuthorityTripRow = Pick<
   | 'cargoTypeId'
   | 'departureDate'
   | 'containerCount'
-  | 'vatRate'
   | 'status'
+  | 'podRecoveredAt'
+> & Pick<
+  typeof s.tripFinancialState.$inferSelect,
+  'vatRate'
   | 'pricingSource'
   | 'pricingFormula'
   | 'pricingSnapshot'
   | 'revenue'
   | 'revenueOriginal'
   | 'revenueEmptyReturn'
-  | 'podRecoveredAt'
 >;
 
 function extractPricingSelectorFromSnapshot(snapshot: unknown): {
@@ -213,6 +218,8 @@ async function listLiveShipmentAuthorityTrips(
   tx: Tx,
   shipmentId: number,
 ): Promise<ShipmentAuthorityTripRow[]> {
+  // Trips-split: the pricing/revenue block lives in trip_financial_state; the
+  // row lock stays on trips only (`of`), matching the pre-split lock footprint.
   return tx.select({
     id: s.trips.id,
     fulfillmentId: s.trips.fulfillmentId,
@@ -223,23 +230,26 @@ async function listLiveShipmentAuthorityTrips(
     cargoTypeId: s.trips.cargoTypeId,
     departureDate: s.trips.departureDate,
     containerCount: s.trips.containerCount,
-    vatRate: s.trips.vatRate,
+    // Legacy trips vatRate was NOT NULL DEFAULT '0.000'; coalesce so a join
+    // row missing its sidecar still reads as the schema default.
+    vatRate: sql<string>`coalesce(${s.tripFinancialState.vatRate}, '0.000')`,
     status: s.trips.status,
-    pricingSource: s.trips.pricingSource,
-    pricingFormula: s.trips.pricingFormula,
-    pricingSnapshot: s.trips.pricingSnapshot,
-    revenue: s.trips.revenue,
-    revenueOriginal: s.trips.revenueOriginal,
-    revenueEmptyReturn: s.trips.revenueEmptyReturn,
+    pricingSource: s.tripFinancialState.pricingSource,
+    pricingFormula: s.tripFinancialState.pricingFormula,
+    pricingSnapshot: s.tripFinancialState.pricingSnapshot,
+    revenue: s.tripFinancialState.revenue,
+    revenueOriginal: s.tripFinancialState.revenueOriginal,
+    revenueEmptyReturn: s.tripFinancialState.revenueEmptyReturn,
     podRecoveredAt: s.trips.podRecoveredAt,
   }).from(s.trips)
+    .leftJoin(s.tripFinancialState, eq(s.tripFinancialState.tripId, s.trips.id))
     .where(and(
       eq(s.trips.shipmentId, shipmentId),
       sql`${s.trips.status} <> 'CANCELED'`,
       isNull(s.trips.deletedAt),
     ))
     .orderBy(asc(s.trips.id))
-    .for('update');
+    .for('update', { of: [s.trips] });
 }
 
 export async function syncShipmentAuthorityToTrips(
@@ -272,7 +282,9 @@ export async function syncShipmentAuthorityToTrips(
     const revenue = freightPrice.price;
     const vatRate = Number(trip.vatRate ?? 0);
 
-    await tx.update(s.trips).set({
+    // Trips-split: revenue/pricing block routes to trip_financial_state;
+    // ops fields stay on the trips row update.
+    await applyTripPatch(tx, trip.id, {
       customerId: shipment.customerId,
       cargoTypeId: authoritativeCargoTypeId,
       sourceShipmentVersion: shipment.version,
@@ -286,7 +298,7 @@ export async function syncShipmentAuthorityToTrips(
       pricingSnapshot: freightPrice.snapshot,
       version: trip.version + 1,
       updatedAt: new Date(),
-    }).where(eq(s.trips.id, trip.id));
+    });
   }
 }
 

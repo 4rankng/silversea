@@ -7,6 +7,7 @@ import { inArray } from 'drizzle-orm';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
+import { insertTripComposite } from '../services/trip-composite.service';
 import { assembleBillingLines } from '../services/billing-line-assembly.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -16,13 +17,13 @@ async function setup() {
   const [customer] = await db.insert(s.customers).values({ name: `M35ba customer ${suffix}-${createdIds.length}` }).returning();
   const [route] = await db.insert(s.routes).values({ name: `M35ba route ${suffix}` }).returning();
   const [cargo] = await db.insert(s.cargoTypes).values({ name: `M35ba cargo ${suffix}` }).returning();
-  const [trip] = await db.insert(s.trips).values({
+  const trip = await insertTripComposite(db, {
     tripCode: `M35BA-${suffix}-${createdIds.length}`.slice(0, 50),
     customerId: customer.id, routeId: route.id, cargoTypeId: cargo.id,
     status: 'COMPLETED', departureDate: '2026-07-15', carrierType: 'OWN',
     revenue: '5000000', revenueEmptyReturn: '5000000', revenueCombine: '0',
     revenueOriginal: '5000000', pricingSource: 'TABLE',
-  }).returning();
+  });
   createdIds.push(customer.id, route.id, cargo.id, trip.id);
   return { customer, route, cargo, trip };
 }
@@ -35,6 +36,8 @@ after(async () => {
     // Clean up expenses/ancillary first (no FK to route/cargo)
     await db.delete(s.tripExpenses).where(inArray(s.tripExpenses.tripId, createdIds));
     await db.delete(s.ancillaryRevenue).where(inArray(s.ancillaryRevenue.customerId, createdIds));
+    await db.delete(s.tripFinancialState).where(inArray(s.tripFinancialState.tripId, createdIds));
+    await db.delete(s.tripCarrierInfo).where(inArray(s.tripCarrierInfo.tripId, createdIds));
     await db.delete(s.trips).where(inArray(s.trips.id, createdIds));
     await db.delete(s.cargoTypes).where(inArray(s.cargoTypes.id, createdIds));
     await db.delete(s.routes).where(inArray(s.routes.id, createdIds));

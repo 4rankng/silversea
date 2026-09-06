@@ -6,6 +6,7 @@ import * as s from '../db/schema';
 import { TripStatus } from '@tingting/shared';
 import type { ComputeTripTotalsOutput } from '@tingting/shared';
 import { ApiError } from '../errors';
+import type { TripCompositeRow } from './trip-composite.service';
 
 export function assertCustomerCommissionWithinRevenue(
   revenueInclVat: number,
@@ -146,10 +147,12 @@ export function shouldMarkRevenueOverride(data: RevenueUpdateInput, stored: Stor
   );
 }
 type TripRow = typeof s.trips.$inferSelect;
-type TripInsert = typeof s.trips.$inferInsert;
 type TripLegRow = typeof s.tripLegs.$inferSelect;
 
-const COPY_EXCLUDED_TRIP_FIELDS = new Set<keyof TripRow>([
+// Identity / lifecycle / audit fields that must NOT carry over when copying a
+// trip. Financial and carrier fields copy verbatim — the split routes them to
+// their owning sidecar table via insertTripComposite.
+const COPY_EXCLUDED_TRIP_FIELDS = new Set<string>([
   'id',
   'tripCode',
   'version',
@@ -166,15 +169,16 @@ const COPY_EXCLUDED_TRIP_FIELDS = new Set<keyof TripRow>([
 /**
  * Copy persisted plan and financial values, while resetting identity,
  * lifecycle, deletion, and audit metadata for a genuinely new trip.
+ * Feeds insertTripComposite — the mixed object is split per owning table.
  */
 export function buildCopiedTripValues(
-  source: TripRow,
+  source: TripCompositeRow,
   tripCode: string,
   createdBy: number,
-): TripInsert {
+): Record<string, unknown> {
   const copiedFields = Object.fromEntries(
-    Object.entries(source).filter(([key]) => !COPY_EXCLUDED_TRIP_FIELDS.has(key as keyof TripRow)),
-  ) as Omit<TripInsert, 'tripCode'>;
+    Object.entries(source).filter(([key]) => !COPY_EXCLUDED_TRIP_FIELDS.has(key)),
+  );
 
   return {
     ...copiedFields,

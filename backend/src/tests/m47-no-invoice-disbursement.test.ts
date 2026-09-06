@@ -15,6 +15,7 @@ import { and, eq, inArray, sql } from 'drizzle-orm';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
+import { insertTripComposite } from '../services/trip-composite.service';
 import { transitionApproval } from '../services/approval.service';
 import {
   buildNoInvoicePolicySnapshotForExpenseInput,
@@ -91,12 +92,12 @@ async function mkTrip(opts: { withShipment?: boolean } = {}) {
     shipmentId = shipment.id;
     createdShipmentIds.push(shipment.id);
   }
-  const [trip] = await db.insert(s.trips).values({
+  const trip = await insertTripComposite(db, {
     tripCode: `M47-${suffix}-${createdTripIds.length}`.slice(0, 50),
     customerId: cust.id, routeId: route.id, cargoTypeId: cargo.id,
     shipmentId,
     status: 'COMPLETED', departureDate: '2026-07-15', carrierType: 'OWN',
-  }).returning();
+  });
   createdTripIds.push(trip.id);
   return trip;
 }
@@ -166,6 +167,8 @@ after(async () => {
     }
     if (createdExpenseIds.length > 0) await db.delete(s.tripExpensePhotos).where(inArray(s.tripExpensePhotos.tripExpenseId, createdExpenseIds));
     if (createdExpenseIds.length > 0) await db.delete(s.tripExpenses).where(inArray(s.tripExpenses.id, createdExpenseIds));
+    if (createdTripIds.length > 0) await db.delete(s.tripFinancialState).where(inArray(s.tripFinancialState.tripId, createdTripIds));
+    if (createdTripIds.length > 0) await db.delete(s.tripCarrierInfo).where(inArray(s.tripCarrierInfo.tripId, createdTripIds));
     if (createdTripIds.length > 0) await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
     if (createdShipmentIds.length > 0) await db.delete(s.shipments).where(inArray(s.shipments.id, createdShipmentIds));
     if (createdCargoTypeIds.length > 0) await db.delete(s.cargoTypes).where(sql`${s.cargoTypes.name} LIKE ${namePattern}`);

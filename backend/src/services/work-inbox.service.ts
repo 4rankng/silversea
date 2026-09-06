@@ -219,7 +219,7 @@ export async function operationsWorkInbox(userId: number, query: InboxQuery) {
 }
 
 export async function financialWorkInbox(query: InboxQuery) {
-  const rows = await db.select({ id: s.trips.id, code: s.trips.tripCode, pod: s.trips.podRecoveredAt, status: s.trips.status, dirty: s.trips.arSnapshotDirty, updatedAt: s.trips.updatedAt }).from(s.trips).where(and(eq(s.trips.status, 'COMPLETED'), isNull(s.trips.deletedAt), query.search?.trim() ? ilike(s.trips.tripCode, `%${query.search.trim()}%`) : undefined)).orderBy(desc(s.trips.updatedAt)).limit(MAX_INBOX_CANDIDATES + 1);
+  const rows = await db.select({ id: s.tripsComposite.id, code: s.tripsComposite.tripCode, pod: s.tripsComposite.podRecoveredAt, status: s.tripsComposite.status, dirty: s.tripsComposite.arSnapshotDirty, updatedAt: s.tripsComposite.updatedAt }).from(s.tripsComposite).where(and(eq(s.tripsComposite.status, 'COMPLETED'), isNull(s.tripsComposite.deletedAt), query.search?.trim() ? ilike(s.tripsComposite.tripCode, `%${query.search.trim()}%`) : undefined)).orderBy(desc(s.tripsComposite.updatedAt)).limit(MAX_INBOX_CANDIDATES + 1);
   assertCompleteCandidateScan(rows);
   const tripIds = rows.map((row) => row.id);
   const [podRows, pendingExpenseRows, settlementRows, snapshotRows, attemptRows, responseRows] = tripIds.length === 0 ? [[], [], [], [], [], []] as const : await Promise.all([

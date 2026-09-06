@@ -4,6 +4,7 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { TripStatus, Role, TxnType } from '@tingting/shared';
 import { db, client } from '../db';
 import * as s from '../db/schema';
+import { insertTripComposite } from '../services/trip-composite.service';
 import { LedgerService } from '../services/ledger.service';
 import { createTripExpense } from '../services/forwarder.service';
 import {
@@ -63,6 +64,8 @@ after(async () => {
     await db.delete(s.tripFinancialPostings).where(inArray(s.tripFinancialPostings.tripId, createdTripIds));
     await db.delete(s.tripPhotos).where(inArray(s.tripPhotos.tripId, createdTripIds));
     await cleanupTripCloseMilestones(createdTripIds);
+    await db.delete(s.tripFinancialState).where(inArray(s.tripFinancialState.tripId, createdTripIds));
+    await db.delete(s.tripCarrierInfo).where(inArray(s.tripCarrierInfo.tripId, createdTripIds));
     await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
     await cleanupTripCloseShipments(createdShipmentIds);
   }
@@ -222,7 +225,7 @@ async function createInTransitTripWithFees(
     createdForwarderIds.push(forwarderId);
   }
 
-  const [trip] = await db.insert(s.trips).values({
+  const trip = await insertTripComposite(db, {
     tripCode: `CH-${suffix}`.slice(0, 50),
     customerId: customer.id,
     routeId: route.id,
@@ -234,7 +237,7 @@ async function createInTransitTripWithFees(
     // O2C POD-recovery gate: must be recorded before the governed completion.
     podRecoveredAt: new Date(),
     podRecoveredBy: 1,
-  }).returning();
+  });
   createdTripIds.push(trip.id);
   // O2C: the photo-evidence gate fires on IN_TRANSIT → COMPLETED. Seed one
   // photo so the governed close passes the baseline gate.
@@ -517,7 +520,7 @@ describe('chi hộ (service-fee) sell-side AR ledger posting', () => {
     createdRouteIds.push(route.id);
     createdCargoTypeIds.push(cargoType.id);
 
-    const [trip] = await db.insert(s.trips).values({
+    const trip = await insertTripComposite(db, {
       tripCode: `CH-SKIP-${suffix}`.slice(0, 50),
       customerId: customer.id,
       routeId: route.id,
@@ -526,7 +529,7 @@ describe('chi hộ (service-fee) sell-side AR ledger posting', () => {
       departureDate: '2026-06-20',
       revenue: '5000000',
       carrierType: 'OWN',
-    }).returning();
+    });
     createdTripIds.push(trip.id);
 
     const fee = await insertRawFee(trip.id, {

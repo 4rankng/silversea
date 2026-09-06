@@ -2,7 +2,7 @@
 // Regenerate via drizzle-kit against the barrel: db/schema/index.ts.
 
 import {
-  boolean, date, doublePrecision, index, integer, jsonb, numeric, pgTable, serial, text, timestamp, uniqueIndex, varchar,
+  boolean, date, index, integer, jsonb, numeric, pgTable, pgView, serial, text, timestamp, uniqueIndex, varchar,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { fuelModeEnum, loadingTypeEnum, pricingSourceEnum, trailerTypeEnum, tripPhotoTypeEnum, tripStatusEnum } from './_enums';
@@ -41,87 +41,12 @@ export const trips = pgTable('trips', {
   tollsAddition: numeric('tolls_addition', { precision: 15, scale: 0 }).default('0'),
   tollsStations: integer('tolls_stations').default(0),
   hasReturnCargo: boolean('has_return_cargo').default(false),
-  driverSalary: numeric('driver_salary', { precision: 15, scale: 0 }),
-  // Rate Snapshots
-  fuelPriceApplied: numeric('fuel_price_applied', { precision: 10, scale: 0 }),
-  fuelActualUnitPrice: numeric('fuel_actual_unit_price', { precision: 10, scale: 0 }),
-  roadAllowanceBaseApplied: numeric('road_allowance_base_applied', { precision: 15, scale: 0 }),
-  fuelLoadedNormApplied: numeric('fuel_loaded_norm_applied', { precision: 6, scale: 2 }),
-  fuelEmptyNormApplied: numeric('fuel_empty_norm_applied', { precision: 6, scale: 2 }),
-  fuelFixedAllowanceApplied: numeric('fuel_fixed_allowance_applied', { precision: 10, scale: 2 }),
-  fuelSupplementNormApplied: numeric('fuel_supplement_norm_applied', { precision: 6, scale: 2 }),
-  tollPerStationApplied: numeric('toll_per_station_applied', { precision: 15, scale: 0 }),
-  returnCargoBonusApplied: numeric('return_cargo_bonus_applied', { precision: 15, scale: 0 }),
-  // Derived Fields
-  fuelLiters: numeric('fuel_liters', { precision: 10, scale: 2 }),
-  totalFuelCost: numeric('total_fuel_cost', { precision: 15, scale: 0 }),
-  fuelSurchargeAmount: numeric('fuel_surcharge_amount', { precision: 15, scale: 0 }).notNull().default('0'),
-  fuelSurchargeSnapshot: jsonb('fuel_surcharge_snapshot').$type<Record<string, unknown>>(),
-  fuelSurchargeSnapshotDirty: boolean('fuel_surcharge_snapshot_dirty').notNull().default(false),
-  totalRoadAllowance: numeric('total_road_allowance', { precision: 15, scale: 0 }),
-  tollCost: numeric('toll_cost', { precision: 15, scale: 0 }),
-  // O2C "kẹp hàng" (backhaul pair) toll dedup (PRD Bước 2, 01/08/2026): a
-  // closed-loop road toll (VETC) is physically paid once for a paired two-way
-  // trip, so the second trip carries a `toll_deduction` equal to its gross toll.
-  // `computeTripTotals` nets this off `tollCost` (the single source of truth),
-  // which then flows to totalCost / P&L / ledger. Distinct from `tollsDiscount`,
-  // which is a manual override that also docks the driver's road allowance and
-  // would double-count if reused here.
-  tollDeduction: numeric('toll_deduction', { precision: 15, scale: 0 }).notNull().default('0'),
-  roadAllowanceOverride: numeric('road_allowance_override', { precision: 15, scale: 0 }),
-  totalCost: numeric('total_cost', { precision: 15, scale: 0 }),
-  revenue: numeric('revenue', { precision: 15, scale: 0 }),
-  revenueEmptyReturn: numeric('revenue_empty_return', { precision: 15, scale: 0 }).default('0'),
-  revenueCombine: numeric('revenue_combine', { precision: 15, scale: 0 }).default('0'),
-  twoPointDeliveryBonus: numeric('two_point_delivery_bonus', { precision: 15, scale: 0 }).default('0'),
-  vehicleShiftAllowance: numeric('vehicle_shift_allowance', { precision: 15, scale: 0 }).default('0'),
-  // O2C C1: storage/demurrage fee (lưu ca xe). HĐVC §3.5: 1.000.000đ/cont/ngày
-  // after 8h free time. Recorded as a revenue line per trip when applicable.
-  // NULL = not assessed; the accountant enters it based on actual detention.
-  grossProfit: numeric('gross_profit', { precision: 15, scale: 0 }),
-  revenueOriginal: numeric('revenue_original', { precision: 15, scale: 0 }),
-  revenueOverriddenBy: integer('revenue_overridden_by'),
-  revenueOverriddenAt: timestamp('revenue_overridden_at'),
-  // Wave 1 M2.1: mandatory reason when the operator overrides the auto-
-  // computed revenue (pricingSource = TIER or TABLE). NULL when revenue was
-  // never overridden or when pricingSource is MANUAL (no auto-computation to
-  // deviate from).
-  revenueOverrideReason: text('revenue_override_reason'),
-  // Wave 1: pricing-snapshot columns. Track how the revenue was computed
-  // so accountants can distinguish AUTO (tier/table) from MANUAL. Nullable
-  // — existing trips have NULL (no regression); new trips get populated by
-  // resolveFreightPrice (future service-layer item).
-  pricingSource: pricingSourceEnum('pricing_source'),
-  pricingFormula: text('pricing_formula'),
-  pricingSnapshot: jsonb('pricing_snapshot').$type<Record<string, unknown>>(),
   notes: text('notes'),
   // 27.8 cost-section Ghi chú: driver-written note that flags cost anomalies
   // for accounting (e.g. "Tiền đường trong auto-row sai, vui lòng soát lại").
   // Distinct from `notes` (general trip memo) and from `shipments.operationalNotes`
   // (cus/dispatcher→driver rule copy surfaced as "Quy định tại điểm làm hàng").
   costSubmissionNote: text('cost_submission_note'),
-  // Per-trip customer commission (hoa hồng). Deducted from freightExVat to produce recordedRevenue.
-  // Recorded immediately on data entry (not at lock). Default 0 = no commission.
-  customerCommission: numeric('customer_commission', { precision: 15, scale: 0 }).default('0'),
-  tripWageDays: integer('trip_wage_days'), // optional override for days to count for this trip
-  fuelSupplierId: integer('fuel_supplier_id'),
-  vatRate: numeric('vat_rate', { precision: 5, scale: 3 }).notNull().default('0.000'),
-  carrierType: varchar('carrier_type', { length: 20 }).notNull().default('OWN'),
-  // O2C reconciliation (01/08/2026, docs/prd/O2C dev.md): the external carrier
-  // (Xe ngoài / subcontractor) may be a customer (AR-side) or a supplier
-  // (AP-side). We replaced the locked `external_carrier_id → customers.id` FK
-  // with two **plain nullable columns and NO DB FK** — a soft pointer resolved
-  // by the app-layer `resolveExternalCarrier(trip)` helper (per the project's
-  // "readable/maintainable tables over FK rigor" convention). Both null for
-  // OWN trips (the majority); populated only when carrier_type = EXTERNAL.
-  // Application validation guards the canonical carrier set.
-  externalEntityId: integer('external_entity_id'),
-  externalEntityType: varchar('external_entity_type', { length: 20 }),
-  externalFreightCost: numeric('external_freight_cost', { precision: 15, scale: 0 }),
-  externalPlateNumber: varchar('external_plate_number', { length: 20 }),
-  externalCarrierVehicleId: integer('external_carrier_vehicle_id'),
-  externalDriverName: varchar('external_driver_name', { length: 100 }),
-  externalDriverPhone: varchar('external_driver_phone', { length: 20 }),
   // Wave 0: optional link to the shipment (lô hàng) this trip fulfills. Nullable
   // so legacy trip-create flows keep working unchanged (auto-shipment path is a
   // later checkbox). Trip creation refactor to *require* this comes with the
@@ -138,25 +63,6 @@ export const trips = pgTable('trips', {
   // transition throws if null; shipment closure requires it set.
   podRecoveredAt: timestamp('pod_recovered_at', { withTimezone: true }),
   podRecoveredBy: integer('pod_recovered_by'),
-  // O2C AR snapshot + dirty-flag. Costs remain editable after COMPLETED (no
-  // hard-freeze). On completion `captureSnapshot` stores the canonical cost
-  // hash and sets ar_snapshot_dirty = false; any later cost edit recomputes the
-  // hash and flips ar_snapshot_dirty = true so the accountant reconciliation
-  // view surfaces it. The canonical AR total for downstream is `trips.revenue`
-  // (incl-VAT); billing_documents.totalInclVat is populated from it at debit-
-  // note generation time.
-  arCostHash: varchar('ar_cost_hash', { length: 64 }),
-  arSnapshotDirty: boolean('ar_snapshot_dirty').notNull().default(false),
-  arSnapshotChangedAt: timestamp('ar_snapshot_changed_at', { withTimezone: true }),
-  apCostHash: varchar('ap_cost_hash', { length: 64 }),
-  apSnapshotDirty: boolean('ap_snapshot_dirty').notNull().default(false),
-  apSnapshotChangedAt: timestamp('ap_snapshot_changed_at', { withTimezone: true }),
-  // O2C H4: P&L snapshot of grossProfit captured at completion. The mutable
-  // `grossProfit` column can drift if costs are edited post-completion; P&L
-  // reports (pnl.service, profit-distribution, fuel-variance) read this frozen
-  // snapshot so a closed period's totals don't silently change. NULL for
-  // in-progress trips; set by captureSnapshot at IN_TRANSIT → COMPLETED.
-  pnlSnapshotGrossProfit: numeric('pnl_snapshot_gross_profit', { precision: 15, scale: 0 }),
   // O2C field ops hand-off timestamps (Phase 4): Ops paper-order collected +
   // Driver order-accepted. Nullable; populated by the OPS/DRIVER endpoints.
   paperOrderCollectedAt: timestamp('paper_order_collected_at', { withTimezone: true }),
@@ -183,7 +89,6 @@ export const trips = pgTable('trips', {
   // Wave 0: look up a shipment's trips.
   index('trips_shipment_id_idx').on(table.shipmentId),
   index('trips_fulfillment_id_idx').on(table.fulfillmentId),
-  index('trips_external_carrier_vehicle_idx').on(table.externalCarrierVehicleId),
   uniqueIndex('trips_id_fulfillment_uniq_idx').on(table.id, table.fulfillmentId),
   // A fulfillment is the independently dispatchable authority. Multiple live
   // trips may belong to one shipment only when they reference distinct
@@ -277,6 +182,164 @@ export const tripCarrierInfo = pgTable('trip_carrier_info', {
 }, (table) => [
   uniqueIndex('trip_carrier_info_trip_id_unq').on(table.tripId),
 ]);
+
+// Trips split Stage B read seam (lean-down 2026-09-06): the composed trip row —
+// trips (operational columns) 1:1 trip_financial_state 1:1 trip_carrier_info.
+// Typed as a drop-in replacement for the pre-split `select().from(trips)`:
+// every column the old trips row exposed is present with the same name and
+// nullability. Full-shape readers migrate to `select().from(tripsComposite)`;
+// narrow ops-only reads and `.for('update')` lock reads stay on `trips`
+// (views cannot take row locks — join the sidecars explicitly there).
+// Column names/types mirror the source tables verbatim.
+export const tripsComposite = pgView('trips_composite', {
+  // ── operational (trips) ────────────────────────────────────────────────
+  id: integer('id').notNull(),
+  tripCode: varchar('trip_code', { length: 50 }),
+  version: integer('version').notNull(),
+  createdBy: integer('created_by'),
+  customerId: integer('customer_id').notNull(),
+  customerReference: text('customer_reference'),
+  truckId: integer('truck_id'),
+  driverId: integer('driver_id'),
+  routeId: integer('route_id').notNull(),
+  trailerId: integer('trailer_id'),
+  trailerType: trailerTypeEnum('trailer_type'),
+  cargoTypeId: integer('cargo_type_id'),
+  containerCount: integer('container_count'),
+  status: tripStatusEnum('status'),
+  departureDate: date('departure_date').notNull(),
+  plannedStartAt: timestamp('planned_start_at'),
+  plannedEndAt: timestamp('planned_end_at'),
+  canonicalOrigin: varchar('canonical_origin', { length: 160 }),
+  canonicalDestination: varchar('canonical_destination', { length: 160 }),
+  cargoWeightKg: numeric('cargo_weight_kg', { precision: 10, scale: 2 }),
+  vehicleCapacityKg: numeric('vehicle_capacity_kg', { precision: 10, scale: 2 }),
+  activeTripPairId: integer('active_trip_pair_id'),
+  activeTripPairOrder: integer('active_trip_pair_order'),
+  fuelMode: fuelModeEnum('fuel_mode'),
+  fuelLitersOverride: numeric('fuel_liters_override', { precision: 10, scale: 2 }),
+  fuelSupplementLiters: numeric('fuel_supplement_liters', { precision: 10, scale: 2 }),
+  fuelSupplementReason: text('fuel_supplement_reason'),
+  tollsDiscount: numeric('tolls_discount', { precision: 15, scale: 0 }),
+  tollsAddition: numeric('tolls_addition', { precision: 15, scale: 0 }),
+  tollsStations: integer('tolls_stations'),
+  hasReturnCargo: boolean('has_return_cargo'),
+  notes: text('notes'),
+  costSubmissionNote: text('cost_submission_note'),
+  shipmentId: integer('shipment_id'),
+  fulfillmentId: integer('fulfillment_id'),
+  sourceShipmentVersion: integer('source_shipment_version'),
+  completedAt: timestamp('completed_at'),
+  podRecoveredAt: timestamp('pod_recovered_at', { withTimezone: true }),
+  podRecoveredBy: integer('pod_recovered_by'),
+  paperOrderCollectedAt: timestamp('paper_order_collected_at', { withTimezone: true }),
+  paperOrderCollectedBy: integer('paper_order_collected_by'),
+  instructionContactName: varchar('instruction_contact_name', { length: 100 }),
+  instructionContactPhone: varchar('instruction_contact_phone', { length: 20 }),
+  instructionNotes: text('instruction_notes'),
+  createdAt: timestamp('created_at').notNull(),
+  updatedAt: timestamp('updated_at').notNull(),
+  deletedAt: timestamp('deleted_at'),
+  // ── financial (trip_financial_state) ───────────────────────────────────
+  driverSalary: numeric('driver_salary', { precision: 15, scale: 0 }),
+  fuelPriceApplied: numeric('fuel_price_applied', { precision: 10, scale: 0 }),
+  fuelActualUnitPrice: numeric('fuel_actual_unit_price', { precision: 10, scale: 0 }),
+  roadAllowanceBaseApplied: numeric('road_allowance_base_applied', { precision: 15, scale: 0 }),
+  fuelLoadedNormApplied: numeric('fuel_loaded_norm_applied', { precision: 6, scale: 2 }),
+  fuelEmptyNormApplied: numeric('fuel_empty_norm_applied', { precision: 6, scale: 2 }),
+  fuelFixedAllowanceApplied: numeric('fuel_fixed_allowance_applied', { precision: 10, scale: 2 }),
+  fuelSupplementNormApplied: numeric('fuel_supplement_norm_applied', { precision: 6, scale: 2 }),
+  tollPerStationApplied: numeric('toll_per_station_applied', { precision: 15, scale: 0 }),
+  returnCargoBonusApplied: numeric('return_cargo_bonus_applied', { precision: 15, scale: 0 }),
+  fuelLiters: numeric('fuel_liters', { precision: 10, scale: 2 }),
+  totalFuelCost: numeric('total_fuel_cost', { precision: 15, scale: 0 }),
+  fuelSurchargeAmount: numeric('fuel_surcharge_amount', { precision: 15, scale: 0 }).notNull(),
+  fuelSurchargeSnapshot: jsonb('fuel_surcharge_snapshot').$type<Record<string, unknown>>(),
+  fuelSurchargeSnapshotDirty: boolean('fuel_surcharge_snapshot_dirty').notNull(),
+  totalRoadAllowance: numeric('total_road_allowance', { precision: 15, scale: 0 }),
+  tollCost: numeric('toll_cost', { precision: 15, scale: 0 }),
+  tollDeduction: numeric('toll_deduction', { precision: 15, scale: 0 }).notNull(),
+  roadAllowanceOverride: numeric('road_allowance_override', { precision: 15, scale: 0 }),
+  totalCost: numeric('total_cost', { precision: 15, scale: 0 }),
+  revenue: numeric('revenue', { precision: 15, scale: 0 }),
+  revenueEmptyReturn: numeric('revenue_empty_return', { precision: 15, scale: 0 }),
+  revenueCombine: numeric('revenue_combine', { precision: 15, scale: 0 }),
+  twoPointDeliveryBonus: numeric('two_point_delivery_bonus', { precision: 15, scale: 0 }),
+  vehicleShiftAllowance: numeric('vehicle_shift_allowance', { precision: 15, scale: 0 }),
+  grossProfit: numeric('gross_profit', { precision: 15, scale: 0 }),
+  revenueOriginal: numeric('revenue_original', { precision: 15, scale: 0 }),
+  revenueOverriddenBy: integer('revenue_overridden_by'),
+  revenueOverriddenAt: timestamp('revenue_overridden_at'),
+  revenueOverrideReason: text('revenue_override_reason'),
+  pricingSource: pricingSourceEnum('pricing_source'),
+  pricingFormula: text('pricing_formula'),
+  pricingSnapshot: jsonb('pricing_snapshot').$type<Record<string, unknown>>(),
+  customerCommission: numeric('customer_commission', { precision: 15, scale: 0 }),
+  tripWageDays: integer('trip_wage_days'),
+  fuelSupplierId: integer('fuel_supplier_id'),
+  vatRate: numeric('vat_rate', { precision: 5, scale: 3 }).notNull(),
+  arCostHash: varchar('ar_cost_hash', { length: 64 }),
+  arSnapshotDirty: boolean('ar_snapshot_dirty').notNull(),
+  arSnapshotChangedAt: timestamp('ar_snapshot_changed_at', { withTimezone: true }),
+  apCostHash: varchar('ap_cost_hash', { length: 64 }),
+  apSnapshotDirty: boolean('ap_snapshot_dirty').notNull(),
+  apSnapshotChangedAt: timestamp('ap_snapshot_changed_at', { withTimezone: true }),
+  pnlSnapshotGrossProfit: numeric('pnl_snapshot_gross_profit', { precision: 15, scale: 0 }),
+  // ── external carrier (trip_carrier_info) ───────────────────────────────
+  carrierType: varchar('carrier_type', { length: 20 }).notNull(),
+  externalEntityId: integer('external_entity_id'),
+  externalEntityType: varchar('external_entity_type', { length: 20 }),
+  externalFreightCost: numeric('external_freight_cost', { precision: 15, scale: 0 }),
+  externalPlateNumber: varchar('external_plate_number', { length: 20 }),
+  externalCarrierVehicleId: integer('external_carrier_vehicle_id'),
+  externalDriverName: varchar('external_driver_name', { length: 100 }),
+  externalDriverPhone: varchar('external_driver_phone', { length: 20 }),
+}).as(sql`
+  select
+    trips.id, trips.trip_code, trips.version, trips.created_by, trips.customer_id,
+    trips.customer_reference, trips.truck_id, trips.driver_id, trips.route_id,
+    trips.trailer_id, trips.trailer_type, trips.cargo_type_id, trips.container_count,
+    trips.status, trips.departure_date, trips.planned_start_at, trips.planned_end_at,
+    trips.canonical_origin, trips.canonical_destination, trips.cargo_weight_kg,
+    trips.vehicle_capacity_kg, trips.active_trip_pair_id, trips.active_trip_pair_order,
+    trips.fuel_mode, trips.fuel_liters_override, trips.fuel_supplement_liters,
+    trips.fuel_supplement_reason, trips.tolls_discount, trips.tolls_addition,
+    trips.tolls_stations, trips.has_return_cargo, trips.notes, trips.cost_submission_note,
+    trips.shipment_id, trips.fulfillment_id, trips.source_shipment_version,
+    trips.completed_at, trips.pod_recovered_at, trips.pod_recovered_by,
+    trips.paper_order_collected_at, trips.paper_order_collected_by,
+    trips.instruction_contact_name, trips.instruction_contact_phone,
+    trips.instruction_notes, trips.created_at, trips.updated_at, trips.deleted_at,
+    trip_financial_state.driver_salary, trip_financial_state.fuel_price_applied,
+    trip_financial_state.fuel_actual_unit_price, trip_financial_state.road_allowance_base_applied,
+    trip_financial_state.fuel_loaded_norm_applied, trip_financial_state.fuel_empty_norm_applied,
+    trip_financial_state.fuel_fixed_allowance_applied, trip_financial_state.fuel_supplement_norm_applied,
+    trip_financial_state.toll_per_station_applied, trip_financial_state.return_cargo_bonus_applied,
+    trip_financial_state.fuel_liters, trip_financial_state.total_fuel_cost,
+    trip_financial_state.fuel_surcharge_amount, trip_financial_state.fuel_surcharge_snapshot,
+    trip_financial_state.fuel_surcharge_snapshot_dirty, trip_financial_state.total_road_allowance,
+    trip_financial_state.toll_cost, trip_financial_state.toll_deduction,
+    trip_financial_state.road_allowance_override, trip_financial_state.total_cost,
+    trip_financial_state.revenue, trip_financial_state.revenue_empty_return,
+    trip_financial_state.revenue_combine, trip_financial_state.two_point_delivery_bonus,
+    trip_financial_state.vehicle_shift_allowance, trip_financial_state.gross_profit,
+    trip_financial_state.revenue_original, trip_financial_state.revenue_overridden_by,
+    trip_financial_state.revenue_overridden_at, trip_financial_state.revenue_override_reason,
+    trip_financial_state.pricing_source, trip_financial_state.pricing_formula,
+    trip_financial_state.pricing_snapshot, trip_financial_state.customer_commission,
+    trip_financial_state.trip_wage_days, trip_financial_state.fuel_supplier_id,
+    trip_financial_state.vat_rate, trip_financial_state.ar_cost_hash,
+    trip_financial_state.ar_snapshot_dirty, trip_financial_state.ar_snapshot_changed_at,
+    trip_financial_state.ap_cost_hash, trip_financial_state.ap_snapshot_dirty,
+    trip_financial_state.ap_snapshot_changed_at, trip_financial_state.pnl_snapshot_gross_profit,
+    trip_carrier_info.carrier_type, trip_carrier_info.external_entity_id,
+    trip_carrier_info.external_entity_type, trip_carrier_info.external_freight_cost,
+    trip_carrier_info.external_plate_number, trip_carrier_info.external_carrier_vehicle_id,
+    trip_carrier_info.external_driver_name, trip_carrier_info.external_driver_phone
+  from trips
+  left join trip_financial_state on trip_financial_state.trip_id = trips.id
+  left join trip_carrier_info on trip_carrier_info.trip_id = trips.id
+`);
 
 export const tripPairs = pgTable('trip_pairs', {
   id: serial('id').primaryKey(),

@@ -7,6 +7,7 @@ import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import { ApSnapshotService, ArSnapshotService } from './trip-snapshots.service';
 import { lockTripFinancialAuthority } from './trip-financial-authority-lock.service';
+import { upsertTripFinancialState } from './trip-composite.service';
 import type { Tx } from './trip-shared';
 
 type DbOrTx = typeof db | Tx;
@@ -32,11 +33,11 @@ export class SnapshotServices {
         tripId,
         error: error instanceof Error ? error.message : error,
       });
-      await tx.update(s.trips).set({
+      await upsertTripFinancialState(tx, tripId, {
         apCostHash: null,
         apSnapshotDirty: true,
         apSnapshotChangedAt: new Date(),
-      }).where(eq(s.trips.id, tripId));
+      });
       return false;
     }
   }
@@ -112,7 +113,9 @@ export class SnapshotServices {
         );
       }
 
-      await tx.update(s.trips).set({
+      // Trips-split: snapshot fields persist on the financial sidecar; the
+      // trips.updatedAt freshness bump (pre-split side effect) is preserved.
+      await upsertTripFinancialState(tx, tripId, {
         fuelSurchargeSnapshot: {
           currentFuelPrice: currentPrice,
           baseFuelPrice: basePrice,
@@ -122,8 +125,8 @@ export class SnapshotServices {
           computedAt: new Date().toISOString(),
         },
         fuelSurchargeSnapshotDirty: false,
-        updatedAt: new Date(),
-      }).where(eq(s.trips.id, tripId));
+      });
+      await tx.update(s.trips).set({ updatedAt: new Date() }).where(eq(s.trips.id, tripId));
     };
     await runInTx(transaction, execute);
   }

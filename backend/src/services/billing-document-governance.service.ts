@@ -91,20 +91,20 @@ async function loadCurrentTripSource(tx: Tx, tripId: number): Promise<{
   baseAmount: number;
 } | null> {
   const [trip] = await tx.select({
-    id: s.trips.id,
-    revenue: s.trips.revenue,
+    id: s.tripsComposite.id,
+    revenue: s.tripsComposite.revenue,
     postingId: s.tripFinancialPostings.id,
     postingVersion: s.tripFinancialPostings.version,
     postingTripVersion: s.tripFinancialPostings.tripVersion,
     postingReason: s.tripFinancialPostings.reason,
     postingEffectiveAt: s.tripFinancialPostings.effectiveAt,
   })
-    .from(s.trips)
+    .from(s.tripsComposite)
     .innerJoin(s.tripFinancialPostings, and(
-      eq(s.tripFinancialPostings.tripId, s.trips.id),
+      eq(s.tripFinancialPostings.tripId, s.tripsComposite.id),
       eq(s.tripFinancialPostings.status, 'ACTIVE'),
     ))
-    .where(and(eq(s.trips.id, tripId), isNull(s.trips.deletedAt)))
+    .where(and(eq(s.tripsComposite.id, tripId), isNull(s.tripsComposite.deletedAt)))
     .limit(1);
   if (!trip) return null;
   return {

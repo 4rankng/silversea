@@ -7,6 +7,7 @@ import { and, eq, inArray, sql } from 'drizzle-orm';
 import { Role, TxnType } from '@tingting/shared';
 import { client, db } from '../db';
 import * as s from '../db/schema';
+import { insertTripComposite } from '../services/trip-composite.service';
 import { disconnectRedis } from '../lib/redis';
 import { globalErrorHandler } from '../middleware/errorHandler';
 import governanceActionsRoutes from '../routes/financial/governance-actions.routes';
@@ -104,7 +105,7 @@ async function createFixture(label: string) {
   }).returning();
   cargoTypeIds.push(cargoType.id);
 
-  const [trip] = await db.insert(s.trips).values({
+  const trip = await insertTripComposite(db, {
     tripCode: `Q15-${label}-${suffix}`.slice(0, 50),
     customerId: customer.id,
     routeId: route.id,
@@ -113,7 +114,7 @@ async function createFixture(label: string) {
     status: 'COMPLETED',
     revenue: '500000',
     carrierType: 'OWN',
-  }).returning();
+  });
   tripIds.push(trip.id);
 
   await db.insert(s.ledger).values({

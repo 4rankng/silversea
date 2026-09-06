@@ -204,18 +204,18 @@ export async function enrichLinesForDebitNoteRender(lines: BillingDocumentLine[]
   if (tripIds.length === 0 && expenseById.size === 0) return normalizedLines;
 
   const trips = await db.select({
-    id: s.trips.id,
-    tripCode: s.trips.tripCode,
-    departureDate: s.trips.departureDate,
-    fuelSurchargeAmount: s.trips.fuelSurchargeAmount,
+    id: s.tripsComposite.id,
+    tripCode: s.tripsComposite.tripCode,
+    departureDate: s.tripsComposite.departureDate,
+    fuelSurchargeAmount: s.tripsComposite.fuelSurchargeAmount,
     routeName: s.routes.name,
-    notes: s.trips.notes,
+    notes: s.tripsComposite.notes,
     truckPlate: s.trucks.licensePlate,
-    externalPlateNumber: s.trips.externalPlateNumber,
-  }).from(s.trips)
-    .leftJoin(s.routes, eq(s.trips.routeId, s.routes.id))
-    .leftJoin(s.trucks, eq(s.trips.truckId, s.trucks.id))
-    .where(inArray(s.trips.id, tripIds));
+    externalPlateNumber: s.tripsComposite.externalPlateNumber,
+  }).from(s.tripsComposite)
+    .leftJoin(s.routes, eq(s.tripsComposite.routeId, s.routes.id))
+    .leftJoin(s.trucks, eq(s.tripsComposite.truckId, s.trucks.id))
+    .where(inArray(s.tripsComposite.id, tripIds));
   const tripsById = new Map(trips.map((trip) => [trip.id, trip]));
   const containersByTrip = await loadContainersByTrip(tripIds);
   const legsByTrip = await loadLegRenderDataByTrip(tripIds);

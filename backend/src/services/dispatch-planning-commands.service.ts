@@ -3,7 +3,8 @@
  * Extracted from dispatch-planning.service.ts (structure-only split, no behavior change).
  * Layering: utils <- queries <- detail; utils <- commands <- detail (keep acyclic).
  */
-import { LIVE_TRIP_RETURNING, LiveTripRow } from './dispatch-planning-utils.service';
+import { LiveTripRow } from './dispatch-planning-utils.service';
+import { getTripCompositeInTx, splitTripPatch, upsertTripCarrierInfo } from './trip-composite.service';
 import { DispatchActor, Tx, assertDispatchActor, authoritativeCargoWeightKg, buildNotificationPayload, dispatchAssignmentChanged, hasExplicitNotificationTarget, inferTrailerTypeFromContainerCode, inferredVehicleCapacityKg, parseIsoWithZone, routeServiceDurationMinutes, toIsoOrNull, trimBounded } from './dispatch-planning-utils.service';
 import { db } from '../db';
 import { ApiError } from '../errors';
@@ -26,6 +27,13 @@ import { CARGO_MODE } from '../db/schema';
 
 
 
+
+/** Trips-split: a composed row missing its carrier sidecar coalesces
+ * carrierType to the legacy trips default so it stays assignable to
+ * LiveTripRow. */
+function toLiveTripRow(row: NonNullable<Awaited<ReturnType<typeof getTripCompositeInTx>>>): LiveTripRow {
+  return { ...row, carrierType: row.carrierType ?? 'OWN' };
+}
 
 export interface AcceptDispatchHandoffInput {
   shipmentId: number;
@@ -100,6 +108,8 @@ export async function acceptDispatchHandoff(input: AcceptDispatchHandoffInput) {
 
 
 export async function loadLiveTripForFulfillment(tx: Tx, fulfillmentId: number): Promise<LiveTripRow | null> {
+  // Trips-split: the carrier block lives in trip_carrier_info; the row lock
+  // stays on trips only (`of`), matching the pre-split lock footprint.
   const [row] = await tx.select({
     id: s.trips.id,
     version: s.trips.version,
@@ -107,28 +117,29 @@ export async function loadLiveTripForFulfillment(tx: Tx, fulfillmentId: number):
     status: s.trips.status,
     shipmentId: s.trips.shipmentId,
     fulfillmentId: s.trips.fulfillmentId,
-    carrierType: s.trips.carrierType,
+    carrierType: s.tripCarrierInfo.carrierType,
     truckId: s.trips.truckId,
     driverId: s.trips.driverId,
     trailerId: s.trips.trailerId,
     plannedStartAt: s.trips.plannedStartAt,
     plannedEndAt: s.trips.plannedEndAt,
-    externalEntityId: s.trips.externalEntityId,
-    externalEntityType: s.trips.externalEntityType,
-    externalPlateNumber: s.trips.externalPlateNumber,
-    externalDriverName: s.trips.externalDriverName,
-    externalDriverPhone: s.trips.externalDriverPhone,
+    externalEntityId: s.tripCarrierInfo.externalEntityId,
+    externalEntityType: s.tripCarrierInfo.externalEntityType,
+    externalPlateNumber: s.tripCarrierInfo.externalPlateNumber,
+    externalDriverName: s.tripCarrierInfo.externalDriverName,
+    externalDriverPhone: s.tripCarrierInfo.externalDriverPhone,
     createdBy: s.trips.createdBy,
     createdAt: s.trips.createdAt,
     updatedAt: s.trips.updatedAt,
   }).from(s.trips)
+    .leftJoin(s.tripCarrierInfo, eq(s.tripCarrierInfo.tripId, s.trips.id))
     .where(and(
       eq(s.trips.fulfillmentId, fulfillmentId),
       ne(s.trips.status, TripStatus.CANCELED),
       isNull(s.trips.deletedAt),
     ))
     .limit(1)
-    .for('update');
+    .for('update', { of: [s.trips] });
   return row ?? null;
 }
 
@@ -529,7 +540,7 @@ export async function issueOrderCreateOrUpdate(
       externalDriverPhone,
       trailerId,
     }, tx);
-    const [linked] = await tx.update(s.trips).set({
+    const { ops: linkedTripOps, carrier: linkedTripCarrier } = splitTripPatch({
       shipmentId: shipment.id,
       fulfillmentId: fulfillment.id,
       sourceShipmentVersion: shipment.version,
@@ -549,8 +560,16 @@ export async function issueOrderCreateOrUpdate(
       vehicleCapacityKg,
       version: sql`${s.trips.version} + 1`,
       updatedAt: new Date(),
-    }).where(eq(s.trips.id, createdTrip.id)).returning(LIVE_TRIP_RETURNING);
-    trip = linked ?? null;
+    });
+    // Trips-split: guarded ops update keeps the pre-split guard + version
+    // bump; carrier fields route to the sidecar upsert.
+    const [linkedOpsRow] = await tx.update(s.trips)
+      .set(linkedTripOps as typeof s.trips.$inferInsert)
+      .where(eq(s.trips.id, createdTrip.id)).returning({ id: s.trips.id });
+    if (!linkedOpsRow) throw new ApiError(409, 'Không thể liên kết chuyến với tác vụ.');
+    await upsertTripCarrierInfo(tx, createdTrip.id, linkedTripCarrier);
+    const linked = await getTripCompositeInTx(tx, createdTrip.id);
+    trip = linked ? toLiveTripRow(linked) : null;
     if (!trip) throw new ApiError(409, 'Không thể liên kết chuyến với tác vụ.');
     await replaceTripContainersForFulfillment(tx, trip.id, shipment, fulfillment, input.actor.userId);
     const notificationPayload = buildNotificationPayload(trip);
@@ -559,7 +578,7 @@ export async function issueOrderCreateOrUpdate(
       notificationPersisted = true;
     }
   } else {
-    const [updatedTrip] = await tx.update(s.trips).set({
+    const { ops: updatedTripOps, carrier: updatedTripCarrier } = splitTripPatch({
       plannedStartAt,
       plannedEndAt,
       truckId,
@@ -577,8 +596,18 @@ export async function issueOrderCreateOrUpdate(
       vehicleCapacityKg,
       version: sql`${s.trips.version} + 1`,
       updatedAt: new Date(),
-    }).where(eq(s.trips.id, trip.id)).returning(LIVE_TRIP_RETURNING);
-    trip = updatedTrip ?? trip;
+    });
+    // Trips-split: guarded ops update + sidecar upsert; the composed re-read
+    // preserves the pre-split behavior where `.returning(LIVE_TRIP_RETURNING)`
+    // handed the fresh carrier block to the notification builder.
+    const [updatedOpsRow] = await tx.update(s.trips)
+      .set(updatedTripOps as typeof s.trips.$inferInsert)
+      .where(eq(s.trips.id, trip.id)).returning({ id: s.trips.id });
+    if (updatedOpsRow) {
+      await upsertTripCarrierInfo(tx, trip.id, updatedTripCarrier);
+      const composed = await getTripCompositeInTx(tx, trip.id);
+      if (composed) trip = toLiveTripRow(composed);
+    }
     await replaceTripContainersForFulfillment(tx, trip.id, shipment, fulfillment, input.actor.userId);
     const existingNotificationCount = await tx.select({ total: count() }).from(s.notifications).where(and(
       eq(s.notifications.type, 'TRIP_DISPATCHED'),

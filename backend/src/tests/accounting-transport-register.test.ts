@@ -7,6 +7,7 @@ import express from 'express';
 import { Role } from '@tingting/shared';
 import { client, db } from '../db';
 import * as s from '../db/schema';
+import { insertTripComposite } from '../services/trip-composite.service';
 import { disconnectRedis } from '../lib/redis';
 import { globalErrorHandler } from '../middleware/errorHandler';
 import billingDocumentsRoutes from '../routes/financial/billing-documents.routes';
@@ -72,7 +73,7 @@ async function createLockedTrip(input: {
   }).returning();
   fulfillmentIds.push(fulfillment.id);
 
-  const [trip] = await db.insert(s.trips).values({
+  const trip = await insertTripComposite(db, {
     tripCode: `ATR-TRIP-${input.suffix}`.slice(0, 50),
     customerId: input.customerId,
     routeId,
@@ -92,7 +93,7 @@ async function createLockedTrip(input: {
     revenue: '1000000',
     totalCost: '400000',
     grossProfit: '600000',
-  }).returning();
+  });
   tripIds.push(trip.id);
 
   const [tripContainer] = await db.insert(s.tripContainers).values({
@@ -237,6 +238,8 @@ after(async () => {
     if (snapshotIds.length) await db.delete(s.profitabilitySnapshots).where(inArray(s.profitabilitySnapshots.id, snapshotIds));
     if (postingIds.length) await db.delete(s.tripFinancialPostings).where(inArray(s.tripFinancialPostings.id, postingIds));
     if (tripContainerIds.length) await db.delete(s.tripContainers).where(inArray(s.tripContainers.id, tripContainerIds));
+    if (tripIds.length) await db.delete(s.tripFinancialState).where(inArray(s.tripFinancialState.tripId, tripIds));
+    if (tripIds.length) await db.delete(s.tripCarrierInfo).where(inArray(s.tripCarrierInfo.tripId, tripIds));
     if (tripIds.length) await db.delete(s.trips).where(inArray(s.trips.id, tripIds));
     if (fulfillmentIds.length) await db.delete(s.shipmentFulfillments).where(inArray(s.shipmentFulfillments.id, fulfillmentIds));
     if (shipmentContainerIds.length) await db.delete(s.shipmentContainers).where(inArray(s.shipmentContainers.id, shipmentContainerIds));

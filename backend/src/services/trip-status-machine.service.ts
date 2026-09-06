@@ -10,6 +10,10 @@ import { LedgerService } from './ledger.service';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
 import { applyTripPairLifecycleEffects } from './trip-pairs.service';
+import {
+  getTripCompositeInTx, splitTripPatch, tripCompositeSelect,
+  upsertTripCarrierInfo, upsertTripFinancialState,
+} from './trip-composite.service';
 import { requirePersistedTripGovernanceAuthorization } from './trip-governance-authorization.service';
 import { assertActiveApprovalApplication } from './governance-action-core.service';
 import { deriveMilestoneFromTripStatus } from './milestone.service';
@@ -72,7 +76,15 @@ export async function transitionTripStatus(
     // shipment -> trip lock order. This prevents a transition racing the
     // accountant from deadlocking while still guaranteeing one winner.
     await assertTripShipmentAccountingUnlocked(tx, tripId);
-    const [trip] = await tx.select().from(s.trips).where(eq(s.trips.id, tripId)).limit(1).for('update');
+    // Trips-split: composed row (ops + financial + carrier sidecars); the row
+    // lock stays on trips only (`of`), matching the pre-split lock footprint.
+    const [trip] = await tx.select(tripCompositeSelect())
+      .from(s.trips)
+      .leftJoin(s.tripFinancialState, eq(s.tripFinancialState.tripId, s.trips.id))
+      .leftJoin(s.tripCarrierInfo, eq(s.tripCarrierInfo.tripId, s.trips.id))
+      .where(eq(s.trips.id, tripId))
+      .limit(1)
+      .for('update', { of: [s.trips] });
     if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
     if (options?.expectedVersion !== undefined && trip.version !== options.expectedVersion) {
       throw new ApiError(409, 'Dữ liệu đã bị thay đổi bởi người khác. Vui lòng tải lại trang.');
@@ -301,7 +313,11 @@ export async function transitionTripStatus(
 
       // Canceled: zero all financials. The status predicate is the final
       // winner check after the controlling row lock above.
-      const [updated] = await tx.update(s.trips).set({
+      // Trips-split: the ops zeroing stays on trips; the financial zeroing
+      // routes to trip_financial_state and externalFreightCost to
+      // trip_carrier_info. The status predicate stays as the winner check on
+      // the trips row.
+      const { ops: cancelOps, financial: cancelFinancial, carrier: cancelCarrier } = splitTripPatch({
         status: TripStatus.CANCELED,
         version: sql`${s.trips.version} + 1`,
         fuelLitersOverride: '0',
@@ -339,11 +355,18 @@ export async function transitionTripStatus(
         externalFreightCost: '0',
         driverSalary: '0',
         updatedAt: new Date(),
-      }).where(and(eq(s.trips.id, tripId), eq(s.trips.status, currentStatus))).returning();
-
-      if (!updated) {
+      });
+      const [updatedOpsRow] = await tx.update(s.trips)
+        .set(cancelOps as typeof s.trips.$inferInsert)
+        .where(and(eq(s.trips.id, tripId), eq(s.trips.status, currentStatus)))
+        .returning({ id: s.trips.id, version: s.trips.version });
+      if (!updatedOpsRow) {
         throw new ApiError(409, 'Chuyến đi đã bị thay đổi bởi người khác. Vui lòng tải lại.');
       }
+      await upsertTripFinancialState(tx, tripId, cancelFinancial);
+      await upsertTripCarrierInfo(tx, tripId, cancelCarrier);
+      const updated = await getTripCompositeInTx(tx, tripId);
+      if (!updated) throw new Error(`trip ${tripId} composed row missing after cancel`);
 
       if (currentStatus === TripStatus.COMPLETED) {
         const activePosting = await getActiveFinancialPosting(tx, trip.id);
@@ -396,7 +419,7 @@ export async function transitionTripStatus(
       return updated;
     }
 
-    const [updated] = await tx.update(s.trips).set({
+    const { ops: transitionOps, financial: transitionFinancial } = splitTripPatch({
       status: targetStatus,
       version: sql`${s.trips.version} + 1`,
       ...(targetStatus === TripStatus.COMPLETED
@@ -408,11 +431,17 @@ export async function transitionTripStatus(
           }
         : {}),
       updatedAt: new Date(),
-    }).where(and(eq(s.trips.id, tripId), eq(s.trips.status, currentStatus))).returning();
-
-    if (!updated) {
+    });
+    const [updatedOpsRow] = await tx.update(s.trips)
+      .set(transitionOps as typeof s.trips.$inferInsert)
+      .where(and(eq(s.trips.id, tripId), eq(s.trips.status, currentStatus)))
+      .returning({ id: s.trips.id, version: s.trips.version, completedAt: s.trips.completedAt });
+    if (!updatedOpsRow) {
       throw new ApiError(409, 'Trạng thái chuyến đi đã bị thay đổi bởi người khác. Vui lòng tải lại.');
     }
+    await upsertTripFinancialState(tx, tripId, transitionFinancial);
+    const updated = await getTripCompositeInTx(tx, tripId);
+    if (!updated) throw new Error(`trip ${tripId} composed row missing after status transition`);
 
     if (trip.shipmentId != null) {
       await deriveMilestoneFromTripStatus(

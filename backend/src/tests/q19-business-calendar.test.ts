@@ -9,6 +9,7 @@ import {
 } from '../services/business-calendar.service';
 import { client, db } from '../db';
 import * as s from '../db/schema';
+import { insertTripComposite } from '../services/trip-composite.service';
 import { and, eq, sql } from 'drizzle-orm';
 import { getTripArStatus } from '../services/ar-status.service';
 import { getCustomerOverdueAmount } from '../services/receivable-reminder.service';
@@ -141,7 +142,7 @@ describe('Q19 business calendar', () => {
         .values({ name: `Q19 cargo ${suffix}` })
         .returning({ id: s.cargoTypes.id });
       cargoTypeId = cargoType.id;
-      const [trip] = await db.insert(s.trips).values({
+      const trip = await insertTripComposite(db, {
         tripCode: `Q19-${suffix}`.slice(0, 50),
         customerId,
         routeId,
@@ -149,7 +150,7 @@ describe('Q19 business calendar', () => {
         status: 'COMPLETED',
         departureDate: holiday,
         carrierType: 'OWN',
-      }).returning({ id: s.trips.id });
+      });
       tripId = trip.id;
       await db.transaction(async (tx) => {
         await LedgerService.postTripCompletion(tx, {
@@ -249,6 +250,8 @@ describe('Q19 business calendar', () => {
           eq(s.ledger.entityType, 'CUSTOMER'),
           eq(s.ledger.txnId, tripId),
         ));
+        await db.delete(s.tripFinancialState).where(eq(s.tripFinancialState.tripId, tripId));
+        await db.delete(s.tripCarrierInfo).where(eq(s.tripCarrierInfo.tripId, tripId));
         await db.delete(s.trips).where(eq(s.trips.id, tripId));
       }
       if (cargoTypeId != null) {

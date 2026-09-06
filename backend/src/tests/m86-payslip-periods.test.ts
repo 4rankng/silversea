@@ -17,6 +17,7 @@ import { inArray } from 'drizzle-orm';
 
 import { client, db } from '../db';
 import * as s from '../db/schema';
+import { insertTripComposite } from '../services/trip-composite.service';
 import { getDriverPayslipPeriods } from '../services/driver.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -61,13 +62,13 @@ async function insertPeriodClose(period: string, status: string = 'CLOSED') {
 let tripCounter = 0;
 async function mkTrip(driverId: number, customerId: number, routeId: number, cargoTypeId: number, departureDate: string) {
   tripCounter += 1;
-  const [trip] = await db.insert(s.trips).values({
+  const trip = await insertTripComposite(db, {
     tripCode: `M86-${suffix}-${tripCounter}`.slice(0, 50),
     driverId, customerId, routeId, cargoTypeId,
     status: 'COMPLETED', departureDate,
     driverSalary: '500000',
     totalRoadAllowance: '100000',
-  }).returning();
+  });
   createdTripIds.push(trip.id);
   return trip;
 }

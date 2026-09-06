@@ -20,6 +20,7 @@ import { createHash } from 'node:crypto';
 import { round2dp } from '@tingting/shared';
 import { ApiError } from '../errors';
 import { lockTripFinancialAuthority } from './trip-financial-authority-lock.service';
+import { upsertTripFinancialState } from './trip-composite.service';
 import type { Tx } from './trip-shared';
 
 /** Accepts either the shared db handle or a transaction (both have select/update). */
@@ -37,15 +38,21 @@ function hashPayload(payload: unknown): string {
  * stored with differing trailing precision.
  */
 async function computeArCostHash(tripId: number, tx: DbOrTx): Promise<string> {
+  // Trips-split: financial fields live on the trip_financial_state sidecar;
+  // external freight cost on trip_carrier_info. The hashed payload is
+  // unchanged — same values, same order, so existing hashes stay valid.
   const [trip] = await tx.select({
-    revenue: s.trips.revenue,
-    driverSalary: s.trips.driverSalary,
-    totalFuelCost: s.trips.totalFuelCost,
-    externalFreightCost: s.trips.externalFreightCost,
-    vatRate: s.trips.vatRate,
-    customerCommission: s.trips.customerCommission,
-    totalCost: s.trips.totalCost,
-  }).from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
+    revenue: s.tripFinancialState.revenue,
+    driverSalary: s.tripFinancialState.driverSalary,
+    totalFuelCost: s.tripFinancialState.totalFuelCost,
+    externalFreightCost: s.tripCarrierInfo.externalFreightCost,
+    vatRate: s.tripFinancialState.vatRate,
+    customerCommission: s.tripFinancialState.customerCommission,
+    totalCost: s.tripFinancialState.totalCost,
+  }).from(s.trips)
+    .leftJoin(s.tripFinancialState, eq(s.tripFinancialState.tripId, s.trips.id))
+    .leftJoin(s.tripCarrierInfo, eq(s.tripCarrierInfo.tripId, s.trips.id))
+    .where(eq(s.trips.id, tripId)).limit(1);
 
   const expenses = await tx.select({
     id: s.tripExpenses.id,
@@ -100,14 +107,19 @@ function collectApPayableExpenses(
 }
 
 async function computeApHash(tripId: number, tx: DbOrTx): Promise<string> {
+  // Trips-split: carrier execution fields live on trip_carrier_info, the
+  // fuel/salary figures on trip_financial_state. Payload unchanged.
   const [trip] = await tx.select({
-    carrierType: s.trips.carrierType,
-    fuelSupplierId: s.trips.fuelSupplierId,
-    totalFuelCost: s.trips.totalFuelCost,
-    externalEntityId: s.trips.externalEntityId,
-    externalEntityType: s.trips.externalEntityType,
-    externalFreightCost: s.trips.externalFreightCost,
-  }).from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
+    carrierType: s.tripCarrierInfo.carrierType,
+    fuelSupplierId: s.tripFinancialState.fuelSupplierId,
+    totalFuelCost: s.tripFinancialState.totalFuelCost,
+    externalEntityId: s.tripCarrierInfo.externalEntityId,
+    externalEntityType: s.tripCarrierInfo.externalEntityType,
+    externalFreightCost: s.tripCarrierInfo.externalFreightCost,
+  }).from(s.trips)
+    .leftJoin(s.tripFinancialState, eq(s.tripFinancialState.tripId, s.trips.id))
+    .leftJoin(s.tripCarrierInfo, eq(s.tripCarrierInfo.tripId, s.trips.id))
+    .where(eq(s.trips.id, tripId)).limit(1);
 
   if (!trip) {
     throw new Error(`Không tìm thấy chuyến ${tripId} để chụp AP snapshot`);
@@ -148,15 +160,15 @@ async function computeApHash(tripId: number, tx: DbOrTx): Promise<string> {
  */
 const COLUMNS = {
   ar: {
-    costHash: s.trips.arCostHash,
-    dirty: s.trips.arSnapshotDirty,
-    changedAt: s.trips.arSnapshotChangedAt,
+    costHash: s.tripFinancialState.arCostHash,
+    dirty: s.tripFinancialState.arSnapshotDirty,
+    changedAt: s.tripFinancialState.arSnapshotChangedAt,
     label: 'AR',
   },
   ap: {
-    costHash: s.trips.apCostHash,
-    dirty: s.trips.apSnapshotDirty,
-    changedAt: s.trips.apSnapshotChangedAt,
+    costHash: s.tripFinancialState.apCostHash,
+    dirty: s.tripFinancialState.apSnapshotDirty,
+    changedAt: s.tripFinancialState.apSnapshotChangedAt,
     label: 'AP',
   },
 } as const;
@@ -175,22 +187,22 @@ class TripSnapshotService {
       // value even if costs are edited afterwards. The mutable `grossProfit`
       // column is the live figure; `pnlSnapshotGrossProfit` is the period-frozen
       // figure that pnl.service / profit-distribution read.
-      const [trip] = await tx.select({
-        grossProfit: s.trips.grossProfit,
-      }).from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
-      await tx.update(s.trips).set({
+      const [fin] = await tx.select({
+        grossProfit: s.tripFinancialState.grossProfit,
+      }).from(s.tripFinancialState).where(eq(s.tripFinancialState.tripId, tripId)).limit(1);
+      await upsertTripFinancialState(tx, tripId, {
         arCostHash: hash,
         arSnapshotDirty: false,
         arSnapshotChangedAt: new Date(),
-        pnlSnapshotGrossProfit: trip?.grossProfit ?? null,
-      }).where(eq(s.trips.id, tripId));
+        pnlSnapshotGrossProfit: fin?.grossProfit ?? null,
+      });
       return;
     }
-    await tx.update(s.trips).set({
+    await upsertTripFinancialState(tx, tripId, {
       apCostHash: hash,
       apSnapshotDirty: false,
       apSnapshotChangedAt: new Date(),
-    }).where(eq(s.trips.id, tripId));
+    });
   }
 
   static async markDirty(side: Side, tripId: number, tx: DbOrTx): Promise<void> {
@@ -198,7 +210,9 @@ class TripSnapshotService {
     const [trip] = await tx.select({
       status: s.trips.status,
       costHash: cols.costHash,
-    }).from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
+    }).from(s.trips)
+      .leftJoin(s.tripFinancialState, eq(s.tripFinancialState.tripId, s.trips.id))
+      .where(eq(s.trips.id, tripId)).limit(1);
     if (!trip) return;
     // Only completed trips carry a snapshot. In-progress edits are not dirtying.
     if (trip.status !== 'COMPLETED') return;
@@ -207,10 +221,10 @@ class TripSnapshotService {
     const dirty = currentHash !== (trip.costHash ?? null);
     const changedAtCol = side === 'ar' ? { arSnapshotChangedAt: new Date() } : { apSnapshotChangedAt: new Date() };
     const dirtyCol = side === 'ar' ? { arSnapshotDirty: true } : { apSnapshotDirty: true };
-    await tx.update(s.trips).set({
+    await upsertTripFinancialState(tx, tripId, {
       ...(dirty ? dirtyCol : {}),
       ...changedAtCol,
-    }).where(eq(s.trips.id, tripId));
+    });
   }
 
   static async listDirty(side: Side) {
@@ -222,6 +236,7 @@ class TripSnapshotService {
       completedAt: s.trips.completedAt,
       snapshotChangedAt: cols.changedAt,
     }).from(s.trips)
+      .innerJoin(s.tripFinancialState, eq(s.tripFinancialState.tripId, s.trips.id))
       .where(eq(cols.dirty, true))
       .orderBy(cols.changedAt);
   }

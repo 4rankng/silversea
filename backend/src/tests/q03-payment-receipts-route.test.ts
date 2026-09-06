@@ -9,6 +9,7 @@ import { and, eq, inArray, sql } from 'drizzle-orm';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
+import { insertTripComposite } from '../services/trip-composite.service';
 import { Role } from '@tingting/shared';
 import { config } from '../config';
 import { initEnforcer } from '../casbin/enforcer';
@@ -79,7 +80,7 @@ async function mkCargo() {
 }
 
 async function mkTrip(customerId: number, routeId: number, cargoTypeId: number, departureDate: string) {
-  const [trip] = await db.insert(s.trips).values({
+  const trip = await insertTripComposite(db, {
     tripCode: `Q03-${suffix}-${createdTripIds.length}`.slice(0, 50),
     customerId,
     routeId,
@@ -87,7 +88,7 @@ async function mkTrip(customerId: number, routeId: number, cargoTypeId: number, 
     status: 'COMPLETED',
     departureDate,
     carrierType: 'OWN',
-  }).returning();
+  });
   createdTripIds.push(trip.id);
   return trip;
 }
@@ -285,6 +286,8 @@ after(async () => {
     if (createdLedgerIds.length > 0) {
       await db.delete(s.ledger).where(inArray(s.ledger.id, createdLedgerIds));
     }
+    await db.delete(s.tripFinancialState).where(inArray(s.tripFinancialState.tripId, db.select({ id: s.trips.id }).from(s.trips).where(sql`${s.trips.tripCode} LIKE ${tripCodePattern}`)));
+    await db.delete(s.tripCarrierInfo).where(inArray(s.tripCarrierInfo.tripId, db.select({ id: s.trips.id }).from(s.trips).where(sql`${s.trips.tripCode} LIKE ${tripCodePattern}`)));
     await db.delete(s.trips).where(sql`${s.trips.tripCode} LIKE ${tripCodePattern}`);
     await db.delete(s.cargoTypes).where(sql`${s.cargoTypes.name} LIKE ${cargoPattern}`);
     await db.delete(s.routes).where(sql`${s.routes.name} LIKE ${routePattern}`);

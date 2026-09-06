@@ -7,6 +7,7 @@ import { and, eq, inArray, or } from 'drizzle-orm';
 import { Role, TxnType, type SaveBillingDocumentInput } from '@tingting/shared';
 import { client, db } from '../db';
 import * as s from '../db/schema';
+import { insertTripComposite } from '../services/trip-composite.service';
 import { withTestCleanup } from './helpers/db-isolation';
 import { auditLogMiddleware } from '../middleware/audit';
 import { globalErrorHandler } from '../middleware/errorHandler';
@@ -101,7 +102,7 @@ async function createBillableDebitDocumentInput(
   }).returning();
   fulfillmentIds.push(fulfillment.id);
   const completedAt = new Date('2026-07-15T09:00:00.000Z');
-  const [trip] = await db.insert(s.trips).values({
+  const trip = await insertTripComposite(db, {
     tripCode: `Q23-BILL-${suffix}-${tripIds.length}`.slice(0, 50),
     customerId: customer.id,
     routeId: route.id,
@@ -113,7 +114,7 @@ async function createBillableDebitDocumentInput(
     status: 'COMPLETED',
     revenue: String(amount),
     carrierType: 'OWN',
-  }).returning();
+  });
   tripIds.push(trip.id);
   const [posting] = await db.insert(s.tripFinancialPostings).values({
     tripId: trip.id,

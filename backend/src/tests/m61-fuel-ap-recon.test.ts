@@ -12,6 +12,7 @@ import { Role } from '@tingting/shared';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
+import { insertTripComposite } from '../services/trip-composite.service';
 import { getFuelApReconciliation } from '../services/fuel-ap-recon.service';
 import {
   approveFuelInvoice,
@@ -120,7 +121,7 @@ async function mkTrip(opts: {
   completedAt?: Date;
 }) {
   const cust = await mkCustomer(); const route = await mkRoute(); const cargo = await mkCargo();
-  const [t] = await db.insert(s.trips).values({
+  const t = await insertTripComposite(db, {
     tripCode: `M61-${suffix}-${createdTripIds.length}`.slice(0, 50),
     customerId: cust.id, routeId: route.id, cargoTypeId: cargo.id,
     status: 'COMPLETED', departureDate: opts.departureDate, carrierType: 'OWN',
@@ -128,7 +129,7 @@ async function mkTrip(opts: {
     fuelSupplierId: opts.supplierId,
     truckId: opts.truckId ?? null,
     totalFuelCost: opts.totalFuelCost,
-  }).returning();
+  });
   createdTripIds.push(t.id);
   return t;
 }
@@ -279,6 +280,8 @@ after(async () => {
     if (createdSettlementExpenseIds.length > 0) await db.delete(s.settlementExpenses).where(inArray(s.settlementExpenses.id, createdSettlementExpenseIds));
     if (createdSettlementIds.length > 0) await db.delete(s.advanceSettlements).where(inArray(s.advanceSettlements.id, createdSettlementIds));
     if (createdExpenseIds.length > 0) await db.delete(s.tripExpenses).where(inArray(s.tripExpenses.id, createdExpenseIds));
+    if (createdTripIds.length > 0) await db.delete(s.tripFinancialState).where(inArray(s.tripFinancialState.tripId, createdTripIds));
+    if (createdTripIds.length > 0) await db.delete(s.tripCarrierInfo).where(inArray(s.tripCarrierInfo.tripId, createdTripIds));
     if (createdTripIds.length > 0) await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
     if (createdTruckIds.length > 0) await db.delete(s.trucks).where(inArray(s.trucks.id, createdTruckIds));
     if (createdCargoTypeIds.length > 0) await db.delete(s.cargoTypes).where(sql`${s.cargoTypes.name} LIKE ${namePattern}`);

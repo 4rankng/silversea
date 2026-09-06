@@ -7,6 +7,7 @@ import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { FuelMode, LoadingType, Role, TripStatus, TxnType } from '@tingting/shared';
 import { client, db } from '../db';
 import * as s from '../db/schema';
+import { applyTripPatch, insertTripComposite } from '../services/trip-composite.service';
 import tripsRoutes from '../routes/trips';
 import paymentsRoutes from '../routes/financial/payments.routes';
 import governanceActionsRoutes from '../routes/financial/governance-actions.routes';
@@ -118,7 +119,7 @@ async function createInTransitTrip() {
     siteSnapshot: {},
   }).returning();
   fulfillmentIds.push(fulfillment.id);
-  const [trip] = await db.insert(s.trips).values({
+  const trip = await insertTripComposite(db, {
     tripCode: `Q15-TRIP-${suffix}-${tripIds.length}`.slice(0, 50),
     customerId: customer.id,
     truckId: truck.id,
@@ -137,7 +138,7 @@ async function createInTransitTrip() {
     // O2C: the governed-close path requires POD recovery before completion.
     podRecoveredAt: new Date(),
     podRecoveredBy: driverUser.id,
-  }).returning();
+  });
   // O2C: the photo-evidence gate fires on IN_TRANSIT → COMPLETED. Insert a
   // baseline photo so the governed close passes the ≥1-photo requirement.
   await db.insert(s.tripPhotos).values({
@@ -293,6 +294,8 @@ after(async () => {
         .where(inArray(s.governanceActions.subjectId, tripExpenseIds));
       await db.delete(s.tripExpenses).where(inArray(s.tripExpenses.id, tripExpenseIds));
     }
+    await db.delete(s.tripFinancialState).where(inArray(s.tripFinancialState.tripId, tripIds));
+    await db.delete(s.tripCarrierInfo).where(inArray(s.tripCarrierInfo.tripId, tripIds));
     await db.delete(s.trips).where(inArray(s.trips.id, tripIds));
   }
   if (fulfillmentIds.length > 0) {
@@ -694,7 +697,7 @@ describe('Q15 trip financial governance', () => {
       trip.id,
     ));
 
-    const [beforeChangeApproval] = await db.select().from(s.trips)
+    const [beforeChangeApproval] = await db.select().from(s.tripsComposite)
       .where(eq(s.trips.id, trip.id)).limit(1);
     assert.equal(beforeChangeApproval.revenue, '1200000');
     assert.equal((await ledgerRows(trip.id)).length, completedLedger.length);
@@ -730,7 +733,7 @@ describe('Q15 trip financial governance', () => {
       }),
       /không khớp với nội dung thay đổi chuyến đi đã được phê duyệt/,
     );
-    const [afterDivergentAttempt] = await db.select().from(s.trips)
+    const [afterDivergentAttempt] = await db.select().from(s.tripsComposite)
       .where(eq(s.trips.id, trip.id)).limit(1);
     assert.equal(afterDivergentAttempt.revenue, '1200000');
     assert.equal((await ledgerRows(trip.id)).length, completedLedger.length);
@@ -744,7 +747,7 @@ describe('Q15 trip financial governance', () => {
     }, 2, `q15-change-approve-${suffix}`);
     assert.equal(approvedChange.status, 200);
 
-    const [changed] = await db.select().from(s.trips)
+    const [changed] = await db.select().from(s.tripsComposite)
       .where(eq(s.trips.id, trip.id)).limit(1);
     assert.equal(changed.revenue, '1700000');
     const changedLedger = await ledgerRows(trip.id);
@@ -775,7 +778,7 @@ describe('Q15 trip financial governance', () => {
       .where(eq(s.trips.id, trip.id)).limit(1);
     assert.equal(beforeCancelApproval.status, TripStatus.COMPLETED);
     assert.equal((await ledgerRows(trip.id)).length, changedLedger.length);
-    await db.update(s.trips).set({
+    await applyTripPatch(db, trip.id, {
       fuelLitersOverride: '1',
       fuelSupplementLiters: '2',
       tollsDiscount: '3',
@@ -802,7 +805,7 @@ describe('Q15 trip financial governance', () => {
       tripWageDays: 23,
       vatRate: '0.08',
       externalFreightCost: '24',
-    }).where(eq(s.trips.id, trip.id));
+    });
 
     const checkedCancel = await api('POST', `/api/governance-actions/${cancel.body.id}/check`, {
       expectedVersion: cancel.body.version,
@@ -814,7 +817,7 @@ describe('Q15 trip financial governance', () => {
     }, 2, cancelApprovalKey);
     assert.equal(approvedCancel.status, 200);
 
-    const [canceled] = await db.select().from(s.trips)
+    const [canceled] = await db.select().from(s.tripsComposite)
       .where(eq(s.trips.id, trip.id)).limit(1);
     assert.equal(canceled.status, TripStatus.CANCELED);
     for (const value of [

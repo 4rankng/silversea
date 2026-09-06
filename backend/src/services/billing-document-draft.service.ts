@@ -57,37 +57,37 @@ export async function buildCustomerDebitLines(customerId: number, from: string, 
   const entityName = customer.name;
 
   const completionInRange = and(
-    sql`${s.trips.completedAt} IS NOT NULL`,
-    gte(sql`(${s.trips.completedAt} at time zone 'Asia/Ho_Chi_Minh')::date`, from),
-    lte(sql`(${s.trips.completedAt} at time zone 'Asia/Ho_Chi_Minh')::date`, to),
+    sql`${s.tripsComposite.completedAt} IS NOT NULL`,
+    gte(sql`(${s.tripsComposite.completedAt} at time zone 'Asia/Ho_Chi_Minh')::date`, from),
+    lte(sql`(${s.tripsComposite.completedAt} at time zone 'Asia/Ho_Chi_Minh')::date`, to),
   )!;
   const expenseInRange = sql`EXISTS (
     SELECT 1
     FROM ${s.tripExpenses} period_expense
-    WHERE period_expense.trip_id = ${s.trips.id}
+    WHERE period_expense.trip_id = ${s.tripsComposite.id}
       AND period_expense.approval_status = 'APPROVED'
       AND period_expense.sell_amount > 0
       AND period_expense.expense_date BETWEEN ${from} AND ${to}
   )`;
   const trips = await db.select({
-    id: s.trips.id,
-    tripCode: s.trips.tripCode,
-    customerId: s.trips.customerId,
-    shipmentId: s.trips.shipmentId,
-    fulfillmentId: s.trips.fulfillmentId,
-    status: s.trips.status,
-    departureDate: s.trips.departureDate,
-    completionDate: sql<string | null>`to_char(${s.trips.completedAt} at time zone 'Asia/Ho_Chi_Minh', 'YYYY-MM-DD')`,
-    revenue: s.trips.revenue,
-    fuelSurchargeAmount: s.trips.fuelSurchargeAmount,
+    id: s.tripsComposite.id,
+    tripCode: s.tripsComposite.tripCode,
+    customerId: s.tripsComposite.customerId,
+    shipmentId: s.tripsComposite.shipmentId,
+    fulfillmentId: s.tripsComposite.fulfillmentId,
+    status: s.tripsComposite.status,
+    departureDate: s.tripsComposite.departureDate,
+    completionDate: sql<string | null>`to_char(${s.tripsComposite.completedAt} at time zone 'Asia/Ho_Chi_Minh', 'YYYY-MM-DD')`,
+    revenue: s.tripsComposite.revenue,
+    fuelSurchargeAmount: s.tripsComposite.fuelSurchargeAmount,
     routeName: s.routes.name,
-    notes: s.trips.notes,
+    notes: s.tripsComposite.notes,
     truckPlate: s.trucks.licensePlate,
     trailerPlateNumber: s.trailers.licensePlate,
-    externalPlateNumber: s.trips.externalPlateNumber,
-    version: s.trips.version,
-    vatRate: s.trips.vatRate,
-    updatedAt: s.trips.updatedAt,
+    externalPlateNumber: s.tripsComposite.externalPlateNumber,
+    version: s.tripsComposite.version,
+    vatRate: s.tripsComposite.vatRate,
+    updatedAt: s.tripsComposite.updatedAt,
     financialPostingId: s.tripFinancialPostings.id,
     financialPostingVersion: s.tripFinancialPostings.version,
     financialPostingTripVersion: s.tripFinancialPostings.tripVersion,
@@ -101,22 +101,22 @@ export async function buildCustomerDebitLines(customerId: number, from: string, 
     cargoVolumeCbm: s.shipments.cargoVolumeCbm,
     packageCount: s.shipments.packageCount,
     packageType: s.shipments.packageType,
-  }).from(s.trips)
+  }).from(s.tripsComposite)
     .innerJoin(s.tripFinancialPostings, and(
-      eq(s.tripFinancialPostings.tripId, s.trips.id),
+      eq(s.tripFinancialPostings.tripId, s.tripsComposite.id),
       eq(s.tripFinancialPostings.status, 'ACTIVE'),
     ))
-    .leftJoin(s.routes, eq(s.trips.routeId, s.routes.id))
-    .leftJoin(s.trucks, eq(s.trips.truckId, s.trucks.id))
-    .leftJoin(s.trailers, eq(s.trips.trailerId, s.trailers.id))
-    .leftJoin(s.shipments, eq(s.trips.shipmentId, s.shipments.id))
+    .leftJoin(s.routes, eq(s.tripsComposite.routeId, s.routes.id))
+    .leftJoin(s.trucks, eq(s.tripsComposite.truckId, s.trucks.id))
+    .leftJoin(s.trailers, eq(s.tripsComposite.trailerId, s.trailers.id))
+    .leftJoin(s.shipments, eq(s.tripsComposite.shipmentId, s.shipments.id))
     .leftJoin(s.operationalSites, eq(s.shipments.operationalSiteId, s.operationalSites.id))
     .where(and(
-      eq(s.trips.customerId, customerId),
-      isNull(s.trips.deletedAt),
+      eq(s.tripsComposite.customerId, customerId),
+      isNull(s.tripsComposite.deletedAt),
       or(completionInRange, expenseInRange)!,
     ))
-    .orderBy(s.trips.completedAt, s.trips.id) as CustomerDebitTripCandidate[];
+    .orderBy(s.tripsComposite.completedAt, s.tripsComposite.id) as CustomerDebitTripCandidate[];
 
   const tripIds = trips.map((trip) => trip.id);
   const latestPodByTrip = await loadLatestPodStatusByTrip(tripIds);
@@ -255,34 +255,34 @@ async function buildCustomerPaymentStatementLines(customerId: number, from: stri
   const entityName = customer.name;
 
   const trips = await db.select({
-    id: s.trips.id, tripCode: s.trips.tripCode, departureDate: s.trips.departureDate,
-    completionDate: sql<string | null>`to_char(${s.trips.completedAt} at time zone 'Asia/Ho_Chi_Minh', 'YYYY-MM-DD')`,
-    revenue: s.trips.revenue, fuelSurchargeAmount: s.trips.fuelSurchargeAmount, routeName: s.routes.name, notes: s.trips.notes,
-    truckPlate: s.trucks.licensePlate, externalPlateNumber: s.trips.externalPlateNumber,
-  }).from(s.trips)
-    .leftJoin(s.routes, eq(s.trips.routeId, s.routes.id))
-    .leftJoin(s.trucks, eq(s.trips.truckId, s.trucks.id))
+    id: s.tripsComposite.id, tripCode: s.tripsComposite.tripCode, departureDate: s.tripsComposite.departureDate,
+    completionDate: sql<string | null>`to_char(${s.tripsComposite.completedAt} at time zone 'Asia/Ho_Chi_Minh', 'YYYY-MM-DD')`,
+    revenue: s.tripsComposite.revenue, fuelSurchargeAmount: s.tripsComposite.fuelSurchargeAmount, routeName: s.routes.name, notes: s.tripsComposite.notes,
+    truckPlate: s.trucks.licensePlate, externalPlateNumber: s.tripsComposite.externalPlateNumber,
+  }).from(s.tripsComposite)
+    .leftJoin(s.routes, eq(s.tripsComposite.routeId, s.routes.id))
+    .leftJoin(s.trucks, eq(s.tripsComposite.truckId, s.trucks.id))
     .where(and(
-      eq(s.trips.customerId, customerId),
-      inArray(s.trips.status, [...BILLABLE_TRIP_STATUSES]),
-      isNull(s.trips.deletedAt),
+      eq(s.tripsComposite.customerId, customerId),
+      inArray(s.tripsComposite.status, [...BILLABLE_TRIP_STATUSES]),
+      isNull(s.tripsComposite.deletedAt),
       or(
         and(
-          sql`${s.trips.completedAt} IS NOT NULL`,
-          gte(sql`(${s.trips.completedAt} at time zone 'Asia/Ho_Chi_Minh')::date`, from),
-          lte(sql`(${s.trips.completedAt} at time zone 'Asia/Ho_Chi_Minh')::date`, to),
+          sql`${s.tripsComposite.completedAt} IS NOT NULL`,
+          gte(sql`(${s.tripsComposite.completedAt} at time zone 'Asia/Ho_Chi_Minh')::date`, from),
+          lte(sql`(${s.tripsComposite.completedAt} at time zone 'Asia/Ho_Chi_Minh')::date`, to),
         ),
         sql`EXISTS (
           SELECT 1
           FROM ${s.tripExpenses} period_expense
-          WHERE period_expense.trip_id = ${s.trips.id}
+          WHERE period_expense.trip_id = ${s.tripsComposite.id}
             AND period_expense.approval_status = 'APPROVED'
             AND period_expense.sell_amount > 0
             AND period_expense.expense_date BETWEEN ${from} AND ${to}
         )`,
       )!,
     ))
-    .orderBy(s.trips.completedAt, s.trips.id);
+    .orderBy(s.tripsComposite.completedAt, s.tripsComposite.id);
 
   const tripIds = trips.map((t) => t.id);
   const containersByTrip = await loadContainersByTrip(tripIds);
@@ -347,17 +347,17 @@ async function buildCarrierPaymentLines(carrierId: number, from: string, to: str
   const entityName = carrier.name;
 
   const trips = await db.select({
-    id: s.trips.id, tripCode: s.trips.tripCode, departureDate: s.trips.departureDate,
-    externalFreightCost: s.trips.externalFreightCost, routeName: s.routes.name,
-  }).from(s.trips).leftJoin(s.routes, eq(s.trips.routeId, s.routes.id))
+    id: s.tripsComposite.id, tripCode: s.tripsComposite.tripCode, departureDate: s.tripsComposite.departureDate,
+    externalFreightCost: s.tripsComposite.externalFreightCost, routeName: s.routes.name,
+  }).from(s.tripsComposite).leftJoin(s.routes, eq(s.tripsComposite.routeId, s.routes.id))
     .where(and(
-      eq(s.trips.externalEntityId, carrierId),
-      inArray(s.trips.status, [...BILLABLE_TRIP_STATUSES]),
-      isNull(s.trips.deletedAt),
-      sql`${s.trips.completedAt} IS NOT NULL`,
-      gte(sql`(${s.trips.completedAt} at time zone 'Asia/Ho_Chi_Minh')::date`, from),
-      lte(sql`(${s.trips.completedAt} at time zone 'Asia/Ho_Chi_Minh')::date`, to),
-    )).orderBy(s.trips.completedAt);
+      eq(s.tripsComposite.externalEntityId, carrierId),
+      inArray(s.tripsComposite.status, [...BILLABLE_TRIP_STATUSES]),
+      isNull(s.tripsComposite.deletedAt),
+      sql`${s.tripsComposite.completedAt} IS NOT NULL`,
+      gte(sql`(${s.tripsComposite.completedAt} at time zone 'Asia/Ho_Chi_Minh')::date`, from),
+      lte(sql`(${s.tripsComposite.completedAt} at time zone 'Asia/Ho_Chi_Minh')::date`, to),
+    )).orderBy(s.tripsComposite.completedAt);
 
   const containersByTrip = await loadContainersByTrip(trips.map((t) => t.id));
 

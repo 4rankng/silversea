@@ -12,6 +12,7 @@ import { config } from '../config';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
+import { insertTripComposite } from '../services/trip-composite.service';
 import {
   runReceivableReminderRetries,
   runReceivableReminders,
@@ -148,12 +149,12 @@ async function mkOverdueTrip(
   departureDate = '2025-01-01',
   forcedId?: number,
 ) {
-  const [t] = await db.insert(s.trips).values({
+  const t = await insertTripComposite(db, {
     ...(forcedId == null ? {} : { id: forcedId }),
     tripCode: `M57-${suffix}-${createdTripIds.length}`.slice(0, 50),
     customerId, routeId, cargoTypeId,
     status: 'COMPLETED', departureDate, carrierType: 'OWN',
-  }).returning();
+  });
   createdTripIds.push(t.id);
   return t;
 }
@@ -444,6 +445,8 @@ after(async () => {
     if (createdCalendarDates.size > 0) {
       await db.delete(s.businessCalendarDays).where(inArray(s.businessCalendarDays.calendarDate, [...createdCalendarDates]));
     }
+    await db.delete(s.tripFinancialState).where(inArray(s.tripFinancialState.tripId, db.select({ id: s.trips.id }).from(s.trips).where(sql`${s.trips.tripCode} LIKE ${tripCodePattern}`)));
+    await db.delete(s.tripCarrierInfo).where(inArray(s.tripCarrierInfo.tripId, db.select({ id: s.trips.id }).from(s.trips).where(sql`${s.trips.tripCode} LIKE ${tripCodePattern}`)));
     await db.delete(s.trips).where(sql`${s.trips.tripCode} LIKE ${tripCodePattern}`);
     await db.delete(s.cargoTypes).where(sql`${s.cargoTypes.name} LIKE ${custPattern}`);
     await db.delete(s.routes).where(sql`${s.routes.name} LIKE ${custPattern}`);

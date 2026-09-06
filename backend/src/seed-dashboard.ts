@@ -10,6 +10,7 @@
 import { db } from './db';
 import * as s from './db/schema';
 import { sql, eq, isNull } from 'drizzle-orm';
+import { insertTripComposite } from './services/trip-composite.service';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 function vnd(n: number): string {
@@ -357,8 +358,8 @@ async function seedTrips() {
 
     const grossProfit = def.revenue - def.totalCost;
 
-    // Insert trip
-    const [trip] = await db.insert(s.trips).values({
+    // Insert trip (trips + both sidecars via the composite seam)
+    const trip = await insertTripComposite(db, {
       tripCode,
       status: def.status,
       departureDate: def.departureDate,
@@ -377,7 +378,7 @@ async function seedTrips() {
       fuelPriceApplied: '27650',
       fuelMode: 'AUTO',
       version: 1,
-    }).returning({ id: s.trips.id });
+    });
 
     // Insert legs
     for (let li = 0; li < def.legs.length; li++) {

@@ -3,6 +3,7 @@ import { after, before, test } from 'node:test';
 import { eq, inArray, like, sql } from 'drizzle-orm';
 import { client, db } from '../db';
 import * as s from '../db/schema';
+import { insertTripComposite } from '../services/trip-composite.service';
 import {
   COMPANY_INFO_SETTING_KEYS,
   type CompanyInfoField,
@@ -147,7 +148,7 @@ async function createTripFixture(
   }).returning();
   fulfillmentIds.push(fulfillment.id);
 
-  const [trip] = await db.insert(s.trips).values({
+  const trip = await insertTripComposite(db, {
     tripCode: `Q15-OFF-${suffix}-${tripIds.length}`.slice(0, 50),
     customerId,
     routeId: route.id,
@@ -159,7 +160,7 @@ async function createTripFixture(
     status: 'COMPLETED',
     revenue: String(opts.revenue),
     carrierType: 'OWN',
-  }).returning();
+  });
   tripIds.push(trip.id);
 
   const [posting] = await db.insert(s.tripFinancialPostings).values({

@@ -113,10 +113,10 @@ function conditionsFor(input: AccountingTransportRegisterQuery): SQL[] {
   // O2C H3: constrain to CUSTOMER type so a SUPPLIER-typed entity sharing the
   // same id can't produce a false match.
   if (input.carrierId != null) {
-    conditions.push(eq(s.trips.externalEntityId, input.carrierId));
-    conditions.push(eq(s.trips.externalEntityType, 'CUSTOMER'));
+    conditions.push(eq(s.tripCarrierInfo.externalEntityId, input.carrierId));
+    conditions.push(eq(s.tripCarrierInfo.externalEntityType, 'CUSTOMER'));
   }
-  if (input.ownership != null) conditions.push(eq(s.trips.carrierType, input.ownership));
+  if (input.ownership != null) conditions.push(eq(s.tripCarrierInfo.carrierType, input.ownership));
   if (input.readiness === 'READY') conditions.push(isNotNull(s.profitabilitySnapshots.id));
   if (input.readiness === 'MISSING_PROFITABILITY_SNAPSHOT') conditions.push(isNull(s.profitabilitySnapshots.id));
   if (input.search != null) {
@@ -136,7 +136,7 @@ function conditionsFor(input: AccountingTransportRegisterQuery): SQL[] {
       ilike(s.operationalSites.name, pattern),
       ilike(s.operationalSites.shortName, pattern),
       ilike(s.trucks.licensePlate, pattern),
-      ilike(s.trips.externalPlateNumber, pattern),
+      ilike(s.tripCarrierInfo.externalPlateNumber, pattern),
       sql`${containerProjection.containerNumbers}::text ilike ${pattern}`,
     )!);
   }
@@ -175,7 +175,7 @@ export async function listAccountingTransportRows(
     customerName: operationalName(s.customers.shortName, s.customers.name),
     carrierId: carrier.id,
     carrierName: operationalName(carrier.shortName, carrier.name),
-    ownership: s.trips.carrierType,
+    ownership: s.tripCarrierInfo.carrierType,
     shipmentId: s.shipments.id,
     shipmentCode: s.shipments.shipmentCode,
     routeId: s.routes.id,
@@ -188,7 +188,7 @@ export async function listAccountingTransportRows(
     containerNumbers: containerProjection.containerNumbers,
     containerTypes: containerProjection.containerTypes,
     plateNumber: sql<string | null>`case
-      when ${s.trips.carrierType} = 'EXTERNAL' then ${s.trips.externalPlateNumber}
+      when ${s.tripCarrierInfo.carrierType} = 'EXTERNAL' then ${s.tripCarrierInfo.externalPlateNumber}
       else ${s.trucks.licensePlate}
     end`,
     revenue: s.profitabilitySnapshots.revenue,
@@ -211,7 +211,8 @@ export async function listAccountingTransportRows(
     .leftJoin(s.shipments, eq(s.shipments.id, s.trips.shipmentId))
     .leftJoin(s.operationalSites, eq(s.operationalSites.id, s.shipments.operationalSiteId))
     .leftJoin(s.trucks, eq(s.trucks.id, s.trips.truckId))
-    .leftJoin(carrier, and(eq(carrier.id, s.trips.externalEntityId), eq(s.trips.externalEntityType, 'CUSTOMER')))
+    .leftJoin(s.tripCarrierInfo, eq(s.tripCarrierInfo.tripId, s.trips.id))
+    .leftJoin(carrier, and(eq(carrier.id, s.tripCarrierInfo.externalEntityId), eq(s.tripCarrierInfo.externalEntityType, 'CUSTOMER')))
     .leftJoin(containerProjection, eq(containerProjection.tripId, s.trips.id))
     .leftJoin(
       carrierPayableProjection,
@@ -244,7 +245,8 @@ export async function listAccountingTransportRows(
     .leftJoin(s.shipments, eq(s.shipments.id, s.trips.shipmentId))
     .leftJoin(s.operationalSites, eq(s.operationalSites.id, s.shipments.operationalSiteId))
     .leftJoin(s.trucks, eq(s.trucks.id, s.trips.truckId))
-    .leftJoin(carrier, and(eq(carrier.id, s.trips.externalEntityId), eq(s.trips.externalEntityType, 'CUSTOMER')))
+    .leftJoin(s.tripCarrierInfo, eq(s.tripCarrierInfo.tripId, s.trips.id))
+    .leftJoin(carrier, and(eq(carrier.id, s.tripCarrierInfo.externalEntityId), eq(s.tripCarrierInfo.externalEntityType, 'CUSTOMER')))
     .leftJoin(containerProjection, eq(containerProjection.tripId, s.trips.id))
     .leftJoin(
       carrierPayableProjection,

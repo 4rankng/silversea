@@ -44,6 +44,7 @@
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { db } from '../db';
 import * as s from '../db/schema';
+import { insertTripComposite } from '../services/trip-composite.service';
 
 // ─── Idempotency marker ────────────────────────────────────────────────────────
 // A single, well-known BL number marks the bulk-seeded data. The probe is
@@ -662,7 +663,7 @@ export async function seedBulkData(): Promise<{ created: boolean; stats: Record<
     const driverSalary = randInt(450_000, 850_000);
     const tripCode = `${BULK_TRIP_PREFIX}${String(tripCounter++).padStart(4, '0')}`;
 
-    const [trip] = await db.insert(s.trips).values({
+    const trip = await insertTripComposite(db, {
       tripCode,
       version: 1,
       createdBy: dispatcherUserId,
@@ -689,7 +690,7 @@ export async function seedBulkData(): Promise<{ created: boolean; stats: Record<
       fuelSurchargeAmount: '0',
       createdAt: plannedStart,
       updatedAt: plannedStart,
-    }).returning({ id: s.trips.id });
+    });
     stats.trips++;
 
     // Copy the shipment's container(s) into trip_containers.
@@ -704,7 +705,7 @@ export async function seedBulkData(): Promise<{ created: boolean; stats: Record<
       .where(eq(s.shipmentContainers.shipmentId, sh.id));
     for (const sc of shipmentContainers) {
       await db.insert(s.tripContainers).values({
-        tripId: trip!.id,
+        tripId: trip.id,
         sourceShipmentId: sh.id,
         sourceShipmentContainerId: sc.id,
         sourceShipmentVersion: 1,

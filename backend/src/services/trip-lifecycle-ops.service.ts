@@ -8,6 +8,9 @@ import { eq, and, isNull, sql } from 'drizzle-orm';
 import { TripStatus, Role } from '@tingting/shared';
 import { ApiError } from '../errors';
 import { assertTripShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
+import {
+  getTripCompositeInTx, splitTripPatch, tripCompositeSelect, upsertTripCarrierInfo,
+} from './trip-composite.service';
 import { resolveTrailer } from './trip-shared';
 import type { Tx } from './trip-shared';
 
@@ -52,7 +55,15 @@ export async function updateDepartureDate(
 
   const execute = async (tx: Tx) => {
     await assertTripShipmentAccountingUnlocked(tx, tripId);
-    const [trip] = await tx.select().from(s.trips).where(eq(s.trips.id, tripId)).limit(1).for('update');
+    // Trips-split: composed row (ops + financial + carrier sidecars); the row
+    // lock stays on trips only (`of`), matching the pre-split lock footprint.
+    const [trip] = await tx.select(tripCompositeSelect())
+      .from(s.trips)
+      .leftJoin(s.tripFinancialState, eq(s.tripFinancialState.tripId, s.trips.id))
+      .leftJoin(s.tripCarrierInfo, eq(s.tripCarrierInfo.tripId, s.trips.id))
+      .where(eq(s.trips.id, tripId))
+      .limit(1)
+      .for('update', { of: [s.trips] });
     if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
     if (expectedVersion !== undefined && trip.version !== expectedVersion) {
       throw new ApiError(409, 'Dữ liệu đã bị thay đổi bởi người khác. Vui lòng tải lại trang.');
@@ -85,7 +96,15 @@ export async function reassignTrip(
 ) {
   const execute = async (tx: Tx) => {
     await assertTripShipmentAccountingUnlocked(tx, tripId);
-    const [trip] = await tx.select().from(s.trips).where(eq(s.trips.id, tripId)).limit(1).for('update');
+    // Trips-split: composed row (ops + financial + carrier sidecars); the row
+    // lock stays on trips only (`of`), matching the pre-split lock footprint.
+    const [trip] = await tx.select(tripCompositeSelect())
+      .from(s.trips)
+      .leftJoin(s.tripFinancialState, eq(s.tripFinancialState.tripId, s.trips.id))
+      .leftJoin(s.tripCarrierInfo, eq(s.tripCarrierInfo.tripId, s.trips.id))
+      .where(eq(s.trips.id, tripId))
+      .limit(1)
+      .for('update', { of: [s.trips] });
     if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
     if (data.expectedVersion !== undefined && trip.version !== data.expectedVersion) {
       throw new ApiError(409, 'Dữ liệu đã bị thay đổi bởi người khác. Vui lòng tải lại trang.');
@@ -112,7 +131,7 @@ export async function reassignTrip(
       trailerType = null;
     }
 
-    const [updated] = await tx.update(s.trips).set({
+    const { ops: reassignOps, carrier: reassignCarrier } = splitTripPatch({
       carrierType,
       truckId: carrierType === 'OWN' ? data.truckId! : null,
       driverId: carrierType === 'OWN' ? data.driverId! : null,
@@ -125,7 +144,18 @@ export async function reassignTrip(
       externalDriverPhone: carrierType === 'EXTERNAL' && data.externalDriverPhone ? data.externalDriverPhone : null,
       version: sql`${s.trips.version} + 1`,
       updatedAt: new Date(),
-    }).where(eq(s.trips.id, tripId)).returning();
+    });
+    // Trips-split: guarded ops update + carrier sidecar upsert; the composed
+    // re-read keeps the route's JSON response carrying the fresh carrier block.
+    const [updatedOpsRow] = await tx.update(s.trips)
+      .set(reassignOps as typeof s.trips.$inferInsert)
+      .where(eq(s.trips.id, tripId)).returning({ id: s.trips.id });
+    if (!updatedOpsRow) {
+      throw new ApiError(409, 'Dữ liệu đã bị thay đổi bởi người khác. Vui lòng tải lại trang.');
+    }
+    await upsertTripCarrierInfo(tx, tripId, reassignCarrier);
+    const updated = await getTripCompositeInTx(tx, tripId);
+    if (!updated) throw new Error(`trip ${tripId} composed row missing after reassign`);
 
     return updated;
   };
@@ -167,15 +197,17 @@ export async function deleteTrip(
  * Route leaves must not touch the db client directly (arch-layering).
  */
 export async function loadReassignmentGuardContext(tripId: number) {
+  // Trips-split: externalCarrierVehicleId lives in trip_carrier_info — read
+  // through the composed view.
   const [trip] = await db.select({
-    id: s.trips.id,
-    version: s.trips.version,
-    shipmentId: s.trips.shipmentId,
-    fulfillmentId: s.trips.fulfillmentId,
-    plannedStartAt: s.trips.plannedStartAt,
-    plannedEndAt: s.trips.plannedEndAt,
-    externalCarrierVehicleId: s.trips.externalCarrierVehicleId,
-  }).from(s.trips).where(and(eq(s.trips.id, tripId), isNull(s.trips.deletedAt))).limit(1);
+    id: s.tripsComposite.id,
+    version: s.tripsComposite.version,
+    shipmentId: s.tripsComposite.shipmentId,
+    fulfillmentId: s.tripsComposite.fulfillmentId,
+    plannedStartAt: s.tripsComposite.plannedStartAt,
+    plannedEndAt: s.tripsComposite.plannedEndAt,
+    externalCarrierVehicleId: s.tripsComposite.externalCarrierVehicleId,
+  }).from(s.tripsComposite).where(and(eq(s.tripsComposite.id, tripId), isNull(s.tripsComposite.deletedAt))).limit(1);
   return trip ?? null;
 }
 

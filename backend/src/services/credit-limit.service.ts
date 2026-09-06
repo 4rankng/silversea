@@ -306,12 +306,12 @@ async function getApprovedUncollectedAmount(
   options: { excludeCreditOverrideRequestId?: number | null } = {},
 ): Promise<number> {
   const [activeTrips] = await executor.select({
-    total: sql<string>`coalesce(sum(${s.trips.revenue}), 0)`,
-  }).from(s.trips)
+    total: sql<string>`coalesce(sum(${s.tripsComposite.revenue}), 0)`,
+  }).from(s.tripsComposite)
     .where(and(
-      eq(s.trips.customerId, customerId),
-      isNull(s.trips.deletedAt),
-      inArray(s.trips.status, [TripStatus.CREATED, TripStatus.IN_TRANSIT]),
+      eq(s.tripsComposite.customerId, customerId),
+      isNull(s.tripsComposite.deletedAt),
+      inArray(s.tripsComposite.status, [TripStatus.CREATED, TripStatus.IN_TRANSIT]),
     ));
   const [reservedShipmentApprovals] = await executor.select({
     total: sql<string>`coalesce(sum(${s.creditOverrideRequests.proposedAmount}), 0)`,

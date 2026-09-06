@@ -10,6 +10,7 @@ import { Role } from '@tingting/shared';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
+import { applyTripPatch, insertTripComposite } from '../services/trip-composite.service';
 import { config } from '../config';
 import { initEnforcer } from '../casbin/enforcer';
 import { authMiddleware } from '../middleware/auth';
@@ -73,7 +74,7 @@ async function createDirtyTrip() {
   createdRouteIds.push(route.id);
   createdCargoTypeIds.push(cargoType.id);
 
-  const [trip] = await db.insert(s.trips).values({
+  const trip = await insertTripComposite(db, {
     tripCode: `AP-ROUTE-${fixtureSuffix}`.slice(0, 50),
     customerId: customer.id,
     routeId: route.id,
@@ -89,7 +90,7 @@ async function createDirtyTrip() {
     apCostHash: null,
     apSnapshotDirty: true,
     apSnapshotChangedAt: new Date(),
-  }).returning();
+  });
   createdTripIds.push(trip.id);
 
   const [expense] = await db.insert(s.tripExpenses).values({
@@ -175,6 +176,8 @@ after(async () => {
     await db.delete(s.tripFinancialPostings).where(inArray(s.tripFinancialPostings.tripId, createdTripIds));
     await db.delete(s.profitabilitySnapshots).where(inArray(s.profitabilitySnapshots.tripId, createdTripIds));
     await db.delete(s.tripPhotos).where(inArray(s.tripPhotos.tripId, createdTripIds));
+    await db.delete(s.tripFinancialState).where(inArray(s.tripFinancialState.tripId, createdTripIds));
+    await db.delete(s.tripCarrierInfo).where(inArray(s.tripCarrierInfo.tripId, createdTripIds));
     await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
   }
   if (createdUserIds.length > 0) {
@@ -234,10 +237,10 @@ describe('financial snapshot routes', () => {
     assert.equal(recaptureRes.status, 200);
     assert.equal((await recaptureRes.json() as { replayed: boolean }).replayed, false);
     const [captured] = await db.select({
-      arCostHash: s.trips.arCostHash,
-      arSnapshotDirty: s.trips.arSnapshotDirty,
-      arSnapshotChangedAt: s.trips.arSnapshotChangedAt,
-    }).from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
+      arCostHash: s.tripsComposite.arCostHash,
+      arSnapshotDirty: s.tripsComposite.arSnapshotDirty,
+      arSnapshotChangedAt: s.tripsComposite.arSnapshotChangedAt,
+    }).from(s.tripsComposite).where(eq(s.trips.id, trip.id)).limit(1);
     assert.ok(captured?.arCostHash);
     assert.equal(captured?.arSnapshotDirty, false);
 
@@ -251,8 +254,8 @@ describe('financial snapshot routes', () => {
     assert.equal(replayRes.status, 200);
     assert.equal((await replayRes.json() as { replayed: boolean }).replayed, true);
     const [replayed] = await db.select({
-      arSnapshotChangedAt: s.trips.arSnapshotChangedAt,
-    }).from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
+      arSnapshotChangedAt: s.tripsComposite.arSnapshotChangedAt,
+    }).from(s.tripsComposite).where(eq(s.trips.id, trip.id)).limit(1);
     assert.equal(replayed?.arSnapshotChangedAt?.toISOString(), captured?.arSnapshotChangedAt?.toISOString());
 
     const auditRow = await waitForAudit(path);
@@ -268,7 +271,7 @@ describe('financial snapshot routes', () => {
     const lockAcquired = new Promise<void>((resolve) => { signalLocked = resolve; });
     const mutation = db.transaction(async (tx) => {
       await lockTripFinancialAuthority(tx, [trip.id]);
-      await tx.update(s.trips).set({ totalCost: '765432' }).where(eq(s.trips.id, trip.id));
+      await applyTripPatch(tx, trip.id, { totalCost: '765432' });
       await ArSnapshotService.markDirty(trip.id, tx);
       signalLocked();
       await mutationGate;
@@ -291,17 +294,17 @@ describe('financial snapshot routes', () => {
     const recaptureRes = await recapture;
     assert.equal(recaptureRes.status, 200);
     const [captured] = await db.select({
-      arCostHash: s.trips.arCostHash,
-      arSnapshotDirty: s.trips.arSnapshotDirty,
-    }).from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
+      arCostHash: s.tripsComposite.arCostHash,
+      arSnapshotDirty: s.tripsComposite.arSnapshotDirty,
+    }).from(s.tripsComposite).where(eq(s.trips.id, trip.id)).limit(1);
     assert.ok(captured?.arCostHash);
     assert.equal(captured?.arSnapshotDirty, false);
 
     await ArSnapshotService.markDirty(trip.id, db);
     const [verified] = await db.select({
-      arCostHash: s.trips.arCostHash,
-      arSnapshotDirty: s.trips.arSnapshotDirty,
-    }).from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
+      arCostHash: s.tripsComposite.arCostHash,
+      arSnapshotDirty: s.tripsComposite.arSnapshotDirty,
+    }).from(s.tripsComposite).where(eq(s.trips.id, trip.id)).limit(1);
     assert.equal(verified?.arCostHash, captured?.arCostHash);
     assert.equal(verified?.arSnapshotDirty, false, 'captured hash must match the serialized final cost state');
   });
@@ -329,10 +332,10 @@ describe('financial snapshot routes', () => {
     assert.equal(recaptureData.replayed, false);
 
     const [updated] = await db.select({
-      apCostHash: s.trips.apCostHash,
-      apSnapshotDirty: s.trips.apSnapshotDirty,
-      apSnapshotChangedAt: s.trips.apSnapshotChangedAt,
-    }).from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
+      apCostHash: s.tripsComposite.apCostHash,
+      apSnapshotDirty: s.tripsComposite.apSnapshotDirty,
+      apSnapshotChangedAt: s.tripsComposite.apSnapshotChangedAt,
+    }).from(s.tripsComposite).where(eq(s.trips.id, trip.id)).limit(1);
     assert.ok(updated?.apCostHash, 'recapture should persist an AP hash');
     assert.equal(updated?.apSnapshotDirty, false);
 
@@ -347,8 +350,8 @@ describe('financial snapshot routes', () => {
     const replayData = await replayRes.json() as { replayed: boolean };
     assert.equal(replayData.replayed, true);
     const [replayedTrip] = await db.select({
-      apSnapshotChangedAt: s.trips.apSnapshotChangedAt,
-    }).from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
+      apSnapshotChangedAt: s.tripsComposite.apSnapshotChangedAt,
+    }).from(s.tripsComposite).where(eq(s.trips.id, trip.id)).limit(1);
     assert.equal(
       replayedTrip?.apSnapshotChangedAt?.toISOString(),
       updated?.apSnapshotChangedAt?.toISOString(),
@@ -386,7 +389,7 @@ describe('financial snapshot routes', () => {
 
   test('lists and audited-recaptures dirty fuel-surcharge snapshots', async () => {
     const { trip } = await createDirtyTrip();
-    await db.update(s.trips).set({
+    await applyTripPatch(db, trip.id, {
       fuelLiters: '100',
       fuelSurchargeSnapshotDirty: true,
       fuelSurchargeSnapshot: {
@@ -397,7 +400,7 @@ describe('financial snapshot routes', () => {
         customerId: trip.customerId,
         computedAt: new Date(0).toISOString(),
       },
-    }).where(eq(s.trips.id, trip.id));
+    });
 
     const listRes = await fetch(`${baseUrl}/api/finance/snapshots/fuel-surcharge/dirty`, {
       headers: { Authorization: `Bearer ${accountantToken}` },
@@ -416,9 +419,9 @@ describe('financial snapshot routes', () => {
     });
     assert.equal(recaptureRes.status, 200);
     const [updated] = await db.select({
-      fuelSurchargeSnapshot: s.trips.fuelSurchargeSnapshot,
-      fuelSurchargeSnapshotDirty: s.trips.fuelSurchargeSnapshotDirty,
-    }).from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
+      fuelSurchargeSnapshot: s.tripsComposite.fuelSurchargeSnapshot,
+      fuelSurchargeSnapshotDirty: s.tripsComposite.fuelSurchargeSnapshotDirty,
+    }).from(s.tripsComposite).where(eq(s.trips.id, trip.id)).limit(1);
     assert.equal(updated?.fuelSurchargeSnapshotDirty, false);
     assert.notEqual(updated?.fuelSurchargeSnapshot?.computedAt, new Date(0).toISOString());
 
@@ -430,7 +433,7 @@ describe('financial snapshot routes', () => {
   test('fuel-surcharge recapture rejects a changed amount and preserves the dirty snapshot', async () => {
     const { trip } = await createDirtyTrip();
     const historicalComputedAt = new Date(0).toISOString();
-    await db.update(s.trips).set({
+    await applyTripPatch(db, trip.id, {
       fuelLiters: '100',
       fuelSurchargeAmount: '999999',
       fuelSurchargeSnapshotDirty: true,
@@ -442,7 +445,7 @@ describe('financial snapshot routes', () => {
         customerId: trip.customerId,
         computedAt: historicalComputedAt,
       },
-    }).where(eq(s.trips.id, trip.id));
+    });
 
     const recaptureRes = await fetch(
       `${baseUrl}/api/finance/snapshots/fuel-surcharge/${trip.id}/recapture`,
@@ -456,10 +459,10 @@ describe('financial snapshot routes', () => {
     );
     assert.equal(recaptureRes.status, 409);
     const [unchanged] = await db.select({
-      fuelSurchargeAmount: s.trips.fuelSurchargeAmount,
-      fuelSurchargeSnapshot: s.trips.fuelSurchargeSnapshot,
-      fuelSurchargeSnapshotDirty: s.trips.fuelSurchargeSnapshotDirty,
-    }).from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
+      fuelSurchargeAmount: s.tripsComposite.fuelSurchargeAmount,
+      fuelSurchargeSnapshot: s.tripsComposite.fuelSurchargeSnapshot,
+      fuelSurchargeSnapshotDirty: s.tripsComposite.fuelSurchargeSnapshotDirty,
+    }).from(s.tripsComposite).where(eq(s.trips.id, trip.id)).limit(1);
     assert.equal(unchanged?.fuelSurchargeAmount, '999999');
     assert.equal(unchanged?.fuelSurchargeSnapshot?.computedAt, historicalComputedAt);
     assert.equal(unchanged?.fuelSurchargeSnapshotDirty, true);

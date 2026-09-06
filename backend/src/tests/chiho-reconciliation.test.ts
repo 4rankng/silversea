@@ -4,6 +4,7 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { TripStatus, Role, TxnType, FuelMode, LoadingType } from '@tingting/shared';
 import { db, client } from '../db';
 import * as s from '../db/schema';
+import { insertTripComposite } from '../services/trip-composite.service';
 import { generateDraft } from '../services/billing-document.service';
 import { getTopOverdueCustomer, getCustomerAgingList } from '../services/aging.service';
 import {
@@ -95,6 +96,8 @@ after(async () => {
       await db.delete(s.auditLogs).where(inArray(s.auditLogs.entityId, createdTripIds));
       await db.delete(s.profitabilitySnapshots).where(inArray(s.profitabilitySnapshots.tripId, createdTripIds));
       await db.delete(s.tripFinancialPostings).where(inArray(s.tripFinancialPostings.tripId, createdTripIds));
+      await db.delete(s.tripFinancialState).where(inArray(s.tripFinancialState.tripId, createdTripIds));
+      await db.delete(s.tripCarrierInfo).where(inArray(s.tripCarrierInfo.tripId, createdTripIds));
       await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
     }
     if (createdFulfillmentIds.length > 0) {
@@ -278,7 +281,7 @@ async function createCompletedTripWithFees(spec: TripSpec) {
     createdForwarderIds.push(forwarderId);
   }
 
-  const [trip] = await db.insert(s.trips).values({
+  const trip = await insertTripComposite(db, {
     tripCode: `RC-${suffix}`.slice(0, 50),
     customerId: customer.id,
     routeId: route.id,
@@ -292,7 +295,7 @@ async function createCompletedTripWithFees(spec: TripSpec) {
     // O2C POD-recovery gate: must be recorded before the governed completion.
     podRecoveredAt: new Date(`${spec.departureDate}T11:00:00+07:00`),
     podRecoveredBy: 1,
-  }).returning();
+  });
   createdTripIds.push(trip.id);
   // O2C: the photo-evidence gate fires on IN_TRANSIT → COMPLETED. Seed one
   // photo so the governed close passes the baseline gate.
@@ -597,7 +600,7 @@ describe('US-007 COMPLETED-editability model (O2C: costs stay editable after com
       .values({ name: `Recon edit cargo ${suffix}` }).returning();
     createdCargoTypeIds.push(cargoType.id);
 
-    const [completedTrip] = await db.insert(s.trips).values({
+    const completedTrip = await insertTripComposite(db, {
       tripCode: `RC-EDIT-${suffix}-C`.slice(0, 50),
       customerId: customer.id,
       routeId: route.id,
@@ -606,9 +609,9 @@ describe('US-007 COMPLETED-editability model (O2C: costs stay editable after com
       departureDate: '2026-06-18',
       revenue: '2000000',
       carrierType: 'OWN',
-    }).returning();
+    });
     createdTripIds.push(completedTrip.id);
-    const [canceledTrip] = await db.insert(s.trips).values({
+    const canceledTrip = await insertTripComposite(db, {
       tripCode: `RC-EDIT-${suffix}-X`.slice(0, 50),
       customerId: customer.id,
       routeId: route.id,
@@ -617,7 +620,7 @@ describe('US-007 COMPLETED-editability model (O2C: costs stay editable after com
       departureDate: '2026-06-18',
       revenue: '2000000',
       carrierType: 'OWN',
-    }).returning();
+    });
     createdTripIds.push(canceledTrip.id);
 
     // CANCELED trips still reject fee creation with the status-specific message.
@@ -679,7 +682,7 @@ describe('US-007 COMPLETED-editability model (O2C: costs stay editable after com
       .values({ name: `Recon upd cargo ${suffix}` }).returning();
     createdCargoTypeIds.push(cargoType.id);
 
-    const [completedTrip] = await db.insert(s.trips).values({
+    const completedTrip = await insertTripComposite(db, {
       tripCode: `RC-UPD-${suffix}-C`.slice(0, 50),
       customerId: customer.id,
       routeId: route.id,
@@ -688,9 +691,9 @@ describe('US-007 COMPLETED-editability model (O2C: costs stay editable after com
       departureDate: '2026-06-18',
       revenue: '2000000',
       carrierType: 'OWN',
-    }).returning();
+    });
     createdTripIds.push(completedTrip.id);
-    const [canceledTrip] = await db.insert(s.trips).values({
+    const canceledTrip = await insertTripComposite(db, {
       tripCode: `RC-UPD-${suffix}-X`.slice(0, 50),
       customerId: customer.id,
       routeId: route.id,
@@ -699,7 +702,7 @@ describe('US-007 COMPLETED-editability model (O2C: costs stay editable after com
       departureDate: '2026-06-18',
       revenue: '2000000',
       carrierType: 'OWN',
-    }).returning();
+    });
     createdTripIds.push(canceledTrip.id);
 
     // A forwarder principal so OPS_ADVANCE fees don't require the
@@ -795,7 +798,7 @@ describe('US-007 aging: SERVICE_FEE AR surfaces in customer aging', () => {
       .values({ name: `Recon aging fee cargo ${suffix}` }).returning();
     createdCargoTypeIds.push(cargoType.id);
 
-    const [trip] = await db.insert(s.trips).values({
+    const trip = await insertTripComposite(db, {
       tripCode: `RC-AGING-${suffix}`.slice(0, 50),
       customerId: customer.id,
       routeId: route.id,
@@ -804,7 +807,7 @@ describe('US-007 aging: SERVICE_FEE AR surfaces in customer aging', () => {
       departureDate: '2026-06-22',
       revenue: '0',
       carrierType: 'OWN',
-    }).returning();
+    });
     createdTripIds.push(trip.id);
 
     const [fee] = await db.insert(s.tripExpenses).values({
@@ -931,7 +934,7 @@ async function createBillableTrip(ctx: BillableSeedCtx, spec: BillableTripSpec) 
   }).returning();
   createdFulfillmentIds.push(fulfillment.id);
 
-  const [trip] = await db.insert(s.trips).values({
+  const trip = await insertTripComposite(db, {
     tripCode: `RC-${ctx.suffix}-${Math.random().toString(36).slice(2, 8)}`.slice(0, 50),
     customerId: ctx.customerId,
     routeId: ctx.routeId,
@@ -949,7 +952,7 @@ async function createBillableTrip(ctx: BillableSeedCtx, spec: BillableTripSpec) 
     ...(spec.externalFreightCost != null ? { externalFreightCost: String(spec.externalFreightCost) } : {}),
     podRecoveredAt: new Date(`${spec.departureDate}T11:00:00+07:00`),
     podRecoveredBy: 1,
-  }).returning();
+  });
   createdTripIds.push(trip.id);
   // O2C: seed one photo so the governed close passes the photo-evidence gate.
   await db.insert(s.tripPhotos).values({
@@ -1138,7 +1141,7 @@ describe('US-005b edited-COMPLETED reconciliation: eligible debt-note totals sta
 
     // Post-edit: read the trip's ACTUAL stored revenue (resolveRevenue may transform
     // the override) and assert the ledger balance == storedRevenue + fees.
-    const [edited] = await db.select().from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
+    const [edited] = await db.select().from(s.tripsComposite).where(eq(s.trips.id, trip.id)).limit(1);
     const expected = Number(edited.revenue) + sellFees;
     const bal1 = await LedgerService.getBalance('CUSTOMER', customer.id);
     assert.equal(bal1, expected, 'ledger balance reflects edited revenue + phí chi hộ');

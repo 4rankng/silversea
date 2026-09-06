@@ -7,6 +7,7 @@ import { and, eq, inArray, sql } from 'drizzle-orm';
 import { Role, TripStatus, TxnType } from '@tingting/shared';
 import { client, db } from '../db';
 import * as s from '../db/schema';
+import { insertTripComposite } from '../services/trip-composite.service';
 import { globalErrorHandler } from '../middleware/errorHandler';
 import salaryRoutes from '../routes/salary';
 import { confirmSalary } from '../services/attendance.service';
@@ -94,7 +95,7 @@ async function mkTrip(input: {
   tag: string;
 }) {
   const catalogs = await mkCatalogs();
-  const [trip] = await db.insert(s.trips).values({
+  const trip = await insertTripComposite(db, {
     tripCode: `Q15R-${input.tag}-${suffix}`.slice(0, 50),
     customerId: catalogs.customer.id,
     routeId: catalogs.route.id,
@@ -107,7 +108,7 @@ async function mkTrip(input: {
     driverSalary: String(input.salary),
     revenue: '0',
     totalRoadAllowance: '0',
-  }).returning();
+  });
   createdTripIds.push(trip.id);
   return trip;
 }

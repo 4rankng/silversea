@@ -5,6 +5,7 @@ import { Role, TripStatus } from '@tingting/shared';
 
 import { client, db } from '../db';
 import * as s from '../db/schema';
+import { insertTripComposite } from '../services/trip-composite.service';
 import { upsertWorkDay, confirmSalary } from '../services/attendance.service';
 import {
   DURABLE_EFFECT_KIND,
@@ -65,7 +66,7 @@ async function mkTrip(tag: string) {
   }).returning();
   createdCargoTypeIds.push(cargoType.id);
 
-  const [trip] = await db.insert(s.trips).values({
+  const trip = await insertTripComposite(db, {
     tripCode: `AOU-${tag}-${suffix}-${createdTripIds.length}`.slice(0, 50),
     customerId: customer.id,
     routeId: route.id,
@@ -73,7 +74,7 @@ async function mkTrip(tag: string) {
     status: TripStatus.CREATED,
     departureDate: '2026-08-03',
     carrierType: 'OWN',
-  }).returning();
+  });
   createdTripIds.push(trip.id);
   return trip;
 }
@@ -114,6 +115,8 @@ after(async () => {
   }
   if (createdTripIds.length > 0) {
     await db.delete(s.driverWorkDays).where(inArray(s.driverWorkDays.tripId, createdTripIds));
+    await db.delete(s.tripFinancialState).where(inArray(s.tripFinancialState.tripId, createdTripIds));
+    await db.delete(s.tripCarrierInfo).where(inArray(s.tripCarrierInfo.tripId, createdTripIds));
     await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
   }
   if (createdDriverIds.length > 0) {

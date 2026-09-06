@@ -15,6 +15,7 @@ import { inArray } from 'drizzle-orm';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
+import { insertTripComposite } from '../services/trip-composite.service';
 import { TripStatus, FuelMode, LoadingType, Role } from '@tingting/shared';
 import { updateTripFigures } from '../services/trip-mutations.service';
 import { ApiError } from '../errors';
@@ -46,7 +47,7 @@ async function mkCatalogs() {
 
 /** Insert a trip directly (bypassing createTrip) with a specific pricingSource. */
 async function mkTrip(opts: { customerId: number; routeId: number; cargoTypeId: number; revenue?: string; pricingSource?: 'TABLE' | 'TIER' | 'MANUAL'; status?: TripStatus }) {
-  const [trip] = await db.insert(s.trips).values({
+  const trip = await insertTripComposite(db, {
     tripCode: `M21-${suffix}-${createdTripIds.length}`.slice(0, 50),
     customerId: opts.customerId,
     routeId: opts.routeId,
@@ -61,7 +62,7 @@ async function mkTrip(opts: { customerId: number; routeId: number; cargoTypeId: 
     revenueOriginal: opts.revenue ?? '5000000',
     pricingSource: opts.pricingSource ?? 'TABLE',
     carrierType: 'OWN',
-  }).returning();
+  });
   createdTripIds.push(trip.id);
   return trip;
 }
@@ -83,6 +84,8 @@ after(async () => {
     if (createdTripIds.length > 0) {
       await db.delete(s.tripContainers).where(inArray(s.tripContainers.tripId, createdTripIds));
       await db.delete(s.tripLegs).where(inArray(s.tripLegs.tripId, createdTripIds));
+      await db.delete(s.tripFinancialState).where(inArray(s.tripFinancialState.tripId, createdTripIds));
+      await db.delete(s.tripCarrierInfo).where(inArray(s.tripCarrierInfo.tripId, createdTripIds));
       await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
     }
     if (createdCargoTypeIds.length > 0) {

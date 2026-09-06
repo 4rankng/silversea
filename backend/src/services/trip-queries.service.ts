@@ -27,8 +27,8 @@ const TRIP_RELATION_FIELDS = {
   routeIsMountain: s.routes.isMountain,
   routeFixedFuelAllowance: s.routes.fixedFuelAllowance,
   trailerLicensePlate: s.trailers.licensePlate,
-  trailerId: s.trips.trailerId,
-  trailerType: s.trips.trailerType,
+  trailerId: s.tripsComposite.trailerId,
+  trailerType: s.tripsComposite.trailerType,
   fuelSupplierName: s.suppliers.name,
 };
 
@@ -40,12 +40,12 @@ type WithLeftJoin = { leftJoin: (table: typeof s.customers | typeof s.drivers | 
  * Generic over T to preserve the builder's row type for downstream .where/.orderBy chains.
  */
 const TRIP_RELATION_JOINS = <T extends WithLeftJoin>(query: T): T => (query as WithLeftJoin)
-  .leftJoin(s.customers, eq(s.trips.customerId, s.customers.id))
-  .leftJoin(s.drivers, eq(s.trips.driverId, s.drivers.id))
-  .leftJoin(s.trucks, eq(s.trips.truckId, s.trucks.id))
-  .leftJoin(s.routes, eq(s.trips.routeId, s.routes.id))
-  .leftJoin(s.trailers, eq(s.trips.trailerId, s.trailers.id))
-  .leftJoin(s.suppliers, eq(s.trips.fuelSupplierId, s.suppliers.id)) as unknown as T;
+  .leftJoin(s.customers, eq(s.tripsComposite.customerId, s.customers.id))
+  .leftJoin(s.drivers, eq(s.tripsComposite.driverId, s.drivers.id))
+  .leftJoin(s.trucks, eq(s.tripsComposite.truckId, s.trucks.id))
+  .leftJoin(s.routes, eq(s.tripsComposite.routeId, s.routes.id))
+  .leftJoin(s.trailers, eq(s.tripsComposite.trailerId, s.trailers.id))
+  .leftJoin(s.suppliers, eq(s.tripsComposite.fuelSupplierId, s.suppliers.id)) as unknown as T;
 
 /** Shape flat joined rows into nested relation objects. */
 function shapeTripRelations(item: Record<string, unknown>, extras?: {
@@ -101,29 +101,29 @@ export type TripListSortKey = (typeof TRIP_LIST_SORT_KEYS)[number];
 // NULLs sort last in both directions via the `nulls last` wrapper at the call
 // site; trips.id stays the stable tiebreaker.
 const TRIP_LIST_SORT_SQL: Record<TripListSortKey, SQL> = {
-  tripCode: sql`${s.trips.tripCode}`,
-  truck: sql`coalesce(${s.trucks.licensePlate}, ${s.trips.externalPlateNumber})`,
+  tripCode: sql`${s.tripsComposite.tripCode}`,
+  truck: sql`coalesce(${s.trucks.licensePlate}, ${s.tripsComposite.externalPlateNumber})`,
   route: sql`${ROUTE_OPERATIONAL_NAME}`,
   container: sql`(
     select tc.container_number from ${s.tripContainers} tc
-    where tc.trip_id = ${s.trips.id}
+    where tc.trip_id = ${s.tripsComposite.id}
     order by tc.id
     limit 1
   )`,
-  consumption: sql`${s.trips.fuelLiters}`,
-  road: sql`coalesce(${s.trips.totalRoadAllowance}, 0) + coalesce(${s.trips.tollCost}, 0)`,
-  revenue: sql`${s.trips.revenue}`,
-  driverSalary: sql`${s.trips.driverSalary}`,
-  totalCost: sql`${s.trips.totalCost}`,
+  consumption: sql`${s.tripsComposite.fuelLiters}`,
+  road: sql`coalesce(${s.tripsComposite.totalRoadAllowance}, 0) + coalesce(${s.tripsComposite.tollCost}, 0)`,
+  revenue: sql`${s.tripsComposite.revenue}`,
+  driverSalary: sql`${s.tripsComposite.driverSalary}`,
+  totalCost: sql`${s.tripsComposite.totalCost}`,
   grossProfit: sql`case
-    when ${s.trips.carrierType} = 'EXTERNAL'
-      and coalesce(${s.trips.revenue}, 0) <> 0
-      and coalesce(${s.trips.externalFreightCost}, 0) <> 0
-    then round(${s.trips.revenue} / (1 + coalesce(${s.trips.vatRate}, 0.08)))
-       - round(${s.trips.externalFreightCost} / (1 + coalesce(${s.trips.vatRate}, 0.08)))
-    else ${s.trips.grossProfit}
+    when ${s.tripsComposite.carrierType} = 'EXTERNAL'
+      and coalesce(${s.tripsComposite.revenue}, 0) <> 0
+      and coalesce(${s.tripsComposite.externalFreightCost}, 0) <> 0
+    then round(${s.tripsComposite.revenue} / (1 + coalesce(${s.tripsComposite.vatRate}, 0.08)))
+       - round(${s.tripsComposite.externalFreightCost} / (1 + coalesce(${s.tripsComposite.vatRate}, 0.08)))
+    else ${s.tripsComposite.grossProfit}
   end`,
-  status: sql`${s.trips.status}`,
+  status: sql`${s.tripsComposite.status}`,
 };
 
 function normalizedContainerSql(column: unknown): SQL {
@@ -149,7 +149,7 @@ function expenseContainerSearchConditions(rawTerm: string, normalizedTerm: strin
 function tripContainerExists(rawTerm: string, normalizedTerm: string): SQL {
   return sql`EXISTS (
     SELECT 1 FROM ${s.tripContainers}
-    WHERE ${s.tripContainers.tripId} = ${s.trips.id}
+    WHERE ${s.tripContainers.tripId} = ${s.tripsComposite.id}
       AND (${sql.join(containerNumberSearchConditions(rawTerm, normalizedTerm), sql` OR `)})
   )`;
 }
@@ -157,7 +157,7 @@ function tripContainerExists(rawTerm: string, normalizedTerm: string): SQL {
 function tripExpenseContainerExists(rawTerm: string, normalizedTerm: string): SQL {
   return sql`EXISTS (
     SELECT 1 FROM ${s.tripExpenses}
-    WHERE ${s.tripExpenses.tripId} = ${s.trips.id}
+    WHERE ${s.tripExpenses.tripId} = ${s.tripsComposite.id}
       AND (${sql.join(expenseContainerSearchConditions(rawTerm, normalizedTerm), sql` OR `)})
   )`;
 }
@@ -170,27 +170,27 @@ export async function getTrips(filters: TripListFilters) {
   // on trip_containers / trip_expenses) so the total-row-count query stays
   // cheap on the full table. The list query still uses the full OR — and
   // it's bounded by LIMIT 50 so the per-row EXISTS probes are fine.
-  const countConditions: SQL<unknown>[] = [isNull(s.trips.deletedAt)];
+  const countConditions: SQL<unknown>[] = [isNull(s.tripsComposite.deletedAt)];
   const conditions = [...countConditions];
   if (filters.status) {
-    const c = eq(s.trips.status, filters.status as TripStatus);
+    const c = eq(s.tripsComposite.status, filters.status as TripStatus);
     conditions.push(c); countConditions.push(c);
   }
   if (filters.truckId) {
     if (filters.truckId === -1) {
-      const c = eq(s.trips.carrierType, 'EXTERNAL');
+      const c = eq(s.tripsComposite.carrierType, 'EXTERNAL');
       conditions.push(c); countConditions.push(c);
     } else {
-      const c = eq(s.trips.truckId, filters.truckId);
+      const c = eq(s.tripsComposite.truckId, filters.truckId);
       conditions.push(c); countConditions.push(c);
     }
   }
   if (filters.driverId) {
-    const c = eq(s.trips.driverId, filters.driverId);
+    const c = eq(s.tripsComposite.driverId, filters.driverId);
     conditions.push(c); countConditions.push(c);
   }
   if (filters.customerId) {
-    const c = eq(s.trips.customerId, filters.customerId);
+    const c = eq(s.tripsComposite.customerId, filters.customerId);
     conditions.push(c); countConditions.push(c);
   }
   // Search intent is "find this specific trip regardless of when" — the date
@@ -200,11 +200,11 @@ export async function getTrips(filters: TripListFilters) {
   // for any client that doesn't.
   const applyDateRange = !filters.search;
   if (applyDateRange && filters.dateFrom) {
-    const c = gte(s.trips.departureDate, filters.dateFrom);
+    const c = gte(s.tripsComposite.departureDate, filters.dateFrom);
     conditions.push(c); countConditions.push(c);
   }
   if (applyDateRange && filters.dateTo) {
-    const c = lte(s.trips.departureDate, filters.dateTo);
+    const c = lte(s.tripsComposite.departureDate, filters.dateTo);
     conditions.push(c); countConditions.push(c);
   }
   if (filters.search) {
@@ -213,17 +213,17 @@ export async function getTrips(filters: TripListFilters) {
     // List: full predicates (5 ILIKE + 2 EXISTS for container cross-refs)
     conditions.push(
       or(
-        sql`unaccent(${s.trips.tripCode}) ILIKE unaccent(${term})`,
-        sql`${s.trips.id}::text ILIKE ${term}`,
+        sql`unaccent(${s.tripsComposite.tripCode}) ILIKE unaccent(${term})`,
+        sql`${s.tripsComposite.id}::text ILIKE ${term}`,
         sql`unaccent(${CUSTOMER_OPERATIONAL_NAME}) ILIKE unaccent(${term})`,
         sql`unaccent(${s.customers.name}) ILIKE unaccent(${term})`,
         sql`unaccent(${s.trucks.licensePlate}) ILIKE unaccent(${term})`,
         sql`unaccent(${ROUTE_OPERATIONAL_NAME}) ILIKE unaccent(${term})`,
         sql`unaccent(${s.routes.name}) ILIKE unaccent(${term})`,
-        sql`unaccent(${s.trips.customerReference}) ILIKE unaccent(${term})`,
-        sql`unaccent(${s.trips.externalPlateNumber}) ILIKE unaccent(${term})`,
-        sql`unaccent(${s.trips.externalDriverName}) ILIKE unaccent(${term})`,
-        sql`(${s.trips.carrierType} = 'EXTERNAL' AND 'xe ngoai' ILIKE unaccent(${term}))`,
+        sql`unaccent(${s.tripsComposite.customerReference}) ILIKE unaccent(${term})`,
+        sql`unaccent(${s.tripsComposite.externalPlateNumber}) ILIKE unaccent(${term})`,
+        sql`unaccent(${s.tripsComposite.externalDriverName}) ILIKE unaccent(${term})`,
+        sql`(${s.tripsComposite.carrierType} = 'EXTERNAL' AND 'xe ngoai' ILIKE unaccent(${term}))`,
         tripContainerExists(term, normalizedContainerTerm),
         tripExpenseContainerExists(term, normalizedContainerTerm),
       )!
@@ -232,17 +232,17 @@ export async function getTrips(filters: TripListFilters) {
     // usable total and pagination state instead of showing rows with total=0.
     countConditions.push(
       or(
-        sql`unaccent(${s.trips.tripCode}) ILIKE unaccent(${term})`,
-        sql`${s.trips.id}::text ILIKE ${term}`,
+        sql`unaccent(${s.tripsComposite.tripCode}) ILIKE unaccent(${term})`,
+        sql`${s.tripsComposite.id}::text ILIKE ${term}`,
         sql`unaccent(${CUSTOMER_OPERATIONAL_NAME}) ILIKE unaccent(${term})`,
         sql`unaccent(${s.customers.name}) ILIKE unaccent(${term})`,
         sql`unaccent(${s.trucks.licensePlate}) ILIKE unaccent(${term})`,
         sql`unaccent(${ROUTE_OPERATIONAL_NAME}) ILIKE unaccent(${term})`,
         sql`unaccent(${s.routes.name}) ILIKE unaccent(${term})`,
-        sql`unaccent(${s.trips.customerReference}) ILIKE unaccent(${term})`,
-        sql`unaccent(${s.trips.externalPlateNumber}) ILIKE unaccent(${term})`,
-        sql`unaccent(${s.trips.externalDriverName}) ILIKE unaccent(${term})`,
-        sql`(${s.trips.carrierType} = 'EXTERNAL' AND 'xe ngoai' ILIKE unaccent(${term}))`,
+        sql`unaccent(${s.tripsComposite.customerReference}) ILIKE unaccent(${term})`,
+        sql`unaccent(${s.tripsComposite.externalPlateNumber}) ILIKE unaccent(${term})`,
+        sql`unaccent(${s.tripsComposite.externalDriverName}) ILIKE unaccent(${term})`,
+        sql`(${s.tripsComposite.carrierType} = 'EXTERNAL' AND 'xe ngoai' ILIKE unaccent(${term}))`,
         tripContainerExists(term, normalizedContainerTerm),
         tripExpenseContainerExists(term, normalizedContainerTerm),
       )!
@@ -255,52 +255,52 @@ export async function getTrips(filters: TripListFilters) {
   const sortOrder: SQL[] = filters.sortBy
     ? [
         sql`${TRIP_LIST_SORT_SQL[filters.sortBy]} ${filters.sortDir === 'desc' ? sql`desc` : sql`asc`} nulls last`,
-        desc(s.trips.id),
+        desc(s.tripsComposite.id),
       ]
-    : [desc(s.trips.departureDate), desc(s.trips.id)];
+    : [desc(s.tripsComposite.departureDate), desc(s.tripsComposite.id)];
 
   const items = await TRIP_RELATION_JOINS(db.select({
-    id: s.trips.id, tripCode: s.trips.tripCode, version: s.trips.version,
-    customerId: s.trips.customerId, customerReference: s.trips.customerReference,
-    shipmentId: s.trips.shipmentId,
-    truckId: s.trips.truckId, driverId: s.trips.driverId, routeId: s.trips.routeId,
-    cargoTypeId: s.trips.cargoTypeId, containerCount: s.trips.containerCount,
-    status: s.trips.status, departureDate: s.trips.departureDate,
-    plannedStartAt: s.trips.plannedStartAt,
-    plannedEndAt: s.trips.plannedEndAt,
-    canonicalOrigin: s.trips.canonicalOrigin,
-    canonicalDestination: s.trips.canonicalDestination,
-    cargoWeightKg: s.trips.cargoWeightKg,
-    vehicleCapacityKg: s.trips.vehicleCapacityKg,
-    activeTripPairId: s.trips.activeTripPairId,
-    activeTripPairOrder: s.trips.activeTripPairOrder,
-    fuelMode: s.trips.fuelMode, fuelLiters: s.trips.fuelLiters,
-    fuelLitersOverride: s.trips.fuelLitersOverride,
-    fuelSupplementLiters: s.trips.fuelSupplementLiters,
-    fuelSupplementReason: s.trips.fuelSupplementReason,
-    fuelActualUnitPrice: s.trips.fuelActualUnitPrice,
-    fuelSupplierId: s.trips.fuelSupplierId,
-    totalFuelCost: s.trips.totalFuelCost, totalRoadAllowance: s.trips.totalRoadAllowance,
-    totalCost: s.trips.totalCost, revenue: s.trips.revenue, revenueEmptyReturn: s.trips.revenueEmptyReturn,
-    revenueCombine: s.trips.revenueCombine, grossProfit: s.trips.grossProfit,
-    hasReturnCargo: s.trips.hasReturnCargo, driverSalary: s.trips.driverSalary,
-    roadAllowanceOverride: s.trips.roadAllowanceOverride,
-    customerCommission: s.trips.customerCommission,
-    tripWageDays: s.trips.tripWageDays,
-    notes: s.trips.notes,
-    twoPointDeliveryBonus: s.trips.twoPointDeliveryBonus,
-    vehicleShiftAllowance: s.trips.vehicleShiftAllowance,
-    tollCost: s.trips.tollCost,
-    tollsDiscount: s.trips.tollsDiscount, tollsAddition: s.trips.tollsAddition, tollsStations: s.trips.tollsStations,
-    carrierType: s.trips.carrierType,
+    id: s.tripsComposite.id, tripCode: s.tripsComposite.tripCode, version: s.tripsComposite.version,
+    customerId: s.tripsComposite.customerId, customerReference: s.tripsComposite.customerReference,
+    shipmentId: s.tripsComposite.shipmentId,
+    truckId: s.tripsComposite.truckId, driverId: s.tripsComposite.driverId, routeId: s.tripsComposite.routeId,
+    cargoTypeId: s.tripsComposite.cargoTypeId, containerCount: s.tripsComposite.containerCount,
+    status: s.tripsComposite.status, departureDate: s.tripsComposite.departureDate,
+    plannedStartAt: s.tripsComposite.plannedStartAt,
+    plannedEndAt: s.tripsComposite.plannedEndAt,
+    canonicalOrigin: s.tripsComposite.canonicalOrigin,
+    canonicalDestination: s.tripsComposite.canonicalDestination,
+    cargoWeightKg: s.tripsComposite.cargoWeightKg,
+    vehicleCapacityKg: s.tripsComposite.vehicleCapacityKg,
+    activeTripPairId: s.tripsComposite.activeTripPairId,
+    activeTripPairOrder: s.tripsComposite.activeTripPairOrder,
+    fuelMode: s.tripsComposite.fuelMode, fuelLiters: s.tripsComposite.fuelLiters,
+    fuelLitersOverride: s.tripsComposite.fuelLitersOverride,
+    fuelSupplementLiters: s.tripsComposite.fuelSupplementLiters,
+    fuelSupplementReason: s.tripsComposite.fuelSupplementReason,
+    fuelActualUnitPrice: s.tripsComposite.fuelActualUnitPrice,
+    fuelSupplierId: s.tripsComposite.fuelSupplierId,
+    totalFuelCost: s.tripsComposite.totalFuelCost, totalRoadAllowance: s.tripsComposite.totalRoadAllowance,
+    totalCost: s.tripsComposite.totalCost, revenue: s.tripsComposite.revenue, revenueEmptyReturn: s.tripsComposite.revenueEmptyReturn,
+    revenueCombine: s.tripsComposite.revenueCombine, grossProfit: s.tripsComposite.grossProfit,
+    hasReturnCargo: s.tripsComposite.hasReturnCargo, driverSalary: s.tripsComposite.driverSalary,
+    roadAllowanceOverride: s.tripsComposite.roadAllowanceOverride,
+    customerCommission: s.tripsComposite.customerCommission,
+    tripWageDays: s.tripsComposite.tripWageDays,
+    notes: s.tripsComposite.notes,
+    twoPointDeliveryBonus: s.tripsComposite.twoPointDeliveryBonus,
+    vehicleShiftAllowance: s.tripsComposite.vehicleShiftAllowance,
+    tollCost: s.tripsComposite.tollCost,
+    tollsDiscount: s.tripsComposite.tollsDiscount, tollsAddition: s.tripsComposite.tollsAddition, tollsStations: s.tripsComposite.tollsStations,
+    carrierType: s.tripsComposite.carrierType,
     // O2C: DB column renamed to external_entity_id (soft pointer), but the API
     // response keeps the externalCarrierId contract name for frontend compat.
-    externalCarrierId: s.trips.externalEntityId,
-    externalFreightCost: s.trips.externalFreightCost,
-    externalPlateNumber: s.trips.externalPlateNumber, externalDriverName: s.trips.externalDriverName,
-    createdAt: s.trips.createdAt, updatedAt: s.trips.updatedAt,
+    externalCarrierId: s.tripsComposite.externalEntityId,
+    externalFreightCost: s.tripsComposite.externalFreightCost,
+    externalPlateNumber: s.tripsComposite.externalPlateNumber, externalDriverName: s.tripsComposite.externalDriverName,
+    createdAt: s.tripsComposite.createdAt, updatedAt: s.tripsComposite.updatedAt,
     ...TRIP_RELATION_FIELDS,
-  }).from(s.trips))
+  }).from(s.tripsComposite))
     .where(and(...conditions))
     .orderBy(...sortOrder)
     .limit(limit).offset((page - 1) * limit);
@@ -313,10 +313,10 @@ export async function getTrips(filters: TripListFilters) {
   // needs the same JOINs as the list query — otherwise the SQL fails with
   // "missing FROM-clause entry" the moment a search term is present.
   const [countRow] = filters.search
-    ? await TRIP_RELATION_JOINS(db.select({ count: sql<number>`count(*)` }).from(s.trips))
+    ? await TRIP_RELATION_JOINS(db.select({ count: sql<number>`count(*)` }).from(s.tripsComposite))
         .where(and(...countConditions))
     : await db.select({ count: sql<number>`count(*)` })
-        .from(s.trips)
+        .from(s.tripsComposite)
         .where(and(...conditions));
 
   // Batch-load container instances for this page so the list can show
@@ -393,26 +393,26 @@ export interface TripSummary {
 }
 
 export async function getTripsSummary(dateFrom?: string, dateTo?: string): Promise<TripSummary> {
-  const conditions = [isNull(s.trips.deletedAt)];
-  if (dateFrom) conditions.push(gte(s.trips.departureDate, dateFrom));
-  if (dateTo) conditions.push(lte(s.trips.departureDate, dateTo));
+  const conditions = [isNull(s.tripsComposite.deletedAt)];
+  if (dateFrom) conditions.push(gte(s.tripsComposite.departureDate, dateFrom));
+  if (dateTo) conditions.push(lte(s.tripsComposite.departureDate, dateTo));
 
   const where = and(...conditions);
 
   // Aggregate metrics in one query
   const [agg] = await db.select({
     total: sql<number>`count(*)`,
-    created: sql<number>`count(*) filter (where ${s.trips.status} = 'CREATED')`,
-    inTransit: sql<number>`count(*) filter (where ${s.trips.status} = 'IN_TRANSIT')`,
-    completed: sql<number>`count(*) filter (where ${s.trips.status} = 'COMPLETED')`,
-    canceled: sql<number>`count(*) filter (where ${s.trips.status} = 'CANCELED')`,
-    totalKm: sql<number>`coalesce(sum(coalesce((SELECT sum(${s.tripLegs.km}) FROM ${s.tripLegs} WHERE ${s.tripLegs.tripId} = ${s.trips.id}), ${s.routes.distanceKm})), 0)`,
-    totalFuel: sql<number>`coalesce(sum(${s.trips.fuelLiters}), 0)`,
-    totalRoad: sql<number>`coalesce(sum(${s.trips.totalRoadAllowance}), 0)`,
-    totalRevenue: sql<number>`coalesce(sum(${s.trips.revenue}), 0)`,
-    missingFuel: sql<number>`count(*) filter (where ${s.trips.fuelLiters} is null or ${s.trips.fuelLiters} = 0)`,
-  }).from(s.trips)
-    .leftJoin(s.routes, eq(s.trips.routeId, s.routes.id))
+    created: sql<number>`count(*) filter (where ${s.tripsComposite.status} = 'CREATED')`,
+    inTransit: sql<number>`count(*) filter (where ${s.tripsComposite.status} = 'IN_TRANSIT')`,
+    completed: sql<number>`count(*) filter (where ${s.tripsComposite.status} = 'COMPLETED')`,
+    canceled: sql<number>`count(*) filter (where ${s.tripsComposite.status} = 'CANCELED')`,
+    totalKm: sql<number>`coalesce(sum(coalesce((SELECT sum(${s.tripLegs.km}) FROM ${s.tripLegs} WHERE ${s.tripLegs.tripId} = ${s.tripsComposite.id}), ${s.routes.distanceKm})), 0)`,
+    totalFuel: sql<number>`coalesce(sum(${s.tripsComposite.fuelLiters}), 0)`,
+    totalRoad: sql<number>`coalesce(sum(${s.tripsComposite.totalRoadAllowance}), 0)`,
+    totalRevenue: sql<number>`coalesce(sum(${s.tripsComposite.revenue}), 0)`,
+    missingFuel: sql<number>`count(*) filter (where ${s.tripsComposite.fuelLiters} is null or ${s.tripsComposite.fuelLiters} = 0)`,
+  }).from(s.tripsComposite)
+    .leftJoin(s.routes, eq(s.tripsComposite.routeId, s.routes.id))
     .where(where);
 
   const totalKm = Number(agg?.totalKm ?? 0);
@@ -431,8 +431,8 @@ export async function getTripsSummary(dateFrom?: string, dateTo?: string): Promi
   const truckRows = await db.selectDistinct({
     id: s.trucks.id,
     licensePlate: s.trucks.licensePlate,
-  }).from(s.trips)
-    .innerJoin(s.trucks, eq(s.trips.truckId, s.trucks.id))
+  }).from(s.tripsComposite)
+    .innerJoin(s.trucks, eq(s.tripsComposite.truckId, s.trucks.id))
     .where(where)
     .orderBy(s.trucks.licensePlate);
 
@@ -444,8 +444,8 @@ export async function getTripsSummary(dateFrom?: string, dateTo?: string): Promi
   const customerRows = await db.selectDistinct({
     id: s.customers.id,
     name: CUSTOMER_OPERATIONAL_NAME,
-  }).from(s.trips)
-    .innerJoin(s.customers, eq(s.trips.customerId, s.customers.id))
+  }).from(s.tripsComposite)
+    .innerJoin(s.customers, eq(s.tripsComposite.customerId, s.customers.id))
     .where(where)
     .orderBy(CUSTOMER_OPERATIONAL_NAME);
 
@@ -464,55 +464,55 @@ export async function getTripsSummary(dateFrom?: string, dateTo?: string): Promi
 
 export async function getTripById(id: number) {
   const [trip] = await TRIP_RELATION_JOINS(db.select({
-    id: s.trips.id, tripCode: s.trips.tripCode, version: s.trips.version,
-    shipmentId: s.trips.shipmentId,
-    customerId: s.trips.customerId, customerReference: s.trips.customerReference,
-    truckId: s.trips.truckId, driverId: s.trips.driverId, routeId: s.trips.routeId,
-    cargoTypeId: s.trips.cargoTypeId, containerCount: s.trips.containerCount,
-    status: s.trips.status, departureDate: s.trips.departureDate,
-    plannedStartAt: s.trips.plannedStartAt,
-    plannedEndAt: s.trips.plannedEndAt,
-    canonicalOrigin: s.trips.canonicalOrigin,
-    canonicalDestination: s.trips.canonicalDestination,
-    cargoWeightKg: s.trips.cargoWeightKg,
-    vehicleCapacityKg: s.trips.vehicleCapacityKg,
-    activeTripPairId: s.trips.activeTripPairId,
-    activeTripPairOrder: s.trips.activeTripPairOrder,
-    fuelMode: s.trips.fuelMode, fuelLiters: s.trips.fuelLiters,
-    fuelLitersOverride: s.trips.fuelLitersOverride, fuelSupplementLiters: s.trips.fuelSupplementLiters,
-    fuelSupplementReason: s.trips.fuelSupplementReason, fuelPriceApplied: s.trips.fuelPriceApplied,
-    fuelActualUnitPrice: s.trips.fuelActualUnitPrice, fuelSupplierId: s.trips.fuelSupplierId,
-    tollsDiscount: s.trips.tollsDiscount, tollsAddition: s.trips.tollsAddition, tollsStations: s.trips.tollsStations,
-    totalFuelCost: s.trips.totalFuelCost, totalRoadAllowance: s.trips.totalRoadAllowance,
-    totalCost: s.trips.totalCost, revenue: s.trips.revenue, revenueEmptyReturn: s.trips.revenueEmptyReturn,
-    revenueCombine: s.trips.revenueCombine, grossProfit: s.trips.grossProfit,
-    revenueOriginal: s.trips.revenueOriginal, revenueOverriddenBy: s.trips.revenueOverriddenBy,
-    revenueOverriddenAt: s.trips.revenueOverriddenAt, hasReturnCargo: s.trips.hasReturnCargo,
-    driverSalary: s.trips.driverSalary, notes: s.trips.notes,
-    twoPointDeliveryBonus: s.trips.twoPointDeliveryBonus,
-    vehicleShiftAllowance: s.trips.vehicleShiftAllowance,
-    roadAllowanceOverride: s.trips.roadAllowanceOverride,
-    tollCost: s.trips.tollCost,
-    completedAt: s.trips.completedAt,
-    roadAllowanceBaseApplied: s.trips.roadAllowanceBaseApplied,
-    tollPerStationApplied: s.trips.tollPerStationApplied,
-    returnCargoBonusApplied: s.trips.returnCargoBonusApplied,
-    fuelLoadedNormApplied: s.trips.fuelLoadedNormApplied,
-    fuelEmptyNormApplied: s.trips.fuelEmptyNormApplied,
-    fuelFixedAllowanceApplied: s.trips.fuelFixedAllowanceApplied,
-    fuelSupplementNormApplied: s.trips.fuelSupplementNormApplied,
-    vatRate: s.trips.vatRate,
-    carrierType: s.trips.carrierType, externalEntityId: s.trips.externalEntityId,
-    externalFreightCost: s.trips.externalFreightCost,
-    externalPlateNumber: s.trips.externalPlateNumber,
-    externalDriverName: s.trips.externalDriverName,
-    externalDriverPhone: s.trips.externalDriverPhone,
-    customerCommission: s.trips.customerCommission,
-    tripWageDays: s.trips.tripWageDays,
-    createdAt: s.trips.createdAt, updatedAt: s.trips.updatedAt, deletedAt: s.trips.deletedAt,
+    id: s.tripsComposite.id, tripCode: s.tripsComposite.tripCode, version: s.tripsComposite.version,
+    shipmentId: s.tripsComposite.shipmentId,
+    customerId: s.tripsComposite.customerId, customerReference: s.tripsComposite.customerReference,
+    truckId: s.tripsComposite.truckId, driverId: s.tripsComposite.driverId, routeId: s.tripsComposite.routeId,
+    cargoTypeId: s.tripsComposite.cargoTypeId, containerCount: s.tripsComposite.containerCount,
+    status: s.tripsComposite.status, departureDate: s.tripsComposite.departureDate,
+    plannedStartAt: s.tripsComposite.plannedStartAt,
+    plannedEndAt: s.tripsComposite.plannedEndAt,
+    canonicalOrigin: s.tripsComposite.canonicalOrigin,
+    canonicalDestination: s.tripsComposite.canonicalDestination,
+    cargoWeightKg: s.tripsComposite.cargoWeightKg,
+    vehicleCapacityKg: s.tripsComposite.vehicleCapacityKg,
+    activeTripPairId: s.tripsComposite.activeTripPairId,
+    activeTripPairOrder: s.tripsComposite.activeTripPairOrder,
+    fuelMode: s.tripsComposite.fuelMode, fuelLiters: s.tripsComposite.fuelLiters,
+    fuelLitersOverride: s.tripsComposite.fuelLitersOverride, fuelSupplementLiters: s.tripsComposite.fuelSupplementLiters,
+    fuelSupplementReason: s.tripsComposite.fuelSupplementReason, fuelPriceApplied: s.tripsComposite.fuelPriceApplied,
+    fuelActualUnitPrice: s.tripsComposite.fuelActualUnitPrice, fuelSupplierId: s.tripsComposite.fuelSupplierId,
+    tollsDiscount: s.tripsComposite.tollsDiscount, tollsAddition: s.tripsComposite.tollsAddition, tollsStations: s.tripsComposite.tollsStations,
+    totalFuelCost: s.tripsComposite.totalFuelCost, totalRoadAllowance: s.tripsComposite.totalRoadAllowance,
+    totalCost: s.tripsComposite.totalCost, revenue: s.tripsComposite.revenue, revenueEmptyReturn: s.tripsComposite.revenueEmptyReturn,
+    revenueCombine: s.tripsComposite.revenueCombine, grossProfit: s.tripsComposite.grossProfit,
+    revenueOriginal: s.tripsComposite.revenueOriginal, revenueOverriddenBy: s.tripsComposite.revenueOverriddenBy,
+    revenueOverriddenAt: s.tripsComposite.revenueOverriddenAt, hasReturnCargo: s.tripsComposite.hasReturnCargo,
+    driverSalary: s.tripsComposite.driverSalary, notes: s.tripsComposite.notes,
+    twoPointDeliveryBonus: s.tripsComposite.twoPointDeliveryBonus,
+    vehicleShiftAllowance: s.tripsComposite.vehicleShiftAllowance,
+    roadAllowanceOverride: s.tripsComposite.roadAllowanceOverride,
+    tollCost: s.tripsComposite.tollCost,
+    completedAt: s.tripsComposite.completedAt,
+    roadAllowanceBaseApplied: s.tripsComposite.roadAllowanceBaseApplied,
+    tollPerStationApplied: s.tripsComposite.tollPerStationApplied,
+    returnCargoBonusApplied: s.tripsComposite.returnCargoBonusApplied,
+    fuelLoadedNormApplied: s.tripsComposite.fuelLoadedNormApplied,
+    fuelEmptyNormApplied: s.tripsComposite.fuelEmptyNormApplied,
+    fuelFixedAllowanceApplied: s.tripsComposite.fuelFixedAllowanceApplied,
+    fuelSupplementNormApplied: s.tripsComposite.fuelSupplementNormApplied,
+    vatRate: s.tripsComposite.vatRate,
+    carrierType: s.tripsComposite.carrierType, externalEntityId: s.tripsComposite.externalEntityId,
+    externalFreightCost: s.tripsComposite.externalFreightCost,
+    externalPlateNumber: s.tripsComposite.externalPlateNumber,
+    externalDriverName: s.tripsComposite.externalDriverName,
+    externalDriverPhone: s.tripsComposite.externalDriverPhone,
+    customerCommission: s.tripsComposite.customerCommission,
+    tripWageDays: s.tripsComposite.tripWageDays,
+    createdAt: s.tripsComposite.createdAt, updatedAt: s.tripsComposite.updatedAt, deletedAt: s.tripsComposite.deletedAt,
     ...TRIP_RELATION_FIELDS,
-  }).from(s.trips))
-    .where(and(eq(s.trips.id, id), isNull(s.trips.deletedAt))).limit(1);
+  }).from(s.tripsComposite))
+    .where(and(eq(s.tripsComposite.id, id), isNull(s.tripsComposite.deletedAt))).limit(1);
 
   if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
 
@@ -558,8 +558,8 @@ export async function loadTripStatusVersion(
   tripId: number,
 ): Promise<{ status: string | null; version: number } | null> {
   const [current] = await executor.select({
-    status: s.trips.status,
-    version: s.trips.version,
-  }).from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
+    status: s.tripsComposite.status,
+    version: s.tripsComposite.version,
+  }).from(s.tripsComposite).where(eq(s.tripsComposite.id, tripId)).limit(1);
   return current ?? null;
 }

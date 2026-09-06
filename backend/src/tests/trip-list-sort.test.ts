@@ -4,6 +4,7 @@ import { inArray } from 'drizzle-orm';
 
 import { client, db } from '../db';
 import * as s from '../db/schema';
+import { insertTripComposite } from '../services/trip-composite.service';
 import { getTrips } from '../services/trip-queries.service';
 
 // Server-side sort coverage for GET /api/trips (TRIP_LIST_SORT_SQL). All rows
@@ -45,7 +46,7 @@ async function mkTrip(input: {
 }) {
   const route = await mkRoute(input.routeName ?? `Sort route ${suffix}-${createdRouteIds.length}`);
   const cargoType = await mkCargoType();
-  const [row] = await db.insert(s.trips).values({
+  const row = await insertTripComposite(db, {
     tripCode: `SORT-${suffix}-${createdTripIds.length}`.slice(0, 50),
     customerId: input.customerId,
     routeId: route.id,
@@ -56,7 +57,7 @@ async function mkTrip(input: {
     carrierType: 'OWN',
     revenue: input.revenue ?? null,
     grossProfit: '250000',
-  }).returning({ id: s.trips.id });
+  });
   createdTripIds.push(row.id);
   return row.id;
 }

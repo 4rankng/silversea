@@ -40,10 +40,10 @@ export async function recordFieldCost(args: {
   return db.transaction(async (tx) => {
     await assertTripShipmentAccountingUnlocked(tx, args.tripId);
     const [trip] = await tx.select({
-      id: s.trips.id,
-      status: s.trips.status,
-      carrierType: s.trips.carrierType,
-    }).from(s.trips).where(eq(s.trips.id, args.tripId)).limit(1);
+      id: s.tripsComposite.id,
+      status: s.tripsComposite.status,
+      carrierType: s.tripsComposite.carrierType,
+    }).from(s.tripsComposite).where(eq(s.tripsComposite.id, args.tripId)).limit(1);
     if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
 
     const [expense] = await tx.insert(s.tripExpenses).values({

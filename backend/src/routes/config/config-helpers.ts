@@ -6,7 +6,7 @@
 
 import { db } from '../../db';
 import * as s from '../../db/schema';
-import { and, eq, isNull, like, ne, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNull, like, ne, sql } from 'drizzle-orm';
 import { z, type output } from 'zod';
 import { ApiError } from '../../errors';
 import {
@@ -358,16 +358,18 @@ export async function markCompletedFuelSurchargeTripsDirty(
   tx: CrudTx,
   scope?: { customerId?: number },
 ): Promise<void> {
-  const conditions = [
-    eq(s.trips.status, 'COMPLETED'),
-    sql`${s.trips.fuelSurchargeSnapshot} is not null`,
-  ];
-  if (scope?.customerId != null) {
-    conditions.push(eq(s.trips.customerId, scope.customerId));
-  }
-  await tx.update(s.trips)
+  // Trips split: both flag and snapshot live on trip_financial_state (1:1 by
+  // trip_id); scope via the operational trips table by id.
+  const tripIds = tx.select({ id: s.trips.id }).from(s.trips)
+    .where(scope?.customerId != null
+      ? and(eq(s.trips.status, 'COMPLETED'), eq(s.trips.customerId, scope.customerId))
+      : eq(s.trips.status, 'COMPLETED'));
+  await tx.update(s.tripFinancialState)
     .set({ fuelSurchargeSnapshotDirty: true })
-    .where(and(...conditions));
+    .where(and(
+      sql`${s.tripFinancialState.fuelSurchargeSnapshot} is not null`,
+      inArray(s.tripFinancialState.tripId, tripIds),
+    ));
 }
 
 export const MATERIAL_FORWARDER_POLICY_FIELDS = new Set<keyof ForwarderExpenseTypePayload>([

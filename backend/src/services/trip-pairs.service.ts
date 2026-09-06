@@ -9,6 +9,7 @@ import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { db } from '../db';
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
+import { applyTripPatch } from './trip-composite.service';
 import { ApiError } from '../errors';
 import {
   breakTripPairOnCancellation,
@@ -265,6 +266,9 @@ function serializePairRecord(row: {
 }
 
 async function loadTripsForPairing(tx: Tx, tripIds: [number, number]) {
+  // Trips-split: revenue/toll-cost block reads from the financial sidecar and
+  // carrierType from the carrier sidecar; the row lock stays on trips only
+  // (`of`), matching the pre-split lock footprint.
   const rows = await tx.select({
     id: s.trips.id,
     tripCode: s.trips.tripCode,
@@ -282,18 +286,20 @@ async function loadTripsForPairing(tx: Tx, tripIds: [number, number]) {
     activeTripPairOrder: s.trips.activeTripPairOrder,
     truckId: s.trips.truckId,
     driverId: s.trips.driverId,
-    carrierType: s.trips.carrierType,
-    revenue: s.trips.revenue,
-    totalCost: s.trips.totalCost,
-    grossProfit: s.trips.grossProfit,
+    carrierType: s.tripCarrierInfo.carrierType,
+    revenue: s.tripFinancialState.revenue,
+    totalCost: s.tripFinancialState.totalCost,
+    grossProfit: s.tripFinancialState.grossProfit,
     tollsStations: s.trips.tollsStations,
-    tollPerStationApplied: s.trips.tollPerStationApplied,
-    tollDeduction: s.trips.tollDeduction,
-    tollCost: s.trips.tollCost,
+    tollPerStationApplied: s.tripFinancialState.tollPerStationApplied,
+    tollDeduction: s.tripFinancialState.tollDeduction,
+    tollCost: s.tripFinancialState.tollCost,
   }).from(s.trips)
+    .leftJoin(s.tripFinancialState, eq(s.tripFinancialState.tripId, s.trips.id))
+    .leftJoin(s.tripCarrierInfo, eq(s.tripCarrierInfo.tripId, s.trips.id))
     .where(and(inArray(s.trips.id, tripIds), isNull(s.trips.deletedAt)))
     .orderBy(s.trips.id)
-    .for('update');
+    .for('update', { of: [s.trips] });
 
   if (rows.length !== 2) {
     throw new ApiError(404, 'Không tìm thấy đủ hai chuyến để ghép');
@@ -460,13 +466,14 @@ export async function createTripPair(
     await tx.update(s.trips).set(firstUpdate).where(eq(s.trips.id, input.firstTripId));
     await tx.update(s.trips).set(secondUpdate).where(eq(s.trips.id, input.secondTripId));
     // Apply backhaul toll dedup to the second trip's toll + cost fields.
-    await tx.update(s.trips).set({
+    // Trips-split: the toll/cost block routes to trip_financial_state.
+    await applyTripPatch(tx, input.secondTripId, {
       tollDeduction: secondToll.tollDeduction,
       tollCost: secondToll.tollCost,
       totalCost: String(secondTotalCost),
       grossProfit: String(secondGrossProfit),
       updatedAt: new Date(),
-    }).where(eq(s.trips.id, input.secondTripId));
+    });
 
     return serializePairRecord(pair);
   };
@@ -512,15 +519,17 @@ async function breakPersistedTripPair(tx: Tx, args: {
   // When the pair breaks, restore the survivor's full toll so the pair does not
   // silently lose a toll. (The canceled/non-surviving trip is zeroed elsewhere.)
   if (args.survivingTripId != null) {
+    // Trips-split: composed read — the toll/cost restore math consumes the
+    // financial block.
     const [survivor] = await tx.select({
-      tollsStations: s.trips.tollsStations,
-      tollPerStationApplied: s.trips.tollPerStationApplied,
-      tollDeduction: s.trips.tollDeduction,
-      tollCost: s.trips.tollCost,
-      totalCost: s.trips.totalCost,
-      revenue: s.trips.revenue,
-      grossProfit: s.trips.grossProfit,
-    }).from(s.trips).where(eq(s.trips.id, args.survivingTripId)).limit(1);
+      tollsStations: s.tripsComposite.tollsStations,
+      tollPerStationApplied: s.tripsComposite.tollPerStationApplied,
+      tollDeduction: s.tripsComposite.tollDeduction,
+      tollCost: s.tripsComposite.tollCost,
+      totalCost: s.tripsComposite.totalCost,
+      revenue: s.tripsComposite.revenue,
+      grossProfit: s.tripsComposite.grossProfit,
+    }).from(s.tripsComposite).where(eq(s.tripsComposite.id, args.survivingTripId)).limit(1);
     if (survivor && Number(survivor.tollDeduction ?? 0) > 0) {
       const grossToll = (survivor.tollsStations ?? 0) * Number(survivor.tollPerStationApplied ?? 0);
       const previousNetToll = Number(survivor.tollCost ?? 0);
@@ -530,13 +539,14 @@ async function breakPersistedTripPair(tx: Tx, args: {
         survivor.grossProfit
         ?? (Number(survivor.revenue ?? 0) - Number(survivor.totalCost ?? 0)),
       ) - restoredCostDelta;
-      await tx.update(s.trips).set({
+      // Trips-split: restored toll/cost block routes to trip_financial_state.
+      await applyTripPatch(tx, args.survivingTripId, {
         tollDeduction: '0',
         tollCost: String(grossToll),
         totalCost: String(restoredTotalCost),
         grossProfit: String(restoredGrossProfit),
         updatedAt: new Date(),
-      }).where(eq(s.trips.id, args.survivingTripId));
+      });
     }
   }
 }

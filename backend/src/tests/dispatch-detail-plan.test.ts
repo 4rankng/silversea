@@ -9,6 +9,7 @@ import { and, eq, inArray } from 'drizzle-orm';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
+import { insertTripComposite } from '../services/trip-composite.service';
 import { Role } from '@tingting/shared';
 import { config } from '../config';
 import { initEnforcer } from '../casbin/enforcer';
@@ -412,7 +413,7 @@ describe('dispatch detail plan rows', () => {
     const { shipment, fulfillmentIds, route } = await createAllocatedLot({ carrierType: 'OWN' });
     const { truck, driver } = await createOwnedTruckWithDriver();
     await db.update(s.shipments).set({ status: 'DISPATCHED' }).where(eq(s.shipments.id, shipment.id));
-    const [trip] = await db.insert(s.trips).values({
+    const trip = await insertTripComposite(db, {
       shipmentId: shipment.id,
       fulfillmentId: fulfillmentIds[0],
       customerId: shipment.customerId,
@@ -426,8 +427,7 @@ describe('dispatch detail plan rows', () => {
       plannedEndAt: new Date('2026-08-20T12:00:00.000Z'),
       departureDate: '2026-08-20',
       createdBy: adminUserId,
-    }).returning();
-    createdTripIds.push(trip.id);
+    });
 
     const response = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}`);
     assert.equal(response.status, 200, JSON.stringify(response.data));

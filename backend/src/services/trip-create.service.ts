@@ -17,6 +17,7 @@ import { resolveTrailer } from './trip-shared';
 import type { Tx } from './trip-shared';
 import { assertCreditLimit, consumeShipmentCreditOverride } from './credit-limit.service';
 import { buildCopiedTripValues, buildCopiedTripLegValues } from './trip-mutations-shared.service';
+import { getTripCompositeInTx, insertTripComposite } from './trip-composite.service';
 
 /**
  * M2.3: Build the full visible pricing formula: freight + VAT.
@@ -325,7 +326,10 @@ export async function createTrip(data: {
     //    shipmentId = NULL even when one was provided — the link is set in a
     //    guarded UPDATE below (see step 4b). The application-owned shipment
     //    lock and canonical lookup above ensure only one live link is created.
-    const [trip] = await tx.insert(s.trips).values({
+    //    Trips-split: the mixed values object routes each field to its owning
+    //    table (trips / trip_financial_state / trip_carrier_info) inside this
+    //    transaction; the composed row (pre-split shape) is returned.
+    const trip = await insertTripComposite(tx, {
       tripCode,
       version: 1,
       createdBy: data.createdBy ?? null,
@@ -394,7 +398,7 @@ export async function createTrip(data: {
       externalPlateNumber: data.externalPlateNumber ?? null,
       externalDriverName: data.externalDriverName ?? null,
       externalDriverPhone: data.externalDriverPhone ?? null,
-    }).returning();
+    });
 
     if (data.containerTypeId != null) {
       await tx.insert(s.tripContainers).values(
@@ -448,16 +452,12 @@ export async function createTrip(data: {
 export async function copyTrip(sourceTripId: number, createdBy: number, transaction?: Tx) {
   const execute = async (tx: Tx) => {
     await assertTripShipmentAccountingUnlocked(tx, sourceTripId);
-    const [source] = await tx.select()
-      .from(s.trips)
-      .where(and(eq(s.trips.id, sourceTripId), isNull(s.trips.deletedAt)))
-      .limit(1);
+    const sourceRow = await getTripCompositeInTx(tx, sourceTripId);
+    const source = sourceRow && sourceRow.deletedAt == null ? sourceRow : null;
     if (!source) throw new ApiError(404, 'Không tìm thấy chuyến cần copy');
 
     const tripCode = await generateTripCode(source.departureDate);
-    const [trip] = await tx.insert(s.trips)
-      .values(buildCopiedTripValues(source, tripCode, createdBy))
-      .returning();
+    const trip = await insertTripComposite(tx, buildCopiedTripValues(source, tripCode, createdBy));
 
     const sourceLegs = await tx.select()
       .from(s.tripLegs)

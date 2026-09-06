@@ -9,6 +9,7 @@ import { eq, inArray, sql } from 'drizzle-orm';
 import { Role } from '@tingting/shared';
 import { db, client } from '../db';
 import * as s from '../db/schema';
+import { insertTripComposite } from '../services/trip-composite.service';
 import { config } from '../config';
 import { initEnforcer } from '../casbin/enforcer';
 import { authMiddleware } from '../middleware/auth';
@@ -100,7 +101,7 @@ async function mkTrip(supplierId: number, truckId: number) {
   const customer = await mkCustomer();
   const route = await mkRoute();
   const cargo = await mkCargoType();
-  const [trip] = await db.insert(s.trips).values({
+  const trip = await insertTripComposite(db, {
     tripCode: `Q06-${suffix}-${createdTripIds.length}`.slice(0, 50),
     customerId: customer.id,
     routeId: route.id,
@@ -112,7 +113,7 @@ async function mkTrip(supplierId: number, truckId: number) {
     truckId,
     fuelSupplierId: supplierId,
     totalFuelCost: '2200000',
-  }).returning();
+  });
   createdTripIds.push(trip.id);
   return trip;
 }
@@ -332,6 +333,8 @@ after(async () => {
       await db.delete(s.tripExpenses).where(inArray(s.tripExpenses.id, createdExpenseIds));
     }
     if (createdTripIds.length > 0) {
+      await db.delete(s.tripFinancialState).where(inArray(s.tripFinancialState.tripId, createdTripIds));
+      await db.delete(s.tripCarrierInfo).where(inArray(s.tripCarrierInfo.tripId, createdTripIds));
       await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
     }
     if (createdTruckIds.length > 0) {

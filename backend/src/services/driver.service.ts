@@ -121,37 +121,38 @@ async function existingStorageKeys(keys: string[]): Promise<string[]> {
  * (feedback202606 B1 — driver list card must show customer + container).
  */
 export async function getDriverTrips(driverId: number) {
+  // Trips-split: fuel/road/salary read from the composed view.
   const trips = await db.select({
-    id: s.trips.id,
-    shipmentId: s.trips.shipmentId,
-    fulfillmentId: s.trips.fulfillmentId,
-    tripCode: s.trips.tripCode,
-    departureDate: s.trips.departureDate,
-    status: s.trips.status,
-    fuelLiters: s.trips.fuelLiters,
-    totalRoadAllowance: s.trips.totalRoadAllowance,
-    driverSalary: s.trips.driverSalary,
+    id: s.tripsComposite.id,
+    shipmentId: s.tripsComposite.shipmentId,
+    fulfillmentId: s.tripsComposite.fulfillmentId,
+    tripCode: s.tripsComposite.tripCode,
+    departureDate: s.tripsComposite.departureDate,
+    status: s.tripsComposite.status,
+    fuelLiters: s.tripsComposite.fuelLiters,
+    totalRoadAllowance: s.tripsComposite.totalRoadAllowance,
+    driverSalary: s.tripsComposite.driverSalary,
     routeName: ROUTE_OPERATIONAL_NAME,
     truckPlate: s.trucks.licensePlate,
     customerName: CUSTOMER_OPERATIONAL_NAME,
-  }).from(s.trips)
-    .leftJoin(s.shipmentFulfillments, eq(s.trips.fulfillmentId, s.shipmentFulfillments.id))
-    .leftJoin(s.routes, eq(s.trips.routeId, s.routes.id))
-    .leftJoin(s.trucks, eq(s.trips.truckId, s.trucks.id))
-    .leftJoin(s.customers, eq(s.trips.customerId, s.customers.id))
+  }).from(s.tripsComposite)
+    .leftJoin(s.shipmentFulfillments, eq(s.tripsComposite.fulfillmentId, s.shipmentFulfillments.id))
+    .leftJoin(s.routes, eq(s.tripsComposite.routeId, s.routes.id))
+    .leftJoin(s.trucks, eq(s.tripsComposite.truckId, s.trucks.id))
+    .leftJoin(s.customers, eq(s.tripsComposite.customerId, s.customers.id))
     .where(and(
-      eq(s.trips.driverId, driverId),
-      isNull(s.trips.deletedAt),
-      ne(s.trips.status, TripStatus.CANCELED),
+      eq(s.tripsComposite.driverId, driverId),
+      isNull(s.tripsComposite.deletedAt),
+      ne(s.tripsComposite.status, TripStatus.CANCELED),
       or(
-        isNull(s.trips.fulfillmentId),
+        isNull(s.tripsComposite.fulfillmentId),
         and(
           isNotNull(s.shipmentFulfillments.id),
           isNull(s.shipmentFulfillments.canceledAt),
         ),
       ),
     ))
-    .orderBy(desc(s.trips.departureDate));
+    .orderBy(desc(s.tripsComposite.departureDate));
 
   if (trips.length === 0) return trips;
 
@@ -314,26 +315,26 @@ export async function getDriverTwoOrdersView(driverId: number): Promise<DriverTw
 
     if (pair) {
       const pairRows = await db.select({
-        id: s.trips.id,
-        fulfillmentId: s.trips.fulfillmentId,
-        tripCode: s.trips.tripCode,
-        departureDate: s.trips.departureDate,
-        status: s.trips.status,
-        fuelLiters: s.trips.fuelLiters,
-        totalRoadAllowance: s.trips.totalRoadAllowance,
-        driverSalary: s.trips.driverSalary,
+        id: s.tripsComposite.id,
+        fulfillmentId: s.tripsComposite.fulfillmentId,
+        tripCode: s.tripsComposite.tripCode,
+        departureDate: s.tripsComposite.departureDate,
+        status: s.tripsComposite.status,
+        fuelLiters: s.tripsComposite.fuelLiters,
+        totalRoadAllowance: s.tripsComposite.totalRoadAllowance,
+        driverSalary: s.tripsComposite.driverSalary,
         routeName: ROUTE_OPERATIONAL_NAME,
         truckPlate: s.trucks.licensePlate,
         customerName: CUSTOMER_OPERATIONAL_NAME,
-      }).from(s.trips)
-        .leftJoin(s.routes, eq(s.trips.routeId, s.routes.id))
-        .leftJoin(s.trucks, eq(s.trips.truckId, s.trucks.id))
-        .leftJoin(s.customers, eq(s.trips.customerId, s.customers.id))
+      }).from(s.tripsComposite)
+        .leftJoin(s.routes, eq(s.tripsComposite.routeId, s.routes.id))
+        .leftJoin(s.trucks, eq(s.tripsComposite.truckId, s.trucks.id))
+        .leftJoin(s.customers, eq(s.tripsComposite.customerId, s.customers.id))
         .where(and(
-          inArray(s.trips.id, [pair.firstTripId, pair.secondTripId]),
-          isNull(s.trips.deletedAt),
+          inArray(s.tripsComposite.id, [pair.firstTripId, pair.secondTripId]),
+          isNull(s.tripsComposite.deletedAt),
         ))
-        .orderBy(asc(s.trips.id));
+        .orderBy(asc(s.tripsComposite.id));
       const containersByTrip = await loadDriverTripContainers(pairRows.map((row) => row.id));
       const pairTripById = new Map(pairRows.map((row) => [
         row.id,
@@ -373,29 +374,29 @@ export async function getDriverTwoOrdersView(driverId: number): Promise<DriverTw
   }
 
   const rows = await db.select({
-    id: s.trips.id,
-    fulfillmentId: s.trips.fulfillmentId,
-    tripCode: s.trips.tripCode,
-    departureDate: s.trips.departureDate,
-    status: s.trips.status,
-    fuelLiters: s.trips.fuelLiters,
-    totalRoadAllowance: s.trips.totalRoadAllowance,
-    driverSalary: s.trips.driverSalary,
+    id: s.tripsComposite.id,
+    fulfillmentId: s.tripsComposite.fulfillmentId,
+    tripCode: s.tripsComposite.tripCode,
+    departureDate: s.tripsComposite.departureDate,
+    status: s.tripsComposite.status,
+    fuelLiters: s.tripsComposite.fuelLiters,
+    totalRoadAllowance: s.tripsComposite.totalRoadAllowance,
+    driverSalary: s.tripsComposite.driverSalary,
     routeName: ROUTE_OPERATIONAL_NAME,
     truckPlate: s.trucks.licensePlate,
     customerName: CUSTOMER_OPERATIONAL_NAME,
-    createdAt: s.trips.createdAt,
-  }).from(s.trips)
-    .leftJoin(s.routes, eq(s.trips.routeId, s.routes.id))
-    .leftJoin(s.trucks, eq(s.trips.truckId, s.trucks.id))
-    .leftJoin(s.customers, eq(s.trips.customerId, s.customers.id))
+    createdAt: s.tripsComposite.createdAt,
+  }).from(s.tripsComposite)
+    .leftJoin(s.routes, eq(s.tripsComposite.routeId, s.routes.id))
+    .leftJoin(s.trucks, eq(s.tripsComposite.truckId, s.trucks.id))
+    .leftJoin(s.customers, eq(s.tripsComposite.customerId, s.customers.id))
     .where(and(
-      eq(s.trips.driverId, driverId),
-      eq(s.trips.departureDate, today),
-      isNull(s.trips.deletedAt),
-      sql`${s.trips.status} <> 'CANCELED'`,
+      eq(s.tripsComposite.driverId, driverId),
+      eq(s.tripsComposite.departureDate, today),
+      isNull(s.tripsComposite.deletedAt),
+      sql`${s.tripsComposite.status} <> 'CANCELED'`,
     ))
-    .orderBy(asc(s.trips.createdAt));
+    .orderBy(asc(s.tripsComposite.createdAt));
 
   const containersByTrip = await loadDriverTripContainers(rows.map((row) => row.id));
   const allToday: DriverTripSummary[] = rows.map((row) => shapeDriverTripSummary(row, containersByTrip));
@@ -423,40 +424,40 @@ export async function getDriverTwoOrdersView(driverId: number): Promise<DriverTw
 export async function getDriverTripDetail(driverId: number, tripId: number) {
   const paperCollector = aliasedTable(s.users, 'driver_trip_paper_collector');
   const [trip] = await db.select({
-    id: s.trips.id,
-    shipmentId: s.trips.shipmentId,
-    tripCode: s.trips.tripCode,
-    departureDate: s.trips.departureDate,
-    plannedStartAt: s.trips.plannedStartAt,
-    status: s.trips.status,
-    fuelLiters: s.trips.fuelLiters,
-    fuelMode: s.trips.fuelMode,
-    totalRoadAllowance: s.trips.totalRoadAllowance,
-    driverSalary: s.trips.driverSalary,
-    hasReturnCargo: s.trips.hasReturnCargo,
-    notes: s.trips.notes,
-    costSubmissionNote: s.trips.costSubmissionNote,
-    customerReference: s.trips.customerReference,
+    id: s.tripsComposite.id,
+    shipmentId: s.tripsComposite.shipmentId,
+    tripCode: s.tripsComposite.tripCode,
+    departureDate: s.tripsComposite.departureDate,
+    plannedStartAt: s.tripsComposite.plannedStartAt,
+    status: s.tripsComposite.status,
+    fuelLiters: s.tripsComposite.fuelLiters,
+    fuelMode: s.tripsComposite.fuelMode,
+    totalRoadAllowance: s.tripsComposite.totalRoadAllowance,
+    driverSalary: s.tripsComposite.driverSalary,
+    hasReturnCargo: s.tripsComposite.hasReturnCargo,
+    notes: s.tripsComposite.notes,
+    costSubmissionNote: s.tripsComposite.costSubmissionNote,
+    customerReference: s.tripsComposite.customerReference,
     routeName: ROUTE_OPERATIONAL_NAME,
     truckPlate: s.trucks.licensePlate,
-    trailerId: s.trips.trailerId,
+    trailerId: s.tripsComposite.trailerId,
     trailerPlate: s.trailers.licensePlate,
-    trailerType: s.trips.trailerType,
+    trailerType: s.tripsComposite.trailerType,
     customerName: CUSTOMER_OPERATIONAL_NAME,
     cargoTypeName: s.cargoTypes.name,
     fuelSupplierName: s.suppliers.name,
-    paperOrderCollectedAt: s.trips.paperOrderCollectedAt,
-    paperOrderCollectedBy: s.trips.paperOrderCollectedBy,
+    paperOrderCollectedAt: s.tripsComposite.paperOrderCollectedAt,
+    paperOrderCollectedBy: s.tripsComposite.paperOrderCollectedBy,
     paperOrderCollectedByName: paperCollector.fullName,
-  }).from(s.trips)
-    .leftJoin(s.routes, eq(s.trips.routeId, s.routes.id))
-    .leftJoin(s.trucks, eq(s.trips.truckId, s.trucks.id))
-    .leftJoin(s.trailers, eq(s.trips.trailerId, s.trailers.id))
-    .leftJoin(s.customers, eq(s.trips.customerId, s.customers.id))
-    .leftJoin(s.cargoTypes, eq(s.trips.cargoTypeId, s.cargoTypes.id))
-    .leftJoin(s.suppliers, eq(s.trips.fuelSupplierId, s.suppliers.id))
-    .leftJoin(paperCollector, eq(paperCollector.id, s.trips.paperOrderCollectedBy))
-    .where(and(eq(s.trips.id, tripId), eq(s.trips.driverId, driverId), isNull(s.trips.deletedAt)))
+  }).from(s.tripsComposite)
+    .leftJoin(s.routes, eq(s.tripsComposite.routeId, s.routes.id))
+    .leftJoin(s.trucks, eq(s.tripsComposite.truckId, s.trucks.id))
+    .leftJoin(s.trailers, eq(s.tripsComposite.trailerId, s.trailers.id))
+    .leftJoin(s.customers, eq(s.tripsComposite.customerId, s.customers.id))
+    .leftJoin(s.cargoTypes, eq(s.tripsComposite.cargoTypeId, s.cargoTypes.id))
+    .leftJoin(s.suppliers, eq(s.tripsComposite.fuelSupplierId, s.suppliers.id))
+    .leftJoin(paperCollector, eq(paperCollector.id, s.tripsComposite.paperOrderCollectedBy))
+    .where(and(eq(s.tripsComposite.id, tripId), eq(s.tripsComposite.driverId, driverId), isNull(s.tripsComposite.deletedAt)))
     .limit(1);
 
   if (!trip) return null;
@@ -726,15 +727,15 @@ export async function getDriverEarnings(driverId: number, month: number, year: n
   //   • Tiền đi đường (road allowance) = Σ trip.totalRoadAllowance
   // over the driver's non-canceled trips departing within the period.
   const [tripAgg] = await db.select({
-    productionSalary: sql<string>`coalesce(sum(${s.trips.driverSalary}::numeric), 0)`,
-    roadAllowance: sql<string>`coalesce(sum(${s.trips.totalRoadAllowance}::numeric), 0)`,
-  }).from(s.trips)
+    productionSalary: sql<string>`coalesce(sum(${s.tripsComposite.driverSalary}::numeric), 0)`,
+    roadAllowance: sql<string>`coalesce(sum(${s.tripsComposite.totalRoadAllowance}::numeric), 0)`,
+  }).from(s.tripsComposite)
     .where(and(
-      eq(s.trips.driverId, driverId),
-      isNull(s.trips.deletedAt),
-      ne(s.trips.status, 'CANCELED'),
-      gte(s.trips.departureDate, salaryData.periodStart),
-      lte(s.trips.departureDate, salaryData.periodEnd),
+      eq(s.tripsComposite.driverId, driverId),
+      isNull(s.tripsComposite.deletedAt),
+      ne(s.tripsComposite.status, 'CANCELED'),
+      gte(s.tripsComposite.departureDate, salaryData.periodStart),
+      lte(s.tripsComposite.departureDate, salaryData.periodEnd),
     ));
   const productionSalary = round2dp(parseFloat(tripAgg?.productionSalary ?? '0'));
   const roadAllowance = round2dp(parseFloat(tripAgg?.roadAllowance ?? '0'));

@@ -4,6 +4,7 @@ import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { Role, type SaveBillingDocumentInput } from '@tingting/shared';
 import { client, db } from '../db';
 import * as s from '../db/schema';
+import { insertTripComposite } from '../services/trip-composite.service';
 import { ApiError } from '../errors';
 import { generateDraft, getDocument, saveDocument } from '../services/billing-document.service';
 import { transitionDebitNoteStatus } from '../services/debit-note-lifecycle.service';
@@ -54,6 +55,8 @@ after(async () => {
     await db.delete(s.tripFinancialPostings).where(inArray(s.tripFinancialPostings.id, postingIds));
   }
   if (tripIds.length > 0) {
+    await db.delete(s.tripFinancialState).where(inArray(s.tripFinancialState.tripId, tripIds));
+    await db.delete(s.tripCarrierInfo).where(inArray(s.tripCarrierInfo.tripId, tripIds));
     await db.delete(s.trips).where(inArray(s.trips.id, tripIds));
   }
   if (fulfillmentIds.length > 0) {
@@ -127,7 +130,7 @@ async function createTripFixture(options: {
   }).returning();
   fulfillmentIds.push(fulfillment.id);
 
-  const [trip] = await db.insert(s.trips).values({
+  const trip = await insertTripComposite(db, {
     tripCode: `${options.tripCodePrefix}-${suffix}`.slice(0, 50),
     customerId: customer.id,
     routeId: route.id,
@@ -140,7 +143,7 @@ async function createTripFixture(options: {
     revenue: String(options.revenue),
     fuelSurchargeAmount: String(options.fuelSurchargeAmount ?? 0),
     carrierType: 'OWN',
-  }).returning();
+  });
   tripIds.push(trip.id);
 
   const [posting] = await db.insert(s.tripFinancialPostings).values({

@@ -60,7 +60,6 @@ describe('retention sweeps', () => {
       { userId: user.id, type: 'SYSTEM_ANNOUNCEMENT' as const, title: `ret-fresh-unread-${suffix}`, message: 'x', isRead: false, createdAt: daysAgo(10) },
     ]).returning({ id: s.notifications.id, title: s.notifications.title });
     createdNotificationIds.push(...inserted.map(r => r.id));
-    const byTitle = new Map(inserted.map(r => [r.title, r.id]));
 
     const result = await sweepNotifications();
     assert.equal(result.table, 'notifications');

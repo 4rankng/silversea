@@ -320,17 +320,17 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
       .where(inArray(s.shipmentDocumentCustodyFacts.shipmentId, shipmentIds))
       .orderBy(asc(s.shipmentDocumentCustodyFacts.shipmentId), desc(s.shipmentDocumentCustodyFacts.changedAt), desc(s.shipmentDocumentCustodyFacts.id)),
     executor.select({
-      id: s.trips.id,
-      shipmentId: s.trips.shipmentId,
-      version: s.trips.version,
-      revenue: s.trips.revenue,
-      totalCost: s.trips.totalCost,
-      revenueCombine: s.trips.revenueCombine,
-    }).from(s.trips)
+      id: s.tripsComposite.id,
+      shipmentId: s.tripsComposite.shipmentId,
+      version: s.tripsComposite.version,
+      revenue: s.tripsComposite.revenue,
+      totalCost: s.tripsComposite.totalCost,
+      revenueCombine: s.tripsComposite.revenueCombine,
+    }).from(s.tripsComposite)
       .where(and(
-        inArray(s.trips.shipmentId, shipmentIds),
-        isNull(s.trips.deletedAt),
-        ne(s.trips.status, 'CANCELED'),
+        inArray(s.tripsComposite.shipmentId, shipmentIds),
+        isNull(s.tripsComposite.deletedAt),
+        ne(s.tripsComposite.status, 'CANCELED'),
       )),
     executor.select({
       shipmentId: s.trips.shipmentId,
@@ -393,12 +393,12 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
       tripVersion: s.trips.version,
       tripStatus: s.trips.status,
       tripPlannedEndAt: s.trips.plannedEndAt,
-      tripCarrierType: s.trips.carrierType,
-      tripExternalCarrierId: s.trips.externalEntityId,
-      tripExternalCarrierVehicleId: s.trips.externalCarrierVehicleId,
+      tripCarrierType: s.tripCarrierInfo.carrierType,
+      tripExternalCarrierId: s.tripCarrierInfo.externalEntityId,
+      tripExternalCarrierVehicleId: s.tripCarrierInfo.externalCarrierVehicleId,
       tripExternalCarrierName: actualCarrier.name,
       tripExternalCarrierShortName: actualCarrier.shortName,
-      tripExternalPlateNumber: s.trips.externalPlateNumber,
+      tripExternalPlateNumber: s.tripCarrierInfo.externalPlateNumber,
       tripTruckId: s.trips.truckId,
       tripTruckPlate: s.trucks.licensePlate,
     }).from(s.shipmentFulfillments)
@@ -408,7 +408,8 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
         isNull(s.trips.deletedAt),
         ne(s.trips.status, 'CANCELED'),
       ))
-      .leftJoin(actualCarrier, eq(actualCarrier.id, s.trips.externalEntityId))
+      .leftJoin(s.tripCarrierInfo, eq(s.tripCarrierInfo.tripId, s.trips.id))
+      .leftJoin(actualCarrier, eq(actualCarrier.id, s.tripCarrierInfo.externalEntityId))
       .leftJoin(s.trucks, eq(s.trucks.id, s.trips.truckId))
       .where(and(
         inArray(s.shipmentFulfillments.shipmentId, shipmentIds),

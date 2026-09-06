@@ -4,6 +4,7 @@ import { and, eq, inArray } from 'drizzle-orm';
 
 import { client, db } from '../db';
 import * as s from '../db/schema';
+import { insertTripComposite } from '../services/trip-composite.service';
 import { TripStatus, TxnType } from '@tingting/shared';
 import {
   approveSalaryPeriodExclusion,
@@ -104,7 +105,7 @@ async function mkTrip(
   amounts: { salary: number },
 ) {
   const catalogs = await mkCatalogs();
-  const [trip] = await db.insert(s.trips).values({
+  const trip = await insertTripComposite(db, {
     tripCode: `M73-${tag}-${suffix}`.slice(0, 50),
     customerId: catalogs.customer.id,
     routeId: catalogs.route.id,
@@ -117,7 +118,7 @@ async function mkTrip(
     driverSalary: String(amounts.salary),
     revenue: '0',
     totalRoadAllowance: '0',
-  }).returning();
+  });
   createdTripIds.push(trip.id);
   return trip;
 }
@@ -158,6 +159,8 @@ after(async () => {
       await db.delete(s.ledger).where(inArray(s.ledger.id, createdLedgerIds));
     }
     if (createdTripIds.length > 0) {
+      await db.delete(s.tripFinancialState).where(inArray(s.tripFinancialState.tripId, createdTripIds));
+      await db.delete(s.tripCarrierInfo).where(inArray(s.tripCarrierInfo.tripId, createdTripIds));
       await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
     }
     if (createdCargoTypeIds.length > 0) {

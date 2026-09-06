@@ -18,7 +18,8 @@
 
 import { db } from '../db';
 import * as s from '../db/schema';
-import { eq, and, isNull, ne } from 'drizzle-orm';
+import { and, isNull, ne } from 'drizzle-orm';
+import { applyTripPatch } from '../services/trip-composite.service';
 
 const DRY_RUN = process.argv.includes('--dry-run');
 
@@ -30,8 +31,9 @@ async function main() {
   console.log(`\n=== Trip Figures Recalculation (VAT fix) ===`);
   console.log(`Mode: ${DRY_RUN ? 'DRY RUN (no writes)' : 'LIVE'}\n`);
 
-  const trips = await db.select().from(s.trips).where(
-    and(isNull(s.trips.deletedAt), ne(s.trips.status, 'CANCELED'))
+  // Trips-split: composed read — the recalc consumes the financial block.
+  const trips = await db.select().from(s.tripsComposite).where(
+    and(isNull(s.tripsComposite.deletedAt), ne(s.tripsComposite.status, 'CANCELED'))
   );
 
   console.log(`Found ${trips.length} active trips\n`);
@@ -90,13 +92,12 @@ async function main() {
       console.log(`Trip ${trip.tripCode || trip.id}: ${parts.join(' | ')}`);
 
       if (!DRY_RUN) {
-        await db.update(s.trips)
-          .set({
-            totalCost: String(newTotalCost),
-            grossProfit: String(newGrossProfit),
-            updatedAt: new Date(),
-          })
-          .where(eq(s.trips.id, trip.id));
+        // Trips-split: totalCost/grossProfit route to trip_financial_state.
+        await applyTripPatch(db, trip.id, {
+          totalCost: String(newTotalCost),
+          grossProfit: String(newGrossProfit),
+          updatedAt: new Date(),
+        });
       }
 
       updated++;

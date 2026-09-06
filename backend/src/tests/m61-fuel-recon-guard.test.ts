@@ -11,6 +11,7 @@ import { and, eq, inArray, sql } from 'drizzle-orm';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
+import { insertTripComposite } from '../services/trip-composite.service';
 import type { Tx } from '../services/trip-shared';
 import {
   assertFuelReconClear,
@@ -70,14 +71,14 @@ async function mkCargo() {
 
 async function mkTrip(opts: { supplierId: number; totalFuelCost: string; departureDate: string }) {
   const cust = await mkCustomer(); const route = await mkRoute(); const cargo = await mkCargo();
-  const [t] = await db.insert(s.trips).values({
+  const t = await insertTripComposite(db, {
     tripCode: `M61G-${suffix}-${createdTripIds.length}`.slice(0, 50),
     customerId: cust.id, routeId: route.id, cargoTypeId: cargo.id,
     status: 'COMPLETED', departureDate: opts.departureDate, carrierType: 'OWN',
     completedAt: new Date(`${opts.departureDate}T12:00:00.000Z`),
     fuelSupplierId: opts.supplierId,
     totalFuelCost: opts.totalFuelCost,
-  }).returning();
+  });
   createdTripIds.push(t.id);
   return t;
 }
@@ -115,6 +116,8 @@ after(async () => {
   try {
     if (createdExplanationIds.length > 0) await db.delete(s.fuelReconExplanations).where(inArray(s.fuelReconExplanations.id, createdExplanationIds));
     if (createdExpenseIds.length > 0) await db.delete(s.tripExpenses).where(inArray(s.tripExpenses.id, createdExpenseIds));
+    if (createdTripIds.length > 0) await db.delete(s.tripFinancialState).where(inArray(s.tripFinancialState.tripId, createdTripIds));
+    if (createdTripIds.length > 0) await db.delete(s.tripCarrierInfo).where(inArray(s.tripCarrierInfo.tripId, createdTripIds));
     if (createdTripIds.length > 0) await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
     if (createdCargoTypeIds.length > 0) await db.delete(s.cargoTypes).where(sql`${s.cargoTypes.name} LIKE ${namePattern}`);
     if (createdRouteIds.length > 0) await db.delete(s.routes).where(sql`${s.routes.name} LIKE ${namePattern}`);

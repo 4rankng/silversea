@@ -48,21 +48,21 @@ export async function assembleBillingLines(
 
   // 1. Freight revenue from trips.
   const trips = await db.select({
-    id: s.trips.id,
-    tripCode: s.trips.tripCode,
-    revenue: s.trips.revenue,
+    id: s.tripsComposite.id,
+    tripCode: s.tripsComposite.tripCode,
+    revenue: s.tripsComposite.revenue,
     routeName: s.routes.name,
-    pricingSource: s.trips.pricingSource,
-    departureDate: s.trips.departureDate,
+    pricingSource: s.tripsComposite.pricingSource,
+    departureDate: s.tripsComposite.departureDate,
   })
-    .from(s.trips)
-    .innerJoin(s.routes, eq(s.trips.routeId, s.routes.id))
+    .from(s.tripsComposite)
+    .innerJoin(s.routes, eq(s.tripsComposite.routeId, s.routes.id))
     .where(and(
-      eq(s.trips.customerId, customerId),
-      sql`${s.trips.departureDate} >= ${rangeFrom}`,
-      sql`${s.trips.departureDate} <= ${rangeTo}`,
-      sql`${s.trips.status} NOT IN ('CANCELED', 'CREATED')`,
-      isNull(s.trips.deletedAt),
+      eq(s.tripsComposite.customerId, customerId),
+      sql`${s.tripsComposite.departureDate} >= ${rangeFrom}`,
+      sql`${s.tripsComposite.departureDate} <= ${rangeTo}`,
+      sql`${s.tripsComposite.status} NOT IN ('CANCELED', 'CREATED')`,
+      isNull(s.tripsComposite.deletedAt),
     ));
 
   for (const trip of trips) {

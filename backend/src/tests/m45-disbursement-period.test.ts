@@ -7,6 +7,7 @@ import { inArray } from 'drizzle-orm';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
+import { insertTripComposite } from '../services/trip-composite.service';
 import { checkDisbursementAllocation, assertCanAllocateDisbursement } from '../services/disbursement-period.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -27,11 +28,11 @@ async function mkTrip(customerId: number) {
   createdRouteIds.push(route.id);
   const [cargo] = await db.insert(s.cargoTypes).values({ name: `M45 cargo ${suffix}` }).returning();
   createdCargoTypeIds.push(cargo.id);
-  const [trip] = await db.insert(s.trips).values({
+  const trip = await insertTripComposite(db, {
     tripCode: `M45-${suffix}-${createdTripIds.length}`.slice(0, 50),
     customerId, routeId: route.id, cargoTypeId: cargo.id,
     status: 'COMPLETED', departureDate: '2026-07-01', carrierType: 'OWN',
-  }).returning();
+  });
   createdTripIds.push(trip.id); return trip;
 }
 async function mkExpense(tripId: number, status: 'PENDING' | 'APPROVED' | 'REJECTED') {
@@ -54,6 +55,8 @@ after(async () => {
     if (createdLineIds.length > 0) await db.delete(s.billingDocumentLines).where(inArray(s.billingDocumentLines.id, createdLineIds));
     if (createdDocIds.length > 0) await db.delete(s.billingDocuments).where(inArray(s.billingDocuments.id, createdDocIds));
     if (createdExpenseIds.length > 0) await db.delete(s.tripExpenses).where(inArray(s.tripExpenses.id, createdExpenseIds));
+    if (createdTripIds.length > 0) await db.delete(s.tripFinancialState).where(inArray(s.tripFinancialState.tripId, createdTripIds));
+    if (createdTripIds.length > 0) await db.delete(s.tripCarrierInfo).where(inArray(s.tripCarrierInfo.tripId, createdTripIds));
     if (createdTripIds.length > 0) await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
     if (createdCargoTypeIds.length > 0) await db.delete(s.cargoTypes).where(inArray(s.cargoTypes.id, createdCargoTypeIds));
     if (createdRouteIds.length > 0) await db.delete(s.routes).where(inArray(s.routes.id, createdRouteIds));

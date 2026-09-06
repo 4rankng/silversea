@@ -5,6 +5,7 @@ import { FuelMode, Role, TripStatus, TxnType } from '@tingting/shared';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
+import { applyTripPatch, insertTripComposite } from '../services/trip-composite.service';
 import { ApiError } from '../errors';
 import {
   approveGovernanceAction,
@@ -52,6 +53,8 @@ after(async () => {
     await db.delete(s.tripFinancialPostings).where(inArray(s.tripFinancialPostings.tripId, createdTripIds));
     await db.delete(s.tripPhotos).where(inArray(s.tripPhotos.tripId, createdTripIds));
     await cleanupTripCloseMilestones(createdTripIds);
+    await db.delete(s.tripFinancialState).where(inArray(s.tripFinancialState.tripId, createdTripIds));
+    await db.delete(s.tripCarrierInfo).where(inArray(s.tripCarrierInfo.tripId, createdTripIds));
     await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
   }
   await cleanupTripCloseShipments(createdShipmentIds);
@@ -100,7 +103,7 @@ async function createTripFixture(overrides?: {
   createdRouteIds.push(route.id);
   createdCargoTypeIds.push(cargoType.id);
 
-  const [trip] = await db.insert(s.trips).values({
+  const trip = await insertTripComposite(db, {
     tripCode: `AP-${suffix}`.slice(0, 50),
     customerId: customer.id,
     routeId: route.id,
@@ -112,7 +115,7 @@ async function createTripFixture(overrides?: {
     carrierType: 'OWN',
     revenue: '2000000',
     driverSalary: '0',
-  }).returning();
+  });
   createdTripIds.push(trip.id);
 
   await db.insert(s.tripPhotos).values({
@@ -188,15 +191,13 @@ describe('O2C rev1 Phase 4 — AP snapshot dirtying', () => {
     const { trip } = await createTripFixture();
     await completeTripGoverned(trip.id, trip.version);
 
-    await db.update(s.trips)
-      .set({ driverSalary: '345000' })
-      .where(eq(s.trips.id, trip.id));
+    await applyTripPatch(db, trip.id, { driverSalary: '345000' });
     await SnapshotServices.markBothDirty(trip.id, db);
 
     const [updated] = await db.select({
-      arSnapshotDirty: s.trips.arSnapshotDirty,
-      apSnapshotDirty: s.trips.apSnapshotDirty,
-    }).from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
+      arSnapshotDirty: s.tripsComposite.arSnapshotDirty,
+      apSnapshotDirty: s.tripsComposite.apSnapshotDirty,
+    }).from(s.tripsComposite).where(eq(s.trips.id, trip.id)).limit(1);
     assert.equal(updated?.arSnapshotDirty, true);
     assert.equal(updated?.apSnapshotDirty, false);
 
@@ -228,9 +229,9 @@ describe('O2C rev1 Phase 4 — AP snapshot dirtying', () => {
     });
 
     const [updated] = await db.select({
-      arSnapshotDirty: s.trips.arSnapshotDirty,
-      apSnapshotDirty: s.trips.apSnapshotDirty,
-    }).from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
+      arSnapshotDirty: s.tripsComposite.arSnapshotDirty,
+      apSnapshotDirty: s.tripsComposite.apSnapshotDirty,
+    }).from(s.tripsComposite).where(eq(s.trips.id, trip.id)).limit(1);
     assert.equal(updated?.arSnapshotDirty, true);
     assert.equal(updated?.apSnapshotDirty, false);
   });
@@ -247,27 +248,27 @@ describe('O2C rev1 Phase 4 — AP snapshot dirtying', () => {
     });
 
     const [updated] = await db.select({
-      arSnapshotDirty: s.trips.arSnapshotDirty,
-      apSnapshotDirty: s.trips.apSnapshotDirty,
-    }).from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
+      arSnapshotDirty: s.tripsComposite.arSnapshotDirty,
+      apSnapshotDirty: s.tripsComposite.apSnapshotDirty,
+    }).from(s.tripsComposite).where(eq(s.trips.id, trip.id)).limit(1);
     assert.equal(updated?.arSnapshotDirty, true);
     assert.equal(updated?.apSnapshotDirty, true);
 
     await ApSnapshotService.recapture(trip.id);
     const [recaptured] = await db.select({
-      apCostHash: s.trips.apCostHash,
-      apSnapshotDirty: s.trips.apSnapshotDirty,
-    }).from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
+      apCostHash: s.tripsComposite.apCostHash,
+      apSnapshotDirty: s.tripsComposite.apSnapshotDirty,
+    }).from(s.tripsComposite).where(eq(s.trips.id, trip.id)).limit(1);
     assert.ok(recaptured?.apCostHash, 'AP recapture should store a fresh hash');
     assert.equal(recaptured?.apSnapshotDirty, false);
   });
 
   test('changing the fuel supplier identity dirties AP even when the amount is unchanged', async () => {
     const { trip, supplier } = await createTripFixture();
-    await db.update(s.trips).set({
+    await applyTripPatch(db, trip.id, {
       fuelSupplierId: supplier.id,
       totalFuelCost: '500000',
-    }).where(eq(s.trips.id, trip.id));
+    });
     await completeTripGoverned(trip.id, trip.version);
 
     const [replacementSupplier] = await db.insert(s.suppliers)
@@ -275,20 +276,19 @@ describe('O2C rev1 Phase 4 — AP snapshot dirtying', () => {
       .returning();
     createdSupplierIds.push(replacementSupplier.id);
     await db.transaction(async (tx) => {
-      await tx.update(s.trips).set({ fuelSupplierId: replacementSupplier.id })
-        .where(eq(s.trips.id, trip.id));
+      await applyTripPatch(tx, trip.id, { fuelSupplierId: replacementSupplier.id });
       await ApSnapshotService.markDirty(trip.id, tx);
     });
 
-    const [updated] = await db.select({ apSnapshotDirty: s.trips.apSnapshotDirty })
-      .from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
+    const [updated] = await db.select({ apSnapshotDirty: s.tripsComposite.apSnapshotDirty })
+      .from(s.tripsComposite).where(eq(s.trips.id, trip.id)).limit(1);
     assert.equal(updated?.apSnapshotDirty, true);
   });
 
   test('a governed completed-trip correction reconciles the dirty fuel surcharge and reposts AR', async () => {
     const { trip } = await createTripFixture();
     const historicalComputedAt = new Date(0).toISOString();
-    await db.update(s.trips).set({
+    await applyTripPatch(db, trip.id, {
       fuelSurchargeAmount: '321000',
       fuelSurchargeSnapshot: {
         currentFuelPrice: 25000,
@@ -298,10 +298,9 @@ describe('O2C rev1 Phase 4 — AP snapshot dirtying', () => {
         customerId: trip.customerId,
         computedAt: historicalComputedAt,
       },
-    }).where(eq(s.trips.id, trip.id));
+    });
     const completed = await completeTripGoverned(trip.id, trip.version);
-    await db.update(s.trips).set({ fuelSurchargeSnapshotDirty: true })
-      .where(eq(s.trips.id, trip.id));
+    await applyTripPatch(db, trip.id, { fuelSurchargeSnapshotDirty: true });
 
     const actorSuffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const actors = await db.insert(s.users).values([
@@ -342,12 +341,12 @@ describe('O2C rev1 Phase 4 — AP snapshot dirtying', () => {
     });
 
     const [updated] = await db.select({
-      fuelSurchargeAmount: s.trips.fuelSurchargeAmount,
-      fuelSurchargeSnapshot: s.trips.fuelSurchargeSnapshot,
-      fuelSurchargeSnapshotDirty: s.trips.fuelSurchargeSnapshotDirty,
-      arSnapshotDirty: s.trips.arSnapshotDirty,
-      apSnapshotDirty: s.trips.apSnapshotDirty,
-    }).from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
+      fuelSurchargeAmount: s.tripsComposite.fuelSurchargeAmount,
+      fuelSurchargeSnapshot: s.tripsComposite.fuelSurchargeSnapshot,
+      fuelSurchargeSnapshotDirty: s.tripsComposite.fuelSurchargeSnapshotDirty,
+      arSnapshotDirty: s.tripsComposite.arSnapshotDirty,
+      apSnapshotDirty: s.tripsComposite.apSnapshotDirty,
+    }).from(s.tripsComposite).where(eq(s.trips.id, trip.id)).limit(1);
     // This fixture has no configured customer share, so the governed correction
     // recomputes to zero. The prior 321,000 remains auditable in the reversal
     // ledger entry while the fresh posting carries the reconciled amount.
@@ -378,9 +377,9 @@ describe('O2C rev1 Phase 4 — AP snapshot dirtying', () => {
 
       const [updated] = await db.select({
         status: s.trips.status,
-        apCostHash: s.trips.apCostHash,
-        apSnapshotDirty: s.trips.apSnapshotDirty,
-      }).from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
+        apCostHash: s.tripsComposite.apCostHash,
+        apSnapshotDirty: s.tripsComposite.apSnapshotDirty,
+      }).from(s.tripsComposite).where(eq(s.trips.id, trip.id)).limit(1);
       assert.equal(updated?.status, TripStatus.IN_TRANSIT);
       assert.equal(updated?.apCostHash, null);
       assert.equal(updated?.apSnapshotDirty, false);

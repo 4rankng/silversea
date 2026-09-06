@@ -87,7 +87,7 @@ function containerCarrierNameSql(): SQL {
       coalesce(nullif(trim(pc.short_name), ''), pc.name)
     )
     from ${s.shipmentFulfillments} sf
-    left join ${s.trips} t
+    left join ${s.tripsComposite} t
       on t.fulfillment_id = sf.id and t.deleted_at is null and t.status <> 'CANCELED'
     left join ${s.customers} ac on ac.id = t.external_entity_id
     left join ${s.customers} pc on pc.id = sf.planned_external_carrier_id
@@ -182,11 +182,11 @@ const WORKSPACE_SORT_SQL: Record<ShipmentCusWorkspaceSortKey, SQL> = {
 // to the in-memory assignmentsByContainer projection.
 
 function activeTripCarrierTypeSql(): SQL {
-  return sql`(select ${s.trips.carrierType}
+  return sql`(select ${s.tripsComposite.carrierType}
     from ${s.shipmentFulfillments}
-    join ${s.trips} on ${s.trips.fulfillmentId} = ${s.shipmentFulfillments.id}
-      and ${s.trips.deletedAt} is null
-      and ${s.trips.status} <> 'CANCELED'
+    join ${s.tripsComposite} on ${s.tripsComposite.fulfillmentId} = ${s.shipmentFulfillments.id}
+      and ${s.tripsComposite.deletedAt} is null
+      and ${s.tripsComposite.status} <> 'CANCELED'
     where ${s.shipmentFulfillments.shipmentContainerId} = ${s.shipmentContainers.id}
       and ${s.shipmentFulfillments.canceledAt} is null
     limit 1)`;
@@ -205,11 +205,11 @@ function activeCarrierTypeSql(): SQL {
 }
 
 function activeTripPlateSql(): SQL {
-  return sql`(select ${s.trips.externalPlateNumber}
+  return sql`(select ${s.tripsComposite.externalPlateNumber}
     from ${s.shipmentFulfillments}
-    join ${s.trips} on ${s.trips.fulfillmentId} = ${s.shipmentFulfillments.id}
-      and ${s.trips.deletedAt} is null
-      and ${s.trips.status} <> 'CANCELED'
+    join ${s.tripsComposite} on ${s.tripsComposite.fulfillmentId} = ${s.shipmentFulfillments.id}
+      and ${s.tripsComposite.deletedAt} is null
+      and ${s.tripsComposite.status} <> 'CANCELED'
     where ${s.shipmentFulfillments.shipmentContainerId} = ${s.shipmentContainers.id}
       and ${s.shipmentFulfillments.canceledAt} is null
     limit 1)`;
