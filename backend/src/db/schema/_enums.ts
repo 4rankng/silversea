@@ -47,8 +47,9 @@ export const advanceSettlementStatusEnum = applicationEnum(['PENDING', 'CHECKED_
 export const opsExpenseStatusEnum = applicationEnum(['PENDING', 'APPROVED', 'REJECTED']);
 
 // Ops settlement batch (đề nghị thanh toán): PENDING until accounting approves
-// the whole batch after every frozen entry is approved.
-export const opsSettlementStatusEnum = applicationEnum(['PENDING', 'APPROVED']);
+// the whole batch after every frozen entry is approved, or REJECTED (entries
+// return to the open pool for the next batch).
+export const opsSettlementStatusEnum = applicationEnum(['PENDING', 'APPROVED', 'REJECTED']);
 
 export const creditOverrideStatusEnum = applicationEnum(['PENDING', 'APPROVED', 'REJECTED', 'CANCELED']);
 
