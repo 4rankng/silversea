@@ -299,7 +299,7 @@ Lái xe nhập chi phí trực tiếp trên app:
 - **Tự tính (không sửa được):** Tiền đường (từ chuyến), phí nâng/hạ Lạch Huyên (50k)
 - **Đổ dầu (riêng):** Chụp ảnh cột bơm → hệ thống đọc số lít, đơn giá, tổng tiền → phát hiện bất thường (đối chiếu GPS lộ trình đã dừng cùng tính năng tracking, 2026-09-06)
 
-> Chi phí chưa cần duyệt trong luồng chính — xử lý sau, ngoài phạm vi.
+> Chi phí **lái xe** chưa cần duyệt trong luồng chính — xử lý sau, ngoài phạm vi. Chi phí **khai bởi Ops hiện trường** (tạm ứng, chi hộ, biên lai) là luồng riêng của vai trò Ops: xem `OpsVanHanh.md` (/ops/orders, /ops/wallet; cập nhật 2026-09-06).
 
 ---
 
@@ -320,7 +320,7 @@ Sau khi lái xe hoàn thành, Chứng Từ xử lý chứng từ trên hồ sơ 
 | Chờ khóa | Hoàn thành một phần (còn chuyến chưa xong) | Sắp chốt hồ sơ |
 | Đã khóa | Lô hoàn thành | Hồ sơ cuối — không sửa trực tiếp được |
 
-> Đối soát tài chính / khóa sổ kế toán xử lý sau, ngoài phạm vi tài liệu này.
+> Đối soát tài chính / khóa sổ kế toán xử lý sau, ngoài phạm vi tài liệu này. Riêng đối soát ví tạm ứng & chi phí của Ops hiện trường (duyệt từng khoản, phiếu đề nghị thanh toán) đã định nghĩa ở `OpsVanHanh.md` (2026-09-06).
 
 ---
 
