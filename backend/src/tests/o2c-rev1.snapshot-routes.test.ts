@@ -240,7 +240,7 @@ describe('financial snapshot routes', () => {
       arCostHash: s.tripsComposite.arCostHash,
       arSnapshotDirty: s.tripsComposite.arSnapshotDirty,
       arSnapshotChangedAt: s.tripsComposite.arSnapshotChangedAt,
-    }).from(s.tripsComposite).where(eq(s.trips.id, trip.id)).limit(1);
+    }).from(s.tripsComposite).where(eq(s.tripsComposite.id, trip.id)).limit(1);
     assert.ok(captured?.arCostHash);
     assert.equal(captured?.arSnapshotDirty, false);
 
@@ -255,7 +255,7 @@ describe('financial snapshot routes', () => {
     assert.equal((await replayRes.json() as { replayed: boolean }).replayed, true);
     const [replayed] = await db.select({
       arSnapshotChangedAt: s.tripsComposite.arSnapshotChangedAt,
-    }).from(s.tripsComposite).where(eq(s.trips.id, trip.id)).limit(1);
+    }).from(s.tripsComposite).where(eq(s.tripsComposite.id, trip.id)).limit(1);
     assert.equal(replayed?.arSnapshotChangedAt?.toISOString(), captured?.arSnapshotChangedAt?.toISOString());
 
     const auditRow = await waitForAudit(path);
@@ -296,7 +296,7 @@ describe('financial snapshot routes', () => {
     const [captured] = await db.select({
       arCostHash: s.tripsComposite.arCostHash,
       arSnapshotDirty: s.tripsComposite.arSnapshotDirty,
-    }).from(s.tripsComposite).where(eq(s.trips.id, trip.id)).limit(1);
+    }).from(s.tripsComposite).where(eq(s.tripsComposite.id, trip.id)).limit(1);
     assert.ok(captured?.arCostHash);
     assert.equal(captured?.arSnapshotDirty, false);
 
@@ -304,7 +304,7 @@ describe('financial snapshot routes', () => {
     const [verified] = await db.select({
       arCostHash: s.tripsComposite.arCostHash,
       arSnapshotDirty: s.tripsComposite.arSnapshotDirty,
-    }).from(s.tripsComposite).where(eq(s.trips.id, trip.id)).limit(1);
+    }).from(s.tripsComposite).where(eq(s.tripsComposite.id, trip.id)).limit(1);
     assert.equal(verified?.arCostHash, captured?.arCostHash);
     assert.equal(verified?.arSnapshotDirty, false, 'captured hash must match the serialized final cost state');
   });
@@ -335,7 +335,7 @@ describe('financial snapshot routes', () => {
       apCostHash: s.tripsComposite.apCostHash,
       apSnapshotDirty: s.tripsComposite.apSnapshotDirty,
       apSnapshotChangedAt: s.tripsComposite.apSnapshotChangedAt,
-    }).from(s.tripsComposite).where(eq(s.trips.id, trip.id)).limit(1);
+    }).from(s.tripsComposite).where(eq(s.tripsComposite.id, trip.id)).limit(1);
     assert.ok(updated?.apCostHash, 'recapture should persist an AP hash');
     assert.equal(updated?.apSnapshotDirty, false);
 
@@ -351,7 +351,7 @@ describe('financial snapshot routes', () => {
     assert.equal(replayData.replayed, true);
     const [replayedTrip] = await db.select({
       apSnapshotChangedAt: s.tripsComposite.apSnapshotChangedAt,
-    }).from(s.tripsComposite).where(eq(s.trips.id, trip.id)).limit(1);
+    }).from(s.tripsComposite).where(eq(s.tripsComposite.id, trip.id)).limit(1);
     assert.equal(
       replayedTrip?.apSnapshotChangedAt?.toISOString(),
       updated?.apSnapshotChangedAt?.toISOString(),
@@ -421,7 +421,7 @@ describe('financial snapshot routes', () => {
     const [updated] = await db.select({
       fuelSurchargeSnapshot: s.tripsComposite.fuelSurchargeSnapshot,
       fuelSurchargeSnapshotDirty: s.tripsComposite.fuelSurchargeSnapshotDirty,
-    }).from(s.tripsComposite).where(eq(s.trips.id, trip.id)).limit(1);
+    }).from(s.tripsComposite).where(eq(s.tripsComposite.id, trip.id)).limit(1);
     assert.equal(updated?.fuelSurchargeSnapshotDirty, false);
     assert.notEqual(updated?.fuelSurchargeSnapshot?.computedAt, new Date(0).toISOString());
 
@@ -462,7 +462,7 @@ describe('financial snapshot routes', () => {
       fuelSurchargeAmount: s.tripsComposite.fuelSurchargeAmount,
       fuelSurchargeSnapshot: s.tripsComposite.fuelSurchargeSnapshot,
       fuelSurchargeSnapshotDirty: s.tripsComposite.fuelSurchargeSnapshotDirty,
-    }).from(s.tripsComposite).where(eq(s.trips.id, trip.id)).limit(1);
+    }).from(s.tripsComposite).where(eq(s.tripsComposite.id, trip.id)).limit(1);
     assert.equal(unchanged?.fuelSurchargeAmount, '999999');
     assert.equal(unchanged?.fuelSurchargeSnapshot?.computedAt, historicalComputedAt);
     assert.equal(unchanged?.fuelSurchargeSnapshotDirty, true);

@@ -197,7 +197,7 @@ describe('O2C rev1 Phase 4 — AP snapshot dirtying', () => {
     const [updated] = await db.select({
       arSnapshotDirty: s.tripsComposite.arSnapshotDirty,
       apSnapshotDirty: s.tripsComposite.apSnapshotDirty,
-    }).from(s.tripsComposite).where(eq(s.trips.id, trip.id)).limit(1);
+    }).from(s.tripsComposite).where(eq(s.tripsComposite.id, trip.id)).limit(1);
     assert.equal(updated?.arSnapshotDirty, true);
     assert.equal(updated?.apSnapshotDirty, false);
 
@@ -231,7 +231,7 @@ describe('O2C rev1 Phase 4 — AP snapshot dirtying', () => {
     const [updated] = await db.select({
       arSnapshotDirty: s.tripsComposite.arSnapshotDirty,
       apSnapshotDirty: s.tripsComposite.apSnapshotDirty,
-    }).from(s.tripsComposite).where(eq(s.trips.id, trip.id)).limit(1);
+    }).from(s.tripsComposite).where(eq(s.tripsComposite.id, trip.id)).limit(1);
     assert.equal(updated?.arSnapshotDirty, true);
     assert.equal(updated?.apSnapshotDirty, false);
   });
@@ -250,7 +250,7 @@ describe('O2C rev1 Phase 4 — AP snapshot dirtying', () => {
     const [updated] = await db.select({
       arSnapshotDirty: s.tripsComposite.arSnapshotDirty,
       apSnapshotDirty: s.tripsComposite.apSnapshotDirty,
-    }).from(s.tripsComposite).where(eq(s.trips.id, trip.id)).limit(1);
+    }).from(s.tripsComposite).where(eq(s.tripsComposite.id, trip.id)).limit(1);
     assert.equal(updated?.arSnapshotDirty, true);
     assert.equal(updated?.apSnapshotDirty, true);
 
@@ -258,7 +258,7 @@ describe('O2C rev1 Phase 4 — AP snapshot dirtying', () => {
     const [recaptured] = await db.select({
       apCostHash: s.tripsComposite.apCostHash,
       apSnapshotDirty: s.tripsComposite.apSnapshotDirty,
-    }).from(s.tripsComposite).where(eq(s.trips.id, trip.id)).limit(1);
+    }).from(s.tripsComposite).where(eq(s.tripsComposite.id, trip.id)).limit(1);
     assert.ok(recaptured?.apCostHash, 'AP recapture should store a fresh hash');
     assert.equal(recaptured?.apSnapshotDirty, false);
   });
@@ -281,7 +281,7 @@ describe('O2C rev1 Phase 4 — AP snapshot dirtying', () => {
     });
 
     const [updated] = await db.select({ apSnapshotDirty: s.tripsComposite.apSnapshotDirty })
-      .from(s.tripsComposite).where(eq(s.trips.id, trip.id)).limit(1);
+      .from(s.tripsComposite).where(eq(s.tripsComposite.id, trip.id)).limit(1);
     assert.equal(updated?.apSnapshotDirty, true);
   });
 
@@ -346,7 +346,7 @@ describe('O2C rev1 Phase 4 — AP snapshot dirtying', () => {
       fuelSurchargeSnapshotDirty: s.tripsComposite.fuelSurchargeSnapshotDirty,
       arSnapshotDirty: s.tripsComposite.arSnapshotDirty,
       apSnapshotDirty: s.tripsComposite.apSnapshotDirty,
-    }).from(s.tripsComposite).where(eq(s.trips.id, trip.id)).limit(1);
+    }).from(s.tripsComposite).where(eq(s.tripsComposite.id, trip.id)).limit(1);
     // This fixture has no configured customer share, so the governed correction
     // recomputes to zero. The prior 321,000 remains auditable in the reversal
     // ledger entry while the fresh posting carries the reconciled amount.
@@ -379,7 +379,7 @@ describe('O2C rev1 Phase 4 — AP snapshot dirtying', () => {
         status: s.trips.status,
         apCostHash: s.tripsComposite.apCostHash,
         apSnapshotDirty: s.tripsComposite.apSnapshotDirty,
-      }).from(s.tripsComposite).where(eq(s.trips.id, trip.id)).limit(1);
+      }).from(s.tripsComposite).where(eq(s.tripsComposite.id, trip.id)).limit(1);
       assert.equal(updated?.status, TripStatus.IN_TRANSIT);
       assert.equal(updated?.apCostHash, null);
       assert.equal(updated?.apSnapshotDirty, false);

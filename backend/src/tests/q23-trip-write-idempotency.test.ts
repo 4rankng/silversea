@@ -408,7 +408,7 @@ describe('Q23 trip write contracts', () => {
       /Dữ liệu đã bị thay đổi/,
     );
     await assert.rejects(deleteTrip(trip.id, 1), /Dữ liệu đã bị thay đổi/);
-    const [stored] = await db.select().from(s.tripsComposite).where(eq(s.trips.id, trip.id));
+    const [stored] = await db.select().from(s.tripsComposite).where(eq(s.tripsComposite.id, trip.id));
     assert.equal(stored.departureDate, '2026-07-27');
     assert.equal(stored.deletedAt, null);
   });

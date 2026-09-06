@@ -698,7 +698,7 @@ describe('Q15 trip financial governance', () => {
     ));
 
     const [beforeChangeApproval] = await db.select().from(s.tripsComposite)
-      .where(eq(s.trips.id, trip.id)).limit(1);
+      .where(eq(s.tripsComposite.id, trip.id)).limit(1);
     assert.equal(beforeChangeApproval.revenue, '1200000');
     assert.equal((await ledgerRows(trip.id)).length, completedLedger.length);
 
@@ -734,7 +734,7 @@ describe('Q15 trip financial governance', () => {
       /không khớp với nội dung thay đổi chuyến đi đã được phê duyệt/,
     );
     const [afterDivergentAttempt] = await db.select().from(s.tripsComposite)
-      .where(eq(s.trips.id, trip.id)).limit(1);
+      .where(eq(s.tripsComposite.id, trip.id)).limit(1);
     assert.equal(afterDivergentAttempt.revenue, '1200000');
     assert.equal((await ledgerRows(trip.id)).length, completedLedger.length);
     const [stillCheckedChange] = await db.select().from(s.governanceActions)
@@ -748,7 +748,7 @@ describe('Q15 trip financial governance', () => {
     assert.equal(approvedChange.status, 200);
 
     const [changed] = await db.select().from(s.tripsComposite)
-      .where(eq(s.trips.id, trip.id)).limit(1);
+      .where(eq(s.tripsComposite.id, trip.id)).limit(1);
     assert.equal(changed.revenue, '1700000');
     const changedLedger = await ledgerRows(trip.id);
     assert.equal(changedLedger.filter((row) => row.txnType === TxnType.TRIP_REVENUE).length, 2);
@@ -818,7 +818,7 @@ describe('Q15 trip financial governance', () => {
     assert.equal(approvedCancel.status, 200);
 
     const [canceled] = await db.select().from(s.tripsComposite)
-      .where(eq(s.trips.id, trip.id)).limit(1);
+      .where(eq(s.tripsComposite.id, trip.id)).limit(1);
     assert.equal(canceled.status, TripStatus.CANCELED);
     for (const value of [
       canceled.fuelLitersOverride,
