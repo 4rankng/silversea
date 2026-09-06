@@ -1,34 +1,6 @@
 {
-  "generatedBy": "Understand-Anything pipeline (run manually via /tmp/Understand-Anything checkout)",
-  "generatedAt": "2026-07-29T16:25:07.393Z",
-  "gitCommitHash": "9834d60ba0b6a240351b9d4e8cb9b64435c84ad8",
-  "graphs": {
-    "structural": "knowledge-graph.json",
-    "domain": "domain-graph.json"
-  },
-  "scope": "backend services/routes/db + shared contracts/calculations + deployment infrastructure (frontend UI, tests, plans, and docs excluded)",
-  "fileCount": 301,
-  "stats": {
-    "knowledge-graph": {
-      "nodes": 1403,
-      "edges": 2464,
-      "layers": 11,
-      "tourSteps": 12
-    },
-    "domain-graph": {
-      "domains": 6,
-      "flows": 9,
-      "steps": 33,
-      "edges": 49
-    }
-  },
-  "validation": {
-    "schema": "@understand-anything/core KnowledgeGraphSchema",
-    "structural": "success=true issues=0",
-    "domain": "success=true issues=0"
-  },
-  "note": "Intermediate pipeline artifacts (.ua/tmp/, .ua/intermediate/) and per-run state are git-ignored; only the two graph JSONs, .understandignore, and this meta.json are committed.",
-  "lastAnalyzedAt": "2026-09-01T13:40:55.983884+00:00",
+  "lastAnalyzedAt": "2026-09-06T17:34:07Z",
+  "gitCommitHash": "50828dc47592edaeb788f21284ddcf4ff72ed019",
   "version": "1.0.0",
-  "analyzedFiles": 471
+  "analyzedFiles": 412
 }
