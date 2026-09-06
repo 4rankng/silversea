@@ -56,6 +56,7 @@ export async function seed() {
     username: schema.users.username,
     email: schema.users.email,
     phone: schema.users.phone,
+    passwordHash: schema.users.passwordHash,
   }).from(schema.users);
   const existingUserByUsername = new Map<string, (typeof existingUsers)[number]>();
   for (const existingUser of existingUsers) {
@@ -78,8 +79,15 @@ export async function seed() {
         needsUpdate.email = canonicalUser.email;
         needsUpdate.phone = canonicalUser.phone;
       }
-      // Always sync password hash so demo accounts work after devdb sync
-      needsUpdate.passwordHash = canonicalUser.passwordHash;
+      // Sync the password hash only when the stored one fails to authenticate
+      // the demo password (e.g. a devdb-synced DB carrying prod hashes) — a
+      // verifiable hash must stay byte-stable across seed runs.
+      const storedHashVerifies = existingUser.passwordHash
+        ? await bcrypt.compare('Abc123', existingUser.passwordHash)
+        : false;
+      if (!storedHashVerifies) {
+        needsUpdate.passwordHash = canonicalUser.passwordHash;
+      }
       if (Object.keys(needsUpdate).length > 0) {
         await db.update(schema.users).set(needsUpdate).where(eq(schema.users.id, existingUser.id));
       }

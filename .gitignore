@@ -103,3 +103,6 @@ kilo.json
 backups/
 backend/.drizzle-generate.lock.d/
 .deploy-worktrees/
+
+# Office lock files (spreadsheet open in Excel while deploying)
+~$*
