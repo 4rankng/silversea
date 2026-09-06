@@ -92,28 +92,28 @@ export async function captureProfitabilityAttributionSnapshot(
   if (existing) return existing;
 
   const [trip] = await tx.select({
-    id: s.trips.id,
-    shipmentId: s.trips.shipmentId,
-    customerId: s.trips.customerId,
+    id: s.tripsComposite.id,
+    shipmentId: s.tripsComposite.shipmentId,
+    customerId: s.tripsComposite.customerId,
     customerName: s.customers.name,
     customerShortName: s.customers.shortName,
-    routeId: s.trips.routeId,
+    routeId: s.tripsComposite.routeId,
     routeName: s.routes.name,
-    truckId: s.trips.truckId,
+    truckId: s.tripsComposite.truckId,
     truckPlate: s.trucks.licensePlate,
-    carrierType: s.trips.carrierType,
-    externalPlate: s.trips.externalPlateNumber,
-    completedAt: s.trips.completedAt,
-    revenue: s.trips.revenue,
-    vatRate: s.trips.vatRate,
-    customerCommission: s.trips.customerCommission,
-    totalCost: s.trips.totalCost,
-    externalFreightCost: s.trips.externalFreightCost,
-  }).from(s.trips)
-    .innerJoin(s.customers, eq(s.customers.id, s.trips.customerId))
-    .innerJoin(s.routes, eq(s.routes.id, s.trips.routeId))
-    .leftJoin(s.trucks, eq(s.trucks.id, s.trips.truckId))
-    .where(eq(s.trips.id, tripId)).limit(1);
+    carrierType: s.tripsComposite.carrierType,
+    externalPlate: s.tripsComposite.externalPlateNumber,
+    completedAt: s.tripsComposite.completedAt,
+    revenue: s.tripsComposite.revenue,
+    vatRate: s.tripsComposite.vatRate,
+    customerCommission: s.tripsComposite.customerCommission,
+    totalCost: s.tripsComposite.totalCost,
+    externalFreightCost: s.tripsComposite.externalFreightCost,
+  }).from(s.tripsComposite)
+    .innerJoin(s.customers, eq(s.customers.id, s.tripsComposite.customerId))
+    .innerJoin(s.routes, eq(s.routes.id, s.tripsComposite.routeId))
+    .leftJoin(s.trucks, eq(s.trucks.id, s.tripsComposite.truckId))
+    .where(eq(s.tripsComposite.id, tripId)).limit(1);
   if (!trip?.completedAt) throw new ApiError(409, 'Chuyến chưa có ngày hoàn thành để chụp lợi nhuận');
 
   const effectiveAt = trip.completedAt;

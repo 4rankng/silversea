@@ -36,6 +36,7 @@ import { and, eq, inArray } from 'drizzle-orm';
 
 import { client, db } from '../db';
 import * as s from '../db/schema';
+import { applyTripPatch, insertTripComposite } from '../services/trip-composite.service';
 import { Role, ShipmentStatus, ShipmentDocumentType } from '@tingting/shared';
 import { config } from '../config';
 import { initEnforcer } from '../casbin/enforcer';
@@ -355,6 +356,8 @@ after(async () => {
         await tx.delete(s.tripPhotos).where(inArray(s.tripPhotos.tripId, createdTripIds));
         await tx.delete(s.tripContainers).where(inArray(s.tripContainers.tripId, createdTripIds));
         await tx.delete(s.tripLegs).where(inArray(s.tripLegs.tripId, createdTripIds));
+        await tx.delete(s.tripFinancialState).where(inArray(s.tripFinancialState.tripId, createdTripIds));
+        await tx.delete(s.tripCarrierInfo).where(inArray(s.tripCarrierInfo.tripId, createdTripIds));
         await tx.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
       }
       if (createdBillingDocumentIds.length > 0) {
@@ -590,7 +593,7 @@ async function createReadyDirectCloseFixture() {
     siteSnapshot: {},
     createdBy: accountantUserId,
   }).returning();
-  const [trip] = await db.insert(s.trips).values({
+  const trip = await insertTripComposite(db, {
     tripCode: `SR-CLOSE-${suffix}-${createdTripIds.length}`.slice(0, 50),
     customerId,
     routeId,
@@ -604,7 +607,7 @@ async function createReadyDirectCloseFixture() {
     revenueEmptyReturn: '40000000',
     podRecoveredAt: new Date(),
     podRecoveredBy: accountantUserId,
-  }).returning();
+  });
   createdTripIds.push(trip.id);
   const [tripContainer] = await db.insert(s.tripContainers).values({
     tripId: trip.id,
@@ -668,7 +671,7 @@ async function createCusWorkspaceLockFixture() {
     .where(eq(s.shipmentContainers.shipmentId, shipment.id))
     .limit(1);
   assert.ok(container, 'accepted fulfillment fixture must create a shipment container');
-  const [trip] = await db.insert(s.trips).values({
+  const trip = await insertTripComposite(db, {
     tripCode: `SR-CUS-LOCK-${suffix}-${createdTripIds.length}`.slice(0, 50),
     customerId,
     routeId,
@@ -680,7 +683,7 @@ async function createCusWorkspaceLockFixture() {
     revenue: '40000000',
     revenueOriginal: '40000000',
     revenueEmptyReturn: '40000000',
-  }).returning();
+  });
   createdTripIds.push(trip.id);
   const [posting] = await db.insert(s.tripFinancialPostings).values({
     tripId: trip.id,
@@ -1557,7 +1560,7 @@ describe('GET /cus-workspace', () => {
 
   test('derives customer totals and loss only from attributable current Debit Note lines, never manual proposals', async () => {
     const fixture = await createCusWorkspaceLockFixture();
-    await db.update(s.trips).set({ totalCost: '45000000' }).where(eq(s.trips.id, fixture.trip.id));
+    await applyTripPatch(db, fixture.trip.id, { totalCost: '45000000' });
     await db.insert(s.billingDocumentLines).values([
       {
         documentId: fixture.document.id,
@@ -3821,7 +3824,7 @@ describe('POST /:id/change-requests/:requestId/review', () => {
     assert.equal(requestResponse.status, 200);
     assert.equal(requestResponse.data.changeMode, 'REQUESTED');
 
-    const [trip] = await db.insert(s.trips).values({
+    const trip = await insertTripComposite(db, {
       tripCode: `SR-CHANGE-${suffix}-${createdTripIds.length}`.slice(0, 50),
       customerId,
       routeId,
@@ -3830,7 +3833,7 @@ describe('POST /:id/change-requests/:requestId/review', () => {
       fulfillmentId: accepted.fulfillmentId,
       status: 'CREATED',
       carrierType: 'OWN',
-    }).returning();
+    });
     createdTripIds.push(trip.id);
 
     const review = await testFetch(`/${current.id}/change-requests/${requestResponse.data.changeRequestId}/review`, {

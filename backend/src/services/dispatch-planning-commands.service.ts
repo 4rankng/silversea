@@ -140,7 +140,7 @@ export async function loadLiveTripForFulfillment(tx: Tx, fulfillmentId: number):
     ))
     .limit(1)
     .for('update', { of: [s.trips] });
-  return row ?? null;
+  return row ? { ...row, carrierType: row.carrierType ?? 'OWN' } : null;
 }
 
 
