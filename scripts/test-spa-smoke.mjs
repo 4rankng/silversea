@@ -1,152 +1,130 @@
 #!/usr/bin/env node
 /**
  * SPA auth + RBAC smoke test for Silversea local dev.
- * - Logs in via API to obtain JWT (fast, deterministic).
- * - Pre-injects `localStorage.token` BEFORE any page load via
- *   `evaluateOnNewDocument` (the React app's auth guard fires on mount,
- *   so post-load injection silently redirects to /login).
- * - Visits the role's home + a forbidden route, captures screenshot,
- *   asserts the final URL.
  *
- * Usage: node scripts/test-spa-smoke.mjs <role>
+ * Walks one role through:
+ *   1) visit /             → expect redirect to role home
+ *   2) visit role home     → expect 200, no redirect away
+ *   3) try /admin-center   → expect block (unless role is admin)
+ *   4) try /dispatch       → expect block (unless role is dieuvan or admin)
  *
- * Exit code: 0 if every assertion passes; 1 otherwise.
+ * Captures:  1 screenshot per state + a JSON summary per role
+ * Output:    qa/<date>_spa-smoke/<role>.{json,png}
+ * Exit code: 0 on every PASS, 1 if any role failed.
+ *
+ * Usage: node scripts/test-spa-smoke.mjs [role]
+ *        node scripts/test-spa-smoke.mjs all   # run every role in ROLES
  */
 
 import puppeteer from "puppeteer";
-import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { api, DEFAULT_BACKEND, DEFAULT_FRONTEND, login, ROLES, role } from "./lib/http.mjs";
+import {
+  STANDARD_BROWSER_ARGS,
+  STANDARD_HEADLESS,
+  STANDARD_VIEWPORT,
+  installPageLogging,
+  sleep,
+  withSession,
+  writeArtifact,
+} from "./lib/ui-driver.mjs";
 
-const FRONTEND = "http://localhost:7174";
-const BACKEND = "http://localhost:3001/api";
-const ARTIFACTS = "qa/2026-09-05_o2c-smoke/auth";
-mkdirSync(ARTIFACTS, { recursive: true });
+const FRONTEND = process.env.FRONTEND ?? DEFAULT_FRONTEND;
+const ARTIFACTS = process.env.ARTIFACTS ?? `qa/${new Date().toISOString().slice(0, 10)}_spa-smoke`;
 
-const ROLE_TABLE = {
-  admin: { username: "admin", home: "/dashboard", allow: ["/admin-center"] },
-  giamdoc: { username: "giamdoc", home: "/dashboard", allow: [] },
-  ketoan: { username: "ketoan", home: "/accounting", allow: [] },
-  cus: { username: "cus", home: "/shipments", allow: [] },
-  dieuvan: { username: "dieuvan", home: "/dispatch", allow: [] },
-  giaonhan: { username: "giaonhan", home: "/my-orders", allow: [] },
-  laixe: { username: "laixe", home: "/my-trips", allow: [] },
-  samsung: { username: "samsung-cs", home: "/portal/shipments", allow: [] },
-};
+const FORBIDDEN = "/admin-center";
+const DISPATCH = "/dispatch";
 
-async function login(username, password) {
-  const res = await fetch(`${BACKEND}/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ identifier: username, password }),
-  });
-  if (!res.ok) throw new Error(`login ${username} → ${res.status}`);
-  const body = await res.json();
-  return body.token;
-}
+const rolesToRun = process.argv[2] === "all"
+  ? Object.keys(ROLES)
+  : [process.argv[2] ?? "cus"];
 
 async function runRole(roleKey) {
-  const spec = ROLE_TABLE[roleKey];
-  if (!spec) throw new Error(`unknown role ${roleKey}`);
-  const token = await login(spec.username, "Abc123");
+  const spec = role(roleKey);
+  const token = await login(roleKey);
   const log = [];
   log.push(`[${new Date().toISOString()}] role=${roleKey} token-len=${token.length}`);
 
-  const browser = await puppeteer.launch({
-    headless: "new",
-    args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
-  });
+  const result = await withSession(token, async (page, ctx) => {
+    installPageLogging(page, ctx.log);
 
-  const page = await browser.newPage();
-  await page.setViewport({ width: 1440, height: 900 });
-  page.on("pageerror", (e) => log.push(`PAGE-ERROR: ${e.message}`));
-  page.on("console", (msg) => {
-    if (msg.type() === "error") log.push(`CONSOLE-ERROR: ${msg.text().slice(0, 200)}`);
-  });
+    // 1) Visit root, expect redirect to role home
+    await page.goto(`${FRONTEND}/`, { waitUntil: "networkidle2", timeout: 15_000 });
+    await sleep(800);
+    const urlAfterRoot = page.url();
+    ctx.log.push(`after /  url=${urlAfterRoot}`);
+    await page.screenshot({ path: join(ARTIFACTS, `${roleKey}_home.png`) });
 
-  // Critical: inject BEFORE first navigation. See puppeteer-spa-auth skill.
-  await page.evaluateOnNewDocument((t) => {
-    localStorage.setItem("token", t);
-  }, token);
+    // 2) Visit home directly
+    await page.goto(`${FRONTEND}${spec.home}`, { waitUntil: "networkidle2", timeout: 15_000 });
+    await sleep(600);
+    const urlAfterHome = page.url();
+    const homeOk = urlAfterHome.includes(spec.home);
+    ctx.log.push(`home visit: ${urlAfterHome} → ${homeOk ? "PASS" : "FAIL"}`);
 
-  // 1) Visit root, expect redirect to role home
-  await page.goto(`${FRONTEND}/`, { waitUntil: "networkidle2", timeout: 15000 });
-  await new Promise((r) => setTimeout(r, 800));
-  const urlAfterRoot = page.url();
-  log.push(`after /  url=${urlAfterRoot}`);
+    // Sidebar nav items
+    const nav = await page.evaluate(() => {
+      const buttons = Array.from(document.querySelectorAll(".sidebar-nav .sidebar-item"));
+      return buttons
+        .map((b) => b.querySelector(".sidebar-item-label")?.textContent?.trim() || b.getAttribute("aria-label"))
+        .filter(Boolean);
+    });
+    ctx.log.push(`nav items: ${JSON.stringify(nav)}`);
 
-  // Screenshot home
-  await page.screenshot({
-    path: join(ARTIFACTS, `${roleKey}_home.png`),
-    fullPage: false,
-  });
+    // 3) Forbidden: /admin-center
+    await page.goto(`${FRONTEND}${FORBIDDEN}`, { waitUntil: "networkidle2", timeout: 15_000 });
+    await sleep(800);
+    const urlAfterForbidden = page.url();
+    const blockedFromAdmin = !urlAfterForbidden.includes(FORBIDDEN) || roleKey === "admin";
+    ctx.log.push(`forbidden ${FORBIDDEN} → ${urlAfterForbidden} → ${blockedFromAdmin ? "BLOCKED-OK" : "LEAKED"}`);
+    await page.screenshot({ path: join(ARTIFACTS, `${roleKey}_after-forbidden.png`) });
 
-  // 2) Visit home directly
-  await page.goto(`${FRONTEND}${spec.home}`, { waitUntil: "networkidle2", timeout: 15000 });
-  await new Promise((r) => setTimeout(r, 600));
-  const urlAfterHome = page.url();
-  const homeOk = urlAfterHome.includes(spec.home);
-  log.push(`home visit: ${urlAfterHome} → ${homeOk ? "PASS" : "FAIL"}`);
+    // 4) /dispatch — DISPATCH resource is allowed for ADMIN, MANAGER, DISPATCHER
+    //    per the ROLE_GUARDS table in staging-visual-matrix.mjs. Others are blocked.
+    const DISPATCH_ALLOWED = new Set(["admin", "giamdoc", "dieuvan"]);
+    await page.goto(`${FRONTEND}${DISPATCH}`, { waitUntil: "networkidle2", timeout: 15_000 });
+    await sleep(600);
+    const urlAfterDispatch = page.url();
+    const blockedFromDispatch = !urlAfterDispatch.includes(DISPATCH) || DISPATCH_ALLOWED.has(roleKey);
+    ctx.log.push(`${DISPATCH} → ${urlAfterDispatch} → ${blockedFromDispatch ? "BLOCKED-OK" : "LEAKED"}`);
 
-  // Sidebar nav items (sidebar uses <button class="sidebar-item"> not <a>)
-  const nav = await page.evaluate(() => {
-    const buttons = Array.from(document.querySelectorAll('.sidebar-nav .sidebar-item'));
-    return buttons
-      .map((b) => b.querySelector('.sidebar-item-label')?.textContent?.trim() || b.getAttribute('aria-label'))
-      .filter(Boolean);
-  });
-  log.push(`nav items: ${JSON.stringify(nav)}`);
-
-  // 3) RBAC negative: try a forbidden route
-  const forbidden = "/admin-center";
-  await page.goto(`${FRONTEND}${forbidden}`, { waitUntil: "networkidle2", timeout: 15000 });
-  await new Promise((r) => setTimeout(r, 800));
-  const urlAfterForbidden = page.url();
-  // Should NOT be /admin-center — should redirect home or to /
-  const blockedFromAdmin = !urlAfterForbidden.includes(forbidden) || roleKey === "admin";
-  log.push(`forbidden /admin-center → ${urlAfterForbidden} → ${blockedFromAdmin ? "BLOCKED-OK" : "LEAKED"}`);
-
-  await page.screenshot({
-    path: join(ARTIFACTS, `${roleKey}_after-forbidden.png`),
-  });
-
-  // 4) RBAC negative: try /dispatch if not dispatcher
-  const dispatchBlocked = await (async () => {
-    await page.goto(`${FRONTEND}/dispatch`, { waitUntil: "networkidle2", timeout: 15000 });
-    await new Promise((r) => setTimeout(r, 600));
-    const u = page.url();
     return {
-      url: u,
-      blocked: !u.includes("/dispatch") || roleKey === "dieuvan" || roleKey === "admin",
+      role: roleKey,
+      username: spec.username,
+      expectedHome: spec.home,
+      urlAfterRoot,
+      urlAfterHome,
+      homeOk,
+      forbiddenAdminBlocked: blockedFromAdmin,
+      dispatchBlocked: blockedFromDispatch,
+      navItemsCount: nav.length,
+      navItems: nav,
     };
-  })();
-  log.push(`/dispatch → ${dispatchBlocked.url} → ${dispatchBlocked.blocked ? "BLOCKED-OK" : "LEAKED"}`);
+  }, { artifactDir: ARTIFACTS, name: roleKey, puppeteerImpl: puppeteer });
 
-  await browser.close();
+  // Sanity check: also hit the role's own API endpoint to make sure the
+  // token is not just valid in the SPA but also against the backend RBAC.
+  const apiCheck = await api(token, "GET", spec.api);
+  result.apiSmoke = { endpoint: spec.api, status: apiCheck.status, ok: apiCheck.ok };
+  result.log = [...log, ...result.log ?? []];
 
-  // Summary row
-  const summary = {
-    role: roleKey,
-    username: spec.username,
-    expectedHome: spec.home,
-    urlAfterRoot,
-    urlAfterHome,
-    homeOk,
-    forbiddenAdminBlocked: blockedFromAdmin,
-    dispatchBlocked: dispatchBlocked.blocked,
-    navItemsCount: nav.length,
-    navItems: nav,
-    log,
-  };
-
-  writeFileSync(
-    join(ARTIFACTS, `${roleKey}.json`),
-    JSON.stringify(summary, null, 2),
-  );
-
-  return summary;
+  const ok = result.homeOk && result.forbiddenAdminBlocked && result.dispatchBlocked;
+  writeArtifact(ARTIFACTS, `${roleKey}.json`, { ...result, ok });
+  return { ...result, ok };
 }
 
-const role = process.argv[2] || "cus";
-const result = await runRole(role);
-console.log(JSON.stringify(result, null, 2));
-process.exit(result.homeOk && result.forbiddenAdminBlocked && result.dispatchBlocked ? 0 : 1);
+const summary = { generatedAt: new Date().toISOString(), frontend: FRONTEND, roles: [], allPassed: true };
+for (const roleKey of rolesToRun) {
+  try {
+    const r = await runRole(roleKey);
+    summary.roles.push(r);
+    if (!r.ok) summary.allPassed = false;
+    console.log(`${r.ok ? "PASS" : "FAIL"}  ${roleKey}  home=${r.urlAfterHome}  api=${r.apiSmoke?.status}`);
+  } catch (error) {
+    summary.allPassed = false;
+    summary.roles.push({ role: roleKey, ok: false, error: error?.message ?? String(error) });
+    console.error(`FAIL  ${roleKey}  ${error?.message ?? error}`);
+  }
+}
+writeArtifact(ARTIFACTS, "summary.json", summary);
+process.exit(summary.allPassed ? 0 : 1);
