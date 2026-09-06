@@ -159,25 +159,23 @@
 
   /* Mobile source order follows the operational job before analysis:
        1  BasicInfoCard (main)
-       2  JourneyCard (main)
-       3  KpiStrip (rail)
-       4  FinancialCard (rail)
-       5  ServiceCostsCard (main)
-       6  ContainersCard (main)
-       7  FuelCard (rail)
-       8  ExternalCarrierCard (rail, optional)
-       9  PhotosCard (main, optional)
-      10  Notes (main, optional) */
+       2  KpiStrip (rail)
+       3  FinancialCard (rail)
+       4  ServiceCostsCard (main)
+       5  ContainersCard (main)
+       6  FuelCard (rail)
+       7  ExternalCarrierCard (rail, optional)
+       8  PhotosCard (main, optional)
+       9  Notes (main, optional) */
   .tdp-m3 { order: 1; }
-  .tdp-m1 { order: 2; }
-  .tdp-r1 { order: 3; }
-  .tdp-r2 { order: 4; }
-  .tdp-m2 { order: 5; }
-  .tdp-m4 { order: 6; }
-  .tdp-r3 { order: 7; }
-  .tdp-r4 { order: 8; }
-  .tdp-r5 { order: 9; }
-  .tdp-m6 { order: 10; }
+  .tdp-r1 { order: 2; }
+  .tdp-r2 { order: 3; }
+  .tdp-m2 { order: 4; }
+  .tdp-m4 { order: 5; }
+  .tdp-r3 { order: 6; }
+  .tdp-r4 { order: 7; }
+  .tdp-r5 { order: 8; }
+  .tdp-m6 { order: 9; }
 
   /* On phones, BasicInfoCard fields stack to a single column too */
   .info-list {

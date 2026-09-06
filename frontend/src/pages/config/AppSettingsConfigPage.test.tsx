@@ -229,7 +229,7 @@ describe('AppSettingsConfigPage', () => {
 
     await waitFor(() => {
       expect(mocks.saveAppSettings).toHaveBeenCalledWith({
-          creditWarningThresholdDefault: 0.75,
+        creditWarningThresholdDefault: 0.75,
         creditTierOneAmountCap: 1500000,
         salaryPayrollBusinessUnitId: null,
       });

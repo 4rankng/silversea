@@ -308,7 +308,6 @@ export type {
   OcrSettingsUpdate,
 } from './schemas/ocr-settings';
 
-// ─── Admin Bách Khoa GPS credentials ────────────────────────────────────────
 
 // ─── Q22 source/dependent authority policy ─────────────────────────────────
 export {

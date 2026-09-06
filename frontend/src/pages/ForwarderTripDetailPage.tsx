@@ -183,7 +183,7 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
   const completionScopes = trip.completionScopes ?? [];
   const completedScopeCount = completionScopes.filter(scope => scope.status === ExpenseEntryStatus.COMPLETED).length;
   const totalScopeCount = completionScopes.length;
-  const legs = (trip.legs || []) as Array<{ id: number; sequence: number; origin: string; destination: string; km: number; loadingType: string; polylinePath?: string | null }>;
+  const legs = (trip.legs || []) as Array<{ id: number; sequence: number; origin: string; destination: string; km: number; loadingType: string; }>;
   const portOptions = catalogs?.ports ?? [];
   const containerTypeOptions = catalogs?.containerTypes ?? [];
   const generalExpenses = expenses.filter(exp => !exp.tripContainerId);

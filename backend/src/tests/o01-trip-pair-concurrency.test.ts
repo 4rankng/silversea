@@ -236,15 +236,6 @@ before(async () => {
 
 after(async () => {
   if (createdTripIds.length > 0) {
-    const actionRows = await db.select({ id: s.governanceActions.id })
-      .from(s.governanceActions)
-      .where(and(
-        eq(s.governanceActions.subjectType, 'TRIP'),
-        inArray(s.governanceActions.subjectId, createdTripIds),
-      ));
-    const actionIds = actionRows.map((action) => action.id);
-    if (actionIds.length > 0) {
-    }
     await db.delete(s.notifications).where(and(
       eq(s.notifications.relatedEntityType, 'trips'),
       inArray(s.notifications.relatedEntityId, createdTripIds),

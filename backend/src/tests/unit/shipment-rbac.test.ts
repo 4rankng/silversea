@@ -12,7 +12,6 @@
  *
  * Loads the real model.conf + policy.csv into a throwaway enforcer so the
  * assertion reflects the shipped policy exactly (no running server needed).
- * Mirrors gps-admin.rbac.test.ts.
  *
  * This test ALSO serves as a smoke check that policy.csv parses cleanly —
  * if a `//` comment line were ever misinterpreted as a policy row, the
@@ -76,9 +75,6 @@ describe('Wave 0 CUS role RBAC (document clerk, M10)', () => {
   });
   test('CUS is denied users', async () => {
     assert.equal(await (await enforcer()).enforce('CUS', 'users', 'read'), false);
-  });
-  test('CUS is denied gps-admin backfill', async () => {
-    assert.equal(await (await enforcer()).enforce('CUS', 'gps-admin', 'write'), false);
   });
 });
 

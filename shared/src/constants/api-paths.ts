@@ -237,7 +237,6 @@ export const SYSTEM = {
   PHOTOS: '/photos',
   AUDIT_LOGS: '/audit-logs',
   MAPS_AUTOCOMPLETE: '/maps/autocomplete',
-  MAPS_DISTANCE: '/maps/distance',
   HEALTH: '/health',
 } as const;
 

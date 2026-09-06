@@ -124,15 +124,6 @@ export const durableEffectJobs = pgTable('durable_effect_jobs', {
   index('durable_effect_jobs_lease_idx').on(table.status, table.leaseExpiresAt),
 ]);
 
-/**
- * One row per truck: the most recent GPS fix seen by getLiveFleet(). Upserted on
- * every successful live-fleet poll so the dispatch map can fall back to the
- * last-known position (shown offline) when the Bách Khoa provider is down or a
- * specific truck is absent from its response — instead of the map going empty.
- * truck_id is the PK (1:1 per truck); telemetry is double precision so values
- * round-trip as native JS numbers (no numeric string juggling on readback).
- */
-
 // ─── Notifications ──────────────────────────────────────────────────────────
 export const notifications = pgTable('notifications', {
   id: serial('id').primaryKey(),

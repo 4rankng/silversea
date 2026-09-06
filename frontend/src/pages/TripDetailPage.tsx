@@ -30,8 +30,6 @@ export default function TripDetailPage() {
   const { rootRef } = usePageAnimations({ ready: !page.loading });
   const [governanceIntent, setGovernanceIntent] = useState<'complete' | 'cancel' | null>(null);
   const [governanceReason, setGovernanceReason] = useState('');
-  // Only poll live GPS when this trip is actually in transit — a completed /
-  // cancelled trip never has a live vehicle, so avoid polling the cache forever.
 
   const handleBack = () => navigate('/trips');
   useBackShortcut(handleBack);
@@ -186,11 +184,6 @@ export default function TripDetailPage() {
       <div className="trip-body anim d2">
         {/* ── Main column — operational story ─────────────────────────── */}
         <div className="trip-col trip-col--main">
-          {trip.legs && trip.legs.length > 0 && (
-            <div className="anim d3 tdp-card tdp-m1">
-            </div>
-          )}
-
 
           <div className="anim d3 tdp-card tdp-m2">
             <ServiceCostsCard tripId={trip.id} readOnly={effectivePermissions.readOnly} />
