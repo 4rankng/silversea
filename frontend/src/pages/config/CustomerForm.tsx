@@ -41,6 +41,8 @@ export function CustomerForm({ saving, item, onsave, oncancel }: {
   const [contactPerson, setContactPerson] = useState(item?.contactPerson || '');
   const [phone, setPhone] = useState(item?.phone || '');
   const [contactInfo, setContactInfo] = useState(item?.contactInfo || '');
+  const [accountantName, setAccountantName] = useState(item?.accountantName || '');
+  const [accountantPhone, setAccountantPhone] = useState(item?.accountantPhone || '');
   const [creditLimit, setCreditLimit] = useState(item?.creditLimit || '');
   const [paymentTermDays, setPaymentTermDays] = useState(
     item?.paymentTermDays != null ? String(item.paymentTermDays) : '',
@@ -85,6 +87,15 @@ export function CustomerForm({ saving, item, onsave, oncancel }: {
         </Field>
         <Field label="Số điện thoại">
           <input className="input" value={phone} onChange={e => setPhone(e.target.value)} placeholder="SĐT liên hệ…" />
+        </Field>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <Field label="Kế toán liên hệ">
+          <input className="input" value={accountantName} onChange={e => setAccountantName(e.target.value)} placeholder="Tên kế toán…" />
+        </Field>
+        <Field label="SĐT kế toán">
+          <input className="input" value={accountantPhone} onChange={e => setAccountantPhone(e.target.value)} placeholder="SĐT kế toán…" />
         </Field>
       </div>
 
@@ -180,6 +191,8 @@ export function CustomerForm({ saving, item, onsave, oncancel }: {
             contactPerson: contactPerson.trim() || undefined,
             phone: phone.trim() || undefined,
             contactInfo: contactInfo.trim() || undefined,
+            accountantName: accountantName.trim() || undefined,
+            accountantPhone: accountantPhone.trim() || undefined,
             creditLimit: creditLimit ? String(creditLimit) : undefined,
             creditWarningThreshold: fromThresholdPercent(creditWarningThreshold),
             paymentTermDays: paymentTermDays.trim() === '' ? null : Number(paymentTermDays),

@@ -12,20 +12,26 @@ interface CustomerCreateDialogProps {
 
 export function CustomerCreateDialog({ isOpen, onClose, onCreated }: CustomerCreateDialogProps) {
   const [name, setName] = useState('');
+  const [shortName, setShortName] = useState('');
   const [taxCode, setTaxCode] = useState('');
   const [contactPerson, setContactPerson] = useState('');
   const [phone, setPhone] = useState('');
   const [contactInfo, setContactInfo] = useState('');
+  const [accountantName, setAccountantName] = useState('');
+  const [accountantPhone, setAccountantPhone] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
     setName('');
+    setShortName('');
     setTaxCode('');
     setContactPerson('');
     setPhone('');
     setContactInfo('');
+    setAccountantName('');
+    setAccountantPhone('');
     setError(null);
   }, [isOpen]);
 
@@ -51,10 +57,13 @@ export function CustomerCreateDialog({ isOpen, onClose, onCreated }: CustomerCre
     try {
       const customer = await configClient.createCustomer({
         name: normalizedName,
+        shortName: shortName.trim() || undefined,
         taxCode: taxCode.trim() || undefined,
         contactPerson: contactPerson.trim() || undefined,
         phone: phone.trim() || undefined,
         contactInfo: contactInfo.trim() || undefined,
+        accountantName: accountantName.trim() || undefined,
+        accountantPhone: accountantPhone.trim() || undefined,
       });
       onCreated(customer);
     } catch (submitError) {
@@ -85,6 +94,14 @@ export function CustomerCreateDialog({ isOpen, onClose, onCreated }: CustomerCre
           placeholder="Tên đầy đủ của khách hàng"
           disabled={saving}
         />
+        <UTextField
+          label="Tên ngắn"
+          value={shortName}
+          onChange={(event) => { setShortName(event.target.value); setError(null); }}
+          maxLength={255}
+          placeholder="Tên viết tắt dùng trong vận hành (không bắt buộc)"
+          disabled={saving}
+        />
         <div className="csc-customer-dialog__grid">
           <UTextField
             label="Mã số thuế"
@@ -111,6 +128,24 @@ export function CustomerCreateDialog({ isOpen, onClose, onCreated }: CustomerCre
           placeholder="Không bắt buộc"
           disabled={saving}
         />
+        <div className="csc-customer-dialog__grid">
+          <UTextField
+            label="Kế toán liên hệ"
+            value={accountantName}
+            onChange={(event) => { setAccountantName(event.target.value); setError(null); }}
+            maxLength={255}
+            placeholder="Tên kế toán (không bắt buộc)"
+            disabled={saving}
+          />
+          <UTextField
+            label="SĐT kế toán"
+            value={accountantPhone}
+            onChange={(event) => { setAccountantPhone(event.target.value); setError(null); }}
+            maxLength={20}
+            placeholder="Không bắt buộc"
+            disabled={saving}
+          />
+        </div>
         <UTextAreaField
           label="Địa chỉ / thông tin liên hệ khác"
           value={contactInfo}

@@ -15,10 +15,17 @@ const mocks = vi.hoisted(() => ({
   getShipmentDetail: vi.fn(),
   createRoute: vi.fn(),
   createCustomer: vi.fn(),
+  createContainerType: vi.fn(),
 }));
 
 vi.mock('../../api/tripClient', () => ({ tripClient: { getBootstrap: mocks.bootstrap } }));
-vi.mock('../../api/configClient', () => ({ configClient: { createRoute: mocks.createRoute, createCustomer: mocks.createCustomer } }));
+vi.mock('../../api/configClient', () => ({
+  configClient: {
+    createRoute: mocks.createRoute,
+    createCustomer: mocks.createCustomer,
+    createContainerType: mocks.createContainerType,
+  },
+}));
 vi.mock('../../api/shipmentClient', () => ({
   quickCreateShipment: mocks.quickCreate,
   listOperationalSites: mocks.sites,
@@ -568,8 +575,11 @@ describe('ClerkShipmentCreatePage', () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Thông tin hàng' });
 
-    const selectButton = screen.getByRole('button', { name: /Loại container/ });
-    fireEvent.click(selectButton);
+    // Loại container is a SearchableField (combobox) since 2026-09-06 so the
+    // catalog can be extended inline from the create-shipment form.
+    const combobox = screen.getByRole('combobox', { name: /Loại container/ });
+    fireEvent.focus(combobox);
+    fireEvent.keyDown(combobox, { key: 'ArrowDown' });
     const option = await waitFor(() => {
       const match = document.querySelector<HTMLElement>('[role="option"][id$="-option-31"]');
       if (!match) throw new Error('Không tìm thấy loại container 31');
@@ -599,6 +609,82 @@ describe('ClerkShipmentCreatePage', () => {
 
     fireEvent.change(addCount, { target: { value: '0' } });
     expect(screen.getByRole('button', { name: 'Thêm container' })).toBeDisabled();
+  });
+
+  // TC-CUS-CREATE-019: Quy cách đóng gói is a free-text field after the
+  // 2026-09-06 customer request — not a hardcoded {Pallet, Roll, Carton}
+  // dropdown. Pin both the LCL visibility and the wire payload below.
+  it('exposes Quy cách đóng gói as a free-text input on the LCL form', async () => {
+    renderPage();
+    await screen.findByRole('heading', { name: 'Nhận diện lô' });
+    await choose('Khách hàng', '7');
+    await choose('Hình thức xuất nhập khẩu', 'IMPORT');
+    fireEvent.change(screen.getByLabelText(/^Số Bill\/Booking/), { target: { value: 'BL-LCL-FREE' } });
+
+    // Switch to LCL so the Quy cách field appears (it lives in the LCL form).
+    fireEvent.click(screen.getByRole('radio', { name: 'Hàng lẻ' }));
+    await screen.findByRole('heading', { name: 'Điểm vận hành & tuyến' });
+
+    const packageType = screen.getByLabelText('Quy cách đóng gói');
+    expect(packageType.tagName).toBe('INPUT');
+    expect((packageType as HTMLInputElement).type).toBe('text');
+    // No leftover hardcoded option list — the field is plain text.
+    expect(packageType.getAttribute('role')).not.toBe('combobox');
+    expect(packageType.getAttribute('aria-haspopup')).toBeNull();
+
+    // Free text accepts any value the customer has on their shipping line.
+    fireEvent.change(packageType, { target: { value: 'Thùng carton 5 lớp' } });
+    expect((packageType as HTMLInputElement).value).toBe('Thùng carton 5 lớp');
+  });
+
+  // TC-CUS-CREATE-020: Loại container gets a "+ Thêm" sibling so CUS can
+  // extend the container-type catalog inline from the create-shipment form
+  // without bouncing out to /config/container-types.
+  it('creates a new container type from the FCL cell add button and selects it into the row', async () => {
+    renderPage();
+    await screen.findByRole('heading', { name: 'Thông tin hàng' });
+
+    // Find the Loại container cell, then its sibling "Thêm" button.
+    const typeCell = screen.getByRole('combobox', { name: /Loại container/ }).closest('td')!;
+    const addButton = within(typeCell as HTMLElement).getByRole('button', { name: /^Thêm$/ });
+    fireEvent.click(addButton);
+
+    const dialog = await screen.findByRole('dialog', { name: 'Thêm loại container' });
+
+    // react-aria in jsdom can produce label/input id mismatches that defeat
+    // getByLabelText inside a custom Modal mock. Target the input by walking
+    // the label's `for` attribute instead — that path is stable. We match
+    // the label text by prefix because required fields append a "*" marker
+    // inside an aria-hidden span.
+    function setFieldByLabel(container: HTMLElement, labelText: string, value: string) {
+      const label = Array.from(container.querySelectorAll('label')).find((el) => el.textContent?.trim().startsWith(labelText));
+      if (!label) throw new Error(`Không tìm thấy label "${labelText}"`);
+      const id = label.getAttribute('for');
+      const input = id ? document.getElementById(id) : null;
+      if (!input) throw new Error(`Không tìm thấy input cho label "${labelText}"`);
+      fireEvent.change(input, { target: { value } });
+    }
+    setFieldByLabel(dialog, 'Mã loại container', '45HC');
+    setFieldByLabel(dialog, 'Tên loại container', "Container 45' High Cube");
+
+    mocks.createContainerType.mockResolvedValueOnce({
+      id: 99,
+      code: '45HC',
+      name: "Container 45' High Cube",
+    });
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Thêm loại container' }));
+
+    await waitFor(() => expect(mocks.createContainerType).toHaveBeenCalledWith({
+      code: '45HC',
+      name: "Container 45' High Cube",
+      notes: undefined,
+    }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Thêm loại container' })).toBeNull());
+
+    // The new row is auto-selected into the cell that asked for it.
+    const typeCombobox = screen.getByRole('combobox', { name: /Loại container/ }) as HTMLInputElement;
+    expect(typeCombobox.value).toBe('45HC');
   });
 
   it('uses the container records as the only FCL quantity control', async () => {

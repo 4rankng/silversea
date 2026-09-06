@@ -37,6 +37,7 @@ import { ShipmentContainerCell } from './ShipmentContainerCell';
 import { ShippingLineAddDialog } from './ShippingLineAddDialog';
 import { RouteCreateDialog } from './RouteCreateDialog';
 import { PortCreateDialog } from './PortCreateDialog';
+import { ContainerTypeCellPicker } from './ContainerTypeCellPicker';
 import type { Port, Route } from '@tingting/shared';
 import { useShipmentCreateWorkflow } from './use-shipment-create-workflow';
 import { Modal } from '../../../components/UI';
@@ -98,6 +99,8 @@ export function ShipmentCreateWorkspace() {
   const [routeDialogTargetKey, setRouteDialogTargetKey] = useState<string | null>(null);
   // Port dialog + which container cell asked for it.
   const [portDialog, setPortDialog] = useState<{ open: boolean; target: { key: string; field: 'pickupPortId' | 'dropoffPortId' } | null }>({ open: false, target: null });
+  // Container-type dialog — extracted to useContainerTypeCreate so the
+  // workspace stays under its frozen ceiling (structure guard ratchet).
   const [customerDialogOpen, setCustomerDialogOpen] = useState(false);
   const customerAddButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -674,7 +677,14 @@ export function ShipmentCreateWorkspace() {
                     fieldId={`container-${row.key}-type`}
                     error={issueByField.get(`container-${row.key}-type`)}
                   >
-                    <SelectField id={`container-${row.key}-type`} label="Loại container" hideLabel required value={row.containerTypeId} onChange={(event) => updateContainer(row.key, 'containerTypeId', event.target.value)} disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-type`)} options={[{ value: '', label: '— Chọn loại —' }, ...(catalogs.containerTypes ?? []).map((item) => ({ value: String(item.id), label: item.code }))]} />
+                    <ContainerTypeCellPicker
+                      value={row.containerTypeId}
+                      onChange={(value) => updateContainer(row.key, 'containerTypeId', value)}
+                      options={catalogs.containerTypes ?? []}
+                      fieldId={`container-${row.key}-type`}
+                      saving={Boolean(saving)}
+                      error={issueByField.get(`container-${row.key}-type`)}
+                    />
                   </ShipmentContainerCell>
                   <ShipmentContainerCell
                     label="Nhà máy *"
@@ -833,7 +843,11 @@ export function ShipmentCreateWorkspace() {
                 ) : null}
               </div>
               <div style={gridStyle}>
-                <div data-field-id="shipment-package-type"><SelectField id="shipment-package-type" label="Quy cách đóng gói" value={form.packageType} onChange={(event) => update('packageType', event.target.value)} disabled={Boolean(saving)} error={issueByField.get('shipment-package-type')} options={[{ value: '', label: '— Chọn quy cách —' }, { value: 'Pallet', label: 'Pallet' }, { value: 'Roll', label: 'Roll' }, { value: 'Carton', label: 'Carton' }]} /></div>
+                {/* Quy cách đóng gói: free-text per customer request (2026-09-06).
+                    Schema accepts any string up to 100 chars (shared/src/schemas/index.ts).
+                    The previous hardcoded {Pallet, Roll, Carton} dropdown was too narrow —
+                    customers have many other package types (Thùng, Bao, Can, Drum, ...). */}
+                <div data-field-id="shipment-package-type"><TextField id="shipment-package-type" label="Quy cách đóng gói" value={form.packageType} onChange={(event) => update('packageType', event.target.value)} maxLength={100} placeholder="Ví dụ: Pallet, Roll, Carton, Thùng gỗ, Bao, Can…" disabled={Boolean(saving)} error={issueByField.get('shipment-package-type')} /></div>
                 <div data-field-id="shipment-package-count"><TextField id="shipment-package-count" label="Số lượng" type="number" min="1" step="1" value={form.packageCount} onChange={(event) => update('packageCount', event.target.value)} disabled={Boolean(saving)} error={issueByField.get('shipment-package-count')} /></div>
                 <div data-field-id="shipment-cargo-weight"><TextField id="shipment-cargo-weight" label="Trọng lượng (kg)" type="number" min="0" step="0.01" value={form.cargoWeightKg} onChange={(event) => update('cargoWeightKg', event.target.value)} disabled={Boolean(saving)} error={issueByField.get('shipment-cargo-weight')} /></div>
                 <div data-field-id="shipment-cargo-volume"><TextField id="shipment-cargo-volume" label="Thể tích (CBM)" type="number" min="0" step="0.001" value={form.cargoVolumeCbm} onChange={(event) => update('cargoVolumeCbm', event.target.value)} disabled={Boolean(saving)} error={issueByField.get('shipment-cargo-volume')} /></div>

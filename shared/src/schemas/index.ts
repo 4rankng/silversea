@@ -686,6 +686,8 @@ export const customerSchema = z.object({
   contactPerson: z.string().optional(),
   phone: z.string().optional(),
   contactInfo: z.string().optional(),
+  accountantName: z.string().optional(),
+  accountantPhone: z.string().optional(),
   creditLimit: nonNegNumeric.optional(),
   creditWarningThreshold: z.number().min(0.01).max(0.99).optional().nullable(),
   paymentTermDays: z.number().int().min(0).max(3650).optional().nullable(),

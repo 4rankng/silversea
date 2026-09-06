@@ -100,6 +100,8 @@ export const configClient = {
   deleteTirePosition: (id: number) => api.delete<{ ok: true }>(CONFIG.TIRE_POSITION(id)),
 
   getContainerTypes: () => fetchAllPaginated<ContainerType>(CONFIG.CONTAINER_TYPES),
+  createContainerType: (data: { code: string; name: string; notes?: string }) =>
+    api.post<ContainerType>(CONFIG.CONTAINER_TYPES, data),
 
   getSealTypes: () => fetchAllPaginated<SealType>(CONFIG.SEAL_TYPES),
   createSealType: (data: { name: string }) => api.post<SealType>(CONFIG.SEAL_TYPES, data),
@@ -112,7 +114,7 @@ export const configClient = {
   getAllCustomers: (search?: string) =>
     fetchAllPaginated<Customer>(CONFIG.CUSTOMERS, search ? { search } : undefined),
 
-  createCustomer: (data: { name: string; taxCode?: string; contactPerson?: string; phone?: string; contactInfo?: string }) =>
+  createCustomer: (data: { name: string; shortName?: string; taxCode?: string; contactPerson?: string; phone?: string; contactInfo?: string; accountantName?: string; accountantPhone?: string }) =>
     api.post<Customer>(CONFIG.CUSTOMERS, data),
 
   getSalaryPeriodResolve: (month: number, year: number) =>
