@@ -1,31 +1,41 @@
 # These login credentials here are safe. They are used for local and staging only
 # There is no need to be panic about PII, Secrets.
+#
+# RULE (2026-09-06): EVERY account on staging AND local dev uses password Abc123.
+# Staging is a prod mirror (`make stgdb`). After every sync, re-run the password
+# reset (bcrypt hash of Abc123 onto users.password_hash) so prod-set passwords
+# never leak into staging logins.
 
 local:
   baseUrl: http://localhost:7174
   api: http://localhost:3001/api
-  users:
-    cus:
-      username: cus
-      password: Abc123
-    dieuvan:
-      username: dieuvan
-      password: Abc123
+  password: Abc123
+  # Demo seed accounts (backend/src/seed.ts) — see demoUsers at the bottom:
+  # admin, giamdoc, ketoan, cus, dieuvan, laixe, giaonhan, thu, pho, quyet.
+  # The seed self-heals hashes: on reseed it overwrites any stored hash that
+  # fails to authenticate Abc123 (devdb-synced DBs carrying prod hashes).
 
 staging:
   baseUrl: https://vantai.tingting.vip
   api: https://vantai.tingting.vip/api
+  password: Abc123   # all 62 users reset + login-verified 2026-09-06
+  # Synced from prod 2026-09-06 (`make stgdb`): logins are the REAL named
+  # staff from the 4.9 Excel sheet (Mã NV in parentheses). Username = the
+  # name-based rename (firstname-initials style, e.g. dungnv = Dũng Nguyễn Văn).
+  # NO MANAGER / CUSTOMER-role accounts exist on staging — prod has none.
+  # Demo accounts (cus, dieuvan, ketoan, giamdoc, laixe…) DO NOT exist on
+  # staging anymore; they only exist on local dev.
   users:
-    cus:
-      username: cus123
-      password: Abc123
-    dieuvan:
-      username: dieuvan
-      password: Abc123
-  # Every demoUsers account below ALSO exists on staging (login verified
-  # 2026-09-06, shared password): admin, giamdoc, ketoan, giaonhan, cus,
-  # laixe, thu, samsung-cs, canon-cs, customer, khachhang. Staging also has
-  # the real named staff set (nv001-022 renames) — do not modify those rows.
+    ADMIN:       admin, phuongnt (NV001), namnv (NV002)
+    ACCOUNTANT:  hoapt (NV009), liennt (NV010), lydp (NV011),
+                 vanntt (NV012), myvtt (NV013), ngocntm (NV014)
+    CUS:         thanhdc (NV018), tiepvv (NV019), anhdtv (NV020),
+                 huyenntt (NV021), anhntn (NV022)
+    DISPATCHER:  dungnv (NV015), bacdk (NV016), huongnt (NV017)
+    OPS:         hoangnh (NV003), hungld (NV004), duongtt (NV005),
+                 tuvn (NV006), hoangnm (NV007), cuongvd (NV008)
+    DRIVER:      38 named drivers (no Mã NV) — e.g. bqhuong, btdung,
+                 vvtrung, tvtham; every one logs in with username + Abc123
   # API notes for scripted testing (learned 2026-09-06):
   #   - POST /api/auth/login takes {"identifier", "password"} — "username"
   #     field gets 400. Identifier may be username, email, or phone.
@@ -39,11 +49,12 @@ staging:
   #     run_all.sh at staging; with only SILVERSEA_URL set, API tests still
   #     hit localhost:3001 and fail 401 while UI tests pass.
 
-# Additional demo accounts for role-based QA (user-directory export, created
+# Local-dev demo accounts for role-based QA (user-directory export, created
 # 2026-08-20/21, canonical @nepo.vn emails per backend/src/seed.ts). Same shared
 # password as above; role codes cross-checked against the demo seed table in
 # AGENTS.md. Drivers are bound to the listed truck plates. Customer-portal
 # accounts (samsung-cs, canon-cs) are row-scoped to their own customer.
+# These exist ONLY on local dev — staging mirrors prod users instead (above).
 demoUsers:
   - name: Trần Văn Admin
     username: admin
