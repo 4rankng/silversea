@@ -49,10 +49,15 @@ test('customerSchema accepts distinct full and short names', () => {
   }
 });
 
-test('customerSchema rejects an explicitly blank short name', () => {
+test('customerSchema treats a blank short name as a deliberate clear', () => {
   const result = customerSchema.safeParse({
     name: 'Công ty Biển Bạc',
     shortName: '   ',
   });
-  assert.equal(result.success, false);
+  assert.equal(result.success, true);
+  if (result.success) {
+    // Blank trims to '' — the representable "unset" for the operational label;
+    // every display falls back to the full name via `shortName || name`.
+    assert.equal(result.data.shortName, '');
+  }
 });
