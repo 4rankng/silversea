@@ -35,6 +35,28 @@ export function restrictCustomerCreateForIntake(data: CustomerCreateInput, role:
   ) as unknown as CustomerIntakeData;
 }
 
+/** Financial/material fields CUS/Dispatchers may not set on update. */
+const INTAKE_RESTRICTED_UPDATE_KEYS = new Set([
+  'creditLimit', 'creditWarningThreshold', 'paymentTermDays', 'paymentDatePolicy',
+  'fuelSurchargeSharePct', 'debitNoteMode', 'debitNoteTemplateId', 'linkedSupplierId',
+  'status', 'isCarrier',
+]);
+
+/**
+ * CUS may update a customer's identity fields (name, shortName, taxCode,
+ * contactPerson, phone, address, etc.) but not financial-configuration
+ * fields. Mirrors restrictCustomerCreateForIntake's field set for updates.
+ */
+export function restrictCustomerUpdateForIntake(
+  data: Partial<CustomerCreateInput>,
+  role: Role,
+): Partial<CustomerCreateInput> {
+  if (role !== Role.CUS && role !== Role.DISPATCHER) return data;
+  return Object.fromEntries(
+    Object.entries(data).filter(([key]) => !INTAKE_RESTRICTED_UPDATE_KEYS.has(key)),
+  ) as Partial<CustomerCreateInput>;
+}
+
 /**
  * Intake creates stamp the acting CUS/Dispatcher user on the customer row
  * (`created_by`). Admin-created rows stay NULL. The stamp is provenance

@@ -308,7 +308,7 @@ describe('Q18 bounded adjustment governance', () => {
       resultingVersion: trip.version + 1,
     });
     assert.ok(approved.ledgerEntryId);
-    const [unchangedTrip] = await db.select().from(s.trips).where(eq(s.trips.id, trip.id));
+    const [unchangedTrip] = await db.select().from(s.tripsComposite).where(eq(s.tripsComposite.id, trip.id));
     assert.equal(unchangedTrip.revenue, '1000000');
     assert.equal(unchangedTrip.status, 'COMPLETED');
     assert.equal(unchangedTrip.version, trip.version + 1);

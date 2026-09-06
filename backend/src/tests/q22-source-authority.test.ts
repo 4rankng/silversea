@@ -4,6 +4,7 @@ import { and, eq, inArray, or, sql } from 'drizzle-orm';
 import { Role, type SaveBillingDocumentInput } from '@tingting/shared';
 import { client, db } from '../db';
 import * as s from '../db/schema';
+import { applyTripPatch, insertTripComposite } from '../services/trip-composite.service';
 import { withTestCleanup } from './helpers/db-isolation';
 import type { AuthUser } from '../middleware/auth';
 import {
@@ -165,7 +166,7 @@ async function createTripFixture(
   }).returning();
   fulfillmentIds.push(fulfillment.id);
 
-  const [trip] = await db.insert(s.trips).values({
+  const trip = await insertTripComposite(db, {
     tripCode: `Q22-${suffix}`.slice(0, 50),
     customerId: customer.id,
     routeId: route.id,
@@ -177,7 +178,7 @@ async function createTripFixture(
     status,
     revenue: String(revenue),
     carrierType: 'OWN',
-  }).returning();
+  });
   tripIds.push(trip.id);
 
   if (status !== 'CREATED') {
@@ -413,7 +414,7 @@ describe('Q22 source authority propagation', () => {
       updatedBy: actors[1]!.id,
     }).where(eq(s.shipments.id, shipment.id));
 
-    const [nextTrip] = await db.insert(s.trips).values({
+    const nextTrip = await insertTripComposite(db, {
       tripCode: `Q22-SNAP-${Date.now()}`.slice(0, 50),
       customerId: customer.id,
       routeId: trip.routeId,
@@ -422,7 +423,7 @@ describe('Q22 source authority propagation', () => {
       status: 'CREATED',
       revenue: '0',
       carrierType: 'OWN',
-    }).returning();
+    });
     tripIds.push(nextTrip.id);
 
     const secondSnapshot = await snapshotContainersIntoTrip(shipment.id, nextTrip.id, actors[0]!.id);
@@ -599,11 +600,11 @@ describe('Q22 source authority propagation', () => {
     );
 
     await db.transaction(async (tx) => {
-      await tx.update(s.trips).set({
+      await applyTripPatch(tx, trip.id, {
         revenue: '1250000',
         version: trip.version + 1,
         updatedAt: new Date(Date.now() + 1_000),
-      }).where(eq(s.trips.id, trip.id));
+      });
       await propagateTripFinancialSourceChange(tx, { tripId: trip.id });
       await tx.update(s.tripExpenses).set({
         sellAmount: '275000',
@@ -637,11 +638,11 @@ describe('Q22 source authority propagation', () => {
     assert.equal(beforeLine.provenance?.status, 'CURRENT');
 
     await db.transaction(async (tx) => {
-      await tx.update(s.trips).set({
+      await applyTripPatch(tx, trip.id, {
         revenue: '1250000',
         version: trip.version + 1,
         updatedAt: new Date(Date.now() + 1_000),
-      }).where(eq(s.trips.id, trip.id));
+      });
       await propagateTripFinancialSourceChange(tx, { tripId: trip.id });
     });
 
@@ -746,11 +747,11 @@ describe('Q22 source authority propagation', () => {
     });
 
     await db.transaction(async (tx) => {
-      await tx.update(s.trips).set({
+      await applyTripPatch(tx, trip.id, {
         revenue: '1400000',
         version: trip.version + 1,
         updatedAt: new Date(Date.now() + 2_000),
-      }).where(eq(s.trips.id, trip.id));
+      });
       await propagateTripFinancialSourceChange(tx, { tripId: trip.id });
     });
 
@@ -890,12 +891,12 @@ describe('Q22 source authority propagation', () => {
 
     const blocker = db.transaction(async (tx) => {
       await lockTripFinancialAuthority(tx, [trip.id]);
-      await tx.update(s.trips).set({
+      await applyTripPatch(tx, trip.id, {
         status: 'COMPLETED',
         revenue: '1500000',
         version: trip.version + 1,
         updatedAt: new Date(Date.now() + 3_000),
-      }).where(eq(s.trips.id, trip.id));
+      });
       await propagateTripFinancialSourceChange(tx, { tripId: trip.id });
       markAuthorityHeld();
       await releasePromise;
@@ -955,11 +956,11 @@ describe('Q22 source authority propagation', () => {
     const allocations = await listAllocationsForReceipt(receipt.receiptId);
     paymentAllocationIds.push(...allocations.map((row) => row.id));
 
-    await db.update(s.trips).set({
+    await applyTripPatch(db, trip.id, {
       revenue: '1400000',
       version: trip.version + 1,
       updatedAt: new Date(Date.now() + 5_000),
-    }).where(eq(s.trips.id, trip.id));
+    });
     await db.transaction(async (tx) => {
       await propagateTripFinancialSourceChange(tx, { tripId: trip.id });
     });

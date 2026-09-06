@@ -403,7 +403,7 @@ describe('O2C final AP P1 fixes', () => {
 
     const [updated] = await db.select({
       apSnapshotDirty: s.tripsComposite.apSnapshotDirty,
-    }).from(s.tripsComposite).where(eq(s.trips.id, trip.id)).limit(1);
+    }).from(s.tripsComposite).where(eq(s.tripsComposite.id, trip.id)).limit(1);
     assert.equal(updated?.apSnapshotDirty, true);
 
     await ApSnapshotService.recapture(trip.id);
@@ -414,7 +414,7 @@ describe('O2C final AP P1 fixes', () => {
 
     const [fuelUpdated] = await db.select({
       apSnapshotDirty: s.tripsComposite.apSnapshotDirty,
-    }).from(s.tripsComposite).where(eq(s.trips.id, trip.id)).limit(1);
+    }).from(s.tripsComposite).where(eq(s.tripsComposite.id, trip.id)).limit(1);
     assert.equal(fuelUpdated?.apSnapshotDirty, true);
   });
 
@@ -453,7 +453,7 @@ describe('O2C final AP P1 fixes', () => {
     const [updatedTrip] = await db.select({
       arSnapshotDirty: s.tripsComposite.arSnapshotDirty,
       apSnapshotDirty: s.tripsComposite.apSnapshotDirty,
-    }).from(s.tripsComposite).where(eq(s.trips.id, trip.id)).limit(1);
+    }).from(s.tripsComposite).where(eq(s.tripsComposite.id, trip.id)).limit(1);
     assert.equal(updatedTrip?.arSnapshotDirty, true);
     assert.equal(updatedTrip?.apSnapshotDirty, true);
   });
@@ -530,9 +530,9 @@ describe('O2C final AP P1 fixes', () => {
 
     const [updatedTrip] = await db.select({
       arSnapshotDirty: s.tripsComposite.arSnapshotDirty,
-      apSnapshotDirty: s.trips.apSnapshotDirty,
+      apSnapshotDirty: s.tripsComposite.apSnapshotDirty,
       version: s.trips.version,
-    }).from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
+    }).from(s.tripsComposite).where(eq(s.tripsComposite.id, trip.id)).limit(1);
     assert.equal(updatedTrip?.arSnapshotDirty, true);
     assert.equal(updatedTrip?.apSnapshotDirty, true);
     assert.ok((updatedTrip?.version ?? 0) > completed.version);

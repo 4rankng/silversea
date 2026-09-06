@@ -4,6 +4,7 @@ import { eq, inArray, sql } from 'drizzle-orm';
 import { Role } from '@tingting/shared';
 import { db, client } from '../db';
 import * as s from '../db/schema';
+import { applyTripPatch, insertTripComposite } from '../services/trip-composite.service';
 import {
   lockTripCloseAggregate,
   requireTripCloseReadiness,
@@ -59,7 +60,7 @@ before(async () => {
     createdBy: userIds[1],
   }).returning();
   fulfillmentId = fulfillment.id;
-  const [trip] = await db.insert(s.trips).values({
+  const trip = await insertTripComposite(db, {
     tripCode: `CLOSE-TRIP-${suffix}`.slice(0, 50),
     customerId,
     routeId,
@@ -68,7 +69,7 @@ before(async () => {
     fulfillmentId,
     status: 'IN_TRANSIT',
     carrierType: 'OWN',
-  }).returning();
+  });
   tripId = trip.id;
   const [container] = await db.insert(s.tripContainers).values({
     tripId,
@@ -107,6 +108,8 @@ after(async () => {
   await db.delete(s.shipmentMilestones).where(eq(s.shipmentMilestones.tripId, tripId));
   await db.delete(s.tripExpenseCompletionScopes).where(eq(s.tripExpenseCompletionScopes.tripId, tripId));
   await db.delete(s.tripContainers).where(eq(s.tripContainers.tripId, tripId));
+  await db.delete(s.tripFinancialState).where(eq(s.tripFinancialState.tripId, tripId));
+  await db.delete(s.tripCarrierInfo).where(eq(s.tripCarrierInfo.tripId, tripId));
   await db.delete(s.trips).where(eq(s.trips.id, tripId));
   await db.delete(s.shipmentFulfillments).where(eq(s.shipmentFulfillments.id, fulfillmentId));
   await db.delete(s.shipments).where(eq(s.shipments.id, shipmentId));
@@ -150,7 +153,7 @@ async function prepareReadyForDirectClose() {
     status: 'IN_TRANSIT',
     updatedAt: new Date(),
   }).where(eq(s.shipments.id, shipmentId));
-  await db.update(s.trips).set({
+  await applyTripPatch(db, tripId, {
     status: 'IN_TRANSIT',
     version: 1,
     podRecoveredAt: new Date(),
@@ -164,7 +167,7 @@ async function prepareReadyForDirectClose() {
     arSnapshotDirty: false,
     arSnapshotChangedAt: null,
     pnlSnapshotGrossProfit: null,
-  }).where(eq(s.trips.id, tripId));
+  });
   await db.insert(s.tripExpenseCompletionScopes).values([
     {
       tripId,
@@ -228,7 +231,7 @@ async function createExpenseScopeRecomputeFixture(args: {
     dispatchClassification: args.cargoMode === 'LCL' ? 'LCL' : 'SINGLE',
     createdBy: userIds[1],
   }).returning();
-  const [trip] = await db.insert(s.trips).values({
+  const trip = await insertTripComposite(db, {
     tripCode: `SCOPE-TRIP-${args.cargoMode}-${suffix}`.slice(0, 50),
     customerId,
     routeId,
@@ -237,7 +240,7 @@ async function createExpenseScopeRecomputeFixture(args: {
     fulfillmentId: fulfillment.id,
     status: 'IN_TRANSIT',
     carrierType: args.cargoMode === 'LCL' ? 'EXTERNAL' : 'OWN',
-  }).returning();
+  });
   const [container] = await db.insert(s.tripContainers).values({
     tripId: trip.id,
     sourceShipmentId: shipment.id,
@@ -297,6 +300,8 @@ async function createExpenseScopeRecomputeFixture(args: {
     await db.delete(s.shipmentMilestones).where(eq(s.shipmentMilestones.tripId, trip.id));
     await db.delete(s.tripExpenseCompletionScopes).where(eq(s.tripExpenseCompletionScopes.tripId, trip.id));
     await db.delete(s.tripContainers).where(eq(s.tripContainers.tripId, trip.id));
+    await db.delete(s.tripFinancialState).where(eq(s.tripFinancialState.tripId, trip.id));
+    await db.delete(s.tripCarrierInfo).where(eq(s.tripCarrierInfo.tripId, trip.id));
     await db.delete(s.trips).where(eq(s.trips.id, trip.id));
     await db.delete(s.shipmentStatusHistory).where(eq(s.shipmentStatusHistory.shipmentId, shipment.id));
     await db.delete(s.shipmentFulfillments).where(eq(s.shipmentFulfillments.id, fulfillment.id));
@@ -314,7 +319,7 @@ async function prepareFixtureForDirectClose(shipmentIdForFixture: number, tripId
     status: 'IN_TRANSIT',
     updatedAt: new Date(),
   }).where(eq(s.shipments.id, shipmentIdForFixture));
-  await db.update(s.trips).set({
+  await applyTripPatch(db, tripIdForFixture, {
     status: 'IN_TRANSIT',
     version: 1,
     podRecoveredAt: new Date(),
@@ -328,7 +333,7 @@ async function prepareFixtureForDirectClose(shipmentIdForFixture: number, tripId
     arSnapshotDirty: false,
     arSnapshotChangedAt: null,
     pnlSnapshotGrossProfit: null,
-  }).where(eq(s.trips.id, tripIdForFixture));
+  });
 }
 
 describe('O2C trip close readiness authority', () => {
@@ -423,9 +428,9 @@ describe('O2C trip close readiness authority', () => {
       assert.equal(result.shipment.status, 'COMPLETED');
       assert.deepEqual(result.completedTripIds, [fixture.trip.id]);
 
-      const [completedTrip] = await db.select({ status: s.trips.status, vatRate: s.trips.vatRate })
-        .from(s.trips)
-        .where(eq(s.trips.id, fixture.trip.id))
+      const [completedTrip] = await db.select({ status: s.trips.status, vatRate: s.tripsComposite.vatRate })
+        .from(s.tripsComposite)
+        .where(eq(s.tripsComposite.id, fixture.trip.id))
         .limit(1);
       assert.equal(completedTrip?.status, 'COMPLETED');
       assert.equal(completedTrip?.vatRate, '0.100');
@@ -623,7 +628,7 @@ describe('O2C trip close readiness authority', () => {
       siteSnapshot: {},
       createdBy: userIds[1],
     }).returning();
-    const [secondTrip] = await db.insert(s.trips).values({
+    const secondTrip = await insertTripComposite(db, {
       tripCode: `CLOSE-TRIP-SECOND-${Date.now()}`.slice(0, 50),
       customerId,
       routeId,
@@ -637,7 +642,7 @@ describe('O2C trip close readiness authority', () => {
       revenue: '40000000',
       revenueOriginal: '40000000',
       revenueEmptyReturn: '40000000',
-    }).returning();
+    });
     const [secondContainer] = await db.insert(s.tripContainers).values({
       tripId: secondTrip.id,
       containerNumber: `APRB${String(Date.now()).slice(-7)}0`,
@@ -724,11 +729,11 @@ describe('O2C trip close readiness authority', () => {
 
   test('zero-revenue direct close requires explicit confirmation', async () => {
     await prepareReadyForDirectClose();
-    await db.update(s.trips).set({
+    await applyTripPatch(db, tripId, {
       revenue: '0',
       revenueOriginal: '0',
       revenueEmptyReturn: '0',
-    }).where(eq(s.trips.id, tripId));
+    });
     const [shipment] = await db.select({ version: s.shipments.version })
       .from(s.shipments)
       .where(eq(s.shipments.id, shipmentId))
@@ -759,11 +764,11 @@ describe('O2C trip close readiness authority', () => {
 
   test('confirmed zero-revenue direct close applies VAT once and completes exactly once', async () => {
     await prepareReadyForDirectClose();
-    await db.update(s.trips).set({
+    await applyTripPatch(db, tripId, {
       revenue: '0',
       revenueOriginal: '0',
       revenueEmptyReturn: '0',
-    }).where(eq(s.trips.id, tripId));
+    });
     const [shipment] = await db.select({ version: s.shipments.version })
       .from(s.shipments)
       .where(eq(s.shipments.id, shipmentId))
@@ -831,10 +836,10 @@ describe('O2C trip close readiness authority', () => {
 
     const [trip] = await db.select({
       status: s.trips.status,
-      vatRate: s.trips.vatRate,
-      arCostHash: s.trips.arCostHash,
-      arSnapshotDirty: s.trips.arSnapshotDirty,
-    }).from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
+      vatRate: s.tripsComposite.vatRate,
+      arCostHash: s.tripsComposite.arCostHash,
+      arSnapshotDirty: s.tripsComposite.arSnapshotDirty,
+    }).from(s.tripsComposite).where(eq(s.tripsComposite.id, tripId)).limit(1);
     assert.equal(trip.status, 'COMPLETED');
     assert.equal(trip.vatRate, '0.080');
     assert.ok(trip.arCostHash);
@@ -892,8 +897,8 @@ describe('O2C trip close readiness authority', () => {
     assert.deepEqual(result.completedTripIds, [tripId]);
     assert.equal(result.vatRate, 0.1);
 
-    const [completed] = await db.select({ status: s.trips.status, vatRate: s.trips.vatRate })
-      .from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
+    const [completed] = await db.select({ status: s.trips.status, vatRate: s.tripsComposite.vatRate })
+      .from(s.tripsComposite).where(eq(s.tripsComposite.id, tripId)).limit(1);
     assert.equal(completed.status, 'COMPLETED');
     assert.equal(completed.vatRate, '0.100');
   });

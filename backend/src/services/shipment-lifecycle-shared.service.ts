@@ -117,24 +117,28 @@ export async function listRequiredShipmentAuthorityTrips(
     cargoTypeId: s.trips.cargoTypeId,
     departureDate: s.trips.departureDate,
     containerCount: s.trips.containerCount,
-    vatRate: s.trips.vatRate,
+    // Trips-split: financial/pricing fields live in trip_financial_state.
+    // The row lock stays on trips only (`of`), matching the pre-split lock
+    // footprint (views and sidecars cannot take the lock).
+    vatRate: sql<string>`coalesce(${s.tripFinancialState.vatRate}, '0.000')`,
     status: s.trips.status,
-    pricingSource: s.trips.pricingSource,
-    pricingFormula: s.trips.pricingFormula,
-    pricingSnapshot: s.trips.pricingSnapshot,
-    revenue: s.trips.revenue,
-    revenueOriginal: s.trips.revenueOriginal,
-    revenueEmptyReturn: s.trips.revenueEmptyReturn,
+    pricingSource: s.tripFinancialState.pricingSource,
+    pricingFormula: s.tripFinancialState.pricingFormula,
+    pricingSnapshot: s.tripFinancialState.pricingSnapshot,
+    revenue: s.tripFinancialState.revenue,
+    revenueOriginal: s.tripFinancialState.revenueOriginal,
+    revenueEmptyReturn: s.tripFinancialState.revenueEmptyReturn,
     podRecoveredAt: s.trips.podRecoveredAt,
   })
     .from(s.trips)
+    .leftJoin(s.tripFinancialState, eq(s.tripFinancialState.tripId, s.trips.id))
     .where(and(
       inArray(s.trips.fulfillmentId, requiredFulfillmentIds),
       sql`${s.trips.status} <> 'CANCELED'`,
       isNull(s.trips.deletedAt),
     ))
     .orderBy(asc(s.trips.id))
-    .for('update');
+    .for('update', { of: [s.trips] });
 }
 export async function assertShipmentFactorySiteValid(
   tx: Tx,

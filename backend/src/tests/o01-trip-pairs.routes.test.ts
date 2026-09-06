@@ -11,6 +11,7 @@ import { Role, TripStatus } from '@tingting/shared';
 
 import { client, db } from '../db';
 import * as s from '../db/schema';
+import { applyTripPatch, insertTripComposite } from '../services/trip-composite.service';
 import { config } from '../config';
 import { initEnforcer } from '../casbin/enforcer';
 import { authMiddleware } from '../middleware/auth';
@@ -96,7 +97,7 @@ async function mkTrip(
   departureDate: string,
   authority?: Partial<TripAuthoritySeed>,
 ) {
-  const [trip] = await db.insert(s.trips).values({
+  const trip = await insertTripComposite(db, {
     tripCode: `PAIR-${suffix}-${createdTripIds.length + 1}`,
     customerId: createdCustomerIds[0],
     truckId: createdTruckIds[0],
@@ -115,7 +116,7 @@ async function mkTrip(
     canonicalDestination: authority?.canonicalDestination ?? null,
     cargoWeightKg: authority?.cargoWeightKg != null ? String(authority.cargoWeightKg) : null,
     vehicleCapacityKg: authority?.vehicleCapacityKg != null ? String(authority.vehicleCapacityKg) : null,
-  }).returning();
+  });
   createdTripIds.push(trip.id);
   return trip;
 }
@@ -193,6 +194,8 @@ after(async () => {
     await db.delete(s.tripPairs).where(inArray(s.tripPairs.id, createdPairIds));
   }
   if (createdTripIds.length > 0) {
+    await db.delete(s.tripFinancialState).where(inArray(s.tripFinancialState.tripId, createdTripIds));
+    await db.delete(s.tripCarrierInfo).where(inArray(s.tripCarrierInfo.tripId, createdTripIds));
     await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
   }
   if (createdDriverIds.length > 0) {
@@ -497,18 +500,18 @@ describe('O01 two-way dispatch pairing routes', () => {
     // Both trips carry the same closed-loop VETC toll: 2 stations × 55 000 = 110 000.
     // totalCost baseline 900 000 already includes the toll (set at creation in mkTrip).
     const grossToll = 110000;
-    await db.update(s.trips).set({
+    await applyTripPatch(db, tollFirst.id, {
       tollsStations: 2,
       tollPerStationApplied: '55000',
       tollCost: String(grossToll),
       tollDeduction: '0',
-    }).where(eq(s.trips.id, tollFirst.id));
-    await db.update(s.trips).set({
+    });
+    await applyTripPatch(db, tollSecond.id, {
       tollsStations: 2,
       tollPerStationApplied: '55000',
       tollCost: String(grossToll),
       tollDeduction: '0',
-    }).where(eq(s.trips.id, tollSecond.id));
+    });
 
     const pair = await createTripPair({
       firstTripId: tollFirst.id,
@@ -519,14 +522,14 @@ describe('O01 two-way dispatch pairing routes', () => {
     createdPairIds.push(pair.id);
 
     const [firstRow] = await db.select({
-      tollDeduction: s.trips.tollDeduction, tollCost: s.trips.tollCost,
-    }).from(s.trips).where(eq(s.trips.id, tollFirst.id)).limit(1);
+      tollDeduction: s.tripsComposite.tollDeduction, tollCost: s.tripsComposite.tollCost,
+    }).from(s.tripsComposite).where(eq(s.tripsComposite.id, tollFirst.id)).limit(1);
     const [secondRow] = await db.select({
-      tollDeduction: s.trips.tollDeduction,
-      tollCost: s.trips.tollCost,
-      totalCost: s.trips.totalCost,
-      grossProfit: s.trips.grossProfit,
-    }).from(s.trips).where(eq(s.trips.id, tollSecond.id)).limit(1);
+      tollDeduction: s.tripsComposite.tollDeduction,
+      tollCost: s.tripsComposite.tollCost,
+      totalCost: s.tripsComposite.totalCost,
+      grossProfit: s.tripsComposite.grossProfit,
+    }).from(s.tripsComposite).where(eq(s.tripsComposite.id, tollSecond.id)).limit(1);
 
     // Trip 1 keeps its full toll; trip 2 is netted out (dedup == gross) so the
     // pair bears the toll once: 110000 + 0 == 110000.
@@ -543,11 +546,11 @@ describe('O01 two-way dispatch pairing routes', () => {
     assert.equal(cancel.status, 200);
 
     const [restoredSurvivor] = await db.select({
-      tollDeduction: s.trips.tollDeduction,
-      tollCost: s.trips.tollCost,
-      totalCost: s.trips.totalCost,
-      grossProfit: s.trips.grossProfit,
-    }).from(s.trips).where(eq(s.trips.id, tollSecond.id)).limit(1);
+      tollDeduction: s.tripsComposite.tollDeduction,
+      tollCost: s.tripsComposite.tollCost,
+      totalCost: s.tripsComposite.totalCost,
+      grossProfit: s.tripsComposite.grossProfit,
+    }).from(s.tripsComposite).where(eq(s.tripsComposite.id, tollSecond.id)).limit(1);
     assert.equal(Number(restoredSurvivor.tollDeduction), 0);
     assert.equal(Number(restoredSurvivor.tollCost), grossToll); // full toll back
     assert.equal(Number(restoredSurvivor.totalCost), 900000);
