@@ -49,17 +49,19 @@ export async function listShipmentContainers(shipmentId: number, tx?: Tx) {
 /**
  * Per-container factory authority validation — the single choke point every
  * container write passes through (direct PUT, change-request review, CUS
- * reconcile). Factory and route are selected independently for the temporary
- * intake workflow; this still protects the factory's customer/type boundary.
+ * reconcile). Protects the factory's customer/type boundary and returns the
+ * siteId → canonical routeId map so callers can enforce that a container's
+ * route follows its factory (master-data spec 2026-09-06).
  */
 async function assertContainerFactorySitesValid(
   tx: Tx,
   customerId: number,
   siteIds: number[],
-): Promise<void> {
-  if (siteIds.length === 0) return;
+): Promise<Map<number, number | null>> {
+  if (siteIds.length === 0) return new Map();
   const sites = await tx.select({
     id: s.operationalSites.id,
+    routeId: s.operationalSites.routeId,
   })
     .from(s.operationalSites)
     .where(and(
@@ -72,6 +74,7 @@ async function assertContainerFactorySitesValid(
   if (sites.length !== siteIds.length) {
     throw new ApiError(409, 'Nhà máy của container không còn hiệu lực hoặc không thuộc khách hàng của lô hàng.');
   }
+  return new Map(sites.map((site) => [site.id, site.routeId]));
 }
 
 /** Routes remain independent from factories, but must be active catalog rows. */
@@ -229,14 +232,13 @@ export async function reconcileShipmentContainersInTx(
       ? container.operationalSiteId
       : container.id != null ? currentById.get(container.id)?.operationalSiteId ?? null : null
   )).filter((id): id is number => id != null))];
-  await assertContainerFactorySitesValid(tx, shipment.customerId, resolvedSiteIds);
-  const resolvedRouteIds = [...new Set(containers.map((container) => (
-    container.routeId !== undefined
-      ? container.routeId
-      : container.id != null ? currentById.get(container.id)?.routeId ?? null : null
-  )).filter((id): id is number => id != null))];
-  await assertContainerRoutesActive(tx, resolvedRouteIds);
-  for (const container of synchronizedContainers) {
+  const factoryRouteBySiteId = await assertContainerFactorySitesValid(tx, shipment.customerId, resolvedSiteIds);
+  // Factory-route authority (master-data spec 2026-09-06): the factory owns
+  // its canonical route, so a container's route follows its factory. Resolve
+  // every container up front so an explicit mismatch is rejected (422) and a
+  // missing route is derived from the factory; factories without a configured
+  // route keep the previous independent per-container route behavior.
+  const resolvedContainers = synchronizedContainers.map((container) => {
     const isUpdate = container.id != null && existingIds.has(container.id);
     // Per-container factory authority: an update that leaves the field
     // unspecified (undefined — e.g. a UI payload that doesn't manage it)
@@ -247,6 +249,24 @@ export async function reconcileShipmentContainersInTx(
       : isUpdate
         ? currentById.get(container.id as number)?.operationalSiteId ?? null
         : null;
+    const explicitRouteId = container.routeId !== undefined
+      ? container.routeId
+      : isUpdate
+        ? currentById.get(container.id as number)?.routeId ?? null
+        : null;
+    const factoryRouteId = resolvedSiteId != null
+      ? factoryRouteBySiteId.get(resolvedSiteId) ?? null
+      : null;
+    if (factoryRouteId != null && explicitRouteId != null && explicitRouteId !== factoryRouteId) {
+      throw new ApiError(422, 'Tuyến đường không khớp tuyến đã cấu hình của nhà máy.');
+    }
+    return { container, isUpdate, resolvedSiteId, resolvedRouteId: factoryRouteId ?? explicitRouteId };
+  });
+  const resolvedRouteIds = [...new Set(resolvedContainers
+    .map((row) => row.resolvedRouteId)
+    .filter((id): id is number => id != null))];
+  await assertContainerRoutesActive(tx, resolvedRouteIds);
+  for (const { container, isUpdate, resolvedSiteId, resolvedRouteId } of resolvedContainers) {
     // Ports follow the same undefined-preservation contract as the factory
     // site above: surfaces that don't manage lift/drop ports (e.g. a payload
     // editing only cargo figures) keep the saved ports; only an explicit
@@ -260,14 +280,6 @@ export async function reconcileShipmentContainersInTx(
       ? container.dropoffPortId
       : isUpdate
         ? currentById.get(container.id as number)?.dropoffPortId ?? null
-        : null;
-    // A route remains authoritative per container, but is intentionally
-    // independent from the selected factory while factory-route data is not
-    // ready. Unspecified updates preserve the saved route.
-    const resolvedRouteId = container.routeId !== undefined
-      ? container.routeId
-      : isUpdate
-        ? currentById.get(container.id as number)?.routeId ?? null
         : null;
     const payload = {
       shipmentId,

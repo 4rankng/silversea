@@ -88,7 +88,7 @@ describe('shipment container site authority (SILVER L1 P2)', () => {
     }).from(s.shipmentContainers).where(eq(s.shipmentContainers.shipmentId, shipment.id));
     const byNumber = new Map(rows.map((row) => [row.containerNumber, row]));
     assert.equal(byNumber.get('AAAU1000001')?.operationalSiteId, factory.id);
-    assert.equal(byNumber.get('AAAU1000001')?.routeId, null, 'factory selection must not derive a route');
+    assert.equal(byNumber.get('AAAU1000001')?.routeId, route.id, 'factory selection must derive the factory route');
     assert.equal(byNumber.get('AAAU1000001')?.customerAppointmentAt?.toISOString(), '2026-08-24T04:00:00.000Z');
     assert.equal(byNumber.get('BBHU2001007')?.operationalSiteId, null);
   });
@@ -125,11 +125,12 @@ describe('shipment container site authority (SILVER L1 P2)', () => {
     assert.equal(byNumber.get('BBHU2001007')?.customerAppointmentAt?.toISOString(), '2026-08-26T07:30:00.000Z');
   });
 
-  test('persists a route chosen independently from the container factory mapping', async () => {
+  test('persists a manually chosen route when the factory has no configured route', async () => {
     const customer = await makeCustomer('Factory route match');
-    const routeA = await makeRoute('MATCH-A');
     const routeB = await makeRoute('MATCH-B');
-    const factory = await makeFactorySite(customer.id, 'MATCH', routeA.id);
+    // Factory without a configured route — manual route selection stays
+    // allowed (the auto-fill lock only applies to configured factories).
+    const factory = await makeFactorySite(customer.id, 'MATCH');
     const containerType = await makeContainerType('MATCH');
     const shipment = await createShipment({ customerId: customer.id, cargoMode: 'FCL' });
     shipmentIds.push(shipment.id);
@@ -310,6 +311,50 @@ describe('shipment container site authority (SILVER L1 P2)', () => {
     const secondDelivery = (second[0]!.siteSnapshot as { deliverySite?: { id?: number } }).deliverySite;
     assert.equal(secondDelivery?.id, factoryB.id, 're-decompose must show the NEW container factory');
     assert.notEqual(second[0]!.id, first[0]!.id, 'the stale fulfillment must have been replaced');
+  });
+
+  test('a factory with a configured route derives the container route when omitted (master-data spec 2026-09-06)', async () => {
+    const customer = await makeCustomer('Route derive');
+    const route = await makeRoute('DER-A');
+    const factory = await makeFactorySite(customer.id, 'DER-A', route.id);
+    const containerType = await makeContainerType('DR');
+    const shipment = await createShipment({ customerId: customer.id, cargoMode: 'FCL' });
+    shipmentIds.push(shipment.id);
+
+    await batchUpsertShipmentContainers(shipment.id, null, [{
+      containerTypeId: containerType.id,
+      containerNumber: 'GGGU6006007',
+      operationalSiteId: factory.id,
+      // routeId intentionally omitted — must derive from the factory.
+    }]);
+
+    const [row] = await db.select({ routeId: s.shipmentContainers.routeId })
+      .from(s.shipmentContainers).where(eq(s.shipmentContainers.shipmentId, shipment.id)).limit(1);
+    assert.equal(row?.routeId, route.id, 'container route must derive from the factory route');
+  });
+
+  test('a container route that contradicts the factory route is rejected (422)', async () => {
+    const customer = await makeCustomer('Route mismatch');
+    const factoryRoute = await makeRoute('MIS-A');
+    const otherRoute = await makeRoute('MIS-B');
+    const factory = await makeFactorySite(customer.id, 'MIS-A', factoryRoute.id);
+    const containerType = await makeContainerType('MS');
+    const shipment = await createShipment({ customerId: customer.id, cargoMode: 'FCL' });
+    shipmentIds.push(shipment.id);
+
+    await assert.rejects(
+      batchUpsertShipmentContainers(shipment.id, null, [{
+        containerTypeId: containerType.id,
+        containerNumber: 'HHHU7007004',
+        operationalSiteId: factory.id,
+        routeId: otherRoute.id,
+      }]),
+      (error: unknown) => {
+        assert.ok(error instanceof Error);
+        assert.match(error.message, /Tuyến đường không khớp tuyến đã cấu hình của nhà máy/);
+        return true;
+      },
+    );
   });
 });
 
