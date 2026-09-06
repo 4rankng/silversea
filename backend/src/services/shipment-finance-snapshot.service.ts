@@ -93,18 +93,18 @@ export async function loadChargeProposalFactForUpdate(
   proposalFactId: number,
 ): Promise<ChargeProposalRow> {
   const [proposal] = await tx.select({
-    id: s.shipmentContainerChargeFacts.id,
-    shipmentContainerId: s.shipmentContainerChargeFacts.shipmentContainerId,
-    version: s.shipmentContainerChargeFacts.version,
-    outboundTransportAmount: s.shipmentContainerChargeFacts.outboundTransportAmount,
-    outboundHandlingAmount: s.shipmentContainerChargeFacts.outboundHandlingAmount,
-    outboundIncidentalAmount: s.shipmentContainerChargeFacts.outboundIncidentalAmount,
-    inboundTransportAmount: s.shipmentContainerChargeFacts.inboundTransportAmount,
-    inboundHandlingAmount: s.shipmentContainerChargeFacts.inboundHandlingAmount,
-  }).from(s.shipmentContainerChargeFacts)
+    id: s.shipmentContainers.id,
+    shipmentContainerId: s.shipmentContainers.id,
+    version: s.shipmentContainers.chargeProposalVersion,
+    outboundTransportAmount: s.shipmentContainers.outboundTransportAmount,
+    outboundHandlingAmount: s.shipmentContainers.outboundHandlingAmount,
+    outboundIncidentalAmount: s.shipmentContainers.outboundIncidentalAmount,
+    inboundTransportAmount: s.shipmentContainers.inboundTransportAmount,
+    inboundHandlingAmount: s.shipmentContainers.inboundHandlingAmount,
+  }).from(s.shipmentContainers)
     .where(and(
-      eq(s.shipmentContainerChargeFacts.id, proposalFactId),
-      eq(s.shipmentContainerChargeFacts.shipmentId, shipmentId),
+      eq(s.shipmentContainers.id, proposalFactId),
+      eq(s.shipmentContainers.shipmentId, shipmentId),
     ))
     .limit(1)
     .for('update');
@@ -316,17 +316,17 @@ export async function buildShipmentFinanceSnapshot(
   }
 
   const chargeProposals = await tx.select({
-    id: s.shipmentContainerChargeFacts.id,
-    shipmentContainerId: s.shipmentContainerChargeFacts.shipmentContainerId,
-    version: s.shipmentContainerChargeFacts.version,
-    outboundTransportAmount: s.shipmentContainerChargeFacts.outboundTransportAmount,
-    outboundHandlingAmount: s.shipmentContainerChargeFacts.outboundHandlingAmount,
-    outboundIncidentalAmount: s.shipmentContainerChargeFacts.outboundIncidentalAmount,
-    inboundTransportAmount: s.shipmentContainerChargeFacts.inboundTransportAmount,
-    inboundHandlingAmount: s.shipmentContainerChargeFacts.inboundHandlingAmount,
-  }).from(s.shipmentContainerChargeFacts)
-    .where(eq(s.shipmentContainerChargeFacts.shipmentId, shipment.id))
-    .orderBy(asc(s.shipmentContainerChargeFacts.id));
+    id: s.shipmentContainers.id,
+    shipmentContainerId: s.shipmentContainers.id,
+    version: s.shipmentContainers.chargeProposalVersion,
+    outboundTransportAmount: s.shipmentContainers.outboundTransportAmount,
+    outboundHandlingAmount: s.shipmentContainers.outboundHandlingAmount,
+    outboundIncidentalAmount: s.shipmentContainers.outboundIncidentalAmount,
+    inboundTransportAmount: s.shipmentContainers.inboundTransportAmount,
+    inboundHandlingAmount: s.shipmentContainers.inboundHandlingAmount,
+  }).from(s.shipmentContainers)
+    .where(eq(s.shipmentContainers.shipmentId, shipment.id))
+    .orderBy(asc(s.shipmentContainers.id));
   const proposalCoverageByKey = await loadCurrentProposalCoverageByShipment(tx, shipment.id, options);
   const proposalCoverage: ProposalCoverageRow[] = [];
   for (const proposal of chargeProposals) {

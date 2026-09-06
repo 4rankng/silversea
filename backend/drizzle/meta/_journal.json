@@ -365,6 +365,13 @@
       "when": 1788673613972,
       "tag": "0051_flawless_thunderbolt",
       "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1788673943854,
+      "tag": "0052_yielding_landau",
+      "breakpoints": true
     }
   ]
 }

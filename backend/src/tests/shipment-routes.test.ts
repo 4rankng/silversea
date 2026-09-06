@@ -367,8 +367,6 @@ after(async () => {
         await tx.delete(s.billingDocuments).where(inArray(s.billingDocuments.id, createdBillingDocumentIds));
       }
       if (createdShipmentIds.length > 0) {
-        await tx.delete(s.shipmentContainerChargeFacts)
-          .where(inArray(s.shipmentContainerChargeFacts.shipmentId, createdShipmentIds));
         await tx.delete(s.shipmentRecoveryFacts)
           .where(inArray(s.shipmentRecoveryFacts.shipmentId, createdShipmentIds));
         await tx.delete(s.shipmentDocumentCustodyFacts)
@@ -1594,13 +1592,9 @@ describe('GET /cus-workspace', () => {
         sortOrder: 1,
       },
     ]);
-    await db.insert(s.shipmentContainerChargeFacts).values({
-      shipmentId: fixture.shipment.id,
-      shipmentContainerId: fixture.container.id,
-      outboundTransportAmount: '999000000',
-      createdBy: adminUserId,
-      updatedBy: adminUserId,
-    });
+    await db.update(s.shipmentContainers)
+      .set({ outboundTransportAmount: '999000000' })
+      .where(eq(s.shipmentContainers.id, fixture.container.id));
 
     const detail = await testFetch(`/cus-workspace/${fixture.shipment.id}`, { token: adminToken });
     assert.equal(detail.status, 200);
@@ -1752,10 +1746,10 @@ describe('POST /cus-workspace/:id/containers/:containerId', () => {
       assert.equal(response.status, 400);
     }
 
-    const facts = await db.select({ id: s.shipmentContainerChargeFacts.id })
-      .from(s.shipmentContainerChargeFacts)
-      .where(eq(s.shipmentContainerChargeFacts.shipmentContainerId, container.id));
-    assert.equal(facts.length, 0);
+    const [containerAfterRejection] = await db.select({ outboundTransportAmount: s.shipmentContainers.outboundTransportAmount })
+      .from(s.shipmentContainers)
+      .where(eq(s.shipmentContainers.id, container.id));
+    assert.equal(containerAfterRejection.outboundTransportAmount, null);
   });
 
   test('DISPATCHER updates a pre-dispatch line with an existing external carrier', async () => {
@@ -1815,10 +1809,10 @@ describe('POST /cus-workspace/:id/containers/:containerId', () => {
       assert.equal(response.status, 400);
     }
 
-    const facts = await db.select({ id: s.shipmentContainerChargeFacts.id })
-      .from(s.shipmentContainerChargeFacts)
-      .where(eq(s.shipmentContainerChargeFacts.shipmentContainerId, line.id));
-    assert.equal(facts.length, 0);
+    const [lineAfterRejection] = await db.select({ outboundTransportAmount: s.shipmentContainers.outboundTransportAmount })
+      .from(s.shipmentContainers)
+      .where(eq(s.shipmentContainers.id, line.id));
+    assert.equal(lineAfterRejection.outboundTransportAmount, null);
   });
 
   test('CUS can create an inline external carrier, and idempotent replay does not duplicate it', async () => {

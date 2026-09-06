@@ -167,6 +167,17 @@ export const shipmentContainers = pgTable('shipment_containers', {
   // persistence choke point (reconcileShipmentContainersInTx).
   operationalSiteId: integer('operational_site_id'),
   notes: text('notes'),
+  // Manual charge proposals (accounting close), merged from the 1:1
+  // shipment_container_charge_facts table (lean-down 2026-09-06). Amounts in
+  // VND; chargeProposalVersion guards the optimistic confirm flow. Property
+  // names intentionally match the former fact columns so the proposal
+  // field-map, checksum shape, and API payloads stay unchanged.
+  chargeProposalVersion: integer('charge_proposal_version').notNull().default(1),
+  outboundTransportAmount: numeric('charge_outbound_transport_amount', { precision: 15, scale: 0 }),
+  outboundHandlingAmount: numeric('charge_outbound_handling_amount', { precision: 15, scale: 0 }),
+  outboundIncidentalAmount: numeric('charge_outbound_incidental_amount', { precision: 15, scale: 0 }),
+  inboundTransportAmount: numeric('charge_inbound_transport_amount', { precision: 15, scale: 0 }),
+  inboundHandlingAmount: numeric('charge_inbound_handling_amount', { precision: 15, scale: 0 }),
   createdBy: integer('created_by'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -232,26 +243,6 @@ export const shipmentFulfillments = pgTable('shipment_fulfillments', {
 ]);
 
 
-export const shipmentContainerChargeFacts = pgTable('shipment_container_charge_facts', {
-  id: serial('id').primaryKey(),
-  shipmentId: integer('shipment_id').notNull(),
-  shipmentContainerId: integer('shipment_container_id').notNull(),
-  version: integer('version').notNull().default(1),
-  outboundTransportAmount: numeric('outbound_transport_amount', { precision: 15, scale: 0 }),
-  outboundHandlingAmount: numeric('outbound_handling_amount', { precision: 15, scale: 0 }),
-  outboundIncidentalAmount: numeric('outbound_incidental_amount', { precision: 15, scale: 0 }),
-  inboundTransportAmount: numeric('inbound_transport_amount', { precision: 15, scale: 0 }),
-  inboundHandlingAmount: numeric('inbound_handling_amount', { precision: 15, scale: 0 }),
-  createdBy: integer('created_by'),
-  updatedBy: integer('updated_by'),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-}, (table) => [
-  uniqueIndex('shipment_container_charge_facts_container_uniq_idx')
-    .on(table.shipmentContainerId),
-  index('shipment_container_charge_facts_shipment_idx')
-    .on(table.shipmentId, table.shipmentContainerId),
-]);
 
 export const shipmentRecoveryFacts = pgTable('shipment_recovery_facts', {
   id: serial('id').primaryKey(),

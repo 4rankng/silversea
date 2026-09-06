@@ -206,7 +206,6 @@ after(async () => {
     ));
   }
   if (recoveryFactIds.length) await db.delete(s.shipmentRecoveryFacts).where(inArray(s.shipmentRecoveryFacts.id, recoveryFactIds));
-  if (chargeFactIds.length) await db.delete(s.shipmentContainerChargeFacts).where(inArray(s.shipmentContainerChargeFacts.id, chargeFactIds));
   if (documentIds.length) {
     await db.delete(s.billingDocumentTripClaims).where(inArray(s.billingDocumentTripClaims.documentId, documentIds));
     await db.delete(s.billingDocuments).where(inArray(s.billingDocuments.id, documentIds));
@@ -350,14 +349,10 @@ describe('shipment accounting lock', () => {
       createdBy: actor.userId,
     }).returning();
     shipmentContainerIds.push(container.id);
-    const [proposal] = await db.insert(s.shipmentContainerChargeFacts).values({
-      shipmentId: shipment.id,
-      shipmentContainerId: container.id,
-      outboundIncidentalAmount: '250000',
-      createdBy: actor.userId,
-      updatedBy: actor.userId,
-    }).returning();
-    chargeFactIds.push(proposal.id);
+    const [proposal] = await db.update(s.shipmentContainers)
+      .set({ outboundIncidentalAmount: '250000' })
+      .where(eq(s.shipmentContainers.id, container.id))
+      .returning({ id: s.shipmentContainers.id, version: s.shipmentContainers.chargeProposalVersion });
 
     await assert.rejects(
       confirmShipmentFinance({
@@ -383,14 +378,10 @@ describe('shipment accounting lock', () => {
       createdBy: actor.userId,
     }).returning();
     shipmentContainerIds.push(container.id);
-    const [proposal] = await db.insert(s.shipmentContainerChargeFacts).values({
-      shipmentId: shipment.id,
-      shipmentContainerId: container.id,
-      outboundIncidentalAmount: '250000',
-      createdBy: actor.userId,
-      updatedBy: actor.userId,
-    }).returning();
-    chargeFactIds.push(proposal.id);
+    const [proposal] = await db.update(s.shipmentContainers)
+      .set({ outboundIncidentalAmount: '250000' })
+      .where(eq(s.shipmentContainers.id, container.id))
+      .returning({ id: s.shipmentContainers.id, version: s.shipmentContainers.chargeProposalVersion });
     const line = await insertAdhocBillingLine({
       documentId: document.id,
       amount: '250000',
@@ -449,14 +440,10 @@ describe('shipment accounting lock', () => {
       createdBy: actor.userId,
     }).returning();
     shipmentContainerIds.push(container.id);
-    const [proposal] = await db.insert(s.shipmentContainerChargeFacts).values({
-      shipmentId: shipment.id,
-      shipmentContainerId: container.id,
-      outboundIncidentalAmount: '250000',
-      createdBy: actor.userId,
-      updatedBy: actor.userId,
-    }).returning();
-    chargeFactIds.push(proposal.id);
+    const [proposal] = await db.update(s.shipmentContainers)
+      .set({ outboundIncidentalAmount: '250000' })
+      .where(eq(s.shipmentContainers.id, container.id))
+      .returning({ id: s.shipmentContainers.id, version: s.shipmentContainers.chargeProposalVersion });
     const line = await insertAdhocBillingLine({
       documentId: document.id,
       amount: '250000',
@@ -480,12 +467,10 @@ describe('shipment accounting lock', () => {
     assert.equal(reviewed.replayed, false);
 
     const [shipmentAfterReview] = await db.select().from(s.shipments).where(eq(s.shipments.id, shipment.id));
-    await db.update(s.shipmentContainerChargeFacts).set({
+    await db.update(s.shipmentContainers).set({
       outboundIncidentalAmount: '260000',
-      updatedBy: actor.userId,
-      updatedAt: new Date('2026-08-11T10:00:00.000Z'),
-      version: 2,
-    }).where(eq(s.shipmentContainerChargeFacts.id, proposal.id));
+      chargeProposalVersion: 2,
+    }).where(eq(s.shipmentContainers.id, proposal.id));
 
     await assert.rejects(
       confirmShipmentFinance({
@@ -509,14 +494,10 @@ describe('shipment accounting lock', () => {
       createdBy: actor.userId,
     }).returning();
     shipmentContainerIds.push(container.id);
-    const [proposal] = await db.insert(s.shipmentContainerChargeFacts).values({
-      shipmentId: shipment.id,
-      shipmentContainerId: container.id,
-      outboundIncidentalAmount: '250000',
-      createdBy: actor.userId,
-      updatedBy: actor.userId,
-    }).returning();
-    chargeFactIds.push(proposal.id);
+    const [proposal] = await db.update(s.shipmentContainers)
+      .set({ outboundIncidentalAmount: '250000' })
+      .where(eq(s.shipmentContainers.id, container.id))
+      .returning({ id: s.shipmentContainers.id, version: s.shipmentContainers.chargeProposalVersion });
 
     const reviewed = await reviewShipmentChargeProposal({
       shipmentId: shipment.id,
@@ -555,14 +536,10 @@ describe('shipment accounting lock', () => {
       createdBy: actor.userId,
     }).returning();
     shipmentContainerIds.push(container.id);
-    const [proposal] = await db.insert(s.shipmentContainerChargeFacts).values({
-      shipmentId: shipment.id,
-      shipmentContainerId: container.id,
-      outboundIncidentalAmount: '0',
-      createdBy: actor.userId,
-      updatedBy: actor.userId,
-    }).returning();
-    chargeFactIds.push(proposal.id);
+    const [proposal] = await db.update(s.shipmentContainers)
+      .set({ outboundIncidentalAmount: '0' })
+      .where(eq(s.shipmentContainers.id, container.id))
+      .returning({ id: s.shipmentContainers.id, version: s.shipmentContainers.chargeProposalVersion });
     const [expense] = await db.insert(s.tripExpenses).values({
       tripId: trip.id,
       expenseType: 'OTHER',
