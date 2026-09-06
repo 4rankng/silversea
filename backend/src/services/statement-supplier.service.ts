@@ -69,15 +69,15 @@ export async function getSupplierStatement(supplierId: number, dateFrom?: string
       departureDate: s.trips.departureDate,
       truckPlate: s.trucks.licensePlate,
       routeName: s.routes.name,
-      fuelLiters: s.trips.fuelLiters,
-      fuelActualUnitPrice: s.trips.fuelActualUnitPrice,
-      fuelPriceApplied: s.trips.fuelPriceApplied,
-      totalFuelCost: s.trips.totalFuelCost,
+      fuelLiters: s.tripsComposite.fuelLiters,
+      fuelActualUnitPrice: s.tripsComposite.fuelActualUnitPrice,
+      fuelPriceApplied: s.tripsComposite.fuelPriceApplied,
+      totalFuelCost: s.tripsComposite.totalFuelCost,
     })
-      .from(s.trips)
-      .leftJoin(s.trucks, eq(s.trips.truckId, s.trucks.id))
-      .leftJoin(s.routes, eq(s.trips.routeId, s.routes.id))
-      .where(inArray(s.trips.id, fuelTripIds));
+      .from(s.tripsComposite)
+      .leftJoin(s.trucks, eq(s.tripsComposite.truckId, s.trucks.id))
+      .leftJoin(s.routes, eq(s.tripsComposite.routeId, s.routes.id))
+      .where(inArray(s.tripsComposite.id, fuelTripIds));
     ledgerRows = attachFuelDetailsToLedgerRows(ledgerRows, tripRows);
   }
 

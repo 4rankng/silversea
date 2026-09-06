@@ -71,34 +71,34 @@ async function buildTripDraftLineTx(tx: Tx, tripId: number): Promise<{
   line: MutableLine;
 } | null> {
   const [trip] = await tx.select({
-    id: s.trips.id,
-    customerId: s.trips.customerId,
-    tripCode: s.trips.tripCode,
-    departureDate: s.trips.departureDate,
-    completionDate: sql<string | null>`to_char(${s.trips.completedAt}, 'YYYY-MM-DD')`,
-    revenue: s.trips.revenue,
-    fuelSurchargeAmount: s.trips.fuelSurchargeAmount,
+    id: s.tripsComposite.id,
+    customerId: s.tripsComposite.customerId,
+    tripCode: s.tripsComposite.tripCode,
+    departureDate: s.tripsComposite.departureDate,
+    completionDate: sql<string | null>`to_char(${s.tripsComposite.completedAt}, 'YYYY-MM-DD')`,
+    revenue: s.tripsComposite.revenue,
+    fuelSurchargeAmount: s.tripsComposite.fuelSurchargeAmount,
     routeName: s.routes.name,
-    notes: s.trips.notes,
+    notes: s.tripsComposite.notes,
     truckPlate: s.trucks.licensePlate,
-    externalPlateNumber: s.trips.externalPlateNumber,
-    version: s.trips.version,
-    updatedAt: s.trips.updatedAt,
-    status: s.trips.status,
+    externalPlateNumber: s.tripsComposite.externalPlateNumber,
+    version: s.tripsComposite.version,
+    updatedAt: s.tripsComposite.updatedAt,
+    status: s.tripsComposite.status,
     financialPostingId: s.tripFinancialPostings.id,
     financialPostingVersion: s.tripFinancialPostings.version,
     financialPostingTripVersion: s.tripFinancialPostings.tripVersion,
     financialPostingReason: s.tripFinancialPostings.reason,
     financialPostingEffectiveAt: s.tripFinancialPostings.effectiveAt,
   })
-    .from(s.trips)
-    .leftJoin(s.routes, eq(s.trips.routeId, s.routes.id))
-    .leftJoin(s.trucks, eq(s.trips.truckId, s.trucks.id))
+    .from(s.tripsComposite)
+    .leftJoin(s.routes, eq(s.tripsComposite.routeId, s.routes.id))
+    .leftJoin(s.trucks, eq(s.tripsComposite.truckId, s.trucks.id))
     .innerJoin(s.tripFinancialPostings, and(
-      eq(s.tripFinancialPostings.tripId, s.trips.id),
+      eq(s.tripFinancialPostings.tripId, s.tripsComposite.id),
       eq(s.tripFinancialPostings.status, 'ACTIVE'),
     ))
-    .where(and(eq(s.trips.id, tripId), isNull(s.trips.deletedAt)))
+    .where(and(eq(s.tripsComposite.id, tripId), isNull(s.tripsComposite.deletedAt)))
     .limit(1);
   if (
     !trip
@@ -179,11 +179,12 @@ async function buildExpenseDraftLineTx(tx: Tx, expenseId: number): Promise<{
     routeName: s.routes.name,
     notes: s.trips.notes,
     truckPlate: s.trucks.licensePlate,
-    externalPlateNumber: s.trips.externalPlateNumber,
+    externalPlateNumber: s.tripCarrierInfo.externalPlateNumber,
     tripStatus: s.trips.status,
   })
     .from(s.tripExpenses)
     .innerJoin(s.trips, eq(s.tripExpenses.tripId, s.trips.id))
+    .leftJoin(s.tripCarrierInfo, eq(s.tripCarrierInfo.tripId, s.trips.id))
     .leftJoin(s.routes, eq(s.trips.routeId, s.routes.id))
     .leftJoin(s.trucks, eq(s.trips.truckId, s.trucks.id))
     .leftJoin(s.forwarderExpenseTypes, eq(s.tripExpenses.expenseType, s.forwarderExpenseTypes.code))

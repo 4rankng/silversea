@@ -290,17 +290,17 @@ export async function listDispatchQueue(input: ListDispatchQueueInput) {
       tripVersion: s.trips.version,
       tripCode: s.trips.tripCode,
       tripStatus: s.trips.status,
-      carrierType: s.trips.carrierType,
+      carrierType: s.tripCarrierInfo.carrierType,
       truckId: s.trips.truckId,
       driverId: s.trips.driverId,
       trailerId: s.trips.trailerId,
       plannedStartAt: s.trips.plannedStartAt,
       plannedEndAt: s.trips.plannedEndAt,
-      externalEntityId: s.trips.externalEntityId,
-      externalEntityType: s.trips.externalEntityType,
-      externalPlateNumber: s.trips.externalPlateNumber,
-      externalDriverName: s.trips.externalDriverName,
-      externalDriverPhone: s.trips.externalDriverPhone,
+      externalEntityId: s.tripCarrierInfo.externalEntityId,
+      externalEntityType: s.tripCarrierInfo.externalEntityType,
+      externalPlateNumber: s.tripCarrierInfo.externalPlateNumber,
+      externalDriverName: s.tripCarrierInfo.externalDriverName,
+      externalDriverPhone: s.tripCarrierInfo.externalDriverPhone,
     }).from(s.shipmentFulfillments)
       .innerJoin(s.shipments, eq(s.shipmentFulfillments.shipmentId, s.shipments.id))
       .innerJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
@@ -317,6 +317,7 @@ export async function listDispatchQueue(input: ListDispatchQueueInput) {
         ne(s.trips.status, TripStatus.CANCELED),
         isNull(s.trips.deletedAt),
       ))
+      .leftJoin(s.tripCarrierInfo, eq(s.tripCarrierInfo.tripId, s.trips.id))
       .where(and(
         ...filters,
         cursor ? lt(s.shipmentFulfillments.id, cursor) : undefined,
