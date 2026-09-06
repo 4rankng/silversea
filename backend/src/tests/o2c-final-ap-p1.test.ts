@@ -6,6 +6,7 @@ import { FuelMode, Role, TripStatus, TxnType } from '@tingting/shared';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
+import { applyTripPatch, insertTripComposite } from '../services/trip-composite.service';
 import { disconnectRedis } from '../lib/redis';
 import { requestTripExpenseDecision } from '../services/approval.service';
 import {
@@ -60,6 +61,8 @@ after(async () => {
     await db.delete(s.tripLegs).where(inArray(s.tripLegs.tripId, createdTripIds));
     await db.delete(s.tripPhotos).where(inArray(s.tripPhotos.tripId, createdTripIds));
     await cleanupTripCloseMilestones(createdTripIds);
+    await db.delete(s.tripFinancialState).where(inArray(s.tripFinancialState.tripId, createdTripIds));
+    await db.delete(s.tripCarrierInfo).where(inArray(s.tripCarrierInfo.tripId, createdTripIds));
     await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
   }
   await cleanupTripCloseShipments(createdShipmentIds);
@@ -152,7 +155,7 @@ async function createTripFixture(input?: {
 
   const { driver, driverUser } = await createDriverFixture(suffix);
   const carrierType = input?.carrierType ?? 'OWN';
-  const [trip] = await db.insert(s.trips).values({
+  const trip = await insertTripComposite(db, {
     tripCode: `AP-P1-${suffix}`.slice(0, 50),
     customerId: customer.id,
     routeId: route.id,
@@ -170,7 +173,7 @@ async function createTripFixture(input?: {
     totalFuelCost: input?.fuelCost ?? '500000',
     podRecoveredAt: new Date(),
     podRecoveredBy: driverUser.id,
-  }).returning();
+  });
   createdTripIds.push(trip.id);
 
   await db.insert(s.tripPhotos).values({
@@ -399,21 +402,19 @@ describe('O2C final AP P1 fixes', () => {
     });
 
     const [updated] = await db.select({
-      apSnapshotDirty: s.trips.apSnapshotDirty,
-    }).from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
+      apSnapshotDirty: s.tripsComposite.apSnapshotDirty,
+    }).from(s.tripsComposite).where(eq(s.trips.id, trip.id)).limit(1);
     assert.equal(updated?.apSnapshotDirty, true);
 
     await ApSnapshotService.recapture(trip.id);
     await db.transaction(async (tx) => {
-      await tx.update(s.trips)
-        .set({ totalFuelCost: '650000' })
-        .where(eq(s.trips.id, trip.id));
+      await applyTripPatch(tx, trip.id, { totalFuelCost: '650000' });
       await SnapshotServices.markBothDirty(trip.id, tx);
     });
 
     const [fuelUpdated] = await db.select({
-      apSnapshotDirty: s.trips.apSnapshotDirty,
-    }).from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
+      apSnapshotDirty: s.tripsComposite.apSnapshotDirty,
+    }).from(s.tripsComposite).where(eq(s.trips.id, trip.id)).limit(1);
     assert.equal(fuelUpdated?.apSnapshotDirty, true);
   });
 
@@ -450,9 +451,9 @@ describe('O2C final AP P1 fixes', () => {
     assert.equal(updatedExpense?.approvalStatus, 'APPROVED');
 
     const [updatedTrip] = await db.select({
-      arSnapshotDirty: s.trips.arSnapshotDirty,
-      apSnapshotDirty: s.trips.apSnapshotDirty,
-    }).from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
+      arSnapshotDirty: s.tripsComposite.arSnapshotDirty,
+      apSnapshotDirty: s.tripsComposite.apSnapshotDirty,
+    }).from(s.tripsComposite).where(eq(s.trips.id, trip.id)).limit(1);
     assert.equal(updatedTrip?.arSnapshotDirty, true);
     assert.equal(updatedTrip?.apSnapshotDirty, true);
   });
@@ -528,7 +529,7 @@ describe('O2C final AP P1 fixes', () => {
     assert.equal(receiptScopedNet, 300000);
 
     const [updatedTrip] = await db.select({
-      arSnapshotDirty: s.trips.arSnapshotDirty,
+      arSnapshotDirty: s.tripsComposite.arSnapshotDirty,
       apSnapshotDirty: s.trips.apSnapshotDirty,
       version: s.trips.version,
     }).from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);

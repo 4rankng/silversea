@@ -6,6 +6,7 @@ import { runIdempotent } from './idempotency.service';
 import * as s from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { ApiError } from '../errors';
+import { getTripCompositeInTx } from './trip-composite.service';
 import type { Tx } from './trip-shared';
 
 type TripRecord = Awaited<ReturnType<typeof tripService.createTrip>>;
@@ -67,7 +68,7 @@ function emitTripCreatedNotification(
 }
 
 async function loadTripRow(tx: Tx, tripId: number): Promise<TripRecord> {
-  const [trip] = await tx.select().from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
+  const trip = await getTripCompositeInTx(tx, tripId);
   if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
   return trip;
 }
