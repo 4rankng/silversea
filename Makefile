@@ -1,5 +1,5 @@
 .PHONY: dev stop down setup migrate generate build help \
-        db-backup db-recreate db-drift-check devdb devdb-prod devdb-sync \
+        db-backup db-recreate db-drift-check devdb devdb-prod devdb-sync stgdb \
         demo deploy deploy-advance deploy-db-backup deploy-seed deploy-server-setup
 
 # ─── Ports (silversea — de-conflicted from nepocorp) ─────────────────────────
@@ -136,6 +136,31 @@ devdb-sync:
 	docker exec $(DB_CONTAINER) psql -U $(DB_USER) -d $(DB_NAME) -tAc "SELECT '     tables=' || count(*) FROM information_schema.tables WHERE table_schema='public';"; \
 	docker exec $(DB_CONTAINER) psql -U $(DB_USER) -d $(DB_NAME) -tAc "SELECT '     users=' || count(*) FROM users;" 2>/dev/null || true; \
 	echo "✅ Local dev DB now mirrors $(DEVDB_LABEL) ($(DEVDB_SERVER)). Dump kept: $$dump"
+
+# Sync prod DB → staging DB. Staging backend/frontend stop first (no
+# mid-restore writes), staging gets a server-side backup, then public+drizzle
+# schemas drop and the prod dump streams in through the laptop. Login
+# credentials on staging become prod's after this (the users table comes
+# over). Pair with `make demo` when the code also needs to advance.
+stgdb: ## Sync prod DB (silversea.tingting.vip) → staging DB (vantai) — REPLACES staging data
+	@set -eu; \
+	echo "1/5  Dumping prod DB ($(PROD_SERVER))..."; \
+	dump="/tmp/silversea-stgdb-$$(date -u +%Y%m%dT%H%M%SZ).dump"; \
+	ssh root@$(PROD_SERVER) "set -eu; pg_container=\$$($(PROD_COMPOSE) ps -q postgres); test -n \"\$$pg_container\" || { echo 'No postgres container on prod' >&2; exit 1; }; pg_env_of() { docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' \"\$$1\"; }; pg_user=\$$(pg_env_of \"\$$pg_container\" | sed -n 's/^POSTGRES_USER=//p' | head -1); pg_db=\$$(pg_env_of \"\$$pg_container\" | sed -n 's/^POSTGRES_DB=//p' | head -1); docker exec \"\$$pg_container\" pg_dump -U \"\$${pg_user:-postgres}\" -Fc \"\$${pg_db:-\$$pg_user}\"" > "$$dump"; \
+	size=$$(wc -c < "$$dump" | tr -d ' '); \
+	if [ "$$size" -lt 1024 ]; then echo "❌ prod dump suspiciously small ($$size bytes) — aborting, staging untouched" >&2; exit 1; fi; \
+	echo "     ✅ prod dump: $$dump ($$size bytes)"; \
+	echo "2/5  Stopping staging backend/frontend..."; \
+	ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) stop backend frontend" >/dev/null; \
+	echo "3/5  Backing up staging DB..."; \
+	ssh root@$(DEMO_SERVER) "set -eu; cd $(DEMO_PATH); mkdir -p .db-backups; pg_container=\$$($(DEMO_COMPOSE) ps -q postgres); test -n \"\$$pg_container\" || { echo 'No postgres container on staging' >&2; exit 1; }; pg_env_of() { docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' \"\$$1\"; }; pg_user=\$$(pg_env_of \"\$$pg_container\" | sed -n 's/^POSTGRES_USER=//p' | head -1); pg_db=\$$(pg_env_of \"\$$pg_container\" | sed -n 's/^POSTGRES_DB=//p' | head -1); pg_user=\$${pg_user:-postgres}; pg_db=\$${pg_db:-\$$pg_user}; backup=\".db-backups/db-pre-stgdb-\$$(date -u +%Y%m%dT%H%M%SZ).dump\"; docker exec \"\$$pg_container\" pg_dump -U \"\$$pg_user\" -Fc \"\$$pg_db\" > \"\$$backup\"; size=\$$(wc -c < \"\$$backup\" | tr -d ' '); if [ \"\$$size\" -lt 1024 ]; then echo 'staging backup suspiciously small' >&2; exit 1; fi; echo \"     ✅ staging backup: \$$backup (\$$size bytes)\""; \
+	echo "4/5  Dropping staging schemas + restoring prod dump (stdin)..."; \
+	ssh root@$(DEMO_SERVER) "set -eu; cd $(DEMO_PATH); pg_container=\$$($(DEMO_COMPOSE) ps -q postgres); pg_env_of() { docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' \"\$$1\"; }; pg_user=\$$(pg_env_of \"\$$pg_container\" | sed -n 's/^POSTGRES_USER=//p' | head -1); pg_db=\$$(pg_env_of \"\$$pg_container\" | sed -n 's/^POSTGRES_DB=//p' | head -1); docker exec -i \"\$$pg_container\" psql -U \"\$$pg_user\" -d \"\$$pg_db\" -q -c 'DROP SCHEMA public CASCADE; DROP SCHEMA IF EXISTS drizzle CASCADE; CREATE SCHEMA public;'" >/dev/null; \
+	ssh root@$(DEMO_SERVER) "set -eu; cd $(DEMO_PATH); pg_container=\$$($(DEMO_COMPOSE) ps -q postgres); pg_env_of() { docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' \"\$$1\"; }; pg_user=\$$(pg_env_of \"\$$pg_container\" | sed -n 's/^POSTGRES_USER=//p' | head -1); pg_db=\$$(pg_env_of \"\$$pg_container\" | sed -n 's/^POSTGRES_DB=//p' | head -1); docker exec -i \"\$$pg_container\" pg_restore -U \"\$$pg_user\" -d \"\$$pg_db\" --no-owner --no-privileges --exit-on-error" < "$$dump"; \
+	echo "5/5  Restarting staging backend/frontend + sanity check..."; \
+	ssh root@$(DEMO_SERVER) "set -eu; cd $(DEMO_PATH); $(DEMO_COMPOSE) up -d backend frontend >/dev/null; pg_container=\$$($(DEMO_COMPOSE) ps -q postgres); pg_env_of() { docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' \"\$$1\"; }; pg_user=\$$(pg_env_of \"\$$pg_container\" | sed -n 's/^POSTGRES_USER=//p' | head -1); pg_db=\$$(pg_env_of \"\$$pg_container\" | sed -n 's/^POSTGRES_DB=//p' | head -1); docker exec \"\$$pg_container\" psql -U \"\$$pg_user\" -d \"\$$pg_db\" -tAc \"SELECT '     tables=' || count(*) FROM pg_tables WHERE schemaname='public'\"; docker exec \"\$$pg_container\" psql -U \"\$$pg_user\" -d \"\$$pg_db\" -tAc \"SELECT '     routes=' || count(*) FROM routes WHERE deleted_at IS NULL\""; \
+	rm -f "$$dump"; \
+	echo "✅ Staging DB now mirrors prod ($(PROD_SERVER) → $(DEMO_SERVER)). Restart with 'make demo' to advance code too."
 
 setup: ## First-time setup: start infra, recreate DB, migrate, seed
 	@docker compose -f docker-compose.dev.yml up -d --wait 2>/dev/null || \
