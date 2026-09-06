@@ -139,7 +139,7 @@ describe('DriverTripsPage', () => {
     expect(screen.getByText('LẺ')).toBeTruthy();
   });
 
-  it('shows a plain "Xem chi tiết" footer on accepted and history cards', async () => {
+  it('shows "Xem chi tiết & Nhận lệnh" footer on all cards per spec', async () => {
     useDriverJourneyBoardMock.mockReturnValue({
       data: [card({ fulfillmentId: 30, bucket: 'RUNNING' }), card({ fulfillmentId: 31, bucket: 'HISTORY' })],
       isLoading: false,
@@ -148,12 +148,10 @@ describe('DriverTripsPage', () => {
     renderPage();
 
     fireEvent.click(await screen.findByRole('tab', { name: /Đã nhận/ }));
-    expect(await screen.findByRole('button', { name: /^Xem chi tiết/ })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: /Nhận lệnh/ })).toBeNull();
+    expect(await screen.findByRole('button', { name: /Xem chi tiết & Nhận lệnh/ })).toBeTruthy();
 
     fireEvent.click(screen.getByRole('tab', { name: /Lịch sử/ }));
-    expect(await screen.findByRole('button', { name: /^Xem chi tiết/ })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: /Nhận lệnh/ })).toBeNull();
+    expect(await screen.findByRole('button', { name: /Xem chi tiết & Nhận lệnh/ })).toBeTruthy();
   });
 
   it('shows the empty-state message when a tab has no cards', async () => {

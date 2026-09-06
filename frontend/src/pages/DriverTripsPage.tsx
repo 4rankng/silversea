@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Building2, Loader2, Package2, Phone, Route } from 'lucide-react';
+import { ArrowRight, Loader2, Package2, Phone } from 'lucide-react';
 import { useDriverJourneyBoard } from '../hooks/useDriverQueries';
 import type { DriverJourneyCard } from '../api/driverClient';
 import './DriverTripsPage.css';
@@ -88,27 +88,15 @@ function JourneyCard({ card }: { card: DriverJourneyCard }) {
   const navigate = useNavigate();
   const tag = tagLabelFor(card);
   const isPaired = tag === 'KẸP' || tag === 'KẾT HỢP';
-  const isNew = card.bucket === 'NEW';
-  const footerLabel = isNew ? 'Xem chi tiết & Nhận lệnh' : 'Xem chi tiết';
   const hasContact = isPresent(card.contactName) || isPresent(card.contactPhone);
-  const hasContainer = isPresent(card.containerNumber) || isPresent(card.sealNumber);
+  const hasContainer = isPresent(card.containerNumber) || isPresent(card.containerTypeName) || isPresent(card.sealNumber);
+  const hasTruck = isPresent(card.truckPlate) || isPresent(card.trailerPlate);
 
-  /* Only facts that actually carry a value earn a slot. Dispatch fills the
-     ports late, so on a history list nearly every card would otherwise spend
-     two full rows rendering nothing but dashes. */
-  const facts = [
-    { label: 'Nâng', value: card.loadingPortName },
-    { label: 'Hạ', value: card.dropPortName },
-    { label: 'Đầu kéo', value: card.truckPlate },
-    { label: 'Mooc', value: card.trailerPlate },
-  ].filter((fact): fact is { label: string; value: string } => isPresent(fact.value));
-
-  /* Spec A4 field order: Nhà máy → Tuyến đường → Người liên hệ → SĐT →
-     Cont/Loại cont/Seal (1 line) → Càng Nâng → Cảng Hạ → Đầu kéo → Mooc.
-     Order is preserved; the weight is not — the route is the one fact a driver
-     scans a list for, so it leads as the card's headline and everything else
-     ranks below it. Sections with nothing to say are omitted rather than
-     rendered as a row of dashes. */
+  /* Spec Phần 2 A: two-column layout —
+     Row 1: Nhà máy (left) | Cảng nâng (right)
+     Row 2: Tuyến đường (left) | Cảng hạ (right)
+     Row 3: Cont: [Số Cont] - Loại cont
+     Sections with no value are omitted. */
   return (
     <article className={`driver-journey-card${isPaired ? ' driver-journey-card--clamp' : ''}`}>
       <div className="driver-journey-card__header">
@@ -118,22 +106,47 @@ function JourneyCard({ card }: { card: DriverJourneyCard }) {
         <span className="driver-journey-card__time">{formatCardTime(card.scheduledAt)}</span>
       </div>
 
-      {/* No route name means no headline. A lone dash in the card's largest
-          type reads as a title rather than as absent data; the ports below
-          already say where the trip ran, and inventing a headline from them
-          would conflate a named route with its lift/drop pair. */}
-      {isPresent(card.routeName) ? (
-        <p className="driver-journey-card__route">
-          <Route size={16} aria-hidden="true" /> {card.routeName}
+      {/* Two-column pair rows per spec */}
+      <div className="driver-journey-card__pairs">
+        <div className="driver-journey-card__pair">
+          <div className="driver-journey-card__pair-left">
+            <span className="driver-journey-card__pair-label">Nhà máy</span>
+            <span className="driver-journey-card__pair-value">{dash(card.factoryName)}</span>
+          </div>
+          <div className="driver-journey-card__pair-right">
+            <span className="driver-journey-card__pair-label">Cảng nâng</span>
+            <span className="driver-journey-card__pair-value">{dash(card.loadingPortName)}</span>
+          </div>
+        </div>
+        <div className="driver-journey-card__pair">
+          <div className="driver-journey-card__pair-left">
+            <span className="driver-journey-card__pair-label">Tuyến đường</span>
+            <span className="driver-journey-card__pair-value driver-journey-card__pair-value--bold">{dash(card.routeName)}</span>
+          </div>
+          <div className="driver-journey-card__pair-right">
+            <span className="driver-journey-card__pair-label">Cảng hạ</span>
+            <span className="driver-journey-card__pair-value">{dash(card.dropPortName)}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Container line: Cont: [Số Cont] - Loại cont */}
+      {hasContainer ? (
+        <p className="driver-journey-card__container">
+          <Package2 size={13} aria-hidden="true" />
+          {isPresent(card.containerNumber) && (
+            <span className="driver-journey-card__cont-no">Cont: {card.containerNumber}</span>
+          )}
+          {isPresent(card.containerTypeName) && (
+            <span className="driver-journey-card__cont-type">{card.containerTypeName}</span>
+          )}
+          {isPresent(card.sealNumber) && (
+            <span className="driver-journey-card__seal">Seal {card.sealNumber}</span>
+          )}
         </p>
       ) : null}
 
-      {isPresent(card.factoryName) ? (
-        <p className="driver-journey-card__factory">
-          <Building2 size={13} aria-hidden="true" /> {card.factoryName}
-        </p>
-      ) : null}
-
+      {/* Contact */}
       {hasContact ? (
         <p className="driver-journey-card__contact">
           <Phone size={13} aria-hidden="true" /> {dash(card.contactName)}
@@ -149,33 +162,20 @@ function JourneyCard({ card }: { card: DriverJourneyCard }) {
         </p>
       ) : null}
 
-      {hasContainer ? (
-        <p className="driver-journey-card__container">
-          <Package2 size={13} aria-hidden="true" />
-          <span className="driver-journey-card__cont-no">{dash(card.containerNumber)}</span>
-          {isPresent(card.containerTypeName) ? (
-            <span className="driver-journey-card__cont-type">{card.containerTypeName}</span>
-          ) : null}
-          {isPresent(card.sealNumber) ? (
-            <span className="driver-journey-card__seal">Seal {card.sealNumber}</span>
-          ) : null}
-        </p>
-      ) : null}
-
-      {facts.length > 0 ? (
+      {/* Truck / trailer */}
+      {hasTruck ? (
         <div className="driver-journey-card__facts">
-          {facts.map((fact) => (
-            <JourneyFact key={fact.label} label={fact.label} value={fact.value} />
-          ))}
+          {isPresent(card.truckPlate) && <JourneyFact label="Đầu kéo" value={card.truckPlate} />}
+          {isPresent(card.trailerPlate) && <JourneyFact label="Mooc" value={card.trailerPlate} />}
         </div>
       ) : null}
 
       <button
         type="button"
-        className={`driver-journey-card__footer${isNew ? '' : ' driver-journey-card__footer--quiet'}`}
+        className="driver-journey-card__footer"
         onClick={() => navigate(`/my-trips/${card.fulfillmentId}`)}
       >
-        <span>{footerLabel}</span>
+        <span>Xem chi tiết & Nhận lệnh</span>
         <ArrowRight size={16} aria-hidden="true" />
       </button>
     </article>
