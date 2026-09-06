@@ -199,6 +199,85 @@ export const trips = pgTable('trips', {
     .where(sql`${table.shipmentId} is not null and ${table.fulfillmentId} is null and ${table.status} <> 'CANCELED'`),
 ]);
 
+
+// Trips split Stage A (lean-down, spec: plans/260906-1032-db-lean-down/): the
+// computed financial snapshot columns split out of the 99-column trips god
+// table. 1:1 per trip. Stage A is additive-only — trips still holds + writes
+// these columns; readers migrate group-by-group (Stage B), writes cut over in
+// Stage C, and the trips columns drop in Stage D. Column names/types are
+// verbatim copies so the Stage C cutover is a pure move.
+export const tripFinancialState = pgTable('trip_financial_state', {
+  id: serial('id').primaryKey(),
+  tripId: integer('trip_id').notNull(),
+  driverSalary: numeric('driver_salary', { precision: 15, scale: 0 }),
+  fuelPriceApplied: numeric('fuel_price_applied', { precision: 10, scale: 0 }),
+  fuelActualUnitPrice: numeric('fuel_actual_unit_price', { precision: 10, scale: 0 }),
+  roadAllowanceBaseApplied: numeric('road_allowance_base_applied', { precision: 15, scale: 0 }),
+  fuelLoadedNormApplied: numeric('fuel_loaded_norm_applied', { precision: 6, scale: 2 }),
+  fuelEmptyNormApplied: numeric('fuel_empty_norm_applied', { precision: 6, scale: 2 }),
+  fuelFixedAllowanceApplied: numeric('fuel_fixed_allowance_applied', { precision: 10, scale: 2 }),
+  fuelSupplementNormApplied: numeric('fuel_supplement_norm_applied', { precision: 6, scale: 2 }),
+  tollPerStationApplied: numeric('toll_per_station_applied', { precision: 15, scale: 0 }),
+  returnCargoBonusApplied: numeric('return_cargo_bonus_applied', { precision: 15, scale: 0 }),
+  fuelLiters: numeric('fuel_liters', { precision: 10, scale: 2 }),
+  totalFuelCost: numeric('total_fuel_cost', { precision: 15, scale: 0 }),
+  fuelSurchargeAmount: numeric('fuel_surcharge_amount', { precision: 15, scale: 0 }).notNull().default('0'),
+  fuelSurchargeSnapshot: jsonb('fuel_surcharge_snapshot').$type<Record<string, unknown>>(),
+  fuelSurchargeSnapshotDirty: boolean('fuel_surcharge_snapshot_dirty').notNull().default(false),
+  totalRoadAllowance: numeric('total_road_allowance', { precision: 15, scale: 0 }),
+  tollCost: numeric('toll_cost', { precision: 15, scale: 0 }),
+  tollDeduction: numeric('toll_deduction', { precision: 15, scale: 0 }).notNull().default('0'),
+  roadAllowanceOverride: numeric('road_allowance_override', { precision: 15, scale: 0 }),
+  totalCost: numeric('total_cost', { precision: 15, scale: 0 }),
+  revenue: numeric('revenue', { precision: 15, scale: 0 }),
+  revenueEmptyReturn: numeric('revenue_empty_return', { precision: 15, scale: 0 }).default('0'),
+  revenueCombine: numeric('revenue_combine', { precision: 15, scale: 0 }).default('0'),
+  twoPointDeliveryBonus: numeric('two_point_delivery_bonus', { precision: 15, scale: 0 }).default('0'),
+  vehicleShiftAllowance: numeric('vehicle_shift_allowance', { precision: 15, scale: 0 }).default('0'),
+  grossProfit: numeric('gross_profit', { precision: 15, scale: 0 }),
+  revenueOriginal: numeric('revenue_original', { precision: 15, scale: 0 }),
+  revenueOverriddenBy: integer('revenue_overridden_by'),
+  revenueOverriddenAt: timestamp('revenue_overridden_at'),
+  revenueOverrideReason: text('revenue_override_reason'),
+  pricingSource: pricingSourceEnum('pricing_source'),
+  pricingFormula: text('pricing_formula'),
+  pricingSnapshot: jsonb('pricing_snapshot').$type<Record<string, unknown>>(),
+  customerCommission: numeric('customer_commission', { precision: 15, scale: 0 }).default('0'),
+  tripWageDays: integer('trip_wage_days'), // optional override for days to count for this trip
+  fuelSupplierId: integer('fuel_supplier_id'),
+  vatRate: numeric('vat_rate', { precision: 5, scale: 3 }).notNull().default('0.000'),
+  arCostHash: varchar('ar_cost_hash', { length: 64 }),
+  arSnapshotDirty: boolean('ar_snapshot_dirty').notNull().default(false),
+  arSnapshotChangedAt: timestamp('ar_snapshot_changed_at', { withTimezone: true }),
+  apCostHash: varchar('ap_cost_hash', { length: 64 }),
+  apSnapshotDirty: boolean('ap_snapshot_dirty').notNull().default(false),
+  apSnapshotChangedAt: timestamp('ap_snapshot_changed_at', { withTimezone: true }),
+  pnlSnapshotGrossProfit: numeric('pnl_snapshot_gross_profit', { precision: 15, scale: 0 }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('trip_financial_state_trip_id_unq').on(table.tripId),
+]);
+
+// Trips split Stage A: external-carrier execution block split out of trips
+// (all-NULL for in-house trips). Same staged A→D plan as tripFinancialState.
+export const tripCarrierInfo = pgTable('trip_carrier_info', {
+  id: serial('id').primaryKey(),
+  tripId: integer('trip_id').notNull(),
+  carrierType: varchar('carrier_type', { length: 20 }).notNull().default('OWN'),
+  externalEntityId: integer('external_entity_id'),
+  externalEntityType: varchar('external_entity_type', { length: 20 }),
+  externalFreightCost: numeric('external_freight_cost', { precision: 15, scale: 0 }),
+  externalPlateNumber: varchar('external_plate_number', { length: 20 }),
+  externalCarrierVehicleId: integer('external_carrier_vehicle_id'),
+  externalDriverName: varchar('external_driver_name', { length: 100 }),
+  externalDriverPhone: varchar('external_driver_phone', { length: 20 }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('trip_carrier_info_trip_id_unq').on(table.tripId),
+]);
+
 export const tripPairs = pgTable('trip_pairs', {
   id: serial('id').primaryKey(),
   status: varchar('status', { length: 20 }).notNull().default('ACTIVE'),

@@ -379,6 +379,13 @@
       "when": 1788674130370,
       "tag": "0053_zippy_scarlet_spider",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1788675041432,
+      "tag": "0054_fearless_wither",
+      "breakpoints": true
     }
   ]
 }
