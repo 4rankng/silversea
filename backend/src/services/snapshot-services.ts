@@ -63,9 +63,10 @@ export class SnapshotServices {
       completedAt: s.trips.completedAt,
       updatedAt: s.trips.updatedAt,
     }).from(s.trips)
+      .innerJoin(s.tripFinancialState, eq(s.tripFinancialState.tripId, s.trips.id))
       .where(and(
         eq(s.trips.status, 'COMPLETED'),
-        eq(s.trips.fuelSurchargeSnapshotDirty, true),
+        eq(s.tripFinancialState.fuelSurchargeSnapshotDirty, true),
       ))
       .orderBy(s.trips.updatedAt);
   }
@@ -76,12 +77,13 @@ export class SnapshotServices {
       const [trip] = await tx.select({
         status: s.trips.status,
         customerId: s.trips.customerId,
-        fuelLiters: s.trips.fuelLiters,
-        fuelSurchargeAmount: s.trips.fuelSurchargeAmount,
+        fuelLiters: s.tripFinancialState.fuelLiters,
+        fuelSurchargeAmount: s.tripFinancialState.fuelSurchargeAmount,
       }).from(s.trips)
+        .leftJoin(s.tripFinancialState, eq(s.tripFinancialState.tripId, s.trips.id))
         .where(eq(s.trips.id, tripId))
         .limit(1)
-        .for('update');
+        .for('update', { of: [s.trips] });
       if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
       if (trip.status !== 'COMPLETED') {
         throw new ApiError(409, 'Chỉ có thể chụp lại phụ phí nhiên liệu cho chuyến đã hoàn thành');
