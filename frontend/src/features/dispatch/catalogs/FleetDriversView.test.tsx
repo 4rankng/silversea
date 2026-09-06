@@ -123,14 +123,16 @@ describe('FleetDriversView (dispatcher read-only)', () => {
     expect(screen.getByText('Chưa có tài xế nào')).toBeTruthy();
   });
 
-  it('renders delete buttons — CRUD surface', () => {
+  it('renders no delete buttons (drivers delete is unsupported, spec §4.2) but keeps create', () => {
     fleetState.data = { trucks: [truck()], drivers: [driver()] };
     render(
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
         <FleetDriversView />
       </QueryClientProvider>,
     );
-    expect(screen.getAllByRole('button', { name: /xóa/i }).length).toBeGreaterThan(0);
+    // The drivers router answers 405 "Không hỗ trợ xóa" — a Xóa button here
+    // would be a guaranteed error for every role, so none may render.
+    expect(screen.queryAllByRole('button', { name: /xóa/i })).toHaveLength(0);
     expect(screen.getByRole('button', { name: /thêm tài xế/i })).toBeTruthy();
   });
 

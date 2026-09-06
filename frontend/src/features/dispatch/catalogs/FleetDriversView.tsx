@@ -1,7 +1,9 @@
 /**
  * Danh mục Tài xế — dispatcher CRUD for internal drivers. Dispatchers may
- * add, edit, and delete drivers. Salary/social-insurance fields are stripped
- * by the backend for DISPATCHER to keep mutations direct.
+ * add and edit drivers; there is no delete (spec §4.2 — the drivers router
+ * answers 405 "Không hỗ trợ xóa"), so the table offers no Xóa button.
+ * Salary/social-insurance fields are stripped by the backend for DISPATCHER
+ * to keep mutations direct.
  */
 import { useMemo, useState } from 'react';
 import { Users } from 'lucide-react';
@@ -17,7 +19,6 @@ import { nextTableSort, sortClientSide, type TableSortState } from '../../../lib
 import { DriverFormModal } from '../../fleet/DriverFormModal';
 import { CatalogTableShell } from './CatalogTableShell';
 import { useCatalogCreate } from './useCatalogCreate';
-import { useConfirm } from '../../../components/UI';
 import './catalogs.css';
 
 
@@ -28,7 +29,6 @@ export function FleetDriversView() {
   const [sort, setSort] = useState<TableSortState | null>(null);
   const { data: fleetData, isLoading: loading, error } = useTrucksAndDrivers();
   const crud = useCatalogCreate('/drivers');
-  const { confirm, dialog } = useConfirm();
 
   const drivers = useMemo(() => fleetData?.drivers ?? [], [fleetData?.drivers]);
   const trucks = useMemo(() => fleetData?.trucks ?? [], [fleetData?.trucks]);
@@ -135,18 +135,6 @@ export function FleetDriversView() {
                   <td data-label="Ngân hàng nhận tiền">{d.bankName ?? '—'}</td>
                   <td data-label="Số TK nhận tiền">{d.bankAccount ?? '—'}</td>
                   <td data-label="Hình thức lương">{d.salaryType ?? '—'}</td>
-                  <td onClick={(e) => e.stopPropagation()}>
-                    <button
-                      type="button"
-                      className="btn btn--danger-outline btn--sm"
-                      onClick={async () => {
-                        const ok = await confirm(`Xóa tài xế ${d.name}?`, { variant: 'danger', confirmLabel: 'Xóa' });
-                        if (ok) await crud.remove(d.id);
-                      }}
-                    >
-                      Xóa
-                    </button>
-                  </td>
                 </tr>
               ))}
             </tbody>
@@ -160,7 +148,6 @@ export function FleetDriversView() {
         onsave={(d) => crud.editingId != null ? crud.update(crud.editingId, d) : crud.create(d)}
         oncancel={crud.closeForm}
       />
-      {dialog}
     </div>
   );
 }

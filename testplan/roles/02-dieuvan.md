@@ -3,13 +3,14 @@
 > **Vietnamese label**: Điều vận (`Role.DISPATCHER`).
 > **Home route**: `/dispatch` (`routes.dispatchMasterPlan`).
 > **Primary sidebar section**: `Điều độ Phương tiện` (`dispatch-planning`).
-> **Test account (local + staging)**: `dieuvan` / `Abc123`.
+> **Test account**: local `dieuvan` / `Abc123`; staging `bacdk` (NV016) / `Abc123`.
 > **Primary pages**:
 > - `/dispatch` — `frontend/src/pages/MasterPlanPage.tsx` (Kế hoạch tổng quát)
 > - `/dispatch-detail` — `frontend/src/pages/DispatchDetailPlanPage.tsx` (Kế hoạch chi tiết)
-> - `/fleet/vehicles` — `frontend/src/pages/FleetVehiclesPage.tsx` (Danh mục Xe nội bộ, read-only)
-> - `/fleet/drivers` — `frontend/src/pages/FleetDriversPage.tsx` (Danh mục Tài xế, read-only)
-> - `/suppliers` — `frontend/src/pages/DispatchSuppliersPage.tsx` (Nhà thầu phụ, read-only)
+> - `/fleet/vehicles` — `frontend/src/pages/FleetVehiclesPage.tsx` (Danh mục Xe nội bộ, CRUD)
+> - `/fleet/drivers` — `frontend/src/pages/FleetDriversPage.tsx` (Danh mục Tài xế, create/edit)
+> - `/suppliers` — `frontend/src/pages/DispatchSuppliersPage.tsx` (Nhà thầu phụ, CRUD)
+> - `/config/customers` + `/config/routes` — catalog CRUD (identity fields)
 >
 > Cross-cutting rules live in [`README.md`](README.md) §5.
 
@@ -26,8 +27,12 @@ DISPATCHER is the **planning & allocation** role. The dispatcher:
 - Reads fleet / drivers / suppliers for staffing the plan.
 - Can **create shipments inline** in the same dialog as the planning
   step (per the CUS flow).
-- **Cannot** post to the ledger, edit customers, change master data, or
-  touch `/finance`, `/accounting`, `/config/*`.
+- Has full CRUD on the dispatch resource catalogs (`/fleet/vehicles`,
+  `/fleet/drivers` create/edit only, `/suppliers`) and on
+  `/config/customers` + `/config/routes` (identity fields; 1-day delete
+  gate; financial fields stripped server-side).
+- **Cannot** post to the ledger, touch `/finance`, `/accounting`, or
+  config surfaces beyond customers/routes and the dispatch catalogs.
 
 If the dispatcher is dropped into a forbidden route, AUTH-03 in §5 of the
 README applies (silent redirect to `/dispatch`).
@@ -346,13 +351,17 @@ containers (so the auto-split is meaningful).
 
 ### Acceptance criteria
 
-1. **DISP-DR-01 — CRUD driver list**
-   - **Then** columns: `Họ tên`, `SĐT`, `Biển số gắn với`,
-     `Trạng thái` (ACTIVE / INACTIVE), `Số chuyến tháng này`. Each row
-     is clickable to open the edit modal; a `Xóa` button appears in the
-     action column. The header has a `Thêm tài xế` create button.
-   - **Evidence**: click a row to open edit modal; click `Xóa` to confirm
-     deletion.
+1. **DISP-DR-01 — CRUD driver list (create + edit; NO delete)**
+   - **Then** columns (4.9 Excel set): `Mã tài xế`, `Họ tên`, `Số CCCD`,
+     `GPLX`, `Hạn bằng lái`, `SĐT`, `Ngân hàng nhận tiền`, `Số TK nhận tiền`,
+     `Hình thức lương`. Each row is clickable to open the edit modal. The
+     header has a `Thêm tài xế` create button.
+   - **No `Xóa` button may render**: the drivers router is
+     `disableDelete: true` (spec §4.2, backend 405 "Không hỗ trợ xóa"), so
+     a delete affordance would be a guaranteed error for every role.
+   - **Evidence (staging 09-06)**: POST `/api/drivers` → 201 and
+     PUT `/api/drivers/:id` → 200 as DISPATCHER; row persisted in DB;
+     DELETE returns 405 and no button offers it.
 
 2. **DISP-DR-02 — Availability indicator**
    - **Given** the dispatcher is on the page during planning
@@ -413,7 +422,36 @@ containers (so the auto-split is meaningful).
 
 ---
 
-## Flow 6 — Tạo lô hàng nhanh (Inline shipment creation from dispatch)
+## Flow 6 — Khách hàng & Tuyến đường catalogs (config CRUD)
+
+**Routes**: `/config/customers`, `/config/routes`
+**Components**: `frontend/src/pages/config/CustomersConfigPage.tsx`,
+`frontend/src/pages/config/RoutesConfigPage.tsx`
+**Allow**: `catalogEditorOnly` (ADMIN/MANAGER/ACCOUNTANT/CUS/DISPATCHER).
+
+### Acceptance criteria
+
+1. **DISP-CFG-01 — Customer CRUD**
+   - **Given** a dispatcher on `/config/customers`
+   - **When** they create a customer, click a row to edit identity
+     fields (name, MST, contacts, address), and delete a row they
+     just created
+   - **Then** all three succeed. Backend allowance: POST/PUT/DELETE on
+     `/api/customers` for CUS+DISPATCHER (`hasRouteScopedRoleAllowance`);
+     financial/cost fields are stripped server-side; DELETE is
+     age-gated to 1 day after creation (403 outside the window).
+   - **Evidence (staging 09-06)**: create → row + DB row; edit
+     contact → DB `contact_person` updated; delete fresh row → row and
+     DB row gone.
+
+2. **DISP-CFG-02 — Route CRUD**
+   - Same allowance family as customers; verified working
+     (`/config/routes` is the reference page the dispatcher catalogs
+     were modeled on).
+
+---
+
+## Flow 7 — Tạo lô hàng nhanh (Inline shipment creation from dispatch)
 
 The dispatcher has the same `shipments/new` permission as CUS (per
 `App.tsx:278` `shipmentCreatorOnly`). This is the **same** flow as
@@ -445,13 +483,17 @@ The dispatcher has the same `shipments/new` permission as CUS (per
 |--------------------------------------------|------------|-------|---------|--------|-----|-----|------------|----------|
 | Read `/dispatch` `/dispatch-detail`        | ✅         | ✅    | ✅      | ❌     | ❌  | ❌  | ❌         | ❌       |
 | Publish plan / create trip                 | ✅         | ✅    | ✅      | ❌     | ❌  | ❌  | ❌         | ❌       |
-| Edit own-fleet vehicle / driver            | ❌         | ✅    | ✅      | ❌     | ❌  | ❌  | ❌         | ❌       |
+| Edit own-fleet vehicle / driver            | ✅         | ✅    | ✅      | ❌     | ❌  | ❌  | ❌         | ❌       |
+| CRUD `/fleet/vehicles` (trucks)            | ✅ (no driver-assign delete gate) | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| CRUD `/fleet/drivers` (create+edit only)   | ✅ (delete unsupported §4.2, no button) | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| CRUD `/suppliers` (dispatcher view)        | ✅         | ✅    | ✅      | ❌     | ❌  | ❌  | ❌         | ❌       |
+| CRUD `/config/customers` `/config/routes`  | ✅ (identity fields; ≤1-day delete) | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ |
 | Read `/fleet/vehicles` `/fleet/drivers`    | ✅         | ✅    | ✅      | ❌     | ❌  | ❌  | ❌         | ❌       |
 | Read `/suppliers` (dispatcher view)        | ✅         | n/a   | n/a     | ❌     | ❌  | ❌  | n/a        | ❌       |
 | Read `/suppliers` (full payable view)      | ❌         | ✅    | ✅      | ❌     | ❌  | ❌  | ✅         | ❌       |
 | Create shipment                            | ✅         | ✅    | ✅      | ❌     | ❌  | ✅  | ❌         | ❌       |
 | Read `/finance` `/profit` `/accounting`    | ❌         | ✅    | ✅      | ❌     | ❌  | ❌  | ✅         | ❌       |
-| Read `/config/*`                           | ❌         | ✅    | partial | ❌     | ❌  | ❌  | partial    | ❌       |
+| Read `/config/*`                           | partial (customers/routes + catalogs) | ✅ | partial | ❌ | ❌ | ❌ | partial | ❌ |
 | Read `/audit-logs`                         | ❌         | ✅    | ✅      | ❌     | ❌  | ❌  | ✅         | ❌       |
 | Read `/customers` (list)                   | ❌         | ✅    | ✅      | ❌     | ❌  | ❌  | ✅         | ❌       |
 | Inline-create customer                     | ✅         | ✅    | ✅      | ❌     | ❌  | ✅  | ❌         | ❌       |
@@ -463,9 +505,9 @@ The dispatcher has the same `shipments/new` permission as CUS (per
 
 ## Out of scope (DISPATCHER)
 
-- Editing master data (no `/config/*`).
+- Editing config master data **other than** customers/routes/trucks/drivers/suppliers (pricing tables, cargo types, ports writes, etc.).
 - Posting to the ledger.
-- Editing customers (read-only; can only create inline).
+- Editing customer **financial** fields (credit limit, payment terms beyond identity) — stripped server-side for CUS/DISPATCHER.
 - Penalty issuance, salary, HR.
 
 ## Known open items (carry-over)
