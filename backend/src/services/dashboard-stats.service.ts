@@ -193,7 +193,10 @@ export async function getDashboardStats(options: { includeExecutive?: boolean } 
           officialTripPeriodComposite,
           eq(s.tripsComposite.status, TripStatus.COMPLETED),
         ))
-        .groupBy(s.tripsComposite.id),
+        // Group by every selected non-aggregate: trips_composite is a view,
+        // so Postgres does not extend trips' primary-key functional
+        // dependency to fuel_liters (42803 on the pre-split table's shape).
+        .groupBy(s.tripsComposite.id, s.tripsComposite.fuelLiters),
     ]);
 
     const topShareholder = resolveTopShareholder(capRows);
