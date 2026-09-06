@@ -90,7 +90,7 @@ describe('RoutesConfigPage dispatcher create-only mode', () => {
     await screen.findByText('Hải Phòng - Nội Bài');
 
     expect(screen.getByRole('button', { name: /Thêm tuyến/ })).toBeInTheDocument();
-    expect(container.querySelectorAll('.routes-table thead th')).toHaveLength(6);
+    expect(container.querySelectorAll('.routes-table thead th')).toHaveLength(7);
     expect(container.querySelector('.record-table__action')).toBeNull();
   });
 
@@ -98,7 +98,7 @@ describe('RoutesConfigPage dispatcher create-only mode', () => {
     const { container } = renderPage();
     await screen.findByText('Hải Phòng - Nội Bài');
 
-    expect(container.querySelectorAll('.routes-table thead th')).toHaveLength(7);
+    expect(container.querySelectorAll('.routes-table thead th')).toHaveLength(8);
     expect(container.querySelector('.record-table__action')).not.toBeNull();
   });
 });

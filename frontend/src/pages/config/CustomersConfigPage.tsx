@@ -7,7 +7,6 @@ import { Users, Plus } from 'lucide-react';
 import { PageHeader, useConfirm, Modal } from '../../components/UI';
 import { configClient } from '../../api/configClient';
 import { tripClient } from '../../api/tripClient';
-import { formatCurrency } from '../../lib/format';
 import { downloadCSV } from '../../lib/csv';
 import { useCRUD } from '../../hooks/useCRUD';
 import { useAuth } from '../../hooks/useAuth';
@@ -17,7 +16,7 @@ import { SortHeader } from '../../components/shared/SortHeader';
 import { nextTableSort, sortClientSide, type TableSortState } from '../../lib/table-sort';
 import type { Customer, TripDetail } from '@tingting/shared';
 import { CustomerStatus } from '@tingting/shared';
-import { CustomerForm, toThresholdPercent } from './CustomerForm';
+import { CustomerForm } from './CustomerForm';
 import '../../styles/record-table.css';
 import '../../styles/operational-table-typography.css';
 import './config-page.css';
@@ -223,51 +222,43 @@ export default function CustomersConfigPage() {
           <table className="record-table ops-table cfg-customer-table">
             <thead>
               <tr>
-                <SortHeader label="Khách hàng" sortKey="name" sort={sort} onSortChange={handleSort} />
-                <SortHeader label="Liên hệ" sortKey="contact" sort={sort} onSortChange={handleSort} />
-                <SortHeader className="num" label={`Chuyến ${monthLabel}`} sortKey="monthTrips" sort={sort} onSortChange={handleSort} />
-                <SortHeader className="num" label={`Doanh thu ${monthLabel}`} sortKey="monthRevenue" sort={sort} onSortChange={handleSort} />
-                <SortHeader className="num" label="Hạn mức TD" sortKey="creditLimit" sort={sort} onSortChange={handleSort} />
-                <SortHeader label="Trạng thái" sortKey="status" sort={sort} onSortChange={handleSort} />
+                <SortHeader label="Tên Khách hàng" sortKey="name" sort={sort} onSortChange={handleSort} />
+                <SortHeader label="Tên viết tắt" sortKey="shortName" sort={sort} onSortChange={handleSort} />
+                <SortHeader label="Mã KH" sortKey="code" sort={sort} onSortChange={handleSort} />
+                <SortHeader label="Mã Số Thuế" sortKey="taxCode" sort={sort} onSortChange={handleSort} />
+                <SortHeader label="Địa Chỉ" sortKey="address" sort={sort} onSortChange={handleSort} />
+                <SortHeader label="Giám đốc" sortKey="contactPerson" sort={sort} onSortChange={handleSort} />
+                <SortHeader label="SĐT Giám đốc" sortKey="phone" sort={sort} onSortChange={handleSort} />
+                <SortHeader label="Người Liên Hệ" sortKey="accountantName" sort={sort} onSortChange={handleSort} />
+                <SortHeader label="SĐT Kế toán" sortKey="accountantPhone" sort={sort} onSortChange={handleSort} />
+                <SortHeader label="Email" sortKey="contactInfo" sort={sort} onSortChange={handleSort} />
+                <SortHeader className="num" label="Hạn Thanh Toán Chi hộ (Ngày)" sortKey="agencyFeePaymentTermDays" sort={sort} onSortChange={handleSort} />
+                <SortHeader className="num" label="Hạn Thanh Toán Cước (Ngày)" sortKey="paymentTermDays" sort={sort} onSortChange={handleSort} />
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 && <tr className="cfg-empty-row"><td colSpan={6} data-label="" style={{ textAlign: 'center', padding: '48px 12px', color: 'var(--ink-3)' }}>Chưa có dữ liệu</td></tr>}
-              {filtered.map(c => {
-                const risk = getRiskLevel(c);
-                const stats = customerTripStats.get(c.id);
-                const creditLimit = parseFloat(c.creditLimit || '0');
-                return (
-                  <tr
-                    key={c.id}
-                    onClick={createOnly ? undefined : () => crud.setEditingId(c.id)}
-                    style={createOnly ? undefined : { cursor: 'pointer' }}
-                    title={createOnly ? undefined : 'Nhấp để chỉnh sửa hoặc xóa'}
-                  >
-                    <td data-label="Khách hàng">
-                      <div className="row-strong"><span className={`risk-dot risk-dot--${risk}`} />{c.name}</div>
-                      {c.taxCode && <div className="row-meta">MST {c.taxCode}</div>}
-                      <div className="row-meta">
-                        Cảnh báo: {c.creditWarningThreshold
-                          ? `${toThresholdPercent(c.creditWarningThreshold)}%`
-                          : 'Mặc định hệ thống'}
-                      </div>
-                    </td>
-                    <td data-label="Liên hệ">
-                      {c.contactPerson && <div className="row-strong">{c.contactPerson}</div>}
-                      <div className="row-meta">{c.phone || c.contactInfo || '—'}</div>
-                    </td>
-                    <td className="num" data-label={`Chuyến ${monthLabel}`}>{stats?.trips ?? '—'}</td>
-                    <td className="num big" data-label={`Doanh thu ${monthLabel}`}>{stats?.revenue ? formatCurrency(stats.revenue) : '—'}</td>
-                    <td className="num" data-label="Hạn mức TD">{creditLimit > 0 ? formatCurrency(creditLimit) : '—'}</td>
-                    <td data-label="Trạng thái">
-                      {c.status === CustomerStatus.LOCKED
-                        ? <span className="pill pill--danger"><span className="dot" />Tạm khoá</span>
-                        : <span className="pill pill--success"><span className="dot" />Hoạt động</span>}
-                    </td>
-                  </tr>
-                );
-              })}
+              {filtered.length === 0 && <tr className="cfg-empty-row"><td colSpan={12} data-label="" style={{ textAlign: 'center', padding: '48px 12px', color: 'var(--ink-3)' }}>Chưa có dữ liệu</td></tr>}
+              {filtered.map(c => (
+                <tr
+                  key={c.id}
+                  onClick={createOnly ? undefined : () => crud.setEditingId(c.id)}
+                  style={createOnly ? undefined : { cursor: 'pointer' }}
+                  title={createOnly ? undefined : 'Nhấp để chỉnh sửa hoặc xóa'}
+                >
+                  <td data-label="Tên Khách hàng"><div className="row-strong">{c.name}</div></td>
+                  <td data-label="Tên viết tắt">{c.shortName || '—'}</td>
+                  <td data-label="Mã KH">{c.code || '—'}</td>
+                  <td data-label="Mã Số Thuế">{c.taxCode || '—'}</td>
+                  <td data-label="Địa Chỉ" style={{ maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.address || '—'}</td>
+                  <td data-label="Giám đốc">{c.contactPerson || '—'}</td>
+                  <td data-label="SĐT Giám đốc">{c.phone || '—'}</td>
+                  <td data-label="Người Liên Hệ">{c.accountantName || '—'}</td>
+                  <td data-label="SĐT Kế toán">{c.accountantPhone || '—'}</td>
+                  <td data-label="Email" style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.contactInfo || '—'}</td>
+                  <td className="num" data-label="Hạn Thanh Toán Chi hộ (Ngày)">{c.agencyFeePaymentTermDays ?? '—'}</td>
+                  <td className="num" data-label="Hạn Thanh Toán Cước (Ngày)">{c.paymentTermDays ?? '—'}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
           </div>

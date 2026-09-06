@@ -99,31 +99,16 @@ describe('CustomersConfigPage client-side sorting', () => {
     expect(nameOrder(container)).toEqual(['Khách hàng An', 'Khách hàng Bình', 'Khách hàng Cường']);
   });
 
-  it('sorts by credit limit asc on first click and desc on the second', async () => {
-    const { container } = renderPage();
-    await screen.findByText('Khách hàng An');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Hạn mức TD' }));
-    await waitFor(() => expect(nameOrder(container)).toEqual([
-      'Khách hàng Bình', 'Khách hàng Cường', 'Khách hàng An',
-    ]));
-
-    fireEvent.click(screen.getByRole('button', { name: 'Hạn mức TD' }));
-    await waitFor(() => expect(nameOrder(container)).toEqual([
-      'Khách hàng An', 'Khách hàng Cường', 'Khách hàng Bình',
-    ]));
-  });
-
   it('sorts by name via the Vietnamese collation', async () => {
     const { container } = renderPage();
     await screen.findByText('Khách hàng An');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Khách hàng' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tên Khách hàng' }));
     await waitFor(() => expect(nameOrder(container)).toEqual([
       'Khách hàng An', 'Khách hàng Bình', 'Khách hàng Cường',
     ]));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Khách hàng' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tên Khách hàng' }));
     await waitFor(() => expect(nameOrder(container)).toEqual([
       'Khách hàng Cường', 'Khách hàng Bình', 'Khách hàng An',
     ]));
