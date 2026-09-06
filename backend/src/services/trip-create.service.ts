@@ -486,18 +486,17 @@ export async function copyTrip(sourceTripId: number, createdBy: number, transact
       })));
     }
 
-    const [instructions] = await tx.select()
-      .from(s.tripInstructions)
-      .where(eq(s.tripInstructions.tripId, sourceTripId))
-      .limit(1);
-    if (instructions) {
-      await tx.insert(s.tripInstructions).values({
-        tripId: trip.id,
-        contactName: instructions.contactName,
-        contactPhone: instructions.contactPhone,
-        notes: instructions.notes,
-        updatedBy: createdBy,
-      });
+    const [sourceInstructions] = await tx.select({
+      contactName: s.trips.instructionContactName,
+      contactPhone: s.trips.instructionContactPhone,
+      notes: s.trips.instructionNotes,
+    }).from(s.trips).where(eq(s.trips.id, sourceTripId)).limit(1);
+    if (sourceInstructions?.contactName != null || sourceInstructions?.contactPhone != null || sourceInstructions?.notes != null) {
+      await tx.update(s.trips).set({
+        instructionContactName: sourceInstructions.contactName,
+        instructionContactPhone: sourceInstructions.contactPhone,
+        instructionNotes: sourceInstructions.notes,
+      }).where(eq(s.trips.id, trip.id));
     }
 
     return trip;

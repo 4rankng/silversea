@@ -163,6 +163,12 @@ export const trips = pgTable('trips', {
   paperOrderCollectedAt: timestamp('paper_order_collected_at', { withTimezone: true }),
   paperOrderCollectedBy: integer('paper_order_collected_by'),
   driverOrderAcceptedAt: timestamp('driver_order_accepted_at', { withTimezone: true }),
+  // Trip instructions (N2 / B1.3), merged from the 1:1 trip_instructions
+  // table (lean-down 2026-09-06). Manager-authored contact + free-text
+  // guidance; read-only for drivers via the driver portal.
+  instructionContactName: varchar('instruction_contact_name', { length: 100 }),
+  instructionContactPhone: varchar('instruction_contact_phone', { length: 20 }),
+  instructionNotes: text('instruction_notes'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   deletedAt: timestamp('deleted_at'),
@@ -284,20 +290,6 @@ export const tripContainerSeals = pgTable('trip_container_seals', {
 
 
 // ─── Trip instructions (N2 / B1.3) ─────────────────────────────────────────
-// Manager-authored contact + free-text guidance for a trip. Manager writes via
-// TripEdit; driver reads read-only via DriverTripDetailPage. One row per trip.
-export const tripInstructions = pgTable('trip_instructions', {
-  id: serial('id').primaryKey(),
-  tripId: integer('trip_id').notNull(),
-  contactName: varchar('contact_name', { length: 100 }),
-  contactPhone: varchar('contact_phone', { length: 20 }),
-  notes: text('notes'),
-  updatedBy: integer('updated_by'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
-}, (table) => [
-  uniqueIndex('trip_instructions_trip_id_unq').on(table.tripId),
-]);
 
 export const tripCodeCounters = pgTable('trip_code_counters', {
   yearMonth: varchar('year_month', { length: 10 }).primaryKey(),

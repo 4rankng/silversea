@@ -50,7 +50,6 @@ after(async () => {
       eq(s.notifications.relatedEntityType, 'trips'),
       inArray(s.notifications.relatedEntityId, tripIds),
     ));
-    await db.delete(s.tripInstructions).where(inArray(s.tripInstructions.tripId, tripIds));
     await db.delete(s.tripContainers).where(inArray(s.tripContainers.tripId, tripIds));
     await db.delete(s.trips).where(inArray(s.trips.id, tripIds));
   }
@@ -446,8 +445,8 @@ describe('Q23 trip write contracts', () => {
 
     const [storedContainer] = await db.select().from(s.tripContainers)
       .where(eq(s.tripContainers.tripId, trip.id));
-    const [storedInstruction] = await db.select().from(s.tripInstructions)
-      .where(eq(s.tripInstructions.tripId, trip.id));
+    const [storedInstruction] = await db.select({ notes: s.trips.instructionNotes }).from(s.trips)
+      .where(eq(s.trips.id, trip.id));
     const [storedTrip] = await db.select({ version: s.trips.version }).from(s.trips)
       .where(eq(s.trips.id, trip.id));
     assert.equal(storedContainer.containerNumber, 'TCLU1234567');

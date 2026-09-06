@@ -1,13 +1,14 @@
 // Trip Instructions (N2 / B1.3) — manager-authored contact + free-text guidance.
-// One row per trip. Manager writes via TripEdit; driver reads read-only via
-// the driver portal (getDriverTripDetail includes `instructions`).
+// Stored on the trips row itself since the 1:1 trip_instructions table was
+// merged away (lean-down 2026-09-06). Manager writes via TripEdit; driver
+// reads read-only via the driver portal (getDriverTripDetail includes
+// `instructions`).
 
 import { db } from '../db';
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { eq, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
-import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
 import type { Tx } from './trip-shared';
 import { assertTripShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 
@@ -22,12 +23,12 @@ export interface UpsertTripInstructionsInput {
 // serializes it to an ISO string in the JSON response, matching the shared
 // TripInstruction type over the wire.
 const instructionSelect = {
-  id: s.tripInstructions.id,
-  tripId: s.tripInstructions.tripId,
-  contactName: s.tripInstructions.contactName,
-  contactPhone: s.tripInstructions.contactPhone,
-  notes: s.tripInstructions.notes,
-  updatedAt: s.tripInstructions.updatedAt,
+  id: s.trips.id,
+  tripId: s.trips.id,
+  contactName: s.trips.instructionContactName,
+  contactPhone: s.trips.instructionContactPhone,
+  notes: s.trips.instructionNotes,
+  updatedAt: s.trips.updatedAt,
 } as const;
 
 export type TripInstructionRow = {
@@ -40,13 +41,18 @@ export type TripInstructionRow = {
 };
 
 /**
- * Fetch the instructions row for a trip. Returns null when no row exists yet.
+ * Fetch the instructions for a trip. Returns null when no guidance has been
+ * written yet (all fields null) — same wire shape as the old no-row case.
  */
 export async function getTripInstructions(tripId: number): Promise<TripInstructionRow | null> {
-  const [row] = await db.select(instructionSelect).from(s.tripInstructions)
-    .where(eq(s.tripInstructions.tripId, tripId))
+  const [row] = await db.select(instructionSelect).from(s.trips)
+    .where(eq(s.trips.id, tripId))
     .limit(1);
-  return row ?? null;
+  if (!row) return null;
+  if (row.contactName == null && row.contactPhone == null && row.notes == null) {
+    return null;
+  }
+  return row;
 }
 
 /**
@@ -71,38 +77,17 @@ export async function upsertTripInstructions(
       throw new ApiError(409, 'Dữ liệu đã bị thay đổi bởi người khác. Vui lòng tải lại trang.');
     }
 
-    await lockApplicationOwnedUniqueness(tx, 'trip-instructions', [tripId]);
+    const [row] = await tx.update(s.trips)
+      .set({
+        instructionContactName: input.contactName ?? null,
+        instructionContactPhone: input.contactPhone ?? null,
+        instructionNotes: input.notes ?? null,
+        version: sql`${s.trips.version} + 1`,
+        updatedAt: new Date(),
+      })
+      .where(eq(s.trips.id, tripId))
+      .returning(instructionSelect);
 
-    const [existing] = await tx.select({ id: s.tripInstructions.id })
-      .from(s.tripInstructions)
-      .where(eq(s.tripInstructions.tripId, tripId))
-      .limit(1);
-
-    const [row] = existing
-      ? await tx.update(s.tripInstructions)
-        .set({
-          contactName: input.contactName ?? null,
-          contactPhone: input.contactPhone ?? null,
-          notes: input.notes ?? null,
-          updatedBy: userId,
-          updatedAt: new Date(),
-        })
-        .where(eq(s.tripInstructions.id, existing.id))
-        .returning(instructionSelect)
-      : await tx.insert(s.tripInstructions)
-        .values({
-          tripId,
-          contactName: input.contactName ?? null,
-          contactPhone: input.contactPhone ?? null,
-          notes: input.notes ?? null,
-          updatedBy: userId,
-        })
-        .returning(instructionSelect);
-
-    await tx.update(s.trips).set({
-      version: sql`${s.trips.version} + 1`,
-      updatedAt: new Date(),
-    }).where(eq(s.trips.id, tripId));
     return row;
   };
   return runInTx(transaction, execute);

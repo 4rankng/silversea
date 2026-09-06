@@ -57,7 +57,6 @@ after(async () => {
   }
   if (tripIds.length > 0) {
     await db.delete(s.tripExpenses).where(inArray(s.tripExpenses.tripId, tripIds));
-    await db.delete(s.tripInstructions).where(inArray(s.tripInstructions.tripId, tripIds));
     await db.delete(s.trips).where(inArray(s.trips.id, tripIds));
   }
   if (userIds.length > 0) await db.delete(s.users).where(inArray(s.users.id, userIds));
@@ -131,9 +130,9 @@ describe('Q23 immutable trip replay', () => {
     assert.equal(first.body.notes, 'Chỉ dẫn ban đầu');
     assert.equal(first.body.replayed, false);
 
-    await db.update(s.tripInstructions)
-      .set({ notes: 'Dữ liệu đã thay đổi sau phản hồi đầu tiên' })
-      .where(eq(s.tripInstructions.tripId, trip.id));
+    await db.update(s.trips)
+      .set({ instructionNotes: 'Dữ liệu đã thay đổi sau phản hồi đầu tiên' })
+      .where(eq(s.trips.id, trip.id));
 
     const replay = await jsonRequest(
       `/api/trips/${trip.id}/instructions`,

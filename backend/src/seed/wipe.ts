@@ -42,7 +42,7 @@ export const WIPE_TABLES = {
   // 1. Trip children → trips
   tripsChildren: [
     'trip_expense_completion_scopes', 'trip_expense_photos', 'trip_expenses',
-    'trip_container_seals', 'trip_containers', 'trip_instructions',
+    'trip_container_seals', 'trip_containers',
     'trip_photos', 'trip_legs', 'trip_pairs', 'trips',
     'trip_code_counters', 'driver_progress_events', 'driver_incidental_costs',
     'driver_work_days', 'trip_pod_files', 'trip_pod_submissions',
