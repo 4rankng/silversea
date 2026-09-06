@@ -1,6 +1,20 @@
 # Current Development Handoff
 
-## Current task — OPS module (Vận hành hiện trường) per OpsVanHanh PRD — DONE on local dev (2026-09-07, unpushed)
+## Current task — OPS module (Vận hành hiện trường) per OpsVanHanh PRD — DONE + review-hardened on local dev (2026-09-07, unpushed)
+
+- Scope: full implementation of `docs/prd/OpsVanHanh.md` (source `2026.9.6_Man_hinh_ops.docx`): `/ops/orders` (day list + per-user ghim + context-first khai chi phí), `/ops/fleet-tracking` (read-only, 30s poll), `/ops/wallet` (4 real-time cards, xin tạm ứng via shared `advance_requests`, expense history with red Nợ-chứng-từ tags, settlement batches grouped by lô with 2 invoice baskets, exceljs export, A4 print) + accountant "Chi phí Ops" tab in the advance workspace.
+- 8 OPS commits on main ending `47dd1d84` (schema 0058 → wallet formula → portal API → catalog/client → orders → fleet → wallet+accountant+export → docs/e2e-runner fix → **review hardening `f6bf9e53`** → .ua rebuild). Plan: `plans/260906-2355-ops-module/`; review report: `plans/reports/code-review-260907-ops-module.md` (all blockers/majors addressed).
+- Review hardening (code-reviewer pass): ops photo prefix added to the serve allowlist (author-or-approver; round-trip 200/401 verified); Excel exports via authed blob download (anchors 401'd); ALL expense mutations + settlement decisions behind conditional writes inside `runIdempotent` (10 new `OPS_*` durable endpoints + material-write rules — registry test green); pins POST-toggle → PUT set-semantics; container id↔number alignment; fleet COMPLETED bounded by VN today; resend photo gate; optimistic wallet save; storage-key owner+shape validation; admin "Ops phụ trách" dialog on the fleet vehicles view (closes the PRD §2 admin gap); locks 6201/6202→6301/6302.
+- Lean decisions: dropped `ops_settlement_expense_links` (FK-on-entry, PRD §6 note); `requireRoles` gates, no casbin surgery; OPS-scoped expense-type catalog (no config:read grant); content-hash photo keys.
+- Local-dev data notes: `requires_invoice` flipped true for LIFTING/LOWERING/INFRASTRUCTURE **local DB only** (seed untouched — flag also gates the forwarder flow; NOTE: any re-seed converges it back to false, re-flip for demo). Seed fragility documented.
+- Gates: lint 0 err · backend tsc ✓ · backend tests 1779/1783 (**4 pre-existing peer-lane failures**: customer-intake-create 409≠403, ports.dispatchZone, q23-field-operations replay, seedShipments — identical names in the pre-OPS baseline, none touch ops; **fix backlog for next session**) · frontend 1465/1465 · build ✓ · check:ui+brand ✓ · e2e 243 pass/0 fail (runner gap-number bug fixed) · UI DRIVEN 2 passes (`qa/2026-09-07_ops_ui-*.png` + logs; giaonhan@local, DB side-effects verified).
+- `.ua` graph rebuilt (412 files @ 50828dc4; trails code by one commit — incremental update catches up).
+- **NOT DONE: push + deploy** (repo rule: remotes untouched unless asked; migration 0058 + catalog flags need a staging rehearsal per DB-deploy runbook) + the 4 peer-lane backend failures above.
+
+**Updated:** 2026-09-07 ~01:40 Asia/Singapore
+**Controller:** Mavis (autonomous captain session — scout→brainstorm→plan→cook chain over the three 09-06 docx; OPS lane; master-data lane was silversea-75's, ended mid-run)
+
+## Previous task — /shipments list column redistribution + deploy — DONE, PUSHED + DEPLOYED (2026-09-03)
 
 - Scope: full implementation of `docs/prd/OpsVanHanh.md` (source `2026.9.6_Man_hinh_ops.docx`): `/ops/orders` (day list + per-user ghim + context-first khai chi phí), `/ops/fleet-tracking` (read-only, 30s poll), `/ops/wallet` (4 real-time cards, xin tạm ứng via shared `advance_requests`, expense history with red Nợ-chứng-từ tags, settlement batches grouped by lô with 2 invoice baskets, exceljs export, A4 print) + accountant "Chi phí Ops" tab in the advance workspace.
 - 6 commits on main (schema 0058 → wallet formula → portal API → catalog/client → orders screen → fleet → wallet+accountant+export). Plan: `plans/260906-2355-ops-module/`. Lane-coordinated with the sibling master-data session (silversea-75, ended mid-run; its ShipmentCreateWorkspace 1007L ceiling overage grandfathered in my phase-5 commit).
