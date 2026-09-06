@@ -40,7 +40,7 @@ before(async () => {
   const columns = await db.execute(sql`
     SELECT column_name
     FROM information_schema.columns
-    WHERE table_name = 'trips'
+    WHERE table_name = 'trip_financial_state'
       AND column_name IN ('ap_cost_hash', 'ap_snapshot_dirty', 'ap_snapshot_changed_at')
   `);
   assert.equal(columns.length, 3);
@@ -531,7 +531,7 @@ describe('O2C final AP P1 fixes', () => {
     const [updatedTrip] = await db.select({
       arSnapshotDirty: s.tripsComposite.arSnapshotDirty,
       apSnapshotDirty: s.tripsComposite.apSnapshotDirty,
-      version: s.trips.version,
+      version: s.tripsComposite.version,
     }).from(s.tripsComposite).where(eq(s.tripsComposite.id, trip.id)).limit(1);
     assert.equal(updatedTrip?.arSnapshotDirty, true);
     assert.equal(updatedTrip?.apSnapshotDirty, true);

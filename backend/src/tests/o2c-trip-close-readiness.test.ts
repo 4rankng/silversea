@@ -428,7 +428,7 @@ describe('O2C trip close readiness authority', () => {
       assert.equal(result.shipment.status, 'COMPLETED');
       assert.deepEqual(result.completedTripIds, [fixture.trip.id]);
 
-      const [completedTrip] = await db.select({ status: s.trips.status, vatRate: s.tripsComposite.vatRate })
+      const [completedTrip] = await db.select({ status: s.tripsComposite.status, vatRate: s.tripsComposite.vatRate })
         .from(s.tripsComposite)
         .where(eq(s.tripsComposite.id, fixture.trip.id))
         .limit(1);
@@ -835,7 +835,7 @@ describe('O2C trip close readiness authority', () => {
     assert.equal(postingCount.count, 1);
 
     const [trip] = await db.select({
-      status: s.trips.status,
+      status: s.tripsComposite.status,
       vatRate: s.tripsComposite.vatRate,
       arCostHash: s.tripsComposite.arCostHash,
       arSnapshotDirty: s.tripsComposite.arSnapshotDirty,
@@ -897,7 +897,7 @@ describe('O2C trip close readiness authority', () => {
     assert.deepEqual(result.completedTripIds, [tripId]);
     assert.equal(result.vatRate, 0.1);
 
-    const [completed] = await db.select({ status: s.trips.status, vatRate: s.tripsComposite.vatRate })
+    const [completed] = await db.select({ status: s.tripsComposite.status, vatRate: s.tripsComposite.vatRate })
       .from(s.tripsComposite).where(eq(s.tripsComposite.id, tripId)).limit(1);
     assert.equal(completed.status, 'COMPLETED');
     assert.equal(completed.vatRate, '0.100');

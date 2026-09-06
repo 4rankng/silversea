@@ -133,28 +133,28 @@ describe('Wave 1 — Pricing & Fuel schema: column additions', () => {
     assert.match(String((col as { column_default: string }).column_default), /false/i);
   });
 
-  test('trips.pricing_source column exists (nullable)', async () => {
+  test('trip_financial_state.pricing_source column exists (nullable)', async () => {
     const [col] = await db.execute(sql`
       SELECT is_nullable FROM information_schema.columns
-      WHERE table_name = 'trips' AND column_name = 'pricing_source'
+      WHERE table_name = 'trip_financial_state' AND column_name = 'pricing_source'
     `);
     assert.ok(col, 'pricing_source column exists');
     assert.equal((col as { is_nullable: string }).is_nullable, 'YES');
   });
 
-  test('trips.pricing_formula column exists (nullable text)', async () => {
+  test('trip_financial_state.pricing_formula column exists (nullable text)', async () => {
     const [col] = await db.execute(sql`
       SELECT data_type, is_nullable FROM information_schema.columns
-      WHERE table_name = 'trips' AND column_name = 'pricing_formula'
+      WHERE table_name = 'trip_financial_state' AND column_name = 'pricing_formula'
     `);
     assert.ok(col, 'pricing_formula column exists');
     assert.equal((col as { data_type: string }).data_type, 'text');
   });
 
-  test('trips.pricing_snapshot column exists (nullable jsonb)', async () => {
+  test('trip_financial_state.pricing_snapshot column exists (nullable jsonb)', async () => {
     const [col] = await db.execute(sql`
       SELECT data_type, is_nullable FROM information_schema.columns
-      WHERE table_name = 'trips' AND column_name = 'pricing_snapshot'
+      WHERE table_name = 'trip_financial_state' AND column_name = 'pricing_snapshot'
     `);
     assert.ok(col, 'pricing_snapshot column exists');
     assert.equal((col as { data_type: string }).data_type, 'jsonb');

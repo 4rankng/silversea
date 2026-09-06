@@ -1141,7 +1141,7 @@ describe('US-005b edited-COMPLETED reconciliation: eligible debt-note totals sta
 
     // Post-edit: read the trip's ACTUAL stored revenue (resolveRevenue may transform
     // the override) and assert the ledger balance == storedRevenue + fees.
-    const [edited] = await db.select().from(s.tripsComposite).where(eq(s.trips.id, trip.id)).limit(1);
+    const [edited] = await db.select().from(s.tripsComposite).where(eq(s.tripsComposite.id, trip.id)).limit(1);
     const expected = Number(edited.revenue) + sellFees;
     const bal1 = await LedgerService.getBalance('CUSTOMER', customer.id);
     assert.equal(bal1, expected, 'ledger balance reflects edited revenue + phí chi hộ');

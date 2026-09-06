@@ -131,7 +131,7 @@ before(async () => {
   const columns = await db.execute(sql`
     SELECT column_name
     FROM information_schema.columns
-    WHERE table_name = 'trips'
+    WHERE table_name = 'trip_financial_state'
       AND column_name IN ('ap_cost_hash', 'ap_snapshot_dirty', 'ap_snapshot_changed_at')
   `);
   assert.equal(columns.length, 3, 'Phase 4 trip AP snapshot columns are missing in the dev DB');

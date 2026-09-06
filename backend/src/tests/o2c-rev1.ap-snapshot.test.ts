@@ -35,7 +35,7 @@ before(async () => {
   const columns = await db.execute(sql`
     SELECT column_name
     FROM information_schema.columns
-    WHERE table_name = 'trips'
+    WHERE table_name = 'trip_financial_state'
       AND column_name IN ('ap_cost_hash', 'ap_snapshot_dirty', 'ap_snapshot_changed_at')
     ORDER BY column_name
   `);
@@ -376,7 +376,7 @@ describe('O2C rev1 Phase 4 — AP snapshot dirtying', () => {
       );
 
       const [updated] = await db.select({
-        status: s.trips.status,
+        status: s.tripsComposite.status,
         apCostHash: s.tripsComposite.apCostHash,
         apSnapshotDirty: s.tripsComposite.apSnapshotDirty,
       }).from(s.tripsComposite).where(eq(s.tripsComposite.id, trip.id)).limit(1);
