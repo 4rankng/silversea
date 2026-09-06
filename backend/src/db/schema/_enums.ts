@@ -42,6 +42,14 @@ export const advanceRequestStatusEnum = applicationEnum(['PENDING', 'APPROVED', 
 
 export const advanceSettlementStatusEnum = applicationEnum(['PENDING', 'CHECKED_BY_ACCOUNTANT', 'APPROVED', 'REJECTED', 'REVERSED']);
 
+// Ops cash-expense approval lifecycle (docs/prd/OpsVanHanh.md §5.5): PENDING →
+// APPROVED (locked) | REJECTED (author fixes evidence and resends → PENDING).
+export const opsExpenseStatusEnum = applicationEnum(['PENDING', 'APPROVED', 'REJECTED']);
+
+// Ops settlement batch (đề nghị thanh toán): PENDING until accounting approves
+// the whole batch after every frozen entry is approved.
+export const opsSettlementStatusEnum = applicationEnum(['PENDING', 'APPROVED']);
+
 export const creditOverrideStatusEnum = applicationEnum(['PENDING', 'APPROVED', 'REJECTED', 'CANCELED']);
 
 export const creditOverrideScopeEnum = applicationEnum(['SHIPMENT', 'EXPIRY']);
