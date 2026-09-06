@@ -277,6 +277,23 @@ export async function seedTrips(seedActors: SeedActors & {
   const OPS_EXPENSE_REFS = new Set(['105254549001', '105254549088']);
 
   for (const plan of TRIP_PLANS) {
+    // Resolve the OWN-carrier fixtures before touching the shipment: on
+    // prod-synced DBs the demo driver row can be legitimately absent (the
+    // linked demo user may already own a differently-named active driver row,
+    // and the one-active-driver-per-user constraint makes the seed skip it).
+    // issueFulfillmentDispatchOrder hard-rejects OWN without truck+driver, so
+    // a missing fixture must skip the whole plan, not crash the seed.
+    if (plan.carrierType === 'OWN') {
+      const truckId = truckByPlate.get(plan.truckPlate!) ?? null;
+      const driverId = driverByName.get(plan.driverName!) ?? null;
+      if (truckId == null || driverId == null) {
+        console.warn(
+          `[seed-trips] skip ${plan.ref}: OWN fixture unresolved (truck=${plan.truckPlate}:${truckId != null}, driver=${plan.driverName}:${driverId != null})`,
+        );
+        skipped++;
+        continue;
+      }
+    }
     const [shipment] = await db.select({
       id: s.shipments.id, version: s.shipments.version, status: s.shipments.status,
     })

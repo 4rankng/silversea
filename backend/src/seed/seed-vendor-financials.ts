@@ -128,11 +128,17 @@ async function seedFuelInvoices(actorId: number, approverId: number) {
       return;
     }
     const litersEach = Math.round((plan.totalLiters / truckTrips.length) * 100) / 100;
+    // Equal shares rounded up must not sum past the invoice's liter cap
+    // (fuel-invoice validation rejects any allocation total above it), so
+    // the last trip absorbs the exact remainder instead of a fourth rounded
+    // share.
     const allocations = truckTrips.map((t, i) => ({
       tripId: t.id,
       voucherReference: `${plan.invoiceNumber}/${String(i + 1).padStart(2, '0')}`,
       voucherDate: plan.invoiceDate,
-      liters: litersEach,
+      liters: i === truckTrips.length - 1
+        ? Math.round((plan.totalLiters - litersEach * (truckTrips.length - 1)) * 100) / 100
+        : litersEach,
     }));
 
     const view = await createFuelInvoice({
