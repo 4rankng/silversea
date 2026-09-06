@@ -646,7 +646,7 @@ describe('ClerkShipmentCreatePage', () => {
 
     // Find the Loại container cell, then its sibling "Thêm" button.
     const typeCell = screen.getByRole('combobox', { name: /Loại container/ }).closest('td')!;
-    const addButton = within(typeCell as HTMLElement).getByRole('button', { name: /^Thêm$/ });
+    const addButton = within(typeCell as HTMLElement).getByRole('button', { name: 'Thêm loại container' });
     fireEvent.click(addButton);
 
     const dialog = await screen.findByRole('dialog', { name: 'Thêm loại container' });

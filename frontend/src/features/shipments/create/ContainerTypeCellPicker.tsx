@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { ContainerType } from '@tingting/shared';
 import { USearchableField as SearchableField } from './uui-fields';
 import { ContainerTypeCreateDialog } from './ContainerTypeCreateDialog';
@@ -32,6 +32,14 @@ interface ContainerTypeCellPickerProps {
  */
 export function ContainerTypeCellPicker({ value, onChange, options, fieldId, saving, error }: ContainerTypeCellPickerProps) {
   const [createOpen, setCreateOpen] = useState(false);
+  // Rows created inline this session. The catalog query (staleTime minutes)
+  // will not contain them until its next refetch, so the cell merges them
+  // itself — otherwise the just-created code cannot display as selected.
+  const [createdTypes, setCreatedTypes] = useState<Array<{ id: number; code: string; name?: string | null }>>([]);
+  const mergedOptions = useMemo(() => {
+    const known = new Set(options.map((item) => item.id));
+    return [...options, ...createdTypes.filter((item) => !known.has(item.id))];
+  }, [options, createdTypes]);
 
   return (
     <>
@@ -43,7 +51,7 @@ export function ContainerTypeCellPicker({ value, onChange, options, fieldId, sav
           required
           value={value}
           onChange={onChange}
-          options={options.map((item) => ({ value: String(item.id), label: item.code }))}
+          options={mergedOptions.map((item) => ({ value: String(item.id), label: item.code }))}
           placeholder="Chọn hoặc gõ để tìm loại"
           disabled={Boolean(saving)}
           error={error}
@@ -63,6 +71,7 @@ export function ContainerTypeCellPicker({ value, onChange, options, fieldId, sav
         onClose={() => setCreateOpen(false)}
         onCreated={(created: ContainerType) => {
           onChange(String(created.id));
+          setCreatedTypes((prev) => (prev.some((item) => item.id === created.id) ? prev : [...prev, { id: created.id, code: created.code, name: created.name }]));
           setCreateOpen(false);
         }}
       />

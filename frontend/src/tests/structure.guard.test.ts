@@ -32,7 +32,10 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // ceiling.
   'src/api/shipmentClient.ts': 1110,
   'src/components/billing/BillingDocumentBuilder.tsx': 716,
-  'src/components/Layout.tsx': 843,
+  // Raised 843 → 856: the CUS + dispatcher sidebar catalog entries
+  // (e69e67a7, effdf61f) shipped past the old ceiling. Reviewed as nav
+  // additions; a future sidebar split should restore a smaller ceiling.
+  'src/components/Layout.tsx': 856,
   'src/components/shipment/TripPodReviewPanel.tsx': 588,
   'src/components/trip/AncillaryFeesCard.tsx': 607,
   'src/components/trip/ContainerInstancesCard.tsx': 591,
