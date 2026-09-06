@@ -8,7 +8,8 @@
 import { createHash } from 'node:crypto';
 import { db } from '../db';
 import * as s from '../db/schema';
-import { eq, and, isNull, sql, gte, inArray, ne, getTableColumns, desc } from 'drizzle-orm';
+import { eq, and, isNull, sql, gte, inArray, ne, desc } from 'drizzle-orm';
+import { tripCompositeSelect } from './trip-composite.service';
 import { TripStatus } from '@tingting/shared';
 import { cacheGet } from '../lib/redis';
 import { fuelVarianceMonthKey, pnlMonthKey } from '../lib/report-cache';
@@ -284,10 +285,12 @@ export async function getPnlReport(month: number, year: number, q: QueryClient =
     // Costs stay editable after completion; grossProfit here reads the stored
     // value — it is "finalized" as a snapshot at completion, not immutable.
     const monthTrips = await q.select({
-      ...getTableColumns(s.trips),
+      ...tripCompositeSelect(),
       financialPostingId: s.tripFinancialPostings.id,
       financialPostingVersion: s.tripFinancialPostings.version,
     }).from(s.trips)
+      .leftJoin(s.tripFinancialState, eq(s.tripFinancialState.tripId, s.trips.id))
+      .leftJoin(s.tripCarrierInfo, eq(s.tripCarrierInfo.tripId, s.trips.id))
       .innerJoin(s.tripFinancialPostings, and(
         eq(s.tripFinancialPostings.tripId, s.trips.id),
         eq(s.tripFinancialPostings.status, 'ACTIVE'),
@@ -841,15 +844,17 @@ export async function getFuelVarianceReport(month: number, year: number) {
       id: s.trips.id,
       tripCode: s.trips.tripCode,
       departureDate: s.trips.departureDate,
-      fuelLiters: s.trips.fuelLiters,
+      fuelLiters: s.tripFinancialState.fuelLiters,
       fuelMode: s.trips.fuelMode,
       fuelLitersOverride: s.trips.fuelLitersOverride,
-      fuelFixedAllowanceApplied: s.trips.fuelFixedAllowanceApplied,
-      fuelSupplementNormApplied: s.trips.fuelSupplementNormApplied,
-      totalFuelCost: s.trips.totalFuelCost,
+      fuelFixedAllowanceApplied: s.tripFinancialState.fuelFixedAllowanceApplied,
+      fuelSupplementNormApplied: s.tripFinancialState.fuelSupplementNormApplied,
+      totalFuelCost: s.tripFinancialState.totalFuelCost,
       truckId: s.trips.truckId,
       routeId: s.trips.routeId,
-    }).from(s.trips).where(
+    }).from(s.trips)
+      .leftJoin(s.tripFinancialState, eq(s.tripFinancialState.tripId, s.trips.id))
+      .where(
       and(
         // O2C: COMPLETED is the single posting state; grossProfit finalizes here.
         eq(s.trips.status, TripStatus.COMPLETED),

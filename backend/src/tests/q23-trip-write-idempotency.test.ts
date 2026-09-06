@@ -7,6 +7,7 @@ import { and, desc, eq, inArray } from 'drizzle-orm';
 import { Role, TripStatus } from '@tingting/shared';
 import { db, client } from '../db';
 import * as s from '../db/schema';
+import { insertTripComposite } from '../services/trip-composite.service';
 import { auditLogMiddleware } from '../middleware/audit';
 import { globalErrorHandler } from '../middleware/errorHandler';
 import { disconnectRedis } from '../lib/redis';
@@ -51,6 +52,8 @@ after(async () => {
       inArray(s.notifications.relatedEntityId, tripIds),
     ));
     await db.delete(s.tripContainers).where(inArray(s.tripContainers.tripId, tripIds));
+    await db.delete(s.tripFinancialState).where(inArray(s.tripFinancialState.tripId, tripIds));
+    await db.delete(s.tripCarrierInfo).where(inArray(s.tripCarrierInfo.tripId, tripIds));
     await db.delete(s.trips).where(inArray(s.trips.id, tripIds));
   }
   if (userIds.length > 0) await db.delete(s.users).where(inArray(s.users.id, userIds));
@@ -74,7 +77,7 @@ async function fixtureTrip(status: TripStatus = TripStatus.CREATED) {
     passwordHash: 'x',
     role: Role.MANAGER,
   }).returning();
-  const [trip] = await db.insert(s.trips).values({
+  const trip = await insertTripComposite(db, {
     tripCode: `Q23-${suffix}`.slice(0, 50),
     customerId: customer.id,
     routeId: route.id,
@@ -88,7 +91,7 @@ async function fixtureTrip(status: TripStatus = TripStatus.CREATED) {
     totalCost: '300000',
     grossProfit: '700000',
     driverSalary: '100000',
-  }).returning();
+  });
   customerIds.push(customer.id);
   routeIds.push(route.id);
   cargoTypeIds.push(cargoType.id);
@@ -381,7 +384,7 @@ describe('Q23 trip write contracts', () => {
     assert.equal(settled.filter((item) => item.status === 'fulfilled').length, 0);
     assert.equal(settled.filter((item) => item.status === 'rejected').length, 2);
 
-    const [stored] = await db.select().from(s.trips).where(eq(s.trips.id, trip.id));
+    const [stored] = await db.select().from(s.tripsComposite).where(eq(s.tripsComposite.id, trip.id));
     assert.equal(stored.status, TripStatus.COMPLETED);
     assert.equal(stored.revenue, trip.revenue);
     assert.equal(stored.totalFuelCost, trip.totalFuelCost);
@@ -405,7 +408,7 @@ describe('Q23 trip write contracts', () => {
       /Dữ liệu đã bị thay đổi/,
     );
     await assert.rejects(deleteTrip(trip.id, 1), /Dữ liệu đã bị thay đổi/);
-    const [stored] = await db.select().from(s.trips).where(eq(s.trips.id, trip.id));
+    const [stored] = await db.select().from(s.tripsComposite).where(eq(s.trips.id, trip.id));
     assert.equal(stored.departureDate, '2026-07-27');
     assert.equal(stored.deletedAt, null);
   });

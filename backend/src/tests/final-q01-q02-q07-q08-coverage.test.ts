@@ -9,6 +9,7 @@ import { and, eq, inArray, sql } from 'drizzle-orm';
 import { Role } from '@tingting/shared';
 import { client, db } from '../db';
 import * as s from '../db/schema';
+import { insertTripComposite } from '../services/trip-composite.service';
 import { config } from '../config';
 import { initEnforcer } from '../casbin/enforcer';
 import { authMiddleware } from '../middleware/auth';
@@ -172,7 +173,7 @@ async function mkCargoTypeRow() {
 async function mkTripRow(customerId: number, supplierId: number) {
   const route = await mkRouteRow();
   const cargoType = await mkCargoTypeRow();
-  const [trip] = await db.insert(s.trips).values({
+  const trip = await insertTripComposite(db, {
     tripCode: `FINAL-${suffix}-${tripIds.length}`.slice(0, 50),
     customerId,
     routeId: route.id,
@@ -182,7 +183,7 @@ async function mkTripRow(customerId: number, supplierId: number) {
     carrierType: 'OWN',
     fuelSupplierId: supplierId,
     totalFuelCost: '250000',
-  }).returning();
+  });
   tripIds.push(trip.id);
   return trip;
 }
