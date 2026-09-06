@@ -65,6 +65,7 @@ const ForwarderTripsPage = lazy(() => import('./pages/ForwarderTripsPage'));
 const ForwarderTripDetailPage = lazy(() => import('./pages/ForwarderTripDetailPage'));
 const ForwarderAdvancesPage = lazy(() => import('./pages/ForwarderAdvancesPage'));
 const OpsOrdersPage = lazy(() => import('./pages/OpsOrdersPage'));
+const OpsFleetTrackingPage = lazy(() => import('./pages/OpsFleetTrackingPage'));
 const ForwarderSettlementsPage = lazy(() => import('./pages/ForwarderSettlementsPage'));
 const ForwarderSettlementCreatePage = lazy(() => import('./pages/ForwarderSettlementCreatePage'));
 const SettlementPrintPage = lazy(() => import('./pages/SettlementPrintPage'));
@@ -364,6 +365,7 @@ export function AppRoutes() {
           <Route path="/notifications" element={driverOnly(page(<NotificationsPage />))} />
           <Route path="/my-orders" element={opsOnly(page(<ForwarderTripsPage />))} />
           <Route path="/ops/orders" element={opsOnly(page(<OpsOrdersPage />))} />
+          <Route path="/ops/fleet-tracking" element={opsOnly(page(<OpsFleetTrackingPage />))} />
           <Route path="/my-forwarder-trips" element={opsOnly(page(<ForwarderTripsPage />))} />
           <Route path="/my-forwarder-trips/:id" element={opsOnly(page(<ForwarderTripDetailPage />))} />
           <Route path="/my-advances" element={opsOnly(page(<ForwarderAdvancesPage />))} />

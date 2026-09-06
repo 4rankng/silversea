@@ -37,9 +37,10 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // additions; a future sidebar split should restore a smaller ceiling.
   // Raised 856 → 858: added driver notifications bottom-nav entry + Bell import.
   // Raised 858 → 861: OPS "Kế hoạch làm hàng" sidebar entry + ClipboardList
-  // import (OpsVanHanh §3). A future sidebar split should restore a smaller
-  // ceiling.
-  'src/components/Layout.tsx': 861,
+  // import (OpsVanHanh §3).
+  // Raised 861 → 862: OPS "Theo dõi phương tiện" entry (OpsVanHanh §4). A
+  // future sidebar split should restore a smaller ceiling.
+  'src/components/Layout.tsx': 862,
   'src/components/shipment/TripPodReviewPanel.tsx': 588,
   'src/components/trip/AncillaryFeesCard.tsx': 607,
   'src/components/trip/ContainerInstancesCard.tsx': 591,
@@ -77,7 +78,13 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // the original behaviour; a future split (extract `useCustomerDialog`,
   // `usePortDialog`, `useRouteDialog` into shared hooks) should restore a
   // smaller ceiling.
-  'src/features/shipments/create/ShipmentCreateWorkspace.tsx': 965,
+  // Raised 965 → 1007: master-data wave (factory-owns-route auto-fill + lock,
+  // 2026-09-07) grew the workspace past the old ceiling after the peer session
+  // landed; the pre-commit gate typechecks but does not run this guard, so the
+  // bump follows here. A future split (extract `useCustomerDialog`,
+  // `usePortDialog`, `useRouteDialog` into shared hooks) should restore a
+  // smaller ceiling.
+  'src/features/shipments/create/ShipmentCreateWorkspace.tsx': 1007,
   'src/features/shipments/detail/ShipmentContainerLedger.tsx': 750,
   'src/features/tires/tire-controls.tsx': 526,
   'src/features/tires/tire-dialogs.tsx': 426,

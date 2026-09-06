@@ -1,0 +1,71 @@
+/* Ops portal — Theo dõi phương tiện (OpsVanHanh §4). Read-only list; tabular
+   below 680px via horizontal scroll (cards are a last resort). */
+
+.ops-fleet {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ops-fleet__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ops-fleet__bar h1 {
+  font-size: 20px;
+  margin: 0;
+}
+
+.ops-fleet__meta {
+  margin: 0;
+  font-size: 13px;
+  color: var(--fg-3, #6b7280);
+}
+
+.ops-fleet__scroll {
+  overflow-x: auto;
+  border: 1px solid var(--line, #e3ded5);
+  border-radius: 12px;
+  background: var(--bg-1, #fff);
+}
+
+.ops-fleet__table {
+  width: 100%;
+  min-width: 820px;
+}
+
+.ops-fleet__table th,
+.ops-fleet__table td {
+  padding: 10px 12px;
+  font-size: 13px;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.ops-fleet__plate {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.ops-fleet__idle {
+  color: var(--fg-3, #6b7280);
+}
+
+.ops-fleet__empty {
+  text-align: center;
+  color: var(--fg-3, #6b7280);
+  padding: 28px 16px !important;
+}
+
+.ops-fleet__loading {
+  display: flex;
+  justify-content: center;
+  padding: 16px;
+  color: var(--fg-3, #6b7280);
+}
