@@ -1,7 +1,6 @@
 /**
- * Danh mục Xe nội bộ — dispatcher lookup of internal tractors. Dispatchers
- * may add new tractors (createRoles allowance) but not edit or retire
- * existing ones; those stay in the admin /fleet workspace.
+ * Danh mục Xe nội bộ — dispatcher CRUD for internal tractors. Dispatchers
+ * may add, edit, and retire tractors from this view.
  */
 import { useCallback, useMemo, useState } from 'react';
 import { Truck } from 'lucide-react';
@@ -22,6 +21,7 @@ import { TRUCK_STATUS } from '../../fleet';
 import { TruckFormModal } from '../../fleet/TruckFormModal';
 import { CatalogTableShell } from './CatalogTableShell';
 import { useCatalogCreate } from './useCatalogCreate';
+import { useConfirm } from '../../../components/UI';
 import './catalogs.css';
 
 import type { Truck as TruckType } from '@tingting/shared';
@@ -33,7 +33,8 @@ export function FleetVehiclesView() {
   const { data: fleetData, isLoading: loading, error } = useTrucksAndDrivers();
   // Trailer plate/type shown alongside each tractor (same source as FleetPage).
   const { data: trailers = [] } = useTrailers();
-  const create = useCatalogCreate('/trucks');
+  const crud = useCatalogCreate('/trucks');
+  const { confirm, dialog } = useConfirm();
 
   const queryClient = useQueryClient();
   const trucks = useMemo(() => fleetData?.trucks ?? [], [fleetData?.trucks]);
@@ -127,11 +128,11 @@ export function FleetVehiclesView() {
             Tra cứu xe đầu kéo nội bộ để phân bổ kế hoạch điều độ
           </p>
         </div>
-        <Button size="sm" color="primary" iconLeading={Plus} onPress={create.showForm}>
+        <Button size="sm" color="primary" iconLeading={Plus} onPress={crud.showForm}>
           Thêm xe đầu kéo
         </Button>
       </div>
-      {create.error && <div className="dispatch-catalogs__error">{create.error}</div>}
+      {crud.error && <div className="dispatch-catalogs__error">{crud.error}</div>}
       <div className="kpi-grid" style={{ marginBottom: 16 }}>
         <KPI label="Tổng xe đầu kéo" value={trucks.length} unit="xe" icon={Truck} />
         <KPI label="Hoạt động" value={active} unit="xe" icon={Truck} variant="success" />
@@ -165,7 +166,15 @@ export function FleetVehiclesView() {
               {rows.map((t: TruckType) => {
                 const trailer = t.currentTrailerId ? trailerById.get(t.currentTrailerId) : undefined;
                 return (
-                  <tr key={t.id}>
+                  <tr
+                    key={t.id}
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => crud.showEdit(t.id)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); crud.showEdit(t.id); } }}
+                    tabIndex={0}
+                    role="button"
+                    aria-label={`Chỉnh sửa xe ${t.licensePlate}`}
+                  >
                     <td data-label="Biển số" className="dispatch-catalogs__plate">{t.licensePlate}</td>
                     <td data-label="Rơ-moóc đang nối">{trailer ? trailer.licensePlate : '—'}</td>
                     <td data-label="Tài xế được gán">{driverByTruck.get(t.id) ?? '—'}</td>
@@ -177,14 +186,26 @@ export function FleetVehiclesView() {
                         {TRUCK_STATUS[t.status] || t.status}
                       </BadgeWithDot>
                     </td>
-                    <td data-label="Thao tác">
-                      <button
-                        type="button"
-                        className="btn btn--secondary btn--sm"
-                        onClick={() => openAssign(t)}
-                      >
-                        Phân công lái xe
-                      </button>
+                    <td data-label="Thao tác" onClick={(e) => e.stopPropagation()}>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button
+                          type="button"
+                          className="btn btn--secondary btn--sm"
+                          onClick={() => openAssign(t)}
+                        >
+                          Phân công lái xe
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn--danger-outline btn--sm"
+                          onClick={async () => {
+                            const ok = await confirm(`Xóa xe đầu kéo ${t.licensePlate}?`, { variant: 'danger', confirmLabel: 'Xóa' });
+                            if (ok) await crud.remove(t.id);
+                          }}
+                        >
+                          Xóa
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -194,11 +215,13 @@ export function FleetVehiclesView() {
         )}
       </CatalogTableShell>
       <TruckFormModal
-        isOpen={create.open}
-        saving={create.saving}
-        onsave={create.create}
-        oncancel={create.closeForm}
+        isOpen={crud.open}
+        saving={crud.saving}
+        item={crud.editingId != null ? trucks.find((t) => t.id === crud.editingId) : undefined}
+        onsave={(d) => crud.editingId != null ? crud.update(crud.editingId, d) : crud.create(d)}
+        oncancel={crud.closeForm}
       />
+      {dialog}
       <AssignDriverDialog
         isOpen={assignOpen}
         saving={assignSaving}

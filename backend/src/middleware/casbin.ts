@@ -66,28 +66,28 @@ function hasRouteScopedRoleAllowance(req: Request, resource: string) {
   ) {
     return true;
   }
-  // CUS may update or delete identity fields on customers and routes from the
-  // catalog management pages. POST already allowed above for create; PUT/DELETE
-  // extends the same pattern to edit and undo recent creates. Financial/cost
-  // fields are stripped by intake restriction services; the beforeDelete hook
-  // enforces a 1-day age gate so only recently created entities are deletable.
+  // CUS and DISPATCHER may update or delete identity fields on customers and
+  // routes from the catalog management pages. POST already allowed above for
+  // create; PUT/DELETE extends the same pattern to edit and undo recent
+  // creates. Financial/cost fields are stripped by intake restriction
+  // services; the beforeDelete hook enforces a 1-day age gate so only
+  // recently created entities are deletable.
   if (
     resource === 'config'
-    && req.user.role === Role.CUS
+    && [Role.CUS, Role.DISPATCHER].includes(req.user.role as Role)
     && (req.method === 'PUT' || req.method === 'DELETE')
     && /^\/(customers|routes)\/\d+\/?$/.test(req.path)
   ) {
     return true;
   }
-  // Other Dispatcher catalog creates: DISPATCHER may POST exactly the three
-  // resource-catalog rows it staffs dispatch plans from (trucks, drivers,
-  // suppliers). Every other config write stays Casbin-denied, and
-  // PUT/DELETE on these three are not matched here.
+  // Dispatcher full CRUD on the three resource-catalog rows it staffs dispatch
+  // plans from (trucks, drivers, suppliers). Every other config write stays
+  // Casbin-denied.
   if (
     resource === 'config'
     && req.user.role === Role.DISPATCHER
-    && req.method === 'POST'
-    && /^\/(trucks|drivers|suppliers)\/?$/.test(req.path)
+    && (req.method === 'POST' || req.method === 'PUT' || req.method === 'DELETE')
+    && /^\/(trucks|drivers|suppliers)(\/\d+)?\/?$/.test(req.path)
   ) {
     return true;
   }

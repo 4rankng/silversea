@@ -1,9 +1,7 @@
 /**
- * Danh mục Tài xế — dispatcher lookup of internal drivers. Dispatchers may
- * add drivers (createRoles allowance), but salary/social-insurance fields
- * are material config for every role: the dispatcher save strips them so
- * the create stays direct instead of routing into a governance action the
- * DISPATCHER role cannot make.
+ * Danh mục Tài xế — dispatcher CRUD for internal drivers. Dispatchers may
+ * add, edit, and delete drivers. Salary/social-insurance fields are stripped
+ * by the backend for DISPATCHER to keep mutations direct.
  */
 import { useMemo, useState } from 'react';
 import { Users } from 'lucide-react';
@@ -19,6 +17,7 @@ import { nextTableSort, sortClientSide, type TableSortState } from '../../../lib
 import { DriverFormModal } from '../../fleet/DriverFormModal';
 import { CatalogTableShell } from './CatalogTableShell';
 import { useCatalogCreate } from './useCatalogCreate';
+import { useConfirm } from '../../../components/UI';
 import './catalogs.css';
 
 
@@ -28,10 +27,8 @@ export function FleetDriversView() {
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<TableSortState | null>(null);
   const { data: fleetData, isLoading: loading, error } = useTrucksAndDrivers();
-  const create = useCatalogCreate('/drivers');
-  const saveDriver = (body: Record<string, unknown>) => {
-    return create.create(body);
-  };
+  const crud = useCatalogCreate('/drivers');
+  const { confirm, dialog } = useConfirm();
 
   const drivers = useMemo(() => fleetData?.drivers ?? [], [fleetData?.drivers]);
   const trucks = useMemo(() => fleetData?.trucks ?? [], [fleetData?.trucks]);
@@ -79,11 +76,11 @@ export function FleetDriversView() {
             Tra cứu tài xế nội bộ để gán chuyến trong kế hoạch điều độ
           </p>
         </div>
-        <Button size="sm" color="primary" iconLeading={Plus} onPress={create.showForm}>
+        <Button size="sm" color="primary" iconLeading={Plus} onPress={crud.showForm}>
           Thêm tài xế
         </Button>
       </div>
-      {create.error && <div className="dispatch-catalogs__error">{create.error}</div>}
+      {crud.error && <div className="dispatch-catalogs__error">{crud.error}</div>}
       <div className="kpi-grid" style={{ marginBottom: 16 }}>
         <KPI label="Tổng tài xế" value={drivers.length} unit="người" icon={Users} />
       </div>
@@ -120,7 +117,15 @@ export function FleetDriversView() {
             </thead>
             <tbody>
               {rows.map((d) => (
-                <tr key={d.id}>
+                <tr
+                  key={d.id}
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => crud.showEdit(d.id)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); crud.showEdit(d.id); } }}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`Chỉnh sửa tài xế ${d.name}`}
+                >
                   <td data-label="Mã tài xế" style={{ fontWeight: 600 }}>{d.code ?? '—'}</td>
                   <td data-label="Họ tên">{d.name}</td>
                   <td data-label="Số CCCD">{d.idNumber ?? '—'}</td>
@@ -130,6 +135,18 @@ export function FleetDriversView() {
                   <td data-label="Ngân hàng nhận tiền">{d.bankName ?? '—'}</td>
                   <td data-label="Số TK nhận tiền">{d.bankAccount ?? '—'}</td>
                   <td data-label="Hình thức lương">{d.salaryType ?? '—'}</td>
+                  <td onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      className="btn btn--danger-outline btn--sm"
+                      onClick={async () => {
+                        const ok = await confirm(`Xóa tài xế ${d.name}?`, { variant: 'danger', confirmLabel: 'Xóa' });
+                        if (ok) await crud.remove(d.id);
+                      }}
+                    >
+                      Xóa
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -137,11 +154,13 @@ export function FleetDriversView() {
         )}
       </CatalogTableShell>
       <DriverFormModal
-        isOpen={create.open}
-        saving={create.saving}
-        onsave={saveDriver}
-        oncancel={create.closeForm}
+        isOpen={crud.open}
+        saving={crud.saving}
+        item={crud.editingId != null ? drivers.find((d) => d.id === crud.editingId) : undefined}
+        onsave={(d) => crud.editingId != null ? crud.update(crud.editingId, d) : crud.create(d)}
+        oncancel={crud.closeForm}
       />
+      {dialog}
     </div>
   );
 }

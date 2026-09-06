@@ -29,6 +29,7 @@ vi.mock('../../hooks/useAuth', () => ({
   useAuth: () => authState.context,
 }));
 
+
 vi.mock('../../hooks/useCRUD', () => ({
   useCRUD: () => ({
     editingId: null,
@@ -78,20 +79,19 @@ beforeEach(() => {
   getRoutesList.mockReset().mockResolvedValue(routes);
 });
 
-// DISPATCHER create-only mode: Casbin grants POST /routes but no PUT/DELETE,
-// so the per-row Sửa/Xoá menu (and its action column) must not render while
-// the header "Thêm tuyến" button stays available.
-describe('RoutesConfigPage dispatcher create-only mode', () => {
+// DISPATCHER now has full edit/delete access (matching CUS). The action
+// column and per-row menu render for all catalog-editor roles.
+describe('RoutesConfigPage dispatcher edit/delete access', () => {
   afterEach(() => { authState.context = null; });
 
-  it('keeps the create button and hides the per-row action menu', async () => {
+  it('shows the create button and per-row action menu for DISPATCHER', async () => {
     authState.context = { user: { userId: 9, username: 'dieuvan', role: 'DISPATCHER' } };
     const { container } = renderPage();
     await screen.findByText('Hải Phòng - Nội Bài');
 
     expect(screen.getByRole('button', { name: /Thêm tuyến/ })).toBeInTheDocument();
-    expect(container.querySelectorAll('.routes-table thead th')).toHaveLength(7);
-    expect(container.querySelector('.record-table__action')).toBeNull();
+    expect(container.querySelectorAll('.routes-table thead th')).toHaveLength(8);
+    expect(container.querySelector('.record-table__action')).not.toBeNull();
   });
 
   it('renders the action column for full catalog editors', async () => {

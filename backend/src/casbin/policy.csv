@@ -5,9 +5,9 @@ p, MANAGER, trips, write
 p, MANAGER, trips, delete
 p, DISPATCHER, trips, read
 p, DISPATCHER, trips, write
-// Dispatchers read resource catalogs to staff dispatch plans. They may also
-// CREATE trucks/drivers/suppliers via a route-scoped allowance in the casbin
-// middleware (POST only); all other config mutations stay closed to
+// Dispatchers read resource catalogs to staff dispatch plans. They also get
+// full CRUD on trucks/drivers/suppliers via a route-scoped allowance in the
+// casbin middleware; all other config mutations stay closed to
 // MANAGER/ACCOUNTANT/ADMIN.
 p, DISPATCHER, config, read
 p, MANAGER, config, read

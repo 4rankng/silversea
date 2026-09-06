@@ -4,8 +4,10 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { TruckStatus, DriverStatus } from '@tingting/shared';
 import type { Truck, Driver } from '@tingting/shared';
 
-const { apiPost, invalidateAllCatalogs } = vi.hoisted(() => ({
+const { apiPost, apiPut, apiDelete, invalidateAllCatalogs } = vi.hoisted(() => ({
   apiPost: vi.fn(),
+  apiPut: vi.fn(),
+  apiDelete: vi.fn(),
   invalidateAllCatalogs: vi.fn(async () => []),
 }));
 
@@ -24,7 +26,7 @@ vi.mock('../../../hooks/animations', () => ({
 }));
 
 vi.mock('../../../lib/api', () => ({
-  api: { post: apiPost },
+  api: { post: apiPost, put: apiPut, delete: apiDelete },
 }));
 
 vi.mock('../../../api/keys', async (importOriginal) => ({
@@ -121,14 +123,14 @@ describe('FleetDriversView (dispatcher read-only)', () => {
     expect(screen.getByText('Chưa có tài xế nào')).toBeTruthy();
   });
 
-  it('renders no edit/delete affordances — create only', () => {
+  it('renders delete buttons — CRUD surface', () => {
     fleetState.data = { trucks: [truck()], drivers: [driver()] };
     render(
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
         <FleetDriversView />
       </QueryClientProvider>,
     );
-    expect(screen.queryByRole('button', { name: /sửa|xóa/i })).toBeNull();
+    expect(screen.getAllByRole('button', { name: /xóa/i }).length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: /thêm tài xế/i })).toBeTruthy();
   });
 

@@ -115,13 +115,12 @@ describe('CustomersConfigPage client-side sorting', () => {
   });
 });
 
-// DISPATCHER create-only mode: Casbin grants POST /customers but no
-// PUT/DELETE, so the page must expose the create button while row-click
-// editing stays unreachable for that role.
-describe('CustomersConfigPage dispatcher create-only mode', () => {
+// DISPATCHER now has full edit/delete access (matching CUS). Row-click
+// editing and the hint text are visible for all catalog-editor roles.
+describe('CustomersConfigPage dispatcher edit/delete access', () => {
   afterEach(() => { authState.context = null; });
 
-  it('keeps the create button and drops the row-click edit affordance', async () => {
+  it('shows create button and row-click edit affordance for DISPATCHER', async () => {
     authState.context = { user: { userId: 9, username: 'dieuvan', role: 'DISPATCHER' } };
     const { container } = renderPage();
     await screen.findByText('Khách hàng An');
@@ -130,8 +129,7 @@ describe('CustomersConfigPage dispatcher create-only mode', () => {
     const row = container.querySelector('.cfg-customer-table tbody tr');
     expect(row).not.toBeNull();
     const rowEl = row as HTMLElement;
-    expect(rowEl.getAttribute('onclick')).toBeNull();
-    expect(rowEl.style.cursor).toBe('');
-    expect(screen.queryByText(/Nhấn vào một hàng/)).not.toBeInTheDocument();
+    expect(rowEl.style.cursor).toBe('pointer');
+    expect(screen.getByText(/Nhấn vào một hàng/)).toBeInTheDocument();
   });
 });

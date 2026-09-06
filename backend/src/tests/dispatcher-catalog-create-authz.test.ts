@@ -56,42 +56,53 @@ describe('Dispatcher resource-catalog create authorization', () => {
       }
     });
 
-    it('lets DISPATCHER create customers from the catalog page (create-only)', async () => {
-      // The dispatch catalog pages are create-only for this role: POST passes
-      // (intake strips financially material fields server-side) while PUT/
-      // DELETE stay Casbin-denied, unlike CUS which owns the full allowance.
+    it('lets DISPATCHER create, update, and delete customers and routes from catalog', async () => {
+      // POST — create (existing allowance)
       assert.deepEqual(await authorize(Role.DISPATCHER, 'POST', '/customers'), {
         nextCalled: true,
         statusCode: 200,
       });
+      assert.deepEqual(await authorize(Role.DISPATCHER, 'POST', '/routes'), {
+        nextCalled: true,
+        statusCode: 200,
+      });
+      // PUT — update identity fields
+      assert.deepEqual(await authorize(Role.DISPATCHER, 'PUT', '/routes/1'), {
+        nextCalled: true,
+        statusCode: 200,
+      });
+      assert.deepEqual(await authorize(Role.DISPATCHER, 'PUT', '/customers/1'), {
+        nextCalled: true,
+        statusCode: 200,
+      });
+      // DELETE — allowed at Casbin level; age gate enforced in beforeDelete hook
+      assert.deepEqual(await authorize(Role.DISPATCHER, 'DELETE', '/routes/1'), {
+        nextCalled: true,
+        statusCode: 200,
+      });
+      assert.deepEqual(await authorize(Role.DISPATCHER, 'DELETE', '/customers/1'), {
+        nextCalled: true,
+        statusCode: 200,
+      });
+    });
+
+    it('lets DISPATCHER update and delete trucks, drivers, and suppliers', async () => {
       for (const [method, path] of [
-        ['PUT', '/customers/1'],
-        ['DELETE', '/customers/1'],
-        ['PUT', '/routes/1'],
-        ['DELETE', '/routes/1'],
+        ['PUT', '/trucks/1'],
+        ['DELETE', '/trucks/1'],
+        ['PUT', '/drivers/1'],
+        ['DELETE', '/drivers/1'],
+        ['PUT', '/suppliers/1'],
+        ['DELETE', '/suppliers/1'],
       ] as const) {
         assert.deepEqual(await authorize(Role.DISPATCHER, method, path), {
-          nextCalled: false,
-          statusCode: 403,
+          nextCalled: true,
+          statusCode: 200,
         }, `${method} ${path}`);
       }
     });
 
     it('keeps DISPATCHER mutations closed everywhere else', async () => {
-      // Same three tables — update/delete are not route-scoped allowances.
-      for (const [method, path] of [
-        ['PUT', '/trucks'],
-        ['DELETE', '/trucks'],
-        ['PUT', '/drivers'],
-        ['DELETE', '/drivers'],
-        ['PUT', '/suppliers'],
-        ['DELETE', '/suppliers'],
-      ] as const) {
-        assert.deepEqual(await authorize(Role.DISPATCHER, method, path), {
-          nextCalled: false,
-          statusCode: 403,
-        }, `${method} ${path}`);
-      }
       // Other config catalogs stay fully read-only for DISPATCHER.
       for (const [method, path] of [
         ['POST', '/pricing-tables'],
@@ -116,7 +127,15 @@ describe('Dispatcher resource-catalog create authorization', () => {
         assert.deepEqual(await authorize(role, 'POST', '/trucks'), {
           nextCalled: false,
           statusCode: 403,
-        }, role);
+        }, `${role} POST /trucks`);
+        assert.deepEqual(await authorize(role, 'PUT', '/trucks/1'), {
+          nextCalled: false,
+          statusCode: 403,
+        }, `${role} PUT /trucks/1`);
+        assert.deepEqual(await authorize(role, 'DELETE', '/trucks/1'), {
+          nextCalled: false,
+          statusCode: 403,
+        }, `${role} DELETE /trucks/1`);
       }
     });
 
@@ -160,32 +179,22 @@ describe('Dispatcher resource-catalog create authorization', () => {
       }
     });
 
-    it('lets CUS and Dispatchers add the missing customer from shipment intake', async () => {
+    it('lets CUS and Dispatchers create, update, and delete customers from intake', async () => {
       for (const role of [Role.CUS, Role.DISPATCHER]) {
         assert.deepEqual(await authorize(role, 'POST', '/customers'), {
           nextCalled: true,
           statusCode: 200,
         }, role);
-      }
-      // CUS may update and delete customers (identity fields stripped by intake
-      // service; age gate enforced in beforeDelete hook).
-      assert.deepEqual(await authorize(Role.CUS, 'PUT', '/customers/1'), {
-        nextCalled: true,
-        statusCode: 200,
-      });
-      assert.deepEqual(await authorize(Role.CUS, 'DELETE', '/customers/1'), {
-        nextCalled: true,
-        statusCode: 200,
-      });
-      // DISPATCHER update/delete stay Casbin-denied.
-      for (const [method, path] of [
-        ['PUT', '/customers/1'],
-        ['DELETE', '/customers/1'],
-      ] as const) {
-        assert.deepEqual(await authorize(Role.DISPATCHER, method, path), {
-          nextCalled: false,
-          statusCode: 403,
-        }, `DISPATCHER ${method} ${path}`);
+        // Both may update and delete customers (identity fields stripped by
+        // intake service; age gate enforced in beforeDelete hook).
+        assert.deepEqual(await authorize(role, 'PUT', '/customers/1'), {
+          nextCalled: true,
+          statusCode: 200,
+        }, `${role} PUT`);
+        assert.deepEqual(await authorize(role, 'DELETE', '/customers/1'), {
+          nextCalled: true,
+          statusCode: 200,
+        }, `${role} DELETE`);
       }
     });
 

@@ -294,7 +294,7 @@ containers (so the auto-split is meaningful).
 
 ---
 
-## Flow 3 — Danh mục xe nội bộ (Own-fleet vehicle catalog, read-only)
+## Flow 3 — Danh mục xe nội bộ (Own-fleet vehicle catalog, CRUD)
 
 **Route**: `/fleet/vehicles`
 **Component**: `frontend/src/pages/FleetVehiclesPage.tsx`
@@ -302,12 +302,14 @@ containers (so the auto-split is meaningful).
 
 ### Acceptance criteria
 
-1. **DISP-FV-01 — Read-only**
+1. **DISP-FV-01 — CRUD**
    - **Then** every row shows: `Biển số`, `Loại xe` (đầu kéo /
      rơ-moóc), `Tải trọng tối đa`, `Trạng thái` (ACTIVE / MAINTENANCE /
-     INACTIVE). No `Sửa` / `Xóa` buttons are rendered.
-   - **Evidence**: hover over a row; only the row's selection state
-     changes; no action menu.
+     INACTIVE). Each row is clickable to open the edit modal; a `Xóa`
+     button appears in the action column. The header has a `Thêm xe đầu kéo`
+     create button.
+   - **Evidence**: click a row to open edit modal; click `Xóa` to confirm
+     deletion.
 
 2. **DISP-FV-02 — Filter by status & search by plate**
    - **Given** the filter bar
@@ -324,16 +326,19 @@ containers (so the auto-split is meaningful).
 
 1. Log in as `dieuvan`. Open `/fleet/vehicles`.
 2. Apply a filter; capture.
-3. Click a row — confirm it does not navigate to an edit page (the row
-   is non-clickable for DISPATCHER).
+3. Click a row — confirm the edit modal opens with the truck's data pre-filled.
+4. Edit a field and save — confirm the change persists.
+5. Click `Xóa` on a row — confirm the deletion dialog appears.
 
 ### Regression hooks
 
 - The `dispatchOnly` route guard test in `App.tsx`.
+- `backend/src/tests/dispatcher-catalog-create-authz.test.ts` —
+  DISPATCHER PUT/DELETE on trucks/drivers/suppliers returns 200.
 
 ---
 
-## Flow 4 — Danh mục tài xế (Driver catalog, read-only)
+## Flow 4 — Danh mục tài xế (Driver catalog, CRUD)
 
 **Route**: `/fleet/drivers`
 **Component**: `frontend/src/pages/FleetDriversPage.tsx`
@@ -341,11 +346,13 @@ containers (so the auto-split is meaningful).
 
 ### Acceptance criteria
 
-1. **DISP-DR-01 — Read-only driver list**
+1. **DISP-DR-01 — CRUD driver list**
    - **Then** columns: `Họ tên`, `SĐT`, `Biển số gắn với`,
-     `Trạng thái` (ACTIVE / INACTIVE), `Số chuyến tháng này`. No
-     edit/delete.
-   - **Evidence**: baseline screenshot.
+     `Trạng thái` (ACTIVE / INACTIVE), `Số chuyến tháng này`. Each row
+     is clickable to open the edit modal; a `Xóa` button appears in the
+     action column. The header has a `Thêm tài xế` create button.
+   - **Evidence**: click a row to open edit modal; click `Xóa` to confirm
+     deletion.
 
 2. **DISP-DR-02 — Availability indicator**
    - **Given** the dispatcher is on the page during planning
@@ -363,7 +370,7 @@ containers (so the auto-split is meaningful).
 
 ---
 
-## Flow 5 — Nhà thầu phụ (External supplier lookup, read-only)
+## Flow 5 — Nhà thầu phụ (External supplier catalog, CRUD)
 
 **Route**: `/suppliers`
 **Component**: `frontend/src/pages/DispatchSuppliersPage.tsx`
@@ -372,11 +379,12 @@ containers (so the auto-split is meaningful).
 
 ### Acceptance criteria
 
-1. **DISP-SUP-01 — Read-only supplier list**
-   - **Then** columns: `Mã nhà thầu`, `Tên`, `Loại dịch vụ`,
-     `Tỉnh hoạt động`, `Bảng giá / chuyến`. No payables column, no
-     edit/delete. (The financial view is at `/suppliers/:id` for
-     ADMIN/MANAGER/ACCOUNTANT, denied to DISPATCHER.)
+1. **DISP-SUP-01 — CRUD supplier list**
+   - **Then** columns: `Tên`, `Liên hệ`, `SĐT`, `Loại`, `Trạng thái`.
+     No payables column. Each row is clickable to open the edit modal;
+     a `Xóa` button appears in the action column. The header has a
+     `Thêm nhà thầu phụ` create button. (The financial view is at
+     `/suppliers/:id` for ADMIN/MANAGER/ACCOUNTANT, denied to DISPATCHER.)
 
 2. **DISP-SUP-02 — Filter & search**
    - **Then** the user can search by name, filter by province, filter

@@ -138,9 +138,39 @@
   `backend/src/middleware/casbin.ts` (`hasRouteScopedRoleAllowance`) và khớp path thật `/api/customers`
   vì config router mount tại `/api` (path tương đối `/customers`).
 - **Kỳ vọng sai (Fail nếu):** 403 khi CUS GET/POST customers; KH intake lọt credit fields;
-  PUT/DELETE thành công; POST site bị chặn với CUS.
+  POST site bị chặn với CUS.
 - **Bằng chứng:** Network từng bước + backend `customer-intake-create.test.ts` và
   `dispatcher-catalog-create-authz.test.ts` (15/15 pass 2026-09-06, local)
+
+---
+
+### TC-RBAC-015 — CUS & Dispatcher edit/delete tuyến đường và khách hàng (route-scoped, 1-day age gate)
+
+- **Mức độ:** P0
+- **Nguồn:** yêu cầu mở quyền edit/delete cho CUS và DISPATCHER trên `/config/routes` và
+  `/config/customers`. Trước đó DISPATCHER bị giới hạn POST-only; nay đã mở PUT/DELETE.
+- **Các bước:**
+  1. Đăng nhập `cus`. Mở `/config/routes`. Nhấn vào một tuyến → modal chỉnh sửa mở ra.
+     Sửa tên tuyến → Lưu → 200. Nhấn Xoá (tuyến tạo < 1 ngày) → 200.
+  2. Đăng nhập `cus`. Mở `/config/customers`. Nhấn vào một khách hàng → modal chỉnh sửa mở ra.
+     Sửa tên KH → Lưu → 200. Nhấn Xoá (KH tạo < 1 ngày) → 200.
+  3. Đăng nhập `dieuvan`. Mở `/config/routes`. Nhấn vào một tuyến → modal chỉnh sửa mở ra.
+     Sửa tên tuyến → Lưu → 200. Nhấn Xoá (tuyến tạo < 1 ngày) → 200.
+  4. Đăng nhập `dieuvan`. Mở `/config/customers`. Nhấn vào một khách hàng → modal chỉnh sửa mở ra.
+     Sửa tên KH → Lưu → 200. Nhấn Xoá (KH tạo < 1 ngày) → 200.
+  5. CUS/Dispatcher sửa field tài chính (creditLimit, paymentTermDays) → trường bị strip bởi
+     intake restriction service, không lưu vào DB.
+  6. CUS/Dispatcher xoá tuyến/KH tạo > 1 ngày → 403 "Chỉ được xóa trong vòng 1 ngày sau khi tạo."
+- **Kết quả mong đợi (Pass):**
+  - Cả CUS và DISPATCHER thấy nút Sửa/Xoá trên `/config/routes` và `/config/customers`.
+  - Edit identity fields (name, shortName, taxCode, contactPerson) → thành công.
+  - Financial fields bị strip khỏi payload.
+  - Delete chỉ khả dụng cho entities tạo < 1 ngày (age gate).
+  - Các config catalog khác (pricing-tables, expense-categories…) vẫn bị chặn cho CUS/DISPATCHER.
+- **Kỳ vọng sai (Fail nếu):** DISPATCHER看不到 Sửa/Xoá nút; PUT/DELETE trả 403;
+  financial fields lọt vào DB; xoá entity > 1 ngày thành công.
+- **Bằng chứng:** Network từng bước + `dispatcher-catalog-create-authz.test.ts` +
+  UI screenshots `/config/routes` và `/config/customers` cho cả CUS và DISPATCHER.
 
 ---
 
@@ -272,3 +302,4 @@
 | __/__/__ | TC-RBAC-012 | | | Sidebar theo vai trò | |
 | __/__/__ | TC-RBAC-013 | | | Staff thấy toàn bộ KH/lô | |
 | __/__/__ | TC-RBAC-014 | | | CUS allowance KH + site (POST-only) | |
+| __/__/__ | TC-RBAC-015 | | | CUS & Dispatcher edit/delete routes + customers | |

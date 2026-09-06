@@ -1,8 +1,8 @@
 /**
- * Nhà thầu — dispatcher lookup of subcontractors. Deliberately leaner
- * than admin SupplierListPage: no payables KPIs (financial is Casbin-denied
- * for DISPATCHER), no payable-detail links. Dispatchers may add new
- * subcontractors (createRoles allowance); edit/delete stay with admin.
+ * Nhà thầu — dispatcher CRUD for subcontractors. Deliberately leaner than
+ * admin SupplierListPage: no payables KPIs (financial is Casbin-denied for
+ * DISPATCHER), no payable-detail links. Dispatchers may add, edit, and
+ * delete subcontractors.
  */
 import { useEffect, useMemo, useState } from 'react';
 import { Store } from 'lucide-react';
@@ -21,6 +21,7 @@ import { SupplierFormModal } from '../../../pages/SupplierListPage';
 import { CatalogTableShell } from './CatalogTableShell';
 import { Pagination } from '../../../design-system';
 import { useCatalogCreate } from './useCatalogCreate';
+import { useConfirm } from '../../../components/UI';
 import './catalogs.css';
 
 const PAGE_SIZE = 10;
@@ -30,7 +31,8 @@ export function SuppliersView() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<TableSortState | null>(null);
-  const create = useCatalogCreate('/suppliers');
+  const crud = useCatalogCreate('/suppliers');
+  const { confirm, dialog } = useConfirm();
 
   // Server-side pagination + search + sort (same contract as the admin page);
   // typing resets to page 1 after a short debounce, sorting resets immediately.
@@ -63,11 +65,11 @@ export function SuppliersView() {
             Tra cứu nhà thầu phụ để phân bổ năng lực vận chuyển ngoài
           </p>
         </div>
-        <Button size="sm" color="primary" iconLeading={Plus} onPress={create.showForm}>
+        <Button size="sm" color="primary" iconLeading={Plus} onPress={crud.showForm}>
           Thêm nhà thầu phụ
         </Button>
       </div>
-      {create.error && <div className="dispatch-catalogs__error">{create.error}</div>}
+      {crud.error && <div className="dispatch-catalogs__error">{crud.error}</div>}
       <div className="kpi-grid" style={{ marginBottom: 16 }}>
         <KPI label="Tổng (toàn bộ trang)" value={total} unit="NCC" icon={Store} />
         <KPI label="Đang hoạt động (trang này)" value={activeCount} unit="NCC" icon={Store} variant="success" />
@@ -102,7 +104,15 @@ export function SuppliersView() {
               </thead>
               <tbody>
                 {suppliers.map((s) => (
-                  <tr key={s.id}>
+                  <tr
+                    key={s.id}
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => crud.showEdit(s.id)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); crud.showEdit(s.id); } }}
+                    tabIndex={0}
+                    role="button"
+                    aria-label={`Chỉnh sửa nhà thầu ${s.shortName || s.name}`}
+                  >
                     <td data-label="Tên" style={{ fontWeight: 600 }}>{s.shortName || s.name}</td>
                     <td data-label="Liên hệ">{s.contactPerson ?? '—'}</td>
                     <td data-label="SĐT">{s.phone ?? '—'}</td>
@@ -116,6 +126,18 @@ export function SuppliersView() {
                         {s.status === 'ACTIVE' ? 'Hoạt động' : 'Ngừng hoạt động'}
                       </BadgeWithDot>
                     </td>
+                    <td onClick={(e) => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        className="btn btn--danger-outline btn--sm"
+                        onClick={async () => {
+                          const ok = await confirm(`Xóa nhà thầu ${s.shortName || s.name}?`, { variant: 'danger', confirmLabel: 'Xóa' });
+                          if (ok) await crud.remove(s.id);
+                        }}
+                      >
+                        Xóa
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -125,11 +147,13 @@ export function SuppliersView() {
         )}
       </CatalogTableShell>
       <SupplierFormModal
-        isOpen={create.open}
-        saving={create.saving}
-        onsave={create.create}
-        oncancel={create.closeForm}
+        isOpen={crud.open}
+        saving={crud.saving}
+        item={crud.editingId != null ? suppliers.find((s) => s.id === crud.editingId) : undefined}
+        onsave={(d) => crud.editingId != null ? crud.update(crud.editingId, d) : crud.create(d)}
+        oncancel={crud.closeForm}
       />
+      {dialog}
     </div>
   );
 }

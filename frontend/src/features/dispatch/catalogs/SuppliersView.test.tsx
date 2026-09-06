@@ -4,8 +4,10 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { SupplierType } from '@tingting/shared';
 import type { Supplier } from '@tingting/shared';
 
-const { apiPost, invalidateAllCatalogs } = vi.hoisted(() => ({
+const { apiPost, apiPut, apiDelete, invalidateAllCatalogs } = vi.hoisted(() => ({
   apiPost: vi.fn(),
+  apiPut: vi.fn(),
+  apiDelete: vi.fn(),
   invalidateAllCatalogs: vi.fn(async () => []),
 }));
 
@@ -25,7 +27,7 @@ vi.mock('../../../hooks/animations', () => ({
 }));
 
 vi.mock('../../../lib/api', () => ({
-  api: { post: apiPost },
+  api: { post: apiPost, put: apiPut, delete: apiDelete },
 }));
 
 vi.mock('../../../api/keys', async (importOriginal) => ({
@@ -105,14 +107,14 @@ describe('SuppliersView (dispatcher read-only)', () => {
     expect(screen.getByText('Chưa có nhà thầu phụ nào')).toBeTruthy();
   });
 
-  it('renders no edit/delete affordances and no payable links — create only', () => {
+  it('renders delete buttons and no payable links — CRUD surface', () => {
     suppliersState.data = { items: [supplier()], total: 1 };
     render(
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
         <SuppliersView />
       </QueryClientProvider>,
     );
-    expect(screen.queryByRole('button', { name: /sửa|xóa/i })).toBeNull();
+    expect(screen.getAllByRole('button', { name: /xóa/i }).length).toBeGreaterThan(0);
     expect(screen.queryByRole('link')).toBeNull();
     expect(screen.getByRole('button', { name: /thêm nhà thầu phụ/i })).toBeTruthy();
   });

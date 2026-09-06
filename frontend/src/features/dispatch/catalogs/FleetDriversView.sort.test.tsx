@@ -36,7 +36,10 @@ function renderView() {
 }
 
 function bodyRows() {
-  return screen.getAllByRole('row').slice(1);
+  // Data rows have role="button" (clickable for edit); header row is role="row".
+  const header = screen.getAllByRole('row');
+  const buttons = screen.getAllByRole('button', { name: /chỉnh sửa tài xế/i });
+  return buttons.length > 0 ? buttons : header.slice(1);
 }
 
 function nameColumn(): string[] {

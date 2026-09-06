@@ -212,7 +212,7 @@ router.use('/customers', createCrudRouter(s.customers, customerSchema, {
       return H.hasMaterialCustomerUpdate(data as CustomerMutationPayload, current);
     },
     shouldGovernDelete: (_id, req) => {
-      if (req.user && req.user.role === Role.CUS) return false;
+      if (req.user && [Role.CUS, Role.DISPATCHER].includes(req.user.role as Role)) return false;
       return true;
     },
   },
@@ -259,7 +259,7 @@ router.use('/customers', createCrudRouter(s.customers, customerSchema, {
   },
   beforeDelete: async (id, req, tx) => {
     const actor = getUser(req);
-    if (actor.role === Role.CUS) {
+    if ([Role.CUS, Role.DISPATCHER].includes(actor.role)) {
       const [row] = await tx.select({ createdAt: s.customers.createdAt })
         .from(s.customers).where(eq(s.customers.id, id)).limit(1);
       if (row && Date.now() - row.createdAt.getTime() > 24 * 60 * 60 * 1000) {
@@ -365,7 +365,7 @@ router.use('/routes', createCrudRouter(s.routes, routeSchema, {
   },
   beforeDelete: async (id, req, tx) => {
     const actor = getUser(req);
-    if (actor.role === Role.CUS) {
+    if ([Role.CUS, Role.DISPATCHER].includes(actor.role)) {
       const [row] = await tx.select({ createdAt: s.routes.createdAt })
         .from(s.routes).where(eq(s.routes.id, id)).limit(1);
       if (row && Date.now() - row.createdAt.getTime() > 24 * 60 * 60 * 1000) {
