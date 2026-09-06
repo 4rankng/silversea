@@ -25,6 +25,7 @@ import {
   logDurableEffectRunSummary,
   processDueDurableEffectJobs,
 } from './services/durable-effect.service';
+import { runRetentionSweeps } from './services/retention.service';
 import authRoutes from './routes/auth';
 import configRoutes, { auditLogRouter, catalogBootstrapRouter, salaryPeriodsRouter, salaryPeriodsAdminRouter, tireLifecycleRouter } from './routes/config';
 import tripRoutes from './routes/trips';
@@ -98,6 +99,18 @@ if (schedulerEnabled) {
     handler: async () => {
       const jobs = await processDueDurableEffectJobs();
       logDurableEffectRunSummary(jobs);
+    },
+  });
+
+  // Daily 03:15 — retention sweeps for high-churn tables (notifications,
+  // scheduler logs, durable-effect outbox, import row diagnostics).
+  registerJob({
+    name: 'retention-daily',
+    cron: '15 3 * * *',
+    retries: 1,
+    handler: async () => {
+      const results = await runRetentionSweeps();
+      console.log(`[scheduler] retention-daily: ${results.map(r => `${r.table}=${r.deleted}`).join(', ')}`);
     },
   });
 
