@@ -27,10 +27,9 @@ let baseUrl = '';
 let makerToken = '';
 let managerMakerToken = '';
 let accountantMakerToken = '';
-let checkerToken = '';
-let approverToken = '';
 let driverToken = '';
 let originalRoadConfig: typeof s.roadConfig.$inferSelect | null = null;
+let roadConfigSeededByTest = false;
 let originalFuelConfigRows: Array<typeof s.fuelConfig.$inferSelect> = [];
 let originalCompanyRows: Array<{ key: string; value: string }> = [];
 
@@ -42,28 +41,13 @@ async function invalidateSingletonCaches(): Promise<void> {
   ]);
 }
 
-function expectPendingGovernance(body: Record<string, unknown>) {
-  assert.equal(body.status, 'PENDING_CHECK');
+/** Singleton PUTs return the APPROVED PRICE_CONFIG action directly. */
+function expectApprovedGovernance(body: Record<string, unknown>) {
+  assert.equal(body.status, 'APPROVED');
   assert.equal(body.subjectType, 'PRICE_CONFIG');
   assert.equal(body.actionKind, 'PRICE_CONFIG_CHANGE');
-}
-
-async function checkAction(actionId: number, version: number) {
-  return requestJson(`/api/governance-actions/${actionId}/check`, {
-    method: 'POST',
-    token: checkerToken,
-    idempotencyKey: `q23-singleton-check-${actionId}-${version}`,
-    body: { expectedVersion: version },
-  });
-}
-
-async function approveAction(actionId: number, version: number) {
-  return requestJson(`/api/governance-actions/${actionId}/approve`, {
-    method: 'POST',
-    token: approverToken,
-    idempotencyKey: `q23-singleton-approve-${actionId}-${version}`,
-    body: { expectedVersion: version },
-  });
+  assert.ok(body.appliedAt, 'direct apply must stamp appliedAt');
+  assert.equal(body.checkerId, null);
 }
 
 function sign(user: { id: number; username: string; role: string }) {
@@ -102,6 +86,17 @@ before(async () => {
   await initEnforcer();
   await invalidateSingletonCaches();
   originalRoadConfig = await db.select().from(s.roadConfig).limit(1).then((rows) => rows[0] ?? null);
+  // Debris guard: a crashed prior run can leave the singleton table empty,
+  // which would flip every version assertion in the matrix below. Seed a
+  // fixture row when absent and drop it in after() (original state = none).
+  const roadConfigWasMissing = originalRoadConfig == null;
+  roadConfigSeededByTest = roadConfigWasMissing;
+  if (roadConfigWasMissing) {
+    originalRoadConfig = await db.insert(s.roadConfig).values({
+      tollPerStation: '5000',
+      returnCargoBonus: '100000',
+    }).returning().then((rows) => rows[0]!);
+  }
   originalFuelConfigRows = await db.select().from(s.fuelConfig);
   originalCompanyRows = await db.select({ key: s.appSettings.key, value: s.appSettings.value })
     .from(s.appSettings)
@@ -129,13 +124,11 @@ before(async () => {
     return user;
   };
 
-  // Maker is MANAGER (not ADMIN): ADMIN writes bypass the queue and apply
-  // immediately, so the pending/check/approve flow below needs a non-admin maker.
+  // Makers stay non-ADMIN on purpose: under direct-apply governance, MANAGER
+  // and ACCOUNTANT writes apply immediately too — no role queues anymore.
   const maker = await mkUser(`q23-singleton-maker-${suffix}`, 'MANAGER');
   const managerMaker = await mkUser(`q23-singleton-manager-maker-${suffix}`, 'MANAGER');
   const accountantMaker = await mkUser(`q23-singleton-accountant-maker-${suffix}`, 'ACCOUNTANT');
-  const checker = await mkUser(`q23-singleton-checker-${suffix}`, 'ACCOUNTANT');
-  const approver = await mkUser(`q23-singleton-approver-${suffix}`, 'MANAGER');
   const driver = await mkUser(`q23-singleton-driver-${suffix}`, 'DRIVER');
   makerToken = sign({ ...maker, username: maker.username ?? `maker-${maker.id}` });
   managerMakerToken = sign({
@@ -146,17 +139,12 @@ before(async () => {
     ...accountantMaker,
     username: accountantMaker.username ?? `accountant-maker-${accountantMaker.id}`,
   });
-  checkerToken = sign({ ...checker, username: checker.username ?? `checker-${checker.id}` });
-  approverToken = sign({ ...approver, username: approver.username ?? `approver-${approver.id}` });
+  driverToken = sign({ ...driver, username: driver.username ?? `driver-${driver.id}` });
   driverToken = sign({ ...driver, username: driver.username ?? `driver-${driver.id}` });
 });
 
 describe('Q23 singleton config routes', () => {
-  test('MANAGER and ACCOUNTANT can submit governed company-info changes through the real PUT route', async () => {
-    const companyBefore = await requestJson('/api/company-info', { token: makerToken });
-    const expectedUpdatedAt = typeof companyBefore.body.updatedAt === 'string'
-      ? companyBefore.body.updatedAt
-      : undefined;
+  test('MANAGER and ACCOUNTANT governed company-info changes apply directly through the real PUT route', async () => {
     const payload = {
       name: `Office role company ${suffix}`,
       address: '1 Q23 Street',
@@ -174,17 +162,20 @@ describe('Q23 singleton config routes', () => {
       ['MANAGER', managerMakerToken],
       ['ACCOUNTANT', accountantMakerToken],
     ] as const) {
+      // Direct apply: each write bumps the singleton version, so every role
+      // must read the current one before its own PUT.
+      const current = await requestJson('/api/company-info', { token });
       const idempotencyKey = `q23-company-${role.toLowerCase()}-maker-${suffix}`;
       const response = await requestJson('/api/company-info', {
         method: 'PUT',
         token,
         idempotencyKey,
-        expectedUpdatedAt,
+        expectedUpdatedAt: typeof current.body.updatedAt === 'string' ? current.body.updatedAt : undefined,
         body: { ...payload, name: `${payload.name} ${role}` },
       });
 
       assert.equal(response.status, 201, `${role} PUT body ${JSON.stringify(response.body)}`);
-      expectPendingGovernance(response.body);
+      expectApprovedGovernance(response.body);
       assert.equal(response.body.replayed, false);
 
       await db.delete(s.governanceActions)
@@ -259,19 +250,14 @@ describe('Q23 singleton config routes', () => {
     assert.equal(roadReplay.status, 200);
     assert.equal(roadFirst.body.replayed, false);
     assert.equal(roadReplay.body.replayed, true);
-    expectPendingGovernance(roadFirst.body);
+    expectApprovedGovernance(roadFirst.body);
     assert.deepEqual(roadReplay.body, { ...roadFirst.body, replayed: true });
     assert.equal(roadDrift.status, 409);
     assert.equal(roadMissingVersion.status, roadVersion ? 428 : 409);
     assert.equal(roadStale.status, 409);
+    // Direct apply: the singleton row now carries the submitted values.
     const roadAfter = await requestJson('/api/road-config', { token: makerToken });
-    assert.deepEqual(roadAfter.body, roadBefore.body);
-    const roadChecked = await checkAction(Number(roadFirst.body.id), Number(roadFirst.body.version));
-    assert.equal(roadChecked.status, 200, `road check body ${JSON.stringify(roadChecked.body)}`);
-    const roadApproved = await approveAction(Number(roadFirst.body.id), Number(roadChecked.body.version));
-    assert.equal(roadApproved.status, 200, `road approve body ${JSON.stringify(roadApproved.body)}`);
-    const roadAfterApproval = await requestJson('/api/road-config', { token: makerToken });
-    assert.equal(roadAfterApproval.body.tollPerStation, roadPayload.tollPerStation);
+    assert.equal(roadAfter.body.tollPerStation, roadPayload.tollPerStation);
 
     const fuelForbidden = await requestJson('/api/fuel-config', {
       method: 'PUT',
@@ -332,20 +318,15 @@ describe('Q23 singleton config routes', () => {
     assert.equal(fuelReplay.status, 200);
     assert.equal(fuelFirst.body.replayed, false);
     assert.equal(fuelReplay.body.replayed, true);
-    expectPendingGovernance(fuelFirst.body);
+    expectApprovedGovernance(fuelFirst.body);
     assert.deepEqual(fuelReplay.body, { ...fuelFirst.body, replayed: true });
     assert.equal(fuelDrift.status, 409);
     assert.equal(fuelMissingVersion.status, fuelVersion ? 428 : 409);
     assert.equal(fuelStale.status, 409);
-    const fuelAfter = await requestJson('/api/fuel-config', { token: makerToken });
-    assert.deepEqual(fuelAfter.body, fuelBefore.body);
-    const fuelChecked = await checkAction(Number(fuelFirst.body.id), Number(fuelFirst.body.version));
-    assert.equal(fuelChecked.status, 200);
-    const fuelApproved = await approveAction(Number(fuelFirst.body.id), Number(fuelChecked.body.version));
-    assert.equal(fuelApproved.status, 200);
+    // Direct apply: cached fuel config must now serve the submitted price.
     await invalidateSingletonCaches();
-    const fuelAfterApproval = await requestJson('/api/fuel-config', { token: makerToken });
-    assert.equal(fuelAfterApproval.body.unitPrice, fuelPayload.unitPrice);
+    const fuelAfter = await requestJson('/api/fuel-config', { token: makerToken });
+    assert.equal(fuelAfter.body.unitPrice, fuelPayload.unitPrice);
 
     const companyForbidden = await requestJson('/api/company-info', {
       method: 'PUT',
@@ -410,17 +391,12 @@ describe('Q23 singleton config routes', () => {
     assert.equal(companyReplay.status, 200);
     assert.equal(companyFirst.body.replayed, false);
     assert.equal(companyReplay.body.replayed, true);
-    expectPendingGovernance(companyFirst.body);
+    expectApprovedGovernance(companyFirst.body);
     assert.deepEqual(companyReplay.body, { ...companyFirst.body, replayed: true });
     assert.equal(companyDrift.status, 409);
     assert.equal(companyMissingVersion.status, companyVersion ? 428 : 409);
     assert.equal(companyStale.status, 409);
-    const companyAfter = await requestJson('/api/company-info', { token: makerToken });
-    assert.deepEqual(companyAfter.body, companyBefore.body);
-    const companyChecked = await checkAction(Number(companyFirst.body.id), Number(companyFirst.body.version));
-    assert.equal(companyChecked.status, 200);
-    const companyApproved = await approveAction(Number(companyFirst.body.id), Number(companyChecked.body.version));
-    assert.equal(companyApproved.status, 200);
+    // Direct apply: the company profile now carries the submitted values.
     const companyAfterApproval = await requestJson('/api/company-info', { token: makerToken });
     assert.equal(companyAfterApproval.body.name, companyPayload.name);
   });
@@ -433,7 +409,7 @@ after(async () => {
   });
 
   await db.delete(s.roadConfig);
-  if (originalRoadConfig) {
+  if (!roadConfigSeededByTest && originalRoadConfig) {
     await db.insert(s.roadConfig).values(originalRoadConfig);
   }
 

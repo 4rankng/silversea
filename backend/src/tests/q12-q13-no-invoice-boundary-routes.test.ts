@@ -5,7 +5,7 @@ import type { AddressInfo } from 'node:net';
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 
 import {
   NO_INVOICE_DEFAULT_CATEGORY_ALIASES,
@@ -27,13 +27,11 @@ import financialRoutes from '../routes/financial';
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const createdUserIds: number[] = [];
 const createdExpenseTypeIds: number[] = [];
-const createdGovernanceActionIds: number[] = [];
 const createdCustomerIds: number[] = [];
 const createdBusinessUnitIds: number[] = [];
 let server: http.Server;
 let baseUrl: string;
 let adminToken: string;
-let accountantToken: string;
 let managerToken: string;
 let forwarderToken: string;
 let clerkToken: string;
@@ -102,26 +100,20 @@ async function request(path: string, init: {
   return { status: response.status, body };
 }
 
-async function approvePendingAction(action: { id: number; version: number }) {
-  createdGovernanceActionIds.push(action.id);
-  const checked = await request(`/api/governance-actions/${action.id}/check`, {
-    method: 'POST',
-    token: accountantToken,
-    headers: { 'Idempotency-Key': `q12q13-check-${action.id}-${action.version}` },
-    body: { expectedVersion: action.version },
-  });
-  assert.equal(checked.status, 200, JSON.stringify(checked.body));
-  assert.equal(checked.body.status, 'PENDING_APPROVAL');
-
-  const approved = await request(`/api/governance-actions/${action.id}/approve`, {
-    method: 'POST',
-    token: adminToken,
-    headers: { 'Idempotency-Key': `q12q13-approve-${action.id}-${checked.body.version}` },
-    body: { expectedVersion: checked.body.version },
-  });
-  assert.equal(approved.status, 200, JSON.stringify(approved.body));
-  assert.equal(approved.body.status, 'APPROVED');
-  return approved.body;
+/**
+ * APPROVED PRICE_CONFIG_CHANGE audit actions applied onto a forwarder
+ * expense-type row — the governance trail of a directly applied write.
+ */
+async function approvedConfigActionCountForSubject(subjectId: number): Promise<number> {
+  const [row] = await db.select({ count: sql<number>`count(*)` })
+    .from(s.governanceActions)
+    .where(and(
+      eq(s.governanceActions.status, 'APPROVED'),
+      eq(s.governanceActions.actionKind, 'PRICE_CONFIG_CHANGE'),
+      sql`${s.governanceActions.applicationResult} ->> 'resource' = 'forwarder_expense_types'`,
+      sql`${s.governanceActions.applicationResult} ->> 'subjectId' = ${String(subjectId)}`,
+    ));
+  return Number(row?.count ?? 0);
 }
 
 before(async () => {
@@ -145,7 +137,6 @@ before(async () => {
   });
 
   adminToken = sign(await mkUser(`q12q13-admin-${suffix}`, Role.ADMIN));
-  accountantToken = sign(await mkUser(`q12q13-accountant-${suffix}`, Role.ACCOUNTANT));
   managerToken = sign(await mkUser(`q12q13-manager-${suffix}`, Role.MANAGER));
   forwarderToken = sign(await mkUser(`q12q13-forwarder-${suffix}`, Role.OPS));
 
@@ -266,8 +257,7 @@ describe('Q12/Q13 no-invoice route boundaries', () => {
       },
     });
     assert.equal(create.status, 201, JSON.stringify(create.body));
-    assert.equal(create.body.status, 'PENDING_CHECK');
-    await approvePendingAction(create.body);
+    assert.ok(!('actionKind' in create.body), `governed create must apply directly: ${JSON.stringify(create.body)}`);
     const [created] = await db.select().from(s.forwarderExpenseTypes)
       .where(eq(s.forwarderExpenseTypes.code, `Q12Q13-${suffix}`.slice(0, 50)))
       .limit(1);
@@ -276,6 +266,8 @@ describe('Q12/Q13 no-invoice route boundaries', () => {
     assert.equal(created.noInvoiceFinanceLeadApprovalTitle, 'DIRECTOR');
     assert.equal(created.noInvoiceDirectorApprovalTitle, 'DIRECTOR');
     assert.equal(created.noInvoicePolicyVersion, 1);
+    assert.equal(await approvedConfigActionCountForSubject(created.id), 1,
+      'governed create must record an APPROVED audit action');
 
     const bootstrap = await request('/api/catalogs/bootstrap', { token: adminToken });
     const createdType = (bootstrap.body.forwarderExpenseTypes as BootstrapExpenseType[])
@@ -323,12 +315,16 @@ describe('Q12/Q13 no-invoice route boundaries', () => {
         noInvoiceFinanceLeadApprovalTitle: 'FINANCE_LEAD',
       },
     });
-    assert.equal(changed.status, 201, JSON.stringify(changed.body));
-    await approvePendingAction(changed.body);
+    // Material policy change → governed → direct apply still bumps the policy
+    // version and records the APPROVED audit action.
+    assert.equal(changed.status, 200, JSON.stringify(changed.body));
+    assert.ok(!('actionKind' in changed.body), `expected direct row: ${JSON.stringify(changed.body)}`);
     const [updated] = await db.select().from(s.forwarderExpenseTypes)
       .where(eq(s.forwarderExpenseTypes.id, created.id))
       .limit(1);
     assert.equal(updated.noInvoicePolicyVersion, 2);
+    assert.equal(await approvedConfigActionCountForSubject(created.id), 2,
+      'governed update must record its own APPROVED audit action');
   });
 
   test('invalid approval title is rejected at the config boundary', async () => {

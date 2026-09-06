@@ -4,7 +4,7 @@ import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import express from 'express';
 import jwt from 'jsonwebtoken';
-import { eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 
 import { Role } from '@tingting/shared';
 import { client, db } from '../db';
@@ -107,38 +107,19 @@ async function request<T = unknown>(path: string, init: RequestInit = {}): Promi
   return { status: response.status, body };
 }
 
-type PendingGovernanceAction = {
-  id: number;
-  version: number;
-  status: string;
-};
-
-async function approvePendingAction(action: PendingGovernanceAction) {
-  governanceActionIds.push(action.id);
-  assert.equal(action.status, 'PENDING_CHECK');
-  const checked = await request<PendingGovernanceAction>(
-    `/api/governance-actions/${action.id}/check`,
-    {
-      method: 'POST',
-      token: accountantToken,
-      idempotencyKey: addIdempotencyKey(`final-governance-check-${suffix}-${action.id}-${action.version}`),
-      body: { expectedVersion: action.version },
-    },
-  );
-  assert.equal(checked.status, 200, JSON.stringify(checked.body));
-  assert.equal(checked.body.status, 'PENDING_APPROVAL');
-
-  const approved = await request<PendingGovernanceAction>(
-    `/api/governance-actions/${action.id}/approve`,
-    {
-      method: 'POST',
-      token: managerToken,
-      idempotencyKey: addIdempotencyKey(`final-governance-approve-${suffix}-${action.id}-${checked.body.version}`),
-      body: { expectedVersion: checked.body.version },
-    },
-  );
-  assert.equal(approved.status, 200, JSON.stringify(approved.body));
-  assert.equal(approved.body.status, 'APPROVED');
+/**
+ * APPROVED PRICE_CONFIG_CHANGE audit actions applied onto one customer row.
+ */
+async function approvedCustomerConfigActionCount(subjectId: number): Promise<number> {
+  const [row] = await db.select({ count: sql<number>`count(*)` })
+    .from(s.governanceActions)
+    .where(and(
+      eq(s.governanceActions.status, 'APPROVED'),
+      eq(s.governanceActions.actionKind, 'PRICE_CONFIG_CHANGE'),
+      sql`${s.governanceActions.applicationResult} ->> 'resource' = 'customers'`,
+      sql`${s.governanceActions.applicationResult} ->> 'subjectId' = ${String(subjectId)}`,
+    ));
+  return Number(row?.count ?? 0);
 }
 
 async function mkUser(role: Role, options: { customerId?: number } = {}) {
@@ -327,7 +308,7 @@ describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {
     );
     assert.equal(readSettings.status, 200);
 
-    const writeSettings = await request<PendingGovernanceAction>('/api/admin/app-settings/', {
+    const writeSettings = await request<Record<string, unknown>>('/api/admin/app-settings/', {
       method: 'PUT',
       token: adminToken,
       idempotencyKey: addIdempotencyKey(`final-q01-settings-${suffix}`),
@@ -338,8 +319,11 @@ describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {
         creditTierOneAmountCap: 5_000_000,
       },
     });
+    // Financial-policy settings govern + apply directly: the response is the
+    // APPROVED PRICE_CONFIG action and the value is live immediately.
     assert.equal(writeSettings.status, 201, JSON.stringify(writeSettings.body));
-    await approvePendingAction(writeSettings.body);
+    assert.equal(writeSettings.body.status, 'APPROVED');
+    assert.ok(writeSettings.body.appliedAt);
     assert.equal((await getAppSettings()).creditWarningThresholdDefault, 0.67);
 
     const customerName = `Final Q01 customer ${suffix}`;
@@ -395,6 +379,8 @@ describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {
       .where(eq(s.customers.id, createdCustomer.id))
       .limit(1);
     assert.equal(toNumber(updatedCustomer.creditWarningThreshold), 0.92);
+    assert.equal(await approvedCustomerConfigActionCount(createdCustomer.id), 2,
+      'governed customer create + update must each record an APPROVED audit action');
 
     const customerScopedOverride = await request<{ id: number; warningThreshold: string }>('/api/finance/credit-overrides', {
       method: 'POST',

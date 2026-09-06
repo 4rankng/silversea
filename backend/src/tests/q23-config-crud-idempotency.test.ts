@@ -3,7 +3,7 @@ import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { after, before, describe, it } from 'node:test';
 import express from 'express';
-import { and, eq, inArray, like, or } from 'drizzle-orm';
+import { and, eq, inArray, like, or, sql } from 'drizzle-orm';
 import { Role, routeSchema } from '@tingting/shared';
 import { client, db } from '../db';
 import * as s from '../db/schema';
@@ -26,7 +26,6 @@ let checkerId = 0;
 let approverId = 0;
 let alternateCheckerId = 0;
 let actors: Array<{ id: number; role: Role }> = [];
-const governanceActionIds: number[] = [];
 let server: http.Server;
 let baseUrl = '';
 
@@ -55,30 +54,20 @@ async function api(
   };
 }
 
-async function approvePendingAction(action: Record<string, unknown>) {
-  const actionId = Number(action.id);
-  governanceActionIds.push(actionId);
-  assert.equal(action.status, 'PENDING_CHECK', JSON.stringify(action));
-  const checked = await api(
-    'POST',
-    `/api/governance-actions/${actionId}/check`,
-    { expectedVersion: Number(action.version) },
-    `q23-config-check-${suffix}-${actionId}`,
-    undefined,
-    1,
-  );
-  assert.equal(checked.status, 200, JSON.stringify(checked.body));
-  assert.equal(checked.body.status, 'PENDING_APPROVAL');
-  const approved = await api(
-    'POST',
-    `/api/governance-actions/${actionId}/approve`,
-    { expectedVersion: Number(checked.body.version) },
-    `q23-config-approve-${suffix}-${actionId}`,
-    undefined,
-    2,
-  );
-  assert.equal(approved.status, 200, JSON.stringify(approved.body));
-  assert.equal(approved.body.status, 'APPROVED');
+/**
+ * APPROVED PRICE_CONFIG_CHANGE audit actions applied onto one customer row.
+ * Governed customer writes apply directly now — this is the governance trail.
+ */
+async function approvedCustomerConfigActionCount(subjectId: number): Promise<number> {
+  const [row] = await db.select({ count: sql<number>`count(*)` })
+    .from(s.governanceActions)
+    .where(and(
+      eq(s.governanceActions.status, 'APPROVED'),
+      eq(s.governanceActions.actionKind, 'PRICE_CONFIG_CHANGE'),
+      sql`${s.governanceActions.applicationResult} ->> 'resource' = 'customers'`,
+      sql`${s.governanceActions.applicationResult} ->> 'subjectId' = ${String(subjectId)}`,
+    ));
+  return Number(row?.count ?? 0);
 }
 
 before(async () => {
@@ -195,23 +184,23 @@ after(async () => {
 });
 
 describe('Q23 generated configuration CRUD replay', () => {
-  it('keeps an accountant fuel-surcharge share update pending and unchanged until independent approval', async () => {
-    // Default actor (0) is MANAGER: ADMIN would apply the create immediately
-    // (final authority), which this pending-queue test is not exercising.
+  it('applies an accountant fuel-surcharge share update directly with an APPROVED audit action', async () => {
     const created = await api('POST', '/api/customers', {
       name: `Q23 governed fuel customer ${suffix}`,
       fuelSurchargeSharePct: 10,
     }, `q23-fuel-customer-create-${suffix}`);
     assert.equal(created.status, 201, JSON.stringify(created.body));
-    await approvePendingAction(created.body);
+    assert.ok(!('actionKind' in created.body), `expected direct row: ${JSON.stringify(created.body)}`);
 
     const [customer] = await db.select().from(s.customers)
       .where(eq(s.customers.name, `Q23 governed fuel customer ${suffix}`));
     assert.ok(customer);
     customerIds.push(customer.id);
     assert.equal(customer.fuelSurchargeSharePct, '10.00');
+    assert.equal(await approvedCustomerConfigActionCount(customer.id), 1,
+      'governed create must record an APPROVED audit action');
 
-    const pending = await api(
+    const updated = await api(
       'PUT',
       `/api/customers/${customer.id}`,
       { fuelSurchargeSharePct: 35 },
@@ -219,47 +208,24 @@ describe('Q23 generated configuration CRUD replay', () => {
       customer.updatedAt.toISOString(),
       1,
     );
-    assert.equal(pending.status, 201, JSON.stringify(pending.body));
-    assert.equal(pending.body.status, 'PENDING_CHECK');
-    governanceActionIds.push(Number(pending.body.id));
-
-    const [stillCurrent] = await db.select().from(s.customers)
-      .where(eq(s.customers.id, customer.id));
-    assert.equal(stillCurrent.fuelSurchargeSharePct, '10.00');
-
-    const checked = await api(
-      'POST',
-      `/api/governance-actions/${pending.body.id}/check`,
-      { expectedVersion: Number(pending.body.version) },
-      `q23-fuel-check-${suffix}`,
-      undefined,
-      3,
-    );
-    assert.equal(checked.status, 200, JSON.stringify(checked.body));
-    const approved = await api(
-      'POST',
-      `/api/governance-actions/${pending.body.id}/approve`,
-      { expectedVersion: Number(checked.body.version) },
-      `q23-fuel-approve-${suffix}`,
-      undefined,
-      2,
-    );
-    assert.equal(approved.status, 200, JSON.stringify(approved.body));
+    assert.equal(updated.status, 200, JSON.stringify(updated.body));
+    assert.ok(!('actionKind' in updated.body), `expected direct row: ${JSON.stringify(updated.body)}`);
 
     const [changed] = await db.select().from(s.customers)
       .where(eq(s.customers.id, customer.id));
     assert.equal(changed.fuelSurchargeSharePct, '35.00');
+    assert.equal(await approvedCustomerConfigActionCount(customer.id), 2,
+      'governed update must record its own APPROVED audit action');
   });
 
   it('updates a customer directly when only non-material fields (e.g. shortName) change in a full-payload edit', async () => {
-    // Default actor (0) is MANAGER (queue path) — see note in the test above.
     const created = await api('POST', '/api/customers', {
       name: `Q23 direct edit customer ${suffix}`,
       shortName: `Q23-direct-${suffix}`,
       fuelSurchargeSharePct: 10,
     }, `q23-direct-customer-create-${suffix}`);
     assert.equal(created.status, 201, JSON.stringify(created.body));
-    await approvePendingAction(created.body);
+    assert.ok(!('actionKind' in created.body), `expected direct row: ${JSON.stringify(created.body)}`);
 
     const [customer] = await db.select().from(s.customers)
       .where(eq(s.customers.name, `Q23 direct edit customer ${suffix}`));
@@ -299,7 +265,8 @@ describe('Q23 generated configuration CRUD replay', () => {
     assert.equal(updated.body.shortName, `Q23 renamed ${suffix}`);
     assert.notEqual(updated.body.shortName, originalShortName);
 
-    // And a genuinely material change still goes through approval.
+    // A genuinely material change still routes through governance — applied
+    // immediately with an APPROVED audit action.
     const [afterDirect] = await db.select().from(s.customers)
       .where(eq(s.customers.id, customer.id));
     const governed = await api(
@@ -324,10 +291,10 @@ describe('Q23 generated configuration CRUD replay', () => {
       afterDirect.updatedAt.toISOString(),
       1,
     );
-    assert.equal(governed.status, 201, JSON.stringify(governed.body));
-    assert.equal(governed.body.status, 'PENDING_CHECK');
-    assert.equal(governed.body.actionKind, 'PRICE_CONFIG_CHANGE');
-    governanceActionIds.push(Number(governed.body.id));
+    assert.equal(governed.status, 200, JSON.stringify(governed.body));
+    assert.ok(!('actionKind' in governed.body), `expected direct row: ${JSON.stringify(governed.body)}`);
+    assert.equal(await approvedCustomerConfigActionCount(customer.id), 2,
+      'governed create + material update must each record an APPROVED audit action');
   });
 
   it('requires an idempotency key for material generated writes', async () => {
@@ -339,26 +306,32 @@ describe('Q23 generated configuration CRUD replay', () => {
   });
 
   it('replays a financial-authority create exactly and rejects key reuse with another payload', async () => {
+    // The governed amount participates in the apply-time canonical-uniqueness
+    // check, so it must be run-unique: a fixed payload collides with debris
+    // rows from crashed runs on the shared dev DB (409 on first call).
+    const payload = {
+      month: 7,
+      year: 2099,
+      amount: 1_234_567 + Math.floor(Math.random() * 8_000_000_000),
+    };
     const key = `q23-fee-${suffix}`;
-    const payload = { month: 7, year: 2099, amount: 1234567 };
     const first = await api('POST', '/api/management-fees', payload, key);
     const replay = await api('POST', '/api/management-fees', payload, key);
 
-    assert.equal(first.status, 201);
+    assert.equal(first.status, 201, JSON.stringify(first.body));
     assert.equal(replay.status, 201);
     assert.deepEqual(replay.body, first.body);
-    assert.equal(first.body.status, 'PENDING_CHECK');
-    await approvePendingAction(first.body);
     const rows = await db.select().from(s.managementFees).where(and(
       eq(s.managementFees.month, payload.month),
       eq(s.managementFees.year, payload.year),
+      eq(s.managementFees.amount, String(payload.amount)),
     ));
     assert.equal(rows.length, 1);
     managementFeeIds.push(rows[0]!.id);
 
     const conflict = await api('POST', '/api/management-fees', {
       ...payload,
-      amount: 7654321,
+      amount: payload.amount + 1,
     }, key);
     assert.equal(conflict.status, 409);
   });
@@ -392,8 +365,8 @@ describe('Q23 generated configuration CRUD replay', () => {
     const first = await api('POST', '/api/customers', payload, key);
     const replay = await api('POST', '/api/customers', payload, key);
     assert.equal(first.status, 201);
+    assert.ok(!('actionKind' in first.body), `expected direct row: ${JSON.stringify(first.body)}`);
     assert.deepEqual(replay, first);
-    await approvePendingAction(first.body);
 
     const [customer] = await db.select()
       .from(s.customers)
@@ -551,7 +524,7 @@ describe('Q23 generated configuration CRUD replay', () => {
       debitNoteMode: 'MONTHLY',
     }, `q21-customer-create-${suffix}`);
     assert.equal(created.status, 201, JSON.stringify(created.body));
-    await approvePendingAction(created.body);
+    assert.ok(!('actionKind' in created.body), `expected direct row: ${JSON.stringify(created.body)}`);
     const [createdCustomer] = await db.select().from(s.customers)
       .where(eq(s.customers.name, `Q21 current ${suffix}`));
     assert.ok(createdCustomer);
@@ -574,8 +547,8 @@ describe('Q23 generated configuration CRUD replay', () => {
       `q21-customer-weekly-${suffix}`,
       createdCustomer.updatedAt.toISOString(),
     );
-    assert.equal(weekly.status, 201, JSON.stringify(weekly.body));
-    await approvePendingAction(weekly.body);
+    assert.equal(weekly.status, 200, JSON.stringify(weekly.body));
+    assert.ok(!('actionKind' in weekly.body), `expected direct row: ${JSON.stringify(weekly.body)}`);
     const [weeklyCustomer] = await db.select().from(s.customers)
       .where(eq(s.customers.id, customerId));
     assert.equal(weeklyCustomer.debitNoteMode, 'WEEKLY');
@@ -592,8 +565,9 @@ describe('Q23 generated configuration CRUD replay', () => {
       `q21-customer-preserve-legacy-${suffix}`,
       legacy.updatedAt.toISOString(),
     );
-    assert.equal(preserved.status, 201, JSON.stringify(preserved.body));
-    await approvePendingAction(preserved.body);
+    // Unchanged PER_BATCH value is non-material (value-diff) → direct apply.
+    assert.equal(preserved.status, 200, JSON.stringify(preserved.body));
+    assert.ok(!('actionKind' in preserved.body), `expected direct row: ${JSON.stringify(preserved.body)}`);
     const [preservedCustomer] = await db.select().from(s.customers)
       .where(eq(s.customers.id, legacy.id));
     assert.equal(preservedCustomer.debitNoteMode, 'PER_BATCH');
