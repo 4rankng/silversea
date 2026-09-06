@@ -227,4 +227,33 @@ describe('Dispatcher resource-catalog create authorization', () => {
       });
     });
   });
+
+  describe('intake port create (Cảng nâng/hạ)', () => {
+    it('lets CUS and DISPATCHER add a missing port inline', async () => {
+      for (const role of [Role.CUS, Role.DISPATCHER]) {
+        assert.deepEqual(await authorize(role, 'POST', '/ports'), {
+          nextCalled: true,
+          statusCode: 200,
+        }, role);
+      }
+    });
+
+    it('keeps every other port verb and role Casbin-governed', async () => {
+      assert.deepEqual(await authorize(Role.CUS, 'PUT', '/ports/12'), {
+        nextCalled: false,
+        statusCode: 403,
+      });
+      assert.deepEqual(await authorize(Role.CUS, 'DELETE', '/ports/12'), {
+        nextCalled: false,
+        statusCode: 403,
+      });
+      // OPS has no config grants at all — the allowance must not leak beyond
+      // CUS/DISPATCHER. (ADMIN/MANAGER/ACCOUNTANT legitimately POST via their
+      // casbin config:write policy.)
+      assert.deepEqual(await authorize(Role.OPS, 'POST', '/ports'), {
+        nextCalled: false,
+        statusCode: 403,
+      });
+    });
+  });
 });

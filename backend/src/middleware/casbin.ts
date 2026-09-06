@@ -43,6 +43,17 @@ function hasRouteScopedRoleAllowance(req: Request, resource: string) {
   ) {
     return true;
   }
+  // Same screen, same need for the port/yard catalog (Cảng nâng/hạ): CUS/
+  // Dispatchers may add a missing port inline. POST-only; the ports CRUD
+  // stays fully Casbin-governed for every other verb and role.
+  if (
+    resource === 'config'
+    && [Role.CUS, Role.DISPATCHER].includes(req.user.role as Role)
+    && req.method === 'POST'
+    && /^\/ports\/?$/.test(req.path)
+  ) {
+    return true;
+  }
   // CUS also needs to read the customer catalog to populate the shipment-
   // create dropdown. DISPATCHER already has config:read via Casbin policy;
   // CUS does not, so this route-scoped GET bypass bridges the gap.

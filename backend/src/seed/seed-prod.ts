@@ -211,8 +211,26 @@ export async function seedProdSites(): Promise<void> {
       console.log(`  ! customer not found for site ${site.code} (${site.customerCode}) — skipped`);
       continue;
     }
+    // Link the site to its route: the site sheet names routes per site
+    // ("KCN Đồng Văn III, Ninh Bình") while the route sheet keys them by Mã
+    // Tuyến ("KCN Đồng Văn") — longest-code prefix match, case-insensitive.
+    let routeId: number | null = null;
+    if (site.routeName) {
+      const [route] = await db.select({ id: s.routes.id, code: s.routes.code })
+        .from(s.routes)
+        .where(and(
+          isNull(s.routes.deletedAt),
+          sql`${site.routeName} ilike ${s.routes.code} || '%'`,
+          sql`length(coalesce(${s.routes.code}, '')) > 0`,
+        ))
+        .orderBy(sql`length(coalesce(${s.routes.code}, '')) desc`)
+        .limit(1);
+      routeId = route?.id ?? null;
+      if (!routeId) console.log(`  ! no route matched for site ${site.code} ("${site.routeName}") — route left null`);
+    }
     const values = {
       customerId,
+      routeId,
       code: site.code,
       name: site.name,
       shortName: site.shortName ?? site.code,
@@ -576,8 +594,8 @@ export async function seedProd(): Promise<void> {
   await seedProdUsers(passwordHash);
   await seedProdDrivers(passwordHash);
   await seedProdCustomers();
-  await seedProdSites();
   await seedProdRoutes();
+  await seedProdSites();
   await seedProdPorts();
   await seedProdFleetExtras();
   await seedProdCarriers();
