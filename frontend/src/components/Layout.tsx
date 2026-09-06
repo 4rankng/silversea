@@ -33,6 +33,7 @@ import {
   Container,
   Activity,
   Bell,
+  ClipboardList,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { api } from '../lib/api';
@@ -282,6 +283,8 @@ export function getNavItems(
        ───────────────────────────────────────────────────────────────────────── */
     case 'OPS': {
       return [
+        // Vận hành hiện trường (OpsVanHanh) — kế hoạch làm hàng là màn chính.
+        { key: 'ops-orders', label: 'Kế hoạch làm hàng', path: routes.opsOrders, icon: ClipboardList, section: 'my-work' as SectionName },
         // Công việc của tôi (My Work)
         { key: 'my-orders', label: 'Lệnh giao nhận', path: routes.myOrders, icon: Package, section: 'my-work' as SectionName },
         { key: 'my-advances', label: 'Yêu cầu Tạm ứng', path: routes.myAdvances, icon: Wallet, section: 'my-work' as SectionName },

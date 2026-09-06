@@ -90,6 +90,7 @@ describe('getNavItems', () => {
       ['Kỷ luật', '/my-penalties'],
     ]],
     [Role.OPS, [
+      ['Kế hoạch làm hàng', '/ops/orders'],
       ['Lệnh giao nhận', '/my-orders'],
       ['Yêu cầu Tạm ứng', '/my-advances'],
       ['Phiếu thanh toán / Hoàn ứng', '/my-settlements'],

@@ -132,7 +132,8 @@
 }
 
 .notif-page__item-title {
-  font-size: 15px;
+  /* 15px matched no type token (check:ui); snapped to the 16px token. */
+  font-size: 16px;
   font-weight: 600;
   line-height: 1.35;
   color: var(--ink);

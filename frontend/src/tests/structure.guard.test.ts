@@ -36,7 +36,10 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // (e69e67a7, effdf61f) shipped past the old ceiling. Reviewed as nav
   // additions; a future sidebar split should restore a smaller ceiling.
   // Raised 856 → 858: added driver notifications bottom-nav entry + Bell import.
-  'src/components/Layout.tsx': 858,
+  // Raised 858 → 861: OPS "Kế hoạch làm hàng" sidebar entry + ClipboardList
+  // import (OpsVanHanh §3). A future sidebar split should restore a smaller
+  // ceiling.
+  'src/components/Layout.tsx': 861,
   'src/components/shipment/TripPodReviewPanel.tsx': 588,
   'src/components/trip/AncillaryFeesCard.tsx': 607,
   'src/components/trip/ContainerInstancesCard.tsx': 591,
