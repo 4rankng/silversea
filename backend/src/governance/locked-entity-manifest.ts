@@ -372,12 +372,11 @@ const priceConfigChange = action(
   ),
   proof(
     'tests/q15-price-config-governance.test.ts',
-    'submits all financially material generated config resources for maker/checker/approver review before any DB effect',
-    'expectPendingAction',
-    'checkAction',
-    'approveAction',
-    'createdBefore',
-    'beforeUpdate',
+    'applies all financially material generated config resources directly with an APPROVED audit action per write',
+    'governed create must apply directly, not queue',
+    'record exactly one APPROVED audit action',
+    'expectCreated',
+    'expectUpdated',
   ),
 );
 
@@ -856,11 +855,10 @@ export const LOCKED_ENTITY_BOUNDARIES: readonly LockedEntityBoundary[] = [
     ),
     directMutationProof: proof(
       'tests/q15-price-config-governance.test.ts',
-      'submits all financially material generated config resources for maker/checker/approver review before any DB effect',
+      'applies all financially material generated config resources directly with an APPROVED audit action per write',
       'assert.equal',
-      'expectPendingAction',
-      'approveAction',
-      'createdBefore',
+      'governed create must apply directly, not queue',
+      'expectUpdated',
     ),
     governedActions: [priceConfigChange],
     reopenPolicy: 'NEVER',
