@@ -79,7 +79,6 @@ export interface Customer {
   accountantName: string | null;
   accountantPhone: string | null;
   agencyFeePaymentTermDays: number | null;
-  freightPaymentTermDays: number | null;
   creditLimit: string | null;
   creditWarningThreshold?: string | null;
   paymentTermDays?: number | null;

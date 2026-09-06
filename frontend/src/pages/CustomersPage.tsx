@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Plus, Download, Search,
   MoreHorizontal, Pencil, Trash2, X, Save, Loader2, Truck,
-  Building2, Hash, Landmark, MapPin, User, Phone, Clock,
+  Building2, Hash, Landmark, MapPin, User, Phone,
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { downloadCSV } from '../lib/csv';
@@ -98,12 +98,6 @@ export function CustomerFormModal({ item, saving, onsave, oncancel, isOpen }: {
   const [contactInfo, setContactInfo] = useState(item?.contactInfo || '');
   const [accountantName, setAccountantName] = useState(item?.accountantName || '');
   const [accountantPhone, setAccountantPhone] = useState(item?.accountantPhone || '');
-  const [agencyFeePaymentTermDays, setAgencyFeePaymentTermDays] = useState(
-    item?.agencyFeePaymentTermDays != null ? String(item.agencyFeePaymentTermDays) : '',
-  );
-  const [freightPaymentTermDays, setFreightPaymentTermDays] = useState(
-    item?.freightPaymentTermDays != null ? String(item.freightPaymentTermDays) : '',
-  );
   const [isCarrier, setIsCarrier] = useState(item?.isCarrier ?? false);
 
   useEffect(() => {
@@ -116,8 +110,6 @@ export function CustomerFormModal({ item, saving, onsave, oncancel, isOpen }: {
       setContactInfo(item?.contactInfo || '');
       setAccountantName(item?.accountantName || '');
       setAccountantPhone(item?.accountantPhone || '');
-      setAgencyFeePaymentTermDays(item?.agencyFeePaymentTermDays != null ? String(item.agencyFeePaymentTermDays) : '');
-      setFreightPaymentTermDays(item?.freightPaymentTermDays != null ? String(item.freightPaymentTermDays) : '');
       setIsCarrier(item?.isCarrier ?? false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally re-sync only when the target customer ID changes, not on every prop update
@@ -134,8 +126,6 @@ export function CustomerFormModal({ item, saving, onsave, oncancel, isOpen }: {
       contactInfo: contactInfo.trim() || undefined,
       accountantName: accountantName.trim() || undefined,
       accountantPhone: accountantPhone.trim() || undefined,
-      agencyFeePaymentTermDays: agencyFeePaymentTermDays.trim() === '' ? null : Number(agencyFeePaymentTermDays),
-      freightPaymentTermDays: freightPaymentTermDays.trim() === '' ? null : Number(freightPaymentTermDays),
       isCarrier,
     });
   };
@@ -253,28 +243,6 @@ export function CustomerFormModal({ item, saving, onsave, oncancel, isOpen }: {
             onChange={setAccountantPhone}
             placeholder="0912…"
             inputClassName="tabular-nums"
-          />
-          <UnitInput
-            size="sm"
-            label="Hạn TT Chi hộ"
-            unit="ngày"
-            icon={Clock}
-            value={agencyFeePaymentTermDays}
-            onChange={setAgencyFeePaymentTermDays}
-            min={0}
-            max={3650}
-            placeholder="Ví dụ: 15"
-          />
-          <UnitInput
-            size="sm"
-            label="Hạn TT Cước"
-            unit="ngày"
-            icon={Clock}
-            value={freightPaymentTermDays}
-            onChange={setFreightPaymentTermDays}
-            min={0}
-            max={3650}
-            placeholder="Ví dụ: 30"
           />
         </EntityFormSection>
       </div>
@@ -566,7 +534,6 @@ export default function CustomersPage() {
                 <SortHeader label="Giám đốc" sortKey="accountantName" sort={sort} onSortChange={applySort} />
                 <SortHeader label="Người liên hệ" sortKey="contactPerson" sort={sort} onSortChange={applySort} />
                 <SortHeader label="Hạn TT Chi hộ" sortKey="agencyFeePaymentTermDays" sort={sort} onSortChange={applySort} style={thNumStyle} />
-                <SortHeader label="Hạn TT Cước" sortKey="freightPaymentTermDays" sort={sort} onSortChange={applySort} style={thNumStyle} />
                 <th style={{ width: 60 }}></th>
               </tr>
             </thead>
@@ -620,7 +587,6 @@ export default function CustomersPage() {
                       {c.agencyFeePaymentTermDays != null ? `${c.agencyFeePaymentTermDays} ngày` : '—'}
                     </td>
                     <td className="num" data-label="Hạn TT Cước">
-                      {c.freightPaymentTermDays != null ? `${c.freightPaymentTermDays} ngày` : '—'}
                     </td>
                     <td data-label="" className="record-table__action" data-dropdown-root={menuOpenId === c.id ? '' : undefined} style={{ position: 'relative' }}>
                       <div className="row-actions">

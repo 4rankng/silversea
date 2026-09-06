@@ -219,7 +219,6 @@ export const customers = pgTable('customers', {
   // fees) have different term lengths (e.g. Long Minh: freight=15d, chi hộ=25d).
   // The aging report and debit-note due-date computation key off the matching
   // term per line type. NULL = fall back to paymentTermDays.
-  freightPaymentTermDays: integer('freight_payment_term_days'),
   agencyFeePaymentTermDays: integer('agency_fee_payment_term_days'),
   // Q19: contract-level override. The default rolls a due/processing date that
   // lands on a weekend or configured holiday to the next business day.

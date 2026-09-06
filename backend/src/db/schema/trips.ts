@@ -78,7 +78,6 @@ export const trips = pgTable('trips', {
   // O2C C1: storage/demurrage fee (lưu ca xe). HĐVC §3.5: 1.000.000đ/cont/ngày
   // after 8h free time. Recorded as a revenue line per trip when applicable.
   // NULL = not assessed; the accountant enters it based on actual detention.
-  storageFeeRevenue: numeric('storage_fee_revenue', { precision: 15, scale: 0 }),
   grossProfit: numeric('gross_profit', { precision: 15, scale: 0 }),
   revenueOriginal: numeric('revenue_original', { precision: 15, scale: 0 }),
   revenueOverriddenBy: integer('revenue_overridden_by'),
@@ -162,7 +161,6 @@ export const trips = pgTable('trips', {
   // Driver order-accepted. Nullable; populated by the OPS/DRIVER endpoints.
   paperOrderCollectedAt: timestamp('paper_order_collected_at', { withTimezone: true }),
   paperOrderCollectedBy: integer('paper_order_collected_by'),
-  driverOrderAcceptedAt: timestamp('driver_order_accepted_at', { withTimezone: true }),
   // Trip instructions (N2 / B1.3), merged from the 1:1 trip_instructions
   // table (lean-down 2026-09-06). Manager-authored contact + free-text
   // guidance; read-only for drivers via the driver portal.

@@ -372,6 +372,13 @@
       "when": 1788673943854,
       "tag": "0052_yielding_landau",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1788674130370,
+      "tag": "0053_zippy_scarlet_spider",
+      "breakpoints": true
     }
   ]
 }
