@@ -63,29 +63,23 @@ def main() -> bool:
             return results.print_summary()
         customer_id = customers[0]["id"]
 
-        users_response = admin_api.get("/api/auth/users")
-        cus_user = next((user for user in rows(users_response) if user.get("username") == "cus"), None)
-        if not cus_user:
-            results.fail("TC-1801", "Tài khoản CUS demo tồn tại", str(users_response))
+        # Staff visibility is unscoped since the 2026-09-03 clerk-scope
+        # removal (dd064ba3): a CUS account sees every customer without a
+        # per-user customer link, and linking customers to a CUS user is
+        # rejected by user.service ("Chỉ tài khoản khách hàng hoặc kế toán
+        # mới được liên kết khách hàng"). The fixture therefore pins the
+        # unscoped read instead of attaching a scope.
+        cus_api = login("clerk")
+        clerk_customers = rows(cus_api.get("/api/customers?search=Long%20Minh&page=1&pageSize=25"))
+        if not check(
+            results,
+            "TC-1801A",
+            "CUS thấy khách hàng không cần liên kết (staff unscoped)",
+            any(customer.get("id") == customer_id for customer in clerk_customers),
+            f"clerk customer search: {len(clerk_customers)} rows",
+        ):
             results.write_json()
             return results.print_summary()
-        customer_ids = list(cus_user.get("customerIds") or [])
-        if customer_id not in customer_ids:
-            scope_response = admin_api.patch(
-                f"/api/auth/users/{cus_user['id']}",
-                {"customerIds": [*customer_ids, customer_id]},
-                headers={"If-Unmodified-Since": cus_user["updatedAt"]},
-            )
-            if not check(
-                results,
-                "TC-1801A",
-                "Gắn phạm vi khách hàng local cho CUS",
-                scope_response.get("status") == 200,
-                str(scope_response),
-            ):
-                results.write_json()
-                return results.print_summary()
-        cus_api = login("clerk")
 
         route_response = admin_api.get("/api/routes?page=1&pageSize=25")
         route_rows = rows(route_response)
@@ -168,26 +162,37 @@ def main() -> bool:
                 found_in_catalog,
                 str(catalog_check),
             )
-            # CUS cannot PUT the customer (create-only)
+            # CUS can also update the customer it created — allowed since the
+            # 2026-09-06 catalog wave (eee9d9ea, the fix for Trung Kiên's
+            # 13:04 "cus không tự tạo mới được khách hàng" report).
             put_result = cus_api.put(
                 f"/api/customers/{inline_customer['id']}",
-                {"name": "Sửa tên không được"},
+                {"name": f"{inline_customer_name} đã sửa"},
                 headers={"If-Unmodified-Since": inline_customer.get("updatedAt", "")},
             )
             check(
                 results,
-                "TC-1803-CREATE-PUT-BLOCKED",
-                "CUS không thể sửa khách hàng (PUT → 403)",
-                put_result.get("status") == 403,
+                "TC-1803-CREATE-PUT-ALLOWED",
+                "CUS sửa được khách hàng (PUT → 200)",
+                put_result.get("status") == 200,
                 str(put_result),
             )
-            # CUS cannot DELETE the customer
-            del_result = cus_api._request("DELETE", f"/api/customers/{inline_customer['id']}")
+            # CUS can delete the customer it created (same wave). Send the
+            # row version so the delete reaches the handler, not a 428.
+            del_version = (
+                put_result.get("data", {}).get("updatedAt")
+                or inline_customer.get("updatedAt", "")
+            )
+            del_result = cus_api._request(
+                "DELETE",
+                f"/api/customers/{inline_customer['id']}",
+                extra_headers={"If-Unmodified-Since": del_version},
+            )
             check(
                 results,
-                "TC-1803-CREATE-DEL-BLOCKED",
-                "CUS không thể xóa khách hàng (DELETE → 403)",
-                del_result.get("status") == 403,
+                "TC-1803-CREATE-DEL-ALLOWED",
+                "CUS xóa được khách hàng (DELETE → 200/204)",
+                del_result.get("status") in (200, 204),
                 str(del_result),
             )
 
@@ -576,13 +581,16 @@ def main() -> bool:
             # filter surfaces it.
             fixture_warning = page.locator(f"text=BLCUS{BOOK_SUFFIX_STORED}")
             fixture_warning.first.wait_for(timeout=10_000)
-            # Trạng thái filter is a React Aria UuiSelectField — the app has
-            # no native <select> (ESLint @tingting/no-native-select guard), so
-            # open the field's trigger and pick the "Chưa điều xe" (UNASSIGNED)
-            # option from the portalled listbox.
+            # Trạng thái filter is a React Aria UuiSelectField — no native
+            # <select> (ESLint @tingting/no-native-select guard). Since the
+            # searchable-select wave (ba1bf5ce) fields with >5 options render
+            # the combobox variant, whose trigger is a role="group" container
+            # rather than a <button>. Match both trigger shapes and pick the
+            # "Chưa điều xe" (UNASSIGNED) option from the portalled listbox.
             status_field = page.locator(".shipments-detail-filter").filter(
                 has=page.get_by_text("Trạng thái", exact=True),
             ).first
+            status_trigger = status_field.locator("button, [data-rac][role='group']").first
             with page.expect_response(
                 lambda response: (
                     "/api/shipments/cus-workspace/containers?" in response.url
@@ -591,14 +599,14 @@ def main() -> bool:
                 ),
                 timeout=10_000,
             ):
-                status_field.get_by_role("button").first.click()
+                status_trigger.click()
                 page.get_by_role("option", name="Chưa điều xe").first.click()
             page.wait_for_function(
                 "() => new URLSearchParams(location.search).get('dispatchStatus') === 'UNASSIGNED'",
                 timeout=5_000,
             )
             active_filter_visible = (
-                status_field.get_by_role("button").first.inner_text().strip().startswith("Chưa điều xe")
+                status_field.locator("button, [data-combobox-value]").first.inner_text().strip().startswith("Chưa điều xe")
             )
             page.goto(f"{BASE_URL}/shipments-detail?dateScope=all&searchSuffix={BOOK_SUFFIX_QUERY}")
             wait_for_page_ready(page)
