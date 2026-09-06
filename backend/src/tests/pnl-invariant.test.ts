@@ -32,6 +32,7 @@ import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert';
 import { db, client } from '../db';
 import * as s from '../db/schema';
+import { insertTripComposite } from '../services/trip-composite.service';
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { TripStatus } from '@tingting/shared';
 import { getPnlReport } from '../services/pnl.service';
@@ -83,12 +84,14 @@ before(async () => {
   const mo = sql<number>`extract(month from ${s.trips.departureDate})::int`;
   const [row] = await db.select({ year: yr, month: mo, n: sql<number>`count(*)::int` })
     .from(s.trips)
+    .leftJoin(s.tripFinancialState, eq(s.tripFinancialState.tripId, s.trips.id))
+    .leftJoin(s.tripCarrierInfo, eq(s.tripCarrierInfo.tripId, s.trips.id))
     .where(and(
       isNull(s.trips.deletedAt),
       inArray(s.trips.status, [TripStatus.COMPLETED]),
-      sql`coalesce(${s.trips.carrierType}, 'OWN') = 'OWN'`,
+      sql`coalesce(${s.tripCarrierInfo.carrierType}, 'OWN') = 'OWN'`,
       sql`${s.trips.truckId} IS NOT NULL`,
-      sql`coalesce(${s.trips.revenue}, '0')::numeric > 0`,
+      sql`coalesce(${s.tripFinancialState.revenue}, '0')::numeric > 0`,
     ))
     .groupBy(yr, mo)
     .orderBy(sql`max(${s.trips.departureDate}) DESC`)
@@ -242,7 +245,7 @@ describe('A8 — P&L invariants (integration, dev DB)', () => {
       routeId = route.id;
       cargoTypeId = cargoType.id;
 
-      const inserted = await db.insert(s.trips).values([
+      const inserted = await Promise.all([
         {
           tripCode: `PNL-OWN-${suffix}`.slice(0, 50),
           customerId,
@@ -297,7 +300,7 @@ describe('A8 — P&L invariants (integration, dev DB)', () => {
           totalCost: '1',
           carrierType: 'OWN',
         },
-      ]).returning({ id: s.trips.id, version: s.trips.version });
+      ].map((values) => insertTripComposite(db, values)));
       createdTripIds.push(...inserted.map(trip => trip.id));
 
       const postings = await db.insert(s.tripFinancialPostings).values(inserted.slice(0, 2).map((trip) => ({

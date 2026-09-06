@@ -4,6 +4,7 @@ import { and, eq, inArray, sql } from 'drizzle-orm';
 
 import { client, db } from '../db';
 import * as s from '../db/schema';
+import { applyTripPatch, insertTripComposite } from '../services/trip-composite.service';
 import {
   buildExpenseSourceVersionToken,
   generateDraft,
@@ -64,7 +65,7 @@ async function mkTrip(customerId: number, departureDate: string) {
     name: `Q21 cargo ${suffix}-${createdCargoTypeIds.length}`,
   }).returning({ id: s.cargoTypes.id });
   createdCargoTypeIds.push(cargoType.id);
-  const [trip] = await db.insert(s.trips).values({
+  const trip = await insertTripComposite(db, {
     tripCode: `Q21-${suffix}-${createdTripIds.length}`.slice(0, 50),
     customerId,
     routeId: route.id,
@@ -72,7 +73,7 @@ async function mkTrip(customerId: number, departureDate: string) {
     status: 'CREATED',
     departureDate,
     carrierType: 'OWN',
-  }).returning();
+  });
   createdTripIds.push(trip.id);
   return trip;
 }
@@ -111,7 +112,7 @@ async function mkBillableTrip(params: {
   }).returning();
   createdFulfillmentIds.push(fulfillment.id);
   const completedAt = params.completedAt ?? new Date(`${params.departureDate}T10:00:00.000Z`);
-  const [trip] = await db.insert(s.trips).values({
+  const trip = await insertTripComposite(db, {
     tripCode: `Q21-BILL-${suffix}-${createdTripIds.length}`.slice(0, 50),
     customerId: params.customerId,
     routeId: route.id,
@@ -123,7 +124,7 @@ async function mkBillableTrip(params: {
     status: 'COMPLETED',
     revenue: String(params.revenue ?? 1_000_000),
     carrierType: 'OWN',
-  }).returning();
+  });
   createdTripIds.push(trip.id);
   const [posting] = await db.insert(s.tripFinancialPostings).values({
     tripId: trip.id,
@@ -273,14 +274,12 @@ async function mkFuelInvoiceForApproval(params: {
   const supplier = await mkSupplier();
   const truck = await mkTruck();
   const trip = await mkTrip((await mkCustomer()).id, params.sourceDate);
-  await db.update(s.trips)
-    .set({
-      truckId: truck.id,
-      fuelSupplierId: supplier.id,
-      totalFuelCost: '2200000',
-      updatedAt: new Date(),
-    })
-    .where(eq(s.trips.id, trip.id));
+  await applyTripPatch(db, trip.id, {
+    truckId: truck.id,
+    fuelSupplierId: supplier.id,
+    totalFuelCost: '2200000',
+    updatedAt: new Date(),
+  });
   const expense = await mkExpense(trip.id, params.sourceDate);
   const voucherReference = `PXD-Q21-${params.tag}-${suffix}`;
   await db.update(s.tripExpenses)
@@ -540,9 +539,7 @@ describe('Q21 period authority', () => {
 
     const createLateInvoice = async (tag: string) => {
       const trip = await mkTrip((await mkCustomer()).id, '2026-05-12');
-      await db.update(s.trips)
-        .set({ truckId: truck.id, fuelSupplierId: supplier.id, totalFuelCost: '2200000', updatedAt: new Date() })
-        .where(eq(s.trips.id, trip.id));
+      await applyTripPatch(db, trip.id, { truckId: truck.id, fuelSupplierId: supplier.id, totalFuelCost: '2200000', updatedAt: new Date() });
       const expense = await mkExpense(trip.id, '2026-05-12');
       const voucherReference = `PXD-Q21-${tag}-${suffix}`;
       await db.update(s.tripExpenses)

@@ -365,30 +365,33 @@ async function computeDistributionSnapshot(
 ): Promise<ComputedDistributionSnapshot> {
   const { start: qStart, end: qEnd } = await quarterDateRange(quarter, year);
   const completionBusinessDate = tripCompletionBusinessDateSql();
+  // Trips-split: trips-bound fragments cannot resolve inside a FROM
+  // trips_composite query — re-derive the same business date over the view.
+  const completionBusinessDateComposite = sql<string>`(${s.tripsComposite.completedAt} AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Ho_Chi_Minh')::date`;
 
   const trips = await executor.select({
-    id: s.trips.id,
-    tripVersion: s.trips.version,
+    id: s.tripsComposite.id,
+    tripVersion: s.tripsComposite.version,
     financialPostingId: s.tripFinancialPostings.id,
     financialPostingVersion: s.tripFinancialPostings.version,
-    truckId: s.trips.truckId,
+    truckId: s.tripsComposite.truckId,
     // O2C H4: read the completion-time snapshot, not the mutable live value.
     // Falls back to grossProfit for trips completed before the snapshot column
     // existed (coalesce at the application layer below).
-    grossProfit: s.trips.pnlSnapshotGrossProfit,
-    liveGrossProfit: s.trips.grossProfit,
-    completedAt: s.trips.completedAt,
-  }).from(s.trips)
+    grossProfit: s.tripsComposite.pnlSnapshotGrossProfit,
+    liveGrossProfit: s.tripsComposite.grossProfit,
+    completedAt: s.tripsComposite.completedAt,
+  }).from(s.tripsComposite)
     .leftJoin(s.tripFinancialPostings, and(
-      eq(s.tripFinancialPostings.tripId, s.trips.id),
+      eq(s.tripFinancialPostings.tripId, s.tripsComposite.id),
       eq(s.tripFinancialPostings.status, 'ACTIVE'),
     )).where(
     and(
-      eq(s.trips.status, TripStatus.COMPLETED),
-      isNull(s.trips.deletedAt),
-      sql`${s.trips.completedAt} is not null`,
-      gte(completionBusinessDate, qStart),
-      sql`${completionBusinessDate} < ${qEnd}`,
+      eq(s.tripsComposite.status, TripStatus.COMPLETED),
+      isNull(s.tripsComposite.deletedAt),
+      sql`${s.tripsComposite.completedAt} is not null`,
+      gte(completionBusinessDateComposite, qStart),
+      sql`${completionBusinessDateComposite} < ${qEnd}`,
     ),
   );
 

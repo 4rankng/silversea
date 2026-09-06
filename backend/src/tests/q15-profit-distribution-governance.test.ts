@@ -8,6 +8,7 @@ import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { Role, TripStatus } from '@tingting/shared';
 import { client, db } from '../db';
 import * as s from '../db/schema';
+import { applyTripPatch, insertTripComposite } from '../services/trip-composite.service';
 import { config } from '../config';
 import { auditLogMiddleware } from '../middleware/audit';
 import { globalErrorHandler } from '../middleware/errorHandler';
@@ -126,7 +127,7 @@ async function seedQuarterProfitSource(targetQuarter: number, targetYear: number
   const tripIds: number[] = [];
   for (let index = 0; index < profits.length; index += 1) {
     const day = String(10 + index).padStart(2, '0');
-    const [trip] = await db.insert(s.trips).values({
+    const trip = await insertTripComposite(db, {
       tripCode: `Q15-PROFIT-${targetQuarter}-${index}-${suffix}`.slice(0, 50),
       customerId: createdCustomerIds[0]!,
       routeId: createdRouteIds[0]!,
@@ -139,7 +140,7 @@ async function seedQuarterProfitSource(targetQuarter: number, targetYear: number
       revenue: String(profits[index]! + 500000),
       totalCost: '500000',
       grossProfit: String(profits[index]!),
-    }).returning({ id: s.trips.id });
+    });
     createdTripIds.push(trip.id);
     tripIds.push(trip.id);
   }
@@ -192,7 +193,7 @@ before(async () => {
     name: `Q15 profit cargo ${suffix}`,
   }).returning({ id: s.cargoTypes.id });
   createdCargoTypeIds.push(cargoType.id);
-  const [trip] = await db.insert(s.trips).values({
+  const trip = await insertTripComposite(db, {
     tripCode: `Q15-PROFIT-${suffix}`.slice(0, 50),
     customerId: customer.id,
     routeId: route.id,
@@ -205,7 +206,7 @@ before(async () => {
     revenue: '1500000',
     totalCost: '500000',
     grossProfit: '1000000',
-  }).returning({ id: s.trips.id });
+  });
   createdTripIds.push(trip.id);
 
   const app = express();
@@ -402,22 +403,18 @@ describe('Q15 profit-distribution governance', () => {
     const checked = await checkAction(requested.body, 1);
     assert.equal(checked.status, 200);
 
-    await db.update(s.trips)
-      .set({
-        grossProfit: '550000',
-        revenue: '1050000',
-        version: 2,
-        updatedAt: new Date(),
-      })
-      .where(eq(s.trips.id, tripIds[0]!));
-    await db.update(s.trips)
-      .set({
-        grossProfit: '450000',
-        revenue: '950000',
-        version: 2,
-        updatedAt: new Date(),
-      })
-      .where(eq(s.trips.id, tripIds[1]!));
+    await applyTripPatch(db, tripIds[0]!, {
+      grossProfit: '550000',
+      revenue: '1050000',
+      version: 2,
+      updatedAt: new Date(),
+    });
+    await applyTripPatch(db, tripIds[1]!, {
+      grossProfit: '450000',
+      revenue: '950000',
+      version: 2,
+      updatedAt: new Date(),
+    });
 
     const staleApproval = await post(
       `/api/governance-actions/${requested.body.id}/approve`,
