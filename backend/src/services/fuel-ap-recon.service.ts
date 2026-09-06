@@ -75,6 +75,10 @@ export interface FuelApReconInput {
 export async function getFuelApReconciliation(input: FuelApReconInput): Promise<FuelApReconReport> {
   const thresholdPct = input.thresholdPct ?? 0.05;
   const completionBusinessDate = tripCompletionBusinessDateSql();
+  // Trips-split: trips-bound fragments cannot resolve in a FROM
+  // trips_composite query, so the composite pass re-derives the same
+  // business-date expression over the view's completedAt.
+  const completionBusinessDateComposite = sql<string>`(${s.tripsComposite.completedAt} AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Ho_Chi_Minh')::date`;
   const approvedSettlementAdjustedBuyAmount = sql<string | null>`(
     SELECT se.adjusted_buy_amount::text
     FROM ${s.settlementExpenses} se
@@ -89,24 +93,24 @@ export async function getFuelApReconciliation(input: FuelApReconInput): Promise<
   // Trips that locked their fuel cost onto a supplier's VENDOR ledger.
   // In-progress trips stay out of the official monthly fuel cohort.
   const expectedRows = await db.select({
-    supplierId: s.trips.fuelSupplierId,
-    truckId: s.trips.truckId,
+    supplierId: s.tripsComposite.fuelSupplierId,
+    truckId: s.tripsComposite.truckId,
     truckPlate: s.trucks.licensePlate,
     tripCount: sql<number>`count(*)::int`,
-    expectedFuelCost: sql<string>`coalesce(sum(${s.trips.totalFuelCost}), 0)`,
+    expectedFuelCost: sql<string>`coalesce(sum(${s.tripsComposite.totalFuelCost}), 0)`,
   })
-    .from(s.trips)
-    .leftJoin(s.trucks, eq(s.trips.truckId, s.trucks.id))
+    .from(s.tripsComposite)
+    .leftJoin(s.trucks, eq(s.tripsComposite.truckId, s.trucks.id))
     .where(and(
-      sql`${s.trips.fuelSupplierId} IS NOT NULL`,
-      sql`${s.trips.completedAt} is not null`,
-      eq(s.trips.status, TripStatus.COMPLETED),
-      gte(completionBusinessDate, input.from),
-      lte(completionBusinessDate, input.to),
-      isNull(s.trips.deletedAt),
-      input.supplierId ? eq(s.trips.fuelSupplierId, input.supplierId) : sql`TRUE`,
+      sql`${s.tripsComposite.fuelSupplierId} IS NOT NULL`,
+      sql`${s.tripsComposite.completedAt} is not null`,
+      eq(s.tripsComposite.status, TripStatus.COMPLETED),
+      gte(completionBusinessDateComposite, input.from),
+      lte(completionBusinessDateComposite, input.to),
+      isNull(s.tripsComposite.deletedAt),
+      input.supplierId ? eq(s.tripsComposite.fuelSupplierId, input.supplierId) : sql`TRUE`,
     ))
-    .groupBy(s.trips.fuelSupplierId, s.trips.truckId, s.trucks.licensePlate);
+    .groupBy(s.tripsComposite.fuelSupplierId, s.tripsComposite.truckId, s.trucks.licensePlate);
 
   // expectedBySupplier: supplierId → { total, perTruck: Map<truckId, row> }
   const expectedBySupplier = new Map<number, { total: number; perTruck: Map<number | null, TruckReconRow> }>();

@@ -9,6 +9,7 @@ import {
 } from '@tingting/shared';
 import { client, db } from '../db';
 import * as s from '../db/schema';
+import { insertTripComposite } from '../services/trip-composite.service';
 import { ApiError } from '../errors';
 import {
   approveGovernanceAction,
@@ -103,7 +104,7 @@ async function createTrip(status: 'COMPLETED' = 'COMPLETED') {
   customerIds.push(customer.id);
   routeIds.push(route.id);
   cargoTypeIds.push(cargo.id);
-  const [trip] = await db.insert(s.trips).values({
+  const trip = await insertTripComposite(db, {
     tripCode: `Q18-${suffix}`.slice(0, 50),
     customerId: customer.id,
     routeId: route.id,
@@ -112,7 +113,7 @@ async function createTrip(status: 'COMPLETED' = 'COMPLETED') {
     status,
     revenue: '1000000',
     carrierType: 'OWN',
-  }).returning();
+  });
   tripIds.push(trip.id);
   return { trip, customer };
 }
@@ -661,7 +662,7 @@ describe('Q18 bounded adjustment governance', () => {
 
   it('serializes source-line replacement with issuance and never sends stale unvalidated lines', async () => {
     const { trip, customer } = await createTrip('COMPLETED');
-    const [replacementTrip] = await db.insert(s.trips).values({
+    const replacementTrip = await insertTripComposite(db, {
       tripCode: `Q18-REPLACEMENT-${Date.now()}`.slice(0, 50),
       customerId: customer.id,
       routeId: trip.routeId,
@@ -670,7 +671,7 @@ describe('Q18 bounded adjustment governance', () => {
       status: 'COMPLETED',
       revenue: '1000000',
       carrierType: 'OWN',
-    }).returning();
+    });
     tripIds.push(replacementTrip.id);
     const [document] = await db.insert(s.billingDocuments).values({
       type: 'DEBIT_NOTE',

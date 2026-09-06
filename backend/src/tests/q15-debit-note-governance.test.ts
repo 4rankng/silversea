@@ -7,6 +7,7 @@ import { eq, inArray } from 'drizzle-orm';
 import { Role, type SaveBillingDocumentInput } from '@tingting/shared';
 import { client, db } from '../db';
 import * as s from '../db/schema';
+import { applyTripPatch, insertTripComposite } from '../services/trip-composite.service';
 import billingDocumentsRoutes from '../routes/financial/billing-documents.routes';
 import paymentsRoutes from '../routes/financial/payments.routes';
 import governanceActionsRoutes from '../routes/financial/governance-actions.routes';
@@ -105,7 +106,7 @@ async function createTripFixture(status: 'COMPLETED' = 'COMPLETED', revenue = 1_
   }).returning();
   fulfillmentIds.push(fulfillment.id);
 
-  const [trip] = await db.insert(s.trips).values({
+  const trip = await insertTripComposite(db, {
     tripCode: `Q15-DN-${suffix}-${tripIds.length}`.slice(0, 50),
     customerId: customer.id,
     routeId: route.id,
@@ -117,7 +118,7 @@ async function createTripFixture(status: 'COMPLETED' = 'COMPLETED', revenue = 1_
     status,
     revenue: String(revenue),
     carrierType: 'OWN',
-  }).returning();
+  });
   tripIds.push(trip.id);
 
   const [posting] = await db.insert(s.tripFinancialPostings).values({
@@ -437,11 +438,11 @@ describe('Q15 debit-note issue governance', () => {
     }, 1, `q15-debit-check-stale-${documentId}`);
     assert.equal(checked.status, 200);
 
-    await db.update(s.trips).set({
+    await applyTripPatch(db, trip.id, {
       revenue: '1400000',
       version: trip.version + 1,
       updatedAt: new Date(Date.now() + 5_000),
-    }).where(eq(s.trips.id, trip.id));
+    });
 
     const staleApprove = await api('POST', `/api/governance-actions/${issue.body.id}/approve`, {
       expectedVersion: Number(checked.body.version),
