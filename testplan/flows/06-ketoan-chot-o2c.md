@@ -1,3 +1,5 @@
+> **⚠ RETIRED FLOW (2026-09-06).** The PENDING_EXPENSE_APPROVAL pre-condition this flow is built on no longer exists: the stage was retired 2026-09-05 (efc94827) and removed from the status vocabulary 2026-09-06 (7dd66d05). Direct close now gates on IN_TRANSIT. The AR/AP snapshot + reconciliation concepts below remain valid reference for the deferred accounting suite ("kế toán = từ từ"); the gated close path itself is not reachable. Do not write new tests against this flow as-is.
+
 # Luồng 6: Duyệt e-POD, Chốt O2C & Xuất Debit Note — Kế toán (Accountant)
 
 > **Vai trò sở hữu:** Kế toán (ACCOUNTANT) / CUS

@@ -128,3 +128,29 @@ Run in this order to maximize green-at-each-step:
 4. Cluster C as needed.
 
 **Expected outcome**: each cluster as scripted takes ≤90 minutes. After all are done the next `pnpm test` should report 0 ✖.
+
+
+---
+
+## Lean-down wave (2026-09-06) — SHIPPED
+
+DB lean-down vs `docs/prd/` + `testplan/` audit; every change prod-preflight-verified (read-only counts) before drop.
+
+- `4355205d` AI assistant feature removed end-to-end (4 pgvector tables + services/UI).
+- `127eb002` GPS/telemetry tables + journey-map UI dropped (user directive: "any feature requires live GPS tracking please remove all"). `photo_geotags` + map4d place-search kept.
+- `2195d35e` Retention jobs: notifications 30d-read/180d-any, scheduler_run_logs 30d, durable_effect_jobs SUCCEEDED 30d, master_import_row_results 90d; audit_logs + idempotency_keys never purged.
+- `7dd66d05` PENDING_EXPENSE_APPROVAL removed from the status vocabulary (3 layers + seed); legacy 'DELIVERED' reads as IN_TRANSIT; DB text value stays as documented ghost.
+- `b0cf80d8` Dead tables dropped: `delete_requests`, `fuel_surcharge_configs` (zero refs, zero prod rows).
+- `e2c493ec` / `cfa9ac72` 1:1 merges: `trip_instructions` → trips columns; `shipment_container_charge_facts` → `shipment_containers` charge columns.
+- Dead columns dropped: `customers.freight_payment_term_days` (FE edits were silently discarded — bug removed with the field), `trips.storage_fee_revenue`, `trips.driver_order_accepted_at`.
+
+### Explicitly kept (do NOT re-propose dropping)
+- `drivers.assigned_truck_id` — live primary-slot source (dispatch planning + FleetPage); audit's "redundant mirror" call was wrong.
+- `trip_containers.seal_number` — back-compat mirror still read by forwarder flows + written by dispatch snapshot/OCR; requires finishing the multi-seal migration first.
+- `fuel_config` (live reader in trip-create), `routes.default_legs` (live template), `pricing_tables` (rate cards pending), `governance_actions` (audit history), `scheduler_run_logs` (raw-SQL writer), `salesperson_assignments` (reader exists; no writer is a data-entry question).
+- Index trim: no-op with evidence — `scheduler_run_logs_job_started_idx` EXPLAIN-proven load-bearing on prod.
+
+### Open follow-ups
+- **Trips split** (user-locked, next): trips (~25 ops cols) + trip_financial_state + trip_carrier_info; 191-file blast radius; staged spec in plans/. Staging strategy: backfill-first dual-read to avoid big-bang.
+- Multi-seal migration completion → then drop `trip_containers.seal_number` mirror.
+- QuyTrinhO2C Confluence page needs the same state-machine update (this repo doc updated 2026-09-06).

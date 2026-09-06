@@ -19,7 +19,7 @@
 ## 1. Vòng đời Lô hàng (O2C State Machine)
 
 ```
-Mới tạo (NEW) → Đã phân xe (DISPATCHED) → Đang chạy (IN_TRANSIT) → Chờ duyệt phí (PENDING_EXPENSE_APPROVAL) → Hoàn thành (COMPLETED)
+Mới tạo (NEW) → Đã phân xe (DISPATCHED) → Đang chạy (IN_TRANSIT) → Hoàn thành (COMPLETED)
                                                                                                                     ↗
                                                                                             Đã hủy (CANCELED) ←──── (ngoại lệ)
 ```
@@ -34,7 +34,7 @@ Mới tạo (NEW) → Đã phân xe (DISPATCHED) → Đang chạy (IN_TRANSIT) �
 | 2 | **Điều xe / Phân bổ chuyến** | Điều vận (DISPATCHER) | CUS (bàn giao) | `02-dieuvan-dispatch.md` |
 | 3 | **Nhận lệnh & Kích hoạt chuyến** | Lái xe (DRIVER) | Điều vận (phát lệnh) | `03-laixe-nhan-lenh.md` |
 | 4 | **Cập nhật tiến độ & e-POD** | Lái xe (DRIVER) | — | `04-laixe-tien-do-epod.md` |
-| 5 | **Chi phí phát sinh (Ops)** | Nhân viên hiện trường (FORWARDER) | Kế toán (duyệt) | `05-ops-chi-phi.md` |
+| 5 | ~~Chi phí phát sinh (Ops)~~ (flow retired; ops expense plan deleted 2026-09) | — | — | — |
 | 6 | **Duyệt e-POD & Chốt O2C** | Kế toán (ACCOUNTANT) / CUS | — | `06-ketoan-chot-o2c.md` |
 | 7 | **RBAC & Phân quyền** | Tất cả 8 vai trò | — | `07-rbac-phan-quyen.md` |
 | 8 | **Cổng Khách hàng** | Khách hàng (CUSTOMER) | — | `08-customer-portal.md` |

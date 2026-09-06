@@ -103,7 +103,7 @@
   - **Lưu ý:** Kế toán review (đối soát phí, POD giấy) sẽ build sau — hiện tại lái xe chốt trực tiếp, cost edit sau đó sẽ surface qua AR snapshot + dirty flag (O2C dev-rev1 §Bước 4).
 - **Kỳ vọng sai (Fail nếu):**
   - Trip vẫn `IN_TRANSIT` sau khi bấm "HOÀN THÀNH CHUYẾN" (regression).
-  - Shipment vẫn `IN_TRANSIT` / `PENDING_EXPENSE_APPROVAL` (recompute không theo driver close).
+  - Shipment vẫn `IN_TRANSIT` (recompute không theo driver close).
   - CUS/Dispatcher vẫn hiển thị "Đang chạy" / "Chờ duyệt phí" sau completion.
   - Láy xe khác trip_id có thể đóng trip của người khác (ownership leak).
   - Dashboard/P&L vẫn serve dữ liệu cũ (stale cache) sau khi lái xe chốt chuyến.
@@ -248,7 +248,7 @@
   - Sau bước 1 (submit e-POD): CUS + điều vận vẫn thấy lô ở **"Đang chạy"** (IN_TRANSIT; wording unified 2026-09-01) — KHÔNG nhảy sang "Chờ duyệt phí".
   - Sau bước 4 ("HOÀN THÀNH CHUYẾN"): CUS + điều vận thấy lô chuyển sang **"Hoàn thành"** (COMPLETED).
   - Lịch sử trạng thái có dòng IN_TRANSIT → COMPLETED, kèm `changedBy` = tài xế và timestamp.
-  - Khi kế toán flow build lại, test case này sẽ cần thêm 1 nhánh: sau bước 1 lô → "Chờ duyệt phí" (PENDING_EXPENSE_APPROVAL); sau bước 4 lô → "Hoàn thành" (COMPLETED). Comment trong `shipment-status-transitions.service.ts` chỉ chỗ re-enable.
+  - Nhánh "Chờ duyệt phí" (PENDING_EXPENSE_APPROVAL) đã bị xóa bỏ vĩnh viễn (removed from vocabulary 2026-09-06): driver close → lô thẳng "Hoàn thành" (COMPLETED). Nếu kế toán flow build lại, thiết kế trạng thái mới thay vì revive PEA.
 - **Kỳ vọng sai (Fail nếu):**
   - Sau bước 1: lô nhảy sang "Chờ duyệt phí" — sai vì không có kế toán approve (hành vi trước fix vô tình tái hiện).
   - Sau bước 4: lô không chuyển "Hoàn thành" (full-close path bị break).

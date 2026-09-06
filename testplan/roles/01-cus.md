@@ -197,8 +197,9 @@ DISPATCHER, CUS, ACCOUNTANT, CUSTOMER scoped).
      `/my-trips/:id/pod` — Ops/Forwarder has **not** marked the
      expense scopes complete yet, and kế toán is not in the loop
    - **Then** the CUS-side shipment status recompute does **not** advance
-     to `Chờ duyệt phí` (PENDING_EXPENSE_APPROVAL). Showing a phantom
-     "Chờ duyệt phí" nobody can resolve would mislead the clerk.
+     past `Đang chạy` while expense scopes are incomplete (the retired
+     `Chờ duyệt phí` intermediate no longer exists; the lot stays
+     `Đang chạy` until it closes directly).
    - **Then** the CUS list keeps showing the shipment as `Đang chạy`.
    - **When** the driver then hits `HOÀN THÀNH CHUYẾN`
    - **Then** the CUS list recomputes the shipment to `Hoàn thành`

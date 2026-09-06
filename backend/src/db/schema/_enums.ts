@@ -127,6 +127,10 @@ export const schedulerRunStatusEnum = applicationEnum(['RUNNING', 'SUCCESS', 'FA
 //
 // Scope of this Wave 0 schema slice: tables + FK + migration only. The
 // service, router, RBAC, and frontend are subsequent Wave 0 checkboxes.
+// NOTE: the DB text column may still HOLD the retired 'PENDING_EXPENSE_APPROVAL'
+// value in historical rows (Postgres cannot DROP VALUE from an enum-style text
+// column without a table rewrite). The app never writes it (retired 2026-09-05,
+// removed from the vocabulary 2026-09-06; prod had 0 rows) — treat it as a ghost.
 export const shipmentStatusEnum = applicationEnum([
   'NEW', 'PENDING_DATE', 'READY_FOR_DISPATCH', 'DISPATCHED', 'IN_TRANSIT',
   'COMPLETED', 'CANCELED',

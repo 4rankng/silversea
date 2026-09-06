@@ -446,7 +446,7 @@
 - **Mức độ:** P0
 - **Thiết bị:** Desktop (1440×900)
 - **Tiền điều kiện:**
-  - Lô FCL có 2 container, mỗi container 1 fulfillment. Container A đã phát lệnh và hoàn thành (trip status = COMPLETED, shipment status đã chuyển sang PENDING_EXPENSE_APPROVAL hoặc COMPLETED). Container B chưa phát lệnh (fulfillment chưa có trip).
+  - Lô FCL có 2 container, mỗi container 1 fulfillment. Container A đã phát lệnh và hoàn thành (trip status = COMPLETED, shipment status đã chuyển sang COMPLETED). Container B chưa phát lệnh (fulfillment chưa có trip).
 - **Các bước:**
   1. Đăng nhập `dieuvan`. Mở `/dispatch-detail` (Kế hoạch chi tiết).
   2. Tìm lô FCL có 2 container. Kiểm tra: cả 2 fulfillment phải hiển thị trên danh sách.
@@ -460,7 +460,7 @@
 - **Kỳ vọng sai (Fail nếu):**
   - Fulfillment container A bị ẩn hoặc cả lô biến mất (hành vi cũ — đã fix).
   - Không thấy fulfillment đã hoàn thành trên Kế hoạch chi tiết.
-- **Bằng chứng:** ảnh Kế hoạch chi tiết thấy cả 2 fulfillment + ảnh Kế hoạch tổng quát thấy lô + query DB `shipments.status` cho thấy status đã chuyển sang PENDING_EXPENSE_APPROVAL/COMPLETED
+- **Bằng chứng:** ảnh Kế hoạch chi tiết thấy cả 2 fulfillment + ảnh Kế hoạch tổng quát thấy lô + query DB `shipments.status` cho thấy status đã chuyển sang COMPLETED
 
 ---
 
@@ -482,7 +482,7 @@ hoặc `/dispatch-detail` thay đổi cấp dữ liệu hoặc trigger, các cas
   1. Đăng nhập `dieuvan`. Mở `/dispatch`.
   2. Tìm lô FCL 5×40HC vừa tạo. Quan sát số dòng trên bảng cho lô đó.
   3. Tìm lô LCL 10 dòng hàng lẻ. Quan sát số dòng.
-  4. Mở API response của `GET /api/shipments?status=READY_FOR_DISPATCH,DISPATCHED,IN_TRANSIT,PENDING_EXPENSE_APPROVAL,COMPLETED` — đếm số row trả về cho mỗi lô (mỗi lô đúng 1 row, bất kể số container).
+  4. Mở API response của `GET /api/shipments?status=READY_FOR_DISPATCH,DISPATCHED,IN_TRANSIT,COMPLETED` — đếm số row trả về cho mỗi lô (mỗi lô đúng 1 row, bất kể số container).
 - **Kết quả mong đợi (Pass):**
   - Lô FCL 5×40HC hiển thị **đúng 1 dòng** trên bảng, **không** có 5 dòng con.
   - Lô LCL 10 dòng hàng lẻ cũng hiển thị **đúng 1 dòng**.

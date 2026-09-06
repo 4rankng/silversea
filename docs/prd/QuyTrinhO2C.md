@@ -52,7 +52,6 @@ stateDiagram-v2
     state "Sẵn sàng điều xe" as sanSang
     state "Đã phân xe" as phanXe
     state "Đang chạy" as dangChay
-    state "Chờ duyệt phí" as choPhi
     state "Hoàn thành" as xong
     state "Đã hủy" as huy
 
@@ -62,8 +61,6 @@ stateDiagram-v2
     sanSang --> phanXe : Điều vận phát lệnh
     phanXe --> dangChay : Lái xe nhận lệnh
     dangChay --> xong : Lái xe đóng chuyến cuối
-    dangChay --> choPhi : Còn chuyến chưa xong
-    choPhi --> xong : Chuyến cuối hoàn thành
     sanSang --> huy
     phanXe --> huy
     dangChay --> huy
@@ -77,11 +74,10 @@ stateDiagram-v2
 | Sẵn sàng điều xe | Chứng Từ |
 | Đã phân xe | Điều vận |
 | Đang chạy | Lái xe |
-| Chờ duyệt phí | Tự động — chờ các chuyến còn lại |
 | Hoàn thành | Lái xe (tự đóng) |
 | Đã hủy | Admin/GĐ |
 
-> Lô 1 chuyến đi thẳng đến hoàn thành. Lô nhiều chuyến tạm dừng ở "Chờ duyệt phí" (tự động) đến khi chuyến cuối hoàn thành. Mỗi bước chuyển đều ghi nhận vào lịch sử.
+> Lô 1 chuyến đi thẳng đến hoàn thành. Lô nhiều chuyến giữ trạng thái "Đang chạy" đến khi chuyến cuối hoàn thành (giai đoạn "Chờ duyệt phí" đã dừng 2026-09-05). Mỗi bước chuyển đều ghi nhận vào lịch sử.
 
 ---
 
@@ -261,7 +257,7 @@ Lái xe nộp e-POD rồi nhấn **"Hoàn thành chuyến"**. Điều kiện:
 - Đủ 2 file e-POD bắt buộc đã tải lên (nút bấm tự gửi e-POD)
 - Các mốc còn thiếu (lấy vỏ, đóng/trả, hạ bãi) được tự ghi nhận
 
-Đủ điều kiện → **chuyến hoàn thành ngay**. Lô 1 chuyến hoàn thành luôn; lô nhiều chuyến chờ chuyến cuối (trạng thái "Chờ duyệt phí").
+Đủ điều kiện → **chuyến hoàn thành ngay**. Lô 1 chuyến hoàn thành luôn; lô nhiều chuyến giữ "Đang chạy" đến khi chuyến cuối hoàn thành.
 
 **Tự động bỏ qua:** phê duyệt đặc biệt, thu hồi chứng từ gốc (chưa cần trước khi đóng), xác nhận doanh thu bằng 0, ảnh hiện trường (cont/seal), phạm vi chi phí.
 
@@ -281,7 +277,7 @@ Lái xe nhập chi phí trực tiếp trên app:
 
 - **Nhập tay:** Phí nâng/hạ, cầu đường, đỗ xe, rửa/hàn cont, cân lốp
 - **Tự tính (không sửa được):** Tiền đường (từ chuyến), phí nâng/hạ Lạch Huyên (50k)
-- **Đổ dầu (riêng):** Chụp ảnh cột bơm → hệ thống đọc số lít, đơn giá, tổng tiền + GPS → đối chiếu lộ trình, phát hiện bất thường
+- **Đổ dầu (riêng):** Chụp ảnh cột bơm → hệ thống đọc số lít, đơn giá, tổng tiền → phát hiện bất thường (đối chiếu GPS lộ trình đã dừng cùng tính năng tracking, 2026-09-06)
 
 > Chi phí chưa cần duyệt trong luồng chính — xử lý sau, ngoài phạm vi.
 

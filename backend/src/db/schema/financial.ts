@@ -221,6 +221,10 @@ export const periodLocks = pgTable('period_locks', {
 // Q18/Q15: append-only authority envelope. Domain services still own and
 // atomically apply their effects; this table owns actor separation, evidence,
 // source versions and the decision lifecycle.
+// KEEP AS-IS (lean-down review 2026-09-06): the maker-checker queue was
+// removed (7eb62387) but this table is the ONLY record of who approved what
+// before the removal, and the 24 authority columns revive if the deferred
+// financial-accounting suite turns on. Slimming it would rewrite audit history.
 export const governanceActions = pgTable('governance_actions', {
   id: serial('id').primaryKey(),
   subjectType: varchar('subject_type', { length: 30 }).notNull(),
