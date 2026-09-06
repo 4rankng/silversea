@@ -1314,7 +1314,7 @@ export async function seedShipments(passwordHash: string) {
 // CLI entry point — only auto-run when invoked directly via `pnpm seed`
 // (npx tsx src/seed.ts). The guard lets tests import { seedShipments } from
 // '../seed' without triggering the full seed flow + process.exit at module
-// load. Mirrors the pattern in services/agent/retention-job.ts.
+// load.
 const isMainModule = import.meta.url === `file://${process.argv[1]}`;
 if (isMainModule) {
   seed()

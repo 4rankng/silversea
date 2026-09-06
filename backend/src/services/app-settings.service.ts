@@ -1,5 +1,4 @@
 import { and, desc, eq, inArray, isNull, or } from 'drizzle-orm';
-import { config } from '../config';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { appSettingsSchema, type AppSettings } from '@tingting/shared';
@@ -16,7 +15,6 @@ import {
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 const KEYS = {
-  bot: 'app.bot_enabled',
   gps: 'app.gps_enabled',
   creditWarningThresholdDefault: 'credit.warning_threshold_default',
   creditTierOneAmountCap: 'credit.tier_one_amount_cap',
@@ -39,7 +37,6 @@ type GovernedFinancialPolicyState = AppSettingsFinancialPolicy & {
 };
 
 let cached: AppSettings | null = null;
-const listeners = new Set<(settings: AppSettings) => void>();
 
 function parseBooleanSetting(value: string | undefined, fallback: boolean): boolean {
   return value === undefined ? fallback : value === 'true';
@@ -50,23 +47,12 @@ function parseNumberSetting(value: string | undefined, fallback: number): number
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-/** Subscribe to in-process runtime changes (used to stop active bot chats). */
-export function onAppSettingsChanged(listener: (settings: AppSettings) => void): () => void {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
-}
-
-function notifyChanged(settings: AppSettings): void {
-  for (const listener of listeners) listener(settings);
-}
-
 export async function getAppSettingsUpdatedAt(
   q: typeof db | Tx = db,
 ): Promise<string | null> {
   const [row] = await q.select({ updatedAt: s.appSettings.updatedAt })
     .from(s.appSettings)
     .where(inArray(s.appSettings.key, [
-      KEYS.bot,
       KEYS.gps,
       KEYS.creditWarningThresholdDefault,
       KEYS.creditTierOneAmountCap,
@@ -81,7 +67,6 @@ async function readAppSettingsRows(q: typeof db | Tx = db) {
     .select()
     .from(s.appSettings)
     .where(inArray(s.appSettings.key, [
-      KEYS.bot,
       KEYS.gps,
       KEYS.creditWarningThresholdDefault,
       KEYS.creditTierOneAmountCap,
@@ -95,7 +80,6 @@ function settingsFromRows(
 ): AppSettings {
   const values = new Map(rows.map((row) => [row.key, row.value]));
   return {
-    botEnabled: parseBooleanSetting(values.get(KEYS.bot) ?? undefined, config.botEnabled),
     gpsEnabled: parseBooleanSetting(values.get(KEYS.gps) ?? undefined, gpsEnabledDefault),
     creditWarningThresholdDefault: parseNumberSetting(values.get(KEYS.creditWarningThresholdDefault) ?? undefined, 0.8),
     creditTierOneAmountCap: Math.trunc(parseNumberSetting(values.get(KEYS.creditTierOneAmountCap) ?? undefined, 0)),
@@ -155,7 +139,6 @@ function mergeDirectSettings(
 ): AppSettings {
   return {
     ...current,
-    botEnabled: next.botEnabled,
     gpsEnabled: next.gpsEnabled,
   };
 }
@@ -235,7 +218,6 @@ export async function saveAppSettingsInTx(
     salaryPayrollBusinessUnitId: next.salaryPayrollBusinessUnitId,
   });
   const updatedAt = await upsertAppSettingsEntries(tx, [
-    [KEYS.bot, String(next.botEnabled)],
     [KEYS.gps, String(next.gpsEnabled)],
     [KEYS.creditWarningThresholdDefault, String(next.creditWarningThresholdDefault)],
     [KEYS.creditTierOneAmountCap, String(next.creditTierOneAmountCap)],
@@ -252,7 +234,6 @@ export async function saveDirectAppSettingsInTx(
 ): Promise<{ settings: AppSettings; updatedAt: string }> {
   const merged = mergeDirectSettings(current, next);
   const updatedAt = await upsertAppSettingsEntries(tx, [
-    [KEYS.bot, String(merged.botEnabled)],
     [KEYS.gps, String(merged.gpsEnabled)],
   ]);
   return { settings: merged, updatedAt };
@@ -278,7 +259,6 @@ export async function applySavedAppSettings(
   next: AppSettings,
 ): Promise<AppSettings> {
   cached = next;
-  if (previous.botEnabled !== next.botEnabled) notifyChanged(next);
   if (previous.gpsEnabled !== next.gpsEnabled) {
     invalidateGpsSettings();
     invalidateGpsProvider();

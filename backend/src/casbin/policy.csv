@@ -66,10 +66,6 @@ p, DRIVER, ocr, write
 p, ACCOUNTANT, ocr, read
 p, DRIVER, driver_portal, write
 p, DRIVER, driver_portal, delete
-p, MANAGER, agent, read
-p, MANAGER, agent, write
-p, ACCOUNTANT, agent, read
-p, ACCOUNTANT, agent, write
 p, DRIVER, geotag, write
 p, DRIVER, geotag, read
 p, OPS, geotag, write

@@ -6,7 +6,7 @@ import { db } from '../db';
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
-import { todayIsoVn } from './agent/tools/period';
+import { todayIsoVn } from '../lib/vn-date';
 import type { Tx } from './trip-shared';
 import { assertCanMakeGovernanceAction } from './governance-policy';
 import {

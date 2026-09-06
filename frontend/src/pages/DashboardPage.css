@@ -1575,8 +1575,7 @@
 .app:has(.dash-wf) .sidebar-item.active,
 .app:has(.dash-wf) .topbar,
 .app:has(.dash-wf) .topbar input,
-.app:has(.dash-wf) .topbar .badge,
-.app:has(.dash-wf) .agent-launcher {
+.app:has(.dash-wf) .topbar .badge {
   box-shadow: none;
 }
 

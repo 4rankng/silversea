@@ -15,7 +15,6 @@ import BillingDocumentsPanel from '../components/billing/BillingDocumentsPanel';
 import { useToast } from '../components/shared/Toast';
 import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
-import { useAgentOpenable } from '../hooks/useAgentOpenable';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { qk } from '../api/keys';
 import { SortHeader } from '../components/shared/SortHeader';
@@ -120,19 +119,6 @@ export default function DebtDetailPage() {
     if (next.amount !== undefined) setPayAmount(next.amount);
     if (next.receiptId !== undefined) setPayReceipt(next.receiptId);
   }, [payAmount, payReceipt]);
-
-  // Agent "open/prefill" target: the bot can open this payment modal (and
-  // prefill the amount) when the user is on this page — the "do it for you"
-  // half of guidance. Read-only-safe: the user still reviews + submits.
-  useAgentOpenable(
-    'debt.record-payment',
-    useCallback((d) => {
-      const prefill = d.kind === 'prefill' ? d.values : d.prefill;
-      const amount = prefill && typeof prefill.amount === 'number' ? prefill.amount : undefined;
-      if (amount !== undefined) updatePaymentDraft({ amount: String(amount) });
-      setShowPay(true);
-    }, [updatePaymentDraft]),
-  );
 
   const downloadExport = async (format: string) => {
     try {

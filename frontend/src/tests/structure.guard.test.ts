@@ -31,7 +31,6 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // Reviewed as a contract change; a future split should restore a smaller
   // ceiling.
   'src/api/shipmentClient.ts': 1110,
-  'src/components/agent/AgentAssistant.tsx': 473,
   'src/components/billing/BillingDocumentBuilder.tsx': 716,
   'src/components/Layout.tsx': 843,
   'src/components/shipment/TripPodReviewPanel.tsx': 588,

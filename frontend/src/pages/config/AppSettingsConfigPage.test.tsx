@@ -12,7 +12,6 @@ const mocks = vi.hoisted(() => ({
   saveAppSettings: vi.fn(),
   requestFinancialPolicy: vi.fn(),
   requestTruckProfile: vi.fn(),
-  saveLlmSettings: vi.fn(),
   saveOcrSettings: vi.fn(),
   saveEmail: vi.fn(),
   confirm: vi.fn(),
@@ -50,27 +49,10 @@ const mocks = vi.hoisted(() => ({
   },
   appSettings: {
     data: {
-      botEnabled: true,
       gpsEnabled: false,
       creditWarningThresholdDefault: 0.8,
       creditTierOneAmountCap: 1000000,
       salaryPayrollBusinessUnitId: null,
-    },
-    isLoading: false,
-    isError: false,
-    error: null,
-  },
-  llmSettings: {
-    data: {
-      provider: 'minimax',
-      minimaxKeySet: true,
-      openrouterKeySet: false,
-      minimaxKeyMasked: '••••••••1234',
-      openrouterKeyMasked: '',
-      models: {
-        minimax: 'MiniMax-M2.7-highspeed',
-        openrouter: 'deepseek/deepseek-v4-flash',
-      },
     },
     isLoading: false,
     isError: false,
@@ -135,11 +117,6 @@ vi.mock('../../hooks/useAppSettings', () => ({
   useRequestTruckFinancialProfile: () => mutationResult(mocks.requestTruckProfile),
 }));
 
-vi.mock('../../hooks/useLlmSettings', () => ({
-  useLlmSettings: () => mocks.llmSettings,
-  useSaveLlmSettings: () => mutationResult(mocks.saveLlmSettings),
-}));
-
 vi.mock('../../hooks/useOcrSettings', () => ({
   useOcrSettings: () => mocks.ocrSettings,
   useSaveOcrSettings: () => mutationResult(mocks.saveOcrSettings),
@@ -194,12 +171,10 @@ describe('AppSettingsConfigPage', () => {
       history: [],
       pendingRequest: null,
     };
-    mocks.appSettings.data.botEnabled = true;
     mocks.appSettings.data.gpsEnabled = false;
     mocks.ocrSettings.data.enabled = true;
     mocks.ocrSettings.data.openrouterKeySet = true;
     mocks.saveAppSettings.mockReset().mockResolvedValue({
-      botEnabled: true,
       gpsEnabled: false,
       creditWarningThresholdDefault: 0.75,
       creditTierOneAmountCap: 1500000,
@@ -207,7 +182,6 @@ describe('AppSettingsConfigPage', () => {
     });
     mocks.requestFinancialPolicy.mockReset().mockResolvedValue({ status: 'PENDING_CHECK' });
     mocks.requestTruckProfile.mockReset().mockResolvedValue({ status: 'PENDING_CHECK' });
-    mocks.saveLlmSettings.mockReset().mockResolvedValue(mocks.llmSettings.data);
     mocks.saveOcrSettings.mockReset().mockResolvedValue(mocks.ocrSettings.data);
     mocks.saveEmail.mockReset().mockResolvedValue({
       resendKeySet: true,
@@ -269,7 +243,6 @@ describe('AppSettingsConfigPage', () => {
 
     await waitFor(() => {
       expect(mocks.saveAppSettings).toHaveBeenCalledWith({
-        botEnabled: true,
         gpsEnabled: false,
         creditWarningThresholdDefault: 0.75,
         creditTierOneAmountCap: 1500000,
@@ -296,24 +269,6 @@ describe('AppSettingsConfigPage', () => {
     expect(screen.getByRole('status').textContent).toContain(
       'Đã gửi yêu cầu cập nhật cài đặt ứng dụng để kiểm tra và phê duyệt. Cấu hình hiện chưa thay đổi.',
     );
-  });
-
-  it('groups the chatbot toggle with its provider keys and keeps OCR independent', () => {
-    renderPage();
-
-    const chatbotSection = screen.getByRole('region', { name: 'Trợ lý ảo' });
-    expect(chatbotSection.textContent).toContain('Sử dụng trợ lý ảo');
-    expect(chatbotSection.textContent).toContain('MiniMax API key');
-    expect(chatbotSection.textContent).toContain('OpenRouter API key');
-
-    const policySection = screen.getByRole('region', { name: 'Chính sách vận hành' });
-    expect(policySection.textContent).not.toContain('Sử dụng trợ lý ảo');
-
-    const ocrSection = screen.getByRole('region', { name: 'Nhận dạng OCR' });
-    expect(ocrSection.textContent).toContain('Sử dụng OCR');
-    expect(ocrSection.textContent).toContain('OpenRouter API key cho OCR');
-    expect(ocrSection.textContent).not.toContain('Gemini');
-    expect(ocrSection.textContent).toContain('không dùng chung với chatbot');
   });
 
   it('shows the unconfigured financial policy and truck states with explicit warnings', () => {
@@ -391,52 +346,6 @@ describe('AppSettingsConfigPage', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Hồ sơ tài chính xe' }));
     expect(screen.getAllByText('1.250.000.000 VND').length).toBeGreaterThan(0);
     expect(screen.getAllByText('24.000.000 VND').length).toBeGreaterThan(0);
-  });
-
-  it('saves a chatbot toggle from the same section without rewriting stored keys', async () => {
-    renderPage();
-
-    fireEvent.click(screen.getByRole('switch', { name: /Sử dụng trợ lý ảo/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu cài đặt trợ lý' }));
-
-    await waitFor(() => {
-      expect(mocks.saveAppSettings).toHaveBeenCalledWith({
-        botEnabled: false,
-        gpsEnabled: false,
-        creditWarningThresholdDefault: 0.8,
-        creditTierOneAmountCap: 1000000,
-        salaryPayrollBusinessUnitId: null,
-      });
-    });
-    expect(mocks.saveLlmSettings).not.toHaveBeenCalled();
-  });
-
-  it('stores a new chatbot provider key before enabling the chatbot', async () => {
-    mocks.appSettings.data.botEnabled = false;
-    renderPage();
-
-    fireEvent.click(screen.getByRole('radio', { name: /OpenRouter/ }));
-    fireEvent.change(screen.getByLabelText('OpenRouter API key'), {
-      target: { value: '  chatbot-openrouter-new  ' },
-    });
-    fireEvent.click(screen.getByRole('switch', { name: /Sử dụng trợ lý ảo/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu cài đặt trợ lý' }));
-
-    await waitFor(() => {
-      expect(mocks.saveLlmSettings).toHaveBeenCalledWith({
-        provider: 'openrouter',
-        openrouterApiKey: 'chatbot-openrouter-new',
-      });
-      expect(mocks.saveAppSettings).toHaveBeenCalledWith({
-        botEnabled: true,
-        gpsEnabled: false,
-        creditWarningThresholdDefault: 0.8,
-        creditTierOneAmountCap: 1000000,
-        salaryPayrollBusinessUnitId: null,
-      });
-    });
-    expect(mocks.saveLlmSettings.mock.invocationCallOrder[0])
-      .toBeLessThan(mocks.saveAppSettings.mock.invocationCallOrder[0]);
   });
 
   it('saves the OCR toggle and replacement key through the independent OCR contract', async () => {

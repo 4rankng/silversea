@@ -85,10 +85,6 @@ vi.mock('../components/AssetIcon', () => ({
   default: () => null,
 }));
 
-vi.mock('../hooks/useAgentOpenable', () => ({
-  useAgentOpenable: vi.fn(),
-}));
-
 import DebtDetailPage from './DebtDetailPage';
 import PayableDetailPage from './PayableDetailPage';
 

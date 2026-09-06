@@ -4,7 +4,7 @@ import { z } from 'zod';
  * ADMIN-only OCR settings.
  *
  * OCR runs exclusively on OpenRouter (Qwen chain, matching vantaiphucloc).
- * OCR enablement is independent from chatbot LLM settings. The provider key is
+ * The provider key is
  * write-only: GET returns only a masked preview and whether the key exists.
  * Omitting or sending a blank key on PUT preserves the current value; the
  * explicit clear flag wipes it.

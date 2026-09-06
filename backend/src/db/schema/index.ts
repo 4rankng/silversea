@@ -10,4 +10,3 @@ export * from './costs';
 export * from './financial';
 export * from './treasury';
 export * from './shipments';
-export * from './agent';

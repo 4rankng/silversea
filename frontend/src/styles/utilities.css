@@ -221,3 +221,39 @@
   gap: 6px;
   margin-top: 8px;
 }
+
+/* ─── Focus deep-link spotlight (driver.js popover) ─────────────────────
+ * Moved from the removed agent assistant's CSS; used by lib/highlight.ts
+ * for the `?focus=<id>` deep-link ring. */
+.focus-highlight-popover {
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--line));
+  border-radius: 12px;
+  box-shadow: 0 18px 60px rgba(15, 23, 42, 0.18), 0 4px 16px rgba(15, 23, 42, 0.12);
+  color: var(--ink);
+}
+
+.focus-highlight-popover .driver-popover-title {
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 15px;
+  line-height: 1.35;
+  letter-spacing: 0;
+}
+
+.focus-highlight-popover .driver-popover-description {
+  color: var(--ink-2);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.focus-highlight-popover .driver-popover-footer {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .focus-highlight-popover {
+    box-shadow: none;
+    filter: none;
+  }
+}

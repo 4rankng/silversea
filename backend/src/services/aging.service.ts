@@ -772,8 +772,8 @@ export function mergePayablesSummaries(
 
 // ─── Payables list pagination (route-level envelope) ─────────────────────────
 //
-// getPayablesSummary keeps its full-array contract for the agent lanes/tools
-// that consume it; the HTTP route wraps the result with this helper so the
+// getPayablesSummary keeps its full-array contract for its in-process
+// consumers; the HTTP route wraps the result with this helper so the
 // /payables list page gets server-side search + pagination + full-set
 // aggregates in one response.
 

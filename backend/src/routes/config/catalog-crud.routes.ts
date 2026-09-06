@@ -133,8 +133,7 @@ router.get('/pricing', asyncHandler(async (req: Request, res: Response) => {
     pricingRateKey,
   });
   // Preserve the legacy {price: number} shape for HTTP callers; null (no row)
-  // surfaces as 0 here. Only the in-process agent tool sees null (so it can
-  // distinguish "no pricing table" from a real 0-VND price).
+  // surfaces as 0 here.
   res.json({ price: pricing.price ?? 0 });
 }));
 

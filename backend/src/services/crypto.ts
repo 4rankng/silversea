@@ -1,4 +1,4 @@
-// At-rest secret encryption for DB-stored credentials (LLM API keys, etc.).
+// At-rest secret encryption for DB-stored credentials (provider API keys).
 //
 // AES-256-GCM: authenticated, so tampered ciphertext fails to decrypt. Output
 // is a single self-describing string:

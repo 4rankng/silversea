@@ -29,8 +29,6 @@ vi.mock('../hooks/animations', () => ({
 
 vi.mock('../hooks/useBackShortcut', () => ({ useBackShortcut: vi.fn() }));
 
-vi.mock('../hooks/useAgentOpenable', () => ({ useAgentOpenable: vi.fn() }));
-
 vi.mock('../hooks/useMediaQuery', () => ({ useMediaQuery: () => false }));
 
 vi.mock('../components/UI', () => ({

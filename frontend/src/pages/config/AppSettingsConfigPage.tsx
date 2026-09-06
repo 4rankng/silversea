@@ -1,10 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
-  LLM_PROVIDER_MODELS,
   type AppSettings,
-  type LlmProvider,
-  type LlmSettingsUpdate,
   type OcrSettingsUpdate,
 } from '@tingting/shared';
 import { useNavigate } from 'react-router-dom';
@@ -20,7 +17,6 @@ import {
   useTruckFinancialProfiles,
 } from '../../hooks/useAppSettings';
 import { useGpsSettings, useSaveGpsSettings } from '../../hooks/useGpsSettings';
-import { useLlmSettings, useSaveLlmSettings } from '../../hooks/useLlmSettings';
 import { useOcrSettings, useSaveOcrSettings } from '../../hooks/useOcrSettings';
 import { usePageAnimations } from '../../hooks/animations';
 import { userClient } from '../../api/userClient';
@@ -28,7 +24,6 @@ import { qk } from '../../api/keys';
 import { isGovernancePendingResponse } from '../../lib/governance';
 import { FinancePolicySection, type FinanceTab } from '../../features/app-settings/FinancePolicySection';
 import { OperationalPolicySection } from '../../features/app-settings/OperationalPolicySection';
-import { LlmSection } from '../../features/app-settings/LlmSection';
 import { OcrSection } from '../../features/app-settings/OcrSection';
 import { EmailSection } from '../../features/app-settings/EmailSection';
 import { GpsSection } from '../../features/app-settings/GpsSection';
@@ -52,8 +47,6 @@ export default function AppSettingsConfigPage() {
   const saveEmailSettings = useSaveEmailSettings();
   const financialPolicy = useFinancialReportingPolicy();
   const requestFinancialPolicy = useRequestFinancialReportingPolicy();
-  const llmSettings = useLlmSettings();
-  const saveLlmSettings = useSaveLlmSettings();
   const ocrSettings = useOcrSettings();
   const saveOcrSettings = useSaveOcrSettings();
   const gpsSettings = useGpsSettings();
@@ -62,7 +55,6 @@ export default function AppSettingsConfigPage() {
   const [activeFinanceTab, setActiveFinanceTab] = useState<FinanceTab>('policy');
 
   const [features, setFeatures] = useState<AppSettings>({
-    botEnabled: false,
     gpsEnabled: false,
     creditWarningThresholdDefault: 0.8,
     creditTierOneAmountCap: 0,
@@ -74,16 +66,12 @@ export default function AppSettingsConfigPage() {
     queryKey: qk.appSettings.businessUnits,
     queryFn: () => userClient.getBusinessUnits(),
   });
-  const [provider, setProvider] = useState<LlmProvider>('minimax');
-  const [minimaxKey, setMinimaxKey] = useState('');
-  const [openrouterKey, setOpenrouterKey] = useState('');
   const [ocrEnabled, setOcrEnabled] = useState(false);
   const [ocrOpenrouterKey, setOcrOpenrouterKey] = useState('');
   const [gpsUsername, setGpsUsername] = useState('');
   const [gpsPassword, setGpsPassword] = useState('');
   const [resendApiKey, setResendApiKey] = useState('');
   const [generalMessage, setGeneralMessage] = useState<string | null>(null);
-  const [aiMessage, setAiMessage] = useState<string | null>(null);
   const [ocrMessage, setOcrMessage] = useState<string | null>(null);
   const [emailMessage, setEmailMessage] = useState<string | null>(null);
   const [gpsMessage, setGpsMessage] = useState<string | null>(null);
@@ -110,10 +98,6 @@ export default function AppSettingsConfigPage() {
       setCreditTierOneCap(String(appSettings.data.creditTierOneAmountCap));
     }
   }, [appSettings.data]);
-
-  useEffect(() => {
-    if (llmSettings.data) setProvider(llmSettings.data.provider);
-  }, [llmSettings.data]);
 
   useEffect(() => {
     if (ocrSettings.data) setOcrEnabled(ocrSettings.data.enabled);
@@ -173,41 +157,6 @@ export default function AppSettingsConfigPage() {
       return;
     }
     setGeneralMessage('Đã lưu cài đặt ứng dụng.');
-  };
-
-  const saveChatbot = async () => {
-    setAiMessage(null);
-    const payload: LlmSettingsUpdate = { provider };
-    if (minimaxKey.trim()) payload.minimaxApiKey = minimaxKey.trim();
-    if (openrouterKey.trim()) payload.openrouterApiKey = openrouterKey.trim();
-    const providerChanged = llmSettings.data?.provider !== provider;
-    const credentialsChanged = !!(payload.minimaxApiKey || payload.openrouterApiKey);
-    const botToggleChanged = appSettings.data?.botEnabled !== features.botEnabled;
-    try {
-      // Configure the provider before enabling the launcher, so there is no
-      // window where users can open a chatbot whose selected provider has no
-      // key. Disabling takes effect first for the inverse reason.
-      if (botToggleChanged && !features.botEnabled) {
-        await saveAppSettings.mutateAsync({
-          ...(appSettings.data ?? features),
-          botEnabled: features.botEnabled,
-        });
-      }
-      if (providerChanged || credentialsChanged) {
-        await saveLlmSettings.mutateAsync(payload);
-      }
-      if (botToggleChanged && features.botEnabled) {
-        await saveAppSettings.mutateAsync({
-          ...(appSettings.data ?? features),
-          botEnabled: features.botEnabled,
-        });
-      }
-      setMinimaxKey('');
-      setOpenrouterKey('');
-      setAiMessage('Đã lưu cài đặt trợ lý ảo.');
-    } catch {
-      setAiMessage(null);
-    }
   };
 
   const saveOcr = async () => {
@@ -356,18 +305,6 @@ export default function AppSettingsConfigPage() {
     }
   };
 
-  const models = llmSettings.data?.models ?? LLM_PROVIDER_MODELS;
-  const minimaxKeySet = !!llmSettings.data?.minimaxKeySet;
-  const openrouterKeySet = !!llmSettings.data?.openrouterKeySet;
-  const chosenKeyReady = provider === 'openrouter'
-    ? openrouterKeySet || openrouterKey.trim() !== ''
-    : minimaxKeySet || minimaxKey.trim() !== '';
-  const chatbotToggleChanged = !!appSettings.data
-    && appSettings.data.botEnabled !== features.botEnabled;
-  const chatbotProviderChanged = !!llmSettings.data && llmSettings.data.provider !== provider;
-  const chatbotCredentialsChanged = minimaxKey.trim() !== '' || openrouterKey.trim() !== '';
-  const chatbotCanSave = chatbotToggleChanged || chatbotProviderChanged || chatbotCredentialsChanged;
-  const chatbotNeedsReadyProvider = features.botEnabled || chatbotProviderChanged || chatbotCredentialsChanged;
   const ocrOpenrouterKeySet = !!ocrSettings.data?.openrouterKeySet;
   const ocrHasKey = ocrOpenrouterKeySet || ocrOpenrouterKey.trim() !== '';
   const ocrChanged = !!ocrSettings.data && (
@@ -500,29 +437,6 @@ export default function AppSettingsConfigPage() {
           creditTierCapValid={creditTierCapValid}
           saveGeneralSettings={saveGeneralSettings}
           generalMessage={generalMessage}
-        />
-
-        <LlmSection
-          appSettings={appSettings}
-          saveAppSettings={saveAppSettings}
-          features={features}
-          updateFeature={updateFeature}
-          llmSettings={llmSettings}
-          saveLlmSettings={saveLlmSettings}
-          provider={provider}
-          setProvider={setProvider}
-          models={models}
-          minimaxKey={minimaxKey}
-          setMinimaxKey={setMinimaxKey}
-          openrouterKey={openrouterKey}
-          setOpenrouterKey={setOpenrouterKey}
-          minimaxKeySet={minimaxKeySet}
-          openrouterKeySet={openrouterKeySet}
-          chosenKeyReady={chosenKeyReady}
-          chatbotCanSave={chatbotCanSave}
-          chatbotNeedsReadyProvider={chatbotNeedsReadyProvider}
-          saveChatbot={saveChatbot}
-          aiMessage={aiMessage}
         />
 
         <OcrSection

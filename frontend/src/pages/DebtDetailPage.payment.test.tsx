@@ -11,7 +11,6 @@ const {
   toastMock,
   refetchMock,
   randomUuidMock,
-  useAgentOpenableMock,
 } = vi.hoisted(() => ({
   useCustomerStatementMock: vi.fn(),
   useSupplierStatementMock: vi.fn(),
@@ -20,14 +19,7 @@ const {
   toastMock: vi.fn(),
   refetchMock: vi.fn(),
   randomUuidMock: vi.fn(),
-  useAgentOpenableMock: vi.fn(),
 }));
-
-let agentOpenCallback: ((payload: {
-  kind?: string;
-  values?: { amount?: number };
-  prefill?: { amount?: number };
-}) => void) | null = null;
 
 vi.mock('../hooks/useQueries', () => ({
   useCustomerStatement: useCustomerStatementMock,
@@ -52,13 +44,6 @@ vi.mock('../hooks/animations', () => ({
 
 vi.mock('../hooks/useBackShortcut', () => ({
   useBackShortcut: vi.fn(),
-}));
-
-vi.mock('../hooks/useAgentOpenable', () => ({
-  useAgentOpenable: (key: string, callback: typeof agentOpenCallback) => {
-    useAgentOpenableMock(key, callback);
-    agentOpenCallback = callback;
-  },
 }));
 
 vi.mock('../hooks/useMediaQuery', () => ({
@@ -155,9 +140,6 @@ describe('DebtDetailPage payment flow', () => {
     toastMock.mockReset();
     refetchMock.mockReset();
     randomUuidMock.mockReset();
-    useAgentOpenableMock.mockReset();
-    agentOpenCallback = null;
-
     let uuidCounter = 0;
     randomUuidMock.mockImplementation(() => {
       uuidCounter += 1;
@@ -251,7 +233,7 @@ describe('DebtDetailPage payment flow', () => {
     expect(refetchMock).toHaveBeenCalled();
   });
 
-  it('rotates the retry key when agent prefill changes the semantic amount after a failed submit', async () => {
+  it('rotates the retry key when the user edits the amount after a failed submit', async () => {
     apiPostMock
       .mockRejectedValueOnce(new Error('Mạng chập chờn, vui lòng thử lại.'))
       .mockResolvedValueOnce({
@@ -286,7 +268,7 @@ describe('DebtDetailPage payment flow', () => {
     await waitFor(() => expect(screen.getByText(/Mạng chập chờn/)).toBeTruthy());
 
     await act(async () => {
-      agentOpenCallback?.({ kind: 'prefill', values: { amount: 2_500_000 } });
+      fireEvent.change(screen.getByLabelText(/Số tiền nhận/), { target: { value: '2500000' } });
     });
     fireEvent.click(screen.getByRole('button', { name: 'Ghi nhận' }));
 

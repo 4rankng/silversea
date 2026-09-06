@@ -196,7 +196,7 @@ export function getNavItems(
     }
 
     /* ─────────────────────────────────────────────────────────────────────────
-       ACCOUNTANT: Financial focus only, NO /dashboard, /dispatch, /config/app-settings, /chatbot-monitoring
+       ACCOUNTANT: Financial focus only, NO /dashboard, /dispatch, /config/app-settings
        ───────────────────────────────────────────────────────────────────────── */
     case 'ACCOUNTANT': {
       return [

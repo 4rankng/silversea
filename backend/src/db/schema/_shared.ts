@@ -1,15 +1,4 @@
-
-import {
-  customType, text,
-} from 'drizzle-orm/pg-core';
-const vector1536Builder = customType<{ data: string; driverData: string }>({
-  dataType() {
-    return 'vector(1536)';
-  },
-});
-
-export const vectorColumn1536 = vector1536Builder;
-
+import { text } from 'drizzle-orm/pg-core';
 
 // Application-owned enum values; PostgreSQL stores unrestricted text columns.
 export function applicationEnum<const Values extends readonly [string, ...string[]]>(values: Values) {

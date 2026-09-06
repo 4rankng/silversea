@@ -337,6 +337,13 @@
       "when": 1788485699761,
       "tag": "0047_milky_darkstar",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1788666265525,
+      "tag": "0048_curly_lockheed",
+      "breakpoints": true
     }
   ]
 }

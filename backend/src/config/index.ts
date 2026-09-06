@@ -76,17 +76,6 @@ const configSchema = z.object({
   vapidPublicKey: z.string().default(''),
   vapidPrivateKey: z.string().default(''),
   vapidSubject: z.string().default(VAPID_SUBJECT_DEFAULT),
-  // Command-and-insight assistant (bot). Optional — the agent endpoints
-  // return 503 while `botEnabled` is off, and the frontend launcher hides.
-  // MiniMax key is empty until the owner signs off on data exposure (R2) and
-  // the tool-calling + JSON-mode spike is verified (R1).
-  //
-  // ONLY `botEnabled` + `minimaxApiKey` are env-driven. Everything else the
-  // bot needs — model, base URL, call timeout, ReAct loop cap — is a hardcoded
-  // constant in services/llm/models.ts (MODEL_FAST / MINIMAX_BASE_URL /
-  // MINIMAX_TIMEOUT_MS / AGENT_MAX_ITERATIONS). See that file for the rationale.
-  botEnabled: z.boolean().default(false),
-  minimaxApiKey: z.string().default(''),
   // Wave 0: shipment-first trip creation. When ON, `/api/trips` POST requires
   // a `shipmentId` at the HTTP boundary and the new trip is linked +
   // container-snapshotted from that shipment. When OFF (default),
@@ -104,39 +93,11 @@ const configSchema = z.object({
   // Default OFF (gate bypassed) per that spec's explicit instruction. Flip to
   // ON once the Ops module ships to restore the strict handoff gate.
   driverOpsPaperOrderGateEnabled: z.boolean().default(false),
-  // Master key for at-rest encryption of DB-stored secrets (LLM API keys set
-  // via the admin settings page). Optional; when empty, services/crypto.ts
+  // Master key for at-rest encryption of DB-stored secrets (provider API keys
+  // set via the admin settings pages). Optional; when empty, services/crypto.ts
   // derives a key from JWT_SECRET so existing deployments keep working. Set an
   // explicit 32-byte (base64/hex) key in prod for clean rotation. See crypto.ts.
   settingsEncryptionKey: z.string().default(''),
-  // Chatbot SLA bands for the performance dashboard's user-perceived latency
-  // gauge. p95 <= green = healthy; green < p95 <= amber = degraded; p95 > amber
-  // = unhealthy. Tunable via env so ops can adjust without a redeploy.
-  agentSlaP95GreenMs: z.coerce.number().int().positive().default(5000),
-  agentSlaP95AmberMs: z.coerce.number().int().positive().default(12000),
-  // A3 guardrail: when the model writes a destination path in prose instead of
-  // calling ui.navigate, convert the turn into a real navigate directive so the
-  // user is still taken to the page. Kill-switch — disable via env without a
-  // redeploy if the matcher ever false-positives in production.
-  agentNavigateGuardrail: z.boolean().default(true),
-  // P1 Intent Router: deterministic route-before-reasoning. When ON, the agent
-  // socket runs routeIntent() after the FAQ lane abstains and before the
-  // orchestrator. Navigation intents (Lane 0) resolve to a directive with 0
-  // LLM calls; single-entity lookups (Lane 2) get one tool call. Kill-switch —
-  // disable via env to force every turn through the full ReAct loop.
-  agentIntentRouter: z.boolean().default(true),
-  // Live token streaming kill-switch. RUN_STARTED/tool progress remain active
-  // when disabled; only model text falls back to terminal delivery. DISABLED
-  // by default: streaming the prose prefix can race the final RUN_FINISHED
-  // frame (a streamed bubble flashes then gets replaced by the authoritative
-  // message). Answers now arrive whole in RUN_FINISHED.
-  agentStreamingEnabled: z.boolean().default(false),
-  // P5 Governance: LLM provider failover. When ON, a failed primary provider
-  // call (timeout/http/429) retries on the alternate provider. Kill-switch.
-  agentFailover: z.boolean().default(true),
-  // P5 Governance: per-user chat rate limit (messages per minute). Prevents
-  // abuse/cost runaway. 0 = disabled.
-  agentRateLimitPerMin: z.number().int().nonnegative().default(20),
   // Wave 2 M3.3: Email service. The Resend API key is managed by ADMIN in
   // app_settings; sender identity remains deployment configuration.
   emailFromAddress: z.string().default('noreply@tingting.vn'),
@@ -165,18 +126,9 @@ const raw = {
   vapidPublicKey: process.env.VAPID_PUBLIC_KEY,
   vapidPrivateKey: process.env.VAPID_PRIVATE_KEY,
   vapidSubject: process.env.VAPID_SUBJECT,
-  botEnabled: parseFlag(process.env.BOT_ENABLE),
-  minimaxApiKey: process.env.MINIMAX_API_KEY,
   shipmentFirstCreate: parseFlag(process.env.SHIPMENT_FIRST_CREATE),
   driverOpsPaperOrderGateEnabled: parseFlag(process.env.DRIVER_OPS_PAPER_ORDER_GATE_ENABLED, false),
   settingsEncryptionKey: process.env.SETTINGS_ENCRYPTION_KEY,
-  agentSlaP95GreenMs: process.env.AGENT_SLA_P95_GREEN_MS,
-  agentSlaP95AmberMs: process.env.AGENT_SLA_P95_AMBER_MS,
-  agentNavigateGuardrail: parseFlag(process.env.AGENT_NAVIGATE_GUARDRAIL, true),
-  agentIntentRouter: parseFlag(process.env.AGENT_INTENT_ROUTER, true),
-  agentStreamingEnabled: parseFlag(process.env.AGENT_STREAMING_ENABLED, false),
-  agentFailover: parseFlag(process.env.AGENT_FAILOVER, true),
-  agentRateLimitPerMin: Number(process.env.AGENT_RATE_LIMIT_PER_MIN) || 20,
 };
 
 // Provide dev-only defaults for values not marked as required in production
@@ -203,17 +155,8 @@ const withDefaults = {
   vapidPublicKey: raw.vapidPublicKey || '',
   vapidPrivateKey: raw.vapidPrivateKey || '',
   vapidSubject: raw.vapidSubject || VAPID_SUBJECT_DEFAULT,
-  botEnabled: raw.botEnabled,
   driverOpsPaperOrderGateEnabled: raw.driverOpsPaperOrderGateEnabled,
-  minimaxApiKey: raw.minimaxApiKey || '',
   settingsEncryptionKey: raw.settingsEncryptionKey || '',
-  agentSlaP95GreenMs: raw.agentSlaP95GreenMs || 5000,
-  agentSlaP95AmberMs: raw.agentSlaP95AmberMs || 12000,
-  agentNavigateGuardrail: raw.agentNavigateGuardrail,
-  agentIntentRouter: raw.agentIntentRouter,
-  agentStreamingEnabled: raw.agentStreamingEnabled,
-  agentFailover: raw.agentFailover,
-  agentRateLimitPerMin: raw.agentRateLimitPerMin,
   emailFromAddress: process.env.EMAIL_FROM_ADDRESS || 'noreply@tingting.vn',
   emailFromName: process.env.EMAIL_FROM_NAME || 'TingTing Logistics',
 };
@@ -255,13 +198,5 @@ export const config = result.success ? result.data : configSchema.parse({
   vapidPublicKey: '',
   vapidPrivateKey: '',
   vapidSubject: VAPID_SUBJECT_DEFAULT,
-  botEnabled: false,
-  minimaxApiKey: '',
   settingsEncryptionKey: '',
-  agentSlaP95GreenMs: 5000,
-  agentSlaP95AmberMs: 12000,
-  agentNavigateGuardrail: true,
-  agentIntentRouter: true,
-  agentFailover: true,
-  agentRateLimitPerMin: 20,
 });

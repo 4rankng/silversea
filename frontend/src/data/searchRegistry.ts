@@ -141,8 +141,8 @@ export function getSearchItems(role: string, capabilities: readonly string[] = [
         ...ACTION_ITEMS,
       ];
     case 'MANAGER':
-      // Same office surface as ADMIN, but adminOnly config items (LLM settings,
-      // FAQ management) are hidden — the backend route guard (requireRoles ADMIN)
+      // Same office surface as ADMIN, but adminOnly config items are hidden —
+      // the backend route guard (requireRoles ADMIN)
       // would 403 them anyway, so showing the card is misleading UX.
       return [
         ...officeBaseItems,

@@ -12,16 +12,7 @@ import {
   DISPATCH_CLASSIFICATIONS,
 } from '../constants';
 
-// Agent (command-and-insight assistant) wire contract — directive / widget /
-// response / message / live-event schemas. Self-contained module kept separate
-// from the entity-CRUD schemas below. See ./agent.ts for the design notes.
-export * from './agent';
 export * from './financial-reporting-policy';
-
-// Admin LLM provider settings (MiniMax / OpenRouter selection + API keys).
-// Zod update schema + response interface; used by the ADMIN-only settings route
-// and the frontend config page.
-export * from './llm-settings';
 
 // Admin OCR settings (independent enable switch + OpenRouter/Gemini API keys).
 // Used by the ADMIN-only settings route and the frontend config page.

@@ -31,8 +31,6 @@ import configRoutes, { auditLogRouter, catalogBootstrapRouter, salaryPeriodsRout
 import tripRoutes from './routes/trips';
 import shipmentRoutes from './routes/shipments';
 import portalRoutes from './routes/portal';
-import { agentRoutes } from './routes/agent';
-import { initAgentSocket } from './agentSocket';
 import financialRoutes from './routes/financial';
 import expenseRoutes from './routes/expense';
 import driverRoutes from './routes/driver';
@@ -40,7 +38,6 @@ import forwarderRoutes from './routes/forwarder';
 import forwarderAdminRoutes from './routes/forwarder-admin';
 import adminGpsRoutes from './routes/admin-gps';
 import gpsSettingsRoutes from './routes/gps-settings';
-import llmSettingsRoutes from './routes/llm-settings';
 import ocrSettingsRoutes from './routes/ocr-settings';
 import { appSettingsRouter } from './routes/app-settings';
 import { uploadRouter, photosRouter } from './routes/upload';
@@ -182,11 +179,6 @@ app.use('/api/forwarder-expenses', authMiddleware, casbinAuthz('financial'), for
 // GPS route-DB admin (backfill + recapture) — MANAGER/ADMIN only (gps-admin action).
 app.use('/api/admin/gps', authMiddleware, casbinAuthz('gps-admin'), adminGpsRoutes);
 app.use('/api/admin/gps-settings', authMiddleware, requireRoles(Role.ADMIN), gpsSettingsRoutes);
-// Admin LLM provider settings (MiniMax / OpenRouter selection + API keys).
-// ADMIN-only: the `llm-settings` Casbin resource has no policy row, so only the
-// ADMIN wildcard (`p, ADMIN, *, *`) matches; requireRoles(Role.ADMIN) is the
-// belt-and-suspenders gate. MUST mount before the catch-all /api.
-app.use('/api/admin/llm-settings', authMiddleware, casbinAuthz('llm-settings'), requireRoles(Role.ADMIN), llmSettingsRoutes);
 app.use('/api/admin/ocr-settings', authMiddleware, casbinAuthz('ocr-settings'), requireRoles(Role.ADMIN), ocrSettingsRoutes);
 app.use('/api/admin/app-settings', authMiddleware, casbinAuthz('config'), appSettingsRouter);
 app.use('/api/maps', authMiddleware, casbinAuthz('maps'), mapsRoutes);
@@ -211,9 +203,6 @@ app.use('/api/portal', authMiddleware, casbinAuthz('customer_portal'), requireRo
 app.use('/api/financial', authMiddleware, casbinAuthz('financial'), financialWorkInboxRouter);
 app.use('/api/dashboard', authMiddleware, dashboardWorkInboxRouter);
 app.use('/api/system', authMiddleware, systemWorkInboxRouter);
-// Command-and-insight assistant (bot). Acts as the caller; office roles only.
-// 503 while BOT_ENABLE is off. Mounts before the catch-all /api.
-app.use('/api/agent', authMiddleware, casbinAuthz('agent'), agentRoutes);
 // Catalog bootstrap is used by both office pages and portal forms. The router
 // trims sensitive catalogs for DRIVER/FORWARDER before responding.
 app.use('/api', authMiddleware, catalogBootstrapRouter);
@@ -239,10 +228,6 @@ const server = app.listen(config.port, () => {
   console.log(`NEPO API running on port ${config.port} [${config.nodeEnv}]`);
 });
 
-// Command-and-insight assistant real-time transport. Attached to the same
-// http.Server Express uses; returns null when the bot is disabled.
-const agentIo = initAgentSocket(server);
-
 // ── Graceful shutdown (tsx watch sends SIGTERM on restart) ─────────────────
 let shuttingDown = false;
 async function shutdown(signal: string) {
@@ -250,7 +235,6 @@ async function shutdown(signal: string) {
   shuttingDown = true;
   console.log(`\n${signal} received — shutting down…`);
 
-  agentIo?.close();              // stop the assistant socket.io server
   stopScheduler();               // cancel all cron tasks (Wave 0)
   server.close();                // stop accepting new connections
   await dbClient.end();          // drain Postgres pool

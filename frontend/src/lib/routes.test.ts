@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import { homeForRole, routes, titleForPath } from './routes';
-import { PAGE_CATALOG, AGENT_ROUTE_KEYS } from '@tingting/shared';
 
 /**
  * Golden title parity: every representative pathname must resolve to the SAME
@@ -121,32 +120,5 @@ describe('removed live-tracking route stays removed', () => {
   it('no route value references /dispatch/live-tracking', () => {
     const offenders = flatten(routes).filter((v) => v.endsWith('/dispatch/live-tracking'));
     expect(offenders, `stale live-tracking route constants: ${offenders.join(', ')}`).toEqual([]);
-  });
-});
-
-/**
- * The compile-time assertion in shared/src/schemas/agent.ts already enforces
- * this at build time; this is the runtime mirror so a broken assertion (e.g.
- * someone widening the type) is still caught in CI.
- */
-describe('agent route-key set parity (catalog ↔ AGENT_ROUTE_KEYS)', () => {
-  const catalog = PAGE_CATALOG as Record<string, { agent?: { description: string } }>;
-
-  it('every catalog entry with an `agent` is listed in AGENT_ROUTE_KEYS', () => {
-    const catalogAgentKeys = Object.keys(catalog).filter((k) => catalog[k].agent != null);
-    const tuple = AGENT_ROUTE_KEYS as readonly string[];
-    for (const k of catalogAgentKeys) {
-      expect(tuple, `${k} has agent data but is not an AgentRouteKey`).toContain(k);
-    }
-  });
-
-  it('every AgentRouteKey has catalog `agent` data', () => {
-    for (const k of AGENT_ROUTE_KEYS) {
-      expect(PAGE_CATALOG[k].agent, `${k} is an AgentRouteKey but has no agent data`).toBeDefined();
-    }
-  });
-
-  it('agent set includes all 39 navigable office destinations', () => {
-    expect(AGENT_ROUTE_KEYS).toHaveLength(39);
   });
 });

@@ -25,8 +25,6 @@ export function useSaveAppSettings() {
     mutationFn: (settings: AppSettings) => appSettingsClient.saveSettings(settings),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: qk.appSettings.general });
-      // The assistant UI reads its enabled state from /auth/me.
-      queryClient.invalidateQueries({ queryKey: qk.auth.me });
       // A gps toggle flip changes what the live-fleet endpoint returns.
       queryClient.invalidateQueries({ queryKey: qk.liveFleet.all });
     },

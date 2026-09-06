@@ -192,7 +192,6 @@ describe('app-settings route authorization', () => {
   test('manager can read app settings but cannot write them', async () => {
     const read = await request('/', { token: managerToken });
     assert.equal(read.status, 200);
-    assert.equal(typeof read.body.botEnabled, 'boolean');
     assert.equal(typeof read.body.gpsEnabled, 'boolean');
 
     const write = await request('/', {
@@ -207,7 +206,6 @@ describe('app-settings route authorization', () => {
   test('accountant can read app settings but cannot write them', async () => {
     const read = await request('/', { token: accountantToken });
     assert.equal(read.status, 200);
-    assert.equal(typeof read.body.botEnabled, 'boolean');
 
     const write = await request('/', {
       method: 'PUT',
@@ -224,8 +222,7 @@ describe('app-settings route authorization', () => {
     assert.ok(read.body.updatedAt == null || typeof read.body.updatedAt === 'string');
 
     const flipped = {
-      botEnabled: !originalSettings.botEnabled,
-      gpsEnabled: originalSettings.gpsEnabled,
+      gpsEnabled: !originalSettings.gpsEnabled,
       creditWarningThresholdDefault: originalSettings.creditWarningThresholdDefault,
       creditTierOneAmountCap: originalSettings.creditTierOneAmountCap,
       salaryPayrollBusinessUnitId: originalSettings.salaryPayrollBusinessUnitId,
@@ -238,7 +235,7 @@ describe('app-settings route authorization', () => {
       expectedUpdatedAt: currentVersionHeader(read.body),
     });
     assert.equal(write.status, 200);
-    assert.equal(write.body.botEnabled, flipped.botEnabled);
+    assert.equal(write.body.gpsEnabled, flipped.gpsEnabled);
   });
 
   test('material financial settings and direct toggles all apply immediately (2026-09-05 d3599b0b)', async () => {
@@ -257,7 +254,6 @@ describe('app-settings route authorization', () => {
     assert.equal(read.status, 200);
 
     const proposed = {
-      botEnabled: !Boolean(read.body.botEnabled),
       gpsEnabled: Boolean(read.body.gpsEnabled),
       creditWarningThresholdDefault: Number(read.body.creditWarningThresholdDefault ?? originalSettings.creditWarningThresholdDefault),
       creditTierOneAmountCap: Number(read.body.creditTierOneAmountCap ?? originalSettings.creditTierOneAmountCap),
@@ -276,7 +272,6 @@ describe('app-settings route authorization', () => {
     assert.ok(write.status === 200 || write.status === 201, `unexpected write status ${write.status} body=${JSON.stringify(write.body)}`);
 
     const after = await request('/', { token: adminToken });
-    assert.equal(after.body.botEnabled, proposed.botEnabled, 'direct operational toggle applies immediately');
     assert.equal(
       after.body.salaryPayrollBusinessUnitId,
       proposed.salaryPayrollBusinessUnitId,
@@ -299,7 +294,6 @@ describe('app-settings route authorization', () => {
     const read = await request('/', { token: adminToken });
     assert.equal(read.status, 200);
     const proposed = {
-      botEnabled: Boolean(read.body.botEnabled),
       gpsEnabled: Boolean(read.body.gpsEnabled),
       creditWarningThresholdDefault: Number(read.body.creditWarningThresholdDefault ?? originalSettings.creditWarningThresholdDefault),
       creditTierOneAmountCap: Number(read.body.creditTierOneAmountCap ?? originalSettings.creditTierOneAmountCap),

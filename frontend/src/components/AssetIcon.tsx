@@ -52,7 +52,6 @@ export type AssetIconName =
   | 'settlement'
   | 'gross-margin'
   | 'active-supplier'
-  | 'assistant'
   | 'road-allowance'
   | 'route-distance'
   | 'pricing-rate'
@@ -60,8 +59,6 @@ export type AssetIconName =
   | 'expense-category'
   | 'forwarder-expense'
   | 'debit-note-template'
-  | 'ai-provider'
-  | 'faq'
   | 'app-settings'
   | 'company-profile'
   | 'trip-expense-rules'
@@ -120,7 +117,6 @@ const ASSET_ICONS: Record<AssetIconName, AssetIconEntry> = {
   settlement:   { name: 'settlement',   slug: '32-settlement-hoan-ung',                               label: 'Hoàn ứng',             group: 'money' },
   'gross-margin': { name: 'gross-margin', slug: '33-gross-margin-bien-loi-nhuan',                     label: 'Biên lợi nhuận gộp',   group: 'reporting' },
   'active-supplier': { name: 'active-supplier', slug: '34-active-supplier-nha-cung-cap-hoat-dong',    label: 'Nhà cung cấp hoạt động', group: 'people' },
-  assistant:    { name: 'assistant',    slug: '35-assistant-tro-ly-tingting',                          label: 'Trợ lý TransTing',      group: 'system' },
   'road-allowance': { name: 'road-allowance', slug: '36-road-allowance-toll-phi-duong-bo',            label: 'Tiền đi đường',        group: 'money' },
   'route-distance': { name: 'route-distance', slug: '37-route-distance-tuyen-duong-cu-ly',            label: 'Tuyến đường và cự ly', group: 'place' },
   'pricing-rate': { name: 'pricing-rate', slug: '38-pricing-rate-bang-gia-cuoc',                       label: 'Bảng giá cước',         group: 'money' },
@@ -128,8 +124,6 @@ const ASSET_ICONS: Record<AssetIconName, AssetIconEntry> = {
   'expense-category': { name: 'expense-category', slug: '40-expense-category-hang-muc-chi-phi',       label: 'Hạng mục chi phí',      group: 'money' },
   'forwarder-expense': { name: 'forwarder-expense', slug: '41-forwarder-expense-chi-phi-giao-nhan',   label: 'Chi phí giao nhận',     group: 'money' },
   'debit-note-template': { name: 'debit-note-template', slug: '42-debit-note-template-mau-giay-bao-no', label: 'Mẫu giấy báo nợ',     group: 'money' },
-  'ai-provider': { name: 'ai-provider', slug: '43-ai-provider-nha-cung-cap-ai',                         label: 'Nhà cung cấp AI',       group: 'system' },
-  faq:           { name: 'faq', slug: '44-faq-cau-hoi-thuong-gap',                                    label: 'Câu hỏi thường gặp',    group: 'system' },
   'app-settings': { name: 'app-settings', slug: '45-app-settings-cai-dat-ung-dung',                    label: 'Cài đặt ứng dụng',      group: 'system' },
   'company-profile': { name: 'company-profile', slug: '46-company-profile-thong-tin-cong-ty',         label: 'Thông tin công ty',     group: 'system' },
   'trip-expense-rules': { name: 'trip-expense-rules', slug: '47-trip-expense-rules-chi-phi-chuyen-di', label: 'Chi phí chuyến đi',    group: 'money' },

@@ -48,7 +48,7 @@ export function OcrSection({
       />
       <div className="cfg-security-note">
         <ShieldCheck size={16} aria-hidden="true" />
-        <span>API key OCR được mã hóa riêng khi lưu và không dùng chung với chatbot. Giá trị đầy đủ không bao giờ gửi lại trình duyệt.</span>
+        <span>API key OCR được mã hóa riêng khi lưu và dùng riêng cho OCR. Giá trị đầy đủ không bao giờ gửi lại trình duyệt.</span>
       </div>
       <div className="cfg-credentials-grid">
         <SecretField

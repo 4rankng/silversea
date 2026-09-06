@@ -52,8 +52,7 @@ const APP_SETTINGS_COMMANDS = {
 } as const;
 
 function hasDirectAppSettingsChange(previous: AppSettings, next: AppSettings): boolean {
-  return previous.botEnabled !== next.botEnabled
-    || previous.gpsEnabled !== next.gpsEnabled;
+  return previous.gpsEnabled !== next.gpsEnabled;
 }
 
 function hasFinancialPolicyAppSettingsChange(previous: AppSettings, next: AppSettings): boolean {
@@ -65,7 +64,6 @@ function hasFinancialPolicyAppSettingsChange(previous: AppSettings, next: AppSet
 function directAppSettingsOnly(previous: AppSettings, next: AppSettings) {
   return {
     ...previous,
-    botEnabled: next.botEnabled,
     gpsEnabled: next.gpsEnabled,
   };
 }

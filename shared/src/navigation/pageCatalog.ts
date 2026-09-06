@@ -1,15 +1,11 @@
 /**
- * Single source of truth for SPA page metadata: path, Vietnamese title, and
- * (for agent-navigable pages) the description + aliases the AI assistant uses
- * to resolve a user query to a routeKey.
+ * Single source of truth for SPA page metadata: path + Vietnamese title.
  *
- * Why this exists: the same page used to be described in four drifting places —
- * `frontend/src/lib/routes.ts` (path + title), `shared/src/schemas/agent.ts`
- * (the closed set of agent route keys), `backend/src/services/agent/tools/ui.ts`
- * (a hand-maintained `PAGE_DESCRIPTIONS` record), and `frontend/src/App.tsx`
- * (the `<Route>` declarations). Adding one page touched all four and the
- * Vietnamese title got copy-pasted. Now the literal lives here once and every
- * consumer derives from it.
+ * Why this exists: the same page used to be described in multiple drifting
+ * places — `frontend/src/lib/routes.ts` (path + title) and `frontend/src/App.tsx`
+ * (the `<Route>` declarations). Adding one page touched both and the Vietnamese
+ * title got copy-pasted. Now the literal lives here once and every consumer
+ * derives from it.
  *
  * What this is NOT:
  *   - NOT a router. `App.tsx` still owns the React Router `<Route>` elements +
@@ -17,32 +13,17 @@
  *     `roles` field here — RBAC stays in App.tsx + Casbin to avoid a third
  *     source of truth.
  *   - NOT exhaustive navigation metadata. Section/roles for the sidebar live
- *     elsewhere for now; this catalog carries path + title + agent data only.
- *
- * Agent membership rule: an entry is navigable by the AI assistant iff it has
- * an `agent` sub-object. `shared/src/schemas/agent.ts` keeps a hand-written
- * `AGENT_ROUTE_KEYS as const` tuple (load-bearing for `z.enum`) plus a
- * compile-time assertion that the tuple exactly equals the set of entries with
- * an `agent` sub-object — so the two can never drift silently.
+ *     elsewhere for now; this catalog carries path + title (+ section) only.
  */
 
 /** Coarse grouping for future sidebar/search derivation (informational only). */
 export type PageSection = 'operations' | 'hr' | 'financials' | 'master-data' | 'resources' | 'system' | 'config';
-
-/** Search data for pages the AI assistant may navigate to / search for. */
-export interface PageAgentMeta {
-  /** Vietnamese description powering `ui.search_pages` + the LLM's route choice. */
-  description: string;
-  /** Extra normalized search terms (diacritics stripped or English fallbacks). */
-  aliases?: readonly string[];
-}
 
 /** A page with a static URL (no params), e.g. `/dashboard`. */
 export interface StaticPageEntry {
   title: string;
   path: string;
   section?: PageSection;
-  agent?: PageAgentMeta;
 }
 
 /** A page whose URL needs params, e.g. `/trips/:id`. */
@@ -55,7 +36,6 @@ export interface DynamicPageEntry {
   /** Param names the builder reads, e.g. `['id']` or `['truckId']`. */
   requiresParams: readonly string[];
   section?: PageSection;
-  agent?: PageAgentMeta;
 }
 
 export type PageCatalogEntry = StaticPageEntry | DynamicPageEntry;
@@ -66,24 +46,20 @@ export const PAGE_CATALOG = {
   dashboard: {
     title: 'Tổng quan',
     path: '/dashboard',
-    agent: { description: 'Tổng quan — bảng điều khiển chính, KPI tháng.' },
   },
   dispatch: {
     title: 'Kế hoạch Tổng quát',
     path: '/dispatch',
     section: 'operations',
-    agent: { description: 'Kế hoạch Tổng quát — phân bổ nhà xe cho lô hàng ở cấp lô, bước 1 của điều độ phương tiện.' },
   },
   dispatchDetailPlan: {
     title: 'Kế hoạch Chi tiết Xe',
     path: '/dispatch-detail',
     section: 'operations',
-    agent: { description: 'Kế hoạch Chi tiết Xe — lưới container tự động rã từ phân bổ nhà xe, gán biển số từng chuyến, bước 2 của điều độ phương tiện.' },
   },
   fleet: {
     title: 'Đội xe',
     path: '/fleet',
-    agent: { description: 'Đội xe — danh sách xe đầu kéo, rơ-moóc, lốp.' },
   },
   // Dispatcher resource-catalog views: read-only lookups of internal tractors
   // and drivers for staffing dispatch plans (separate from the admin /fleet
@@ -103,133 +79,103 @@ export const PAGE_CATALOG = {
     path: (p: Record<string, string | number>) => `/fleet/${p.truckId}/tires`,
     pathPattern: '/fleet/:truckId/tires',
     requiresParams: ['truckId'],
-    agent: {
-      description: 'Lốp xe đầu kéo — serial, vị trí lắp, tuổi lốp, nhà cung cấp, thanh lý lốp (theo đầu kéo).',
-      aliases: ['lốp', 'lop', 'lốp xe', 'vỏ xe', 'vo xe'],
-    },
   },
   fleetTrailerTires: {
     title: 'Lốp rơ-moóc',
     path: (p: Record<string, string | number>) => `/fleet/trailers/${p.trailerId}/tires`,
     pathPattern: '/fleet/trailers/:trailerId/tires',
     requiresParams: ['trailerId'],
-    agent: {
-      description: 'Lốp rơ-moóc — serial, vị trí lắp, tuổi lốp, thanh lý (theo rơ-moóc).',
-      aliases: ['lốp rơ moóc', 'vỏ rơ moóc', 'lốp moóc'],
-    },
   },
   trips: {
     title: 'Sổ chuyến đi',
     path: '/trips',
-    agent: { description: 'Sổ chuyến đi — danh sách tất cả chuyến.' },
   },
   tripNew: {
     title: 'Tạo chuyến đi',
     path: '/trips/new',
-    agent: { description: 'Tạo chuyến đi — form tạo chuyến mới.' },
   },
   tripDetail: {
     title: 'Chi tiết chuyến đi',
     path: (p: Record<string, string | number>) => `/trips/${p.id}`,
     pathPattern: '/trips/:id',
     requiresParams: ['id'],
-    agent: { description: 'Chi tiết một chuyến đi.' },
   },
   tripEdit: {
     title: 'Sửa chuyến đi',
     path: (p: Record<string, string | number>) => `/trips/${p.id}/edit`,
     pathPattern: '/trips/:id/edit',
     requiresParams: ['id'],
-    agent: { description: 'Sửa chuyến đi.' },
   },
   finance: {
     title: 'Báo cáo lãi lỗ',
     path: '/finance',
     section: 'financials',
-    agent: { description: 'Báo cáo lãi lỗ (P&L) theo tháng.' },
   },
   accounting: {
     title: 'Tổng Quan',
     path: '/accounting',
     section: 'financials',
-    agent: {
-      description: 'Tổng Quan — công việc vận tải, công nợ, thanh toán và báo cáo của kế toán.',
-      aliases: ['ke toan', 'accounting', 'tổng quan kế toán', 'tong quan ke toan'],
-    },
   },
   profit: {
     title: 'Phân chia lợi nhuận',
     path: '/profit',
     section: 'financials',
-    agent: { description: 'Phân chia lợi nhuận theo quý.' },
   },
   debt: {
     title: 'Công nợ phải thu',
     path: '/debt',
     section: 'financials',
-    agent: { description: 'Công nợ phải thu — danh sách khách nợ.' },
   },
   debtDetail: {
     title: 'Chi tiết công nợ phải thu',
     path: (p: Record<string, string | number>) => `/debt/${p.id}`,
     pathPattern: '/debt/:id',
     requiresParams: ['id'],
-    agent: { description: 'Chi tiết công nợ một khách.' },
   },
   penalties: {
     title: 'Kỷ luật',
     path: '/penalties',
-    agent: { description: 'Kỷ luật — danh sách phạt tài xế.' },
   },
   advances: {
     title: 'Tạm ứng & hoàn ứng',
     path: '/advances',
     section: 'financials',
-    agent: { description: 'Quản lý yêu cầu tạm ứng và phiếu hoàn ứng.' },
   },
   governanceActions: {
     title: 'Trung tâm phê duyệt',
     path: '/governance-actions',
     section: 'financials',
-    agent: { description: 'Kiểm tra và phê duyệt các đề nghị theo thẩm quyền.' },
   },
   adminAdvanceSettlements: {
     title: 'Tạm ứng & hoàn ứng',
     path: '/admin/advance-settlements',
     section: 'financials',
-    agent: { description: 'Đường dẫn tương thích đến phiếu hoàn ứng.' },
   },
   salary: {
     title: 'Lương & Chấm công',
     path: '/salary',
     section: 'operations',
-    agent: { description: 'Lương & Chấm công.' },
   },
   users: {
     title: 'Người dùng',
     path: '/users',
     section: 'system',
-    agent: { description: 'Người dùng — danh sách tài khoản.' },
   },
   auditLogs: {
     title: 'Nhật ký người dùng',
     path: '/audit-logs',
     section: 'system',
-    agent: { description: 'Nhật ký thao tác người dùng.' },
   },
   customers: {
     title: 'Khách hàng',
     path: '/customers',
     section: 'master-data',
-    agent: { description: 'Khách hàng — danh sách.' },
   },
   shipments: {
     title: 'Tổng quan lô hàng',
     // Wave 0: minimal read-only list/detail surface. Path is its own top-level
     // (/shipments) rather than nested under /trips because a shipment precedes
-    // and outlives any single trip (phase-01 architecture). No `agent` meta
-    // yet — the AI assistant's page-search coverage ships with the Wave 2 CUS
-    // UI when the page becomes operator-relevant in daily flow.
+    // and outlives any single trip (phase-01 architecture).
     path: '/shipments',
     section: 'operations',
   },
@@ -251,39 +197,33 @@ export const PAGE_CATALOG = {
     title: 'Nhà cung cấp',
     path: '/suppliers',
     section: 'master-data',
-    agent: { description: 'Nhà cung cấp — danh sách.' },
   },
   expenses: {
     title: 'Chi phí phát sinh',
     path: '/expenses',
     section: 'financials',
-    agent: { description: 'Chi phí phát sinh.' },
   },
   expenseNew: {
     title: 'Ghi nhận chi phí',
     path: '/expenses/new',
     section: 'financials',
-    agent: { description: 'Ghi nhận chi phí phát sinh mới.' },
   },
   expenseEdit: {
     title: 'Sửa chi phí',
     path: (p: Record<string, string | number>) => `/expenses/${p.id}/edit`,
     pathPattern: '/expenses/:id/edit',
     requiresParams: ['id'],
-    agent: { description: 'Sửa chi phí phát sinh.' },
   },
   payables: {
     title: 'Công nợ phải trả',
     path: '/payables',
     section: 'financials',
-    agent: { description: 'Công nợ phải trả — danh sách nợ nhà cung cấp.' },
   },
   payableDetail: {
     title: 'Chi tiết công nợ phải trả',
     path: (p: Record<string, string | number>) => `/payables/${p.id}`,
     pathPattern: '/payables/:id',
     requiresParams: ['id'],
-    agent: { description: 'Chi tiết công nợ phải trả.' },
   },
   login: {
     title: 'Đăng nhập',
@@ -298,7 +238,6 @@ export const PAGE_CATALOG = {
     title: 'Trung tâm quản trị',
     path: '/admin-center',
     section: 'system',
-    agent: { description: 'Trung tâm quản trị — sức khỏe và mức độ sẵn sàng hệ thống.' },
   },
 
   /* ── Config (catalog admin) ─────────────────────────────────────────── */
@@ -307,19 +246,16 @@ export const PAGE_CATALOG = {
     title: 'Cấu hình hệ thống',
     path: '/config',
     section: 'config',
-    agent: { description: 'Cấu hình hệ thống.' },
   },
   configTrailers: {
     title: 'Rơ-moóc',
     path: '/config/trailers',
     section: 'config',
-    agent: { description: 'Cấu hình rơ-moóc.' },
   },
   configTrucks: {
     title: 'Xe đầu kéo',
     path: '/config/trucks',
     section: 'config',
-    agent: { description: 'Cấu hình xe đầu kéo.' },
   },
   configTruckOwners: {
     title: 'Chủ xe',
@@ -332,13 +268,11 @@ export const PAGE_CATALOG = {
     title: 'Tuyến đường',
     path: '/config/routes',
     section: 'config',
-    agent: { description: 'Cấu hình tuyến đường.' },
   },
   configBusinessCalendar: {
     title: 'Lịch ngày làm việc',
     path: '/config/business-calendar',
     section: 'config',
-    agent: { description: 'Cấu hình ngày nghỉ lễ và ngày làm việc bù.' },
   },
   configCargoTypes: {
     title: 'Loại hàng hóa',
@@ -364,7 +298,6 @@ export const PAGE_CATALOG = {
     title: 'Định mức dầu',
     path: '/config/fuel',
     section: 'config',
-    agent: { description: 'Cấu hình dầu (định mức, đơn giá).' },
   },
   configTripExpense: {
     title: 'Loại chi phí chuyến',
@@ -380,7 +313,6 @@ export const PAGE_CATALOG = {
     title: 'Khách hàng',
     path: '/config/customers',
     section: 'config',
-    agent: { description: 'Cấu hình khách hàng.' },
   },
   configManagementFees: {
     title: 'Phí quản lý',
@@ -391,7 +323,6 @@ export const PAGE_CATALOG = {
     title: 'Kỳ lương',
     path: '/config/salary-periods',
     section: 'config',
-    agent: { description: 'Cấu hình kỳ lương.' },
   },
   configExpenseCategories: {
     title: 'Nhóm chi phí',
@@ -417,10 +348,6 @@ export const PAGE_CATALOG = {
     title: 'Mẫu giấy báo nợ',
     path: '/config/debit-note-templates',
     section: 'config',
-    agent: {
-      description: 'Mẫu giấy báo nợ — cấu hình mẫu Excel giấy báo nợ, chữ ký, thông tin công ty, cột xuất file.',
-      aliases: ['mau giay bao no', 'giay bao no', 'debit note', 'debit note template'],
-    },
   },
 
   /* ── Driver portal ──────────────────────────────────────────────────── */

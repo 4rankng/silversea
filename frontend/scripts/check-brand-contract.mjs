@@ -16,7 +16,6 @@ function magick(relativePath, args) {
 const scopedRuntimeFiles = [
   '../src/components/Layout.tsx',
   '../src/components/AssetIcon.tsx',
-  '../src/components/agent/AgentAssistant.tsx',
   '../src/components/layout/Sidebar.tsx',
   '../src/pages/LoginPage.tsx',
   '../src/lib/csv.ts',
@@ -24,7 +23,6 @@ const scopedRuntimeFiles = [
   '../index.html',
   '../public/manifest.json',
   '../public/sw.js',
-  '../../backend/src/services/agent/orchestrator.ts',
   '../../backend/src/services/fuel-voucher.service.ts',
 ];
 

@@ -436,7 +436,6 @@ describe('durable effect jobs foundation', () => {
 
     const schemaSource = source('db/schema/core.ts');
     assert.match(schemaSource, /export const durableEffectJobs = pgTable\('durable_effect_jobs'/);
-    assert.doesNotMatch(schemaSource, /export const agentTurnMetrics\b/);
 
     const indexes = await client<{ indexname: string; indexdef: string }[]>`
       select indexname, indexdef

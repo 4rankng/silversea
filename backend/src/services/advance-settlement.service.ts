@@ -274,8 +274,8 @@ export interface PaginatedAdvanceSettlements {
  * from a LIMIT/OFFSET query (never an in-memory slice of the full set).
  * statusCounts/totals are FULL-set aggregates (status filter excluded) so
  * KPIs/filter pills stay stable across tabs; total/totalPages describe the
- * filtered set for the pager. Callers that need the full array (admin ops,
- * agent tools) keep calling listAdvanceSettlements directly.
+ * filtered set for the pager. Callers that need the full array (admin ops)
+ * keep calling listAdvanceSettlements directly.
  */
 export async function listAdvanceSettlementsPaginated(filters: {
   forwarderId?: number;

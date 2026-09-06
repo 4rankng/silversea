@@ -2,10 +2,10 @@ import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
-import { highlightElement } from '../lib/agentHighlight';
+import { highlightElement } from '../lib/highlight';
 import { clearFocusSearchParams, useFocusDeepLink } from './useFocusDeepLink';
 
-vi.mock('../lib/agentHighlight', () => ({
+vi.mock('../lib/highlight', () => ({
   highlightElement: vi.fn(() => false),
 }));
 

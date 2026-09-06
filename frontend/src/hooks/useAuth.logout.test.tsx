@@ -3,19 +3,6 @@ import type { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const {
-  clearAgentConversationMock,
-  disposeAgentSocketMock,
-} = vi.hoisted(() => ({
-  clearAgentConversationMock: vi.fn(),
-  disposeAgentSocketMock: vi.fn(),
-}));
-
-vi.mock('../api/agentClient', () => ({
-  clearAgentConversation: clearAgentConversationMock,
-  disposeAgentSocket: disposeAgentSocketMock,
-}));
-
 import { api } from '../lib/api';
 import { AuthProvider, useAuth } from './useAuth';
 
@@ -80,8 +67,6 @@ describe('AuthProvider logout', () => {
     vi.restoreAllMocks();
     vi.stubGlobal('localStorage', createStorageStub());
     localStorage.clear();
-    clearAgentConversationMock.mockReset();
-    disposeAgentSocketMock.mockReset();
   });
 
   afterEach(() => {
@@ -126,8 +111,6 @@ describe('AuthProvider logout', () => {
     expect(localStorage.getItem('token')).toBeNull();
     expect(localStorage.getItem('pending_logout_tokens')).toBeNull();
     expect(queryClient.getQueryData(['financial', 'customer-a'])).toBeUndefined();
-    expect(disposeAgentSocketMock).toHaveBeenCalledOnce();
-    expect(clearAgentConversationMock).toHaveBeenCalledOnce();
   });
 
   it('still clears local auth state when the logout request fails', async () => {
@@ -164,8 +147,6 @@ describe('AuthProvider logout', () => {
     expect(localStorage.getItem('token')).toBeNull();
     expect(localStorage.getItem('pending_logout_tokens')).toContain(VALID_TEST_JWT);
     expect(queryClient.getQueryData(['customers', 'customer-a'])).toBeUndefined();
-    expect(disposeAgentSocketMock).toHaveBeenCalledOnce();
-    expect(clearAgentConversationMock).toHaveBeenCalledOnce();
 
     window.dispatchEvent(new Event('online'));
     await waitFor(() => {
@@ -245,8 +226,6 @@ describe('AuthProvider logout', () => {
     expect(localStorage.getItem('token')).toBeNull();
     expect(localStorage.getItem('pending_logout_tokens')).toBeNull();
     expect(queryClient.getQueryData(['financial', 'customer-a'])).toBeUndefined();
-    expect(disposeAgentSocketMock).toHaveBeenCalledOnce();
-    expect(clearAgentConversationMock).toHaveBeenCalledOnce();
   });
 
   it('does not attempt server revocation for an already-expired token', async () => {

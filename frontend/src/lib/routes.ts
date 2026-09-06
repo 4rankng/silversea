@@ -1,7 +1,7 @@
 /**
  * Frontend projection of the shared page catalog (`PAGE_CATALOG` in
  * `@tingting/shared`). The catalog is the single source of truth for every
- * path string, page title, and agent-search description; this module exposes
+ * path string and page title; this module exposes
  * them in the shape the SPA has always consumed (`routes.tripDetail(id)`,
  * `titleForPath(pathname)`, the `legacy` redirect aliases).
  *
@@ -114,7 +114,7 @@ export const routes = {
 
   // /dispatch = Kế hoạch Tổng quát, /dispatch-detail = Kế hoạch Chi tiết —
   // two separate screens per the SilverSea dispatch spec. Both derive from
-  // the catalog so the paths can't drift from titles/agent descriptions.
+  // the catalog so the paths can't drift from titles.
   dispatchMasterPlan: PAGE_CATALOG.dispatch.path,
   dispatchDetailedPlan: PAGE_CATALOG.dispatchDetailPlan.path,
   dispatchDetailPlan: PAGE_CATALOG.dispatchDetailPlan.path,
@@ -189,9 +189,9 @@ const ROLE_BRANCHED_TITLES: Record<string, (role: string) => string> = {
 };
 
 // Order is load-bearing precedence (first match wins). The title strings are
-// sourced from PAGE_CATALOG so they can't drift from the agent descriptions /
-// sidebar; only the generic `/config/*` fallback ("Cấu hình") stays a literal
-// since no single catalog entry owns it.
+// sourced from PAGE_CATALOG so they can't drift from the sidebar; only the
+// generic `/config/*` fallback ("Cấu hình") stays a literal since no single
+// catalog entry owns it.
 const titleRules: TitleRule[] = [
   { test: p => p === routes.dashboard, title: PAGE_CATALOG.dashboard.title },
   { test: p => p === routes.dispatchDetailPlan, title: PAGE_CATALOG.dispatchDetailPlan.title },

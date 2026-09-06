@@ -1,7 +1,7 @@
 /**
- * Semantic target resolver for the agent highlight spotlight.
+ * Semantic target resolver for the highlight spotlight.
  *
- * The agent directive bridge spotlights elements by a stable string `targetId`.
+ * The `?focus=` deep link spotlights elements by a stable string `targetId`.
  * This resolver formalizes a single lookup with a precedence:
  *
  *   1. `[data-tour-id="<targetId>"]`  — the convention for targets whose `id`

@@ -720,7 +720,6 @@ describe('material-write registry coverage', () => {
       ['PUT', '/api/admin/app-settings/email', 'admin.app-settings.email.update'],
       ['PUT', '/api/admin/app-settings', 'admin.app-settings.update'],
       ['PUT', '/api/admin/gps-settings', 'admin.gps-settings.update'],
-      ['PUT', '/api/admin/llm-settings', 'admin.llm-settings.update'],
       ['PUT', '/api/admin/ocr-settings', 'admin.ocr-settings.update'],
       ['POST', '/api/suppliers', 'config.suppliers.create'],
       ['PUT', '/api/suppliers/11', 'config.suppliers.update'],

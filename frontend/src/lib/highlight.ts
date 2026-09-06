@@ -1,6 +1,5 @@
-// agentHighlight — imperative scroll-to + Driver.js spotlight used by the agent
-// directive bridge (focus / scrollTo / navigate.highlight) and the `?focus=`
-// deep-link flow. Extracted so both call sites share one Driver.js lifecycle.
+// highlight — imperative scroll-to + Driver.js spotlight used by the `?focus=`
+// deep-link flow.
 //
 // driver.js (~30KB gz) is dynamically imported on first highlight so it never
 // sits in the eager bundle; the highlight path is rare and can afford one
@@ -45,7 +44,7 @@ export function highlightElement(targetId: string, durationMs = 2000): boolean {
     overlayOpacity: 0.55,
     stagePadding: 8,
     stageRadius: 10,
-    popoverClass: 'agent-driver-popover',
+    popoverClass: 'focus-highlight-popover',
     showButtons: ['close'],
     doneBtnText: 'Đã hiểu',
     onDestroyed: () => {

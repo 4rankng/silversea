@@ -28,13 +28,6 @@ export const qk = {
     me: ['auth', 'me'],
   },
 
-  /* ── Agent (command-and-insight assistant) ─────────────────────────── */
-  // Chat is streamed (not cached); only conversation history is cached.
-  agent: {
-    conversations: ['agent', 'conversations'] as const,
-    conversation: (id: string) => ['agent', 'conversation', id] as const,
-  },
-
   /* ── Catalog (the big bootstrap + individual lookup tables) ─────────── */
 
   catalogs: {
@@ -432,14 +425,6 @@ export const qk = {
   auditLogs: {
     list: (pageSize: number, filter: unknown, search: string, sortBy?: string, sortDir?: string) =>
       ['audit-logs', pageSize, filter, search, sortBy ?? '', sortDir ?? ''] as const,
-  },
-
-  /* ── Admin LLM provider settings (MiniMax / OpenRouter) ─────────────── */
-
-  llmSettings: {
-    /** Singleton — the single GET is the only read. */
-    all: ['llmSettings'] as const,
-    detail: ['llmSettings', 'detail'] as const,
   },
 
   /* ── Admin OCR settings (runtime toggle + provider keys) ────────────── */

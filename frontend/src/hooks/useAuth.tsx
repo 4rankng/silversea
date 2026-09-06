@@ -4,7 +4,6 @@ import { api, ApiError } from '../lib/api';
 import { Role } from '@tingting/shared';
 import { qk } from '../api/keys';
 import { getToken } from '../lib/token';
-import { disposeAgentSocket, clearAgentConversation } from '../api/agentClient';
 import { onSessionExpired } from '../lib/api/session';
 
 export interface AuthUser {
@@ -23,8 +22,6 @@ export interface AuthUser {
   /** Clerk scope: explicit shipment assignments. */
   shipmentIds?: number[];
   capabilities?: string[];
-  /** Assistant (bot) enabled for this deployment (BOT_ENABLE). Launcher hides when false. */
-  botEnabled?: boolean;
 }
 
 interface AuthContextType {
@@ -155,8 +152,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const finalizeLocalLogout = useCallback(() => {
-    disposeAgentSocket(); // drop the assistant socket so a stale token isn't reused
-    clearAgentConversation(); // forget the resumed thread so the next user starts fresh
     api.clearToken();
     clearUserScopedQueries(queryClient);
     queryClient.setQueryData(qk.auth.me, null);

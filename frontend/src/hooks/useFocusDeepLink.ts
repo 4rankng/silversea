@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { highlightElement } from '../lib/agentHighlight';
+import { highlightElement } from '../lib/highlight';
 
 export function clearFocusSearchParams(searchParams: URLSearchParams): URLSearchParams {
   const next = new URLSearchParams(searchParams);
@@ -12,8 +12,7 @@ export function clearFocusSearchParams(searchParams: URLSearchParams): URLSearch
 /**
  * Scroll-to-and-highlight an element when the URL has `?focus=<id>`.
  * After the animation completes the `focus` param is removed from the URL.
- * An optional `?fdur=<ms>` overrides the default 2s ring duration (set by the
- * agent's `focus` directive when it carries `durationMs`).
+ * An optional `?fdur=<ms>` overrides the default 2s ring duration.
  *
  * @param prefix — the id prefix, e.g. `"adv"` → looks for `#adv-<focusId>`
  */

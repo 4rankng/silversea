@@ -3,7 +3,6 @@ import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import { SearchProvider } from './context/SearchContext';
 import { MonthProvider } from './hooks/useMonth';
-import { AgentDirectiveProvider } from './context/AgentDirectiveProvider';
 import { ReducedMotionProvider } from './hooks/usePrefersReducedMotion';
 import { Role } from '@tingting/shared';
 import Layout from './components/Layout';
@@ -214,8 +213,8 @@ export function AppRoutes() {
       ? el
       : <Navigate to={homeRedirect} replace />
   );
-  // Strict ADMIN-only — chatbot monitoring exposes raw turns and must never
-  // be reachable by MANAGER/ACCOUNTANT. Mirrors managerOrAdminOnly's shape:
+  // Strict ADMIN-only — these surfaces expose raw operational data and must
+  // never be reachable by MANAGER/ACCOUNTANT. Mirrors managerOrAdminOnly's shape:
   // admit only when the role matches, else bounce to the portal or staff home.
   const strictAdminOnly = (el: ReactElement) => (isAdmin ? el : <Navigate to={homeRedirect} replace />);
 
@@ -379,13 +378,11 @@ export default function App() {
     <ReducedMotionProvider>
       <AuthProvider>
         <ToastProvider>
-          <AgentDirectiveProvider>
-            <MonthProvider>
-              <SearchProvider>
-                <AppRoutes />
-              </SearchProvider>
-            </MonthProvider>
-          </AgentDirectiveProvider>
+          <MonthProvider>
+            <SearchProvider>
+              <AppRoutes />
+            </SearchProvider>
+          </MonthProvider>
         </ToastProvider>
       </AuthProvider>
     </ReducedMotionProvider>

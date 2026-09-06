@@ -100,7 +100,7 @@ export type {
   TruckFinancialProfileState,
 } from './schemas/financial-reporting-policy';
 
-// ─── Navigation catalog (single source for SPA paths/titles + agent search) ──
+// ─── Navigation catalog (single source for SPA paths/titles) ─────────────────
 export { PAGE_CATALOG } from './navigation/pageCatalog';
 export type {
   PageCatalogEntry,
@@ -108,7 +108,6 @@ export type {
   DynamicPageEntry,
   PageCatalogKey,
   PageSection,
-  PageAgentMeta,
 } from './navigation/pageCatalog';
 
 export {
@@ -144,12 +143,6 @@ export {
   generateBillingDocumentSchema, saveBillingDocumentSchema, billingDocumentLineSchema, billingDocumentAdjustmentRequestSchema, billingDocumentIssueRequestSchema,
   debitNoteTemplateSchema, debitNoteColumnSchema, debitNoteColumnVariableSchema, defaultDebitNoteColumns, defaultPaymentStatementColumns,
   bachKhoaVehicleSchema, bachKhoaResponseSchema, parseBachKhoaResponse,
-  agentDirectiveSchema, agentWidgetSchema, widgetFormatSchema, agentActionChipSchema,
-  agentCitationSchema, provenanceSchema,
-  agentResponseSchema, agentMessageSchema, agentConversationSchema, agentEventSchema,
-  agentRouteKeySchema, AGENT_ROUTE_KEYS,
-  ACKED_DIRECTIVE_KINDS,
-  agentActionResultSchema,
   geotagSchema, GEOTAG_ENTITY_TYPES, GEOTAG_SOURCES, GEOTAG_PATHS,
   customerVisibleEventContentSchema, createCustomerVisibleEventSchema,
   acknowledgeCustomerEventSchema, recoverableCostListQuerySchema,
@@ -269,9 +262,6 @@ export type {
   GenerateBillingDocumentInput, SaveBillingDocumentInput, BillingDocumentAdjustmentRequestInput, BillingDocumentLineInput,
   DebitNoteTemplateInput, DebitNoteColumnInput, DebitNoteColumnVariableInput,
   BachKhoaVehicle,
-  AgentDirective, AgentWidget, WidgetFormat, AgentActionChip, AgentCitation, Provenance, AgentResponse,
-  AgentMessage, AgentConversation, AgentEvent, AgentRouteKey,
-  AckedDirectiveKind, AgentActionResult,
   GeotagInput, GeotagEntityType, GeotagSource, PhotoGeotag,
   CreateShipmentInput, UpdateShipmentInput, TransitionShipmentStatusInput,
   AttachShipmentDocumentInput, ShipmentContainerBatchInput, DispatchShipmentInput,
@@ -312,21 +302,6 @@ export { computeFifoAging } from './calculations/fifoAging';
 export type { FifoAgingInput, AgingBuckets, OpenInvoice } from './calculations/fifoAging';
 export { computeVehicleAlerts, VEHICLE_ALERT_LABELS } from './calculations/vehicleAlerts';
 export type { VehicleAlertInput } from './calculations/vehicleAlerts';
-
-// ─── Admin LLM provider settings (MiniMax / OpenRouter) ─────────────────────
-// ADMIN-only settings API + frontend config page. See ./schemas/llm-settings.ts.
-export {
-  LLM_PROVIDERS,
-  LLM_PROVIDER_MODELS,
-  LLM_PROVIDER_LABELS,
-  LLM_SETTINGS_PATHS,
-  llmSettingsUpdateSchema,
-} from './schemas/llm-settings';
-export type {
-  LlmProvider,
-  LlmSettingsResponse,
-  LlmSettingsUpdate,
-} from './schemas/llm-settings';
 
 // ─── Admin OCR settings (independent OCR enablement + provider keys) ───────
 export {

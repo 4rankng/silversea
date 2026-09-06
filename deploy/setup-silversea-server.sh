@@ -11,8 +11,7 @@
 #   2.  Docker + compose plugin
 #   3.  /opt/silversea layout
 #   4.  Secrets: fresh JWT_SECRET / DB_PASSWORD / SETTINGS_ENCRYPTION_KEY,
-#       shared keys mirrored from the demo .env (Maps/AI/VAPID),
-#       BOT_ENABLE=false (assistant off until owner sign-off)
+#       shared keys mirrored from the demo .env (Maps/VAPID)
 #   5.  Repo compose pushed to the server
 #   6.  nginx + certbot install
 #   7.  Bootstrap vhost → Let's Encrypt cert (webroot HTTP-01)
@@ -59,7 +58,7 @@ if [ "$ENV_PRESENT" = "missing" ]; then
   DB_PASSWORD="$(openssl rand -hex 24)"
   SETTINGS_ENCRYPTION_KEY="$(openssl rand -base64 32 | tr -d '\n')"
   echo "Mirroring shared keys from the demo .env (values never displayed)..."
-  DEMO_KEYS='GOOGLE_MAPS_API_KEY|MINIMAX_API_KEY|MINIMAX_BASE_URL|MINIMAX_MODEL|AGENT_MAX_ITERATIONS|VAPID_PUBLIC_KEY|VAPID_PRIVATE_KEY|VAPID_SUBJECT|OPENROUTER_API_KEY'
+  DEMO_KEYS='GOOGLE_MAPS_API_KEY|VAPID_PUBLIC_KEY|VAPID_PRIVATE_KEY|VAPID_SUBJECT|OPENROUTER_API_KEY'
   ssh "$DEMO_SERVER" "grep -E '^($DEMO_KEYS)=' /opt/vantai/deploy/.env" > demo-keys.env || true
   MISSING_DEMO_KEYS=""
   for k in $(echo "$DEMO_KEYS" | tr '|' ' '); do
@@ -74,7 +73,6 @@ if [ "$ENV_PRESENT" = "missing" ]; then
     echo "JWT_EXPIRES_IN=7d"
     echo "DB_PASSWORD=$DB_PASSWORD"
     echo "SETTINGS_ENCRYPTION_KEY=$SETTINGS_ENCRYPTION_KEY"
-    echo "BOT_ENABLE=false"
     echo "LOG_LEVEL=info"
     cat demo-keys.env
   } > prod.env

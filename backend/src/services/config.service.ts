@@ -16,7 +16,7 @@ type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 /**
  * Latest updatedAt across a fixed set of app_settings keys — the ETag/If-Match
- * source for the settings screens (llm/ocr/gps). Executor-aware so in-tx
+ * source for the settings screens (ocr/gps). Executor-aware so in-tx
  * callers (optimistic-lock checks) can pass their own runner.
  */
 export async function getAppSettingsUpdatedAt(

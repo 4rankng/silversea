@@ -4,9 +4,7 @@
  *
  * Hard contract (enforced by tests):
  *   - `users` is NEVER touched.
- *   - `push_subscriptions`,
- *     `agent_*`, `faq_entries`, `knowledge_chunks`, `idempotency_keys` are
- *     NEVER touched.
+ *   - `push_subscriptions`, `idempotency_keys` are NEVER touched.
  *
  * Strategy: `TRUNCATE ... CASCADE` the business tables in one statement.
  * Postgres resolves FK dependencies when CASCADE is present, so the grouping
@@ -27,10 +25,6 @@ import type { Database } from '../db/index.js';
 export const PRESERVED_TABLES = [
   'users',
   'push_subscriptions',
-  'agent_conversations',
-  'agent_messages',
-  'faq_entries',
-  'knowledge_chunks',
   'idempotency_keys',
 ] as const;
 
