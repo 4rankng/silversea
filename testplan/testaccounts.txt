@@ -14,6 +14,7 @@ local:
 
 staging:
   baseUrl: https://vantai.tingting.vip
+  api: https://vantai.tingting.vip/api
   users:
     cus:
       username: cus123
@@ -21,6 +22,22 @@ staging:
     dieuvan:
       username: dieuvan
       password: Abc123
+  # Every demoUsers account below ALSO exists on staging (login verified
+  # 2026-09-06, shared password): admin, giamdoc, ketoan, giaonhan, cus,
+  # laixe, thu, samsung-cs, canon-cs, customer, khachhang. Staging also has
+  # the real named staff set (nv001-022 renames) — do not modify those rows.
+  # API notes for scripted testing (learned 2026-09-06):
+  #   - POST /api/auth/login takes {"identifier", "password"} — "username"
+  #     field gets 400. Identifier may be username, email, or phone.
+  #   - Driver portal API is /api/driver/me/* (NOT /api/driver/*):
+  #     /trips, /penalties, /journey-board work bare; /earnings needs
+  #     ?month=&year= or it 400s.
+  #   - /api/shipments is the shared list surface for CUS + DISPATCHER.
+  #   - Unknown paths behind auth return 403 (casbin deny), not 404 — a 403
+  #     on an API probe often means "wrong path", not "wrong permissions".
+  #   - e2e: export BOTH SILVERSEA_URL and SILVERSEA_API when pointing
+  #     run_all.sh at staging; with only SILVERSEA_URL set, API tests still
+  #     hit localhost:3001 and fail 401 while UI tests pass.
 
 # Additional demo accounts for role-based QA (user-directory export, created
 # 2026-08-20/21, canonical @nepo.vn emails per backend/src/seed.ts). Same shared
