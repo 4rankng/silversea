@@ -210,6 +210,56 @@
 
 ---
 
+## 3.x — Cặp ghép KẸP / KẾT HỢP trên App Lái xe (đặc tả 2026-09-06)
+
+> **Nguồn:** đặc tả khách hàng 2026-09-06 (PHẦN 2) + PRD `QuyTrinhO2C.md` Bước 3. Hai lệnh cont
+> chung mã ghép chuyến hiển thị **2 thẻ dính liền kề nhau** + nhãn [KẸP]/[KẾT HỢP]; hàng kết hợp
+> khóa tiến độ lệnh 2 đến khi lệnh 1 hoàn thành trả hàng.
+
+### TC-LX-NHANLENH-011 — Cặp KẸP: 2 thẻ dính liền, chạy cùng nhau
+
+- **Vai trò:** `laixe`
+- **Mức độ:** P0
+- **Thiết bị:** Mobile (375×667)
+- **Tiền điều kiện:** tài xế có cặp KẸP (2 lệnh 2×20', cùng xe) đã phát lệnh
+- **Các bước:**
+  1. Mở app → tab Lệnh mới / Đã nhận.
+  2. Tìm 2 lệnh thuộc cặp KẸP.
+- **Kết quả mong đợi (Pass):**
+  - 2 thẻ hiển thị **dính liền kề nhau** (một khối combo), không tách rời trong danh sách.
+  - Mỗi thẻ có nhãn **[KẸP]** cạnh số container; cùng biển số xe.
+  - 2 thẻ độc lập thao tác (nhận lệnh từng thẻ) nhưng nhìn thấy là 1 combo.
+- **Kỳ vọng sai (Fail nếu):** 2 thẻ rời rạc ở 2 vị trí; thiếu nhãn.
+- **Bằng chứng:** ảnh danh sách + ảnh cụm 2 thẻ
+
+### TC-LX-NHANLENH-012 — Cặp KẾT HỢP: lệnh 2 khóa đến khi lệnh 1 xong
+
+- **Vai trò:** `laixe`
+- **Mức độ:** P0
+- **Thiết bị:** Mobile
+- **Tiền điều kiện:** tài xế có cặp KẾT HỢP; lệnh 1 chưa hoàn thành
+- **Các bước:**
+  1. Mở thẻ lệnh 2, thử bấm mốc "Lấy vỏ/hàng" (bắt đầu).
+  2. Hoàn thành lệnh 1 (nộp e-POD + hoàn thành chuyến).
+  3. Quay lại thẻ lệnh 2, bấm mốc bắt đầu.
+- **Kết quả mong đợi (Pass):**
+  - Lần 1: bị chặn, thông báo tiếng Việt kiểu "Cần hoàn thành trả hàng lệnh 1 trước khi bắt đầu lệnh 2".
+  - Lần 2 (sau khi lệnh 1 hoàn thành): mở mốc bình thường.
+  - 2 thẻ dính liền + nhãn [KẾT HỢP] như TC-011.
+- **Kỳ vọng sai (Fail nếu):** lệnh 2 chạy được trước lệnh 1; sau lệnh 1 xong vẫn khóa.
+- **Bằng chứng:** ảnh lỗi + ảnh mở khóa sau khi lệnh 1 xong
+
+### TC-LX-NHANLENH-013 — Sau khi tách cặp (điều vận hủy), thẻ lùi về trạng thái thường
+
+- **Vai trò:** `laixe`
+- **Mức độ:** P1
+- **Các bước:**
+  1. Điều vận hủy cặp (TC-DV-DISPATCH-039). Làm mới app.
+- **Kết quả mong đợi (Pass):** 2 thẻ tách rời bình thường, hết nhãn [KẸP]/[KẾT HỢP], lệnh 2 (nếu có) không còn bị khóa theo lệnh 1.
+- **Bằng chứng:** ảnh danh sách sau tách cặp
+
+---
+
 ## Bảng nghiệm thu — Luồng Nhận lệnh (Lái xe)
 
 | Ngày thử | Mã TC | Người thử | Kết quả | Ghi chú | Bằng chứng |
@@ -224,3 +274,6 @@
 | __/__/__ | TC-LX-NHANLENH-008 | | | Đồng bộ dữ liệu | |
 | __/__/__ | TC-LX-NHANLENH-009 | | | Offline | |
 | __/__/__ | TC-LX-NHANLENH-010 | | | Responsive | |
+| __/__/__ | TC-LX-NHANLENH-011 | | | Cặp KẸP 2 thẻ dính liền | |
+| __/__/__ | TC-LX-NHANLENH-012 | | | KẾT HỢP khóa nối tiếp | |
+| __/__/__ | TC-LX-NHANLENH-013 | | | Tách cặp → thẻ thường | |

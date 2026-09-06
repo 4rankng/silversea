@@ -81,6 +81,29 @@ stateDiagram-v2
 
 ---
 
+## Danh Mục: Quan Hệ Khách Hàng – Nhà Máy – Tuyến – Vị Trí (Master Data)
+
+Các trường Tuyến đường và Vị trí đóng/trả hàng **không nằm trôi nổi** ở bảng Khách hàng hay bảng Lô hàng — chúng neo về **Nhà máy**:
+
+```mermaid
+erDiagram
+    KHACH_HANG ||--o{ NHA_MAY : "1 khách hàng nhiều nhà máy"
+    NHA_MAY ||--|| TUYEN_DUONG : "nhà máy gắn 1 tuyến cố định"
+    NHA_MAY ||--|| VI_TRI : "1 vị trí đóng/trả hàng"
+```
+
+- **[Khách hàng] 1–N [Nhà máy]:** mỗi khách hàng có 1 hoặc nhiều nhà máy (`operational_sites`, theo khách hàng).
+- **[Nhà máy] 1–1 [Tuyến đường]:** nhà máy dạng **Factory** bắt buộc gắn đúng 1 tuyến vận chuyển cố định (ví dụ nhà máy A luôn chạy tuyến Hải Phòng – Bắc Ninh). Kho (Warehouse) phục vụ hàng lẻ nên tuyến vẫn giữ ở cấp lô.
+- **[Nhà máy] 1–1 [Vị trí đóng/trả hàng]:** mỗi nhà máy có đúng 1 vị trí giao nhận (địa chỉ + tọa độ/Google Maps) cấu hình sẵn trên nhà máy.
+
+**Luồng nhập liệu ở Form Tạo Lô Hàng (Cascading + Auto-fill):**
+
+1. Chọn **Khách hàng** → dropdown **Nhà máy** chỉ đổ các nhà máy ACTIVE của khách hàng đó (đổi khách hàng → tải lại, reset chọn cũ).
+2. Chọn **Nhà máy** → hệ thống **tự điền và khóa (read-only)** 2 trường **Tuyến đường** và **Vị trí đóng/trả hàng** theo cấu hình của nhà máy — CUS/Điều vận không phải chọn tay. Nhà máy chưa cấu hình tuyến → trường Tuyến vẫn chọn tay được (không dead-end), nhưng form thêm nhà máy bắt buộc chọn tuyến với loại Factory.
+3. Backend chốt tại điểm ghi: container có nhà máy mà tuyến ≠ tuyến của nhà máy → từ chối (422, tiếng Việt); thiếu tuyến → tự suy từ nhà máy.
+
+---
+
 ## Bước 1 — Chứng Từ: Khởi Tạo Lô Hàng
 
 1. Khách hàng gửi booking. Chứng Từ tạo lô nhanh — hệ thống trả **mã lô + giá cước dự kiến**.
@@ -94,6 +117,7 @@ stateDiagram-v2
 - **Số container chuẩn quốc tế (ISO 6346)** — Có chữ số kiểm tra; OCR tự sửa khi nhập gần đúng.
 - **Bàn giao** — Điều vận phải chấp nhận phiếu bàn giao trước khi phân bổ.
 - **Gửi lặp an toàn** — Thao tác trùng không tạo lô mới.
+- **Chọn nhà máy → tự điền tuyến + vị trí** — chọn khách hàng lọc nhà máy theo đúng khách hàng; chọn nhà máy tự điền và khóa Tuyến đường + Vị trí đóng/trả hàng theo cấu hình nhà máy (xem mục Danh Mục ở trên).
 
 ---
 
@@ -147,62 +171,56 @@ flowchart LR
 
 **Hệ thống xử lý:** 1 fulfillment = 1 trip. Phí VETC / phí đường tính 1 lần bình thường. Không có ràng buộc ghép.
 
-#### b) Cont kẹp (Kẹp — 2 chiều khép kín)
+#### b) Cont kẹp (Kẹp — 2 cont 20' trên cùng 1 mooc, chạy cùng lúc)
 
-Cùng 1 xe + cùng tài xế chạy **2 chuyến** trong 1 lộ trình khép kín — chiều đi có hàng, chiều về cũng có hàng (thường là cont rỗng trả về cảng, hoặc 1 lô khác cùng tuyến ngược).
+Ghép **2 container 20ft lên cùng 1 xe mooc để chạy đồng thời** — thường 1 cont có hàng + 1 cont rỗng kéo đi/về trong cùng một chuyến đi vật lý.
 
 ```mermaid
 flowchart LR
-  subgraph Cặp kẹp hợp lệ
-    direction LR
-    A[Cảng A] -- "xe A · 1×40HC · Bill X1" --> B[Nhà máy KH]
-    B -- "xe A · 1×40HC rỗng" --> A
-  end
+  A[Cảng A] -- "xe A · moóc 40'<br/>2×20': Bill X1 (hàng) + vỏ rỗng" --> B[Nhà máy KH]
 ```
 
 **Điều kiện ghép kẹp hợp lệ:**
 
-- Cùng biển số xe
-- Cùng tài xế
-- Cùng lộ trình 2 chiều
-- Thời gian **không chồng lấn** (chiều đi xong rồi mới tới chiều về)
+- Cùng biển số xe + cùng tài xế
+- Cùng ngày khởi hành
+- **2 container đều 20'** (moóc 40' = 2 slot 20'; không kẹp 2×40')
+- Tuyến không khớp → cảnh báo, không chặn (Điều vận quyết định)
 
 **Hệ thống xử lý:**
 
-- 2 trips được liên kết thành **1 cặp kẹp** (audit log ghi nhận)
-- Phí VETC / phí đường chỉ tính **1 lần cho cả lộ trình khép kín** (không nhân đôi khi chiều về đi qua cùng trạm thu phí)
-- Doanh thu, trạng thái và các chi phí khác vẫn **độc lập** giữa 2 trips (mỗi trip có doanh thu riêng cho lô mình)
-- Thiếu 1 trong 4 điều kiện trên → không cho kẹp, cảnh báo "Không đủ điều kiện kẹp hàng"
+- **1 cont = 1 lệnh**: mỗi container vẫn là 1 lệnh riêng (chứng từ, doanh thu, công nợ độc lập với khách hàng)
+- 2 trips liên kết thành **1 cặp ghép loại KẸP** (`pair_kind = KEP`) — cùng xe, cùng tài xế, thời gian **chồng lấn được phép** (chạy cùng lúc)
+- Phí VETC / phí đường chỉ ghi nhận **1 lần duy nhất cho cả cặp** (trip thứ hai khử trùng tiền trạm — không lấy định mức × 2 cont)
+- Lương tài xế của cặp = **cuốc cơ bản + phụ phí kẹp hàng** (Cài đặt → Lương), không cộng 2 cuốc đơn
+- Thiếu điều kiện → không cho ghép, cảnh báo "Không đủ điều kiện kẹp hàng"
 
-#### c) Cont kết hợp (Ghép chuyến)
+#### c) Cont kết hợp (Kết hợp — tái sử dụng vỏ, 2 lệnh nối tiếp)
 
-Nhiều container (có thể từ nhiều lô khác nhau) **gộp vào cùng 1 xe, cùng 1 chuyến**, đi cùng tuyến trong cùng khoảng thời gian.
+Xe chở cont đến **trả hàng xong, không kéo vỏ rỗng về bãi** mà giữ lại vỏ đó để tiếp tục đi **đóng hàng cho một lô khác** — tiết kiệm 1 cuốc chở rỗng.
 
 ```mermaid
 flowchart LR
-  A[Cảng A] -- "xe A · 1×40HC + 1×20HC<br/>Bill X1 + Bill Y1" --> B[Nhà máy KH]
+  A[Cảng A] -- "xe A · Bill X1" --> B[Nhà máy KH]
+  B -- "trả hàng xong, giữ nguyên vỏ" --> C[Nhà máy KH']
+  C -- "đóng hàng Bill Y1 (lô khác)" --> A
 ```
 
-**Hai kiểu ghép:**
+**Điều kiện ghép kết hợp hợp lệ:**
 
-| Kiểu | Đặc điểm | Ví dụ |
-|------|----------|-------|
-| **Ghép cùng lô** | Nhiều container của 1 lô FCL (đã auto-split ở `/dispatch-detail`) → 1 đầu kéo + rơ-moóc chở cả | Lô 5×40HC → 1 đầu kéo chở 2×40HC/chuyến × 3 chuyến |
-| **Ghép khác lô** | Container từ nhiều lô khác nhau (khác KH hoặc cùng KH) hợp tuyến | Lô X đi Bắc Ninh + Lô Y đi Bắc Ninh cùng ngày → ghép 1 xe |
-
-**Điều kiện ghép:**
-
-- Cùng tuyến (điểm nâng → điểm hạ nằm trên cùng trục đường)
-- Thời gian chạy overlap chấp nhận được
-- Tổng khối lượng ≤ tải trọng xe
-- Tổng số cont ≤ số slot của xe (xe 40' → 2 slot 20' hoặc 1 slot 40'; đầu kéo + rơ-moóc thì tăng slot)
+- Cùng biển số xe + cùng tài xế
+- Thời gian **nối tiếp, không chồng lấn** (trả hàng lệnh 1 xong mới bắt đầu đóng hàng lệnh 2)
+- **Cùng số vỏ container** trên cả 2 lệnh (tái sử dụng đúng vỏ; thiếu số vỏ ở giai đoạn điều vận thì bỏ qua, CUS bổ sung sau)
 
 **Hệ thống xử lý:**
 
-- Tạo **1 trip duy nhất** cho cả nhóm cont ghép (không phải 2 trip riêng)
-- Trip đó link tới **nhiều fulfillments** (mỗi fulfillment = 1 container)
-- Phí đường / VETC: chia theo số container hoặc theo thỏa thuận (tuỳ cấu hình kế toán)
-- Doanh thu: mỗi fulfillment vẫn giữ doanh thu của lô mình
+- **1 cont = 1 lệnh**: 2 lệnh độc lập về chứng từ/doanh thu/công nợ
+- 2 trips liên kết thành **1 cặp ghép loại KẾT HỢP** (`pair_kind = KET_HOP`) — giữ nguyên bộ quy tắc kiểm tra hiện hành (cửa sổ kế hoạch, khoảng trống di chuyển xe rỗng)
+- Phí VETC / phí đường tính **1 lần cho cả vòng khép kín** (trip thứ hai khử trùng)
+- Lương tài xế của cặp = **cuốc cơ bản + phụ phí kết hợp** (Cài đặt → Lương)
+- App Lái xe: **hoàn thành trả hàng Lệnh 1 → mới bắt đầu đóng hàng Lệnh 2** (lệnh 2 khóa tiến độ đến khi lệnh 1 hoàn thành/đủ bằng chứng)
+
+> **Ghi chú thuật ngữ (2026-09-06):** Bản trước dùng "kẹp" cho cặp 2 chiều nối tiếp và "kết hợp" cho nhiều cont cùng chuyến. Theo định nghĩa chuẩn của khách hàng (đặc tả 2026-09-06): **kẹp = 2 cont 20' cùng 1 mooc chạy cùng lúc**; **kết hợp = tái sử dụng vỏ qua 2 lệnh nối tiếp**. Cặp nối tiếp tồn tại trước ngày này (chưa có `pair_kind`) được hiểu theo nghĩa kết hợp.
 
 #### d) Hàng lẻ (Lẻ)
 
@@ -210,16 +228,16 @@ Lô hàng LCL — không phải nguyên container. Nhập quy cách, số lượ
 
 #### Bảng so sánh nhanh — 3 mô hình cont
 
-| Tiêu chí | Đơn | Kẹp | Kết hợp |
+| Tiêu chí | Đơn | Kẹp (cùng lúc) | Kết hợp (nối tiếp) |
 |----------|-----|-----|---------|
-| Số trip | 1 | 2 (liên kết cặp) | 1 |
-| Số fulfillment | 1 | 2 | ≥ 2 |
-| Số xe vật lý | 1 | 1 (đi 2 chiều) | 1 |
-| Phí đường / VETC | 1 lần | **1 lần cho cả lộ trình khép kín** (không nhân đôi) | 1 lần (chia theo cont) |
-| Cùng biển số | — | **Bắt buộc** | **Bắt buộc** |
-| Cùng tuyến | — | **Bắt buộc** (ngược chiều) | **Bắt buộc** (cùng chiều) |
-| Cùng tài xế | — | **Bắt buộc** | Không bắt buộc |
-| Push Lái xe | Khi gán biển số | Khi gán biển số (cả 2 trips) | Khi gán biển số (1 trip cho cả nhóm) |
+| Số trip | 1 | 2 (liên kết cặp KEP) | 2 (liên kết cặp KET_HOP) |
+| Số fulfillment | 1 | 2 | 2 |
+| Số xe vật lý | 1 | 1 (chở 2 cont cùng lúc) | 1 (đi 2 lượt) |
+| Vỏ container | 1 | 2 vỏ | **1 vỏ dùng lại** |
+| Phí đường / VETC | 1 lần | **1 lần cho cả cặp** (trip 2 khử trùng) | **1 lần cho vòng khép kín** (trip 2 khử trùng) |
+| Thời gian | 1 chiều | Chồng lấn (cùng lúc) | **Nối tiếp, không chồng lấn** |
+| Cùng biển số + tài xế | — | **Bắt buộc** | **Bắt buộc** |
+| Push Lái xe | Khi gán biển số | Khi gán biển số (cả 2 trips) | Khi gán biển số (cả 2 trips) |
 
 Trạng thái phát lệnh theo từng dòng vận chuyển: **Chưa xếp xe → Đã gán biển số → Đã phát lệnh**.
 
@@ -242,6 +260,8 @@ Sau khi phát lệnh, Điều vận vẫn được đổi xe/tài xế tự do �
 ### Bảng Chuyến Trên App
 
 App lái xe có 3 tab: **Lệnh mới** → **Đã nhận** → **Lịch sử**. Thẻ nhóm theo phân loại (Đơn/Kẹp/Kết hợp/Lẻ).
+
+> **Cặp ghép (chung 1 xe vật lý):** khi 2 lệnh cont được liên kết bằng mã ghép chuyến (cặp KẸP hoặc KẾT HỢP), app hiển thị **2 thẻ dính liền kề nhau** kèm nhãn **[KẸP]** / **[KẾT HỢP**] cạnh số container — tài xế biết đây là 1 "combo" phải chạy cùng nhau. Với hàng **kết hợp**, luồng trạng thái nối tiếp nhau: **hoàn thành trả hàng Lệnh 1 → mới bắt đầu đóng hàng Lệnh 2** (lệnh 2 khóa tiến độ đến khi lệnh 1 hoàn thành hoặc đủ bằng chứng).
 
 ### Chuỗi Thao Tác Trên Chuyến
 
@@ -316,3 +336,5 @@ Sau khi lái xe hoàn thành, Chứng Từ xử lý chứng từ trên hồ sơ 
 | **Chốt hồ sơ** | Lô hoàn thành → hồ sơ khóa — không sửa trực tiếp được, mở lại phải qua phê duyệt Admin |
 | **Yêu cầu thay đổi** | Chứng Từ sửa lô sau phát lệnh → tạo yêu cầu thay đổi (không sửa trực tiếp) |
 | **Phân loại chuyến** | Nhãn thao tác (Đơn/Kẹp/Kết hợp/Lẻ). Đánh dấu ghép chuyến độc lập theo lô |
+| **Phí đường cặp ghép** | Chuyến có mã ghép kẹp/kết hợp: VETC/tiền trạm thu phí chỉ ghi nhận **1 lần cho cả cặp** — trip thứ hai được khử trùng bằng đúng tiền trạm gộp (không lấy định mức × 2 cont) |
+| **Lương cặp ghép** | Không trả bằng tổng 2 cuốc chạy đơn: lương cặp = **cuốc cơ bản + phụ phí kẹp/kết hợp**, phụ phí lấy từ cấu hình lương (Cài đặt → Lương). Hủy cặp → khôi phục lương tiêu chuẩn từng trip |

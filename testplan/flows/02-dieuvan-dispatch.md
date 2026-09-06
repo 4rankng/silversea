@@ -847,3 +847,112 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
 | __/__/__ | TC-DV-DISPATCH-031 | | | Kẹp hàng không hợp lệ vì khác tài xế → bị chặn | |
 | __/__/__ | TC-DV-DISPATCH-032 | | | Phân loại chuyến Đơn (1 chiều) — happy path | |
 | __/__/__ | TC-DV-DISPATCH-033 | | | Lô 1 cont hoàn thành toàn bộ vẫn hiển thị trên Kế hoạch Tổng quát (regression 2026-09-05) | |
+
+## 2.x — Ghép chuyến KẸP / KẾT HỢP (đặc tả 2026-09-06)
+
+> **Thuật ngữ chuẩn khách hàng (PRD `QuyTrinhO2C.md` §2b, ghi chú 2026-09-06):** **KẸP** = 2 cont 20'
+> trên cùng 1 mooc chạy **cùng lúc** (1 cont hàng + 1 cont rỗng); **KẾT HỢP** = **tái sử dụng vỏ** —
+> trả hàng lệnh 1 xong giữ nguyên vỏ đi đóng hàng lệnh 2 (**nối tiếp**). Nguyên tắc chung: 1 cont =
+> 1 lệnh (chứng từ/doanh thu/công nợ riêng), 2 lệnh liên kết bằng cặp ghép (`pair_kind`), chung 1 xe
+> + 1 tài xế; VETC tính 1 lần cho cả cặp; lương cặp = cuốc cơ bản + phụ phí. Các case cũ dùng nghĩa
+> cũ (TC-007/008 "kẹp hàng" = cặp nối tiếp; TC-029/030 "ghép kết hợp" = nhiều cont cùng chuyến) vẫn
+> chạy được với hành vi nối tiếp/cùng lúc tương ứng.
+
+### TC-DV-DISPATCH-034 — Ghép KẸP hợp lệ (2×20', cùng xe/tài xế/ngày, cùng lúc)
+
+- **Vai trò:** `dieuvan`
+- **Mức độ:** P0
+- **Tiền điều kiện:** 2 lệnh cont 20' đã gán cùng biển số + cùng tài xế, cùng ngày khởi hành, cửa sổ kế hoạch chồng lấn
+- **Các bước:**
+  1. Mở `/dispatch-detail`, chọn loại ghép **Kẹp (2 cont cùng lúc)** cho 2 dòng.
+  2. Xác nhận ghép.
+  3. Kiểm tra DB `trip_pairs` (pair_kind=KEP) + `trip_financial_state` của 2 trip.
+- **Kết quả mong đợi (Pass):**
+  - Cặp tạo thành công dù 2 cửa sổ kế hoạch **chồng lấn** (chạy cùng lúc).
+  - 2 trip cùng giữ xe/tài xế/ngày; doanh thu mỗi lệnh độc lập.
+  - **VETC 1 lần:** trip 2 có `toll_deduction` = đúng tiền trạm gộp, `toll_cost` = 0; trip 1 giữ nguyên.
+  - Lương: trip 1 = lương cuốc cơ bản, trip 2 = phụ phí kẹp (theo Cài đặt → Lương) — tổng ≠ 2× cuốc đơn.
+- **Kỳ vọng sai (Fail nếu):** bị chặn vì "chồng thời gian"; tiền trạm ×2; lương ×2.
+- **Bằng chứng:** ảnh dialog + DB trip_pairs/trip_financial_state + qa artifact
+
+### TC-DV-DISPATCH-035 — Ghép KẸP bị chặn khi không đủ 2 cont 20'
+
+- **Vai trò:** `dieuvan`
+- **Mức độ:** P0
+- **Các bước:** thử ghép KẸP với 1×40' + 1×20'; thử với 2×40'.
+- **Kết quả mong đợi (Pass):** cả 2 lần bị chặn, thông báo tiếng Việt "kẹp hàng chỉ áp dụng 2 cont 20'".
+- **Bằng chứng:** ảnh lỗi
+
+### TC-DV-DISPATCH-036 — Ghép KẸP bị chặn khi khác xe / khác tài xế / khác ngày
+
+- **Vai trò:** `dieuvan`
+- **Mức độ:** P0
+- **Các bước:** thử 3 biến thể (khác biển số; cùng biển khác tài xế; cùng xe khác ngày khởi hành).
+- **Kết quả mong đợi (Pass):** cả 3 bị chặn với lỗi tiếng Việt đúng nguyên nhân.
+- **Bằng chứng:** ảnh 3 lỗi
+
+### TC-DV-DISPATCH-037 — Ghép KẾT HỢP hợp lệ (nối tiếp, tái sử dụng vỏ)
+
+- **Vai trò:** `dieuvan`
+- **Mức độ:** P0
+- **Tiền điều kiện:** 2 lệnh cùng xe + tài xế, cùng số vỏ container, cửa sổ nối tiếp không chồng lấn
+- **Các bước:**
+  1. Chọn loại ghép **Kết hợp (nối tiếp tái sử dụng vỏ)** cho 2 dòng.
+  2. Xác nhận; kiểm tra DB.
+- **Kết quả mong đợi (Pass):**
+  - Cặp tạo với `pair_kind=KET_HOP`; giữ nguyên kiểm tra cửa sổ/khoảng trống hiện hành.
+  - VETC 1 lần cho vòng khép kín (trip 2 khử trùng); lương = cuốc cơ bản + phụ phí kết hợp.
+- **Bằng chứng:** DB + ảnh
+
+### TC-DV-DISPATCH-038 — Ghép KẾT HỢP khác số vỏ → chặn; thiếu số vỏ → cho phép
+
+- **Vai trò:** `dieuvan`
+- **Mức độ:** P1
+- **Các bước:** thử ghép 2 lệnh có số vỏ khác nhau; thử khi 1 lệnh chưa có số cont.
+- **Kết quả mong đợi (Pass):** khác vỏ → chặn "phải dùng lại đúng vỏ container của lệnh trước"; thiếu số vỏ → cho ghép (CUS bổ sung sau).
+- **Bằng chứng:** ảnh 2 trường hợp
+
+### TC-DV-DISPATCH-039 — Hủy 1 trip trong cặp → tự tách cặp, khôi phục tiền trạm + lương
+
+- **Vai trò:** `dieuvan`
+- **Mức độ:** P1
+- **Các bước:**
+  1. Tạo cặp (KẸP hoặc KẾT HỢP). Hủy 1 trong 2 trip.
+- **Kết quả mong đợi (Pass):**
+  - Cặp chuyển BROKEN; trip còn lại khôi phục **đủ tiền trạm** (toll_deduction=0) và **lương tiêu chuẩn**.
+  - Tag [KẸP]/[KẾT HỢP] biến mất khỏi 2 dòng.
+- **Bằng chứng:** DB trước/sau + ảnh danh sách
+
+### TC-DV-DISPATCH-040 — Cấu hình phụ phí kẹp/kết hợp (Cài đặt → Lương)
+
+- **Vai trò:** `admin`
+- **Mức độ:** P1
+- **Các bước:**
+  1. Mở Cài đặt, đặt "Phụ phí kẹp hàng" = 200000, "Phụ phí kết hợp" = 150000.
+  2. Tạo cặp KẸP mới; tạo cặp KẾT HỢP mới; kiểm tra lương trip 2 mỗi cặp.
+  3. Đặt về 0; tạo cặp khác.
+- **Kết quả mong đợi (Pass):** phụ phí áp dụng đúng theo loại cặp và theo giá trị cấu hình; =0 → lương trip 2 = 0 (không crash, không giả dữ liệu).
+- **Bằng chứng:** ảnh cài đặt + DB
+
+### TC-DV-DISPATCH-041 — Tag [KẸP]/[KẾT HỢP] cạnh số container ở /dispatch-detail
+
+- **Vai trò:** `dieuvan`
+- **Mức độ:** P0
+- **Các bước:** sau khi có cặp KẸP và KẾT HỢP, mở `/dispatch-detail` tìm 2 dòng từng cặp.
+- **Kết quả mong đợi (Pass):** mỗi dòng có tag **[KẸP]** hoặc **[KẾT HỢP]** nổi bật cạnh số container; dòng không thuộc cặp nào không có tag; thuần text màu (không badge nền/dot).
+- **Bằng chứng:** ảnh lưới
+
+---
+
+## Bảng nghiệm thu — Luồng Điều xe (bổ sung đặc tả 2026-09-06)
+
+| Ngày thử | Mã TC | Người thử | Kết quả | Ghi chú | Bằng chứng |
+|-----------|-------|-----------|---------|---------|------------|
+| __/__/__ | TC-DV-DISPATCH-034 | | | Ghép KẸP hợp lệ | |
+| __/__/__ | TC-DV-DISPATCH-035 | | | KẸP thiếu 2×20' | |
+| __/__/__ | TC-DV-DISPATCH-036 | | | KẸP khác xe/tài xế/ngày | |
+| __/__/__ | TC-DV-DISPATCH-037 | | | Ghép KẾT HỢP hợp lệ | |
+| __/__/__ | TC-DV-DISPATCH-038 | | | KẾT HỢP khác/thiếu vỏ | |
+| __/__/__ | TC-DV-DISPATCH-039 | | | Hủy trip → tách cặp + khôi phục | |
+| __/__/__ | TC-DV-DISPATCH-040 | | | Cấu hình phụ phí | |
+| __/__/__ | TC-DV-DISPATCH-041 | | | Tag cạnh số cont | |

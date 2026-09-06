@@ -476,6 +476,68 @@
 
 ---
 
+## 1.10 — Nhà máy → tự điền Tuyến + Vị trí (đặc tả master-data 2026-09-06)
+
+> **Nguồn:** đặc tả khách hàng 2026-09-06 (PHẦN 1) + PRD `QuyTrinhO2C.md` mục "Danh Mục: Quan Hệ
+> Khách hàng – Nhà máy – Tuyến – Vị Trí". Nhà máy là nơi neo duy nhất của Tuyến đường và Vị trí
+> đóng/trả hàng; chọn nhà máy → tự điền + khóa 2 trường này.
+
+### TC-CUS-CREATE-021 — Chọn nhà máy → tự điền và khóa Tuyến đường + Vị trí (FCL)
+
+- **Vai trò:** `cus`
+- **Mức độ:** P0
+- **Tiền điều kiện:** khách hàng đã chọn; có ≥1 nhà máy ACTIVE loại Factory đã gắn tuyến
+- **Các bước:**
+  1. Mở `/shipments/new`, chọn khách hàng, chuyển FCL.
+  2. Ở dòng container, chọn nhà máy đã cấu hình tuyến.
+  3. Quan sát trường Tuyến đường và Vị trí đóng/trả hàng.
+  4. Thử bấm/mở trường Tuyến đường để đổi tuyến khác.
+- **Kết quả mong đợi (Pass):**
+  - Ngay khi chọn nhà máy: Tuyến đường tự điền đúng tuyến của nhà máy và **read-only** (không đổi được).
+  - Vị trí đóng/trả hàng hiển thị read-only theo địa chỉ nhà máy (không có ô nhập).
+  - Nhà máy CHƯA cấu hình tuyến → trường Tuyến vẫn chọn tay được như cũ (không dead-end).
+- **Kỳ vọng sai (Fail nếu):** tuyến trống với nhà máy đã có tuyến; vẫn đổi được tuyến sau khi chọn nhà máy.
+- **Bằng chứng:** ảnh dropdown nhà máy + ảnh 2 trường read-only sau khi chọn
+
+### TC-CUS-CREATE-022 — Tương tự ở cấp lô LCL; nhà máy chưa có tuyến vẫn chọn tay được
+
+- **Vai trò:** `cus`
+- **Mức độ:** P1
+- **Các bước:**
+  1. Chuyển chế độ Hàng lẻ (LCL), chọn nhà máy của khách hàng.
+  2. Chọn nhà máy loại Kho (chưa gắn tuyến) hoặc nhà máy chưa cấu hình tuyến.
+- **Kết quả mong đợi (Pass):**
+  - LCL cấp lô: chọn nhà máy có tuyến → tuyến tự điền + khóa (giống TC-021).
+  - Nhà máy chưa có tuyến → tuyến chọn tay bình thường (hành vi cũ giữ nguyên).
+- **Bằng chứng:** ảnh 2 trường hợp
+
+### TC-CUS-CREATE-023 — Backend chốt nhất quán nhà máy ↔ tuyến (API)
+
+- **Vai trò:** `cus` (qua API)
+- **Mức độ:** P0
+- **Các bước:**
+  1. POST tạo lô với container có `operationalSiteId` của nhà máy A (tuyến T1) nhưng `routeId` = T2 (khác T1).
+  2. POST tạo lô với `operationalSiteId` nhà máy A và **bỏ trống** `routeId`.
+- **Kết quả mong đợi (Pass):**
+  - Lần 1: 422 lỗi tiếng Việt (tuyến không khớp nhà máy), không tạo lô.
+  - Lần 2: tạo thành công, `routeId` được tự suy = T1 theo nhà máy.
+- **Kỳ vọng sai (Fail nếu):** lưu được tuyến sai; bỏ trống tuyến thì lô rơi vào trạng thái thiếu tuyến dù nhà máy đã có.
+- **Bằng chứng:** Network tab (422 + 201) + DB `shipment_containers.route_id`
+
+### TC-CUS-CREATE-024 — Nhà máy loại Factory bắt buộc có tuyến
+
+- **Vai trò:** `cus` / `admin`
+- **Mức độ:** P1
+- **Các bước:**
+  1. Form "Thêm nhà máy": chọn loại Factory, điền đủ trừ tuyến, bấm thêm.
+  2. Thử sửa nhà máy Factory hiện có bỏ tuyến (qua admin).
+- **Kết quả mong đợi (Pass):**
+  - Cả 2 lần bị chặn với thông báo tiếng Việt yêu cầu chọn tuyến đường.
+  - Tạo/sửa thành công khi đã chọn tuyến.
+- **Bằng chứng:** ảnh lỗi + ảnh tạo thành công
+
+---
+
 ## Bảng nghiệm thu — Luồng Tạo lô hàng (CUS)
 
 | Ngày thử | Mã TC | Người thử | Kết quả | Ghi chú | Bằng chứng |
@@ -501,3 +563,7 @@
 | __/__/__ | TC-CUS-CREATE-019 | | | Quy cách đóng gói free-text | |
 | __/__/__ | TC-CUS-CREATE-020 | | | Tạo Loại container inline + tự chọn | |
 | __/__/__ | TC-CUS-CREATE-019 | | | Tạo cảng/bãi inline từ ô container | |
+| __/__/__ | TC-CUS-CREATE-021 | | | Nhà máy tự điền + khóa Tuyến/Vị trí (FCL) | |
+| __/__/__ | TC-CUS-CREATE-022 | | | Nhà máy tự điền (LCL) + chưa tuyến vẫn chọn tay | |
+| __/__/__ | TC-CUS-CREATE-023 | | | Backend chốt nhà máy ↔ tuyến | |
+| __/__/__ | TC-CUS-CREATE-024 | | | Factory bắt buộc có tuyến | |
