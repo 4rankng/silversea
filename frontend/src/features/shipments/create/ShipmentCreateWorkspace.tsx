@@ -237,8 +237,34 @@ export function ShipmentCreateWorkspace() {
     clearFeedback();
   }
 
+  /**
+   * Factory-route authority (master-data spec 2026-09-06): a factory with a
+   * configured route owns the shipment/container route — the route field
+   * auto-fills and locks. Returns '' when the factory has no route so manual
+   * selection stays allowed (no dead-end).
+   */
+  function routeIdForSite(siteId: string): string {
+    if (!siteId) return '';
+    const site = operationalSites.find((item) => String(item.id) === siteId);
+    return site?.routeId != null ? String(site.routeId) : '';
+  }
+
   function selectOperationalSite(value: string) {
-    update('operationalSiteId', value);
+    const derivedRouteId = routeIdForSite(value);
+    setForm((current) => ({
+      ...current,
+      operationalSiteId: value,
+      ...(derivedRouteId ? { routeId: derivedRouteId } : {}),
+    }));
+    clearFeedback();
+  }
+
+  function selectContainerFactory(key: string, value: string) {
+    const derivedRouteId = routeIdForSite(value);
+    setContainers((current) => current.map((row) => row.key === key
+      ? { ...row, operationalSiteId: value, ...(derivedRouteId ? { routeId: derivedRouteId } : {}) }
+      : row));
+    clearFeedback();
   }
 
   function closeShippingLineDialog() {
@@ -360,15 +386,17 @@ export function ShipmentCreateWorkspace() {
     setCreateSiteDialog({ open: false, siteType: site.siteType });
     setSitesVersion((version) => version + 1);
     if (site.siteType === 'FACTORY') {
+      const derivedRouteId = site.routeId != null ? String(site.routeId) : '';
       if (form.cargoMode === 'FCL') {
         setContainers((current) => {
           const target = current.find((row) => !row.operationalSiteId) ?? current[0];
           return current.map((row) => row.key === target?.key
-            ? { ...row, operationalSiteId: String(site.id) }
+            ? { ...row, operationalSiteId: String(site.id), ...(derivedRouteId ? { routeId: derivedRouteId } : {}) }
             : row);
         });
       } else {
         update('operationalSiteId', String(site.id));
+        if (derivedRouteId) update('routeId', derivedRouteId);
       }
     } else {
       update('pickupWarehouseSiteId', String(site.id));
@@ -550,18 +578,20 @@ export function ShipmentCreateWorkspace() {
                 onChange={(value) => update('routeId', value)}
                 options={routeOptions}
                 placeholder="Gõ chọn"
-                disabled={Boolean(saving)}
+                disabled={Boolean(saving) || selectedOperationalSite?.routeId != null}
                 error={issueByField.get('shipment-route')}
               />
-              <button
-                ref={routeAddButtonRef}
-                type="button"
-                onClick={() => setRouteDialogOpen(true)}
-                disabled={Boolean(saving)}
-                className="csc-utility-button csc-utility-button--dashed csc-route-picker__add"
-              >
-                <Plus size={15} aria-hidden="true" />Thêm tuyến đường
-              </button>
+              {selectedOperationalSite?.routeId == null && (
+                <button
+                  ref={routeAddButtonRef}
+                  type="button"
+                  onClick={() => setRouteDialogOpen(true)}
+                  disabled={Boolean(saving)}
+                  className="csc-utility-button csc-utility-button--dashed csc-route-picker__add"
+                >
+                  <Plus size={15} aria-hidden="true" />Thêm tuyến đường
+                </button>
+              )}
             </div>
             <div className="csc-site-picker">
               <SearchableField
@@ -597,6 +627,17 @@ export function ShipmentCreateWorkspace() {
                 </button>
               </div>
             </div>
+            {selectedOperationalSite && (
+              <div data-field-id="shipment-site-address">
+                <TextField
+                  id="shipment-site-address"
+                  label="Vị trí đóng/trả hàng"
+                  value={selectedOperationalSite.address}
+                  disabled
+                  onChange={() => {}}
+                />
+              </div>
+            )}
           </div>
 
           {selectedOperationalSite?.strictRules && (
@@ -690,6 +731,7 @@ export function ShipmentCreateWorkspace() {
                     label="Nhà máy *"
                     value={factory?.shortName || factory?.name || ''}
                     placeholder="Chọn nhà máy"
+                    subValue={factory?.address || undefined}
                     fieldId={`container-${row.key}-factory`}
                     error={issueByField.get(`container-${row.key}-factory`)}
                   >
@@ -699,7 +741,7 @@ export function ShipmentCreateWorkspace() {
                       hideLabel
                       required
                       value={row.operationalSiteId}
-                      onChange={(value) => updateContainer(row.key, 'operationalSiteId', value)}
+                      onChange={(value) => selectContainerFactory(row.key, value)}
                       options={operationalSites.map((site) => ({
                         value: String(site.id),
                         label: site.shortName || site.name,
@@ -727,17 +769,19 @@ export function ShipmentCreateWorkspace() {
                         onChange={(value) => updateContainer(row.key, 'routeId', value)}
                         options={routeOptions}
                         placeholder="Chọn tuyến đường"
-                        disabled={Boolean(saving)}
+                        disabled={Boolean(saving) || factory?.routeId != null}
                         error={issueByField.get(`container-${row.key}-route`)}
                       />
-                      <button
-                        type="button"
-                        className="csc-utility-button csc-utility-button--dashed csc-route-picker__add"
-                        onClick={() => { setRouteDialogTargetKey(row.key); setRouteDialogOpen(true); }}
-                        disabled={Boolean(saving)}
-                      >
-                        <Plus size={15} aria-hidden="true" />Thêm
-                      </button>
+                      {factory?.routeId == null && (
+                        <button
+                          type="button"
+                          className="csc-utility-button csc-utility-button--dashed csc-route-picker__add"
+                          onClick={() => { setRouteDialogTargetKey(row.key); setRouteDialogOpen(true); }}
+                          disabled={Boolean(saving)}
+                        >
+                          <Plus size={15} aria-hidden="true" />Thêm
+                        </button>
+                      )}
                     </div>
                   </ShipmentContainerCell>
                   <ShipmentContainerCell
