@@ -243,12 +243,12 @@ export default function CustomersConfigPage() {
                   <td data-label="Tên viết tắt">{c.shortName || '—'}</td>
                   <td data-label="Mã KH">{c.code || '—'}</td>
                   <td data-label="Mã Số Thuế">{c.taxCode || '—'}</td>
-                  <td data-label="Địa Chỉ" style={{ maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.address || '—'}</td>
+                  <td data-label="Địa Chỉ" style={{ overflowWrap: 'anywhere' }}>{c.address || '—'}</td>
                   <td data-label="Giám đốc">{c.contactPerson || '—'}</td>
                   <td data-label="SĐT Giám đốc">{c.phone || '—'}</td>
                   <td data-label="Người Liên Hệ">{c.accountantName || '—'}</td>
                   <td data-label="SĐT Kế toán">{c.accountantPhone || '—'}</td>
-                  <td data-label="Email" style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.contactInfo || '—'}</td>
+                  <td data-label="Email" style={{ overflowWrap: 'anywhere' }}>{c.contactInfo || '—'}</td>
                   <td className="num" data-label="Hạn Thanh Toán Chi hộ (Ngày)">{c.agencyFeePaymentTermDays ?? '—'}</td>
                   <td className="num" data-label="Hạn Thanh Toán Cước (Ngày)">{c.paymentTermDays ?? '—'}</td>
                 </tr>

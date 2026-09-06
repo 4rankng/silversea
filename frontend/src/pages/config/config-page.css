@@ -576,26 +576,15 @@
 .routes-table thead th:nth-child(5) { width: 10%; }   /* Khoảng cách */
 .routes-table thead th:nth-child(6) { width: 16%; }   /* Ghi chú */
 .routes-table thead th:nth-child(7) { width: 8%;  }   /* actions */
-/* Keep content inside its assigned column. The previous `overflow: visible`
-   let long route names draw on top of the type badge and numeric columns.
-   The action cell is excluded — it hosts the row's absolutely-positioned
-   kebab dropdown, which `overflow: hidden` would clip against its own tiny
-   cell box. */
-.routes-table tbody td:not(.record-table__action) { overflow: hidden; }
-.routes-table tbody td:nth-child(1) {
+/* Allow text to wrap inside cells so long content stays readable. The action
+   cell is excluded — it hosts the row's absolutely-positioned kebab dropdown. */
+.routes-table tbody td:not(.record-table__action) {
   white-space: normal;
   overflow-wrap: anywhere;
 }
 .routes-table tbody td:nth-child(1) .row-strong {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  overflow: hidden;
-}
-.routes-table tbody td:nth-child(n+2):not(.record-table__action) {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 /* When the shared record-table base collapses rows to labelled cards
@@ -667,25 +656,14 @@
   .cfg-page .routes-table tbody td::before {
     content: none;
   }
-  /* Routes keeps its desktop fixed-layout geometry in this window, minus
-     the 980px floor (percentages scale with the container). */
+  /* Routes keeps its desktop layout in this window — allow wrapping. */
   .cfg-page .routes-table {
     min-width: 0;
     table-layout: fixed;
   }
   .cfg-page .routes-table tbody td:not(.record-table__action) {
-    overflow: hidden;
-  }
-  .cfg-page .routes-table tbody td:nth-child(n+2):not(.record-table__action) {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .cfg-page .routes-table tbody td:nth-child(1) .row-strong {
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    overflow: hidden;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 }
 

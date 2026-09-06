@@ -260,13 +260,13 @@
   opacity: 0.66;
 }
 /* Lead with trip code (the canonical identifier); customer name follows in
-   a less-loud second line. Single-line truncation with tooltip on hover. */
+   a less-loud second line. */
 .trip-list-page .trip-name {
   font-size: var(--fs-sm); font-weight: 700; line-height: 1.35;
   color: var(--ink);
   display: flex; align-items: center; gap: 5px;
-  white-space: nowrap;
-  overflow: hidden;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .trip-list-page .trip-date {
   font-size: var(--fs-xs); font-weight: 500;

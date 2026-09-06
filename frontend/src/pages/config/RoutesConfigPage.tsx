@@ -125,7 +125,7 @@ export default function RoutesConfigPage() {
                   <td data-label="Điểm đóng trả">{r.loadPoint || '—'}</td>
                   <td className="num" data-label="Khoảng cách">{r.distanceKm != null ? `${r.distanceKm}` : '—'}</td>
                   <td className="num" data-label="Vé cầu đường">{r.tollsStations ?? '—'}</td>
-                  <td data-label="Ghi chú" style={{ color: 'var(--fg-2)', fontSize: 13, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.note || '—'}</td>
+                  <td data-label="Ghi chú" style={{ color: 'var(--fg-2)', fontSize: 13, overflowWrap: 'anywhere' }}>{r.note || '—'}</td>
                   <td
                     data-label=""
                     className="record-table__action"
