@@ -85,6 +85,7 @@ describe('getNavItems', () => {
     ]],
     [Role.DRIVER, [
       ['Hành trình của tôi', '/my-trips'],
+      ['Thông báo', '/notifications'],
       ['Thu nhập', '/my-earnings'],
       ['Kỷ luật', '/my-penalties'],
     ]],
