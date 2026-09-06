@@ -452,29 +452,29 @@ export async function loadShipmentListSummaries(
       ))
       .orderBy(asc(s.shipmentFulfillments.shipmentId), asc(s.shipmentFulfillments.id)),
     db.select({
-      id: s.trips.id,
-      shipmentId: s.trips.shipmentId,
-      fulfillmentId: s.trips.fulfillmentId,
-      carrierType: s.trips.carrierType,
+      id: s.tripsComposite.id,
+      shipmentId: s.tripsComposite.shipmentId,
+      fulfillmentId: s.tripsComposite.fulfillmentId,
+      carrierType: s.tripsComposite.carrierType,
       truckPlate: s.trucks.licensePlate,
       externalCarrierName: CUSTOMER_OPERATIONAL_NAME,
-      externalPlateNumber: s.trips.externalPlateNumber,
-    }).from(s.trips)
+      externalPlateNumber: s.tripsComposite.externalPlateNumber,
+    }).from(s.tripsComposite)
       .leftJoin(s.trucks, and(
-        eq(s.trucks.id, s.trips.truckId),
+        eq(s.trucks.id, s.tripsComposite.truckId),
         isNull(s.trucks.deletedAt),
       ))
       .leftJoin(s.customers, and(
-        eq(s.customers.id, s.trips.externalEntityId),
-        eq(s.trips.externalEntityType, 'CUSTOMER'),
+        eq(s.customers.id, s.tripsComposite.externalEntityId),
+        eq(s.tripsComposite.externalEntityType, 'CUSTOMER'),
         isNull(s.customers.deletedAt),
       ))
       .where(and(
-        inArray(s.trips.shipmentId, shipmentIds),
-        isNull(s.trips.deletedAt),
-        ne(s.trips.status, TripStatus.CANCELED),
+        inArray(s.tripsComposite.shipmentId, shipmentIds),
+        isNull(s.tripsComposite.deletedAt),
+        ne(s.tripsComposite.status, TripStatus.CANCELED),
       ))
-      .orderBy(asc(s.trips.shipmentId), asc(s.trips.id)),
+      .orderBy(asc(s.tripsComposite.shipmentId), asc(s.tripsComposite.id)),
   ]);
 
   const plannedCarrierIds = [...new Set(
