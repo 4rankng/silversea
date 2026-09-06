@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Image as ImageIcon, Loader2, RotateCcw, Trash2 } from 'lucide-react';
+import { Image as ImageIcon, Loader2, Pencil, RotateCcw, Trash2 } from 'lucide-react';
 import {
   useOpsWalletExpenses,
   useDeleteOpsExpense,
@@ -8,6 +8,7 @@ import {
 import type { OpsExpenseRow, OpsExpenseStatus } from '../../api/opsClient';
 import { useConfirm } from '../../components/UI';
 import { OpsExpensePhotosModal } from './OpsExpensePhotosModal';
+import { OpsExpenseEditModal } from './OpsExpenseEditModal';
 import { formatVnd } from './opsStatus';
 
 const STATUS_FILTERS: Array<{ value: OpsExpenseStatus | undefined; label: string }> = [
@@ -40,6 +41,7 @@ export function OpsExpenseHistory() {
   const resendExpense = useResendOpsExpense();
   const { confirm, dialog } = useConfirm();
   const [photosFor, setPhotosFor] = useState<number | null>(null);
+  const [editing, setEditing] = useState<OpsExpenseRow | null>(null);
 
   const items = data?.items ?? [];
 
@@ -103,6 +105,16 @@ export function OpsExpenseHistory() {
                   )}
                 </td>
                 <td className="ops-row-actions">
+                  {row.approvalStatus !== 'APPROVED' && row.opsSettlementId == null && (
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      aria-label={`Sửa khoản chi ${row.shipmentCode ?? row.id}`}
+                      onClick={() => setEditing(row)}
+                    >
+                      <Pencil size={13} />
+                    </button>
+                  )}
                   {row.approvalStatus === 'REJECTED' && row.opsSettlementId == null && (
                     <button type="button" className="btn-secondary" onClick={() => void resendExpense.mutateAsync(row.id).catch(() => undefined)}>
                       <RotateCcw size={13} /> Gửi lại
@@ -134,6 +146,9 @@ export function OpsExpenseHistory() {
 
       {photosFor != null && (
         <OpsExpensePhotosModal expenseId={photosFor} canDelete onClose={() => setPhotosFor(null)} />
+      )}
+      {editing && (
+        <OpsExpenseEditModal entry={editing} onClose={() => setEditing(null)} />
       )}
       {dialog}
     </section>

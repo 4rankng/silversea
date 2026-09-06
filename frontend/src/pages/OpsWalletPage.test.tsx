@@ -1,14 +1,14 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '../components/shared/Toast';
 import OpsWalletPage from './OpsWalletPage';
 
-const { apiGet, apiPost } = vi.hoisted(() => ({ apiGet: vi.fn(), apiPost: vi.fn() }));
+const { apiGet, apiPost, apiPatch } = vi.hoisted(() => ({ apiGet: vi.fn(), apiPost: vi.fn(), apiPatch: vi.fn() }));
 vi.mock('../lib/api', async (importOriginal) => ({
   ...await importOriginal<typeof import('../lib/api')>(),
-  api: { get: apiGet, post: apiPost, patch: vi.fn(), delete: vi.fn(), upload: vi.fn() },
+  api: { get: apiGet, post: apiPost, patch: apiPatch, delete: vi.fn(), upload: vi.fn() },
 }));
 
 function renderPage() {
@@ -79,6 +79,31 @@ describe('OpsWalletPage (OpsVanHanh §5)', () => {
         amount: 500000,
         reason: 'ứng phí cảng',
       });
+    });
+  });
+
+  it('lets the author edit a pending expense (PRD §5.5 sửa)', async () => {
+    apiPatch.mockResolvedValue(expense({ amount: '120000' }));
+    renderPage();
+    await screen.findByText('SS-1');
+
+    fireEvent.click(screen.getByRole('button', { name: /Sửa khoản chi SS-1/ }));
+    const dialog = await screen.findByRole('dialog', { name: /Sửa khoản chi SS-1/ });
+    expect(dialog).toBeInTheDocument();
+    // Prefilled with the current amount.
+    const amountInput = within(dialog).getByLabelText(/Số tiền \(VND\)/) as HTMLInputElement;
+    expect(amountInput.value).toContain('90.000');
+    fireEvent.change(amountInput, { target: { value: '120000' } });
+    // jsdom does not synthesize form submission from submit-button clicks
+    // here; submit the form directly.
+    fireEvent.submit(dialog.querySelector('form')!);
+
+    await waitFor(() => {
+      expect(apiPatch).toHaveBeenCalledWith('/ops/expenses/1', expect.objectContaining({
+        amount: '120000',
+        expenseTypeCode: 'CANXE',
+        paidAt: '2026-09-07',
+      }));
     });
   });
 });

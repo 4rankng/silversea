@@ -46,7 +46,7 @@ export function useOpsOrders(date: string, q?: string) {
   });
 }
 
-export function useToggleShipmentPin(date: string, q?: string) {
+export function useToggleShipmentPin() {
   const invalidateOrders = useInvalidateOps();
   return useMutation({
     mutationFn: ({ shipmentId, pinned }: { shipmentId: number; pinned: boolean }) =>

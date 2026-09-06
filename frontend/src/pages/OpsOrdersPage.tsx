@@ -23,7 +23,7 @@ export default function OpsOrdersPage() {
   }, [searchInput]);
 
   const { data, isLoading, isError } = useOpsOrders(date, search || undefined);
-  const togglePin = useToggleShipmentPin(date, search || undefined);
+  const togglePin = useToggleShipmentPin();
   const queryClient = useQueryClient();
 
   const items = useMemo(() => data?.items ?? [], [data]);

@@ -654,6 +654,3 @@ export function groupOpsExpensesForSettlement(
     },
   };
 }
-
-// Re-export for routes that compose create + attach.
-export { attachPhotoRows };
