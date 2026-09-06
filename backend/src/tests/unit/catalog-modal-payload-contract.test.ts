@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { truckSchema, routeSchema, driverSchema } from '@tingting/shared';
+import { truckSchema, routeSchema, driverSchema, Role } from '@tingting/shared';
+import { restrictRouteCreateForIntake, restrictRouteUpdateForIntake } from '../../services/route-intake.service';
 
 /**
  * Contract guard: every field the catalog edit modals send must survive zod
@@ -87,4 +88,49 @@ test('driverSchema keeps every DriverFormModal field', () => {
   // Cleared date arrives as null and must survive as null.
   const updated = driverSchema.partial().parse({ licenseExpiryDate: null });
   assert.equal('licenseExpiryDate' in updated && updated.licenseExpiryDate, null);
+});
+
+test('route intake restriction keeps descriptive fields, strips cost params', () => {
+  for (const role of [Role.CUS, Role.DISPATCHER]) {
+    // Create: RouteFormModal payload — code/loadPoint/note survive alongside
+    // identity; cost/terrain knobs never reach the insert.
+    const created = restrictRouteCreateForIntake(routeSchema.parse({
+      name: 'KCN Đồng Văn, Ninh Bình',
+      shortName: 'KCN ĐỒNG VĂN',
+      code: 'T01',
+      loadPoint: 'KCN Đồng Văn → Yên Phong',
+      note: 'tuyến nặng',
+      distanceKm: 120,
+      isMountain: true,
+      fixedFuelAllowance: 500,
+      tollsStations: 2,
+      driverSalary: 900000,
+    }), role);
+    assert.equal(created.code, 'T01', `${role} create code`);
+    assert.equal(created.loadPoint, 'KCN Đồng Văn → Yên Phong', `${role} create loadPoint`);
+    assert.equal(created.note, 'tuyến nặng', `${role} create note`);
+    assert.equal(created.isMountain, false, `${role} create isMountain forced`);
+    assert.equal('fixedFuelAllowance' in created, false, `${role} create fuel stripped`);
+    assert.equal('tollsStations' in created, false, `${role} create tolls stripped`);
+    assert.equal('driverSalary' in created, false, `${role} create salary stripped`);
+
+    // Update: same allowlist — descriptive fields kept, cost params stripped.
+    const updated = restrictRouteUpdateForIntake({
+      name: 'KCN Đồng Văn, Ninh Bình (mới)',
+      code: 'T01B',
+      loadPoint: null,
+      note: null,
+      fixedFuelAllowance: 999,
+      defaultLegs: [],
+    }, role);
+    assert.equal(updated.code, 'T01B', `${role} update code`);
+    assert.equal('loadPoint' in updated && updated.loadPoint, null, `${role} update loadPoint clears`);
+    assert.equal('note' in updated && updated.note, null, `${role} update note clears`);
+    assert.equal('fixedFuelAllowance' in updated, false, `${role} update fuel stripped`);
+    assert.equal('defaultLegs' in updated, false, `${role} update legs stripped`);
+  }
+
+  // Cost administrators are untouched by the restriction.
+  const managerUpdate = restrictRouteUpdateForIntake({ fixedFuelAllowance: 123 }, Role.MANAGER);
+  assert.equal(managerUpdate.fixedFuelAllowance, 123);
 });

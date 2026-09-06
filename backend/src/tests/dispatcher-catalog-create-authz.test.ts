@@ -215,6 +215,11 @@ describe('Dispatcher resource-catalog create authorization', () => {
           name: 'Cảng Cát Lái — KCN Sóng Thần',
           shortName: 'Cát Lái — Sóng Thần',
           distanceKm: 32,
+          // Descriptive fields the config table renders travel with the
+          // intake-safe set (null when the create payload omits them).
+          code: null,
+          loadPoint: null,
+          note: null,
           isMountain: false,
         });
       }

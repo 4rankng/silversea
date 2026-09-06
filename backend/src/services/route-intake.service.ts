@@ -1,11 +1,14 @@
 import { Role, type RouteInput } from '@tingting/shared';
 
-const INTAKE_ROUTE_KEYS = new Set(['name', 'shortName', 'distanceKm']);
+const INTAKE_ROUTE_KEYS = new Set(['name', 'shortName', 'distanceKm', 'code', 'loadPoint', 'note']);
 
 /**
  * CUS and Dispatchers may create a missing route from shipment intake, but
  * they are not route-cost administrators. Keep their raw HTTP payload from
  * setting fuel, toll, salary, terrain, or default-leg configuration.
+ * Descriptive fields (code / loadPoint / note) are identity-level: they are
+ * the columns the config table renders and RouteFormModal edits, so they
+ * travel with the intake-safe set.
  */
 export function restrictRouteCreateForIntake(data: RouteInput, role: Role): RouteInput {
   if (role !== Role.CUS && role !== Role.DISPATCHER) return data;
@@ -13,6 +16,9 @@ export function restrictRouteCreateForIntake(data: RouteInput, role: Role): Rout
     name: data.name,
     shortName: data.shortName?.trim() || data.name.trim(),
     distanceKm: data.distanceKm,
+    code: data.code ?? null,
+    loadPoint: data.loadPoint ?? null,
+    note: data.note ?? null,
     isMountain: false,
   };
 }
