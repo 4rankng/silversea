@@ -82,6 +82,7 @@ export interface CustomerPayload {
   kind: 'customer';
   name: string;
   shortName: string | null;
+  code: string | null;
   taxCode: string | null;
   address: string | null;
   director: string | null;
@@ -201,6 +202,7 @@ export function parseCustomersV2(workbook: ExcelJS.Workbook, rows: ParsedRow[]):
       kind: 'customer',
       name,
       shortName: shortName || code || null,
+      code: code || null,
       taxCode: taxCode || null,
       address: address || null,
       director: director || null,
@@ -443,7 +445,9 @@ export async function applyReferenceEntities(
     const values = {
       name: payload.name,
       shortName: payload.shortName ?? existing?.shortName ?? '',
+      code: payload.code ?? existing?.code ?? null,
       taxCode: payload.taxCode ?? existing?.taxCode ?? null,
+      address: payload.address ?? existing?.address ?? null,
       contactPerson: payload.director ?? existing?.contactPerson ?? null,
       phone: payload.directorPhone ?? existing?.phone ?? null,
       accountantName: payload.accountantName ?? existing?.accountantName ?? null,

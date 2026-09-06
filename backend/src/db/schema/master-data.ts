@@ -197,11 +197,18 @@ export const customers = pgTable('customers', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 255 }).notNull(),
   shortName: varchar('short_name', { length: 255 }).notNull().default(''),
+  // Business code from the customer master-data sheet (Mã KH). Not unique:
+  // legacy rows and CUS inline creates predate the sheet.
+  code: varchar('code', { length: 80 }),
   taxCode: varchar('tax_code', { length: 20 }),
   partnerId: integer('partner_id'),
   contactPerson: varchar('contact_person', { length: 255 }),
   phone: varchar('phone', { length: 20 }),
   contactInfo: text('contact_info'),
+  // Office address from the customer master-data sheet (Địa Chỉ). The sheet's
+  // director/director-phone land in contactPerson/phone and its email in
+  // contactInfo — see master-data-import-sep2026.service.ts for the mapping.
+  address: text('address'),
   // Customer master-data sheet: the accountant contact is a separate person
   // from the director (contactPerson/phone above).
   accountantName: varchar('accountant_name', { length: 255 }),

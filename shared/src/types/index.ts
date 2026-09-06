@@ -71,11 +71,13 @@ export interface Customer {
   id: number;
   name: string;
   shortName?: string;
+  code?: string | null;
   taxCode: string | null;
   partnerId?: number | null;
   contactPerson: string | null;
   phone: string | null;
   contactInfo: string | null;
+  address?: string | null;
   accountantName: string | null;
   accountantPhone: string | null;
   agencyFeePaymentTermDays: number | null;

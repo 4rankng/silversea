@@ -682,7 +682,9 @@ export const customerSchema = z.object({
   // Blank (not absent) is a deliberate clear: displays fall back to `name`
   // everywhere via `shortName || name`, so '' is the representable "unset".
   shortName: z.string().trim().max(255).optional(),
+  code: z.string().trim().max(80).optional(),
   taxCode: z.string().optional(),
+  address: z.string().trim().optional(),
   contactPerson: z.string().optional(),
   phone: z.string().optional(),
   contactInfo: z.string().optional(),
