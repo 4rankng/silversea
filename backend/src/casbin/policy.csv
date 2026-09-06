@@ -107,8 +107,6 @@ p, ACCOUNTANT, epod_review, read
 p, DRIVER, driver_fulfillments, read
 p, DRIVER, driver_fulfillments, write
 p, MANAGER, driver_fulfillments, read
-p, CUS, recoverable_costs, read
-p, CUS, recoverable_costs, write
 p, ACCOUNTANT, recoverable_costs, read
 p, ACCOUNTANT, recoverable_costs, write
 p, MANAGER, recoverable_costs, read
@@ -132,8 +130,6 @@ p, OPS, maps, read
 p, OPS, photos, read
 
 // Expanded permissions for CUS (formerly CLERK)
-p, CUS, recoverable_costs, read
-p, CUS, recoverable_costs, write
 p, CUS, shipments, read
 p, CUS, shipments, write
 p, CUS, shipment_fulfillments, read

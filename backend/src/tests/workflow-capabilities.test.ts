@@ -13,8 +13,10 @@ describe('customer-service finance capabilities', () => {
     const clerk = await getCapabilities(Role.CUS);
     assert.ok(clerk.includes('shipments.read'));
     assert.ok(clerk.includes('shipments.write'));
-    assert.ok(clerk.includes('recoverable_costs.read'));
-    assert.ok(clerk.includes('recoverable_costs.request'));
+    // Reconcile-now workflow moved out of the CUS clerk's hands (2026-09-06):
+    // recoverable-costs stays an ACCOUNTANT/MANAGER/OPS surface.
+    assert.ok(!clerk.includes('recoverable_costs.read'));
+    assert.ok(!clerk.includes('recoverable_costs.request'));
     assert.ok(!clerk.includes('treasury.read'));
     assert.ok(!clerk.includes('executive_dashboard.read'));
 

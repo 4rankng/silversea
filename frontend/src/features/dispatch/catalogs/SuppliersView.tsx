@@ -1,5 +1,5 @@
 /**
- * Nhà thầu phụ — dispatcher lookup of subcontractors. Deliberately leaner
+ * Nhà thầu — dispatcher lookup of subcontractors. Deliberately leaner
  * than admin SupplierListPage: no payables KPIs (financial is Casbin-denied
  * for DISPATCHER), no payable-detail links. Dispatchers may add new
  * subcontractors (createRoles allowance); edit/delete stay with admin.
@@ -55,10 +55,10 @@ export function SuppliersView() {
 
   return (
     <div ref={rootRef}>
-      <Breadcrumbs items={[{ label: 'Điều độ' }, { label: 'Nhà thầu phụ' }]} />
+      <Breadcrumbs items={[{ label: 'Điều độ' }, { label: 'Nhà thầu' }]} />
       <div className="page-header-block dispatch-catalogs__page-header" style={{ marginBottom: 16 }}>
         <div className="dispatch-catalogs__page-heading">
-          <h1 style={{ fontSize: 22, fontWeight: 700 }}>Nhà thầu phụ</h1>
+          <h1 style={{ fontSize: 22, fontWeight: 700 }}>Nhà thầu</h1>
           <p style={{ color: 'var(--fg-3)', fontSize: 14, marginTop: 4 }}>
             Tra cứu nhà thầu phụ để phân bổ năng lực vận chuyển ngoài
           </p>

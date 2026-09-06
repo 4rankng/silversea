@@ -101,9 +101,9 @@ const DRIVER_ITEMS: SearchItem[] = [
 const DISPATCHER_ITEMS: SearchItem[] = [
   { id: 'dispatch-master-plan',  type: 'page', label: 'Kế hoạch tổng quát',  path: '/dispatch',        iconName: 'dispatch' },
   { id: 'dispatch-detail-plan',  type: 'page', label: 'Kế hoạch chi tiết',   path: '/dispatch-detail', iconName: 'route' },
-  { id: 'fleet-vehicles',        type: 'page', label: 'Danh mục Xe nội bộ',  path: '/fleet/vehicles',  iconName: 'tractor-head' },
-  { id: 'fleet-drivers',         type: 'page', label: 'Danh mục Tài xế',     path: '/fleet/drivers',   iconName: 'driver' },
-  { id: 'suppliers',             type: 'page', label: 'Nhà thầu phụ',        path: '/suppliers',       iconName: 'supplier' },
+  { id: 'fleet-vehicles',        type: 'page', label: 'Xe nội bộ',  path: '/fleet/vehicles',  iconName: 'tractor-head' },
+  { id: 'fleet-drivers',         type: 'page', label: 'Tài xế',     path: '/fleet/drivers',   iconName: 'driver' },
+  { id: 'suppliers',             type: 'page', label: 'Nhà thầu',        path: '/suppliers',       iconName: 'supplier' },
 ];
 
 // Mirrors the CUS nav (Layout.tsx document-ops section).
