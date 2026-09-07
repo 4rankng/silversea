@@ -389,6 +389,7 @@ function InlineEditor({
         });
       } else if (mode === 'schedule') {
         if (scheduleTime && !appointmentDate) throw new Error('Chọn ngày đóng/trả trước khi nhập giờ.');
+        if (appointmentDate && !scheduleTime) throw new Error('Vui lòng nhập đầy đủ cả Ngày và Giờ giao hàng.');
         await onSaveSchedule(line, row, {
           transportDate: row.transportDate,
           customerAppointmentAt: appointmentDate ? `${appointmentDate}T${scheduleTime || '12:00'}` : null,
@@ -515,7 +516,7 @@ function InlineEditor({
       )}
       <div className="shipment-container-ledger__editor-footer">
         <span className="shipment-container-ledger__keyboard-hint">Enter để lưu · Esc để hủy</span>
-        <EditActions saving={saving} saveDisabled={!dirty || (containerRequestMode && !requestReason.trim()) || (routeRequestMode && !requestReason.trim())} label={label} onSave={() => void save()} onCancel={onCancel} />
+        <EditActions saving={saving} saveDisabled={!dirty || (containerRequestMode && !requestReason.trim()) || (routeRequestMode && !requestReason.trim()) || (mode === 'schedule' && appointmentScheduleDirty && ((!!appointmentDate && !scheduleTime) || (!appointmentDate && !!scheduleTime)))} label={label} onSave={() => void save()} onCancel={onCancel} />
       </div>
       {edit.recoveryMessage && <span className="shipment-container-ledger__recovery" role="status">{edit.recoveryMessage}</span>}
       {saveError && <span className="shipment-container-ledger__edit-error" role="alert">{saveError}</span>}
