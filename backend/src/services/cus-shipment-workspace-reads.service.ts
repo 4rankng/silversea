@@ -1015,7 +1015,10 @@ export async function listCusShipmentContainers(
       customerId: row.shipment.customerId,
       isAdHoc: row.shipment.isAdHoc,
       customerName: row.customerName,
-      factoryName: trimOrNull(row.shipment.factoryName),
+      // Container-level factory takes precedence over shipment-level (SILVER L1).
+      factoryName: (container.operationalSiteId != null
+        ? support.factoryNameBySiteId.get(container.operationalSiteId)?.shortName ?? null
+        : null) ?? trimOrNull(row.shipment.factoryName),
       routeName: line.routeName,
       billOrBookNumber: billOrBookNumberFor(row.shipment.tradeDirection, row.shipment.blNumber, row.shipment.bookingRef),
       declarationNumber: support.declarationByShipment.get(row.shipment.id)?.declarationNumber ?? null,
