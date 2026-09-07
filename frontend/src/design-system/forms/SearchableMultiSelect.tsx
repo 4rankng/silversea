@@ -51,6 +51,10 @@ export interface SearchableMultiSelectProps {
   clearAllLabel?: string;
   /** Suffix rendered in the trigger chip count, e.g. "đã chọn". */
   countSuffix?: string;
+  /** Label used in the accessibility names: trigger reads "Chọn X…" /
+   *  "Đã chọn N X", the listbox reads "Danh sách X". Without it the trigger
+   *  falls back to the placeholder and an unlabelled listbox. */
+  selectionLabel?: string;
   /** Notify when the popover opens/closes. */
   onOpenChange?: (isOpen: boolean) => void;
 }
@@ -81,6 +85,7 @@ export function SearchableMultiSelect({
   size = 'md',
   clearAllLabel = 'Bỏ chọn tất cả',
   countSuffix = 'đã chọn',
+  selectionLabel,
   onOpenChange,
 }: SearchableMultiSelectProps) {
   const listboxId = useId();
@@ -292,7 +297,7 @@ export function SearchableMultiSelect({
           </button>
         </div>
 
-        <ul id={listboxId} className="searchable-select__list" role="listbox" aria-multiselectable="true">
+        <ul id={listboxId} className="searchable-select__list" role="listbox" aria-multiselectable="true" aria-label={selectionLabel ? `Danh sách ${selectionLabel}` : undefined}>
           {filteredOptions.length > 0 ? (
             filteredOptions.map((option, index) => {
               const isSelected = selectedSet.has(option.value);
@@ -357,7 +362,9 @@ export function SearchableMultiSelect({
         aria-haspopup={isMobile ? 'dialog' : 'listbox'}
         aria-expanded={isOpen}
         aria-required={required}
-        aria-label={values.length === 0 ? placeholder : `${values.length} ${countSuffix}`}
+        aria-label={selectionLabel
+          ? (values.length === 0 ? `Chọn ${selectionLabel}…` : `Đã chọn ${values.length} ${selectionLabel}`)
+          : (values.length === 0 ? placeholder : `${values.length} ${countSuffix}`)}
       >
         {values.length === 0 ? (
           <span className="searchable-select__placeholder">{triggerLabel}</span>

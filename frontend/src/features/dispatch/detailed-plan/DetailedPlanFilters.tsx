@@ -1,5 +1,6 @@
-import { useEffect, useId, useRef, useState } from 'react';
-import { Check, ChevronDown, FilterLines, SearchLg, XClose } from '@untitledui/icons';
+import { useEffect, useId, useState } from 'react';
+import { Check, FilterLines, XClose } from '@untitledui/icons';
+import { SearchableMultiSelect } from '../../../design-system';
 import { Drawer } from '../../../components/UI';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 import { Input as UUIInput } from '../../../components/untitled-ui/base/input/input';
@@ -38,12 +39,12 @@ const ASSIGNMENT_OPTIONS = [
 ];
 
 /**
- * Searchable multi-select facet block (spec §2: Điểm Nâng / Hạ / Trả).
+ * Multi-select facet block (spec §2: Điểm Nâng / Hạ / Trả), backed by the
+ * shared `SearchableMultiSelect` — portal + flip positioning from the
+ * dropdown-flip sweep, so the picker never clips or covers lower controls.
  *
- * Renders a dropdown trigger button. The popover holds a search input, a
- * scrollable checkbox list of options fetched lazily from `loadFacets`, and
- * a footer summary with a "clear all" action. Selected items live only in
- * the popover — nothing renders on the page below the trigger.
+ * Facets lazy-load once per popover open; the picker's search input filters
+ * the loaded list locally (facet catalogs are bounded, ≤100 rows).
  */
 function FacetMultiSelect({
   label,
@@ -57,178 +58,47 @@ function FacetMultiSelect({
   loadFacets: FacetLoader;
 }) {
   const [isPickerOpen, setIsPickerOpen] = useState(false);
-  const [facetSearch, setFacetSearch] = useState('');
   const [facets, setFacets] = useState<FacetItem[]>([]);
-  const [isLoadingFacets, setIsLoadingFacets] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
-  const listboxId = useId();
-  const labelLower = label.toLowerCase();
+  const pickerId = useId();
 
-  const closePicker = () => {
-    setIsPickerOpen(false);
-    setFacetSearch('');
-  };
-
-  // Lazy-load facets whenever the popover opens or the search term changes.
   useEffect(() => {
     if (!isPickerOpen) return;
     let cancelled = false;
-    setIsLoadingFacets(true);
-    loadFacets(facetSearch || undefined)
-      .then((items) => {
-        if (!cancelled) setFacets(items);
-      })
-      .catch(() => {
-        if (!cancelled) setFacets([]);
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoadingFacets(false);
-      });
+    loadFacets()
+      .then((items) => { if (!cancelled) setFacets(items); })
+      .catch(() => { if (!cancelled) setFacets([]); });
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPickerOpen, facetSearch]);
-
-  // Close on outside click or Escape; restore focus to the trigger.
-  useEffect(() => {
-    if (!isPickerOpen) return;
-    const onMouseDown = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        closePicker();
-      }
-    };
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        event.stopPropagation();
-        closePicker();
-        triggerRef.current?.focus();
-      }
-    };
-    document.addEventListener('mousedown', onMouseDown);
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.removeEventListener('mousedown', onMouseDown);
-      document.removeEventListener('keydown', onKeyDown);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPickerOpen]);
 
-  const clearSelection = () => {
-    selected.forEach((id) => onToggle(id));
-  };
-
   return (
-    <div className="detailed-plan-filters__points" ref={containerRef}>
+    <div className="detailed-plan-filters__points">
       <div className="detailed-plan-filters__field">
         <span className="detailed-plan-filters__label">{label}</span>
-        <button
-          ref={triggerRef}
-          type="button"
-          className={`detailed-plan-filters__multi-trigger${selected.length > 0 ? ' has-selection' : ''}`}
-          onClick={() => setIsPickerOpen((isOpen) => !isOpen)}
-          aria-haspopup="listbox"
-          aria-expanded={isPickerOpen}
-          aria-controls={isPickerOpen ? listboxId : undefined}
-        >
-          <span className="detailed-plan-filters__multi-trigger-value">
-            {selected.length === 0
-              ? `Chọn ${labelLower}…`
-              : selected.length === 1
-                ? `Đã chọn 1 ${labelLower}`
-                : `Đã chọn ${selected.length} ${labelLower}`}
-          </span>
-          <ChevronDown
-            aria-hidden="true"
-            className={`detailed-plan-filters__multi-trigger-icon${isPickerOpen ? ' is-open' : ''}`}
-          />
-        </button>
+        <SearchableMultiSelect
+          id={pickerId}
+          values={selected.map(String)}
+          onChange={(values) => {
+            // Bridge the design-system array contract onto the parent's
+            // per-id toggle: one onToggle per added/removed id.
+            const previous = new Set(selected.map(String));
+            const next = new Set(values);
+            for (const id of selected) {
+              if (!next.has(String(id))) onToggle(id);
+            }
+            for (const value of values) {
+              if (!previous.has(value)) onToggle(Number(value));
+            }
+          }}
+          options={facets.map((facet) => ({ value: String(facet.id), label: facet.name }))}
+          placeholder={`Chọn ${label.toLowerCase()}…`}
+          searchPlaceholder={`Tìm ${label.toLowerCase()}…`}
+          selectionLabel={label.toLowerCase()}
+          size="sm"
+          clearAllLabel="Bỏ chọn tất cả"
+          onOpenChange={setIsPickerOpen}
+        />
       </div>
-      {isPickerOpen && (
-        <div className="detailed-plan-filters__point-picker" role="presentation">
-          <div className="detailed-plan-filters__multi-search">
-            <SearchLg aria-hidden="true" className="detailed-plan-filters__multi-search-icon" />
-            <input
-              ref={searchInputRef}
-              type="search"
-              className="detailed-plan-filters__multi-search-input"
-              placeholder={`Tìm ${labelLower}…`}
-              value={facetSearch}
-              onChange={(event) => setFacetSearch(event.target.value)}
-              aria-label={`Tìm ${labelLower}`}
-              autoComplete="off"
-              autoFocus
-            />
-            {facetSearch && (
-              <button
-                type="button"
-                className="detailed-plan-filters__multi-search-clear"
-                onClick={() => {
-                  setFacetSearch('');
-                  searchInputRef.current?.focus();
-                }}
-                aria-label="Xóa tìm kiếm"
-                tabIndex={-1}
-              >
-                <XClose aria-hidden="true" />
-              </button>
-            )}
-          </div>
-          <div
-            id={listboxId}
-            className="detailed-plan-filters__point-list"
-            role="listbox"
-            aria-label={`Danh sách ${labelLower}`}
-            aria-multiselectable="true"
-            aria-busy={isLoadingFacets}
-          >
-            {isLoadingFacets && facets.length === 0 && (
-              <span className="detailed-plan-filters__point-feedback" role="status">Đang tìm điểm…</span>
-            )}
-            {!isLoadingFacets && facets.length === 0 && (
-              <span className="detailed-plan-filters__point-feedback" role="status">Không tìm thấy điểm phù hợp.</span>
-            )}
-            {facets.map((facet) => {
-              const isSelected = selected.includes(facet.id);
-              return (
-                <label
-                  key={facet.id}
-                  className={`detailed-plan-filters__point-option${isSelected ? ' is-selected' : ''}`}
-                >
-                  <input
-                    type="checkbox"
-                    className="detailed-plan-filters__point-option-checkbox"
-                    checked={isSelected}
-                    onChange={() => onToggle(facet.id)}
-                    aria-label={facet.name}
-                  />
-                  <span className="detailed-plan-filters__point-option-label">{facet.name}</span>
-                  {isSelected && (
-                    <Check aria-hidden="true" className="detailed-plan-filters__point-option-check" />
-                  )}
-                </label>
-              );
-            })}
-          </div>
-          <div className="detailed-plan-filters__point-footer">
-            <span className="detailed-plan-filters__point-footer-text">
-              {selected.length > 0
-                ? `Đã chọn ${selected.length}`
-                : 'Chưa chọn điểm nào'}
-            </span>
-            {selected.length > 0 && (
-              <button
-                type="button"
-                className="detailed-plan-filters__point-footer-clear"
-                onClick={clearSelection}
-              >
-                Bỏ chọn tất cả
-              </button>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
