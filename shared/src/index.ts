@@ -50,7 +50,7 @@ export type {
   User, UserPublic, Driver, Customer, Truck, Trailer, Route, CargoType,
   PricingTable, RoadAllowance, FuelConfig, FuelPriceHistory, PenaltyReason, RoadConfig, AppSetting, CompanyInfo,
   Trip, TripLeg, TripDetail, TripInstruction, ShipmentAccountingLockSummary, LedgerEntry, Penalty,
-  TripPairSummary, TripPairRecord, TripPairStatus, TripPairBreakReason, DriverOrderedPairView,
+  TripPairSummary, TripPairRecord, TripPairStatus, TripPairBreakReason, TripPairKind, DriverOrderedPairView,
   CapTableHistory, TruckCapEntry, Distribution, ManagementFee, AuditLog, Notification, PushSubscriptionPayload,
   CreateTripRequest, CreateTripPairRequest, TripPairDraftInput, TripLegInput, UpdateTripFiguresRequest,
   BulkUpdateTripFiguresRequest, BulkUpdateTripFiguresResponse,
