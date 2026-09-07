@@ -131,6 +131,25 @@
   background: var(--surface-2);
 }
 
+.searchable-select__option-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.searchable-select__option-suffix {
+  flex-shrink: 0;
+  margin-left: 8px;
+  padding: 2px 8px;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  color: var(--ok, #047857);
+  background: color-mix(in srgb, var(--ok, #047857) 14%, transparent);
+  border-radius: 999px;
+  letter-spacing: 0.3px;
+}
+
 .searchable-select__check {
   display: inline-flex;
   align-items: center;
@@ -278,6 +297,91 @@
 @keyframes searchableSelectSheetIn {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* Multi-select trigger: chip row inside the picker button. */
+.searchable-select__trigger-chips {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+  align-items: center;
+}
+
+.searchable-select__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 4px 2px 8px;
+  background: color-mix(in srgb, var(--brand) 12%, transparent);
+  color: var(--brand);
+  border-radius: 999px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  max-width: 100%;
+}
+
+.searchable-select__chip-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.searchable-select__chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.searchable-select__chip-remove:hover {
+  background: color-mix(in srgb, var(--brand) 22%, transparent);
+}
+
+.searchable-select__multi-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--line);
+  background: var(--surface-2, transparent);
+}
+
+.searchable-select__multi-count {
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+}
+
+.searchable-select__multi-clear-all {
+  padding: 4px 10px;
+  font: inherit;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--ink-2);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+
+.searchable-select__multi-clear-all:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.searchable-select__multi-clear-all:not(:disabled):hover {
+  color: var(--ink);
+  border-color: var(--ink-3);
 }
 
 @media (prefers-reduced-motion: reduce) {

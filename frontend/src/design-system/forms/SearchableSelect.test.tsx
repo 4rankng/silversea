@@ -399,4 +399,31 @@ describe('SearchableSelect', () => {
     // otherwise an unhelpful search could trap them in a chosen value.
     expect(screen.getByRole('button', { name: 'Bỏ chọn' })).toBeTruthy();
   });
+
+  it('renders the optionSuffix slot for every option when provided', () => {
+    render(
+      <SearchableSelect
+        id="ports"
+        value=""
+        onChange={() => {}}
+        options={ROUTES}
+        optionSuffix={<span data-testid="suffix">CẢNG/BÃI</span>}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button'));
+    expect(screen.getAllByTestId('suffix')).toHaveLength(ROUTES.length);
+  });
+
+  it('omits the optionSuffix slot when not provided (regression: single column)', () => {
+    render(
+      <SearchableSelect
+        id="ports"
+        value=""
+        onChange={() => {}}
+        options={ROUTES}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button'));
+    expect(screen.queryByTestId('suffix')).toBeNull();
+  });
 });

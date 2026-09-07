@@ -1,3 +1,15 @@
+/**
+ * Multi-select companion to `SearchableSelect`. Same portal + flip + scroll
+ * positioning (via the shared `useSearchableSelectPosition` hook), different
+ * trigger (chip row) and popover body (checkbox list). Selected items are
+ * rendered as chips inside the trigger; removing a chip calls
+ * `onMultiChange` with the reduced array; "Bỏ chọn tất cả" in the footer
+ * empties the selection.
+ *
+ * The component deliberately mirrors `SearchableSelect`'s UX (search input,
+ * keyboard nav, mobile full-screen dialog) so dispatchers see one consistent
+ * picker behaviour regardless of mode.
+ */
 import {
   useCallback,
   useEffect,
@@ -6,7 +18,6 @@ import {
   useRef,
   useState,
   type KeyboardEvent,
-  type ReactNode,
 } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, ChevronDown, Search, X } from 'lucide-react';
@@ -14,19 +25,20 @@ import { useClickOutside } from '../../hooks/useClickOutside';
 import { useSearchableSelectPosition } from './useSearchableSelectPosition';
 import './SearchableSelect.css';
 
-export interface SearchableSelectOption {
+export interface SearchableMultiSelectOption {
   value: string;
   label: string;
   searchText?: string;
+  /** Render-only override for the trigger chip text. Defaults to `label`. */
+  chipLabel?: string;
 }
 
-export interface SearchableSelectProps {
+export interface SearchableMultiSelectProps {
   id: string;
   name?: string;
-  value: string;
-  onChange: (value: string) => void;
-  onSearchChange?: (query: string) => void;
-  options: SearchableSelectOption[];
+  values: ReadonlyArray<string>;
+  onChange: (values: string[]) => void;
+  options: SearchableMultiSelectOption[];
   placeholder?: string;
   searchPlaceholder?: string;
   emptyMessage?: string;
@@ -34,30 +46,13 @@ export interface SearchableSelectProps {
   required?: boolean;
   className?: string;
   searchDebounceMs?: number;
-  hasMore?: boolean;
-  loadingMore?: boolean;
-  onLoadMore?: () => void;
-  /**
-   * Whether to expose a "Bỏ chọn" item at the top of the popover so a user
-   * can clear a previously-selected value. Defaults to `true` for any field
-   * that is not required; required fields always get a clear option too
-   * (the parent decides whether to allow empty submission).
-   */
-  clearable?: boolean;
-  /** Label for the clear item. Override for context-specific wording. */
-  clearLabel?: string;
-  /** Validation state and associated helper/error content owned by the caller. */
-  ariaInvalid?: boolean;
-  ariaDescribedBy?: string;
-  /** Semantic trigger density. Use `sm` for compact operational toolbars and grids. */
   size?: 'sm' | 'md';
-  /** Notifies an inline host when the picker opens or returns to read mode. */
+  /** Localised label for the "clear all" action. */
+  clearAllLabel?: string;
+  /** Suffix rendered in the trigger chip count, e.g. "đã chọn". */
+  countSuffix?: string;
+  /** Notify when the popover opens/closes. */
   onOpenChange?: (isOpen: boolean) => void;
-  /**
-   * Right-aligned slot rendered inside each option row (e.g. a category badge).
-   * Single-select only — multi-select checkboxes already consume that slot.
-   */
-  optionSuffix?: ReactNode;
 }
 
 function normalizeSearchText(value: string): string {
@@ -70,31 +65,24 @@ function normalizeSearchText(value: string): string {
     .trim();
 }
 
-export function SearchableSelect({
+export function SearchableMultiSelect({
   id,
   name,
-  value,
+  values,
   onChange,
-  onSearchChange,
   options,
-  placeholder = 'Chọn một mục',
+  placeholder = 'Chọn nhiều mục',
   searchPlaceholder = 'Nhập để tìm kiếm…',
   emptyMessage = 'Không tìm thấy kết quả phù hợp.',
   disabled = false,
   required = false,
   className = '',
-  searchDebounceMs = 250,
-  hasMore = false,
-  loadingMore = false,
-  onLoadMore,
-  clearable = true,
-  clearLabel = 'Bỏ chọn',
-  ariaInvalid,
-  ariaDescribedBy,
+  searchDebounceMs: _searchDebounceMs = 250,
   size = 'md',
+  clearAllLabel = 'Bỏ chọn tất cả',
+  countSuffix = 'đã chọn',
   onOpenChange,
-  optionSuffix,
-}: SearchableSelectProps) {
+}: SearchableMultiSelectProps) {
   const listboxId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -116,7 +104,13 @@ export function SearchableSelect({
     previousOpenState.current = isOpen;
   }, [isOpen]);
 
-  const selectedOption = options.find((option) => option.value === value);
+  const selectedSet = useMemo(() => new Set(values), [values]);
+  const selectedOptions = useMemo(
+    () => values
+      .map((value) => options.find((option) => option.value === value))
+      .filter((option): option is SearchableMultiSelectOption => Boolean(option)),
+    [values, options],
+  );
   const normalizedQuery = normalizeSearchText(query);
   const filteredOptions = useMemo(() => {
     const queryTerms = normalizedQuery.split(/\s+/).filter(Boolean);
@@ -128,7 +122,6 @@ export function SearchableSelect({
       return queryTerms.every((term) => searchableText.includes(term));
     });
   }, [normalizedQuery, options]);
-  const showClear = clearable && value !== '';
   const portaledOverlayRefs = useMemo(() => [popoverRef], []);
 
   const close = useCallback(() => {
@@ -160,7 +153,7 @@ export function SearchableSelect({
     triggerRef,
     popoverRef,
     onClose: close,
-    dependencies: [filteredOptions.length, showClear],
+    dependencies: [filteredOptions.length, values.length],
   });
 
   useClickOutside(containerRef, close, {
@@ -176,32 +169,34 @@ export function SearchableSelect({
   }, [isOpen]);
 
   useEffect(() => {
-    if (!isOpen || !onSearchChange) return;
-    const timer = window.setTimeout(() => onSearchChange(query.trim()), searchDebounceMs);
-    return () => window.clearTimeout(timer);
-  }, [isOpen, onSearchChange, query, searchDebounceMs]);
-
-  useEffect(() => {
     if (activeIndex >= filteredOptions.length) {
       setActiveIndex(Math.max(0, filteredOptions.length - 1));
     }
   }, [activeIndex, filteredOptions.length]);
 
+  const toggleValue = (value: string) => {
+    if (selectedSet.has(value)) {
+      onChange(values.filter((current) => current !== value));
+    } else {
+      onChange([...values, value]);
+    }
+  };
+
+  const clearAll = () => {
+    onChange([]);
+  };
+
+  const removeChip = (event: React.MouseEvent<HTMLButtonElement>, value: string) => {
+    event.stopPropagation();
+    onChange(values.filter((current) => current !== value));
+    window.requestAnimationFrame(() => triggerRef.current?.focus({ preventScroll: true }));
+  };
+
   const open = () => {
     if (disabled) return;
     setQuery('');
-    setActiveIndex(Math.max(0, options.findIndex((option) => option.value === value)));
+    setActiveIndex(0);
     setIsOpen(true);
-  };
-
-  const selectOption = (option: SearchableSelectOption) => {
-    onChange(option.value);
-    close();
-  };
-
-  const clearSelection = () => {
-    onChange('');
-    close();
   };
 
   const trapDialogFocus = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -242,7 +237,7 @@ export function SearchableSelect({
       event.preventDefault();
       event.stopPropagation();
       const option = filteredOptions[activeIndex];
-      if (option) selectOption(option);
+      if (option) toggleValue(option.value);
       return;
     }
     if (event.key === 'Escape') {
@@ -297,23 +292,10 @@ export function SearchableSelect({
           </button>
         </div>
 
-        <ul id={listboxId} className="searchable-select__list" role="listbox">
-          {showClear ? (
-            <li className="searchable-select__clear" role="presentation">
-              <button
-                type="button"
-                className="searchable-select__clear-button"
-                onClick={clearSelection}
-                data-testid={`${id}-clear`}
-              >
-                <X size={14} aria-hidden="true" />
-                <span>{clearLabel}</span>
-              </button>
-            </li>
-          ) : null}
+        <ul id={listboxId} className="searchable-select__list" role="listbox" aria-multiselectable="true">
           {filteredOptions.length > 0 ? (
             filteredOptions.map((option, index) => {
-              const isSelected = option.value === value;
+              const isSelected = selectedSet.has(option.value);
               const isActive = index === activeIndex;
               return (
                 <li key={option.value} role="presentation">
@@ -324,15 +306,12 @@ export function SearchableSelect({
                     aria-selected={isSelected}
                     className={`searchable-select__option${isActive ? ' searchable-select__option--active' : ''}`}
                     onMouseEnter={() => setActiveIndex(index)}
-                    onClick={() => selectOption(option)}
+                    onClick={() => toggleValue(option.value)}
                   >
                     <span className="searchable-select__check" aria-hidden="true">
                       {isSelected ? <Check size={15} /> : null}
                     </span>
                     <span className="searchable-select__option-label">{option.label}</span>
-                    {optionSuffix
-                      ? <span className="searchable-select__option-suffix">{optionSuffix}</span>
-                      : null}
                   </button>
                 </li>
               );
@@ -340,22 +319,31 @@ export function SearchableSelect({
           ) : (
             <li className="searchable-select__empty">{emptyMessage}</li>
           )}
-          {hasMore && onLoadMore ? (
-            <li className="searchable-select__load-more" role="presentation">
-              <button
-                type="button"
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={onLoadMore}
-                disabled={loadingMore}
-              >
-                {loadingMore ? 'Đang tải…' : 'Tải thêm kết quả'}
-              </button>
-            </li>
-          ) : null}
         </ul>
+
+        <div className="searchable-select__multi-footer">
+          <span className="searchable-select__multi-count">
+            {values.length > 0
+              ? `${values.length} ${countSuffix}`
+              : ''}
+          </span>
+          <button
+            type="button"
+            className="searchable-select__multi-clear-all"
+            onClick={clearAll}
+            disabled={values.length === 0}
+            data-testid={`${id}-clear-all`}
+          >
+            {clearAllLabel}
+          </button>
+        </div>
       </div>
     </>
   ) : null;
+
+  const triggerLabel = values.length === 0
+    ? placeholder
+    : `${values.length} ${countSuffix}`;
 
   return (
     <div ref={containerRef} className={rootClassName}>
@@ -368,14 +356,29 @@ export function SearchableSelect({
         disabled={disabled}
         aria-haspopup={isMobile ? 'dialog' : 'listbox'}
         aria-expanded={isOpen}
-        aria-invalid={ariaInvalid}
-        aria-describedby={ariaDescribedBy}
-        aria-controls={isOpen ? listboxId : undefined}
         aria-required={required}
+        aria-label={values.length === 0 ? placeholder : `${values.length} ${countSuffix}`}
       >
-        <span className={selectedOption ? 'searchable-select__value' : 'searchable-select__placeholder'}>
-          {selectedOption?.label ?? placeholder}
-        </span>
+        {values.length === 0 ? (
+          <span className="searchable-select__placeholder">{triggerLabel}</span>
+        ) : (
+          <span className="searchable-select__trigger-chips">
+            {selectedOptions.map((option) => (
+              <span key={option.value} className="searchable-select__chip">
+                <span className="searchable-select__chip-label">{option.chipLabel ?? option.label}</span>
+                <button
+                  type="button"
+                  className="searchable-select__chip-remove"
+                  aria-label={`Xóa ${option.chipLabel ?? option.label}`}
+                  onClick={(event) => removeChip(event, option.value)}
+                  tabIndex={-1}
+                >
+                  <X size={12} aria-hidden="true" />
+                </button>
+              </span>
+            ))}
+          </span>
+        )}
         <ChevronDown
           size={16}
           className={`searchable-select__chevron${isOpen ? ' searchable-select__chevron--open' : ''}`}
@@ -383,7 +386,7 @@ export function SearchableSelect({
         />
       </button>
 
-      {name ? <input type="hidden" name={name} value={value} /> : null}
+      {name ? <input type="hidden" name={name} value={values.join(',')} /> : null}
 
       {typeof document !== 'undefined'
         ? createPortal(selectorOverlay, document.body)
