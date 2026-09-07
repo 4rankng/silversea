@@ -65,6 +65,7 @@ const detail: ShipmentDetailData = {
     carrierAllocationSummary: null,
     accountingLock: null,
     customerName: 'Công ty Silver Sea',
+    effectiveFactoryName: 'Nhà máy Hải Phòng',
   },
   containers: [],
   documents: [],

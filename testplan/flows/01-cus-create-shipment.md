@@ -777,6 +777,147 @@
 
 ---
 
+## 1.12 — Xoá selections trong ô dropdown container (báo cáo khách hàng 2026-09-07)
+
+> **Nguồn:** Customer relay 2026-09-07 — "mục nhà máy, tuyến đường, cảng nâng, cảng hạ khi đã chọn
+> dữ liệu mà muốn xóa đi để tìm lại thông tin đúng chọn lại nhưng không xóa được mà phải kéo chọn
+> những data có sẵn".
+>
+> **Ghi chú đánh số:** các case trong mục này được đánh số lại từ `TC-CUS-CREATE-021`–`-025`
+> (trùng mã với §1.10–1.11 của đặc tả 2026-09-06) thành `-038`–`-042` khi gộp nhánh prod 2026-09-07.
+
+### TC-CUS-CREATE-038 — Xoá chọn trong ô Nhà máy container rồi chọn lại
+
+- **Vai trò:** `cus`
+- **Mức độ:** P0
+- **Thiết bị:** Desktop (1440×900)
+- **Tiền điều kiện:** Đăng nhập `cus`, mở `/shipments/new`; khách hàng có ≥2 nhà máy active
+- **Các bước:**
+  1. Chọn khách hàng. Thêm 1 dòng container.
+  2. Ở cột "Nhà máy", chọn nhà máy A (vd SCONNECT).
+  3. Bấm nút **X** (clear) bên phải ô dropdown để xoá chọn.
+  4. Kiểm tra: ô Nhà máy hiển thị placeholder "Chọn nhà máy", không còn giữ nhà máy A.
+  5. Mở dropdown, chọn nhà máy B khác.
+- **Kết quả mong đợi (Pass):**
+  - Nút X xuất hiện khi đã có giá trị được chọn trong ô Nhà máy.
+  - Sau khi bấm X, giá trị được xoá → ô placeholder hiển thị lại, không còn giữ giá trị cũ.
+  - User có thể gõ text tìm kiếm và chọn nhà máy mới mà không cần kéo scroll danh sách.
+- **Kỳ vọng sai (Fail nếu):** nút X không hiện; bấm X không xoá; phải kéo scroll để chọn lại.
+- **Bằng chứng:** ảnh nút X + ảnh placeholder sau khi xoá + ảnh dropdown đã chọn mới
+
+---
+
+### TC-CUS-CREATE-039 — Xoá chọn trong ô Tuyến đường container
+
+- **Vai trò:** `cus`
+- **Mức độ:** P0
+- **Các bước:**
+  1. Ở dòng container, chọn Tuyến đường đã chọn (vd "KCN ĐỒNG VĂN, HÀ NAM").
+  2. Bấm nút **X** (clear) bên phải ô Tuyến đường.
+  3. Kiểm tra: ô hiển thị placeholder "Chọn tuyến đường".
+  4. Gõ text tìm tuyến khác, chọn tuyến mới.
+- **Kết quả mong đợi (Pass):**
+  - Nút X hiện khi đã chọn tuyến. Bấm X → xoá, placeholder hiển thị.
+  - Có thể gõ text filter và chọn tuyến mới.
+- **Kỳ vọng sai (Fail nếu):** không xoá được, phải kéo scroll danh sách.
+
+---
+
+### TC-CUS-CREATE-040 — Xoá chọn trong ô Cảng nâng và Cảng hạ container
+
+- **Vai trò:** `cus`
+- **Mức độ:** P0
+- **Các bước:**
+  1. Ở dòng container, chọn **Cảng nâng** (vd "Cảng VipGreenPort").
+  2. Bấm nút **X** (clear) bên phải ô Cảng nâng. → placeholder "Chọn cảng nâng" hiển thị.
+  3. Chọn **Cảng hạ**. Bấm nút **X** (clear). → placeholder "Chọn cảng hạ" hiển thị.
+  4. Chọn lại cảng mới cho cả hai ô.
+- **Kết quả mong đợi (Pass):**
+  - Nút X xuất hiện trên cả hai ô khi đã chọn giá trị.
+  - Bấm X → xoá chọn, placeholder hiển thị, user gõ text và chọn lại được.
+- **Kỳ vọng sai (Fail nếu):** một hoặc cả hai ô không xoá được.
+
+---
+
+### TC-CUS-CREATE-041 — Xoá chọn trong ô dropdown ở chế độ LCL
+
+- **Vai trò:** `cus`
+- **Mức độ:** P1
+- **Các bước:**
+  1. Chuyển sang chế độ **Hàng lẻ (LCL)**.
+  2. Ở section "Điểm vận hành & tuyến": chọn Tuyến đường → bấm X → xoá → chọn lại.
+  3. Kiểm tra các ô dropdown khác ở LCL có cùng hành vi X clear.
+- **Kết quả mong đợi (Pass):**
+  - Nút X hoạt động đúng trên các ô dropdown của LCL form.
+- **Kỳ vọng sai (Fail nếu):** LCL không có nút X trên dropdown.
+
+---
+
+### TC-CUS-CREATE-042 — Nhấn Escape để revert giá trị dropdown container
+
+- **Vai trò:** `cus`
+- **Mức độ:** P1
+- **Các bước:**
+  1. Ở dòng container, focus ô Nhà máy (đã chọn giá trị A).
+  2. Nhấn phím **Escape** thay vì bấm X.
+  3. Kiểm tra giá trị hiển thị.
+- **Kết quả mong đợi (Pass):**
+  - Escape giữ nguyên giá trị A (revert), không thay đổi.
+  - Phím Escape không crash hay hoạt động bất thường.
+
+---
+
+---
+
+## 1.13 — Nhà máy ở trang chi tiết hiển thị khi đã gán cho container (báo cáo khách hàng 2026-09-07)
+
+> **Nguồn:** Khách hàng báo cáo 2026-09-07 — "ở giao diện cus: hiện đã nhập có nhà máy đóng trả hàng rồi mà
+> ở phần chi tiết lô hàng đang thể hiện chưa có nhà máy". Tái hiện trên staging sau `make stgdb` 2026-09-07:
+> lô id=2 (Long Minh, EGLV149607019409) có `shipment_containers.operational_site_id = 6` (ASKEY-2) trong DB
+> nhưng trang chi tiết `/shipments/:id` hiển thị "Nhà máy / công trường: —".
+> Nguyên nhân: trang chi tiết dùng `getShipmentDetail` (shared) → trả `shipment.factoryName` legacy (rỗng)
+> mà không tra `shipment.operationalSiteId` / `shipment_containers.operationalSiteId` qua catalog
+> `operational_sites` để ra `effectiveFactoryName`. Các case dưới pin hành vi đã sửa.
+>
+> **Ghi chú đánh số:** đánh số lại từ `TC-CUS-CREATE-023`/`-024` (trùng mã §1.10–1.12) thành
+> `-043`/`-044` khi gộp nhánh prod 2026-09-07.
+
+### TC-CUS-CREATE-043 — Nhà máy gán ở container hiển thị trên trang chi tiết `/shipments/:id`
+
+- **Mã PRD:** Q17, factory-display-pin (báo cáo 2026-09-07)
+- **Vai trò:** `cus` (longminh-side account, vd `thanhdc`)
+- **Mức độ:** P0
+- **Thiết bị:** Desktop (1440×900)
+- **Tiền điều kiện:** Lô có `shipment_containers.operational_site_id` được set nhưng
+  `shipments.factory_name` rỗng và `shipments.operational_site_id` rỗng
+  (vd lô id=2 của Long Minh sau `make stgdb`).
+- **Các bước:**
+  1. Đăng nhập CUS (vd `thanhdc`), mở thẳng `/shipments/2` (Long Minh, EGLV149607019409).
+  2. Quan sát ô "Nhà máy / công trường" trong thẻ thông tin chung.
+- **Kết quả mong đợi (Pass):**
+  - Ô hiển thị **"ASKEY-2"** (short name tra từ `operational_sites` qua `shipment_containers.operational_site_id = 6`).
+  - Không hiển thị "—" / "Chưa có nhà máy" khi container đã có `operationalSiteId` set.
+- **Kỳ vọng sai (Fail nếu):**
+  - Hiển thị "—" (hồi quy bug 2026-09-07).
+  - Hiển thị `shipment.factoryName` rỗng thay vì đã resolve.
+- **Bằng chứng:** ảnh trang chi tiết + DB `shipment_containers.operational_site_id=6` → `operational_sites.shortName='ASKEY-2'`.
+
+### TC-CUS-CREATE-044 — Nhà máy ở shipment-level vẫn ưu tiên khi cả hai đều set
+
+- **Vai trò:** `cus`
+- **Mức độ:** P1
+- **Tiền điều kiện:** Lô có cả `shipments.factory_name` (free-text) **và** `shipments.operational_site_id` đều set.
+- **Các bước:**
+  1. Tạo/sửa lô: `factoryName = 'Xưởng cũ'`, chọn nhà máy catalog ASKEY-1 cho shipment-level.
+  2. Mở `/shipments/:id`.
+- **Kết quả mong đợi (Pass):**
+  - Ô hiển thị theo thứ tự ưu tiên: `factoryName` free-text > `operationalSiteId` catalog > `container.operationalSiteId` catalog.
+  - Cụ thể: 'Xưởng cũ' nếu `factoryName` set, ngược lại short name từ `operationalSiteId`, ngược lại short name từ container.
+- **Kỳ vọng sai (Fail nếu):** ưu tiên ngược (catalog đè free-text); fallback nhảy qua `factoryName`.
+- **Bằng chứng:** ảnh trang chi tiết + DB `shipments.factory_name='Xưởng cũ'`, `shipments.operational_site_id` set.
+
+---
+
 ## Bảng nghiệm thu — Luồng Tạo lô hàng (CUS)
 
 | Ngày thử | Mã TC | Người thử | Kết quả | Ghi chú | Bằng chứng |
@@ -823,3 +964,15 @@
 | __/__/__ | TC-CUS-CREATE-035 | | | Hiển thị xuôi dòng, không ô trống (P0) | |
 | __/__/__ | TC-CUS-CREATE-036 | | | Mở lại để sửa: cờ + text giữ nguyên | |
 | __/__/__ | TC-CUS-CREATE-037 | | | Không lẫn vào công nợ khách hàng | |
+
+**§1.12–1.13 — Xoá chọn dropdown & nhà máy ở trang chi tiết (báo cáo khách hàng 2026-09-07)**
+
+| Ngày thử | Mã TC | Người thử | Kết quả | Ghi chú | Bằng chứng |
+|-----------|-------|-----------|---------|---------|------------|
+| __/__/__ | TC-CUS-CREATE-038 | | | Xoá chọn Nhà máy container (nút X clear) | |
+| __/__/__ | TC-CUS-CREATE-039 | | | Xoá chọn Tuyến đường container | |
+| __/__/__ | TC-CUS-CREATE-040 | | | Xoá chọn Cảng nâng/hạ container | |
+| __/__/__ | TC-CUS-CREATE-041 | | | Xoá chọn dropdown ở chế độ LCL | |
+| __/__/__ | TC-CUS-CREATE-042 | | | Escape revert giá trị dropdown | |
+| __/__/__ | TC-CUS-CREATE-043 | | | Nhà máy container hiển thị trên /shipments/:id (hồi quy 2026-09-07) | |
+| __/__/__ | TC-CUS-CREATE-044 | | | Ưu tiên factoryName > operationalSiteId > container.operationalSiteId | |

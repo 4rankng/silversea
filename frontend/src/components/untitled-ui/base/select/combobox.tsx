@@ -1,7 +1,7 @@
 
 import type { FC, FocusEventHandler, MouseEventHandler, PointerEventHandler, ReactNode, Ref, RefAttributes } from "react";
 import { isValidElement, useCallback, useContext, useRef, useState } from "react";
-import { SearchLg } from "@untitledui/icons";
+import { SearchLg, XClose } from "@untitledui/icons";
 import type { ComboBoxProps as AriaComboBoxProps, GroupProps as AriaGroupProps, ListBoxProps as AriaListBoxProps } from "react-aria-components";
 import { ComboBox as AriaComboBox, Group as AriaGroup, Input as AriaInput, ListBox as AriaListBox, ComboBoxStateContext } from "react-aria-components";
 import { HintText } from "@/components/untitled-ui/base/input/hint-text";
@@ -23,6 +23,8 @@ interface ComboBoxProps extends Omit<AriaComboBoxProps<SelectItemType>, "childre
     openOnPress?: boolean;
     /** Extra classes for the trigger group — the element that actually renders the visible boundary. */
     triggerClassName?: string;
+    /** Called when the user clicks the clear (X) button. */
+    onClear?: () => void;
     children: AriaListBoxProps<SelectItemType>["children"];
 }
 
@@ -34,12 +36,13 @@ interface ComboBoxValueProps extends AriaGroupProps {
     icon?: FC | ReactNode;
     openOnPress?: boolean;
     triggerClassName?: string;
+    onClear?: () => void;
     onFocus?: FocusEventHandler;
     onPointerEnter?: PointerEventHandler;
     ref?: Ref<HTMLDivElement>;
 }
 
-const ComboBoxValue = ({ size, shortcut, placeholder, shortcutClassName, icon: IconProp, openOnPress, triggerClassName, ref, ...otherProps }: ComboBoxValueProps) => {
+const ComboBoxValue = ({ size, shortcut, placeholder, shortcutClassName, icon: IconProp, openOnPress, triggerClassName, onClear, ref, ...otherProps }: ComboBoxValueProps) => {
     const state = useContext(ComboBoxStateContext);
 
     const value = state?.selectedItem?.value || null;
@@ -108,6 +111,7 @@ const ComboBoxValue = ({ size, shortcut, placeholder, shortcutClassName, icon: I
                         className={cx(
                             "z-10 w-full appearance-none bg-transparent text-transparent caret-alpha-black/90 placeholder:text-placeholder focus:outline-hidden disabled:cursor-not-allowed",
                             sizes[size].text,
+                            onClear && value && "pr-5",
                         )}
                         // The app's global `:focus-visible` rule (base.css) is unlayered, so it
                         // always beats the layered `focus:outline-hidden` utility above and draws
@@ -117,6 +121,22 @@ const ComboBoxValue = ({ size, shortcut, placeholder, shortcutClassName, icon: I
                         style={{ outline: 'none' }}
                     />
                 </div>
+
+                {onClear && value && (
+                    <button
+                        type="button"
+                        tabIndex={-1}
+                        aria-label="Xoá"
+                        className="absolute right-1 z-20 flex shrink-0 items-center justify-center rounded p-0.5 text-quaternary transition-colors hover:text-primary cursor-pointer"
+                        onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            onClear();
+                        }}
+                    >
+                        <XClose className="size-3.5" />
+                    </button>
+                )}
             </div>
 
             {shortcut && (
@@ -150,6 +170,7 @@ export const ComboBox = ({
     openOnPress = false,
     hideRequiredIndicator,
     triggerClassName,
+    onClear,
     className,
     ...otherProps
 }: ComboBoxProps) => {
@@ -200,6 +221,7 @@ export const ComboBox = ({
                             icon={icon}
                             openOnPress={openOnPress}
                             triggerClassName={triggerClassName}
+                            onClear={onClear}
                             size={size}
                             // This is a workaround to correctly calculating the trigger width
                             // while using ResizeObserver wasn't 100% reliable.

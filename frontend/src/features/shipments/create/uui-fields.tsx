@@ -205,6 +205,10 @@ export function USearchableField({
             ? inputValue
             : selected?.label ?? (allowsCustomValue ? value : undefined)
         }
+        onClear={() => {
+          onChange('');
+          setInputValue('');
+        }}
         onSelectionChange={(key) => {
           if (key === null) return;
           onChange(String(key));
