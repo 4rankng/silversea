@@ -1,6 +1,19 @@
 # Current Development Handoff
 
-## Current task — OPS module (Vận hành hiện trường) per OpsVanHanh PRD — DONE + review-hardened on local dev (2026-09-07, unpushed)
+## Current task — Full 09-06 docx trilogy closed: OPS + ad-hoc orders + pairing — ALL GREEN (2026-09-07)
+
+- **Backend 1801/1801 green** — the 4 pre-existing peer-lane reds fixed in `4513fc28` (customer-intake CUS-PUT contract realign, ports inline-create allowance, seed-shipments pre-existing-refs snapshot, ocr-settings decrypt fallback to env key).
+- **Wave A — Lệnh chạy ngoài (mine, `7876fcba` + `36dcdc8b`)**: migration 0060 (is_ad_hoc + raw_* + nullable customer_id + container raw ports), XOR intake at every write point, master-data guardrail count-tested, COALESCE displays, USearchableField.onCustomValue combobox passthrough, ad-hoc draftReady + validation bypass (data-safety checks kept), pricing-projection bypass message, dispatch-of-adhoc explicit 400 (until trips accept null customers — pairing wave note). 7/7 backend integration + 174/174 create-surface + UI DRIVEN on local dev (`qa/2026-09-07_adhoc_ui-*`).
+- **Wave B — Kẹp/Kết hợp pairing (peer silversea-3b, `6caee8f0`→`9e416a75`)**: trip_pairs.pair_kind, KEP/KET_HOP validation split, VETC-once per pair (anti-double), pair salary (cuốc cơ bản + phụ phí from settings), dispatch pair-kind picker + tags, driver KET_HOP sequential gating. UI-verified local (`qa/2026-09-07_pair-kind-ui/`).
+- **Confluence 327697 → v15**: QuyTrinhO2C re-synced (ad-hoc §Bước-1 + guardrail rule; 6 diagrams re-rendered/re-attached o2c-00..05.png; verified via entity-unescaped compare).
+- Structure guard: workspace 1007→1059, driverClient 650→655 (both justified).
+- **User rules this cycle: NO prod deploys — dev cycle stays local + staging; testing local-dev only.** Staging deploy task deferred (#13).
+- Known fringe: ad-hoc lot dispatch blocked by trips.customerId NOT NULL (explicit 400, documented) — lift when trips relaxes; `requires_invoice` demo flags on local DB only (reseed reverts).
+
+**Updated:** 2026-09-07 ~11:00 Asia/Singapore
+**Controller:** Mavis (silversea-b3 — tests/doc closure lane; pairing lane was silversea-3b, closed)
+
+## Previous task — OPS module (Vận hành hiện trường) per OpsVanHanh PRD — DONE + review-hardened on local dev (2026-09-07)
 
 - Scope: full implementation of `docs/prd/OpsVanHanh.md` (source `2026.9.6_Man_hinh_ops.docx`): `/ops/orders` (day list + per-user ghim + context-first khai chi phí), `/ops/fleet-tracking` (read-only, 30s poll), `/ops/wallet` (4 real-time cards, xin tạm ứng via shared `advance_requests`, expense history with red Nợ-chứng-từ tags, settlement batches grouped by lô with 2 invoice baskets, exceljs export, A4 print) + accountant "Chi phí Ops" tab in the advance workspace.
 - 8 OPS commits on main ending `47dd1d84` (schema 0058 → wallet formula → portal API → catalog/client → orders → fleet → wallet+accountant+export → docs/e2e-runner fix → **review hardening `f6bf9e53`** → .ua rebuild). Plan: `plans/260906-2355-ops-module/`; review report: `plans/reports/code-review-260907-ops-module.md` (all blockers/majors addressed).
