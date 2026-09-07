@@ -22,6 +22,7 @@ const workspaceRaw = {
   cargoVolumeCbm: null, customsCutoffAt: null, closingAt: null, plannedReturnAt: null,
   customerNotes: null, operationalNotes: null, declarationId: null,
   declarationIssuedAt: null, declarationScope: null, declarationNote: null,
+  isAdHoc: false,
 };
 const workspaceFieldAccess = {
   customerId: directField, factoryName: directField, routeId: directField,
