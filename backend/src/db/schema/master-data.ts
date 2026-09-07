@@ -345,6 +345,22 @@ export const dispatchZones = pgTable('dispatch_zones', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
+// Quick-select task tags for the dispatch-plan note composer ("Ghi chú tác
+// vụ"). Global catalog: any dispatcher-added label becomes visible to every
+// dispatcher on next fetch. normalized_label (NFC lowercase trim) backs the
+// case-insensitive duplicate guard (409); label keeps the operator's casing.
+export const dispatchTaskTags = pgTable('dispatch_task_tags', {
+  id: serial('id').primaryKey(),
+  label: varchar('label', { length: 80 }).notNull(),
+  normalizedLabel: varchar('normalized_label', { length: 80 }).notNull().unique(),
+  // Nullable like shipments.created_by — the 0058 seed rows have no author;
+  // POST always fills it with the requesting dispatcher.
+  createdBy: integer('created_by'),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+
 export const ports = pgTable('ports', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 255 }).notNull(),   // e.g. "Cảng Hải Phòng"

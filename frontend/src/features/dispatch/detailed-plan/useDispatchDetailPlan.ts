@@ -325,6 +325,7 @@ export function useDispatchDetailPlan() {
       plannedCarrierCost: number | null;
       classification: DispatchClassification;
       isCombined: boolean;
+      operationalNotes?: string | null;
     },
   ) => {
     setAssignmentError(null);
@@ -345,6 +346,7 @@ export function useDispatchDetailPlan() {
             lotFullyPlated: result.lotFullyPlated,
             dispatch: { ...item.dispatch, ...result.dispatch },
             estimates: { ...result.estimates },
+            notes: { ...item.notes, vehicleNote: result.operationalNotes },
           };
         }
         return item.shipmentId === row.shipmentId

@@ -63,6 +63,9 @@ export interface UpdateDispatchDetailPlanInput {
   plannedCarrierCost: number | null;
   classification: DispatchClassification;
   isCombined: boolean;
+  /** Driver-facing note (shipments.operational_notes). Undefined = note
+   *  untouched by this save. '' clears; null ≡ '' for change detection. */
+  operationalNotes?: string | null;
   idempotencyKey: string;
   actor: DispatchActor;
 }
@@ -75,6 +78,9 @@ export interface DispatchDetailPlanMutationResult {
   shipmentVersion: number;
   classification: DispatchClassification;
   isCombined: boolean;
+  /** Stored driver-facing note after the save (accountants never reach this
+   *  path — the route gate excludes them, matching the read-side mask). */
+  operationalNotes: string | null;
   dispatch: {
     carrierType: 'OWN' | 'EXTERNAL';
     carrierName: string | null;
@@ -918,6 +924,9 @@ export async function updateDispatchDetailPlan(input: UpdateDispatchDetailPlanIn
       plannedCarrierCost: input.plannedCarrierCost,
       classification: input.classification,
       isCombined: input.isCombined,
+      // Note is part of the dedup payload: two saves differing only in the
+      // note must not collide as the same idempotent request.
+      operationalNotes: input.operationalNotes ?? null,
     },
     createdBy: input.actor.userId,
     entityType: 'shipment_fulfillments',
@@ -1035,13 +1044,24 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
   )).returning();
   if (!updatedFulfillment) throw new ApiError(409, 'Tác vụ điều xe đã thay đổi. Vui lòng tải lại.');
 
-  // Shipment row: isCombined is lot-level and independent of classification.
-  // Version bumps only when the flag actually changes — a save that keeps the
-  // current value must not invalidate other tabs' shipment version.
+  // Shipment row: isCombined is lot-level and independent of classification;
+  // the driver-facing note (operationalNotes) rides the same shipment write.
+  // Version bumps only when one of the two actually changes — a save that
+  // keeps both at their stored values must not invalidate other tabs.
   let shipmentVersion = shipment.version;
-  if (shipment.isCombined !== input.isCombined) {
+  // Accountant masking happens at the route gate (requireRoles excludes
+  // ACCOUNTANT — same rule as the grid read at :386), so the type system
+  // narrows actor to admin/manager/dispatcher here. Undefined note = "not
+  // part of this save".
+  const noteProvided = input.operationalNotes !== undefined;
+  const nextNote = noteProvided ? (input.operationalNotes ?? '') : null;
+  const notesChanged = noteProvided && nextNote !== (shipment.operationalNotes ?? '');
+  const isCombinedChanged = shipment.isCombined !== input.isCombined;
+  let storedNote = shipment.operationalNotes;
+  if (isCombinedChanged || notesChanged) {
     const [updatedShipment] = await tx.update(s.shipments).set({
-      isCombined: input.isCombined,
+      ...(isCombinedChanged ? { isCombined: input.isCombined } : {}),
+      ...(notesChanged ? { operationalNotes: nextNote } : {}),
       version: shipment.version + 1,
       updatedAt: new Date(),
     }).where(and(
@@ -1050,6 +1070,7 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
     )).returning();
     if (!updatedShipment) throw new ApiError(409, 'Lô hàng đã thay đổi. Vui lòng tải lại.');
     shipmentVersion = updatedShipment.version;
+    storedNote = updatedShipment.operationalNotes;
   }
 
   const lotFullyPlated = await recomputeLotFullyPlated(tx, shipment.id);
@@ -1064,6 +1085,9 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
     shipmentVersion,
     classification: updatedFulfillment.dispatchClassification,
     isCombined: input.isCombined,
+    // The route gate excludes ACCOUNTANT, so this is always the real note —
+    // mirroring the grid read's non-accountant shape.
+    operationalNotes: storedNote ?? null,
     dispatch: {
       carrierType: input.carrierType,
       carrierName,

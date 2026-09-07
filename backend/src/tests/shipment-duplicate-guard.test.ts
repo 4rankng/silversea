@@ -63,12 +63,18 @@ async function mkUser(username: string, role: Role) {
 }
 
 function authedFetch(path: string, init: RequestInit = {}, token = clerkToken) {
+  const method = init.method ?? 'GET';
   return fetch(`${baseUrl}${path}`, {
     ...init,
     headers: {
       ...(init.headers ?? {}),
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
+      // Writes require the idempotency boundary (runIdempotent 400s without
+      // a key) — mirror the app client and always send one on writes.
+      ...(method !== 'GET' && method !== 'HEAD'
+        ? { 'Idempotency-Key': `dup-guard-${Date.now()}-${Math.random().toString(36).slice(2, 10)}` }
+        : {}),
     },
   });
 }
@@ -82,7 +88,7 @@ async function createIntakeShipment(
   const body = tradeDirection === 'IMPORT'
     ? { customerId, blNumber, tradeDirection, cargoMode: 'FCL' as const, bookingRef: null }
     : { customerId, bookingRef: blNumber, tradeDirection, cargoMode: 'FCL' as const, blNumber: null };
-  const response = await authedFetch('/api/shipments/quick', {
+  const response = await authedFetch('/quick', {
     method: 'POST',
     body: JSON.stringify({ ...body, _requestId: reference ?? crypto.randomUUID() }),
   }, token);
@@ -108,7 +114,7 @@ before(async () => {
     { expiresIn: '1h' },
   );
 
-  const clerk = await mkUser(`dup-clerk-${suffix}`, Role.CLERK);
+  const clerk = await mkUser(`dup-clerk-${suffix}`, Role.CUS);
   clerkUserId = clerk.id;
   clerkToken = jwt.sign(
     { userId: clerk.id, username: clerk.username ?? clerk.id.toString(), role: clerk.role },
@@ -116,7 +122,7 @@ before(async () => {
     { expiresIn: '1h' },
   );
 
-  const otherClerk = await mkUser(`dup-clerk-other-${suffix}`, Role.CLERK);
+  const otherClerk = await mkUser(`dup-clerk-other-${suffix}`, Role.CUS);
   otherClerkUserId = otherClerk.id;
   otherClerkToken = jwt.sign(
     { userId: otherClerk.id, username: otherClerk.username ?? otherClerk.id.toString(), role: otherClerk.role },

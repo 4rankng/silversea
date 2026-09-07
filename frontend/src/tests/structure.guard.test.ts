@@ -26,6 +26,10 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   'src/design-system/forms/SearchableSelect.tsx': 481,
   'src/api/driverClient.ts': 650,
   'src/api/keys.ts': 562,
+  // Added 2026-09-07: baseline 401 (was new-file capped) — the atomic plan
+  // save now carries operationalNotes and the tag-pool client helpers
+  // (list/create) live here beside the other dispatch planning calls.
+  'src/api/dispatchPlanningClient.ts': 410,
   // Bumped 1099 → 1110: minor growth from added keyboard helpers and
   // dispatch-status normalization (18539e54 + cec0f963, 2026-09-05).
   // Reviewed as a contract change; a future split should restore a smaller
@@ -47,8 +51,17 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   'src/components/work-inbox/RoleWorkInbox.tsx': 485,
   'src/features/app-settings/FinancePolicySection.tsx': 431,
   'src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx': 445,
-  'src/features/dispatch/detailed-plan/DispatchPlanEditorCell.tsx': 691,
-  'src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts': 446,
+  // Bumped 691 → 705: 2026-09-07 driver-note composer — the dispatch edit
+  // dialog gains the "Ghi chú tác vụ" section (draft field, save body,
+  // re-anchor, and the DispatchTaskTagEditor mount). The composer itself is
+  // a separate component; only wiring lives here. Reviewed as a contract
+  // change; a future split (extract the whole notes section) should restore
+  // a smaller ceiling.
+  'src/features/dispatch/detailed-plan/DispatchPlanEditorCell.tsx': 705,
+  // Bumped 446 → 448: driver-note save now carries operationalNotes and the
+  // optimistic row update refreshes notes.vehicleNote (2026-09-07). Reviewed
+  // as a contract change.
+  'src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts': 448,
   'src/features/dispatch/master-plan/DispatchAllocationPopover.tsx': 454,
   'src/features/dispatch/master-plan/MasterPlanFilters.tsx': 735,
   // Bumped 508 → 520: 282fe386 (2026-09-05, "fix(dispatch): keep dispatched

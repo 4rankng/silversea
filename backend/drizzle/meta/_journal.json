@@ -407,6 +407,13 @@
       "when": 1788689088135,
       "tag": "0057_burly_calypso",
       "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1788778751581,
+      "tag": "0058_tidy_sleeper",
+      "breakpoints": true
     }
   ]
 }

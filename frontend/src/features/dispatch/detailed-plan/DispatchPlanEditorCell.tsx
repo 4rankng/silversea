@@ -14,6 +14,7 @@ import type { DispatchShipmentRequest, DispatchShipmentResponse } from '../../..
 import { Modal } from '../../../components/UI';
 import { SearchableSelect, TextField, type SearchableSelectOption } from '../../../design-system';
 import { UuiSelectField } from '../../../design-system/forms/UuiSelectField';
+import { DispatchTaskTagEditor } from './DispatchTaskTagEditor';
 import { formatMoneyInput, normalizeMoneyInput } from '../../../lib/moneyInput';
 import { IssueOrderFields } from './IssueOrderFields';
 import { QuickIssueOrderDialog } from './QuickIssueOrderDialog';
@@ -42,6 +43,8 @@ export interface AtomicPlanSaveResult {
   shipmentVersion: number;
   classification: DispatchClassification;
   isCombined: boolean;
+  /** Stored driver-facing note after the save. */
+  operationalNotes: string | null;
   dispatch: {
     carrierType: 'OWN' | 'EXTERNAL';
     carrierName: string | null;
@@ -68,6 +71,7 @@ interface DispatchPlanEditorCellProps {
       plannedCarrierCost: number | null;
       classification: DispatchClassification;
       isCombined: boolean;
+      operationalNotes?: string | null;
     },
   ) => Promise<AtomicPlanSaveResult>;
   /** Opens the governed trip reassignment flow after an order is issued. */
@@ -88,6 +92,8 @@ interface PlanEditorDraft {
   plannedCarrierCost: string;
   classification: DispatchClassification;
   isCombined: boolean;
+  /** Composed driver note (tags + manual text) — see DispatchTaskTagEditor. */
+  operationalNotes: string | null;
 }
 
 /** Plate alone doesn't tell a dispatcher which driver they're assigning —
@@ -135,6 +141,7 @@ function draftForRow(row: DispatchDetailPlanRow): PlanEditorDraft {
     plannedCarrierCost: row.estimates.plannedCarrierCost ?? '',
     classification: row.classification,
     isCombined: row.isCombined,
+    operationalNotes: row.notes.vehicleNote,
   };
 }
 
@@ -457,6 +464,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
         plannedCarrierCost: carrierCost.value,
         classification: draft.classification,
         isCombined: draft.isCombined,
+        operationalNotes: draft.operationalNotes,
       });
       // Stay open — saving carrier/vehicle here is usually step one of
       // "xếp xe rồi phát lệnh" in one sitting; closing would force a
@@ -476,6 +484,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
         plannedCarrierCost: result.estimates.plannedCarrierCost ?? '',
         classification: result.classification,
         isCombined: result.isCombined,
+        operationalNotes: result.operationalNotes,
       });
     } catch {
       setError('Không thể lưu kế hoạch. Kiểm tra thông báo của bảng và thử lại.');
@@ -662,6 +671,11 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
               disabled={saving}
             />
           </div>
+          <DispatchTaskTagEditor
+            value={draft.operationalNotes}
+            onChange={(next) => setDraft((current) => ({ ...current, operationalNotes: next }))}
+            disabled={saving}
+          />
           {error && <p className="dispatch-assignment-dialog__error" role="alert">{error}</p>}
 
           {issueStatus === 'PLATED_NOT_ISSUED' && (

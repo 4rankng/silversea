@@ -4,6 +4,24 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { describe, expect, it, vi } from 'vitest';
 import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
 
+// The editor dialog mounts the note composer, which pulls the tag pool via
+// react-query; pin the hook so grid tests stay provider-free.
+const useTaskTagsMock = vi.fn(() => ({
+  tags: [
+    { id: 1, label: 'Đặt đầu' },
+    { id: 2, label: 'Đặt đuôi' },
+  ],
+  isLoading: false,
+  error: null,
+}));
+vi.mock('./useDispatchTaskTags', () => ({
+  useDispatchTaskTags: () => useTaskTagsMock(),
+  useCreateDispatchTaskTag: () => ({
+    createTag: vi.fn(async (label: string) => ({ id: 99, label })),
+    isCreating: false,
+  }),
+}));
+
 import { DetailedPlanGrid } from './DetailedPlanGrid';
 import { EMPTY_DETAILED_PLAN_FILTERS } from './useDispatchDetailPlan';
 

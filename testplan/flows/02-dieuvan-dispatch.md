@@ -810,6 +810,33 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
 
 ---
 
+### TC-DV-DISPATCH-034 — Ghi chú tác vụ cho lái xe: chọn nhanh tag + text tay trong dialog Chỉnh sửa điều phối (feature 2026-09-07)
+
+- **Mã PRD:** Feature request 2026-09-07 — quick-select task tags composing the driver-facing note
+- **Vai trò:** `dieuvan` (DISPATCHER)
+- **Mức độ:** P0
+- **Thiết bị:** Desktop (1440×900)
+- **Tiền điều kiện:** Lô FCL/LCL READY_FOR_DISPATCH chưa phát lệnh, hiển thị trên /dispatch-detail
+- **Các bước:**
+  1. Đăng nhập `dieuvan`, mở `/dispatch-detail`.
+  2. Bấm ô "Điều phối" của một dòng lô → dialog "Chỉnh sửa điều phối" mở.
+  6. Tìm mục "Ghi chú tác vụ": chip row (Đặt đầu, Đặt đuôi, Đảo vỏ, Gửi bãi, Lấy vỏ ICD đi đóng, Di động — seed từ migration) + ô textarea + dòng xem trước.
+  3. Bấm chọn chip "Đặt đầu", "Lấy vỏ ICD đi đóng".
+  4. Gõ "gọi lái trước 30p" vào ô textarea.
+  5. Bấm "Lưu thay đổi".
+  6. Mở lại dialog cùng dòng → 2 chip còn được chọn (aria-pressed=true), textarea giữ "gọi lái trước 30p", dòng xem trước đúng chuỗi.
+  7. Bấm "+ Thêm tag", gõ "Giao trước 9h", Enter → chip mới xuất hiện và được chọn.
+  8. Thêm tag trùng "đặt đầu" (viết thường) → thông báo "Tag đã tồn tại — đã chọn tag có sẵn", chip "Đặt đầu" được chọn, không lỗi.
+  9. Lưu và kiểm tra 3 mặt hiển thị:
+     - Kế hoạch Tổng quát (/dispatch): cột Ghi chú hiển thị chuỗi composed.
+     - Kế hoạch Chi tiết: dòng "Xe: <chuỗi>" trong cột Ghi chú.
+     - Màn hình lái xe (tài xế được gán): khối ghi chú hiển thị đúng chuỗi.
+  10. Lưu lại lần nữa KHÔNG đổi gì → shipment version không tăng (DB check shipments.version).
+- **Kết quả mong đợi (Pass):** chuỗi composed = các tag đã chọn + text tay, nối bằng "; ", tag đứng trước text tay; 3 mặt hiển thị đúng; reopen parse đúng; add-tag + 409 auto-select; no-op save không bump version.
+- **Bằng chứng:** ảnh dialog với chip row + dòng "Hiển thị:", ảnh 3 mặt hiển thị, DB row `shipments.operational_notes`, tag pool DB `dispatch_task_tags` (6 seed rows).
+
+---
+
 ## Bảng nghiệm thu — Luồng Điều xe (Điều vận)
 
 | Ngày thử | Mã TC | Người thử | Kết quả | Ghi chú | Bằng chứng |
@@ -847,3 +874,4 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
 | __/__/__ | TC-DV-DISPATCH-031 | | | Kẹp hàng không hợp lệ vì khác tài xế → bị chặn | |
 | __/__/__ | TC-DV-DISPATCH-032 | | | Phân loại chuyến Đơn (1 chiều) — happy path | |
 | __/__/__ | TC-DV-DISPATCH-033 | | | Lô 1 cont hoàn thành toàn bộ vẫn hiển thị trên Kế hoạch Tổng quát (regression 2026-09-05) | |
+| __/__/__ | TC-DV-DISPATCH-034 | | | Ghi chú tác vụ: tag nhanh + text tay cho lái xe trong Chỉnh sửa điều phối (feature 2026-09-07) | |

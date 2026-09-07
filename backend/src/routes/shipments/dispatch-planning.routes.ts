@@ -31,6 +31,10 @@ import {
   listCarrierFleetVehicles,
   updateCarrierFleetVehicle,
 } from '../../services/carrier-fleet-vehicle.service';
+import {
+  createDispatchTaskTag,
+  listDispatchTaskTags,
+} from '../../services/dispatch-task-tags.service';
 import { reassignTruckDriverWriteCommand } from '../../services/truck-driver-assignment.service';
 import { requireRoles } from '../../middleware/casbin';
 import { getUser } from '../../middleware/auth';
@@ -406,6 +410,7 @@ dispatchPlanningRoutes.patch(
       plannedCarrierCost: parsed.data.plannedCarrierCost,
       classification: parsed.data.classification,
       isCombined: parsed.data.isCombined,
+      operationalNotes: parsed.data.operationalNotes,
       idempotencyKey: getRequestIdempotencyKey(req) ?? '',
       actor: user as typeof user & { role: Role.ADMIN | Role.MANAGER | Role.DISPATCHER },
     }));
@@ -475,6 +480,37 @@ dispatchPlanningRoutes.patch(
       },
     );
     sendShipmentWrite(res, result);
+  }),
+);
+
+// ─── Dispatch task tags (note-composer quick-select pool) ────────────────────
+// Global catalog: the modal's chip row renders this list; dispatchers add
+// labels inline. Casbin gates the router; these roles mirror /dispatch-detail
+// access (accountants are excluded, matching the note's read mask).
+
+const createDispatchTaskTagSchema = z.object({
+  label: z.string().trim().min(1).max(80)
+    // ';' is the composer's note separator — reject it in labels.
+    .refine((value) => !value.includes(';'), 'Tên tag không được chứa dấu ;'),
+}).strict();
+
+dispatchPlanningRoutes.get(
+  '/dispatch-task-tags',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER),
+  asyncHandler(async (_req: Request, res: Response) => {
+    res.json(await listDispatchTaskTags());
+  }),
+);
+
+dispatchPlanningRoutes.post(
+  '/dispatch-task-tags',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER),
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = createDispatchTaskTagSchema.safeParse(req.body);
+    if (!parsed.success) throwValidation(parsed.error);
+    const user = getUser(req);
+    const created = await createDispatchTaskTag({ label: parsed.data.label, actor: user });
+    res.status(201).json(created);
   }),
 );
 
