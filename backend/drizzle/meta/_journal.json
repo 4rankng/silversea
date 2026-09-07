@@ -414,6 +414,13 @@
       "when": 1788710688836,
       "tag": "0058_gorgeous_tinkerer",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1788745656146,
+      "tag": "0059_brief_firestar",
+      "breakpoints": true
     }
   ]
 }

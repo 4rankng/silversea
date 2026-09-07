@@ -344,12 +344,20 @@ export const tripsComposite = pgView('trips_composite', {
 export const tripPairs = pgTable('trip_pairs', {
   id: serial('id').primaryKey(),
   status: varchar('status', { length: 20 }).notNull().default('ACTIVE'),
+  // KẸP = 2×20' cont on one mooc running simultaneously; KET_HOP = same
+  // container shell reused across two back-to-back orders. Pairs created
+  // before the 2026-09-06 spec split are all sequential ⇒ KET_HOP (default).
+  pairKind: varchar('pair_kind', { length: 20 }).notNull().default('KET_HOP'),
   firstTripId: integer('first_trip_id').notNull(),
   secondTripId: integer('second_trip_id').notNull(),
   emptyDistanceKm: numeric('empty_distance_km', { precision: 10, scale: 2 }),
   combinedEfficiencyPercent: numeric('combined_efficiency_percent', { precision: 6, scale: 2 }),
   requiredGapMinutes: integer('required_gap_minutes'),
   actualGapMinutes: integer('actual_gap_minutes'),
+  // Pair salary rule (lương cặp = cuốc cơ bản + phụ phí): the second trip's
+  // pre-pair driverSalary snapshot. Stashed on pairing so breaking the pair
+  // restores the exact standard per-trip wage, not a recomputed approximation.
+  secondSalaryStash: numeric('second_salary_stash', { precision: 15, scale: 0 }),
   breakReason: varchar('break_reason', { length: 40 }),
   survivingTripId: integer('surviving_trip_id'),
   lateByMinutes: integer('late_by_minutes'),
