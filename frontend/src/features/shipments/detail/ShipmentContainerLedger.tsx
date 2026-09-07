@@ -9,6 +9,7 @@ import type {
   ShipmentCusWorkspaceDetail,
 } from '@tingting/shared';
 import { requestContainerEdit } from '../../../api/shipmentClient';
+import { displayNote } from '../cus/cusUtils';
 import { StatusStrip } from '../../../components/shared/StatusStrip';
 import { Badge, BadgeWithDot } from '../../../components/untitled-ui/base/badges/badges';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
@@ -715,8 +716,8 @@ export function ShipmentContainerLedger({
                   </td>
                   <td data-label="Ghi chú" className={cellClassName(row.shipmentNotesEditable, 'notes')}>
                     {editableCell(row, 'notes', row.shipmentNotesEditable, <div className="shipment-container-ledger__multiline shipment-container-ledger__notes">
-                      {row.customerNotes && <strong>{row.customerNotes}</strong>}
-                      {row.operationalNotes && <span>{row.operationalNotes}</span>}
+                      {row.customerNotes && <strong>{displayNote(row.customerNotes)}</strong>}
+                      {row.operationalNotes && <span>{displayNote(row.operationalNotes)}</span>}
                       {!row.customerNotes && !row.operationalNotes && <span className="shipment-container-ledger__missing">—</span>}
                     </div>)}
                   </td>

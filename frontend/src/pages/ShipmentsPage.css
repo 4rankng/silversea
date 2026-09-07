@@ -581,13 +581,15 @@
    first row looked fine. `schedule` was pinned to 24% to compensate for a
    separate bug — its appointment-group text had no wrap rule anywhere, so it
    silently rendered as one clipped line (see the tbody th/td rule above);
-   now that it wraps, it needs less width than the workaround assumed. */
-.cus-dashboard-table col.cus-dashboard-col--customer { width: 17%; }
-.cus-dashboard-table col.cus-dashboard-col--documents { width: 11%; }
+   now that it wraps, it needs less width than the workaround assumed.
+   `documents` is sized for 16-char mono Bill/Booking codes (e.g.
+   "EGLV149607019409") to render un-ellipsized at common desktop widths. */
+.cus-dashboard-table col.cus-dashboard-col--customer { width: 16%; }
+.cus-dashboard-table col.cus-dashboard-col--documents { width: 15%; }
 .cus-dashboard-table col.cus-dashboard-col--classification { width: 9%; }
-.cus-dashboard-table col.cus-dashboard-col--cargo { width: 12%; }
+.cus-dashboard-table col.cus-dashboard-col--cargo { width: 11%; }
 .cus-dashboard-table col.cus-dashboard-col--schedule { width: 20%; }
-.cus-dashboard-table col.cus-dashboard-col--notes { width: 16%; }
+.cus-dashboard-table col.cus-dashboard-col--notes { width: 14%; }
 .cus-dashboard-table col.cus-dashboard-col--status { width: 15%; }
 
 .cus-dashboard-table thead th {

@@ -110,6 +110,25 @@ export function noteLines(note: string | null | undefined): string[] {
   return (note ?? '').split(/\r?\n/).map((line) => line.trim()).filter(Boolean).slice(0, 2);
 }
 
+/* Vietnamese letters span Latin-1 Supplement → Latin Extended Additional, so
+   these ranges see "XƯỚNG", "Đ", and "gửi" alike. */
+const HAS_UPPERCASE = /[A-ZÀ-Ỹ]/;
+const ALL_UPPERCASE = /^[A-ZÀ-Ỹ0-9\s.,;:!?()\-–—/&+%'"…]+$/;
+
+/**
+ * Notes are prose, not code: a note typed or imported in ALL CAPS (no
+ * lowercase letter anywhere) reads as shouting next to mixed-case neighbor
+ * cells, so render it in sentence case. Mixed-case values pass through
+ * untouched — only the author's own casing is ever preserved.
+ */
+export function displayNote(note: string | null | undefined): string {
+  const value = (note ?? '').trim();
+  if (!HAS_UPPERCASE.test(value) || !ALL_UPPERCASE.test(value)) return value;
+  const sentence = value.toLocaleLowerCase('vi');
+  // Capitalize the first letter and letters after sentence breakers.
+  return sentence.replace(/(^\p{L})|([.!?]\s+\p{L})/gu, (match) => match.toLocaleUpperCase('vi'));
+}
+
 export interface ShipmentQuickEditDraft {
   shipmentId: number;
   field: 'identity' | 'documents' | 'classification' | 'cargo' | 'schedule' | 'notes';

@@ -95,21 +95,21 @@
    -word badge so it gets the smallest share instead of matching its wide
    sr-only-adjacent siblings. */
 .shipment-container-ledger__col--customer { width: 12%; }
-.shipment-container-ledger__col--documents { width: 13%; }
-.shipment-container-ledger__col--container { width: 13%; }
+.shipment-container-ledger__col--documents { width: 14%; }
+.shipment-container-ledger__col--container { width: 12%; }
 /* The route cell holds "NÂNG: <long name>" + "HẠ: <long name>" stacked
    (e.g. "Cảng Tân Cảng 128 Hải Phòng" / "Cảng Nam Hải Đình Vũ"). With
    table-layout: fixed, the column shrinks below the longest unbreakable
    token and the cell's overflow:hidden clips the trailing characters — keep
    this share generous even though sample data rarely fills it. */
 .shipment-container-ledger__col--route { width: 16%; }
-.shipment-container-ledger__col--schedule { width: 13%; }
-.shipment-container-ledger__col--vehicle { width: 9%; }
+.shipment-container-ledger__col--schedule { width: 12%; }
+.shipment-container-ledger__col--vehicle { width: 11%; }
 .shipment-container-ledger__col--notes { width: 12%; }
 /* Carries the dispatch label plus the missing-fields warning (moved here
    from the customer cell so "needs attention" reads next to the status it
    blocks) — wider than a bare label needs. */
-.shipment-container-ledger__col--status { width: 12%; }
+.shipment-container-ledger__col--status { width: 11%; }
 
 /* Negating the scrollport's top padding (see --sticky-thead-top in tokens.css)
    keeps the header flush with the app-body edge so scrolled rows never peek
@@ -178,6 +178,14 @@
 .shipment-container-ledger__cell--status { display: table-cell; vertical-align: top; }
 .shipment-container-ledger__missing { color: var(--ink-3); font-weight: var(--fw-regular); }
 
+/* Notes are prose, not a headline value: they read at the shared note tier —
+   the same one the /shipments list's note preview uses — so a note never
+   outweighs the neighboring cells. Operational notes keep the list page's
+   italic internal-note voice. */
+.shipment-container-ledger__notes > strong,
+.shipment-container-ledger__notes > span { font-size: var(--ops-table-note-size); font-weight: var(--ops-table-note-weight); line-height: var(--ops-table-note-line-height); }
+.shipment-container-ledger__notes > span { color: var(--ink-3); font-style: italic; }
+
 .shipment-container-ledger__route { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; align-items: center; }
 /* The place name is this cell's headline value (same role as the customer
    name / doc number / container number in their columns), so it takes the
@@ -192,7 +200,7 @@
    where the eye already reads schedule information. */
 .shipment-container-ledger__schedule-gap { width: fit-content; max-width: 100%; margin-bottom: 1px; color: var(--warning-text); font-family: var(--font-body); font-size: 11px; line-height: 1.4; white-space: normal; }
 .shipment-container-ledger__schedule-gap svg { width: 12px; height: 12px; margin-right: 4px; }
-.shipment-container-ledger__plate { display: inline-flex; width: fit-content; padding: 2px 5px; border: 1px solid var(--line-2); border-radius: 4px; background: var(--surface-2); color: var(--ink) !important; font-family: var(--font-data); font-weight: var(--fw-bold); letter-spacing: .03em; }
+.shipment-container-ledger__plate { display: inline-flex; width: fit-content; padding: 2px 5px; border: 1px solid var(--line-2); border-radius: 4px; background: var(--surface-2); color: var(--ink) !important; font-family: var(--font-data); font-weight: var(--fw-bold); letter-spacing: .03em; white-space: nowrap; }
 .shipment-container-ledger__vehicle { gap: 4px; }
 .shipment-container-ledger__vehicle-pending { background: color-mix(in srgb, var(--warning-soft) 52%, var(--surface)) !important; }
 .shipment-container-ledger tbody > tr:hover > .shipment-container-ledger__vehicle-pending { background: color-mix(in srgb, var(--warning-soft) 74%, var(--surface)) !important; }
@@ -322,7 +330,7 @@
   .shipments-detail-workspace__header { padding-inline: 0; }
 }
 
-/* Between ~900px and ~1300px of container width the three-group row no
+/* Between ~1000px and ~1300px of container width the three-group row no
    longer fits: the select trio moves to its own full-width row (keeping its
    internal three-column rhythm) and the date/reset actions close the block,
    right-aligned, instead of stranding on a clipped fourth column. */
@@ -337,7 +345,7 @@
   .shipments-detail-filters__date-actions { flex-wrap: nowrap; }
 }
 
-@container shipments-detail (max-width: 900px) {
+@container shipments-detail (max-width: 1000px) {
   .shipments-detail-filters { grid-template-columns: 1fr 1fr; max-width: none; }
   .shipments-detail-filter--search { grid-column: 1 / -1; }
   .shipments-detail-filters__group--dates { grid-column: 1 / -1; }
