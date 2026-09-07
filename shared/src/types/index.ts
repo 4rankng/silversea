@@ -460,9 +460,17 @@ export type TripPairBreakReason =
   | 'SECOND_TRIP_CANCELED'
   | 'LATE_COMPLETION';
 
+/**
+ * Ghép chuyến (2026-09-06 spec): KEP = 2×20' containers on one mooc running
+ * simultaneously; KET_HOP = one container shell reused across two sequential
+ * orders. Keep in sync with the pair_kind column default and zod enum.
+ */
+export type TripPairKind = 'KEP' | 'KET_HOP';
+
 export interface TripPairSummary {
   pairId: number;
   order: 1 | 2;
+  pairKind: TripPairKind;
   status: TripPairStatus;
   partnerTripId: number;
   partnerTripCode: string | null;
@@ -1257,6 +1265,7 @@ export interface CreateTripPairRequest {
 export interface TripPairRecord {
   id: number;
   status: TripPairStatus;
+  pairKind: TripPairKind;
   firstTripId: number;
   secondTripId: number;
   emptyDistanceKm: string | null;

@@ -200,6 +200,9 @@ const tripPairDraftSchema = z.object({
 export const createTripPairSchema = z.object({
   firstTripId: z.coerce.number().int().positive(),
   secondTripId: z.coerce.number().int().positive(),
+  // Keep in sync with TripPairKind (types) and trip_pairs.pair_kind. Default
+  // KET_HOP keeps pre-spec clients (and pre-split pairs) on sequential rules.
+  pairKind: z.enum(['KEP', 'KET_HOP']).default('KET_HOP'),
   firstTrip: tripPairDraftSchema,
   secondTrip: tripPairDraftSchema,
 }).superRefine((data, ctx) => {
