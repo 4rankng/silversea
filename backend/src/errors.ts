@@ -7,6 +7,7 @@ export class ApiError extends Error {
     public statusCode: number,
     message: string,
     public details?: string,
+    public payload?: Record<string, unknown>,
   ) {
     super(message);
     this.name = 'ApiError';

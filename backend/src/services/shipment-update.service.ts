@@ -33,6 +33,8 @@ import {
   assertShipmentDocumentReferences,
   normalizeDocumentReference,
   assertShipmentFactorySiteValid,
+  findShipmentReferenceConflict,
+  throwShipmentReferenceConflict,
 } from './shipment-lifecycle-shared.service';
 
 export async function updateShipment(
@@ -73,6 +75,28 @@ export async function updateShipment(
       bookingRef: input.bookingRef !== undefined ? input.bookingRef : existing.bookingRef,
       tradeDirection: input.tradeDirection !== undefined ? input.tradeDirection : existing.tradeDirection,
     });
+
+    // Customer feedback 2026-09-07: when an update rewrites Bill/Booking,
+    // block the change if another active shipment already owns that
+    // reference. Excluding `existing.id` keeps the row from blocking itself
+    // when the client resubmits its own current value (no-op).
+    const nextBlNumber = normalizeDocumentReference(input.blNumber !== undefined ? input.blNumber : existing.blNumber);
+    const nextBookingRef = normalizeDocumentReference(input.bookingRef !== undefined ? input.bookingRef : existing.bookingRef);
+    const blChanged = input.blNumber !== undefined && nextBlNumber !== existing.blNumber;
+    const bookingChanged = input.bookingRef !== undefined && nextBookingRef !== existing.bookingRef;
+    if (blChanged || bookingChanged) {
+      const conflict = await findShipmentReferenceConflict(
+        tx,
+        { blNumber: blChanged ? nextBlNumber : null, bookingRef: bookingChanged ? nextBookingRef : null },
+        id,
+      );
+      if (conflict) {
+        throwShipmentReferenceConflict(
+          conflict,
+          conflict.field === 'blNumber' ? 'bill' : 'booking',
+        );
+      }
+    }
 
     if (existing.cargoMode === CARGO_MODE.FCL && input.cargoMode === CARGO_MODE.LCL) {
       const fulfillmentRows = await tx.select({

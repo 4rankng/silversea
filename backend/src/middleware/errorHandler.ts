@@ -24,6 +24,12 @@ export function globalErrorHandler(err: Error, req: Request, res: Response, _nex
   if (err instanceof ApiError) {
     const body: Record<string, unknown> = { error: err.message };
     if (err.details) body.details = err.details;
+    if (err.payload) {
+      // Allow services to attach a structured payload (e.g. the duplicate
+      // shipment reference + creator info) that the frontend can use to
+      // surface "đã nhập bởi tài khoản X" without re-fetching.
+      Object.assign(body, err.payload);
+    }
     res.status(err.statusCode).json(body);
     return;
   }

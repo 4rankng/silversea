@@ -36,6 +36,10 @@ import {
   transitionShipmentStatus,
   softDeleteShipment,
 } from '../../services/shipment.service';
+import {
+  listShipmentReferenceConflicts,
+  normalizeDocumentReference,
+} from '../../services/shipment-lifecycle-shared.service';
 import { assignShipmentCarriers, createOperationalSiteForIntake, listOperationalSitesForAdmin, listOperationalSitesForIntake, submitShipmentForDispatch, updateOperationalSiteForAdmin } from '../../services/shipment-intake.service';
 import { issueFulfillmentDispatchOrder } from '../../services/dispatch-planning.service';
 import { resolveShipmentPricingProjection } from '../../services/pricing.service';
@@ -304,6 +308,36 @@ coreRoutes.get('/', asyncHandler(async (req: Request, res: Response) => {
   res.json(result);
 }));
 
+// ─── GET /duplicate-check — pre-flight Bill/Booking/declaration guard ──────
+//
+// Customer feedback 2026-09-07: clerks used to discover a duplicate Bill
+// only AFTER submitting the create form, when the system silently produced
+// a second sibling shipment. This endpoint lets the create/edit form call
+// in-line (debounced) to surface "Số Bill này đã được nhập bởi <user> lúc
+// <HH:mm>" before the user clicks submit. Server still validates at write
+// time, so this read is purely advisory.
+const duplicateCheckQuerySchema = z.object({
+  blNumber: z.string().trim().max(100).optional(),
+  bookingRef: z.string().trim().max(100).optional(),
+  declarationNumber: z.string().trim().max(50).optional(),
+  excludeShipmentId: z.coerce.number().int().positive().optional(),
+});
+
+coreRoutes.get('/duplicate-check', asyncHandler(async (req: Request, res: Response) => {
+  const parsed = duplicateCheckQuerySchema.safeParse(req.query);
+  if (!parsed.success) throwValidation(parsed.error);
+  const excludeShipmentId = parsed.data.excludeShipmentId ?? null;
+  const blNumber = normalizeDocumentReference(parsed.data.blNumber);
+  const bookingRef = normalizeDocumentReference(parsed.data.bookingRef);
+  const declarationNumber = parsed.data.declarationNumber?.trim() || null;
+
+  const conflicts = await listShipmentReferenceConflicts(
+    { blNumber, bookingRef, declarationNumber },
+    excludeShipmentId,
+  );
+
+  res.json({ conflicts });
+}));
 coreRoutes.post(
   '/:id/submit-for-dispatch',
   requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS),

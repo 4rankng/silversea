@@ -20,6 +20,8 @@ import {
   assertShipmentDocumentReferences,
   normalizeDocumentReference,
   assertShipmentFactorySiteValid,
+  findShipmentReferenceConflict,
+  throwShipmentReferenceConflict,
 } from './shipment-lifecycle-shared.service';
 
 /**
@@ -51,6 +53,23 @@ async function createShipmentTx(tx: Tx, input: CreateShipmentInput, actor?: Auth
   const customerId = input.customerId ?? null;
   const rawCustomerName = customerId != null ? null : input.rawCustomerName?.trim() || null;
   const rawRouteName = input.routeId != null ? null : input.rawRouteName?.trim() || null;
+  // Customer feedback 2026-09-07 (BL `JJCTCHPDY260305` accidentally created
+  // twice): pre-check duplicate Bill/Booking against active rows so the
+  // second attempt is blocked at the source with "đã nhập bởi <user>" instead
+  // of silently producing a sibling shipment that strands downstream ops.
+  const duplicate = await findShipmentReferenceConflict(
+    tx,
+    {
+      blNumber: normalizeDocumentReference(input.blNumber),
+      bookingRef: normalizeDocumentReference(input.bookingRef),
+    },
+  );
+  if (duplicate) {
+    throwShipmentReferenceConflict(
+      duplicate,
+      duplicate.field === 'blNumber' ? 'bill' : 'booking',
+    );
+  }
   if (input.operationalSiteId != null && customerId != null) {
     await assertShipmentFactorySiteValid(tx, customerId, input.operationalSiteId);
   }
