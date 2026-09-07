@@ -17,6 +17,12 @@ từ khách hàng) ở đầu trang.
 
 ## Thay đổi có hiệu lực gần nhất
 
+**2026-09-07 — Chốt: đơn vị thẻ app lái xe = 1 CONTAINER.** Quyết định sản phẩm: **docx
+là chuẩn**. Thẻ Lớp 1 = 1 container / thẻ (không phải 1 chuyến / thẻ), tab con
+`Lệnh mới` / `Đã nhận` / `Lịch sử`, không badge trạng thái trên thẻ.
+`DriverTripsPage.tsx` hiện vẫn theo mô hình cũ ⇒ **cần migrate**; đây là việc tồn, không
+phải đặc tả thay thế. Chi tiết: [`ManHinhLaiXe.md`](ManHinhLaiXe.md) §2.1.
+
 **2026-09-07 — Lệnh chạy ngoài (ad-hoc orders).** Bổ sung phần còn thiếu của
 `Logic_nghiep_vu.docx` Phần 1: **lưu trữ hỗn hợp** (chọn danh mục ⇒ lưu ID; gõ text tự
 do ⇒ ID `null` + `Raw_*`), **guardrail không tự thêm vào danh mục gốc**, checkbox

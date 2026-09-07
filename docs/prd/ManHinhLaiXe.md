@@ -39,7 +39,15 @@ cột / bảng quan hệ để lưu: `Tiền nâng`, `Tiền hạ`, `Chi phí ph
 
 ### 2.1 Lớp 1 — Thẻ Tổng Quát (hiển thị ngoài tab)
 
-Mỗi **Lô hàng / Container** là **1 Thẻ (Card)**.
+> **Đơn vị thẻ = 1 CONTAINER** *(quyết định sản phẩm 2026-09-07 — theo đúng docx)*
+>
+> Mỗi **container** là **một thẻ riêng**. **Không** gộp nhiều container vào một thẻ,
+> và **không** hiển thị một thẻ cho cả chuyến (trip). Số thẻ trong danh sách **bằng
+> đúng** số container của tài xế.
+>
+> Điều này khớp nguyên tắc **"1 Cont = 1 Lệnh (Shipment)"** ở
+> [`LoHangKepKetHop.md`](LoHangKepKetHop.md) §2 — mỗi container là một lệnh riêng về
+> chứng từ/doanh thu, nên cũng là một thẻ riêng trên app.
 
 > **Lệnh Kẹp / Kết hợp:** hiển thị **2 thẻ riêng biệt nhưng dính liền kề nhau**,
 > có **chung Tag phân loại**. Xem [`LoHangKepKetHop.md`](LoHangKepKetHop.md) §3.3.
@@ -53,6 +61,17 @@ Mỗi **Lô hàng / Container** là **1 Thẻ (Card)**.
 | **Dòng 2** | `Tuyến đường` *(căn lề trái)* \| `Cảng hạ` *(căn lề phải)* |
 | **Dòng 3** | `Cont: [Số Cont] - Loại cont` (ví dụ: `40'HC`) |
 | **Footer** | `Xem chi tiết & Nhận lệnh` |
+
+**Không có trên thẻ Lớp 1:** badge/pill trạng thái (Tag ở header + CTA ở footer đã
+mang trạng thái — quy ước dự án là chữ màu, không badge), `Mã chuyến` monospace, và
+dòng `Tài xế + 🚚 Biển số` (biển số thuộc **Khối 6** của thẻ chi tiết, §2.2).
+
+> ⚠️ **Chênh lệch với hiện trạng:** `DriverTripsPage.tsx` đang render **1 thẻ / chuyến**
+> với bộ tab cũ `Hôm nay / Đang chạy / Lịch sử`. Đây là **việc cần migrate**, không phải
+> đặc tả thay thế. Diff từng trường + tiêu chí nghiệm thu:
+> [`testplan/roles/03-laixe.md`](../../testplan/roles/03-laixe.md) Flow 1 (`DRV-LIST-02`,
+> `DRV-LIST-03`) và [`testplan/flows/03-laixe-nhan-lenh.md`](../../testplan/flows/03-laixe-nhan-lenh.md)
+> §3.7 (`TC-LX-NHANLENH-014`, `-015`).
 
 ### 2.2 Lớp 2 — Thẻ Chi Tiết (bấm vào thẻ ⇒ mở toàn màn hình)
 

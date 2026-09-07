@@ -293,22 +293,34 @@
 - **Vai trò:** `laixe`
 - **Mức độ:** P0
 - **Thiết bị:** Mobile (375 × 667)
-- **Tiền điều kiện:** tài xế có ≥ 1 lệnh đơn ở tab `Lệnh mới`
+- **Tiền điều kiện:** tài xế có ≥ 1 lệnh đơn ở tab `Lệnh mới`, **và** ≥ 1 chuyến chở
+  **nhiều container** (để đếm thẻ ở bước 3)
 - **Các bước:**
   1. Mở tab `Lệnh mới`, đọc kỹ 1 thẻ.
   2. Đối chiếu từng vùng với PRD §2.1.
-- **Kết quả mong đợi (Pass):** thẻ hiển thị đủ và đúng bố cục:
-  | Vùng | Nội dung |
-  |------|----------|
-  | Header | `[Tag: ĐƠN]` + `Giờ đóng / trả: HH:MM - DD/MM` |
-  | Dòng 1 | `Nhà máy` **căn lề trái** · `Cảng nâng` **căn lề phải** |
-  | Dòng 2 | `Tuyến đường` **căn lề trái** · `Cảng hạ` **căn lề phải** |
-  | Dòng 3 | `Cont: [Số Cont] - [Loại cont]` (ví dụ `40'HC`) |
-  | Footer | `Xem chi tiết & Nhận lệnh` |
-  - Mỗi **container** là **một thẻ** riêng (không gộp nhiều cont vào 1 thẻ).
+  3. Tìm chuyến nhiều container. **Đếm số thẻ** hiển thị cho chuyến đó và
+     **đối chiếu với số container** của chuyến trong DB.
+- **Kết quả mong đợi (Pass):**
+  - **Đơn vị thẻ = 1 container.** Số thẻ **bằng đúng** số container — không gộp nhiều
+    cont vào 1 thẻ, và không hiển thị 1 thẻ cho cả chuyến.
+    *(Quyết định sản phẩm 2026-09-07: theo đúng docx.)*
+  - Thẻ hiển thị đủ và đúng bố cục:
+    | Vùng | Nội dung |
+    |------|----------|
+    | Header | `[Tag: ĐƠN]` + `Giờ đóng / trả: HH:MM - DD/MM` |
+    | Dòng 1 | `Nhà máy` **căn lề trái** · `Cảng nâng` **căn lề phải** |
+    | Dòng 2 | `Tuyến đường` **căn lề trái** · `Cảng hạ` **căn lề phải** |
+    | Dòng 3 | `Cont: [Số Cont] - [Loại cont]` (ví dụ `40'HC`) |
+    | Footer | `Xem chi tiết & Nhận lệnh` |
+  - **Không có badge trạng thái trên thẻ** — Tag ở header + CTA ở footer đã mang trạng
+    thái (đúng quy ước dự án: chữ màu, không badge).
+  - Không hiển thị `Mã chuyến` monospace hay dòng `Tài xế + 🚚 Biển số` ở Lớp 1;
+    biển số thuộc **Khối 6** của thẻ chi tiết (`TC-LX-NHANLENH-016`).
   - Không cuộn ngang; cỡ chữ đọc được ngoài nắng.
-- **Kỳ vọng sai (Fail nếu):** thiếu vùng bất kỳ; sai căn lề trái/phải; thiếu tag hoặc giờ đóng/trả; gộp cont.
-- **Bằng chứng:** ảnh thẻ có chú thích từng vùng
+- **Kỳ vọng sai (Fail nếu):** số thẻ ≠ số container (1 thẻ / chuyến, hoặc gộp cont);
+  thiếu vùng bất kỳ; sai căn lề trái/phải; thiếu tag hoặc giờ đóng/trả; còn badge trạng thái.
+- **Bằng chứng:** ảnh thẻ có chú thích từng vùng + ảnh chuyến nhiều cont kèm truy vấn
+  `SELECT count(*) FROM shipment_containers WHERE ...` để đối chiếu số thẻ
 
 ---
 

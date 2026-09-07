@@ -61,28 +61,38 @@ to the driver's plate.
      vertical strip from top to bottom — no visible
      "page-on-color" + "color-on-page" layering.
 
-2. **DRV-LIST-02 — Tabs: Hôm nay / Đang chạy / Lịch sử**
-   - **Then** the page shows three tabs:
-     - `Hôm nay` — trips with `scheduledPickupAt` within today (Asia/Ho_Chi_Minh).
-     - `Đang chạy` — trips with status `Đang chạy`.
-     - `Lịch sử` — trips with status `Hoàn thành` or `Đã hủy`.
-   - Each tab's count is shown in the tab label.
+2. **DRV-LIST-02 — Sub-tabs: Lệnh mới / Đã nhận / Lịch sử**
+   - **Then** the `Hành trình` screen shows exactly three sub-tabs, in this
+     order: `Lệnh mới` | `Đã nhận` | `Lịch sử`.
+     - `Lệnh mới` — dispatched to this driver, not yet accepted.
+     - `Đã nhận` — accepted and running (trip-start timestamp recorded).
+     - `Lịch sử` — completed or cancelled.
+   - The **bottom navigation keeps its existing 4 tabs** — none added or
+     removed this phase.
+   - Each sub-tab's count is shown in its label.
+   - **Spec**: `ManHinhLaiXe.md` §1. **Case**: `TC-LX-NHANLENH-014`.
 
-3. **DRV-LIST-03 — Trip card anatomy**
-   - **Given** a trip card
-   - **Then** it shows, in this order:
-     - `Mã chuyến` (top-left, monospace).
-     - `Khách hàng` (one line, ellipsised).
-     - `Tuyến` (one line, `Điểm đi → Điểm đến`).
-     - `Tài xế` (driver name) with `🚚 {Biển số}` as **subtext**, not
-       a green pill (per the user's explicit override — see
-       commit history around `0fcedcde`).
-     - Status pill (`Mới tạo` / `Đang chạy` / `Hoàn thành` / `Đã hủy`)
-       with the canonical color from
-       `TRIP_STATUS_COLORS` (`shared/src/constants/index.ts:411`).
-   - **Evidence**: card screenshot; DOM inspection for the plate's
-     containing element (should be a plain `<span>` below the driver
-     name, not a `<div class="...pill...">`).
+3. **DRV-LIST-03 — Layer-1 card anatomy: one card per container**
+   - **Given** the shipment list on any sub-tab
+   - **Then** **each container is its own card** — never one card per trip,
+     never several containers merged into one card.
+   - **And** each card shows, in this order:
+     | Region | Content |
+     |--------|---------|
+     | Header | `[Tag: ĐƠN / KẸP / KẾT HỢP]` + `Giờ đóng / trả: HH:MM - DD/MM` |
+     | Row 1 | `Nhà máy` **left-aligned** · `Cảng nâng` **right-aligned** |
+     | Row 2 | `Tuyến đường` **left-aligned** · `Cảng hạ` **right-aligned** |
+     | Row 3 | `Cont: [Số Cont] - [Loại cont]` (e.g. `40'HC`) |
+     | Footer | `Xem chi tiết & Nhận lệnh` |
+   - **No status pill on the card.** The header tag plus the footer CTA carry
+     the card's state; this matches the project convention of coloured text
+     over badge chrome. The plate moves to detail block 6
+     (`DRV-DET-09`), so the old driver-name + `🚚 {Biển số}` subtext line is
+     not part of this anatomy.
+   - No horizontal scroll; type legible in direct sunlight.
+   - **Spec**: `ManHinhLaiXe.md` §2.1. **Case**: `TC-LX-NHANLENH-015`.
+   - **Evidence**: card screenshot with each region annotated; DOM check that
+     the card count equals the container count (not the trip count).
 
 4. **DRV-LIST-04 — Tap target ≥ 48 px**
    - **Then** every interactive element on the card is at least 48 × 48
@@ -100,42 +110,7 @@ to the driver's plate.
    - **Then** the page shows the empty-state illustration + copy
      (`Bạn chưa có chuyến nào`) and a refresh control.
 
-> ### ⚠️ Spec delta — `2026.8.27_Man_hinh_lai_xe.docx` vs. criteria above
->
-> The driver-app spec defines a **different** tab set and card anatomy from what
-> `DRV-LIST-02` / `DRV-LIST-03` describe as currently built. Both are recorded here;
-> the docx is the **target**, the criteria above are the **current** behaviour.
-> Do not delete either until the migration lands.
->
-> | Item | Current (`DRV-LIST-02/03`) | Spec target (`ManHinhLaiXe.md` §1–§2.1) |
-> |------|----------------------------|------------------------------------------|
-> | Sub-tabs | `Hôm nay` / `Đang chạy` / `Lịch sử` | `Lệnh mới` / `Đã nhận` / `Lịch sử` |
-> | Card unit | 1 card per **trip** | 1 card per **container / shipment** |
-> | Card header | `Mã chuyến` (mono) | `[Tag: ĐƠN/KẸP/KẾT HỢP]` + `Giờ đóng / trả: HH:MM - DD/MM` |
-> | Card body | `Khách hàng`, `Tuyến`, `Tài xế` + plate subtext | `Nhà máy`↔`Cảng nâng`, `Tuyến đường`↔`Cảng hạ`, `Cont: [Số] - [Loại]` |
-> | Card footer | status pill | `Xem chi tiết & Nhận lệnh` |
->
-> **Open decision:** whether the status pill survives the migration (project convention
-> elsewhere is coloured text, no badge). Flag to product before implementing.
->
-> Target-state cases: `TC-LX-NHANLENH-014` … `-020` in
-> [`../flows/03-laixe-nhan-lenh.md`](../flows/03-laixe-nhan-lenh.md) §3.7.
-
-7. **DRV-LIST-07 — Sub-tabs match the spec set** *(target state)*
-   - **Then** the `Hành trình` screen shows exactly three sub-tabs in order:
-     `Lệnh mới` | `Đã nhận` | `Lịch sử`, and the bottom navigation keeps
-     its **existing 4 tabs** (no tab added or removed in this phase).
-   - **Case**: `TC-LX-NHANLENH-014`.
-
-8. **DRV-LIST-08 — Layer-1 card anatomy** *(target state)*
-   - **Then** each container renders as its own card carrying, in order:
-     the `ĐƠN`/`KẸP`/`KẾT HỢP` tag plus `Giờ đóng / trả`; `Nhà máy`
-     left-aligned with `Cảng nâng` right-aligned; `Tuyến đường` left with
-     `Cảng hạ` right; `Cont: [Số Cont] - [Loại cont]`; and the footer
-     `Xem chi tiết & Nhận lệnh`.
-   - **Case**: `TC-LX-NHANLENH-015`.
-
-9. **DRV-LIST-09 — Paired shipments render as an adjacent combo**
+7. **DRV-LIST-07 — Paired shipments render as an adjacent combo**
    - **Given** two shipments sharing a pair (`KẸP` or `KẾT HỢP`)
    - **Then** their two cards render **adjacent as one visual combo**,
      never split across the list, each carrying the shared tag.
@@ -143,12 +118,44 @@ to the driver's plate.
      completes delivery; for `KẸP`, both run in parallel with no lock.
    - **Cases**: `TC-LX-NHANLENH-011`, `-012`, `TC-GHEP-009` … `-011`.
 
+> ### 🔧 Migration gap — list screen not yet rebuilt to spec
+>
+> **Decision 2026-09-07: the docx is authoritative — one card per container.**
+> `DRV-LIST-02` and `DRV-LIST-03` above are written to
+> `2026.8.27_Man_hinh_lai_xe.docx` / [`ManHinhLaiXe.md`](../../docs/prd/ManHinhLaiXe.md)
+> §1–§2.1 and are the **binding** criteria.
+>
+> What is currently built in `DriverTripsPage.tsx` still differs and must be migrated.
+> Until it is, `DRV-LIST-02` / `-03` are expected to **FAIL** (not BLOCKED) — that
+> failure is the tracked work item, not a test defect:
+>
+> | Item | Currently built | Required (binding) |
+> |------|-----------------|--------------------|
+> | Sub-tabs | `Hôm nay` / `Đang chạy` / `Lịch sử` | `Lệnh mới` / `Đã nhận` / `Lịch sử` |
+> | Card unit | 1 card per **trip** | **1 card per container** |
+> | Header | `Mã chuyến` (monospace) | `[Tag: ĐƠN/KẸP/KẾT HỢP]` + `Giờ đóng / trả` |
+> | Body | `Khách hàng`, `Tuyến`, `Tài xế` + `🚚 {Biển số}` subtext | `Nhà máy`↔`Cảng nâng`, `Tuyến đường`↔`Cảng hạ`, `Cont: [Số] - [Loại]` |
+> | Footer | status pill (`TRIP_STATUS_COLORS`) | `Xem chi tiết & Nhận lệnh`, **no pill** |
+>
+> Superseded criteria — kept only so the earlier behaviour is traceable, **not** for
+> acceptance: the old `DRV-LIST-02` (Hôm nay/Đang chạy/Lịch sử tabs) and the old
+> `DRV-LIST-03` (per-trip card with plate subtext per `0fcedcde` and status pill per
+> `TRIP_STATUS_COLORS`, `shared/src/constants/index.ts`).
+>
+> The 48 px tap-target floor (`DRV-LIST-04`, `c9012bd0`) and the full-bleed rule
+> (`DRV-LIST-01`, `0fcedcde`) **survive the migration unchanged** and still apply to
+> the new card.
+
 ### Test steps
 
 1. Log in as `laixe` on a 390 × 844 mobile viewport (Chrome dev-tools
    device emulation or a real iPhone via PWA install).
-2. Walk through the three tabs; capture each.
-3. Tap a trip card → confirm the trip detail screen opens.
+2. Walk through the three sub-tabs (`Lệnh mới` / `Đã nhận` / `Lịch sử`);
+   capture each.
+3. Count cards vs. containers on a multi-container shipment — they must
+   match 1:1 (`DRV-LIST-03`).
+4. Tap a card → confirm the full-screen detail opens with all 7 blocks
+   (`DRV-DET-09`).
 
 ### Regression hooks
 
@@ -623,6 +630,12 @@ not an edge case.
 
 ## Known open items (carry-over from past rounds)
 
+- **List screen not yet on spec (opened 2026-09-07)**: product confirmed the
+  docx is authoritative — **one card per container**, sub-tabs
+  `Lệnh mới` / `Đã nhận` / `Lịch sử`. `DriverTripsPage.tsx` still renders one
+  card per trip with the old tab set, so `DRV-LIST-02` / `DRV-LIST-03` FAIL
+  until the migration lands. Details and the field-by-field diff are in the
+  *Migration gap* block under Flow 1.
 - **Cost form regression-r6 finding 1**: confirmed 0 cost-form strings
   in the deployed `DriverTripDetailPage` chunk and 0 matches in the
   live DOM. ACs DRV-DET-01 and DRV-2X-02 lock this in.
