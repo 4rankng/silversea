@@ -440,3 +440,101 @@
     white-space: normal;
   }
 }
+
+/* ─── Note composer (Ghi chú tác vụ) ─────────────────────────────────────── */
+
+.dispatch-assignment-dialog__notes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.dispatch-assignment-dialog__notes-label {
+  font-size: var(--ops-table-supporting-size, 12px);
+  font-weight: 500;
+  color: var(--text-secondary, #475467);
+}
+
+.dispatch-assignment-dialog__notes-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.dispatch-assignment-dialog__notes-tag {
+  appearance: none;
+  border: 1px solid var(--border, #d0d5dd);
+  background: var(--surface, #fff);
+  color: var(--text-primary, #101828);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: var(--ops-table-supporting-size, 12px);
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.dispatch-assignment-dialog__notes-tag:hover:not(:disabled) {
+  border-color: var(--accent, #005a2d);
+  color: var(--accent, #005a2d);
+}
+
+.dispatch-assignment-dialog__notes-tag.is-selected {
+  background: var(--accent, #005a2d);
+  border-color: var(--accent, #005a2d);
+  color: #fff;
+}
+
+.dispatch-assignment-dialog__notes-tag--add {
+  border-style: dashed;
+  color: var(--text-secondary, #475467);
+}
+
+.dispatch-assignment-dialog__notes-add-row {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.dispatch-assignment-dialog__notes-add-row input {
+  border: 1px solid var(--border, #d0d5dd);
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-size: var(--ops-table-supporting-size, 12px);
+  width: 160px;
+}
+
+.dispatch-assignment-dialog__notes-add-row button {
+  appearance: none;
+  border: 1px solid var(--accent, #005a2d);
+  background: var(--accent, #005a2d);
+  color: #fff;
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-size: var(--ops-table-supporting-size, 12px);
+  cursor: pointer;
+}
+
+.dispatch-assignment-dialog__notes-text {
+  border: 1px solid var(--border, #d0d5dd);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: var(--ops-table-supporting-size, 12px);
+  min-height: 56px;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.dispatch-assignment-dialog__notes-text:focus,
+.dispatch-assignment-dialog__notes-add-row input:focus {
+  outline: 2px solid var(--accent, #005a2d);
+  outline-offset: 1px;
+}
+
+.dispatch-assignment-dialog__notes-preview {
+  margin: 0;
+  font-size: var(--ops-table-meta-size, 11px);
+  color: var(--text-secondary, #475467);
+  word-break: break-word;
+}

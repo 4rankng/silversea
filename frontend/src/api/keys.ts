@@ -161,6 +161,13 @@ export const qk = {
     tripDetail: (id: number) => ['trip-detail', String(id)] as const,
   },
 
+  /* ── Dispatch task tags (note-composer pool) ────────────────────────── */
+
+  dispatchTaskTags: {
+    /** Flat tag pool for the dispatch edit modal's chip row. */
+    all: ['dispatch-task-tags'] as const,
+  },
+
   /* ── Driver portal ──────────────────────────────────────────────────── */
 
   driver: {

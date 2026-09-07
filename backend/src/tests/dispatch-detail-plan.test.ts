@@ -1907,3 +1907,212 @@ describe('driver notification timing (xếp xe stays silent, issuance notifies)'
     assert.equal(detail.status, 200, JSON.stringify(detail.data));
   });
 });
+
+describe('dispatch task tags and driver-note plan save', () => {
+  const tagFetch = async <T>(method: string, body?: unknown) => apiFetch<T>('/dispatch-task-tags', {
+    method,
+    token: dispatcherToken,
+    ...(body !== undefined ? { body } : {}),
+  });
+
+  // Local copy of the atomic-save describe's helper (it is describe-scoped).
+  const fetchShipmentAndFulfillment = async (fulfillmentId: number) => {
+    const [fulfillment] = await db.select().from(s.shipmentFulfillments)
+      .where(eq(s.shipmentFulfillments.id, fulfillmentId));
+    const [shipment] = await db.select().from(s.shipments)
+      .where(eq(s.shipments.id, fulfillment.shipmentId));
+    return { shipment, fulfillment };
+  };
+
+  test('GET lists the migration-seeded pool', async () => {
+    const response = await tagFetch<{ items: Array<{ id: number; label: string }> }>('GET');
+    assert.equal(response.status, 200);
+    const labels = response.data.items.map((item) => item.label);
+    for (const seed of ['Đặt đầu', 'Đặt đuôi', 'Đảo vỏ', 'Gửi bãi', 'Lấy vỏ ICD đi đóng', 'Di động']) {
+      assert.ok(labels.includes(seed), `seed tag ${seed} missing from pool`);
+    }
+  });
+
+  test('POST creates a tag and duplicate (case/diacritics-insensitive) yields 409', async () => {
+    const label = `Chạy đêm ${suffix}`;
+    const created = await tagFetch<{ id: number; label: string }>('POST', { label });
+    assert.equal(created.status, 201, JSON.stringify(created.data));
+    assert.equal(created.data.label, label);
+
+    const duplicate = await tagFetch<{ message: string }>('POST', { label: `  ${label.toUpperCase()}  ` });
+    assert.equal(duplicate.status, 409);
+
+    const list = await tagFetch<{ items: Array<{ id: number; label: string }> }>('GET');
+    assert.equal(list.data.items.filter((item) => item.label === label).length, 1);
+    // Cleanup this test's row (seed rows stay).
+    await db.delete(s.dispatchTaskTags).where(eq(s.dispatchTaskTags.label, label));
+  });
+
+  test('POST validation: empty label 400, over-80 label 400, semicolon 400, DRIVER 403', async () => {
+    const empty = await tagFetch<{ message: string }>('POST', { label: '   ' });
+    assert.equal(empty.status, 400);
+    const tooLong = await tagFetch<{ message: string }>('POST', { label: 'x'.repeat(81) });
+    assert.equal(tooLong.status, 400);
+    // ';' is the note-composer separator — a label containing it would never
+    // re-parse as a chip and would duplicate on re-toggle.
+    const semicolon = await tagFetch<{ message: string }>('POST', { label: 'Đón; trả' });
+    assert.equal(semicolon.status, 400);
+    const driverAttempt = await apiFetch<{ message: string }>('/dispatch-task-tags', {
+      method: 'POST',
+      token: driverToken,
+      body: { label: 'Không được' },
+    });
+    assert.equal(driverAttempt.status, 403);
+  });
+
+  type NotePlanResponse = {
+    fulfillmentVersion: number;
+    shipmentVersion: number;
+    isCombined: boolean;
+    operationalNotes: string | null;
+  };
+
+  test('note rides the atomic save and persists to shipments.operational_notes', async () => {
+    const { shipment, fulfillmentIds } = await createAllocatedLot({ carrierType: 'OWN' });
+    const { shipment: freshShipment, fulfillment } = await fetchShipmentAndFulfillment(fulfillmentIds[0]!);
+    const note = 'Đặt đầu; Lấy vỏ ICD đi đóng; gọi lái trước 30p';
+
+    const response = await apiFetch<NotePlanResponse>(`/dispatch-detail-plan-rows/${fulfillment.id}/plan`, {
+      method: 'PATCH',
+      token: dispatcherToken,
+      body: {
+        expectedFulfillmentVersion: fulfillment.version,
+        expectedShipmentVersion: freshShipment.version,
+        carrierType: 'OWN',
+        plannedRevenue: 1_500_000,
+        plannedCarrierCost: 1_000_000,
+        classification: 'SINGLE',
+        isCombined: freshShipment.isCombined,
+        operationalNotes: note,
+      },
+    });
+    assert.equal(response.status, 200, JSON.stringify(response.data));
+    assert.equal(response.data.operationalNotes, note);
+    assert.equal(response.data.shipmentVersion, freshShipment.version + 1);
+    const { shipment: after } = await fetchShipmentAndFulfillment(fulfillment.id);
+    assert.equal(after.operationalNotes, note);
+  });
+
+  test('unchanged note → shipment version NOT bumped; omitted note → stored note untouched', async () => {
+    const { shipment, fulfillmentIds } = await createAllocatedLot({ carrierType: 'OWN' });
+    const { shipment: freshShipment, fulfillment } = await fetchShipmentAndFulfillment(fulfillmentIds[0]!);
+
+    const first = await apiFetch<NotePlanResponse>(`/dispatch-detail-plan-rows/${fulfillment.id}/plan`, {
+      method: 'PATCH',
+      token: dispatcherToken,
+      body: {
+        expectedFulfillmentVersion: fulfillment.version,
+        expectedShipmentVersion: freshShipment.version,
+        carrierType: 'OWN',
+        plannedRevenue: 0,
+        plannedCarrierCost: 0,
+        classification: 'SINGLE',
+        isCombined: freshShipment.isCombined,
+        operationalNotes: 'Đặt đuôi',
+      },
+    });
+    assert.equal(first.status, 200);
+    assert.equal(first.data.shipmentVersion, freshShipment.version + 1);
+
+    // Same note again → no shipment bump (fulfillment still bumps).
+    const second = await apiFetch<NotePlanResponse>(`/dispatch-detail-plan-rows/${fulfillment.id}/plan`, {
+      method: 'PATCH',
+      token: dispatcherToken,
+      body: {
+        expectedFulfillmentVersion: first.data.fulfillmentVersion,
+        expectedShipmentVersion: first.data.shipmentVersion,
+        carrierType: 'OWN',
+        plannedRevenue: 0,
+        plannedCarrierCost: 0,
+        classification: 'SINGLE',
+        isCombined: freshShipment.isCombined,
+        operationalNotes: 'Đặt đuôi',
+      },
+    });
+    assert.equal(second.status, 200, JSON.stringify(second.data));
+    assert.equal(second.data.shipmentVersion, first.data.shipmentVersion);
+
+    // Omitted note → stored note untouched, still no shipment bump.
+    const third = await apiFetch<NotePlanResponse>(`/dispatch-detail-plan-rows/${fulfillment.id}/plan`, {
+      method: 'PATCH',
+      token: dispatcherToken,
+      body: {
+        expectedFulfillmentVersion: second.data.fulfillmentVersion,
+        expectedShipmentVersion: second.data.shipmentVersion,
+        carrierType: 'OWN',
+        plannedRevenue: 0,
+        plannedCarrierCost: 0,
+        classification: 'SINGLE',
+        isCombined: freshShipment.isCombined,
+      },
+    });
+    assert.equal(third.status, 200);
+    assert.equal(third.data.shipmentVersion, second.data.shipmentVersion);
+    const { shipment: after } = await fetchShipmentAndFulfillment(fulfillment.id);
+    assert.equal(after.operationalNotes, 'Đặt đuôi');
+  });
+
+  test('empty note clears (null ≡ ""), and >4000 chars is rejected', async () => {
+    const { fulfillmentIds } = await createAllocatedLot({ carrierType: 'OWN' });
+    const { shipment: freshShipment, fulfillment } = await fetchShipmentAndFulfillment(fulfillmentIds[0]!);
+
+    const base = {
+      expectedShipmentVersion: freshShipment.version,
+      carrierType: 'OWN' as const,
+      plannedRevenue: 0,
+      plannedCarrierCost: 0,
+      classification: 'SINGLE' as const,
+      isCombined: freshShipment.isCombined,
+    };
+
+    // The fixture stores a default note; sending '' clears it → one bump.
+    const clearFixture = await apiFetch<NotePlanResponse>(`/dispatch-detail-plan-rows/${fulfillment.id}/plan`, {
+      method: 'PATCH',
+      token: dispatcherToken,
+      body: { ...base, expectedFulfillmentVersion: fulfillment.version, operationalNotes: '' },
+    });
+    assert.equal(clearFixture.status, 200);
+    assert.equal(clearFixture.data.shipmentVersion, freshShipment.version + 1);
+    assert.equal(clearFixture.data.operationalNotes, '');
+
+    // Sending '' again is the null ≡ '' no-op: no version bump.
+    const noOp = await apiFetch<NotePlanResponse>(`/dispatch-detail-plan-rows/${fulfillment.id}/plan`, {
+      method: 'PATCH',
+      token: dispatcherToken,
+      body: { ...base, expectedFulfillmentVersion: clearFixture.data.fulfillmentVersion, expectedShipmentVersion: clearFixture.data.shipmentVersion, operationalNotes: '' },
+    });
+    assert.equal(noOp.status, 200);
+    assert.equal(noOp.data.shipmentVersion, clearFixture.data.shipmentVersion);
+    assert.equal(noOp.data.operationalNotes, '');
+
+    // Set a note, then clear it → bump + stored NULL.
+    const setNote = await apiFetch<NotePlanResponse>(`/dispatch-detail-plan-rows/${fulfillment.id}/plan`, {
+      method: 'PATCH',
+      token: dispatcherToken,
+      body: { ...base, expectedFulfillmentVersion: noOp.data.fulfillmentVersion, expectedShipmentVersion: noOp.data.shipmentVersion, operationalNotes: 'Gửi bãi' },
+    });
+    assert.equal(setNote.status, 200);
+
+    const clearNote = await apiFetch<NotePlanResponse>(`/dispatch-detail-plan-rows/${fulfillment.id}/plan`, {
+      method: 'PATCH',
+      token: dispatcherToken,
+      body: { ...base, expectedFulfillmentVersion: setNote.data.fulfillmentVersion, expectedShipmentVersion: setNote.data.shipmentVersion, operationalNotes: '' },
+    });
+    assert.equal(clearNote.status, 200);
+    assert.equal(clearNote.data.shipmentVersion, setNote.data.shipmentVersion + 1);
+    const { shipment: cleared } = await fetchShipmentAndFulfillment(fulfillment.id);
+    assert.equal(cleared.operationalNotes, '');
+
+    const tooLong = await apiFetch<{ message: string }>(`/dispatch-detail-plan-rows/${fulfillment.id}/plan`, {
+      method: 'PATCH',
+      token: dispatcherToken,
+      body: { ...base, expectedFulfillmentVersion: clearNote.data.fulfillmentVersion, expectedShipmentVersion: clearNote.data.shipmentVersion, operationalNotes: 'x'.repeat(4001) },
+    });
+    assert.equal(tooLong.status, 400);
+  });
+});

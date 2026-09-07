@@ -10,7 +10,6 @@ import type {
   Driver as DriverType,
 } from '@tingting/shared';
 import { useSalaryPeriod } from './useCatalogQueries';
-import { useAppSettings } from './useAppSettings';
 
 export interface NormalizedTrip {
   id: number;

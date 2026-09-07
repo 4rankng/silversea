@@ -49,6 +49,7 @@ Mới tạo (NEW) → Đã phân xe (DISPATCHED) → Đang chạy (IN_TRANSIT) �
 | 7 | **RBAC & Phân quyền** | Tất cả 8 vai trò | — | `07-rbac-phan-quyen.md` |
 | 8 | **Cổng Khách hàng** | Khách hàng (CUSTOMER) | — | `08-customer-portal.md` |
 | 9 | **Ghép chuyến Kẹp & Kết hợp** | Điều vận (DISPATCHER) | Lái xe, Kế toán | `09-kep-kethop-ghep-chuyen.md` |
+| 10 | **E2E & Edge Cases** | CUS, Điều vận, Admin | Tất cả | `10-e2e-regression.md` |
 
 > **Lịch sử slot Luồng 5.** Slot này từng là "Chi phí phát sinh (Ops)" gắn trạng thái
 > `PENDING_EXPENSE_APPROVAL` + tự cấn trừ tạm ứng; toàn bộ cơ chế đó **đã dừng và xoá**

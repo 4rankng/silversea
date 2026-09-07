@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useQuery } from '@tanstack/react-query';
 import { fetchPlaceSuggestions, PlaceSuggestion } from '../lib/maps';
 import { useClickOutside } from '../hooks/useClickOutside';
+import { useSearchableSelectPosition } from '../design-system/forms/useSearchableSelectPosition';
 import { configClient } from '../api/configClient';
 import { qk } from '../api/keys';
 import type { Port } from '@tingting/shared';
@@ -19,7 +21,7 @@ interface MergedSuggestion {
   key: string;
   description: string;
   source: 'port' | 'place';
-  hint?: string;          // shown under description (e.g. port code, city)
+  hint?: string;
 }
 
 export function LocationAutocomplete({
@@ -32,9 +34,11 @@ export function LocationAutocomplete({
 }: LocationAutocompleteProps) {
   const [placeSuggestions, setPlaceSuggestions] = useState<PlaceSuggestion[]>([]);
   const [isOpen, setIsOpen] = useState(false);
-  const [, setLoading] = useState(false);
   const [sessionToken, setSessionToken] = useState(() => Math.random().toString(36).substring(2, 15));
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+  const portaledRefs = useMemo(() => [listRef], []);
   const skipNextOpenRef = useRef(false);
   const closeDropdown = useCallback(() => setIsOpen(false), []);
 
@@ -44,7 +48,14 @@ export function LocationAutocomplete({
     setSessionToken(Math.random().toString(36).substring(2, 15));
   }, []);
 
-  useClickOutside(wrapperRef, closeDropdown, { escapeKey: true });
+  // Positioning/portal/flip/scroll handling is delegated to the shared
+  // searchable-select hook (the dropdown-flip sweep): the suggestion list
+  // renders through a portal into <body> and flips above the trigger when
+  // there is no room below, so it can never cover buttons below the fold.
+  // (Declared after allSuggestions below; the hook needs its length to
+  // re-measure when the list grows or shrinks.)
+
+  useClickOutside(wrapperRef, closeDropdown, { escapeKey: true, additionalRefs: portaledRefs });
 
   // Cached location suggestions; fires once per session for all autocomplete inputs.
   const { data: ports = [] } = useQuery<Port[]>({
@@ -60,12 +71,8 @@ export function LocationAutocomplete({
   // Behaviour:
   //   • Empty query → show top 8 ports (browse the whole catalog)
   //   • Query that matches at least 1 port → show matching ports (up to 6)
-  //   • Query that matches no port → show nothing. The earlier code fell back
-  //     to the top 8 catalog here, but that meant typing "Ha Noi" would keep
-  //     showing the 8 Hải Phòng ports and never reach Google Places — see
-  //     the bug report at /trips/new. Google Places results come in via the
-  //     debounced fetch below; the user can also clear the field to browse
-  //     the full port catalog.
+  //   • Query that matches no port → show nothing; Google Places results
+  //     arrive via the debounced fetch below.
   const portMatches = useMemo<MergedSuggestion[]>(() => {
     const q = value.trim().toLowerCase();
     const allAsSuggestions = (rows: Port[]) => rows.map((p) => ({
@@ -89,14 +96,12 @@ export function LocationAutocomplete({
   useEffect(() => {
     const timer = setTimeout(async () => {
       if (value.trim().length >= 3) {
-        setLoading(true);
         const results = await fetchPlaceSuggestions(value, sessionToken);
         if (results.length > 0 && !(results.length === 1 && results[0].description === value)) {
           setPlaceSuggestions(results);
         } else {
           setPlaceSuggestions([]);
         }
-        setLoading(false);
       } else {
         setPlaceSuggestions([]);
       }
@@ -130,6 +135,15 @@ export function LocationAutocomplete({
     return out;
   }, [portMatches, placeSuggestions]);
 
+  useSearchableSelectPosition({
+    isOpen,
+    isMobile: false,
+    triggerRef: inputRef,
+    popoverRef: listRef,
+    onClose: closeDropdown,
+    dependencies: [allSuggestions.length],
+  });
+
   // Open/close the dropdown whenever the merged list changes and we have focus.
   // skipNextOpenRef is set by handleSelect to prevent the dropdown from
   // reopening when onChange causes portMatches to recompute with the new value.
@@ -140,7 +154,7 @@ export function LocationAutocomplete({
       return;
     }
     setIsOpen(allSuggestions.length > 0);
-  }, [allSuggestions, isFocused]);
+  }, [allSuggestions.length, isFocused]);
 
   const handleSelect = (suggestion: MergedSuggestion) => {
     skipNextOpenRef.current = true;
@@ -153,6 +167,7 @@ export function LocationAutocomplete({
   return (
     <div ref={wrapperRef} style={{ position: 'relative', width: '100%' }}>
       <input
+        ref={inputRef}
         className={className}
         style={style}
         placeholder={placeholder}
@@ -171,78 +186,62 @@ export function LocationAutocomplete({
         autoComplete="off"
       />
 
-      {isOpen && allSuggestions.length > 0 && (
-        <ul
-          style={{
-            position: 'absolute',
-            top: '100%',
-            left: 0,
-            right: 0,
-            marginTop: 4,
-            padding: 0,
-            margin: '4px 0 0 0',
-            listStyle: 'none',
-            background: 'var(--bg-1, #fff)',
-            border: '1px solid var(--border-2, var(--line))',
-            borderRadius: 'var(--app-radius-md, 10px)',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-            zIndex: 100,
-            maxHeight: 240,
-            overflowY: 'auto',
-          }}
-        >
-          {allSuggestions.map((s) => (
-            <li
-              key={s.key}
-              onClick={() => handleSelect(s)}
-              style={{
-                padding: '8px 12px',
-                cursor: 'pointer',
-                fontSize: 13,
-                borderBottom: '1px solid var(--border-1, var(--line))',
-                color: 'var(--fg-1, var(--ink))',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 8,
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLLIElement).style.background = 'var(--bg-2, var(--surface-2))';
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLLIElement).style.background = 'transparent';
-              }}
-            >
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {s.description}
-                </div>
-                {s.hint && (
-                  <div style={{ fontSize: 12, lineHeight: 1.35, color: 'var(--fg-3, var(--ink-3))', marginTop: 1 }}>
-                    {s.hint}
+      {isOpen && allSuggestions.length > 0 && typeof document !== 'undefined'
+        ? createPortal(
+          <ul
+            ref={listRef}
+            className="searchable-select__popover location-autocomplete__list"
+            style={{ maxHeight: 'var(--searchable-select-popover-max-height, 240px)', overflowY: 'auto' }}
+          >
+            {allSuggestions.map((s) => (
+              <li
+                key={s.key}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => handleSelect(s)}
+                style={{
+                  padding: '8px 12px',
+                  cursor: 'pointer',
+                  fontSize: 13,
+                  borderBottom: '1px solid var(--border-1, var(--line))',
+                  color: 'var(--fg-1, var(--ink))',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 8,
+                }}
+              >
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {s.description}
                   </div>
+                  {s.hint && (
+                    <div style={{ fontSize: 12, lineHeight: 1.35, color: 'var(--fg-3, var(--ink-3))', marginTop: 1 }}>
+                      {s.hint}
+                    </div>
+                  )}
+                </div>
+                {s.source === 'port' && (
+                  <span
+                    style={{
+                      fontSize: 12,
+                      padding: '2px 6px',
+                      borderRadius: 999,
+                      background: 'rgba(16,185,129,0.15)',
+                      color: '#059669',
+                      fontWeight: 700,
+                      letterSpacing: 0.3,
+                      flexShrink: 0,
+                    }}
+                  >
+                    CẢNG/BÃI
+                  </span>
                 )}
-              </div>
-              {s.source === 'port' && (
-                <span
-                  style={{
-                    fontSize: 12,
-                    padding: '2px 6px',
-                    borderRadius: 999,
-                    background: 'rgba(16,185,129,0.15)',
-                    color: '#059669',
-                    fontWeight: 700,
-                    letterSpacing: 0.3,
-                    flexShrink: 0,
-                  }}
-                >
-                  CẢNG/BÃI
-                </span>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
+              </li>
+            ))}
+          </ul>,
+          document.body,
+        )
+        : null}
     </div>
   );
 }

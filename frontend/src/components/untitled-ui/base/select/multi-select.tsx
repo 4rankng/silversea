@@ -248,7 +248,7 @@ const MultiSelectRoot = ({
                     <AriaPopover
                         placement="bottom"
                         offset={4}
-                        containerPadding={0}
+                        containerPadding={16}
                         style={{ width: popoverWidth || undefined }}
                         className={(state) =>
                             cx(

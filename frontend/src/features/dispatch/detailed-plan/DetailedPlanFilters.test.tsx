@@ -34,10 +34,12 @@ function getPicker(label: string) {
 }
 
 async function pickCheckbox(label: string, facetName: string) {
+  // The migrated picker renders options as toggle buttons (role=option)
+  // instead of checkbox inputs.
   const popover = getPopover(label);
-  const checkbox = within(popover).getByRole('checkbox', { name: facetName });
-  fireEvent.click(checkbox);
-  return checkbox;
+  const option = within(popover).getByRole('option', { name: facetName });
+  fireEvent.click(option);
+  return option;
 }
 
 describe('DetailedPlanFilters', () => {
@@ -112,20 +114,20 @@ describe('DetailedPlanFilters', () => {
     expect(onChange).toHaveBeenCalledWith({ q: 'BILL-001' });
 
     openFacet('điểm trả');
-    await waitFor(() => expect(within(getPopover('điểm trả')).getByRole('checkbox', { name: 'KCN Vân Trung' })).toBeTruthy());
+    await waitFor(() => expect(within(getPopover('điểm trả')).getByRole('option', { name: 'KCN Vân Trung' })).toBeTruthy());
     await pickCheckbox('điểm trả', 'KCN Vân Trung');
     expect(onChange).toHaveBeenCalledWith({ deliveryPointIds: [42] });
     // Popover stays open after selection — selections live inside the dropdown.
     expect(getPopover('điểm trả')).toBeTruthy();
 
     openFacet('điểm nâng');
-    await waitFor(() => expect(within(getPopover('điểm nâng')).getByRole('checkbox', { name: 'Cảng Hải Phòng' })).toBeTruthy());
+    await waitFor(() => expect(within(getPopover('điểm nâng')).getByRole('option', { name: 'Cảng Hải Phòng' })).toBeTruthy());
     await pickCheckbox('điểm nâng', 'Cảng Hải Phòng');
     expect(onChange).toHaveBeenCalledWith({ pickupIds: [7] });
     expect(getPopover('điểm nâng')).toBeTruthy();
 
     openFacet('điểm hạ');
-    await waitFor(() => expect(within(getPopover('điểm hạ')).getByRole('checkbox', { name: 'ICD Mỹ Đình' })).toBeTruthy());
+    await waitFor(() => expect(within(getPopover('điểm hạ')).getByRole('option', { name: 'ICD Mỹ Đình' })).toBeTruthy());
     await pickCheckbox('điểm hạ', 'ICD Mỹ Đình');
     expect(onChange).toHaveBeenCalledWith({ dropoffIds: [9] });
     expect(getPopover('điểm hạ')).toBeTruthy();
@@ -145,7 +147,7 @@ describe('DetailedPlanFilters', () => {
 
     openFilterDrawer();
     openFacet('điểm trả');
-    await waitFor(() => expect(within(getPopover('điểm trả')).getByRole('checkbox', { name: 'KCN Vân Trung' })).toBeTruthy());
+    await waitFor(() => expect(within(getPopover('điểm trả')).getByRole('option', { name: 'KCN Vân Trung' })).toBeTruthy());
     await pickCheckbox('điểm trả', 'KCN Vân Trung');
     // Multi-select popover must stay open after a click — selections live inside.
     expect(getPopover('điểm trả')).toBeTruthy();
@@ -168,7 +170,7 @@ describe('DetailedPlanFilters', () => {
 
     openFilterDrawer();
     const trigger = openFacet('điểm trả');
-    await waitFor(() => expect(within(getPopover('điểm trả')).getByRole('checkbox', { name: 'KCN Vân Trung' })).toBeTruthy());
+    await waitFor(() => expect(within(getPopover('điểm trả')).getByRole('option', { name: 'KCN Vân Trung' })).toBeTruthy());
     fireEvent.keyDown(document, { key: 'Escape' });
     await waitFor(() => expect(screen.queryByRole('listbox', { name: /Danh sách điểm trả/i })).toBeNull());
     await waitFor(() => expect(trigger.getAttribute('aria-expanded')).toBe('false'));
@@ -195,12 +197,12 @@ describe('DetailedPlanFilters', () => {
     openFacet('điểm trả');
     const popover = getPopover('điểm trả');
     const picker = getPicker('điểm trả');
-    await waitFor(() => expect(within(popover).getByRole('checkbox', { name: 'Cảng Hải Phòng' })).toBeTruthy());
-    const search = within(picker).getByLabelText('Tìm điểm trả');
+    await waitFor(() => expect(within(popover).getByRole('option', { name: 'Cảng Hải Phòng' })).toBeTruthy());
+    const search = within(picker).getByLabelText(/Tìm điểm trả/);
     fireEvent.change(search, { target: { value: 'Mỹ' } });
     await waitFor(() => expect(loadDeliveryPointFacets).toHaveBeenCalledWith('Mỹ'));
     resolveNarrowSearch?.([{ id: 9, name: 'ICD Mỹ Đình' }]);
-    await waitFor(() => expect(within(popover).getByRole('checkbox', { name: 'ICD Mỹ Đình' })).toBeTruthy());
+    await waitFor(() => expect(within(popover).getByRole('option', { name: 'ICD Mỹ Đình' })).toBeTruthy());
 
     await pickCheckbox('điểm trả', 'ICD Mỹ Đình');
     expect(onChange).toHaveBeenCalledWith({ deliveryPointIds: [9] });
@@ -220,7 +222,7 @@ describe('DetailedPlanFilters', () => {
 
     openFilterDrawer();
     openFacet('điểm trả');
-    await waitFor(() => expect(screen.getByRole('status').textContent).toBe('Không tìm thấy điểm phù hợp.'));
+    await screen.findByText('Không tìm thấy điểm phù hợp.');
   });
 
   it('keeps structured filters out of the results layout in a dedicated drawer', () => {

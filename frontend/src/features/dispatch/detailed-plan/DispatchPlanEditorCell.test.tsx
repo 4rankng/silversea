@@ -15,6 +15,24 @@ import { listDispatchFleetResources } from '../../../api/dispatchPlanningClient'
 import type { DispatchShipmentRequest, DispatchShipmentResponse } from '../../../api/shipmentClient';
 import { DispatchPlanEditorCell, type AtomicPlanSaveResult } from './DispatchPlanEditorCell';
 
+// The note composer pulls the tag pool through react-query; pin it so the
+// modal tests stay provider-free and deterministic.
+vi.mock('./useDispatchTaskTags', () => ({
+  useDispatchTaskTags: () => ({
+    tags: [
+      { id: 1, label: 'Đặt đầu' },
+      { id: 2, label: 'Đặt đuôi' },
+      { id: 3, label: 'Lấy vỏ ICD đi đóng' },
+    ],
+    isLoading: false,
+    error: null,
+  }),
+  useCreateDispatchTaskTag: () => ({
+    createTag: vi.fn(async (label: string) => ({ id: 99, label })),
+    isCreating: false,
+  }),
+}));
+
 const listResourcesMock = vi.mocked(listDispatchFleetResources);
 
 const PAIRED_TRUCK = {
@@ -99,6 +117,7 @@ function renderCell(
     shipmentVersion: 6,
     classification: 'SINGLE',
     isCombined: false,
+    operationalNotes: null,
     dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '15H-052.82' },
     estimates: { plannedRevenue: null, plannedCarrierCost: null },
     lotFullyPlated: false,
@@ -133,6 +152,31 @@ function setIssueTimes(start: string, end: string) {
   fireEvent.change(document.getElementById('dispatch-issue-start-101')!, { target: { value: start } });
   fireEvent.change(document.getElementById('dispatch-issue-end-101')!, { target: { value: end } });
 }
+
+describe('DispatchPlanEditorCell — driver note composer', () => {
+  it('composes chips + manual text into the atomic save body and re-anchors', async () => {
+    const onAtomicSave = vi.fn().mockResolvedValue({
+      fulfillmentVersion: 4,
+      shipmentVersion: 6,
+      classification: 'SINGLE',
+      isCombined: false,
+      operationalNotes: 'Đặt đầu; gọi lái trước 30p',
+      dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '15H-052.82' },
+      estimates: { plannedRevenue: null, plannedCarrierCost: null },
+      lotFullyPlated: false,
+    });
+    mockFleetResources();
+    renderCell(row({ notes: { vehicleNote: null, customerNote: null } }), { onAtomicSave });
+    await openDialog();
+    fireEvent.click(screen.getByRole('button', { name: 'Đặt đầu' }));
+    fireEvent.change(screen.getByLabelText('Ghi chú thêm (đi kèm các tag đã chọn)'), { target: { value: 'gọi lái trước 30p' } });
+    fireEvent.click(screen.getByRole('button', { name: /Lưu thay đổi/ }));
+    await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));
+    expect(onAtomicSave.mock.calls[0]![1]).toMatchObject({ operationalNotes: 'Đặt đầu; gọi lái trước 30p' });
+    // Re-anchor: the draft now mirrors the stored note.
+    await waitFor(() => expect(screen.getByText('Hiển thị: Đặt đầu; gọi lái trước 30p')).toBeTruthy());
+  });
+});
 
 describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
   beforeEach(() => {

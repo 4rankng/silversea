@@ -1125,6 +1125,10 @@ export const atomicDispatchPlanEditSchema = z.object({
   plannedCarrierCost: z.number().int().nonnegative().nullable(),
   classification: dispatchClassificationSchema,
   isCombined: z.boolean(),
+  /** Driver-facing note (shipments.operational_notes). Optional: an editor
+   *  save that touches only plan fields omits it and the stored note stays
+   *  untouched. '' clears the note; null ≡ '' for change detection. */
+  operationalNotes: z.string().max(4000).nullish(),
 }).strict().superRefine((value, ctx) => {
   if (value.carrierType === 'OWN' && value.externalCarrierId != null) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['externalCarrierId'], message: 'Xe nội bộ không dùng mã nhà xe ngoài.' });

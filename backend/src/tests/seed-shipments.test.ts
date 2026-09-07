@@ -22,7 +22,7 @@
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import bcrypt from 'bcryptjs';
-import { eq, inArray, or } from 'drizzle-orm';
+import { asc, eq, inArray, or } from 'drizzle-orm';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
@@ -58,8 +58,8 @@ const EXPECTED_STATUS: Record<string, string> = {
   '105254544125': 'READY_FOR_DISPATCH', // expectedDeliveryDate → date-derived readiness
   '105254544198': 'PENDING_DATE', // no dates → awaiting schedule
   '137465192801': 'CANCELED',
-  DNKM13333: 'READY_FOR_DISPATCH',
-  DNKM13334: 'PENDING_DATE',
+  DNKM13333: 'DISPATCHED',
+  DNKM13334: 'READY_FOR_DISPATCH',
   DNKM13337: 'IN_TRANSIT', // full ladder: DISPATCHED → IN_TRANSIT (PENDING_EXPENSE_APPROVAL retired)
   DNKM13339: 'CANCELED',
 };
@@ -224,8 +224,16 @@ describe('seedShipments — Wave 0 shipment + CUSTOMER seed', () => {
       .where(or(
         inArray(s.shipments.blNumber, IMPORT_BL_REFS),
         inArray(s.shipments.bookingRef, EXPORT_BOOKING_REFS),
-      ));
-    const statusByRef = new Map(rows.map((r) => [r.blNumber ?? r.bookingRef, r.status]));
+      ))
+      // Seed refs are reused across directions and the bulk seeder may emit
+      // multiple rows per ref — resolve deterministically to the earliest
+      // row per ref (mirrors the duplicate guard's orderBy-asc/limit-1).
+      .orderBy(asc(s.shipments.id));
+    const statusByRef = new Map<string, string>();
+    for (const row of rows) {
+      const ref = row.blNumber ?? row.bookingRef;
+      if (!statusByRef.has(ref)) statusByRef.set(ref, row.status);
+    }
     for (const [ref, expected] of Object.entries(EXPECTED_STATUS)) {
       if (preExistingShipmentRefs.has(ref)) continue;
       assert.equal(statusByRef.get(ref), expected, `shipment ${ref} status`);

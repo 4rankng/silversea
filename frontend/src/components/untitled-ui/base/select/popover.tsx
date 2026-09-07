@@ -9,10 +9,22 @@ interface PopoverProps extends AriaPopoverProps, RefAttributes<HTMLElement> {
 }
 
 export const Popover = (props: PopoverProps) => {
+    // Bound the popover height even when no explicit size is passed: an
+    // unbounded popover can span thousands of pixels below the trigger,
+    // defeating react-aria's shouldFlip and covering every control under
+    // the fold (the "dropdown covers + Thêm" bug class).
+    const maxHeightClass = props.size === "sm"
+        ? "max-h-56!"
+        : props.size === "md"
+            ? "max-h-64!"
+            : props.size === "lg"
+                ? "max-h-80!"
+                : "max-h-72!";
+
     return (
         <AriaPopover
             placement="bottom"
-            containerPadding={0}
+            containerPadding={16}
             offset={4}
             {...props}
             className={(state) =>
@@ -24,9 +36,7 @@ export const Popover = (props: PopoverProps) => {
                     state.isExiting &&
                         "duration-100 ease-in animate-out fade-out placement-right:slide-out-to-left-0.5 placement-top:slide-out-to-bottom-0.5 placement-bottom:slide-out-to-top-0.5",
 
-                    props.size === "sm" && "max-h-56!",
-                    props.size === "md" && "max-h-64!",
-                    props.size === "lg" && "max-h-80!",
+                    maxHeightClass,
 
                     typeof props.className === "function" ? props.className(state) : props.className,
                 )

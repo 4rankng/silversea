@@ -344,7 +344,8 @@ export function updateDispatchDetailEstimates(fulfillmentId: number, body: {
 }
 
 // One atomic save for the whole editor: carrier + vehicle + estimates +
-// classification + isCombined, guarded by both row versions.
+// classification + isCombined (and the driver note) guarded by both row
+// versions.
 export function updateDispatchDetailPlan(fulfillmentId: number, body: {
   expectedFulfillmentVersion: number;
   expectedShipmentVersion: number;
@@ -358,6 +359,7 @@ export function updateDispatchDetailPlan(fulfillmentId: number, body: {
   plannedCarrierCost: number | null;
   classification: DispatchClassification;
   isCombined: boolean;
+  operationalNotes?: string | null;
 }) {
   return api.patch<{
     fulfillmentId: number;
@@ -366,6 +368,7 @@ export function updateDispatchDetailPlan(fulfillmentId: number, body: {
     shipmentVersion: number;
     classification: DispatchClassification;
     isCombined: boolean;
+    operationalNotes: string | null;
     dispatch: {
       carrierType: 'OWN' | 'EXTERNAL';
       carrierName: string | null;
@@ -381,4 +384,19 @@ export function updateDispatchDetailPlan(fulfillmentId: number, body: {
   }>(`/shipments/dispatch-detail-plan-rows/${fulfillmentId}/plan`, body, {
     headers: { 'Idempotency-Key': crypto.randomUUID() },
   });
+}
+
+// ─── Dispatch task tags (note-composer pool) ─────────────────────────────────
+
+export interface DispatchTaskTag {
+  id: number;
+  label: string;
+}
+
+export function listDispatchTaskTags() {
+  return api.get<{ items: DispatchTaskTag[] }>('/shipments/dispatch-task-tags');
+}
+
+export function createDispatchTaskTag(label: string) {
+  return api.post<{ id: number; label: string }>('/shipments/dispatch-task-tags', { label });
 }

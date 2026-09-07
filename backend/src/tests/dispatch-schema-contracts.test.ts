@@ -153,6 +153,8 @@ describe('ports.dispatchZone contract', () => {
       code: `DN${suffix.slice(-6)}`,
     });
     assert.ok([200, 201].includes(inlineCreate.status), `expected inline create, got ${inlineCreate.status}: ${JSON.stringify(inlineCreate.body)}`);
+    const createdPort = (inlineCreate.body as { id: number }).id;
+    if (createdPort) createdPortIds.push(createdPort);
 
     const [anyPort] = await db.select({ id: s.ports.id }).from(s.ports).limit(1);
     if (anyPort) {
