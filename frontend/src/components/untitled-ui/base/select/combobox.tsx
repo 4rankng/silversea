@@ -127,7 +127,7 @@ const ComboBoxValue = ({ size, shortcut, placeholder, shortcutClassName, icon: I
                         type="button"
                         tabIndex={-1}
                         aria-label="Xoá"
-                        className="absolute right-1 z-20 flex shrink-0 items-center justify-center rounded p-0.5 text-quaternary transition-colors hover:text-primary cursor-pointer"
+                        className="absolute right-1 z-20 flex shrink-0 items-center justify-center rounded p-0.5 text-secondary transition-colors hover:text-primary cursor-pointer"
                         onMouseDown={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
