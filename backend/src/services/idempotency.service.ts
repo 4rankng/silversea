@@ -54,6 +54,7 @@ export function buildCrudIdempotencyEndpoint(
 
 /** Tag identifying the logical endpoint (e.g. 'shipments.quick-create'). */
 export const IDEMPOTENCY_ENDPOINTS = {
+  PAIR_SALARY_SETTINGS_UPDATE: 'config.pair-salary-settings.update',
   UPLOAD_TRIP_PHOTO: 'upload.trip-photo',
   UPLOAD_TRIP_PHOTO_DELETE: 'upload.trip-photo.delete',
   UPLOAD_COMPANY_LOGO: 'upload.company-logo',

@@ -27,6 +27,7 @@ import {
   salaryPeriodsAdminRouter,
 } from './config/salary-periods-config.routes';
 import { auditLogRouter } from './config/audit-logs.routes';
+import { pairSalarySettingsRouter } from './config/pair-salary-settings.routes';
 
 export { tireLifecycleRouter, salaryPeriodsRouter, salaryPeriodsAdminRouter, auditLogRouter };
 export { catalogBootstrapRouter } from './config/catalog-crud.routes';
@@ -34,5 +35,6 @@ export { catalogBootstrapRouter } from './config/catalog-crud.routes';
 const router = Router();
 router.use(catalogCrudRouter);
 router.use(operationalConfigRouter);
+router.use(pairSalarySettingsRouter);
 
 export default router;

@@ -16,6 +16,7 @@ import { createFinancialPosting, getActiveFinancialPosting } from './financial-p
 import { captureProfitabilityAttributionSnapshot } from './profitability.service';
 import { SnapshotServices } from './snapshot-services';
 import { assertTripShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
+import { getPairSalarySettingsFrom, pairSurchargeFor } from './pair-salary-settings.service';
 import type { Tx } from './trip-shared';
 import { requirePersistedTripGovernanceAuthorization } from './trip-governance-authorization.service';
 import { assertActiveApprovalApplication } from './governance-action-core.service';
@@ -390,6 +391,24 @@ export async function updateTripFigures(
         tripWageDays ?? 1,
         Number(route?.driverSalary) || 0,
       );
+    }
+
+    // Ghép chuyến pair salary: while an ACTIVE pair stands and a surcharge is
+    // configured, the second trip's wage is that surcharge (lương cặp = cuốc
+    // cơ bản + phụ phí), not the per-trip cuốc allocation. Read LIVE from
+    // settings so changing the surcharge propagates on the next recalc; an
+    // explicit driverSalary from the caller (governed correction) still wins.
+    // A 0/unconfigured surcharge leaves the standard allocation untouched.
+    if (data.driverSalary === undefined && trip.activeTripPairId != null && trip.activeTripPairOrder === 2) {
+      const [pairRow] = await tx.select({
+        status: s.tripPairs.status,
+        pairKind: s.tripPairs.pairKind,
+      }).from(s.tripPairs).where(eq(s.tripPairs.id, trip.activeTripPairId)).limit(1);
+      if (pairRow?.status === 'ACTIVE') {
+        const pairSalarySettings = await getPairSalarySettingsFrom(tx);
+        const pairSurcharge = pairSurchargeFor(pairRow.pairKind as 'KEP' | 'KET_HOP', pairSalarySettings);
+        if (pairSurcharge > 0) driverSalary = pairSurcharge;
+      }
     }
     const twoPointDeliveryBonus = data.twoPointDeliveryBonus !== undefined ? data.twoPointDeliveryBonus : Number(trip.twoPointDeliveryBonus || 0);
     const vehicleShiftAllowance = data.vehicleShiftAllowance !== undefined ? data.vehicleShiftAllowance : Number(trip.vehicleShiftAllowance || 0);

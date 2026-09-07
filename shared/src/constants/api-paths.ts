@@ -89,6 +89,7 @@ export const CONFIG = {
   DRIVER: (id: number) => `/drivers/${id}`,
   FUEL_CONFIG: '/fuel-config',
   COMPANY_INFO: '/company-info',
+  PAIR_SALARY_SETTINGS: '/pair-salary-settings',
   ROAD_CONFIG: '/road-config',
   SALARY_PERIODS: '/salary-periods',
   SALARY_PERIOD_DEFAULT: '/salary-periods/default',

@@ -128,6 +128,7 @@ function pairPayload(
   return {
     firstTripId: first.id,
     secondTripId: second.id,
+    pairKind: 'KET_HOP' as const,
     firstTrip: draft(first),
     secondTrip: draft(second),
   };

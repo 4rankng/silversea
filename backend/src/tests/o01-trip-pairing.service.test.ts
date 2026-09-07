@@ -85,6 +85,96 @@ describe('trip pairing service', () => {
     assert.deepEqual(result.blockingCodes, ['OVERLAP', 'INSUFFICIENT_TRAVEL_BUFFER']);
   });
 
+  // ─── Kind split (LoHangKepKetHop 2026-09-06: KEP = simultaneous) ──────────
+
+  test('KEP accepts overlapping windows — both containers ride one mooc', () => {
+    const result = buildTripPairSnapshot(
+      trip({
+        tripId: 11,
+        plannedStartAt: '2026-07-27T08:00:00.000Z',
+        plannedEndAt: '2026-07-27T12:00:00.000Z',
+      }),
+      trip({
+        tripId: 22,
+        plannedStartAt: '2026-07-27T08:00:00.000Z',
+        plannedEndAt: '2026-07-27T12:00:00.000Z',
+        canonicalOrigin: 'Cảng Cát Lái',
+        canonicalDestination: 'Kho Bình Dương',
+      }),
+      { vehicleCapacityKg: 15000 },
+      { kind: 'KEP' },
+    );
+
+    assert.equal(result.eligible, true);
+    assert.equal(result.emptyDistanceKm, 0);
+    assert.equal(result.requiredGapMinutes, null);
+  });
+
+  test('KEP skips the reposition chain — identical windows on different legs still pair', () => {
+    const result = buildTripPairSnapshot(
+      trip({
+        tripId: 11,
+        canonicalOrigin: 'Cảng Hải Phòng',
+        canonicalDestination: 'Nhà máy Bắc Ninh',
+      }),
+      trip({
+        tripId: 22,
+        plannedStartAt: '2026-07-27T08:00:00.000Z',
+        plannedEndAt: '2026-07-27T11:00:00.000Z',
+        canonicalOrigin: 'Cảng Hải Phòng',
+        canonicalDestination: 'Kho Thái Nguyên',
+      }),
+      { vehicleCapacityKg: 15000 },
+      { kind: 'KEP' },
+    );
+
+    // KET_HOP rules would push IMPOSSIBLE_REPOSITION here (first destination
+    // ≠ second origin); KEP carries both containers at once, so no chain.
+    assert.equal(result.eligible, true);
+    assert.ok(!result.blockingCodes.includes('IMPOSSIBLE_REPOSITION'));
+  });
+
+  test('KEP still enforces window validity, weights and capacity', () => {
+    const result = buildTripPairSnapshot(
+      trip({
+        tripId: 11,
+        plannedStartAt: '2026-07-27T12:00:00.000Z',
+        plannedEndAt: '2026-07-27T08:00:00.000Z',
+      }),
+      trip({
+        tripId: 22,
+        canonicalOrigin: 'Cảng Cát Lái',
+        canonicalDestination: 'Kho Bình Dương',
+      }),
+      { vehicleCapacityKg: 15000 },
+      { kind: 'KEP' },
+    );
+
+    assert.equal(result.eligible, false);
+    assert.ok(result.blockingCodes.includes('INVALID_PLANNED_WINDOW'));
+  });
+
+  test('KET_HOP (default) keeps the full sequential rule set', () => {
+    const result = buildTripPairSnapshot(
+      trip({
+        tripId: 11,
+        plannedEndAt: '2026-07-27T12:00:00.000Z',
+      }),
+      trip({
+        tripId: 22,
+        plannedStartAt: '2026-07-27T11:30:00.000Z',
+        plannedEndAt: '2026-07-27T14:00:00.000Z',
+        canonicalOrigin: 'Kho Bình Dương',
+        canonicalDestination: 'Cảng Cát Lái',
+      }),
+      { vehicleCapacityKg: 15000 },
+      { kind: 'KET_HOP' },
+    );
+
+    assert.equal(result.eligible, false);
+    assert.deepEqual(result.blockingCodes, ['OVERLAP', 'INSUFFICIENT_TRAVEL_BUFFER']);
+  });
+
   test('rejects impossible repositioning when destinations do not connect', () => {
     const result = buildTripPairSnapshot(
       trip({

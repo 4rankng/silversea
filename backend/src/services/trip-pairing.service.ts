@@ -99,10 +99,22 @@ function orderCandidates(
   return a.tripId <= b.tripId ? [a, b] : [b, a];
 }
 
+export interface TripPairingOptions {
+  /**
+   * KEP (kẹp): both containers ride one mooc simultaneously — planned windows
+   * MAY overlap and there is no reposition chain between the two legs, so the
+   * sequential-only blocking rules (OVERLAP / IMPOSSIBLE_REPOSITION /
+   * INSUFFICIENT_TRAVEL_BUFFER) do not apply. Default (and KET_HOP) keeps the
+   * full sequential rule set.
+   */
+  kind?: 'KEP' | 'KET_HOP';
+}
+
 export function buildTripPairSnapshot(
   first: TripPairingCandidate,
   second: TripPairingCandidate,
   vehicle: TripPairingVehicle,
+  options: TripPairingOptions = {},
 ): TripPairingEvaluation {
   const [orderedFirst, orderedSecond] = orderCandidates(first, second);
   const blockingCodes: TripPairingBlockCode[] = [];
@@ -121,7 +133,8 @@ export function buildTripPairSnapshot(
     if (firstEnd <= firstStart || secondEnd <= secondStart) {
       blockingCodes.push('INVALID_PLANNED_WINDOW');
     }
-    if (firstEnd > secondStart) {
+    // KEP runs both legs simultaneously — overlapping windows are the norm.
+    if (options.kind !== 'KEP' && firstEnd > secondStart) {
       blockingCodes.push('OVERLAP');
     }
   }
@@ -148,7 +161,10 @@ export function buildTripPairSnapshot(
   }
 
   let emptyDistanceKm: number | null = 0;
-  if (firstDestination && secondOrigin && firstDestination !== secondOrigin) {
+  if (
+    options.kind !== 'KEP'
+    && firstDestination && secondOrigin && firstDestination !== secondOrigin
+  ) {
     // Cross-location pairs have no distance source (GPS route-DB removed);
     // pairing requires the second trip to start where the first ended.
     blockingCodes.push('IMPOSSIBLE_REPOSITION');
@@ -159,12 +175,14 @@ export function buildTripPairSnapshot(
   let requiredGapMinutes: number | null = null;
   if (firstEnd && secondStart && !blockingCodes.includes('MISSING_PLANNED_WINDOW') && !blockingCodes.includes('INVALID_PLANNED_WINDOW')) {
     actualGapMinutes = Math.floor((secondStart.getTime() - firstEnd.getTime()) / 60000);
-    const repositionKm = emptyDistanceKm ?? 0;
-    const averageSpeed = vehicle.averageRepositionSpeedKph ?? DEFAULT_REPOSITION_SPEED_KPH;
-    const stopBuffer = vehicle.stopBufferMinutes ?? DEFAULT_STOP_BUFFER_MINUTES;
-    requiredGapMinutes = Math.ceil((repositionKm / averageSpeed) * 60) + stopBuffer;
-    if (actualGapMinutes < requiredGapMinutes) {
-      blockingCodes.push('INSUFFICIENT_TRAVEL_BUFFER');
+    if (options.kind !== 'KEP') {
+      const repositionKm = emptyDistanceKm ?? 0;
+      const averageSpeed = vehicle.averageRepositionSpeedKph ?? DEFAULT_REPOSITION_SPEED_KPH;
+      const stopBuffer = vehicle.stopBufferMinutes ?? DEFAULT_STOP_BUFFER_MINUTES;
+      requiredGapMinutes = Math.ceil((repositionKm / averageSpeed) * 60) + stopBuffer;
+      if (actualGapMinutes < requiredGapMinutes) {
+        blockingCodes.push('INSUFFICIENT_TRAVEL_BUFFER');
+      }
     }
   }
 

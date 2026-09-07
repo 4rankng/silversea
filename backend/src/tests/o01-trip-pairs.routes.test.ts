@@ -19,6 +19,7 @@ import { casbinAuthz } from '../middleware/casbin';
 import { globalErrorHandler } from '../middleware/errorHandler';
 import tripRoutes from '../routes/trips';
 import { applyTripPairLifecycleEffects, createTripPair } from '../services/trip-pairs.service';
+import { getPairSalarySettingsFrom, savePairSalarySettings } from '../services/pair-salary-settings.service';
 import { disconnectRedis } from '../lib/redis';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -321,6 +322,7 @@ describe('O01 two-way dispatch pairing routes', () => {
     const validPayload = {
       firstTripId: first.id,
       secondTripId: second.id,
+      pairKind: 'KET_HOP' as const,
       firstTrip: pairDraft(firstSeed, first.version),
       secondTrip: pairDraft(secondSeed, second.version),
     };
@@ -415,6 +417,7 @@ describe('O01 two-way dispatch pairing routes', () => {
     const createdPair = await createTripPair({
       firstTripId: cancelFirst.id,
       secondTripId: cancelSecond.id,
+      pairKind: 'KET_HOP' as const,
       firstTrip: pairDraft(cancelFirstSeed, cancelFirst.version),
       secondTrip: pairDraft(cancelSecondSeed, cancelSecond.version),
     }, actorUserId);
@@ -449,6 +452,7 @@ describe('O01 two-way dispatch pairing routes', () => {
     const latePair = await createTripPair({
       firstTripId: lateFirst.id,
       secondTripId: lateSecond.id,
+      pairKind: 'KET_HOP' as const,
       firstTrip: pairDraft(lateFirstSeed, lateFirst.version),
       secondTrip: pairDraft(lateSecondSeed, lateSecond.version),
     }, actorUserId);
@@ -516,6 +520,7 @@ describe('O01 two-way dispatch pairing routes', () => {
     const pair = await createTripPair({
       firstTripId: tollFirst.id,
       secondTripId: tollSecond.id,
+      pairKind: 'KET_HOP' as const,
       firstTrip: pairDraft(firstSeed, tollFirst.version),
       secondTrip: pairDraft(secondSeed, tollSecond.version),
     }, actorUserId);
@@ -580,6 +585,7 @@ describe('O01 two-way dispatch pairing routes', () => {
     const validPayload = {
       firstTripId: first.id,
       secondTripId: second.id,
+      pairKind: 'KET_HOP' as const,
       firstTrip: pairDraft(firstSeed, first.version),
       secondTrip: pairDraft(secondSeed, second.version),
     };
@@ -615,5 +621,391 @@ describe('O01 two-way dispatch pairing routes', () => {
     const createdPair = await createTripPair(validPayload, actorUserId);
     createdPairIds.push(createdPair.id);
     assert.equal(createdPair.status, 'ACTIVE');
+  });
+});
+
+describe('pair kind split (KEP simultaneous / KET_HOP sequential)', () => {
+  // Kind-specific seeds, created once for this block. Container type codes are
+  // suffixed to stay unique against the base catalog.
+  const createdContainerTypeIds: number[] = [];
+  const createdTripContainerIds: number[] = [];
+  let typeTwentyId = 0;
+  let typeFortyId = 0;
+  let secondRouteId = 0;
+  let secondDriverId = 0;
+
+  before(async () => {
+    const [twenty] = await db.insert(s.containerTypes).values({
+      code: `20GP${suffix.slice(-6)}`, name: "20'GP (test)",
+    }).returning();
+    const [forty] = await db.insert(s.containerTypes).values({
+      code: `40HC${suffix.slice(-6)}`, name: "40'HC (test)",
+    }).returning();
+    createdContainerTypeIds.push(twenty.id, forty.id);
+    typeTwentyId = twenty.id;
+    typeFortyId = forty.id;
+    const [secondRoute] = await db.insert(s.routes).values({
+      name: `Pair route KEP ${suffix}`, distanceKm: 95,
+    }).returning();
+    createdRouteIds.push(secondRoute.id);
+    secondRouteId = secondRoute.id;
+    const [secondDriver] = await db.insert(s.drivers).values({
+      name: `Pair driver 2 ${suffix}`, assignedTruckId: createdTruckIds[0],
+    }).returning();
+    createdDriverIds.push(secondDriver.id);
+    secondDriverId = secondDriver.id;
+  });
+
+  after(async () => {
+    if (createdTripContainerIds.length > 0) {
+      await db.delete(s.tripContainers).where(inArray(s.tripContainers.id, createdTripContainerIds));
+    }
+    if (createdContainerTypeIds.length > 0) {
+      await db.delete(s.containerTypes).where(inArray(s.containerTypes.id, createdContainerTypeIds));
+    }
+  });
+
+  async function mkContainerTrip(args: {
+    departureDate: string;
+    containerTypeId: number;
+    containerNumber: string | null;
+    driverId?: number;
+    routeId?: number;
+    authority?: Partial<TripAuthoritySeed>;
+  }) {
+    const trip = await insertTripComposite(db, {
+      tripCode: `KEP-${suffix}-${createdTripIds.length + 1}`,
+      customerId: createdCustomerIds[0],
+      truckId: createdTruckIds[0],
+      driverId: args.driverId ?? createdDriverIds[0],
+      routeId: args.routeId ?? createdRouteIds[0],
+      cargoTypeId: createdCargoTypeIds[0],
+      status: TripStatus.CREATED,
+      departureDate: args.departureDate,
+      carrierType: 'OWN',
+      revenue: '1500000',
+      totalCost: '900000',
+      driverSalary: '350000',
+      plannedStartAt: args.authority?.plannedStartAt ? new Date(args.authority.plannedStartAt) : null,
+      plannedEndAt: args.authority?.plannedEndAt ? new Date(args.authority.plannedEndAt) : null,
+      canonicalOrigin: args.authority?.canonicalOrigin ?? null,
+      canonicalDestination: args.authority?.canonicalDestination ?? null,
+      cargoWeightKg: args.authority?.cargoWeightKg != null ? String(args.authority.cargoWeightKg) : null,
+      vehicleCapacityKg: args.authority?.vehicleCapacityKg != null ? String(args.authority.vehicleCapacityKg) : null,
+    });
+    createdTripIds.push(trip.id);
+    const [container] = await db.insert(s.tripContainers).values({
+      tripId: trip.id,
+      containerTypeId: args.containerTypeId,
+      containerNumber: args.containerNumber,
+      cargoWeightKg: '12000',
+    }).returning();
+    createdTripContainerIds.push(container.id);
+    return trip;
+  }
+
+  const kepAuthority = {
+    plannedStartAt: '2026-07-27T08:00:00',
+    plannedEndAt: '2026-07-27T12:00:00',
+    canonicalOrigin: 'Cat Lai',
+    canonicalDestination: 'Binh Duong',
+    cargoWeightKg: 11000,
+    vehicleCapacityKg: 18000,
+  };
+
+  test('KEP pairs two 20ft same-day trips with identical windows; route mismatch warns, never blocks', async () => {
+    const first = await mkContainerTrip({
+      departureDate: '2026-07-27',
+      containerTypeId: typeTwentyId,
+      containerNumber: 'TGHU1234561',
+      authority: kepAuthority,
+    });
+    const second = await mkContainerTrip({
+      departureDate: '2026-07-27',
+      containerTypeId: typeTwentyId,
+      containerNumber: 'TGHU7654321',
+      routeId: secondRouteId,
+      authority: kepAuthority,
+    });
+
+    const created = await testFetch('/pairs', {
+      method: 'POST',
+      token: managerToken,
+      body: {
+        firstTripId: first.id,
+        secondTripId: second.id,
+        pairKind: 'KEP',
+        firstTrip: pairDraft(kepAuthority, first.version),
+        secondTrip: pairDraft(kepAuthority, second.version),
+      },
+    });
+    assert.equal(created.status, 201);
+    assert.equal(created.data.pairKind, 'KEP');
+    createdPairIds.push(created.data.id);
+    // Different routes on a KEP pair surface as a non-blocking advisory.
+    assert.ok(Array.isArray(created.data.warnings) && created.data.warnings.length > 0);
+  });
+
+  test('KEP is blocked unless both containers are 20ft', async () => {
+    const first = await mkContainerTrip({
+      departureDate: '2026-07-28',
+      containerTypeId: typeFortyId,
+      containerNumber: 'TGHU1111111',
+      authority: kepAuthority,
+    });
+    const second = await mkContainerTrip({
+      departureDate: '2026-07-28',
+      containerTypeId: typeTwentyId,
+      containerNumber: 'TGHU2222222',
+      authority: kepAuthority,
+    });
+
+    const blocked = await testFetch('/pairs', {
+      method: 'POST',
+      token: managerToken,
+      body: {
+        firstTripId: first.id,
+        secondTripId: second.id,
+        pairKind: 'KEP',
+        firstTrip: pairDraft(kepAuthority, first.version),
+        secondTrip: pairDraft(kepAuthority, second.version),
+      },
+    });
+    assert.equal(blocked.status, 422);
+    assert.match(String(blocked.data.error ?? ''), /Không đủ điều kiện kẹp hàng/);
+  });
+
+  test('KEP requires the same day and the same driver', async () => {
+    const dayFirst = await mkContainerTrip({
+      departureDate: '2026-07-28',
+      containerTypeId: typeTwentyId,
+      containerNumber: 'TGHU3333333',
+      authority: kepAuthority,
+    });
+    const daySecond = await mkContainerTrip({
+      departureDate: '2026-07-29',
+      containerTypeId: typeTwentyId,
+      containerNumber: 'TGHU4444444',
+      authority: kepAuthority,
+    });
+    const dayBlocked = await testFetch('/pairs', {
+      method: 'POST',
+      token: managerToken,
+      body: {
+        firstTripId: dayFirst.id,
+        secondTripId: daySecond.id,
+        pairKind: 'KEP',
+        firstTrip: pairDraft(kepAuthority, dayFirst.version),
+        secondTrip: pairDraft(kepAuthority, daySecond.version),
+      },
+    });
+    assert.equal(dayBlocked.status, 422);
+    assert.match(String(dayBlocked.data.error ?? ''), /cùng một ngày/);
+
+    const driverFirst = await mkContainerTrip({
+      departureDate: '2026-07-28',
+      containerTypeId: typeTwentyId,
+      containerNumber: 'TGHU5555555',
+      authority: kepAuthority,
+    });
+    const driverSecond = await mkContainerTrip({
+      departureDate: '2026-07-28',
+      containerTypeId: typeTwentyId,
+      containerNumber: 'TGHU6666666',
+      driverId: secondDriverId,
+      authority: kepAuthority,
+    });
+    const driverBlocked = await testFetch('/pairs', {
+      method: 'POST',
+      token: managerToken,
+      body: {
+        firstTripId: driverFirst.id,
+        secondTripId: driverSecond.id,
+        pairKind: 'KEP',
+        firstTrip: pairDraft(kepAuthority, driverFirst.version),
+        secondTrip: pairDraft(kepAuthority, driverSecond.version),
+      },
+    });
+    assert.equal(driverBlocked.status, 422);
+    assert.match(String(driverBlocked.data.error ?? ''), /Không đủ điều kiện kẹp hàng/);
+  });
+
+  test('KET_HOP requires the same shell when both orders carry a number, and skips when one is missing', async () => {
+    const seedA: TripAuthoritySeed = {
+      plannedStartAt: '2026-07-27T08:00:00',
+      plannedEndAt: '2026-07-27T12:00:00',
+      canonicalOrigin: 'Cat Lai',
+      canonicalDestination: 'Binh Duong',
+      cargoWeightKg: 12000,
+      vehicleCapacityKg: 18000,
+    };
+    const seedB: TripAuthoritySeed = {
+      plannedStartAt: '2026-07-27T13:00:00',
+      plannedEndAt: '2026-07-27T17:00:00',
+      canonicalOrigin: 'Binh Duong',
+      canonicalDestination: 'Cat Lai',
+      cargoWeightKg: 11000,
+      vehicleCapacityKg: 18000,
+    };
+    // Both numbers known but different => block (wrong shell reuse).
+    const shellFirst = await mkContainerTrip({
+      departureDate: '2026-07-27',
+      containerTypeId: typeTwentyId,
+      containerNumber: 'TGHU7777777',
+      authority: seedA,
+    });
+    const shellSecond = await mkContainerTrip({
+      departureDate: '2026-07-27',
+      containerTypeId: typeTwentyId,
+      containerNumber: 'TGHU8888888',
+      authority: seedB,
+    });
+    const mismatch = await testFetch('/pairs', {
+      method: 'POST',
+      token: managerToken,
+      body: {
+        firstTripId: shellFirst.id,
+        secondTripId: shellSecond.id,
+        pairKind: 'KET_HOP',
+        firstTrip: pairDraft(seedA, shellFirst.version),
+        secondTrip: pairDraft(seedB, shellSecond.version),
+      },
+    });
+    assert.equal(mismatch.status, 422);
+    assert.match(String(mismatch.data.error ?? ''), /số vỏ khác nhau/);
+
+    // Second order has no number yet (dispatch stage) => allowed by spec.
+    const noNumberSecond = await mkContainerTrip({
+      departureDate: '2026-07-27',
+      containerTypeId: typeTwentyId,
+      containerNumber: null,
+      authority: seedB,
+    });
+    const created = await testFetch('/pairs', {
+      method: 'POST',
+      token: managerToken,
+      body: {
+        firstTripId: shellFirst.id,
+        secondTripId: noNumberSecond.id,
+        pairKind: 'KET_HOP',
+        firstTrip: pairDraft(seedA, shellFirst.version),
+        secondTrip: pairDraft(seedB, noNumberSecond.version),
+      },
+    });
+    assert.equal(created.status, 201);
+    assert.equal(created.data.pairKind, 'KET_HOP');
+    createdPairIds.push(created.data.id);
+  });
+});
+
+describe('pair salary (lương cặp = cuốc cơ bản + phụ phí)', () => {
+  test('second trip carries the configured surcharge; breaking the pair restores the standard wage', async () => {
+    const settingsBefore = await getPairSalarySettingsFrom();
+    await db.transaction(async (tx) => savePairSalarySettings(tx, { kepSurcharge: 120000, ketHopSurcharge: 80000 }));
+    try {
+      const salarySeed: TripAuthoritySeed = {
+        plannedStartAt: '2026-07-27T08:00:00',
+        plannedEndAt: '2026-07-27T12:00:00',
+        canonicalOrigin: 'Cat Lai',
+        canonicalDestination: 'Binh Duong',
+        cargoWeightKg: 11000,
+        vehicleCapacityKg: 18000,
+      };
+      const first = await insertTripComposite(db, {
+        tripCode: `SAL-${suffix}-1`,
+        customerId: createdCustomerIds[0],
+        truckId: createdTruckIds[0],
+        driverId: createdDriverIds[0],
+        routeId: createdRouteIds[0],
+        cargoTypeId: createdCargoTypeIds[0],
+        status: TripStatus.CREATED,
+        departureDate: '2026-07-27',
+        carrierType: 'OWN',
+        revenue: '1500000',
+        totalCost: '900000',
+        driverSalary: '350000',
+        plannedStartAt: new Date(salarySeed.plannedStartAt),
+        plannedEndAt: new Date(salarySeed.plannedEndAt),
+        canonicalOrigin: salarySeed.canonicalOrigin,
+        canonicalDestination: salarySeed.canonicalDestination,
+        cargoWeightKg: String(salarySeed.cargoWeightKg),
+        vehicleCapacityKg: String(salarySeed.vehicleCapacityKg),
+      });
+      createdTripIds.push(first.id);
+      // Sequential backhaul leg (Binh Duong -> Cat Lai) so the pair is a valid
+      // KET_HOP: shell numbers absent at dispatch stage, so the vỏ rule skips.
+      const second = await insertTripComposite(db, {
+        tripCode: `SAL-${suffix}-2`,
+        customerId: createdCustomerIds[0],
+        truckId: createdTruckIds[0],
+        driverId: createdDriverIds[0],
+        routeId: createdRouteIds[0],
+        cargoTypeId: createdCargoTypeIds[0],
+        status: TripStatus.CREATED,
+        departureDate: '2026-07-27',
+        carrierType: 'OWN',
+        revenue: '1500000',
+        totalCost: '900000',
+        driverSalary: '350000',
+        plannedStartAt: new Date('2026-07-27T13:00:00'),
+        plannedEndAt: new Date('2026-07-27T17:00:00'),
+        canonicalOrigin: 'Binh Duong',
+        canonicalDestination: 'Cat Lai',
+        cargoWeightKg: String(salarySeed.cargoWeightKg),
+        vehicleCapacityKg: String(salarySeed.vehicleCapacityKg),
+      });
+      createdTripIds.push(second.id);
+      const secondSalarySeed: TripAuthoritySeed = {
+        plannedStartAt: '2026-07-27T13:00:00',
+        plannedEndAt: '2026-07-27T17:00:00',
+        canonicalOrigin: 'Binh Duong',
+        canonicalDestination: 'Cat Lai',
+        cargoWeightKg: 11000,
+        vehicleCapacityKg: 18000,
+      };
+
+      const created = await testFetch('/pairs', {
+        method: 'POST',
+        token: managerToken,
+        body: {
+          firstTripId: first.id,
+          secondTripId: second.id,
+          pairKind: 'KET_HOP',
+          firstTrip: pairDraft(salarySeed, first.version),
+          secondTrip: pairDraft(secondSalarySeed, second.version),
+        },
+      });
+      assert.equal(created.status, 201);
+      createdPairIds.push(created.data.id);
+
+      const [pairedRow] = await db.select({
+        driverSalary: s.tripsComposite.driverSalary,
+        totalCost: s.tripsComposite.totalCost,
+        grossProfit: s.tripsComposite.grossProfit,
+      }).from(s.tripsComposite).where(eq(s.tripsComposite.id, second.id)).limit(1);
+      // Wage replaced by the KEP surcharge; cost follows the salary delta.
+      assert.equal(Number(pairedRow.driverSalary), 80000);
+      assert.equal(Number(pairedRow.totalCost), 630000);
+      assert.equal(Number(pairedRow.grossProfit), 870000);
+      // The pre-pair wage is stashed on the pair for exact restore.
+      const [pairRow] = await db.select({ secondSalaryStash: s.tripPairs.secondSalaryStash })
+        .from(s.tripPairs).where(eq(s.tripPairs.id, created.data.id)).limit(1);
+      assert.equal(Number(pairRow.secondSalaryStash), 350000);
+
+      // Break the pair by canceling the first trip — the survivor's standard
+      // wage (and cost math) must come back exactly.
+      const cancel = await testFetch(`/${first.id}/cancel`, { method: 'POST', token: managerToken, body: {} });
+      assert.equal(cancel.status, 200);
+      const [restoredRow] = await db.select({
+        driverSalary: s.tripsComposite.driverSalary,
+        totalCost: s.tripsComposite.totalCost,
+        grossProfit: s.tripsComposite.grossProfit,
+      }).from(s.tripsComposite).where(eq(s.tripsComposite.id, second.id)).limit(1);
+      assert.equal(Number(restoredRow.driverSalary), 350000);
+      assert.equal(Number(restoredRow.totalCost), 900000);
+      assert.equal(Number(restoredRow.grossProfit), 600000);
+    } finally {
+      await db.transaction(async (tx) => savePairSalarySettings(tx, settingsBefore));
+    }
   });
 });
