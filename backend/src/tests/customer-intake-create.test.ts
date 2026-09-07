@@ -175,27 +175,33 @@ describe('customer intake create (shipment-create screen)', () => {
     assert.equal(row.createdBy, zeroLink.id);
   });
 
-  test('the create keeps the clerk session alive — the allowance is create-only', async () => {
+  test('clerk may edit the customer row they just created — session stays alive', async () => {
     const created = await postCustomer(clerkToken, { name: `Clerk update target ${suffix}` });
     const createBody = await created.text();
     assert.equal(created.status, 201, createBody);
-    const row = JSON.parse(createBody) as { id: number };
+    const row = JSON.parse(createBody) as { id: number; updatedAt: string };
     createdCustomerIds.push(row.id);
 
-    // 403 from Casbin (create-only allowance), never 401 — a scope-delta
-    // logout here would kill the clerk's form mid-work.
+    // The route-scoped allowance (casbin.ts) extends CUS/DISPATCHER writes to
+    // PUT/DELETE identity fields on customers/routes — so this is a 200, and
+    // crucially never 401: a scope-delta logout here would kill the clerk's
+    // form mid-work. The If-Unmodified-Since precondition uses the row's own
+    // updatedAt (second-precision HTTP date vs millisecond column would
+    // otherwise 409).
     const res = await fetch(`${baseUrl}/customers/${row.id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${clerkToken}`,
         'Idempotency-Key': `ci-put-${suffix}-${Math.random().toString(36).slice(2)}`,
-        'If-Unmodified-Since': new Date().toISOString(),
+        'If-Unmodified-Since': row.updatedAt,
       },
-      body: JSON.stringify({ name: 'Sửa tên không được phép' }),
+      body: JSON.stringify({ name: `Clerk update target ${suffix} — đã sửa` }),
     });
     const putBody = await res.text();
-    assert.equal(res.status, 403, putBody);
+    assert.equal(res.status, 200, putBody);
+    const updated = JSON.parse(putBody) as { name: string };
+    assert.equal(updated.name, `Clerk update target ${suffix} — đã sửa`);
   });
 
   test('ADMIN creates keep applying material config directly', async () => {
