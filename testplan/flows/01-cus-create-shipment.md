@@ -976,3 +976,155 @@
 | __/__/__ | TC-CUS-CREATE-042 | | | Escape revert giá trị dropdown | |
 | __/__/__ | TC-CUS-CREATE-043 | | | Nhà máy container hiển thị trên /shipments/:id (hồi quy 2026-09-07) | |
 | __/__/__ | TC-CUS-CREATE-044 | | | Ưu tiên factoryName > operationalSiteId > container.operationalSiteId | |
+
+**§1.14 — Trùng Số Bill / Số tờ khai khi tạo lô (báo cáo khách hàng 2026-09-07)**
+
+| Ngày thử | Mã TC | Người thử | Kết quả | Ghi chú | Bằng chứng |
+|-----------|-------|-----------|---------|---------|------------|
+| __/__/__ | TC-CUS-CREATE-045 | | | Chặn tạo lô trùng BL/Tờ khai (regression bug 2026-09-07) | |
+| __/__/__ | TC-CUS-CREATE-046 | | | Cảnh báo inline khi gõ BL/Tờ khai đã tồn tại (regression bug 2026-09-07) | |
+| __/__/__ | TC-CUS-CREATE-047 | | | Màn Tổng quan không báo "Chưa chốt ngày" khi FCL đã có lịch container | |
+
+## 1.14 — Trùng Số Bill / Số tờ khai khi tạo lô (báo cáo khách hàng 2026-09-07)
+
+> **Nguồn:** Khách hàng (CUS) báo cáo 2026-09-07 — "lập trình giúp em là báo trùng với ạ, khi 1 lô hàng
+> đã nhập trước đó có số bil hoặc số tờ khai. mà sau lại nhập trùng cùng 1 số bil hoặc số tờ khai đó
+> hệ thống sẽ cảnh báo lô hàng đó đã được nhập bởi tài khoản nào và k được nhập lô đó nữa".
+>
+> **Root cause đã xác minh:** `shipments.bl_number` và `shipment_declarations.declaration_number` là
+> `varchar` thường, không có unique constraint ở DB
+> (`backend/src/db/schema/shipments.ts:25,110`). Service `createShipment()`
+> (`backend/src/services/shipment-create.service.ts:132-135`) chèn thẳng, không pre-check
+> duplicate. `assertShipmentDocumentReferences()` chỉ validate hướng Bill/Booking (NHẬP vs XUẤT),
+> không check "đã tồn tại ở lô khác chưa".
+>
+> **Hệ quả:** Cùng 1 BL `JJCTCHPDY260305` được CUS tạo 2 lần → 2 lô tách biệt cùng BL/Tờ khai,
+> dẫn đến 2 màn Tổng quan / Chi tiết lô hiển thị khác nhau (1 lô "Chưa chốt ngày", 1 lô đã có lịch),
+> thao tác chỉnh ngày trên lô "Chưa chốt" bị vô hiệu vì lô kia đã chốt.
+
+### TC-CUS-CREATE-045 — Chặn tạo lô trùng Số Bill / Số Booking / Số tờ khai (regression bug 2026-09-07)
+
+- **Mã PRD:** duplicate-bill-guard (báo cáo 2026-09-07)
+- **Vai trò:** `cus`
+- **Mức độ:** P0
+- **Thiết bị:** Desktop (1440×900)
+- **Tiền điều kiện:** Lô đã tồn tại với BL `BL-DUP-001` (Hàng Nhập), Tờ khai `TK-DUP-001`, do tài
+  khoản `cus` khác (hoặc cùng `cus`) tạo trước đó. Lô cũ chưa xóa.
+- **Các bước:**
+  1. Đăng nhập `cus`, mở `/shipments/new`.
+  2. Chọn khách hàng (vd LONG MINH), hình thức **Nhập khẩu**, nhập `Số Bill = BL-DUP-001`.
+  3. Hoàn tất các trường còn lại, bấm **Tạo lô hàng**.
+  4. Đợi response từ backend, quan sát thông báo lỗi.
+  5. Lặp lại với `Số Booking = BK-DUP-001` ở lô **Xuất khẩu** mới.
+  6. Lặp lại với `Số tờ khai = TK-DUP-001` trên một lô Hàng Nhập khác.
+- **Kết quả mong đợi (Pass):**
+  - Lần 1 (trùng BL): API trả `409 Conflict` với body kiểu
+    `{ error: "Số Bill đã được nhập bởi tài khoản <username>. Vui lòng kiểm tra lại.", code: "BILL_DUPLICATE", conflict: { shipmentId, shipmentCode, createdBy: { id, username, fullName }, createdAt } }`.
+  - Frontend (modal hoặc toast) hiển thị tiếng Việt: *"Số Bill BL-DUP-001 đã được nhập bởi tài khoản
+    <username> lúc <dd/MM/yyyy HH:mm>. Không thể tạo lô trùng."*, kèm link "Xem lô đã nhập" mở
+    `/shipments/:id` của lô trùng.
+  - Lần 2 (trùng Booking): cùng hành vi với message thay "Số Booking".
+  - Lần 3 (trùng Tờ khai): cùng hành vi với message "Số tờ khai", và lỗi ở endpoint
+    `POST /api/shipments/:id/declarations` (vì tờ khai lưu ở `shipment_declarations`, không phải
+    root shipment row).
+  - Không có row mới trong DB (đếm số shipment có `BL-DUP-001` trước/sau = nhau).
+- **Kỳ vọng sai (Fail nếu):**
+  - Tạo lô thành công, có 2 shipment cùng BL.
+  - Lỗi 500 thay vì 409 (chưa handle duplicate).
+  - Không hiển thị "đã nhập bởi tài khoản X" — chỉ báo chung "đã tồn tại".
+  - Vẫn cho phép cập nhật BL/Booking của cùng 1 shipment về giá trị trùng chính nó (update chính
+    shipment từ `BL-DUP-001` sang `BL-DUP-001` không được block — phải exclude chính nó).
+- **Bằng chứng:** ảnh toast + DB count trước/sau = nhau + Network (409 + body có `conflict.createdBy.username`).
+
+---
+
+### TC-CUS-CREATE-046 — Cảnh báo inline trong form khi gõ Số Bill / Số Booking / Tờ khai đã tồn tại
+
+- **Vai trò:** `cus`
+- **Mức độ:** P0
+- **Tiền điều kiện:** giống TC-CUS-CREATE-045
+- **Các bước:**
+  1. Mở `/shipments/new`, chọn khách hàng, chọn **Nhập khẩu**.
+  2. Gõ vào ô **Số Bill**: `BL-DUP-001` (đã có lô khác).
+  3. Đợi 300–500ms (debounce), quan sát thông báo dưới ô input.
+  4. Nhập xong form, thử bấm "Tạo lô hàng".
+- **Kết quả mong đợi (Pass):**
+  - Dưới ô Số Bill hiển thị cảnh báo tiếng Việt (màu warning):
+    *"Số Bill này đã được nhập bởi <username> lúc <dd/MM HH:mm>. Vui lòng kiểm tra trước khi tạo."*
+    kèm link "Xem lô đã nhập".
+  - Nút "Tạo lô hàng" vẫn cho phép bấm (chưa hard-disable) nhưng khi submit sẽ nhận 409 và toast
+    lỗi như TC-CUS-CREATE-045 (defense in depth: server là nguồn quyết định cuối cùng).
+  - Cảnh báo clear khi đổi sang giá trị Số Bill khác (không tồn tại).
+  - Cùng hành vi cho Số Booking (Xuất khẩu) và Số tờ khai (LCL/Nhập — xem modal tờ khai nếu có).
+  - Trước khi chọn hình thức nhập/xuất hoặc khi BL rỗng → không hiện cảnh báo.
+- **Kỳ vọng sai (Fail nếu):** không có cảnh báo inline; cảnh báo nhưng không hiện tên user; debounce
+  không hoạt động (gõ mỗi ký tự 1 request).
+- **Bằng chứng:** ảnh cảnh báo inline + Network (1 request GET kiểm tra duplicate sau khi gõ xong) +
+  ảnh link "Xem lô đã nhập" mở được `/shipments/:id` đúng.
+
+---
+
+### TC-CUS-CREATE-047 — Màn Tổng quan không báo "Chưa chốt ngày" khi FCL đã có lịch container
+
+- **Vai trò:** `cus`
+- **Mức độ:** P1
+- **Nguồn:** báo cáo 2026-09-07 — màn Tổng quan lô hàng báo "Chưa chốt ngày" cho BL
+  `JJCTCHPDY260305` dù trang Chi tiết lô đã hiển thị ngày `07/09/2026 08:00`.
+- **Root cause:** `cus-workspace-builders.service.ts:82-86` chỉ kiểm tra
+  `shipment.expectedDeliveryDate` cho `scheduleReadiness`, không tính
+  `shipment_containers.customerAppointmentAt` (nguồn ngày thật của FCL).
+- **Các bước:**
+  1. Tạo lô FCL với 1 container, `customerAppointmentAt` = hôm nay 09:00, **không** set
+     `expectedDeliveryDate` ở shipment-level.
+  2. Mở `/shipments` (màn Tổng quan lô hàng của CUS).
+  3. Tìm lô vừa tạo trong danh sách, quan sát cột **Lịch trình & điều xe** và badge trạng thái.
+- **Kết quả mong đợi (Pass):**
+  - Cột "Lịch trình & điều xe" hiển thị ngày `07/09/2026 09:00 · ...` (lấy từ container), **không**
+    hiển thị "Chưa chốt ngày".
+  - `scheduleReadiness` = `SCHEDULED` (không phải `WAITING_DATE`).
+  - Badge "Chờ chốt lịch" không hiển thị trong cột Trạng thái.
+- **Kỳ vọng sai (Fail nếu):** vẫn hiển thị "Chưa chốt ngày" dù container đã có
+  `customerAppointmentAt`.
+- **Bằng chứng:** ảnh cột Lịch trình hiển thị ngày + DB `shipment_containers.customer_appointment_at`
+  khác null.
+
+---
+
+## Ghi chú hồi quy (bổ sung bug 2026-09-07)
+
+- **Nguyên nhân gốc:** cho phép tạo trùng BL/Booking/Tờ khai không giới hạn. Khi CUS vô tình nhập
+  trùng, hệ thống không phát hiện → phát sinh 2 lô tách biệt cùng nhận diện chứng từ. Mọi nghiệp
+  vụ downstream (chốt lịch, điều xe, chốt tài chính) chỉ apply được trên một trong hai lô, lô còn
+  lại "đứng hình" gây bối rối cho người dùng.
+- **Cách sửa:** thêm duplicate guard ở cả backend (pre-check trước INSERT) và frontend (cảnh báo
+  inline khi gõ). Trên form chỉnh sửa, exclude chính shipment hiện tại để không tự khóa.
+
+---
+
+## Ghi chú hồi quy (bổ sung bug 2026-09-07 —_FACTORY_NAME_DISPLAY)
+
+### TC-REGRESSION-FNAME-001 — Chi tiết lô hàng hiển thị tên nhà máy (effectiveFactoryNames)
+
+- **Mã bug:** BUG-2026-09-07-FNAME
+- **Vai trò:** `admin`, `cus`, `giamdoc`
+- **Mức độ:** P0
+- **Thiết bị:** Desktop (1440×900)
+- **Tiền điều kiện:**
+  1. Có lô hàng đã tạo với ít nhất 1 container có nhà máy được gán.
+  2. Trang "Tổng quan lô hàng" (`/shipments`) hiển thị đúng tên nhà máy (ví dụ: ASKEY-1, ASKEY-2).
+- **Các bước:**
+  1. Đăng nhập `admin`.
+  2. Mở trang "Tổng quan lô hàng" (`/shipments`).
+  3. Tìm lô hàng có nhà máy (ví dụ: khách hàng Long Minh).
+  4. Xác nhận cột "Khách hàng & nhà máy" hiển thị tên nhà máy (ví dụ: ASKEY-1, SUNRISE).
+  5. Click vào lô hàng để mở trang "Chi tiết lô hàng" (`/shipments/:id`).
+  6. Kiểm tra cột "Khách hàng & lộ trình" trong bảng container.
+- **Kết quả mong đợi (Pass):**
+  - Trang Chi tiết lô hàng hiển thị tên nhà máy giống như Tổng quan lô hàng.
+  - Nếu lô có nhiều nhà máy, hiển thị dưới dạng "ASKEY-1 + ASKEY-2".
+  - Nếu chưa có nhà máy, hiển thị "Chưa có nhà máy".
+- **Kỳ vọng sai (Fail nếu):**
+  - Chi tiết lô hàng hiển thị "Chưa có nhà máy" trong khi Tổng quan lô hàng hiển thị đúng tên.
+  - Tên nhà máy bị thiếu hoặc sai so với dữ liệu thực tế.
+- **Bằng chứng:** ảnhcreenshot Tổng quan lô hàng + ảnh Chi tiết lô hàng so sánh cùng tên nhà máy
+- **Regression ID:** REG-FNAME-20260907
