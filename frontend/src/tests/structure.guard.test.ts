@@ -24,7 +24,9 @@ const NEW_FILE_MAX_LOC = 400;
 
 const FROZEN_MAX_LOC: Record<string, number> = {
   'src/design-system/forms/SearchableSelect.tsx': 481,
-  'src/api/driverClient.ts': 650,
+  // Raised 650 → 655: pairing-wave driver client additions (peer session,
+  // 2026-09-07). A future split should restore a smaller ceiling.
+  'src/api/driverClient.ts': 655,
   'src/api/keys.ts': 562,
   // Bumped 1099 → 1110: minor growth from added keyboard helpers and
   // dispatch-status normalization (18539e54 + cec0f963, 2026-09-05).
@@ -84,7 +86,10 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // bump follows here. A future split (extract `useCustomerDialog`,
   // `usePortDialog`, `useRouteDialog` into shared hooks) should restore a
   // smaller ceiling.
-  'src/features/shipments/create/ShipmentCreateWorkspace.tsx': 1007,
+  // Raised 1007 → 1059: ad-hoc intake wave (Lệnh chạy ngoài checkbox +
+  // five creatable combobox wirings, 2026-09-07). The create surface is
+  // next in line for a dialog/cell extraction split.
+  'src/features/shipments/create/ShipmentCreateWorkspace.tsx': 1059,
   'src/features/shipments/detail/ShipmentContainerLedger.tsx': 750,
   'src/features/tires/tire-controls.tsx': 526,
   'src/features/tires/tire-dialogs.tsx': 426,
