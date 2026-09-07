@@ -43,6 +43,8 @@ export interface PairTripDraftState {
 
 export interface PairingState {
   secondTripId: string;
+  /** Ghép chuyến kind: KEP = 2×20' đồng thời; KET_HOP = tái dùng vỏ, nối tiếp. */
+  pairKind: 'KEP' | 'KET_HOP';
   firstTrip: PairTripDraftState;
   secondTrip: PairTripDraftState;
   loading: boolean;

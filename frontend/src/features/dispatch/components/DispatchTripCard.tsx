@@ -101,7 +101,7 @@ export function DispatchTripCard({
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, color: 'var(--ink)' }}>
             <Link2 size={15} />
-            Cặp chuyến 2 chiều
+            Cặp ghép {trip.pairing.pairKind === 'KEP' ? 'Kẹp' : 'Kết hợp'}
           </div>
           <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>
             Chặng {trip.pairing.order}/2 · Ghép với {trip.pairing.partnerTripCode ?? 'chuyến chưa có mã'}
@@ -154,14 +154,33 @@ export function DispatchTripCard({
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, color: 'var(--ink)' }}>
               <Link2 size={15} />
-              Ghép điều vận 2 chiều
+              Ghép chuyến điều vận
             </div>
             <div style={{ marginTop: 4, fontSize: 12, color: 'var(--ink-3)' }}>
-              Chọn chuyến chiều về cùng xe và lái xe, sau đó nhập lịch kế hoạch để hệ thống kiểm tra chồng giờ và quãng xe rỗng.
+              Chọn loại ghép và chuyến kế tiếp cùng xe + lái xe. Kết hợp kiểm tra nối tiếp (không chồng giờ, cùng vỏ); Kẹp cho phép 2 cont 20' chạy cùng lúc.
             </div>
           </div>
           <button type="button" className="swap-btn" onClick={onClosePairing}>Đóng</button>
         </div>
+
+        <label style={{ display: 'grid', gap: 6 }}>
+          <span style={{ fontSize: 12, fontWeight: 600 }}>Loại ghép</span>
+          <UuiSelectField
+            label="Loại ghép"
+            hideLabel
+            value={pairingState.pairKind}
+            onChange={(event) => setPairingState((current) => ({
+              ...current,
+              pairKind: event.target.value as 'KEP' | 'KET_HOP',
+              error: '',
+            }))}
+            options={[
+              { value: 'KET_HOP', label: 'Kết hợp — tái dùng vỏ, 2 lệnh nối tiếp' },
+              { value: 'KEP', label: "Kẹp — 2 cont 20' chạy cùng lúc" },
+            ]}
+            wrapperClassName="input"
+          />
+        </label>
 
         <label style={{ display: 'grid', gap: 6 }}>
           <span style={{ fontSize: 12, fontWeight: 600 }}>Chuyến chiều về</span>

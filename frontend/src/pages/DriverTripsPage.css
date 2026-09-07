@@ -362,3 +362,12 @@
 .driver-journey-card__footer--quiet:active {
   background: var(--surface-2);
 }
+
+/* KẾT HỢP sequencing lock (TC-GHEP-010): the second card explains why its
+ * action is unavailable instead of failing on tap. */
+.driver-journey-card__locked {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--warning, #b45309);
+}

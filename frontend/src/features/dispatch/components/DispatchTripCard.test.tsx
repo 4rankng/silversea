@@ -52,6 +52,7 @@ const reassignState: ReassignState = {
 
 const pairingState: PairingState = {
   secondTripId: '',
+  pairKind: 'KET_HOP',
   firstTrip: {
     plannedStartAt: '2026-07-27T08:00',
     plannedEndAt: '2026-07-27T12:00',
@@ -80,6 +81,7 @@ describe('DispatchTripCard pairing UI', () => {
           pairing: {
             pairId: 42,
             order: 1,
+            pairKind: 'KET_HOP',
             status: 'ACTIVE',
             partnerTripId: 2,
             partnerTripCode: 'TRIP-002',
@@ -118,7 +120,7 @@ describe('DispatchTripCard pairing UI', () => {
       />,
     );
 
-    expect(screen.getByText('Cặp chuyến 2 chiều')).toBeTruthy();
+    expect(screen.getByText('Cặp ghép Kết hợp')).toBeTruthy();
     expect(screen.getByText(/22.5 km/)).toBeTruthy();
     expect(screen.queryByText('Ghép 2 chiều')).toBeNull();
   });
@@ -160,7 +162,7 @@ describe('DispatchTripCard pairing UI', () => {
       />,
     );
 
-    expect(screen.getByText(/Ghép điều vận 2 chiều/)).toBeTruthy();
+    expect(screen.getByText(/Ghép chuyến điều vận/)).toBeTruthy();
     const trigger = screen.getByRole('button', { name: /Chuyến chiều về/ });
     fireEvent.click(trigger);
     fireEvent.click(await screen.findByRole('option', { name: /TRIP-002/ }));

@@ -225,6 +225,11 @@ export function DetailedPlanGrid({
                       <>
                         <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">
                           {row.container.containerNumber ?? 'Chưa có số'}
+                          {row.dispatch.pairKind && (
+                            <span className="detailed-plan-grid__pair-tag">
+                              {row.dispatch.pairKind === 'KEP' ? '[KẸP]' : '[KẾT HỢP]'}
+                            </span>
+                          )}
                         </div>
                         <div className="detailed-plan-grid__line">{row.container.containerTypeLabel ?? '—'}</div>
                         <div className="detailed-plan-grid__line detailed-plan-grid__line--muted">

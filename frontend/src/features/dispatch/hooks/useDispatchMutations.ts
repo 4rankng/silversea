@@ -35,6 +35,7 @@ function buildPairDraft(trip: NormalizedTrip): PairTripDraftState {
 function emptyPairingState(): PairingState {
   return {
     secondTripId: '',
+    pairKind: 'KET_HOP',
     firstTrip: {
       plannedStartAt: '',
       plannedEndAt: '',
@@ -118,6 +119,7 @@ export function useTripPairMutations(pendingTrips: NormalizedTrip[]) {
     setPairingOpen(trip.id);
     setPairingState({
       secondTripId: candidate ? String(candidate.id) : '',
+      pairKind: 'KET_HOP',
       firstTrip: buildPairDraft(trip),
       secondTrip: candidate ? buildPairDraft(candidate) : emptyPairingState().secondTrip,
       loading: false,
@@ -167,6 +169,7 @@ export function useTripPairMutations(pendingTrips: NormalizedTrip[]) {
       await tripClient.createPair({
         firstTripId,
         secondTripId,
+        pairKind: pairingState.pairKind,
         firstTrip: {
           ...pairingState.firstTrip,
           cargoWeightKg: firstCargoWeightKg,

@@ -37,6 +37,11 @@ function formatCardTime(iso: string | null): string {
  * reads as KẸP; an unlinked SINGLE is ĐƠN.
  */
 function tagLabelFor(card: DriverJourneyCard): string {
+  // An ACTIVE trip pair is the authoritative source for the tag (PRD §3.2:
+  // tags are derived from the pair, not entered by hand); the shipment
+  // classification only fills in when no pair stands.
+  if (card.pairKind === 'KEP') return 'KẸP';
+  if (card.pairKind === 'KET_HOP') return 'KẾT HỢP';
   if (card.classification === 'DOUBLE') return 'KẸP';
   if (card.classification === 'COMBINED') return 'KẾT HỢP';
   if (card.classification === 'LCL') return 'LẺ';
@@ -53,7 +58,11 @@ function groupCards(cards: DriverJourneyCard[]): DriverJourneyCard[][] {
   const groups = new Map<string, DriverJourneyCard[]>();
   const order: string[] = [];
   for (const card of cards) {
-    const key = card.linked ? `shipment:${card.shipmentId}` : `fulfillment:${card.fulfillmentId}`;
+    // A trip pair spans two shipments, so pair grouping must win over the
+    // same-shipment (isCombined) grouping.
+    const key = card.pairId != null
+      ? `pair:${card.pairId}`
+      : card.linked ? `shipment:${card.shipmentId}` : `fulfillment:${card.fulfillmentId}`;
     if (!groups.has(key)) {
       groups.set(key, []);
       order.push(key);
@@ -159,6 +168,13 @@ function JourneyCard({ card }: { card: DriverJourneyCard }) {
               {card.contactPhone}
             </a>
           ) : null}
+        </p>
+      ) : null}
+
+      {/* KẾT HỢP sequencing lock (TC-GHEP-010) */}
+      {card.pairLocked ? (
+        <p className="driver-journey-card__locked">
+          Đang chờ Lệnh 1 hoàn thành trả hàng
         </p>
       ) : null}
 

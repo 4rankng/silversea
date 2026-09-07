@@ -25,6 +25,7 @@ import { FinancePolicySection, type FinanceTab } from '../../features/app-settin
 import { OperationalPolicySection } from '../../features/app-settings/OperationalPolicySection';
 import { OcrSection } from '../../features/app-settings/OcrSection';
 import { EmailSection } from '../../features/app-settings/EmailSection';
+import { PairSalarySection } from '../../features/app-settings/PairSalarySection';
 import {
   formatViMonth,
   fromThresholdPercent,
@@ -375,6 +376,8 @@ export default function AppSettingsConfigPage() {
           saveGeneralSettings={saveGeneralSettings}
           generalMessage={generalMessage}
         />
+
+        <PairSalarySection />
 
         <OcrSection
           ocrSettings={ocrSettings}

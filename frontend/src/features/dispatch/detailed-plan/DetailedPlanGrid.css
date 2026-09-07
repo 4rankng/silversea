@@ -896,3 +896,12 @@
   color: var(--text-primary, #101828);
 }
 
+
+/* Pair tag (LoHangKepKetHop §3.2): derived from the ACTIVE trip pair — plain
+ * colored text per the project's no-badge convention. */
+.detailed-plan-grid__pair-tag {
+  margin-left: 6px;
+  font-weight: 700;
+  color: var(--brand, #17594a);
+  white-space: nowrap;
+}

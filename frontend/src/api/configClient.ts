@@ -71,6 +71,14 @@ export const configClient = {
   saveCompanyInfo: (data: CompanyInfo) =>
     api.put<CompanyInfo | PendingGovernanceResponse>(CONFIG.COMPANY_INFO, data),
 
+  // Pair salary surcharges (Cài đặt → Lương): lương cặp = cuốc cơ bản + phụ
+  // phí per pair kind. Whole VND ≥ 0; 0 leaves the standard wage in place.
+  getPairSalarySettings: () =>
+    api.get<{ kepSurcharge: number; ketHopSurcharge: number }>(CONFIG.PAIR_SALARY_SETTINGS),
+
+  savePairSalarySettings: (data: { kepSurcharge: number; ketHopSurcharge: number }) =>
+    api.put<{ kepSurcharge: number; ketHopSurcharge: number }>(CONFIG.PAIR_SALARY_SETTINGS, data),
+
   uploadCompanyLogo: async (file: File) => {
     const formData = new FormData();
     formData.append('file', file);

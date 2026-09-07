@@ -76,6 +76,11 @@ export interface DriverJourneyCard {
   bucket: DriverJourneyBucket;
   classification: DriverJourneyClassification;
   linked: boolean;
+  pairId: number | null;
+  pairKind: 'KEP' | 'KET_HOP' | null;
+  pairOrder: 1 | 2 | null;
+  /** KẾT HỢP lock: true on Lệnh 2 until Lệnh 1 finishes (TC-GHEP-010). */
+  pairLocked: boolean;
   scheduledAt: string | null;
   factoryName: string | null;
   loadingPortName: string | null;

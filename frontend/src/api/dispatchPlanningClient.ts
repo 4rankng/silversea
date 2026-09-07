@@ -208,6 +208,7 @@ export interface DispatchDetailPlanRow {
     externalCarrierId: number | null;
     externalCarrierVehicleId: number | null;
     assignedPlate: string | null;
+    pairKind?: 'KEP' | 'KET_HOP' | null;
   };
   estimates: {
     plannedRevenue: string | null;

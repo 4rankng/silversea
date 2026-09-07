@@ -1258,6 +1258,8 @@ export interface TripPairDraftInput {
 export interface CreateTripPairRequest {
   firstTripId: number;
   secondTripId: number;
+  /** Ghép chuyến kind; omitted ⇒ backend defaults to KET_HOP. */
+  pairKind?: TripPairKind;
   firstTrip: TripPairDraftInput;
   secondTrip: TripPairDraftInput;
 }
@@ -1280,6 +1282,8 @@ export interface TripPairRecord {
   brokenAt: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Non-blocking advisories from pair creation (e.g. KEP on different routes). */
+  warnings?: string[];
 }
 
 export interface DriverOrderedPairView {
