@@ -284,3 +284,28 @@
   height: 18px;
   accent-color: var(--ink, #1c1c1c);
 }
+
+/* Duplicate-reference soft warning (customer feedback 2026-09-07 — Bill/Booking
+ * already entered). Renders BELOW the input hint so the field stays valid;
+ * orange tone to distinguish from a hard `error` (red). The link inside is
+ * focusable and the whole block is in the a11y tree via `role="status"`. */
+.csc-text-field-with-warning { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.csc-field-warning {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #b45309;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+.csc-field-warning__link {
+  color: #b45309;
+  font-weight: 600;
+  text-decoration: underline;
+}
+.csc-field-warning__link:hover { color: #92400e; }

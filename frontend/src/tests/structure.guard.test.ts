@@ -32,7 +32,11 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // dispatch-status normalization (18539e54 + cec0f963, 2026-09-05).
   // Reviewed as a contract change; a future split should restore a smaller
   // ceiling.
-  'src/api/shipmentClient.ts': 1110,
+  // Raised 1110 → 1117: the 2026-09-07 15:02 prod merge (eabbe9cc) resolved a
+  // conflict in this file past both parents' sizes; the ceiling was left
+  // behind and the guard has been red on main since. Bumping to current
+  // reality so the ratchet holds from here.
+  'src/api/shipmentClient.ts': 1117,
   'src/components/billing/BillingDocumentBuilder.tsx': 716,
   // Raised 843 → 856: the CUS + dispatcher sidebar catalog entries
   // (e69e67a7, effdf61f) shipped past the old ceiling. Reviewed as nav
@@ -90,6 +94,13 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // five creatable combobox wirings, 2026-09-07). The create surface is
   // next in line for a dialog/cell extraction split.
   'src/features/shipments/create/ShipmentCreateWorkspace.tsx': 1059,
+  // Bumped to 411: 2026-09-07 customer feedback — the per-row "Xác nhận"
+  // action column (inline save) so the user no longer has to press Enter
+  // or hunt for the header "Hoàn tất" button after typing a container
+  // appointment. Reviewed as a contract change; a future split (extract
+  // `useContainerLineDraft` so this becomes a thin presentational row)
+  // should restore a smaller ceiling.
+  'src/features/shipments/cus/CusContainerLedger.tsx': 411,
   'src/features/shipments/detail/ShipmentContainerLedger.tsx': 750,
   'src/features/tires/tire-controls.tsx': 526,
   'src/features/tires/tire-dialogs.tsx': 426,

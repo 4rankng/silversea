@@ -11,6 +11,7 @@ import {
   updateShipmentDeclaration,
 } from '../../../api/shipmentClient';
 import type { OperationalSite } from '../../../api/shipmentClient';
+import type { ShipmentReferenceConflict } from '../../../api/shipmentDuplicateClient';
 import {
   buildShipmentContainerPayload,
   buildShipmentRootPayload,
@@ -59,6 +60,13 @@ interface UseShipmentCreateWorkflowArgs {
    * `POST /shipments/quick` and `PUT /shipments/:id`.
    */
   customerNotes?: string;
+  /**
+   * Server-side duplicate-reference conflict surfaced via the inline
+   * warning. Returned alongside the regular `submitError` so the workspace
+   * can attach a "Xem lô đã nhập" link in the toast and re-render the
+   * inline warning (the inline effect may have raced the submit).
+   */
+  onDuplicateConflict?: (conflict: ShipmentReferenceConflict) => void;
 }
 
 /** Owns the durable create/retry state machine; presentation stays in the workspace. */
@@ -70,14 +78,17 @@ export function useShipmentCreateWorkflow({
   onValidationIssues,
   onSaved,
   customerNotes,
+  onDuplicateConflict,
 }: UseShipmentCreateWorkflowArgs) {
   const navigate = useNavigate();
   const [saving, setSaving] = useState<SaveIntent | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [duplicateConflict, setDuplicateConflict] = useState<ShipmentReferenceConflict | null>(null);
   const attemptRef = useRef<SaveAttempt | null>(null);
 
   const clearFeedback = useCallback(() => {
     setSubmitError(null);
+    setDuplicateConflict(null);
     onValidationIssues([]);
   }, [onValidationIssues]);
 
@@ -85,12 +96,14 @@ export function useShipmentCreateWorkflow({
     const issues = validateShipmentCreate(intent, readiness);
     if (issues.length > 0) {
       setSubmitError(null);
+      setDuplicateConflict(null);
       onValidationIssues(issues);
       return { issues };
     }
     onValidationIssues([]);
     setSaving(intent);
     setSubmitError(null);
+    setDuplicateConflict(null);
     try {
       const attempt = attemptRef.current ?? { createKey: crypto.randomUUID(), submitKey: crypto.randomUUID() };
       attemptRef.current = attempt;
@@ -170,12 +183,38 @@ export function useShipmentCreateWorkflow({
       else navigate('/shipments');
       return { issues: [] as ShipmentCreateIssue[] };
     } catch (error) {
-      setSubmitError(error instanceof Error && error.message.trim() ? error.message : 'Không thể lưu lô hàng. Vui lòng thử lại.');
+      // Customer feedback 2026-09-07: when the server rejects a duplicate
+      // Bill/Booking/declaration, surface the structured conflict payload
+      // so the workspace can render "Xem lô đã nhập" alongside the toast.
+      // We still set `submitError` for any other failure mode.
+      const conflict = extractDuplicateConflict(error);
+      if (conflict) {
+        setDuplicateConflict(conflict);
+        setSubmitError(null);
+        onDuplicateConflict?.(conflict);
+      } else {
+        setSubmitError(error instanceof Error && error.message.trim() ? error.message : 'Không thể lưu lô hàng. Vui lòng thử lại.');
+      }
       return { issues: [] as ShipmentCreateIssue[] };
     } finally {
       setSaving(null);
     }
-  }, [containers, customerNotes, form, navigate, onSaved, onValidationIssues, readiness, sites]);
+  }, [containers, customerNotes, form, navigate, onDuplicateConflict, onSaved, onValidationIssues, readiness, sites]);
 
-  return { clearFeedback, reportError: setSubmitError, save, saving, submitError };
+  return { clearFeedback, reportError: setSubmitError, save, saving, submitError, duplicateConflict };
+}
+
+function extractDuplicateConflict(error: unknown): ShipmentReferenceConflict | null {
+  if (!(error instanceof ApiError) || error.status !== 409) return null;
+  // The server surfaces `code` and `conflict` as top-level keys on the JSON
+  // body (see `globalErrorHandler`'s `payload` merge). When the form
+  // doesn't include the structured keys, fall back to a null — the
+  // workspace can still display the raw `error.message`.
+  const body = error.raw;
+  if (!body || typeof body !== 'object') return null;
+  const code = (body as { code?: unknown }).code;
+  if (code !== 'SHIPMENT_REFERENCE_DUPLICATE') return null;
+  const conflict = (body as { conflict?: unknown }).conflict;
+  if (!conflict || typeof conflict !== 'object') return null;
+  return conflict as ShipmentReferenceConflict;
 }

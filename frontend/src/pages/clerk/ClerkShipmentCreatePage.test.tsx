@@ -13,6 +13,10 @@ const mocks = vi.hoisted(() => ({
   updateDeclaration: vi.fn(),
   updateShipment: vi.fn(),
   getShipmentDetail: vi.fn(),
+  // Customer feedback 2026-09-07 — duplicate Bill/Booking guard. The
+  // pre-flight check is debounced, so the mock needs to return a promise
+  // that resolves to an empty conflicts array or the form will hang.
+  checkDuplicate: vi.fn().mockResolvedValue([]),
   createRoute: vi.fn(),
   createCustomer: vi.fn(),
   createContainerType: vi.fn(),
@@ -34,6 +38,7 @@ vi.mock('../../api/shipmentClient', () => ({
   updateShipmentDeclaration: mocks.updateDeclaration,
   updateShipment: mocks.updateShipment,
   getShipmentDetail: mocks.getShipmentDetail,
+  checkShipmentReferenceDuplicate: mocks.checkDuplicate,
 }));
 
 vi.mock('../../components/UI', () => ({
