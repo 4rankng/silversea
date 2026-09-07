@@ -320,4 +320,72 @@ describe('duplicate Bill/Booking guard (2026-09-07 regression)', () => {
     const body = await secondDecl.json() as { code?: string };
     assert.equal(body.code, 'SHIPMENT_REFERENCE_DUPLICATE');
   });
+
+  // TC-EDGE-002 — duplicate guard is case-insensitive + whitespace-insensitive.
+  test('Bill collision is case-insensitive (BL-X collides with bl-x)', async () => {
+    const bl = `BL-CASE-${suffix}`;
+    const first = await createIntakeShipment(bl, 'IMPORT', clerkToken);
+    assert.equal(first.status, 201);
+    const firstBody = await first.json() as { id: number };
+    createdShipmentIds.push(firstBody.id);
+
+    const lower = await createIntakeShipment(bl.toLowerCase(), 'IMPORT', otherClerkToken);
+    assert.equal(lower.status, 409, 'lowercase Bill must collide with existing uppercase Bill');
+    const lowerBody = await lower.json() as {
+      code?: string;
+      conflict?: { reference: string; field: string; shipmentId: number };
+    };
+    assert.equal(lowerBody.code, 'SHIPMENT_REFERENCE_DUPLICATE');
+    assert.equal(lowerBody.conflict?.shipmentId, firstBody.id);
+    assert.equal(lowerBody.conflict?.field, 'blNumber');
+
+    const mixed = await createIntakeShipment(`Bl-Case-${suffix}`, 'IMPORT', otherClerkToken);
+    assert.equal(mixed.status, 409, 'mixed-case Bill with same letters must also collide');
+  });
+
+  test('Bill collision is whitespace-insensitive (trims leading/trailing space)', async () => {
+    const bl = `BL-WS-${suffix}`;
+    const first = await createIntakeShipment(bl, 'IMPORT', clerkToken);
+    assert.equal(first.status, 201);
+    const firstBody = await first.json() as { id: number };
+    createdShipmentIds.push(firstBody.id);
+
+    const padded = await createIntakeShipment(`  ${bl}  `, 'IMPORT', otherClerkToken);
+    assert.equal(padded.status, 409, 'padded Bill must collide with trimmed Bill');
+    const paddedBody = await padded.json() as {
+      code?: string;
+      conflict?: { shipmentId: number; field: string };
+    };
+    assert.equal(paddedBody.code, 'SHIPMENT_REFERENCE_DUPLICATE');
+    assert.equal(paddedBody.conflict?.shipmentId, firstBody.id);
+    assert.equal(paddedBody.conflict?.field, 'blNumber');
+  });
+
+  test('declaration number collision is case + whitespace insensitive', async () => {
+    const shipment = await createIntakeShipment(`BL-DECCASE-${suffix}`, 'IMPORT');
+    assert.equal(shipment.status, 201);
+    const shipmentBody = await shipment.json() as { id: number };
+    createdShipmentIds.push(shipmentBody.id);
+
+    const create = await authedFetch(`/${shipmentBody.id}/declarations`, {
+      method: 'POST',
+      body: JSON.stringify({ declarationNumber: `TK-CASE-${suffix}`, scope: 'SINGLE' }),
+    });
+    assert.equal(create.status, 201);
+    const declBody = await create.json() as { id: number };
+    createdDeclarationIds.push(declBody.id);
+
+    const second = await createIntakeShipment(`BL-DECCASE2-${suffix}`, 'IMPORT');
+    assert.equal(second.status, 201);
+    const secondBody = await second.json() as { id: number };
+    createdShipmentIds.push(secondBody.id);
+
+    const paddedLower = await authedFetch(`/${secondBody.id}/declarations`, {
+      method: 'POST',
+      body: JSON.stringify({ declarationNumber: `  tk-case-${suffix}  `, scope: 'SINGLE' }),
+    });
+    assert.equal(paddedLower.status, 409, 'padded lowercase declaration must collide');
+    const body = await paddedLower.json() as { code?: string };
+    assert.equal(body.code, 'SHIPMENT_REFERENCE_DUPLICATE');
+  });
 });

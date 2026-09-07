@@ -5,7 +5,7 @@
 // update / transitions leaves and the lifecycle core import these one-way.
 import * as s from '../db/schema';
 import { db } from '../db';
-import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, asc, eq, ilike, inArray, isNull, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
 import { isFulfillmentRequired } from './shipment-fulfillment.service';
@@ -74,12 +74,16 @@ export async function findShipmentReferenceConflict(
   reference: { blNumber?: string | null; bookingRef?: string | null },
   excludeShipmentId?: number | null,
 ): Promise<ShipmentReferenceConflict | null> {
+  // Trim incoming refs once so ilike + the field-derivation comparison
+  // below agree (TC-EDGE-002: case-insensitive + whitespace-insensitive).
+  const incomingBl = reference.blNumber?.trim() ?? null;
+  const incomingBk = reference.bookingRef?.trim() ?? null;
   const conditions = [];
-  if (reference.blNumber) {
-    conditions.push(eq(s.shipments.blNumber, reference.blNumber));
+  if (incomingBl) {
+    conditions.push(ilike(s.shipments.blNumber, incomingBl));
   }
-  if (reference.bookingRef) {
-    conditions.push(eq(s.shipments.bookingRef, reference.bookingRef));
+  if (incomingBk) {
+    conditions.push(ilike(s.shipments.bookingRef, incomingBk));
   }
   if (conditions.length === 0) return null;
 
@@ -113,7 +117,7 @@ export async function findShipmentReferenceConflict(
   // naive `row.blNumber === reference.blNumber` sees null === null and
   // mislabels a bookingRef collision as blNumber (cross-direction case).
   const field: 'blNumber' | 'bookingRef' =
-    reference.blNumber && row.blNumber === reference.blNumber
+    incomingBl && row.blNumber?.toLowerCase() === incomingBl.toLowerCase()
       ? 'blNumber'
       : 'bookingRef';
   const value = field === 'blNumber' ? (row.blNumber ?? '') : (row.bookingRef ?? '');
@@ -138,8 +142,9 @@ export async function findDeclarationReferenceConflict(
   declarationNumber: string,
   excludeShipmentId?: number | null,
 ): Promise<ShipmentReferenceConflict | null> {
+  const trimmed = declarationNumber.trim();
   const baseWhere = and(
-    eq(s.shipmentDeclarations.declarationNumber, declarationNumber),
+    ilike(s.shipmentDeclarations.declarationNumber, trimmed),
   );
   const where = excludeShipmentId != null
     ? and(baseWhere, sql`${s.shipmentDeclarations.shipmentId} <> ${excludeShipmentId}`)
