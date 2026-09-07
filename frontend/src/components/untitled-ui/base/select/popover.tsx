@@ -12,7 +12,7 @@ export const Popover = (props: PopoverProps) => {
     return (
         <AriaPopover
             placement="bottom"
-            containerPadding={0}
+            containerPadding={16}
             offset={4}
             {...props}
             className={(state) =>
