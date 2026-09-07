@@ -108,9 +108,14 @@ export async function findShipmentReferenceConflict(
     .limit(1);
   if (!row) return null;
 
-  const field: 'blNumber' | 'bookingRef' = row.blNumber === reference.blNumber
-    ? 'blNumber'
-    : 'bookingRef';
+  // Derive the matched field from the SUPPLIED reference, not from equality
+  // against the row: when the incoming payload has blNumber = null, the
+  // naive `row.blNumber === reference.blNumber` sees null === null and
+  // mislabels a bookingRef collision as blNumber (cross-direction case).
+  const field: 'blNumber' | 'bookingRef' =
+    reference.blNumber && row.blNumber === reference.blNumber
+      ? 'blNumber'
+      : 'bookingRef';
   const value = field === 'blNumber' ? (row.blNumber ?? '') : (row.bookingRef ?? '');
   return {
     shipmentId: row.id,
