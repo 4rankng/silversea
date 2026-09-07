@@ -33,6 +33,13 @@ interface UTextFieldProps {
   required?: boolean;
   error?: string;
   hint?: ReactNode;
+  /**
+   * Soft warning rendered below the field (orange/warning tone) — separate
+   * from `error` so the field stays valid while still warning the user (e.g.
+   * "Số Bill đã được nhập bởi <user> lúc <hh:mm>"). The native `hint` slot
+   * is reserved for `error`/info so we render the warning outside the input.
+   */
+  warning?: ReactNode;
   maxLength?: number;
   min?: string | number;
   step?: string | number;
@@ -96,28 +103,40 @@ export function UTextField({
   required,
   error,
   hint,
+  warning,
   maxLength,
   min,
   step,
   hideLabel,
 }: UTextFieldProps) {
   return (
-    <UUIInput
-      size="sm"
-      label={hideLabel ? undefined : label}
-      aria-label={hideLabel ? label : undefined}
-      value={value}
-      onChange={(next) => onChange(asEvent(next))}
-      type={type}
-      placeholder={placeholder}
-      isDisabled={disabled}
-      isRequired={required}
-      isInvalid={Boolean(error)}
-      hint={error ?? hint}
-      hideRequiredIndicator={!required}
-      inputProps={{ maxLength, min, step }}
-      className="csc-uui-field csc-control-boundary"
-    />
+    <div className="csc-text-field-with-warning">
+      <UUIInput
+        size="sm"
+        label={hideLabel ? undefined : label}
+        aria-label={hideLabel ? label : undefined}
+        value={value}
+        onChange={(next) => onChange(asEvent(next))}
+        type={type}
+        placeholder={placeholder}
+        isDisabled={disabled}
+        isRequired={required}
+        isInvalid={Boolean(error)}
+        hint={error ?? hint}
+        hideRequiredIndicator={!required}
+        inputProps={{ maxLength, min, step }}
+        className="csc-uui-field csc-control-boundary"
+      />
+      {warning && !error && (
+        <div
+          className="csc-field-warning"
+          role="status"
+          aria-live="polite"
+        >
+          {warning}
+        </div>
+      )}
+    </div>
   );
 }
 

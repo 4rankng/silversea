@@ -74,6 +74,13 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // `usePortDialog`, `useRouteDialog` into shared hooks) should restore a
   // smaller ceiling.
   'src/features/shipments/create/ShipmentCreateWorkspace.tsx': 965,
+  // Bumped to 411: 2026-09-07 customer feedback — the per-row "Xác nhận"
+  // action column (inline save) so the user no longer has to press Enter
+  // or hunt for the header "Hoàn tất" button after typing a container
+  // appointment. Reviewed as a contract change; a future split (extract
+  // `useContainerLineDraft` so this becomes a thin presentational row)
+  // should restore a smaller ceiling.
+  'src/features/shipments/cus/CusContainerLedger.tsx': 411,
   'src/features/shipments/detail/ShipmentContainerLedger.tsx': 750,
   'src/features/tires/tire-controls.tsx': 526,
   'src/features/tires/tire-dialogs.tsx': 426,

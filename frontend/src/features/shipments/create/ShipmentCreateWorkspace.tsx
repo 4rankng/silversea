@@ -15,6 +15,9 @@ import {
   listOperationalSites,
   type OperationalSite,
 } from '../../../api/shipmentClient';
+import { useShipmentReferenceDuplicateGuard } from './use-shipment-reference-duplicate-guard';
+import { ShipmentReferenceConflictWarning } from './ShipmentReferenceConflictWarning';
+import { mergeCustomer, mergePort, mergeRoute } from './catalogMerger';
 import { OperationalSiteDetailsDialog } from '../../../components/shipment/OperationalSiteDetailsDialog';
 import { OperationalSiteCreateDialog } from '../../../components/shipment/OperationalSiteCreateDialog';
 import { CustomerCreateDialog } from './CustomerCreateDialog';
@@ -95,6 +98,14 @@ export function ShipmentCreateWorkspace() {
   const shippingLineAddButtonRef = useRef<HTMLButtonElement>(null);
   const [routeDialogOpen, setRouteDialogOpen] = useState(false);
   const routeAddButtonRef = useRef<HTMLButtonElement>(null);
+  // Customer feedback 2026-09-07 (BL `JJCTCHPDY260305`): duplicate-guard
+  // hook owns the debounce + 409 toast + server-conflict splicing.
+  const { getConflict: getReferenceConflict, reportServerConflict } = useShipmentReferenceDuplicateGuard({
+    blNumber: form.blNumber,
+    bookingRef: form.bookingRef,
+    declarationNumber: form.declarationNumber,
+    tradeDirection: form.tradeDirection,
+  });
   // Container-row target for the route dialog (null = the LCL form-level field).
   const [routeDialogTargetKey, setRouteDialogTargetKey] = useState<string | null>(null);
   // Port dialog + which container cell asked for it.
@@ -166,7 +177,7 @@ export function ShipmentCreateWorkspace() {
       .then((value) => { if (!cancelled) setSites(value); })
       .catch(() => { if (!cancelled) reportError('Không thể tải danh sách nhà máy của khách hàng'); })
       .finally(() => { if (!cancelled) setSitesLoading(false); });
-    return () => { cancelled = true; };
+    return () => { cancelled = true };
   }, [form.customerId, sitesVersion]);
 
   const operationalSites = useMemo(() => sites.filter((site) => site.siteType === 'FACTORY'), [sites]);
@@ -183,21 +194,20 @@ export function ShipmentCreateWorkspace() {
     () => new Map(validationIssues.map((item) => [item.fieldId, item.message])),
     [validationIssues],
   );
+
+  // Per-field conflict via the shared duplicate-guard hook.
+  const billConflict = getReferenceConflict('blNumber', form.blNumber);
+  const bookingConflict = getReferenceConflict('bookingRef', form.bookingRef);
+  const declarationConflict = getReferenceConflict('declaration', form.declarationNumber);
+
   // Stable option arrays: USearchableField's type-to-search effect keys on
   // the `options` identity, so a freshly-mapped array on every render would
   // wipe the clerk's in-progress typed filter on any unrelated re-render.
-  const customerOptions = useMemo(
-    () => (catalogs?.customers ?? []).map((item) => ({ value: String(item.id), label: item.name })),
-    [catalogs],
-  );
-  const routeOptions = useMemo(
-    () => (catalogs?.routes ?? []).map((item) => ({ value: String(item.id), label: item.name })),
-    [catalogs],
-  );
-  const portOptions = useMemo(
-    () => (catalogs?.ports ?? []).map((item) => ({ value: String(item.id), label: item.name })),
-    [catalogs],
-  );
+  const mapOptions = <T extends { id: number; name: string }>(items: T[] | undefined) =>
+    (items ?? []).map((item) => ({ value: String(item.id), label: item.name }));
+  const customerOptions = useMemo(() => mapOptions(catalogs?.customers), [catalogs]);
+  const routeOptions = useMemo(() => mapOptions(catalogs?.routes), [catalogs]);
+  const portOptions = useMemo(() => mapOptions(catalogs?.ports), [catalogs]);
   const isDirty = useMemo(() => {
     const hasFormData = Object.entries(form).some(([key, value]) => (
       key === 'cargoMode' ? value !== EMPTY_FORM.cargoMode
@@ -211,13 +221,14 @@ export function ShipmentCreateWorkspace() {
     return hasFormData || hasContainerData || customerNotes.trim() !== '';
   }, [containers, customerNotes, form]);
 
-  const { clearFeedback, reportError, save: runSave, saving, submitError } = useShipmentCreateWorkflow({
+  const { clearFeedback, reportError, save: runSave, saving, submitError, duplicateConflict } = useShipmentCreateWorkflow({
     form,
     containers,
     sites,
     readiness,
     onValidationIssues: setValidationIssues,
     customerNotes,
+    onDuplicateConflict: reportServerConflict,
   });
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
@@ -272,14 +283,11 @@ export function ShipmentCreateWorkspace() {
   }
 
   /**
-   * A port/yard created inline from a container cell (Cảng nâng/hạ) joins the
-   * catalog and is selected straight into the cell that asked for it.
+   * A port/yard created inline from a container cell (Cảng nâng/hạ) joins
+   * the catalog and is selected straight into the cell that asked for it.
    */
   function handlePortCreated(port: Port) {
-    setCatalogs((current) => current ? {
-      ...current,
-      ports: [...(current.ports ?? []).filter((item) => item.id !== port.id), port],
-    } : current);
+    mergePort(catalogs, port, setCatalogs);
     const target = portDialog.target;
     if (target) updateContainer(target.key, target.field, String(port.id));
     setPortDialog({ open: false, target: null });
@@ -291,22 +299,13 @@ export function ShipmentCreateWorkspace() {
   }
 
   function handleCustomerCreated(customer: Customer) {
-    setCatalogs((current) => current ? {
-      ...current,
-      customers: [...current.customers.filter((item) => item.id !== customer.id), customer],
-    } : current);
+    mergeCustomer(catalogs, customer, setCatalogs);
     selectCustomer(String(customer.id));
     closeCustomerDialog();
   }
 
   function addRouteToCatalog(route: Route) {
-    setCatalogs((current) => current ? {
-      ...current,
-      routes: [
-        ...current.routes.filter((item) => item.id !== route.id),
-        { ...route, fullName: route.name, name: route.shortName || route.name },
-      ],
-    } : current);
+    mergeRoute(catalogs, route, setCatalogs);
   }
 
   /**
@@ -516,7 +515,7 @@ export function ShipmentCreateWorkspace() {
 
             <div className="csc-identity-grid__trade-direction" data-field-id="shipment-trade-direction"><SelectField id="shipment-trade-direction" label="Hình thức xuất nhập khẩu" required value={form.tradeDirection} onChange={(event) => update('tradeDirection', event.target.value as FormState['tradeDirection'])} disabled={Boolean(saving)} error={issueByField.get('shipment-trade-direction')} options={[{ value: '', label: '— Chọn hình thức —' }, { value: 'IMPORT', label: 'Nhập khẩu' }, { value: 'EXPORT', label: 'Xuất khẩu' }]} /></div>
 
-            <div className="csc-identity-grid__booking" data-field-id="shipment-booking-ref"><TextField id="shipment-booking-ref" label="Số Bill/Booking" required value={form.tradeDirection === 'IMPORT' ? form.blNumber : form.bookingRef} onChange={(event) => update(form.tradeDirection === 'IMPORT' ? 'blNumber' : 'bookingRef', event.target.value)} maxLength={100} placeholder={form.tradeDirection === 'IMPORT' ? 'Nhập số Bill (hàng Nhập)' : form.tradeDirection === 'EXPORT' ? 'Nhập số Booking (hàng Xuất)' : 'Chọn Nhập hoặc Xuất'} disabled={!form.tradeDirection || Boolean(saving)} error={issueByField.get('shipment-booking-ref')} /></div>
+            <div className="csc-identity-grid__booking" data-field-id="shipment-booking-ref"><TextField id="shipment-booking-ref" label="Số Bill/Booking" required value={form.tradeDirection === 'IMPORT' ? form.blNumber : form.bookingRef} onChange={(event) => update(form.tradeDirection === 'IMPORT' ? 'blNumber' : 'bookingRef', event.target.value)} maxLength={100} placeholder={form.tradeDirection === 'IMPORT' ? 'Nhập số Bill (hàng Nhập)' : form.tradeDirection === 'EXPORT' ? 'Nhập số Booking (hàng Xuất)' : 'Chọn Nhập hoặc Xuất'} disabled={!form.tradeDirection || Boolean(saving)} error={issueByField.get('shipment-booking-ref')} warning={<ShipmentReferenceConflictWarning conflict={form.tradeDirection === 'IMPORT' ? billConflict : bookingConflict} fieldLabel={form.tradeDirection === 'IMPORT' ? 'Số Bill' : 'Số Booking'} />} /></div>
 
             {form.cargoMode === 'FCL' && (
               <div className="csc-identity-grid__shipping-line csc-shipping-line-picker" data-field-id="shipment-shipping-line">
@@ -534,7 +533,7 @@ export function ShipmentCreateWorkspace() {
             )}
 
             {/* SỐ TỜ KHAI */}
-            <div className="csc-identity-grid__declaration"><TextField label="Số tờ khai" value={form.declarationNumber} onChange={(event) => update('declarationNumber', event.target.value)} maxLength={100} disabled={Boolean(saving)} /></div>
+            <div className="csc-identity-grid__declaration"><TextField label="Số tờ khai" value={form.declarationNumber} onChange={(event) => update('declarationNumber', event.target.value)} maxLength={100} disabled={Boolean(saving)} warning={<ShipmentReferenceConflictWarning conflict={declarationConflict} fieldLabel="Số tờ khai" />} /></div>
 
           </div>
         </ShipmentCreateSection>
