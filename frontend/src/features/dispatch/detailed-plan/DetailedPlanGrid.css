@@ -905,3 +905,10 @@
   color: var(--brand, #17594a);
   white-space: nowrap;
 }
+
+/* Ghép chuyến row action (LoHangKepKetHop §3.1): only on unpaired OWN-carrier
+ * rows that already have a trip. */
+.detailed-plan-grid__pair-btn {
+  margin-top: 6px;
+  white-space: nowrap;
+}

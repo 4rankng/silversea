@@ -62,6 +62,9 @@ interface DetailedPlanGridProps {
     row: DispatchDetailPlanRow,
     body: Omit<DispatchShipmentRequest, 'fulfillmentId' | 'expectedVersion'>,
   ) => Promise<IssueOrderResult>;
+  /** Opens the ghép chuyến dialog anchored on this row's trip (optional —
+   * pages that don't mount the dialog simply don't get the button). */
+  onOpenPair?: (row: DispatchDetailPlanRow) => void;
 }
 
 /**
@@ -89,6 +92,7 @@ export function DetailedPlanGrid({
   onAtomicSave,
   onOpenTripReassign,
   onIssueOrder,
+  onOpenPair,
 }: DetailedPlanGridProps) {
   if (error) {
     return (
@@ -257,6 +261,19 @@ export function DetailedPlanGrid({
                     <span className="detailed-plan-grid__classification">
                       {DISPATCH_CLASSIFICATION_LABELS[row.classification]}
                     </span>
+                    {onOpenPair
+                      && row.dispatch?.tripId != null
+                      && row.dispatch.carrierType !== 'EXTERNAL'
+                      && !row.dispatch.pairKind
+                      && row.dispatch.tripStatus !== 'CANCELED' && (
+                      <button
+                        type="button"
+                        className="btn btn--secondary btn--sm detailed-plan-grid__pair-btn"
+                        onClick={() => onOpenPair(row)}
+                      >
+                        Ghép chuyến
+                      </button>
+                    )}
                   </td>
                   <td className="detailed-plan-grid__cell detailed-plan-grid__cell--notes" data-label="Ghi chú">
                     {row.notes.vehicleNote && (
