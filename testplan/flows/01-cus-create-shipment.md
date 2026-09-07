@@ -476,6 +476,93 @@
 
 ---
 
+## 1.10 — Xoá selections trong ô dropdown container (báo cáo khách hàng 2026-09-07)
+
+> **Nguồn:** Customer relay 2026-09-07 — "mục nhà máy, tuyến đường, cảng nâng, cảng hạ khi đã chọn
+> dữ liệu mà muốn xóa đi để tìm lại thông tin đúng chọn lại nhưng không xóa được mà phải kéo chọn
+> những data có sẵn".
+
+### TC-CUS-CREATE-021 — Xoá chọn trong ô Nhà máy container rồi chọn lại
+
+- **Vai trò:** `cus`
+- **Mức độ:** P0
+- **Thiết bị:** Desktop (1440×900)
+- **Tiền điều kiện:** Đăng nhập `cus`, mở `/shipments/new`; khách hàng có ≥2 nhà máy active
+- **Các bước:**
+  1. Chọn khách hàng. Thêm 1 dòng container.
+  2. Ở cột "Nhà máy", chọn nhà máy A (vd SCONNECT).
+  3. Bấm nút **X** (clear) bên phải ô dropdown để xoá chọn.
+  4. Kiểm tra: ô Nhà máy hiển thị placeholder "Chọn nhà máy", không còn giữ nhà máy A.
+  5. Mở dropdown, chọn nhà máy B khác.
+- **Kết quả mong đợi (Pass):**
+  - Nút X xuất hiện khi đã có giá trị được chọn trong ô Nhà máy.
+  - Sau khi bấm X, giá trị được xoá → ô placeholder hiển thị lại, không còn giữ giá trị cũ.
+  - User có thể gõ text tìm kiếm và chọn nhà máy mới mà không cần kéo scroll danh sách.
+- **Kỳ vọng sai (Fail nếu):** nút X không hiện; bấm X không xoá; phải kéo scroll để chọn lại.
+- **Bằng chứng:** ảnh nút X + ảnh placeholder sau khi xoá + ảnh dropdown đã chọn mới
+
+---
+
+### TC-CUS-CREATE-022 — Xoá chọn trong ô Tuyến đường container
+
+- **Vai trò:** `cus`
+- **Mức độ:** P0
+- **Các bước:**
+  1. Ở dòng container, chọn Tuyến đường đã chọn (vd "KCN ĐỒNG VĂN, HÀ NAM").
+  2. Bấm nút **X** (clear) bên phải ô Tuyến đường.
+  3. Kiểm tra: ô hiển thị placeholder "Chọn tuyến đường".
+  4. Gõ text tìm tuyến khác, chọn tuyến mới.
+- **Kết quả mong đợi (Pass):**
+  - Nút X hiện khi đã chọn tuyến. Bấm X → xoá, placeholder hiển thị.
+  - Có thể gõ text filter và chọn tuyến mới.
+- **Kỳ vọng sai (Fail nếu):** không xoá được, phải kéo scroll danh sách.
+
+---
+
+### TC-CUS-CREATE-023 — Xoá chọn trong ô Cảng nâng và Cảng hạ container
+
+- **Vai trò:** `cus`
+- **Mức độ:** P0
+- **Các bước:**
+  1. Ở dòng container, chọn **Cảng nâng** (vd "Cảng VipGreenPort").
+  2. Bấm nút **X** (clear) bên phải ô Cảng nâng. → placeholder "Chọn cảng nâng" hiển thị.
+  3. Chọn **Cảng hạ**. Bấm nút **X** (clear). → placeholder "Chọn cảng hạ" hiển thị.
+  4. Chọn lại cảng mới cho cả hai ô.
+- **Kết quả mong đợi (Pass):**
+  - Nút X xuất hiện trên cả hai ô khi đã chọn giá trị.
+  - Bấm X → xoá chọn, placeholder hiển thị, user gõ text và chọn lại được.
+- **Kỳ vọng sai (Fail nếu):** một hoặc cả hai ô không xoá được.
+
+---
+
+### TC-CUS-CREATE-024 — Xoá chọn trong ô dropdown ở chế độ LCL
+
+- **Vai trò:** `cus`
+- **Mức độ:** P1
+- **Các bước:**
+  1. Chuyển sang chế độ **Hàng lẻ (LCL)**.
+  2. Ở section "Điểm vận hành & tuyến": chọn Tuyến đường → bấm X → xoá → chọn lại.
+  3. Kiểm tra các ô dropdown khác ở LCL có cùng hành vi X clear.
+- **Kết quả mong đợi (Pass):**
+  - Nút X hoạt động đúng trên các ô dropdown của LCL form.
+- **Kỳ vọng sai (Fail nếu):** LCL không có nút X trên dropdown.
+
+---
+
+### TC-CUS-CREATE-025 — Nhấn Escape để revert giá trị dropdown container
+
+- **Vai trò:** `cus`
+- **Mức độ:** P1
+- **Các bước:**
+  1. Ở dòng container, focus ô Nhà máy (đã chọn giá trị A).
+  2. Nhấn phím **Escape** thay vì bấm X.
+  3. Kiểm tra giá trị hiển thị.
+- **Kết quả mong đợi (Pass):**
+  - Escape giữ nguyên giá trị A (revert), không thay đổi.
+  - Phím Escape không crash hay hoạt động bất thường.
+
+---
+
 ## Bảng nghiệm thu — Luồng Tạo lô hàng (CUS)
 
 | Ngày thử | Mã TC | Người thử | Kết quả | Ghi chú | Bằng chứng |
@@ -501,3 +588,8 @@
 | __/__/__ | TC-CUS-CREATE-019 | | | Quy cách đóng gói free-text | |
 | __/__/__ | TC-CUS-CREATE-020 | | | Tạo Loại container inline + tự chọn | |
 | __/__/__ | TC-CUS-CREATE-019 | | | Tạo cảng/bãi inline từ ô container | |
+| __/__/__ | TC-CUS-CREATE-021 | | | Xoá chọn Nhà máy container | |
+| __/__/__ | TC-CUS-CREATE-022 | | | Xoá chọn Tuyến đường container | |
+| __/__/__ | TC-CUS-CREATE-023 | | | Xoá chọn Cảng nâng/hạ container | |
+| __/__/__ | TC-CUS-CREATE-024 | | | Xoá chọn dropdown LCL | |
+| __/__/__ | TC-CUS-CREATE-025 | | | Escape revert dropdown container | |
