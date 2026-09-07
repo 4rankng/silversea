@@ -515,7 +515,7 @@ export function ShipmentCreateWorkspace() {
 
             <div className="csc-identity-grid__trade-direction" data-field-id="shipment-trade-direction"><SelectField id="shipment-trade-direction" label="Hình thức xuất nhập khẩu" required value={form.tradeDirection} onChange={(event) => update('tradeDirection', event.target.value as FormState['tradeDirection'])} disabled={Boolean(saving)} error={issueByField.get('shipment-trade-direction')} options={[{ value: '', label: '— Chọn hình thức —' }, { value: 'IMPORT', label: 'Nhập khẩu' }, { value: 'EXPORT', label: 'Xuất khẩu' }]} /></div>
 
-            <div className="csc-identity-grid__booking" data-field-id="shipment-booking-ref"><TextField id="shipment-booking-ref" label="Số Bill/Booking" required value={form.tradeDirection === 'IMPORT' ? form.blNumber : form.bookingRef} onChange={(event) => update(form.tradeDirection === 'IMPORT' ? 'blNumber' : 'bookingRef', event.target.value)} maxLength={100} placeholder={form.tradeDirection === 'IMPORT' ? 'Nhập số Bill (hàng Nhập)' : form.tradeDirection === 'EXPORT' ? 'Nhập số Booking (hàng Xuất)' : 'Chọn Nhập hoặc Xuất'} disabled={!form.tradeDirection || Boolean(saving)} error={issueByField.get('shipment-booking-ref')} warning={<ShipmentReferenceConflictWarning conflict={form.tradeDirection === 'IMPORT' ? billConflict : bookingConflict} fieldLabel={form.tradeDirection === 'IMPORT' ? 'Số Bill' : 'Số Booking'} />} /></div>
+            <div className="csc-identity-grid__booking" data-field-id="shipment-booking-ref"><TextField id="shipment-booking-ref" label="Số Bill/Booking" required value={form.tradeDirection === 'IMPORT' ? form.blNumber : form.bookingRef} onChange={(event) => update(form.tradeDirection === 'IMPORT' ? 'blNumber' : 'bookingRef', event.target.value)} maxLength={100} placeholder={form.tradeDirection === 'IMPORT' ? 'Nhập số Bill (hàng Nhập)' : form.tradeDirection === 'EXPORT' ? 'Nhập số Booking (hàng Xuất)' : 'Chọn Nhập hoặc Xuất'} disabled={!form.tradeDirection || Boolean(saving)} error={issueByField.get('shipment-booking-ref')} warning={(form.tradeDirection === 'IMPORT' ? billConflict : bookingConflict) ? <ShipmentReferenceConflictWarning conflict={form.tradeDirection === 'IMPORT' ? billConflict : bookingConflict} fieldLabel={form.tradeDirection === 'IMPORT' ? 'Số Bill' : 'Số Booking'} /> : undefined} /></div>
 
             {form.cargoMode === 'FCL' && (
               <div className="csc-identity-grid__shipping-line csc-shipping-line-picker" data-field-id="shipment-shipping-line">
@@ -533,7 +533,7 @@ export function ShipmentCreateWorkspace() {
             )}
 
             {/* SỐ TỜ KHAI */}
-            <div className="csc-identity-grid__declaration"><TextField label="Số tờ khai" value={form.declarationNumber} onChange={(event) => update('declarationNumber', event.target.value)} maxLength={100} disabled={Boolean(saving)} warning={<ShipmentReferenceConflictWarning conflict={declarationConflict} fieldLabel="Số tờ khai" />} /></div>
+            <div className="csc-identity-grid__declaration"><TextField label="Số tờ khai" value={form.declarationNumber} onChange={(event) => update('declarationNumber', event.target.value)} maxLength={100} disabled={Boolean(saving)} warning={declarationConflict ? <ShipmentReferenceConflictWarning conflict={declarationConflict} fieldLabel="Số tờ khai" /> : undefined} /></div>
 
           </div>
         </ShipmentCreateSection>
