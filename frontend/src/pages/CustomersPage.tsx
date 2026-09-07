@@ -11,7 +11,7 @@ import { nextTableSort, readTableSort } from '../lib/table-sort';
 import { SortHeader } from '../components/shared/SortHeader';
 import { PageHeader, FilterPill, StatusPill, Modal, ModalChip, ModalChipLive, useConfirm } from '../components/UI';
 import { Input } from '../components/untitled-ui/base/input/input';
-import { EntityFormSection, UnitInput, RequiredHint } from '../components/shared/EntityFormParts';
+import { EntityFormSection, RequiredHint } from '../components/shared/EntityFormParts';
 import { SummaryRail } from '../design-system';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { EmptyState, Pagination, useTableQueryState } from '../design-system';

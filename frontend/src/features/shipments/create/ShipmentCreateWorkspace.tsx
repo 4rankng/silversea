@@ -221,7 +221,7 @@ export function ShipmentCreateWorkspace() {
     return hasFormData || hasContainerData || customerNotes.trim() !== '';
   }, [containers, customerNotes, form]);
 
-  const { clearFeedback, reportError, save: runSave, saving, submitError, duplicateConflict } = useShipmentCreateWorkflow({
+  const { clearFeedback, reportError, save: runSave, saving, submitError } = useShipmentCreateWorkflow({
     form,
     containers,
     sites,

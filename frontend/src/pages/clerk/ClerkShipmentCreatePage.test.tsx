@@ -41,15 +41,18 @@ vi.mock('../../api/shipmentClient', () => ({
   checkShipmentReferenceDuplicate: mocks.checkDuplicate,
 }));
 
-vi.mock('../../components/UI', () => ({
+vi.mock('../../components/UI', async () => {
+  const { createContext } = await import('react');
+  return ({
   Modal: ({ isOpen, onClose, title, children, footer }: {
     isOpen: boolean; onClose?: () => void; title?: string; children: React.ReactNode; footer?: React.ReactNode;
   }) => isOpen ? <div role="dialog" aria-label={title}>{children}{footer}<button type="button" onClick={onClose}>Đóng</button></div> : null,
   Drawer: ({ isOpen, onClose, title, children }: {
     isOpen: boolean; onClose?: () => void; title?: string; children: React.ReactNode;
   }) => isOpen ? <div role="dialog" aria-label={title}>{children}<button type="button" onClick={onClose}>Đóng</button></div> : null,
-  ModalCompactContext: require('react').createContext(false),
-}));
+  ModalCompactContext: createContext(false),
+  });
+});
 
 import ClerkShipmentCreatePage from './ClerkShipmentCreatePage';
 

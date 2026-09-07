@@ -8,7 +8,6 @@ import { Spinner } from '../components/shared/Spinner';
 import { Money } from '../components/shared/Money';
 import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
-import { TripStatus } from '@tingting/shared';
 import { AccountingLockBanner } from '../components/shipment/AccountingLockBanner';
 import { UuiSelectField } from '../design-system';
 
