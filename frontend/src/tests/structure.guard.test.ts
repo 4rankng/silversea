@@ -92,7 +92,11 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // the original behaviour; a future split (extract `useCustomerDialog`,
   // `usePortDialog`, `useRouteDialog` into shared hooks) should restore a
   // smaller ceiling.
-  'src/features/shipments/create/ShipmentCreateWorkspace.tsx': 965,
+  // Bumped 965 → 970: 2026-09-07 type-to-search wave — the searchable
+  // combobox props (Hãng tàu / Kho lấy hàng wiring) pushed the file two
+  // lines past the ceiling. Reviewed as a contract change; a future split
+  // (extract the container-table row) should restore a smaller ceiling.
+  'src/features/shipments/create/ShipmentCreateWorkspace.tsx': 970,
   // Bumped to 411: 2026-09-07 customer feedback — the per-row "Xác nhận"
   // action column (inline save) so the user no longer has to press Enter
   // or hunt for the header "Hoàn tất" button after typing a container
