@@ -66,9 +66,11 @@ cột / bảng quan hệ để lưu: `Tiền nâng`, `Tiền hạ`, `Chi phí ph
 mang trạng thái — quy ước dự án là chữ màu, không badge), `Mã chuyến` monospace, và
 dòng `Tài xế + 🚚 Biển số` (biển số thuộc **Khối 6** của thẻ chi tiết, §2.2).
 
-> ⚠️ **Chênh lệch với hiện trạng:** `DriverTripsPage.tsx` đang render **1 thẻ / chuyến**
-> với bộ tab cũ `Hôm nay / Đang chạy / Lịch sử`. Đây là **việc cần migrate**, không phải
-> đặc tả thay thế. Diff từng trường + tiêu chí nghiệm thu:
+> ✅ **Đã triển khai (2026-09-07):** `DriverTripsPage.tsx` đã migrate sang mô hình
+> thẻ này — 1 thẻ / container (fulfillment), tabs `Lệnh mới / Đã nhận / Lịch sử`,
+> cấu trúc 2 cột đúng §2.1, tag `[KẸP]` / `[KẾT HỢP]` suy ra từ cặp ghép
+> (`trip_pairs.pair_kind`), 2 thẻ ghép dính liền theo cặp, và khoá tiến độ
+> Lệnh 2 (kết hợp) cho tới khi Lệnh 1 hoàn thành. Tiêu chí nghiệm thu:
 > [`testplan/roles/03-laixe.md`](../../testplan/roles/03-laixe.md) Flow 1 (`DRV-LIST-02`,
 > `DRV-LIST-03`) và [`testplan/flows/03-laixe-nhan-lenh.md`](../../testplan/flows/03-laixe-nhan-lenh.md)
 > §3.7 (`TC-LX-NHANLENH-014`, `-015`).
