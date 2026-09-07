@@ -501,6 +501,14 @@ describe('O01 two-way dispatch pairing routes', () => {
     const tollFirst = await mkTrip(TripStatus.CREATED, '2026-07-27', firstSeed);
     const tollSecond = await mkTrip(TripStatus.CREATED, '2026-07-28', secondSeed);
 
+    // Hermetic vs environment: pair-salary surcharges live in app_settings.
+    // This test exercises toll netting only, so pin the surcharges to 0 for
+    // its duration and restore whatever the environment had — even on
+    // failure — so it cannot leak into the lương-cặp tests below.
+    const tollSettingsBefore = await getPairSalarySettingsFrom();
+    await db.transaction(async (tx) => savePairSalarySettings(tx, { kepSurcharge: 0, ketHopSurcharge: 0 }));
+    try {
+
     // Both trips carry the same closed-loop VETC toll: 2 stations × 55 000 = 110 000.
     // totalCost baseline 900 000 already includes the toll (set at creation in mkTrip).
     const grossToll = 110000;
@@ -560,6 +568,9 @@ describe('O01 two-way dispatch pairing routes', () => {
     assert.equal(Number(restoredSurvivor.tollCost), grossToll); // full toll back
     assert.equal(Number(restoredSurvivor.totalCost), 900000);
     assert.equal(Number(restoredSurvivor.grossProfit), 600000);
+    } finally {
+      await db.transaction(async (tx) => savePairSalarySettings(tx, tollSettingsBefore));
+    }
   });
 
   test('service rejects forged capacity and cargo while accepting the authoritative draft', async () => {

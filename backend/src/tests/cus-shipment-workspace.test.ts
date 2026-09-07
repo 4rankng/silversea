@@ -322,11 +322,15 @@ describe('Shipment document references — whitespace normalization', () => {
 
   test('update trims surrounding whitespace and stores the clean value', async () => {
     const shipment = await seedShipment({ tradeDirection: 'IMPORT' });
+    // Run-unique reference: the update path now 409s on duplicates against
+    // other ACTIVE shipments, so a hardcoded literal would collide with any
+    // stale row from an earlier run and wedge the suite.
+    const reference = `BILL-PAD-${suffix}`;
     const updated = await updateShipment(shipment.id, {
       expectedVersion: shipment.version,
-      blNumber: '  BILL-PAD-1  ',
+      blNumber: `  ${reference}  `,
     });
-    assert.equal(updated.blNumber, 'BILL-PAD-1');
+    assert.equal(updated.blNumber, reference);
   });
 });
 
@@ -593,14 +597,17 @@ describe('CUS container-flat projection', () => {
 
   test('searches a container suffix and returns only the matching container row', async () => {
     const shipment = await seedShipment({ blNumber: `NOSUFFIX${suffix}` });
-    await seedContainer(shipment.id, { containerNumber: 'CONTAINER-ZX9Q' });
-    await seedContainer(shipment.id, { containerNumber: 'CONTAINER-OTHER' });
+    // Run-unique container numbers: a crashed earlier run left an active
+    // fixture pair behind, and hardcoded numbers made the leftover match the
+    // suffix search forever after.
+    await seedContainer(shipment.id, { containerNumber: `CONTAINER-${suffix}-ZX9Q` });
+    await seedContainer(shipment.id, { containerNumber: `CONTAINER-${suffix}-OTHER` });
 
-    const response = await listCusShipmentContainers({ page: 1, limit: 20, searchSuffix: 'ZX9Q' }, cusActor);
+    const response = await listCusShipmentContainers({ page: 1, limit: 20, searchSuffix: `${suffix}-ZX9Q` }, cusActor);
 
     assert.equal(response.total, 1);
     assert.equal(response.items.length, 1);
-    assert.equal(response.items[0]?.containerNumber, 'CONTAINER-ZX9Q');
+    assert.equal(response.items[0]?.containerNumber, `CONTAINER-${suffix}-ZX9Q`);
   });
 
   test('paginates container rows rather than shipment rows without overlap', async () => {
