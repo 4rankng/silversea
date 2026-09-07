@@ -186,6 +186,19 @@ describe('duplicate Bill/Booking guard (2026-09-07 regression)', () => {
     createdShipmentIds.push(body.id);
   });
 
+  test('a trimmed, lowercase variant of an existing Bill is rejected (case-insensitive guard)', async () => {
+    const bl = `BL-TRIM-${suffix}`;
+    const first = await createIntakeShipment(bl, 'IMPORT');
+    assert.equal(first.status, 201);
+    const firstBody = await first.json() as { id: number };
+    createdShipmentIds.push(firstBody.id);
+
+    // The create schema trims + the guard matches case-insensitively (ilike),
+    // so padded/lowercase resubmits are the SAME reference.
+    const variant = await createIntakeShipment(`  ${bl.toLowerCase()}  ` as string, 'IMPORT');
+    assert.equal(variant.status, 409, 'padded lowercase variant must conflict');
+  });
+
   test('a second shipment with the same Bill is rejected with 409 + structured conflict', async () => {
     const bl = `BL-DUP-${suffix}`;
     const first = await createIntakeShipment(bl, 'IMPORT', clerkToken);
