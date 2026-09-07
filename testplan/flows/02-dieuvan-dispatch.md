@@ -837,6 +837,111 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
 
 ---
 
+## 2.11 — Chọn Tác vụ điều phối (Dispatch Task Selector) trong popup Phân xe (báo cáo khách hàng 2026-09-07)
+
+> **Nguồn:** Khách hàng yêu cầu 2026-09-07 — "ở popup Phân xe/Chỉnh sửa điều phối cần thêm dropdown
+> chọn tác vụ: đặt đầu, đặt đuôi, đảo vỏ, lấy vỏ icd quế võ đi đóng, gửi bãi, trả vỏ, giao
+> thẳng". Mục đích: nhân viên điều vận gán rõ nhiệm vụ cụ thể cho từng chuyến xe, lái xe nhìn
+> vào nhận biết ngay việc cần làm.
+>
+> **Ghi chú:** TC-DV-DISPATCH-034 (§2.9) đã cover ghi chú tác vụ dạng chip tag nhanh + textarea.
+> Phần này bổ sung trường dropdown **Tác vụ điều phối** riêng biệt (enum, không phải free-text)
+> trong cùng popup "Chỉnh sửa điều phối".
+
+### TC-DV-DISPATCH-035 — Hiển thị trường "Tác vụ điều phối" trên popup Chỉnh sửa điều phối
+
+- **Vai trò:** `dieuvan`
+- **Mức độ:** P1
+- **Thiết bị:** Desktop (1440×900)
+- **Tiền điều kiện:** Đăng nhập tài khoản Điều vận / Quản trị. Lô FCL/LCL hiển thị trên `/dispatch-detail`.
+- **Các bước:**
+  1. Mở phân hệ "Điều vận" → Kế hoạch chi tiết (`/dispatch-detail`).
+  2. Nhấp vào 1 container để mở popup "Chỉnh sửa điều phối".
+  3. Kiểm tra các trường thông tin trong popup.
+- **Kết quả mong đợi (Pass):**
+  - Xuất hiện trường "Tác vụ điều phối" (hoặc "Loại tác vụ" / "Hành động điều vận").
+  - Vị trí hiển thị khoa học, nằm cùng nhóm với Phân số xe, Rơ mooc, Lái xe.
+  - Có nhãn (label) rõ ràng và placeholder: "Chọn tác vụ điều vận".
+- **Kỳ vọng sai (Fail nếu):** trường không xuất hiện; vị trí lạc quẻ; không có label/placeholder.
+- **Bằng chứng:** ảnh popup "Chỉnh sửa điều phối" thấy trường Tác vụ
+
+---
+
+### TC-DV-DISPATCH-036 — Dropdown tác vụ đầy đủ danh sách nghiệp vụ
+
+- **Vai trò:** `dieuvan`
+- **Mức độ:** P1
+- **Các bước:**
+  1. Nhấp vào dropdown "Tác vụ điều phối" để mở rộng danh sách lựa chọn.
+  2. Kiểm tra các giá trị option có trong danh sách.
+- **Kết quả mong đợi (Pass):**
+  - Danh sách bao gồm đầy đủ:
+    1. Đặt đầu
+    2. Đặt đuôi
+    3. Đảo vỏ
+    4. Lấy vỏ ICD Quế Võ đi đóng
+    5. Gửi bãi
+    6. Trả vỏ
+    7. Giao thẳng (hoặc tác vụ mặc định khác)
+  - Các lựa chọn hiển thị rõ ràng tiếng Việt, không lỗi font.
+- **Kỳ vọng sai (Fail nếu):** thiếu tác vụ; lỗi font tiếng Việt; option bị trùng lặp.
+- **Bằng chứng:** ảnh dropdown mở rộng đầy đủ tác vụ
+
+---
+
+### TC-DV-DISPATCH-037 — Lưu điều phối khi chọn từng tác vụ cụ thể
+
+- **Vai trò:** `dieuvan`
+- **Mức độ:** P1
+- **Dữ liệu kiểm thử:** Container "SMCU6163403", Xe "15C-184.62", Tác vụ: "Lấy vỏ ICD Quế Võ đi đóng"
+- **Các bước:**
+  1. Chọn container "SMCU6163403".
+  2. Nhập/chọn Số xe, Lái xe.
+  3. Tại trường Tác vụ, chọn "Lấy vỏ ICD Quế Võ đi đóng".
+  4. Nhập Ghi chú điều phối (nếu có).
+  5. Nhấn nút "Lưu thay đổi" (hoặc "Xác nhận điều phối").
+- **Kết quả mong đợi (Pass):**
+  - Lưu thành công thông tin điều phối và tác vụ đã chọn.
+  - Đóng popup, hiển thị thông báo thành công.
+  - Mở lại popup container đó, trường Tác vụ vẫn giữ nguyên "Lấy vỏ ICD Quế Võ đi đóng".
+- **Kỳ vọng sai (Fail nếu):** lưu không thành công; tác vụ bị reset sau khi mở lại; popup không đóng.
+- **Bằng chứng:** ảnh popup đã chọn tác vụ + ảnh toast thành công + ảnh mở lại (giữ nguyên) + Network (200)
+
+---
+
+### TC-DV-DISPATCH-038 — Hiển thị tên Tác vụ trên bảng Điều vận và Chi tiết lô hàng
+
+- **Vai trò:** `dieuvan`
+- **Mức độ:** P1
+- **Tiền điều kiện:** Container đã được phân xe kèm tác vụ "Đảo vỏ" hoặc "Đặt đầu".
+- **Các bước:**
+  1. Mở màn hình Điều vận (`/dispatch-detail`) — danh sách kế hoạch chạy xe.
+  2. Mở màn hình Chi tiết lô hàng (`/shipments/:id`) — cột Phân xe / Ghi chú / Trạng thái tác vụ.
+- **Kết quả mong đợi (Pass):**
+  - Tác vụ đã chọn hiển thị dưới dạng badge hoặc text rõ ràng cạnh biển số xe
+    (ví dụ: "15H-021.39 [Đặt đầu]" hoặc cột Tác vụ riêng: "Đảo vỏ").
+  - Lái xe (App tài xế nếu có) hoặc nhân viên điều vận nhìn vào nhận biết ngay nhiệm vụ cụ thể.
+- **Kỳ vọng sai (Fail nếu):** tác vụ không hiển thị trên danh sách; lái xe không thấy nhiệm vụ.
+- **Bằng chứng:** ảnh `/dispatch-detail` thấy badge tác vụ + ảnh Chi tiết lô hàng + ảnh app Lái xe (nếu có)
+
+---
+
+### TC-DV-DISPATCH-039 — Thay đổi tác vụ điều phối (ví dụ từ "Đặt đầu" sang "Gửi bãi")
+
+- **Vai trò:** `dieuvan`
+- **Mức độ:** P2
+- **Các bước:**
+  1. Mở lại container đang có tác vụ "Đặt đầu".
+  2. Đổi tác vụ sang "Gửi bãi".
+  3. Nhấn Lưu thay đổi.
+- **Kết quả mong đợi (Pass):**
+  - Dữ liệu được cập nhật mới thành "Gửi bãi" ngay lập tức trên hệ thống.
+  - Lịch sử chỉnh sửa (Audit log) ghi nhận tài khoản điều vận đã đổi tác vụ vào thời gian tương ứng.
+- **Kỳ vọng sai (Fail nếu):** đổi không lưu được; audit log không ghi nhận.
+- **Bằng chứng:** ảnh tác vụ đã đổi + Network 200 + audit log row mới
+
+---
+
 ## Bảng nghiệm thu — Luồng Điều xe (Điều vận)
 
 | Ngày thử | Mã TC | Người thử | Kết quả | Ghi chú | Bằng chứng |
@@ -875,3 +980,8 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
 | __/__/__ | TC-DV-DISPATCH-032 | | | Phân loại chuyến Đơn (1 chiều) — happy path | |
 | __/__/__ | TC-DV-DISPATCH-033 | | | Lô 1 cont hoàn thành toàn bộ vẫn hiển thị trên Kế hoạch Tổng quát (regression 2026-09-05) | |
 | __/__/__ | TC-DV-DISPATCH-034 | | | Ghi chú tác vụ: tag nhanh + text tay cho lái xe trong Chỉnh sửa điều phối (feature 2026-09-07) | |
+| __/__/__ | TC-DV-DISPATCH-035 | | | Hiển thị trường "Tác vụ điều phối" trên popup Chỉnh sửa điều phối | |
+| __/__/__ | TC-DV-DISPATCH-036 | | | Dropdown tác vụ đầy đủ danh sách nghiệp vụ | |
+| __/__/__ | TC-DV-DISPATCH-037 | | | Lưu điều phối khi chọn tác vụ cụ thể | |
+| __/__/__ | TC-DV-DISPATCH-038 | | | Hiển thị tên Tác vụ trên bảng Điều vận & Chi tiết lô | |
+| __/__/__ | TC-DV-DISPATCH-039 | | | Thay đổi tác vụ điều phối + audit log | |

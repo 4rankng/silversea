@@ -38,6 +38,7 @@ Mới tạo (NEW) → Đã phân xe (DISPATCHED) → Đang chạy (IN_TRANSIT) �
 | 6 | **Duyệt e-POD & Chốt O2C** | Kế toán (ACCOUNTANT) / CUS | — | `06-ketoan-chot-o2c.md` |
 | 7 | **RBAC & Phân quyền** | Tất cả 8 vai trò | — | `07-rbac-phan-quyen.md` |
 | 8 | **Cổng Khách hàng** | Khách hàng (CUSTOMER) | — | `08-customer-portal.md` |
+| 9 | **E2E & Edge Cases** | CUS, Điều vận, Admin | Tất cả | `09-e2e-regression.md` |
 
 ---
 

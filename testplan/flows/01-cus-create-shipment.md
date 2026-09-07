@@ -646,6 +646,14 @@
 | __/__/__ | TC-CUS-CREATE-026 | | | Chặn tạo lô trùng BL/Tờ khai (regression bug 2026-09-07) | |
 | __/__/__ | TC-CUS-CREATE-027 | | | Cảnh báo inline khi gõ BL/Tờ khai đã tồn tại (regression bug 2026-09-07) | |
 | __/__/__ | TC-CUS-CREATE-028 | | | Màn Tổng quan không báo "Chưa chốt ngày" khi FCL đã có lịch container | |
+| __/__/__ | TC-CUS-CREATE-029 | | | Hiển thị nút "Xác nhận" bên cạnh ô ngày giờ giao container | |
+| __/__/__ | TC-CUS-CREATE-030 | | | Lưu thành công lịch giao khi click nút "Xác nhận" | |
+| __/__/__ | TC-CUS-CREATE-031 | | | Tương thích ngược — Enter vẫn lưu lịch giao | |
+| __/__/__ | TC-CUS-CREATE-032 | | | Validate để trống ngày hoặc giờ khi nhấn Xác nhận | |
+| __/__/__ | TC-CUS-CREATE-033 | | | Double-click nút "Xác nhận" không duplicate request | |
+| __/__/__ | TC-CUS-CREATE-034 | | | Đồng bộ 2 chiều ngày giao giữa Tổng quan và Chi tiết | |
+| __/__/__ | TC-CUS-CREATE-035 | | | Không bị khóa cập nhật ngày giao khi có nhiều lô (tránh xung đột B/L) | |
+| __/__/__ | TC-CUS-CREATE-036 | | | Lô nhiều cont partial delivery dates (chưa chốt hết) | |
 
 ---
 
@@ -762,6 +770,157 @@
   lại "đứng hình" gây bối rối cho người dùng.
 - **Cách sửa:** thêm duplicate guard ở cả backend (pre-check trước INSERT) và frontend (cảnh báo
   inline khi gõ). Trên form chỉnh sửa, exclude chính shipment hiện tại để không tự khóa.
+
+---
+
+## 1.12 — Nút "Xác nhận" bổ sung lịch giao hàng (Ngày & Giờ) trên thuộc tính container (báo cáo khách hàng 2026-09-07)
+
+> **Nguồn:** Khách hàng yêu cầu 2026-09-07 — "hiện tại chỉ ấn được Enter, cần thêm nút Xác nhận
+> khi điền ngày giờ giao". Khách hàng muốn có thêm nút bấm rõ ràng bên cạnh ô chọn ngày giờ,
+> giúp thao tác lưu lịch giao trực quan và dễ nhận biết hơn.
+
+### TC-CUS-CREATE-029 — Hiển thị nút "Xác nhận" bên cạnh ô chọn Ngày Giờ giao container
+
+- **Vai trò:** `cus`
+- **Mức độ:** P1
+- **Thiết bị:** Desktop (1440×900)
+- **Tiền điều kiện:** Container chưa có ngày giao hàng.
+- **Các bước:**
+  1. Mở màn hình Chi tiết thuộc tính của container chưa có lịch giao.
+  2. Nhấp vào trường chọn "Lịch giao" / "Giờ đóng/hạ".
+  3. Quan sát giao diện ô nhập liệu / datepicker popup.
+- **Kết quả mong đợi (Pass):**
+  - Hiển thị rõ ràng nút "Xác nhận" (hoặc biểu tượng Lưu / Checkmark V) ngay cạnh hoặc bên dưới trường nhập ngày giờ.
+  - Nút có trạng thái hover, focus và nhãn rõ ràng ("Xác nhận" / "Lưu lịch giao").
+- **Kỳ vọng sai (Fail nếu):** không có nút Xác nhận; chỉ lưu được bằng phím Enter.
+- **Bằng chứng:** ảnh ô nhập ngày giờ + ảnh nút "Xác nhận" visible
+
+---
+
+### TC-CUS-CREATE-030 — Lưu thành công lịch giao khi click nút "Xác nhận" (không dùng Enter)
+
+- **Vai trò:** `cus`
+- **Mức độ:** P1
+- **Dữ liệu kiểm thử:** Ngày giao = "07/09/2026", Giờ giao = "11:00"
+- **Các bước:**
+  1. Chọn ngày "07/09/2026" từ datepicker.
+  2. Chọn/nhập giờ "11:00".
+  3. Dùng chuột nhấp trực tiếp vào nút "Xác nhận" (KHÔNG nhấn phím Enter).
+- **Kết quả mong đợi (Pass):**
+  - Hệ thống gửi request lưu lịch giao thành công.
+  - Hiển thị toast thông báo: "Cập nhật lịch giao hàng thành công!".
+  - Giá trị "11:00 07/09/2026" được hiển thị chính thức trên thuộc tính cont, ô nhập đóng lại hoặc chuyển sang trạng thái hiển thị tĩnh.
+- **Kỳ vọng sai (Fail nếu):** nút Xác nhận không gửi request; dữ liệu không được lưu; toast không hiển thị.
+- **Bằng chứng:** ảnh toast thành công + ảnh giá trị đã lưu + Network tab (PUT/PATCH → 200)
+
+---
+
+### TC-CUS-CREATE-031 — Tương thích ngược: vẫn hỗ trợ nhấn phím Enter để lưu lịch giao
+
+- **Vai trò:** `cus`
+- **Mức độ:** P2
+- **Dữ liệu kiểm thử:** Ngày = "08/09/2026", Giờ = "14:30"
+- **Các bước:**
+  1. Nhập ngày và giờ vào ô input.
+  2. Nhấn phím Enter trên bàn phím (không click chuột vào nút Xác nhận).
+- **Kết quả mong đợi (Pass):**
+  - Dữ liệu vẫn được lưu bình thường như thao tác nhấn nút Xác nhận.
+  - Đảm bảo trải nghiệm thuận tiện cho người dùng thao tác nhanh bằng bàn phím.
+- **Kỳ vọng sai (Fail nếu):** Enter không lưu được; phải click nút mới lưu được.
+
+---
+
+### TC-CUS-CREATE-032 — Validate khi nhấn nút "Xác nhận" nhưng để trống ngày hoặc giờ
+
+- **Vai trò:** `cus`
+- **Mức độ:** P2
+- **Các bước:**
+  1. Chỉ chọn Ngày "07/09/2026", để trống phần Giờ (hoặc ngược lại).
+  2. Nhấn nút "Xác nhận".
+- **Kết quả mong đợi (Pass):**
+  - Hệ thống cảnh báo: "Vui lòng nhập đầy đủ cả Ngày và Giờ giao hàng!".
+  - Không gửi dữ liệu rác/lỗi lên server.
+- **Bằng chứng:** ảnh cảnh báo validate + Network tab (không có request)
+
+---
+
+### TC-CUS-CREATE-033 — Double-click nút "Xác nhận" không tạo duplicate request
+
+- **Vai trò:** `cus`
+- **Mức độ:** P2
+- **Các bước:**
+  1. Điền ngày và giờ giao.
+  2. Nhấp liên tiếp 2-3 lần rất nhanh vào nút "Xác nhận".
+- **Kết quả mong đợi (Pass):**
+  - Nút "Xác nhận" tự động disable sau cú nhấp đầu tiên (hoặc hiển thị loading spinner).
+  - Chỉ có duy nhất 1 request API gửi lên server, không gây duplicate request hoặc treo trình duyệt.
+- **Bằng chứng:** Network tab (đếm request = 1) + ảnh nút disabled/spinner
+
+---
+
+## 1.13 — Đồng bộ dữ liệu ngày giao giữa Tổng quan và Chi tiết lô hàng (báo cáo khách hàng 2026-09-07)
+
+> **Nguồn:** Khách hàng phản ánh 2026-09-07 — "bổ sung ngày giao bên Tổng quan không được nhưng
+> Chi tiết lại hiện đã có ngày". Kỹ thuật (Trung Kiên) xác nhận nguyên nhân do có 2 lô trùng B/L
+> làm khóa, thao tác trên lô này bị ảnh hưởng bởi lô kia. Các case dưới pin hành vi đồng bộ
+> 2 chiều sau khi duplicate B/L đã được chặn (§1.11).
+
+### TC-CUS-CREATE-034 — Đồng bộ 2 chiều về Ngày giao giữa Tổng quan và Chi tiết
+
+- **Vai trò:** `cus`
+- **Mức độ:** P1
+- **Tiền điều kiện:** Lô hàng có 2 container, cả 2 chưa chốt ngày giao.
+- **Các bước:**
+  1. Tại màn hình "Tổng quan lô hàng" (`/shipments`), bổ sung ngày giao cho lô (ví dụ: ngày 07/09/2026).
+  2. Bấm Lưu.
+  3. Mở màn hình "Chi tiết lô hàng" (`/shipments/:id`) kiểm tra lịch trình của các container thuộc lô này.
+  4. Ngược lại: Sửa lịch trình container tại "Chi tiết lô hàng", sau đó quay lại "Tổng quan lô hàng".
+- **Kết quả mong đợi (Pass):**
+  - Khi cập nhật ở Tổng quan, Chi tiết phản ánh ngay ngày giao tương ứng cho container.
+  - Khi cập nhật ở Chi tiết, Tổng quan cập nhật đúng trạng thái (không còn "Chưa chốt ngày" nếu tất cả cont đã có ngày).
+  - Không xuất hiện vênh dữ liệu (Tổng quan báo "Chưa có ngày" nhưng Chi tiết báo "Đã có ngày").
+- **Kỳ vọng sai (Fail nếu):** 2 màn hình hiển thị khác nhau cho cùng lô; cập nhật bên này không sang bên kia.
+- **Bằng chứng:** ảnh Tổng quan sau khi cập nhật + ảnh Chi tiết khớp + ảnh Chi tiết sau khi sửa + ảnh Tổng quan cập nhật lại
+
+---
+
+### TC-CUS-CREATE-035 — Không bị khóa/chặn thao tác cập nhật ngày giao khi có nhiều lô (tránh xung đột theo B/L)
+
+- **Vai trò:** `cus`
+- **Mức độ:** P1
+- **Nguồn:** kỹ thuật xác nhận 2026-09-07 — khi có 2 lô trùng B/L (trước khi duplicate guard), thao tác
+  trên lô này bị vô hiệu vì lô kia đã chốt. Sau fix duplicate guard, case này kiểm tra tính độc lập.
+- **Tiền điều kiện:**
+  - Có 2 lô hàng riêng biệt (Lô A và Lô B), khác `shipment_id`.
+  - Lô A đã được chốt ngày giao hàng.
+  - Lô B hiện đang ở trạng thái "Chưa chốt ngày".
+- **Các bước:**
+  1. Vào màn hình Tổng quan lô hàng, chọn Lô B.
+  2. Thao tác bổ sung "Ngày giao" (Từ ngày giao / Đến ngày giao).
+  3. Nhấn Lưu cập nhật.
+- **Kết quả mong đợi (Pass):**
+  - Lô B lưu ngày giao thành công, không bị báo lỗi hoặc bị disable do ảnh hưởng từ Lô A.
+  - Truy vấn độc lập theo `shipment_id` duy nhất, không query nhầm theo mã chứng từ dùng chung.
+- **Kỳ vọng sai (Fail nếu):** Lô B bị disable/ẩn do nhầm lẫn ID với Lô A; lưu không được mà không có lý do.
+- **Bằng chứng:** ảnh Lô B lưu thành công + DB `shipments` 2 rows riêng biệt
+
+---
+
+### TC-CUS-CREATE-036 — Lô nhiều cont nhưng chỉ mới chốt ngày cho 1 số cont (Partial delivery dates)
+
+- **Vai trò:** `cus`
+- **Mức độ:** P2
+- **Tiền điều kiện:** Lô hàng có 3 container (Cont 1 đã chốt ngày 07/09; Cont 2 & 3 chưa có ngày).
+- **Các bước:**
+  1. Quan sát trạng thái lô hàng tại màn hình "Tổng quan lô hàng".
+  2. Bổ sung ngày giao cho Cont 2.
+  3. Quan sát lại trạng thái lô.
+- **Kết quả mong đợi (Pass):**
+  - Trạng thái lô hiển thị rõ ràng: "Đã chốt 2/3 cont" hoặc vẫn giữ cảnh báo cho các cont còn lại.
+  - Không bị xung đột giữa cont đã chốt và cont chưa chốt.
+  - Badge "Chưa chốt ngày" chỉ tắt khi TẤT CẢ cont đã có ngày.
+- **Kỳ vọng sai (Fail nếu):** badge tắt khi chỉ 1/3 cont có ngày; hệ thống không phân biệt partial.
+- **Bằng chứng:** ảnh trạng thái sau khi chốt 2/3 + ảnh badge "Chưa chốt" vẫn hiển thị
 
 ---
 
