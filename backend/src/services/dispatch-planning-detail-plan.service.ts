@@ -298,6 +298,9 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       dropoffPortId: s.shipmentContainers.dropoffPortId,
       tripId: s.trips.id,
       tripStatus: s.trips.status,
+      activeTripPairId: s.trips.activeTripPairId,
+      pairKind: s.tripPairs.pairKind,
+      pairStatus: s.tripPairs.status,
     }).from(s.shipmentFulfillments)
       .innerJoin(s.shipments, eq(s.shipmentFulfillments.shipmentId, s.shipments.id))
       .innerJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
@@ -309,6 +312,12 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
         eq(s.trips.fulfillmentId, s.shipmentFulfillments.id),
         ne(s.trips.status, TripStatus.CANCELED),
         isNull(s.trips.deletedAt),
+      ))
+      // Ghép chuyến tag (PRD LoHangKepKetHop §3.2): the pair kind is derived
+      // from the ACTIVE trip pair, never entered by hand.
+      .leftJoin(s.tripPairs, and(
+        eq(s.tripPairs.id, s.trips.activeTripPairId),
+        eq(s.tripPairs.status, 'ACTIVE'),
       ))
       .where(filters)
       .orderBy(...dispatchDetailPriorityOrderSql())
@@ -398,6 +407,9 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
             externalCarrierId: row.plannedExternalCarrierId,
             externalCarrierVehicleId: row.plannedExternalCarrierVehicleId,
             assignedPlate: row.plannedVehiclePlateNumber,
+            pairKind: row.pairStatus === 'ACTIVE' && (row.pairKind === 'KEP' || row.pairKind === 'KET_HOP')
+              ? row.pairKind
+              : null,
           },
           estimates: {
             plannedRevenue: row.plannedRevenue,

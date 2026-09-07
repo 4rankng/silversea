@@ -25,6 +25,16 @@ export interface DriverJourneyCard {
   bucket: DriverJourneyBucket;
   classification: DriverJourneyClassification;
   linked: boolean;
+  /** ACTIVE trip-pair this card's trip belongs to (kẹp/kết-hợp grouping). */
+  pairId: number | null;
+  pairKind: 'KEP' | 'KET_HOP' | null;
+  pairOrder: 1 | 2 | null;
+  /**
+   * KẾT HỢP sequencing lock (TC-GHEP-010): true on the second card while the
+   * first order is still unfinished — the app shows it locked and the progress
+   * endpoint rejects with a Vietnamese explanation until Lệnh 1 completes.
+   */
+  pairLocked: boolean;
   scheduledAt: string | null;
   factoryName: string | null;
   loadingPortName: string | null;
@@ -72,6 +82,8 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
     tripId: s.trips.id,
     tripCode: s.trips.tripCode,
     tripStatus: s.trips.status,
+    activeTripPairId: s.trips.activeTripPairId,
+    activeTripPairOrder: s.trips.activeTripPairOrder,
     plannedStartAt: s.trips.plannedStartAt,
     shipmentId: s.shipments.id,
     shipmentCode: s.shipments.shipmentCode,
@@ -128,9 +140,36 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
       }),
   );
 
+  // Ghép chuyến pairs (kẹp/kết-hợp): ACTIVE pairs drive grouping + tags. KẾT
+  // HỢP additionally locks the second card until the first order is finished
+  // (COMPLETED or evidence-ready — the same signal the buckets use).
+  const pairIds = [...new Set(rows.flatMap((row) => (row.activeTripPairId != null ? [row.activeTripPairId] : [])))];
+  const pairById = new Map<number, { pairKind: string; status: string; firstTripId: number; secondTripId: number }>();
+  if (pairIds.length > 0) {
+    const pairRows = await db.select({
+      id: s.tripPairs.id,
+      pairKind: s.tripPairs.pairKind,
+      status: s.tripPairs.status,
+      firstTripId: s.tripPairs.firstTripId,
+      secondTripId: s.tripPairs.secondTripId,
+    }).from(s.tripPairs).where(inArray(s.tripPairs.id, pairIds));
+    for (const pair of pairRows) pairById.set(pair.id, pair);
+  }
+  const statusByTripId = new Map(rows.map((row) => [row.tripId, row.tripStatus]));
+  const isTripFinished = (tripId: number): boolean =>
+    statusByTripId.get(tripId) === 'COMPLETED'
+    || (evidenceByTripId.get(tripId) ?? false);
+
   return rows
     .filter((row): row is typeof row & { fulfillmentId: number } => row.fulfillmentId != null)
-    .map((row) => ({
+    .map((row) => {
+      const pair = row.activeTripPairId != null ? pairById.get(row.activeTripPairId) : undefined;
+      const pairActive = pair?.status === 'ACTIVE';
+      const pairOrder = pairActive && row.activeTripPairOrder === 2 ? 2
+        : pairActive && row.activeTripPairOrder === 1 ? 1
+        : null;
+      const firstTripId = pair?.firstTripId ?? null;
+      return {
       fulfillmentId: row.fulfillmentId,
       tripId: row.tripId,
       shipmentId: row.shipmentId,
@@ -138,7 +177,15 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
       shipmentCode: row.shipmentCode,
       bucket: bucketForStatus(row.tripStatus, evidenceByTripId.get(row.tripId) ?? false),
       classification: row.dispatchClassification,
-      linked: row.isCombined && (shipmentCardCounts.get(row.shipmentId) ?? 0) >= 2,
+      linked: pairActive || (row.isCombined && (shipmentCardCounts.get(row.shipmentId) ?? 0) >= 2),
+      pairId: pairActive && row.activeTripPairId != null ? row.activeTripPairId : null,
+      pairKind: pairActive ? (pair!.pairKind as 'KEP' | 'KET_HOP') : null,
+      pairOrder,
+      pairLocked: pairActive
+        && pair!.pairKind === 'KET_HOP'
+        && pairOrder === 2
+        && firstTripId != null
+        && !isTripFinished(firstTripId),
       scheduledAt: row.plannedStartAt?.toISOString() ?? null,
       factoryName: row.factoryName ?? row.containerFactoryName,
       loadingPortName: row.pickupLocation ?? row.containerPickupPortName,
@@ -151,5 +198,6 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
       contactPhone: row.contactPhone,
       truckPlate: row.truckPlate,
       trailerPlate: row.trailerPlate,
-    }));
+      };
+    });
 }

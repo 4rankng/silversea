@@ -40,6 +40,40 @@ import {
 } from './trip-pod.service';
 
 /**
+ * Kết hợp sequencing gate (LoHangKepKetHop §3.3 / TC-GHEP-010): Lệnh 2 of an
+ * ACTIVE KET_HOP pair must not start until Lệnh 1 has finished returning the
+ * cargo — "finished" means the first trip is COMPLETED or its completion
+ * evidence is already submitted (the board's same readiness signal). KEP
+ * pairs run simultaneously, so they never gate. Lệnh 1 (order 1) and unpaired
+ * trips pass straight through.
+ */
+async function assertKetHopSequencingAllowedTx(tx: Tx, tripId: number): Promise<void> {
+  const [row] = await tx.select({
+    pairId: s.trips.activeTripPairId,
+    pairOrder: s.trips.activeTripPairOrder,
+  }).from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
+  if (!row?.pairId || row.pairOrder !== 2) return;
+
+  const [pair] = await tx.select({
+    status: s.tripPairs.status,
+    pairKind: s.tripPairs.pairKind,
+    firstTripId: s.tripPairs.firstTripId,
+  }).from(s.tripPairs).where(eq(s.tripPairs.id, row.pairId)).limit(1);
+  if (!pair || pair.status !== 'ACTIVE' || pair.pairKind !== 'KET_HOP') return;
+
+  const [first] = await tx.select({ status: s.trips.status })
+    .from(s.trips).where(eq(s.trips.id, pair.firstTripId)).limit(1);
+  const firstDone = first?.status === TripStatus.COMPLETED
+    || (await getDriverCompletionEvidenceStatus(pair.firstTripId, tx)).ready;
+  if (!firstDone) {
+    throw new ApiError(
+      409,
+      'Đây là Lệnh 2 của cặp kết hợp: hãy hoàn thành trả hàng Lệnh 1 trước khi bắt đầu lệnh này.',
+    );
+  }
+}
+
+/**
  * Shared milestone-event recorder (tx-scoped): inserts the progress event,
  * publishes the customer-visible milestone event, and — for DELIVERED —
  * writes the deliveryAttempts audit row. Used by both the driver's explicit
@@ -65,6 +99,8 @@ async function recordMilestoneEventTx(
       occurredAt: event.occurredAt,
       createdBy: actorUserId,
     }, undefined, tx);
+    // Ad-hoc shipments produce no customer-visible event (skipped upstream),
+    // so the delivery attempt records only what exists.
     if (eventType === DriverProgressEventType.DELIVERED) {
       const [scope] = await tx.select({
         shipmentContainerId: s.shipmentFulfillments.shipmentContainerId,
@@ -75,7 +111,7 @@ async function recordMilestoneEventTx(
         tripId: ownedTrip.tripId,
         shipmentContainerId: scope?.shipmentContainerId ?? null,
         driverProgressEventId: event.id,
-        customerVisibleEventId: customerEvent.id,
+        customerVisibleEventId: customerEvent?.id ?? null,
         result: 'DELIVERED',
         occurredAt: event.occurredAt,
         recordedBy: actorUserId,
@@ -140,6 +176,7 @@ export async function recordDriverFulfillmentProgress(args: {
       ) {
         throw new ApiError(409, 'Ops chưa xác nhận giao lệnh gốc cho chuyến này.');
       }
+      await assertKetHopSequencingAllowedTx(tx, ownedTrip.tripId);
       const event = await recordMilestoneEventTx(tx, ownedTrip, args.driverId, eventType, args.input.occurredAt, args.recordedBy);
       if (eventType === DriverProgressEventType.ORDER_RECEIVED && ownedTrip.tripStatus === TripStatus.CREATED) {
         await transitionTripStatus(

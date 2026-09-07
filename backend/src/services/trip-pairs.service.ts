@@ -363,14 +363,17 @@ interface PairingContainerInfo {
  * (one mooc = 2 × 20' slots); KET_HOP requires the SAME shell across both
  * orders when both sides already carry a number — at dispatch stage a lô may
  * legitimately not have its vỏ yet (PRD: skip then, CUS bổ sung sau).
- * Returns the first container row per trip (fulfillment model is 1 trip = 1
- * container; multi-row trips resolve deterministically by lowest id).
+ * Resolves each trip's container from tripContainers first, then falls back
+ * to the fulfillment's shipment container (fulfillment-built trips snapshot
+ * into tripContainers, but the fulfillment link alone is authoritative too).
+ * First row per trip wins (1 trip = 1 container; deterministic by lowest id).
  */
 async function loadPairingContainerInfo(
   tx: Tx,
   tripIds: [number, number],
 ): Promise<[PairingContainerInfo | null, PairingContainerInfo | null]> {
-  const rows = await tx.select({
+  const byTrip = new Map<number, PairingContainerInfo>();
+  const tripRows = await tx.select({
     tripId: s.tripContainers.tripId,
     containerNumber: s.tripContainers.containerNumber,
     containerTypeCode: s.containerTypes.code,
@@ -378,8 +381,7 @@ async function loadPairingContainerInfo(
     .leftJoin(s.containerTypes, eq(s.containerTypes.id, s.tripContainers.containerTypeId))
     .where(inArray(s.tripContainers.tripId, tripIds))
     .orderBy(asc(s.tripContainers.id));
-  const byTrip = new Map<number, PairingContainerInfo>();
-  for (const row of rows) {
+  for (const row of tripRows) {
     if (!byTrip.has(row.tripId)) {
       byTrip.set(row.tripId, {
         containerNumber: row.containerNumber,
@@ -387,6 +389,29 @@ async function loadPairingContainerInfo(
       });
     }
   }
+
+  const missing = tripIds.filter((tripId) => !byTrip.has(tripId));
+  if (missing.length > 0) {
+    const fulfillmentRows = await tx.select({
+      tripId: s.trips.id,
+      containerNumber: s.shipmentContainers.containerNumber,
+      containerTypeCode: s.containerTypes.code,
+    }).from(s.trips)
+      .innerJoin(s.shipmentFulfillments, eq(s.shipmentFulfillments.id, s.trips.fulfillmentId))
+      .leftJoin(s.shipmentContainers, eq(s.shipmentContainers.id, s.shipmentFulfillments.shipmentContainerId))
+      .leftJoin(s.containerTypes, eq(s.containerTypes.id, s.shipmentContainers.containerTypeId))
+      .where(inArray(s.trips.id, missing))
+      .orderBy(asc(s.shipmentFulfillments.id));
+    for (const row of fulfillmentRows) {
+      if (!byTrip.has(row.tripId)) {
+        byTrip.set(row.tripId, {
+          containerNumber: row.containerNumber,
+          containerTypeCode: row.containerTypeCode ?? null,
+        });
+      }
+    }
+  }
+
   return [byTrip.get(tripIds[0]) ?? null, byTrip.get(tripIds[1]) ?? null];
 }
 
