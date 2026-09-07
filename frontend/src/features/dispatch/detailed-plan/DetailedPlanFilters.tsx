@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react';
+import { useCallback, useEffect, useId, useState } from 'react';
 import { Check, FilterLines, XClose } from '@untitledui/icons';
 import { SearchableMultiSelect } from '../../../design-system';
 import { Drawer } from '../../../components/UI';
@@ -71,6 +71,17 @@ function FacetMultiSelect({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPickerOpen]);
 
+  // The picker's search refetches from the server (debounced by the picker),
+  // preserving the original per-keystroke facet query contract.
+  const handleSearch = useCallback((query: string) => {
+    let cancelled = false;
+    loadFacets(query || undefined)
+      .then((items) => { if (!cancelled) setFacets(items); })
+      .catch(() => { if (!cancelled) setFacets([]); });
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <div className="detailed-plan-filters__points">
       <div className="detailed-plan-filters__field">
@@ -93,10 +104,12 @@ function FacetMultiSelect({
           options={facets.map((facet) => ({ value: String(facet.id), label: facet.name }))}
           placeholder={`Chọn ${label.toLowerCase()}…`}
           searchPlaceholder={`Tìm ${label.toLowerCase()}…`}
+          emptyMessage="Không tìm thấy điểm phù hợp."
           selectionLabel={label.toLowerCase()}
           size="sm"
           clearAllLabel="Bỏ chọn tất cả"
           onOpenChange={setIsPickerOpen}
+          onSearchChange={handleSearch}
         />
       </div>
     </div>

@@ -1,11 +1,12 @@
-import { Check, ChevronDown, FilterLines, SearchLg, XClose } from '@untitledui/icons';
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { FilterLines, SearchLg } from '@untitledui/icons';
+import { useCallback, useEffect, useId, useState, type ReactNode } from 'react';
 import type { ShipmentAllocationStatus } from '../../../api/shipmentClient';
 import { Drawer } from '../../../components/UI';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 import { Input as UUIInput } from '../../../components/untitled-ui/base/input/input';
 import { Select as UUISelect } from '../../../components/untitled-ui/base/select/select';
 import { BufferedUuiDateInput } from '../../../design-system/forms/BufferedUuiDateInput';
+import { SearchableMultiSelect } from '../../../design-system';
 import { listZonePortFacets } from '../../../api/shipmentClient';
 import { configClient } from '../../../api/configClient';
 import { listDispatchFleetResources } from '../../../api/dispatchPlanningClient';
@@ -99,11 +100,14 @@ function QuickDateActions({ filters, onChange }: Pick<MasterPlanFiltersProps, 'f
 }
 
 /**
- * Searchable multi-select facet block for a zone's ports.
+ * Searchable multi-select facet picker backed by the shared
+ * `SearchableMultiSelect` (portal + flip positioning from the dropdown-flip
+ * sweep, so a bottom-of-screen picker can never cover lower controls).
  *
- * Renders a dropdown trigger button. The popover holds a search input, a
- * scrollable checkbox list of options fetched lazily from `loadFacets`, and
- * a footer summary with a "clear all" action.
+ * Facets lazy-load once per popover open; the picker's search input
+ * refetches server-side (debounced) and filters the returned rows locally.
+ * The trigger's accessible name stays exactly the zone label — the contract
+ * the grid tests assert.
  */
 function FacetMultiSelect({
   label,
@@ -117,185 +121,68 @@ function FacetMultiSelect({
   loadFacets: FacetLoader;
 }) {
   const [isPickerOpen, setIsPickerOpen] = useState(false);
-  const [facetSearch, setFacetSearch] = useState('');
   const [facets, setFacets] = useState<FacetItem[]>([]);
-  const [isLoadingFacets, setIsLoadingFacets] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
-  const listboxId = useId();
-  const labelLower = label.toLowerCase();
+  const pickerId = useId();
 
-  const closePicker = () => {
-    setIsPickerOpen(false);
-    setFacetSearch('');
-  };
-
-  // Lazy-load facets whenever the popover opens or the search term changes.
   useEffect(() => {
     if (!isPickerOpen) return;
     let cancelled = false;
-    setIsLoadingFacets(true);
-    loadFacets(facetSearch || undefined)
-      .then((items) => {
-        if (!cancelled) setFacets(items);
-      })
-      .catch(() => {
-        if (!cancelled) setFacets([]);
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoadingFacets(false);
-      });
+    loadFacets()
+      .then((items) => { if (!cancelled) setFacets(items); })
+      .catch(() => { if (!cancelled) setFacets([]); });
     return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPickerOpen, facetSearch]);
-
-  // Close on outside click or Escape; restore focus to the trigger.
-  useEffect(() => {
-    if (!isPickerOpen) return;
-    const onMouseDown = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        closePicker();
-      }
-    };
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        event.stopPropagation();
-        closePicker();
-        triggerRef.current?.focus();
-      }
-    };
-    document.addEventListener('mousedown', onMouseDown);
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.removeEventListener('mousedown', onMouseDown);
-      document.removeEventListener('keydown', onKeyDown);
-    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPickerOpen]);
 
-  const clearSelection = () => {
-    selected.forEach((id) => onToggle(id));
-  };
-
-  const selectedCount = selected.length;
+  const handleSearch = useCallback((query: string) => {
+    loadFacets(query || undefined)
+      .then((items) => setFacets(items))
+      .catch(() => setFacets([]));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
-    <div className="master-plan-filters__facet" ref={containerRef}>
+    <div className="master-plan-filters__facet">
       <span className="master-plan-filters__label">{label}</span>
-      <button
-        ref={triggerRef}
-        type="button"
-        className={`master-plan-filters__facet-trigger${selectedCount > 0 ? ' has-selection' : ''}`}
-        onClick={() => setIsPickerOpen((isOpen) => !isOpen)}
-        aria-haspopup="listbox"
-        aria-expanded={isPickerOpen}
-        aria-controls={isPickerOpen ? listboxId : undefined}
-        aria-label={`${label}${selectedCount > 0 ? ` (${selectedCount} đã chọn)` : ''}`}
-      >
-        <span className="master-plan-filters__facet-trigger-value">
-          {selectedCount === 0
-            ? `Chọn ${labelLower}…`
-            : selectedCount === 1
-              ? `${label} (1)`
-              : `${label} (${selectedCount})`}
-        </span>
-        <ChevronDown
-          aria-hidden="true"
-          className={`master-plan-filters__facet-trigger-icon${isPickerOpen ? ' is-open' : ''}`}
-        />
-      </button>
-      {isPickerOpen && (
-        <div className="master-plan-filters__facet-picker" role="presentation">
-          <div className="master-plan-filters__facet-search">
-            <SearchLg aria-hidden="true" className="master-plan-filters__facet-search-icon" />
-            <input
-              ref={searchInputRef}
-              type="search"
-              className="master-plan-filters__facet-search-input"
-              placeholder={`Tìm ${labelLower}…`}
-              value={facetSearch}
-              onChange={(event) => setFacetSearch(event.target.value)}
-              aria-label={`Tìm ${labelLower}`}
-              autoComplete="off"
-              autoFocus
-            />
-            {facetSearch && (
-              <button
-                type="button"
-                className="master-plan-filters__facet-search-clear"
-                onClick={() => {
-                  setFacetSearch('');
-                  searchInputRef.current?.focus();
-                }}
-                aria-label="Xóa tìm kiếm"
-                tabIndex={-1}
-              >
-                <XClose aria-hidden="true" />
-              </button>
-            )}
-          </div>
-          <div
-            id={listboxId}
-            className="master-plan-filters__facet-list"
-            role="listbox"
-            aria-label={`Danh sách ${labelLower}`}
-            aria-multiselectable="true"
-            aria-busy={isLoadingFacets}
-          >
-            {isLoadingFacets && facets.length === 0 && (
-              <span className="master-plan-filters__facet-feedback" role="status">Đang tìm…</span>
-            )}
-            {!isLoadingFacets && facets.length === 0 && (
-              <span className="master-plan-filters__facet-feedback" role="status">Không tìm thấy kết quả phù hợp.</span>
-            )}
-            {facets.map((facet) => {
-              const isSelected = selected.includes(facet.id);
-              return (
-                <label
-                  key={facet.id}
-                  className={`master-plan-filters__facet-option${isSelected ? ' is-selected' : ''}`}
-                >
-                  <input
-                    type="checkbox"
-                    className="master-plan-filters__facet-option-checkbox"
-                    checked={isSelected}
-                    onChange={() => onToggle(facet.id)}
-                    aria-label={facet.name}
-                  />
-                  <span className="master-plan-filters__facet-option-label">{facet.name}</span>
-                  {isSelected && (
-                    <Check aria-hidden="true" className="master-plan-filters__facet-option-check" />
-                  )}
-                </label>
-              );
-            })}
-          </div>
-          <div className="master-plan-filters__facet-footer">
-            <span className="master-plan-filters__facet-footer-text">
-              {selectedCount > 0
-                ? `Đã chọn ${selectedCount}`
-                : 'Chưa chọn'}
-            </span>
-            {selectedCount > 0 && (
-              <button
-                type="button"
-                className="master-plan-filters__facet-footer-clear"
-                onClick={clearSelection}
-              >
-                Bỏ chọn
-              </button>
-            )}
-          </div>
-        </div>
-      )}
+      <SearchableMultiSelect
+        id={pickerId}
+        values={selected.map(String)}
+        onChange={(values) => {
+          // Bridge the design-system array contract onto the parent's
+          // per-id toggle: one onToggle per added/removed id.
+          const previous = new Set(selected.map(String));
+          const next = new Set(values);
+          for (const id of selected) {
+            if (!next.has(String(id))) onToggle(id);
+          }
+          for (const value of values) {
+            if (!previous.has(value)) onToggle(Number(value));
+          }
+        }}
+        options={facets.map((facet) => ({ value: String(facet.id), label: facet.name }))}
+        placeholder={label}
+        searchPlaceholder={`Tìm ${label.toLowerCase()}…`}
+        emptyMessage="Không tìm thấy kết quả phù hợp."
+        size="sm"
+        clearAllLabel="Bỏ chọn"
+        onOpenChange={setIsPickerOpen}
+        onSearchChange={handleSearch}
+      />
     </div>
   );
 }
 
+function toggleId(list: number[], id: number): number[] {
+  return list.includes(id) ? list.filter((value) => value !== id) : [...list, id];
+}
+
+function toggleKey(list: string[], key: string): string[] {
+  return list.includes(key) ? list.filter((value) => value !== key) : [...list, key];
+}
+
 /**
- * Carrier multi-select with fixed options (OWN, UNASSIGNED) plus async external carriers.
+ * Carrier multi-select (fixed OWN/UNASSIGNED options + async external
+ * carriers), backed by `SearchableMultiSelect` like the port facets.
  */
 function CarrierFacetMultiSelect({
   selected,
@@ -312,222 +199,52 @@ function CarrierFacetMultiSelect({
   ] as const;
 
   const [isPickerOpen, setIsPickerOpen] = useState(false);
-  const [facetSearch, setFacetSearch] = useState('');
   const [externalCarriers, setExternalCarriers] = useState<CarrierFacetItem[]>([]);
-  const [isLoadingExternal, setIsLoadingExternal] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
-  const listboxId = useId();
+  const pickerId = useId();
 
-  const closePicker = () => {
-    setIsPickerOpen(false);
-    setFacetSearch('');
-  };
-
-  // Load external carriers when popover opens.
+  // Load external carriers once per popover open; the picker's search
+  // filters the loaded list locally.
   useEffect(() => {
     if (!isPickerOpen) return;
     let cancelled = false;
-    setIsLoadingExternal(true);
     loadExternalCarriers()
-      .then((items) => {
-        if (!cancelled) setExternalCarriers(items);
-      })
-      .catch(() => {
-        if (!cancelled) setExternalCarriers([]);
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoadingExternal(false);
-      });
+      .then((items) => { if (!cancelled) setExternalCarriers(items); })
+      .catch(() => { if (!cancelled) setExternalCarriers([]); });
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPickerOpen]);
 
-  // Close on outside click or Escape.
-  useEffect(() => {
-    if (!isPickerOpen) return;
-    const onMouseDown = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        closePicker();
-      }
-    };
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        event.stopPropagation();
-        closePicker();
-        triggerRef.current?.focus();
-      }
-    };
-    document.addEventListener('mousedown', onMouseDown);
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.removeEventListener('mousedown', onMouseDown);
-      document.removeEventListener('keydown', onKeyDown);
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPickerOpen]);
-
-  const clearSelection = () => {
-    selected.forEach((key) => onToggle(key));
-  };
-
-  // Filter external carriers by search
-  const filteredExternals = externalCarriers.filter((carrier) =>
-    carrier.name.toLowerCase().includes(facetSearch.toLowerCase())
-  );
-
-  // Check if a fixed option matches search
-  const matchingFixed = FIXED_OPTIONS.filter((opt) =>
-    opt.label.toLowerCase().includes(facetSearch.toLowerCase())
-  );
-
-  const selectedCount = selected.length;
+  const options = [
+    ...FIXED_OPTIONS.map((option) => ({ value: option.key, label: option.label })),
+    ...externalCarriers.map((carrier) => ({ value: `EXTERNAL:${carrier.id}`, label: carrier.name })),
+  ];
 
   return (
-    <div className="master-plan-filters__facet" ref={containerRef}>
+    <div className="master-plan-filters__facet">
       <span className="master-plan-filters__label">Nhà xe</span>
-      <button
-        ref={triggerRef}
-        type="button"
-        className={`master-plan-filters__facet-trigger${selectedCount > 0 ? ' has-selection' : ''}`}
-        onClick={() => setIsPickerOpen((isOpen) => !isOpen)}
-        aria-haspopup="listbox"
-        aria-expanded={isPickerOpen}
-        aria-controls={isPickerOpen ? listboxId : undefined}
-        aria-label={`Nhà xe${selectedCount > 0 ? ` (${selectedCount} đã chọn)` : ''}`}
-      >
-        <span className="master-plan-filters__facet-trigger-value">
-          {selectedCount === 0
-            ? 'Chọn nhà xe…'
-            : selectedCount === 1
-              ? 'Nhà xe (1)'
-              : `Nhà xe (${selectedCount})`}
-        </span>
-        <ChevronDown
-          aria-hidden="true"
-          className={`master-plan-filters__facet-trigger-icon${isPickerOpen ? ' is-open' : ''}`}
-        />
-      </button>
-      {isPickerOpen && (
-        <div className="master-plan-filters__facet-picker" role="presentation">
-          <div className="master-plan-filters__facet-search">
-            <SearchLg aria-hidden="true" className="master-plan-filters__facet-search-icon" />
-            <input
-              ref={searchInputRef}
-              type="search"
-              className="master-plan-filters__facet-search-input"
-              placeholder="Tìm nhà xe…"
-              value={facetSearch}
-              onChange={(event) => setFacetSearch(event.target.value)}
-              aria-label="Tìm nhà xe"
-              autoComplete="off"
-              autoFocus
-            />
-            {facetSearch && (
-              <button
-                type="button"
-                className="master-plan-filters__facet-search-clear"
-                onClick={() => {
-                  setFacetSearch('');
-                  searchInputRef.current?.focus();
-                }}
-                aria-label="Xóa tìm kiếm"
-                tabIndex={-1}
-              >
-                <XClose aria-hidden="true" />
-              </button>
-            )}
-          </div>
-          <div
-            id={listboxId}
-            className="master-plan-filters__facet-list"
-            role="listbox"
-            aria-label="Danh sách nhà xe"
-            aria-multiselectable="true"
-            aria-busy={isLoadingExternal}
-          >
-            {facetSearch === '' || matchingFixed.length > 0 ? (
-              FIXED_OPTIONS.map((option) => {
-                const isSelected = selected.includes(option.key);
-                return (
-                  <label
-                    key={option.key}
-                    className={`master-plan-filters__facet-option${isSelected ? ' is-selected' : ''}`}
-                  >
-                    <input
-                      type="checkbox"
-                      className="master-plan-filters__facet-option-checkbox"
-                      checked={isSelected}
-                      onChange={() => onToggle(option.key)}
-                      aria-label={option.label}
-                    />
-                    <span className="master-plan-filters__facet-option-label">{option.label}</span>
-                    {isSelected && (
-                      <Check aria-hidden="true" className="master-plan-filters__facet-option-check" />
-                    )}
-                  </label>
-                );
-              })
-            ) : null}
-            {isLoadingExternal && filteredExternals.length === 0 && (
-              <span className="master-plan-filters__facet-feedback" role="status">Đang tải nhà xe…</span>
-            )}
-            {!isLoadingExternal && facetSearch !== '' && matchingFixed.length === 0 && filteredExternals.length === 0 && (
-              <span className="master-plan-filters__facet-feedback" role="status">Không tìm thấy nhà xe phù hợp.</span>
-            )}
-            {filteredExternals.map((carrier) => {
-              const carrierKey = `EXTERNAL:${carrier.id}`;
-              const isSelected = selected.includes(carrierKey);
-              return (
-                <label
-                  key={carrier.id}
-                  className={`master-plan-filters__facet-option${isSelected ? ' is-selected' : ''}`}
-                >
-                  <input
-                    type="checkbox"
-                    className="master-plan-filters__facet-option-checkbox"
-                    checked={isSelected}
-                    onChange={() => onToggle(carrierKey)}
-                    aria-label={carrier.name}
-                  />
-                  <span className="master-plan-filters__facet-option-label">{carrier.name}</span>
-                  {isSelected && (
-                    <Check aria-hidden="true" className="master-plan-filters__facet-option-check" />
-                  )}
-                </label>
-              );
-            })}
-          </div>
-          <div className="master-plan-filters__facet-footer">
-            <span className="master-plan-filters__facet-footer-text">
-              {selectedCount > 0
-                ? `Đã chọn ${selectedCount}`
-                : 'Chưa chọn'}
-            </span>
-            {selectedCount > 0 && (
-              <button
-                type="button"
-                className="master-plan-filters__facet-footer-clear"
-                onClick={clearSelection}
-              >
-                Bỏ chọn
-              </button>
-            )}
-          </div>
-        </div>
-      )}
+      <SearchableMultiSelect
+        id={pickerId}
+        values={selected}
+        onChange={(values) => {
+          const previous = new Set(selected);
+          const next = new Set(values);
+          for (const key of selected) {
+            if (!next.has(key)) onToggle(key);
+          }
+          for (const value of values) {
+            if (!previous.has(value)) onToggle(value);
+          }
+        }}
+        options={options}
+        placeholder="Nhà xe"
+        searchPlaceholder="Tìm nhà xe…"
+        emptyMessage="Không tìm thấy nhà xe phù hợp."
+        size="sm"
+        clearAllLabel="Bỏ chọn"
+        onOpenChange={setIsPickerOpen}
+      />
     </div>
   );
-}
-
-function toggleId(list: number[], id: number): number[] {
-  return list.includes(id) ? list.filter((value) => value !== id) : [...list, id];
-}
-
-function toggleKey(list: string[], key: string): string[] {
-  return list.includes(key) ? list.filter((value) => value !== key) : [...list, key];
 }
 
 function portZoneFacetLabel(zoneLabel: string): string {

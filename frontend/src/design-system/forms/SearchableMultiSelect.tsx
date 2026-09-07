@@ -55,6 +55,13 @@ export interface SearchableMultiSelectProps {
    *  "Đã chọn N X", the listbox reads "Danh sách X". Without it the trigger
    *  falls back to the placeholder and an unlabelled listbox. */
   selectionLabel?: string;
+  /**
+   * Debounced notification while the popover is open and the search input
+   * changes — mirrors `SearchableSelect`'s contract. Use it to refetch
+   * server-filtered options; the list keeps filtering the returned rows
+   * locally on top.
+   */
+  onSearchChange?: (query: string) => void;
   /** Notify when the popover opens/closes. */
   onOpenChange?: (isOpen: boolean) => void;
 }
@@ -81,11 +88,12 @@ export function SearchableMultiSelect({
   disabled = false,
   required = false,
   className = '',
-  searchDebounceMs: _searchDebounceMs = 250,
+  searchDebounceMs = 250,
   size = 'md',
   clearAllLabel = 'Bỏ chọn tất cả',
   countSuffix = 'đã chọn',
   selectionLabel,
+  onSearchChange,
   onOpenChange,
 }: SearchableMultiSelectProps) {
   const listboxId = useId();
@@ -178,6 +186,18 @@ export function SearchableMultiSelect({
       setActiveIndex(Math.max(0, filteredOptions.length - 1));
     }
   }, [activeIndex, filteredOptions.length]);
+
+  // Debounced server-search hook, mirroring SearchableSelect's contract:
+  // fires only while open, `searchDebounceMs` after the query settles.
+  const onSearchChangeRef = useRef(onSearchChange);
+  useEffect(() => {
+    onSearchChangeRef.current = onSearchChange;
+  }, [onSearchChange]);
+  useEffect(() => {
+    if (!isOpen || !onSearchChangeRef.current) return;
+    const timer = window.setTimeout(() => onSearchChangeRef.current?.(query.trim()), searchDebounceMs);
+    return () => window.clearTimeout(timer);
+  }, [isOpen, query, searchDebounceMs]);
 
   const toggleValue = (value: string) => {
     if (selectedSet.has(value)) {
