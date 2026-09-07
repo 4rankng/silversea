@@ -34,9 +34,21 @@ export async function getOcrSettingsFrom(
     .where(like(s.appSettings.key, 'ocr.%'));
 
   const byKey = new Map(rows.map((row) => [row.key, row.value]));
-  const openrouterKey = byKey.has(OCR_SETTING_KEYS.openrouterApiKey)
-    ? decryptSecret(byKey.get(OCR_SETTING_KEYS.openrouterApiKey) ?? '')
-    : config.openrouterApiKey;
+  let openrouterKey = config.openrouterApiKey;
+  if (byKey.has(OCR_SETTING_KEYS.openrouterApiKey)) {
+    const stored = byKey.get(OCR_SETTING_KEYS.openrouterApiKey) ?? '';
+    try {
+      openrouterKey = decryptSecret(stored);
+    } catch (error) {
+      // A stored secret encrypted under a different master key (env rotation,
+      // or a DB synced from another environment) must degrade, not 500 every
+      // OCR route: fall back to the env key and surface the cause once.
+      console.warn(
+        '[ocr-settings] stored api key is not decryptable under the current master key — falling back to the environment key:',
+        error instanceof Error ? error.message : error,
+      );
+    }
+  }
   const rawEnabled = byKey.get(OCR_SETTING_KEYS.enabled);
 
   return {

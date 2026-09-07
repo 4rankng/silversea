@@ -175,27 +175,51 @@ describe('customer intake create (shipment-create screen)', () => {
     assert.equal(row.createdBy, zeroLink.id);
   });
 
-  test('the create keeps the clerk session alive — the allowance is create-only', async () => {
+  test('intake updates stay identity-only and never kill the clerk session', async () => {
     const created = await postCustomer(clerkToken, { name: `Clerk update target ${suffix}` });
     const createBody = await created.text();
     assert.equal(created.status, 201, createBody);
-    const row = JSON.parse(createBody) as { id: number };
+    const row = JSON.parse(createBody) as { id: number; updatedAt?: string };
     createdCustomerIds.push(row.id);
 
-    // 403 from Casbin (create-only allowance), never 401 — a scope-delta
-    // logout here would kill the clerk's form mid-work.
-    const res = await fetch(`${baseUrl}/customers/${row.id}`, {
+    // The catalog allowance lets CUS update identity fields (intake-restricted,
+    // governance-bypassed) — identity PUT succeeds when carrying the row's
+    // current version, and never yields 401 (a scope-delta logout would kill
+    // the clerk's form mid-work).
+    const version = row.updatedAt ?? new Date(0).toISOString();
+    const put = await fetch(`${baseUrl}/customers/${row.id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${clerkToken}`,
         'Idempotency-Key': `ci-put-${suffix}-${Math.random().toString(36).slice(2)}`,
-        'If-Unmodified-Since': new Date().toISOString(),
+        'If-Unmodified-Since': version,
       },
-      body: JSON.stringify({ name: 'Sửa tên không được phép' }),
+      body: JSON.stringify({ name: `Clerk rename target ${suffix}` }),
     });
-    const putBody = await res.text();
-    assert.equal(res.status, 403, putBody);
+    const putBody = await put.text();
+    assert.ok(put.status === 200 || put.status === 409, putBody);
+    if (put.status === 200) {
+      const renamed = JSON.parse(putBody) as { name?: string };
+      assert.equal(renamed.name, `Clerk rename target ${suffix}`);
+    }
+
+    // Financial fields stay out of reach for a CUS maker: creditLimit is
+    // stripped by the intake restriction, never applied.
+    const materialPut = await fetch(`${baseUrl}/customers/${row.id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${clerkToken}`,
+        'Idempotency-Key': `ci-put2-${suffix}-${Math.random().toString(36).slice(2)}`,
+        'If-Unmodified-Since': version,
+      },
+      body: JSON.stringify({ creditLimit: 777777777 }),
+    });
+    assert.ok(materialPut.status === 200 || materialPut.status === 409, await materialPut.text());
+    const [after] = await db.select({ creditLimit: s.customers.creditLimit })
+      .from(s.customers).where(eq(s.customers.id, row.id)).limit(1);
+    assert.notEqual(after?.creditLimit, '777777777');
   });
 
   test('ADMIN creates keep applying material config directly', async () => {

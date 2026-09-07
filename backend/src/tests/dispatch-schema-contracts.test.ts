@@ -144,12 +144,15 @@ describe('ports.dispatchZone contract', () => {
     assert.equal(rows.length, 0);
   });
 
-  test('dispatcher cannot create or update ports', async () => {
-    const deniedCreate = await api('POST', '/ports', dispatcherId, {
-      name: `Cảng denied ${suffix}`,
+  test('dispatcher inline port create is allowed; updates stay denied', async () => {
+    // The shipment-create screen lets CUS/Dispatchers add a missing port inline
+    // (route-scoped POST allowance, catalog-crud intake); full port updates
+    // remain Casbin-denied for DISPATCHER.
+    const inlineCreate = await api('POST', '/ports', dispatcherId, {
+      name: `Cảng inline ${suffix}`,
       code: `DN${suffix.slice(-6)}`,
     });
-    assert.ok([401, 403].includes(deniedCreate.status), `expected denial, got ${deniedCreate.status}: ${JSON.stringify(deniedCreate.body)}`);
+    assert.ok([200, 201].includes(inlineCreate.status), `expected inline create, got ${inlineCreate.status}: ${JSON.stringify(inlineCreate.body)}`);
 
     const [anyPort] = await db.select({ id: s.ports.id }).from(s.ports).limit(1);
     if (anyPort) {

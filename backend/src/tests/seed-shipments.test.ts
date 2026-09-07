@@ -83,8 +83,12 @@ const EXPECTED_HISTORY: Record<string, number> = {
 
 // Snapshot of SEED-* rows that existed BEFORE this test ran (created by a
 // prior `pnpm seed`). The test cleans up only what it creates, so a prior
-// seed run's rows are preserved.
+// seed run's rows are preserved. Pre-existing shipment REFS are also tracked:
+// a prior FULL seed (e.g. the e2e bootstrap) runs seed-trips after
+// seedShipments, which advances some refs past this test's expected ladder —
+// status/history assertions apply only to rows this run created itself.
 const preExistingShipmentIds = new Set<number>();
+const preExistingShipmentRefs = new Set<string>();
 const preExistingCustomerIds = new Set<number>();
 const preExistingCustomerUser: {
   value: Pick<typeof s.users.$inferSelect, 'id' | 'email' | 'customerId'> | null;
@@ -107,7 +111,10 @@ async function findSampleCustomers(): Promise<{ id: number; taxCode: string | nu
 
 before(async () => {
   // Snapshot existing seed rows so cleanup can avoid touching them.
-  for (const sh of await findSeedShipments()) preExistingShipmentIds.add(sh.id);
+  for (const sh of await findSeedShipments()) {
+    preExistingShipmentIds.add(sh.id);
+    preExistingShipmentRefs.add(sh.blNumber ?? sh.bookingRef ?? `id:${sh.id}`);
+  }
   for (const c of await findSampleCustomers()) preExistingCustomerIds.add(c.id);
   const [existingUser] = await db.select({
     id: s.users.id,
@@ -210,7 +217,9 @@ describe('seedShipments — Wave 0 shipment + CUSTOMER seed', () => {
     }
 
     // Verify the expected status for refs the trip-seeder does not dispatch.
-    const rows = await db.select({ blNumber: s.shipments.blNumber, bookingRef: s.shipments.bookingRef, status: s.shipments.status })
+    // Pre-existing rows (prior full seed incl. seed-trips) may sit further up
+    // the ladder — only rows seeded by THIS run carry the exact expectation.
+    const rows = await db.select({ id: s.shipments.id, blNumber: s.shipments.blNumber, bookingRef: s.shipments.bookingRef, status: s.shipments.status })
       .from(s.shipments)
       .where(or(
         inArray(s.shipments.blNumber, IMPORT_BL_REFS),
@@ -218,6 +227,7 @@ describe('seedShipments — Wave 0 shipment + CUSTOMER seed', () => {
       ));
     const statusByRef = new Map(rows.map((r) => [r.blNumber ?? r.bookingRef, r.status]));
     for (const [ref, expected] of Object.entries(EXPECTED_STATUS)) {
+      if (preExistingShipmentRefs.has(ref)) continue;
       assert.equal(statusByRef.get(ref), expected, `shipment ${ref} status`);
     }
   });
