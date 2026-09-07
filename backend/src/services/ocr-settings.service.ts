@@ -34,9 +34,18 @@ export async function getOcrSettingsFrom(
     .where(like(s.appSettings.key, 'ocr.%'));
 
   const byKey = new Map(rows.map((row) => [row.key, row.value]));
-  const openrouterKey = byKey.has(OCR_SETTING_KEYS.openrouterApiKey)
-    ? decryptSecret(byKey.get(OCR_SETTING_KEYS.openrouterApiKey) ?? '')
-    : config.openrouterApiKey;
+  let openrouterKey = config.openrouterApiKey;
+  if (byKey.has(OCR_SETTING_KEYS.openrouterApiKey)) {
+    try {
+      openrouterKey = decryptSecret(byKey.get(OCR_SETTING_KEYS.openrouterApiKey) ?? '');
+    } catch {
+      // A rotated/legacy encryption key must not brick OCR reads with 500s —
+      // degrade to "not configured" so admins see the settings screen and can
+      // re-save the key instead of every OCR route failing.
+      console.warn('[ocr-settings] stored openrouter key failed to decrypt — treating as unset (encryption key changed?)');
+      openrouterKey = '';
+    }
+  }
   const rawEnabled = byKey.get(OCR_SETTING_KEYS.enabled);
 
   return {

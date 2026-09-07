@@ -11,6 +11,8 @@ import { client, db } from '../db';
 import * as s from '../db/schema';
 import { disconnectRedis, getRedis } from '../lib/redis';
 import { OCR_RATE_LIMIT_KEY } from '../services/ocr-rate-limiter';
+import { OCR_SETTING_KEYS, invalidateOcrSettings } from '../services/ocr-settings.service';
+import { encryptSecret } from '../services/crypto';
 import driverRoutes, { setDriverFuelEvidenceAfterUploadHookForTest } from '../routes/driver';
 import forwarderRoutes, { setForwarderExpensePhotoAfterUploadHookForTest } from '../routes/forwarder';
 import ocrRoutes, { setExtractPumpReadingHandlerForTest } from '../routes/ocr';
@@ -31,6 +33,7 @@ const idempotencyKeys: string[] = [];
 const storageKeys = new Set<string>();
 
 let adminUserId = 0;
+let previousOcrKeyRowRef: typeof s.appSettings.$inferSelect | null = null;
 let driverUserId = 0;
 let driverId = 0;
 let otherDriverUserId = 0;
@@ -138,6 +141,30 @@ async function listStorageDeleteJobs() {
 }
 
 before(async () => {
+  // The dev DB may hold an `ocr.openrouter_api_key` row encrypted with a
+  // rotated/legacy key — re-write it with the CURRENT key so the pump test
+  // exercises replay, not decryption drift. Restored in `after`.
+  const [previousOcrKeyRow] = await db.select()
+    .from(s.appSettings)
+    .where(eq(s.appSettings.key, OCR_SETTING_KEYS.openrouterApiKey))
+    .limit(1);
+  previousOcrKeyRowRef = previousOcrKeyRow ?? null;
+  await db.insert(s.appSettings).values({
+    key: OCR_SETTING_KEYS.openrouterApiKey,
+    value: encryptSecret('test-openrouter-key'),
+  }).onConflictDoUpdate({
+    target: s.appSettings.key,
+    set: { value: encryptSecret('test-openrouter-key') },
+  });
+  await db.insert(s.appSettings).values({
+    key: OCR_SETTING_KEYS.enabled,
+    value: 'true',
+  }).onConflictDoUpdate({
+    target: s.appSettings.key,
+    set: { value: 'true' },
+  });
+  invalidateOcrSettings();
+
   const [admin, driverUser, otherDriverUser, forwarderUser, managerUser] = await db.insert(s.users).values([
     {
       username: `q23-field-admin-${suffix}`,
@@ -394,6 +421,16 @@ after(async () => {
   setExtractPumpReadingHandlerForTest(null);
   setFuelEvidencePumpReadingHandlerForTest(null);
   setDriverFuelEvidenceAfterUploadHookForTest(null);
+  // Restore whatever OCR key row the dev DB held before this test.
+  if (previousOcrKeyRowRef) {
+    await db.insert(s.appSettings).values(previousOcrKeyRowRef).onConflictDoUpdate({
+      target: s.appSettings.key,
+      set: { value: previousOcrKeyRowRef.value },
+    });
+  } else {
+    await db.delete(s.appSettings).where(eq(s.appSettings.key, OCR_SETTING_KEYS.openrouterApiKey));
+  }
+  invalidateOcrSettings();
   storageService.delete = originalStorageDelete;
   server.closeAllConnections();
   await new Promise<void>((resolve, reject) => {
