@@ -563,6 +563,54 @@
 
 ---
 
+---
+
+## 1.10 — Nhà máy ở trang chi tiết hiển thị khi đã gán cho container (báo cáo khách hàng 2026-09-07)
+
+> **Nguồn:** Khách hàng báo cáo 2026-09-07 — "ở giao diện cus: hiện đã nhập có nhà máy đóng trả hàng rồi mà
+> ở phần chi tiết lô hàng đang thể hiện chưa có nhà máy". Tái hiện trên staging sau `make stgdb` 2026-09-07:
+> lô id=2 (Long Minh, EGLV149607019409) có `shipment_containers.operational_site_id = 6` (ASKEY-2) trong DB
+> nhưng trang chi tiết `/shipments/:id` hiển thị "Nhà máy / công trường: —".
+> Nguyên nhân: trang chi tiết dùng `getShipmentDetail` (shared) → trả `shipment.factoryName` legacy (rỗng)
+> mà không tra `shipment.operationalSiteId` / `shipment_containers.operationalSiteId` qua catalog
+> `operational_sites` để ra `effectiveFactoryName`. Các case dưới pin hành vi đã sửa.
+
+### TC-CUS-CREATE-023 — Nhà máy gán ở container hiển thị trên trang chi tiết `/shipments/:id`
+
+- **Mã PRD:** Q17, factory-display-pin (báo cáo 2026-09-07)
+- **Vai trò:** `cus` (longminh-side account, vd `thanhdc`)
+- **Mức độ:** P0
+- **Thiết bị:** Desktop (1440×900)
+- **Tiền điều kiện:** Lô có `shipment_containers.operational_site_id` được set nhưng
+  `shipments.factory_name` rỗng và `shipments.operational_site_id` rỗng
+  (vd lô id=2 của Long Minh sau `make stgdb`).
+- **Các bước:**
+  1. Đăng nhập CUS (vd `thanhdc`), mở thẳng `/shipments/2` (Long Minh, EGLV149607019409).
+  2. Quan sát ô "Nhà máy / công trường" trong thẻ thông tin chung.
+- **Kết quả mong đợi (Pass):**
+  - Ô hiển thị **"ASKEY-2"** (short name tra từ `operational_sites` qua `shipment_containers.operational_site_id = 6`).
+  - Không hiển thị "—" / "Chưa có nhà máy" khi container đã có `operationalSiteId` set.
+- **Kỳ vọng sai (Fail nếu):**
+  - Hiển thị "—" (hồi quy bug 2026-09-07).
+  - Hiển thị `shipment.factoryName` rỗng thay vì đã resolve.
+- **Bằng chứng:** ảnh trang chi tiết + DB `shipment_containers.operational_site_id=6` → `operational_sites.shortName='ASKEY-2'`.
+
+### TC-CUS-CREATE-024 — Nhà máy ở shipment-level vẫn ưu tiên khi cả hai đều set
+
+- **Vai trò:** `cus`
+- **Mức độ:** P1
+- **Tiền điều kiện:** Lô có cả `shipments.factory_name` (free-text) **và** `shipments.operational_site_id` đều set.
+- **Các bước:**
+  1. Tạo/sửa lô: `factoryName = 'Xưởng cũ'`, chọn nhà máy catalog ASKEY-1 cho shipment-level.
+  2. Mở `/shipments/:id`.
+- **Kết quả mong đợi (Pass):**
+  - Ô hiển thị theo thứ tự ưu tiên: `factoryName` free-text > `operationalSiteId` catalog > `container.operationalSiteId` catalog.
+  - Cụ thể: 'Xưởng cũ' nếu `factoryName` set, ngược lại short name từ `operationalSiteId`, ngược lại short name từ container.
+- **Kỳ vọng sai (Fail nếu):** ưu tiên ngược (catalog đè free-text); fallback nhảy qua `factoryName`.
+- **Bằng chứng:** ảnh trang chi tiết + DB `shipments.factory_name='Xưởng cũ'`, `shipments.operational_site_id` set.
+
+---
+
 ## Bảng nghiệm thu — Luồng Tạo lô hàng (CUS)
 
 | Ngày thử | Mã TC | Người thử | Kết quả | Ghi chú | Bằng chứng |
@@ -588,6 +636,8 @@
 | __/__/__ | TC-CUS-CREATE-019 | | | Quy cách đóng gói free-text | |
 | __/__/__ | TC-CUS-CREATE-020 | | | Tạo Loại container inline + tự chọn | |
 | __/__/__ | TC-CUS-CREATE-019 | | | Tạo cảng/bãi inline từ ô container | |
+| __/__/__ | TC-CUS-CREATE-023 | | | Nhà máy gán ở container hiển thị trên /shipments/:id (regression bug 2026-09-07) | |
+| __/__/__ | TC-CUS-CREATE-024 | | | Ưu tiên factoryName free-text > operationalSiteId > container.operationalSiteId | |
 | __/__/__ | TC-CUS-CREATE-021 | | | Xoá chọn Nhà máy container | |
 | __/__/__ | TC-CUS-CREATE-022 | | | Xoá chọn Tuyến đường container | |
 | __/__/__ | TC-CUS-CREATE-023 | | | Xoá chọn Cảng nâng/hạ container | |

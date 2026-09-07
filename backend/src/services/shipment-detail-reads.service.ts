@@ -26,6 +26,7 @@ import { getShipmentAccountingLock } from './shipment-accounting-lock.service';
 import { listShipmentContainers } from './shipment-containers.service';
 import { listShipmentDocuments, listShipmentDeclarations } from './shipment-documents.service';
 import { listPendingShipmentChangeRequests } from './shipment-shared.service';
+import { sql } from 'drizzle-orm';
 
 const CUSTOMER_OPERATIONAL_NAME = operationalName(s.customers.shortName, s.customers.name);
 
@@ -134,6 +135,11 @@ export interface ShipmentDetail {
     customerName: string | null;
     cargoTypeName: string | null;
     pricingProjection: ShipmentPricingProjectionView;
+    // Factory display label resolved through the operational_sites catalog
+    // when shipment.factoryName / shipment.operationalSiteId are empty.
+    // Mirrors cus-workspace `effectiveFactoryNames` priority so the detail
+    // header (ShipmentDetailPage) agrees with the dashboard list view.
+    effectiveFactoryName: string | null;
   };
   containers: Array<Awaited<ReturnType<typeof listShipmentContainers>>[number] & {
     /** Plate issued onto this container's fulfillment at dispatch. */
@@ -223,8 +229,8 @@ export async function getShipmentDetail(id: number, _actor?: AuthUser): Promise<
     cargoTypeName: s.cargoTypes.name,
   })
     .from(s.shipments)
-    .leftJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
-    .leftJoin(s.cargoTypes, eq(s.shipments.cargoTypeId, s.cargoTypes.id))
+    .leftJoin(s.customers, eq(s.customers.id, s.shipments.customerId))
+    .leftJoin(s.cargoTypes, eq(s.cargoTypes.id, s.shipments.cargoTypeId))
     .where(eq(s.shipments.id, id));
   const shipmentWithCustomer = {
     ...shipment,
@@ -241,12 +247,14 @@ export async function getShipmentDetail(id: number, _actor?: AuthUser): Promise<
     listShipmentCarrierAssignments(id),
     getShipmentAccountingLock(id),
   ]);
+  const decoratedContainers = await decorateContainersWithIssuedVehicle(id, containers);
   return {
     shipment: {
       ...shipmentWithCustomer,
       pricingProjection: await buildShipmentPricingProjection(shipment, containers),
+      effectiveFactoryName: await resolveEffectiveFactoryName(shipment, decoratedContainers),
     },
-    containers: await decorateContainersWithIssuedVehicle(id, containers),
+    containers: decoratedContainers,
     documents,
     declarations,
     statusHistory,
@@ -255,4 +263,47 @@ export async function getShipmentDetail(id: number, _actor?: AuthUser): Promise<
     carrierAssignments,
     accountingLock,
   };
+}
+
+/**
+ * Resolve the factory display label for the detail-page header.
+ *
+ * Priority (mirrors cus-workspace `effectiveFactoryNames`):
+ *   1. `shipments.factoryName` legacy free-text (set directly by CUS intake).
+ *   2. `shipments.operational_site_id` → catalog short name.
+ *   3. First non-null `shipment_containers.operational_site_id` → catalog
+ *      short name. Catches the common case where a per-container factory was
+ *      assigned (e.g. ASKEY-2 on a specific container) but the shipment-level
+ *      factory fields are still empty — reported 2026-09-07 by Long Minh's
+ *      CUS user when the detail header showed "—" despite `XƯỞNG 2` set.
+ */
+async function resolveEffectiveFactoryName(
+  shipment: Awaited<ReturnType<typeof getShipment>>,
+  containers: ShipmentDetail['containers'],
+): Promise<string | null> {
+  const legacy = typeof shipment.factoryName === 'string' ? shipment.factoryName.trim() : '';
+  if (legacy) return legacy;
+  const siteIds = new Set<number>();
+  if (shipment.operationalSiteId != null) siteIds.add(shipment.operationalSiteId);
+  for (const container of containers) {
+    if (container.operationalSiteId != null) siteIds.add(container.operationalSiteId);
+  }
+  if (siteIds.size === 0) return null;
+  const siteRows = await db.select({
+    id: s.operationalSites.id,
+    shortName: sql<string>`coalesce(nullif(btrim(${s.operationalSites.shortName}), ''), ${s.operationalSites.name})`,
+  }).from(s.operationalSites)
+    .where(inArray(s.operationalSites.id, [...siteIds]));
+  const byId = new Map<number, string>();
+  for (const row of siteRows) byId.set(row.id, row.shortName);
+  if (shipment.operationalSiteId != null) {
+    const resolved = byId.get(shipment.operationalSiteId);
+    if (resolved) return resolved;
+  }
+  for (const container of containers) {
+    if (container.operationalSiteId == null) continue;
+    const resolved = byId.get(container.operationalSiteId);
+    if (resolved) return resolved;
+  }
+  return null;
 }

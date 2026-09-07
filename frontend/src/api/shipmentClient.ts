@@ -224,7 +224,15 @@ export interface OperationalSite {
 
 /** Full detail payload returned by `GET /api/shipments/:id`. */
 export interface ShipmentDetail {
-  shipment: Shipment & { customerName: string | null };
+  shipment: Shipment & {
+    customerName: string | null;
+    /** Factory display label resolved through `operational_sites` catalog
+     *  when `factoryName` / shipment-level `operationalSiteId` are empty.
+     *  Falls back to per-container `operationalSiteId` lookup. Mirrors the
+     *  cus-workspace `effectiveFactoryNames` priority so the detail header
+     *  agrees with the dashboard list (regression bug 2026-09-07). */
+    effectiveFactoryName: string | null;
+  };
   containers: ShipmentContainer[];
   documents: ShipmentDocument[];
   declarations: ShipmentDeclaration[];
