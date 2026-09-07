@@ -79,9 +79,25 @@ function buildOperationalSummary(
       : missingPlateContainers > 0
         ? 'WAITING_PLATE' as const
         : 'READY' as const;
-  const scheduleReadiness = row.shipment.expectedDeliveryDate == null
+  // Customer feedback 2026-09-07 (BL `JJCTCHPDY260305`): FCL delivery date
+  // lives on `shipment_containers.customerAppointmentAt`, not on the
+  // shipment row's `expectedDeliveryDate`. The previous rule surfaced
+  // "Chưa chốt ngày" for FCL shipments whose containers already had an
+  // appointment, leaving the row unable to be edited and the detail page
+  // showing a different (correct) date. Treat the earliest container
+  // appointment as the effective schedule for FCL.
+  const earliestFclAppointment = totalContainers > 0
+    ? containers
+      .map((container) => container.customerAppointmentAt)
+      .filter((value): value is Date => value != null)
+      .sort((left, right) => left.getTime() - right.getTime())[0]
+    : null;
+  const effectiveScheduleDate = row.shipment.cargoMode === 'FCL' && earliestFclAppointment
+    ? localDateInBusinessZone(earliestFclAppointment)
+    : row.shipment.expectedDeliveryDate;
+  const scheduleReadiness = effectiveScheduleDate == null
     ? 'WAITING_DATE' as const
-    : bucket === ShipmentCusBucket.NEW && row.shipment.expectedDeliveryDate < businessDateNow()
+    : bucket === ShipmentCusBucket.NEW && effectiveScheduleDate < businessDateNow()
       ? 'OVERDUE' as const
       : 'SCHEDULED' as const;
   const transportDateEditable = actor.role === Role.CUS
