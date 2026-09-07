@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { X } from 'lucide-react';
+import { Check, RotateCcw, X } from 'lucide-react';
 import {
   type ShipmentCusWorkspaceContainerLine,
   type ShipmentCusWorkspaceDetail,
@@ -246,6 +246,39 @@ function ContainerLineRow({
           <input id={`${idPrefix}-customer-appointment-${line.id}`} type="datetime-local" value={draft.customerAppointmentAt} onChange={(event) => updateDraft({ customerAppointmentAt: event.target.value })} />
         </ShipmentContainerCell>
       ) : <td data-label="Giờ hẹn đóng/trả" className="cus-container-cell"><strong>{formatDateTimeShort(line.customerAppointmentAt)}</strong></td>}
+      {operationalEditable ? (
+        <td data-label="Thao tác" className="cus-container-actions">
+          {dirty ? (
+            <div className="cus-container-actions__group" role="group" aria-label={`Thao tác lưu cho container ${line.containerNumber || line.ordinal}`}>
+              <button
+                type="button"
+                className="btn btn--primary btn--sm cus-container-confirm"
+                onClick={() => void save()}
+                disabled={saving}
+                aria-label={`Xác nhận lưu thay đổi cho container ${line.containerNumber || line.ordinal}`}
+                title="Xác nhận (Enter cũng hoạt động)"
+              >
+                <Check size={14} aria-hidden="true" />
+                <span>Xác nhận</span>
+              </button>
+              <button
+                type="button"
+                className="btn btn--ghost btn--sm cus-container-revert"
+                onClick={discardDraft}
+                disabled={saving}
+                aria-label={`Bỏ thay đổi cho container ${line.containerNumber || line.ordinal}`}
+                title="Bỏ thay đổi"
+              >
+                <RotateCcw size={14} aria-hidden="true" />
+                <span>Hủy</span>
+              </button>
+            </div>
+          ) : saving ? (
+            <span className="cus-container-actions__status" role="status" aria-live="polite">Đang lưu…</span>
+          ) : null}
+          {saveError && <p className="cus-container-actions__error" role="alert">{saveError}</p>}
+        </td>
+      ) : <td aria-hidden="true" />}
     </tr>
   );
 }
@@ -354,6 +387,7 @@ export function ContainerLedger({
               <col className="cus-container-col__site" />
               <col className="cus-container-col__site" />
               <col className="cus-container-col__appointment" />
+              <col className="cus-container-col__actions" />
             </colgroup>
             <thead><tr>
               <th scope="col">Container</th>
@@ -365,6 +399,7 @@ export function ContainerLedger({
               <th scope="col">Nâng</th>
               <th scope="col">Hạ</th>
               <th scope="col">Giờ hẹn đóng/trả</th>
+              <th scope="col" className="cus-container-actions-head"><span className="sr-only">Thao tác dòng</span></th>
             </tr></thead>
             <tbody>{detail.containers.map((line) => <ContainerLineRow key={`${line.id}:${resetRevision}`} detail={detail} line={line} onSaved={onLineSaved} getIdempotencyKey={getIdempotencyKey} clearIdempotencyKey={clearIdempotencyKey} idPrefix={idPrefix} onDirtyChange={setLineDirty} onSavingChange={setLineSaving} editing={editing} />)}</tbody>
           </table>

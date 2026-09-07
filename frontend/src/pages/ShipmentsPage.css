@@ -1960,3 +1960,35 @@
     animation-duration: 0.01ms !important;
   }
 }
+
+/* Per-row "Xác nhận" action (customer feedback 2026-09-07: only pressing
+ * Enter to save a container date was too hidden). The button group lives
+ * in its own column; the row only gets the column when the container has
+ * any editable field. When the row is clean, the cell collapses to keep
+ * the ledger compact. */
+.cus-container-actions { vertical-align: middle; white-space: nowrap; }
+.cus-container-actions-head { width: 1%; }
+.cus-container-actions__group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.cus-container-actions__group .btn { padding-inline: 10px; }
+.cus-container-actions__status {
+  display: inline-block;
+  font-size: 12px;
+  color: var(--fg-3, #475569);
+}
+.cus-container-actions__error {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--danger, #dc2626);
+}
+.cus-container-confirm:focus-visible,
+.cus-container-revert:focus-visible {
+  outline: 2px solid var(--accent, #2563eb);
+  outline-offset: 2px;
+}
+@media (max-width: 720px) {
+  .cus-container-actions__group { flex-direction: column; align-items: stretch; }
+}
