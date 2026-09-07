@@ -119,6 +119,15 @@ erDiagram
 - **Gửi lặp an toàn** — Thao tác trùng không tạo lô mới.
 - **Chọn nhà máy → tự điền tuyến + vị trí** — chọn khách hàng lọc nhà máy theo đúng khách hàng; chọn nhà máy tự điền và khóa Tuyến đường + Vị trí đóng/trả hàng theo cấu hình nhà máy (xem mục Danh Mục ở trên).
 
+### Lệnh chạy ngoài (Ad-hoc — tối ưu xe rỗng)
+
+Đầu Form Tạo Lô có ô đánh dấu **`[ ] Lệnh chạy ngoài (Tối ưu xe rỗng)`** (mặc định không tích, cố định đầu form):
+
+- **Tích cờ:** bỏ qua validation định mức cước phí (lưu được lô thiếu giá catalog); mở khóa Tuyến đường + Vị trí đóng/trả; 5 trường danh mục (Khách hàng / Nhà máy / Tuyến / Cảng nâng / Cảng hạ) chuyển thành **combobox** nhận **text tự do** khi không khớp mục nào.
+- **Lưu trữ hỗn hợp:** chọn danh mục ⇒ lưu `*_ID`; gõ text mới ⇒ lưu `Raw_*` với ID rỗng (đúng một trong hai vế). Text tự do **không bao giờ** ghi vào bảng danh mục gốc. Cho phép trộn trong cùng lô (khách free-text + cảng chọn danh mục).
+- **Hiển thị:** mọi màn đọc thay tên catalog bằng `COALESCE(tên danh mục, Raw_*)` — không ô trống, kèm nhãn "Chạy ngoài" cạnh mã lô.
+- Bật/tắt cờ giữa chừng không xóa dữ liệu đã gõ; các kiểm soát an toàn dữ liệu (ISO 6346, ngày hợp lệ, số lượng > 0) vẫn giữ nguyên. Chi tiết: `MasterDataNhaMay.md` §4.
+
 ---
 
 ## Bước 2 — Điều Vận: Phân Bổ & Phát Lệnh
@@ -338,3 +347,4 @@ Sau khi lái xe hoàn thành, Chứng Từ xử lý chứng từ trên hồ sơ 
 | **Phân loại chuyến** | Nhãn thao tác (Đơn/Kẹp/Kết hợp/Lẻ). Đánh dấu ghép chuyến độc lập theo lô |
 | **Phí đường cặp ghép** | Chuyến có mã ghép kẹp/kết hợp: VETC/tiền trạm thu phí chỉ ghi nhận **1 lần cho cả cặp** — trip thứ hai được khử trùng bằng đúng tiền trạm gộp (không lấy định mức × 2 cont) |
 | **Lương cặp ghép** | Không trả bằng tổng 2 cuốc chạy đơn: lương cặp = **cuốc cơ bản + phụ phí kẹp/kết hợp**, phụ phí lấy từ cấu hình lương (Cài đặt → Lương). Hủy cặp → khôi phục lương tiêu chuẩn từng trip |
+| **Lệnh chạy ngoài** | Lô cuốc vãng lai (không có trong danh mục): lưu `Raw_*` với ID rỗng, **không bao giờ** ghi text tự do vào bảng danh mục gốc; validation định mức cước được bỏ qua khi có cờ `is_ad_hoc`. Chi tiết `MasterDataNhaMay.md` §4 |
