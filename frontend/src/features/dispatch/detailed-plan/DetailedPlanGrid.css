@@ -478,13 +478,14 @@
    enough of the desktop workspace for its header as well as its one-word
    saved value; a 5% share at the normal 1076px dispatch canvas made it wrap
    letter by letter. */
-.detailed-plan-grid__col--schedule { width: 14%; }
-.detailed-plan-grid__col--route { width: 21%; }
-.detailed-plan-grid__col--documents { width: 14%; }
-.detailed-plan-grid__col--container { width: 13%; }
-.detailed-plan-grid__col--assignment { width: 13%; }
-.detailed-plan-grid__col--classification { width: 9%; }
-.detailed-plan-grid__col--notes { width: 16%; }
+.detailed-plan-grid__col--schedule { width: 13%; }
+.detailed-plan-grid__col--route { width: 19%; }
+.detailed-plan-grid__col--documents { width: 13%; }
+.detailed-plan-grid__col--container { width: 12%; }
+.detailed-plan-grid__col--assignment { width: 12%; }
+.detailed-plan-grid__col--classification { width: 8%; }
+.detailed-plan-grid__col--task-tags { width: 10%; }
+.detailed-plan-grid__col--notes { width: 13%; }
 
 .detailed-plan-grid thead th {
   position: sticky;
@@ -811,6 +812,12 @@
     border-top: 1px solid var(--border-color, #eef2f7);
   }
 
+  .detailed-plan-grid__cell--task-tags,
+  .detailed-plan-grid__cell--notes,
+  .detailed-plan-grid__cell--editable {
+    border-top: 1px solid var(--border-color, #eef2f7);
+  }
+
   .detailed-plan-grid__cell--classification {
     position: absolute;
     top: 8px;
@@ -851,6 +858,13 @@
 .detailed-plan-grid__classification--unclassified {
   color: var(--text-tertiary, #667085);
   border-style: dashed;
+}
+
+/* Task tags column (Tác vụ): compact badge stack for dispatch task labels. */
+.detailed-plan-grid__task-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
 }
 
 /* ─── Lạch Huyện zone toggle (filter drawer) ───────────────────────────── */
