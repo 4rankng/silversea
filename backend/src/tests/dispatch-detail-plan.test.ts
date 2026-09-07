@@ -534,7 +534,10 @@ describe('dispatch detail plan rows', () => {
 
   test('ACCOUNTANT read is customer-scoped and address-redacted', async () => {
     const { shipment, site } = await createAllocatedLot({ carrierType: 'OWN' });
-    // Scope the accountant to this lot's customer only.
+    // Scope the accountant to this lot's customer only. The allocated lot is
+    // always a catalog-customer lot (ad-hoc lots cannot dispatch yet), so the
+    // guard is a fixture assertion rather than a live path.
+    assert.ok(shipment.customerId != null, 'allocated fixture must carry a catalog customer');
     const accountant = await mkUser(Role.ACCOUNTANT, 'accountant-scoped');
     await db.insert(s.userCustomerLinks).values({ userId: accountant.id, customerId: shipment.customerId });
     const scopedToken = jwt.sign({

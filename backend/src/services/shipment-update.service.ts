@@ -51,9 +51,13 @@ export async function updateShipment(
     await assertShipmentAccountingUnlocked(tx, id);
     // Shipment-level factory mirror (SILVER L1 P2): same customer-scope +
     // FACTORY-type validation the container choke point enforces. The
-    // resolved customer respects an in-flight customerId change.
+    // resolved customer respects an in-flight customerId change. Ad-hoc
+    // orders carry no catalog customer, so there is no scope to validate.
     if (input.operationalSiteId != null) {
-      await assertShipmentFactorySiteValid(tx, input.customerId ?? existing.customerId, input.operationalSiteId);
+      const resolvedCustomerId = input.customerId ?? existing.customerId;
+      if (resolvedCustomerId != null) {
+        await assertShipmentFactorySiteValid(tx, resolvedCustomerId, input.operationalSiteId);
+      }
     }
 
     const expectedVersion = input.expectedVersion ?? input.version;

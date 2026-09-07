@@ -55,10 +55,12 @@ export async function listShipmentContainers(shipmentId: number, tx?: Tx) {
  */
 async function assertContainerFactorySitesValid(
   tx: Tx,
-  customerId: number,
+  customerId: number | null,
   siteIds: number[],
 ): Promise<Map<number, number | null>> {
   if (siteIds.length === 0) return new Map();
+  // Ad-hoc orders (null customer) may still reference catalog factories; the
+  // customer-scope equality cannot apply, but FACTORY/active still must.
   const sites = await tx.select({
     id: s.operationalSites.id,
     routeId: s.operationalSites.routeId,
@@ -66,7 +68,7 @@ async function assertContainerFactorySitesValid(
     .from(s.operationalSites)
     .where(and(
       inArray(s.operationalSites.id, siteIds),
-      eq(s.operationalSites.customerId, customerId),
+      ...(customerId != null ? [eq(s.operationalSites.customerId, customerId)] : []),
       eq(s.operationalSites.siteType, 'FACTORY'),
       eq(s.operationalSites.isActive, true),
       isNull(s.operationalSites.deletedAt),
@@ -281,6 +283,14 @@ export async function reconcileShipmentContainersInTx(
       : isUpdate
         ? currentById.get(container.id as number)?.dropoffPortId ?? null
         : null;
+    // Ad-hoc raw port names (Lệnh chạy ngoài): a catalog id wins and clears
+    // its raw mirror; an explicit null id lets the raw text stand.
+    const rawPickupPortName = resolvedPickupPortId != null
+      ? null
+      : container.rawPickupPortName?.trim() || null;
+    const rawDropoffPortName = resolvedDropoffPortId != null
+      ? null
+      : container.rawDropoffPortName?.trim() || null;
     const payload = {
       shipmentId,
       containerTypeId: container.containerTypeId ?? null,
@@ -292,6 +302,8 @@ export async function reconcileShipmentContainersInTx(
       routeId: resolvedRouteId,
       pickupPortId: resolvedPickupPortId,
       dropoffPortId: resolvedDropoffPortId,
+      rawPickupPortName,
+      rawDropoffPortName,
       operationalSiteId: resolvedSiteId,
       customerAppointmentAt: container.customerAppointmentAt ? new Date(container.customerAppointmentAt) : null,
       notes: container.notes ?? null,

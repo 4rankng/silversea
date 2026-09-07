@@ -38,7 +38,7 @@ const response: ShipmentCusContainerFlatResponse = {
   filterOptions: { customers: [{ id: 7, name: 'Công ty Silver Sea' }] },
   items: [
     {
-      id: 11, shipmentId: 1, shipmentVersion: 4, ordinal: 1, customerId: 7,
+      id: 11, shipmentId: 1, shipmentVersion: 4, ordinal: 1, customerId: 7, isAdHoc: false,
       customerName: 'Công ty Silver Sea', factoryName: 'Nhà máy Hải Phòng', routeName: 'Đình Vũ → Hải Phòng',
       billOrBookNumber: 'BILL-12345', declarationNumber: 'TK-001', shippingLineName: 'MSC', isCombined: true, classification: 'COMBINED', direction: 'IMPORT',
       containerNumber: 'CONT-001', containerTypeLabel: '40HC', dispatchStatus: 'PLANNED', carrierName: 'SilverSea', plateNumber: '30H-123.45',
@@ -50,7 +50,7 @@ const response: ShipmentCusContainerFlatResponse = {
       carrierEditable: false, plateEditable: false, liftSiteEditable: false, dropoffSiteEditable: false, routeEditable: false, customerAppointmentEditable: false, scheduleEditable: false,
     },
     {
-      id: 12, shipmentId: 2, shipmentVersion: 7, ordinal: 1, customerId: 7,
+      id: 12, shipmentId: 2, shipmentVersion: 7, ordinal: 1, customerId: 7, isAdHoc: false,
       customerName: 'Công ty Silver Sea', factoryName: 'Nhà máy Hưng Yên', routeName: 'Cảng → Hưng Yên',
       billOrBookNumber: 'BOOK-67890', declarationNumber: null, shippingLineName: 'CMA CGM', isCombined: false, classification: 'DOUBLE', direction: 'EXPORT',
       containerNumber: 'CONT-002', containerTypeLabel: '20DC', dispatchStatus: 'UNASSIGNED', carrierName: null, plateNumber: null,

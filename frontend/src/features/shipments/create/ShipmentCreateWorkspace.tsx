@@ -237,6 +237,43 @@ export function ShipmentCreateWorkspace() {
     clearFeedback();
   }
 
+  // ── Lệnh chạy ngoài (MasterDataNhaMay §4.2): free-text passthrough ──────
+  // An exact option-label match selects the catalog id; anything else becomes
+  // the raw text with a cleared id (Case 2 hybrid storage).
+  function customerCustomText(text: string) {
+    const match = customerOptions.find((option) => option.label === text);
+    if (match) { selectCustomer(match.value); return; }
+    setForm((current) => ({ ...current, customerId: '', rawCustomerName: text }));
+    clearFeedback();
+  }
+
+  function routeCustomText(text: string) {
+    const match = routeOptions.find((option) => option.label === text);
+    if (match) { update('routeId', match.value); return; }
+    setForm((current) => ({ ...current, routeId: '', rawRouteName: text }));
+    clearFeedback();
+  }
+
+  function factoryCustomText(text: string) {
+    const match = operationalSites.find((site) => (site.shortName || site.name) === text);
+    if (match) { selectOperationalSite(String(match.id)); return; }
+    setForm((current) => ({ ...current, operationalSiteId: '', factoryName: text }));
+    clearFeedback();
+  }
+
+  /** Per-container port free text (§4.2): exact label → catalog id, else raw. */
+  function portCustomText(
+    rowKey: string,
+    idField: 'pickupPortId' | 'dropoffPortId',
+    rawField: 'rawPickupPortName' | 'rawDropoffPortName',
+    text: string,
+  ) {
+    const match = portOptions.find((option) => option.label === text);
+    if (match) { updateContainer(rowKey, idField, match.value); return; }
+    updateContainer(rowKey, idField, '');
+    updateContainer(rowKey, rawField, text);
+  }
+
   /**
    * Factory-route authority (master-data spec 2026-09-06): a factory with a
    * configured route owns the shipment/container route — the route field
@@ -512,6 +549,18 @@ export function ShipmentCreateWorkspace() {
       <h1 className="csc-page__title">Tạo lô hàng</h1>
       <form onSubmit={(event) => { event.preventDefault(); void save('DRAFT'); }} className="csc-workspace">
         <div className="csc-form">
+        {/* Lệnh chạy ngoài (MasterDataNhaMay §4.1) — fixed at the very top of
+            the intake form, visible without scrolling. Toggling never clears
+            typed data; it only switches validation + field locking. */}
+        <label className="csc-adhoc-toggle" data-field-id="shipment-is-adhoc">
+          <input
+            type="checkbox"
+            checked={form.isAdHoc}
+            onChange={(event) => update('isAdHoc', event.target.checked)}
+            disabled={Boolean(saving)}
+          />
+          <span>Lệnh chạy ngoài (Tối ưu xe rỗng)</span>
+        </label>
         <ShipmentCreateSection id="identity" title="Nhận diện lô" description="Khách hàng, chứng từ và hướng xuất nhập khẩu.">
           <div className="csc-identity-grid">
             {/* KHÁCH HÀNG */}
@@ -523,13 +572,14 @@ export function ShipmentCreateWorkspace() {
                 value={form.customerId}
                 onChange={selectCustomer}
                 options={customerOptions}
-                placeholder="Gõ để tìm kiếm"
+                placeholder={form.isAdHoc ? 'Chọn hoặc gõ tên mới' : 'Gõ để tìm kiếm'}
                 disabled={Boolean(saving)}
                 error={issueByField.get('shipment-customer')}
                 className="csc-customer-field"
                 popoverClassName="csc-customer-popover"
                 optionClassName="csc-customer-option"
                 searchable
+                {...(form.isAdHoc ? { onCustomValue: customerCustomText } : {})}
               />
               <button
                 ref={customerAddButtonRef}
@@ -577,9 +627,10 @@ export function ShipmentCreateWorkspace() {
                 value={form.routeId}
                 onChange={(value) => update('routeId', value)}
                 options={routeOptions}
-                placeholder="Gõ chọn"
-                disabled={Boolean(saving) || selectedOperationalSite?.routeId != null}
+                placeholder={form.isAdHoc ? 'Chọn hoặc gõ tên tuyến' : 'Gõ chọn'}
+                disabled={Boolean(saving) || (!form.isAdHoc && selectedOperationalSite?.routeId != null)}
                 error={issueByField.get('shipment-route')}
+                {...(form.isAdHoc ? { onCustomValue: routeCustomText } : {})}
               />
               {selectedOperationalSite?.routeId == null && (
                 <button
@@ -600,9 +651,10 @@ export function ShipmentCreateWorkspace() {
                 value={form.operationalSiteId}
                 onChange={selectOperationalSite}
               options={operationalSites.map((site) => ({ value: String(site.id), label: site.shortName || site.name, searchText: `${site.name} ${site.address ?? ''}` }))}
-                placeholder={sitesLoading ? 'Đang tải…' : !form.customerId ? 'Chọn khách hàng trước' : 'Gõ chọn'}
-                disabled={!form.customerId || sitesLoading || Boolean(saving)}
+                placeholder={sitesLoading ? 'Đang tải…' : !form.customerId && !form.isAdHoc ? 'Chọn khách hàng trước' : form.isAdHoc ? 'Chọn hoặc gõ tên nhà máy' : 'Gõ chọn'}
+                disabled={(!form.customerId && !form.isAdHoc) || sitesLoading || Boolean(saving)}
                 error={issueByField.get('shipment-operational-site')}
+                {...(form.isAdHoc ? { onCustomValue: factoryCustomText } : {})}
                 hint={form.customerId && !sitesLoading && operationalSites.length === 0
                     ? <>Chưa có nhà máy.{' '}<button type="button" onClick={(e) => { e.preventDefault(); openCreateSiteDialog('FACTORY'); }} disabled={Boolean(saving)} style={{ border: 0, background: 'none', padding: 0, color: 'var(--accent, #2563eb)', fontWeight: 700, cursor: 'pointer', fontSize: 12 }}>Thêm mới</button></>
                     : undefined}
@@ -792,7 +844,7 @@ export function ShipmentCreateWorkspace() {
                     error={issueByField.get(`container-${row.key}-pickup-port`)}
                   >
                     <div className="csc-route-picker">
-                      <SearchableField id={`container-${row.key}-pickup-port`} label="Cảng nâng" hideLabel value={row.pickupPortId} onChange={(value) => updateContainer(row.key, 'pickupPortId', value)} options={portOptions} placeholder="Chọn cảng nâng" disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-pickup-port`)} />
+                      <SearchableField id={`container-${row.key}-pickup-port`} label="Cảng nâng" hideLabel value={row.pickupPortId} onChange={(value) => updateContainer(row.key, 'pickupPortId', value)} options={portOptions} placeholder={form.isAdHoc ? 'Chọn hoặc gõ tên cảng' : 'Chọn cảng nâng'} disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-pickup-port`)} {...(form.isAdHoc ? { onCustomValue: (text: string) => portCustomText(row.key, 'pickupPortId', 'rawPickupPortName', text) } : {})} />
                       <button
                         type="button"
                         className="csc-utility-button csc-utility-button--dashed csc-route-picker__add"
@@ -811,7 +863,7 @@ export function ShipmentCreateWorkspace() {
                     error={issueByField.get(`container-${row.key}-dropoff-port`)}
                   >
                     <div className="csc-route-picker">
-                      <SearchableField id={`container-${row.key}-dropoff-port`} label="Cảng hạ" hideLabel value={row.dropoffPortId} onChange={(value) => updateContainer(row.key, 'dropoffPortId', value)} options={portOptions} placeholder="Chọn cảng hạ" disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-dropoff-port`)} />
+                      <SearchableField id={`container-${row.key}-dropoff-port`} label="Cảng hạ" hideLabel value={row.dropoffPortId} onChange={(value) => updateContainer(row.key, 'dropoffPortId', value)} options={portOptions} placeholder={form.isAdHoc ? 'Chọn hoặc gõ tên cảng' : 'Chọn cảng hạ'} disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-dropoff-port`)} {...(form.isAdHoc ? { onCustomValue: (text: string) => portCustomText(row.key, 'dropoffPortId', 'rawDropoffPortName', text) } : {})} />
                       <button
                         type="button"
                         className="csc-utility-button csc-utility-button--dashed csc-route-picker__add"

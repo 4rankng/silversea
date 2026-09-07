@@ -45,6 +45,9 @@ describe('customer-visible shipment coordination', () => {
         message: 'Dự kiến giao hàng lúc 09:00.',
         createdBy: user!.id,
       });
+      // Catalog-customer shipments always produce the event; ad-hoc ones
+      // return null (no portal audience) — pin the non-null path here.
+      assert.ok(event, 'catalog shipment must produce a customer-visible event');
       const before = await listCustomerVisibleEvents({
         shipmentId: shipment!.id,
         actor,

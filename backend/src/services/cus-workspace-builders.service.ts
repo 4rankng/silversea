@@ -283,6 +283,7 @@ function buildListItem(
     operationalNotes: trimOrNull(row.shipment.operationalNotes),
     raw: {
       customerId: row.shipment.customerId,
+      isAdHoc: row.shipment.isAdHoc,
       factoryName: trimOrNull(row.shipment.factoryName),
       routeId: row.shipment.routeId,
       deliveryLocation: trimOrNull(row.shipment.deliveryLocation),

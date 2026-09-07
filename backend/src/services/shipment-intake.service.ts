@@ -459,10 +459,14 @@ async function assertReferenceIsActive(
   // A factory is common optional intake detail for both cargo modes. Validate it
   // when supplied, but do not make it a dispatch prerequisite.
   if (shipment.operationalSiteId != null) {
+    // Ad-hoc orders (null customer) may still pick a catalog factory: the
+    // customer-scope equality cannot apply, but FACTORY/active still must.
     const [factory] = await tx.select({ id: s.operationalSites.id }).from(s.operationalSites)
       .where(and(
         eq(s.operationalSites.id, shipment.operationalSiteId),
-        eq(s.operationalSites.customerId, shipment.customerId),
+        ...(shipment.customerId != null
+          ? [eq(s.operationalSites.customerId, shipment.customerId)]
+          : []),
         eq(s.operationalSites.siteType, 'FACTORY'),
         eq(s.operationalSites.isActive, true),
         isNull(s.operationalSites.deletedAt),
@@ -474,7 +478,9 @@ async function assertReferenceIsActive(
     const [warehouse] = await tx.select({ id: s.operationalSites.id }).from(s.operationalSites)
       .where(and(
         eq(s.operationalSites.id, shipment.pickupWarehouseSiteId),
-        eq(s.operationalSites.customerId, shipment.customerId),
+        ...(shipment.customerId != null
+          ? [eq(s.operationalSites.customerId, shipment.customerId)]
+          : []),
         eq(s.operationalSites.siteType, 'WAREHOUSE'),
         eq(s.operationalSites.isActive, true),
         isNull(s.operationalSites.deletedAt),
@@ -529,7 +535,9 @@ async function assertIntakeReady(
   const factories = await tx.select({ id: s.operationalSites.id }).from(s.operationalSites)
     .where(and(
       inArray(s.operationalSites.id, factoryIds),
-      eq(s.operationalSites.customerId, shipment.customerId),
+      ...(shipment.customerId != null
+        ? [eq(s.operationalSites.customerId, shipment.customerId)]
+        : []),
       eq(s.operationalSites.siteType, 'FACTORY'),
       eq(s.operationalSites.isActive, true),
       isNull(s.operationalSites.deletedAt),

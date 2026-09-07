@@ -44,8 +44,15 @@ export function formatShipmentCode(id: number, createdAt: Date = new Date()): st
 
 async function createShipmentTx(tx: Tx, input: CreateShipmentInput, actor?: AuthUser) {
   assertShipmentDocumentReferences(input);
-  if (input.operationalSiteId != null) {
-    await assertShipmentFactorySiteValid(tx, input.customerId, input.operationalSiteId);
+  // Hybrid intake (MasterDataNhaMay §2.1): a catalog id wins and its raw text
+  // is cleared; ad-hoc rows keep the raw text with a null id. The factory
+  // ownership check is a catalog-order rule — an ad-hoc factory has no id to
+  // validate (its name rides in factoryName).
+  const customerId = input.customerId ?? null;
+  const rawCustomerName = customerId != null ? null : input.rawCustomerName?.trim() || null;
+  const rawRouteName = input.routeId != null ? null : input.rawRouteName?.trim() || null;
+  if (input.operationalSiteId != null && customerId != null) {
+    await assertShipmentFactorySiteValid(tx, customerId, input.operationalSiteId);
   }
   const responsibleUnitId = input.responsibleUnitId ?? null;
 
@@ -60,7 +67,10 @@ async function createShipmentTx(tx: Tx, input: CreateShipmentInput, actor?: Auth
 
   // 1. Insert the shipment row with date-derived readiness.
   const [shipment] = await tx.insert(s.shipments).values({
-    customerId: input.customerId,
+    customerId,
+    isAdHoc: input.isAdHoc ?? false,
+    rawCustomerName,
+    rawRouteName,
     routeId: input.routeId ?? null,
     cargoTypeId: input.cargoTypeId ?? null,
     responsibleUnitId,

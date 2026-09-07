@@ -330,12 +330,12 @@ export async function reviewShipmentChangeRequest(
         const patch = parsePlanUpdateSnapshot(request.afterSnapshot);
         // Revalidate at apply time: the factory may have been deactivated or
         // re-scoped between request submission and review (TOCTOU guard).
+        // Ad-hoc orders carry no catalog customer to scope against.
         if (patch.operationalSiteId != null) {
-          await assertShipmentFactorySiteValid(
-            tx,
-            patch.customerId ?? shipment.customerId,
-            patch.operationalSiteId,
-          );
+          const resolvedCustomerId = patch.customerId ?? shipment.customerId;
+          if (resolvedCustomerId != null) {
+            await assertShipmentFactorySiteValid(tx, resolvedCustomerId, patch.operationalSiteId);
+          }
         }
         const [updated] = await tx.update(s.shipments).set({
           ...(patch.customerId !== undefined ? { customerId: patch.customerId } : {}),

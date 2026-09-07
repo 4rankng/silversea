@@ -494,6 +494,10 @@ coreRoutes.post(
     const { shipment, replayed } = await createShipmentIdempotent(
       {
         customerId: parsed.data.customerId,
+        // Lệnh chạy ngoài (hybrid intake): free text rides alongside a null id.
+        isAdHoc: parsed.data.isAdHoc,
+        rawCustomerName: parsed.data.rawCustomerName,
+        rawRouteName: parsed.data.rawRouteName,
         routeId: parsed.data.routeId,
         cargoTypeId: parsed.data.cargoTypeId,
         responsibleUnitId: parsed.data.responsibleUnitId,

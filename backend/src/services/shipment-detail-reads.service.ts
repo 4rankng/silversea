@@ -228,7 +228,10 @@ export async function getShipmentDetail(id: number, _actor?: AuthUser): Promise<
     .where(eq(s.shipments.id, id));
   const shipmentWithCustomer = {
     ...shipment,
-    customerName: joined?.customerName ?? null,
+    // Hybrid display (MasterDataNhaMay §2.1 rule 4): the raw free-text name
+    // stands in whenever no catalog customer is linked (Lệnh chạy ngoài).
+    // isAdHoc / rawCustomerName / rawRouteName ride the row spread above.
+    customerName: joined?.customerName ?? shipment.rawCustomerName ?? null,
     cargoTypeName: joined?.cargoTypeName ?? null,
   };
   const [containers, documents, declarations, statusHistory, pendingChangeRequests, podReviews, carrierAssignments, accountingLock] = await Promise.all([

@@ -15,7 +15,18 @@ export const shipments = pgTable('shipments', {
   shipmentCode: varchar('shipment_code', { length: 50 }).unique(),
   // Optimistic locking, mirroring trips.
   version: integer('version').default(1).notNull(),
-  customerId: integer('customer_id').notNull(),
+  // Nullable since ad-hoc orders (Lệnh chạy ngoài): a walk-in cuốc stores the
+  // free-text customer in raw_customer_name and no catalog link. Catalog
+  // orders keep the FK as before.
+  customerId: integer('customer_id'),
+  // ── Lệnh chạy ngoài (MasterDataNhaMay §4.1/§2.1 Case 2) ────────────────
+  // Free-text intake for one-off cuốc: raw_* carries what the user typed when
+  // no catalog id was selected. XOR with the id columns by convention; the
+  // pair (id set → raw null) is normalized in the intake services and NEVER
+  // written back into the master tables.
+  isAdHoc: boolean('is_ad_hoc').notNull().default(false),
+  rawCustomerName: varchar('raw_customer_name', { length: 255 }),
+  rawRouteName: varchar('raw_route_name', { length: 255 }),
   routeId: integer('route_id'),
   cargoTypeId: integer('cargo_type_id'),
   responsibleUnitId: integer('responsible_unit_id')
@@ -162,6 +173,10 @@ export const shipmentContainers = pgTable('shipment_containers', {
   customerAppointmentAt: timestamp('customer_appointment_at', { withTimezone: true }),
   pickupPortId: integer('pickup_port_id'),
   dropoffPortId: integer('dropoff_port_id'),
+  // Ad-hoc orders (Lệnh chạy ngoài): free-text cảng nâng/hạ when no catalog
+  // port was picked. XOR with the port ids above by intake convention.
+  rawPickupPortName: varchar('raw_pickup_port_name', { length: 255 }),
+  rawDropoffPortName: varchar('raw_dropoff_port_name', { length: 255 }),
   // Per-container factory authority (SILVER L1): nullable, indexed, no DB FK
   // by repo convention — customer scope + FACTORY type are enforced at the
   // persistence choke point (reconcileShipmentContainersInTx).

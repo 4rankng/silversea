@@ -261,9 +261,12 @@ export async function syncShipmentAuthorityToTrips(
 
   for (const trip of linkedTrips) {
     const authoritativeCargoTypeId = shipment.cargoTypeId ?? trip.cargoTypeId;
+    // Ad-hoc shipments carry no catalog customer (Lệnh chạy ngoài): the trip
+    // keeps its own customer rather than being nulled by the mirror.
+    const effectiveCustomerId = shipment.customerId ?? trip.customerId;
     if (authoritativeCargoTypeId == null) {
       await tx.update(s.trips).set({
-        customerId: shipment.customerId,
+        customerId: effectiveCustomerId,
         sourceShipmentVersion: shipment.version,
         version: trip.version + 1,
         updatedAt: new Date(),
@@ -272,7 +275,7 @@ export async function syncShipmentAuthorityToTrips(
     }
 
     const freightPrice = await resolveFreightPrice({
-      customerId: shipment.customerId,
+      customerId: effectiveCustomerId,
       routeId: trip.routeId,
       cargoTypeId: authoritativeCargoTypeId,
       date: trip.departureDate,

@@ -24,7 +24,7 @@ import {
 } from './shipment-accounting-lock.service';
 
 
-import { CUSTOMER_OPERATIONAL_NAME, ROUTE_OPERATIONAL_NAME, SITE_OPERATIONAL_NAME, plannedCarrier, actualCarrier, billingSourceTrip, billingExpenseTrip, liftPort, containerTransportDateSql, containerDispatchRankSql, CONTAINER_DISPATCH_RANKS, CONTAINER_SORT_SQL, WORKSPACE_SORT_SQL, activeCarrierTypeSql, containerIncompleteSql, cargoRankSql } from './cus-workspace-sql.service';
+import { CUSTOMER_DISPLAY_NAME, ROUTE_DISPLAY_NAME, CUSTOMER_OPERATIONAL_NAME, ROUTE_OPERATIONAL_NAME, SITE_OPERATIONAL_NAME, plannedCarrier, actualCarrier, billingSourceTrip, billingExpenseTrip, liftPort, containerTransportDateSql, containerDispatchRankSql, CONTAINER_DISPATCH_RANKS, CONTAINER_SORT_SQL, WORKSPACE_SORT_SQL, activeCarrierTypeSql, containerIncompleteSql, cargoRankSql } from './cus-workspace-sql.service';
 import { billOrBookNumberFor, trimOrNull } from './cus-workspace-mapping.service';
 
 export * from './cus-workspace-sql.service';
@@ -557,7 +557,9 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
   };
 }
 
-async function loadSelectors(customerId: number, executor: Executor = db) {
+/** customerId null = ad-hoc order (Lệnh chạy ngoài): no customer-scoped
+ *  factories exist for the edit form — the other catalogs still load. */
+async function loadSelectors(customerId: number | null, executor: Executor = db) {
   const [routes, containerTypes, operationalSites, externalCarriers, carrierVehicles, ports] = await Promise.all([
     executor.select({
       id: s.routes.id,
@@ -579,7 +581,7 @@ async function loadSelectors(customerId: number, executor: Executor = db) {
       name: SITE_OPERATIONAL_NAME,
     }).from(s.operationalSites)
       .where(and(
-        eq(s.operationalSites.customerId, customerId),
+        ...(customerId != null ? [eq(s.operationalSites.customerId, customerId)] : []),
         eq(s.operationalSites.isActive, true),
         isNull(s.operationalSites.deletedAt),
       ))
@@ -649,8 +651,8 @@ export async function loadShipmentRow(
 ) {
   const [row] = await executor.select({
     shipment: s.shipments,
-    customerName: CUSTOMER_OPERATIONAL_NAME,
-    routeName: ROUTE_OPERATIONAL_NAME,
+    customerName: CUSTOMER_DISPLAY_NAME,
+    routeName: ROUTE_DISPLAY_NAME,
   }).from(s.shipments)
     .leftJoin(s.customers, eq(s.customers.id, s.shipments.customerId))
     .leftJoin(s.routes, eq(s.routes.id, s.shipments.routeId))
@@ -967,8 +969,8 @@ export async function listCusShipmentContainers(
     const [containers, totals, options] = await Promise.all([
       tx.select({
         shipment: s.shipments,
-        customerName: CUSTOMER_OPERATIONAL_NAME,
-        routeName: ROUTE_OPERATIONAL_NAME,
+        customerName: CUSTOMER_DISPLAY_NAME,
+        routeName: ROUTE_DISPLAY_NAME,
         containerId: s.shipmentContainers.id,
       }).from(s.shipmentContainers)
         .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentContainers.shipmentId))
@@ -1011,6 +1013,7 @@ export async function listCusShipmentContainers(
       shipmentVersion: row.shipment.version,
       ordinal: line.ordinal,
       customerId: row.shipment.customerId,
+      isAdHoc: row.shipment.isAdHoc,
       customerName: row.customerName,
       factoryName: trimOrNull(row.shipment.factoryName),
       routeName: line.routeName,

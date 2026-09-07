@@ -147,6 +147,13 @@ interface USearchableFieldProps {
    * type to filter.
    */
   searchable?: boolean;
+  /**
+   * Free-text passthrough for searchable mode (Lệnh chạy ngoài §4.2): every
+   * keystroke also reports the raw text so the caller can decide — exact
+   * option-label match selects the catalog id, anything else becomes the
+   * ad-hoc raw value. Selection still commits through `onChange`.
+   */
+  onCustomValue?: (text: string) => void;
   hideLabel?: boolean;
 }
 
@@ -166,6 +173,7 @@ export function USearchableField({
   shortcut,
   allowsCustomValue,
   searchable,
+  onCustomValue,
   hideLabel,
 }: USearchableFieldProps) {
   const selected = options.find((option) => option.value === value);
@@ -206,7 +214,10 @@ export function USearchableField({
           }
         }}
         {...(searchable
-          ? { onInputChange: (text: string) => setInputValue(text) }
+          ? { onInputChange: (text: string) => {
+              setInputValue(text);
+              onCustomValue?.(text);
+            } }
           : allowsCustomValue
             ? { allowsCustomValue: true, onInputChange: (text: string) => onChange(text) }
             : {})}

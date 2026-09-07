@@ -123,7 +123,9 @@ async function loadSiteSnapshot(
   const sites = await tx.select().from(s.operationalSites)
     .where(and(
       inArray(s.operationalSites.id, requestedIds),
-      eq(s.operationalSites.customerId, shipment.customerId),
+      ...(shipment.customerId != null
+        ? [eq(s.operationalSites.customerId, shipment.customerId)]
+        : []),
       eq(s.operationalSites.isActive, true),
       isNull(s.operationalSites.deletedAt),
     ));
@@ -291,7 +293,9 @@ async function loadContainerSiteSnapshots(
   const sites = await tx.select().from(s.operationalSites)
     .where(and(
       inArray(s.operationalSites.id, siteIds),
-      eq(s.operationalSites.customerId, shipment.customerId),
+      ...(shipment.customerId != null
+        ? [eq(s.operationalSites.customerId, shipment.customerId)]
+        : []),
       eq(s.operationalSites.isActive, true),
       isNull(s.operationalSites.deletedAt),
     ));

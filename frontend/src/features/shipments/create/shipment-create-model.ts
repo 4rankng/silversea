@@ -6,6 +6,14 @@ export type SaveIntent = 'DRAFT' | 'SUBMIT';
 
 export interface ShipmentCreateFormState {
   customerId: string;
+  /** Lệnh chạy ngoài (MasterDataNhaMay §4): free-text customer when no
+   *  catalog row is selected — payload sends rawCustomerName + null id. */
+  isAdHoc: boolean;
+  rawCustomerName: string;
+  rawRouteName: string;
+  /** Ad-hoc LCL free-text factory (payload factoryName; catalog LCL derives
+   *  it from the picked site instead). */
+  factoryName: string;
   routeId: string;
   cargoTypeId: string;
   bookingRef: string;
@@ -43,6 +51,9 @@ export interface ShipmentContainerDraft {
   routeId: string;
   pickupPortId: string;
   dropoffPortId: string;
+  /** Ad-hoc free-text cảng nâng/hạ (Lệnh chạy ngoài) — XOR with the ids. */
+  rawPickupPortName: string;
+  rawDropoffPortName: string;
   cargoWeightKg: string;
   cargoVolumeCbm: string;
   /** Ngày giờ đóng/trả của riêng container này, entered in Vietnam local time. */
@@ -78,6 +89,10 @@ export interface ShipmentCreateReadiness {
 
 export const EMPTY_SHIPMENT_CREATE_FORM: ShipmentCreateFormState = {
   customerId: '',
+  isAdHoc: false,
+  rawCustomerName: '',
+  rawRouteName: '',
+  factoryName: '',
   routeId: '',
   cargoTypeId: '',
   bookingRef: '',
@@ -109,6 +124,8 @@ export function createEmptyContainer(): ShipmentContainerDraft {
     routeId: '',
     pickupPortId: '',
     dropoffPortId: '',
+    rawPickupPortName: '',
+    rawDropoffPortName: '',
     cargoWeightKg: '',
     cargoVolumeCbm: '',
     customerAppointmentAt: '',
@@ -145,9 +162,16 @@ export function getShipmentCreateReadiness(
   containers: ShipmentContainerDraft[],
 ): ShipmentCreateReadiness {
   const issues: ShipmentCreateIssue[] = [];
+  // Ad-hoc bypass (MasterDataNhaMay §4.1): catalog/pricing prerequisites are
+  // waived; data-safety checks (direction, doc ref, ISO numbers, positive
+  // quantities, dates) still apply unchanged.
+  const adHoc = form.isAdHoc;
 
-  if (!form.customerId) {
+  if (!adHoc && !form.customerId) {
     issues.push(issue('shipment-customer', 'Chọn khách hàng.', 'identity'));
+  }
+  if (adHoc && !form.customerId && !form.rawCustomerName.trim()) {
+    issues.push(issue('shipment-customer', 'Nhập tên khách hàng (lệnh chạy ngoài).', 'identity'));
   }
   if (!form.tradeDirection) {
     issues.push(issue('shipment-trade-direction', 'Chọn hình thức nhập khẩu hoặc xuất khẩu.', 'identity'));
@@ -156,7 +180,7 @@ export function getShipmentCreateReadiness(
   } else if (form.tradeDirection === 'EXPORT' && !form.bookingRef) {
     issues.push(issue('shipment-booking-ref', 'Hàng Xuất cần Số Booking.', 'identity'));
   }
-  if (form.cargoMode === 'LCL' && !form.routeId) {
+  if (!adHoc && form.cargoMode === 'LCL' && !form.routeId) {
     issues.push(issue('shipment-route', 'Chọn tuyến đường.', 'route'));
   }
 
@@ -165,10 +189,12 @@ export function getShipmentCreateReadiness(
       const prefix = `container-${row.key}`;
       const label = `Container ${index + 1}`;
       if (!row.containerTypeId) issues.push(issue(`${prefix}-type`, `${label}: chọn loại container.`, 'cargo'));
-      if (!row.operationalSiteId) issues.push(issue(`${prefix}-factory`, `${label}: chọn nhà máy.`, 'cargo'));
-      if (!row.routeId) issues.push(issue(`${prefix}-route`, `${label}: chọn tuyến đường.`, 'cargo'));
-      if (!row.pickupPortId) issues.push(issue(`${prefix}-pickup-port`, `${label}: chọn cảng nâng.`, 'cargo'));
-      if (!row.dropoffPortId) issues.push(issue(`${prefix}-dropoff-port`, `${label}: chọn cảng hạ.`, 'cargo'));
+      if (!adHoc) {
+        if (!row.operationalSiteId) issues.push(issue(`${prefix}-factory`, `${label}: chọn nhà máy.`, 'cargo'));
+        if (!row.routeId) issues.push(issue(`${prefix}-route`, `${label}: chọn tuyến đường.`, 'cargo'));
+        if (!row.pickupPortId) issues.push(issue(`${prefix}-pickup-port`, `${label}: chọn cảng nâng.`, 'cargo'));
+        if (!row.dropoffPortId) issues.push(issue(`${prefix}-dropoff-port`, `${label}: chọn cảng hạ.`, 'cargo'));
+      }
       if (!row.customerAppointmentAt) issues.push(issue(`${prefix}-customer-appointment`, `${label}: chọn ngày giờ đóng/trả.`, 'schedule'));
     });
   } else {
@@ -192,7 +218,9 @@ export function getShipmentCreateReadiness(
   });
 
   return {
-    draftReady: Boolean(form.customerId),
+    // Ad-hoc drafts are create-ready with a free-text customer instead of a
+    // catalog id (Lệnh chạy ngoài §4.1).
+    draftReady: Boolean(form.customerId) || (form.isAdHoc && Boolean(form.rawCustomerName.trim())),
     dispatchReady: issues.length === 0,
     initialStatus: form.cargoMode === 'LCL' && (form.expectedDeliveryDate || form.closingAt || form.plannedReturnAt)
       ? ShipmentStatus.READY_FOR_DISPATCH
@@ -227,7 +255,12 @@ export function buildShipmentRootPayload(
   sites: OperationalSiteName[],
 ) {
   return {
-    customerId: Number(form.customerId),
+    // Hybrid intake (Lệnh chạy ngoài): catalog id when selected, else null +
+    // the raw free text. XOR is normalized again server-side.
+    customerId: form.customerId ? Number(form.customerId) : null,
+    isAdHoc: form.isAdHoc,
+    rawCustomerName: !form.customerId && form.isAdHoc ? form.rawCustomerName.trim() || null : null,
+    rawRouteName: !form.routeId && form.isAdHoc ? form.rawRouteName.trim() || null : null,
     // Route authority for FCL lives in shipment_containers. Keep the root
     // column empty so no later reader can mistake it for a lot-level route.
     routeId: form.cargoMode === 'LCL' && form.routeId ? Number(form.routeId) : null,
@@ -240,6 +273,7 @@ export function buildShipmentRootPayload(
     operationalSiteId: form.cargoMode === 'LCL' && form.operationalSiteId ? Number(form.operationalSiteId) : null,
     pickupWarehouseSiteId: form.cargoMode === 'LCL' && form.pickupWarehouseSiteId ? Number(form.pickupWarehouseSiteId) : null,
     factoryName: (() => {
+      if (form.isAdHoc) return form.factoryName.trim() || null;
       if (form.cargoMode !== 'LCL') return null;
       const site = sites.find((item) => String(item.id) === form.operationalSiteId);
       return site?.shortName || site?.name || null;
@@ -278,6 +312,8 @@ export function buildShipmentContainerPayload(
     routeId: row.routeId ? Number(row.routeId) : null,
     pickupPortId: row.pickupPortId ? Number(row.pickupPortId) : null,
     dropoffPortId: row.dropoffPortId ? Number(row.dropoffPortId) : null,
+    rawPickupPortName: !row.pickupPortId && form.isAdHoc ? row.rawPickupPortName.trim() || null : null,
+    rawDropoffPortName: !row.dropoffPortId && form.isAdHoc ? row.rawDropoffPortName.trim() || null : null,
     operationalSiteId: row.operationalSiteId ? Number(row.operationalSiteId) : null,
     cargoWeightKg: row.cargoWeightKg || null,
     cargoVolumeCbm: row.cargoVolumeCbm || null,

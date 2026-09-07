@@ -520,6 +520,15 @@ export async function issueOrderCreateOrUpdate(
   let notificationPersisted = false;
 
   if (!trip) {
+    // Ad-hoc shipments carry no catalog customer; a trip row requires one
+    // until the trips schema relaxes. Fail with an explicit, actionable
+    // message instead of a DB constraint 500.
+    if (shipment.customerId == null) {
+      throw new ApiError(
+        400,
+        'Lô chạy ngoài chưa có khách hàng trên danh mục — chưa thể phát lệnh chuyến.',
+      );
+    }
     const createdTrip = await createTrip({
       customerId: shipment.customerId,
       routeId: effectiveRouteId,

@@ -76,7 +76,7 @@ const row: ShipmentCusWorkspaceListItem = {
   customerNotes: 'Giao buổi sáng',
   operationalNotes: 'Ưu tiên cổng số 2',
   raw: {
-    customerId: 7, factoryName: 'Nhà máy Hải Phòng', routeId: 3, deliveryLocation: 'Kho Long Biên',
+    customerId: 7, isAdHoc: false, factoryName: 'Nhà máy Hải Phòng', routeId: 3, deliveryLocation: 'Kho Long Biên',
     blNumber: 'BILL-12345', bookingRef: null, declarationNumber: 'TK-54321', tradeDirection: 'IMPORT', shippingLineName: 'Maersk',
     packageCount: null, packageType: null, cargoWeightKg: '25000', cargoVolumeCbm: '52.5', customsCutoffAt: '2026-08-11T08:00:00.000Z',
     closingAt: null, plannedReturnAt: '2026-08-12T10:00:00.000Z', customerNotes: 'Giao buổi sáng', operationalNotes: 'Ưu tiên cổng số 2',

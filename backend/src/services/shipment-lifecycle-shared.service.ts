@@ -40,7 +40,11 @@ export function normalizeDocumentReference(value: string | null | undefined): st
 }
 
 export interface CreateShipmentInput {
-  customerId: number;
+  /** Null for ad-hoc orders (Lệnh chạy ngoài) — rawCustomerName carries the text. */
+  customerId?: number | null;
+  isAdHoc?: boolean;
+  rawCustomerName?: string | null;
+  rawRouteName?: string | null;
   routeId?: number | null;
   cargoTypeId?: number | null;
   responsibleUnitId?: number | null;

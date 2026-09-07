@@ -1407,10 +1407,15 @@ function validateShipmentDocumentReferences(
   }
 }
 
-// Create draft shipment. Only `customerId` is required — everything else is
-// optional booking metadata that may be filled in before dispatch.
+// Create draft shipment. `customerId` is optional for ad-hoc orders (Lệnh
+// chạy ngoài — MasterDataNhaMay §4): a walk-in cuốc carries rawCustomerName
+// instead. Catalog orders behave exactly as before.
 const createShipmentBaseSchema = z.object({
-  customerId: z.coerce.number().int().positive('Khách hàng là bắt buộc'),
+  customerId: z.coerce.number().int().positive('Khách hàng không hợp lệ').optional().nullable(),
+  // ── Lệnh chạy ngoài (hybrid storage, Case 2) ───────────────────────────
+  isAdHoc: z.boolean().optional().default(false),
+  rawCustomerName: z.string().max(255).optional().nullable(),
+  rawRouteName: z.string().max(255).optional().nullable(),
   routeId: z.coerce.number().int().positive('Tuyến đường không hợp lệ').optional().nullable(),
   cargoTypeId: z.coerce.number().int().positive('Loại hàng không hợp lệ').optional().nullable(),
   responsibleUnitId: z.coerce.number().int().positive().optional().nullable(),
@@ -1441,7 +1446,25 @@ const createShipmentBaseSchema = z.object({
   contactPhone: z.string().max(20).optional().nullable(),
 });
 
-export const createShipmentSchema = createShipmentBaseSchema.superRefine(validateShipmentDocumentReferences);
+function validateShipmentAdHocIdentity(
+  data: { customerId?: number | null; isAdHoc?: boolean; rawCustomerName?: string | null },
+  ctx: z.RefinementCtx,
+) {
+  // Catalog orders keep the historical hard requirement; ad-hoc orders
+  // (Lệnh chạy ngoài) substitute a free-text customer name (Case 2).
+  if (data.customerId == null) {
+    if (!data.isAdHoc) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Khách hàng là bắt buộc.', path: ['customerId'] });
+    } else if (!data.rawCustomerName?.trim()) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Lệnh chạy ngoài cần tên khách hàng (text tự do).', path: ['rawCustomerName'] });
+    }
+  }
+}
+
+export const createShipmentSchema = createShipmentBaseSchema.superRefine((data, ctx) => {
+  validateShipmentDocumentReferences(data, ctx);
+  validateShipmentAdHocIdentity(data, ctx);
+});
 
 // Quick create — M10.1 clerk mobile entry point. Minimum data set is just
 // `customerId` (the only NOT NULL column); every other field is optional
@@ -1452,7 +1475,10 @@ export const createShipmentSchema = createShipmentBaseSchema.superRefine(validat
 // both are present; see `routes/shipments.ts` POST /quick.
 export const quickCreateShipmentSchema = createShipmentBaseSchema.extend({
   _requestId: z.string().min(1).max(100).optional(),
-}).superRefine(validateShipmentDocumentReferences);
+}).superRefine((data, ctx) => {
+  validateShipmentDocumentReferences(data, ctx);
+  validateShipmentAdHocIdentity(data, ctx);
+});
 
 // Update shipment. `expectedVersion` is the canonical optimistic-lock field;
 // legacy callers may still send `version` and are normalized onto
@@ -1543,6 +1569,10 @@ export const shipmentContainerBatchSchema = z.object({
     routeId: z.coerce.number().int().positive('Tuyến đường không hợp lệ').optional().nullable(),
     pickupPortId: z.coerce.number().int().positive().optional().nullable(),
     dropoffPortId: z.coerce.number().int().positive().optional().nullable(),
+    // Ad-hoc orders (Lệnh chạy ngoài): free-text cảng nâng/hạ when no catalog
+    // port was picked — XOR with the ids above, normalized server-side.
+    rawPickupPortName: z.string().max(255).optional().nullable().transform(v => (v === '' ? null : v)),
+    rawDropoffPortName: z.string().max(255).optional().nullable().transform(v => (v === '' ? null : v)),
     // Per-container factory authority (SILVER L1): nullable, application-
     // validated at the persistence choke point — no DB FK by repo convention.
     operationalSiteId: z.coerce.number().int().positive().optional().nullable(),

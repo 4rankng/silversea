@@ -15,6 +15,13 @@ export const CUSTOMER_OPERATIONAL_NAME = operationalName(s.customers.shortName, 
 const ROUTE_OPERATIONAL_NAME = operationalName(s.routes.shortName, s.routes.name);
 export const SITE_OPERATIONAL_NAME = operationalName(s.operationalSites.shortName, s.operationalSites.name);
 
+// Hybrid display names (Lệnh chạy ngoài — MasterDataNhaMay §2.1 rule 4): the
+// catalog operational name wins; the shipment's raw free-text stands in when
+// no catalog row is linked. Every read surface uses these so ad-hoc rows
+// never render an empty cell.
+export const CUSTOMER_DISPLAY_NAME = sql<string | null>`coalesce(${CUSTOMER_OPERATIONAL_NAME}, ${s.shipments.rawCustomerName})`;
+export const ROUTE_DISPLAY_NAME = sql<string | null>`coalesce(${ROUTE_OPERATIONAL_NAME}, ${s.shipments.rawRouteName})`;
+
 const plannedCarrier = alias(s.customers, 'cus_workspace_planned_carrier');
 const actualCarrier = alias(s.customers, 'cus_workspace_actual_carrier');
 const billingSourceTrip = alias(s.trips, 'cus_workspace_billing_source_trip');

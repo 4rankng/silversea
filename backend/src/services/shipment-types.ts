@@ -20,6 +20,9 @@ export interface ShipmentContainerInput {
   routeId?: number | null;
   pickupPortId?: number | null;
   dropoffPortId?: number | null;
+  /** Ad-hoc (Lệnh chạy ngoài) free-text cảng nâng/hạ — XOR with the port ids. */
+  rawPickupPortName?: string | null;
+  rawDropoffPortName?: string | null;
   operationalSiteId?: number | null;
   customerAppointmentAt?: string | null;
   notes?: string | null;

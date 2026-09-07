@@ -102,7 +102,11 @@ export interface ShipmentDispatchHandoff {
 
 /** Body for `POST /api/shipments/quick` — matches `quickCreateShipmentSchema`. */
 export interface QuickCreateShipmentRequest {
-  customerId: number;
+  /** Null for ad-hoc orders (Lệnh chạy ngoài) — rawCustomerName carries the text. */
+  customerId?: number | null;
+  isAdHoc?: boolean;
+  rawCustomerName?: string | null;
+  rawRouteName?: string | null;
   routeId?: number | null;
   cargoTypeId?: number | null;
   responsibleUnitId?: number | null;
@@ -300,7 +304,10 @@ export interface ShipmentPodReviewItem {
 /** Body for `PUT /api/shipments/:id` — version is required (optimistic lock). */
 export interface UpdateShipmentRequest {
   expectedVersion: number;
-  customerId?: number;
+  customerId?: number | null;
+  isAdHoc?: boolean;
+  rawCustomerName?: string | null;
+  rawRouteName?: string | null;
   routeId?: number | null;
   responsibleUnitId?: number | null;
   blNumber?: string | null;

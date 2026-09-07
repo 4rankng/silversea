@@ -270,7 +270,10 @@ export const shipmentCusWorkspaceListItemSchema = z.object({
   customerNotes: z.string().nullable(),
   operationalNotes: z.string().nullable(),
   raw: z.object({
-    customerId: z.number().int().positive(),
+    // Null for ad-hoc orders (Lệnh chạy ngoài) — the raw text rides the
+    // display fields; factoryName already doubles as the raw factory name.
+    customerId: z.number().int().positive().nullable(),
+    isAdHoc: z.boolean(),
     factoryName: z.string().nullable(),
     routeId: z.number().int().positive().nullable(),
     deliveryLocation: z.string().nullable(),
@@ -579,7 +582,9 @@ export const shipmentCusContainerFlatRowSchema = z.object({
   shipmentId: z.number().int().positive(),
   shipmentVersion: z.number().int().positive(),
   ordinal: z.number().int().positive(),
-  customerId: z.number().int().positive(),
+  // Null for ad-hoc orders (Lệnh chạy ngoài) — customerName carries the raw text.
+  customerId: z.number().int().positive().nullable(),
+  isAdHoc: z.boolean(),
   customerName: z.string().nullable(),
   factoryName: z.string().nullable(),
   routeName: z.string().nullable(),

@@ -87,7 +87,9 @@ export interface ShipmentPricingProjection {
 }
 
 export interface ResolveShipmentPricingProjectionInput {
-  customerId: number;
+  /** Null for ad-hoc orders (Lệnh chạy ngoài) — no customer rate card exists,
+   *  the projection reports "no pricing" by design (bypass per spec §4.1). */
+  customerId: number | null;
   routeId?: number | null;
   cargoMode?: 'FCL' | 'LCL' | null;
   cargoTypeId?: number | null;
@@ -238,6 +240,11 @@ export async function resolveShipmentPricingProjection(
   }
   if (input.cargoMode == null) {
     return missingProjection('Chọn loại lô hàng để xem đơn giá dự kiến.');
+  }
+  // Ad-hoc orders (Lệnh chạy ngoài) bypass catalog rate cards by design —
+  // no customer, no projection (spec §4.1: cước phí录入 tay / thủ công).
+  if (input.customerId == null) {
+    return missingProjection('Lệnh chạy ngoài không áp định mức cước phí danh mục.');
   }
 
   const estimationDate = input.date?.trim() || todayIsoDate();

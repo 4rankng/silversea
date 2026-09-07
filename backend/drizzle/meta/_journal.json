@@ -421,6 +421,13 @@
       "when": 1788745656146,
       "tag": "0059_brief_firestar",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1788746658201,
+      "tag": "0060_broken_la_nuit",
+      "breakpoints": true
     }
   ]
 }

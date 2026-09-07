@@ -19,6 +19,8 @@ const container: ShipmentContainerDraft = {
   routeId: '11',
   pickupPortId: '21',
   dropoffPortId: '22',
+  rawPickupPortName: '',
+  rawDropoffPortName: '',
   cargoWeightKg: '12000.25',
   cargoVolumeCbm: '33.5',
   operationalSiteId: '41',
@@ -71,6 +73,8 @@ describe('shipment create model', () => {
       shippingLineName: 'MSC',
       pickupPortId: 21,
       dropoffPortId: 22,
+      rawPickupPortName: null,
+      rawDropoffPortName: null,
       operationalSiteId: 41,
       cargoWeightKg: '12000.25',
       cargoVolumeCbm: '33.5',
@@ -269,5 +273,81 @@ describe('shipment create model', () => {
 
     const fcl = { ...EMPTY_SHIPMENT_CREATE_FORM, customerId: '7', extraDeliveryDates: ['2026-08-15'] };
     expect(buildShipmentRootPayload(fcl, [], []).driverNotes).toBeNull();
+  });
+
+  // ── Lệnh chạy ngoài (MasterDataNhaMay §4.1) ─────────────────────────────────
+  it('ad-hoc flag bypasses catalog/pricing requirements but keeps data-safety checks', () => {
+    const adHoc = {
+      ...EMPTY_SHIPMENT_CREATE_FORM,
+      isAdHoc: true,
+      rawCustomerName: 'Khách vãng lai',
+      tradeDirection: 'IMPORT' as const,
+      blNumber: 'ADHOC-1',
+      cargoMode: 'FCL' as const,
+    };
+    // No factory/route/ports on the container — still dispatch-ready under the
+    // bypass (AC3), while the container type + appointment remain required.
+    const bareContainer = { ...container, operationalSiteId: '', routeId: '', pickupPortId: '', dropoffPortId: '', containerTypeId: '', customerAppointmentAt: '' };
+    const readiness = getShipmentCreateReadiness(adHoc, [bareContainer]);
+    const byField = new Map(readiness.issues.map((item) => [item.fieldId, item.message]));
+    expect(byField.has('shipment-customer')).toBe(false);
+    expect(byField.has('container-row-1-factory')).toBe(false);
+    expect(byField.has('container-row-1-route')).toBe(false);
+    expect(byField.has('container-row-1-pickup-port')).toBe(false);
+    expect(byField.has('container-row-1-dropoff-port')).toBe(false);
+    // Data-safety checks survive the bypass.
+    expect(byField.get('container-row-1-type')).toContain('loại container');
+    expect(byField.get('container-row-1-customer-ointment') ?? byField.get('container-row-1-customer-appointment')).toBeTruthy();
+  });
+
+  it('ad-hoc create requires a free-text customer name and carries raw fields in the payload', () => {
+    const noName = { ...EMPTY_SHIPMENT_CREATE_FORM, isAdHoc: true, tradeDirection: 'IMPORT' as const, blNumber: 'ADHOC-2' };
+    const readiness = getShipmentCreateReadiness(noName, []);
+    expect(readiness.issues.find((item) => item.fieldId === 'shipment-customer')?.message)
+      .toContain('tên khách hàng');
+
+    const adHoc = {
+      ...noName,
+      rawCustomerName: '  Khách một cuốc  ',
+      rawRouteName: 'Cầu Nhật Tân — KCN Quang Minh',
+    };
+    const root = buildShipmentRootPayload(adHoc, [], []);
+    expect(root).toMatchObject({
+      customerId: null,
+      isAdHoc: true,
+      rawCustomerName: 'Khách một cuốc',
+      rawRouteName: 'Cầu Nhật Tân — KCN Quang Minh',
+    });
+
+    // A catalog pick wins and clears its raw mirror (XOR, §2.1 rule 1).
+    const mixed = { ...adHoc, customerId: '7', rawCustomerName: 'ignored' };
+    expect(buildShipmentRootPayload(mixed, [], [])).toMatchObject({
+      customerId: 7,
+      rawCustomerName: null,
+    });
+  });
+
+  it('sends per-container raw port names only when no catalog port was picked', () => {
+    const adHoc = { ...EMPTY_SHIPMENT_CREATE_FORM, isAdHoc: true, rawCustomerName: 'K', tradeDirection: 'IMPORT' as const, blNumber: 'B', cargoMode: 'FCL' as const };
+    const rawPorts = {
+      ...container,
+      pickupPortId: '',
+      dropoffPortId: '',
+      rawPickupPortName: 'Cảng Bạch Đằng',
+      rawDropoffPortName: '  ICD Gia Lâm  ',
+    };
+    const [row] = buildShipmentContainerPayload(adHoc, [rawPorts]);
+    expect(row).toMatchObject({
+      pickupPortId: null,
+      rawPickupPortName: 'Cảng Bạch Đằng',
+      dropoffPortId: null,
+      rawDropoffPortName: 'ICD Gia Lâm',
+    });
+
+    // Catalog port id present → raw stays null even if text lingered.
+    const catalogPick = { ...rawPorts, pickupPortId: '21', rawPickupPortName: 'stale' };
+    const [picked] = buildShipmentContainerPayload(adHoc, [catalogPick]);
+    expect(picked.pickupPortId).toBe(21);
+    expect(picked.rawPickupPortName).toBeNull();
   });
 });

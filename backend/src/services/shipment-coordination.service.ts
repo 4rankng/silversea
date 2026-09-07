@@ -100,7 +100,9 @@ export async function assertActorCanAccessShipment(
   }
 
   if (actor.role === Role.CUSTOMER) {
-    if (!actorCustomerIds(actor).includes(shipment.customerId)) {
+    // Ad-hoc shipments (null customer) have no portal audience — the portal
+    // scope check can never include them.
+    if (shipment.customerId == null || !actorCustomerIds(actor).includes(shipment.customerId)) {
       throw new ApiError(404, 'Không tìm thấy lô hàng');
     }
     if (options.write && options.expectedCustomerId == null) {
@@ -234,6 +236,10 @@ export async function createCustomerVisibleEvent(
     const shipment = actor
       ? await assertActorCanAccessShipment(tx, input.shipmentId, actor, { write: true })
       : await loadShipmentForSystemEvent(tx, input.shipmentId);
+    // Ad-hoc shipments (Lệnh chạy ngoài) have no catalog customer, hence no
+    // portal audience — customer-visible events are skipped, not failed: the
+    // operational flow (create/dispatch/lifecycle) proceeds regardless.
+    if (shipment.customerId == null) return null;
     const eventKey = normalizeBoundedText(input.eventKey, 'Khóa sự kiện', 120);
     const title = normalizeBoundedText(input.title, 'Tiêu đề', 160);
     const message = normalizeBoundedText(input.message, 'Nội dung', 1_000);
@@ -384,6 +390,11 @@ export async function acknowledgeCustomerVisibleEvent(input: AcknowledgeCustomer
       throw new ApiError(403, 'Chỉ khách hàng mới có thể xác nhận sự kiện');
     }
     const idempotencyKey = normalizeBoundedText(input.idempotencyKey, 'Khóa chống trùng', 100);
+    if (shipment.customerId == null) {
+      // Unreachable for a CUSTOMER actor (the access assert already 404'd),
+      // but the narrowing keeps the event lookup honest.
+      throw new ApiError(404, 'Không tìm thấy sự kiện khách hàng');
+    }
     const [event] = await tx.select().from(s.customerVisibleEvents)
       .where(and(
         eq(s.customerVisibleEvents.id, input.eventId),

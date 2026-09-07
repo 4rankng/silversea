@@ -24,6 +24,9 @@ export async function submitCustomerDeliveryResponse(args: {
     entityType: 'customer_delivery_response',
     create: async (tx) => {
       const shipment = await assertActorCanAccessShipment(tx, args.shipmentId, args.actor, { expectedCustomerId: args.selectedCustomerId, write: true });
+      // Ad-hoc shipments have no customer-visible events to respond to (the
+      // access assert already rejects portal actors; this narrows the type).
+      if (shipment.customerId == null) throw new ApiError(404, 'Không tìm thấy sự kiện giao hàng');
       const [event] = await tx.select().from(s.customerVisibleEvents).where(and(eq(s.customerVisibleEvents.id, args.eventId), eq(s.customerVisibleEvents.shipmentId, shipment.id), eq(s.customerVisibleEvents.customerId, shipment.customerId))).limit(1).for('update');
       if (!event) throw new ApiError(404, 'Không tìm thấy sự kiện giao hàng');
       if (event.contentVersion !== args.input.expectedVersion) throw new ApiError(409, 'Sự kiện đã có phiên bản mới. Vui lòng tải lại.');
