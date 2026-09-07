@@ -15,6 +15,7 @@ import { DetailedPlanFilters } from './DetailedPlanFilters';
 import { ZoneTruckPresencePanel } from './ZoneTruckPresencePanel';
 import type { DetailedPlanFilterState, DetailPlanSortKey } from './useDispatchDetailPlan';
 import { formatISODate } from '../../../lib/format';
+import { displayNote } from '../../shipments/cus/cusUtils';
 import { parseNote } from './dispatchTaskTags';
 import { useDispatchTaskTags } from './useDispatchTaskTags';
 import '../../../styles/operational-table-typography.css';
@@ -275,12 +276,12 @@ export function DetailedPlanGrid({
                   <td className="detailed-plan-grid__cell detailed-plan-grid__cell--notes" data-label="Ghi chú">
                     {row.notes.vehicleNote && (
                       <div className="detailed-plan-grid__line detailed-plan-grid__line--notes">
-                        Xe: {row.notes.vehicleNote}
+                        Xe: {displayNote(row.notes.vehicleNote)}
                       </div>
                     )}
                     {row.notes.customerNote && (
                       <div className="detailed-plan-grid__line detailed-plan-grid__line--muted">
-                        Khách: {row.notes.customerNote}
+                        Khách: {displayNote(row.notes.customerNote)}
                       </div>
                     )}
                   </td>

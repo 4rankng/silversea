@@ -5,6 +5,7 @@ import { Badge } from '../../../components/untitled-ui/base/badges/badges';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 import {
   appointmentGroupFactorySegment,
+  displayNote,
   formatAppointmentGroupLine,
 } from '../../shipments/cus/cusUtils';
 import { formatISODate } from '../../../lib/format';
@@ -494,7 +495,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                           role={onUpdateNotes ? 'button' : undefined}
                           tabIndex={onUpdateNotes ? 0 : undefined}
                         >
-                          {item.operationalNotes || (onUpdateNotes ? '—' : '')}
+                          {displayNote(item.operationalNotes) || (onUpdateNotes ? '—' : '')}
                         </div>
                       )}
                       {item.factoryNotes && (

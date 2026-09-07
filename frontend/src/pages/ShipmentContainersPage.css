@@ -94,8 +94,8 @@
    place names (see note below), and status only ever holds a short one/two
    -word badge so it gets the smallest share instead of matching its wide
    sr-only-adjacent siblings. */
-.shipment-container-ledger__col--customer { width: 12%; }
-.shipment-container-ledger__col--documents { width: 14%; }
+.shipment-container-ledger__col--customer { width: 11%; }
+.shipment-container-ledger__col--documents { width: 15%; }
 .shipment-container-ledger__col--container { width: 12%; }
 /* The route cell holds "NÂNG: <long name>" + "HẠ: <long name>" stacked
    (e.g. "Cảng Tân Cảng 128 Hải Phòng" / "Cảng Nam Hải Đình Vũ"). With
