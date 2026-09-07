@@ -942,6 +942,25 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
 
 ---
 
+### TC-DV-DISPATCH-040 — Dropdown picker không che nút bên dưới khi trigger ở dưới màn hình (dropdown-flip sweep, feature 2026-09-07)
+
+- **Mã PRD:** Bug class fix 2026-09-07 — A1-A4 + B1: autocomplete/multi-select dùng position:absolute không portal/flip
+- **Vai trò:** `dieuvan` (DISPATCHER)
+- **Mức độ:** P0
+- **Thiết bị:** Desktop (1440×900, thử thêm viewport thấp 420px)
+- **Tiền điều kiện:** Có lô hàng trên /dispatch và /dispatch-detail
+- **Các bước:**
+  1. Mở /dispatch-detail → bấm "Bộ lọc" → drawer mở.
+  2. Cuộn để trigger "Chọn điểm nâng…" nằm ở nửa dưới màn hình.
+  3. Bấm trigger → popover phải mở **lên trên** (data-placement="top"), không che trigger và không bị cắt mất.
+  4. Tương tự với "Chọn điểm hạ…", "Chọn điểm trả…", "Nhà xe" trên /dispatch; với "Cảng nâng"/"Cảng hạ" trên /shipments/new; với "Điểm đi/Điểm đến" chặng cuối trên /trips/new.
+  5. Nhập text vào ô tìm kiếm trong popover → danh sách lọc đúng; "Bỏ chọn tất cả" xóa hết selection.
+- **Kết quả mong đợi (Pass):** mọi picker mở đúng hướng (trên khi thiếu chỗ), không che nút + Thêm / nút cùng hàng; danh sách có viền và scroll đúng; một số picker hiển thị chip selection trên trigger.
+- **Bằng chứng:** /tmp/facet-flip-verified.png (popover placement=top, 49 options), /tmp/b1-after-fix-flip.png (flip phía trên, fully visible), measurement JSON trong journals.
+
+
+---
+
 ## Bảng nghiệm thu — Luồng Điều xe (Điều vận)
 
 | Ngày thử | Mã TC | Người thử | Kết quả | Ghi chú | Bằng chứng |
@@ -985,3 +1004,4 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
 | __/__/__ | TC-DV-DISPATCH-037 | | | Lưu điều phối khi chọn tác vụ cụ thể | |
 | __/__/__ | TC-DV-DISPATCH-038 | | | Hiển thị tên Tác vụ trên bảng Điều vận & Chi tiết lô | |
 | __/__/__ | TC-DV-DISPATCH-039 | | | Thay đổi tác vụ điều phối + audit log | |
+| __/__/__ | TC-DV-DISPATCH-040 | | | Dropdown picker không che nút dưới màn hình — flip + portal (dropdown-flip sweep) | |

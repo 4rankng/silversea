@@ -30,6 +30,12 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // save now carries operationalNotes and the tag-pool client helpers
   // (list/create) live here beside the other dispatch planning calls.
   'src/api/dispatchPlanningClient.ts': 410,
+  // Bumped 400 (new-file) → 430: 2026-09-07 dropdown-flip sweep — the
+  // multi-select picker gained selectionLabel + onSearchChange (aria names
+  // and debounced server refetch) during the facet migration. Reviewed as a
+  // contract change; a future split (extract the popover body) should
+  // restore a smaller ceiling.
+  'src/design-system/forms/SearchableMultiSelect.tsx': 430,
   // Bumped 1099 → 1110: minor growth from added keyboard helpers and
   // dispatch-status normalization (18539e54 + cec0f963, 2026-09-05).
   // Reviewed as a contract change; a future split should restore a smaller
