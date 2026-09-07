@@ -3,7 +3,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useState } from 'react';
 import { fetchPlaceSuggestions } from '../lib/maps';
-import { configClient } from '../api/configClient';
 import { LocationAutocomplete } from './LocationAutocomplete';
 
 vi.mock('../lib/maps', () => ({
