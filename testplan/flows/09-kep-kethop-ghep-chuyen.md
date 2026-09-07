@@ -224,12 +224,12 @@
 
 | Ngày thử | Mã TC | Người thử | Kết quả | Ghi chú | Bằng chứng |
 |-----------|-------|-----------|---------|---------|------------|
-| 2026-09-07 | TC-GHEP-001 | agent-browser (qa/2026-09-07_pair-kind-ui-complete/) | PASS | KEP hợp lệ (đồng thời) — dialog click-through; pair_id=208 trips 9642+9643 | `_01.._03 PNGs`, `driver.json` |
+| 2026-09-07 | TC-GHEP-001 | agent-browser (qa/2026-09-07_pair-kind-ui-complete/) | PASS | KEP hợp lệ (đồng thời) — dialog click-through; pair_id=219 trips 10111+10112 | `_01.._03 PNGs`, `driver.json` |
 | 2026-09-07 | TC-GHEP-002 | agent-browser | PASS | Chặn kẹp khi không phải 2×20' — alert "kẹp hàng yêu cầu 2 container 20ft..." | `TC-GHEP-002_03-after-save.png` |
 | 2026-09-07 | TC-GHEP-003 | agent-browser | PASS | Chặn kẹp khác tài xế (laixe vs thu) — alert "hai lệnh phải dùng cùng một tài xế" | `TC-GHEP-003_03-after-save.png` |
-| 2026-09-07 | TC-GHEP-004 | agent-browser | PASS | Kết hợp hợp lệ (nối tiếp, same vỏ PAIRUIH888888) — pair_id=209 trips 9649+9650 | `TC-GHEP-004_03-after-save.png` + `[KẾT HỢP]` tag in grid |
+| 2026-09-07 | TC-GHEP-004 | agent-browser | PASS | Kết hợp hợp lệ (nối tiếp, same vỏ PAIRUIH888888) — pair_id=220 trips 10118+10119 | `TC-GHEP-004_03-after-save.png` + `[KẾT HỢP]` tag in grid |
 | 2026-09-07 | TC-GHEP-005 | agent-browser | PASS | Chặn kết hợp khi chồng lấn — alert "Hai chuyến bị chồng thời gian" | `TC-GHEP-005_03-after-save.png` |
-| 2026-09-07 | TC-GHEP-006 | agent-browser | PASS | Phí VETC 1 lần cho cả cặp — DB: trip 9643 `toll_deduction=110000` (kepB), unit toll = 55000 × 2 stations | `toll-GHEP-006_profit-loaded.png` + `toll-GHEP-006_trips-list.png` (UI); DB row in `driver.json` |
+| 2026-09-07 | TC-GHEP-006 | agent-browser | PASS | Phí VETC 1 lần cho cả cặp — DB: trip 10112 `toll_deduction=110000` (kepB), unit toll = 55000 × 2 stations | `toll-GHEP-006_profit-loaded.png` + `toll-GHEP-006_trips-list.png` (UI); DB row in `driver.json` |
 | 2026-09-07 | TC-GHEP-007 | agent-browser | PASS | Lương cặp = cơ bản + phụ phí — PUT/GET round-trip via /api/pair-salary-settings + Cài đặt + /salary pages navigated | `TC-GHEP-007_settings-loaded.png`, `TC-GHEP-007_salary-page.png` |
 | __/__/__ | TC-GHEP-008 | | | Hủy cặp → khôi phục (no UI break button — service-level only, `o01-trip-pairs.routes.test.ts`) | |
 | 2026-09-07 | TC-GHEP-009 | agent-browser (qa/2026-09-07_pair-kind-ui/ — prior run) | PASS | 2 thẻ dính liền, chung Tag — `01-my-trips-pairs.png` | `qa/2026-09-07_pair-kind-ui/` |
