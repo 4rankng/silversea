@@ -21,6 +21,10 @@ import {
   replaceShipmentDocument,
   batchUpsertShipmentContainers,
 } from '../../services/shipment.service';
+import {
+  findDeclarationReferenceConflict,
+  throwShipmentReferenceConflict,
+} from '../../services/shipment-lifecycle-shared.service';
 import { requireRoles } from '../../middleware/casbin';
 import { getUser } from '../../middleware/auth';
 import { asyncHandler } from '../../middleware/asyncHandler';
@@ -138,6 +142,19 @@ documentsRoutes.post(
       { shipmentId, data: parsed.data },
       async (tx) => {
         const shipment = await getShipment(shipmentId, tx);
+        // Customer feedback 2026-09-07: block creating a declaration whose
+        // `declarationNumber` already belongs to another active shipment.
+        const incomingDeclaration = parsed.data.declarationNumber?.trim();
+        if (incomingDeclaration) {
+          const conflict = await findDeclarationReferenceConflict(
+            tx,
+            incomingDeclaration,
+            shipmentId,
+          );
+          if (conflict) {
+            throwShipmentReferenceConflict(conflict, 'declaration');
+          }
+        }
         const declaration = await upsertShipmentDeclaration(shipmentId, {
           declarationNumber: parsed.data.declarationNumber ?? null,
           issuedAt: parsed.data.issuedAt ?? null,
@@ -177,6 +194,17 @@ documentsRoutes.put(
       { shipmentId, declarationId, data: parsed.data },
       async (tx) => {
         const shipment = await getShipment(shipmentId, tx);
+        const incomingDeclaration = parsed.data.declarationNumber?.trim();
+        if (incomingDeclaration) {
+          const conflict = await findDeclarationReferenceConflict(
+            tx,
+            incomingDeclaration,
+            shipmentId,
+          );
+          if (conflict) {
+            throwShipmentReferenceConflict(conflict, 'declaration');
+          }
+        }
         const declaration = await upsertShipmentDeclaration(shipmentId, {
           id: declarationId,
           declarationNumber: parsed.data.declarationNumber ?? null,

@@ -20,6 +20,8 @@ import {
   assertShipmentDocumentReferences,
   normalizeDocumentReference,
   assertShipmentFactorySiteValid,
+  findShipmentReferenceConflict,
+  throwShipmentReferenceConflict,
 } from './shipment-lifecycle-shared.service';
 
 /**
@@ -44,6 +46,23 @@ export function formatShipmentCode(id: number, createdAt: Date = new Date()): st
 
 async function createShipmentTx(tx: Tx, input: CreateShipmentInput, actor?: AuthUser) {
   assertShipmentDocumentReferences(input);
+  // Customer feedback 2026-09-07 (BL `JJCTCHPDY260305` accidentally created
+  // twice): pre-check duplicate Bill/Booking against active rows so the
+  // second attempt is blocked at the source with "đã nhập bởi <user>" instead
+  // of silently producing a sibling shipment that strands downstream ops.
+  const duplicate = await findShipmentReferenceConflict(
+    tx,
+    {
+      blNumber: normalizeDocumentReference(input.blNumber),
+      bookingRef: normalizeDocumentReference(input.bookingRef),
+    },
+  );
+  if (duplicate) {
+    throwShipmentReferenceConflict(
+      duplicate,
+      duplicate.field === 'blNumber' ? 'bill' : 'booking',
+    );
+  }
   if (input.operationalSiteId != null) {
     await assertShipmentFactorySiteValid(tx, input.customerId, input.operationalSiteId);
   }

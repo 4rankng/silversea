@@ -4,6 +4,7 @@
 // shipment-lifecycle.service.ts verbatim (pure code movement); the create /
 // update / transitions leaves and the lifecycle core import these one-way.
 import * as s from '../db/schema';
+import { db } from '../db';
 import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
@@ -37,6 +38,195 @@ export function assertShipmentDocumentReferences(input: {
  */
 export function normalizeDocumentReference(value: string | null | undefined): string | null {
   return value?.trim() ? value.trim() : null;
+}
+
+/**
+ * Duplicate document-reference guard for shipment writes.
+ *
+ * Returns the first ACTIVE (non-soft-deleted) shipment whose `blNumber` or
+ * `bookingRef` matches the supplied reference AND is not the same shipment
+ * as `excludeShipmentId` (used by update flows to allow editing the row
+ * itself). Soft-deleted rows are ignored — a clerk can resurrect the
+ * historical `shipment_id` for audit, never silently create a new collision.
+ *
+ * The conflict payload carries the creator's username + full name so the
+ * caller can show "đã nhập bởi <username> lúc <dd/MM HH:mm>" — the customer
+ * feedback that motivated this guard (2026-09-07, BL `JJCTCHPDY260305`
+ * created twice and the second row's "Chưa chốt ngày" became unreachable).
+ */
+export interface ShipmentReferenceConflict {
+  shipmentId: number;
+  shipmentCode: string | null;
+  field: 'blNumber' | 'bookingRef';
+  reference: string;
+  createdBy: {
+    id: number | null;
+    username: string | null;
+    fullName: string | null;
+  } | null;
+  createdAt: Date;
+}
+
+type TxOrDb = Tx | typeof db;
+
+export async function findShipmentReferenceConflict(
+  executor: TxOrDb,
+  reference: { blNumber?: string | null; bookingRef?: string | null },
+  excludeShipmentId?: number | null,
+): Promise<ShipmentReferenceConflict | null> {
+  const conditions = [];
+  if (reference.blNumber) {
+    conditions.push(eq(s.shipments.blNumber, reference.blNumber));
+  }
+  if (reference.bookingRef) {
+    conditions.push(eq(s.shipments.bookingRef, reference.bookingRef));
+  }
+  if (conditions.length === 0) return null;
+
+  const baseWhere = and(
+    sql`(${sql.join(conditions, sql` OR `)})`,
+    isNull(s.shipments.deletedAt),
+  );
+  const where = excludeShipmentId != null
+    ? and(baseWhere, sql`${s.shipments.id} <> ${excludeShipmentId}`)
+    : baseWhere;
+
+  const [row] = await executor.select({
+    id: s.shipments.id,
+    shipmentCode: s.shipments.shipmentCode,
+    blNumber: s.shipments.blNumber,
+    bookingRef: s.shipments.bookingRef,
+    createdBy: s.shipments.createdBy,
+    createdAt: s.shipments.createdAt,
+    creatorUsername: s.users.username,
+    creatorFullName: s.users.fullName,
+  })
+    .from(s.shipments)
+    .leftJoin(s.users, eq(s.users.id, s.shipments.createdBy))
+    .where(where)
+    .orderBy(asc(s.shipments.id))
+    .limit(1);
+  if (!row) return null;
+
+  const field: 'blNumber' | 'bookingRef' = row.blNumber === reference.blNumber
+    ? 'blNumber'
+    : 'bookingRef';
+  const value = field === 'blNumber' ? (row.blNumber ?? '') : (row.bookingRef ?? '');
+  return {
+    shipmentId: row.id,
+    shipmentCode: row.shipmentCode,
+    field,
+    reference: value,
+    createdBy: row.createdBy == null
+      ? null
+      : {
+        id: row.createdBy,
+        username: row.creatorUsername ?? null,
+        fullName: row.creatorFullName ?? null,
+      },
+    createdAt: row.createdAt,
+  };
+}
+
+export async function findDeclarationReferenceConflict(
+  executor: TxOrDb,
+  declarationNumber: string,
+  excludeShipmentId?: number | null,
+): Promise<ShipmentReferenceConflict | null> {
+  const baseWhere = and(
+    eq(s.shipmentDeclarations.declarationNumber, declarationNumber),
+  );
+  const where = excludeShipmentId != null
+    ? and(baseWhere, sql`${s.shipmentDeclarations.shipmentId} <> ${excludeShipmentId}`)
+    : baseWhere;
+  const [row] = await executor.select({
+    id: s.shipmentDeclarations.id,
+    shipmentId: s.shipmentDeclarations.shipmentId,
+    declarationNumber: s.shipmentDeclarations.declarationNumber,
+    createdBy: s.shipmentDeclarations.createdBy,
+    createdAt: s.shipmentDeclarations.createdAt,
+    creatorUsername: s.users.username,
+    creatorFullName: s.users.fullName,
+    shipmentCode: s.shipments.shipmentCode,
+  })
+    .from(s.shipmentDeclarations)
+    .leftJoin(s.users, eq(s.users.id, s.shipmentDeclarations.createdBy))
+    .leftJoin(s.shipments, eq(s.shipments.id, s.shipmentDeclarations.shipmentId))
+    .where(where)
+    .orderBy(asc(s.shipmentDeclarations.id))
+    .limit(1);
+  if (!row) return null;
+  return {
+    shipmentId: row.shipmentId,
+    shipmentCode: row.shipmentCode ?? null,
+    field: 'blNumber',
+    reference: row.declarationNumber ?? '',
+    createdBy: row.createdBy == null
+      ? null
+      : {
+        id: row.createdBy,
+        username: row.creatorUsername ?? null,
+        fullName: row.creatorFullName ?? null,
+      },
+    createdAt: row.createdAt,
+  };
+}
+
+/**
+ * Throws ApiError(409) with a structured payload identifying the duplicate
+ * shipment + the account that entered it. Mirrors the wording the customer
+ * requested (2026-09-07 feedback).
+ */
+export function throwShipmentReferenceConflict(
+  conflict: ShipmentReferenceConflict,
+  kind: 'bill' | 'booking' | 'declaration',
+): never {
+  const label = kind === 'bill'
+    ? 'Số Bill'
+    : kind === 'booking'
+      ? 'Số Booking'
+      : 'Số tờ khai';
+  const actor = conflict.createdBy?.username ?? 'tài khoản khác';
+  const at = conflict.createdAt.toISOString();
+  const err = new ApiError(
+    409,
+    `${label} đã được nhập bởi ${actor} lúc ${at}. Vui lòng kiểm tra lại trước khi tạo lô hàng mới.`,
+    'SHIPMENT_REFERENCE_DUPLICATE',
+  );
+  // Attach the structured conflict info as a payload so the global error
+  // handler can surface `{ conflict: { shipmentId, createdBy: {...} } }` to
+  // the client without it being swallowed by the JSON serializer.
+  (err as ApiError & { payload?: Record<string, unknown> }).payload = {
+    code: 'SHIPMENT_REFERENCE_DUPLICATE',
+    conflict: { ...conflict, createdAt: conflict.createdAt.toISOString() },
+  };
+  throw err;
+}
+
+/**
+ * Route-level entry point for `GET /api/shipments/duplicate-check` — runs
+ * the three reference lookups in parallel and serialises `createdAt` to
+ * ISO so the JSON payload is plain-object safe. Lives here so the route
+ * stays free of direct `db` imports (per `arch-layering.test.ts`).
+ */
+export async function listShipmentReferenceConflicts(
+  reference: { blNumber?: string | null; bookingRef?: string | null; declarationNumber?: string | null },
+  excludeShipmentId?: number | null,
+): Promise<ShipmentReferenceConflict[]> {
+  const [billConflict, bookingConflict, declarationConflict] = await Promise.all([
+    reference.blNumber
+      ? findShipmentReferenceConflict(db, { blNumber: reference.blNumber }, excludeShipmentId)
+      : Promise.resolve(null),
+    reference.bookingRef
+      ? findShipmentReferenceConflict(db, { bookingRef: reference.bookingRef }, excludeShipmentId)
+      : Promise.resolve(null),
+    reference.declarationNumber
+      ? findDeclarationReferenceConflict(db, reference.declarationNumber, excludeShipmentId)
+      : Promise.resolve(null),
+  ]);
+  return [billConflict, bookingConflict, declarationConflict]
+    .filter((conflict): conflict is ShipmentReferenceConflict => conflict != null)
+    .map((conflict) => ({ ...conflict, createdAt: conflict.createdAt.toISOString() as unknown as Date }));
 }
 
 export interface CreateShipmentInput {
