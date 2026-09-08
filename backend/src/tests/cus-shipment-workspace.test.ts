@@ -38,6 +38,7 @@ const createdBusinessUnitIds: number[] = [];
 const createdDeclarationIds: number[] = [];
 const createdFulfillmentIds: number[] = [];
 const createdTripIds: number[] = [];
+const createdTruckIds: number[] = [];
 const createdPortIds: number[] = [];
 
 let customerId: number;
@@ -200,6 +201,9 @@ after(async () => {
   // shipments → catalog → customer.
   if (createdTripIds.length) {
     await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
+  }
+  if (createdTruckIds.length) {
+    await db.delete(s.trucks).where(inArray(s.trucks.id, createdTruckIds));
   }
   if (createdFulfillmentIds.length) {
     await db.delete(s.shipmentFulfillments)
@@ -1821,8 +1825,8 @@ describe('Container workboard "Chưa cập nhật" completeness', () => {
     assert.ok(unassignedResponse.items.some((row) => row.shipmentId === canceled.id), 'canceled trip falls back to the carrier-absence filter');
     assert.equal(unassignedResponse.items.some((row) => row.shipmentId === assigned.id), false);
     assert.equal(unassignedResponse.total, unassignedResponse.items.length, 'count query agrees with item query');
-    // Both pre-trip populations badge "Chờ phân xe": the carrier split is a
-    // filter-only legacy distinction the badge no longer separates.
+    // Vehicle-less rows badge "Chờ phân xe"; the plate-bearing allocated row
+    // moved out of that population — it badges "Đã phân xe" (PLANNED).
     assert.ok(unassignedResponse.items.every((row) => row.dispatchStatus === 'AWAITING_VEHICLE'));
 
     const assignedResponse = await listCusShipmentContainers({
@@ -1835,7 +1839,7 @@ describe('Container workboard "Chưa cập nhật" completeness', () => {
     assert.equal(assignedResponse.items.some((row) => row.shipmentId === unassigned.id), false);
     assert.equal(assignedResponse.items.some((row) => row.shipmentId === canceled.id), false);
     assert.equal(assignedResponse.total, assignedResponse.items.length, 'count query agrees with item query');
-    assert.ok(assignedResponse.items.every((row) => row.dispatchStatus === 'AWAITING_VEHICLE'));
+    assert.ok(assignedResponse.items.every((row) => row.dispatchStatus === 'PLANNED'));
   });
 
   test('dispatchStatus record statuses filter by the badge derivation', async () => {
@@ -1879,20 +1883,32 @@ describe('Container workboard "Chưa cập nhật" completeness', () => {
     assert.equal(completedResponse.total, completedResponse.items.length, 'count query agrees with item query');
     assert.ok(completedResponse.items.every((row) => row.dispatchStatus === 'COMPLETED'));
 
-    // AWAITING_VEHICLE must exclude the COMPLETED row even though both the
-    // done and planned fixtures carry an active carrier — record-status
-    // granularity goes beyond the ASSIGNED split.
+    // AWAITING_VEHICLE excludes both the COMPLETED row and the plate-bearing
+    // allocated row — record-status granularity goes beyond the ASSIGNED
+    // split, and an allocated vehicle is no longer "Chờ phân xe".
     const awaitingResponse = await listCusShipmentContainers({
       page: 1,
       limit: 100,
       searchSuffix: marker,
       dispatchStatus: 'AWAITING_VEHICLE',
     }, cusActor);
-    assert.ok(awaitingResponse.items.some((row) => row.shipmentId === planned.id));
+    assert.equal(awaitingResponse.items.some((row) => row.shipmentId === planned.id), false, 'an allocated plate is Đã phân xe, not Chờ phân xe');
     assert.ok(awaitingResponse.items.some((row) => row.shipmentId === unassigned.id));
     assert.equal(awaitingResponse.items.some((row) => row.shipmentId === done.id), false);
     assert.equal(awaitingResponse.total, awaitingResponse.items.length, 'count query agrees with item query');
     assert.ok(awaitingResponse.items.every((row) => row.dispatchStatus === 'AWAITING_VEHICLE'));
+
+    const plannedResponse = await listCusShipmentContainers({
+      page: 1,
+      limit: 100,
+      searchSuffix: marker,
+      dispatchStatus: 'PLANNED',
+    }, cusActor);
+    assert.ok(plannedResponse.items.some((row) => row.shipmentId === planned.id), 'allocated plate lands in the Đã phân xe filter');
+    assert.equal(plannedResponse.items.some((row) => row.shipmentId === done.id), false);
+    assert.equal(plannedResponse.items.some((row) => row.shipmentId === unassigned.id), false);
+    assert.equal(plannedResponse.total, plannedResponse.items.length, 'count query agrees with item query');
+    assert.ok(plannedResponse.items.every((row) => row.dispatchStatus === 'PLANNED'));
   });
 
   test('dispatchStatus reads Đã tạo chuyến only while the appointment date is missing', async () => {
@@ -1951,6 +1967,94 @@ describe('Container workboard "Chưa cập nhật" completeness', () => {
     assert.equal(awaitingResponse.items.some((row) => row.shipmentId === undated.id), false);
     assert.equal(awaitingResponse.total, awaitingResponse.items.length, 'count query agrees with item query');
     assert.ok(awaitingResponse.items.every((row) => row.dispatchStatus === 'AWAITING_VEHICLE'));
+  });
+
+  test('dispatchStatus reads Đã phân xe once a vehicle is on the line', async () => {
+    const marker = Math.random().toString(36).slice(2, 7).toUpperCase().padEnd(5, 'X');
+
+    // Bug regression (customer report 2026-09-08): a container whose Phân xe
+    // column already shows a plate must not badge "Chờ phân xe".
+    // Case 1 — allocation only (planned plate, no trip issued yet).
+    const allocationOnly = await seedShipment({ blNumber: `AO-${marker}`, cargoMode: 'FCL', expectedDeliveryDate: '2026-08-20' });
+    const allocationOnlyContainer = await seedContainer(allocationOnly.id, {
+      containerNumber: `AO-${marker}`.slice(0, 50),
+      customerAppointmentAt: new Date('2026-08-20T02:00:00.000Z'),
+    });
+    await seedFulfillment(allocationOnly.id, allocationOnlyContainer.id, {
+      plannedCarrierType: 'EXTERNAL',
+      plannedVehiclePlateNumber: '29C-888.88',
+    });
+
+    // Case 2 — an issued OWN trip whose truck carries the plate (the plate
+    // surfaces through the trip's truck, not the allocation plan).
+    const ownTruck = await seedShipment({ blNumber: `OT-${marker}`, cargoMode: 'FCL', expectedDeliveryDate: '2026-08-20' });
+    const ownTruckContainer = await seedContainer(ownTruck.id, {
+      containerNumber: `OT-${marker}`.slice(0, 50),
+      customerAppointmentAt: new Date('2026-02-20T02:00:00.000Z'),
+    });
+    const ownTruckFulfillment = await seedFulfillment(ownTruck.id, ownTruckContainer.id);
+    const [truck] = await db.insert(s.trucks).values({ licensePlate: `15C-${marker}` }).returning();
+    createdTruckIds.push(truck!.id);
+    const ownTruckTrip = await insertTripComposite(db, {
+      fulfillmentId: ownTruckFulfillment.id,
+      customerId,
+      routeId: (await seedRoute()).id,
+      status: 'CREATED',
+      carrierType: 'OWN',
+      truckId: truck!.id,
+      departureDate: '2026-08-20',
+    });
+    createdTripIds.push(ownTruckTrip.id);
+
+    // Case 3 — the date alone never satisfies "Đã phân xe": a trip with the
+    // ngày đóng/trả set but no truck and no planned plate stays "Chờ phân xe".
+    const noVehicle = await seedShipment({ blNumber: `NV-${marker}`, cargoMode: 'FCL', expectedDeliveryDate: '2026-08-20' });
+    const noVehicleContainer = await seedContainer(noVehicle.id, {
+      containerNumber: `NV-${marker}`.slice(0, 50),
+      customerAppointmentAt: new Date('2026-08-20T02:00:00.000Z'),
+    });
+    const noVehicleFulfillment = await seedFulfillment(noVehicle.id, noVehicleContainer.id);
+    const noVehicleTrip = await insertTripComposite(db, {
+      fulfillmentId: noVehicleFulfillment.id,
+      customerId,
+      routeId: (await seedRoute()).id,
+      status: 'CREATED',
+      carrierType: 'OWN',
+      departureDate: '2026-08-20',
+    });
+    createdTripIds.push(noVehicleTrip.id);
+
+    const response = await listCusShipmentContainers({ page: 1, limit: 100, searchSuffix: marker }, cusActor);
+    const rowsByShipment = new Map(response.items.map((row) => [row.shipmentId, row]));
+    assert.equal(rowsByShipment.get(allocationOnly.id)?.dispatchStatus, 'PLANNED', 'a planned plate without a trip is Đã phân xe');
+    assert.equal(rowsByShipment.get(ownTruck.id)?.dispatchStatus, 'PLANNED', 'an OWN trip with a truck plate is Đã phân xe');
+    assert.equal(rowsByShipment.get(noVehicle.id)?.dispatchStatus, 'AWAITING_VEHICLE', 'date without a vehicle stays Chờ phân xe');
+
+    // The plate the Phân xe column shows is exactly the plate that moved the
+    // badge — badge and column can never disagree.
+    assert.equal(rowsByShipment.get(allocationOnly.id)?.plateNumber, '29C-888.88');
+    assert.equal(rowsByShipment.get(ownTruck.id)?.plateNumber, `15C-${marker}`);
+
+    const plannedFilter = await listCusShipmentContainers({
+      page: 1,
+      limit: 100,
+      searchSuffix: marker,
+      dispatchStatus: 'PLANNED',
+    }, cusActor);
+    assert.ok(plannedFilter.items.some((row) => row.shipmentId === allocationOnly.id));
+    assert.ok(plannedFilter.items.some((row) => row.shipmentId === ownTruck.id));
+    assert.equal(plannedFilter.items.some((row) => row.shipmentId === noVehicle.id), false);
+    assert.ok(plannedFilter.items.every((row) => row.dispatchStatus === 'PLANNED'));
+
+    const awaitingFilter = await listCusShipmentContainers({
+      page: 1,
+      limit: 100,
+      searchSuffix: marker,
+      dispatchStatus: 'AWAITING_VEHICLE',
+    }, cusActor);
+    assert.ok(awaitingFilter.items.some((row) => row.shipmentId === noVehicle.id));
+    assert.equal(awaitingFilter.items.some((row) => row.shipmentId === allocationOnly.id), false);
+    assert.equal(awaitingFilter.items.some((row) => row.shipmentId === ownTruck.id), false);
   });
 
   test('FCL carrier readiness follows the container appointment, not the shipment date', async () => {

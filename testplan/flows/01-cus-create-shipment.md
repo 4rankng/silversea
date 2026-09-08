@@ -1549,7 +1549,7 @@
 
 > **Nguyên tắc nghiệp vụ cốt lõi (CUS's Call):**
 > 1. Phân loại hình thức vận chuyển Đơn (`SINGLE`), Kẹp (`DOUBLE`), Kết hợp (`COMBINED`), Lẻ (`LCL`) và cờ đóng kết hợp cấp lô (`shipments.is_combined`) là **quyết định của nhân viên Chứng từ (CUS)** khi tiếp nhận Booking từ khách hàng.
-> 2. **Điều vận KHÔNG quyết định phân loại này**: Điều vận chỉ nhận kế hoạch và bố trí phương tiện/tài xế phù hợp theo phân loại CUS đã ấn định.
+> 2. ~~Điều vận KHÔNG quyết định phân loại này~~ **Cập nhật 2026-09-08:** Điều vận **được quyền chọn/đổi phân loại Đơn/Kẹp/Kết hợp cho từng dòng** trong dialog "Chỉnh sửa điều phối" (Kế hoạch chi tiết); cờ Đóng kết hợp cấp lô và phân loại Lẻ (hàng lẻ LCL) vẫn thuộc CUS/hình thức lô — chi tiết tại `02-dieuvan-dispatch.md §2.13` và `TC-DV-DISPATCH-041/044`.
 > 3. Khi CUS tạo lô hàng với `isCombined = true`, tất cả các fulfillments FCL tạo ra tự động mang phân loại `COMBINED`. Ngược lại, nếu `isCombined = false`, fulfillments mang phân loại `SINGLE`.
 > 4. Khi CUS cập nhật cờ `isCombined` trên lô chưa điều phối, hệ thống tự động đồng bộ hóa phân loại của các fulfillments FCL tương ứng.
 

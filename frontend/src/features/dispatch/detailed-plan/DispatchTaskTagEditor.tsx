@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { Pencil } from 'lucide-react';
 import { composeNote, parseNote } from './dispatchTaskTags';
 import { useCreateDispatchTaskTag, useDispatchTaskTags } from './useDispatchTaskTags';
+import { DispatchTaskTagManagerPopover } from './DispatchTaskTagManagerPopover';
 
 /** Quick-select tag composer for the dispatch edit modal's driver note
  *  ("Ghi chú tác vụ"). Controlled: the parent draft holds the composed note
@@ -11,7 +13,8 @@ import { useCreateDispatchTaskTag, useDispatchTaskTags } from './useDispatchTask
  *  join into the one stored note (tags first, then text). The inline
  *  "+ Thêm tag" input posts to the shared pool; a duplicate
  *  (case/diacritics-insensitive) surfaces as 409 and auto-selects the
- *  existing chip instead of blocking.
+ *  existing chip instead of blocking. The pencil button opens the
+ *  "Quản lý tag" popover to rename or soft-delete pool tags.
  */
 export function DispatchTaskTagEditor({ value, onChange, disabled = false }: {
   value: string | null;
@@ -23,6 +26,17 @@ export function DispatchTaskTagEditor({ value, onChange, disabled = false }: {
   const [isAdding, setIsAdding] = useState(false);
   const [newLabel, setNewLabel] = useState('');
   const [addNotice, setAddNotice] = useState<string | null>(null);
+  const [isManaging, setIsManaging] = useState(false);
+  const manageButtonRef = useRef<HTMLButtonElement>(null);
+
+  /** A pool rename keeps the current draft intact: re-parse with the OLD
+   *  label set, swap the chip's label, re-compose. Manual text untouched. */
+  function handleRenamed(oldLabel: string, nextLabel: string) {
+    const labels = tags.map((tag) => tag.label);
+    const { selectedLabels, manualText } = parseNote(value, labels);
+    const swapped = selectedLabels.map((item) => (item === oldLabel ? nextLabel : item));
+    onChange(composeNote(swapped, manualText));
+  }
 
   const labels = tags.map((tag) => tag.label);
   const { selectedLabels, manualText } = parseNote(value, labels);
@@ -73,7 +87,20 @@ export function DispatchTaskTagEditor({ value, onChange, disabled = false }: {
 
   return (
     <div className="dispatch-assignment-dialog__notes">
-      <span className="dispatch-assignment-dialog__notes-label" id="dispatch-task-tags-label">Ghi chú tác vụ</span>
+      <div className="dispatch-assignment-dialog__notes-header">
+        <span className="dispatch-assignment-dialog__notes-label" id="dispatch-task-tags-label">Ghi chú tác vụ</span>
+        <button
+          type="button"
+          ref={manageButtonRef}
+          className="dispatch-assignment-dialog__notes-manage-btn"
+          aria-label="Quản lý tag"
+          title="Quản lý tag"
+          onClick={() => setIsManaging(true)}
+          disabled={disabled}
+        >
+          <Pencil size={12} aria-hidden="true" />
+        </button>
+      </div>
       {error
         ? <p className="dispatch-assignment-dialog__notes-preview" role="alert">Không tải được danh sách tag.</p>
         : (
@@ -119,6 +146,13 @@ export function DispatchTaskTagEditor({ value, onChange, disabled = false }: {
               )}
             </div>
             {addNotice && <p className="dispatch-assignment-dialog__notes-preview" role="status">{addNotice}</p>}
+            {isManaging && (
+              <DispatchTaskTagManagerPopover
+                triggerRef={manageButtonRef}
+                onClose={() => setIsManaging(false)}
+                onRenamed={handleRenamed}
+              />
+            )}
             <div className="dispatch-assignment-dialog__notes-manual">
               <label className="dispatch-assignment-dialog__notes-label" htmlFor="dispatch-task-note-text">Ghi chú thêm</label>
               <textarea

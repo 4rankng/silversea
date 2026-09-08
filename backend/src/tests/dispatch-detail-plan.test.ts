@@ -1084,7 +1084,7 @@ describe('atomic dispatch detail plan save', () => {
     return { shipment, fulfillment };
   }
 
-  test('one save applies carrier, vehicle, and estimates atomically; CUS-owned fields are stripped', async () => {
+  test('one save applies carrier, vehicle, estimates, and the dispatcher classification atomically; lot flag stays CUS-owned', async () => {
     const carrier = await createCustomer(`Detail ext carrier ${suffix}-${createdCustomerIds.length}`, true);
     const { shipment, fulfillmentIds } = await createAllocatedLot({ carrierType: 'OWN' });
     const { truck, driver } = await createOwnedTruckWithDriver();
@@ -1100,7 +1100,8 @@ describe('atomic dispatch detail plan save', () => {
         externalCarrierId: carrier.id,
         plannedRevenue: 3_000_000,
         plannedCarrierCost: 2_200_000,
-        // Sent explicitly — the route strips both before the service runs.
+        // Phân loại is the dispatcher's call — persisted; the lot flag is
+        // stripped at the route, so `isCombined: true` cannot rewrite it.
         classification: 'DOUBLE',
         isCombined: true,
       },
@@ -1109,17 +1110,19 @@ describe('atomic dispatch detail plan save', () => {
     assert.equal(response.data.replayed, false);
     assert.equal(response.data.dispatch.carrierType, 'EXTERNAL');
     assert.equal(response.data.dispatch.externalCarrierId, carrier.id);
-    // CUS-owned fields echo the STORED values: a dispatch save cannot
-    // rewrite classification or the lot combined flag.
-    assert.equal(response.data.classification, 'SINGLE');
+    // Classification persists from the dispatch save; the lot combined flag
+    // echoes the stored value the dispatcher cannot touch.
+    assert.equal(response.data.classification, 'DOUBLE');
     assert.equal(response.data.isCombined, freshShipment.isCombined);
     assert.equal(response.data.estimates.plannedRevenue, '3000000');
-    // Neither CUS-owned field changed → shipment version NOT bumped.
+    // Only the fulfillment changed → shipment version NOT bumped.
     assert.equal(response.data.shipmentVersion, freshShipment.version);
     assert.equal(response.data.fulfillmentVersion, fulfillment.version + 1);
 
     // The vehicle switched away from OWN with no plate — plate cleared.
     assert.equal(response.data.dispatch.assignedPlate, null);
+    const { fulfillment: after } = await fetchShipmentAndFulfillment(fulfillment.id);
+    assert.equal(after.dispatchClassification, 'DOUBLE');
     void truck; void driver;
   });
 
@@ -1127,8 +1130,8 @@ describe('atomic dispatch detail plan save', () => {
     const { shipment, fulfillmentIds } = await createAllocatedLot({ carrierType: 'OWN' });
     const { shipment: freshShipment, fulfillment } = await fetchShipmentAndFulfillment(fulfillmentIds[0]!);
 
-    // The dispatch editor now owns neither field: a save without them must
-    // not rewrite the CUS-owned classification or the lot combined flag.
+    // Omitted fields mean "not part of this save": classification stays at
+    // its CUS-derived value and the lot combined flag is untouched.
     const response = await apiFetch<PlanResponse>(`/dispatch-detail-plan-rows/${fulfillment.id}/plan`, {
       method: 'PATCH',
       token: dispatcherToken,
@@ -1203,9 +1206,9 @@ describe('atomic dispatch detail plan save', () => {
     assert.equal(rows.status, 200);
     const row = rows.data.items.find((item) => item.fulfillmentId === fulfillment.id)!;
     assert.equal(row.isCombined, true, 'omitted isCombined must echo the stored (true) value');
-    // classification + isCombined are CUS-owned: the ROUTE strips both from a
-    // dispatch save even when a caller sends them explicitly.
-    assert.equal(row.classification, 'SINGLE', 'classification is CUS-owned — a dispatch save cannot rewrite it');
+    // Phân loại is the dispatcher's call — it persists; only the lot flag is
+    // stripped at the route.
+    assert.equal(row.classification, 'COMBINED', 'dispatch save persists the dispatcher classification');
     assert.equal(row.estimates.plannedRevenue, '4200000');
     assert.equal(row.estimates.plannedCarrierCost, '3100000');
 
@@ -1233,11 +1236,9 @@ describe('atomic dispatch detail plan save', () => {
       },
     });
     assert.equal(response.status, 200, JSON.stringify(response.data));
-    // The schema accepts isCombined to keep old callers valid, but the
-    // service write gate must refuse to flip a stored true→false in this
-    // per-container code path. Until a separate gate is added, the
-    // documented contract is "dispatcher editor sends no isCombined" — this
-    // case pins that contract but does not yet enforce it.
+    // The route strips isCombined before the service runs, so the response
+    // echoes the stored value — a dispatch save cannot flip the lot flag
+    // even when a caller sends `isCombined: false` explicitly.
     assert.equal(response.data.isCombined, true);
     void freshShipment;
   });

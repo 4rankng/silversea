@@ -53,20 +53,28 @@ export function containerTransportDateSql() {
 
 /** Rank mirrors buildContainerLine's dispatchStatus derivation: trip status
  * COMPLETED > IN_TRANSIT > a CREATED trip still missing its ngày đóng/trả;
- * everything else — no trip, or a CREATED trip that already has the
- * appointment — is AWAITING_VEHICLE (rank 0). Only relative order matters
- * for sorting. */
+ * then a line carrying a vehicle — the executed trip's plate, else the
+ * planned plate the Phân xe column displays — is PLANNED ("Đã phân xe");
+ * everything else (no vehicle yet, with or without a trip) is
+ * AWAITING_VEHICLE (rank 0). Only relative order matters for sorting. */
 function containerDispatchRankSql(): SQL {
   return sql`(
     select case
-      when t.status = 'COMPLETED' then 3
-      when t.status = 'IN_TRANSIT' then 2
-      when t.status = 'CREATED' and ${s.shipmentContainers.customerAppointmentAt} is null then 1
+      when t.status = 'COMPLETED' then 4
+      when t.status = 'IN_TRANSIT' then 3
+      when t.status = 'CREATED' and ${s.shipmentContainers.customerAppointmentAt} is null then 2
+      when coalesce(
+        case when coalesce(t.carrier_type, sf.planned_carrier_type) = 'OWN' then tr.license_plate end,
+        t.external_plate_number,
+        sf.planned_vehicle_plate_number
+      ) is not null then 1
       else 0
     end
     from ${s.shipmentFulfillments} sf
-    left join ${s.trips} t
+    left join ${s.tripsComposite} t
       on t.fulfillment_id = sf.id and t.deleted_at is null and t.status <> 'CANCELED'
+    left join ${s.trucks} tr
+      on tr.id = t.truck_id
     where sf.shipment_container_id = ${s.shipmentContainers.id}
       and sf.canceled_at is null
     order by sf.id, t.id
@@ -79,9 +87,10 @@ function containerDispatchRankSql(): SQL {
  * that status. AWAITING_VEHICLE needs no entry: it is the coalesced rank-0
  * default (containers without any fulfillment rank 0 too). */
 const CONTAINER_DISPATCH_RANKS = {
-  CREATED: 1,
-  IN_TRANSIT: 2,
-  COMPLETED: 3,
+  PLANNED: 1,
+  CREATED: 2,
+  IN_TRANSIT: 3,
+  COMPLETED: 4,
 } as const;
 
 /** Mirrors buildContainerLine's carrierName: own fleet renders as the fixed

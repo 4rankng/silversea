@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { ShipmentListItem } from '../../../api/shipmentClient';
 
@@ -17,6 +17,7 @@ vi.mock('../../../api/tripClient', () => ({
 
 vi.mock('../../../api/shipmentClient', () => ({
   saveShipmentCarrierAllocations: vi.fn(),
+  getCusShipmentWorkspaceDetail: vi.fn().mockResolvedValue(null),
 }));
 
 import { saveShipmentCarrierAllocations } from '../../../api/shipmentClient';
@@ -308,5 +309,131 @@ describe('DispatchAllocationPopover', () => {
     expect(fortyRow?.textContent).toMatch(/1/);
     expect(screen.queryByTestId('carrier-allocation-empty-externals')).toBeNull();
     expect(screen.queryByText(/Chưa có nhà xe ngoài nào được cấu hình/)).toBeNull();
+  });
+
+  describe('TC-DV-DISPATCH-043: Multi-day allocation', () => {
+    const multiDayShipment = () => shipment({
+      containerCount20: 2,
+      containerCount40: 2,
+      appointmentGroups: [
+        {
+          at: '2026-09-10T08:00:00.000Z',
+          localDate: '2026-09-10',
+          factoryName: 'Nhà máy May 10',
+          factoryShortName: 'May 10',
+          factoryFullName: 'Nhà máy May 10',
+          containerSummary: '1 x 40HC',
+        },
+        {
+          at: '2026-09-11T08:00:00.000Z',
+          localDate: '2026-09-11',
+          factoryName: 'Nhà máy May 10',
+          factoryShortName: 'May 10',
+          factoryFullName: 'Nhà máy May 10',
+          containerSummary: '1 x 40HC + 2 x 20DC',
+        },
+      ],
+    });
+
+    it('renders separate sections for each distinct appointment date with demands', async () => {
+      render(<DispatchAllocationPopover shipment={multiDayShipment()} onClose={vi.fn()} onSaved={vi.fn()} />);
+
+      await waitFor(() => expect(screen.getByLabelText(/Nhà xe dòng 1/)).not.toBeDisabled());
+
+      // Should render headers for both days. The date strings repeat inside
+      // row labels and add-buttons, so query each day's region by its
+      // accessible name and assert the header within it.
+      const day1 = screen.getByRole('region', { name: 'Phân bổ ngày 10/09/2026' });
+      const day2 = screen.getByRole('region', { name: 'Phân bổ ngày 11/09/2026' });
+      expect(within(day1).getByText('Ngày 10/09/2026')).toBeInTheDocument();
+      expect(within(day2).getByText('Ngày 11/09/2026')).toBeInTheDocument();
+
+      // Day 1 has row 1, Day 2 has row 2
+      expect(screen.getByLabelText(/Nhà xe dòng 1/)).toBeInTheDocument();
+      expect(screen.getByLabelText(/Nhà xe dòng 2/)).toBeInTheDocument();
+    });
+
+    it('allows assigning the same carrier on different days without duplicate collision', async () => {
+      const onSaved = vi.fn();
+      vi.mocked(saveShipmentCarrierAllocations).mockResolvedValue({
+        shipment: { id: 1, version: 5 },
+        assignments: [],
+      } as never);
+
+      render(<DispatchAllocationPopover shipment={multiDayShipment()} onClose={vi.fn()} onSaved={onSaved} />);
+
+      await waitFor(() => expect(screen.getByLabelText(/Nhà xe dòng 1/)).not.toBeDisabled());
+
+      // Day 1 (demand: 1x40): assign 1x40 to SilverSea (OWN)
+      fireEvent.change(screen.getByLabelText("Số container 40' dòng 1"), { target: { value: '1' } });
+
+      // Day 2 (demand: 1x40, 2x20): assign 1x40 to SilverSea (OWN) in row 2
+      fireEvent.change(screen.getByLabelText("Số container 40' dòng 2"), { target: { value: '1' } });
+
+      // No duplicate error even though both row 1 and row 2 are OWN
+      expect(screen.queryByText(/bị lặp/i)).toBeNull();
+
+      // Save button is enabled
+      const saveBtn = screen.getByRole('button', { name: 'Lưu phân bổ' }) as HTMLButtonElement;
+      expect(saveBtn.disabled).toBe(false);
+      fireEvent.click(saveBtn);
+
+      await waitFor(() => expect(onSaved).toHaveBeenCalled());
+      expect(saveShipmentCarrierAllocations).toHaveBeenCalledWith(1, expect.objectContaining({
+        carrierAllocations: expect.arrayContaining([
+          expect.objectContaining({
+            carrierType: 'OWN',
+            appointmentDate: '2026-09-10',
+            count40: 1,
+          }),
+          expect.objectContaining({
+            carrierType: 'OWN',
+            appointmentDate: '2026-09-11',
+            count40: 1,
+          }),
+        ]),
+      }), undefined, 'partial');
+    });
+
+    it('flags duplicate carrier when repeated on the SAME day', async () => {
+      render(<DispatchAllocationPopover shipment={multiDayShipment()} onClose={vi.fn()} onSaved={vi.fn()} />);
+
+      await waitFor(() => expect(screen.getByLabelText(/Nhà xe dòng 1/)).not.toBeDisabled());
+
+      // Add another carrier row to Day 1
+      const addButtons = screen.getAllByRole('button', { name: /Thêm nhà xe/ });
+      // First button belongs to Day 1
+      fireEvent.click(addButtons[0]!);
+
+      // Now we should have an extra row in Day 1. Let's find rows
+      await waitFor(() => expect(screen.getByLabelText(/Nhà xe dòng 2/)).toBeInTheDocument());
+
+      // Change the newly added row to OWN (colliding with row 1 on Day 1)
+      fireEvent.click(screen.getByLabelText(/Nhà xe dòng 2/));
+      fireEvent.click(screen.getByRole('option', { name: 'Đội xe nội bộ SilverSea' }));
+
+      // Give counts
+      fireEvent.change(screen.getByLabelText("Số container 40' dòng 1"), { target: { value: '1' } });
+      fireEvent.change(screen.getByLabelText("Số container 40' dòng 2"), { target: { value: '1' } });
+
+      // The duplicate surfaces in several places at once (per-row carrier
+      // hints on both colliding rows + the consolidated day-error list), so
+      // collect all matches instead of asserting on a single node.
+      const duplicateNotices = await screen.findAllByText(/bị lặp/i);
+      expect(duplicateNotices.length).toBeGreaterThan(0);
+      expect((screen.getByRole('button', { name: 'Lưu phân bổ' }) as HTMLButtonElement).disabled).toBe(true);
+    });
+
+    it('blocks save when an individual day is over-allocated', async () => {
+      render(<DispatchAllocationPopover shipment={multiDayShipment()} onClose={vi.fn()} onSaved={vi.fn()} />);
+
+      await waitFor(() => expect(screen.getByLabelText(/Nhà xe dòng 1/)).not.toBeDisabled());
+
+      // Day 1 demand is 1x40. Try to assign 2x40 to row 1
+      fireEvent.change(screen.getByLabelText("Số container 40' dòng 1"), { target: { value: '2' } });
+
+      expect(await screen.findByText(/vượt số lượng/i)).toBeInTheDocument();
+      expect((screen.getByRole('button', { name: 'Lưu phân bổ' }) as HTMLButtonElement).disabled).toBe(true);
+    });
   });
 });

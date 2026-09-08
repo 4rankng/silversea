@@ -2,6 +2,7 @@ import { DispatchIssueStatusChip, deriveDispatchIssueStatus } from '../component
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Save, Send } from 'lucide-react';
 import type { DispatchClassification } from '@tingting/shared';
+import { DISPATCH_CLASSIFICATIONS, DISPATCH_CLASSIFICATION_LABELS } from '@tingting/shared';
 import {
   listDispatchFleetResources,
   type DispatchCarrierVehicle,
@@ -12,6 +13,7 @@ import {
 import type { DispatchShipmentRequest, DispatchShipmentResponse } from '../../../api/shipmentClient';
 import { Modal } from '../../../components/UI';
 import { SearchableSelect, TextField, type SearchableSelectOption } from '../../../design-system';
+import { UuiSelectField } from '../../../design-system/forms/UuiSelectField';
 import { DispatchTaskTagEditor } from './DispatchTaskTagEditor';
 import { formatMoneyInput, normalizeMoneyInput } from '../../../lib/moneyInput';
 import { IssueOrderFields } from './IssueOrderFields';
@@ -67,6 +69,7 @@ interface DispatchPlanEditorCellProps {
       clearVehicle?: boolean;
       plannedRevenue: number | null;
       plannedCarrierCost: number | null;
+      classification: DispatchClassification;
       operationalNotes?: string | null;
     },
   ) => Promise<AtomicPlanSaveResult>;
@@ -86,6 +89,7 @@ interface PlanEditorDraft {
   vehicleValue: string;
   plannedRevenue: string;
   plannedCarrierCost: string;
+  classification: DispatchClassification;
   /** Composed driver note (tags + manual text) — see DispatchTaskTagEditor. */
   operationalNotes: string | null;
 }
@@ -127,10 +131,19 @@ function vehiclePlateKey(value: string, options: SearchableSelectOption[]): stri
   return label ? normalizePlate(label.split(' — ')[0]) : value;
 }
 
-export function isCombinableContainer(label?: string | null): boolean {
-  if (!label) return false;
-  const upper = label.trim().toUpperCase();
-  return upper.includes('20') && !upper.includes('40') && !upper.includes('45');
+/** Cont rows offer the three cont models (Đơn/Kẹp/Kết hợp) — the dispatcher's
+ *  call since 2026-09-08. LCL rows are cargo-mode bound: the select shows Lẻ,
+ *  locked (PRD §2b keeps Lẻ separate from the three cont models). */
+function classificationOptionsForRow(classification: DispatchClassification): Array<{
+  value: DispatchClassification;
+  label: string;
+}> {
+  if (classification === 'LCL') {
+    return [{ value: 'LCL', label: DISPATCH_CLASSIFICATION_LABELS.LCL }];
+  }
+  return DISPATCH_CLASSIFICATIONS
+    .filter((value) => value !== 'LCL')
+    .map((value) => ({ value, label: DISPATCH_CLASSIFICATION_LABELS[value] }));
 }
 
 function draftForRow(row: DispatchDetailPlanRow): PlanEditorDraft {
@@ -139,6 +152,7 @@ function draftForRow(row: DispatchDetailPlanRow): PlanEditorDraft {
     vehicleValue: vehicleValueForRow(row),
     plannedRevenue: row.estimates.plannedRevenue ?? '',
     plannedCarrierCost: row.estimates.plannedCarrierCost ?? '',
+    classification: row.classification,
     operationalNotes: row.notes.vehicleNote,
   };
 }
@@ -181,8 +195,11 @@ function vehicleBody(value: string): VehicleBody | null {
 
 /**
  * One full-cell trigger and one atomic editor for the whole detailed-plan row:
- * carrier, vehicle, estimates, classification and Đóng kết hợp save together
- * through PATCH /dispatch-detail-plan-rows/:id/plan or not at all.
+ * carrier, vehicle, estimates and Phân loại (Đơn/Kẹp/Kết hợp — the dispatcher's
+ * call since 2026-09-08) save together through PATCH
+ * /dispatch-detail-plan-rows/:id/plan or not at all. The lot-level Đóng kết
+ * hợp flag is CUS-owned and has no control here — the checkbox was removed as
+ * redundant with the Kết hợp classification.
  */
 export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, onIssueOrder, disabled = false }: DispatchPlanEditorCellProps) {
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -316,7 +333,10 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
       }
     }).finally(() => { if (!cancelled) setLoadingVehicles(false); });
     return () => { cancelled = true; };
-  }, [open, row.fulfillmentId, selectedCarrier?.carrierType, selectedCarrier?.externalCarrierId, vehicleSearch]);
+    // `selectedCarrier` is a fresh object every render (parseCarrier of the
+    // draft); the effect keys on the two primitives it actually consumes so
+    // the vehicle list doesn't reload on every keystroke elsewhere.
+  }, [open, row.fulfillmentId, selectedCarrier?.carrierType, selectedCarrier?.externalCarrierId, vehicleSearch]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const selectableCarrierOptions = useMemo(() => {
     const options = [{ value: OWN_CARRIER_VALUE, label: 'SilverSea — xe nội bộ' }, ...carrierOptions];
@@ -460,6 +480,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
         ...(vehicleChanged ? body : {}),
         plannedRevenue: revenue.value,
         plannedCarrierCost: carrierCost.value,
+        classification: draft.classification,
         operationalNotes: draft.operationalNotes,
       });
       // Stay open — saving carrier/vehicle here is usually step one of
@@ -478,6 +499,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
           : result.dispatch.assignedPlate ? `${CURRENT_PLATE_PREFIX}${result.dispatch.assignedPlate}` : '',
         plannedRevenue: result.estimates.plannedRevenue ?? '',
         plannedCarrierCost: result.estimates.plannedCarrierCost ?? '',
+        classification: result.classification,
         operationalNotes: result.operationalNotes,
       });
     } catch {
@@ -617,6 +639,19 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
                 size="sm"
               />
             </label>
+            <UuiSelectField
+              label="Phân loại"
+              width="content"
+              wrapperClassName="dispatch-assignment-dialog__classification"
+              value={draft.classification}
+              options={classificationOptionsForRow(row.classification)}
+              onChange={(event) => {
+                setDraft((current) => ({ ...current, classification: event.target.value as DispatchClassification }));
+                setError(null);
+              }}
+              disabled={saving || row.classification === 'LCL'}
+              hint={row.classification === 'LCL' ? 'Hàng lẻ giữ phân loại Lẻ — gắn với hình thức lô hàng' : undefined}
+            />
             <TextField
               id={`dispatch-revenue-${row.fulfillmentId}`}
               className="dispatch-assignment-dialog__money dispatch-assignment-dialog__revenue"

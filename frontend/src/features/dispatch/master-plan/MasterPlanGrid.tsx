@@ -4,7 +4,6 @@ import type { ShipmentListItem } from '../../../api/shipmentClient';
 import { Badge } from '../../../components/untitled-ui/base/badges/badges';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 import {
-  appointmentGroupFactorySegment,
   displayNote,
   formatAppointmentGroupLine,
 } from '../../shipments/cus/cusUtils';
@@ -38,28 +37,27 @@ function formatHour(iso: string | null | undefined): string {
   return `${date.getHours()}H`;
 }
 
-/**
- * Per-container appointment line projection for the master-plan "Giờ:" cell.
- *
- * EPIC 2.4 mapping: the create form's "Ngày giờ đóng trả" field is per
- * container, so the lot's close/return time is N values, not one. Render one
- * display line per group ("09:00 25/08/2026 · Sunrise · 1x40HC"), matching
- * the CUS workspace contract. When no per-container appointment is set we
- * fall back to the shipment-level `plannedReturnAt ?? closingAt` so the
- * master plan never silently drops a schedule that is genuinely only
- * stored at the shipment level (legacy data).
- */
-function formatAppointmentGroupLines(item: ShipmentListItem, scheduleDate?: string | null): string[] {
-  if (item.appointmentGroups && item.appointmentGroups.length > 0) {
-    const groups = scheduleDate
-      ? item.appointmentGroups.filter((group) => group.localDate === scheduleDate)
-      : item.appointmentGroups;
-    return groups.map((group) => (
-      `${formatAppointmentGroupLine(group.at, group.localDate)}${appointmentGroupFactorySegment(group.factoryName)} · ${group.containerSummary}`
-    ));
+/** Schedule blocks: one per container appointment — the ICT "HH:mm d/m/yyyy"
+ *  row leads and the "factory · containers" line indents beneath it. No
+ *  per-container appointments → lot-level date + hour fallback. */
+type ScheduleBlock = { head: string | null; sub: string | null };
+
+function scheduleBlocks(item: ShipmentListItem, scheduleDate?: string | null): ScheduleBlock[] {
+  if (!item.appointmentGroups?.length) {
+    const hour = formatHour(item.plannedReturnAt ?? item.closingAt);
+    const dateLine = item.expectedDeliveryDate ? formatISODate(item.expectedDeliveryDate) : null;
+    return dateLine || hour !== '—' ? [{ head: dateLine, sub: hour !== '—' ? hour : null }] : [];
   }
-  const fallback = formatHour(item.plannedReturnAt ?? item.closingAt);
-  return fallback === '—' ? [] : [fallback];
+  const groups = scheduleDate
+    ? item.appointmentGroups.filter((group) => group.localDate === scheduleDate)
+    : item.appointmentGroups;
+  return groups.map((group) => {
+    const factory = group.factoryName?.trim();
+    return {
+      head: formatAppointmentGroupLine(group.at, group.localDate),
+      sub: factory ? `${factory} · ${group.containerSummary}` : group.containerSummary,
+    };
+  });
 }
 
 /** Cutoff proximity: orange within 3 days, red when overdue/today. */
@@ -273,9 +271,16 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
             return (
               <tr key={item.id} className="master-plan-grid__row">
                 <td className="master-plan-grid__cell" data-label="Thời gian & lịch trình">
-                  <div className="master-plan-grid__line">
-                    Lịch cont sớm nhất: {formatISODate(item.expectedDeliveryDate)}
-                  </div>
+                  {scheduleBlocks(item, scheduleDate).map((block, blockIdx) => (
+                    <div className="master-plan-grid__schedule-block" key={`${item.id}-${blockIdx}`}>
+                      {block.head && <div className="master-plan-grid__line">{block.head}</div>}
+                      {block.sub && (
+                        <div className="master-plan-grid__line master-plan-grid__line--muted master-plan-grid__line--sub">
+                          {block.sub}
+                        </div>
+                      )}
+                    </div>
+                  ))}
                   {(item.containersMissingAppointment ?? 0) > 0 && (item.containerTotal ?? 0) > 0 && (
                     <div
                       className="master-plan-grid__line master-plan-grid__line--urgent"
@@ -284,14 +289,6 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                       Cảnh báo: Còn {item.containersMissingAppointment}/{item.containerTotal} cont chưa chốt ngày đóng trả
                     </div>
                   )}
-                  {formatAppointmentGroupLines(item, scheduleDate).map((line, lineIdx) => (
-                    <div
-                      key={`${item.id}-${lineIdx}-${line}`}
-                      className="master-plan-grid__line master-plan-grid__line--muted"
-                    >
-                      {line}
-                    </div>
-                  ))}
                   {item.customsCutoffAt && (
                     <div className={`master-plan-grid__line${urgency === 'soon' ? ' master-plan-grid__line--soon' : ' master-plan-grid__line--urgent'}`}>
                       Hạn hoàn tất hải quan: {formatDateTime(item.customsCutoffAt)}

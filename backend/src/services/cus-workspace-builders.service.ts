@@ -86,14 +86,29 @@ function buildOperationalSummary(
   // appointment, leaving the row unable to be edited and the detail page
   // showing a different (correct) date. Treat the earliest container
   // appointment as the effective schedule for FCL.
-  const earliestFclAppointment = totalContainers > 0
-    ? containers
-      .map((container) => container.customerAppointmentAt)
+  // Customer feedback 2026-09-08: the earliest-appointment rule let one
+  // dated cont mask its undated siblings — a 2-cont lot with a single
+  // appointment read "Sẵn sàng điều xe" with no warning. FCL readiness is
+  // per-container: the lot only counts as scheduled once EVERY cont has its
+  // ngày đóng/trả; any missing appointment keeps WAITING_DATE ("Chưa chốt
+  // ngày"), the same per-cont rule containerMissingFields() already applies
+  // to TRANSPORT_DATE. Lots without container rows keep the shipment-level
+  // expectedDeliveryDate fallback.
+  const fclAppointmentValues = row.shipment.cargoMode === 'FCL' && totalContainers > 0
+    ? containers.map((container) => container.customerAppointmentAt)
+    : null;
+  const undatedFclContainers = fclAppointmentValues
+    ? fclAppointmentValues.filter((value) => value == null).length
+    : 0;
+  const earliestFclAppointment = fclAppointmentValues
+    ? fclAppointmentValues
       .filter((value): value is Date => value != null)
       .sort((left, right) => left.getTime() - right.getTime())[0]
     : null;
-  const effectiveScheduleDate = row.shipment.cargoMode === 'FCL' && earliestFclAppointment
-    ? localDateInBusinessZone(earliestFclAppointment)
+  const effectiveScheduleDate = fclAppointmentValues != null
+    ? (undatedFclContainers === 0 && earliestFclAppointment != null
+      ? localDateInBusinessZone(earliestFclAppointment)
+      : null)
     : row.shipment.expectedDeliveryDate;
   const scheduleReadiness = effectiveScheduleDate == null
     ? 'WAITING_DATE' as const
@@ -435,20 +450,28 @@ function buildContainerLine(
       ?? null;
   // CUS may plan the plate for BOTH external carriers and the internal fleet
   // (customer ask, Cap_nhat_UI_va_logic 1.3): the value is a plan; the
-  // official dispatch trip remains the confirming source once assigned.
+  // official dispatch trip plate wins once a trip carries one.
   const plateEditable = canEditOperational;
-  // Dispatch chip vocabulary (customer decision 2026-09-08): a running or
-  // finished trip outranks everything. A CREATED trip reads "Đã tạo chuyến"
-  // only while its ngày đóng/trả is still missing; once the appointment is
-  // set — or before any trip exists — the line is waiting on dispatch to
-  // assign the vehicle.
+  // The plate the Phân xe column displays: the executed trip's plate wins over
+  // the allocation plan. The dispatch chip keys off this same value so the
+  // badge, the counter, and the Phân xe column can never disagree.
+  const plateNumber = carrierType === 'OWN'
+    ? assignment?.tripTruckPlate ?? assignment?.plannedVehiclePlateNumber ?? null
+    : assignment?.tripExternalPlateNumber ?? assignment?.plannedVehiclePlateNumber ?? null;
+  // Dispatch chip vocabulary (customer decision 2026-09-08, revised the same
+  // evening): a running or finished trip outranks everything. A CREATED trip
+  // reads "Đã tạo chuyến" while its ngày đóng/trả is still missing; once the
+  // date is set, a line carrying a vehicle reads "Đã phân xe" (PLANNED), and
+  // only a line still missing the vehicle reads "Chờ phân xe".
   const dispatchStatus = assignment?.tripStatus === 'COMPLETED'
     ? 'COMPLETED'
     : assignment?.tripStatus === 'IN_TRANSIT'
       ? 'IN_TRANSIT'
       : assignment?.tripStatus === 'CREATED' && container.customerAppointmentAt == null
         ? 'CREATED'
-        : 'AWAITING_VEHICLE';
+        : plateNumber != null
+          ? 'PLANNED'
+          : 'AWAITING_VEHICLE';
 
   return {
     id: container.id,
@@ -463,9 +486,7 @@ function buildContainerLine(
     externalCarrierId,
     externalCarrierVehicleId: assignment?.tripExternalCarrierVehicleId ?? assignment?.plannedExternalCarrierVehicleId ?? null,
     carrierName,
-    plateNumber: carrierType === 'OWN'
-      ? assignment?.tripTruckPlate ?? assignment?.plannedVehiclePlateNumber ?? null
-      : assignment?.tripExternalPlateNumber ?? assignment?.plannedVehiclePlateNumber ?? null,
+    plateNumber,
     liftSiteId: container.pickupPortId ?? liftSite?.id ?? null,
     liftSite: liftSite?.name ?? null,
     dropoffSiteId: container.dropoffPortId ?? dropoffSite?.id ?? null,

@@ -167,6 +167,8 @@ Cột **Nhà xe** trên mỗi dòng đã được **pre-fill tự động** từ
 
 Có thể chọn **phân loại chuyến** cho mỗi dòng vận chuyển. Đây là nhãn thao tác ở cấp dòng (fulfillment); riêng đánh dấu **ghép chuyến** ở cấp lô hàng — hai thông tin độc lập. Có 4 loại:
 
+> **Quyền chọn phân loại của Điều vận (2026-09-08):** Điều vận được quyền chọn/đổi **phân loại chuyến Đơn / Kẹp / Kết hợp** cho từng dòng trong dialog **"Chỉnh sửa điều phối"** (Kế hoạch chi tiết) và lưu cùng bước phân xe. Riêng dòng hàng lẻ (LCL) giữ cố định phân loại **Lẻ** (gắn với hình thức lô, không phải lựa chọn theo cont). Đánh dấu **"Đóng kết hợp"** cấp lô **không** nằm trong dialog điều vận — vẫn là quyền của CUS (tạo lô / sửa nhanh); chọn **Kết hợp** ở phân loại đã đủ thể hiện ghép chuyến ở cấp dòng, nên checkbox này là dư thừa đối với điều vận.
+
 #### a) Cont đơn (Đơn — 1 chiều)
 
 1 xe chở 1 container đi 1 chiều, trả về rỗng.
@@ -345,7 +347,7 @@ Sau khi lái xe hoàn thành, Chứng Từ xử lý chứng từ trên hồ sơ 
 | **Duyệt e-POD** | Chỉ Chứng Từ duyệt — sau hoàn thành, không chặn. Chấp nhận cần xác nhận đã thu hồi chứng từ gốc |
 | **Chốt hồ sơ** | Lô hoàn thành → hồ sơ khóa — không sửa trực tiếp được, mở lại phải qua phê duyệt Admin |
 | **Yêu cầu thay đổi** | Chứng Từ sửa lô sau phát lệnh → tạo yêu cầu thay đổi (không sửa trực tiếp) |
-| **Phân loại chuyến** | Nhãn thao tác (Đơn/Kẹp/Kết hợp/Lẻ). Đánh dấu ghép chuyến độc lập theo lô |
+| **Phân loại chuyến** | Nhãn thao tác (Đơn/Kẹp/Kết hợp/Lẻ). Điều vận được chọn/đổi Đơn/Kẹp/Kết hợp cho từng dòng trong "Chỉnh sửa điều phối" (hàng lẻ LCL giữ Lẻ); đánh dấu "Đóng kết hợp" cấp lô thuộc CUS, không có trong dialog điều vận |
 | **Phí đường cặp ghép** | Chuyến có mã ghép kẹp/kết hợp: VETC/tiền trạm thu phí chỉ ghi nhận **1 lần cho cả cặp** — trip thứ hai được khử trùng bằng đúng tiền trạm gộp (không lấy định mức × 2 cont) |
 | **Lương cặp ghép** | Không trả bằng tổng 2 cuốc chạy đơn: lương cặp = **cuốc cơ bản + phụ phí kẹp/kết hợp**, phụ phí lấy từ cấu hình lương (Cài đặt → Lương). Hủy cặp → khôi phục lương tiêu chuẩn từng trip |
 | **Lệnh chạy ngoài** | Lô cuốc vãng lai (không có trong danh mục): lưu `Raw_*` với ID rỗng, **không bao giờ** ghi text tự do vào bảng danh mục gốc; validation định mức cước được bỏ qua khi có cờ `is_ad_hoc`. Chi tiết `MasterDataNhaMay.md` §4 |

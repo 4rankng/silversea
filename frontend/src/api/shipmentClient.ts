@@ -51,6 +51,7 @@ export interface ShipmentCarrierAllocationGroup {
   carrierName?: string | null;
   count20: number;
   count40: number;
+  appointmentDate?: string | null;
 }
 
 export type ShipmentAccountingLock = ShipmentAccountingLockSummary;
@@ -550,8 +551,7 @@ export interface ShipmentListItem extends Shipment {
   factoryNames?: string[];
   /** Factory operating notes ("Ghi chú nhà máy") for the notes column. */
   factoryNotes?: string | null;
-  /** Containers without a đóng/trả appointment; badge shows "Còn X/Y cont
-   *  chưa chốt ngày đóng trả" when X > 0. */
+  /** Containers without a đóng/trả appointment; badge shows "Còn X/Y cont chưa chốt ngày đóng trả" when X > 0. */
   containersMissingAppointment?: number;
   containerTotal?: number;
   containerCount20: number;
@@ -995,7 +995,7 @@ export interface ShipmentCusWorkspaceFilters {
 // are this workboard's own enum, so they replace (not extend) the overview's.
 export interface ShipmentCusContainerFilters extends Omit<ShipmentCusWorkspaceFilters, 'sortBy' | 'sortDir'> {
   informationStatus?: 'MISSING';
-  dispatchStatus?: 'ASSIGNED' | 'UNASSIGNED' | 'AWAITING_VEHICLE' | 'CREATED' | 'IN_TRANSIT' | 'COMPLETED';
+  dispatchStatus?: 'ASSIGNED' | 'UNASSIGNED' | 'AWAITING_VEHICLE' | 'PLANNED' | 'CREATED' | 'IN_TRANSIT' | 'COMPLETED';
   sortBy?: ShipmentCusContainerSortKey;
   sortDir?: 'asc' | 'desc';
 }

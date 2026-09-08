@@ -62,8 +62,9 @@ export interface UpdateDispatchDetailPlanInput {
   clearVehicle?: boolean;
   plannedRevenue: number | null;
   plannedCarrierCost: number | null;
-  /** Per-task classification (Đơn/Kẹp/Kết hợp/Lẻ). CUS owns it via the CUS
-   *  surfaces; the dispatch editor omits it, so undefined = unchanged. */
+  /** Per-row Phân loại (Đơn/Kẹp/Kết hợp/Lẻ). The dispatcher's call for cont
+   *  rows (Đơn/Kẹp/Kết hợp) since 2026-09-08; CUS sets it at intake and LCL
+   *  rows keep Lẻ. Undefined = unchanged. */
   classification?: DispatchClassification;
   /** Lot-level `shipments.is_combined` — CUS owns it (create + quick edit).
    *  Undefined = untouched by this save, which is what the dispatch editor
@@ -1054,7 +1055,8 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
     } : {}),
     plannedRevenue: input.plannedRevenue == null ? null : String(input.plannedRevenue),
     plannedCarrierCost: input.plannedCarrierCost == null ? null : String(input.plannedCarrierCost),
-    // CUS owns classification too — undefined = untouched, stored value kept.
+    // Phân loại per-row is the dispatcher's call (2026-09-08): a save that
+    // carries it rewrites the stored value; omitted = untouched.
     ...(input.classification ? { dispatchClassification: input.classification } : {}),
     version: fulfillment.version + 1,
     updatedAt: new Date(),

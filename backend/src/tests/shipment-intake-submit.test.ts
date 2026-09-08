@@ -253,6 +253,79 @@ describe('shipment intake submission', () => {
     assert.equal(emptied.shipment.version, partial.shipment.version + 1);
   });
 
+  test('TC-DV-DISPATCH-043: assigns carriers separately per appointment date, allowing same carrier across different dates', async () => {
+    const dispatcher = await actor(Role.DISPATCHER);
+    const ref = await references();
+    const [shipment] = await db.insert(s.shipments).values({
+      customerId: ref.customer.id,
+      routeId: ref.route.id,
+      cargoMode: 'FCL',
+      shipmentCode: `INTAKE-DATES-${suffix}`,
+      status: 'READY_FOR_DISPATCH',
+      closingAt: new Date('2026-09-10T08:00:00.000Z'),
+      createdBy: dispatcher.userId,
+    }).returning();
+    shipmentIds.push(shipment.id);
+
+    const [contDay1, contDay2] = await db.insert(s.shipmentContainers).values([
+      {
+        shipmentId: shipment.id,
+        containerTypeId: ref.containerType.id, // 20'
+        containerNumber: 'DATE0000001',
+        customerAppointmentAt: new Date('2026-09-10T08:00:00.000Z'),
+        createdBy: dispatcher.userId,
+      },
+      {
+        shipmentId: shipment.id,
+        containerTypeId: ref.containerType.id, // 20'
+        containerNumber: 'DATE0000002',
+        customerAppointmentAt: new Date('2026-09-11T08:00:00.000Z'),
+        createdBy: dispatcher.userId,
+      },
+    ]).returning();
+
+    // Assign SilverSea (OWN) for both dates: day 1 (1x20') and day 2 (1x20')
+    const assigned = await assignShipmentCarriers({
+      shipmentId: shipment.id,
+      expectedVersion: shipment.version,
+      actor: dispatcher,
+      carrierAllocations: [
+        { appointmentDate: '2026-09-10', carrierType: 'OWN', count20: 1, count40: 0 },
+        { appointmentDate: '2026-09-11', carrierType: 'OWN', count20: 1, count40: 0 },
+      ],
+      allowPartial: true,
+    });
+
+    assert.equal(assigned.shipment.version, shipment.version + 1);
+
+    const fulfillments = await db.select({
+      containerId: s.shipmentFulfillments.shipmentContainerId,
+      plannedCarrierType: s.shipmentFulfillments.plannedCarrierType,
+    }).from(s.shipmentFulfillments)
+      .where(eq(s.shipmentFulfillments.shipmentId, shipment.id));
+
+    assert.equal(fulfillments.length, 2);
+    const f1 = fulfillments.find((f) => f.containerId === contDay1.id);
+    const f2 = fulfillments.find((f) => f.containerId === contDay2.id);
+    assert.equal(f1?.plannedCarrierType, 'OWN');
+    assert.equal(f2?.plannedCarrierType, 'OWN');
+
+    // Duplicate within the SAME date must be rejected
+    await assert.rejects(
+      () => assignShipmentCarriers({
+        shipmentId: shipment.id,
+        expectedVersion: assigned.shipment.version,
+        actor: dispatcher,
+        carrierAllocations: [
+          { appointmentDate: '2026-09-10', carrierType: 'OWN', count20: 1, count40: 0 },
+          { appointmentDate: '2026-09-10', carrierType: 'OWN', count20: 1, count40: 0 },
+        ],
+        allowPartial: true,
+      }),
+      (err: unknown) => err instanceof ApiError && err.statusCode === 409,
+    );
+  });
+
   test('submits a complete FCL draft with a route independent from its factory and replays once', async () => {
     const admin = await actor(Role.ADMIN);
     const ref = await references();

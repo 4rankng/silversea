@@ -232,27 +232,30 @@ export function CusAppointmentPopover({
           </button>
         </div>
 
-        {/* Date and Time Inputs */}
+        {/* Time and Date Inputs — giờ trước ngày, khớp định dạng "20:45 8/9/26" của cột bảng.
+            lang="en-GB" ép input hiển thị 24h + dd/mm/yyyy thay vì theo locale trình duyệt (AM/PM). */}
         <div className="cus-appointment-popover__inputs">
-          <div className="cus-appointment-input-wrap">
-            <label htmlFor={`${idPrefix}-date`}>Ngày</label>
-            <input
-              id={`${idPrefix}-date`}
-              type="date"
-              className="cus-appointment-input"
-              value={date}
-              onChange={(e) => updateDateTime(e.target.value, time || '08:00')}
-              required
-            />
-          </div>
           <div className="cus-appointment-input-wrap">
             <label htmlFor={`${idPrefix}-time`}>Giờ</label>
             <input
               id={`${idPrefix}-time`}
               type="time"
+              lang="en-GB"
               className="cus-appointment-input"
               value={time}
               onChange={(e) => updateDateTime(date || todayStr, e.target.value)}
+            />
+          </div>
+          <div className="cus-appointment-input-wrap">
+            <label htmlFor={`${idPrefix}-date`}>Ngày</label>
+            <input
+              id={`${idPrefix}-date`}
+              type="date"
+              lang="en-GB"
+              className="cus-appointment-input"
+              value={date}
+              onChange={(e) => updateDateTime(e.target.value, time || '08:00')}
+              required
             />
           </div>
         </div>

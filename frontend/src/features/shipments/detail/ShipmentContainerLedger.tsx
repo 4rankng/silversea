@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Button as AriaButton } from 'react-aria-components';
-import { Save01, XClose } from '@untitledui/icons';
-import { AlertTriangle, Calendar, CalendarOff, Clock, Clock3, X } from 'lucide-react';
+import { AlertTriangle, CalendarOff, Clock3 } from 'lucide-react';
 import { DISPATCH_CLASSIFICATION_LABELS } from '@tingting/shared';
 import type {
   ShipmentCusContainerFlatRow,
@@ -12,10 +11,11 @@ import { requestContainerEdit } from '../../../api/shipmentClient';
 import { displayNote } from '../cus/cusUtils';
 import { StatusStrip } from '../../../components/shared/StatusStrip';
 import { Badge, BadgeWithDot } from '../../../components/untitled-ui/base/badges/badges';
-import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 import { TextArea as UUITextArea } from '../../../components/untitled-ui/base/textarea/textarea';
-import { SearchableSelect, DateInput, SummaryRail } from '../../../design-system';
+import { SearchableSelect, SummaryRail } from '../../../design-system';
 import { UuiSelectField } from '../../../design-system/forms/UuiSelectField';
+import { EditActions } from './ShipmentContainerEditActions';
+import { ScheduleEditorBody } from './ShipmentContainerScheduleEditor';
 import { formatVietnamDateTimeInput } from '../../../lib/shipment-operations';
 import type { TableSortState } from '../../../lib/table-sort';
 import { SortHeader } from '../../../components/shared/SortHeader';
@@ -80,6 +80,7 @@ type DispatchStatus = ShipmentCusContainerFlatRow['dispatchStatus'];
 // eslint-disable-next-line react-refresh/only-export-components -- shared badge vocabulary consumed by the page's Trạng thái filter
 export const DISPATCH_STATUS: Record<DispatchStatus, { label: string; color: 'warning' | 'brand' | 'blue' | 'indigo' | 'purple' | 'success' }> = {
   AWAITING_VEHICLE: { label: 'Chờ phân xe', color: 'warning' },
+  PLANNED: { label: 'Đã phân xe', color: 'blue' },
   CREATED: { label: 'Đã tạo chuyến', color: 'indigo' },
   IN_TRANSIT: { label: 'Đang chạy', color: 'purple' },
   COMPLETED: { label: 'Hoàn thành', color: 'success' },
@@ -87,9 +88,10 @@ export const DISPATCH_STATUS: Record<DispatchStatus, { label: string; color: 'wa
 
 /* Row markers follow the status-signal contract: semantic tones only, mirroring
    the workboard's StatusStrip lane — the badge column carries the precise
-   four-state label. */
+   five-state label. */
 const DISPATCH_STRIP_COLORS: Record<DispatchStatus, string> = {
   AWAITING_VEHICLE: 'var(--warning)',
+  PLANNED: 'var(--info)',
   CREATED: 'var(--info)',
   IN_TRANSIT: 'var(--info)',
   COMPLETED: 'var(--success)',
@@ -124,65 +126,8 @@ function formatScheduleTime(row: ShipmentCusContainerFlatRow): string | null {
   return input ? input.slice(11, 16) : null;
 }
 
-/** Common appointment hours offered as one-tap shortcuts in the schedule editor. */
-const SCHEDULE_TIME_PRESETS = ['08:00', '10:00', '13:30', '16:00'];
-
-/** Quick-date shortcuts mirror the customer appointment popover's Hôm nay / Ngày mai / Ngày kia row. */
-const SCHEDULE_QUICK_DAYS = [
-  { label: 'Hôm nay', offsetDays: 0 },
-  { label: 'Ngày mai', offsetDays: 1 },
-  { label: 'Ngày kia', offsetDays: 2 },
-] as const;
-
-function getOffsetDateString(offsetDays: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() + offsetDays);
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
 function fallback(value: string | null, label: string) {
   return value || <span className="shipment-container-ledger__missing">{label}</span>;
-}
-
-function EditActions({
-  saving,
-  saveDisabled,
-  label,
-  onSave,
-  onCancel,
-}: {
-  saving: boolean;
-  saveDisabled: boolean;
-  label: string;
-  onSave: () => void;
-  onCancel: () => void;
-}) {
-  return (
-    <div className="shipment-container-ledger__edit-actions">
-      <UUIButton
-        size="xs"
-        color="primary"
-        className="shipment-container-ledger__edit-action"
-        onPress={onSave}
-        isDisabled={saveDisabled || saving}
-        isLoading={saving}
-        iconLeading={!saving ? Save01 : undefined}
-        aria-label={`Lưu ${label}`}
-      >Lưu</UUIButton>
-      <UUIButton
-        size="xs"
-        color="secondary"
-        className="shipment-container-ledger__edit-action"
-        onPress={onCancel}
-        isDisabled={saving}
-        iconLeading={XClose}
-        aria-label={`Hủy ${label}`}
-      >Hủy</UUIButton>
-    </div>
-  );
 }
 
 function InlineEditor({
@@ -449,21 +394,16 @@ function InlineEditor({
       }}
     >
       {mode === 'schedule' ? (
-        <div className="shipment-container-ledger__schedule-header">
-          <div className="shipment-container-ledger__schedule-title">
-            <Calendar size={14} aria-hidden="true" />
-            <strong>Chỉnh sửa lịch trình</strong>
-            <span className="shipment-container-ledger__schedule-badge">{row.containerNumber || `Container số ${row.ordinal}`}</span>
-          </div>
-          <button
-            type="button"
-            className="shipment-container-ledger__schedule-close"
-            onClick={onCancel}
-            aria-label="Đóng bảng chỉnh sửa lịch trình"
-          >
-            <X size={14} aria-hidden="true" />
-          </button>
-        </div>
+        <ScheduleEditorBody
+          row={row}
+          appointmentDate={appointmentDate}
+          scheduleTime={scheduleTime}
+          saving={saving}
+          canEdit={line.permissions.customerAppointmentEditable}
+          onAppointmentDateChange={setAppointmentDate}
+          onScheduleTimeChange={setScheduleTime}
+          onClose={onCancel}
+        />
       ) : (
         <div className="shipment-container-ledger__editor-heading">
           <strong>Chỉnh sửa {modeLabel}</strong>
@@ -536,53 +476,6 @@ function InlineEditor({
           {carrierId === 'OWN' && <small>Biển số nội bộ nhập ở đây là kế hoạch (dự kiến); lệnh điều xe chính thức vẫn là nguồn xác nhận cuối.</small>}
           {carrierId !== 'OWN' && carrierId && <small>Biển số nhập ở đây là kế hoạch (dự kiến) cho nhà xe thuê; lệnh điều xe chính thức vẫn là nguồn xác nhận cuối.</small>}
         </div>
-      )}
-      {mode === 'schedule' && (
-        <>
-          <div className="shipment-container-ledger__schedule-section">Chọn nhanh ngày</div>
-          <div className="shipment-container-ledger__schedule-pills" role="group" aria-label="Chọn nhanh ngày">
-            {SCHEDULE_QUICK_DAYS.map(({ label, offsetDays }) => {
-              const quickDate = getOffsetDateString(offsetDays);
-              const active = appointmentDate === quickDate;
-              return (
-                <button
-                  key={label}
-                  type="button"
-                  className={`shipment-container-ledger__schedule-pill${active ? ' is-active' : ''}`}
-                  onClick={() => {
-                    setAppointmentDate(quickDate);
-                    if (!scheduleTime) setScheduleTime('08:00');
-                  }}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-          <div className="shipment-container-ledger__editor-grid shipment-container-ledger__editor-grid--schedule">
-            <label><span>{row.direction === 'IMPORT' ? 'Ngày trả hàng' : 'Ngày đóng hàng'}</span><DateInput value={appointmentDate} onChange={setAppointmentDate} disabled={saving || !line.permissions.customerAppointmentEditable} /></label>
-            <label><span>{row.direction === 'IMPORT' ? 'Giờ trả hàng' : 'Giờ đóng hàng'}</span><input type="time" value={scheduleTime} onChange={(event) => setScheduleTime(event.target.value)} disabled={saving || !line.permissions.customerAppointmentEditable} /></label>
-          </div>
-          <div className="shipment-container-ledger__schedule-section">
-            <Clock size={11} aria-hidden="true" />
-            Khung giờ phổ biến
-          </div>
-          <div className="shipment-container-ledger__schedule-times" role="group" aria-label="Khung giờ phổ biến">
-            {SCHEDULE_TIME_PRESETS.map((presetTime) => (
-              <button
-                key={presetTime}
-                type="button"
-                className={`shipment-container-ledger__schedule-time-pill${scheduleTime === presetTime ? ' is-active' : ''}`}
-                onClick={() => {
-                  setScheduleTime(presetTime);
-                  if (!appointmentDate) setAppointmentDate(getOffsetDateString(0));
-                }}
-              >
-                {presetTime}
-              </button>
-            ))}
-          </div>
-        </>
       )}
       {mode === 'notes' && (
         <div className="shipment-container-ledger__editor-grid">

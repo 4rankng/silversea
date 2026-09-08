@@ -357,7 +357,7 @@ export function updateDispatchDetailPlan(fulfillmentId: number, body: {
   clearVehicle?: boolean;
   plannedRevenue: number | null;
   plannedCarrierCost: number | null;
-  /** CUS-owned — omitted by the dispatch editor; backend strips it too. */
+  /** Phân loại (Đơn/Kẹp/Kết hợp) — dispatcher's call; optional so CUS-derived values stay valid. */
   classification?: DispatchClassification;
   isCombined?: boolean;
   operationalNotes?: string | null;
@@ -400,4 +400,12 @@ export function listDispatchTaskTags() {
 
 export function createDispatchTaskTag(label: string) {
   return api.post<{ id: number; label: string }>('/shipments/dispatch-task-tags', { label });
+}
+
+export function updateDispatchTaskTag(id: number, label: string) {
+  return api.patch<{ id: number; label: string }>(`/shipments/dispatch-task-tags/${id}`, { label });
+}
+
+export function deactivateDispatchTaskTag(id: number) {
+  return api.delete<{ ok: true }>(`/shipments/dispatch-task-tags/${id}`);
 }

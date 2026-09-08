@@ -33,7 +33,9 @@ import {
 } from '../../services/carrier-fleet-vehicle.service';
 import {
   createDispatchTaskTag,
+  deactivateDispatchTaskTag,
   listDispatchTaskTags,
+  updateDispatchTaskTag,
 } from '../../services/dispatch-task-tags.service';
 import { reassignTruckDriverWriteCommand } from '../../services/truck-driver-assignment.service';
 import { requireRoles } from '../../middleware/casbin';
@@ -396,10 +398,11 @@ dispatchPlanningRoutes.patch(
     const parsed = updateDispatchDetailPlanSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
     const user = getUser(req);
-    // Phân loại (Đơn/Kẹp/Kết hợp/Lẻ) and the lot "Đóng kết hợp" flag are
-    // CUS-owned: the dispatch editor can no longer set either, even by
-    // calling the API directly — strip before the service sees the payload.
-    delete (parsed.data as { classification?: unknown }).classification;
+    // The lot-level "Đóng kết hợp" flag (shipments.is_combined) stays
+    // CUS-owned: one container's dispatcher must not rewrite a flag that
+    // spans every container in the lot, so it is stripped here even when a
+    // caller sends it explicitly. Per-row Phân loại (Đơn/Kẹp/Kết hợp) IS the
+    // dispatcher's call — it flows through untouched (2026-09-08 decision).
     delete (parsed.data as { isCombined?: unknown }).isCombined;
     res.json(await updateDispatchDetailPlan({
       fulfillmentId,
@@ -499,6 +502,14 @@ const createDispatchTaskTagSchema = z.object({
     .refine((value) => !value.includes(';'), 'Tên tag không được chứa dấu ;'),
 }).strict();
 
+// `Number` over the file's usual parseInt: parseInt silently accepts
+// "1.5"→1 / "12abc"→12, but a tag id must be a whole positive integer.
+function parseDispatchTaskTagId(raw: string): number {
+  const id = Number(raw);
+  if (!Number.isInteger(id) || id <= 0) throw new ApiError(400, 'id không hợp lệ.');
+  return id;
+}
+
 dispatchPlanningRoutes.get(
   '/dispatch-task-tags',
   requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER),
@@ -516,6 +527,30 @@ dispatchPlanningRoutes.post(
     const user = getUser(req);
     const created = await createDispatchTaskTag({ label: parsed.data.label, actor: user });
     res.status(201).json(created);
+  }),
+);
+
+dispatchPlanningRoutes.patch(
+  '/dispatch-task-tags/:id',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER),
+  asyncHandler(async (req: Request, res: Response) => {
+    const tagId = parseDispatchTaskTagId(req.params.id as string);
+    const parsed = createDispatchTaskTagSchema.safeParse(req.body);
+    if (!parsed.success) throwValidation(parsed.error);
+    const user = getUser(req);
+    // The tag pool has a single editable field (label); the full-body schema
+    // is shared with POST deliberately.
+    res.json(await updateDispatchTaskTag({ id: tagId, label: parsed.data.label, actor: user }));
+  }),
+);
+
+dispatchPlanningRoutes.delete(
+  '/dispatch-task-tags/:id',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER),
+  asyncHandler(async (req: Request, res: Response) => {
+    const tagId = parseDispatchTaskTagId(req.params.id as string);
+    await deactivateDispatchTaskTag({ id: tagId });
+    res.json({ ok: true });
   }),
 );
 

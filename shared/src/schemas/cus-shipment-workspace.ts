@@ -78,13 +78,18 @@ export const SHIPMENT_CUS_CONTAINER_SORT_KEYS = [
 ] as const;
 export type ShipmentCusContainerSortKey = typeof SHIPMENT_CUS_CONTAINER_SORT_KEYS[number];
 
-// Container dispatch chip vocabulary (customer decision 2026-09-08): a line
-// shows Chờ phân xe (AWAITING_VEHICLE) until dispatch assigns a vehicle — no
-// trip yet, or a CREATED trip that already has its ngày đóng/trả. "Đã tạo
-// chuyến" (CREATED) is reserved for a trip that still misses the appointment
-// date. The retired UNASSIGNED/PLANNED pre-trip states must not reappear.
+// Container dispatch chip vocabulary (customer decision 2026-09-08, revised
+// the same evening): five states. "Đã tạo chuyến" (CREATED) = a CREATED trip
+// still missing its ngày đóng/trả; "Chờ phân xe" (AWAITING_VEHICLE) = the
+// date is set (or nothing scheduled yet) but no vehicle is on the line;
+// "Đã phân xe" (PLANNED) = a vehicle is allocated — the same plate the Phân xe
+// column shows (trip plate, else the planned plate) — before the trip runs.
+// Đang chạy / Hoàn thành follow trip status. The legacy dispatchStatus filter
+// values ASSIGNED/UNASSIGNED stay accepted as carrier-presence aliases so old
+// links keep filtering; PLANNED returns to the chip vocabulary it once named.
 export const SHIPMENT_CUS_DISPATCH_STATUSES = [
   'AWAITING_VEHICLE',
+  'PLANNED',
   'CREATED',
   'IN_TRANSIT',
   'COMPLETED',

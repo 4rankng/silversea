@@ -1,5 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { createDispatchTaskTag, listDispatchTaskTags } from '../../../api/dispatchPlanningClient';
+import {
+  createDispatchTaskTag,
+  deactivateDispatchTaskTag,
+  listDispatchTaskTags,
+  updateDispatchTaskTag,
+} from '../../../api/dispatchPlanningClient';
 import { qk } from '../../../api/keys';
 
 /**
@@ -37,5 +42,42 @@ export function useCreateDispatchTaskTag() {
     createTag: mutation.mutateAsync,
     invalidateTags,
     isCreating: mutation.isPending,
+  };
+}
+
+/** PATCH a label onto an existing tag (global pool — every dispatcher sees
+ *  the rename on next fetch). Duplicates reject with the backend's 409 so
+ *  the manager popover can surface "Tag đã tồn tại." inline. */
+export function useUpdateDispatchTaskTag() {
+  const queryClient = useQueryClient();
+  const invalidateTags = () => {
+    void queryClient.invalidateQueries({ queryKey: qk.dispatchTaskTags.all });
+  };
+  const mutation = useMutation({
+    mutationFn: ({ id, label }: { id: number; label: string }) => updateDispatchTaskTag(id, label),
+    onSuccess: invalidateTags,
+  });
+  return {
+    updateTag: mutation.mutateAsync,
+    invalidateTags,
+    isUpdating: mutation.isPending,
+  };
+}
+
+/** Soft-delete a tag (is_active=false). The row stays in the DB so historical
+ *  notes keep their text (parseNote degrades unmatched segments to manual
+ *  text); re-adding the label later reactivates the row. */
+export function useDeactivateDispatchTaskTag() {
+  const queryClient = useQueryClient();
+  const invalidateTags = () => {
+    void queryClient.invalidateQueries({ queryKey: qk.dispatchTaskTags.all });
+  };
+  const mutation = useMutation({
+    mutationFn: (id: number) => deactivateDispatchTaskTag(id),
+    onSuccess: invalidateTags,
+  });
+  return {
+    deactivateTag: mutation.mutateAsync,
+    isDeactivating: mutation.isPending,
   };
 }

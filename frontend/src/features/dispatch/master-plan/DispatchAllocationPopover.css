@@ -483,3 +483,63 @@
     font-size: 10px;
   }
 }
+
+/* Day-separated allocation blocks (TC-DV-DISPATCH-043) */
+.dispatch-allocation-popover__day-section.is-multi {
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid var(--border-1);
+  border-radius: 12px;
+  background: var(--bg-1);
+}
+
+.dispatch-allocation-popover__day-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.dispatch-allocation-popover__day-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.dispatch-allocation-popover__day-icon {
+  color: var(--brand);
+  flex-shrink: 0;
+}
+
+.dispatch-allocation-popover__day-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--fg-1);
+}
+
+.dispatch-allocation-popover__day-factory {
+  color: var(--fg-2);
+  font-size: 13px;
+}
+
+.dispatch-allocation-popover__day-demand-chip {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--bg-2);
+  border: 1px solid var(--border-1);
+  color: var(--fg-2);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.dispatch-allocation-popover__day-balance {
+  margin-bottom: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border-1);
+  border-radius: 8px;
+  background: var(--bg-2);
+}
+
