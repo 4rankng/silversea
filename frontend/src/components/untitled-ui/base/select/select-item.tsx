@@ -12,10 +12,10 @@ import { SelectContext } from "./select-shared";
 
 const sizes = {
     sm: {
-        root: "p-2 pr-2.5 gap-2 *:data-icon:size-4 *:data-icon:stroke-[2.25px]",
-        text: "text-sm",
-        textContainer: "gap-x-1.5",
-        check: "size-4 stroke-[2.25px]",
+        root: "p-1.5 pr-2 gap-1.5 *:data-icon:size-3.5 *:data-icon:stroke-[2.25px]",
+        text: "text-xs",
+        textContainer: "gap-x-1",
+        check: "size-3.5 stroke-[2.25px]",
         checkbox: "sm" as const,
     },
     md: {

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState , useRef } from 'react';
 import { Input as UUIInput } from '../../../components/untitled-ui/base/input/input';
 import { ComboBox } from '../../../components/untitled-ui/base/select/combobox';
 import { SelectItem } from '../../../components/untitled-ui/base/select/select-item';
@@ -200,12 +200,18 @@ export function USearchableField({
   // Synced with the selected option's label whenever `value` changes externally
   // (form reset, dialog-create success, etc.).
   const [inputValue, setInputValue] = useState<string>(selected?.label ?? '');
+  // Re-sync the visible text only when the FORM value actually changes
+  // (external reset, dialog apply). Catalog refetches rotate the `options`
+  // identity and must NOT clobber in-flight typed text.
+  const lastSyncedValue = useRef(value);
   useEffect(() => {
-    setInputValue(selected?.label ?? '');
-    // We intentionally key on `value` + `options` so external resets and
-    // catalog refetches snap the visible text back to the chosen label.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value, options]);
+    if (lastSyncedValue.current === value) return;
+    lastSyncedValue.current = value;
+    // Custom (allowsCustomValue) values are not in the catalog, so `selected`
+    // is undefined — keep the applied value in the input instead of blanking it.
+    setInputValue(selected?.label ?? (allowsCustomValue ? value ?? '' : ''));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
   return (
     <div className={`csc-searchable-field${error ? ' csc-searchable-field--error' : ''}${className ? ` ${className}` : ''}`}>
       <ComboBox

@@ -9,6 +9,7 @@ import type {
   ShipmentCusWorkspaceDetail,
 } from '@tingting/shared';
 import { requestContainerEdit } from '../../../api/shipmentClient';
+import { displayNote } from '../cus/cusUtils';
 import { StatusStrip } from '../../../components/shared/StatusStrip';
 import { Badge, BadgeWithDot } from '../../../components/untitled-ui/base/badges/badges';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
@@ -389,6 +390,7 @@ function InlineEditor({
         });
       } else if (mode === 'schedule') {
         if (scheduleTime && !appointmentDate) throw new Error('Chọn ngày đóng/trả trước khi nhập giờ.');
+        if (appointmentDate && !scheduleTime) throw new Error('Vui lòng nhập đầy đủ cả Ngày và Giờ giao hàng.');
         await onSaveSchedule(line, row, {
           transportDate: row.transportDate,
           customerAppointmentAt: appointmentDate ? `${appointmentDate}T${scheduleTime || '12:00'}` : null,
@@ -515,7 +517,7 @@ function InlineEditor({
       )}
       <div className="shipment-container-ledger__editor-footer">
         <span className="shipment-container-ledger__keyboard-hint">Enter để lưu · Esc để hủy</span>
-        <EditActions saving={saving} saveDisabled={!dirty || (containerRequestMode && !requestReason.trim()) || (routeRequestMode && !requestReason.trim())} label={label} onSave={() => void save()} onCancel={onCancel} />
+        <EditActions saving={saving} saveDisabled={!dirty || (containerRequestMode && !requestReason.trim()) || (routeRequestMode && !requestReason.trim()) || (mode === 'schedule' && appointmentScheduleDirty && ((!!appointmentDate && !scheduleTime) || (!appointmentDate && !!scheduleTime)))} label={label} onSave={() => void save()} onCancel={onCancel} />
       </div>
       {edit.recoveryMessage && <span className="shipment-container-ledger__recovery" role="status">{edit.recoveryMessage}</span>}
       {saveError && <span className="shipment-container-ledger__edit-error" role="alert">{saveError}</span>}
@@ -714,8 +716,8 @@ export function ShipmentContainerLedger({
                   </td>
                   <td data-label="Ghi chú" className={cellClassName(row.shipmentNotesEditable, 'notes')}>
                     {editableCell(row, 'notes', row.shipmentNotesEditable, <div className="shipment-container-ledger__multiline shipment-container-ledger__notes">
-                      {row.customerNotes && <strong>{row.customerNotes}</strong>}
-                      {row.operationalNotes && <span>{row.operationalNotes}</span>}
+                      {row.customerNotes && <strong>{displayNote(row.customerNotes)}</strong>}
+                      {row.operationalNotes && <span>{displayNote(row.operationalNotes)}</span>}
                       {!row.customerNotes && !row.operationalNotes && <span className="shipment-container-ledger__missing">—</span>}
                     </div>)}
                   </td>

@@ -27,6 +27,7 @@ import {
   cargoModeLabel,
   derivePrimaryShipmentSignal,
   directionLabel,
+  displayNote,
   formatAppointmentGroupLine,
   formatQuantity,
   noteLines,
@@ -167,8 +168,8 @@ export function CusShipmentRow({
           aria-label={`Sửa ô ghi chú lô hàng ${identity}`}
           onClick={() => onStartQuickEdit(item, 'notes')}
         >
-          {customerNoteLines.length > 0 && <span className="cus-note-preview__customer">{customerNoteLines.join(' ')}</span>}
-          {operationalNoteLines.length > 0 && <span className="cus-note-internal">{operationalNoteLines.join(' ')}</span>}
+          {customerNoteLines.length > 0 && <span className="cus-note-preview__customer">{displayNote(customerNoteLines.join(' '))}</span>}
+          {operationalNoteLines.length > 0 && <span className="cus-note-internal">{displayNote(operationalNoteLines.join(' '))}</span>}
           {customerNoteLines.length === 0 && operationalNoteLines.length === 0 && <span className="cus-note-preview__customer cus-note-preview__customer--empty">—</span>}
         </button>
       </td>

@@ -593,11 +593,11 @@ export function ShipmentCreateWorkspace() {
 
             <div className="csc-identity-grid__trade-direction" data-field-id="shipment-trade-direction"><SelectField id="shipment-trade-direction" label="Hình thức xuất nhập khẩu" required value={form.tradeDirection} onChange={(event) => update('tradeDirection', event.target.value as FormState['tradeDirection'])} disabled={Boolean(saving)} error={issueByField.get('shipment-trade-direction')} options={[{ value: '', label: '— Chọn hình thức —' }, { value: 'IMPORT', label: 'Nhập khẩu' }, { value: 'EXPORT', label: 'Xuất khẩu' }]} /></div>
 
-            <div className="csc-identity-grid__booking" data-field-id="shipment-booking-ref"><TextField id="shipment-booking-ref" label="Số Bill/Booking" required value={form.tradeDirection === 'IMPORT' ? form.blNumber : form.bookingRef} onChange={(event) => update(form.tradeDirection === 'IMPORT' ? 'blNumber' : 'bookingRef', event.target.value)} maxLength={100} placeholder={form.tradeDirection === 'IMPORT' ? 'Nhập số Bill (hàng Nhập)' : form.tradeDirection === 'EXPORT' ? 'Nhập số Booking (hàng Xuất)' : 'Chọn Nhập hoặc Xuất'} disabled={!form.tradeDirection || Boolean(saving)} error={issueByField.get('shipment-booking-ref')} warning={<ShipmentReferenceConflictWarning conflict={form.tradeDirection === 'IMPORT' ? billConflict : bookingConflict} fieldLabel={form.tradeDirection === 'IMPORT' ? 'Số Bill' : 'Số Booking'} />} /></div>
+            <div className="csc-identity-grid__booking" data-field-id="shipment-booking-ref"><TextField id="shipment-booking-ref" label="Số Bill/Booking" required value={form.tradeDirection === 'IMPORT' ? form.blNumber : form.bookingRef} onChange={(event) => update(form.tradeDirection === 'IMPORT' ? 'blNumber' : 'bookingRef', event.target.value)} maxLength={100} placeholder={form.tradeDirection === 'IMPORT' ? 'Nhập số Bill (hàng Nhập)' : form.tradeDirection === 'EXPORT' ? 'Nhập số Booking (hàng Xuất)' : 'Chọn Nhập hoặc Xuất'} disabled={!form.tradeDirection || Boolean(saving)} error={issueByField.get('shipment-booking-ref')} warning={(form.tradeDirection === 'IMPORT' ? billConflict : bookingConflict) ? <ShipmentReferenceConflictWarning conflict={form.tradeDirection === 'IMPORT' ? billConflict : bookingConflict} fieldLabel={form.tradeDirection === 'IMPORT' ? 'Số Bill' : 'Số Booking'} /> : undefined} /></div>
 
             {form.cargoMode === 'FCL' && (
               <div className="csc-identity-grid__shipping-line csc-shipping-line-picker" data-field-id="shipment-shipping-line">
-                <SearchableField id="shipment-shipping-line" label="Hãng tàu" value={form.shippingLineName} onChange={(value) => update('shippingLineName', value)} allowsCustomValue options={(catalogs.externalCarriers ?? []).map((carrier) => ({ value: carrier.name, label: carrier.name }))} placeholder="Gõ chọn hoặc nhập hãng tàu" disabled={Boolean(saving)} error={issueByField.get('shipment-shipping-line')} />
+                <SearchableField id="shipment-shipping-line" label="Hãng tàu" value={form.shippingLineName} onChange={(value) => update('shippingLineName', value)} allowsCustomValue options={(catalogs.externalCarriers ?? []).map((carrier) => ({ value: carrier.name, label: carrier.name }))} placeholder="Gõ chọn hoặc nhập hãng tàu" disabled={Boolean(saving)} error={issueByField.get('shipment-shipping-line')} searchable />
                 <button
                   ref={shippingLineAddButtonRef}
                   type="button"
@@ -611,7 +611,7 @@ export function ShipmentCreateWorkspace() {
             )}
 
             {/* SỐ TỜ KHAI */}
-            <div className="csc-identity-grid__declaration"><TextField label="Số tờ khai" value={form.declarationNumber} onChange={(event) => update('declarationNumber', event.target.value)} maxLength={100} disabled={Boolean(saving)} warning={<ShipmentReferenceConflictWarning conflict={declarationConflict} fieldLabel="Số tờ khai" />} /></div>
+            <div className="csc-identity-grid__declaration"><TextField label="Số tờ khai" value={form.declarationNumber} onChange={(event) => update('declarationNumber', event.target.value)} maxLength={100} disabled={Boolean(saving)} warning={declarationConflict ? <ShipmentReferenceConflictWarning conflict={declarationConflict} fieldLabel="Số tờ khai" /> : undefined} /></div>
 
           </div>
         </ShipmentCreateSection>
@@ -629,6 +629,7 @@ export function ShipmentCreateWorkspace() {
                 placeholder={form.isAdHoc ? 'Chọn hoặc gõ tên tuyến' : 'Gõ chọn'}
                 disabled={Boolean(saving) || (!form.isAdHoc && selectedOperationalSite?.routeId != null)}
                 error={issueByField.get('shipment-route')}
+                searchable
                 {...(form.isAdHoc ? { onCustomValue: routeCustomText } : {})}
               />
               {selectedOperationalSite?.routeId == null && (
@@ -657,6 +658,7 @@ export function ShipmentCreateWorkspace() {
                 hint={form.customerId && !sitesLoading && operationalSites.length === 0
                     ? <>Chưa có nhà máy.{' '}<button type="button" onClick={(e) => { e.preventDefault(); openCreateSiteDialog('FACTORY'); }} disabled={Boolean(saving)} style={{ border: 0, background: 'none', padding: 0, color: 'var(--accent, #2563eb)', fontWeight: 700, cursor: 'pointer', fontSize: 12 }}>Thêm mới</button></>
                     : undefined}
+                searchable
               />
               <div className="csc-site-picker__actions">
                 {form.operationalSiteId && (
@@ -801,6 +803,7 @@ export function ShipmentCreateWorkspace() {
                       placeholder="Chọn nhà máy"
                       disabled={!form.customerId || sitesLoading || Boolean(saving)}
                       error={issueByField.get(`container-${row.key}-factory`)}
+                      searchable
                     />
                   </ShipmentContainerCell>
                   <ShipmentContainerCell
@@ -822,6 +825,7 @@ export function ShipmentCreateWorkspace() {
                         placeholder="Chọn tuyến đường"
                         disabled={Boolean(saving) || factory?.routeId != null}
                         error={issueByField.get(`container-${row.key}-route`)}
+                        searchable
                       />
                       {factory?.routeId == null && (
                         <button
@@ -843,7 +847,7 @@ export function ShipmentCreateWorkspace() {
                     error={issueByField.get(`container-${row.key}-pickup-port`)}
                   >
                     <div className="csc-route-picker">
-                      <SearchableField id={`container-${row.key}-pickup-port`} label="Cảng nâng" hideLabel value={row.pickupPortId} onChange={(value) => updateContainer(row.key, 'pickupPortId', value)} options={portOptions} placeholder={form.isAdHoc ? 'Chọn hoặc gõ tên cảng' : 'Chọn cảng nâng'} disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-pickup-port`)} {...(form.isAdHoc ? { onCustomValue: (text: string) => portCustomText(row.key, 'pickupPortId', 'rawPickupPortName', text) } : {})} />
+                      <SearchableField id={`container-${row.key}-pickup-port`} label="Cảng nâng" hideLabel value={row.pickupPortId} onChange={(value) => updateContainer(row.key, 'pickupPortId', value)} options={portOptions} placeholder={form.isAdHoc ? 'Chọn hoặc gõ tên cảng' : 'Chọn cảng nâng'} disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-pickup-port`)} searchable {...(form.isAdHoc ? { onCustomValue: (text: string) => portCustomText(row.key, 'pickupPortId', 'rawPickupPortName', text) } : {})} />
                       <button
                         type="button"
                         className="csc-utility-button csc-utility-button--dashed csc-route-picker__add"
@@ -862,7 +866,7 @@ export function ShipmentCreateWorkspace() {
                     error={issueByField.get(`container-${row.key}-dropoff-port`)}
                   >
                     <div className="csc-route-picker">
-                      <SearchableField id={`container-${row.key}-dropoff-port`} label="Cảng hạ" hideLabel value={row.dropoffPortId} onChange={(value) => updateContainer(row.key, 'dropoffPortId', value)} options={portOptions} placeholder={form.isAdHoc ? 'Chọn hoặc gõ tên cảng' : 'Chọn cảng hạ'} disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-dropoff-port`)} {...(form.isAdHoc ? { onCustomValue: (text: string) => portCustomText(row.key, 'dropoffPortId', 'rawDropoffPortName', text) } : {})} />
+                      <SearchableField id={`container-${row.key}-dropoff-port`} label="Cảng hạ" hideLabel value={row.dropoffPortId} onChange={(value) => updateContainer(row.key, 'dropoffPortId', value)} options={portOptions} placeholder={form.isAdHoc ? 'Chọn hoặc gõ tên cảng' : 'Chọn cảng hạ'} disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-dropoff-port`)} searchable {...(form.isAdHoc ? { onCustomValue: (text: string) => portCustomText(row.key, 'dropoffPortId', 'rawDropoffPortName', text) } : {})} />
                       <button
                         type="button"
                         className="csc-utility-button csc-utility-button--dashed csc-route-picker__add"
@@ -912,6 +916,7 @@ export function ShipmentCreateWorkspace() {
                   hint={form.customerId && !sitesLoading && warehouseSites.length === 0
                       ? <>Chưa có kho cho khách hàng này.{' '}<button type="button" onClick={() => openCreateSiteDialog('WAREHOUSE')} disabled={Boolean(saving)} style={{ border: 0, background: 'none', padding: 0, color: 'var(--accent, #2563eb)', fontWeight: 700, cursor: 'pointer', fontSize: 12 }}>Thêm kho</button></>
                       : undefined}
+                  searchable
                 />
                 {!sitesLoading && form.customerId ? (
                   <button

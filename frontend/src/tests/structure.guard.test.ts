@@ -103,16 +103,13 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // the original behaviour; a future split (extract `useCustomerDialog`,
   // `usePortDialog`, `useRouteDialog` into shared hooks) should restore a
   // smaller ceiling.
-  // Raised 965 → 1007: master-data wave (factory-owns-route auto-fill + lock,
-  // 2026-09-07) grew the workspace past the old ceiling after the peer session
-  // landed; the pre-commit gate typechecks but does not run this guard, so the
-  // bump follows here. A future split (extract `useCustomerDialog`,
+  // Raised 965 → 1007 (master-data wave) → 1059 (ad-hoc intake wave),
+  // 2026-09-07. Merged with prod's type-to-search wave (970): the merged
+  // file adds `searchable` props beside the ad-hoc onCustomValue spreads.
+  // A future split (extract `useCustomerDialog`,
   // `usePortDialog`, `useRouteDialog` into shared hooks) should restore a
   // smaller ceiling.
-  // Raised 1007 → 1059: ad-hoc intake wave (Lệnh chạy ngoài checkbox +
-  // five creatable combobox wirings, 2026-09-07). The create surface is
-  // next in line for a dialog/cell extraction split.
-  'src/features/shipments/create/ShipmentCreateWorkspace.tsx': 1059,
+  'src/features/shipments/create/ShipmentCreateWorkspace.tsx': 1063,
   // Bumped to 411: 2026-09-07 customer feedback — the per-row "Xác nhận"
   // action column (inline save) so the user no longer has to press Enter
   // or hunt for the header "Hoàn tất" button after typing a container

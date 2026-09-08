@@ -232,6 +232,7 @@ describe('seedShipments — Wave 0 shipment + CUSTOMER seed', () => {
     const statusByRef = new Map<string, string>();
     for (const row of rows) {
       const ref = row.blNumber ?? row.bookingRef;
+      if (ref == null || row.status == null) continue;
       if (!statusByRef.has(ref)) statusByRef.set(ref, row.status);
     }
     for (const [ref, expected] of Object.entries(EXPECTED_STATUS)) {

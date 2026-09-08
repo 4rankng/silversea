@@ -75,7 +75,7 @@ function renderGrid(items: DispatchDetailPlanRow[], extraProps: Record<string, u
 }
 
 describe('DetailedPlanGrid', () => {
-  it('renders the 7 spec columns with multi-line typography', () => {
+  it('renders the 8 spec columns with multi-line typography', () => {
     const { container } = renderGrid([row()]);
 
     const headers = screen.getAllByRole('columnheader').map((th) => th.textContent);
@@ -86,6 +86,7 @@ describe('DetailedPlanGrid', () => {
       'Container',
       'Điều phối',
       'Phân loại',
+      'Tác vụ',
       'Ghi chú',
     ]);
 
@@ -119,6 +120,7 @@ describe('DetailedPlanGrid', () => {
       'Container',
       'Điều phối',
       'Phân loại',
+      'Tác vụ',
       'Ghi chú',
     ]);
   });
@@ -141,6 +143,7 @@ describe('DetailedPlanGrid', () => {
       'container',
       'assignment',
       'classification',
+      'task-tags',
       'notes',
     ];
 
@@ -151,7 +154,7 @@ describe('DetailedPlanGrid', () => {
     });
 
     expect(widths.reduce((total, width) => total + width, 0)).toBe(100);
-    expect(widths[columnNames.indexOf('classification')]).toBeGreaterThanOrEqual(9);
+    expect(widths[columnNames.indexOf('classification')]).toBeGreaterThanOrEqual(8);
     expect(css).toMatch(/\.detailed-plan-grid thead th\s*\{[^}]*line-height:\s*var\(--ops-table-header-line-height\);/);
     expect(css).toContain('@container (max-width: 900px)');
   });

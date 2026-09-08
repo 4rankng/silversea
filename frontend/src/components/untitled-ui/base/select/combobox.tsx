@@ -159,6 +159,32 @@ const ComboBoxValue = ({ size, shortcut, placeholder, shortcutClassName, icon: I
     );
 };
 
+/** Diacritic-insensitive text normalization so typing "que vo" matches
+ *  "Quế Võ" in the option list. */
+function normalizeSearchText(value: string): string {
+    return value
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/đ/g, "d")
+        .replace(/Đ/g, "D")
+        .toLocaleLowerCase("vi")
+        .trim();
+}
+
+/** ListBox that narrows `items` by the combobox's current input text
+ *  (diacritic-insensitive). React-aria never filters for us; without this
+ *  the option list shows the whole catalog no matter what the user types. */
+const FilteredListBox = ({ items, children, ...rest }: AriaListBoxProps<SelectItemType> & { items?: SelectItemType[] }) => {
+    const state = useContext(ComboBoxStateContext);
+    const query = normalizeSearchText(state?.inputValue ?? "");
+    const filtered = query && items
+        ? items.filter((item) => normalizeSearchText(
+            `${item.label ?? ""} ${(item as { supportingText?: string }).supportingText ?? ""}`,
+        ).includes(query))
+        : items;
+    return <AriaListBox {...rest} items={filtered}>{children}</AriaListBox>;
+};
+
 export const ComboBox = ({
     placeholder = "Search",
     shortcut = false,
@@ -194,7 +220,11 @@ export const ComboBox = ({
 
     return (
         <SelectContext.Provider value={{ size }}>
-            <AriaComboBox menuTrigger="focus" {...otherProps}>
+            <AriaComboBox
+                menuTrigger="focus"
+                {...otherProps}
+                selectedKey={otherProps.selectedKey}
+            >
                 {(state) => (
                     <div
                         data-input-size={size}
@@ -230,9 +260,9 @@ export const ComboBox = ({
                         />
 
                         <Popover size={size} triggerRef={placeholderRef} style={{ width: popoverWidth }} className={otherProps.popoverClassName}>
-                            <AriaListBox items={items} className="size-full outline-hidden">
+                            <FilteredListBox items={items} className="size-full outline-hidden">
                                 {children}
-                            </AriaListBox>
+                            </FilteredListBox>
                         </Popover>
 
                         {otherProps.hint && (
