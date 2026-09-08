@@ -377,7 +377,7 @@ describe('duplicate Bill/Booking guard (2026-09-07 regression)', () => {
 
     const create = await authedFetch(`/${shipmentBody.id}/declarations`, {
       method: 'POST',
-      body: JSON.stringify({ declarationNumber: `TK-CASE-${suffix}`, scope: 'SINGLE' }),
+      body: JSON.stringify({ declarationNumber: `TK-CASE-${suffix}`, scope: 'SINGLE', _requestId: crypto.randomUUID() }),
     });
     assert.equal(create.status, 201);
     const declBody = await create.json() as { id: number };
@@ -390,7 +390,7 @@ describe('duplicate Bill/Booking guard (2026-09-07 regression)', () => {
 
     const paddedLower = await authedFetch(`/${secondBody.id}/declarations`, {
       method: 'POST',
-      body: JSON.stringify({ declarationNumber: `  tk-case-${suffix}  `, scope: 'SINGLE' }),
+      body: JSON.stringify({ declarationNumber: `  tk-case-${suffix}  `, scope: 'SINGLE', _requestId: crypto.randomUUID() }),
     });
     assert.equal(paddedLower.status, 409, 'padded lowercase declaration must collide');
     const body = await paddedLower.json() as { code?: string };
