@@ -297,34 +297,7 @@ function ContainerLineRow({
       ) : <td data-label="Giờ hẹn đóng/trả" className="cus-container-cell"><strong>{formatDateTimeShort(line.customerAppointmentAt)}</strong></td>}
       {operationalEditable ? (
         <td data-label="Thao tác" className="cus-container-actions">
-          {dirty ? (
-            <div className="cus-container-actions__group" role="group" aria-label={`Thao tác lưu cho container ${line.containerNumber || line.ordinal}`}>
-              <button
-                type="button"
-                className="btn btn--primary btn--sm cus-container-confirm"
-                onClick={() => void save()}
-                disabled={saving}
-                aria-label={`Lưu thay đổi cho container ${line.containerNumber || line.ordinal}`}
-                title="Lưu (Enter cũng hoạt động)"
-              >
-                <Check size={14} aria-hidden="true" />
-                <span>Lưu</span>
-              </button>
-              <button
-                type="button"
-                className="btn btn--ghost btn--sm cus-container-revert"
-                onClick={discardDraft}
-                disabled={saving}
-                aria-label={`Bỏ thay đổi cho container ${line.containerNumber || line.ordinal}`}
-                title="Bỏ thay đổi"
-              >
-                <RotateCcw size={14} aria-hidden="true" />
-                <span>Hủy</span>
-              </button>
-            </div>
-          ) : saving ? (
-            <span className="cus-container-actions__status" role="status" aria-live="polite">Đang lưu…</span>
-          ) : null}
+          {saving && <span className="cus-container-actions__status" role="status" aria-live="polite">Đang lưu…</span>}
           {saveError && <p className="cus-container-actions__error" role="alert">{saveError}</p>}
         </td>
       ) : <td aria-hidden="true" />}
