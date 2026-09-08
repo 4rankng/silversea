@@ -40,7 +40,9 @@ COPY frontend/public frontend/public
 COPY frontend/src frontend/src
 
 # Build frontend (vite build → frontend/dist)
+# pnpm build = vite build only (type-check runs in CI via build:check)
 RUN --mount=type=cache,target=/tmp/.vite-cache,id=frontend-vite \
+    --mount=type=cache,target=/app/frontend/node_modules/.cache,id=frontend-nm-cache \
     cd frontend && NODE_OPTIONS="--max-old-space-size=8192" pnpm build
 
 # ── Stage 2: Serve ───────────────────────────────────────────────────────────

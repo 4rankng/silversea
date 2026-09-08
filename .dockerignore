@@ -18,12 +18,10 @@ coverage/
 **/coverage/
 dist/
 **/dist/
-backend/src/tests/
+backend/
 **/*.test.ts
 **/*.test.tsx
-backend/drizzle/meta/*_snapshot.json
 scripts/
-backend/scripts/
 *.tsbuildinfo
 .DS_Store
 plans/
