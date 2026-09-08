@@ -456,3 +456,26 @@ is the office staff's job.
   test-rig quirk, not a real bug, but it is documented here so future
   E2E scripts know to use a forced click or to scroll the button into
   view first.
+
+---
+
+## QA Matrix v2.0 Acceptance Criteria (2026-09-08)
+
+### Flow 1 Additions — Hãng tàu & Responsive Form
+1. **CUS-SHIP-20 — Shipping line 20 options + free text (TC_LINE_01, TC_LINE_02)**
+   - Dropdown lists 20 standard lines + supplier lines.
+   - Custom typing allowed without catalog restriction.
+   - Inline "+ Thêm hãng tàu" button opens partner modal.
+2. **CUS-SHIP-21 — Responsive & Upward popover placement (TC_RESP_01, TC_RESP_03)**
+   - Viewport 1366x768 has zero horizontal scroll.
+   - Popovers for Cảng nâng, Cảng hạ, Tuyến đường flip upward so "+ Thêm..." buttons below are never covered.
+
+### Flow 2 Additions — Container Ledger Schedule Save UX
+1. **CUS-CONT-01 — Prominent "Lưu" (green) and "Hủy" buttons (TC_BTN_01, TC_BTN_02, TC_BTN_03)**
+   - Inline schedule editor has clear brand green Save button and Cancel button.
+   - Supports keyboard Enter and mouse click.
+   - Fires Vietnamese toast: "Cập nhật lịch trình container thành công!".
+2. **CUS-CONT-02 — Unassigned container schedule authority (TC_UNAS_01, TC_UNAS_02, TC_UNAS_03)**
+   - ADMIN and MANAGER can update schedule on unassigned containers even if shipment is DISPATCHED.
+   - Blocked with 409 Conflict citing tripCode if container is already assigned to an active trip.
+

@@ -517,3 +517,23 @@ The dispatcher has the same `shipments/new` permission as CUS (per
   "publish is blocked when a tractor lacks a paired trailer, with a
   clear Vietnamese error". A real flow walkthrough is queued as a
   follow-up QA pass.
+
+---
+
+## QA Matrix v2.0 Acceptance Criteria (2026-09-08)
+
+### Flow 1 Additions — Combined Dispatch 20ft Rule (TC_COMB_01, TC_COMB_02, TC_COMB_03)
+1. **DISP-COMB-01 — 20ft container combination allowed**
+   - Checkbox "Đóng kết hợp (kẹp chuyến)" enabled and toggleable for 20DC, 20OT, 20FR.
+   - Saves atomically with fulfillment plan draft.
+2. **DISP-COMB-02 — 40ft/45ft container combination blocked**
+   - Checkbox disabled and forced unchecked for 40HC, 40DC, 45ft.
+   - Explanatory tooltip: "Chỉ container 20 feet mới được đóng kết hợp (kẹp chuyến)".
+
+### Flow 2 Additions — Task Tag Pool & Quick Select (TC_TAG_01 - TC_TAG_04)
+1. **DISP-TAG-01 — 9 Task tags active including XƯỞNG 2**
+   - All 9 tags rendered: Đảo vỏ, Đặt đầu, Đặt đuôi, Di động, Giao thẳng, Gửi bãi, Lấy vỏ ICD đi đóng, Trả vỏ, XƯỞNG 2.
+   - Clicking chip toggles active state.
+   - Preserves manual free text joined by semicolon.
+   - Inline "+ Thêm tag" button available.
+

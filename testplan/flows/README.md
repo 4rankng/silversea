@@ -39,6 +39,7 @@ Mới tạo (NEW) → Đã phân xe (DISPATCHED) → Đang chạy (IN_TRANSIT) �
 | 7 | **RBAC & Phân quyền** | Tất cả 8 vai trò | — | `07-rbac-phan-quyen.md` |
 | 8 | **Cổng Khách hàng** | Khách hàng (CUSTOMER) | — | `08-customer-portal.md` |
 | 9 | **E2E & Edge Cases** | CUS, Điều vận, Admin | Tất cả | `09-e2e-regression.md` |
+| 10 | **Kiểm thử Bổ sung & Cập nhật v2.0 (QA Matrix v2.0)** | CUS, Điều vận, Admin, Manager | Tất cả | `10-qa-matrix-v2-enhancements.md` |
 
 ---
 

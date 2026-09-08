@@ -958,10 +958,107 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
 - **Kết quả mong đợi (Pass):** mọi picker mở đúng hướng (trên khi thiếu chỗ), không che nút + Thêm / nút cùng hàng; danh sách có viền và scroll đúng; một số picker hiển thị chip selection trên trigger.
 - **Bằng chứng:** /tmp/facet-flip-verified.png (popover placement=top, 49 options), /tmp/b1-after-fix-flip.png (flip phía trên, fully visible), measurement JSON trong journals.
 
+---
+
+## 2.13 — Đóng kết hợp (kẹp chuyến) chỉ cho Container 20 feet (QA Matrix v2.0)
+
+### TC_COMB_01 — Vô hiệu hóa checkbox kẹp chuyến đối với Container 40HC, 40DC, 45ft
+- **Vai trò:** `dieuvan` (DISPATCHER), `admin`
+- **Mức độ:** P1
+- **Thiết bị:** Desktop (1440 × 900)
+- **Tiền điều kiện:** Mở `/dispatch-detail` có container loại 40HC / 40DC / 45ft (ví dụ cont `MAGU6804966 40'HC`, fulfillment 159).
+- **Các bước:**
+  1. Nhấp mở dialog "Chỉnh sửa điều phối" của container 40HC.
+  2. Quan sát ô checkbox "Đóng kết hợp (kẹp chuyến)".
+  3. Rê chuột lên checkbox để xem tooltip giải thích.
+- **Kết quả mong đợi (Pass):**
+  - Checkbox ở trạng thái vô hiệu hóa (`disabled = true`) và không được tích chọn (`checked = false`).
+  - Rê chuột hiển thị tooltip: "Chỉ container 20 feet mới được đóng kết hợp (kẹp chuyến)".
+- **Bằng chứng:** `qa/2026-09-08_phan3_dispatch-dialog.png`
+- **Regression ID:** REG-COMB-01-20260908
+
+### TC_COMB_02 — Cho phép bật kẹp chuyến với Container 20 feet (20DC, 20OT, 20FR)
+- **Vai trò:** `dieuvan`, `admin`
+- **Mức độ:** P1
+- **Tiền điều kiện:** Mở dialog điều phối container 20ft (ví dụ cont `MAGU2416202 20'DC`, fulfillment 118).
+- **Các bước:**
+  1. Quan sát ô checkbox "Đóng kết hợp (kẹp chuyến)".
+  2. Click chuột vào checkbox để bật/tắt.
+- **Kết quả mong đợi (Pass):**
+  - Checkbox ở trạng thái khả dụng (`disabled = false`).
+  - Cho phép tích chọn và bỏ chọn bình thường.
+- **Bằng chứng:** `qa/2026-09-08_phan6_task-tags.png`
+- **Regression ID:** REG-COMB-02-20260908
+
+### TC_COMB_03 — Lưu nguyên tử cờ isCombined vào bản ghi fulfillment plan
+- **Vai trò:** `dieuvan`, `admin`
+- **Mức độ:** P1
+- **Các bước:**
+  1. Tích chọn "Đóng kết hợp (kẹp chuyến)" cho container 20ft.
+  2. Nhấn "Lưu kế hoạch".
+  3. Tải lại trang hoặc mở lại dialog container đó.
+- **Kết quả mong đợi (Pass):**
+  - Cờ `isCombined = true` được lưu vào draft plan và phản ánh đúng trạng thái khi mở lại.
+- **Bằng chứng:** Vitest test suite `DispatchPlanEditorCell.test.tsx` (14/14 tests pass)
+- **Regression ID:** REG-COMB-03-20260908
+
+---
+
+## 2.14 — Bộ thẻ tác vụ điều phối nhanh 9 tags bao gồm "XƯỞNG 2" (QA Matrix v2.0)
+
+### TC_TAG_01 — Hiển thị đầy đủ 9 thẻ tag tác vụ chuyên biệt
+- **Vai trò:** `dieuvan`, `admin`
+- **Mức độ:** P1
+- **Tiền điều kiện:** Mở dialog điều phối trên `/dispatch-detail`.
+- **Các bước:**
+  1. Quan sát khu vực "Tác vụ điều phối" trong dialog.
+  2. Đếm và kiểm tra tên các thẻ tag hiện diện.
+- **Kết quả mong đợi (Pass):**
+  - Hiển thị đầy đủ 9 chip tag: `["Đảo vỏ", "Đặt đầu", "Đặt đuôi", "Di động", "Giao thẳng", "Gửi bãi", "Lấy vỏ ICD đi đóng", "Trả vỏ", "XƯỞNG 2"]`.
+  - Tag `XƯỞNG 2` hiển thị đầy đủ, không bị thiếu.
+- **Bằng chứng:** `qa/2026-09-08_phan6_task-tags.png`
+- **Regression ID:** REG-TAG-01-20260908
+
+### TC_TAG_02 — Toggle chọn và bỏ chọn thẻ tag
+- **Vai trò:** `dieuvan`, `admin`
+- **Mức độ:** P1
+- **Các bước:**
+  1. Nhấp chuột vào chip `XƯỞNG 2`.
+  2. Quan sát màu sắc và trạng thái của chip.
+  3. Nhấp lại lần nữa.
+- **Kết quả mong đợi (Pass):**
+  - Khi được chọn: Chip chuyển sang trạng thái active với viền/nền nổi bật.
+  - Khi nhấp lại: Chip bỏ chọn và trở về trạng thái bình thường.
+- **Bằng chứng:** `qa/2026-09-08_phan6_task-tags.png`
+- **Regression ID:** REG-TAG-02-20260908
+
+### TC_TAG_03 — Kết hợp ghi chú văn bản tự do song song với thẻ tag
+- **Vai trò:** `dieuvan`, `admin`
+- **Mức độ:** P2
+- **Các bước:**
+  1. Nhập văn bản vào ô Ghi chú: "Hàng lạnh bảo quản ở 5°C".
+  2. Chọn thêm thẻ tag "XƯỞNG 2".
+  3. Quan sát nội dung ghi chú.
+- **Kết quả mong đợi (Pass):**
+  - Cả văn bản tự do và tag đã chọn được bảo toàn và ghép nối bằng dấu chấm phẩy (`; `), không bị ghi đè hay mất dữ liệu.
+- **Bằng chứng:** `qa/2026-09-08_qa-matrix-v2_ui-driver.log`
+- **Regression ID:** REG-TAG-03-20260908
+
+### TC_TAG_04 — Nút "+ Thêm tag" bổ sung tag mới vào catalog
+- **Vai trò:** `dieuvan`, `admin`
+- **Mức độ:** P2
+- **Các bước:**
+  1. Quan sát cuối danh sách tag có nút "+ Thêm tag".
+  2. Nhấp vào nút "+ Thêm tag".
+- **Kết quả mong đợi (Pass):**
+  - Mở modal hoặc ô nhập thêm tag mới trực tiếp, sẵn sàng mở rộng danh mục tác vụ điều phối.
+- **Bằng chứng:** `qa/2026-09-08_phan6_task-tags.png`
+- **Regression ID:** REG-TAG-04-20260908
 
 ---
 
 ## Bảng nghiệm thu — Luồng Điều xe (Điều vận)
+
 
 | Ngày thử | Mã TC | Người thử | Kết quả | Ghi chú | Bằng chứng |
 |-----------|-------|-----------|---------|---------|------------|

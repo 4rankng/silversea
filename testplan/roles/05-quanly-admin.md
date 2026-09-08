@@ -532,6 +532,18 @@ Same as `04-ketoan.md` Flow 12.
 - **Đã chạy 2026-09-06 (local, UI-driven): PASS** — artifacts `qa/2026-09-06_factory-customer-creation/`
   (flow A tạo nhà máy; flow D tạo khách hàng config với tên ngắn + hạn TT 30 ngày, POST 201).
 
+---
+
+## Ghi chú hồi quy 2026-09-08 — Quyền sửa lịch trình Container chưa gán xe (QA Matrix v2.0)
+
+- **Nguồn:** Báo cáo kiểm thử kỹ thuật QA Trung Kiên & Tiệp Vũ (2026-09-08).
+- **Hành vi mới:**
+  - `ADMIN` và `MANAGER` (Giám đốc) có thẩm quyền cập nhật ngày hẹn/ngày đóng hàng (`customerAppointmentAt`) cho container chưa gán xe (`tripId == null`), ngay cả khi lô hàng đang ở trạng thái `DISPATCHED` hoặc `IN_PROGRESS` (`TC_UNAS_01`, `TC_UNAS_02`).
+  - Nếu container đã được gán vào chuyến xe thực tế (`tripId != null`), hệ thống kiên quyết từ chối với HTTP 409 Conflict: *"Container đã gắn chuyến xe (TRP-xxx). Vui lòng đổi lịch trên chuyến xe hoặc gỡ phân xe trước khi sửa."* (`TC_UNAS_03`).
+- **Minh chứng:** `qa/2026-09-08_qa-matrix-v2_ui-driver.log`, unit test `cus-shipment-workspace.test.ts`.
+
+---
+
 ## Negative / RBAC table (MANAGER + ADMIN)
 
 | Action                                  | MANAGER | ADMIN | Other roles |

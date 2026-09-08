@@ -1075,3 +1075,166 @@
   - Tên nhà máy bị thiếu hoặc sai so với dữ liệu thực tế.
 - **Bằng chứng:** ảnhcreenshot Tổng quan lô hàng + ảnh Chi tiết lô hàng so sánh cùng tên nhà máy
 - **Regression ID:** REG-FNAME-20260907
+
+---
+
+## 1.15 — Binding dữ liệu Dropdown "Hãng tàu" tại Form tạo mới lô hàng (QA Matrix v2.0)
+
+### TC_LINE_01 — Binding danh sách 20 hãng tàu chuẩn quốc tế và đối tác nhà cung cấp
+- **Vai trò:** `cus`, `admin`
+- **Mức độ:** P1
+- **Tiền điều kiện:** Đăng nhập hệ thống, mở form tạo lô mới `/shipments/new`.
+- **Các bước:**
+  1. Click vào ô input "Hãng tàu".
+  2. Quan sát danh sách gợi ý mở ra.
+  3. Gõ tìm kiếm thử "Maersk", "MSC", "COSCO", "Evergreen".
+- **Kết quả mong đợi (Pass):**
+  - Dropdown hiển thị đầy đủ tối thiểu 20 hãng tàu phổ biến quốc tế kết hợp cùng các đối tác hãng tàu trong cơ sở dữ liệu.
+  - Tìm kiếm và lọc mượt mà theo ký tự gõ vào.
+- **Bằng chứng:** `qa/2026-09-08_phan1_hang-tau-dropdown.png`
+- **Regression ID:** REG-LINE-01-20260908
+
+### TC_LINE_02 — Cho phép nhập tự do tên hãng tàu mới
+- **Vai trò:** `cus`, `admin`
+- **Mức độ:** P2
+- **Các bước:**
+  1. Trong ô Hãng tàu, gõ trực tiếp một tên hãng tàu tùy ý (ví dụ: "NEW_SHIPPING_LINE_EXP").
+  2. Chuyển sang ô nhập liệu khác hoặc bấm Lưu.
+- **Kết quả mong đợi (Pass):**
+  - Input giữ nguyên chuỗi người dùng nhập, không bị xóa trắng hay ép buộc chọn từ catalog.
+- **Bằng chứng:** `qa/2026-09-08_phan1_hang-tau-dropdown.png`
+- **Regression ID:** REG-LINE-02-20260908
+
+### TC_LINE_03 — Nút "+ Thêm hãng tàu" bên dưới ô nhập
+- **Vai trò:** `cus`, `admin`
+- **Mức độ:** P2
+- **Các bước:**
+  1. Quan sát khu vực trường Hãng tàu.
+  2. Bấm vào nút "+ Thêm hãng tàu".
+- **Kết quả mong đợi (Pass):**
+  - Nút "+ Thêm hãng tàu" hiển thị trực quan ngay dưới ô input.
+  - Nhấp nút mở modal thêm mới nhà cung cấp / đối tác hãng tàu nếu cần lưu dài hạn.
+- **Bằng chứng:** `qa/2026-09-08_phan1_hang-tau-dropdown.png`
+- **Regression ID:** REG-LINE-03-20260908
+
+---
+
+## 1.16 — UI Responsive & Hướng mở Popover form tạo lô (QA Matrix v2.0)
+
+### TC_RESP_01 — Đảm bảo không tràn màn hình ngang ở độ phân giải 1366 × 768
+- **Vai trò:** `cus`, `admin`
+- **Mức độ:** P1
+- **Thiết bị:** Desktop 1366 × 768 (độ phân giải văn phòng phổ biến)
+- **Các bước:**
+  1. Đặt viewport trình duyệt về 1366 × 768, mở `/shipments/new`.
+  2. Kiểm tra thanh cuộn ngang của trang (`window.scrollX` / `scrollWidth`).
+- **Kết quả mong đợi (Pass):**
+  - Giao diện vừa vặn hoàn toàn màn hình, `document.documentElement.scrollWidth <= window.innerWidth`.
+  - Không xuất hiện horizontal scrollbar ngoài ý muốn; các trường và nút "+ Thêm" không bị xô lệch.
+- **Bằng chứng:** `qa/2026-09-08_phan2_responsive-1366.png`
+- **Regression ID:** REG-RESP-01-20260908
+
+### TC_RESP_02 — Hiển thị chuẩn mực ở độ phân giải 1920 × 1080 (Full HD)
+- **Vai trò:** `cus`, `admin`
+- **Mức độ:** P1
+- **Thiết bị:** Desktop 1920 × 1080
+- **Các bước:**
+  1. Đặt viewport 1920 × 1080, mở `/shipments/new`.
+  2. Quan sát bố cục form và bảng danh sách container.
+- **Kết quả mong đợi (Pass):**
+  - Bố cục dàn đều, ngay ngắn, không bị méo mó giao diện.
+- **Bằng chứng:** `qa/2026-09-08_phan2_responsive-1920.png`
+- **Regression ID:** REG-RESP-02-20260908
+
+### TC_RESP_03 — Popover mở lên trên không đè nút "+ Thêm..." kề dưới
+- **Vai trò:** `cus`, `admin`
+- **Mức độ:** P1
+- **Các bước:**
+  1. Tại form tạo lô hàng, click mở dropdown Cảng nâng, Cảng hạ, Tuyến đường.
+  2. Quan sát hướng mở của popover danh sách chọn.
+- **Kết quả mong đợi (Pass):**
+  - Popover mở theo hướng bung lên trên (`popoverPlacement="top"`).
+  - Nút "+ Thêm..." nằm ngay bên dưới trường chọn hoàn toàn không bị che khuất và click được bình thường.
+- **Bằng chứng:** `qa/2026-09-08_cus-create-popover-flip_ui-driven.log`
+- **Regression ID:** REG-RESP-03-20260908
+
+---
+
+## 1.17 — Hiển thị Nút "Lưu" và "Hủy" trên Bảng kê container (QA Matrix v2.0)
+
+### TC_BTN_01 — Nút "Lưu" (xanh thương hiệu) & "Hủy" trực quan tại ô sửa lịch
+- **Vai trò:** `cus`, `admin`
+- **Mức độ:** P1
+- **Thiết bị:** Desktop (1440 × 900)
+- **Các bước:**
+  1. Mở Bảng kê container (`/shipments/containers`).
+  2. Click ô Ngày giao / Giờ giao hoặc bấm icon sửa lịch trình của container.
+  3. Quan sát cụm điều khiển submit.
+- **Kết quả mong đợi (Pass):**
+  - Hiển thị rõ ràng nút "Lưu" với màu xanh thương hiệu (`bg-brand-solid text-white`) và nút "Hủy" kế bên.
+  - Người dùng không phải băn khoăn tìm cách lưu thay đổi.
+- **Bằng chứng:** `qa/2026-09-08_phan4_modal-lich-giao.png`
+- **Regression ID:** REG-BTN-01-20260908
+
+### TC_BTN_02 — Hỗ trợ lưu bằng cả phím Enter và Click chuột
+- **Vai trò:** `cus`, `admin`
+- **Mức độ:** P1
+- **Các bước:**
+  1. Sửa ngày giao cho container A, bấm phím `Enter` trên bàn phím.
+  2. Sửa ngày giao cho container B, nhấp chuột vào nút "Lưu".
+- **Kết quả mong đợi (Pass):**
+  - Cả 2 thao tác đều lưu thành công giá trị lịch trình mới vào hệ thống.
+- **Regression ID:** REG-BTN-02-20260908
+
+### TC_BTN_03 — Toast thông báo cập nhật thành công bằng tiếng Việt
+- **Vai trò:** `cus`, `admin`
+- **Mức độ:** P2
+- **Các bước:**
+  1. Nhấn Lưu cập nhật lịch trình.
+  2. Quan sát góc thông báo (toast) trên màn hình.
+- **Kết quả mong đợi (Pass):**
+  - Xuất hiện toast màu xanh thông báo: "Cập nhật lịch trình container thành công!".
+- **Regression ID:** REG-BTN-03-20260908
+
+---
+
+## 1.18 — Phân quyền cập nhật lịch trình Container chưa gán xe (QA Matrix v2.0)
+
+### TC_UNAS_01 — Quyền ADMIN cập nhật lịch trình container chưa gán xe
+- **Vai trò:** `admin`
+- **Mức độ:** P1
+- **Tiền điều kiện:** Lô hàng đang ở trạng thái `DISPATCHED` hoặc `IN_PROGRESS`, có container chưa gán chuyến (`tripId == null`).
+- **Các bước:**
+  1. Đăng nhập tài khoản `admin`.
+  2. Cập nhật `customerAppointmentAt` cho container chưa gán xe đó.
+  3. Bấm Lưu.
+- **Kết quả mong đợi (Pass):**
+  - Request thành công với HTTP 200 OK.
+  - Cơ sở dữ liệu ghi nhận ngày giờ mới trong cột `shipment_containers.customer_appointment_at`.
+- **Bằng chứng:** `qa/2026-09-08_qa-matrix-v2_ui-driver.log` (HTTP 200 OK, cont id=14592)
+- **Regression ID:** REG-UNAS-01-20260908
+
+### TC_UNAS_02 — Quyền MANAGER cập nhật lịch trình container chưa gán xe
+- **Vai trò:** `giamdoc` (MANAGER)
+- **Mức độ:** P1
+- **Các bước:**
+  1. Đăng nhập tài khoản `giamdoc`.
+  2. Thực hiện cập nhật lịch hẹn cho container chưa gán chuyến xe.
+  3. Bấm Lưu.
+- **Kết quả mong đợi (Pass):**
+  - Request trả về HTTP 200 OK, lịch được lưu chuẩn xác.
+- **Bằng chứng:** `qa/2026-09-08_qa-matrix-v2_ui-driver.log` (HTTP 200 OK, cont id=14592)
+- **Regression ID:** REG-UNAS-02-20260908
+
+### TC_UNAS_03 — Chặn cập nhật lịch khi container đã có chuyến xe thực tế
+- **Vai trò:** `admin`, `giamdoc`, `cus`
+- **Mức độ:** P1
+- **Tiền điều kiện:** Container đã được phân chuyến xe (`tripId != null`, ví dụ chuyến `TRP-202608-0008`).
+- **Các bước:**
+  1. Cố gắng cập nhật ngày giao cho container này qua API hoặc giao diện bảng kê.
+- **Kết quả mong đợi (Pass):**
+  - Hệ thống chặn lại ngay lập tức với mã lỗi HTTP 409 Conflict.
+  - Thông báo lỗi rõ ràng bằng tiếng Việt: "Container đã gắn chuyến xe (TRP-202608-0008). Vui lòng đổi lịch trên chuyến xe hoặc gỡ phân xe trước khi sửa."
+- **Bằng chứng:** `qa/2026-09-08_qa-matrix-v2_ui-driver.log` (HTTP 409 Conflict)
+- **Regression ID:** REG-UNAS-03-20260908
+
