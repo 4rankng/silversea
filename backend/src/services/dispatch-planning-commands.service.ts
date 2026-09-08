@@ -17,6 +17,7 @@ import { ensureShipmentFulfillmentsInTx } from './shipment-fulfillment.service';
 import { transitionShipmentStatus } from './shipment.service';
 import { createTrip } from './trip-mutations.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
+import { completeExternalCarrierTrip } from './trip-external-close.service';
 
 
 import { and, count, eq, gt, inArray, isNotNull, isNull, lt, ne, or, sql } from 'drizzle-orm';
@@ -472,10 +473,13 @@ export async function issueOrderCreateOrUpdate(
     }
     externalPlateNumber = carrierVehicle?.licensePlate
       ?? trimBounded(input.externalPlateNumber, 'Biển số xe ngoài', 20);
+    // Driver identity is optional since 2026-09-08: external carriers don't
+    // use the driver app, so the name/phone are informational only — the trip
+    // is completed by dispatch/CUS on the driver's behalf (trips complete-external).
     externalDriverName = trimBounded(input.externalDriverName, 'Tên tài xế ngoài', 100);
     externalDriverPhone = trimBounded(input.externalDriverPhone, 'Số điện thoại tài xế ngoài', 20);
-    if (!externalPlateNumber || !externalDriverName) {
-      throw new ApiError(400, 'Điều xe ngoài phải nhập biển số và tên tài xế.');
+    if (!externalPlateNumber) {
+      throw new ApiError(400, 'Điều xe ngoài phải có biển số xe.');
     }
   }
 
@@ -756,3 +760,35 @@ export async function reassignIssuedDispatchWriteCommand(input: IssueFulfillment
 // unlike listDispatchQueue there is NO accepted-handoff join here.
 
 export const DISPATCH_DETAIL_PLAN_CARRIER_TYPES = ['OWN', 'EXTERNAL'] as const;
+
+export interface CompleteExternalCarrierDispatchOrderInput {
+  fulfillmentId: number;
+  expectedTripVersion?: number;
+  actor: { userId: number; role: Role };
+}
+
+export async function completeExternalCarrierDispatchOrder(
+  input: CompleteExternalCarrierDispatchOrderInput,
+) {
+  const [liveTrip] = await db.select({ id: s.trips.id })
+    .from(s.trips)
+    .where(and(
+      eq(s.trips.fulfillmentId, input.fulfillmentId),
+      ne(s.trips.status, TripStatus.CANCELED),
+      isNull(s.trips.deletedAt),
+    ))
+    .limit(1);
+  if (!liveTrip) {
+    throw new ApiError(404, 'Không tìm thấy chuyến đi cho tác vụ này.');
+  }
+
+  const { trip, replayed } = await completeExternalCarrierTrip({
+    tripId: liveTrip.id,
+    actorUserId: input.actor.userId,
+    actorRole: input.actor.role,
+    expectedVersion: input.expectedTripVersion,
+  });
+
+  return { ok: true, tripId: trip.tripId, fulfillmentId: input.fulfillmentId, replayed };
+}
+
