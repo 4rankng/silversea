@@ -724,6 +724,33 @@ export const SUPPLIER_TYPE_LABELS: Record<SupplierType, string> = {
   [SupplierType.FUEL]: 'Nhiên liệu',
 };
 
+/**
+ * Standard container shipping lines operating in Vietnam (Hải Phòng, Cát Lái, Cái Mép).
+ * Used as standard suggestions for shipment creation and container tracking.
+ */
+export const DEFAULT_SHIPPING_LINES = Object.freeze([
+  'Maersk',
+  'MSC',
+  'COSCO',
+  'CMA CGM',
+  'Hapag-Lloyd',
+  'ONE',
+  'Evergreen',
+  'OOCL',
+  'Yang Ming',
+  'Wan Hai',
+  'SITC',
+  'ZIM',
+  'HMM',
+  'PIL',
+  'KMTC',
+  'TS Lines',
+  'Sinokor',
+  'Heung-A',
+  'RCL',
+  'Samudera',
+] as const);
+
 // ─── Dispatch planning ──────────────────────────────────────────────────────────
 
 // Dispatch-zone taxonomy is DB-owned (dispatch_zones table, seeded) — codes

@@ -29,6 +29,7 @@ export {
   TIRES,
   CustomerAccountType, SupplierType, SUPPLIER_TYPES, SUPPLIER_TYPE_LABELS,
   DISPATCH_CLASSIFICATIONS, DISPATCH_CLASSIFICATION_LABELS,
+  DEFAULT_SHIPPING_LINES,
 } from './constants';
 
 export type { PushAudience, TireStatus, NoInvoiceEvidenceType, NoInvoiceApprovalTitle, DispatchClassification } from './constants';

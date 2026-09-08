@@ -7,6 +7,7 @@ import * as s from '../db/schema';
 import { eq, isNull, desc, and, lte, ne, inArray } from 'drizzle-orm';
 import { cacheGet, cacheInvalidate } from '../lib/redis';
 import { ApiError } from '../errors';
+import { DEFAULT_SHIPPING_LINES } from '@tingting/shared';
 import { normalizeTaxCode } from './legal-partner.service';
 import { buildNoInvoicePolicySnapshot } from './no-invoice-disbursement.service';
 import { resolveTableFreightPrice } from './pricing.service';
@@ -105,6 +106,13 @@ export async function getBootstrapData() {
       ports: portsList,
       forwarderExpenseTypes: activeForwarderExpenseTypes,
       businessUnits: businessUnitsList,
+      shippingLines: (() => {
+        const supplierShippingLines = suppliersList
+          .filter((sup) => sup.status === 'ACTIVE' && (sup.types?.includes('SHIPPING_LINE') || sup.primaryType === 'SHIPPING_LINE'))
+          .map((sup) => sup.shortName || sup.name);
+        const set = new Set<string>([...DEFAULT_SHIPPING_LINES, ...supplierShippingLines]);
+        return Array.from(set).map((name) => ({ name }));
+      })(),
     };
   });
 }
