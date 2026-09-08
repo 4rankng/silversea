@@ -1,8 +1,0 @@
-# Gate: frontend tests (vitest run)
-# Change: /shipments CUS dashboard column width redistribution + cell-wrap overrides
-# Command: cd frontend && pnpm test
-# Exit status: 0 (PASS)
-Test Files  251 passed (251)
-     Tests  1446 passed (1446)
-  Duration  49.58s
-Includes updated assertion: cus-dashboard-col--status width 18% -> 15% (ShipmentsPage.test.tsx)
