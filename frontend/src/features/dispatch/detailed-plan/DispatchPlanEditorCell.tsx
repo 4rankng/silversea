@@ -333,7 +333,10 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
       }
     }).finally(() => { if (!cancelled) setLoadingVehicles(false); });
     return () => { cancelled = true; };
-  }, [open, row.fulfillmentId, selectedCarrier?.carrierType, selectedCarrier?.externalCarrierId, vehicleSearch]);
+    // `selectedCarrier` is a fresh object every render (parseCarrier of the
+    // draft); the effect keys on the two primitives it actually consumes so
+    // the vehicle list doesn't reload on every keystroke elsewhere.
+  }, [open, row.fulfillmentId, selectedCarrier?.carrierType, selectedCarrier?.externalCarrierId, vehicleSearch]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const selectableCarrierOptions = useMemo(() => {
     const options = [{ value: OWN_CARRIER_VALUE, label: 'SilverSea — xe nội bộ' }, ...carrierOptions];

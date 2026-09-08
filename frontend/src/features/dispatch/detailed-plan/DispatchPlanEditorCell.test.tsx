@@ -396,10 +396,10 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
 
     const trigger = screen.getByRole('button', { name: 'Lẻ Phân loại' }) as HTMLButtonElement;
     expect(trigger.disabled).toBe(true);
-    // No Lẻ-less list for cont rows is asserted in the companion test; here
-    // the select simply cannot be opened into a list that would offer cont
-    // models on an LCL row.
+    // Locked select never opens a list offering the cont models.
+    fireEvent.click(trigger);
     expect(screen.queryByRole('option', { name: 'Đơn' })).toBeNull();
+    expect(screen.queryByRole('option', { name: 'Kết hợp' })).toBeNull();
 
     fireEvent.click([...screen.getAllByRole('button')].find((b) => b.textContent?.includes('Lưu thay đổi'))!);
     await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));
