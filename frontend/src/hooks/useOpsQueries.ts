@@ -4,6 +4,7 @@
  * wallet + lists so the optimistic patches reconcile against the server.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { qk } from '../api/keys';
 import {
   opsClient,
   type OpsExpensePhoto,
@@ -28,12 +29,14 @@ export const opsKeys = {
   adminExpenses: (status?: OpsExpenseStatus, opsUserId?: number) =>
     ['ops', 'admin-expenses', status ?? 'all', opsUserId ?? 0] as const,
   adminSettlements: (status?: string) => ['ops', 'admin-settlements', status ?? 'all'] as const,
+  /** Single settlement under review (kế toán/quản lý duyệt). */
+  adminSettlement: (id: number) => ['ops', 'admin-settlement', id] as const,
 };
 
 function useInvalidateOps() {
   const queryClient = useQueryClient();
   return () => {
-    void queryClient.invalidateQueries({ queryKey: ['ops'] });
+    void queryClient.invalidateQueries({ queryKey: qk.ops.root });
   };
 }
 
@@ -236,7 +239,7 @@ export function useAdminOpsSettlements(status?: string) {
 
 export function useAdminOpsSettlement(id: number | null) {
   return useQuery<OpsSettlementDetail>({
-    queryKey: ['ops', 'admin-settlement', id ?? -1] as const,
+    queryKey: opsKeys.adminSettlement(id ?? -1),
     queryFn: () => opsClient.getAdminSettlement(id!),
     enabled: id != null,
   });

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Save, Truck } from 'lucide-react';
 
 import { configClient } from '../../api/configClient';
+import { qk } from '../../api/keys';
 import { Panel } from '../../components/UI';
 import { formatCurrency } from '../../lib/format';
 
@@ -20,7 +21,7 @@ interface PairSalarySettings {
 export function PairSalarySection() {
   const queryClient = useQueryClient();
   const settings = useQuery({
-    queryKey: ['config', 'pair-salary-settings'],
+    queryKey: qk.config.pairSalary,
     queryFn: () => configClient.getPairSalarySettings(),
   });
 
@@ -39,7 +40,7 @@ export function PairSalarySection() {
     mutationFn: (next: PairSalarySettings) => configClient.savePairSalarySettings(next),
     onSuccess: () => {
       setMessage('Đã lưu phụ phí ghép chuyến.');
-      void queryClient.invalidateQueries({ queryKey: ['config', 'pair-salary-settings'] });
+      void queryClient.invalidateQueries({ queryKey: qk.config.pairSalary });
     },
     onError: () => setMessage(null),
   });

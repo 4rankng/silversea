@@ -82,6 +82,22 @@ export const qk = {
     tiresAll: ['tires'] as const,
   },
 
+  /** App-settings / configuration values read live by business logic. */
+  config: {
+    /** Ghép chuyến pair salary surcharges (Cài đặt → Lương). */
+    pairSalary: ['config', 'pair-salary-settings'] as const,
+  },
+
+  /** Ops portal (docs/prd/OpsVanHanh.md) — self-contained ops surface. */
+  ops: {
+    /** Broad prefix — matches every ops query for one-shot invalidation. */
+    root: ['ops'] as const,
+    /** OPS-role user picker (Ops phụ trách assignment). */
+    opsUsers: ['ops', 'ops-users'] as const,
+    /** Per-truck "Ops phụ trách" assignments (admin fleet view). */
+    truckOpsAssignments: ['ops', 'truck-ops-assignments'] as const,
+  },
+
   /** All catalog-shaped keys, for one-shot invalidation after a config CRUD. */
   allCatalogKeys: [
     'catalogs',

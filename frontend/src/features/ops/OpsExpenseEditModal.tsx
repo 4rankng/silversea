@@ -4,6 +4,7 @@ import { useOpsExpenseTypes, useUpdateOpsExpense } from '../../hooks/useOpsQueri
 import type { OpsExpenseRow } from '../../api/opsClient';
 import { useToast } from '../../components/shared/Toast';
 import { formatVnd } from './opsStatus';
+import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
 
 /**
  * Author edit of an own PENDING/REJECTED, unlinked expense (OpsVanHanh §5.5
@@ -27,6 +28,23 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
       withoutInvoice: items.filter((type) => type.requiresInvoice !== true),
     };
   }, [typesData]);
+
+  // UuiSelectField has no optgroup support — flatten the two groups with
+  // disabled section-header rows so the grouping stays visible in the menu.
+  const expenseTypeOptions = useMemo(() => {
+    const options: Array<{ value: string; label: string; disabled?: boolean }> = [
+      { value: '', label: '— Chọn loại phí —' },
+    ];
+    if (groupedTypes.withInvoice.length > 0) {
+      options.push({ value: '__HDR_INV__', label: '— Có hóa đơn —', disabled: true });
+      groupedTypes.withInvoice.forEach((type) => options.push({ value: type.code, label: type.name }));
+    }
+    if (groupedTypes.withoutInvoice.length > 0) {
+      options.push({ value: '__HDR_NO_INV__', label: '— Không hóa đơn —', disabled: true });
+      groupedTypes.withoutInvoice.forEach((type) => options.push({ value: type.code, label: type.name }));
+    }
+    return options;
+  }, [groupedTypes]);
 
   const amountClean = amount.replace(/[^\d]/g, '');
   const canSubmit = Boolean(typeCode) && /^\d+$/.test(amountClean) && Number(amountClean) > 0 && !updateExpense.isPending;
@@ -60,26 +78,13 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
         </header>
         <div className="ops-modal__body">
           <div className="ops-form-grid">
-            <label>
-              Loại phí *
-              <select value={typeCode} onChange={(event) => setTypeCode(event.target.value)} required>
-                <option value="">— Chọn loại phí —</option>
-                {groupedTypes.withInvoice.length > 0 && (
-                  <optgroup label="Có hóa đơn">
-                    {groupedTypes.withInvoice.map((type) => (
-                      <option key={type.code} value={type.code}>{type.name}</option>
-                    ))}
-                  </optgroup>
-                )}
-                {groupedTypes.withoutInvoice.length > 0 && (
-                  <optgroup label="Không hóa đơn">
-                    {groupedTypes.withoutInvoice.map((type) => (
-                      <option key={type.code} value={type.code}>{type.name}</option>
-                    ))}
-                  </optgroup>
-                )}
-              </select>
-            </label>
+            <UuiSelectField
+              label="Loại phí"
+              required
+              value={typeCode}
+              onChange={(event) => setTypeCode(event.target.value)}
+              options={expenseTypeOptions}
+            />
             <label>
               Số tiền (VND) *
               <input

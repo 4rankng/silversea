@@ -13,7 +13,7 @@ import { Button } from '../../../components/untitled-ui/base/buttons/button';
 import { useTrucksAndDrivers, useTrailers } from '../../../hooks/useCatalogQueries';
 import { useQueryClient } from '@tanstack/react-query';
 import { usePageAnimations } from '../../../hooks/animations';
-import { invalidateAllCatalogs } from '../../../api/keys';
+import { invalidateAllCatalogs, qk } from '../../../api/keys';
 import { reassignTruckDriver } from '../../../api/dispatchPlanningClient';
 import { AssignDriverDialog } from './AssignDriverDialog';
 import { AssignOpsDialog } from '../../ops/AssignOpsDialog';
@@ -36,7 +36,7 @@ export function FleetVehiclesView() {
   const isAdmin = auth?.user?.role === 'ADMIN';
   // OpsVanHanh §2: only ADMIN configures "Ops phụ trách".
   const { data: opsAssignments } = useQuery({
-    queryKey: ['ops', 'truck-ops-assignments'],
+    queryKey: qk.ops.truckOpsAssignments,
     queryFn: () => opsClient.getTruckOpsAssignments(),
     enabled: isAdmin,
     staleTime: 30_000,

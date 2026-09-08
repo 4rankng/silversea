@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import { opsClient } from '../../api/opsClient';
+import { qk } from '../../api/keys';
+import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
 
 interface UserOption {
   id: number;
@@ -28,7 +30,7 @@ export function AssignOpsDialog({
   const [error, setError] = useState<string | null>(null);
 
   const { data: usersData } = useQuery<{ items: UserOption[] }>({
-    queryKey: ['ops', 'ops-users'],
+    queryKey: qk.ops.opsUsers,
     queryFn: () => api.get('/users?role=OPS&limit=100'),
     staleTime: 60_000,
   });
@@ -47,7 +49,7 @@ export function AssignOpsDialog({
       // reaches save (the submit button stays disabled).
       const opsUserId = choice === '' ? null : Number(choice);
       await opsClient.setTruckOpsAssignment(truck.id, opsUserId);
-      await queryClient.invalidateQueries({ queryKey: ['ops'] });
+      await queryClient.invalidateQueries({ queryKey: qk.ops.root });
       onClose();
     } catch (err) {
       setError(err instanceof Error && err.message ? err.message : 'Không thể lưu phân công.');
@@ -70,22 +72,20 @@ export function AssignOpsDialog({
             Hiện tại: {currentOpsName ?? '— chưa gán —'}. Mỗi xe chỉ có một Ops phụ trách đang hoạt động;
             gán người mới sẽ thay người cũ.
           </p>
-          <label className="ops-form-note">
-            Ops phụ trách
-            <select
-              value={choice}
-              onChange={(event) => setChoice(event.target.value)}
-              aria-label="Chọn Ops phụ trách"
-            >
-              <option value="__KEEP__">— Giữ nguyên —</option>
-              <option value="">— Bỏ gán —</option>
-              {options.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.fullName?.trim() || user.username || `#${user.id}`}
-                </option>
-              ))}
-            </select>
-          </label>
+          <UuiSelectField
+            label="Ops phụ trách"
+            value={choice}
+            onChange={(event) => setChoice(event.target.value)}
+            ariaLabel="Chọn Ops phụ trách"
+            options={[
+              { value: '__KEEP__', label: '— Giữ nguyên —' },
+              { value: '', label: '— Bỏ gán —' },
+              ...options.map((user) => ({
+                value: String(user.id),
+                label: user.fullName?.trim() || user.username || `#${user.id}`,
+              })),
+            ]}
+          />
           {error && <p className="ops-reject-reason" role="alert">{error}</p>}
         </div>
         <footer className="ops-modal__foot">
