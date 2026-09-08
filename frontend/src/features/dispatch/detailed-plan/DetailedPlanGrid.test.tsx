@@ -246,11 +246,11 @@ describe('DetailedPlanGrid', () => {
     expect(screen.queryByText('ĐÓNG KẾT HỢP')).toBeNull();
   });
 
-  it('saves the whole editor atomically: estimates only — classification/lot flag are CUS-owned', async () => {
+  it('saves the whole editor atomically: estimates plus the dispatcher Phân loại — lot flag stays CUS-owned', async () => {
     const onAtomicSave = vi.fn().mockResolvedValue({
       fulfillmentVersion: 4,
       shipmentVersion: 5,
-      classification: 'SINGLE',
+      classification: 'DOUBLE',
       isCombined: false,
       dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: null },
       estimates: { plannedRevenue: '2500000', plannedCarrierCost: null },
@@ -261,6 +261,11 @@ describe('DetailedPlanGrid', () => {
     fireEvent.click(screen.getByRole('button', { name: /sửa ô điều phối/i }));
     fireEvent.change(screen.getByLabelText('Cước thu dự kiến'), { target: { value: '2.500.000' } });
     expect(screen.getByLabelText<HTMLInputElement>('Cước thu dự kiến').value).toBe('2.500.000');
+    // UUI select: open the trigger, then pick the option from the listbox —
+    // fireEvent.change on a hidden native select does not drive react-aria.
+    // The trigger's accessible name is "<current value> <label>".
+    fireEvent.click(screen.getByRole('button', { name: 'Đơn Phân loại' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Kẹp' }));
     fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
 
     await waitFor(() => expect(onAtomicSave).toHaveBeenCalledWith(
@@ -269,13 +274,13 @@ describe('DetailedPlanGrid', () => {
         carrierType: 'OWN',
         plannedRevenue: 2500000,
         plannedCarrierCost: null,
+        classification: 'DOUBLE',
       }),
     ));
-    // The editor no longer sends (or renders) the CUS-owned controls.
-    expect(onAtomicSave.mock.calls[0]![1]).not.toHaveProperty('classification');
+    // Phân loại rides the save; the lot-level Đóng kết hợp flag has no
+    // control in the dialog and is never sent.
     expect(onAtomicSave.mock.calls[0]![1]).not.toHaveProperty('isCombined');
     expect(screen.queryByText('Đóng kết hợp (kẹp chuyến)')).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Đơn Phân loại' })).toBeNull();
   });
 
   it('saves without blocking on classification — the default Đơn is always present', async () => {
@@ -295,9 +300,8 @@ describe('DetailedPlanGrid', () => {
 
     await waitFor(() => expect(onAtomicSave).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ carrierType: 'OWN' }),
+      expect.objectContaining({ carrierType: 'OWN', classification: 'SINGLE' }),
     ));
-    expect(onAtomicSave.mock.calls[0]![1]).not.toHaveProperty('classification');
   });
 
   it('renders the classification column with the fresh-container default Đơn', () => {
@@ -339,11 +343,12 @@ describe('DetailedPlanGrid', () => {
     const dialog = await screen.findByRole('dialog', { name: /Chỉnh sửa điều phối.*MSCU1234567/ });
     expect(within(dialog).getByLabelText('Nhà xe')).toBeTruthy();
     expect(within(dialog).getByLabelText('Xe / biển số')).toBeTruthy();
+    expect(within(dialog).getByLabelText('Phân loại')).toBeTruthy();
     expect(within(dialog).getByLabelText('Cước thu dự kiến')).toBeTruthy();
     expect(within(dialog).getByLabelText('Cước trả dự kiến')).toBeTruthy();
     expect(within(dialog).getAllByText('đ')).toHaveLength(2);
-    // CUS-owned controls are gone from the dispatch editor entirely.
-    expect(within(dialog).queryByLabelText('Phân loại')).toBeNull();
+    // The lot-level Đóng kết hợp checkbox is gone for good — redundant with
+    // the Kết hợp classification; the flag stays CUS-owned.
     expect(within(dialog).queryByLabelText('Đóng kết hợp (kẹp chuyến)')).toBeNull();
   });
 

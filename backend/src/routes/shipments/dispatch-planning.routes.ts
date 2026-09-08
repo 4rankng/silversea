@@ -398,10 +398,11 @@ dispatchPlanningRoutes.patch(
     const parsed = updateDispatchDetailPlanSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
     const user = getUser(req);
-    // Phân loại (Đơn/Kẹp/Kết hợp/Lẻ) and the lot "Đóng kết hợp" flag are
-    // CUS-owned: the dispatch editor can no longer set either, even by
-    // calling the API directly — strip before the service sees the payload.
-    delete (parsed.data as { classification?: unknown }).classification;
+    // The lot-level "Đóng kết hợp" flag (shipments.is_combined) stays
+    // CUS-owned: one container's dispatcher must not rewrite a flag that
+    // spans every container in the lot, so it is stripped here even when a
+    // caller sends it explicitly. Per-row Phân loại (Đơn/Kẹp/Kết hợp) IS the
+    // dispatcher's call — it flows through untouched (2026-09-08 decision).
     delete (parsed.data as { isCombined?: unknown }).isCombined;
     res.json(await updateDispatchDetailPlan({
       fulfillmentId,

@@ -1120,14 +1120,15 @@ export const atomicDispatchPlanEditSchema = z.object({
   clearVehicle: z.boolean().optional(),
   plannedRevenue: z.number().int().nonnegative().nullable(),
   plannedCarrierCost: z.number().int().nonnegative().nullable(),
-  /** Per-task classification is CUS-owned too (Đơn/Kẹp/Kết hợp/Lẻ via the
-   *  CUS surfaces); the dispatch editor omits it, so undefined = unchanged. */
+  /** Per-row Phân loại (Đơn/Kẹp/Kết hợp/Lẻ). The dispatcher's call for cont
+   *  rows (Đơn/Kẹp/Kết hợp) since 2026-09-08; CUS sets it at intake and LCL
+   *  rows keep Lẻ. Undefined = unchanged. */
   classification: dispatchClassificationSchema.optional(),
   /** Lot-level `shipments.is_combined`. Owned by the CUS create/quick-edit
    *  surface, not by this per-container dispatch editor: one container's
    *  dispatcher must not silently rewrite a flag that spans the whole lot.
    *  Optional and omitted by the editor — the stored value is left untouched.
-   *  Kept accepted so existing callers stay valid. */
+   *  The dispatch route strips it even when a caller sends it explicitly. */
   isCombined: z.boolean().optional(),
   /** Driver-facing note (shipments.operational_notes). Optional: an editor
    *  save that touches only plan fields omits it and the stored note stays

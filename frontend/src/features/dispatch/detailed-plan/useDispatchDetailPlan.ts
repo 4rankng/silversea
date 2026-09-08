@@ -323,7 +323,8 @@ export function useDispatchDetailPlan() {
       clearVehicle?: boolean;
       plannedRevenue: number | null;
       plannedCarrierCost: number | null;
-      /** CUS-owned — omitted by the dispatch editor; backend strips it too. */
+      /** Phân loại (Đơn/Kẹp/Kết hợp) — the dispatcher's call since 2026-09-08;
+       *  optional so CUS-derived values stay valid when a caller omits it. */
       classification?: DispatchClassification;
       isCombined?: boolean;
       operationalNotes?: string | null;

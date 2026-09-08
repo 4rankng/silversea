@@ -346,4 +346,66 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
     await waitFor(() => expect(screen.getByText(/Không thể lưu kế hoạch/)).toBeTruthy());
     expect(screen.getByText(/Chỉnh sửa điều phối/)).toBeTruthy();
   });
+
+  it('offers the dispatcher the three cont-model classifications and saves the chosen one', async () => {
+    const onAtomicSave = vi.fn().mockResolvedValue({
+      fulfillmentVersion: 4,
+      shipmentVersion: 6,
+      classification: 'COMBINED',
+      isCombined: false,
+      operationalNotes: null,
+      dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '15H-052.82' },
+      estimates: { plannedRevenue: null, plannedCarrierCost: null },
+      lotFullyPlated: false,
+    });
+    renderCell(row({ classification: 'SINGLE' }), { onAtomicSave });
+    await openDialog();
+
+    // Exactly the three cont models — Lẻ is not offered on cont rows.
+    fireEvent.click(screen.getByRole('button', { name: 'Đơn Phân loại' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Kết hợp' }));
+
+    fireEvent.click([...screen.getAllByRole('button')].find((b) => b.textContent?.includes('Lưu thay đổi'))!);
+    await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));
+    expect(onAtomicSave).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ classification: 'COMBINED' }),
+    );
+    // The lot-level flag has no control here — redundant with Kết hợp.
+    expect(screen.queryByText('Đóng kết hợp (kẹp chuyến)')).toBeNull();
+  });
+
+  it('locks Phân loại to Lẻ on LCL rows (cargo-mode bound, not a per-cont choice)', async () => {
+    const onAtomicSave = vi.fn().mockResolvedValue({
+      fulfillmentVersion: 4,
+      shipmentVersion: 6,
+      classification: 'LCL',
+      isCombined: false,
+      operationalNotes: null,
+      dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: null },
+      estimates: { plannedRevenue: null, plannedCarrierCost: null },
+      lotFullyPlated: false,
+    });
+    renderCell(row({
+      cargoMode: 'LCL',
+      fulfillmentType: 'LCL_SHIPMENT',
+      container: { containerNumber: null, containerTypeLabel: null, cargoWeightKg: null } as never,
+      classification: 'LCL' as never,
+    }), { onAtomicSave });
+    await openDialog();
+
+    const trigger = screen.getByRole('button', { name: 'Lẻ Phân loại' }) as HTMLButtonElement;
+    expect(trigger.disabled).toBe(true);
+    // No Lẻ-less list for cont rows is asserted in the companion test; here
+    // the select simply cannot be opened into a list that would offer cont
+    // models on an LCL row.
+    expect(screen.queryByRole('option', { name: 'Đơn' })).toBeNull();
+
+    fireEvent.click([...screen.getAllByRole('button')].find((b) => b.textContent?.includes('Lưu thay đổi'))!);
+    await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));
+    expect(onAtomicSave).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ classification: 'LCL' }),
+    );
+  });
 });
