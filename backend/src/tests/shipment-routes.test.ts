@@ -831,7 +831,7 @@ async function getCusWorkspaceDetail(shipmentId: number, token: string) {
       carrierName: string | null;
       plateNumber: string | null;
       customerAppointmentAt: string | null;
-      dispatchStatus: 'AWAITING_VEHICLE' | 'CREATED' | 'IN_TRANSIT' | 'COMPLETED';
+      dispatchStatus: 'AWAITING_VEHICLE' | 'PLANNED' | 'CREATED' | 'IN_TRANSIT' | 'COMPLETED';
       permissions: { outboundEditable: boolean; inboundEditable: boolean };
       inboundCharges: { transport: { amount: string | null }; handling: { amount: string | null } };
       outboundCharges: { transport: { amount: string | null } };

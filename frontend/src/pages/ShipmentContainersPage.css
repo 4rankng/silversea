@@ -167,6 +167,7 @@
    costs far less column width than a chip. */
 .shipment-container-ledger__dispatch-badge { display: inline-block; max-width: 100%; font-weight: var(--fw-semibold); font-size: 11px; line-height: 1.4; white-space: normal; }
 .shipment-container-ledger__dispatch-badge--awaiting-vehicle { color: oklch(0.554 0.135 66.442); }
+.shipment-container-ledger__dispatch-badge--planned { color: oklch(0.488 0.2172 264.052); }
 .shipment-container-ledger__dispatch-badge--created { color: oklch(0.457 0.24 277.023); }
 .shipment-container-ledger__dispatch-badge--in_transit { color: oklch(0.496 0.265 301.924); }
 .shipment-container-ledger__dispatch-badge--completed { color: oklch(0.527 0.154 150.069); }

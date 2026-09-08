@@ -134,6 +134,7 @@
   font-weight: var(--fw-semibold);
 }
 .dispatch-container-detail__status--awaiting-vehicle { color: var(--warning-text); }
+.dispatch-container-detail__status--planned { color: var(--info-text); }
 .dispatch-container-detail__status--created,
 .dispatch-container-detail__status--in_transit { color: var(--info-text); }
 .dispatch-container-detail__status--completed { color: var(--success-text); }

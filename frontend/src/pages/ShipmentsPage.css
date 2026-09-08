@@ -1642,8 +1642,10 @@
 /* Text-only dispatch chips (2026-09-08): the tinted blob backgrounds were
  * visual noise in the ledger — tone now survives via text color alone.
  * AWAITING_VEHICLE ("Chờ phân xe") keeps the warning tone: it is the state
- * that needs dispatch action. */
+ * that needs dispatch action. PLANNED ("Đã phân xe") reads as info: the
+ * vehicle is on the line, dispatch is done until the trip runs. */
 .cus-container-dispatch--awaiting-vehicle { color: var(--warning-text); background: transparent; }
+.cus-container-dispatch--planned { color: var(--info-text); background: transparent; }
 .cus-container-dispatch--created { color: var(--accent-strong); background: transparent; }
 .cus-container-dispatch--in_transit { color: var(--info-text); background: transparent; }
 .cus-container-dispatch--completed { color: var(--success-text); background: transparent; }

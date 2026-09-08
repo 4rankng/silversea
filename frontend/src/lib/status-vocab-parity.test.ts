@@ -62,7 +62,10 @@ import {
  *     shared as TRIP_POD_STATUS_LABELS (both e-POD surfaces + work inboxes).
  *   - container dispatchStatus: collapsed 2026-09-08 to the four-state
  *     vocabulary (Chờ phân xe / Đã tạo chuyến / Đang chạy / Hoàn thành) —
- *     pinned by dispatchStatusVocabulary.test.ts. RoleWorkInbox keeps its
+ *     revised the same evening to five states, restoring "Đã phân xe"
+ *     (PLANNED) for a line carrying a vehicle (Chờ phân xe / Đã phân xe /
+ *     Đã tạo chuyến / Đang chạy / Hoàn thành) — pinned by
+ *     dispatchStatusVocabulary.test.ts. RoleWorkInbox keeps its
  *     own delivery-TRUTH axis ("Tài xế báo đã giao" etc.) — a different
  *     concept.
  */
