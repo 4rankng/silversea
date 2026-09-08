@@ -25,6 +25,15 @@ interface ComboBoxProps extends Omit<AriaComboBoxProps<SelectItemType>, "childre
     triggerClassName?: string;
     /** Called when the user clicks the clear (X) button. */
     onClear?: () => void;
+    /**
+     * Initial placement hint for the popover relative to the trigger. Useful
+     * when the picker sits inside a column that has a sibling action button
+     * (e.g. "+ Thêm") right below — request "top" so the popover opens
+     * upward and never covers the sibling. `shouldFlip` stays on, so when the
+     * trigger is jammed against the top edge the popover still flips back
+     * down rather than clipping off-screen.
+     */
+    popoverPlacement?: 'top' | 'bottom' | 'left' | 'right' | 'top start' | 'top end' | 'bottom start' | 'bottom end' | 'start' | 'end';
     children: AriaListBoxProps<SelectItemType>["children"];
 }
 
@@ -198,6 +207,7 @@ export const ComboBox = ({
     triggerClassName,
     onClear,
     className,
+    popoverPlacement,
     ...otherProps
 }: ComboBoxProps) => {
     const placeholderRef = useRef<HTMLDivElement>(null);
@@ -259,7 +269,7 @@ export const ComboBox = ({
                             onPointerEnter={onResize}
                         />
 
-                        <Popover size={size} triggerRef={placeholderRef} style={{ width: popoverWidth }} className={otherProps.popoverClassName}>
+                        <Popover size={size} triggerRef={placeholderRef} style={{ width: popoverWidth }} className={otherProps.popoverClassName} placement={popoverPlacement}>
                             <FilteredListBox items={items} className="size-full outline-hidden">
                                 {children}
                             </FilteredListBox>

@@ -167,6 +167,14 @@ interface USearchableFieldProps {
    */
   searchable?: boolean;
   hideLabel?: boolean;
+  /**
+   * Initial placement hint for the dropdown. Pass `"top"` for pickers whose
+   * sibling action (e.g. the "+ Thêm" inline-create button) sits directly
+   * below the trigger — the dropdown opens upward and never covers that
+   * sibling. `shouldFlip` stays on, so the dropdown still falls back below
+   * when the trigger is jammed against the viewport top.
+   */
+  popoverPlacement?: 'top' | 'bottom' | 'top start' | 'top end' | 'bottom start' | 'bottom end' | 'left' | 'right' | 'start' | 'end';
 }
 
 export function USearchableField({
@@ -186,6 +194,7 @@ export function USearchableField({
   allowsCustomValue,
   searchable,
   hideLabel,
+  popoverPlacement,
 }: USearchableFieldProps) {
   const selected = options.find((option) => option.value === value);
   // Local input text so type-to-search survives the controlled re-renders.
@@ -217,6 +226,7 @@ export function USearchableField({
         menuTrigger={searchable ? 'focus' : 'manual'}
         openOnPress
         selectedKey={value || null}
+        popoverPlacement={popoverPlacement}
         inputValue={
           searchable
             ? inputValue
