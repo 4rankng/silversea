@@ -1,0 +1,2 @@
+src/tests/shipment-duplicate-guard.test.ts(111,58): error TS2339: Property 'CLERK' does not exist on type 'typeof Role'.
+src/tests/shipment-duplicate-guard.test.ts(119,69): error TS2339: Property 'CLERK' does not exist on type 'typeof Role'.

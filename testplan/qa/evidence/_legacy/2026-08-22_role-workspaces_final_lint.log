@@ -1,0 +1,473 @@
+Command: pnpm lint
+
+> tingting@ lint /Users/dev/Documents/projects/silversea
+> eslint .
+
+
+/Users/dev/Documents/projects/silversea/backend/src/routes/config/audit-logs.routes.ts
+   3:10  warning  'db' is defined but never used             @typescript-eslint/no-unused-vars
+   4:13  warning  's' is defined but never used              @typescript-eslint/no-unused-vars
+   5:10  warning  'and' is defined but never used            @typescript-eslint/no-unused-vars
+   5:15  warning  'eq' is defined but never used             @typescript-eslint/no-unused-vars
+   5:19  warning  'isNull' is defined but never used         @typescript-eslint/no-unused-vars
+   6:10  warning  'ApiError' is defined but never used       @typescript-eslint/no-unused-vars
+   9:10  warning  'runIdempotent' is defined but never used  @typescript-eslint/no-unused-vars
+  10:13  warning  'H' is defined but never used              @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/routes/config/catalog-crud.routes.ts
+   5:27  warning  'like' is defined but never used                                @typescript-eslint/no-unused-vars
+  12:10  warning  'runIdempotent' is defined but never used                       @typescript-eslint/no-unused-vars
+  12:25  warning  'resolveIdempotencyKey' is defined but never used               @typescript-eslint/no-unused-vars
+  13:10  warning  'cacheInvalidate' is defined but never used                     @typescript-eslint/no-unused-vars
+  15:77  warning  'SupplierPayload' is defined but never used                     @typescript-eslint/no-unused-vars
+  15:94  warning  'ForwarderExpenseTypePayload' is defined but never used         @typescript-eslint/no-unused-vars
+  18:3   warning  'lockApplicationOwnedUniquenessSet' is defined but never used   @typescript-eslint/no-unused-vars
+  25:10  warning  'requestOrApplyGovernedConfigAction' is defined but never used  @typescript-eslint/no-unused-vars
+  32:3   warning  'fuelConfigSchema' is defined but never used                    @typescript-eslint/no-unused-vars
+  38:15  warning  'installTireSchema' is defined but never used                   @typescript-eslint/no-unused-vars
+  38:34  warning  'disposeTireSchema' is defined but never used                   @typescript-eslint/no-unused-vars
+  38:53  warning  'transferTireSchema' is defined but never used                  @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/routes/config/config-helpers.ts
+  29:32  warning  'getFuelConfig' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/routes/config/operational-config.routes.ts
+   5:10  warning  'and' is defined but never used                            @typescript-eslint/no-unused-vars
+   5:15  warning  'eq' is defined but never used                             @typescript-eslint/no-unused-vars
+   5:33  warning  'ne' is defined but never used                             @typescript-eslint/no-unused-vars
+   6:10  warning  'ApiError' is defined but never used                       @typescript-eslint/no-unused-vars
+   9:10  warning  'requireRoles' is defined but never used                   @typescript-eslint/no-unused-vars
+  10:10  warning  'Role' is defined but never used                           @typescript-eslint/no-unused-vars
+  11:10  warning  'createCrudRouter' is defined but never used               @typescript-eslint/no-unused-vars
+  12:25  warning  'resolveIdempotencyKey' is defined but never used          @typescript-eslint/no-unused-vars
+  13:10  warning  'cacheInvalidate' is defined but never used                @typescript-eslint/no-unused-vars
+  13:27  warning  'cacheInvalidatePattern' is defined but never used         @typescript-eslint/no-unused-vars
+  15:25  warning  'getFuelConfigUpdatedAt' is defined but never used         @typescript-eslint/no-unused-vars
+  15:49  warning  'upsertFuelConfigInTx' is defined but never used           @typescript-eslint/no-unused-vars
+  16:47  warning  'governanceActionVersionSchema' is defined but never used  @typescript-eslint/no-unused-vars
+  17:10  warning  'COMPANY_INFO_SETTING_KEYS' is defined but never used      @typescript-eslint/no-unused-vars
+  19:10  warning  'parsePagination' is defined but never used                @typescript-eslint/no-unused-vars
+  20:10  warning  'queryAuditLogs' is defined but never used                 @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/routes/config/salary-periods-config.routes.ts
+   3:10  warning  'db' is defined but never used                                  @typescript-eslint/no-unused-vars
+  14:3   warning  'updateSalaryPeriodDefaultInTx' is defined but never used       @typescript-eslint/no-unused-vars
+  16:3   warning  'upsertSalaryPeriodOverrideInTx' is defined but never used      @typescript-eslint/no-unused-vars
+  17:3   warning  'updateSalaryPeriodOverrideByIdInTx' is defined but never used  @typescript-eslint/no-unused-vars
+  18:3   warning  'deleteSalaryPeriodOverrideInTx' is defined but never used      @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/routes/config/tire-lifecycle.routes.ts
+   3:10  warning  'db' is defined but never used                     @typescript-eslint/no-unused-vars
+   4:13  warning  's' is defined but never used                      @typescript-eslint/no-unused-vars
+   5:10  warning  'and' is defined but never used                    @typescript-eslint/no-unused-vars
+   5:15  warning  'eq' is defined but never used                     @typescript-eslint/no-unused-vars
+   5:19  warning  'isNull' is defined but never used                 @typescript-eslint/no-unused-vars
+   5:27  warning  'like' is defined but never used                   @typescript-eslint/no-unused-vars
+   5:33  warning  'ne' is defined but never used                     @typescript-eslint/no-unused-vars
+   6:10  warning  'ApiError' is defined but never used               @typescript-eslint/no-unused-vars
+   8:10  warning  'getUser' is defined but never used                @typescript-eslint/no-unused-vars
+  11:10  warning  'createCrudRouter' is defined but never used       @typescript-eslint/no-unused-vars
+  12:25  warning  'resolveIdempotencyKey' is defined but never used  @typescript-eslint/no-unused-vars
+  13:10  warning  'cacheInvalidate' is defined but never used        @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/routes/forwarder.ts
+  30:10   warning  'db' is defined but never used                      @typescript-eslint/no-unused-vars
+  33:133  warning  'listAdvanceSettlements' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/routes/salary.ts
+  38:10  warning  'db' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/seed/seed-bulk-data.ts
+   52:7   warning  'BULK_TAX_CODE_PREFIX' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  149:7   warning  'pickN' is assigned a value but never used                 @typescript-eslint/no-unused-vars
+  267:10  warning  'genWarehouseAddress' is defined but never used            @typescript-eslint/no-unused-vars
+  579:16  warning  '_typeCode' is assigned a value but never used             @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/seed/seed-customer-ar.ts
+  21:10  warning  'minimalPdf' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/seed/seed-vendor-financials.ts
+  10:36  warning  'sql' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/services/approval.service.ts
+  4:10  warning  'db' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/services/billing-document-template.service.ts
+  16:3  warning  'OfficialBillingIdentitySnapshot' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/services/billing-document.service.ts
+   8:35  warning  'getCompanyInfo' is defined but never used  @typescript-eslint/no-unused-vars
+  11:10  warning  'loadLogoBytes' is defined but never used   @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/services/billing-export.service.ts
+   6:10  warning  'and' is defined but never used                                      @typescript-eslint/no-unused-vars
+   6:28  warning  'or' is defined but never used                                       @typescript-eslint/no-unused-vars
+  11:3   warning  'BillingDocumentOfficialIdentitySnapshot' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/services/cus-shipment-workspace-writes.service.ts
+  34:3  warning  'SITE_OPERATIONAL_NAME' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/services/dispatch-planning-commands.service.ts
+   7:10   warning  'CUSTOMER_OPERATIONAL_NAME' is defined but never used  @typescript-eslint/no-unused-vars
+   7:37   warning  'ROUTE_OPERATIONAL_NAME' is defined but never used     @typescript-eslint/no-unused-vars
+   7:61   warning  'SITE_OPERATIONAL_NAME' is defined but never used      @typescript-eslint/no-unused-vars
+  12:62   warning  'NotificationPayload' is defined but never used        @typescript-eslint/no-unused-vars
+  18:10   warning  'operationalName' is defined but never used            @typescript-eslint/no-unused-vars
+  19:10   warning  'escapeLikeTerm' is defined but never used             @typescript-eslint/no-unused-vars
+  20:15   warning  'asc' is defined but never used                        @typescript-eslint/no-unused-vars
+  20:27   warning  'desc' is defined but never used                       @typescript-eslint/no-unused-vars
+  20:41   warning  'ilike' is defined but never used                      @typescript-eslint/no-unused-vars
+  21:76   warning  'DispatchClassification' is defined but never used     @typescript-eslint/no-unused-vars
+  21:120  warning  'TruckSuggestion' is defined but never used            @typescript-eslint/no-unused-vars
+  25:15   warning  'AuthUser' is defined but never used                   @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/services/dispatch-planning-detail-plan.service.ts
+  10:10   warning  'resolveHandoff' is defined but never used                  @typescript-eslint/no-unused-vars
+  14:10   warning  'ensureShipmentFulfillmentsInTx' is defined but never used  @typescript-eslint/no-unused-vars
+  15:10   warning  'transitionShipmentStatus' is defined but never used        @typescript-eslint/no-unused-vars
+  16:10   warning  'createTrip' is defined but never used                      @typescript-eslint/no-unused-vars
+  18:10   warning  'operationalName' is defined but never used                 @typescript-eslint/no-unused-vars
+  19:10   warning  'escapeLikeTerm' is defined but never used                  @typescript-eslint/no-unused-vars
+  20:20   warning  'count' is defined but never used                           @typescript-eslint/no-unused-vars
+  20:27   warning  'desc' is defined but never used                            @typescript-eslint/no-unused-vars
+  20:37   warning  'gt' is defined but never used                              @typescript-eslint/no-unused-vars
+  20:76   warning  'lt' is defined but never used                              @typescript-eslint/no-unused-vars
+  21:105  warning  'FuelMode' is defined but never used                        @typescript-eslint/no-unused-vars
+  21:120  warning  'TruckSuggestion' is defined but never used                 @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/services/dispatch-planning-queries.service.ts
+   7:61   warning  'SITE_OPERATIONAL_NAME' is defined but never used             @typescript-eslint/no-unused-vars
+  10:10   warning  'resolveHandoff' is defined but never used                    @typescript-eslint/no-unused-vars
+  11:10   warning  'runIdempotent' is defined but never used                     @typescript-eslint/no-unused-vars
+  11:25   warning  'IDEMPOTENCY_ENDPOINTS' is defined but never used             @typescript-eslint/no-unused-vars
+  12:10   warning  'persistNotificationInTx' is defined but never used           @typescript-eslint/no-unused-vars
+  12:35   warning  'sendNotificationPush' is defined but never used              @typescript-eslint/no-unused-vars
+  12:62   warning  'NotificationPayload' is defined but never used               @typescript-eslint/no-unused-vars
+  14:10   warning  'ensureShipmentFulfillmentsInTx' is defined but never used    @typescript-eslint/no-unused-vars
+  15:10   warning  'transitionShipmentStatus' is defined but never used          @typescript-eslint/no-unused-vars
+  16:10   warning  'createTrip' is defined but never used                        @typescript-eslint/no-unused-vars
+  17:10   warning  'assertShipmentAccountingUnlocked' is defined but never used  @typescript-eslint/no-unused-vars
+  18:10   warning  'operationalName' is defined but never used                   @typescript-eslint/no-unused-vars
+  19:10   warning  'escapeLikeTerm' is defined but never used                    @typescript-eslint/no-unused-vars
+  20:41   warning  'ilike' is defined but never used                             @typescript-eslint/no-unused-vars
+  21:10   warning  'canonicalShipmentStatus' is defined but never used           @typescript-eslint/no-unused-vars
+  21:35   warning  'NotificationType' is defined but never used                  @typescript-eslint/no-unused-vars
+  21:76   warning  'DispatchClassification' is defined but never used            @typescript-eslint/no-unused-vars
+  21:105  warning  'FuelMode' is defined but never used                          @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/services/dispatch-planning-utils.service.ts
+   8:10   warning  'resolveHandoff' is defined but never used                    @typescript-eslint/no-unused-vars
+   9:10   warning  'runIdempotent' is defined but never used                     @typescript-eslint/no-unused-vars
+   9:25   warning  'IDEMPOTENCY_ENDPOINTS' is defined but never used             @typescript-eslint/no-unused-vars
+  10:10   warning  'persistNotificationInTx' is defined but never used           @typescript-eslint/no-unused-vars
+  10:35   warning  'sendNotificationPush' is defined but never used              @typescript-eslint/no-unused-vars
+  11:10   warning  'assertActorCanAccessShipment' is defined but never used      @typescript-eslint/no-unused-vars
+  12:10   warning  'ensureShipmentFulfillmentsInTx' is defined but never used    @typescript-eslint/no-unused-vars
+  13:10   warning  'transitionShipmentStatus' is defined but never used          @typescript-eslint/no-unused-vars
+  14:10   warning  'createTrip' is defined but never used                        @typescript-eslint/no-unused-vars
+  15:10   warning  'assertShipmentAccountingUnlocked' is defined but never used  @typescript-eslint/no-unused-vars
+  18:10   warning  'and' is defined but never used                               @typescript-eslint/no-unused-vars
+  18:15   warning  'asc' is defined but never used                               @typescript-eslint/no-unused-vars
+  18:20   warning  'count' is defined but never used                             @typescript-eslint/no-unused-vars
+  18:27   warning  'desc' is defined but never used                              @typescript-eslint/no-unused-vars
+  18:33   warning  'eq' is defined but never used                                @typescript-eslint/no-unused-vars
+  18:37   warning  'gt' is defined but never used                                @typescript-eslint/no-unused-vars
+  18:57   warning  'isNotNull' is defined but never used                         @typescript-eslint/no-unused-vars
+  18:68   warning  'isNull' is defined but never used                            @typescript-eslint/no-unused-vars
+  18:76   warning  'lt' is defined but never used                                @typescript-eslint/no-unused-vars
+  18:80   warning  'ne' is defined but never used                                @typescript-eslint/no-unused-vars
+  19:10   warning  'canonicalShipmentStatus' is defined but never used           @typescript-eslint/no-unused-vars
+  19:59   warning  'TripStatus' is defined but never used                        @typescript-eslint/no-unused-vars
+  19:76   warning  'DispatchClassification' is defined but never used            @typescript-eslint/no-unused-vars
+  19:105  warning  'FuelMode' is defined but never used                          @typescript-eslint/no-unused-vars
+  19:120  warning  'TruckSuggestion' is defined but never used                   @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/services/salary-period-finalization-governance.service.ts
+  4:10  warning  'db' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/services/shipment-fulfillment.service.ts
+  1:41  warning  'sql' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/services/shipment-queries.service.ts
+  21:15  warning  'Tx' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/services/shipment-recovery.service.ts
+  4:10  warning  'db' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/services/shipment.service.ts
+   26:3   warning  'ShipmentContainerInput' is defined but never used               @typescript-eslint/no-unused-vars
+   27:3   warning  'ShipmentContainerMutationResult' is defined but never used      @typescript-eslint/no-unused-vars
+   28:3   warning  'ShipmentDeclarationMutationInput' is defined but never used     @typescript-eslint/no-unused-vars
+   29:3   warning  'ShipmentDeclarationScopeValue' is defined but never used        @typescript-eslint/no-unused-vars
+   30:3   warning  'ShipmentDocumentTypeValue' is defined but never used            @typescript-eslint/no-unused-vars
+   37:20  warning  'count' is defined but never used                                @typescript-eslint/no-unused-vars
+   37:37  warning  'gte' is defined but never used                                  @typescript-eslint/no-unused-vars
+   37:59  warning  'lte' is defined but never used                                  @typescript-eslint/no-unused-vars
+   37:64  warning  'ne' is defined but never used                                   @typescript-eslint/no-unused-vars
+   37:68  warning  'or' is defined but never used                                   @typescript-eslint/no-unused-vars
+   47:3   warning  'round2dp' is defined but never used                             @typescript-eslint/no-unused-vars
+   51:3   warning  'updateShipmentSchema' is defined but never used                 @typescript-eslint/no-unused-vars
+   60:3   warning  'buildShipmentScopeWhere' is defined but never used              @typescript-eslint/no-unused-vars
+   66:3   warning  'classifyClerkContainerChange' is defined but never used         @typescript-eslint/no-unused-vars
+   92:3   warning  'loadShipmentDispatchAggregates' is defined but never used       @typescript-eslint/no-unused-vars
+   94:3   warning  'buildDispatchPortFacetPredicate' is defined but never used      @typescript-eslint/no-unused-vars
+   95:3   warning  'buildDispatchCarrierFacetPredicate' is defined but never used   @typescript-eslint/no-unused-vars
+   96:3   warning  'computeDispatchSummaryForSet' is defined but never used         @typescript-eslint/no-unused-vars
+   97:3   warning  'loadShipmentListSummaries' is defined but never used            @typescript-eslint/no-unused-vars
+   98:3   warning  'loadShipmentListDeclarationNumbers' is defined but never used   @typescript-eslint/no-unused-vars
+   99:3   warning  'loadShipmentListAppointmentGroups' is defined but never used    @typescript-eslint/no-unused-vars
+  100:3   warning  'loadShipmentListFactoryNames' is defined but never used         @typescript-eslint/no-unused-vars
+  101:3   warning  'loadShipmentListRouteNames' is defined but never used           @typescript-eslint/no-unused-vars
+  102:3   warning  'loadShipmentListContainerPortGroups' is defined but never used  @typescript-eslint/no-unused-vars
+  103:8   warning  'AllocationStatus' is defined but never used                     @typescript-eslint/no-unused-vars
+  104:8   warning  'ShipmentContainerPortGroup' is defined but never used           @typescript-eslint/no-unused-vars
+  107:3   warning  'DEFAULT_SHIPMENT_DECLARATION_SCOPE' is defined but never used   @typescript-eslint/no-unused-vars
+  116:3   warning  'normalizeShipmentDocumentType' is defined but never used        @typescript-eslint/no-unused-vars
+  117:3   warning  'normalizeShipmentDeclarationScope' is defined but never used    @typescript-eslint/no-unused-vars
+  129:7   warning  'SITE_OPERATIONAL_NAME' is assigned a value but never used       @typescript-eslint/no-unused-vars
+  130:7   warning  'ROUTE_OPERATIONAL_NAME' is assigned a value but never used      @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/services/treasury.service.ts
+  3:10  warning  'db' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/services/trip-status-machine.service.ts
+  4:10  warning  'db' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/tests/material-write-registry-exhaustive.test.ts
+  20:7  warning  'configRoutePath' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/tests/penalties-list.test.ts
+  31:5   warning  'driverB' is assigned a value but never used    @typescript-eslint/no-unused-vars
+  42:7   warning  'yearStart' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  57:10  warning  'expectedStreakDays' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/tests/q19-business-calendar-routes.test.ts
+  37:5  warning  'accountantId' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  38:5  warning  'managerId' is assigned a value but never used     @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/tests/users-list-pagination.test.ts
+  7:10  warning  'eq' is defined but never used  @typescript-eslint/no-unused-vars
+
+✖ 182 problems (0 errors, 182 warnings)
+
+Exit status: 0
+Final re-run command: pnpm lint
+
+> tingting@ lint /Users/dev/Documents/projects/silversea
+> eslint .
+
+
+/Users/dev/Documents/projects/silversea/backend/src/routes/config/audit-logs.routes.ts
+   3:10  warning  'db' is defined but never used             @typescript-eslint/no-unused-vars
+   4:13  warning  's' is defined but never used              @typescript-eslint/no-unused-vars
+   5:10  warning  'and' is defined but never used            @typescript-eslint/no-unused-vars
+   5:15  warning  'eq' is defined but never used             @typescript-eslint/no-unused-vars
+   5:19  warning  'isNull' is defined but never used         @typescript-eslint/no-unused-vars
+   6:10  warning  'ApiError' is defined but never used       @typescript-eslint/no-unused-vars
+   9:10  warning  'runIdempotent' is defined but never used  @typescript-eslint/no-unused-vars
+  10:13  warning  'H' is defined but never used              @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/routes/config/catalog-crud.routes.ts
+   5:27  warning  'like' is defined but never used                                @typescript-eslint/no-unused-vars
+  12:10  warning  'runIdempotent' is defined but never used                       @typescript-eslint/no-unused-vars
+  12:25  warning  'resolveIdempotencyKey' is defined but never used               @typescript-eslint/no-unused-vars
+  13:10  warning  'cacheInvalidate' is defined but never used                     @typescript-eslint/no-unused-vars
+  15:77  warning  'SupplierPayload' is defined but never used                     @typescript-eslint/no-unused-vars
+  15:94  warning  'ForwarderExpenseTypePayload' is defined but never used         @typescript-eslint/no-unused-vars
+  18:3   warning  'lockApplicationOwnedUniquenessSet' is defined but never used   @typescript-eslint/no-unused-vars
+  25:10  warning  'requestOrApplyGovernedConfigAction' is defined but never used  @typescript-eslint/no-unused-vars
+  32:3   warning  'fuelConfigSchema' is defined but never used                    @typescript-eslint/no-unused-vars
+  38:15  warning  'installTireSchema' is defined but never used                   @typescript-eslint/no-unused-vars
+  38:34  warning  'disposeTireSchema' is defined but never used                   @typescript-eslint/no-unused-vars
+  38:53  warning  'transferTireSchema' is defined but never used                  @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/routes/config/config-helpers.ts
+  29:32  warning  'getFuelConfig' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/routes/config/operational-config.routes.ts
+   5:10  warning  'and' is defined but never used                            @typescript-eslint/no-unused-vars
+   5:15  warning  'eq' is defined but never used                             @typescript-eslint/no-unused-vars
+   5:33  warning  'ne' is defined but never used                             @typescript-eslint/no-unused-vars
+   6:10  warning  'ApiError' is defined but never used                       @typescript-eslint/no-unused-vars
+   9:10  warning  'requireRoles' is defined but never used                   @typescript-eslint/no-unused-vars
+  10:10  warning  'Role' is defined but never used                           @typescript-eslint/no-unused-vars
+  11:10  warning  'createCrudRouter' is defined but never used               @typescript-eslint/no-unused-vars
+  12:25  warning  'resolveIdempotencyKey' is defined but never used          @typescript-eslint/no-unused-vars
+  13:10  warning  'cacheInvalidate' is defined but never used                @typescript-eslint/no-unused-vars
+  13:27  warning  'cacheInvalidatePattern' is defined but never used         @typescript-eslint/no-unused-vars
+  15:25  warning  'getFuelConfigUpdatedAt' is defined but never used         @typescript-eslint/no-unused-vars
+  15:49  warning  'upsertFuelConfigInTx' is defined but never used           @typescript-eslint/no-unused-vars
+  16:47  warning  'governanceActionVersionSchema' is defined but never used  @typescript-eslint/no-unused-vars
+  17:10  warning  'COMPANY_INFO_SETTING_KEYS' is defined but never used      @typescript-eslint/no-unused-vars
+  19:10  warning  'parsePagination' is defined but never used                @typescript-eslint/no-unused-vars
+  20:10  warning  'queryAuditLogs' is defined but never used                 @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/routes/config/salary-periods-config.routes.ts
+   3:10  warning  'db' is defined but never used                                  @typescript-eslint/no-unused-vars
+  14:3   warning  'updateSalaryPeriodDefaultInTx' is defined but never used       @typescript-eslint/no-unused-vars
+  16:3   warning  'upsertSalaryPeriodOverrideInTx' is defined but never used      @typescript-eslint/no-unused-vars
+  17:3   warning  'updateSalaryPeriodOverrideByIdInTx' is defined but never used  @typescript-eslint/no-unused-vars
+  18:3   warning  'deleteSalaryPeriodOverrideInTx' is defined but never used      @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/routes/config/tire-lifecycle.routes.ts
+   3:10  warning  'db' is defined but never used                     @typescript-eslint/no-unused-vars
+   4:13  warning  's' is defined but never used                      @typescript-eslint/no-unused-vars
+   5:10  warning  'and' is defined but never used                    @typescript-eslint/no-unused-vars
+   5:15  warning  'eq' is defined but never used                     @typescript-eslint/no-unused-vars
+   5:19  warning  'isNull' is defined but never used                 @typescript-eslint/no-unused-vars
+   5:27  warning  'like' is defined but never used                   @typescript-eslint/no-unused-vars
+   5:33  warning  'ne' is defined but never used                     @typescript-eslint/no-unused-vars
+   6:10  warning  'ApiError' is defined but never used               @typescript-eslint/no-unused-vars
+   8:10  warning  'getUser' is defined but never used                @typescript-eslint/no-unused-vars
+  11:10  warning  'createCrudRouter' is defined but never used       @typescript-eslint/no-unused-vars
+  12:25  warning  'resolveIdempotencyKey' is defined but never used  @typescript-eslint/no-unused-vars
+  13:10  warning  'cacheInvalidate' is defined but never used        @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/routes/forwarder.ts
+  30:10   warning  'db' is defined but never used                      @typescript-eslint/no-unused-vars
+  33:133  warning  'listAdvanceSettlements' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/routes/salary.ts
+  38:10  warning  'db' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/seed/seed-bulk-data.ts
+   52:7   warning  'BULK_TAX_CODE_PREFIX' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  149:7   warning  'pickN' is assigned a value but never used                 @typescript-eslint/no-unused-vars
+  267:10  warning  'genWarehouseAddress' is defined but never used            @typescript-eslint/no-unused-vars
+  579:16  warning  '_typeCode' is assigned a value but never used             @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/seed/seed-customer-ar.ts
+  21:10  warning  'minimalPdf' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/seed/seed-vendor-financials.ts
+  10:36  warning  'sql' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/services/approval.service.ts
+  4:10  warning  'db' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/services/billing-document-template.service.ts
+  16:3  warning  'OfficialBillingIdentitySnapshot' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/services/billing-document.service.ts
+   8:35  warning  'getCompanyInfo' is defined but never used  @typescript-eslint/no-unused-vars
+  11:10  warning  'loadLogoBytes' is defined but never used   @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/services/billing-export.service.ts
+   6:10  warning  'and' is defined but never used                                      @typescript-eslint/no-unused-vars
+   6:28  warning  'or' is defined but never used                                       @typescript-eslint/no-unused-vars
+  11:3   warning  'BillingDocumentOfficialIdentitySnapshot' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/services/cus-shipment-workspace-writes.service.ts
+  34:3  warning  'SITE_OPERATIONAL_NAME' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/services/dispatch-planning-commands.service.ts
+   7:10   warning  'CUSTOMER_OPERATIONAL_NAME' is defined but never used  @typescript-eslint/no-unused-vars
+   7:37   warning  'ROUTE_OPERATIONAL_NAME' is defined but never used     @typescript-eslint/no-unused-vars
+   7:61   warning  'SITE_OPERATIONAL_NAME' is defined but never used      @typescript-eslint/no-unused-vars
+  12:62   warning  'NotificationPayload' is defined but never used        @typescript-eslint/no-unused-vars
+  18:10   warning  'operationalName' is defined but never used            @typescript-eslint/no-unused-vars
+  19:10   warning  'escapeLikeTerm' is defined but never used             @typescript-eslint/no-unused-vars
+  20:15   warning  'asc' is defined but never used                        @typescript-eslint/no-unused-vars
+  20:27   warning  'desc' is defined but never used                       @typescript-eslint/no-unused-vars
+  20:41   warning  'ilike' is defined but never used                      @typescript-eslint/no-unused-vars
+  21:76   warning  'DispatchClassification' is defined but never used     @typescript-eslint/no-unused-vars
+  21:120  warning  'TruckSuggestion' is defined but never used            @typescript-eslint/no-unused-vars
+  25:15   warning  'AuthUser' is defined but never used                   @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/services/dispatch-planning-detail-plan.service.ts
+  10:10   warning  'resolveHandoff' is defined but never used                  @typescript-eslint/no-unused-vars
+  14:10   warning  'ensureShipmentFulfillmentsInTx' is defined but never used  @typescript-eslint/no-unused-vars
+  15:10   warning  'transitionShipmentStatus' is defined but never used        @typescript-eslint/no-unused-vars
+  16:10   warning  'createTrip' is defined but never used                      @typescript-eslint/no-unused-vars
+  18:10   warning  'operationalName' is defined but never used                 @typescript-eslint/no-unused-vars
+  19:10   warning  'escapeLikeTerm' is defined but never used                  @typescript-eslint/no-unused-vars
+  20:20   warning  'count' is defined but never used                           @typescript-eslint/no-unused-vars
+  20:27   warning  'desc' is defined but never used                            @typescript-eslint/no-unused-vars
+  20:37   warning  'gt' is defined but never used                              @typescript-eslint/no-unused-vars
+  20:76   warning  'lt' is defined but never used                              @typescript-eslint/no-unused-vars
+  21:105  warning  'FuelMode' is defined but never used                        @typescript-eslint/no-unused-vars
+  21:120  warning  'TruckSuggestion' is defined but never used                 @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/services/dispatch-planning-queries.service.ts
+   7:61   warning  'SITE_OPERATIONAL_NAME' is defined but never used             @typescript-eslint/no-unused-vars
+  10:10   warning  'resolveHandoff' is defined but never used                    @typescript-eslint/no-unused-vars
+  11:10   warning  'runIdempotent' is defined but never used                     @typescript-eslint/no-unused-vars
+  11:25   warning  'IDEMPOTENCY_ENDPOINTS' is defined but never used             @typescript-eslint/no-unused-vars
+  12:10   warning  'persistNotificationInTx' is defined but never used           @typescript-eslint/no-unused-vars
+  12:35   warning  'sendNotificationPush' is defined but never used              @typescript-eslint/no-unused-vars
+  12:62   warning  'NotificationPayload' is defined but never used               @typescript-eslint/no-unused-vars
+  14:10   warning  'ensureShipmentFulfillmentsInTx' is defined but never used    @typescript-eslint/no-unused-vars
+  15:10   warning  'transitionShipmentStatus' is defined but never used          @typescript-eslint/no-unused-vars
+  16:10   warning  'createTrip' is defined but never used                        @typescript-eslint/no-unused-vars
+  17:10   warning  'assertShipmentAccountingUnlocked' is defined but never used  @typescript-eslint/no-unused-vars
+  18:10   warning  'operationalName' is defined but never used                   @typescript-eslint/no-unused-vars
+  19:10   warning  'escapeLikeTerm' is defined but never used                    @typescript-eslint/no-unused-vars
+  20:41   warning  'ilike' is defined but never used                             @typescript-eslint/no-unused-vars
+  21:10   warning  'canonicalShipmentStatus' is defined but never used           @typescript-eslint/no-unused-vars
+  21:35   warning  'NotificationType' is defined but never used                  @typescript-eslint/no-unused-vars
+  21:76   warning  'DispatchClassification' is defined but never used            @typescript-eslint/no-unused-vars
+  21:105  warning  'FuelMode' is defined but never used                          @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/services/dispatch-planning-utils.service.ts
+   8:10   warning  'resolveHandoff' is defined but never used                    @typescript-eslint/no-unused-vars
+   9:10   warning  'runIdempotent' is defined but never used                     @typescript-eslint/no-unused-vars
+   9:25   warning  'IDEMPOTENCY_ENDPOINTS' is defined but never used             @typescript-eslint/no-unused-vars
+  10:10   warning  'persistNotificationInTx' is defined but never used           @typescript-eslint/no-unused-vars
+  10:35   warning  'sendNotificationPush' is defined but never used              @typescript-eslint/no-unused-vars
+  11:10   warning  'assertActorCanAccessShipment' is defined but never used      @typescript-eslint/no-unused-vars
+  12:10   warning  'ensureShipmentFulfillmentsInTx' is defined but never used    @typescript-eslint/no-unused-vars
+  13:10   warning  'transitionShipmentStatus' is defined but never used          @typescript-eslint/no-unused-vars
+  14:10   warning  'createTrip' is defined but never used                        @typescript-eslint/no-unused-vars
+  15:10   warning  'assertShipmentAccountingUnlocked' is defined but never used  @typescript-eslint/no-unused-vars
+  18:10   warning  'and' is defined but never used                               @typescript-eslint/no-unused-vars
+  18:15   warning  'asc' is defined but never used                               @typescript-eslint/no-unused-vars
+  18:20   warning  'count' is defined but never used                             @typescript-eslint/no-unused-vars
+  18:27   warning  'desc' is defined but never used                              @typescript-eslint/no-unused-vars
+  18:33   warning  'eq' is defined but never used                                @typescript-eslint/no-unused-vars
+  18:37   warning  'gt' is defined but never used                                @typescript-eslint/no-unused-vars
+  18:57   warning  'isNotNull' is defined but never used                         @typescript-eslint/no-unused-vars
+  18:68   warning  'isNull' is defined but never used                            @typescript-eslint/no-unused-vars
+  18:76   warning  'lt' is defined but never used                                @typescript-eslint/no-unused-vars
+  18:80   warning  'ne' is defined but never used                                @typescript-eslint/no-unused-vars
+  19:10   warning  'canonicalShipmentStatus' is defined but never used           @typescript-eslint/no-unused-vars
+  19:59   warning  'TripStatus' is defined but never used                        @typescript-eslint/no-unused-vars
+  19:76   warning  'DispatchClassification' is defined but never used            @typescript-eslint/no-unused-vars
+  19:105  warning  'FuelMode' is defined but never used                          @typescript-eslint/no-unused-vars
+  19:120  warning  'TruckSuggestion' is defined but never used                   @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/services/salary-period-finalization-governance.service.ts
+  4:10  warning  'db' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/services/shipment-fulfillment.service.ts
+  1:41  warning  'sql' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/services/shipment-queries.service.ts
+  21:15  warning  'Tx' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/services/shipment-recovery.service.ts
+  4:10  warning  'db' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/services/treasury.service.ts
+  3:10  warning  'db' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/services/trip-status-machine.service.ts
+  4:10  warning  'db' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/tests/material-write-registry-exhaustive.test.ts
+  20:7  warning  'configRoutePath' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/tests/penalties-list.test.ts
+  31:5   warning  'driverB' is assigned a value but never used    @typescript-eslint/no-unused-vars
+  42:7   warning  'yearStart' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  57:10  warning  'expectedStreakDays' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/tests/q19-business-calendar-routes.test.ts
+  37:5  warning  'accountantId' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  38:5  warning  'managerId' is assigned a value but never used     @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea/backend/src/tests/users-list-pagination.test.ts
+  7:10  warning  'eq' is defined but never used  @typescript-eslint/no-unused-vars
+
+✖ 151 problems (0 errors, 151 warnings)
+
+Final re-run exit status: 0

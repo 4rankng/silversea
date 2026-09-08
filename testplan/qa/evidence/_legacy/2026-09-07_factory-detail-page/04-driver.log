@@ -1,0 +1,40 @@
+=== Reproduce + verify on staging (vantai.tingting.vip) ===
+
+# Pre-fix (before deploy)
+$ node /tmp/qa/repro-detail.mjs
+Navigating: https://vantai.tingting.vip/shipments/2
+Screenshot 03: detail page saved
+→ /tmp/qa/repro-03-detail-page.png
+   detail header "Nhà máy / công trường" → "—"
+
+# Fix applied: backend resolveEffectiveFactoryName + frontend ShipmentDetailPage.tsx:203
+# Deploy: make demo → https://vantai.tingting.vip (rolled out 2026-09-07 11:06 UTC)
+
+# Post-fix (after deploy)
+$ TOKEN=… node /tmp/qa/verify.mjs
+Navigating: https://vantai.tingting.vip/shipments/2
+Screenshot saved
+Factory field shows: "ASKEY-2"
+→ /tmp/qa/verify-after.png
+   detail header "Nhà máy / công trường" → "ASKEY-2"  ✅
+
+$ TOKEN=… node /tmp/qa/verify-sunrise.mjs
+Navigating: https://vantai.tingting.vip/shipments/3
+Shipment 3 factory field: "SUNRISE"  ✅
+
+=== API DB-side-effect proof ===
+# Staging DB (postgres container on vantai)
+shipments WHERE id=2:  factory_name=''  operational_site_id=NULL
+shipment_containers WHERE shipment_id=2:  container 9 EMCU6163403 operational_site_id=6
+operational_sites WHERE id=6: short_name='ASKEY-2'
+
+# Backend response (GET /api/shipments/2)
+shipment.factoryName = null
+shipment.effectiveFactoryName = 'ASKEY-2'   ← NEW field, resolved from operational_sites
+containers[0].operationalSiteId = 6
+
+# All four Long Minh shipments
+id=2 effectiveFactoryName='ASKEY-2' (container 9 → site 6)
+id=3 effectiveFactoryName='SUNRISE' (container 10 → site 7)
+id=4 effectiveFactoryName='ASKEY-2' (containers 11,12 → site 6)
+id=5 effectiveFactoryName='ASKEY-2' (containers 13,14 → site 6)

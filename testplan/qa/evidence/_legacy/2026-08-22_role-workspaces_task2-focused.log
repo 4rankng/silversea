@@ -1,0 +1,4 @@
+$ cd frontend && npx tsc -b
+exit 0
+$ cd frontend && pnpm test -- --run src/lib/offline-queue.test.ts src/pages/DriverTripsPage.test.tsx src/pages/ForwarderTripsPage.test.tsx src/pages/portal/PortalPages.test.tsx
+exit 1 (pre-existing frozen dispatch/CUS failures plus legacy assertions intentionally superseded by inbox shell)

@@ -1,0 +1,4 @@
+Command: cd backend && npx tsc --noEmit
+Started: 2026-08-22T22:43:55+08:00
+Exit status: 0
+Finished: 2026-08-22T22:44:04+08:00

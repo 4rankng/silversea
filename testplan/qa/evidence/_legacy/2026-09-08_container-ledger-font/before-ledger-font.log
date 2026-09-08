@@ -1,0 +1,35 @@
+Saved ledger screenshot -> /tmp/opencode/qa/before-container-ledger.png
+=== BIỂN SỐ font comparison ===
+[
+  {
+    "ordinal": "1",
+    "plateText": "15C-184.62",
+    "tdFontSize": "12px",
+    "tdFontWeight": "500",
+    "strongFontSize": "12px",
+    "strongFontWeight": "500",
+    "displayFontSize": null,
+    "displayFontWeight": null,
+    "displayColor": null,
+    "inputFontSize": null
+  },
+  {
+    "ordinal": "2",
+    "plateText": "Nhập biển số",
+    "tdFontSize": "12px",
+    "tdFontWeight": "500",
+    "strongFontSize": null,
+    "strongFontWeight": null,
+    "displayFontSize": "13px",
+    "displayFontWeight": "500",
+    "displayColor": "rgb(95, 104, 114)",
+    "inputFontSize": "11px"
+  }
+]
+
+VERDICT: FAIL — font-size differs between rows
+
+=== console ===
+[debug] [vite] connecting...
+[debug] [vite] connected.
+[info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold

@@ -1,0 +1,10 @@
+Command: pnpm --dir frontend check:ui
+Date: 2026-08-27 10:04 +08
+Scope: phát lệnh quick-issue dialog — new quick-issue button skin (green gradient) + issue-btn re-skin in DispatchPlanEditorCell.css
+Exit status: 0
+
+> @tingting/frontend@0.1.0 check:ui /Users/dev/Documents/projects/silversea/frontend
+> node scripts/check-ui-contract.mjs && node scripts/check-brand-contract.mjs
+
+UI contract check passed.
+TransTing brand contract passed.

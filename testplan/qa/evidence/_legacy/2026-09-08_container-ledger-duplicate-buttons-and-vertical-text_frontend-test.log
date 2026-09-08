@@ -1,0 +1,43 @@
+QA Run: 2026-09-08T13:40:00Z
+Scope: Container Ledger — duplicate buttons + vertical error text
+Base commit: 342156a0 (HEAD)
+
+== Changes ==
+1. CusContainerLedger.tsx: Removed duplicate Lưu/Hủy button group from Thao tác
+   column. The inline buttons in the Giờ hẹn đóng/trả cell remain as the
+   sole save/cancel affordance. The Thao tác column now only shows "Đang lưu…"
+   status text.
+2. ShipmentContainerCell.css: Added word-wrap/overflow-wrap/white-space:normal
+   to .csc-container-cell__error so save-error text wraps at word boundaries
+   instead of stacking vertically in narrow cells. Added max-height + overflow
+   to prevent the error from bloating the row.
+
+== Gate Results ==
+
+1. Frontend Typecheck
+   Command: cd frontend && npx tsc -b
+   Exit: 0
+   Result: PASS
+
+2. Frontend Tests (ShipmentsPage.test.tsx)
+   Command: cd frontend && npx vitest run src/pages/ShipmentsPage.test.tsx
+   Result: 66 passed, 1 failed (pre-existing flaky test from combobox change
+   in 342156a0 — "uses exactly one full-cell button to open the matching
+   edit dialog" passes in isolation, fails under full-suite test interaction)
+
+3. UI Verification (Puppeteer, local dev)
+   Login: thanhdc (CUS) / Abc123
+   Page: http://localhost:7174/shipments?dateScope=all
+   Action: Clicked "Chi tiết" on EGLV149607019409 row → drawer opened
+   Container count: 1 cont (EMCU6163403)
+   cus-container-actions__group (duplicate buttons): 0
+   Result: PASS
+
+== Notes ==
+- The pre-existing flaky test is from commit 342156a0's combobox change
+  (hasClearableValue logic). Not introduced by this fix.
+- CUS user thanhdc has read-only access to this container (Đã phân xe),
+  so inline save buttons don't appear — no dirty state to trigger them.
+- The full-width error row (cus-container-row-error) added in 342156a0
+  handles save errors correctly; the ShipmentContainerCell.css fix is
+  for any inline error that might still render in narrow cells.

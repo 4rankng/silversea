@@ -1,0 +1,3 @@
+# Gate: frontend typecheck
+# Command: cd frontend && npx tsc -b
+# Exit status: 0 (PASS) — no output, no errors

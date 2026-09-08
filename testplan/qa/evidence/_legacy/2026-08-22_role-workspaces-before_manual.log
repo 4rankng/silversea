@@ -1,0 +1,15 @@
+Command: cd frontend && node /tmp/silversea-role-workspaces-before.cjs
+Timestamp: 2026-08-22 Asia/Singapore
+Exit status: 0
+
+{
+  "screenshotCount": 18,
+  "errors": [
+    "ketoan:console:Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "ketoan:console:Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "ketoan:console:Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ]
+}
+
+Screenshots: qa/2026-08-22_role-workspaces_before/
+Baseline note: the Accountant page currently issues three unauthorized secondary requests; this is preserved as pre-change evidence and must be eliminated or explicitly scoped by the redesigned work view.

@@ -1,0 +1,16 @@
+
+> @tingting/frontend@0.1.0 test /Users/dev/Documents/projects/silversea-prod/frontend
+> vitest run
+
+
+ RUN  v4.1.8 /Users/dev/Documents/projects/silversea-prod/frontend
+
+ ❯ src/pages/RecoverableCostsPage.test.tsx (14 tests | 1 failed) 13303ms
+     × sends sortBy/sortDir on header clicks, toggles asc → desc, and resets to page 1 5151ms
+
+ Test Files  1 failed | 252 passed (253)
+      Tests  1 failed | 1468 passed (1469)
+   Start at  20:10:12
+   Duration  181.85s (transform 20.64s, setup 50.80s, import 497.50s, tests 405.50s, environment 553.96s)
+
+ ELIFECYCLE  Test failed. See above for more details.

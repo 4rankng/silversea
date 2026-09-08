@@ -1,0 +1,13 @@
+Command: pnpm --dir frontend exec vitest run src/pages/ShipmentsPage.test.tsx
+Started: 2026-08-14T16:05:08+08:00
+
+ RUN  v4.1.8 /Users/dev/Documents/projects/silversea/frontend
+
+
+ Test Files  1 passed (1)
+      Tests  40 passed (40)
+   Start at  16:05:09
+   Duration  4.41s (transform 348ms, setup 18ms, import 1.00s, tests 2.86s, environment 433ms)
+
+Exit status: 0
+Finished: 2026-08-14T16:05:13+08:00

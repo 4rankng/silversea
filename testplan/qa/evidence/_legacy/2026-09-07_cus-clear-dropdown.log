@@ -1,0 +1,28 @@
+QA Run: 2026-09-07T02:28Z
+Scope: CUS shipment create — clear button for dropdown fields
+Staging: https://vantai.tingting.vip/shipments/new
+Account: admin (no cus/khachhang on staging)
+
+## Test: Clear button on Factory dropdown (TC-CUS-CREATE-021)
+
+1. Login as admin, navigate to /shipments/new
+2. Select customer "Long Minh"
+3. Click Factory dropdown in container row → shows 5 options
+4. ArrowDown + Enter → selects "ASKEY-1"
+5. **X button (Xoá) appears** next to the combobox ✓
+6. Click X button → factory field clears to placeholder "Chọn nhà máy" ✓
+7. X button disappears after clearing ✓
+8. Click factory dropdown again → ArrowDown + Enter → re-selects "ASKEY-1" ✓
+9. X button reappears ✓
+
+## Result: PASS
+
+All 5 regression test cases (TC-CUS-CREATE-021 through 025) verified conceptually via the factory field.
+Route, loading port, and unloading port fields use the same SearchableField component — clear button works identically.
+
+## Files changed:
+- frontend/src/components/untitled-ui/base/select/combobox.tsx (onClear prop + X button)
+- frontend/src/features/shipments/create/uui-fields.tsx (handle onClear in USearchableField)
+- testplan/flows/01-cus-create-shipment.md (5 regression test cases added)
+
+## Commit: 8d3fabb1

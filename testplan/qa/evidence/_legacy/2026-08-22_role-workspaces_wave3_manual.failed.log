@@ -1,0 +1,19 @@
+Command: authenticated Puppeteer capture of /config at 1440x900, 768x1024, and 390x844
+Exit status: visual QA failed
+
+Observed failure:
+- GET /system/admin-health returned one card per failed customer email.
+- The seeded database contained 7,709 failed emails, so pagination returned 100 email cards.
+- Setup, users/permissions, configuration, database, durable delivery jobs, and audit sources were starved from the first page.
+- The endpoint was truthful but did not provide the source-level system-management overview required by the Admin workspace.
+
+Root cause:
+- adminHealth() expanded durable_effect_jobs and customer_email_logs rows individually instead of aggregating each health source.
+
+Fix:
+- Aggregate failed durable jobs and failed customer emails into one source card each.
+- Retain the real failure count and latest source freshness.
+- Emit a healthy zero-failure source card when the query succeeds with no failed rows.
+- Keep query failure mapped to UNAVAILABLE; never infer HEALTHY from an unavailable source.
+
+Re-run evidence is recorded in qa/2026-08-22_role-workspaces_wave3_manual.log.

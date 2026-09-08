@@ -1,0 +1,110 @@
+{
+  "runId": "2026-09-08_customer-regression",
+  "timestamp": "2026-09-08T06:53:34.501Z",
+  "results": [
+    {
+      "caseId": "FACTORY-DISPLAY-REGRESSION-2026-09-07",
+      "role": "CUS",
+      "file": "factory-display.mjs",
+      "verdict": "PASS",
+      "durationMs": 4657,
+      "target": {
+        "id": 5,
+        "siteIds": [
+          6,
+          6
+        ]
+      },
+      "factoryCellText": "ASKEY-2",
+      "cellMatches": true,
+      "cellIsDash": false,
+      "expectedShortNames": [
+        "ASKEY-2"
+      ],
+      "siteShortNames": [
+        "ASKEY-1",
+        "ASKEY-2",
+        "SCONECT",
+        "SJ",
+        "SUNRISE"
+      ]
+    },
+    {
+      "caseId": "TC-CUS-CREATE-021",
+      "role": "CUS",
+      "file": "TC-CUS-CREATE-021.mjs",
+      "verdict": "PASS",
+      "durationMs": 31728,
+      "before": "ASKEY-1",
+      "after": "",
+      "clearResult": {
+        "ok": true
+      },
+      "rePick": {
+        "ok": true,
+        "picked": "ASKEY-1CÔNG TY TNHH CÔNG NGHỆ ASKEY VIỆT NAM Lô C7-2,KCN Quế Võ, Phường Nam Sơn,"
+      }
+    },
+    {
+      "caseId": "TC-CUS-CREATE-022",
+      "role": "CUS",
+      "file": "TC-CUS-CREATE-022.mjs",
+      "verdict": "PASS",
+      "durationMs": 25843,
+      "before": "KCN QUẾ VÕ, BẮC NINH",
+      "after": "",
+      "clearResult": {
+        "ok": true
+      }
+    },
+    {
+      "caseId": "TC-CUS-CREATE-023",
+      "role": "CUS",
+      "file": "TC-CUS-CREATE-023.mjs",
+      "verdict": "PASS",
+      "durationMs": 27997,
+      "cnBefore": "Cảng Mipec",
+      "cnAfter": "",
+      "cnClear": {
+        "ok": true
+      },
+      "chBefore": "Cảng Mipec",
+      "chAfter": "",
+      "chClear": {
+        "ok": true
+      }
+    },
+    {
+      "caseId": "TC-CUS-CREATE-026",
+      "role": "CUS",
+      "file": "TC-CUS-CREATE-026.mjs",
+      "verdict": "PASS",
+      "durationMs": 25426,
+      "dupBL": "JJCTCHPDY260305",
+      "inlineWarnings": [
+        "Số Bill JJCTCHPDY260305 đã được nhập bởi thanhdc lúc 6/9/2026 17:25. Không thể tạo lô trùng.Xem lô đã nhập",
+        "Xem lô đã nhập",
+        "Số tờ khai"
+      ],
+      "dbCountForBL": 1,
+      "inlineHitDuplicate": true
+    },
+    {
+      "caseId": "TC-CUS-CREATE-028",
+      "role": "CUS",
+      "file": "TC-CUS-CREATE-028.mjs",
+      "verdict": "PASS",
+      "durationMs": 8434,
+      "target": {
+        "id": 4,
+        "blNumber": "JJCTCHPDY260305",
+        "containerCount": 2,
+        "containersWithAppt": 2
+      },
+      "rowTextSnippet": "Long MinhASKEY-2KCN QUẾ VÕ, BẮC NINHJJCTCHPDY260305108592316230SJJĐóng kết hợpNhập2x40HC10.484 kgCont08:00 7/9/2026 · ASKEY-2 · 2x40HC1 cont chưa phân xeĐã phát lệnh 1/2 contXưởng 2 Đang chạy Thiếu BKS 1 contChi tiết",
+      "rowHasDate": true,
+      "rowHasWaiting": false,
+      "detailHasDate": true
+    }
+  ]
+}

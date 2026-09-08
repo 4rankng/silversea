@@ -1,0 +1,1932 @@
+$ cd frontend && pnpm test
+
+> @tingting/frontend@0.1.0 test /Users/dev/Documents/projects/silversea/frontend
+> vitest run
+
+
+ RUN  v4.1.8 /Users/dev/Documents/projects/silversea/frontend
+
+ ❯ src/features/dispatch/master-plan/MasterPlanGrid.test.tsx (27 tests | 1 failed) 553ms
+     × falls back to the shipment-level closingAt when no per-container appointments exist 7ms
+stderr | src/pages/portal/PortalPages.test.tsx > customer portal pages > PortalShipmentsPage calls the row-scoped portal shipments endpoint
+An error occurred in the <RoleWorkInbox> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/pages/portal/PortalPages.test.tsx > customer portal pages > uses a normalized booking once when a customer shipment has no Bill number
+An error occurred in the <RoleWorkInbox> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/pages/portal/PortalPages.test.tsx > customer portal pages > keeps a multi-customer portal list separated by the selected legal entity
+An error occurred in the <RoleWorkInbox> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+ ❯ src/pages/portal/PortalPages.test.tsx (14 tests | 3 failed) 3282ms
+     × PortalShipmentsPage calls the row-scoped portal shipments endpoint 1037ms
+     × uses a normalized booking once when a customer shipment has no Bill number 1008ms
+     × keeps a multi-customer portal list separated by the selected legal entity 1007ms
+ ❯ src/pages/ForwarderTripDetailPage.test.tsx (6 tests | 6 failed) 38ms
+     × requires confirmation before deleting and preserves the concurrency token 27ms
+     × fills the lift buy amount from the selected port and container matrix 3ms
+     × reapplies the same matrix suggestion for a consecutive expense entry 2ms
+     × clears the busy state and shows recoverable Vietnamese copy on 'permission denied' 2ms
+     × clears the busy state and shows recoverable Vietnamese copy on 'timeout' 2ms
+     × keeps a stored photo visible and reports only the GPS metadata failure 2ms
+ ❯ src/pages/ShipmentsPage.test.tsx (65 tests | 2 failed) 6839ms
+     × renders the approved seven-column multi-line dashboard and opens detail in a drawer 74ms
+     × does not repeat the shipment-level closing or return date before container appointments 1027ms
+ ❯ src/pages/ForwarderTripDetailPage.lcl.test.tsx (2 tests | 1 failed) 162ms
+     × hides synthetic LCL container UI but preserves its scope id for expense and completion actions 32ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 13 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/pages/ForwarderTripDetailPage.lcl.test.tsx > ForwarderTripDetailPage LCL virtual scope UI > hides synthetic LCL container UI but preserves its scope id for expense and completion actions
+ FAIL  src/pages/ForwarderTripDetailPage.test.tsx > ForwarderTripDetailPage photo upload geolocation recovery > requires confirmation before deleting and preserves the concurrency token
+ FAIL  src/pages/ForwarderTripDetailPage.test.tsx > ForwarderTripDetailPage photo upload geolocation recovery > fills the lift buy amount from the selected port and container matrix
+ FAIL  src/pages/ForwarderTripDetailPage.test.tsx > ForwarderTripDetailPage photo upload geolocation recovery > reapplies the same matrix suggestion for a consecutive expense entry
+ FAIL  src/pages/ForwarderTripDetailPage.test.tsx > ForwarderTripDetailPage photo upload geolocation recovery > clears the busy state and shows recoverable Vietnamese copy on 'permission denied'
+ FAIL  src/pages/ForwarderTripDetailPage.test.tsx > ForwarderTripDetailPage photo upload geolocation recovery > clears the busy state and shows recoverable Vietnamese copy on 'timeout'
+ FAIL  src/pages/ForwarderTripDetailPage.test.tsx > ForwarderTripDetailPage photo upload geolocation recovery > keeps a stored photo visible and reports only the GPS metadata failure
+TypeError: Cannot destructure property 'user' of 'useAuth(...)' as it is null.
+ ❯ ForwarderTripWorkspace src/pages/ForwarderTripDetailPage.tsx:120:11
+    118|   const navigate = useNavigate();
+    119|   const online = useOnline();
+    120|   const { user } = useAuth();
+       |           ^
+    121|
+    122|   const { data: trip, isLoading: loading, error: queryError } = useFor…
+ ❯ Object.react_stack_bottom_frame ../node_modules/.pnpm/react-dom@19.2.6_react@19.2.6/node_modules/react-dom/cjs/react-dom-client.development.js:25904:20
+ ❯ renderWithHooks ../node_modules/.pnpm/react-dom@19.2.6_react@19.2.6/node_modules/react-dom/cjs/react-dom-client.development.js:7662:22
+ ❯ updateFunctionComponent ../node_modules/.pnpm/react-dom@19.2.6_react@19.2.6/node_modules/react-dom/cjs/react-dom-client.development.js:10166:19
+ ❯ beginWork ../node_modules/.pnpm/react-dom@19.2.6_react@19.2.6/node_modules/react-dom/cjs/react-dom-client.development.js:11778:18
+ ❯ runWithFiberInDEV ../node_modules/.pnpm/react-dom@19.2.6_react@19.2.6/node_modules/react-dom/cjs/react-dom-client.development.js:874:13
+ ❯ performUnitOfWork ../node_modules/.pnpm/react-dom@19.2.6_react@19.2.6/node_modules/react-dom/cjs/react-dom-client.development.js:17641:22
+ ❯ workLoopSync ../node_modules/.pnpm/react-dom@19.2.6_react@19.2.6/node_modules/react-dom/cjs/react-dom-client.development.js:17469:41
+ ❯ renderRootSync ../node_modules/.pnpm/react-dom@19.2.6_react@19.2.6/node_modules/react-dom/cjs/react-dom-client.development.js:17450:11
+ ❯ performWorkOnRoot ../node_modules/.pnpm/react-dom@19.2.6_react@19.2.6/node_modules/react-dom/cjs/react-dom-client.development.js:16583:35
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/13]⎯
+
+ FAIL  src/pages/ShipmentsPage.test.tsx > ShipmentsPage — CUS closeout workspace > renders the approved seven-column multi-line dashboard and opens detail in a drawer
+TestingLibraryElementError: Unable to find an element with the text: 09:30 12/8/2026 · Nhà máy ABC · 1x40HC. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<table[39m
+  [33mclass[39m=[32m"cus-dashboard-table ops-table"[39m
+[36m>[39m
+  [36m<caption[39m
+    [33mclass[39m=[32m"sr-only"[39m
+  [36m>[39m
+    [0mTổng hợp lô hàng theo bảy nhóm thông tin[0m
+  [36m</caption>[39m
+  [36m<colgroup>[39m
+    [36m<col[39m
+      [33mclass[39m=[32m"cus-dashboard-col--customer"[39m
+    [36m/>[39m
+    [36m<col[39m
+      [33mclass[39m=[32m"cus-dashboard-col--documents"[39m
+    [36m/>[39m
+    [36m<col[39m
+      [33mclass[39m=[32m"cus-dashboard-col--classification"[39m
+    [36m/>[39m
+    [36m<col[39m
+      [33mclass[39m=[32m"cus-dashboard-col--cargo"[39m
+    [36m/>[39m
+    [36m<col[39m
+      [33mclass[39m=[32m"cus-dashboard-col--schedule"[39m
+    [36m/>[39m
+    [36m<col[39m
+      [33mclass[39m=[32m"cus-dashboard-col--notes"[39m
+    [36m/>[39m
+    [36m<col[39m
+      [33mclass[39m=[32m"cus-dashboard-col--status"[39m
+    [36m/>[39m
+  [36m</colgroup>[39m
+  [36m<thead>[39m
+    [36m<tr>[39m
+      [36m<th[39m
+        [33mscope[39m=[32m"col"[39m
+      [36m>[39m
+        [0mKhách hàng & nhà máy[0m
+      [36m</th>[39m
+      [36m<th[39m
+        [33mscope[39m=[32m"col"[39m
+      [36m>[39m
+        [0mChứng từ[0m
+      [36m</th>[39m
+      [36m<th[39m
+        [33mscope[39m=[32m"col"[39m
+      [36m>[39m
+        [0mPhân loại & hãng tàu[0m
+      [36m</th>[39m
+      [36m<th[39m
+        [33mscope[39m=[32m"col"[39m
+      [36m>[39m
+        [0mTổng quan hàng hóa[0m
+      [36m</th>[39m
+      [36m<th[39m
+        [33mscope[39m=[32m"col"[39m
+      [36m>[39m
+        [0mLịch trình & điều xe[0m
+      [36m</th>[39m
+      [36m<th[39m
+        [33mscope[39m=[32m"col"[39m
+      [36m>[39m
+        [0mGhi chú[0m
+      [36m</th>[39m
+      [36m<th[39m
+        [33mscope[39m=[32m"col"[39m
+      [36m>[39m
+        [0mTrạng thái[0m
+      [36m</th>[39m
+    [36m</tr>[39m
+  [36m</thead>[39m
+  [36m<tbody>[39m
+    [36m<tr[39m
+      [33mclass[39m=[32m"cus-dashboard-row"[39m
+    [36m>[39m
+      [36m<th[39m
+        [33mclass[39m=[32m"cus-dashboard-cell--editable cus-dashboard-cell--identity"[39m
+        [33mdata-label[39m=[32m"Khách hàng & nhà máy"[39m
+        [33mscope[39m=[32m"row"[39m
+      [36m>[39m
+        [36m<span[39m
+          [33mstyle[39m=[32m"position: absolute; left: 0px; top: 50%; transform: translateY(-50%); width: var(--status-strip-width, 3px); height: var(--status-strip-height, 20px); border-radius: var(--status-strip-radius, 0 999px 999px 0); background: var(--warning); pointer-events: none;"[39m
+        [36m/>[39m
+        [36m<button[39m
+          [33maria-haspopup[39m=[32m"dialog"[39m
+          [33maria-label[39m=[32m"Sửa ô khách hàng và nhà máy BILL-12345"[39m
+          [33mclass[39m=[32m"cus-inline-trigger"[39m
+          [33mdata-cell-label[39m=[32m"Khách hàng & nhà máy"[39m
+          [33mid[39m=[32m"cus-inline-identity-1"[39m
+          [33mtitle[39m=[32m"Có thể sửa."[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"cus-multiline-cell"[39m
+          [36m>[39m
+            [36m<strong[39m
+              [33mclass[39m=[32m"cus-customer-name"[39m
+            [36m>[39m
+              [0mCông ty Silver Sea[0m
+            [36m</strong>[39m
+            [36m<span>[39m
+              [0mNhà máy ABC[0m
+            [36m</span>[39m
+            [36m<span>[39m
+              [0mHải Phòng → Hà Nội[0m
+            [36m</span>[39m
+          [36m</span>[39m
+        [36m</button>[39m
+      [36m</th>[39m
+      [36m<td[39m
+        [33mclass[39m=[32m"cus-dashboard-cell--editable"[39m
+        [33mdata-label[39m=[32m"Chứng từ"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33maria-haspopup[39m=[32m"dialog"[39m
+          [33maria-label[39m=[32m"Sửa ô chứng từ BILL-12345"[39m
+          [33mclass[39m=[32m"cus-inline-trigger"[39m
+          [33mdata-cell-label[39m=[32m"Chứng từ"[39m
+          [33mid[39m=[32m"cus-inline-documents-1"[39m
+          [33mtitle[39m=[32m"Có thể sửa."[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"cus-multiline-cell cus-multiline-cell--mono"[39m
+          [36m>[39m
+            [36m<strong>[39m
+              [0mBILL-12345[0m
+            [36m</strong>[39m
+            [36m<span>[39m
+              [0mTK-54321[0m
+            [36m</span>[39m
+          [36m</span>[39m
+        [36m</button>[39m
+      [36m</td>[39m
+      [36m<td[39m
+        [33mclass[39m=[32m"cus-dashboard-cell--editable"[39m
+        [33mdata-label[39m=[32m"Phân loại & hãng tàu"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33maria-haspopup[39m=[32m"dialog"[39m
+          [33maria-label[39m=[32m"Sửa ô phân loại và hãng tàu BILL-12345"[39m
+          [33mclass[39m=[32m"cus-inline-trigger"[39m
+          [33mdata-cell-label[39m=[32m"Phân loại & hãng tàu"[39m
+          [33mid[39m=[32m"cus-inline-classification-1"[39m
+          [33mtitle[39m=[32m"Có thể sửa."[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"cus-multiline-cell cus-classification"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"cus-classification__shipping-line"[39m
+            [36m>[39m
+              [0mMaersk[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"cus-direction-badge cus-direction-badge--import"[39m
+            [36m>[39m
+              [0mNhập[0m
+            [36m</span>[39m
+          [36m</span>[39m
+        [36m</button>[39m
+      [36m</td>[39m
+      [36m<td[39m
+        [33mclass[39m=[32m"cus-dashboard-cell--editable"[39m
+        [33mdata-label[39m=[32m"Tổng quan hàng hóa"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33maria-haspopup[39m=[32m"dialog"[39m
+          [33maria-label[39m=[32m"Sửa ô tổng quan hàng hóa BILL-12345"[39m
+          [33mclass[39m=[32m"cus-inline-trigger"[39m
+          [33mdata-cell-label[39m=[32m"Tổng quan hàng hóa"[39m
+          [33mid[39m=[32m"cus-inline-cargo-1"[39m
+          [33mtitle[39m=[32m"Có thể sửa."[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"cus-multiline-cell cus-multiline-cell--numeric cus-cargo-summary"[39m
+          [36m>[39m
+            [36m<strong[39m
+              [33mclass[39m=[32m"cus-cargo-summary__containers"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"cus-direction-badge cus-direction-badge--fcl cus-cargo-mode-tag"[39m
+              [36m>[39m
+                [0mCont[0m
+              [36m</span>[39m
+              [0m2x40HC[0m
+            [36m</strong>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"cus-cargo-summary__metrics"[39m
+            [36m>[39m
+              [0m25.000 kg[0m
+            [36m</span>[39m
+          [36m</span>[39m
+        [36m</button>[39m
+      [36m</td>[39m
+      [36m<td[39m
+        [33mclass[39m=[32m"cus-dashboard-cell--readonly"[39m
+        [33mdata-label[39m=[32m"Lịch trình & điều xe"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"cus-inline-trigger cus-inline-trigger--readonly"[39m
+        [36m>[39m
+          [36m<span>[39m
+            [0m08:30 12/8/2026[0m
+            [0m · Nhà máy ABC[0m
+            [0m · [0m
+            [0m1x40HC[0m
+          [36m</span>[39m
+          [36m<span>[39m
+            [0m15:30 12/8/2026[0m
+            [0m · Nhà máy ABC[0m
+            [0m · [0m
+            [0m1x20GP[0m
+          [36m</span>[39m
+          [36m<span>[39m
+            [0mĐã phân xe[0m
+          [36m</span>[39m
+        [36m</div>[39m
+      [36m</td>[39m
+      [36m<td[39m
+        [33mclass[39m=[32m"cus-dashboard-cell--editable"[39m
+        [33mdata-label[39m=[32m"Ghi chú"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33maria-haspopup[39m=[32m"dialog"[39m
+          [33maria-label[39m=[32m"Sửa ô ghi chú lô hàng BILL-12345"[39m
+          [33mclass[39m=[32m"cus-inline-trigger cus-note-preview"[39m
+          [33mdata-cell-label[39m=[32m"Ghi chú"[39m
+          [33mid[39m=[32m"cus-inline-notes-1"[39m
+          [33mtitle[39m=[32m"Giao buổi sáng
+Ưu tiên cổng số 2"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"cus-note-preview__customer"[39m
+          [36m>[39m
+            [0mGiao buổi sáng[0m
+          [36m</span>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"cus-note-internal"[39m
+          [36m>[39m
+            [0mƯu tiên cổng số 2[0m
+          [36m</span>[39m
+        [36m</button>[39m
+      [36m</td>[39m
+      [36m<td[39m
+        [33mdata-label[39m=[32m"Trạng thái"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"cus-row-actions"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"cus-row-actions__summary"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"cus-workflow-badge cus-workflow-badge--pending_lock"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-file-lock2 lucide-file-lock-2"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"14"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"14"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M4 22h14a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v1"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M14 2v4a2 2 0 0 0 2 2h4"[39m
+                [36m/>[39m
+                [36m<rect[39m
+                  [33mheight[39m=[32m"5"[39m
+                  [33mrx[39m=[32m"1"[39m
+                  [33mwidth[39m=[32m"8"[39m
+                  [33mx[39m=[32m"2"[39m
+                  [33my[39m=[32m"13"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M8 13v-2a2 2 0 1 0-4 0v2"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+              [0m [0m
+              [0mChờ khóa[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"cus-attention-label cus-attention-label--danger"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-triangle-alert"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"13"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"13"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M12 9v4"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M12 17h.01"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+              [0m [0m
+              [0mLỗ[0m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<button[39m
+            [33maria-controls[39m=[32m"cus-detail-drawer-1"[39m
+            [33maria-haspopup[39m=[32m"dialog"[39m
+            [33maria-label[39m=[32m"Mở chi tiết lô hàng BILL-12345, trạng thái Chờ khóa"[39m
+            [33mclass[39m=[32m"group relative inline-flex h-max cursor-pointer items-center justify-center whitespace-nowrap outline-brand transition duration-100 ease-linear before:absolute focus-visible:outline-2 focus-visible:outline-offset-2 in-data-input-wrapper:shadow-xs in-data-input-wrapper:focus:!z-50 in-data-input-wrapper:in-data-leading:-mr-px in-data-input-wrapper:in-data-leading:rounded-r-none in-data-input-wrapper:in-data-leading:before:rounded-r-none in-data-input-wrapper:in-data-trailing:-ml-px in-data-input-wrapper:in-data-trailing:rounded-l-none in-data-input-wrapper:in-data-trailing:before:rounded-l-none disabled:cursor-not-allowed disabled:opacity-50 in-data-input-wrapper:disabled:opacity-100 *:data-icon:pointer-events-none *:data-icon:shrink-0 *:data-icon:transition-inherit-all min-h-[34px] gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold before:rounded-[7px] data-icon-only:p-2 max-md:min-h-11 max-md:px-3 max-md:py-2 max-md:text-sm max-md:data-icon-only:p-2.5 in-data-input-wrapper:px-3.5 in-data-input-wrapper:py-2.5 in-data-input-wrapper:data-icon-only:p-2.5 *:data-icon:size-4 *:data-icon:stroke-[2.25px] text-tertiary hover:bg-primary_hover hover:text-tertiary_hover data-loading:bg-primary_hover *:data-icon:text-fg-quaternary hover:*:data-icon:text-fg-quaternary_hover cus-dashboard-detail"[39m
+            [33mdata-rac[39m=[32m""[39m
+            [33mdata-react-aria-pressable[39m=[32m"true"[39m
+            [33mid[39m=[32m"cus-dashboard-detail-1"[39m
+            [33mtabindex[39m=[32m"0"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"transition-inherit-all px-0.5"[39m
+              [33mdata-text[39m=[32m"true"[39m
+            [36m>[39m
+              [0mXem chi tiết[0m
+            [36m</span>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-chevron-right pointer-events-none size-5 shrink-0 transition-inherit-all"[39m
+              [33mdata-icon[39m=[32m"trailing"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"24"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"24"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"m9 18 6-6-6-6"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+          [36m</button>[39m
+        [36m</div>[39m
+      [36m</td>[39m
+    [36m</tr>[39m
+  [36m</tbody>[39m
+[36m</table>[39m
+ ❯ Object.getElementError ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ src/pages/ShipmentsPage.test.tsx:321:20
+    319|     // Per-container appointment groups: one line per distinct close/r…
+    320|     // datetime, with the container-type mix of that group.
+    321|     expect(surface.getByText('09:30 12/8/2026 · Nhà máy ABC · 1x40HC')…
+       |                    ^
+    322|     expect(surface.getByText('16:30 12/8/2026 · Nhà máy ABC · 1x20GP')…
+    323|     expect(masterRowDetailButton().textContent).toContain('Xem chi tiế…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/13]⎯
+
+ FAIL  src/pages/ShipmentsPage.test.tsx > ShipmentsPage — CUS closeout workspace > does not repeat the shipment-level closing or return date before container appointments
+TestingLibraryElementError: Unable to find an element with the text: 09:30 12/8/2026 · Nhà máy ABC · 1x40HC. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"shipments-page shipments-page--worksheet"[39m
+    [36m>[39m
+      [36m<h1[39m
+        [33mclass[39m=[32m"sr-only"[39m
+      [36m>[39m
+        [0mTổng quan lô hàng[0m
+      [36m</h1>[39m
+      [36m<section[39m
+        [33maria-busy[39m=[32m"false"[39m
+        [33maria-hidden[39m=[32m"false"[39m
+        [33maria-labelledby[39m=[32m"cus-workspace-title"[39m
+        [33mclass[39m=[32m"cus-workspace cus-workspace--worksheet"[39m
+      [36m>[39m
+        [36m<h2[39m
+          [33mclass[39m=[32m"sr-only"[39m
+          [33mid[39m=[32m"cus-workspace-title"[39m
+        [36m>[39m
+          [0mBảng kế hoạch lô hàng[0m
+        [36m</h2>[39m
+        [36m<form[39m
+          [33mclass[39m=[32m"cus-worksheet-toolbar"[39m
+          [33mnovalidate[39m=[32m""[39m
+        [36m>[39m
+          [36m<div[39m
+            [33maria-label[39m=[32m"Bộ lọc"[39m
+            [33mclass[39m=[32m"cus-worksheet-toolbar__filters"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"cus-search-field"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"group flex h-max w-full flex-col items-start justify-start gap-1.5 shipment-uui-field"[39m
+                [33mdata-input-size[39m=[32m"sm"[39m
+                [33mdata-input-wrapper[39m=[32m"true"[39m
+                [33mdata-rac[39m=[32m""[39m
+              [36m>[39m
+                [36m<label[39m
+                  [33mclass[39m=[32m"flex cursor-default items-center gap-0.5 text-sm font-medium text-secondary in-data-[input-size=sm]:text-xs max-md:in-data-[input-size=sm]:text-sm"[39m
+                  [33mdata-label[39m=[32m"true"[39m
+                  [33mfor[39m=[32m"react-aria-_r_2o_"[39m
+                  [33mid[39m=[32m"react-aria-_r_2p_"[39m
+                [36m>[39m
+                  [0mBill/Book hoặc tờ khai[0m
+                [36m</label>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"group/input relative flex w-full flex-row place-content-center place-items-center overflow-hidden rounded-lg border border-primary bg-primary outline-focus-ring transition duration-100 ease-linear min-h-[34px] max-md:min-h-11 group-disabled:cursor-not-allowed group-disabled:opacity-50 group-invalid:border-error_subtle shipment-uui-control"[39m
+                  [33mdata-rac[39m=[32m""[39m
+                  [33mrole[39m=[32m"presentation"[39m
+                [36m>[39m
+                  [36m<svg[39m
+                    [33maria-hidden[39m=[32m"true"[39m
+                    [33mclass[39m=[32m"lucide lucide-search pointer-events-none absolute text-fg-quaternary left-2.5 size-4 stroke-[2.25px] max-md:left-3 shipment-uui-control__icon"[39m
+                    [33mfill[39m=[32m"none"[39m
+                    [33mheight[39m=[32m"24"[39m
+                    [33mstroke[39m=[32m"currentColor"[39m
+                    [33mstroke-linecap[39m=[32m"round"[39m
+                    [33mstroke-linejoin[39m=[32m"round"[39m
+                    [33mstroke-width[39m=[32m"2"[39m
+                    [33mviewBox[39m=[32m"0 0 24 24"[39m
+                    [33mwidth[39m=[32m"24"[39m
+                    [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                  [36m>[39m
+                    [36m<path[39m
+                      [33md[39m=[32m"m21 21-4.34-4.34"[39m
+                    [36m/>[39m
+                    [36m<circle[39m
+                      [33mcx[39m=[32m"11"[39m
+                      [33mcy[39m=[32m"11"[39m
+                      [33mr[39m=[32m"8"[39m
+                    [36m/>[39m
+                  [36m</svg>[39m
+                  [36m<input[39m
+                    [33maria-labelledby[39m=[32m"react-aria-_r_2p_"[39m
+                    [33mautocapitalize[39m=[32m"characters"[39m
+                    [33mautocorrect[39m=[32m"off"[39m
+                    [33mclass[39m=[32m"m-0 w-full bg-transparent text-primary ring-0 outline-hidden placeholder:text-placeholder autofill:rounded-lg autofill:text-primary disabled:cursor-not-allowed min-h-[32px] px-2.5 py-1 text-xs max-md:min-h-[42px] max-md:px-3 max-md:py-2 max-md:text-sm pl-8 max-md:pl-9 shipment-uui-control__input shipment-uui-control__input--search"[39m
+                    [33mdata-rac[39m=[32m""[39m
+                    [33mid[39m=[32m"react-aria-_r_2o_"[39m
+                    [33minputmode[39m=[32m"text"[39m
+                    [33mpattern[39m=[32m"[A-Za-z0-9]{4,5}"[39m
+                    [33mplaceholder[39m=[32m"Nhập 4–5 ký tự cuối"[39m
+                    [33mspellcheck[39m=[32m"false"[39m
+                    [33mtabindex[39m=[32m"0"[39m
+                    [33mtitle[39m=[32m""[39m
+                    [33mtype[39m=[32m"text"[39m
+                    [33mvalue[39m=[32m""[39m
+                  [36m/>[39m
+                  [36m<svg[39m
+                    [33maria-hidden[39m=[32m"true"[39m
+                    [33mclass[39m=[32m"pointer-events-none absolute hidden size-4 stroke-[2.25px] text-fg-error-secondary group-invalid/input:block right-2.5 max-md:right-3"[39m
+                    [33mfill[39m=[32m"none"[39m
+                    [33mheight[39m=[32m"24"[39m
+                    [33mstroke[39m=[32m"currentColor"[39m
+                    [33mstroke-linecap[39m=[32m"round"[39m
+                    [33mstroke-linejoin[39m=[32m"round"[39m
+                    [33mstroke-width[39m=[32m"2"[39m
+                    [33mviewBox[39m=[32m"0 0 24 24"[39m
+                    [33mwidth[39m=[32m"24"[39m
+                  [36m>[39m
+                    [36m<path[39m
+                      [33md[39m=[32m"M12 16v-4m0-4h.01M22 12c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2s10 4.477 10 10Z"[39m
+                    [36m/>[39m
+                  [36m</svg>[39m
+                [36m</div>[39m
+              [36m</div>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"w-full in-data-input-wrapper:w-max shipment-uui-field"[39m
+              [33mdata-input-size[39m=[32m"sm"[39m
+            [36m>[39m
+              [36m<label[39m
+                [33mclass[39m=[32m"flex cursor-default items-center gap-0.5 text-sm font-medium text-secondary in-data-[input-size=sm]:text-xs max-md:in-data-[input-size=sm]:text-sm mb-1"[39m
+                [33mdata-label[39m=[32m"true"[39m
+                [33mfor[39m=[32m"select-native-_r_2t_"[39m
+                [33mid[39m=[32m"select-native-label-_r_2t_"[39m
+              [36m>[39m
+                [0mXuất / Nhập[0m
+              [36m</label>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"relative grid w-full items-center"[39m
+         ...
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"shipments-page shipments-page--worksheet"[39m
+    [36m>[39m
+      [36m<h1[39m
+        [33mclass[39m=[32m"sr-only"[39m
+      [36m>[39m
+        [0mTổng quan lô hàng[0m
+      [36m</h1>[39m
+      [36m<section[39m
+        [33maria-busy[39m=[32m"false"[39m
+        [33maria-hidden[39m=[32m"false"[39m
+        [33maria-labelledby[39m=[32m"cus-workspace-title"[39m
+        [33mclass[39m=[32m"cus-workspace cus-workspace--worksheet"[39m
+      [36m>[39m
+        [36m<h2[39m
+          [33mclass[39m=[32m"sr-only"[39m
+          [33mid[39m=[32m"cus-workspace-title"[39m
+        [36m>[39m
+          [0mBảng kế hoạch lô hàng[0m
+        [36m</h2>[39m
+        [36m<form[39m
+          [33mclass[39m=[32m"cus-worksheet-toolbar"[39m
+          [33mnovalidate[39m=[32m""[39m
+        [36m>[39m
+          [36m<div[39m
+            [33maria-label[39m=[32m"Bộ lọc"[39m
+            [33mclass[39m=[32m"cus-worksheet-toolbar__filters"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"cus-search-field"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"group flex h-max w-full flex-col items-start justify-start gap-1.5 shipment-uui-field"[39m
+                [33mdata-input-size[39m=[32m"sm"[39m
+                [33mdata-input-wrapper[39m=[32m"true"[39m
+                [33mdata-rac[39m=[32m""[39m
+              [36m>[39m
+                [36m<label[39m
+                  [33mclass[39m=[32m"flex cursor-default items-center gap-0.5 text-sm font-medium text-secondary in-data-[input-size=sm]:text-xs max-md:in-data-[input-size=sm]:text-sm"[39m
+                  [33mdata-label[39m=[32m"true"[39m
+                  [33mfor[39m=[32m"react-aria-_r_2o_"[39m
+                  [33mid[39m=[32m"react-aria-_r_2p_"[39m
+                [36m>[39m
+                  [0mBill/Book hoặc tờ khai[0m
+                [36m</label>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"group/input relative flex w-full flex-row place-content-center place-items-center overflow-hidden rounded-lg border border-primary bg-primary outline-focus-ring transition duration-100 ease-linear min-h-[34px] max-md:min-h-11 group-disabled:cursor-not-allowed group-disabled:opacity-50 group-invalid:border-error_subtle shipment-uui-control"[39m
+                  [33mdata-rac[39m=[32m""[39m
+                  [33mrole[39m=[32m"presentation"[39m
+                [36m>[39m
+                  [36m<svg[39m
+                    [33maria-hidden[39m=[32m"true"[39m
+                    [33mclass[39m=[32m"lucide lucide-search pointer-events-none absolute text-fg-quaternary left-2.5 size-4 stroke-[2.25px] max-md:left-3 shipment-uui-control__icon"[39m
+                    [33mfill[39m=[32m"none"[39m
+                    [33mheight[39m=[32m"24"[39m
+                    [33mstroke[39m=[32m"currentColor"[39m
+                    [33mstroke-linecap[39m=[32m"round"[39m
+                    [33mstroke-linejoin[39m=[32m"round"[39m
+                    [33mstroke-width[39m=[32m"2"[39m
+                    [33mviewBox[39m=[32m"0 0 24 24"[39m
+                    [33mwidth[39m=[32m"24"[39m
+                    [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                  [36m>[39m
+                    [36m<path[39m
+                      [33md[39m=[32m"m21 21-4.34-4.34"[39m
+                    [36m/>[39m
+                    [36m<circle[39m
+                      [33mcx[39m=[32m"11"[39m
+                      [33mcy[39m=[32m"11"[39m
+                      [33mr[39m=[32m"8"[39m
+                    [36m/>[39m
+                  [36m</svg>[39m
+                  [36m<input[39m
+                    [33maria-labelledby[39m=[32m"react-aria-_r_2p_"[39m
+                    [33mautocapitalize[39m=[32m"characters"[39m
+                    [33mautocorrect[39m=[32m"off"[39m
+                    [33mclass[39m=[32m"m-0 w-full bg-transparent text-primary ring-0 outline-hidden placeholder:text-placeholder autofill:rounded-lg autofill:text-primary disabled:cursor-not-allowed min-h-[32px] px-2.5 py-1 text-xs max-md:min-h-[42px] max-md:px-3 max-md:py-2 max-md:text-sm pl-8 max-md:pl-9 shipment-uui-control__input shipment-uui-control__input--search"[39m
+                    [33mdata-rac[39m=[32m""[39m
+                    [33mid[39m=[32m"react-aria-_r_2o_"[39m
+                    [33minputmode[39m=[32m"text"[39m
+                    [33mpattern[39m=[32m"[A-Za-z0-9]{4,5}"[39m
+                    [33mplaceholder[39m=[32m"Nhập 4–5 ký tự cuối"[39m
+                    [33mspellcheck[39m=[32m"false"[39m
+                    [33mtabindex[39m=[32m"0"[39m
+                    [33mtitle[39m=[32m""[39m
+                    [33mtype[39m=[32m"text"[39m
+                    [33mvalue[39m=[32m""[39m
+                  [36m/>[39m
+                  [36m<svg[39m
+                    [33maria-hidden[39m=[32m"true"[39m
+                    [33mclass[39m=[32m"pointer-events-none absolute hidden size-4 stroke-[2.25px] text-fg-error-secondary group-invalid/input:block right-2.5 max-md:right-3"[39m
+                    [33mfill[39m=[32m"none"[39m
+                    [33mheight[39m=[32m"24"[39m
+                    [33mstroke[39m=[32m"currentColor"[39m
+                    [33mstroke-linecap[39m=[32m"round"[39m
+                    [33mstroke-linejoin[39m=[32m"round"[39m
+                    [33mstroke-width[39m=[32m"2"[39m
+                    [33mviewBox[39m=[32m"0 0 24 24"[39m
+                    [33mwidth[39m=[32m"24"[39m
+                  [36m>[39m
+                    [36m<path[39m
+                      [33md[39m=[32m"M12 16v-4m0-4h.01M22 12c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2s10 4.477 10 10Z"[39m
+                    [36m/>[39m
+                  [36m</svg>[39m
+                [36m</div>[39m
+              [36m</div>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"w-full in-data-input-wrapper:w-max shipment-uui-field"[39m
+              [33mdata-input-size[39m=[32m"sm"[39m
+            [36m>[39m
+              [36m<label[39m
+                [33mclass[39m=[32m"flex cursor-default items-center gap-0.5 text-sm font-medium text-secondary in-data-[input-size=sm]:text-xs max-md:in-data-[input-size=sm]:text-sm mb-1"[39m
+                [33mdata-label[39m=[32m"true"[39m
+                [33mfor[39m=[32m"select-native-_r_2t_"[39m
+                [33mid[39m=[32m"select-native-label-_r_2t_"[39m
+              [36m>[39m
+                [0mXuất / Nhập[0m
+              [36m</label>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"relative grid w-full items-center"[39m
+         ...
+ ❯ waitForWrapper ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/pages/ShipmentsPage.test.tsx:338:40
+    336|     renderPage();
+    337|
+    338|     const scheduleCell = (await screen.findByText('09:30 12/8/2026 · N…
+       |                                        ^
+    339|     expect(scheduleCell).toBeTruthy();
+    340|     expect(within(scheduleCell!).queryByText('19/8/2026')).toBeNull();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/13]⎯
+
+ FAIL  src/features/dispatch/master-plan/MasterPlanGrid.test.tsx > MasterPlanGrid > falls back to the shipment-level closingAt when no per-container appointments exist
+AssertionError: expected '16H' to match /^(8H|15H)$/
+
+- Expected:
+/^(8H|15H)$/
+
++ Received:
+"16H"
+
+ ❯ src/features/dispatch/master-plan/MasterPlanGrid.test.tsx:173:34
+    171|     const cell = screen.getByText(/Lịch cont sớm nhất: 20\/08\/2026/).…
+    172|     const hourLine = within(cell!).getByText(/^\d{1,2}H$/);
+    173|     expect(hourLine.textContent).toMatch(/^(8H|15H)$/);
+       |                                  ^
+    174|   });
+    175|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/13]⎯
+
+ FAIL  src/pages/portal/PortalPages.test.tsx > customer portal pages > PortalShipmentsPage calls the row-scoped portal shipments endpoint
+AssertionError: expected "vi.fn()" to be called with arguments: [ '/portal/shipments?page=1&limit=10' ]
+
+Received:
+
+  1st vi.fn() call:
+
+  [
+-   "/portal/shipments?page=1&limit=10",
++   "/portal/work-inbox?limit=100",
+  ]
+
+
+Number of calls: 1
+
+
+Ignored nodes: comments, script, style
+[36m<html>[39m
+  [36m<head />[39m
+  [36m<body>[39m
+    [36m<div />[39m
+  [36m</body>[39m
+[36m</html>[39m
+ ❯ src/pages/portal/PortalPages.test.tsx:69:40
+     67|     );
+     68|
+     69|     await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/portal/s…
+       |                                        ^
+     70|     expect(screen.getByText('BL-42')).toBeTruthy();
+     71|     expect(screen.queryByText('SHP-2607-00042')).toBeNull();
+ ❯ runWithExpensiveErrorDiagnosticsDisabled ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/config.js:47:12
+ ❯ checkCallback ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:124:77
+ ❯ Timeout.checkRealTimersCallback ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:118:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/13]⎯
+
+ FAIL  src/pages/portal/PortalPages.test.tsx > customer portal pages > uses a normalized booking once when a customer shipment has no Bill number
+TestingLibraryElementError: Unable to find an element with the text: BK-43. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div />[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div />[39m
+[36m</body>[39m
+ ❯ waitForWrapper ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/pages/portal/PortalPages.test.tsx:94:25
+     92|     render(<MemoryRouter><PortalShipmentsPage /></MemoryRouter>);
+     93|
+     94|     expect(await screen.findByText('BK-43')).toBeTruthy();
+       |                         ^
+     95|     expect(screen.getAllByText('BK-43')).toHaveLength(1);
+     96|     expect(screen.queryByText(/Booking:/)).toBeNull();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/13]⎯
+
+ FAIL  src/pages/portal/PortalPages.test.tsx > customer portal pages > keeps a multi-customer portal list separated by the selected legal entity
+AssertionError: expected "vi.fn()" to be called with arguments: [ Array(1) ]
+
+Received:
+
+  1st vi.fn() call:
+
+  [
+-   "/portal/shipments?page=1&limit=10&customerId=9",
++   "/portal/customer-scope",
+  ]
+
+  2nd vi.fn() call:
+
+  [
+-   "/portal/shipments?page=1&limit=10&customerId=9",
++   "/portal/work-inbox?limit=100&customerId=9",
+  ]
+
+
+Number of calls: 2
+
+
+Ignored nodes: comments, script, style
+[36m<html>[39m
+  [36m<head />[39m
+  [36m<body>[39m
+    [36m<div />[39m
+  [36m</body>[39m
+[36m</html>[39m
+ ❯ src/pages/portal/PortalPages.test.tsx:123:22
+    121|
+    122|     await waitFor(() => {
+    123|       expect(apiGet).toHaveBeenCalledWith('/portal/shipments?page=1&li…
+       |                      ^
+    124|     });
+    125|   });
+ ❯ runWithExpensiveErrorDiagnosticsDisabled ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/config.js:47:12
+ ❯ checkCallback ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:124:77
+ ❯ Timeout.checkRealTimersCallback ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:118:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/13]⎯
+
+⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯
+
+Vitest caught 3 unhandled errors during the test run.
+This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.
+
+⎯⎯⎯⎯⎯ Uncaught Exception ⎯⎯⎯⎯⎯
+TypeError: Cannot read properties of undefined (reading 'action')
+ ❯ src/components/work-inbox/RoleWorkInbox.tsx:229:33
+    227|             onClick={() => setActive(index)}
+    228|           >
+    229|             {label}<span>{data?.counts[countKeys[index]] ?? 0}</span>
+       |                                 ^
+    230|           </button>
+    231|         ))}
+ ❯ RoleWorkInbox src/components/work-inbox/RoleWorkInbox.tsx:217:23
+ ❯ Object.react_stack_bottom_frame ../node_modules/.pnpm/react-dom@19.2.6_react@19.2.6/node_modules/react-dom/cjs/react-dom-client.development.js:25904:20
+ ❯ renderWithHooks ../node_modules/.pnpm/react-dom@19.2.6_react@19.2.6/node_modules/react-dom/cjs/react-dom-client.development.js:7662:22
+ ❯ updateFunctionComponent ../node_modules/.pnpm/react-dom@19.2.6_react@19.2.6/node_modules/react-dom/cjs/react-dom-client.development.js:10166:19
+ ❯ beginWork ../node_modules/.pnpm/react-dom@19.2.6_react@19.2.6/node_modules/react-dom/cjs/react-dom-client.development.js:11778:18
+ ❯ runWithFiberInDEV ../node_modules/.pnpm/react-dom@19.2.6_react@19.2.6/node_modules/react-dom/cjs/react-dom-client.development.js:874:13
+ ❯ performUnitOfWork ../node_modules/.pnpm/react-dom@19.2.6_react@19.2.6/node_modules/react-dom/cjs/react-dom-client.development.js:17641:22
+ ❯ workLoopSync ../node_modules/.pnpm/react-dom@19.2.6_react@19.2.6/node_modules/react-dom/cjs/react-dom-client.development.js:17469:41
+
+This error originated in "src/pages/portal/PortalPages.test.tsx" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.
+The latest test that might've caused the error is "PortalShipmentsPage calls the row-scoped portal shipments endpoint". It might mean one of the following:
+- The error was thrown, while Vitest was running this test.
+- If the error occurred after the test had been completed, this was the last documented test before it was thrown.
+
+⎯⎯⎯⎯⎯ Uncaught Exception ⎯⎯⎯⎯⎯
+TypeError: Cannot read properties of undefined (reading 'action')
+ ❯ src/components/work-inbox/RoleWorkInbox.tsx:229:33
+    227|             onClick={() => setActive(index)}
+    228|           >
+    229|             {label}<span>{data?.counts[countKeys[index]] ?? 0}</span>
+       |                                 ^
+    230|           </button>
+    231|         ))}
+ ❯ RoleWorkInbox src/components/work-inbox/RoleWorkInbox.tsx:217:23
+ ❯ Object.react_stack_bottom_frame ../node_modules/.pnpm/react-dom@19.2.6_react@19.2.6/node_modules/react-dom/cjs/react-dom-client.development.js:25904:20
+ ❯ renderWithHooks ../node_modules/.pnpm/react-dom@19.2.6_react@19.2.6/node_modules/react-dom/cjs/react-dom-client.development.js:7662:22
+ ❯ updateFunctionComponent ../node_modules/.pnpm/react-dom@19.2.6_react@19.2.6/node_modules/react-dom/cjs/react-dom-client.development.js:10166:19
+ ❯ beginWork ../node_modules/.pnpm/react-dom@19.2.6_react@19.2.6/node_modules/react-dom/cjs/react-dom-client.development.js:11778:18
+ ❯ runWithFiberInDEV ../node_modules/.pnpm/react-dom@19.2.6_react@19.2.6/node_modules/react-dom/cjs/react-dom-client.development.js:874:13
+ ❯ performUnitOfWork ../node_modules/.pnpm/react-dom@19.2.6_react@19.2.6/node_modules/react-dom/cjs/react-dom-client.development.js:17641:22
+ ❯ workLoopSync ../node_modules/.pnpm/react-dom@19.2.6_react@19.2.6/node_modules/react-dom/cjs/react-dom-client.development.js:17469:41
+
+This error originated in "src/pages/portal/PortalPages.test.tsx" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.
+The latest test that might've caused the error is "uses a normalized booking once when a customer shipment has no Bill number". It might mean one of the following:
+- The error was thrown, while Vitest was running this test.
+- If the error occurred after the test had been completed, this was the last documented test before it was thrown.
+
+⎯⎯⎯⎯⎯ Uncaught Exception ⎯⎯⎯⎯⎯
+TypeError: Cannot read properties of undefined (reading 'action')
+ ❯ src/components/work-inbox/RoleWorkInbox.tsx:229:33
+    227|             onClick={() => setActive(index)}
+    228|           >
+    229|             {label}<span>{data?.counts[countKeys[index]] ?? 0}</span>
+       |                                 ^
+    230|           </button>
+    231|         ))}
+ ❯ RoleWorkInbox src/components/work-inbox/RoleWorkInbox.tsx:217:23
+ ❯ Object.react_stack_bottom_frame ../node_modules/.pnpm/react-dom@19.2.6_react@19.2.6/node_modules/react-dom/cjs/react-dom-client.development.js:25904:20
+ ❯ renderWithHooks ../node_modules/.pnpm/react-dom@19.2.6_react@19.2.6/node_modules/react-dom/cjs/react-dom-client.development.js:7662:22
+ ❯ updateFunctionComponent ../node_modules/.pnpm/react-dom@19.2.6_react@19.2.6/node_modules/react-dom/cjs/react-dom-client.development.js:10166:19
+ ❯ beginWork ../node_modules/.pnpm/react-dom@19.2.6_react@19.2.6/node_modules/react-dom/cjs/react-dom-client.development.js:11778:18
+ ❯ runWithFiberInDEV ../node_modules/.pnpm/react-dom@19.2.6_react@19.2.6/node_modules/react-dom/cjs/react-dom-client.development.js:874:13
+ ❯ performUnitOfWork ../node_modules/.pnpm/react-dom@19.2.6_react@19.2.6/node_modules/react-dom/cjs/react-dom-client.development.js:17641:22
+ ❯ workLoopSync ../node_modules/.pnpm/react-dom@19.2.6_react@19.2.6/node_modules/react-dom/cjs/react-dom-client.development.js:17469:41
+
+This error originated in "src/pages/portal/PortalPages.test.tsx" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.
+The latest test that might've caused the error is "keeps a multi-customer portal list separated by the selected legal entity". It might mean one of the following:
+- The error was thrown, while Vitest was running this test.
+- If the error occurred after the test had been completed, this was the last documented test before it was thrown.
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+
+ Test Files  5 failed | 174 passed (179)
+      Tests  13 failed | 1014 passed (1027)
+     Errors  3 errors
+   Start at  21:22:45
+   Duration  27.23s (transform 8.52s, setup 8.30s, import 81.93s, tests 53.36s, environment 75.99s)
+
+ ELIFECYCLE  Test failed. See above for more details.
+exit_status=1
+$ cd frontend && pnpm exec vitest run src/pages/ForwarderTripDetailPage.test.tsx src/pages/ForwarderTripDetailPage.lcl.test.tsx src/pages/portal/PortalPages.test.tsx
+
+ RUN  v4.1.8 /Users/dev/Documents/projects/silversea/frontend
+
+ ❯ src/pages/portal/PortalPages.test.tsx (14 tests | 1 failed) 172ms
+     × PortalShipmentsPage calls the role-scoped customer inbox endpoint 66ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/pages/portal/PortalPages.test.tsx > customer portal pages > PortalShipmentsPage calls the role-scoped customer inbox endpoint
+TestingLibraryElementError: Found multiple elements with the text: Đang vận chuyển
+
+Here are the matching elements:
+
+Ignored nodes: comments, script, style
+[36m<button[39m
+  [33maria-controls[39m=[32m"role-inbox-panel-customer"[39m
+  [33maria-selected[39m=[32m"true"[39m
+  [33mclass[39m=[32m"is-active"[39m
+  [33mid[39m=[32m"role-inbox-tab-customer-1"[39m
+  [33mrole[39m=[32m"tab"[39m
+  [33mtabindex[39m=[32m"0"[39m
+  [33mtype[39m=[32m"button"[39m
+[36m>[39m
+  [0mĐang vận chuyển[0m
+  [36m<span>[39m
+    [0m1[0m
+  [36m</span>[39m
+[36m</button>[39m
+
+Ignored nodes: comments, script, style
+[36m<dd>[39m
+  [0mĐang vận chuyển[0m
+[36m</dd>[39m
+
+(If this is intentional, then use the `*AllBy*` variant of the query (like `queryAllByText`, `getAllByText`, or `findAllByText`)).
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<main[39m
+      [33mclass[39m=[32m"role-work-inbox"[39m
+    [36m>[39m
+      [36m<header[39m
+        [33mclass[39m=[32m"role-work-inbox__header"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"role-work-inbox__eyebrow"[39m
+          [36m>[39m
+            [0mKhông gian công việc[0m
+          [36m</span>[39m
+          [36m<h1>[39m
+            [0mTheo dõi lô hàng[0m
+          [36m</h1>[39m
+          [36m<p>[39m
+            [0mXác nhận khi đã nhận hàng hoặc báo sai lệch. Trạng thái giao luôn nêu rõ nguồn xác nhận.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"role-work-inbox__refresh"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-refresh-cw"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"15"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"15"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M21 3v5h-5"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M8 16H3v5"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+          [0m Làm mới[0m
+        [36m</button>[39m
+      [36m</header>[39m
+      [36m<div[39m
+        [33maria-label[39m=[32m"Trạng thái công việc"[39m
+        [33mclass[39m=[32m"role-work-inbox__tabs"[39m
+        [33mrole[39m=[32m"tablist"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33maria-controls[39m=[32m"role-inbox-panel-customer"[39m
+          [33maria-selected[39m=[32m"false"[39m
+          [33mclass[39m=[32m""[39m
+          [33mid[39m=[32m"role-inbox-tab-customer-0"[39m
+          [33mrole[39m=[32m"tab"[39m
+          [33mtabindex[39m=[32m"-1"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [0mCần xác nhận[0m
+          [36m<span>[39m
+            [0m0[0m
+          [36m</span>[39m
+        [36m</button>[39m
+        [36m<button[39m
+          [33maria-controls[39m=[32m"role-inbox-panel-customer"[39m
+          [33maria-selected[39m=[32m"true"[39m
+          [33mclass[39m=[32m"is-active"[39m
+          [33mid[39m=[32m"role-inbox-tab-customer-1"[39m
+          [33mrole[39m=[32m"tab"[39m
+          [33mtabindex[39m=[32m"0"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [0mĐang vận chuyển[0m
+          [36m<span>[39m
+            [0m1[0m
+          [36m</span>[39m
+        [36m</button>[39m
+        [36m<button[39m
+          [33maria-controls[39m=[32m"role-inbox-panel-customer"[39m
+          [33maria-selected[39m=[32m"false"[39m
+          [33mclass[39m=[32m""[39m
+          [33mid[39m=[32m"role-inbox-tab-customer-2"[39m
+          [33mrole[39m=[32m"tab"[39m
+          [33mtabindex[39m=[32m"-1"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [0mHoàn tất[0m
+          [36m<span>[39m
+            [0m0[0m
+          [36m</span>[39m
+        [36m</button>[39m
+      [36m</div>[39m
+      [36m<section[39m
+        [33maria-labelledby[39m=[32m"role-inbox-tab-customer-1"[39m
+        [33mid[39m=[32m"role-inbox-panel-customer"[39m
+        [33mrole[39m=[32m"tabpanel"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"role-work-inbox__table-wrap"[39m
+        [36m>[39m
+          [36m<table[39m
+            [33mclass[39m=[32m"role-work-inbox__table"[39m
+          [36m>[39m
+            [36m<thead>[39m
+              [36m<tr>[39m
+                [36m<th>[39m
+                  [0mCông việc[0m
+                [36m</th>[39m
+                [36m<th>[39m
+                  [0mThông tin cần biết[0m
+                [36m</th>[39m
+                [36m<th>[39m
+                  [0mTrạng thái[0m
+                [36m</th>[39m
+                [36m<th>[39m
+                  [0mTrở ngại[0m
+                [36m</th>[39m
+                [36m<th>[39m
+                  [0mCập nhật[0m
+                [36m</th>[39m
+                [36m<th>[39m
+                  [36m<span[39m
+                    [33mclass[39m=[32m"sr-only"[39m
+                  [36m>[39m
+                    [0mHành động[0m
+                  [36m</span>[39m
+                [36m</th>[39m
+              [36m</tr>[39m
+            [36m</thead>[39m
+            [36m<tbody>[39m
+              [36m<tr[39m
+                [33mclass[39m=[32m""[39m
+              [36m>[39m
+                [36m<td[39m
+                  [33mdata-label[39m=[32m"Công việc"[39m
+                [36m>[39m
+                  [36m<strong[39m
+                    [33mclass[39m=[32m"role-work-inbox__identity"[39m
+                  [36m>[39m
+                    [0mSHP-2607-00042[0m
+                  [36m</strong>[39m
+                  [36m<span[39m
+                    [33mclass[39m=[32m"role-work-inbox__subtitle"[39m
+                  [36m>[39m
+                    [0mĐang theo dõi vận chuyển[0m
+                  [36m</span>[39m
+                [36m</td>[39m
+                [36m<td[39m
+                  [33mdata-label[39m=[32m"Thông tin"[39m
+                [36m>[39m
+                  [36m<dl[39m
+                    [33mclass[39m=[32m"role-work-inbox__facts"[39m
+                  [36m>[39m
+                    [36m<div>[39m
+                      [36m<dt>[39m
+                        [0mContainer[0m
+                      [36m</dt>[39m
+                      [36m<dd>[39m
+                        [0mMSBU1234567[0m
+                      [36m</dd>[39m
+                    [36m</div>[39m
+                    [36m<div>[39m
+                      [36m<dt>[39m
+                        [0mNguồn trạng thái[0m
+                      [36m</dt>[39m
+                      [36m<dd>[39m
+                        [0mĐang vận chuyển[0m
+                      [36m</dd>[39m
+                    [36m</div>[39m
+                  [36m</dl>[39m
+                [36m</td>[39m
+                [36m<td[39m
+                  [33mdata-label[39m=[32m"Trạng thái"[39m
+                [36m>[39m
+                  [36m<span[39m
+                    [33mclass[39m=[32m"role-work-inbox__badge is-waiting"[39m
+                  [36m>[39m
+                    [0mĐang chờ[0m
+                  [36m</span>[39m
+                [36m</td>[39m
+                [36m<td[39m
+                  [33mdata-label[39m=[32m"Trở ngại"[39m
+                [36m>[39m
+                  [36m<span[39m
+                    [33mclass[39m=[32m"role-work-inbox__muted"[39m
+                  [36m>[39m
+                    [0mKhông có[0m
+                  [36m</span>[39m
+                [36m</td>[39m
+                [36m<td[39m
+                  [33mdata-label[39m=[32m"Cập nhật"[39m
+                [36m>[39m
+                  [36m<time[39m
+                    [33mdatetime[39m=[32m"2026-08-22T13:24:11.467Z"[39m
+                  [36m>[39m
+                    [0m21:24 22-08[0m
+                  [36m</time>[39m
+                [36m</td>[39m
+                [36m<td[39m
+                  [33mclass[39m=[32m"role-work-inbox__action"[39m
+                  [33mdata-label[39m=[32m"Hành động"[39m
+                [36m>[39m
+                  [36m<a[39m
+                    [33mclass[39m=[32m"role-work-inbox__detail-link"[39m
+                    [33mdata-discover[39m=[32m"true"[39m
+                    [33mhref[39m=[32m"/portal/shipments/42"[39m
+                  [36m>[39m
+                    [0mXem hồ sơ[0m
+                  [36m</a>[39m
+                [36m</td>[39m
+              [36m</tr>[39m
+            [36m</tbody>[39m
+          [36m</table>[39m
+        [36m</div>[39m
+      [36m</section>[39m
+    [36m</main>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ Object.getElementError ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ getElementError ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:20:35
+ ❯ getMultipleElementsFoundError ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:23:10
+ ❯ ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:55:13
+ ❯ ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ src/pages/portal/PortalPages.test.tsx:77:19
+     75|     expect(screen.getByText('SHP-2607-00042')).toBeTruthy();
+     76|     expect(screen.getByText('MSBU1234567')).toBeTruthy();
+     77|     expect(screen.getByText('Đang vận chuyển')).toBeTruthy();
+       |                   ^
+     78|   });
+     79|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 2 passed (3)
+      Tests  1 failed | 21 passed (22)
+   Start at  21:24:10
+   Duration  1.45s (transform 766ms, setup 104ms, import 2.13s, tests 772ms, environment 718ms)
+
+exit_status=1
+$ cd frontend && pnpm exec vitest run src/pages/ForwarderTripDetailPage.test.tsx src/pages/ForwarderTripDetailPage.lcl.test.tsx src/pages/portal/PortalPages.test.tsx
+
+ RUN  v4.1.8 /Users/dev/Documents/projects/silversea/frontend
+
+
+ Test Files  3 passed (3)
+      Tests  22 passed (22)
+   Start at  21:24:21
+   Duration  1.45s (transform 752ms, setup 103ms, import 2.16s, tests 752ms, environment 711ms)
+
+exit_status=0
+$ cd frontend && pnpm test
+
+> @tingting/frontend@0.1.0 test /Users/dev/Documents/projects/silversea/frontend
+> vitest run
+
+
+ RUN  v4.1.8 /Users/dev/Documents/projects/silversea/frontend
+
+ ❯ src/features/dispatch/master-plan/MasterPlanGrid.test.tsx (27 tests | 1 failed) 683ms
+     × falls back to the shipment-level closingAt when no per-container appointments exist 16ms
+ ❯ src/pages/ShipmentsPage.test.tsx (65 tests | 2 failed) 6614ms
+     × renders the approved seven-column multi-line dashboard and opens detail in a drawer 36ms
+     × does not repeat the shipment-level closing or return date before container appointments 1018ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/pages/ShipmentsPage.test.tsx > ShipmentsPage — CUS closeout workspace > renders the approved seven-column multi-line dashboard and opens detail in a drawer
+TestingLibraryElementError: Unable to find an element with the text: 09:30 12/8/2026 · Nhà máy ABC · 1x40HC. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<table[39m
+  [33mclass[39m=[32m"cus-dashboard-table ops-table"[39m
+[36m>[39m
+  [36m<caption[39m
+    [33mclass[39m=[32m"sr-only"[39m
+  [36m>[39m
+    [0mTổng hợp lô hàng theo bảy nhóm thông tin[0m
+  [36m</caption>[39m
+  [36m<colgroup>[39m
+    [36m<col[39m
+      [33mclass[39m=[32m"cus-dashboard-col--customer"[39m
+    [36m/>[39m
+    [36m<col[39m
+      [33mclass[39m=[32m"cus-dashboard-col--documents"[39m
+    [36m/>[39m
+    [36m<col[39m
+      [33mclass[39m=[32m"cus-dashboard-col--classification"[39m
+    [36m/>[39m
+    [36m<col[39m
+      [33mclass[39m=[32m"cus-dashboard-col--cargo"[39m
+    [36m/>[39m
+    [36m<col[39m
+      [33mclass[39m=[32m"cus-dashboard-col--schedule"[39m
+    [36m/>[39m
+    [36m<col[39m
+      [33mclass[39m=[32m"cus-dashboard-col--notes"[39m
+    [36m/>[39m
+    [36m<col[39m
+      [33mclass[39m=[32m"cus-dashboard-col--status"[39m
+    [36m/>[39m
+  [36m</colgroup>[39m
+  [36m<thead>[39m
+    [36m<tr>[39m
+      [36m<th[39m
+        [33mscope[39m=[32m"col"[39m
+      [36m>[39m
+        [0mKhách hàng & nhà máy[0m
+      [36m</th>[39m
+      [36m<th[39m
+        [33mscope[39m=[32m"col"[39m
+      [36m>[39m
+        [0mChứng từ[0m
+      [36m</th>[39m
+      [36m<th[39m
+        [33mscope[39m=[32m"col"[39m
+      [36m>[39m
+        [0mPhân loại & hãng tàu[0m
+      [36m</th>[39m
+      [36m<th[39m
+        [33mscope[39m=[32m"col"[39m
+      [36m>[39m
+        [0mTổng quan hàng hóa[0m
+      [36m</th>[39m
+      [36m<th[39m
+        [33mscope[39m=[32m"col"[39m
+      [36m>[39m
+        [0mLịch trình & điều xe[0m
+      [36m</th>[39m
+      [36m<th[39m
+        [33mscope[39m=[32m"col"[39m
+      [36m>[39m
+        [0mGhi chú[0m
+      [36m</th>[39m
+      [36m<th[39m
+        [33mscope[39m=[32m"col"[39m
+      [36m>[39m
+        [0mTrạng thái[0m
+      [36m</th>[39m
+    [36m</tr>[39m
+  [36m</thead>[39m
+  [36m<tbody>[39m
+    [36m<tr[39m
+      [33mclass[39m=[32m"cus-dashboard-row"[39m
+    [36m>[39m
+      [36m<th[39m
+        [33mclass[39m=[32m"cus-dashboard-cell--editable cus-dashboard-cell--identity"[39m
+        [33mdata-label[39m=[32m"Khách hàng & nhà máy"[39m
+        [33mscope[39m=[32m"row"[39m
+      [36m>[39m
+        [36m<span[39m
+          [33mstyle[39m=[32m"position: absolute; left: 0px; top: 50%; transform: translateY(-50%); width: var(--status-strip-width, 3px); height: var(--status-strip-height, 20px); border-radius: var(--status-strip-radius, 0 999px 999px 0); background: var(--warning); pointer-events: none;"[39m
+        [36m/>[39m
+        [36m<button[39m
+          [33maria-haspopup[39m=[32m"dialog"[39m
+          [33maria-label[39m=[32m"Sửa ô khách hàng và nhà máy BILL-12345"[39m
+          [33mclass[39m=[32m"cus-inline-trigger"[39m
+          [33mdata-cell-label[39m=[32m"Khách hàng & nhà máy"[39m
+          [33mid[39m=[32m"cus-inline-identity-1"[39m
+          [33mtitle[39m=[32m"Có thể sửa."[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"cus-multiline-cell"[39m
+          [36m>[39m
+            [36m<strong[39m
+              [33mclass[39m=[32m"cus-customer-name"[39m
+            [36m>[39m
+              [0mCông ty Silver Sea[0m
+            [36m</strong>[39m
+            [36m<span>[39m
+              [0mNhà máy ABC[0m
+            [36m</span>[39m
+            [36m<span>[39m
+              [0mHải Phòng → Hà Nội[0m
+            [36m</span>[39m
+          [36m</span>[39m
+        [36m</button>[39m
+      [36m</th>[39m
+      [36m<td[39m
+        [33mclass[39m=[32m"cus-dashboard-cell--editable"[39m
+        [33mdata-label[39m=[32m"Chứng từ"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33maria-haspopup[39m=[32m"dialog"[39m
+          [33maria-label[39m=[32m"Sửa ô chứng từ BILL-12345"[39m
+          [33mclass[39m=[32m"cus-inline-trigger"[39m
+          [33mdata-cell-label[39m=[32m"Chứng từ"[39m
+          [33mid[39m=[32m"cus-inline-documents-1"[39m
+          [33mtitle[39m=[32m"Có thể sửa."[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"cus-multiline-cell cus-multiline-cell--mono"[39m
+          [36m>[39m
+            [36m<strong>[39m
+              [0mBILL-12345[0m
+            [36m</strong>[39m
+            [36m<span>[39m
+              [0mTK-54321[0m
+            [36m</span>[39m
+          [36m</span>[39m
+        [36m</button>[39m
+      [36m</td>[39m
+      [36m<td[39m
+        [33mclass[39m=[32m"cus-dashboard-cell--editable"[39m
+        [33mdata-label[39m=[32m"Phân loại & hãng tàu"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33maria-haspopup[39m=[32m"dialog"[39m
+          [33maria-label[39m=[32m"Sửa ô phân loại và hãng tàu BILL-12345"[39m
+          [33mclass[39m=[32m"cus-inline-trigger"[39m
+          [33mdata-cell-label[39m=[32m"Phân loại & hãng tàu"[39m
+          [33mid[39m=[32m"cus-inline-classification-1"[39m
+          [33mtitle[39m=[32m"Có thể sửa."[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"cus-multiline-cell cus-classification"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"cus-classification__shipping-line"[39m
+            [36m>[39m
+              [0mMaersk[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"cus-direction-badge cus-direction-badge--import"[39m
+            [36m>[39m
+              [0mNhập[0m
+            [36m</span>[39m
+          [36m</span>[39m
+        [36m</button>[39m
+      [36m</td>[39m
+      [36m<td[39m
+        [33mclass[39m=[32m"cus-dashboard-cell--editable"[39m
+        [33mdata-label[39m=[32m"Tổng quan hàng hóa"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33maria-haspopup[39m=[32m"dialog"[39m
+          [33maria-label[39m=[32m"Sửa ô tổng quan hàng hóa BILL-12345"[39m
+          [33mclass[39m=[32m"cus-inline-trigger"[39m
+          [33mdata-cell-label[39m=[32m"Tổng quan hàng hóa"[39m
+          [33mid[39m=[32m"cus-inline-cargo-1"[39m
+          [33mtitle[39m=[32m"Có thể sửa."[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"cus-multiline-cell cus-multiline-cell--numeric cus-cargo-summary"[39m
+          [36m>[39m
+            [36m<strong[39m
+              [33mclass[39m=[32m"cus-cargo-summary__containers"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"cus-direction-badge cus-direction-badge--fcl cus-cargo-mode-tag"[39m
+              [36m>[39m
+                [0mCont[0m
+              [36m</span>[39m
+              [0m2x40HC[0m
+            [36m</strong>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"cus-cargo-summary__metrics"[39m
+            [36m>[39m
+              [0m25.000 kg[0m
+            [36m</span>[39m
+          [36m</span>[39m
+        [36m</button>[39m
+      [36m</td>[39m
+      [36m<td[39m
+        [33mclass[39m=[32m"cus-dashboard-cell--readonly"[39m
+        [33mdata-label[39m=[32m"Lịch trình & điều xe"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"cus-inline-trigger cus-inline-trigger--readonly"[39m
+        [36m>[39m
+          [36m<span>[39m
+            [0m08:30 12/8/2026[0m
+            [0m · Nhà máy ABC[0m
+            [0m · [0m
+            [0m1x40HC[0m
+          [36m</span>[39m
+          [36m<span>[39m
+            [0m15:30 12/8/2026[0m
+            [0m · Nhà máy ABC[0m
+            [0m · [0m
+            [0m1x20GP[0m
+          [36m</span>[39m
+          [36m<span>[39m
+            [0mĐã phân xe[0m
+          [36m</span>[39m
+        [36m</div>[39m
+      [36m</td>[39m
+      [36m<td[39m
+        [33mclass[39m=[32m"cus-dashboard-cell--editable"[39m
+        [33mdata-label[39m=[32m"Ghi chú"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33maria-haspopup[39m=[32m"dialog"[39m
+          [33maria-label[39m=[32m"Sửa ô ghi chú lô hàng BILL-12345"[39m
+          [33mclass[39m=[32m"cus-inline-trigger cus-note-preview"[39m
+          [33mdata-cell-label[39m=[32m"Ghi chú"[39m
+          [33mid[39m=[32m"cus-inline-notes-1"[39m
+          [33mtitle[39m=[32m"Giao buổi sáng
+Ưu tiên cổng số 2"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"cus-note-preview__customer"[39m
+          [36m>[39m
+            [0mGiao buổi sáng[0m
+          [36m</span>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"cus-note-internal"[39m
+          [36m>[39m
+            [0mƯu tiên cổng số 2[0m
+          [36m</span>[39m
+        [36m</button>[39m
+      [36m</td>[39m
+      [36m<td[39m
+        [33mdata-label[39m=[32m"Trạng thái"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"cus-row-actions"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"cus-row-actions__summary"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"cus-workflow-badge cus-workflow-badge--pending_lock"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-file-lock2 lucide-file-lock-2"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"14"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"14"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M4 22h14a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v1"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M14 2v4a2 2 0 0 0 2 2h4"[39m
+                [36m/>[39m
+                [36m<rect[39m
+                  [33mheight[39m=[32m"5"[39m
+                  [33mrx[39m=[32m"1"[39m
+                  [33mwidth[39m=[32m"8"[39m
+                  [33mx[39m=[32m"2"[39m
+                  [33my[39m=[32m"13"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M8 13v-2a2 2 0 1 0-4 0v2"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+              [0m [0m
+              [0mChờ khóa[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"cus-attention-label cus-attention-label--danger"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-triangle-alert"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"13"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"13"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M12 9v4"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M12 17h.01"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+              [0m [0m
+              [0mLỗ[0m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<button[39m
+            [33maria-controls[39m=[32m"cus-detail-drawer-1"[39m
+            [33maria-haspopup[39m=[32m"dialog"[39m
+            [33maria-label[39m=[32m"Mở chi tiết lô hàng BILL-12345, trạng thái Chờ khóa"[39m
+            [33mclass[39m=[32m"group relative inline-flex h-max cursor-pointer items-center justify-center whitespace-nowrap outline-brand transition duration-100 ease-linear before:absolute focus-visible:outline-2 focus-visible:outline-offset-2 in-data-input-wrapper:shadow-xs in-data-input-wrapper:focus:!z-50 in-data-input-wrapper:in-data-leading:-mr-px in-data-input-wrapper:in-data-leading:rounded-r-none in-data-input-wrapper:in-data-leading:before:rounded-r-none in-data-input-wrapper:in-data-trailing:-ml-px in-data-input-wrapper:in-data-trailing:rounded-l-none in-data-input-wrapper:in-data-trailing:before:rounded-l-none disabled:cursor-not-allowed disabled:opacity-50 in-data-input-wrapper:disabled:opacity-100 *:data-icon:pointer-events-none *:data-icon:shrink-0 *:data-icon:transition-inherit-all min-h-[34px] gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold before:rounded-[7px] data-icon-only:p-2 max-md:min-h-11 max-md:px-3 max-md:py-2 max-md:text-sm max-md:data-icon-only:p-2.5 in-data-input-wrapper:px-3.5 in-data-input-wrapper:py-2.5 in-data-input-wrapper:data-icon-only:p-2.5 *:data-icon:size-4 *:data-icon:stroke-[2.25px] text-tertiary hover:bg-primary_hover hover:text-tertiary_hover data-loading:bg-primary_hover *:data-icon:text-fg-quaternary hover:*:data-icon:text-fg-quaternary_hover cus-dashboard-detail"[39m
+            [33mdata-rac[39m=[32m""[39m
+            [33mdata-react-aria-pressable[39m=[32m"true"[39m
+            [33mid[39m=[32m"cus-dashboard-detail-1"[39m
+            [33mtabindex[39m=[32m"0"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"transition-inherit-all px-0.5"[39m
+              [33mdata-text[39m=[32m"true"[39m
+            [36m>[39m
+              [0mXem chi tiết[0m
+            [36m</span>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-chevron-right pointer-events-none size-5 shrink-0 transition-inherit-all"[39m
+              [33mdata-icon[39m=[32m"trailing"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"24"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"24"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"m9 18 6-6-6-6"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+          [36m</button>[39m
+        [36m</div>[39m
+      [36m</td>[39m
+    [36m</tr>[39m
+  [36m</tbody>[39m
+[36m</table>[39m
+ ❯ Object.getElementError ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ src/pages/ShipmentsPage.test.tsx:321:20
+    319|     // Per-container appointment groups: one line per distinct close/r…
+    320|     // datetime, with the container-type mix of that group.
+    321|     expect(surface.getByText('09:30 12/8/2026 · Nhà máy ABC · 1x40HC')…
+       |                    ^
+    322|     expect(surface.getByText('16:30 12/8/2026 · Nhà máy ABC · 1x20GP')…
+    323|     expect(masterRowDetailButton().textContent).toContain('Xem chi tiế…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  src/pages/ShipmentsPage.test.tsx > ShipmentsPage — CUS closeout workspace > does not repeat the shipment-level closing or return date before container appointments
+TestingLibraryElementError: Unable to find an element with the text: 09:30 12/8/2026 · Nhà máy ABC · 1x40HC. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"shipments-page shipments-page--worksheet"[39m
+    [36m>[39m
+      [36m<h1[39m
+        [33mclass[39m=[32m"sr-only"[39m
+      [36m>[39m
+        [0mTổng quan lô hàng[0m
+      [36m</h1>[39m
+      [36m<section[39m
+        [33maria-busy[39m=[32m"false"[39m
+        [33maria-hidden[39m=[32m"false"[39m
+        [33maria-labelledby[39m=[32m"cus-workspace-title"[39m
+        [33mclass[39m=[32m"cus-workspace cus-workspace--worksheet"[39m
+      [36m>[39m
+        [36m<h2[39m
+          [33mclass[39m=[32m"sr-only"[39m
+          [33mid[39m=[32m"cus-workspace-title"[39m
+        [36m>[39m
+          [0mBảng kế hoạch lô hàng[0m
+        [36m</h2>[39m
+        [36m<form[39m
+          [33mclass[39m=[32m"cus-worksheet-toolbar"[39m
+          [33mnovalidate[39m=[32m""[39m
+        [36m>[39m
+          [36m<div[39m
+            [33maria-label[39m=[32m"Bộ lọc"[39m
+            [33mclass[39m=[32m"cus-worksheet-toolbar__filters"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"cus-search-field"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"group flex h-max w-full flex-col items-start justify-start gap-1.5 shipment-uui-field"[39m
+                [33mdata-input-size[39m=[32m"sm"[39m
+                [33mdata-input-wrapper[39m=[32m"true"[39m
+                [33mdata-rac[39m=[32m""[39m
+              [36m>[39m
+                [36m<label[39m
+                  [33mclass[39m=[32m"flex cursor-default items-center gap-0.5 text-sm font-medium text-secondary in-data-[input-size=sm]:text-xs max-md:in-data-[input-size=sm]:text-sm"[39m
+                  [33mdata-label[39m=[32m"true"[39m
+                  [33mfor[39m=[32m"react-aria-_r_2o_"[39m
+                  [33mid[39m=[32m"react-aria-_r_2p_"[39m
+                [36m>[39m
+                  [0mBill/Book hoặc tờ khai[0m
+                [36m</label>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"group/input relative flex w-full flex-row place-content-center place-items-center overflow-hidden rounded-lg border border-primary bg-primary outline-focus-ring transition duration-100 ease-linear min-h-[34px] max-md:min-h-11 group-disabled:cursor-not-allowed group-disabled:opacity-50 group-invalid:border-error_subtle shipment-uui-control"[39m
+                  [33mdata-rac[39m=[32m""[39m
+                  [33mrole[39m=[32m"presentation"[39m
+                [36m>[39m
+                  [36m<svg[39m
+                    [33maria-hidden[39m=[32m"true"[39m
+                    [33mclass[39m=[32m"lucide lucide-search pointer-events-none absolute text-fg-quaternary left-2.5 size-4 stroke-[2.25px] max-md:left-3 shipment-uui-control__icon"[39m
+                    [33mfill[39m=[32m"none"[39m
+                    [33mheight[39m=[32m"24"[39m
+                    [33mstroke[39m=[32m"currentColor"[39m
+                    [33mstroke-linecap[39m=[32m"round"[39m
+                    [33mstroke-linejoin[39m=[32m"round"[39m
+                    [33mstroke-width[39m=[32m"2"[39m
+                    [33mviewBox[39m=[32m"0 0 24 24"[39m
+                    [33mwidth[39m=[32m"24"[39m
+                    [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                  [36m>[39m
+                    [36m<path[39m
+                      [33md[39m=[32m"m21 21-4.34-4.34"[39m
+                    [36m/>[39m
+                    [36m<circle[39m
+                      [33mcx[39m=[32m"11"[39m
+                      [33mcy[39m=[32m"11"[39m
+                      [33mr[39m=[32m"8"[39m
+                    [36m/>[39m
+                  [36m</svg>[39m
+                  [36m<input[39m
+                    [33maria-labelledby[39m=[32m"react-aria-_r_2p_"[39m
+                    [33mautocapitalize[39m=[32m"characters"[39m
+                    [33mautocorrect[39m=[32m"off"[39m
+                    [33mclass[39m=[32m"m-0 w-full bg-transparent text-primary ring-0 outline-hidden placeholder:text-placeholder autofill:rounded-lg autofill:text-primary disabled:cursor-not-allowed min-h-[32px] px-2.5 py-1 text-xs max-md:min-h-[42px] max-md:px-3 max-md:py-2 max-md:text-sm pl-8 max-md:pl-9 shipment-uui-control__input shipment-uui-control__input--search"[39m
+                    [33mdata-rac[39m=[32m""[39m
+                    [33mid[39m=[32m"react-aria-_r_2o_"[39m
+                    [33minputmode[39m=[32m"text"[39m
+                    [33mpattern[39m=[32m"[A-Za-z0-9]{4,5}"[39m
+                    [33mplaceholder[39m=[32m"Nhập 4–5 ký tự cuối"[39m
+                    [33mspellcheck[39m=[32m"false"[39m
+                    [33mtabindex[39m=[32m"0"[39m
+                    [33mtitle[39m=[32m""[39m
+                    [33mtype[39m=[32m"text"[39m
+                    [33mvalue[39m=[32m""[39m
+                  [36m/>[39m
+                  [36m<svg[39m
+                    [33maria-hidden[39m=[32m"true"[39m
+                    [33mclass[39m=[32m"pointer-events-none absolute hidden size-4 stroke-[2.25px] text-fg-error-secondary group-invalid/input:block right-2.5 max-md:right-3"[39m
+                    [33mfill[39m=[32m"none"[39m
+                    [33mheight[39m=[32m"24"[39m
+                    [33mstroke[39m=[32m"currentColor"[39m
+                    [33mstroke-linecap[39m=[32m"round"[39m
+                    [33mstroke-linejoin[39m=[32m"round"[39m
+                    [33mstroke-width[39m=[32m"2"[39m
+                    [33mviewBox[39m=[32m"0 0 24 24"[39m
+                    [33mwidth[39m=[32m"24"[39m
+                  [36m>[39m
+                    [36m<path[39m
+                      [33md[39m=[32m"M12 16v-4m0-4h.01M22 12c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2s10 4.477 10 10Z"[39m
+                    [36m/>[39m
+                  [36m</svg>[39m
+                [36m</div>[39m
+              [36m</div>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"w-full in-data-input-wrapper:w-max shipment-uui-field"[39m
+              [33mdata-input-size[39m=[32m"sm"[39m
+            [36m>[39m
+              [36m<label[39m
+                [33mclass[39m=[32m"flex cursor-default items-center gap-0.5 text-sm font-medium text-secondary in-data-[input-size=sm]:text-xs max-md:in-data-[input-size=sm]:text-sm mb-1"[39m
+                [33mdata-label[39m=[32m"true"[39m
+                [33mfor[39m=[32m"select-native-_r_2t_"[39m
+                [33mid[39m=[32m"select-native-label-_r_2t_"[39m
+              [36m>[39m
+                [0mXuất / Nhập[0m
+              [36m</label>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"relative grid w-full items-center"[39m
+         ...
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"shipments-page shipments-page--worksheet"[39m
+    [36m>[39m
+      [36m<h1[39m
+        [33mclass[39m=[32m"sr-only"[39m
+      [36m>[39m
+        [0mTổng quan lô hàng[0m
+      [36m</h1>[39m
+      [36m<section[39m
+        [33maria-busy[39m=[32m"false"[39m
+        [33maria-hidden[39m=[32m"false"[39m
+        [33maria-labelledby[39m=[32m"cus-workspace-title"[39m
+        [33mclass[39m=[32m"cus-workspace cus-workspace--worksheet"[39m
+      [36m>[39m
+        [36m<h2[39m
+          [33mclass[39m=[32m"sr-only"[39m
+          [33mid[39m=[32m"cus-workspace-title"[39m
+        [36m>[39m
+          [0mBảng kế hoạch lô hàng[0m
+        [36m</h2>[39m
+        [36m<form[39m
+          [33mclass[39m=[32m"cus-worksheet-toolbar"[39m
+          [33mnovalidate[39m=[32m""[39m
+        [36m>[39m
+          [36m<div[39m
+            [33maria-label[39m=[32m"Bộ lọc"[39m
+            [33mclass[39m=[32m"cus-worksheet-toolbar__filters"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"cus-search-field"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"group flex h-max w-full flex-col items-start justify-start gap-1.5 shipment-uui-field"[39m
+                [33mdata-input-size[39m=[32m"sm"[39m
+                [33mdata-input-wrapper[39m=[32m"true"[39m
+                [33mdata-rac[39m=[32m""[39m
+              [36m>[39m
+                [36m<label[39m
+                  [33mclass[39m=[32m"flex cursor-default items-center gap-0.5 text-sm font-medium text-secondary in-data-[input-size=sm]:text-xs max-md:in-data-[input-size=sm]:text-sm"[39m
+                  [33mdata-label[39m=[32m"true"[39m
+                  [33mfor[39m=[32m"react-aria-_r_2o_"[39m
+                  [33mid[39m=[32m"react-aria-_r_2p_"[39m
+                [36m>[39m
+                  [0mBill/Book hoặc tờ khai[0m
+                [36m</label>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"group/input relative flex w-full flex-row place-content-center place-items-center overflow-hidden rounded-lg border border-primary bg-primary outline-focus-ring transition duration-100 ease-linear min-h-[34px] max-md:min-h-11 group-disabled:cursor-not-allowed group-disabled:opacity-50 group-invalid:border-error_subtle shipment-uui-control"[39m
+                  [33mdata-rac[39m=[32m""[39m
+                  [33mrole[39m=[32m"presentation"[39m
+                [36m>[39m
+                  [36m<svg[39m
+                    [33maria-hidden[39m=[32m"true"[39m
+                    [33mclass[39m=[32m"lucide lucide-search pointer-events-none absolute text-fg-quaternary left-2.5 size-4 stroke-[2.25px] max-md:left-3 shipment-uui-control__icon"[39m
+                    [33mfill[39m=[32m"none"[39m
+                    [33mheight[39m=[32m"24"[39m
+                    [33mstroke[39m=[32m"currentColor"[39m
+                    [33mstroke-linecap[39m=[32m"round"[39m
+                    [33mstroke-linejoin[39m=[32m"round"[39m
+                    [33mstroke-width[39m=[32m"2"[39m
+                    [33mviewBox[39m=[32m"0 0 24 24"[39m
+                    [33mwidth[39m=[32m"24"[39m
+                    [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                  [36m>[39m
+                    [36m<path[39m
+                      [33md[39m=[32m"m21 21-4.34-4.34"[39m
+                    [36m/>[39m
+                    [36m<circle[39m
+                      [33mcx[39m=[32m"11"[39m
+                      [33mcy[39m=[32m"11"[39m
+                      [33mr[39m=[32m"8"[39m
+                    [36m/>[39m
+                  [36m</svg>[39m
+                  [36m<input[39m
+                    [33maria-labelledby[39m=[32m"react-aria-_r_2p_"[39m
+                    [33mautocapitalize[39m=[32m"characters"[39m
+                    [33mautocorrect[39m=[32m"off"[39m
+                    [33mclass[39m=[32m"m-0 w-full bg-transparent text-primary ring-0 outline-hidden placeholder:text-placeholder autofill:rounded-lg autofill:text-primary disabled:cursor-not-allowed min-h-[32px] px-2.5 py-1 text-xs max-md:min-h-[42px] max-md:px-3 max-md:py-2 max-md:text-sm pl-8 max-md:pl-9 shipment-uui-control__input shipment-uui-control__input--search"[39m
+                    [33mdata-rac[39m=[32m""[39m
+                    [33mid[39m=[32m"react-aria-_r_2o_"[39m
+                    [33minputmode[39m=[32m"text"[39m
+                    [33mpattern[39m=[32m"[A-Za-z0-9]{4,5}"[39m
+                    [33mplaceholder[39m=[32m"Nhập 4–5 ký tự cuối"[39m
+                    [33mspellcheck[39m=[32m"false"[39m
+                    [33mtabindex[39m=[32m"0"[39m
+                    [33mtitle[39m=[32m""[39m
+                    [33mtype[39m=[32m"text"[39m
+                    [33mvalue[39m=[32m""[39m
+                  [36m/>[39m
+                  [36m<svg[39m
+                    [33maria-hidden[39m=[32m"true"[39m
+                    [33mclass[39m=[32m"pointer-events-none absolute hidden size-4 stroke-[2.25px] text-fg-error-secondary group-invalid/input:block right-2.5 max-md:right-3"[39m
+                    [33mfill[39m=[32m"none"[39m
+                    [33mheight[39m=[32m"24"[39m
+                    [33mstroke[39m=[32m"currentColor"[39m
+                    [33mstroke-linecap[39m=[32m"round"[39m
+                    [33mstroke-linejoin[39m=[32m"round"[39m
+                    [33mstroke-width[39m=[32m"2"[39m
+                    [33mviewBox[39m=[32m"0 0 24 24"[39m
+                    [33mwidth[39m=[32m"24"[39m
+                  [36m>[39m
+                    [36m<path[39m
+                      [33md[39m=[32m"M12 16v-4m0-4h.01M22 12c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2s10 4.477 10 10Z"[39m
+                    [36m/>[39m
+                  [36m</svg>[39m
+                [36m</div>[39m
+              [36m</div>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"w-full in-data-input-wrapper:w-max shipment-uui-field"[39m
+              [33mdata-input-size[39m=[32m"sm"[39m
+            [36m>[39m
+              [36m<label[39m
+                [33mclass[39m=[32m"flex cursor-default items-center gap-0.5 text-sm font-medium text-secondary in-data-[input-size=sm]:text-xs max-md:in-data-[input-size=sm]:text-sm mb-1"[39m
+                [33mdata-label[39m=[32m"true"[39m
+                [33mfor[39m=[32m"select-native-_r_2t_"[39m
+                [33mid[39m=[32m"select-native-label-_r_2t_"[39m
+              [36m>[39m
+                [0mXuất / Nhập[0m
+              [36m</label>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"relative grid w-full items-center"[39m
+         ...
+ ❯ waitForWrapper ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/pages/ShipmentsPage.test.tsx:338:40
+    336|     renderPage();
+    337|
+    338|     const scheduleCell = (await screen.findByText('09:30 12/8/2026 · N…
+       |                                        ^
+    339|     expect(scheduleCell).toBeTruthy();
+    340|     expect(within(scheduleCell!).queryByText('19/8/2026')).toBeNull();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  src/features/dispatch/master-plan/MasterPlanGrid.test.tsx > MasterPlanGrid > falls back to the shipment-level closingAt when no per-container appointments exist
+AssertionError: expected '16H' to match /^(8H|15H)$/
+
+- Expected:
+/^(8H|15H)$/
+
++ Received:
+"16H"
+
+ ❯ src/features/dispatch/master-plan/MasterPlanGrid.test.tsx:173:34
+    171|     const cell = screen.getByText(/Lịch cont sớm nhất: 20\/08\/2026/).…
+    172|     const hourLine = within(cell!).getByText(/^\d{1,2}H$/);
+    173|     expect(hourLine.textContent).toMatch(/^(8H|15H)$/);
+       |                                  ^
+    174|   });
+    175|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  2 failed | 177 passed (179)
+      Tests  3 failed | 1024 passed (1027)
+   Start at  21:24:30
+   Duration  26.74s (transform 8.17s, setup 8.26s, import 78.96s, tests 52.24s, environment 75.77s)
+
+ ELIFECYCLE  Test failed. See above for more details.
+exit_status=1
+$ cd frontend && pnpm test
+
+> @tingting/frontend@0.1.0 test /Users/dev/Documents/projects/silversea/frontend
+> vitest run
+
+
+ RUN  v4.1.8 /Users/dev/Documents/projects/silversea/frontend
+
+
+ Test Files  179 passed (179)
+      Tests  1027 passed (1027)
+   Start at  21:26:19
+   Duration  31.64s (transform 8.91s, setup 9.36s, import 92.00s, tests 63.40s, environment 92.15s)
+
+exit_status=0

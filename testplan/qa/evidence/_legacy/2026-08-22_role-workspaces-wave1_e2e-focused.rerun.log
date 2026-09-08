@@ -1,0 +1,142 @@
+Command: cd e2e && ./run_all.sh 13 17
+Started: 2026-08-22T22:00:27+08:00
+🔍 Checking servers...
+✅ Servers ready (frontend :7174, backend :3001)
+
+
+🧪 Running: 13-forwarder-portal
+────────────────────────────────────────────────────────────
+  ✅ TC-1301: FORWARDER accesses portal, API returns 200
+  ✅ TC-1302: ADMIN redirected from /my-forwarder-trips
+  ✅ TC-1303: DRIVER redirected from /my-forwarder-trips
+  ✅ TC-1304: FORWARDER redirected from /trips
+  ✅ TC-1305: OPS trip catalog is read-only
+  ✅ TC-1306: ADMIN GET /api/forwarder/me/trips → 404
+  ✅ TC-1307: Invalid token → 401
+  ✅ TC-1308: FORWARDER sidebar limited (admin links: 0)
+  ✅ TC-1310: Operations work inbox displays (authoritative empty state)
+  ⏭️  TC-1311: Empty state — SKIPPED
+  ⏭️  TC-1312: Click card → embedded bill workspace — SKIPPED
+  ✅ TC-1313: Trip API response has no financial fields
+  ✅ TC-1314: Trips returned with status: {'COMPLETED'}
+  ✅ TC-1315: Trip cards show route/customer/date info
+  ⏭️  TC-1320: Trip detail displays — SKIPPED
+  ✅ TC-1321: Non-existent trip → 404
+  ⏭️  TC-1322: Back button — SKIPPED
+  ⏭️  TC-1323: Legs display — SKIPPED
+  ⏭️  TC-1324: Notes display — SKIPPED
+  ⏭️  TC-1325: Container section — SKIPPED
+  ⏭️  TC-1326: Expense section — SKIPPED
+  ⏭️  TC-1330: Container test — SKIPPED
+  ⏭️  TC-1331: Container test — SKIPPED
+  ⏭️  TC-1332: Container test — SKIPPED
+  ⏭️  TC-1333: Container test — SKIPPED
+  ⏭️  TC-1334: Container test — SKIPPED
+  ⏭️  TC-1335: Container test — SKIPPED
+  ⏭️  TC-1336: Container test — SKIPPED
+  ⏭️  TC-1340: Expense test — SKIPPED
+  ⏭️  TC-1341: Expense test — SKIPPED
+  ⏭️  TC-1342: Expense test — SKIPPED
+  ⏭️  TC-1343: Expense test — SKIPPED
+  ⏭️  TC-1344: Expense test — SKIPPED
+  ⏭️  TC-1345: Expense test — SKIPPED
+  ⏭️  TC-1346: Expense test — SKIPPED
+  ⏭️  TC-1347: Expense test — SKIPPED
+  ⏭️  TC-1350: Delete expense test — SKIPPED
+  ⏭️  TC-1351: Delete expense test — SKIPPED
+  ⏭️  TC-1352: Delete expense test — SKIPPED
+  ⏭️  TC-1353: Delete expense test — SKIPPED
+  ⏭️  TC-1354: Delete expense test — SKIPPED
+  ✅ TC-1360: ADMIN views forwarder expenses → 200
+  ✅ TC-1361: Filter by tripId → 200
+  ✅ TC-1362: Filter by expenseType=LIFTING → 200
+  ✅ TC-1363: FORWARDER GET /api/forwarder-expenses → 403
+  ✅ TC-1364: MANAGER views forwarder expenses → 200
+  ✅ TC-1370: Mobile trip list renders without horizontal overflow
+  ⏭️  TC-1371: Mobile trip detail — SKIPPED
+  ⏭️  TC-1372: Mobile container form — SKIPPED
+  ✅ TC-1373: Mobile navigation control is present without overflow
+
+============================================================
+  Test Suite: 13-forwarder-portal
+  Total: 50  |  ✅ Pass: 20  |  ❌ Fail: 0  |  ⏭️  Skip: 30
+  Time: 35.0s
+============================================================
+
+
+🧪 Running: 17-dispatch-persisted-chain
+────────────────────────────────────────────────────────────
+🧱 Bootstrapped isolated Long Minh fixture with truck #11789 for 2026-08-22T15:00:00.000Z → 2026-08-22T17:00:00.000Z
+  ✅ TC-1701: Seed customers include Long Minh
+  ✅ TC-1701C: Customer portal fixture receives isolated customer scope
+  ✅ TC-1702: Seed routes include Long Minh
+  ✅ TC-1703: Seed cargo types available
+  ✅ TC-1704: Long Minh debit template is seeded
+  ✅ TC-1705: Admin can read Long Minh operational sites
+  ✅ TC-1707: Transport date makes the new shipment ready for dispatch
+  ✅ TC-1707B: Shipment remains ready after adding the closing time
+  ✅ TC-1708: Clerk cannot dispatch directly
+  ✅ TC-1709: Clerk submits shipment for dispatch
+  ✅ TC-1710: Manager cannot review POD submissions
+  ✅ TC-1711: Manager accepts the handoff
+  ✅ TC-1712: Manager issues explicit dispatch order
+  ✅ TC-1712B: Manager activates the trip for the driver
+  ✅ TC-1713: Driver sees the dispatched trip
+  ✅ TC-1713B: Admin assigns the shipment to Ops
+  ✅ TC-1713C: Ops starts the parallel order exchange
+  ✅ TC-1713D: Ops completes the parallel order exchange
+  ✅ TC-1713E: Ops hands the original paper order to the driver
+  ✅ TC-1714-1: Driver records Đã nhận lệnh gốc
+  ✅ TC-1714-1B: Driver acknowledgement activates the trip
+  ✅ TC-1714-2: Driver records Đã lấy vỏ / Lấy hàng
+  ✅ TC-1714-3: Driver records Đang đóng / Trả hàng
+  ✅ TC-1714-4: Driver records Đã hạ bãi / Giao hàng xong
+  ✅ TC-1714-5: Customer sees only driver-reported safe delivery truth
+  ✅ TC-1714-6: Customer reports a delivery discrepancy without blocking the workflow
+  ✅ TC-1714-6R: Customer discrepancy replay returns the original response
+  ✅ TC-1715: Driver opens e-POD submission
+  ✅ TC-1716-1: Driver uploads YARD_OR_DROP_RECEIPT
+  ✅ TC-1716-2: Driver uploads SIGNED_DELIVERY_NOTE
+  ✅ TC-1717: Driver submits e-POD
+  ✅ TC-1718: Driver completes the operational handoff after e-POD submission
+  ✅ TC-1718C: Ops completes the general expense scope
+  ✅ TC-1718D-1: Ops completes every remaining container expense scope
+  ✅ TC-1718E: Shipment moves to pending expense approval after full ops handoff
+  ✅ TC-1719: Driver cannot generate debit notes
+  ✅ TC-1720: Clerk accepts the e-POD
+  ✅ TC-1721: Manager remains blocked after POD approval
+  ✅ TC-1722: Shipment is pending expense approval in persisted detail
+  ✅ TC-1722-1: Office uploads container evidence photo
+  ✅ TC-1722-2: Office uploads seal evidence photo
+  ✅ TC-1723: Accountant closes the shipment directly
+  ✅ TC-1723A: Accountant closes with accepted POD while the customer dispute remains advisory
+  ✅ TC-1724: Replay returns the stored direct close result
+  ✅ TC-1726: Accountant generates the debit note draft
+  ✅ TC-1727: Accountant saves the Long Minh debit note
+  ✅ TC-1727A: Accountant requests governed Debit Note issue
+  ✅ TC-1727B: Manager checks the Debit Note issue request
+  ✅ TC-1727C: Admin approves the Debit Note issue
+  ✅ TC-1728: Accountant exports the saved Long Minh debit note
+  ✅ TC-1730: Accountant confirms the exact finance snapshot with replay
+  ✅ TC-1731: CUS locks once and retry replays the same active lock
+  ✅ TC-1732: Active lock denies shipment, container, trip, expense, document and upload writes
+  ✅ TC-1732A: Adjustment modal closes back to the worksheet shipment control
+  ✅ TC-1733: CUS request can be rejected by Admin without releasing lock
+  ✅ TC-1734: Admin reopen invalidates confirmation and billing authority
+  ✅ TC-1729: Shipment detail page shows the closed chain
+
+============================================================
+  Test Suite: 17-dispatch-persisted-chain
+  Total: 57  |  ✅ Pass: 57  |  ❌ Fail: 0  |  ⏭️  Skip: 0
+  Time: 9.4s
+============================================================
+🧹 Restored driver assignment and retired truck #11789
+
+============================================================
+  E2E Test Results
+============================================================
+  Suites: 2  |  Total: 107  |  ✅ Pass: 77  |  ❌ Fail: 0  |  ⏭️  Skip: 30
+============================================================
+
+📁 Screenshots & results: /tmp/silversea-e2e/20260822-220027-2280
+zsh:7: read-only variable: status

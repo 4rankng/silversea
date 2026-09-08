@@ -1,0 +1,31 @@
+Command: authenticated Puppeteer regression capture for frozen CUS and Dispatcher workspaces
+Exit status: 0
+
+Frozen routes:
+- CUS: /shipments, /shipments-detail
+- Dispatcher: /dispatch, /dispatch-detail
+
+Viewports:
+- desktop: 1440x900
+- tablet: 768x1024
+- mobile: 390x844
+
+Checks for all 12 route x viewport combinations:
+- authenticated route remained on the requested frozen workspace
+- login page was not rendered
+- document-level horizontal overflow: false
+- console errors: 0
+- HTTP 5xx responses: 0
+
+Before evidence:
+- qa/2026-08-22_role-workspaces_frozen-baseline/
+
+After evidence:
+- qa/2026-08-22_role-workspaces_frozen-after-wave2/
+
+Image comparison notes:
+- layout structure and responsive behavior are unchanged in the paired captures
+- small pixel differences come from current operational data, clocks, and freshness text
+- no remaining Wave 2 or Wave 3 implementation file targets frozen route JSX, controls, copy, navigation, responsive code, or shared styling
+
+Verdict: PASS

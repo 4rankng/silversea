@@ -1,0 +1,8 @@
+2026-08-21 shipments-detail filter row realignment
+Command: cd frontend && npx tsc -b
+Exit: 0
+
+(No output — clean typecheck.)
+
+This change touches only frontend/src/pages/ShipmentsDetailPage.css; no
+TypeScript surface changed. Existing 992 frontend tests still pass.

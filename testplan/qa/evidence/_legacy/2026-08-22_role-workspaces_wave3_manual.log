@@ -1,0 +1,44 @@
+Command: authenticated Puppeteer capture and DOM verification for Manager /dashboard and Admin /config
+Exit status: 0
+
+Viewports:
+- desktop: 1440x900
+- tablet: 768x1024
+- mobile: 390x844
+
+Manager /dashboard:
+- decision inbox items rendered: 2
+- exception facts visible: owner, age, impact, and direct action
+- customer-dispute action opens the resolution form without a server write
+- per-dispute draft isolation: passed when switching A -> B -> A
+- resolution submission uses the selected response ID; in-flight cross-dispute cleanup is covered by focused regression
+- server pagination controls appear when `totalPages > 1`
+- decision inbox precedes financial and fleet KPIs
+- legacy attention/approval queues are suppressed for Manager to avoid duplicate operational queues
+- document-level horizontal overflow: false at all three viewports
+- primary action height: 34px desktop/tablet, 44px mobile
+- keyboard focus verification: passed
+- console errors: 0
+- HTTP 5xx responses: 0
+
+Admin /config after fix-loop:
+- source-level health items rendered: 7
+- sources present: setup, users_permissions, configuration, database, audit, durable_effect_jobs, customer_email_logs
+- failed customer email source rendered as Can xu ly with the real failure count
+- unavailable sources map to Khong kha dung; no unavailable source is rendered healthy
+- setup, permissions, configuration, database, jobs, email, and audit remain visible in the landing workspace
+- document-level horizontal overflow: false at all three viewports
+- primary action height: 34px desktop/tablet, 44px mobile
+- keyboard focus verification: passed
+- console errors: 0
+- HTTP 5xx responses: 0
+
+Screenshots:
+- qa/2026-08-22_role-workspaces_wave3-after/giamdoc_desktop.png
+- qa/2026-08-22_role-workspaces_wave3-after/giamdoc_tablet.png
+- qa/2026-08-22_role-workspaces_wave3-after/giamdoc_mobile.png
+- qa/2026-08-22_role-workspaces_wave3-after/admin_desktop.png
+- qa/2026-08-22_role-workspaces_wave3-after/admin_tablet.png
+- qa/2026-08-22_role-workspaces_wave3-after/admin_mobile.png
+
+Verdict: PASS

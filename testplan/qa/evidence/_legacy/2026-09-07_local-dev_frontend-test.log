@@ -1,0 +1,13 @@
+
+> @tingting/frontend@0.1.0 test /Users/dev/Documents/projects/silversea-prod/frontend
+> vitest run
+
+
+ RUN  v4.1.8 /Users/dev/Documents/projects/silversea-prod/frontend
+
+
+ Test Files  255 passed (255)
+      Tests  1480 passed (1480)
+   Start at  22:03:48
+   Duration  47.22s (transform 12.19s, setup 13.35s, import 139.22s, tests 108.06s, environment 128.09s)
+

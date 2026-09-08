@@ -1,0 +1,92 @@
+Command: cd frontend && npx tsc -b
+Started: 2026-08-14T16:02:11+08:00
+src/components/untitled-ui/base/avatar/base-components/avatar-add-button.tsx(3,78): error TS2307: Cannot find module '@/src/components/untitled-ui/base/tooltip/tooltip' or its corresponding type declarations.
+src/components/untitled-ui/base/input/input-file.tsx(3,24): error TS2307: Cannot find module '@/src/components/untitled-ui/base/buttons/button' or its corresponding type declarations.
+src/components/untitled-ui/base/input/input-file.tsx(4,27): error TS2307: Cannot find module '@/src/components/untitled-ui/base/input/input' or its corresponding type declarations.
+src/components/untitled-ui/base/input/input-file.tsx(5,28): error TS2307: Cannot find module '@/src/components/untitled-ui/base/input/input-group' or its corresponding type declarations.
+src/components/untitled-ui/base/input/input-group.tsx(2,26): error TS2307: Cannot find module '@/src/components/untitled-ui/base/input/hint-text' or its corresponding type declarations.
+src/components/untitled-ui/base/input/input-group.tsx(3,37): error TS2307: Cannot find module '@/src/components/untitled-ui/base/input/input' or its corresponding type declarations.
+src/components/untitled-ui/base/input/input-group.tsx(4,27): error TS2307: Cannot find module '@/src/components/untitled-ui/base/input/input' or its corresponding type declarations.
+src/components/untitled-ui/base/input/input-group.tsx(5,23): error TS2307: Cannot find module '@/src/components/untitled-ui/base/input/label' or its corresponding type declarations.
+src/components/untitled-ui/base/input/input-group.tsx(57,30): error TS2339: Property 'size' does not exist on type 'InputGroupProps'.
+src/components/untitled-ui/base/input/input-group.tsx(92,32): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ sm: { input: string; leadingText: string; }; md: { input: string; leadingText: string; }; lg: { input: string; leadingText: string; }; }'.
+src/components/untitled-ui/base/input/input-group.tsx(104,17): error TS7031: Binding element 'isDisabled' implicitly has an 'any' type.
+src/components/untitled-ui/base/input/input-group.tsx(104,29): error TS7031: Binding element 'isInvalid' implicitly has an 'any' type.
+src/components/untitled-ui/base/input/input-group.tsx(104,40): error TS7031: Binding element 'isRequired' implicitly has an 'any' type.
+src/components/untitled-ui/base/input/input-group.tsx(128,91): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ sm: { input: string; leadingText: string; }; md: { input: string; leadingText: string; }; lg: { input: string; leadingText: string; }; }'.
+src/components/untitled-ui/base/input/input-payment.tsx(2,26): error TS2307: Cannot find module '@/src/components/untitled-ui/base/input/hint-text' or its corresponding type declarations.
+src/components/untitled-ui/base/input/input-payment.tsx(3,33): error TS2307: Cannot find module '@/src/components/untitled-ui/base/input/input' or its corresponding type declarations.
+src/components/untitled-ui/base/input/input-payment.tsx(4,38): error TS2307: Cannot find module '@/src/components/untitled-ui/base/input/input' or its corresponding type declarations.
+src/components/untitled-ui/base/input/input-payment.tsx(5,23): error TS2307: Cannot find module '@/src/components/untitled-ui/base/input/label' or its corresponding type declarations.
+src/components/untitled-ui/base/input/input-payment.tsx(6,80): error TS2307: Cannot find module '@/src/components/untitled-ui/foundations/payment-icons' or its corresponding type declarations.
+src/components/untitled-ui/base/input/input-payment.tsx(83,5): error TS2339: Property 'onChange' does not exist on type 'PaymentInputProps'.
+src/components/untitled-ui/base/input/input-payment.tsx(84,5): error TS2339: Property 'value' does not exist on type 'PaymentInputProps'.
+src/components/untitled-ui/base/input/input-payment.tsx(85,5): error TS2339: Property 'defaultValue' does not exist on type 'PaymentInputProps'.
+src/components/untitled-ui/base/input/input-payment.tsx(86,5): error TS2339: Property 'maxLength' does not exist on type 'PaymentInputProps'.
+src/components/untitled-ui/base/input/input-payment.tsx(87,5): error TS2339: Property 'size' does not exist on type 'PaymentInputProps'.
+src/components/untitled-ui/base/input/input-payment.tsx(88,5): error TS2339: Property 'placeholder' does not exist on type 'PaymentInputProps'.
+src/components/untitled-ui/base/input/input-payment.tsx(89,5): error TS2339: Property 'label' does not exist on type 'PaymentInputProps'.
+src/components/untitled-ui/base/input/input-payment.tsx(90,5): error TS2339: Property 'hint' does not exist on type 'PaymentInputProps'.
+src/components/untitled-ui/base/input/input-payment.tsx(91,5): error TS2339: Property 'shortcut' does not exist on type 'PaymentInputProps'.
+src/components/untitled-ui/base/input/input-payment.tsx(92,5): error TS2339: Property 'hideRequiredIndicator' does not exist on type 'PaymentInputProps'.
+src/components/untitled-ui/base/input/input-payment.tsx(93,5): error TS2339: Property 'className' does not exist on type 'PaymentInputProps'.
+src/components/untitled-ui/base/input/input-payment.tsx(94,5): error TS2339: Property 'ref' does not exist on type 'PaymentInputProps'.
+src/components/untitled-ui/base/input/input-payment.tsx(95,5): error TS2339: Property 'groupRef' does not exist on type 'PaymentInputProps'.
+src/components/untitled-ui/base/input/input-payment.tsx(96,5): error TS2339: Property 'tooltip' does not exist on type 'PaymentInputProps'.
+src/components/untitled-ui/base/input/input-payment.tsx(97,5): error TS2339: Property 'iconClassName' does not exist on type 'PaymentInputProps'.
+src/components/untitled-ui/base/input/input-payment.tsx(98,5): error TS2339: Property 'inputClassName' does not exist on type 'PaymentInputProps'.
+src/components/untitled-ui/base/input/input-payment.tsx(99,5): error TS2339: Property 'wrapperClassName' does not exist on type 'PaymentInputProps'.
+src/components/untitled-ui/base/input/input-payment.tsx(100,5): error TS2339: Property 'tooltipClassName' does not exist on type 'PaymentInputProps'.
+src/components/untitled-ui/base/input/input-payment.tsx(101,5): error TS2339: Property 'type' does not exist on type 'PaymentInputProps'.
+src/components/untitled-ui/base/input/input-payment.tsx(124,17): error TS7031: Binding element 'isInvalid' implicitly has an 'any' type.
+src/components/untitled-ui/base/input/input-payment.tsx(124,28): error TS7031: Binding element 'isRequired' implicitly has an 'any' type.
+src/components/untitled-ui/base/input/input-tags-outer.tsx(3,26): error TS2307: Cannot find module '@/src/components/untitled-ui/base/input/hint-text' or its corresponding type declarations.
+src/components/untitled-ui/base/input/input-tags-outer.tsx(4,27): error TS2307: Cannot find module '@/src/components/untitled-ui/base/input/input' or its corresponding type declarations.
+src/components/untitled-ui/base/input/input-tags-outer.tsx(5,23): error TS2307: Cannot find module '@/src/components/untitled-ui/base/input/label' or its corresponding type declarations.
+src/components/untitled-ui/base/input/input-tags-outer.tsx(6,40): error TS2307: Cannot find module '@/src/components/untitled-ui/base/tags/tags' or its corresponding type declarations.
+src/components/untitled-ui/base/input/input-tags-outer.tsx(187,32): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/untitled-ui/base/input/input-tags-outer.tsx(195,27): error TS7006: Parameter 'item' implicitly has an 'any' type.
+src/components/untitled-ui/base/input/input-tags.tsx(5,26): error TS2307: Cannot find module '@/src/components/untitled-ui/base/input/hint-text' or its corresponding type declarations.
+src/components/untitled-ui/base/input/input-tags.tsx(6,23): error TS2307: Cannot find module '@/src/components/untitled-ui/base/input/label' or its corresponding type declarations.
+src/components/untitled-ui/base/input/input-tags.tsx(7,40): error TS2307: Cannot find module '@/src/components/untitled-ui/base/tags/tags' or its corresponding type declarations.
+src/components/untitled-ui/base/input/input-tags.tsx(8,41): error TS2307: Cannot find module '@/src/components/untitled-ui/base/tooltip/tooltip' or its corresponding type declarations.
+src/components/untitled-ui/base/input/input-tags.tsx(263,47): error TS7006: Parameter 'item' implicitly has an 'any' type.
+src/components/untitled-ui/base/input/pin-input.tsx(4,26): error TS2307: Cannot find module '@/src/components/untitled-ui/base/input/hint-text' or its corresponding type declarations.
+src/components/untitled-ui/base/input/pin-input.tsx(5,36): error TS2307: Cannot find module '@/src/components/untitled-ui/base/input/label' or its corresponding type declarations.
+src/components/untitled-ui/base/select/combobox.tsx(6,26): error TS2307: Cannot find module '@/src/components/untitled-ui/base/input/hint-text' or its corresponding type declarations.
+src/components/untitled-ui/base/select/combobox.tsx(7,23): error TS2307: Cannot find module '@/src/components/untitled-ui/base/input/label' or its corresponding type declarations.
+src/components/untitled-ui/base/select/combobox.tsx(8,25): error TS2307: Cannot find module '@/src/components/untitled-ui/base/select/popover' or its corresponding type declarations.
+src/components/untitled-ui/base/select/combobox.tsx(9,77): error TS2307: Cannot find module '@/src/components/untitled-ui/base/select/select-shared' or its corresponding type declarations.
+src/components/untitled-ui/base/select/combobox.tsx(107,5): error TS2339: Property 'placeholder' does not exist on type 'ComboBoxProps'.
+src/components/untitled-ui/base/select/combobox.tsx(109,5): error TS2339: Property 'size' does not exist on type 'ComboBoxProps'.
+src/components/untitled-ui/base/select/combobox.tsx(114,5): error TS2339: Property 'hideRequiredIndicator' does not exist on type 'ComboBoxProps'.
+src/components/untitled-ui/base/select/combobox.tsx(140,37): error TS2339: Property 'label' does not exist on type '{ popoverClassName?: string | undefined; id?: string | undefined; name?: string | undefined; value?: Key | null | undefined; form?: string | undefined; slot?: string | null | undefined; ... 107 more ...; key?: Key | ... 1 more ... | undefined; }'.
+src/components/untitled-ui/base/select/combobox.tsx(141,118): error TS2339: Property 'tooltip' does not exist on type '{ popoverClassName?: string | undefined; id?: string | undefined; name?: string | undefined; value?: Key | null | undefined; form?: string | undefined; slot?: string | null | undefined; ... 107 more ...; key?: Key | ... 1 more ... | undefined; }'.
+src/components/untitled-ui/base/select/combobox.tsx(142,45): error TS2339: Property 'label' does not exist on type '{ popoverClassName?: string | undefined; id?: string | undefined; name?: string | undefined; value?: Key | null | undefined; form?: string | undefined; slot?: string | null | undefined; ... 107 more ...; key?: Key | ... 1 more ... | undefined; }'.
+src/components/untitled-ui/base/select/combobox.tsx(165,37): error TS2339: Property 'hint' does not exist on type '{ popoverClassName?: string | undefined; id?: string | undefined; name?: string | undefined; value?: Key | null | undefined; form?: string | undefined; slot?: string | null | undefined; ... 107 more ...; key?: Key | ... 1 more ... | undefined; }'.
+src/components/untitled-ui/base/select/combobox.tsx(167,45): error TS2339: Property 'hint' does not exist on type '{ popoverClassName?: string | undefined; id?: string | undefined; name?: string | undefined; value?: Key | null | undefined; form?: string | undefined; slot?: string | null | undefined; ... 107 more ...; key?: Key | ... 1 more ... | undefined; }'.
+src/components/untitled-ui/base/select/multi-select.tsx(16,24): error TS2307: Cannot find module '@/src/components/untitled-ui/base/buttons/button' or its corresponding type declarations.
+src/components/untitled-ui/base/select/multi-select.tsx(17,26): error TS2307: Cannot find module '@/src/components/untitled-ui/base/input/hint-text' or its corresponding type declarations.
+src/components/untitled-ui/base/select/multi-select.tsx(18,23): error TS2307: Cannot find module '@/src/components/untitled-ui/base/input/label' or its corresponding type declarations.
+src/components/untitled-ui/base/select/multi-select.tsx(19,30): error TS2307: Cannot find module '@/src/components/untitled-ui/foundations/featured-icon/featured-icon' or its corresponding type declarations.
+src/components/untitled-ui/base/select/select-item.tsx(5,24): error TS2307: Cannot find module '@/src/components/untitled-ui/base/avatar/avatar' or its corresponding type declarations.
+src/components/untitled-ui/base/select/select-item.tsx(6,30): error TS2307: Cannot find module '@/src/components/untitled-ui/base/checkbox/checkbox' or its corresponding type declarations.
+src/components/untitled-ui/base/select/select.tsx(6,24): error TS2307: Cannot find module '@/src/components/untitled-ui/base/avatar/avatar' or its corresponding type declarations.
+src/components/untitled-ui/base/select/select.tsx(7,26): error TS2307: Cannot find module '@/src/components/untitled-ui/base/input/hint-text' or its corresponding type declarations.
+src/components/untitled-ui/base/select/select.tsx(8,23): error TS2307: Cannot find module '@/src/components/untitled-ui/base/input/label' or its corresponding type declarations.
+src/components/untitled-ui/base/select/tag-select.tsx(7,31): error TS2307: Cannot find module 'react-stately' or its corresponding type declarations.
+src/components/untitled-ui/base/select/tag-select.tsx(8,29): error TS2307: Cannot find module 'react-stately' or its corresponding type declarations.
+src/components/untitled-ui/base/select/tag-select.tsx(9,24): error TS2307: Cannot find module '@/src/components/untitled-ui/base/avatar/avatar' or its corresponding type declarations.
+src/components/untitled-ui/base/select/tag-select.tsx(10,40): error TS2307: Cannot find module '@/src/components/untitled-ui/base/badges/badge-types' or its corresponding type declarations.
+src/components/untitled-ui/base/select/tag-select.tsx(11,26): error TS2307: Cannot find module '@/src/components/untitled-ui/base/input/hint-text' or its corresponding type declarations.
+src/components/untitled-ui/base/select/tag-select.tsx(12,23): error TS2307: Cannot find module '@/src/components/untitled-ui/base/input/label' or its corresponding type declarations.
+src/components/untitled-ui/base/select/tag-select.tsx(13,25): error TS2307: Cannot find module '@/src/components/untitled-ui/base/select/popover' or its corresponding type declarations.
+src/components/untitled-ui/base/select/tag-select.tsx(14,59): error TS2307: Cannot find module '@/src/components/untitled-ui/base/select/select-shared' or its corresponding type declarations.
+src/components/untitled-ui/base/select/tag-select.tsx(15,27): error TS2307: Cannot find module '@/src/components/untitled-ui/base/tags/base-components/tag-close-x' or its corresponding type declarations.
+src/components/untitled-ui/base/select/tag-select.tsx(80,51): error TS7006: Parameter 'item' implicitly has an 'any' type.
+src/components/untitled-ui/base/select/tag-select.tsx(277,62): error TS7006: Parameter 'value' implicitly has an 'any' type.
+src/components/untitled-ui/base/select/tag-select.tsx(301,41): error TS7006: Parameter 'event' implicitly has an 'any' type.
+src/components/untitled-ui/base/tags/tags.tsx(10,21): error TS2307: Cannot find module '@/src/components/untitled-ui/foundations/dot-icon' or its corresponding type declarations.
+src/hooks/use-resize-observer.ts(2,32): error TS2307: Cannot find module '@react-types/shared' or its corresponding type declarations.
+Exit status: 1
+Finished: 2026-08-14T16:02:22+08:00

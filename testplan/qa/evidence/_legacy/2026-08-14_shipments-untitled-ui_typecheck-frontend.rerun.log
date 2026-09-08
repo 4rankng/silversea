@@ -1,0 +1,4 @@
+Command: cd frontend && npx tsc -b
+Started: 2026-08-14T16:03:00+08:00
+Exit status: 0
+Finished: 2026-08-14T16:03:10+08:00
