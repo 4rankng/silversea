@@ -423,6 +423,28 @@ describe('DispatchAllocationPopover', () => {
       }), undefined, 'partial');
     });
 
+    it('breaks the overall summary down per day for multi-day lots', async () => {
+      render(<DispatchAllocationPopover shipment={multiDayShipment()} onClose={vi.fn()} onSaved={vi.fn()} />);
+
+      await waitFor(() => expect(screen.getByLabelText(/Nhà xe dòng 1/)).not.toBeDisabled());
+
+      const byDay = screen.getByRole('list', { name: 'Tổng phân bổ theo ngày' });
+      const dayLines = within(byDay).getAllByRole('listitem');
+      expect(dayLines).toHaveLength(2);
+
+      // Day 1 untouched: full demand outstanding, partial chip.
+      expect(within(dayLines[0]!).getByText(/Ngày 10\/09/)).toBeTruthy();
+      expect(within(dayLines[0]!).getByText(/Nhu cầu 1×40'/)).toBeTruthy();
+      expect(within(dayLines[0]!).getByText(/Đã phân 0 · Còn 1×40'/)).toBeTruthy();
+      expect(dayLines[0]!.textContent).toContain('Chưa phân đủ');
+
+      // Assigning day 1's 40' flips its line to complete while day 2 stays partial.
+      fireEvent.change(screen.getByLabelText("Số container 40' dòng 1"), { target: { value: '1' } });
+      expect(within(dayLines[0]!).getByText(/Đã phân 1×40' · Còn 0/)).toBeTruthy();
+      expect(dayLines[0]!.textContent).toContain('Đã phân đủ');
+      expect(within(dayLines[1]!).getByText(/Đã phân 0 · Còn 2×20' \+ 1×40'/)).toBeTruthy();
+    });
+
     it('flags duplicate carrier when repeated on the SAME day', async () => {
       render(<DispatchAllocationPopover shipment={multiDayShipment()} onClose={vi.fn()} onSaved={vi.fn()} />);
 
