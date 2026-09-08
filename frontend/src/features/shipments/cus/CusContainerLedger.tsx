@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Check, RotateCcw, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import {
   type ShipmentCusWorkspaceContainerLine,
   type ShipmentCusWorkspaceDetail,
@@ -274,45 +274,26 @@ function ContainerLineRow({
                 }
               }}
             />
-            {/* Confirm affordance right where the date is edited — the row's
-                action column sits off-screen in the drawer's horizontal scroll,
-                so save/revert there was invisible to whoever edits this cell. */}
+            {/* Confirm affordance right where the date is edited — a separate
+                Thao tác column sat off-screen in the drawer's horizontal
+                scroll, so save/revert there was invisible to whoever edits
+                this cell. The inline pair is the row's only confirm UI. */}
             {dirty && (
               <div className="cus-container-confirm-group--inline">
-                <button type="button" className="btn btn--primary btn--sm cus-container-confirm cus-container-confirm--inline" onClick={() => void save()} disabled={saving} title="Lưu (Enter cũng hoạt động)">
-                  <Check size={14} aria-hidden="true" />
+                <button type="button" className="btn btn--primary btn--sm cus-container-confirm cus-container-confirm--inline" onClick={() => void save()} disabled={saving} aria-label={`Lưu thay đổi cho container ${line.containerNumber || line.ordinal}`} title="Lưu (Enter cũng hoạt động)">
                   <span>Lưu</span>
                 </button>
-                <button type="button" className="btn btn--ghost btn--sm cus-container-revert cus-container-revert--inline" onClick={discardDraft} disabled={saving} title="Hủy thay đổi (Esc)">
-                  <RotateCcw size={14} aria-hidden="true" />
+                <button type="button" className="btn btn--ghost btn--sm cus-container-revert cus-container-revert--inline" onClick={discardDraft} disabled={saving} aria-label={`Bỏ thay đổi cho container ${line.containerNumber || line.ordinal}`} title="Hủy thay đổi (Esc)">
                   <span>Hủy</span>
                 </button>
               </div>
             )}
           </ShipmentContainerCell>
         ) : <td data-label="Giờ hẹn đóng/trả" className="cus-container-cell"><strong>{formatDateTimeShort(line.customerAppointmentAt)}</strong></td>}
-        {operationalEditable ? (
-          <td data-label="Thao tác" className="cus-container-actions">
-            {dirty ? (
-              <div className="cus-container-actions__group" role="group" aria-label={`Thao tác lưu cho container ${line.containerNumber || line.ordinal}`}>
-                <button type="button" className="btn btn--primary btn--sm cus-container-confirm" onClick={() => void save()} disabled={saving} aria-label={`Lưu thay đổi cho container ${line.containerNumber || line.ordinal}`} title="Lưu (Enter cũng hoạt động)">
-                  <Check size={14} aria-hidden="true" />
-                  <span>Lưu</span>
-                </button>
-                <button type="button" className="btn btn--ghost btn--sm cus-container-revert" onClick={discardDraft} disabled={saving} aria-label={`Bỏ thay đổi cho container ${line.containerNumber || line.ordinal}`} title="Bỏ thay đổi">
-                  <RotateCcw size={14} aria-hidden="true" />
-                  <span>Hủy</span>
-                </button>
-              </div>
-            ) : saving ? (
-              <span className="cus-container-actions__status" role="status" aria-live="polite">Đang lưu…</span>
-            ) : null}
-          </td>
-        ) : <td aria-hidden="true" />}
       </tr>
       {saveError && (
         <tr className="cus-container-row-error">
-          <td colSpan={10} className="cus-container-row-error__cell">
+          <td colSpan={9} className="cus-container-row-error__cell">
             <div className="cus-container-row-error__banner" role="alert">
               <span className="cus-container-row-error__text">{saveError}</span>
               <button type="button" className="cus-container-row-error__dismiss" onClick={() => setSaveError(null)} aria-label="Đóng thông báo lỗi" title="Đóng">
@@ -430,7 +411,6 @@ export function ContainerLedger({
               <col className="cus-container-col__site" />
               <col className="cus-container-col__site" />
               <col className="cus-container-col__appointment" />
-              <col className="cus-container-col__actions" />
             </colgroup>
             <thead><tr>
               <th scope="col">Container</th>
@@ -442,7 +422,6 @@ export function ContainerLedger({
               <th scope="col">Nâng</th>
               <th scope="col">Hạ</th>
               <th scope="col">Giờ hẹn đóng/trả</th>
-              <th scope="col" className="cus-container-actions-head"><span className="sr-only">Thao tác dòng</span></th>
             </tr></thead>
             <tbody>{detail.containers.map((line) => <ContainerLineRow key={`${line.id}:${resetRevision}`} detail={detail} line={line} onSaved={onLineSaved} getIdempotencyKey={getIdempotencyKey} clearIdempotencyKey={clearIdempotencyKey} idPrefix={idPrefix} onDirtyChange={setLineDirty} onSavingChange={setLineSaving} editing={editing} />)}</tbody>
           </table>

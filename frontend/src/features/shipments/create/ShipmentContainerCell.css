@@ -11,4 +11,4 @@
 .csc-container-cell:has([aria-expanded='true']) .csc-container-cell__editor > * { opacity: 1; }
 .csc-container-cell:not(:focus-within):hover { background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line-2); }
 .csc-container-cell--error:not(:focus-within) { box-shadow: inset 0 0 0 1px var(--danger); }
-.csc-container-cell__error { display: block; padding: 0 10px 6px; color: var(--danger); font-size: 12px; line-height: 1.35; }
+.csc-container-cell__error { display: block; padding: 0 10px 6px; color: var(--danger); font-size: 12px; line-height: 1.35; word-wrap: break-word; overflow-wrap: break-word; white-space: normal; max-height: 4.05em; overflow: hidden; }
