@@ -1583,28 +1583,29 @@
   opacity: .9;
 }
 
+/* Text-only txn chips (2026-09-08): tinted blob backgrounds removed app-wide. */
 .dd-txn-pill--pay {
-  background: var(--accent-soft);
+  background: transparent;
   color: var(--success, #00803a);
 }
 .dd-txn-pill--adj {
-  background: var(--warning-soft);
+  background: transparent;
   color: var(--warning-text);
 }
 .dd-txn-pill--rev {
-  background: var(--info-soft);
+  background: transparent;
   color: var(--info-text);
 }
 .dd-txn-pill--fee {
-  background: var(--success-soft, #EAF6ED);
+  background: transparent;
   color: var(--success-text, #00702F);
 }
 .dd-txn-pill--pen {
-  background: var(--danger-soft);
+  background: transparent;
   color: var(--danger);
 }
 .dd-txn-pill--other {
-  background: var(--bg-3);
+  background: transparent;
   color: var(--ink-2);
 }
 

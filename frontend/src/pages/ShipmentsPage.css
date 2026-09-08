@@ -1647,11 +1647,13 @@
   overflow-wrap: anywhere;
 }
 
-.cus-container-dispatch--unassigned { color: var(--warning-text); background: var(--warning-soft); }
+/* Text-only dispatch chips (2026-09-08): the tinted blob backgrounds were
+ * visual noise in the ledger — tone now survives via text color alone. */
+.cus-container-dispatch--unassigned { color: var(--warning-text); background: transparent; }
 .cus-container-dispatch--planned,
-.cus-container-dispatch--created { color: var(--accent-strong); background: var(--accent-soft); }
-.cus-container-dispatch--in_transit { color: var(--info-text); background: var(--info-soft); }
-.cus-container-dispatch--completed { color: var(--success-text); background: var(--success-soft); }
+.cus-container-dispatch--created { color: var(--accent-strong); background: transparent; }
+.cus-container-dispatch--in_transit { color: var(--info-text); background: transparent; }
+.cus-container-dispatch--completed { color: var(--success-text); background: transparent; }
 
 .cus-container-cell input,
 .cus-container-cell .searchable-select__trigger {

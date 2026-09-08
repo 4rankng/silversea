@@ -104,7 +104,9 @@ describe('DetailedPlanGrid', () => {
     expect(screen.getByText('Bill: BL-2026-010')).toBeTruthy();
     const directionBadge = screen.getByText('Xuất');
     expect(directionBadge.classList.contains('rounded-full')).toBe(true);
-    expect(directionBadge.classList.contains('bg-utility-neutral-50')).toBe(true);
+    // Status chips are text-only (2026-09-08 de-blob): tone via text color.
+    expect(directionBadge.classList.contains('bg-transparent')).toBe(true);
+    expect(directionBadge.classList.contains('text-utility-neutral-700')).toBe(true);
     expect(directionBadge.classList.contains('text-xs')).toBe(true);
     // Column 4: container stack
     expect(screen.getByText('MSCU1234567')).toBeTruthy();
