@@ -161,14 +161,16 @@ describe('MasterPlanGrid', () => {
     // The API carries a Vietnam business date and the formatter fixes the
     // time to ICT, so this remains stable in a UTC CI runner and in a browser
     // opened from another timezone.
-    const renderedText = screen.getByText(/11:00 24\/8\/2026 · Sunrise · 1 x 40DC/);
-    expect(renderedText).toBeTruthy();
-    expect(screen.getByText(/11:00 25\/8\/2026 · Sunrise · 1 x 40DC/)).toBeTruthy();
-    // The "Giờ:" label is gone; only the HH:mm value leads each line.
-    const scheduleCell = renderedText.closest('td');
+    // Each container appointment is a two-row block: "HH:mm d/m/yyyy" leads
+    // and the "factory · containers" line indents beneath it.
+    expect(screen.getByText('11:00 24/8/2026')).toBeTruthy();
+    expect(screen.getByText('11:00 25/8/2026')).toBeTruthy();
+    expect(screen.getAllByText('Sunrise · 1 x 40DC')).toHaveLength(2);
+    // The "Giờ:" label is gone; only the HH:mm value leads each block.
+    const scheduleCell = screen.getByText('11:00 24/8/2026').closest('td');
     expect(scheduleCell).toBeTruthy();
     expect(within(scheduleCell!).queryAllByText(/Giờ:/).length).toBe(0);
-    expect(within(scheduleCell!).getAllByText(/11:00/).length).toBe(2);
+    expect(within(scheduleCell!).getAllByText('Sunrise · 1 x 40DC').length).toBe(2);
   });
 
   it('falls back to the shipment-level closingAt when no per-container appointments exist', () => {
@@ -181,7 +183,7 @@ describe('MasterPlanGrid', () => {
     render(<MasterPlanGrid items={[fixture]} onAllocate={onAllocate} />);
     // Host-TZ-independent: the seed 08:00 UTC maps to 8H, 15H (ICT), or 16H
     // in the repository's Asia/Singapore agent environment.
-    const cell = screen.getByText(/Lịch cont sớm nhất: 20\/08\/2026/).closest('td');
+    const cell = screen.getByText('20/08/2026').closest('td');
     const hourLine = within(cell!).getByText(/^\d{1,2}H$/);
     expect(hourLine.textContent).toMatch(/^(8H|15H|16H)$/);
   });
@@ -202,7 +204,7 @@ describe('MasterPlanGrid', () => {
       'Ghi chú',
     ]);
 
-    expect(screen.getByText(/Lịch cont sớm nhất: 20\/08\/2026/)).toBeTruthy();
+    expect(screen.getByText('20/08/2026')).toBeTruthy();
     expect(screen.getByText(/Hạn hoàn tất hải quan:/)).toBeTruthy();
     expect(screen.getByText('Công ty ABC')).toBeTruthy();
     // T2.1: customer → factories → bill number, with customer and bill bold.
@@ -231,7 +233,7 @@ describe('MasterPlanGrid', () => {
     expect(within(cargoCell!).getByText('1 x 20DC')).not.toHaveClass('master-plan-grid__line--strong');
     expect(screen.getByText(/41\.000,75 kg/)).toBeTruthy();
     expect(screen.getByText('Giao giờ hành chính')).toBeTruthy();
-    expect(screen.getByText(/Lịch cont sớm nhất: 20\/08\/2026/)).not.toHaveClass('master-plan-grid__line--strong');
+    expect(screen.getByText('20/08/2026')).not.toHaveClass('master-plan-grid__line--strong');
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
     expect(css).toContain('.master-plan-grid__location-value {\n  color: var(--fg-1);\n  font-weight: 400;\n}');
     expect(screen.getByText('Maersk')).toHaveClass('master-plan-grid__line--strong');

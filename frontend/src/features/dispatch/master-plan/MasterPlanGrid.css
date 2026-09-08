@@ -635,6 +635,16 @@
   line-height: var(--ops-table-meta-line-height);
 }
 
+/* Appointment days read as a bullet-less list: the date is the list row and
+   that day's close/return lines indent beneath it. */
+.master-plan-grid__line--sub {
+  padding-left: 10px;
+}
+
+.master-plan-grid__schedule-block + .master-plan-grid__schedule-block {
+  margin-top: 4px;
+}
+
 .master-plan-grid__route-shipping {
   display: grid;
   grid-template-areas:
