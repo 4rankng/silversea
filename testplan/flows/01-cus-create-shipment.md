@@ -1314,3 +1314,58 @@
   - Output JSON của script `before-fix-ledger.mjs` chạy lại sau fix: 2 dòng có cùng `fontSize`/`fontWeight`.
 - **Regression ID:** REG-LEDGER-FONT-20260908
 
+## 1.21 — Ledger container: một cặp Lưu/Hủy, không cuộn ngang, payload tối thiểu (báo cáo khách hàng 2026-09-08)
+
+### TC-CUS-CREATE-042 — Dòng đang sửa có đúng MỘT cặp Lưu/Hủy ngay tại ô Giờ hẹn đóng/trả
+
+- **Mã bug:** BUG-2026-09-08-DUP-CONFIRM (cột "Thao tác" nhân đôi nút và đẩy bảng vào cuộn ngang)
+- **Vai trò:** `CUS`
+- **Mức độ:** P1
+- **Thiết bị:** Desktop (1440×900)
+- **Tiền điều kiện:** drawer lô FCL mở, bảng "Chi tiết container" ở chế độ chỉnh sửa.
+- **Các bước:**
+  1. Sửa "Giờ hẹn đóng/trả" của một dòng → quan sát vị trí cặp nút Lưu/Hủy xuất hiện.
+  2. Đếm số nút Lưu + Hủy xuất hiện cho dòng đó.
+  3. Kiểm tra header bảng: không còn cột "Thao tác dòng".
+  4. Co hẹp drawer (~760px container width) → bảng vẫn hiển thị đủ 9 cột không cần cuộn ngang.
+- **Kết quả mong đợi (Pass):**
+  - Mỗi dòng đang dirty có đúng 1 nút Lưu + 1 nút Hủy, nằm trong ô Giờ hẹn đóng/trả (nơi vừa sửa).
+  - Không có cột "Thao tác dòng"; các cột dùng % tổng 100% nên không sinh thanh cuộn ngang.
+- **Kỳ vọng sai (Fail nếu):** cặp nút thứ hai xuất hiện ở cột khác; bảng tràn ngang tại drawer hẹp.
+- **Bằng chứng:** `CusContainerLedger.test.tsx` — "renders exactly one Lưu/Hủy pair per dirty row",
+  "has no separate Thao tác column"; CSS density contract test pin % cột + input 28px.
+
+### TC-CUS-CREATE-043 — Lưu dòng container chỉ gửi các trường thực sự thay đổi
+
+- **Mã bug:** BUG-2026-09-08-WRONG-409 (payload echo trường không đổi → 409 "Lô hàng đã bàn giao…")
+- **Vai trò:** `CUS`
+- **Mức độ:** P0
+- **Các bước:**
+  1. Mở drawer lô đã bàn giao Điều vận (có đủ nhà xe/biển số/tuyến).
+  2. Chỉ sửa "Giờ hẹn đóng/trả" → Lưu.
+  3. Bắt request `PATCH .../containers/:lineId` (devtools) → kiểm tra body.
+- **Kết quả mong đợi (Pass):**
+  - Body chỉ chứa `expectedShipmentVersion` + trường vừa đổi (vd `customerAppointmentAt`).
+  - Lưu thành công (200), không còn 409 do echo trường governed không đổi.
+- **Kỳ vọng sai (Fail nếu):** body chứa carrier/route/site tuy người dùng không sửa; response 409.
+- **Bằng chứng:** `CusContainerLedger.test.tsx` — "sends only the changed field on save"
+  (assert `Object.keys(payload)` đúng `['customerAppointmentAt','expectedShipmentVersion']`).
+
+### TC-CUS-CREATE-044 — Sửa container sau bàn giao áp dụng trực tiếp (approval workflow parked)
+
+- **Quyết định:** KH chưa chốt quy trình phê duyệt (2026-09-08) → bỏ luồng yêu cầu thay đổi
+  trong app; mọi sửa hợp lệ lưu thẳng. Hạ tầng review (bảng + service) giữ nguyên để dùng lại.
+  Ràng buộc giữ nguyên: dòng đã gắn chuyến thực tế bị chặn sửa ("Container đã gắn chuyến xe…").
+- **Vai trò:** `CUS`, `DISPATCHER`
+- **Mức độ:** P1
+- **Các bước:**
+  1. Lô đã bàn giao (READY_FOR_DISPATCH), dòng chưa có chuyến → sửa nhà xe/biển số/ngày → Lưu.
+  2. Xác nhận không xuất hiện thông báo "phải đi qua yêu cầu thay đổi để phê duyệt".
+  3. Dòng đã có chuyến thực (trip active) → thử sửa → bị chặn với lý do "Container đã gắn chuyến xe".
+- **Kết quả mong đợi (Pass):** bước 1 lưu trực tiếp (200 + version bump); bước 3 chặn như cũ.
+- **Kỳ vọng sai (Fail nếu):** xuất hiện yêu cầu phê duyệt cho container/plan; hoặc dòng có chuyến
+  vẫn sửa được.
+- **Bằng chứng:** backend `cus-shipment-workspace.test.ts` "post-handoff container edits apply
+  directly"; `q22-source-authority.test.ts` "applies post-dispatch cargo changes directly without
+  overwriting the linked trip" (không tạo shipmentChangeRequests).
+
