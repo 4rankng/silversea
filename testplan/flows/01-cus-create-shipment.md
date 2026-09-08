@@ -36,11 +36,16 @@
   - Hiển thị đúng 2 dòng container với container/seal đã nhập.
   - Ngày giao dự kiến lưu riêng theo từng container (không chỉ ở cấp lô).
   - Cước dự kiến tự động lấy theo Khách × Tuyến (read-only, không cho gõ tay).
-  - Phụ phí xăng dầu tự tính theo công thức: `(giá dầu hiện tại − giá dầu gốc) × số lít định mức × tỷ lệ chia sẻ`.
+  - Phụ phí xăng dầu tự tính theo công thức: `(giá dầu hiện tại − giá dầu gốc) × số lít định mức khứ hồi` — **thu 100 %, KHÔNG nhân tỷ lệ chia sẻ**.
+  - Giá cước gốc được cộng `% chia sẻ` theo **cặp (Khách × Tuyến)**: `giá gốc × (1 + % chia sẻ)`.
+  - Tổng cước = 2 khoản trên cộng lại, **làm tròn đến từng đồng**.
+  - Nguồn chân lý công thức: `docs/prd/CuocPhiPhuPhiDau.md`.
   - Ghi người tạo và thời điểm.
 - **Kỳ vọng sai (Fail nếu):**
   - Thiếu trường FCL (container, seal, ngày giao theo container).
   - Cước hoặc phụ phí không hiển thị / cho nhập tay.
+  - Phụ phí dầu bị nhân với `% chia sẻ` (sai công thức — xem `CuocPhiThietKeDB.md` §1.1).
+  - Giá trị tiền có phần thập phân (phải làm tròn đến đồng).
   - Ngày giao chỉ lưu ở cấp lô.
   - Mã lô trùng hoặc không sinh.
 - **Bằng chứng:** ảnh form đã điền + ảnh chi tiết lô + ảnh giá cước read-only

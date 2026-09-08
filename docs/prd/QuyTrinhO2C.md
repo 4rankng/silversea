@@ -106,14 +106,15 @@ erDiagram
 
 ## Bước 1 — Chứng Từ: Khởi Tạo Lô Hàng
 
-1. Khách hàng gửi booking. Chứng Từ tạo lô nhanh — hệ thống trả **mã lô + giá cước dự kiến**.
+1. Khách hàng gửi booking. Chứng Từ tạo lô nhanh — hệ thống trả **mã lô + giá cước dự kiến** (đã gồm phụ phí dầu của kỳ đang hiệu lực).
 2. Nhập hàng:
    - **Hàng nguyên container:** nhập danh sách container; hệ thống kiểm tra số container đúng chuẩn, đủ chữ số kiểm tra.
    - **Hàng lẻ:** nhập quy cách, số lượng, khối lượng, CBM.
 3. Gửi lô cho điều vận — hệ thống tạo **phiếu bàn giao**, lô chuyển **sẵn sàng điều xe**.
 
 **Kiểm soát hệ thống:**
-- **Tính cước tự động** — 3 tầng: theo kg → theo container → điều chỉnh thủ công (dự phòng). Không gõ tay giá.
+- **Tính cước tự động** — 3 tầng chọn **giá cước gốc**: theo kg → theo container/loại xe → điều chỉnh thủ công (dự phòng). Không gõ tay giá.
+- **Phụ phí dầu** — cước cuối **không chỉ là giá gốc**: `cước = giá gốc × (1 + % chia sẻ) + phụ phí dầu`, trong đó phụ phí dầu = `(giá dầu kỳ − giá dầu mốc) × số lít định mức cả chuyến khứ hồi`. `% chia sẻ` thuộc **cặp (khách hàng × tuyến)**, không phải theo khách hàng. Làm tròn **đến từng đồng**. Đặc tả: [`CuocPhiPhuPhiDau.md`](CuocPhiPhuPhiDau.md); thiết kế bảng: [`CuocPhiThietKeDB.md`](CuocPhiThietKeDB.md).
 - **Số container chuẩn quốc tế (ISO 6346)** — Có chữ số kiểm tra; OCR tự sửa khi nhập gần đúng.
 - **Bàn giao** — Điều vận phải chấp nhận phiếu bàn giao trước khi phân bổ.
 - **Gửi lặp an toàn** — Thao tác trùng không tạo lô mới.
@@ -348,3 +349,5 @@ Sau khi lái xe hoàn thành, Chứng Từ xử lý chứng từ trên hồ sơ 
 | **Phí đường cặp ghép** | Chuyến có mã ghép kẹp/kết hợp: VETC/tiền trạm thu phí chỉ ghi nhận **1 lần cho cả cặp** — trip thứ hai được khử trùng bằng đúng tiền trạm gộp (không lấy định mức × 2 cont) |
 | **Lương cặp ghép** | Không trả bằng tổng 2 cuốc chạy đơn: lương cặp = **cuốc cơ bản + phụ phí kẹp/kết hợp**, phụ phí lấy từ cấu hình lương (Cài đặt → Lương). Hủy cặp → khôi phục lương tiêu chuẩn từng trip |
 | **Lệnh chạy ngoài** | Lô cuốc vãng lai (không có trong danh mục): lưu `Raw_*` với ID rỗng, **không bao giờ** ghi text tự do vào bảng danh mục gốc; validation định mức cước được bỏ qua khi có cờ `is_ad_hoc`. Chi tiết `MasterDataNhaMay.md` §4 |
+| **Phụ phí dầu (doanh thu)** | Khác hoàn toàn "phụ phí kẹp/kết hợp" ở trên (đó là **lương lái xe**). Đây là khoản **thu của khách**: `(giá dầu kỳ − giá dầu mốc) × lít định mức khứ hồi`, thu **100 %**, không nhân `% chia sẻ`. Đổi giá dầu = **thêm kỳ mới**, không sửa kỳ cũ; cước đã phát hành giữ nguyên số đã chốt. Chi tiết `CuocPhiPhuPhiDau.md` |
+| **Làm tròn tiền** | Mọi giá trị tiền làm tròn **đến từng đồng** (VND không có thập phân). Tham số công thức (giá dầu mốc, số lít, chênh lệch đơn giá) **không** làm tròn. Chi tiết `CuocPhiThietKeDB.md` §4.2 |
