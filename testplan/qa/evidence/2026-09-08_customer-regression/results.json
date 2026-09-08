@@ -1,13 +1,13 @@
 {
   "runId": "2026-09-08_customer-regression",
-  "timestamp": "2026-09-08T06:53:34.501Z",
+  "timestamp": "2026-09-08T08:26:40.089Z",
   "results": [
     {
       "caseId": "FACTORY-DISPLAY-REGRESSION-2026-09-07",
       "role": "CUS",
       "file": "factory-display.mjs",
       "verdict": "PASS",
-      "durationMs": 4657,
+      "durationMs": 5183,
       "target": {
         "id": 5,
         "siteIds": [
@@ -34,7 +34,7 @@
       "role": "CUS",
       "file": "TC-CUS-CREATE-021.mjs",
       "verdict": "PASS",
-      "durationMs": 31728,
+      "durationMs": 31423,
       "before": "ASKEY-1",
       "after": "",
       "clearResult": {
@@ -50,7 +50,7 @@
       "role": "CUS",
       "file": "TC-CUS-CREATE-022.mjs",
       "verdict": "PASS",
-      "durationMs": 25843,
+      "durationMs": 25833,
       "before": "KCN QUẾ VÕ, BẮC NINH",
       "after": "",
       "clearResult": {
@@ -62,7 +62,7 @@
       "role": "CUS",
       "file": "TC-CUS-CREATE-023.mjs",
       "verdict": "PASS",
-      "durationMs": 27997,
+      "durationMs": 28116,
       "cnBefore": "Cảng Mipec",
       "cnAfter": "",
       "cnClear": {
@@ -79,7 +79,7 @@
       "role": "CUS",
       "file": "TC-CUS-CREATE-026.mjs",
       "verdict": "PASS",
-      "durationMs": 25426,
+      "durationMs": 25474,
       "dupBL": "JJCTCHPDY260305",
       "inlineWarnings": [
         "Số Bill JJCTCHPDY260305 đã được nhập bởi thanhdc lúc 6/9/2026 17:25. Không thể tạo lô trùng.Xem lô đã nhập",
@@ -94,14 +94,14 @@
       "role": "CUS",
       "file": "TC-CUS-CREATE-028.mjs",
       "verdict": "PASS",
-      "durationMs": 8434,
+      "durationMs": 8179,
       "target": {
         "id": 4,
         "blNumber": "JJCTCHPDY260305",
         "containerCount": 2,
         "containersWithAppt": 2
       },
-      "rowTextSnippet": "Long MinhASKEY-2KCN QUẾ VÕ, BẮC NINHJJCTCHPDY260305108592316230SJJĐóng kết hợpNhập2x40HC10.484 kgCont08:00 7/9/2026 · ASKEY-2 · 2x40HC1 cont chưa phân xeĐã phát lệnh 1/2 contXưởng 2 Đang chạy Thiếu BKS 1 contChi tiết",
+      "rowTextSnippet": "Long MinhASKEY-2KCN QUẾ VÕ, BẮC NINHJJCTCHPDY260305108592316230SJJĐóng kết hợpNhập2x40HC10.484 kgCont08:00 7/9/2026 · ASKEY-2 · 1x40HC08:00 28/9/2026 · ASKEY-2 · 1x40HC1 cont chờ phân xeĐã phát lệnh 1/2 contXưởng 2 Đang chạy Thiếu BKS 1 contChi tiết",
       "rowHasDate": true,
       "rowHasWaiting": false,
       "detailHasDate": true
