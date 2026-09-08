@@ -1,0 +1,28 @@
+# Dependencies and build artifacts
+node_modules/
+dist/
+build/
+.next/
+.turbo/
+
+# Lock files
+pnpm-lock.yaml
+package-lock.json
+
+# QA artifacts (transient)
+qa/
+qa_results.json
+qa_test_cases.json
+
+# Backups
+backups/
+
+# Generated/external
+repomix-output.xml
+codegraph.json
+
+# Screenshot scripts
+screenshot_*.mjs
+
+# Plans (planning artifacts)
+plans/
