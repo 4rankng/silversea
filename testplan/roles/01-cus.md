@@ -22,6 +22,7 @@ CUS is the **document operations** role. CUS can:
 
 - Read & write the **shipment (lô hàng) workspace**: create, edit, manage
   containers, attach declarations, view status.
+- Determine and own the **transportation classification (Đơn `SINGLE`, Kẹp `DOUBLE`, Kết hợp `COMBINED`, Lẻ `LCL`) and lot-level combined flag (`isCombined`)**. Fulfillments automatically inherit and synchronize with CUS's classification.
 - Read & write **customers** as a side-effect of the shipment flow (CUS
   may create a customer inline when creating a shipment, per
   `74a17b5c`).
@@ -129,6 +130,15 @@ applies (silent redirect to `/shipments`).
      `apiKey`
    - **Then** no matches are found in any user-visible string (only
      internal `useAuth` references are allowed).
+
+9. **CUS-SHIP-09 — CUS owns Đơn / Kẹp / Kết hợp classification and lot combined flag**
+   - **Given** a CUS user creating or updating an FCL shipment
+   - **When** the user checks `Đóng kết hợp` (`isCombined = true`)
+   - **Then** the shipment is saved with `is_combined = true`, and all unassigned fulfillments automatically receive `dispatchClassification = 'COMBINED'`.
+   - **When** `Đóng kết hợp` is unchecked (`isCombined = false`)
+   - **Then** fulfillments receive `dispatchClassification = 'SINGLE'`.
+   - **When** CUS updates `isCombined` on an unassigned shipment, unassigned fulfillments synchronize their classification.
+   - **Reference**: backend unit tests in `cus-shipment-workspace.test.ts`.
 
 ### Test steps (manual)
 

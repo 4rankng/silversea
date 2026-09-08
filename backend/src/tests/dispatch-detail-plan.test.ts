@@ -1063,7 +1063,7 @@ describe('atomic dispatch detail plan save', () => {
 
   test('one save applies carrier, vehicle, estimates, classification, and isCombined atomically', async () => {
     const carrier = await createCustomer(`Detail ext carrier ${suffix}-${createdCustomerIds.length}`, true);
-    const { shipment, fulfillmentIds } = await createAllocatedLot({ carrierType: 'OWN' });
+    const { fulfillmentIds } = await createAllocatedLot({ carrierType: 'OWN' });
     const { truck, driver } = await createOwnedTruckWithDriver();
     const { shipment: freshShipment, fulfillment } = await fetchShipmentAndFulfillment(fulfillmentIds[0]!);
 
@@ -1078,7 +1078,7 @@ describe('atomic dispatch detail plan save', () => {
         plannedRevenue: 3_000_000,
         plannedCarrierCost: 2_200_000,
         classification: 'DOUBLE',
-        isCombined: !shipment.isCombined,
+        isCombined: !freshShipment.isCombined,
       },
     });
     assert.equal(response.status, 200, JSON.stringify(response.data));
@@ -1087,7 +1087,7 @@ describe('atomic dispatch detail plan save', () => {
     assert.equal(response.data.dispatch.externalCarrierId, carrier.id);
     assert.equal(response.data.classification, 'DOUBLE');
     assert.equal(response.data.estimates.plannedRevenue, '3000000');
-    assert.equal(response.data.isCombined, !shipment.isCombined);
+    assert.equal(response.data.isCombined, !freshShipment.isCombined);
     // isCombined flipped → shipment version bumped exactly once.
     assert.equal(response.data.shipmentVersion, freshShipment.version + 1);
     assert.equal(response.data.fulfillmentVersion, fulfillment.version + 1);
@@ -1970,7 +1970,7 @@ describe('dispatch task tags and driver-note plan save', () => {
   };
 
   test('note rides the atomic save and persists to shipments.operational_notes', async () => {
-    const { shipment, fulfillmentIds } = await createAllocatedLot({ carrierType: 'OWN' });
+    const { fulfillmentIds } = await createAllocatedLot({ carrierType: 'OWN' });
     const { shipment: freshShipment, fulfillment } = await fetchShipmentAndFulfillment(fulfillmentIds[0]!);
     const note = 'Đặt đầu; Lấy vỏ ICD đi đóng; gọi lái trước 30p';
 
@@ -1996,7 +1996,7 @@ describe('dispatch task tags and driver-note plan save', () => {
   });
 
   test('unchanged note → shipment version NOT bumped; omitted note → stored note untouched', async () => {
-    const { shipment, fulfillmentIds } = await createAllocatedLot({ carrierType: 'OWN' });
+    const { fulfillmentIds } = await createAllocatedLot({ carrierType: 'OWN' });
     const { shipment: freshShipment, fulfillment } = await fetchShipmentAndFulfillment(fulfillmentIds[0]!);
 
     const first = await apiFetch<NotePlanResponse>(`/dispatch-detail-plan-rows/${fulfillment.id}/plan`, {

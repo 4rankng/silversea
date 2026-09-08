@@ -18,7 +18,6 @@ import { initAuditService } from '../services/audit.service';
 import { transitionTripStatus } from '../services/trip-status-machine.service';
 import { matchDeclaredMaterialWrite } from '../middleware/material-write';
 import { updateTripFigures } from '../services/trip-mutations.service';
-import { approveGovernanceAction } from '../services/adjustment-governance.service';
 import {
   approveGovernanceActionWithAdapter,
   assertActiveApprovalApplication,

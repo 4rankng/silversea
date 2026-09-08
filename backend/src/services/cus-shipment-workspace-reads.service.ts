@@ -1022,7 +1022,7 @@ export async function listCusShipmentContainers(
       shippingLineName: trimOrNull(row.shipment.shippingLineName) ?? trimOrNull(container.shippingLineName),
       isCombined: row.shipment.isCombined,
       classification: support.assignmentsByContainer.get(container.id)?.dispatchClassification
-        ?? (row.shipment.cargoMode === CARGO_MODE.LCL ? 'LCL' : 'SINGLE'),
+        ?? (row.shipment.cargoMode === CARGO_MODE.LCL ? 'LCL' : (row.shipment.isCombined ? 'COMBINED' : 'SINGLE')),
       direction: row.shipment.tradeDirection as 'IMPORT' | 'EXPORT' | null,
       containerNumber: line.containerNumber,
       containerTypeLabel: line.containerTypeLabel,

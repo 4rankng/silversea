@@ -20,7 +20,8 @@ import * as s from '../db/schema';
 import { eq, and, isNull, desc, sql, gte, inArray } from 'drizzle-orm';
 import { TripStatus } from '@tingting/shared';
 import { ApiError } from '../errors';
-import { localDateStr, quarterDateRange, resolveTruckCapSnapshot, tripCompletionBusinessDateSql } from './reporting-shared';
+import { localDateStr, quarterDateRange, resolveTruckCapSnapshot } from './reporting-shared';
+
 import { assertCanMakeGovernanceAction } from './governance-policy';
 import type { GovernanceActionRow } from './governance-transition.service';
 import { hashPayload } from './idempotency.service';
@@ -364,7 +365,6 @@ async function computeDistributionSnapshot(
   year: number,
 ): Promise<ComputedDistributionSnapshot> {
   const { start: qStart, end: qEnd } = await quarterDateRange(quarter, year);
-  const completionBusinessDate = tripCompletionBusinessDateSql();
   // Trips-split: trips-bound fragments cannot resolve inside a FROM
   // trips_composite query — re-derive the same business date over the view.
   const completionBusinessDateComposite = sql<string>`(${s.tripsComposite.completedAt} AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Ho_Chi_Minh')::date`;

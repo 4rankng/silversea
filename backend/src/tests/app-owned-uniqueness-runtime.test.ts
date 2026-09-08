@@ -1,11 +1,10 @@
 import assert from 'node:assert/strict';
 import { after, describe, test } from 'node:test';
 import { and, eq, inArray } from 'drizzle-orm';
-import { Role, TripStatus } from '@tingting/shared';
+import { Role } from '@tingting/shared';
 
 import { client, db } from '../db';
 import * as s from '../db/schema';
-import { insertTripComposite } from '../services/trip-composite.service';
 import { upsertWorkDay, confirmSalary } from '../services/attendance.service';
 import {
   DURABLE_EFFECT_KIND,
@@ -50,50 +49,7 @@ async function mkDriver(tag: string) {
   return { user, driver };
 }
 
-async function mkTrip(tag: string) {
-  const [customer] = await db.insert(s.customers).values({
-    name: `App Owned Customer ${tag} ${suffix}`,
-  }).returning();
-  createdCustomerIds.push(customer.id);
 
-  const [route] = await db.insert(s.routes).values({
-    name: `App Owned Route ${tag} ${suffix}`,
-  }).returning();
-  createdRouteIds.push(route.id);
-
-  const [cargoType] = await db.insert(s.cargoTypes).values({
-    name: `App Owned Cargo ${tag} ${suffix}`,
-  }).returning();
-  createdCargoTypeIds.push(cargoType.id);
-
-  const trip = await insertTripComposite(db, {
-    tripCode: `AOU-${tag}-${suffix}-${createdTripIds.length}`.slice(0, 50),
-    customerId: customer.id,
-    routeId: route.id,
-    cargoTypeId: cargoType.id,
-    status: TripStatus.CREATED,
-    departureDate: '2026-08-03',
-    carrierType: 'OWN',
-  });
-  createdTripIds.push(trip.id);
-  return trip;
-}
-
-async function mkGovernanceAction(subjectId: number, makerId: number) {
-  const [action] = await db.insert(s.governanceActions).values({
-    subjectType: 'TRIP',
-    subjectId,
-    actionKind: 'TRIP_FINANCIAL_CLOSE',
-    reason: `App-owned uniqueness ${suffix}`,
-    originalVersion: 1,
-    beforeSnapshot: {},
-    afterSnapshot: {},
-    makerId,
-    makerRole: Role.ADMIN,
-  }).returning();
-  createdGovernanceActionIds.push(action.id);
-  return action;
-}
 
 after(async () => {
   if (durableEffectDedupeKeys.length > 0) {

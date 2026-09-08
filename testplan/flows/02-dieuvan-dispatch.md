@@ -962,6 +962,12 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
 
 ## 2.13 — Đóng kết hợp (kẹp chuyến) chỉ cho Container 20 feet (QA Matrix v2.0)
 
+> **Ranh giới nghiệp vụ & Quyền hạn (CUS vs Điều vận):**
+> - **Phân loại Đơn / Kẹp / Kết hợp và cờ `isCombined` cấp lô hàng là CỦA CUS (Chứng từ)**: CUS xác định hình thức vận chuyển và cờ kết hợp khi nhận yêu cầu và tạo/chỉnh sửa lô hàng.
+> - **Điều vận KHÔNG quyết định phân loại hay cờ cấp lô**: Điều vận chỉ tiếp nhận phân loại từ CUS và thực thi điều phối phương tiện (xe nội bộ, rơ-moóc, hoặc nhà xe ngoài).
+> - Tại màn hình điều phối (`/dispatch-detail`), checkbox "Đóng kết hợp (kẹp chuyến)" chỉ hỗ trợ thao tác điều phối vật lý cho container 20ft (chặn tuyệt đối cont 40ft/45ft).
+> - Khi Điều vận lưu kế hoạch điều phối cho từng container qua `/dispatch-detail-plan-rows/:id/plan`, hệ thống **bảo toàn nguyên vẹn cờ `isCombined` cấp lô của CUS**, không để thao tác của Điều vận vô tình ghi đè hay làm mất cờ kết hợp của lô.
+
 ### TC_COMB_01 — Vô hiệu hóa checkbox kẹp chuyến đối với Container 40HC, 40DC, 45ft
 - **Vai trò:** `dieuvan` (DISPATCHER), `admin`
 - **Mức độ:** P1
@@ -1001,6 +1007,22 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
   - Cờ `isCombined = true` được lưu vào draft plan và phản ánh đúng trạng thái khi mở lại.
 - **Bằng chứng:** Vitest test suite `DispatchPlanEditorCell.test.tsx` (14/14 tests pass)
 - **Regression ID:** REG-COMB-03-20260908
+
+### TC_COMB_04 — Điều vận lưu kế hoạch điều phối bảo toàn cờ isCombined và phân loại do CUS ấn định
+- **Vai trò:** `dieuvan`, `admin`
+- **Mức độ:** P0
+- **Tiền điều kiện:** Lô hàng do CUS tạo có `isCombined = true` (hoặc `false`). Container 20ft ở trạng thái sẵn sàng điều xe (`READY_FOR_DISPATCH`).
+- **Các bước:**
+  1. Đăng nhập `dieuvan`, mở `/dispatch-detail`.
+  2. Mở dialog điều phối, gán nhà xe/xe/tài xế, điều chỉnh chi phí/doanh thu dự kiến.
+  3. Nhấn "Lưu kế hoạch" (omitting `isCombined` hoặc giữ nguyên giá trị).
+  4. Kiểm tra trường `shipments.is_combined` trong cơ sở dữ liệu và bảng kê CUS.
+- **Kết quả mong đợi (Pass):**
+  - Lưu kế hoạch điều phối thành công.
+  - Cờ `isCombined` cấp lô hàng và phân loại ban đầu của CUS được bảo toàn trọn vẹn, không bị điều vận vô tình đảo ngược hoặc ghi đè thành `false`.
+- **Bằng chứng & Kiểm thử:**
+  - Backend integration test: `backend/src/tests/dispatch-detail-plan.test.ts`
+- **Regression ID:** REG-COMB-04-20260908
 
 ---
 

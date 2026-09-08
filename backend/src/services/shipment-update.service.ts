@@ -115,6 +115,7 @@ export async function updateShipment(
       routeId: input.routeId,
       cargoTypeId: input.cargoTypeId,
       responsibleUnitId: input.responsibleUnitId,
+      isCombined: input.isCombined,
       bookingRef: input.bookingRef,
       blNumber: input.blNumber,
       tradeDirection: input.tradeDirection,
@@ -256,6 +257,17 @@ export async function updateShipment(
       updatedBy: input.updatedBy ?? null,
       updatedAt: new Date(),
     }).where(eq(s.shipments.id, id)).returning();
+
+    if (input.isCombined !== undefined && existing.isCombined !== input.isCombined) {
+      await tx.update(s.shipmentFulfillments).set({
+        dispatchClassification: input.isCombined ? 'COMBINED' : 'SINGLE',
+        updatedAt: new Date(),
+      }).where(and(
+        eq(s.shipmentFulfillments.shipmentId, id),
+        isNull(s.shipmentFulfillments.canceledAt),
+        eq(s.shipmentFulfillments.cargoMode, 'FCL'),
+      ));
+    }
 
     if (becomesReady) {
       await tx.insert(s.shipmentStatusHistory).values({

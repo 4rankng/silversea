@@ -462,6 +462,86 @@ describe('CUS shipment workspace projection — container classification', () =>
     assert.equal(response.items.find((item) => item.id === unplannedFclContainer.id)?.classification, 'SINGLE');
     assert.equal(response.items.find((item) => item.id === unplannedLclContainer.id)?.classification, 'LCL');
   });
+
+  test('CUS call: FCL shipment created with isCombined=true defaults classification to COMBINED, isCombined=false to SINGLE', async () => {
+    const marker = Math.random().toString(16).slice(2, 7).toUpperCase();
+
+    // CUS creates combined shipment
+    const combinedShipment = await seedShipment({
+      cargoMode: 'FCL',
+      bookingRef: `BOOK-COMB-${marker}`,
+      isCombined: true,
+    });
+    const combinedContainer = await seedContainer(combinedShipment.id, { containerNumber: `COMB-${marker}` });
+    // In actual flow, fulfillment is seeded/created
+    await seedFulfillment(combinedShipment.id, combinedContainer.id, {
+      dispatchClassification: combinedShipment.isCombined ? 'COMBINED' : 'SINGLE',
+    });
+
+    // CUS creates single shipment
+    const singleShipment = await seedShipment({
+      cargoMode: 'FCL',
+      bookingRef: `BOOK-SING-${marker}`,
+      isCombined: false,
+    });
+    const singleContainer = await seedContainer(singleShipment.id, { containerNumber: `SING-${marker}` });
+    await seedFulfillment(singleShipment.id, singleContainer.id, {
+      dispatchClassification: singleShipment.isCombined ? 'COMBINED' : 'SINGLE',
+    });
+
+    const response = await listCusShipmentContainers({ page: 1, limit: 20, searchSuffix: marker }, cusActor);
+    const combRow = response.items.find((item) => item.id === combinedContainer.id);
+    const singRow = response.items.find((item) => item.id === singleContainer.id);
+
+    assert.ok(combRow);
+    assert.equal(combRow.isCombined, true);
+    assert.equal(combRow.classification, 'COMBINED');
+
+    assert.ok(singRow);
+    assert.equal(singRow.isCombined, false);
+    assert.equal(singRow.classification, 'SINGLE');
+  });
+
+  test('CUS call: updating shipment isCombined synchronizes unassigned FCL fulfillments to COMBINED or SINGLE', async () => {
+    const marker = Math.random().toString(16).slice(2, 7).toUpperCase();
+    const shipment = await seedShipment({ cargoMode: 'FCL', bookingRef: `SYNC-${marker}`, isCombined: false });
+    const container = await seedContainer(shipment.id, { containerNumber: `SYNC-${marker}` });
+    await seedFulfillment(shipment.id, container.id, { dispatchClassification: 'SINGLE' });
+
+    // Initial check: isCombined = false, classification = SINGLE
+    let response = await listCusShipmentContainers({ page: 1, limit: 20, searchSuffix: marker }, cusActor);
+    let row = response.items.find((item) => item.id === container.id);
+    assert.ok(row);
+    assert.equal(row.isCombined, false);
+    assert.equal(row.classification, 'SINGLE');
+
+    // CUS updates shipment isCombined to true
+    await updateShipment(shipment.id, {
+      expectedVersion: shipment.version,
+      isCombined: true,
+      updatedBy: cusActor.userId,
+    }, cusActor);
+
+    response = await listCusShipmentContainers({ page: 1, limit: 20, searchSuffix: marker }, cusActor);
+    row = response.items.find((item) => item.id === container.id);
+    assert.ok(row);
+    assert.equal(row.isCombined, true);
+    assert.equal(row.classification, 'COMBINED');
+
+    // CUS updates shipment isCombined back to false
+    const [freshShipment] = await db.select().from(s.shipments).where(eq(s.shipments.id, shipment.id));
+    await updateShipment(shipment.id, {
+      expectedVersion: freshShipment.version,
+      isCombined: false,
+      updatedBy: cusActor.userId,
+    }, cusActor);
+
+    response = await listCusShipmentContainers({ page: 1, limit: 20, searchSuffix: marker }, cusActor);
+    row = response.items.find((item) => item.id === container.id);
+    assert.ok(row);
+    assert.equal(row.isCombined, false);
+    assert.equal(row.classification, 'SINGLE');
+  });
 });
 
 describe('CUS shipment workspace projection — inline edit authority', () => {

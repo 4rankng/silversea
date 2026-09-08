@@ -67,52 +67,6 @@
 
 ---
 
-### TC-CUS-CREATE-037 — Dropdown "Hãng tàu" treo/hiển thị sai danh sách khi mở (bug 2026-09-08)
-
-- **Mã PRD:** Bug report 2026-09-08 — mở dropdown "Hãng tàu" trên /shipments/new bị treo, danh sách hiển thị nhầm là danh sách Khách hàng
-- **Vai trò:** `cus`
-- **Mức độ:** P0
-- **Thiết bị:** Desktop (1440×900)
-- **Tiền điều kiện:** Đã đăng nhập `cus`, đang ở /shipments/new
-- **Các bước:**
-  1. Bấm vào ô "Hãng tàu" (không gõ gì).
-  2. Quan sát dropdown xổ ra: danh sách option phải là CÁC HÃNG TÀU (EVER, SJJ, ONE...), KHÔNG phải danh sách khách hàng.
-  3. Gõ 1-2 ký tự (ví dụ "ev") → danh sách phải lọc còn các hãng tàu khớp, không treo trang.
-  4. Backspace xóa text → input cập nhật bình thường, không snap về giá trị cũ, không treo.
-  5. Chọn một hãng tàu → giá trị áp dụng đúng vào trường.
-- **Kết quả mong đợi (Pass):** dropdown mở < 300ms, đúng danh sách hãng tàu, lọc theo gõ phím, không treo trang, chọn được.
-- **Bằng chứng:** screenshot dropdown + log console.
-
----
-
-### TC-CUS-CREATE-038 — Dropdown Cảng nâng / Tuyến đường che mất nút "+ Thêm" khi trigger ở giữa/cuối màn hình (regression bug 2026-09-08)
-
-- **Mã PRD:** Bug report 2026-09-08 — "Phần thêm mới tuyến đường, cảng nâng hạ đang bị lỗi hiển thị, nếu màn hình hiển thị ở đầu trang thì không sao nhưng nếu hiển thị ở giữa hoặc cuối trang, menu thay vì xổ lên sẽ xổ xuống và che mất phần +Thêm để click". Class `.csc-route-picker` (container row "Cảng nâng"/"Cảng hạ"/"Tuyến đường") + class `.csc-customer-picker` (Khách hàng) + class `.csc-shipping-line-picker` (Hãng tàu) đều xếp `SearchableField` rồi đến nút `+ Thêm` bên dưới; khi popover xổ xuống (default `placement="bottom"`) nó đè lên nút `+ Thêm` ngay phía dưới và người dùng không click được nút inline-create.
-- **Vai trò:** `cus`
-- **Mức độ:** P0
-- **Thiết bị:** Desktop (1440×900)
-- **Tiền điều kiện:** Đăng nhập `cus`, mở `/shipments/new`; có ít nhất 1 khách hàng có cảng/tuyến trong catalog để dropdown hiển thị danh sách > 1 option.
-- **Các bước:**
-  1. Đăng nhập `cus`, mở `/shipments/new`. Chọn khách hàng (vd LONG MINH), hình thức **Hàng nguyên container (FCL)**, nhập Số Booking / Số Bill.
-  2. Cuộn trang sao cho dòng **Cảng nâng** nằm ở khoảng giữa màn hình (rect.top trong khoảng 300-600 / viewport.height=900) — vẫn còn chỗ trống phía dưới.
-  3. Click vào ô "Cảng nâng" → quan sát hướng mở của popover.
-  4. Quan sát nút **"+ Thêm"** ngay bên dưới ô Cảng nâng.
-  5. Tương tự với ô **Cảng hạ** và **Tuyến đường** trong cùng dòng container.
-  6. (Optional) Trượt xuống sao cho trigger nằm sát đáy viewport → popover **phải xổ lên trên** (data-placement="top") và nút +Thêm vẫn click được.
-- **Kết quả mong đợi (Pass):**
-  - Nút **+Thêm** phải luôn click được khi dropdown đang mở (không bị popover đè/nuốt).
-  - Ở trigger giữa/cuối màn hình: popover **phải xổ lên trên** (data-placement="top" hoặc tương đương) để không che nút `+Thêm` bên dưới.
-  - Ở trigger đầu trang (≤ ~1/3 viewport trên): popover vẫn được phép xổ xuống — đây là hướng mở mặc định, nút +Thêm không bị che vì nằm ngoài vùng popover hoặc popover đã được đặt sao cho +Thêm vẫn lộ ra.
-  - Không có regression ở các picker khác dùng cùng `.csc-utility-button--dashed` (Hãng tàu, Thêm nhà máy, Thêm ngày giao, Thêm kho).
-- **Kỳ vọng sai (Fail nếu):**
-  - Dropdown xổ xuống và nút `+Thêm` bị che → người dùng không click inline-create được mà phải đóng dropdown trước.
-  - data-placement luôn là `"bottom"` dù trigger ở cuối viewport.
-- **Bằng chứng:** `qa/<YYYY-MM-DD>_cus-create-popover-flip_before.png` (dropdown xổ xuống che +Thêm, trigger ở giữa trang) + `qa/<YYYY-MM-DD>_cus-create-popover-flip_after.png` (popover xổ lên / +Thêm click được) + measurement log (rect của popover vs trigger vs +Thêm button).
-
----
-
-## 1.2 — (đang mở)
-
 ## 1.2 — Tạo lô LCL (Less than Container Load)
 
 ### TC-CUS-CREATE-003 — Tạo lô LCL thành công (luồng thường)
@@ -1237,4 +1191,94 @@
   - Thông báo lỗi rõ ràng bằng tiếng Việt: "Container đã gắn chuyến xe (TRP-202608-0008). Vui lòng đổi lịch trên chuyến xe hoặc gỡ phân xe trước khi sửa."
 - **Bằng chứng:** `qa/2026-09-08_qa-matrix-v2_ui-driver.log` (HTTP 409 Conflict)
 - **Regression ID:** REG-UNAS-03-20260908
+
+---
+
+## 1.19 — Quyền sở hữu phân loại Đơn / Kẹp / Kết hợp và cờ Đóng kết hợp cấp lô thuộc về CUS
+
+> **Nguyên tắc nghiệp vụ cốt lõi (CUS's Call):**
+> 1. Phân loại hình thức vận chuyển Đơn (`SINGLE`), Kẹp (`DOUBLE`), Kết hợp (`COMBINED`), Lẻ (`LCL`) và cờ đóng kết hợp cấp lô (`shipments.is_combined`) là **quyết định của nhân viên Chứng từ (CUS)** khi tiếp nhận Booking từ khách hàng.
+> 2. **Điều vận KHÔNG quyết định phân loại này**: Điều vận chỉ nhận kế hoạch và bố trí phương tiện/tài xế phù hợp theo phân loại CUS đã ấn định.
+> 3. Khi CUS tạo lô hàng với `isCombined = true`, tất cả các fulfillments FCL tạo ra tự động mang phân loại `COMBINED`. Ngược lại, nếu `isCombined = false`, fulfillments mang phân loại `SINGLE`.
+> 4. Khi CUS cập nhật cờ `isCombined` trên lô chưa điều phối, hệ thống tự động đồng bộ hóa phân loại của các fulfillments FCL tương ứng.
+
+### TC_CUS_COMB_01 — CUS tạo lô FCL có tích chọn "Đóng kết hợp" tự động gán phân loại COMBINED
+- **Vai trò:** `cus`, `admin`
+- **Mức độ:** P0
+- **Tiền điều kiện:** Đang ở màn hình tạo mới lô hàng `/shipments/new`.
+- **Các bước:**
+  1. Đăng nhập tài khoản `cus`.
+  2. Chọn khách hàng, tuyến đường, chọn loại hàng FCL.
+  3. Tích chọn ô "Đóng kết hợp" (`isCombined = true`).
+  4. Thêm container và bấm "Tạo lô hàng".
+- **Kết quả mong đợi (Pass):**
+  - Lô hàng được tạo với `shipments.is_combined = true`.
+  - Mọi fulfillment FCL được hệ thống tự động khởi tạo với `dispatchClassification = 'COMBINED'`.
+  - Tại bảng kê container của CUS (`/shipments/containers`), cột Phân loại hiển thị "KẾT HỢP", cờ `isCombined` là `true`.
+- **Bằng chứng & Kiểm thử:**
+  - Backend unit test: `cus-shipment-workspace.test.ts` (`CUS call: FCL shipment created with isCombined=true defaults classification to COMBINED, isCombined=false to SINGLE`)
+- **Regression ID:** REG-CUS-COMB-01-20260908
+
+### TC_CUS_COMB_02 — CUS tạo lô FCL không tích chọn "Đóng kết hợp" mặc định phân loại SINGLE
+- **Vai trò:** `cus`, `admin`
+- **Mức độ:** P0
+- **Tiền điều kiện:** Mở `/shipments/new`.
+- **Các bước:**
+  1. Nhập thông tin lô FCL, giữ nguyên ô "Đóng kết hợp" không tích (`isCombined = false`).
+  2. Thêm container và bấm "Tạo lô hàng".
+- **Kết quả mong đợi (Pass):**
+  - Lô hàng được lưu với `shipments.is_combined = false`.
+  - Mọi fulfillment FCL khởi tạo mang `dispatchClassification = 'SINGLE'`.
+  - Tại bảng kê container của CUS, hiển thị phân loại "ĐƠN".
+- **Bằng chứng & Kiểm thử:**
+  - Backend unit test: `cus-shipment-workspace.test.ts`
+- **Regression ID:** REG-CUS-COMB-02-20260908
+
+### TC_CUS_COMB_03 — CUS cập nhật cờ isCombined đồng bộ phân loại fulfillments chưa điều phối
+- **Vai trò:** `cus`
+- **Mức độ:** P0
+- **Tiền điều kiện:** Lô hàng FCL đang ở trạng thái tiếp nhận (`PENDING_DATE` hoặc `READY_FOR_DISPATCH`), chưa phát hành lệnh điều xe.
+- **Các bước:**
+  1. CUS mở chi tiết lô hàng hoặc chỉnh sửa lô hàng.
+  2. Đổi cờ `isCombined` từ `false` sang `true` và bấm Lưu.
+  3. Kiểm tra bảng kê container và danh sách fulfillments.
+  4. Tiếp tục đổi cờ `isCombined` từ `true` về `false` và bấm Lưu.
+- **Kết quả mong đợi (Pass):**
+  - Khi CUS bật `isCombined = true`: Các fulfillments FCL chưa bị hủy tự động chuyển sang `dispatchClassification = 'COMBINED'`.
+  - Khi CUS tắt `isCombined = false`: Các fulfillments FCL tự động đồng bộ về `dispatchClassification = 'SINGLE'`.
+  - Thay đổi được thực thi trực tiếp (DIRECT change mode) do lô đang ở trạng thái tiếp nhận.
+- **Bằng chứng & Kiểm thử:**
+  - Backend unit test: `cus-shipment-workspace.test.ts` (`CUS call: updating shipment isCombined synchronizes unassigned FCL fulfillments to COMBINED or SINGLE`)
+- **Regression ID:** REG-CUS-COMB-03-20260908
+
+### TC_CUS_COMB_04 — Chặn đóng kết hợp đối với container 40HC, 40DC, 45ft
+- **Vai trò:** `cus`, `admin`
+- **Mức độ:** P1
+- **Tiền điều kiện:** Mở form tạo lô `/shipments/new` hoặc chi tiết lô hàng FCL có container loại 40HC / 40DC / 45ft.
+- **Các bước:**
+  1. Thêm container loại 40HC hoặc 40DC hoặc 45ft.
+  2. Quan sát ô checkbox "Đóng kết hợp (kẹp chuyến)".
+  3. Rê chuột lên checkbox xem tooltip giải thích.
+- **Kết quả mong đợi (Pass):**
+  - Checkbox ở trạng thái vô hiệu hóa (`disabled = true`) và không được tích chọn (`checked = false`).
+  - Rê chuột hiển thị tooltip: "Chỉ container 20 feet mới được đóng kết hợp (kẹp chuyến)".
+- **Bằng chứng:** `qa/2026-09-08_phan3_dispatch-dialog.png`
+- **Regression ID:** REG-CUS-COMB-04-20260908
+
+### TC_CUS_COMB_05 — Hàng lẻ LCL tự động mang phân loại LCL
+- **Vai trò:** `cus`, `admin`
+- **Mức độ:** P0
+- **Tiền điều kiện:** Mở `/shipments/new`.
+- **Các bước:**
+  1. Chọn hình thức vận chuyển là Hàng lẻ (LCL).
+  2. Nhập thông tin kiện hàng, số khối CBM, trọng lượng kg.
+  3. Bấm "Tạo lô hàng".
+- **Kết quả mong đợi (Pass):**
+  - Lô LCL được tạo thành công với `cargoMode = 'LCL'`.
+  - Fulfillment được sinh ra tự động mang phân loại `dispatchClassification = 'LCL'`.
+  - Form không hiển thị tùy chọn "Đóng kết hợp (kẹp chuyến)" của hàng nguyên container FCL.
+- **Bằng chứng & Kiểm thử:**
+  - Backend unit test: `shipment-fulfillment.service.test.ts`
+- **Regression ID:** REG-CUS-COMB-05-20260908
+
 

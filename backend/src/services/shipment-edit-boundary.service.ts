@@ -24,6 +24,7 @@ export type ShipmentPlanPatch = {
   routeId?: number | null;
   cargoTypeId?: number | null;
   responsibleUnitId?: number | null;
+  isCombined?: boolean | null;
   bookingRef?: string | null;
   blNumber?: string | null;
   tradeDirection?: typeof s.shipmentTradeDirectionEnum.enumValues[number] | null;
@@ -82,6 +83,7 @@ const POST_DISPATCH_REQUEST_FIELDS = new Set<keyof ShipmentPlanPatch>([
   'routeId',
   'cargoTypeId',
   'responsibleUnitId',
+  'isCombined',
   'tradeDirection',
   'cargoMode',
   'operationalSiteId',
@@ -148,6 +150,8 @@ function normalizeShipmentPlanValue(
     case 'tradeDirection':
     case 'cargoMode':
       return value ?? null;
+    case 'isCombined':
+      return Boolean(value);
     default:
       return normalizeNullableText(value as string | null);
   }
@@ -158,6 +162,7 @@ function currentShipmentSnapshot(row: ShipmentRow) {
     customerId: row.customerId,
     routeId: row.routeId ?? null,
     cargoTypeId: row.cargoTypeId ?? null,
+    isCombined: Boolean(row.isCombined),
     bookingRef: row.bookingRef ?? null,
     blNumber: row.blNumber ?? null,
     tradeDirection: row.tradeDirection ?? null,

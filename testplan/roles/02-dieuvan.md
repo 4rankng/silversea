@@ -505,6 +505,7 @@ The dispatcher has the same `shipments/new` permission as CUS (per
 
 ## Out of scope (DISPATCHER)
 
+- Deciding or overriding the transportation classification (Đơn `SINGLE`, Kẹp `DOUBLE`, Kết hợp `COMBINED`, Lẻ `LCL`) or the lot-level combined flag (`shipments.is_combined`). These are **CUS's call** at intake. DISPATCHER executes vehicle/trailer assignment adhering to CUS's classification and 20ft combination constraints.
 - Editing config master data **other than** customers/routes/trucks/drivers/suppliers (pricing tables, cargo types, ports writes, etc.).
 - Posting to the ledger.
 - Editing customer **financial** fields (credit limit, payment terms beyond identity) — stripped server-side for CUS/DISPATCHER.
@@ -522,13 +523,15 @@ The dispatcher has the same `shipments/new` permission as CUS (per
 
 ## QA Matrix v2.0 Acceptance Criteria (2026-09-08)
 
-### Flow 1 Additions — Combined Dispatch 20ft Rule (TC_COMB_01, TC_COMB_02, TC_COMB_03)
+### Flow 1 Additions — Combined Dispatch 20ft Rule (TC_COMB_01, TC_COMB_02, TC_COMB_03, TC_COMB_04)
 1. **DISP-COMB-01 — 20ft container combination allowed**
    - Checkbox "Đóng kết hợp (kẹp chuyến)" enabled and toggleable for 20DC, 20OT, 20FR.
    - Saves atomically with fulfillment plan draft.
 2. **DISP-COMB-02 — 40ft/45ft container combination blocked**
    - Checkbox disabled and forced unchecked for 40HC, 40DC, 45ft.
    - Explanatory tooltip: "Chỉ container 20 feet mới được đóng kết hợp (kẹp chuyến)".
+3. **DISP-COMB-03 — Dispatcher plan save preserves CUS's lot-level isCombined flag**
+   - Dispatch plan save operations must preserve the lot-level `shipments.is_combined` flag and classification set by CUS. Dispatcher does not override CUS's call.
 
 ### Flow 2 Additions — Task Tag Pool & Quick Select (TC_TAG_01 - TC_TAG_04)
 1. **DISP-TAG-01 — 9 Task tags active including XƯỞNG 2**

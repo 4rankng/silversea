@@ -53,6 +53,11 @@
 
 ## 10.3 — Phần 3: Xử lý checkbox "Đóng kết hợp (kẹp chuyến)"
 
+> **Quy tắc nghiệp vụ cốt lõi (CUS's Call):**
+> - Phân loại hình thức Đơn / Kẹp / Kết hợp / Lẻ và cờ `isCombined` cấp lô hàng là **thẩm quyền của CUS (Chứng từ/CSKH)** khi tiếp nhận booking từ khách hàng, KHÔNG PHẢI của Điều vận.
+> - CUS thiết lập `isCombined` thì các fulfillments FCL tự động mang phân loại `COMBINED` (nếu true) hoặc `SINGLE` (nếu false), và tự động đồng bộ khi CUS chỉnh sửa.
+> - Điều vận tại màn hình `/dispatch-detail` chỉ thực thi bố trí phương tiện/tài xế phù hợp theo phân loại CUS đã định. Việc lưu kế hoạch điều phối của Điều vận không được ghi đè hay làm mất cờ `isCombined` cấp lô của CUS.
+
 ### TC_COMB_01 — Chặn kẹp chuyến với container 40HC / 40DC / 45ft
 - **Mục tiêu:** Chỉ container 20ft mới được phép đóng kết hợp kẹp chuyến. Container 40ft/45ft bị vô hiệu hóa checkbox kèm tooltip giải thích.
 - **Các bước:** Mở popup điều phối (`/dispatch-detail`) cho dòng container 40HC.
@@ -70,6 +75,12 @@
 - **Các bước:** Chọn checkbox và nhấn "Lưu kế hoạch".
 - **Kỳ vọng:** Kế hoạch lưu thành công, tải lại trang vẫn giữ đúng trạng thái.
 - **Kết quả:** PASS.
+
+### TC_COMB_04 — Điều vận lưu kế hoạch bảo toàn cờ isCombined và phân loại do CUS ấn định
+- **Mục tiêu:** Thao tác lưu kế hoạch của Điều vận không được ghi đè hoặc làm mất cờ `isCombined` cấp lô của CUS.
+- **Các bước:** CUS tạo lô `isCombined = true`. Điều vận gán xe/tài và lưu kế hoạch từ `/dispatch-detail`.
+- **Kỳ vọng:** Kế hoạch lưu thành công; cờ `shipments.is_combined` vẫn giữ nguyên giá trị `true` do CUS ấn định.
+- **Kết quả:** PASS. Bằng chứng: backend integration test `dispatch-detail-plan.test.ts`.
 
 ---
 

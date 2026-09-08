@@ -20,7 +20,6 @@ import { db } from '../db';
 import * as s from '../db/schema';
 import { and, eq, gte, isNull, lte, or, sql } from 'drizzle-orm';
 import { TripStatus } from '@tingting/shared';
-import { tripCompletionBusinessDateSql } from './reporting-shared';
 import { listFuelInvoices } from './fuel-invoice.service';
 
 export type ReconStatus = 'OK' | 'VARIANCE';
@@ -74,7 +73,6 @@ export interface FuelApReconInput {
  */
 export async function getFuelApReconciliation(input: FuelApReconInput): Promise<FuelApReconReport> {
   const thresholdPct = input.thresholdPct ?? 0.05;
-  const completionBusinessDate = tripCompletionBusinessDateSql();
   // Trips-split: trips-bound fragments cannot resolve in a FROM
   // trips_composite query, so the composite pass re-derives the same
   // business-date expression over the view's completedAt.

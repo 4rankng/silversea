@@ -254,9 +254,9 @@ export async function ensureShipmentFulfillmentsInTx(
       shipmentContainerId: container.id,
       sourceShipmentVersion: shipment.version,
       siteSnapshot: containerSnapshots.get(container.id) ?? siteSnapshot,
-      // Operational default per customer request: a fresh container is "Đơn"
-      // until dispatch explicitly reclassifies it.
-      dispatchClassification: 'SINGLE' as const,
+      // CUS owns the classification and lot combined flag: if CUS marks the lot
+      // as isCombined, the fulfillments default to 'COMBINED', otherwise 'SINGLE'.
+      dispatchClassification: shipment.isCombined ? ('COMBINED' as const) : ('SINGLE' as const),
       createdBy: input.actorId,
     }))
     : [{
