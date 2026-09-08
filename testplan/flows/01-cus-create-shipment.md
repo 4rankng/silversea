@@ -1400,3 +1400,23 @@
 - **Kỳ vọng sai (Fail nếu):** Drawer vẫn mở sau khi lưu; xuất hiện chữ "Chưa có thay đổi"; hoặc nút Lưu nằm phân mảnh bên trong từng cell.
 - **Bằng chứng:** `CusDrawerFooter.test.tsx`, `ShipmentsPage.test.tsx`, `qa/2026-09-08_cus_drawer_ui-04_saved_success.png`, `qa/2026-09-08_cus_drawer_ui-driver.log`.
 
+### TC-CUS-CREATE-047 — Bấm ra ngoài để đóng popover/dropdown hoạt động chuẩn xác kể cả bên trong Drawer
+
+- **Mã bug:** BUG-2026-09-08-DISMISS-CLICK-OUTSIDE (Bấm ra ngoài để đóng không hoạt động trên popover ngày giờ hẹn / dropdown bên trong Drawer)
+- **Vai trò:** `CUS`, `ADMIN`, `MANAGER`
+- **Mức độ:** P0
+- **Các bước:**
+  1. Mở trang `/shipments`, bấm "Chi tiết" để mở drawer chi tiết lô hàng.
+  2. Bấm nút chọn ngày giờ ("Giờ hẹn đóng/trả") trong bảng container để mở `CusAppointmentPopover`.
+  3. Bấm ra ngoài popover (click vào vùng trống trong Drawer, thanh tiêu đề Drawer, hoặc vùng backdrop mờ bên trái Drawer).
+  4. Quan sát: popover đóng lại ngay lập tức mà không kích hoạt thao tác ngoài ý muốn (không đóng nhầm drawer, không kích hoạt confirm hủy thay đổi).
+  5. Thử nghiệm trên các dropdown khác (chọn cảng nâng/hạ, nhà xe, loại cont) trên cả desktop và mobile (viewport 390px).
+- **Kết quả mong đợi (Pass):**
+  - Popover/dropdown tự động đóng sạch sẽ khi click/tap ra ngoài (hỗ trợ cả `pointerdown` và `mousedown`).
+  - Backdrop popover có z-index phù hợp (`z-index: 1040`) nằm trên Drawer (`z-index: 300`) nên hấp thụ tương tác dismiss một cách độc lập.
+  - Phím Escape đóng popover/dropdown mà không làm đóng cả Drawer.
+- **Kỳ vọng sai (Fail nếu):**
+  - Bấm ra ngoài mà popover vẫn trơ trơ không đóng; hoặc click ra ngoài làm đóng nhầm cả Drawer / hiện dialog discard thay đổi.
+- **Bằng chứng:** `CusAppointmentPopover.test.tsx`, `qa/2026-09-08_cus_dismiss_ui-*.png`, `qa/2026-09-08_cus_dismiss_ui-driver.log`.
+
+

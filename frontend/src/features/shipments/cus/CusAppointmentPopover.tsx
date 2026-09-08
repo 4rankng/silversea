@@ -8,6 +8,7 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { Calendar, Clock, X } from 'lucide-react';
+import { useClickOutside } from '../../../hooks/useClickOutside';
 
 export interface CusAppointmentPopoverProps {
   value: string | null | undefined;
@@ -73,6 +74,12 @@ export function CusAppointmentPopover({
     }
   }, [isOpen, value]);
 
+  useClickOutside(popoverRef, onClose, {
+    escapeKey: true,
+    enabled: isOpen,
+    additionalRefs: triggerRef ? [triggerRef] : [],
+  });
+
   // Viewport-aware positioning relative to trigger
   useLayoutEffect(() => {
     if (!isOpen) return;
@@ -136,7 +143,11 @@ export function CusAppointmentPopover({
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === 'Escape' || event.key === 'Enter') {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      onClose();
+    } else if (event.key === 'Enter') {
       event.preventDefault();
       onClose();
     }
@@ -152,7 +163,15 @@ export function CusAppointmentPopover({
     <>
       <div
         className="cus-appointment-backdrop"
-        onClick={onClose}
+        style={coords ? { zIndex: 1040 } : undefined}
+        onClick={(e) => {
+          e.stopPropagation();
+          onClose();
+        }}
+        onPointerDown={(e) => {
+          e.stopPropagation();
+          onClose();
+        }}
         aria-hidden="true"
       />
       <div

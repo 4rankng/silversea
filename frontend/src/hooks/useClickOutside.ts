@@ -1,5 +1,6 @@
 import { useEffect, type RefObject } from 'react';
 import { registerOverlay, unregisterOverlay } from '../lib/overlayState';
+import { registerOverlayToken, unregisterOverlayToken } from './useAnimatedOverlay';
 
 /**
  * Attach click-outside + optional Escape-key dismissal to a container ref.
@@ -20,11 +21,18 @@ export function useClickOutside(
   useEffect(() => {
     if (!enabled) return;
     // A dismiss-on-ESC dropdown/overlay claims Escape — register so the ESC
-    // "go back" shortcut yields while it's open.
-    if (escapeKey) registerOverlay();
-    const handler = (e: MouseEvent | KeyboardEvent) => {
+    // "go back" shortcut yields and parent overlays (Drawer/Modal) yield while it's open.
+    let token: number | null = null;
+    if (escapeKey) {
+      registerOverlay();
+      token = registerOverlayToken();
+    }
+    const handler = (e: MouseEvent | KeyboardEvent | PointerEvent) => {
       if (e instanceof KeyboardEvent) {
-        if (escapeKey && e.key === 'Escape') onDismiss();
+        if (escapeKey && e.key === 'Escape') {
+          e.stopPropagation();
+          onDismiss();
+        }
         return;
       }
       const target = e.target as Node;
@@ -33,12 +41,18 @@ export function useClickOutside(
         onDismiss();
       }
     };
+    document.addEventListener('pointerdown', handler);
     document.addEventListener('mousedown', handler);
     if (escapeKey) document.addEventListener('keydown', handler);
     return () => {
+      document.removeEventListener('pointerdown', handler);
       document.removeEventListener('mousedown', handler);
-      if (escapeKey) document.removeEventListener('keydown', handler);
-      if (escapeKey) unregisterOverlay();
+      if (escapeKey) {
+        document.removeEventListener('keydown', handler);
+        unregisterOverlay();
+        if (token != null) unregisterOverlayToken(token);
+      }
     };
   }, [additionalRefs, ref, onDismiss, enabled, escapeKey]);
 }
+

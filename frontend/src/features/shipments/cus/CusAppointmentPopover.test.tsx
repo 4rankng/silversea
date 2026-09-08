@@ -136,4 +136,80 @@ describe('CusAppointmentPopover', () => {
     fireEvent.keyDown(dialog, { key: 'Enter' });
     expect(handleClose).toHaveBeenCalledTimes(2);
   });
+
+  it('closes when clicking outside via mousedown on document', () => {
+    const handleClose = vi.fn();
+    render(
+      <div>
+        <div data-testid="outside-area">Outside element</div>
+        <CusAppointmentPopover
+          isOpen={true}
+          value="2026-09-08T08:00"
+          containerLabel="Cont 1"
+          onClose={handleClose}
+          onChange={vi.fn()}
+        />
+      </div>,
+    );
+
+    const outside = screen.getByTestId('outside-area');
+    fireEvent.mouseDown(outside);
+    expect(handleClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('closes when clicking outside via pointerdown on document', () => {
+    const handleClose = vi.fn();
+    render(
+      <div>
+        <div data-testid="outside-area">Outside element</div>
+        <CusAppointmentPopover
+          isOpen={true}
+          value="2026-09-08T08:00"
+          containerLabel="Cont 1"
+          onClose={handleClose}
+          onChange={vi.fn()}
+        />
+      </div>,
+    );
+
+    const outside = screen.getByTestId('outside-area');
+    fireEvent.pointerDown(outside);
+    expect(handleClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not close when clicking inside the popover dialog', () => {
+    const handleClose = vi.fn();
+    render(
+      <CusAppointmentPopover
+        isOpen={true}
+        value="2026-09-08T08:00"
+        containerLabel="Cont 1"
+        onClose={handleClose}
+        onChange={vi.fn()}
+      />,
+    );
+
+    const dialog = screen.getByRole('dialog');
+    fireEvent.mouseDown(dialog);
+    fireEvent.pointerDown(dialog);
+    expect(handleClose).not.toHaveBeenCalled();
+  });
+
+  it('closes when clicking the backdrop element', () => {
+    const handleClose = vi.fn();
+    const { container } = render(
+      <CusAppointmentPopover
+        isOpen={true}
+        value="2026-09-08T08:00"
+        containerLabel="Cont 1"
+        onClose={handleClose}
+        onChange={vi.fn()}
+      />,
+    );
+
+    const backdrop = container.querySelector('.cus-appointment-backdrop') as HTMLElement;
+    expect(backdrop).toBeDefined();
+    fireEvent.pointerDown(backdrop);
+    expect(handleClose).toHaveBeenCalledTimes(1);
+  });
 });

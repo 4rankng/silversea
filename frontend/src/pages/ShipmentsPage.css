@@ -2065,7 +2065,7 @@
 .cus-appointment-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 199;
+  z-index: 1040;
   background: transparent;
 }
 
@@ -2074,7 +2074,7 @@
   position: absolute;
   top: calc(100% + 4px);
   right: 0;
-  z-index: 200;
+  z-index: 1050;
   width: 275px;
   max-width: calc(100vw - 32px);
   padding: 12px;
