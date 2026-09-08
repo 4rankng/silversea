@@ -32,8 +32,13 @@ import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.ser
 import { CUSTOMER_OPERATIONAL_NAME, buildWorkspaceDetail, deriveTransportDateFromContainerAppointments, formatPlate, loadShipmentRow, normalizeCarrierName, normalizePlate, trimOrNull, type ShipmentFulfillmentRow } from './cus-shipment-workspace-reads.service';
 
 function requireWorkspaceWriter(actor: AuthUser) {
-  if (actor.role !== Role.CUS && actor.role !== Role.DISPATCHER) {
-    throw new ApiError(403, 'Chỉ CUS hoặc Điều vận được cập nhật dòng container trong workspace này.');
+  if (
+    actor.role !== Role.ADMIN
+    && actor.role !== Role.MANAGER
+    && actor.role !== Role.CUS
+    && actor.role !== Role.DISPATCHER
+  ) {
+    throw new ApiError(403, 'Chỉ Quản trị, Giám đốc, CUS hoặc Điều vận được cập nhật dòng container trong workspace này.');
   }
 }
 
@@ -341,20 +346,21 @@ export async function updateCusShipmentContainerLine(args: {
       || args.input.newExternalCarrier !== undefined
     );
     if (trip && requestedOperationalMutation) {
-      throw new ApiError(409, 'Tác vụ đã điều xe; hãy dùng luồng điều chỉnh hiện có thay vì ghi đè trực tiếp lịch sử thực hiện.');
+      const tripLabel = trip.tripCode || `TRP-${trip.id}`;
+      throw new ApiError(409, `Container đã gắn chuyến xe (${tripLabel}). Vui lòng đổi lịch trên chuyến xe hoặc gỡ phân xe trước khi sửa.`);
     }
     // Three-way edit routing (SILVER L1 P3): once the container has been
     // decomposed (fulfillment exists) the shipment has left direct-intake
-    // territory — identity/schedule/factory edits flow through the governed
+    // territory — identity/factory edits flow through the governed
     // container change request, never a direct overwrite. Live-trip denial
-    // above stays the strictest gate.
+    // above stays the strictest gate. Unassigned containers (trip == null)
+    // allow updating customerAppointmentAt without being blocked by intake status.
     const governedOperationalMutation = (
       args.input.containerTypeId !== undefined
       || args.input.containerNumber !== undefined
       || args.input.cargoWeightKg !== undefined
       || args.input.cargoVolumeCbm !== undefined
       || (args.input.routeId !== undefined && args.input.routeId !== container.routeId)
-      || args.input.customerAppointmentAt !== undefined
     );
     if (governedOperationalMutation && !isDirectlyEditableIntakeStatus(shipment.status)) {
       throw new ApiError(409, 'Lô hàng đã bàn giao điều phối. Thay đổi container phải đi qua yêu cầu thay đổi để phê duyệt.');

@@ -507,7 +507,14 @@ export const shipmentCusContainerLineUpdateSchema = z.object({
   routeId: z.coerce.number().int().positive().nullable().optional(),
   liftSiteId: z.coerce.number().int().positive().nullable().optional(),
   dropoffSiteId: z.coerce.number().int().positive().nullable().optional(),
-  customerAppointmentAt: z.string().datetime().nullable().optional(),
+  // Offset-bearing ISO is the wire format the ledger editor sends
+  // (localDateTimeToIso → `…+07:00`), matching shipmentTimestamp on the
+  // other write path. Bare `.datetime()` rejects offsets and surfaced a raw
+  // "Invalid datetime (customerAppointmentAt)" in the customer-facing dialog.
+  customerAppointmentAt: z.string()
+    .datetime({ offset: true, message: 'Ngày giờ đóng/trả hàng không hợp lệ.' })
+    .nullable()
+    .optional(),
 }).strict().superRefine((input, ctx) => {
   if (input.newExternalCarrier && input.carrierType !== 'EXTERNAL') {
     ctx.addIssue({

@@ -1991,6 +1991,22 @@
   outline: 2px solid var(--accent, #2563eb);
   outline-offset: 2px;
 }
+.cus-container-confirm-group--inline {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+  width: 100%;
+}
+.cus-container-confirm--inline {
+  flex: 1;
+  justify-content: center;
+  background-color: var(--brand-600, #005a2d) !important;
+  color: #fff !important;
+}
+.cus-container-revert--inline {
+  flex: 1;
+  justify-content: center;
+}
 @media (max-width: 720px) {
   .cus-container-actions__group { flex-direction: column; align-items: stretch; }
 }

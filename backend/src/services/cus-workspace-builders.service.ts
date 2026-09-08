@@ -416,7 +416,12 @@ function buildContainerLine(
 ): ShipmentCusWorkspaceContainerLine {
   const assignment = support.assignmentsByContainer.get(container.id) ?? null;
   const activeLock = support.locksByShipment.get(row.shipment.id) ?? null;
-  const editableBase = activeLock == null && (actor.role === Role.CUS || actor.role === Role.DISPATCHER);
+  const editableBase = activeLock == null && (
+    actor.role === Role.ADMIN
+    || actor.role === Role.MANAGER
+    || actor.role === Role.CUS
+    || actor.role === Role.DISPATCHER
+  );
   const canEditOperational = editableBase && assignment?.tripId == null;
   const liftSite = resolveLiftSite(support, container, assignment);
   const dropoffSite = resolveDropoffSite(support, container, assignment);
@@ -611,12 +616,17 @@ function containerFieldAccess(
   hasTrip: boolean,
   pastRunCutoff: boolean,
 ): ShipmentCusWorkspaceContainerLine['fieldAccess'] {
-  const editable = !hasActiveLock && !hasTrip && (actor.role === Role.CUS || actor.role === Role.DISPATCHER);
+  const editable = !hasActiveLock && !hasTrip && (
+    actor.role === Role.ADMIN
+    || actor.role === Role.MANAGER
+    || actor.role === Role.CUS
+    || actor.role === Role.DISPATCHER
+  );
   const reason = hasActiveLock
     ? 'Lô hàng đã khóa kế toán; không thể thay đổi container.'
     : hasTrip
       ? 'Container đã có chuyến thực tế; hãy dùng luồng điều chỉnh điều vận.'
-      : actor.role !== Role.CUS && actor.role !== Role.DISPATCHER
+      : (actor.role !== Role.ADMIN && actor.role !== Role.MANAGER && actor.role !== Role.CUS && actor.role !== Role.DISPATCHER)
         ? 'Vai trò hiện tại chỉ được xem dữ liệu container.'
         : 'Bạn có thể cập nhật trực tiếp trước khi điều xe.';
   const mode = editable ? 'DIRECT' as const : 'READ_ONLY' as const;

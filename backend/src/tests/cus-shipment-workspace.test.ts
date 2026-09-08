@@ -45,6 +45,7 @@ let containerType20Id: number;
 let responsibleUnitId: number;
 let adminActor: AuthUser;
 let cusActor: AuthUser;
+let accountantActor: AuthUser;
 
 /** Random letters-only tag. cargoRankSql() regex-matches standalone '20'/'40'
  *  in container-type codes AND names, so fixture randomness must never carry
@@ -175,6 +176,13 @@ before(async () => {
     fullName: null,
     role: Role.ADMIN,
   };
+  accountantActor = {
+    userId: 0,
+    username: 'cus-ws-test-accountant',
+    email: null,
+    fullName: null,
+    role: Role.ACCOUNTANT,
+  };
   cusActor = {
     userId: cusUser.id,
     username: 'cus-ws-test-cus',
@@ -269,20 +277,20 @@ describe('CUS shipment workspace projection — Chứng từ direction display',
     // cell just mirrors the stored reference for each direction.
     const exportShipment = await seedShipment({
       tradeDirection: 'EXPORT',
-      bookingRef: 'BOOK-EXP-1',
+      bookingRef: `BOOK-EXP-1-${suffix}`,
     });
     const importShipment = await seedShipment({
       tradeDirection: 'IMPORT',
-      blNumber: 'BILL-IMP-1',
+      blNumber: `BILL-IMP-1-${suffix}`,
     });
     // Direction unknown — a lone bill still renders.
     const undirectedShipment = await seedShipment({
-      blNumber: 'BILL-NA-1',
+      blNumber: `BILL-NA-1-${suffix}`,
     });
     // Only the secondary number present — the cell still shows what exists.
     const bookingOnly = await seedShipment({
       tradeDirection: 'EXPORT',
-      bookingRef: 'BOOK-ONLY-1',
+      bookingRef: `BOOK-ONLY-1-${suffix}`,
     });
 
     const exportItem = await findItem(exportShipment.id);
@@ -290,23 +298,23 @@ describe('CUS shipment workspace projection — Chứng từ direction display',
     const undirectedItem = await findItem(undirectedShipment.id);
     const bookingOnlyItem = await findItem(bookingOnly.id);
 
-    assert.equal(exportItem!.billOrBookNumber, 'BOOK-EXP-1');
-    assert.equal(importItem!.billOrBookNumber, 'BILL-IMP-1');
-    assert.equal(undirectedItem!.billOrBookNumber, 'BILL-NA-1');
-    assert.equal(bookingOnlyItem!.billOrBookNumber, 'BOOK-ONLY-1');
+    assert.equal(exportItem!.billOrBookNumber, `BOOK-EXP-1-${suffix}`);
+    assert.equal(importItem!.billOrBookNumber, `BILL-IMP-1-${suffix}`);
+    assert.equal(undirectedItem!.billOrBookNumber, `BILL-NA-1-${suffix}`);
+    assert.equal(bookingOnlyItem!.billOrBookNumber, `BOOK-ONLY-1-${suffix}`);
   });
 
   test('flat container rows mirror the same direction-aware number', async () => {
     const exportShipment = await seedShipment({
       tradeDirection: 'EXPORT',
-      bookingRef: 'BOOK-FLAT-1',
+      bookingRef: `BOOK-FLAT-1-${suffix}`,
     });
     await seedContainer(exportShipment.id, { containerNumber: 'FLAT-EXP-1' });
 
     const response = await listCusShipmentContainers({ page: 1, limit: 100 }, adminActor);
     const row = response.items.find((item) => item.shipmentId === exportShipment.id);
     assert.ok(row);
-    assert.equal(row.billOrBookNumber, 'BOOK-FLAT-1');
+    assert.equal(row.billOrBookNumber, `BOOK-FLAT-1-${suffix}`);
   });
 });
 
@@ -460,7 +468,7 @@ describe('CUS shipment workspace projection — inline edit authority', () => {
   test('keeps schedule and notes inline-editable after dispatch while the shipment is unlocked', async () => {
     const shipment = await seedShipment({
       status: 'IN_TRANSIT',
-      bookingRef: 'BOOK-RAW-01',
+      bookingRef: `BOOK-RAW-01-${suffix}`,
       closingAt: new Date('2026-08-20T01:00:00.000Z'),
       customerNotes: 'Ghi chú khách hàng',
     });
@@ -470,7 +478,7 @@ describe('CUS shipment workspace projection — inline edit authority', () => {
 
     assert.ok(item);
     assert.equal(item.operational.transportDateEditable, true);
-    assert.equal(item.raw.bookingRef, 'BOOK-RAW-01');
+    assert.equal(item.raw.bookingRef, `BOOK-RAW-01-${suffix}`);
     assert.equal(item.raw.closingAt, '2026-08-20T01:00:00.000Z');
     assert.equal(item.fieldAccess.closingAt.mode, 'DIRECT');
     assert.equal(item.fieldAccess.customerNotes.mode, 'DIRECT');
@@ -718,7 +726,7 @@ describe('CUS container-flat projection', () => {
     const shipment = await seedShipment({ blNumber: `FLATRO${suffix}` });
     await seedContainer(shipment.id, { containerNumber: `FLATRO${suffix}1` });
 
-    const response = await listCusShipmentContainers({ page: 1, limit: 100 }, adminActor);
+    const response = await listCusShipmentContainers({ page: 1, limit: 100 }, accountantActor);
     const row = response.items.find((candidate) => candidate.shipmentId === shipment.id);
 
     assert.ok(row);
@@ -1047,13 +1055,96 @@ describe('Overview operational priority ordering', () => {
         containerId: container.id,
         input: {
           expectedShipmentVersion: shipment.version,
-          customerAppointmentAt: '2026-08-26T04:00:00.000Z',
+          containerNumber: `WSR1-${marker}-EDIT`,
         },
         actor: cusActor,
       }),
       (error: unknown) => {
         assert.ok(error instanceof Error);
         assert.match(error.message, /yêu cầu thay đổi/);
+        return true;
+      },
+    );
+  });
+
+  test('TC_UNAS_01 & TC_UNAS_02: ADMIN and MANAGER can update customerAppointmentAt on unassigned container even when shipment is DISPATCHED', async () => {
+    const marker = Math.random().toString(16).slice(2, 8);
+    const shipment = await seedShipment({
+      blNumber: `WS-UNAS-${marker}`,
+      cargoMode: 'FCL',
+      expectedDeliveryDate: '2026-08-24',
+      status: 'DISPATCHED',
+    });
+    const container = await seedContainer(shipment.id, { containerNumber: `UNAS-${marker}` });
+    await seedFulfillment(shipment.id, container.id);
+
+    // ADMIN updates appointment on unassigned container
+    const adminResult = await updateCusShipmentContainerLine({
+      shipmentId: shipment.id,
+      containerId: container.id,
+      input: {
+        expectedShipmentVersion: shipment.version,
+        customerAppointmentAt: '2026-08-26T08:00:00.000Z',
+      },
+      actor: adminActor,
+    });
+    assert.equal(adminResult.line.customerAppointmentAt, '2026-08-26T08:00:00.000Z');
+
+    // MANAGER updates appointment on unassigned container
+    const managerActor: AuthUser = {
+      userId: 0,
+      username: 'cus-ws-test-manager',
+      email: null,
+      fullName: null,
+      role: Role.MANAGER,
+    };
+    const managerResult = await updateCusShipmentContainerLine({
+      shipmentId: shipment.id,
+      containerId: container.id,
+      input: {
+        expectedShipmentVersion: adminResult.line.shipmentVersion,
+        customerAppointmentAt: '2026-08-27T09:00:00.000Z',
+      },
+      actor: managerActor,
+    });
+    assert.equal(managerResult.line.customerAppointmentAt, '2026-08-27T09:00:00.000Z');
+  });
+
+  test('TC_UNAS_03: when container has an assigned trip (tripId != null), updating schedule is blocked with clear message citing tripCode', async () => {
+    const marker = Math.random().toString(16).slice(2, 8);
+    const shipment = await seedShipment({
+      blNumber: `WS-TRIP-${marker}`,
+      cargoMode: 'FCL',
+      expectedDeliveryDate: '2026-08-24',
+      status: 'DISPATCHED',
+    });
+    const container = await seedContainer(shipment.id, { containerNumber: `TRP1-${marker}` });
+    const fulfillment = await seedFulfillment(shipment.id, container.id);
+    const route = await seedRoute();
+    const [trip] = await db.insert(s.trips).values({
+      tripCode: `TRP-TEST-${marker}`,
+      customerId,
+      routeId: route.id,
+      departureDate: '2026-08-25',
+      fulfillmentId: fulfillment.id,
+      status: 'CREATED',
+    }).returning();
+    createdTripIds.push(trip.id);
+
+    await assert.rejects(
+      () => updateCusShipmentContainerLine({
+        shipmentId: shipment.id,
+        containerId: container.id,
+        input: {
+          expectedShipmentVersion: shipment.version,
+          customerAppointmentAt: '2026-08-28T10:00:00.000Z',
+        },
+        actor: adminActor,
+      }),
+      (error: unknown) => {
+        assert.ok(error instanceof Error);
+        assert.match(error.message, /Container đã gắn chuyến xe \(TRP-TEST-/);
+        assert.match(error.message, /Vui lòng đổi lịch trên chuyến xe hoặc gỡ phân xe trước khi sửa/);
         return true;
       },
     );

@@ -8,6 +8,7 @@ import { formatDateTimeShort } from '../../../lib/format';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 import { SearchableSelect } from '../../../design-system';
 import { updateCusShipmentContainerLine } from '../../../api/shipmentClient';
+import { useToast } from '../../../components/shared/Toast';
 import { ShipmentContainerCell } from '../create/ShipmentContainerCell';
 import {
   dispatchStatusLabel,
@@ -44,6 +45,7 @@ function ContainerLineRow({
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [selectOpen, setSelectOpen] = useState(false);
+  const { toast } = useToast();
   const operationalSignatureRef = useRef(lineOperationalSignature(line));
   const permissions = line.permissions;
   const carrierEditable = editing && permissions.carrierEditable;
@@ -130,8 +132,11 @@ function ContainerLineRow({
       await onSaved(result.line);
       clearIdempotencyKey(signature);
       setDirty(false);
+      toast({ kind: 'success', message: 'Cập nhật lịch trình container thành công!' });
     } catch (error) {
-      setSaveError(safeError(error, 'Không thể lưu dữ liệu container.'));
+      const msg = safeError(error, 'Không thể lưu dữ liệu container.');
+      setSaveError(msg);
+      toast({ kind: 'error', message: msg });
     } finally {
       setSaving(false);
     }
@@ -243,7 +248,48 @@ function ContainerLineRow({
       {customerAppointmentEditable ? (
         <ShipmentContainerCell label="Giờ hẹn đóng/trả" value={formatDateTimeShort(draft.customerAppointmentAt ? new Date(draft.customerAppointmentAt).toISOString() : null)} placeholder="Chọn ngày giờ" className="cus-container-cell" error={saveError ?? undefined}>
           <label className="sr-only" htmlFor={`${idPrefix}-customer-appointment-${line.id}`}>Giờ hẹn đóng hoặc trả tại nhà máy của container {line.containerNumber || line.ordinal}</label>
-          <input id={`${idPrefix}-customer-appointment-${line.id}`} type="datetime-local" value={draft.customerAppointmentAt} onChange={(event) => updateDraft({ customerAppointmentAt: event.target.value })} />
+          <input
+            id={`${idPrefix}-customer-appointment-${line.id}`}
+            type="datetime-local"
+            value={draft.customerAppointmentAt}
+            onChange={(event) => updateDraft({ customerAppointmentAt: event.target.value })}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                void save();
+              } else if (event.key === 'Escape') {
+                event.preventDefault();
+                discardDraft();
+              }
+            }}
+          />
+          {/* Confirm affordance right where the date is edited — the row's
+              action column sits off-screen in the drawer's horizontal scroll,
+              so save/revert there was invisible to whoever edits this cell. */}
+          {dirty && (
+            <div className="cus-container-confirm-group--inline">
+              <button
+                type="button"
+                className="btn btn--primary btn--sm cus-container-confirm cus-container-confirm--inline"
+                onClick={() => void save()}
+                disabled={saving}
+                title="Lưu (Enter cũng hoạt động)"
+              >
+                <Check size={14} aria-hidden="true" />
+                <span>Lưu</span>
+              </button>
+              <button
+                type="button"
+                className="btn btn--ghost btn--sm cus-container-revert cus-container-revert--inline"
+                onClick={discardDraft}
+                disabled={saving}
+                title="Hủy thay đổi (Esc)"
+              >
+                <RotateCcw size={14} aria-hidden="true" />
+                <span>Hủy</span>
+              </button>
+            </div>
+          )}
         </ShipmentContainerCell>
       ) : <td data-label="Giờ hẹn đóng/trả" className="cus-container-cell"><strong>{formatDateTimeShort(line.customerAppointmentAt)}</strong></td>}
       {operationalEditable ? (
@@ -255,11 +301,11 @@ function ContainerLineRow({
                 className="btn btn--primary btn--sm cus-container-confirm"
                 onClick={() => void save()}
                 disabled={saving}
-                aria-label={`Xác nhận lưu thay đổi cho container ${line.containerNumber || line.ordinal}`}
-                title="Xác nhận (Enter cũng hoạt động)"
+                aria-label={`Lưu thay đổi cho container ${line.containerNumber || line.ordinal}`}
+                title="Lưu (Enter cũng hoạt động)"
               >
                 <Check size={14} aria-hidden="true" />
-                <span>Xác nhận</span>
+                <span>Lưu</span>
               </button>
               <button
                 type="button"

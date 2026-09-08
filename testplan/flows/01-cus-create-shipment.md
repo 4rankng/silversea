@@ -85,6 +85,32 @@
 
 ---
 
+### TC-CUS-CREATE-038 — Dropdown Cảng nâng / Tuyến đường che mất nút "+ Thêm" khi trigger ở giữa/cuối màn hình (regression bug 2026-09-08)
+
+- **Mã PRD:** Bug report 2026-09-08 — "Phần thêm mới tuyến đường, cảng nâng hạ đang bị lỗi hiển thị, nếu màn hình hiển thị ở đầu trang thì không sao nhưng nếu hiển thị ở giữa hoặc cuối trang, menu thay vì xổ lên sẽ xổ xuống và che mất phần +Thêm để click". Class `.csc-route-picker` (container row "Cảng nâng"/"Cảng hạ"/"Tuyến đường") + class `.csc-customer-picker` (Khách hàng) + class `.csc-shipping-line-picker` (Hãng tàu) đều xếp `SearchableField` rồi đến nút `+ Thêm` bên dưới; khi popover xổ xuống (default `placement="bottom"`) nó đè lên nút `+ Thêm` ngay phía dưới và người dùng không click được nút inline-create.
+- **Vai trò:** `cus`
+- **Mức độ:** P0
+- **Thiết bị:** Desktop (1440×900)
+- **Tiền điều kiện:** Đăng nhập `cus`, mở `/shipments/new`; có ít nhất 1 khách hàng có cảng/tuyến trong catalog để dropdown hiển thị danh sách > 1 option.
+- **Các bước:**
+  1. Đăng nhập `cus`, mở `/shipments/new`. Chọn khách hàng (vd LONG MINH), hình thức **Hàng nguyên container (FCL)**, nhập Số Booking / Số Bill.
+  2. Cuộn trang sao cho dòng **Cảng nâng** nằm ở khoảng giữa màn hình (rect.top trong khoảng 300-600 / viewport.height=900) — vẫn còn chỗ trống phía dưới.
+  3. Click vào ô "Cảng nâng" → quan sát hướng mở của popover.
+  4. Quan sát nút **"+ Thêm"** ngay bên dưới ô Cảng nâng.
+  5. Tương tự với ô **Cảng hạ** và **Tuyến đường** trong cùng dòng container.
+  6. (Optional) Trượt xuống sao cho trigger nằm sát đáy viewport → popover **phải xổ lên trên** (data-placement="top") và nút +Thêm vẫn click được.
+- **Kết quả mong đợi (Pass):**
+  - Nút **+Thêm** phải luôn click được khi dropdown đang mở (không bị popover đè/nuốt).
+  - Ở trigger giữa/cuối màn hình: popover **phải xổ lên trên** (data-placement="top" hoặc tương đương) để không che nút `+Thêm` bên dưới.
+  - Ở trigger đầu trang (≤ ~1/3 viewport trên): popover vẫn được phép xổ xuống — đây là hướng mở mặc định, nút +Thêm không bị che vì nằm ngoài vùng popover hoặc popover đã được đặt sao cho +Thêm vẫn lộ ra.
+  - Không có regression ở các picker khác dùng cùng `.csc-utility-button--dashed` (Hãng tàu, Thêm nhà máy, Thêm ngày giao, Thêm kho).
+- **Kỳ vọng sai (Fail nếu):**
+  - Dropdown xổ xuống và nút `+Thêm` bị che → người dùng không click inline-create được mà phải đóng dropdown trước.
+  - data-placement luôn là `"bottom"` dù trigger ở cuối viewport.
+- **Bằng chứng:** `qa/<YYYY-MM-DD>_cus-create-popover-flip_before.png` (dropdown xổ xuống che +Thêm, trigger ở giữa trang) + `qa/<YYYY-MM-DD>_cus-create-popover-flip_after.png` (popover xổ lên / +Thêm click được) + measurement log (rect của popover vs trigger vs +Thêm button).
+
+---
+
 ## 1.2 — (đang mở)
 
 ## 1.2 — Tạo lô LCL (Less than Container Load)
@@ -675,6 +701,9 @@
 | __/__/__ | TC-CUS-CREATE-035 | | | Không bị khóa cập nhật ngày giao khi có nhiều lô (tránh xung đột B/L) | |
 | __/__/__ | TC-CUS-CREATE-036 | | | Lô nhiều cont partial delivery dates (chưa chốt hết) | |
 | __/__/__ | TC-CUS-CREATE-037 | | | Dropdown Hãng tàu: mở đúng danh sách, không treo, lọc + backspace OK (bug 2026-09-08) | |
+| __/__/__ | TC-CUS-CREATE-038 | | | Dropdown Cảng nâng / Tuyến đường che nút +Thêm khi trigger ở giữa/cuối màn hình → phải flip lên trên hoặc +Thêm vẫn click được (regression bug 2026-09-08) | |
+| __/__/__ | TC-CUS-CREATE-039 | | | Sửa Ngày/Giờ đóng hàng của container — không còn `Invalid datetime (customerAppointmentAt)` (regression bug 2026-09-08) | |
+| __/__/__ | TC-CUS-CREATE-040 | | | Không lộ thông báo lỗi nội bộ (tiếng Anh + tên field) ra giao diện khách hàng (regression bug 2026-09-08) | |
 
 ---
 
@@ -942,6 +971,80 @@
   - Badge "Chưa chốt ngày" chỉ tắt khi TẤT CẢ cont đã có ngày.
 - **Kỳ vọng sai (Fail nếu):** badge tắt khi chỉ 1/3 cont có ngày; hệ thống không phân biệt partial.
 - **Bằng chứng:** ảnh trạng thái sau khi chốt 2/3 + ảnh badge "Chưa chốt" vẫn hiển thị
+
+---
+
+## 1.14 — Sửa lịch trình container trên "Danh sách container" (báo cáo khách hàng 2026-09-08)
+
+> **Nguồn:** Khách hàng báo cáo 2026-09-08 — "Tôi thử sửa ngày giao của 1 cont chưa phân xe thì không
+> sửa được", kèm ảnh dialog "Chỉnh sửa lịch trình · Container số 2" hiện dòng đỏ
+> `Invalid datetime (customerAppointmentAt)`.
+>
+> **Nguyên nhân gốc:** editor gửi ISO có offset Việt Nam (`localDateTimeToIso` →
+> `2026-09-08T08:00:00+07:00`), nhưng `shipmentCusContainerLineUpdateSchema.customerAppointmentAt`
+> dùng `z.string().datetime()` — biến thể này CHỈ nhận hậu tố `Z` nên mọi lần lưu đều 400. Cùng
+> trường này ở `shared/src/schemas/index.ts` đã dùng `datetime({ offset: true })`, nên đường ghi
+> CUS container-line là ngoại lệ duy nhất. Việc "chưa phân xe" chỉ là trùng hợp, không phải điều kiện lỗi.
+>
+> **Lỗi thứ hai (cùng ảnh):** thông báo lỗi nội bộ tiếng Anh + tên field kỹ thuật bị hiển thị nguyên
+> văn cho người dùng cuối.
+
+### TC-CUS-CREATE-039 — Sửa Ngày/Giờ đóng hàng của container (regression bug 2026-09-08)
+
+- **Mã bug:** BUG-2026-09-08-APPT-OFFSET
+- **Vai trò:** `cus`, `admin`
+- **Mức độ:** P0
+- **Thiết bị:** Desktop (1440×900)
+- **Tiền điều kiện:**
+  1. Đăng nhập `cus`, mở `/shipments-detail` (Danh sách container).
+  2. Có ít nhất 1 container **chưa gán biển số** (cột điều xe hiển thị "Chưa gán biển số") và đã có
+     sẵn ngày đóng hàng (ví dụ 07/09/2026 08:00).
+- **Các bước:**
+  1. Click ô "Lịch trình & điều xe" của container đó → dialog "Chỉnh sửa lịch trình · Container số N" mở ra.
+  2. Đổi "Ngày đóng hàng" từ `07/09/2026` sang `08/09/2026`, giữ "Giờ đóng hàng" `08:00 AM`.
+  3. Bấm **Lưu** (và lặp lại 1 lần bằng phím Enter để phủ cả 2 đường lưu).
+  4. Quan sát dialog + giá trị trong bảng sau khi lưu.
+  5. Lặp lại với 1 container **đã gán biển số** (nếu lô còn ở trạng thái cho sửa) để xác nhận không
+     có khác biệt theo trạng thái phân xe.
+- **Kết quả mong đợi (Pass):**
+  - Dialog đóng, không có dòng lỗi đỏ nào.
+  - Ô "Lịch trình & điều xe" hiển thị `08/09/2026 · 08:00 · đóng hàng`.
+  - Reload trang → giá trị vẫn là 08/09/2026 08:00 (đã lưu DB, không chỉ optimistic UI).
+  - `shipment_containers.customer_appointment_at` của container đó = `2026-09-08 01:00:00+00`
+    (08:00 giờ Việt Nam).
+  - Kết quả giống nhau cho container đã và chưa gán biển số.
+- **Kỳ vọng sai (Fail nếu):**
+  - Xuất hiện `Invalid datetime (customerAppointmentAt)` hoặc bất kỳ lỗi 400 nào.
+  - Lưu được trên UI nhưng reload lại về ngày cũ.
+  - Chỉ container đã phân xe sửa được.
+- **Bằng chứng:** `qa/<YYYY-MM-DD>_container-schedule-edit_ui-before.png` (dialog trước khi lưu) +
+  `qa/<YYYY-MM-DD>_container-schedule-edit_ui-after.png` (sau khi lưu, không có lỗi) +
+  `qa/<YYYY-MM-DD>_container-schedule-edit_ui-driver.log` + output SQL của
+  `customer_appointment_at` sau khi lưu.
+- **Regression ID:** REG-APPT-OFFSET-20260908
+
+---
+
+### TC-CUS-CREATE-040 — Không lộ thông báo lỗi nội bộ ra giao diện khách hàng (regression bug 2026-09-08)
+
+- **Mã bug:** BUG-2026-09-08-INTERNAL-ERROR-LEAK
+- **Vai trò:** `cus`
+- **Mức độ:** P1
+- **Thiết bị:** Desktop (1440×900)
+- **Tiền điều kiện:** Đang ở dialog "Chỉnh sửa lịch trình" của một container.
+- **Các bước:**
+  1. Trong dialog, xoá trắng "Giờ đóng hàng" nhưng vẫn giữ "Ngày đóng hàng" → bấm Lưu.
+  2. Ghi lại nguyên văn thông báo lỗi hiển thị.
+  3. (Nếu dựng được) buộc backend trả 400 cho `customerAppointmentAt` (ví dụ gửi
+     `08/09/2026 08:00` qua devtools) và ghi lại thông báo hiển thị.
+- **Kết quả mong đợi (Pass):**
+  - Mọi thông báo lỗi hiển thị cho người dùng đều là **tiếng Việt**, mô tả được việc cần làm
+    (ví dụ "Vui lòng nhập đầy đủ cả Ngày và Giờ giao hàng.", "Ngày giờ đóng/trả hàng không hợp lệ.").
+  - Không hiển thị: chuỗi tiếng Anh của thư viện validate (`Invalid datetime`, `Expected string`),
+    tên field kỹ thuật (`customerAppointmentAt`), tên bảng/cột DB, stack trace, mã lỗi nội bộ.
+- **Kỳ vọng sai (Fail nếu):** thông báo chứa tên field kỹ thuật hoặc chuỗi lỗi tiếng Anh của Zod.
+- **Bằng chứng:** `qa/<YYYY-MM-DD>_error-message-vi_ui.png` + nguyên văn thông báo đã trích dẫn.
+- **Regression ID:** REG-ERRMSG-VI-20260908
 
 ---
 

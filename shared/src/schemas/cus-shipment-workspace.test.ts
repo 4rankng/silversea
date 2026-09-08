@@ -287,6 +287,31 @@ test('CUS container-line update accepts a container-specific customer appointmen
   }).success, false);
 });
 
+// The ledger's schedule editor sends Vietnam-offset ISO (localDateTimeToIso),
+// not a Z instant. Bare `.datetime()` rejected it and leaked the raw Zod
+// message "Invalid datetime (customerAppointmentAt)" into the CUS dialog.
+test('CUS container-line update accepts the +07:00 offset appointment the ledger editor sends', () => {
+  const parsed = shipmentCusContainerLineUpdateSchema.safeParse({
+    expectedShipmentVersion: 3,
+    customerAppointmentAt: '2026-09-08T08:00:00+07:00',
+  });
+
+  assert.equal(parsed.success, true);
+  if (parsed.success) assert.equal(parsed.data.customerAppointmentAt, '2026-09-08T08:00:00+07:00');
+});
+
+test('CUS container-line update rejects a malformed appointment with a Vietnamese message', () => {
+  const parsed = shipmentCusContainerLineUpdateSchema.safeParse({
+    expectedShipmentVersion: 3,
+    customerAppointmentAt: '08/09/2026 08:00',
+  });
+
+  assert.equal(parsed.success, false);
+  if (!parsed.success) {
+    assert.equal(parsed.error.errors[0]?.message, 'Ngày giờ đóng/trả hàng không hợp lệ.');
+  }
+});
+
 test('CUS container-line update accepts only normalized container identity and cargo fields', () => {
   const parsed = shipmentCusContainerLineUpdateSchema.safeParse({
     expectedShipmentVersion: 3,
