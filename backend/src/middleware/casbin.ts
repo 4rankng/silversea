@@ -153,6 +153,20 @@ export function casbinAuthz(resource: string) {
 export function tripRouteAuthz() {
   const authorizeTrips = casbinAuthz('trips');
   return (req: Request, res: Response, next: NextFunction) => {
+    // Staff close for external-carrier trips (feedback 2026-09-08): the
+    // external driver has no app session, so dispatch/CUS complete on the
+    // driver's behalf. Distinct allowlist from the governed close-maker
+    // branch below — no evidence gate can ever apply to these trips.
+    const isExternalClose = req.method === 'POST'
+      && /^\/\d+\/complete-external\/?$/.test(req.path);
+    if (isExternalClose) {
+      const staffCloseRoles = [Role.ADMIN, Role.MANAGER, Role.DISPATCHER, Role.CUS];
+      if (req.user && staffCloseRoles.includes(req.user.role as Role)) {
+        next();
+        return;
+      }
+      return res.status(403).json({ error: 'Không có quyền truy cập' });
+    }
     const isCloseRequest = req.method === 'POST'
       && /^\/\d+\/complete\/?$/.test(req.path);
     if (isCloseRequest) {

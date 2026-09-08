@@ -4,8 +4,10 @@
  */
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { TripStatus, NotificationType } from '@tingting/shared';
+import { TripStatus, NotificationType, Role } from '@tingting/shared';
 import { ApiError } from '../../errors';
+import { requireRoles } from '../../middleware/casbin';
+import { completeExternalCarrierTrip } from '../../services/trip-external-close.service';
 import { dispatchTripWriteCommand, transitionTripWriteCommand } from '../../services/trip-command.service';
 import { requestCompletedTripCancellation, requestTripFinancialClose } from '../../services/adjustment-governance.service';
 
@@ -78,6 +80,30 @@ router.post('/:id/complete', asyncHandler(async (req: Request, res: Response) =>
   res.locals.auditEntityKey = action.subjectKey;
   res.status(statusCode)
     .json(idempotencyKey ? { ...action, replayed } : action);
+}));
+
+// Staff completion for external-carrier trips (feedback 2026-09-08):
+// external drivers don't use the app, so the driver flow can never close
+// their trips — dispatch/CUS complete on the driver's behalf. Distinct from
+// the governed POST /:id/complete above: no photos/milestones exist for
+// external carriers, so that flow can never apply to them.
+router.post('/:id/complete-external', requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER, Role.CUS), asyncHandler(async (req: Request, res: Response) => {
+  const id = parseInt(req.params.id as string);
+  if (!Number.isInteger(id) || id <= 0) {
+    throw new ApiError(400, 'ID chuyến đi không hợp lệ');
+  }
+  const user = getUser(req);
+  const { trip, replayed } = await completeExternalCarrierTrip({
+    tripId: id,
+    actorUserId: user.userId,
+    actorRole: user.role,
+    expectedVersion: getExpectedVersion(req.body),
+    idempotencyKey: getRequestIdempotencyKey(req),
+  });
+  res.locals.auditEvent = AuditEvent.TRIP_COMPLETED;
+  res.locals.auditEntityId = id;
+  res.locals.auditEntityKey = trip.tripCode ?? null;
+  res.json({ ...trip, replayed });
 }));
 
 // Cancel trip

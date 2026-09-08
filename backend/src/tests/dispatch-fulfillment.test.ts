@@ -14,8 +14,9 @@ import { config } from '../config';
 import { initEnforcer } from '../casbin/enforcer';
 import { initAuditService } from '../services/audit.service';
 import shipmentRoutes from '../routes/shipments';
+import tripRoutes from '../routes/trips';
 import { authMiddleware } from '../middleware/auth';
-import { casbinAuthz } from '../middleware/casbin';
+import { casbinAuthz, tripRouteAuthz } from '../middleware/casbin';
 import { auditLogMiddleware } from '../middleware/audit';
 import { globalErrorHandler } from '../middleware/errorHandler';
 import { createHandoff } from '../services/dispatch-handoff.service';
@@ -266,6 +267,7 @@ before(async () => {
   const app = express();
   app.use(express.json());
   app.use('/api/shipments', authMiddleware, auditLogMiddleware, casbinAuthz('shipments'), shipmentRoutes);
+  app.use('/api/trips', authMiddleware, tripRouteAuthz(), tripRoutes);
   app.use(globalErrorHandler);
 
   await new Promise<void>((resolve) => {
@@ -1578,7 +1580,84 @@ describe('dispatch fulfillment workflow routes', () => {
     const byFulfillmentId = new Map(detail.data.items.map((item) => [item.fulfillmentId, item]));
     assert.ok(byFulfillmentId.has(accepted.fulfillmentId), 'completed container must stay visible');
     assert.ok(byFulfillmentId.has(fulfillmentB!.id), 'sibling pending container must stay visible');
-    assert.equal(byFulfillmentId.get(accepted.fulfillmentId)?.taskStatus, 'DISPATCHED');
+    // 2026-09-08 feedback: a driver-completed container must also READ as
+    // completed on the detail plan, not stay stuck at "Đã phát lệnh".
+    assert.equal(byFulfillmentId.get(accepted.fulfillmentId)?.taskStatus, 'COMPLETED');
     assert.equal(byFulfillmentId.get(fulfillmentB!.id)?.taskStatus, 'READY');
+  });
+
+  test('staff close: dispatch issues an external order without driver name and completes the trip', async () => {
+    const accepted = await createAcceptedFulfillment();
+    const externalCarrier = await createCustomer(`External carrier close ${suffix}-${createdCustomerIds.length}`);
+    await db.update(s.customers).set({ isCarrier: true }).where(eq(s.customers.id, externalCarrier.id));
+    const [carrierVehicle] = await db.insert(s.carrierFleetVehicles).values({
+      carrierId: externalCarrier.id,
+      licensePlate: '51H-67890',
+      normalizedPlate: '51H67890',
+      createdBy: adminUserId,
+    }).returning();
+    await db.update(s.shipmentFulfillments).set({
+      plannedCarrierType: 'EXTERNAL',
+      plannedExternalCarrierId: externalCarrier.id,
+    }).where(eq(s.shipmentFulfillments.id, accepted.fulfillmentId));
+
+    // 2026-09-08 feedback: no driver name is sent at all — the issue must
+    // succeed because external carriers don't use the driver app.
+    const dispatch = await apiFetch<{ trip: { id: number; externalDriverName: string | null; driverId: number | null } }>(
+      `/${accepted.shipmentId}/dispatch`,
+      {
+        method: 'POST',
+        token: managerToken,
+        body: {
+          fulfillmentId: accepted.fulfillmentId,
+          expectedVersion: accepted.fulfillmentVersion,
+          plannedStartAt: '2026-08-07T08:00:00+07:00',
+          plannedEndAt: '2026-08-07T12:00:00+07:00',
+          endTimeConfirmed: true,
+          carrierType: 'EXTERNAL',
+          externalCarrierId: externalCarrier.id,
+          externalCarrierVehicleId: carrierVehicle.id,
+        },
+      },
+    );
+    assert.equal(dispatch.status, 201);
+    createdTripIds.push(dispatch.data.trip.id);
+    assert.equal(dispatch.data.trip.externalDriverName, null);
+    assert.equal(dispatch.data.trip.driverId, null);
+
+    // ACCOUNTANT is outside the staff-close allowlist (dispatch/CUS only).
+    // A fresh accountant user: the file's shared accountant gets customer-
+    // linked by an earlier test, which invalidates its pre-signed token.
+    const freshAccountant = await mkUser(Role.ACCOUNTANT, 'close-acct');
+    const forbidden = await fetch(`${baseUrl}/api/trips/${dispatch.data.trip.id}/complete-external`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${signToken(freshAccountant)}`, 'Idempotency-Key': `close-forbidden-${Date.now()}` },
+      body: JSON.stringify({}),
+    });
+    assert.equal(forbidden.status, 403);
+
+    // The dispatcher closes the trip on the external driver's behalf.
+    const close = await fetch(`${baseUrl}/api/trips/${dispatch.data.trip.id}/complete-external`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${dispatcherToken}`, 'Idempotency-Key': `close-${Date.now()}` },
+      body: JSON.stringify({}),
+    });
+    assert.equal(close.status, 200);
+    const closeData = await close.json() as { tripId: number; status: string; completedAt: string | null };
+    assert.equal(closeData.tripId, dispatch.data.trip.id);
+    assert.equal(closeData.status, 'COMPLETED');
+    assert.ok(closeData.completedAt);
+
+    // The closed trip now reads as completed on the detail plan.
+    const [shipmentRow] = await db.select({ code: s.shipments.shipmentCode })
+      .from(s.shipments).where(eq(s.shipments.id, accepted.shipmentId)).limit(1);
+    const detail = await apiFetch<{ items: Array<{ fulfillmentId: number; taskStatus: string }> }>(
+      `/dispatch-detail-plan-rows?limit=10&q=${encodeURIComponent(shipmentRow.code ?? '')}`,
+      { token: managerToken },
+    );
+    assert.equal(detail.status, 200);
+    const row = detail.data.items.find((item) => item.fulfillmentId === accepted.fulfillmentId);
+    assert.ok(row, 'staff-closed container must stay on the detail plan');
+    assert.equal(row?.taskStatus, 'COMPLETED');
   });
 });

@@ -62,6 +62,16 @@ export async function transitionTripStatus(
       driverId: number;
       fulfillmentId: number;
     };
+    /**
+     * Dispatch/CUS close for external-carrier trips: the external driver
+     * never uses the app, so nobody can supply the e-POD that gates the
+     * driver close — dispatch/CUS complete the trip on the driver's behalf
+     * (feedback 2026-09-08). Same bypass semantics as the driver close:
+     * no governed action, no photo/zero-revenue confirmations.
+     */
+    externalCarrierStaffClose?: {
+      fulfillmentId: number;
+    };
   },
   ) {
   // Audit rows for status transitions are produced by the auditLogMiddleware
@@ -106,7 +116,7 @@ export async function transitionTripStatus(
     // existing check; the CANCELED branch only fires for governance-gated
     // cancellations, so it is unchanged.
     if (
-      options?.driverOwnedFulfillmentClose
+      (options?.driverOwnedFulfillmentClose || options?.externalCarrierStaffClose)
       && targetStatus === TripStatus.COMPLETED
     ) {
       governanceAuthorized = true;
@@ -197,6 +207,7 @@ export async function transitionTripStatus(
     } else if (targetStatus === TripStatus.COMPLETED) {
       const routineShipmentClose = options?.routineShipmentClose === true;
       const driverClose = options?.driverOwnedFulfillmentClose ?? null;
+      const externalClose = options?.externalCarrierStaffClose ?? null;
       // O2C completion is terminal. Routine shipment close uses approved
       // evidence plus the Kế toán/CUS authority; exception paths keep the
       // existing governed approval requirement.
@@ -207,7 +218,10 @@ export async function transitionTripStatus(
           'Chuyến đã chốt chỉ được mở lại bằng yêu cầu có kiểm tra và phê duyệt',
         );
       }
-      if (currentStatus !== TripStatus.IN_TRANSIT) {
+      // An external-carrier trip never enters IN_TRANSIT — no app driver
+      // exists to acknowledge/start it. Staff close admits CREATED directly.
+      if (currentStatus !== TripStatus.IN_TRANSIT
+        && !(externalClose != null && currentStatus === TripStatus.CREATED)) {
         throw new ApiError(409, 'Chỉ có thể hoàn thành chuyến đi đang chạy');
       }
       // Driver "Hoàn thành chuyến" full-close path: the driver owns the trip
@@ -230,6 +244,26 @@ export async function transitionTripStatus(
         // confirmZeroRevenue / confirmNoPhoto are bypassed below; the e-POD
         // submission carries the evidence the driver can supply, and
         // confirmZeroRevenue override is implicit here.
+        confirmZeroRevenue = true;
+        confirmNoPhoto = true;
+      } else if (externalClose) {
+        // Dispatch/CUS closing an external-carrier trip on the driver's
+        // behalf: no app driver exists, so the e-POD/milestone evidence the
+        // driver close requires can never be produced. Role + linkage checks
+        // here are the whole authorization surface (route already gates the
+        // same roles); posting bypasses photo/zero-revenue like the driver
+        // close because the trip carries no app-captured evidence either.
+        if (userRole !== Role.ADMIN && userRole !== Role.MANAGER
+          && userRole !== Role.DISPATCHER && userRole !== Role.CUS) {
+          throw new ApiError(403, 'Chỉ Điều vận hoặc CUS mới có thể hoàn thành chuyến xe ngoài.');
+        }
+        if (trip.fulfillmentId !== externalClose.fulfillmentId) {
+          throw new ApiError(403, 'Chuyến không thuộc tác vụ điều xe đã chỉ định.');
+        }
+        if (trip.driverId != null || (trip.carrierType ?? 'OWN') !== 'EXTERNAL') {
+          throw new ApiError(409, 'Chỉ hoàn thành bằng đường này với chuyến xe ngoài.');
+        }
+        governanceAuthorized = true;
         confirmZeroRevenue = true;
         confirmNoPhoto = true;
       } else {
@@ -454,7 +488,10 @@ export async function transitionTripStatus(
       );
     }
 
-    if (targetStatus === TripStatus.COMPLETED && currentStatus === TripStatus.IN_TRANSIT) {
+    if (
+      targetStatus === TripStatus.COMPLETED
+      && (currentStatus === TripStatus.IN_TRANSIT || (options?.externalCarrierStaffClose != null && currentStatus === TripStatus.CREATED))
+    ) {
       const ancillaryFees = await tx.select().from(s.tripExpenses)
         .where(eq(s.tripExpenses.tripId, trip.id));
 
