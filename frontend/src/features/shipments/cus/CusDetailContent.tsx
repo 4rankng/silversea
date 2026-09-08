@@ -3,7 +3,7 @@ import {
   type ShipmentCusWorkspaceContainerLine,
   type ShipmentCusWorkspaceDetail,
 } from '@tingting/shared';
-import { ContainerLedger } from './CusContainerLedger';
+import { ContainerLedger, type ContainerLedgerHandle } from './CusContainerLedger';
 
 export function ShipmentDetailContent({
   detail,
@@ -17,6 +17,7 @@ export function ShipmentDetailContent({
   onCollapse,
   onDirtyChange,
   onSavingChange,
+  actionsRef,
 }: {
   detail?: ShipmentCusWorkspaceDetail;
   loading: boolean;
@@ -29,6 +30,7 @@ export function ShipmentDetailContent({
   onCollapse?: () => void;
   onDirtyChange?: (dirty: boolean) => void;
   onSavingChange?: (saving: boolean) => void;
+  actionsRef?: React.MutableRefObject<ContainerLedgerHandle | null>;
 }) {
   return (
     <div className="cus-detail-content">
@@ -46,6 +48,7 @@ export function ShipmentDetailContent({
           onCollapse={onCollapse}
           onDirtyChange={onDirtyChange}
           onSavingChange={onSavingChange}
+          actionsRef={actionsRef}
         />
       ) : null}
     </div>

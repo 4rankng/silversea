@@ -207,6 +207,8 @@ export function useCusWorkspaceState(params: CusWorkspaceListParams) {
 
   const setDetailDirty = useCallback((shipmentId: number, dirty: boolean) => {
     setDirtyDetailIds((current) => {
+      const has = current.has(shipmentId);
+      if (dirty ? has : !has) return current;
       const next = new Set(current);
       if (dirty) next.add(shipmentId);
       else next.delete(shipmentId);
@@ -216,6 +218,8 @@ export function useCusWorkspaceState(params: CusWorkspaceListParams) {
 
   const setDetailSaving = useCallback((shipmentId: number, saving: boolean) => {
     setSavingDetailIds((current) => {
+      const has = current.has(shipmentId);
+      if (saving ? has : !has) return current;
       const next = new Set(current);
       if (saving) next.add(shipmentId);
       else next.delete(shipmentId);

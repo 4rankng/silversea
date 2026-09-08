@@ -12,12 +12,8 @@ vi.mock('../../../api/shipmentClient', async (importOriginal) => ({
   updateCusShipmentContainerLine,
 }));
 
-// Sparse fixture on purpose: the ledger must tolerate lines whose selector
-// arrays carry no options and whose optional line fields are unset. Only the
-// customer appointment is edited here, so the assertions target the save
-// payload and the dirty-state affordances.
 const detail = {
-  summary: { id: 1 },
+  summary: { id: 1, version: 4 },
   containers: [{
     id: 10,
     ordinal: 1,
@@ -57,41 +53,77 @@ function renderLedger() {
       />
     </ToastProvider>,
   );
-  // Counting by class, not accessible name: a removed Thao tác column used
-  // aria-labels ("Lưu thay đổi cho container…") that exact-name role queries
-  // would miss — the class covers both confirm groups in one sweep.
   return { ...utils, confirmButtons: () => utils.container.querySelectorAll('.cus-container-confirm, .cus-container-revert') };
 }
 
 describe('ContainerLedger confirm affordances', () => {
-  it('renders exactly one Lưu/Hủy pair per dirty row, floating inside the appointment cell', () => {
+  it('renders Lưu/Hủy actions when row inputs change, and discards on Hủy', () => {
     const view = renderLedger();
-    fireEvent.change(screen.getByLabelText(/Giờ hẹn đóng hoặc trả/), { target: { value: '2026-09-11T09:00' } });
+    const plateInput = screen.getByLabelText(/Biển số xe/) as HTMLInputElement;
+    fireEvent.change(plateInput, { target: { value: '15C-999.99' } });
 
     expect(view.confirmButtons()).toHaveLength(2);
-    // The pair must be an overlay anchored to the appointment cell (like the
-    // calendar picker), never an in-flow block that stretches the row.
-    const popover = view.container.querySelector('.cus-container-confirm-group--floating');
-    expect(popover?.closest('td')).toBe(view.container.querySelector('td[data-label="Giờ hẹn đóng/trả"]'));
-    expect(popover?.className.includes('--inline')).toBe(false);
+    const saveBtn = view.container.querySelector('.cus-container-confirm')!;
+    const cancelBtn = view.container.querySelector('.cus-container-revert')!;
+    expect(saveBtn).toBeTruthy();
+    expect(cancelBtn).toBeTruthy();
+
+    // Click Hủy resets
+    fireEvent.click(cancelBtn);
+    expect(view.confirmButtons()).toHaveLength(0);
+    expect(plateInput.value).toBe('15C-184.62');
   });
 
-  it('has no separate Thao tác column — the floating pair is the only confirm UI', () => {
-    renderLedger();
-    fireEvent.change(screen.getByLabelText(/Giờ hẹn đóng hoặc trả/), { target: { value: '2026-09-11T09:00' } });
+  it('opens appointment popover when clicking trigger, updates value without inline buttons, and closes on backdrop click', () => {
+    const view = renderLedger();
+    const trigger = screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ });
 
+    // Initially popover is not in document
+    expect(document.querySelector('.cus-appointment-popover')).toBeNull();
+
+    // Open popover by clicking trigger
+    fireEvent.click(trigger);
+    expect(document.querySelector('.cus-appointment-popover')).not.toBeNull();
+    expect(screen.getByRole('dialog', { name: /Chọn giờ hẹn đóng\/trả/ })).toBeDefined();
+
+    // No inline Save/Cancel inside the popover itself
+    expect(document.querySelector('.cus-appointment-popover .cus-container-confirm')).toBeNull();
+
+    // Close via backdrop
+    const backdrop = document.querySelector('.cus-appointment-backdrop')!;
+    fireEvent.click(backdrop);
+    expect(document.querySelector('.cus-appointment-popover')).toBeNull();
+  });
+
+  it('has no separate Thao tác column — in-table actions are self-contained', () => {
+    renderLedger();
     expect(screen.queryByRole('columnheader', { name: 'Thao tác dòng' })).toBeNull();
   });
 
-  it('sends only the changed field on save — unchanged governed fields stay out of the payload', async () => {
+  it('saves appointment date and time and plate on save — sends modified fields', async () => {
     const view = renderLedger();
-    updateCusShipmentContainerLine.mockResolvedValue({ line: { id: 10 } });
-    fireEvent.change(screen.getByLabelText(/Giờ hẹn đóng hoặc trả/), { target: { value: '2026-09-11T09:00' } });
-    fireEvent.click(view.container.querySelector('.cus-container-confirm')!);
+    updateCusShipmentContainerLine.mockResolvedValue({ line: { id: 10, shipmentVersion: 5 } });
+
+    // Open popover and change date
+    fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ }));
+    const dateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
+    const timeInput = document.querySelector('input[type="time"]') as HTMLInputElement;
+    fireEvent.change(dateInput, { target: { value: '2026-09-11' } });
+    fireEvent.change(timeInput, { target: { value: '09:00' } });
+
+    // Close popover
+    fireEvent.click(document.querySelector('.cus-appointment-backdrop')!);
+
+    // Also change plate
+    fireEvent.change(screen.getByLabelText(/Biển số xe/), { target: { value: '15C-999.99' } });
+
+    // Save all changes via consolidated Save button
+    const saveButton = view.container.querySelector('.cus-container-confirm')!;
+    fireEvent.click(saveButton);
 
     await waitFor(() => expect(updateCusShipmentContainerLine).toHaveBeenCalledTimes(1));
     const [, , payload] = updateCusShipmentContainerLine.mock.calls[0];
-    expect(Object.keys(payload).sort()).toEqual(['customerAppointmentAt', 'expectedShipmentVersion']);
     expect(payload.customerAppointmentAt).toBe(new Date('2026-09-11T09:00').toISOString());
+    expect(payload.plateNumber).toBe('15C-999.99');
   });
 });

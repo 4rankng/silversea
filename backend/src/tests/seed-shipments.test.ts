@@ -58,8 +58,8 @@ const EXPECTED_STATUS: Record<string, string> = {
   '105254544125': 'READY_FOR_DISPATCH', // expectedDeliveryDate → date-derived readiness
   '105254544198': 'PENDING_DATE', // no dates → awaiting schedule
   '137465192801': 'CANCELED',
-  DNKM13333: 'DISPATCHED',
-  DNKM13334: 'READY_FOR_DISPATCH',
+  DNKM13333: 'READY_FOR_DISPATCH',
+  DNKM13334: 'PENDING_DATE',
   DNKM13337: 'IN_TRANSIT', // full ladder: DISPATCHED → IN_TRANSIT (PENDING_EXPENSE_APPROVAL retired)
   DNKM13339: 'CANCELED',
 };

@@ -1369,3 +1369,34 @@
   directly"; `q22-source-authority.test.ts` "applies post-dispatch cargo changes directly without
   overwriting the linked trip" (không tạo shipmentChangeRequests).
 
+### TC-CUS-CREATE-045 — Bảng chọn ngày giờ container (Popover) không bị che/cắt và hiển thị trọn vẹn
+
+- **Mã bug:** BUG-2026-09-08-CALENDAR-CLIPPED (popover bị cuộn/cắt viền trên ở dòng cuối hoặc bảng ít dòng)
+- **Vai trò:** `CUS`, `ADMIN`, `MANAGER`
+- **Mức độ:** P0
+- **Các bước:**
+  1. Mở drawer chi tiết lô hàng có 1 hoặc 2 container (hoặc click dòng cuối cùng).
+  2. Bấm vào nút chọn ngày giờ (cột "Giờ hẹn đóng/trả").
+  3. Quan sát popover: phần tiêu đề, nút đóng, nút chọn nhanh ngày ("Hôm nay", "Ngày mai", "Ngày kia"), ô input Ngày, ô input Giờ, khung giờ phổ biến.
+- **Kết quả mong đợi (Pass):**
+  - Popover hiển thị trọn vẹn trong viewport, không bị che khuất bởi mép trên/dưới của bảng hoặc drawer.
+  - Căn chỉnh tự động (fixed positioning) dựa trên vị trí nút bấm và không gian màn hình.
+- **Kỳ vọng sai (Fail nếu):** Popover bị cắt cụt phần trên/dưới, chỉ hiện một nửa khung giờ hoặc tràn ra ngoài màn hình.
+- **Bằng chứng:** `CusAppointmentPopover.test.tsx`, `qa/2026-09-08_cus_popover_row2_last_child.png`, `qa/2026-09-08_cus_popover_row1.png`.
+
+### TC-CUS-CREATE-046 — Hợp nhất nút Lưu/Hủy tại Footer của Drawer và tự động đóng drawer sau khi Lưu
+
+- **Mã bug:** BUG-2026-09-08-DRAWER-SAVE-CLOSE (yêu cầu bỏ chữ "Chưa có thay đổi", đóng drawer sau khi lưu và gom nút Lưu/Hủy lên cấp Drawer)
+- **Vai trò:** `CUS`, `ADMIN`, `MANAGER`
+- **Mức độ:** P1
+- **Các bước:**
+  1. Mở drawer chi tiết lô hàng, kiểm tra footer: không xuất hiện dòng chữ "Chưa có thay đổi".
+  2. Sửa thông tin container (ngày giờ hẹn, cảng, biển số xe...) → footer hiện "Có thay đổi container chưa lưu" và kích hoạt nút [ Lưu ], [ Hủy ].
+  3. Bấm nút [ Lưu ] tại footer.
+- **Kết quả mong đợi (Pass):**
+  - Toàn bộ thay đổi của các container được gửi lưu cùng lúc (batch save).
+  - Sau khi lưu thành công, thông báo toast hiển thị và drawer tự động đóng lại.
+  - Khi mở lại drawer, dữ liệu mới đã được lưu và footer sạch sẽ (không hiện chữ "Chưa có thay đổi").
+- **Kỳ vọng sai (Fail nếu):** Drawer vẫn mở sau khi lưu; xuất hiện chữ "Chưa có thay đổi"; hoặc nút Lưu nằm phân mảnh bên trong từng cell.
+- **Bằng chứng:** `CusDrawerFooter.test.tsx`, `ShipmentsPage.test.tsx`, `qa/2026-09-08_cus_drawer_ui-04_saved_success.png`, `qa/2026-09-08_cus_drawer_ui-driver.log`.
+
