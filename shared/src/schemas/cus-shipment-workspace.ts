@@ -78,16 +78,30 @@ export const SHIPMENT_CUS_CONTAINER_SORT_KEYS = [
 ] as const;
 export type ShipmentCusContainerSortKey = typeof SHIPMENT_CUS_CONTAINER_SORT_KEYS[number];
 
+// Container dispatch chip vocabulary (customer decision 2026-09-08): a line
+// shows Chờ phân xe (AWAITING_VEHICLE) until dispatch assigns a vehicle — no
+// trip yet, or a CREATED trip that already has its ngày đóng/trả. "Đã tạo
+// chuyến" (CREATED) is reserved for a trip that still misses the appointment
+// date. The retired UNASSIGNED/PLANNED pre-trip states must not reappear.
+export const SHIPMENT_CUS_DISPATCH_STATUSES = [
+  'AWAITING_VEHICLE',
+  'CREATED',
+  'IN_TRANSIT',
+  'COMPLETED',
+] as const;
+export type ShipmentCusDispatchStatus = typeof SHIPMENT_CUS_DISPATCH_STATUSES[number];
+
 // Container-workspace-only query. `informationStatus=MISSING` selects the
 // server-derived "Chưa cập nhật" triage queue. `dispatchStatus` accepts the
-// ledger badge vocabulary (UNASSIGNED, PLANNED, CREATED, IN_TRANSIT,
-// COMPLETED) plus the legacy coarse ASSIGNED carrier-presence split; the
-// overview schema above rejects both parameters by design so a detail-only
-// filter can never silently no-op on the overview endpoint.
+// badge vocabulary above plus legacy coarse carrier-presence aliases
+// (ASSIGNED = any active carrier, UNASSIGNED = none) kept so older links
+// keep filtering; the overview schema above rejects both parameters by
+// design so a detail-only filter can never silently no-op on the overview
+// endpoint.
 export const shipmentCusContainerQuerySchema = z.object({
   ...shipmentCusWorkspaceQueryShape,
   informationStatus: z.enum(['MISSING']).optional(),
-  dispatchStatus: z.enum(['ASSIGNED', 'UNASSIGNED', 'PLANNED', 'CREATED', 'IN_TRANSIT', 'COMPLETED']).optional(),
+  dispatchStatus: z.enum(['ASSIGNED', 'UNASSIGNED', ...SHIPMENT_CUS_DISPATCH_STATUSES]).optional(),
   sortBy: z.enum(SHIPMENT_CUS_CONTAINER_SORT_KEYS).optional(),
   sortDir: z.enum(['asc', 'desc']).optional(),
 })
@@ -343,7 +357,7 @@ export const shipmentCusWorkspaceContainerLineSchema = z.object({
   containerTypeLabel: z.string().nullable(),
   routeId: z.number().int().positive().nullable(),
   routeName: z.string().nullable(),
-  dispatchStatus: z.enum(['UNASSIGNED', 'PLANNED', 'CREATED', 'IN_TRANSIT', 'COMPLETED']),
+  dispatchStatus: z.enum(SHIPMENT_CUS_DISPATCH_STATUSES),
   carrierType: z.enum(['OWN', 'EXTERNAL']).nullable(),
   externalCarrierId: z.number().int().positive().nullable(),
   externalCarrierVehicleId: z.number().int().positive().nullable(),
@@ -598,7 +612,7 @@ export const shipmentCusContainerFlatRowSchema = z.object({
   direction: z.enum(['IMPORT', 'EXPORT']).nullable(),
   containerNumber: z.string().nullable(),
   containerTypeLabel: z.string().nullable(),
-  dispatchStatus: z.enum(['UNASSIGNED', 'PLANNED', 'CREATED', 'IN_TRANSIT', 'COMPLETED']),
+  dispatchStatus: z.enum(SHIPMENT_CUS_DISPATCH_STATUSES),
   carrierName: z.string().nullable(),
   plateNumber: z.string().nullable(),
   liftSite: z.string().nullable(),

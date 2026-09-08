@@ -831,7 +831,7 @@ async function getCusWorkspaceDetail(shipmentId: number, token: string) {
       carrierName: string | null;
       plateNumber: string | null;
       customerAppointmentAt: string | null;
-      dispatchStatus: 'UNASSIGNED' | 'PLANNED' | 'CREATED' | 'IN_TRANSIT' | 'COMPLETED';
+      dispatchStatus: 'AWAITING_VEHICLE' | 'CREATED' | 'IN_TRANSIT' | 'COMPLETED';
       permissions: { outboundEditable: boolean; inboundEditable: boolean };
       inboundCharges: { transport: { amount: string | null }; handling: { amount: string | null } };
       outboundCharges: { transport: { amount: string | null } };
@@ -1590,7 +1590,7 @@ describe('GET /cus-workspace', () => {
     const line = detail.containers.find((item) => item.id === container.id);
     assert.ok(line);
     assert.equal(Object.hasOwn(line, 'shippingLineName'), false);
-    assert.equal(line.dispatchStatus, 'PLANNED');
+    assert.equal(line.dispatchStatus, 'AWAITING_VEHICLE');
   });
 
   test('keeps a planned internal carrier pending until an actual vehicle plate exists', async () => {

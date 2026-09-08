@@ -794,13 +794,16 @@ async function buildShipmentPageConditions(
     conditions.push(containerIncompleteSql());
   }
   // Detail-only dispatch triage: ASSIGNED = the container line has any active
-  // carrier (trip first, planned as fallback), UNASSIGNED is its complement —
-  // exactly the rows the ledger badges "Chưa điều xe". Every other value is a
-  // record status and filters on the badge derivation itself (the same rank
-  // expression that orders the Trạng thái column).
+  // carrier (trip first, planned as fallback); UNASSIGNED is its legacy
+  // carrier-absence complement. Both predate the four-state badge vocabulary
+  // and stay in the query schema so older links keep filtering. The badge
+  // values filter on the derivation itself (the same rank expression that
+  // orders the Trạng thái column); AWAITING_VEHICLE is the coalesced rank-0
+  // complement — no trip, or a CREATED trip whose ngày đóng/trả exists.
   if (searchMode === 'container' && 'dispatchStatus' in query) {
     if (query.dispatchStatus === 'ASSIGNED') conditions.push(sql`${activeCarrierTypeSql()} is not null`);
     else if (query.dispatchStatus === 'UNASSIGNED') conditions.push(sql`${activeCarrierTypeSql()} is null`);
+    else if (query.dispatchStatus === 'AWAITING_VEHICLE') conditions.push(sql`coalesce(${containerDispatchRankSql()}, 0) = 0`);
     else if (query.dispatchStatus) {
       conditions.push(sql`${containerDispatchRankSql()} = ${CONTAINER_DISPATCH_RANKS[query.dispatchStatus]}`);
     }

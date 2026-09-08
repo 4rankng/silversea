@@ -612,7 +612,7 @@ describe('CUS container-flat projection', () => {
     assert.equal(rowA1.raw.containerNumber, `FLA${suffix}1`);
     assert.equal(rowA1.fieldAccess.containerNumber.mode, 'DIRECT');
     assert.equal(rowA1.shipmentFieldAccess.customerNotes.mode, 'DIRECT');
-    assert.equal(rowA1.dispatchStatus, 'UNASSIGNED');
+    assert.equal(rowA1.dispatchStatus, 'AWAITING_VEHICLE');
     assert.equal(rowA1.scheduleEditable, true);
     assert.equal(rowA1.customerAppointmentEditable, true);
     // ISO datetime projected verbatim for the đóng/trả column.
@@ -1790,7 +1790,7 @@ describe('Container workboard "Chưa cập nhật" completeness', () => {
     await seedContainer(unassigned.id, { containerNumber: `CH-${marker}`.slice(0, 50) });
 
     // A canceled trip must not count as an assignment: without a planned
-    // carrier the row stays "Chưa điều xe".
+    // carrier the row stays in the legacy carrier-absence filter.
     const canceled = await seedShipment({ blNumber: `CX-${marker}`, cargoMode: 'FCL', expectedDeliveryDate: '2026-08-20' });
     const canceledContainer = await seedContainer(canceled.id, { containerNumber: `CX-${marker}`.slice(0, 50) });
     const canceledFulfillment = await seedFulfillment(canceled.id, canceledContainer.id);
@@ -1811,10 +1811,12 @@ describe('Container workboard "Chưa cập nhật" completeness', () => {
       dispatchStatus: 'UNASSIGNED',
     }, cusActor);
     assert.ok(unassignedResponse.items.some((row) => row.shipmentId === unassigned.id));
-    assert.ok(unassignedResponse.items.some((row) => row.shipmentId === canceled.id), 'canceled trip falls back to UNASSIGNED');
+    assert.ok(unassignedResponse.items.some((row) => row.shipmentId === canceled.id), 'canceled trip falls back to the carrier-absence filter');
     assert.equal(unassignedResponse.items.some((row) => row.shipmentId === assigned.id), false);
     assert.equal(unassignedResponse.total, unassignedResponse.items.length, 'count query agrees with item query');
-    assert.ok(unassignedResponse.items.every((row) => row.dispatchStatus === 'UNASSIGNED'));
+    // Both pre-trip populations badge "Chờ phân xe": the carrier split is a
+    // filter-only legacy distinction the badge no longer separates.
+    assert.ok(unassignedResponse.items.every((row) => row.dispatchStatus === 'AWAITING_VEHICLE'));
 
     const assignedResponse = await listCusShipmentContainers({
       page: 1,
@@ -1826,7 +1828,7 @@ describe('Container workboard "Chưa cập nhật" completeness', () => {
     assert.equal(assignedResponse.items.some((row) => row.shipmentId === unassigned.id), false);
     assert.equal(assignedResponse.items.some((row) => row.shipmentId === canceled.id), false);
     assert.equal(assignedResponse.total, assignedResponse.items.length, 'count query agrees with item query');
-    assert.ok(assignedResponse.items.every((row) => row.dispatchStatus !== 'UNASSIGNED'));
+    assert.ok(assignedResponse.items.every((row) => row.dispatchStatus === 'AWAITING_VEHICLE'));
   });
 
   test('dispatchStatus record statuses filter by the badge derivation', async () => {
@@ -1846,7 +1848,8 @@ describe('Container workboard "Chưa cập nhật" completeness', () => {
     });
     createdTripIds.push(doneTrip.id);
 
-    // PLANNED badge: carrier assigned, trip not yet created.
+    // Pre-trip rows: carrier planned without a trip, and a no-carrier row —
+    // both badge "Chờ phân xe" (AWAITING_VEHICLE).
     const planned = await seedShipment({ blNumber: `PX-${marker}`, cargoMode: 'FCL', expectedDeliveryDate: '2026-08-20' });
     const plannedContainer = await seedContainer(planned.id, { containerNumber: `PX-${marker}`.slice(0, 50) });
     await seedFulfillment(planned.id, plannedContainer.id, {
@@ -1854,7 +1857,6 @@ describe('Container workboard "Chưa cập nhật" completeness', () => {
       plannedVehiclePlateNumber: '29C-777.77',
     });
 
-    // UNASSIGNED badge: no carrier, no trip.
     const unassigned = await seedShipment({ blNumber: `CX-${marker}`, cargoMode: 'FCL', expectedDeliveryDate: '2026-08-20' });
     await seedContainer(unassigned.id, { containerNumber: `CX-${marker}`.slice(0, 50) });
 
@@ -1870,18 +1872,78 @@ describe('Container workboard "Chưa cập nhật" completeness', () => {
     assert.equal(completedResponse.total, completedResponse.items.length, 'count query agrees with item query');
     assert.ok(completedResponse.items.every((row) => row.dispatchStatus === 'COMPLETED'));
 
-    // PLANNED must exclude the COMPLETED row even though both carry an active
-    // carrier — record-status granularity goes beyond the ASSIGNED split.
-    const plannedResponse = await listCusShipmentContainers({
+    // AWAITING_VEHICLE must exclude the COMPLETED row even though both the
+    // done and planned fixtures carry an active carrier — record-status
+    // granularity goes beyond the ASSIGNED split.
+    const awaitingResponse = await listCusShipmentContainers({
       page: 1,
       limit: 100,
       searchSuffix: marker,
-      dispatchStatus: 'PLANNED',
+      dispatchStatus: 'AWAITING_VEHICLE',
     }, cusActor);
-    assert.ok(plannedResponse.items.some((row) => row.shipmentId === planned.id));
-    assert.equal(plannedResponse.items.some((row) => row.shipmentId === done.id), false);
-    assert.equal(plannedResponse.total, plannedResponse.items.length, 'count query agrees with item query');
-    assert.ok(plannedResponse.items.every((row) => row.dispatchStatus === 'PLANNED'));
+    assert.ok(awaitingResponse.items.some((row) => row.shipmentId === planned.id));
+    assert.ok(awaitingResponse.items.some((row) => row.shipmentId === unassigned.id));
+    assert.equal(awaitingResponse.items.some((row) => row.shipmentId === done.id), false);
+    assert.equal(awaitingResponse.total, awaitingResponse.items.length, 'count query agrees with item query');
+    assert.ok(awaitingResponse.items.every((row) => row.dispatchStatus === 'AWAITING_VEHICLE'));
+  });
+
+  test('dispatchStatus reads Đã tạo chuyến only while the appointment date is missing', async () => {
+    const marker = Math.random().toString(36).slice(2, 7).toUpperCase().padEnd(5, 'X');
+
+    // CREATED trip that already has its ngày đóng/trả: it is waiting on the
+    // vehicle, not on "Đã tạo chuyến".
+    const dated = await seedShipment({ blNumber: `DC-${marker}`, cargoMode: 'FCL', expectedDeliveryDate: '2026-08-20' });
+    const datedContainer = await seedContainer(dated.id, {
+      containerNumber: `DC-${marker}`.slice(0, 50),
+      customerAppointmentAt: new Date('2026-08-20T02:00:00.000Z'),
+    });
+    const datedFulfillment = await seedFulfillment(dated.id, datedContainer.id);
+    const datedTrip = await insertTripComposite(db, {
+      fulfillmentId: datedFulfillment.id,
+      customerId,
+      routeId: (await seedRoute()).id,
+      status: 'CREATED',
+      carrierType: 'OWN',
+      departureDate: '2026-08-20',
+    });
+    createdTripIds.push(datedTrip.id);
+
+    // CREATED trip still missing the date: the only true "Đã tạo chuyến".
+    const undated = await seedShipment({ blNumber: `TC-${marker}`, cargoMode: 'FCL', expectedDeliveryDate: '2026-08-20' });
+    const undatedContainer = await seedContainer(undated.id, { containerNumber: `TC-${marker}`.slice(0, 50) });
+    const undatedFulfillment = await seedFulfillment(undated.id, undatedContainer.id);
+    const undatedTrip = await insertTripComposite(db, {
+      fulfillmentId: undatedFulfillment.id,
+      customerId,
+      routeId: (await seedRoute()).id,
+      status: 'CREATED',
+      carrierType: 'OWN',
+      departureDate: '2026-08-20',
+    });
+    createdTripIds.push(undatedTrip.id);
+
+    const createdResponse = await listCusShipmentContainers({
+      page: 1,
+      limit: 100,
+      searchSuffix: marker,
+      dispatchStatus: 'CREATED',
+    }, cusActor);
+    assert.ok(createdResponse.items.some((row) => row.shipmentId === undated.id));
+    assert.equal(createdResponse.items.some((row) => row.shipmentId === dated.id), false, 'a CREATED trip with its appointment is not Đã tạo chuyến');
+    assert.equal(createdResponse.total, createdResponse.items.length, 'count query agrees with item query');
+    assert.ok(createdResponse.items.every((row) => row.dispatchStatus === 'CREATED'));
+
+    const awaitingResponse = await listCusShipmentContainers({
+      page: 1,
+      limit: 100,
+      searchSuffix: marker,
+      dispatchStatus: 'AWAITING_VEHICLE',
+    }, cusActor);
+    assert.ok(awaitingResponse.items.some((row) => row.shipmentId === dated.id));
+    assert.equal(awaitingResponse.items.some((row) => row.shipmentId === undated.id), false);
+    assert.equal(awaitingResponse.total, awaitingResponse.items.length, 'count query agrees with item query');
+    assert.ok(awaitingResponse.items.every((row) => row.dispatchStatus === 'AWAITING_VEHICLE'));
   });
 
   test('FCL carrier readiness follows the container appointment, not the shipment date', async () => {

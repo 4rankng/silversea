@@ -29,7 +29,7 @@ const detail = {
     ordinal: 1,
     containerNumber: 'MSKU1234567',
     containerTypeLabel: '40HC',
-    dispatchStatus: 'PLANNED',
+    dispatchStatus: 'AWAITING_VEHICLE',
     carrierName: 'SilverSea',
     plateNumber: '15C-123.45',
     liftSite: 'Cảng Cát Lái',
@@ -51,7 +51,7 @@ describe('DispatchContainerDetailDrawer', () => {
     expect(screen.getByRole('rowheader', { name: 'MSKU1234567' })).toBeTruthy();
     expect(await screen.findByText('MSKU1234567')).toBeTruthy();
     expect(screen.getByText(/09:00.*20\/8\/26/)).toBeTruthy();
-    expect(screen.getByText('Đã phân xe')).toBeTruthy();
+    expect(screen.getByText('Chờ phân xe')).toBeTruthy();
     expect(screen.getByText(/Chỉ xem tại đây/)).toBeTruthy();
     expect(screen.queryByRole('button', { name: /Lưu container/ })).toBeNull();
 

@@ -79,8 +79,7 @@ export interface ShipmentNotesDraft {
 type DispatchStatus = ShipmentCusContainerFlatRow['dispatchStatus'];
 // eslint-disable-next-line react-refresh/only-export-components -- shared badge vocabulary consumed by the page's Trạng thái filter
 export const DISPATCH_STATUS: Record<DispatchStatus, { label: string; color: 'warning' | 'brand' | 'blue' | 'indigo' | 'purple' | 'success' }> = {
-  UNASSIGNED: { label: 'Chưa điều xe', color: 'warning' },
-  PLANNED: { label: 'Đã phân xe', color: 'blue' },
+  AWAITING_VEHICLE: { label: 'Chờ phân xe', color: 'warning' },
   CREATED: { label: 'Đã tạo chuyến', color: 'indigo' },
   IN_TRANSIT: { label: 'Đang chạy', color: 'purple' },
   COMPLETED: { label: 'Hoàn thành', color: 'success' },
@@ -88,10 +87,9 @@ export const DISPATCH_STATUS: Record<DispatchStatus, { label: string; color: 'wa
 
 /* Row markers follow the status-signal contract: semantic tones only, mirroring
    the workboard's StatusStrip lane — the badge column carries the precise
-   five-state label. */
+   four-state label. */
 const DISPATCH_STRIP_COLORS: Record<DispatchStatus, string> = {
-  UNASSIGNED: 'var(--warning)',
-  PLANNED: 'var(--info)',
+  AWAITING_VEHICLE: 'var(--warning)',
   CREATED: 'var(--info)',
   IN_TRANSIT: 'var(--info)',
   COMPLETED: 'var(--success)',

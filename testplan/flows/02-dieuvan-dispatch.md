@@ -1037,10 +1037,35 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
 - **Bằng chứng:** backend test "omitting classification and isCombined leaves both stored values untouched"
   + "classification is CUS-owned — a dispatch save cannot rewrite it" (dispatch-detail-plan.test.ts).
 
+### TC-DV-DISPATCH-042 — Chip trạng thái điều vận 4 trạng thái theo ngày đóng/trả (quyết định KH 2026-09-08)
+
+- **Quyết định:** Chip "Điều vận"/"Trạng thái" của dòng container chỉ có 4 trạng thái:
+  - **Chờ phân xe** (`AWAITING_VEHICLE`): chưa có chuyến, HOẶC chuyến đã tạo nhưng dòng đã có giờ hẹn đóng/trả.
+  - **Đã tạo chuyến** (`CREATED`): chuyến đã tạo và dòng **chưa** có giờ hẹn đóng/trả.
+  - **Đang chạy** (`IN_TRANSIT`) / **Hoàn thành** (`COMPLETED`): theo trạng thái chuyến.
+  Trạng thái cũ "Chưa điều xe" (UNASSIGNED) và "Đã phân xe" (PLANNED) bị loại khỏi từ vựng chip.
+  Link cũ có `dispatchStatus=UNASSIGNED`/`ASSIGNED` vẫn lọc được (alias theo nhà xe).
+- **Vai trò:** `DISPATCHER`, `CUS`
+- **Mức độ:** P1
+- **Các bước:**
+  1. Mở drawer lô (CUS hoặc Điều vận) → ledger container: dòng chưa điều xe hiển thị "Chờ phân xe".
+  2. Dòng có chuyến CREATED + đã có giờ hẹn đóng/trả → vẫn "Chờ phân xe".
+  3. Xóa giờ hẹn đóng/trả của dòng đó → chip chuyển "Đã tạo chuyến".
+  4. Trên workboard DOCX (/shipments-containers), filter Trạng thái: dropdown chỉ 4 nhãn trên;
+     chọn "Chờ phân xe" → API gửi `dispatchStatus=AWAITING_VEHICLE` và chỉ trả dòng chờ phân xe.
+  5. Gửi thẳng query `dispatchStatus=CREATED` → chỉ trả dòng chuyến CREATED thiếu giờ hẹn.
+- **Kết quả mong đợi (Pass):** chip luôn thuộc 4 trạng thái; "Đã tạo chuyến" chỉ xuất hiện khi thiếu
+  giờ hẹn đóng/trả; không bề mặt nào hiển thị lại "Chưa điều xe"/"Đã phân xe" cho chip điều vận.
+- **Kỳ vọng sai (Fail nếu):** dòng có đủ giờ hẹn vẫn hiện "Đã tạo chuyến"; filter trả dòng sai nhóm.
+- **Bằng chứng:** backend test "dispatchStatus reads Đã tạo chuyến only while the appointment date
+  is missing" + "dispatchStatus record statuses filter by the badge derivation"
+  (cus-shipment-workspace.test.ts); frontend `dispatchStatusVocabulary.test.ts` (pin 4 nhãn).
+
 
 ---
 
 ## Bảng nghiệm thu — Luồng Điều xe (Điều vận)
+
 
 
 | Ngày thử | Mã TC | Người thử | Kết quả | Ghi chú | Bằng chứng |
@@ -1086,3 +1111,4 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
 | __/__/__ | TC-DV-DISPATCH-039 | | | Thay đổi tác vụ điều phối + audit log | |
 | __/__/__ | TC-DV-DISPATCH-040 | | | Dropdown picker không che nút dưới màn hình — flip + portal (dropdown-flip sweep) | |
 | __/__/__ | TC-DV-DISPATCH-041 | | | Editor điều vận không còn Phân loại/Đóng kết hợp — CUS-owned (2026-09-08) | |
+| __/__/__ | TC-DV-DISPATCH-042 | | | Chip điều vận 4 trạng thái theo ngày đóng/trả (2026-09-08) | |

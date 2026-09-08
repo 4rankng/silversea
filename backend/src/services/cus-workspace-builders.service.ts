@@ -436,15 +436,18 @@ function buildContainerLine(
   // (customer ask, Cap_nhat_UI_va_logic 1.3): the value is a plan; the
   // official dispatch trip remains the confirming source once assigned.
   const plateEditable = canEditOperational;
+  // Dispatch chip vocabulary (customer decision 2026-09-08): a running or
+  // finished trip outranks everything. A CREATED trip reads "Đã tạo chuyến"
+  // only while its ngày đóng/trả is still missing; once the appointment is
+  // set — or before any trip exists — the line is waiting on dispatch to
+  // assign the vehicle.
   const dispatchStatus = assignment?.tripStatus === 'COMPLETED'
     ? 'COMPLETED'
     : assignment?.tripStatus === 'IN_TRANSIT'
       ? 'IN_TRANSIT'
-      : assignment?.tripStatus === 'CREATED'
+      : assignment?.tripStatus === 'CREATED' && container.customerAppointmentAt == null
         ? 'CREATED'
-        : assignment?.plannedCarrierType
-          ? 'PLANNED'
-          : 'UNASSIGNED';
+        : 'AWAITING_VEHICLE';
 
   return {
     id: container.id,

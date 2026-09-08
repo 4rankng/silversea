@@ -166,12 +166,15 @@ export function quickEditTitle(field: ShipmentQuickEditDraft['field']): string {
   return `Chỉnh sửa ${labels[field]}`;
 }
 
+/** Container dispatch chip vocabulary (customer decision 2026-09-08):
+ * "Chờ phân xe" until dispatch assigns a vehicle — no trip yet, or a CREATED
+ * trip that already has its ngày đóng/trả; "Đã tạo chuyến" only while that
+ * date is still missing. */
 export function dispatchStatusLabel(status: ShipmentCusWorkspaceContainerLine['dispatchStatus']): string {
-  if (status === 'PLANNED') return 'Đã phân xe';
   if (status === 'CREATED') return 'Đã tạo chuyến';
   if (status === 'IN_TRANSIT') return 'Đang chạy';
   if (status === 'COMPLETED') return 'Hoàn thành';
-  return 'Chưa điều xe';
+  return 'Chờ phân xe';
 }
 
 export function accountingConfirmationLabel(
