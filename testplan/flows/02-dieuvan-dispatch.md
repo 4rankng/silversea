@@ -1058,29 +1058,33 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
   classification and still strips the lot-level isCombined flag"; frontend test
   DispatchPlanEditorCell.test.tsx (select Phân loại 3 lựa chọn, không có checkbox).
 
-### TC-DV-DISPATCH-042 — Chip trạng thái điều vận 4 trạng thái theo ngày đóng/trả (quyết định KH 2026-09-08)
+### TC-DV-DISPATCH-042 — Chip trạng thái điều vận 5 trạng thái (quyết định KH 2026-09-08, bổ sung tối cùng ngày)
 
-- **Quyết định:** Chip "Điều vận"/"Trạng thái" của dòng container chỉ có 4 trạng thái:
-  - **Chờ phân xe** (`AWAITING_VEHICLE`): chưa có chuyến, HOẶC chuyến đã tạo nhưng dòng đã có giờ hẹn đóng/trả.
+- **Quyết định:** Chip "Điều vụ"/"Trạng thái" của dòng container có 5 trạng thái (bổ sung "Đã phân xe" vào quyết định 4 trạng thái sáng cùng ngày):
   - **Đã tạo chuyến** (`CREATED`): chuyến đã tạo và dòng **chưa** có giờ hẹn đóng/trả.
+  - **Chờ phân xe** (`AWAITING_VEHICLE`): đã có giờ hẹn đóng/trả (hoặc chưa có gì) nhưng dòng **chưa có xe**.
+  - **Đã phân xe** (`PLANNED`): dòng **đã có xe** — cùng biển số mà cột Phân xe hiển thị (biển trên chuyến nếu đã phát hành, không thì biển phân bổ) — chưa chạy.
   - **Đang chạy** (`IN_TRANSIT`) / **Hoàn thành** (`COMPLETED`): theo trạng thái chuyến.
-  Trạng thái cũ "Chưa điều xe" (UNASSIGNED) và "Đã phân xe" (PLANNED) bị loại khỏi từ vựng chip.
-  Link cũ có `dispatchStatus=UNASSIGNED`/`ASSIGNED` vẫn lọc được (alias theo nhà xe).
-- **Vai trò:** `DISPATCHER`, `CUS`
+  "Chưa điều xe" (UNASSIGNED) vẫn bị loại khỏi từ vựng chip. Link cũ `dispatchStatus=UNASSIGNED`/`ASSIGNED` vẫn lọc được (alias theo nhà xe).
+- **Vai trò:** `Điều phối viên`, `KH`
 - **Mức độ:** P1
 - **Các bước:**
-  1. Mở drawer lô (CUS hoặc Điều vận) → ledger container: dòng chưa điều xe hiển thị "Chờ phân xe".
-  2. Dòng có chuyến CREATED + đã có giờ hẹn đóng/trả → vẫn "Chờ phân xe".
-  3. Xóa giờ hẹn đóng/trả của dòng đó → chip chuyển "Đã tạo chuyến".
-  4. Trên workboard DOCX (/shipments-containers), filter Trạng thái: dropdown chỉ 4 nhãn trên;
-     chọn "Chờ phân xe" → API gửi `dispatchStatus=AWAITING_VEHICLE` và chỉ trả dòng chờ phân xe.
-  5. Gửi thẳng query `dispatchStatus=CREATED` → chỉ trả dòng chuyến CREATED thiếu giờ hẹn.
-- **Kết quả mong đợi (Pass):** chip luôn thuộc 4 trạng thái; "Đã tạo chuyến" chỉ xuất hiện khi thiếu
-  giờ hẹn đóng/trả; không bề mặt nào hiển thị lại "Chưa điều xe"/"Đã phân xe" cho chip điều vận.
-- **Kỳ vọng sai (Fail nếu):** dòng có đủ giờ hẹn vẫn hiện "Đã tạo chuyến"; filter trả dòng sai nhóm.
+  1. Mở drawer lô (CUS hoặc Điều vận) → ledger container: dòng chưa điều xe, chưa có xe → "Chờ phân xe".
+  2. Dòng có chuyến CREATED + đã có giờ hẹn đóng/trả nhưng **chưa gắn xe** → vẫn "Chờ phân xe".
+  3. Gắn xe vào chuyến đó (hoặc phân bổ xe khi chưa phát hành) → chip chuyển "Đã phân xe", cùng biển số cột Phân xe.
+  4. Xóa giờ hẹn đóng/trả của dòng có chuyến → chip chuyển "Đã tạo chuyến".
+  5. Trên workboard DOCX (/shipments-containers), filter Trạng thái: dropdown đủ 5 nhãn;
+     chọn "Đã phân xe" → API gửi `dispatchStatus=PLANNED` và chỉ trả dòng đã có xe.
+  6. Gửi thẳng query `dispatchStatus=CREATED` → chỉ trả dòng chuyến CREATED thiếu giờ hẹn.
+- **Kết quả mong đợi (Pass):** chip luôn thuộc 5 trạng thái; "Đã tạo chuyến" chỉ khi thiếu giờ hẹn;
+  "Đã phân xe" ngay khi dòng có xe (kể cả chưa phát hành chuyến); không bề mặt nào hiển thị lại
+  "Chưa điều xe" cho chip điều vận.
+- **Kỳ vọng sai (Fail nếu):** dòng có xe vẫn hiện "Chờ phân xe" (bug KH báo tối 2026-09-08); dòng có
+  đủ giờ hẹn vẫn hiện "Đã tạo chuyến"; filter trả dòng sai nhóm.
 - **Bằng chứng:** backend test "dispatchStatus reads Đã tạo chuyến only while the appointment date
-  is missing" + "dispatchStatus record statuses filter by the badge derivation"
-  (cus-shipment-workspace.test.ts); frontend `dispatchStatusVocabulary.test.ts` (pin 4 nhãn).
+  is missing" + "dispatchStatus reads Đã phân xe once a vehicle is on the line" + "dispatchStatus
+  record statuses filter by the badge derivation" (cus-shipment-workspace.test.ts); frontend
+  `dispatchStatusVocabulary.test.ts` (pin 5 nhãn).
 
 ### TC-DV-DISPATCH-043 — Bảng phân bổ nhà xe tách biệt từng ngày đóng/trả cho lô hàng có nhiều ngày khác nhau
 
@@ -1151,6 +1155,26 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
   dòng LCL ("Lẻ" disabled) + ảnh Network PATCH 200 (classification) và DB `shipments.is_combined` không
   đổi khi gửi isCombined; backend + frontend tests như TC-DV-DISPATCH-041.
 
+### TC-DV-DISPATCH-045 — Cont đã phân xe không còn hiển thị "Chờ phân xe" — chip 5 trạng thái (báo lỗi KH 2026-09-08 tối)
+
+- **Mã PRD:** Báo lỗi khách hàng 2026-09-08 tối — Màn hình CUS "Chi tiết lô hàng": các cont đã được phân xe (cột Phân xe hiển thị nhà xe + biển số) vẫn hiện trạng thái "Chờ phân xe", mâu thuẫn với counter "Hôm nay chờ phân xe" = 0 trên cùng màn hình.
+- **Vai trò:** `DISPATCHER`, `CUS`
+- **Mức độ:** P1
+- **Thiết bị:** Desktop (1440×900)
+- **Tiền điều kiện:** Lô hàng FCL `READY_FOR_DISPATCH` có container đã được phân xe (cột Phân xe hiển thị nhà xe + biển số), chưa phát hành chuyến hoặc chuyến CREATED đã gắn xe, và đã có giờ hẹn đóng/trả.
+- **Các bước:**
+  1. Đăng nhập `CUS` (hoặc `DISPATCHER`). Mở Chi tiết lô hàng → ledger container.
+  2. Tìm dòng container có cột Phân xe hiển thị nhà xe + biển số (ví dụ SilverSea 15C-167.31).
+  3. Quan sát chip Trạng thái của dòng đó.
+  4. Lọc Trạng thái = "Đã phân xe" trên workboard /shipments-containers.
+  5. Kiểm tra counter "Hôm nay chờ phân xe" trên cùng màn hình.
+- **Kết quả mong đợi (Pass):**
+  - Bước 3: chip hiển thị "Đã phân xe" (PLANNED) — KHÔNG còn "Chờ phân xe" cho dòng đã có xe.
+  - Bước 4: lọc PLANNED trả đúng các dòng đã có xe; "Chờ phân xe" chỉ còn dòng chưa có xe (kể cả đã có giờ hẹn).
+  - Bước 5: counter khớp số dòng badge "Chờ phân xe" trên trang.
+- **Kỳ vọng sai (Fail nếu):** dòng có xe vẫn hiện "Chờ phân xe"; badge và counter mâu thuẫn; filter PLANNED trả dòng thiếu xe.
+- **Bằng chứng:** backend tests "dispatchStatus reads Đã phân xe once a vehicle is on the line" + "dispatchStatus record statuses filter by the badge derivation" (cus-shipment-workspace.test.ts); frontend `dispatchStatusVocabulary.test.ts` (pin 5 nhãn).
+
 ---
 
 
@@ -1201,8 +1225,7 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
 | __/__/__ | TC-DV-DISPATCH-039 | | | Thay đổi tác vụ điều phối + audit log | |
 | __/__/__ | TC-DV-DISPATCH-040 | | | Dropdown picker không che nút dưới màn hình — flip + portal (dropdown-flip sweep) | |
 | __/__/__ | TC-DV-DISPATCH-041 | | | Điều vận được chọn Phân loại; không checkbox Đóng kết hợp (2026-09-08, đảo quyết định) | |
-| __/__/__ | TC-DV-DISPATCH-042 | | | Chip điều vận 4 trạng thái theo ngày đóng/trả (2026-09-08) | |
+| __/__/__ | TC-DV-DISPATCH-042 | | | Chip điều vận 5 trạng thái: Đã phân xe khi dòng có xe (2026-09-08) | |
 | __/__/__ | TC-DV-DISPATCH-043 | | | Bảng phân bổ nhà xe tách biệt từng ngày đóng/trả (2026-09-08) | |
 | __/__/__ | TC-DV-DISPATCH-044 | | | Select Phân loại trở lại Chỉnh sửa điều phối — 3 lựa chọn, không checkbox (2026-09-08) | |
-| __/__/__ | TC-DV-DISPATCH-042 | | | Chip điều vận 4 trạng thái theo ngày đóng/trả (2026-09-08) | |
-| __/__/__ | TC-DV-DISPATCH-043 | | | Bảng phân bổ nhà xe tách biệt từng ngày đóng/trả (2026-09-08) | |
+| __/__/__ | TC-DV-DISPATCH-045 | | | Cont đã phân xe không còn "Chờ phân xe" — chip 5 trạng thái (2026-09-08) | |
