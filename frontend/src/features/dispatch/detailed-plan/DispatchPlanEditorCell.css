@@ -556,3 +556,248 @@
   color: var(--text-secondary, #475467);
   word-break: break-word;
 }
+
+/* ─── Tag manager popover ("Quản lý tag") ─────────────────────────────────
+   Body-portal + backdrop + fixed viewport-aware coords, mirroring the
+   cus-appointment popover pattern (ShipmentsPage.css) so the panel never
+   clips inside the assignment dialog. */
+
+.dispatch-assignment-dialog__notes-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dispatch-assignment-dialog__notes-manage-btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary, #475467);
+  cursor: pointer;
+}
+
+.dispatch-assignment-dialog__notes-manage-btn:hover:not(:disabled) {
+  border-color: var(--border, #d0d5dd);
+  color: var(--accent, #005a2d);
+  background: var(--surface-hover, #f8fafc);
+}
+
+.dispatch-tag-manager__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1040;
+  background: transparent;
+}
+
+.dispatch-tag-manager {
+  position: fixed;
+  z-index: 1050;
+  width: 280px;
+  max-width: calc(100vw - 24px);
+  padding: 12px;
+  border: 1px solid var(--line-strong, #cbd5e1);
+  border-radius: var(--app-radius-sm, 8px);
+  background: var(--surface, #ffffff);
+  box-shadow: 0 12px 28px -4px rgba(15, 23, 42, 0.16), 0 4px 10px -2px rgba(15, 23, 42, 0.08);
+  animation: dispatchTagManagerPopIn 130ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes dispatchTagManagerPopIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.dispatch-tag-manager__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.dispatch-tag-manager__header strong {
+  font-size: 12px;
+  color: var(--text-primary, #101828);
+}
+
+.dispatch-tag-manager__count {
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--surface-muted, #f2f4f7);
+  color: var(--text-secondary, #475467);
+  font-size: 11px;
+  text-align: center;
+}
+
+.dispatch-tag-manager__close {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-left: auto;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary, #475467);
+  cursor: pointer;
+}
+
+.dispatch-tag-manager__close:hover {
+  background: var(--surface-muted, #f2f4f7);
+  color: var(--text-primary, #101828);
+}
+
+.dispatch-tag-manager__list {
+  display: flex;
+  flex-direction: column;
+  max-height: 264px;
+  overflow-y: auto;
+  border: 1px solid var(--border, #d0d5dd);
+  border-radius: 8px;
+}
+
+.dispatch-tag-manager__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 3px 8px;
+}
+
+.dispatch-tag-manager__row + .dispatch-tag-manager__row {
+  border-top: 1px solid var(--border-light, #eaecf0);
+}
+
+.dispatch-tag-manager__label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--ops-table-supporting-size, 12px);
+  color: var(--text-primary, #101828);
+}
+
+.dispatch-tag-manager__row-actions {
+  display: inline-flex;
+  gap: 2px;
+  opacity: 1;
+}
+
+.dispatch-tag-manager__icon-btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary, #475467);
+  cursor: pointer;
+}
+
+.dispatch-tag-manager__icon-btn:hover {
+  background: var(--surface-muted, #f2f4f7);
+  color: var(--accent, #005a2d);
+}
+
+.dispatch-tag-manager__icon-btn--danger:hover {
+  background: var(--danger-soft, #fdf0f1);
+  color: var(--danger, #A0444E);
+}
+
+.dispatch-tag-manager__edit-row,
+.dispatch-tag-manager__confirm {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.dispatch-tag-manager__edit-row input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--border, #d0d5dd);
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-size: var(--ops-table-supporting-size, 12px);
+}
+
+.dispatch-tag-manager__edit-row input:focus {
+  outline: 2px solid var(--accent, #005a2d);
+  outline-offset: 1px;
+}
+
+.dispatch-tag-manager__edit-row button,
+.dispatch-tag-manager__confirm button {
+  appearance: none;
+  flex-shrink: 0;
+  border: 1px solid var(--border, #d0d5dd);
+  border-radius: 8px;
+  padding: 4px 10px;
+  background: var(--surface, #fff);
+  color: var(--text-primary, #101828);
+  font-size: var(--ops-table-supporting-size, 12px);
+  cursor: pointer;
+}
+
+.dispatch-tag-manager__edit-row button:first-of-type,
+.dispatch-tag-manager__confirm .dispatch-tag-manager__confirm-yes {
+  border-color: var(--accent, #005a2d);
+  background: var(--accent, #005a2d);
+  color: #fff;
+}
+
+.dispatch-tag-manager__confirm span {
+  flex: 1;
+  font-size: var(--ops-table-supporting-size, 12px);
+  color: var(--danger, #A0444E);
+  font-weight: 500;
+  min-width: 0;
+}
+
+.dispatch-tag-manager__notice {
+  margin: 8px 0 0;
+  font-size: var(--ops-table-meta-size, 11px);
+  color: var(--danger, #A0444E);
+}
+
+.dispatch-tag-manager__empty {
+  margin: 0;
+  font-size: var(--ops-table-supporting-size, 12px);
+  color: var(--text-secondary, #475467);
+}
+
+.dispatch-tag-manager__footer {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 8px;
+  font-size: var(--ops-table-meta-size, 11px);
+  color: var(--text-secondary, #475467);
+}
+
+@media (max-width: 480px) {
+  .dispatch-tag-manager {
+    width: calc(100vw - 24px);
+  }
+}

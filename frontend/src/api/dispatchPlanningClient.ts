@@ -400,3 +400,11 @@ export function listDispatchTaskTags() {
 export function createDispatchTaskTag(label: string) {
   return api.post<{ id: number; label: string }>('/shipments/dispatch-task-tags', { label });
 }
+
+export function updateDispatchTaskTag(id: number, label: string) {
+  return api.patch<{ id: number; label: string }>(`/shipments/dispatch-task-tags/${id}`, { label });
+}
+
+export function deactivateDispatchTaskTag(id: number) {
+  return api.delete<{ ok: true }>(`/shipments/dispatch-task-tags/${id}`);
+}
