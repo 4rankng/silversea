@@ -29,7 +29,11 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // Added 2026-09-07: baseline 401 (was new-file capped) — the atomic plan
   // save now carries operationalNotes and the tag-pool client helpers
   // (list/create) live here beside the other dispatch planning calls.
-  'src/api/dispatchPlanningClient.ts': 410,
+  // Bumped 410 → 430: 2026-09-08 external-carrier staff close — the client
+  // gains completeDispatchExternalTrip beside the other dispatch planning
+  // calls, and DispatchDetailPlanRow.taskStatus gains 'COMPLETED'.
+  // Reviewed as a contract change.
+  'src/api/dispatchPlanningClient.ts': 430,
   // Bumped 400 (new-file) → 430: 2026-09-07 dropdown-flip sweep — the
   // multi-select picker gained selectionLabel + onSearchChange (aria names
   // and debounced server refetch) during the facet migration. Reviewed as a
@@ -66,13 +70,19 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // Bumped 705 → 725: 2026-09-08 TC_COMB_01-03 — enforce 20ft container rule
   // for isCombined checkbox, disabling and tooltip title for 40ft/45ft containers,
   // atomic plan save guard. Reviewed as a contract change.
-  'src/features/dispatch/detailed-plan/DispatchPlanEditorCell.tsx': 725,
+  // Bumped 725 → 745: 2026-09-08 external-carrier staff close — the cell
+  // gains the "Hoàn thành" quick action (button + prop) and the issue chip
+  // derives a completed state. Reviewed as a contract change.
+  'src/features/dispatch/detailed-plan/DispatchPlanEditorCell.tsx': 745,
   // Bumped 446 → 448: driver-note save now carries operationalNotes and the
   // optimistic row update refreshes notes.vehicleNote (2026-09-07). Reviewed
   // as a contract change.
   // Bumped 448 → 450: 2026-09-08 — the dispatch editor no longer owns
   // classification/lot-flag (route strips both), documented at the save body.
-  'src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts': 450,
+  // Bumped 450 → 485: 2026-09-08 external-carrier staff close — the hook
+  // gains completeExternalTrip (client call + optimistic row flip + typed
+  // errors), mirroring issueOrder. Reviewed as a contract change.
+  'src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts': 485,
   'src/features/dispatch/master-plan/DispatchAllocationPopover.tsx': 454,
   'src/features/dispatch/master-plan/MasterPlanFilters.tsx': 735,
   // Bumped 508 → 520: 282fe386 (2026-09-05, "fix(dispatch): keep dispatched

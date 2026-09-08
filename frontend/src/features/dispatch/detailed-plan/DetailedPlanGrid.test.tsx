@@ -68,6 +68,7 @@ function renderGrid(items: DispatchDetailPlanRow[], extraProps: Record<string, u
       onToggleSort={vi.fn()}
       onAtomicSave={vi.fn()}
       onOpenTripReassign={vi.fn()}
+      onCompleteExternalTrip={vi.fn()}
       onIssueOrder={vi.fn()}
       {...extraProps}
     />,

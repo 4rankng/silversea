@@ -63,6 +63,8 @@ interface DetailedPlanGridProps {
     },
   ) => Promise<AtomicPlanSaveResult>;
   onOpenTripReassign: (tripId: number) => void;
+  /** Staff close for external-carrier trips (dispatch/CUS on the driver's behalf). */
+  onCompleteExternalTrip: (row: DispatchDetailPlanRow) => void;
   onIssueOrder: (
     row: DispatchDetailPlanRow,
     body: Omit<DispatchShipmentRequest, 'fulfillmentId' | 'expectedVersion'>,
@@ -93,6 +95,7 @@ export function DetailedPlanGrid({
   onToggleSort,
   onAtomicSave,
   onOpenTripReassign,
+  onCompleteExternalTrip,
   onIssueOrder,
 }: DetailedPlanGridProps) {
   const { tags } = useDispatchTaskTags();
@@ -254,6 +257,7 @@ export function DetailedPlanGrid({
                       row={row}
                       onAtomicSave={onAtomicSave}
                       onOpenTripReassign={onOpenTripReassign}
+                      onCompleteExternalTrip={onCompleteExternalTrip}
                       onIssueOrder={onIssueOrder}
                     />
                   </td>

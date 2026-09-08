@@ -4,6 +4,7 @@ import type { DispatchClassification } from '@tingting/shared';
 import {
   assignDispatchDetailPlate,
   assignDispatchDetailCarrier,
+  completeDispatchExternalTrip,
   listDispatchDeliveryPointFacets,
   listDispatchDetailPlanRows,
   listDispatchDropoffPortFacets,
@@ -399,6 +400,34 @@ export function useDispatchDetailPlan() {
     }
   }, []);
 
+  /** Staff close for external-carrier trips — the external driver never uses
+   *  the app, so dispatch/CUS flip the trip to COMPLETED from the grid row
+   *  (trips complete-external). The row's own status chip keys on taskStatus
+   *  too, so both flip together with the trip status. */
+  const completeExternalTrip = useCallback(async (row: DispatchDetailPlanRow) => {
+    if (row.dispatch.tripId == null) return null;
+    setAssignmentError(null);
+    try {
+      const result = await completeDispatchExternalTrip(row.dispatch.tripId);
+      setItems((previous) => previous.map((item) => (item.fulfillmentId === row.fulfillmentId
+        ? {
+          ...item,
+          taskStatus: 'COMPLETED',
+          dispatch: { ...item.dispatch, tripStatus: 'COMPLETED' },
+        }
+        : item)));
+      return result;
+    } catch (mutationError) {
+      const status = (mutationError as { status?: number }).status;
+      setAssignmentError(status === 409
+        ? 'Dữ liệu đã thay đổi. Vui lòng tải lại.'
+        : status === 403
+          ? 'Bạn không có quyền hoàn thành chuyến xe ngoài.'
+          : 'Không thể hoàn thành chuyến. Vui lòng thử lại.');
+      throw mutationError;
+    }
+  }, []);
+
   const refresh = useCallback(() => {
     setRefreshKey((value) => value + 1);
   }, []);
@@ -436,6 +465,7 @@ export function useDispatchDetailPlan() {
     updateEstimates,
     savePlan,
     issueOrder,
+    completeExternalTrip,
     assignmentError,
     clearAssignmentError: () => setAssignmentError(null),
     lotBanner,

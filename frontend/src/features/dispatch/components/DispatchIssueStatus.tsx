@@ -7,12 +7,13 @@
  */
 import { Badge } from '../../../components/untitled-ui/base/badges/badges';
 
-export type DispatchIssueStatus = 'UNASSIGNED' | 'PLATED_NOT_ISSUED' | 'ISSUED';
+export type DispatchIssueStatus = 'UNASSIGNED' | 'PLATED_NOT_ISSUED' | 'ISSUED' | 'COMPLETED';
 
 export const DISPATCH_ISSUE_STATUS_LABELS: Record<DispatchIssueStatus, string> = {
   UNASSIGNED: 'Chưa xếp xe',
   PLATED_NOT_ISSUED: 'Đã xếp xe — chưa phát lệnh',
   ISSUED: 'Đã phát lệnh cho tài xế',
+  COMPLETED: 'Đã hoàn thành',
 };
 
 /**
@@ -20,11 +21,15 @@ export const DISPATCH_ISSUE_STATUS_LABELS: Record<DispatchIssueStatus, string> =
  * notification on: a live (non-canceled) trips row for the fulfillment.
  * `vehicleAssigned` is a planned plate/vehicle — visible to the dispatcher,
  * invisible to the driver until issuance.
+ * `completed` outranks both: once the trip closes, the issue lifecycle is
+ * over (driver-completed or closed by dispatch/CUS for external carriers).
  */
 export function deriveDispatchIssueStatus(input: {
   vehicleAssigned: boolean;
   issued: boolean;
+  completed?: boolean;
 }): DispatchIssueStatus {
+  if (input.completed) return 'COMPLETED';
   if (input.issued) return 'ISSUED';
   if (input.vehicleAssigned) return 'PLATED_NOT_ISSUED';
   return 'UNASSIGNED';
@@ -32,7 +37,8 @@ export function deriveDispatchIssueStatus(input: {
 
 export function dispatchIssueStatusBadgeColor(status: DispatchIssueStatus): 'gray' | 'warning' | 'success' {
   switch (status) {
-    case 'ISSUED': return 'success';
+    case 'ISSUED':
+    case 'COMPLETED': return 'success';
     case 'PLATED_NOT_ISSUED': return 'warning';
     default: return 'gray';
   }

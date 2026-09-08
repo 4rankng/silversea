@@ -16,13 +16,17 @@ describe('deriveDispatchIssueStatus', () => {
   it('a live trip outranks the plate, and nothing renders before either', () => {
     expect(deriveDispatchIssueStatus({ vehicleAssigned: true, issued: true })).toBe('ISSUED');
     expect(deriveDispatchIssueStatus({ vehicleAssigned: false, issued: false })).toBe('UNASSIGNED');
+    expect(deriveDispatchIssueStatus({ vehicleAssigned: true, issued: true, completed: true })).toBe('COMPLETED');
+    expect(DISPATCH_ISSUE_STATUS_LABELS.COMPLETED).toBe('Đã hoàn thành');
   });
 });
 
 describe('DispatchIssueStatusChip', () => {
-  it('renders the three states with their labels', () => {
-    render(<DispatchIssueStatusChip status="PLATED_NOT_ISSUED" />);
+  it('renders the states with their labels', () => {
+    const { rerender } = render(<DispatchIssueStatusChip status="PLATED_NOT_ISSUED" />);
     expect(screen.getByText('Đã xếp xe — chưa phát lệnh')).toBeTruthy();
+    rerender(<DispatchIssueStatusChip status="COMPLETED" />);
+    expect(screen.getByText('Đã hoàn thành')).toBeTruthy();
   });
 });
 
