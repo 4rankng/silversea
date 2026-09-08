@@ -321,6 +321,26 @@ before(async () => {
   await initAuditService();
   await initEnforcer();
 
+  // Seed the dispatch-zone taxonomy that requireDispatchZone() validates against.
+  // Production `make seed` inserts these; tests need them too because the zone
+  // validation rejects unknown codes with 400 instead of falling back to empty
+  // results. Idempotent: reactivates any zone left inactive by a prior run.
+  const zoneSeeds = [
+    { code: 'LACH_HUYEN', label: 'Lạch Huyện', sortOrder: 10, isActive: true },
+    { code: 'HAI_PHONG', label: 'Cảng Hải Phòng', sortOrder: 20, isActive: true },
+  ];
+  for (const z of zoneSeeds) {
+    const [existing] = await db.select().from(s.dispatchZones)
+      .where(eq(s.dispatchZones.code, z.code)).limit(1);
+    if (existing) {
+      await db.update(s.dispatchZones)
+        .set({ isActive: true, label: z.label, sortOrder: z.sortOrder })
+        .where(eq(s.dispatchZones.id, existing.id));
+    } else {
+      await db.insert(s.dispatchZones).values(z);
+    }
+  }
+
   const app = express();
   app.use(express.json());
   app.use('/api/shipments', authMiddleware, auditLogMiddleware, casbinAuthz('shipments'), shipmentRoutes);
