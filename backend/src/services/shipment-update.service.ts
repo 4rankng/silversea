@@ -136,7 +136,15 @@ export async function updateShipment(
     })) {
       throw new ApiError(409, 'Lô hàng đã sẵn sàng điều xe nên phải giữ ngày vận chuyển, giờ đóng hoặc thời gian trả hàng.');
     }
+    const existingContainers = existing.cargoMode === 'FCL'
+      ? await tx.select({ customerAppointmentAt: s.shipmentContainers.customerAppointmentAt })
+          .from(s.shipmentContainers)
+          .where(eq(s.shipmentContainers.shipmentId, existing.id))
+      : [];
+    const hasUndatedFclContainers = existingContainers.length > 0
+      && existingContainers.some((c) => c.customerAppointmentAt == null);
     const becomesReady = currentCanonicalStatus === 'PENDING_DATE'
+      && !hasUndatedFclContainers
       && hasDispatchDate({
         expectedDeliveryDate: nextExpectedDeliveryDate,
         closingAt: nextClosingAt,

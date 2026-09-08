@@ -271,7 +271,9 @@ function buildListItem(
   return {
     id: row.shipment.id,
     version: row.shipment.version,
-    status: canonicalShipmentStatus(row.shipment.status) ?? ShipmentStatus.PENDING_DATE,
+    status: (row.shipment.cargoMode === 'FCL' && operational.scheduleReadiness === 'WAITING_DATE' && canonicalShipmentStatus(row.shipment.status) === ShipmentStatus.READY_FOR_DISPATCH)
+      ? ShipmentStatus.PENDING_DATE
+      : (canonicalShipmentStatus(row.shipment.status) ?? ShipmentStatus.PENDING_DATE),
     cargoMode: row.shipment.cargoMode,
     bucket,
     bucketLabel: SHIPMENT_CUS_BUCKET_LABELS[bucket],

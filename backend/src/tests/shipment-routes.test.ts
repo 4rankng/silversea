@@ -1603,6 +1603,7 @@ describe('GET /cus-workspace', () => {
     const partial = await read();
     assert.ok(partial, 'seeded lot must appear in /cus-workspace');
     assert.equal(partial.operational.scheduleReadiness, 'WAITING_DATE');
+    assert.equal(partial.status, 'PENDING_DATE');
     // The dated cont's appointment still renders — the warning stacks on top.
     assert.deepEqual(partial.customerAppointmentAts, [firstAppointment]);
 
@@ -1610,9 +1611,13 @@ describe('GET /cus-workspace', () => {
     await db.update(s.shipmentContainers)
       .set({ customerAppointmentAt: new Date(secondAppointment) })
       .where(eq(s.shipmentContainers.id, undated.id));
+    await db.update(s.shipments)
+      .set({ status: 'READY_FOR_DISPATCH' })
+      .where(eq(s.shipments.id, shipment.id));
     const complete = await read();
     assert.ok(complete, 'seeded lot must appear in /cus-workspace');
     assert.equal(complete.operational.scheduleReadiness, 'SCHEDULED');
+    assert.equal(complete.status, 'READY_FOR_DISPATCH');
     assert.deepEqual(complete.customerAppointmentAts, [firstAppointment, secondAppointment]);
     assert.equal(complete.appointmentGroups.length, 2);
   });
