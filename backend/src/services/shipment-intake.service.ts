@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
-import { canonicalShipmentStatus, OperationalSiteType, Role } from '@tingting/shared';
+import { canonicalShipmentStatus, localDateInBusinessZone, OperationalSiteType, Role } from '@tingting/shared';
 import type { OperationalSiteInput, OperationalSiteUpdateInput } from '@tingting/shared';
 
 import { db } from '../db';
@@ -32,6 +32,7 @@ export interface SubmitShipmentForDispatchInput {
     externalCarrierId?: number | null;
     count20: number;
     count40: number;
+    appointmentDate?: string | null;
   }>;
 }
 
@@ -75,11 +76,15 @@ async function persistCarrierAllocations(
     return fulfillmentRows;
   }
 
-  const duplicateKeys = allocations.map((row) => row.carrierType === 'OWN'
-    ? 'OWN'
-    : `EXTERNAL:${row.externalCarrierId ?? ''}`);
+  const hasDates = allocations.some((row) => Boolean(row.appointmentDate));
+  const duplicateKeys = allocations.map((row) => {
+    const carrier = row.carrierType === 'OWN'
+      ? 'OWN'
+      : `EXTERNAL:${row.externalCarrierId ?? ''}`;
+    return hasDates ? `${row.appointmentDate ?? ''}:${carrier}` : carrier;
+  });
   if (new Set(duplicateKeys).size !== duplicateKeys.length) {
-    throw new ApiError(409, 'Mỗi nhà xe chỉ được xuất hiện một lần.');
+    throw new ApiError(409, hasDates ? 'Mỗi nhà xe chỉ được xuất hiện một lần trong cùng một ngày.' : 'Mỗi nhà xe chỉ được xuất hiện một lần.');
   }
   const externalCarrierIds = allocations
     .filter((row) => row.carrierType === 'EXTERNAL')
@@ -102,6 +107,7 @@ async function persistCarrierAllocations(
     id: s.shipmentContainers.id,
     typeCode: s.containerTypes.code,
     typeName: s.containerTypes.name,
+    customerAppointmentAt: s.shipmentContainers.customerAppointmentAt,
   }).from(s.shipmentContainers)
     .innerJoin(s.containerTypes, eq(s.containerTypes.id, s.shipmentContainers.containerTypeId))
     .where(and(
@@ -111,12 +117,29 @@ async function persistCarrierAllocations(
     .orderBy(asc(s.shipmentContainers.id));
   const bucket20: number[] = [];
   const bucket40: number[] = [];
+  const bucket20ByDate = new Map<string, number[]>();
+  const bucket40ByDate = new Map<string, number[]>();
+
   for (const container of containerRows) {
     const bucket = containerSizeBucket(container.typeCode, container.typeName);
-    if (bucket === 20) bucket20.push(container.id);
-    else if (bucket === 40) bucket40.push(container.id);
-    else throw new ApiError(409, `Loại container ${container.typeName} chưa được hỗ trợ gán nhà xe 20/40.`);
+    const dateKey = container.customerAppointmentAt
+      ? (localDateInBusinessZone(container.customerAppointmentAt) ?? '__UNSCHEDULED__')
+      : '__UNSCHEDULED__';
+    if (bucket === 20) {
+      bucket20.push(container.id);
+      const list = bucket20ByDate.get(dateKey) ?? [];
+      list.push(container.id);
+      bucket20ByDate.set(dateKey, list);
+    } else if (bucket === 40) {
+      bucket40.push(container.id);
+      const list = bucket40ByDate.get(dateKey) ?? [];
+      list.push(container.id);
+      bucket40ByDate.set(dateKey, list);
+    } else {
+      throw new ApiError(409, `Loại container ${container.typeName} chưa được hỗ trợ gán nhà xe 20/40.`);
+    }
   }
+
   const total20 = allocations.reduce((sum, row) => sum + row.count20, 0);
   const total40 = allocations.reduce((sum, row) => sum + row.count40, 0);
   if (total20 > bucket20.length || total40 > bucket40.length) {
@@ -132,24 +155,78 @@ async function persistCarrierAllocations(
     );
   }
 
-  const assignmentByContainer = new Map<number, { carrierType: 'OWN' | 'EXTERNAL' | null; externalCarrierId: number | null }>();
-  let index20 = 0;
-  let index40 = 0;
-  for (const allocation of allocations) {
-    if (allocation.count20 < 0 || allocation.count40 < 0 || !Number.isInteger(allocation.count20) || !Number.isInteger(allocation.count40)) {
-      throw new ApiError(400, 'Số lượng container phân bổ phải là số nguyên không âm.');
+  if (hasDates) {
+    const allocationsByDate = new Map<string, { total20: number; total40: number }>();
+    for (const alloc of allocations) {
+      const dateKey = alloc.appointmentDate?.trim() || '__UNSCHEDULED__';
+      const cur = allocationsByDate.get(dateKey) ?? { total20: 0, total40: 0 };
+      cur.total20 += alloc.count20;
+      cur.total40 += alloc.count40;
+      allocationsByDate.set(dateKey, cur);
     }
-    const carrier = {
-      carrierType: allocation.carrierType,
-      externalCarrierId: allocation.carrierType === 'EXTERNAL' ? allocation.externalCarrierId ?? null : null,
-    };
-    for (let count = 0; count < allocation.count20; count += 1) {
-      assignmentByContainer.set(bucket20[index20++]!, carrier);
-    }
-    for (let count = 0; count < allocation.count40; count += 1) {
-      assignmentByContainer.set(bucket40[index40++]!, carrier);
+    for (const [dateKey, dateTotals] of allocationsByDate) {
+      const demand20 = (bucket20ByDate.get(dateKey) ?? []).length;
+      const demand40 = (bucket40ByDate.get(dateKey) ?? []).length;
+      if (dateTotals.total20 > demand20 || dateTotals.total40 > demand40) {
+        const label = dateKey === '__UNSCHEDULED__' ? 'chưa chốt ngày' : `ngày ${dateKey}`;
+        throw new ApiError(
+          409,
+          `Phân bổ vượt số lượng container ${label}: 20' ${dateTotals.total20}/${demand20}, 40' ${dateTotals.total40}/${demand40}.`,
+        );
+      }
     }
   }
+
+  const assignmentByContainer = new Map<number, { carrierType: 'OWN' | 'EXTERNAL' | null; externalCarrierId: number | null }>();
+  if (hasDates) {
+    const index20ByDate = new Map<string, number>();
+    const index40ByDate = new Map<string, number>();
+    for (const allocation of allocations) {
+      if (allocation.count20 < 0 || allocation.count40 < 0 || !Number.isInteger(allocation.count20) || !Number.isInteger(allocation.count40)) {
+        throw new ApiError(400, 'Số lượng container phân bổ phải là số nguyên không âm.');
+      }
+      const carrier = {
+        carrierType: allocation.carrierType,
+        externalCarrierId: allocation.carrierType === 'EXTERNAL' ? allocation.externalCarrierId ?? null : null,
+      };
+      const dateKey = allocation.appointmentDate?.trim() || '__UNSCHEDULED__';
+      const dateBucket20 = bucket20ByDate.get(dateKey) ?? [];
+      const dateBucket40 = bucket40ByDate.get(dateKey) ?? [];
+      let idx20 = index20ByDate.get(dateKey) ?? 0;
+      let idx40 = index40ByDate.get(dateKey) ?? 0;
+      for (let count = 0; count < allocation.count20; count += 1) {
+        if (idx20 < dateBucket20.length) {
+          assignmentByContainer.set(dateBucket20[idx20++]!, carrier);
+        }
+      }
+      for (let count = 0; count < allocation.count40; count += 1) {
+        if (idx40 < dateBucket40.length) {
+          assignmentByContainer.set(dateBucket40[idx40++]!, carrier);
+        }
+      }
+      index20ByDate.set(dateKey, idx20);
+      index40ByDate.set(dateKey, idx40);
+    }
+  } else {
+    let index20 = 0;
+    let index40 = 0;
+    for (const allocation of allocations) {
+      if (allocation.count20 < 0 || allocation.count40 < 0 || !Number.isInteger(allocation.count20) || !Number.isInteger(allocation.count40)) {
+        throw new ApiError(400, 'Số lượng container phân bổ phải là số nguyên không âm.');
+      }
+      const carrier = {
+        carrierType: allocation.carrierType,
+        externalCarrierId: allocation.carrierType === 'EXTERNAL' ? allocation.externalCarrierId ?? null : null,
+      };
+      for (let count = 0; count < allocation.count20; count += 1) {
+        assignmentByContainer.set(bucket20[index20++]!, carrier);
+      }
+      for (let count = 0; count < allocation.count40; count += 1) {
+        assignmentByContainer.set(bucket40[index40++]!, carrier);
+      }
+    }
+  }
+
   if (!allowPartial && assignmentByContainer.size !== containerRows.length) {
     throw new ApiError(409, 'Mỗi container phải được gán đúng một nhà xe.');
   }
