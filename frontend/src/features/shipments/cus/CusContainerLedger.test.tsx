@@ -64,14 +64,19 @@ function renderLedger() {
 }
 
 describe('ContainerLedger confirm affordances', () => {
-  it('renders exactly one Lưu/Hủy pair per dirty row (inline in the appointment cell)', () => {
+  it('renders exactly one Lưu/Hủy pair per dirty row, floating inside the appointment cell', () => {
     const view = renderLedger();
     fireEvent.change(screen.getByLabelText(/Giờ hẹn đóng hoặc trả/), { target: { value: '2026-09-11T09:00' } });
 
     expect(view.confirmButtons()).toHaveLength(2);
+    // The pair must be an overlay anchored to the appointment cell (like the
+    // calendar picker), never an in-flow block that stretches the row.
+    const popover = view.container.querySelector('.cus-container-confirm-group--floating');
+    expect(popover?.closest('td')).toBe(view.container.querySelector('td[data-label="Giờ hẹn đóng/trả"]'));
+    expect(popover?.className.includes('--inline')).toBe(false);
   });
 
-  it('has no separate Thao tác column — the inline pair is the only confirm UI', () => {
+  it('has no separate Thao tác column — the floating pair is the only confirm UI', () => {
     renderLedger();
     fireEvent.change(screen.getByLabelText(/Giờ hẹn đóng hoặc trả/), { target: { value: '2026-09-11T09:00' } });
 

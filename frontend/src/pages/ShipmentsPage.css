@@ -1997,11 +1997,55 @@
   }
 }
 
-/* Dirty-row confirm pair lives inline in the Giờ hẹn đóng/trả cell (customer
- * feedback 2026-09-08: a separate Thao tác column duplicated the buttons and
- * its width pushed the ledger into a horizontal scroll). Text-only compact
- * buttons keep the appointment column — the row's widest editable control —
- * from bloating further. */
+/* Dirty-row confirm pair floats over the rows below the Giờ hẹn đóng/trả
+ * input (customer feedback 2026-09-08: an in-flow pair stretched the row —
+ * the pair must overlay like the native calendar picker, not take part in
+ * the cell layout). Text-only compact buttons keep the popover unobtrusive. */
+.cus-container-table .cus-container-cell {
+  /* Anchor for the floating confirm popover; also lets the editing cell's
+   * stacking context rise above later rows while it owns focus. */
+  position: relative;
+}
+
+.cus-container-table .cus-container-cell:focus-within {
+  z-index: 6;
+}
+
+.cus-container-cell .cus-container-confirm-group--floating {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 3;
+  display: flex;
+  gap: 6px;
+  width: max-content;
+  padding: 4px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--app-radius-sm, 6px);
+  background: var(--surface);
+  box-shadow: 0 8px 18px rgb(15 23 42 / 0.14);
+}
+
+/* The popover must never exit the scroll container's bottom edge on the last
+ * ledger row — flip it above the input there, mirroring the calendar. */
+.cus-container-row:last-child .cus-container-confirm-group--floating {
+  top: auto;
+  bottom: calc(100% + 4px);
+}
+
+/* Text-only compact pair: matches the ledger's 11px cell scale instead of
+ * the default .btn--sm chrome. */
+.cus-container-confirm-group--floating .btn {
+  min-height: 26px;
+  padding: 2px 10px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.cus-container-confirm--floating {
+  background-color: var(--brand-600, #005a2d) !important;
+  color: #fff !important;
+}
+
 .cus-container-row-error {
   background: var(--surface);
 }
@@ -2051,27 +2095,4 @@
 .cus-container-revert:focus-visible {
   outline: 2px solid var(--accent, #2563eb);
   outline-offset: 2px;
-}
-.cus-container-confirm-group--inline {
-  display: flex;
-  gap: 6px;
-  margin-top: 4px;
-  width: 100%;
-}
-/* Text-only compact pair: matches the ledger's 11px cell scale instead of
- * the default .btn--sm chrome, so a dirty row doesn't bloat the column. */
-.cus-container-confirm-group--inline .btn {
-  min-height: 26px;
-  padding: 2px 10px;
-  font-size: 11px;
-}
-.cus-container-confirm--inline {
-  flex: 1;
-  justify-content: center;
-  background-color: var(--brand-600, #005a2d) !important;
-  color: #fff !important;
-}
-.cus-container-revert--inline {
-  flex: 1;
-  justify-content: center;
 }

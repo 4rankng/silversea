@@ -280,16 +280,17 @@ function ContainerLineRow({
                 }
               }}
             />
-            {/* Confirm affordance right where the date is edited — a separate
-                Thao tác column sat off-screen in the drawer's horizontal
-                scroll, so save/revert there was invisible to whoever edits
-                this cell. The inline pair is the row's only confirm UI. */}
+            {/* Confirm affordance anchored to the date being edited — a
+                separate Thao tác column sat off-screen in the drawer's
+                horizontal scroll, and an in-flow pair stretched the row.
+                The pair floats over the rows below, exactly like the native
+                calendar picker does, so the cell keeps its compact height. */}
             {dirty && (
-              <div className="cus-container-confirm-group--inline">
-                <button type="button" className="btn btn--primary btn--sm cus-container-confirm cus-container-confirm--inline" onClick={() => void save()} disabled={saving} aria-label={`Lưu thay đổi cho container ${line.containerNumber || line.ordinal}`} title="Lưu (Enter cũng hoạt động)">
+              <div className="cus-container-confirm-group--floating">
+                <button type="button" className="btn btn--primary btn--sm cus-container-confirm cus-container-confirm--floating" onClick={() => void save()} disabled={saving} aria-label={`Lưu thay đổi cho container ${line.containerNumber || line.ordinal}`} title="Lưu (Enter cũng hoạt động)">
                   <span>Lưu</span>
                 </button>
-                <button type="button" className="btn btn--ghost btn--sm cus-container-revert cus-container-revert--inline" onClick={discardDraft} disabled={saving} aria-label={`Bỏ thay đổi cho container ${line.containerNumber || line.ordinal}`} title="Hủy thay đổi (Esc)">
+                <button type="button" className="btn btn--ghost btn--sm cus-container-revert cus-container-revert--floating" onClick={discardDraft} disabled={saving} aria-label={`Bỏ thay đổi cho container ${line.containerNumber || line.ordinal}`} title="Hủy thay đổi (Esc)">
                   <span>Hủy</span>
                 </button>
               </div>
