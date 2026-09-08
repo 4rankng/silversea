@@ -10,6 +10,7 @@ import {
   SHIPMENT_CUS_BUCKET_LABELS, SHIPMENT_DOCUMENT_CUSTODY_LABELS,
   SHIPMENT_CUS_MISSING_FIELD_LABELS, localDateInBusinessZone,
   ShipmentDocumentCustody,
+  TripStatus,
   type ShipmentCusWorkspaceListItem,
   type ShipmentCusWorkspaceContainerLine,
   type ShipmentCusWorkspaceFieldAccess,
@@ -481,6 +482,9 @@ function buildContainerLine(
     routeId: row.shipment.cargoMode === CARGO_MODE.FCL ? container.routeId : row.shipment.routeId,
     routeName: row.shipment.cargoMode === CARGO_MODE.FCL ? container.routeName : row.routeName,
     dispatchStatus,
+    tripId: assignment?.tripId ?? null,
+    // Assignment rows carry the raw varchar; the contract narrows to the enum.
+    tripStatus: (assignment?.tripStatus as TripStatus | null) ?? null,
     carrierType: carrierType as 'OWN' | 'EXTERNAL' | null,
     externalCarrierId,
     externalCarrierVehicleId: assignment?.tripExternalCarrierVehicleId ?? assignment?.plannedExternalCarrierVehicleId ?? null,

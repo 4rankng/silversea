@@ -18,6 +18,7 @@ export function ShipmentDetailContent({
   onDirtyChange,
   onSavingChange,
   actionsRef,
+  onExternalTripCompleted,
 }: {
   detail?: ShipmentCusWorkspaceDetail;
   loading: boolean;
@@ -25,12 +26,14 @@ export function ShipmentDetailContent({
   onRetry: () => void;
   onLineSaved: (line: ShipmentCusWorkspaceContainerLine) => Promise<void>;
   getIdempotencyKey: (signature: string) => string;
-  clearIdempotencyKey: (signature: string) => void;
+  clearIdempotencyKey: (withSignature: string) => void;
   idPrefix: string;
   onCollapse?: () => void;
   onDirtyChange?: (dirty: boolean) => void;
   onSavingChange?: (saving: boolean) => void;
   actionsRef?: React.MutableRefObject<ContainerLedgerHandle | null>;
+  /** Detail refetch after a staff close — completion advances the shipment. */
+  onExternalTripCompleted?: () => void;
 }) {
   return (
     <div className="cus-detail-content">

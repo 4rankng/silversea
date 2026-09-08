@@ -129,7 +129,11 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // Bumped 411 → 460: 2026-09-08 TC_BTN_01-03 — visible inline Save (primary green)
   // & Cancel buttons next to appointment input, Enter/Escape handling,
   // success/error toast notifications. Reviewed as a contract change.
-  'src/features/shipments/cus/CusContainerLedger.tsx': 460,
+  // Bumped 460 → 530: 2026-09-08 external-carrier staff close — the CUS
+  // ledger gains the Hoàn thành row action (button, confirm dialog, handler,
+  // refetch hook). Reviewed as a contract change; a future split (extract
+  // the external-trip close dialog) should restore a smaller ceiling.
+  'src/features/shipments/cus/CusContainerLedger.tsx': 530,
   'src/features/shipments/detail/ShipmentContainerLedger.tsx': 750,
   'src/features/tires/tire-controls.tsx': 526,
   'src/features/tires/tire-dialogs.tsx': 426,
