@@ -6,7 +6,6 @@ import { client, db } from '../db';
 import * as s from '../db/schema';
 import { applyTripPatch, insertTripComposite } from '../services/trip-composite.service';
 import { withTestCleanup } from './helpers/db-isolation';
-import type { AuthUser } from '../middleware/auth';
 import {
   generateDraft,
   getDocument,
@@ -27,7 +26,6 @@ import {
 } from '../services/payment-allocation.service';
 import {
   createShipment,
-  reviewShipmentChangeRequest,
   snapshotContainersIntoTrip,
   transitionShipmentStatus,
   updateShipment,
@@ -467,7 +465,7 @@ describe('Q22 source authority propagation', () => {
     assert.equal(reloadedTrip.version, trip.version + 1);
   });
 
-  test('routes post-dispatch cargo changes through a request without overwriting the linked trip', async () => {
+  test('applies post-dispatch cargo changes directly without overwriting the linked trip', async () => {
     const { shipment, trip, primaryCargo, secondaryCargo } = await createShipmentTripAuthorityFixture();
     const dispatched = await transitionShipmentStatus(
       shipment.id,
@@ -475,64 +473,29 @@ describe('Q22 source authority propagation', () => {
       { changedBy: actors[0]!.id },
     );
 
-    const requested = await updateShipment(shipment.id, {
+    // Approval workflow parked (customer undecided 2026-09-08): authority
+    // changes after dispatch apply directly — no change request is created
+    // and the linked trip keeps its own authority until re-dispatch.
+    const updated = await updateShipment(shipment.id, {
       expectedVersion: dispatched.version,
       cargoTypeId: secondaryCargo.id,
       updatedBy: actors[0]!.id,
     });
-    assert.equal(requested.changeMode, 'REQUESTED');
-    assert.equal(requested.cargoTypeId, primaryCargo.id);
+    assert.equal(updated.changeMode, 'DIRECT');
+    assert.equal(updated.cargoTypeId, secondaryCargo.id);
 
     const [request] = await db.select()
       .from(s.shipmentChangeRequests)
       .where(eq(s.shipmentChangeRequests.shipmentId, shipment.id))
       .limit(1);
-    assert.ok(request);
-    assert.equal(
-      (request.afterSnapshot as Record<string, unknown>).cargoTypeId,
-      secondaryCargo.id,
-    );
+    assert.equal(request, undefined);
 
-    const [beforeReviewShipment] = await db.select()
-      .from(s.shipments)
-      .where(eq(s.shipments.id, shipment.id))
-      .limit(1);
-    const [beforeReviewTrip] = await db.select()
+    const [afterUpdateTrip] = await db.select()
       .from(s.trips)
       .where(eq(s.trips.id, trip.id))
       .limit(1);
-    assert.equal(beforeReviewShipment?.cargoTypeId, primaryCargo.id);
-    assert.equal(beforeReviewTrip?.cargoTypeId, primaryCargo.id);
-    assert.equal(beforeReviewTrip?.sourceShipmentVersion, shipment.version);
-
-    const approver: AuthUser = {
-      userId: actors[2]!.id,
-      username: 'q22-approver',
-      email: null,
-      fullName: null,
-      role: Role.ADMIN,
-      customerId: null,
-      customerIds: [],
-    };
-    const review = await reviewShipmentChangeRequest(
-      shipment.id,
-      request.id,
-      'APPLIED',
-      approver,
-    );
-    assert.equal(review.resolution, 'APPLIED');
-
-    const [afterReviewShipment] = await db.select()
-      .from(s.shipments)
-      .where(eq(s.shipments.id, shipment.id))
-      .limit(1);
-    const [afterReviewTrip] = await db.select()
-      .from(s.trips)
-      .where(eq(s.trips.id, trip.id))
-      .limit(1);
-    assert.equal(afterReviewShipment?.cargoTypeId, secondaryCargo.id);
-    assert.equal(afterReviewTrip?.cargoTypeId, primaryCargo.id);
-    assert.equal(afterReviewTrip?.sourceShipmentVersion, shipment.version);
+    assert.equal(afterUpdateTrip?.cargoTypeId, primaryCargo.id);
+    assert.equal(afterUpdateTrip?.sourceShipmentVersion, shipment.version);
   });
 
   test('uses completion date for freight and expense date for service-fee periods', async () => {

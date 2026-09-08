@@ -18,6 +18,7 @@ import { eq, inArray } from 'drizzle-orm';
 import { db, client } from '../db';
 import * as s from '../db/schema';
 import { insertTripComposite } from '../services/trip-composite.service';
+import { calculateCheckDigit } from '@tingting/shared';
 import { Role, shipmentCusContainerQuerySchema, shipmentCusWorkspaceQuerySchema } from '@tingting/shared';
 import type { AuthUser } from '../middleware/auth';
 import { getCusShipmentWorkspaceDetail, listCusShipmentContainers, listCusShipmentWorkspace, updateCusShipmentContainerLine } from '../services/cus-shipment-workspace.service';
@@ -1117,8 +1118,16 @@ describe('Overview operational priority ordering', () => {
     assert.deepEqual(item.effectiveFactoryNames, [`Nhà máy C ${marker}`]);
   });
 
-  test('post-handoff container edits are denied as direct writes and must go through change requests', async () => {
+  test('post-handoff container edits apply directly — approval workflow is parked (customer undecided 2026-09-08)', async () => {
+    // Build ISO-6346-valid numbers (owner code + serial + computed check
+    // digit) so the edit reaches the governance check instead of tripping
+    // format validation.
     const marker = Math.random().toString(16).slice(2, 8);
+    const digits = marker.replace(/\D/g, '').padEnd(7, '0').slice(0, 7);
+    const originalStem = `WSRU${digits.slice(0, 6)}`; // 10 chars: 4-letter owner + 6-digit serial
+    const originalNumber = `${originalStem}${calculateCheckDigit(originalStem)}`;
+    const editedStem = `${originalStem.slice(0, 9)}${String((Number(originalStem.slice(9)) + 1) % 10)}`;
+    const editedNumber = `${editedStem}${calculateCheckDigit(editedStem)}`;
     const shipment = await seedShipment({
       blNumber: `WS-ROUTE-${marker}`,
       cargoMode: 'FCL',
@@ -1126,25 +1135,19 @@ describe('Overview operational priority ordering', () => {
       // Left intake-editable territory (dispatched):
       status: 'DISPATCHED',
     });
-    const container = await seedContainer(shipment.id, { containerNumber: `WSR1-${marker}` });
+    const container = await seedContainer(shipment.id, { containerNumber: originalNumber });
     await seedFulfillment(shipment.id, container.id);
 
-    await assert.rejects(
-      () => updateCusShipmentContainerLine({
-        shipmentId: shipment.id,
-        containerId: container.id,
-        input: {
-          expectedShipmentVersion: shipment.version,
-          containerNumber: `WSR1-${marker}-EDIT`,
-        },
-        actor: cusActor,
-      }),
-      (error: unknown) => {
-        assert.ok(error instanceof Error);
-        assert.match(error.message, /yêu cầu thay đổi/);
-        return true;
+    const result = await updateCusShipmentContainerLine({
+      shipmentId: shipment.id,
+      containerId: container.id,
+      input: {
+        expectedShipmentVersion: shipment.version,
+        containerNumber: editedNumber,
       },
-    );
+      actor: cusActor,
+    });
+    assert.equal(result.line.containerNumber, editedNumber);
   });
 
   test('TC_UNAS_01 & TC_UNAS_02: ADMIN and MANAGER can update customerAppointmentAt on unassigned container even when shipment is DISPATCHED', async () => {
@@ -1538,8 +1541,9 @@ describe('Overview operational priority ordering', () => {
 
   test('allows a post-handoff port edit when the submitted route is unchanged', async () => {
     // The route editor submits routeId, liftSiteId, and dropoffSiteId together.
-    // Presence of an unchanged route must not turn an otherwise permitted port
-    // edit into a governed route change after the shipment handoff.
+    // An unchanged routeId must not turn the port edit into anything special —
+    // the approval workflow is parked (customer undecided 2026-09-08), so all
+    // post-handoff container edits apply directly.
     const marker = Math.random().toString(16).slice(2, 8);
     const route = await seedRoute();
     const [liftPortA] = await db.insert(s.ports).values({

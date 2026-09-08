@@ -28,9 +28,6 @@ import {
   isDirectlyEditableIntakeStatus,
 } from './shipment-intake.service';
 import {
-  classifyClerkContainerChange,
-  createShipmentChangeRequest,
-  isClerkScopedUser,
 } from './shipment-edit-boundary.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import type {
@@ -544,36 +541,10 @@ export async function batchUpsertShipmentContainers(
       .from(s.shipmentContainers)
       .where(eq(s.shipmentContainers.shipmentId, shipmentId));
 
-    if (actor && isClerkScopedUser(actor) && !isDirectlyEditableIntakeStatus(existing.status)) {
-      const classification = classifyClerkContainerChange(current, synchronizedContainers);
-      if (classification.mode === 'NOOP') {
-        return {
-          items: current,
-          upsertedIds: current.map((row) => row.id),
-          shipmentVersion: existing.version,
-          changeMode: 'NOOP' as const,
-          changeRequestId: null,
-          notificationDelivered: true,
-        };
-      }
-      const changeRequestId = await createShipmentChangeRequest(tx, {
-        shipment: existing,
-        sourceVersion: existing.version,
-        requestKind: 'CONTAINER_RECONCILE',
-        requestedBy: actor.userId,
-        beforeSnapshot: classification.beforeSnapshot,
-        afterSnapshot: classification.afterSnapshot,
-      });
-      return {
-        items: current,
-        upsertedIds: current.map((row) => row.id),
-        shipmentVersion: existing.version,
-        changeMode: 'REQUESTED' as const,
-        changeRequestId,
-        notificationDelivered: false,
-        message: 'Đã ghi nhận thay đổi công-te-nơ.',
-      };
-    }
+    // Approval workflow parked (customer undecided 2026-09-08): clerk
+    // container reconciles apply directly instead of opening a change
+    // request. Re-route through createShipmentChangeRequest here when the
+    // customer signs off on an approval process.
 
     const reconciled = await reconcileShipmentContainersWithFulfillmentGuard(
       tx,
@@ -599,13 +570,5 @@ export async function batchUpsertShipmentContainers(
     };
     return legacyCompat ? reconciled.upsertedIds.map((id) => ({ id })) : directResult;
   };
-  const result = await runInTx(transaction, execute);
-  if (!legacyCompat && 'changeMode' in result && result.changeMode === 'REQUESTED') {
-    return {
-      ...result,
-      notificationDelivered: true,
-      message: 'Đã ghi nhận thay đổi công-te-nơ và thông báo điều vận.',
-    };
-  }
-  return result;
+  return runInTx(transaction, execute);
 }

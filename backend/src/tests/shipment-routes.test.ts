@@ -37,6 +37,7 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { client, db } from '../db';
 import * as s from '../db/schema';
 import { applyTripPatch, insertTripComposite } from '../services/trip-composite.service';
+import { createShipmentChangeRequest } from '../services/shipment-edit-boundary.service';
 import { Role, ShipmentStatus, ShipmentDocumentType } from '@tingting/shared';
 import { config } from '../config';
 import { initEnforcer } from '../casbin/enforcer';
@@ -95,6 +96,57 @@ let secondaryClerkBusinessUnitId: number;
 
 let server: http.Server;
 let baseUrl: string;
+
+// Approval workflow parked (customer undecided 2026-09-08): write paths no
+// longer open change requests, but the review surface still ships. Seed a
+// pending request the same way the parked routing did so review lifecycle
+// coverage survives.
+async function seedPendingPlanRequest(shipmentId: number, before: unknown, after: unknown): Promise<number> {
+  const [shipment] = await db.select().from(s.shipments)
+    .where(eq(s.shipments.id, shipmentId)).limit(1);
+  assert.ok(shipment);
+  return db.transaction((tx) => createShipmentChangeRequest(tx, {
+    shipment,
+    sourceVersion: shipment.version,
+    requestKind: 'PLAN_UPDATE',
+    requestedBy: clerkUserId,
+    beforeSnapshot: before,
+    afterSnapshot: after,
+  }));
+}
+
+// Container reconcile requests keep the snapshot shape the review-apply
+// path expects: rows keyed by id with the desired final field values.
+async function seedPendingContainerRequest(
+  shipmentId: number,
+  containerId: number,
+  containerNumber: string | null,
+  sealNumber: string,
+  sourceVersion: number,
+): Promise<number> {
+  const [shipment] = await db.select().from(s.shipments)
+    .where(eq(s.shipments.id, shipmentId)).limit(1);
+  assert.ok(shipment);
+  const currentRows = await db.select().from(s.shipmentContainers)
+    .where(eq(s.shipmentContainers.shipmentId, shipmentId));
+  const before = currentRows.map((row) => ({
+    id: row.id,
+    containerTypeId: row.containerTypeId,
+    containerNumber: row.containerNumber,
+    sealNumber: row.sealNumber,
+  }));
+  const after = before.map((row) => (
+    row.id === containerId ? { ...row, containerNumber, sealNumber } : row
+  ));
+  return db.transaction((tx) => createShipmentChangeRequest(tx, {
+    shipment,
+    sourceVersion,
+    requestKind: 'CONTAINER_RECONCILE',
+    requestedBy: clerkUserId,
+    beforeSnapshot: before,
+    afterSnapshot: after,
+  }));
+}
 
 async function mkUser(username: string, role: Role) {
   const [u] = await db.insert(s.users).values({
@@ -2209,7 +2261,7 @@ describe('POST /cus-workspace/:id/containers/:containerId', () => {
       },
     });
     assert.equal(denied.status, 409);
-    assert.match(denied.data.error, /điều xe/i);
+    assert.match(denied.data.error, /gỡ phân xe/i);
   });
 
   test('denies ACCOUNTANT from writing a container line', async () => {
@@ -2900,7 +2952,7 @@ describe('PUT /:id', () => {
     assert.equal(r.status, 200);
   });
 
-  test('CLERK post-dispatch plan edits create a change request', async () => {
+  test('CLERK post-dispatch plan edits apply directly — approval workflow is parked', async () => {
     const { transitionShipmentStatus } = await import('../services/shipment.service');
     const shipment = await mkClerkScopedShipmentViaService({
       pickupLocation: 'Bãi cũ',
@@ -2914,17 +2966,16 @@ describe('PUT /:id', () => {
       body: { expectedVersion: dispatched.version, pickupLocation: 'Bãi mới' },
     });
     assert.equal(r.status, 200);
-    assert.equal(r.data.changeMode, 'REQUESTED');
-    assert.equal(r.data.pickupLocation, 'Bãi cũ');
+    assert.equal(r.data.changeMode, 'DIRECT');
+    assert.equal(r.data.pickupLocation, 'Bãi mới');
 
     const requests = await db.select()
       .from(s.shipmentChangeRequests)
       .where(inArray(s.shipmentChangeRequests.shipmentId, [shipment.id]));
-    assert.equal(requests.length, 1);
-    assert.equal(requests[0]?.requestKind, 'PLAN_UPDATE');
+    assert.equal(requests.length, 0);
   });
 
-  test('CLERK post-dispatch responsible-unit changes are request-only even when mixed with direct fields', async () => {
+  test('CLERK post-dispatch responsible-unit changes apply directly even when mixed with contact fields', async () => {
     const { transitionShipmentStatus } = await import('../services/shipment.service');
     const shipment = await mkClerkScopedShipmentViaService({
       contactName: 'Đầu mối cũ',
@@ -2943,15 +2994,14 @@ describe('PUT /:id', () => {
       },
     });
     assert.equal(r.status, 200);
-    assert.equal(r.data.changeMode, 'REQUESTED');
-    assert.equal(r.data.contactName, 'Đầu mối cũ');
-    assert.equal(r.data.responsibleUnitId, clerkBusinessUnitId);
+    assert.equal(r.data.changeMode, 'DIRECT');
+    assert.equal(r.data.contactName, 'Đầu mối mới');
+    assert.equal(r.data.responsibleUnitId, secondaryClerkBusinessUnitId);
 
-    const [request] = await db.select()
+    const requests = await db.select()
       .from(s.shipmentChangeRequests)
       .where(inArray(s.shipmentChangeRequests.shipmentId, [shipment.id]));
-    assert.ok(request, 'change request persisted');
-    assert.match(JSON.stringify(request.afterSnapshot), /responsibleUnitId/);
+    assert.equal(requests.length, 0);
   });
 
   test('CLERK explicit dossier field matrix covers pickup, delivery and BL before dispatch', async () => {
@@ -2978,7 +3028,7 @@ describe('PUT /:id', () => {
     assert.equal(r.data.blNumber, 'BL-Q17-MATRIX');
   });
 
-  test('CLERK post-dispatch shipment operations fields create a change request', async () => {
+  test('CLERK post-dispatch shipment operations fields apply directly', async () => {
     const { transitionShipmentStatus } = await import('../services/shipment.service');
     const shipment = await mkClerkScopedShipmentViaService({
       factoryName: 'Factory cũ',
@@ -2999,18 +3049,15 @@ describe('PUT /:id', () => {
       },
     });
     assert.equal(r.status, 200);
-    assert.equal(r.data.changeMode, 'REQUESTED');
-    assert.equal(r.data.factoryName, 'Factory cũ');
-    assert.equal(r.data.cargoMode, 'LCL');
-    assert.equal(r.data.operationalNotes, 'Ghi chú cũ');
+    assert.equal(r.data.changeMode, 'DIRECT');
+    assert.equal(r.data.factoryName, 'Factory mới');
+    assert.equal(r.data.cargoMode, 'FCL');
+    assert.equal(r.data.operationalNotes, 'Ghi chú mới');
 
-    const [request] = await db.select()
+    const requests = await db.select()
       .from(s.shipmentChangeRequests)
       .where(inArray(s.shipmentChangeRequests.shipmentId, [shipment.id]));
-    assert.ok(request, 'change request persisted');
-    assert.match(JSON.stringify(request.afterSnapshot), /factoryName/);
-    assert.match(JSON.stringify(request.afterSnapshot), /cargoMode/);
-    assert.match(JSON.stringify(request.afterSnapshot), /operationalNotes/);
+    assert.equal(requests.length, 0);
   });
 
   test('numerically equivalent post-dispatch values are a no-op', async () => {
@@ -3032,7 +3079,11 @@ describe('PUT /:id', () => {
       },
     });
     assert.equal(response.status, 200);
-    assert.equal(response.data.changeMode, 'NOOP');
+    // The clerk NOOP classifier was part of the parked approval routing;
+    // numerically-equal values now save directly without opening a request.
+    assert.equal(response.data.changeMode, 'DIRECT');
+    assert.equal(response.data.cargoWeightKg, '10.00');
+    assert.equal(response.data.cargoVolumeCbm, '1.000');
 
     const requests = await db.select()
       .from(s.shipmentChangeRequests)
@@ -3231,7 +3282,7 @@ describe('PUT /:id/containers', () => {
     assert.deepEqual(statuses, [200, 409]);
   });
 
-  test('CLERK direct seal edits stay in-scope before dispatch, then become request-only after dispatch', async () => {
+  test('CLERK seal edits stay direct before and after dispatch — approval workflow is parked', async () => {
     const { transitionShipmentStatus } = await import('../services/shipment.service');
     const shipment = await mkClerkScopedShipmentViaService({
       closingAt: '2026-08-04T08:00:00.000Z',
@@ -3269,28 +3320,16 @@ describe('PUT /:id/containers', () => {
       },
     });
     assert.equal(requestedSave.status, 200);
-    assert.equal(requestedSave.data.changeMode, 'REQUESTED');
-    assert.equal(requestedSave.data.notificationDelivered, true);
+    assert.equal(requestedSave.data.changeMode, 'DIRECT');
 
     const detail = await testFetch(`/${shipment.id}`, { token: adminToken });
     assert.equal(detail.status, 200);
-    assert.equal(detail.data.containers[0]?.sealNumber, 'SEAL-Q17-NEW');
+    assert.equal(detail.data.containers[0]?.sealNumber, 'SEAL-Q17-REQUEST');
 
-    const [request] = await db.select()
+    const requests = await db.select()
       .from(s.shipmentChangeRequests)
       .where(eq(s.shipmentChangeRequests.shipmentId, shipment.id));
-    assert.ok(request, 'container/seal edit persisted as a change request');
-    assert.match(JSON.stringify(request.afterSnapshot), /SEAL-Q17-REQUEST/);
-
-    const notifications = await db.select()
-      .from(s.notifications)
-      .where(and(
-        eq(s.notifications.relatedEntityType, 'shipments'),
-        eq(s.notifications.relatedEntityId, shipment.id),
-        inArray(s.notifications.userId, [adminUserId, managerUserId]),
-      ));
-    const recipientIds = notifications.map((row) => row.userId).sort((a, b) => a - b);
-    assert.deepEqual(recipientIds, [adminUserId, managerUserId]);
+    assert.equal(requests.length, 0);
   });
 });
 
@@ -3808,21 +3847,11 @@ describe('POST /:id/change-requests/:requestId/review', () => {
       .where(eq(s.shipmentContainers.shipmentId, current.id)).limit(1);
     assert.ok(sourceContainer);
 
-    const requestResponse = await testFetch(`/${current.id}/containers`, {
-      method: 'PUT',
-      token: clerkToken,
-      body: {
-        expectedVersion: dispatched.version,
-        containers: [{
-          id: sourceContainer.id,
-          containerTypeId,
-          containerNumber: sourceContainer.containerNumber,
-          sealNumber: 'SEAL-AFTER-ISSUE',
-        }],
-      },
-    });
-    assert.equal(requestResponse.status, 200);
-    assert.equal(requestResponse.data.changeMode, 'REQUESTED');
+    const requestId = await seedPendingContainerRequest(current.id,
+      sourceContainer.id,
+      sourceContainer.containerNumber ?? null,
+      'SEAL-AFTER-ISSUE',
+      dispatched.version);
 
     const trip = await insertTripComposite(db, {
       tripCode: `SR-CHANGE-${suffix}-${createdTripIds.length}`.slice(0, 50),
@@ -3836,7 +3865,7 @@ describe('POST /:id/change-requests/:requestId/review', () => {
     });
     createdTripIds.push(trip.id);
 
-    const review = await testFetch(`/${current.id}/change-requests/${requestResponse.data.changeRequestId}/review`, {
+    const review = await testFetch(`/${current.id}/change-requests/${requestId}/review`, {
       method: 'POST',
       token: managerToken,
       body: { resolution: 'APPLIED' },
@@ -3847,7 +3876,7 @@ describe('POST /:id/change-requests/:requestId/review', () => {
       .where(eq(s.shipmentContainers.id, sourceContainer.id)).limit(1);
     assert.equal(preservedContainer?.sealNumber, sourceContainer.sealNumber);
     const [pendingRequest] = await db.select().from(s.shipmentChangeRequests)
-      .where(eq(s.shipmentChangeRequests.id, requestResponse.data.changeRequestId)).limit(1);
+      .where(eq(s.shipmentChangeRequests.id, requestId)).limit(1);
     assert.ok(pendingRequest, 'rejected apply keeps the request available for an explicit rejection');
   });
 
@@ -3863,22 +3892,13 @@ describe('POST /:id/change-requests/:requestId/review', () => {
       .where(eq(s.shipmentContainers.shipmentId, current.id)).limit(1);
     assert.ok(sourceContainer);
 
-    const requestResponse = await testFetch(`/${current.id}/containers`, {
-      method: 'PUT',
-      token: clerkToken,
-      body: {
-        expectedVersion: dispatched.version,
-        containers: [{
-          id: sourceContainer.id,
-          containerTypeId,
-          containerNumber: sourceContainer.containerNumber,
-          sealNumber: 'SEAL-PRE-ISSUE',
-        }],
-      },
-    });
-    assert.equal(requestResponse.status, 200);
+    const requestId = await seedPendingContainerRequest(current.id,
+      sourceContainer.id,
+      sourceContainer.containerNumber ?? null,
+      'SEAL-PRE-ISSUE',
+      dispatched.version);
 
-    const review = await testFetch(`/${current.id}/change-requests/${requestResponse.data.changeRequestId}/review`, {
+    const review = await testFetch(`/${current.id}/change-requests/${requestId}/review`, {
       method: 'POST',
       token: managerToken,
       body: { resolution: 'APPLIED' },
@@ -3900,13 +3920,9 @@ describe('POST /:id/change-requests/:requestId/review', () => {
       closingAt: '2026-08-04T08:00:00.000Z',
     });
     const dispatched = await transitionShipmentStatus(shipment.id, ShipmentStatus.DISPATCHED);
-    const requestResponse = await testFetch(`/${shipment.id}`, {
-      method: 'PUT',
-      token: clerkToken,
-      body: { expectedVersion: dispatched.version, pickupLocation: 'Kho mới' },
-    });
-    assert.equal(requestResponse.status, 200);
-    const requestId = requestResponse.data.changeRequestId as number;
+    const requestId = await seedPendingPlanRequest(shipment.id,
+      { pickupLocation: 'Kho cũ' },
+      { pickupLocation: 'Kho mới' });
 
     const review = await testFetch(`/${shipment.id}/change-requests/${requestId}/review`, {
       method: 'POST',
@@ -3928,14 +3944,10 @@ describe('POST /:id/change-requests/:requestId/review', () => {
       pickupLocation: 'Kho A',
       closingAt: '2026-08-04T08:00:00.000Z',
     });
-    const dispatched = await transitionShipmentStatus(shipment.id, ShipmentStatus.DISPATCHED);
-    const response = await testFetch(`/${shipment.id}`, {
-      method: 'PUT',
-      token: clerkToken,
-      body: { expectedVersion: dispatched.version, pickupLocation: 'Kho B' },
-    });
-    assert.equal(response.status, 200);
-    assert.equal(response.data.notificationDelivered, true);
+    await transitionShipmentStatus(shipment.id, ShipmentStatus.DISPATCHED);
+    await seedPendingPlanRequest(shipment.id,
+      { pickupLocation: 'Kho A' },
+      { pickupLocation: 'Kho B' });
 
     const notifications = await db.select()
       .from(s.notifications)
@@ -3955,13 +3967,9 @@ describe('POST /:id/change-requests/:requestId/review', () => {
       closingAt: '2026-08-04T08:00:00.000Z',
     });
     const dispatched = await transitionShipmentStatus(shipment.id, ShipmentStatus.DISPATCHED);
-    const requestResponse = await testFetch(`/${shipment.id}`, {
-      method: 'PUT',
-      token: clerkToken,
-      body: { expectedVersion: dispatched.version, pickupLocation: 'Kho đề xuất' },
-    });
-    assert.equal(requestResponse.status, 200);
-    const requestId = requestResponse.data.changeRequestId as number;
+    const requestId = await seedPendingPlanRequest(shipment.id,
+      { pickupLocation: 'Kho nguồn' },
+      { pickupLocation: 'Kho đề xuất' });
 
     const directUpdate = await testFetch(`/${shipment.id}`, {
       method: 'PUT',
@@ -4012,14 +4020,10 @@ describe('POST /:id/change-requests/:requestId/review', () => {
       deliveryLocation: 'Điểm cũ',
       closingAt: '2026-08-04T08:00:00.000Z',
     });
-    const dispatched = await transitionShipmentStatus(shipment.id, ShipmentStatus.DISPATCHED);
-    const requestResponse = await testFetch(`/${shipment.id}`, {
-      method: 'PUT',
-      token: clerkToken,
-      body: { expectedVersion: dispatched.version, deliveryLocation: 'Điểm mới' },
-    });
-    assert.equal(requestResponse.status, 200);
-    const requestId = requestResponse.data.changeRequestId as number;
+    await transitionShipmentStatus(shipment.id, ShipmentStatus.DISPATCHED);
+    const requestId = await seedPendingPlanRequest(shipment.id,
+      { deliveryLocation: 'Điểm cũ' },
+      { deliveryLocation: 'Điểm mới' });
 
     const [apply, reject] = await Promise.all([
       testFetch(`/${shipment.id}/change-requests/${requestId}/review`, {
@@ -4058,16 +4062,13 @@ describe('POST /:id/change-requests/:requestId/review', () => {
       pickupLocation: 'Kho A',
       closingAt: '2026-08-04T08:00:00.000Z',
     });
-    const dispatched = await transitionShipmentStatus(shipment.id, ShipmentStatus.DISPATCHED);
-    const requestResponse = await testFetch(`/${shipment.id}`, {
-      method: 'PUT',
-      token: clerkToken,
-      body: { expectedVersion: dispatched.version, pickupLocation: 'Kho B' },
-    });
-    assert.equal(requestResponse.status, 200);
+    await transitionShipmentStatus(shipment.id, ShipmentStatus.DISPATCHED);
+    const requestId = await seedPendingPlanRequest(shipment.id,
+      { pickupLocation: 'Kho A' },
+      { pickupLocation: 'Kho B' });
 
     const denied = await testFetch(
-      `/${shipment.id}/change-requests/${requestResponse.data.changeRequestId}/review`,
+      `/${shipment.id}/change-requests/${requestId}/review`,
       {
         method: 'POST',
         token: accountantToken,

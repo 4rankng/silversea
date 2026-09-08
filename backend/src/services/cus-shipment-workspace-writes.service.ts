@@ -26,7 +26,7 @@ import { ApiError } from '../errors';
 import type { AuthUser } from '../middleware/auth';
 import type { Tx } from './trip-shared';
 import { ensureShipmentFulfillmentsInTx } from './shipment-fulfillment.service';
-import { ensureReadyShipmentHandoff, isDirectlyEditableIntakeStatus } from './shipment-intake.service';
+import { ensureReadyShipmentHandoff } from './shipment-intake.service';
 import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import { CUSTOMER_OPERATIONAL_NAME, buildWorkspaceDetail, deriveTransportDateFromContainerAppointments, formatPlate, loadShipmentRow, normalizeCarrierName, normalizePlate, trimOrNull, type ShipmentFulfillmentRow } from './cus-shipment-workspace-reads.service';
@@ -349,22 +349,11 @@ export async function updateCusShipmentContainerLine(args: {
       const tripLabel = trip.tripCode || `TRP-${trip.id}`;
       throw new ApiError(409, `Container đã gắn chuyến xe (${tripLabel}). Vui lòng đổi lịch trên chuyến xe hoặc gỡ phân xe trước khi sửa.`);
     }
-    // Three-way edit routing (SILVER L1 P3): once the container has been
-    // decomposed (fulfillment exists) the shipment has left direct-intake
-    // territory — identity/factory edits flow through the governed
-    // container change request, never a direct overwrite. Live-trip denial
-    // above stays the strictest gate. Unassigned containers (trip == null)
-    // allow updating customerAppointmentAt without being blocked by intake status.
-    const governedOperationalMutation = (
-      args.input.containerTypeId !== undefined
-      || args.input.containerNumber !== undefined
-      || args.input.cargoWeightKg !== undefined
-      || args.input.cargoVolumeCbm !== undefined
-      || (args.input.routeId !== undefined && args.input.routeId !== container.routeId)
-    );
-    if (governedOperationalMutation && !isDirectlyEditableIntakeStatus(shipment.status)) {
-      throw new ApiError(409, 'Lô hàng đã bàn giao điều phối. Thay đổi container phải đi qua yêu cầu thay đổi để phê duyệt.');
-    }
+    // Approval workflow parked (customer undecided 2026-09-08): container
+    // edits apply directly after handoff. The live-trip denial above stays
+    // the strictest gate — schedule changes for a tripped container belong
+    // to its trip. Reinstate governed routing here when the customer signs
+    // off on an approval process.
 
     let touched = repairedLegacyCargoMode;
     const now = new Date();
