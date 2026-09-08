@@ -186,7 +186,10 @@ export function accountingConfirmationLabel(
 }
 
 export function safeError(error: unknown, fallback: string): string {
-  return error instanceof ApiError || error instanceof Error ? error.message : fallback;
+  // An Error with an empty/whitespace message would render an empty alert
+  // banner; fall back to the default message whenever text is missing.
+  const message = error instanceof ApiError || error instanceof Error ? error.message : '';
+  return message.trim() ? message : fallback;
 }
 
 /** StatusStrip color per CUS bucket (workboard rows + drawer swatch). */
