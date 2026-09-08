@@ -43,10 +43,11 @@ export interface ListDispatchDetailPlanRowsInput {
 }
 
 /**
- * One atomic editor save: carrier + vehicle + estimates + classification +
- * isCombined in a single fulfillment-plus-shipment transaction. The editor
- * always sends every field and both row versions, so a partially-stale tab
- * cannot silently erase concurrent work.
+ * One atomic editor save: carrier + vehicle + estimates + classification in a
+ * single fulfillment-plus-shipment transaction. The editor always sends every
+ * plan field and both row versions, so a partially-stale tab cannot silently
+ * erase concurrent work. The lot-level `isCombined` flag is CUS-owned and
+ * omitted by the editor; it stays writable here only for existing callers.
  */
 
 export interface UpdateDispatchDetailPlanInput {
@@ -62,7 +63,11 @@ export interface UpdateDispatchDetailPlanInput {
   plannedRevenue: number | null;
   plannedCarrierCost: number | null;
   classification: DispatchClassification;
-  isCombined: boolean;
+  /** Lot-level `shipments.is_combined` — CUS owns it (create + quick edit).
+   *  Undefined = untouched by this save, which is what the dispatch editor
+   *  now always sends: a per-container dispatcher must not rewrite a flag
+   *  that spans every container in the lot. */
+  isCombined?: boolean;
   /** Driver-facing note (shipments.operational_notes). Undefined = note
    *  untouched by this save. '' clears; null ≡ '' for change detection. */
   operationalNotes?: string | null;
@@ -1048,6 +1053,9 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
   // the driver-facing note (operationalNotes) rides the same shipment write.
   // Version bumps only when one of the two actually changes — a save that
   // keeps both at their stored values must not invalidate other tabs.
+  // Undefined isCombined = "not part of this save" (the dispatch editor's
+  // normal case now that the lot flag is CUS-owned); it must not be read as
+  // a request to write `false` over a stored `true`.
   let shipmentVersion = shipment.version;
   // Accountant masking happens at the route gate (requireRoles excludes
   // ACCOUNTANT — same rule as the grid read at :386), so the type system
@@ -1056,8 +1064,9 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
   const noteProvided = input.operationalNotes !== undefined;
   const nextNote = noteProvided ? (input.operationalNotes ?? '') : null;
   const notesChanged = noteProvided && nextNote !== (shipment.operationalNotes ?? '');
-  const isCombinedChanged = shipment.isCombined !== input.isCombined;
+  const isCombinedChanged = input.isCombined !== undefined && shipment.isCombined !== input.isCombined;
   let storedNote = shipment.operationalNotes;
+  let storedIsCombined = shipment.isCombined;
   if (isCombinedChanged || notesChanged) {
     const [updatedShipment] = await tx.update(s.shipments).set({
       ...(isCombinedChanged ? { isCombined: input.isCombined } : {}),
@@ -1071,6 +1080,7 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
     if (!updatedShipment) throw new ApiError(409, 'Lô hàng đã thay đổi. Vui lòng tải lại.');
     shipmentVersion = updatedShipment.version;
     storedNote = updatedShipment.operationalNotes;
+    storedIsCombined = updatedShipment.isCombined;
   }
 
   const lotFullyPlated = await recomputeLotFullyPlated(tx, shipment.id);
@@ -1084,7 +1094,9 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
     shipmentId: shipment.id,
     shipmentVersion,
     classification: updatedFulfillment.dispatchClassification,
-    isCombined: input.isCombined,
+    // Stored value, not the input: an omitted isCombined must echo back what
+    // the lot actually holds so the grid keeps rendering its "Kết hợp" note.
+    isCombined: storedIsCombined,
     // The route gate excludes ACCOUNTANT, so this is always the real note —
     // mirroring the grid read's non-accountant shape.
     operationalNotes: storedNote ?? null,

@@ -133,14 +133,21 @@ function vehiclePlateKey(value: string, options: SearchableSelectOption[]): stri
   return label ? normalizePlate(label.split(' — ')[0]) : value;
 }
 
+export function isCombinableContainer(label?: string | null): boolean {
+  if (!label) return false;
+  const upper = label.trim().toUpperCase();
+  return upper.includes('20') && !upper.includes('40') && !upper.includes('45');
+}
+
 function draftForRow(row: DispatchDetailPlanRow): PlanEditorDraft {
+  const combinable = isCombinableContainer(row.container?.containerTypeLabel);
   return {
     carrierValue: carrierValueForRow(row),
     vehicleValue: vehicleValueForRow(row),
     plannedRevenue: row.estimates.plannedRevenue ?? '',
     plannedCarrierCost: row.estimates.plannedCarrierCost ?? '',
     classification: row.classification,
-    isCombined: row.isCombined,
+    isCombined: combinable ? Boolean(row.isCombined) : false,
     operationalNotes: row.notes.vehicleNote,
   };
 }
@@ -209,6 +216,8 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
 
   const selectedCarrier = parseCarrier(draft.carrierValue);
   const draftUsesOwnFleet = selectedCarrier?.carrierType === 'OWN';
+
+  const combinable = isCombinableContainer(row.container?.containerTypeLabel);
 
   const issueStatus = deriveDispatchIssueStatus({
     vehicleAssigned: row.dispatch.assignedPlate != null,
@@ -463,7 +472,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
         plannedRevenue: revenue.value,
         plannedCarrierCost: carrierCost.value,
         classification: draft.classification,
-        isCombined: draft.isCombined,
+        isCombined: combinable ? draft.isCombined : false,
         operationalNotes: draft.operationalNotes,
       });
       // Stay open — saving carrier/vehicle here is usually step one of
@@ -638,15 +647,23 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
               }}
               disabled={saving}
             />
-            <label htmlFor={`dispatch-combined-${row.fulfillmentId}`} className="dispatch-assignment-dialog__check">
+            <label
+              className={`dispatch-assignment-dialog__check ${!combinable ? 'dispatch-assignment-dialog__check--disabled' : ''}`}
+              title={!combinable ? 'Chỉ container 20 feet mới được đóng kết hợp (kẹp chuyến)' : undefined}
+            >
               <input
                 id={`dispatch-combined-${row.fulfillmentId}`}
                 type="checkbox"
-                checked={draft.isCombined}
-                onChange={(event) => setDraft((current) => ({ ...current, isCombined: event.target.checked }))}
-                disabled={saving}
+                checked={combinable ? draft.isCombined : false}
+                disabled={saving || !combinable}
+                title={!combinable ? 'Chỉ container 20 feet mới được đóng kết hợp (kẹp chuyến)' : undefined}
+                onChange={(event) => {
+                  if (!combinable) return;
+                  setDraft((current) => ({ ...current, isCombined: event.target.checked }));
+                  setError(null);
+                }}
               />
-              <span>Đóng kết hợp (kẹp chuyến)</span>
+              Đóng kết hợp (kẹp chuyến)
             </label>
             <TextField
               id={`dispatch-revenue-${row.fulfillmentId}`}

@@ -434,6 +434,15 @@
   accent-color: var(--accent, #005a2d);
 }
 
+.dispatch-assignment-dialog__fields > .dispatch-assignment-dialog__check--disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.dispatch-assignment-dialog__fields > .dispatch-assignment-dialog__check input[type='checkbox']:disabled {
+  cursor: not-allowed;
+}
+
 @media (max-width: 640px) {
   .dispatch-assignment-dialog__fields > .dispatch-assignment-dialog__check {
     min-height: var(--control-touch-h, 44px);

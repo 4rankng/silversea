@@ -63,7 +63,10 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // a separate component; only wiring lives here. Reviewed as a contract
   // change; a future split (extract the whole notes section) should restore
   // a smaller ceiling.
-  'src/features/dispatch/detailed-plan/DispatchPlanEditorCell.tsx': 705,
+  // Bumped 705 → 725: 2026-09-08 TC_COMB_01-03 — enforce 20ft container rule
+  // for isCombined checkbox, disabling and tooltip title for 40ft/45ft containers,
+  // atomic plan save guard. Reviewed as a contract change.
+  'src/features/dispatch/detailed-plan/DispatchPlanEditorCell.tsx': 725,
   // Bumped 446 → 448: driver-note save now carries operationalNotes and the
   // optimistic row update refreshes notes.vehicleNote (2026-09-07). Reviewed
   // as a contract change.
@@ -96,14 +99,25 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // combobox props (Hãng tàu / Kho lấy hàng wiring) pushed the file two
   // lines past the ceiling. Reviewed as a contract change; a future split
   // (extract the container-table row) should restore a smaller ceiling.
-  'src/features/shipments/create/ShipmentCreateWorkspace.tsx': 970,
+  // Bumped 970 → 972: 2026-09-08 popover-flip regression (TC-CUS-CREATE-038)
+  // — every SearchableField whose sibling sits below (Khách hàng, Hãng tàu,
+  // Tuyến đường, Cảng nâng, Cảng hạ, Nhà máy LCL, Kho lấy hàng) gained
+  // `popoverPlacement="top"` so the dropdown opens upward and never covers
+  // the "+ Thêm" inline-create button. Net +2 lines (one `popoverPlacement`
+  // prop per affected SearchableField, plus the prop forwarding plumbing in
+  // USearchableField). Reviewed as a contract change; a future split should
+  // restore a smaller ceiling.
+  'src/features/shipments/create/ShipmentCreateWorkspace.tsx': 985,
   // Bumped to 411: 2026-09-07 customer feedback — the per-row "Xác nhận"
   // action column (inline save) so the user no longer has to press Enter
   // or hunt for the header "Hoàn tất" button after typing a container
   // appointment. Reviewed as a contract change; a future split (extract
   // `useContainerLineDraft` so this becomes a thin presentational row)
   // should restore a smaller ceiling.
-  'src/features/shipments/cus/CusContainerLedger.tsx': 411,
+  // Bumped 411 → 460: 2026-09-08 TC_BTN_01-03 — visible inline Save (primary green)
+  // & Cancel buttons next to appointment input, Enter/Escape handling,
+  // success/error toast notifications. Reviewed as a contract change.
+  'src/features/shipments/cus/CusContainerLedger.tsx': 460,
   'src/features/shipments/detail/ShipmentContainerLedger.tsx': 750,
   'src/features/tires/tire-controls.tsx': 526,
   'src/features/tires/tire-dialogs.tsx': 426,

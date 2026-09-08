@@ -1106,8 +1106,8 @@ export const dispatchCarrierKeySchema = z.string().regex(
 /** Fulfillment classification, derived from the shared vocabulary. */
 export const dispatchClassificationSchema = z.enum(DISPATCH_CLASSIFICATIONS);
 
-/** One atomic detailed-plan save: carrier, vehicle, estimates, classification
- *  and `Đóng kết hợp` change together or not at all. Both versions are
+/** One atomic detailed-plan save: carrier, vehicle, estimates and
+ *  classification change together or not at all. Both versions are
  *  required so omitted stale values cannot erase concurrent work. */
 export const atomicDispatchPlanEditSchema = z.object({
   expectedFulfillmentVersion: z.number().int().positive(),
@@ -1121,7 +1121,12 @@ export const atomicDispatchPlanEditSchema = z.object({
   plannedRevenue: z.number().int().nonnegative().nullable(),
   plannedCarrierCost: z.number().int().nonnegative().nullable(),
   classification: dispatchClassificationSchema,
-  isCombined: z.boolean(),
+  /** Lot-level `shipments.is_combined`. Owned by the CUS create/quick-edit
+   *  surface, not by this per-container dispatch editor: one container's
+   *  dispatcher must not silently rewrite a flag that spans the whole lot.
+   *  Optional and omitted by the editor — the stored value is left untouched.
+   *  Kept accepted so existing callers stay valid. */
+  isCombined: z.boolean().optional(),
   /** Driver-facing note (shipments.operational_notes). Optional: an editor
    *  save that touches only plan fields omits it and the stored note stays
    *  untouched. '' clears the note; null ≡ '' for change detection. */

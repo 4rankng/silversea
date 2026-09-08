@@ -346,4 +346,73 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
     await waitFor(() => expect(screen.getByText(/Không thể lưu kế hoạch/)).toBeTruthy());
     expect(screen.getByText(/Chỉnh sửa điều phối/)).toBeTruthy();
   });
+
+  it('TC_COMB_01 & TC_COMB_03: disables and unchecks isCombined checkbox for 40ft containers with title tooltip', async () => {
+    const onAtomicSave = vi.fn().mockResolvedValue({
+      fulfillmentVersion: 4,
+      shipmentVersion: 6,
+      classification: 'SINGLE',
+      isCombined: false,
+      operationalNotes: null,
+      dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '15H-052.82' },
+      estimates: { plannedRevenue: null, plannedCarrierCost: null },
+      lotFullyPlated: false,
+    });
+    renderCell(
+      row({
+        isCombined: true,
+        container: { containerNumber: 'MSCU4040404', containerTypeLabel: '40HC', cargoWeightKg: '25000' },
+      }),
+      { onAtomicSave },
+    );
+    await openDialog();
+    const checkbox = document.getElementById('dispatch-combined-101') as HTMLInputElement;
+    expect(checkbox).toBeTruthy();
+    expect(checkbox.disabled).toBe(true);
+    expect(checkbox.checked).toBe(false);
+    expect(checkbox.title).toBe('Chỉ container 20 feet mới được đóng kết hợp (kẹp chuyến)');
+
+    // Saving will send isCombined: false
+    fireEvent.click([...screen.getAllByRole('button')].find((b) => b.textContent?.includes('Lưu thay đổi'))!);
+    await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));
+    expect(onAtomicSave).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ isCombined: false }),
+    );
+  });
+
+  it('TC_COMB_02: allows isCombined toggle for 20ft containers', async () => {
+    const onAtomicSave = vi.fn().mockResolvedValue({
+      fulfillmentVersion: 4,
+      shipmentVersion: 6,
+      classification: 'SINGLE',
+      isCombined: true,
+      operationalNotes: null,
+      dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '15H-052.82' },
+      estimates: { plannedRevenue: null, plannedCarrierCost: null },
+      lotFullyPlated: false,
+    });
+    renderCell(
+      row({
+        isCombined: false,
+        container: { containerNumber: 'MSCU2020202', containerTypeLabel: '20DC', cargoWeightKg: '15000' },
+      }),
+      { onAtomicSave },
+    );
+    await openDialog();
+    const checkbox = document.getElementById('dispatch-combined-101') as HTMLInputElement;
+    expect(checkbox).toBeTruthy();
+    expect(checkbox.disabled).toBe(false);
+    expect(checkbox.checked).toBe(false);
+
+    fireEvent.click(checkbox);
+    expect(checkbox.checked).toBe(true);
+
+    fireEvent.click([...screen.getAllByRole('button')].find((b) => b.textContent?.includes('Lưu thay đổi'))!);
+    await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));
+    expect(onAtomicSave).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ isCombined: true }),
+    );
+  });
 });
