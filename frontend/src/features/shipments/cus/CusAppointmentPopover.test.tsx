@@ -36,6 +36,28 @@ describe('CusAppointmentPopover', () => {
     expect(timeInput.value).toBe('10:30');
   });
 
+  it('renders giờ before ngày with 24h locale pinned to en-GB', () => {
+    const { container } = render(
+      <CusAppointmentPopover
+        isOpen={true}
+        value="2026-09-08T20:45"
+        containerLabel="MSKU1234567"
+        onClose={vi.fn()}
+        onChange={vi.fn()}
+      />,
+    );
+
+    // Thứ tự trường khớp định dạng cột bảng "20:45 8/9/26": giờ trước, ngày sau.
+    const labels = Array.from(container.querySelectorAll('.cus-appointment-input-wrap label'));
+    expect(labels.map((label) => label.textContent)).toEqual(['Giờ', 'Ngày']);
+
+    // ép input date/time hiển thị 24h + dd/mm/yyyy bất kể locale trình duyệt (AM/PM)
+    const timeInput = container.querySelector('input[type="time"]') as HTMLInputElement;
+    const dateInput = container.querySelector('input[type="date"]') as HTMLInputElement;
+    expect(timeInput.getAttribute('lang')).toBe('en-GB');
+    expect(dateInput.getAttribute('lang')).toBe('en-GB');
+  });
+
   it('selects quick date pill and immediately calls onChange', () => {
     const handleChange = vi.fn();
     render(
