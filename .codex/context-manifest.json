@@ -145,36 +145,6 @@
       ]
     },
     {
-      "id": "agent-runtime",
-      "description": "The product's AI assistant runtime, tools, contracts, and frontend bridge.",
-      "match": {
-        "prefixes": ["backend/src/services/agent/"],
-        "exact": [
-          "backend/src/agentSocket.ts",
-          "backend/src/routes/agent.ts",
-          "shared/src/schemas/agent.ts",
-          "frontend/src/api/agentClient.ts"
-        ],
-        "contains": ["/agent", "chatbot"],
-        "keywords": ["agent runtime", "chatbot", "llm", "minimax", "openrouter", "rag"]
-      },
-      "context": [
-        "backend/src/agentSocket.ts",
-        "backend/src/services/agent/orchestrator.ts",
-        "backend/src/services/agent/tool.types.ts",
-        "shared/src/schemas/agent.ts"
-      ],
-      "qa": [
-        "cd backend && npx tsc --noEmit",
-        "cd backend && pnpm test",
-        "cd frontend && npx tsc -b",
-        "cd frontend && pnpm test",
-        "pnpm lint",
-        "make build",
-        "cd e2e && ./run_all.sh"
-      ]
-    },
-    {
       "id": "deployment",
       "description": "Local stack, container images, demo deployment, and health checks.",
       "match": {

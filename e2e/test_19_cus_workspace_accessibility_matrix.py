@@ -481,7 +481,13 @@ def verify_responsive_cus_surface(ctx: SilverseaTestContext, results: TestResult
                 dialog.wait_for(timeout=10_000)
                 dialog.locator('td[data-label="Giờ hẹn đóng/trả"]:visible').first.wait_for(timeout=10_000)
                 controlled_region_exists = bool(controls) and page.locator(f"#{controls}").count() == 1
-                dialog.get_by_role("button", name="Đóng").click()
+                # The merged detail drawer may contain a `cus-appointment-trigger`
+                # whose accessible name also contains "đóng" (the
+                # "Giờ hẹn đóng hoặc trả" cell). Scope the close-button query
+                # to the dialog's own close affordance (drawer__close class)
+                # so the assertion doesn't collide with the appointment
+                # trigger.
+                dialog.locator("button.drawer__close").click()
                 page.wait_for_function(
                     "document.querySelectorAll('[role=\"dialog\"]').length === 0",
                     timeout=2_500,
@@ -497,7 +503,9 @@ def verify_responsive_cus_surface(ctx: SilverseaTestContext, results: TestResult
 
             if width in (390, 320):
                 opener, dialog = open_mobile_drawer(page)
-                close_button = page.get_by_role("button", name="Đóng")
+                # The mobile drawer also has the cus-appointment-trigger
+                # collision; scope the close-button query to the dialog.
+                close_button = dialog.locator("button.drawer__close")
                 page.wait_for_function(
                     "document.activeElement?.getAttribute('aria-label') === 'Đóng'",
                     timeout=2_500,

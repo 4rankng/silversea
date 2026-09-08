@@ -586,7 +586,10 @@ def main() -> bool:
             # searchable-select wave (ba1bf5ce) fields with >5 options render
             # the combobox variant, whose trigger is a role="group" container
             # rather than a <button>. Match both trigger shapes and pick the
-            # "Chưa điều xe" (UNASSIGNED) option from the portalled listbox.
+            # "Chờ phân xe" (AWAITING_VEHICLE) option — the merge replaced the
+            # legacy 2-state "Chưa điều xe" / "Đã phân xe" coarse chip with
+            # the 5-state vocabulary; AWAITING_VEHICLE is the new "no vehicle
+            # on the line yet" state, the closest equivalent to UNASSIGNED.
             status_field = page.locator(".shipments-detail-filter").filter(
                 has=page.get_by_text("Trạng thái", exact=True),
             ).first
@@ -594,19 +597,19 @@ def main() -> bool:
             with page.expect_response(
                 lambda response: (
                     "/api/shipments/cus-workspace/containers?" in response.url
-                    and "dispatchStatus=UNASSIGNED" in response.url
+                    and "dispatchStatus=AWAITING_VEHICLE" in response.url
                     and response.status == 200
                 ),
                 timeout=10_000,
             ):
                 status_trigger.click()
-                page.get_by_role("option", name="Chưa điều xe").first.click()
+                page.get_by_role("option", name="Chờ phân xe").first.click()
             page.wait_for_function(
-                "() => new URLSearchParams(location.search).get('dispatchStatus') === 'UNASSIGNED'",
+                "() => new URLSearchParams(location.search).get('dispatchStatus') === 'AWAITING_VEHICLE'",
                 timeout=5_000,
             )
             active_filter_visible = (
-                status_field.locator("button, [data-combobox-value]").first.inner_text().strip().startswith("Chưa điều xe")
+                status_field.locator("button, [data-combobox-value]").first.inner_text().strip().startswith("Chờ phân xe")
             )
             page.goto(f"{BASE_URL}/shipments-detail?dateScope=all&searchSuffix={BOOK_SUFFIX_QUERY}")
             wait_for_page_ready(page)

@@ -93,6 +93,33 @@
 
 ---
 
+## 9.3 — Kiểm tra phát hành sau khi hợp nhất prod
+
+### TC-RELEASE-001 — Hợp nhất prod vào main và hồi quy toàn bộ sau merge
+
+- **Vai trò:** `ADMIN` / người phát hành
+- **Mức độ:** P0
+- **Thiết bị:** Desktop (1440×900) và Mobile (390×844)
+- **Tiền điều kiện:** Working tree sạch; `origin/main` và `origin/prod` đã được cập nhật; không có worktree khác dùng cùng checkout.
+- **Các bước:**
+  1. Cập nhật remote refs và xác nhận `origin/prod` là nguồn merge, không dùng nhánh `prod` local đã lỗi thời.
+  2. Hợp nhất `origin/prod` vào `main` mà không mất thay đổi đang có trên `main`; nếu có conflict, giải quyết theo đúng contract của từng file.
+  3. Chạy các gate bị ảnh hưởng: lint, backend typecheck/tests, frontend typecheck/tests, build và E2E khi hợp đồng API, schema hoặc luồng nghiệp vụ thay đổi.
+  4. Chạy lại các test case hồi quy liên quan đến mọi file đã conflict hoặc được sửa sau merge.
+  5. Với thay đổi có giao diện, đăng nhập bằng tài khoản theo role và click luồng thực tế trên local dev; lưu DOM assertion, screenshot, driver log và bằng chứng side-effect DB.
+- **Kết quả mong đợi (Pass):**
+  - `main` chứa đầy đủ commit của `origin/main` và `origin/prod`, không có file conflict marker hoặc thay đổi ngoài phạm vi.
+  - Tất cả gate bắt buộc đều xanh; test hồi quy của issue đã sửa fail trước fix và pass sau fix.
+  - Mọi claim UI có đủ bằng chứng `UI DRIVEN`; các coverage chưa chạy được ghi rõ theo từng claim.
+- **Kỳ vọng sai (Fail nếu):**
+  - Merge từ local `prod` cũ hoặc làm mất commit của `main`.
+  - Có gate đỏ bị bỏ qua, test bị skip/yếu đi, hoặc còn conflict marker.
+  - Sửa một issue nhưng không có case hồi quy tương ứng trong `testplan/`.
+  - Claim UI là đã kiểm thử nhưng thiếu screenshot, DOM assertion, DB proof hoặc driver log.
+- **Bằng chứng:** log fetch/merge; diff và commit graph; từng artifact gate dưới `qa/`; báo cáo case hồi quy; screenshot, DOM assertion, DB query output và driver log cho claim UI.
+
+---
+
 ## Bảng nghiệm thu — E2E & Edge Cases
 
 | Ngày thử | Mã TC | Vai trò | Người thử | Kết quả | Ghi chú | Bằng chứng |

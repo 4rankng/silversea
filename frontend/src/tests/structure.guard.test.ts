@@ -31,7 +31,12 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // Added 2026-09-07: baseline 401 (was new-file capped) — the atomic plan
   // save now carries operationalNotes and the tag-pool client helpers
   // (list/create) live here beside the other dispatch planning calls.
-  'src/api/dispatchPlanningClient.ts': 410,
+  // Raised 410 → 411: 2026-09-08 prod merge brought the dispatch task-tag
+  // pool (list/create/update/deactivate) into this file alongside the
+  // other dispatch planning calls. Reviewed as a contract change; a
+  // future split (extract the tag pool to its own client) should restore
+  // a smaller ceiling.
+  'src/api/dispatchPlanningClient.ts': 411,
   // Bumped 400 (new-file) → 430: 2026-09-07 dropdown-flip sweep — the
   // multi-select picker gained selectionLabel + onSearchChange (aria names
   // and debounced server refetch) during the facet migration. Reviewed as a

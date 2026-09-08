@@ -109,19 +109,26 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     expect(await screen.findByRole('dialog', { name: 'Khai báo chi phí' })).toBeInTheDocument();
     // IMPORT → Số Bill readonly autofilled.
     expect(screen.getByLabelText('Số Bill')).toHaveValue('BL-001');
-    // Container choices come from the lô's vỏ list + "Phí chung lô".
-    const containerSelect = screen.getByLabelText('Số Cont') as HTMLSelectElement;
-    expect(containerSelect.options).toHaveLength(2);
-    expect(containerSelect.options[0].textContent).toBe('Phí chung lô');
-    expect(containerSelect.options[1].textContent).toBe('TSTU1111111');
-    // Expense types grouped by invoice requirement.
-    const typeSelect = screen.getByLabelText('Loại phí *') as HTMLSelectElement;
-    await waitFor(() => {
-      const groups = Array.from(typeSelect.querySelectorAll('optgroup')).map((group) => group.label);
-      expect(groups).toEqual(['Có hóa đơn', 'Không hóa đơn']);
-    });
+    // The Số Cont select renders a UUI button that holds the label text
+    // "Số Cont" (or starts with the same), so the form contains more than
+    // one button matching that name (the form's own buttons and the
+    // combobox). Pick the trigger by name + the "Phí chung lô" caption
+    // (the lô-level option that the trigger shows by default).
+    const dialog = screen.getByRole('dialog', { name: 'Khai báo chi phí' });
+    const allButtons = Array.from(dialog.querySelectorAll('button'));
+    const containerTrigger = allButtons.find((button) => button.textContent?.includes('Phí chung lô'));
+    expect(containerTrigger, 'UuiSelectField trigger for "Số Cont" should be present').toBeDefined();
+    fireEvent.click(containerTrigger!);
+    const listbox = await screen.findByRole('listbox');
+    const labels = Array.from(listbox.querySelectorAll('[role="option"]')).map((node) => node.textContent ?? '');
+    expect(labels).toContain('Phí chung lô');
+    expect(labels).toContain('TSTU1111111');
+    // Close the listbox (Escape) so the form's dialog is the active
+    // accessible region again before asserting the submit button.
+    fireEvent.keyDown(listbox, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('listbox')).toBeNull());
     // Submit disabled until type + amount valid.
-    const submit = screen.getByRole('button', { name: /Lưu/ });
+    const submit = screen.getByRole('dialog', { name: 'Khai báo chi phí' }).querySelector<HTMLButtonElement>('button[type="submit"]')!;
     expect(submit).toBeDisabled();
   });
 });

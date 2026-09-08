@@ -91,17 +91,25 @@ def test_trips(ctx: SilverseaTestContext, results: TestResults):
             return
 
     # ── TC-0101B: O2C rev1 fuel surcharge is already snapshotted at create ──
+    # The merged fuel-surcharge pricing is strict (see shared computeFuelSurcharge):
+    # a null base price, a non-positive share, or current <= base all yield 0.
+    # When the snapshot has a numeric base AND current > base AND share > 0,
+    # the surcharge applies the formula below; otherwise the snapshot and
+    # amount are expected to be 0 (no kỳ phụ phí dầu configured yet).
     created_trip = resp.get('data', {})
     surcharge_snapshot = created_trip.get('fuelSurchargeSnapshot')
     if not isinstance(surcharge_snapshot, dict):
         results.fail('TC-0101B', 'Fuel surcharge at trip creation', 'Missing fuelSurchargeSnapshot in create response')
     else:
-        current = float(surcharge_snapshot.get('currentFuelPrice') or 0)
-        base = float(surcharge_snapshot.get('baseFuelPrice') or 0)
+        current = surcharge_snapshot.get('currentFuelPrice')
+        base = surcharge_snapshot.get('baseFuelPrice')
         liters = float(surcharge_snapshot.get('quotaLiters') or 0)
-        share = float(surcharge_snapshot.get('customerSharePct') or 0)
-        expected = int(max(0, current - base) * liters * (share / 100) + 0.5)
+        share = surcharge_snapshot.get('customerSharePct')
         actual = int(float(created_trip.get('fuelSurchargeAmount') or 0))
+        if current is None or base is None or share is None or share <= 0 or float(current) <= float(base) or liters <= 0:
+            expected = 0
+        else:
+            expected = int(max(0, float(current) - float(base)) * liters * (float(share) / 100) + 0.5)
         if actual == expected:
             results.pass_('TC-0101B', f'Fuel surcharge snapshotted at create ({actual:,} VND)')
         else:
