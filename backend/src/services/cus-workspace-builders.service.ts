@@ -86,14 +86,29 @@ function buildOperationalSummary(
   // appointment, leaving the row unable to be edited and the detail page
   // showing a different (correct) date. Treat the earliest container
   // appointment as the effective schedule for FCL.
-  const earliestFclAppointment = totalContainers > 0
-    ? containers
-      .map((container) => container.customerAppointmentAt)
+  // Customer feedback 2026-09-08: the earliest-appointment rule let one
+  // dated cont mask its undated siblings — a 2-cont lot with a single
+  // appointment read "Sẵn sàng điều xe" with no warning. FCL readiness is
+  // per-container: the lot only counts as scheduled once EVERY cont has its
+  // ngày đóng/trả; any missing appointment keeps WAITING_DATE ("Chưa chốt
+  // ngày"), the same per-cont rule containerMissingFields() already applies
+  // to TRANSPORT_DATE. Lots without container rows keep the shipment-level
+  // expectedDeliveryDate fallback.
+  const fclAppointmentValues = row.shipment.cargoMode === 'FCL' && totalContainers > 0
+    ? containers.map((container) => container.customerAppointmentAt)
+    : null;
+  const undatedFclContainers = fclAppointmentValues
+    ? fclAppointmentValues.filter((value) => value == null).length
+    : 0;
+  const earliestFclAppointment = fclAppointmentValues
+    ? fclAppointmentValues
       .filter((value): value is Date => value != null)
       .sort((left, right) => left.getTime() - right.getTime())[0]
     : null;
-  const effectiveScheduleDate = row.shipment.cargoMode === 'FCL' && earliestFclAppointment
-    ? localDateInBusinessZone(earliestFclAppointment)
+  const effectiveScheduleDate = fclAppointmentValues != null
+    ? (undatedFclContainers === 0 && earliestFclAppointment != null
+      ? localDateInBusinessZone(earliestFclAppointment)
+      : null)
     : row.shipment.expectedDeliveryDate;
   const scheduleReadiness = effectiveScheduleDate == null
     ? 'WAITING_DATE' as const

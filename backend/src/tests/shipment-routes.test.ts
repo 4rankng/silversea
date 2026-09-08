@@ -1554,6 +1554,69 @@ describe('GET /cus-workspace', () => {
     }
   });
 
+  test('FCL lot stays WAITING_DATE while any container lacks its đóng/trả appointment', async () => {
+    // 2026-09-08 customer report: a 2-cont FCL lot with one dated cont and
+    // one undated cont read "Sẵn sàng điều xe" with no warning — the
+    // earliest-appointment rule let one date mask its undated sibling. The
+    // lot must warn ("Chưa chốt ngày") until every cont has a date.
+    // Dates are derived from "now" (+2/+3 days at 11:00 Vietnam time) so the
+    // complete-lot assertion can never age into OVERDUE — the sibling test
+    // at the top of this describe learned that lesson with 2026-08-11.
+    const futureInstant = (offsetDays: number): string => {
+      const instant = new Date();
+      instant.setUTCDate(instant.getUTCDate() + offsetDays);
+      instant.setUTCHours(4, 0, 0, 0);
+      return instant.toISOString();
+    };
+    const firstAppointment = futureInstant(2);
+    const secondAppointment = futureInstant(3);
+
+    const lotSuffix = `MPART-${suffix}-${Date.now().toString(36)}`;
+    const shipment = await mkShipmentViaService({
+      blNumber: lotSuffix,
+      cargoMode: 'FCL',
+      expectedDeliveryDate: firstAppointment.slice(0, 10),
+      tradeDirection: 'IMPORT',
+    });
+
+    await db.insert(s.shipmentContainers).values({
+      shipmentId: shipment.id,
+      containerTypeId,
+      containerNumber: `MPART-A-${lotSuffix}`,
+      customerAppointmentAt: new Date(firstAppointment),
+    });
+    const [undated] = await db.insert(s.shipmentContainers).values({
+      shipmentId: shipment.id,
+      containerTypeId,
+      containerNumber: `MPART-UN-${lotSuffix}`,
+      customerAppointmentAt: null,
+    }).returning();
+
+    const read = async () => {
+      const res = await testFetch(`/cus-workspace?searchSuffix=${lotSuffix.slice(-5)}&limit=20`, { token: adminToken });
+      assert.equal(res.status, 200);
+      return res.data.items.find((row: { id: number }) => row.id === shipment.id);
+    };
+
+    // Partial coverage: the shipment-level date must not mask the missing
+    // cont appointment.
+    const partial = await read();
+    assert.ok(partial, 'seeded lot must appear in /cus-workspace');
+    assert.equal(partial.operational.scheduleReadiness, 'WAITING_DATE');
+    // The dated cont's appointment still renders — the warning stacks on top.
+    assert.deepEqual(partial.customerAppointmentAts, [firstAppointment]);
+
+    // Dating the last cont flips the lot to SCHEDULED on the earliest date.
+    await db.update(s.shipmentContainers)
+      .set({ customerAppointmentAt: new Date(secondAppointment) })
+      .where(eq(s.shipmentContainers.id, undated.id));
+    const complete = await read();
+    assert.ok(complete, 'seeded lot must appear in /cus-workspace');
+    assert.equal(complete.operational.scheduleReadiness, 'SCHEDULED');
+    assert.deepEqual(complete.customerAppointmentAts, [firstAppointment, secondAppointment]);
+    assert.equal(complete.appointmentGroups.length, 2);
+  });
+
   test('informationStatus is accepted only on the container endpoint', async () => {
     // Detail endpoint accepts the completeness filter…
     const containerList = await testFetch('/cus-workspace/containers?informationStatus=MISSING&page=1&limit=20', { token: adminToken });
