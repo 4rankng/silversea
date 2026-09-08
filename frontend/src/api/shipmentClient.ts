@@ -51,6 +51,7 @@ export interface ShipmentCarrierAllocationGroup {
   carrierName?: string | null;
   count20: number;
   count40: number;
+  appointmentDate?: string | null;
 }
 
 export type ShipmentAccountingLock = ShipmentAccountingLockSummary;

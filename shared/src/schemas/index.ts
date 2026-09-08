@@ -1656,6 +1656,7 @@ export const shipmentCarrierAllocationSchema = z.object({
   externalCarrierId: z.coerce.number().int().positive().optional().nullable(),
   count20: z.coerce.number().int().min(0).max(200).default(0),
   count40: z.coerce.number().int().min(0).max(200).default(0),
+  appointmentDate: z.string().nullable().optional(),
 }).superRefine((row, ctx) => {
   if (row.count20 + row.count40 < 1) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Mỗi nhà xe phải được gán ít nhất một container' });
@@ -1672,9 +1673,19 @@ function rejectDuplicateCarrierAllocations(
   input: { carrierAllocations: Array<z.infer<typeof shipmentCarrierAllocationSchema>> },
   ctx: z.RefinementCtx,
 ) {
-  const keys = input.carrierAllocations.map((row) => row.carrierType === 'OWN' ? 'OWN' : `EXTERNAL:${row.externalCarrierId}`);
+  const hasDates = input.carrierAllocations.some((row) => Boolean(row.appointmentDate));
+  const keys = input.carrierAllocations.map((row) => {
+    const carrier = row.carrierType === 'OWN' ? 'OWN' : `EXTERNAL:${row.externalCarrierId}`;
+    return hasDates ? `${row.appointmentDate ?? ''}:${carrier}` : carrier;
+  });
   if (new Set(keys).size !== keys.length) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Mỗi nhà xe chỉ được xuất hiện một lần', path: ['carrierAllocations'] });
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: hasDates
+        ? 'Mỗi nhà xe chỉ được xuất hiện một lần trong cùng một ngày'
+        : 'Mỗi nhà xe chỉ được xuất hiện một lần',
+      path: ['carrierAllocations'],
+    });
   }
 }
 
