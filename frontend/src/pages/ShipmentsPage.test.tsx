@@ -384,17 +384,14 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(await screen.findByText(/52,5 CBM/)).toBeTruthy();
   });
 
-  it('tags every overview row with the approved Cont/Lẻ cargo label in the table and XLSX export', async () => {
+  it('keeps the approved Cont/Lẻ cargo label in the XLSX export only, not as a table pill', async () => {
     apiGet.mockResolvedValue(listResponse([{ ...row, cargoMode: 'FCL' }, { ...row, id: 2, cargoMode: 'LCL', containerSummary: '4 Pallet' }]));
     renderPage();
     const table = await screen.findByRole('table');
-    const cargoCell = within(table).getAllByRole('button', { name: /Sửa ô tổng quan hàng hóa/ })[0]!;
-    const fclTag = within(cargoCell).getByText('Cont');
-    const lclTag = within(table).getByText('Lẻ');
-    expect(fclTag.classList.contains('cus-cargo-mode-tag')).toBe(true);
-    expect(lclTag.classList.contains('cus-cargo-mode-tag')).toBe(true);
-    // Neutral structural styling: never an accent fill (selection-state rule).
-    expect(css).toContain('.cus-cargo-mode-tag {');
+    // The cargo overview cell states the mode through its own content
+    // (composition lines vs kiện/CBM metrics) — no redundant Cont/Lẻ pill.
+    expect(within(table).queryByText('Cont')).toBeNull();
+    expect(within(table).queryByText('Lẻ')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Tải XLSX' }));
     await waitFor(() => expect(downloadCSV).toHaveBeenCalledTimes(1));

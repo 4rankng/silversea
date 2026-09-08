@@ -24,7 +24,6 @@ import {
 } from './cargoDayFilter';
 import {
   appointmentGroupFactorySegment,
-  cargoModeLabel,
   derivePrimaryShipmentSignal,
   directionLabel,
   displayNote,
@@ -138,7 +137,6 @@ export function CusShipmentRow({
                 ? `${formatQuantity(item.weightKg)} kg · ${item.volumeCbm ? `${formatQuantity(item.volumeCbm)} CBM` : '— CBM'}`
                 : `${formatQuantity(item.weightKg)} kg`}
             </span>
-            <span className={`cus-direction-badge cus-direction-badge--${item.cargoMode?.toLowerCase() || 'unknown'} cus-cargo-mode-tag`}>{cargoModeLabel(item.cargoMode)}</span>
           </span>
         </span></button>
       </td>

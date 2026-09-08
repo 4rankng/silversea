@@ -752,12 +752,6 @@
    kg" and "Cont"/"Lẻ" even though the row exists specifically to avoid that
    (see comment above). Override each child explicitly. */
 .cus-multiline-cell .cus-cargo-summary__weight,
-.cus-multiline-cell .cus-cargo-mode-tag {
-  overflow: visible;
-  text-overflow: clip;
-  white-space: normal;
-}
-
 .cus-multiline-cell .cus-classification__shipping-line {
   grid-area: shipping-line;
   overflow: visible;
@@ -815,8 +809,6 @@
 /* Cargo-mode category tag (`Cont`/`Lẻ`) in the cargo-summary cell. Neutral
    structural edge like the direction badge — never an accent fill. Squared
    corners distinguish mode (structural) from direction's full pill. */
-.cus-cargo-mode-tag { border-radius: 4px; background: var(--surface-3); color: var(--ink-2) !important; }
-
 .cus-inline-trigger {
   display: grid;
   gap: 3px;
