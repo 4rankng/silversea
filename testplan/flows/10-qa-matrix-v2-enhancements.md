@@ -51,40 +51,27 @@
 
 ---
 
-## 10.3 — Phần 3: Xử lý checkbox "Đóng kết hợp (kẹp chuyến)"
+## 10.3 — Phần 3: Xử lý Đơn / Lẻ / Kết hợp & Checkbox "Đóng kết hợp (kẹp chuyến)"
 
-> **Quy tắc nghiệp vụ cốt lõi (CUS's Call):**
-> - Phân loại hình thức Đơn / Kẹp / Kết hợp / Lẻ và cờ `isCombined` cấp lô hàng là **thẩm quyền của CUS (Chứng từ/CSKH)** khi tiếp nhận booking từ khách hàng, KHÔNG PHẢI của Điều vận.
-> - CUS thiết lập `isCombined` thì các fulfillments FCL tự động mang phân loại `COMBINED` (nếu true) hoặc `SINGLE` (nếu false), và tự động đồng bộ khi CUS chỉnh sửa.
-> - Điều vận tại màn hình `/dispatch-detail` chỉ thực thi bố trí phương tiện/tài xế phù hợp theo phân loại CUS đã định. Việc lưu kế hoạch điều phối của Điều vận không được ghi đè hay làm mất cờ `isCombined` cấp lô của CUS.
+> **Quy tắc nghiệp vụ chuẩn (CUS's Job — Điều vận không thiết lập):**
+> - Phân loại hình thức Đơn (`SINGLE`), Lẻ (`LCL`), Kết hợp (`COMBINED`), Kẹp (`DOUBLE`) và cờ `isCombined` cấp lô hàng là **thẩm quyền độc quyền của CUS (Chứng từ)** tại thời điểm nhận booking và tạo/chỉnh sửa lô hàng.
+> - **Điều vận KHÔNG thiết lập hay thay đổi phân loại này**: Điều vận chỉ tiếp nhận phân loại từ CUS và bố trí xe/tài phù hợp. Thao tác lưu kế hoạch của Điều vận bảo toàn nguyên trạng phân loại và cờ cấp lô của CUS.
+> - Quy tắc kích thước: Chỉ container 20ft mới được phép đóng kết hợp (kẹp chuyến). Container 40ft/45ft bị vô hiệu hóa checkbox kèm tooltip giải thích.
+> - **Toàn bộ kịch bản kiểm thử chi tiết đã được chuẩn hóa tập trung tại [`01-cus-create-shipment.md §1.19`](../flows/01-cus-create-shipment.md).**
 
-### TC_COMB_01 — Chặn kẹp chuyến với container 40HC / 40DC / 45ft
-- **Mục tiêu:** Chỉ container 20ft mới được phép đóng kết hợp kẹp chuyến. Container 40ft/45ft bị vô hiệu hóa checkbox kèm tooltip giải thích.
-- **Các bước:** Mở popup điều phối (`/dispatch-detail`) cho dòng container 40HC.
-- **Kỳ vọng:** Checkbox "Đóng kết hợp (kẹp chuyến)" ở trạng thái `disabled=true`, `checked=false`, tooltip: "Chỉ container 20 feet mới được đóng kết hợp (kẹp chuyến)".
-- **Kết quả:** PASS. Bằng chứng: `qa/2026-09-08_phan3_dispatch-dialog.png`.
-
-### TC_COMB_02 — Cho phép kẹp chuyến với container 20ft
-- **Mục tiêu:** Container 20DC / 20OT / 20FR cho phép tích chọn "Đóng kết hợp (kẹp chuyến)".
-- **Các bước:** Mở popup điều phối cho dòng container 20ft.
-- **Kỳ vọng:** Checkbox "Đóng kết hợp (kẹp chuyến)" ở trạng thái `disabled=false`, có thể toggle bật/tắt.
-- **Kết quả:** PASS. Bằng chứng: `qa/2026-09-08_phan6_task-tags.png`.
-
-### TC_COMB_03 — Lưu kế hoạch điều phối đồng bộ
-- **Mục tiêu:** Khi lưu kế hoạch, cờ `isCombined` được gửi và lưu nguyên tử vào fulfillment draft.
-- **Các bước:** Chọn checkbox và nhấn "Lưu kế hoạch".
-- **Kỳ vọng:** Kế hoạch lưu thành công, tải lại trang vẫn giữ đúng trạng thái.
-- **Kết quả:** PASS.
-
-### TC_COMB_04 — Điều vận lưu kế hoạch bảo toàn cờ isCombined và phân loại do CUS ấn định
-- **Mục tiêu:** Thao tác lưu kế hoạch của Điều vận không được ghi đè hoặc làm mất cờ `isCombined` cấp lô của CUS.
-- **Các bước:** CUS tạo lô `isCombined = true`. Điều vận gán xe/tài và lưu kế hoạch từ `/dispatch-detail`.
-- **Kỳ vọng:** Kế hoạch lưu thành công; cờ `shipments.is_combined` vẫn giữ nguyên giá trị `true` do CUS ấn định.
-- **Kết quả:** PASS. Bằng chứng: backend integration test `dispatch-detail-plan.test.ts`.
+### Tóm tắt kết quả nghiệm thu Phần 3:
+- **`TC_CUS_COMB_01`** (CUS tạo lô FCL có tích chọn "Đóng kết hợp" -> tự động gán `COMBINED`): **PASS**. Unit test: `cus-shipment-workspace.test.ts`.
+- **`TC_CUS_COMB_02`** (CUS tạo lô FCL không tích chọn -> mặc định `SINGLE`): **PASS**. Unit test: `cus-shipment-workspace.test.ts`.
+- **`TC_CUS_COMB_03`** (CUS cập nhật cờ `isCombined` -> tự động đồng bộ fulfillments chưa điều xe): **PASS**. Unit test: `cus-shipment-workspace.test.ts`.
+- **`TC_CUS_COMB_04`** (Chặn kẹp chuyến với cont 40HC / 40DC / 45ft, tooltip giải thích): **PASS**. Bằng chứng: `qa/2026-09-08_phan3_dispatch-dialog.png`.
+- **`TC_CUS_COMB_05`** (Hàng lẻ LCL tự động mang phân loại `LCL`, không áp dụng kẹp FCL): **PASS**. Unit test: `shipment-fulfillment.service.test.ts`.
+- **`TC_CUS_COMB_06`** (Điều vận lưu kế hoạch điều phối bảo toàn cờ `isCombined` và phân loại do CUS ấn định): **PASS**. Test: `dispatch-detail-plan.test.ts`.
 
 ---
 
 ## 10.4 — Phần 4: Nút "Lưu" trên bảng kê container và sửa lịch giao
+
+> Chi tiết kịch bản xem tại [`01-cus-create-shipment.md §1.17`](../flows/01-cus-create-shipment.md).
 
 ### TC_BTN_01 — Hiển thị nút "Lưu" và "Hủy" rõ ràng
 - **Mục tiêu:** Giao diện sửa lịch hẹn / ngày giao hiển thị nút "Lưu" (nền xanh thương hiệu) và "Hủy" rõ ràng, nổi bật.
@@ -107,6 +94,8 @@
 
 ## 10.5 — Phần 5: Phân quyền cập nhật lịch trình container chưa gán xe (Unassigned)
 
+> Chi tiết kịch bản xem tại [`01-cus-create-shipment.md §1.18`](../flows/01-cus-create-shipment.md).
+
 ### TC_UNAS_01 — Quyền ADMIN cập nhật lịch trình container unassigned
 - **Mục tiêu:** ADMIN có quyền sửa lịch hẹn/ngày giao container khi container chưa gắn chuyến (`tripId == null`), ngay cả khi lô hàng đang ở trạng thái DISPATCHED / IN_PROGRESS.
 - **Các bước:** Đăng nhập `admin`, gửi PATCH/POST cập nhật `customerAppointmentAt` cho container chưa gán xe của lô DISPATCHED.
@@ -128,6 +117,8 @@
 ---
 
 ## 10.6 — Phần 6: Tác vụ điều phối nhanh (Quick Task Tags)
+
+> Chi tiết kịch bản xem tại [`02-dieuvan-dispatch.md §2.14`](../flows/02-dieuvan-dispatch.md).
 
 ### TC_TAG_01 — Hiển thị đầy đủ 9 tag tác vụ bao gồm "XƯỞNG 2"
 - **Mục tiêu:** Bảng điều phối hiển thị đủ 9 thẻ tag: Đảo vỏ, Đặt đầu, Đặt đuôi, Di động, Giao thẳng, Gửi bãi, Lấy vỏ ICD đi đóng, Trả vỏ, XƯỞNG 2.
@@ -157,25 +148,28 @@
 
 ## 10.7 — Bảng tổng hợp nghiệm thu v2.0
 
-| Nhóm | Mã TC | Vai trò | Mức độ | Kết quả | Bằng chứng |
-|------|-------|---------|--------|---------|------------|
-| Phần 1 | TC_LINE_01 | CUS / ADMIN | P1 | PASS | `qa/2026-09-08_phan1_hang-tau-dropdown.png` |
-| Phần 1 | TC_LINE_02 | CUS / ADMIN | P2 | PASS | `qa/2026-09-08_phan1_hang-tau-dropdown.png` |
-| Phần 1 | TC_LINE_03 | CUS / ADMIN | P2 | PASS | `qa/2026-09-08_phan1_hang-tau-dropdown.png` |
-| Phần 2 | TC_RESP_01 | CUS / ADMIN | P1 | PASS | `qa/2026-09-08_phan2_responsive-1366.png` |
-| Phần 2 | TC_RESP_02 | CUS / ADMIN | P1 | PASS | `qa/2026-09-08_phan2_responsive-1920.png` |
-| Phần 2 | TC_RESP_03 | CUS / ADMIN | P1 | PASS | Code review `popoverPlacement="top"` |
-| Phần 3 | TC_COMB_01 | DISPATCHER / ADMIN | P1 | PASS | `qa/2026-09-08_phan3_dispatch-dialog.png` |
-| Phần 3 | TC_COMB_02 | DISPATCHER / ADMIN | P1 | PASS | `qa/2026-09-08_phan6_task-tags.png` |
-| Phần 3 | TC_COMB_03 | DISPATCHER / ADMIN | P1 | PASS | Unit test + atomic draft payload |
-| Phần 4 | TC_BTN_01 | CUS / ADMIN | P1 | PASS | `qa/2026-09-08_phan4_modal-lich-giao.png` |
-| Phần 4 | TC_BTN_02 | CUS / ADMIN | P1 | PASS | Enter & click handlers in ledger |
-| Phần 4 | TC_BTN_03 | CUS / ADMIN | P2 | PASS | Toast notification triggers |
-| Phần 5 | TC_UNAS_01 | ADMIN | P1 | PASS | `qa/2026-09-08_qa-matrix-v2_ui-driver.log` (HTTP 200) |
-| Phần 5 | TC_UNAS_02 | MANAGER | P1 | PASS | `qa/2026-09-08_qa-matrix-v2_ui-driver.log` (HTTP 200) |
-| Phần 5 | TC_UNAS_03 | ADMIN / MANAGER | P1 | PASS | `qa/2026-09-08_qa-matrix-v2_ui-driver.log` (HTTP 409 conflict TRP-xxx) |
-| Phần 6 | TC_TAG_01 | DISPATCHER / ADMIN | P1 | PASS | `qa/2026-09-08_phan6_task-tags.png` (9 tags incl. XƯỞNG 2) |
-| Phần 6 | TC_TAG_02 | DISPATCHER / ADMIN | P1 | PASS | `qa/2026-09-08_phan6_task-tags.png` |
-| Phần 6 | TC_TAG_03 | DISPATCHER / ADMIN | P2 | PASS | `qa/2026-09-08_qa-matrix-v2_ui-driver.log` |
-| Phần 6 | TC_TAG_04 | DISPATCHER / ADMIN | P2 | PASS | Dialog render "+ Thêm tag" |
-| Phần 7 | TC_E2E_NEW_01 | ALL | P1 | PASS | Full regression suite green |
+| Nhóm | Mã TC | Vai trò | Canonical Flow | Kết quả | Bằng chứng |
+|------|-------|---------|----------------|---------|------------|
+| Phần 1 | TC_LINE_01 | CUS / ADMIN | `01-cus-create-shipment.md §1.15` | PASS | `qa/2026-09-08_phan1_hang-tau-dropdown.png` |
+| Phần 1 | TC_LINE_02 | CUS / ADMIN | `01-cus-create-shipment.md §1.15` | PASS | `qa/2026-09-08_phan1_hang-tau-dropdown.png` |
+| Phần 1 | TC_LINE_03 | CUS / ADMIN | `01-cus-create-shipment.md §1.15` | PASS | `qa/2026-09-08_phan1_hang-tau-dropdown.png` |
+| Phần 2 | TC_RESP_01 | CUS / ADMIN | `01-cus-create-shipment.md §1.16` | PASS | `qa/2026-09-08_phan2_responsive-1366.png` |
+| Phần 2 | TC_RESP_02 | CUS / ADMIN | `01-cus-create-shipment.md §1.16` | PASS | `qa/2026-09-08_phan2_responsive-1920.png` |
+| Phần 2 | TC_RESP_03 | CUS / ADMIN | `01-cus-create-shipment.md §1.16` | PASS | Code review `popoverPlacement="top"` |
+| Phần 3 | TC_CUS_COMB_01 | CUS / ADMIN | `01-cus-create-shipment.md §1.19` | PASS | Unit test `cus-shipment-workspace.test.ts` |
+| Phần 3 | TC_CUS_COMB_02 | CUS / ADMIN | `01-cus-create-shipment.md §1.19` | PASS | Unit test `cus-shipment-workspace.test.ts` |
+| Phần 3 | TC_CUS_COMB_03 | CUS / ADMIN | `01-cus-create-shipment.md §1.19` | PASS | Unit test `cus-shipment-workspace.test.ts` |
+| Phần 3 | TC_CUS_COMB_04 | CUS / ADMIN | `01-cus-create-shipment.md §1.19` | PASS | `qa/2026-09-08_phan3_dispatch-dialog.png` |
+| Phần 3 | TC_CUS_COMB_05 | CUS / ADMIN | `01-cus-create-shipment.md §1.19` | PASS | Unit test `shipment-fulfillment.service.test.ts` |
+| Phần 3 | TC_CUS_COMB_06 | CUS / DIEUVAN | `01-cus-create-shipment.md §1.19` | PASS | Integration test `dispatch-detail-plan.test.ts` |
+| Phần 4 | TC_BTN_01 | CUS / ADMIN | `01-cus-create-shipment.md §1.17` | PASS | `qa/2026-09-08_phan4_modal-lich-giao.png` |
+| Phần 4 | TC_BTN_02 | CUS / ADMIN | `01-cus-create-shipment.md §1.17` | PASS | Enter & click handlers in ledger |
+| Phần 4 | TC_BTN_03 | CUS / ADMIN | `01-cus-create-shipment.md §1.17` | PASS | Toast notification triggers |
+| Phần 5 | TC_UNAS_01 | ADMIN | `01-cus-create-shipment.md §1.18` | PASS | `qa/2026-09-08_qa-matrix-v2_ui-driver.log` (HTTP 200) |
+| Phần 5 | TC_UNAS_02 | MANAGER | `01-cus-create-shipment.md §1.18` | PASS | `qa/2026-09-08_qa-matrix-v2_ui-driver.log` (HTTP 200) |
+| Phần 5 | TC_UNAS_03 | ADMIN / MANAGER | `01-cus-create-shipment.md §1.18` | PASS | `qa/2026-09-08_qa-matrix-v2_ui-driver.log` (HTTP 409 conflict) |
+| Phần 6 | TC_TAG_01 | DISPATCHER / ADMIN | `02-dieuvan-dispatch.md §2.14` | PASS | `qa/2026-09-08_phan6_task-tags.png` (9 tags) |
+| Phần 6 | TC_TAG_02 | DISPATCHER / ADMIN | `02-dieuvan-dispatch.md §2.14` | PASS | `qa/2026-09-08_phan6_task-tags.png` |
+| Phần 6 | TC_TAG_03 | DISPATCHER / ADMIN | `02-dieuvan-dispatch.md §2.14` | PASS | `qa/2026-09-08_qa-matrix-v2_ui-driver.log` |
+| Phần 6 | TC_TAG_04 | DISPATCHER / ADMIN | `02-dieuvan-dispatch.md §2.14` | PASS | Dialog render "+ Thêm tag" |
+| Phần 7 | TC_E2E_NEW_01 | ALL | `09-e2e-regression.md` | PASS | Full regression suite green |

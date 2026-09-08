@@ -960,69 +960,11 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
 
 ---
 
-## 2.13 — Đóng kết hợp (kẹp chuyến) chỉ cho Container 20 feet (QA Matrix v2.0)
+## 2.13 — Phân loại Đơn / Lẻ / Kết hợp là nghiệp vụ của CUS (Điều vận không thiết lập)
 
-> **Ranh giới nghiệp vụ & Quyền hạn (CUS vs Điều vận):**
-> - **Phân loại Đơn / Kẹp / Kết hợp và cờ `isCombined` cấp lô hàng là CỦA CUS (Chứng từ)**: CUS xác định hình thức vận chuyển và cờ kết hợp khi nhận yêu cầu và tạo/chỉnh sửa lô hàng.
-> - **Điều vận KHÔNG quyết định phân loại hay cờ cấp lô**: Điều vận chỉ tiếp nhận phân loại từ CUS và thực thi điều phối phương tiện (xe nội bộ, rơ-moóc, hoặc nhà xe ngoài).
-> - Tại màn hình điều phối (`/dispatch-detail`), checkbox "Đóng kết hợp (kẹp chuyến)" chỉ hỗ trợ thao tác điều phối vật lý cho container 20ft (chặn tuyệt đối cont 40ft/45ft).
-> - Khi Điều vận lưu kế hoạch điều phối cho từng container qua `/dispatch-detail-plan-rows/:id/plan`, hệ thống **bảo toàn nguyên vẹn cờ `isCombined` cấp lô của CUS**, không để thao tác của Điều vận vô tình ghi đè hay làm mất cờ kết hợp của lô.
-
-### TC_COMB_01 — Vô hiệu hóa checkbox kẹp chuyến đối với Container 40HC, 40DC, 45ft
-- **Vai trò:** `dieuvan` (DISPATCHER), `admin`
-- **Mức độ:** P1
-- **Thiết bị:** Desktop (1440 × 900)
-- **Tiền điều kiện:** Mở `/dispatch-detail` có container loại 40HC / 40DC / 45ft (ví dụ cont `MAGU6804966 40'HC`, fulfillment 159).
-- **Các bước:**
-  1. Nhấp mở dialog "Chỉnh sửa điều phối" của container 40HC.
-  2. Quan sát ô checkbox "Đóng kết hợp (kẹp chuyến)".
-  3. Rê chuột lên checkbox để xem tooltip giải thích.
-- **Kết quả mong đợi (Pass):**
-  - Checkbox ở trạng thái vô hiệu hóa (`disabled = true`) và không được tích chọn (`checked = false`).
-  - Rê chuột hiển thị tooltip: "Chỉ container 20 feet mới được đóng kết hợp (kẹp chuyến)".
-- **Bằng chứng:** `qa/2026-09-08_phan3_dispatch-dialog.png`
-- **Regression ID:** REG-COMB-01-20260908
-
-### TC_COMB_02 — Cho phép bật kẹp chuyến với Container 20 feet (20DC, 20OT, 20FR)
-- **Vai trò:** `dieuvan`, `admin`
-- **Mức độ:** P1
-- **Tiền điều kiện:** Mở dialog điều phối container 20ft (ví dụ cont `MAGU2416202 20'DC`, fulfillment 118).
-- **Các bước:**
-  1. Quan sát ô checkbox "Đóng kết hợp (kẹp chuyến)".
-  2. Click chuột vào checkbox để bật/tắt.
-- **Kết quả mong đợi (Pass):**
-  - Checkbox ở trạng thái khả dụng (`disabled = false`).
-  - Cho phép tích chọn và bỏ chọn bình thường.
-- **Bằng chứng:** `qa/2026-09-08_phan6_task-tags.png`
-- **Regression ID:** REG-COMB-02-20260908
-
-### TC_COMB_03 — Lưu nguyên tử cờ isCombined vào bản ghi fulfillment plan
-- **Vai trò:** `dieuvan`, `admin`
-- **Mức độ:** P1
-- **Các bước:**
-  1. Tích chọn "Đóng kết hợp (kẹp chuyến)" cho container 20ft.
-  2. Nhấn "Lưu kế hoạch".
-  3. Tải lại trang hoặc mở lại dialog container đó.
-- **Kết quả mong đợi (Pass):**
-  - Cờ `isCombined = true` được lưu vào draft plan và phản ánh đúng trạng thái khi mở lại.
-- **Bằng chứng:** Vitest test suite `DispatchPlanEditorCell.test.tsx` (14/14 tests pass)
-- **Regression ID:** REG-COMB-03-20260908
-
-### TC_COMB_04 — Điều vận lưu kế hoạch điều phối bảo toàn cờ isCombined và phân loại do CUS ấn định
-- **Vai trò:** `dieuvan`, `admin`
-- **Mức độ:** P0
-- **Tiền điều kiện:** Lô hàng do CUS tạo có `isCombined = true` (hoặc `false`). Container 20ft ở trạng thái sẵn sàng điều xe (`READY_FOR_DISPATCH`).
-- **Các bước:**
-  1. Đăng nhập `dieuvan`, mở `/dispatch-detail`.
-  2. Mở dialog điều phối, gán nhà xe/xe/tài xế, điều chỉnh chi phí/doanh thu dự kiến.
-  3. Nhấn "Lưu kế hoạch" (omitting `isCombined` hoặc giữ nguyên giá trị).
-  4. Kiểm tra trường `shipments.is_combined` trong cơ sở dữ liệu và bảng kê CUS.
-- **Kết quả mong đợi (Pass):**
-  - Lưu kế hoạch điều phối thành công.
-  - Cờ `isCombined` cấp lô hàng và phân loại ban đầu của CUS được bảo toàn trọn vẹn, không bị điều vận vô tình đảo ngược hoặc ghi đè thành `false`.
-- **Bằng chứng & Kiểm thử:**
-  - Backend integration test: `backend/src/tests/dispatch-detail-plan.test.ts`
-- **Regression ID:** REG-COMB-04-20260908
+> **Ranh giới nghiệp vụ chuẩn:**
+> - **Điều vận KHÔNG thiết lập hoặc thay đổi Đơn / Lẻ / Kết hợp**: Việc xác định phân loại vận chuyển (Đơn `SINGLE`, Lẻ `LCL`, Kết hợp `COMBINED`, Kẹp `DOUBLE`) và cờ đóng kết hợp (`isCombined`) là toàn quyền của nhân viên Chứng từ (CUS) khi tiếp nhận booking và tạo lô hàng (chi tiết toàn bộ quy tắc và ca kiểm thử xem tại `01-cus-create-shipment.md §1.19`).
+> - **Nhiệm vụ của Điều vận**: Nhận thông tin phân loại đã ấn định từ CUS và thực hiện điều phối kỹ thuật (gán đầu kéo, rơ-moóc, tài xế hoặc nhà xe ngoài) đáp ứng yêu cầu vận chuyển. Khi lưu kế hoạch điều phối qua `/dispatch-detail-plan-rows/:fulfillmentId/plan`, hệ thống tự động bảo toàn nguyên vẹn phân loại và cờ cấp lô do CUS đã xác lập.
 
 ---
 
