@@ -164,6 +164,30 @@ describe('DispatchAllocationPopover', () => {
     expect((screen.getByLabelText("Số container 40' dòng 1") as HTMLInputElement).value).toBe('1');
   });
 
+  it('keeps day context visible for a single-day lot (regression 2026-09-08: day context was hidden)', async () => {
+    render(
+      <DispatchAllocationPopover
+        shipment={shipment({ expectedDeliveryDate: '2026-09-10' })}
+        onClose={vi.fn()}
+        onSaved={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => screen.getByLabelText(/Nhà xe dòng 1/));
+
+    // The day header row (weekday + per-day demand chip + allocation state)
+    // always renders — even with one day. The original complaint was that a
+    // single-day lot hid the day structure entirely.
+    expect(screen.getByText(/10\/09\/2026/)).toBeTruthy();
+    expect(screen.getByText(/Thứ Năm/)).toBeTruthy();
+    // The per-day demand chip echoes the shipment demand.
+    expect(screen.getAllByText(/Nhu cầu: 2×20' \+ 2×40'/).length).toBeGreaterThanOrEqual(1);
+    // The date lives in the day header only — carrier rows no longer repeat
+    // it in a dedicated column (2026-09-09 design fix: the NGÀY column
+    // duplicated the day header and collapsed once the row grid broke).
+    expect(screen.queryByText('10/09')).toBeNull();
+  });
+
   it('focuses its close control then restores focus to the allocation trigger', async () => {
     const trigger = document.createElement('button');
     document.body.appendChild(trigger);
@@ -205,13 +229,18 @@ describe('DispatchAllocationPopover', () => {
 
     await waitFor(() => expect(screen.getByLabelText(/Nhà xe dòng 1/)).not.toBeDisabled());
 
-    expect(screen.getByText('Nhu cầu')).toBeTruthy();
-    expect(screen.getByText('Đã phân')).toBeTruthy();
-    expect(screen.getByText('Phân bổ theo nhà xe')).toBeTruthy();
+    const summary = screen.getByRole('region', { name: 'Tổng phân bổ' });
+    expect(summary).toBeTruthy();
+    expect(within(summary).getByText('Loại')).toBeTruthy();
+    expect(within(summary).getByText('Nhu cầu')).toBeTruthy();
+    expect(within(summary).getByText('Đã phân')).toBeTruthy();
+    expect(within(summary).getByText('Còn lại')).toBeTruthy();
+    expect(within(summary).getByText("20'")).toBeTruthy();
+    expect(within(summary).getByText("40'")).toBeTruthy();
+    expect(screen.getByRole('table', { name: 'Phân bổ theo nhà xe theo ngày' })).toBeTruthy();
     expect(screen.getByText("Container 20'")).toBeTruthy();
     expect(screen.getByText("Container 40'")).toBeTruthy();
     expect(screen.getByText(/Có thể lưu khi chưa phân đủ/)).toBeTruthy();
-    expect(screen.getByRole('table', { name: 'Tổng số container đã phân bổ' })).toBeTruthy();
 
     fireEvent.change(screen.getByLabelText("Số container 20' dòng 1"), { target: { value: '1' } });
 
@@ -302,11 +331,10 @@ describe('DispatchAllocationPopover', () => {
     // OWN data is recognised by the system.
     fireEvent.change(screen.getByLabelText("Số container 40' dòng 1"), { target: { value: '1' } });
 
-    // The 40' row's "Đã phân" cell should now read 1 — proving the entered
-    // OWN data was registered in the summary table.
-    const rows = screen.getAllByRole('row');
-    const fortyRow = rows.find((row) => row.textContent?.includes("40'"));
-    expect(fortyRow?.textContent).toMatch(/1/);
+    // The entered 40' count must surface in the flow — the bottom note shows
+    // the updated remaining counts ("Còn … container …"), proving the entered
+    // OWN data was registered.
+    expect(await screen.findByText(/Còn 2 container 20' và 1 container 40'/)).toBeTruthy();
     expect(screen.queryByTestId('carrier-allocation-empty-externals')).toBeNull();
     expect(screen.queryByText(/Chưa có nhà xe ngoài nào được cấu hình/)).toBeNull();
   });
@@ -343,10 +371,10 @@ describe('DispatchAllocationPopover', () => {
       // Should render headers for both days. The date strings repeat inside
       // row labels and add-buttons, so query each day's region by its
       // accessible name and assert the header within it.
-      const day1 = screen.getByRole('region', { name: 'Phân bổ ngày 10/09/2026' });
-      const day2 = screen.getByRole('region', { name: 'Phân bổ ngày 11/09/2026' });
-      expect(within(day1).getByText('Ngày 10/09/2026')).toBeInTheDocument();
-      expect(within(day2).getByText('Ngày 11/09/2026')).toBeInTheDocument();
+      const day1 = screen.getByRole('rowgroup', { name: 'Phân bổ ngày 10/09/2026' });
+      const day2 = screen.getByRole('rowgroup', { name: 'Phân bổ ngày 11/09/2026' });
+      expect(within(day1).getByText(/10\/09\/2026/)).toBeInTheDocument();
+      expect(within(day2).getByText(/11\/09\/2026/)).toBeInTheDocument();
 
       // Day 1 has row 1, Day 2 has row 2
       expect(screen.getByLabelText(/Nhà xe dòng 1/)).toBeInTheDocument();

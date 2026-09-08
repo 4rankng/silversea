@@ -31,11 +31,7 @@ export interface DayValidationResult {
   isOver: boolean;
   isComplete: boolean;
   state: 'complete' | 'partial' | 'error';
-  rowIssues: Array<{
-    carrier: string | null;
-    count20: string | null;
-    count40: string | null;
-  }>;
+  rowIssues: Array<{ carrier: string | null; count20: string | null; count40: string | null }>;
   errors: string[];
 }
 
@@ -65,6 +61,37 @@ export function formatLocalDateVi(dateStr: string | null | undefined): string {
   return dateStr;
 }
 
+/** True for real "YYYY-MM-DD" keys; false for the "__UNSCHEDULED__"/"__ALL__" sentinels. */
+export function isNamedDateKey(dateKey: string): boolean {
+  return dateKey !== '__UNSCHEDULED__' && dateKey !== '__ALL__';
+}
+
+/** "2026-09-10" → "10/09" — compact per-row date cell; "—" for sentinel keys. */
+export function formatShortDateVi(dateKey: string | null | undefined): string {
+  if (!dateKey || !isNamedDateKey(dateKey)) return '—';
+  const parts = dateKey.split('-');
+  return parts.length === 3 ? `${parts[2]}/${parts[1]}` : dateKey;
+}
+
+/** "2026-09-10" → "Thứ Năm" — weekday of the calendar date; "" for sentinel keys. */
+export function formatWeekdayVi(dateKey: string | null | undefined): string {
+  if (!dateKey || !isNamedDateKey(dateKey)) return '';
+  const parts = dateKey.split('-').map(Number);
+  if (parts.length !== 3 || parts.some((n) => !Number.isFinite(n))) return '';
+  const [y, m, d] = parts;
+  // Local-midnight construction keeps the weekday tied to the calendar date
+  // regardless of the runtime timezone.
+  return new Intl.DateTimeFormat('vi-VN', { weekday: 'long' }).format(new Date(y!, m! - 1, d!));
+}
+
+/** {count20, count40} → "1×20' + 2×40'" — zero parts dropped, "0" when empty. */
+export function formatContainerCounts(counts: { count20: number; count40: number }): string {
+  return [
+    counts.count20 !== 0 ? `${counts.count20}×20'` : null,
+    counts.count40 !== 0 ? `${counts.count40}×40'` : null,
+  ].filter(Boolean).join(' + ') || '0';
+}
+
 export function parseContainerSummaryDemand(summary: string | null | undefined): { count20: number; count40: number } {
   if (!summary) return { count20: 0, count40: 0 };
   let count20 = 0;
@@ -74,11 +101,8 @@ export function parseContainerSummaryDemand(summary: string | null | undefined):
     if (!match) continue;
     const count = Number(match[1]) || 0;
     const type = match[2]?.trim() || '';
-    if (/^20(?:\D|$)/i.test(type)) {
-      count20 += count;
-    } else if (/^40(?:\D|$)/i.test(type)) {
-      count40 += count;
-    }
+    if (/^20(?:\D|$)/i.test(type)) count20 += count;
+    else if (/^40(?:\D|$)/i.test(type)) count40 += count;
   }
   return { count20, count40 };
 }
@@ -337,15 +361,8 @@ export function validateDayGroups(
     allErrors.push(...dayErrors);
 
     return {
-      assigned20: dayAssigned20,
-      assigned40: dayAssigned40,
-      remaining20,
-      remaining40,
-      isOver,
-      isComplete,
-      state,
-      rowIssues,
-      errors: dayErrors,
+      assigned20: dayAssigned20, assigned40: dayAssigned40, remaining20, remaining40,
+      isOver, isComplete, state, rowIssues, errors: dayErrors,
     };
   });
 
@@ -360,13 +377,7 @@ export function validateDayGroups(
       : 'partial';
 
   return {
-    totalAssigned20,
-    totalAssigned40,
-    totalRemaining20,
-    totalRemaining40,
-    dayResults,
-    hasErrors,
-    overallState,
-    allErrors,
+    totalAssigned20, totalAssigned40, totalRemaining20, totalRemaining40,
+    dayResults, hasErrors, overallState, allErrors,
   };
 }
