@@ -4,10 +4,14 @@ import { useCreateDispatchTaskTag, useDispatchTaskTags } from './useDispatchTask
 
 /** Quick-select tag composer for the dispatch edit modal's driver note
  *  ("Ghi chú tác vụ"). Controlled: the parent draft holds the composed note
- *  string; chips and the manual box derive from it via parse and re-emit a
- *  fresh composition on every interaction. The inline "+ Thêm tag" input
- *  posts to the shared pool; a duplicate (case/diacritics-insensitive)
- *  surfaces as 409 and auto-selects the existing chip instead of blocking.
+ *  string; chips and the free-text box derive from it via parse and re-emit a
+ *  fresh composition on every interaction. Two clearly separated sections —
+ *  tag chips ("Ghi chú tác vụ") and the typed note ("Ghi chú thêm", its own
+ *  label + box) — so typed text is never mistaken for a task tag; both still
+ *  join into the one stored note (tags first, then text). The inline
+ *  "+ Thêm tag" input posts to the shared pool; a duplicate
+ *  (case/diacritics-insensitive) surfaces as 409 and auto-selects the
+ *  existing chip instead of blocking.
  */
 export function DispatchTaskTagEditor({ value, onChange, disabled = false }: {
   value: string | null;
@@ -115,14 +119,17 @@ export function DispatchTaskTagEditor({ value, onChange, disabled = false }: {
               )}
             </div>
             {addNotice && <p className="dispatch-assignment-dialog__notes-preview" role="status">{addNotice}</p>}
-            <textarea
-              className="dispatch-assignment-dialog__notes-text"
-              aria-label="Ghi chú thêm (đi kèm các tag đã chọn)"
-              placeholder="Nhập ghi chú cho lái xe…"
-              value={manualText}
-              onChange={(event) => setManual(event.target.value)}
-              disabled={disabled}
-            />
+            <div className="dispatch-assignment-dialog__notes-manual">
+              <label className="dispatch-assignment-dialog__notes-label" htmlFor="dispatch-task-note-text">Ghi chú thêm</label>
+              <textarea
+                id="dispatch-task-note-text"
+                className="dispatch-assignment-dialog__notes-text"
+                placeholder="Nhập ghi chú cho lái xe…"
+                value={manualText}
+                onChange={(event) => setManual(event.target.value)}
+                disabled={disabled}
+              />
+            </div>
             {value !== null && value !== '' && (
               <p className="dispatch-assignment-dialog__notes-preview">Hiển thị: {value}</p>
             )}

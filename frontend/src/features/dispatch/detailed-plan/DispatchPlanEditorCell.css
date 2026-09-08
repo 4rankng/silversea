@@ -525,6 +525,15 @@
   cursor: pointer;
 }
 
+/* The typed note ("Ghi chú thêm") gets its own labeled section below the tag
+   chips so operators never mistake typed text for a task tag. */
+.dispatch-assignment-dialog__notes-manual {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+
 .dispatch-assignment-dialog__notes-text {
   border: 1px solid var(--border, #d0d5dd);
   border-radius: 8px;

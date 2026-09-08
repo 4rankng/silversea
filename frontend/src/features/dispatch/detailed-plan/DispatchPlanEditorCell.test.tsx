@@ -169,7 +169,7 @@ describe('DispatchPlanEditorCell — driver note composer', () => {
     renderCell(row({ notes: { vehicleNote: null, customerNote: null } }), { onAtomicSave });
     await openDialog();
     fireEvent.click(screen.getByRole('button', { name: 'Đặt đầu' }));
-    fireEvent.change(screen.getByLabelText('Ghi chú thêm (đi kèm các tag đã chọn)'), { target: { value: 'gọi lái trước 30p' } });
+    fireEvent.change(screen.getByLabelText('Ghi chú thêm'), { target: { value: 'gọi lái trước 30p' } });
     fireEvent.click(screen.getByRole('button', { name: /Lưu thay đổi/ }));
     await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));
     expect(onAtomicSave.mock.calls[0]![1]).toMatchObject({ operationalNotes: 'Đặt đầu; gọi lái trước 30p' });

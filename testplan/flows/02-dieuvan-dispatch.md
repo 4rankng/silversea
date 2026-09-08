@@ -820,11 +820,11 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
 - **Các bước:**
   1. Đăng nhập `DISPATCHER`, mở `/dispatch-detail`.
   2. Bấm ô "Điều phối" của một dòng lô → dialog "Chỉnh sửa điều phối" mở.
-  6. Tìm mục "Ghi chú tác vụ": chip row (Đặt đầu, Đặt đuôi, Đảo vỏ, Gửi bãi, Lấy vỏ ICD đi đóng, Di động — seed từ migration) + ô textarea + dòng xem trước.
+  6. Tìm hai mục tách biệt trong dialog: "Ghi chú tác vụ" (chip row: Đặt đầu, Đặt đuôi, Đảo vỏ, Gửi bãi, Lấy vỏ ICD đi đóng, Di động — seed từ migration) và bên dưới là mục "Ghi chú thêm" (ô textarea riêng, có label riêng — tách khỏi khối tag từ 2026-09-08 để đỡ nhầm lẫn) + dòng xem trước.
   3. Bấm chọn chip "Đặt đầu", "Lấy vỏ ICD đi đóng".
-  4. Gõ "gọi lái trước 30p" vào ô textarea.
+  4. Gõ "gọi lái trước 30p" vào ô "Ghi chú thêm".
   5. Bấm "Lưu thay đổi".
-  6. Mở lại dialog cùng dòng → 2 chip còn được chọn (aria-pressed=true), textarea giữ "gọi lái trước 30p", dòng xem trước đúng chuỗi.
+  6. Mở lại dialog cùng dòng → 2 chip còn được chọn (aria-pressed=true), ô "Ghi chú thêm" giữ "gọi lái trước 30p", dòng xem trước đúng chuỗi.
   7. Bấm "+ Thêm tag", gõ "Giao trước 9h", Enter → chip mới xuất hiện và được chọn.
   8. Thêm tag trùng "đặt đầu" (viết thường) → thông báo "Tag đã tồn tại — đã chọn tag có sẵn", chip "Đặt đầu" được chọn, không lỗi.
   9. Lưu và kiểm tra 3 mặt hiển thị:
@@ -844,9 +844,14 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
 > thẳng". Mục đích: nhân viên điều vận gán rõ nhiệm vụ cụ thể cho từng chuyến xe, lái xe nhìn
 > vào nhận biết ngay việc cần làm.
 >
-> **Ghi chú:** TC-DV-DISPATCH-034 (§2.9) đã cover ghi chú tác vụ dạng chip tag nhanh + textarea.
+> **Ghi chú:** TC-DV-DISPATCH-034 (§2.9) đã cover ghi chú ô text tay đã tách thành mục riêng
+> "Ghi chú thêm" (label + textarea riêng) trong popup Chỉnh sửa điều phối (2026-09-08).
 > Phần này bổ sung trường dropdown **Tác vụ điều phối** riêng biệt (enum, không phải free-text)
 > trong cùng popup "Chỉnh sửa điều phối".
+>
+> **Trạng thái 2026-09-08 — CHƯA chốt:** các tác vụ có biến tố ("Lấy vỏ ICD Tiên Sơn đi đóng" /
+> "Lấy vỏ ICD Mỹ Đình đi đóng" — ICD thay đổi theo lô) chưa có cách xử lý cuối cùng: chờ nội dung
+> tác vụ/ghi chú tác vụ chính thức từ khách hàng (Tiệp chuyển tiếp) rồi mới thiết kế.
 
 ### TC-DV-DISPATCH-035 — Hiển thị trường "Tác vụ điều phối" trên popup Chỉnh sửa điều phối
 
