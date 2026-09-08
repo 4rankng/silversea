@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Button as AriaButton } from 'react-aria-components';
 import { Save01, XClose } from '@untitledui/icons';
-import { AlertTriangle, CalendarOff, Clock3 } from 'lucide-react';
+import { AlertTriangle, Calendar, CalendarOff, Clock, Clock3, X } from 'lucide-react';
 import { DISPATCH_CLASSIFICATION_LABELS } from '@tingting/shared';
 import type {
   ShipmentCusContainerFlatRow,
@@ -122,6 +122,25 @@ function formatScheduleTime(row: ShipmentCusContainerFlatRow): string | null {
   const value = row.customerAppointmentAt;
   const input = formatVietnamDateTimeInput(value);
   return input ? input.slice(11, 16) : null;
+}
+
+/** Common appointment hours offered as one-tap shortcuts in the schedule editor. */
+const SCHEDULE_TIME_PRESETS = ['08:00', '10:00', '13:30', '16:00'];
+
+/** Quick-date shortcuts mirror the customer appointment popover's Hôm nay / Ngày mai / Ngày kia row. */
+const SCHEDULE_QUICK_DAYS = [
+  { label: 'Hôm nay', offsetDays: 0 },
+  { label: 'Ngày mai', offsetDays: 1 },
+  { label: 'Ngày kia', offsetDays: 2 },
+] as const;
+
+function getOffsetDateString(offsetDays: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 function fallback(value: string | null, label: string) {
@@ -422,17 +441,35 @@ function InlineEditor({
         }
         if (event.key !== 'Enter' || event.nativeEvent.isComposing || !dirty || saving) return;
         const target = event.target as HTMLElement;
-        if (target.isContentEditable || target.tagName === 'SELECT' || target.closest('.searchable-select, [role="listbox"], [role="option"]')) return;
+        if (target.isContentEditable || target.tagName === 'SELECT' || target.tagName === 'BUTTON' || target.closest('.searchable-select, [role="listbox"], [role="option"]')) return;
         if (event.shiftKey && target.tagName === 'TEXTAREA') return;
         if (event.shiftKey) return;
         event.preventDefault();
         void save();
       }}
     >
-      <div className="shipment-container-ledger__editor-heading">
-        <strong>Chỉnh sửa {modeLabel}</strong>
-        <span>{row.containerNumber || `Container số ${row.ordinal}`}</span>
-      </div>
+      {mode === 'schedule' ? (
+        <div className="shipment-container-ledger__schedule-header">
+          <div className="shipment-container-ledger__schedule-title">
+            <Calendar size={14} aria-hidden="true" />
+            <strong>Chỉnh sửa lịch trình</strong>
+            <span className="shipment-container-ledger__schedule-badge">{row.containerNumber || `Container số ${row.ordinal}`}</span>
+          </div>
+          <button
+            type="button"
+            className="shipment-container-ledger__schedule-close"
+            onClick={onCancel}
+            aria-label="Đóng bảng chỉnh sửa lịch trình"
+          >
+            <X size={14} aria-hidden="true" />
+          </button>
+        </div>
+      ) : (
+        <div className="shipment-container-ledger__editor-heading">
+          <strong>Chỉnh sửa {modeLabel}</strong>
+          <span>{row.containerNumber || `Container số ${row.ordinal}`}</span>
+        </div>
+      )}
       {mode === 'identity' && (
         <div className="shipment-container-ledger__editor-grid">
           <label><span>Khách hàng</span><input value={row.customerName ?? ''} disabled title={detail.summary.fieldAccess.customerId.reason} /></label>
@@ -501,10 +538,51 @@ function InlineEditor({
         </div>
       )}
       {mode === 'schedule' && (
-        <div className="shipment-container-ledger__editor-grid shipment-container-ledger__editor-grid--schedule">
-          <label><span>{row.direction === 'IMPORT' ? 'Ngày trả hàng' : 'Ngày đóng hàng'}</span><DateInput value={appointmentDate} onChange={setAppointmentDate} disabled={saving || !line.permissions.customerAppointmentEditable} /></label>
-          <label><span>{row.direction === 'IMPORT' ? 'Giờ trả hàng' : 'Giờ đóng hàng'}</span><input type="time" value={scheduleTime} onChange={(event) => setScheduleTime(event.target.value)} disabled={saving || !line.permissions.customerAppointmentEditable} /></label>
-        </div>
+        <>
+          <div className="shipment-container-ledger__schedule-section">Chọn nhanh ngày</div>
+          <div className="shipment-container-ledger__schedule-pills" role="group" aria-label="Chọn nhanh ngày">
+            {SCHEDULE_QUICK_DAYS.map(({ label, offsetDays }) => {
+              const quickDate = getOffsetDateString(offsetDays);
+              const active = appointmentDate === quickDate;
+              return (
+                <button
+                  key={label}
+                  type="button"
+                  className={`shipment-container-ledger__schedule-pill${active ? ' is-active' : ''}`}
+                  onClick={() => {
+                    setAppointmentDate(quickDate);
+                    if (!scheduleTime) setScheduleTime('08:00');
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+          <div className="shipment-container-ledger__editor-grid shipment-container-ledger__editor-grid--schedule">
+            <label><span>{row.direction === 'IMPORT' ? 'Ngày trả hàng' : 'Ngày đóng hàng'}</span><DateInput value={appointmentDate} onChange={setAppointmentDate} disabled={saving || !line.permissions.customerAppointmentEditable} /></label>
+            <label><span>{row.direction === 'IMPORT' ? 'Giờ trả hàng' : 'Giờ đóng hàng'}</span><input type="time" value={scheduleTime} onChange={(event) => setScheduleTime(event.target.value)} disabled={saving || !line.permissions.customerAppointmentEditable} /></label>
+          </div>
+          <div className="shipment-container-ledger__schedule-section">
+            <Clock size={11} aria-hidden="true" />
+            Khung giờ phổ biến
+          </div>
+          <div className="shipment-container-ledger__schedule-times" role="group" aria-label="Khung giờ phổ biến">
+            {SCHEDULE_TIME_PRESETS.map((presetTime) => (
+              <button
+                key={presetTime}
+                type="button"
+                className={`shipment-container-ledger__schedule-time-pill${scheduleTime === presetTime ? ' is-active' : ''}`}
+                onClick={() => {
+                  setScheduleTime(presetTime);
+                  if (!appointmentDate) setAppointmentDate(getOffsetDateString(0));
+                }}
+              >
+                {presetTime}
+              </button>
+            ))}
+          </div>
+        </>
       )}
       {mode === 'notes' && (
         <div className="shipment-container-ledger__editor-grid">
@@ -514,7 +592,23 @@ function InlineEditor({
         </div>
       )}
       <div className="shipment-container-ledger__editor-footer">
-        <span className="shipment-container-ledger__keyboard-hint">Enter để lưu · Esc để hủy</span>
+        {mode === 'schedule' ? (
+          (appointmentDate || scheduleTime) ? (
+            <button
+              type="button"
+              className="shipment-container-ledger__schedule-clear"
+              onClick={() => {
+                setAppointmentDate('');
+                setScheduleTime('');
+              }}
+              title="Xóa giờ hẹn đã chọn, nhấn Lưu để áp dụng"
+            >
+              Xóa hẹn
+            </button>
+          ) : <span aria-hidden="true" />
+        ) : (
+          <span className="shipment-container-ledger__keyboard-hint">Enter để lưu · Esc để hủy</span>
+        )}
         <EditActions saving={saving} saveDisabled={!dirty || (containerRequestMode && !requestReason.trim()) || (routeRequestMode && !requestReason.trim()) || (mode === 'schedule' && appointmentScheduleDirty && ((!!appointmentDate && !scheduleTime) || (!appointmentDate && !!scheduleTime)))} label={label} onSave={() => void save()} onCancel={onCancel} />
       </div>
       {edit.recoveryMessage && <span className="shipment-container-ledger__recovery" role="status">{edit.recoveryMessage}</span>}
