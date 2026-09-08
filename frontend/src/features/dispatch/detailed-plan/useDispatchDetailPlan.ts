@@ -323,8 +323,9 @@ export function useDispatchDetailPlan() {
       clearVehicle?: boolean;
       plannedRevenue: number | null;
       plannedCarrierCost: number | null;
-      classification: DispatchClassification;
-      isCombined: boolean;
+      /** CUS-owned — omitted by the dispatch editor; backend strips it too. */
+      classification?: DispatchClassification;
+      isCombined?: boolean;
       operationalNotes?: string | null;
     },
   ) => {

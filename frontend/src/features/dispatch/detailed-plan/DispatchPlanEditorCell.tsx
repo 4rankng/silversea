@@ -2,7 +2,6 @@ import { DispatchIssueStatusChip, deriveDispatchIssueStatus } from '../component
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Save, Send } from 'lucide-react';
 import type { DispatchClassification } from '@tingting/shared';
-import { DISPATCH_CLASSIFICATIONS, DISPATCH_CLASSIFICATION_LABELS } from '@tingting/shared';
 import {
   listDispatchFleetResources,
   type DispatchCarrierVehicle,
@@ -13,7 +12,6 @@ import {
 import type { DispatchShipmentRequest, DispatchShipmentResponse } from '../../../api/shipmentClient';
 import { Modal } from '../../../components/UI';
 import { SearchableSelect, TextField, type SearchableSelectOption } from '../../../design-system';
-import { UuiSelectField } from '../../../design-system/forms/UuiSelectField';
 import { DispatchTaskTagEditor } from './DispatchTaskTagEditor';
 import { formatMoneyInput, normalizeMoneyInput } from '../../../lib/moneyInput';
 import { IssueOrderFields } from './IssueOrderFields';
@@ -69,8 +67,6 @@ interface DispatchPlanEditorCellProps {
       clearVehicle?: boolean;
       plannedRevenue: number | null;
       plannedCarrierCost: number | null;
-      classification: DispatchClassification;
-      isCombined: boolean;
       operationalNotes?: string | null;
     },
   ) => Promise<AtomicPlanSaveResult>;
@@ -90,8 +86,6 @@ interface PlanEditorDraft {
   vehicleValue: string;
   plannedRevenue: string;
   plannedCarrierCost: string;
-  classification: DispatchClassification;
-  isCombined: boolean;
   /** Composed driver note (tags + manual text) — see DispatchTaskTagEditor. */
   operationalNotes: string | null;
 }
@@ -140,14 +134,11 @@ export function isCombinableContainer(label?: string | null): boolean {
 }
 
 function draftForRow(row: DispatchDetailPlanRow): PlanEditorDraft {
-  const combinable = isCombinableContainer(row.container?.containerTypeLabel);
   return {
     carrierValue: carrierValueForRow(row),
     vehicleValue: vehicleValueForRow(row),
     plannedRevenue: row.estimates.plannedRevenue ?? '',
     plannedCarrierCost: row.estimates.plannedCarrierCost ?? '',
-    classification: row.classification,
-    isCombined: combinable ? Boolean(row.isCombined) : false,
     operationalNotes: row.notes.vehicleNote,
   };
 }
@@ -216,8 +207,6 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
 
   const selectedCarrier = parseCarrier(draft.carrierValue);
   const draftUsesOwnFleet = selectedCarrier?.carrierType === 'OWN';
-
-  const combinable = isCombinableContainer(row.container?.containerTypeLabel);
 
   const issueStatus = deriveDispatchIssueStatus({
     vehicleAssigned: row.dispatch.assignedPlate != null,
@@ -471,8 +460,6 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
         ...(vehicleChanged ? body : {}),
         plannedRevenue: revenue.value,
         plannedCarrierCost: carrierCost.value,
-        classification: draft.classification,
-        isCombined: combinable ? draft.isCombined : false,
         operationalNotes: draft.operationalNotes,
       });
       // Stay open — saving carrier/vehicle here is usually step one of
@@ -491,8 +478,6 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
           : result.dispatch.assignedPlate ? `${CURRENT_PLATE_PREFIX}${result.dispatch.assignedPlate}` : '',
         plannedRevenue: result.estimates.plannedRevenue ?? '',
         plannedCarrierCost: result.estimates.plannedCarrierCost ?? '',
-        classification: result.classification,
-        isCombined: result.isCombined,
         operationalNotes: result.operationalNotes,
       });
     } catch {
@@ -631,39 +616,6 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
                 loadingMore={loadingVehicles && vehicleOptions.length > 0}
                 size="sm"
               />
-            </label>
-            <UuiSelectField
-              label="Phân loại"
-              width="content"
-              wrapperClassName="dispatch-assignment-dialog__classification"
-              value={draft.classification}
-              options={DISPATCH_CLASSIFICATIONS.map((value) => ({
-                value,
-                label: DISPATCH_CLASSIFICATION_LABELS[value],
-              }))}
-              onChange={(event) => {
-                setDraft((current) => ({ ...current, classification: event.target.value as DispatchClassification }));
-                setError(null);
-              }}
-              disabled={saving}
-            />
-            <label
-              className={`dispatch-assignment-dialog__check ${!combinable ? 'dispatch-assignment-dialog__check--disabled' : ''}`}
-              title={!combinable ? 'Chỉ container 20 feet mới được đóng kết hợp (kẹp chuyến)' : undefined}
-            >
-              <input
-                id={`dispatch-combined-${row.fulfillmentId}`}
-                type="checkbox"
-                checked={combinable ? draft.isCombined : false}
-                disabled={saving || !combinable}
-                title={!combinable ? 'Chỉ container 20 feet mới được đóng kết hợp (kẹp chuyến)' : undefined}
-                onChange={(event) => {
-                  if (!combinable) return;
-                  setDraft((current) => ({ ...current, isCombined: event.target.checked }));
-                  setError(null);
-                }}
-              />
-              Đóng kết hợp (kẹp chuyến)
             </label>
             <TextField
               id={`dispatch-revenue-${row.fulfillmentId}`}

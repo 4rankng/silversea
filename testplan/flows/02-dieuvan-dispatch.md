@@ -1021,6 +1021,25 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
 
 ---
 
+### TC-DV-DISPATCH-041 — Editor điều vận không còn sở hữu Phân loại và Đóng kết hợp (CUS-owned, 2026-09-08)
+
+- **Quyết định:** Phân loại chuyến (Đơn/Kẹp/Kết hợp/Lẻ) và cờ lot-level "Đóng kết hợp" là quyền của CUS
+  (tạo lô + quick-edit). Điều vận chỉ phân xe/cước/ghi chú.
+- **Vai trò:** `dieuvan` (DISPATCHER)
+- **Mức độ:** P1
+- **Các bước:**
+  1. Mở /dispatch-detail → "Chỉnh sửa điều phối" một dòng.
+  2. Xác nhận dialog KHÔNG còn select "Phân loại" và KHÔNG còn checkbox "Đóng kết hợp (kẹp chuyến)".
+  3. Sửa nhà xe/cước/ghi chú tác vụ → Lưu → thành công; cột Phân loại trên grid giữ nguyên giá trị cũ.
+  4. Gửi thẳng API PATCH kèm `classification`/`isCombined` (devtools) → backend vẫn strip, giá trị trong DB không đổi.
+- **Kết quả mong đợi (Pass):** điều vận không thể thay đổi Phân loại/Đóng kết hợp qua bất kỳ đường nào;
+  mọi giá trị khác (xe, cước, note) lưu bình thường; version bump đúng luật.
+- **Bằng chứng:** backend test "omitting classification and isCombined leaves both stored values untouched"
+  + "classification is CUS-owned — a dispatch save cannot rewrite it" (dispatch-detail-plan.test.ts).
+
+
+---
+
 ## Bảng nghiệm thu — Luồng Điều xe (Điều vận)
 
 
@@ -1066,3 +1085,4 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
 | __/__/__ | TC-DV-DISPATCH-038 | | | Hiển thị tên Tác vụ trên bảng Điều vận & Chi tiết lô | |
 | __/__/__ | TC-DV-DISPATCH-039 | | | Thay đổi tác vụ điều phối + audit log | |
 | __/__/__ | TC-DV-DISPATCH-040 | | | Dropdown picker không che nút dưới màn hình — flip + portal (dropdown-flip sweep) | |
+| __/__/__ | TC-DV-DISPATCH-041 | | | Editor điều vận không còn Phân loại/Đóng kết hợp — CUS-owned (2026-09-08) | |

@@ -62,7 +62,9 @@ export interface UpdateDispatchDetailPlanInput {
   clearVehicle?: boolean;
   plannedRevenue: number | null;
   plannedCarrierCost: number | null;
-  classification: DispatchClassification;
+  /** Per-task classification (Đơn/Kẹp/Kết hợp/Lẻ). CUS owns it via the CUS
+   *  surfaces; the dispatch editor omits it, so undefined = unchanged. */
+  classification?: DispatchClassification;
   /** Lot-level `shipments.is_combined` — CUS owns it (create + quick edit).
    *  Undefined = untouched by this save, which is what the dispatch editor
    *  now always sends: a per-container dispatcher must not rewrite a flag
@@ -927,7 +929,7 @@ export async function updateDispatchDetailPlan(input: UpdateDispatchDetailPlanIn
       clearVehicle: input.clearVehicle === true,
       plannedRevenue: input.plannedRevenue,
       plannedCarrierCost: input.plannedCarrierCost,
-      classification: input.classification,
+      classification: input.classification ?? null as unknown as DispatchClassification,
       isCombined: input.isCombined,
       // Note is part of the dedup payload: two saves differing only in the
       // note must not collide as the same idempotent request.
@@ -1040,7 +1042,8 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
     } : {}),
     plannedRevenue: input.plannedRevenue == null ? null : String(input.plannedRevenue),
     plannedCarrierCost: input.plannedCarrierCost == null ? null : String(input.plannedCarrierCost),
-    dispatchClassification: input.classification,
+    // CUS owns classification too — undefined = untouched, stored value kept.
+    ...(input.classification ? { dispatchClassification: input.classification } : {}),
     version: fulfillment.version + 1,
     updatedAt: new Date(),
   }).where(and(

@@ -1120,7 +1120,9 @@ export const atomicDispatchPlanEditSchema = z.object({
   clearVehicle: z.boolean().optional(),
   plannedRevenue: z.number().int().nonnegative().nullable(),
   plannedCarrierCost: z.number().int().nonnegative().nullable(),
-  classification: dispatchClassificationSchema,
+  /** Per-task classification is CUS-owned too (Đơn/Kẹp/Kết hợp/Lẻ via the
+   *  CUS surfaces); the dispatch editor omits it, so undefined = unchanged. */
+  classification: dispatchClassificationSchema.optional(),
   /** Lot-level `shipments.is_combined`. Owned by the CUS create/quick-edit
    *  surface, not by this per-container dispatch editor: one container's
    *  dispatcher must not silently rewrite a flag that spans the whole lot.
