@@ -11,6 +11,9 @@ import {
   AllocationDayGroup,
   AllocationRow,
   buildInitialDayGroups,
+  formatContainerCounts,
+  formatShortDateVi,
+  isNamedDateKey,
   syncDayGroupsWithContainers,
   toEmptyRow,
   validateDayGroups,
@@ -306,6 +309,33 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved, returnFo
               </div>
             </div>
           </div>
+          {isMultiDay && (
+            <div role="list" aria-label="Tổng phân bổ theo ngày" className="dispatch-allocation-popover__summary-days">
+              {days.map((day, dayIndex) => {
+                const dayResult = validation.dayResults[dayIndex]!;
+                const named = isNamedDateKey(day.dateKey);
+                const dayLabel = named ? `Ngày ${formatShortDateVi(day.dateKey)}` : day.dateLabel;
+                return (
+                  <div role="listitem" key={day.dateKey} className="dispatch-allocation-popover__summary-day">
+                    <span className="dispatch-allocation-popover__summary-day-date">{dayLabel}</span>
+                    <span className="dispatch-allocation-popover__summary-day-facts">
+                      Nhu cầu {formatContainerCounts(day.demand)}
+                      {' · Đã phân '}
+                      {formatContainerCounts({ count20: dayResult.assigned20, count40: dayResult.assigned40 })}
+                      {' · Còn '}
+                      {formatContainerCounts({
+                        count20: Math.max(0, dayResult.remaining20),
+                        count40: Math.max(0, dayResult.remaining40),
+                      })}
+                    </span>
+                    <span className={`dispatch-allocation-popover__summary-day-state is-${dayResult.state}`}>
+                      {dayResult.state === 'error' ? 'Cần điều chỉnh' : dayResult.state === 'complete' ? 'Đã phân đủ' : 'Chưa phân đủ'}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </section>
 
         <div role="table" aria-label="Phân bổ theo nhà xe theo ngày" className="dispatch-allocation-popover__table">
