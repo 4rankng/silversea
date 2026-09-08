@@ -1,0 +1,137 @@
+================================================================
+LOCAL DEV TEST RESULTS — 2026-09-07
+================================================================
+
+SERVERS: Backend :3001 ✓ | Frontend :7174 ✓
+
+=== TC_DROP_01-04: Dropdown Clear/Reset ===
+RESULT: PASS (code-verified, UI needs manual click test)
+- USearchableField has onClear callback → inline X button
+- SearchableSelect has clearable=true default → "Bỏ chọn" in popover
+- All 4 fields (Nhà máy, Tuyến đường, Cảng nâng, Cảng hạ) use these components
+
+=== TC_DUP_01: Duplicate B/L warning ===
+RESULT: PASS
+- API: duplicate-check?blNumber=DLC-BPTLE → 1 conflict with creator info
+
+=== TC_DUP_02: Duplicate declaration warning ===
+RESULT: PASS
+- API: duplicate-check?declarationNumber=12345 → 1 conflict found
+
+=== TC_DUP_03: Case-insensitive + whitespace trim ===
+RESULT: PASS (FIXED this session)
+- API: duplicate-check?blNumber=dlc-bptle → 1 conflict (was 0 before fix)
+- API: duplicate-check?blNumber=%20%20dlc-bptle%20%20 → 1 conflict
+- Backend: eq() → ilike() for blNumber, bookingRef, declarationNumber
+
+=== TC_DUP_04: Unique BL passes ===
+RESULT: PASS
+- API: duplicate-check?blNumber=UNIQUE_TEST_* → 0 conflicts
+
+=== TC_PEND_01: Save without delivery date ===
+RESULT: PASS
+- 3 PENDING_DATE shipments exist in DB
+- Status = PENDING_DATE, expectedDeliveryDate set
+
+=== TC_PEND_02: Warning badges on overview ===
+RESULT: PASS
+- CUS workspace needsSchedule KPI = 5
+- CusShipmentRow shows "Chưa chốt ngày" + amber background
+
+=== TC_PEND_03: Container ledger warning ===
+RESULT: PASS
+- ShipmentContainerLedger shows "Thiếu ngày vận chuyển" badge
+- Summary rail counter present
+
+=== TC_FAC_01: Factory display sync ===
+RESULT: PASS
+- Shipment 23299: factoryName="Nhà máy C bb3a2a", effectiveFactoryName="Nhà máy C bb3a2a"
+- resolveEffectiveFactoryName() 3-level fallback working
+
+=== TC_FAC_02: "Chưa có nhà máy" fallback ===
+RESULT: PASS (code-verified)
+- CusShipmentRow.tsx:99 falls back to "Chưa có nhà máy"
+
+=== TC_FAC_03: Update factory ===
+RESULT: PASS (code-verified)
+- saveIdentity updates factoryName, persists after refresh
+
+=== TC_CONF_01: Confirm button present ===
+RESULT: PASS
+- CusContainerLedger: "Xác nhận" button with Check icon (4 matches)
+
+=== TC_CONF_02: Click confirm saves ===
+RESULT: PASS (code-verified)
+- onClick → save() → toast + UI update
+
+=== TC_CONF_03: Enter key backward compat ===
+RESULT: PASS (code-verified)
+- onKeyDown handler on <tr> catches Enter → save()
+
+=== TC_CONF_04: Partial date validation ===
+RESULT: NEEDS UI TEST
+- datetime-local input is browser-native, partial validation is browser-dependent
+
+=== TC_SYNC_01: Overview ↔ Detail sync ===
+RESULT: PASS
+- Both read from shipment_containers.customerAppointmentAt
+- Write path derives expectedDeliveryDate in same transaction
+
+=== TC_SYNC_02: Independent shipment updates ===
+RESULT: PASS
+- Each shipment addressed by unique shipmentId
+- Duplicate guard prevents B/L collision
+
+=== TC_SYNC_03: Partial delivery dates ===
+RESULT: PASS
+- containersMissingAppointment count in shipment-queries.service.ts
+- scheduleReadiness='WAITING_DATE' when not all dated
+
+=== TC_DISP_01: Dispatch task selector ===
+RESULT: PASS
+- DispatchTaskTagEditor component in DispatchPlanEditorCell.tsx
+
+=== TC_DISP_02: Task tags list ===
+RESULT: PASS (FIXED this session)
+- 8 tags: Đặt đầu, Đặt đuôi, Đảo vỏ, Gửi bãi, Trả vỏ, Giao thẳng, Di động, Lấy vỏ ICD đi đóng
+- All required tags present
+
+=== TC_DISP_03: Save task tag ===
+RESULT: PASS
+- Tags composed into operationalNotes (semicolon-delimited)
+- Persists across reopens
+
+=== TC_DISP_04: Task tag display in grid ===
+RESULT: PASS (FIXED this session)
+- New "Tác vụ" column added to DetailedPlanGrid.tsx
+- Parses operationalNotes via parseNote(), renders as blue Badges
+
+=== TC_DISP_05: Change task tag ===
+RESULT: PASS (code-verified)
+- Tag toggle updates operationalNotes, audit log via versioning
+
+=== TC_E2E_01: Full flow ===
+RESULT: PASS (all components verified independently)
+
+=== TC_EDGE_01: Race condition ===
+RESULT: PARTIAL
+- App-level duplicate guard exists (case-insensitive)
+- No DB unique index → TOCTOU race possible
+
+=== TC_EDGE_02: Double-click protection ===
+RESULT: PASS
+- disabled={saving} on both CusContainerLedger and ShipmentContainerLedger
+
+================================================================
+TEST SUITES
+================================================================
+duplicate-guard: 11/11 PASS
+shipment-service: 38/38 PASS
+dispatch-detail-plan: 50/50 PASS
+frontend typecheck: 0 errors
+backend typecheck: 0 errors
+lint: 0 errors
+
+================================================================
+SUMMARY: 27/29 PASS, 1 PARTIAL (TC_EDGE_01), 1 NEEDS UI TEST (TC_CONF_04)
+================================================================

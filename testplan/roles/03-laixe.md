@@ -3,9 +3,7 @@
 > **Vietnamese label**: Lái xe (`Role.DRIVER`).
 > **Home route**: `/my-trips` (`routes.myTrips`).
 > **Primary sidebar section**: `Công việc của tôi` (`my-work`).
-> **Test accounts (local + staging)**: `laixe` / `Abc123` (truck
-> `15C-491.72`), `thu` / `Abc123` (`60C-23456`), `pho` / `Abc123`
-> (`60C-45678`), `quyet` / `Abc123` (`60C-34567`).
+> **Test accounts**: chọn theo môi trường qua `../testaccounts.txt` (role → username). Runner tự map `DRIVER` + env → username phù hợp. Biển số xe đi kèm mỗi driver xem trong `testaccounts.txt`.
 > **Primary pages**:
 > - `/my-trips` — `frontend/src/pages/DriverTripsPage.tsx` (Hành trình của tôi)
 > - `/my-trips/:id` — `frontend/src/pages/DriverTripDetailPage.tsx` (chi tiết chuyến)
@@ -148,7 +146,7 @@ to the driver's plate.
 
 ### Test steps
 
-1. Log in as `laixe` on a 390 × 844 mobile viewport (Chrome dev-tools
+1. Log in as `DRIVER` on a 390 × 844 mobile viewport (Chrome dev-tools
    device emulation or a real iPhone via PWA install).
 2. Walk through the three sub-tabs (`Lệnh mới` / `Đã nhận` / `Lịch sử`);
    capture each.
@@ -311,7 +309,7 @@ matches the logged-in user).
 
 ### Test steps
 
-1. Log in as `laixe`. Open a trip from `/my-trips`.
+1. Log in as `DRIVER`. Open a trip from `/my-trips`.
 2. Capture the trip detail page.
 3. Tap container / seal capture 3× to verify the no-dead-end rule.
 4. Tap `Bắt đầu chuyến` and capture the new state.
@@ -429,14 +427,14 @@ owner.
 
 ### Test steps
 
-1. Log in as `laixe`. From a trip in `Đang chạy`, tap
+1. Log in as `DRIVER`. From a trip in `Đang chạy`, tap
    `Bước tiếp: e-POD` on the trip detail page.
 2. Capture the e-POD screen.
 3. Upload a 1 MB PDF for `Phiếu bãi`.
 4. Optionally upload a 200 KB JPG for `Biên bản`.
 5. Type a short note.
 6. Tap `Gửi e-POD để duyệt`; capture the success toast.
-7. (Conflict-recovery) Open the same trip from `admin`'s trip
+7. (Conflict-recovery) Open the same trip from `ADMIN`'s trip
    detail, change a field, go offline on the driver app, mutate
    the same field, come back online; capture the banner.
 
@@ -468,9 +466,9 @@ owner.
 
 ### Test steps
 
-1. Log in as `laixe` and confirm `/my-trips/two-orders` loads.
+1. Log in as `DRIVER` and confirm `/my-trips/two-orders` loads.
 2. If the seed has no two-orders pair, create one via
-   `dieuvan`/`admin` first, then re-test.
+   `DISPATCHER`/`ADMIN` first, then re-test.
 
 ---
 
@@ -506,7 +504,7 @@ owner.
 
 ### Test steps
 
-1. Log in as `laixe`. Open `/my-earnings`.
+1. Log in as `DRIVER`. Open `/my-earnings`.
 2. Capture the current month.
 3. Switch to the previous month; capture.
 
@@ -554,7 +552,7 @@ owner.
 
 ### Test steps
 
-1. Log in as `laixe`. Open `/my-penalties`.
+1. Log in as `DRIVER`. Open `/my-penalties`.
 2. Capture the list. If empty, capture the empty state.
 
 ---

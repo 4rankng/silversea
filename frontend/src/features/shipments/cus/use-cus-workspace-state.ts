@@ -170,7 +170,14 @@ export function useCusWorkspaceState(params: CusWorkspaceListParams) {
     }
   }, [details]);
 
-  const applySavedContainerLine = useCallback(async (shipmentId: number, line: ShipmentCusWorkspaceContainerLine) => {
+  const applySavedContainerLine = useCallback(async (shipmentId: number, line?: ShipmentCusWorkspaceContainerLine | null) => {
+    if (!line) {
+      // Defensive: callers guard the response envelope, but a stale row also
+      // matters — an in-flight save for a line that just disappeared must
+      // not crash the reducer and blank the page.
+      await loadList();
+      return;
+    }
     setDetails((current) => {
       const detail = current[shipmentId];
       if (!detail) return current;
@@ -200,6 +207,8 @@ export function useCusWorkspaceState(params: CusWorkspaceListParams) {
 
   const setDetailDirty = useCallback((shipmentId: number, dirty: boolean) => {
     setDirtyDetailIds((current) => {
+      const has = current.has(shipmentId);
+      if (dirty ? has : !has) return current;
       const next = new Set(current);
       if (dirty) next.add(shipmentId);
       else next.delete(shipmentId);
@@ -209,6 +218,8 @@ export function useCusWorkspaceState(params: CusWorkspaceListParams) {
 
   const setDetailSaving = useCallback((shipmentId: number, saving: boolean) => {
     setSavingDetailIds((current) => {
+      const has = current.has(shipmentId);
+      if (saving ? has : !has) return current;
       const next = new Set(current);
       if (saving) next.add(shipmentId);
       else next.delete(shipmentId);

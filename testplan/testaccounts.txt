@@ -10,10 +10,21 @@ local:
   baseUrl: http://localhost:7174
   api: http://localhost:3001/api
   password: Abc123
-  # Demo seed accounts (backend/src/seed.ts) — see demoUsers at the bottom:
-  # admin, giamdoc, ketoan, cus, dieuvan, laixe, giaonhan, thu, pho, quyet.
-  # The seed self-heals hashes: on reseed it overwrites any stored hash that
-  # fails to authenticate Abc123 (devdb-synced DBs carrying prod hashes).
+  # Local dev is a mirror of staging (`make stgdb`). Same users, same roles,
+  # same passwords. The demo seed accounts (giamdoc, cus, dieuvan, etc.) are
+  # only available after running `make seed` — they do NOT exist by default
+  # after a staging sync.
+  users:
+    ADMIN:       admin, phuongnt (NV001), namnv (NV002)
+    ACCOUNTANT:  hoapt (NV009), liennt (NV010), lydp (NV011),
+                 vanntt (NV012), myvtt (NV013), ngocntm (NV014)
+    CUS:         thanhdc (NV018), tiepvv (NV019), anhdtv (NV020),
+                 huyenntt (NV021), anhntn (NV022)
+    DISPATCHER:  dungnv (NV015), bacdk (NV016), huongnt (NV017)
+    OPS:         hoangnh (NV003), hungld (NV004), duongtt (NV005),
+                 tuvn (NV006), hoangnm (NV007), cuongvd (NV008)
+    DRIVER:      38 named drivers (no Mã NV) — e.g. bqhuong, btdung,
+                 vvtrung, tvtham; every one logs in with username + Abc123
 
 staging:
   baseUrl: https://vantai.tingting.vip

@@ -83,7 +83,7 @@ cusWorkspaceRoutes.get(
 
 cusWorkspaceRoutes.post(
   '/cus-workspace/:id/containers/:containerId',
-  requireRoles(Role.CUS, Role.DISPATCHER),
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS, Role.DISPATCHER),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
     if (shipmentId === null) return;

@@ -109,9 +109,9 @@ async function main() {
         id: s.trips.id,
         tripCode: s.trips.tripCode,
         ...(Object.fromEntries(Object.entries(FINANCIAL_PROBE_COLUMNS)
-          .map(([k, col]) => [k, (s.trips as unknown as Record<string, typeof col>)[k]]))),
+          .map(([k, _col]) => [k, (s.trips as unknown as Record<string, typeof _col>)[k]]))),
         ...(Object.fromEntries(Object.entries(CARRIER_PROBE_COLUMNS)
-          .map(([k, col]) => [k, (s.trips as unknown as Record<string, typeof col>)[k]]))),
+          .map(([k, _col]) => [k, (s.trips as unknown as Record<string, typeof _col>)[k]]))),
       }).from(s.trips).orderBy(asc(s.trips.id));
 
   const dump = rows.map((row) => Object.fromEntries(

@@ -76,8 +76,8 @@ prompts/
 
 # Session state (never commit)
 HANDOFF.md
-qa/
-!qa/README.md
+/qa/
+!/qa/README.md
 
 # Autonomous SDLC runtime state (never commit)
 .autonomous-sdlc/

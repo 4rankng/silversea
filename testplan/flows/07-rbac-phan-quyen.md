@@ -39,12 +39,12 @@
 - **Mức độ:** P0
 - **Thiết bị:** Desktop
 - **Các bước:**
-  1. Đăng nhập `laixe`. Truy cập trực tiếp: `/finance`, `/trips`, `/debt`, `/customers`, `/dispatch`, `/portal/debit-notes`.
-  2. Đăng nhập `customer`. Truy cập: `/finance`, `/trips`, `/dispatch`, `/my-trips`.
-  3. Đăng nhập `ketoan`. Truy cập: `/my-trips`, `/my-forwarder-trips`, `/dispatch`.
-  4. Đăng nhập `giaonhan`. Truy cập: `/finance`, `/salary`, `/penalties`, `/debt`.
-  5. Đăng nhập `cus`. Truy cập: `/finance`, `/dispatch`, `/my-trips`.
-  6. Đăng nhập `dieuvan`. Truy cập: `/finance`, `/debt`, `/salary`.
+  1. Đăng nhập `DRIVER`. Truy cập trực tiếp: `/finance`, `/trips`, `/debt`, `/customers`, `/dispatch`, `/portal/debit-notes`.
+  2. Đăng nhập `CUSTOMER`. Truy cập: `/finance`, `/trips`, `/dispatch`, `/my-trips`.
+  3. Đăng nhập `ACCOUNTANT`. Truy cập: `/my-trips`, `/my-forwarder-trips`, `/dispatch`.
+  4. Đăng nhập `OPS`. Truy cập: `/finance`, `/salary`, `/penalties`, `/debt`.
+  5. Đăng nhập `CUS`. Truy cập: `/finance`, `/dispatch`, `/my-trips`.
+  6. Đăng nhập `DISPATCHER`. Truy cập: `/finance`, `/debt`, `/salary`.
 - **Kết quả mong đợi (Pass):**
   - Mỗi URL không thuộc vai trò: redirect về màn nhà hoặc "Không có quyền".
   - **Không lộ dữ liệu** trong response body (kể cả loading state).
@@ -60,10 +60,10 @@
 - **Mã PRD:** TC-MO2C-17, O2C Bước 0
 - **Mức độ:** P0
 - **Các bước:**
-  1. Đăng nhập `dieuvan`. Kiểm tra: không thấy lợi nhuận, giá vốn, lương, hoa hồng, định mức.
-  2. Đăng nhập `giaonhan`. Kiểm tra: không thấy lợi nhuận, giá vốn.
-  3. Đăng nhập `laixe`. Kiểm tra: chỉ thấy thu nhập cá nhân, không thấy lương lái xe khác.
-  4. Đăng nhập `cus`. Kiểm tra: không thấy lợi nhuận, giá vốn.
+  1. Đăng nhập `DISPATCHER`. Kiểm tra: không thấy lợi nhuận, giá vốn, lương, hoa hồng, định mức.
+  2. Đăng nhập `OPS`. Kiểm tra: không thấy lợi nhuận, giá vốn.
+  3. Đăng nhập `DRIVER`. Kiểm tra: chỉ thấy thu nhập cá nhân, không thấy lương lái xe khác.
+  4. Đăng nhập `CUS`. Kiểm tra: không thấy lợi nhuận, giá vốn.
 - **Kết quả mong đợi (Pass):**
   - Các vai trò vận hành không thấy dữ liệu nhạy cảm.
   - Menu ẩn các mục không có quyền.
@@ -77,9 +77,9 @@
 
 - **Mức độ:** P0
 - **Các bước:**
-  1. Đăng nhập `giamdoc` → mở `/dashboard`, `/finance` → phải thấy lợi nhuận.
-  2. Đăng nhập `ketoan` → mở `/finance` → phải thấy lợi nhuận.
-  3. Đăng nhập `admin` → mở `/dashboard` → phải thấy mọi thứ.
+  1. Đăng nhập `MANAGER` → mở `/dashboard`, `/finance` → phải thấy lợi nhuận.
+  2. Đăng nhập `ACCOUNTANT` → mở `/finance` → phải thấy lợi nhuận.
+  3. Đăng nhập `ADMIN` → mở `/dashboard` → phải thấy mọi thứ.
 - **Kết quả mong đợi (Pass):**
   - 3 vai trò này thấy đầy đủ: doanh thu, chi phí, lợi nhuận, giá vốn.
 - **Bằng chứng:** ảnh dashboard/finance với dữ liệu nhạy cảm
@@ -93,7 +93,7 @@
 - **Mã PRD:** Q16
 - **Mức độ:** P0
 - **Các bước:**
-  1. Đăng nhập `customer`. Mở `/portal/shipments`.
+  1. Đăng nhập `CUSTOMER`. Mở `/portal/shipments`.
   2. Kiểm tra: chỉ thấy lô của chính mình.
   3. Mở URL `/portal/shipments/<id-của-khách-khác>`.
   4. Mở `/portal/debit-notes` → chỉ thấy giấy báo nợ của mình.
@@ -109,10 +109,10 @@
 
 - **Mức độ:** P0
 - **Các bước:**
-  1. Đăng nhập `cus`. Mở `/shipments/new` → mở dropdown Khách hàng → thấy **tất cả** khách hàng active.
-  2. Tạo mới một khách hàng (inline hoặc từ danh mục). Đăng nhập một vai trò khác (`dieuvan`, `giamdoc`, hoặc một tài khoản CUS khác) → mở dropdown Khách hàng → KH vừa tạo phải xuất hiện.
+  1. Đăng nhập `CUS`. Mở `/shipments/new` → mở dropdown Khách hàng → thấy **tất cả** khách hàng active.
+  2. Tạo mới một khách hàng (inline hoặc từ danh mục). Đăng nhập một vai trò khác (`DISPATCHER`, `MANAGER`, hoặc một tài khoản CUS khác) → mở dropdown Khách hàng → KH vừa tạo phải xuất hiện.
   3. Mở `/shipments` bằng hai tài khoản CUS khác nhau → cả hai thấy **cùng một** danh sách lô hàng đầy đủ.
-  4. Với tư cách `cus`, mở trực tiếp URL `/shipments/:id` của lô bất kỳ do người khác tạo → mở bình thường.
+  4. Với tư cách `CUS`, mở trực tiếp URL `/shipments/:id` của lô bất kỳ do người khác tạo → mở bình thường.
 - **Kết quả mong đợi (Pass):**
   - Không còn giới hạn "mỗi CUS thấy một tập khách hàng/lô riêng" — dropdown và danh sách như nhau với mọi nhân viên vận hành.
   - KH mới tạo xuất hiện trong dropdown của mọi vai trò có dropdown KH.
@@ -126,7 +126,7 @@
 - **Nguồn:** báo cáo khách hàng 2026-09-06 (nghi "CUS không tự tạo mới được khách hàng") — đã xác
   minh trên local: quyền hoạt động đúng. Case này pin allowance để không bị gỡ/mất khớp path.
 - **Các bước:**
-  1. Đăng nhập `cus`. GET `/api/customers?page=1` → 200 (đầy đủ danh mục).
+  1. Đăng nhập `CUS`. GET `/api/customers?page=1` → 200 (đầy đủ danh mục).
   2. POST `/api/customers` (name + taxCode + contactInfo) → 201; response **không có** creditLimit /
      paymentTermDays / debitNoteMode (intake strip).
   3. POST `/api/customers` kèm `paymentTermDays` → 201 nhưng trường bị strip khỏi kết quả lưu.
@@ -150,13 +150,13 @@
 - **Nguồn:** yêu cầu mở quyền edit/delete cho CUS và DISPATCHER trên `/config/routes` và
   `/config/customers`. Trước đó DISPATCHER bị giới hạn POST-only; nay đã mở PUT/DELETE.
 - **Các bước:**
-  1. Đăng nhập `cus`. Mở `/config/routes`. Nhấn vào một tuyến → modal chỉnh sửa mở ra.
+  1. Đăng nhập `CUS`. Mở `/config/routes`. Nhấn vào một tuyến → modal chỉnh sửa mở ra.
      Sửa tên tuyến → Lưu → 200. Nhấn Xoá (tuyến tạo < 1 ngày) → 200.
-  2. Đăng nhập `cus`. Mở `/config/customers`. Nhấn vào một khách hàng → modal chỉnh sửa mở ra.
+  2. Đăng nhập `CUS`. Mở `/config/customers`. Nhấn vào một khách hàng → modal chỉnh sửa mở ra.
      Sửa tên KH → Lưu → 200. Nhấn Xoá (KH tạo < 1 ngày) → 200.
-  3. Đăng nhập `dieuvan`. Mở `/config/routes`. Nhấn vào một tuyến → modal chỉnh sửa mở ra.
+  3. Đăng nhập `DISPATCHER`. Mở `/config/routes`. Nhấn vào một tuyến → modal chỉnh sửa mở ra.
      Sửa tên tuyến → Lưu → 200. Nhấn Xoá (tuyến tạo < 1 ngày) → 200.
-  4. Đăng nhập `dieuvan`. Mở `/config/customers`. Nhấn vào một khách hàng → modal chỉnh sửa mở ra.
+  4. Đăng nhập `DISPATCHER`. Mở `/config/customers`. Nhấn vào một khách hàng → modal chỉnh sửa mở ra.
      Sửa tên KH → Lưu → 200. Nhấn Xoá (KH tạo < 1 ngày) → 200.
   5. CUS/Dispatcher sửa field tài chính (creditLimit, paymentTermDays) → trường bị strip bởi
      intake restriction service, không lưu vào DB.
@@ -181,7 +181,7 @@
 - **Mã PRD:** TC-MO2C-17, O2C Bước 0
 - **Mức độ:** P0
 - **Các bước:**
-  1. Đăng nhập `cus` (create-only). Tạo 1 lô nháp.
+  1. Đăng nhập `CUS` (create-only). Tạo 1 lô nháp.
   2. Trong **cùng phiên** (chưa logout): thử xóa lô vừa tạo.
 - **Kết quả mong đợi (Pass):**
   - Cho phép xóa trong phiên hiện tại (phát hiện sai sót).
@@ -195,8 +195,8 @@
 - **Mã PRD:** TC-MO2C-17, O2C Bước 0
 - **Mức độ:** P0
 - **Các bước:**
-  1. Đăng nhập `cus`. Tạo 1 lô. **Logout**.
-  2. Đăng nhập lại `cus`. Thử xóa lô của phiên cũ.
+  1. Đăng nhập `CUS`. Tạo 1 lô. **Logout**.
+  2. Đăng nhập lại `CUS`. Thử xóa lô của phiên cũ.
 - **Kết quả mong đợi (Pass:**
   - Không cho xóa trực tiếp.
   - Yêu cầu Admin/Giám đốc phê duyệt.
@@ -223,7 +223,7 @@
 ### TC-RBAC-009 — Hủy chuyến phải qua quyền/lý do/audit
 
 - **Mã PRD:** TC-MO2C-16
-- **Vai trò:** `admin`
+- **Vai trò:** `ADMIN`
 - **Mức độ:** P0
 - **Các bước:**
   1. Thử hủy trực tiếp trip chưa hoàn thành.

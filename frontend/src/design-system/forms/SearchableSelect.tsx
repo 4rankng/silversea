@@ -165,7 +165,7 @@ export function SearchableSelect({
 
   useClickOutside(containerRef, close, {
     escapeKey: true,
-    enabled: isOpen && !isMobile,
+    enabled: isOpen,
     additionalRefs: portaledOverlayRefs,
   });
 

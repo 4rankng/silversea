@@ -18,6 +18,7 @@ import { eq, inArray } from 'drizzle-orm';
 import { db, client } from '../db';
 import * as s from '../db/schema';
 import { insertTripComposite } from '../services/trip-composite.service';
+import { calculateCheckDigit } from '@tingting/shared';
 import { Role, shipmentCusContainerQuerySchema, shipmentCusWorkspaceQuerySchema } from '@tingting/shared';
 import type { AuthUser } from '../middleware/auth';
 import { getCusShipmentWorkspaceDetail, listCusShipmentContainers, listCusShipmentWorkspace, updateCusShipmentContainerLine } from '../services/cus-shipment-workspace.service';
@@ -45,6 +46,7 @@ let containerType20Id: number;
 let responsibleUnitId: number;
 let adminActor: AuthUser;
 let cusActor: AuthUser;
+let accountantActor: AuthUser;
 
 /** Random letters-only tag. cargoRankSql() regex-matches standalone '20'/'40'
  *  in container-type codes AND names, so fixture randomness must never carry
@@ -175,6 +177,13 @@ before(async () => {
     fullName: null,
     role: Role.ADMIN,
   };
+  accountantActor = {
+    userId: 0,
+    username: 'cus-ws-test-accountant',
+    email: null,
+    fullName: null,
+    role: Role.ACCOUNTANT,
+  };
   cusActor = {
     userId: cusUser.id,
     username: 'cus-ws-test-cus',
@@ -269,20 +278,20 @@ describe('CUS shipment workspace projection — Chứng từ direction display',
     // cell just mirrors the stored reference for each direction.
     const exportShipment = await seedShipment({
       tradeDirection: 'EXPORT',
-      bookingRef: 'BOOK-EXP-1',
+      bookingRef: `BOOK-EXP-1-${suffix}`,
     });
     const importShipment = await seedShipment({
       tradeDirection: 'IMPORT',
-      blNumber: 'BILL-IMP-1',
+      blNumber: `BILL-IMP-1-${suffix}`,
     });
     // Direction unknown — a lone bill still renders.
     const undirectedShipment = await seedShipment({
-      blNumber: 'BILL-NA-1',
+      blNumber: `BILL-NA-1-${suffix}`,
     });
     // Only the secondary number present — the cell still shows what exists.
     const bookingOnly = await seedShipment({
       tradeDirection: 'EXPORT',
-      bookingRef: 'BOOK-ONLY-1',
+      bookingRef: `BOOK-ONLY-1-${suffix}`,
     });
 
     const exportItem = await findItem(exportShipment.id);
@@ -290,23 +299,23 @@ describe('CUS shipment workspace projection — Chứng từ direction display',
     const undirectedItem = await findItem(undirectedShipment.id);
     const bookingOnlyItem = await findItem(bookingOnly.id);
 
-    assert.equal(exportItem!.billOrBookNumber, 'BOOK-EXP-1');
-    assert.equal(importItem!.billOrBookNumber, 'BILL-IMP-1');
-    assert.equal(undirectedItem!.billOrBookNumber, 'BILL-NA-1');
-    assert.equal(bookingOnlyItem!.billOrBookNumber, 'BOOK-ONLY-1');
+    assert.equal(exportItem!.billOrBookNumber, `BOOK-EXP-1-${suffix}`);
+    assert.equal(importItem!.billOrBookNumber, `BILL-IMP-1-${suffix}`);
+    assert.equal(undirectedItem!.billOrBookNumber, `BILL-NA-1-${suffix}`);
+    assert.equal(bookingOnlyItem!.billOrBookNumber, `BOOK-ONLY-1-${suffix}`);
   });
 
   test('flat container rows mirror the same direction-aware number', async () => {
     const exportShipment = await seedShipment({
       tradeDirection: 'EXPORT',
-      bookingRef: 'BOOK-FLAT-1',
+      bookingRef: `BOOK-FLAT-1-${suffix}`,
     });
     await seedContainer(exportShipment.id, { containerNumber: 'FLAT-EXP-1' });
 
     const response = await listCusShipmentContainers({ page: 1, limit: 100 }, adminActor);
     const row = response.items.find((item) => item.shipmentId === exportShipment.id);
     assert.ok(row);
-    assert.equal(row.billOrBookNumber, 'BOOK-FLAT-1');
+    assert.equal(row.billOrBookNumber, `BOOK-FLAT-1-${suffix}`);
   });
 });
 
@@ -458,13 +467,93 @@ describe('CUS shipment workspace projection — container classification', () =>
     assert.equal(response.items.find((item) => item.id === unplannedFclContainer.id)?.classification, 'SINGLE');
     assert.equal(response.items.find((item) => item.id === unplannedLclContainer.id)?.classification, 'LCL');
   });
+
+  test('CUS call: FCL shipment created with isCombined=true defaults classification to COMBINED, isCombined=false to SINGLE', async () => {
+    const marker = Math.random().toString(16).slice(2, 7).toUpperCase();
+
+    // CUS creates combined shipment
+    const combinedShipment = await seedShipment({
+      cargoMode: 'FCL',
+      bookingRef: `BOOK-COMB-${marker}`,
+      isCombined: true,
+    });
+    const combinedContainer = await seedContainer(combinedShipment.id, { containerNumber: `COMB-${marker}` });
+    // In actual flow, fulfillment is seeded/created
+    await seedFulfillment(combinedShipment.id, combinedContainer.id, {
+      dispatchClassification: combinedShipment.isCombined ? 'COMBINED' : 'SINGLE',
+    });
+
+    // CUS creates single shipment
+    const singleShipment = await seedShipment({
+      cargoMode: 'FCL',
+      bookingRef: `BOOK-SING-${marker}`,
+      isCombined: false,
+    });
+    const singleContainer = await seedContainer(singleShipment.id, { containerNumber: `SING-${marker}` });
+    await seedFulfillment(singleShipment.id, singleContainer.id, {
+      dispatchClassification: singleShipment.isCombined ? 'COMBINED' : 'SINGLE',
+    });
+
+    const response = await listCusShipmentContainers({ page: 1, limit: 20, searchSuffix: marker }, cusActor);
+    const combRow = response.items.find((item) => item.id === combinedContainer.id);
+    const singRow = response.items.find((item) => item.id === singleContainer.id);
+
+    assert.ok(combRow);
+    assert.equal(combRow.isCombined, true);
+    assert.equal(combRow.classification, 'COMBINED');
+
+    assert.ok(singRow);
+    assert.equal(singRow.isCombined, false);
+    assert.equal(singRow.classification, 'SINGLE');
+  });
+
+  test('CUS call: updating shipment isCombined synchronizes unassigned FCL fulfillments to COMBINED or SINGLE', async () => {
+    const marker = Math.random().toString(16).slice(2, 7).toUpperCase();
+    const shipment = await seedShipment({ cargoMode: 'FCL', bookingRef: `SYNC-${marker}`, isCombined: false });
+    const container = await seedContainer(shipment.id, { containerNumber: `SYNC-${marker}` });
+    await seedFulfillment(shipment.id, container.id, { dispatchClassification: 'SINGLE' });
+
+    // Initial check: isCombined = false, classification = SINGLE
+    let response = await listCusShipmentContainers({ page: 1, limit: 20, searchSuffix: marker }, cusActor);
+    let row = response.items.find((item) => item.id === container.id);
+    assert.ok(row);
+    assert.equal(row.isCombined, false);
+    assert.equal(row.classification, 'SINGLE');
+
+    // CUS updates shipment isCombined to true
+    await updateShipment(shipment.id, {
+      expectedVersion: shipment.version,
+      isCombined: true,
+      updatedBy: cusActor.userId,
+    }, cusActor);
+
+    response = await listCusShipmentContainers({ page: 1, limit: 20, searchSuffix: marker }, cusActor);
+    row = response.items.find((item) => item.id === container.id);
+    assert.ok(row);
+    assert.equal(row.isCombined, true);
+    assert.equal(row.classification, 'COMBINED');
+
+    // CUS updates shipment isCombined back to false
+    const [freshShipment] = await db.select().from(s.shipments).where(eq(s.shipments.id, shipment.id));
+    await updateShipment(shipment.id, {
+      expectedVersion: freshShipment.version,
+      isCombined: false,
+      updatedBy: cusActor.userId,
+    }, cusActor);
+
+    response = await listCusShipmentContainers({ page: 1, limit: 20, searchSuffix: marker }, cusActor);
+    row = response.items.find((item) => item.id === container.id);
+    assert.ok(row);
+    assert.equal(row.isCombined, false);
+    assert.equal(row.classification, 'SINGLE');
+  });
 });
 
 describe('CUS shipment workspace projection — inline edit authority', () => {
   test('keeps schedule and notes inline-editable after dispatch while the shipment is unlocked', async () => {
     const shipment = await seedShipment({
       status: 'IN_TRANSIT',
-      bookingRef: 'BOOK-RAW-01',
+      bookingRef: `BOOK-RAW-01-${suffix}`,
       closingAt: new Date('2026-08-20T01:00:00.000Z'),
       customerNotes: 'Ghi chú khách hàng',
     });
@@ -474,7 +563,7 @@ describe('CUS shipment workspace projection — inline edit authority', () => {
 
     assert.ok(item);
     assert.equal(item.operational.transportDateEditable, true);
-    assert.equal(item.raw.bookingRef, 'BOOK-RAW-01');
+    assert.equal(item.raw.bookingRef, `BOOK-RAW-01-${suffix}`);
     assert.equal(item.raw.closingAt, '2026-08-20T01:00:00.000Z');
     assert.equal(item.fieldAccess.closingAt.mode, 'DIRECT');
     assert.equal(item.fieldAccess.customerNotes.mode, 'DIRECT');
@@ -527,7 +616,7 @@ describe('CUS container-flat projection', () => {
     assert.equal(rowA1.raw.containerNumber, `FLA${suffix}1`);
     assert.equal(rowA1.fieldAccess.containerNumber.mode, 'DIRECT');
     assert.equal(rowA1.shipmentFieldAccess.customerNotes.mode, 'DIRECT');
-    assert.equal(rowA1.dispatchStatus, 'UNASSIGNED');
+    assert.equal(rowA1.dispatchStatus, 'AWAITING_VEHICLE');
     assert.equal(rowA1.scheduleEditable, true);
     assert.equal(rowA1.customerAppointmentEditable, true);
     // ISO datetime projected verbatim for the đóng/trả column.
@@ -725,7 +814,7 @@ describe('CUS container-flat projection', () => {
     const shipment = await seedShipment({ blNumber: `FLATRO${suffix}` });
     await seedContainer(shipment.id, { containerNumber: `FLATRO${suffix}1` });
 
-    const response = await listCusShipmentContainers({ page: 1, limit: 100 }, adminActor);
+    const response = await listCusShipmentContainers({ page: 1, limit: 100 }, accountantActor);
     const row = response.items.find((candidate) => candidate.shipmentId === shipment.id);
 
     assert.ok(row);
@@ -1036,8 +1125,16 @@ describe('Overview operational priority ordering', () => {
     assert.deepEqual(item.effectiveFactoryNames, [`Nhà máy C ${marker}`]);
   });
 
-  test('post-handoff container edits are denied as direct writes and must go through change requests', async () => {
+  test('post-handoff container edits apply directly — approval workflow is parked (customer undecided 2026-09-08)', async () => {
+    // Build ISO-6346-valid numbers (owner code + serial + computed check
+    // digit) so the edit reaches the governance check instead of tripping
+    // format validation.
     const marker = Math.random().toString(16).slice(2, 8);
+    const digits = marker.replace(/\D/g, '').padEnd(7, '0').slice(0, 7);
+    const originalStem = `WSRU${digits.slice(0, 6)}`; // 10 chars: 4-letter owner + 6-digit serial
+    const originalNumber = `${originalStem}${calculateCheckDigit(originalStem)}`;
+    const editedStem = `${originalStem.slice(0, 9)}${String((Number(originalStem.slice(9)) + 1) % 10)}`;
+    const editedNumber = `${editedStem}${calculateCheckDigit(editedStem)}`;
     const shipment = await seedShipment({
       blNumber: `WS-ROUTE-${marker}`,
       cargoMode: 'FCL',
@@ -1045,8 +1142,84 @@ describe('Overview operational priority ordering', () => {
       // Left intake-editable territory (dispatched):
       status: 'DISPATCHED',
     });
-    const container = await seedContainer(shipment.id, { containerNumber: `WSR1-${marker}` });
+    const container = await seedContainer(shipment.id, { containerNumber: originalNumber });
     await seedFulfillment(shipment.id, container.id);
+
+    const result = await updateCusShipmentContainerLine({
+      shipmentId: shipment.id,
+      containerId: container.id,
+      input: {
+        expectedShipmentVersion: shipment.version,
+        containerNumber: editedNumber,
+      },
+      actor: cusActor,
+    });
+    assert.equal(result.line.containerNumber, editedNumber);
+  });
+
+  test('TC_UNAS_01 & TC_UNAS_02: ADMIN and MANAGER can update customerAppointmentAt on unassigned container even when shipment is DISPATCHED', async () => {
+    const marker = Math.random().toString(16).slice(2, 8);
+    const shipment = await seedShipment({
+      blNumber: `WS-UNAS-${marker}`,
+      cargoMode: 'FCL',
+      expectedDeliveryDate: '2026-08-24',
+      status: 'DISPATCHED',
+    });
+    const container = await seedContainer(shipment.id, { containerNumber: `UNAS-${marker}` });
+    await seedFulfillment(shipment.id, container.id);
+
+    // ADMIN updates appointment on unassigned container
+    const adminResult = await updateCusShipmentContainerLine({
+      shipmentId: shipment.id,
+      containerId: container.id,
+      input: {
+        expectedShipmentVersion: shipment.version,
+        customerAppointmentAt: '2026-08-26T08:00:00.000Z',
+      },
+      actor: adminActor,
+    });
+    assert.equal(adminResult.line.customerAppointmentAt, '2026-08-26T08:00:00.000Z');
+
+    // MANAGER updates appointment on unassigned container
+    const managerActor: AuthUser = {
+      userId: 0,
+      username: 'cus-ws-test-manager',
+      email: null,
+      fullName: null,
+      role: Role.MANAGER,
+    };
+    const managerResult = await updateCusShipmentContainerLine({
+      shipmentId: shipment.id,
+      containerId: container.id,
+      input: {
+        expectedShipmentVersion: adminResult.line.shipmentVersion,
+        customerAppointmentAt: '2026-08-27T09:00:00.000Z',
+      },
+      actor: managerActor,
+    });
+    assert.equal(managerResult.line.customerAppointmentAt, '2026-08-27T09:00:00.000Z');
+  });
+
+  test('TC_UNAS_03: when container has an assigned trip (tripId != null), updating schedule is blocked with clear message citing tripCode', async () => {
+    const marker = Math.random().toString(16).slice(2, 8);
+    const shipment = await seedShipment({
+      blNumber: `WS-TRIP-${marker}`,
+      cargoMode: 'FCL',
+      expectedDeliveryDate: '2026-08-24',
+      status: 'DISPATCHED',
+    });
+    const container = await seedContainer(shipment.id, { containerNumber: `TRP1-${marker}` });
+    const fulfillment = await seedFulfillment(shipment.id, container.id);
+    const route = await seedRoute();
+    const [trip] = await db.insert(s.trips).values({
+      tripCode: `TRP-TEST-${marker}`,
+      customerId,
+      routeId: route.id,
+      departureDate: '2026-08-25',
+      fulfillmentId: fulfillment.id,
+      status: 'CREATED',
+    }).returning();
+    createdTripIds.push(trip.id);
 
     await assert.rejects(
       () => updateCusShipmentContainerLine({
@@ -1054,13 +1227,14 @@ describe('Overview operational priority ordering', () => {
         containerId: container.id,
         input: {
           expectedShipmentVersion: shipment.version,
-          customerAppointmentAt: '2026-08-26T04:00:00.000Z',
+          customerAppointmentAt: '2026-08-28T10:00:00.000Z',
         },
-        actor: cusActor,
+        actor: adminActor,
       }),
       (error: unknown) => {
         assert.ok(error instanceof Error);
-        assert.match(error.message, /yêu cầu thay đổi/);
+        assert.match(error.message, /Container đã gắn chuyến xe \(TRP-TEST-/);
+        assert.match(error.message, /Vui lòng đổi lịch trên chuyến xe hoặc gỡ phân xe trước khi sửa/);
         return true;
       },
     );
@@ -1374,8 +1548,9 @@ describe('Overview operational priority ordering', () => {
 
   test('allows a post-handoff port edit when the submitted route is unchanged', async () => {
     // The route editor submits routeId, liftSiteId, and dropoffSiteId together.
-    // Presence of an unchanged route must not turn an otherwise permitted port
-    // edit into a governed route change after the shipment handoff.
+    // An unchanged routeId must not turn the port edit into anything special —
+    // the approval workflow is parked (customer undecided 2026-09-08), so all
+    // post-handoff container edits apply directly.
     const marker = Math.random().toString(16).slice(2, 8);
     const route = await seedRoute();
     const [liftPortA] = await db.insert(s.ports).values({
@@ -1622,7 +1797,7 @@ describe('Container workboard "Chưa cập nhật" completeness', () => {
     await seedContainer(unassigned.id, { containerNumber: `CH-${marker}`.slice(0, 50) });
 
     // A canceled trip must not count as an assignment: without a planned
-    // carrier the row stays "Chưa điều xe".
+    // carrier the row stays in the legacy carrier-absence filter.
     const canceled = await seedShipment({ blNumber: `CX-${marker}`, cargoMode: 'FCL', expectedDeliveryDate: '2026-08-20' });
     const canceledContainer = await seedContainer(canceled.id, { containerNumber: `CX-${marker}`.slice(0, 50) });
     const canceledFulfillment = await seedFulfillment(canceled.id, canceledContainer.id);
@@ -1643,10 +1818,12 @@ describe('Container workboard "Chưa cập nhật" completeness', () => {
       dispatchStatus: 'UNASSIGNED',
     }, cusActor);
     assert.ok(unassignedResponse.items.some((row) => row.shipmentId === unassigned.id));
-    assert.ok(unassignedResponse.items.some((row) => row.shipmentId === canceled.id), 'canceled trip falls back to UNASSIGNED');
+    assert.ok(unassignedResponse.items.some((row) => row.shipmentId === canceled.id), 'canceled trip falls back to the carrier-absence filter');
     assert.equal(unassignedResponse.items.some((row) => row.shipmentId === assigned.id), false);
     assert.equal(unassignedResponse.total, unassignedResponse.items.length, 'count query agrees with item query');
-    assert.ok(unassignedResponse.items.every((row) => row.dispatchStatus === 'UNASSIGNED'));
+    // Both pre-trip populations badge "Chờ phân xe": the carrier split is a
+    // filter-only legacy distinction the badge no longer separates.
+    assert.ok(unassignedResponse.items.every((row) => row.dispatchStatus === 'AWAITING_VEHICLE'));
 
     const assignedResponse = await listCusShipmentContainers({
       page: 1,
@@ -1658,7 +1835,7 @@ describe('Container workboard "Chưa cập nhật" completeness', () => {
     assert.equal(assignedResponse.items.some((row) => row.shipmentId === unassigned.id), false);
     assert.equal(assignedResponse.items.some((row) => row.shipmentId === canceled.id), false);
     assert.equal(assignedResponse.total, assignedResponse.items.length, 'count query agrees with item query');
-    assert.ok(assignedResponse.items.every((row) => row.dispatchStatus !== 'UNASSIGNED'));
+    assert.ok(assignedResponse.items.every((row) => row.dispatchStatus === 'AWAITING_VEHICLE'));
   });
 
   test('dispatchStatus record statuses filter by the badge derivation', async () => {
@@ -1678,7 +1855,8 @@ describe('Container workboard "Chưa cập nhật" completeness', () => {
     });
     createdTripIds.push(doneTrip.id);
 
-    // PLANNED badge: carrier assigned, trip not yet created.
+    // Pre-trip rows: carrier planned without a trip, and a no-carrier row —
+    // both badge "Chờ phân xe" (AWAITING_VEHICLE).
     const planned = await seedShipment({ blNumber: `PX-${marker}`, cargoMode: 'FCL', expectedDeliveryDate: '2026-08-20' });
     const plannedContainer = await seedContainer(planned.id, { containerNumber: `PX-${marker}`.slice(0, 50) });
     await seedFulfillment(planned.id, plannedContainer.id, {
@@ -1686,7 +1864,6 @@ describe('Container workboard "Chưa cập nhật" completeness', () => {
       plannedVehiclePlateNumber: '29C-777.77',
     });
 
-    // UNASSIGNED badge: no carrier, no trip.
     const unassigned = await seedShipment({ blNumber: `CX-${marker}`, cargoMode: 'FCL', expectedDeliveryDate: '2026-08-20' });
     await seedContainer(unassigned.id, { containerNumber: `CX-${marker}`.slice(0, 50) });
 
@@ -1702,18 +1879,78 @@ describe('Container workboard "Chưa cập nhật" completeness', () => {
     assert.equal(completedResponse.total, completedResponse.items.length, 'count query agrees with item query');
     assert.ok(completedResponse.items.every((row) => row.dispatchStatus === 'COMPLETED'));
 
-    // PLANNED must exclude the COMPLETED row even though both carry an active
-    // carrier — record-status granularity goes beyond the ASSIGNED split.
-    const plannedResponse = await listCusShipmentContainers({
+    // AWAITING_VEHICLE must exclude the COMPLETED row even though both the
+    // done and planned fixtures carry an active carrier — record-status
+    // granularity goes beyond the ASSIGNED split.
+    const awaitingResponse = await listCusShipmentContainers({
       page: 1,
       limit: 100,
       searchSuffix: marker,
-      dispatchStatus: 'PLANNED',
+      dispatchStatus: 'AWAITING_VEHICLE',
     }, cusActor);
-    assert.ok(plannedResponse.items.some((row) => row.shipmentId === planned.id));
-    assert.equal(plannedResponse.items.some((row) => row.shipmentId === done.id), false);
-    assert.equal(plannedResponse.total, plannedResponse.items.length, 'count query agrees with item query');
-    assert.ok(plannedResponse.items.every((row) => row.dispatchStatus === 'PLANNED'));
+    assert.ok(awaitingResponse.items.some((row) => row.shipmentId === planned.id));
+    assert.ok(awaitingResponse.items.some((row) => row.shipmentId === unassigned.id));
+    assert.equal(awaitingResponse.items.some((row) => row.shipmentId === done.id), false);
+    assert.equal(awaitingResponse.total, awaitingResponse.items.length, 'count query agrees with item query');
+    assert.ok(awaitingResponse.items.every((row) => row.dispatchStatus === 'AWAITING_VEHICLE'));
+  });
+
+  test('dispatchStatus reads Đã tạo chuyến only while the appointment date is missing', async () => {
+    const marker = Math.random().toString(36).slice(2, 7).toUpperCase().padEnd(5, 'X');
+
+    // CREATED trip that already has its ngày đóng/trả: it is waiting on the
+    // vehicle, not on "Đã tạo chuyến".
+    const dated = await seedShipment({ blNumber: `DC-${marker}`, cargoMode: 'FCL', expectedDeliveryDate: '2026-08-20' });
+    const datedContainer = await seedContainer(dated.id, {
+      containerNumber: `DC-${marker}`.slice(0, 50),
+      customerAppointmentAt: new Date('2026-08-20T02:00:00.000Z'),
+    });
+    const datedFulfillment = await seedFulfillment(dated.id, datedContainer.id);
+    const datedTrip = await insertTripComposite(db, {
+      fulfillmentId: datedFulfillment.id,
+      customerId,
+      routeId: (await seedRoute()).id,
+      status: 'CREATED',
+      carrierType: 'OWN',
+      departureDate: '2026-08-20',
+    });
+    createdTripIds.push(datedTrip.id);
+
+    // CREATED trip still missing the date: the only true "Đã tạo chuyến".
+    const undated = await seedShipment({ blNumber: `TC-${marker}`, cargoMode: 'FCL', expectedDeliveryDate: '2026-08-20' });
+    const undatedContainer = await seedContainer(undated.id, { containerNumber: `TC-${marker}`.slice(0, 50) });
+    const undatedFulfillment = await seedFulfillment(undated.id, undatedContainer.id);
+    const undatedTrip = await insertTripComposite(db, {
+      fulfillmentId: undatedFulfillment.id,
+      customerId,
+      routeId: (await seedRoute()).id,
+      status: 'CREATED',
+      carrierType: 'OWN',
+      departureDate: '2026-08-20',
+    });
+    createdTripIds.push(undatedTrip.id);
+
+    const createdResponse = await listCusShipmentContainers({
+      page: 1,
+      limit: 100,
+      searchSuffix: marker,
+      dispatchStatus: 'CREATED',
+    }, cusActor);
+    assert.ok(createdResponse.items.some((row) => row.shipmentId === undated.id));
+    assert.equal(createdResponse.items.some((row) => row.shipmentId === dated.id), false, 'a CREATED trip with its appointment is not Đã tạo chuyến');
+    assert.equal(createdResponse.total, createdResponse.items.length, 'count query agrees with item query');
+    assert.ok(createdResponse.items.every((row) => row.dispatchStatus === 'CREATED'));
+
+    const awaitingResponse = await listCusShipmentContainers({
+      page: 1,
+      limit: 100,
+      searchSuffix: marker,
+      dispatchStatus: 'AWAITING_VEHICLE',
+    }, cusActor);
+    assert.ok(awaitingResponse.items.some((row) => row.shipmentId === dated.id));
+    assert.equal(awaitingResponse.items.some((row) => row.shipmentId === undated.id), false);
+    assert.equal(awaitingResponse.total, awaitingResponse.items.length, 'count query agrees with item query');
+    assert.ok(awaitingResponse.items.every((row) => row.dispatchStatus === 'AWAITING_VEHICLE'));
   });
 
   test('FCL carrier readiness follows the container appointment, not the shipment date', async () => {

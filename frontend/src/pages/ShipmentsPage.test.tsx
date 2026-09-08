@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ToastProvider } from '../components/shared/Toast';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -230,12 +231,14 @@ function renderPage(path = '/shipments') {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={[path]}>
-        <Routes>
-          <Route path="/shipments" element={<ShipmentsPage />} />
-          <Route path="/shipments/new" element={<div data-testid="shipment-create-page">Tạo lô hàng mới</div>} />
-        </Routes>
-      </MemoryRouter>
+      <ToastProvider>
+        <MemoryRouter initialEntries={[path]}>
+          <Routes>
+            <Route path="/shipments" element={<ShipmentsPage />} />
+            <Route path="/shipments/new" element={<div data-testid="shipment-create-page">Tạo lô hàng mới</div>} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
     </QueryClientProvider>,
   );
 }
@@ -381,17 +384,14 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(await screen.findByText(/52,5 CBM/)).toBeTruthy();
   });
 
-  it('tags every overview row with the approved Cont/Lẻ cargo label in the table and XLSX export', async () => {
+  it('keeps the approved Cont/Lẻ cargo label in the XLSX export only, not as a table pill', async () => {
     apiGet.mockResolvedValue(listResponse([{ ...row, cargoMode: 'FCL' }, { ...row, id: 2, cargoMode: 'LCL', containerSummary: '4 Pallet' }]));
     renderPage();
     const table = await screen.findByRole('table');
-    const cargoCell = within(table).getAllByRole('button', { name: /Sửa ô tổng quan hàng hóa/ })[0]!;
-    const fclTag = within(cargoCell).getByText('Cont');
-    const lclTag = within(table).getByText('Lẻ');
-    expect(fclTag.classList.contains('cus-cargo-mode-tag')).toBe(true);
-    expect(lclTag.classList.contains('cus-cargo-mode-tag')).toBe(true);
-    // Neutral structural styling: never an accent fill (selection-state rule).
-    expect(css).toContain('.cus-cargo-mode-tag {');
+    // The cargo overview cell states the mode through its own content
+    // (composition lines vs kiện/CBM metrics) — no redundant Cont/Lẻ pill.
+    expect(within(table).queryByText('Cont')).toBeNull();
+    expect(within(table).queryByText('Lẻ')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Tải XLSX' }));
     await waitFor(() => expect(downloadCSV).toHaveBeenCalledTimes(1));
@@ -515,9 +515,9 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
 
     renderPage();
 
-    expect((await screen.findAllByText('Toàn bộ chưa phân xe')).length).toBe(1);
-    expect(screen.getByText('1 cont chưa phân xe')).toBeTruthy();
-    expect(screen.queryByText('0 cont chưa phân xe')).toBeNull();
+    expect((await screen.findAllByText('Toàn bộ chờ phân xe')).length).toBe(1);
+    expect(screen.getByText('1 cont chờ phân xe')).toBeTruthy();
+    expect(screen.queryByText('0 cont chờ phân xe')).toBeNull();
   });
 
   it('sends the direction filter and keeps the grouped dashboard columns fixed', async () => {
@@ -1191,10 +1191,13 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
 
     const plate = await screen.findByLabelText(/Biển số xe của container MSKU1234567/);
     expect(screen.getByLabelText(/Loại container MSKU1234567/)).toBeTruthy();
-    const customerAppointment = screen.getByLabelText(/Giờ hẹn đóng hoặc trả tại nhà máy của container MSKU1234567/) as HTMLInputElement;
     fireEvent.change(plate, { target: { value: '15C-999.99' } });
-    fireEvent.change(customerAppointment, { target: { value: '2026-08-14T10:30' } });
-    fireEvent.keyDown(customerAppointment, { key: 'Enter' });
+    fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả tại nhà máy của container MSKU1234567/ }));
+    const dateInput = screen.getByLabelText('Ngày') as HTMLInputElement;
+    const timeInput = screen.getByLabelText('Giờ') as HTMLInputElement;
+    fireEvent.change(dateInput, { target: { value: '2026-08-14' } });
+    fireEvent.change(timeInput, { target: { value: '10:30' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
 
     await waitFor(() => expect(apiPost).toHaveBeenCalledWith(
       '/shipments/cus-workspace/1/containers/10',
@@ -1228,8 +1231,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(within(ledger).getByRole('columnheader', { name: 'Tuyến' })).toBeTruthy();
     fireEvent.click(within(ledger).getByRole('button', { name: /Tuyến đường của container MSKU1234567/ }));
     fireEvent.click(await screen.findByRole('option', { name: 'Đình Vũ — Quốc lộ 5' }));
-    const customerAppointment = screen.getByLabelText(/Giờ hẹn đóng hoặc trả tại nhà máy của container MSKU1234567/) as HTMLInputElement;
-    fireEvent.keyDown(customerAppointment, { key: 'Enter' });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
 
     await waitFor(() => expect(apiPost).toHaveBeenCalledWith(
       '/shipments/cus-workspace/1/containers/10',
@@ -1257,17 +1259,11 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
 
     fireEvent.change(await screen.findByLabelText(/Biển số xe của container MSKU1234567/), { target: { value: '15C-999.99' } });
     fireEvent.change(screen.getByLabelText(/Biển số xe của container MSKU7654321/), { target: { value: '15C-888.88' } });
-    fireEvent.keyDown(screen.getByLabelText(/Biển số xe của container MSKU1234567/), { key: 'Enter' });
-    await waitFor(() => expect(apiPost).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
+    await waitFor(() => expect(apiPost).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(apiGet.mock.calls.filter(([url]) => url === '/shipments/cus-workspace?page=1&limit=20').length).toBeGreaterThan(1));
-    expect((screen.getByLabelText(/Biển số xe của container MSKU7654321/) as HTMLInputElement).value).toBe('15C-888.88');
-
-    fireEvent.keyDown(screen.getByLabelText(/Biển số xe của container MSKU7654321/), { key: 'Enter' });
-    await waitFor(() => expect(apiPost).toHaveBeenCalledWith(
-      '/shipments/cus-workspace/1/containers/11',
-      expect.objectContaining({ expectedShipmentVersion: 4, plateNumber: '15C-888.88' }),
-      expect.any(Object),
-    ));
+    fireEvent.click(masterRowDetailButton());
+    expect(((await screen.findByLabelText(/Biển số xe của container MSKU7654321/)) as HTMLInputElement).value).toBe('15C-888.88');
   });
 
   it('creates a new external carrier through the container workflow', async () => {

@@ -74,11 +74,16 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // a separate component; only wiring lives here. Reviewed as a contract
   // change; a future split (extract the whole notes section) should restore
   // a smaller ceiling.
-  'src/features/dispatch/detailed-plan/DispatchPlanEditorCell.tsx': 705,
+  // Bumped 705 → 725: 2026-09-08 TC_COMB_01-03 — enforce 20ft container rule
+  // for isCombined checkbox, disabling and tooltip title for 40ft/45ft containers,
+  // atomic plan save guard. Reviewed as a contract change.
+  'src/features/dispatch/detailed-plan/DispatchPlanEditorCell.tsx': 725,
   // Bumped 446 → 448: driver-note save now carries operationalNotes and the
   // optimistic row update refreshes notes.vehicleNote (2026-09-07). Reviewed
   // as a contract change.
-  'src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts': 448,
+  // Bumped 448 → 450: 2026-09-08 — the dispatch editor no longer owns
+  // classification/lot-flag (route strips both), documented at the save body.
+  'src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts': 450,
   'src/features/dispatch/master-plan/DispatchAllocationPopover.tsx': 454,
   'src/features/dispatch/master-plan/MasterPlanFilters.tsx': 735,
   // Bumped 508 → 520: 282fe386 (2026-09-05, "fix(dispatch): keep dispatched
@@ -104,20 +109,27 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // `usePortDialog`, `useRouteDialog` into shared hooks) should restore a
   // smaller ceiling.
   // Raised 965 → 1007 (master-data wave) → 1059 (ad-hoc intake wave),
-  // 2026-09-07. Merged with prod's type-to-search wave (970): the merged
-  // file adds `searchable` props beside the ad-hoc onCustomValue spreads.
-  // A future split (extract `useCustomerDialog`,
-  // `usePortDialog`, `useRouteDialog` into shared hooks) should restore a
-  // smaller ceiling.
-  'src/features/shipments/create/ShipmentCreateWorkspace.tsx': 1063,
+  // 2026-09-07. Merged with prod's type-to-search + popover-flip waves
+  // (985): the merged file carries both the ad-hoc onCustomValue spreads
+  // and popoverPlacement="top" on every picker with a sibling below it
+  // (TC-CUS-CREATE-038). Reviewed as a contract change; a future split
+  // (extract useCustomerDialog / usePortDialog / useRouteDialog into
+  // shared hooks) should restore a smaller ceiling.
+  'src/features/shipments/create/ShipmentCreateWorkspace.tsx': 1079,
   // Bumped to 411: 2026-09-07 customer feedback — the per-row "Xác nhận"
   // action column (inline save) so the user no longer has to press Enter
   // or hunt for the header "Hoàn tất" button after typing a container
   // appointment. Reviewed as a contract change; a future split (extract
   // `useContainerLineDraft` so this becomes a thin presentational row)
   // should restore a smaller ceiling.
-  'src/features/shipments/cus/CusContainerLedger.tsx': 411,
-  'src/features/shipments/detail/ShipmentContainerLedger.tsx': 750,
+  // Bumped 411 → 460: 2026-09-08 TC_BTN_01-03 — visible inline Save (primary green)
+  // & Cancel buttons next to appointment input, Enter/Escape handling,
+  // success/error toast notifications. Reviewed as a contract change.
+  'src/features/shipments/cus/CusContainerLedger.tsx': 460,
+  // Bumped 750 → 841: prod→main merge 2026-09-08 — main's kep-ket-hop subvalue
+  // wave and prod's per-row confirm/revert + schedule-editor wave both grew
+  // the ledger independently; the merged file carries both feature sets.
+  'src/features/shipments/detail/ShipmentContainerLedger.tsx': 841,
   'src/features/tires/tire-controls.tsx': 526,
   'src/features/tires/tire-dialogs.tsx': 426,
   'src/features/trips/tripColumns.tsx': 512,

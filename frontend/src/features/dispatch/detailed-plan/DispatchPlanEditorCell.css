@@ -434,6 +434,15 @@
   accent-color: var(--accent, #005a2d);
 }
 
+.dispatch-assignment-dialog__fields > .dispatch-assignment-dialog__check--disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.dispatch-assignment-dialog__fields > .dispatch-assignment-dialog__check input[type='checkbox']:disabled {
+  cursor: not-allowed;
+}
+
 @media (max-width: 640px) {
   .dispatch-assignment-dialog__fields > .dispatch-assignment-dialog__check {
     min-height: var(--control-touch-h, 44px);
@@ -514,6 +523,15 @@
   padding: 4px 10px;
   font-size: var(--ops-table-supporting-size, 12px);
   cursor: pointer;
+}
+
+/* The typed note ("Ghi chú thêm") gets its own labeled section below the tag
+   chips so operators never mistake typed text for a task tag. */
+.dispatch-assignment-dialog__notes-manual {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
 }
 
 .dispatch-assignment-dialog__notes-text {

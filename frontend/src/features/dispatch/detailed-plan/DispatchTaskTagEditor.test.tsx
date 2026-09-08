@@ -63,13 +63,21 @@ describe('DispatchTaskTagEditor', () => {
     expect(screen.getByRole('button', { name: 'Đặt đầu' }).getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByRole('button', { name: 'Lấy vỏ ICD đi đóng' }).getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByRole('button', { name: 'Đặt đuôi' }).getAttribute('aria-pressed')).toBe('false');
-    expect((screen.getByLabelText('Ghi chú thêm (đi kèm các tag đã chọn)') as HTMLTextAreaElement).value).toBe('gọi lái trước 30p');
+    expect((screen.getByLabelText('Ghi chú thêm') as HTMLTextAreaElement).value).toBe('gọi lái trước 30p');
+  });
+
+  it('keeps the tag chips and the typed note in separate labeled sections', async () => {
+    renderHarness(null);
+    await screen.findByRole('button', { name: 'Đặt đầu' });
+    const tagGroup = screen.getByRole('group', { name: 'Ghi chú tác vụ' });
+    // Typed text lives outside the tag group, under its own "Ghi chú thêm" label.
+    expect(tagGroup.contains(screen.getByLabelText('Ghi chú thêm'))).toBe(false);
   });
 
   it('replaces manual text via the textarea', async () => {
     renderHarness('Đặt đầu; ghi cũ');
     await screen.findByRole('button', { name: 'Đặt đầu' });
-    const box = screen.getByLabelText('Ghi chú thêm (đi kèm các tag đã chọn)') as HTMLTextAreaElement;
+    const box = screen.getByLabelText('Ghi chú thêm') as HTMLTextAreaElement;
     fireEvent.change(box, { target: { value: 'ghi mới' } });
     await waitFor(() => expect(screen.getByText('Hiển thị: Đặt đầu; ghi mới')).toBeTruthy());
   });

@@ -32,7 +32,6 @@ const expenseIds: number[] = [];
 const userIds: number[] = [];
 const shipmentContainerIds: number[] = [];
 const recoveryFactIds: number[] = [];
-const chargeFactIds: number[] = [];
 
 function expenseSourceVersion(expense: { updatedAt: Date; approvalStatus: string; sellAmount: string }) {
   return `expense:${expense.updatedAt.toISOString()}:${expense.approvalStatus}:${Number(expense.sellAmount)}`;
@@ -349,7 +348,7 @@ describe('shipment accounting lock', () => {
       createdBy: actor.userId,
     }).returning();
     shipmentContainerIds.push(container.id);
-    const [proposal] = await db.update(s.shipmentContainers)
+    await db.update(s.shipmentContainers)
       .set({ outboundIncidentalAmount: '250000' })
       .where(eq(s.shipmentContainers.id, container.id))
       .returning({ id: s.shipmentContainers.id, version: s.shipmentContainers.chargeProposalVersion });

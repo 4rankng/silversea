@@ -11,9 +11,6 @@ import type { AuthUser } from '../middleware/auth';
 import type { Tx } from './trip-shared';
 import type { UpdateShipmentInput } from './shipment-types';
 import {
-  classifyClerkShipmentPatch,
-  createShipmentChangeRequest,
-  isClerkScopedUser,
 } from './shipment-edit-boundary.service';
 
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
@@ -114,89 +111,18 @@ export async function updateShipment(
         .where(eq(s.shipmentContainers.shipmentId, id));
     }
 
-    const planClassification = classifyClerkShipmentPatch(existing, {
-      customerId: input.customerId,
-      routeId: input.routeId,
-      cargoTypeId: input.cargoTypeId,
-      responsibleUnitId: input.responsibleUnitId,
-      bookingRef: input.bookingRef,
-      blNumber: input.blNumber,
-      tradeDirection: input.tradeDirection,
-      cargoMode: input.cargoMode,
-      operationalSiteId: input.operationalSiteId,
-      pickupWarehouseSiteId: input.pickupWarehouseSiteId,
-      factoryName: input.factoryName,
-      shippingLineName: input.shippingLineName,
-      expectedDeliveryDate: input.expectedDeliveryDate,
-      customsCutoffAt: input.customsCutoffAt,
-      closingAt: input.closingAt,
-      plannedReturnAt: input.plannedReturnAt,
-      cargoWeightKg: input.cargoWeightKg,
-      cargoVolumeCbm: input.cargoVolumeCbm,
-      packageCount: input.packageCount,
-      packageType: input.packageType,
-      operationalNotes: input.operationalNotes,
-      customerNotes: input.customerNotes,
-      pickupLocation: input.pickupLocation,
-      deliveryLocation: input.deliveryLocation,
-      contactName: input.contactName,
-      contactPhone: input.contactPhone,
-    });
-    const shipmentAuthorityChanged = planClassification.changedFields.some(
-      (field) => field === 'customerId' || field === 'cargoTypeId',
+
+
+
+    // Approval workflow parked (customer undecided 2026-09-08): authority and
+    // clerk plan updates apply directly instead of opening change requests.
+    // Re-route through createShipmentChangeRequest when the customer signs
+    // off on an approval process.
+    const shipmentAuthorityChanged = (
+      input.customerId !== undefined && input.customerId !== existing.customerId
+    ) || (
+      input.cargoTypeId !== undefined && input.cargoTypeId !== existing.cargoTypeId
     );
-
-    if (shipmentAuthorityChanged && !isDirectlyEditableIntakeStatus(existing.status)) {
-      const requesterId = actor?.userId ?? input.updatedBy ?? existing.updatedBy ?? existing.createdBy;
-      if (requesterId == null) {
-        throw new ApiError(400, 'Thiếu người gửi yêu cầu thay đổi lô hàng.');
-      }
-      const changeRequestId = await createShipmentChangeRequest(tx, {
-        shipment: existing,
-        sourceVersion: existing.version,
-        requestKind: 'PLAN_UPDATE',
-        requestedBy: requesterId,
-        beforeSnapshot: planClassification.beforeSnapshot,
-        afterSnapshot: planClassification.afterSnapshot,
-      });
-      return {
-        ...existing,
-        changeMode: 'REQUESTED' as const,
-        changeRequestId,
-        notificationDelivered: false,
-        message: 'Đã ghi nhận yêu cầu thay đổi kế hoạch.',
-      };
-    }
-
-    if (actor && isClerkScopedUser(actor)) {
-      if (planClassification.mode === 'NOOP') {
-        return {
-          ...existing,
-          changeMode: 'NOOP' as const,
-          changeRequestId: null,
-          notificationDelivered: true,
-        };
-      }
-
-      if (planClassification.mode === 'REQUESTED') {
-        const changeRequestId = await createShipmentChangeRequest(tx, {
-          shipment: existing,
-          sourceVersion: existing.version,
-          requestKind: 'PLAN_UPDATE',
-          requestedBy: actor.userId,
-          beforeSnapshot: planClassification.beforeSnapshot,
-          afterSnapshot: planClassification.afterSnapshot,
-        });
-        return {
-          ...existing,
-          changeMode: 'REQUESTED' as const,
-          changeRequestId,
-          notificationDelivered: false,
-          message: 'Đã ghi nhận yêu cầu thay đổi kế hoạch.',
-        };
-      }
-    }
-
     const nextExpectedDeliveryDate = input.expectedDeliveryDate !== undefined
       ? input.expectedDeliveryDate
       : existing.expectedDeliveryDate;
@@ -261,6 +187,17 @@ export async function updateShipment(
       updatedAt: new Date(),
     }).where(eq(s.shipments.id, id)).returning();
 
+    if (input.isCombined !== undefined && existing.isCombined !== input.isCombined) {
+      await tx.update(s.shipmentFulfillments).set({
+        dispatchClassification: input.isCombined ? 'COMBINED' : 'SINGLE',
+        updatedAt: new Date(),
+      }).where(and(
+        eq(s.shipmentFulfillments.shipmentId, id),
+        isNull(s.shipmentFulfillments.canceledAt),
+        eq(s.shipmentFulfillments.cargoMode, 'FCL'),
+      ));
+    }
+
     if (becomesReady) {
       await tx.insert(s.shipmentStatusHistory).values({
         shipmentId: id,
@@ -283,12 +220,5 @@ export async function updateShipment(
     };
   };
   const result = await runInTx(transaction, execute);
-  if (result.changeMode === 'REQUESTED') {
-    return {
-      ...result,
-      notificationDelivered: true,
-      message: 'Đã ghi nhận yêu cầu thay đổi kế hoạch và thông báo điều vận.',
-    };
-  }
   return result;
 }

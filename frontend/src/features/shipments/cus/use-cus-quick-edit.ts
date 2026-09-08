@@ -118,12 +118,10 @@ export function useCusQuickEdit(deps: UseCusQuickEditDeps) {
         quickEditFocusTargetRef.current = `cus-inline-${draft.field}-${draft.shipmentId}`;
       }
       setQuickEditDraft((current) => current?.shipmentId === draft.shipmentId && current.field === draft.field ? null : current);
-      setNotice(response.changeMode === 'REQUESTED'
-        ? response.message ?? 'Đã gửi yêu cầu thay đổi để phê duyệt.'
-        : draft.field === 'schedule' ? 'Đã cập nhật lịch đóng/trả.'
-          : draft.field === 'notes' ? 'Đã cập nhật ghi chú lô hàng.'
-            : draft.field === 'documents' && declarationChanged ? 'Đã cập nhật chứng từ lô hàng.'
-              : 'Đã lưu ô dữ liệu lô hàng.');
+      setNotice(draft.field === 'schedule' ? 'Đã cập nhật lịch đóng/trả.'
+        : draft.field === 'notes' ? 'Đã cập nhật ghi chú lô hàng.'
+          : draft.field === 'documents' && declarationChanged ? 'Đã cập nhật chứng từ lô hàng.'
+            : 'Đã lưu ô dữ liệu lô hàng.');
       invalidateDetail(item.id);
       await loadList();
     } catch (quickEditError) {

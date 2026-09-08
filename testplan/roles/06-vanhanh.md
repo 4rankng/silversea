@@ -4,9 +4,7 @@
 > `FORWARDER`, renamed 2024-08).
 > **Home route**: `/my-orders` (`routes.myOrders`).
 > **Primary sidebar section**: `Công việc của tôi` (`my-work`).
-> **Test account (local + staging)**: `giaonhan` / `Abc123` (with the
-> legacy username `giaohan` failing login — verified 2026-08-23 and
-> recorded in `testaccounts.txt`).
+> **Test accounts**: chọn theo môi trường qua `../testaccounts.txt` (role → username). Runner tự map `OPS` + env → username phù hợp. Lưu ý: `OPS` (`OPS`) chỉ tồn tại trên local qua `make seed`; trên staging mapping sang prod-mirror users cùng role.
 > **Primary pages**:
 > - `/my-orders` — `frontend/src/pages/ForwarderTripsPage.tsx` (Lệnh giao nhận)
 > - `/my-forwarder-trips/:id` — `frontend/src/pages/ForwarderTripDetailPage.tsx`
@@ -95,7 +93,7 @@ linked to the OPS.
 
 ### Test steps
 
-1. Log in as `giaonhan`. Land on `/my-orders`.
+1. Log in as `OPS`. Land on `/my-orders`.
 2. Walk the tabs; capture.
 3. Apply a search; capture.
 
@@ -129,7 +127,7 @@ linked to the OPS.
 
 ### Test steps
 
-1. Log in as `giaonhan`. From `/my-orders`, click a trip.
+1. Log in as `OPS`. From `/my-orders`, click a trip.
 2. Capture the detail. Drill into the advance teaser.
 3. Return and drill into the settlement teaser.
 
@@ -165,11 +163,11 @@ linked to the OPS.
 
 ### Test steps
 
-1. Log in as `giaonhan`. Open `/my-advances`.
+1. Log in as `OPS`. Open `/my-advances`.
 2. Submit a new request. Capture.
 3. Cancel the request. Capture the `Đã hủy` state.
-4. As `ketoan`/`giamdoc`, approve a different request.
-   Switch back to `giaonhan`; confirm the row is read-only.
+4. As `ACCOUNTANT`/`MANAGER`, approve a different request.
+   Switch back to `OPS`; confirm the row is read-only.
 
 ---
 
@@ -218,12 +216,12 @@ linked to the OPS.
 
 ### Test steps
 
-1. Log in as `giaonhan`. From `/my-advances`, pick an
+1. Log in as `OPS`. From `/my-advances`, pick an
    `Đã duyệt` advance and click `Hoàn ứng`.
 2. Add 2 line items; upload 2 small PDFs; submit.
 3. Capture the print view (`/my-settlements/:id`).
-4. As `ketoan`, request evidence. Switch back to
-   `giaonhan`, upload the missing file. Capture.
+4. As `ACCOUNTANT`, request evidence. Switch back to
+   `OPS`, upload the missing file. Capture.
 
 ---
 
@@ -275,8 +273,8 @@ common access pattern is a phone browser.
 
 ### Test steps
 
-1. As `giaonhan`, open `/my-advances`. Submit a request.
-2. As `ketoan`, approve. Switch back to `giaonhan`;
+1. As `OPS`, open `/my-advances`. Submit a request.
+2. As `ACCOUNTANT`, approve. Switch back to `OPS`;
    confirm the toast and the row's new status.
 
 ---
@@ -452,7 +450,7 @@ common access pattern is a phone browser.
 ## Known open items (carry-over)
 
 - **Legacy username `giaohan`** fails login (no `n`); only
-  `giaonhan` works. This is documented in `testaccounts.txt`
+  `OPS` works. This is documented in `testaccounts.txt`
   so QA doesn't waste cycles trying the typo.
 - **PWA**: OPS is **not** a PWA. The driver app's offline
   story does not apply. Any future offline work for OPS

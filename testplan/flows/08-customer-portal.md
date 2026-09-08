@@ -1,7 +1,7 @@
 # Luồng 8: Cổng Khách hàng (Customer Portal)
 
 > **Vai trò sở hữu:** Khách hàng (CUSTOMER)
-> **Tài khoản demo:** `customer` (password: `Abc123`); Samsung: `samsung-cs` (password: `Abc123`); Canon: `canon-cs` (password: `Abc123`)
+> **Tài khoản test:** chọn theo môi trường qua [`../testaccounts.txt`](../testaccounts.txt) — runner tự map role `CUSTOMER` → username phù hợp. Lưu ý: `CUSTOMER` role chỉ tồn tại trên local (qua `make seed`: `CUSTOMER-SAMSUNG`, `CUSTOMER-CANON`); trên staging role này `BLOCKED` vì prod không có customer portal users.
 > **Route chính:** `/portal/shipments`, `/portal/debit-notes`, `/portal/statement`
 > **PRD nguồn:** Module 03, Module 05, Q16, HT-11, HT-12
 >
@@ -16,11 +16,11 @@
 ### TC-CUST-PORTAL-001 — Customer xem danh sách lô của mình
 
 - **Mã PRD:** M03, Q16
-- **Vai trò:** `customer`
+- **Vai trò:** `CUSTOMER`
 - **Mức độ:** P0
 - **Thiết bị:** Desktop + Mobile
 - **Các bước:**
-  1. Đăng nhập `customer`. Mở `/portal/shipments`.
+  1. Đăng nhập `CUSTOMER`. Mở `/portal/shipments`.
   2. Kiểm tra: danh sách chỉ chứa lô của chính mình.
   3. Nhấn vào 1 lô để xem chi tiết.
 - **Kết quả mong đợi (Pass):**
@@ -35,7 +35,7 @@
 ### TC-CUST-PORTAL-002 — Customer không xem được lô khách khác
 
 - **Mã PRD:** Q16, HT-02
-- **Vai trò:** `customer`
+- **Vai trò:** `CUSTOMER`
 - **Mức độ:** P0
 - **Các bước:**
   1. Lấy ID lô của khách khác (từ DB hoặc admin).
@@ -49,7 +49,7 @@
 
 ### TC-CUST-PORTAL-003 — Empty state khi chưa có lô
 
-- **Vai trò:** `customer` (mới)
+- **Vai trò:** `CUSTOMER` (mới)
 - **Mức độ:** P2
 - **Các bước:**
   1. Đăng nhập customer chưa có lô. Mở `/portal/shipments`.
@@ -64,7 +64,7 @@
 ### TC-CUST-PORTAL-004 — Customer xem giấy báo nợ của mình
 
 - **Mã PRD:** M05, HT-12
-- **Vai trò:** `customer`
+- **Vai trò:** `CUSTOMER`
 - **Mức độ:** P0
 - **Các bước:**
   1. Mở `/portal/debit-notes`.
@@ -83,12 +83,12 @@
 ### TC-CUST-PORTAL-005 — Giấy báo nợ PDF yêu cầu auth
 
 - **Mã PRD:** HT-11
-- **Vai trò:** `customer` rồi logout
+- **Vai trò:** `CUSTOMER` rồi logout
 - **Mức độ:** P0
 - **Các bước:**
-  1. Đăng nhập `customer`. Mở `/portal/debit-notes`. Lấy URL file PDF.
+  1. Đăng nhập `CUSTOMER`. Mở `/portal/debit-notes`. Lấy URL file PDF.
   2. **Logout**. Mở lại URL PDF trực tiếp.
-  3. Đăng nhập `admin`. Lấy URL PDF của customer khác. Đăng nhập `customer` → thử mở.
+  3. Đăng nhập `ADMIN`. Lấy URL PDF của customer khác. Đăng nhập `CUSTOMER` → thử mở.
 - **Kết quả mong đợi (Pass):**
   - URL yêu cầu auth: 403/401 khi chưa đăng nhập.
   - Customer không mở được PDF của khách khác.
@@ -102,12 +102,12 @@
 ### TC-CUST-PORTAL-006 — Đối chiếu tổng giấy báo nợ, đã thu, còn phải thu
 
 - **Mã PRD:** HT-12
-- **Vai trò:** `customer` + `admin` (đối chiếu)
+- **Vai trò:** `CUSTOMER` + `ADMIN` (đối chiếu)
 - **Mức độ:** P0
 - **Các bước:**
-  1. Đăng nhập `customer`. Mở `/portal/debit-notes` + `/portal/statement`.
+  1. Đăng nhập `CUSTOMER`. Mở `/portal/debit-notes` + `/portal/statement`.
   2. Ghi: tổng giấy báo nợ, tổng đã thu, tổng còn phải thu, tổng chi hộ.
-  3. Đăng nhập `admin`. Mở `/debt/:id` cho cùng khách.
+  3. Đăng nhập `ADMIN`. Mở `/debt/:id` cho cùng khách.
   4. So sánh 2 bộ số.
 - **Kết quả mong đợi (Pass):**
   - Tổng trên cổng customer = tổng trên trang admin.
@@ -121,7 +121,7 @@
 ### TC-CUST-PORTAL-007 — Customer xác nhận thanh toán
 
 - **Mã PRD:** M05, Q03
-- **Vai trò:** `customer`
+- **Vai trò:** `CUSTOMER`
 - **Mức độ:** P1
 - **Các bước:**
   1. Mở giấy báo nợ chưa thanh toán.
@@ -139,7 +139,7 @@
 ### TC-CUST-PORTAL-008 — Vai trò khác không vào được cổng khách hàng
 
 - **Mã PRD:** HT-02
-- **Vai trò thử:** `cus`, `dieuvan`, `laixe`, `ketoan`, `giaonhan`
+- **Vai trò thử:** `CUS`, `DISPATCHER`, `DRIVER`, `ACCOUNTANT`, `OPS`
 - **Mức độ:** P0
 - **Các bước:**
   1. Các vai trò mở `/portal/shipments`, `/portal/debit-notes`.
@@ -152,11 +152,11 @@
 ### TC-CUST-PORTAL-009 — Admin liên kết customer với pháp nhân thứ 2
 
 - **Mã PRD:** Q16
-- **Vai trò:** `admin` + `customer`
+- **Vai trò:** `ADMIN` + `CUSTOMER`
 - **Mức độ:** P2
 - **Các bước:**
-  1. `admin` liên kết tài khoản `customer` với pháp nhân thứ 2.
-  2. Đăng nhập `customer` → mở `/portal/shipments`.
+  1. `ADMIN` liên kết tài khoản `CUSTOMER` với pháp nhân thứ 2.
+  2. Đăng nhập `CUSTOMER` → mở `/portal/shipments`.
 - **Kết quả mong đợi (Pass):**
   - Customer thấy lô của cả 2 pháp nhân.
   - Giấy báo nợ cũng gộp cả 2.
@@ -169,7 +169,7 @@
 ### TC-CUST-PORTAL-010 — Responsive trên mobile
 
 - **Mã PRD:** HT-07
-- **Vai trò:** `customer`
+- **Vai trò:** `CUSTOMER`
 - **Mức độ:** P1
 - **Thiết bị:** Mobile (390×844)
 - **Các bước:**

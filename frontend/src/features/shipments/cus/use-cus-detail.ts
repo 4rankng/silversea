@@ -218,7 +218,6 @@ export function useCusDetail(params: CusDetailListParams) {
         ...(activeEdit.detail.summary.cargoMode !== 'FCL' ? { routeId: draft.routeId } : {}),
         deliveryLocation: draft.deliveryLocation,
       });
-      if (response.changeMode === 'REQUESTED') setEditNotice(response.message ?? 'Đã gửi yêu cầu thay đổi để phê duyệt.');
     } catch (error) {
       if (!isOptimisticShipmentConflict(error)) throw error;
       await recoverConflict(row, 'identity');
@@ -237,7 +236,6 @@ export function useCusDetail(params: CusDetailListParams) {
         tradeDirection: draft.tradeDirection,
         shippingLineName: draft.shippingLineName,
       });
-      if (response.changeMode === 'REQUESTED') setEditNotice(response.message ?? 'Đã gửi yêu cầu thay đổi để phê duyệt.');
     } catch (error) {
       if (!isOptimisticShipmentConflict(error)) throw error;
       await recoverConflict(row, 'documents');

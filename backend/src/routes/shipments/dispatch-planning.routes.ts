@@ -396,6 +396,11 @@ dispatchPlanningRoutes.patch(
     const parsed = updateDispatchDetailPlanSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
     const user = getUser(req);
+    // Phân loại (Đơn/Kẹp/Kết hợp/Lẻ) and the lot "Đóng kết hợp" flag are
+    // CUS-owned: the dispatch editor can no longer set either, even by
+    // calling the API directly — strip before the service sees the payload.
+    delete (parsed.data as { classification?: unknown }).classification;
+    delete (parsed.data as { isCombined?: unknown }).isCombined;
     res.json(await updateDispatchDetailPlan({
       fulfillmentId,
       expectedFulfillmentVersion: parsed.data.expectedFulfillmentVersion,

@@ -52,15 +52,16 @@ export function containerTransportDateSql() {
 // multiply container rows and break LIMIT/OFFSET pagination.
 
 /** Rank mirrors buildContainerLine's dispatchStatus derivation: trip status
- * COMPLETED > IN_TRANSIT > CREATED, then planned-carrier (PLANNED), else
- * UNASSIGNED. Only relative order matters for sorting. */
+ * COMPLETED > IN_TRANSIT > a CREATED trip still missing its ngày đóng/trả;
+ * everything else — no trip, or a CREATED trip that already has the
+ * appointment — is AWAITING_VEHICLE (rank 0). Only relative order matters
+ * for sorting. */
 function containerDispatchRankSql(): SQL {
   return sql`(
     select case
-      when t.status = 'COMPLETED' then 4
-      when t.status = 'IN_TRANSIT' then 3
-      when t.status = 'CREATED' then 2
-      when sf.planned_carrier_type is not null then 1
+      when t.status = 'COMPLETED' then 3
+      when t.status = 'IN_TRANSIT' then 2
+      when t.status = 'CREATED' and ${s.shipmentContainers.customerAppointmentAt} is null then 1
       else 0
     end
     from ${s.shipmentFulfillments} sf
@@ -75,13 +76,12 @@ function containerDispatchRankSql(): SQL {
 
 /** Rank per record-status filter value — mirrors the case arms above so a
  * dispatchStatus filter selects exactly the rows whose ledger badge shows
- * that status. UNASSIGNED needs no entry: the carrier-presence split already
- * selects it. */
+ * that status. AWAITING_VEHICLE needs no entry: it is the coalesced rank-0
+ * default (containers without any fulfillment rank 0 too). */
 const CONTAINER_DISPATCH_RANKS = {
-  PLANNED: 1,
-  CREATED: 2,
-  IN_TRANSIT: 3,
-  COMPLETED: 4,
+  CREATED: 1,
+  IN_TRANSIT: 2,
+  COMPLETED: 3,
 } as const;
 
 /** Mirrors buildContainerLine's carrierName: own fleet renders as the fixed

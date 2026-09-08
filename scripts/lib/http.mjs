@@ -111,7 +111,7 @@ export async function api(token, method, path, body, opts = {}) {
   const res = await fetchImpl(url, {
     method,
     headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
+    body: body != null ? JSON.stringify(body) : undefined,
   });
   const text = await res.text();
   let data;

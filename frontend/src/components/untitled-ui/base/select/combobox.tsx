@@ -25,6 +25,15 @@ interface ComboBoxProps extends Omit<AriaComboBoxProps<SelectItemType>, "childre
     triggerClassName?: string;
     /** Called when the user clicks the clear (X) button. */
     onClear?: () => void;
+    /**
+     * Initial placement hint for the popover relative to the trigger. Useful
+     * when the picker sits inside a column that has a sibling action button
+     * (e.g. "+ Thêm") right below — request "top" so the popover opens
+     * upward and never covers the sibling. `shouldFlip` stays on, so when the
+     * trigger is jammed against the top edge the popover still flips back
+     * down rather than clipping off-screen.
+     */
+    popoverPlacement?: 'top' | 'bottom' | 'left' | 'right' | 'top start' | 'top end' | 'bottom start' | 'bottom end' | 'start' | 'end';
     children: AriaListBoxProps<SelectItemType>["children"];
 }
 
@@ -45,8 +54,9 @@ interface ComboBoxValueProps extends AriaGroupProps {
 const ComboBoxValue = ({ size, shortcut, placeholder, shortcutClassName, icon: IconProp, openOnPress, triggerClassName, onClear, ref, ...otherProps }: ComboBoxValueProps) => {
     const state = useContext(ComboBoxStateContext);
 
-    const value = state?.selectedItem?.value || null;
+    const value = state?.selectedItem?.value || (state?.selectedKey != null ? { id: state.selectedKey } : null);
     const inputValue = state?.inputValue || null;
+    const hasClearableValue = Boolean(value || (state?.selectedKey != null && state.selectedKey !== '') || (inputValue && inputValue.trim().length > 0));
 
     const first = inputValue?.split(value?.supportingText)?.[0] || "";
     const last = inputValue?.split(first)[1];
@@ -111,7 +121,7 @@ const ComboBoxValue = ({ size, shortcut, placeholder, shortcutClassName, icon: I
                         className={cx(
                             "z-10 w-full appearance-none bg-transparent text-transparent caret-alpha-black/90 placeholder:text-placeholder focus:outline-hidden disabled:cursor-not-allowed",
                             sizes[size].text,
-                            onClear && value && "pr-5",
+                            onClear && hasClearableValue && "pr-5",
                         )}
                         // The app's global `:focus-visible` rule (base.css) is unlayered, so it
                         // always beats the layered `focus:outline-hidden` utility above and draws
@@ -122,7 +132,7 @@ const ComboBoxValue = ({ size, shortcut, placeholder, shortcutClassName, icon: I
                     />
                 </div>
 
-                {onClear && value && (
+                {onClear && hasClearableValue && (
                     <button
                         type="button"
                         tabIndex={-1}
@@ -132,6 +142,15 @@ const ComboBoxValue = ({ size, shortcut, placeholder, shortcutClassName, icon: I
                             e.preventDefault();
                             e.stopPropagation();
                             onClear();
+                            state?.setSelectedKey(null);
+                            state?.setInputValue('');
+                        }}
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            onClear();
+                            state?.setSelectedKey(null);
+                            state?.setInputValue('');
                         }}
                     >
                         <XClose className="size-3.5" />
@@ -198,6 +217,7 @@ export const ComboBox = ({
     triggerClassName,
     onClear,
     className,
+    popoverPlacement,
     ...otherProps
 }: ComboBoxProps) => {
     const placeholderRef = useRef<HTMLDivElement>(null);
@@ -259,7 +279,7 @@ export const ComboBox = ({
                             onPointerEnter={onResize}
                         />
 
-                        <Popover size={size} triggerRef={placeholderRef} style={{ width: popoverWidth }} className={otherProps.popoverClassName}>
+                        <Popover size={size} triggerRef={placeholderRef} style={{ width: popoverWidth }} className={otherProps.popoverClassName} placement={popoverPlacement}>
                             <FilteredListBox items={items} className="size-full outline-hidden">
                                 {children}
                             </FilteredListBox>

@@ -321,6 +321,26 @@ before(async () => {
   await initAuditService();
   await initEnforcer();
 
+  // Seed the dispatch-zone taxonomy that requireDispatchZone() validates against.
+  // Production `make seed` inserts these; tests need them too because the zone
+  // validation rejects unknown codes with 400 instead of falling back to empty
+  // results. Idempotent: reactivates any zone left inactive by a prior run.
+  const zoneSeeds = [
+    { code: 'LACH_HUYEN', label: 'Lạch Huyện', sortOrder: 10, isActive: true },
+    { code: 'HAI_PHONG', label: 'Cảng Hải Phòng', sortOrder: 20, isActive: true },
+  ];
+  for (const z of zoneSeeds) {
+    const [existing] = await db.select().from(s.dispatchZones)
+      .where(eq(s.dispatchZones.code, z.code)).limit(1);
+    if (existing) {
+      await db.update(s.dispatchZones)
+        .set({ isActive: true, label: z.label, sortOrder: z.sortOrder })
+        .where(eq(s.dispatchZones.id, existing.id));
+    } else {
+      await db.insert(s.dispatchZones).values(z);
+    }
+  }
+
   const app = express();
   app.use(express.json());
   app.use('/api/shipments', authMiddleware, auditLogMiddleware, casbinAuthz('shipments'), shipmentRoutes);
@@ -1064,7 +1084,7 @@ describe('atomic dispatch detail plan save', () => {
     return { shipment, fulfillment };
   }
 
-  test('one save applies carrier, vehicle, estimates, classification, and isCombined atomically', async () => {
+  test('one save applies carrier, vehicle, and estimates atomically; CUS-owned fields are stripped', async () => {
     const carrier = await createCustomer(`Detail ext carrier ${suffix}-${createdCustomerIds.length}`, true);
     const { shipment, fulfillmentIds } = await createAllocatedLot({ carrierType: 'OWN' });
     const { truck, driver } = await createOwnedTruckWithDriver();
@@ -1080,24 +1100,52 @@ describe('atomic dispatch detail plan save', () => {
         externalCarrierId: carrier.id,
         plannedRevenue: 3_000_000,
         plannedCarrierCost: 2_200_000,
+        // Sent explicitly — the route strips both before the service runs.
         classification: 'DOUBLE',
-        isCombined: !shipment.isCombined,
+        isCombined: true,
       },
     });
     assert.equal(response.status, 200, JSON.stringify(response.data));
     assert.equal(response.data.replayed, false);
     assert.equal(response.data.dispatch.carrierType, 'EXTERNAL');
     assert.equal(response.data.dispatch.externalCarrierId, carrier.id);
-    assert.equal(response.data.classification, 'DOUBLE');
+    // CUS-owned fields echo the STORED values: a dispatch save cannot
+    // rewrite classification or the lot combined flag.
+    assert.equal(response.data.classification, 'SINGLE');
+    assert.equal(response.data.isCombined, freshShipment.isCombined);
     assert.equal(response.data.estimates.plannedRevenue, '3000000');
-    assert.equal(response.data.isCombined, !shipment.isCombined);
-    // isCombined flipped → shipment version bumped exactly once.
-    assert.equal(response.data.shipmentVersion, freshShipment.version + 1);
+    // Neither CUS-owned field changed → shipment version NOT bumped.
+    assert.equal(response.data.shipmentVersion, freshShipment.version);
     assert.equal(response.data.fulfillmentVersion, fulfillment.version + 1);
 
     // The vehicle switched away from OWN with no plate — plate cleared.
     assert.equal(response.data.dispatch.assignedPlate, null);
     void truck; void driver;
+  });
+
+  test('omitting classification and isCombined leaves both stored values untouched', async () => {
+    const { shipment, fulfillmentIds } = await createAllocatedLot({ carrierType: 'OWN' });
+    const { shipment: freshShipment, fulfillment } = await fetchShipmentAndFulfillment(fulfillmentIds[0]!);
+
+    // The dispatch editor now owns neither field: a save without them must
+    // not rewrite the CUS-owned classification or the lot combined flag.
+    const response = await apiFetch<PlanResponse>(`/dispatch-detail-plan-rows/${fulfillment.id}/plan`, {
+      method: 'PATCH',
+      token: dispatcherToken,
+      body: {
+        expectedFulfillmentVersion: fulfillment.version,
+        expectedShipmentVersion: freshShipment.version,
+        carrierType: 'OWN',
+        plannedRevenue: 777_000,
+        plannedCarrierCost: 555_000,
+        isCombined: freshShipment.isCombined,
+      },
+    });
+    assert.equal(response.status, 200, JSON.stringify(response.data));
+    assert.equal(response.data.classification, fulfillment.dispatchClassification ?? 'SINGLE');
+    assert.equal(response.data.isCombined, freshShipment.isCombined);
+    const { fulfillment: after } = await fetchShipmentAndFulfillment(fulfillment.id);
+    assert.equal(after.dispatchClassification, fulfillment.dispatchClassification);
   });
 
   test('isCombined unchanged → shipment version not bumped; classification exposed on rows', async () => {
@@ -1126,6 +1174,72 @@ describe('atomic dispatch detail plan save', () => {
     assert.equal(rows.status, 200);
     const row = rows.data.items.find((item) => item.fulfillmentId === fulfillment.id)!;
     assert.equal(row.classification, 'SINGLE');
+  });
+
+  test('dispatcher omits isCombined → lot flag is NOT touched (CUS owns it)', async () => {
+    const { shipment, fulfillmentIds } = await createAllocatedLot({ carrierType: 'OWN', isCombined: true });
+    const { shipment: freshShipment, fulfillment } = await fetchShipmentAndFulfillment(fulfillmentIds[0]!);
+    // Frontend dispatch editor now sends no `isCombined` field at all. The
+    // backend must treat the absence as "not part of this save" — a
+    // dispatcher editing one container must never rewrite a flag that spans
+    // every container in the lot.
+    const bodyWithoutIsCombined = {
+      expectedFulfillmentVersion: fulfillment.version,
+      expectedShipmentVersion: freshShipment.version,
+      carrierType: 'OWN' as const,
+      truckId: null,
+      plannedRevenue: 4_200_000,
+      plannedCarrierCost: 3_100_000,
+      classification: 'COMBINED' as const,
+    };
+    const response = await apiFetch<PlanResponse>(`/dispatch-detail-plan-rows/${fulfillment.id}/plan`, {
+      method: 'PATCH',
+      token: dispatcherToken,
+      body: bodyWithoutIsCombined,
+    });
+    assert.equal(response.status, 200, JSON.stringify(response.data));
+
+    const rows = await fetchRows(dispatcherToken, `?q=${freshShipment.shipmentCode}`);
+    assert.equal(rows.status, 200);
+    const row = rows.data.items.find((item) => item.fulfillmentId === fulfillment.id)!;
+    assert.equal(row.isCombined, true, 'omitted isCombined must echo the stored (true) value');
+    // classification + isCombined are CUS-owned: the ROUTE strips both from a
+    // dispatch save even when a caller sends them explicitly.
+    assert.equal(row.classification, 'SINGLE', 'classification is CUS-owned — a dispatch save cannot rewrite it');
+    assert.equal(row.estimates.plannedRevenue, '4200000');
+    assert.equal(row.estimates.plannedCarrierCost, '3100000');
+
+    const reloaded = await db.select().from(s.shipments).where(eq(s.shipments.id, shipment.id));
+    assert.equal(reloaded[0]!.isCombined, true, 'shipments.is_combined must remain true after an editor save that omits isCombined');
+    // The other plan fields did change, so the version IS allowed to bump —
+    // the protection is specifically that isCombined is decoupled.
+  });
+
+  test('dispatcher explicitly sends false isCombined → silently coerced to "untouched" (per-container editor cannot rewrite lot flag)', async () => {
+    const { shipment, fulfillmentIds } = await createAllocatedLot({ carrierType: 'OWN', isCombined: true });
+    const { shipment: freshShipment, fulfillment } = await fetchShipmentAndFulfillment(fulfillmentIds[0]!);
+    const response = await apiFetch<PlanResponse>(`/dispatch-detail-plan-rows/${fulfillment.id}/plan`, {
+      method: 'PATCH',
+      token: dispatcherToken,
+      body: {
+        expectedFulfillmentVersion: fulfillment.version,
+        expectedShipmentVersion: freshShipment.version,
+        carrierType: 'OWN',
+        truckId: null,
+        plannedRevenue: null,
+        plannedCarrierCost: null,
+        classification: 'SINGLE',
+        isCombined: false,
+      },
+    });
+    assert.equal(response.status, 200, JSON.stringify(response.data));
+    // The schema accepts isCombined to keep old callers valid, but the
+    // service write gate must refuse to flip a stored true→false in this
+    // per-container code path. Until a separate gate is added, the
+    // documented contract is "dispatcher editor sends no isCombined" — this
+    // case pins that contract but does not yet enforce it.
+    assert.equal(response.data.isCombined, true);
+    void freshShipment;
   });
 
   test('OWN truck assignment via atomic save stays silent; replay is silent', async () => {
@@ -1243,14 +1357,17 @@ describe('atomic dispatch detail plan save', () => {
     assert.equal(after.shipment.version, shipment.version);
   });
 
-  test('classification is required — schema rejects a missing/null value', async () => {
+  test('classification omitted or invalid is rejected/ignored per CUS ownership', async () => {
     const { fulfillmentIds } = await createAllocatedLot({ carrierType: 'OWN' });
     const [fulfillment] = await db.select().from(s.shipmentFulfillments)
       .where(eq(s.shipmentFulfillments.id, fulfillmentIds[0]!));
     const [shipment] = await db.select().from(s.shipments)
       .where(eq(s.shipments.id, fulfillment.shipmentId));
 
-    const missing = await apiFetch(`/dispatch-detail-plan-rows/${fulfillment.id}/plan`, {
+    // classification + isCombined are CUS-owned: the route strips both from
+    // a dispatch save, so omitting them succeeds (values stay untouched) —
+    // but an INVALID classification literal still fails schema validation.
+    const omitted = await apiFetch(`/dispatch-detail-plan-rows/${fulfillment.id}/plan`, {
       method: 'PATCH',
       token: dispatcherToken,
       body: {
@@ -1262,7 +1379,7 @@ describe('atomic dispatch detail plan save', () => {
         isCombined: false,
       },
     });
-    assert.equal(missing.status, 400);
+    assert.equal(omitted.status, 200, JSON.stringify(omitted.data));
 
     const invalid = await apiFetch(`/dispatch-detail-plan-rows/${fulfillment.id}/plan`, {
       method: 'PATCH',
@@ -1864,7 +1981,7 @@ describe('driver notification timing (xếp xe stays silent, issuance notifies)'
     assert.equal(detail.status, 404, 'driver must not be able to open a not-yet-issued job');
   });
 
-  test('issuing the dispatch order notifies the driver exactly once and the job opens', async () => {
+test('issuing the dispatch order notifies the driver exactly once and the job opens', async () => {
     const { shipment, fulfillmentIds } = await createAllocatedLot({ carrierType: 'OWN' });
     const { truck, driver } = await createOwnedTruckWithDriver();
     const [fulfillment] = await db.select().from(s.shipmentFulfillments).where(eq(s.shipmentFulfillments.id, fulfillmentIds[0]!));

@@ -55,6 +55,7 @@ export function ContainerTypeCellPicker({ value, onChange, options, fieldId, sav
           placeholder="Chọn hoặc gõ để tìm loại"
           disabled={Boolean(saving)}
           error={error}
+          popoverPlacement="top"
         />
         <button
           type="button"

@@ -1,0 +1,27 @@
+# UI Verification: Popover flip fix for dropdown + "+ Themer" overlap
+Date: 2026-07-25
+Rung: UI DRIVEN (local dev + staging)
+
+## Change
+- popover.tsx: containerPadding 0 → 16
+- multi-select.tsx: containerPadding 0 → 16
+
+## Browser evidence
+
+### Local dev (http://localhost:7174)
+- qa/qa-01-before.png — form loaded, container table visible
+- qa/qa-02-popover-open.png — popover opens, trigger at mid-viewport
+- qa/qa-04-popover-flipped.png — trigger at 692/900px → popover FLIPS UPWARD, +Them visible
+
+### Staging (https://vantai.tingting.vip)
+- qa/qa-05-staging-flip.png — trigger at 692/900px → popover FLIPS UPWARD, +Them visible
+
+### Normal behavior preserved
+- qa/qa-07-top-normal-down.png — trigger at 335/900px → popover opens DOWNWARD normally
+
+## Test matrix
+| Scenario | Local dev | Staging |
+|----------|-----------|---------|
+| Trigger near bottom → flip UP | PASS | PASS |
+| Trigger near top → open DOWN | PASS | PASS |
+| +Them button not covered | PASS | PASS |

@@ -46,9 +46,7 @@ const createdContainerTypeIds: number[] = [];
 const createdDeclarationIds: number[] = [];
 
 let clerkToken: string;
-let otherClerkUserId: number;
 let otherClerkToken: string;
-let adminToken: string;
 let server: http.Server;
 let baseUrl: string;
 
@@ -95,19 +93,13 @@ async function createIntakeShipment(
 
 let customerId: number;
 let clerkUserId: number;
-let containerTypeId: number;
 
 before(async () => {
   await initEnforcer();
   await initAuditService();
 
-  const admin = await mkUser(`dup-admin-${suffix}`, Role.ADMIN);
-  adminToken = jwt.sign(
-    { userId: admin.id, username: admin.username ?? admin.id.toString(), role: admin.role },
-    config.jwtSecret,
-    { expiresIn: '1h' },
-  );
-
+  await mkUser(`dup-admin-${suffix}`, Role.ADMIN);
+  
   const clerk = await mkUser(`dup-clerk-${suffix}`, Role.CUS);
   clerkUserId = clerk.id;
   clerkToken = jwt.sign(
@@ -117,8 +109,7 @@ before(async () => {
   );
 
   const otherClerk = await mkUser(`dup-clerk-other-${suffix}`, Role.CUS);
-  otherClerkUserId = otherClerk.id;
-  otherClerkToken = jwt.sign(
+    otherClerkToken = jwt.sign(
     { userId: otherClerk.id, username: otherClerk.username ?? otherClerk.id.toString(), role: otherClerk.role },
     config.jwtSecret,
     { expiresIn: '1h' },
@@ -135,8 +126,7 @@ before(async () => {
     name: `Dup CT ${suffix}`,
   }).returning();
   createdContainerTypeIds.push(containerType.id);
-  containerTypeId = containerType.id;
-  // The duplicate-guard tests do not exercise routes, ports, or sites
+    // The duplicate-guard tests do not exercise routes, ports, or sites
   // (the quick-create payload only requires `customerId` + the reference);
   // keeping the references here would force a `siteType` enum insert
   // that pulls in catalog-state noise unrelated to the regression.

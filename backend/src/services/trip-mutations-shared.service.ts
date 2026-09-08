@@ -146,7 +146,6 @@ export function shouldMarkRevenueOverride(data: RevenueUpdateInput, stored: Stor
     (data.revenueCombine !== undefined && data.revenueCombine !== Number(stored.revenueCombine || 0))
   );
 }
-type TripRow = typeof s.trips.$inferSelect;
 type TripLegRow = typeof s.tripLegs.$inferSelect;
 
 // Identity / lifecycle / audit fields that must NOT carry over when copying a

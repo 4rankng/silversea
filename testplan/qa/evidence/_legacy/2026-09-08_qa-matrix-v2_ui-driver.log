@@ -1,0 +1,37 @@
+[02:29:19] === STARTING QA MATRIX V2 VERIFICATION ===
+[02:29:19] Logged in admin, cus, giamdoc successfully.
+[02:29:19] --- PHẦN 1: BINDING DỮ LIỆU DROPDOWN HÃNG TÀU ---
+[02:29:22] Found shipping line input: {"placeholder":"Gõ chọn hoặc nhập hãng tàu","value":"","id":"react-aria1646581038-_r_10_","name":""}
+[02:29:23] Shipping line dropdown options count: 20
+[02:29:23] First 10 shipping lines: ["Maersk","MSC","COSCO","CMA CGM","Hapag-Lloyd","ONE","Evergreen","OOCL","Yang Ming","Wan Hai"]
+[02:29:23] TC_LINE_01: Contains standard shipping lines: Maersk=true, MSC=true, COSCO=true
+[02:29:23] TC_LINE_02: Custom input value typed successfully.
+[02:29:23] TC_LINE_03: Found "+ Thêm hãng tàu" button: {"text":"Thêm hãng tàu","visible":true}
+[02:29:23] Saved screenshot: qa/2026-09-08_phan1_hang-tau-dropdown.png
+[02:29:23] --- PHẦN 2: RESPONSIVE 1366x768 & 1920x1080 ---
+[02:29:27] TC_RESP_01: 1366x768 horizontal overflow = false
+[02:29:29] Saved screenshot: qa/2026-09-08_phan2_responsive-1366.png
+[02:29:30] TC_RESP_02: 1920x1080 horizontal overflow = false
+[02:29:30] Saved screenshot: qa/2026-09-08_phan2_responsive-1920.png
+[02:29:30] --- PHẦN 3 & 6: DISPATCH DETAIL PLAN, CHECKBOX ĐÓNG KẾT HỢP, TASK TAGS ---
+[02:29:35] TC_COMB_02 (20ft container): Checkbox Đóng kết hợp enabled: {"id":"dispatch-combined-118","disabled":false,"checked":false}
+[02:29:35] TC_TAG_01: Task tags found in dialog (9): ["Đảo vỏ","Đặt đầu","Đặt đuôi","Di động","Giao thẳng","Gửi bãi","Lấy vỏ ICD đi đóng","Trả vỏ","XƯỞNG 2"]
+[02:29:35] TC_TAG_01: Contains 'XƯỞNG 2': true
+[02:29:35] TC_TAG_02: Tag click result: XƯỞNG 2 clicked
+[02:29:36] TC_TAG_03: Note value after tag click: "Hàng lạnh bảo quản ở 5°C"
+[02:29:36] Saved screenshot: qa/2026-09-08_phan6_task-tags.png
+[02:29:37] Navigating to page 3 for 40ft container check...
+[02:29:40] TC_COMB_01 (40ft container): Checkbox Đóng kết hợp: disabled=true, checked=false, title="Chỉ container 20 feet mới được đóng kết hợp (kẹp chuyến)"
+[02:29:41] Saved screenshot: qa/2026-09-08_phan3_dispatch-dialog.png
+[02:29:41] --- PHẦN 4: HIỂN THỊ NÚT LƯU TRÊN BẢNG KÊ CONTAINER ---
+[02:29:45] Clicked cell trigger to open inline editor: true
+[02:29:46] TC_BTN_01: Found save buttons in editor: [{"text":"Lưu","className":"group relative inline-flex h-max cursor-pointer select-none items-center justify-center whitespace-nowrap outline-brand transition duration-100 ease-linear focus-visible:outline-2 focus-visible:outline-offset-2 in-data-input-wrapper:shadow-xs in-data-input-wrapper:focus:!z-50 in-data-input-wrapper:in-data-leading:-mr-px in-data-input-wrapper:in-data-leading:rounded-r-none in-data-input-wrapper:in-data-leading:before:rounded-r-none in-data-input-wrapper:in-data-trailing:-ml-px in-data-input-wrapper:in-data-trailing:rounded-l-none in-data-input-wrapper:in-data-trailing:before:rounded-l-none disabled:cursor-not-allowed disabled:opacity-50 in-data-input-wrapper:disabled:opacity-100 *:data-icon:pointer-events-none *:data-icon:shrink-0 *:data-icon:transition-inherit-all min-h-7 gap-1 rounded-lg px-2 py-1 text-xs font-semibold before:rounded-[7px] data-icon-only:p-1.5 max-md:min-h-11 max-md:px-3 max-md:py-2 max-md:text-sm max-md:data-icon-only:p-2.5 in-data-input-wrapper:px-3.5 in-data-input-wrapper:py-2.5 in-data-input-wrapper:data-icon-only:p-2.5 *:data-icon:size-4 *:data-icon:stroke-[2.25px] bg-brand-solid text-white shadow-xs-skeuomorphic ring-1 ring-transparent ring-inset hover:bg-brand-solid_hover data-loading:bg-brand-solid_hover before:absolute before:inset-px before:border before:border-white/12 before:mask-b-from-0% *:data-icon:text-white/60 hover:*:data-icon:text-white/70 shipment-container-ledger__edit-action","visible":true}]
+[02:29:46] TC_BTN_01: Found cancel buttons in editor: [{"text":"Hủy","className":"group relative inline-flex h-max cursor-pointer select-none items-center justify-center whitespace-nowrap outline-brand transition duration-100 ease-linear before:absolute focus-visible:outline-2 focus-visible:outline-offset-2 in-data-input-wrapper:shadow-xs in-data-input-wrapper:focus:!z-50 in-data-input-wrapper:in-data-leading:-mr-px in-data-input-wrapper:in-data-leading:rounded-r-none in-data-input-wrapper:in-data-leading:before:rounded-r-none in-data-input-wrapper:in-data-trailing:-ml-px in-data-input-wrapper:in-data-trailing:rounded-l-none in-data-input-wrapper:in-data-trailing:before:rounded-l-none disabled:cursor-not-allowed disabled:opacity-50 in-data-input-wrapper:disabled:opacity-100 *:data-icon:pointer-events-none *:data-icon:shrink-0 *:data-icon:transition-inherit-all min-h-7 gap-1 rounded-lg px-2 py-1 text-xs font-semibold before:rounded-[7px] data-icon-only:p-1.5 max-md:min-h-11 max-md:px-3 max-md:py-2 max-md:text-sm max-md:data-icon-only:p-2.5 in-data-input-wrapper:px-3.5 in-data-input-wrapper:py-2.5 in-data-input-wrapper:data-icon-only:p-2.5 *:data-icon:size-4 *:data-icon:stroke-[2.25px] bg-primary text-secondary shadow-xs-skeuomorphic ring-1 ring-primary ring-inset hover:bg-primary_hover hover:text-secondary_hover data-loading:bg-primary_hover *:data-icon:text-fg-quaternary hover:*:data-icon:text-fg-quaternary_hover shipment-container-ledger__edit-action","visible":true}]
+[02:29:46] Saved screenshot: qa/2026-09-08_phan4_modal-lich-giao.png
+[02:29:46] --- PHẦN 5: UNASSIGNED CONTAINER SCHEDULING (ADMIN & MANAGER) ---
+[02:29:46] Containers returned from /shipments/cus-workspace/containers: 20
+[02:29:46] Found unassigned container: id=14592, shipmentId=23269, number=FLATRO1788768894179-i7ze391
+[02:29:46] TC_UNAS_01: scheduleEditable=true, customerAppointmentEditable=true
+[02:29:46] TC_UNAS_01 (ADMIN update status): 200, line appointment: 2026-09-12T01:00:00.000Z
+[02:29:46] TC_UNAS_02 (MANAGER update status): 200, line appointment: 2026-09-12T02:30:00.000Z
+[02:29:46] TC_UNAS_03 (Assigned trip update status): 409, error: {"error":"Container đã gắn chuyến xe (TRP-202608-0008). Vui lòng đổi lịch trên chuyến xe hoặc gỡ phân xe trước khi sửa."}

@@ -60,10 +60,11 @@ import {
  * Divergent wording pairs RESOLVED 2026-09-01 by user decision:
  *   - TripPod: unified to "Chờ duyệt" / "Đã duyệt" — canonical map moved to
  *     shared as TRIP_POD_STATUS_LABELS (both e-POD surfaces + work inboxes).
- *   - container dispatchStatus: unified to the compact workboard wording
- *     ("Đang chạy"/"Hoàn thành"/"Chưa điều xe"); the master-plan drawer now
- *     delegates to cusUtils.dispatchStatusLabel. RoleWorkInbox keeps its own
- *     delivery-TRUTH axis ("Tài xế báo đã giao" etc.) — a different concept.
+ *   - container dispatchStatus: collapsed 2026-09-08 to the four-state
+ *     vocabulary (Chờ phân xe / Đã tạo chuyến / Đang chạy / Hoàn thành) —
+ *     pinned by dispatchStatusVocabulary.test.ts. RoleWorkInbox keeps its
+ *     own delivery-TRUTH axis ("Tài xế báo đã giao" etc.) — a different
+ *     concept.
  */
 describe('shared status vocabulary — label maps cover their enums exactly', () => {
   const pairs: [label: string, enumObject: object, labels: Record<string, string>][] = [

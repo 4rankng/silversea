@@ -1,15 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import {
-  Download,
-  FileLock2,
-  Loader2,
-  Plus,
-  RotateCcw,
-  Save,
-  Search,
-  X,
-} from 'lucide-react';
+import { Download, FileLock2, Loader2, Plus, RotateCcw, Save, Search, X } from 'lucide-react';
 import {
   SHIPMENT_CUS_BUCKET_LABELS,
   SHIPMENT_CUS_WORKSPACE_SORT_KEYS,
@@ -33,6 +24,8 @@ import { useAuth } from '../hooks/useAuth';
 import { FinanceEvidence, ShipmentSignals, WorkflowBadge } from '../features/shipments/cus/CusBadges';
 import { ShipmentQuickEditFields } from '../features/shipments/cus/CusQuickEdit';
 import { ShipmentDetailContent } from '../features/shipments/cus/CusDetailContent';
+import { CusDrawerFooter } from '../features/shipments/cus/CusDrawerFooter';
+import type { ContainerLedgerHandle } from '../features/shipments/cus/CusContainerLedger';
 import { CusShipmentRow } from '../features/shipments/cus/CusShipmentRow';
 import { CUS_PAGE_SIZE, useCusWorkspaceState } from '../features/shipments/cus/use-cus-workspace-state';
 import { useCusQuickEdit } from '../features/shipments/cus/use-cus-quick-edit';
@@ -75,6 +68,7 @@ export default function ShipmentsPage() {
   const [drawerId, setDrawerId] = useState<number | null>(null);
   const [drawerCloseConfirmId, setDrawerCloseConfirmId] = useState<number | null>(null);
   const [exporting, setExporting] = useState(false);
+  const containerLedgerRef = useRef<ContainerLedgerHandle | null>(null);
 
   const ws = useCusWorkspaceState({
     page, searchSuffix: suffixParam, transportDateFrom: dateFrom, transportDateTo: dateTo,
@@ -136,6 +130,7 @@ export default function ShipmentsPage() {
   }, [dirtyDetailIds, drawerId, savingDetailIds, ws]);
 
   const discardMobileDetailChanges = useCallback(() => {
+    containerLedgerRef.current?.discardAll();
     if (drawerCloseConfirmId != null) setDetailDirty(drawerCloseConfirmId, false);
     setDrawerCloseConfirmId(null);
     setDrawerId(null);
@@ -504,6 +499,7 @@ export default function ShipmentsPage() {
         subtitle={drawerItem?.billOrBookNumber || drawerItem?.declarationNumber || undefined}
         className="cus-shipment-drawer"
         headerGraphic={drawerItem ? <StatusSwatch color={SHIPMENT_BUCKET_COLORS[drawerItem.bucket]} /> : undefined}
+        footer={drawerItem ? <CusDrawerFooter isDirty={dirtyDetailIds.has(drawerItem.id)} isSaving={savingDetailIds.has(drawerItem.id)} onDiscard={() => containerLedgerRef.current?.discardAll()} onSave={() => { void containerLedgerRef.current?.saveAll().then((saved) => { if (saved) setDrawerId(null); }); }} /> : undefined}
       >
         <div id={drawerItem ? `cus-detail-drawer-${drawerItem.id}` : undefined}>
           {drawerItem && (
@@ -554,7 +550,7 @@ export default function ShipmentsPage() {
                 </div>
               </section>
 
-              <ShipmentDetailContent detail={ws.details[drawerItem.id]} loading={ws.detailLoadingIds.has(drawerItem.id)} error={ws.detailErrors[drawerItem.id]} onRetry={() => void loadDetail(drawerItem.id, true)} onLineSaved={(line) => applySavedContainerLine(drawerItem.id, line)} getIdempotencyKey={ws.getIdempotencyKey} clearIdempotencyKey={ws.clearIdempotencyKey} idPrefix="cus-drawer-detail" onDirtyChange={(dirty) => setDetailDirty(drawerItem.id, dirty)} onSavingChange={(saving) => setDetailSaving(drawerItem.id, saving)} />
+              <ShipmentDetailContent detail={ws.details[drawerItem.id]} loading={ws.detailLoadingIds.has(drawerItem.id)} error={ws.detailErrors[drawerItem.id]} onRetry={() => void loadDetail(drawerItem.id, true)} onLineSaved={(line) => applySavedContainerLine(drawerItem.id, line)} getIdempotencyKey={ws.getIdempotencyKey} clearIdempotencyKey={ws.clearIdempotencyKey} idPrefix="cus-drawer-detail" onDirtyChange={(dirty) => setDetailDirty(drawerItem.id, dirty)} onSavingChange={(saving) => setDetailSaving(drawerItem.id, saving)} actionsRef={containerLedgerRef} />
             </>
           )}
         </div>

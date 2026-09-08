@@ -29,6 +29,7 @@ export {
   TIRES,
   CustomerAccountType, SupplierType, SUPPLIER_TYPES, SUPPLIER_TYPE_LABELS,
   DISPATCH_CLASSIFICATIONS, DISPATCH_CLASSIFICATION_LABELS,
+  DEFAULT_SHIPPING_LINES,
 } from './constants';
 
 export type { PushAudience, TireStatus, NoInvoiceEvidenceType, NoInvoiceApprovalTitle, DispatchClassification } from './constants';
@@ -155,6 +156,7 @@ export {
   shipmentCusWorkspaceQuerySchema,
   shipmentCusContainerQuerySchema,
   shipmentCusMissingFieldSchema,
+  SHIPMENT_CUS_DISPATCH_STATUSES,
   SHIPMENT_CUS_MISSING_FIELD_CODES,
   SHIPMENT_CUS_MISSING_FIELD_LABELS,
   SHIPMENT_CUS_CONTAINER_SORT_KEYS,
@@ -186,6 +188,7 @@ export {
 export type {
   ShipmentCusWorkspaceQuery,
   ShipmentCusContainerQuery,
+  ShipmentCusDispatchStatus,
   ShipmentCusContainerSortKey,
   ShipmentCusWorkspaceSortKey,
   ShipmentCusMissingField,

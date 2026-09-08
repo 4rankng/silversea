@@ -41,15 +41,18 @@ describe('shipment container editor density', () => {
     expect(ledgerSource).toContain("import { ShipmentContainerCell } from '../create/ShipmentContainerCell';");
     expect(ledgerSource).toContain('<th scope="col">Container</th>');
     expect(ledgerSource).toContain('<th scope="col">Giờ hẹn đóng/trả</th>');
-    expect(css).toMatch(/\.cus-container-table\s*\{[^}]*min-width:\s*1186px;[^}]*border-collapse:\s*collapse;[^}]*table-layout:\s*fixed;/);
-    expect(css).toMatch(/\.cus-container-col__site\s*\{\s*width:\s*144px;/);
+    // 2026-09-08: percentage columns (sum 100%) replaced the 1186px min-width
+    // so the fixed-layout ledger fits its container without horizontal scroll.
+    expect(css).toMatch(/\.cus-container-table\s*\{[^}]*width:\s*100%;[^}]*border-collapse:\s*collapse;[^}]*table-layout:\s*fixed;/);
+    expect(css).not.toMatch(/\.cus-container-table\s*\{[^}]*min-width:\s*\d{3,}px/);
+    expect(css).toMatch(/\.cus-container-col__site\s*\{\s*width:\s*10%;/);
     expect(css).toMatch(/\.cus-container-table tbody \.csc-container-cell\s*\{\s*padding:\s*0;/);
     expect(css).toMatch(
       /\.cus-container-cell :is\(\.searchable-select__value, \.searchable-select__placeholder\)\s*\{[^}]*overflow:\s*hidden;[^}]*text-overflow:\s*ellipsis;[^}]*white-space:\s*nowrap;/,
     );
     expect(ledgerSource).toContain('label: option.code');
     expect(css).toMatch(/\.cus-container-table-scroll\s*\{[^}]*overflow-x:\s*auto;/);
-    expect(css).toMatch(/\.cus-container-cell input,[\s\S]*?box-sizing:\s*border-box;[\s\S]*?width:\s*100%;[\s\S]*?min-width:\s*0;[\s\S]*?min-height:\s*34px;/);
+    expect(css).toMatch(/\.cus-container-cell input,[\s\S]*?box-sizing:\s*border-box;[\s\S]*?width:\s*100%;[\s\S]*?min-width:\s*0;[\s\S]*?min-height:\s*28px;/);
     expect(css).toMatch(/\.cus-container-ledger__head\s*\{/);
     expect(css).not.toMatch(/\.cus-container-record__tier\s*\{/);
     expect(ledgerSource).not.toContain('cus-container-cell--save');

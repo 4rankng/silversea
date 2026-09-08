@@ -1,7 +1,7 @@
-# Luồng 9: Kiểm thử Tích hợp Toàn trình (E2E) & Ngoại lệ (Edge Cases)
+# Luồng 10: Kiểm thử Tích hợp Toàn trình (E2E) & Ngoại lệ (Edge Cases)
 
 > **Vai trò tham gia:** CUS, Điều vận (DISPATCHER), Admin
-> **Tài khoản demo:** `cus`, `dieuvan`, `admin` (password: `Abc123`)
+> **Tài khoản test:** chọn theo môi trường qua [`../testaccounts.txt`](../testaccounts.txt) — runner tự map từng role (`CUS`, `DISPATCHER`, `ADMIN`) → username phù hợp với env đang chạy.
 > **Route kiểm thử:** `/shipments/new` → `/shipments/:id` → `/dispatch-detail` → `/dispatch`
 > **Mục đích:** Đảm bảo toàn bộ luồng nghiệp vụ xuyên suốt từ tạo lô → bổ sung ngày → điều phối
 > tác vụ hoạt động mượt mà, dữ liệu đồng bộ 100% giữa các màn hình và vai trò.
@@ -19,12 +19,12 @@
 
 ### TC-E2E-001 — Full flow: Tạo lô chưa có ngày → Bổ sung ngày giao có nút Xác nhận → Điều phối tác vụ phân xe
 
-- **Vai trò:** `cus` (bước 1–7), `dieuvan` (bước 8–9)
+- **Vai trò:** `CUS` (bước 1–7), `DISPATCHER` (bước 8–9)
 - **Mức độ:** P1
 - **Thiết bị:** Desktop (1440×900)
 - **Dữ liệu kiểm thử:** B/L = "BL_E2E_SEPT_001" (phải là giá trị duy nhất, chưa tồn tại trong hệ thống)
 - **Luồng thực hiện (Full Flow):**
-  1. **[CUS — Tạo lô]** Đăng nhập `cus`. Mở `/shipments/new`.
+  1. **[CUS — Tạo lô]** Đăng nhập `CUS`. Mở `/shipments/new`.
   2. **[CUS — Tạo lô]** Tạo lô hàng mới với B/L duy nhất: "BL_E2E_SEPT_001". Chọn khách hàng (vd LONG MINH), hình thức Nhập khẩu.
   3. **[CUS — Container]** Thêm container: Chọn Nhà máy "SCONECT", Tuyến đường "KCN QUẾ VÕ, BẮC NINH", Cảng nâng "Cảng VipGreenPort", Cảng hạ "Cảng nông hạ".
   4. **[CUS — Xóa dropdown]** Thử xóa 1 mục (vd Nhà máy) bằng icon 'x' → ô trở về placeholder → chọn lại "SCONECT" chuẩn xác.
@@ -32,7 +32,7 @@
   6. **[CUS — Factory sync]** Kiểm tra `/shipments/:id` (Chi tiết lô hàng) → Đảm bảo hiển thị đúng "SCONECT" (không hiện "Chưa có nhà máy").
   7. **[CUS — Xác nhận ngày giờ]** Vào thuộc tính container → Nhập Ngày "07/09/2026" & Giờ "11:00" → Nhấp nút "Xác nhận" → Lưu thành công (toast hiện).
   8. **[CUS/Ops — Đồng bộ]** Màn hình "Tổng quan lô hàng" (`/shipments`) cập nhật trạng thái đã có ngày giao, khớp hoàn toàn với màn hình Chi tiết. Badge "Chưa chốt ngày" đã biến mất.
-  9. **[Điều vận — Phân xe + Tác vụ]** Chuyển sang `dieuvan` → Mở `/dispatch-detail` → Tìm container vừa cập nhật → Chọn xe + chọn Tác vụ: "Lấy vỏ ICD Quế Võ đi đóng" → Lưu.
+  9. **[Điều vận — Phân xe + Tác vụ]** Chuyển sang `DISPATCHER` → Mở `/dispatch-detail` → Tìm container vừa cập nhật → Chọn xe + chọn Tác vụ: "Lấy vỏ ICD Quế Võ đi đóng" → Lưu.
   10. **[Điều vận — Kiểm tra]** Bảng điều vận hiển thị đầy đủ: container, xe, lái xe, và tác vụ điều vận.
 - **Kết quả mong đợi (Pass):**
   - Toàn bộ luồng xuyên suốt mượt mà, không gặp bất kỳ lỗi dữ liệu hay chặn luồng trái quy định.
@@ -53,7 +53,7 @@
 
 ### TC-EDGE-001 — Race condition: 2 người dùng cùng nhập 1 số B/L cùng lúc
 
-- **Vai trò:** 2 tài khoản `cus` khác nhau (hoặc `cus` + `admin`)
+- **Vai trò:** 2 tài khoản `CUS` khác nhau (hoặc `CUS` + `ADMIN`)
 - **Mức độ:** P2
 - **Loại kiểm thử:** Concurrency / Database Constraint
 - **Các bước:**
@@ -73,7 +73,7 @@
 
 ### TC-EDGE-002 — Validate B/L không phân biệt chữ hoa/thường và khoảng trắng thừa
 
-- **Vai trò:** `cus`
+- **Vai trò:** `CUS`
 - **Mức độ:** P2
 - **Tiền điều kiện:** Đã có lô B/L: "JJCTCHPDY260305".
 - **Dữ liệu kiểm thử:**

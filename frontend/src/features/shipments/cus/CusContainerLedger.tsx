@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Check, RotateCcw, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Calendar, X } from 'lucide-react';
 import {
   type ShipmentCusWorkspaceContainerLine,
   type ShipmentCusWorkspaceDetail,
@@ -8,7 +8,9 @@ import { formatDateTimeShort } from '../../../lib/format';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 import { SearchableSelect } from '../../../design-system';
 import { updateCusShipmentContainerLine } from '../../../api/shipmentClient';
+import { useToast } from '../../../components/shared/Toast';
 import { ShipmentContainerCell } from '../create/ShipmentContainerCell';
+import { CusAppointmentPopover } from './CusAppointmentPopover';
 import {
   dispatchStatusLabel,
   idempotencySignature,
@@ -18,124 +20,86 @@ import {
   type ContainerLineDraft,
 } from './cusUtils';
 
+export interface ContainerLedgerHandle {
+  saveAll: () => Promise<boolean>;
+  discardAll: () => void;
+}
+
+function parseCarrierKey(carrierKey: string): ['OWN' | 'EXTERNAL', number | null] {
+  if (carrierKey === 'OWN') return ['OWN', null];
+  if (carrierKey.startsWith('EXTERNAL:')) {
+    const id = Number(carrierKey.slice('EXTERNAL:'.length));
+    return ['EXTERNAL', Number.isNaN(id) ? null : id];
+  }
+  return ['EXTERNAL', null];
+}
+
+function buildContainerPatch(
+  line: ShipmentCusWorkspaceContainerLine,
+  draft: ContainerLineDraft,
+  detail: ShipmentCusWorkspaceDetail,
+  expectedVersion: number,
+) {
+  const permissions = line.permissions;
+  const isNewExternalCarrier = permissions.carrierEditable && draft.carrierKey === 'NEW_EXTERNAL';
+  if (isNewExternalCarrier && (!draft.newCarrierName.trim() || !draft.plateNumber.trim())) {
+    throw new Error('Vui lòng nhập đủ tên nhà xe mới và biển số xe.');
+  }
+  const base = lineDraft(line);
+  const carrierChanged = draft.carrierKey !== base.carrierKey;
+  const [carrierType, externalCarrierId] = parseCarrierKey(draft.carrierKey);
+  const matchedVehicle = detail.selectors.carrierVehicles.find((vehicle) => (
+    vehicle.carrierId === externalCarrierId
+    && vehicle.licensePlate.localeCompare(draft.plateNumber.trim(), 'vi', { sensitivity: 'base' }) === 0
+  ));
+  const appointmentChanged = permissions.customerAppointmentEditable && draft.customerAppointmentAt !== base.customerAppointmentAt;
+  const parsedAppointment = appointmentChanged && draft.customerAppointmentAt && !Number.isNaN(new Date(draft.customerAppointmentAt).getTime())
+    ? new Date(draft.customerAppointmentAt).toISOString()
+    : null;
+
+  return {
+    expectedShipmentVersion: expectedVersion,
+    ...(permissions.carrierEditable && isNewExternalCarrier && carrierChanged ? {
+      carrierType: 'EXTERNAL' as const,
+      newExternalCarrier: { name: draft.newCarrierName.trim(), plateNumber: draft.plateNumber.trim() },
+    } : permissions.carrierEditable && draft.carrierKey && carrierChanged ? {
+      carrierType, externalCarrierId, externalCarrierVehicleId: matchedVehicle?.id ?? null,
+    } : {}),
+    ...(permissions.plateEditable && !isNewExternalCarrier && draft.plateNumber !== base.plateNumber ? { plateNumber: draft.plateNumber.trim() || null } : {}),
+    ...(permissions.containerTypeEditable && draft.containerTypeId !== base.containerTypeId ? { containerTypeId: draft.containerTypeId ? Number(draft.containerTypeId) : null } : {}),
+    ...(permissions.routeEditable && draft.routeId !== base.routeId ? { routeId: draft.routeId ? Number(draft.routeId) : null } : {}),
+    ...(permissions.liftSiteEditable && draft.liftSiteId !== base.liftSiteId ? { liftSiteId: draft.liftSiteId ? Number(draft.liftSiteId) : null } : {}),
+    ...(permissions.dropoffSiteEditable && draft.dropoffSiteId !== base.dropoffSiteId ? { dropoffSiteId: draft.dropoffSiteId ? Number(draft.dropoffSiteId) : null } : {}),
+    ...(appointmentChanged ? { customerAppointmentAt: parsedAppointment } : {}),
+  };
+}
+
 function ContainerLineRow({
   detail,
   line,
-  onSaved,
-  getIdempotencyKey,
-  clearIdempotencyKey,
+  draft,
+  dirty,
+  onDraftChange,
   idPrefix,
-  onDirtyChange,
   editing,
-  onSavingChange,
 }: {
   detail: ShipmentCusWorkspaceDetail;
   line: ShipmentCusWorkspaceContainerLine;
-  onSaved: (line: ShipmentCusWorkspaceContainerLine) => Promise<void>;
-  getIdempotencyKey: (signature: string) => string;
-  clearIdempotencyKey: (signature: string) => void;
+  draft: ContainerLineDraft;
+  dirty: boolean;
+  onDraftChange: (patch: Partial<ContainerLineDraft>) => void;
   idPrefix: string;
-  onDirtyChange: (lineId: number, dirty: boolean) => void;
   editing: boolean;
-  onSavingChange: (lineId: number, saving: boolean) => void;
 }) {
-  const [draft, setDraft] = useState<ContainerLineDraft>(() => lineDraft(line));
-  const [dirty, setDirty] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
   const [selectOpen, setSelectOpen] = useState(false);
-  const operationalSignatureRef = useRef(lineOperationalSignature(line));
-  const permissions = line.permissions;
-  const carrierEditable = editing && permissions.carrierEditable;
-  const plateEditable = editing && permissions.plateEditable;
-  const containerTypeEditable = editing && permissions.containerTypeEditable;
-  const routeEditable = editing && permissions.routeEditable;
-  const liftSiteEditable = editing && permissions.liftSiteEditable;
-  const dropoffSiteEditable = editing && permissions.dropoffSiteEditable;
-  const customerAppointmentEditable = editing && permissions.customerAppointmentEditable;
-  const operationalEditable = carrierEditable || plateEditable || containerTypeEditable || routeEditable || liftSiteEditable || dropoffSiteEditable || customerAppointmentEditable;
-
-  useEffect(() => {
-    const nextSignature = lineOperationalSignature(line);
-    if (operationalSignatureRef.current === nextSignature) return;
-    operationalSignatureRef.current = nextSignature;
-    setDraft(lineDraft(line));
-    setDirty(false);
-  }, [line]);
-
-  useEffect(() => {
-    onDirtyChange(line.id, dirty);
-    return () => onDirtyChange(line.id, false);
-  }, [dirty, line.id, onDirtyChange]);
-
-  useEffect(() => {
-    onSavingChange(line.id, saving);
-    return () => onSavingChange(line.id, false);
-  }, [line.id, onSavingChange, saving]);
-
-  const updateDraft = (patch: Partial<ContainerLineDraft>) => {
-    setDraft((current) => ({ ...current, ...patch }));
-    setDirty(true);
-    setSaveError(null);
-  };
-
-  const discardDraft = () => {
-    setDraft(lineDraft(line));
-    setDirty(false);
-    setSaveError(null);
-  };
-
-  const save = async () => {
-    setSaving(true);
-    setSaveError(null);
-    try {
-      const signature = idempotencySignature('container', detail.summary.id, line.id, line.shipmentVersion);
-      const idempotencyKey = getIdempotencyKey(signature);
-      const carrierType = draft.carrierKey === 'OWN' ? 'OWN' : 'EXTERNAL';
-      const externalCarrierId = draft.carrierKey.startsWith('EXTERNAL:')
-        ? Number(draft.carrierKey.slice('EXTERNAL:'.length))
-        : null;
-      const isNewExternalCarrier = draft.carrierKey === 'NEW_EXTERNAL';
-      if (isNewExternalCarrier && (!draft.newCarrierName.trim() || !draft.plateNumber.trim())) {
-        throw new Error('Vui lòng nhập đủ tên nhà xe mới và biển số xe.');
-      }
-      const matchedVehicle = detail.selectors.carrierVehicles.find((vehicle) => (
-        vehicle.carrierId === externalCarrierId
-        && vehicle.licensePlate.localeCompare(draft.plateNumber.trim(), 'vi', { sensitivity: 'base' }) === 0
-      ));
-      const result = await updateCusShipmentContainerLine(detail.summary.id, line.id, {
-        expectedShipmentVersion: line.shipmentVersion,
-        ...(permissions.carrierEditable && isNewExternalCarrier ? {
-          carrierType: 'EXTERNAL' as const,
-          newExternalCarrier: {
-            name: draft.newCarrierName.trim(),
-            plateNumber: draft.plateNumber.trim(),
-          },
-        } : permissions.carrierEditable && draft.carrierKey ? {
-          carrierType,
-          externalCarrierId,
-          externalCarrierVehicleId: matchedVehicle?.id ?? null,
-        } : {}),
-        ...(permissions.plateEditable && !isNewExternalCarrier
-          ? { plateNumber: draft.plateNumber.trim() || null }
-          : {}),
-        ...(permissions.containerTypeEditable ? { containerTypeId: draft.containerTypeId ? Number(draft.containerTypeId) : null } : {}),
-        ...(permissions.routeEditable ? { routeId: draft.routeId ? Number(draft.routeId) : null } : {}),
-        ...(permissions.liftSiteEditable ? { liftSiteId: draft.liftSiteId ? Number(draft.liftSiteId) : null } : {}),
-        ...(permissions.dropoffSiteEditable ? { dropoffSiteId: draft.dropoffSiteId ? Number(draft.dropoffSiteId) : null } : {}),
-        ...(permissions.customerAppointmentEditable ? {
-          customerAppointmentAt: draft.customerAppointmentAt ? new Date(draft.customerAppointmentAt).toISOString() : null,
-        } : {}),
-      }, idempotencyKey);
-      await onSaved(result.line);
-      clearIdempotencyKey(signature);
-      setDirty(false);
-    } catch (error) {
-      setSaveError(safeError(error, 'Không thể lưu dữ liệu container.'));
-    } finally {
-      setSaving(false);
-    }
-  };
+  const [appointmentOpen, setAppointmentOpen] = useState(false);
+  const appointmentTriggerRef = useRef<HTMLButtonElement>(null);
+  const p = line.permissions;
+  const carrierEditable = editing && p.carrierEditable, plateEditable = editing && p.plateEditable;
+  const containerTypeEditable = editing && p.containerTypeEditable;
+  const routeEditable = editing && p.routeEditable;
+  const liftSiteEditable = editing && p.liftSiteEditable, dropoffSiteEditable = editing && p.dropoffSiteEditable;
+  const customerAppointmentEditable = editing && p.customerAppointmentEditable;
 
   const carrierOptions = [
     { value: 'OWN', label: 'Đội xe nội bộ SilverSea' },
@@ -153,23 +117,14 @@ function ContainerLineRow({
 
   return (
     <tr
-      className="cus-container-row"
+      className={`cus-container-row${dirty ? ' cus-container-row--dirty' : ''}`}
       aria-labelledby={`${idPrefix}-container-${line.id}`}
-      onKeyDown={(event) => {
-        if (event.nativeEvent.isComposing || selectOpen || saving || !dirty || !operationalEditable) return;
-        if (event.key === 'Enter') {
-          if (event.target instanceof HTMLButtonElement) return;
-          event.preventDefault();
-          void save();
-        } else if (event.key === 'Escape') {
-          event.preventDefault();
-          discardDraft();
-        }
-      }}
     >
       <th scope="row" data-label="Container" className="cus-container-cell cus-container-cell--identity">
-        <span className="cus-container-row__ordinal">{line.ordinal}</span>
-        <strong id={`${idPrefix}-container-${line.id}`}>{line.containerNumber || 'Chưa có số container'}</strong>
+        <div className="cus-container-cell__identity-inner">
+          <span className="cus-container-row__ordinal">{line.ordinal}</span>
+          <strong id={`${idPrefix}-container-${line.id}`}>{line.containerNumber || 'Chưa có số container'}</strong>
+        </div>
       </th>
       {containerTypeEditable ? (
         <ShipmentContainerCell
@@ -180,7 +135,7 @@ function ContainerLineRow({
           className="cus-container-cell"
         >
           <label className="sr-only" htmlFor={`${idPrefix}-container-type-${line.id}`}>Loại container {line.containerNumber || line.ordinal}</label>
-          <SearchableSelect id={`${idPrefix}-container-type-${line.id}`} size="sm" value={draft.containerTypeId} onChange={(value) => updateDraft({ containerTypeId: value })} onOpenChange={setSelectOpen} options={detail.selectors.containerTypes.map((option) => ({ value: String(option.id), label: option.code, searchText: `${option.code} ${option.name}` }))} placeholder="Chọn loại cont" />
+          <SearchableSelect id={`${idPrefix}-container-type-${line.id}`} size="sm" value={draft.containerTypeId} onChange={(value) => onDraftChange({ containerTypeId: value })} onOpenChange={setSelectOpen} options={detail.selectors.containerTypes.map((option) => ({ value: String(option.id), label: option.code, searchText: `${option.code} ${option.name}` }))} placeholder="Chọn loại cont" />
         </ShipmentContainerCell>
       ) : <td data-label="Loại cont" className="cus-container-cell"><strong>{line.containerTypeLabel || '—'}</strong></td>}
       {routeEditable ? (
@@ -191,7 +146,7 @@ function ContainerLineRow({
           className="cus-container-cell"
         >
           <label className="sr-only" htmlFor={`${idPrefix}-route-${line.id}`}>Tuyến đường của container {line.containerNumber || line.ordinal}</label>
-          <SearchableSelect id={`${idPrefix}-route-${line.id}`} size="sm" value={draft.routeId} onChange={(value) => updateDraft({ routeId: value })} onOpenChange={setSelectOpen} options={detail.selectors.routes.map((option) => ({ value: String(option.id), label: option.label, searchText: option.name }))} placeholder="Chọn tuyến" />
+          <SearchableSelect id={`${idPrefix}-route-${line.id}`} size="sm" value={draft.routeId} onChange={(value) => onDraftChange({ routeId: value })} onOpenChange={setSelectOpen} options={detail.selectors.routes.map((option) => ({ value: String(option.id), label: option.label, searchText: option.name }))} placeholder="Chọn tuyến" />
         </ShipmentContainerCell>
       ) : <td data-label="Tuyến" className="cus-container-cell"><strong>{line.routeName || '—'}</strong></td>}
       <td data-label="Điều vận" className="cus-container-cell">
@@ -208,14 +163,14 @@ function ContainerLineRow({
             {draft.carrierKey === 'NEW_EXTERNAL' ? (
               <>
                 <label className="sr-only" htmlFor={`${idPrefix}-new-carrier-${line.id}`}>Tên nhà xe mới</label>
-                <input id={`${idPrefix}-new-carrier-${line.id}`} value={draft.newCarrierName} maxLength={255} placeholder="Tên nhà xe mới" onChange={(event) => updateDraft({ newCarrierName: event.target.value })} />
-                <button type="button" className="cus-carrier-editor__switch" onClick={() => updateDraft({ carrierKey: '', newCarrierName: '', plateNumber: '' })}>Chọn sẵn có</button>
+                <input id={`${idPrefix}-new-carrier-${line.id}`} value={draft.newCarrierName} maxLength={255} placeholder="Tên nhà xe mới" onChange={(event) => onDraftChange({ newCarrierName: event.target.value })} />
+                <button type="button" className="cus-carrier-editor__switch" onClick={() => onDraftChange({ carrierKey: '', newCarrierName: '', plateNumber: '' })}>Chọn sẵn có</button>
               </>
             ) : (
               <>
                 <label className="sr-only" htmlFor={`${idPrefix}-carrier-${line.id}`}>Nhà xe của container {line.containerNumber || line.ordinal}</label>
-                <SearchableSelect id={`${idPrefix}-carrier-${line.id}`} size="sm" value={draft.carrierKey} onChange={(value) => updateDraft({ carrierKey: value, newCarrierName: '' })} onOpenChange={setSelectOpen} options={carrierOptions} placeholder="Chọn nhà xe" searchPlaceholder="Tìm nhà xe" />
-                {plateEditable && <button type="button" className="cus-carrier-editor__switch" onClick={() => updateDraft({ carrierKey: 'NEW_EXTERNAL', newCarrierName: '', plateNumber: '' })}>Thêm nhà xe</button>}
+                <SearchableSelect id={`${idPrefix}-carrier-${line.id}`} size="sm" value={draft.carrierKey} onChange={(value) => onDraftChange({ carrierKey: value, newCarrierName: '' })} onOpenChange={setSelectOpen} options={carrierOptions} placeholder="Chọn nhà xe" searchPlaceholder="Tìm nhà xe" />
+                {plateEditable && <button type="button" className="cus-carrier-editor__switch" onClick={() => onDraftChange({ carrierKey: 'NEW_EXTERNAL', newCarrierName: '', plateNumber: '' })}>Thêm nhà xe</button>}
               </>
             )}
           </div>
@@ -224,61 +179,51 @@ function ContainerLineRow({
       {plateEditable ? (
         <ShipmentContainerCell label="Biển số" value={draft.plateNumber} placeholder="Nhập biển số" className="cus-container-cell">
           <label className="sr-only" htmlFor={`${idPrefix}-plate-${line.id}`}>Biển số xe của container {line.containerNumber || line.ordinal}</label>
-          <input id={`${idPrefix}-plate-${line.id}`} value={draft.plateNumber} list={`${idPrefix}-plates-${line.id}`} maxLength={20} onChange={(event) => updateDraft({ plateNumber: event.target.value })} />
+          <input id={`${idPrefix}-plate-${line.id}`} value={draft.plateNumber} list={`${idPrefix}-plates-${line.id}`} maxLength={20} onChange={(event) => onDraftChange({ plateNumber: event.target.value })} />
           <datalist id={`${idPrefix}-plates-${line.id}`}>{detail.selectors.carrierVehicles.map((vehicle) => <option value={vehicle.licensePlate} key={vehicle.id}>{vehicle.label}</option>)}</datalist>
         </ShipmentContainerCell>
       ) : <td data-label="Biển số" className="cus-container-cell"><strong>{line.plateNumber || '—'}</strong></td>}
       {liftSiteEditable ? (
         <ShipmentContainerCell label="Nâng" value={selectedLiftPort?.name ?? ''} displayTitle={selectedLiftPort ? `${selectedLiftPort.code ?? ''} — ${selectedLiftPort.name}` : undefined} placeholder="Chọn cảng nâng" className="cus-container-cell">
           <label className="sr-only" htmlFor={`${idPrefix}-lift-site-${line.id}`}>Cảng nâng của container {line.containerNumber || line.ordinal}</label>
-          <SearchableSelect id={`${idPrefix}-lift-site-${line.id}`} size="sm" value={draft.liftSiteId} onChange={(value) => updateDraft({ liftSiteId: value })} onOpenChange={setSelectOpen} options={detail.selectors.ports.map((option) => ({ value: String(option.id), label: option.label, searchText: `${option.code ?? ''} ${option.name}` }))} placeholder="Chọn cảng nâng" />
+          <SearchableSelect id={`${idPrefix}-lift-site-${line.id}`} size="sm" value={draft.liftSiteId} onChange={(value) => onDraftChange({ liftSiteId: value })} onOpenChange={setSelectOpen} options={detail.selectors.ports.map((option) => ({ value: String(option.id), label: option.label, searchText: `${option.code ?? ''} ${option.name}` }))} placeholder="Chọn cảng nâng" />
         </ShipmentContainerCell>
       ) : <td data-label="Nâng" className="cus-container-cell"><strong>{line.liftSite || '—'}</strong></td>}
       {dropoffSiteEditable ? (
         <ShipmentContainerCell label="Hạ" value={selectedDropoffPort?.name ?? ''} displayTitle={selectedDropoffPort ? `${selectedDropoffPort.code ?? ''} — ${selectedDropoffPort.name}` : undefined} placeholder="Chọn cảng hạ" className="cus-container-cell">
           <label className="sr-only" htmlFor={`${idPrefix}-dropoff-site-${line.id}`}>Cảng hạ của container {line.containerNumber || line.ordinal}</label>
-          <SearchableSelect id={`${idPrefix}-dropoff-site-${line.id}`} size="sm" value={draft.dropoffSiteId} onChange={(value) => updateDraft({ dropoffSiteId: value })} onOpenChange={setSelectOpen} options={detail.selectors.ports.map((option) => ({ value: String(option.id), label: option.label, searchText: `${option.code ?? ''} ${option.name}` }))} placeholder="Chọn cảng hạ" />
+          <SearchableSelect id={`${idPrefix}-dropoff-site-${line.id}`} size="sm" value={draft.dropoffSiteId} onChange={(value) => onDraftChange({ dropoffSiteId: value })} onOpenChange={setSelectOpen} options={detail.selectors.ports.map((option) => ({ value: String(option.id), label: option.label, searchText: `${option.code ?? ''} ${option.name}` }))} placeholder="Chọn cảng hạ" />
         </ShipmentContainerCell>
       ) : <td data-label="Hạ" className="cus-container-cell"><strong>{line.dropoffSite || '—'}</strong></td>}
       {customerAppointmentEditable ? (
-        <ShipmentContainerCell label="Giờ hẹn đóng/trả" value={formatDateTimeShort(draft.customerAppointmentAt ? new Date(draft.customerAppointmentAt).toISOString() : null)} placeholder="Chọn ngày giờ" className="cus-container-cell" error={saveError ?? undefined}>
-          <label className="sr-only" htmlFor={`${idPrefix}-customer-appointment-${line.id}`}>Giờ hẹn đóng hoặc trả tại nhà máy của container {line.containerNumber || line.ordinal}</label>
-          <input id={`${idPrefix}-customer-appointment-${line.id}`} type="datetime-local" value={draft.customerAppointmentAt} onChange={(event) => updateDraft({ customerAppointmentAt: event.target.value })} />
-        </ShipmentContainerCell>
-      ) : <td data-label="Giờ hẹn đóng/trả" className="cus-container-cell"><strong>{formatDateTimeShort(line.customerAppointmentAt)}</strong></td>}
-      {operationalEditable ? (
-        <td data-label="Thao tác" className="cus-container-actions">
-          {dirty ? (
-            <div className="cus-container-actions__group" role="group" aria-label={`Thao tác lưu cho container ${line.containerNumber || line.ordinal}`}>
-              <button
-                type="button"
-                className="btn btn--primary btn--sm cus-container-confirm"
-                onClick={() => void save()}
-                disabled={saving}
-                aria-label={`Xác nhận lưu thay đổi cho container ${line.containerNumber || line.ordinal}`}
-                title="Xác nhận (Enter cũng hoạt động)"
-              >
-                <Check size={14} aria-hidden="true" />
-                <span>Xác nhận</span>
-              </button>
-              <button
-                type="button"
-                className="btn btn--ghost btn--sm cus-container-revert"
-                onClick={discardDraft}
-                disabled={saving}
-                aria-label={`Bỏ thay đổi cho container ${line.containerNumber || line.ordinal}`}
-                title="Bỏ thay đổi"
-              >
-                <RotateCcw size={14} aria-hidden="true" />
-                <span>Hủy</span>
-              </button>
-            </div>
-          ) : saving ? (
-            <span className="cus-container-actions__status" role="status" aria-live="polite">Đang lưu…</span>
-          ) : null}
-          {saveError && <p className="cus-container-actions__error" role="alert">{saveError}</p>}
+        <td data-label="Giờ hẹn đóng/trả" className="cus-container-cell cus-appointment-cell">
+          <button
+            ref={appointmentTriggerRef}
+            id={`${idPrefix}-customer-appointment-${line.id}`}
+            type="button"
+            className={`cus-appointment-trigger${appointmentOpen ? ' cus-appointment-trigger--active' : ''}`}
+            onClick={() => setAppointmentOpen((current) => !current)}
+            aria-haspopup="dialog"
+            aria-expanded={appointmentOpen}
+            aria-label={`Giờ hẹn đóng hoặc trả tại nhà máy của container ${line.containerNumber || line.ordinal}: ${draft.customerAppointmentAt ? formatDateTimeShort(draft.customerAppointmentAt) : 'Chưa có'}`}
+            title="Nhấn để chọn giờ hẹn đóng/trả"
+          >
+            <Calendar size={13} className="cus-appointment-trigger__icon" aria-hidden="true" />
+            <span className={draft.customerAppointmentAt ? 'cus-appointment-trigger__text' : 'cus-appointment-trigger__text cus-appointment-trigger__text--empty'}>
+              {draft.customerAppointmentAt ? formatDateTimeShort(draft.customerAppointmentAt) : 'Chọn ngày giờ'}
+            </span>
+          </button>
+          <CusAppointmentPopover
+            isOpen={appointmentOpen}
+            value={draft.customerAppointmentAt}
+            containerLabel={line.containerNumber || `Cont ${line.ordinal}`}
+            onClose={() => setAppointmentOpen(false)}
+            onChange={(val) => onDraftChange({ customerAppointmentAt: val })}
+            idPrefix={`${idPrefix}-apt-${line.id}`}
+            triggerRef={appointmentTriggerRef}
+          />
         </td>
-      ) : <td aria-hidden="true" />}
+      ) : <td data-label="Giờ hẹn đóng/trả" className="cus-container-cell"><strong>{formatDateTimeShort(line.customerAppointmentAt)}</strong></td>}
     </tr>
   );
 }
@@ -292,6 +237,7 @@ export function ContainerLedger({
   onCollapse,
   onDirtyChange,
   onSavingChange,
+  actionsRef,
 }: {
   detail: ShipmentCusWorkspaceDetail;
   onLineSaved: (line: ShipmentCusWorkspaceContainerLine) => Promise<void>;
@@ -301,48 +247,110 @@ export function ContainerLedger({
   onCollapse?: () => void;
   onDirtyChange?: (dirty: boolean) => void;
   onSavingChange?: (saving: boolean) => void;
+  actionsRef?: React.MutableRefObject<ContainerLedgerHandle | null>;
 }) {
-  const [dirtyLineIds, setDirtyLineIds] = useState<Set<number>>(() => new Set());
+  const [drafts, setDrafts] = useState<Record<number, ContainerLineDraft>>(() => (
+    Object.fromEntries(detail.containers.map((c) => [c.id, lineDraft(c)]))
+  ));
   const [editing, setEditing] = useState(true);
-  const [discardAction, setDiscardAction] = useState<'collapse' | 'finish-edit' | null>(null);
-  const [resetRevision, setResetRevision] = useState(0);
-  const [savingLineIds, setSavingLineIds] = useState<Set<number>>(() => new Set());
-  const dirtyChangeRef = useRef(onDirtyChange);
-  const savingChangeRef = useRef(onSavingChange);
-  useEffect(() => { dirtyChangeRef.current = onDirtyChange; }, [onDirtyChange]);
-  useEffect(() => { savingChangeRef.current = onSavingChange; }, [onSavingChange]);
-  const setLineDirty = useCallback((lineId: number, dirty: boolean) => {
-    setDirtyLineIds((current) => {
-      const next = new Set(current);
-      if (dirty) next.add(lineId);
-      else next.delete(lineId);
-      return next;
-    });
-  }, []);
-  const requestCollapse = () => {
-    if (!onCollapse) return;
-    if (savingLineIds.size > 0) return;
-    if (dirtyLineIds.size > 0) {
-      setDiscardAction('collapse');
-      return;
+  const [saving, setSaving] = useState(false);
+  const { toast } = useToast();
+
+  // Reset drafts whenever detail.containers operational signatures change
+  const signatureKey = detail.containers.map(lineOperationalSignature).join('|');
+  useEffect(() => {
+    setDrafts(Object.fromEntries(detail.containers.map((c) => [c.id, lineDraft(c)])));
+  }, [signatureKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const dirtyLineIds = useMemo(() => {
+    const dirty = new Set<number>();
+    for (const line of detail.containers) {
+      const draft = drafts[line.id];
+      if (!draft) continue;
+      const base = lineDraft(line);
+      const isDirty = draft.carrierKey !== base.carrierKey
+        || draft.newCarrierName !== base.newCarrierName
+        || draft.plateNumber !== base.plateNumber
+        || draft.containerTypeId !== base.containerTypeId
+        || draft.routeId !== base.routeId
+        || draft.liftSiteId !== base.liftSiteId
+        || draft.dropoffSiteId !== base.dropoffSiteId
+        || draft.customerAppointmentAt !== base.customerAppointmentAt;
+      if (isDirty) dirty.add(line.id);
     }
-    onCollapse();
-  };
-  const requestFinishEditing = () => {
-    if (savingLineIds.size > 0) return;
-    if (dirtyLineIds.size > 0) {
-      setDiscardAction('finish-edit');
-      return;
+    return dirty;
+  }, [detail.containers, drafts]);
+
+  const isDirty = dirtyLineIds.size > 0;
+
+  const onDirtyChangeRef = useRef(onDirtyChange);
+  const onSavingChangeRef = useRef(onSavingChange);
+  useEffect(() => { onDirtyChangeRef.current = onDirtyChange; }, [onDirtyChange]);
+  useEffect(() => { onSavingChangeRef.current = onSavingChange; }, [onSavingChange]);
+
+  const prevDirtyRef = useRef<boolean | null>(null);
+  useEffect(() => {
+    if (prevDirtyRef.current !== isDirty) {
+      prevDirtyRef.current = isDirty;
+      onDirtyChangeRef.current?.(isDirty);
     }
-    setEditing(false);
-  };
-  const discardChanges = () => {
-    if (savingLineIds.size > 0) return;
-    setResetRevision((current) => current + 1);
-    if (discardAction === 'collapse') onCollapse?.();
-    else setEditing(false);
-    setDiscardAction(null);
-  };
+  }, [isDirty]);
+
+  const prevSavingRef = useRef<boolean | null>(null);
+  useEffect(() => {
+    if (prevSavingRef.current !== saving) {
+      prevSavingRef.current = saving;
+      onSavingChangeRef.current?.(saving);
+    }
+  }, [saving]);
+
+  const updateLineDraft = useCallback((lineId: number, patch: Partial<ContainerLineDraft>) => {
+    setDrafts((prev) => ({
+      ...prev,
+      [lineId]: { ...(prev[lineId] || lineDraft(detail.containers.find((c) => c.id === lineId)!)), ...patch },
+    }));
+  }, [detail.containers]);
+
+  const discardAll = useCallback(() => {
+    setDrafts(Object.fromEntries(detail.containers.map((c) => [c.id, lineDraft(c)])));
+  }, [detail.containers]);
+
+  const saveAll = useCallback(async (): Promise<boolean> => {
+    if (saving || dirtyLineIds.size === 0) return false;
+    setSaving(true);
+    try {
+      const dirtyLines = detail.containers.filter((c) => dirtyLineIds.has(c.id));
+      let currentVersion = detail.summary.version ?? (dirtyLines[0]?.shipmentVersion ?? 1);
+      for (const line of dirtyLines) {
+        const draft = drafts[line.id];
+        if (!draft) continue;
+        const patch = buildContainerPatch(line, draft, detail, currentVersion);
+        const signature = idempotencySignature('container', detail.summary.id, line.id, currentVersion);
+        const idempotencyKey = getIdempotencyKey(signature);
+        const result = await updateCusShipmentContainerLine(detail.summary.id, line.id, patch, idempotencyKey);
+        clearIdempotencyKey(signature);
+        if (result?.line) {
+          currentVersion = result.line.shipmentVersion;
+          await onLineSaved(result.line);
+        }
+      }
+      toast({ kind: 'success', message: 'Cập nhật dữ liệu container thành công!' });
+      return true;
+    } catch (error) {
+      toast({ kind: 'error', message: safeError(error, 'Không thể lưu dữ liệu container.') });
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  }, [clearIdempotencyKey, detail, dirtyLineIds, drafts, getIdempotencyKey, onLineSaved, saving, toast]);
+
+  useEffect(() => {
+    if (actionsRef) actionsRef.current = { saveAll, discardAll };
+    return () => {
+      if (actionsRef) actionsRef.current = null;
+    };
+  }, [actionsRef, discardAll, saveAll]);
+
   const hasEditableLine = detail.containers.some((line) => (
     line.permissions.carrierEditable
     || line.permissions.plateEditable
@@ -352,29 +360,32 @@ export function ContainerLedger({
     || line.permissions.dropoffSiteEditable
     || line.permissions.customerAppointmentEditable
   ));
-  useEffect(() => { dirtyChangeRef.current?.(dirtyLineIds.size > 0); }, [dirtyLineIds]);
-  useEffect(() => { savingChangeRef.current?.(savingLineIds.size > 0); }, [savingLineIds]);
-  const setLineSaving = useCallback((lineId: number, saving: boolean) => {
-    setSavingLineIds((current) => {
-      const next = new Set(current);
-      if (saving) next.add(lineId);
-      else next.delete(lineId);
-      return next;
-    });
-  }, []);
+
   return (
     <section className="cus-container-ledger" aria-label="Chi tiết container">
       <header className="cus-container-ledger__head">
         <div><strong>Chi tiết container</strong><span>{detail.containers.length} cont</span></div>
         <div className="cus-container-ledger__actions">
           {hasEditableLine && (editing
-            ? <UUIButton size="sm" color="tertiary" className="cus-container-edit-action" onPress={requestFinishEditing} isDisabled={savingLineIds.size > 0}>Hoàn tất</UUIButton>
+            ? <UUIButton size="sm" color="tertiary" className="cus-container-edit-action" onPress={() => setEditing(false)} isDisabled={saving}>Hoàn tất</UUIButton>
             : <UUIButton size="sm" color="secondary" className="cus-container-edit-action" onPress={() => setEditing(true)}>Chỉnh sửa</UUIButton>)}
-          {onCollapse && <button type="button" className="cus-detail-collapse" onClick={requestCollapse} disabled={savingLineIds.size > 0} aria-label={savingLineIds.size > 0 ? 'Đang lưu dữ liệu container' : 'Thu gọn chi tiết container'}><X size={16} aria-hidden="true" /><span>{savingLineIds.size > 0 ? 'Đang lưu' : 'Thu gọn'}</span></button>}
+          {onCollapse && <button type="button" className="cus-detail-collapse" onClick={onCollapse} disabled={saving} aria-label={saving ? 'Đang lưu dữ liệu container' : 'Thu gọn chi tiết container'}><X size={16} aria-hidden="true" /><span>{saving ? 'Đang lưu' : 'Thu gọn'}</span></button>}
         </div>
       </header>
       {detail.containers.length === 0 ? <p className="cus-detail-empty">Lô hàng chưa có dữ liệu container.</p> : (
-        <div className="cus-container-table-scroll">
+        <div
+          className="cus-container-table-scroll"
+          onKeyDown={(event) => {
+            if (event.nativeEvent.isComposing || saving || !isDirty) return;
+            if (event.key === 'Enter' && !(event.target instanceof HTMLButtonElement)) {
+              event.preventDefault();
+              void saveAll();
+            } else if (event.key === 'Escape') {
+              event.preventDefault();
+              discardAll();
+            }
+          }}
+        >
           <table className="cus-container-table">
             <caption className="sr-only">Danh sách container và điều vận</caption>
             <colgroup>
@@ -387,7 +398,6 @@ export function ContainerLedger({
               <col className="cus-container-col__site" />
               <col className="cus-container-col__site" />
               <col className="cus-container-col__appointment" />
-              <col className="cus-container-col__actions" />
             </colgroup>
             <thead><tr>
               <th scope="col">Container</th>
@@ -399,13 +409,52 @@ export function ContainerLedger({
               <th scope="col">Nâng</th>
               <th scope="col">Hạ</th>
               <th scope="col">Giờ hẹn đóng/trả</th>
-              <th scope="col" className="cus-container-actions-head"><span className="sr-only">Thao tác dòng</span></th>
             </tr></thead>
-            <tbody>{detail.containers.map((line) => <ContainerLineRow key={`${line.id}:${resetRevision}`} detail={detail} line={line} onSaved={onLineSaved} getIdempotencyKey={getIdempotencyKey} clearIdempotencyKey={clearIdempotencyKey} idPrefix={idPrefix} onDirtyChange={setLineDirty} onSavingChange={setLineSaving} editing={editing} />)}</tbody>
+            <tbody>
+              {detail.containers.map((line) => (
+                <ContainerLineRow
+                  key={line.id}
+                  detail={detail}
+                  line={line}
+                  draft={drafts[line.id] || lineDraft(line)}
+                  dirty={dirtyLineIds.has(line.id)}
+                  onDraftChange={(patch) => updateLineDraft(line.id, patch)}
+                  idPrefix={idPrefix}
+                  editing={editing}
+                />
+              ))}
+            </tbody>
           </table>
         </div>
       )}
-      {discardAction && <div className="cus-discard-confirmation" role="alert"><span>{savingLineIds.size > 0 ? 'Đang lưu dữ liệu container.' : 'Có thay đổi container chưa lưu.'}</span><button type="button" className="btn btn--ghost btn--sm" onClick={() => setDiscardAction(null)} disabled={savingLineIds.size > 0}>Tiếp tục chỉnh sửa</button><button type="button" className="btn btn--secondary btn--sm" onClick={discardChanges} disabled={savingLineIds.size > 0}>{discardAction === 'collapse' ? 'Bỏ thay đổi và thu gọn' : 'Bỏ thay đổi và hoàn tất'}</button></div>}
+      {/* Standalone action footer when no drawer handles actions */}
+      {!actionsRef && isDirty && (
+        <div className="cus-container-ledger__sticky-bar">
+          <span className="cus-container-ledger__sticky-note">
+            Đã chỉnh sửa <strong>{dirtyLineIds.size}</strong> container
+          </span>
+          <div className="cus-container-confirm-group--floating">
+            <button
+              type="button"
+              className="btn btn--ghost btn--sm cus-container-revert"
+              onClick={discardAll}
+              disabled={saving}
+              title="Hủy thay đổi (Esc)"
+            >
+              Hủy
+            </button>
+            <button
+              type="button"
+              className="btn btn--primary btn--sm cus-container-confirm"
+              onClick={() => void saveAll()}
+              disabled={saving}
+              title="Lưu tất cả thay đổi (Enter)"
+            >
+              {saving ? 'Đang lưu…' : 'Lưu'}
+            </button>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

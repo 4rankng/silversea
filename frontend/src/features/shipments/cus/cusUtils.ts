@@ -102,8 +102,8 @@ export function vehicleReadinessLabel(item: ShipmentCusWorkspaceListItem): strin
   if (vehicleReadiness === 'READY') return 'Đã phân xe';
   if (vehicleReadiness === 'NO_CONTAINERS') return 'Không áp dụng điều xe';
   const waiting = Math.max(0, totalContainers - plateAssignedContainers);
-  if (waiting >= totalContainers) return 'Toàn bộ chưa phân xe';
-  return `${waiting.toLocaleString('vi-VN')} cont chưa phân xe`;
+  if (waiting >= totalContainers) return 'Toàn bộ chờ phân xe';
+  return `${waiting.toLocaleString('vi-VN')} cont chờ phân xe`;
 }
 
 export function noteLines(note: string | null | undefined): string[] {
@@ -166,12 +166,15 @@ export function quickEditTitle(field: ShipmentQuickEditDraft['field']): string {
   return `Chỉnh sửa ${labels[field]}`;
 }
 
+/** Container dispatch chip vocabulary (customer decision 2026-09-08):
+ * "Chờ phân xe" until dispatch assigns a vehicle — no trip yet, or a CREATED
+ * trip that already has its ngày đóng/trả; "Đã tạo chuyến" only while that
+ * date is still missing. */
 export function dispatchStatusLabel(status: ShipmentCusWorkspaceContainerLine['dispatchStatus']): string {
-  if (status === 'PLANNED') return 'Đã phân xe';
   if (status === 'CREATED') return 'Đã tạo chuyến';
   if (status === 'IN_TRANSIT') return 'Đang chạy';
   if (status === 'COMPLETED') return 'Hoàn thành';
-  return 'Chưa điều xe';
+  return 'Chờ phân xe';
 }
 
 export function accountingConfirmationLabel(
@@ -186,7 +189,10 @@ export function accountingConfirmationLabel(
 }
 
 export function safeError(error: unknown, fallback: string): string {
-  return error instanceof ApiError || error instanceof Error ? error.message : fallback;
+  // An Error with an empty/whitespace message would render an empty alert
+  // banner; fall back to the default message whenever text is missing.
+  const message = error instanceof ApiError || error instanceof Error ? error.message : '';
+  return message.trim() ? message : fallback;
 }
 
 /** StatusStrip color per CUS bucket (workboard rows + drawer swatch). */

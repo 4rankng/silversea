@@ -5,7 +5,7 @@ import { SearchableMultiSelect } from './SearchableMultiSelect';
 
 const CARRIERS = [
   { value: 'OWN', label: 'Xe SilverSea' },
-  { value: 'UNASSIGNED', label: 'Chưa điều xe' },
+  { value: 'UNASSIGNED', label: 'Chờ phân xe' },
   { value: 'EXT-1', label: 'Công ty Vận Tải A', chipLabel: 'A' },
   { value: 'EXT-2', label: 'Công ty Vận Tải B', chipLabel: 'B' },
 ];

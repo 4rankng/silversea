@@ -41,7 +41,7 @@ const response: ShipmentCusContainerFlatResponse = {
       id: 11, shipmentId: 1, shipmentVersion: 4, ordinal: 1, customerId: 7, isAdHoc: false,
       customerName: 'Công ty Silver Sea', factoryName: 'Nhà máy Hải Phòng', routeName: 'Đình Vũ → Hải Phòng',
       billOrBookNumber: 'BILL-12345', declarationNumber: 'TK-001', shippingLineName: 'MSC', isCombined: true, classification: 'COMBINED', direction: 'IMPORT',
-      containerNumber: 'CONT-001', containerTypeLabel: '40HC', dispatchStatus: 'PLANNED', carrierName: 'SilverSea', plateNumber: '30H-123.45',
+      containerNumber: 'CONT-001', containerTypeLabel: '40HC', dispatchStatus: 'AWAITING_VEHICLE', carrierName: 'SilverSea', plateNumber: '30H-123.45',
       liftSite: 'Bãi CY', dropoffSite: 'Nhà máy Hải Phòng', transportDate: today, closingAt: null, plannedReturnAt: `${today}T08:00:00.000Z`, customerAppointmentAt: null,
       customerNotes: 'Lưu ca sáng', operationalNotes: 'Ưu tiên cổng 2', shipmentScheduleEditable: false, shipmentNotesEditable: false,
       informationStatus: 'COMPLETE', missingFields: [],
@@ -53,7 +53,7 @@ const response: ShipmentCusContainerFlatResponse = {
       id: 12, shipmentId: 2, shipmentVersion: 7, ordinal: 1, customerId: 7, isAdHoc: false,
       customerName: 'Công ty Silver Sea', factoryName: 'Nhà máy Hưng Yên', routeName: 'Cảng → Hưng Yên',
       billOrBookNumber: 'BOOK-67890', declarationNumber: null, shippingLineName: 'CMA CGM', isCombined: false, classification: 'DOUBLE', direction: 'EXPORT',
-      containerNumber: 'CONT-002', containerTypeLabel: '20DC', dispatchStatus: 'UNASSIGNED', carrierName: null, plateNumber: null,
+      containerNumber: 'CONT-002', containerTypeLabel: '20DC', dispatchStatus: 'AWAITING_VEHICLE', carrierName: null, plateNumber: null,
       liftSite: null, dropoffSite: null, transportDate: null, closingAt: null, plannedReturnAt: null, customerAppointmentAt: null,
       customerNotes: null, operationalNotes: null, shipmentScheduleEditable: true, shipmentNotesEditable: true,
       informationStatus: 'MISSING', missingFields: [
@@ -128,14 +128,14 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     ]);
     expect(screen.getByRole('columnheader', { name: 'Trạng thái' })).toBeTruthy();
     // Dispatch status badge now lives in the Trạng thái column, not the container cell
-    const plannedRow = screen.getByText('CONT-001').closest('tr');
-    expect(plannedRow).toBeTruthy();
-    if (!plannedRow) throw new Error('Expected CONT-001 row to be present');
-    const statusCell = plannedRow.querySelector('td[data-label="Trạng thái"]');
+    const awaitingRow = screen.getByText('CONT-001').closest('tr');
+    expect(awaitingRow).toBeTruthy();
+    if (!awaitingRow) throw new Error('Expected CONT-001 row to be present');
+    const statusCell = awaitingRow.querySelector('td[data-label="Trạng thái"]');
     expect(statusCell).toBeTruthy();
-    expect(statusCell?.textContent).toContain('Đã phân xe');
+    expect(statusCell?.textContent).toContain('Chờ phân xe');
     // The container cell no longer carries the dispatch status badge
-    const containerCell = plannedRow.querySelector('td[data-label="Thông số container"]');
+    const containerCell = awaitingRow.querySelector('td[data-label="Thông số container"]');
     expect(containerCell?.querySelector('.shipment-container-ledger__dispatch-badge')).toBeNull();
     expect(containerCell?.querySelector('.shipment-container-ledger__container-classification')?.textContent).toBe('Kết hợp');
     const unassignedRow = screen.getByText('CONT-002').closest('tr');
@@ -307,7 +307,7 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     const ledger = row?.closest('.shipment-container-ledger');
     const pagination = ledger?.querySelector('.ds-pagination');
     expect(row).toBeTruthy();
-    expect(row?.textContent).toContain('Chưa điều xe');
+    expect(row?.textContent).toContain('Chờ phân xe');
     expect(pagination).toBeTruthy();
     if (!row || !pagination) throw new Error('Expected the pending row and pagination to render');
     expect(row.compareDocumentPosition(pagination) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -341,9 +341,9 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     });
     render(<MemoryRouter><ShipmentContainersPage /></MemoryRouter>);
 
-    // Post-unify the UNASSIGNED status pill and this vehicle badge share the text
-    // 'Chưa điều xe' — disambiguate by the vehicle badge's own class.
-    const pendingVehicleCell = (await screen.findByText('Chưa điều xe', { selector: '.shipment-container-ledger__vehicle-state' })).closest('td');
+    // The same-day vehicle urgency badge now reads 'Chờ phân xe' like the
+    // dispatch chip — select by the badge's own class to disambiguate.
+    const pendingVehicleCell = (await screen.findByText('Chờ phân xe', { selector: '.shipment-container-ledger__vehicle-state' })).closest('td');
     expect(pendingVehicleCell?.className).toContain('shipment-container-ledger__vehicle-pending');
     expect(pendingVehicleCell?.textContent).toContain('Chưa phân nhà xe');
     expect(pendingVehicleCell?.textContent).toContain('Chưa gán biển số');
@@ -524,14 +524,14 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
 
   it('backs the Trạng thái (điều xe) filter in the URL and sends it only to the container endpoint', async () => {
     apiGet.mockResolvedValue(response);
-    render(<MemoryRouter initialEntries={['/?dispatchStatus=UNASSIGNED']}><ShipmentContainersPage /></MemoryRouter>);
+    render(<MemoryRouter initialEntries={['/?dispatchStatus=AWAITING_VEHICLE']}><ShipmentContainersPage /></MemoryRouter>);
 
-    await waitFor(() => expect(apiGet).toHaveBeenCalledWith(`/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=${today}&transportDateTo=${today}&dispatchStatus=UNASSIGNED`));
+    await waitFor(() => expect(apiGet).toHaveBeenCalledWith(`/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=${today}&transportDateTo=${today}&dispatchStatus=AWAITING_VEHICLE`));
     await screen.findByText('CONT-001');
     const filtersGroup = document.querySelector('.shipments-detail-filters__group--selects') as HTMLElement;
     // The status list is long enough that UuiSelectField renders it as a searchable combobox.
-    expect(within(filtersGroup).getByRole('combobox', { name: /Trạng thái/i })).toHaveValue('Chưa điều xe');
-    expect(screen.getAllByText('Chưa điều xe').length).toBeGreaterThanOrEqual(1);
+    expect(within(filtersGroup).getByRole('combobox', { name: /Trạng thái/i })).toHaveValue('Chờ phân xe');
+    expect(screen.getAllByText('Chờ phân xe').length).toBeGreaterThanOrEqual(1);
 
     fireEvent.click(screen.getByRole('button', { name: 'Xóa bộ lọc' }));
     await waitFor(() => expect(apiGet).toHaveBeenLastCalledWith('/shipments/cus-workspace/containers?page=1&limit=20'));
@@ -551,7 +551,7 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     await screen.findByText('CONT-001');
     const filtersGroup = document.querySelector('.shipments-detail-filters__group--selects') as HTMLElement;
     fireEvent.click(within(filtersGroup).getByRole('combobox', { name: /Trạng thái/i }));
-    for (const label of ['Chưa điều xe', 'Đã phân xe', 'Đã tạo chuyến', 'Đang chạy', 'Hoàn thành']) {
+    for (const label of ['Chờ phân xe', 'Đã tạo chuyến', 'Đang chạy', 'Hoàn thành']) {
       expect(screen.getByRole('option', { name: label })).toBeTruthy();
     }
 

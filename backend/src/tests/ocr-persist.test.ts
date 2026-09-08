@@ -94,24 +94,20 @@ before(async () => {
   adminId = await ensureUser(`${NS}_admin`, Role.ADMIN);
   driverUserId = await ensureUser(`${NS}_drv`, Role.DRIVER);
 
-  let trips = await db.select({ id: s.trips.id }).from(s.trips).limit(2);
-  if (trips.length < 2) {
-    const suffix = Date.now().toString();
-    const [customer] = await db.insert(s.customers).values({ name: `${NS} customer ${suffix}` }).returning();
-    const [route] = await db.insert(s.routes).values({ name: `${NS} route ${suffix}` }).returning();
-    const [cargo] = await db.insert(s.cargoTypes).values({ name: `${NS} cargo ${suffix}` }).returning();
-    const made = await db.insert(s.trips).values([0, 1].map(i => ({
-      tripCode: `${NS}-${suffix}-${i}`,
-      customerId: customer.id,
-      routeId: route.id,
-      cargoTypeId: cargo.id,
-      departureDate: '2026-06-17',
-    }))).returning({ id: s.trips.id });
-    createdTripIds.push(...made.map(t => t.id));
-    trips = made;
-  }
-  tripA = trips[0].id;
-  tripB = trips[1].id;
+  const suffix = `${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+  const [customer] = await db.insert(s.customers).values({ name: `${NS} customer ${suffix}` }).returning();
+  const [route] = await db.insert(s.routes).values({ name: `${NS} route ${suffix}` }).returning();
+  const [cargo] = await db.insert(s.cargoTypes).values({ name: `${NS} cargo ${suffix}` }).returning();
+  const made = await db.insert(s.trips).values([0, 1].map(i => ({
+    tripCode: `${NS}-${suffix}-${i}`,
+    customerId: customer.id,
+    routeId: route.id,
+    cargoTypeId: cargo.id,
+    departureDate: '2026-06-17',
+  }))).returning({ id: s.trips.id });
+  createdTripIds.push(...made.map(t => t.id));
+  tripA = made[0].id;
+  tripB = made[1].id;
 
   // A real drivers row for the test DRIVER. It exists, but no seed trip points
   // at it, so the ownership check finds the driver yet no owned trip → 403.

@@ -17,11 +17,12 @@ export const CUS_DETAIL_PAGE_SIZE = 20;
 export const CUS_SEARCH_PATTERN = /^[A-Za-z0-9]{4,5}$/;
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
-/** URL-legal Trạng thái values: the five badge states the ledger displays
- * plus the legacy coarse ASSIGNED carrier split, so older links keep
- * filtering. */
-export type DispatchStatusFilter = 'ASSIGNED' | keyof typeof DISPATCH_STATUS;
-export const DISPATCH_STATUS_VALUES: readonly DispatchStatusFilter[] = ['ASSIGNED', ...(Object.keys(DISPATCH_STATUS) as DispatchStatusFilter[])];
+/** URL-legal Trạng thái values: the four badge states the ledger displays
+ * plus the legacy coarse carrier-presence aliases (ASSIGNED = any active
+ * carrier, UNASSIGNED = none), so older links keep filtering. The aliases
+ * are accepted but not offered in the dropdown. */
+export type DispatchStatusFilter = 'ASSIGNED' | 'UNASSIGNED' | keyof typeof DISPATCH_STATUS;
+export const DISPATCH_STATUS_VALUES: readonly DispatchStatusFilter[] = ['ASSIGNED', 'UNASSIGNED', ...(Object.keys(DISPATCH_STATUS) as DispatchStatusFilter[])];
 
 /** 409s that mean "someone else wrote first" — recoverable by refetching. */
 export function isOptimisticShipmentConflict(error: unknown): error is ApiError {

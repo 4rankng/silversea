@@ -3,8 +3,6 @@ import * as tripService from './trip.service';
 import { invalidateReportCaches } from '../lib/report-cache';
 import { emitNotification, type NotificationPayload } from './notification.service';
 import { runIdempotent } from './idempotency.service';
-import * as s from '../db/schema';
-import { eq } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { getTripCompositeInTx } from './trip-composite.service';
 import type { Tx } from './trip-shared';

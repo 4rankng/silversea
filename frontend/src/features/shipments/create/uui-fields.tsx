@@ -174,6 +174,14 @@ interface USearchableFieldProps {
    */
   onCustomValue?: (text: string) => void;
   hideLabel?: boolean;
+  /**
+   * Initial placement hint for the dropdown. Pass `"top"` for pickers whose
+   * sibling action (e.g. the "+ Thêm" inline-create button) sits directly
+   * below the trigger — the dropdown opens upward and never covers that
+   * sibling. `shouldFlip` stays on, so the dropdown still falls back below
+   * when the trigger is jammed against the viewport top.
+   */
+  popoverPlacement?: 'top' | 'bottom' | 'top start' | 'top end' | 'bottom start' | 'bottom end' | 'left' | 'right' | 'start' | 'end';
 }
 
 export function USearchableField({
@@ -194,6 +202,7 @@ export function USearchableField({
   searchable,
   onCustomValue,
   hideLabel,
+  popoverPlacement,
 }: USearchableFieldProps) {
   const selected = options.find((option) => option.value === value);
   // Local input text so type-to-search survives the controlled re-renders.
@@ -225,6 +234,7 @@ export function USearchableField({
         menuTrigger={searchable ? 'focus' : 'manual'}
         openOnPress
         selectedKey={value || null}
+        popoverPlacement={popoverPlacement}
         inputValue={
           searchable
             ? inputValue
@@ -243,10 +253,18 @@ export function USearchableField({
           }
         }}
         {...(searchable
-          ? { onInputChange: (text: string) => {
-              setInputValue(text);
-              onCustomValue?.(text);
-            } }
+          ? {
+              allowsCustomValue: Boolean(allowsCustomValue),
+              onInputChange: (text: string) => {
+                setInputValue(text);
+                onCustomValue?.(text);
+                if (allowsCustomValue) {
+                  onChange(text);
+                } else if (text === '') {
+                  onChange('');
+                }
+              },
+            }
           : allowsCustomValue
             ? { allowsCustomValue: true, onInputChange: (text: string) => onChange(text) }
             : {})}
@@ -268,6 +286,7 @@ export function USearchableField({
         {(item: { id: string | number; label?: string; supportingText?: string }) => (
           <SelectItem
             id={item.id}
+            value={item}
             data-value={String(item.id)}
             className={optionClassName}
             label={item.label}

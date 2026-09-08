@@ -42,6 +42,11 @@ let installed = false;
 function ensureGlobalDismissListeners(): void {
   if (installed || typeof document === 'undefined') return;
   installed = true;
+  document.addEventListener('pointerdown', (event) => {
+    const { target } = event;
+    if (target instanceof Element && isInsideOpenDropdown(target)) return;
+    dismissOpenDropdowns();
+  });
   document.addEventListener('mousedown', (event) => {
     const { target } = event;
     if (target instanceof Element && isInsideOpenDropdown(target)) return;

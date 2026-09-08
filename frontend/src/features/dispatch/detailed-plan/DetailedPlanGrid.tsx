@@ -56,8 +56,9 @@ interface DetailedPlanGridProps {
       clearVehicle?: boolean;
       plannedRevenue: number | null;
       plannedCarrierCost: number | null;
-      classification: DispatchClassification;
-      isCombined: boolean;
+      /** CUS-owned — omitted by the dispatch editor; backend strips it too. */
+      classification?: DispatchClassification;
+      isCombined?: boolean;
     },
   ) => Promise<AtomicPlanSaveResult>;
   onOpenTripReassign: (tripId: number) => void;

@@ -51,6 +51,7 @@ export interface CatalogData {
   }>;
   suppliers: Array<{ id: number; name: string; status: string }>;
   businessUnits?: Array<{ id: number; code: string | null; name: string }>;
+  shippingLines?: Array<{ id?: number; name: string }>;
 }
 
 type ListTripsParams = {

@@ -6,13 +6,13 @@
  * 650 lines — `FleetPage.tsx` (1097), `useTripForm.ts` (815), `Layout.tsx`
  * (461), etc. These are impossible to review, test, or refactor safely.
  *
- * This script runs in `pnpm build` (after `tsc -b`) and fails the build
- * when any .ts/.tsx file under `src/` exceeds `MAX_LINES` (600). The
- * budget is generous (most React + TS files should be well under 300 LOC)
- * — it exists to catch runaway growth, not to constrain ordinary code.
+ * This script runs in `pnpm build:strict` (after `tsc -b`) and fails the
+ * build when any .ts/.tsx file under `src/` exceeds `MAX_LINES` (600).
+ * The budget is generous (most React + TS files should be well under 300
+ * LOC) — it exists to catch runaway growth, not to constrain ordinary code.
  *
  * Override with `--max 800` if a one-off large file is justified, or skip
- * entirely with `SKIP_SIZE_CHECK=1 pnpm build` while a refactor lands.
+ * entirely with `SKIP_SIZE_CHECK=1 pnpm build:strict` while a refactor lands.
  */
 
 import { readFileSync, readdirSync, statSync } from 'node:fs';

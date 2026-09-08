@@ -3,6 +3,8 @@
   "compilerOptions": {
     "jsx": "react-jsx",
     "noEmit": true,
+    "incremental": true,
+    "tsBuildInfoFile": ".tsbuildinfo",
     "types": ["vite/client", "node", "@testing-library/jest-dom"],
     "baseUrl": ".",
     "paths": {

@@ -71,6 +71,24 @@ before(async () => {
   adminId = await createUser(Role.ADMIN);
   dispatcherId = await createUser(Role.DISPATCHER);
 
+  // Seed dispatch zones that production `make seed` would create. Tests need
+  // them too because requireDispatchZone() rejects unknown zone codes.
+  // Idempotent: reactivates any zone left inactive by a prior run.
+  for (const z of [
+    { code: 'LACH_HUYEN', label: 'Lạch Huyện', sortOrder: 10, isActive: true },
+    { code: 'HAI_PHONG', label: 'Cảng Hải Phòng', sortOrder: 20, isActive: true },
+  ]) {
+    const [existing] = await db.select().from(s.dispatchZones)
+      .where(eq(s.dispatchZones.code, z.code)).limit(1);
+    if (existing) {
+      await db.update(s.dispatchZones)
+        .set({ isActive: true, label: z.label, sortOrder: z.sortOrder })
+        .where(eq(s.dispatchZones.id, existing.id));
+    } else {
+      await db.insert(s.dispatchZones).values(z);
+    }
+  }
+
   const app = express();
   app.use(express.json());
   // Test-only principal injection mirrors the auth middleware contract: the

@@ -995,7 +995,7 @@ export interface ShipmentCusWorkspaceFilters {
 // are this workboard's own enum, so they replace (not extend) the overview's.
 export interface ShipmentCusContainerFilters extends Omit<ShipmentCusWorkspaceFilters, 'sortBy' | 'sortDir'> {
   informationStatus?: 'MISSING';
-  dispatchStatus?: 'ASSIGNED' | 'UNASSIGNED' | 'PLANNED' | 'CREATED' | 'IN_TRANSIT' | 'COMPLETED';
+  dispatchStatus?: 'ASSIGNED' | 'UNASSIGNED' | 'AWAITING_VEHICLE' | 'CREATED' | 'IN_TRANSIT' | 'COMPLETED';
   sortBy?: ShipmentCusContainerSortKey;
   sortDir?: 'asc' | 'desc';
 }

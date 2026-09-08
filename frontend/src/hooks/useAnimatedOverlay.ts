@@ -87,6 +87,7 @@ export function useAnimatedOverlay({
   const isClosingRef = useRef(false);
   const closeGenRef = useRef(0);
   const restoreFocusRef = useRef<HTMLElement | null>(null);
+  const restoreRafRef = useRef<number | null>(null);
   const overlayTokenRef = useRef<OverlayToken | null>(null);
   const [visible, setVisible] = useState(false);
   const [wasOpen, setWasOpen] = useState(false);
@@ -102,6 +103,10 @@ export function useAnimatedOverlay({
   // Track isOpen transitions — open: mount DOM; close: run exit animation then unmount
   useEffect(() => {
     if (isOpen && !wasOpen) {
+      if (restoreRafRef.current != null) {
+        cancelAnimationFrame(restoreRafRef.current);
+        restoreRafRef.current = null;
+      }
       restoreFocusRef.current = document.activeElement instanceof HTMLElement
         ? document.activeElement
         : null;
@@ -115,7 +120,16 @@ export function useAnimatedOverlay({
       const content = contentRef.current;
       const restoreTarget = restoreFocusRef.current;
       restoreFocusRef.current = null;
-      if (restoreTarget?.isConnected) requestAnimationFrame(() => restoreTarget.focus());
+      if (restoreRafRef.current != null) {
+        cancelAnimationFrame(restoreRafRef.current);
+        restoreRafRef.current = null;
+      }
+      if (restoreTarget?.isConnected) {
+        restoreRafRef.current = requestAnimationFrame(() => {
+          restoreRafRef.current = null;
+          restoreTarget.focus();
+        });
+      }
 
       if (prefersReduced || !overlay || !content) {
         setVisible(false);
@@ -134,6 +148,14 @@ export function useAnimatedOverlay({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- refs are stable; intentionally mirrors original Drawer/ConfirmDialog deps
   }, [isOpen, wasOpen, prefersReduced]);
+
+  useEffect(() => {
+    return () => {
+      if (restoreRafRef.current != null) {
+        cancelAnimationFrame(restoreRafRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!visible) {

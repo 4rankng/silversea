@@ -3,7 +3,7 @@
 > **Vietnamese label**: Nhân viên Chứng từ (`Role.CUS`, formerly CLERK, renamed 2024-08).
 > **Home route**: `/shipments` (`routes.shipments`).
 > **Primary sidebar section**: `Nghiệp vụ Chứng từ` (`document-ops`).
-> **Test account (local)**: `cus` / `Abc123`. **(staging)**: `cus123` / `Abc123`.
+> **Test accounts**: chọn theo môi trường qua `../testaccounts.txt` (role → username). Runner tự map `CUS` + env → username phù hợp.
 > **Primary pages**:
 > - `/shipments` — `frontend/src/pages/ShipmentsPage.tsx` (tổng quan lô hàng)
 > - `/shipments-detail` — `frontend/src/pages/ShipmentsDetailPage.tsx` (chi tiết lô hàng)
@@ -22,6 +22,7 @@ CUS is the **document operations** role. CUS can:
 
 - Read & write the **shipment (lô hàng) workspace**: create, edit, manage
   containers, attach declarations, view status.
+- Determine and own the **transportation classification (Đơn `SINGLE`, Kẹp `DOUBLE`, Kết hợp `COMBINED`, Lẻ `LCL`) and lot-level combined flag (`isCombined`)**. Fulfillments automatically inherit and synchronize with CUS's classification.
 - Read & write **customers** as a side-effect of the shipment flow (CUS
   may create a customer inline when creating a shipment, per
   `74a17b5c`).
@@ -223,10 +224,20 @@ applies (silent redirect to `/shipments`).
     - **Cases**: `TC-CUS-CREATE-035`, `-037`.
     - **Evidence**: screenshots across the three roles + report grouping.
 
+16. **CUS-SHIP-16 — CUS owns Đơn / Kẹp / Kết hợp classification and lot combined flag**
+    (renumbered from CUS-SHIP-09: merge collision with the factory auto-fill case)
+    - **Given** a CUS user creating or updating an FCL shipment
+    - **When** the user checks `Đóng kết hợp` (`isCombined = true`)
+    - **Then** the shipment is saved with `is_combined = true`, and all unassigned fulfillments automatically receive `dispatchClassification = 'COMBINED'`.
+    - **When** `Đóng kết hợp` is unchecked (`isCombined = false`)
+    - **Then** fulfillments receive `dispatchClassification = 'SINGLE'`.
+    - **When** CUS updates `isCombined` on an unassigned shipment, unassigned fulfillments synchronize their classification.
+    - **Reference**: backend unit tests in `cus-shipment-workspace.test.ts`.
+
 ### Test steps (manual)
 
 1. `pnpm dev` is up; `pgrep -f vite` confirms.
-2. Open `http://localhost:7174`; log in as `cus` / `Abc123`.
+2. Open `http://localhost:7174`; log in as `CUS` / `Abc123`.
 3. Land on `/shipments`. Click `+ Tạo lô hàng` (or navigate to
    `/shipments/new`).
 4. Exercise AC 1–7 in order.
@@ -315,7 +326,7 @@ DISPATCHER, CUS, ACCOUNTANT, CUSTOMER scoped).
 
 ### Test steps
 
-1. Log in as `cus`. Land on `/shipments`.
+1. Log in as `CUS`. Land on `/shipments`.
 2. Capture a baseline screenshot.
 3. Apply a filter and capture the result.
 4. Click a row and capture the detail page.
@@ -367,7 +378,7 @@ DISPATCHER, CUS, ACCOUNTANT, CUSTOMER scoped).
 1. From `/shipments`, click any row.
 2. Walk through each tab.
 3. Edit a container number; capture before/after.
-4. Verify the audit log row in `/audit-logs` (login as `admin` if
+4. Verify the audit log row in `/audit-logs` (login as `ADMIN` if
    needed; or trust the toast message).
 
 ### Regression hooks
@@ -407,8 +418,8 @@ DISPATCHER, CUS, ACCOUNTANT, CUSTOMER scoped).
 
 ### Test steps
 
-1. Log in as `cus` (without capability) → confirm redirect.
-2. Grant the capability to `cus` in the DB (or use a test seed) →
+1. Log in as `CUS` (without capability) → confirm redirect.
+2. Grant the capability to `CUS` in the DB (or use a test seed) →
    reload; confirm the sidebar item appears.
 3. Open `/recoverable-costs` and walk through the list.
 4. Capture before/after of a flagged row.
@@ -496,7 +507,7 @@ is the office staff's job.
      can later see "their" customers via the scoped bootstrap (commit
      `8b4332fd`).
    - **Evidence**: backend row inspection; `/customers` filter by
-     `createdBy` as `admin` returns the new row.
+     `createdBy` as `ADMIN` returns the new row.
 
 ### Regression hooks
 
@@ -549,3 +560,26 @@ is the office staff's job.
   test-rig quirk, not a real bug, but it is documented here so future
   E2E scripts know to use a forced click or to scroll the button into
   view first.
+
+---
+
+## QA Matrix v2.0 Acceptance Criteria (2026-09-08)
+
+### Flow 1 Additions — Hãng tàu & Responsive Form
+1. **CUS-SHIP-20 — Shipping line 20 options + free text (TC_LINE_01, TC_LINE_02)**
+   - Dropdown lists 20 standard lines + supplier lines.
+   - Custom typing allowed without catalog restriction.
+   - Inline "+ Thêm hãng tàu" button opens partner modal.
+2. **CUS-SHIP-21 — Responsive & Upward popover placement (TC_RESP_01, TC_RESP_03)**
+   - Viewport 1366x768 has zero horizontal scroll.
+   - Popovers for Cảng nâng, Cảng hạ, Tuyến đường flip upward so "+ Thêm..." buttons below are never covered.
+
+### Flow 2 Additions — Container Ledger Schedule Save UX
+1. **CUS-CONT-01 — Prominent "Lưu" (green) and "Hủy" buttons (TC_BTN_01, TC_BTN_02, TC_BTN_03)**
+   - Inline schedule editor has clear brand green Save button and Cancel button.
+   - Supports keyboard Enter and mouse click.
+   - Fires Vietnamese toast: "Cập nhật lịch trình container thành công!".
+2. **CUS-CONT-02 — Unassigned container schedule authority (TC_UNAS_01, TC_UNAS_02, TC_UNAS_03)**
+   - ADMIN and MANAGER can update schedule on unassigned containers even if shipment is DISPATCHED.
+   - Blocked with 409 Conflict citing tripCode if container is already assigned to an active trip.
+

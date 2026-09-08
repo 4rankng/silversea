@@ -39,7 +39,7 @@ const TRADE_DIRECTION_OPTIONS = [
 
 const ALLOCATION_OPTIONS: { id: ShipmentAllocationStatus | 'ALL_ALLOCATIONS'; label: string }[] = [
   { id: 'ALL_ALLOCATIONS', label: 'Tất cả trạng thái' },
-  { id: 'NOT_ALLOCATED', label: 'Chưa phân xe' },
+  { id: 'NOT_ALLOCATED', label: 'Chờ phân xe' },
   { id: 'PARTIALLY_ALLOCATED', label: 'Đang phân xe' },
   { id: 'FULLY_ALLOCATED', label: 'Đã phân xong' },
 ];
@@ -195,7 +195,7 @@ function CarrierFacetMultiSelect({
 }) {
   const FIXED_OPTIONS = [
     { key: 'OWN', label: 'Xe SilverSea' },
-    { key: 'UNASSIGNED', label: 'Chưa điều xe' },
+    { key: 'UNASSIGNED', label: 'Chờ phân xe' },
   ] as const;
 
   const [isPickerOpen, setIsPickerOpen] = useState(false);

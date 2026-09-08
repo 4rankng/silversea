@@ -22,32 +22,34 @@
   border-radius: 50%;
   flex-shrink: 0;
 }
-.pill--success { background: var(--accent-soft); color: var(--accent-ink); }
+/* Status pills are text + dot only (2026-09-08): colored background blobs
+ * read as visual noise across dense tables — tone survives via the text and
+ * dot colors. */
+.pill--success { background: transparent; color: var(--accent-ink); }
 .pill--success .dot { background: var(--accent-2); }
-.pill--warn { background: var(--warning-soft); color: var(--warning-deep); }
+.pill--warn { background: transparent; color: var(--warning-deep); }
 .pill--warn .dot { background: var(--warning); }
-.pill--danger { background: var(--danger-soft); color: var(--danger); }
+.pill--danger { background: transparent; color: var(--danger); }
 .pill--danger .dot { background: var(--danger); }
-.pill--info { background: var(--info-soft); color: var(--info); }
+.pill--info { background: transparent; color: var(--info); }
 .pill--info .dot { background: var(--info); }
-.pill--neutral { background: var(--surface-3); color: var(--ink-2); }
+.pill--neutral { background: transparent; color: var(--ink-2); }
 .pill--neutral .dot { background: var(--ink-3); }
 
 /* Pill size + solid variants — for header-level status emphasis */
 .pill--md { font-size: var(--fs-xs); padding: 5px 12px; letter-spacing: 0.04em; }
 .pill--md .dot { width: 6px; height: 6px; }
-.pill--solid { color: var(--fg-on-brand); text-transform: none; letter-spacing: 0.01em; font-weight: 600; }
-.pill--solid.pill--success { background: var(--accent); }
-.pill--solid.pill--success { color: var(--fg-on-accent); }
-.pill--solid.pill--success .dot { background: var(--accent-ink); }
-.pill--solid.pill--warn { background: var(--warning); color: var(--warning-text); }
-.pill--solid.pill--warn .dot { background: var(--warning-text); }
-.pill--solid.pill--danger { background: var(--danger); }
-.pill--solid.pill--danger .dot { background: rgba(255, 255, 255, 0.85); }
-.pill--solid.pill--info { background: var(--info); }
-.pill--solid.pill--info .dot { background: rgba(255, 255, 255, 0.85); }
-.pill--solid.pill--neutral { background: var(--ink); color: var(--fg-on-brand); }
-.pill--solid.pill--neutral .dot { background: rgba(255, 255, 255, 0.7); }
+.pill--solid { text-transform: none; letter-spacing: 0.01em; font-weight: 600; }
+.pill--solid.pill--success { background: transparent; color: var(--accent-ink); }
+.pill--solid.pill--success .dot { background: var(--accent-2); }
+.pill--solid.pill--warn { background: transparent; color: var(--warning-deep); }
+.pill--solid.pill--warn .dot { background: var(--warning); }
+.pill--solid.pill--danger { background: transparent; color: var(--danger); }
+.pill--solid.pill--danger .dot { background: var(--danger); }
+.pill--solid.pill--info { background: transparent; color: var(--info); }
+.pill--solid.pill--info .dot { background: var(--info); }
+.pill--solid.pill--neutral { background: transparent; color: var(--ink-2); }
+.pill--solid.pill--neutral .dot { background: var(--ink-3); }
 
 /* Legacy badge classes (keep tonal scale) */
 .badge {
@@ -61,13 +63,14 @@
   letter-spacing: 0.02em;
   text-transform: uppercase;
 }
-.badge-success { background: var(--accent-soft); color: var(--accent-ink); border-color: rgba(0, 177, 79, 0.2); }
-.badge-warning { background: var(--warning-soft); color: var(--warning-text); border-color: rgba(245, 166, 35, 0.2); }
-.badge-danger  { background: var(--danger-soft); color: var(--danger-text); border-color: rgba(227, 36, 52, 0.2); }
-.badge-info    { background: var(--info-soft); color: var(--info-text); border-color: rgba(30, 91, 184, 0.2); }
-.badge-neutral { background: var(--surface-3); color: var(--ink-2); border-color: var(--line-2); }
-.badge-brand   { background: var(--accent-2); color: var(--fg-on-brand); }
-.badge-outline { border-color: var(--line); color: var(--ink-2); background: var(--surface); }
+/* Badges follow the same text-only status treatment (2026-09-08). */
+.badge-success { background: transparent; color: var(--accent-ink); border-color: transparent; }
+.badge-warning { background: transparent; color: var(--warning-text); border-color: transparent; }
+.badge-danger  { background: transparent; color: var(--danger-text); border-color: transparent; }
+.badge-info    { background: transparent; color: var(--info-text); border-color: transparent; }
+.badge-neutral { background: transparent; color: var(--ink-2); border-color: transparent; }
+.badge-brand   { background: transparent; color: var(--accent-ink); }
+.badge-outline { border-color: var(--line); color: var(--ink-2); background: transparent; }
 
 /* Plate tag */
 .plate {

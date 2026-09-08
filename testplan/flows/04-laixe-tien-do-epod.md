@@ -1,7 +1,7 @@
 # Luồng 4: e-POD & Hoàn thành chuyến — Lái xe (Driver)
 
 > **Vai trò sở hữu:** Lái xe (DRIVER)
-> **Tài khoản demo:** `laixe` (password: `Abc123`)
+> **Tài khoản test:** chọn theo môi trường qua [`../testaccounts.txt`](../testaccounts.txt) — runner tự map role `DRIVER` → username phù hợp (local: `DRIVER`; staging: prod-mirror như `bqhuong`).
 > **Route chính:** `/my-trips/:id` (e-POD, HOÀN THÀNH CHUYẾN), `/shipments/:id` (e-POD panel)
 > **Thiết bị mặc định:** Mobile (iPhone SE 375×667)
 > **PRD nguồn:** Module 08, O2C Bước 3, TC-MO2C-05, TC-MO2C-07
@@ -22,7 +22,7 @@
 ### TC-LX-TIENDO-007 — Nộp e-POD thành công với đủ 2 slot
 
 - **Mã PRD:** TC-MO2C-07
-- **Vai trò:** `laixe`
+- **Vai trò:** `DRIVER`
 - **Mức độ:** P0
 - **Thiết bị:** Mobile
 - **Tiền điều kiện:** Trip IN_TRANSIT, sẵn sàng upload e-POD
@@ -48,7 +48,7 @@
 ### TC-LX-TIENDO-008 — Chặn gửi e-POD khi thiếu slot bắt buộc (negative)
 
 - **Mã PRD:** TC-MO2C-07
-- **Vai trò:** `laixe`
+- **Vai trò:** `DRIVER`
 - **Mức độ:** P0
 - **Thiết bị:** Mobile
 - **Các bước:**
@@ -69,7 +69,7 @@
 ### TC-LX-TIENDO-009 — Vé cầu đường là tùy chọn
 
 - **Mã PRD:** TC-MO2C-07
-- **Vai trò:** `laixe`
+- **Vai trò:** `DRIVER`
 - **Mức độ:** P2
 - **Các bước:**
   1. Tải đủ 2 slot bắt buộc. Không tải vé cầu đường.
@@ -85,13 +85,13 @@
 ### TC-LX-TIENDO-010 — Bấm "HOÀN THÀNH CHUYẾN" sau khi hoàn tất (full-close path 2026-08-29)
 
 - **Mã PRD:** TC-MO2C-05
-- **Vai trò:** `laixe`
+- **Vai trò:** `DRIVER`
 - **Mức độ:** P0
 - **Thiết bị:** Mobile
 - **Tiền điều kiện:** Trip IN_TRANSIT, đã nộp e-POD (2 slot bắt buộc)
 - **Các bước:**
   1. Mở `/my-trips/:id`. Bấm "HOÀN THÀNH CHUYẾN" (footer hoặc màn e-POD).
-  2. Kiểm tra trạng thái trip + shipment từ `laixe`, `cus`, `dieuvan`.
+  2. Kiểm tra trạng thái trip + shipment từ `DRIVER`, `CUS`, `DISPATCHER`.
 - **Kết quả mong đợi (Pass):**
   - Trip chuyển sang `COMPLETED` (chốt luôn, không qua "Chờ duyệt phí").
   - Shipment tự động cập nhật sang `COMPLETED` (nhánh `allCompletedViaDriverClose` bỏ qua expense-scope + podRecoveredAt).
@@ -116,7 +116,7 @@
 ### TC-LX-TIENDO-011 — Xem thu nhập cá nhân
 
 - **Mã PRD:** M08
-- **Vai trò:** `laixe`
+- **Vai trò:** `DRIVER`
 - **Mức độ:** P1
 - **Thiết bị:** Mobile
 - **Các bước:**
@@ -133,7 +133,7 @@
 ### TC-LX-TIENDO-012 — Xem khoản phạt cá nhân
 
 - **Mã PRD:** M08
-- **Vai trò:** `laixe`
+- **Vai trò:** `DRIVER`
 - **Mức độ:** P1
 - **Thiết bị:** Mobile
 - **Các bước:**
@@ -157,7 +157,7 @@
 
 ### TC-LX-TIENDO-013 — Khóa nút Chụp/Tải tệp khi e-POD đã gửi duyệt (SUBMITTED/ACCEPTED)
 
-- **Vai trò:** `laixe`
+- **Vai trò:** `DRIVER`
 - **Mức độ:** P0
 - **Thiết bị:** Mobile
 - **Tiền điều kiện:** Đã nộp e-POD thành công (TC-LX-TIENDO-007), trạng thái "Chờ duyệt" hoặc "Đã duyệt" (wording unified 2026-09-01)
@@ -177,7 +177,7 @@
 
 ### TC-LX-TIENDO-014 — Vẫn nộp lại được sau khi e-POD bị từ chối (REJECTED)
 
-- **Vai trò:** `laixe` (nộp) + người duyệt e-POD (từ chối trước)
+- **Vai trò:** `DRIVER` (nộp) + người duyệt e-POD (từ chối trước)
 - **Mức độ:** P0
 - **Thiết bị:** Mobile
 - **Tiền điều kiện:** e-POD của chuyến đã bị từ chối (REJECTED), có lý do từ chối
@@ -197,7 +197,7 @@
 
 ### TC-LX-TIENDO-015 — "HOÀN THÀNH CHUYẾN" không được tiến hành nếu bước gửi e-POD thất bại
 
-- **Vai trò:** `laixe`
+- **Vai trò:** `DRIVER`
 - **Mức độ:** P0
 - **Thiết bị:** Mobile
 - **Tiền điều kiện:** e-POD đang ở DRAFT (chưa gửi), đủ 2 slot bắt buộc; có thể mô phỏng mất mạng/conflict trong lúc gửi (tắt mạng ngay sau khi bấm, hoặc dùng phiên bản trip đã lỗi thời — expectedVersion sai)
@@ -218,7 +218,7 @@
 
 ### TC-LX-TIENDO-016 — Bố cục 2 thẻ e-POD không đè lên nhau ở màn rộng (visual)
 
-- **Vai trò:** `laixe`
+- **Vai trò:** `DRIVER`
 - **Mức độ:** P1
 - **Thiết bị:** Mobile ngang / tablet nhỏ, chiều rộng ~700–1000px (đúng ngưỡng breakpoint)
 - **Tiền điều kiện:** Chuyến có e-POD với 2 slot (bất kỳ trạng thái DRAFT/SUBMITTED/REJECTED)
@@ -235,14 +235,14 @@
 ### TC-LX-TIENDO-017 — Sau khi nộp e-POD, lô hàng vẫn ở "Đang chạy" (skip kế toán: chờ "HOÀN THÀNH CHUYẾN" mới chuyển)
 
 - **Mã PRD:** O2C Bước 3 → Bước 4, TC-MO2C-07 + fix 2026-08-29 (driver full-close)
-- **Vai trò:** `laixe` (driver-side) + `cus` (CUS-side) + `dieuvan` (dispatch-side)
+- **Vai trò:** `DRIVER` (driver-side) + `CUS` (CUS-side) + `DISPATCHER` (dispatch-side)
 - **Mức độ:** P0
 - **Thiết bị:** Mobile + Desktop
 - **Tiền điều kiện:** Trip IN_TRANSIT; e-POD ở trạng thái DRAFT với đủ 2 slot bắt buộc. **Quan trọng:** kế toán flow chưa build (theo instruction "skip kế toán for now, we build later") — vì vậy submit e-POD alone **không được** advance shipment sang "Chờ duyệt phí" vì không có ai để approve. Lô chỉ chuyển "Hoàn thành" khi tài xế bấm "HOÀN THÀNH CHUYẾN".
 - **Các bước:**
-  1. Đăng nhập `laixe`, mở `/my-trips/:id/pod`. Upload 2 tệp bắt buộc, bấm "Gửi e-POD" (status SUBMITTED). **Chưa** bấm "HOÀN THÀNH CHUYẾN".
-  2. Mở tab khác, đăng nhập `cus`, mở `/shipments` hoặc chi tiết lô hàng. Quan sát cột trạng thái.
-  3. Mở tab khác, đăng nhập `dieuvan`, mở `/dispatch` (Kế hoạch tổng quát/chi tiết) hoặc `/trips`. Quan sát.
+  1. Đăng nhập `DRIVER`, mở `/my-trips/:id/pod`. Upload 2 tệp bắt buộc, bấm "Gửi e-POD" (status SUBMITTED). **Chưa** bấm "HOÀN THÀNH CHUYẾN".
+  2. Mở tab khác, đăng nhập `CUS`, mở `/shipments` hoặc chi tiết lô hàng. Quan sát cột trạng thái.
+  3. Mở tab khác, đăng nhập `DISPATCHER`, mở `/dispatch` (Kế hoạch tổng quát/chi tiết) hoặc `/trips`. Quan sát.
   4. Quay lại tab lái xe, bấm "HOÀN THÀNH CHUYẾN". Refresh CUS + điều vận, quan sát lại.
 - **Kết quả mong đợi (Pass):**
   - Sau bước 1 (submit e-POD): CUS + điều vận vẫn thấy lô ở **"Đang chạy"** (IN_TRANSIT; wording unified 2026-09-01) — KHÔNG nhảy sang "Chờ duyệt phí".
