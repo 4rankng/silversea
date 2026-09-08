@@ -1177,6 +1177,54 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
 
 ---
 
+### TC-DV-DISPATCH-046 — Phát lệnh nhà xe ngoài không bắt buộc tên tài xế; Điều vận / CUS được hoàn thành chuyến xe ngoài thay tài xế
+
+- **Mã PRD:** Yêu cầu khách hàng 2026-09-08 — Điều vận kế hoạch chi tiết (`/dispatch-detail`): khi phát lệnh cho nhà xe ngoài không bắt buộc nhập tên tài xế (vì tài xế ngoài không dùng app mobile). Cho phép Điều vận hoặc CUS bấm nút "Hoàn thành chuyến" cho các chuyến xe ngoài.
+- **Vai trò:** `DISPATCHER`, `CUS`, `ADMIN`, `MANAGER`
+- **Mức độ:** P0
+- **Thiết bị:** Desktop (1440×900)
+- **Tiền điều kiện:** Dòng container FCL trên `/dispatch-detail` đã gán nhà xe ngoài và biển số xe ngoài (trạng thái "Đã xếp xe — chưa phát lệnh").
+- **Các bước:**
+  1. Đăng nhập `DISPATCHER` (hoặc `CUS`). Mở `/dispatch-detail`.
+  2. Bấm ô điều phối của container đã gán xe ngoài để mở dialog "Chỉnh sửa điều phối".
+  3. Bấm nút "Phát lệnh":
+     - Ô "Tên tài xế (nhà xe ngoài)" để trống.
+     - Hệ thống cho phép phát lệnh thành công mà không báo lỗi "Nhập tên tài xế nhà xe ngoài trước khi phát lệnh".
+  4. Quan sát dòng container sau khi phát lệnh:
+     - Trạng thái chuyển sang "Đã phát lệnh cho tài xế" (ISSUED).
+     - Mở lại ô điều phối: xuất hiện nút **"Hoàn thành chuyến"** (bên cạnh nút Lưu/Hủy).
+  5. Bấm nút **"Hoàn thành chuyến"**:
+     - Hệ thống xử lý chuyển trạng thái chuyến xe ngoài sang `COMPLETED` thành công mà không yêu cầu ảnh bằng chứng hay chứng từ e-POD từ app tài xế.
+     - Thông báo toast thành công "Đã hoàn thành chuyến xe ngoài".
+  6. Quan sát trạng thái trên bảng: chip trạng thái chuyển sang **"Đã hoàn thành"** (COMPLETED).
+- **Kết quả mong đợi (Pass):**
+  - Bước 3: Phát lệnh xe ngoài không bắt buộc tên/số điện thoại tài xế.
+  - Bước 4-5: Điều vận / CUS có thể bấm "Hoàn thành chuyến" trực tiếp trên giao diện web cho chuyến xe ngoài.
+  - Bước 6: Chuyến và dòng tác vụ cập nhật `COMPLETED`, chip hiển thị "Đã hoàn thành".
+- **Kỳ vọng sai (Fail nếu):** Bắt buộc nhập tên tài xế mới cho phát lệnh xe ngoài; không có nút "Hoàn thành chuyến"; hoặc hoàn thành bị chặn lỗi 403 / 409 thiếu e-POD / quyền.
+- **Bằng chứng:** API tests `dispatch-planning.test.ts`, UI screenshot dialog phát lệnh không bắt buộc tên tài xế + nút Hoàn thành chuyến.
+
+---
+
+### TC-DV-DISPATCH-047 — Kế hoạch chi tiết cập nhật trạng thái "Đã hoàn thành" khi chuyến xe đã kết thúc (không kẹt Đã phát lệnh)
+
+- **Mã PRD:** Báo lỗi khách hàng 2026-09-08 — Khi tài xế (hoặc điều vận) đã hoàn thành chuyến xe (ví dụ MNBU0000283), màn hình Điều vận - Kế hoạch chi tiết (`/dispatch-detail`) chip trạng thái bị kẹt ở "Đã phát lệnh cho tài xế", không chuyển sang "Đã hoàn thành".
+- **Vai trò:** `DISPATCHER`, `ADMIN`, `MANAGER`
+- **Mức độ:** P0
+- **Thiết bị:** Desktop (1440×900)
+- **Tiền điều kiện:** Chuyến xe đã được phát lệnh và tài xế đã hoàn thành chuyến trên app (hoặc chuyến xe ngoài đã được bấm hoàn thành), trip có `status = 'COMPLETED'`.
+- **Các bước:**
+  1. Mở `/dispatch-detail` (Điều vận - Kế hoạch chi tiết).
+  2. Tìm đến container / chuyến xe đã hoàn thành (ví dụ MNBU0000283).
+  3. Quan sát chip trạng thái tại cột "Điều phối" / "Thao tác":
+     - Chip hiển thị **"Đã hoàn thành"** với màu xanh lá (success).
+     - Không hiển thị "Đã phát lệnh cho tài xế".
+- **Kết quả mong đợi (Pass):** Chip hiển thị đúng "Đã hoàn thành" khi chuyến đã xong (`row.taskStatus === 'COMPLETED'`).
+- **Kỳ vọng sai (Fail nếu):** Chuyến đã xong nhưng chip vẫn hiện "Đã phát lệnh cho tài xế".
+- **Bằng chứng:** Vitest `DispatchIssueStatus.test.tsx`, `DetailedPlanGrid.test.tsx`, UI screenshot.
+
+---
+
 
 ## Bảng nghiệm thu — Luồng Điều xe (Điều vận)
 
@@ -1229,3 +1277,5 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
 | __/__/__ | TC-DV-DISPATCH-043 | | | Bảng phân bổ nhà xe tách biệt từng ngày đóng/trả (2026-09-08) | |
 | __/__/__ | TC-DV-DISPATCH-044 | | | Select Phân loại trở lại Chỉnh sửa điều phối — 3 lựa chọn, không checkbox (2026-09-08) | |
 | __/__/__ | TC-DV-DISPATCH-045 | | | Cont đã phân xe không còn "Chờ phân xe" — chip 5 trạng thái (2026-09-08) | |
+| __/__/__ | TC-DV-DISPATCH-046 | | | Phát lệnh xe ngoài không bắt buộc tên tài xế; Điều vận/CUS hoàn thành xe ngoài (2026-09-08) | |
+| __/__/__ | TC-DV-DISPATCH-047 | | | Kế hoạch chi tiết cập nhật trạng thái "Đã hoàn thành" khi chuyến kết thúc (2026-09-08) | |
