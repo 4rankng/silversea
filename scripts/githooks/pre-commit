@@ -18,6 +18,12 @@ fail=0
 if [ "$fe" -eq 1 ]; then
   echo "[pre-commit] typechecking frontend…"
   (cd "$root/frontend" && pnpm exec tsc --noEmit) || fail=1
+  # Structure ratchet (incident 2026-09-08: allocation workstream landed two
+  # api-client files over their frozen LOC ceilings because this hook only
+  # typechecked). ~1s: the ratchet must gate mechanically, like the compile
+  # bar above, not rely on a full-suite run catching it later.
+  echo "[pre-commit] structure guard (LOC ceilings)…"
+  (cd "$root/frontend" && pnpm vitest run src/tests/structure.guard.test.ts) || fail=1
 fi
 if [ "$be" -eq 1 ]; then
   echo "[pre-commit] typechecking backend…"
