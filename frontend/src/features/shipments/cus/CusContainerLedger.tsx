@@ -105,27 +105,33 @@ function ContainerLineRow({
         vehicle.carrierId === externalCarrierId
         && vehicle.licensePlate.localeCompare(draft.plateNumber.trim(), 'vi', { sensitivity: 'base' }) === 0
       ));
+      // Send only fields the user actually changed. The write path treats a
+      // present governed field (container type, route, ...) as a mutation, so
+      // echoing unchanged values would reject a pure appointment edit with 409
+      // on shipments whose operational fields are governed elsewhere.
+      const base = lineDraft(line);
+      const carrierChanged = draft.carrierKey !== base.carrierKey;
       const result = await updateCusShipmentContainerLine(detail.summary.id, line.id, {
         expectedShipmentVersion: line.shipmentVersion,
-        ...(permissions.carrierEditable && isNewExternalCarrier ? {
+        ...(permissions.carrierEditable && isNewExternalCarrier && carrierChanged ? {
           carrierType: 'EXTERNAL' as const,
           newExternalCarrier: {
             name: draft.newCarrierName.trim(),
             plateNumber: draft.plateNumber.trim(),
           },
-        } : permissions.carrierEditable && draft.carrierKey ? {
+        } : permissions.carrierEditable && draft.carrierKey && carrierChanged ? {
           carrierType,
           externalCarrierId,
           externalCarrierVehicleId: matchedVehicle?.id ?? null,
         } : {}),
-        ...(permissions.plateEditable && !isNewExternalCarrier
+        ...(permissions.plateEditable && !isNewExternalCarrier && draft.plateNumber !== base.plateNumber
           ? { plateNumber: draft.plateNumber.trim() || null }
           : {}),
-        ...(permissions.containerTypeEditable ? { containerTypeId: draft.containerTypeId ? Number(draft.containerTypeId) : null } : {}),
-        ...(permissions.routeEditable ? { routeId: draft.routeId ? Number(draft.routeId) : null } : {}),
-        ...(permissions.liftSiteEditable ? { liftSiteId: draft.liftSiteId ? Number(draft.liftSiteId) : null } : {}),
-        ...(permissions.dropoffSiteEditable ? { dropoffSiteId: draft.dropoffSiteId ? Number(draft.dropoffSiteId) : null } : {}),
-        ...(permissions.customerAppointmentEditable ? {
+        ...(permissions.containerTypeEditable && draft.containerTypeId !== base.containerTypeId ? { containerTypeId: draft.containerTypeId ? Number(draft.containerTypeId) : null } : {}),
+        ...(permissions.routeEditable && draft.routeId !== base.routeId ? { routeId: draft.routeId ? Number(draft.routeId) : null } : {}),
+        ...(permissions.liftSiteEditable && draft.liftSiteId !== base.liftSiteId ? { liftSiteId: draft.liftSiteId ? Number(draft.liftSiteId) : null } : {}),
+        ...(permissions.dropoffSiteEditable && draft.dropoffSiteId !== base.dropoffSiteId ? { dropoffSiteId: draft.dropoffSiteId ? Number(draft.dropoffSiteId) : null } : {}),
+        ...(permissions.customerAppointmentEditable && draft.customerAppointmentAt !== base.customerAppointmentAt ? {
           customerAppointmentAt: draft.customerAppointmentAt
             ? (() => {
                 const d = new Date(draft.customerAppointmentAt);
