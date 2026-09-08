@@ -4,9 +4,7 @@
 > (`Role.ADMIN`).
 > **Home route**: `/dashboard` (`routes.dashboard`).
 > **Primary sidebar section**: `Vận hành` (`operations`).
-> **Test accounts (local + staging)**:
-> - `giamdoc` / `Abc123` — MANAGER
-> - `admin` / `Abc123` — ADMIN
+> **Test accounts**: chọn theo môi trường qua `../testaccounts.txt` (role → username). Runner tự map `MANAGER`/`ADMIN` + env → username phù hợp. Lưu ý: `MANAGER` role **không tồn tại trên staging** (prod không có); các case MANAGER chỉ chạy được trên local.
 >
 > The two roles share most of the office workspace. The only ADMIN-only
 > delta is a small list of **strict-admin pages** at the end of this
@@ -76,7 +74,7 @@ each AC states which role can perform it.
 
 ### Test steps
 
-1. Log in as `giamdoc` (MANAGER) and as `admin` (ADMIN) in two
+1. Log in as `MANAGER` (MANAGER) and as `ADMIN` (ADMIN) in two
    tabs.
 2. Capture both dashboards. Diff them visually; the
    strict-admin health widget should appear only on the ADMIN
@@ -122,10 +120,10 @@ each AC states which role can perform it.
 
 ### Test steps
 
-1. Log in as `giamdoc`. Open `/users`.
+1. Log in as `MANAGER`. Open `/users`.
 2. Create a new OPS user. Capture.
 3. Lock the user. Re-login as the user → confirm rejection.
-4. Switch to `admin`; create a CUSTOMER user (this exercises
+4. Switch to `ADMIN`; create a CUSTOMER user (this exercises
    the admin-only path).
 
 ---
@@ -170,7 +168,7 @@ read-only view).
 
 ### Test steps
 
-1. Log in as `giamdoc`. Open `/fleet`.
+1. Log in as `MANAGER`. Open `/fleet`.
 2. Open a vehicle's tire management; record a rotation.
 3. Open another vehicle's cap table; add a partner.
 4. Capture before/after for each.
@@ -209,7 +207,7 @@ read-only view).
 
 ### Test steps
 
-1. Log in as `giamdoc`. Open `/trips`.
+1. Log in as `MANAGER`. Open `/trips`.
 2. Apply a date range and a customer filter. Capture.
 3. Open a trip and walk the tabs.
 4. Try `/trips/new`; confirm redirect.
@@ -268,10 +266,10 @@ Same as `04-ketoan.md` Flows 6 & 7.
 
 ### Test steps
 
-1. Log in as `admin`. Open `/expenses/new`.
+1. Log in as `ADMIN`. Open `/expenses/new`.
 2. Create an expense. Capture.
 3. Edit it. Capture.
-4. As `ketoan`, confirm the ledger reflects the expense.
+4. As `ACCOUNTANT`, confirm the ledger reflects the expense.
 
 ---
 
@@ -313,11 +311,11 @@ Same as `04-ketoan.md` Flows 6 & 7.
 
 ### Test steps
 
-1. Log in as `giamdoc`. Open `/customers`.
+1. Log in as `MANAGER`. Open `/customers`.
 2. Create a customer (full intake, with financial fields).
    Capture.
-3. Log in as `ketoan`. Approve the pending customer. Capture.
-4. Lock the customer; try to create a shipment as `cus`.
+3. Log in as `ACCOUNTANT`. Approve the pending customer. Capture.
+4. Lock the customer; try to create a shipment as `CUS`.
    Confirm rejection with a Vietnamese toast.
 
 ---
@@ -343,7 +341,7 @@ Same as `04-ketoan.md` Flows 6 & 7.
 
 ### Test steps
 
-1. Log in as `giamdoc`. Open `/suppliers`.
+1. Log in as `MANAGER`. Open `/suppliers`.
 2. Create a supplier. Capture.
 3. Add a per-route price. Capture.
 
@@ -372,7 +370,7 @@ Same as `04-ketoan.md` Flows 6 & 7.
 
 ### Test steps
 
-1. Log in as `giamdoc`. Open `/salary`.
+1. Log in as `MANAGER`. Open `/salary`.
 2. Switch periods; capture.
 3. Approve a cell edited by OPS. Capture.
 4. Lock the period; capture the audit row.
@@ -401,7 +399,7 @@ Same as `04-ketoan.md` Flows 6 & 7.
 
 ### Test steps
 
-1. Log in as `giamdoc`. Open `/penalties`.
+1. Log in as `MANAGER`. Open `/penalties`.
 2. Issue a penalty. Capture.
 3. Cancel the penalty. Capture the audit row + the journal
    reversal.
@@ -462,10 +460,10 @@ many `pages/config/*`).
 
 ### Test steps
 
-1. Log in as `giamdoc`. Open each `officeStaffOnly` config
+1. Log in as `MANAGER`. Open each `officeStaffOnly` config
    page; confirm editable. Open each `strictAdminOnly` page;
    confirm redirect.
-2. Switch to `admin`. Open the same pages; confirm editable
+2. Switch to `ADMIN`. Open the same pages; confirm editable
    everywhere. Open `/config/master-data-import`; upload a
    test CSV; capture the dry-run and apply.
 
@@ -498,7 +496,7 @@ many `pages/config/*`).
 
 ### Test steps
 
-1. Log in as `admin`. Open `/admin-center`.
+1. Log in as `ADMIN`. Open `/admin-center`.
 2. Capture the health hub. Drill into a tile; capture.
 
 ---
@@ -586,7 +584,7 @@ Same as `04-ketoan.md` Flow 12.
   but bypassed for CUS/DISPATCHER (per `6ef3b221`). The second
   approver must be a different user with the same financial
   role. Tests must use two distinct users.
-- **Strict-admin pages**: only `admin` can reach. The
+- **Strict-admin pages**: only `ADMIN` can reach. The
   `strictAdminOnly` guard is at `App.tsx:218`. The redirect
   target is the role-specific home, **not** the dashboard
   (because the home for ADMIN is `/dashboard` and the home

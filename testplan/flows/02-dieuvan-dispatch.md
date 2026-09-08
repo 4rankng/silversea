@@ -1,7 +1,7 @@
 # Luồng 2: Điều xe / Phân bổ chuyến — Điều vận (Dispatcher)
 
 > **Vai trò sở hữu:** Điều vận (DISPATCHER)
-> **Tài khoản demo:** `dieuvan` (password: `Abc123`)
+> **Tài khoản test:** chọn theo môi trường qua [`../testaccounts.txt`](../testaccounts.txt) — runner tự map role `DISPATCHER` → username phù hợp (local: `DISPATCHER`; staging: prod-mirror như `dungnv`).
 > **Route chính:** `/dispatch`, `/trips`, `/trips/new`, `/trips/:id`, `/fleet`
 > **PRD nguồn:** Module 01 (`docs/prd/Module1.docx`), O2C Flow Bước 2
 >
@@ -16,12 +16,12 @@
 ### TC-DV-DISPATCH-001 — Tiếp nhận lô và hiển thị trên màn dispatch
 
 - **Mã PRD:** TC-MO2C-04
-- **Vai trò:** `dieuvan`
+- **Vai trò:** `DISPATCHER`
 - **Mức độ:** P0
 - **Thiết bị:** Desktop (1440×900)
 - **Tiền điều kiện:** CUS đã tạo lô FCL với 2 container và bàn giao cho Điều vận
 - **Các bước:**
-  1. Đăng nhập `dieuvan`. Mở `/dispatch`.
+  1. Đăng nhập `DISPATCHER`. Mở `/dispatch`.
   2. Tìm lô vừa được bàn giao. Bấm "Tiếp nhận".
   3. Kiểm tra thông tin lô: Booking/BL, khách hàng, tuyến, container.
 - **Kết quả mong đợi (Pass):**
@@ -40,7 +40,7 @@
 ### TC-DV-DISPATCH-002 — Rã FCL thành đúng số dòng container
 
 - **Mã PRD:** TC-MO2C-04
-- **Vai trò:** `dieuvan`
+- **Vai trò:** `DISPATCHER`
 - **Mức độ:** P0
 - **Tiền điều kiện:** Lô FCL có 2 container đã tiếp nhận
 - **Các bước:**
@@ -64,7 +64,7 @@
 ### TC-DV-DISPATCH-003 — Gán xe nhà + tài xế cho chuyến
 
 - **Mã PRD:** TC-MO2C-04, M01-1.3
-- **Vai trò:** `dieuvan`
+- **Vai trò:** `DISPATCHER`
 - **Mức độ:** P0
 - **Tiền điều kiện:** Có xe nhà và tài xế phù hợp trong danh mục
 - **Các bước:**
@@ -91,7 +91,7 @@
 ### TC-DV-DISPATCH-004 — Gán xe ngoài cho chuyến LCL
 
 - **Mã PRD:** TC-MO2C-04
-- **Vai trò:** `dieuvan`
+- **Vai trò:** `DISPATCHER`
 - **Mức độ:** P0
 - **Tiền điều kiện:** Có lô LCL đã tiếp nhận, có nhà cung cấp cước xe ngoài
 - **Các bước:**
@@ -114,7 +114,7 @@
 ### TC-DV-DISPATCH-005 — Chặn gán trùng xe + thời gian chồng lấn
 
 - **Mã PRD:** TC-MO2C-04, Q23
-- **Vai trò:** `dieuvan`
+- **Vai trò:** `DISPATCHER`
 - **Mức độ:** P0
 - **Tiền điều kiện:** Đã có 1 chuyến được gán xe A + tài xế X, thời gian 08:00–14:00
 - **Các bước:**
@@ -135,7 +135,7 @@
 ### TC-DV-DISPATCH-006 — Sửa thời gian/xe hợp lệ sau khi bị chặn
 
 - **Mã PRD:** TC-MO2C-04
-- **Vai trò:** `dieuvan`
+- **Vai trò:** `DISPATCHER`
 - **Mức độ:** P1
 - **Các bước:**
   1. Bị chặn ở TC-DV-DISPATCH-005.
@@ -153,7 +153,7 @@
 ### TC-DV-DISPATCH-007 — Kẹp hàng hợp lệ — chỉ ghi 1 lần phí cầu đường
 
 - **Mã PRD:** TC-MO2C-09
-- **Vai trò:** `dieuvan`
+- **Vai trò:** `DISPATCHER`
 - **Mức độ:** P0
 - **Tiền điều kiện:** 2 lệnh Xe nhà cùng xe, cùng tài xế, cùng lộ trình 2 chiều, thời gian không chồng lấn
 - **Các bước:**
@@ -177,7 +177,7 @@
 ### TC-DV-DISPATCH-008 — Kẹp hàng không đủ điều kiện — không tự ghép
 
 - **Mã PRD:** TC-MO2C-09
-- **Vai trò:** `dieuvan`
+- **Vai trò:** `DISPATCHER`
 - **Mức độ:** P1
 - **Các bước:**
   1. Tạo cặp không đủ điều kiện (khác xe hoặc khác tài xế hoặc thời gian chồng).
@@ -194,12 +194,12 @@
 ### TC-DV-DISPATCH-009 — Chỉ DISPATCHER/ADMIN mới truy cập màn dispatch
 
 - **Mã PRD:** HT-02, Q17
-- **Vai trò thử:** `dieuvan` (được), `cus`, `laixe`, `ketoan`, `customer` (bị chặn)
+- **Vai trò thử:** `DISPATCHER` (được), `CUS`, `DRIVER`, `ACCOUNTANT`, `CUSTOMER` (bị chặn)
 - **Mức độ:** P0
 - **Các bước:**
-  1. Đăng nhập `dieuvan` → mở `/dispatch` → phải thấy được.
-  2. Đăng nhập `cus` → mở `/dispatch` → phải bị chặn.
-  3. Đăng nhập `laixe`, `ketoan`, `customer` → mở `/dispatch` → phải bị chặn.
+  1. Đăng nhập `DISPATCHER` → mở `/dispatch` → phải thấy được.
+  2. Đăng nhập `CUS` → mở `/dispatch` → phải bị chặn.
+  3. Đăng nhập `DRIVER`, `ACCOUNTANT`, `CUSTOMER` → mở `/dispatch` → phải bị chặn.
 - **Kết quả mong đợi (Pass):**
   - Chỉ DISPATCHER và ADMIN vào được `/dispatch`.
   - Các vai trò khác: redirect về màn nhà hoặc "Không có quyền".
@@ -212,7 +212,7 @@
 ### TC-DV-DISPATCH-010 — Double-submit khi phát lệnh
 
 - **Mã PRD:** Q23, HT-04
-- **Vai trò:** `dieuvan`
+- **Vai trò:** `DISPATCHER`
 - **Mức độ:** P1
 - **Các bước:**
   1. Chọn chuyến, bấm "Phát hành lệnh" **2 lần liên tiếp** (Slow 3G).
@@ -227,7 +227,7 @@
 ### TC-DV-DISPATCH-011 — Concurrent dispatch: 2 người cùng phát lệnh cho 1 lô
 
 - **Mã PRD:** Q23
-- **Vai trò:** 2 tài khoản `dieuvan` (hoặc `dieuvan` + `admin`)
+- **Vai trò:** 2 tài khoản `DISPATCHER` (hoặc `DISPATCHER` + `ADMIN`)
 - **Mức độ:** P1
 - **Các bước:**
   1. Mở 2 tab, cùng 1 lô, 2 người cùng bấm "Phát hành lệnh".
@@ -241,7 +241,7 @@
 ### TC-DV-DISPATCH-012 — Phân xe lại khi tác vụ điều xe bị mất/tái cấu trúc (fallback)
 
 - **Mã PRD:** Bug fix 2026-08-29 — lệnh đã phát muộn không thể "Phân xe lại"
-- **Vai trò:** `dieuvan` (hoặc `admin` / `giamdoc`)
+- **Vai trò:** `DISPATCHER` (hoặc `ADMIN` / `MANAGER`)
 - **Mức độ:** P0
 - **Thiết bị:** Desktop (1440×900)
 - **Tiền điều kiện:** Đã phát lệnh điều xe, trip ở CREATED. Có thể mô phỏng: trip.fulfillmentId trỏ tới 1 fulfillment đã bị hủy cứng (canceledAt IS NOT NULL ở cấp DB hoặc row bị xóa khỏi `shipment_fulfillments`).
@@ -262,14 +262,14 @@
 ### TC-DV-DISPATCH-014 — Dialog "Phân bổ nhà xe" hiển thị đầy đủ nhà xe ngoài (EXTERNAL) trong dropdown, không chỉ "Đội xe nội bộ SilverSea"
 
 - **Mã PRD:** Bug fix 2026-09-05 — dropdown nhà xe trong dialog "Phân bổ nhà xe" (Kế hoạch tổng quát) chỉ hiển thị option OWN, không hiển thị nhà xe ngoài dù `/catalogs/bootstrap` đã trả `externalCarriers` hợp lệ
-- **Vai trò:** `dieuvan` (DISPATCHER)
+- **Vai trò:** `DISPATCHER` (DISPATCHER)
 - **Mức độ:** P0
 - **Thiết bị:** Desktop (1440×900)
 - **Tiền điều kiện:**
   - Backend `/api/v1/catalogs/bootstrap` trả về `externalCarriers` có ít nhất 1 nhà xe đang `isActive: true` (ví dụ HÀ AN, Nam Phong, Biên Đông).
   - Lô FCL đã READY_FOR_DISPATCH hiển thị trên `/dispatch` (Kế hoạch tổng quát), cột "Phân bổ nhà xe" đang "Chưa phân bổ".
 - **Các bước:**
-  1. Đăng nhập `dieuvan`. Mở `/dispatch`.
+  1. Đăng nhập `DISPATCHER`. Mở `/dispatch`.
   2. Tại cột "Phân bổ nhà xe" của 1 lô FCL, bấm "Chỉnh sửa phân bổ nhà xe" → dialog "Phân bổ nhà xe" mở ra.
   3. Bấm vào dropdown "Nhà xe" ở dòng "Phân bổ 1". Quan sát các option hiển thị.
   4. Bấm "Thêm nhà xe". Bấm dropdown "Nhà xe" ở dòng "Phân bổ 2". Quan sát.
@@ -291,7 +291,7 @@
 ### TC-DV-DISPATCH-013 — Bộ lọc ngày "Kế hoạch tổng quát" hiển thị lô đã phân nhà xe theo appointment container
 
 - **Mã PRD:** Bug fix 2026-08-29 — bộ lọc ngày đang không hiển thị lô đã phân nhà xe
-- **Vai trò:** `dieuvan` (DISPATCHER)
+- **Vai trò:** `DISPATCHER` (DISPATCHER)
 - **Mức độ:** P0
 - **Thiết bị:** Desktop (1440×900)
 - **Tiền điều kiện:** Lô FCL READY_FOR_DISPATCH đã được CUS gán nhà xe (plannedCarrierType = OWN/EXTERNAL trên shipmentFulfillments). **Quan trọng:** `shipments.expectedDeliveryDate` khác với `shipment_containers.customerAppointmentAt` (CUS đã re-appointment sang ngày khác).
@@ -315,14 +315,14 @@
 ### TC-DV-DISPATCH-015 — Dialog "Phân bổ nhà xe" nhận diện dữ liệu nhà xe đã nhập và cho phép lưu
 
 - **Mã PRD:** Bug fix regression — dialog "Phân bổ nhà xe" (Kế hoạch tổng quát) không nhận diện dữ liệu nhà xe đã nhập, dẫn đến trạng thái "Chưa phân đủ" hiển thị sai hoặc không cho phép lưu khi dữ liệu đã hợp lệ
-- **Vai trò:** `dieuvan` (DISPATCHER)
+- **Vai trò:** `DISPATCHER` (DISPATCHER)
 - **Mức độ:** P0
 - **Thiết bị:** Desktop (1440×900)
 - **Tiền điều kiện:**
   - Lô FCL READY_FOR_DISPATCH có 2 container 40' (0 container 20').
   - Dialog "Phân bổ nhà xe" đã mở, hiện dòng "Phân bổ 1" với dropdown "Nhà xe" và 2 ô input container.
 - **Các bước:**
-  1. Đăng nhập `dieuvan`. Mở `/dispatch`. Tìm lô FCL có 2 container 40'. Bấm "Chỉnh sửa phân bổ nhà xe".
+  1. Đăng nhập `DISPATCHER`. Mở `/dispatch`. Tìm lô FCL có 2 container 40'. Bấm "Chỉnh sửa phân bổ nhà xe".
   2. Trong dialog, chọn "Đội xe nội bộ SilverSea" từ dropdown "Nhà xe".
   3. Nhập `0` vào ô "Container 20'" và `1` vào ô "Container 40'".
   4. Quan sát: bảng "Tổng phân bổ" cập nhật đúng (Đã phân = 1x40', Còn lại = 1x40').
@@ -352,12 +352,12 @@
 ### TC-DV-DISPATCH-016 — Lưu phân bổ một phần (partial) và bổ sung sau
 
 - **Mã PRD:** Bug fix regression — phân bổ một phần không được lưu hoặc dữ liệu bị mất khi bổ sung sau
-- **Vai trò:** `dieuvan` (DISPATCHER)
+- **Vai trò:** `DISPATCHER` (DISPATCHER)
 - **Mức độ:** P0
 - **Thiết bị:** Desktop (1440×900)
 - **Tiền điều kiện:** Lô FCL READY_FOR_DISPATCH có 2 container 40' (0 container 20').
 - **Các bước:**
-  1. Đăng nhập `dieuvan`. Mở `/dispatch`. Tìm lô FCL có 2 container 40'. Bấm "Chỉnh sửa phân bổ nhà xe".
+  1. Đăng nhập `DISPATCHER`. Mở `/dispatch`. Tìm lô FCL có 2 container 40'. Bấm "Chỉnh sửa phân bổ nhà xe".
   2. Chọn "Đội xe nội bộ SilverSea", nhập `0` container 20' và `1` container 40'.
   3. Bấm "Lưu phân bổ". Kiểm tra: lưu thành công (mode = partial, cho phép under-allocation).
   4. Quan sát master plan: chip hiển thị "SilverSea: 1x40'", trạng thái lô = "PARTIALLY_ALLOCATED".
@@ -383,14 +383,14 @@
 ### TC-DV-DISPATCH-018 — Phát lệnh xe ngoài với biển số tự do (không cần xe trong database) (regression 2026-09-05)
 
 - **Mã PRD:** Bug fix 2026-09-05 — phát lệnh FCL cho xe ngoài bị chặn với lỗi "Vui lòng chọn xe của nhà xe" khi biển số chưa có trong danh mục `carrierFleetVehicles`
-- **Vai trò:** `dieuvan` (DISPATCHER)
+- **Vai trò:** `DISPATCHER` (DISPATCHER)
 - **Mức độ:** P0
 - **Thiết bị:** Desktop (1440×900)
 - **Tiền điều kiện:**
   - Lô FCL READY_FOR_DISPATCH đã được phân bổ cho nhà xe ngoài (ví dụ Biên Đông) với 1 container 40'.
   - Nhà xe ngoài đã chọn có `carrierFleetVehicles` rỗng hoặc không chứa biển số cần dùng (xe mới, chưa đăng ký trong catalog).
 - **Các bước:**
-  1. Đăng nhập `dieuvan`. Mở `/dispatch-detail` (Kế hoạch chi tiết).
+  1. Đăng nhập `DISPATCHER`. Mở `/dispatch-detail` (Kế hoạch chi tiết).
   2. Tìm fulfillment đã phân xe ngoài (Biên Đông). Ở cột "Biển số", chọn nhà xe ngoài và nhập biển số tự do (ví dụ `15C-222.33`) — không chọn từ dropdown fleet.
   3. Nhập tên tài xế: "Nguyen Van X". Nhập SĐT: "0912344565".
   4. Đặt giờ chạy và giờ kết thúc hợp lệ.
@@ -409,14 +409,14 @@
 ### TC-DV-DISPATCH-017 — Warning "Chưa có nhà xe ngoài nào được cấu hình" phải ẩn khi đã nhập OWN allocation (regression 2026-09-05)
 
 - **Mã PRD:** Bug fix 2026-09-05 — dialog "Phân bổ nhà xe" hiển thị liên tục warning "Chưa có nhà xe ngoài nào được cấu hình. Liên hệ Quản trị viên để bật cờ isCarrier…" ngay cả khi dispatcher đã nhập OWN allocation hợp lệ. Warning misleading khiến dispatcher nghĩ hệ thống không nhận diện dữ liệu đã nhập.
-- **Vai trò:** `dieuvan` (DISPATCHER)
+- **Vai trò:** `DISPATCHER` (DISPATCHER)
 - **Mức độ:** P1
 - **Thiết bị:** Desktop (1440×900)
 - **Tiền điều kiện:**
   - Backend `/api/v1/catalogs/bootstrap` trả về `externalCarriers: []` (zero nhà xe ngoài). Chỉ có "Đội xe nội bộ SilverSea".
   - Lô FCL READY_FOR_DISPATCH có 2 container 40' (0 container 20').
 - **Các bước:**
-  1. Đăng nhập `dieuvan`. Mở `/dispatch`. Tìm lô FCL có 2 container 40'. Bấm "Chỉnh sửa phân bổ nhà xe".
+  1. Đăng nhập `DISPATCHER`. Mở `/dispatch`. Tìm lô FCL có 2 container 40'. Bấm "Chỉnh sửa phân bổ nhà xe".
   2. Quan sát ngay khi dialog mở (chưa nhập gì): warning "Chưa có nhà xe ngoài nào được cấu hình…" **phải hiển thị** (giải thích vì sao nút "+ Thêm nhà xe" bị disabled).
   3. Chọn "Đội xe nội bộ SilverSea" từ dropdown "Nhà xe".
   4. Nhập `0` vào ô "Container 20'" và `1` vào ô "Container 40'".
@@ -442,13 +442,13 @@
 ### TC-DV-DISPATCH-019 — Lô hàng có 1 cont hoàn thành vẫn hiển thị trên màn Điều vận (regression 2026-09-05)
 
 - **Mã PRD:** Bug fix 2026-09-05 — lô hàng FCL có 1 container đã hoàn thành vận chuyển bị mất hiển thị cả lô trên màn Điều vận (Kế hoạch chi tiết)
-- **Vai trò:** `dieuvan` (DISPATCHER)
+- **Vai trò:** `DISPATCHER` (DISPATCHER)
 - **Mức độ:** P0
 - **Thiết bị:** Desktop (1440×900)
 - **Tiền điều kiện:**
   - Lô FCL có 2 container, mỗi container 1 fulfillment. Container A đã phát lệnh và hoàn thành (trip status = COMPLETED, shipment status đã chuyển sang COMPLETED). Container B chưa phát lệnh (fulfillment chưa có trip).
 - **Các bước:**
-  1. Đăng nhập `dieuvan`. Mở `/dispatch-detail` (Kế hoạch chi tiết).
+  1. Đăng nhập `DISPATCHER`. Mở `/dispatch-detail` (Kế hoạch chi tiết).
   2. Tìm lô FCL có 2 container. Kiểm tra: cả 2 fulfillment phải hiển thị trên danh sách.
   3. Quan sát fulfillment container A: trip đã tạo, status chip = "Hoàn thành".
   4. Quan sát fulfillment container B: chưa có trip, status chip = "Chưa phát lệnh".
@@ -474,12 +474,12 @@ hoặc `/dispatch-detail` thay đổi cấp dữ liệu hoặc trigger, các cas
 ### TC-DV-DISPATCH-020 — Màn `/dispatch` (Kế hoạch tổng quát) hiển thị theo LÔ HÀNG, không theo container
 
 - **Mã PRD:** O2C Bước 2a (PRD: QuyTrinhO2C.md §2a)
-- **Vai trò:** `dieuvan`
+- **Vai trò:** `DISPATCHER`
 - **Mức độ:** P0
 - **Thiết bị:** Desktop (1440×900)
 - **Tiền điều kiện:** Lô FCL READY_FOR_DISPATCH có **≥ 5 container** (ví dụ 5×40HC). Lô LCL có ≥ 10 dòng hàng lẻ. Lô có `Ngày giao hàng` hợp lệ.
 - **Các bước:**
-  1. Đăng nhập `dieuvan`. Mở `/dispatch`.
+  1. Đăng nhập `DISPATCHER`. Mở `/dispatch`.
   2. Tìm lô FCL 5×40HC vừa tạo. Quan sát số dòng trên bảng cho lô đó.
   3. Tìm lô LCL 10 dòng hàng lẻ. Quan sát số dòng.
   4. Mở API response của `GET /api/shipments?status=READY_FOR_DISPATCH,DISPATCHED,IN_TRANSIT,COMPLETED` — đếm số row trả về cho mỗi lô (mỗi lô đúng 1 row, bất kể số container).
@@ -497,12 +497,12 @@ hoặc `/dispatch-detail` thay đổi cấp dữ liệu hoặc trigger, các cas
 ### TC-DV-DISPATCH-021 — Phân bổ 1 lô cho nhiều nhà xe (multi-vendor)
 
 - **Mã PRD:** O2C Bước 2a (multi-vendor allocation)
-- **Vai trò:** `dieuvan`
+- **Vai trò:** `DISPATCHER`
 - **Mức độ:** P0
 - **Thiết bị:** Desktop (1440×900)
 - **Tiền điều kiện:** Lô FCL READY_FOR_DISPATCH có **4 container 40'**, OWN fleet + ít nhất 1 EXTERNAL carrier (Biên Đông) đều active trong `/catalogs/bootstrap`.
 - **Các bước:**
-  1. Đăng nhập `dieuvan`. Mở `/dispatch`. Bấm "Chỉnh sửa phân bổ nhà xe" trên lô 4×40HC.
+  1. Đăng nhập `DISPATCHER`. Mở `/dispatch`. Bấm "Chỉnh sửa phân bổ nhà xe" trên lô 4×40HC.
   2. Trong dialog "Phân bổ nhà xe", chọn "Đội xe nội bộ SilverSea" ở dòng 1, nhập `0×20'` + `2×40'`.
   3. Bấm "Thêm nhà xe". Chọn "Biên Đông" ở dòng 2, nhập `0×20'` + `2×40'`.
   4. Quan sát bảng "Tổng phân bổ": Đã phân = 4×40', Còn lại = 0.
@@ -524,7 +524,7 @@ hoặc `/dispatch-detail` thay đổi cấp dữ liệu hoặc trigger, các cas
 ### TC-DV-DISPATCH-022 — Validation: tổng phân bổ cont vượt quá tổng cont của lô → chặn lưu
 
 - **Mã PRD:** O2C Bước 2a (validation rule)
-- **Vai trò:** `dieuvan`
+- **Vai trò:** `DISPATCHER`
 - **Mức độ:** P0
 - **Thiết bị:** Desktop (1440×900)
 - **Tiền điều kiện:** Lô FCL READY_FOR_DISPATCH có **2 container 40'** (0 container 20'). OWN fleet + ít nhất 1 EXTERNAL carrier active.
@@ -547,7 +547,7 @@ hoặc `/dispatch-detail` thay đổi cấp dữ liệu hoặc trigger, các cas
 ### TC-DV-DISPATCH-023 — Auto-split từ `/dispatch` sang `/dispatch-detail` sau khi lưu phân bổ
 
 - **Mã PRD:** O2C Bước 2a (auto-split trigger)
-- **Vai trò:** `dieuvan`
+- **Vai trò:** `DISPATCHER`
 - **Mức độ:** P0
 - **Thiết bị:** Desktop (1440×900)
 - **Tiền điều kiện:** Lô FCL READY_FOR_DISPATCH có **3 container 40'**. Cả OWN và EXTERNAL đều active.
@@ -570,12 +570,12 @@ hoặc `/dispatch-detail` thay đổi cấp dữ liệu hoặc trigger, các cas
 ### TC-DV-DISPATCH-024 — Màn `/dispatch-detail` (Kế hoạch chi tiết) hiển thị theo CONTAINER, không theo lô
 
 - **Mã PRD:** O2C Bước 2b (PRD: QuyTrinhO2C.md §2b)
-- **Vai trò:** `dieuvan`
+- **Vai trò:** `DISPATCHER`
 - **Mức độ:** P0
 - **Thiết bị:** Desktop (1440×900)
 - **Tiền điều kiện:** Lô FCL READY_FOR_DISPATCH có 2 lô — 1 lô 1 container, 1 lô 5 container.
 - **Các bước:**
-  1. Đăng nhập `dieuvan`. Mở `/dispatch-detail`.
+  1. Đăng nhập `DISPATCHER`. Mở `/dispatch-detail`.
   2. Đếm tổng số dòng fulfillment hiển thị.
   3. Đối chiếu: lô 1 cont → 1 dòng, lô 5 cont → 5 dòng.
 - **Kết quả mong đợi (Pass):**
@@ -590,7 +590,7 @@ hoặc `/dispatch-detail` thay đổi cấp dữ liệu hoặc trigger, các cas
 ### TC-DV-DISPATCH-025 — Lô chỉ chuyển "Đã phân xe" khi TẤT CẢ container đã gán biển số
 
 - **Mã PRD:** O2C Bước 2b (status trigger — `Đã phân xe` chỉ khi đủ biển số)
-- **Vai trò:** `dieuvan`
+- **Vai trò:** `DISPATCHER`
 - **Mức độ:** P0
 - **Thiết bị:** Desktop (1440×900)
 - **Tiền điều kiện:** Lô FCL READY_FOR_DISPATCH có **3 container 40'**, đã được pre-fill nhà xe ở `/dispatch-detail`. Tài khoản OWN đang có sẵn biển số trong master data.
@@ -614,18 +614,18 @@ hoặc `/dispatch-detail` thay đổi cấp dữ liệu hoặc trigger, các cas
 ### TC-DV-DISPATCH-026 — Push notification tới Lái xe khi gán biển số Xe nhà
 
 - **Mã PRD:** O2C Bước 2b (push notification trigger)
-- **Vai trò:** `dieuvan` (gán) + `laixe` / `thu` (nhận push)
+- **Vai trò:** `DISPATCHER` (gán) + `DRIVER` / `DRIVER` (nhận push)
 - **Mức độ:** P0
-- **Thiết bị:** Desktop (1440×900) cho `dieuvan`; Mobile (390×844) cho `laixe`
+- **Thiết bị:** Desktop (1440×900) cho `DISPATCHER`; Mobile (390×844) cho `DRIVER`
 - **Tiền điều kiện:**
   - Lô FCL READY_FOR_DISPATCH có ≥ 1 container, đã pre-fill nhà xe OWN.
-  - Tài khoản `laixe` đang bind với 1 biển số OWN (theo `testaccounts.txt`).
+  - Tài khoản `DRIVER` đang bind với 1 biển số OWN (theo `testaccounts.txt`).
 - **Các bước:**
-  1. `dieuvan` mở `/dispatch-detail`. Gán biển số OWN của `laixe` cho 1 dòng container. Lưu.
-  2. Quan sát: trong vòng 5 giây, `laixe` đăng nhập app Lái xe → tab "Lệnh mới" có chuyến vừa được gán.
-  3. Kiểm tra push notification trên thiết bị `laixe` (nếu có PWA / mobile): thông báo "Chuyến được điều phối".
+  1. `DISPATCHER` mở `/dispatch-detail`. Gán biển số OWN của `DRIVER` cho 1 dòng container. Lưu.
+  2. Quan sát: trong vòng 5 giây, `DRIVER` đăng nhập app Lái xe → tab "Lệnh mới" có chuyến vừa được gán.
+  3. Kiểm tra push notification trên thiết bị `DRIVER` (nếu có PWA / mobile): thông báo "Chuyến được điều phối".
 - **Kết quả mong đợi (Pass):**
-  - Chuyến xuất hiện trong tab "Lệnh mới" của `laixe` ngay sau khi `dieuvan` lưu.
+  - Chuyến xuất hiện trong tab "Lệnh mới" của `DRIVER` ngay sau khi `DISPATCHER` lưu.
   - Push notification hiển thị tiếng Việt "Chuyến được điều phối" (hoặc tương đương).
   - Push xảy ra **trước** khi Ops đổi lệnh giấy (kể cả khi lô chưa `Đã phân xe` hẳn — miễn là 1 dòng Xe nhà đã có biển số).
 - **Kỳ vọng sai (Fail nếu):**
@@ -637,12 +637,12 @@ hoặc `/dispatch-detail` thay đổi cấp dữ liệu hoặc trigger, các cas
 ### TC-DV-DISPATCH-027 — Lô `Chờ chốt lịch` (PENDING_DATE) bị ẩn khỏi `/dispatch`
 
 - **Mã PRD:** O2C Bước 1 (validation) + Bước 2a (display rule)
-- **Vai trò:** `dieuvan`
+- **Vai trò:** `DISPATCHER`
 - **Mức độ:** P0
 - **Thiết bị:** Desktop (1440×900)
 - **Tiền điều kiện:** Có 2 lô — 1 lô READY_FOR_DISPATCH (đủ ngày giao), 1 lô PENDING_DATE (thiếu `Ngày giao hàng`).
 - **Các bước:**
-  1. Đăng nhập `dieuvan`. Mở `/dispatch`.
+  1. Đăng nhập `DISPATCHER`. Mở `/dispatch`.
   2. Tìm lô READY_FOR_DISPATCH — phải xuất hiện.
   3. Tìm lô PENDING_DATE — **phải không xuất hiện** trên bất kỳ filter nào (kể cả xóa filter ngày, kể cả search theo BL/khách hàng).
   4. Mở API `/api/v1/shipments/dispatch` — đảm bảo response không chứa lô PENDING_DATE.
@@ -658,7 +658,7 @@ hoặc `/dispatch-detail` thay đổi cấp dữ liệu hoặc trigger, các cas
 ### TC-DV-DISPATCH-028 — Xe ngoài cho phép nhập biển số tự do (free-text) khi chưa có trong catalog
 
 - **Mã PRD:** O2C Bước 2b (xe ngoài free-text)
-- **Vai trò:** `dieuvan`
+- **Vai trò:** `DISPATCHER`
 - **Mức độ:** P0
 - **Thiết bị:** Desktop (1440×900)
 - **Tiền điều kiện:** Lô FCL READY_FOR_DISPATCH đã phân bổ 1 container cho EXTERNAL carrier (ví dụ Biên Đông). Carrier này có `carrierFleetVehicles` rỗng (chưa đăng ký xe nào).
@@ -687,7 +687,7 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
 ### TC-DV-DISPATCH-029 — Ghép kết hợp CÙNG LÔ: 1 xe chở 2 container của cùng 1 lô FCL
 
 - **Mã PRD:** O2C Bước 2b (kết hợp cùng lô)
-- **Vai trò:** `dieuvan`
+- **Vai trò:** `DISPATCHER`
 - **Mức độ:** P0
 - **Thiết bị:** Desktop (1440×900)
 - **Tiền điều kiện:**
@@ -715,7 +715,7 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
 ### TC-DV-DISPATCH-030 — Ghép kết hợp KHÁC LÔ: 1 xe chở container của 2 lô cùng tuyến, cùng KH
 
 - **Mã PRD:** O2C Bước 2b (kết hợp khác lô)
-- **Vai trò:** `dieuvan`
+- **Vai trò:** `DISPATCHER`
 - **Mức độ:** P0
 - **Thiết bị:** Desktop (1440×900)
 - **Tiền điều kiện:**
@@ -732,7 +732,7 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
   7. Mở DB: kiểm tra 1 trip link tới fulfillments của cả 2 lô.
 - **Kết quả mong đợi (Pass):**
   - Tạo **đúng 1 trip** chứa 2 fulfillments thuộc 2 lô khác nhau.
-  - Trên app Lái xe (`laixe`): 1 chuyến hiển thị gồm cả 2 bill (Lô A + Lô B).
+  - Trên app Lái xe (`DRIVER`): 1 chuyến hiển thị gồm cả 2 bill (Lô A + Lô B).
   - Phí đường: 1 lần cho cả nhóm.
   - Doanh thu: mỗi fulfillment giữ doanh thu của lô mình (không trộn).
 - **Kỳ vọng sai (Fail nếu):**
@@ -744,20 +744,20 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
 ### TC-DV-DISPATCH-031 — Kẹp hàng KHÔNG hợp lệ vì khác tài xế → bị chặn, không được hưởng ưu đãi phí đường
 
 - **Mã PRD:** O2C Bước 2b (kẹp — điều kiện bắt buộc)
-- **Vai trò:** `dieuvan`
+- **Vai trò:** `DISPATCHER`
 - **Mức độ:** P0
 - **Thiết bị:** Desktop (1440×900)
 - **Tiền điều kiện:**
-  - 2 lô OWN cùng xe `15C-284.56` (gắn với `laixe`), cùng tuyến 2 chiều, thời gian không chồng lấn.
-  - Có 1 tài khoản OWN khác (ví dụ `thu`) gắn với xe khác, đang rảnh cùng khung giờ.
+  - 2 lô OWN cùng xe `15C-284.56` (gắn với `DRIVER`), cùng tuyến 2 chiều, thời gian không chồng lấn.
+  - Có 1 tài khoản OWN khác (ví dụ `DRIVER`) gắn với xe khác, đang rảnh cùng khung giờ.
 - **Các bước:**
-  1. Mở `/dispatch-detail`. Tạo 2 trip kẹp hợp lệ với xe `15C-284.56` + tài xế `laixe` (chiều đi + chiều về).
+  1. Mở `/dispatch-detail`. Tạo 2 trip kẹp hợp lệ với xe `15C-284.56` + tài xế `DRIVER` (chiều đi + chiều về).
   2. Bấm tích "Kẹp hàng" cho cặp trip đó. Phát lệnh. Quan sát: 2 trip tạo ra, liên kết cặp kẹp thành công.
-  3. Sau đó: **đổi tài xế** chiều về sang `thu` (cùng xe, khác tài xế). Lưu lại.
+  3. Sau đó: **đổi tài xế** chiều về sang `DRIVER` (cùng xe, khác tài xế). Lưu lại.
   4. Mở chi phí dự kiến/thực tế. Quan sát: tổng phí đường.
   5. Bấm "Kẹp hàng" lại trên cặp này.
 - **Kết quả mong đợi (Pass):**
-  - Bước 3: khi đổi tài xế chiều về sang `thu` (khác `laixe`), hệ thống **cảnh báo** "Không đủ điều kiện kẹp hàng" hoặc **tự gỡ liên kết kẹp** (cặp không còn hợp lệ).
+  - Bước 3: khi đổi tài xế chiều về sang `DRIVER` (khác `DRIVER`), hệ thống **cảnh báo** "Không đủ điều kiện kẹp hàng" hoặc **tự gỡ liên kết kẹp** (cặp không còn hợp lệ).
   - Bước 4: tổng phí đường được tính **2 lần** (mỗi trip 1 lần) — không còn ưu đãi lộ trình khép kín.
   - Bước 5: tích "Kẹp hàng" không thành công hoặc không có hiệu lực.
   - Audit log ghi nhận lý do gỡ liên kết ("đổi tài xế → mất điều kiện kẹp").
@@ -769,7 +769,7 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
 ### TC-DV-DISPATCH-032 — Phân loại chuyến Đơn (1 chiều) — happy path
 
 - **Mã PRD:** O2C Bước 2b (phân loại Đơn)
-- **Vai trò:** `dieuvan`
+- **Vai trò:** `DISPATCHER`
 - **Mức độ:** P1
 - **Thiết bị:** Desktop (1440×900)
 - **Tiền điều kiện:** Lô FCL READY_FOR_DISPATCH có 1 container 40'. OWN fleet có xe rảnh.
@@ -792,12 +792,12 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
 ### TC-DV-DISPATCH-033 — Lô 1 cont hoàn thành TOÀN BỘ vẫn hiển thị trên Kế hoạch Tổng quát (regression 2026-09-05)
 
 - **Mã PRD:** Bug fix 2026-09-05 (báo cáo khách hàng): lô FCL 1 container đã phát lệnh, tài xế hoàn thành → lô biến mất khỏi `/dispatch` (Kế hoạch Tổng quát) vì hook chỉ tải `READY_FOR_DISPATCH`.
-- **Vai trò:** `dieuvan` (DISPATCHER)
+- **Vai trò:** `DISPATCHER` (DISPATCHER)
 - **Mức độ:** P0
 - **Thiết bị:** Desktop (1440×900)
 - **Tiền điều kiện:** Lô FCL 1 container đã phát lệnh và tài xế đã hoàn thành chuyến (`shipments.status = 'COMPLETED'`, badge CUS "Đã khóa"/"Chờ Kế toán").
 - **Các bước:**
-  1. Đăng nhập `dieuvan`. Mở `/dispatch` (Kế hoạch Tổng quát).
+  1. Đăng nhập `DISPATCHER`. Mở `/dispatch` (Kế hoạch Tổng quát).
   2. Tìm lô theo tên khách hàng / số chứng từ.
   3. Quan sát dòng lô: chip phân bổ giữ nguyên, nút "Phân bổ nhà xe" bị vô hiệu (mờ) vì lô đã hoàn thành.
 - **Kết quả mong đợi (Pass):**
@@ -813,12 +813,12 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
 ### TC-DV-DISPATCH-034 — Ghi chú tác vụ cho lái xe: chọn nhanh tag + text tay trong dialog Chỉnh sửa điều phối (feature 2026-09-07)
 
 - **Mã PRD:** Feature request 2026-09-07 — quick-select task tags composing the driver-facing note
-- **Vai trò:** `dieuvan` (DISPATCHER)
+- **Vai trò:** `DISPATCHER` (DISPATCHER)
 - **Mức độ:** P0
 - **Thiết bị:** Desktop (1440×900)
 - **Tiền điều kiện:** Lô FCL/LCL READY_FOR_DISPATCH chưa phát lệnh, hiển thị trên /dispatch-detail
 - **Các bước:**
-  1. Đăng nhập `dieuvan`, mở `/dispatch-detail`.
+  1. Đăng nhập `DISPATCHER`, mở `/dispatch-detail`.
   2. Bấm ô "Điều phối" của một dòng lô → dialog "Chỉnh sửa điều phối" mở.
   6. Tìm mục "Ghi chú tác vụ": chip row (Đặt đầu, Đặt đuôi, Đảo vỏ, Gửi bãi, Lấy vỏ ICD đi đóng, Di động — seed từ migration) + ô textarea + dòng xem trước.
   3. Bấm chọn chip "Đặt đầu", "Lấy vỏ ICD đi đóng".
@@ -850,7 +850,7 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
 
 ### TC-DV-DISPATCH-035 — Hiển thị trường "Tác vụ điều phối" trên popup Chỉnh sửa điều phối
 
-- **Vai trò:** `dieuvan`
+- **Vai trò:** `DISPATCHER`
 - **Mức độ:** P1
 - **Thiết bị:** Desktop (1440×900)
 - **Tiền điều kiện:** Đăng nhập tài khoản Điều vận / Quản trị. Lô FCL/LCL hiển thị trên `/dispatch-detail`.
@@ -869,7 +869,7 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
 
 ### TC-DV-DISPATCH-036 — Dropdown tác vụ đầy đủ danh sách nghiệp vụ
 
-- **Vai trò:** `dieuvan`
+- **Vai trò:** `DISPATCHER`
 - **Mức độ:** P1
 - **Các bước:**
   1. Nhấp vào dropdown "Tác vụ điều phối" để mở rộng danh sách lựa chọn.
@@ -891,7 +891,7 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
 
 ### TC-DV-DISPATCH-037 — Lưu điều phối khi chọn từng tác vụ cụ thể
 
-- **Vai trò:** `dieuvan`
+- **Vai trò:** `DISPATCHER`
 - **Mức độ:** P1
 - **Dữ liệu kiểm thử:** Container "SMCU6163403", Xe "15C-184.62", Tác vụ: "Lấy vỏ ICD Quế Võ đi đóng"
 - **Các bước:**
@@ -911,7 +911,7 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
 
 ### TC-DV-DISPATCH-038 — Hiển thị tên Tác vụ trên bảng Điều vận và Chi tiết lô hàng
 
-- **Vai trò:** `dieuvan`
+- **Vai trò:** `DISPATCHER`
 - **Mức độ:** P1
 - **Tiền điều kiện:** Container đã được phân xe kèm tác vụ "Đảo vỏ" hoặc "Đặt đầu".
 - **Các bước:**
@@ -928,7 +928,7 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
 
 ### TC-DV-DISPATCH-039 — Thay đổi tác vụ điều phối (ví dụ từ "Đặt đầu" sang "Gửi bãi")
 
-- **Vai trò:** `dieuvan`
+- **Vai trò:** `DISPATCHER`
 - **Mức độ:** P2
 - **Các bước:**
   1. Mở lại container đang có tác vụ "Đặt đầu".
@@ -945,7 +945,7 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
 ### TC-DV-DISPATCH-040 — Dropdown picker không che nút bên dưới khi trigger ở dưới màn hình (dropdown-flip sweep, feature 2026-09-07)
 
 - **Mã PRD:** Bug class fix 2026-09-07 — A1-A4 + B1: autocomplete/multi-select dùng position:absolute không portal/flip
-- **Vai trò:** `dieuvan` (DISPATCHER)
+- **Vai trò:** `DISPATCHER` (DISPATCHER)
 - **Mức độ:** P0
 - **Thiết bị:** Desktop (1440×900, thử thêm viewport thấp 420px)
 - **Tiền điều kiện:** Có lô hàng trên /dispatch và /dispatch-detail
@@ -971,7 +971,7 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
 ## 2.14 — Bộ thẻ tác vụ điều phối nhanh 9 tags bao gồm "XƯỞNG 2" (QA Matrix v2.0)
 
 ### TC_TAG_01 — Hiển thị đầy đủ 9 thẻ tag tác vụ chuyên biệt
-- **Vai trò:** `dieuvan`, `admin`
+- **Vai trò:** `DISPATCHER`, `ADMIN`
 - **Mức độ:** P1
 - **Tiền điều kiện:** Mở dialog điều phối trên `/dispatch-detail`.
 - **Các bước:**
@@ -984,7 +984,7 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
 - **Regression ID:** REG-TAG-01-20260908
 
 ### TC_TAG_02 — Toggle chọn và bỏ chọn thẻ tag
-- **Vai trò:** `dieuvan`, `admin`
+- **Vai trò:** `DISPATCHER`, `ADMIN`
 - **Mức độ:** P1
 - **Các bước:**
   1. Nhấp chuột vào chip `XƯỞNG 2`.
@@ -997,7 +997,7 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
 - **Regression ID:** REG-TAG-02-20260908
 
 ### TC_TAG_03 — Kết hợp ghi chú văn bản tự do song song với thẻ tag
-- **Vai trò:** `dieuvan`, `admin`
+- **Vai trò:** `DISPATCHER`, `ADMIN`
 - **Mức độ:** P2
 - **Các bước:**
   1. Nhập văn bản vào ô Ghi chú: "Hàng lạnh bảo quản ở 5°C".
@@ -1009,7 +1009,7 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
 - **Regression ID:** REG-TAG-03-20260908
 
 ### TC_TAG_04 — Nút "+ Thêm tag" bổ sung tag mới vào catalog
-- **Vai trò:** `dieuvan`, `admin`
+- **Vai trò:** `DISPATCHER`, `ADMIN`
 - **Mức độ:** P2
 - **Các bước:**
   1. Quan sát cuối danh sách tag có nút "+ Thêm tag".
@@ -1025,7 +1025,7 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
 
 - **Quyết định:** Phân loại chuyến (Đơn/Kẹp/Kết hợp/Lẻ) và cờ lot-level "Đóng kết hợp" là quyền của CUS
   (tạo lô + quick-edit). Điều vận chỉ phân xe/cước/ghi chú.
-- **Vai trò:** `dieuvan` (DISPATCHER)
+- **Vai trò:** `DISPATCHER` (DISPATCHER)
 - **Mức độ:** P1
 - **Các bước:**
   1. Mở /dispatch-detail → "Chỉnh sửa điều phối" một dòng.

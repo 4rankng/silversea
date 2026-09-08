@@ -3,7 +3,7 @@
 > **Vietnamese label**: Kế toán (`Role.ACCOUNTANT`).
 > **Home route**: `/accounting` (`routes.accounting`).
 > **Primary sidebar section**: `Công nợ & Dòng tiền` (`financials`).
-> **Test account (local + staging)**: `ketoan` / `Abc123`.
+> **Test accounts**: chọn theo môi trường qua `../testaccounts.txt` (role → username). Runner tự map `ACCOUNTANT` + env → username phù hợp.
 > **Primary pages**:
 > - `/accounting` — `frontend/src/pages/AccountingWorkspacePage.tsx` (Tổng Quan Kế Toán)
 > - `/accounting/fuel-evidence` — `frontend/src/pages/FuelEvidenceReviewPage.tsx` (strict accountant)
@@ -98,7 +98,7 @@ balance, 1 supplier with a payable, 1 trip in `Hoàn thành` state.
 
 ### Test steps
 
-1. Log in as `ketoan`. Land on `/accounting`.
+1. Log in as `ACCOUNTANT`. Land on `/accounting`.
 2. Capture the current month.
 3. Click each hero KPI; capture the destination page.
 4. Switch to a different month; capture the new state.
@@ -157,7 +157,7 @@ balance, 1 supplier with a payable, 1 trip in `Hoàn thành` state.
 
 ### Test steps
 
-1. Log in as `ketoan`. Open `/debt`.
+1. Log in as `ACCOUNTANT`. Open `/debt`.
 2. Capture the list with default sort.
 3. Click a customer with a non-zero balance.
 4. Capture the ledger.
@@ -201,7 +201,7 @@ balance, 1 supplier with a payable, 1 trip in `Hoàn thành` state.
 
 ### Test steps
 
-1. Log in as `ketoan`. Open `/payables`.
+1. Log in as `ACCOUNTANT`. Open `/payables`.
 2. Capture the list. Click a supplier.
 3. Post a payment and capture the updated state.
 
@@ -238,9 +238,9 @@ balance, 1 supplier with a payable, 1 trip in `Hoàn thành` state.
 ### Test steps
 
 1. From the seed, find an OPS advance in `Chờ duyệt` (create one
-   via `giaonhan` if needed).
-2. Approve it as `ketoan`. Capture.
-3. Submit a settlement via `giaonhan`. Reconcile as `ketoan`.
+   via `OPS` if needed).
+2. Approve it as `ACCOUNTANT`. Capture.
+3. Submit a settlement via `OPS`. Reconcile as `ACCOUNTANT`.
    Capture.
 
 ---
@@ -272,7 +272,7 @@ only (`adminOnly` per `App.tsx:335`).
 
 ### Test steps
 
-1. Log in as `ketoan`. Open `/expenses`.
+1. Log in as `ACCOUNTANT`. Open `/expenses`.
 2. Try to navigate to `/expenses/new` — confirm redirect to
    `/accounting`.
 3. Click a row and confirm the read-only detail.
@@ -304,9 +304,9 @@ only (`adminOnly` per `App.tsx:335`).
 
 ### Test steps
 
-1. As `admin`, create a credit-override request for a customer
+1. As `ADMIN`, create a credit-override request for a customer
    (or use the seed).
-2. Switch to `ketoan` and approve.
+2. Switch to `ACCOUNTANT` and approve.
 3. Capture before/after.
 
 ---
@@ -363,8 +363,8 @@ only (`adminOnly` per `App.tsx:335`).
 
 ### Test steps
 
-1. As `laixe`, submit a fuel receipt for a completed trip.
-2. As `ketoan`, open `/accounting/fuel-evidence`.
+1. As `DRIVER`, submit a fuel receipt for a completed trip.
+2. As `ACCOUNTANT`, open `/accounting/fuel-evidence`.
 3. Approve the receipt. Capture before/after.
 
 ---
@@ -395,7 +395,7 @@ only (`adminOnly` per `App.tsx:335`).
 
 ### Test steps
 
-1. Log in as `ketoan`. Open `/finance` and `/profit`.
+1. Log in as `ACCOUNTANT`. Open `/finance` and `/profit`.
 2. Switch months; confirm the data updates.
 3. Click `Export` and capture the file.
 
@@ -425,7 +425,7 @@ only (`adminOnly` per `App.tsx:335`).
 
 ### Test steps
 
-1. Grant `treasury.read` to `ketoan` (it should be there by
+1. Grant `treasury.read` to `ACCOUNTANT` (it should be there by
    default in the seed; verify in the seed log).
 2. Open `/finance/treasury`. Capture.
 3. Hover the sparkline; capture the tooltip with the 7-day
@@ -460,7 +460,7 @@ guard (ADMIN, MANAGER, ACCOUNTANT, CUS-with-capability).
 
 1. From a prior round or the seed, ensure at least one
    recoverable-cost row exists.
-2. As `ketoan`, mark it reconciled. Capture.
+2. As `ACCOUNTANT`, mark it reconciled. Capture.
 3. Disagree with a CUS flag and post a note. Capture.
 
 ---

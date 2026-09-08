@@ -3,7 +3,7 @@
 > **Vietnamese label**: Nhân viên Chứng từ (`Role.CUS`, formerly CLERK, renamed 2024-08).
 > **Home route**: `/shipments` (`routes.shipments`).
 > **Primary sidebar section**: `Nghiệp vụ Chứng từ` (`document-ops`).
-> **Test account (local)**: `cus` / `Abc123`. **(staging)**: `cus123` / `Abc123`.
+> **Test accounts**: chọn theo môi trường qua `../testaccounts.txt` (role → username). Runner tự map `CUS` + env → username phù hợp.
 > **Primary pages**:
 > - `/shipments` — `frontend/src/pages/ShipmentsPage.tsx` (tổng quan lô hàng)
 > - `/shipments-detail` — `frontend/src/pages/ShipmentsDetailPage.tsx` (chi tiết lô hàng)
@@ -143,7 +143,7 @@ applies (silent redirect to `/shipments`).
 ### Test steps (manual)
 
 1. `pnpm dev` is up; `pgrep -f vite` confirms.
-2. Open `http://localhost:7174`; log in as `cus` / `Abc123`.
+2. Open `http://localhost:7174`; log in as `CUS` / `Abc123`.
 3. Land on `/shipments`. Click `+ Tạo lô hàng` (or navigate to
    `/shipments/new`).
 4. Exercise AC 1–7 in order.
@@ -232,7 +232,7 @@ DISPATCHER, CUS, ACCOUNTANT, CUSTOMER scoped).
 
 ### Test steps
 
-1. Log in as `cus`. Land on `/shipments`.
+1. Log in as `CUS`. Land on `/shipments`.
 2. Capture a baseline screenshot.
 3. Apply a filter and capture the result.
 4. Click a row and capture the detail page.
@@ -284,7 +284,7 @@ DISPATCHER, CUS, ACCOUNTANT, CUSTOMER scoped).
 1. From `/shipments`, click any row.
 2. Walk through each tab.
 3. Edit a container number; capture before/after.
-4. Verify the audit log row in `/audit-logs` (login as `admin` if
+4. Verify the audit log row in `/audit-logs` (login as `ADMIN` if
    needed; or trust the toast message).
 
 ### Regression hooks
@@ -324,8 +324,8 @@ DISPATCHER, CUS, ACCOUNTANT, CUSTOMER scoped).
 
 ### Test steps
 
-1. Log in as `cus` (without capability) → confirm redirect.
-2. Grant the capability to `cus` in the DB (or use a test seed) →
+1. Log in as `CUS` (without capability) → confirm redirect.
+2. Grant the capability to `CUS` in the DB (or use a test seed) →
    reload; confirm the sidebar item appears.
 3. Open `/recoverable-costs` and walk through the list.
 4. Capture before/after of a flagged row.
@@ -413,7 +413,7 @@ is the office staff's job.
      can later see "their" customers via the scoped bootstrap (commit
      `8b4332fd`).
    - **Evidence**: backend row inspection; `/customers` filter by
-     `createdBy` as `admin` returns the new row.
+     `createdBy` as `ADMIN` returns the new row.
 
 ### Regression hooks
 

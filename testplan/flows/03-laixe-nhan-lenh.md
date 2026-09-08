@@ -1,7 +1,7 @@
 # Luồng 3: Nhận lệnh & Kích hoạt chuyến — Lái xe (Driver)
 
 > **Vai trò sở hữu:** Lái xe (DRIVER)
-> **Tài khoản demo:** `laixe` (password: `Abc123`); dự phòng: `thu`, `pho`, `quyet`
+> **Tài khoản test:** chọn theo môi trường qua [`../testaccounts.txt`](../testaccounts.txt) — runner tự map role `DRIVER` → username phù hợp (local: `DRIVER`; staging: prod-mirror như `bqhuong`). Khi cần 2 driver khác nhau cho cùng 1 test, dùng 2 user bất kỳ trong cùng role.
 > **Route chính:** `/my-trips`, `/my-trips/:id`, `/my-earnings`, `/my-payslips`, `/my-penalties`
 > **Thiết bị mặc định:** Mobile (iPhone SE 375×667) — ứng dụng lái xe trên điện thoại
 > **PRD nguồn:** Module 08 (`docs/prd/Module8.docx`), O2C Bước 3, TC-MO2C-05
@@ -17,12 +17,12 @@
 ### TC-LX-NHANLENH-001 — Lái xe thấy lệnh mới và thông báo
 
 - **Mã PRD:** M08-8.2, TC-MO2C-05
-- **Vai trò:** `laixe`
+- **Vai trò:** `DRIVER`
 - **Mức độ:** P0
 - **Thiết bị:** Mobile (375×667)
-- **Tiền điều kiện:** Điều vận đã phát lệnh cho `laixe` (trip CREATED)
+- **Tiền điều kiện:** Điều vận đã phát lệnh cho `DRIVER` (trip CREATED)
 - **Các bước:**
-  1. Đăng nhập `laixe` trên mobile. Mở `/my-trips`.
+  1. Đăng nhập `DRIVER` trên mobile. Mở `/my-trips`.
   2. Tìm lệnh mới. Bấm vào để xem chi tiết.
   3. Kiểm tra: chuyến, thời gian, tuyến, Booking/BL, container, xe, hướng dẫn, chứng từ đính kèm.
 - **Kết quả mong đợi (Pass):**
@@ -43,11 +43,11 @@
 ### TC-LX-NHANLENH-002 — Lái xe không có lệnh nào (empty state)
 
 - **Mã PRD:** M08-8.1
-- **Vai trò:** `laixe` (mới, chưa được điều động)
+- **Vai trò:** `DRIVER` (mới, chưa được điều động)
 - **Mức độ:** P1
 - **Thiết bị:** Mobile
 - **Các bước:**
-  1. Đăng nhập `laixe` mới (chưa có chuyến).
+  1. Đăng nhập `DRIVER` mới (chưa có chuyến).
   2. Mở `/my-trips`.
 - **Kết quả mong đợi (Pass):**
   - Hiển thị "Chưa có lệnh điều động" rõ ràng.
@@ -62,10 +62,10 @@
 ### TC-LX-NHANLENH-003 — Lái xe tự kích hoạt chuyến: CREATED → IN_TRANSIT
 
 - **Mã PRD:** TC-MO2C-05, O2C Bước 3
-- **Vai trò:** `laixe`
+- **Vai trò:** `DRIVER`
 - **Mức độ:** P0
 - **Thiết bị:** Mobile
-- **Tiền điều kiện:** Trip ở trạng thái CREATED, đã gán cho `laixe`
+- **Tiền điều kiện:** Trip ở trạng thái CREATED, đã gán cho `DRIVER`
 - **Các bước:**
   1. Mở `/my-trips/:id` (trip CREATED).
   2. Bấm "Đã nhận lệnh gốc" (ORDER_RECEIVED).
@@ -88,7 +88,7 @@
 
 ### TC-LX-NHANLENH-004 — Thử bấm nhận lệnh khi trip không ở trạng thái CREATED
 
-- **Vai trò:** `laixe`
+- **Vai trò:** `DRIVER`
 - **Mức độ:** P1
 - **Các bước:**
   1. Trip đã ở IN_TRANSIT (đã nhận lệnh rồi).
@@ -105,7 +105,7 @@
 ### TC-LX-NHANLENH-005 — Xem chi tiết chuyến IN_TRANSIT
 
 - **Mã PRD:** M08-8.2
-- **Vai trò:** `laixe`
+- **Vai trò:** `DRIVER`
 - **Mức độ:** P1
 - **Thiết bị:** Mobile
 - **Tiền điều kiện:** Trip đã IN_TRANSIT
@@ -125,14 +125,14 @@
 ### TC-LX-NHANLENH-006 — Lái xe A không xem được lệnh của Lái xe B
 
 - **Mã PRD:** HT-02, M08-8.1
-- **Vai trò:** `laixe` (A) vs `thu` (B)
+- **Vai trò:** `DRIVER` (A) vs `DRIVER` (B)
 - **Mức độ:** P0
 - **Thiết bị:** Mobile
 - **Các bước:**
-  1. Đăng nhập `laixe` (A). Lấy ID chuyến của `thu` (B) từ DB hoặc URL.
+  1. Đăng nhập `DRIVER` (A). Lấy ID chuyến của `DRIVER` (B) từ DB hoặc URL.
   2. Mở trực tiếp `/my-trips/<id-của-thu>`.
 - **Kết quả mong đợi (Pass):**
-  - `laixe` A không xem được chi tiết chuyến của `thu`.
+  - `DRIVER` A không xem được chi tiết chuyến của `DRIVER`.
   - Redirect về `/my-trips` hoặc "Không có quyền".
   - API trả 403. Response body không lộ dữ liệu.
 - **Bằng chứng:** ảnh redirect + Network 403
@@ -142,13 +142,13 @@
 ### TC-LX-NHANLENH-007 — Vai trò khác không vào được cổng lái xe
 
 - **Mã PRD:** HT-02
-- **Vai trò thử:** `ketoan`, `customer`, `cus`, `giaonhan`
+- **Vai trò thử:** `ACCOUNTANT`, `CUSTOMER`, `CUS`, `OPS`
 - **Mức độ:** P0
 - **Các bước:**
-  1. Đăng nhập `ketoan`. Mở `/my-trips`.
-  2. Đăng nhập `customer`. Mở `/my-trips`.
-  3. Đăng nhập `cus`. Mở `/my-trips`.
-  4. Đăng nhập `giaonhan`. Mở `/my-trips`.
+  1. Đăng nhập `ACCOUNTANT`. Mở `/my-trips`.
+  2. Đăng nhập `CUSTOMER`. Mở `/my-trips`.
+  3. Đăng nhập `CUS`. Mở `/my-trips`.
+  4. Đăng nhập `OPS`. Mở `/my-trips`.
 - **Kết quả mong đợi (Pass):**
   - Tất cả đều bị redirect về màn nhà của vai trò hoặc "Không có quyền".
   - Không lộ dữ liệu chuyến/lương/chứng từ.
@@ -161,11 +161,11 @@
 ### TC-LX-NHANLENH-008 — Điều vận đổi giờ chạy → Lái xe thấy cập nhật
 
 - **Mã PRD:** M08-8.1, Q22
-- **Vai trò:** `admin` (điều vận) + `laixe`
+- **Vai trò:** `ADMIN` (điều vận) + `DRIVER`
 - **Mức độ:** P1
 - **Các bước:**
-  1. `admin` sửa giờ chạy chuyến từ 08:00 → 09:00 trên `/trips/:id`.
-  2. `laixe` tải lại `/my-trips` và mở `/my-trips/:id`.
+  1. `ADMIN` sửa giờ chạy chuyến từ 08:00 → 09:00 trên `/trips/:id`.
+  2. `DRIVER` tải lại `/my-trips` và mở `/my-trips/:id`.
   3. So sánh giờ hiển thị.
 - **Kết quả mong đợi (Pass):**
   - Giờ trên cổng lái xe cập nhật thành 09:00, khớp nguồn admin.
@@ -179,7 +179,7 @@
 ### TC-LX-NHANLENH-009 — Mất mạng khi đang xem lệnh
 
 - **Mã PRD:** HT-08
-- **Vai trò:** `laixe`
+- **Vai trò:** `DRIVER`
 - **Mức độ:** P1
 - **Thiết bị:** Mobile
 - **Các bước:**
@@ -197,7 +197,7 @@
 ### TC-LX-NHANLENH-010 — Responsive: xoay ngang, cỡ chữ lớn
 
 - **Mã PRD:** HT-07, M08-8.1
-- **Vai trò:** `laixe`
+- **Vai trò:** `DRIVER`
 - **Mức độ:** P2
 - **Thiết bị:** Mobile (375×667 + xoay ngang 667×375)
 - **Các bước:**

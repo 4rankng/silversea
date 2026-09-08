@@ -1,7 +1,7 @@
 # Luồng 1: Tạo Lô hàng — Nhân viên Chứng từ (CUS)
 
 > **Vai trò sở hữu:** CUS (CLERK) — Nhân viên Chứng từ / CSKH
-> **Tài khoản demo:** `cus` (password: `Abc123`)
+> **Tài khoản test:** chọn theo môi trường qua [`../testaccounts.txt`](../testaccounts.txt) — runner tự map role `CUS` → username phù hợp (local: `CUS`; staging: prod-mirror như `thanhdc`).
 > **Route chính:** `/shipments/new`, `/shipments`, `/shipments/:id`
 > **Vai trò được phép tạo lô:** ADMIN, CUS, MANAGER
 > **PRD nguồn:** Module 10 (`docs/prd/Module10.docx`), O2C Flow Bước 1
@@ -17,12 +17,12 @@
 ### TC-CUS-CREATE-001 — Tạo lô FCL thành công (luồng thường)
 
 - **Mã PRD:** M10-01-01, TC-MO2C-03
-- **Vai trò:** `cus`
+- **Vai trò:** `CUS`
 - **Mức độ:** P0
 - **Thiết bị:** Desktop (1440×900)
 - **Tiền điều kiện:** Có ít nhất 1 khách hàng active, 1 tuyến đường, 1 bảng giá cước còn hiệu lực
 - **Các bước:**
-  1. Đăng nhập `cus`. Mở `/shipments/new`.
+  1. Đăng nhập `CUS`. Mở `/shipments/new`.
   2. Chọn Khách hàng từ dropdown.
   3. Nhập Số Booking: `BK-TEST-FCL-01`, Số vận đơn (B/L): `BL-TEST-FCL-01`.
   4. Chọn Tuyến đường.
@@ -50,7 +50,7 @@
 ### TC-CUS-CREATE-002 — Tạo lô FCL với container trống (cho phép thiếu số cont)
 
 - **Mã PRD:** TC-MO2C-03
-- **Vai trò:** `cus`
+- **Vai trò:** `CUS`
 - **Mức độ:** P1
 - **Tiền điều kiện:** như TC-CUS-CREATE-001
 - **Các bước:**
@@ -72,7 +72,7 @@
 ### TC-CUS-CREATE-003 — Tạo lô LCL thành công (luồng thường)
 
 - **Mã PRD:** TC-MO2C-03
-- **Vai trò:** `cus`
+- **Vai trò:** `CUS`
 - **Mức độ:** P0
 - **Thiết bị:** Desktop
 - **Tiền điều kiện:** Có khách hàng, tuyến, bảng giá cước, fuel config
@@ -100,7 +100,7 @@
 
 ### TC-CUS-CREATE-004 — Thiếu trường bắt buộc
 
-- **Vai trò:** `cus`
+- **Vai trò:** `CUS`
 - **Mức độ:** P1
 - **Thiết bị:** Desktop + Mobile
 - **Các bước:**
@@ -118,7 +118,7 @@
 ### TC-CUS-CREATE-005 — Mất kết nối khi lưu, gửi lại không trùng (idempotency)
 
 - **Mã PRD:** Q23, TC-M10-01-03
-- **Vai trò:** `cus`
+- **Vai trò:** `CUS`
 - **Mức độ:** P1
 - **Các bước:**
   1. Nhập đầy đủ thông tin lô.
@@ -137,13 +137,13 @@
 ### TC-CUS-CREATE-006 — Bàn giao lô cho Điều vận thành công
 
 - **Mã PRD:** M10-03-01, Q17
-- **Vai trò:** `cus` (bàn giao) + `dieuvan` (nhận)
+- **Vai trò:** `CUS` (bàn giao) + `DISPATCHER` (nhận)
 - **Mức độ:** P0
 - **Thiết bị:** Desktop (cần 2 phiên)
 - **Tiền điều kiện:** Lô đã tạo xong, có B/L và ≥1 container
 - **Các bước:**
-  1. Đăng nhập `cus`. Mở `/shipments/:id`. Bấm "Bàn giao cho Điều vận" (tạo handoff).
-  2. Đăng nhập `dieuvan` ở tab khác. Kiểm tra thông báo / màn điều vận.
+  1. Đăng nhập `CUS`. Mở `/shipments/:id`. Bấm "Bàn giao cho Điều vận" (tạo handoff).
+  2. Đăng nhập `DISPATCHER` ở tab khác. Kiểm tra thông báo / màn điều vận.
   3. Quan sát: thông báo, trạng thái handoff, version snapshot.
 - **Kết quả mong đợi (Pass):**
   - Điều vận nhận notification kiểu `SHIPMENT_HANDOFF` cho đúng lô.
@@ -161,11 +161,11 @@
 ### TC-CUS-CREATE-007 — Sửa lô sau khi bàn giao → cảnh báo version conflict
 
 - **Mã PRD:** M10-03-03
-- **Vai trò:** `cus` (sửa) + `dieuvan` (đang xem)
+- **Vai trò:** `CUS` (sửa) + `DISPATCHER` (đang xem)
 - **Mức độ:** P1
 - **Các bước:**
   1. Lô đã bàn giao, Điều vận đã mở (handoff SEEN).
-  2. `cus` sửa B/L hoặc container trên lô → version tăng.
+  2. `CUS` sửa B/L hoặc container trên lô → version tăng.
   3. Điều vận mở lại lô.
 - **Kết quả mong đợi (Pass):**
   - Hệ thống cảnh báo Điều vận: "Lô đã có phiên bản mới" (version conflict).
@@ -179,13 +179,13 @@
 ### TC-CUS-CREATE-008 — Vai trò được phép và bị chặn tạo lô
 
 - **Mã PRD:** Q17, TC-M10-01-04
-- **Vai trò được phép:** `admin`, `cus`, `giamdoc`
-- **Vai trò bị chặn:** `ketoan`, `dieuvan`, `laixe`, `giaonhan`, `customer`
+- **Vai trò được phép:** `ADMIN`, `CUS`, `MANAGER`
+- **Vai trò bị chặn:** `ACCOUNTANT`, `DISPATCHER`, `DRIVER`, `OPS`, `CUSTOMER`
 - **Mức độ:** P0
 - **Thiết bị:** Desktop
 - **Các bước:**
-  1. Lần lượt đăng nhập `admin`, `cus`, `giamdoc`; mở `/shipments/new` → phải mở được.
-  2. Lần lượt đăng nhập `ketoan`, `dieuvan`, `laixe`, `giaonhan`, `customer`; mở `/shipments/new`.
+  1. Lần lượt đăng nhập `ADMIN`, `CUS`, `MANAGER`; mở `/shipments/new` → phải mở được.
+  2. Lần lượt đăng nhập `ACCOUNTANT`, `DISPATCHER`, `DRIVER`, `OPS`, `CUSTOMER`; mở `/shipments/new`.
 - **Kết quả mong đợi (Pass):**
   - ADMIN, CUS, MANAGER thấy CTA "Tạo lô mới" và mở được form.
   - Các vai trò còn lại: redirect về màn nhà hoặc "Không có quyền".
@@ -197,10 +197,10 @@
 ### TC-CUS-CREATE-009 — CUS thấy toàn bộ lô hàng (không giới hạn phạm vi)
 
 - **Mã PRD:** Q17
-- **Vai trò:** `cus`
+- **Vai trò:** `CUS`
 - **Mức độ:** P1
 - **Các bước:**
-  1. Đăng nhập `cus`. Mở `/shipments`.
+  1. Đăng nhập `CUS`. Mở `/shipments`.
   2. Kiểm tra: thấy **tất cả** lô hàng trong hệ thống (mọi khách hàng, mọi đơn vị phụ trách), không giới hạn theo người dùng.
   3. Mở trực tiếp URL `/shipments/:id` của bất kỳ lô nào (kể cả lô do người dùng khác tạo).
 - **Kết quả mong đợi (Pass):**
@@ -215,7 +215,7 @@
 ### TC-CUS-CREATE-010 — Tạo liên tiếp nhiều lô, không lỗi
 
 - **Mã PRD:** TC-M10-01-05
-- **Vai trò:** `cus`
+- **Vai trò:** `CUS`
 - **Mức độ:** P2
 - **Các bước:**
   1. Tạo lô A (booking `ROLL-A`). Không reload trang.
@@ -232,7 +232,7 @@
 ### TC-CUS-CREATE-011 — Double-submit không tạo bản ghi trùng
 
 - **Mã PRD:** Q23, HT-04
-- **Vai trò:** `cus`
+- **Vai trò:** `CUS`
 - **Mức độ:** P1
 - **Các bước:**
   1. DevTools Network → Slow 3G.
@@ -250,10 +250,10 @@
 ### TC-CUS-CREATE-012 — Tạo khách hàng inline thành công từ form tạo lô
 
 - **Mã PRD:** 74a17b5c, casbin.ts:38-45
-- **Vai trò:** `cus`
+- **Vai trò:** `CUS`
 - **Mức độ:** P0
 - **Thiết bị:** Desktop (1440×900)
-- **Tiền điều kiện:** Đăng nhập `cus`, mở `/shipments/new`
+- **Tiền điều kiện:** Đăng nhập `CUS`, mở `/shipments/new`
 - **Các bước:**
   1. Ở dropdown "Khách hàng", bấm "Thêm khách hàng" (nút + hoặc link).
   2. Dialog "Thêm khách hàng" mở. Nhập tên: `KH Inline Test E2E`.
@@ -277,7 +277,7 @@
 ### TC-CUS-CREATE-013 — CUS không thể sửa/xóa khách hàng (create-only)
 
 - **Mã PRD:** casbin.ts:38-45, customer-intake-create.test.ts:158-178
-- **Vai trò:** `cus`
+- **Vai trò:** `CUS`
 - **Mức độ:** P0
 - **Thiết bị:** Desktop
 - **Các bước:**
@@ -295,10 +295,10 @@
 ### TC-CUS-CREATE-014 — Dispatcher cũng tạo được khách hàng inline
 
 - **Mã PRD:** casbin.ts:38-45
-- **Vai trò:** `dieuvan`
+- **Vai trò:** `DISPATCHER`
 - **Mức độ:** P1
 - **Thiết bị:** Desktop
-- **Tiền điều kiện:** Đăng nhập `dieuvan`, mở trang có dropdown khách hàng
+- **Tiền điều kiện:** Đăng nhập `DISPATCHER`, mở trang có dropdown khách hàng
 - **Các bước:**
   1. Tạo khách hàng inline qua API: `POST /api/customers` với tên `KH Dispatcher Test`.
   2. Kiểm tra: tạo thành công (201), credit fields bị strip.
@@ -312,13 +312,13 @@
 ### TC-CUS-CREATE-015 — Vai trò khác không tạo được khách hàng inline
 
 - **Mã PRD:** casbin.ts:38-45
-- **Vai trò bị chặn:** `laixe`, `ketoan`, `giaonhan`, `customer`
+- **Vai trò bị chặn:** `DRIVER`, `ACCOUNTANT`, `OPS`, `CUSTOMER`
 - **Mức độ:** P0
 - **Các bước:**
-  1. Đăng nhập `laixe`. Gọi `POST /api/customers` qua API.
-  2. Đăng nhập `ketoan`. Gọi `POST /api/customers`.
-  3. Đăng nhập `giaonhan`. Gọi `POST /api/customers`.
-  4. Đăng nhập `customer`. Gọi `POST /api/customers`.
+  1. Đăng nhập `DRIVER`. Gọi `POST /api/customers` qua API.
+  2. Đăng nhập `ACCOUNTANT`. Gọi `POST /api/customers`.
+  3. Đăng nhập `OPS`. Gọi `POST /api/customers`.
+  4. Đăng nhập `CUSTOMER`. Gọi `POST /api/customers`.
 - **Kết quả mong đợi (Pass):**
   - Tất cả bị 403 — Casbin chỉ bypass cho CUS và DISPATCHER.
   - Không tạo được khách hàng.
@@ -335,10 +335,10 @@
 
 ### TC-CUS-CREATE-016 — Dropdown nhà máy hiển thị đúng theo khách hàng đã chọn
 
-- **Vai trò:** `cus`
+- **Vai trò:** `CUS`
 - **Mức độ:** P0
 - **Thiết bị:** Desktop (1440×900)
-- **Tiền điều kiện:** Đăng nhập `cus`, mở `/shipments/new`; khách hàng được chọn có ≥1 nhà máy active
+- **Tiền điều kiện:** Đăng nhập `CUS`, mở `/shipments/new`; khách hàng được chọn có ≥1 nhà máy active
 - **Các bước:**
   1. Chọn khách hàng có nhà máy (vd LOGCOM).
   2. Để chế độ FCL: kiểm tra dropdown "Nhà máy" của dòng container.
@@ -355,7 +355,7 @@
 
 ### TC-CUS-CREATE-017 — Tạo nhà máy inline từ form tạo lô, tự chọn sau khi tạo
 
-- **Vai trò:** `cus`
+- **Vai trò:** `CUS`
 - **Mức độ:** P0
 - **Tiền điều kiện:** đã chọn khách hàng ở form tạo lô
 - **Các bước:**
@@ -374,11 +374,11 @@
 
 ### TC-CUS-CREATE-019 — Tạo cảng/bãi inline ngay từ ô Cảng nâng/hạ của container
 
-- **Vai trò:** `cus`
+- **Vai trò:** `CUS`
 - **Mức độ:** P0
 - **Nguồn:** báo cáo khách hàng 2026-09-06 14:02 — "Trường nào cho phép input text được CTO nhớ cho phép nhập text nhé, vẫn còn nhiều chỗ chỉ cho chọn dropdown"
 - **Các bước:**
-  1. Đăng nhập `cus`, mở `/shipments/new`, chọn khách hàng (FCL).
+  1. Đăng nhập `CUS`, mở `/shipments/new`, chọn khách hàng (FCL).
   2. Ở dòng container, focus ô **Cảng nâng** → bấm nút **Thêm** trong ô.
   3. Dialog "Thêm cảng / bãi": nhập tên cảng, mã (tùy chọn), địa chỉ (tùy chọn) → bấm "Thêm cảng / bãi".
   4. Làm tương tự kiểm tra ô **Cảng hạ** và ô **Tuyến đường** (nút Thêm mở dialog tạo tuyến).
@@ -394,7 +394,7 @@
 
 ### TC-CUS-CREATE-018 — Form thêm khách hàng inline có đủ thông tin liên hệ
 
-- **Vai trò:** `cus`
+- **Vai trò:** `CUS`
 - **Mức độ:** P1
 - **Nguồn:** báo cáo khách hàng 2026-09-06 — "Form thêm mới của khách hàng đang không được đầy đủ thông tin"
 - **Các bước:**
@@ -419,7 +419,7 @@
 
 ### TC-CUS-CREATE-019 — `Quy cách đóng gói` cho phép nhập text tự do
 
-- **Vai trò:** `cus`
+- **Vai trò:** `CUS`
 - **Mức độ:** P0
 - **Nguồn:** báo cáo khách hàng 2026-09-06 — "vẫn còn nhiều chỗ chỉ cho phép chọn dropdown"
 - **Các bước:**
@@ -441,7 +441,7 @@
 
 ### TC-CUS-CREATE-020 — Tạo Loại container inline từ form tạo lô, tự chọn sau khi tạo
 
-- **Vai trò:** `cus`
+- **Vai trò:** `CUS`
 - **Mức độ:** P0
 - **Nguồn:** báo cáo khách hàng 2026-09-06 — "vẫn còn nhiều chỗ chỉ cho phép chọn dropdown"
 - **Các bước:**
@@ -484,10 +484,10 @@
 
 ### TC-CUS-CREATE-021 — Xoá chọn trong ô Nhà máy container rồi chọn lại
 
-- **Vai trò:** `cus`
+- **Vai trò:** `CUS`
 - **Mức độ:** P0
 - **Thiết bị:** Desktop (1440×900)
-- **Tiền điều kiện:** Đăng nhập `cus`, mở `/shipments/new`; khách hàng có ≥2 nhà máy active
+- **Tiền điều kiện:** Đăng nhập `CUS`, mở `/shipments/new`; khách hàng có ≥2 nhà máy active
 - **Các bước:**
   1. Chọn khách hàng. Thêm 1 dòng container.
   2. Ở cột "Nhà máy", chọn nhà máy A (vd SCONNECT).
@@ -505,7 +505,7 @@
 
 ### TC-CUS-CREATE-022 — Xoá chọn trong ô Tuyến đường container
 
-- **Vai trò:** `cus`
+- **Vai trò:** `CUS`
 - **Mức độ:** P0
 - **Các bước:**
   1. Ở dòng container, chọn Tuyến đường đã chọn (vd "KCN ĐỒNG VĂN, HÀ NAM").
@@ -521,7 +521,7 @@
 
 ### TC-CUS-CREATE-023 — Xoá chọn trong ô Cảng nâng và Cảng hạ container
 
-- **Vai trò:** `cus`
+- **Vai trò:** `CUS`
 - **Mức độ:** P0
 - **Các bước:**
   1. Ở dòng container, chọn **Cảng nâng** (vd "Cảng VipGreenPort").
@@ -537,7 +537,7 @@
 
 ### TC-CUS-CREATE-024 — Xoá chọn trong ô dropdown ở chế độ LCL
 
-- **Vai trò:** `cus`
+- **Vai trò:** `CUS`
 - **Mức độ:** P1
 - **Các bước:**
   1. Chuyển sang chế độ **Hàng lẻ (LCL)**.
@@ -551,7 +551,7 @@
 
 ### TC-CUS-CREATE-025 — Nhấn Escape để revert giá trị dropdown container
 
-- **Vai trò:** `cus`
+- **Vai trò:** `CUS`
 - **Mức độ:** P1
 - **Các bước:**
   1. Ở dòng container, focus ô Nhà máy (đã chọn giá trị A).
@@ -578,7 +578,7 @@
 ### TC-CUS-CREATE-023 — Nhà máy gán ở container hiển thị trên trang chi tiết `/shipments/:id`
 
 - **Mã PRD:** Q17, factory-display-pin (báo cáo 2026-09-07)
-- **Vai trò:** `cus` (longminh-side account, vd `thanhdc`)
+- **Vai trò:** `CUS` (longminh-side account, vd `thanhdc`)
 - **Mức độ:** P0
 - **Thiết bị:** Desktop (1440×900)
 - **Tiền điều kiện:** Lô có `shipment_containers.operational_site_id` được set nhưng
@@ -597,7 +597,7 @@
 
 ### TC-CUS-CREATE-024 — Nhà máy ở shipment-level vẫn ưu tiên khi cả hai đều set
 
-- **Vai trò:** `cus`
+- **Vai trò:** `CUS`
 - **Mức độ:** P1
 - **Tiền điều kiện:** Lô có cả `shipments.factory_name` (free-text) **và** `shipments.operational_site_id` đều set.
 - **Các bước:**
@@ -681,13 +681,13 @@
 ### TC-CUS-CREATE-026 — Chặn tạo lô trùng Số Bill / Số Booking / Số tờ khai (regression bug 2026-09-07)
 
 - **Mã PRD:** duplicate-bill-guard (báo cáo 2026-09-07)
-- **Vai trò:** `cus`
+- **Vai trò:** `CUS`
 - **Mức độ:** P0
 - **Thiết bị:** Desktop (1440×900)
 - **Tiền điều kiện:** Lô đã tồn tại với BL `BL-DUP-001` (Hàng Nhập), Tờ khai `TK-DUP-001`, do tài
-  khoản `cus` khác (hoặc cùng `cus`) tạo trước đó. Lô cũ chưa xóa.
+  khoản `CUS` khác (hoặc cùng `CUS`) tạo trước đó. Lô cũ chưa xóa.
 - **Các bước:**
-  1. Đăng nhập `cus`, mở `/shipments/new`.
+  1. Đăng nhập `CUS`, mở `/shipments/new`.
   2. Chọn khách hàng (vd LONG MINH), hình thức **Nhập khẩu**, nhập `Số Bill = BL-DUP-001`.
   3. Hoàn tất các trường còn lại, bấm **Tạo lô hàng**.
   4. Đợi response từ backend, quan sát thông báo lỗi.
@@ -716,7 +716,7 @@
 
 ### TC-CUS-CREATE-027 — Cảnh báo inline trong form khi gõ Số Bill / Số Booking / Tờ khai đã tồn tại
 
-- **Vai trò:** `cus`
+- **Vai trò:** `CUS`
 - **Mức độ:** P0
 - **Tiền điều kiện:** giống TC-CUS-CREATE-026
 - **Các bước:**
@@ -742,7 +742,7 @@
 
 ### TC-CUS-CREATE-028 — Màn Tổng quan không báo "Chưa chốt ngày" khi FCL đã có lịch container
 
-- **Vai trò:** `cus`
+- **Vai trò:** `CUS`
 - **Mức độ:** P1
 - **Nguồn:** báo cáo 2026-09-07 — màn Tổng quan lô hàng báo "Chưa chốt ngày" cho BL
   `JJCTCHPDY260305` dù trang Chi tiết lô đã hiển thị ngày `07/09/2026 08:00`.
@@ -785,7 +785,7 @@
 
 ### TC-CUS-CREATE-029 — Hiển thị nút "Xác nhận" bên cạnh ô chọn Ngày Giờ giao container
 
-- **Vai trò:** `cus`
+- **Vai trò:** `CUS`
 - **Mức độ:** P1
 - **Thiết bị:** Desktop (1440×900)
 - **Tiền điều kiện:** Container chưa có ngày giao hàng.
@@ -803,7 +803,7 @@
 
 ### TC-CUS-CREATE-030 — Lưu thành công lịch giao khi click nút "Xác nhận" (không dùng Enter)
 
-- **Vai trò:** `cus`
+- **Vai trò:** `CUS`
 - **Mức độ:** P1
 - **Dữ liệu kiểm thử:** Ngày giao = "07/09/2026", Giờ giao = "11:00"
 - **Các bước:**
@@ -821,7 +821,7 @@
 
 ### TC-CUS-CREATE-031 — Tương thích ngược: vẫn hỗ trợ nhấn phím Enter để lưu lịch giao
 
-- **Vai trò:** `cus`
+- **Vai trò:** `CUS`
 - **Mức độ:** P2
 - **Dữ liệu kiểm thử:** Ngày = "08/09/2026", Giờ = "14:30"
 - **Các bước:**
@@ -836,7 +836,7 @@
 
 ### TC-CUS-CREATE-032 — Validate khi nhấn nút "Xác nhận" nhưng để trống ngày hoặc giờ
 
-- **Vai trò:** `cus`
+- **Vai trò:** `CUS`
 - **Mức độ:** P2
 - **Các bước:**
   1. Chỉ chọn Ngày "07/09/2026", để trống phần Giờ (hoặc ngược lại).
@@ -850,7 +850,7 @@
 
 ### TC-CUS-CREATE-033 — Double-click nút "Xác nhận" không tạo duplicate request
 
-- **Vai trò:** `cus`
+- **Vai trò:** `CUS`
 - **Mức độ:** P2
 - **Các bước:**
   1. Điền ngày và giờ giao.
@@ -871,7 +871,7 @@
 
 ### TC-CUS-CREATE-034 — Đồng bộ 2 chiều về Ngày giao giữa Tổng quan và Chi tiết
 
-- **Vai trò:** `cus`
+- **Vai trò:** `CUS`
 - **Mức độ:** P1
 - **Tiền điều kiện:** Lô hàng có 2 container, cả 2 chưa chốt ngày giao.
 - **Các bước:**
@@ -890,7 +890,7 @@
 
 ### TC-CUS-CREATE-035 — Không bị khóa/chặn thao tác cập nhật ngày giao khi có nhiều lô (tránh xung đột theo B/L)
 
-- **Vai trò:** `cus`
+- **Vai trò:** `CUS`
 - **Mức độ:** P1
 - **Nguồn:** kỹ thuật xác nhận 2026-09-07 — khi có 2 lô trùng B/L (trước khi duplicate guard), thao tác
   trên lô này bị vô hiệu vì lô kia đã chốt. Sau fix duplicate guard, case này kiểm tra tính độc lập.
@@ -912,7 +912,7 @@
 
 ### TC-CUS-CREATE-036 — Lô nhiều cont nhưng chỉ mới chốt ngày cho 1 số cont (Partial delivery dates)
 
-- **Vai trò:** `cus`
+- **Vai trò:** `CUS`
 - **Mức độ:** P2
 - **Tiền điều kiện:** Lô hàng có 3 container (Cont 1 đã chốt ngày 07/09; Cont 2 & 3 chưa có ngày).
 - **Các bước:**
@@ -946,11 +946,11 @@
 ### TC-CUS-CREATE-039 — Sửa Ngày/Giờ đóng hàng của container (regression bug 2026-09-08)
 
 - **Mã bug:** BUG-2026-09-08-APPT-OFFSET
-- **Vai trò:** `cus`, `admin`
+- **Vai trò:** `CUS`, `ADMIN`
 - **Mức độ:** P0
 - **Thiết bị:** Desktop (1440×900)
 - **Tiền điều kiện:**
-  1. Đăng nhập `cus`, mở `/shipments-detail` (Danh sách container).
+  1. Đăng nhập `CUS`, mở `/shipments-detail` (Danh sách container).
   2. Có ít nhất 1 container **chưa gán biển số** (cột điều xe hiển thị "Chưa gán biển số") và đã có
      sẵn ngày đóng hàng (ví dụ 07/09/2026 08:00).
 - **Các bước:**
@@ -982,7 +982,7 @@
 ### TC-CUS-CREATE-040 — Không lộ thông báo lỗi nội bộ ra giao diện khách hàng (regression bug 2026-09-08)
 
 - **Mã bug:** BUG-2026-09-08-INTERNAL-ERROR-LEAK
-- **Vai trò:** `cus`
+- **Vai trò:** `CUS`
 - **Mức độ:** P1
 - **Thiết bị:** Desktop (1440×900)
 - **Tiền điều kiện:** Đang ở dialog "Chỉnh sửa lịch trình" của một container.
@@ -1007,14 +1007,14 @@
 ### TC-REGRESSION-FNAME-001 — Chi tiết lô hàng hiển thị tên nhà máy (effectiveFactoryNames)
 
 - **Mã bug:** BUG-2026-09-07-FNAME
-- **Vai trò:** `admin`, `cus`, `giamdoc`
+- **Vai trò:** `ADMIN`, `CUS`, `MANAGER`
 - **Mức độ:** P0
 - **Thiết bị:** Desktop (1440×900)
 - **Tiền điều kiện:**
   1. Có lô hàng đã tạo với ít nhất 1 container có nhà máy được gán.
   2. Trang "Tổng quan lô hàng" (`/shipments`) hiển thị đúng tên nhà máy (ví dụ: ASKEY-1, ASKEY-2).
 - **Các bước:**
-  1. Đăng nhập `admin`.
+  1. Đăng nhập `ADMIN`.
   2. Mở trang "Tổng quan lô hàng" (`/shipments`).
   3. Tìm lô hàng có nhà máy (ví dụ: khách hàng Long Minh).
   4. Xác nhận cột "Khách hàng & nhà máy" hiển thị tên nhà máy (ví dụ: ASKEY-1, SUNRISE).
@@ -1035,7 +1035,7 @@
 ## 1.15 — Binding dữ liệu Dropdown "Hãng tàu" tại Form tạo mới lô hàng (QA Matrix v2.0)
 
 ### TC_LINE_01 — Binding danh sách 20 hãng tàu chuẩn quốc tế và đối tác nhà cung cấp
-- **Vai trò:** `cus`, `admin`
+- **Vai trò:** `CUS`, `ADMIN`
 - **Mức độ:** P1
 - **Tiền điều kiện:** Đăng nhập hệ thống, mở form tạo lô mới `/shipments/new`.
 - **Các bước:**
@@ -1049,7 +1049,7 @@
 - **Regression ID:** REG-LINE-01-20260908
 
 ### TC_LINE_02 — Cho phép nhập tự do tên hãng tàu mới
-- **Vai trò:** `cus`, `admin`
+- **Vai trò:** `CUS`, `ADMIN`
 - **Mức độ:** P2
 - **Các bước:**
   1. Trong ô Hãng tàu, gõ trực tiếp một tên hãng tàu tùy ý (ví dụ: "NEW_SHIPPING_LINE_EXP").
@@ -1060,7 +1060,7 @@
 - **Regression ID:** REG-LINE-02-20260908
 
 ### TC_LINE_03 — Nút "+ Thêm hãng tàu" bên dưới ô nhập
-- **Vai trò:** `cus`, `admin`
+- **Vai trò:** `CUS`, `ADMIN`
 - **Mức độ:** P2
 - **Các bước:**
   1. Quan sát khu vực trường Hãng tàu.
@@ -1076,7 +1076,7 @@
 ## 1.16 — UI Responsive & Hướng mở Popover form tạo lô (QA Matrix v2.0)
 
 ### TC_RESP_01 — Đảm bảo không tràn màn hình ngang ở độ phân giải 1366 × 768
-- **Vai trò:** `cus`, `admin`
+- **Vai trò:** `CUS`, `ADMIN`
 - **Mức độ:** P1
 - **Thiết bị:** Desktop 1366 × 768 (độ phân giải văn phòng phổ biến)
 - **Các bước:**
@@ -1089,7 +1089,7 @@
 - **Regression ID:** REG-RESP-01-20260908
 
 ### TC_RESP_02 — Hiển thị chuẩn mực ở độ phân giải 1920 × 1080 (Full HD)
-- **Vai trò:** `cus`, `admin`
+- **Vai trò:** `CUS`, `ADMIN`
 - **Mức độ:** P1
 - **Thiết bị:** Desktop 1920 × 1080
 - **Các bước:**
@@ -1101,7 +1101,7 @@
 - **Regression ID:** REG-RESP-02-20260908
 
 ### TC_RESP_03 — Popover mở lên trên không đè nút "+ Thêm..." kề dưới
-- **Vai trò:** `cus`, `admin`
+- **Vai trò:** `CUS`, `ADMIN`
 - **Mức độ:** P1
 - **Các bước:**
   1. Tại form tạo lô hàng, click mở dropdown Cảng nâng, Cảng hạ, Tuyến đường.
@@ -1117,7 +1117,7 @@
 ## 1.17 — Hiển thị Nút "Lưu" và "Hủy" trên Bảng kê container (QA Matrix v2.0)
 
 ### TC_BTN_01 — Nút "Lưu" (xanh thương hiệu) & "Hủy" trực quan tại ô sửa lịch
-- **Vai trò:** `cus`, `admin`
+- **Vai trò:** `CUS`, `ADMIN`
 - **Mức độ:** P1
 - **Thiết bị:** Desktop (1440 × 900)
 - **Các bước:**
@@ -1131,7 +1131,7 @@
 - **Regression ID:** REG-BTN-01-20260908
 
 ### TC_BTN_02 — Hỗ trợ lưu bằng cả phím Enter và Click chuột
-- **Vai trò:** `cus`, `admin`
+- **Vai trò:** `CUS`, `ADMIN`
 - **Mức độ:** P1
 - **Các bước:**
   1. Sửa ngày giao cho container A, bấm phím `Enter` trên bàn phím.
@@ -1141,7 +1141,7 @@
 - **Regression ID:** REG-BTN-02-20260908
 
 ### TC_BTN_03 — Toast thông báo cập nhật thành công bằng tiếng Việt
-- **Vai trò:** `cus`, `admin`
+- **Vai trò:** `CUS`, `ADMIN`
 - **Mức độ:** P2
 - **Các bước:**
   1. Nhấn Lưu cập nhật lịch trình.
@@ -1155,11 +1155,11 @@
 ## 1.18 — Phân quyền cập nhật lịch trình Container chưa gán xe (QA Matrix v2.0)
 
 ### TC_UNAS_01 — Quyền ADMIN cập nhật lịch trình container chưa gán xe
-- **Vai trò:** `admin`
+- **Vai trò:** `ADMIN`
 - **Mức độ:** P1
 - **Tiền điều kiện:** Lô hàng đang ở trạng thái `DISPATCHED` hoặc `IN_PROGRESS`, có container chưa gán chuyến (`tripId == null`).
 - **Các bước:**
-  1. Đăng nhập tài khoản `admin`.
+  1. Đăng nhập tài khoản `ADMIN`.
   2. Cập nhật `customerAppointmentAt` cho container chưa gán xe đó.
   3. Bấm Lưu.
 - **Kết quả mong đợi (Pass):**
@@ -1169,10 +1169,10 @@
 - **Regression ID:** REG-UNAS-01-20260908
 
 ### TC_UNAS_02 — Quyền MANAGER cập nhật lịch trình container chưa gán xe
-- **Vai trò:** `giamdoc` (MANAGER)
+- **Vai trò:** `MANAGER` (MANAGER)
 - **Mức độ:** P1
 - **Các bước:**
-  1. Đăng nhập tài khoản `giamdoc`.
+  1. Đăng nhập tài khoản `MANAGER`.
   2. Thực hiện cập nhật lịch hẹn cho container chưa gán chuyến xe.
   3. Bấm Lưu.
 - **Kết quả mong đợi (Pass):**
@@ -1181,7 +1181,7 @@
 - **Regression ID:** REG-UNAS-02-20260908
 
 ### TC_UNAS_03 — Chặn cập nhật lịch khi container đã có chuyến xe thực tế
-- **Vai trò:** `admin`, `giamdoc`, `cus`
+- **Vai trò:** `ADMIN`, `MANAGER`, `CUS`
 - **Mức độ:** P1
 - **Tiền điều kiện:** Container đã được phân chuyến xe (`tripId != null`, ví dụ chuyến `TRP-202608-0008`).
 - **Các bước:**
@@ -1203,11 +1203,11 @@
 > 4. Khi CUS cập nhật cờ `isCombined` trên lô chưa điều phối, hệ thống tự động đồng bộ hóa phân loại của các fulfillments FCL tương ứng.
 
 ### TC_CUS_COMB_01 — CUS tạo lô FCL có tích chọn "Đóng kết hợp" tự động gán phân loại COMBINED
-- **Vai trò:** `cus`, `admin`
+- **Vai trò:** `CUS`, `ADMIN`
 - **Mức độ:** P0
 - **Tiền điều kiện:** Đang ở màn hình tạo mới lô hàng `/shipments/new`.
 - **Các bước:**
-  1. Đăng nhập tài khoản `cus`.
+  1. Đăng nhập tài khoản `CUS`.
   2. Chọn khách hàng, tuyến đường, chọn loại hàng FCL.
   3. Tích chọn ô "Đóng kết hợp" (`isCombined = true`).
   4. Thêm container và bấm "Tạo lô hàng".
@@ -1220,7 +1220,7 @@
 - **Regression ID:** REG-CUS-COMB-01-20260908
 
 ### TC_CUS_COMB_02 — CUS tạo lô FCL không tích chọn "Đóng kết hợp" mặc định phân loại SINGLE
-- **Vai trò:** `cus`, `admin`
+- **Vai trò:** `CUS`, `ADMIN`
 - **Mức độ:** P0
 - **Tiền điều kiện:** Mở `/shipments/new`.
 - **Các bước:**
@@ -1235,7 +1235,7 @@
 - **Regression ID:** REG-CUS-COMB-02-20260908
 
 ### TC_CUS_COMB_03 — CUS cập nhật cờ isCombined đồng bộ phân loại fulfillments chưa điều phối
-- **Vai trò:** `cus`
+- **Vai trò:** `CUS`
 - **Mức độ:** P0
 - **Tiền điều kiện:** Lô hàng FCL đang ở trạng thái tiếp nhận (`PENDING_DATE` hoặc `READY_FOR_DISPATCH`), chưa phát hành lệnh điều xe.
 - **Các bước:**
@@ -1252,7 +1252,7 @@
 - **Regression ID:** REG-CUS-COMB-03-20260908
 
 ### TC_CUS_COMB_04 — Chặn đóng kết hợp đối với container 40HC, 40DC, 45ft
-- **Vai trò:** `cus`, `admin`
+- **Vai trò:** `CUS`, `ADMIN`
 - **Mức độ:** P1
 - **Tiền điều kiện:** Mở form tạo lô `/shipments/new` hoặc chi tiết lô hàng FCL có container loại 40HC / 40DC / 45ft.
 - **Các bước:**
@@ -1266,7 +1266,7 @@
 - **Regression ID:** REG-CUS-COMB-04-20260908
 
 ### TC_CUS_COMB_05 — Hàng lẻ LCL tự động mang phân loại LCL
-- **Vai trò:** `cus`, `admin`
+- **Vai trò:** `CUS`, `ADMIN`
 - **Mức độ:** P0
 - **Tiền điều kiện:** Mở `/shipments/new`.
 - **Các bước:**
@@ -1286,7 +1286,7 @@
 ### TC-CUS-CREATE-041 — Cột "Biển số" đồng nhất font-size giữa dòng đã gán và dòng đang trống (regression bug 2026-09-08)
 
 - **Mã bug:** BUG-2026-09-08-LEDGER-FONT
-- **Vai trò:** `cus`, `admin`
+- **Vai trò:** `CUS`, `ADMIN`
 - **Mức độ:** P1 (visual regression)
 - **Thiết bị:** Desktop (1440×900)
 - **Tiền điều kiện:**

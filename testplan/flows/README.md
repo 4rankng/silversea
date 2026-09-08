@@ -45,19 +45,25 @@ Mới tạo (NEW) → Đã phân xe (DISPATCHED) → Đang chạy (IN_TRANSIT) �
 
 ## 3. Tài khoản kiểm thử
 
-Mật khẩu chung: `Abc123`. URL local: `http://localhost:7174`
+Testplan này **chỉ nêu vai trò** — không ghi cứng username nào. Mỗi test
+case gọi vai trò cần dùng (`CUS`, `DISPATCHER`, `ACCOUNTANT`, `MANAGER`,
+`ADMIN`, `DRIVER`, `OPS`, `CUSTOMER`) và runner sẽ tra `testaccounts.txt`
+để chọn đúng username theo môi trường:
 
-| Username | Vai trò | Ghi chú |
-|----------|---------|---------|
-| `admin` | ADMIN | Superuser, dùng khi cần quyền cao nhất |
-| `giamdoc` | MANAGER | Quản lý: duyệt ngoại lệ, báo cáo |
-| `ketoan` | ACCOUNTANT | Kế toán: ghi chi phí, duyệt e-POD, chốt O2C |
-| `cus` | CLERK (CUS) | Chứng từ: tạo lô, kiểm tra POD |
-| `dieuvan` | DISPATCHER | Điều vận: ghép chuyến, phân xe, phát lệnh |
-| `giaonhan` | FORWARDER | Hiện trường: tạm ứng, khoản chi hộ |
-| `laixe` | DRIVER | Lái xe: nhận lệnh, cập nhật tiến độ, e-POD |
-| `thu`, `pho`, `quyet` | DRIVER | Lái xe dự phòng (multi-driver test) |
-| `customer` | CUSTOMER | Cổng khách hàng: theo dõi lô, giấy báo nợ |
+- **local** (`http://localhost:7174`): prod-mirror named users **+** demo
+  seed accounts (`CUS`, `DISPATCHER`, `ACCOUNTANT`, `MANAGER`, `DRIVER`,
+  `OPS`, `CUSTOMER-SAMSUNG`, `CUSTOMER-CANON`) — bật sau khi `make seed`.
+- **staging** (`https://vantai.tingting.vip`): chỉ có prod-mirror named
+  users (vd `thanhdc` cho CUS, `dungnv` cho DISPATCHER, `bqhuong` cho
+  DRIVER). **Không** có `MANAGER` / `CUSTOMER` vì prod không có role đó.
+
+Mật khẩu chung mọi môi trường: `Abc123`. Chi tiết mapping xem
+`../testaccounts.txt` (đã verify 2026-09-06: 62 users trên staging reset
+về `Abc123`).
+
+Khi viết test case mới: dùng role code in hoa (`CUS`, `DISPATCHER`, …)
+chứ không ghi username. Runner / tester tự map sang account thật theo
+môi trường đang chạy.
 
 ---
 

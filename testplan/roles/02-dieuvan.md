@@ -3,7 +3,7 @@
 > **Vietnamese label**: Điều vận (`Role.DISPATCHER`).
 > **Home route**: `/dispatch` (`routes.dispatchMasterPlan`).
 > **Primary sidebar section**: `Điều độ Phương tiện` (`dispatch-planning`).
-> **Test account**: local `dieuvan` / `Abc123`; staging `bacdk` (NV016) / `Abc123`.
+> **Test accounts**: chọn theo môi trường qua `../testaccounts.txt` (role → username). Runner tự map `DISPATCHER` + env → username phù hợp.
 > **Primary pages**:
 > - `/dispatch` — `frontend/src/pages/MasterPlanPage.tsx` (Kế hoạch tổng quát)
 > - `/dispatch-detail` — `frontend/src/pages/DispatchDetailPlanPage.tsx` (Kế hoạch chi tiết)
@@ -145,7 +145,7 @@ README applies (silent redirect to `/dispatch`).
 
 ### Test steps
 
-1. Log in as `dieuvan`.
+1. Log in as `DISPATCHER`.
 2. Land on `/dispatch`. Verify the unassigned queue.
 3. Pick a shipment, choose a carrier, set datetime, publish.
 4. Capture the resulting trip row in `/my-trips` (as the driver).
@@ -223,7 +223,7 @@ containers (so the auto-split is meaningful).
    - **Then** an `audit_logs` row is written with action
      `dispatch.publish`, actor = dispatcher, payload = the per-row
      plate + container + trailer assignments.
-   - **Evidence**: `/audit-logs` (as `admin`) shows the row.
+   - **Evidence**: `/audit-logs` (as `ADMIN`) shows the row.
 
 6. **DISP-DP-06 — Phân xe lại falls back when the fulfillment link is gone (fix 2026-08-29)**
    - **Given** an issued trip on `/dispatch-detail` whose
@@ -254,8 +254,8 @@ containers (so the auto-split is meaningful).
    - **Reference**: [`02-dieuvan-dispatch.md` TC-DV-DISPATCH-023](../flows/02-dieuvan-dispatch.md#tc-dv-dispatch-023).
 
 9. **DISP-DP-09 — Push notification tới Lái xe khi gán biển số Xe nhà**
-   - **Given** dispatcher gán biển số OWN (gắn với `laixe`) cho 1 dòng container Xe nhà, lưu
-   - **When** `laixe` đăng nhập app Lái xe trong vòng 5 giây
+   - **Given** dispatcher gán biển số OWN (gắn với `DRIVER`) cho 1 dòng container Xe nhà, lưu
+   - **When** `DRIVER` đăng nhập app Lái xe trong vòng 5 giây
    - **Then** chuyến xuất hiện trong tab "Lệnh mới" ngay lập tức
    - **And** push notification hiển thị tiếng Việt "Chuyến được điều phối" (hoặc tương đương)
    - **And** push xảy ra **trước** khi Ops đổi lệnh giấy (kể cả khi lô chưa `Đã phân xe` hẳn — miễn là 1 dòng Xe nhà đã có biển số)
@@ -280,7 +280,7 @@ containers (so the auto-split is meaningful).
 
 ### Test steps
 
-1. Log in as `dieuvan`.
+1. Log in as `DISPATCHER`.
 2. Open `/dispatch-detail`. Pick a multi-container shipment.
 3. Drag/assign each container to a plate slot.
 4. For each plate, pick a tractor and (if 40ft) a trailer.
@@ -329,7 +329,7 @@ containers (so the auto-split is meaningful).
 
 ### Test steps
 
-1. Log in as `dieuvan`. Open `/fleet/vehicles`.
+1. Log in as `DISPATCHER`. Open `/fleet/vehicles`.
 2. Apply a filter; capture.
 3. Click a row — confirm the edit modal opens with the truck's data pre-filled.
 4. Edit a field and save — confirm the change persists.
@@ -373,7 +373,7 @@ containers (so the auto-split is meaningful).
 
 ### Test steps
 
-1. Log in as `dieuvan`. Open `/fleet/drivers`.
+1. Log in as `DISPATCHER`. Open `/fleet/drivers`.
 2. Capture the full list.
 3. Spot-check 2 drivers against their current trip status.
 
@@ -408,7 +408,7 @@ containers (so the auto-split is meaningful).
 
 ### Test steps
 
-1. Log in as `dieuvan`. Open `/suppliers`.
+1. Log in as `DISPATCHER`. Open `/suppliers`.
 2. Apply a province filter.
 3. Open a row's drawer; capture.
 

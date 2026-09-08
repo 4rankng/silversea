@@ -47,25 +47,30 @@ frontend (`:7174`) and Adminer (`:8083`). First-run: `make setup`.
 
 ## 3. Accounts and credentials
 
-Full list lives in `../testaccounts.txt` (testplan root). Highlights:
+This testplan is **role-only** — it never hardcodes a username. Every test
+case names the role it needs (`CUS`, `DISPATCHER`, …) and the runner picks
+the concrete account from the environment's role→username map.
 
-| Role        | Username | Password | Bound truck / scope                              |
-|-------------|----------|----------|--------------------------------------------------|
-| ADMIN       | `admin`     | `Abc123` | full                                              |
-| MANAGER     | `giamdoc`   | `Abc123` | full minus strict-admin                          |
-| ACCOUNTANT  | `ketoan`    | `Abc123` | financial only                                    |
-| DRIVER      | `laixe`     | `Abc123` | `15C-284.56`                                      |
-| DRIVER      | `thu`       | `Abc123` | `60C-392.15`                                      |
-| DRIVER      | `pho`       | `Abc123` | `60C-467.29`                                      |
-| DRIVER      | `quyet`     | `Abc123` | `15C-999.68`                                      |
-| OPS         | `giaonhan`  | `Abc123` | field staff                                       |
-| CUS         | `cus`       | `Abc123` | document ops                                      |
-| DISPATCHER  | `dieuvan`   | `Abc123` | planning                                          |
-| CUSTOMER    | `samsung-cs`| `Abc123` | Samsung Electronics VN                            |
-| CUSTOMER    | `canon-cs`  | `Abc123` | Canon Việt Nam                                    |
+The mapping lives in `../testaccounts.txt` (testplan root) and is split by
+environment:
 
-**Staging note**: `cus` username on staging is `cus123`. All other usernames
-are identical. Password is `Abc123` everywhere.
+| Env         | What the file declares                            |
+|-------------|---------------------------------------------------|
+| `local:`    | prod-mirror named users (always present) + local-only demo seed accounts (`CUS`, `DISPATCHER`, …) added by `make seed` |
+| `staging:`  | prod-mirror named users only — no `MANAGER` / `CUSTOMER` role exists on staging because prod has none |
+
+Practical rules:
+
+- The default for every test case is **role + environment** — the runner
+  resolves `CUS + staging → thanhdc (NV018)`, `CUS + local → cus` (demo)
+  or `thanhdc` (prod-mirror), etc.
+- Roles `MANAGER` and `CUSTOMER` are **local-only** by design — staging
+  has no users with those roles, so any case tagged with them is
+  `BLOCKED` on staging until prod adds the role.
+- All passwords on both environments are `Abc123` (verified 2026-09-06).
+- The per-role docs (`01-cus.md` … `07-khachhang.md`) and per-flow docs
+  (`flows/*.md`) follow the same role-only convention; none of them
+  hardcode a username.
 
 ## 4. AC template
 
@@ -214,9 +219,9 @@ Local seed (`make setup`) is reproducible. To reset without nuking Postgres:
 cd backend && pnpm db:reset && pnpm db:seed
 ```
 
-For the driver app, the seed mounts `laixe` → `15C-284.56` so any driver AC
+For the driver app, the seed mounts `DRIVER` → `15C-284.56` so any driver AC
 that needs a known plate can rely on it. For the customer portal, the seed
-creates `samsung-cs` (Samsung Electronics VN) and `canon-cs` (Canon Việt Nam) as row-scoped users.
+creates `CUSTOMER-SAMSUNG` (Samsung Electronics VN) and `CUSTOMER-CANON` (Canon Việt Nam) as row-scoped users.
 
 If a test mutates a fixture (creates a customer, books a shipment, etc.) and
 the next test needs a clean slate, **reset the DB before continuing**. Do

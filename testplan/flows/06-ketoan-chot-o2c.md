@@ -3,7 +3,7 @@
 # Luồng 6: Duyệt e-POD, Chốt O2C & Xuất Debit Note — Kế toán (Accountant)
 
 > **Vai trò sở hữu:** Kế toán (ACCOUNTANT) / CUS
-> **Tài khoản demo:** `ketoan` (password: `Abc123`), `cus` cho phần CUS
+> **Tài khoản test:** chọn theo môi trường qua [`../testaccounts.txt`](../testaccounts.txt) — runner tự map role `ACCOUNTANT` / `CUS` → username phù hợp (local: `ACCOUNTANT`/`CUS`; staging: prod-mirror như `hoapt` cho ACCOUNTANT).
 > **Route chính:** `/shipments/:id` (e-POD review, close), `/debt` (AR), `/payables` (AP), `/finance` (P&L)
 > **PRD nguồn:** Module 05, 06, 11, O2C Bước 4, TC-MO2C-10 → TC-MO2C-15
 >
@@ -18,7 +18,7 @@
 ### TC-KT-CHOTO2C-001 — Chặn COMPLETED khi e-POD chưa ACCEPTED
 
 - **Mã PRD:** TC-MO2C-10
-- **Vai trò:** `ketoan` hoặc `cus`
+- **Vai trò:** `ACCOUNTANT` hoặc `CUS`
 - **Mức độ:** P0
 - **Tiền điều kiện:** Shipment PENDING_EXPENSE_APPROVAL, e-POD SUBMITTED (chưa ACCEPTED)
 - **Các bước:**
@@ -38,7 +38,7 @@
 ### TC-KT-CHOTO2C-002 — Chặn COMPLETED khi chưa xác nhận POD giấy
 
 - **Mã PRD:** TC-MO2C-10, O2C Bước 4
-- **Vai trò:** `ketoan`
+- **Vai trò:** `ACCOUNTANT`
 - **Mức độ:** P0
 - **Các bước:**
   1. e-POD đã ACCEPTED. Nhưng chưa tích "Đã thu hồi chứng từ gốc (POD mộc đỏ)".
@@ -53,7 +53,7 @@
 ### TC-KT-CHOTO2C-003 — Chặn COMPLETED khi chi phí chưa đủ scope
 
 - **Mã PRD:** TC-MO2C-10
-- **Vai trò:** `ketoan`
+- **Vai trò:** `ACCOUNTANT`
 - **Mức độ:** P0
 - **Tiền điều kiện:** e-POD ACCEPTED, POD giấy đã xác nhận, nhưng 1 scope chi phí chưa hoàn tất
 - **Các bước:**
@@ -70,7 +70,7 @@
 ### TC-KT-CHOTO2C-004 — Kế toán duyệt e-POD thành công
 
 - **Mã PRD:** TC-MO2C-11
-- **Vai trò:** `ketoan`
+- **Vai trò:** `ACCOUNTANT`
 - **Mức độ:** P0
 - **Tiền điều kiện:** e-POD SUBMITTED, 2 file bắt buộc đã tải
 - **Các bước:**
@@ -96,7 +96,7 @@
 ### TC-KT-CHOTO2C-005 — Xử lý lại cùng version ở tab khác → bị từ chối
 
 - **Mã PRD:** TC-MO2C-11
-- **Vai trò:** `ketoan`
+- **Vai trò:** `ACCOUNTANT`
 - **Mức độ:** P1
 - **Các bước:**
   1. e-POD đã ACCEPTED ở tab 1.
@@ -111,7 +111,7 @@
 ### TC-KT-CHOTO2C-006 — Từ chối e-POD có lý do → Driver phải tạo phiên bản mới
 
 - **Mã PRD:** TC-MO2C-11
-- **Vai trò:** `ketoan`
+- **Vai trò:** `ACCOUNTANT`
 - **Mức độ:** P0
 - **Các bước:**
   1. e-POD SUBMITTED. Bấm "Từ chối".
@@ -130,7 +130,7 @@
 ### TC-KT-CHOTO2C-007 — Kế toán chốt trực tiếp — COMPLETED
 
 - **Mã PRD:** TC-MO2C-12
-- **Vai trò:** `ketoan`
+- **Vai trò:** `ACCOUNTANT`
 - **Mức độ:** P0
 - **Tiền điều kiện:** e-POD ACCEPTED, POD giấy đã xác nhận, mọi scope hoàn tất, ảnh container+seal có
 - **Các bước:**
@@ -155,10 +155,10 @@
 ### TC-KT-CHOTO2C-008 — CUS cũng có thể chốt trực tiếp
 
 - **Mã PRD:** TC-MO2C-12
-- **Vai trò:** `cus`
+- **Vai trò:** `CUS`
 - **Mức độ:** P0
 - **Các bước:**
-  1. Đăng nhập `cus`. Mở lô đủ điều kiện.
+  1. Đăng nhập `CUS`. Mở lô đủ điều kiện.
   2. Chọn VAT. Bấm "Hoàn thành".
 - **Kết quả mong đợi (Pass):**
   - CUS chốt trực tiếp được khi mọi gate đúng (tương tự Kế toán).
@@ -172,7 +172,7 @@
 ### TC-KT-CHOTO2C-009 — Snapshot AR chính xác tại thời điểm close
 
 - **Mã PRD:** TC-MO2C-14
-- **Vai trò:** `ketoan`
+- **Vai trò:** `ACCOUNTANT`
 - **Mức độ:** P0
 - **Các bước:**
   1. Ghi doanh thu, VAT, tổng AR tại thời điểm close.
@@ -194,7 +194,7 @@
 ### TC-KT-CHOTO2C-010 — Snapshot AP đúng NCC
 
 - **Mã PRD:** TC-MO2C-14
-- **Vai trò:** `ketoan`
+- **Vai trò:** `ACCOUNTANT`
 - **Mức độ:** P0
 - **Các bước:**
   1. Mở `/payables`, lọc theo kỳ.
@@ -211,7 +211,7 @@
 ### TC-KT-CHOTO2C-011 — P&L = Doanh thu − Chi phí
 
 - **Mã PRD:** TC-MO2C-14, M11
-- **Vai trò:** `ketoan`, `giamdoc`
+- **Vai trò:** `ACCOUNTANT`, `MANAGER`
 - **Mức độ:** P0
 - **Các bước:**
   1. Mở `/finance`, lọc theo kỳ.
@@ -230,7 +230,7 @@
 ### TC-KT-CHOTO2C-012 — Tạo và xuất Debit Note
 
 - **Mã PRD:** TC-MO2C-13
-- **Vai trò:** `ketoan`
+- **Vai trò:** `ACCOUNTANT`
 - **Mức độ:** P0
 - **Các bước:**
   1. Mở `/debt`. Chọn khách hàng và chu kỳ chứa trip đã COMPLETED.
@@ -259,7 +259,7 @@
 ### TC-KT-CHOTO2C-013 — Chặn sửa trực tiếp dữ liệu đã duyệt
 
 - **Mã PRD:** TC-MO2C-15, Q18
-- **Vai trò:** `ketoan`
+- **Vai trò:** `ACCOUNTANT`
 - **Mức độ:** P0
 - **Tiền điều kiện:** Trip COMPLETED, đã có snapshot
 - **Các bước:**
@@ -276,11 +276,11 @@
 ### TC-KT-CHOTO2C-014 — Tạo yêu cầu điều chỉnh qua workflow
 
 - **Mã PRD:** TC-MO2C-15, Q18
-- **Vai trò:** `ketoan` (maker) + `giamdoc` (approver)
+- **Vai trò:** `ACCOUNTANT` (maker) + `MANAGER` (approver)
 - **Mức độ:** P0
 - **Các bước:**
-  1. `ketoan` tạo yêu cầu điều chỉnh chi phí, bắt buộc nhập lý do.
-  2. Nếu thay đổi tiền: dùng checker/approver khác maker → `giamdoc` duyệt.
+  1. `ACCOUNTANT` tạo yêu cầu điều chỉnh chi phí, bắt buộc nhập lý do.
+  2. Nếu thay đổi tiền: dùng checker/approver khác maker → `MANAGER` duyệt.
   3. Sau phê duyệt: mở lại expense, AR/AP, audit.
 - **Kết quả mong đợi (Pass):**
   - Điều chỉnh lưu before/after, lý do, actor/version, approval.
@@ -301,7 +301,7 @@
 ### TC-KT-CHOTO2C-015 — Worksheet đối chiếu 5 điểm (FCL + LCL)
 
 - **Mã PRD:** TC-MO2C-19
-- **Vai trò:** `ketoan` / QA
+- **Vai trò:** `ACCOUNTANT` / QA
 - **Mức độ:** P0
 - **Các bước:**
   1. Tạo worksheet cho lô FCL và LCL.

@@ -3,7 +3,7 @@
 > **Tài liệu tham chiếu:** Phản hồi kỹ thuật & Báo lỗi bổ sung từ Trung Kiên & Tiệp Vũ (Phiên bản 2.0 - 08/09/2026)
 > **Vai trò tham gia:** CUS, Điều vận (DISPATCHER), Admin, Giám đốc (MANAGER)
 > **Môi trường:** Local Dev (`http://localhost:7174`) / Staging (`https://vantai.tingting.vip/`)
-> **Tài khoản test:** `admin`, `cus`, `giamdoc` (password: `Abc123`)
+> **Tài khoản test:** chọn theo môi trường qua [`../testaccounts.txt`](../testaccounts.txt) — runner tự map từng role (`CUS`, `ADMIN`, `MANAGER`) → username phù hợp với env đang chạy. Lưu ý: `MANAGER` (`MANAGER`) chỉ có trên local.
 
 ---
 
@@ -11,7 +11,7 @@
 
 ### TC_LINE_01 — Binding danh sách hãng tàu mặc định
 - **Mục tiêu:** Dropdown hiển thị đầy đủ danh sách hãng tàu phổ biến và hãng tàu nhà cung cấp từ database/bootstrap.
-- **Các bước:** Đăng nhập `cus`/`admin`, mở `/shipments/new`. Tìm ô nhập Hãng tàu và nhấp mở danh sách gợi ý.
+- **Các bước:** Đăng nhập `CUS`/`ADMIN`, mở `/shipments/new`. Tìm ô nhập Hãng tàu và nhấp mở danh sách gợi ý.
 - **Kỳ vọng:** Hiển thị tối thiểu 20 hãng tàu, gồm Maersk, MSC, COSCO, CMA CGM, ONE, Evergreen, Yang Ming, Wan Hai, SITC, Zim, v.v.
 - **Kết quả:** PASS (20 hãng tàu hiển thị, tìm kiếm mượt mà). Bằng chứng: `qa/2026-09-08_phan1_hang-tau-dropdown.png`.
 
@@ -98,13 +98,13 @@
 
 ### TC_UNAS_01 — Quyền ADMIN cập nhật lịch trình container unassigned
 - **Mục tiêu:** ADMIN có quyền sửa lịch hẹn/ngày giao container khi container chưa gắn chuyến (`tripId == null`), ngay cả khi lô hàng đang ở trạng thái DISPATCHED / IN_PROGRESS.
-- **Các bước:** Đăng nhập `admin`, gửi PATCH/POST cập nhật `customerAppointmentAt` cho container chưa gán xe của lô DISPATCHED.
+- **Các bước:** Đăng nhập `ADMIN`, gửi PATCH/POST cập nhật `customerAppointmentAt` cho container chưa gán xe của lô DISPATCHED.
 - **Kỳ vọng:** HTTP 200 OK, lịch được cập nhật tức thì.
 - **Kết quả:** PASS. Bằng chứng: `qa/2026-09-08_qa-matrix-v2_ui-driver.log`.
 
 ### TC_UNAS_02 — Quyền MANAGER cập nhật lịch trình container unassigned
 - **Mục tiêu:** MANAGER (Giám đốc) có quyền cập nhật lịch trình container chưa gắn chuyến xe.
-- **Các bước:** Đăng nhập `giamdoc`, gửi cập nhật `customerAppointmentAt` cho container chưa gán xe.
+- **Các bước:** Đăng nhập `MANAGER`, gửi cập nhật `customerAppointmentAt` cho container chưa gán xe.
 - **Kỳ vọng:** HTTP 200 OK, lịch được cập nhật tức thì.
 - **Kết quả:** PASS. Bằng chứng: `qa/2026-09-08_qa-matrix-v2_ui-driver.log`.
 
