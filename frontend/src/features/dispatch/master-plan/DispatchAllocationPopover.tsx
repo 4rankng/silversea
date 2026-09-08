@@ -11,7 +11,6 @@ import {
   AllocationDayGroup,
   AllocationRow,
   buildInitialDayGroups,
-  formatContainerCounts,
   syncDayGroupsWithContainers,
   toEmptyRow,
   validateDayGroups,
@@ -269,25 +268,49 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved, returnFo
           <div className="dispatch-allocation-popover__summary-heading">
             <div>
               <h4 id="dispatch-allocation-summary-title">Tổng phân bổ{isMultiDay ? ' toàn lô' : ''}</h4>
-              <div className="dispatch-allocation-popover__summary-facts">
-                <span>Nhu cầu: <strong>{formatContainerCounts(demand)}</strong></span>
-                <span>Đã phân: <strong>{formatContainerCounts({ count20: validation.totalAssigned20, count40: validation.totalAssigned40 })}</strong></span>
-                <span>Còn lại: <strong>{formatContainerCounts({
-                  count20: validation.overallState === 'error' ? validation.totalRemaining20 : Math.max(0, validation.totalRemaining20),
-                  count40: validation.overallState === 'error' ? validation.totalRemaining40 : Math.max(0, validation.totalRemaining40),
-                })}</strong></span>
-              </div>
+              <p className="dispatch-allocation-popover__summary-subtitle">Không được phân vượt nhu cầu của lô hàng.</p>
             </div>
             <span className="dispatch-allocation-popover__state" aria-live="polite">
               {validation.overallState === 'error' ? 'Cần điều chỉnh' : validation.overallState === 'complete' ? 'Đã phân đủ' : 'Chưa phân đủ'}
             </span>
+          </div>
+          <div role="table" aria-label="Tổng phân bổ theo loại container" className="dispatch-allocation-popover__summary-table">
+            <div role="rowgroup">
+              <div role="row" className="dispatch-allocation-popover__summary-table-head-row">
+                <span role="columnheader">Loại</span>
+                <span role="columnheader">Nhu cầu</span>
+                <span role="columnheader">Đã phân</span>
+                <span role="columnheader">Còn lại</span>
+              </div>
+            </div>
+            <div role="rowgroup">
+              <div role="row" className="dispatch-allocation-popover__summary-row">
+                <span role="rowheader" className="dispatch-allocation-popover__summary-label">20'</span>
+                <span role="cell">{demand.count20}</span>
+                <span role="cell">{validation.totalAssigned20}</span>
+                <span role="cell">
+                  <span className={`dispatch-allocation-popover__summary-remaining${validation.totalRemaining20 > 0 ? ' is-warning' : validation.totalRemaining20 < 0 ? ' is-error' : ''}`}>
+                    {validation.overallState === 'error' ? validation.totalRemaining20 : Math.max(0, validation.totalRemaining20)}
+                  </span>
+                </span>
+              </div>
+              <div role="row" className="dispatch-allocation-popover__summary-row">
+                <span role="rowheader" className="dispatch-allocation-popover__summary-label">40'</span>
+                <span role="cell">{demand.count40}</span>
+                <span role="cell">{validation.totalAssigned40}</span>
+                <span role="cell">
+                  <span className={`dispatch-allocation-popover__summary-remaining${validation.totalRemaining40 > 0 ? ' is-warning' : validation.totalRemaining40 < 0 ? ' is-error' : ''}`}>
+                    {validation.overallState === 'error' ? validation.totalRemaining40 : Math.max(0, validation.totalRemaining40)}
+                  </span>
+                </span>
+              </div>
+            </div>
           </div>
         </section>
 
         <div role="table" aria-label="Phân bổ theo nhà xe theo ngày" className="dispatch-allocation-popover__table">
           <div role="rowgroup" className="dispatch-allocation-popover__table-head">
             <div role="row" className="dispatch-allocation-popover__table-head-row">
-              <span role="columnheader">Ngày</span>
               <span role="columnheader">Nhà xe</span>
               <span role="columnheader">Container 20'</span>
               <span role="columnheader">Container 40'</span>

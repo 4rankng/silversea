@@ -29,9 +29,10 @@ interface DispatchAllocationDaySectionProps {
 /**
  * One flat day group of the carrier-allocation table (TC-DV-DISPATCH-043):
  * a full-width day header row (weekday + date, factory, demand chip, state
- * chip) followed by carrier rows that each repeat the date, plus a per-day
- * add button. Rendered as an ARIA rowgroup of the single dialog table —
- * no nested cards.
+ * chip) followed by carrier rows, plus a per-day add button. The day header
+ * carries the date context for the whole group — carrier rows do not repeat
+ * it. Rendered as an ARIA rowgroup of the single dialog table — no nested
+ * cards.
  */
 export function DispatchAllocationDaySection({
   day,
@@ -65,7 +66,7 @@ export function DispatchAllocationDaySection({
       aria-label={isMultiDay ? (named ? `Phân bổ ngày ${day.dateLabel}` : `Phân bổ ${day.dateLabel}`) : undefined}
     >
       <div role="row" className="dispatch-allocation-popover__day-header-row">
-        <div role="cell" aria-colspan={5} className="dispatch-allocation-popover__day-header-cell">
+        <div role="cell" aria-colspan={4} className="dispatch-allocation-popover__day-header-cell">
           <Calendar size={15} className="dispatch-allocation-popover__day-icon" aria-hidden="true" />
           <h4 className="dispatch-allocation-popover__day-title">
             <span>{named ? `Ngày ${day.dateLabel}` : day.dateLabel}</span>
@@ -96,9 +97,6 @@ export function DispatchAllocationDaySection({
             className="dispatch-allocation-popover__row"
             data-allocation-row={isMultiDay ? `${dayIndex}-${rowIndex}` : `${rowIndex}`}
           >
-            <span role="rowheader" className="dispatch-allocation-popover__row-date">
-              {shortDate}
-            </span>
             <div role="cell" className="dispatch-allocation-popover__row-carrier">
               <UuiSelectField
                 label="Nhà xe"
@@ -165,7 +163,7 @@ export function DispatchAllocationDaySection({
       })}
 
       <div role="row" className="dispatch-allocation-popover__day-add-row">
-        <div role="cell" aria-colspan={5} className="dispatch-allocation-popover__day-add-cell">
+        <div role="cell" aria-colspan={4} className="dispatch-allocation-popover__day-add-cell">
           <UUIButton
             type="button"
             size="sm"

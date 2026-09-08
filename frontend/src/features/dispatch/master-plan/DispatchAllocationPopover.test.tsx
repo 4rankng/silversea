@@ -182,8 +182,10 @@ describe('DispatchAllocationPopover', () => {
     expect(screen.getByText(/Thứ Năm/)).toBeTruthy();
     // The per-day demand chip echoes the shipment demand.
     expect(screen.getAllByText(/Nhu cầu: 2×20' \+ 2×40'/).length).toBeGreaterThanOrEqual(1);
-    // Every carrier row repeats its date cell.
-    expect(screen.getAllByText('10/09').length).toBeGreaterThanOrEqual(1);
+    // The date lives in the day header only — carrier rows no longer repeat
+    // it in a dedicated column (2026-09-09 design fix: the NGÀY column
+    // duplicated the day header and collapsed once the row grid broke).
+    expect(screen.queryByText('10/09')).toBeNull();
   });
 
   it('focuses its close control then restores focus to the allocation trigger', async () => {
@@ -229,9 +231,12 @@ describe('DispatchAllocationPopover', () => {
 
     const summary = screen.getByRole('region', { name: 'Tổng phân bổ' });
     expect(summary).toBeTruthy();
-    expect(within(summary).getByText(/Nhu cầu:/)).toBeTruthy();
-    expect(within(summary).getByText(/Đã phân:/)).toBeTruthy();
-    expect(within(summary).getByText(/Còn lại:/)).toBeTruthy();
+    expect(within(summary).getByText('Loại')).toBeTruthy();
+    expect(within(summary).getByText('Nhu cầu')).toBeTruthy();
+    expect(within(summary).getByText('Đã phân')).toBeTruthy();
+    expect(within(summary).getByText('Còn lại')).toBeTruthy();
+    expect(within(summary).getByText("20'")).toBeTruthy();
+    expect(within(summary).getByText("40'")).toBeTruthy();
     expect(screen.getByRole('table', { name: 'Phân bổ theo nhà xe theo ngày' })).toBeTruthy();
     expect(screen.getByText("Container 20'")).toBeTruthy();
     expect(screen.getByText("Container 40'")).toBeTruthy();
