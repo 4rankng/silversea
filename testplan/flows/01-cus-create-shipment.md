@@ -67,6 +67,26 @@
 
 ---
 
+### TC-CUS-CREATE-037 — Dropdown "Hãng tàu" treo/hiển thị sai danh sách khi mở (bug 2026-09-08)
+
+- **Mã PRD:** Bug report 2026-09-08 — mở dropdown "Hãng tàu" trên /shipments/new bị treo, danh sách hiển thị nhầm là danh sách Khách hàng
+- **Vai trò:** `cus`
+- **Mức độ:** P0
+- **Thiết bị:** Desktop (1440×900)
+- **Tiền điều kiện:** Đã đăng nhập `cus`, đang ở /shipments/new
+- **Các bước:**
+  1. Bấm vào ô "Hãng tàu" (không gõ gì).
+  2. Quan sát dropdown xổ ra: danh sách option phải là CÁC HÃNG TÀU (EVER, SJJ, ONE...), KHÔNG phải danh sách khách hàng.
+  3. Gõ 1-2 ký tự (ví dụ "ev") → danh sách phải lọc còn các hãng tàu khớp, không treo trang.
+  4. Backspace xóa text → input cập nhật bình thường, không snap về giá trị cũ, không treo.
+  5. Chọn một hãng tàu → giá trị áp dụng đúng vào trường.
+- **Kết quả mong đợi (Pass):** dropdown mở < 300ms, đúng danh sách hãng tàu, lọc theo gõ phím, không treo trang, chọn được.
+- **Bằng chứng:** screenshot dropdown + log console.
+
+---
+
+## 1.2 — (đang mở)
+
 ## 1.2 — Tạo lô LCL (Less than Container Load)
 
 ### TC-CUS-CREATE-003 — Tạo lô LCL thành công (luồng thường)
@@ -654,6 +674,7 @@
 | __/__/__ | TC-CUS-CREATE-034 | | | Đồng bộ 2 chiều ngày giao giữa Tổng quan và Chi tiết | |
 | __/__/__ | TC-CUS-CREATE-035 | | | Không bị khóa cập nhật ngày giao khi có nhiều lô (tránh xung đột B/L) | |
 | __/__/__ | TC-CUS-CREATE-036 | | | Lô nhiều cont partial delivery dates (chưa chốt hết) | |
+| __/__/__ | TC-CUS-CREATE-037 | | | Dropdown Hãng tàu: mở đúng danh sách, không treo, lọc + backspace OK (bug 2026-09-08) | |
 
 ---
 
