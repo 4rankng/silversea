@@ -544,8 +544,7 @@ export interface ShipmentListItem extends Shipment {
   factoryNames?: string[];
   /** Factory operating notes ("Ghi chú nhà máy") for the notes column. */
   factoryNotes?: string | null;
-  /** Containers without a đóng/trả appointment; badge shows "Còn X/Y cont
-   *  chưa chốt ngày đóng trả" when X > 0. */
+  /** Containers without a đóng/trả appointment; badge shows "Còn X/Y cont chưa chốt ngày đóng trả" when X > 0. */
   containersMissingAppointment?: number;
   containerTotal?: number;
   containerCount20: number;

@@ -356,8 +356,7 @@ export function updateDispatchDetailPlan(fulfillmentId: number, body: {
   clearVehicle?: boolean;
   plannedRevenue: number | null;
   plannedCarrierCost: number | null;
-  /** Phân loại (Đơn/Kẹp/Kết hợp) — the dispatcher's call since 2026-09-08;
-   *  optional so CUS-derived values stay valid when a caller omits it. */
+  /** Phân loại (Đơn/Kẹp/Kết hợp) — dispatcher's call; optional so CUS-derived values stay valid. */
   classification?: DispatchClassification;
   isCombined?: boolean;
   operationalNotes?: string | null;
