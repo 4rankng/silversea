@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:a12aa29a0e4d4aa964fa59b5c9f7293b6114e85d331418ecff777f096d0e36d3",
+  "claims": [
+    {
+      "id": "claim_f39cc84766b5445d914d4ea51f3de8b6",
+      "statement": "SilverSea is a TingTing-platform deployment customized for the SilverSea container-trucking customer; local ports are backend 3001, frontend 7174 (strictPort), Postgres 5441, Redis 6391, Adminer 8083, and demo mode is permanently disabled.",
+      "evidence": [
+        {
+          "resource": "repo://backend/.env",
+          "version": "repo-file-v1:sha256:8979cbd7735403cb8edbaf9f19da1a4b6dfbe0d0db0b303b9dad72703b7c037e"
+        },
+        {
+          "resource": "repo://package.json",
+          "version": "repo-file-v1:sha256:84110e40d654280763ebed8c574ae24e5b767c66cab2a6acaf93b4b62b38bc3b"
+        }
+      ]
+    },
+    {
+      "id": "claim_03e27d84d5f64faca31eab06edc0787c",
+      "statement": "The O2C state machine is NEW → DISPATCHED → IN_TRANSIT → COMPLETED with CANCELED as exception exit; docs/prd/QuyTrinhO2C.md is the canonical spec and diagram-based content is authoritative.",
+      "evidence": [
+        {
+          "resource": "repo://docs/prd/QuyTrinhO2C.md",
+          "version": "repo-file-v1:sha256:4850f532124bbb2a7f64e4f8c49ea6b581345f1848f22c7bbc51f3908596e994"
+        }
+      ]
+    },
+    {
+      "id": "claim_70ce670bd9584411abf474835bf109f0",
+      "statement": "testplan/flows contains role-based regression flows with roles (CUS, DISPATCHER, DRIVER, OPS, ACCOUNTANT, ADMIN, CUSTOMER) and no hardcoded usernames; per-environment accounts resolve via testaccounts.txt with shared staging password Abc123.",
+      "evidence": [
+        {
+          "resource": "repo://testplan/flows/README.md",
+          "version": "repo-file-v1:sha256:80ef50acacf0720a0b6616c5d3f5c64596c0537d17279f8adfeb09aa694a6dd0"
+        }
+      ]
+    },
+    {
+      "id": "claim_10f2e534cd814ae196a8058fd4ea33ad",
+      "statement": "GPS/telemetry and the AI-assistant feature were removed entirely on 2026-09-06, and the PENDING_EXPENSE_APPROVAL status and maker-checker flow were retired 2026-09-05; none of these may be documented as current.",
+      "evidence": [
+        {
+          "resource": "repo://AGENTS.md",
+          "version": "repo-file-v1:sha256:778660c9b3307b2cb4477f959b9e214b0de3a0a435168ed09b7862921cdd6eef"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.5.0",
+    "at": "2026-09-08T08:52:37.167Z"
+  }
+}

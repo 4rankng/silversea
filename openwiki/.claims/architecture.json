@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:c35942d9f79d36571e245612c9c2116aaef76218729c3bb3f656cf1d6a95b64c",
+  "claims": [
+    {
+      "id": "claim_2a45a7a12a0642c9aced6e2baaf3df0c",
+      "statement": "SilverSea is a pnpm monorepo: Express+TS backend on port 3001, React 19+Vite frontend on strictPort 7174, shared @tingting/shared package; backend/src/services holds 214 service modules and runs on Drizzle/Postgres with JWT+Casbin RBAC.",
+      "evidence": [
+        {
+          "resource": "repo://frontend/package.json",
+          "version": "repo-file-v1:sha256:a835034902b518f35d5fea8367e3754befa649e5a73a79af5dddae2429c9c38e"
+        }
+      ]
+    },
+    {
+      "id": "claim_80ba1f9c415c44a39b0f667139b276ae",
+      "statement": "Financial precision is centralized in shared/src/calculations (round2dp, computeTripTotals); VND amounts carry no decimals and both apps share these functions.",
+      "evidence": [
+        {
+          "resource": "repo://shared/src/calculations/round.ts",
+          "version": "repo-file-v1:sha256:40a80e09a6d2b081266139c0f111300600ecc06712c44180ab697799014778c2"
+        },
+        {
+          "resource": "repo://shared/src/calculations/tripTotals.ts",
+          "version": "repo-file-v1:sha256:9b0ad3d12a384b6a9481e14ea1423c8fbe1c32dd80693526cd1694c9bcdded83"
+        }
+      ]
+    },
+    {
+      "id": "claim_8fa5af1dc5ce4bdaaa07f7fa3fe88d8d",
+      "statement": "frontend structure.guard.test.ts freezes per-file line ceilings (ratchet only shrinks); when branches independently grow a file, the ceiling is bumped to the actual merged line count with a comment naming both feature sets.",
+      "evidence": [
+        {
+          "resource": "repo://frontend/src/tests/structure.guard.test.ts",
+          "version": "repo-file-v1:sha256:a1dbe7e5dd1aa5c9129b57b247c4b1815eae1a4f3679b2cfef8b3067275cbf62"
+        }
+      ]
+    },
+    {
+      "id": "claim_887f9180803149a3a8ddcfcb30480ebd",
+      "statement": "After editing shared/src, compiled shared/dist must be rebuilt (pnpm --dir shared build) or backend imports fail at runtime.",
+      "evidence": [
+        {
+          "resource": "repo://shared/package.json",
+          "version": "repo-file-v1:sha256:f25d6bd37e7e001ba901f186767e5d4b4fe93d10b672635866e503b67b0a0b36"
+        }
+      ]
+    },
+    {
+      "id": "claim_60e56310da91424c90232bb1e560b686",
+      "statement": "Report-cache invalidators exist in 3 copies; a new ledger-report pattern must be wired into all of them.",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/services/aging.service.ts",
+          "version": "repo-file-v1:sha256:1471a3fa58a5995118ee53a9d5f8e594843cc335f4d1247227f60bde2f465697"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.5.0",
+    "at": "2026-09-08T08:52:37.167Z"
+  }
+}
