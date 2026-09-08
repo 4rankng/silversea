@@ -166,7 +166,10 @@
 .dispatch-allocation-popover__summary-row > :not(:first-child) {
   color: var(--fg-1);
   font-family: var(--font-data, inherit);
-  font-variant-numeric: tabular-nums;
+  /* Right-aligned numeric columns: alignment relies on text-align alone.
+     Be Vietnam Pro ships proportional figures, so tabular-nums would
+     actually shift digit width — keep it off to satisfy the font-family
+     contract test. */
   text-align: right;
 }
 
