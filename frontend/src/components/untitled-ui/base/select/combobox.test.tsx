@@ -102,4 +102,31 @@ describe('ComboBox', () => {
     expect(popover, 'popover element should render after focus').toBeTruthy();
     expect(popover?.getAttribute('data-placement')).toMatch(/^bottom/);
   });
+
+  // Regression guard for TC-CUS-CREATE-021/022/023 (Customer feedback 2026-09-07):
+  // User must be able to click the clear button (X) to clear the selected value.
+  it('renders clear button when onClear is provided and a selection exists, and clicking it triggers onClear', async () => {
+    const onClear = vi.fn();
+    render(
+      <ComboBox
+        label="Tuyến đường"
+        size="sm"
+        items={[{ id: 'route-1', label: 'Hà Nội - Hải Phòng' }]}
+        selectedKey="route-1"
+        onClear={onClear}
+      >
+        {(item) => <SelectItem id={item.id} value={item} label={item.label} />}
+      </ComboBox>,
+    );
+
+    const clearButton = screen.getByRole('button', { name: 'Xoá' });
+    expect(clearButton).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.click(clearButton);
+    });
+
+    expect(onClear).toHaveBeenCalledTimes(1);
+  });
 });
+

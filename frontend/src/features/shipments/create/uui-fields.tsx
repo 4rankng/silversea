@@ -245,7 +245,17 @@ export function USearchableField({
           }
         }}
         {...(searchable
-          ? { onInputChange: (text: string) => setInputValue(text) }
+          ? {
+              allowsCustomValue: Boolean(allowsCustomValue),
+              onInputChange: (text: string) => {
+                setInputValue(text);
+                if (allowsCustomValue) {
+                  onChange(text);
+                } else if (text === '') {
+                  onChange('');
+                }
+              },
+            }
           : allowsCustomValue
             ? { allowsCustomValue: true, onInputChange: (text: string) => onChange(text) }
             : {})}
@@ -267,6 +277,7 @@ export function USearchableField({
         {(item: { id: string | number; label?: string; supportingText?: string }) => (
           <SelectItem
             id={item.id}
+            value={item}
             data-value={String(item.id)}
             className={optionClassName}
             label={item.label}
