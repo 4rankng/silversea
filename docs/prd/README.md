@@ -12,12 +12,15 @@ từ khách hàng) ở đầu trang.
 | [`ManHinhLaiXe.md`](ManHinhLaiXe.md) | App Lái xe: cấu trúc thẻ 2 lớp, luồng nhận lệnh, e-POD bắt buộc | `2026.8.27_Man_hinh_lai_xe.docx` |
 | [`CuocPhiPhuPhiDau.md`](CuocPhiPhuPhiDau.md) | **Bảng cước phí — thiết kế logic:** công thức, tham số, bảng cước thành phẩm, quy tắc làm tròn | `18.7 - BG Long Minh T7.xlsx` |
 | [`CuocPhiThietKeDB.md`](CuocPhiThietKeDB.md) | **Bảng cước phí — thiết kế DB schema:** 5 bảng mới + thuật toán tra cước + snapshot *(ĐỀ XUẤT)* | dẫn xuất từ `CuocPhiPhuPhiDau.md` |
+| [`CauHoiKhachHang_CuocPhi_2026-09-08.md`](CauHoiKhachHang_CuocPhi_2026-09-08.md) | **5 câu hỏi nghiệp vụ cần khách hàng Long Minh trả lời** trước khi triển khai | — |
 
 `archive/` chứa 12 tệp `Module*.docx` gốc — giữ để tra cứu, **không** phải nguồn chân lý hiện hành.
 
 > **Trạng thái tài liệu:** các tệp trong bảng trên là **đặc tả đang có hiệu lực**, trừ
 > [`CuocPhiThietKeDB.md`](CuocPhiThietKeDB.md) — đây là **đề xuất kỹ thuật chưa được
-> duyệt, chưa triển khai**.
+> duyệt, chưa triển khai**. Triển khai bị **chặn** bởi 5 câu hỏi nghiệp vụ trong
+> [`CauHoiKhachHang_CuocPhi_2026-09-08.md`](CauHoiKhachHang_CuocPhi_2026-09-08.md)
+> đang chờ khách hàng Long Minh phản hồi.
 
 ---
 
