@@ -1281,4 +1281,36 @@
   - Backend unit test: `shipment-fulfillment.service.test.ts`
 - **Regression ID:** REG-CUS-COMB-05-20260908
 
+## 1.20 — Font size đồng nhất giữa các dòng trong bảng "Chi tiết container" (báo cáo khách hàng 2026-09-08)
+
+### TC-CUS-CREATE-041 — Cột "Biển số" đồng nhất font-size giữa dòng đã gán và dòng đang trống (regression bug 2026-09-08)
+
+- **Mã bug:** BUG-2026-09-08-LEDGER-FONT
+- **Vai trò:** `cus`, `admin`
+- **Mức độ:** P1 (visual regression)
+- **Thiết bị:** Desktop (1440×900)
+- **Tiền điều kiện:**
+  1. Mở `/shipments`. Có ít nhất một lô FCL có **≥ 2 container** với các trạng thái khác nhau:
+     - 1 container đã được gán biển số (`plateAssigned = true`).
+     - 1 container chưa được gán biển số (`plateAssigned = false`).
+- **Các bước:**
+  1. Click nút "Chi tiết" của lô đó để mở drawer.
+  2. Trong bảng "Chi tiết container", so sánh cột "Biển số" của 2 dòng liền kề.
+  3. Đo `getComputedStyle(...)` của:
+     - Ô "Biển số" của dòng đã gán (renderer `<strong>`).
+     - Ô "Biển số" của dòng đang trống (renderer `<span class="csc-container-cell__display">` với placeholder "Nhập biển số").
+- **Kết quả mong đợi (Pass):**
+  - Cả hai ô cùng `font-size: 12px` và cùng `font-weight: 500` (hoặc một cặp giá trị duy nhất được dùng cho cả bảng).
+  - Mắt thường nhìn 2 dòng liền kề thấy cỡ chữ bằng nhau; placeholder "Nhập biển số" chỉ khác ở **màu** (`--fg-3` thay vì `--ink`), không khác ở kích thước hoặc độ đậm.
+  - Không ảnh hưởng đến bảng `csc-container-table` ở `/shipments/new` (font-size 13px vẫn giữ nguyên cho form tạo mới).
+- **Kỳ vọng sai (Fail nếu):**
+  - `font-size` ở dòng "Biển số đã gán" khác dòng "Biển số trống" (vd. 12px vs 13px).
+  - `font-weight` chênh lệch rõ rệt giữa 2 renderer (`<strong>` 500 vs display span 400).
+  - Cỡ chữ thay đổi ở `/shipments/new` (regression ngược sang form tạo).
+- **Bằng chứng:**
+  - `qa/2026-09-08_container-ledger-font_before.png` (screenshot bảng trước fix, thấy rõ chênh lệch cỡ chữ).
+  - `qa/2026-09-08_container-ledger-font_after.png` (screenshot sau fix, 2 dòng cùng cỡ).
+  - `qa/2026-09-08_container-ledger-font_ui-driver.log` (log script puppeteer đo `getComputedStyle`).
+  - Output JSON của script `before-fix-ledger.mjs` chạy lại sau fix: 2 dòng có cùng `fontSize`/`fontWeight`.
+- **Regression ID:** REG-LEDGER-FONT-20260908
 

@@ -1597,6 +1597,19 @@
 
 .cus-container-cell > strong { font: inherit; }
 
+/* Drawer ledger cells must share one typography scale. The base
+ * `.csc-container-cell__display` rule hard-codes 13px for the create-form
+ * spreadsheet, which leaves the Biển số / Nâng / Hạ / Giờ hẹn rows in the
+ * read-only CuS container ledger visually offset from the same column on
+ * rows that are still editable. Inherit the parent td's 12px / medium so
+ * both branches render at the same size — only the placeholder tone (and
+ * any hover/focus ring) should differ. */
+.cus-container-cell .csc-container-cell__display {
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+}
+
 .cus-container-cell--identity {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
