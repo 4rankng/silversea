@@ -22,6 +22,7 @@ import { globalErrorHandler } from '../middleware/errorHandler';
 import { createHandoff } from '../services/dispatch-handoff.service';
 import { listDispatchQueue } from '../services/dispatch-planning.service';
 import { notificationUrlForRole } from '../services/notification.service';
+import { disconnectRedis } from '../lib/redis';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -292,6 +293,7 @@ before(async () => {
 
 after(async () => {
   if (server.listening) {
+    server.closeAllConnections();
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }
 
@@ -337,6 +339,7 @@ after(async () => {
       await db.delete(s.users).where(inArray(s.users.id, createdUserIds));
     }
   } finally {
+    await disconnectRedis();
     await client.end();
   }
 });
