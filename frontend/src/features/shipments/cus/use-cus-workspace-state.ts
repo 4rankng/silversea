@@ -170,7 +170,14 @@ export function useCusWorkspaceState(params: CusWorkspaceListParams) {
     }
   }, [details]);
 
-  const applySavedContainerLine = useCallback(async (shipmentId: number, line: ShipmentCusWorkspaceContainerLine) => {
+  const applySavedContainerLine = useCallback(async (shipmentId: number, line?: ShipmentCusWorkspaceContainerLine | null) => {
+    if (!line) {
+      // Defensive: callers guard the response envelope, but a stale row also
+      // matters — an in-flight save for a line that just disappeared must
+      // not crash the reducer and blank the page.
+      await loadList();
+      return;
+    }
     setDetails((current) => {
       const detail = current[shipmentId];
       if (!detail) return current;

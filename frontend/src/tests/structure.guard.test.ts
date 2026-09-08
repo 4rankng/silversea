@@ -70,7 +70,9 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // Bumped 446 → 448: driver-note save now carries operationalNotes and the
   // optimistic row update refreshes notes.vehicleNote (2026-09-07). Reviewed
   // as a contract change.
-  'src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts': 448,
+  // Bumped 448 → 450: 2026-09-08 — the dispatch editor no longer owns
+  // classification/lot-flag (route strips both), documented at the save body.
+  'src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts': 450,
   'src/features/dispatch/master-plan/DispatchAllocationPopover.tsx': 454,
   'src/features/dispatch/master-plan/MasterPlanFilters.tsx': 735,
   // Bumped 508 → 520: 282fe386 (2026-09-05, "fix(dispatch): keep dispatched

@@ -129,7 +129,14 @@ function ContainerLineRow({
           customerAppointmentAt: draft.customerAppointmentAt ? new Date(draft.customerAppointmentAt).toISOString() : null,
         } : {}),
       }, idempotencyKey);
-      await onSaved(result.line);
+      // The contract is `{ line: ShipmentCusWorkspaceContainerLine }`. If a
+      // future response variant drops the `line` envelope (e.g., a 207
+      // multi-status route returns a bare array), skipping the optimistic
+      // patch keeps the dialog honest instead of crashing inside a reducer
+      // and blanking the page mid-render.
+      if (result && result.line) {
+        await onSaved(result.line);
+      }
       clearIdempotencyKey(signature);
       setDirty(false);
       toast({ kind: 'success', message: 'Cập nhật lịch trình container thành công!' });
