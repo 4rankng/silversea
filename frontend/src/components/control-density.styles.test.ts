@@ -85,7 +85,7 @@ describe('shared control density', () => {
       '.shipments-detail-filters .ds-uui-select',
       '.cus-worksheet-toolbar .ds-uui-select',
       '.penalty-filter-bar .ds-uui-select',
-      '.dispatch-allocation-popover__fields .ds-uui-select',
+      '.dispatch-allocation-popover__row .ds-uui-select',
       '.trip-list-page .filter-pill .ds-uui-select',
       // CUS /shipments/new local conformance skin — the shared UUI label
       // defaults vary per component (combobox vs text vs date), so the

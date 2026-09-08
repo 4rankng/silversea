@@ -11,6 +11,7 @@ import {
   AllocationDayGroup,
   AllocationRow,
   buildInitialDayGroups,
+  formatContainerCounts,
   syncDayGroupsWithContainers,
   toEmptyRow,
   validateDayGroups,
@@ -117,8 +118,8 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved, returnFo
     window.requestAnimationFrame(() => {
       const rowIndex = targetDay.rows.length;
       const selector = isMultiDay
-        ? `[data-allocation-row="${dayIndex}-${rowIndex}"] .dispatch-allocation-popover__fields button`
-        : `[data-allocation-row="${rowIndex}"] .dispatch-allocation-popover__fields button`;
+        ? `[data-allocation-row="${dayIndex}-${rowIndex}"] button`
+        : `[data-allocation-row="${rowIndex}"] button`;
       dialogRef.current?.querySelector<HTMLButtonElement>(selector)?.focus();
     });
   };
@@ -136,8 +137,8 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved, returnFo
     window.requestAnimationFrame(() => {
       const nextIndex = Math.max(0, Math.min(rowIndex, targetDay.rows.length - 2));
       const selector = isMultiDay
-        ? `[data-allocation-row="${dayIndex}-${nextIndex}"] .dispatch-allocation-popover__fields button`
-        : `[data-allocation-row="${nextIndex}"] .dispatch-allocation-popover__fields button`;
+        ? `[data-allocation-row="${dayIndex}-${nextIndex}"] button`
+        : `[data-allocation-row="${nextIndex}"] button`;
       dialogRef.current?.querySelector<HTMLButtonElement>(selector)?.focus();
     });
   };
@@ -264,47 +265,35 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved, returnFo
             : 'Chọn nhà xe và số container giao cho từng đơn vị. Có thể lưu khi chưa phân đủ và bổ sung sau.'}
         </p>
 
-        <section className={`dispatch-allocation-popover__summary is-${validation.overallState}`} aria-labelledby="dispatch-allocation-summary-title">
+        <section aria-labelledby="dispatch-allocation-summary-title" className={`dispatch-allocation-popover__summary is-${validation.overallState}`}>
           <div className="dispatch-allocation-popover__summary-heading">
             <div>
               <h4 id="dispatch-allocation-summary-title">Tổng phân bổ{isMultiDay ? ' toàn lô' : ''}</h4>
-              <p>Không được phân vượt nhu cầu của lô hàng.</p>
+              <div className="dispatch-allocation-popover__summary-facts">
+                <span>Nhu cầu: <strong>{formatContainerCounts(demand)}</strong></span>
+                <span>Đã phân: <strong>{formatContainerCounts({ count20: validation.totalAssigned20, count40: validation.totalAssigned40 })}</strong></span>
+                <span>Còn lại: <strong>{formatContainerCounts({
+                  count20: validation.overallState === 'error' ? validation.totalRemaining20 : Math.max(0, validation.totalRemaining20),
+                  count40: validation.overallState === 'error' ? validation.totalRemaining40 : Math.max(0, validation.totalRemaining40),
+                })}</strong></span>
+              </div>
             </div>
             <span className="dispatch-allocation-popover__state" aria-live="polite">
               {validation.overallState === 'error' ? 'Cần điều chỉnh' : validation.overallState === 'complete' ? 'Đã phân đủ' : 'Chưa phân đủ'}
             </span>
           </div>
-          <div className="dispatch-allocation-popover__balance" role="table" aria-label="Tổng số container đã phân bổ">
-            <div className="dispatch-allocation-popover__balance-header" role="row">
-              <span role="columnheader">Loại</span>
-              <span role="columnheader">Nhu cầu</span>
-              <span role="columnheader">Đã phân</span>
-              <span role="columnheader">Còn lại</span>
-            </div>
-            <div className="dispatch-allocation-popover__balance-row" role="row">
-              <strong role="rowheader">20'</strong>
-              <span role="cell">{demand.count20}</span>
-              <span role="cell">{validation.totalAssigned20}</span>
-              <strong role="cell">{validation.overallState === 'error' ? validation.totalRemaining20 : Math.max(0, validation.totalRemaining20)}</strong>
-            </div>
-            <div className="dispatch-allocation-popover__balance-row" role="row">
-              <strong role="rowheader">40'</strong>
-              <span role="cell">{demand.count40}</span>
-              <span role="cell">{validation.totalAssigned40}</span>
-              <strong role="cell">{validation.overallState === 'error' ? validation.totalRemaining40 : Math.max(0, validation.totalRemaining40)}</strong>
-            </div>
-          </div>
         </section>
 
-        {!isMultiDay && (
-          <div className="dispatch-allocation-popover__section-head">
-            <div>
-              <h4>Phân bổ theo nhà xe</h4>
-              <p>Mỗi nhà xe chỉ xuất hiện một lần.</p>
+        <div role="table" aria-label="Phân bổ theo nhà xe theo ngày" className="dispatch-allocation-popover__table">
+          <div role="rowgroup" className="dispatch-allocation-popover__table-head">
+            <div role="row" className="dispatch-allocation-popover__table-head-row">
+              <span role="columnheader">Ngày</span>
+              <span role="columnheader">Nhà xe</span>
+              <span role="columnheader">Container 20'</span>
+              <span role="columnheader">Container 40'</span>
+              <span role="columnheader" aria-label="Thao tác"></span>
             </div>
           </div>
-        )}
-
         {days.map((day, dayIndex) => {
           const section = (
             <DispatchAllocationDaySection
@@ -324,6 +313,7 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved, returnFo
           globalRowOffset += day.rows.length;
           return section;
         })}
+        </div>
 
         {optionsError && (
           <div className="dispatch-allocation-popover__notice is-warning" role="alert">

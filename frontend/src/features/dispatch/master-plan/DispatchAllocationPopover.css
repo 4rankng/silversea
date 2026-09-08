@@ -98,21 +98,14 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 12px 14px;
-  border-bottom: 1px solid var(--border-1);
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  padding: 10px 14px;
 }
 
 .dispatch-allocation-popover__summary-heading h4 {
   margin: 0;
   font-size: 13px;
-  line-height: 1.4;
-}
-
-.dispatch-allocation-popover__summary-heading p {
-  margin: 2px 0 0;
-  color: var(--fg-3);
-  font-size: 12px;
   line-height: 1.4;
 }
 
@@ -137,122 +130,6 @@
   color: var(--danger-text);
 }
 
-.dispatch-allocation-popover__balance {
-  display: grid;
-}
-
-.dispatch-allocation-popover__balance-header,
-.dispatch-allocation-popover__balance-row {
-  display: grid;
-  grid-template-columns: minmax(92px, 1.4fr) repeat(3, minmax(72px, 1fr));
-  align-items: center;
-  column-gap: 12px;
-  min-width: 0;
-  padding: 8px 14px;
-}
-
-.dispatch-allocation-popover__balance-header {
-  padding-block: 7px;
-  border-bottom: 1px solid var(--border-1);
-}
-
-.dispatch-allocation-popover__balance-header span {
-  color: var(--fg-3);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.dispatch-allocation-popover__balance-header span:not(:first-child),
-.dispatch-allocation-popover__balance-row span,
-.dispatch-allocation-popover__balance-row strong:not(:first-child) {
-  text-align: right;
-}
-
-.dispatch-allocation-popover__balance-row {
-  font-size: 14px;
-  line-height: 1.4;
-}
-
-.dispatch-allocation-popover__balance-row + .dispatch-allocation-popover__balance-row {
-  border-top: 1px solid var(--border-1);
-}
-
-.dispatch-allocation-popover__balance-row > * {
-  font-family: var(--font-data, inherit);
-}
-
-.dispatch-allocation-popover__summary.is-complete .dispatch-allocation-popover__balance-row strong:last-child {
-  color: var(--success-text);
-}
-
-.dispatch-allocation-popover__summary.is-partial .dispatch-allocation-popover__balance-row strong:last-child {
-  color: var(--warning-text);
-}
-
-.dispatch-allocation-popover__summary.is-error .dispatch-allocation-popover__balance-row strong:last-child {
-  color: var(--danger-text);
-}
-
-.dispatch-allocation-popover__section-head {
-  display: flex;
-  align-items: end;
-  justify-content: space-between;
-  margin-top: 20px;
-}
-
-.dispatch-allocation-popover__section-head h4 {
-  margin: 0;
-  font-size: 14px;
-  line-height: 1.4;
-}
-
-.dispatch-allocation-popover__section-head p {
-  margin: 2px 0 0;
-  color: var(--fg-3);
-  font-size: 12px;
-}
-
-.dispatch-allocation-popover__rows {
-  display: grid;
-  gap: 10px;
-  margin-top: 10px;
-}
-
-.dispatch-allocation-popover__row {
-  overflow: hidden;
-  border: 1px solid var(--border-1);
-  border-radius: 10px;
-  background: var(--bg-2);
-}
-
-.dispatch-allocation-popover__row-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-height: 38px;
-  padding: 6px 8px 6px 14px;
-  border-bottom: 1px solid var(--border-1);
-  background: var(--bg-1);
-}
-
-.dispatch-allocation-popover__row-head strong {
-  color: var(--fg-2);
-  font-size: 12px;
-  line-height: 1.4;
-}
-
-.dispatch-allocation-popover__fields {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) repeat(2, minmax(116px, 0.42fr));
-  gap: 12px;
-  align-items: start;
-  min-width: 0;
-  padding: 12px 14px 14px;
-}
-
 .dispatch-allocation-popover__carrier,
 .dispatch-allocation-popover__count {
   width: 100%;
@@ -269,12 +146,12 @@
 
 /* Conformance skin (design-guidelines.md, Dense dialogs & forms): the
    vendored Select trigger's inner value span keeps its own min-h-[34px],
-   2px taller than the adjacent UUIInput min-h-[32px]. With the fields
+   2px taller than the adjacent UUIInput min-h-[32px]. With the row
    grid's align-items: start, the select's control box overhangs its
    row-mates by 2px and drags the hint line down with it. Trim it to 32px
    so all three fields in the row share one control height. */
-.dispatch-allocation-popover__fields .ds-uui-select__control button > span,
-.dispatch-allocation-popover__fields .ds-uui-select__control [role='group'] [data-combobox-value] { min-height: 32px; }
+.dispatch-allocation-popover__row .ds-uui-select__control button > span,
+.dispatch-allocation-popover__row .ds-uui-select__control [role='group'] [data-combobox-value] { min-height: 32px; }
 
 .dispatch-allocation-popover__carrier select[aria-invalid='true'] {
   border-color: var(--danger);
@@ -407,6 +284,94 @@
   border-top: 1px solid var(--border-1);
 }
 
+.dispatch-allocation-popover__summary-facts {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px;
+  margin-right: auto; color: var(--fg-2); font-size: 13px;
+}
+.dispatch-allocation-popover__summary-facts strong {
+  color: var(--fg-1); font-family: var(--font-data, inherit);
+}
+
+.dispatch-allocation-popover__table { margin-top: 16px; }
+
+.dispatch-allocation-popover__table-head-row {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) 112px 112px 36px;
+  gap: 10px; padding: 6px 0;
+  font-size: 11px; font-weight: 700; color: var(--fg-3);
+  letter-spacing: 0.04em; text-transform: uppercase;
+}
+
+.dispatch-allocation-popover__day-group {
+  padding: 10px 0 2px;
+  border-top: 1px solid var(--border-1);
+}
+.dispatch-allocation-popover__table-head + .dispatch-allocation-popover__day-group { border-top: 0; }
+
+.dispatch-allocation-popover__day-header-row { display: block; }
+
+.dispatch-allocation-popover__day-header-cell {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px;
+  padding: 2px 0 6px;
+}
+
+.dispatch-allocation-popover__day-weekday {
+  color: var(--fg-2);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.dispatch-allocation-popover__day-icon {
+  color: var(--brand);
+  flex-shrink: 0;
+}
+
+.dispatch-allocation-popover__row-carrier,
+.dispatch-allocation-popover__row-count {
+  min-width: 0;
+}
+
+.dispatch-allocation-popover__day-title {
+  margin: 0; font-size: 14px; font-weight: 700; color: var(--fg-1);
+}
+
+.dispatch-allocation-popover__day-factory { color: var(--fg-2); font-size: 13px; }
+
+.dispatch-allocation-popover__day-demand-chip {
+  padding: 2px 8px; border-radius: 999px; background: var(--bg-2);
+  border: 1px solid var(--border-1); color: var(--fg-2);
+  font-size: 11px; font-weight: 600;
+}
+
+.dispatch-allocation-popover__day-group .dispatch-allocation-popover__state { flex: 0 0 auto; }
+.dispatch-allocation-popover__day-group.is-complete .dispatch-allocation-popover__state {
+  background: var(--success-soft); color: var(--success-text);
+}
+.dispatch-allocation-popover__day-group.is-error .dispatch-allocation-popover__state {
+  background: var(--danger-soft); color: var(--danger-text);
+}
+
+.dispatch-allocation-popover__row {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) 112px 112px 36px
+  gap: 10px; align-items: start; padding: 8px 0 10px;
+}
+
+.dispatch-allocation-popover__day-group .dispatch-allocation-popover__row + .dispatch-allocation-popover__row {
+  border-top: 1px solid var(--border-1);
+}
+
+.dispatch-allocation-popover__row-date {
+  padding-top: 7px; color: var(--fg-2); text-align: right;
+  font-family: var(--font-data, inherit); font-size: 12px;
+}
+
+.dispatch-allocation-popover__row-remove { display: flex; justify-content: flex-end; }
+
+.dispatch-allocation-popover__day-add-row { padding: 2px 0 10px; }
+.dispatch-allocation-popover__day-add-cell { display: inline-flex; }
+.dispatch-allocation-popover__add { margin-top: 0; }
+
 @media (max-width: 680px) {
   .dispatch-allocation-popover__overlay {
     align-items: flex-end;
@@ -430,12 +395,10 @@
     content: none;
   }
 
-  .dispatch-allocation-popover__fields {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .dispatch-allocation-popover__carrier {
-    grid-column: 1 / -1;
+  .dispatch-allocation-popover__table-head-row,
+  .dispatch-allocation-popover__row {
+    grid-template-columns: 44px minmax(0, 1fr) 72px 72px 36px;
+    gap: 8px;
   }
 
   .dispatch-allocation-popover__remove {
@@ -468,78 +431,12 @@
     align-items: flex-start;
   }
 
-  .dispatch-allocation-popover__summary-heading p {
-    max-width: 220px;
+  .dispatch-allocation-popover__table-head-row,
+  .dispatch-allocation-popover__row {
+    grid-template-columns: minmax(0, 1fr) 72px 72px 40px;
+    gap: 8px;
   }
 
-  .dispatch-allocation-popover__balance-header,
-  .dispatch-allocation-popover__balance-row {
-    grid-template-columns: minmax(54px, 0.8fr) repeat(3, minmax(52px, 1fr));
-    column-gap: 8px;
-    padding-inline: 10px;
-  }
-
-  .dispatch-allocation-popover__balance-header span {
-    font-size: 10px;
-  }
+  .dispatch-allocation-popover__row-date { grid-column: 1 / -1; text-align: left; }
+  .dispatch-allocation-popover__table-head-row > :first-child { grid-column: 1 / -1; }
 }
-
-/* Day-separated allocation blocks (TC-DV-DISPATCH-043) */
-.dispatch-allocation-popover__day-section.is-multi {
-  margin-top: 18px;
-  padding: 16px;
-  border: 1px solid var(--border-1);
-  border-radius: 12px;
-  background: var(--bg-1);
-}
-
-.dispatch-allocation-popover__day-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.dispatch-allocation-popover__day-title-wrap {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.dispatch-allocation-popover__day-icon {
-  color: var(--brand);
-  flex-shrink: 0;
-}
-
-.dispatch-allocation-popover__day-title {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--fg-1);
-}
-
-.dispatch-allocation-popover__day-factory {
-  color: var(--fg-2);
-  font-size: 13px;
-}
-
-.dispatch-allocation-popover__day-demand-chip {
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: var(--bg-2);
-  border: 1px solid var(--border-1);
-  color: var(--fg-2);
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.dispatch-allocation-popover__day-balance {
-  margin-bottom: 12px;
-  overflow: hidden;
-  border: 1px solid var(--border-1);
-  border-radius: 8px;
-  background: var(--bg-2);
-}
-
