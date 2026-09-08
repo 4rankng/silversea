@@ -965,11 +965,13 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
 
 ---
 
-## 2.13 — Phân loại Đơn / Lẻ / Kết hợp là nghiệp vụ của CUS (Điều vận không thiết lập)
+## 2.13 — Phân loại chuyến: Điều vận được chọn Đơn / Kẹp / Kết hợp; cờ Đóng kết hợp cấp lô vẫn thuộc CUS (cập nhật 2026-09-08)
 
-> **Ranh giới nghiệp vụ chuẩn:**
-> - **Điều vận KHÔNG thiết lập hoặc thay đổi Đơn / Lẻ / Kết hợp**: Việc xác định phân loại vận chuyển (Đơn `SINGLE`, Lẻ `LCL`, Kết hợp `COMBINED`, Kẹp `DOUBLE`) và cờ đóng kết hợp (`isCombined`) là toàn quyền của nhân viên Chứng từ (CUS) khi tiếp nhận booking và tạo lô hàng (chi tiết toàn bộ quy tắc và ca kiểm thử xem tại `01-cus-create-shipment.md §1.19`).
-> - **Nhiệm vụ của Điều vận**: Nhận thông tin phân loại đã ấn định từ CUS và thực hiện điều phối kỹ thuật (gán đầu kéo, rơ-moóc, tài xế hoặc nhà xe ngoài) đáp ứng yêu cầu vận chuyển. Khi lưu kế hoạch điều phối qua `/dispatch-detail-plan-rows/:fulfillmentId/plan`, hệ thống tự động bảo toàn nguyên vẹn phân loại và cờ cấp lô do CUS đã xác lập.
+> **Ranh giới nghiệp vụ chuẩn (chốt mới 2026-09-08 — đảo một phần quyết định buổi sáng cùng ngày):**
+> - **Điều vận ĐƯỢC quyền chọn/đổi phân loại chuyến Đơn (`SINGLE`) / Kẹp (`DOUBLE`) / Kết hợp (`COMBINED`)** cho từng dòng vận chuyển trong dialog "Chỉnh sửa điều phối" (Kế hoạch chi tiết), lưu chung bước phân xe qua `/dispatch-detail-plan-rows/:fulfillmentId/plan`. CUS vẫn thiết lập phân loại ban đầu khi tạo lô (`01-cus-create-shipment.md §1.19`).
+> - **Dòng hàng lẻ (LCL) giữ cố định phân loại Lẻ (`LCL`)** — phân loại này gắn với hình thức lô hàng, không phải lựa chọn theo cont, nên select "Phân loại" ở dòng LCL hiển thị "Lẻ" ở dạng đọc (disabled).
+> - **Cờ "Đóng kết hợp" (`isCombined`) cấp lô vẫn thuộc CUS** (tạo lô + sửa nhanh). Dialog "Chỉnh sửa điều phối" **không** có checkbox này — chọn phân loại **Kết hợp** đã đủ thể hiện ghép chuyến ở cấp dòng, nên checkbox là dư thừa đối với điều vận; API vẫn loại bỏ (strip) `isCombined` khỏi request điều vận kể cả khi gọi thẳng.
+> - Trước 2026-09-08 (sáng): editor điều vận bị tước cả hai trường (TC-DV-DISPATCH-041 bản cũ). Quyết định mới trả lại quyền chọn Phân loại cho điều vận, giữ cờ cấp lô cho CUS.
 
 ---
 
@@ -1026,21 +1028,35 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
 
 ---
 
-### TC-DV-DISPATCH-041 — Editor điều vận không còn sở hữu Phân loại và Đóng kết hợp (CUS-owned, 2026-09-08)
+### TC-DV-DISPATCH-041 — Điều vận được chọn Phân loại trong Chỉnh sửa điều phối; không có checkbox Đóng kết hợp (2026-09-08, đảo quyết định sáng cùng ngày)
 
-- **Quyết định:** Phân loại chuyến (Đơn/Kẹp/Kết hợp/Lẻ) và cờ lot-level "Đóng kết hợp" là quyền của CUS
-  (tạo lô + quick-edit). Điều vận chỉ phân xe/cước/ghi chú.
+> **Lịch sử:** Bản cũ của case này (sáng 2026-9-8) khẳng định editor điều vận không còn select "Phân loại"
+> và checkbox "Đóng kết hợp" (CUS-owned). Khách hàng báo thiếu tùy chọn (ảnh "Chỉnh sửa điều phối · MNBUS283
+> đang mất tùy chọn Đơn/Kẹp/Kết hợp") và xác nhận checkbox Đóng kết hợp là dư thừa (ảnh UETU5787415 có cả
+> select + checkbox). Quyết định mới: **trả lại select Phân loại, loại bỏ hẳn checkbox** — case được viết
+> lại theo quyết định mới; các assertion "không còn Phân loại" cũ không còn giá trị.
+
+- **Quyết định:** Điều vận được quyền chọn/đổi phân loại Đơn/Kẹp/Kết hợp cho từng dòng trong dialog
+  "Chỉnh sửa điều phối". Cờ lot-level "Đóng kết hợp" (`isCombined`) vẫn thuộc CUS và **không** xuất hiện
+  trong dialog điều vận — chọn phân loại Kết hợp đã đủ thể hiện ghép chuyến cấp dòng (checkbox dư thừa).
 - **Vai trò:** `DISPATCHER` (DISPATCHER)
 - **Mức độ:** P1
 - **Các bước:**
-  1. Mở /dispatch-detail → "Chỉnh sửa điều phối" một dòng.
-  2. Xác nhận dialog KHÔNG còn select "Phân loại" và KHÔNG còn checkbox "Đóng kết hợp (kẹp chuyến)".
-  3. Sửa nhà xe/cước/ghi chú tác vụ → Lưu → thành công; cột Phân loại trên grid giữ nguyên giá trị cũ.
-  4. Gửi thẳng API PATCH kèm `classification`/`isCombined` (devtools) → backend vẫn strip, giá trị trong DB không đổi.
-- **Kết quả mong đợi (Pass):** điều vận không thể thay đổi Phân loại/Đóng kết hợp qua bất kỳ đường nào;
-  mọi giá trị khác (xe, cước, note) lưu bình thường; version bump đúng luật.
-- **Bằng chứng:** backend test "omitting classification and isCombined leaves both stored values untouched"
-  + "classification is CUS-owned — a dispatch save cannot rewrite it" (dispatch-detail-plan.test.ts).
+  1. Mở /dispatch-detail → "Chỉnh sửa điều phối" một dòng FCL.
+  2. Xác nhận dialog **CÓ** select "Phân loại" với đúng 3 lựa chọn: Đơn, Kẹp, Kết hợp (giá trị hiện tại
+     được chọn sẵn).
+  3. Xác nhận dialog **KHÔNG** còn checkbox "Đóng kết hợp (kẹp chuyến)" ở bất kỳ đâu.
+  4. Đổi phân loại sang "Kẹp", sửa thêm cước/ghi chú → Lưu → thành công; cột Phân loại trên grid phản
+     ánh giá trị mới.
+  5. Mở lại dialog → select giữ đúng giá trị vừa lưu.
+  6. Gửi thẳng API PATCH kèm `isCombined: true` (devtools) → backend vẫn strip cờ cấp lô, giá trị
+     `shipments.is_combined` trong DB không đổi.
+- **Kết quả mong đợi (Pass):** điều vận thay đổi được Phân loại qua dialog lẫn API; cờ Đóng kết hợp cấp lô
+  không thể thay đổi bởi điều vận qua bất kỳ đường nào; mọi giá trị khác (xe, cước, note) lưu bình thường;
+  version bump đúng luật.
+- **Bằng chứng:** backend test dispatch-detail-plan.test.ts "dispatch save persists the dispatcher's
+  classification and still strips the lot-level isCombined flag"; frontend test
+  DispatchPlanEditorCell.test.tsx (select Phân loại 3 lựa chọn, không có checkbox).
 
 ### TC-DV-DISPATCH-042 — Chip trạng thái điều vận 4 trạng thái theo ngày đóng/trả (quyết định KH 2026-09-08)
 
@@ -1066,8 +1082,77 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
   is missing" + "dispatchStatus record statuses filter by the badge derivation"
   (cus-shipment-workspace.test.ts); frontend `dispatchStatusVocabulary.test.ts` (pin 4 nhãn).
 
+### TC-DV-DISPATCH-043 — Bảng phân bổ nhà xe tách biệt từng ngày đóng/trả cho lô hàng có nhiều ngày khác nhau
+
+- **Mã PRD:** Yêu cầu người dùng 2026-09-08 — Lô hàng có nhiều ngày đóng/trả khác nhau, dialog "Phân bổ nhà xe" (Kế hoạch tổng quát) tách biệt bảng/khối phân bổ theo từng ngày thay vì gộp chung một bảng
+- **Vai trò:** `DISPATCHER`, `CUS`, `ADMIN`, `MANAGER`
+- **Mức độ:** P1
+- **Thiết bị:** Desktop (1440×900)
+- **Tiền điều kiện:**
+  - Lô hàng FCL đang ở trạng thái `READY_FOR_DISPATCH` có nhiều container với ngày đóng/trả (`customerAppointmentAt`) ở các ngày khác nhau (ví dụ: ngày 10/09/2026 có 1x40HC, ngày 11/09/2026 có 1x40HC).
+- **Các bước:**
+  1. Đăng nhập `DISPATCHER`. Mở `/dispatch` (Kế hoạch tổng quát).
+  2. Bấm "Chỉnh sửa phân bổ nhà xe" trên lô hàng có nhiều ngày đóng/trả khác nhau.
+  3. Quan sát dialog "Phân bổ nhà xe":
+     - Bảng tổng phân bổ vẫn hiển thị tổng số cont của toàn bộ lô hàng.
+     - Danh sách phân bổ nhà xe được chia thành các khối/bảng tách biệt theo từng ngày đóng/trả (ví dụ khối "Ngày 10/09/2026", khối "Ngày 11/09/2026").
+     - Mỗi khối ngày hiển thị rõ nhu cầu container của ngày đó (ví dụ "Nhu cầu: 1x40'"), trạng thái phân bổ của ngày ("Chưa phân đủ" / "Đã phân đủ"), và danh sách các dòng nhà xe cho ngày đó.
+  4. Tại ngày 10/09/2026: gán "Đội xe nội bộ SilverSea" 1x40'.
+  5. Tại ngày 11/09/2026: gán "Đội xe nội bộ SilverSea" (hoặc nhà xe ngoài) 1x40'. Hệ thống cho phép cùng một nhà xe xuất hiện ở các ngày khác nhau.
+  6. Bấm "Lưu phân bổ".
+  7. Mở lại dialog "Phân bổ nhà xe" cho lô đó.
+- **Kết quả mong đợi (Pass):**
+  - Bước 3: Dialog tách biệt rõ ràng từng ngày đóng/trả; mỗi ngày có nhu cầu riêng và danh sách nhà xe riêng.
+  - Bước 4-5: Nhu cầu và số lượng phân bổ của từng ngày được kiểm soát độc lập, không cho phân quá nhu cầu của ngày đó; cùng 1 nhà xe có thể nhận hàng ở cả 2 ngày khác nhau.
+  - Bước 6: Lưu thành công (200 OK), phân bổ từng container đúng với ngày hẹn của container đó trên DB.
+  - Bước 7: Mở lại dialog, dữ liệu phân bổ của từng ngày được pre-fill chính xác theo từng ngày.
+- **Kỳ vọng sai (Fail nếu):**
+  - Tất cả các ngày bị gộp chung vào 1 danh sách, không biết cont nào của ngày nào.
+  - Chọn cùng nhà xe cho 2 ngày khác nhau bị báo lỗi "Mỗi nhà xe chỉ được xuất hiện một lần".
+  - Phân bổ container ngày này bị gán nhầm sang container của ngày khác.
+- **Bằng chứng:** ảnh dialog "Phân bổ nhà xe" tách biệt các khối ngày + ảnh phân bổ 2 ngày + kết quả lưu và pre-fill khi mở lại.
 
 ---
+
+### TC-DV-DISPATCH-044 — Select "Phân loại" trở lại dialog Chỉnh sửa điều phối — 3 lựa chọn Đơn/Kẹp/Kết hợp, không checkbox Đóng kết hợp (feature 2026-09-08)
+
+- **Mã PRD:** Quyết định KH 2026-09-08 — ảnh báo lỗi "Chỉnh sửa điều phối · MNBUS283" mất tùy chọn
+  Đơn/Kẹp/Kết hợp; ảnh đích "UETU5787415" giữ select nhưng khách hàng chốt bỏ checkbox "Đóng kết hợp"
+  vì dư thừa (chọn phân loại Kết hợp đã đủ ở cấp dòng).
+- **Vai trò:** `DISPATCHER` (DISPATCHER)
+- **Mức độ:** P0
+- **Thiết bị:** Desktop (1440×900)
+- **Tiền điều kiện:** Lô FCL READY_FOR_DISPATCH hiển thị trên `/dispatch-detail`, dòng chưa phát lệnh.
+- **Các bước:**
+  1. Đăng nhập `DISPATCHER`. Mở `/dispatch-detail`. Bấm ô "Điều phối" của một dòng FCL → dialog
+     "Chỉnh sửa điều phối" mở.
+  2. Quan sát giữa ô "Xe / biển số" và "Cuốc thu dự kiến": có select "Phân loại" với đúng 3 lựa chọn —
+     Đơn, Kẹp, Kết hợp — giá trị hiện tại của dòng được chọn sẵn.
+  3. Kiểm tra toàn bộ dialog: **không** tồn tại checkbox "Đóng kết hợp (kẹp chuyến)".
+  4. Chọn "Kết hợp", bấm "Lưu thay đổi" → lưu thành công.
+  5. Kiểm tra cột "Phân loại" trên Kế hoạch chi tiết phản ánh "KẾT HỢP".
+  6. Mở lại dialog cùng dòng → select đang chọn "Kết hợp" (prefill đúng).
+  7. Mở một dòng hàng lẻ (lô LCL) → select "Phân loại" hiển thị "Lẻ" và bị khóa (disabled).
+  8. Gọi thẳng API PATCH `/dispatch-detail-plan-rows/:id/plan` kèm `classification` → phân loại được lưu.
+  9. Gọi thẳng API PATCH kèm `isCombined: true` → cờ cấp lô không đổi (vẫn thuộc CUS).
+- **Kết quả mong đợi (Pass):**
+  - Bước 2: đúng 3 lựa chọn, prefill đúng giá trị hiện tại.
+  - Bước 3: không còn checkbox "Đóng kết hợp (kẹp chuyến)" trong dialog.
+  - Bước 4-6: lưu phân loại thành công, cột Phân loại cập nhật, prefill đúng khi mở lại; version bump
+    đúng luật (đổi phân loại bump version fulfillment, không bump version lô khi chỉ đổi phân loại).
+  - Bước 7: dòng LCL hiển thị "Lẻ" cố định — điều vận không thể đổi hình thức lô theo cont.
+  - Bước 8-9: API chấp nhận `classification` từ điều vận; `isCombined` vẫn bị loại bỏ.
+- **Kỳ vọng sai (Fail nếu):**
+  - Select "Phân loại" vắng mặt (hành vi lỗi ảnh MNBUS283).
+  - Checkbox "Đóng kết hợp" vẫn còn trong dialog (hành vi dư thừa ảnh UETU5787415).
+  - Đổi phân loại lưu được nhưng mở lại bị reset về "Đơn".
+  - Dòng LCL cho phép đổi phân loại.
+- **Bằng chứng:** ảnh dialog với select Phân loại (3 lựa chọn) + ảnh cột Phân loại sau lưu + ảnh dialog
+  dòng LCL ("Lẻ" disabled) + ảnh Network PATCH 200 (classification) và DB `shipments.is_combined` không
+  đổi khi gửi isCombined; backend + frontend tests như TC-DV-DISPATCH-041.
+
+---
+
 
 ## Bảng nghiệm thu — Luồng Điều xe (Điều vận)
 
@@ -1115,5 +1200,9 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
 | __/__/__ | TC-DV-DISPATCH-038 | | | Hiển thị tên Tác vụ trên bảng Điều vận & Chi tiết lô | |
 | __/__/__ | TC-DV-DISPATCH-039 | | | Thay đổi tác vụ điều phối + audit log | |
 | __/__/__ | TC-DV-DISPATCH-040 | | | Dropdown picker không che nút dưới màn hình — flip + portal (dropdown-flip sweep) | |
-| __/__/__ | TC-DV-DISPATCH-041 | | | Editor điều vận không còn Phân loại/Đóng kết hợp — CUS-owned (2026-09-08) | |
+| __/__/__ | TC-DV-DISPATCH-041 | | | Điều vận được chọn Phân loại; không checkbox Đóng kết hợp (2026-09-08, đảo quyết định) | |
 | __/__/__ | TC-DV-DISPATCH-042 | | | Chip điều vận 4 trạng thái theo ngày đóng/trả (2026-09-08) | |
+| __/__/__ | TC-DV-DISPATCH-043 | | | Bảng phân bổ nhà xe tách biệt từng ngày đóng/trả (2026-09-08) | |
+| __/__/__ | TC-DV-DISPATCH-044 | | | Select Phân loại trở lại Chỉnh sửa điều phối — 3 lựa chọn, không checkbox (2026-09-08) | |
+| __/__/__ | TC-DV-DISPATCH-042 | | | Chip điều vận 4 trạng thái theo ngày đóng/trả (2026-09-08) | |
+| __/__/__ | TC-DV-DISPATCH-043 | | | Bảng phân bổ nhà xe tách biệt từng ngày đóng/trả (2026-09-08) | |
