@@ -25,7 +25,6 @@ import type { AuthUser } from '../middleware/auth';
 import {
   assertDispatcherCanMutateShipmentIntake,
   ensureReadyShipmentHandoff,
-  isDirectlyEditableIntakeStatus,
 } from './shipment-intake.service';
 import {
 } from './shipment-edit-boundary.service';
@@ -335,10 +334,12 @@ export async function reconcileShipmentContainersInTx(
     throw new ApiError(409, 'Không thể xóa lịch hẹn cuối cùng của container khi lô đã sẵn sàng điều xe.');
   }
   if (derivedDate !== shipment.expectedDeliveryDate) {
+    const allContainersDated = synchronizedContainers.length > 0
+      && synchronizedContainers.every((container) => container.customerAppointmentAt != null);
     const becomesReady = shipment.cargoMode === CARGO_MODE.FCL
       && canonicalStatus === 'PENDING_DATE'
       && derivedDate != null
-      ;
+      && allContainersDated;
     const [updatedShipment] = await tx.update(s.shipments).set({
       expectedDeliveryDate: derivedDate,
       ...(becomesReady ? { status: 'READY_FOR_DISPATCH' as const } : {}),
@@ -560,10 +561,6 @@ export async function batchUpsertShipmentContainers(
     const shippingLineName = resolveShipmentShippingLine(existing.shippingLineName, containers);
     const synchronizedContainers = synchronizeContainerShippingLine(containers, shippingLineName);
     assertContainerSetValid(synchronizedContainers);
-
-    const current = await tx.select()
-      .from(s.shipmentContainers)
-      .where(eq(s.shipmentContainers.shipmentId, shipmentId));
 
     // Approval workflow parked (customer undecided 2026-09-08): clerk
     // container reconciles apply directly instead of opening a change

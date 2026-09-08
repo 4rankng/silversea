@@ -384,7 +384,12 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
           isCombined: row.isCombined,
           fulfillmentType: row.fulfillmentType,
           cargoMode: row.cargoMode,
-          taskStatus: row.tripId ? 'DISPATCHED' : 'READY',
+          // A completed trip must stop reading as "Đã phát lệnh" — the grid's
+          // status chip keys off taskStatus (trip completion regression
+          // reported 2026-09-08, MNBU0000283).
+          taskStatus: row.tripId
+            ? (row.tripStatus === TripStatus.COMPLETED ? 'COMPLETED' : 'DISPATCHED')
+            : 'READY',
           time: {
             deliveryDate: row.transportDate,
             runHour: dispatchDetailDisplayHour(row.customerAppointmentAt, row.closingAt ?? row.plannedReturnAt),

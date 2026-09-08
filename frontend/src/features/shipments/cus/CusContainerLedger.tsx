@@ -8,6 +8,8 @@ import { formatDateTimeShort } from '../../../lib/format';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 import { SearchableSelect } from '../../../design-system';
 import { updateCusShipmentContainerLine } from '../../../api/shipmentClient';
+import { completeDispatchExternalTrip } from '../../../api/dispatchPlanningClient';
+import { ConfirmDialog } from '../../../components/UI';
 import { useToast } from '../../../components/shared/Toast';
 import { ShipmentContainerCell } from '../create/ShipmentContainerCell';
 import { CusAppointmentPopover } from './CusAppointmentPopover';
@@ -82,6 +84,8 @@ function ContainerLineRow({
   onDraftChange,
   idPrefix,
   editing,
+  onCompleteExternalTrip,
+  completing,
 }: {
   detail: ShipmentCusWorkspaceDetail;
   line: ShipmentCusWorkspaceContainerLine;
@@ -90,6 +94,10 @@ function ContainerLineRow({
   onDraftChange: (patch: Partial<ContainerLineDraft>) => void;
   idPrefix: string;
   editing: boolean;
+  /** Staff close for external-carrier trips (external drivers don't use the
+   *  app) — absent when the line has no completable external trip. */
+  onCompleteExternalTrip?: (line: ShipmentCusWorkspaceContainerLine) => void;
+  completing?: boolean;
 }) {
   const [selectOpen, setSelectOpen] = useState(false);
   const [appointmentOpen, setAppointmentOpen] = useState(false);
@@ -150,7 +158,21 @@ function ContainerLineRow({
         </ShipmentContainerCell>
       ) : <td data-label="Tuyến" className="cus-container-cell"><strong>{line.routeName || '—'}</strong></td>}
       <td data-label="Điều vận" className="cus-container-cell">
-        <span className={`cus-container-dispatch cus-container-dispatch--${line.dispatchStatus.toLowerCase()}`}>{dispatchStatusLabel(line.dispatchStatus)}</span>
+        <div className="cus-container-dispatch-group">
+          <span className={`cus-container-dispatch cus-container-dispatch--${line.dispatchStatus.toLowerCase()}`}>{dispatchStatusLabel(line.dispatchStatus)}</span>
+          {onCompleteExternalTrip && (
+            <button
+              type="button"
+              className="cus-container-dispatch-complete"
+              onClick={() => onCompleteExternalTrip(line)}
+              disabled={completing}
+              aria-label={`Hoàn thành chuyến xe ngoài của container ${line.containerNumber || line.ordinal}`}
+              title="Hoàn thành chuyến với xe ngoài — xe ngoài không dùng app nên CS/điều vận chốt thay"
+            >
+              {completing ? 'Đang…' : 'Hoàn thành'}
+            </button>
+          )}
+        </div>
       </td>
       {carrierEditable ? (
         <ShipmentContainerCell
@@ -238,6 +260,7 @@ export function ContainerLedger({
   onDirtyChange,
   onSavingChange,
   actionsRef,
+  onExternalTripCompleted,
 }: {
   detail: ShipmentCusWorkspaceDetail;
   onLineSaved: (line: ShipmentCusWorkspaceContainerLine) => Promise<void>;
@@ -248,12 +271,16 @@ export function ContainerLedger({
   onDirtyChange?: (dirty: boolean) => void;
   onSavingChange?: (saving: boolean) => void;
   actionsRef?: React.MutableRefObject<ContainerLedgerHandle | null>;
+  /** Detail refetch after a staff close — completion advances the shipment. */
+  onExternalTripCompleted?: () => void;
 }) {
   const [drafts, setDrafts] = useState<Record<number, ContainerLineDraft>>(() => (
     Object.fromEntries(detail.containers.map((c) => [c.id, lineDraft(c)]))
   ));
   const [editing, setEditing] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [completingLine, setCompletingLine] = useState<ShipmentCusWorkspaceContainerLine | null>(null);
+  const [completing, setCompleting] = useState(false);
   const { toast } = useToast();
 
   // Reset drafts whenever detail.containers operational signatures change
@@ -303,6 +330,32 @@ export function ContainerLedger({
       onSavingChangeRef.current?.(saving);
     }
   }, [saving]);
+
+  // Staff close for external-carrier trips — the external driver never uses
+  // the app, so CS (or dispatch) confirm the completion from this ledger.
+  const completeExternalTrip = useCallback(async (line: ShipmentCusWorkspaceContainerLine) => {
+    if (line.tripId == null || completing) return;
+    setCompleting(true);
+    try {
+      await completeDispatchExternalTrip(line.tripId);
+      toast({ kind: 'success', message: 'Đã hoàn thành chuyến xe ngoài.' });
+      setCompletingLine(null);
+      onExternalTripCompleted?.();
+    } catch (error) {
+      toast({ kind: 'error', message: safeError(error, 'Không thể hoàn thành chuyến xe ngoài.') });
+    } finally {
+      setCompleting(false);
+    }
+  }, [completing, onExternalTripCompleted, toast]);
+
+  /** Gate the row action: only live external trips (not yet completed) are
+   *  closable from CUS — own-fleet trips close through the driver app flow.
+   *  The action opens the confirm dialog; the dialog fires the close. */
+  const externalCloseForLine = useCallback((line: ShipmentCusWorkspaceContainerLine) => (
+    line.tripId != null && line.carrierType === 'EXTERNAL' && line.tripStatus !== 'COMPLETED'
+      ? setCompletingLine
+      : undefined
+  ), []);
 
   const updateLineDraft = useCallback((lineId: number, patch: Partial<ContainerLineDraft>) => {
     setDrafts((prev) => ({
@@ -421,12 +474,24 @@ export function ContainerLedger({
                   onDraftChange={(patch) => updateLineDraft(line.id, patch)}
                   idPrefix={idPrefix}
                   editing={editing}
+                  onCompleteExternalTrip={externalCloseForLine(line)}
+                  completing={completing}
                 />
               ))}
             </tbody>
           </table>
         </div>
       )}
+      {/* Staff-close confirmation — closes the external driver's trip on their behalf */}
+      <ConfirmDialog
+        isOpen={completingLine != null}
+        message={`Hoàn thành chuyến với xe ngoài ${
+          completingLine?.containerNumber ?? `cont ${completingLine?.ordinal ?? ''}`
+        }? Xe ngoài không dùng app nên CS/điều vận chốt chuyến thay tài xế.`}
+        confirmLabel={completing ? 'Đang hoàn thành…' : 'Hoàn thành chuyến'}
+        onConfirm={() => { if (completingLine) void completeExternalTrip(completingLine); }}
+        onCancel={() => { if (!completing) setCompletingLine(null); }}
+      />
       {/* Standalone action footer when no drawer handles actions */}
       {!actionsRef && isDirty && (
         <div className="cus-container-ledger__sticky-bar">

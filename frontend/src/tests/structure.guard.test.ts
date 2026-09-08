@@ -36,7 +36,17 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // other dispatch planning calls. Reviewed as a contract change; a
   // future split (extract the tag pool to its own client) should restore
   // a smaller ceiling.
-  'src/api/dispatchPlanningClient.ts': 411,
+  // Bumped 410 → 430: 2026-09-08 external-carrier staff close — the client
+  // gains completeDispatchExternalTrip beside the other dispatch planning
+  // calls, and DispatchDetailPlanRow.taskStatus gains 'COMPLETED'.
+  // Reviewed as a contract change.
+  // Bumped 411 → 428 (post-merge hash TBD): HEAD's task-tag pool wave (411)
+  // and prod's staff-close wave (427) both grew this file; the merged
+  // file lands at 428 lines (411 < 430, so neither side's value alone
+  // covers the merged tree). Reviewed as a contract change; a future split
+  // (extract the task-tag pool to its own client) should restore a smaller
+  // ceiling.
+  'src/api/dispatchPlanningClient.ts': 428,
   // Bumped 400 (new-file) → 430: 2026-09-07 dropdown-flip sweep — the
   // multi-select picker gained selectionLabel + onSearchChange (aria names
   // and debounced server refetch) during the facet migration. Reviewed as a
@@ -82,13 +92,27 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // Bumped 705 → 725: 2026-09-08 TC_COMB_01-03 — enforce 20ft container rule
   // for isCombined checkbox, disabling and tooltip title for 40ft/45ft containers,
   // atomic plan save guard. Reviewed as a contract change.
-  'src/features/dispatch/detailed-plan/DispatchPlanEditorCell.tsx': 725,
+  // Bumped 725 → 745: 2026-09-08 external-carrier staff close — the cell
+  // gains the "Hoàn thành" quick action (button + prop) and the issue chip
+  // derives a completed state. Reviewed as a contract change.
+  // Bumped 745 → 742 (post-merge hash TBD): HEAD landed at 725 and prod at
+  // 745 in isolation; the merged file lands at 742 (725 ≤ 742 < 745), so per
+  // the rule we pick 725 and then raise to actual. Reviewed as a contract
+  // change; a future split should restore a smaller ceiling.
+  'src/features/dispatch/detailed-plan/DispatchPlanEditorCell.tsx': 742,
   // Bumped 446 → 448: driver-note save now carries operationalNotes and the
   // optimistic row update refreshes notes.vehicleNote (2026-09-07). Reviewed
   // as a contract change.
   // Bumped 448 → 450: 2026-09-08 — the dispatch editor no longer owns
   // classification/lot-flag (route strips both), documented at the save body.
-  'src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts': 450,
+  // Bumped 450 → 485: 2026-09-08 external-carrier staff close — the hook
+  // gains completeExternalTrip (client call + optimistic row flip + typed
+  // errors), mirroring issueOrder. Reviewed as a contract change.
+  // Bumped 485 → 480 (post-merge hash TBD): HEAD landed at 450 and prod at
+  // 485 in isolation; the merged file lands at 480 (450 ≤ 480 < 485), so per
+  // the rule we pick 450 and then raise to actual. Reviewed as a contract
+  // change; a future split should restore a smaller ceiling.
+  'src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts': 480,
   'src/features/dispatch/master-plan/DispatchAllocationPopover.tsx': 454,
   'src/features/dispatch/master-plan/MasterPlanFilters.tsx': 735,
   // Bumped 508 → 520: 282fe386 (2026-09-05, "fix(dispatch): keep dispatched
@@ -130,10 +154,19 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // Bumped 411 → 460: 2026-09-08 TC_BTN_01-03 — visible inline Save (primary green)
   // & Cancel buttons next to appointment input, Enter/Escape handling,
   // success/error toast notifications. Reviewed as a contract change.
-  'src/features/shipments/cus/CusContainerLedger.tsx': 460,
+  // Bumped 411 → 460: 2026-09-08 TC_BTN_01-03 — visible inline Save (primary green)
+  // & Cancel buttons next to appointment input, Enter/Escape handling,
+  // success/error toast notifications. Reviewed as a contract change.
+  // Bumped 460 → 530: 2026-09-08 external-carrier staff close — the CUS
+  // ledger gains the Hoàn thành row action (button, confirm dialog, handler,
+  // refetch hook). Reviewed as a contract change; a future split (extract
+  // the external-trip close dialog) should restore a smaller ceiling.
+  'src/features/shipments/cus/CusContainerLedger.tsx': 530,
   // Bumped 750 → 841: prod→main merge 2026-09-08 — main's kep-ket-hop subvalue
   // wave and prod's per-row confirm/revert + schedule-editor wave both grew
   // the ledger independently; the merged file carries both feature sets.
+  // Note: the 2026-09-08 staff-close wave may shift this further once its
+  // changes land; bump again if the merged file exceeds 841.
   'src/features/shipments/detail/ShipmentContainerLedger.tsx': 841,
   'src/features/tires/tire-controls.tsx': 526,
   'src/features/tires/tire-dialogs.tsx': 426,

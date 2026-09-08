@@ -10,6 +10,7 @@ import {
   SHIPMENT_CUS_BUCKET_LABELS, SHIPMENT_DOCUMENT_CUSTODY_LABELS,
   SHIPMENT_CUS_MISSING_FIELD_LABELS, localDateInBusinessZone,
   ShipmentDocumentCustody,
+  TripStatus,
   type ShipmentCusWorkspaceListItem,
   type ShipmentCusWorkspaceContainerLine,
   type ShipmentCusWorkspaceFieldAccess,
@@ -270,7 +271,9 @@ function buildListItem(
   return {
     id: row.shipment.id,
     version: row.shipment.version,
-    status: canonicalShipmentStatus(row.shipment.status) ?? ShipmentStatus.PENDING_DATE,
+    status: (row.shipment.cargoMode === 'FCL' && operational.scheduleReadiness === 'WAITING_DATE' && canonicalShipmentStatus(row.shipment.status) === ShipmentStatus.READY_FOR_DISPATCH)
+      ? ShipmentStatus.PENDING_DATE
+      : (canonicalShipmentStatus(row.shipment.status) ?? ShipmentStatus.PENDING_DATE),
     cargoMode: row.shipment.cargoMode,
     bucket,
     bucketLabel: SHIPMENT_CUS_BUCKET_LABELS[bucket],
@@ -482,6 +485,9 @@ function buildContainerLine(
     routeId: row.shipment.cargoMode === CARGO_MODE.FCL ? container.routeId : row.shipment.routeId,
     routeName: row.shipment.cargoMode === CARGO_MODE.FCL ? container.routeName : row.routeName,
     dispatchStatus,
+    tripId: assignment?.tripId ?? null,
+    // Assignment rows carry the raw varchar; the contract narrows to the enum.
+    tripStatus: (assignment?.tripStatus as TripStatus | null) ?? null,
     carrierType: carrierType as 'OWN' | 'EXTERNAL' | null,
     externalCarrierId,
     externalCarrierVehicleId: assignment?.tripExternalCarrierVehicleId ?? assignment?.plannedExternalCarrierVehicleId ?? null,

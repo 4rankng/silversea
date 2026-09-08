@@ -1,6 +1,6 @@
 import { DispatchIssueStatusChip, deriveDispatchIssueStatus } from '../components/DispatchIssueStatus';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Save, Send } from 'lucide-react';
+import { CheckCircle2, Save, Send } from 'lucide-react';
 import type { DispatchClassification } from '@tingting/shared';
 import { DISPATCH_CLASSIFICATIONS, DISPATCH_CLASSIFICATION_LABELS } from '@tingting/shared';
 import {
@@ -75,6 +75,9 @@ interface DispatchPlanEditorCellProps {
   ) => Promise<AtomicPlanSaveResult>;
   /** Opens the governed trip reassignment flow after an order is issued. */
   onOpenTripReassign: (tripId: number) => void;
+  /** Staff close for external-carrier trips: opens the confirm dialog so
+   *  dispatch/CUS can complete the trip the external driver can't (no app). */
+  onCompleteExternalTrip: (row: DispatchDetailPlanRow) => void;
   /** "Phát lệnh" — issues the order for the already-saved plan (carrier +
    *  vehicle), creating the live trip and notifying the driver. */
   onIssueOrder: (
@@ -201,7 +204,7 @@ function vehicleBody(value: string): VehicleBody | null {
  * hợp flag is CUS-owned and has no control here — the checkbox was removed as
  * redundant with the Kết hợp classification.
  */
-export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, onIssueOrder, disabled = false }: DispatchPlanEditorCellProps) {
+export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, onCompleteExternalTrip, onIssueOrder, disabled = false }: DispatchPlanEditorCellProps) {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const restoreFocusRef = useRef(false);
   const [open, setOpen] = useState(false);
@@ -228,6 +231,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
   const issueStatus = deriveDispatchIssueStatus({
     vehicleAssigned: row.dispatch.assignedPlate != null,
     issued: row.taskStatus === 'DISPATCHED' && row.dispatch.tripId != null,
+    completed: row.taskStatus === 'COMPLETED',
   });
   // Issuing acts on the saved plan, not unsaved draft edits — block it while
   // the dialog has pending carrier/vehicle changes so it can't fire against
@@ -564,6 +568,21 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
         </button>
       )}
 
+      {row.dispatch.carrierType === 'EXTERNAL'
+        && row.dispatch.tripId != null
+        && row.taskStatus === 'DISPATCHED' && (
+        <button
+          type="button"
+          className="dispatch-assignment-cell__quick-issue"
+          onClick={() => onCompleteExternalTrip(row)}
+          disabled={disabled}
+          aria-label={`Hoàn thành chuyến xe ngoài · ${identity}`}
+          title="Hoàn thành chuyến với xe ngoài — xe ngoài không dùng app nên điều vận/CUS chốt thay"
+        >
+          <CheckCircle2 size={13} aria-hidden="true" />
+        </button>
+      )}
+
       <QuickIssueOrderDialog
         row={row}
         open={quickIssueOpen}
@@ -593,6 +612,20 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
               >
                 <Send size={16} aria-hidden="true" />
                 {issuing ? 'Đang phát lệnh…' : 'Phát lệnh'}
+              </button>
+            )}
+            {row.dispatch.carrierType === 'EXTERNAL' && row.dispatch.tripId != null && row.taskStatus === 'DISPATCHED' && (
+              <button
+                type="button"
+                className="btn btn--primary dispatch-assignment-dialog__complete-btn"
+                onClick={() => {
+                  closeEditor();
+                  onCompleteExternalTrip(row);
+                }}
+                disabled={saving || issuing}
+              >
+                <CheckCircle2 size={16} aria-hidden="true" />
+                Hoàn thành chuyến
               </button>
             )}
           </>

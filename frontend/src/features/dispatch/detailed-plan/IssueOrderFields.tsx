@@ -45,11 +45,10 @@ export function IssueOrderFields({
         <>
           <TextField
             id={`${idPrefix}-driver-name-${row.fulfillmentId}`}
-            label="Tên tài xế (nhà xe ngoài)"
+            label="Tên tài xế (nhà xe ngoài) — không bắt buộc"
             autoComplete="off"
             value={issueDraft.externalDriverName}
             onChange={(event) => { setIssueDraft((current) => ({ ...current, externalDriverName: event.target.value })); onFieldTouched(); }}
-            required
           />
           <TextField
             id={`${idPrefix}-driver-phone-${row.fulfillmentId}`}

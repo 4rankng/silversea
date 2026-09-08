@@ -110,6 +110,7 @@ function renderCell(
     onAtomicSave?: (row: DispatchDetailPlanRow, body: Record<string, unknown>) => Promise<AtomicPlanSaveResult>;
     onIssueOrder?: (row: DispatchDetailPlanRow, body: IssueOrderBody) => Promise<DispatchShipmentResponse>;
     onOpenTripReassign?: (tripId: number) => void;
+    onCompleteExternalTrip?: (row: DispatchDetailPlanRow) => void;
   } = {},
 ) {
   const defaultAtomicSave = vi.fn().mockResolvedValue({
@@ -134,6 +135,7 @@ function renderCell(
       row={item}
       onAtomicSave={(handlers.onAtomicSave as never) ?? (defaultAtomicSave as never)}
       onOpenTripReassign={(handlers.onOpenTripReassign as never) ?? (vi.fn() as never)}
+      onCompleteExternalTrip={(handlers.onCompleteExternalTrip as never) ?? (vi.fn() as never)}
       onIssueOrder={(handlers.onIssueOrder as never) ?? (defaultIssueOrder as never)}
     />,
   );
@@ -226,17 +228,43 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
     expect(onIssueOrder).not.toHaveBeenCalled();
   });
 
-  it('asks for the external driver name and blocks empty-name submission', async () => {
-    const onIssueOrder = vi.fn();
+  it('issues external rows without a driver name — the name is optional', async () => {
+    const onIssueOrder = vi.fn().mockResolvedValue({
+      fulfillmentId: 101, version: 4,
+      trip: { id: 56, version: 1, tripCode: 'TRP-2', status: 'CREATED', plannedStartAt: null, plannedEndAt: null, carrierType: 'EXTERNAL', truckId: null, trailerId: null, driverId: null, externalCarrierId: 9, externalPlateNumber: 'E2E-QA1', externalDriverName: null, externalDriverPhone: null },
+      notification: { type: 'TRIP_DISPATCHED', deliveredInApp: false, pushAttempted: false },
+      replayed: false,
+    });
     renderCell(row({
       dispatch: { carrierType: 'EXTERNAL', carrierName: 'Carrier QA', externalCarrierId: 9, externalCarrierVehicleId: null, assignedPlate: 'E2E-QA1' },
     }), { onIssueOrder });
     await openDialog();
-    expect(screen.getByText('Tên tài xế (nhà xe ngoài)')).toBeTruthy();
-    expect(screen.getByText('SĐT tài xế (nhà xe ngoài)')).toBeTruthy();
+    expect(screen.getByText('Tên tài xế (nhà xe ngoài) — không bắt buộc')).toBeTruthy();
     fireEvent.click(issueButton());
-    await waitFor(() => expect(screen.getByText(/Nhập tên tài xế nhà xe ngoài/)).toBeTruthy());
-    expect(onIssueOrder).not.toHaveBeenCalled();
+    await waitFor(() => expect(onIssueOrder).toHaveBeenCalledTimes(1));
+    const [, body] = onIssueOrder.mock.calls[0];
+    expect(body.carrierType).toBe('EXTERNAL');
+    expect(body.externalDriverName).toBeFalsy();
+  });
+
+  it('offers the external staff close button on issued external rows', () => {
+    const onCompleteExternalTrip = vi.fn();
+    renderCell(row({
+      taskStatus: 'DISPATCHED',
+      dispatch: { carrierType: 'EXTERNAL', carrierName: 'Carrier QA', externalCarrierId: 9, externalCarrierVehicleId: null, assignedPlate: 'E2E-QA1', tripId: 77, tripStatus: 'CREATED' },
+    }), { onCompleteExternalTrip });
+    fireEvent.click(screen.getByRole('button', { name: /Hoàn thành chuyến xe ngoài/ }));
+    expect(onCompleteExternalTrip).toHaveBeenCalledTimes(1);
+  });
+
+  it('flips the row chip to Đã hoàn thành and drops trip actions once the trip completes', () => {
+    renderCell(row({
+      taskStatus: 'COMPLETED',
+      dispatch: { carrierType: 'EXTERNAL', carrierName: 'Carrier QA', externalCarrierId: 9, externalCarrierVehicleId: null, assignedPlate: 'E2E-QA1', tripId: 77, tripStatus: 'COMPLETED' },
+    }));
+    expect(screen.getByText('Đã hoàn thành')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Hoàn thành chuyến xe ngoài/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Phát lệnh nhanh/ })).toBeNull();
   });
 
   it('pre-fills issue times from the row schedule instead of the wall clock', async () => {
@@ -327,6 +355,7 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
         row={row({ version: 4, dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '15H-052.82' } })}
         onAtomicSave={onAtomicSave as never}
         onOpenTripReassign={vi.fn() as never}
+        onCompleteExternalTrip={vi.fn() as never}
         onIssueOrder={vi.fn().mockResolvedValue({ fulfillmentId: 101, version: 5, trip: { id: 56, version: 1, tripCode: 'TRP-2', status: 'CREATED', plannedStartAt: null, plannedEndAt: null, carrierType: 'OWN', truckId: 154, trailerId: 2, driverId: 8, externalCarrierId: null, externalPlateNumber: null, externalDriverName: null, externalDriverPhone: null }, notification: { type: 'TRIP_DISPATCHED', deliveredInApp: true, pushAttempted: false }, replayed: false }) as never}
       />,
     );

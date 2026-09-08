@@ -193,7 +193,7 @@ export interface DispatchDetailPlanRow {
   isCombined: boolean;
   fulfillmentType: 'FCL_CONTAINER' | 'LCL_SHIPMENT';
   cargoMode: 'FCL' | 'LCL';
-  taskStatus: 'READY' | 'DISPATCHED';
+  taskStatus: 'READY' | 'DISPATCHED' | 'COMPLETED';
   time: { deliveryDate: string | null; runHour: number | null };
   customerRoute: { customerName: string; factoryName: string | null; deliveryPoint: string | null; routeName?: string | null };
   docs: { billNumber: string | null; tradeDirection: 'IMPORT' | 'EXPORT' | null; declarationNumbers: string[] };
@@ -388,6 +388,23 @@ export function updateDispatchDetailPlan(fulfillmentId: number, body: {
 }
 
 // ─── Dispatch task tags (note-composer pool) ─────────────────────────────────
+
+/** Điều vận/CUS completes an external-carrier trip on the driver's behalf —
+ *  external carriers don't use the app, so the grid is the only surface that
+ *  can close their trips (trips complete-external, feedback 2026-09-08). */
+export function completeDispatchExternalTrip(tripId: number) {
+  return api.post<{
+    tripId: number;
+    tripCode: string | null;
+    fulfillmentId: number | null;
+    status: string;
+    version: number;
+    completedAt: string | null;
+    replayed: boolean;
+  }>(`/trips/${tripId}/complete-external`, {}, {
+    headers: { 'Idempotency-Key': crypto.randomUUID() },
+  });
+}
 
 export interface DispatchTaskTag {
   id: number;

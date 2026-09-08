@@ -11,6 +11,13 @@ vi.mock('../../../api/shipmentClient', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../../api/shipmentClient')>()),
   updateCusShipmentContainerLine,
 }));
+const { completeDispatchExternalTrip } = vi.hoisted(() => ({
+  completeDispatchExternalTrip: vi.fn(),
+}));
+vi.mock('../../../api/dispatchPlanningClient', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../api/dispatchPlanningClient')>()),
+  completeDispatchExternalTrip,
+}));
 
 const detail = {
   summary: { id: 1, version: 4 },
@@ -125,5 +132,50 @@ describe('ContainerLedger confirm affordances', () => {
     const [, , payload] = updateCusShipmentContainerLine.mock.calls[0];
     expect(payload.customerAppointmentAt).toBe(new Date('2026-09-11T09:00').toISOString());
     expect(payload.plateNumber).toBe('15C-999.99');
+  });
+});
+
+describe('ContainerLedger external-trip staff close', () => {
+  const trippedExternalDetail = {
+    ...detail,
+    containers: [{
+      ...detail.containers[0],
+      tripId: 77,
+      tripStatus: 'CREATED',
+    }],
+  } as unknown as ShipmentCusWorkspaceDetail;
+
+  function renderWith(detailFixture: ShipmentCusWorkspaceDetail, props: Record<string, unknown> = {}) {
+    return render(
+      <ToastProvider>
+        <ContainerLedger
+          detail={detailFixture}
+          onLineSaved={vi.fn()}
+          getIdempotencyKey={() => 'test-key'}
+          clearIdempotencyKey={() => {}}
+          idPrefix="test"
+          {...props}
+        />
+      </ToastProvider>,
+    );
+  }
+
+  it('offers Hoàn thành on external lines with a live trip and closes through the confirm dialog', async () => {
+    completeDispatchExternalTrip.mockResolvedValue({ tripId: 77, status: 'COMPLETED' });
+    const onExternalTripCompleted = vi.fn();
+    renderWith(trippedExternalDetail, { onExternalTripCompleted });
+
+    fireEvent.click(screen.getByRole('button', { name: /Hoàn thành chuyến xe ngoài của container/ }));
+    fireEvent.click(await screen.findByText('Hoàn thành chuyến'));
+
+    await waitFor(() => expect(completeDispatchExternalTrip).toHaveBeenCalledWith(77));
+    await waitFor(() => expect(onExternalTripCompleted).toHaveBeenCalledTimes(1));
+    // The confirm dialog closes; the parent refetch flips the line to COMPLETED.
+    await waitFor(() => expect(screen.queryByText('Hoàn thành chuyến')).toBeNull());
+  });
+
+  it('hides the action on lines without a live external trip', () => {
+    renderWith(detail);
+    expect(screen.queryByRole('button', { name: /Hoàn thành chuyến xe ngoài/ })).toBeNull();
   });
 });

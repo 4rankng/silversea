@@ -193,6 +193,14 @@ const REVIEWED_SERVICE_DURABLE_BOUNDARIES = new Map<string, {
     serviceFile: path.resolve(process.cwd(), 'src/services/dispatch-planning-detail-plan.service.ts'),
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_FULFILLMENT_PLAN_UPDATE',
   }],
+  ['shipments/dispatch-planning.routes.ts|POST|/dispatch-detail-plan-rows/:fulfillmentId/complete-external', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/dispatch-planning-commands.service.ts'),
+    marker: 'export async function completeExternalCarrierDispatchOrder(',
+  }],
+  ['trips/status.ts|POST|/:id/complete-external', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/trip-external-close.service.ts'),
+    marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.DISPATCH_EXTERNAL_FULFILLMENT_COMPLETE',
+  }],
   ['shipments/pod.routes.ts|POST|/:id/pod-reviews/:submissionId/review', {
     serviceFile: path.resolve(process.cwd(), 'src/services/shipment-review.service.ts'),
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.TRIP_POD_REVIEW',

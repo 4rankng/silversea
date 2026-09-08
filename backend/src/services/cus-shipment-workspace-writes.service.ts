@@ -563,13 +563,14 @@ export async function updateCusShipmentContainerLine(args: {
       touched = true;
     }
 
+    const currentContainerAppointments = await tx.select({
+      customerAppointmentAt: s.shipmentContainers.customerAppointmentAt,
+    }).from(s.shipmentContainers)
+      .where(eq(s.shipmentContainers.shipmentId, args.shipmentId));
+    const containerAppointmentDates = currentContainerAppointments.map((row) => row.customerAppointmentAt);
     const derivedTransportDate = args.input.customerAppointmentAt === undefined
       ? undefined
-      : deriveTransportDateFromContainerAppointments((await tx.select({
-        customerAppointmentAt: s.shipmentContainers.customerAppointmentAt,
-      }).from(s.shipmentContainers)
-        .where(eq(s.shipmentContainers.shipmentId, args.shipmentId)))
-        .map((row) => row.customerAppointmentAt));
+      : deriveTransportDateFromContainerAppointments(containerAppointmentDates);
     const canonicalStatus = canonicalShipmentStatus(shipment.status);
     if (
       shipment.cargoMode === CARGO_MODE.FCL
@@ -583,8 +584,11 @@ export async function updateCusShipmentContainerLine(args: {
     ) {
       throw new ApiError(409, 'Không thể xóa lịch hẹn cuối cùng của container khi lô đã sẵn sàng điều xe.');
     }
+    const allContainersDated = containerAppointmentDates.length > 0
+      && containerAppointmentDates.every((appt) => appt != null);
     const becomesReady = shipment.cargoMode === CARGO_MODE.FCL
       && derivedTransportDate != null
+      && allContainersDated
       && canonicalStatus === ShipmentStatus.PENDING_DATE;
 
     if (touched) {

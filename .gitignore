@@ -106,7 +106,8 @@ backend/.drizzle-generate.lock.d/
 
 # Office lock files (spreadsheet open in Excel while deploying)
 ~$*
-
-# Transient QA run artifacts
+# Transient QA run artifacts + tooling config
 frontend/qa/
 backend/qa/
+.mcp.json
+.agentsroom/

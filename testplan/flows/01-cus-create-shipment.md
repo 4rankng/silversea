@@ -1770,4 +1770,29 @@
   - Bấm ra ngoài mà popover vẫn trơ trơ không đóng; hoặc click ra ngoài làm đóng nhầm cả Drawer / hiện dialog discard thay đổi.
 - **Bằng chứng:** `CusAppointmentPopover.test.tsx`, `qa/2026-09-08_cus_dismiss_ui-*.png`, `qa/2026-09-08_cus_dismiss_ui-driver.log`.
 
+---
 
+### TC-CUS-CREATE-048 — Lô FCL nhiều cont có cont chưa chốt ngày: cảnh báo còn cont chưa chốt ngày, trạng thái giữ Chờ chốt lịch (không nhảy Sẵn sàng điều xe)
+
+- **Mã bug:** BUG-2026-09-08-PARTIAL-DATE-STATUS (Lô FCL nhiều container mới chốt ngày cho 1 cont, cont còn lại chưa chốt ngày: hệ thống không được tự nhảy "Sẵn sàng điều xe", phải giữ "Chờ chốt lịch" và cảnh báo "Chưa chốt ngày")
+- **Vai trò:** `CUS`, `DISPATCHER`, `ADMIN`, `MANAGER`
+- **Mức độ:** P0
+- **Thiết bị:** Desktop (1440×900)
+- **Tiền điều kiện:** Tạo lô hàng FCL mới có 2 container, chưa nhập ngày đóng/trả cho container nào (lô ở trạng thái `PENDING_DATE` - "Chờ chốt lịch").
+- **Các bước:**
+  1. Đăng nhập CUS, mở `/shipments`. Quan sát lô hàng: trạng thái là "Chờ chốt lịch", cột Lịch trình hiển thị "Chưa chốt ngày".
+  2. Bấm "Chi tiết" để mở drawer hoặc bảng container.
+  3. Chỉ nhập ngày hẹn đóng/trả cho container thứ nhất (ví dụ ngày mai 09:00). Container thứ hai để trống ngày hẹn.
+  4. Lưu thay đổi container.
+  5. Quan sát trạng thái lô hàng trên danh sách `/shipments` và trong chi tiết lô:
+     - Badge trạng thái của lô hàng: vẫn là **"Chờ chốt lịch"** (KHÔNG được tự chuyển thành "Sẵn sàng điều xe").
+     - Cột Lịch trình: vẫn hiển thị chữ cảnh báo **"Chưa chốt ngày"** màu cam/cảnh báo, đi kèm dòng giờ hẹn của container thứ nhất đã nhập.
+  6. Mở màn hình Kế hoạch tổng quát `/dispatch`: lô hàng chưa đủ ngày này không được coi là đã sẵn sàng toàn bộ; nếu hiển thị phải có dòng cảnh báo "Cảnh báo: Còn 1/2 cont chưa chốt ngày đóng trả".
+  7. Quay lại CUS, bổ sung ngày hẹn cho container thứ hai và bấm Lưu.
+  8. Quan sát lại: lúc này TẤT CẢ container đã có ngày hẹn, lô hàng mới chính thức chuyển trạng thái sang **"Sẵn sàng điều xe"** (READY_FOR_DISPATCH).
+- **Kết quả mong đợi (Pass):**
+  - Khi chưa đủ ngày cho tất cả container FCL, lô giữ vững trạng thái `PENDING_DATE` ("Chờ chốt lịch") và cảnh báo "Chưa chốt ngày".
+  - Chỉ khi 100% container đã chốt ngày hẹn, lô mới chuyển sang "Sẵn sàng điều xe".
+- **Kỳ vọng sai (Fail nếu):**
+  - Mới nhập ngày cho 1 cont mà lô đã tự động chuyển sang "Sẵn sàng điều xe" và mất cảnh báo "Chưa chốt ngày" (hành vi lỗi khách hàng chụp ảnh báo).
+- **Bằng chứng:** `shipment-routes.test.ts` (builder/display assertions: partial lot reads PENDING_DATE, fully-dated lot reads READY_FOR_DISPATCH), `cus-shipment-workspace.test.ts`, QA screenshot.

@@ -126,12 +126,11 @@ export function useIssueOrder({ row, open, canIssue, onIssueOrder, onIssued }: U
       setIssueError('Xe chưa gán tài xế. Vào Danh mục Xe nội bộ để gán tài xế cho xe trước khi phát lệnh.');
       return;
     }
+    // Driver name/phone for external carriers are optional since 2026-09-08 —
+    // external drivers never use the app, so the order can't depend on them;
+    // the trip is completed by dispatch/CUS instead (trips complete-external).
     const externalDriverName = issueDraft.externalDriverName.trim();
     const externalDriverPhone = issueDraft.externalDriverPhone.trim();
-    if (!isOwn && !externalDriverName) {
-      setIssueError('Nhập tên tài xế nhà xe ngoài trước khi phát lệnh.');
-      return;
-    }
 
     setIssuing(true);
     setIssueError(null);

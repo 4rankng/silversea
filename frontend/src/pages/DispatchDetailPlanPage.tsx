@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { PageHeader } from '../components/UI';
+import { ConfirmDialog, PageHeader } from '../components/UI';
 import { Pagination } from '../design-system';
 import { DetailedPlanGrid } from '../features/dispatch/detailed-plan/DetailedPlanGrid';
 import { TripReassignDialog } from '../features/dispatch/detailed-plan/TripReassignDialog';
@@ -18,6 +18,25 @@ export default function DispatchDetailPlanPage() {
   const detailPlan = useDispatchDetailPlan();
   const [reassignTripId, setReassignTripId] = useState<number | null>(null);
   const [pairRow, setPairRow] = useState<DispatchDetailPlanRow | null>(null);
+  // Staff close for external-carrier trips: external drivers don't use the
+  // app, so dispatch/CUS confirm the completion from the grid row.
+  const [completingRow, setCompletingRow] = useState<DispatchDetailPlanRow | null>(null);
+  const [completing, setCompleting] = useState(false);
+
+  async function confirmCompleteExternalTrip() {
+    if (!completingRow) return;
+    setCompleting(true);
+    try {
+      await detailPlan.completeExternalTrip(completingRow);
+      setCompletingRow(null);
+    } catch {
+      // assignmentError banner already surfaced the failure; keep the dialog
+      // open only until the next render — the row flips or the error shows.
+      setCompletingRow(null);
+    } finally {
+      setCompleting(false);
+    }
+  }
 
   return (
     <div className="dispatch-plan-page dispatch-plan-page--wide page-anim">
@@ -47,6 +66,7 @@ export default function DispatchDetailPlanPage() {
           onToggleSort={detailPlan.toggleSort}
           onAtomicSave={detailPlan.savePlan}
           onOpenTripReassign={setReassignTripId}
+          onCompleteExternalTrip={setCompletingRow}
           onIssueOrder={detailPlan.issueOrder}
           onOpenPair={setPairRow}
         />
@@ -75,6 +95,18 @@ export default function DispatchDetailPlanPage() {
           onPaired={detailPlan.refresh}
         />
       )}
+
+      <ConfirmDialog
+        isOpen={completingRow != null}
+        message={`Hoàn thành chuyến với xe ngoài ${
+          completingRow?.container.containerNumber
+            ?? completingRow?.docs.billNumber
+            ?? completingRow?.shipmentCode ?? ''
+        }? Xe ngoài không dùng app nên điều vận/CUS chốt chuyến thay tài xế.`}
+        confirmLabel={completing ? 'Đang hoàn thành…' : 'Hoàn thành chuyến'}
+        onConfirm={() => void confirmCompleteExternalTrip()}
+        onCancel={() => { if (!completing) setCompletingRow(null); }}
+      />
     </div>
   );
 }

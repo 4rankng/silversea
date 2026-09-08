@@ -4,6 +4,7 @@ import {
   ShipmentCusBucket,
   ShipmentDocumentCustody,
   ShipmentStatus,
+  TripStatus,
 } from '../constants';
 
 const moneyStringSchema = z.string().regex(/^-?\d+(?:\.\d+)?$/);
@@ -366,6 +367,11 @@ export const shipmentCusWorkspaceContainerLineSchema = z.object({
   routeId: z.number().int().positive().nullable(),
   routeName: z.string().nullable(),
   dispatchStatus: z.enum(SHIPMENT_CUS_DISPATCH_STATUSES),
+  /** Live dispatch trip linkage — null while the line only carries a vehicle
+   *  plan (order not issued yet). Together with tripStatus it gates the CUS
+   *  staff close ("Hoàn thành") for external-carrier lines. */
+  tripId: z.number().int().positive().nullable(),
+  tripStatus: z.nativeEnum(TripStatus).nullable(),
   carrierType: z.enum(['OWN', 'EXTERNAL']).nullable(),
   externalCarrierId: z.number().int().positive().nullable(),
   externalCarrierVehicleId: z.number().int().positive().nullable(),

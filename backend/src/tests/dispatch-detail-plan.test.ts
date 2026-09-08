@@ -239,7 +239,7 @@ type DetailPlanRow = {
   shipmentCode: string | null;
   isCombined: boolean;
   cargoMode: 'FCL' | 'LCL';
-  taskStatus: 'READY' | 'DISPATCHED';
+  taskStatus: 'READY' | 'DISPATCHED' | 'COMPLETED';
   time: { deliveryDate: string | null; runHour: number | null };
   customerRoute: { customerName: string; factoryName: string | null; deliveryPoint: string | null };
   docs: { billNumber: string | null; tradeDirection: string | null; declarationNumbers: string[] };

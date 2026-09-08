@@ -15,6 +15,7 @@ import type { Request, Response } from 'express';
 import {
   assignFulfillmentCarrierWriteCommand,
   assignFulfillmentPlate,
+  completeExternalCarrierDispatchOrder,
   updateFulfillmentEstimates,
   updateDispatchDetailPlan,
   listDispatchDeliveryPointFacets,
@@ -422,6 +423,27 @@ dispatchPlanningRoutes.patch(
       idempotencyKey: getRequestIdempotencyKey(req) ?? '',
       actor: user as typeof user & { role: Role.ADMIN | Role.MANAGER | Role.DISPATCHER },
     }));
+  }),
+);
+
+dispatchPlanningRoutes.post(
+  '/dispatch-detail-plan-rows/:fulfillmentId/complete-external',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER, Role.CUS),
+  asyncHandler(async (req: Request, res: Response) => {
+    const fulfillmentId = Number(req.params.fulfillmentId);
+    if (!Number.isInteger(fulfillmentId) || fulfillmentId <= 0) {
+      throw new ApiError(400, 'fulfillmentId không hợp lệ.');
+    }
+    const user = getUser(req);
+    const expectedTripVersion = req.body?.expectedTripVersion !== undefined
+      ? Number(req.body.expectedTripVersion)
+      : undefined;
+    const result = await completeExternalCarrierDispatchOrder({
+      fulfillmentId,
+      expectedTripVersion,
+      actor: user as { userId: number; role: Role },
+    });
+    res.json(result);
   }),
 );
 
