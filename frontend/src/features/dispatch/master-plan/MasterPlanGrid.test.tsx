@@ -456,7 +456,7 @@ describe('MasterPlanFilters', () => {
     expect(onChange).toHaveBeenLastCalledWith({ tradeDirection: 'IMPORT' });
 
     fireEvent.click(screen.getByRole('button', { name: 'Tất cả trạng thái Phân xe' }));
-    fireEvent.click(screen.getByRole('option', { name: 'Chưa phân xe' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Chờ phân xe' }));
     expect(onChange).toHaveBeenLastCalledWith({ allocationStatus: 'NOT_ALLOCATED' });
 
     fireEvent.change(screen.getByLabelText('Từ ngày giao'), { target: { value: '2026-08-01' } });

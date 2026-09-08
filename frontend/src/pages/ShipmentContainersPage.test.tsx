@@ -341,10 +341,9 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     });
     render(<MemoryRouter><ShipmentContainersPage /></MemoryRouter>);
 
-    // The same-day vehicle urgency badge still reads 'Chưa điều xe' — unlike
-    // the retired status pill, its text no longer collides with the dispatch
-    // chip vocabulary, but keep selecting by the badge's own class anyway.
-    const pendingVehicleCell = (await screen.findByText('Chưa điều xe', { selector: '.shipment-container-ledger__vehicle-state' })).closest('td');
+    // The same-day vehicle urgency badge now reads 'Chờ phân xe' like the
+    // dispatch chip — select by the badge's own class to disambiguate.
+    const pendingVehicleCell = (await screen.findByText('Chờ phân xe', { selector: '.shipment-container-ledger__vehicle-state' })).closest('td');
     expect(pendingVehicleCell?.className).toContain('shipment-container-ledger__vehicle-pending');
     expect(pendingVehicleCell?.textContent).toContain('Chưa phân nhà xe');
     expect(pendingVehicleCell?.textContent).toContain('Chưa gán biển số');

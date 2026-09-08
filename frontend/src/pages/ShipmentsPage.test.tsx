@@ -518,9 +518,9 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
 
     renderPage();
 
-    expect((await screen.findAllByText('Toàn bộ chưa phân xe')).length).toBe(1);
-    expect(screen.getByText('1 cont chưa phân xe')).toBeTruthy();
-    expect(screen.queryByText('0 cont chưa phân xe')).toBeNull();
+    expect((await screen.findAllByText('Toàn bộ chờ phân xe')).length).toBe(1);
+    expect(screen.getByText('1 cont chờ phân xe')).toBeTruthy();
+    expect(screen.queryByText('0 cont chờ phân xe')).toBeNull();
   });
 
   it('sends the direction filter and keeps the grouped dashboard columns fixed', async () => {

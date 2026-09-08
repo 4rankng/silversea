@@ -102,8 +102,8 @@ export function vehicleReadinessLabel(item: ShipmentCusWorkspaceListItem): strin
   if (vehicleReadiness === 'READY') return 'Đã phân xe';
   if (vehicleReadiness === 'NO_CONTAINERS') return 'Không áp dụng điều xe';
   const waiting = Math.max(0, totalContainers - plateAssignedContainers);
-  if (waiting >= totalContainers) return 'Toàn bộ chưa phân xe';
-  return `${waiting.toLocaleString('vi-VN')} cont chưa phân xe`;
+  if (waiting >= totalContainers) return 'Toàn bộ chờ phân xe';
+  return `${waiting.toLocaleString('vi-VN')} cont chờ phân xe`;
 }
 
 export function noteLines(note: string | null | undefined): string[] {

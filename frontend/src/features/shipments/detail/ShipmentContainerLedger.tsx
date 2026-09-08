@@ -704,7 +704,7 @@ export function ShipmentContainerLedger({
                   </td>
                   <td data-label="Phân xe" className={cellClassName(vehicleEditable, 'vehicle', missingVehicleToday ? 'shipment-container-ledger__vehicle-pending' : undefined)}>
                     {editableCell(row, 'vehicle', vehicleEditable, <div className="shipment-container-ledger__multiline shipment-container-ledger__vehicle">
-                      {missingVehicleToday && <Badge size="sm" color="warning" className="shipment-container-ledger__vehicle-state"><Clock3 aria-hidden="true" />Chưa điều xe</Badge>}
+                      {missingVehicleToday && <Badge size="sm" color="warning" className="shipment-container-ledger__vehicle-state"><Clock3 aria-hidden="true" />Chờ phân xe</Badge>}
                       <strong>{row.carrierName || <span className="shipment-container-ledger__missing">Chưa phân nhà xe</span>}</strong>
                       {row.plateNumber
                         ? <span className="shipment-container-ledger__plate">{row.plateNumber}</span>
