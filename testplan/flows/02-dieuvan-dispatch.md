@@ -1296,6 +1296,28 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
 - **Kỳ vọng sai (Fail nếu):** Vẫn hiển thị input `datetime-local` với calendar native cũ; lỗi khi chọn nhanh ngày/giờ; hoặc phát lệnh gửi sai thời gian lên backend.
 - **Bằng chứng:** Vitest `IssueOrderFields.test.tsx`, `DispatchPlanEditorCell.test.tsx`, ảnh UI Driven `qa/2026-09-09_dispatch-issue-calendar_ui.png`.
 
+### TC-DV-DISPATCH-052 — Điều vận phân xe lại (đổi Xe nội bộ sang Xe ngoài / đối tác khác) không bị chặn bởi lỗi gán nhà xe của CUS
+
+- **Mã PRD:** Regression fix 2026-09-09 — Trước đây backend chặn không cho phép đổi loại nhà xe nếu CUS đã gán tại bước điều xe với thông báo: "Không thể đổi nhà xe đã được CUS gán tại bước điều xe." Điều vận cần toàn quyền thay đổi nhà xe (Xe nội bộ <-> Xe ngoài hoặc đổi đối tác xe ngoài) khi phân xe lại cho tác vụ trước khi khởi hành.
+- **Vai trò:** `DISPATCHER` (ví dụ `dungnv` trên staging)
+- **Mức độ:** P0
+- **Thiết bị:** Desktop (1440×900)
+- **Tiền điều kiện:** Chuyến xe ở trạng thái `CREATED` (chưa xuất phát), đang gán Xe nội bộ (`OWN`) hoặc Xe ngoài (`EXTERNAL`).
+- **Các bước:**
+  1. Đăng nhập với tài khoản Điều vận (`dungnv`). Mở `/dispatch-detail`.
+  2. Tìm dòng chuyến xe ở trạng thái `CREATED` (ví dụ lô `YMJAE492321975`, Trip ID 5).
+  3. Bấm nút "Phân xe lại" (hoặc ô Điều phối) để mở modal "Phân xe lại".
+  4. Chuyển Loại xe từ "Xe nội bộ" sang "Xe ngoài".
+  5. Chọn đối tác xe ngoài (ví dụ: `DUYÊN HẢI`), nhập biển số xe ngoài (`15C-123456`), tên và SĐT lái xe.
+  6. Bấm "Xác nhận phân xe lại".
+- **Kết quả mong đợi (Pass):**
+  - Không xuất hiện thông báo lỗi `Không thể đổi nhà xe đã được CUS gán tại bước điều xe.`.
+  - Modal "Phân xe lại" đóng thành công.
+  - Bảng Kế hoạch Chi tiết cập nhật ngay lập tức: hiển thị đối tác xe ngoài mới (`DUYÊN HẢI`), biển số mới (`15C-123456`), trạng thái "Đã phát lệnh cho tài xế".
+  - Backend API cập nhật chuyến xe sang `carrierType = 'EXTERNAL'`, lưu đúng `externalCarrierId` và biển số.
+- **Kỳ vọng sai (Fail nếu):** Hiện lỗi cảnh báo đỏ chặn lưu `Không thể đổi nhà xe đã được CUS gán tại bước điều xe.`, hoặc modal không lưu được thay đổi.
+- **Bằng chứng:** Rung 3 UI Driven trên staging: `qa/2026-09-09_dispatch-reassign_ui-04-dialog-filled.png`, `qa/2026-09-09_dispatch-reassign_ui-05-after-submit.png`, `qa/2026-09-09_dispatch-reassign_ui-driver.log`.
+
 ---
 
 
@@ -1305,6 +1327,7 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
 
 | Ngày thử | Mã TC | Người thử | Kết quả | Ghi chú | Bằng chứng |
 |-----------|-------|-----------|---------|---------|------------|
+| 09/09/26 | TC-DV-DISPATCH-052 | Antigravity | PASS | Điều vận đổi nhà xe qua Phân xe lại (Xe nội bộ -> Xe ngoài DUYÊN HẢI) không bị lỗi gán CUS | Rung 3 UI Driven staging: `qa/2026-09-09_dispatch-reassign_ui-05-after-submit.png` |
 | 09/09/26 | TC-DV-DISPATCH-051 | Antigravity | PASS | Đồng bộ calendar phát lệnh mới: Chọn nhanh ngày, Giờ 24h, Khung giờ phổ biến | `IssueOrderFields.test.tsx`, `DispatchPlanEditorCell.test.tsx` |
 | 09/09/26 | TC-DV-DISPATCH-048 | Antigravity | PASS | Bấm Lưu thay đổi đóng dialog Chỉnh sửa điều phối | `DispatchPlanEditorCell.test.tsx`, `TC-DISPATCH-EDIT-002` |
 | __/__/__ | TC-DV-DISPATCH-001 | | | Tiếp nhận lô | |
