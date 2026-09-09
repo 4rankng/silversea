@@ -1,0 +1,15 @@
+[driver.log] open :7174 + viewport 1440x900
+[driver.log] login cus OK -> http://localhost:7174/shipments
+[driver.log] open /shipments/new viewport reset
+[driver.log] TC-ADHOC-001: checkbox first-in-form DOM check + default unchecked + toggle screenshots
+[driver.log] TC-ADHOC-001: free-text typed flag-ON; field lock-state dump
+[driver.log] TC-ADHOC-001: toggle-off -> text retained, route re-locked
+[driver.log] TC-ADHOC-001: route re-locked check (IIFE)
+[driver.log] TC-ADHOC-003: customer HÀ AN picked from catalog
+[driver.log] TC-ADHOC-003: factory 'fad' picked -> route/site autofill+readonly dump
+[driver.log] TC-ADHOC-002 L1 (catalog) saved + DB row
+[driver.log] TC-ADHOC-002 L2 (free-text all) saved + DB row
+[driver.log] L1+L2 DB rows + guardrail counts
+[driver.log] TC-ADHOC-002: L1 catalog / L2 free-text / L3 mixed saved; guardrail counts unchanged
+[driver.log] logged in dieuvan
+[driver.log] TC-GHEP-001: rows A+B same truck 15H-176.51 + Kep + same day saved

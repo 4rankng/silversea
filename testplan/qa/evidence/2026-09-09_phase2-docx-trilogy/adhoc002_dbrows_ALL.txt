@@ -1,0 +1,7 @@
+  id   |   bl_number   | customer_id |     raw_customer_name      | is_ad_hoc | container_number | pickup_port_id | raw_pickup_port_name  | dropoff_port_id | raw_dropoff_port_name 
+-------+---------------+-------------+----------------------------+-----------+------------------+----------------+-----------------------+-----------------+-----------------------
+ 92561 | TEST-ADHOC-L2 |             | KH Vãng Lại Phạm Văn Ếch   | t         | BQHU0001115      |                | Bến xe Giáp Bát       |                 | KCN Tân Tạo
+ 92562 | TEST-ADHOC-L1 |           3 |                            | f         | ADHU0001118      |             19 |                       |              20 | 
+ 92563 | TEST-ADHOC-L3 |             | Cuốc vãng lai Trần Thị Mận | t         | CDHU0001110      |                | Bãi container Mỹ Thới |               5 | 
+(3 rows)
+
