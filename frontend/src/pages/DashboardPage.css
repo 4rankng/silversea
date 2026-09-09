@@ -937,13 +937,20 @@
 
 @media (max-width: 1100px) {
   .dash-wf .wf-grid { grid-template-columns: 1fr; }
-  .dash-wf .wf-bento { grid-template-columns: 1fr; }
+  /* Tablets pair the bento tiles 2-up instead of stacking every tile
+     full-width (space-utilisation audit: short tiles stretched across the
+     full row left >70% dead space). Rich hero/side/full tiles keep a full
+     row; half/third tiles pair up. */
+  .dash-wf .wf-bento { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .dash-wf .wf-bento > .wf-bento-hero,
   .dash-wf .wf-bento > .wf-bento-side,
-  .dash-wf .wf-bento > .wf-bento-half,
-  .dash-wf .wf-bento > .wf-bento-third,
   .dash-wf .wf-bento > .wf-bento-full {
     grid-column: 1 / -1;
+    grid-row: auto;
+  }
+  .dash-wf .wf-bento > .wf-bento-half,
+  .dash-wf .wf-bento > .wf-bento-third {
+    grid-column: auto;
     grid-row: auto;
   }
   .dash-wf .wf-kpis { grid-template-columns: repeat(2, 1fr); }
@@ -994,16 +1001,20 @@
   }
 
   .dash-wf .wf-bento {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 16px;
   }
 
   .dash-wf .wf-bento > .wf-bento-hero,
   .dash-wf .wf-bento > .wf-bento-side,
-  .dash-wf .wf-bento > .wf-bento-half,
-  .dash-wf .wf-bento > .wf-bento-third,
   .dash-wf .wf-bento > .wf-bento-full {
     grid-column: 1 / -1;
+    grid-row: auto;
+  }
+
+  .dash-wf .wf-bento > .wf-bento-half,
+  .dash-wf .wf-bento > .wf-bento-third {
+    grid-column: auto;
     grid-row: auto;
   }
 }
@@ -1040,6 +1051,21 @@
 @media (max-width: 640px) {
   .dash-wf {
     gap: 12px;
+  }
+
+  /* Phones drop back to a single column: 2-up tiles get too narrow for the
+     chart tiles at <640px. */
+  .dash-wf .wf-bento {
+    grid-template-columns: 1fr;
+  }
+
+  .dash-wf .wf-bento > .wf-bento-hero,
+  .dash-wf .wf-bento > .wf-bento-side,
+  .dash-wf .wf-bento > .wf-bento-half,
+  .dash-wf .wf-bento > .wf-bento-third,
+  .dash-wf .wf-bento > .wf-bento-full {
+    grid-column: 1 / -1;
+    grid-row: auto;
   }
 
   .dash-wf .wf-card {
