@@ -160,7 +160,8 @@ stgdb: ## Sync prod DB (silversea.tingting.vip) → staging DB (vantai) — REPL
 	echo "5/5  Restarting staging backend/frontend + sanity check..."; \
 	ssh root@$(DEMO_SERVER) "set -eu; cd $(DEMO_PATH); $(DEMO_COMPOSE) up -d backend frontend >/dev/null; pg_container=\$$($(DEMO_COMPOSE) ps -q postgres); pg_env_of() { docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' \"\$$1\"; }; pg_user=\$$(pg_env_of \"\$$pg_container\" | sed -n 's/^POSTGRES_USER=//p' | head -1); pg_db=\$$(pg_env_of \"\$$pg_container\" | sed -n 's/^POSTGRES_DB=//p' | head -1); docker exec \"\$$pg_container\" psql -U \"\$$pg_user\" -d \"\$$pg_db\" -tAc \"SELECT '     tables=' || count(*) FROM pg_tables WHERE schemaname='public'\"; docker exec \"\$$pg_container\" psql -U \"\$$pg_user\" -d \"\$$pg_db\" -tAc \"SELECT '     routes=' || count(*) FROM routes WHERE deleted_at IS NULL\""; \
 	rm -f "$$dump"; \
-	echo "✅ Staging DB now mirrors prod ($(PROD_SERVER) → $(DEMO_SERVER)). Restart with 'make demo' to advance code too."
+	echo "✅ Staging DB now mirrors prod ($(PROD_SERVER) → $(DEMO_SERVER)). Restart with 'make demo' to advance code too."; \
+	echo "📌 Staging checklist (D4): after 'make demo' applies migration 0064+, run the DEMO freight-pricing seed — cd backend && npx tsx src/seed/seed-demo-freight-pricing.ts (staging/dev only; prod never receives invented contract data)"
 
 setup: ## First-time setup: start infra, recreate DB, migrate, seed
 	@docker compose -f docker-compose.dev.yml up -d --wait 2>/dev/null || \

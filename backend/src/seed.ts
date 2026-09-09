@@ -25,6 +25,7 @@ import { seedCustomers } from './seed/seed-customers';
 import { seedReference } from './seed/seed-reference';
 import { seedLiftPricing } from './seed/seed-lift-pricing';
 import { seedPricingTables } from './seed/seed-pricing-tables';
+import { seedDemoFreightPricing } from './seed/seed-demo-freight-pricing';
 import { seedOperationalSites } from './seed/seed-operational-sites';
 import { seedFactories } from './seed/seed-factories';
 import { seedPorts } from './seed/seed-ports';
@@ -730,6 +731,10 @@ export async function seed() {
   await seedLiftPricing(reference);
   const seededCustomers = await seedCustomers();
   await seedPricingTables(reference, seededCustomers);
+  // DEMO freight-pricing chain — dev/staging only, runs AFTER the customer
+  // matrix seeder so the withheld (blank-Excel) 15T rungs converge to demo
+  // prices instead of staying soft-deleted. seed-prod excludes this module.
+  await seedDemoFreightPricing();
   // Seed operational sites (factories + warehouses) after customers so the
   // shipment intake "Nhà máy"/"Kho lấy hàng" dropdowns are never empty.
   await seedOperationalSites();
