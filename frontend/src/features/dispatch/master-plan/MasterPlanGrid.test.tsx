@@ -146,6 +146,11 @@ describe('MasterPlanGrid', () => {
     expect(screen.queryByText('Địa điểm hạ cũ theo lô')).toBeNull();
   });
 
+  it('labels ad-hoc lots "Chạy ngoài" next to the doc-code line and leaves regular lots unlabeled', () => {
+    render(<MasterPlanGrid items={[item({ isAdHoc: true })]} onAllocate={vi.fn()} />);
+    expect(screen.getByText('Chạy ngoài')).toBeTruthy();
+  });
+
   it('renders one "Giờ:" line per per-container appointment group (EPIC 2.4 mapping)', () => {
     const onAllocate = vi.fn();
     const fixture = item({

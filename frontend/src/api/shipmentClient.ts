@@ -62,6 +62,9 @@ export interface Shipment {
   shipmentCode: string | null;
   version: number;
   customerId: number;
+  /** Ad-hoc lot (Lệnh chạy ngoài, MDN §4.4) — customerId is null and the
+   *  free-text raw fields carry the identity. Present on list/detail rows. */
+  isAdHoc?: boolean;
   routeId?: number | null;
   responsibleUnitId: number | null;
   status: ShipmentStatus;
@@ -257,6 +260,43 @@ export interface ShipmentDetail {
     externalCarrierName: string | null;
   }>;
   accountingLock: ShipmentAccountingLock | null;
+  /** Auto freight pricing (T1 engine): latest frozen snapshot — null when the
+   *  engine never locked a price for this lot (ad-hoc / no dispatch yet). */
+  freightRate?: {
+    latest: ShipmentFreightRateLatestView | null;
+    snapshotCount: number;
+  } | null;
+}
+
+/** Latest frozen snapshot of GET /api/shipments/:id's `freightRate.latest`
+ *  (toSnapshotView in freight-rate-snapshot-lifecycle.service.ts). The frozen
+ *  system total is read-only; the debit-note override rides `override`. */
+export interface ShipmentFreightRateLatestView {
+  id: number;
+  shipmentId: number;
+  tripId: number | null;
+  source: 'AUTO' | 'MANUAL';
+  freightAmount: number;
+  surchargeAmount: number;
+  totalAmount: number;
+  billedKm: number;
+  liters: number;
+  fuelDelta: number;
+  sharePct: number;
+  formula: string;
+  computedAt: string;
+  rateTermsId: number;
+  pricingTableId: number;
+  fuelNormId: number;
+  fuelPricePeriodId: number;
+  override: {
+    id: number;
+    systemCalculatedFreight: number;
+    finalDebitFreight: number | null;
+    overrideReason: string | null;
+    overrideBy: number | null;
+    overrideAt: string | null;
+  } | null;
 }
 
 export interface ShipmentPodReviewFile {

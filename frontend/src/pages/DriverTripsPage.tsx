@@ -112,6 +112,7 @@ function JourneyCard({ card }: { card: DriverJourneyCard }) {
         <span className={`driver-journey-card__tag${isPaired ? ' driver-journey-card__tag--clamp' : ''}`}>
           {tag}
         </span>
+        {card.isAdHoc && <span className="adhoc-label" data-adhoc-label>Chạy ngoài</span>}
         <span className="driver-journey-card__time">
           <span className="driver-journey-card__time-label">Giờ đóng / trả:</span>
           {formatCardTime(card.scheduledAt)}

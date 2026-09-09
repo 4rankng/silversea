@@ -307,6 +307,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                   <div className="master-plan-grid__line">{item.factoryNames && item.factoryNames.length > 0 ? item.factoryNames.join(' + ') : item.factoryName ?? '—'}</div>
                   <div className="master-plan-grid__line master-plan-grid__line--strong">
                     {item.blNumber || item.bookingRef || '—'}
+                    {item.isAdHoc && <span className="adhoc-label" data-adhoc-label>Chạy ngoài</span>}
                   </div>
                 </td>
                 <td className="master-plan-grid__cell" data-label="Tuyến đường & hãng tàu">

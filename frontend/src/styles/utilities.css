@@ -257,3 +257,17 @@
     filter: none;
   }
 }
+
+/* ─── Lệnh chạy ngoài (ad-hoc) ──────────────────────────────────────────────
+   MDN §4.4 / AC-6: colored-text label next to the lot code on list, detail,
+   dispatch, and the driver app. Plain colored text — NEVER a badge (standing
+   directive: status columns carry no badge chrome). */
+.adhoc-label {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  color: var(--warning);
+  font-size: 11px;
+  font-weight: var(--fw-semibold);
+  white-space: nowrap;
+}

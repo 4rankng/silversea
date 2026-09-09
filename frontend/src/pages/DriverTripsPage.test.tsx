@@ -26,6 +26,7 @@ function card(overrides: Partial<DriverJourneyCard> = {}): DriverJourneyCard {
     shipmentId: 1,
     tripCode: 'TRIP-55',
     shipmentCode: 'SHP-1',
+    isAdHoc: false,
     bucket: 'NEW',
     classification: 'SINGLE',
     pairId: null,
@@ -157,6 +158,21 @@ describe('DriverTripsPage', () => {
 
     expect(await screen.findAllByText('KẾT HỢP')).toHaveLength(2);
     expect(screen.getByText('Đang chờ Lệnh 1 hoàn thành trả hàng')).toBeTruthy();
+  });
+
+  it('labels ad-hoc lots "Chạy ngoài" next to the tag and leaves regular lots unlabeled', async () => {
+    useDriverJourneyBoardMock.mockReturnValue({
+      data: [
+        card({ fulfillmentId: 30, isAdHoc: true }),
+        card({ fulfillmentId: 31, isAdHoc: false }),
+      ],
+      isLoading: false,
+      error: null,
+    });
+    renderPage();
+
+    expect(await screen.findByText('Chạy ngoài')).toBeTruthy();
+    expect(screen.getAllByText('Chạy ngoài')).toHaveLength(1);
   });
 
   it('shows "Xem chi tiết & Nhận lệnh" footer on all cards per spec', async () => {

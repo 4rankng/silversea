@@ -73,6 +73,8 @@ export interface DriverJourneyCard {
   shipmentId: number;
   tripCode: string | null;
   shipmentCode: string | null;
+  /** Lệnh chạy ngoài (MDN §4.4) — drives the "Chạy ngoài" label on the card. */
+  isAdHoc: boolean;
   bucket: DriverJourneyBucket;
   classification: DriverJourneyClassification;
   linked: boolean;

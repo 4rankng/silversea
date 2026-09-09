@@ -525,6 +525,7 @@ export default function ShipmentsPage() {
               <section className="cus-drawer-workflow" aria-labelledby="cus-drawer-workflow-title">
                 <div className="cus-drawer-workflow__heading">
                   <h3 id="cus-drawer-workflow-title">Trạng thái lô</h3>
+                  {drawerItem.raw.isAdHoc && <span className="adhoc-label" data-adhoc-label>Chạy ngoài</span>}
                   <WorkflowBadge item={drawerItem} />
                 </div>
                 <ShipmentSignals item={drawerItem} />
