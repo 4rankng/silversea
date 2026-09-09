@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:6620bc34ad638abba0c7de5456bcb14a7384ccea908f09b75d93a10118e0ba97",
+  "pageVersion": "sha256:ca3c0828dc4b6922298c1ea004ee32b918833a123ec298e476e967db5741ee1d",
   "claims": [
     {
       "id": "claim_59b73370491448eb9843052fc1370da7",
@@ -13,16 +13,6 @@
       ]
     },
     {
-      "id": "claim_ea87416993e4414eb717177ef73a2b12",
-      "statement": "Root package.json maps dev to make dev; backend runs on 3001 and frontend on 7174 strictPort with Postgres 5441, Redis 6391, Adminer 8083.",
-      "evidence": [
-        {
-          "resource": "repo://package.json",
-          "version": "repo-file-v1:sha256:84110e40d654280763ebed8c574ae24e5b767c66cab2a6acaf93b4b62b38bc3b"
-        }
-      ]
-    },
-    {
       "id": "claim_14e741d458ff4cafaf99e40c1a47b7ac",
       "statement": "Test accounts resolve per environment via testplan/testaccounts.txt with shared staging password Abc123; demo mode is permanently disabled.",
       "evidence": [
@@ -31,10 +21,56 @@
           "version": "repo-file-v1:sha256:2797ae2a8fd625d8ec9293f220dc2e6d44f23f3d782d00e901647f7775c2b093"
         }
       ]
+    },
+    {
+      "id": "claim_98dbeaf9790947e4b670020ea2dd6fd6",
+      "statement": "Root package.json maps dev to make dev; backend runs on 3001 and frontend on 7174 strictPort with Postgres 5441, Redis 6391, Adminer 8083.",
+      "evidence": [
+        {
+          "resource": "repo://Makefile#L11-L31",
+          "version": "repo-lines-v1:sha256:8e44513f57168a8736bd61533b84ff49fbfaf8f1ff93e41a075b3de3a514cb3a:eyJzZWxlY3RlZExpbmVDb3VudCI6MjEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFhZDU3MTkzOGI4MmU5NDdjNTg0ZjEzNGEyYzg4MzM0ZTRmMDc2YTAxY2RkYzU5OWI5NGI0MzlmMDc5OGVmYmEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU1YTMzYzQ1NjgwZWU5MmJjNGY4N2U3MTIwNmJiNDZlMjZkZTNlZDgwOTE4MWY2OTY3YzU3ODIwNTBiMTY4ZjEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjVjNjJiNTllOWRkMWI5ODM3NjhlMzQ0YTJhNWFiNWE3NjY1NzUyZDQzZWVlOWRiZmVjNDY0NTE5ZWUxMmI0MWIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQ3MGM3NjYwNzBjMmYzYzIwNWMzYzA0YTUzMDY1M2JjYjc4Y2NmMWUyODUyNTllYWJkNjJkMzE1ZDgxNzc1MWQifQ"
+        },
+        {
+          "resource": "repo://package.json#L5-L21",
+          "version": "repo-lines-v1:sha256:559277ff9b765aef074a9fc1fd30fb7dca11766d8030eb25f14be440b109487a:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZkZjQ4MGZkZWU2MzhhNzZjMWRkZTc4ODY0M2NlZTE3ZWJhYzhjYjNiMTlkMTE3MGEwYmM1ZjAzNTg0ZjQxNzkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRkNWNkMmZiNGYzZGY4ODQ1MTUyNTViMzk1MjNmMmY4YjU0NzJiZWVhOWY1NjZmZmNhMjA0ZGI4MDI1NjEwNDEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjFkMTljMzlmZmE2NDRkOTlmY2JhNjhmYmNlNGM2ZTg1NThlY2Q5MjVmYTE2NDVjODliMjFiMjhmNjBjMzBiZGUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjBjMjIyY2I3ZjViNjM0NzAxYTY0ODc4ZmUwMmE1MDA4MTRmMTVmMzk3ZjMwZTcyZTdhNjQyZGNiNjNhN2U4NDQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_88ec836b2ad14aa9b2843dcf87a7ff82",
+      "statement": "The context resolver and the `scripts/lib` test commands use the explicit `node --test scripts/lib/*.test.mjs` glob form so the Node test runner can pick up every test file under `scripts/lib`; the package scripts `context:test` and `scripts:test` are wired accordingly.",
+      "evidence": [
+        {
+          "resource": "repo://package.json#L11-L13",
+          "version": "repo-lines-v1:sha256:82046b6339933b942e47d9675994571a1845b35cc6f4d59f29e4a219cbc26c30:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNDA5Y2RmYzMxYjZkYjc5M2Y0ZDcxMmY4YzM3MjRiYTE1MDk4ZTE5NDQ4ODQ0YzBkMjA3NzQxNzJjODhiYzA4ZiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiOTU4M2FmMDY5YWNmYjRlYjUzNDg2YjU3YWYzNDdlMmRiYWIyNzE5MmEyZWE0MGY2NWYxNjlhOTYxNzE0NjEwNiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMzM5YjI2NDE1MzU1YWUzZjI3YWY1NDY3NGJhZmI3MDYwZDM3N2I2MDExNzdlNzhhNGVlZWNkZGFhOWMzZjIwMSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMzg0MjZlM2QyNDA2NjlkYzlmMjA1NDUwNTIzNDkzNTc5MjYxYzI2Y2I5Mzc2MDdiZGQ1ODllZTFmMzY0M2ZkNSJ9"
+        },
+        {
+          "resource": "repo://scripts/lib/http.test.mjs#L1-L177",
+          "version": "repo-lines-v1:sha256:3b1fb5343df282923b7cb4aa76c6497a1e92d3f17d11b33b12e9d8367b2c2477:eyJzZWxlY3RlZExpbmVDb3VudCI6MTc3LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJjNmM3Y2NlMGE3MGIzNGVmYTNhZTM4MGVhMTIwNmU0ZmYwMDMzZmYyZjc2ZTdjNmRmZTRjZTNmN2RjZDA4NjIzIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiJmNmY1YjQwYjE1ODQ1N2QxNzg2NGYyMTc5MDc4NmRkNWEyZWNkYjY0YjY2YTY1MWY3ODhkNGUyNWNkMzMwM2QyIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MCwicHJlY2VkaW5nQ29udGV4dEhhc2giOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MCwiZm9sbG93aW5nQ29udGV4dEhhc2giOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1In0"
+        },
+        {
+          "resource": "repo://scripts/lib/ui-driver.test.mjs#L1-L28",
+          "version": "repo-lines-v1:sha256:a4a3e480a0c6dd72c96ce5670e160ed2b6c3f4682dfe3a7c1b65fe4e069dbd75:eyJzZWxlY3RlZExpbmVDb3VudCI6MjgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM2YzdjY2UwYTcwYjM0ZWZhM2FlMzgwZWExMjA2ZTRmZjAwMzNmZjJmNzZlN2M2ZGZlNGNlM2Y3ZGNkMDg2MjMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY2ZjViNDBiMTU4NDU3ZDE3ODY0ZjIxNzkwNzg2ZGQ1YTJlY2RiNjRiNjZhNjUxZjc4OGQ0ZTI1Y2QzMzAzZDIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_8506f275b01447089fffd3a669f9e2e8",
+      "statement": "Backend tests use `pnpm --dir backend test` and require `pnpm --dir shared build` after any shared change because the test runner imports the compiled `@tingting/shared` package.",
+      "evidence": [
+        {
+          "resource": "repo://CONTEXT.md#L120-L122",
+          "version": "repo-lines-v1:sha256:478f1c91501a51df136baf5628e6da1d4dfcd609825565aac991578b7786bcbd:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMTIyOTFhN2Q4MDQ1ZDNmYTdkMzM4MGZlMzJkYjAyOGNiM2M4ZmVlZGRiZjljNjdhOTViMTllYjgzN2U5ZDNhNCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYzgyMWYyMGNjMjE1ZTdjNDMyODI4OTgyYTNmYjE3ZjBlYzhkOThjMWQ0OTkwOGY4ZGU5ZGZkZGRiNTNkM2NiMCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZWFlN2Y4NDNmZWRmYzg0ZDY1NGMwNWM1MTc5ODhlMzc2ZGI5OTYzN2E3MjNkODM5ZGU4NzZmNTg4YTVkZDJiMSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjAsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSJ9"
+        },
+        {
+          "resource": "repo://shared/package.json#L1-L19",
+          "version": "repo-lines-v1:sha256:327c13525454f5a45399c7b41ba676a6eb798b1e59e8c98ce1e503815c526b70:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE2ZmIwOGZkYTFhY2I5NTdiNjExNmJkMzc4MTFhMWZlNDFhMDE2MTFjMDYzMWVkYmY3ODZkNjg4OWEyN2E1NWMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI3ZTU3ODhkNWQ5ZDczZDI0YTgxZGJjMGE1YTc0YmZhODJjOWMzYjNhZjk5ZTUyYWY3OTZlOTBiNDY4YThhM2QiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEifQ"
+        }
+      ]
     }
   ],
   "verification": {
     "by": "openwiki/0.5.0",
-    "at": "2026-09-08T08:52:37.167Z"
+    "at": "2026-09-08T14:23:47.638Z"
   }
 }

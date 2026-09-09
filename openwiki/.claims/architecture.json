@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:c35942d9f79d36571e245612c9c2116aaef76218729c3bb3f656cf1d6a95b64c",
+  "pageVersion": "sha256:8de55874cefbaf1859c5bbef5b2634279bff8318b61ca49bcc4fe144b73b0196",
   "claims": [
     {
       "id": "claim_2a45a7a12a0642c9aced6e2baaf3df0c",
@@ -32,7 +32,7 @@
       "evidence": [
         {
           "resource": "repo://frontend/src/tests/structure.guard.test.ts",
-          "version": "repo-file-v1:sha256:a1dbe7e5dd1aa5c9129b57b247c4b1815eae1a4f3679b2cfef8b3067275cbf62"
+          "version": "repo-file-v1:sha256:3e5b80acc22b7f7cddbcb20e5f6ed0b92df9fa3fdd00ab111b9c282a381acdfa"
         }
       ]
     },
@@ -55,10 +55,170 @@
           "version": "repo-file-v1:sha256:1471a3fa58a5995118ee53a9d5f8e594843cc335f4d1247227f60bde2f465697"
         }
       ]
+    },
+    {
+      "id": "claim_37820daac31a4b88b5b5c279718d16bb",
+      "statement": "The atomic detailed-plan save persists carrier, vehicle, estimates, classification, and the optional driver note in one transaction guarded by both row versions, persists the dispatcher-owned classification, and strips the CUS-owned lot-level combined flag at the route.",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/routes/shipments/dispatch-planning.routes.ts#L390-L426",
+          "version": "repo-lines-v1:sha256:2be2f143a61a133f3950a407e57d54918aa954c557250cc481e422a82ac122ff:eyJzZWxlY3RlZExpbmVDb3VudCI6MzcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBiNWE4NTlhYjUzODY0MzZiMGRlMDZlZjMwMDE1NTVlOThiNTA0MDQzNTc1ODU2MWVhMTAwZGVkODE2MDJmNTgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ5OTY3ZWMxZWQzODM2ZjhlYjE3YWZmMTcyYjViZmVmN2RlNjA0ODVhNDM5YzZjYTExYzU5MWUxNzU1NzM5YWUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImEzMTM0ZTRhOWZjYjE2YWE3YWI5MGUyNDEyMDMwMDE0YmU2MGEzYTc3N2RhYzQ1N2Q4ZGVlZWI0OWQ5YmI1Y2YiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImEzYjBhNGRhMmFmY2VkMmRiOGZhMTVmY2VjZDcwZTYwZWQ1ZjEwNmI4MTI2ODMyYzVhZTE3MDdkZDM2Yzc4MDAifQ"
+        },
+        {
+          "resource": "repo://backend/src/tests/dispatch-detail-plan.test.ts#L1087-L1127",
+          "version": "repo-lines-v1:sha256:d57336e50e486f405daa5a1e45cc8b63c9b2bd8d65c4f46bf398588833393dce:eyJzZWxlY3RlZExpbmVDb3VudCI6NDEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImIzOTljMzRkOTc1NjhhNWU0YTczODhjNzIzNTViZjEwMjExYTQxMjQxZTU5Y2UzYjI4ZThhMTVhMGZkNDkwYTQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjNhM2U0NmY5NDI3NmI2ZjZmNGVkMWYwMmFmNzhiZWY2YTJlZTFjNDM5ZGQ1NTg0Yjk3Mzk0ODMxMzIxNGQyYjciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijk3NDg2MzUzMDU5OWIwOGMxZGQ3MmY0MGRmYTQxZDFmYzJkYzhlNDgwNDQzZTcyNjkzNmNmYjc1MWVhMmQ5YTEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImM4Mzg1MzQxYjU3NzQzNTEzZTAxY2RjNDQwMDRlZWVkOWE0NTA4Yzk4NzUyZjU4MmQxYWM4MGY3MWJlODM0ZjkifQ"
+        },
+        {
+          "resource": "repo://shared/src/schemas/index.ts#L1115-L1161",
+          "version": "repo-lines-v1:sha256:66d46c27a213953c0ec773344c0da8a3a6b73b9dc2bbb911688974c8ecef3b89:eyJzZWxlY3RlZExpbmVDb3VudCI6NDcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZiMjRhMWZmYjM3YzJmMjA4ODllN2MzMmU4MzE4MDhlNTQxMzBiOGZlNzRmZjE2MWRiMGZhZTlhOTcxNmYxMTIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY2ZjViNDBiMTU4NDU3ZDE3ODY0ZjIxNzkwNzg2ZGQ1YTJlY2RiNjRiNjZhNjUxZjc4OGQ0ZTI1Y2QzMzAzZDIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjY0M2Q1YzA1YTNmZTdjNTc2NDJhODZkMjU0ZWVjMGRkNjc0MzVkNGQwM2FhYjM1MmUzMmVjOGM0NTlhOTE0YTgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImZmN2EzZjk5NDE2M2ZhZDA5ZDFiOGQ4MjBmZDNmYWY1ZWVkNzMxNTEwNjIzMzE0ZmZlMDBiMTBiN2YzYTQ2YzYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_aef66fe55d604e03bdfbb8a015fd965b",
+      "statement": "The dispatch note composer drives a global tag pool with NFC-normalized duplicate detection, length and separator validation, and soft-delete that re-activates the same row on re-create, keeping historical notes readable.",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/routes/shipments/dispatch-planning.routes.ts#L513-L555",
+          "version": "repo-lines-v1:sha256:baed7598a9bf7ea7c591831cb1cdd66f6d4f80ba1949388b73a9eb8b209788b7:eyJzZWxlY3RlZExpbmVDb3VudCI6NDMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM3NTc5MTUzNzVhOGQ5MTM0YmY1NmE2ZDQ3MWFkMjEyMmM0ZmFjYWE4ZGFhODg4NDdmODk0YzBlZTllNjI2NGMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ5OTY3ZWMxZWQzODM2ZjhlYjE3YWZmMTcyYjViZmVmN2RlNjA0ODVhNDM5YzZjYTExYzU5MWUxNzU1NzM5YWUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjgxMzAyOWM1ZGFlYTkxYTg0NTI0OTM4NDE5NWI3ZjRmN2NlODEyMTc4OTUyZTMxNzcyMTdhNGQyOWJkODMyOWMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoyLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJmOTZlZmQzZGRjNzY2MjkwY2JhYzE0OWQ3NjdkMzJlZDNiYzQ1MjUxNDM4NTlhMTMyODNjZDU3OGViYTNkYWMifQ"
+        },
+        {
+          "resource": "repo://backend/src/services/dispatch-task-tags.service.ts#L17-L124",
+          "version": "repo-lines-v1:sha256:e2a2721435184971ec428178f55af5b3c0d06605bb8cc9fc24ddb810b674c416:eyJzZWxlY3RlZExpbmVDb3VudCI6MTA4LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJjZTllMjYwZmI1N2Y4NjIxMDg1YWM0OGY3N2M2NWZlYmIxMGNmYzZmNTcwYzA5ZDhkNWRlZDhiZDRkY2E2ZTk5IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0MTJjYTM0NWNjZjc1YmY5YzA4MDZiY2U2OTViZThkZTgwOGI3OTk4NDI1MWE3YTU0ZDIwMmNmNjEwMWRkNDUxIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiI1YTdlYjE5YWJjZTcwZWFjM2UyOTFlY2RiN2ZiOGE4Y2U2NjI3YjkxOTkyZTJmYjZiZDMyMDI1OWM3MDg3NjcwIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MCwiZm9sbG93aW5nQ29udGV4dEhhc2giOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1In0"
+        },
+        {
+          "resource": "repo://backend/src/tests/dispatch-task-tags.service.test.ts#L64-L220",
+          "version": "repo-lines-v1:sha256:e452fa03f8e1cdcecf8d1925cdc761a23972ab36ff3e5a6b683e0d54a7a24195:eyJzZWxlY3RlZExpbmVDb3VudCI6MTU3LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJkOTM0YjI5NDQwYTg3N2M4OTllNzgxMzVlYTc3YTExMmQwMWQ0YWMwYTcxYjQwMjc0YzgwZDU2NDQ5NzJjZThkIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiIzYTNlNDZmOTQyNzZiNmY2ZjRlZDFmMDJhZjc4YmVmNmEyZWUxYzQzOWRkNTU4NGI5NzM5NDgzMTMyMTRkMmI3IiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiIzNjZlOGFhMjk4MmZmYjZjNGY0M2FmMTdjZTM1MDBlNmIwODQ5ZWNlYzIzODAzYmI0M2MwOGFmOGJkMTBkNDA5IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MSwiZm9sbG93aW5nQ29udGV4dEhhc2giOiJmNmY1YjQwYjE1ODQ1N2QxNzg2NGYyMTc5MDc4NmRkNWEyZWNkYjY0YjY2YTY1MWY3ODhkNGUyNWNkMzMwM2QyIn0"
+        }
+      ]
+    },
+    {
+      "id": "claim_c3864051d467484ab24e2a129019db54",
+      "statement": "The pre-commit hook typechecks any project with staged sources, runs the frontend structure guard, and refuses the commit on failure; escape hatch is `git commit --no-verify` with a stated reason in the commit body.",
+      "evidence": [
+        {
+          "resource": "repo://AGENTS.md#L60-L70",
+          "version": "repo-lines-v1:sha256:24bdca595cfcaf4586420f1d8c2e0190e3d608769bc3b0c5a951cec19e283145:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImFmY2RiZjVjYzEyNzFmNTBlMzg2Y2VlYzUwODc4MWJiOTQ1YjM4OTliZTFhYzk0NGU1ODIxYTJjN2ZmZjQ2MzgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImVmM2U0ZGM3MjAzOGEzZGViNTA5YzljZDFjZTc0YWViYmU3ZTVlZWRlOTMxOThjNzg1NTA0NjRkYjQ2ODFiZDYifQ"
+        },
+        {
+          "resource": "repo://frontend/src/tests/structure.guard.test.ts#L196-L250",
+          "version": "repo-lines-v1:sha256:da8e674fa6b1a83bf0e2d4f917250ebfcc7c821ffb99e09def8f8d78a8af76f7:eyJzZWxlY3RlZExpbmVDb3VudCI6NTUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZmYmU0MGQyNDM5MGZlY2U1YjQ4MGExMWIzZTk5Nzc4NmE2YzIwNmI3MjgzZWE3ZWY4MjUxMDIzNWUzYmNlMjMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjNhM2U0NmY5NDI3NmI2ZjZmNGVkMWYwMmFmNzhiZWY2YTJlZTFjNDM5ZGQ1NTg0Yjk3Mzk0ODMxMzIxNGQyYjciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImE3MWU3NjJiYWUwNDg3ZDZiYjE5ZTNlYjlhOTljMmNjMmYwNDZjMTRjYTBiMzAyYjBmOGU1ZTQwYmE2ZTE2M2MiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImY2ZjViNDBiMTU4NDU3ZDE3ODY0ZjIxNzkwNzg2ZGQ1YTJlY2RiNjRiNjZhNjUxZjc4OGQ0ZTI1Y2QzMzAzZDIifQ"
+        },
+        {
+          "resource": "repo://scripts/githooks/pre-commit#L1-L40",
+          "version": "repo-lines-v1:sha256:f9299fe39aba3e144d519ab71d01a09a51acdb359fa2db96ff6d1924fb21c332:eyJzZWxlY3RlZExpbmVDb3VudCI6NDAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFkOTVmYzA0YTgwYzk1MmY0OWNlNDE4ODYyN2M1M2IwZmJlOGM0NDA0MWI5NTJkNTkyYWNkMWRlOTk4NjE0NjYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI4ZDNiOWU4ODBhNzc5NzU0OTNkYzdlMzU5MTQ0YzAyOTVhNGY2OTRjZmUwYWY0ZjkyOGMyMjMwN2JjNWMzMjAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_54423ee8f7d44399867a72f023064c9a",
+      "statement": "Shared schema changes require rebuilding `@tingting/shared` before backend tests that import its compiled package; the CUS workspace read model and the dispatch filter contract both live in `@tingting/shared` and are imported by backend services and frontend hooks.",
+      "evidence": [
+        {
+          "resource": "repo://shared/package.json#L1-L19",
+          "version": "repo-lines-v1:sha256:327c13525454f5a45399c7b41ba676a6eb798b1e59e8c98ce1e503815c526b70:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE2ZmIwOGZkYTFhY2I5NTdiNjExNmJkMzc4MTFhMWZlNDFhMDE2MTFjMDYzMWVkYmY3ODZkNjg4OWEyN2E1NWMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI3ZTU3ODhkNWQ5ZDczZDI0YTgxZGJjMGE1YTc0YmZhODJjOWMzYjNhZjk5ZTUyYWY3OTZlOTBiNDY4YThhM2QiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEifQ"
+        },
+        {
+          "resource": "repo://shared/src/schemas/cus-shipment-workspace.ts#L21-L114",
+          "version": "repo-lines-v1:sha256:e6e2809e87865f144d834891a9de6ee2874cf49f530cffb84e2b4671eca4f121:eyJzZWxlY3RlZExpbmVDb3VudCI6OTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNmMTU0OThjNzM2OGQyNjdhNTVjOGM0ZjY2OGJhZTY1NzNiZmUwOWQxN2QyOTk2NjM3MDMyMzI3OTRkOGJiNGQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFmYmZkNDAxZDk1NzEzNTBmZDM1MzJhN2YyZWExNGQyYzVhZTM0NjdjMmMzODVkMzc3N2ExNTBjMWU2MTI5N2EiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImM3YzZhNjVlYTdkNGY2ZjRlMTg3ZjlkYTdhMjYwNjY2ZGZiMTA0NmRlMjFmODA4MzAxYTNjZTRmN2JjNTY2OWIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImYxNmRiNTM2Y2Q5N2QzOTUzZDdlMzQyYzhjOWQ3NGRiODY1MDEyZDNhNjQzYjliMWRlOWU0YzE3N2M5ODYxNGYifQ"
+        },
+        {
+          "resource": "repo://shared/src/schemas/index.ts#L1109-L1161",
+          "version": "repo-lines-v1:sha256:6ae5b07b575a606add75fc83abe377195329183109cf11be680e60468269754f:eyJzZWxlY3RlZExpbmVDb3VudCI6NTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjljYmY4ZWU2NTU5MGIwNGQ1MTgyMWNiYjBhMjMzN2YwYjg2MjVhYTQxZTRlMmQzMzI3OThmMzg2OGE4OWEzZmQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY2ZjViNDBiMTU4NDU3ZDE3ODY0ZjIxNzkwNzg2ZGQ1YTJlY2RiNjRiNjZhNjUxZjc4OGQ0ZTI1Y2QzMzAzZDIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImFkN2Q2NTZlODgwOTU3NmE5OTdjNmExYzViNmI1ODk2YTQwODMxYzY5M2U1YzIyMzhjYjY4MDVhOGY5ZTM4NGUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImZmN2EzZjk5NDE2M2ZhZDA5ZDFiOGQ4MjBmZDNmYWY1ZWVkNzMxNTEwNjIzMzE0ZmZlMDBiMTBiN2YzYTQ2YzYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_7eaa8146ae7043769045b11ef98c584e",
+      "statement": "The shared `computeFuelSurcharge` returns 0 when the base price is unset, when the share percent is non-positive, when quota liters are non-positive, or when the current price does not exceed the base; otherwise the surcharge is `roundInt(round2dp(delta × quotaLiters × sharePct/100))`, and every trip creation snapshots the inputs (`currentFuelPrice`, `baseFuelPrice`, `quotaLiters`, `customerSharePct`) so future price changes do not retroactively rewrite cước đã phát hành.",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/services/pricing.service.ts#L80-L120",
+          "version": "repo-lines-v1:sha256:57dea91e44bc5e8acc3c923c760e984c2cc3951bf31a3925de2aa90cd6692e04:eyJzZWxlY3RlZExpbmVDb3VudCI6NDEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNiNzM5MWFiNmM3NWYzMmRhZWMzYjkxNDEzYmJlZWYyMTliZjcyMjFjZjFlNDEyYzFhMzBiZDljNWYwNmI3ZWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNiYTNmMWE4NmVkNjQ3NGFjNzgyZWNmMjkyMDM2ODEyYjY3NjIyYzcwMTQwZGI3M2ZhYmRmYzQ3NDM2YmUxNmUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjMwM2MxZjZiZTQ0ZjEyMDUzZjk5ZTlhNzEzMTg0YjE2MDU5YjQ3Y2NlMzgxMjQ2OGE3ZDNmYzlhNzhkMmIxODkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjlhNmM3NGI5NGI4ZmRhNmZmMjFmZDI3NzMwYjdhMDBkODY5MzIxYWE4MGE1ZmI2MjFkNzhhMjlmNzQ4NTExYjkifQ"
+        },
+        {
+          "resource": "repo://backend/src/services/trip-create.service.ts#L1-L60",
+          "version": "repo-lines-v1:sha256:ad75077fa3fe58121ff54f00c3f2c2dbb773503d05ada58f8c408fe487346ee3:eyJzZWxlY3RlZExpbmVDb3VudCI6NjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImViNDE1ZThlNDA3YmI0OWJmM2I2YmUyMDcxMWFmZjhkNTNhNGY4NzExNTdhMjI5NzMwOTAwOWNiMjNiMGE3YzciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZkN2NiYTIzOWNmZGMxMTI2NmI0OTQ2MmU5MzRjNzI4ODI4ZWQ4N2Y0N2Y4MjBlMmVhNzZjMDg1OTc5NDQ3ZGIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI2Y2U2ZDNhOWRlMjA4YzMxYjk4NTQzMDBjYzI2YmMzNzZlMGM2ZDliMDliMmM4MmYzZmZkOTdjOGNjZTI3YjEifQ"
+        },
+        {
+          "resource": "repo://shared/src/calculations/fuelSurcharge.ts#L1-L40",
+          "version": "repo-lines-v1:sha256:8440522d661efd05ba31177901fad3a83d3a31c930e75c2655ce6d6fcbdaa75c:eyJzZWxlY3RlZExpbmVDb3VudCI6NDAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE4MTJkNWMxNWEzZDg0NDkxMjQ1ZTlkY2Q0ZWNiOWFhN2UwYzQ2ZWM0NjE0YTIyNzBlYmNiMDMyMWU2NjgzOGQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNhN2M1OWRmYmJjNjliMjIyYjdlMWRiZTc1ZmU5N2M0NGU1ZmJjYmQ4MzdhMzgxMmJjZWFhYWJlNjNlZmQ1NDUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjFlYTQyNzJkZWVlYTYzZDAxMWU2MjM3ZjA4NDliM2M4YjU4Y2Y5MzA4ZjlmNThhYzE2OTI2ZjkwYmZhNzk1NjIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_14e7c97be5f84e38a612a42b8e3d753f",
+      "statement": "The CUS dispatch-status chip vocabulary is now a five-state taxonomy (`AWAITING_VEHICLE`, `PLANNED`, `CREATED`, `IN_TRANSIT`, `COMPLETED`); the legacy coarse `ASSIGNED`/`UNASSIGNED` aliases remain accepted by the container endpoint so older links keep filtering.",
+      "evidence": [
+        {
+          "resource": "repo://frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx#L1-L40",
+          "version": "repo-lines-v1:sha256:0dde17c1efaffa6b7aae5cab365674e9ecfa02faa3177b525877030e1c67eebc:eyJzZWxlY3RlZExpbmVDb3VudCI6NDAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjNjOGY2N2M0YTg1NjIwZDg1MzViM2U2MDgyMTU5ZjZkOTRiZDdlYjcwMWVmYWNkMjdkNTczODYwOWU3NjQ3NWIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQxOTFjYzE3NWY2ODRmMWNlZDYxZDEyMzdhY2VlOGM0MWNkZWZlZGY3ZGRlMzM1ODVkNmNjYTRjYjkwNjUxOWEifQ"
+        },
+        {
+          "resource": "repo://shared/src/schemas/cus-shipment-workspace.ts#L81-L114",
+          "version": "repo-lines-v1:sha256:210baa94de23202969d1de9a08558f2ebd7b1a48697ea2378ef175cae3b8a7c9:eyJzZWxlY3RlZExpbmVDb3VudCI6MzQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZjYzI4ZTYyNTAzYjBiNmJiZmY1YmFkOGMzMmE4MTY2ZTUxZmU5ZjQzNjE1ZWE1NmE3ZGFjMmNlMTY1ZGQwNjgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFmYmZkNDAxZDk1NzEzNTBmZDM1MzJhN2YyZWExNGQyYzVhZTM0NjdjMmMzODVkMzc3N2ExNTBjMWU2MTI5N2EiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjMxOGM5MDZlNDc5NjFmMmZjOGM5MWUyNmE2OGRhMmU2ZmUxY2U4MjZiOTUxNWU4N2I2MjhhYjZlMjM1M2ViN2YiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImYxNmRiNTM2Y2Q5N2QzOTUzZDdlMzQyYzhjOWQ3NGRiODY1MDEyZDNhNjQzYjliMWRlOWU0YzE3N2M5ODYxNGYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_f0e568f092e9457cba75b1f9cac625fd",
+      "statement": "The detail-plan row carries a `taskStatus` of `'READY' | 'DISPATCHED' | 'COMPLETED'` and external-carrier staff close (`completeExternalCarrierTrip` in `trip-external-close.service.ts`) lets dispatch or CUS confirm completion when the external driver does not run the driver app; the same `transitionTripStatus` machinery used by the driver close fires so revenue/AP/AR post and ledger snapshots stay consistent.",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/routes/trips/status.ts",
+          "version": "repo-file-v1:sha256:9c9bf23b35ef81735db9179956f28d4193a8a6d6004635a63ceb4074e939c51a"
+        },
+        {
+          "resource": "repo://backend/src/services/trip-external-close.service.ts",
+          "version": "repo-file-v1:sha256:89a7f45f4533d06e873729cf2fe984edb3c01af1aa9f6530371562f0ac5e26e7"
+        },
+        {
+          "resource": "repo://frontend/src/features/dispatch/components/DispatchIssueStatus.tsx",
+          "version": "repo-file-v1:sha256:8dd68d0c4e501c9354af10b7cfbbf9902da1eb39d35060134ebe69fc5db40cdd"
+        }
+      ]
+    },
+    {
+      "id": "claim_25a6b61f815d4c3b8b9bf6a93682a391",
+      "statement": "The master-plan carrier-allocation editor splits demand by packing/return day via `DispatchAllocationDaySection` + `allocationDayHelpers`, validates against the per-day demand, and saves through a partial-save endpoint that echoes the persisted row back to the grid.",
+      "evidence": [
+        {
+          "resource": "repo://frontend/src/features/dispatch/master-plan/DispatchAllocationDaySection.tsx",
+          "version": "repo-file-v1:sha256:8c308512ca02d387d7ad852863702b4344aa84a16aa32fbb9f55f741c39e78fe"
+        },
+        {
+          "resource": "repo://frontend/src/features/dispatch/master-plan/DispatchAllocationPopover.tsx",
+          "version": "repo-file-v1:sha256:6382308c6070251741bf82d313c809f138993248a761b3bc6e6cdb4ad135160f"
+        },
+        {
+          "resource": "repo://frontend/src/features/dispatch/master-plan/allocationDayHelpers.ts",
+          "version": "repo-file-v1:sha256:4e1cd98fc6cf54aa202bab8e4e9a82954f5a6fb534185c5bf055ed95929d322f"
+        }
+      ]
+    },
+    {
+      "id": "claim_f6d5570aecad41698e9687ce5b18336f",
+      "statement": "A CUS ledger container row stays at `PENDING_DATE` until every container in the FCL lot has its own `customerAppointmentAt`; clearing the last appointment of a lot that already moved to `READY_FOR_DISPATCH` is rejected with 409 so the workboard's \"Chưa chốt ngày\" warning can never silently clear.",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/services/shipment-containers.service.ts",
+          "version": "repo-file-v1:sha256:799a2908bff9824c1c3ca161973cbd85913afa075630755ca5e5ff9ba9663e93"
+        }
+      ]
+    },
+    {
+      "id": "claim_6eca1cb39ac34e9dad04174b801b4181",
+      "statement": "The font-family contract bans `font-variant-numeric: tabular-nums` and the JetBrains Mono fallback; Be Vietnam Pro uses proportional figures, so right-aligned numerics rely on `text-align: right` instead of a no-op tabular-numeral declaration.",
+      "evidence": [
+        {
+          "resource": "repo://frontend/src/styles/font-family-contract.test.ts",
+          "version": "repo-file-v1:sha256:49812c376543d3003d9e339883e62cecbfd929a12e1b593394873d4782e919fb"
+        }
+      ]
     }
   ],
   "verification": {
     "by": "openwiki/0.5.0",
-    "at": "2026-09-08T08:52:37.167Z"
+    "at": "2026-09-08T17:02:10.146Z"
   }
 }

@@ -1,31 +1,7 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:a12aa29a0e4d4aa964fa59b5c9f7293b6114e85d331418ecff777f096d0e36d3",
+  "pageVersion": "sha256:d692217eb591513a80aee0e377bb24651b85730ef474d229523ab402a4663b34",
   "claims": [
-    {
-      "id": "claim_f39cc84766b5445d914d4ea51f3de8b6",
-      "statement": "SilverSea is a TingTing-platform deployment customized for the SilverSea container-trucking customer; local ports are backend 3001, frontend 7174 (strictPort), Postgres 5441, Redis 6391, Adminer 8083, and demo mode is permanently disabled.",
-      "evidence": [
-        {
-          "resource": "repo://backend/.env",
-          "version": "repo-file-v1:sha256:8979cbd7735403cb8edbaf9f19da1a4b6dfbe0d0db0b303b9dad72703b7c037e"
-        },
-        {
-          "resource": "repo://package.json",
-          "version": "repo-file-v1:sha256:84110e40d654280763ebed8c574ae24e5b767c66cab2a6acaf93b4b62b38bc3b"
-        }
-      ]
-    },
-    {
-      "id": "claim_03e27d84d5f64faca31eab06edc0787c",
-      "statement": "The O2C state machine is NEW → DISPATCHED → IN_TRANSIT → COMPLETED with CANCELED as exception exit; docs/prd/QuyTrinhO2C.md is the canonical spec and diagram-based content is authoritative.",
-      "evidence": [
-        {
-          "resource": "repo://docs/prd/QuyTrinhO2C.md",
-          "version": "repo-file-v1:sha256:4850f532124bbb2a7f64e4f8c49ea6b581345f1848f22c7bbc51f3908596e994"
-        }
-      ]
-    },
     {
       "id": "claim_70ce670bd9584411abf474835bf109f0",
       "statement": "testplan/flows contains role-based regression flows with roles (CUS, DISPATCHER, DRIVER, OPS, ACCOUNTANT, ADMIN, CUSTOMER) and no hardcoded usernames; per-environment accounts resolve via testaccounts.txt with shared staging password Abc123.",
@@ -45,10 +21,56 @@
           "version": "repo-file-v1:sha256:778660c9b3307b2cb4477f959b9e214b0de3a0a435168ed09b7862921cdd6eef"
         }
       ]
+    },
+    {
+      "id": "claim_4e60e43665954d67be7c50399d39ddb9",
+      "statement": "SilverSea is a TingTing-platform deployment customized for the SilverSea container-trucking customer; local ports are backend 3001, frontend 7174 (strictPort), Postgres 5441, Redis 6391, Adminer 8083, and demo mode is permanently disabled.",
+      "evidence": [
+        {
+          "resource": "repo://Makefile#L1-L31",
+          "version": "repo-lines-v1:sha256:fd44f837b988aec6307f09e6853dd0c3769ce4a5fb5285f038e7f0cb32d694f4:eyJzZWxlY3RlZExpbmVDb3VudCI6MzEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImJlYWI4ZDczNDE3MGFhZTEyMTRhYzI2MThjOTFlNjhjNjAyOWJkMGMxYzZlNzQzYzhkOWE3ZjEzNjRmNGRmNzAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU1YTMzYzQ1NjgwZWU5MmJjNGY4N2U3MTIwNmJiNDZlMjZkZTNlZDgwOTE4MWY2OTY3YzU3ODIwNTBiMTY4ZjEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQ3MGM3NjYwNzBjMmYzYzIwNWMzYzA0YTUzMDY1M2JjYjc4Y2NmMWUyODUyNTllYWJkNjJkMzE1ZDgxNzc1MWQifQ"
+        },
+        {
+          "resource": "repo://package.json#L1-L21",
+          "version": "repo-lines-v1:sha256:f5548dfaf5a689750d1e013deb6bfc16ff21a4b3950e9dbe921ba59cd5efe05b:eyJzZWxlY3RlZExpbmVDb3VudCI6MjEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE2ZmIwOGZkYTFhY2I5NTdiNjExNmJkMzc4MTFhMWZlNDFhMDE2MTFjMDYzMWVkYmY3ODZkNjg4OWEyN2E1NWMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRkNWNkMmZiNGYzZGY4ODQ1MTUyNTViMzk1MjNmMmY4YjU0NzJiZWVhOWY1NjZmZmNhMjA0ZGI4MDI1NjEwNDEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjBjMjIyY2I3ZjViNjM0NzAxYTY0ODc4ZmUwMmE1MDA4MTRmMTVmMzk3ZjMwZTcyZTdhNjQyZGNiNjNhN2U4NDQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_5798b0294d1c432d8b3b9535a00191d8",
+      "statement": "The O2C state machine is NEW → DISPATCHED → IN_TRANSIT → COMPLETED with CANCELED as exception exit; docs/prd/QuyTrinhO2C.md is the canonical spec and diagram-based content is authoritative.",
+      "evidence": [
+        {
+          "resource": "repo://docs/prd/QuyTrinhO2C.md#L325-L353",
+          "version": "repo-lines-v1:sha256:03ff7e50adb97abb88d894d84e9e7324dc4eb622d22ceca8d0f5f11bb1d5668e:eyJzZWxlY3RlZExpbmVDb3VudCI6MjksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjJmNTZkMTdmYWZhZmNiNGM0MDU3MmE4Yjc2YmIyODQ1MWJiZmY1MjhhYjI2YmNiZGZlNzUwNTE1OWE4OGE2NGEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImE4NDhkZTc4YWJhMDY4YjVmOGRlZGZjZjUyMGFlZWZiYTFjZmY0MzQwM2I5MzJiYTNiOTgwZWE3MTMxMWVhYTciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoyLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjJjYWRiZTFiZjEwMTMzZWI4NTBhOGE5NGJiOWU2ZTk4NzI0YjE2ZTgxYWFhNzUzMGY4NzY2NDA0MzA0Y2VmYWIifQ"
+        },
+        {
+          "resource": "repo://testplan/flows/README.md#L29-L35",
+          "version": "repo-lines-v1:sha256:22f771ec8d141375d0358a7686e03b53bed5aaac6da4ab4dbfdadcf3c5fdadc5:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZjdmY2Y2ZTc2ZjdlODY1MDMwYWI3YzRkZjg1NTZiYWJjYzc1YmM3YWQ2ZDAzZWRmNmM1MTliYTVhYjE1OWQxMyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDdjMDZjNTYxZDVjMzI3MzQzNjg1MjY4YTQ2YjMzOTFmMzk5OGVlZTg5MGQyYmU1MWYwZDIxY2M0YTUzYWU2ZCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMDAxZjJlYzE3NTkzYzEwNTRlYjQ2MzY3ZDg0NTNlZjI0YTE3M2NlOTZiNzExN2Q5MWY5YTY4ZDQ0ZmVmOGIwMSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMDAxZjJlYzE3NTkzYzEwNTRlYjQ2MzY3ZDg0NTNlZjI0YTE3M2NlOTZiNzExN2Q5MWY5YTY4ZDQ0ZmVmOGIwMSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_8e2f03ae383840ca910f42a7c13fe081",
+      "statement": "The merged dispatch surface pairs a master-plan grid (per-shipment, one schedule block per container appointment) with a detailed-plan grid (per-fulfillment) sharing the dispatch planning client and backend route family, and the dispatcher-selected per-container classification flows through the atomic plan save while the CUS-owned lot-level combined flag is stripped at the route.",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/routes/shipments/dispatch-planning.routes.ts#L390-L426",
+          "version": "repo-lines-v1:sha256:2be2f143a61a133f3950a407e57d54918aa954c557250cc481e422a82ac122ff:eyJzZWxlY3RlZExpbmVDb3VudCI6MzcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBiNWE4NTlhYjUzODY0MzZiMGRlMDZlZjMwMDE1NTVlOThiNTA0MDQzNTc1ODU2MWVhMTAwZGVkODE2MDJmNTgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ5OTY3ZWMxZWQzODM2ZjhlYjE3YWZmMTcyYjViZmVmN2RlNjA0ODVhNDM5YzZjYTExYzU5MWUxNzU1NzM5YWUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImEzMTM0ZTRhOWZjYjE2YWE3YWI5MGUyNDEyMDMwMDE0YmU2MGEzYTc3N2RhYzQ1N2Q4ZGVlZWI0OWQ5YmI1Y2YiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImEzYjBhNGRhMmFmY2VkMmRiOGZhMTVmY2VjZDcwZTYwZWQ1ZjEwNmI4MTI2ODMyYzVhZTE3MDdkZDM2Yzc4MDAifQ"
+        },
+        {
+          "resource": "repo://backend/src/services/dispatch-task-tags.service.ts#L17-L124",
+          "version": "repo-lines-v1:sha256:e2a2721435184971ec428178f55af5b3c0d06605bb8cc9fc24ddb810b674c416:eyJzZWxlY3RlZExpbmVDb3VudCI6MTA4LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJjZTllMjYwZmI1N2Y4NjIxMDg1YWM0OGY3N2M2NWZlYmIxMGNmYzZmNTcwYzA5ZDhkNWRlZDhiZDRkY2E2ZTk5IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0MTJjYTM0NWNjZjc1YmY5YzA4MDZiY2U2OTViZThkZTgwOGI3OTk4NDI1MWE3YTU0ZDIwMmNmNjEwMWRkNDUxIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiI1YTdlYjE5YWJjZTcwZWFjM2UyOTFlY2RiN2ZiOGE4Y2U2NjI3YjkxOTkyZTJmYjZiZDMyMDI1OWM3MDg3NjcwIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MCwiZm9sbG93aW5nQ29udGV4dEhhc2giOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1In0"
+        },
+        {
+          "resource": "repo://frontend/src/features/dispatch/master-plan/MasterPlanGrid.tsx#L40-L210",
+          "version": "repo-lines-v1:sha256:5914ed6f211be5b9a49e5ac0c49e7b7050850ce210a5d6826d216b1400531119:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcxLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiIzMzI2OTA5ODY5MzZlYzFkMmQxNzNkNTIxODU2ZTAyMzJkNjNlNjk1N2YyODdkZjE1YjczZjFhOWM0OGUxYWNlIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiIxYjA5ZTMzYjQ4MmMwNTdiNDA2Y2ZkOWUyZDU5MTNlMzMyOTMwYTMwZDcwNWU4NmE5ZmVlODA3OGFkNDY4YjM2IiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiJmNjA0Y2VjMGU4OTMyNGJlNTI2M2UwYzEyYjlhODdmZjg3YmFkYWE5NjQwMjZjNzllOWQyZmY0OGVlYmQ4NWFmIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiI5YTJiMjkxYWIyNTAyNGIyZjQ3ZmQ5NzM0NWIyYzc2MjYzMTliY2IzNmZiNDg5NDZkZGI4ZTFlNGY0OWVkYTQzIn0"
+        }
+      ]
     }
   ],
   "verification": {
     "by": "openwiki/0.5.0",
-    "at": "2026-09-08T08:52:37.167Z"
+    "at": "2026-09-08T14:23:47.638Z"
   }
 }
