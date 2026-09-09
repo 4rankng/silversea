@@ -91,7 +91,10 @@ export default function ShipmentContainersPage() {
 
   const updateSearch = useCallback((rawValue: string) => {
     const value = rawValue.toUpperCase();
-    const isEmptyOrPartial = /^[A-Z0-9]{0,3}$/.test(value);
+    // Partial input while typing toward a valid reference: any prefix of a
+    // valid value must not flash the error, and real references carry
+    // separators (see CUS_SEARCH_PATTERN), so the partial class admits them.
+    const isEmptyOrPartial = /^[A-Z0-9 ./-]{0,3}$/.test(value);
     const isValid = CUS_SEARCH_PATTERN.test(value);
     setSearchInput(value);
     setSearchError(isEmptyOrPartial || isValid ? null : 'Nhập số Bill/Book, container hoặc tờ khai đầy đủ, hoặc tối thiểu 4 ký tự cuối (không dùng % hoặc _).');
