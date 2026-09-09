@@ -1894,7 +1894,7 @@ describe('dispatch fulfillment workflow routes', () => {
         plannedExternalCarrierId: carrierA.id,
       }).where(eq(s.shipmentFulfillments.id, accepted.fulfillmentId));
 
-      const dispatch = await apiFetch<{ trip: { externalCarrierId: number | null } }>(`/${accepted.shipmentId}/dispatch`, {
+      const dispatch = await apiFetch<{ trip: { id: number; externalCarrierId: number | null } }>(`/${accepted.shipmentId}/dispatch`, {
         method: 'POST',
         token: managerToken,
         body: {
@@ -1949,7 +1949,7 @@ describe('dispatch fulfillment workflow routes', () => {
       assert.equal(blocked.status, 409);
       assert.match(String(blocked.data.error ?? ''), /nhà xe ngoài/);
 
-      const ok = await apiFetch<{ trip: { externalCarrierId: number | null } }>(`/${accepted.shipmentId}/dispatch`, {
+      const ok = await apiFetch<{ trip: { id: number; externalCarrierId: number | null } }>(`/${accepted.shipmentId}/dispatch`, {
         method: 'POST',
         token: managerToken,
         body: {
