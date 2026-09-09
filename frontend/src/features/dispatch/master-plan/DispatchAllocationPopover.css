@@ -166,7 +166,6 @@
 .dispatch-allocation-popover__summary-row > :not(:first-child) {
   color: var(--fg-1);
   font-family: var(--font-data, inherit);
-  font-variant-numeric: tabular-nums;
   text-align: right;
 }
 
