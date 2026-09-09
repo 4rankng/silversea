@@ -220,6 +220,85 @@
 
 ---
 
+## 9.5 — Lệnh chạy ngoài (docx Phần 1 — hybrid intake)
+
+> Phần 1 của đặc tả (Khách hàng/Nhà máy/Tuyến/Cảng — hybrid ID/Raw_* + UI) từng được
+> dẫn tới `flows-01 §1.11` nhưng mục đó đã được tái sử dụng cho case trùng Bill/Booking
+> (2026-09-07). Bộ case Phần 1 đóng ở đây để đủ "mỗi yêu cầu docx ⇒ 1 case".
+
+### TC-ADHOC-001 — Checkbox "Lệnh chạy ngoài" ở đầu form, mặc định không tích
+
+- **Vai trò:** `cus` (chứng từ)
+- **Mức độ:** P0
+- **Các bước:**
+  1. Mở Form Khởi tạo lô. Kiểm tra checkbox `Lệnh chạy ngoài (Tối ưu xe rỗng)`.
+  2. Tích cờ, gõ dở dữ liệu, tắt cờ lại.
+- **Kết quả mong đợi (Pass):**
+  - Checkbox nằm **trước mọi trường khác**, nhìn thấy không cần cuộn, mặc định không tích.
+  - Tích ⇒ Tuyến + Vị trí mở khoá nhập tay; tắt ⇒ khoá lại theo §3.2; **dữ liệu đã gõ không bị xoá**.
+  - Lô lưu cờ `is_ad_hoc`; mở lại lô ⇒ checkbox vẫn tích (AC10).
+- **Kỳ vọng sai (Fail nếu):** checkbox nằm giữa/cuối form; tắt cờ xoá dữ liệu; mở lại lô mất cờ.
+- **Bằng chứng:** ảnh form ở cả 2 trạng thái cờ
+
+### TC-ADHOC-002 — Combobox: chọn từ danh mục lưu ID, gõ tự do lưu Raw_*, trộn được trong 1 lô
+
+- **Vai trò:** `cus`
+- **Mức độ:** P0
+- **Các bước:**
+  1. Tích cờ. Trường Khách hàng: chọn 1 mục từ danh mục ⇒ lưu.
+  2. Tạo lô 2: gõ tên khách hoàn toàn mới ⇒ lưu.
+  3. Lô 3 (trộn): khách gõ tự do + Cảng hạ chọn từ danh mục.
+- **Kết quả mong đợi (Pass):**
+  - Lô 1: `Customer_ID` có giá trị, `Raw_*` null. Lô 2: `Customer_ID = null` + `Raw_Customer_Name` đúng chuỗi đã gõ.
+  - Lô 3 lưu được cả hai kiểu trong cùng một lô.
+  - Text tự do **không bị xoá khi blur / Esc / click ngoài**; không có mục nào bị tự động tạo trong danh mục.
+- **Kỳ vọng sai (Fail nếu):** text tự do bị reset; danh mục khách/nhà máy/tuyến/cảng tăng bản ghi sau khi lưu (guardrail).
+- **Bằng chứng:** DB/API response 3 lô + `SELECT count(*)` danh mục trước/sau
+
+### TC-ADHOC-003 — Cascading + auto-fill + khoá (luồng chuẩn)
+
+- **Vai trò:** `cus`
+- **Mức độ:** P0
+- **Các bước:**
+  1. Chưa chọn KH ⇒ thử mở dropdown Nhà máy.
+  2. Chọn KH A ⇒ mở dropdown Nhà máy; chọn 1 nhà máy của A.
+  3. Quan sát Tuyến đường + Vị trí đóng/trả hàng.
+- **Kết quả mong đợi (Pass):**
+  - Chưa có KH ⇒ dropdown Nhà máy disabled, không hiện toàn bộ danh mục.
+  - Sau khi chọn KH ⇒ dropdown chỉ còn nhà máy của KH A.
+  - Chọn nhà máy ⇒ Tuyến + Vị trí **tự điền và read-only**; không có chữ gợi ý giải thích.
+- **Kỳ vọng sai (Fail nếu):** dropdown hiện toàn danh mục; tuyến/vị trí chọn tay được.
+- **Bằng chứng:** ảnh 3 bước trạng thái trường
+
+### TC-ADHOC-004 — Nhãn "Chạy ngoài" và hiển thị downstream
+
+- **Vai trò:** `cus` + `dieuvan`
+- **Mức độ:** P1
+- **Các bước:**
+  1. Sau TC-ADHOC-002, mở danh sách lô + chi tiết + màn điều vận.
+  2. Kiểm tra hiển thị tên khách/tuyến/cảng của lô chạy ngoài.
+- **Kết quả mong đợi (Pass):**
+  - Danh sách/chi tiết hiển thị nhãn **"Chạy ngoài"** (chữ màu, không badge) cạnh mã lô.
+  - Điều vận phân xe bình thường; mọi trường hiển thị tên đủ (COALESCE), không ô trống, không `null`.
+- **Kỳ vọng sai (Fail nếu):** ô trống/`null`; lô bị chặn điều vận vì thiếu Factory_ID.
+- **Bằng chứng:** ảnh 3 màn hình
+
+### TC-GHEP-012 — Tag [KẸP]/[KẾT HỢP] trên Chi tiết lô (CUS)
+
+- **Vai trò:** `cus`
+- **Mức độ:** P1
+- **Tiền điều kiện:** 1 cặp ghép còn ACTIVE có ít nhất 1 cont thuộc lô đang mở
+- **Các bước:**
+  1. Mở Chi tiết lô của lô có cont nằm trong cặp ghép, mục **Containers**.
+  2. Hủy cặp ghép (TC-GHEP-008) rồi tải lại trang chi tiết.
+- **Kết quả mong đợi (Pass):**
+  - Khi cặp ACTIVE: tag **`[KẸP]`** hoặc **`[KẾT HỢP]`** hiển thị cạnh số container (chữ màu, không badge).
+  - Sau khi hủy cặp: tag **biến mất** khỏi cả 2 lô.
+- **Kỳ vọng sai (Fail nếu):** tag còn hiển thị sau khi hủy cặp; tag là badge nền.
+- **Bằng chứng:** ảnh chi tiết lô trước/sau khi hủy cặp
+
+---
+
 ## Bảng nghiệm thu — Luồng Ghép chuyến Kẹp / Kết hợp
 
 | Ngày thử | Mã TC | Người thử | Kết quả | Ghi chú | Bằng chứng |
@@ -235,3 +314,8 @@
 | 2026-09-07 | TC-GHEP-009 | agent-browser (qa/2026-09-07_pair-kind-ui/ — prior run) | PASS | 2 thẻ dính liền, chung Tag — `01-my-trips-pairs.png` | `qa/2026-09-07_pair-kind-ui/` |
 | 2026-09-07 | TC-GHEP-010 | agent-browser | PASS (partial) | Kết hợp: Lệnh 2 khóa — lock hint "Đang chờ" observed in /my-trips; full unlock path covered at service level by `pair-ket-hop-gating.test.ts` | `TC-GHEP-010_my-trips.png` + `_my-trips-after-progress.png` |
 | __/__/__ | TC-GHEP-011 | | | Kẹp: 2 thẻ song song (covered by integration test, component test, no UI re-test this pass) | |
+| __/__/__ | TC-GHEP-012 | | | Tag cạnh số cont trên Chi tiết lô (CUS) — service-level backend test green 09-09 (`pair-ket-hop-gating.test.ts`); UI pass owed to lane 4 | |
+| __/__/__ | TC-ADHOC-001 | | | Checkbox đầu form + toggle không mất dữ liệu + AC10 | |
+| __/__/__ | TC-ADHOC-002 | | | Combobox ID/Raw_* + trộn + guardrail count(*) | |
+| __/__/__ | TC-ADHOC-003 | | | Cascading KH→NM + auto-fill + read-only | |
+| __/__/__ | TC-ADHOC-004 | | | Nhãn "Chạy ngoài" + hiển thị downstream | |

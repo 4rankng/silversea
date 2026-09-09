@@ -89,6 +89,13 @@ Không gộp 2 cont thành 1 shipment. Không để 2 trip chạy chung xe mà *
 - Khi hệ thống phát hiện 2 lệnh cont có chung `Trip_ID`, Frontend **tự động render** Tag `[KẸP]` hoặc `[KẾT HỢP]` nổi bật cạnh số container.
 - Tag là dữ liệu **suy ra từ nhóm chuyến**, không phải trường nhập tay.
 
+**Hiện trạng (2026-09-09):** tag đã render trên: bảng điều vận chi tiết
+(`DetailedPlanGrid`), **mới:** Chi tiết lô (CUS) cạnh số container trong mục
+Containers — dữ liệu từ `trip_pairs` qua detail API (`decorateContainersWithPairKind`,
+commit `90a17e65`, test: `pair-ket-hop-gating.test.ts` + `ShipmentDetailPage.test.tsx`).
+Tag suy ra từ cặp ACTIVE — hủy cặp ⇒ tag biến mất (TC-GHEP-012). App lái xe:
+xem [`ManHinhLaiXe.md`](ManHinhLaiXe.md) §2.
+
 ### 3.3 App Lái xe
 
 - Hiển thị **song song 2 lệnh** nhưng **dính liền kề nhau**, để tài xế hiểu đây là một "combo" phải chạy cùng nhau.
@@ -110,6 +117,11 @@ Xe chạy khép kín trên **cùng 1 hành trình** ⇒ tiền trạm thu phí c
 > ❌ Sai: `định mức VETC × 2 cont`
 > ✅ Đúng: `định mức VETC × 1 Trip`
 
+**Hiện trạng (2026-09-09):** ĐÃ SHIP — trip 2 của cặp mang `toll_deduction` = định mức
+(khử về 0), tổng cặp = định mức × 1 (`trip-pairs.service.ts` `backhaulTollDeductionForSecond`,
+áp dụng lại khi recalc ở `trip-figure-updates.service.ts`; test `o01-trip-pairs.routes.test.ts`
+"pairing nets the second trip VETC toll out"). Hủy cặp ⇒ khôi phục phí chuẩn cho trip còn sống.
+
 ### 4.2 Lương tài xế (Payroll)
 
 Hệ thống **không** trả lương bằng tổng của 2 cuốc chạy đơn. Phải gọi công thức lương riêng:
@@ -119,6 +131,12 @@ Lương chuyến ghép = Lương cuốc cơ bản + Phụ phí kẹp / kết h�
 ```
 
 Biến `Phụ phí kẹp / kết hợp` lấy từ **module cài đặt cấu hình lương**, không hard-code.
+
+**Hiện trạng (2026-09-09):** ĐÃ SHIP — `app_settings` keys `salary.pair_surcharge_kep` /
+`salary.pair_surcharge_ket_hop`, đọc LIVE khi ghép + khi recalc (test o01 "second trip
+carries the configured surcharge; breaking the pair restores the standard wage"); UI
+Cài đặt → Lương (PairSalarySection). Lương cặp = trip 1 giữ cuốc cơ bản, trip 2 = phụ
+phí (stash `second_salary_stash` khôi phục giá trị chuẩn khi hủy cặp).
 
 ### 4.3 Các khoản giữ nguyên độc lập
 

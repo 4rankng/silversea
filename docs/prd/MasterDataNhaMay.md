@@ -56,9 +56,9 @@ Bảng **Nhà máy** là nơi *duy nhất* giữ khoá ngoại tới Tuyến đ�
 - Bảng nhà máy chứa FK cứng tới `Tuyến đường` và giữ Vị trí (địa chỉ/toạ độ) ngay trên bản ghi nhà máy.
 - **Không** để trường `Tuyến đường` hay `Vị trí` trôi nổi ở bảng Khách hàng hoặc bảng Lô hàng. Lô hàng chỉ tham chiếu tới nhà máy; tuyến và vị trí được suy ra (derive) từ nhà máy.
 
-**Hiện trạng hệ thống:** bảng `operational_sites` (`backend/src/db/schema/master-data.ts`) đã có `customer_id`, `route_id`, `address` và ràng buộc duy nhất `(customer_id, code)` — khớp mô hình trên. Nhà máy (`site_type = FACTORY`) bắt buộc có `route_id`; kho (warehouse) được phép để trống vì định tuyến LCL vẫn ở cấp lô hàng.
+**Hiện trạng hệ thống:** bảng `operational_sites` (`backend/src/db/schema/master-data.ts`) đã có `customer_id`, `route_id`, `address` và ràng buộc duy nhất `(customer_id, code)` — khớp mô hình trên. Nhà máy (`site_type = FACTORY`) bắt buộc có `route_id` — ràng buộc superRefine trong `operationalSiteSchema` (shared/src/schemas, "Nhà máy cần được liên kết với một tuyến đường", test `operationalSiteSchema.test.ts`); kho (warehouse) không nhận tuyến. Lô hàng chỉ tham chiếu `operational_site_id` + validation `assertShipmentFactorySiteValid` / choke point FACTORY+active tại phát lệnh (`shipment-intake.service.ts`).
 
-**Snapshot khi phát lệnh:** fulfillment đã phát lệnh phải chụp lại (snapshot) các trường vận hành của nhà máy để dữ liệu không trôi khi quản trị viên sửa master data về sau.
+**Snapshot khi phát lệnh (⚠️ quyết định thiết kế đang MỞ — chờ người dùng phê duyệt):** PRD-only, **không có trong docx**. Ý tưởng: fulfillment phát lệnh chụp lại (snapshot) các trường vận hành của nhà máy để dữ liệu không trôi khi quản trị viên sửa master data về sau. Cần schema change — **không migration nào được thực hiện** cho đến khi người dùng duyệt.
 
 ### 2.1 Lưu Trữ Hỗn Hợp (Hybrid Storage)
 
@@ -195,7 +195,7 @@ hành vi hiện có. Cờ "Lệnh chạy ngoài" **không** vô hiệu hoá nút
 
 | Phân hệ | Hành vi với lô chạy ngoài |
 |---------|---------------------------|
-| **Danh sách lô / chi tiết** | Hiển thị nhãn **"Chạy ngoài"** (chữ màu, không badge) cạnh mã lô |
+| **Danh sách lô / chi tiết** | ⚠️ PRD-only, **docx không yêu cầu** — nhãn "Chạy ngoài" cạnh mã lô **chưa hiện thực**; ghi nhận làm yêu cầu riêng chờ người dùng duyệt |
 | **Điều vận** | Phân xe / phát lệnh bình thường; không chặn vì thiếu `Factory_ID` |
 | **App lái xe** | Các khối lộ trình đọc từ `Raw_*` khi không có ID — không hiện ô trống |
 | **Kế toán / công nợ** | Lô không có `Customer_ID` **không** gộp vào công nợ khách hàng nào; đối soát thủ công |
@@ -215,5 +215,23 @@ hành vi hiện có. Cờ "Lệnh chạy ngoài" **không** vô hiệu hoá nút
 9. Nút `+ Tạo mới` vẫn tạo bản ghi master data thật, kể cả khi cờ đang bật.
 10. Mở lại lô chạy ngoài để sửa ⇒ checkbox vẫn ở trạng thái tích.
 
-Bộ test case: [`testplan/flows/01-cus-create-shipment.md`](../../testplan/flows/01-cus-create-shipment.md) §1.11
-(`TC-CUS-CREATE-025` … `TC-CUS-CREATE-034`).
+Bộ test case: [`testplan/flows/09-kep-kethop-ghep-chuyen.md`](../../testplan/flows/09-kep-kethop-ghep-chuyen.md)
+§9.5 (`TC-ADHOC-001` … `TC-ADHOC-004`) + vai trò [`testplan/roles/01-cus.md`](../../testplan/roles/01-cus.md)
+`CUS-SHIP-10..15` (+`-16`). (Con trỏ cũ "flows-01 §1.11 TC-CUS-CREATE-025…034" đã lỗi thời —
+mục đó được tái dùng cho case trùng Bill/Booking 2026-09-07.)
+
+---
+
+## 5. Trạng Thái Hiện Thực (2026-09-09)
+
+| Yêu cầu | Hiện trạng | Bằng chứng |
+|---------|-----------|------------|
+| §1–§2 ERD: FK tuyến+vị trí nằm trên bảng Nhà máy | **ĐÃ SHIP** | `operational_sites` (`customer_id` NOT NULL, `route_id`, `address` NOT NULL, unique `(customer_id, code)`); FACTORY⇒routeId chặn bởi `operationalSiteSchema` superRefine (test `operationalSiteSchema.test.ts`); lô chỉ tham chiếu site (`assertShipmentFactorySiteValid`, choke point FACTORY+active `shipment-intake.service.ts`) |
+| §2.1 Hybrid ID / Raw_* | **ĐÃ SHIP** | `shipments.is_ad_hoc` + `raw_customer_name`/`raw_route_name`/`factory_name`, `shipment_containers.raw_pickup/dropoff_port_name` (migration 0060); XOR chuẩn hoá tại `shipment-create.service.ts` |
+| §2.1 Guardrail không rác master data | **ĐÃ SHIP** | free text **không** INSERT vào danh mục; test `ad-hoc-orders.test.ts` (counts `customers/sites/routes/ports` unchanged sau create free-text và mixed) |
+| §3 Cascading + auto-fill + read-only | **ĐÃ SHIP** | `ShipmentCreateWorkspace` — NM disabled tới khi chọn KH; tuyến auto-fill khoá theo site (`routeId != null`), "Vị trí đóng/trả hàng" read-only từ địa chỉ nhà máy |
+| §4.1 Checkbox đầu form | **ĐÃ SHIP** | `Lệnh chạy ngoài (Tối ưu xe rỗng)` cố định đầu form, mặc định không tích; bật/tắt giữa chừng không xoá dữ liệu |
+| §4.2 Combobox creatable | **ĐÃ SHIP** | `USearchableField` searchable + `onCustomValue` cho KH/NM/Tuyến/Cảng nâng/hạ; lọc không dấu `normalizeSearchText` (combobox.tsx, test `uui-fields.test.tsx`) |
+| §4.3 Phân biệt text tự do vs `+ Tạo mới` | **ĐÃ SHIP** | `+ Tạo mới` giữ nguyên; intake create có giới hạn quyền (CUS/DISPATCHER stripped material fields — `customer-intake.service.ts`) |
+| §4.4 Nhãn "Chạy ngoài" | ⚠️ **PRD-ONLY, DEFERRED** | docx không yêu cầu; chưa hiện thực — chờ người dùng duyệt |
+| §2 Snapshot khi phát lệnh | ⚠️ **OPEN DESIGN** | cần schema change; **không migration** chờ người dùng duyệt |
