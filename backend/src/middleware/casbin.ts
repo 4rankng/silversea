@@ -91,6 +91,18 @@ function hasRouteScopedRoleAllowance(req: Request, resource: string) {
   ) {
     return true;
   }
+  // Fuel price entry (Phương án tính cước docx §5-1): the entrants are
+  // "Kế toán/CUS" — a single-record screen [Ngày hiệu lực][Giá dầu DO/lít].
+  // CUS has no config-tree grant, so bridge it route-scoped to the fuel-price
+  // periods resource only. Every other pricing config (rate terms, norms)
+  // stays Casbin-governed (ADMIN/MANAGER/ACCOUNTANT).
+  if (
+    resource === 'config'
+    && req.user.role === Role.CUS
+    && /^\/fuel-price-periods(\/\d+)?\/?$/.test(req.path)
+  ) {
+    return true;
+  }
   return false;
 }
 

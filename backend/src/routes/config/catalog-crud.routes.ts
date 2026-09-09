@@ -25,7 +25,7 @@ import { assertTireSerialAvailable } from '../../services/tire.service';
 import debitNoteTemplatesRouter from './debit-note-templates.routes';
 import masterDataImportRouter from './master-data-import.routes';
 import driverUserBindingRouter from './driver-user-binding.routes';
-import { customerSchema, customerUpdateSchema, truckSchema, trailerSchema, routeSchema, cargoTypeSchema, pricingTableSchema, roadAllowanceSchema, penaltyReasonSchema, driverSchema, managementFeeSchema, capTableSchema, truckCapSchema, supplierSchema, expenseCategorySchema, containerTypeSchema, sealTypeSchema, portSchema, dispatchZoneSchema, dispatchZoneUpdateSchema, forwarderExpenseTypeSchema, tireSchema, tirePositionSchema, fuelNormSchema, weightPricingTierSchema, liftPricingSchema, ancillaryRevenueSchema, businessCalendarDaySchema } from '@tingting/shared';
+import { customerSchema, customerUpdateSchema, truckSchema, trailerSchema, routeSchema, cargoTypeSchema, pricingTableSchema, roadAllowanceSchema, penaltyReasonSchema, driverSchema, managementFeeSchema, capTableSchema, truckCapSchema, supplierSchema, expenseCategorySchema, containerTypeSchema, sealTypeSchema, portSchema, dispatchZoneSchema, dispatchZoneUpdateSchema, forwarderExpenseTypeSchema, tireSchema, tirePositionSchema, fuelNormSchema, weightPricingTierSchema, liftPricingSchema, ancillaryRevenueSchema, businessCalendarDaySchema, fuelPricePeriodSchema, freightRateTermSchema, fuelConsumptionNormSchema, vehicleSizeClassSchema } from '@tingting/shared';
 
 // Catalog CRUD routes (T3c split) — the 26 crud-factory mounts plus the
 // bootstrap/pricing endpoints, moved verbatim from routes/config.ts.
@@ -567,6 +567,93 @@ router.use('/lift-pricing', createCrudRouter(s.liftPricing, liftPricingSchema, {
   },
   governance: {
     reasonLabel: 'giá nâng hạ',
+  },
+}));
+
+// ─── Auto freight pricing engine config (Phương án tính cước tự động) ───────
+// Docx §2-A/B/C + §5-1. RBAC rides the config casbin tree (ADMIN wildcard,
+// MANAGER/ACCOUNTANT write; DISPATCHER read) exactly like the fuel-norms
+// mounts above; the CUS fuel-price entry allowance is a route-scoped bypass
+// in the casbin middleware (docx §5-1 names Kế toán/CUS as the entrants).
+
+// Fuel price periods — single-record entry [Ngày hiệu lực][Giá dầu DO/lít].
+// Adding a row starts a new period; effectiveFrom is the unique key (409 on
+// duplicate via the PG index). Ordered chronologically for the entry screen.
+// Deliberately NOT maker-checker governed: docx §5-1 frames this as routine
+// market-data entry by "Kế toán/CUS" (a governed flow would reject the CUS
+// maker — GOVERNANCE_CREATE is financial-trio only); the heavier contract
+// surfaces (rate terms, norms) below stay governed.
+router.use('/fuel-price-periods', createCrudRouter(s.fuelPricePeriods, fuelPricePeriodSchema, {
+  orderByField: 'effectiveFrom',
+}));
+
+// Freight rate terms — one contract block per customer × route. The pct/abs
+// threshold XOR cannot live in a superRefine (the crud factory takes a plain
+// ZodObject — see the ancillary-revenue note above), so it is enforced as
+// ApiError-throwing hooks. Updates must merge the patch against the current
+// row because an edit form may send only one threshold while the stored row
+// carries the other.
+router.use('/freight-rate-terms', createCrudRouter(s.freightRateTerms, freightRateTermSchema, {
+  orderByField: 'effectiveDate',
+  beforeCreate: async (data, _req, tx) => {
+    if (data.surchargeThresholdPct != null && data.surchargeThresholdAbs != null) {
+      throw new ApiError(400, 'Chỉ chọn một dạng ngưỡng biến động giá dầu: phần trăm (%) HOẶC tuyệt đối (VND/lít).');
+    }
+    await H.requireActiveCatalogRow(tx, 'customer', s.customers, data.customerId, 'Khách hàng không tồn tại hoặc đã ngưng dùng');
+    await H.requireActiveCatalogRow(tx, 'route', s.routes, data.routeId, 'Tuyến đường không tồn tại hoặc đã ngưng dùng');
+    return data;
+  },
+  beforeUpdate: async (id, data, _req, tx) => {
+    const [current] = await tx.select().from(s.freightRateTerms)
+      .where(eq(s.freightRateTerms.id, id)).limit(1);
+    if (!current) throw new ApiError(404, 'Không tìm thấy điều khoản cước');
+    const mergedPct = data.surchargeThresholdPct !== undefined ? data.surchargeThresholdPct : current.surchargeThresholdPct;
+    const mergedAbs = data.surchargeThresholdAbs !== undefined ? data.surchargeThresholdAbs : current.surchargeThresholdAbs;
+    if (mergedPct != null && mergedAbs != null) {
+      throw new ApiError(400, 'Chỉ chọn một dạng ngưỡng biến động giá dầu: phần trăm (%) HOẶC tuyệt đối (VND/lít).');
+    }
+    if (data.customerId !== undefined) await H.requireActiveCatalogRow(tx, 'customer', s.customers, data.customerId, 'Khách hàng không tồn tại hoặc đã ngưng dùng');
+    if (data.routeId !== undefined) await H.requireActiveCatalogRow(tx, 'route', s.routes, data.routeId, 'Tuyến đường không tồn tại hoặc đã ngưng dùng');
+    return data;
+  },
+  governance: {
+    reasonLabel: 'điều khoản cước',
+  },
+}));
+
+// Fuel consumption norms — revenue-side liters/km per vehicle size class.
+router.use('/fuel-consumption-norms', createCrudRouter(s.fuelConsumptionNorms, fuelConsumptionNormSchema, {
+  orderByField: 'effectiveDate',
+  beforeCreate: async (data, _req, tx) => {
+    await H.requireActiveCatalogRow(tx, 'vehicle-size-class', s.vehicleSizeClasses, data.vehicleSizeClassId, 'Loại xe không tồn tại hoặc đã ngưng dùng');
+    return data;
+  },
+  beforeUpdate: async (_id, data, _req, tx) => {
+    if (data.vehicleSizeClassId !== undefined) {
+      await H.requireActiveCatalogRow(tx, 'vehicle-size-class', s.vehicleSizeClasses, data.vehicleSizeClassId, 'Loại xe không tồn tại hoặc đã ngưng dùng');
+    }
+    return data;
+  },
+  governance: {
+    reasonLabel: 'định mức tiêu hao dầu',
+  },
+}));
+
+// Vehicle size class catalog — the FK-able taxonomy behind pricing rate keys.
+// Codes are immutable: pricing_tables.rate_key and engine lookups key on them.
+router.use('/vehicle-size-classes', createCrudRouter(s.vehicleSizeClasses, vehicleSizeClassSchema, {
+  orderByField: 'sortOrder',
+  beforeUpdate: async (id, data, req, tx) => {
+    const [current] = await tx.select({ code: s.vehicleSizeClasses.code })
+      .from(s.vehicleSizeClasses).where(eq(s.vehicleSizeClasses.id, id)).limit(1);
+    if (!current) throw new ApiError(404, 'Không tìm thấy loại xe');
+    if ('code' in (req.body ?? {}) && req.body?.code !== current.code) {
+      throw new ApiError(400, 'Mã loại xe không thể thay đổi sau khi tạo.');
+    }
+    return data;
+  },
+  governance: {
+    reasonLabel: 'loại xe',
   },
 }));
 // M2.5: ancillary revenue with refund validation. Refunds (negative amounts)

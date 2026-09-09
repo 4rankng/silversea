@@ -83,7 +83,8 @@ export async function requireActiveCatalogRow(
   tx: CrudTx,
   resource: string,
   table: typeof s.customers | typeof s.routes | typeof s.cargoTypes | typeof s.trucks
-    | typeof s.trailers | typeof s.suppliers | typeof s.containerTypes | typeof s.ports,
+    | typeof s.trailers | typeof s.suppliers | typeof s.containerTypes | typeof s.ports
+    | typeof s.vehicleSizeClasses,
   id: number | null | undefined,
   message: string,
 ): Promise<void> {
