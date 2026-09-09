@@ -27,13 +27,16 @@ Trong đó:
 - **Giá gốc** (`I`): cố định theo hợp đồng (ví dụ NEWEB 1.25T = 1.300.000 đ).
 - **% chia sẻ**: thay đổi theo từng tuyến — NEWEB = 2%, ASKEY = 4%, SUNRISE+SJ = 2,5%.
 - **Giá dầu mốc** = 17.842,59 đ/lít (đã trừ VAT 8%, mặt bằng đã tính sẵn trong giá gốc).
-- **Giá dầu kỳ**: thay đổi mỗi kỳ (hiện tại thấy 11/7 = 21.740 đ/l; 18/7 = 27.620 đ/l;
-  trong hệ thống cũ có 25.760 đ/l).
+- **Giá dầu kỳ**: thay đổi mỗi kỳ — theo file của khách: 11/7 = 21.740 đ/l; 18/7 =
+  27.620 đ/l. *(Hệ thống cũ còn một kỳ nữa, suy ngược ra ≈ 25.760 đ/l — xem Câu 3.)*
 - **Số lít** = km một chiều × 2 × định mức dầu/km theo loại xe (ví dụ 1.25T = 0,10 lít/km,
   CONT40 = 0,35 lít/km).
 
-**Trước khi lập trình bảng mới**, cần khách hàng chốt 5 câu hỏi nghiệp vụ dưới
-đây. Mỗi câu có ảnh hưởng trực tiếp đến cách tính tiền hoặc hành vi hệ thống.
+**Trước khi lập trình bảng mới**, cần khách hàng chốt **4 câu hỏi** nghiệp vụ dưới đây
+— Câu 1, 2, 4, 5. Mỗi câu ảnh hưởng trực tiếp đến cách tính tiền hoặc hành vi hệ thống.
+
+*(Câu 3 giữ số thứ tự nhưng **đã rút** — đó là việc nội bộ của chúng ta, không phải việc
+của khách.)*
 
 ---
 
@@ -62,7 +65,8 @@ giảm cước cho khách không, hay giữ cước ở mức giá gốc + chia 
 
 ## Câu 2 — Khi mở kỳ giá dầu MỚI, cước đã phát hành có bị tính lại không?
 
-**Bối cảnh.** Giá dầu đổi mỗi kỳ (hiện tại thấy 11/7, 18/7, kỳ 25.760 trong hệ thống).
+**Bối cảnh.** Giá dầu đổi mỗi kỳ (file khách cho thấy 11/7 và 18/7; hệ thống còn một kỳ
+cũ hơn).
 Mỗi kỳ phụ phí dầu ra số khác nhau.
 
 Câu hỏi: với các lô/chuyến **đã phát hành trước đó** (đã có chứng từ, đã tính tiền),
@@ -81,26 +85,40 @@ khi kỳ giá dầu mới mở, cước của các lô cũ có bị tính lại 
 
 ---
 
-## Câu 3 — Kỳ giá dầu 25.760 đ/l trong hệ thống bắt đầu từ ngày nào?
+## ~~Câu 3~~ — ĐÃ RÚT (không hỏi khách)
 
 **Bối cảnh.** File Excel của khách chỉ cho biết 2 kỳ: 11/7 (21.740 đ/l) và 18/7
-(27.620 đ/l). Trong hệ thống hiện tại có 27 dòng bảng giá với ngày hiệu lực
-2026-07-30 và suy ra giá dầu kỳ đó là **25.760 đ/l** — tức là đã từng có một
-kỳ giữa 18/7 và 30/7 mà giá dầu là 25.760.
+(27.620 đ/l).
 
-Cần ngày bắt đầu của kỳ này để ghi nhận đầy đủ lịch sử giá dầu (phục vụ đối soát
-và truy vết).
+> ⚠️ **Lưu ý về con số 25.760:** số này **không có trong file Excel của khách** (đã dò
+> toàn bộ ô, công thức và XML gốc — không xuất hiện ở đâu). Đây là số **suy ngược** từ
+> 27 dòng bảng giá đang nằm trong hệ thống (ngày hiệu lực 2026-07-30, nguồn là **một
+> lần bàn giao dữ liệu khác** của khách hồi 30/7).
+>
+> Chính xác hơn: cái suy ra được chắc chắn từ dữ liệu là **phần chênh `giá dầu kỳ −
+> giá dầu mốc` ≈ 7.917,41 đ/lít**. Tách phần chênh này thành 2 số riêng thì **không xác
+> định được** — con số 25.760 chỉ đúng **nếu** kỳ đó dùng cùng giá dầu mốc 17.842,59.
+> Nếu hợp đồng cũ dùng mốc khác thì giá dầu kỳ cũng khác.
 
-| Lựa chọn | Ghi chú |
-|---|---|
-| **(A) Khách cung cấp ngày thật** | Ví dụ: "áp từ 25/7/2026", "áp từ 28/7/2026", "áp từ 22/7/2026"… |
-| **(B) Đặt tạm 2026-07-25** | Ước lượng giữa 18/7 và 30/7. Sai số vài ngày, không ảnh hưởng logic. |
-| **(C) Đặt = 2026-07-30** | Kỳ 25.760 đi ngay sau ngày seed bảng giá. Trip nào phát hành trước 30/7 sẽ rơi vào kỳ 27.620. |
+### ⛔ RÚT LẠI — đây không phải câu hỏi dành cho khách hàng
 
-**Câu cần trả lời:** Kỳ giá dầu 25.760 đ/l bắt đầu từ ngày nào? Hoặc nếu không
-nhớ, dùng tạm phương án nào?
+Câu này **đã được rút khỏi danh sách hỏi khách** (2026-09-09).
 
-> ☐ Phương án (A) — Ngày thật: ___
+Lý do: đây là **việc nội bộ của chúng ta**, không phải việc của khách. Khách đã cung cấp
+đầy đủ 2 kỳ giá dầu trong file của họ (11/7 và 21.740; 18/7 và 27.620). Kỳ thứ ba là
+**dữ liệu cũ nằm trong hệ thống của chúng ta**, đến từ một lần bàn giao trước đó — hỏi
+khách về nó là hỏi sai người.
+
+Cách xử lý đúng, **không cần làm phiền khách**:
+
+| Việc | Cách làm |
+|------|----------|
+| Dựng `fuel_price_periods` | Chỉ nạp **2 kỳ có thật trong file khách**. |
+| Dữ liệu 27 dòng seed cũ (30/7) | Giữ nguyên như **snapshot lịch sử đã phát hành**, không cần biết giá dầu kỳ đó là bao nhiêu. |
+| Nếu sau này cần đối soát kỳ cũ | Tra chứng từ nội bộ / bản bàn giao 30/7 của chính chúng ta. |
+
+⇒ **Không có gì bị chặn.** Thiếu thông tin kỳ cũ không ảnh hưởng công thức, thiết kế
+bảng, hay việc tính cước cho lô mới.
 > ☐ Phương án (B) — Tạm 2026-07-25
 > ☐ Phương án (C) — Tạm 2026-07-30
 

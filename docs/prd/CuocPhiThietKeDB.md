@@ -212,9 +212,9 @@ Dữ liệu đã biết:
 
 | unit_price | effective_from | ghi chú |
 |---:|---|---|
-| 25.760,00 | *(cần xác nhận)* | kỳ đang nằm trong `pricing.ts` seed hiện tại |
-| 21.740,00 | 2026-07-11 | sheet `11.7` |
-| 27.620,00 | 2026-07-18 | sheet `18.7` |
+| 21.740,00 | 2026-07-11 | sheet `11.7` — **đọc trực tiếp từ file khách** |
+| 27.620,00 | 2026-07-18 | sheet `18.7` — **đọc trực tiếp từ file khách** |
+| *(≈ 25.760)* | *(chưa rõ)* | ⚠️ **Không có trong file khách.** Suy ngược từ seed `pricing.ts` (bàn giao 30/7) và **chỉ đúng nếu cùng mốc `F`** — xem `CuocPhiPhuPhiDau.md` §8.1. **Không nạp dòng này** cho tới khi khách xác nhận. |
 
 > **Cập nhật giá dầu = thêm 1 dòng**, không sửa dòng cũ. Giữ được lịch sử và truy vết
 > được cước đã phát hành thuộc kỳ nào.
@@ -365,8 +365,10 @@ Lưu **cả 4 id tham số** ⇒ trả lời được câu "vì sao lô này 5.0
    Quyết định này chi phối `roundInt()` có giữ `Math.max(0, …)` hay không.
 2. **Cước đã phát hành có tính lại khi đổi kỳ giá dầu không?** Thiết kế này giả định
    **không hồi tố** (đã chốt là chốt) — cần xác nhận.
-3. **Kỳ giá dầu `25.760`** trong seed hiện tại bắt đầu từ ngày nào? Cần để dựng
-   `fuel_price_periods` cho đúng lịch sử.
+3. **Kỳ giá dầu của seed 30/7** (chênh 7.917,41 đ/l ⇒ ≈ 25.760 nếu cùng mốc `F`) bắt đầu
+   từ ngày nào, và giá dầu mốc kỳ đó có đúng bằng 17.842,59 không? Chỉ cần để dựng lại
+   lịch sử — **không ảnh hưởng công thức hay thiết kế**; nếu khách không có thông tin
+   thì bỏ qua, không đoán.
 4. **`billing_km_multiplier` = 2 luôn đúng?** Nếu chuyến chỉ chạy 1 chiều thì vẫn tính
    khứ hồi chứ?
 5. **Khách hàng khác Long Minh** có cùng mô hình này không? Nếu có khách tính theo

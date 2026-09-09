@@ -304,25 +304,36 @@ Chỉ khác kỳ 18/7 ở phần **phụ phí dầu**; `GIÁ GỐC`, `% chia s�
 `backend/src/seed/data/pricing.ts` đã chứa **đúng 27 dòng** = 3 tuyến × 9 loại xe,
 với các trường `route`, `sharePct`, `size`, `basePrice`, `withSurcharge`.
 
-**Kiểm chứng:** áp công thức §2.8 ngược lại toàn bộ 27 dòng seed, giá dầu suy ra là
-**25.760,0 đ/lít — giống hệt nhau ở cả 27 dòng, không sai số**:
+**Kiểm chứng:** áp công thức §2.8 ngược lại toàn bộ 27 dòng seed, **phần chênh giá dầu
+suy ra giống nhau ở cả 27 dòng: ≈ 7.917,41 đ/lít** (dao động ở chữ số thập phân thứ 4
+do `withSurcharge` trong seed đã làm tròn về đồng):
 
 ```
-(withSurcharge − basePrice × (1 + sharePct)) / (km × 2 × địnhMức) + 17.842,59  =  25.760,0
+(withSurcharge − basePrice × (1 + sharePct)) / (km × 2 × địnhMức)  =  7.917,41  (G − F)
 ```
+
+> ⚠️ **`25.760` là số SUY NGƯỢC, không phải số của khách hàng.** Nó **không xuất hiện ở
+> bất kỳ đâu trong file `18.7 - BG Long Minh T7.xlsx`** — đã dò toàn bộ ô, công thức và
+> cả XML gốc: 0 kết quả.
+>
+> Từ dữ liệu chỉ xác định được **phần chênh `G − F`**. Muốn tách ra `G` thì phải **giả
+> định** `F` không đổi: `7.917,41 + 17.842,59 = 25.760`. Nếu kỳ đó dùng giá dầu mốc
+> khác thì `G` cũng khác. Vì vậy **chỉ `G − F` là dữ kiện; `25.760` là suy luận có điều
+> kiện.**
 
 Hai kết luận:
 
 1. **Công thức trong tài liệu này là đúng** — nó tái tạo chính xác từng dòng dữ liệu
    thật đang có trong hệ thống.
-2. **Dữ liệu seed thuộc một kỳ giá dầu thứ ba (25.760 đ/l)**, khác cả 2 sheet của file
+2. **Dữ liệu seed thuộc một kỳ giá dầu thứ ba** (chênh 7.917,41 đ/l ⇒ ≈ 25.760 đ/l nếu
+   cùng mốc `F`), khác cả 2 sheet của file
    này (11/7 = 21.740; 18/7 = 27.620) ⇒ **cước trong hệ thống đang cũ so với báo giá 18/7.**
 
-| Kỳ | Giá dầu | Nguồn |
-|----|--------:|-------|
-| Seed hệ thống hiện tại | 25.760 | `backend/src/seed/data/pricing.ts` |
-| Sheet `11.7` | 21.740 | file báo giá |
-| Sheet `18.7` | 27.620 | file báo giá (mới nhất) |
+| Kỳ | Giá dầu | Nguồn | Loại dữ kiện |
+|----|--------:|-------|--------------|
+| Seed hệ thống hiện tại | ≈ 25.760 | `backend/src/seed/data/pricing.ts` (bàn giao 30/7, file gốc **không còn trong repo**) | **Suy ngược** — có điều kiện |
+| Sheet `11.7` | 21.740 | file báo giá của khách | Đọc trực tiếp |
+| Sheet `18.7` | 27.620 | file báo giá của khách (mới nhất) | Đọc trực tiếp |
 
 ### 8.2. Khoảng trống: schema chưa có chỗ cho tham số động
 
