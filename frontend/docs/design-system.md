@@ -98,6 +98,135 @@ the shared Untitled UI primitive when a compact field is inconsistent. Dense
 operational forms should choose `sm` as a complete semantic variant instead of
 recreating dispatch typography or geometry in page CSS.
 
+### Coarse-pointer touch floor (44px on every input device)
+
+Width-based breakpoints miss coarse-pointer tablets. An iPad at 768px or 1024px
+hits the desktop layout (>= 768px), but the user's finger is still a coarse
+pointer that needs the 44px touch target. Pointer-based media queries catch this
+class of device regardless of viewport width:
+
+```css
+/* Compact by default. Coarse pointers (touch + coarse stylus) get the touch
+   floor; desktop mice (fine pointer) keep the compact density contract. */
+.btn { min-height: var(--control-compact-h); }      /* 30px on desktop */
+@media (pointer: coarse) {
+  .btn { min-height: var(--control-touch-h); }     /* 44px on touch */
+}
+```
+
+Two contract-pinned implementations:
+
+- `src/components/Button.css` — `.btn` / `.btn--sm` / `.btn--icon` raise to
+  `var(--control-touch-h)` under `(pointer: coarse)`. Width is pinned too —
+  icon buttons get `width: var(--control-touch-h)` so the hit area is square.
+- `src/styles/operational-density.css` — `.ds-uui-select--operational` keeps
+  compact geometry on desktop and raises select triggers to the touch floor on
+  coarse pointers; the value text (`button > span p`, `[role='group'] span p`)
+  inherits the same type-step. This is the pattern that closed the
+  2026-09-09 /payables 36px-vs-44px fuel-invoice triggers gate-blocker.
+
+### Pattern: pointer-based, never width-based, for touch floors
+
+- DO use `@media (pointer: coarse) { min-height: var(--control-touch-h) }` on
+  every operational control, trigger, button, and tappable surface.
+- DO NOT use `@media (max-width: 1023px)` (or any width cutoff) as the touch
+  floor trigger — it leaves iPad/desktop tablet users at 30-34px compact
+  geometry, which fails the 22:40 standard at any coarse-pointer width.
+- DO ship both contracts together: the compact base rule AND the coarse-pointer
+  override. The override must use `min-height`, not `height`, so a longer
+  label still pushes the control taller.
+
+The Button.css and operational-density.css coarse-pointer rules are pinned by
+`src/components/control-density.styles.test.ts`,
+`src/styles/operational-density.styles.test.ts`, and
+`src/features/fleet/TruckFormModal.styles.test.ts`. Any new operational
+control must grow a matching style-contract test that pins both the compact
+base AND the coarse-pointer override.
+
+## Responsive pairing rules for card grids
+
+When a desktop data table collapses into a card view at narrow viewports, the
+narrow-viewport layout MUST pair cells across a 2-column grid and let long
+content (multi-line text, action buttons, full-width cells) span the full
+card. The pattern, lifted from the 2026-09-09 space-utilisation audit and
+pinned by the `record-table` + master-plan contract tests:
+
+```css
+/* Card-band pairing (tablet, 600-900 container width). */
+@container (min-width: 600px) and (max-width: 900px) {
+  .row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* Default: pair cells two-up across the row. */
+  .cell + .cell { border-top: 0; }                  /* reset sibling rules */
+  .cell:nth-child(2n)  { border-inline-start: 1px solid var(--line); }
+  .cell:nth-child(n+3) { border-top: 1px solid var(--line); }
+
+  /* Full-span overrides for cells that don't pair (long content). */
+  .cell--action,
+  .cell--notes,
+  .cell--full {
+    grid-column: 1 / -1;
+    border-inline-start: 0;
+  }
+}
+
+/* Phone band, same content. Pairing becomes 2-up with full-span rows for the
+   primary identity and footer; long content always spans full width. */
+@container (max-width: 599px) {
+  .row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cell:nth-child(-n + 3),
+  .cell:nth-child(6),
+  .cell:nth-child(8),
+  .cell--action { grid-column: 1 / -1; }
+}
+```
+
+### Hard rules
+
+1. **Mirror the full-span list across every band that pairs.** If the ≤599px
+   band explicitly spans cells 1, 2, 3, 6, 8, and `--action`, the 600-900px
+   band must span the same cells (or a compatible subset). A full-span rule
+   that lives in only one band produces half-width rows with stray dividers
+   in the band that misses it — exactly the master-plan `Ghi chú` bug
+   reported 2026-09-09 (commit `5324b1ad` fixed this by mirroring the ≤599px
+   rule into the 600-900px band).
+2. **Long content ALWAYS spans full width, even in a 2-col band.** Multi-line
+   notes, action triggers, identity cells, and any cell whose content reads
+   "lonely" at half width must declare `grid-column: 1 / -1`. A two-up pair
+   with one half-width empty neighbour is a visual bug — the cell looks
+   "floating" and creates a stray half-width divider under the previous full
+   row.
+3. **Touch surfaces inside full-span cells MUST keep the 44px floor.** A
+   `min-height: 44px` on the notes trigger (or any text-role button inside a
+   full-span cell) grounds the empty/short state to the action-cell rhythm
+   and preserves the design-system's reserved touch target
+   (commit `9376ac1b` added this to `MasterPlanGrid.css`).
+4. **Reset the inline-start when forcing full width.** A `grid-column: 1 / -1`
+   cell with the default `border-inline-start: 1px solid var(--line)` will
+   draw a 1px line on the card's left edge (the `:nth-child(2n)` rule still
+   matches it). Override with `border-inline-start: 0` whenever you force a
+   full span, or the cell looks like it has a divider on its outer edge.
+5. **Prefer `:nth-child` over `:last-child:nth-child(odd)` for full-span
+   rules.** Display:none siblings shift parity but DO NOT shift
+   `:nth-child`; the orphan-parity trap documented in
+   `.agentsroom/memory/global/pitfalls/css-grid-orphan-parity-trap.md`
+   catches this. The master-plan full-span list is `:nth-child(-n+3),
+   :nth-child(6), :nth-child(8), --action` — explicit positions, not parity.
+
+### Reference commits (pairing rules proven on the program)
+
+- `874bf1bb` — dispatch 44px date shortcuts on phone plan filters
+- `38f4884d` — /trips data table restored from 1024px up
+- `7eab78d3` — /shipments toolbar filters collapse two-up on tablets
+- `f511cbbf` — /dashboard bento tiles pair on tablet widths
+- `7d33df48` — /dispatch-detail card view uses tablet width
+- `a9d3427d` — record-table 2-up pairing moved into the WHOLE card band
+- `5324b1ad` — master-plan `Ghi chú` cell spans full width in the 600-900px
+  band (the user-reported tablet bug, `qa/2026-09-09_master-plan-600-900-notes-fix.log`)
+
 ## Operational table color contract
 
 Tables are decision surfaces, so body text uses the neutral foreground scale
@@ -156,3 +285,158 @@ produces 12h clocks on en-US browsers (2026-09-09 customer report).
   Chrome date-first), which a hard format requirement cannot depend on.
 
 This contract is pinned by `useBufferedDateTimeValue.test.tsx`.
+
+## Size-consistency scale (cross-page coherence)
+
+A page that pairs correctly but LOOKS off is not done (PM standard 2026-09-09,
+NOTES.md 02:05). "Off" includes any of the size-consistency violations below;
+QA enforces per criterion with computed-style + screenshot evidence.
+
+### One control-height per context
+
+Sibling controls in the same view share the SAME computed height. A toolbar
+with three 30px triggers and one 44px search input is a size-consistency
+violation — the search reads as a different class of control even when its
+role is identical to the others. The 36px-vs-44px class of bug reported on
+/payables fuel-invoice toolbar (2026-09-09, commits `1c29895a`,
+`58cf20b1`, `564eec8c`, `989e1e0b`) is exactly this violation.
+
+Implementation: one CSS variable per context, swapped by breakpoint.
+
+```css
+:root { --filter-control-h: var(--control-compact-h); } /* 30px desktop */
+@media (max-width: 767px) { :root { --filter-control-h: var(--control-touch-h); } }
+@media (pointer: coarse) { :root { --filter-control-h: var(--control-touch-h); } }
+
+/* Every control in the same toolbar reads the same token. */
+.fuel-invoices-toolbar__select,
+.fuel-invoices-toolbar .payables-toolbar__search input { min-height: var(--filter-control-h); }
+```
+
+The single-source-of-truth rule applies to inputs, selects, buttons, search
+fields, popover triggers, and any other interactive control. **Do not** mix
+`var(--control-compact-h)` and `var(--control-touch-h)` across siblings in
+the same view; pick the right context token and use it everywhere.
+
+Pinned by `src/styles/global-sizing-contract.styles.test.ts`,
+`src/styles/filter-density.test.ts`,
+`src/components/control-density.styles.test.ts`.
+
+### One type scale
+
+Font sizes come from the design-system steps (`--fs-xs`, `--fs-sm`,
+`--fs-md`, `--ops-table-*`). No arbitrary sizes in page CSS. Labels,
+values, captions, and metadata step consistently WITHIN a card AND ACROSS
+sibling cards/pages. Randomly larger headings or shrunken values are a
+violation.
+
+Two reference scales:
+
+```css
+/* Compact operational fields. */
+:root {
+  --control-compact-font-size: 12px;
+  --control-compact-line-height: 1.45;
+  --control-compact-touch-font-size: 14px;     /* narrow / coarse pointer */
+  --control-compact-touch-line-height: 1.4;
+}
+
+/* Operational table body. */
+:root {
+  --ops-table-primary-size: 13.5px;
+  --ops-table-primary-weight: 600;
+  --ops-table-meta-size: 11.5px;
+  --ops-table-note-size: 12.5px;
+}
+```
+
+Page styles must NOT override the type scale with `font`, `font-size`, or
+`line-height` on shared Untitled UI primitives. If a compact field is
+inconsistent, correct the primitive, not the page.
+
+### No oversize components
+
+No control, button, or chip inflated beyond its role. A filter trigger is
+not a hero button; a chip is not a CTA; a label is not a value. Density
+stays even across a view. **Verify** by sampling three sibling components
+in a view and checking their computed heights against the established scale.
+
+### Cross-page coherence
+
+The same component type (filter bar, card header, table toolbar, chip, badge)
+must LOOK identical (size, radius, spacing, type) wherever it appears.
+`/payables`, `/expenses`, `/config/*`, portal pages, and dispatch surfaces
+all read as one product. The reference chrome:
+
+- **Filter trigger** — `min-height: var(--filter-control-h)`,
+  `border-radius: var(--r-sm)`, `--control-compact-font-size`.
+- **Card** — `border-radius: var(--app-radius-md)`, 1px `var(--line)` border,
+  `var(--surface)` background, 8-10px gap between rows.
+- **Chip** — pill, 4px vertical / 8-10px horizontal padding, 11-12px font,
+  neutral foreground, `--radius-xs` to `--r-sm` corner radius.
+- **Divider** — `1px solid var(--line)`, no decorative strokes.
+
+QA's "all baseline audits complete" sweep (2026-09-09) verified cross-page
+coherence on the dispatch/finance/portal/stragglers clusters at
+390/768/1024/1180/1366. New pages inherit the chrome from
+`src/design-system/` primitives (see "When to add a primitive") and
+`src/styles/` shared stylesheets (`record-table.css`,
+`operational-density.css`, `table-sort.css`). Do not roll your own.
+
+
+## Verifier lesson: pre-deploy bundle check (PM standard 2026-09-09)
+
+**A fix in the local build is not a fix in production.** The program shipped a
+master-plan `Ghi chú` cell fix at commit `5324b1ad` and a polish commit at
+`9376ac1b`; both passed `vite build` and contract tests locally. The first
+QA re-sweep at vantai.tingting.vip still showed the bug because staging was
+serving the pre-fix bundle hash (`MasterPlanPage-Bx9sxB1c.css`). The build
+flushed; the deploy hadn't landed. The verifier caught the gap, but the
+agent that wrote the fix should have caught it first.
+
+### Standing rule for any pre-wave commit
+
+Before declaring a frontend commit done — especially when the wave is already
+running and the commit rides the same deploy — verify the served bundle
+matches the local build:
+
+```js
+// From the browser console on the page the fix touches.
+const links = [...document.querySelectorAll('link[rel="stylesheet"]')];
+const masterPlan = links.find(l => l.href.includes('MasterPlanPage'));
+const text = await (await fetch(masterPlan.href, { cache: 'no-store' })).text();
+const hasRule = text.includes('nth-child(8)') && /min-width:\s*600px/.test(text);
+console.log({ bundleFile: masterPlan.href.split('/').pop(), hasRule });
+```
+
+If the bundle hash hasn't flipped to the new commit's hash, the deploy is
+behind — push harder or escalate. The bundle filename includes a content
+hash (Vite `[name]-[hash].css`); if the fix changes CSS content, the hash
+MUST change on the next deploy. Same hash after a push means the deploy
+hasn't run yet.
+
+### When the fix is JSX-only or behavior-only
+
+The hash check still applies — anything that changes the bundle output (CSS
+rules, component sizes, dependency imports) will flip the hash. Use this as
+a one-line sanity check after every `git push` while a wave is in flight:
+
+```sh
+git rev-parse HEAD                                # local head
+git ls-remote origin prod | cut -c1-7            # remote head
+# If they differ, push missed. If they match, ask fullstack about deploy.
+```
+
+### Why this exists
+
+The 2026-09-09 ship was the first wave that ran in messaging mode across five
+parallel lanes. The pre-commit hook auto-stages everything in the shared
+checkout (see AGENTS.md), so file attribution is fragile; the deploy is owned
+by fullstack and staged from a temp worktree at the pushed HEAD. The local
+tree's `vite build` is a necessary but not sufficient gate — only the served
+bundle on staging confirms the fix is in the wave the QA gate sweeps.
+
+Reference incident: `qa/2026-09-09_master-plan-600-900-notes-fix.log`
+(post-commit verification section). Pinned by future contract: any agent
+who commits a frontend fix while a wave is in flight MUST run the served-
+bundle check before responding "done" to the team.
