@@ -15,8 +15,11 @@ không phải PWA).
 > **Ghi chú triển khai (audit 2026-09-09):** các điểm lệch có chủ đích so với docx —
 > (1) bản in phiếu = modal + `@media print` trong `OpsSettlementsPanel.tsx`/`OpsWalletPage.css`
 > (A4, có ô ký tên, ẩn chrome app), **không** có route in riêng; (2) API **chặn duyệt** khoản chi
-> chưa có ảnh biên lai (`decideOpsExpense`) — đường "kế toán kiểm chứng giấy tận tay" của docx
-> đi bằng từ chối (kèm lý do) → Ops bổ sung ảnh → gửi lại (TC-OPS-VI-011);
+> chưa có ảnh biên lai (`decideOpsExpense`) — quy tắc **hai đường duyệt**: đường chính là từ chối
+> (kèm lý do) → Ops bổ sung ảnh → gửi lại (TC-OPS-VI-011); đường thứ hai (docx "kiểm chứng giấy
+> tận tay"): kế toán duyệt được khoản không ảnh **chỉ khi** có cờ `inPersonCheck` + ghi chú bắt buộc
+> (dialog "Duyệt không ảnh biên lai"), ghi chú lưu `audit_logs` (event
+> `OPS_EXPENSE_APPROVE_IN_PERSON`, không thêm bảng);
 > (3) màn Kế toán **gom các khoản cùng lô dưới một mã lô** bất kể người chi, lot giữ thứ tự mới-trước
 > (`cda12f57`); (4) ghim dùng PUT set-semantics — request replay về cùng trạng thái, không lật đảo.
 

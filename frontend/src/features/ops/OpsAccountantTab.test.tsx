@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '../../components/shared/Toast';
@@ -87,5 +87,50 @@ describe('OpsAccountantTab (OpsVanHanh §5.4)', () => {
     renderTab();
     expect(await screen.findByText('OS-2609-0001')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Duyệt phiếu/ })).toBeInTheDocument();
+  });
+
+  it('routes receipt-less rows through the in-person check dialog (two-path rule)', async () => {
+    apiPost.mockResolvedValue(expense());
+    apiGet.mockImplementation((url: string) => {
+      if (url.startsWith('/ops/admin/expenses')) {
+        return Promise.resolve({
+          items: [
+            expense(), // hasPhoto: true
+            expense({ id: 6, amount: '80000', hasPhoto: false }),
+          ],
+        });
+      }
+      if (url.startsWith('/ops/admin/settlements')) {
+        return Promise.resolve({ items: [] });
+      }
+      return Promise.resolve({ items: [] });
+    });
+    renderTab();
+    await screen.findAllByText('SS-9');
+
+    // Photo'd row approves directly — no dialog.
+    const photoRow = screen.getByText('350.000').closest('tr') as HTMLElement;
+    fireEvent.click(within(photoRow).getByRole('button', { name: 'Duyệt' }));
+    await waitFor(() => {
+      expect(apiPost).toHaveBeenCalledWith('/ops/admin/expenses/5/approve', {});
+    });
+
+    // Receipt-less row: Duyệt opens the in-person check dialog, note required.
+    const debtRow = screen.getByText('80.000').closest('tr') as HTMLElement;
+    fireEvent.click(within(debtRow).getByRole('button', { name: 'Duyệt' }));
+    const dialog = await screen.findByRole('dialog', { name: /Duyệt không ảnh biên lai/ });
+    expect(dialog).toBeInTheDocument();
+    const submit = within(dialog).getByRole('button', { name: 'Duyệt' });
+    expect(submit).toBeDisabled();
+    fireEvent.change(within(dialog).getByLabelText(/Ghi chú kiểm chứng tận tay/), {
+      target: { value: 'Đã đối chiếu hóa đơn giấy tại quầy' },
+    });
+    fireEvent.click(submit);
+    await waitFor(() => {
+      expect(apiPost).toHaveBeenCalledWith('/ops/admin/expenses/6/approve', {
+        inPersonCheck: true,
+        note: 'Đã đối chiếu hóa đơn giấy tại quầy',
+      });
+    });
   });
 });

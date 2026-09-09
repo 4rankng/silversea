@@ -34,6 +34,8 @@ export function OpsAccountantTab() {
   const [photosFor, setPhotosFor] = useState<number | null>(null);
   const [rejecting, setRejecting] = useState<OpsExpenseRow | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [approvingInPerson, setApprovingInPerson] = useState<OpsExpenseRow | null>(null);
+  const [inPersonNote, setInPersonNote] = useState('');
   const [rejectingSettlement, setRejectingSettlement] = useState<{ id: number; code: string } | null>(null);
   const [settlementReason, setSettlementReason] = useState('');
   const [sheetFor, setSheetFor] = useState<number | null>(null);
@@ -41,9 +43,9 @@ export function OpsAccountantTab() {
 
   const items = data?.items ?? [];
 
-  async function handleDecide(id: number, decision: 'approve' | 'reject', reason?: string) {
+  async function handleDecide(id: number, decision: 'approve' | 'reject', reason?: string, inPerson?: { inPersonCheck: boolean; note: string }) {
     try {
-      await decideExpense.mutateAsync({ id, decision, reason });
+      await decideExpense.mutateAsync({ id, decision, reason, inPerson });
       toast({
         kind: 'success',
         message: decision === 'approve' ? 'Đã duyệt khoản chi.' : 'Đã từ chối khoản chi.',
@@ -120,7 +122,10 @@ export function OpsAccountantTab() {
                           type="button"
                           className="btn-secondary ops-ok"
                           disabled={decideExpense.isPending}
-                          onClick={() => void handleDecide(row.id, 'approve')}
+                          onClick={() => {
+                            if (row.hasPhoto) void handleDecide(row.id, 'approve');
+                            else setApprovingInPerson(row);
+                          }}
                         >
                           <Check size={13} /> Duyệt
                         </button>
@@ -242,6 +247,53 @@ export function OpsAccountantTab() {
               <div className="ops-modal__actions">
                 <button type="button" className="btn-secondary" onClick={() => setRejectingSettlement(null)}>Đóng</button>
                 <button type="submit" className="btn-primary" disabled={!settlementReason.trim()}>Từ chối</button>
+              </div>
+            </footer>
+          </form>
+        </div>
+      )}
+
+      {approvingInPerson && (
+        <div className="ops-modal-backdrop" role="dialog" aria-modal="true" aria-label="Duyệt không ảnh biên lai">
+          <form
+            className="ops-modal"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (!inPersonNote.trim()) return;
+              void handleDecide(approvingInPerson.id, 'approve', undefined, {
+                inPersonCheck: true,
+                note: inPersonNote.trim(),
+              }).then(() => {
+                setApprovingInPerson(null);
+                setInPersonNote('');
+              });
+            }}
+          >
+            <header className="ops-modal__head">
+              <h2>Duyệt không ảnh biên lai · {approvingInPerson.shipmentCode ?? approvingInPerson.id}</h2>
+              <button type="button" aria-label="Đóng" onClick={() => setApprovingInPerson(null)}>✕</button>
+            </header>
+            <div className="ops-modal__body">
+              <p className="ops-inperson-note">
+                Khoản chi này chưa có ảnh biên lai. Chỉ duyệt được sau khi kế toán kiểm chứng
+                chứng từ giấy tận tay — ghi chú kiểm chứng là bắt buộc và được lưu vào nhật ký.
+              </p>
+              <label className="ops-form-note">
+                Ghi chú kiểm chứng tận tay *
+                <textarea
+                  value={inPersonNote}
+                  onChange={(event) => setInPersonNote(event.target.value)}
+                  rows={3}
+                  required
+                  placeholder="VD: Đã đối chiếu hóa đơn giấy tại quầy — hợp lệ"
+                />
+              </label>
+            </div>
+            <footer className="ops-modal__foot">
+              <div />
+              <div className="ops-modal__actions">
+                <button type="button" className="btn-secondary" onClick={() => setApprovingInPerson(null)}>Đóng</button>
+                <button type="submit" className="btn-primary" disabled={!inPersonNote.trim()}>Duyệt</button>
               </div>
             </footer>
           </form>

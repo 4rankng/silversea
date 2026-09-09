@@ -357,15 +357,21 @@ router.get('/admin/expenses', OPS_APPROVERS, asyncHandler(async (req: Request, r
   res.json({ items });
 }));
 
+const approveBodySchema = z.object({
+  inPersonCheck: z.boolean().optional(),
+  note: z.string().min(1).max(500).optional(),
+});
+
 router.post('/admin/expenses/:id/approve', OPS_APPROVERS, asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
   const expenseId = parseId(req.params.id);
+  const approved = approveBodySchema.parse(req.body ?? {});
   const outcome = await runIdempotent({
     endpoint: IDEMPOTENCY_ENDPOINTS.OPS_EXPENSE_APPROVE,
     idempotencyKey: requireOpsIdempotencyKey(req),
-    payload: { expenseId, decision: 'APPROVED' },
+    payload: { expenseId, decision: 'APPROVED', ...approved },
     createdBy: user.userId,
-    create: (tx) => decideOpsExpense(user.userId, expenseId, 'APPROVED', undefined, tx),
+    create: (tx) => decideOpsExpense(user.userId, expenseId, 'APPROVED', undefined, tx, approved),
   });
   res.status(outcome.statusCode).json(outcome.result);
 }));

@@ -218,13 +218,14 @@ export function useAdminOpsExpenses(status?: OpsExpenseStatus, opsUserId?: numbe
 export function useDecideOpsExpense() {
   const invalidate = useInvalidateOps();
   return useMutation({
-    mutationFn: ({ id, decision, reason }: {
+    mutationFn: ({ id, decision, reason, inPerson }: {
       id: number;
       decision: 'approve' | 'reject';
       reason?: string;
+      inPerson?: { inPersonCheck: boolean; note: string };
     }) =>
       decision === 'approve'
-        ? opsClient.approveExpense(id)
+        ? opsClient.approveExpense(id, inPerson)
         : opsClient.rejectExpense(id, reason ?? ''),
     onSettled: () => invalidate(),
   });

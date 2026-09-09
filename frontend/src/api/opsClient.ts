@@ -208,8 +208,8 @@ export const opsClient = {
   // ── Duyệt (kế toán/quản lý) ──
   getAdminExpenses: (filters: { status?: OpsExpenseStatus; opsUserId?: number } = {}) =>
     api.get<{ items: OpsExpenseRow[] }>(`/ops/admin/expenses${qs(filters)}`),
-  approveExpense: (id: number) =>
-    api.post<OpsExpenseRow>(`/ops/admin/expenses/${id}/approve`, {}),
+  approveExpense: (id: number, body: { inPersonCheck?: boolean; note?: string } = {}) =>
+    api.post<OpsExpenseRow>(`/ops/admin/expenses/${id}/approve`, body),
   rejectExpense: (id: number, reason: string) =>
     api.post<OpsExpenseRow>(`/ops/admin/expenses/${id}/reject`, { reason }),
   getAdminSettlements: (status?: string) =>

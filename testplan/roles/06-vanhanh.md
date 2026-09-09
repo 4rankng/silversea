@@ -390,9 +390,13 @@ there is no dedicated print route or `OpsSettlementPrintPage.tsx`.
      browser print dialog on the phiếu modal — the `@media print` stylesheet in
      `OpsWalletPage.css` renders an A4 sheet (signature cells included) with all
      app chrome hidden.
-8. **OPS-WAL-08 — Kế toán duyệt**
+8. **OPS-WAL-08 — Kế toán duyệt (quy tắc hai đường)**
    - **Then** ACCOUNTANT/ADMIN can approve/reject each Ops expense (reason required
      on reject) and approve the phiếu once every member is APPROVED (→ đã quyết toán).
+   - **And** khoản **không ảnh biên lai** chỉ duyệt được qua dialog "Duyệt không ảnh biên lai":
+     xác nhận kiểm chứng tận tay + **ghi chú bắt buộc** — backend từ chối approve receipt-less
+     thiếu cờ `inPersonCheck` hoặc thiếu ghi chú, ghi chú được lưu `audit_logs`
+     (event `OPS_EXPENSE_APPROVE_IN_PERSON`). Khoản đủ ảnh duyệt trực tiếp, không dialog.
 9. **OPS-WAL-09 — Micro-ledger: nhiều Ops chi trên cùng 1 lô vẫn gom về 1 mã lô (P0)**
    - **Given** Ops A chi khoản Nâng cont và Ops B chi khoản Bồi dưỡng, **cùng lô X**
    - **Then** mỗi khoản giữ đúng `paidBy` riêng, nhưng màn Kế toán hiển thị cả hai

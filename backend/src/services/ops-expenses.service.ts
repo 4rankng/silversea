@@ -368,6 +368,14 @@ export async function resendOpsExpense(userId: number, expenseId: number, transa
   return updated;
 }
 
+export interface OpsExpenseApproveOptions {
+  /** Two-path rule (docx): a receipt-less entry may be approved only after an
+   *  explicit in-person paper-receipt check by accounting, with a mandatory
+   *  note persisted to audit_logs (no schema change needed). */
+  inPersonCheck?: boolean;
+  note?: string;
+}
+
 /**
  * Accounting decision on a PENDING entry. Both branches use a conditional
  * write (`WHERE approval_status = 'PENDING'`) inside a transaction so a
@@ -384,6 +392,7 @@ export async function decideOpsExpense(
   decision: OpsExpenseDecision,
   reason?: string,
   transaction?: Tx,
+  approveOpts?: OpsExpenseApproveOptions,
 ) {
   if (decision === 'APPROVED') {
     const [photo] = await db
@@ -391,8 +400,13 @@ export async function decideOpsExpense(
       .from(s.opsExpensePhotos)
       .where(eq(s.opsExpensePhotos.opsExpenseId, expenseId))
       .limit(1);
+    let inPersonNote: string | null = null;
     if (!photo) {
-      throw new ApiError(400, 'Khoản chi chưa có ảnh biên lai — không thể duyệt.');
+      const note = approveOpts?.note?.trim() ?? '';
+      if (approveOpts?.inPersonCheck !== true || note.length === 0) {
+        throw new ApiError(400, 'Khoản chi chưa có ảnh biên lai — kế toán phải kiểm chứng chứng từ giấy tận tay (xác nhận kèm ghi chú bắt buộc) mới được duyệt.');
+      }
+      inPersonNote = note;
     }
     const run = async (tx: Tx) => {
       const [updated] = await tx
@@ -410,6 +424,17 @@ export async function decideOpsExpense(
         ))
         .returning();
       if (!updated) throw staleExpenseDecision(tx, expenseId);
+      if (inPersonNote != null) {
+        // Two-path rule audit trail: the paper-receipt in-person check note is
+        // the durable evidence for approving without an attached photo.
+        await tx.insert(s.auditLogs).values({
+          userId: approverId,
+          message: `Duyệt khoản chi Ops không có ảnh biên lai sau khi kiểm chứng chứng từ giấy tận tay: ${inPersonNote}`,
+          entityType: 'ops-expense-entries',
+          entityId: expenseId,
+          payload: { event: 'OPS_EXPENSE_APPROVE_IN_PERSON', note: inPersonNote, opsExpenseId: expenseId },
+        });
+      }
       return updated;
     };
     return transaction ? run(transaction) : db.transaction(run);

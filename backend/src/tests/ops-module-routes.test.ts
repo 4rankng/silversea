@@ -5,7 +5,7 @@ import type { AddressInfo } from 'node:net';
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
@@ -113,6 +113,12 @@ after(async () => {
   } finally {
     try {
       await db.delete(s.userShipmentPins).where(inArray(s.userShipmentPins.userId, createdUserIds.length ? createdUserIds : [-1]));
+      if (createdExpenseIds.length) {
+        await db.delete(s.auditLogs).where(and(
+          eq(s.auditLogs.entityType, 'ops-expense-entries'),
+          inArray(s.auditLogs.entityId, createdExpenseIds),
+        ));
+      }
       await db.delete(s.opsExpensePhotos)
         .where(createdExpenseIds.length ? inArray(s.opsExpensePhotos.opsExpenseId, createdExpenseIds) : eq(s.opsExpensePhotos.opsExpenseId, -1));
       await db.delete(s.opsExpenseEntries)
@@ -396,6 +402,43 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
     const resent = await api(`/expenses/${created.body.id}/resend`, { method: 'POST', token: opsToken });
     assert.equal(resent.status, 200);
     assert.equal(resent.body.approvalStatus, 'PENDING');
+  });
+
+  test('receipt-less approve needs the in-person paper-check flag + note (two-path rule)', async () => {
+    // ops2 creates the receipt-less entry so opsUser's settlement-freeze
+    // totals asserted later in this describe stay untouched.
+    const created = await api('/expenses', {
+      method: 'POST', token: ops2Token,
+      body: { shipmentId, expenseTypeCode: noInvoiceCode, amount: '60000', paidAt: isoDate },
+    });
+    assert.equal(created.status, 201);
+    createdExpenseIds.push(created.body.id);
+
+    const blind = await api(`/admin/expenses/${created.body.id}/approve`, { method: 'POST', token: accountantToken });
+    assert.equal(blind.status, 400);
+
+    const noNote = await api(`/admin/expenses/${created.body.id}/approve`, {
+      method: 'POST', token: accountantToken,
+      body: { inPersonCheck: true },
+    });
+    assert.equal(noNote.status, 400);
+
+    const inPerson = await api(`/admin/expenses/${created.body.id}/approve`, {
+      method: 'POST', token: accountantToken,
+      body: { inPersonCheck: true, note: 'Đã đối chiếu hóa đơn giấy tại quầy' },
+    });
+    assert.equal(inPerson.status, 200);
+    assert.equal(inPerson.body.approvalStatus, 'APPROVED');
+
+    const [auditRow] = await db.select().from(s.auditLogs)
+      .where(and(
+        eq(s.auditLogs.entityType, 'ops-expense-entries'),
+        eq(s.auditLogs.entityId, created.body.id),
+      ))
+      .limit(1);
+    assert.ok(auditRow, 'in-person check note is persisted for audit');
+    assert.equal((auditRow.payload as any)?.event, 'OPS_EXPENSE_APPROVE_IN_PERSON');
+    assert.equal((auditRow.payload as any)?.note, 'Đã đối chiếu hóa đơn giấy tại quầy');
   });
 
   test('wallet summary matches the PRD formula', async () => {
