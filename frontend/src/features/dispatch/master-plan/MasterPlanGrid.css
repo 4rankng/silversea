@@ -992,6 +992,20 @@
     padding: 10px 16px;
   }
 
+  /* Polish 2026-09-09 (PM seq-151 visual-quality gate): the action cell
+     holds a 44px trigger, so the cell body lands at ~64px tall. The notes
+     cell directly below is text-only — an empty "—" placeholder or a
+     short note would render ~40-50px, leaving a ~14-24px height pop in
+     the action + notes footer pair. Ground the notes-trigger to 44px so
+     empty/short notes share the action-cell rhythm AND keep the 44px
+     touch target that the design system reserves for tappable surfaces
+     (design-system.md: "Compact field typography is shared too: sm
+     fields use 12px on desktop and 14px at narrow widths, while
+     retaining the 44px touch target"). */
+  .master-plan-grid__notes-trigger {
+    min-height: 44px;
+  }
+
   .master-plan-grid__allocation-label {
     display: block;
     margin-bottom: 4px;
