@@ -157,10 +157,26 @@
     border: 0;
   }
 
-  /* The primary identity cell and the action bar span the full card width. */
-  .record-table tbody td:first-child,
-  .record-table tbody td.record-table__action {
+  /* The primary identity cell and the action bar span the full card width.
+     border-inline-start: 0 — the pairing divider below must not draw at the
+     card's inner edge when the action cell sits in an even slot (review
+     finding, 2026-09-09: /config/factories action = child 10). The extra
+     `tr` out-specifies the nth-child divider rule, so declaration order
+     never decides. */
+  .record-table tbody tr td:first-child,
+  .record-table tbody tr td.record-table__action {
     grid-column: 1 / -1;
+    border-inline-start: 0;
+  }
+
+  /* Orphan guard: a trailing fact that lands alone in the left column spans
+     the full row instead of sitting at half width (tables with an odd
+     number of facts). Even-fact tables never match — last fact is
+     odd-positioned, paired in the right column as designed. */
+  .record-table tbody td:nth-last-child(2):nth-child(even):not(.record-table__action),
+  .record-table tbody td:last-child:nth-child(even):not(.record-table__action) {
+    grid-column: 1 / -1;
+    border-inline-start: 0;
   }
 
   .record-table tbody td + td {
