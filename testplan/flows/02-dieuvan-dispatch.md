@@ -1276,6 +1276,27 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
 - **Kỳ vọng sai (Fail nếu):** Bấm mở editor chỉnh sửa kế hoạch; hoặc không có dialog nào mở; hoặc dialog Phân xe lại không nhận thay đổi khi chuyến đang chạy.
 - **Bằng chứng:** Vitest `DispatchPlanEditorCell.test.tsx`; liên quan TC-DV-DISPATCH-012.
 
+### TC-DV-DISPATCH-051 — Đồng bộ giao diện chọn ngày giờ khi phát lệnh điều xe (Issue Order) theo thiết kế mới (Chọn nhanh ngày, Giờ 24h trước Ngày, Khung giờ phổ biến)
+
+- **Mã PRD:** Yêu cầu khách hàng 2026-09-09 — thay thế calendar cũ (`datetime-local` browser native với popup nhiều cột cồng kềnh) trong dialog "Phát lệnh" (`QuickIssueOrderDialog` / `IssueOrderFields`) bằng thiết kế calendar/lịch trình mới: thanh Chọn nhanh ngày (Hôm nay / Ngày mai / Ngày kia), nhóm trường Giờ 24h trước Ngày (`lang="en-GB"`), và Khung giờ phổ biến (08:00, 10:00, 13:30, 16:00).
+- **Vai trò:** `DISPATCHER`, `ADMIN`, `MANAGER`
+- **Mức độ:** P1
+- **Thiết bị:** Desktop (1440×900) & Mobile
+- **Tiền điều kiện:** Có dòng container trên `/dispatch-detail` đã gán biển số nhưng chưa phát lệnh (trạng thái "Đã xếp xe — chưa phát lệnh").
+- **Các bước:**
+  1. Mở `/dispatch-detail`, bấm biểu tượng "Phát lệnh" (hoặc mở editor điều phối chuyển sang phát lệnh) để mở dialog "Phát lệnh · [Container]".
+  2. Quan sát phần chọn thời gian: hiển thị nhóm "Chọn nhanh ngày" (Hôm nay / Ngày mai / Ngày kia), các trường Giờ chạy (24h), Giờ kết thúc (24h), Ngày chạy (dd/mm/yyyy), và nhóm "Khung giờ phổ biến" (08:00, 10:00, 13:30, 16:00).
+  3. Bấm thử nút "Hôm nay", "Ngày mai", "Ngày kia" → ngày chạy và ngày kết thúc cập nhật tương ứng.
+  4. Bấm thử khung giờ "08:00", "10:00", "13:30", "16:00" → giờ chạy cập nhật và giờ kết thúc tự động tính +2 tiếng.
+  5. Bấm nút "Phát lệnh" → phát lệnh thành công, chuyến xe được tạo với đúng ngày giờ đã chọn.
+- **Kết quả mong đợi (Pass):**
+  - Không còn sử dụng input `type="datetime-local"` với calendar browser native cũ.
+  - Giao diện đồng bộ hoàn toàn với ngôn ngữ thiết kế của editor lịch trình container (`ShipmentContainerScheduleEditor.tsx`).
+  - Giờ chạy, Giờ kết thúc, Ngày chạy hiển thị rõ ràng, dễ thao tác 1 chạm.
+  - Chuyến xe tạo ra trong CSDL lưu đúng `plannedStartAt` và `plannedEndAt`.
+- **Kỳ vọng sai (Fail nếu):** Vẫn hiển thị input `datetime-local` với calendar native cũ; lỗi khi chọn nhanh ngày/giờ; hoặc phát lệnh gửi sai thời gian lên backend.
+- **Bằng chứng:** Vitest `IssueOrderFields.test.tsx`, `DispatchPlanEditorCell.test.tsx`, ảnh UI Driven `qa/2026-09-09_dispatch-issue-calendar_ui.png`.
+
 ---
 
 
@@ -1285,6 +1306,7 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
 
 | Ngày thử | Mã TC | Người thử | Kết quả | Ghi chú | Bằng chứng |
 |-----------|-------|-----------|---------|---------|------------|
+| 09/09/26 | TC-DV-DISPATCH-051 | Antigravity | PASS | Đồng bộ calendar phát lệnh mới: Chọn nhanh ngày, Giờ 24h, Khung giờ phổ biến | `IssueOrderFields.test.tsx`, `DispatchPlanEditorCell.test.tsx` |
 | 09/09/26 | TC-DV-DISPATCH-048 | Antigravity | PASS | Bấm Lưu thay đổi đóng dialog Chỉnh sửa điều phối | `DispatchPlanEditorCell.test.tsx`, `TC-DISPATCH-EDIT-002` |
 | __/__/__ | TC-DV-DISPATCH-001 | | | Tiếp nhận lô | |
 | __/__/__ | TC-DV-DISPATCH-002 | | | Rã FCL | |

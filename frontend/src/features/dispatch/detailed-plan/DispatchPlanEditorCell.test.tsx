@@ -151,9 +151,19 @@ function issueButton(): HTMLButtonElement {
 }
 
 function setIssueTimes(start: string, end: string) {
-  fireEvent.change(document.getElementById('dispatch-issue-start-101')!, { target: { value: start } });
-  fireEvent.change(document.getElementById('dispatch-issue-end-101')!, { target: { value: end } });
+  const [startDate, startTime] = start.split('T');
+  const [, endTime] = end.split('T');
+  if (startDate) {
+    fireEvent.change(document.getElementById('dispatch-issue-date-101')!, { target: { value: startDate } });
+  }
+  if (startTime) {
+    fireEvent.change(document.getElementById('dispatch-issue-start-101')!, { target: { value: startTime } });
+  }
+  if (endTime) {
+    fireEvent.change(document.getElementById('dispatch-issue-end-101')!, { target: { value: endTime } });
+  }
 }
+
 
 describe('DispatchPlanEditorCell — driver note composer', () => {
   it('composes chips + manual text into the atomic save body and re-anchors', async () => {
@@ -292,8 +302,10 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
     await openDialog();
     const startInput = document.getElementById('dispatch-issue-start-101') as HTMLInputElement;
     const endInput = document.getElementById('dispatch-issue-end-101') as HTMLInputElement;
-    expect(startInput.value).toBe('2026-08-20T08:00');
-    expect(endInput.value).toBe('2026-08-20T10:00');
+    const dateInput = document.getElementById('dispatch-issue-date-101') as HTMLInputElement;
+    expect(startInput.value).toBe('08:00');
+    expect(endInput.value).toBe('10:00');
+    expect(dateInput.value).toBe('2026-08-20');
     expect(onIssueOrder).not.toHaveBeenCalled();
   });
 
