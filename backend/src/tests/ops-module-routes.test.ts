@@ -29,6 +29,7 @@ const createdContainerIds: number[] = [];
 const createdTruckIds: number[] = [];
 const createdRouteIds: number[] = [];
 const createdTripIds: number[] = [];
+const createdDriverIds: number[] = [];
 const createdAdvanceIds: number[] = [];
 const createdExpenseIds: number[] = [];
 const createdSettlementIds: number[] = [];
@@ -121,7 +122,11 @@ after(async () => {
       await db.delete(s.advanceRequests)
         .where(createdAdvanceIds.length ? inArray(s.advanceRequests.id, createdAdvanceIds) : eq(s.advanceRequests.id, -1));
       await db.delete(s.truckOpsAssignments).where(inArray(s.truckOpsAssignments.opsUserId, createdUserIds.length ? createdUserIds : [-1]));
-      if (createdTripIds.length) await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
+      if (createdTripIds.length) {
+        await db.delete(s.driverProgressEvents).where(inArray(s.driverProgressEvents.tripId, createdTripIds));
+        await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
+      }
+      if (createdDriverIds.length) await db.delete(s.drivers).where(inArray(s.drivers.id, createdDriverIds));
       if (createdContainerIds.length) await db.delete(s.shipmentContainers).where(inArray(s.shipmentContainers.id, createdContainerIds));
       if (createdShipmentIds.length) await db.delete(s.shipments).where(inArray(s.shipments.id, createdShipmentIds));
       if (createdTruckIds.length) await db.delete(s.trucks).where(inArray(s.trucks.id, createdTruckIds));
@@ -429,6 +434,34 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
     createdAdvanceIds.push(created.body.id);
   });
 
+  test('accountant list clusters same-lot expenses under one mã lô regardless of payer', async () => {
+    // A second Ops spends on the SAME lot — the accountant surface must group
+    // both payers' rows under one shipment code (PRD §5.3 micro-ledger).
+    const [ops2] = await db.select({ id: s.users.id }).from(s.users)
+      .where(eq(s.users.username, `ops-portal-b-${suffix}`)).limit(1);
+    const shared = await api('/expenses', {
+      method: 'POST', token: ops2Token,
+      body: { shipmentId, expenseTypeCode: noInvoiceCode, amount: '70000', paidAt: isoDate },
+    });
+    assert.equal(shared.status, 201);
+    createdExpenseIds.push(shared.body.id);
+
+    const res = await api('/admin/expenses', { token: accountantToken });
+    assert.equal(res.status, 200);
+    const lotRows = res.body.items.filter((item: any) => item.shipmentCode === `OPS-CHI-${suffix}`);
+    const lotCodes = new Set(lotRows.map((item: any) => item.shipmentCode));
+    assert.equal(lotCodes.size, 1, 'all same-lot rows share exactly one mã lô');
+
+    const indices = res.body.items
+      .map((item: any, index: number) => (item.shipmentCode === `OPS-CHI-${suffix}` ? index : -1))
+      .filter((index: number) => index >= 0);
+    assert.equal(indices[indices.length - 1] - indices[0] + 1, indices.length,
+      'same-lot rows are contiguous — clustered, not split by payer');
+    const payers = new Set(lotRows.map((item: any) => item.paidById));
+    assert.ok(payers.has(ops2.id), 'second Ops row kept its own paidById');
+    assert.equal(payers.size, 2, 'both payers present under the one mã lô');
+  });
+
   test('settlement freeze → approve path; later entries stay open', async () => {
     const created = await api('/expenses', {
       method: 'POST', token: opsToken,
@@ -527,6 +560,11 @@ describe('ops fleet tracking (PRD §4)', () => {
     }).returning();
     createdRouteIds.push(route.id);
 
+    const [driver] = await db.insert(s.drivers).values({
+      name: `Lái test ${suffix}`,
+    }).returning();
+    createdDriverIds.push(driver.id);
+
     const [shipment] = await db.insert(s.shipments).values({
       shipmentCode: `OPS-FL-${suffix}`,
       customerId: customer.id,
@@ -538,6 +576,7 @@ describe('ops fleet tracking (PRD §4)', () => {
       customerId: customer.id,
       routeId: route.id,
       truckId: truck.id,
+      driverId: driver.id,
       departureDate: isoDate,
       status: 'IN_TRANSIT',
       shipmentId: shipment.id,
@@ -573,6 +612,21 @@ describe('ops fleet tracking (PRD §4)', () => {
 
     const fleetA = await api('/fleet', { token: opsToken });
     assert.equal(fleetA.body.items.find((item: any) => item.truckId === truck.id), undefined);
+
+    // Driver-app action sync: the row's milestone comes from the driver's
+    // latest progress event (PRD §4 — trạng thái đồng bộ từ thao tác lái xe).
+    await db.insert(s.driverProgressEvents).values({
+      tripId: trip.id,
+      driverId: driver.id,
+      eventType: 'PICKED_UP',
+      occurredAt: new Date(),
+    });
+
+    const fleetB2 = await api('/fleet', { token: ops2Token });
+    assert.equal(fleetB2.status, 200);
+    const rowB2 = fleetB2.body.items.find((item: any) => item.truckId === truck.id);
+    assert.ok(rowB2);
+    assert.equal(rowB2.lastEventType, 'PICKED_UP');
   });
 });
 

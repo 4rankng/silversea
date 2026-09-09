@@ -340,7 +340,21 @@ router.get('/admin/expenses', OPS_APPROVERS, asyncHandler(async (req: Request, r
     ? parseId(String(req.query.opsUserId), 'Mã Ops')
     : undefined;
   const limit = Math.min(Math.max(Number.parseInt(String(req.query.limit ?? '100'), 10) || 100, 1), 200);
-  res.json({ items: await listOpsExpenses({ status, paidById: opsUserId, limit }) });
+  const items = await listOpsExpenses({ status, paidById: opsUserId, limit });
+  // Micro-ledger view (PRD §5.3): same-lot expenses cluster under ONE mã lô on
+  // the accountant screen regardless of who paid — never split by payer. Lots
+  // keep their first-appearance (newest) rank; within a lot the recent-first
+  // order from the query survives the stable sort. Code-less rows act as
+  // singleton clusters in the same first-appearance order.
+  const lotRank = new Map<string, number>();
+  for (const item of items) {
+    const key = item.shipmentCode ?? `~row-${item.id}`;
+    if (!lotRank.has(key)) lotRank.set(key, lotRank.size);
+  }
+  items.sort((a, b) =>
+    (lotRank.get(a.shipmentCode ?? `~row-${a.id}`) ?? 0)
+    - (lotRank.get(b.shipmentCode ?? `~row-${b.id}`) ?? 0));
+  res.json({ items });
 }));
 
 router.post('/admin/expenses/:id/approve', OPS_APPROVERS, asyncHandler(async (req: Request, res: Response) => {
