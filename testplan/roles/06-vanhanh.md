@@ -12,10 +12,9 @@
 > - `/my-settlements` — `frontend/src/pages/ForwarderSettlementsPage.tsx` (Phiếu thanh toán / Hoàn ứng)
 > - `/my-settlements/new` — `frontend/src/pages/ForwarderSettlementCreatePage.tsx`
 > - `/my-settlements/:id` — `frontend/src/pages/SettlementPrintPage.tsx` (print view)
-> - `/ops/orders` — `frontend/src/pages/ops/OpsOrdersPage.tsx` (Kế hoạch làm hàng — ghim + khai chi phí; PRD `OpsVanHanh.md` §3)
-> - `/ops/fleet-tracking` — `frontend/src/pages/ops/OpsFleetTrackingPage.tsx` (theo dõi xe phụ trách — read-only; PRD §4)
-> - `/ops/wallet` — `frontend/src/pages/ops/OpsWalletPage.tsx` (Ví tạm ứng & chi phí; PRD §5)
-> - `/ops/wallet/settlements/:id/print` — `frontend/src/pages/ops/OpsSettlementPrintPage.tsx` (print view)
+> - `/ops/orders` — `frontend/src/pages/OpsOrdersPage.tsx` (Kế hoạch làm hàng — ghim + khai chi phí; PRD `OpsVanHanh.md` §3)
+> - `/ops/fleet-tracking` — `frontend/src/pages/OpsFleetTrackingPage.tsx` (theo dõi xe phụ trách — read-only; PRD §4)
+> - `/ops/wallet` — `frontend/src/pages/OpsWalletPage.tsx` (Ví tạm ứng & chi phí; PRD §5; bản in phiếu = panel + `@media print`, không có route in riêng — xem OPS-WAL-07)
 >
 > The OPS portal is field-staff-facing but **not** the driver app:
 > the OPS works on behalf of the company, not from a truck cab. The
@@ -282,7 +281,7 @@ common access pattern is a phone browser.
 ## Flow 7 — Kế hoạch làm hàng (/ops/orders)
 
 **Route**: `/ops/orders`
-**Component**: `frontend/src/pages/ops/OpsOrdersPage.tsx`
+**Component**: `frontend/src/pages/OpsOrdersPage.tsx`
 **Allow**: `OPS` only (`opsOnly`).
 **PRD nguồn**: `docs/prd/OpsVanHanh.md` §3
 
@@ -322,7 +321,7 @@ common access pattern is a phone browser.
 ## Flow 8 — Theo dõi phương tiện (/ops/fleet-tracking)
 
 **Route**: `/ops/fleet-tracking`
-**Component**: `frontend/src/pages/ops/OpsFleetTrackingPage.tsx`
+**Component**: `frontend/src/pages/OpsFleetTrackingPage.tsx`
 **Allow**: `OPS` only. **Read-only.**
 **PRD nguồn**: `OpsVanHanh.md` §4
 
@@ -353,10 +352,11 @@ common access pattern is a phone browser.
 
 ## Flow 9 — Ví tạm ứng & chi phí (/ops/wallet)
 
-**Routes**: `/ops/wallet`, `/ops/wallet/settlements/:id/print`
-**Components**: `frontend/src/pages/ops/OpsWalletPage.tsx`,
-`OpsSettlementPrintPage.tsx`
-**Allow**: `OPS` only (print route same guard).
+**Routes**: `/ops/wallet`
+**Components**: `frontend/src/pages/OpsWalletPage.tsx` + `frontend/src/features/ops/OpsSettlementsPanel.tsx`
+**Allow**: `OPS` only. Printing uses the print-stylesheet panel (`window.print()`
++ `@media print` A4 sheet with signature cells in `OpsSettlementsPanel.tsx`) —
+there is no dedicated print route or `OpsSettlementPrintPage.tsx`.
 **PRD nguồn**: `OpsVanHanh.md` §5
 
 ### Acceptance criteria
@@ -386,8 +386,10 @@ common access pattern is a phone browser.
      with Có/Không hóa đơn subtotals (from `forwarderExpenseTypes.requiresInvoice`);
      confirming creates a coded phiếu and locks its member set.
 7. **OPS-WAL-07 — Export & in**
-   - **Then** Excel downloads (per-lot rows + bucket totals) and the print route
-     renders an A4 sheet without nav chrome.
+   - **Then** Excel downloads (per-lot rows + bucket totals) and `In` opens the
+     browser print dialog on the phiếu modal — the `@media print` stylesheet in
+     `OpsWalletPage.css` renders an A4 sheet (signature cells included) with all
+     app chrome hidden.
 8. **OPS-WAL-08 — Kế toán duyệt**
    - **Then** ACCOUNTANT/ADMIN can approve/reject each Ops expense (reason required
      on reject) and approve the phiếu once every member is APPROVED (→ đã quyết toán).

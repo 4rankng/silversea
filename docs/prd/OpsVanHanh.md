@@ -8,9 +8,17 @@ song song trên Web PC và trình duyệt điện thoại (responsive web — kh
 không phải PWA).
 
 > **Quan hệ với tài liệu khác:** Quy trình O2C lõi (`QuyTrinhO2C.md`) không đổi. Tài liệu
-> này bổ sung luồng tiền & giám sát của riêng vai trò Ops, tách biệt với chi phí lái xe
-> trên app (Bước 3 O2C) và với luồng tạm ứng/hoàn ứng theo chuyến hiện có
+> này bổ sung luồng tiền & giám sát của riêng vai trò Ops (docx `2026.9.6_Man_hinh_ops.docx`),
+> tách biệt với chi phí lái xe trên app (Bước 3 O2C) và với luồng tạm ứng/hoàn ứng theo chuyến hiện có
 > (`/my-advances`, `/my-settlements` — vẫn hoạt động nguyên trạng).
+>
+> **Ghi chú triển khai (audit 2026-09-09):** các điểm lệch có chủ đích so với docx —
+> (1) bản in phiếu = modal + `@media print` trong `OpsSettlementsPanel.tsx`/`OpsWalletPage.css`
+> (A4, có ô ký tên, ẩn chrome app), **không** có route in riêng; (2) API **chặn duyệt** khoản chi
+> chưa có ảnh biên lai (`decideOpsExpense`) — đường "kế toán kiểm chứng giấy tận tay" của docx
+> đi bằng từ chối (kèm lý do) → Ops bổ sung ảnh → gửi lại (TC-OPS-VI-011);
+> (3) màn Kế toán **gom các khoản cùng lô dưới một mã lô** bất kể người chi, lot giữ thứ tự mới-trước
+> (`cda12f57`); (4) ghim dùng PUT set-semantics — request replay về cùng trạng thái, không lật đảo.
 
 ---
 
