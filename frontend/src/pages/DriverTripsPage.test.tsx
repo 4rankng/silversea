@@ -89,6 +89,7 @@ describe('DriverTripsPage', () => {
       + ` - ${String(scheduled.getDate()).padStart(2, '0')}/${String(scheduled.getMonth() + 1).padStart(2, '0')}`;
 
     expect(await screen.findByText('ĐƠN')).toBeTruthy();
+    expect(screen.getByText('Giờ đóng / trả:')).toBeTruthy();
     expect(screen.getByText(expectedTime)).toBeTruthy();
     expect(screen.getByText(/Nhà máy Bình Dương/)).toBeTruthy();
     expect(screen.getByText(/Cát Lái → Bình Dương/)).toBeTruthy();
@@ -141,6 +142,21 @@ describe('DriverTripsPage', () => {
 
     expect(await screen.findByText('KẾT HỢP')).toBeTruthy();
     expect(screen.getByText('LẺ')).toBeTruthy();
+  });
+
+  it('shows the KẾT HỢP sequencing lock note on the second card until Lệnh 1 completes', async () => {
+    useDriverJourneyBoardMock.mockReturnValue({
+      data: [
+        card({ fulfillmentId: 60, pairId: 7, pairKind: 'KET_HOP', pairOrder: 1, pairLocked: false }),
+        card({ fulfillmentId: 61, pairId: 7, pairKind: 'KET_HOP', pairOrder: 2, pairLocked: true }),
+      ],
+      isLoading: false,
+      error: null,
+    });
+    renderPage();
+
+    expect(await screen.findAllByText('KẾT HỢP')).toHaveLength(2);
+    expect(screen.getByText('Đang chờ Lệnh 1 hoàn thành trả hàng')).toBeTruthy();
   });
 
   it('shows "Xem chi tiết & Nhận lệnh" footer on all cards per spec', async () => {

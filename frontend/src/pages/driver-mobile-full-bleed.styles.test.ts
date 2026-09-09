@@ -32,4 +32,13 @@ describe('driver mobile full-bleed contract', () => {
     expect(css).toMatch(/@media \(max-width: 430px\) \{[\s\S]*?\.driver-task-accept-sticky \{\s*padding-left: 10px;\s*padding-right: 10px;/);
     expect(css).toMatch(/@media \(max-width: 320px\) \{[\s\S]*?\.driver-task-accept-sticky \{\s*padding-left: 8px;\s*padding-right: 8px;/);
   });
+
+  it('journey card footer opts back up to the 48px driver primary-action floor on phones', () => {
+    const css = read('src/pages/DriverTripsPage.css');
+    // Authored floor on the footer (the card's primary action) ...
+    expect(css).toMatch(/\.driver-journey-card__footer \{[^}]*min-height: 48px/);
+    // ... plus the ID-specificity opt-up so the global `#root button` ≤640px
+    // 44px floor cannot squash it.
+    expect(css).toMatch(/@media \(max-width: 640px\) \{[\s\S]*?#root \.driver-journey-card__footer \{\s*min-height: 48px;?\s*\}/);
+  });
 });

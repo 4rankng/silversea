@@ -157,6 +157,14 @@
   color: var(--ink-3);
 }
 
+/* The spec header reads "Giờ đóng / trả: [HH:MM - DD/MM]" — the label sits
+   muted beside the time value instead of repeating its weight. */
+.driver-journey-card__time-label {
+  margin-right: 4px;
+  font-weight: 500;
+  color: var(--ink-4);
+}
+
 /* Headline. The route is what a driver scans a 27-card history for, so it
    carries the card's largest type and is the only place the brand color
    appears in the body. */
@@ -339,7 +347,9 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 44px;
+  /* Driver primary-action touch floor (AC DRV-LIST-04); the ≤640px opt-up
+     below keeps it from being squashed by the global #root button floor. */
+  min-height: 48px;
   margin-top: 4px;
   border: 1px solid var(--brand);
   border-radius: 12px;
@@ -361,6 +371,17 @@
 
 .driver-journey-card__footer--quiet:active {
   background: var(--surface-2);
+}
+
+/* The app-wide mobile touch floor (responsive.css `#root button` at ≤640px)
+   carries ID specificity and squashes class-level min-heights. The card
+   footer is the card's primary action, so it opts back up to the 48px
+   driver primary-action floor with matching ID specificity — same idiom as
+   the trip detail accept bar (c9012bd0). */
+@media (max-width: 640px) {
+  #root .driver-journey-card__footer {
+    min-height: 48px;
+  }
 }
 
 /* KẾT HỢP sequencing lock (TC-GHEP-010): the second card explains why its
