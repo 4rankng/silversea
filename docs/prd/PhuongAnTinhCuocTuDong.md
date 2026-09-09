@@ -303,26 +303,26 @@ cước riêng, sẽ bổ sung khi T2 land.
 
 ---
 
-## 4. Open items (chờ KH / User) — defaults đã áp theo **D3 decision (10/09)**
+## 4. Open items (chờ KH / User) — DEMO values active on dev/staging; prod awaits real customer values
 
 > **Tracker chính:** ticket `e3873fbc` trên board. Mỗi open item dưới đây cần reply
-> từ KH Long Minh (Câu 5) hoặc user (data gaps) trước khi có thể đóng. Trong lúc
-> chờ, **D3 decision (10/09)** đã chốt default cho từng mục để không chặn code wave:
+> từ KH Long Minh (Câu 5) hoặc user (data gaps) trước khi áp dụng production. Trên
+> dev/staging, các **DEMO values** sau đang active để team chạy end-to-end:
 >
-> | Item | Default đã áp | Lý do / ràng buộc |
+> | Item | DEMO value (dev/staging) | Lý do / ràng buộc |
 > |---|---|---|
 > | Lag ASKEY / SUNRISE+SJ | **`fuel_lag_days = 0`** | Theo docx §2A example N=0 ("khách áp dụng ngay"); user edit khi KH cung cấp số thật |
-> | Threshold X / Z | **`surcharge_threshold_pct = NULL` và `surcharge_threshold_abs = NULL`** | NULL = always-adjust (engine không ratchet, giá mới luôn áp). XOR validation giữ nguyên khi KH edit |
-> | 15T base price ×3 | **deliberately missing = `pricing_tables.base_price = 0`** | MANUAL fallback là **designed behavior** (TC-CUOC-015), không phải thiếu sót |
+> | Threshold X / Z | **`surcharge_threshold_pct = 5%` / `surcharge_threshold_abs = 1500đ` / `NULL`** | DEMO ladder: 5% pct cho NEWEB, 1500đ abs cho ASKEY, NULL (always-adjust) cho SUNRISE+SJ. Prod awaiting real customer values |
+> | 15T base price ×3 | **3.500.000đ (NEWEB) / 3.400.000đ (ASKEY/SUNRISE+SJ)** | DEMO ladder seeded for dev/staging; MANUAL fallback仍works if missing (TC-CUOC-015). Prod awaiting real customer values |
 > | Câu 5 (other customers) | **assumed (A) only Long Minh** | Schema + engine đáp ứng Long Minh duy nhất; khách khác tiếp tục nhập tay. Nếu KH = (B), reopen thêm cột `pricing_model` + UI |
 >
 > Các mục dưới vẫn được track open (KH có thể reply bất cứ lúc nào) nhưng **không
-> chặn code wave** vì default đã hợp lệ vận hành.
+> chặn code wave** — DEMO values hợp lệ vận hành trên dev/staging.
 
 ### 4.1. Câu 5 — Khách hàng khác ngoài Long Minh có dùng mô hình này không?
 
-- **Default (D3 decision 10/09): assumed (A) — chỉ Long Minh dùng mô hình này.** Schema
-  + engine hiện đáp ứng Long Minh duy nhất; khách khác tiếp tục nhập tay.
+- **DEMO value (active on dev/staging): assumed (A) — chỉ Long Minh dùng mô hình này.** Schema
+  + engine hiện đáp ứng Long Minh duy nhất; khách khác tiếp tục nhập tay. Prod awaits real customer values.
 - Ảnh hưởng nếu KH đổi ý: cần cột `pricing_model` / `formula_variant` trên
   `freight_rate_terms`.
 - Nguồn: [`CauHoiKhachHang_CuocPhi_2026-09-08.md`](CauHoiKhachHang_CuocPhi_2026-09-08.md) §Câu 5
@@ -331,19 +331,20 @@ cước riêng, sẽ bổ sung khi T2 land.
 
 ### 4.2. Lag ASKEY / SUNRISE+SJ (phụ lục 2a)
 
-- **Default (D3 decision 10/09): `fuel_lag_days = 0` cho cả ASKEY và SUNRISE+SJ** —
+- **DEMO value (active on dev/staging): `fuel_lag_days = 0` cho cả ASKEY và SUNRISE+SJ** —
   theo docx §2A example N=0 ("khách áp dụng ngay"). Khi KH cung cấp số thật, edit per-row
-  qua T2 admin UI không cần code change.
-- Hiện tại (sau D3): NEWEB = 1 (đã chốt), ASKEY = **0 (default D3)**, SUNRISE+SJ = **0
-  (default D3)**.
+  qua T2 admin UI không cần code change. Prod awaits real customer values.
+- Hiện tại (sau D3): NEWEB = 1 (đã chốt), ASKEY = **0 (DEMO)**, SUNRISE+SJ = **0
+  (DEMO)**. Prod awaits real customer values.
 - Ảnh hưởng nếu KH sửa: kỳ giá dầu mới sẽ áp lên 2 tuyến này sai ngày cho đến khi có số.
 - Chờ: KH xác nhận (track ticket `e3873fbc`).
 
 ### 4.3. Giá gốc 15T × 3 tuyến
 
-- **Default (D3 decision 10/09): deliberately missing — `pricing_tables.base_price = 0`
-  cho 15T ở cả 3 tuyến. MANUAL fallback là designed behavior**, không phải thiếu sót
-  (TC-CUOC-015 PASS, Kế toán nhập tay trên chứng từ).
+- **DEMO value (active on dev/staging): `pricing_tables.base_price = 3.500.000đ` (NEWEB) /
+  `3.400.000đ` (ASKEY/SUNRISE+SJ)** — DEMO ladder seeded for dev/staging. MANUAL fallback
+ 仍works when base price is missing (TC-CUOC-015 PASS, Kế toán nhập tay trên chứng từ).
+  Prod awaits real customer values.
 - Ảnh hưởng nếu KH cung cấp: update 3 dòng `pricing_tables` qua T2; snapshot cũ giữ
   nguyên (no-retro theo Câu 2 = A).
 - Chờ: KH bổ sung (track ticket `e3873fbc`) — nhưng **không block wave** vì MANUAL đã hoạt
@@ -351,9 +352,9 @@ cước riêng, sẽ bổ sung khi T2 land.
 
 ### 4.4. Threshold values X / Z cho từng khách
 
-- **Default (D3 decision 10/09): `surcharge_threshold_pct = NULL` và
-  `surcharge_threshold_abs = NULL`** cho cả 3 tuyến Long Minh. NULL = always-adjust
-  (engine không ratchet, giá mới luôn áp).
+- **DEMO value (active on dev/staging): `surcharge_threshold_pct = 5%` / `surcharge_threshold_abs = 1500đ` /
+  `NULL`** cho 3 tuyến Long Minh — DEMO ladder: 5% pct cho NEWEB, 1500đ abs cho ASKEY,
+  NULL (always-adjust) cho SUNRISE+SJ. Prod awaits real customer values.
 - Ảnh hưởng nếu KH cung cấp: KH chọn **1 trong 2** dạng (XOR validation ở T2 — `TC-CUOC-013`
   ⇒ 422 khi cả 2 set). Edit row qua T3 admin UI không cần code change.
 - Chờ: KH bổ sung (track ticket `e3873fbc`) — **không block wave** vì NULL hoạt động hợp lệ.

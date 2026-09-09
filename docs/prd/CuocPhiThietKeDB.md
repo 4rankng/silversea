@@ -423,32 +423,34 @@ Lưu **cả 4 id tham số** ⇒ trả lời được câu "vì sao lô này 5.0
    dầu áp dụng; đổi `transport_date` sau khi tạo ⇒ **supersede** snapshot (không mutate
    row cũ, xem `PhuongAnTinhCuocTuDong.md` §2.3 bước 3 + testplan `TC-CUOC-010`).
 
-#### CÒN MỞ (tracker: ticket `e3873fbc`) — defaults đã áp theo **D3 decision (10/09)**
+#### CÒN MỞ (tracker: ticket `e3873fbc`) — DEMO values active on dev/staging; prod awaits real customer values
 
-> 4 mục dưới đây đều đã được **default** theo D3 decision (10/09) để không chặn code
-> wave; KH có thể reply bất cứ lúc nào (track `e3873fbc`). Chi tiết mirroring:
+> 4 mục dưới đây đều có **DEMO values** đang active trên dev/staging để team chạy
+> end-to-end. KH có thể reply bất cứ lúc nào (track `e3873fbc`). Prod awaits real
+> customer values. Chi tiết mirroring:
 > [`PhuongAnTinhCuocTuDong.md`](PhuongAnTinhCuocTuDong.md) §4.
 
-5. **Câu 5 — Khách hàng khác Long Minh.** D3 default: **assumed (A) only Long Minh**.
+5. **Câu 5 — Khách hàng khác Long Minh.** DEMO value (active on dev/staging): **assumed (A) only Long Minh**.
    Schema + engine đáp ứng Long Minh duy nhất; khách khác tiếp tục nhập tay. Nếu KH
    đổi ý = (B) đa mô hình ⇒ cần cột `pricing_model` / `formula_variant` trên
-   `freight_rate_terms` + UI chọn formula variant trong T2.
-6. **Độ trễ ASKEY / SUNRISE+SJ** (phụ lục 2a). D3 default: **`fuel_lag_days = 0` cho
+   `freight_rate_terms` + UI chọn formula variant trong T2. Prod awaits real customer values.
+6. **Độ trễ ASKEY / SUNRISE+SJ** (phụ lục 2a). DEMO value (active on dev/staging): **`fuel_lag_days = 0` cho
    cả 2 tuyến** (theo docx §2A example N=0 "khách áp dụng ngay"). NEWEB = 1 đã chốt
    09/09. Edit per-row qua T2 admin UI không cần code change khi KH cung cấp số thật.
-8. **Giá gốc 15T × 3 tuyến.** D3 default: **deliberately missing**
-   (`pricing_tables.base_price = 0`). MANUAL fallback là **designed behavior** (testplan
-   `TC-CUOC-015`), không phải thiếu sót — tạo lô vẫn proceed, Kế toán nhập tay trên
-   chứng từ. Khi KH bổ sung số, update 3 dòng `pricing_tables`; snapshot cũ giữ nguyên
-   (no-retro theo Câu 2 = A).
-9. **Threshold values X / Z cho từng khách.** D3 default:
-   **`surcharge_threshold_pct = NULL` và `surcharge_threshold_abs = NULL`** (cả 3 tuyến
-   Long Minh). NULL = always-adjust (engine không ratchet, giá mới luôn áp). XOR
+   Prod awaits real customer values.
+8. **Giá gốc 15T × 3 tuyến.** DEMO value (active on dev/staging): **3.500.000đ (NEWEB) /
+   3.400.000đ (ASKEY/SUNRISE+SJ)** — DEMO ladder seeded for dev/staging. MANUAL fallback
+  仍works when base price is missing (testplan `TC-CUOC-015`), không phải thiếu sót —
+   tạo lô vẫn proceed, Kế toán nhập tay trên chứng từ. Prod awaits real customer values.
+9. **Threshold values X / Z cho từng khách.** DEMO value (active on dev/staging):
+   **`surcharge_threshold_pct = 5%` (NEWEB) / `surcharge_threshold_abs = 1500đ` (ASKEY) /
+   `NULL` (SUNRISE=SJ)** — DEMO ladder: 5% pct, 1500đ abs, NULL (always-adjust) cho 3 tuyến
+   Long Minh. NULL = always-adjust (engine không ratchet, giá mới luôn áp). XOR
    validation giữ nguyên khi KH edit (`TC-CUOC-013` ⇒ 422 nếu cả 2 set).
+   Prod awaits real customer values.
 
-> **Không phải câu hỏi thiết kế — đã track ở §6.2 mục 8:** giá gốc `15T` đang trống
-> ở cả Excel lẫn seed (`basePrice: 0`). Đây chỉ là **một điểm dữ liệu còn thiếu —
-> không ảnh hưởng logic**. Schema và công thức chạy bình thường; chỉ cần điền số khi
-> khách cung cấp. Cho đến lúc đó, `resolveFreightRate()` không tìm thấy dòng
-> `pricing_tables` cho `15T` và rơi về nhánh **MANUAL** như mọi trường hợp thiếu giá
-> catalog khác (testplan `TC-CUOC-015`).
+> **Dev/staging DEMO seed — not a design gap:** giá gốc `15T` đã seed DEMO values
+> (3.500.000đ NEWEB / 3.400.000đ ASKEY/SUNRISE+SJ) trên dev/staging. Prod awaits real
+> customer values. Schema và công thức chạy bình thường; chỉ cần cập nhật số khi
+> khách cung cấp. Cho đến lúc đó, `resolveFreightRate()` dùng DEMO ladder hoặc rơi về
+> nhánh **MANUAL** nếu缺少 (testplan `TC-CUOC-015`).
