@@ -394,22 +394,6 @@ describe('useDispatchDetailPlan issueOrder (phát lệnh)', () => {
 });
 
 describe('useDispatchDetailPlan plan-save error mapping', () => {
-  const saveResult = {
-    fulfillmentId: 101,
-    fulfillmentVersion: 4,
-    shipmentId: 11,
-    shipmentVersion: 6,
-    classification: 'SINGLE' as const,
-    isCombined: false,
-    operationalNotes: 'Trả về; Di động' as string | null,
-    dispatch: { carrierType: 'OWN' as const, carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: null },
-    estimates: { plannedRevenue: null, plannedCarrierCost: null },
-    lotFullyPlated: false,
-    driverNotified: false,
-    driverHint: null,
-    replayed: false,
-  };
-
   beforeEach(() => {
     vi.clearAllMocks();
     listDispatchDetailPlanRowsMock.mockResolvedValue(page([row()], 1));

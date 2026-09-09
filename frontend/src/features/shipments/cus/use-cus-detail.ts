@@ -212,7 +212,7 @@ export function useCusDetail(params: CusDetailListParams) {
   const saveIdentity = useCallback(async (row: ShipmentCusContainerFlatRow, draft: ShipmentIdentityDraft) => {
     if (!activeEdit) throw new Error('Phiên chỉnh sửa không còn hiệu lực.');
     try {
-      const response = await updateShipment(row.shipmentId, {
+      await updateShipment(row.shipmentId, {
         expectedVersion: activeEdit.detail.summary.version,
         factoryName: draft.factoryName,
         ...(activeEdit.detail.summary.cargoMode !== 'FCL' ? { routeId: draft.routeId } : {}),
@@ -229,7 +229,7 @@ export function useCusDetail(params: CusDetailListParams) {
   const saveDocuments = useCallback(async (row: ShipmentCusContainerFlatRow, draft: ShipmentDocumentsDraft) => {
     if (!activeEdit) throw new Error('Phiên chỉnh sửa không còn hiệu lực.');
     try {
-      const response = await updateShipment(row.shipmentId, {
+      await updateShipment(row.shipmentId, {
         expectedVersion: activeEdit.detail.summary.version,
         blNumber: draft.blNumber,
         bookingRef: draft.bookingRef,

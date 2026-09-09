@@ -103,9 +103,9 @@ export function useCusQuickEdit(deps: UseCusQuickEditDeps) {
       // shipment PATCH entirely — an empty body would still bump the version
       // and fire change-request bookkeeping for nothing.
       const shipmentKeys = Object.keys(payload).filter((key) => key !== 'expectedVersion');
-      const response = shipmentKeys.length > 0
-        ? await updateShipment(item.id, payload)
-        : { changeMode: 'DIRECT', message: null };
+      if (shipmentKeys.length > 0) {
+        await updateShipment(item.id, payload);
+      }
       if (declarationChanged) {
         const declarationBody = buildQuickEditDeclarationBody(draft);
         if (draft.declarationId != null) {

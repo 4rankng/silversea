@@ -18,7 +18,7 @@ export function ShipmentDetailContent({
   onDirtyChange,
   onSavingChange,
   actionsRef,
-  onExternalTripCompleted,
+  onExternalTripCompleted: _onExternalTripCompleted,
 }: {
   detail?: ShipmentCusWorkspaceDetail;
   loading: boolean;
