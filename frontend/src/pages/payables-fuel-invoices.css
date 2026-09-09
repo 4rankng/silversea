@@ -73,21 +73,19 @@
 }
 
 /* Size-consistency (program addendum 2026-09-09): one control-height scale
-   per toolbar. The select triggers ride the component's 30px compact
-   geometry (no touch floor of their own — staging measured 30px at tablet)
-   and the search input inherited a hardcoded 32px, so siblings mismatched
-   at every width. Pin both to the shared filter scale: compact 30px on
-   desktop (matched), the 44px touch floor on the tablet band down (≤1023,
-   where this toolbar already stacks). The trigger selector must carry
-   .ds-uui-select__control — the component's own button rule outranks a
-   plain page-class selector. */
+   per toolbar. Trigger heights are owned by operational-density.css
+   (compact 30px on fine pointers, 44px touch floor on coarse pointers since
+   cf0b0db8) — never re-overridden here. What this page owns is the search
+   input, which inherited a hardcoded 32px: pin it to the shared filter
+   scale and mirror the trigger floor's pointer semantics so search and
+   triggers match at every width AND pointer density (width-based banding
+   alone would mismatch on coarse tablets at 768–1023). */
 .fuel-invoices-toolbar .payables-toolbar__search input {
   min-height: var(--filter-control-h);
 }
 
-@media (max-width: 1023px) {
-  .fuel-invoices-toolbar .payables-toolbar__search input,
-  .fuel-invoices-toolbar .ds-uui-select__control button.fuel-invoices-toolbar__select {
+@media (pointer: coarse) {
+  .fuel-invoices-toolbar .payables-toolbar__search input {
     min-height: var(--control-touch-h);
   }
 }
