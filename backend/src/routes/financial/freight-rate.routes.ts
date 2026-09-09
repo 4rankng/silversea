@@ -119,6 +119,9 @@ router.put('/pricing/snapshots/:id/override', requireRoles(...ROLES), asyncHandl
       const refreshed = await getFreightRateSnapshotById(snapshotId, tx);
       return { override: refreshed?.override ?? null };
     },
+    // Bookkeeping only — replays are served from the response snapshot; this
+    // keeps the idempotency_keys row mapped to the override it created.
+    getEntityId: (value) => value.override?.id ?? null,
   });
   res.json({ ...result.override, ...(idempotencyKey ? { replayed } : {}) });
 }));
