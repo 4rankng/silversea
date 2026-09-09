@@ -116,24 +116,21 @@ to the driver's plate.
      completes delivery; for `KẸP`, both run in parallel with no lock.
    - **Cases**: `TC-LX-NHANLENH-011`, `-012`, `TC-GHEP-009` … `-011`.
 
-> ### 🔧 Migration gap — list screen not yet rebuilt to spec
+> ### ✅ Migration landed — DRV-LIST-02 / -03 PASS (audited 2026-09-09)
 >
 > **Decision 2026-09-07: the docx is authoritative — one card per container.**
-> `DRV-LIST-02` and `DRV-LIST-03` above are written to
-> `2026.8.27_Man_hinh_lai_xe.docx` / [`ManHinhLaiXe.md`](../../docs/prd/ManHinhLaiXe.md)
-> §1–§2.1 and are the **binding** criteria.
+> The list-screen migration landed 2026-09-07; the 2026-09-09 docx audit
+> (`2026.8.27_Man_hinh_lai_xe.docx` / [`ManHinhLaiXe.md`](../../docs/prd/ManHinhLaiXe.md)
+> §1–§2.1) confirms the built screen matches the binding anatomy:
 >
-> What is currently built in `DriverTripsPage.tsx` still differs and must be migrated.
-> Until it is, `DRV-LIST-02` / `-03` are expected to **FAIL** (not BLOCKED) — that
-> failure is the tracked work item, not a test defect:
->
-> | Item | Currently built | Required (binding) |
-> |------|-----------------|--------------------|
-> | Sub-tabs | `Hôm nay` / `Đang chạy` / `Lịch sử` | `Lệnh mới` / `Đã nhận` / `Lịch sử` |
-> | Card unit | 1 card per **trip** | **1 card per container** |
-> | Header | `Mã chuyến` (monospace) | `[Tag: ĐƠN/KẸP/KẾT HỢP]` + `Giờ đóng / trả` |
-> | Body | `Khách hàng`, `Tuyến`, `Tài xế` + `🚚 {Biển số}` subtext | `Nhà máy`↔`Cảng nâng`, `Tuyến đường`↔`Cảng hạ`, `Cont: [Số] - [Loại]` |
-> | Footer | status pill (`TRIP_STATUS_COLORS`) | `Xem chi tiết & Nhận lệnh`, **no pill** |
+> | Item | Required (binding) | Evidence |
+> |------|--------------------|----------|
+> | Sub-tabs | `Lệnh mới` / `Đã nhận` / `Lịch sử` with per-tab counts | `DriverTripsPage.tsx` `TABS` + bucket counts; `DriverTripsPage.test.tsx` "shows the New Orders tab by default with tab counts" |
+> | Card unit | 1 card per container | one card per driver-owned fulfillment = 1 container (`shipmentContainers` join); FE test "tags sibling linked cards with KẸP and groups them visually" (2 containers → 2 cards in one combo) |
+> | Header | `[Tag: ĐƠN/KẸP/KẾT HỢP]` + `Giờ đóng / trả: HH:MM - DD/MM` | `tagLabelFor` + `Giờ đóng / trả:` label + `formatCardTime` `HH:MM - DD/MM`; anatomy unit test |
+> | Body rows | `Nhà máy`↔`Cảng nâng`, `Tuyến đường`↔`Cảng hạ`, `Cont: [Số] - [Loại]` | card pair rows + container line; anatomy unit test |
+> | Footer | `Xem chi tiết & Nhận lệnh`, no status pill | footer button test across all 3 tabs |
+> | Kẹp/Kết hợp | 2 separate cards stuck adjacent, shared tag; KẾT HỢP 2nd card locked | `groupCards` pair/shipment grouping + `pairLocked` note; FE unit tests + backend `pair-ket-hop-gating.test.ts` (KET_HOP lock + KEP parallel) |
 >
 > Superseded criteria — kept only so the earlier behaviour is traceable, **not** for
 > acceptance: the old `DRV-LIST-02` (Hôm nay/Đang chạy/Lịch sử tabs) and the old
@@ -141,8 +138,8 @@ to the driver's plate.
 > `TRIP_STATUS_COLORS`, `shared/src/constants/index.ts`).
 >
 > The 48 px tap-target floor (`DRV-LIST-04`, `c9012bd0`) and the full-bleed rule
-> (`DRV-LIST-01`, `0fcedcde`) **survive the migration unchanged** and still apply to
-> the new card.
+> (`DRV-LIST-01`, `0fcedcde`) **survived the migration and now bind the new card**:
+> the footer opts up to 48 px on phones (≤640px `#root` opt-up, c9012bd0 idiom).
 
 ### Test steps
 
@@ -200,13 +197,15 @@ matches the logged-in user).
      screenshots; check the button's `disabled` attribute stays
      `false` between attempts.
 
-3. **DRV-DET-03 — Start trip CTA**
+3. **DRV-DET-03 — Accept (start) CTA**
    - **Given** the trip is in `Mới tạo`
-   - **When** the user taps `Bắt đầu chuyến` (or equivalent)
-   - **Then** the trip status flips to `Đang chạy`, an audit-log row
-     is written, the page re-renders the new status color, and the
-     next CTA (`Hoàn thành chuyến` / `Bước tiếp: e-POD`) becomes
-     available.
+   - **When** the user taps the sticky `Nhận lệnh vận chuyển` bar (spec
+     §2.2 Khối 7; the old inline `Bắt đầu chuyến` CTA is superseded)
+   - **Then** the trip status flips to `Đang chạy` (trip-start timestamp
+     recorded via the ORDER_RECEIVED milestone → IN_TRANSIT transition),
+     an audit-log row is written, the page re-renders the new status
+     color, and the footer CTA (`Hoàn tất lệnh vận chuyển` → e-POD
+     screen) becomes available.
 
 4. **DRV-DET-04 — "Bước tiếp: e-POD" navigates to the e-POD screen**
    - **Given** the trip is in `Đang chạy` and is otherwise eligible
@@ -224,12 +223,16 @@ matches the logged-in user).
      visibility state of the e-POD CTA is the **only** signal
      gating trip completion.
 
-6. **DRV-DET-06 — "Hoàn thành chuyến" button copy**
-   - **Then** the button label is `Hoàn thành chuyến` (mixed case,
-     not the AC literal `HOÀN THÀNH CHUYẾN`). Per the user's
-     explicit override in the r4 round.
-   - **Evidence**: button screenshot; `textContent` of the
-     button matches the exact string above.
+6. **DRV-DET-06 — Completion CTA copy across the two-CTA flow**
+   - **Then** the trip detail footer CTA reads `Hoàn tất lệnh vận chuyển`
+     and navigates to the e-POD screen (`/my-trips/:id/pod`); the uppercase
+     `HOÀN THÀNH CHUYẾN` literal lives only on the e-POD screen and gates
+     on both mandatory photos. Supersedes the r4 mixed-case override
+     (`Hoàn thành chuyến`) — the docx-authoritative flow puts accept on the
+     detail screen and completion on the e-POD screen.
+   - **Evidence**: `textContent` of the detail footer button matches
+     `Hoàn tất lệnh vận chuyển`; the e-POD footer button reads
+     `HOÀN THÀNH CHUYẾN` (locked by `DriverTripPodPage.test.tsx`).
 
 7. **DRV-DET-07 — Sync indicator (offline / pending / failed)**
    - **Given** the device is offline or the request fails
@@ -338,12 +341,20 @@ owner.
 
 1. **DRV-POD-01 — Page anatomy**
    - **Then** the page shows these sections in order:
-     1. Trip identity (mã chuyến, customer, route).
-     2. `Phiếu bãi` (yard receipt) upload.
-     3. `Biên bản` (incident report, optional) upload.
-     4. `Tải tệp` button to add more attachments.
-     5. Notes textarea.
-     6. Submit CTA: `Gửi e-POD để duyệt`.
+     1. Trip identity header (mã chuyến + status pill).
+     2. Operational note from CUS / điều vận (when present) — spec A3.
+     3. The e-POD card (`TripPodSubmission`): `e-POD bắt buộc` eyebrow, the
+        two **mandatory** upload areas — `Phiếu bãi / Phiếu hạ` and
+        `Biên bản giao nhận` (must carry stamp / signature) — each slot
+        with its own upload control, the `Tải tệp` button for extra
+        attachments, and the shared progress bar showing
+        `uploadProgressPercent` (`X%`) that gates completion at 100%.
+     4. Footer: `HOÀN THÀNH CHUYẾN` — the single completion action; it
+        submits the open e-POD draft then completes the trip, and the
+        missing-photo gaps are listed above the button until both are in.
+   - The old "Biên bản (incident report, optional)" reading and the
+     standalone `Gửi e-POD để duyệt` submit section are superseded by the
+     mandatory-both + fused completion flow (DRV-POD-08 is the gate).
 
 2. **DRV-POD-02 — Single pod-readiness gate**
    - **Then** the submit button is enabled **iff** the trip's
@@ -351,12 +362,14 @@ owner.
      The duplicate "e-POD bắt buộc" label from the old gate is
      gone; the only signal is the submit button's disabled state.
 
-3. **DRV-POD-03 — Submit shows the success toast**
-   - **When** the user taps `Gửi e-POD để duyệt` and the server
-     accepts
-   - **Then** the toast `Đã gửi e-POD để duyệt` is shown; the
-     trip status flips to a `pending review` state; the page is
-     read-only (no further edits).
+3. **DRV-POD-03 — Completion submits the e-POD then closes the trip**
+   - **When** `HOÀN THÀNH CHUYẾN` is tapped with both mandatory photos in
+     place and a `DRAFT` submission open
+   - **Then** the toast `Đã gửi e-POD để duyệt` is shown; the trip
+     completes and navigates back to `/my-trips` (the card moves to
+     `Lịch sử`); if the submission fails (offline, conflict, rejected)
+     completion is aborted — the server's evidence gate rejects an
+     incomplete e-POD anyway, so there is no bypass.
 
 4. **DRV-POD-04 — Conflict-recovery banner is live**
    - **Given** the driver previously had a local edit that
@@ -628,12 +641,12 @@ not an edge case.
 
 ## Known open items (carry-over from past rounds)
 
-- **List screen not yet on spec (opened 2026-09-07)**: product confirmed the
-  docx is authoritative — **one card per container**, sub-tabs
-  `Lệnh mới` / `Đã nhận` / `Lịch sử`. `DriverTripsPage.tsx` still renders one
-  card per trip with the old tab set, so `DRV-LIST-02` / `DRV-LIST-03` FAIL
-  until the migration lands. Details and the field-by-field diff are in the
-  *Migration gap* block under Flow 1.
+- **List-screen migration LANDED (closed 2026-09-09)**: `DriverTripsPage.tsx`
+  now renders **one card per container** with sub-tabs `Lệnh mới` / `Đã nhận`
+  / `Lịch sử`; `DRV-LIST-02` / `-03` PASS (see the *Migration landed* block
+  under Flow 1). The 09-09 audit closed the last two anatomy gaps: the
+  `Giờ đóng / trả:` header label and the 48px footer touch floor
+  (`#root` opt-up, c9012bd0 idiom).
 - **Cost form regression-r6 finding 1**: confirmed 0 cost-form strings
   in the deployed `DriverTripDetailPage` chunk and 0 matches in the
   live DOM. ACs DRV-DET-01 and DRV-2X-02 lock this in.
