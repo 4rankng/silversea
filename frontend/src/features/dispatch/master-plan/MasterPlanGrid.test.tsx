@@ -527,6 +527,39 @@ describe('MasterPlanGrid', () => {
     expect(css).toContain('color: var(--fg-2)');
     expect(css).toContain('color: var(--fg-3)');
   });
+
+  // User-reported 2026-09-09 (tablet screenshot): in the 600-900px container
+  // band, the action cell (Phân bổ nhà xe) was forced to full-width but cell 8
+  // (Ghi chú) auto-flowed into the next row's left column alone, leaving the
+  // right half empty and drawing a half-width border-top below the action
+  // cell. The fix mirrors the ≤599px rule into the 600-900px band.
+  it('spans the notes cell full-width in the 600-900px band so action + notes read as a paired footer', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
+
+    // 600-900px band exists and pins the span for cell 8
+    expect(css).toMatch(
+      /@container \(min-width: 600px\) and \(max-width: 900px\)[\s\S]*?\.master-plan-grid__cell:nth-child\(8\)\s*\{[\s\S]*?grid-column:\s*1 \/ -1/,
+    );
+
+    // The full-width span drops the inline-start that would otherwise
+    // double the card's left edge.
+    expect(css).toMatch(
+      /@container \(min-width: 600px\) and \(max-width: 900px\)[\s\S]*?\.master-plan-grid__cell:nth-child\(8\)\s*\{[\s\S]*?border-inline-start:\s*0/,
+    );
+
+    // The ≤599px rule still owns the same selector (parity check).
+    expect(css).toMatch(
+      /@container \(max-width: 599px\)[\s\S]*?\.master-plan-grid__cell:nth-child\(8\)[\s\S]*?grid-column:\s*1 \/ -1/,
+    );
+
+    // Action cell stays full-width in BOTH bands (sanity).
+    expect(css).toMatch(
+      /@container \(max-width: 599px\)[\s\S]*?\.master-plan-grid__cell--action[\s\S]*?grid-column:\s*1 \/ -1/,
+    );
+    expect(css).toMatch(
+      /@container \(min-width: 600px\) and \(max-width: 900px\)[\s\S]*?\.master-plan-grid__cell--action[\s\S]*?grid-column:\s*1 \/ -1/,
+    );
+  });
 });
 
 describe('MasterPlanFilters', () => {

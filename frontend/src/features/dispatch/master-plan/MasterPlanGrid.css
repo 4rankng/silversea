@@ -1065,4 +1065,14 @@
     grid-column: 1 / -1;
     border-inline-start: 0 !important;
   }
+
+  /* Cell 8 (notes) follows the full-width action cell; in a 2-col grid it
+     would auto-flow into the next row's left column alone, leaving the
+     right half empty and drawing a half-width border-top from
+     :nth-child(n+3) — the stray divider reported 2026-09-09. Mirror the
+     ≤599px rule and span it to match action's full-width footer. */
+  .master-plan-grid__cell:nth-child(8) {
+    grid-column: 1 / -1;
+    border-inline-start: 0;
+  }
 }
