@@ -175,8 +175,255 @@
 
 ---
 
+## 12.4 — Auto-pricing engine (sau khi engine wired & snapshot persist) — `BLOCKED — pending T1`
+
+> **Mục đích:** neo [`PhuongAnTinhCuocTuDong.md`](../../docs/prd/PhuongAnTinhCuocTuDong.md)
+> §2.3 (3-step engine) + §2.4 (override) + §2.5 (config CRUD) vào acceptance anchor.
+> Tất cả TC dưới đây **BLOCKED — pending T1** (wiring engine) / **pending T2**
+> (config CRUD); gắn nhãn **Phase-2 evidence** — chỉ chạy sau khi các ticket liên
+> quan đã land + regression local qua `flows/12` baseline green.
+>
+> **Quy tắc snapshot (kế thừa `CuocPhiThietKeDB.md` §5):** mỗi lần `transport_date`
+> được set hoặc đổi, hệ thống **insert** row mới vào `freight_rate_snapshots` với
+> `supersedes_id` trỏ về row cũ. Row cũ **không bao giờ** bị UPDATE — chỉ đọc.
+
+### TC-CUOC-009 — Lock-at-create: tạo lô CUS có `transport_date` ⇒ snapshot được ghi ngay
+
+- **Vai trò:** CLERK (CUS, tạo lô) + ACCOUNTANT (verify snapshot)
+- **Mức độ:** P0
+- **Thiết bị:** Desktop
+- **Tiền điều kiện:** đã seed `freight_rate_terms` (NEWEB `fuel_lag_days=1`),
+  `pricing_tables` (CONT20 có `base_price > 0`), `fuel_consumption_norms`,
+  `fuel_price_periods` (kỳ giá mới nhất đang hiệu lực ≥ `transport_date − lag`).
+- **Các bước:**
+  1. CUS tạo lô NEWEB CONT20 với `transport_date = today`.
+  2. Backend gọi `resolveFreightRate()` → snapshot → `persistFreightRateSnapshot()`
+     (T1 wiring đảm bảo cả 2 chạy).
+- **Kết quả mong đợi (Pass):**
+  - 1 row mới trong `freight_rate_snapshots` với `source = 'AUTO'`, `supersedes_id = null`,
+    `computed_at` ≈ thời điểm tạo.
+  - Snapshot lưu đủ 4 id tham số (`rate_terms_id`, `pricing_table_id`, `fuel_norm_id`,
+    `fuel_price_period_id`) + `billed_km`, `liters`, `fuel_delta`, `share_pct`.
+  - `shipment_freight.total_amount` hiển thị cùng số với `snapshot.total_amount`.
+- **Kỳ vọng sai (Fail nếu):** không có row; row UPDATE thay vì INSERT; thiếu 1 trong 4 id.
+- **Bằng chứng:** DB row + response API + ảnh chi tiết lô.
+- **Ghi chú:** TC này chứng minh **persistence call đã được wire** (PM test hint #2).
+
+### TC-CUOC-010 — Supersede-on-date-change: đổi `transport_date` ⇒ row cũ immutable, row mới có `supersedes_id`
+
+- **Vai trò:** CLERK + ACCOUNTANT
+- **Mức độ:** P0
+- **Các bước:**
+  1. Lấy lô vừa tạo ở TC-CUOC-009 (`snapshot_v1`).
+  2. Đổi `transport_date` từ `today` sang `today + 1`.
+  3. Backend gọi lại `resolveFreightRate()` → snapshot mới.
+- **Kết quả mong đợi (Pass):**
+  - `snapshot_v1`: `computed_at` không đổi, `total_amount` không đổi, **không có UPDATE nào**.
+  - `snapshot_v2`: row mới, `supersedes_id = snapshot_v1.id`, `computed_at` mới,
+    `total_amount` có thể khác (vì `target_date = today + 1 − lag = today`; nếu đổi
+    sang `today − 1` thì target lùi về kỳ cũ hơn ⇒ total khác rõ rệt).
+- **Kỳ vọng sai (Fail nếu):** `snapshot_v1` bị UPDATE; `snapshot_v2` không có
+  `supersedes_id`; chỉ có 1 row duy nhất.
+- **Bằng chứng:** 2 dòng DB trước/sau + audit log + ảnh chi tiết lô (cước mới).
+
+### TC-CUOC-011 — Threshold `%` dưới ngưỡng ⇒ ratchet về kỳ trước
+
+- **Vai trò:** ADMIN (config) + ACCOUNTANT (verify)
+- **Mức độ:** P1
+- **Tiền điều kiện:** tuyến NEWEB có `surcharge_threshold_pct = 5`; có 2 kỳ giá dầu
+  liên tiếp (kỳ trước = 21.740, kỳ sau = 22.500 ⇒ delta +3.5% < 5%).
+- **Các bước:**
+  1. Tạo lô NEWEB có `transport_date` thuộc kỳ sau (sau khi áp lag).
+  2. Quan sát `fuel_price_period_id` trong snapshot.
+- **Kết quả mong đợi (Pass):** `fuel_price_period_id` = kỳ **trước** (21.740), không
+  phải kỳ sau (22.500). `fuel_delta` = `21.740 − 17.842,59`.
+- **Kỳ vọng sai (Fail nếu):** dùng kỳ sau 22.500 (không ratchet), hoặc throw 404.
+- **Bằng chứng:** DB row + log engine step 4 (`fuel_price_periods` lookup).
+
+### TC-CUOC-012 — Threshold tuyệt đối (`abs`) dưới ngưỡng ⇒ ratchet tương tự
+
+- **Vai trò:** ADMIN + ACCOUNTANT
+- **Mức độ:** P1
+- **Tiền điều kiện:** tuyến SUNRISE+SJ có `surcharge_threshold_abs = 1500` đ/lít;
+  kỳ trước 21.740, kỳ sau 22.500 ⇒ delta 760 đ/l < 1.500 đ/l.
+- **Các bước:** tương tự TC-CUOC-011 nhưng dùng tuyến SUNRISE+SJ + `abs`.
+- **Kết quả mong đợi (Pass):** snapshot dùng kỳ trước (21.740).
+- **Kỳ vọng sai (Fail nếu):** dùng kỳ sau 22.500.
+
+### TC-CUOC-013 — Validation XOR: `threshold_pct` và `threshold_abs` đồng thời set ⇒ 422
+
+- **Vai trò:** ADMIN (POST config)
+- **Mức độ:** P0
+- **Các bước:**
+  1. `POST /api/config/freight-rate-terms` với `surcharge_threshold_pct = 5` VÀ
+     `surcharge_threshold_abs = 1500` (cùng dòng).
+- **Kết quả mong đợi (Pass):** `422 Unprocessable Entity` với message rõ ràng
+  ("chỉ chọn 1 dạng ngưỡng: % hoặc tuyệt đối"). Không có row được tạo.
+- **Kỳ vọng sai (Fail nếu):** 200 OK + row có cả 2 cột set; 500 error thiếu validation.
+- **Bằng chứng:** response API + DB không có row mới.
+
+### TC-CUOC-014 — Ratchet single-step: chỉ so với 1 kỳ liền trước (không recursive)
+
+- **Vai trò:** ACCOUNTANT (dev verify)
+- **Mức độ:** P2
+- **Tiền điều kiện:** 3 kỳ giá dầu liên tiếp: 20.000 (kỳ −2) → 21.000 (kỳ −1) →
+  22.500 (kỳ hiện tại); mỗi kỳ cách nhau đều < `threshold_pct = 5%` (delta ~4.8–7%).
+  Tuyến NEWEB `fuel_lag_days = 0` để đơn giản.
+- **Các bước:** tạo lô với `transport_date` thuộc kỳ hiện tại.
+- **Kết quả mong đợi (Pass):** engine so 22.500 với 21.000; nếu < 5% thì ratchet về
+  21.000 (không lùi tiếp về 20.000 ngay cả khi 22.500 vs 20.000 cũng < 5%).
+  Snapshot `fuel_price_period_id` = kỳ −1.
+- **Kỳ vọng sai (Fail nếu):** ratchet về kỳ −2 (recursive — không implement).
+- **Bằng chứng:** UT + DB row + design note trong T1/T6 tests về khả năng KH yêu cầu
+  recursive.
+
+### TC-CUOC-015 — MANUAL fallback khi thiếu base price (15T)
+
+- **Vai trò:** CLERK (tạo lô) + ACCOUNTANT
+- **Mức độ:** P0
+- **Tiền điều kiện:** `pricing_tables.base_price = 0` cho `15T` ở tuyến NEWEB (xem
+  open item §6.2 mục 8 của `CuocPhiThietKeDB.md`); các tham số khác hợp lệ.
+- **Các bước:** tạo lô NEWEB 15T.
+- **Kết quả mong đợi (Pass):**
+  - Tạo lô **không bị chặn** (200/201).
+  - `resolveFreightRate()` trả `source = 'MANUAL'`, `total = 0`, `formula` chứa text
+    "Thiếu giá gốc cho 15T — cần nhập tay".
+  - Snapshot row vẫn được tạo với `source = 'MANUAL'` (để truy vết + override sau).
+  - Chi tiết lô hiển thị badge/hint "MANUAL — nhập tay" + ô cho Kế toán nhập cước.
+- **Kỳ vọng sai (Fail nếu):** lô bị chặn tạo; `total = phụ phí` (nhầm nhánh); không có
+  snapshot ⇒ mất truy vết.
+- **Bằng chứng:** DB row + response API + ảnh UI chi tiết lô MANUAL.
+
+### TC-CUOC-016 — Snapshot immutability: row cũ giữ nguyên qua mọi thay đổi sau
+
+- **Vai trò:** ACCOUNTANT (verify)
+- **Mức độ:** P0
+- **Các bước:**
+  1. Lấy 1 snapshot row bất kỳ (`snapshot_v1.id`).
+  2. (a) đổi `pricing_tables.base_price`; (b) đổi `freight_rate_terms.share_pct`;
+     (c) đổi `fuel_consumption_norms.liters_per_km`; (d) đổi `fuel_price_periods.unit_price`;
+     (e) xoá row config (soft delete).
+  3. Re-read `snapshot_v1`.
+- **Kết quả mong đợi (Pass):** `snapshot_v1.total_amount`, `freight_amount`, `surcharge_amount`,
+  `billed_km`, `liters`, `fuel_delta`, `share_pct` — **không thay đổi** sau bất kỳ thao tác
+  nào ở trên. Snapshot là bản chốt độc lập với config sau đó.
+- **Kỳ vọng sai (Fail nếu):** snapshot `total_amount` update theo config mới (mất audit trail).
+- **Bằng chứng:** DB row trước/sau mỗi thay đổi + so sánh từng cột.
+- **Ghi chú:** TC này là rào chắn cho **Câu 2 = A — không hồi tố** ở cấp hệ thống, bổ sung
+  cho TC-CUOC-004 (chỉ test ở mức "kỳ mới mở").
+
+### TC-CUOC-017 — Debit-note override: PATCH ghi `final_debit_freight` + audit log
+
+- **Vai trò:** ACCOUNTANT (lập Bảng kê / Debit Note)
+- **Mức độ:** P0
+- **Các bước:**
+  1. Lô có snapshot `system_calculated_freight = 4.182.000 đ` (NEWEB CONT40, kỳ 21.740).
+  2. Debit Note được tạo cuối tháng gộp các lô.
+  3. Kế toán `PATCH /api/debit-notes/:id/freight` với `final_debit_freight = 4.500.000 đ`
+     + `override_reason = "Thương thảo giảm 318k do đối tác thanh toán sớm"`.
+- **Kết quả mong đợi (Pass):**
+  - Row mới trong `debit_note_overrides` với 4 cột: `debit_note_id`, `system_calculated_freight`
+    (= 4.182.000), `final_debit_freight` (= 4.500.000), `override_reason` (text đầy đủ).
+  - Audit log ghi: actor=ACCOUNTANT, before/after, timestamp.
+  - Bảng kê gửi khách hiển thị `final_debit_freight` (không phải `system_calculated_freight`).
+- **Kỳ vọng sai (Fail nếu):** override ghi đè `system_calculated_freight` (mất truy vết); thiếu
+  audit log; Bảng kê hiển thị nhầm cột.
+- **Bằng chứng:** DB row + audit log + ảnh Bảng kê.
+
+### TC-CUOC-018 — Lý do bắt buộc khi `final ≠ system` (thiếu lý do ⇒ 422)
+
+- **Vai trò:** ACCOUNTANT
+- **Mức độ:** P0
+- **Các bước:** PATCH giống TC-CUOC-017 nhưng `override_reason = ""` (rỗng) hoặc chỉ
+  whitespace.
+- **Kết quả mong đợi (Pass):** `422 Unprocessable Entity` — lý do bắt buộc khi
+  `final_debit_freight ≠ system_calculated_freight`. DB không có row mới.
+- **Kỳ vọng sai (Fail nếu):** 200 OK + row với lý do rỗng; hoặc PATCH thành công nhưng
+  Bảng kê thiếu lý do (incomplete audit).
+- **Bằng chứng:** response API + DB không có row + log validation.
+
+### TC-CUOC-019 — Ops-role write attempt trên cước đã chốt ⇒ 403 read-only
+
+- **Vai trò:** OPS (FORWARDER, ACCOUNTANT, …) — vai trò không thuộc RBAC config cước
+- **Mức độ:** P0
+- **Các bước:** với cookie/token của OPS, gọi `PATCH /api/debit-notes/:id/freight` để
+  sửa `final_debit_freight` của Bảng kê đã chốt.
+- **Kết quả mong đợi (Pass):** `403 Forbidden` — OPS không có quyền ghi cước (cờ từ
+  `CuocPhiPhuPhiDau.md` §8: "đóng băng, đối với khâu vận hành").
+- **Kỳ vọng sai (Fail nếu):** 200 OK + DB write; 401 nhầm thay vì 403.
+- **Bằng chứng:** response API + DB không đổi.
+
+### TC-CUOC-020 — Kế toán nhập kỳ giá dầu mới (`POST /api/config/fuel-prices`) ⇒ 201
+
+- **Vai trò:** ACCOUNTANT
+- **Mức độ:** P0
+- **Các bước:** POST với `effective_from = 2026-09-15`, `unit_price = 28.000`.
+- **Kết quả mong đợi (Pass):** `201 Created`; 1 row trong `fuel_price_periods`;
+  `created_by = ACCOUNTANT.id`.
+- **Kỳ vọng sai (Fail nếu):** 422 thiếu validation; 403 sai RBAC.
+
+### TC-CUOC-021 — CUS nhập kỳ giá dầu mới ⇒ 201 (cùng RBAC)
+
+- **Vai trò:** CLERK
+- **Mức độ:** P1
+- **Các bước:** POST tương tự TC-CUOC-020.
+- **Kết quả mong đợi (Pass):** `201 Created`. CUS có quyền nhập giá dầu (theo docx §5).
+
+### TC-CUOC-022 — DRIVER / LAIXE gọi `POST /api/config/fuel-prices` ⇒ 403
+
+- **Vai trò:** DRIVER
+- **Mức độ:** P0
+- **Kết quả mong đợi (Pass):** `403 Forbidden`. DB không có row.
+- **Kỳ vọng sai (Fail nếu):** 200/201.
+
+### TC-CUOC-023 — `effective_from` trùng kỳ hiệu lực ⇒ 409
+
+- **Vai trò:** ACCOUNTANT
+- **Mức độ:** P1
+- **Các bước:** sau khi tạo kỳ `effective_from = 2026-09-15`, POST tiếp với cùng
+  `effective_from` (cùng `unit_price` hoặc khác đều bị reject).
+- **Kết quả mong đợi (Pass):** `409 Conflict` — đã có kỳ cho ngày này.
+- **Kỳ vọng sai (Fail nếu):** 2 row cùng `effective_from` (mâu thuẫn unique constraint).
+
+### TC-CUOC-024 — Duplicate config key (cust×route×date) ⇒ 409/422
+
+- **Vai trò:** ADMIN
+- **Mức độ:** P1
+- **Các bước:** POST `freight_rate_terms` với (customer_id, route_id, effective_date)
+  trùng 1 row đang hiệu lực.
+- **Kết quả mong đợi (Pass):** `409 Conflict` (hoặc `422` tuỳ convention) — không có 2 dòng
+  cùng khoá trong cùng thời điểm.
+- **Kỳ vọng sai (Fail nếu):** 2 row trùng khoá.
+
+### TC-CUOC-025 — Lag làm target date < kỳ giá dầu đầu tiên ⇒ engine 404 ⇒ MANUAL fallback
+
+- **Vai trò:** ACCOUNTANT (dev verify) + CLERK (tạo lô)
+- **Mức độ:** P0
+- **Các bước:**
+  1. Setup `fuel_lag_days = 30` cho 1 tuyến test (có thể dùng NEWEB tạm).
+  2. `fuel_price_periods` chỉ có 1 kỳ `effective_from = 2026-08-01`.
+  3. Tạo lô với `transport_date = 2026-08-15` ⇒ `target_date = 2026-07-16` < kỳ đầu tiên.
+- **Kết quả mong đợi (Pass):**
+  - Engine **không throw 404** (T1 phải soften — bắt buộc theo AC T1).
+  - Trả `source = 'MANUAL'`, `formula = "Chưa có giá dầu trước <date> — nhập tay"`.
+  - Tạo lô vẫn proceed; Kế toán nhập tay trên chứng từ.
+- **Kỳ vọng sai (Fail nếu):** engine throw 404 làm CUS tạo lô thất bại; hoặc fallback
+  im lặng dùng kỳ mới nhất (sai — sẽ áp giá tương lai cho ngày quá khứ).
+- **Bằng chứng:** DB row MANUAL + response API + log engine.
+- **Ghi chú:** đây là **AC bắt buộc của T1** — nếu backend không soften 404, T6 sẽ
+  red ngay ở đây.
+
+---
+
 ## Đăng ký nghiệm thu
 
 | Ngày thử | Mã TC | Vai trò | Người thử | Kết quả | Ghi chú | Bằng chứng |
 |-----------|-------|---------|-----------|---------|---------|------------|
-| — | TC-CUOC-001…008 | — | — | **BLOCKED** | module chưa triển khai | — |
+| — | TC-CUOC-001…008 | — | — | **BLOCKED** | module chưa triển khai (UT test-first ở T6) | — |
+| — | TC-CUOC-009…010 | — | — | **BLOCKED — pending T1** | engine wiring + snapshot persist + supersede (Phase-2 evidence) | — |
+| — | TC-CUOC-011…014 | — | — | **BLOCKED — pending T1** | threshold pct/abs + ratchet single-step (PM test hint #1) | — |
+| — | TC-CUOC-015 | — | — | **BLOCKED — pending T1** | MANUAL fallback 15T (UT/IT) | — |
+| — | TC-CUOC-016 | — | — | **BLOCKED — pending T1** | snapshot immutability — rào chắn Câu 2 = A | — |
+| — | TC-CUOC-017…019 | — | — | **BLOCKED — pending T1** | debit-note override + reason rule + RBAC 403 | — |
+| — | TC-CUOC-020…024 | — | — | **BLOCKED — pending T2** | fuel-price entry CRUD + RBAC + dup validation | — |
+| — | TC-CUOC-025 | — | — | **BLOCKED — pending T1 (AC bắt buộc)** | engine 404 → MANUAL fallback khi target date < first fuel period | — |

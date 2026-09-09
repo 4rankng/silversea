@@ -129,20 +129,93 @@ và cập nhật trạng thái bằng evidence thật (test run ids, UI-DRIVEN s
 8. `SELECT count(*)` master-data guardrail re-check sau khi các lane land.
 9. Micro-ledger grouping (Kế toán hiển thị gom theo lô).
 
-## 7. Summary
+## 7. `PhuongAnTinhCuocTuDong.md` — Auto-pricing wave (2026-09-10, wave `run-1788968588650-mctezn`)
 
-| PRD | Reqs | COVERED | PARTIAL | UNCOVERED |
-|---|---|---|---|---|
-| ManHinhLaiXe | 13 | 13 | 0 | 0 |
-| MasterDataNhaMay | 14 | 11 | 3 | 0 |
-| LoHangKepKetHop | 12 | 12 | 0 | 0 |
-| OpsVanHanh | 17 | 17 | 0 | 0 |
-| **Total** | **56** | **53** | **3** | **0** |
+> **Lane 4 / Phase 1 — cross-cutting QA, read-only pass.** Nguồn yêu cầu:
+> [`docs/prd/PhuongAnTinhCuocTuDong.md`](../../docs/prd/PhuongAnTinhCuocTuDong.md)
+> (mới 10/09) — 5 mục docx KH ↔ engine/schema hiện có (engine + schema đã merge
+> `c959e7bb`, migration `0064`; chưa có caller ngoài service).
+> **Phase 2** = sau khi T1 (wiring) + T2 (config CRUD) + T3/T4 (UI) + T6 (tests)
+> land trên integrated tree, sẽ chạy browser regression + full suites và cập nhật
+> trạng thái bằng evidence thật (test run ids, UI-DRIVEN steps, qa/ artifacts).
+>
+> **Trạng thái pass này:** tất cả row đều ở trạng thái **BLOCKED — pending T1/T2**
+> (Phase-2 evidence). Không có row COVERED nào trong pass này vì chưa có code wired
+> ra ngoài service. Số row mới = 14 (1 row/mục docx + edge case trọng yếu).
 
-**PARTIAL còn lại (3, đều chờ quyết định user / evidence-only):**
+| # | Yêu cầu (PRD §) | Testplan anchor | Unit/component tests | Evidence triển khai | Trạng thái |
+|---|------------------|-----------------|----------------------|---------------------|------------|
+| 1 | Công thức cước cốt lõi: `K = I × (1 + share) + MAX(0, (G−F)×E)` (PhuongAn §2.1, CuocPhi §2.5-2.8) | flows/12 `TC-CUOC-001..003` | `fuelSurcharge.test.ts` (computeFreightRate) | `shared/src/calculations/fuelSurcharge.ts:99-120` | COVERED (engine parity UT) |
+| 2 | 4 nhóm tham số A-D: `fuel_lag_days`, `surcharge_threshold_pct/abs`, anchor = transport_date (PhuongAn §2.2) | flows/12 `TC-CUOC-005` (lag), `TC-CUOC-011/012` (thresholds) | `fuelSurcharge.test.ts` + engine UT (test-first T6) | `freight_rate_terms` (c959e7bb) — schema COVERED; engine wiring = pending T1 | PARTIAL (schema COVERED, runtime BLOCKED-pending T1) |
+| 3 | 3-step engine: target date → fuel lookup + threshold ratchet → frozen snapshot (PhuongAn §2.3, CuocPhi §4) | flows/12 `TC-CUOC-009` (lock), `TC-CUOC-010` (supersede), `TC-CUOC-014` (ratchet) | engine UT (test-first T6: lag, threshold, ratchet, missing-prev) | `backend/src/services/freight-pricing-engine.service.ts` — service COVERED; wiring tại shipment-create = pending T1 | PARTIAL (service COVERED, wiring BLOCKED-pending T1) |
+| 4 | Snapshot no-retro: row cũ immutable khi transport_date đổi hoặc kỳ giá mới mở (PhuongAn §2.3 bước 3, CuocPhi §5) | flows/12 `TC-CUOC-004` (kỳ mới), `TC-CUOC-010` (date change), `TC-CUOC-016` (immutability qua config) | engine UT + IT | `freight_rate_snapshots` table + supersedes_id col (c959e7bb) | PARTIAL (table COVERED, persist/snapshot wiring BLOCKED-pending T1) |
+| 5 | MANUAL fallback khi thiếu base price (15T) hoặc target date < first fuel period (PhuongAn §2.3, edge 3+8) | flows/12 `TC-CUOC-015` (15T), `TC-CUOC-025` (lag 404 → MANUAL) | engine UT (test-first T6: MANUAL 15T, fallback 15T) | `freight-pricing-engine.service.ts:116-129` (MANUAL branch exists) | PARTIAL (branch COVERED, T1 AC: soften 404 → MANUAL still pending) |
+| 6 | Debit-note override: PATCH ghi `final_debit_freight` + reason rule + audit (PhuongAn §2.4) | flows/12 `TC-CUOC-017` (override), `TC-CUOC-018` (reason rule), `TC-CUOC-019` (RBAC 403) | route UT (test-first T6: 422 reason, 403 ops) | `debit_note_overrides` table + columns (c959e7bb); PATCH endpoint = pending T1 | PARTIAL (table COVERED, endpoint BLOCKED-pending T1) |
+| 7 | Fuel-price entry: Kế toán / CUS nhập kỳ mới (PhuongAn §2.5) | flows/12 `TC-CUOC-020` (Kế toán), `TC-CUOC-021` (CUS), `TC-CUOC-022` (DRIVER 403), `TC-CUOC-023` (dup effective_from 409) | route UT (T6 Phase-2) | `fuel_price_periods` table (c959e7bb); POST endpoint = pending T2 | PARTIAL (table COVERED, endpoint BLOCKED-pending T2) |
+| 8 | Config RBAC: Kế toán + CUS write, role khác 403 (PhuongAn §2.5, CuocPhiThietKeDB §6) | flows/12 `TC-CUOC-020..022`; flows/07 RBAC matrix | route UT (T6 Phase-2) | `freight_rate_terms`, `fuel_consumption_norms` tables; CRUD routes = pending T2 | BLOCKED (RBAC matrix needs extension, T2) |
+| 9 | Config CRUD dup key (cust×route×date) ⇒ 409/422 | flows/12 `TC-CUOC-024` | route UT (T6 Phase-2) | unique index = pending T2 | BLOCKED (pending T2) |
+| 10 | Ad-hoc (lệnh chạy ngoài) **bypass** engine hoàn toàn (PhuongAn edge 6) | flows/01 `CUS-SHIP-10..16` (MasterData §4.5) | existing flows/01 cases | existing ad-hoc flow (không gọi `resolveFreightRate`) | COVERED (từ wave trước) |
+| 11 | Manual per-component rounding HALF_UP (`J`, `H` riêng rồi cộng `K`) (CuocPhi §4.2) | flows/12 `TC-CUOC-007` | `round.test.ts`, `fuelSurcharge.test.ts` | `shared/src/calculations/round.ts`, `fuelSurcharge.ts:113,118` | COVERED (UT parity 48/48) |
+| 12 | `base_fuel_price` scale 4: CONT20 NEWEB không lệch 1 đồng (CuocPhi §3.2) | flows/12 `TC-CUOC-008` | UT parity | `freight_rate_terms.base_fuel_price` numeric(12,4) | COVERED (UT 48/48) |
+| 13 | Open items tracked (Câu 5, lag ASKEY/SUNRISE+SJ, 15T prices ×3, threshold X/Z) — chờ KH | tracker ticket `e3873fbc` | — | PhuongAn §4 + CuocPhiThietKeDB §6.2 (Còn mở) | DOCS (chờ KH reply, không block code) |
+| 14 | Wave AC: 9 ticket board state + new docx fully traced + suites green + qa/ evidence | — | — | run `run-1788968588650-mctezn` board + this matrix | WAVE (close-out pending all 9 tickets done) |
+
+### 7.1. Findings — Phase-1 pass (2026-09-10)
+
+- **F10 — engine + schema COVERED, runtime BLOCKED-pending-T1/T2.** Service file tồn tại
+  với đầy đủ nhánh (AUTO/MANUAL, threshold pct/abs, ratchet, lag); tables đã merge
+  (`c959e7bb`). Nhưng **chưa có caller ngoài service** nào — `resolveFreightRate` và
+  `persistFreightRateSnapshot` chưa được gọi từ shipment-create / dispatch path. Phải
+  đợi T1 wire xong mới chuyển từ PARTIAL sang COVERED.
+- **F11 — T1 AC: soften engine 404 thành MANUAL fallback.** Hiện engine throw 404 khi
+  target date < first fuel period (`freight-pricing-engine.service.ts:160-165`). Theo
+  PM spec, T1 phải wrap try/catch → trả `source = 'MANUAL'` thay vì throw — đây là AC
+  bắt buộc (TC-CUOC-025). Nếu T1 không soften, T6 sẽ red ngay.
+- **F12 — single-step ratchet.** Engine so với 1 kỳ liền trước (single-step, không
+  recursive). Docx mơ hồ về recursive. Không chặn wave này nhưng flag cho KH: nếu KH
+  yêu cầu recursive, đó là design change cần reopen. (PM risk #2)
+- **F13 — config RBAC matrix chưa có.** `flows/07-rbac-phan-quyen.md` không có dòng
+  nào cho config cước (`fuel_price_periods`, `freight_rate_terms`). Cần bổ sung khi
+  T2 land — xem `PhuongAnTinhCuocTuDong.md` §2.5 RBAC kỳ giá dầu.
+
+### 7.2. Phase-2 checklist cho wave này
+
+1. T1 land ⇒ re-run `flows/12` (đặc biệt TC-CUOC-009/010/014/015/016/025) trên
+   integrated tree, capture evidence tại `qa/evidence/2026-09-10_phase2-pricing/`.
+2. T2 land ⇒ chạy `TC-CUOC-013/020..024` (config CRUD + RBAC + dup).
+3. T3 land ⇒ chạy fuel-price entry UI + admin rate-terms UI (`flows/12 §2.5`).
+4. T4 land ⇒ chạy shipment freight preview + debit-note override UI.
+5. T6 land ⇒ unit test suite green (clamp, rounding, lag, threshold pct/abs, ratchet,
+   MANUAL, snapshot immutability) + integration green (CUS create, supersede, dup keys,
+   RBAC negatives).
+6. Sau khi mọi row trên PARTIAL/BLOCKED → COVERED, sync matrix + đóng wave trên board.
+
+---
+
+## 8. Summary
+
+| PRD | Reqs | COVERED | PARTIAL | BLOCKED | UNCOVERED |
+|---|---|---|---|---|---|
+| ManHinhLaiXe | 13 | 13 | 0 | 0 | 0 |
+| MasterDataNhaMay | 14 | 11 | 3 | 0 | 0 |
+| LoHangKepKetHop | 12 | 12 | 0 | 0 | 0 |
+| OpsVanHanh | 17 | 17 | 0 | 0 | 0 |
+| `PhuongAnTinhCuocTuDong` *(2026-09-10, wave `run-1788968588650-mctezn`)* | 14 | 3 | 6 | 4 | 0 |
+| **Total** | **70** | **56** | **9** | **4** | **0** |
+
+**PARTIAL còn lại của wave cũ (3, đều chờ quyết định user / evidence-only):**
 1. MDN-7 (inactive factory — evidence-only per lane-2 routing)
 2. MDN-11b (nhãn "Chạy ngoài" F5 — PRD-only DEFERRED chờ user duyệt; browser FAIL-vs-PRD đã chụp)
 3. MDN-13 (snapshot F6 — OPEN DESIGN chờ user duyệt, không migration)
+
+**Wave auto-pricing (2026-09-10):**
+- **4 COVERED** (UT engine parity đã có sẵn): row 1 (công thức cốt lõi), 10 (ad-hoc bypass), 11 (rounding HALF_UP), 12 (base_fuel_price scale 4).
+- **6 PARTIAL** (schema/service có, runtime wiring pending): rows 2, 3, 4, 5, 6, 7 — chờ T1 (wiring) + T2 (config CRUD).
+- **2 BLOCKED** (chưa có code): rows 8 (config RBAC), 9 (CRUD dup keys) — chờ T2.
+- **2 tracker rows**: 13 (open items, chờ KH reply), 14 (wave AC close-out).
+- **Findings mới:** F10 (engine runtime wiring pending), F11 (T1 AC: soften 404 → MANUAL), F12 (single-step ratchet — design note), F13 (config RBAC matrix cần extend). Chi tiết §7.1.
+
+**Open items chờ KH/user** (tracker `e3873fbc`, không block code): Câu 5, lag ASKEY/SUNRISE+SJ, giá gốc 15T ×3 tuyến, threshold X/Z — xem [`PhuongAnTinhCuocTuDong.md`](../../docs/prd/PhuongAnTinhCuocTuDong.md) §4 và [`CuocPhiThietKeDB.md`](../../docs/prd/CuocPhiThietKeDB.md) §6.2.
 
 **Phase-2 evidence:** `testplan/qa/evidence/2026-09-09_phase2-docx-trilogy/` (RUN-SUMMARY.md, driver.log,
 PNG + DB dumps: ad-hoc L1/L2/L3, guardrail, pair #571, OPS expense lifecycle + audit, suite logs).
