@@ -88,6 +88,25 @@ export async function backfillSupplierCarrierLinks(): Promise<BackfillResult> {
     }
   }
 
+  if (!DRY_RUN && result.ensured > 0) {
+    try {
+      await cacheInvalidate('catalogs:bootstrap');
+    } catch {
+      // Redis unreachable — the ≤60s TTL still refreshes the popover.
+    }
+  }
+
+  if (!DRY_RUN) {
+    // The backfill changes the carrier set — bust the cached bootstrap blob
+    // so both "Chọn nhà xe" surfaces see it immediately (fault-tolerant; the
+    // ≤60s TTL refreshes anyway).
+    try {
+      await cacheInvalidate('catalogs:bootstrap');
+    } catch {
+      // Redis unreachable — the ≤60s TTL still refreshes the popover.
+    }
+  }
+
   return result;
 }
 
@@ -100,13 +119,6 @@ async function main() {
   console.log(`Ensured:       ${result.ensured}`);
   console.log(`Already valid: ${result.skippedValid}`);
   console.log(`Errors:        ${result.errors}`);
-  if (!DRY_RUN) {
-    try {
-      await cacheInvalidate('catalogs:bootstrap');
-    } catch {
-      // Redis unreachable — the ≤60s TTL still refreshes the popover.
-    }
-  }
   if (DRY_RUN) {
     console.log('\nThis was a DRY RUN. No changes were written to the database.');
   }

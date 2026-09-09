@@ -3,14 +3,17 @@ import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { after, before, describe, it } from 'node:test';
 import express from 'express';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { Role } from '@tingting/shared';
 import { db } from '../db';
 import * as s from '../db/schema';
-import { disconnectRedis } from '../lib/redis';
 import { globalErrorHandler } from '../middleware/errorHandler';
 import configRouter, { catalogBootstrapRouter } from '../routes/config';
 import { getBootstrapData } from '../services/config.service';
+import { backfillSupplierCarrierLinks } from '../scripts/backfill-supplier-carriers';
+import { listDispatchFleet } from '../services/dispatch-planning-queries.service';
+import type { AuthUser } from '../middleware/auth';
+import { cacheInvalidate } from '../lib/redis';
 
 /**
  * 2026-09-09 customer report (Bug A follow-up): a nhà thầu created on the
@@ -86,9 +89,13 @@ after(async () => {
     await db.delete(s.customers).where(eq(s.customers.id, customerId));
   }
   await db.delete(s.users).where(eq(s.users.id, actorId));
+  // Force-exit. node:test has already recorded every assertion by this
+  // point. Graceful shutdown blocks on this Node 25 / postgres-js
+  // combination (see shipment-routes.test.ts for the incident note); the
+  // express server is closed first so the port is released.
   server?.closeAllConnections?.();
   server?.close();
-  await disconnectRedis();
+  process.exit(0);
 });
 
 describe('supplier → carrier customer link (Chọn nhà xe visibility)', () => {
@@ -175,5 +182,116 @@ describe('supplier → carrier customer link (Chọn nhà xe visibility)', () =>
     const bootstrap = await getBootstrapData();
     const names = (bootstrap.externalCarriers ?? []).map((carrier) => carrier.name);
     assert.ok(!names.includes(name), 'deactivated supplier must vanish from external carriers');
+  });
+});
+
+describe('supplier carrier backfill (one-shot, idempotent)', () => {
+  it('links pre-existing unlinked/dangling suppliers and is a no-op on re-run', async () => {
+    // Pre-fix state 1: an ACTIVE supplier created before the hook fix — no
+    // linked customer at all (the reported bug).
+    const [unlinked] = await db.insert(s.suppliers).values({
+      name: `NCC Backfill unlinked ${suffix}`,
+      status: 'ACTIVE',
+    }).returning({ id: s.suppliers.id, name: s.suppliers.name });
+    createdSupplierIds.push(unlinked!.id);
+
+    // Pre-fix state 2: dangling link — the linked customer was soft-deleted.
+    const [gone] = await db.insert(s.customers).values({
+      name: `NCC Backfill deleted-link ${suffix}`,
+      status: 'ACTIVE',
+      deletedAt: new Date(),
+    }).returning({ id: s.customers.id });
+    createdCustomerIds.push(gone!.id);
+    const [dangling] = await db.insert(s.suppliers).values({
+      name: `NCC Backfill dangling ${suffix}`,
+      status: 'ACTIVE',
+      linkedCustomerId: gone!.id,
+    }).returning({ id: s.suppliers.id, name: s.suppliers.name });
+    createdSupplierIds.push(dangling!.id);
+
+    // Pre-fix state 3: the supplier's legal entity already exists as a live
+    // customer under the same tax code, under a different name — the ensure
+    // logic must adopt that row instead of minting a duplicate (the mint
+    // would trip customers_active_tax_code_uniq_idx).
+    const taxCode = `03${String(Date.now()).slice(-8)}`;
+    const [taxHolder] = await db.insert(s.customers).values({
+      name: `NCC Backfill taxholder ${suffix}`,
+      status: 'ACTIVE',
+      taxCode,
+    }).returning({ id: s.customers.id, name: s.customers.name });
+    createdCustomerIds.push(taxHolder!.id);
+    const [taxSupplier] = await db.insert(s.suppliers).values({
+      name: `NCC Backfill taxcode ${suffix}`,
+      status: 'ACTIVE',
+      taxCode,
+    }).returning({ id: s.suppliers.id, name: s.suppliers.name });
+    createdSupplierIds.push(taxSupplier!.id);
+
+    const first = await backfillSupplierCarrierLinks();
+    assert.ok(first.checked >= 3, `expected the three fixtures scanned; got ${first.checked}`);
+    assert.ok(first.ensured >= 3, `expected all three fixtures ensured; got ${first.ensured}`);
+
+    // After run 1: every fixture resolves to a live ACTIVE isCarrier customer
+    // — the exact row both "Chọn nhà xe" dropdown sources read.
+    for (const fixture of [unlinked, dangling, taxSupplier]) {
+      const [after] = await db.select({ linkedCustomerId: s.suppliers.linkedCustomerId })
+        .from(s.suppliers).where(eq(s.suppliers.id, fixture!.id));
+      assert.ok(after?.linkedCustomerId, `supplier ${fixture!.name} must end with a carrier link`);
+      const [carrier] = await db.select().from(s.customers).where(eq(s.customers.id, after.linkedCustomerId!));
+      assert.ok(carrier, `linked customer for ${fixture!.name} must exist`);
+      assert.equal(carrier.isCarrier, true, `linked customer for ${fixture!.name} must be a carrier`);
+      assert.equal(carrier.status, 'ACTIVE');
+      assert.ok(!carrier.deletedAt, `linked customer for ${fixture!.name} must be live`);
+      // Track the ensured rows for cleanup.
+      createdCustomerIds.push(carrier.id);
+    }
+
+    // AC5 — visible in BOTH dropdown sources with no user action.
+    // unlinked and dangling mint a customer with the supplier's name;
+    // taxSupplier adopts taxHolder, which preserves taxHolder's business-owned name.
+    const expectedCarriers = [
+      { fixture: unlinked, expectedName: unlinked!.name },
+      { fixture: dangling, expectedName: dangling!.name },
+      { fixture: taxSupplier, expectedName: taxHolder!.name },
+    ];
+
+    // The backfill function (unlike main()) leaves the cache bust to its
+    // caller — invalidate the bootstrap snapshot exactly the way the
+    // deployer's script run does before reading it.
+    await cacheInvalidate('catalogs:bootstrap');
+    const bootstrap = await getBootstrapData();
+    const bootstrapNames = (bootstrap.externalCarriers ?? []).map((carrier) => carrier.name);
+    for (const { expectedName } of expectedCarriers) {
+      assert.ok(
+        bootstrapNames.includes(expectedName),
+        `bootstrap.externalCarriers must list ${expectedName}; got: ${bootstrapNames.slice(0, 8).join(', ')}`,
+      );
+    }
+    const fleet = await listDispatchFleet({
+      actor: { userId: actorId, username: `backfill-${suffix}`, email: null, fullName: null, role: Role.ADMIN } satisfies AuthUser,
+      resource: 'EXTERNAL_CARRIER',
+    });
+    // listDispatchFleet's result is a per-resource union; this call pins
+    // EXTERNAL_CARRIER, whose items all carry `name`.
+    const fleetNames = (fleet.items as Array<{ name: string }>).map((item) => item.name);
+    for (const { expectedName } of expectedCarriers) {
+      assert.ok(fleetNames.includes(expectedName), `dispatch-fleet EXTERNAL_CARRIER must list ${expectedName}`);
+    }
+
+    // Second run must be a no-op: zero targets repaired, and the supplier
+    // rows are untouched (updatedAt would churn on any write).
+    const beforeRerun = await db.select({
+      id: s.suppliers.id,
+      linkedCustomerId: s.suppliers.linkedCustomerId,
+      updatedAt: s.suppliers.updatedAt,
+    }).from(s.suppliers).where(inArray(s.suppliers.id, [unlinked!.id, dangling!.id, taxSupplier!.id]));
+    const second = await backfillSupplierCarrierLinks();
+    assert.equal(second.ensured, 0, 'second run must repair nothing (idempotent)');
+    const afterRerun = await db.select({
+      id: s.suppliers.id,
+      linkedCustomerId: s.suppliers.linkedCustomerId,
+      updatedAt: s.suppliers.updatedAt,
+    }).from(s.suppliers).where(inArray(s.suppliers.id, [unlinked!.id, dangling!.id, taxSupplier!.id]));
+    assert.deepEqual(afterRerun, beforeRerun, 'second run must not touch the linked rows');
   });
 });
