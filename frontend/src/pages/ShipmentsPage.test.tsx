@@ -308,11 +308,11 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
 
     fireEvent.change(input, { target: { value: 'A12' } });
     fireEvent.click(screen.getByRole('button', { name: 'Tìm kiếm' }));
-    expect(screen.getByRole('alert').textContent).toContain('Nhập số Bill/Book hoặc tờ khai đầy đủ');
+    expect(screen.getByRole('alert').textContent).toContain('Nhập số Bill/Book, container hoặc tờ khai đầy đủ');
 
     fireEvent.change(input, { target: { value: 'AB$1' } });
     fireEvent.click(screen.getByRole('button', { name: 'Tìm kiếm' }));
-    expect(screen.getByRole('alert').textContent).toContain('Nhập số Bill/Book hoặc tờ khai đầy đủ');
+    expect(screen.getByRole('alert').textContent).toContain('Nhập số Bill/Book, container hoặc tờ khai đầy đủ');
 
     fireEvent.change(input, { target: { value: 'aB12C' } });
     fireEvent.click(screen.getByRole('button', { name: 'Tìm kiếm' }));
