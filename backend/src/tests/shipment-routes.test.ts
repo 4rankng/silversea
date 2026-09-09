@@ -1999,6 +1999,19 @@ describe('POST /cus-workspace/:id/containers/:containerId', () => {
     assert.equal(carrierCount.length, 1);
     assert.equal(vehicleCount.length, 1);
     createdCustomerIds.push(first.data.line.externalCarrierId);
+
+    // 2026-09-09 customer report: a carrier created inline showed in the
+    // lists but never in the "Chọn nhà xe" dropdowns fed by the cached
+    // /catalogs/bootstrap blob (60s TTL). The inline create now busts that
+    // cache, so the very next bootstrap read must include the new carrier.
+    const { getBootstrapData } = await import('../services/config.service');
+    const bootstrap = await getBootstrapData();
+    const bootstrapNames = (bootstrap.externalCarriers ?? []).map((carrier: { name: string }) => carrier.name);
+    assert.equal(
+      bootstrapNames.some((name: string) => name === carrierName),
+      true,
+      `bootstrap externalCarriers must include the inline-created carrier; got: ${bootstrapNames.slice(0, 10).join(', ')}`,
+    );
   });
 
   test('CUS reuses an existing active external carrier vehicle without mutating it', async () => {
