@@ -57,17 +57,32 @@ export function formatDate(d: string | null): string {
 }
 
 /**
- * Compact date-time for table cells: short date + short time, e.g. "19/8/26, 22:51".
- * Pinned to Vietnam wall-clock (Asia/Ho_Chi_Minh) on ANY host — same contract as
- * formatDateTimeVN (the 'vi-VN' locale alone shapes text, it does NOT set the
- * timezone, so unpinned toLocaleString renders browser-local). Invalid input
- * renders as "—" (the raw string is never echoed back).
+ * Compact date-time for table cells, TIME FIRST on a 24h clock:
+ * "HH:mm d/M/yy" e.g. "17:30 19/8/26" (combined date+time display contract,
+ * frontend/docs/design-system.md). Pinned to Vietnam wall-clock
+ * (Asia/Ho_Chi_Minh) on ANY host, and built from formatToParts so the
+ * time-first order is explicit — toLocaleString order varies by engine
+ * (Node renders vi-VN time-first; Chrome renders date-first), which a hard
+ * format requirement cannot depend on. Invalid input renders as "—" (the raw
+ * string is never echoed back).
  */
 export function formatDateTimeShort(value: string | null | undefined): string {
   if (!value) return '—';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '—';
-  return date.toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Asia/Ho_Chi_Minh' });
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    day: 'numeric',
+    month: 'numeric',
+    year: '2-digit',
+  }).formatToParts(date);
+  const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? '';
+  // Number() strips the engine's leading zeros ("08" → 8) so the compact
+  // d/M/yy shape is deterministic across Node and browsers.
+  return `${get('hour')}:${get('minute')} ${Number(get('day'))}/${Number(get('month'))}/${get('year')}`;
 }
 
 /**

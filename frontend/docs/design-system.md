@@ -147,7 +147,12 @@ produces 12h clocks on en-US browsers (2026-09-09 customer report).
   `HH:mm DD/MM/YYYY`). The app renders the string, so the format is
   guaranteed in every browser. The stored value stays the ISO local shape
   `YYYY-MM-DDTHH:mm`.
-- Display cells: format through a single helper (`formatDateTime24` in
-  `useBufferedDateTimeValue`) so text, tables, and inputs agree.
+- Display cells: format through the lib helpers so text, tables, and inputs
+  agree — `formatDateTime24` (full `HH:mm DD/MM/YYYY`, in
+  `frontend/src/lib/format.ts`) for local-ISO values, and
+  `formatDateTimeShort` (compact `HH:mm d/M/yy`, Vietnam-pinned, same file)
+  for timestamps. Never call `toLocaleString`/`Intl` inline for a combined
+  date-time: field order is engine-dependent (Node renders vi-VN time-first,
+  Chrome date-first), which a hard format requirement cannot depend on.
 
 This contract is pinned by `useBufferedDateTimeValue.test.tsx`.

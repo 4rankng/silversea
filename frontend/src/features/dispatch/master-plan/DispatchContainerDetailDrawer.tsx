@@ -3,20 +3,9 @@ import { Loader2 } from 'lucide-react';
 import type { ShipmentCusWorkspaceDetail } from '@tingting/shared';
 import { getCusShipmentWorkspaceDetail, type ShipmentListItem } from '../../../api/shipmentClient';
 import { dispatchStatusLabel } from '../../shipments/cus/cusUtils';
+import { formatDateTimeShort } from '../../../lib/format';
 import { Drawer } from '../../../components/UI';
 import './DispatchContainerDetailDrawer.css';
-
-function formatContainerAppointment(value: string | null): string {
-  if (!value) return '—';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '—';
-  return new Intl.DateTimeFormat('vi-VN', {
-    timeZone: 'Asia/Ho_Chi_Minh',
-    dateStyle: 'short',
-    timeStyle: 'short',
-    hour12: false,
-  }).format(date);
-}
 
 function ContainerDetailTable({ detail }: { detail: ShipmentCusWorkspaceDetail }) {
   if (detail.containers.length === 0) {
@@ -57,7 +46,7 @@ function ContainerDetailTable({ detail }: { detail: ShipmentCusWorkspaceDetail }
               <td data-label="Biển số">{line.plateNumber || '—'}</td>
               <td data-label="Nâng">{line.liftSite || '—'}</td>
               <td data-label="Hạ">{line.dropoffSite || '—'}</td>
-              <td data-label="Giờ hẹn đóng/trả">{formatContainerAppointment(line.customerAppointmentAt)}</td>
+              <td data-label="Giờ hẹn đóng/trả">{formatDateTimeShort(line.customerAppointmentAt)}</td>
             </tr>
           ))}
         </tbody>

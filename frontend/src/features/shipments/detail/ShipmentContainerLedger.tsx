@@ -697,7 +697,7 @@ export function ShipmentContainerLedger({
                   <td data-label="Lịch trình" className={cellClassName(row.customerAppointmentEditable, 'schedule')}>
                     {editableCell(row, 'schedule', row.customerAppointmentEditable, <div className="shipment-container-ledger__multiline shipment-container-ledger__schedule">
                       {missingDate && <Badge size="sm" color="warning" className="shipment-container-ledger__schedule-gap"><CalendarOff aria-hidden="true" />Thiếu ngày vận chuyển</Badge>}
-                      <strong>{appointmentInput ? formatDate(appointmentInput.slice(0, 10)) : 'Chưa có lịch hẹn'}</strong><span>{appointmentInput ? `${scheduleTime ? `${scheduleTime} · ` : ''}${row.direction === 'IMPORT' ? 'trả hàng' : 'đóng hàng'}` : 'Cập nhật theo từng container'}</span></div>)}
+                      <strong>{appointmentInput ? (scheduleTime || formatDate(appointmentInput.slice(0, 10))) : 'Chưa có lịch hẹn'}</strong><span>{appointmentInput ? `${scheduleTime ? `${formatDate(appointmentInput.slice(0, 10))} · ` : ''}${row.direction === 'IMPORT' ? 'trả hàng' : 'đóng hàng'}` : 'Cập nhật theo từng container'}</span></div>)}
                   </td>
                   <td data-label="Phân xe" className={cellClassName(vehicleEditable, 'vehicle', missingVehicleToday ? 'shipment-container-ledger__vehicle-pending' : undefined)}>
                     {editableCell(row, 'vehicle', vehicleEditable, <div className="shipment-container-ledger__multiline shipment-container-ledger__vehicle">

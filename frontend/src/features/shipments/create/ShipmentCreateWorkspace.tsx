@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, Plus, Trash2 } from 'lucide-react';
 import { EmptyState } from '../../../design-system';
+import { formatDateTime24 } from '../../../lib/format';
 import {
   USearchableField as SearchableField,
   USelectField as SelectField,
@@ -63,10 +64,7 @@ function formatContainerWeight(value: string) {
 
 // Time-first 24h per the combined date+time contract (docs/design-system.md).
 function formatContainerAppointment(value: string) {
-  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(value);
-  if (!match) return value;
-  const [, year, month, day, hour, minute] = match;
-  return `${hour}:${minute} ${day}/${month}/${year}`;
+  return formatDateTime24(value) || value;
 }
 
 export function ShipmentCreateWorkspace() {
