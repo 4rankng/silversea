@@ -671,6 +671,17 @@
     grid-column: 1 / -1;
     width: 100%;
     min-width: 0;
+    height: auto;
+    min-height: 48px;
+  }
+
+  .detailed-plan-filters__date-shortcut {
+    /* Matches the 44px touch standard on phones; the base 30px !important
+       track sizing is for the desktop 34px pill row and needs the stronger
+       override here. */
+    min-height: 44px !important;
+    padding-top: 2px !important;
+    padding-bottom: 2px !important;
   }
 
   .detailed-plan-filters__toolbar-actions { width: 100%; justify-content: space-between; }
