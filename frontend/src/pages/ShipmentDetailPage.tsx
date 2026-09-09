@@ -21,6 +21,8 @@ import {
   type ShipmentCarrierAllocationGroup,
 } from '../api/shipmentClient';
 import { ShipmentCoordinationPanel } from '../components/shipment/ShipmentCoordinationPanel';
+import { DebitNoteFreightOverride } from '../components/billing/DebitNoteFreightOverride';
+import { useDebitNoteOverride, useSaveDebitNoteOverride } from '../hooks/usePricingQueries';
 import { TripPodReviewPanel } from '../components/shipment/TripPodReviewPanel';
 import { CarrierAllocationSummary } from '../components/shipment/CarrierAllocationSummary';
 import './WorkflowFinance.css';
@@ -95,6 +97,17 @@ export default function ShipmentDetailPage() {
   const [data, setData] = useState<ShipmentDetailData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Debit-note freight override (docx §4) — the financial trio negotiates the
+  // final debit value on the latest frozen snapshot. GET override 404 (none
+  // yet) reads as null, never an error state.
+  const latestFreightSnapshot = data?.freightRate?.latest ?? null;
+  const canOverrideFreight = user?.role === Role.ADMIN
+    || user?.role === Role.MANAGER
+    || user?.role === Role.ACCOUNTANT;
+  const overrideSnapshotId = canOverrideFreight && latestFreightSnapshot ? latestFreightSnapshot.id : null;
+  const [overrideError, setOverrideError] = useState(false);
+  const overrideQuery = useDebitNoteOverride(overrideSnapshotId);
+  const saveOverride = useSaveDebitNoteOverride(overrideSnapshotId);
 
   // Stale-response guard: when navigating from /shipments/1 to /shipments/2
   // while the first request is in flight, the first response must NOT
@@ -266,6 +279,30 @@ export default function ShipmentDetailPage() {
 
         {coordinationActive && (
           <ShipmentCoordinationPanel shipmentId={shipment.id} canWrite={canWriteCoordination} />
+        )}
+
+        {canOverrideFreight && latestFreightSnapshot && !overrideQuery.isPending && (
+          <section className="shipment-detail__card" aria-label="Điều chỉnh giá cước báo nợ">
+            <h3 className="shipment-detail__section-title">
+              <FileCheck2 size={16} aria-hidden="true" /> Giá cước — điều chỉnh báo nợ
+            </h3>
+            <DebitNoteFreightOverride
+              systemFreight={latestFreightSnapshot.totalAmount}
+              initialFinal={overrideQuery.data?.finalDebitFreight ?? null}
+              initialReason={overrideQuery.data?.overrideReason ?? null}
+              saving={saveOverride.isPending}
+              onSave={(payload) => {
+                setOverrideError(false);
+                saveOverride.mutate(payload, {
+                  onSuccess: () => void fetchDetail(),
+                  onError: () => setOverrideError(true),
+                });
+              }}
+            />
+            {overrideError && (
+              <p className="shipment-detail__empty" role="alert">Không lưu được điều chỉnh. Vui lòng thử lại.</p>
+            )}
+          </section>
         )}
 
         {/* Containers */}

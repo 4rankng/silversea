@@ -30,7 +30,13 @@ const NEW_FILE_MAX_LOC = 400;
 
 const FROZEN_MAX_LOC: Record<string, number> = {
   'src/design-system/forms/SearchableSelect.tsx': 481,
-  'src/api/driverClient.ts': 656,
+  // Bumped 656 → 657: 2026-09-10 T7 ad-hoc label — DriverJourneyCard gains
+  // the isAdHoc flag (backend 428d705b) for the "Chạy ngoài" card tag.
+  'src/api/driverClient.ts': 657,
+  // Added as baseline 432 (was new-file capped): 2026-09-10 T4 — the page
+  // mounts DebitNoteFreightOverride (financial trio) reading the detail's
+  // freightRate.latest snapshot view.
+  'src/pages/ShipmentDetailPage.tsx': 432,
   'src/api/keys.ts': 562,
   // Added 2026-09-07: baseline 401 (was new-file capped) — the atomic plan
   // save now carries operationalNotes and the tag-pool client helpers
@@ -53,7 +59,9 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // Raised 1118 → 1119: pairKind tag source on the detail containers payload
   // (LoHangKepKetHop §3.2, 2026-09-09). Reviewed as a contract addition; a
   // future split should restore a smaller ceiling.
-  'src/api/shipmentClient.ts': 1119,
+  // Bumped 1119 → 1159: 2026-09-10 pricing engine — Shipment gains isAdHoc
+  // and ShipmentDetail gains the freightRate.latest snapshot view (T4/T7).
+  'src/api/shipmentClient.ts': 1159,
   'src/components/billing/BillingDocumentBuilder.tsx': 717,
   // Raised 843 → 856: the CUS + dispatcher sidebar catalog entries
   // (e69e67a7, effdf61f) shipped past the old ceiling. Reviewed as nav
@@ -129,7 +137,9 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // prop per affected SearchableField, plus the prop forwarding plumbing in
   // USearchableField). Reviewed as a contract change; a future split should
   // restore a smaller ceiling.
-  'src/features/shipments/create/ShipmentCreateWorkspace.tsx': 1080,
+  // Bumped 1080 → 1103: 2026-09-10 T4 — the live FreightPreviewCard mounts
+  // in the workspace (first container row drives the engine input).
+  'src/features/shipments/create/ShipmentCreateWorkspace.tsx': 1103,
   // Bumped to 411: 2026-09-07 customer feedback — the per-row "Xác nhận"
   // action column (inline save) so the user no longer has to press Enter
   // or hunt for the header "Hoàn tất" button after typing a container

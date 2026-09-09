@@ -8,6 +8,10 @@ const { getShipmentDetailMock } = vi.hoisted(() => ({
   getShipmentDetailMock: vi.fn(),
 }));
 
+vi.mock('../hooks/usePricingQueries', () => ({
+  useDebitNoteOverride: () => ({ data: null, isPending: true }),
+  useSaveDebitNoteOverride: () => ({ mutate: vi.fn(), isPending: false }),
+}));
 vi.mock('../api/shipmentClient', () => ({
   getShipmentDetail: getShipmentDetailMock,
 }));

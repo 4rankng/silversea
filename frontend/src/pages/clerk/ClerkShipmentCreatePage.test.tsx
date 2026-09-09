@@ -23,6 +23,9 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('../../api/tripClient', () => ({ tripClient: { getBootstrap: mocks.bootstrap } }));
+// The page's tests render the workspace without a QueryClientProvider; the
+// preview card's useQuery would throw — stub the component like the APIs above.
+vi.mock('../../features/shipments/create/FreightPreviewCard', () => ({ FreightPreviewCard: () => null }));
 vi.mock('../../api/configClient', () => ({
   configClient: {
     createRoute: mocks.createRoute,

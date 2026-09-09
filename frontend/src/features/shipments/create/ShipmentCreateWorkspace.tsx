@@ -35,6 +35,7 @@ import {
   type ShipmentCreateIssue,
 } from './shipment-create-model';
 import { ShipmentCreateSummary } from './ShipmentCreateSummary';
+import { FreightPreviewCard } from './FreightPreviewCard';
 import { ShipmentCreateSection, shipmentCreateGridStyle } from './ShipmentCreateSections';
 import { ShipmentContainerEditor } from './ShipmentContainerEditor';
 import { ShipmentContainerCell } from './ShipmentContainerCell';
@@ -193,6 +194,22 @@ export function ShipmentCreateWorkspace() {
     () => new Map(validationIssues.map((item) => [item.fieldId, item.message])),
     [validationIssues],
   );
+
+  // T4 live freight preview (docx §2-D): the first container row drives the
+  // engine input (the engine locks per container at dispatch); ad-hoc lots
+  // bypass the engine entirely. Size-class mapping mirrors
+  // containerTypeCodeToRateKey in freight-rate-snapshot-lifecycle.service.ts.
+  const previewRow = containers[0];
+  const previewTypeCode = (catalogs?.containerTypes ?? [])
+    .find((item) => String(item.id) === previewRow?.containerTypeId)?.code ?? null;
+  const previewNormalized = previewTypeCode ? previewTypeCode.trim().toUpperCase() : '';
+  const previewSizeClass = previewNormalized.startsWith('20') ? 'CONT20'
+    : (previewNormalized.startsWith('40') || previewNormalized.startsWith('45')) ? 'CONT40'
+    : null;
+  const previewRouteId = previewRow?.routeId || null;
+  const previewTransportDate = previewRow?.customerAppointmentAt
+    ? previewRow.customerAppointmentAt.slice(0, 10)
+    : '';
 
   // Per-field conflict via the shared duplicate-guard hook.
   const billConflict = getReferenceConflict('blNumber', form.blNumber);
@@ -995,6 +1012,13 @@ export function ShipmentCreateWorkspace() {
         </ShipmentCreateSection>
 
         </div>
+        <FreightPreviewCard
+          customerId={form.customerId ? Number(form.customerId) : undefined}
+          routeId={previewRouteId ? Number(previewRouteId) : undefined}
+          vehicleSizeClassCode={previewSizeClass ?? undefined}
+          transportDate={previewTransportDate || undefined}
+          isAdHoc={form.isAdHoc}
+        />
         <ShipmentCreateSummary
           validationIssues={validationIssues}
           saving={saving}
