@@ -76,6 +76,8 @@ describe('getNavItems', () => {
       ['Công nợ phải trả', '/payables'],
       ['Chi phí phát sinh', '/expenses'],
       ['Tạm ứng & Hoàn ứng', '/advances'],
+      ['Giá dầu DO theo kỳ', '/config/fuel-price-periods'],
+      ['Điều khoản cước theo tuyến', '/config/freight-rate-terms'],
       ['Báo cáo Lãi lỗ', '/finance'],
       ['Báo cáo Lợi nhuận', '/profit'],
       ['Duyệt vượt hạn mức', '/credit-overrides'],
@@ -103,6 +105,7 @@ describe('getNavItems', () => {
       ['Chi phí cần kiểm tra', '/recoverable-costs'],
       ['Khách hàng', '/config/customers'],
       ['Tuyến đường', '/config/routes'],
+      ['Giá dầu DO theo kỳ', '/config/fuel-price-periods'],
     ]],
     [Role.DISPATCHER, [
       ['Kế hoạch tổng quát', '/dispatch'],
@@ -172,6 +175,7 @@ describe('getNavItems', () => {
     // financeReader/officeStaff/shipmentReader-guarded paths survive.
     expect(items.map((item) => item.path)).toEqual([
       '/accounting', '/finance/treasury', '/debt', '/payables', '/expenses', '/advances',
+      '/config/fuel-price-periods', '/config/freight-rate-terms',
       '/finance', '/profit', '/credit-overrides', '/governance-actions', '/shipments', '/audit-logs',
     ]);
   });
@@ -269,7 +273,7 @@ describe('getNavItems', () => {
 
   it('shows CUS only the document-ops and catalog items without the recoverable-costs capability', () => {
     const items = getNavItems(Role.CUS);
-    expect(items.map(({ key }) => key)).toEqual(['shipments', 'shipment-containers', 'customers', 'config-routes']);
+    expect(items.map(({ key }) => key)).toEqual(['shipments', 'shipment-containers', 'customers', 'config-routes', 'config-fuel-price-periods']);
     expect(items[1]).toEqual(expect.objectContaining({ key: 'shipment-containers', path: '/shipments-detail' }));
   });
 
