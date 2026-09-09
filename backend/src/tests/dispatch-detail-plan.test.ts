@@ -744,9 +744,9 @@ describe('dispatch detail plan rows', () => {
     // staff-close feature existed (driver-app close, legacy data) still reads
     // "Đã hoàn thành" on the plan, while a sibling fulfillment without any
     // trip stays READY (the status is per-row, not per-lot).
-    const { shipment, fulfillmentIds, route } = await createAllocatedLot({ carrierType: 'OWN', containerCount: 2 });
+    const { shipment, fulfillmentIds, route, customer } = await createAllocatedLot({ carrierType: 'OWN', containerCount: 2 });
     const [completedTrip] = await db.insert(s.trips).values({
-      customerId: shipment.customerId,
+      customerId: customer.id,
       routeId: route.id,
       shipmentId: shipment.id,
       fulfillmentId: fulfillmentIds[0]!,
