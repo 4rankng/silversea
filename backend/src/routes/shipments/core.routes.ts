@@ -517,6 +517,20 @@ coreRoutes.post(
   '/quick',
   requireRoles(...SHIPMENT_INTAKE_MUTATION_ROLES),
   asyncHandler(async (req: Request, res: Response) => {
+    // `containers` is not part of the quick contract: the zod schema strips
+    // unknown keys, so a caller-supplied array would be silently dropped and
+    // the lot would land with zero containers (and therefore no engine rate
+    // lock — there is no container type to derive a rate key from). Reject
+    // non-empty arrays loudly and point at the reconcile endpoint instead
+    // (which fires the FCL intake lock). An explicit empty array carries no
+    // data and stays accepted.
+    const containersPayload = (req.body as Record<string, unknown> | null | undefined)?.containers;
+    if (Array.isArray(containersPayload) && containersPayload.length > 0) {
+      throw new ApiError(
+        400,
+        'Tạo nhanh không nhận kèm danh sách container — tạo lô rồi dùng PUT /api/shipments/{id}/containers để khai báo container.',
+      );
+    }
     const parsed = quickCreateShipmentSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
     // Header wins; fall back to body channel for the offline-queue lib.

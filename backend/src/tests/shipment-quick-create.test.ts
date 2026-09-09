@@ -444,6 +444,22 @@ describe('POST /api/shipments/quick — M10.1 slice 1 quick-create', () => {
     assert.equal(res.status, 400);
   });
 
+  test('containers[] in the quick payload is rejected, not silently stripped', async () => {
+    // The quick contract is container-less and zod strips unknown keys, so a
+    // caller-supplied containers array used to vanish with a 201 — the lot
+    // landed with zero containers and no engine rate lock (no container type
+    // to derive a rate key from). Reject loudly and point at the reconcile
+    // endpoint, which does fire the FCL intake lock.
+    const res = await quickFetch('/quick', {
+      method: 'POST',
+      token: clerkToken,
+      idempotencyKey: `qc-containers-${suffix}`,
+      body: clerkQuickBody({ containers: [{ containerNumber: `BAD${suffix.slice(-7)}` }] }),
+    });
+    assert.equal(res.status, 400, JSON.stringify(res.data));
+    assert.match(String(res.data.error ?? ''), /containers/);
+  });
+
   test('pool-sized unique keyed quick-create requests all complete without nested-connection starvation', async () => {
     const results = await Promise.race([
       Promise.all(Array.from({ length: 11 }, (_value, index) => quickFetch('/quick', {
