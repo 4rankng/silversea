@@ -26,6 +26,20 @@ từ khách hàng) ở đầu trang.
 
 ## Thay đổi có hiệu lực gần nhất
 
+**2026-09-09 — Đối chiếu trọn bộ 3 docx (trilogy reconciliation).** Toàn bộ yêu cầu
+của `Man_hinh_lai_xe` / `Logic_nghiep_vu` / `Man_hinh_ops` đã được đối chiếu code,
+đóng gap, và neo test: ma trận 55 dòng
+[`testplan/matrix/2026-09-09-docx-trilogy.md`](../../testplan/matrix/2026-09-09-docx-trilogy.md).
+Gap đã đóng: nhãn `Giờ đóng / trả:` + CTA ≥48px trên thẻ app lái xe (`7a098f28`),
+tag `[KẸP]/[KẾT HỢP]` trên chi tiết lô CUS (`90a17e65`), micro-ledger gom cùng mã lô
+nhiều người chi trên tab kế toán (`cda12f57`), **duyệt 2 đường cho khoản thiếu ảnh**
+(ảnh hợp lệ HOẶC kiểm chứng giấy tận tay `inPersonCheck=true` + ghi chú bắt buộc, ghi
+audit log — `723c7fd2`). Deviation đã ghi nhận: đẩy lệnh cho lái xe = poll 15s (không
+FCM push); in hoá đơn = modal + `@media print` (không có route in riêng); PDF = browser
+print-to-PDF (server-side PDF hoãn). **Chờ quyết định USER:** nhãn `Chạy ngoài` trên
+danh sách lô (PRD-only, hoãn) và snapshot chữ ký nhà máy tại lúc phát lệnh (open design,
+cần migration) — xem [`MasterDataNhaMay.md`](MasterDataNhaMay.md) §2 và §4.
+
 **2026-09-08 — Cước cơ bản + phụ phí dầu (KH Long Minh).** Nguồn chân lý là file
 `18.7 - BG Long Minh T7.xlsx`. Công thức: `cước = giá gốc × (1 + % chia sẻ) + (giá dầu
 kỳ − giá dầu mốc) × lít định mức khứ hồi`. **Làm tròn đến từng đồng.**
@@ -40,9 +54,9 @@ gốc, sai số 0 đồng.
 
 **2026-09-07 — Chốt: đơn vị thẻ app lái xe = 1 CONTAINER.** Quyết định sản phẩm: **docx
 là chuẩn**. Thẻ Lớp 1 = 1 container / thẻ (không phải 1 chuyến / thẻ), tab con
-`Lệnh mới` / `Đã nhận` / `Lịch sử`, không badge trạng thái trên thẻ.
-`DriverTripsPage.tsx` hiện vẫn theo mô hình cũ ⇒ **cần migrate**; đây là việc tồn, không
-phải đặc tả thay thế. Chi tiết: [`ManHinhLaiXe.md`](ManHinhLaiXe.md) §2.1.
+`Lệnh mới` / `Đã nhận` / `Lịch sử`, không badge trạng thái trên thẻ. Migration board
+theo mô hình container-card **đã land** (09-07, hoàn tất gap 09-09) — thẻ ghép Kẹp/
+Kết hợp dính liền + khóa nối tiếp KẾT HỢP. Chi tiết: [`ManHinhLaiXe.md`](ManHinhLaiXe.md) §2.1.
 
 **2026-09-07 — Lệnh chạy ngoài (ad-hoc orders).** Bổ sung phần còn thiếu của
 `Logic_nghiep_vu.docx` Phần 1: **lưu trữ hỗn hợp** (chọn danh mục ⇒ lưu ID; gõ text tự
@@ -62,7 +76,7 @@ danh sách acceptance criteria bị ảnh hưởng: [`LoHangKepKetHop.md`](LoHan
 | PRD | Test plan tương ứng |
 |-----|---------------------|
 | `MasterDataNhaMay.md` §1–§3 (luồng chuẩn) | `testplan/flows/01-cus-create-shipment.md` §1.10 (`TC-CUS-CREATE-021`…`-024`) |
-| `MasterDataNhaMay.md` §2.1, §4 (lệnh chạy ngoài) | `testplan/flows/01-cus-create-shipment.md` §1.11 (`TC-CUS-CREATE-026`…`-037`), `testplan/roles/01-cus.md` `CUS-SHIP-09`…`-15` |
+| `MasterDataNhaMay.md` §2.1, §4 (lệnh chạy ngoài) | `testplan/flows/09-kep-kethop-ghep-chuyen.md` §9.5 (`TC-ADHOC-001`…`-004`), `testplan/roles/01-cus.md` `CUS-SHIP-10`…`-16` |
 | `LoHangKepKetHop.md` | `testplan/flows/09-kep-kethop-ghep-chuyen.md`, `testplan/roles/02-dieuvan.md` |
 | `OpsVanHanh.md` | `testplan/flows/05-ops-quy-chi-phi.md`, `testplan/roles/06-vanhanh.md` Flow 7–9 |
 | `ManHinhLaiXe.md` §1–§3 (điều hướng, thẻ 2 lớp) | `testplan/flows/03-laixe-nhan-lenh.md` §3.7 (`TC-LX-NHANLENH-014`…`-020`) |
@@ -70,3 +84,4 @@ danh sách acceptance criteria bị ảnh hưởng: [`LoHangKepKetHop.md`](LoHan
 | `ManHinhLaiXe.md` (tổng thể) | `testplan/roles/03-laixe.md` |
 | `CuocPhiPhuPhiDau.md` §1–§2 (công thức), §10 (làm tròn) | `testplan/flows/01-cus-create-shipment.md` §1.1 — **đã sửa công thức phụ phí dầu 2026-09-08** |
 | `CuocPhiThietKeDB.md` | *chưa có test plan* — cần bổ sung khi triển khai |
+| Toàn bộ 3 docx (ma trận đối chiếu) | `testplan/matrix/2026-09-09-docx-trilogy.md` |
