@@ -180,7 +180,7 @@ const ComboBoxValue = ({ size, shortcut, placeholder, shortcutClassName, icon: I
 
 /** Diacritic-insensitive text normalization so typing "que vo" matches
  *  "Quế Võ" in the option list. */
-function normalizeSearchText(value: string): string {
+export function normalizeSearchText(value: string): string {
     return value
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "")
