@@ -1,13 +1,13 @@
 {
   "runId": "2026-09-09_dispatch-sweep-2026-09-09",
-  "timestamp": "2026-09-09T06:51:51.629Z",
+  "timestamp": "2026-09-09T07:15:35.979Z",
   "results": [
     {
       "caseId": "TC-CUS-CREATE-048",
       "role": "ADMIN",
       "file": "TC-CUS-CREATE-048.mjs",
       "verdict": "PASS",
-      "durationMs": 4666,
+      "durationMs": 5724,
       "rowCount": 9,
       "contractOk": true,
       "sampleRows": [
@@ -18,10 +18,10 @@
           "hasReadySignal": false
         },
         {
-          "text": "LOG COM Chưa có nhà máy KCN ĐỒNG VĂN, HÀ NAM TESTSS2609B Chưa có tờ khai Chưa có hãng tàu Nhập 1x40DC — kg 14:00 9/9/2026 · 1x40DC Đã phân xe Đã xếp xe — chưa p",
+          "text": "LOG COM Chưa có nhà máy KCN ĐỒNG VĂN, HÀ NAM TESTSS2609B Chưa có tờ khai Chưa có hãng tàu Nhập 1x40DC — kg 14:00 9/9/2026 · 1x40DC Đã phân xe Đã phát lệnh cho t",
           "hasMissingDate": false,
           "hasWaitingSignal": false,
-          "hasReadySignal": true
+          "hasReadySignal": false
         },
         {
           "text": "LONG MINH SUNRISE KCN VÂN TRUNG, BẮC GIANG EBKG18452303 Chưa có tờ khai MSC Xuất 1x20DC 5 kg 13:00 8/9/2026 · SUNRISE · 1x20DC Toàn bộ chờ phân xe — Sẵn sàng đi",
@@ -36,7 +36,7 @@
       "role": "ADMIN",
       "file": "TC-CUS-APPOINTMENT-001.mjs",
       "verdict": "PASS",
-      "durationMs": 6868,
+      "durationMs": 7160,
       "fields": [
         {
           "label": "GIỜ",
@@ -58,14 +58,14 @@
       "role": "ADMIN",
       "file": "TC-SHIPMENTS-DETAIL-001.mjs",
       "verdict": "PASS",
-      "durationMs": 4221,
+      "durationMs": 4280,
       "totalRows": 12,
       "plannedCount": 4,
       "platedCount": 8,
       "samplePlanned": [
         {
-          "vehicle": "SilverSea",
-          "plate": "15C-167.31",
+          "vehicle": "BIỂN XANH",
+          "plate": "51C-999.99",
           "badge": "Đã phân xe"
         },
         {
@@ -74,8 +74,8 @@
           "badge": "Đã phân xe"
         },
         {
-          "vehicle": "SilverSea",
-          "plate": "15H-205.57",
+          "vehicle": "VÂN LAN",
+          "plate": "15C-123456",
           "badge": "Đã phân xe"
         }
       ]
@@ -85,7 +85,7 @@
       "role": "ADMIN",
       "file": "TC-DISPATCH-ALLOC-001.mjs",
       "verdict": "PASS",
-      "durationMs": 5384,
+      "durationMs": 5505,
       "structure": {
         "dayGroupCount": 1,
         "dayTitles": [
@@ -98,7 +98,7 @@
       "role": "ADMIN",
       "file": "TC-DISPATCH-EDIT-001.mjs",
       "verdict": "PASS",
-      "durationMs": 5446,
+      "durationMs": 5478,
       "classData": {
         "hasSelect": true,
         "options": [
@@ -107,7 +107,7 @@
           "Kẹp",
           "Kết hợp"
         ],
-        "value": "DOUBLE"
+        "value": "SINGLE"
       },
       "externalInspection": null
     },
@@ -116,7 +116,7 @@
       "role": "ADMIN",
       "file": "TC-DISPATCH-EDIT-002.mjs",
       "verdict": "PASS",
-      "durationMs": 5813,
+      "durationMs": 5869,
       "isDialogOpenBefore": true,
       "isDialogClosedAfter": true
     }
