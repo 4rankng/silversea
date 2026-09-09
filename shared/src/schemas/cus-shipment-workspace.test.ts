@@ -32,22 +32,24 @@ const workspaceFieldAccess = {
   plannedReturnAt: directField, customerNotes: directField, operationalNotes: directField,
 };
 
-test('CUS workspace query accepts 4-5 alphanumeric suffix search', () => {
-  assert.equal(shipmentCusWorkspaceQuerySchema.safeParse({
-    searchSuffix: 'aB12C',
-    transportDateFrom: '2026-08-01',
-    transportDateTo: '2026-08-11',
-    customerId: 7,
-    direction: 'IMPORT',
-    bucket: ShipmentCusBucket.RUNNING,
-  }).success, true);
+test('CUS workspace query accepts full numbers and 4-32 alphanumeric suffixes', () => {
+  for (const searchSuffix of ['aB12C', 'MSCU6639870', 'TK-9ZX4'.replace('-', ''), 'ABC123']) {
+    const result = shipmentCusWorkspaceQuerySchema.safeParse({
+      searchSuffix,
+      transportDateFrom: '2026-08-01',
+      transportDateTo: '2026-08-11',
+      customerId: 7,
+      direction: 'IMPORT',
+      bucket: ShipmentCusBucket.RUNNING,
+    });
+    assert.equal(result.success, true, `${searchSuffix} must pass`);
+  }
 });
 
 test('CUS workspace query rejects invalid suffix search', () => {
-  for (const suffix of ['A12', 'ABC123', 'AB$1']) {
+  for (const suffix of ['A12', 'AB$1', 'over-32-characters-AAAAAAAAAAAAAAAAAAA']) {
     const result = shipmentCusWorkspaceQuerySchema.safeParse({ searchSuffix: suffix });
     assert.equal(result.success, false, `${suffix} must fail`);
-    assert.match(result.error.issues[0]?.message ?? '', /4-5 ký tự chữ hoặc số/i);
   }
 });
 

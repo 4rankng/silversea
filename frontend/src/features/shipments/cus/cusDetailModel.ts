@@ -14,7 +14,7 @@ import type { ShipmentDetailEditMode } from '../../shipments/detail/ShipmentCont
 import { DISPATCH_STATUS } from '../../shipments/detail/ShipmentContainerLedger';
 
 export const CUS_DETAIL_PAGE_SIZE = 20;
-export const CUS_SEARCH_PATTERN = /^[A-Za-z0-9]{4,5}$/;
+export const CUS_SEARCH_PATTERN = /^[A-Za-z0-9]{4,32}$/;
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 /** URL-legal Trạng thái values: the four badge states the ledger displays

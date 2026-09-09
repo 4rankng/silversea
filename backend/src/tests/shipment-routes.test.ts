@@ -1499,9 +1499,12 @@ describe('POST /', () => {
 });
 
 describe('GET /cus-workspace', () => {
-  test('returns derived CUS rows and enforces 4-5 alphanumeric suffix search', async () => {
+  test('returns derived CUS rows and accepts full or suffix alphanumeric search', async () => {
+    // Pure-alphanumeric booking so the full-number probe below is itself a
+    // valid search value (searchSuffix rejects non-alphanumeric characters).
+    const fullBookingRef = `BOOK${suffix.replace(/-/g, '')}Ab12X`.slice(0, 50);
     const shipment = await mkShipmentViaService({
-      bookingRef: `BOOK-${suffix}-Ab12X`.slice(0, 50),
+      bookingRef: fullBookingRef,
       expectedDeliveryDate: '2026-08-11',
       cargoMode: 'LCL',
       packageCount: 4,
@@ -1519,7 +1522,10 @@ describe('GET /cus-workspace', () => {
     });
     assert.equal(declaration.status, 201);
 
-    for (const validSuffix of ['aB12x', '9Zx4']) {
+    // 2026-09-09 customer report: pasting the full Bill/Booking, container,
+    // or declaration number must work too — a full value ends with itself,
+    // so the suffix ILIKE covers both. Keep the 4-char suffix probes.
+    for (const validSuffix of ['aB12x', '9Zx4', fullBookingRef]) {
       const ok = await testFetch(`/cus-workspace?searchSuffix=${validSuffix}&page=1&limit=20`, { token: adminToken });
       assert.equal(ok.status, 200);
       const row = ok.data.items.find((item: { id: number }) => item.id === shipment.id);
@@ -1547,10 +1553,10 @@ describe('GET /cus-workspace', () => {
     assert.equal(importOnly.status, 200);
     assert.equal(importOnly.data.items.some((item: { id: number }) => item.id === shipment.id), false);
 
-    for (const invalidSuffix of ['A12', 'ABC123', 'AB$1']) {
+    for (const invalidSuffix of ['A12', 'AB$1']) {
       const invalid = await testFetch(`/cus-workspace?searchSuffix=${encodeURIComponent(invalidSuffix)}`, { token: adminToken });
       assert.equal(invalid.status, 400);
-      assert.match(invalid.data.error, /4-5 ký tự chữ hoặc số/i);
+      assert.match(invalid.data.error, /tối thiểu 4 ký tự|4 ký tự/i);
     }
   });
 
