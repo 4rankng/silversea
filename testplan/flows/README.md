@@ -14,6 +14,7 @@
 > | [`LoHangKepKetHop.md`](../../docs/prd/LoHangKepKetHop.md) | Lô hàng Kẹp & Kết hợp | 9 |
 > | [`OpsVanHanh.md`](../../docs/prd/OpsVanHanh.md) | 3 màn hình Ops hiện trường | 5 |
 > | [`ManHinhLaiXe.md`](../../docs/prd/ManHinhLaiXe.md) | App Lái xe: thẻ 2 lớp, e-POD | 3, 4 |
+> | [`CuocPhiPhuPhiDau.md`](../../docs/prd/CuocPhiPhuPhiDau.md) + [`CuocPhiThietKeDB.md`](../../docs/prd/CuocPhiThietKeDB.md) | Cước = giá gốc × (1+%) + phụ phí dầu; 4 quy tắc đã chốt 09/09 | 12 |
 >
 > ⚠️ Các nguồn cũ từng được trích ở đây — `docs/prd/O2C Flow.md`,
 > `docs/prd/quytrinh-o2c-qa-test-plan.md`, `docs/regression-testing/*.md`,
@@ -51,6 +52,7 @@ Mới tạo (NEW) → Đã phân xe (DISPATCHED) → Đang chạy (IN_TRANSIT) �
 | 9 | **Ghép chuyến Kẹp & Kết hợp** | Điều vận (DISPATCHER) | Lái xe, Kế toán | `09-kep-kethop-ghep-chuyen.md` |
 | 10 | **E2E & Edge Cases** | CUS, Điều vận, Admin | Tất cả | `10-e2e-regression.md` |
 | 11 | **Kiểm thử Bổ sung & Cập nhật v2.0 (QA Matrix v2.0)** | CUS, Điều vận, Admin, Manager | Tất cả | `11-qa-matrix-v2-enhancements.md` |
+| 12 | **Cước phí & Phụ phí dầu (Long Minh)** | Kế toán (ACCOUNTANT) | Admin, CUS, Điều vận | `12-cuocphi-phuphi-dau.md` — *module chưa triển khai; acceptance anchor* |
 
 > **Lịch sử slot Luồng 5.** Slot này từng là "Chi phí phát sinh (Ops)" gắn trạng thái
 > `PENDING_EXPENSE_APPROVAL` + tự cấn trừ tạm ứng; toàn bộ cơ chế đó **đã dừng và xoá**

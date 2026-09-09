@@ -110,6 +110,8 @@ export const freightRateTerms = pgTable('freight_rate_terms', {
   // Km một chiều dùng để TÍNH CƯỚC (có thể khác quãng đường thực tế).
   billingKmOneWay: integer('billing_km_one_way').notNull(),
   // Excel luôn nhân 2 (khứ hồi). Để cấu hình được thay vì hardcode.
+  // ✅ Chốt 2026-09-09 (Câu 4 = A): LUÔN × 2 cho mọi chuyến — không có nhánh
+  // "1 chiều thì × 1"; trường giữ default 2, không expose thành tuỳ chọn per-trip.
   billingKmMultiplier: numeric('billing_km_multiplier', { precision: 4, scale: 2 })
     .notNull().default('2'),
 
@@ -118,6 +120,11 @@ export const freightRateTerms = pgTable('freight_rate_terms', {
   // Thuộc HỢP ĐỒNG, không phải thị trường ⇒ để ở đây, không để ở fuel_price_periods.
   // ⚠️ scale PHẢI ≥ 4 — xem §3.2.1. scale 2 gây sai số 1 đồng.
   baseFuelPrice: numeric('base_fuel_price', { precision: 12, scale: 4 }).notNull(),
+
+  // ĐỘ TRỄ áp giá dầu mới theo tuyến (ngày) — cơ chế khách đã xác nhận 09/09
+  // (Câu 2). NEWEB = 1; ASKEY, SUNRISE+SJ chưa có số ⇒ seed 0 tạm và chờ khách
+  // (không đoán). Resolution: effective_from <= (date − lag_days).
+  fuelLagDays: integer('fuel_lag_days').notNull().default(0),
 
   effectiveDate: date('effective_date').notNull().defaultNow(),
   note: text('note'),
@@ -132,11 +139,11 @@ export const freightRateTerms = pgTable('freight_rate_terms', {
 
 Dữ liệu Long Minh (3 dòng):
 
-| customer | route | share_pct | billing_km_one_way | base_fuel_price |
-|---|---|---:|---:|---:|
-| LONG MINH | Hải Phòng–NEWEB | 2,00 | 130 | 17.842,5926 |
-| LONG MINH | ASKEY | 4,00 | 100 | 17.842,5926 |
-| LONG MINH | SUNRISE+SJ | 2,50 | 120 | 17.842,5926 |
+| customer | route | share_pct | billing_km_one_way | base_fuel_price | fuel_lag_days |
+|---|---|---:|---:|---:|---:|
+| LONG MINH | Hải Phòng–NEWEB | 2,00 | 130 | 17.842,5926 | **1** (khách đã cho) |
+| LONG MINH | ASKEY | 4,00 | 100 | 17.842,5926 | ⏳ 0 tạm — chờ khách |
+| LONG MINH | SUNRISE+SJ | 2,50 | 120 | 17.842,5926 | ⏳ 0 tạm — chờ khách |
 
 #### 3.2.1. ⚠️ Vì sao `base_fuel_price` phải có `scale ≥ 4`
 
@@ -258,13 +265,13 @@ INPUT: customerId, routeId, vehicleSizeClassCode, date (ngày áp dụng)
              WHERE vehicle_size_class=? AND effective_date <= date
              ORDER BY effective_date DESC LIMIT 1
 4. fuel   ← fuel_price_periods
-             WHERE effective_from <= date
+             WHERE effective_from <= (date − terms.fuel_lag_days)   -- độ trễ theo tuyến
              ORDER BY effective_from DESC LIMIT 1
 
-5. billedKm  = terms.billing_km_one_way × terms.billing_km_multiplier
+5. billedKm  = terms.billing_km_one_way × terms.billing_km_multiplier   -- luôn × 2 (chốt 09/09)
 6. liters    = billedKm × norm.liters_per_km          -- KHÔNG làm tròn
 7. fuelDelta = fuel.unit_price − terms.base_fuel_price
-8. surcharge = ROUND(fuelDelta × liters)              -- → đồng
+8. surcharge = MAX(0, ROUND(fuelDelta × liters))      -- kẹp 0 khi dầu dưới mốc (chốt 09/09)
 9. freight   = ROUND(base.price × (1 + terms.share_pct/100))  -- → đồng
 10. total    = freight + surcharge
 
@@ -273,6 +280,13 @@ OUTPUT: { freight, surcharge, total, + toàn bộ tham số đã dùng }
 
 Mỗi bước 1–4 đều là **"dòng mới nhất có hiệu lực tại `date`"** — cùng một mẫu truy vấn
 `effective_date <= date ORDER BY … DESC LIMIT 1` mà `pricing.service.ts` đang dùng.
+
+> **Hai quy tắc đã chốt 2026-09-09 đúc vào thuật toán trên:**
+> - **Kẹp 0 (Câu 1 = B):** bước 8 — khi `fuelDelta < 0` ⇒ `surcharge = 0`, `total = freight`.
+> - **Luôn km × 2 (Câu 4 = A):** bước 5 — multiplier cố định 2, không phụ thuộc thực tế
+>   tận dụng xe.
+> - **Độ trễ (Câu 2, khách đã xác nhận):** bước 4 — ngày áp giá dịch thêm
+>   `fuel_lag_days` của tuyến (NEWEB = 1 ngày; tuyến khác chờ số).
 
 ### 4.2. Quy tắc làm tròn — đến từng đồng
 
@@ -296,8 +310,9 @@ Mỗi bước 1–4 đều là **"dòng mới nhất có hiệu lực tại `dat
 
 Dùng `ROUND_HALF_UP` (làm tròn 0,5 lên) — **không** dùng banker's rounding.
 `roundInt()` trong `shared/src/calculations/round.ts` hiện dùng `Math.round` = HALF_UP
-cho số dương ⇒ phù hợp, nhưng nó có `Math.max(0, …)` **chặn số âm về 0** — cần xem lại
-nếu chốt cho phép phụ phí âm (§6, câu hỏi 2).
+cho số dương ⇒ phù hợp. Clamp `Math.max(0, …)` của `roundInt()` từng được ghi chú
+"cần xem lại" — **đã chốt 2026-09-09 (Câu 1 = B): clamp là đúng nghiệp vụ**, giữ nguyên;
+không còn kịch bản phụ phí âm nào cần xử lý riêng.
 
 ---
 
@@ -305,6 +320,10 @@ nếu chốt cho phép phụ phí âm (§6, câu hỏi 2).
 
 Giá dầu đổi mỗi kỳ ⇒ **tính lại sau này sẽ ra số khác**. Chứng từ đã phát hành phải
 giữ nguyên số đã chốt.
+
+> **✅ Xác nhận 2026-09-09 (Câu 2 = A):** không hồi tố — thiết kế snapshot này đúng
+> theo quyết định của khách/công ty. Cơ chế **độ trễ theo tuyến** (bước 4 §4.1) cũng
+> đã được khách xác nhận (NEWEB = 1 ngày).
 
 ```ts
 export const freightRateSnapshots = pgTable('freight_rate_snapshots', {
@@ -361,18 +380,30 @@ Lưu **cả 4 id tham số** ⇒ trả lời được câu "vì sao lô này 5.0
 
 ### 6.2. Câu hỏi còn treo
 
-1. **Giá dầu xuống dưới mốc `F`** → phụ phí âm (giảm cước) hay chặn về 0?
-   Quyết định này chi phối `roundInt()` có giữ `Math.max(0, …)` hay không.
-2. **Cước đã phát hành có tính lại khi đổi kỳ giá dầu không?** Thiết kế này giả định
-   **không hồi tố** (đã chốt là chốt) — cần xác nhận.
+> **Cập nhật 2026-09-09:** câu 1, 2, 4 **đã có trả lời** (xem
+> [`CauHoiKhachHang_CuocPhi_2026-09-08.md`](CauHoiKhachHang_CuocPhi_2026-09-08.md)) —
+> thiết kế ở trên đã cập nhật theo. Còn treo: 3, 5 và 2 mục phụ mới (lag của 2 tuyến,
+> mốc ngày chọn kỳ giá).
+
+1. ~~**Giá dầu xuống dưới mốc `F`** → phụ phí âm (giảm cước) hay chặn về 0?~~ —
+   **ĐÃ CHỐT (09/09): Câu 1 = B — kẹp về 0** ⇒ `roundInt()` giữ `Math.max(0, …)` (§4.2);
+   bước 8 §4.1 đã có `MAX(0, …)`.
+2. ~~**Cước đã phát hành có tính lại khi đổi kỳ giá dầu không?**~~ —
+   **ĐÃ CHỐT (09/09): Câu 2 = A — không hồi tố, snapshot** (§5). Kèm xác nhận cơ chế
+   độ trễ theo tuyến ⇒ thêm cột `fuel_lag_days` (§3.2).
 3. **Kỳ giá dầu của seed 30/7** (chênh 7.917,41 đ/l ⇒ ≈ 25.760 nếu cùng mốc `F`) bắt đầu
    từ ngày nào, và giá dầu mốc kỳ đó có đúng bằng 17.842,59 không? Chỉ cần để dựng lại
    lịch sử — **không ảnh hưởng công thức hay thiết kế**; nếu khách không có thông tin
    thì bỏ qua, không đoán.
-4. **`billing_km_multiplier` = 2 luôn đúng?** Nếu chuyến chỉ chạy 1 chiều thì vẫn tính
-   khứ hồi chứ?
+4. ~~**`billing_km_multiplier` = 2 luôn đúng?**~~ — **ĐÃ CHỐT (09/09): Câu 4 = A — luôn
+   khứ hồi**; multiplier cố định 2, không expose tuỳ chọn per-trip.
 5. **Khách hàng khác Long Minh** có cùng mô hình này không? Nếu có khách tính theo
    công thức khác thì cần thêm cột "loại biểu cước" vào `freight_rate_terms`.
+6. **Độ trễ của ASKEY / SUNRISE+SJ** (phụ lục 2a bản docx 09/09) — chỉ NEWEB = 1 đã có
+   số; 2 tuyến kia seed 0 tạm, **chờ khách**.
+7. **Mốc ngày nào của lô dùng để chọn kỳ giá dầu** (phụ lục 2b bản docx 09/09) — ngày
+   tạo lô / đóng hàng / trả hàng / xuất hoá đơn. Ảnh hưởng trực tiếp tham số `date`
+   trong `resolveFreightRate()` (§4.1).
 
 > **Không phải câu hỏi thiết kế:** giá gốc `15T` đang trống ở cả Excel lẫn seed
 > (`basePrice: 0`). Đây chỉ là **một điểm dữ liệu còn thiếu — không ảnh hưởng logic**.

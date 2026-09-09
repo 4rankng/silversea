@@ -64,6 +64,10 @@ C (2 CHIỀU) = B (KM một chiều) × 2
 
 Cước tính trên **quãng đường khứ hồi**, kể cả khi chiều về chạy rỗng.
 
+> **✅ ĐÃ CHỐT (2026-09-09, Câu 4 = A):** luôn `km × 2` cho mọi chuyến — kể cả chuyến
+> chỉ chạy 1 chiều hoặc chiều về có hàng. Báo cước theo hợp đồng, không phụ thuộc việc
+> tận dụng xe/ghép chuyến (đó là bài toán nội bộ, không liên quan khách).
+
 ### 2.2. Tổng lít dầu / chuyến
 
 ```
@@ -110,6 +114,21 @@ Diễn giải: *(giá dầu hiện tại − giá dầu mốc chuẩn) × số l
 Chỉ bù **phần chênh**, không tính lại toàn bộ tiền dầu, vì tiền dầu ở mặt bằng
 17.842,59 đ/lít đã nằm trong `GIÁ GỐC`.
 
+> **✅ ĐÃ CHỐT (2026-09-09, Câu 1 = B) — kẹp về 0 khi dầu hạ dưới mốc:**
+>
+> ```
+> H = max(0, (G − F) × E)
+> ```
+>
+> Khi giá dầu kỳ < 17.842,59 đ/l ⇒ `H = 0`, cước = đúng `J = I × (1 + % chia sẻ)` —
+> công ty **không** giảm cước cho khách khi dầu rẻ. Ví dụ NEWEB CONT40 (91 lít), dầu
+> 16.000 đ/l: H = 0, cước = 4.182.000 đ.
+>
+> ⚠️ **Lệch chủ ý so với công thức Excel:** file báo giá không có clamp (mọi kỳ trong
+> file đều trên mốc nên nhánh này chưa từng xuất hiện). Clamp là **quyết định kinh doanh
+> sau Excel** — nơi nào đối chiếu với file thì rule này thắng. Code hiện tại đã có
+> `Math.max(0, …)` trong `roundInt()` ⇒ hành vi này **đúng**, giữ nguyên.
+
 ### 2.6. Giá cước đã chia sẻ
 
 ```
@@ -129,8 +148,10 @@ L (PHỤ PHÍ THU)      = K − J   →  luôn = H
 
 ```
 Cước 1 chuyến = GiáGốc × (1 + %ChiaSẻ)
-              + (GiáDầuKỳ − 17.842,59) × (KmMộtChiều × 2 × ĐịnhMứcDầu)
+              + max(0, (GiáDầuKỳ − 17.842,59) × (KmMộtChiều × 2 × ĐịnhMứcDầu))
 ```
+
+> `max(0, …)` = chốt 2026-09-09 (Câu 1 = B). Km luôn `× 2` = chốt 2026-09-09 (Câu 4 = A).
 
 ---
 
@@ -295,6 +316,11 @@ Chỉ khác kỳ 18/7 ở phần **phụ phí dầu**; `GIÁ GỐC`, `% chia s�
 5. Ghi lại **ngày áp giá** (sheet mới, ví dụ `11.7` → `18.7`) để đối chiếu về sau.
    Ghi chú `ÁP 4/7/2026` trong file cho thấy cước có **ngày hiệu lực**, không hồi tố.
 
+> **✅ ĐÃ CHỐT (2026-09-09, Câu 2 = A):** không hồi tố — cước đã phát hành giữ nguyên
+> khi kỳ giá dầu mới mở (snapshot + 4 id tham số truy vết). Kèm cơ chế **độ trễ theo
+> tuyến**: giá mới áp sau lag days (NEWEB = 1 ngày; ASKEY, SUNRISE+SJ chưa có số) —
+> chi tiết [`CauHoiKhachHang_CuocPhi_2026-09-08.md`](CauHoiKhachHang_CuocPhi_2026-09-08.md) Câu 2.
+
 ---
 
 ## 8. Hiện trạng trong hệ thống — và khoảng trống của tham số động
@@ -419,8 +445,10 @@ thay cho `km × định mức`. **Nằm ngoài phạm vi bản minh hoạ này**
    (`F`, `G−F`, số lít) **không** làm tròn. Chi tiết:
    [`CuocPhiThietKeDB.md`](CuocPhiThietKeDB.md) §4.2.
 2. **Mốc `F` = 19.270/1,08:** VAT 8 % là cố định hay đổi theo chính sách thuế từng thời kỳ?
-3. **Chiều rỗng:** khi chuyến thực tế chỉ chạy 1 chiều, có vẫn tính `km × 2` không?
-4. **Giá dầu giảm dưới mốc:** `H` âm (giảm cước) hay chặn về 0?
+3. ~~**Chiều rỗng: khi chuyến chỉ chạy 1 chiều, có tính `km × 2` không?**~~ —
+   **ĐÃ CHỐT (09/09): Câu 4 = A — luôn `km × 2`** (§2.1).
+4. ~~**Giá dầu giảm dưới mốc: `H` âm (giảm cước) hay chặn về 0?**~~ —
+   **ĐÃ CHỐT (09/09): Câu 1 = B — kẹp về 0, `H = max(0, …)`** (§2.5).
 
 **Về tham số động (giá dầu theo kỳ):**
 
@@ -428,8 +456,9 @@ thay cho `km × định mức`. **Nằm ngoài phạm vi bản minh hoạ này**
    thông báo? nhập tay?) — có cần duyệt trước khi áp không?
 6. **Kỳ áp giá dầu theo lịch cố định hay bất thường?** File cho thấy 11/7 → 18/7 = 1 tuần,
    nhưng ghi chú `ÁP 4/7/2026` lại là ngày khác.
-7. **Cước đã phát hành có bị tính lại khi giá dầu đổi không?** (hồi tố hay chỉ áp cho
-   lô mới) — quyết định này chi phối việc lưu snapshot hay tính động.
+7. ~~**Cước đã phát hành có bị tính lại khi giá dầu đổi không?** (hồi tố hay chỉ áp
+   cho lô mới)~~ — **ĐÃ CHỐT (09/09): Câu 2 = A — không hồi tố, snapshot khi phát
+   hành** (§7).
 8. **Phạm vi áp dụng của 1 lần đổi giá dầu:** dùng chung 1 giá cho mọi khách hàng /
    mọi tuyến (như ô `M1` hiện nay), hay mỗi khách hàng một giá riêng?
 9. **Các khách hàng khác ngoài Long Minh** có dùng đúng mô hình này không (giá gốc ×

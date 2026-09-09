@@ -38,6 +38,11 @@ Trong đó:
 *(Câu 3 giữ số thứ tự nhưng **đã rút** — đó là việc nội bộ của chúng ta, không phải việc
 của khách.)*
 
+> **✅ Trạng thái trả lời (2026-09-09):** khách/công ty đã chốt **Câu 1 = (B), Câu 2 = (A),
+> Câu 4 = (A)**. Chỉ còn **Câu 5** chưa trả lời. Bản gửi khách đã được biên tập lại thành
+> `(FR) Bảng câu hỏi cho KH.docx` (bản 09/09, 4 câu + phụ lục dữ liệu thiếu 15T) —
+> chi tiết từng câu xem khối **ĐÃ TRẢ LỜI** bên dưới.
+
 ---
 
 ## Câu 1 — Khi giá dầu GIẢM xuống dưới mốc, phụ phí dầu được ÂM hay kẹp về 0?
@@ -52,14 +57,28 @@ Khi giá dầu thị trường xuống dưới mốc này, `H` sẽ ra số **â
 
 | Lựa chọn | Diễn giải | Ví dụ (NEWEB CONT40, 91 lít) |
 |---|---|---|
-| **(A) Được âm** — `K = J + H` với `H` có thể âm | Khách được giảm cước đúng bằng phần dầu giảm. Trả đúng theo công thức Excel. | Nếu giá dầu = 16.000 đ/l: H = (16.000 − 17.842,59) × 91 = **−167.516 đ**. Cước = 4.182.000 − 167.516 = **4.014.484 đ** |
+| **(A) Được âm** — `K = J + H` với `H` có thể âm | Khách được giảm cước đúng bằng phần dầu giảm. Trả đúng theo công thức Excel. | Nếu giá dầu = 16.000 đ/l: H = (16.000 − 17.842,59) × 91 = **−167.676 đ**. Cước = 4.182.000 − 167.676 = **4.014.324 đ** |
 | **(B) Kẹp về 0** — `H = max(0, ...)` | Cước không bao giờ thấp hơn `J = I × (1 + % chia sẻ)`. An toàn cho doanh thu nhưng **sai công thức hợp đồng** khi dầu hạ. | Nếu giá dầu = 16.000 đ/l: H = 0. Cước = **4.182.000 đ** |
+
+*(Sửa 2026-09-09: ví dụ phương án A ban đầu ghi −167.516 / 4.014.484 là sai số học;
+đúng là (17.842,59 − 16.000) × 91 = 167.675,69 ⇒ −167.676 / 4.014.324 — khớp bản
+docx gửi khách 09/09.)*
 
 **Câu cần trả lời:** Khi giá dầu hạ dưới 17.842,59 đ/lít, công ty có chấp nhận
 giảm cước cho khách không, hay giữ cước ở mức giá gốc + chia sẻ?
 
-> ☐ Phương án (A) — Được âm
-> ☐ Phương án (B) — Kẹp về 0
+> ### ✅ ĐÃ TRẢ LỜI (2026-09-09) — Phương án (B) — Kẹp về 0
+>
+> **Quyết định:** khi giá dầu kỳ < mốc 17.842,59 đ/l ⇒ `H = max(0, (G − F) × E) = 0`.
+> Cước khách trả không bao giờ thấp hơn `J = I × (1 + % chia sẻ)`.
+>
+> **Hệ quả thiết kế:**
+> - `computeFuelSurcharge()` giữ nguyên clamp `Math.max(0, …)` — đây giờ là **hành vi
+>   đúng theo nghiệp vụ**, không phải chi tiết kỹ thuật thừa.
+> - Đây là **lệch chủ ý so với công thức Excel** (Excel không có clamp; mọi kỳ trong
+>   file đều trên mốc nên Excel chưa gặp nhánh này). Ghi nhận vào PRD tính cước
+>   [`CuocPhiPhuPhiDau.md`](CuocPhiPhuPhiDau.md) §2.5.
+> - Chứng từ phát hành khi dầu dưới mốc: dòng phụ phí = 0 đ, không hiển thị số âm.
 
 ---
 
@@ -80,8 +99,23 @@ khi kỳ giá dầu mới mở, cước của các lô cũ có bị tính lại 
 **Câu cần trả lời:** Khi đổi kỳ giá dầu, các lô/chuyến đã phát hành trước đó có
 được tính lại cước theo kỳ mới không?
 
-> ☐ Phương án (A) — Snapshot (đã chốt là chốt)
-> ☐ Phương án (B) — Tính lại theo kỳ mới
+> ### ✅ ĐÃ TRẢ LỜI (2026-09-09) — Phương án (A) — Snapshot (đã chốt là chốt)
+>
+> **Quyết định:** cước đã ghi trên chứng từ **không** bị tính lại khi kỳ giá dầu mới
+> mở. Hệ thống lưu snapshot số tiền đã chốt + 4 id tham số truy vết (thiết kế tại
+> [`CuocPhiThietKeDB.md`](CuocPhiThietKeDB.md) §5 — giả định "không hồi tố" nay đã
+> được xác nhận).
+>
+> **Cơ chế "độ trễ" (lag) đi kèm** — bản docx gửi khách 09/09 tổng hợp lại phần khách
+> đã trả lời trước đó:
+> 1. Hệ thống lưu lịch sử giá dầu theo từng mốc ngày (`fuel_price_periods`).
+> 2. Mỗi lần nhập giá mới, so với lần gần nhất để biết có áp giá mới không.
+> 3. Giá mới áp sau **số ngày trễ theo tuyến** — NEWEB = **1 ngày** (dầu tăng 9/7 ⇒ áp
+>    từ 10/7). Lag của ASKEY, SUNRISE+SJ: **chưa có** (docx còn bỏ trống — phụ lục 2a).
+> 4. Cước đã chốt trước thời điểm áp vẫn giữ giá dầu cũ, không tính lại.
+>
+> ⏳ **Còn chờ khách:** (2a) số ngày trễ của ASKEY / SUNRISE+SJ; (2b) mốc ngày nào của
+> lô dùng để chọn kỳ giá dầu (ngày tạo lô / đóng hàng / trả hàng / xuất hoá đơn).
 
 ---
 
@@ -119,8 +153,6 @@ Cách xử lý đúng, **không cần làm phiền khách**:
 
 ⇒ **Không có gì bị chặn.** Thiếu thông tin kỳ cũ không ảnh hưởng công thức, thiết kế
 bảng, hay việc tính cước cho lô mới.
-> ☐ Phương án (B) — Tạm 2026-07-25
-> ☐ Phương án (C) — Tạm 2026-07-30
 
 ---
 
@@ -141,8 +173,16 @@ Nhưng có một số trường hợp đặc biệt:
 **Câu cần trả lời:** Khi chuyến thực tế chỉ chạy 1 chiều (không chạy rỗng về),
 có vẫn tính cước trên `km × 2` không?
 
-> ☐ Phương án (A) — Luôn `km × 2` (theo Excel)
-> ☐ Phương án (B) — Tùy chuyến (`km × 1` hoặc `km × 2`)
+> ### ✅ ĐÃ TRẢ LỜI (2026-09-09) — Phương án (A) — Luôn `km × 2` (theo Excel)
+>
+> **Quyết định:** cước luôn tính trên km khứ hồi, bất kể thực tế chuyến chạy mấy chiều.
+>
+> **Lý do (nguyên văn người chốt):** báo cước cho khách không cần quan tâm xe đang ở
+> đâu hay có kết hợp ghép chuyến không — cứ theo hợp đồng mà tính; việc tận dụng xe
+> là bài toán nội bộ của công ty, không liên quan đến khách.
+>
+> **Hệ quả thiết kế:** `billing_km_multiplier` = 2 cố định; không cần trường nhập
+> "số chiều thực tế" trên lô/chuyến; ghép/Kết hợp không ảnh hưởng cước của từng lệnh.
 
 ---
 
@@ -163,6 +203,9 @@ Cần biết các khách khác có dùng đúng mô hình này hay có biểu c�
 **Câu cần trả lời:** Khách hàng khác ngoài Long Minh hiện đang dùng biểu cước
 nào? Họ có dùng đúng mô hình `giá gốc × (1 + % chia sẻ) + phụ phí dầu` không?
 
+> ⏳ **CHƯA TRẢ LỜI** — câu duy nhất còn treo (cùng phụ lục dữ liệu thiếu: giá gốc 15T
+> cho cả 3 tuyến, độ trễ ASKEY/SUNRISE+SJ ở Câu 2).
+>
 > ☐ Phương án (A) — Chỉ Long Minh dùng mô hình này
 > ☐ Phương án (B) — Tất cả khách dùng chung
 > ☐ Phương án (C) — Một số khách dùng mô hình khác — kể tên: ___
