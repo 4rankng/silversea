@@ -173,10 +173,15 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // Bumped 609 → 625: 2026-09-09 useClickOutside dismissal for quick edit draft.
   'src/pages/ShipmentsPage.tsx': 625,
   'src/pages/SupplierListPage.tsx': 626,
-  'src/pages/TripCreatePage.tsx': 576,
   'src/pages/TripDetailPage.tsx': 438,
   'src/pages/TripEditPage.tsx': 540,
   'src/pages/TripListPage.tsx': 655,
+  // Bumped 576 → 586: 2026-09-09 hard 24h contract — the credit-override
+  // "Hiệu lực đến" datetime-local was replaced by a buffered time-first 24h
+  // text input (useBufferedDateTimeValue wiring: ref/defaultValue/onBlur +
+  // placeholder/maxLength attrs). Reviewed as a contract change; the value
+  // contract ('YYYY-MM-DDTHH:mm') is unchanged.
+  'src/pages/TripCreatePage.tsx': 586,
 };
 
 /** Source roots the size ratchet covers. */

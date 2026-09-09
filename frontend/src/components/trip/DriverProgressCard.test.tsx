@@ -93,6 +93,28 @@ describe('DriverProgressCard — M8.4 progress form + offline wiring', () => {
     expect(listProgressMock).toHaveBeenCalledWith(42);
   });
 
+  it('accepts a time-first 24h entry and submits its ISO conversion (hard 24h contract)', async () => {
+    // 2026-09-09 hard requirement: combined date+time entry is `HH:mm DD/MM/YYYY`
+    // — never a locale-formatted datetime-local (12h AM/PM on en-US browsers).
+    listProgressMock.mockResolvedValue({ items: [] });
+    enqueueMock.mockResolvedValue(QUEUED_OP());
+    drainMock.mockResolvedValue({ done: 0, failed: 0, conflicts: 0 });
+
+    renderCard();
+    await waitFor(() => expect(screen.getByRole('button', { name: /Ghi tiến độ/ })).toBeTruthy());
+
+    const field = screen.getByPlaceholderText('HH:mm DD/MM/YYYY');
+    fireEvent.change(field, { target: { value: '14:30 20/08/2026' } });
+    expect((field as HTMLInputElement).defaultValue).toBe('14:30 20/08/2026');
+
+    fireEvent.click(screen.getByRole('button', { name: /Ghi tiến độ/ }));
+    await waitFor(() => expect(enqueueMock).toHaveBeenCalledTimes(1));
+    // Same conversion the card applies (browser-local wall clock → ISO), so
+    // the assertion holds in any test-runner timezone.
+    expect(enqueueMock.mock.calls[0][0].body.occurredAt)
+      .toBe(new Date('2026-08-20T14:30').toISOString());
+  });
+
   it('submit enqueues an op with a UUID idempotency key, drains, and on success shows "Đã lưu tiến độ"', async () => {
     // After the successful drain, listProgress returns the new event.
     listProgressMock.mockResolvedValueOnce({ items: [] })

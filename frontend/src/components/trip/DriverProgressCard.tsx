@@ -17,7 +17,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { Plus, Loader2, CheckCircle2, AlertTriangle, Clock } from 'lucide-react';
-import { TextField, SelectField } from '../../design-system';
+import { TextField, SelectField, DateTimeField } from '../../design-system';
 import {
   DriverProgressEventType,
   DRIVER_PROGRESS_EVENT_LABELS,
@@ -160,11 +160,12 @@ export function DriverProgressCard({ tripId }: { tripId: number }) {
               <option key={t} value={t}>{DRIVER_PROGRESS_EVENT_LABELS[t]}</option>
             ))}
           </SelectField>
-          <TextField
+          {/* 24h time-first input (combined date+time contract) — native
+              datetime-local renders 12h AM/PM per browser locale. */}
+          <DateTimeField
             label="Thời điểm xảy ra"
-            type="datetime-local"
             value={occurredAt}
-            onChange={(e) => setOccurredAt(e.target.value)}
+            onChange={setOccurredAt}
             disabled={submitting}
           />
           <TextField

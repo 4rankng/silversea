@@ -47,6 +47,8 @@ export type {
 export { NumberField } from './forms/NumberField';
 export type { NumberFieldProps } from './forms/NumberField';
 export { DateField } from './forms/DateField';
+export { DateTimeField } from './forms/DateTimeField';
+export type { DateTimeFieldProps } from './forms/DateTimeField';
 export type { DateFieldProps } from './forms/DateField';
 export { DateInput } from './forms/DateInput';
 export type { DateInputProps } from './forms/DateInput';

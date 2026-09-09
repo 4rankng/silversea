@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import type { AdminHealthInboxItem, WorkInboxResponseOf } from '@tingting/shared';
 import { WORKSPACES } from '@tingting/shared';
 import { qk } from '../../api/keys';
+import { formatDateTimeShort } from '../../lib/format';
 import { api } from '../../lib/api';
 import './AdminHealthWorkspace.css';
 
@@ -44,7 +45,7 @@ export function AdminHealthWorkspace() {
           <div className="admin-health-workspace__summary" role="status">
             {issueCount > 0 ? <XCircle size={17} /> : <CheckCircle2 size={17} />}
             <strong>{issueCount > 0 ? `${issueCount} mục cần chú ý` : 'Các nguồn đang ổn định'}</strong>
-            <span>Cập nhật {query.data && new Date(query.data.asOf).toLocaleString('vi-VN')}</span>
+            <span>Cập nhật {query.data && formatDateTimeShort(query.data.asOf)}</span>
           </div>
           <div className="admin-health-workspace__grid">
             {items.map((item) => (
@@ -55,7 +56,7 @@ export function AdminHealthWorkspace() {
                 </div>
                 <p>{item.subtitle}</p>
                 <footer>
-                  <small>{item.source} · {new Date(item.freshnessAt).toLocaleString('vi-VN')}</small>
+                  <small>{item.source} · {formatDateTimeShort(item.freshnessAt)}</small>
                   {(item.nextAction || item.targetRoute) && <Link to={item.nextAction?.targetRoute ?? item.targetRoute}>{item.nextAction?.label ?? 'Mở chi tiết'}</Link>}
                 </footer>
               </article>
