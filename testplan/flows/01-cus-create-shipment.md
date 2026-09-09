@@ -1487,7 +1487,7 @@
   - Editor giờ-first + 24h; hiển thị ngoài khớp "HH:MM d/m/yy", đồng bộ với popover CUS (TC-CUS-CREATE-049).
 - **Kỳ vọng sai (Fail nếu):**
   - Editor vẫn Ngày-trước-Giờ hoặc 12h AM/PM; hiển thị ngoài lệch định dạng so với popover CUS.
-- **Bằng chứng:** `ShipmentContainerScheduleEditor.tsx` (fix giờ-first đang thực hiện 2026-09-09, session silversea-prod-88) — bổ sung bằng chứng unit test khi fix landed.
+- **Bằng chứng:** `ShipmentContainerScheduleEditor.test.tsx` (unit evidence — fix giờ-first đã ship 2026-09-09).
 
 ---
 
@@ -1514,3 +1514,29 @@
 - **Kỳ vọng sai (Fail nếu):**
   - Reconcile báo lỗi khi chưa có chuyến; hoặc hủy sai disposition/lý do; hoặc lô vẫn còn trên bảng chi tiết sau bước 1; hoặc 409 trong khi chưa có chuyến nào.
 - **Bằng chứng:** `backend/src/tests/shipment-routes.test.ts` — describe **"PUT /:id/containers × fulfillments (reconcile guard contract)"**, 2 test: (1) "reconcile with untripped fulfillments cancels them (REPLACED) and drops the lot from the detail plan until re-allocation"; (2) "reconcile with a live trip is rejected 409 and leaves fulfillments untouched".
+
+---
+
+## 1.23 — Giờ hẹn ghi theo giờ Việt Nam bất kể múi giờ máy (quyết định KH 2026-09-09: "always use Vietnam Time")
+
+> Trên browser múi giờ khác +07 (ví dụ Asia/Singapore +08), popover giờ hẹn từng ghi lệch qua parse browser-local (`new Date(naive).toISOString()`), cell hiển thị theo múi giờ máy, và prefill popover đọc giờ UTC nguyên văn. Serialize qua `localDateTimeToIso` → `+07:00` (đồng bộ `saveSchedule`); hiển thị/prefill pin `Asia/Ho_Chi_Minh`.
+
+### TC-CUS-CREATE-052 — Giờ hẹn đóng/trả: payload "+07:00", hiển thị và prefill giờ VN trên browser bất kỳ
+
+- **Mã bug:** Quyết định KH 2026-09-09 — trên browser +08, popover ghi giờ hẹn bị lệch −1h (parse browser-local), cell hiển thị sai giờ VN, prefill popover hiện giờ UTC nguyên văn. Wire format "+07:00" vốn là contract schema (zod `datetime({offset:true})`).
+- **Vai trò:** `CLERK`, `DISPATCHER`, `ADMIN`, `MANAGER`
+- **Mức độ:** P1
+- **Thiết bị:** Desktop, browser đặt múi giờ KHÔNG phải +07 (ví dụ Asia/Singapore +08)
+- **Tiền điều kiện:** Lô có container đang có giờ hẹn (instant UTC); CUS ledger chi tiết lô đang mở.
+- **Các bước:**
+  1. Đặt múi giờ browser về +08 (ví dụ Asia/Singapore).
+  2. Mở popover "Giờ hẹn đóng/trả" trên dòng container có giờ hẹn đã lưu: quan sát prefill.
+  3. Đặt **09:00** ngày 11/9/2026, đóng popover, bấm **Lưu**.
+  4. Quan sát Network payload của request lưu container.
+  5. Sau khi lưu xong, quan sát cell "Giờ hẹn đóng/trả" (và aria-label của trigger).
+- **Kết quả mong đợi (Pass):**
+  - Bước 2: prefill là giờ VN từ instant (ví dụ instant `06:30Z` → **13:30**, không phải 14:30 hay 06:30).
+  - Bước 4: payload gửi **`customerAppointmentAt: "2026-09-11T09:00:00+07:00"`** (offset VN tường minh), không phải UTC theo múi giờ máy.
+  - Bước 5: cell hiển thị **"09:00 11/9/26"** (giờ VN), reload vẫn đúng trên browser +08.
+- **Kỳ vọng sai (Fail nếu):** Payload là `new Date(naive).toISOString()` theo múi giờ máy (ví dụ `…T01:30:00.000Z` cho 09:30 ở +08); prefill hiện giờ UTC hoặc giờ máy; hiển thị lệch giờ trên browser non-VN.
+- **Bằng chứng:** Vitest `CusContainerLedger.test.tsx` (payload assertion `+07:00`), `CusAppointmentPopover.test.tsx` (prefill instant → giờ VN), `src/lib/format.test.ts` (`formatDateTimeShort` pin `Asia/Ho_Chi_Minh`); liên quan RCA TC-CUS-CREATE-039.

@@ -1242,6 +1242,40 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
 - **Kỳ vọng sai (Fail nếu):** Lưu thành công nhưng dialog vẫn mở, buộc người dùng phải bấm thêm nút "Hủy" hoặc "X" để đóng.
 - **Bằng chứng:** Vitest `DispatchPlanEditorCell.test.tsx`, E2E test `TC-DISPATCH-EDIT-002.mjs`, screenshot trước và sau khi lưu.
 
+### TC-DV-DISPATCH-049 — Dòng COMPLETED khóa ô Điều phối: trigger disabled, tooltip "đã chốt", editor không mở khi bấm
+
+- **Mã PRD:** Báo lỗi khách hàng 2026-09-09 — sau khi chuyến hoàn thành, ô Điều phối trên `/dispatch-detail` vẫn mở dialog "Chỉnh sửa điều phối" cho kế hoạch đã chốt; backend vốn chặn mọi plan-save trên dòng hoàn thành nên editor chỉ mở ra để then thất bại 409. Guard khóa phía UI nằm trong change set của commit `26e2b772`.
+- **Vai trò:** `DISPATCHER`, `ADMIN`, `MANAGER`
+- **Mức độ:** P1
+- **Thiết bị:** Desktop (1440×900)
+- **Tiền điều kiện:** Có ít nhất một dòng container trên `/dispatch-detail` với `taskStatus = 'COMPLETED'` (chip "Đã hoàn thành").
+- **Các bước:**
+  1. Mở `/dispatch-detail`, tìm dòng có chip "Đã hoàn thành".
+  2. Quan sát ô Điều phối: trigger hiển thị mờ (disabled) và tooltip **"Chuyến đã hoàn thành — kế hoạch điều phối đã chốt"**.
+  3. Bấm vào ô Điều phối của dòng đó.
+- **Kết quả mong đợi (Pass):**
+  - Trigger không bấm được (`disabled`), tooltip đúng chuỗi "Chuyến đã hoàn thành — kế hoạch điều phối đã chốt".
+  - Dialog "Chỉnh sửa điều phối" KHÔNG mở; dữ liệu dòng (nhà xe / biển số / chip) hiển thị nguyên trạng.
+- **Kỳ vọng sai (Fail nếu):** Bấm vẫn mở dialog chỉnh sửa (dẫn tới 409 khi lưu); tooltip giữ mặc định "Chỉnh sửa điều phối"; hoặc ô biến mất khỏi dòng.
+- **Bằng chứng:** Vitest `DispatchPlanEditorCell.test.tsx` (case `planFrozen`).
+
+### TC-DV-DISPATCH-050 — Chuyến IN_TRANSIT bấm ô Điều phối → mở dialog "Phân xe lại" (không mở editor)
+
+- **Mã PRD:** Cập nhật 2026-09-09 — trước đây chỉ trip `CREATED` mới được route sang luồng Phân xe lại; chuyến đang chạy (`IN_TRANSIT`) cần đổi xe/tài xế phải đi qua Phân xe lại để trạng thái tài xế/xe giữ coherent. Mở rộng guard nằm trong change set của commit `26e2b772`.
+- **Vai trò:** `DISPATCHER`, `ADMIN`, `MANAGER`
+- **Mức độ:** P1
+- **Thiết bị:** Desktop (1440×900)
+- **Tiền điều kiện:** Có dòng trên `/dispatch-detail` với `taskStatus = 'DISPATCHED'` và trip `status = 'IN_TRANSIT'` (chip "Đang chạy").
+- **Các bước:**
+  1. Mở `/dispatch-detail`, tìm dòng chip "Đang chạy".
+  2. Bấm vào ô Điều phối của dòng đó.
+  3. Trong dialog mở ra, đổi nhà xe/biển số và xác nhận phân xe lại.
+- **Kết quả mong đợi (Pass):**
+  - Bấm ô mở dialog **"Phân xe lại"** (aria-label/title "Phân xe lại …"), không phải editor "Chỉnh sửa điều phối".
+  - Xác nhận thành công: trip ghi nhận xe/tài xế mới, version tăng — nhất quán với luồng CREATED (TC-DV-DISPATCH-012).
+- **Kỳ vọng sai (Fail nếu):** Bấm mở editor chỉnh sửa kế hoạch; hoặc không có dialog nào mở; hoặc dialog Phân xe lại không nhận thay đổi khi chuyến đang chạy.
+- **Bằng chứng:** Vitest `DispatchPlanEditorCell.test.tsx`; liên quan TC-DV-DISPATCH-012.
+
 ---
 
 
@@ -1299,3 +1333,5 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
 | __/__/__ | TC-DV-DISPATCH-045 | | | Cont đã phân xe không còn "Chờ phân xe" — chip 5 trạng thái (2026-09-08) | |
 | __/__/__ | TC-DV-DISPATCH-046 | | | Phát lệnh xe ngoài không bắt buộc tên tài xế; Điều vận/CUS hoàn thành xe ngoài (2026-09-08) | |
 | __/__/__ | TC-DV-DISPATCH-047 | | | Kế hoạch chi tiết cập nhật trạng thái "Đã hoàn thành" khi chuyến kết thúc (2026-09-08) | |
+| __/__/__ | TC-DV-DISPATCH-049 | | | Dòng COMPLETED khóa ô Điều phối — tooltip "đã chốt", editor không mở (2026-09-09) | |
+| __/__/__ | TC-DV-DISPATCH-050 | | | Chuyến IN_TRANSIT bấm ô Điều phối → dialog Phân xe lại (2026-09-09) | |
