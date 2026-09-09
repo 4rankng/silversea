@@ -1,33 +1,33 @@
 {
   "runId": "2026-09-09_dispatch-sweep-2026-09-09",
-  "timestamp": "2026-09-09T02:33:31.213Z",
+  "timestamp": "2026-09-09T05:54:02.046Z",
   "results": [
     {
       "caseId": "TC-CUS-CREATE-048",
       "role": "ADMIN",
       "file": "TC-CUS-CREATE-048.mjs",
       "verdict": "PASS",
-      "durationMs": 4506,
-      "rowCount": 7,
+      "durationMs": 2299,
+      "rowCount": 20,
       "contractOk": true,
       "sampleRows": [
         {
-          "text": "LONG MINH SUNRISE KCN VÂN TRUNG, BẮC GIANG EBKG18452303 Chưa có tờ khai MSC Xuất 1x20DC 5 kg 13:00 8/9/2026 · SUNRISE · 1x20DC Toàn bộ chờ phân xe — Sẵn sàng đi",
-          "hasMissingDate": false,
-          "hasWaitingSignal": false,
-          "hasReadySignal": true
+          "text": "KHÁCH HÀNG E2E TỔNG HỢP 1788932988960 Chưa có nhà máy Chưa có tuyến đường Chưa có Bill/Book Chưa có tờ khai Chưa có hãng tàu — — — kg · — CBM Chưa chốt ngày Khô",
+          "hasMissingDate": true,
+          "hasWaitingSignal": true,
+          "hasReadySignal": false
         },
         {
-          "text": "LOG COM NEWEB-1 KCN ĐỒNG VĂN, HÀ NAM BLEHPH260900002 108594123850 EVER Nhập 1x20DC 2.942 kg 08:00 8/9/2026 · NEWEB-1 · 1x20DC Toàn bộ chờ phân xe Kho 1 Sẵn sàng",
-          "hasMissingDate": false,
-          "hasWaitingSignal": false,
-          "hasReadySignal": true
+          "text": "KHÁCH HÀNG E2E TỔNG HỢP 1788930127679 Chưa có nhà máy Chưa có tuyến đường Chưa có Bill/Book Chưa có tờ khai Chưa có hãng tàu — — — kg · — CBM Chưa chốt ngày Khô",
+          "hasMissingDate": true,
+          "hasWaitingSignal": true,
+          "hasReadySignal": false
         },
         {
-          "text": "LOG COM NEWEB-1 KCN ĐỒNG VĂN, HÀ NAM EHPH26080202 Chưa có tờ khai SITC Xuất 1x20DC 10.000 kg 08:00 8/9/2026 · NEWEB-1 · 1x20DC Toàn bộ chờ phân xe Kho 1-f2 Sẵn ",
-          "hasMissingDate": false,
-          "hasWaitingSignal": false,
-          "hasReadySignal": true
+          "text": "KHÁCH HÀNG E2E TỔNG HỢP 1788929227676 Chưa có nhà máy Chưa có tuyến đường Chưa có Bill/Book Chưa có tờ khai Chưa có hãng tàu — — — kg · — CBM Chưa chốt ngày Khô",
+          "hasMissingDate": true,
+          "hasWaitingSignal": true,
+          "hasReadySignal": false
         }
       ]
     },
@@ -36,18 +36,18 @@
       "role": "ADMIN",
       "file": "TC-CUS-APPOINTMENT-001.mjs",
       "verdict": "PASS",
-      "durationMs": 7887,
+      "durationMs": 5182,
       "fields": [
         {
           "label": "GIỜ",
           "type": "time",
-          "value": "14:00",
+          "value": "08:00",
           "lang": "en-GB"
         },
         {
           "label": "NGÀY",
           "type": "date",
-          "value": "2026-09-08",
+          "value": "2026-09-09",
           "lang": "en-GB"
         }
       ],
@@ -58,24 +58,24 @@
       "role": "ADMIN",
       "file": "TC-SHIPMENTS-DETAIL-001.mjs",
       "verdict": "PASS",
-      "durationMs": 4227,
-      "totalRows": 9,
-      "plannedCount": 3,
-      "platedCount": 4,
+      "durationMs": 2307,
+      "totalRows": 20,
+      "plannedCount": 7,
+      "platedCount": 11,
       "samplePlanned": [
         {
           "vehicle": "SilverSea",
-          "plate": "15C-184.62",
+          "plate": "29C-123.45",
           "badge": "Đã phân xe"
         },
         {
           "vehicle": "SilverSea",
-          "plate": "15H-205.57",
+          "plate": "29C-123.45",
           "badge": "Đã phân xe"
         },
         {
           "vehicle": "SilverSea",
-          "plate": "15H-119.64",
+          "plate": "29C-123.45",
           "badge": "Đã phân xe"
         }
       ]
@@ -84,21 +84,18 @@
       "caseId": "TC-DISPATCH-ALLOC-001",
       "role": "ADMIN",
       "file": "TC-DISPATCH-ALLOC-001.mjs",
-      "verdict": "PASS",
-      "durationMs": 5442,
-      "structure": {
-        "dayGroupCount": 1,
-        "dayTitles": [
-          "Ngày 08/09/2026 · Thứ Ba"
-        ]
-      }
+      "verdict": "ERROR",
+      "durationMs": 10302,
+      "errors": [
+        "TimeoutError: Waiting for selector `.dispatch-allocation-popover` failed\n    at CSSQueryHandler.waitFor (file:///Users/dev/Documents/projects/silversea-prod/node_modules/.pnpm/puppeteer-core@25.1.0/node_modules/puppeteer-core/lib/puppeteer/common/QueryHandler.js:211:46)\n    at async CdpFrame.waitForSelector (file:///Users/dev/Documents/projects/silversea-prod/node_modules/.pnpm/puppeteer-core@25.1.0/node_modules/puppeteer-core/lib/puppeteer/api/Frame.js:541:21)\n    at async CdpPage.waitForSelector (file:///Users/dev/Documents/projects/silversea-prod/node_modules/.pnpm/puppeteer-core@25.1.0/node_modules/puppeteer-core/lib/puppeteer/api/Page.js:1387:20)\n    at async Module.default (file:///Users/dev/Documents/projects/silversea-prod/testplan/qa/cases/dispatch-sweep-2026-09-09/TC-DISPATCH-ALLOC-001.mjs:24:3)\n    at async main (file:///Users/dev/Documents/projects/silversea-prod/testplan/qa/scripts/run-all.mjs:62:18)"
+      ]
     },
     {
       "caseId": "TC-DISPATCH-EDIT-001",
       "role": "ADMIN",
       "file": "TC-DISPATCH-EDIT-001.mjs",
       "verdict": "PASS",
-      "durationMs": 5478,
+      "durationMs": 3502,
       "classData": {
         "hasSelect": true,
         "options": [
@@ -107,9 +104,18 @@
           "Kẹp",
           "Kết hợp"
         ],
-        "value": "DOUBLE"
+        "value": "SINGLE"
       },
       "externalInspection": null
+    },
+    {
+      "caseId": "TC-DISPATCH-EDIT-002",
+      "role": "ADMIN",
+      "file": "TC-DISPATCH-EDIT-002.mjs",
+      "verdict": "PASS",
+      "durationMs": 3911,
+      "isDialogOpenBefore": true,
+      "isDialogClosedAfter": true
     }
   ]
 }

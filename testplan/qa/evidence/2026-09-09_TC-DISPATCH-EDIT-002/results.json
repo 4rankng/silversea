@@ -1,0 +1,13 @@
+{
+  "runId": "2026-09-09_TC-DISPATCH-EDIT-002",
+  "timestamp": "2026-09-09T05:47:33.109Z",
+  "results": [
+    {
+      "caseId": "TC-DISPATCH-EDIT-002",
+      "verdict": "PASS",
+      "durationMs": 4207,
+      "isDialogOpenBefore": true,
+      "isDialogClosedAfter": true
+    }
+  ]
+}

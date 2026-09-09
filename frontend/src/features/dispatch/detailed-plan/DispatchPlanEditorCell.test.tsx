@@ -175,8 +175,8 @@ describe('DispatchPlanEditorCell — driver note composer', () => {
     fireEvent.click(screen.getByRole('button', { name: /Lưu thay đổi/ }));
     await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));
     expect(onAtomicSave.mock.calls[0]![1]).toMatchObject({ operationalNotes: 'Đặt đầu; gọi lái trước 30p' });
-    // Re-anchor: the draft now mirrors the stored note.
-    await waitFor(() => expect(screen.getByText('Hiển thị: Đặt đầu; gọi lái trước 30p')).toBeTruthy());
+    // Saving closes the dialog.
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
 });
 
@@ -321,7 +321,7 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
     expect(onIssueOrder).not.toHaveBeenCalled();
   });
 
-  it('re-anchors the draft after a keep-open save so issuing unblocks (03f9fcd2 regression)', async () => {
+  it('closes the dialog upon successful save', async () => {
     const onAtomicSave = vi.fn().mockResolvedValue({
       fulfillmentVersion: 4,
       shipmentVersion: 6,
@@ -332,7 +332,7 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
       lotFullyPlated: false,
     });
     // Start from an unplated row: the dispatcher picks the truck in-dialog.
-    const { rerender } = renderCell(row({
+    renderCell(row({
       dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: null },
     }), { onAtomicSave });
 
@@ -341,30 +341,13 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
     fireEvent.click(document.getElementById('dispatch-vehicle-101')!);
     fireEvent.change(screen.getByRole('combobox'), { target: { value: '15H-052' } });
     fireEvent.click(screen.getByRole('option', { name: /15H-052\.82/ }));
-    // planDirty: no issue fieldset content yet, and the (absent) button would be disabled.
-    expect(screen.queryByText('Phát lệnh cho tài xế')).toBeNull();
 
     fireEvent.click([...screen.getAllByRole('button')].find((b) => b.textContent?.includes('Lưu thay đổi'))!);
     await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));
     // A successful save must not surface the "cannot save" failure banner
-    // (regression: a mangled try/catch made this fire unconditionally).
     expect(screen.queryByText(/Không thể lưu kế hoạch/)).toBeNull();
-    // The parent would swap in the freshly plated row — mirror that here.
-    rerender(
-      <DispatchPlanEditorCell
-        row={row({ version: 4, dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '15H-052.82' } })}
-        onAtomicSave={onAtomicSave as never}
-        onOpenTripReassign={vi.fn() as never}
-        onCompleteExternalTrip={vi.fn() as never}
-        onIssueOrder={vi.fn().mockResolvedValue({ fulfillmentId: 101, version: 5, trip: { id: 56, version: 1, tripCode: 'TRP-2', status: 'CREATED', plannedStartAt: null, plannedEndAt: null, carrierType: 'OWN', truckId: 154, trailerId: 2, driverId: 8, externalCarrierId: null, externalPlateNumber: null, externalDriverName: null, externalDriverPhone: null }, notification: { type: 'TRIP_DISPATCHED', deliveredInApp: true, pushAttempted: false }, replayed: false }) as never}
-      />,
-    );
-    // Draft re-anchored to the saved result: the issue section appears with the
-    // paired driver and an ENABLED button — no close/reopen needed.
-    await waitFor(() => expect(screen.getByText('Phát lệnh cho tài xế')).toBeTruthy());
-    await waitFor(() => expect(document.querySelector('.dispatch-assignment-dialog__issue-driver')?.textContent).toContain('Phạm Văn Hùng'));
-    await waitFor(() => expect(issueButton().disabled).toBe(false));
-    expect(screen.queryByText(/Lưu thay đổi điều phối ở trên trước khi phát lệnh/)).toBeNull();
+    // And closes the dialog
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
 
   it('surfaces the failure banner when the plan save is rejected', async () => {

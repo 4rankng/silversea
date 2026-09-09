@@ -7,4 +7,5 @@ export const cases = [
   { id: 'TC-SHIPMENTS-DETAIL-001', role: 'ADMIN', file: 'TC-SHIPMENTS-DETAIL-001.mjs' },
   { id: 'TC-DISPATCH-ALLOC-001', role: 'ADMIN', file: 'TC-DISPATCH-ALLOC-001.mjs' },
   { id: 'TC-DISPATCH-EDIT-001', role: 'ADMIN', file: 'TC-DISPATCH-EDIT-001.mjs' },
+  { id: 'TC-DISPATCH-EDIT-002', role: 'ADMIN', file: 'TC-DISPATCH-EDIT-002.mjs' },
 ];

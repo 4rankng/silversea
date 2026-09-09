@@ -1,0 +1,73 @@
+{
+  "runId": "2026-09-09_customer-regression",
+  "timestamp": "2026-09-09T05:40:13.062Z",
+  "results": [
+    {
+      "caseId": "FACTORY-DISPLAY-REGRESSION-2026-09-07",
+      "role": "CUS",
+      "file": "factory-display.mjs",
+      "verdict": "ERROR",
+      "durationMs": 5098,
+      "errors": [
+        "TypeError: ((intermediate value) || (intermediate value) || []).map is not a function\n    at Module.default (file:///Users/dev/Documents/projects/silversea-prod/testplan/qa/cases/customer-regression/factory-display.mjs:69:74)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async main (file:///Users/dev/Documents/projects/silversea-prod/testplan/qa/scripts/run-all.mjs:62:18)"
+      ]
+    },
+    {
+      "caseId": "TC-CUS-CREATE-021",
+      "role": "CUS",
+      "file": "TC-CUS-CREATE-021.mjs",
+      "verdict": "BLOCKED",
+      "durationMs": 3951,
+      "errors": [
+        "kh: no combobox placeholder=\"Gõ để tìm kiếm\""
+      ]
+    },
+    {
+      "caseId": "TC-CUS-CREATE-022",
+      "role": "CUS",
+      "file": "TC-CUS-CREATE-022.mjs",
+      "verdict": "BLOCKED",
+      "durationMs": 3918,
+      "errors": [
+        "kh: no combobox placeholder=\"Gõ để tìm kiếm\""
+      ]
+    },
+    {
+      "caseId": "TC-CUS-CREATE-023",
+      "role": "CUS",
+      "file": "TC-CUS-CREATE-023.mjs",
+      "verdict": "BLOCKED",
+      "durationMs": 3943,
+      "errors": [
+        "kh: no combobox placeholder=\"Gõ để tìm kiếm\""
+      ]
+    },
+    {
+      "caseId": "TC-CUS-CREATE-026",
+      "role": "CUS",
+      "file": "TC-CUS-CREATE-026.mjs",
+      "verdict": "BLOCKED",
+      "durationMs": 4354,
+      "errors": [
+        "kh: no combobox placeholder=\"Gõ để tìm kiếm\""
+      ]
+    },
+    {
+      "caseId": "TC-CUS-CREATE-028",
+      "role": "CUS",
+      "file": "TC-CUS-CREATE-028.mjs",
+      "verdict": "PASS",
+      "durationMs": 8681,
+      "target": {
+        "id": 10,
+        "blNumber": "TESTSS2609",
+        "containerCount": 2,
+        "containersWithAppt": 2
+      },
+      "rowTextSnippet": "LOG COMNEWEB-1KCN ĐỒNG VĂN, HÀ NAMTESTSS2609Chưa có tờ khaiChưa có hãng tàuNhập2x40DC— kg08:00 10/9/2026 · NEWEB-1 · 1x40DC20:45 11/9/2026 · NEWEB-1 · 1x40DCĐã phân xeĐã phát lệnh cho tài xếAPI verification shipment - staging regression wave 2026-09-09 Đang chạy Chờ Kế toánChi tiết",
+      "rowHasDate": true,
+      "rowHasWaiting": false,
+      "detailHasDate": true
+    }
+  ]
+}
