@@ -1223,6 +1223,25 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
 - **Kỳ vọng sai (Fail nếu):** Chuyến đã xong nhưng chip vẫn hiện "Đã phát lệnh cho tài xế".
 - **Bằng chứng:** Vitest `DispatchIssueStatus.test.tsx`, `DetailedPlanGrid.test.tsx`, UI screenshot.
 
+### TC-DV-DISPATCH-048 — Bấm "Lưu thay đổi" đóng dialog Chỉnh sửa điều phối
+
+- **Mã PRD:** Báo lỗi người dùng 2026-09-09 — Khi mở popup "Chỉnh sửa điều phối" trên `/dispatch-detail` và bấm nút "Lưu thay đổi", popup không tự đóng mà vẫn giữ mở. Người dùng yêu cầu bấm Lưu thay đổi phải đóng dialog.
+- **Vai trò:** `DISPATCHER`, `ADMIN`, `MANAGER`
+- **Mức độ:** P0
+- **Thiết bị:** Desktop (1440×900)
+- **Tiền điều kiện:** Có ít nhất một dòng container trên Kế hoạch chi tiết (`/dispatch-detail`).
+- **Các bước:**
+  1. Mở `/dispatch-detail` (Kế hoạch chi tiết điều vận).
+  2. Bấm vào ô Điều phối bất kỳ để mở dialog "Chỉnh sửa điều phối".
+  3. Chỉnh sửa thông tin (hoặc giữ nguyên) và bấm nút "Lưu thay đổi".
+  4. Quan sát dialog.
+- **Kết quả mong đợi (Pass):**
+  - Dữ liệu được lưu thành công.
+  - Dialog "Chỉnh sửa điều phối" tự động đóng lại sau khi lưu.
+  - Focus trở về ô trigger trên bảng.
+- **Kỳ vọng sai (Fail nếu):** Lưu thành công nhưng dialog vẫn mở, buộc người dùng phải bấm thêm nút "Hủy" hoặc "X" để đóng.
+- **Bằng chứng:** Vitest `DispatchPlanEditorCell.test.tsx`, E2E test `TC-DISPATCH-EDIT-002.mjs`, screenshot trước và sau khi lưu.
+
 ---
 
 
@@ -1232,6 +1251,7 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
 
 | Ngày thử | Mã TC | Người thử | Kết quả | Ghi chú | Bằng chứng |
 |-----------|-------|-----------|---------|---------|------------|
+| 09/09/26 | TC-DV-DISPATCH-048 | Antigravity | PASS | Bấm Lưu thay đổi đóng dialog Chỉnh sửa điều phối | `DispatchPlanEditorCell.test.tsx`, `TC-DISPATCH-EDIT-002` |
 | __/__/__ | TC-DV-DISPATCH-001 | | | Tiếp nhận lô | |
 | __/__/__ | TC-DV-DISPATCH-002 | | | Rã FCL | |
 | __/__/__ | TC-DV-DISPATCH-003 | | | Gán xe nhà | |
