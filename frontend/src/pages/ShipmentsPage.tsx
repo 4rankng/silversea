@@ -37,7 +37,10 @@ import '../styles/operational-table-typography.css';
 import '../styles/table-sort.css';
 import './ShipmentsPage.css';
 
-const SEARCH_PATTERN = /^[A-Za-z0-9]{4,5}$/;
+// Accepts the full Bill/Book, container, or declaration number as well as a
+// 4-5 char suffix — full values end with themselves, so the backend's ILIKE
+// suffix match covers both (2026-09-09 customer report).
+const SEARCH_PATTERN = /^[A-Za-z0-9]{4,32}$/;
 const BUCKETS = Object.values(ShipmentCusBucket);
 
 export default function ShipmentsPage() {
@@ -74,7 +77,7 @@ export default function ShipmentsPage() {
   const ws = useCusWorkspaceState({
     page, searchSuffix: suffixParam, transportDateFrom: dateFrom, transportDateTo: dateTo,
     direction, bucket, sortKey, sortDir,
-  });
+  }, drawerId);
   const qe = useCusQuickEdit({
     setError: ws.setError, setNotice: ws.setNotice, loadList: ws.loadList, invalidateDetail: ws.invalidateDetail,
   });
@@ -141,7 +144,7 @@ export default function ShipmentsPage() {
     event.preventDefault();
     const value = searchInput.trim();
     if (value && !SEARCH_PATTERN.test(value)) {
-      setSearchError('Nhập đúng 4-5 ký tự chữ hoặc số cuối của Bill/Book hoặc số tờ khai.');
+      setSearchError('Nhập số Bill/Book hoặc tờ khai đầy đủ, hoặc tối thiểu 4 ký tự chữ/số cuối.');
       return;
     }
     setSearchError(null);
@@ -248,10 +251,10 @@ export default function ShipmentsPage() {
                   setSearchInput(value);
                   setSearchError(null);
                 }}
-                placeholder="Nhập 4–5 ký tự cuối"
+                placeholder="Số đầy đủ hoặc tối thiểu 4 ký tự cuối"
                 inputProps={{
                   inputMode: 'text',
-                  pattern: '[A-Za-z0-9]{4,5}',
+                  pattern: '[A-Za-z0-9]{4,32}',
                   autoCapitalize: 'characters',
                   autoCorrect: 'off',
                   spellCheck: false,

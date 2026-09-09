@@ -2,7 +2,8 @@
 // Regenerate via drizzle-kit against the barrel: db/schema/index.ts.
 
 import {
-  date, index, integer, numeric, pgTable, serial, text, timestamp, uniqueIndex, varchar,
+  boolean, date, index, integer, numeric, pgTable, serial, text, timestamp,
+  uniqueIndex, varchar,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { ancillaryRevenueTypeEnum, liftDirectionEnum, loadStateEnum, trailerTypeEnum } from './_enums';
@@ -200,3 +201,140 @@ export const roadConfig = pgTable('road_config', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
+
+
+// ─── Auto Freight Pricing Engine (2026-09-09) ──────────────────────────────
+//
+// 6 new tables for the automatic freight calculation engine.
+// Source: `Phương án tính cước tự động.docx` + `CuocPhiThietKeDB.md` §3.
+// Formula: freight = basePrice × (1 + sharePct/100)
+//        + MAX(0, (fuelPrice − baseFuelPrice) × billedKm × litersPerKm)
+
+// Vehicle size class catalog — replaces free-text rate_key with a FK.
+// Seed: 1.25T, 2.5T, 3.5T, 5T, 8T, 10T, 15T, CONT20, CONT40.
+export const vehicleSizeClasses = pgTable('vehicle_size_classes', {
+  id: serial('id').primaryKey(),
+  code: varchar('code', { length: 20 }).notNull().unique(),
+  name: varchar('name', { length: 50 }).notNull(),
+  isContainer: boolean('is_container').notNull().default(false),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  deletedAt: timestamp('deleted_at'),
+});
+
+// Freight rate terms — per customer × route contract terms.
+// One row = one block in the Excel pricing sheet.
+export const freightRateTerms = pgTable('freight_rate_terms', {
+  id: serial('id').primaryKey(),
+  customerId: integer('customer_id').notNull(),
+  routeId: integer('route_id').notNull(),
+  // % added to base price (NOT fuel surcharge share). Excel: 2 / 2.5 / 4.
+  sharePct: numeric('share_pct', { precision: 5, scale: 2 }).notNull().default('0'),
+  // One-way km for billing (may differ from actual distance).
+  billingKmOneWay: integer('billing_km_one_way').notNull(),
+  // Always × 2 for round trip (decision 2026-09-09 Câu 4 = A).
+  billingKmMultiplier: numeric('billing_km_multiplier', { precision: 4, scale: 2 })
+    .notNull().default('2'),
+  // Base fuel price (F) already embedded in contract base price.
+  // Excel: 19270 / 1.08 = 17842.5926. Scale ≥ 4 required — see CuocPhiThietKeDB.md §3.2.1.
+  baseFuelPrice: numeric('base_fuel_price', { precision: 12, scale: 4 }).notNull(),
+  // Lag days before new fuel price applies (NEWEB = 1; others TBD).
+  fuelLagDays: integer('fuel_lag_days').notNull().default(0),
+  // Surcharge threshold — minimum price change to trigger adjustment.
+  // Two modes: percentage OR absolute (VNĐ/liter). NULL = no threshold (always adjust).
+  // Per docx §2 B: "Hệ thống hỗ trợ cấu hình ngưỡng biến động giá dầu tối thiểu
+  // theo 2 dạng tùy chọn".
+  surchargeThresholdPct: numeric('surcharge_threshold_pct', { precision: 5, scale: 2 }),
+  surchargeThresholdAbs: numeric('surcharge_threshold_abs', { precision: 12, scale: 2 }),
+  effectiveDate: date('effective_date').notNull().defaultNow(),
+  note: text('note'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  deletedAt: timestamp('deleted_at'),
+}, (table) => [
+  uniqueIndex('freight_rate_terms_cust_route_date_uniq')
+    .on(table.customerId, table.routeId, table.effectiveDate),
+]);
+
+// Fuel consumption norms — per vehicle size class.
+// This is REVENUE-side (lít/km for customer billing), NOT cost-side (fuel_norms).
+// See CuocPhiThietKeDB.md §3.3 — intentionally separate from fuel_norms.
+export const fuelConsumptionNorms = pgTable('fuel_consumption_norms', {
+  id: serial('id').primaryKey(),
+  vehicleSizeClassId: integer('vehicle_size_class_id').notNull(),
+  litersPerKm: numeric('liters_per_km', { precision: 6, scale: 4 }).notNull(),
+  effectiveDate: date('effective_date').notNull().defaultNow(),
+  note: text('note'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  deletedAt: timestamp('deleted_at'),
+}, (table) => [
+  uniqueIndex('fuel_consumption_norms_class_date_uniq')
+    .on(table.vehicleSizeClassId, table.effectiveDate),
+]);
+
+// Fuel price periods — the "ô M1" from Excel. One global price per period.
+// Adding a row = new period; old rows kept for audit trail.
+export const fuelPricePeriods = pgTable('fuel_price_periods', {
+  id: serial('id').primaryKey(),
+  // Fuel price (G), BEFORE VAT. Excel: 21740 (11/7) → 27620 (18/7).
+  unitPrice: numeric('unit_price', { precision: 12, scale: 2 }).notNull(),
+  effectiveFrom: date('effective_from').notNull(),
+  effectiveTo: date('effective_to'),
+  sourceNote: text('source_note'),
+  createdBy: integer('created_by'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  deletedAt: timestamp('deleted_at'),
+}, (table) => [
+  uniqueIndex('fuel_price_periods_from_uniq').on(table.effectiveFrom),
+]);
+
+// Freight rate snapshots — frozen calculation at trip/shipment issuance.
+// Immutable once created — answers "why is this trip 5,071,744 VND?"
+export const freightRateSnapshots = pgTable('freight_rate_snapshots', {
+  id: serial('id').primaryKey(),
+  shipmentId: integer('shipment_id'),
+  tripId: integer('trip_id'),
+  // Frozen results — integer VND
+  freightAmount: numeric('freight_amount', { precision: 15, scale: 0 }).notNull(),
+  surchargeAmount: numeric('surcharge_amount', { precision: 15, scale: 0 }).notNull(),
+  totalAmount: numeric('total_amount', { precision: 15, scale: 0 }).notNull(),
+  // Traceability: which parameter rows were used
+  rateTermsId: integer('rate_terms_id').notNull(),
+  pricingTableId: integer('pricing_table_id').notNull(),
+  fuelNormId: integer('fuel_norm_id').notNull(),
+  fuelPricePeriodId: integer('fuel_price_period_id').notNull(),
+  // Intermediate values for customer explanation without re-joining
+  billedKm: numeric('billed_km', { precision: 10, scale: 2 }).notNull(),
+  liters: numeric('liters', { precision: 10, scale: 3 }).notNull(),
+  fuelDelta: numeric('fuel_delta', { precision: 12, scale: 4 }).notNull(),
+  sharePct: numeric('share_pct', { precision: 5, scale: 2 }).notNull(),
+  computedAt: timestamp('computed_at').defaultNow().notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => [
+  index('freight_rate_snapshots_shipment_idx').on(table.shipmentId),
+  index('freight_rate_snapshots_trip_idx').on(table.tripId),
+]);
+
+// Debit note overrides — manual adjustment by accountant at debit note time.
+// system_calculated_freight is read-only; final_debit_freight is the negotiated price.
+// Per docx §4: "hệ thống mở ô cho phép Kế toán nhập đè Giá cước thực tế đàm phán".
+export const debitNoteOverrides = pgTable('debit_note_overrides', {
+  id: serial('id').primaryKey(),
+  snapshotId: integer('snapshot_id').notNull(),
+  // System-calculated freight (read-only, from snapshot)
+  systemCalculatedFreight: numeric('system_calculated_freight',
+    { precision: 15, scale: 0 }).notNull(),
+  // Accountant-entered negotiated freight (nullable = use system value)
+  finalDebitFreight: numeric('final_debit_freight', { precision: 15, scale: 0 }),
+  // Required when final != system
+  overrideReason: text('override_reason'),
+  overrideBy: integer('override_by'),
+  overrideAt: timestamp('override_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('debit_note_overrides_snapshot_uniq').on(table.snapshotId),
+]);

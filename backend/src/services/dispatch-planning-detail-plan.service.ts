@@ -243,7 +243,16 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       isNull(s.shipmentFulfillments.canceledAt),
       isNull(s.shipments.deletedAt),
       inArray(s.shipments.status, ['READY_FOR_DISPATCH', 'DISPATCHED', 'IN_TRANSIT', 'COMPLETED']),
-      inArray(s.shipmentFulfillments.plannedCarrierType, [...DISPATCH_DETAIL_PLAN_CARRIER_TYPES]),
+      // 2026-09-09 dispatcher report: the detail plan only showed containers
+      // already carrier-allocated on the master plan. A fulfillment with no
+      // carrier plan yet (plannedCarrierType NULL) is exactly the one the
+      // dispatcher needs to allocate here, so NULL stays in the row set —
+      // the grid's carrier cell renders it as unassigned and the editor can
+      // assign OWN/EXTERNAL straight from this screen.
+      or(
+        inArray(s.shipmentFulfillments.plannedCarrierType, [...DISPATCH_DETAIL_PLAN_CARRIER_TYPES]),
+        isNull(s.shipmentFulfillments.plannedCarrierType),
+      ),
       accountantCustomerIds ? inArray(s.shipments.customerId, accountantCustomerIds) : undefined,
       input.direction ? eq(s.shipments.tradeDirection, input.direction) : undefined,
       date ? eq(dispatchDetailTransportDateSql(), date) : undefined,

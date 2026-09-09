@@ -65,6 +65,9 @@ export function useTripOptions(): TripOptions {
     queryKey: BOOTSTRAP_QUERY_KEY,
     queryFn: () => tripClient.getBootstrap(),
     staleTime: 5 * 60 * 1000,
+    // See useCatalogs: opt this key back into focus refetch so catalog
+    // additions reach open dropdowns without a reload.
+    refetchOnWindowFocus: true,
   });
 
   const pricingQuery = useQuery<PricingTable[]>({

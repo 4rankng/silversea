@@ -132,3 +132,27 @@ colour belongs to focus and domain status, not to persistent selection. For
 compact filters, the existing dark `FilterBar` pill remains the deliberate
 high-contrast selection pattern. Keep status badges, alerts, and compact
 exception context semantic, but do not reuse their soft fills for selection.
+
+## Combined date + time display contract
+
+Whenever the UI shows a date and a time together, display **time first, date
+after, in 24-hour format**: `HH:mm DD/MM/YYYY` (e.g. `14:30 20/08/2026`;
+tables may compact the date to `14:30 20/8/26`). Never render a 12-hour
+AM/PM clock, and never rely on the browser locale to format a native
+`datetime-local`/`time` input — locale rendering cannot be forced and
+produces 12h clocks on en-US browsers (2026-09-09 customer report).
+
+- Inputs: use the design-system 24h datetime text input
+  (`BufferedUuiDateTimeInput` / `useBufferedDateTimeValue`, placeholder
+  `HH:mm DD/MM/YYYY`). The app renders the string, so the format is
+  guaranteed in every browser. The stored value stays the ISO local shape
+  `YYYY-MM-DDTHH:mm`.
+- Display cells: format through the lib helpers so text, tables, and inputs
+  agree — `formatDateTime24` (full `HH:mm DD/MM/YYYY`, in
+  `frontend/src/lib/format.ts`) for local-ISO values, and
+  `formatDateTimeShort` (compact `HH:mm d/M/yy`, Vietnam-pinned, same file)
+  for timestamps. Never call `toLocaleString`/`Intl` inline for a combined
+  date-time: field order is engine-dependent (Node renders vi-VN time-first,
+  Chrome date-first), which a hard format requirement cannot depend on.
+
+This contract is pinned by `useBufferedDateTimeValue.test.tsx`.

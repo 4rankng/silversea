@@ -6,7 +6,7 @@
 
 import { db } from '../../db';
 import * as s from '../../db/schema';
-import { and, eq, inArray, isNull, like, ne, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, like, ne, or, sql } from 'drizzle-orm';
 import { z, type output } from 'zod';
 import { ApiError } from '../../errors';
 import {
@@ -828,7 +828,7 @@ export async function syncCustomerRelationsHook(
 
 export async function syncSupplierRelationsHook(
   tx: CrudTx,
-  supplier: { id: number; taxCode: string | null },
+  supplier: { id: number; name: string; shortName: string; status: string; taxCode: string | null },
   data: { linkedCustomerId?: number | null },
 ): Promise<void> {
   if ('linkedCustomerId' in data) {
@@ -842,15 +842,157 @@ export async function syncSupplierRelationsHook(
       .set({ linkedSupplierId: null, updatedAt: new Date() })
       .where(staleCondition);
     if (data.linkedCustomerId != null) {
+      // An explicitly chosen linked customer becomes a selectable nhà xe —
+      // set the carrier flag so every "Chọn nhà xe" dropdown sees it, but
+      // leave its name/status alone (the business owns that record).
       await tx.update(s.customers)
-        .set({ linkedSupplierId: supplier.id, updatedAt: new Date() })
+        .set({ linkedSupplierId: supplier.id, isCarrier: true, updatedAt: new Date() })
         .where(eq(s.customers.id, data.linkedCustomerId));
     }
   }
+  // 2026-09-09 customer report: a nhà thầu created on the Suppliers page
+  // never appeared in the "Chọn nhà xe" dropdowns — those read
+  // customers.isCarrier, and nothing linked a fresh supplier to a carrier
+  // customer. Every ACTIVE supplier now gets one: adopt a customer already
+  // pointing back at this supplier, else adopt a same-named customer, else
+  // mint a new ACTIVE isCarrier customer mirroring the supplier's name.
+  await ensureSupplierCarrierLink(tx, supplier, data.linkedCustomerId ?? null);
   const partnerId = await upsertPartnerInTransaction(tx, supplier.taxCode);
   await tx.update(s.suppliers)
     .set({ partnerId, updatedAt: new Date() })
     .where(eq(s.suppliers.id, supplier.id));
+}
+
+/**
+ * Shared by the supplier CRUD hook and the one-shot backfill
+ * (scripts/backfill-supplier-carriers.ts): resolves (or creates) the linked
+ * carrier customer and points suppliers.linkedCustomerId at it. Returns the
+ * linked customer id, or null when the supplier has no operational name.
+ * The backfill calls this for suppliers whose link is missing or dangling,
+ * which keeps the two write paths in lockstep forever.
+ */
+export async function ensureSupplierCarrierLink(
+  tx: CrudTx,
+  supplier: { id: number; name: string; shortName: string; status: string; taxCode: string | null },
+  explicitCustomerId: number | null,
+): Promise<number | null> {
+  const linkedCarrierId = await ensureLinkedCarrierCustomer(tx, supplier, explicitCustomerId);
+  if (linkedCarrierId != null) {
+    await tx.update(s.suppliers)
+      .set({ linkedCustomerId: linkedCarrierId, updatedAt: new Date() })
+      // ne() alone would skip NULL (fresh suppliers) — an IS NULL branch is
+      // required for the new-link case.
+      .where(and(
+        eq(s.suppliers.id, supplier.id),
+        or(isNull(s.suppliers.linkedCustomerId), ne(s.suppliers.linkedCustomerId, linkedCarrierId)),
+      ));
+  }
+  return linkedCarrierId;
+}
+
+async function ensureLinkedCarrierCustomer(
+  tx: CrudTx,
+  supplier: { id: number; name: string; shortName: string; status: string; taxCode: string | null },
+  explicitCustomerId: number | null,
+): Promise<number | null> {
+  const operationalName = supplier.shortName?.trim() || supplier.name.trim();
+  if (!operationalName) return null;
+
+  if (explicitCustomerId != null) {
+    return explicitCustomerId;
+  }
+
+  const existingLink = await tx.select({ id: s.customers.id }).from(s.customers)
+    // A soft-deleted customer is never selectable — drop it from the scan or
+    // a deleted back-link would be "ensured" and keep the supplier invisible.
+    .where(and(
+      eq(s.customers.linkedSupplierId, supplier.id),
+      isNull(s.customers.deletedAt),
+    ))
+    .orderBy(asc(s.customers.id))
+    .limit(1);
+  if (existingLink.length > 0) {
+    const customerId = existingLink[0]!.id;
+    await tx.update(s.customers)
+      .set({
+        name: supplier.name,
+        shortName: operationalName,
+        isCarrier: true,
+        // Deactivating a supplier hides its carrier from the dropdowns too;
+        // the customers enum has no INACTIVE — LOCKED is the dormant state.
+        status: supplier.status === 'ACTIVE' ? 'ACTIVE' : 'LOCKED',
+        updatedAt: new Date(),
+      })
+      .where(eq(s.customers.id, customerId));
+    return customerId;
+  }
+
+  const sameName = await tx.select({ id: s.customers.id }).from(s.customers)
+    // Same soft-delete rule as the back-link scan above: a deleted same-named
+    // row must not be adopted (and must not count toward the ambiguity check
+    // that decides mint-vs-adopt).
+    .where(and(
+      isNull(s.customers.deletedAt),
+      sql`lower(btrim(${s.customers.name})) = lower(${operationalName})`,
+    ))
+    .orderBy(asc(s.customers.id))
+    .limit(2);
+  if (sameName.length === 1) {
+    const customerId = sameName[0]!.id;
+    await tx.update(s.customers)
+      .set({
+        linkedSupplierId: supplier.id,
+        isCarrier: true,
+        // Adopted billing customer: never null out its tax code, never flip
+        // its lifecycle — only the carrier flag and the back-link change.
+        updatedAt: new Date(),
+      })
+      .where(eq(s.customers.id, customerId));
+    return customerId;
+  }
+  // 0 or 2+ same-name customers: ambiguous in the latter case, so never pick
+  // one silently. Before minting, adopt the unique customer already holding
+  // this supplier's tax code — the same legal entity — otherwise the mint
+  // would mint a normalized duplicate that trips the customer tax-code
+  // uniqueness guard on the next write (normalizeTaxCode strips ALL inner
+  // whitespace and lowercases, unlike the raw btrim the unique index uses).
+  let mintTaxCode = supplier.taxCode;
+  const normalizedSupplierTaxCode = normalizeTaxCode(supplier.taxCode);
+  if (normalizedSupplierTaxCode !== '') {
+    const taxCodeHolders = await tx.select({ id: s.customers.id }).from(s.customers)
+      .where(and(
+        isNull(s.customers.deletedAt),
+        sql`nullif(lower(regexp_replace(${s.customers.taxCode}, '\\s+', '', 'g')), '') = ${normalizedSupplierTaxCode}`,
+      ))
+      .limit(2);
+    if (taxCodeHolders.length === 1) {
+      const customerId = taxCodeHolders[0]!.id;
+      await tx.update(s.customers)
+        .set({
+          linkedSupplierId: supplier.id,
+          isCarrier: true,
+          updatedAt: new Date(),
+        })
+        .where(eq(s.customers.id, customerId));
+      return customerId;
+    }
+    // ≥2 holders can't exist under customers_active_tax_code_uniq_idx; if a
+    // drifted dataset ever produces one, mint WITHOUT the code instead of
+    // 500ing — the code can be set manually afterwards.
+    if (taxCodeHolders.length >= 2) mintTaxCode = null;
+  } else {
+    // Whitespace-only or absent code: mint with NULL, not formatting garbage.
+    mintTaxCode = null;
+  }
+  const [created] = await tx.insert(s.customers).values({
+    name: supplier.name,
+    shortName: operationalName,
+    status: 'ACTIVE',
+    isCarrier: true,
+    linkedSupplierId: supplier.id,
+    taxCode: mintTaxCode,
+  }).returning({ id: s.customers.id });
+  return created!.id;
 }
 
 /**

@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, ArrowLeft, Loader2, ShieldCheck } from 'lucide-react';
 import { useTripOptions } from '../hooks/useTripOptions';
+import { DATE_TIME_24_PLACEHOLDER, useBufferedDateTimeValue } from '../design-system';
 import { useTripForm } from '../hooks/useTripForm';
 import { TripFormProvider } from '../hooks/useTripFormContext';
 import { TripInfoCard } from '../components/trip/TripInfoCard';
@@ -55,6 +56,9 @@ export default function TripCreatePage() {
   } | null>(null);
   const [creditReason, setCreditReason] = React.useState('');
   const [creditExpiry, setCreditExpiry] = React.useState(defaultExpiryInput);
+  // 24h time-first entry (combined date+time contract, 2026-09-09): same
+  // 'YYYY-MM-DDTHH:mm' value contract as the datetime-local it replaces.
+  const creditExpiryInput = useBufferedDateTimeValue({ value: creditExpiry, onChange: setCreditExpiry });
   const [creditRequest, setCreditRequest] = React.useState<CreditOverrideRequestRecord | null>(null);
   const [creditRequestIdInput, setCreditRequestIdInput] = React.useState('');
   const [creditPageCursors, setCreditPageCursors] = React.useState<Array<string | null>>([null]);
@@ -492,10 +496,16 @@ export default function TripCreatePage() {
               <label style={{ display: 'grid', gap: 6 }}>
                 <span>Hiệu lực đến</span>
                 <input
+                  ref={creditExpiryInput.ref}
+                  defaultValue={creditExpiryInput.defaultValue}
+                  onChange={creditExpiryInput.onChange}
+                  onBlur={creditExpiryInput.onBlur}
                   className="input mono"
-                  type="datetime-local"
-                  value={creditExpiry}
-                  onChange={(event) => setCreditExpiry(event.target.value)}
+                  type="text"
+                  inputMode="numeric"
+                  placeholder={DATE_TIME_24_PLACEHOLDER}
+                  maxLength={16}
+                  autoComplete="off"
                 />
               </label>
             </div>

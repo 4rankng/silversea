@@ -604,11 +604,18 @@ describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {
       .where(eq(s.partners.normalizedTaxCode, 'mst123'));
     assert.equal(normalizedPartners.length, 1);
 
+    // The supplier's carrier-link hook just adopted this customer (set
+    // linkedSupplierId + isCarrier), which bumps updatedAt — re-read before
+    // the optimistic-locked PUT.
+    const [currentCustomerState] = await db.select({ updatedAt: s.customers.updatedAt })
+      .from(s.customers)
+      .where(eq(s.customers.id, createdCustomer.id))
+      .limit(1);
     const updatedCustomerAction = await request<Record<string, unknown>>('/api/customers/' + createdCustomer.id, {
       method: 'PUT',
       token: adminToken,
       idempotencyKey: addIdempotencyKey(`final-q08-customer-update-${suffix}`),
-      expectedUpdatedAt: createdCustomer.updatedAt.toISOString(),
+      expectedUpdatedAt: currentCustomerState!.updatedAt.toISOString(),
       body: {
         taxCode: ' M S T 123 ',
       },

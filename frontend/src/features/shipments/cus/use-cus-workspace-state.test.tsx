@@ -1,14 +1,15 @@
 import { act, render, screen, waitFor } from '@testing-library/react';
 import { focusManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ShipmentCusWorkspaceListResponse } from '@tingting/shared';
+import type { ShipmentCusWorkspaceDetail, ShipmentCusWorkspaceListResponse } from '@tingting/shared';
 import { CUS_PAGE_SIZE, useCusWorkspaceState, type CusWorkspaceListParams } from './use-cus-workspace-state';
 
 const listCusShipmentWorkspace = vi.hoisted(() => vi.fn());
+const getCusShipmentWorkspaceDetail = vi.hoisted(() => vi.fn());
 
 vi.mock('../../../api/shipmentClient', () => ({
   listCusShipmentWorkspace,
-  getCusShipmentWorkspaceDetail: vi.fn(),
+  getCusShipmentWorkspaceDetail,
 }));
 
 function listResponse(total: number): ShipmentCusWorkspaceListResponse {
@@ -165,5 +166,72 @@ describe('useCusWorkspaceState — list query equivalence', () => {
     });
     await waitFor(() => expect(screen.getByTestId('error')).toHaveTextContent('none'));
     expect(await screen.findByText('5')).toBeTruthy();
+  });
+});
+
+function detailResponse(carrierNames: string[]): ShipmentCusWorkspaceDetail {
+  return {
+    summary: { id: 1, version: 1 },
+    containers: [],
+    selectors: {
+      routes: [],
+      ports: [],
+      containerTypes: [],
+      carrierVehicles: [],
+      externalCarriers: carrierNames.map((name, index) => ({ id: index + 1, name, shortName: null, label: name })),
+    },
+  } as unknown as ShipmentCusWorkspaceDetail;
+}
+
+function DetailProbe({ activeDetailId }: { activeDetailId: number | null }) {
+  const ws = useCusWorkspaceState(baseParams, activeDetailId);
+  const carriers = ws.details[1]?.selectors.externalCarriers ?? [];
+  return (
+    <div>
+      <button type="button" onClick={() => void ws.loadDetail(1)}>load</button>
+      <span data-testid="carriers">{carriers.map((carrier) => carrier.name).join(',')}</span>
+    </div>
+  );
+}
+
+describe('useCusWorkspaceState — open-drawer carrier/selector revalidation on window focus', () => {
+  let client: QueryClient;
+
+  function detailProbeUi(activeDetailId: number | null) {
+    return (
+      <QueryClientProvider client={client}>
+        <DetailProbe activeDetailId={activeDetailId} />
+      </QueryClientProvider>
+    );
+  }
+
+  beforeEach(() => {
+    listCusShipmentWorkspace.mockReset();
+    listCusShipmentWorkspace.mockResolvedValue(listResponse(0));
+    getCusShipmentWorkspaceDetail.mockReset();
+    client = makeClient();
+    focusManager.setFocused(true);
+  });
+  afterEach(() => { client.clear(); });
+
+  it('refetches the open drawer detail on window focus so a carrier added elsewhere appears without a full reload', async () => {
+    getCusShipmentWorkspaceDetail.mockResolvedValueOnce(detailResponse(['Nhà xe A']));
+    render(detailProbeUi(1));
+    await act(async () => { screen.getByRole('button', { name: 'load' }).click(); });
+    await waitFor(() => expect(screen.getByTestId('carriers')).toHaveTextContent('Nhà xe A'));
+    expect(getCusShipmentWorkspaceDetail).toHaveBeenCalledTimes(1);
+
+    // Simulate a carrier created elsewhere (admin config, another tab) while
+    // this shipment's drawer stays cached, then the user tabbing back.
+    getCusShipmentWorkspaceDetail.mockResolvedValueOnce(detailResponse(['Nhà xe A', 'Nhà xe B mới']));
+    await act(async () => { window.dispatchEvent(new Event('focus')); });
+    await waitFor(() => expect(screen.getByTestId('carriers')).toHaveTextContent('Nhà xe B mới'));
+    expect(getCusShipmentWorkspaceDetail).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not revalidate on window focus when no drawer is open', async () => {
+    render(detailProbeUi(null));
+    await act(async () => { window.dispatchEvent(new Event('focus')); });
+    expect(getCusShipmentWorkspaceDetail).not.toHaveBeenCalled();
   });
 });

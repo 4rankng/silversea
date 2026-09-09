@@ -46,7 +46,7 @@ export interface CusWorkspaceListParams {
   sortDir: 'asc' | 'desc';
 }
 
-export function useCusWorkspaceState(params: CusWorkspaceListParams) {
+export function useCusWorkspaceState(params: CusWorkspaceListParams, activeDetailId: number | null = null) {
   const { page, searchSuffix, transportDateFrom, transportDateTo, direction, bucket, sortKey, sortDir } = params;
   const [notice, setNotice] = useState<string | null>(null);
   // Non-list errors (mutations, guards) still write imperatively; list-load
@@ -235,6 +235,46 @@ export function useCusWorkspaceState(params: CusWorkspaceListParams) {
       return next;
     });
   }, []);
+
+  // `details[shipmentId]` is fetched once on first drawer open and cached
+  // for the rest of the session (see loadDetail), so its `selectors` catalogs
+  // (external carriers, vehicles, routes, ports, container types) go stale —
+  // a carrier added elsewhere (admin config, another tab) never appears in
+  // an already-cached shipment's "Chọn nhà xe" dropdown without a full page
+  // reload. Revalidate the open drawer's selectors on window-focus/visibility
+  // regain, same trigger already used for shipment-create catalogs
+  // (ShipmentCreateWorkspace.tsx). Containers/summary are left untouched so
+  // in-progress edit drafts (keyed off the container signature) survive.
+  useEffect(() => {
+    if (activeDetailId == null) return;
+    const shipmentId = activeDetailId;
+    let revalidateInFlight = false;
+    let revalidatePending = false;
+    function revalidateSelectors() {
+      if (revalidateInFlight) { revalidatePending = true; return; }
+      if (document.visibilityState === 'hidden') return;
+      revalidateInFlight = true;
+      getCusShipmentWorkspaceDetail(shipmentId).then((fresh) => {
+        setDetails((current) => {
+          const existing = current[shipmentId];
+          if (!existing) return current;
+          return { ...current, [shipmentId]: { ...existing, selectors: fresh.selectors } };
+        });
+      }).catch(() => {}).finally(() => {
+        revalidateInFlight = false;
+        if (revalidatePending) {
+          revalidatePending = false;
+          revalidateSelectors();
+        }
+      });
+    }
+    window.addEventListener('focus', revalidateSelectors);
+    document.addEventListener('visibilitychange', revalidateSelectors);
+    return () => {
+      window.removeEventListener('focus', revalidateSelectors);
+      document.removeEventListener('visibilitychange', revalidateSelectors);
+    };
+  }, [activeDetailId]);
 
   return {
     data, loading, error, notice, setError: setActionError as Dispatch<SetStateAction<string | null>>, setNotice, loadList,

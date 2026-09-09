@@ -565,8 +565,17 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     await screen.findByText('CONT-001');
     const input = screen.getByLabelText(/Container, Bill\/Booking hoặc tờ khai/i);
     fireEvent.change(input, { target: { value: 'ABC!' } });
-    expect(await screen.findByText('Nhập đúng 4 hoặc 5 ký tự chữ và số cuối.')).toBeTruthy();
+    expect(await screen.findByText('Nhập số đầy đủ hoặc tối thiểu 4 ký tự chữ và số cuối.')).toBeTruthy();
     expect(apiGet).toHaveBeenCalledTimes(1);
+  });
+
+  it('accepts the full container/Bill number, not only a 4-5 char suffix (2026-09-09 report)', async () => {
+    apiGet.mockResolvedValue(response);
+    render(<MemoryRouter><ShipmentContainersPage /></MemoryRouter>);
+    await screen.findByText('CONT-001');
+    const input = screen.getByLabelText(/Container, Bill\/Booking hoặc tờ khai/i);
+    fireEvent.change(input, { target: { value: 'MSCU6639870' } });
+    await waitFor(() => expect(apiGet).toHaveBeenLastCalledWith(expect.stringContaining('searchSuffix=MSCU6639870')));
   });
 
   it('shows load failure separately from empty data and offers retry', async () => {

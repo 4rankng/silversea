@@ -94,7 +94,7 @@ export default function ShipmentContainersPage() {
     const isEmptyOrPartial = /^[A-Z0-9]{0,3}$/.test(value);
     const isValid = CUS_SEARCH_PATTERN.test(value);
     setSearchInput(value);
-    setSearchError(isEmptyOrPartial || isValid ? null : 'Nhập đúng 4 hoặc 5 ký tự chữ và số cuối.');
+    setSearchError(isEmptyOrPartial || isValid ? null : 'Nhập số đầy đủ hoặc tối thiểu 4 ký tự chữ và số cuối.');
 
     const nextSuffix = isValid ? value : '';
     if (nextSuffix === suffixParam) return;
@@ -190,7 +190,7 @@ export default function ShipmentContainersPage() {
       <section className="shipments-detail-workspace" aria-label="Danh sách container" aria-busy={detail.loading}>
         <div className="shipments-detail-workspace__header">
           <div className="shipments-detail-filters">
-            <UUIInput label="Container, Bill/Booking hoặc tờ khai" size="sm" icon={Search} value={searchInput} onChange={updateSearch} placeholder="Nhập 4–5 ký tự cuối" hint={searchError ?? undefined} isInvalid={Boolean(searchError)} inputProps={{ maxLength: 5, autoCapitalize: 'characters', autoCorrect: 'off', spellCheck: false }} className="shipments-detail-filter shipments-detail-filter--search" />
+            <UUIInput label="Container, Bill/Booking hoặc tờ khai" size="sm" icon={Search} value={searchInput} onChange={updateSearch} placeholder="Số đầy đủ hoặc tối thiểu 4 ký tự cuối" hint={searchError ?? undefined} isInvalid={Boolean(searchError)} inputProps={{ maxLength: 32, autoCapitalize: 'characters', autoCorrect: 'off', spellCheck: false }} className="shipments-detail-filter shipments-detail-filter--search" />
             <div className="shipments-detail-filters__group shipments-detail-filters__group--dates">
               <BufferedUuiDateInput label="Từ ngày vận chuyển" size="sm" value={dateFrom} onChange={(value) => updateParam('transportDateFrom', value || null)} inputProps={{ max: dateTo || undefined }} className="shipments-detail-filter" />
               <BufferedUuiDateInput label="Đến ngày vận chuyển" size="sm" value={dateTo} onChange={(value) => updateParam('transportDateTo', value || null)} inputProps={{ min: dateFrom || undefined }} className="shipments-detail-filter" />

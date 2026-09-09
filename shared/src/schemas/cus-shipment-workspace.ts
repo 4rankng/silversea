@@ -12,9 +12,14 @@ const fieldAccessSchema = z.object({
   mode: z.enum(['DIRECT', 'REQUEST', 'READ_ONLY']),
   reason: z.string().min(1),
 }).strict();
+// 2026-09-09 customer report: restrict the workboard search to a 4-5 char
+// suffix blocked pasting the full Bill/Book, container, or declaration
+// number. Full values end with themselves, so the ILIKE suffix match already
+// covers both — only the length cap needed lifting. Min 4 keeps the
+// unanchored scans bounded; 32 fits the longest real number.
 const suffixSchema = z.string()
   .trim()
-  .regex(/^[A-Za-z0-9]{4,5}$/, 'Chỉ được tìm theo đúng 4-5 ký tự chữ hoặc số cuối của Bill/Book hoặc tờ khai.');
+  .regex(/^[A-Za-z0-9]{4,32}$/, 'Nhập số Bill/Book, container hoặc tờ khai đầy đủ, hoặc tối thiểu 4 ký tự cuối (chỉ chữ và số).');
 
 // Shared filter shape for both CUS workspace GET surfaces. The overview and
 // container endpoints deliberately expose distinct strict contracts: only the

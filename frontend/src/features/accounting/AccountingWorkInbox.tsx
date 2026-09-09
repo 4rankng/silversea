@@ -4,6 +4,7 @@ import { AlertTriangle, CheckCircle2, Clock3, RefreshCw } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { AccountantWorkInboxItem } from '@tingting/shared';
 import { financialClient } from '../../api/financialClient';
+import { formatDateTimeShort } from '../../lib/format';
 import { qk } from '../../api/keys';
 import { SortHeader } from '../../components/shared';
 import { nextTableSort, type TableSortState } from '../../lib/table-sort';
@@ -22,9 +23,9 @@ function blockerRoute(item: AccountantWorkInboxItem, code: string): string {
 }
 
 function formatTime(value: string): string {
-  return new Date(value).toLocaleString('vi-VN', {
-    day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
-  });
+  // Combined date+time contract: time-first 24h, Vietnam-pinned — the old
+  // inline toLocaleString was date-first, browser-local, engine-dependent.
+  return formatDateTimeShort(value);
 }
 
 function ReadinessFacts({ item }: { item: AccountantWorkInboxItem }) {

@@ -57,17 +57,32 @@ export function formatDate(d: string | null): string {
 }
 
 /**
- * Compact date-time for table cells: short date + short time, e.g. "19/8/26, 22:51".
- * Pinned to Vietnam wall-clock (Asia/Ho_Chi_Minh) on ANY host — same contract as
- * formatDateTimeVN (the 'vi-VN' locale alone shapes text, it does NOT set the
- * timezone, so unpinned toLocaleString renders browser-local). Invalid input
- * renders as "—" (the raw string is never echoed back).
+ * Compact date-time for table cells, TIME FIRST on a 24h clock:
+ * "HH:mm d/M/yy" e.g. "17:30 19/8/26" (combined date+time display contract,
+ * frontend/docs/design-system.md). Pinned to Vietnam wall-clock
+ * (Asia/Ho_Chi_Minh) on ANY host, and built from formatToParts so the
+ * time-first order is explicit — toLocaleString order varies by engine
+ * (Node renders vi-VN time-first; Chrome renders date-first), which a hard
+ * format requirement cannot depend on. Invalid input renders as "—" (the raw
+ * string is never echoed back).
  */
 export function formatDateTimeShort(value: string | null | undefined): string {
   if (!value) return '—';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '—';
-  return date.toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Asia/Ho_Chi_Minh' });
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    day: 'numeric',
+    month: 'numeric',
+    year: '2-digit',
+  }).formatToParts(date);
+  const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? '';
+  // Number() strips the engine's leading zeros ("08" → 8) so the compact
+  // d/M/yy shape is deterministic across Node and browsers.
+  return `${get('hour')}:${get('minute')} ${Number(get('day'))}/${Number(get('month'))}/${get('year')}`;
 }
 
 /**
@@ -129,4 +144,48 @@ export function removeDiacritics(str: string): string {
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/đ/g, 'd')
     .replace(/Đ/g, 'D');
+}
+
+/**
+ * Combined date + time display contract (2026-09-09, hard requirement):
+ * whenever a date and a time show together, the time comes FIRST and the
+ * clock is 24-hour — `HH:mm DD/MM/YYYY` (e.g. "14:30 20/08/2026"). Native
+ * datetime-local inputs render per browser locale (12h AM/PM on en-US) and
+ * cannot be forced, so inputs and cells both format through these helpers.
+ * See frontend/docs/design-system.md.
+ */
+
+/** Placeholder for every 24h datetime text input. */
+export const DATE_TIME_24_PLACEHOLDER = 'HH:mm DD/MM/YYYY';
+
+/**
+ * Formats a local datetime value ('YYYY-MM-DDTHH:mm', seconds tolerated) as
+ * the canonical time-first 24h text. Returns '' for empty or malformed input.
+ */
+export function formatDateTime24(value: string | null | undefined): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(value ?? '');
+  if (!match) return '';
+  const [, year, month, day, hour, minute] = match;
+  return `${hour}:${minute} ${day}/${month}/${year}`;
+}
+
+/**
+ * Parses an `HH:mm DD/MM/YYYY` entry (24h, time first; single-digit
+ * hour/day/month tolerated) into a 'YYYY-MM-DDTHH:mm' local datetime string.
+ * Returns null for anything incomplete, out of range (month 1-12, hour 0-23,
+ * minute 0-59) or not a real calendar day.
+ */
+export function parseDateTime24(text: string): string | null {
+  const match = /^(\d{1,2}):(\d{2})\s+(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(text.trim());
+  if (!match) return null;
+  const [, rawHour, rawMinute, rawDay, rawMonth, year] = match;
+  const day = Number(rawDay);
+  const month = Number(rawMonth);
+  const hour = Number(rawHour);
+  const minute = Number(rawMinute);
+  if (month < 1 || month > 12 || hour > 23 || minute > 59) return null;
+  // Reject rollover dates ("10:00 31/02/2026") by round-tripping through UTC.
+  const probe = new Date(Date.UTC(Number(year), month - 1, day));
+  if (probe.getUTCFullYear() !== Number(year) || probe.getUTCMonth() !== month - 1 || probe.getUTCDate() !== day) return null;
+  return `${year}-${rawMonth.padStart(2, '0')}-${rawDay.padStart(2, '0')}T${rawHour.padStart(2, '0')}:${rawMinute}`;
 }

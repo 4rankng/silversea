@@ -1,4 +1,5 @@
 import { Play, RefreshCw, Building2, ArrowRight, Link2, Timer, Truck } from 'lucide-react';
+import { DATE_TIME_24_PLACEHOLDER, useBufferedDateTimeValue } from '../../../design-system';
 import { formatDayMonth } from '../../../lib/date';
 import { splitRoute } from '../../../lib/route';
 import { isUrgent } from '../utils';
@@ -8,6 +9,25 @@ import { TRIP_STATUS_COLORS, type TripStatus } from '@tingting/shared';
 import type { NormalizedTrip } from '../../../hooks/useTripQueries';
 import type { PairingState, ReassignState, Truck as TruckType, Driver } from '../utils';
 import { UuiSelectField } from '../../../design-system/forms/UuiSelectField';
+
+/** 24h text-input for the trip-pairing form — buffers `HH:mm DD/MM/YYYY`; value contract: `YYYY-MM-DDTHH:mm` in/out. */
+function PairDateTimeInput({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const buffered = useBufferedDateTimeValue({ value, onChange });
+  return (
+    <input
+      ref={buffered.ref}
+      defaultValue={buffered.defaultValue}
+      onChange={buffered.onChange}
+      onBlur={buffered.onBlur}
+      className="input"
+      type="text"
+      inputMode="numeric"
+      placeholder={DATE_TIME_24_PLACEHOLDER}
+      maxLength={16}
+      autoComplete="off"
+    />
+  );
+}
 
 interface DispatchTripCardProps {
   trip: NormalizedTrip;
@@ -209,11 +229,11 @@ export function DispatchTripCard({
               <div style={{ fontWeight: 700 }}>{section.title}</div>
               <label style={{ display: 'grid', gap: 6 }}>
                 <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>Giờ bắt đầu</span>
-                <input type="datetime-local" className="input" value={section.value.plannedStartAt} onChange={(event) => updatePairField(section.target, 'plannedStartAt', event.target.value)} />
+                <PairDateTimeInput value={section.value.plannedStartAt} onChange={(next) => updatePairField(section.target, 'plannedStartAt', next)} />
               </label>
               <label style={{ display: 'grid', gap: 6 }}>
                 <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>Giờ kết thúc</span>
-                <input type="datetime-local" className="input" value={section.value.plannedEndAt} onChange={(event) => updatePairField(section.target, 'plannedEndAt', event.target.value)} />
+                <PairDateTimeInput value={section.value.plannedEndAt} onChange={(next) => updatePairField(section.target, 'plannedEndAt', next)} />
               </label>
               <label style={{ display: 'grid', gap: 6 }}>
                 <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>Điểm đi</span>

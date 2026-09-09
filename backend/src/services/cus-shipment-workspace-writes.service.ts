@@ -20,6 +20,7 @@ import {
 import { and, eq, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 
 import { runInTx } from '../lib/tx';
+import { cacheInvalidate } from '../lib/redis';
 import * as s from '../db/schema';
 import { CARGO_MODE } from '../db/schema';
 import { ApiError } from '../errors';
@@ -133,6 +134,11 @@ async function resolveInlineExternalCarrier(
   }
 
   let carrier = matchedCarrier ?? null;
+  // True when this call minted a brand-new carrier row — the caller busts the
+  // bootstrap catalog cache post-commit so carrier dropdowns see it without a
+  // page reload (2026-09-09 customer report: the carrier showed in the lists
+  // but never appeared in the "Chọn nhà xe" dropdown).
+  const createdNewCarrier = carrier == null;
   if (carrier == null) {
     [carrier] = await tx.insert(s.customers).values({
       name: displayCarrierName,
@@ -212,6 +218,7 @@ async function resolveInlineExternalCarrier(
       carrierId: carrier.id,
       carrierVehicleId: existingVehicle.id,
       plateNumber: licensePlate,
+      createdNewCarrier,
     };
   }
 
@@ -261,6 +268,7 @@ async function resolveInlineExternalCarrier(
     carrierId: carrier.id,
     carrierVehicleId: vehicle.id,
     plateNumber: licensePlate,
+    createdNewCarrier,
   };
 }
 
@@ -272,6 +280,12 @@ export async function updateCusShipmentContainerLine(args: {
   transaction?: Tx;
 }): Promise<ShipmentCusContainerLineUpdateResult> {
   requireWorkspaceWriter(args.actor);
+
+  // Set inside `execute` when the inline "Thêm nhà xe" path minted a new
+  // carrier row; the bootstrap cache bust below runs after the transaction
+  // resolves. Plain `let` (not state) — the closure writes it, the outer
+  // scope reads it once runInTx settles.
+  let createdInlineCarrier = false;
 
   const execute = async (tx: Tx) => {
     const shipment = await assertShipmentAccountingUnlocked(tx, args.shipmentId);
@@ -513,6 +527,7 @@ export async function updateCusShipmentContainerLine(args: {
         const inlineCarrier = args.input.newExternalCarrier == null
           ? null
           : await resolveInlineExternalCarrier(args.input.newExternalCarrier, args.actor, tx);
+        if (inlineCarrier?.createdNewCarrier) createdInlineCarrier = true;
         const nextCarrierId = inlineCarrier?.carrierId
           ?? args.input.externalCarrierId
           ?? fulfillment.plannedExternalCarrierId
@@ -623,5 +638,13 @@ export async function updateCusShipmentContainerLine(args: {
     return { line };
   };
 
-  return runInTx(args.transaction, execute);
+  const outcome = await runInTx(args.transaction, execute);
+  // Carrier dropdowns on the master plan, shipment create, and trip dialogs
+  // read the cached `/catalogs/bootstrap` blob; a carrier minted by the inline
+  // create must appear there without a page reload. Fires only when a new
+  // carrier row was actually inserted, not on every container-line save.
+  if (createdInlineCarrier) {
+    await cacheInvalidate('catalogs:bootstrap');
+  }
+  return outcome;
 }

@@ -108,6 +108,9 @@ function normalizePlate(value: string): string {
 }
 
 function carrierValueForRow(row: DispatchDetailPlanRow): string {
+  // Carrier-less rows (detail plan since 2026-09-09): '' keeps the picker's
+  // "Chọn nhà xe" placeholder instead of a garbage `EXT:undefined` value.
+  if (row.dispatch.carrierType == null) return '';
   return row.dispatch.carrierType === 'OWN'
     ? OWN_CARRIER_VALUE
     : `${EXTERNAL_CARRIER_PREFIX}${row.dispatch.externalCarrierId}`;
@@ -344,7 +347,8 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
 
   const selectableCarrierOptions = useMemo(() => {
     const options = [{ value: OWN_CARRIER_VALUE, label: 'SilverSea — xe nội bộ' }, ...carrierOptions];
-    if (!options.some((option) => option.value === draft.carrierValue)) {
+    // Fallback option only for a real selection — '' (unassigned) keeps the placeholder.
+    if (draft.carrierValue && !options.some((option) => option.value === draft.carrierValue)) {
       options.splice(1, 0, { value: draft.carrierValue, label: row.dispatch.carrierName ?? 'Nhà xe đã ngừng hoạt động' });
     }
     return options;

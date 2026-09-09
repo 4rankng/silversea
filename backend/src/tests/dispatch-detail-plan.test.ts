@@ -137,7 +137,7 @@ async function createOperationalSite(customerId: number) {
 // Multi-container FCL lot with all fulfillments carrier-allocated. No handoff
 // needed — the detail-plan grid rows exist from carrier allocation alone.
 async function createAllocatedLot(args: {
-  carrierType: 'OWN' | 'EXTERNAL';
+  carrierType: 'OWN' | 'EXTERNAL' | null;
   externalCarrierId?: number | null;
   containerCount?: number;
   isCombined?: boolean;
@@ -427,6 +427,40 @@ describe('dispatch detail plan rows', () => {
     assert.equal(row.dispatch.carrierName, 'SilverSea');
     assert.equal(row.dispatch.assignedPlate, null);
     assert.equal(row.lotFullyPlated, false);
+  });
+
+  test('shows carrier-less containers of the day and lets dispatch allocate them here', async () => {
+    // 2026-09-09 dispatcher report: the detail plan only listed containers
+    // already carrier-allocated on the master plan. A fulfillment with no
+    // carrier plan yet must appear (as unassigned) and accept a carrier
+    // assignment made directly from this screen.
+    const carrier = await createCustomer(`Late carrier ${suffix}-${createdCustomerIds.length}`, true);
+    const { shipment, fulfillmentIds } = await createAllocatedLot({ carrierType: null, containerCount: 2 });
+
+    const before = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}`);
+    assert.equal(before.status, 200, JSON.stringify(before.data));
+    assert.equal(before.data.items.length, 2, 'both carrier-less containers must be listed');
+    const unassignedRow = before.data.items.find((item) => item.fulfillmentId === fulfillmentIds[0])!;
+    assert.ok(unassignedRow, 'carrier-less row must exist');
+    assert.equal(unassignedRow.dispatch.carrierType, null);
+    assert.equal(unassignedRow.dispatch.carrierName, null);
+
+    const [fulfillment] = await db.select().from(s.shipmentFulfillments).where(eq(s.shipmentFulfillments.id, fulfillmentIds[0]!));
+    const assigned = await apiFetch<CarrierResponse>(`/dispatch-detail-plan-rows/${fulfillment.id}/carrier`, {
+      method: 'PATCH', token: dispatcherToken,
+      body: { expectedVersion: fulfillment.version, carrierType: 'EXTERNAL', externalCarrierId: carrier.id },
+    });
+    assert.equal(assigned.status, 200, JSON.stringify(assigned.data));
+    assert.equal(assigned.data.carrierType, 'EXTERNAL');
+    assert.equal(assigned.data.carrierName, carrier.name);
+
+    const after = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}`);
+    assert.equal(after.status, 200);
+    assert.equal(after.data.items.length, 2);
+    const plannedRow = after.data.items.find((item) => item.fulfillmentId === fulfillmentIds[0])!;
+    assert.equal(plannedRow.dispatch.carrierType, 'EXTERNAL');
+    const stillUnassigned = after.data.items.find((item) => item.fulfillmentId === fulfillmentIds[1])!;
+    assert.equal(stillUnassigned.dispatch.carrierType, null);
   });
 
   test('keeps a published CREATED trip visible so dispatch can reassign it', async () => {

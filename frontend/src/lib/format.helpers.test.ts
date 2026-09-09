@@ -29,8 +29,14 @@ describe('formatISODate', () => {
 });
 
 describe('formatDateTimeShort', () => {
-  it('renders short date-time for valid timestamps (vi-VN: time first, short date)', () => {
-    // vi-VN short formatting is "HH:mm dd/M/yy" e.g. "17:30 19/8/26"
+  it('renders deterministic time-first 24h short date-time (Vietnam wall-clock)', () => {
+    // Explicit time-first order regardless of engine locale ordering —
+    // Node renders vi-VN toLocaleString time-first but Chrome date-first,
+    // so the implementation must not rely on locale order (2026-09-09
+    // hard requirement: time first, 24h, whenever date+time show together).
+    expect(formatDateTimeShort('2026-08-19T10:30:00Z')).toBe('17:30 19/8/26');
+    // Midnight and the zero-padded hour stay on the 24h clock.
+    expect(formatDateTimeShort('2026-08-19T17:00:00Z')).toBe('00:00 20/8/26');
     expect(formatDateTimeShort('2026-08-19T10:30:00Z')).toMatch(/^\d{2}:\d{2} \d{1,2}\/\d{1,2}\/\d{2,4}$/);
   });
   it('renders an em dash for empty or invalid input', () => {
