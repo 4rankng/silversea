@@ -384,14 +384,17 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
 
   function openEditor() {
     if (disabled) return;
-    // An issued order owns a live trip. Its vehicle must be changed through
-    // the trip reassignment flow so the driver/vehicle state stays coherent.
-    if (row.taskStatus === 'DISPATCHED'
-      && row.dispatch.tripId != null
-      && row.dispatch.tripStatus === 'CREATED') {
+    // An issued order owns a trip. While it runs, its vehicle must be changed
+    // through the trip reassignment flow so the driver/vehicle state stays
+    // coherent. Once it completes, the plan is frozen history — the backend's
+    // live-trip guard rejects any plan save, so the editor must never open.
+    if (row.dispatch.tripId != null
+      && row.taskStatus === 'DISPATCHED'
+      && (row.dispatch.tripStatus === 'CREATED' || row.dispatch.tripStatus === 'IN_TRANSIT')) {
       onOpenTripReassign(row.dispatch.tripId);
       return;
     }
+    if (row.taskStatus === 'COMPLETED') return;
     setDraft(draftForRow(row));
     setCarrierSearch('');
     setVehicleSearch('');
@@ -489,8 +492,14 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
       });
       restoreFocusRef.current = true;
       setOpen(false);
-    } catch {
-      setError('Không thể lưu kế hoạch. Kiểm tra thông báo của bảng và thử lại.');
+    } catch (saveError) {
+      // The grid-level banner renders behind this modal, so the dialog must
+      // speak for itself: show the backend's specific 409 reason (version
+      // conflict, live-trip guard) inline instead of a generic retry hint.
+      const err = saveError as { status?: number; message?: string };
+      setError(err.status === 409 && err.message
+        ? err.message
+        : 'Không thể lưu kế hoạch. Kiểm tra thông báo của bảng và thử lại.');
     } finally {
       setSaving(false);
     }
@@ -508,9 +517,12 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
 
   const identity = row.container.containerNumber || row.docs.billNumber || row.shipmentCode || `dòng ${row.fulfillmentId}`;
   const currentPlate = row.dispatch.assignedPlate;
+  // Completed rows are frozen history (the backend rejects plan saves), so the
+  // trigger locks with an explanation instead of opening a doomed editor.
+  const planFrozen = row.taskStatus === 'COMPLETED';
   const canReassignIssuedTrip = row.taskStatus === 'DISPATCHED'
     && row.dispatch.tripId != null
-    && row.dispatch.tripStatus === 'CREATED';
+    && (row.dispatch.tripStatus === 'CREATED' || row.dispatch.tripStatus === 'IN_TRANSIT');
 
   return (
     <div className="dispatch-assignment-cell">
@@ -520,10 +532,14 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
         className={`dispatch-assignment-cell__trigger${issueStatus === 'PLATED_NOT_ISSUED' ? ' dispatch-assignment-cell__trigger--has-quick-issue' : ''}`}
         data-cell-label="Điều phối"
         onClick={openEditor}
-        disabled={disabled}
+        disabled={disabled || planFrozen}
         aria-haspopup={canReassignIssuedTrip ? undefined : 'dialog'}
         aria-label={canReassignIssuedTrip ? `Phân xe lại ${identity}` : `Sửa ô điều phối ${identity}`}
-        title={canReassignIssuedTrip ? 'Phân xe lại trước khi chuyến xuất phát' : `Chỉnh sửa điều phối · ${identity}`}
+        title={planFrozen
+          ? 'Chuyến đã hoàn thành — kế hoạch điều phối đã chốt'
+          : canReassignIssuedTrip
+            ? 'Phân xe lại trước khi chuyến xuất phát'
+            : `Chỉnh sửa điều phối · ${identity}`}
       >
         <span className="dispatch-assignment-cell__carrier">{row.dispatch.carrierName ?? 'Chưa phân nhà xe'}</span>
         <span className={`dispatch-assignment-cell__plate${currentPlate ? '' : ' is-placeholder'}`}>

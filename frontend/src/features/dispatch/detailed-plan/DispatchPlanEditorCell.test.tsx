@@ -151,9 +151,19 @@ function issueButton(): HTMLButtonElement {
 }
 
 function setIssueTimes(start: string, end: string) {
-  fireEvent.change(document.getElementById('dispatch-issue-start-101')!, { target: { value: start } });
-  fireEvent.change(document.getElementById('dispatch-issue-end-101')!, { target: { value: end } });
+  const [startDate, startTime] = start.split('T');
+  const [, endTime] = end.split('T');
+  if (startDate) {
+    fireEvent.change(document.getElementById('dispatch-issue-date-101')!, { target: { value: startDate } });
+  }
+  if (startTime) {
+    fireEvent.change(document.getElementById('dispatch-issue-start-101')!, { target: { value: startTime } });
+  }
+  if (endTime) {
+    fireEvent.change(document.getElementById('dispatch-issue-end-101')!, { target: { value: endTime } });
+  }
 }
+
 
 describe('DispatchPlanEditorCell — driver note composer', () => {
   it('composes chips + manual text into the atomic save body and re-anchors', async () => {
@@ -198,6 +208,17 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
     renderCell(row({
       taskStatus: 'DISPATCHED',
       dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '15H-052.82', tripId: 55, tripStatus: 'CREATED' },
+    }), { onOpenTripReassign });
+    fireEvent.click(screen.getByRole('button', { name: /Phân xe lại/ }));
+    expect(onOpenTripReassign).toHaveBeenCalledWith(55);
+    expect(screen.queryByText(/Chỉnh sửa điều phối/)).toBeNull();
+  });
+
+  it('routes in-flight (IN_TRANSIT) trips to the reassign flow too — the plan is no longer editable', () => {
+    const onOpenTripReassign = vi.fn();
+    renderCell(row({
+      taskStatus: 'DISPATCHED',
+      dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '15H-052.82', tripId: 55, tripStatus: 'IN_TRANSIT' },
     }), { onOpenTripReassign });
     fireEvent.click(screen.getByRole('button', { name: /Phân xe lại/ }));
     expect(onOpenTripReassign).toHaveBeenCalledWith(55);
@@ -257,14 +278,22 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
     expect(onCompleteExternalTrip).toHaveBeenCalledTimes(1);
   });
 
-  it('flips the row chip to Đã hoàn thành and drops trip actions once the trip completes', () => {
+  it('flips the row chip to Đã hoàn thành and locks the editor once the trip completes', () => {
+    const onOpenTripReassign = vi.fn();
     renderCell(row({
       taskStatus: 'COMPLETED',
       dispatch: { carrierType: 'EXTERNAL', carrierName: 'Carrier QA', externalCarrierId: 9, externalCarrierVehicleId: null, assignedPlate: 'E2E-QA1', tripId: 77, tripStatus: 'COMPLETED' },
-    }));
+    }), { onOpenTripReassign });
     expect(screen.getByText('Đã hoàn thành')).toBeTruthy();
     expect(screen.queryByRole('button', { name: /Hoàn thành chuyến xe ngoài/ })).toBeNull();
     expect(screen.queryByRole('button', { name: /Phát lệnh nhanh/ })).toBeNull();
+    // The plan is frozen history — the trigger locks with an explanation and
+    // never opens the editor (its save would only 409 at the live-trip guard).
+    const trigger = screen.getByRole('button', { name: /Sửa ô điều phối/ }) as HTMLButtonElement;
+    expect(trigger.disabled).toBe(true);
+    expect(trigger.title).toMatch(/Chuyến đã hoàn thành/);
+    fireEvent.click(trigger);
+    expect(screen.queryByText(/Chỉnh sửa điều phối/)).toBeNull();
   });
 
   it('pre-fills issue times from the row schedule instead of the wall clock', async () => {
@@ -273,8 +302,10 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
     await openDialog();
     const startInput = document.getElementById('dispatch-issue-start-101') as HTMLInputElement;
     const endInput = document.getElementById('dispatch-issue-end-101') as HTMLInputElement;
-    expect(startInput.value).toBe('2026-08-20T08:00');
-    expect(endInput.value).toBe('2026-08-20T10:00');
+    const dateInput = document.getElementById('dispatch-issue-date-101') as HTMLInputElement;
+    expect(startInput.value).toBe('08:00');
+    expect(endInput.value).toBe('10:00');
+    expect(dateInput.value).toBe('2026-08-20');
     expect(onIssueOrder).not.toHaveBeenCalled();
   });
 
@@ -350,12 +381,21 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
 
-  it('surfaces the failure banner when the plan save is rejected', async () => {
-    const onAtomicSave = vi.fn().mockRejectedValue(new Error('Lô hàng đã thay đổi.'));
+  it('surfaces the backend 409 reason inline when the plan save is rejected', async () => {
+    const onAtomicSave = vi.fn().mockRejectedValue({ status: 409, message: 'Không thể sửa kế hoạch sau khi đã phát hành lệnh điều xe.' });
     renderCell(row(), { onAtomicSave });
     await openDialog();
     fireEvent.click([...screen.getAllByRole('button')].find((b) => b.textContent?.includes('Lưu thay đổi'))!);
-    await waitFor(() => expect(screen.getByText(/Không thể lưu kế hoạch/)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/Không thể sửa kế hoạch sau khi đã phát hành lệnh điều xe/)).toBeTruthy());
+    expect(screen.getByText(/Chỉnh sửa điều phối/)).toBeTruthy();
+  });
+
+  it('falls back to the generic save-failure text for non-409 rejections', async () => {
+    const onAtomicSave = vi.fn().mockRejectedValue({ status: 500, message: 'Lỗi máy chủ' });
+    renderCell(row(), { onAtomicSave });
+    await openDialog();
+    fireEvent.click([...screen.getAllByRole('button')].find((b) => b.textContent?.includes('Lưu thay đổi'))!);
+    await waitFor(() => expect(screen.getByText(/Không thể lưu kế hoạch\. Kiểm tra thông báo của bảng/)).toBeTruthy());
     expect(screen.getByText(/Chỉnh sửa điều phối/)).toBeTruthy();
   });
 

@@ -8,19 +8,26 @@ export const role = 'ADMIN';
 export default async function (ctx) {
   const { page } = ctx;
   await ctx.goto('/dispatch-detail');
-  await page.waitForSelector('.dispatch-assignment-cell__trigger, .detailed-plan-grid', { timeout: 15000 });
+  // First load of /dispatch-detail on staging can exceed 15s (cold cache);
+  // 30s matches the harness nav timeout.
+  await page.waitForSelector('.dispatch-assignment-cell__trigger, .detailed-plan-grid', { timeout: 30000 });
 
   await ctx.screenshot('01_dispatch_detail_overview');
 
-  const cellTriggers = await page.$$('.dispatch-assignment-cell__trigger');
-  if (cellTriggers.length === 0) {
-    return { verdict: 'BLOCKED', errors: ['Không tìm thấy ô gán xe (.dispatch-assignment-cell__trigger) trên /dispatch-detail'] };
-  }
-
-  await cellTriggers[0].evaluate((el) => {
-    el.scrollIntoView({ block: 'center' });
-    el.click();
+  // COMPLETED rows freeze their cell trigger (disabled) and DISPATCHED rows
+  // with an active trip open the trip-reassign flow instead, so trigger[0] is
+  // only editable when its row is neither — click the first editable one.
+  const clicked = await page.evaluate(() => {
+    const triggers = Array.from(document.querySelectorAll('.dispatch-assignment-cell__trigger'));
+    const idx = triggers.findIndex((b) => !b.disabled && !(b.getAttribute('title') || '').includes('Phân xe lại'));
+    if (idx === -1) return null;
+    triggers[idx].scrollIntoView({ block: 'center' });
+    triggers[idx].click();
+    return { index: idx, total: triggers.length };
   });
+  if (!clicked) {
+    return { verdict: 'BLOCKED', errors: ['Không có ô điều phối nào có thể chỉnh sửa (tất cả đã hoàn thành hoặc đang chờ phân xe lại) trên /dispatch-detail'] };
+  }
   await page.waitForSelector('.dispatch-assignment-dialog', { timeout: 8000 });
   await new Promise((r) => setTimeout(r, 1000));
 

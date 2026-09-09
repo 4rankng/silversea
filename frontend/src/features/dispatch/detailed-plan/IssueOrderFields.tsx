@@ -1,6 +1,54 @@
+import { Clock } from 'lucide-react';
 import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
-import { TextField } from '../../../design-system';
+import { DateInput, TextField } from '../../../design-system';
 import type { IssueOrderDraft, OwnTruckDriver } from './useIssueOrder';
+
+/** Common run hours offered as one-tap shortcuts when issuing an order. */
+const SCHEDULE_TIME_PRESETS = ['08:00', '10:00', '13:30', '16:00'];
+
+/** Quick-date shortcuts mirror the schedule editor's Hôm nay / Ngày mai / Ngày kia row. */
+const SCHEDULE_QUICK_DAYS = [
+  { label: 'Hôm nay', offsetDays: 0 },
+  { label: 'Ngày mai', offsetDays: 1 },
+  { label: 'Ngày kia', offsetDays: 2 },
+] as const;
+
+function getOffsetDateString(offsetDays: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function parseDateTimeParts(isoString: string | null | undefined): { date: string; time: string } {
+  if (!isoString) return { date: '', time: '' };
+  const [d = '', t = ''] = isoString.split('T');
+  return { date: d, time: t.slice(0, 5) };
+}
+
+function addHoursToTime(timeStr: string, hours: number): string {
+  if (!timeStr) return '';
+  const [hStr = '0', mStr = '0'] = timeStr.split(':');
+  const h = Number.parseInt(hStr, 10) || 0;
+  const m = Number.parseInt(mStr, 10) || 0;
+  const totalMinutes = h * 60 + m + hours * 60;
+  const newH = Math.floor((totalMinutes / 60) % 24);
+  const newM = totalMinutes % 60;
+  return `${String(newH).padStart(2, '0')}:${String(newM).padStart(2, '0')}`;
+}
+
+function getNextDay(dateStr: string): string {
+  if (!dateStr) return '';
+  const d = new Date(`${dateStr}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return dateStr;
+  d.setDate(d.getDate() + 1);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
 
 interface IssueOrderFieldsProps {
   row: DispatchDetailPlanRow;
@@ -15,9 +63,10 @@ interface IssueOrderFieldsProps {
 }
 
 /**
- * Driver + planned-time inputs for issuing a dispatch order — shared by the
- * full plan editor's inline "Phát lệnh" section and the grid's quick-issue
- * dialog so both surfaces collect the exact same data the same way.
+ * Driver + planned-time inputs for issuing a dispatch order — adopts the
+ * standardized schedule design language (quick-date pills, 24h paired
+ * time/date grid, and common-hours presets). Shared by both the full plan
+ * editor's inline "Phát lệnh" section and the grid's quick-issue dialog.
  */
 export function IssueOrderFields({
   row,
@@ -29,6 +78,96 @@ export function IssueOrderFields({
   idPrefix = 'dispatch-issue',
 }: IssueOrderFieldsProps) {
   const currentPlate = row.dispatch.assignedPlate;
+
+  const { date: startDate, time: startTime } = parseDateTimeParts(issueDraft.plannedStartAt);
+  const { date: endDate, time: endTime } = parseDateTimeParts(issueDraft.plannedEndAt);
+
+  const handleQuickDayClick = (offsetDays: number) => {
+    const quickDate = getOffsetDateString(offsetDays);
+    const resolvedStartTime = startTime || '08:00';
+    const resolvedEndTime = endTime || addHoursToTime(resolvedStartTime, 2);
+
+    setIssueDraft((current) => ({
+      ...current,
+      plannedStartAt: `${quickDate}T${resolvedStartTime}`,
+      plannedEndAt: `${quickDate}T${resolvedEndTime}`,
+    }));
+    onFieldTouched();
+  };
+
+  const handleDateChange = (newDate: string) => {
+    if (!newDate) {
+      setIssueDraft((current) => ({
+        ...current,
+        plannedStartAt: '',
+        plannedEndAt: '',
+      }));
+      onFieldTouched();
+      return;
+    }
+    const resolvedStartTime = startTime || '08:00';
+    const resolvedEndTime = endTime || addHoursToTime(resolvedStartTime, 2);
+
+    setIssueDraft((current) => ({
+      ...current,
+      plannedStartAt: `${newDate}T${resolvedStartTime}`,
+      plannedEndAt: `${newDate}T${resolvedEndTime}`,
+    }));
+    onFieldTouched();
+  };
+
+  const handleStartTimeChange = (val: string) => {
+    let resolvedDate = startDate;
+    let resolvedStartTime = val;
+    if (val.includes('T')) {
+      const [d, t] = val.split('T');
+      resolvedDate = d;
+      resolvedStartTime = t.slice(0, 5);
+    }
+    if (!resolvedDate) resolvedDate = getOffsetDateString(0);
+
+    let resolvedEndTime = endTime;
+    if (!resolvedEndTime && resolvedStartTime) {
+      resolvedEndTime = addHoursToTime(resolvedStartTime, 2);
+    }
+
+    setIssueDraft((current) => ({
+      ...current,
+      plannedStartAt: resolvedStartTime ? `${resolvedDate}T${resolvedStartTime}` : '',
+      plannedEndAt: resolvedEndTime ? `${resolvedDate}T${resolvedEndTime}` : '',
+    }));
+    onFieldTouched();
+  };
+
+  const handleEndTimeChange = (val: string) => {
+    let resolvedEndDate = endDate || startDate || getOffsetDateString(0);
+    let resolvedEndTime = val;
+    if (val.includes('T')) {
+      const [d, t] = val.split('T');
+      resolvedEndDate = d;
+      resolvedEndTime = t.slice(0, 5);
+    } else {
+      resolvedEndDate = startDate || getOffsetDateString(0);
+    }
+
+    setIssueDraft((current) => ({
+      ...current,
+      plannedEndAt: resolvedEndTime ? `${resolvedEndDate}T${resolvedEndTime}` : '',
+    }));
+    onFieldTouched();
+  };
+
+  const handlePresetTimeClick = (presetTime: string) => {
+    const curDate = startDate || getOffsetDateString(0);
+    const newEndTime = addHoursToTime(presetTime, 2);
+    setIssueDraft((current) => ({
+      ...current,
+      plannedStartAt: `${curDate}T${presetTime}`,
+      plannedEndAt: `${curDate}T${newEndTime}`,
+    }));
+    onFieldTouched();
+  };
+
   return (
     <>
       {row.dispatch.carrierType === 'OWN' ? (
@@ -59,28 +198,82 @@ export function IssueOrderFields({
           />
         </>
       )}
-      <div className="dispatch-assignment-dialog__issue-times">
+
+      <div className="dispatch-assignment-dialog__schedule-section">Chọn nhanh ngày</div>
+      <div className="dispatch-assignment-dialog__schedule-pills" role="group" aria-label="Chọn nhanh ngày">
+        {SCHEDULE_QUICK_DAYS.map(({ label, offsetDays }) => {
+          const quickDate = getOffsetDateString(offsetDays);
+          const active = startDate === quickDate;
+          return (
+            <button
+              key={label}
+              type="button"
+              className={`dispatch-assignment-dialog__schedule-pill${active ? ' is-active' : ''}`}
+              onClick={() => handleQuickDayClick(offsetDays)}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="dispatch-assignment-dialog__issue-grid">
         <label htmlFor={`${idPrefix}-start-${row.fulfillmentId}`}>
           <span>Giờ chạy</span>
           <input
             id={`${idPrefix}-start-${row.fulfillmentId}`}
-            type="datetime-local"
+            type="time"
+            lang="en-GB"
             className="input"
-            value={issueDraft.plannedStartAt}
-            onChange={(event) => { setIssueDraft((current) => ({ ...current, plannedStartAt: event.target.value })); onFieldTouched(); }}
+            value={startTime}
+            onChange={(event) => handleStartTimeChange(event.target.value)}
           />
         </label>
         <label htmlFor={`${idPrefix}-end-${row.fulfillmentId}`}>
-          <span>Giờ kết thúc</span>
+          <span>
+            Giờ kết thúc
+            {endDate && startDate && endDate > startDate && (
+              <span className="dispatch-assignment-dialog__next-day-badge">+1 ngày</span>
+            )}
+          </span>
           <input
             id={`${idPrefix}-end-${row.fulfillmentId}`}
-            type="datetime-local"
+            type="time"
+            lang="en-GB"
             className="input"
-            value={issueDraft.plannedEndAt}
-            onChange={(event) => { setIssueDraft((current) => ({ ...current, plannedEndAt: event.target.value })); onFieldTouched(); }}
+            value={endTime}
+            onChange={(event) => handleEndTimeChange(event.target.value)}
           />
         </label>
+        <label htmlFor={`${idPrefix}-date-${row.fulfillmentId}`}>
+          <span>Ngày chạy</span>
+          <DateInput
+            id={`${idPrefix}-date-${row.fulfillmentId}`}
+            lang="en-GB"
+            className="input"
+            value={startDate}
+            onChange={handleDateChange}
+          />
+        </label>
+      </div>
+
+      <div className="dispatch-assignment-dialog__schedule-section">
+        <Clock size={11} aria-hidden="true" />
+        Khung giờ phổ biến
+      </div>
+      <div className="dispatch-assignment-dialog__schedule-times" role="group" aria-label="Khung giờ phổ biến">
+        {SCHEDULE_TIME_PRESETS.map((presetTime) => (
+          <button
+            key={presetTime}
+            type="button"
+            className={`dispatch-assignment-dialog__schedule-time-pill${startTime === presetTime ? ' is-active' : ''}`}
+            onClick={() => handlePresetTimeClick(presetTime)}
+          >
+            {presetTime}
+          </button>
+        ))}
       </div>
     </>
   );
 }
+

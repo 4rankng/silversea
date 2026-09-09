@@ -1715,4 +1715,257 @@ describe('dispatch fulfillment workflow routes', () => {
     assert.equal(stored?.externalDriverName, null);
     assert.equal(stored?.externalDriverPhone, '0912345678');
   });
+
+  describe('dispatcher carrier override on issue/reissue', () => {
+    test('reassign dialog switches OWN→EXTERNAL and clears the own-fleet assignment', async () => {
+      const accepted = await createAcceptedFulfillment();
+      const resources = await createOwnedResources();
+      const carrier = await createCustomer(`Switch carrier ${suffix}-${createdCustomerIds.length}`);
+      await db.update(s.customers).set({ isCarrier: true }).where(eq(s.customers.id, carrier.id));
+      const [carrierVehicle] = await db.insert(s.carrierFleetVehicles).values({
+        carrierId: carrier.id,
+        licensePlate: '51H-67892',
+        normalizedPlate: '51H67892',
+        createdBy: adminUserId,
+      }).returning();
+
+      // First issue OWN; the CUS plan (planned OWN) matches, so this works
+      // both before and after the override relaxation.
+      const first = await apiFetch<{ version: number; trip: { id: number; version: number } }>(`/${accepted.shipmentId}/dispatch`, {
+        method: 'POST',
+        token: managerToken,
+        body: {
+          fulfillmentId: accepted.fulfillmentId,
+          expectedVersion: accepted.fulfillmentVersion,
+          plannedStartAt: '2026-08-05T08:00:00+07:00',
+          plannedEndAt: '2026-08-05T12:00:00+07:00',
+          endTimeConfirmed: true,
+          carrierType: 'OWN',
+          truckId: resources.truck.id,
+          driverId: resources.driver.id,
+          trailerId: resources.trailer.id,
+        },
+      });
+      assert.equal(first.status, 201, JSON.stringify(first.data));
+      createdTripIds.push(first.data.trip.id);
+
+      // The dialog route rejects an EXTERNAL pick with neither partner nor
+      // plate before it ever reaches the governed command.
+      const invalid = await fetch(`${baseUrl}/api/trips/${first.data.trip.id}/reassign`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${dispatcherToken}`,
+          'Idempotency-Key': `reassign-invalid-${suffix}-${accepted.fulfillmentId}`,
+        },
+        body: JSON.stringify({ expectedVersion: first.data.trip.version, carrierType: 'EXTERNAL' }),
+      });
+      const invalidData = await invalid.json() as { error?: string };
+      assert.equal(invalid.status, 400, JSON.stringify(invalidData));
+      assert.match(String(invalidData.error ?? ''), /đối tác xe ngoài/);
+
+      // Phân xe lại with a partner different from the CUS plan: previously a
+      // 409 ('Không thể đổi nhà xe đã được CUS gán tại bước điều xe.'), now the
+      // dispatcher's choice wins.
+      const reassign = await fetch(`${baseUrl}/api/trips/${first.data.trip.id}/reassign`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${dispatcherToken}`,
+          'Idempotency-Key': `reassign-own-to-external-${suffix}-${accepted.fulfillmentId}`,
+        },
+        body: JSON.stringify({
+          expectedVersion: first.data.trip.version,
+          carrierType: 'EXTERNAL',
+          externalCarrierId: carrier.id,
+          externalPlateNumber: carrierVehicle.licensePlate,
+          externalDriverName: 'Tài xế ngoài A',
+          externalDriverPhone: '0913111111',
+        }),
+      });
+      const reassignData = await reassign.json() as {
+        trip: { id: number; carrierType: string; truckId: number | null; driverId: number | null; externalCarrierId: number | null; externalPlateNumber: string | null; externalDriverName: string | null };
+      };
+      assert.equal(reassign.status, 201, JSON.stringify(reassignData));
+      assert.equal(reassignData.trip.id, first.data.trip.id);
+      assert.equal(reassignData.trip.carrierType, 'EXTERNAL');
+      assert.equal(reassignData.trip.truckId, null);
+      assert.equal(reassignData.trip.driverId, null);
+      assert.equal(reassignData.trip.externalCarrierId, carrier.id);
+      assert.equal(reassignData.trip.externalPlateNumber, carrierVehicle.licensePlate);
+
+      // Fulfillment plan converges on the issued carrier.
+      const [storedFulfillment] = await db.select().from(s.shipmentFulfillments).where(eq(s.shipmentFulfillments.id, accepted.fulfillmentId));
+      assert.equal(storedFulfillment.plannedCarrierType, 'EXTERNAL');
+      assert.equal(storedFulfillment.plannedExternalCarrierId, carrier.id);
+      assert.equal(storedFulfillment.plannedVehiclePlateNumber, carrierVehicle.licensePlate);
+    });
+
+    test('reissue switches EXTERNAL→OWN and clears the external assignment', async () => {
+      const accepted = await createAcceptedFulfillment();
+      const carrier = await createCustomer(`Switch back carrier ${suffix}-${createdCustomerIds.length}`);
+      await db.update(s.customers).set({ isCarrier: true }).where(eq(s.customers.id, carrier.id));
+      const [carrierVehicle] = await db.insert(s.carrierFleetVehicles).values({
+        carrierId: carrier.id,
+        licensePlate: '51H-67893',
+        normalizedPlate: '51H67893',
+        createdBy: adminUserId,
+      }).returning();
+      await db.update(s.shipmentFulfillments).set({
+        plannedCarrierType: 'EXTERNAL',
+        plannedExternalCarrierId: carrier.id,
+      }).where(eq(s.shipmentFulfillments.id, accepted.fulfillmentId));
+
+      const resources = await createOwnedResources();
+      const first = await apiFetch<{ version: number; trip: { id: number; carrierType: string } }>(`/${accepted.shipmentId}/dispatch`, {
+        method: 'POST',
+        token: managerToken,
+        body: {
+          fulfillmentId: accepted.fulfillmentId,
+          expectedVersion: accepted.fulfillmentVersion,
+          plannedStartAt: '2026-08-05T08:00:00+07:00',
+          plannedEndAt: '2026-08-05T12:00:00+07:00',
+          endTimeConfirmed: true,
+          carrierType: 'EXTERNAL',
+          externalCarrierId: carrier.id,
+          externalCarrierVehicleId: carrierVehicle.id,
+        },
+      });
+      assert.equal(first.status, 201, JSON.stringify(first.data));
+      createdTripIds.push(first.data.trip.id);
+
+      // Reissue as OWN: truck/driver/trailer take over and every external
+      // field clears on the trip, the sidecar, and the fulfillment plan.
+      const second = await apiFetch<{ trip: { id: number; carrierType: string; truckId: number | null; driverId: number | null; externalCarrierId: number | null; externalPlateNumber: string | null; externalDriverName: string | null } }>(`/${accepted.shipmentId}/dispatch`, {
+        method: 'POST',
+        token: managerToken,
+        body: {
+          fulfillmentId: accepted.fulfillmentId,
+          expectedVersion: first.data.version,
+          plannedStartAt: '2026-08-05T09:00:00+07:00',
+          plannedEndAt: '2026-08-05T13:00:00+07:00',
+          endTimeConfirmed: true,
+          carrierType: 'OWN',
+          truckId: resources.truck.id,
+          driverId: resources.driver.id,
+          trailerId: resources.trailer.id,
+        },
+      });
+      assert.equal(second.status, 201, JSON.stringify(second.data));
+      assert.equal(second.data.trip.id, first.data.trip.id);
+      assert.equal(second.data.trip.carrierType, 'OWN');
+      assert.equal(second.data.trip.truckId, resources.truck.id);
+      assert.equal(second.data.trip.driverId, resources.driver.id);
+      assert.equal(second.data.trip.externalCarrierId, null);
+      assert.equal(second.data.trip.externalPlateNumber, null);
+      assert.equal(second.data.trip.externalDriverName, null);
+
+      const [storedFulfillment] = await db.select().from(s.shipmentFulfillments).where(eq(s.shipmentFulfillments.id, accepted.fulfillmentId));
+      assert.equal(storedFulfillment.plannedCarrierType, 'OWN');
+      assert.equal(storedFulfillment.plannedExternalCarrierId, null);
+
+      // The sidecar must not resurrect the previous external assignment.
+      const [sidecar] = await db.select().from(s.tripCarrierInfo).where(eq(s.tripCarrierInfo.tripId, second.data.trip.id));
+      assert.equal(sidecar?.externalEntityId, null);
+      assert.equal(sidecar?.externalPlateNumber, null);
+      assert.equal(sidecar?.externalDriverName, null);
+    });
+
+    test('issue payload partner wins over the CUS-planned partner without a type switch', async () => {
+      const accepted = await createAcceptedFulfillment();
+      const carrierA = await createCustomer(`Planned carrier ${suffix}-${createdCustomerIds.length}`);
+      await db.update(s.customers).set({ isCarrier: true }).where(eq(s.customers.id, carrierA.id));
+      const [vehicleA] = await db.insert(s.carrierFleetVehicles).values({
+        carrierId: carrierA.id,
+        licensePlate: '51H-67894',
+        normalizedPlate: '51H67894',
+        createdBy: adminUserId,
+      }).returning();
+      const carrierB = await createCustomer(`Issued carrier ${suffix}-${createdCustomerIds.length}`);
+      await db.update(s.customers).set({ isCarrier: true }).where(eq(s.customers.id, carrierB.id));
+      const [vehicleB] = await db.insert(s.carrierFleetVehicles).values({
+        carrierId: carrierB.id,
+        licensePlate: '51H-67895',
+        normalizedPlate: '51H67895',
+        createdBy: adminUserId,
+      }).returning();
+      await db.update(s.shipmentFulfillments).set({
+        plannedCarrierType: 'EXTERNAL',
+        plannedExternalCarrierId: carrierA.id,
+      }).where(eq(s.shipmentFulfillments.id, accepted.fulfillmentId));
+
+      const dispatch = await apiFetch<{ trip: { externalCarrierId: number | null } }>(`/${accepted.shipmentId}/dispatch`, {
+        method: 'POST',
+        token: managerToken,
+        body: {
+          fulfillmentId: accepted.fulfillmentId,
+          expectedVersion: accepted.fulfillmentVersion,
+          plannedStartAt: '2026-08-05T08:00:00+07:00',
+          plannedEndAt: '2026-08-05T12:00:00+07:00',
+          endTimeConfirmed: true,
+          carrierType: 'EXTERNAL',
+          externalCarrierId: carrierB.id,
+          externalCarrierVehicleId: vehicleB.id,
+        },
+      });
+      assert.equal(dispatch.status, 201, JSON.stringify(dispatch.data));
+      createdTripIds.push(dispatch.data.trip.id);
+      assert.equal(dispatch.data.trip.externalCarrierId, carrierB.id);
+
+      const [storedFulfillment] = await db.select().from(s.shipmentFulfillments).where(eq(s.shipmentFulfillments.id, accepted.fulfillmentId));
+      assert.equal(storedFulfillment.plannedExternalCarrierId, carrierB.id);
+      assert.equal(storedFulfillment.plannedExternalCarrierVehicleId, vehicleB.id);
+    });
+
+    test('FCL fulfillment without a CUS-planned carrier is issuable and rejects a partner-less EXTERNAL pick', async () => {
+      const accepted = await createAcceptedFulfillment();
+      const carrier = await createCustomer(`Null-plan carrier ${suffix}-${createdCustomerIds.length}`);
+      await db.update(s.customers).set({ isCarrier: true }).where(eq(s.customers.id, carrier.id));
+      const [carrierVehicle] = await db.insert(s.carrierFleetVehicles).values({
+        carrierId: carrier.id,
+        licensePlate: '51H-67896',
+        normalizedPlate: '51H67896',
+        createdBy: adminUserId,
+      }).returning();
+      // Strip the CUS plan: previously the issue 409'd here ('CUS chưa gán
+      // nhà xe cho tác vụ này.') — the dispatcher pick now fills the gap.
+      await db.update(s.shipmentFulfillments).set({
+        plannedCarrierType: null,
+        plannedExternalCarrierId: null,
+      }).where(eq(s.shipmentFulfillments.id, accepted.fulfillmentId));
+
+      const blocked = await apiFetch<{ error?: string }>(`/${accepted.shipmentId}/dispatch`, {
+        method: 'POST',
+        token: managerToken,
+        body: {
+          fulfillmentId: accepted.fulfillmentId,
+          expectedVersion: accepted.fulfillmentVersion,
+          plannedStartAt: '2026-08-05T08:00:00+07:00',
+          plannedEndAt: '2026-08-05T12:00+07:00',
+          endTimeConfirmed: true,
+          carrierType: 'EXTERNAL',
+        },
+      });
+      assert.equal(blocked.status, 409);
+      assert.match(String(blocked.data.error ?? ''), /nhà xe ngoài/);
+
+      const ok = await apiFetch<{ trip: { externalCarrierId: number | null } }>(`/${accepted.shipmentId}/dispatch`, {
+        method: 'POST',
+        token: managerToken,
+        body: {
+          fulfillmentId: accepted.fulfillmentId,
+          expectedVersion: accepted.fulfillmentVersion,
+          plannedStartAt: '2026-08-05T08:00:00+07:00',
+          plannedEndAt: '2026-08-05T12:00:00+07:00',
+          endTimeConfirmed: true,
+          carrierType: 'EXTERNAL',
+          externalCarrierId: carrier.id,
+          externalCarrierVehicleId: carrierVehicle.id,
+        },
+      });
+      assert.equal(ok.status, 201, JSON.stringify(ok.data));
+      createdTripIds.push(ok.data.trip.id);
+      assert.equal(ok.data.trip.externalCarrierId, carrier.id);
+    });
+  });
 });

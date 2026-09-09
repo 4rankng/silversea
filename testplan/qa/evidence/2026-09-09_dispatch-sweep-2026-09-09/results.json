@@ -1,33 +1,33 @@
 {
   "runId": "2026-09-09_dispatch-sweep-2026-09-09",
-  "timestamp": "2026-09-09T05:54:02.046Z",
+  "timestamp": "2026-09-09T07:15:35.979Z",
   "results": [
     {
       "caseId": "TC-CUS-CREATE-048",
       "role": "ADMIN",
       "file": "TC-CUS-CREATE-048.mjs",
       "verdict": "PASS",
-      "durationMs": 2299,
-      "rowCount": 20,
+      "durationMs": 5724,
+      "rowCount": 9,
       "contractOk": true,
       "sampleRows": [
         {
-          "text": "KHÁCH HÀNG E2E TỔNG HỢP 1788932988960 Chưa có nhà máy Chưa có tuyến đường Chưa có Bill/Book Chưa có tờ khai Chưa có hãng tàu — — — kg · — CBM Chưa chốt ngày Khô",
-          "hasMissingDate": true,
-          "hasWaitingSignal": true,
+          "text": "LOG COM NEWEB-1 KCN ĐỒNG VĂN, HÀ NAM TESTSS2609 Chưa có tờ khai Chưa có hãng tàu Nhập 2x40DC — kg 08:00 10/9/2026 · NEWEB-1 · 1x40DC 20:45 11/9/2026 · NEWEB-1 ·",
+          "hasMissingDate": false,
+          "hasWaitingSignal": false,
           "hasReadySignal": false
         },
         {
-          "text": "KHÁCH HÀNG E2E TỔNG HỢP 1788930127679 Chưa có nhà máy Chưa có tuyến đường Chưa có Bill/Book Chưa có tờ khai Chưa có hãng tàu — — — kg · — CBM Chưa chốt ngày Khô",
-          "hasMissingDate": true,
-          "hasWaitingSignal": true,
+          "text": "LOG COM Chưa có nhà máy KCN ĐỒNG VĂN, HÀ NAM TESTSS2609B Chưa có tờ khai Chưa có hãng tàu Nhập 1x40DC — kg 14:00 9/9/2026 · 1x40DC Đã phân xe Đã phát lệnh cho t",
+          "hasMissingDate": false,
+          "hasWaitingSignal": false,
           "hasReadySignal": false
         },
         {
-          "text": "KHÁCH HÀNG E2E TỔNG HỢP 1788929227676 Chưa có nhà máy Chưa có tuyến đường Chưa có Bill/Book Chưa có tờ khai Chưa có hãng tàu — — — kg · — CBM Chưa chốt ngày Khô",
-          "hasMissingDate": true,
-          "hasWaitingSignal": true,
-          "hasReadySignal": false
+          "text": "LONG MINH SUNRISE KCN VÂN TRUNG, BẮC GIANG EBKG18452303 Chưa có tờ khai MSC Xuất 1x20DC 5 kg 13:00 8/9/2026 · SUNRISE · 1x20DC Toàn bộ chờ phân xe — Sẵn sàng đi",
+          "hasMissingDate": false,
+          "hasWaitingSignal": false,
+          "hasReadySignal": true
         }
       ]
     },
@@ -36,18 +36,18 @@
       "role": "ADMIN",
       "file": "TC-CUS-APPOINTMENT-001.mjs",
       "verdict": "PASS",
-      "durationMs": 5182,
+      "durationMs": 7160,
       "fields": [
         {
           "label": "GIỜ",
           "type": "time",
-          "value": "08:00",
+          "value": "14:00",
           "lang": "en-GB"
         },
         {
           "label": "NGÀY",
           "type": "date",
-          "value": "2026-09-09",
+          "value": "2026-09-08",
           "lang": "en-GB"
         }
       ],
@@ -58,24 +58,24 @@
       "role": "ADMIN",
       "file": "TC-SHIPMENTS-DETAIL-001.mjs",
       "verdict": "PASS",
-      "durationMs": 2307,
-      "totalRows": 20,
-      "plannedCount": 7,
-      "platedCount": 11,
+      "durationMs": 4280,
+      "totalRows": 12,
+      "plannedCount": 4,
+      "platedCount": 8,
       "samplePlanned": [
         {
-          "vehicle": "SilverSea",
-          "plate": "29C-123.45",
+          "vehicle": "BIỂN XANH",
+          "plate": "51C-999.99",
           "badge": "Đã phân xe"
         },
         {
           "vehicle": "SilverSea",
-          "plate": "29C-123.45",
+          "plate": "15C-184.62",
           "badge": "Đã phân xe"
         },
         {
-          "vehicle": "SilverSea",
-          "plate": "29C-123.45",
+          "vehicle": "VÂN LAN",
+          "plate": "15C-123456",
           "badge": "Đã phân xe"
         }
       ]
@@ -84,18 +84,21 @@
       "caseId": "TC-DISPATCH-ALLOC-001",
       "role": "ADMIN",
       "file": "TC-DISPATCH-ALLOC-001.mjs",
-      "verdict": "ERROR",
-      "durationMs": 10302,
-      "errors": [
-        "TimeoutError: Waiting for selector `.dispatch-allocation-popover` failed\n    at CSSQueryHandler.waitFor (file:///Users/dev/Documents/projects/silversea-prod/node_modules/.pnpm/puppeteer-core@25.1.0/node_modules/puppeteer-core/lib/puppeteer/common/QueryHandler.js:211:46)\n    at async CdpFrame.waitForSelector (file:///Users/dev/Documents/projects/silversea-prod/node_modules/.pnpm/puppeteer-core@25.1.0/node_modules/puppeteer-core/lib/puppeteer/api/Frame.js:541:21)\n    at async CdpPage.waitForSelector (file:///Users/dev/Documents/projects/silversea-prod/node_modules/.pnpm/puppeteer-core@25.1.0/node_modules/puppeteer-core/lib/puppeteer/api/Page.js:1387:20)\n    at async Module.default (file:///Users/dev/Documents/projects/silversea-prod/testplan/qa/cases/dispatch-sweep-2026-09-09/TC-DISPATCH-ALLOC-001.mjs:24:3)\n    at async main (file:///Users/dev/Documents/projects/silversea-prod/testplan/qa/scripts/run-all.mjs:62:18)"
-      ]
+      "verdict": "PASS",
+      "durationMs": 5505,
+      "structure": {
+        "dayGroupCount": 1,
+        "dayTitles": [
+          "Ngày 09/09/2026 · Thứ Tư"
+        ]
+      }
     },
     {
       "caseId": "TC-DISPATCH-EDIT-001",
       "role": "ADMIN",
       "file": "TC-DISPATCH-EDIT-001.mjs",
       "verdict": "PASS",
-      "durationMs": 3502,
+      "durationMs": 5478,
       "classData": {
         "hasSelect": true,
         "options": [
@@ -113,7 +116,7 @@
       "role": "ADMIN",
       "file": "TC-DISPATCH-EDIT-002.mjs",
       "verdict": "PASS",
-      "durationMs": 3911,
+      "durationMs": 5869,
       "isDialogOpenBefore": true,
       "isDialogClosedAfter": true
     }

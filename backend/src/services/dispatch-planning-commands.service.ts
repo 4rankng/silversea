@@ -298,16 +298,10 @@ export async function issueOrderCreateOrUpdate(
   if (effectiveRouteId == null || !route) {
     throw new ApiError(409, 'Container chưa có tuyến đường hợp lệ.');
   }
-  const requiresPlannedCarrier = fulfillment.cargoMode === CARGO_MODE.FCL;
-  if (requiresPlannedCarrier) {
-    if (fulfillment.plannedCarrierType !== 'OWN' && fulfillment.plannedCarrierType !== 'EXTERNAL') {
-      throw new ApiError(409, 'CUS chưa gán nhà xe cho tác vụ này.');
-    }
-    if (input.carrierType !== fulfillment.plannedCarrierType) {
-      throw new ApiError(409, 'Không thể đổi nhà xe đã được CUS gán tại bước điều xe.');
-    }
-  }
-
+  // 2026-09-09 ruling "điều vận được phép đổi xe": the dispatcher may change
+  // the carrier type/partner at issue and reissue (Phân xe lại) time, so the
+  // issue payload — not the CUS-planned carrier — drives carrier selection.
+  // The CUS plan remains the fallback for partner-less payloads.
   const plannedStartAt = parseIsoWithZone(input.plannedStartAt, 'Giờ chạy');
   const serviceDurationMinutes = routeServiceDurationMinutes(route?.distanceKm ?? null);
   const plannedEndAt = serviceDurationMinutes == null
@@ -443,9 +437,10 @@ export async function issueOrderCreateOrUpdate(
     trailerId = trailer.id;
     driverId = driver.id;
   } else {
-    externalCarrierId = requiresPlannedCarrier
-      ? fulfillment.plannedExternalCarrierId
-      : (input.externalCarrierId ?? null);
+    // Input-first partner resolution: an explicit externalCarrierId in the
+    // issue/reissue payload wins over the CUS-planned partner; the planned id
+    // is the fallback so partner-less payloads keep the planned partner.
+    externalCarrierId = input.externalCarrierId ?? fulfillment.plannedExternalCarrierId ?? null;
     if (externalCarrierId == null) throw new ApiError(409, 'Tác vụ chưa có nhà xe ngoài hợp lệ.');
     const [carrier] = await tx.select({
       id: s.customers.id,

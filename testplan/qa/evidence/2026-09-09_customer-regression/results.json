@@ -1,70 +1,106 @@
 {
   "runId": "2026-09-09_customer-regression",
-  "timestamp": "2026-09-09T05:40:13.062Z",
+  "timestamp": "2026-09-09T07:15:01.326Z",
   "results": [
     {
       "caseId": "FACTORY-DISPLAY-REGRESSION-2026-09-07",
       "role": "CUS",
       "file": "factory-display.mjs",
-      "verdict": "ERROR",
-      "durationMs": 5098,
-      "errors": [
-        "TypeError: ((intermediate value) || (intermediate value) || []).map is not a function\n    at Module.default (file:///Users/dev/Documents/projects/silversea-prod/testplan/qa/cases/customer-regression/factory-display.mjs:69:74)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async main (file:///Users/dev/Documents/projects/silversea-prod/testplan/qa/scripts/run-all.mjs:62:18)"
+      "verdict": "PASS",
+      "durationMs": 4758,
+      "target": {
+        "id": 8,
+        "siteIds": [
+          7
+        ]
+      },
+      "factoryCellText": "SUNRISE",
+      "cellMatches": true,
+      "cellIsDash": false,
+      "expectedShortNames": [
+        "SUNRISE"
+      ],
+      "siteShortNames": [
+        "ASKEY-1",
+        "ASKEY-2",
+        "SCONECT",
+        "SJ",
+        "SUNRISE"
       ]
     },
     {
       "caseId": "TC-CUS-CREATE-021",
       "role": "CUS",
       "file": "TC-CUS-CREATE-021.mjs",
-      "verdict": "BLOCKED",
-      "durationMs": 3951,
-      "errors": [
-        "kh: no combobox placeholder=\"Gõ để tìm kiếm\""
-      ]
+      "verdict": "PASS",
+      "durationMs": 31909,
+      "before": "ASKEY-1",
+      "after": "",
+      "clearResult": {
+        "ok": true
+      },
+      "rePick": {
+        "ok": true,
+        "picked": "ASKEY-1CÔNG TY TNHH CÔNG NGHỆ ASKEY VIỆT NAM Lô C7-2,KCN Quế Võ, Phường Nam Sơn,"
+      }
     },
     {
       "caseId": "TC-CUS-CREATE-022",
       "role": "CUS",
       "file": "TC-CUS-CREATE-022.mjs",
-      "verdict": "BLOCKED",
-      "durationMs": 3918,
-      "errors": [
-        "kh: no combobox placeholder=\"Gõ để tìm kiếm\""
-      ]
+      "verdict": "PASS",
+      "durationMs": 26018,
+      "before": "KCN QUẾ VÕ, BẮC NINH",
+      "after": "",
+      "clearResult": {
+        "ok": true
+      }
     },
     {
       "caseId": "TC-CUS-CREATE-023",
       "role": "CUS",
       "file": "TC-CUS-CREATE-023.mjs",
-      "verdict": "BLOCKED",
-      "durationMs": 3943,
-      "errors": [
-        "kh: no combobox placeholder=\"Gõ để tìm kiếm\""
-      ]
+      "verdict": "PASS",
+      "durationMs": 28230,
+      "cnBefore": "Cảng Mipec",
+      "cnAfter": "",
+      "cnClear": {
+        "ok": true
+      },
+      "chBefore": "Cảng Mipec",
+      "chAfter": "",
+      "chClear": {
+        "ok": true
+      }
     },
     {
       "caseId": "TC-CUS-CREATE-026",
       "role": "CUS",
       "file": "TC-CUS-CREATE-026.mjs",
-      "verdict": "BLOCKED",
-      "durationMs": 4354,
-      "errors": [
-        "kh: no combobox placeholder=\"Gõ để tìm kiếm\""
-      ]
+      "verdict": "PASS",
+      "durationMs": 25589,
+      "dupBL": "TESTSS2609B",
+      "inlineWarnings": [
+        "Số Bill TESTSS2609B đã được nhập bởi admin lúc 9/9/2026 14:10. Không thể tạo lô trùng.Xem lô đã nhập",
+        "Xem lô đã nhập",
+        "Số tờ khai"
+      ],
+      "dbCountForBL": 1,
+      "inlineHitDuplicate": true
     },
     {
       "caseId": "TC-CUS-CREATE-028",
       "role": "CUS",
       "file": "TC-CUS-CREATE-028.mjs",
       "verdict": "PASS",
-      "durationMs": 8681,
+      "durationMs": 8525,
       "target": {
-        "id": 10,
-        "blNumber": "TESTSS2609",
-        "containerCount": 2,
-        "containersWithAppt": 2
+        "id": 11,
+        "blNumber": "TESTSS2609B",
+        "containerCount": 1,
+        "containersWithAppt": 1
       },
-      "rowTextSnippet": "LOG COMNEWEB-1KCN ĐỒNG VĂN, HÀ NAMTESTSS2609Chưa có tờ khaiChưa có hãng tàuNhập2x40DC— kg08:00 10/9/2026 · NEWEB-1 · 1x40DC20:45 11/9/2026 · NEWEB-1 · 1x40DCĐã phân xeĐã phát lệnh cho tài xếAPI verification shipment - staging regression wave 2026-09-09 Đang chạy Chờ Kế toánChi tiết",
+      "rowTextSnippet": "LOG COMChưa có nhà máyKCN ĐỒNG VĂN, HÀ NAMTESTSS2609BChưa có tờ khaiChưa có hãng tàuNhập1x40DC— kg14:00 9/9/2026 · 1x40DCĐã phân xeĐã phát lệnh cho tài xế— Đang chạy Chờ Kế toánChi tiết",
       "rowHasDate": true,
       "rowHasWaiting": false,
       "detailHasDate": true
