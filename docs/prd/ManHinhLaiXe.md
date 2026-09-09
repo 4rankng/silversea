@@ -74,6 +74,11 @@ dòng `Tài xế + 🚚 Biển số` (biển số thuộc **Khối 6** của th�
 > [`testplan/roles/03-laixe.md`](../../testplan/roles/03-laixe.md) Flow 1 (`DRV-LIST-02`,
 > `DRV-LIST-03`) và [`testplan/flows/03-laixe-nhan-lenh.md`](../../testplan/flows/03-laixe-nhan-lenh.md)
 > §3.7 (`TC-LX-NHANLENH-014`, `-015`).
+>
+> Audit 2026-09-09: nhãn `Giờ đóng / trả:` hiển thị literal theo bảng cấu trúc;
+> footer thẻ đạt sàn chạm **48px** trên mobile (opt-up `#root` ≤640px, idiom
+> `c9012bd0`); unit tests khoá cả hai (`DriverTripsPage.test.tsx`,
+> `driver-mobile-full-bleed.styles.test.ts`).
 
 ### 2.2 Lớp 2 — Thẻ Chi Tiết (bấm vào thẻ ⇒ mở toàn màn hình)
 
@@ -116,6 +121,11 @@ stateDiagram-v2
 - **Logic tạm thời:** bỏ qua toàn bộ các bước xác nhận của Ops. Lái xe có thể bấm `Nhận lệnh vận chuyển` **ngay khi có lệnh đến**.
 - **Action:** bấm nhận lệnh ⇒ **ghi nhận Timestamp bắt đầu chạy** ⇒ thẻ chuyển sang tab `Đã nhận / Đang chạy`.
 
+> **Deviation (đã triển khai):** phase này dùng **poll 15 s** (`refetchInterval` trong
+> `useDriverQueries.ts`) thay cho FCM/APNS push notification — thẻ vẫn xuất hiện ở
+> tab `Lệnh mới` trong vòng 15 s sau khi Điều vận gán biển số. Bỏ qua bước Ops: app
+> hiện banner "Nhận lệnh ngay, không cần chờ Ops" và cho nhận ngay (AC `DRV-DET-13`).
+
 ### Bước 2 — Cập nhật hành trình
 
 - Tại tab `Đang chạy`, khi kết thúc toàn bộ chuyến hàng (hạ cont tại cảng hạ), Lái xe bấm `Hoàn tất lệnh vận chuyển` ⇒ khởi động luồng E-POD (§4).
@@ -151,6 +161,16 @@ Gồm **2 khu vực tải ảnh — cả hai đều bắt buộc**:
 
 Bấm `HOÀN THÀNH CHUYẾN` ⇒ thẻ chuyển sang tab `Lịch sử` ⇒ **đồng bộ trạng thái về
 Dashboard của Điều vận**.
+
+> ✅ **Đã triển khai:** e-POD là màn hình riêng `/my-trips/:id/pod` (ticket
+> 2026-08-28); `TripPodSubmission` hiển thị thanh tiến trình % (mở khoá completion
+> tại 100% — spec "thanh tiến trình"); nén ảnh + burn-in timestamp ngay trên máy
+> (`compressImageFile`, áp dụng cả ảnh Cont/Chì Khối 2); "HOÀN THÀNH CHUYẾN" = submit
+> draft e-POD rồi hoàn tất chuyến trong một lần bấm; gate 2 ảnh bắt buộc
+> (`TRIP_POD_REQUIRED_FILE_TYPES`) chặn cả FE (`podReadiness.ts`) lẫn BE
+> (`getDriverCompletionEvidenceStatus` — API hoàn thành từ chối nếu thiếu ảnh).
+> Hoàn thành ⇒ `trips.status = COMPLETED` ⇒ thẻ sang tab `Lịch sử`
+> (`bucketForStatus`); Điều vận thấy ngay qua trạng thái chuyến trên dashboard.
 
 ---
 
