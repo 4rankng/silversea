@@ -1,13 +1,13 @@
 {
   "runId": "2026-09-09_dispatch-sweep-2026-09-09",
-  "timestamp": "2026-09-09T06:30:38.270Z",
+  "timestamp": "2026-09-09T06:51:51.629Z",
   "results": [
     {
       "caseId": "TC-CUS-CREATE-048",
       "role": "ADMIN",
       "file": "TC-CUS-CREATE-048.mjs",
       "verdict": "PASS",
-      "durationMs": 5044,
+      "durationMs": 4666,
       "rowCount": 9,
       "contractOk": true,
       "sampleRows": [
@@ -18,7 +18,7 @@
           "hasReadySignal": false
         },
         {
-          "text": "LOG COM Chưa có nhà máy KCN ĐỒNG VĂN, HÀ NAM TESTSS2609B Chưa có tờ khai Chưa có hãng tàu Nhập 1x40DC — kg 14:00 9/9/2026 · 1x40DC Toàn bộ chờ phân xe — Sẵn sàn",
+          "text": "LOG COM Chưa có nhà máy KCN ĐỒNG VĂN, HÀ NAM TESTSS2609B Chưa có tờ khai Chưa có hãng tàu Nhập 1x40DC — kg 14:00 9/9/2026 · 1x40DC Đã phân xe Đã xếp xe — chưa p",
           "hasMissingDate": false,
           "hasWaitingSignal": false,
           "hasReadySignal": true
@@ -36,18 +36,18 @@
       "role": "ADMIN",
       "file": "TC-CUS-APPOINTMENT-001.mjs",
       "verdict": "PASS",
-      "durationMs": 7120,
+      "durationMs": 6868,
       "fields": [
         {
           "label": "GIỜ",
           "type": "time",
-          "value": "15:00",
+          "value": "14:00",
           "lang": "en-GB"
         },
         {
           "label": "NGÀY",
           "type": "date",
-          "value": "2026-09-09",
+          "value": "2026-09-08",
           "lang": "en-GB"
         }
       ],
@@ -58,11 +58,16 @@
       "role": "ADMIN",
       "file": "TC-SHIPMENTS-DETAIL-001.mjs",
       "verdict": "PASS",
-      "durationMs": 4283,
+      "durationMs": 4221,
       "totalRows": 12,
-      "plannedCount": 3,
-      "platedCount": 7,
+      "plannedCount": 4,
+      "platedCount": 8,
       "samplePlanned": [
+        {
+          "vehicle": "SilverSea",
+          "plate": "15C-167.31",
+          "badge": "Đã phân xe"
+        },
         {
           "vehicle": "SilverSea",
           "plate": "15C-184.62",
@@ -72,11 +77,6 @@
           "vehicle": "SilverSea",
           "plate": "15H-205.57",
           "badge": "Đã phân xe"
-        },
-        {
-          "vehicle": "SilverSea",
-          "plate": "15H-119.64",
-          "badge": "Đã phân xe"
         }
       ]
     },
@@ -85,7 +85,7 @@
       "role": "ADMIN",
       "file": "TC-DISPATCH-ALLOC-001.mjs",
       "verdict": "PASS",
-      "durationMs": 5502,
+      "durationMs": 5384,
       "structure": {
         "dayGroupCount": 1,
         "dayTitles": [
@@ -98,7 +98,7 @@
       "role": "ADMIN",
       "file": "TC-DISPATCH-EDIT-001.mjs",
       "verdict": "PASS",
-      "durationMs": 5551,
+      "durationMs": 5446,
       "classData": {
         "hasSelect": true,
         "options": [
@@ -116,7 +116,7 @@
       "role": "ADMIN",
       "file": "TC-DISPATCH-EDIT-002.mjs",
       "verdict": "PASS",
-      "durationMs": 5897,
+      "durationMs": 5813,
       "isDialogOpenBefore": true,
       "isDialogClosedAfter": true
     }

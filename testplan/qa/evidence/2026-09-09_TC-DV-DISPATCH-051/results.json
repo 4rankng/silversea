@@ -1,0 +1,14 @@
+{
+  "runId": "2026-09-09_TC-DV-DISPATCH-051",
+  "timestamp": "2026-09-09T06:52:49.398Z",
+  "results": [
+    {
+      "caseId": "TC-DV-DISPATCH-051",
+      "verdict": "ERROR",
+      "durationMs": 11414,
+      "errors": [
+        "TimeoutError: Waiting for selector `.dispatch-assignment-dialog__schedule, [data-testid=\"dispatch-issue-schedule\"]` failed\n    at CSSQueryHandler.waitFor (file:///Users/dev/Documents/projects/silversea-prod/node_modules/.pnpm/puppeteer-core@25.1.0/node_modules/puppeteer-core/lib/puppeteer/common/QueryHandler.js:211:46)\n    at async CdpFrame.waitForSelector (file:///Users/dev/Documents/projects/silversea-prod/node_modules/.pnpm/puppeteer-core@25.1.0/node_modules/puppeteer-core/lib/puppeteer/api/Frame.js:541:21)\n    at async CdpPage.waitForSelector (file:///Users/dev/Documents/projects/silversea-prod/node_modules/.pnpm/puppeteer-core@25.1.0/node_modules/puppeteer-core/lib/puppeteer/api/Page.js:1387:20)\n    at async Module.default (file:///Users/dev/Documents/projects/silversea-prod/testplan/qa/cases/dispatch-sweep-2026-09-09/TC-DV-DISPATCH-051.mjs:47:3)\n    at async main (file:///Users/dev/Documents/projects/silversea-prod/testplan/qa/scripts/run-case.mjs:49:14)"
+      ]
+    }
+  ]
+}
