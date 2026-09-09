@@ -10,11 +10,14 @@
 
 | Layer | File:line | Evidence |
 |---|---|---|
+| **Form field (correct schema)** | `frontend/src/features/shipments/create/shipment-create-model.ts:25` | `ShipmentCreateFormState.operationalSiteId` (NOT `factoryId`) — schema dùng tên `operational_site_id` |
 | Backend service | `backend/src/services/shipment-intake.service.ts:289` | `eq(s.operationalSites.isActive, true)` trong WHERE clause của `listOperationalSitesForIntake` |
 | Backend route | `backend/src/routes/shipments/core.routes.ts:401-414` | `GET /api/shipments/operational-sites` gọi `listOperationalSitesForIntake(customerId, actor)` → chỉ trả active rows |
 | Admin endpoint (separate intent) | `backend/src/routes/shipments/core.routes.ts:430-436` | `GET /api/shipments/operational-sites/admin` gọi `listOperationalSitesForAdmin` → trả cả deactivated rows (để admin re-enable) |
 | Frontend query | `frontend/src/api/shipmentClient.ts:717-723` | `listOperationalSites(customerId)` gọi endpoint trên, không filter thêm (đã được backend filter) |
+| Frontend load | `frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx:172-181` | `useEffect` gọi `listOperationalSites(customerId)` khi `form.customerId` đổi; set state `sites` |
 | Frontend derivation | `frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx:182` | `operationalSites = sites.filter(site.siteType === 'FACTORY')` — chỉ chọn FACTORY type (đã active từ backend) |
+| Frontend dropdown | `frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx:662-680` | `<SearchableField id="shipment-operational-site" label="Nhà máy">` dùng `operationalSites` làm options |
 
 **Conclusion:** filter chain end-to-end đúng. Backend là canonical; frontend tin tưởng backend response.
 
