@@ -61,6 +61,18 @@
   min-height: calc(var(--control-compact-h) - 2px);
 }
 
+/* Coarse pointers (phones, tablets) keep the 44px touch floor on the select
+   trigger: the compact 30px contract above is a pointer-density decision,
+   and page-level min-heights cannot out-specify this rule (QA final-gate
+   blocker 2026-09-09: /payables fuel-invoice triggers computed 36px at
+   744px coarse pointer). Desktop pointer density untouched. */
+@media (pointer: coarse) {
+  .ds-uui-select--operational .ds-uui-select__control > button,
+  .ds-uui-select--operational .ds-uui-select__control > [role='group'] {
+    min-height: var(--control-touch-h);
+  }
+}
+
 /* The UUI value carries its own Tailwind text utility, so sizing the trigger
    alone is not enough. Keep the selected value on the same operational type
    scale as the native input immediately beside it. The value is single-line
