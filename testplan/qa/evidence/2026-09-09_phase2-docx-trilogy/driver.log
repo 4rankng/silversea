@@ -13,3 +13,7 @@
 [driver.log] TC-ADHOC-002: L1 catalog / L2 free-text / L3 mixed saved; guardrail counts unchanged
 [driver.log] logged in dieuvan
 [driver.log] TC-GHEP-001: rows A+B same truck 15H-176.51 + Kep + same day saved
+[driver.log] OPS expense saved: toast + PENDING DB row id=82 + wallet cards; optimistic read inconclusive (regex) - balance dump in png
+[driver.log] suites: backend 1858/1858 PASS (229s) | frontend exit 0 (60.9s) | lint 0 errors (baseline warnings) | tsc 0 errors
+[driver.log] targeted re-run after lint fixes: 9 files / 85 tests PASS
+[driver.log] OPS two-path: approve w/o photo -> dialog (note required) -> APPROVED + audit x2 (audit_logs 39589/39590)

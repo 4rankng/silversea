@@ -1,0 +1,6 @@
+  id   |  actor_name  |                                  msg                                   |                       note                        | inperson 
+-------+--------------+------------------------------------------------------------------------+---------------------------------------------------+----------
+ 39590 | Phạm Thị Hòa | Kế toán Phạm Thị Hòa đã phê duyệt ops: 82                              |                                                   | 
+ 39589 |              | Duyệt khoản chi Ops không có ảnh biên lai sau khi kiểm chứng chứng từ  | QA phase-2: đã kiểm chứng tờ khai tận tay với Ops | 
+(2 rows)
+

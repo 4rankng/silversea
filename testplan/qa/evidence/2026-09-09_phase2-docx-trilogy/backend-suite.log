@@ -1,0 +1,28 @@
+  ✔ Manager cannot load Admin health (0.726125ms)
+  ✔ Driver cannot resolve a customer delivery dispute (2.071125ms)
+✔ work inbox RBAC (16.18825ms)
+▶ work inbox projection
+  ✔ sorts priority, due date and stable id before filtering and paging (6.0635ms)
+  ✔ explicit sortBy orders the lane before paging with the default chain as tiebreaker (0.188625ms)
+  ✔ manager-lane keys sort by owner label, age, and impact with absent values last (0.141583ms)
+  ✔ customer dispute stays advisory and does not block financially ready work (22.004417ms)
+  ✔ Operations inbox retains pre-trip exchange work with versioned direct action authority (5.019542ms)
+  ✔ Customer delivery truth follows the latest POD submission instead of any historical acceptance (11.509042ms)
+  ✔ Manager decision items identify the owner, age, impact, and direct route (10.299042ms)
+  ✔ Admin health reports each real source and does not call an empty audit source unavailable (9.904083ms)
+✔ work inbox projection (119.521417ms)
+[casbin] Enforcer initialized — 122 policies loaded
+▶ customer-service finance capabilities
+  ✔ exposes only the role-authorized workflow capabilities (10.604125ms)
+✔ customer-service finance capabilities (16.504ms)
+ℹ tests 1858
+ℹ suites 344
+ℹ pass 1858
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 229163.236416
+BACKEND_EXIT=0
+
+[exited with code 0]

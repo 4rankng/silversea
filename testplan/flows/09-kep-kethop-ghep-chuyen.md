@@ -314,8 +314,9 @@
 | 2026-09-07 | TC-GHEP-009 | agent-browser (qa/2026-09-07_pair-kind-ui/ — prior run) | PASS | 2 thẻ dính liền, chung Tag — `01-my-trips-pairs.png` | `qa/2026-09-07_pair-kind-ui/` |
 | 2026-09-07 | TC-GHEP-010 | agent-browser | PASS (partial) | Kết hợp: Lệnh 2 khóa — lock hint "Đang chờ" observed in /my-trips; full unlock path covered at service level by `pair-ket-hop-gating.test.ts` | `TC-GHEP-010_my-trips.png` + `_my-trips-after-progress.png` |
 | __/__/__ | TC-GHEP-011 | | | Kẹp: 2 thẻ song song (covered by integration test, component test, no UI re-test this pass) | |
-| __/__/__ | TC-GHEP-012 | | | Tag cạnh số cont trên Chi tiết lô (CUS) — service-level backend test green 09-09 (`pair-ket-hop-gating.test.ts`); UI pass owed to lane 4 | |
-| __/__/__ | TC-ADHOC-001 | | | Checkbox đầu form + toggle không mất dữ liệu + AC10 | |
-| __/__/__ | TC-ADHOC-002 | | | Combobox ID/Raw_* + trộn + guardrail count(*) | |
-| __/__/__ | TC-ADHOC-003 | | | Cascading KH→NM + auto-fill + read-only | |
-| __/__/__ | TC-ADHOC-004 | | | Nhãn "Chạy ngoài" + hiển thị downstream | |
+| 2026-09-09 | TC-GHEP-012 | agent-browser (qa/evidence/2026-09-09_phase2-docx-trilogy/) | NOT-RUN (UI) | Hạn chế dữ liệu mirror: không có cặp ghép gắn shipment để mở chi tiết lô; unit/component PASS (`pair-ket-hop-gating.test.ts` + FE tag-render test 90a17e65) | `ghep001_pair-create-response.json` |
+| 2026-09-09 | TC-ADHOC-001 | agent-browser | PASS | Checkbox element đầu form (DOM idx 0/31), mặc định không tích; toggle không mất dữ liệu | `adhoc001_*.png` |
+| 2026-09-09 | TC-ADHOC-002 | agent-browser + psql | PASS | L1 catalog (customer_id=3), L2 free-text (92561 raw KH + raw ports XOR per-container), L3 mixed (raw KH + dropoff_port_id=5); guardrail 165/30/53/41 unchanged | `adhoc002_dbrows_ALL.txt` + counts txt |
+| 2026-09-09 | TC-ADHOC-003 | agent-browser | PASS | NM disabled tới khi chọn KH; chỉ xổ nhà máy KH A; chọn NM ⇒ tuyến autofill + disabled | `adhoc003_*.png` |
+| 2026-09-09 | TC-ADHOC-004 | agent-browser | FAIL (list-leg) | List render "—" + không nhãn "Chạy ngoài" — khớp adjudication PRD-only DEFERRED chờ user; detail render raw KH ✓ | `adhoc004_*.png` |
+| 2026-09-09 | (extra) OPS two-path + optimistic | agent-browser + psql | PASS | Lưu chi ⇒ toast + PENDING + SỐ DƯ −150.000 + Nợ chứng từ; dialog "Duyệt không ảnh biên lai" (ghi chú bắt buộc) → APPROVED + audit ×2 (39589/39590) | `ops-*.png` + `ops-expense82-audit.txt` |

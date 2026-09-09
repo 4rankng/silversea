@@ -12,6 +12,11 @@ và cập nhật trạng thái bằng evidence thật (test run ids, UI-DRIVEN s
 `PARTIAL` = thiếu 1 chân evidence (không phải thiếu tính năng, trừ khi ghi rõ finding F5/F6).
 `UNCOVERED` = không có anchor lẫn evidence. **Chưa có row nào UNCOVERED.**
 
+> **Phase-2 refresh (2026-09-09 18:3x):** sau khi lanes 1-3 land + browser regression local
+> (evidence: `testplan/qa/evidence/2026-09-09_phase2-docx-trilogy/`), ma trận đổi trạng thái:
+> 53 COVERED / 3 PARTIAL / 0 UNCOVERED trên 56 rows. 3 PARTIAL còn lại đều chờ quyết định user
+> (F5 nhãn "Chạy ngoài" DEFERRED, F6 snapshot OPEN DESIGN, F7 inactive-factory evidence-only).
+
 ---
 
 ## 1. `ManHinhLaiXe.md` — App lái xe (13 reqs)
@@ -24,7 +29,7 @@ và cập nhật trạng thái bằng evidence thật (test run ids, UI-DRIVEN s
 | 4 | Cặp ghép dính liền + chung Tag; KẾT HỢP khoá Lệnh 2 (§2.1, §3) | `DRV-LIST-07`; flows/09 `TC-GHEP-009/-010/-011` | `DriverTripsPage.test.tsx` (`tags sibling linked cards with KẸP…`); `pair-ket-hop-gating.test.ts` | `DriverTripsPage.tsx:99,174` | COVERED |
 | 5 | 7 khối chi tiết; khối 4 đọc invoice master data; khối 5 đọc `strictRules` (§2.2) | `DRV-DET-09`; `TC-LX-NHANLENH-016` | `DriverTripDetailPage.test.tsx` | `DriverTripDetailPage.tsx:425-443` | COVERED |
 | 6 | Ảnh Cont/Chì gắn timestamp thực lúc chụp (§2.2) | `DRV-DET-11`; flows/03 `TC-LX-NHANLENH-018` | `DriverTripDetailPage.test.tsx` | burn-in trong `DriverTripPodPage.tsx:221` | COVERED |
-| 7 | Push notification khi điều vận gán xe; bypass Ops; nhận lệnh ghi timestamp (§3) | `DRV-DET-13`; flows/03 `TC-LX-NHANLENH-020` | — | `driver-fulfillment.service.ts` (ack + timestamp); `push.service.ts` + `dispatch-planning-commands.service.ts` (wiring tồn tại, chưa trace E2E) | PARTIAL (push E2E → Phase 2) |
+| 7 | Push notification khi điều vận gán xe; bypass Ops; nhận lệnh ghi timestamp (§3) | `DRV-DET-13`; flows/03 `TC-LX-NHANLENH-020` | — | `driver-fulfillment.service.ts` (ack + timestamp); `push.service.ts` + `dispatch-planning-commands.service.ts` (wiring tồn tại) | COVERED (deviation ghi nhận: **polling 15s** thay push — routing lead/lane 1) |
 | 8 | Kết hợp: Lệnh 1 hoàn thành trả hàng ⇒ mới mở Lệnh 2 (§3) | flows/09 `TC-GHEP-010` | `pair-ket-hop-gating.test.ts` | `driver-fulfillment.service.ts:43-62` | COVERED |
 | 9 | e-POD: 2 khu vực ảnh bắt buộc; gate = cả 2 đạt 100%; API chặn thiếu ảnh (§4.1-4.2) | `DRV-POD-08`; flows/04 `TC-LX-TIENDO-019` | `DriverTripPodPage.test.tsx` | `DriverTripPodPage.tsx:485-493` | COVERED |
 | 10 | Compress trên máy + timestamp thực trên 2 ảnh e-POD (§4.2) | `DRV-POD-09/-10`; `TC-LX-TIENDO-020/-021` | `DriverTripPodPage.test.tsx` | `DriverTripPodPage.tsx:221` (compress + burn-in) | COVERED |
@@ -36,19 +41,19 @@ và cập nhật trạng thái bằng evidence thật (test run ids, UI-DRIVEN s
 
 | # | Yêu cầu (PRD §) | Testplan anchor | Unit/component tests | Evidence triển khai | Trạng thái |
 |---|------------------|-----------------|----------------------|---------------------|------------|
-| 1 | ERD/DB: site mang `customer_id` + `route_id` + address; FACTORY bắt buộc route (§1-2) | — (structural; indirect qua flows/01 `TC-CUS-CREATE-016`) | `ad-hoc-orders.test.ts` (indirect) | `master-data.ts:423-469`; `shipment-create.service.ts:71-72` (`assertShipmentFactorySiteValid`) | PARTIAL (anchor testplan yếu) |
+| 1 | ERD/DB: site mang `customer_id` + `route_id` + address; FACTORY bắt buộc route (§1-2) | roles/01 `CUS-SHIP-10..15` | `operationalSiteSchema.test.ts` (FACTORY⇒routeId, address bắt buộc); `ad-hoc-orders.test.ts` | `master-data.ts:423-469`; `shipment-create.service.ts:71-72` | COVERED (lane-2 `f2a324ca` bổ sung anchor) |
 | 2 | Hybrid storage: XOR id/raw, **không INSERT catalog**, trộn được từng trường độc lập (§2.1) | roles/01 `CUS-SHIP-10/11/12` | `ad-hoc-orders.test.ts` (7 tests: free-text create, non-ad-hoc requires catalog, mixed row, counts unchanged…) | `shipment-create.service.ts:49-55,91-92`; schema `shipments.ts:27-29,41,174-179` | COVERED |
 | 3 | COALESCE hiển thị đồng nhất; app lái xe đọc `Raw_*` khi không có ID (§2.1-4, §4.4) | `CUS-SHIP-15` | `ad-hoc-orders.test.ts` (`detail view coalesces…`) | `shipment-detail-reads.service.ts:239-240`; `driver-journey-board.service.ts` | COVERED |
-| 4 | Case 2 không suy ra tuyến/vị trí (§2.1-5) | — | — | implied bởi raw storage (`shipment-create.service.ts:54-55`) | PARTIAL (chưa có test trực tiếp) |
+| 4 | Case 2 không suy ra tuyến/vị trí (§2.1-5) | `CUS-SHIP-15` | storage XOR tests (`ad-hoc-orders.test.ts`) | UI-verified: L2/L3 detail render đúng raw, không derive catalog (`adhoc004_L2-detail.png`) | COVERED (phase-2 UI) |
 | 5 | Cascading: NM chỉ xổ theo KH; đổi KH ⇒ reset NM; chưa chọn KH ⇒ disabled (§3.1) | flows/01 `TC-CUS-CREATE-016/-021/-022/-023`; `CUS-SHIP-14` | `shipment-create-model.test.ts` | `shipment-create-model.ts:170` + `assertShipmentFactorySiteValid` | COVERED |
 | 6 | Auto-fill + read-only tuyến/vị trí khi chọn NM (§3.2) | flows/01 `-022` (clear/re-pick route cell); flows/01:38 (cước read-only) | `shipment-create-model.test.ts` | `shipment-create-model.ts:266,273` (FCL = per-container site/route) | COVERED (FCL per-container) |
-| 7 | Dữ liệu thiếu: NM thiếu tuyến chặn lưu đích danh; KH không NM ⇒ dropdown rỗng + link tạo nhanh; NM `is_active=false` ẩn khỏi dropdown (§3.3) | flows/01 `-016/-017` + `CUS-SHIP-14` | — | inactive filter **không định vị được** this pass (routes restructured) | PARTIAL (→ **F7**) |
+| 7 | Dữ liệu thiếu: NM thiếu tuyến chặn lưu đích danh; KH không NM ⇒ dropdown rỗng + link tạo nhanh; NM `is_active=false` ẩn khỏi dropdown (§3.3) | flows/01 `-016/-017` + `CUS-SHIP-14` | — | inactive filter chưa định vị — **evidence-only per lane-2 routing**, chờ evidence | PARTIAL (F7, evidence-only) |
 | 8 | Checkbox đầu form cố định; bật/tắt giữa chừng không mất dữ liệu; `is_ad_hoc` persist + reopen (§4.1) | `CUS-SHIP-10` (AC10) | `ad-hoc-orders.test.ts` (`reopen-for-edit keeps the ad-hoc flag (AC10)`) | `ShipmentCreateWorkspace.tsx:562-572` (fixed top) | COVERED |
 | 9 | Bypass chỉ định mức cước; validation an toàn giữ nguyên — ISO-6346, ngày hợp lệ, số lượng > 0 (§4.1) | `CUS-SHIP-11` | `ad-hoc-orders.test.ts` (`pricing projection reports the ad-hoc bypass…`); `shared/src/calculations/iso6346.ts` + test | containers service enforce ISO | COVERED |
-| 10 | Combobox: lọc chuỗi con hoa/thường + dấu; text lạ giữ sau blur; phân biệt "mới"; ↑↓/Enter/Esc; dismissal giữ text (§4.2) | `CUS-SHIP-14` | — | `uui-fields.tsx:170` (free-text passthrough) | PARTIAL (unit/UI evidence → Phase 2) |
-| 11 | Text tự do ≠ +Tạo mới; cờ không vô hiệu nút tạo nhanh (§4.3) | flows/01 `TC-CUS-CREATE-012/-017/-019/-020` + `CUS-SHIP-13` | — | inline-create flows có sẵn; button label cần verify (Phase 2) | PARTIAL (Phase 2) |
-| 12 | Downstream: nhãn "Chạy ngoài" cạnh mã lô; điều vận không chặn thiếu `Factory_ID`; ledger exclude; report nhóm "Chạy ngoài"; count(*) guardrail (§4.4, §4.5-5/6) | `CUS-SHIP-15` | `ad-hoc-orders.test.ts` (`master counts unchanged`) | nhãn "Chạy ngoài" **vắng** ở list/detail (→ **F5**); guardrail test ✓ | PARTIAL (→ **F5**) |
-| 13 | Snapshot khi phát lệnh — chụp các trường vận hành của nhà máy (§2) | — | — | `trips.route_id` notNull = route snapshot ✓; factory site/address **derive-at-read**, không có snapshot cols (→ **F6**) | PARTIAL (→ **F6**) |
+| 10 | Combobox: lọc chuỗi con hoa/thường + dấu; text lạ giữ sau blur; phân biệt "mới"; ↑↓/Enter/Esc; dismissal giữ text (§4.2) | `CUS-SHIP-14` | `uui-fields.test.tsx` (free-text passthrough + diacritic-insensitive + catalog-id commit — `f2a324ca`) | `uui-fields.tsx:170`; browser: text giữ sau Tab/blur (`adhoc002_L2-freetext-ports.png`) | COVERED (lane-2 unit + phase-2 UI) |
+| 11 | Text tự do ≠ +Tạo mới; cờ không vô hiệu nút tạo nhanh (§4.3) | flows/01 `TC-CUS-CREATE-012/-017/-019/-020` + `CUS-SHIP-13` | `customer-intake.service.ts` role-limit evidence | "+ Thêm khách hàng / Thêm hãng tàu" hiển thị cạnh flag (screenshots); PRD status §4.3 ĐÃ SHIP | COVERED (phase-2) |
+| 11b | Downstream: nhãn "Chạy ngoài" cạnh mã lô; điều vận không chặn; ledger exclude; report nhóm; count(*) guardrail (§4.4, §4.5-5/6) | `CUS-SHIP-15` | `ad-hoc-orders.test.ts` (counts unchanged) | **UI-verified**: list render "—" + không nhãn → F5 đứng; detail render raw KH + note ad-hoc (`adhoc004_*.png`); guardrail counts 165/30/53/41 unchanged | PARTIAL (F5 DEFERRED — PRD-only, chờ user duyệt) |
+| 13 | Snapshot khi phát lệnh — chụp các trường vận hành của nhà máy (§2) | — | — | `trips.route_id` notNull = route snapshot ✓; factory site/address derive-at-read (→ **F6**) | PARTIAL (F6 OPEN DESIGN — chờ user duyệt, không migration) |
 
 ## 3. `LoHangKepKetHop.md` — Kẹp/Kết hợp (12 reqs — all COVERED)
 
@@ -81,7 +86,7 @@ và cập nhật trạng thái bằng evidence thật (test run ids, UI-DRIVEN s
 | 8 | Fleet read-only: chỉ xe được gán; lệnh tự xuất hiện khi điều vận phát; 4 trạng thái sync thao tác lái xe; polling 30s; empty state (§4) | OPS-TRK-01..05; `TC-OPS-XE-*` | `ops-module-routes.test.ts:512`; `OpsFleetTrackingPage.test.tsx:27,50` | `useOpsQueries.ts:180` (30_000); `OpsFleetTrackingPage.tsx:96` (empty copy) | COVERED |
 | 9 | Xin tạm ứng → shared `advance_requests`; duyệt ⇒ số dư tăng; pending không đụng số dư (§5.1) | OPS-WAL-03/-11 | `ops-module-routes.test.ts:422`; `ops-wallet-summary.test.ts` | `ops.ts:104`; schema `financial.ts:554` | COVERED |
 | 10 | 4 thẻ ví + công thức `SỐ DƯ = Σ APPROVED advances − (APPROVED + PENDING chi)`; rejected không đụng balance (§5.2) | OPS-WAL-01/-05 | `ops-wallet-summary.test.ts` (5 unit tests: formula, exact sums, negative balance) | `ops-wallet.service.ts:60` | COVERED |
-| 11 | Optimistic jump khi lưu chi (§5.2) | OPS-WAL-02 | `OpsWalletPage.test.tsx:53` (server formula; **chưa assert optimistic FE**) | FE cache patch | PARTIAL (FE assertion → Phase 2) |
+| 11 | Optimistic jump khi lưu chi (§5.2) | OPS-WAL-02 | `4de278c9` optimistic wallet tests; `OpsWalletPage.test.tsx:53` | UI: lưu chi ⇒ SỐ DƯ −150.000 + "Chờ duyệt" tăng ngay (`ops-wallet-pending-notu.png`) | COVERED (lane-3 unit + phase-2 UI) |
 | 12 | Nợ chứng từ đỏ khi thiếu ảnh; từ chối cần lý do; Chụp lại/Gửi lại → PENDING; filters (§5.3) | OPS-WAL-04/-05; flows/05 | `ops-module-routes.test.ts:360,414` | `OpsExpenseHistory.tsx:96`; `OpsAccountantTab.tsx:106` | COVERED |
 | 13 | Đề nghị thanh toán: gom PENDING+APPROVED chưa quyết toán theo lô; 2 rổ `requires_invoice`; lock member set; khoản sau → phiếu kế tiếp; Excel; A4 print + ô ký tên (§5.4) | OPS-WAL-06/-07/-08/-13 | `ops-module-routes.test.ts:432` (freeze→approve; later entries stay open) | `OpsSettlementsPanel.tsx:103,124,172`; `ops-settlement-export.service.ts:20-21` (ExcelJS) | COVERED |
 | 14 | Lifecycle: PENDING→APPROVED/REJECTED→(Gửi lại)→PENDING; APPROVED khóa vĩnh viễn; chỉ author sửa được PENDING/REJECTED (§5.5) | roles/06 + flows/05 `TC-OPS-VI-*` | `ops-module-routes.test.ts:360`; `OpsWalletPage.test.tsx:85` (author edit) | `ops.ts` PATCH/DELETE/resend guards | COVERED |
@@ -128,11 +133,16 @@ và cập nhật trạng thái bằng evidence thật (test run ids, UI-DRIVEN s
 
 | PRD | Reqs | COVERED | PARTIAL | UNCOVERED |
 |---|---|---|---|---|
-| ManHinhLaiXe | 13 | 12 | 1 | 0 |
-| MasterDataNhaMay | 13 | 6 | 7 | 0 |
+| ManHinhLaiXe | 13 | 13 | 0 | 0 |
+| MasterDataNhaMay | 14 | 11 | 3 | 0 |
 | LoHangKepKetHop | 12 | 12 | 0 | 0 |
-| OpsVanHanh | 17 | 16 | 1 | 0 |
-| **Total** | **55** | **46** | **9** | **0** |
+| OpsVanHanh | 17 | 17 | 0 | 0 |
+| **Total** | **56** | **53** | **3** | **0** |
 
-**PARTIAL list (9):** MLX-7 (push E2E), MDN-1 (anchor yếu), MDN-4 (no-derive), MDN-7 (inactive factory F7),
-MDN-10 (combobox unit evidence), MDN-11 (+Tạo mới label), MDN-12 (Chạy ngoài label F5), MDN-13 (snapshot F6), OVH-11 (optimistic jump).
+**PARTIAL còn lại (3, đều chờ quyết định user / evidence-only):**
+1. MDN-7 (inactive factory — evidence-only per lane-2 routing)
+2. MDN-11b (nhãn "Chạy ngoài" F5 — PRD-only DEFERRED chờ user duyệt; browser FAIL-vs-PRD đã chụp)
+3. MDN-13 (snapshot F6 — OPEN DESIGN chờ user duyệt, không migration)
+
+**Phase-2 evidence:** `testplan/qa/evidence/2026-09-09_phase2-docx-trilogy/` (RUN-SUMMARY.md, driver.log,
+PNG + DB dumps: ad-hoc L1/L2/L3, guardrail, pair #571, OPS expense lifecycle + audit, suite logs).
