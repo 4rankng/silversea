@@ -1445,3 +1445,46 @@
 - **Kỳ vọng sai (Fail nếu):**
   - Mới nhập ngày cho 1 cont mà lô đã tự động chuyển sang "Sẵn sàng điều xe" và mất cảnh báo "Chưa chốt ngày" (hành vi lỗi khách hàng chụp ảnh báo).
 - **Bằng chứng:** `shipment-routes.test.ts` (builder/display assertions: partial lot reads PENDING_DATE, fully-dated lot reads READY_FOR_DISPATCH), `cus-shipment-workspace.test.ts`, QA screenshot.
+
+---
+
+### TC-CUS-CREATE-049 — Popover "Giờ hẹn đóng/trả" (CUS): nhập Giờ trước Ngày, ô giờ 24h, hiển thị ngoài danh sách dạng "HH:MM d/m/yy"
+
+- **Mã bug:** Regression staging 2026-09-08 (7-bug batch): popover sửa giờ hẹn đóng/trả phải ưu tiên nhập Giờ trước — Ngày sau, ô giờ theo định dạng 24h (không AM/PM), và hiển thị ngoài danh sách khớp định dạng "20:45 8/9/26".
+- **Vai trò:** `CUS`
+- **Mức độ:** P1
+- **Thiết bị:** Desktop (1440×900)
+- **Tiền điều kiện:** Lô hàng FCL đã tạo; mở chi tiết lô ở giao diện CUS, thấy bảng container (CusContainerLedger).
+- **Các bước:**
+  1. Đăng nhập CUS, mở `/shipments`, bấm "Chi tiết" để mở bảng container.
+  2. Bấm vào ô Lịch trình (giờ hẹn đóng/trả) của một container để mở popover `CusAppointmentPopover`.
+  3. Quan sát thứ tự trường nhập: ô **Giờ** (HH:mm) phải đứng **trước** ô **Ngày** (dd/mm/yyyy).
+  4. Kiểm tra ô Giờ theo định dạng 24h (00–23, không AM/PM; input được gắn `lang="en-GB"`).
+  5. Nhập giờ 20:45 và ngày 8/9/2026, bấm Lưu.
+  6. Quan sát hiển thị ngoài popover (bảng container / danh sách lô): ô lịch trình hiển thị **"20:45 8/9/26"** — giờ trước, ngày sau.
+- **Kết quả mong đợi (Pass):**
+  - Popover hiển thị Giờ trước Ngày, ô giờ 24h.
+  - Hiển thị ngoài popover khớp "20:45 8/9/26" (không "8/9/26 20:45", không có AM/PM).
+- **Kỳ vọng sai (Fail nếu):**
+  - Popover hiện Ngày trước Giờ; hoặc ô giờ 12h AM/PM; hoặc hiển thị ngoài lệch định dạng "HH:MM d/m/yy".
+- **Bằng chứng:** `CusAppointmentPopover.test.tsx` — it('renders giờ before ngày with 24h locale pinned to en-GB'). Liên quan: TC-CUS-CREATE-029/032 (nút Xác nhận + validate) trên cùng popover.
+
+---
+
+### TC-CUS-CREATE-050 — "Chỉnh sửa lịch trình" (nhân viên): nhập Giờ trước Ngày, giờ 24h — đồng bộ với popover CUS
+
+- **Mã bug:** Cùng cụm regression staging 2026-09-08: editor "Chỉnh sửa lịch trình" phía nhân viên (`ShipmentContainerScheduleEditor.tsx`) phải đồng bộ quyết định giờ-first/24h như popover CUS (quyết định 2026-09-09).
+- **Vai trò:** `DISPATCHER`, `CLERK`, `ADMIN`, `MANAGER`
+- **Mức độ:** P1
+- **Thiết bị:** Desktop (1440×900)
+- **Tiền điều kiện:** Lô FCL có container đã chốt lịch hẹn; mở chi tiết lô ở giao diện nhân viên (ShipmentContainerLedger).
+- **Các bước:**
+  1. Đăng nhập nhân viên (DISPATCHER/CLERK), mở chi tiết lô, bấm chỉnh sửa lịch trình của container để mở editor `ShipmentContainerScheduleEditor`.
+  2. Quan sát thứ tự trường: **Giờ** trước **Ngày**; ô giờ 24h (00–23, không AM/PM).
+  3. Nhập giờ 20:45 và ngày 8/9/2026, Lưu.
+  4. Quan sát hiển thị ngoài editor (bảng container nhân viên): **"20:45 8/9/26"**.
+- **Kết quả mong đợi (Pass):**
+  - Editor giờ-first + 24h; hiển thị ngoài khớp "HH:MM d/m/yy", đồng bộ với popover CUS (TC-CUS-CREATE-049).
+- **Kỳ vọng sai (Fail nếu):**
+  - Editor vẫn Ngày-trước-Giờ hoặc 12h AM/PM; hiển thị ngoài lệch định dạng so với popover CUS.
+- **Bằng chứng:** `ShipmentContainerScheduleEditor.tsx` (fix giờ-first đang thực hiện 2026-09-09, session silversea-prod-88) — bổ sung bằng chứng unit test khi fix landed.
