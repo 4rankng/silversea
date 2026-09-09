@@ -104,4 +104,30 @@ describe('ShipmentDetailPage', () => {
     expect(screen.queryByText(/Đã khóa bởi Kế toán/)).toBeNull();
     await waitFor(() => expect(getShipmentDetailMock).toHaveBeenCalledWith(1));
   });
+
+  it('renders the [KẸP]/[KẾT HỢP] tag next to the container number (LoHangKepKetHop §3.2)', async () => {
+    getShipmentDetailMock.mockResolvedValue({
+      ...detail,
+      containers: [{
+        id: 7,
+        shipmentId: 1,
+        containerTypeId: null,
+        containerNumber: 'TGHU1234567',
+        sealNumber: null,
+        cargoWeightKg: null,
+        notes: null,
+        pairKind: 'KEP',
+      }],
+    });
+    render(
+      <MemoryRouter initialEntries={['/shipments/1']}>
+        <Routes>
+          <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('TGHU1234567')).toBeTruthy();
+    expect(screen.getByText('[KẸP]')).toBeTruthy();
+  });
 });

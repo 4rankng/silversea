@@ -16,6 +16,7 @@ import { createTripPair } from '../services/trip-pairs.service';
 import { getDriverJourneyBoard } from '../services/driver-journey-board.service';
 import { recordDriverFulfillmentProgress } from '../services/driver-fulfillment.service';
 import { disconnectRedis } from '../lib/redis';
+import { getShipmentDetail } from '../services/shipment-detail-reads.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -231,7 +232,7 @@ async function mkPairedLô(tag: string, args: {
     },
   }, adminId);
   createdPairIds.push(pair.id);
-  return { pairId: pair.id, fulfillments, trips };
+  return { pairId: pair.id, fulfillments, trips, shipmentIds: [shipmentA.id, shipmentB.id] };
 }
 
 function nextIdempotencyKey() {
@@ -313,5 +314,46 @@ describe('kết hợp sequencing gate + journey board pair fields', () => {
       idempotencyKey: nextIdempotencyKey(),
     });
     assert.equal(accepted.event.eventType, DriverProgressEventType.ORDER_RECEIVED);
+  });
+
+  test('detail view renders pair data source: paired containers carry their ACTIVE pair kind, unpaired/broken show none', async () => {
+    const { trips, shipmentIds } = await mkPairedLô('det', {
+      pairKind: 'KEP',
+      first: { start: '2026-07-27T08:00:00', end: '2026-07-27T12:00:00' },
+      second: { start: '2026-07-27T08:00:00', end: '2026-07-27T12:00:00' },
+    });
+
+    // An unpaired shipment with no fulfillment at all — the tag source is the
+    // ACTIVE pair linkage, so it must read null.
+    const [solo] = await db.insert(s.shipments).values({
+      customerId: createdCustomerIds[0],
+      routeId: createdRouteIds[0],
+      cargoTypeId: createdCargoTypeIds[0],
+      cargoMode: 'FCL',
+      status: 'DISPATCHED',
+      bookingRef: `GATE-det-solo-${suffix}`,
+    }).returning();
+    createdShipmentIds.push(solo.id);
+    const [soloContainer] = await db.insert(s.shipmentContainers).values({
+      shipmentId: solo.id,
+      containerTypeId: createdContainerTypeIds[0],
+      containerNumber: `TGHU${String(300000 + createdShipmentContainerIds.length).padStart(6, '0')}5`,
+    }).returning();
+    createdShipmentContainerIds.push(soloContainer.id);
+
+    const pairedDetail = await getShipmentDetail(shipmentIds[0]);
+    assert.equal(pairedDetail.containers.length, 1);
+    assert.equal(pairedDetail.containers[0].pairKind, 'KEP');
+
+    const soloDetail = await getShipmentDetail(solo.id);
+    assert.equal(soloDetail.containers.length, 1);
+    assert.equal(soloDetail.containers[0].pairKind, null);
+
+    // Breaking the pair linkage removes the tag source (TC-GHEP-008: the tag
+    // must vanish once the pair no longer exists).
+    await db.update(s.trips).set({ activeTripPairId: null, activeTripPairOrder: null })
+      .where(inArray(s.trips.id, trips));
+    const brokenDetail = await getShipmentDetail(shipmentIds[0]);
+    assert.equal(brokenDetail.containers[0].pairKind, null);
   });
 });

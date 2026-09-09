@@ -50,7 +50,10 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // dispatch-status normalization (18539e54 + cec0f963, 2026-09-05).
   // Reviewed as a contract change; a future split should restore a smaller
   // ceiling.
-  'src/api/shipmentClient.ts': 1118,
+  // Raised 1118 → 1119: pairKind tag source on the detail containers payload
+  // (LoHangKepKetHop §3.2, 2026-09-09). Reviewed as a contract addition; a
+  // future split should restore a smaller ceiling.
+  'src/api/shipmentClient.ts': 1119,
   'src/components/billing/BillingDocumentBuilder.tsx': 717,
   // Raised 843 → 856: the CUS + dispatcher sidebar catalog entries
   // (e69e67a7, effdf61f) shipped past the old ceiling. Reviewed as nav

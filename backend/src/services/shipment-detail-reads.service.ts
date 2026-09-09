@@ -9,7 +9,7 @@ import { CARGO_MODE } from '../db/schema';
 import { and, asc, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { localDateInBusinessZone } from '@tingting/shared';
-import type { DispatchSummary } from '@tingting/shared';
+import type { DispatchSummary, TripPairKind } from '@tingting/shared';
 import { operationalName } from '../db/master-data-name';
 import type { AuthUser } from '../middleware/auth';
 import type { Tx } from './trip-shared';
@@ -144,6 +144,8 @@ export interface ShipmentDetail {
   containers: Array<Awaited<ReturnType<typeof listShipmentContainers>>[number] & {
     /** Plate issued onto this container's fulfillment at dispatch. */
     plannedVehiclePlate: string | null;
+    /** Kind of the ACTIVE trip pair (Kẹp/Kết hợp) on this container's live trip; null when unpaired. */
+    pairKind: TripPairKind | null;
   }>;
   documents: Awaited<ReturnType<typeof listShipmentDocuments>>;
   declarations: Awaited<ReturnType<typeof listShipmentDeclarations>>;
@@ -163,7 +165,7 @@ export interface ShipmentDetail {
 async function decorateContainersWithIssuedVehicle(
   shipmentId: number,
   containers: Awaited<ReturnType<typeof listShipmentContainers>>,
-): Promise<ShipmentDetail['containers']> {
+): Promise<Array<Awaited<ReturnType<typeof listShipmentContainers>>[number] & { plannedVehiclePlate: string | null }>> {
   if (containers.length === 0) return [];
   const fulfillments = await db.select({
     shipmentContainerId: s.shipmentFulfillments.shipmentContainerId,
@@ -183,6 +185,39 @@ async function decorateContainersWithIssuedVehicle(
   return containers.map((container) => ({
     ...container,
     plannedVehiclePlate: plateByContainerId.get(container.id) ?? null,
+  }));
+}
+
+/**
+ * Attach the ACTIVE pair kind (Kẹp/Kết hợp) onto each container whose live trip
+ * is linked to a trip_pairs row (LoHangKepKetHop §3.2): this is the data source
+ * for the [KẸP]/[KẾT HỢP] tag next to the container number on CUS surfaces.
+ * The tag derives from the pair linkage, so breaking the pair removes it;
+ * canceled fulfillments never contribute (their trips leave the pair on cancel).
+ */
+async function decorateContainersWithPairKind(
+  shipmentId: number,
+  containers: Array<Awaited<ReturnType<typeof listShipmentContainers>>[number] & { plannedVehiclePlate: string | null }>,
+): Promise<ShipmentDetail['containers']> {
+  if (containers.length === 0) return [];
+  const rows = await db.select({
+    shipmentContainerId: s.shipmentFulfillments.shipmentContainerId,
+    pairKind: s.tripPairs.pairKind,
+  }).from(s.shipmentFulfillments)
+    .innerJoin(s.trips, eq(s.trips.fulfillmentId, s.shipmentFulfillments.id))
+    .innerJoin(s.tripPairs, eq(s.tripPairs.id, s.trips.activeTripPairId))
+    .where(and(
+      eq(s.shipmentFulfillments.shipmentId, shipmentId),
+      isNull(s.shipmentFulfillments.canceledAt),
+    ));
+  const pairKindByContainerId = new Map<number, string>();
+  for (const row of rows) {
+    if (row.shipmentContainerId == null) continue;
+    pairKindByContainerId.set(row.shipmentContainerId, row.pairKind);
+  }
+  return containers.map((container) => ({
+    ...container,
+    pairKind: (pairKindByContainerId.get(container.id) as TripPairKind | undefined) ?? null,
   }));
 }
 
@@ -250,7 +285,10 @@ export async function getShipmentDetail(id: number, _actor?: AuthUser): Promise<
     listShipmentCarrierAssignments(id),
     getShipmentAccountingLock(id),
   ]);
-  const decoratedContainers = await decorateContainersWithIssuedVehicle(id, containers);
+  const decoratedContainers = await decorateContainersWithPairKind(
+    id,
+    await decorateContainersWithIssuedVehicle(id, containers),
+  );
   return {
     shipment: {
       ...shipmentWithCustomer,

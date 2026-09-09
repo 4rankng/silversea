@@ -201,6 +201,8 @@ export interface ShipmentContainer {
   plannedExternalCarrierId?: number | null;
   plannedCarrierName?: string | null;
   plannedVehiclePlate?: string | null;
+  /** Kind of the ACTIVE trip pair (Kẹp/Kết hợp) on this container's live trip — tag source. */
+  pairKind?: 'KEP' | 'KET_HOP' | null;
   notes: string | null;
 }
 

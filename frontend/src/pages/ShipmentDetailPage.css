@@ -135,6 +135,15 @@
   overflow-wrap: anywhere;
 }
 
+/* Pair tag (LoHangKepKetHop §3.2): derived from the ACTIVE trip pair — plain
+ * colored text per the project's no-badge convention. */
+.shipment-detail__pair-tag {
+  margin-left: 6px;
+  font-weight: 700;
+  color: var(--brand, #17594a);
+  white-space: nowrap;
+}
+
 .shipment-detail__table th {
   font-weight: 600;
   color: var(--fg-2);

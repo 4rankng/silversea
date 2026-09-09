@@ -293,7 +293,14 @@ export default function ShipmentDetailPage() {
                 {containers.map((c) => (
                   <tr key={c.id}>
                     <td>{c.containerTypeName ?? c.containerTypeCode ?? '—'}</td>
-                    <td>{c.containerNumber ?? '—'}</td>
+                    <td>
+                      {c.containerNumber ?? '—'}
+                      {c.pairKind && (
+                        <span className="shipment-detail__pair-tag">
+                          {c.pairKind === 'KEP' ? '[KẸP]' : '[KẾT HỢP]'}
+                        </span>
+                      )}
+                    </td>
                     <td>{(() => {
                       const assignment = carrierAssignmentByContainerId.get(c.id);
                       if (!assignment?.carrierType) return '—';
