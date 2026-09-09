@@ -1,0 +1,4 @@
+ALTER TABLE "trips" ADD COLUMN "factory_site_name" varchar(255);--> statement-breakpoint
+ALTER TABLE "trips" ADD COLUMN "factory_site_address" text;--> statement-breakpoint
+UPDATE trips t SET factory_site_name = COALESCE(NULLIF(BTRIM(s.short_name), ''), s.name), factory_site_address = s.address FROM shipment_fulfillments f JOIN shipments sh ON sh.id = f.shipment_id LEFT JOIN shipment_containers sc ON sc.id = f.shipment_container_id LEFT JOIN operational_sites s ON s.id = COALESCE(sc.operational_site_id, sh.operational_site_id) WHERE f.id = t.fulfillment_id AND t.factory_site_name IS NULL AND t.status NOT IN ('COMPLETED', 'CANCELED') AND s.id IS NOT NULL;--> statement-breakpoint
+UPDATE trips t SET factory_site_name = sh.factory_name FROM shipment_fulfillments f JOIN shipments sh ON sh.id = f.shipment_id WHERE f.id = t.fulfillment_id AND t.factory_site_name IS NULL AND t.status NOT IN ('COMPLETED', 'CANCELED') AND sh.factory_name IS NOT NULL;

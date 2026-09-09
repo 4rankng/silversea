@@ -25,6 +25,13 @@ export const trips = pgTable('trips', {
   departureDate: date('departure_date').notNull(),
   plannedStartAt: timestamp('planned_start_at'),
   plannedEndAt: timestamp('planned_end_at'),
+  // F6 factory snapshot (MasterDataNhaMay MDN-13): the operational site's
+  // drift-prone display fields, frozen at dispatch the same way route_id
+  // snapshots the route. Editing factory master data mid-trip can no longer
+  // drift an in-flight lot. Null on legacy rows ⇒ reads fall back to the
+  // live join (trip-factory-site.service).
+  factorySiteName: varchar('factory_site_name', { length: 255 }),
+  factorySiteAddress: text('factory_site_address'),
   canonicalOrigin: varchar('canonical_origin', { length: 160 }),
   canonicalDestination: varchar('canonical_destination', { length: 160 }),
   cargoWeightKg: numeric('cargo_weight_kg', { precision: 10, scale: 2 }),

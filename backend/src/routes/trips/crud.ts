@@ -16,6 +16,7 @@ import { requireRoles } from '../../middleware/casbin';
 import { getUser } from '../../middleware/auth';
 import { config } from '../../config';
 import * as tripService from '../../services/trip.service';
+import { getTripFactorySiteView } from '../../services/trip-factory-site.service';
 import { createTripPair } from '../../services/trip-pairs.service';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency.service';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
@@ -216,7 +217,13 @@ router.post('/bulk-figures', asyncHandler(async (req: Request, res: Response) =>
 router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string);
   if (isNaN(id)) return res.status(400).json({ error: 'ID chuyến đi không hợp lệ' });
-  res.json(await tripService.getTripById(id));
+  // F6: attach the factory-site view (snapshot preferred, live join for
+  // legacy rows) alongside the composite detail.
+  const [trip, factorySite] = await Promise.all([
+    tripService.getTripById(id),
+    getTripFactorySiteView(id),
+  ]);
+  res.json({ ...trip, factorySite });
 }));
 
 // Soft-delete trip — only ADMIN/MANAGER, only CREATED status (flow 01 §2.6)

@@ -18,6 +18,7 @@ import { transitionShipmentStatus } from './shipment.service';
 import { createTrip } from './trip-mutations.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import { lockShipmentFreightRate } from './freight-rate-snapshot-lifecycle.service';
+import { resolveDispatchFactorySnapshot } from './trip-factory-site.service';
 import { completeExternalCarrierTrip } from './trip-external-close.service';
 
 
@@ -593,6 +594,19 @@ export async function issueOrderCreateOrUpdate(
       rateKeyOverride: input.pricingRateKey ?? null,
       fallbackTransportDate: localDateInBusinessZone(plannedStartAt),
     });
+    // F6 factory snapshot (MDN-13): freeze the operational site's display
+    // fields at dispatch so later master-data edits cannot drift an
+    // in-flight lot. Same doctrine as the trips.route_id route snapshot.
+    const factorySnapshot = await resolveDispatchFactorySnapshot(tx, {
+      shipmentId: shipment.id,
+      shipmentContainerId: fulfillment.shipmentContainerId,
+    });
+    if (factorySnapshot) {
+      await tx.update(s.trips).set({
+        factorySiteName: factorySnapshot.name,
+        factorySiteAddress: factorySnapshot.address,
+      }).where(eq(s.trips.id, trip.id));
+    }
     const notificationPayload = buildNotificationPayload(trip);
     if (hasExplicitNotificationTarget(notificationPayload)) {
       await persistNotificationInTx(tx, notificationPayload);
