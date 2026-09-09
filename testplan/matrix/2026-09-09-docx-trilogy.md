@@ -9,7 +9,7 @@ Phase 2 — khi lead ra tín hiệu — sẽ chạy browser regression + full su
 và cập nhật trạng thái bằng evidence thật (test run ids, UI-DRIVEN steps, qa/ artifacts).
 
 **Trạng thái:** `COVERED` = đủ 3 chân: anchor testplan + unit/component test + evidence triển khai.
-`PARTIAL` = thiếu 1 chân evidence (không phải thiếu tính năng, trừ khi ghi rõ finding F4/F5/F6).
+`PARTIAL` = thiếu 1 chân evidence (không phải thiếu tính năng, trừ khi ghi rõ finding F5/F6).
 `UNCOVERED` = không có anchor lẫn evidence. **Chưa có row nào UNCOVERED.**
 
 ---
@@ -29,7 +29,7 @@ và cập nhật trạng thái bằng evidence thật (test run ids, UI-DRIVEN s
 | 9 | e-POD: 2 khu vực ảnh bắt buộc; gate = cả 2 đạt 100%; API chặn thiếu ảnh (§4.1-4.2) | `DRV-POD-08`; flows/04 `TC-LX-TIENDO-019` | `DriverTripPodPage.test.tsx` | `DriverTripPodPage.tsx:485-493` | COVERED |
 | 10 | Compress trên máy + timestamp thực trên 2 ảnh e-POD (§4.2) | `DRV-POD-09/-10`; `TC-LX-TIENDO-020/-021` | `DriverTripPodPage.test.tsx` | `DriverTripPodPage.tsx:221` (compress + burn-in) | COVERED |
 | 11 | Hoàn thành ⇒ thẻ sang `Lịch sử` + sync dashboard điều vận (§4.3) | `DRV-POD-11`; `TC-LX-TIENDO-022` | — | `trip-status-machine.service.ts` | COVERED (unit evidence mỏng; Phase 2 UI) |
-| 12 | Tap floor ≥48px + sticky CTA + safe-area-inset (§5) | `DRV-LIST-04`, `DRV-DET-10`; flows/03 `TC-LX-NHANLENH-017` | `bottom-nav.styles.test.ts` | `DriverTripsPage.css:48,342` = `min-height: 44px` | PARTIAL (→ **F4**) |
+| 12 | Tap floor ≥48px + sticky CTA + safe-area-inset (§5) | `DRV-LIST-04`, `DRV-DET-10`; flows/03 `TC-LX-NHANLENH-017` | `bottom-nav.styles.test.ts` | footer CTA opts up to 48px (`DriverTripsPage.css:352,383`, ID-specificity comment :377-378); `:48` 44px = inner non-CTA element (global floor) | COVERED (F4 resolved on current tree) |
 | 13 | Module chi phí ẩn; trips schema sẵn sàng cột chi phí (§0) | `DRV-DET-12`; `TC-LX-NHANLENH-019` | `DriverTripDetailPage.shipmentCostEntry.test.tsx` | `trips.ts:36-39,118-124` (fuel/road cols) | COVERED |
 
 ## 2. `MasterDataNhaMay.md` — Master data + Lệnh chạy ngoài (13 reqs)
@@ -98,8 +98,10 @@ và cập nhật trạng thái bằng evidence thật (test run ids, UI-DRIVEN s
   thực tế không có route đó (App.tsx:368-377) và không có file đó; print = print-stylesheet panel
   `OpsSettlementsPanel.tsx` (window.print + @media print A4 + ô ký tên), plus `/my-settlements/:id` (SettlementPrintPage). Testplan cần sửa.
 - **F3 — roles/06-vanhanh.md component paths sai**: ghi `frontend/src/pages/ops/Ops*.tsx`; thực tế `frontend/src/pages/Ops*.tsx` (không có subdir `ops/`).
-- **F4 — 44px vs 48px.** MLX §5 + roles/03 `DRV-LIST-04` (tham chiếu `c9012bd0`) yêu cầu ≥48px;
-  `DriverTripsPage.css:48,342` = `min-height: 44px`. Mâu thuẫn spec↔code; probe dev-tools ở Phase 2 để xác nhận là violation hay bị override.
+- **F4 — 44px vs 48px — RESOLVED 09-09.** MLX §5 + roles/03 `DRV-LIST-04` (tham chiếu `c9012bd0`) yêu cầu ≥48px.
+  Ban đầu thấy `min-height: 44px` ở 2 chỗ; sau khi lane 1 land thêm commit, footer CTA **opts up to 48px**
+  (`DriverTripsPage.css:352,383` + comment ID-specificity :377-378); `:48` 44px là element trong thẻ (global floor 44px, hợp lệ).
+  Không còn mâu thuẫn.
 - **F5 — nhãn "Chạy ngoài" vắng mặt.** MDN §4.4 + AC-6: nhãn "Chạy ngoài" (chữ màu, không badge) cạnh mã lô ở
   list/chi tiết/điều vận/app lái xe. Frontend chỉ render copy ở create-form; list/detail/driver app không render nhãn.
   Data model hỗ trợ (`is_ad_hoc` + `raw_*`) — thiếu UI label.
@@ -118,7 +120,7 @@ và cập nhật trạng thái bằng evidence thật (test run ids, UI-DRIVEN s
 4. Combobox diacritic filter + keyboard nav unit/UI.
 5. NM inactive filter + "+Tạo mới" label check.
 6. Hoàn thành ⇒ sync điều vận (UI).
-7. 44px vs 48px dev-tools probe.
+7. ~~44px vs 48px dev-tools probe~~ — RESOLVED 09-09: footer CTA = 48px (`DriverTripsPage.css:352,383`).
 8. `SELECT count(*)` master-data guardrail re-check sau khi các lane land.
 9. Micro-ledger grouping (Kế toán hiển thị gom theo lô).
 
@@ -126,11 +128,11 @@ và cập nhật trạng thái bằng evidence thật (test run ids, UI-DRIVEN s
 
 | PRD | Reqs | COVERED | PARTIAL | UNCOVERED |
 |---|---|---|---|---|
-| ManHinhLaiXe | 13 | 11 | 2 | 0 |
+| ManHinhLaiXe | 13 | 12 | 1 | 0 |
 | MasterDataNhaMay | 13 | 6 | 7 | 0 |
 | LoHangKepKetHop | 12 | 12 | 0 | 0 |
 | OpsVanHanh | 17 | 16 | 1 | 0 |
-| **Total** | **55** | **45** | **10** | **0** |
+| **Total** | **55** | **46** | **9** | **0** |
 
-**PARTIAL list (10):** MLX-7 (push E2E), MLX-12 (44px F4), MDN-1 (anchor yếu), MDN-4 (no-derive), MDN-7 (inactive factory F7),
+**PARTIAL list (9):** MLX-7 (push E2E), MDN-1 (anchor yếu), MDN-4 (no-derive), MDN-7 (inactive factory F7),
 MDN-10 (combobox unit evidence), MDN-11 (+Tạo mới label), MDN-12 (Chạy ngoài label F5), MDN-13 (snapshot F6), OVH-11 (optimistic jump).
