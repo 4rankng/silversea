@@ -889,6 +889,62 @@ export const liftPricingSchema = z.object({
   note: z.string().optional().nullable(),
 });
 
+// ─── Auto freight pricing engine schemas (Phương án tính cước tự động) ──────
+
+// Fuel price periods — one global DO-grade diesel price per period
+// (`fuel_price_periods`). Adding a row = a new period; `effectiveFrom` is the
+// unique business key (docx §2-A/§5-1). unitPrice is pre-VAT (12,2).
+export const fuelPricePeriodSchema = z.object({
+  unitPrice: positiveNumeric,
+  effectiveFrom: isoDateOnlySchema,
+  sourceNote: z.string().max(500).optional().nullable(),
+});
+
+// Freight rate terms — contract block per customer × route
+// (`freight_rate_terms`, docx §2-B). Threshold mode is exclusive: at most ONE
+// of percentage / absolute may be configured (enforced by the config route's
+// beforeCreate/beforeUpdate hooks — the crud factory cannot take a refined
+// schema).
+export const freightRateTermSchema = z.object({
+  customerId: z.coerce.number().int().positive('Khách hàng không hợp lệ'),
+  routeId: z.coerce.number().int().positive('Tuyến đường không hợp lệ'),
+  sharePct: nonNegNumeric.default(0),
+  billingKmOneWay: z.coerce.number().int().positive('Km tính cước (một chiều) phải là số nguyên dương'),
+  billingKmMultiplier: nonNegNumeric.default(2),
+  baseFuelPrice: positiveNumeric,
+  fuelLagDays: z.coerce.number().int().min(0).default(0),
+  surchargeThresholdPct: positiveNumeric.optional().nullable(),
+  surchargeThresholdAbs: positiveNumeric.optional().nullable(),
+  effectiveDate: isoDateOnlySchema.default(() => new Date().toISOString().slice(0, 10)),
+  note: z.string().max(500).optional().nullable(),
+});
+
+// Revenue-side fuel consumption norms per vehicle size class
+// (`fuel_consumption_norms`, docx §2-C). litersPerKm carries scale 4.
+export const fuelConsumptionNormSchema = z.object({
+  vehicleSizeClassId: z.coerce.number().int().positive('Loại xe không hợp lệ'),
+  litersPerKm: positiveNumeric,
+  effectiveDate: isoDateOnlySchema.default(() => new Date().toISOString().slice(0, 10)),
+  note: z.string().max(500).optional().nullable(),
+});
+
+// Vehicle size class catalog (`vehicle_size_classes`) — replaces free-text
+// pricing rate keys with a FK-able taxonomy (1.25T…15T, CONT20, CONT40).
+export const vehicleSizeClassSchema = z.object({
+  code: z.string().trim().toUpperCase().regex(/^[A-Z0-9.]{1,20}$/, 'Mã loại xe chỉ gồm A-Z, 0-9, dấu chấm'),
+  name: z.string().trim().min(1).max(50),
+  isContainer: z.boolean().default(false),
+  sortOrder: z.coerce.number().int().min(0).default(0),
+});
+
+// Debit-note freight override (docx §4): the accountant may replace the frozen
+// system freight with a negotiated final value. A reason is required whenever
+// final != system (enforced server-side against the snapshot row).
+export const freightRateOverrideSchema = z.object({
+  finalDebitFreight: z.coerce.number().int().min(0).optional().nullable(),
+  overrideReason: z.string().trim().max(500).optional().nullable(),
+});
+
 export const ancillaryRevenueSchema = z.object({
   customerId: z.coerce.number().int().positive(),
   shipmentId: z.coerce.number().int().positive().optional().nullable(),

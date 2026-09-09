@@ -17,11 +17,12 @@ import { ensureShipmentFulfillmentsInTx } from './shipment-fulfillment.service';
 import { transitionShipmentStatus } from './shipment.service';
 import { createTrip } from './trip-mutations.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
+import { lockShipmentFreightRate } from './freight-rate-snapshot-lifecycle.service';
 import { completeExternalCarrierTrip } from './trip-external-close.service';
 
 
 import { and, count, eq, gt, inArray, isNotNull, isNull, lt, ne, or, sql } from 'drizzle-orm';
-import { canonicalShipmentStatus, NotificationType, Role, TripStatus, type FuelMode } from '@tingting/shared';
+import { canonicalShipmentStatus, localDateInBusinessZone, NotificationType, Role, TripStatus, type FuelMode } from '@tingting/shared';
 
 import * as s from '../db/schema';
 import { CARGO_MODE } from '../db/schema';
@@ -580,6 +581,18 @@ export async function issueOrderCreateOrUpdate(
     trip = linked ? toLiveTripRow(linked) : null;
     if (!trip) throw new ApiError(409, 'Không thể liên kết chuyến với tác vụ.');
     await replaceTripContainersForFulfillment(tx, trip.id, shipment, fulfillment, input.actor.userId);
+    // Auto freight pricing: the dispatch order is the definitive rate lock —
+    // the dispatcher's rate key (else the fulfillment container's class) at
+    // the container's own appointment date, falling back to the shipment's
+    // transport date and finally the planned start day. Supersedes any
+    // intake-time snapshot; MANUAL fallback never blocks the order.
+    await lockShipmentFreightRate(tx, {
+      shipmentId: shipment.id,
+      tripId: trip.id,
+      shipmentContainerId: fulfillment.shipmentContainerId,
+      rateKeyOverride: input.pricingRateKey ?? null,
+      fallbackTransportDate: localDateInBusinessZone(plannedStartAt),
+    });
     const notificationPayload = buildNotificationPayload(trip);
     if (hasExplicitNotificationTarget(notificationPayload)) {
       await persistNotificationInTx(tx, notificationPayload);

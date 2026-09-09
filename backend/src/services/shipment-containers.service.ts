@@ -26,6 +26,7 @@ import {
   assertDispatcherCanMutateShipmentIntake,
   ensureReadyShipmentHandoff,
 } from './shipment-intake.service';
+import { lockShipmentFreightRate } from './freight-rate-snapshot-lifecycle.service';
 import {
 } from './shipment-edit-boundary.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
@@ -580,6 +581,12 @@ export async function batchUpsertShipmentContainers(
     await tx.update(s.shipments)
       .set({ version: nextVersion, updatedAt: new Date() })
       .where(eq(s.shipments.id, shipmentId));
+
+    // Auto freight pricing (Phương án tính cước): FCL intake is usually where
+    // the transport date + container class first become known together — lock
+    // the rate snapshot now; dispatch supersedes with the exact per-trip row.
+    // MANUAL fallback keeps the reconcile non-blocking; ad-hoc skips inside.
+    await lockShipmentFreightRate(tx, { shipmentId });
 
     const directResult = {
       items: reconciled.items,

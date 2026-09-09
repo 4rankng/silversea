@@ -14,6 +14,7 @@ import {
 } from './shipment-edit-boundary.service';
 
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
+import { lockShipmentFreightRate } from './freight-rate-snapshot-lifecycle.service';
 import {
   assertDispatcherCanMutateShipmentIntake,
   ensureReadyShipmentHandoff,
@@ -218,6 +219,18 @@ export async function updateShipment(
     }
     if (shipmentAuthorityChanged && isDirectlyEditableIntakeStatus(updated.status)) {
       await syncShipmentAuthorityToTrips(tx, updated);
+    }
+
+    // Auto freight pricing: a transport-date change re-locks the rate. The
+    // engine never mutates the frozen row — supersede = a new INSERT (chốt
+    // 2026-09-09 Câu 2 = A). Skips silently when no rate key is derivable
+    // (LCL without containers locks at dispatch instead) or on MANUAL.
+    if (
+      input.expectedDeliveryDate !== undefined
+      && input.expectedDeliveryDate != null
+      && input.expectedDeliveryDate !== existing.expectedDeliveryDate
+    ) {
+      await lockShipmentFreightRate(tx, { shipmentId: id });
     }
 
     return {

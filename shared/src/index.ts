@@ -117,6 +117,7 @@ export {
   cargoTypeSchema, pricingTableSchema, roadAllowanceSchema,
   fuelConfigSchema, fuelPriceHistorySchema,
   fuelNormSchema, weightPricingTierSchema, liftPricingSchema, ancillaryRevenueSchema,
+  fuelPricePeriodSchema, freightRateTermSchema, fuelConsumptionNormSchema, vehicleSizeClassSchema, freightRateOverrideSchema,
   companyInfoSchema, penaltyReasonSchema, driverSchema,
   managementFeeSchema, capTableSchema, truckCapSchema,
   salaryPeriodSchema, salaryPeriodDefaultSchema,

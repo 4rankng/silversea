@@ -15,6 +15,9 @@ import { and, desc, eq, isNull, lte } from 'drizzle-orm';
 import { computeFreightRate } from '@tingting/shared';
 import type { ComputeFreightRateResult } from '@tingting/shared';
 import { ApiError } from '../errors';
+import type { Tx } from './trip-shared';
+
+type DbOrTx = typeof db | Tx;
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -266,12 +269,14 @@ export async function resolveFreightRate(
 /**
  * Persist a freight rate snapshot (freight_rate_snapshots table).
  * Called when a trip/shipment is issued — freezes the calculation result.
+ * Pass `executor` to participate in the caller's transaction (the lifecycle
+ * hooks run inside shipment/dispatch transactions); defaults to the pool.
  */
 export async function persistFreightRateSnapshot(
   result: ResolvedFreightRate,
-  opts: { shipmentId?: number; tripId?: number },
+  opts: { shipmentId?: number | null; tripId?: number | null; executor?: DbOrTx },
 ): Promise<number> {
-  const [row] = await db
+  const [row] = await (opts.executor ?? db)
     .insert(s.freightRateSnapshots)
     .values({
       shipmentId: opts.shipmentId ?? null,
@@ -301,6 +306,8 @@ export interface CreateDebitNoteOverrideInput {
   finalDebitFreight?: number;
   overrideReason?: string;
   overrideBy?: number;
+  /** Participate in the caller's transaction (idempotency wrapper); defaults to the pool. */
+  executor?: DbOrTx;
 }
 
 /**
@@ -310,8 +317,9 @@ export interface CreateDebitNoteOverrideInput {
 export async function upsertDebitNoteOverride(
   input: CreateDebitNoteOverrideInput,
 ): Promise<number> {
-  const { snapshotId, systemCalculatedFreight, finalDebitFreight, overrideReason, overrideBy } =
+  const { snapshotId, systemCalculatedFreight, finalDebitFreight, overrideReason, overrideBy, executor } =
     input;
+  const run = executor ?? db;
 
   if (
     finalDebitFreight != null &&
@@ -321,7 +329,7 @@ export async function upsertDebitNoteOverride(
     throw new ApiError(400, 'Bắt buộc nhập lý do khi thay đổi giá cước');
   }
 
-  const existing = await db
+  const existing = await run
     .select()
     .from(s.debitNoteOverrides)
     .where(eq(s.debitNoteOverrides.snapshotId, snapshotId))
@@ -329,7 +337,7 @@ export async function upsertDebitNoteOverride(
     .then((rows) => rows[0]);
 
   if (existing) {
-    const [row] = await db
+    const [row] = await run
       .update(s.debitNoteOverrides)
       .set({
         finalDebitFreight: finalDebitFreight != null ? String(finalDebitFreight) : null,
@@ -342,7 +350,7 @@ export async function upsertDebitNoteOverride(
     return row.id;
   }
 
-  const [row] = await db
+  const [row] = await run
     .insert(s.debitNoteOverrides)
     .values({
       snapshotId,

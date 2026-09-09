@@ -23,6 +23,7 @@ import {
 import { resolveShipmentPricingProjection } from './pricing.service';
 import { listShipmentPodReviewItems, type ShipmentPodReviewItemView } from './trip-pod.service';
 import { getShipmentAccountingLock } from './shipment-accounting-lock.service';
+import { getShipmentFreightRateView, type ShipmentFreightRateView } from './freight-rate-snapshot-lifecycle.service';
 import { listShipmentContainers } from './shipment-containers.service';
 import { listShipmentDocuments, listShipmentDeclarations } from './shipment-documents.service';
 import { listPendingShipmentChangeRequests } from './shipment-shared.service';
@@ -154,6 +155,8 @@ export interface ShipmentDetail {
   podReviews: ShipmentPodReviewItemView[];
   carrierAssignments: Awaited<ReturnType<typeof listShipmentCarrierAssignments>>;
   accountingLock: Awaited<ReturnType<typeof getShipmentAccountingLock>>;
+  /** Auto freight pricing: latest frozen snapshot + formula trace + override. */
+  freightRate: ShipmentFreightRateView;
 }
 
 /**
@@ -275,7 +278,7 @@ export async function getShipmentDetail(id: number, _actor?: AuthUser): Promise<
     customerName: joined?.customerName ?? shipment.rawCustomerName ?? null,
     cargoTypeName: joined?.cargoTypeName ?? null,
   };
-  const [containers, documents, declarations, statusHistory, pendingChangeRequests, podReviews, carrierAssignments, accountingLock] = await Promise.all([
+  const [containers, documents, declarations, statusHistory, pendingChangeRequests, podReviews, carrierAssignments, accountingLock, freightRate] = await Promise.all([
     listShipmentContainers(id),
     listShipmentDocuments(id),
     listShipmentDeclarations(id),
@@ -284,6 +287,7 @@ export async function getShipmentDetail(id: number, _actor?: AuthUser): Promise<
     listShipmentPodReviewItems(id),
     listShipmentCarrierAssignments(id),
     getShipmentAccountingLock(id),
+    getShipmentFreightRateView(id),
   ]);
   const decoratedContainers = await decorateContainersWithPairKind(
     id,
@@ -303,6 +307,10 @@ export async function getShipmentDetail(id: number, _actor?: AuthUser): Promise<
     podReviews,
     carrierAssignments,
     accountingLock,
+    // Auto freight pricing read model (docx §2-D): the latest frozen snapshot
+    // + formula trace + any debit-note override. Read-only for every role —
+    // overrides go through the financial endpoint (ACCOUNTANT+).
+    freightRate,
   };
 }
 

@@ -30,6 +30,7 @@ import { ensureShipmentFulfillmentsInTx } from './shipment-fulfillment.service';
 import { ensureReadyShipmentHandoff } from './shipment-intake.service';
 import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
+import { lockShipmentFreightRate } from './freight-rate-snapshot-lifecycle.service';
 import { CUSTOMER_OPERATIONAL_NAME, buildWorkspaceDetail, deriveTransportDateFromContainerAppointments, formatPlate, loadShipmentRow, normalizeCarrierName, normalizePlate, trimOrNull, type ShipmentFulfillmentRow } from './cus-shipment-workspace-reads.service';
 
 function requireWorkspaceWriter(actor: AuthUser) {
@@ -630,6 +631,13 @@ export async function updateCusShipmentContainerLine(args: {
         });
         await ensureReadyShipmentHandoff(tx, updatedShipment, args.actor.userId);
       }
+    }
+
+    // Auto freight pricing: an appointment change re-anchors Ngày vận chuyển —
+    // insert a fresh snapshot (supersede, frozen rows untouched). Non-appointment
+    // edits skip the re-lock entirely.
+    if (args.input.customerAppointmentAt !== undefined) {
+      await lockShipmentFreightRate(tx, { shipmentId: args.shipmentId });
     }
 
     const detail = await buildWorkspaceDetail(await loadShipmentRow(args.shipmentId, args.actor, tx), args.actor, tx);

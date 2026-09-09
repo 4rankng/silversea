@@ -9,6 +9,7 @@ import reportsRoutes from './reports.routes';
 import advancesRoutes from './advances.routes';
 import debtOffsetsRoutes from './debt-offsets.routes';
 import billingDocumentsRoutes from './billing-documents.routes';
+import freightRateRoutes from './freight-rate.routes';
 import governanceActionsRoutes from './governance-actions.routes';
 import creditOverridesRoutes from './credit-overrides.routes';
 import fuelInvoicesRoutes from './fuel-invoices.routes';
@@ -64,6 +65,7 @@ router.use(reportsRoutes);
 router.use(advancesRoutes);
 router.use(debtOffsetsRoutes);
 router.use(billingDocumentsRoutes);
+router.use(freightRateRoutes);
 
 // Audit: saving a billing document (debit note / payment statement snapshot)
 registerAuditEvent('POST', '/api/finance/billing-documents', AuditEvent.ENTITY_CREATED);

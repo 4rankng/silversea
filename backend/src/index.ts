@@ -32,6 +32,7 @@ import tripRoutes from './routes/trips';
 import shipmentRoutes from './routes/shipments';
 import portalRoutes from './routes/portal';
 import financialRoutes from './routes/financial';
+import { freightRatePreviewRoutes } from './routes/financial/freight-rate.routes';
 import expenseRoutes from './routes/expense';
 import driverRoutes from './routes/driver';
 import forwarderRoutes from './routes/forwarder';
@@ -199,6 +200,10 @@ app.use('/api/trips', authMiddleware, tripRouteAuthz(), tripRoutes);
 // read+write. CUSTOMER/DRIVER/FORWARDER are denied at this mount; the customer
 // portal ships its own row-scoped surface in Wave 2.
 app.use('/api/shipments', authMiddleware, casbinAuthz('shipments'), shipmentRoutes);
+// Freight pricing preview (Phương án tính cước §2-D): shipments-authorized —
+// the CUS create form (shipments read) consumes it without a financial grant.
+// The snapshot/override financial surface mounts with the financial router.
+app.use('/api/pricing', authMiddleware, casbinAuthz('shipments'), freightRatePreviewRoutes);
 app.use('/api/recoverable-costs', authMiddleware, casbinAuthz('recoverable_costs'), recoverableCostRoutes);
 app.use('/api/portal', authMiddleware, casbinAuthz('customer_portal'), requireRoles(Role.CUSTOMER), portalWorkInboxRouter, portalRoutes);
 app.use('/api/financial', authMiddleware, casbinAuthz('financial'), financialWorkInboxRouter);
