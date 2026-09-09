@@ -362,8 +362,11 @@ export function useDispatchDetailPlan() {
       return result;
     } catch (mutationError) {
       const status = (mutationError as { status?: number }).status;
+      // Surface the backend's specific 409 message (version conflict vs lot
+      // guard) instead of a blanket "reload" banner — reloading never fixed
+      // the guard 409s and sent the dispatcher in circles.
       setAssignmentError(status === 409
-        ? 'Dữ liệu đã thay đổi. Vui lòng tải lại.'
+        ? ((mutationError as { message?: string }).message || 'Dữ liệu đã thay đổi. Vui lòng tải lại.')
         : 'Không thể lưu kế hoạch. Vui lòng thử lại.');
       throw mutationError;
     }
