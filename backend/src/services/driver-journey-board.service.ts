@@ -22,6 +22,8 @@ export interface DriverJourneyCard {
   shipmentId: number;
   tripCode: string | null;
   shipmentCode: string | null;
+  /** Lệnh chạy ngoài (MDN §4.4) — drives the "Chạy ngoài" label on the card. */
+  isAdHoc: boolean;
   bucket: DriverJourneyBucket;
   classification: DriverJourneyClassification;
   linked: boolean;
@@ -87,6 +89,7 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
     plannedStartAt: s.trips.plannedStartAt,
     shipmentId: s.shipments.id,
     shipmentCode: s.shipments.shipmentCode,
+    isAdHoc: s.shipments.isAdHoc,
     isCombined: s.shipments.isCombined,
     dispatchClassification: s.shipmentFulfillments.dispatchClassification,
     factoryName: s.shipments.factoryName,
@@ -175,6 +178,7 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
       shipmentId: row.shipmentId,
       tripCode: row.tripCode,
       shipmentCode: row.shipmentCode,
+      isAdHoc: row.isAdHoc,
       bucket: bucketForStatus(row.tripStatus, evidenceByTripId.get(row.tripId) ?? false),
       classification: row.dispatchClassification,
       linked: pairActive || (row.isCombined && (shipmentCardCounts.get(row.shipmentId) ?? 0) >= 2),
