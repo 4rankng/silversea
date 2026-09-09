@@ -5,7 +5,7 @@ description: "System-level overview of SilverSea's product scope, runtime stack,
 tags: [overview, product, o2c, dispatch, ops]
 verified:
   - by: openwiki/0.5.0
-    at: 2026-09-08T14:23:47.638Z
+    at: 2026-09-09T05:48:17.279Z
 sources:
   - id: openwiki-source-8037e2358a2c4f9b2c722a11
     resource: repo://AGENTS.md
@@ -23,7 +23,7 @@ sources:
     resource: repo://package.json
   - id: openwiki-source-c70b83824774b69fa2b19556
     resource: repo://testplan/flows/README.md
-generated: { by: "opencode", at: "2026-09-08T14:23:47.638Z" }
+generated: { by: "opencode", at: "2026-09-09T05:48:17.279Z" }
 ---
 
 # SilverSea System Overview
@@ -53,13 +53,15 @@ Modules: CUS (chứng từ) creates shipments (FCL/LCL, ad-hoc `Lệnh chạy ng
 
 ## Current dispatch and shipment behavior
 
-The merged main+prod surface centers on the dispatch planning and CUS workspace modules.
+The main tree as of commit `468bd371` (origin/prod merge) plus `7d4a55eb` (post-merge `FROZEN_MAX_LOC` contract bump) carries the following waves, all now live in the same shipping branch:
 
-- The master-plan grid renders one schedule block per container appointment, aggregating container-type counts by pickup/dropoff pair; the detailed-plan grid exposes one row per fulfillment for filtering, classification, and atomic plan edits.
-- Dispatcher-selected per-container classification (Đơn/Kẹp/Kết hợp) is the dispatcher's call; the lot-level `Đóng kết hợp` flag remains CUS-owned and is stripped at the route.
-- Carrier allocation splits by packing/return day, validates against the per-day demand, and saves through a partial-save endpoint that echoes the persisted row back to the grid.
-- The dispatch note composer drives a global tag pool with NFC-normalized duplicate detection and soft-delete; historical notes keep their text after a label is removed.
-- CUS workspace reads expose both an overview workboard and a per-container workboard, each rejecting filters owned by the other; the CUS dispatch-status chip vocabulary surfaces five states aligned to the merged chip contract.
+- **External-carrier staff close.** When the carrier does not run the driver app, dispatch or CUS confirm completion from the detail-plan row; `taskStatus` flips to `COMPLETED` and the same `transitionTripStatus` machinery that powers driver close posts revenue/AP/AR and writes the ledger snapshot. Surfaced through `completeDispatchExternalTrip` in `dispatchPlanningClient.ts` and `trip-external-close.service.ts`.
+- **Multi-day allocation breakdown.** Carrier allocation in the master plan groups demand by packing/return day (`DispatchAllocationDaySection` + `allocationDayHelpers`), validates against the per-day demand, and saves through a partial-save endpoint that echoes the persisted row back to the grid. Long operational notes truncate with a `MasterPlanNoteModal` popup so dense rows stay readable.
+- **Partial-dispatch support.** A partially-dispatched lot keeps its remaining `READY` rows re-assignable in both the carrier-fleet reassign path and the detail-plan save path; only terminal statuses (`COMPLETED`, `CANCELED`) block further carrier changes.
+- **Per-row confirm/revert + giờ-first 24h inputs in the CUS detail ledger.** Inline `Xác nhận` / `Revert` actions with success/error toasts and Enter/Escape handling. The schedule editor (`ShipmentContainerScheduleEditor`) accepts the appointment in a `giờ`-first 24h input so the typed value matches the rendered chip text. Inline drafts dismiss via `useClickOutside`.
+- **Dispatch task-tag pool.** `listDispatchTaskTags` / `createDispatchTaskTag` / `updateDispatchTaskTag` / `deactivateDispatchTaskTag` live in `dispatchPlanningClient.ts` beside the other dispatch planning calls, with NFC-normalized duplicate detection and a soft-delete path that preserves historical notes.
+- **Idempotent detail-plan saves.** Plan-save conflicts surface the backend's 409 message verbatim so the UI can echo "Lô hàng đã có thay đổi khác, vui lòng tải lại" without re-deriving it.
+- **Font-family contract enforcement.** The allocation summary, schedule editor, and ledger rows drop the legacy `tabular-nums` declaration so Be Vietnam Pro's proportional figures render correctly under right-aligned numerics.
 
 ## Removed features — do not treat as current
 

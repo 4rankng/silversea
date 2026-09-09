@@ -1,11 +1,11 @@
 ---
 type: Reference
 title: "Architecture and Codebase Map"
-description: "System-level map of SilverSea's backend, frontend, shared contracts, persistence, QA, and operational boundaries. Traces dispatch planning (multi-day allocation, external-trip staff close), the CUS workspace, and fuel-surcharge pricing through validated APIs and transactional services."
+description: "System-level map of SilverSea's backend, frontend, shared contracts, persistence, QA, and operational boundaries. Traces dispatch planning (multi-day allocation, external-trip staff close), the CUS workspace, and fuel-surcharge pricing through validated APIs and transactional services. Reflects the origin/prod → main merge at commit 468bd371 plus the 2026-09-09 FROZEN_MAX_LOC contract bump."
 tags: [architecture, dispatch, contracts, testing, operations]
 verified:
   - by: openwiki/0.5.0
-    at: 2026-09-08T17:02:10.146Z
+    at: 2026-09-09T05:48:17.279Z
 sources:
   - id: openwiki-source-8037e2358a2c4f9b2c722a11
     resource: repo://AGENTS.md
@@ -59,7 +59,7 @@ sources:
     resource: repo://shared/src/schemas/cus-shipment-workspace.ts
   - id: openwiki-source-b650eeedb63cbb73aa890ab2
     resource: repo://shared/src/schemas/index.ts
-generated: { by: "opencode", at: "2026-09-08T17:02:10.146Z" }
+generated: { by: "opencode", at: "2026-09-09T05:48:17.279Z" }
 ---
 
 # Architecture and Codebase Map
@@ -82,9 +82,11 @@ The dispatch UI has two complementary read models. The master plan groups shipme
 1. The master-plan grid renders one schedule block per container appointment and can restrict blocks to a selected business date. Its port columns aggregate container-type counts by pickup/dropoff pair so per-day appointment splits do not produce duplicate demand lines. When appointment groups are unavailable, the grid uses the shipment-level fallback fields.
 2. The detailed-plan client requests paginated rows with direction, assignment, port, delivery-point, hour, and dispatch-zone filters. The backend validates IDs, time formats, zone length, and allowed enum values before the service builds a stable priority order and applies the same filters to rows and totals. The detail-plan row carries a `taskStatus` of `'READY' | 'DISPATCHED' | 'COMPLETED'`, so the grid can render a finished chip the moment a trip's external-carrier staff close fires.
 3. Single-save edits flow through the atomic plan endpoint: carrier, vehicle, estimates, classification, and the optional driver note commit together or not at all, guarded by both row versions. The dispatcher-owned classification is persisted while the lot-level combined flag is CUS-owned and stripped at the route.
-4. The detailed-plan editor mounts a shared note composer that drives a global tag pool, validates labels (length, separator safety, NFC normalization), and exposes soft-delete with an active/inactive re-resurrection path so historical notes keep their text.
-5. Carrier-allocation edits in the master plan split demand by packing/return day (`DispatchAllocationDaySection` + `allocationDayHelpers`), validate against the per-day demand, and save through a partial-save endpoint that echoes the persisted row back to the grid.
-6. External-carrier staff close (`completeExternalCarrierTrip` in `trip-external-close.service.ts`): when an external driver does not run the driver app, dispatch or CUS confirm completion from the detail-plan row. The row flips `taskStatus` to `'COMPLETED'` and the same `transitionTripStatus` machinery used by the driver close fires, so revenue/AP/AR post and ledger snapshots stay consistent.
+4. The detailed-plan editor mounts a shared note composer that drives a global tag pool (`listDispatchTaskTags` / `createDispatchTaskTag` / `updateDispatchTaskTag` / `deactivateDispatchTaskTag` in `dispatchPlanningClient.ts`), validates labels (length, separator safety, NFC normalization), and exposes soft-delete with an active/inactive re-resurrection path so historical notes keep their text.
+5. Carrier-allocation edits in the master plan split demand by packing/return day (`DispatchAllocationDaySection` + `allocationDayHelpers`), validate against the per-day demand, and save through a partial-save endpoint that echoes the persisted row back to the grid. The dialog rebuild groups rows by day, surfaces per-day totals, and the inline edit dropdown collapses back to a compact view when the user dismisses the popover.
+6. External-carrier staff close (`completeDispatchExternalTrip` in `dispatchPlanningClient.ts`, served by `trip-external-close.service.ts`): when an external driver does not run the driver app, dispatch or CUS confirm completion from the detail-plan row. The row flips `taskStatus` to `'COMPLETED'` and the same `transitionTripStatus` machinery used by the driver close fires, so revenue/AP/AR post and ledger snapshots stay consistent.
+7. A partially-dispatched lot keeps its remaining `READY` rows re-assignable in both the carrier-fleet reassign path and the detail-plan save path; only terminal statuses (`COMPLETED`, `CANCELED`) block further carrier changes. This mirrors the issuance-side fix that flips a lot to `DISPATCHED` on the first issued container, so dispatch can plan the rest of the lot without stranding it.
+8. Long operational notes in the master plan render with truncation plus a `MasterPlanNoteModal` popup so a dense row never overflows its cell. The modal preserves the existing edit affordance and is keyboard-accessible.
 
 ## CUS workspace read model
 
@@ -95,6 +97,8 @@ The CUS workspace exposes two complementary views of the same shipment list. The
 - The CUS dispatch-status chip vocabulary is now a five-state taxonomy (`AWAITING_VEHICLE`, `PLANNED`, `CREATED`, `IN_TRANSIT`, `COMPLETED`); the legacy coarse `ASSIGNED`/`UNASSIGNED` aliases remain accepted by the container endpoint so older links keep filtering.
 - A CUS ledger container row stays at `PENDING_DATE` until every container in the FCL lot has its own `customerAppointmentAt`; clearing the last appointment of a lot that already moved to `READY_FOR_DISPATCH` is rejected with 409 so the workboard's "Chưa chốt ngày" warning can never silently clear.
 - The shared contract is the single source of truth for filter shapes, sort keys, and the chip vocabulary; backend services and frontend hooks both import from the same package.
+- The detail-screen container ledger has inline per-row `Xác nhận` (confirm) and `Revert` actions, with success/error toasts and Enter/Escape handling, so the user no longer has to press Enter or hunt for the header "Hoàn tất" button after typing a container appointment. Inline draft editors dismiss via `useClickOutside` so the row state stays consistent on accidental focus loss.
+- The detail-screen schedule editor accepts the appointment in a `giờ`-first layout with 24-hour inputs (`ShipmentContainerScheduleEditor`), so the user enters the time the same way it is read on the workboard and the typed value can be parsed back deterministically.
 
 ## Pricing and fuel surcharge
 
@@ -115,16 +119,16 @@ Drizzle is the only ORM in active use; the migration journal is the source of tr
 ## Cross-cutting contracts
 
 - **RBAC** is enforced at the route boundary through Casbin; accountants are excluded from operational writes even when the underlying service supports them. The dispatch plan routes strip the dispatcher from `isCombined`, the external-trip close routes guard the dispatcher/CUS/ADMIN/MANAGER roles, and the note composer route mirrors the read mask on the plan.
-- **Idempotency** keys travel with every material write through `runShipmentWrite`; the dispatch plan save, the carrier-fleet vehicle endpoints, and the trip status commands require an `Idempotency-Key` header and replay deterministically.
+- **Idempotency** keys travel with every material write through `runShipmentWrite`; the dispatch plan save, the carrier-fleet vehicle endpoints, and the trip status commands require an `Idempotency-Key` header and replay deterministically. Plan-save conflicts surface the backend's 409 message verbatim so the UI can echo "Lô hàng đã có thay đổi khác, vui lòng tải lại" without re-deriving it.
 - **Material write registry** enumerates every material write endpoint so the pre-commit gate can guard completeness; the test suite asserts no out-of-registry writes slip in.
 - **Local date formatters** live in `lib/format`; the structure guard bans bespoke formatters outside an allowlist and names every documented exception.
 
 ## Mechanical gates and enforcement
 
 - The pre-commit hook typechecks the touched project and runs the frontend structure guard so a tree that does not typecheck or a file past its frozen ceiling cannot reach the commit boundary. Bypass is `git commit --no-verify` with a stated reason in the commit body.
-- The backend SIZE_BASELINE and the frontend `FROZEN_MAX_LOC` only shrink: a file that grew needs a justified entry review. When two branches independently grow the same file, the ceiling is bumped to the actual merged line count with a comment naming both feature sets.
-- The font-family contract bans `font-variant-numeric: tabular-nums` and the JetBrains Mono fallback: Be Vietnam Pro uses proportional figures, so right-aligned numerics rely on `text-align: right` instead of a no-op tabular-numeral declaration.
-- The QA gate table in `AGENTS.md` is mandatory for every change; a touched gate is not optional. Shared contract, Drizzle schema, financial-calculation, and RBAC changes require the full set including the e2e runner.
+- The backend SIZE_BASELINE and the frontend `FROZEN_MAX_LOC` only shrink: a file that grew needs a justified entry review. When two branches independently grow the same file, the ceiling is bumped to the actual merged line count with either a per-line comment naming both feature sets or, for bulk post-merge sweeps, a single global contract-change rationale in the file header. The 2026-09-09 origin/prod → main merge swept 48 entries by +1..+8 lines and is documented as one such contract change in `structure.guard.test.ts`.
+- The font-family contract bans `font-variant-numeric: tabular-nums` and the JetBrains Mono fallback: Be Vietnam Pro uses proportional figures, so right-aligned numerics rely on `text-align: right` instead of a no-op tabular-numeral declaration. The allocation summary, schedule editor, and ledger rows all honor this contract.
+- The QA gate table in `AGENTS.md` is mandatory for every change; a touched gate is not optional. Shared contract, Drizzle schema, financial-calculation, and RBAC changes require the full set including the e2e runner. Testplan ships a reusable harness (`testplan/qa/scripts/run-all.mjs`, `run-case.mjs`, `smoke.mjs`, `lib/{env,harness,selectors}.mjs`) and stores evidence under `testplan/qa/evidence/<date>_<scope>/`; the root `qa/` directory remains the cross-project evidence sink per `AGENTS.md`.
 
 ## Related pages
 
