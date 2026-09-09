@@ -8,6 +8,7 @@ import { getUser } from '../../middleware/auth';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { requireRoles } from '../../middleware/casbin';
 import { resolveIdempotencyKey } from '../../services/idempotency.service';
+import { cacheInvalidate } from '../../lib/redis';
 import {
   analyzeMasterWorkbook,
   applyMasterImport,
@@ -79,6 +80,16 @@ router.post('/:id/apply', asyncHandler(async (req: Request, res: Response) => {
     idempotencyKey,
     actor: getUser(req),
   });
+  // The import writes customers/trucks/trailers/drivers/routes — the same
+  // tables the cached /catalogs/bootstrap blob serves. Bust it when rows
+  // were actually applied so catalog dropdowns reflect the import without
+  // waiting out the 60s TTL (2026-09-09 stale-dropdown bug class). Harmless
+  // extra bust on an idempotent replay.
+  const appliedAny = Object.values((outcome.result as { appliedCounts?: Record<string, number> }).appliedCounts ?? {})
+    .some((count) => Number(count) > 0);
+  if (outcome.statusCode === 200 && appliedAny) {
+    await cacheInvalidate('catalogs:bootstrap');
+  }
   res.status(outcome.statusCode).json({ ...outcome.result, replayed: outcome.replayed });
 }));
 
