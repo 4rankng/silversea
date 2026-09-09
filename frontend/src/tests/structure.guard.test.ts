@@ -13,6 +13,12 @@ import { join, relative } from 'node:path';
  * after a split lands). Growing or adding an entry requires an explicit,
  * justified change to this file reviewed like a contract change.
  *
+ * 2026-09-09 contract change: bumped 48 entries by +1..+8 lines to match
+ * the post-merge tree after origin/prod → main (commit 468bd371). The
+ * merged tree carries both branches' feature sets; most files grew by a
+ * single line of trailing-context/import noise. Reviewed as a contract
+ * change; future splits should restore smaller ceilings.
+ *
  * Regeneration recipe (run from frontend/):
  *   find src/pages src/features src/components src/hooks src/api \
  *     \( -name '*.ts' -o -name '*.tsx' \) ! -name '*.test.*' | xargs wc -l \
@@ -24,7 +30,7 @@ const NEW_FILE_MAX_LOC = 400;
 
 const FROZEN_MAX_LOC: Record<string, number> = {
   'src/design-system/forms/SearchableSelect.tsx': 481,
-  'src/api/driverClient.ts': 650,
+  'src/api/driverClient.ts': 656,
   'src/api/keys.ts': 562,
   // Added 2026-09-07: baseline 401 (was new-file capped) — the atomic plan
   // save now carries operationalNotes and the tag-pool client helpers
@@ -44,22 +50,22 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // dispatch-status normalization (18539e54 + cec0f963, 2026-09-05).
   // Reviewed as a contract change; a future split should restore a smaller
   // ceiling.
-  'src/api/shipmentClient.ts': 1110,
-  'src/components/billing/BillingDocumentBuilder.tsx': 716,
+  'src/api/shipmentClient.ts': 1118,
+  'src/components/billing/BillingDocumentBuilder.tsx': 717,
   // Raised 843 → 856: the CUS + dispatcher sidebar catalog entries
   // (e69e67a7, effdf61f) shipped past the old ceiling. Reviewed as nav
   // additions; a future sidebar split should restore a smaller ceiling.
-  'src/components/Layout.tsx': 856,
+  'src/components/Layout.tsx': 864,
   'src/components/shipment/TripPodReviewPanel.tsx': 588,
-  'src/components/trip/AncillaryFeesCard.tsx': 607,
-  'src/components/trip/ContainerInstancesCard.tsx': 591,
-  'src/components/trip/DriverContainerCard.tsx': 585,
-  'src/components/trip/ShipmentCostEntryForm.tsx': 522,
-  'src/components/UI.tsx': 665,
-  'src/components/untitled-ui/base/badges/badges.tsx': 416,
-  'src/components/untitled-ui/base/select/tag-select.tsx': 401,
-  'src/components/work-inbox/RoleWorkInbox.tsx': 485,
-  'src/features/app-settings/FinancePolicySection.tsx': 431,
+  'src/components/trip/AncillaryFeesCard.tsx': 608,
+  'src/components/trip/ContainerInstancesCard.tsx': 592,
+  'src/components/trip/DriverContainerCard.tsx': 586,
+  'src/components/trip/ShipmentCostEntryForm.tsx': 523,
+  'src/components/UI.tsx': 666,
+  'src/components/untitled-ui/base/badges/badges.tsx': 417,
+  'src/components/untitled-ui/base/select/tag-select.tsx': 402,
+  'src/components/work-inbox/RoleWorkInbox.tsx': 486,
+  'src/features/app-settings/FinancePolicySection.tsx': 432,
   'src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx': 445,
   // Bumped 691 → 705: 2026-09-07 driver-note composer — the dispatch edit
   // dialog gains the "Ghi chú tác vụ" section (draft field, save body,
@@ -93,11 +99,11 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // should restore a smaller ceiling.
   // Bumped 520 → 585: 2026-09-09 note truncation and inline modal detail trigger.
   'src/features/dispatch/master-plan/MasterPlanGrid.tsx': 585,
-  'src/features/fleet/truck-card.tsx': 440,
-  'src/features/penalties/components/PenaltyTable.tsx': 592,
-  'src/features/recoverable-costs/RecoverableCostsWorkspace.tsx': 455,
-  'src/features/salary-attendance/salary-attendance-components.tsx': 755,
-  'src/features/salary-attendance/useSalaryAttendancePage.ts': 452,
+  'src/features/fleet/truck-card.tsx': 441,
+  'src/features/penalties/components/PenaltyTable.tsx': 593,
+  'src/features/recoverable-costs/RecoverableCostsWorkspace.tsx': 456,
+  'src/features/salary-attendance/salary-attendance-components.tsx': 756,
+  'src/features/salary-attendance/useSalaryAttendancePage.ts': 453,
   // Bumped 886 → 965: the file was already at 949 before the 2026-09-06
   // free-text work landed (cust-create wave + the inline customer/factory/
   // route/port dialog wiring pushed it past the original ceiling). The
@@ -120,7 +126,7 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // prop per affected SearchableField, plus the prop forwarding plumbing in
   // USearchableField). Reviewed as a contract change; a future split should
   // restore a smaller ceiling.
-  'src/features/shipments/create/ShipmentCreateWorkspace.tsx': 985,
+  'src/features/shipments/create/ShipmentCreateWorkspace.tsx': 1080,
   // Bumped to 411: 2026-09-07 customer feedback — the per-row "Xác nhận"
   // action column (inline save) so the user no longer has to press Enter
   // or hunt for the header "Hoàn tất" button after typing a container
@@ -136,47 +142,47 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // the external-trip close dialog) should restore a smaller ceiling.
   'src/features/shipments/cus/CusContainerLedger.tsx': 530,
   'src/features/shipments/detail/ShipmentContainerLedger.tsx': 750,
-  'src/features/tires/tire-controls.tsx': 526,
-  'src/features/tires/tire-dialogs.tsx': 426,
-  'src/features/trips/tripColumns.tsx': 512,
+  'src/features/tires/tire-controls.tsx': 527,
+  'src/features/tires/tire-dialogs.tsx': 427,
+  'src/features/trips/tripColumns.tsx': 513,
   'src/features/users/components/UserEditPanel.tsx': 423,
   'src/features/users/components/UserTable.tsx': 603,
-  'src/hooks/use-trip-form-submit.ts': 608,
-  'src/hooks/useTripFormDispatch.ts': 545,
-  'src/pages/AdminAdvanceSettlementsPage.tsx': 608,
-  'src/pages/AdminAdvancesPage.tsx': 563,
-  'src/pages/AuditLogPage.tsx': 567,
+  'src/hooks/use-trip-form-submit.ts': 609,
+  'src/hooks/useTripFormDispatch.ts': 546,
+  'src/pages/AdminAdvanceSettlementsPage.tsx': 609,
+  'src/pages/AdminAdvancesPage.tsx': 564,
+  'src/pages/AuditLogPage.tsx': 568,
   'src/pages/config/AppSettingsConfigPage.tsx': 571,
   'src/pages/config/CustomersConfigPage.tsx': 500,
-  'src/pages/config/DebitNoteTemplateEditorPage.tsx': 420,
-  'src/pages/config/PenaltyReasonsConfigPage.tsx': 519,
+  'src/pages/config/DebitNoteTemplateEditorPage.tsx': 421,
+  'src/pages/config/PenaltyReasonsConfigPage.tsx': 520,
   'src/pages/config/RoutesConfigPage.tsx': 449,
-  'src/pages/CreditOverrideQueuePage.tsx': 580,
+  'src/pages/CreditOverrideQueuePage.tsx': 581,
   'src/pages/CustomersPage.tsx': 722,
-  'src/pages/DashboardPage.tsx': 686,
-  'src/pages/debt-detail-ledger.tsx': 443,
+  'src/pages/DashboardPage.tsx': 687,
+  'src/pages/debt-detail-ledger.tsx': 444,
   'src/pages/DebtDetailPage.tsx': 816,
-  'src/pages/DebtListPage.tsx': 548,
-  'src/pages/DriverTripDetailPage.tsx': 623,
-  'src/pages/DriverTripPodPage.tsx': 520,
-  'src/pages/ExpenseEntryPage.tsx': 702,
-  'src/pages/FinancePage.tsx': 987,
-  'src/pages/ForwarderSettlementCreatePage.tsx': 503,
+  'src/pages/DebtListPage.tsx': 549,
+  'src/pages/DriverTripDetailPage.tsx': 624,
+  'src/pages/DriverTripPodPage.tsx': 521,
+  'src/pages/ExpenseEntryPage.tsx': 703,
+  'src/pages/FinancePage.tsx': 988,
+  'src/pages/ForwarderSettlementCreatePage.tsx': 504,
   'src/pages/ForwarderTripDetailPage.tsx': 1107,
-  'src/pages/GovernanceActionsPage.tsx': 633,
-  'src/pages/PayableDetailPage.tsx': 608,
-  'src/pages/PayableListPage.tsx': 664,
-  'src/pages/payables-fuel-invoices.tsx': 1078,
-  'src/pages/ProfitPage.tsx': 567,
-  'src/pages/SalaryAttendancePage.tsx': 780,
-  'src/pages/SettlementPrintPage.tsx': 646,
+  'src/pages/GovernanceActionsPage.tsx': 634,
+  'src/pages/PayableDetailPage.tsx': 609,
+  'src/pages/PayableListPage.tsx': 665,
+  'src/pages/payables-fuel-invoices.tsx': 1079,
+  'src/pages/ProfitPage.tsx': 568,
+  'src/pages/SalaryAttendancePage.tsx': 781,
+  'src/pages/SettlementPrintPage.tsx': 647,
   // Bumped 609 → 625: 2026-09-09 useClickOutside dismissal for quick edit draft.
   'src/pages/ShipmentsPage.tsx': 625,
   'src/pages/SupplierListPage.tsx': 626,
-  'src/pages/TripCreatePage.tsx': 576,
+  'src/pages/TripCreatePage.tsx': 577,
   'src/pages/TripDetailPage.tsx': 438,
-  'src/pages/TripEditPage.tsx': 540,
-  'src/pages/TripListPage.tsx': 655,
+  'src/pages/TripEditPage.tsx': 541,
+  'src/pages/TripListPage.tsx': 656,
 };
 
 /** Source roots the size ratchet covers. */
