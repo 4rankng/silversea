@@ -177,6 +177,7 @@ export {
   shipmentCusContainerFlatResponseSchema,
   shipmentCusFinanceConfirmationCreateSchema,
   shipmentCusDocumentCustodyUpdateSchema,
+  CUS_SEARCH_PATTERN,
   shipmentCusLockSchema,
   shipmentCusReopenRequestSchema,
   shipmentCusReopenDecisionSchema,

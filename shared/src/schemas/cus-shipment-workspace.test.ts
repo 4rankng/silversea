@@ -32,8 +32,10 @@ const workspaceFieldAccess = {
   plannedReturnAt: directField, customerNotes: directField, operationalNotes: directField,
 };
 
-test('CUS workspace query accepts full numbers and 4-32 alphanumeric suffixes', () => {
-  for (const searchSuffix of ['aB12C', 'MSCU6639870', 'TK-9ZX4'.replace('-', ''), 'ABC123']) {
+test('CUS workspace query accepts full numbers, separators, and 4-64 char suffixes', () => {
+  // 2026-09-10: real references carry separators (dashes, slashes, dots,
+  // spaces) — pasting them whole must validate, not error out.
+  for (const searchSuffix of ['aB12C', 'MSCU6639870', 'TK-9ZX4', 'ABC123', 'TK/25/0123', 'AB12 X9', 'no.4.b', 'X'.repeat(64)]) {
     const result = shipmentCusWorkspaceQuerySchema.safeParse({
       searchSuffix,
       transportDateFrom: '2026-08-01',
@@ -47,9 +49,12 @@ test('CUS workspace query accepts full numbers and 4-32 alphanumeric suffixes', 
 });
 
 test('CUS workspace query rejects invalid suffix search', () => {
-  for (const suffix of ['A12', 'AB$1', 'over-32-characters-AAAAAAAAAAAAAAAAAAA']) {
+  // % and _ are LIKE wildcards (the reads service interpolates the raw value
+  // into the suffix ILIKE), so they must stay forbidden along with too-short
+  // values and the over-cap 65-char paste.
+  for (const suffix of ['A12', 'AB$1', 'AB%1', 'AB_1', 'X'.repeat(65), '   ']) {
     const result = shipmentCusWorkspaceQuerySchema.safeParse({ searchSuffix: suffix });
-    assert.equal(result.success, false, `${suffix} must fail`);
+    assert.equal(result.success, false, `${JSON.stringify(suffix)} must fail`);
   }
 });
 
