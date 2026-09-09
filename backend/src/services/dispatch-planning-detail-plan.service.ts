@@ -587,8 +587,14 @@ export async function assignFulfillmentCarrierInTx(tx: Tx, input: AssignFulfillm
   if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng.');
   await assertActorCanAccessShipment(tx, shipment.id, input.actor, { write: true });
   await assertShipmentAccountingUnlocked(tx, shipment.id);
-  if (canonicalShipmentStatus(shipment.status) !== 'READY_FOR_DISPATCH') {
-    throw new ApiError(409, 'Chỉ được đổi nhà xe khi lô đang sẵn sàng điều xe.');
+  // Per-container reassignment: only terminal lot statuses block carrier
+  // changes. A partially-dispatched lot keeps its remaining READY rows
+  // re-assignable — same stranding risk as the plan-save guard below (the lot
+  // flips DISPATCHED when the first container's order is issued), mirroring
+  // the 2026-09-05 issuance-side fix in dispatch-planning-commands.service.ts.
+  const carrierAssignStatus = canonicalShipmentStatus(shipment.status);
+  if (carrierAssignStatus === 'COMPLETED' || carrierAssignStatus === 'CANCELED') {
+    throw new ApiError(409, 'Lô hàng đã kết thúc, không thể đổi nhà xe.');
   }
 
   const [fulfillment] = await tx.select().from(s.shipmentFulfillments)
@@ -968,8 +974,18 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
   // Union of the strongest guards from every legacy single-field endpoint.
   await assertActorCanAccessShipment(tx, shipment.id, input.actor, { write: true });
   await assertShipmentAccountingUnlocked(tx, shipment.id);
-  if (canonicalShipmentStatus(shipment.status) !== 'READY_FOR_DISPATCH') {
-    throw new ApiError(409, 'Chỉ được lưu kế hoạch khi lô đang sẵn sàng điều xe.');
+  // Per-container planning: only terminal lot statuses block plan saves. A
+  // partially-dispatched lot keeps its remaining READY rows editable — the
+  // lot status flips to DISPATCHED as soon as the first container's order is
+  // issued, and the old READY_FOR_DISPATCH-only guard stranded the 2nd
+  // container's planning entirely (2026-09-09 bug: the dispatcher could not
+  // save the driver-note tags on the remaining container, and the UI mapped
+  // the 409 to a misleading "reload" banner). Mirrors the 2026-09-05
+  // issuance-side fix in dispatch-planning-commands.service.ts; the per-row
+  // live-trip guard below is what keeps issued rows un-editable.
+  const planSaveStatus = canonicalShipmentStatus(shipment.status);
+  if (planSaveStatus === 'COMPLETED' || planSaveStatus === 'CANCELED') {
+    throw new ApiError(409, 'Lô hàng đã kết thúc, không thể lưu kế hoạch.');
   }
   if (shipment.version !== input.expectedShipmentVersion) {
     throw new ApiError(409, 'Lô hàng đã thay đổi. Vui lòng tải lại.');
