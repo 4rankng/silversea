@@ -747,18 +747,97 @@
   border-color: var(--fg-3);
 }
 
+/* Special clickable affordance for detail triggers */
 .master-plan-grid__container-detail-trigger {
   min-height: 28px;
-  margin-top: 6px;
-  padding: 2px 0;
+  margin-top: 5px;
+  padding: 1px 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
   color: var(--accent);
-  font-size: var(--ops-table-meta-size);
-  font-weight: var(--fw-semibold);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--accent) 26%, transparent);
+  border-radius: var(--radius-xs, 4px);
+  font-size: var(--ops-table-meta-size, 11px);
+  font-weight: var(--fw-semibold, 600);
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: background-color 120ms var(--ease), border-color 120ms var(--ease), color 120ms var(--ease);
 }
 
-.master-plan-grid__container-detail-trigger:focus-visible {
+.master-plan-grid__note-detail-trigger {
+  min-height: 28px;
+  margin-top: 5px;
+  padding: 1px 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--accent) 26%, transparent);
+  border-radius: var(--radius-xs, 4px);
+  font-size: var(--ops-table-meta-size, 11px);
+  font-weight: var(--fw-semibold, 600);
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: background-color 120ms var(--ease), border-color 120ms var(--ease), color 120ms var(--ease);
+}
+
+.master-plan-grid__container-detail-trigger:hover,
+.master-plan-grid__note-detail-trigger:hover {
+  background: color-mix(in srgb, var(--accent) 15%, var(--surface));
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  color: color-mix(in srgb, var(--accent) 90%, var(--fg-1));
+}
+
+.master-plan-grid__container-detail-trigger:focus-visible,
+.master-plan-grid__note-detail-trigger:focus-visible {
   outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline-offset: 1px;
+}
+
+/* Note detail modal styling */
+.master-plan-grid__note-modal-body {
+  padding: 4px 0;
+}
+
+.master-plan-grid__note-modal-content {
+  padding: 14px 16px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--app-radius-md);
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--fg-1);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 50vh;
+  overflow-y: auto;
+  user-select: text;
+}
+
+.master-plan-grid__note-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  width: 100%;
+}
+
+.master-plan-grid__note-modal-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: auto;
 }
 
 .master-plan-grid__cell--action {
@@ -889,6 +968,14 @@
     min-height: 44px;
     margin-top: 4px;
     padding-block: 8px;
+    padding-inline: 10px;
+  }
+
+  .master-plan-grid__note-detail-trigger {
+    min-height: 44px;
+    margin-top: 4px;
+    padding-block: 8px;
+    padding-inline: 10px;
   }
 
   .master-plan-grid__cell--action {

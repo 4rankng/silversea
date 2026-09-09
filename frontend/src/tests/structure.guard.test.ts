@@ -77,12 +77,12 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // Bumped 446 → 448: driver-note save now carries operationalNotes and the
   // optimistic row update refreshes notes.vehicleNote (2026-09-07). Reviewed
   // as a contract change.
-  // Bumped 448 → 450: 2026-09-08 — the dispatch editor no longer owns
-  // classification/lot-flag (route strips both), documented at the save body.
   // Bumped 450 → 485: 2026-09-08 external-carrier staff close — the hook
   // gains completeExternalTrip (client call + optimistic row flip + typed
   // errors), mirroring issueOrder. Reviewed as a contract change.
-  'src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts': 485,
+  // Bumped 485 → 515: 2026-09-09 background auto-refresh table persistence
+  // (preserves open carrier/vehicle dialog during 30s poll).
+  'src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts': 515,
   'src/features/dispatch/master-plan/DispatchAllocationPopover.tsx': 454,
   'src/features/dispatch/master-plan/MasterPlanFilters.tsx': 735,
   // Bumped 508 → 520: 282fe386 (2026-09-05, "fix(dispatch): keep dispatched
@@ -91,7 +91,8 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // that bumps the file by ~7 lines. Reviewed as a contract change because
   // the ratchet only shrinks under the original behaviour; a future split
   // should restore a smaller ceiling.
-  'src/features/dispatch/master-plan/MasterPlanGrid.tsx': 520,
+  // Bumped 520 → 585: 2026-09-09 note truncation and inline modal detail trigger.
+  'src/features/dispatch/master-plan/MasterPlanGrid.tsx': 585,
   'src/features/fleet/truck-card.tsx': 440,
   'src/features/penalties/components/PenaltyTable.tsx': 592,
   'src/features/recoverable-costs/RecoverableCostsWorkspace.tsx': 455,
@@ -169,7 +170,8 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   'src/pages/ProfitPage.tsx': 567,
   'src/pages/SalaryAttendancePage.tsx': 780,
   'src/pages/SettlementPrintPage.tsx': 646,
-  'src/pages/ShipmentsPage.tsx': 609,
+  // Bumped 609 → 625: 2026-09-09 useClickOutside dismissal for quick edit draft.
+  'src/pages/ShipmentsPage.tsx': 625,
   'src/pages/SupplierListPage.tsx': 626,
   'src/pages/TripCreatePage.tsx': 576,
   'src/pages/TripDetailPage.tsx': 438,

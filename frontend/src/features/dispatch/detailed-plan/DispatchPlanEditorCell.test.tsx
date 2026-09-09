@@ -438,3 +438,52 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
     );
   });
 });
+
+describe('DispatchPlanEditorCell — editor mount stability across background refreshes', () => {
+  // Background refetches give the row prop a fresh object identity. The
+  // editor cell must survive that re-render with its open state and unsaved
+  // draft intact — in production the grid used to unmount it wholesale by
+  // flipping to the skeleton on every 30s auto-refresh (2026-09-09 bug).
+  function cellProps(item: DispatchDetailPlanRow) {
+    return {
+      row: item,
+      onAtomicSave: vi.fn().mockResolvedValue({
+        fulfillmentVersion: 4,
+        shipmentVersion: 6,
+        classification: 'SINGLE',
+        isCombined: false,
+        operationalNotes: null,
+        dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '15H-052.82' },
+        estimates: { plannedRevenue: null, plannedCarrierCost: null },
+        lotFullyPlated: false,
+      }),
+      onOpenTripReassign: vi.fn(),
+      onCompleteExternalTrip: vi.fn(),
+      onIssueOrder: vi.fn().mockResolvedValue({
+        fulfillmentId: 101,
+        version: 4,
+        trip: { id: 55, version: 1, tripCode: 'TRP-1', status: 'CREATED', plannedStartAt: null, plannedEndAt: null, carrierType: 'OWN', truckId: 154, trailerId: 2, driverId: 8, externalCarrierId: null, externalPlateNumber: null, externalDriverName: null, externalDriverPhone: null },
+        notification: { type: 'TRIP_DISPATCHED', deliveredInApp: true, pushAttempted: true },
+        replayed: false,
+      }),
+    };
+  }
+
+  it('stays open with the draft intact across a fresh row-object render, and closes on Hủy', async () => {
+    mockFleetResources();
+    const view = render(<DispatchPlanEditorCell {...cellProps(row())} />);
+    await openDialog();
+
+    // Unsaved draft work the refresh must not discard.
+    fireEvent.change(screen.getByLabelText('Ghi chú thêm'), { target: { value: 'bảo lãnh trước 30p' } });
+
+    // Background refresh: same fulfillmentId, new object identity + version.
+    view.rerender(<DispatchPlanEditorCell {...cellProps(row({ version: 4 }))} />);
+
+    expect(screen.getByText(/Chỉnh sửa điều phối/)).toBeTruthy();
+    expect((screen.getByLabelText('Ghi chú thêm') as HTMLTextAreaElement).value).toBe('bảo lãnh trước 30p');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hủy' }));
+    await waitFor(() => expect(screen.queryByText(/Chỉnh sửa điều phối/)).toBeNull());
+  });
+});

@@ -2372,7 +2372,7 @@ describe('planning remaining containers after partial dispatch', () => {
     const { shipment, fulfillment } = await fetchShipmentAndFulfillment(lot.fulfillmentIds[0]!);
     assert.equal(fulfillment.version, 3, 'plate + issuance each bump the version');
 
-    const response = await apiFetch<{ message: string }>(`/dispatch-detail-plan-rows/${fulfillment.id}/plan`, {
+    const response = await apiFetch<{ error?: string; message?: string }>(`/dispatch-detail-plan-rows/${fulfillment.id}/plan`, {
       method: 'PATCH',
       token: dispatcherToken,
       body: {
@@ -2385,7 +2385,7 @@ describe('planning remaining containers after partial dispatch', () => {
       },
     });
     assert.equal(response.status, 409);
-    assert.match(response.data.message ?? response.data.error ?? '', /phát hành lệnh/);
+    assert.match(response.data.error ?? response.data.message ?? '', /phát hành lệnh/);
   });
 
   test('terminal lots still refuse plan save', async () => {

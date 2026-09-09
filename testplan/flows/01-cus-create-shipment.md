@@ -1488,3 +1488,29 @@
 - **Kỳ vọng sai (Fail nếu):**
   - Editor vẫn Ngày-trước-Giờ hoặc 12h AM/PM; hiển thị ngoài lệch định dạng so với popover CUS.
 - **Bằng chứng:** `ShipmentContainerScheduleEditor.tsx` (fix giờ-first đang thực hiện 2026-09-09, session silversea-prod-88) — bổ sung bằng chứng unit test khi fix landed.
+
+---
+
+## 1.22 — Known behavior: sửa container hủy fulfillments chưa phát hành lệnh (API pin 2026-09-09)
+
+> Phát hiện từ kiểm thử API staging 2026-09-09 (lô SHP-2609-00010). Quyết định của user (qua session prod-88): **document + pin bằng test, KHÔNG thêm guard chặn** — guard sẽ phá luồng sửa container của CUS sau khi phân bổ.
+
+### TC-CUS-CREATE-051 — Sửa container khi lô đã phân bổ nhưng CHƯA phát hành lệnh → fulfillments cũ bị hủy (REPLACED), lô rời bảng chi tiết điều vận đến khi phân bổ lại
+
+- **Mã:** API contract pin 2026-09-09
+- **Vai trò:** `ADMIN` (API contract; UI tương đương qua luồng sửa container CUS)
+- **Mức độ:** P2 (known behavior — không phải bug)
+- **Tiền điều kiện:** Lô FCL ≥1 container đã "Phân bổ nhà xe" (fulfillments active), lô đang hiển thị trên Bảng chi tiết điều vận.
+- **Các bước:**
+  1. `PUT /api/shipments/:id/containers` (full reconcile: thêm/bớt/sửa container) khi lô chưa có chuyến (no trips).
+  2. Quan sát response API và Bảng chi tiết điều vận.
+  3. Chạy lại "Phân bổ nhà xe" (carrier allocation) cho lô.
+- **Kết quả mong đợi (Pass):**
+  - Bước 1: PUT thành công (200), không có lỗi.
+  - Fulfillments chưa có chuyến bị hủy: `canceledAt` được set, `cancellationDisposition = "REPLACED"`, lý do đúng chuỗi "Container của lô hàng đã được cập nhật; cần gán lại nhà xe."
+  - Lô biến mất khỏi Bảng chi tiết điều vận ngay sau bước 1 (rows loại fulfillments đã hủy).
+  - Bước 3: phân bổ lại sinh fulfillments mới (id mới), lô trở lại bảng chi tiết; fulfillments cũ vẫn giữ trạng thái đã hủy.
+  - Trường hợp ngược lại: nếu lô có chuyến "live" (trip ≠ CANCELED, chưa soft-delete) thì PUT bị chặn **409** "Không thể thay đổi container sau khi đã phát hành lệnh điều xe…" và fulfillments giữ nguyên.
+- **Kỳ vọng sai (Fail nếu):**
+  - Reconcile báo lỗi khi chưa có chuyến; hoặc hủy sai disposition/lý do; hoặc lô vẫn còn trên bảng chi tiết sau bước 1; hoặc 409 trong khi chưa có chuyến nào.
+- **Bằng chứng:** `backend/src/tests/shipment-routes.test.ts` — describe **"PUT /:id/containers × fulfillments (reconcile guard contract)"**, 2 test: (1) "reconcile with untripped fulfillments cancels them (REPLACED) and drops the lot from the detail plan until re-allocation"; (2) "reconcile with a live trip is rejected 409 and leaves fulfillments untouched".

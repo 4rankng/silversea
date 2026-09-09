@@ -21,6 +21,7 @@ import { nextTableSort, type TableSortState } from '../lib/table-sort';
 import { SortHeader } from '../components/shared/SortHeader';
 import { routes } from '../lib/routes';
 import { useAuth } from '../hooks/useAuth';
+import { useClickOutside } from '../hooks/useClickOutside';
 import { FinanceEvidence, ShipmentSignals, WorkflowBadge } from '../features/shipments/cus/CusBadges';
 import { ShipmentQuickEditFields } from '../features/shipments/cus/CusQuickEdit';
 import { ShipmentDetailContent } from '../features/shipments/cus/CusDetailContent';
@@ -164,6 +165,20 @@ export default function ShipmentsPage() {
   const quickEditItem = quickEditDraft
     ? items.find((item) => item.id === quickEditDraft.shipmentId) ?? null
     : null;
+  const quickEditFormRef = useRef<HTMLFormElement>(null);
+  // Outside pointerdown / global Escape dismisses the Chứng từ quick bubble,
+  // matching the ledger inline editors (72725707); paused while saving so a
+  // save can't be cancelled mid-flight. The whole .modal__content (head,
+  // footer buttons, form) counts as inside — a press on "Lưu thay đổi" in the
+  // Modal footer sits outside the form ref and must not cancel the draft —
+  // and portaled select popovers keep owning their own interaction.
+  useClickOutside(quickEditFormRef, () => {
+    if (!savingQuickEdit) closeQuickEdit();
+  }, {
+    escapeKey: true,
+    enabled: quickEditDraft != null && quickEditItem != null,
+    ignoreSelector: '.modal__content, .searchable-select__popover, .searchable-select__backdrop, .react-aria-Popover',
+  });
   const hasFilters = Boolean(suffixParam || dateFrom || dateTo || direction || bucket);
   const activeFilterCount = [dateFrom, dateTo, direction, bucket].filter(Boolean).length;
 

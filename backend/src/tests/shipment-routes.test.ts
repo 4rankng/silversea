@@ -3402,8 +3402,171 @@ describe('PUT /:id/containers', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Documents
+// Containers reconcile × fulfillments (behavior pin)
+//
+// The full-reconcile PUT silently CANCELS untripped fulfillments (disposition
+// REPLACED) instead of erroring — the lot drops off the dispatch detail plan
+// until the next carrier allocation rebuilds it. A live trip (any status but
+// CANCELED, not soft-deleted) makes the reconcile a hard 409 instead. Pinned
+// 2026-09-09 so a change to this trade-off has to be deliberate.
 // ─────────────────────────────────────────────────────────────────────────────
+
+describe('PUT /:id/containers × fulfillments (reconcile guard contract)', () => {
+  const adminActor = () => ({
+    userId: adminUserId,
+    username: `sr-admin-${suffix}`,
+    role: Role.ADMIN,
+    email: `sr-admin-${suffix}@example.com`,
+    fullName: 'Admin Tester',
+  });
+
+  test('reconcile with untripped fulfillments cancels them (REPLACED) and drops the lot from the detail plan until re-allocation', async () => {
+    const { batchUpsertShipmentContainers } = await import('../services/shipment.service');
+    const { assignShipmentCarriers } = await import('../services/shipment-intake.service');
+    const { listDispatchDetailPlanRows } = await import('../services/dispatch-planning-detail-plan.service');
+
+    const shipment = await mkShipmentViaService({
+      routeId,
+      cargoMode: 'FCL',
+      closingAt: '2026-08-04T08:00:00.000Z',
+      blNumber: `SR-REC-A-${suffix}`,
+    });
+    await batchUpsertShipmentContainers(shipment.id, null, [
+      { containerTypeId, containerNumber: 'MSKU1234565', routeId },
+      { containerTypeId, containerNumber: 'TCNU7425363', routeId },
+    ]);
+    const [afterContainers] = await db.select().from(s.shipments)
+      .where(eq(s.shipments.id, shipment.id)).limit(1);
+    await assignShipmentCarriers({
+      shipmentId: shipment.id,
+      expectedVersion: afterContainers!.version,
+      actor: adminActor(),
+      carrierAllocations: [{ carrierType: 'OWN', count20: 0, count40: 2 }],
+    });
+
+    // Sanity: both per-container fulfillments sit on the detail plan.
+    const q = `SR-REC-A-${suffix}`;
+    const before = await listDispatchDetailPlanRows({ actor: adminActor(), q, limit: 50 });
+    assert.equal(before.total, 2);
+    const activeBefore = await db.select().from(s.shipmentFulfillments)
+      .where(eq(s.shipmentFulfillments.shipmentId, shipment.id));
+    assert.equal(activeBefore.length, 2);
+    assert.ok(activeBefore.every((f) => f.canceledAt === null), 'fixtures start untripped');
+
+    // Reconcile: keep MSKU1234565, drop TCNU7425363.
+    const [afterAllocation] = await db.select().from(s.shipments)
+      .where(eq(s.shipments.id, shipment.id)).limit(1);
+    const keepId = (await db.select().from(s.shipmentContainers)
+      .where(and(
+        eq(s.shipmentContainers.shipmentId, shipment.id),
+        eq(s.shipmentContainers.containerNumber, 'MSKU1234565'),
+      )).limit(1))[0]!.id;
+    const reconcile = await testFetch(`/${shipment.id}/containers`, {
+      method: 'PUT',
+      token: adminToken,
+      body: {
+        expectedVersion: afterAllocation!.version,
+        containers: [{ id: keepId, containerTypeId, containerNumber: 'MSKU1234565', routeId }],
+      },
+    });
+    assert.equal(reconcile.status, 200);
+
+    // The pin: no error, fulfillments canceled REPLACED with the exact
+    // reason, lot off the detail plan, trip guard never fired.
+    const canceled = await db.select().from(s.shipmentFulfillments)
+      .where(eq(s.shipmentFulfillments.shipmentId, shipment.id));
+    assert.equal(canceled.length, 2);
+    for (const f of canceled) {
+      assert.ok(f.canceledAt, 'untripped fulfillment must be canceled by the reconcile');
+      assert.equal(f.cancellationDisposition, 'REPLACED');
+      assert.equal(f.cancellationReason, 'Container của lô hàng đã được cập nhật; cần gán lại nhà xe.');
+    }
+    const after = await listDispatchDetailPlanRows({ actor: adminActor(), q, limit: 50 });
+    assert.equal(after.total, 0);
+    assert.equal((await db.select().from(s.trips).where(eq(s.trips.shipmentId, shipment.id))).length, 0);
+
+    // Recovery path: re-running the allocation rebuilds active fulfillments
+    // (and only the canceled ones stay retired).
+    const [afterReconcile] = await db.select().from(s.shipments)
+      .where(eq(s.shipments.id, shipment.id)).limit(1);
+    const rebuilt = await assignShipmentCarriers({
+      shipmentId: shipment.id,
+      expectedVersion: afterReconcile!.version,
+      actor: adminActor(),
+      carrierAllocations: [{ carrierType: 'OWN', count20: 0, count40: 1 }],
+    });
+    assert.equal(rebuilt.assignments.length, 1);
+    assert.ok(!activeBefore.some((f) => f.id === rebuilt.assignments[0]!.fulfillmentId), 'rebuild mints new fulfillment ids');
+    const recovered = await listDispatchDetailPlanRows({ actor: adminActor(), q, limit: 50 });
+    assert.equal(recovered.total, 1);
+  });
+
+  test('reconcile with a live trip is rejected 409 and leaves fulfillments untouched', async () => {
+    const { batchUpsertShipmentContainers } = await import('../services/shipment.service');
+    const { assignShipmentCarriers } = await import('../services/shipment-intake.service');
+
+    const shipment = await mkShipmentViaService({
+      routeId,
+      cargoMode: 'FCL',
+      closingAt: '2026-08-04T08:00:00.000Z',
+      blNumber: `SR-REC-B-${suffix}`,
+    });
+    await batchUpsertShipmentContainers(shipment.id, null, [
+      { containerTypeId, containerNumber: 'MSKU1234565', routeId },
+    ]);
+    const [afterContainers] = await db.select().from(s.shipments)
+      .where(eq(s.shipments.id, shipment.id)).limit(1);
+    await assignShipmentCarriers({
+      shipmentId: shipment.id,
+      expectedVersion: afterContainers!.version,
+      actor: adminActor(),
+      carrierAllocations: [{ carrierType: 'OWN', count20: 0, count40: 1 }],
+    });
+    const [fulfillment] = await db.select().from(s.shipmentFulfillments)
+      .where(eq(s.shipmentFulfillments.shipmentId, shipment.id)).limit(1);
+    assert.ok(fulfillment, 'allocation must create the fulfillment');
+    const trip = await insertTripComposite(db, {
+      tripCode: `SR-REC-B-${suffix}-${createdTripIds.length}`.slice(0, 50),
+      customerId,
+      routeId,
+      departureDate: '2026-08-03',
+      shipmentId: shipment.id,
+      fulfillmentId: fulfillment.id,
+      status: 'DISPATCHED',
+      carrierType: 'OWN',
+      revenue: '40000000',
+      revenueOriginal: '40000000',
+      revenueEmptyReturn: '40000000',
+    });
+    createdTripIds.push(trip.id);
+
+    const [beforePut] = await db.select().from(s.shipments)
+      .where(eq(s.shipments.id, shipment.id)).limit(1);
+    const [container] = await db.select().from(s.shipmentContainers)
+      .where(eq(s.shipmentContainers.shipmentId, shipment.id)).limit(1);
+    const reconcile = await testFetch(`/${shipment.id}/containers`, {
+      method: 'PUT',
+      token: adminToken,
+      body: {
+        expectedVersion: beforePut!.version,
+        containers: [{ id: container!.id, containerTypeId, containerNumber: 'MSKU1234565', sealNumber: 'SEAL-REC-B' }],
+      },
+    });
+    assert.equal(reconcile.status, 409);
+    assert.match(reconcile.data.error, /phát hành lệnh điều xe/);
+
+    // The guard runs before any reconcile work: the fulfillment stays fully
+    // active and the trip untouched.
+    const stillActive = await db.select().from(s.shipmentFulfillments)
+      .where(eq(s.shipmentFulfillments.shipmentId, shipment.id));
+    assert.equal(stillActive.length, 1);
+    assert.equal(stillActive[0]!.canceledAt, null);
+    assert.equal(stillActive[0]!.cancellationDisposition, null);
+    const [tripAfter] = await db.select().from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
+    assert.ok(tripAfter, 'live trip must survive the rejected reconcile');
+    assert.equal(tripAfter.status, 'DISPATCHED');
+  });
+});
 
 describe('POST /:id/documents', () => {
   test('records the metadata row', async () => {

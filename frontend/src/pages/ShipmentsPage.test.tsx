@@ -719,6 +719,70 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(await screen.findByText('Đã cập nhật chứng từ lô hàng.')).toBeTruthy();
   });
 
+  describe('quick bubble dismissal', () => {
+    async function openDocumentsBubble() {
+      renderPage();
+      await screen.findByRole('table');
+      fireEvent.click(screen.getByRole('button', { name: 'Sửa ô chứng từ BILL-12345' }));
+      return await screen.findByRole('dialog', { name: 'Chỉnh sửa Chứng từ' });
+    }
+
+    it('closes on outside pointerdown', async () => {
+      await openDocumentsBubble();
+      fireEvent.pointerDown(document.body);
+      await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Chỉnh sửa Chứng từ' })).toBeNull());
+    });
+
+    it('closes on outside mousedown', async () => {
+      await openDocumentsBubble();
+      fireEvent.mouseDown(document.body);
+      await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Chỉnh sửa Chứng từ' })).toBeNull());
+    });
+
+    it('closes on global Escape', async () => {
+      await openDocumentsBubble();
+      fireEvent.keyDown(document.body, { key: 'Escape' });
+      await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Chỉnh sửa Chứng từ' })).toBeNull());
+    });
+
+    it('stays open when the press lands inside the form', async () => {
+      const dialog = await openDocumentsBubble();
+      fireEvent.pointerDown(within(dialog).getByLabelText('Số Bill'));
+      expect(screen.queryByRole('dialog', { name: 'Chỉnh sửa Chứng từ' })).not.toBeNull();
+    });
+
+    it('stays open when the press lands on the Modal footer save button (outside the form ref)', async () => {
+      const dialog = await openDocumentsBubble();
+      // The whole .modal__content counts as inside: the footer buttons live
+      // outside the form ref, and cancelling on pointerdown would kill the
+      // click that follows.
+      fireEvent.pointerDown(within(dialog).getByRole('button', { name: 'Lưu thay đổi' }));
+      expect(screen.queryByRole('dialog', { name: 'Chỉnh sửa Chứng từ' })).not.toBeNull();
+    });
+
+    it('stays open while a save is in flight', async () => {
+      apiPut.mockImplementation(() => new Promise(() => {}));
+      const dialog = await openDocumentsBubble();
+      fireEvent.change(within(dialog).getByLabelText('Số tờ khai'), { target: { value: 'TK-HANGING' } });
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Lưu thay đổi' }));
+      fireEvent.pointerDown(document.body);
+      expect(screen.queryByRole('dialog', { name: 'Chỉnh sửa Chứng từ' })).not.toBeNull();
+    });
+
+    it('ignores presses inside the portaled react-aria popover', async () => {
+      await openDocumentsBubble();
+      const portal = document.createElement('div');
+      portal.className = 'react-aria-Popover';
+      document.body.appendChild(portal);
+      try {
+        fireEvent.pointerDown(portal);
+        expect(screen.queryByRole('dialog', { name: 'Chỉnh sửa Chứng từ' })).not.toBeNull();
+      } finally {
+        portal.remove();
+      }
+    });
+  });
+
   it('opens one compact edit dialog from the cell control and reserves the drawer for Chi tiết', async () => {
     apiGet.mockImplementation((url: string) => (
       url === '/shipments/cus-workspace/1'
@@ -1204,7 +1268,9 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
       expect.objectContaining({
         expectedShipmentVersion: 3,
         plateNumber: '15C-999.99',
-        customerAppointmentAt: new Date('2026-08-14T10:30').toISOString(),
+        // Naive popover drafts persist as Vietnam wall-clock (+07:00) — pinned,
+        // not the test-runner timezone's UTC the old parse produced.
+        customerAppointmentAt: '2026-08-14T10:30:00+07:00',
       }),
       expect.any(Object),
     ));
@@ -1583,5 +1649,16 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
 
   it('keeps compact record labels inside their grid track so they cannot overlap values', () => {
     expect(css).toMatch(/\.cus-dashboard-cell--editable > \.cus-inline-trigger::before\s*\{[^}]*position:\s*static;[^}]*grid-column:\s*1;[^}]*width:\s*auto;/);
+  });
+
+  it('renders giờ before ngày in schedule quick-edit fields with 24h format', () => {
+    const quickEdit = readFileSync(resolve(process.cwd(), 'src/features/shipments/cus/CusQuickEdit.tsx'), 'utf8');
+    const scheduleBlock = quickEdit.match(/draft\.field === 'schedule' && <>([\s\S]*?)<\/>/)?.[1] ?? '';
+    const timeIndex = scheduleBlock.indexOf('type="time"');
+    const dateIndex = scheduleBlock.indexOf('<DateInput');
+    expect(timeIndex).toBeGreaterThan(-1);
+    expect(dateIndex).toBeGreaterThan(-1);
+    expect(timeIndex).toBeLessThan(dateIndex);
+    expect(scheduleBlock).toContain('lang="en-GB"');
   });
 });

@@ -9,6 +9,7 @@ import {
 import { createPortal } from 'react-dom';
 import { Calendar, Clock, X } from 'lucide-react';
 import { useClickOutside } from '../../../hooks/useClickOutside';
+import { formatVietnamDateTimeInput } from '../../../lib/shipment-operations';
 
 export interface CusAppointmentPopoverProps {
   value: string | null | undefined;
@@ -23,22 +24,15 @@ export interface CusAppointmentPopoverProps {
 
 function parseDateTimeParts(value: string | null | undefined): { date: string; time: string } {
   if (!value) return { date: '', time: '' };
-  try {
-    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(value)) {
-      const [d, t] = value.split('T');
-      return { date: d, time: t.slice(0, 5) };
-    }
-    const dt = new Date(value);
-    if (Number.isNaN(dt.getTime())) return { date: '', time: '' };
-    const year = dt.getFullYear();
-    const month = String(dt.getMonth() + 1).padStart(2, '0');
-    const day = String(dt.getDate()).padStart(2, '0');
-    const hours = String(dt.getHours()).padStart(2, '0');
-    const minutes = String(dt.getMinutes()).padStart(2, '0');
-    return { date: `${year}-${month}-${day}`, time: `${hours}:${minutes}` };
-  } catch {
-    return { date: '', time: '' };
+  // Server values are instants (…Z / ±hh:mm) — prefill as Vietnam wall-clock,
+  // never the browser zone. Naive drafts from this popover's own onChange
+  // ("YYYY-MM-DDTHH:mm") round-trip verbatim.
+  if (/[Zz]$|[+-]\d{2}:\d{2}$/.test(value)) {
+    const input = formatVietnamDateTimeInput(value);
+    return input ? { date: input.slice(0, 10), time: input.slice(11, 16) } : { date: '', time: '' };
   }
+  const [d = '', t = ''] = value.split('T');
+  return { date: d, time: t.slice(0, 5) };
 }
 
 function getOffsetDateString(offsetDays: number): string {

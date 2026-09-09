@@ -82,7 +82,7 @@ describe('ContainerLedger confirm affordances', () => {
   });
 
   it('opens appointment popover when clicking trigger, updates value without inline buttons, and closes on backdrop click', () => {
-    const view = renderLedger();
+    renderLedger();
     const trigger = screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ });
 
     // Initially popover is not in document
@@ -130,7 +130,9 @@ describe('ContainerLedger confirm affordances', () => {
 
     await waitFor(() => expect(updateCusShipmentContainerLine).toHaveBeenCalledTimes(1));
     const [, , payload] = updateCusShipmentContainerLine.mock.calls[0];
-    expect(payload.customerAppointmentAt).toBe(new Date('2026-09-11T09:00').toISOString());
+    // Naive popover drafts persist as Vietnam wall-clock (+07:00), not the
+    // browser zone — a +08 host used to shift the stored instant by an hour.
+    expect(payload.customerAppointmentAt).toBe('2026-09-11T09:00:00+07:00');
     expect(payload.plateNumber).toBe('15C-999.99');
   });
 });

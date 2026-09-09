@@ -473,3 +473,60 @@ describe('useDispatchDetailPlan plan-save error mapping', () => {
     expect(result.current.assignmentError).toBe('Không thể lưu kế hoạch. Vui lòng thử lại.');
   });
 });
+
+describe('useDispatchDetailPlan background refresh vs loading skeleton', () => {
+  // The grid swaps to a skeleton while `loading` is true. A background
+  // refresh (30s auto-refresh tick / manual refresh) must not flip it:
+  // the skeleton unmounts the whole table including an open row editor,
+  // silently discarding drafted changes (2026-09-09 dialog self-close).
+  const deferredRow = () => ({
+    ...row(),
+    container: { containerNumber: 'MSCU9999999', containerTypeLabel: '40HC', cargoWeightKg: '1000.00' },
+  });
+
+  function deferredResponse() {
+    let resolve!: (value: ReturnType<typeof page>) => void;
+    const promise = new Promise<ReturnType<typeof page>>((res) => { resolve = res; });
+    return { promise, resolve };
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    listDispatchDetailPlanRowsMock.mockResolvedValue(page([row()], 1));
+    getDispatchZonesMock.mockResolvedValue({ items: [] });
+    listZoneTruckPresenceMock.mockResolvedValue({ date: '2026-08-20', zone: 'LACH_HUYEN', zoneLabel: 'Lạch Huyện', items: [] });
+  });
+
+  it('keeps loading false during a background refresh so the table stays mounted', async () => {
+    const { result } = renderHook(() => useDispatchDetailPlan());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    const pending = deferredResponse();
+    listDispatchDetailPlanRowsMock.mockImplementationOnce(() => pending.promise);
+
+    act(() => { result.current.refresh(); });
+    // Fetch in flight, same view → no skeleton flip: the editor dialog and
+    // its draft survive the background tick.
+    expect(result.current.loading).toBe(false);
+    await act(async () => {
+      pending.resolve(page([deferredRow()], 1));
+    });
+    await waitFor(() => expect(result.current.items[0]?.container.containerNumber).toBe('MSCU9999999'));
+    expect(result.current.loading).toBe(false);
+  });
+
+  it('still flips loading true on a real view change (filter edit)', async () => {
+    const { result } = renderHook(() => useDispatchDetailPlan());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    const pending = deferredResponse();
+    listDispatchDetailPlanRowsMock.mockImplementationOnce(() => pending.promise);
+
+    act(() => { result.current.updateFilters({ date: '2026-09-09' }); });
+    expect(result.current.loading).toBe(true);
+    await act(async () => {
+      pending.resolve(page([deferredRow()], 1));
+    });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+  });
+});
