@@ -9,6 +9,7 @@ import {
   UTextField as TextField,
   UDateField as DateField,
 } from './uui-fields';
+import { UDateTimeField as DateTimeField } from './uui-datetime-field';
 import { useToast } from '../../../components/shared/Toast';
 import { tripClient, type CatalogData } from '../../../api/tripClient';
 import {
@@ -60,11 +61,12 @@ function formatContainerWeight(value: string) {
   return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 2 }).format(parsed);
 }
 
+// Time-first 24h per the combined date+time contract (docs/design-system.md).
 function formatContainerAppointment(value: string) {
   const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(value);
   if (!match) return value;
   const [, year, month, day, hour, minute] = match;
-  return `${day}/${month}/${year} ${hour}:${minute}`;
+  return `${hour}:${minute} ${day}/${month}/${year}`;
 }
 
 export function ShipmentCreateWorkspace() {
@@ -813,7 +815,7 @@ export function ShipmentCreateWorkspace() {
                     error={issueByField.get(`container-${row.key}-customer-appointment`)}
                     onRevert={(value) => updateContainer(row.key, 'customerAppointmentAt', value)}
                   >
-                    <TextField id={`container-${row.key}-customer-appointment`} label="Ngày giờ đóng trả" hideLabel required type="datetime-local" value={row.customerAppointmentAt} onChange={(event) => updateContainer(row.key, 'customerAppointmentAt', event.target.value)} disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-customer-appointment`)} />
+                    <DateTimeField id={`container-${row.key}-customer-appointment`} label="Ngày giờ đóng trả" hideLabel required value={row.customerAppointmentAt} onChange={(event) => updateContainer(row.key, 'customerAppointmentAt', event.target.value)} disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-customer-appointment`)} />
                   </ShipmentContainerCell>
                   <td className="csc-container-row__actions">{containers.length > 1 && <button type="button" className="csc-icon-button csc-icon-button--danger" aria-label={`Xóa container ${index + 1}`} onClick={() => removeContainer(row)}><Trash2 size={18} aria-hidden="true" /></button>}</td>
                 </tr>
@@ -878,9 +880,9 @@ export function ShipmentCreateWorkspace() {
 
         <ShipmentCreateSection id="schedule" title="Lịch & ghi chú" description={form.cargoMode === 'FCL' ? undefined : 'Các hạn vận hành và lưu ý để điều phối thực hiện đúng kế hoạch.'}>
           {form.cargoMode === 'LCL' && <div style={gridStyle}>
-            <TextField label="Hạn hoàn tất hải quan" type="datetime-local" value={form.customsCutoffAt} onChange={(event) => update('customsCutoffAt', event.target.value)} disabled={Boolean(saving)} />
-            <TextField label="Hạn hạ container tại cảng" type="datetime-local" value={form.closingAt} onChange={(event) => update('closingAt', event.target.value)} disabled={Boolean(saving)} />
-            <TextField label="Thời điểm trả container" type="datetime-local" value={form.plannedReturnAt} onChange={(event) => update('plannedReturnAt', event.target.value)} disabled={Boolean(saving)} />
+            <DateTimeField label="Hạn hoàn tất hải quan" value={form.customsCutoffAt} onChange={(event) => update('customsCutoffAt', event.target.value)} disabled={Boolean(saving)} />
+            <DateTimeField label="Hạn hạ container tại cảng" value={form.closingAt} onChange={(event) => update('closingAt', event.target.value)} disabled={Boolean(saving)} />
+            <DateTimeField label="Thời điểm trả container" value={form.plannedReturnAt} onChange={(event) => update('plannedReturnAt', event.target.value)} disabled={Boolean(saving)} />
             <div data-field-id="shipment-expected-delivery"><DateField id="shipment-expected-delivery" label="Ngày giao dự kiến" value={form.expectedDeliveryDate} onChange={(event) => update('expectedDeliveryDate', event.target.value)} disabled={Boolean(saving)} error={issueByField.get('shipment-expected-delivery')} /></div>
           </div>}
           {form.cargoMode === 'LCL' && (

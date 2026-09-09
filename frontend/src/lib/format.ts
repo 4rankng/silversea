@@ -130,3 +130,47 @@ export function removeDiacritics(str: string): string {
     .replace(/đ/g, 'd')
     .replace(/Đ/g, 'D');
 }
+
+/**
+ * Combined date + time display contract (2026-09-09, hard requirement):
+ * whenever a date and a time show together, the time comes FIRST and the
+ * clock is 24-hour — `HH:mm DD/MM/YYYY` (e.g. "14:30 20/08/2026"). Native
+ * datetime-local inputs render per browser locale (12h AM/PM on en-US) and
+ * cannot be forced, so inputs and cells both format through these helpers.
+ * See frontend/docs/design-system.md.
+ */
+
+/** Placeholder for every 24h datetime text input. */
+export const DATE_TIME_24_PLACEHOLDER = 'HH:mm DD/MM/YYYY';
+
+/**
+ * Formats a local datetime value ('YYYY-MM-DDTHH:mm', seconds tolerated) as
+ * the canonical time-first 24h text. Returns '' for empty or malformed input.
+ */
+export function formatDateTime24(value: string | null | undefined): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(value ?? '');
+  if (!match) return '';
+  const [, year, month, day, hour, minute] = match;
+  return `${hour}:${minute} ${day}/${month}/${year}`;
+}
+
+/**
+ * Parses an `HH:mm DD/MM/YYYY` entry (24h, time first; single-digit
+ * hour/day/month tolerated) into a 'YYYY-MM-DDTHH:mm' local datetime string.
+ * Returns null for anything incomplete, out of range (month 1-12, hour 0-23,
+ * minute 0-59) or not a real calendar day.
+ */
+export function parseDateTime24(text: string): string | null {
+  const match = /^(\d{1,2}):(\d{2})\s+(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(text.trim());
+  if (!match) return null;
+  const [, rawHour, rawMinute, rawDay, rawMonth, year] = match;
+  const day = Number(rawDay);
+  const month = Number(rawMonth);
+  const hour = Number(rawHour);
+  const minute = Number(rawMinute);
+  if (month < 1 || month > 12 || hour > 23 || minute > 59) return null;
+  // Reject rollover dates ("10:00 31/02/2026") by round-tripping through UTC.
+  const probe = new Date(Date.UTC(Number(year), month - 1, day));
+  if (probe.getUTCFullYear() !== Number(year) || probe.getUTCMonth() !== month - 1 || probe.getUTCDate() !== day) return null;
+  return `${year}-${rawMonth.padStart(2, '0')}-${rawDay.padStart(2, '0')}T${rawHour.padStart(2, '0')}:${rawMinute}`;
+}
