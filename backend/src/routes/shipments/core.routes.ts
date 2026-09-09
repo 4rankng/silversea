@@ -472,6 +472,19 @@ coreRoutes.post(
   '/',
   requireRoles(...SHIPMENT_INTAKE_MUTATION_ROLES),
   asyncHandler(async (req: Request, res: Response) => {
+    // Same contract guard as POST /quick: `containers` is not part of the
+    // create schema, zod strips unknown keys, and a silently-dropped array
+    // means the caller believes containers landed while the lot has none
+    // (and cannot derive a freight-rate key). Point at the reconcile
+    // endpoint, which fires the FCL intake lock. Empty arrays carry no
+    // data and stay accepted.
+    const containersPayload = (req.body as Record<string, unknown> | null | undefined)?.containers;
+    if (Array.isArray(containersPayload) && containersPayload.length > 0) {
+      throw new ApiError(
+        400,
+        'Tạo lô hàng không nhận kèm danh sách container — tạo lô rồi dùng PUT /api/shipments/{id}/containers để khai báo container.',
+      );
+    }
     const parsed = createShipmentSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
     const user = getUser(req);

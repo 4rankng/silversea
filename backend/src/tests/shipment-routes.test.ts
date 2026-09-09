@@ -1370,6 +1370,20 @@ describe('GET /', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('POST /', () => {
+  test('containers[] in the create payload is rejected, not silently stripped', async () => {
+    // Create's zod schema strips unknown keys, so a containers array would
+    // vanish with a 201 and the lot would land with zero containers (same
+    // silent-drop class as POST /quick). Reject loudly and point at the
+    // reconcile endpoint, which fires the FCL intake rate lock.
+    const r = await testFetch('/', {
+      method: 'POST',
+      token: adminToken,
+      body: { customerId, bookingRef: `BK-${suffix}-containers`, containers: [{ containerNumber: 'BAD0000000' }] },
+    });
+    assert.equal(r.status, 400, JSON.stringify(r.data));
+    assert.match(String(r.data.error ?? ''), /containers/);
+  });
+
   test('ADMIN creates a draft shipment (201) with a generated code', async () => {
     const r = await testFetch('/', {
       method: 'POST',
