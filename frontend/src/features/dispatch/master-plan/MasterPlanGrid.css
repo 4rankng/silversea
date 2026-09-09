@@ -1075,18 +1075,14 @@
     border-top: 1px solid var(--line);
   }
 
+  /* Cell 7 (Phân bổ nhà xe) + cell 8 (Ghi chú) pair side-by-side in this
+     band (user 2026-09-10: one-line content spanning the full row leaves
+     the half dead). Child 7 is odd → left column; child 8 is even → right
+     column with the :nth-child(even) divider; :nth-child(n+3) separates
+     the pair from the row above. The action rule stays after
+     :nth-child(even) so border-inline-start: 0 wins by source order
+     without !important. */
   .master-plan-grid__cell--action {
-    grid-column: 1 / -1;
-    border-inline-start: 0 !important;
-  }
-
-  /* Cell 8 (notes) follows the full-width action cell; in a 2-col grid it
-     would auto-flow into the next row's left column alone, leaving the
-     right half empty and drawing a half-width border-top from
-     :nth-child(n+3) — the stray divider reported 2026-09-09. Mirror the
-     ≤599px rule and span it to match action's full-width footer. */
-  .master-plan-grid__cell:nth-child(8) {
-    grid-column: 1 / -1;
     border-inline-start: 0;
   }
 }
