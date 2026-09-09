@@ -303,6 +303,14 @@
     display: none;
   }
 
+  /* The trailing date lands alone at half-width — the divider before it is
+     display:none (which still counts for :nth-child) and the reset button is
+     conditional. Span the last date across both columns so the bar never
+     shows a half-filled row. */
+  .expense-filter-bar > input[type='date']:last-of-type {
+    grid-column: 1 / -1;
+  }
+
   .expense-filter-bar__reset {
     justify-content: center;
   }
