@@ -953,13 +953,16 @@ async function ensureLinkedCarrierCustomer(
   // 0 or 2+ same-name customers: ambiguous in the latter case, so never pick
   // one silently. Before minting, adopt the unique customer already holding
   // this supplier's tax code — the same legal entity — otherwise the mint
-  // would trip customers_active_tax_code_uniq_idx and 500 the supplier save.
+  // would mint a normalized duplicate that trips the customer tax-code
+  // uniqueness guard on the next write (normalizeTaxCode strips ALL inner
+  // whitespace and lowercases, unlike the raw btrim the unique index uses).
   let mintTaxCode = supplier.taxCode;
-  if (supplier.taxCode != null) {
+  const normalizedSupplierTaxCode = normalizeTaxCode(supplier.taxCode);
+  if (normalizedSupplierTaxCode !== '') {
     const taxCodeHolders = await tx.select({ id: s.customers.id }).from(s.customers)
       .where(and(
         isNull(s.customers.deletedAt),
-        sql`nullif(btrim(${s.customers.taxCode}), '') = nullif(btrim(${supplier.taxCode}), '')`,
+        sql`nullif(lower(regexp_replace(${s.customers.taxCode}, '\\s+', '', 'g')), '') = ${normalizedSupplierTaxCode}`,
       ))
       .limit(2);
     if (taxCodeHolders.length === 1) {
@@ -977,6 +980,9 @@ async function ensureLinkedCarrierCustomer(
     // drifted dataset ever produces one, mint WITHOUT the code instead of
     // 500ing — the code can be set manually afterwards.
     if (taxCodeHolders.length >= 2) mintTaxCode = null;
+  } else {
+    // Whitespace-only or absent code: mint with NULL, not formatting garbage.
+    mintTaxCode = null;
   }
   const [created] = await tx.insert(s.customers).values({
     name: supplier.name,
