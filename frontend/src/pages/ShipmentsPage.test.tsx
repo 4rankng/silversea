@@ -1504,9 +1504,13 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(source).toContain('cus-worksheet-toolbar__action-group');
     expect(css).toMatch(/\.cus-worksheet-toolbar\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\);/);
     expect(css).toMatch(/\.cus-worksheet-toolbar__filters\s*\{[\s\S]*?minmax\(260px, 1\.6fr\) repeat\(4, minmax\(148px, 1fr\)\);/);
-    expect(css).toMatch(/@container \(max-width: 980px\)[\s\S]*?\.cus-worksheet-toolbar__filters \.cus-search-field\s*\{\s*grid-column:\s*1 \/ -1;/);
-    expect(css).toMatch(/@media \(min-width: 1000px\) and \(max-width: 1279px\)[\s\S]*?\.cus-worksheet-toolbar__filters\s*\{\s*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\);/);
-    expect(css).toMatch(/@media \(min-width: 1000px\) and \(max-width: 1279px\)[\s\S]*?\.cus-worksheet-toolbar__filters \.cus-search-field\s*\{\s*grid-column:\s*span 2;/);
+    // 2026-09-09 space-utilisation audit: the toolbar collapse was pinned to a
+    // bare @container rule that never matched (no container-type ancestor on
+    // this page), so tablets got the overflowing 5-column base grid. Pinned to
+    // the working viewport media queries instead.
+    expect(css).toMatch(/@media \(max-width: 900px\)[\s\S]*?\.cus-worksheet-toolbar__filters \.cus-search-field\s*\{\s*grid-column:\s*1 \/ -1;/);
+    expect(css).toMatch(/@media \(min-width: 901px\) and \(max-width: 1279px\)[\s\S]*?\.cus-worksheet-toolbar__filters\s*\{\s*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\);/);
+    expect(css).toMatch(/@media \(min-width: 901px\) and \(max-width: 1279px\)[\s\S]*?\.cus-worksheet-toolbar__filters \.cus-search-field\s*\{\s*grid-column:\s*span 2;/);
     expect(css).toMatch(/\.cus-worksheet-toolbar__action-group > :only-child\s*\{\s*grid-column:\s*1 \/ -1;/);
     expect(css).toMatch(/\.cus-multiline-cell--mono strong\s*\{[^}]*font-size:\s*var\(--ops-table-primary-size\);/);
     expect(rowSource).toContain('cus-cargo-summary__containers');
