@@ -45,16 +45,12 @@ export const qk = {
     roadConfig: ['road-config'],
     companyInfo: ['company-info'],
     fuelConfig: ['fuel-config'],
-    salaryPeriod: (month: number, year: number) =>
-      ['salary-period', month, year] as const,
-    suppliers: (page?: number, search?: string, sortBy?: string, sortDir?: string) =>
-      ['suppliers', page, search, sortBy ?? '', sortDir ?? ''] as const,
+    salaryPeriod: (month: number, year: number) => ['salary-period', month, year] as const,
+    suppliers: (page?: number, search?: string, sortBy?: string, sortDir?: string) => ['suppliers', page, search, sortBy ?? '', sortDir ?? ''] as const,
     /** Base key for useTableQueryState-driven supplier list pages. */
     suppliersTable: ['suppliers'],
-    expenseCategories: (page?: number, search?: string) =>
-      ['expense-categories', page, search] as const,
-    customers: (page: number, search: string) =>
-      ['customers', page, search] as const,
+    expenseCategories: (page?: number, search?: string) => ['expense-categories', page, search] as const,
+    customers: (page: number, search: string) => ['customers', page, search] as const,
     /** Base key for useTableQueryState-driven customer list pages. */
     customersTable: ['customers'],
     allCustomers: ['all-customers'],
@@ -68,12 +64,15 @@ export const qk = {
     sealTypes: ['seal-types'],
     trailers: ['trailers'],
     debitNoteTemplates: ['debit-note-templates'],
-    debitNoteTemplate: (id: number | string | null | undefined) =>
-      ['debit-note-template', id] as const,
+    debitNoteTemplate: (id: number | string | null | undefined) => ['debit-note-template', id] as const,
     /** Templates filtered by document type (DEBIT_NOTE | PAYMENT_STATEMENT). */
-    debitNoteTemplatesByType: (type: string) =>
-      ['debit-note-templates', type] as const,
+    debitNoteTemplatesByType: (type: string) => ['debit-note-templates', type] as const,
     pricingTables: ['pricing-tables'],
+    // Freight pricing engine (docx "Phương án tính cước tự động").
+    fuelPricePeriods: ['fuel-price-periods'],
+    freightRateTerms: ['freight-rate-terms'],
+    debitNoteOverride: (snapshotId: number | string | null | undefined) =>
+      ['debit-note-override', snapshotId] as const,
     allSuppliers: ['all-suppliers'],
     allExpenseCategories: ['all-expense-categories'],
     capTable: ['cap-table'],
@@ -124,6 +123,9 @@ export const qk = {
     'debit-note-templates',
     'debit-note-template',
     'pricing-tables',
+    'fuel-price-periods',
+    'freight-rate-terms',
+    'debit-note-override',
     'all-suppliers',
     'all-expense-categories',
     'salary-period',
@@ -161,12 +163,10 @@ export const qk = {
     adjustments: (id: number) => ['trip-adjustments', id] as const,
     /** Broad prefix — matches all trip-adjustments queries. */
     adjustmentsAll: ['trip-adjustments'] as const,
-    summary: (dateFrom: string | undefined, dateTo: string | undefined) =>
-      ['trips-summary', dateFrom, dateTo] as const,
+    summary: (dateFrom: string | undefined, dateTo: string | undefined) => ['trips-summary', dateFrom, dateTo] as const,
     /** List view — invalidates any paged/filtered list. */
     list: (...args: unknown[]) => ['trips', ...args] as const,
-    monthly: (year: number, month: number, salaryStart: string | undefined) =>
-      ['trips', 'monthly', year, month, salaryStart] as const,
+    monthly: (year: number, month: number, salaryStart: string | undefined) => ['trips', 'monthly', year, month, salaryStart] as const,
     created: ['trips', 'created'],
     costs: (month: number, year: number, salaryStart: string | undefined) =>
       ['trip-costs', month, year, salaryStart] as const,
@@ -517,6 +517,8 @@ export const qk = {
     ports: ['cfg-count', 'ports'],
     forwarderExpenseTypes: ['cfg-count', 'forwarder-expense-types'],
     debitNoteTemplates: ['cfg-count', 'debit-note-templates'],
+    fuelPricePeriods: ['cfg-count', 'fuel-price-periods'],
+    freightRateTerms: ['cfg-count', 'freight-rate-terms'],
   },
 
   /* ── Generic CRUD page (CrudTable uses [endpoint] as key) ──────────── */

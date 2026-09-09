@@ -34,6 +34,7 @@ import {
   Activity,
   Bell,
   ClipboardList,
+  Fuel,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { api } from '../lib/api';
@@ -214,6 +215,10 @@ export function getNavItems(
         { key: 'expenses', label: 'Chi phí phát sinh', path: routes.expenses, icon: FileText, section: 'financials' as SectionName },
         { key: 'advances', label: 'Tạm ứng & Hoàn ứng', path: routes.advances, icon: Wallet, section: 'financials' as SectionName },
 
+        // Pricing config entry points (docx §5-1): accountant fuel-price entry + per-customer×route rate terms.
+        { key: 'config-fuel-price-periods', label: 'Giá dầu DO theo kỳ', path: routes.configFuelPricePeriods, icon: Fuel, section: 'financials' as SectionName },
+        { key: 'config-freight-rate-terms', label: 'Điều khoản cước theo tuyến', path: routes.configFreightRateTerms, icon: DollarSign, section: 'financials' as SectionName },
+
         // Báo cáo & Phê duyệt (Reports & Approvals) per spec
         { key: 'finance', label: 'Báo cáo Lãi lỗ', path: routes.finance, icon: Wallet, section: 'reports' as SectionName },
         { key: 'profit', label: 'Báo cáo Lợi nhuận', path: routes.profit, icon: DollarSign, section: 'reports' as SectionName },
@@ -275,6 +280,8 @@ export function getNavItems(
         // Danh mục (Master Data) — CUS can add/edit customers and routes
         { key: 'customers', label: 'Khách hàng', path: routes.configCustomers, icon: Users, section: 'master-data' as SectionName },
         { key: 'config-routes', label: 'Tuyến đường', path: routes.configRoutes, icon: Route, section: 'master-data' as SectionName },
+        // Giá dầu DO theo kỳ — docx §5-1 names CUS as a fuel-price entrant.
+        { key: 'config-fuel-price-periods', label: 'Giá dầu DO theo kỳ', path: routes.configFuelPricePeriods, icon: Fuel, section: 'master-data' as SectionName },
       ];
     }
 

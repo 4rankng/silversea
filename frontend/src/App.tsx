@@ -95,6 +95,8 @@ const FuelConfigPage = lazy(() => import('./pages/config/FuelConfigPage'));
 const FuelNormsConfigPage = lazy(() => import('./pages/config/FuelNormsConfigPage'));
 const WeightPricingTiersConfigPage = lazy(() => import('./pages/config/WeightPricingTiersConfigPage'));
 const LiftPricingConfigPage = lazy(() => import('./pages/config/LiftPricingConfigPage'));
+const FuelPricePeriodsConfigPage = lazy(() => import('./pages/config/FuelPricePeriodsConfigPage'));
+const FreightRateTermsConfigPage = lazy(() => import('./pages/config/FreightRateTermsConfigPage'));
 const AncillaryRevenueConfigPage = lazy(() => import('./pages/config/AncillaryRevenueConfigPage'));
 const AppSettingsConfigPage = lazy(() => import('./pages/config/AppSettingsConfigPage'));
 const MasterDataImportPage = lazy(() => import('./pages/config/MasterDataImportPage'));
@@ -191,6 +193,13 @@ export function AppRoutes() {
   );
   // /users is the single home for everyone; accountants get scoped (driver-only) access.
   const officeStaffOnly = (el: ReactElement) => (isAdmin || currentRole === Role.MANAGER || currentRole === Role.ACCOUNTANT ? el : <Navigate to={homeRedirect} replace />);
+  // Freight pricing engine config (Phương án tính cước tự động §5-1): fuel-price
+  // period entry names Kế toán/CUS as entrants (backend casbin carries the
+  // route-scoped CUS write bypass); DISPATCHER stays out — the page's write
+  // buttons would 403 for its read-only casbin grant.
+  const fuelPriceConfigOnly = (el: ReactElement) => (
+    isAdmin || currentRole === Role.MANAGER || currentRole === Role.ACCOUNTANT || isCus ? el : <Navigate to={homeRedirect} replace />
+  );
   // Catalog management pages (customers, routes) — CUS can add/edit identity
   // fields; financial/cost fields are stripped by the backend intake services.
   // DISPATCHER reaches the same pages create-only (Casbin grants POST on
@@ -308,6 +317,8 @@ export function AppRoutes() {
           <Route path="/config/penalty-reasons" element={adminOnly(page(<PenaltyReasonsConfigPage />))} />
           <Route path="/config/fuel" element={adminOnly(page(<FuelConfigPage />))} />
           <Route path="/config/fuel-norms" element={adminOnly(page(<FuelNormsConfigPage />))} />
+          <Route path="/config/fuel-price-periods" element={fuelPriceConfigOnly(page(<FuelPricePeriodsConfigPage />))} />
+          <Route path="/config/freight-rate-terms" element={officeStaffOnly(page(<FreightRateTermsConfigPage />))} />
           <Route path="/config/weight-pricing-tiers" element={adminOnly(page(<WeightPricingTiersConfigPage />))} />
           <Route path="/config/lift-pricing" element={adminOnly(page(<LiftPricingConfigPage />))} />
           <Route path="/config/ancillary-revenue" element={adminOnly(page(<AncillaryRevenueConfigPage />))} />

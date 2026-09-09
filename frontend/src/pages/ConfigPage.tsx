@@ -55,6 +55,8 @@ export default function ConfigPage() {
     companyInfo,
     forwarderExpenseTypes,
     debitNoteTemplates,
+    fuelPricePeriods,
+    freightRateTerms,
   ] = useQueries({
     queries: [
       { queryKey: qk.configCounts.penaltyReasons,        queryFn: () => api.get<ListResponse>('/penalty-reasons?limit=1'),    staleTime: 60_000 },
@@ -74,6 +76,8 @@ export default function ConfigPage() {
       { queryKey: qk.configCounts.companyInfo,           queryFn: () => api.get<CompanyInfo>('/company-info'),                staleTime: 60_000 },
       { queryKey: qk.configCounts.forwarderExpenseTypes, queryFn: () => api.get<ListResponse>('/forwarder-expense-types?limit=1'), staleTime: 60_000 },
       { queryKey: qk.configCounts.debitNoteTemplates,   queryFn: () => api.get<ListResponse>('/debit-note-templates?limit=1'),   staleTime: 60_000 },
+      { queryKey: qk.configCounts.fuelPricePeriods,     queryFn: () => api.get<ListResponse>('/fuel-price-periods?limit=1'),     staleTime: 60_000 },
+      { queryKey: qk.configCounts.freightRateTerms,     queryFn: () => api.get<ListResponse>('/freight-rate-terms?limit=1'),     staleTime: 60_000 },
     ],
   });
 
@@ -116,6 +120,8 @@ export default function ConfigPage() {
     'trailers':                 { status: countLabel(trailers.data?.total, 'rơ-moóc') },
     'cargo-types':              { status: countLabel(cargoTypes.data?.total, 'loại hàng') },
     'pricing-tables':           { status: countLabel(pricingTables.data?.total, 'đơn giá') },
+    'fuel-price-periods':       { status: countLabel(fuelPricePeriods.data?.total, 'kỳ giá') },
+    'freight-rate-terms':       { status: countLabel(freightRateTerms.data?.total, 'điều khoản') },
     'salary-periods':           { status: salaryStatus() },
     'expense-categories':       { status: countLabel(expenseCategories.data?.total, 'hạng mục') },
     'forwarder-expense-types':  { status: countLabel(forwarderExpenseTypes.data?.total, 'loại') },

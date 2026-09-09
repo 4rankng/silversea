@@ -80,6 +80,10 @@ export const routes = {
   configRoadAllowances: PAGE_CATALOG.configRoadAllowances.path,
   configPenaltyReasons: PAGE_CATALOG.configPenaltyReasons.path,
   configFuel: PAGE_CATALOG.configFuel.path,
+  // Freight pricing engine config (Phương án tính cước tự động) — plain
+  // strings, not catalog entries: title falls through the /config catch-all.
+  configFuelPricePeriods: '/config/fuel-price-periods',
+  configFreightRateTerms: '/config/freight-rate-terms',
   configTripExpense: PAGE_CATALOG.configTripExpense.path,
   configCapTable: PAGE_CATALOG.configCapTable.path,
   configCustomers: PAGE_CATALOG.configCustomers.path,

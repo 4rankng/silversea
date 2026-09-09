@@ -107,6 +107,21 @@ export const CONFIG = {
   FUEL_PRICE_HISTORY: '/fuel-price-history',
   DEBIT_NOTE_TEMPLATES: '/debit-note-templates',
   DEBIT_NOTE_TEMPLATE: (id: number) => `/debit-note-templates/${id}`,
+  // Freight pricing engine config (docx "Phương án tính cước tự động").
+  FUEL_PRICE_PERIODS: '/fuel-price-periods',
+  FUEL_PRICE_PERIOD: (id: number) => `/fuel-price-periods/${id}`,
+  FREIGHT_RATE_TERMS: '/freight-rate-terms',
+  FREIGHT_RATE_TERM: (id: number) => `/freight-rate-terms/${id}`,
+} as const;
+
+// ─── Freight pricing engine runtime (Phương án tính cước tự động) ──────────────
+// Live preview + debit-note override over freight_rate_snapshots. The engine
+// itself resolves server-side (freight-pricing-engine.service.ts).
+export const PRICING_ENGINE = {
+  /** GET live preview — ?customerId&routeId&vehicleSizeClassCode&transportDate */
+  FREIGHT_PREVIEW: '/pricing/freight-preview',
+  /** GET/PUT debit-note override on a frozen snapshot (system value read-only). */
+  SNAPSHOT_OVERRIDE: (snapshotId: number) => `/pricing/snapshots/${snapshotId}/override`,
 } as const;
 
 // ─── Fleet / Tires (N1) ──────────────────────────────────────────────────────
