@@ -51,6 +51,19 @@
 }
 .cfg-page .toolbar > div:first-child:empty { display: none; }
 
+/* Touch-target extension for the shared sort-header buttons: the visual
+   stays at the header's density contract, but the hit area meets the 44px
+   mobile standard (space-utilisation audit 2026-09-09 found 30px headers
+   on touch viewports). Pseudo-element hit areas don't shift layout. */
+.cfg-page .table-sort-button {
+  position: relative;
+}
+.cfg-page .table-sort-button::before {
+  content: '';
+  position: absolute;
+  inset: -7px 0;
+}
+
 /* Inline meta summary that lives in the toolbar (replaces ad-hoc inline styles) */
 .cfg-page__summary {
   font-size: var(--fs-xs);

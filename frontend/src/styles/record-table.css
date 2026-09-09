@@ -136,7 +136,11 @@
   }
 
   .record-table tbody tr {
-    display: block;
+    display: grid;
+    /* Facts pair two-up across the WHOLE card band (space-utilisation audit
+       2026-09-09: single-column stacks left ~60% dead space at tablet
+       widths — the exact reported crime). */
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     border: 1px solid var(--line);
     border-radius: var(--app-radius-md, var(--r, 12px));
     background: var(--surface);
@@ -148,11 +152,26 @@
 
   .record-table tbody td {
     display: block;
-    padding: 10px 16px;
+    min-width: 0;
+    padding: 10px 14px;
     border: 0;
   }
 
+  /* The primary identity cell and the action bar span the full card width. */
+  .record-table tbody td:first-child,
+  .record-table tbody td.record-table__action {
+    grid-column: 1 / -1;
+  }
+
   .record-table tbody td + td {
+    border-top: 0;
+  }
+
+  .record-table tbody td:nth-child(even) {
+    border-inline-start: 1px solid var(--line);
+  }
+
+  .record-table tbody td:nth-child(n + 3) {
     border-top: 1px solid var(--line);
   }
 
@@ -180,31 +199,6 @@
   /* Empty labels (decorative cells) skip the eyebrow entirely. */
   .record-table tbody td[data-label='']::before {
     display: none;
-  }
-}
-
-/* Phone: primary identity spans full width, remaining facts pair two-up. */
-@container (max-width: 640px) {
-  .record-table tbody tr {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .record-table tbody td:first-child,
-  .record-table tbody td.record-table__action {
-    grid-column: 1 / -1;
-  }
-
-  .record-table tbody td + td {
-    border-top: 0;
-  }
-
-  .record-table tbody td:nth-child(even) {
-    border-inline-start: 1px solid var(--line);
-  }
-
-  .record-table tbody td:nth-child(n + 3) {
-    border-top: 1px solid var(--line);
   }
 }
 
