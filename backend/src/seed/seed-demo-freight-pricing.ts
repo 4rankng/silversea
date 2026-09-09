@@ -10,11 +10,17 @@
  * never receives invented contract data — real 15T prices and thresholds are
  * entered through the config UI when the customer delivers them.
  *
- * Converges five things, all idempotent on natural keys:
+ * Converges seven things, all idempotent on natural keys:
  *   1. vehicle_size_classes — canonical 9-code catalog (ensure-if-missing).
  *   2. fuel_price_periods — the two REAL Excel fuel prices (insert-if-missing;
  *      existing period rows are audit records and are never modified).
  *   3. fuel_consumption_norms — design liters/km ladder @ 2026-09-09.
+ *   3b. the 3 pricing routes — ensure-if-missing by normalized name so a
+ *      staging DB that mirrors prod master data (no dev reference seeder
+ *      ever ran there) still converges; existing routes never modified.
+ *   3c. the REAL anchor rungs of the customer pricing matrix (5T/10T/
+ *      CONT20/CONT40…) — insert-if-missing, so the demo 15T rungs hang
+ *      off a real ladder on staging too.
  *   4. freight_rate_terms (LONG MINH × the 3 pricing routes) — D3 defaults
  *      (share %, billed km, base fuel price) plus the D4 threshold demo:
  *        Hải Phòng-NEWEB : lag 1, threshold 5 % (pct mode)
@@ -36,9 +42,10 @@
  * Test fixtures (FreightEng/DBG rows, suffixed classes and periods) never
  * match these natural keys and are left for QA's cleanup lane.
  */
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import * as s from '../db/schema/index.js';
+import { pricing } from './data/index.js';
 
 const LONG_MINH_NAME = 'CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH';
 
@@ -124,10 +131,22 @@ const DEMO_15T_PRICE_BY_ROUTE: Record<string, number> = {
   'SUNRISE+  SJ': 3_500_000,
 };
 
+// The 3 pricing routes as canonical reference rows (seed/data/reference.ts
+// shape). Ensured insert-if-missing so the demo chain also converges on a
+// staging DB that mirrors prod master data (which never ran the dev
+// reference seeder — verified 2026-09-10: staging carries only the 4 real
+// operational KCN routes).
+const PRICING_ROUTE_SEEDS = [
+  { name: 'Hải Phòng-NEWEB', twoWayKm: 260 },
+  { name: 'ASKEY', twoWayKm: 200 },
+  { name: 'SUNRISE+  SJ', twoWayKm: 240 },
+] as const;
+
 export async function seedDemoFreightPricing(): Promise<void> {
   await ensureVehicleSizeClasses();
   await ensureFuelPricePeriods();
   await ensureFuelConsumptionNorms();
+  await ensurePricingRoutes();
 
   // Resolve the real LONG MINH customer and the 3 pricing routes by their
   // stable names — the same identity the pricing-tables seeder keys on
@@ -142,6 +161,8 @@ export async function seedDemoFreightPricing(): Promise<void> {
   if (!customer) {
     throw new Error(`Không tìm thấy khách hàng LONG MINH ("${LONG_MINH_NAME}") để nạp demo giá cước`);
   }
+
+  await ensureAnchorPricingRungs(customer.id);
 
   const routeRows = await db.select({ id: s.routes.id, name: s.routes.name })
     .from(s.routes)
@@ -218,6 +239,68 @@ async function ensureFuelConsumptionNorms(): Promise<void> {
     }
   }
   console.log(`✅ Fuel consumption norms converged! (${created} new, ${refreshed} refreshed)`);
+}
+
+// ─── Step 3b: the 3 pricing routes (ensure-if-missing) ──────────────────────
+async function ensurePricingRoutes(): Promise<void> {
+  let created = 0;
+  for (const route of PRICING_ROUTE_SEEDS) {
+    // Same normalized-name match as the reference seeder (routes are unique
+    // on name where deleted_at is null). Insert-only: an existing route —
+    // dev-reference or prod master data — is never modified.
+    const [existing] = await db.select({ id: s.routes.id })
+      .from(s.routes)
+      .where(sql`${s.routes.deletedAt} is null and lower(btrim(${s.routes.name})) = lower(btrim(${route.name}))`)
+      .limit(1);
+    if (existing) continue;
+    const [row] = await db.insert(s.routes).values({
+      name: route.name,
+      shortName: route.name.split(/[+-]/)[0]!.trim(),
+      distanceKm: route.twoWayKm,
+      fixedFuelAllowance: null,
+    }).returning({ id: s.routes.id });
+    if (row) created += 1;
+  }
+  console.log(`✅ Pricing routes verified! (${PRICING_ROUTE_SEEDS.length - created} present, ${created} new)`);
+}
+
+// ─── Step 3c: real anchor rungs of the customer matrix (insert-if-missing) ──
+// On dev these belong to seedPricingTables; on staging (prod mirror) nobody
+// seeds them, so the DEMO 15T rungs would hang off a ladder with no anchors.
+// Insert-if-missing only — existing rows are never touched, and the blank
+// 15T cells stay with the demo step below.
+async function ensureAnchorPricingRungs(customerId: number): Promise<void> {
+  const routeRows = await db.select({ id: s.routes.id, name: s.routes.name })
+    .from(s.routes)
+    .where(isNull(s.routes.deletedAt));
+  const routeIdByName = new Map(routeRows.map((r) => [r.name.toLowerCase(), r.id]));
+
+  let created = 0;
+  for (const row of pricing) {
+    if (row.basePrice == null || row.basePrice <= 0) continue; // 15T blank → demo step
+    const routeId = routeIdByName.get(row.route.toLowerCase());
+    if (routeId == null) continue;
+    const [existing] = await db.select({ id: s.pricingTables.id })
+      .from(s.pricingTables)
+      .where(and(
+        eq(s.pricingTables.customerId, customerId),
+        eq(s.pricingTables.routeId, routeId),
+        eq(s.pricingTables.rateKey, row.size),
+        eq(s.pricingTables.effectiveDate, PRICE_EFFECTIVE_DATE),
+        isNull(s.pricingTables.containerTypeId),
+      ))
+      .limit(1);
+    if (existing) continue;
+    await db.insert(s.pricingTables).values({
+      customerId,
+      routeId,
+      price: String(row.basePrice),
+      rateKey: row.size,
+      effectiveDate: PRICE_EFFECTIVE_DATE,
+    });
+    created += 1;
+  }
+  console.log(`✅ Anchor pricing rungs verified! (${created} new — real Excel prices, insert-if-missing)`);
 }
 
 // ─── Step 4: freight rate terms (D3 defaults + D4 threshold demo) ───────────
