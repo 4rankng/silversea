@@ -69,15 +69,19 @@ router.get('/pricing/snapshots/:id', requireRoles(...ROLES), asyncHandler(async 
   res.json(view);
 }));
 
-// GET /api/pricing/snapshots/:id/override — current override state (null when
-// none exists). The snapshot body rides along so the form can show the frozen
-// system freight next to the negotiated input.
+// GET /api/pricing/snapshots/:id/override — the override row itself.
+// 404 = no override yet on a live snapshot (the UI treats 404 as null, not
+// an error); the frozen system freight for the form comes from the snapshot
+// detail route, so no wrapper body is needed here.
 router.get('/pricing/snapshots/:id/override', requireRoles(...ROLES), asyncHandler(async (req: Request, res: Response) => {
   const view = await getFreightRateSnapshotById(parseSnapshotId(req));
   if (!view) {
     return res.status(404).json({ error: 'Không tìm thấy ảnh chụp giá cước' });
   }
-  res.json({ override: view.override, snapshot: view });
+  if (!view.override) {
+    return res.status(404).json({ error: 'Chưa có điều chỉnh giá cước cho ảnh chụp này' });
+  }
+  res.json(view.override);
 }));
 
 // PUT /api/pricing/snapshots/:id/override — accountant enters the negotiated
@@ -100,7 +104,7 @@ router.put('/pricing/snapshots/:id/override', requireRoles(...ROLES), asyncHandl
     create: async (tx) => {
       const view = await getFreightRateSnapshotById(snapshotId, tx);
       if (!view) throw new ApiError(404, 'Không tìm thấy ảnh chụp giá cước');
-      const overrideId = await upsertDebitNoteOverride({
+      await upsertDebitNoteOverride({
         snapshotId,
         // Frozen system freight — the debit-note total (K = J + H).
         systemCalculatedFreight: view.totalAmount,
@@ -109,11 +113,14 @@ router.put('/pricing/snapshots/:id/override', requireRoles(...ROLES), asyncHandl
         overrideBy: actor.userId,
         executor: tx,
       });
-      return { overrideId, snapshot: await getFreightRateSnapshotById(snapshotId, tx) };
+      // Respond with the override row itself (the frontend client's
+      // DebitNoteOverrideRow shape) — the full snapshot view stays on the
+      // detail route.
+      const refreshed = await getFreightRateSnapshotById(snapshotId, tx);
+      return { override: refreshed?.override ?? null };
     },
-    getEntityId: (value) => value.overrideId,
   });
-  res.json({ ...result, ...(idempotencyKey ? { replayed } : {}) });
+  res.json({ ...result.override, ...(idempotencyKey ? { replayed } : {}) });
 }));
 
 export default router;

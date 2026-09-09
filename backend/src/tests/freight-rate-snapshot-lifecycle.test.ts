@@ -417,6 +417,100 @@ describe('freight rate snapshot lifecycle (T1 wiring)', () => {
     createdSnapshotIds.push(view.latest!.id);
   });
 
+  // ─── TC-CUOC-005 — lag via container appointment edit (not expectedDeliveryDate) ──
+  //
+  // FCL anchors to the container's customerAppointmentAt, NOT the shipment-level
+  // expectedDeliveryDate. A shipment-level date change re-locks with identical
+  // amounts by design (tested above). To exercise lag, we must edit the CONTAINER
+  // appointment across a fuel-period boundary.
+  //
+  // Setup: fuel_lag_days=1; P2 at D+7 (21740), P3 at D+14 (27620).
+  //   Step 1: create shipment with appointment at D+13 → target D+12 → uses P2.
+  //   Step 2: move appointment to D+14 → target D+13 → still P2 (P3 starts D+14).
+  //   Step 3: move appointment to D+15 → target D+14 → uses P3 (≥ P3.effectiveFrom).
+  // The test asserts that the fuelPricePeriodId changes only when the lag-adjusted
+  // target crosses the period boundary, and that amounts update accordingly.
+
+  test('TC-CUOC-005: lag via container appointment edit selects correct fuel period', async () => {
+    // --- Setup: fresh customer/route/terms with lag=1, two fuel periods ---
+    const cust = await mkCustomer('Lag');
+    const route = await mkRoute('Lag');
+    await mkTerms(cust.id, route.id, { fuelLagDays: 1 });
+    await mkPricingTable(cust.id, route.id, 'CONT40', '3900000');
+    // CONT40 norm (0.35 l/km) already exists from before() — do not re-insert
+    // (unique constraint on vehicle_size_class_id + effective_date).
+    // P2 at D+7 (21740) — already seeded in before(); add P3 at D+14 (27620)
+    // for this test. The periods are global, so we use addDays on SUITE_BASE_DATE.
+    const p3 = await mkFuelPeriod('27620', addDays(SUITE_BASE_DATE, 14));
+    createdFuelPricePeriodIds.push(p3.id);
+
+    // Step 1: appointment at D+13 → target = D+13 − 1 = D+12 → P2 (D+7 ≤ D+12 < D+14)
+    const shipment = await mkShipment({ customerId: cust.id, routeId: route.id, cargoMode: 'FCL' });
+    createdShipmentIds.push(shipment.id);
+    const appointD13 = `${addDays(SUITE_BASE_DATE, 13)}T08:00:00+07:00`;
+    await batchUpsertShipmentContainers(shipment.id, adminId, [{
+      containerTypeId: containerType40Id,
+      customerAppointmentAt: appointD13,
+    }]);
+
+    const view1 = await getShipmentFreightRateView(shipment.id);
+    assert.ok(view1.latest, 'snapshot must exist after intake');
+    createdSnapshotIds.push(view1.latest!.id);
+    assert.equal(view1.latest!.source, 'AUTO');
+    // P2 (21740) is used: surcharge = round((21740 − 17842.5926) × 91) = 354664
+    assert.equal(view1.latest!.surchargeAmount, SURCHARGE_D10,
+      'D+13 appointment → target D+12 → must use P2 (21740)');
+    assert.equal(view1.latest!.totalAmount, TOTAL_D10);
+    const p2PeriodId = view1.latest!.fuelPricePeriodId;
+
+    // Step 2: move appointment to D+14 → target = D+13 → still P2 (D+13 < D+14)
+    const [container] = await db.select({ id: s.shipmentContainers.id })
+      .from(s.shipmentContainers)
+      .where(eq(s.shipmentContainers.shipmentId, shipment.id)).limit(1);
+    assert.ok(container);
+    const [fresh] = await db.select({ version: s.shipments.version })
+      .from(s.shipments).where(eq(s.shipments.id, shipment.id));
+    const appointD14 = `${addDays(SUITE_BASE_DATE, 14)}T08:00:00+07:00`;
+
+    await updateCusShipmentContainerLine({
+      shipmentId: shipment.id,
+      containerId: container.id,
+      input: { expectedShipmentVersion: fresh.version, customerAppointmentAt: appointD14 },
+      actor: { userId: adminId, role: Role.ADMIN, username: 'freight-lock-admin', email: null, fullName: null },
+    });
+
+    const view2 = await getShipmentFreightRateView(shipment.id);
+    assert.equal(view2.snapshotCount, 2, 'appointment change must supersede');
+    createdSnapshotIds.push(view2.latest!.id);
+    // Target = D+13 → still P2; amounts unchanged.
+    assert.equal(view2.latest!.fuelPricePeriodId, p2PeriodId,
+      'D+14 appointment → target D+13 → must still use P2');
+    assert.equal(view2.latest!.totalAmount, TOTAL_D10,
+      'amounts must not change when lag target stays in same period');
+
+    // Step 3: move appointment to D+15 → target = D+14 → crosses into P3
+    const [fresh2] = await db.select({ version: s.shipments.version })
+      .from(s.shipments).where(eq(s.shipments.id, shipment.id));
+    const appointD15 = `${addDays(SUITE_BASE_DATE, 15)}T08:00:00+07:00`;
+
+    await updateCusShipmentContainerLine({
+      shipmentId: shipment.id,
+      containerId: container.id,
+      input: { expectedShipmentVersion: fresh2.version, customerAppointmentAt: appointD15 },
+      actor: { userId: adminId, role: Role.ADMIN, username: 'freight-lock-admin', email: null, fullName: null },
+    });
+
+    const view3 = await getShipmentFreightRateView(shipment.id);
+    assert.equal(view3.snapshotCount, 3, 'must supersede again');
+    createdSnapshotIds.push(view3.latest!.id);
+    // Target = D+14 → P3 (27620) is now the latest period ≤ target.
+    assert.notEqual(view3.latest!.fuelPricePeriodId, p2PeriodId,
+      'D+15 appointment → target D+14 → must switch to P3');
+    assert.equal(view3.latest!.surchargeAmount, SURCHARGE_D18,
+      'P3 (27620) surcharge: round((27620 − 17842.5926) × 91) = 889744');
+    assert.equal(view3.latest!.totalAmount, TOTAL_D18);
+  });
+
   test('missing base price degrades to MANUAL — intake proceeds unblocked', async () => {
     // Same customer/route family but no pricing-table row for CONT40 (the
     // CONT40 norm from before() already covers the class).
@@ -537,13 +631,26 @@ describe('freight rate snapshot lifecycle (T1 wiring)', () => {
     });
     assert.ok([401, 403].includes(opsDenied.status), `expected denial, got ${opsDenied.status}`);
 
+    // No override yet on a live snapshot: the frontend client treats 404 as
+    // null, so the GET must 404 (not 200-with-wrapper).
+    const noOverrideYet = await api('GET', `/pricing/snapshots/${snapshotId}/override`, accountantId);
+    assert.equal(noOverrideYet.status, 404, JSON.stringify(noOverrideYet.body));
+
     const created = await api('PUT', `/pricing/snapshots/${snapshotId}/override`, accountantId, {
       finalDebitFreight: 4_000_000,
       overrideReason: 'Đàm phán lại giá cước tháng 9',
     });
     assert.equal(created.status, 200, JSON.stringify(created.body));
-    const overrideId = (created.body as { overrideId: number }).overrideId;
+    // Response body is the override row itself (frontend DebitNoteOverrideRow).
+    assert.equal((created.body as { finalDebitFreight: number }).finalDebitFreight, 4_000_000);
+    assert.equal((created.body as { systemCalculatedFreight: number }).systemCalculatedFreight, TOTAL_D18);
+    const overrideId = (created.body as { id: number }).id;
     createdOverrideIds.push(overrideId);
+
+    // After the upsert the override GET returns the row directly.
+    const overrideGet = await api('GET', `/pricing/snapshots/${snapshotId}/override`, accountantId);
+    assert.equal(overrideGet.status, 200);
+    assert.equal((overrideGet.body as { finalDebitFreight: number }).finalDebitFreight, 4_000_000);
 
     const readBack = await api('GET', `/pricing/snapshots/${snapshotId}`, accountantId);
     assert.equal(readBack.status, 200);

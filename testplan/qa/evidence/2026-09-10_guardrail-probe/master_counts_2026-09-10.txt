@@ -1,0 +1,23 @@
+t|cnt
+customers|240
+customers_FreightEng|10
+debit_note_overrides (total)|1
+freight_rate_snapshots (total)|1
+  freight_rate_terms_FreightEng|7
+freight_rate_terms (total)|10
+  fuel_consumption_norms_FreightEng|7
+fuel_consumption_norms (total)|16
+fuel_price_periods (total)|3
+--- master-data (required by PM) ---|
+operational_sites (total)|31
+--- orphans check ---|
+--- pricing engine tables (T6 leftovers) ---|
+  pricing_tables_FreightEng|5
+pricing_tables (total)|29
+routes|78
+routes_FreightEng|10
+  site_type=FACTORY|21
+  site_type=WAREHOUSE|10
+  vehicle_size_classes_FreightEng|7
+vehicle_size_classes (total)|16
+(21 rows)

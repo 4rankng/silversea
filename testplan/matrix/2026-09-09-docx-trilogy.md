@@ -126,7 +126,7 @@ và cập nhật trạng thái bằng evidence thật (test run ids, UI-DRIVEN s
 5. ~~NM inactive filter~~ — **closed 10/09 (F7)**, evidence `shipment-intake-submit.test.ts::MDN-7` + intake.service.ts:289. "+Tạo mới" label check vẫn open.
 6. Hoàn thành ⇒ sync điều vận (UI).
 7. ~~44px vs 48px dev-tools probe~~ — RESOLVED 09-09: footer CTA = 48px (`DriverTripsPage.css:352,383`).
-8. `SELECT count(*)` master-data guardrail re-check sau khi các lane land.
+8. ~~`SELECT count(*)` master-data guardrail re-check sau khi các lane land.~~ — **DONE 2026-09-10 (mid-wave, fullstack lane)**, evidence `testplan/qa/evidence/2026-09-10_guardrail-probe/` (`master_counts_2026-09-10.txt` + `probe-summary.md`). Counts vs trilogy baseline: `customers` 165 → **240** (+75), `operational_sites` 30 → **31** (+1: 21 FACTORY + 10 WAREHOUSE), `routes` 53 → **78** (+25), `freight_rate_snapshots` 0 → **1** (T6 residual), `debit_note_overrides` 0 → **1** (T6 residual). Drift traced to QA T6 phase-1 (`fafe5e37`) `after()` cleanup partial failure — see finding F14 §7.1 + review-notes F-B2.
 9. Micro-ledger grouping (Kế toán hiển thị gom theo lô).
 
 ## 7. `PhuongAnTinhCuocTuDong.md` — Auto-pricing wave (2026-09-10, wave `run-1788968588650-mctezn`)
