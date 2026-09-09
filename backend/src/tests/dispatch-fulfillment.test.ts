@@ -1663,4 +1663,56 @@ describe('dispatch fulfillment workflow routes', () => {
     assert.ok(row, 'staff-closed container must stay on the detail plan');
     assert.equal(row?.taskStatus, 'COMPLETED');
   });
+
+  test('external order persists an optional driver phone with no driver name', async () => {
+    // 2026-09-08 HD feedback, follow-up to the staff-close test above: name
+    // and phone are informational for external carriers — issuing succeeds
+    // without a name, and a phone sent alone persists on the trip's carrier
+    // sidecar (the driver app is never in the loop for external carriers).
+    const accepted = await createAcceptedFulfillment();
+    const externalCarrier = await createCustomer(`External carrier phone ${suffix}-${createdCustomerIds.length}`);
+    await db.update(s.customers).set({ isCarrier: true }).where(eq(s.customers.id, externalCarrier.id));
+    const [carrierVehicle] = await db.insert(s.carrierFleetVehicles).values({
+      carrierId: externalCarrier.id,
+      licensePlate: '51H-67891',
+      normalizedPlate: '51H67891',
+      createdBy: adminUserId,
+    }).returning();
+    await db.update(s.shipmentFulfillments).set({
+      plannedCarrierType: 'EXTERNAL',
+      plannedExternalCarrierId: externalCarrier.id,
+    }).where(eq(s.shipmentFulfillments.id, accepted.fulfillmentId));
+
+    const dispatch = await apiFetch<{ trip: { id: number; externalDriverName: string | null; externalDriverPhone: string | null; driverId: number | null } }>(
+      `/${accepted.shipmentId}/dispatch`,
+      {
+        method: 'POST',
+        token: managerToken,
+        body: {
+          fulfillmentId: accepted.fulfillmentId,
+          expectedVersion: accepted.fulfillmentVersion,
+          plannedStartAt: '2026-08-07T08:00:00+07:00',
+          plannedEndAt: '2026-08-07T12:00:00+07:00',
+          endTimeConfirmed: true,
+          carrierType: 'EXTERNAL',
+          externalCarrierId: externalCarrier.id,
+          externalCarrierVehicleId: carrierVehicle.id,
+          externalDriverPhone: '0912345678',
+        },
+      },
+    );
+    assert.equal(dispatch.status, 201, JSON.stringify(dispatch.data));
+    createdTripIds.push(dispatch.data.trip.id);
+    assert.equal(dispatch.data.trip.externalDriverName, null);
+    assert.equal(dispatch.data.trip.driverId, null);
+    assert.equal(dispatch.data.trip.externalDriverPhone, '0912345678');
+
+    // The response composes the trip row — verify the persisted sidecar too.
+    const [stored] = await db.select({
+      externalDriverName: s.tripCarrierInfo.externalDriverName,
+      externalDriverPhone: s.tripCarrierInfo.externalDriverPhone,
+    }).from(s.tripCarrierInfo).where(eq(s.tripCarrierInfo.tripId, dispatch.data.trip.id));
+    assert.equal(stored?.externalDriverName, null);
+    assert.equal(stored?.externalDriverPhone, '0912345678');
+  });
 });

@@ -734,6 +734,37 @@ describe('dispatch detail plan rows', () => {
     const unknown = await apiFetch('/dispatch-detail-plan-rows?zone=CAT_HAI', { token: dispatcherToken });
     assert.equal(unknown.status, 400);
   });
+
+  test('detail plan reads COMPLETED for a trip that completed outside the staff-close flow', async () => {
+    // Regression guard for 2026-09-08 (MNBU0000283): the row chip must key off
+    // the trip's status itself — a trip that reached COMPLETED before the
+    // staff-close feature existed (driver-app close, legacy data) still reads
+    // "Đã hoàn thành" on the plan, while a sibling fulfillment without any
+    // trip stays READY (the status is per-row, not per-lot).
+    const { shipment, fulfillmentIds, route } = await createAllocatedLot({ carrierType: 'OWN', containerCount: 2 });
+    const [completedTrip] = await db.insert(s.trips).values({
+      customerId: shipment.customerId,
+      routeId: route.id,
+      shipmentId: shipment.id,
+      fulfillmentId: fulfillmentIds[0]!,
+      status: 'COMPLETED',
+      departureDate: '2026-09-08',
+      completedAt: new Date('2026-09-08T10:00:00.000Z'),
+    }).returning();
+    createdTripIds.push(completedTrip.id);
+
+    const detail = await apiFetch<{ items: DetailPlanRow[] }>(
+      `/dispatch-detail-plan-rows?q=${shipment.shipmentCode}`,
+      { token: dispatcherToken },
+    );
+    assert.equal(detail.status, 200);
+    const completedRow = detail.data.items.find((item) => item.fulfillmentId === fulfillmentIds[0]);
+    const readyRow = detail.data.items.find((item) => item.fulfillmentId === fulfillmentIds[1]);
+    assert.ok(completedRow, 'row with a completed trip must appear on the plan');
+    assert.ok(readyRow, 'sibling row without a trip must appear on the plan');
+    assert.equal(completedRow?.taskStatus, 'COMPLETED');
+    assert.equal(readyRow?.taskStatus, 'READY');
+  });
 });
 
 describe('dispatch detail plan plate assignment', () => {
@@ -2229,5 +2260,152 @@ describe('dispatch task tags and driver-note plan save', () => {
       body: { ...base, expectedFulfillmentVersion: clearNote.data.fulfillmentVersion, expectedShipmentVersion: clearNote.data.shipmentVersion, operationalNotes: 'x'.repeat(4001) },
     });
     assert.equal(tooLong.status, 400);
+  });
+});
+
+describe('planning remaining containers after partial dispatch', () => {
+  // Issuing the first container's order flips the lot to DISPATCHED. The old
+  // READY_FOR_DISPATCH-only guards on plan save and carrier assignment then
+  // stranded every remaining READY container: the editor save 409'd ("Chỉ
+  // được lưu kế hoạch…") and the grid mapped it to a misleading "reload"
+  // banner, so the tags/driver-note could never be saved. The guards now
+  // block only terminal lots, mirroring the 2026-09-05 issuance-side fix —
+  // the per-row live-trip guard keeps issued rows un-editable.
+  const fetchShipmentAndFulfillment = async (fulfillmentId: number) => {
+    const [fulfillment] = await db.select().from(s.shipmentFulfillments)
+      .where(eq(s.shipmentFulfillments.id, fulfillmentId));
+    const [shipment] = await db.select().from(s.shipments)
+      .where(eq(s.shipments.id, fulfillment.shipmentId));
+    return { shipment, fulfillment };
+  };
+
+  /** Plate + issue container 1 so the lot status flips to DISPATCHED while
+   *  container 2 stays READY — the partial-dispatch state under test. */
+  async function issueFirstContainer(lot: { shipment: { id: number }; fulfillmentIds: number[] }) {
+    const { truck, driver } = await createOwnedTruckWithDriver();
+    const [first] = await db.select().from(s.shipmentFulfillments)
+      .where(eq(s.shipmentFulfillments.id, lot.fulfillmentIds[0]!));
+    const plated = await apiFetch<PlateResponse>(`/dispatch-detail-plan-rows/${lot.fulfillmentIds[0]}/plate`, {
+      method: 'PATCH',
+      token: dispatcherToken,
+      body: { expectedVersion: first.version, truckId: truck.id },
+    });
+    assert.equal(plated.status, 200, JSON.stringify(plated.data));
+
+    const issued = await apiFetch<{ trip: { id: number } }>(`/${lot.shipment.id}/dispatch`, {
+      method: 'POST',
+      token: dispatcherToken,
+      body: {
+        fulfillmentId: lot.fulfillmentIds[0],
+        expectedVersion: plated.data.version,
+        plannedStartAt: '2026-08-20T08:00:00+07:00',
+        plannedEndAt: '2026-08-20T12:00:00+07:00',
+        endTimeConfirmed: true,
+        carrierType: 'OWN',
+        truckId: truck.id,
+        driverId: driver.id,
+      },
+    });
+    assert.equal(issued.status, 201, JSON.stringify(issued.data));
+    createdTripIds.push(issued.data.trip.id);
+    return { truck, driver };
+  }
+
+  test('plan save with the tags note works on the READY container after the lot flipped DISPATCHED', async () => {
+    const lot = await createAllocatedLot({ carrierType: 'OWN', containerCount: 2 });
+    await issueFirstContainer(lot);
+
+    const { shipment, fulfillment } = await fetchShipmentAndFulfillment(lot.fulfillmentIds[1]!);
+    assert.equal(shipment.status, 'DISPATCHED', 'precondition: the lot flipped DISPATCHED');
+    assert.equal(fulfillment.version, 1);
+
+    const response = await apiFetch<{ fulfillmentVersion: number; shipmentVersion: number; operationalNotes: string | null }>(
+      `/dispatch-detail-plan-rows/${fulfillment.id}/plan`,
+      {
+        method: 'PATCH',
+        token: dispatcherToken,
+        body: {
+          expectedFulfillmentVersion: fulfillment.version,
+          expectedShipmentVersion: shipment.version,
+          carrierType: 'OWN',
+          plannedRevenue: null,
+          plannedCarrierCost: null,
+          classification: 'SINGLE',
+          // The composer note the dispatcher could not save before the fix.
+          operationalNotes: 'Trả về; Di động',
+        },
+      },
+    );
+    assert.equal(response.status, 200, JSON.stringify(response.data));
+    assert.equal(response.data.operationalNotes, 'Trả về; Di động');
+    assert.equal(response.data.shipmentVersion, shipment.version + 1, 'note change bumps the shipment version');
+    assert.equal(response.data.fulfillmentVersion, fulfillment.version + 1);
+
+    const rows = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}`);
+    const row = rows.data.items.find((item) => item.fulfillmentId === fulfillment.id);
+    assert.ok(row, 'the READY row of a DISPATCHED lot must stay listed in the grid');
+    assert.equal(row.notes.vehicleNote, 'Trả về; Di động');
+  });
+
+  test('carrier reassignment stays available on the READY row of a DISPATCHED lot', async () => {
+    const lot = await createAllocatedLot({ carrierType: 'OWN', containerCount: 2 });
+    await issueFirstContainer(lot);
+    const carrier = await createCustomer(`Detail ext carrier ${suffix}-${createdCustomerIds.length}`, true);
+    const { shipment, fulfillment } = await fetchShipmentAndFulfillment(lot.fulfillmentIds[1]!);
+
+    const response = await apiFetch<CarrierResponse>(`/dispatch-detail-plan-rows/${fulfillment.id}/carrier`, {
+      method: 'PATCH',
+      token: dispatcherToken,
+      body: {
+        expectedVersion: fulfillment.version,
+        carrierType: 'EXTERNAL',
+        externalCarrierId: carrier.id,
+      },
+    });
+    assert.equal(response.status, 200, JSON.stringify(response.data));
+    void shipment;
+  });
+
+  test('plan save on the already-issued container still refuses (per-row live-trip guard)', async () => {
+    const lot = await createAllocatedLot({ carrierType: 'OWN', containerCount: 2 });
+    await issueFirstContainer(lot);
+    const { shipment, fulfillment } = await fetchShipmentAndFulfillment(lot.fulfillmentIds[0]!);
+    assert.equal(fulfillment.version, 3, 'plate + issuance each bump the version');
+
+    const response = await apiFetch<{ message: string }>(`/dispatch-detail-plan-rows/${fulfillment.id}/plan`, {
+      method: 'PATCH',
+      token: dispatcherToken,
+      body: {
+        expectedFulfillmentVersion: fulfillment.version,
+        expectedShipmentVersion: shipment.version,
+        carrierType: 'OWN',
+        plannedRevenue: null,
+        plannedCarrierCost: null,
+        classification: 'SINGLE',
+      },
+    });
+    assert.equal(response.status, 409);
+    assert.match(response.data.message ?? response.data.error ?? '', /phát hành lệnh/);
+  });
+
+  test('terminal lots still refuse plan save', async () => {
+    const lot = await createAllocatedLot({ carrierType: 'OWN', containerCount: 1 });
+    const { shipment, fulfillment } = await fetchShipmentAndFulfillment(lot.fulfillmentIds[0]!);
+    await db.update(s.shipments).set({ status: 'COMPLETED' }).where(eq(s.shipments.id, shipment.id));
+
+    const response = await apiFetch<{ error: string }>(`/dispatch-detail-plan-rows/${fulfillment.id}/plan`, {
+      method: 'PATCH',
+      token: dispatcherToken,
+      body: {
+        expectedFulfillmentVersion: fulfillment.version,
+        expectedShipmentVersion: shipment.version,
+        carrierType: 'OWN',
+        plannedRevenue: null,
+        plannedCarrierCost: null,
+        classification: 'SINGLE',
+      },
+    });
+    assert.equal(response.status, 409);
+    assert.match(response.data.error, /kết thúc/);
   });
 });
