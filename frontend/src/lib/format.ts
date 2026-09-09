@@ -58,15 +58,16 @@ export function formatDate(d: string | null): string {
 
 /**
  * Compact date-time for table cells: short date + short time, e.g. "19/8/26, 22:51".
- * Unlike formatDateTimeVN, the timezone is NOT pinned — call sites historically
- * render in the host's local zone. Invalid input renders as "—" (the raw string
- * is never echoed back).
+ * Pinned to Vietnam wall-clock (Asia/Ho_Chi_Minh) on ANY host — same contract as
+ * formatDateTimeVN (the 'vi-VN' locale alone shapes text, it does NOT set the
+ * timezone, so unpinned toLocaleString renders browser-local). Invalid input
+ * renders as "—" (the raw string is never echoed back).
  */
 export function formatDateTimeShort(value: string | null | undefined): string {
   if (!value) return '—';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '—';
-  return date.toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' });
+  return date.toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Asia/Ho_Chi_Minh' });
 }
 
 /**

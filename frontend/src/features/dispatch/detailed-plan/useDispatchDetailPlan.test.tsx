@@ -16,6 +16,7 @@ vi.mock('../../../api/dispatchPlanningClient', async (importOriginal) => {
     assignDispatchDetailPlate: vi.fn(),
     assignDispatchDetailCarrier: vi.fn(),
     updateDispatchDetailEstimates: vi.fn(),
+    updateDispatchDetailPlan: vi.fn(),
   };
 });
 
@@ -36,6 +37,7 @@ import {
   listDispatchDetailPlanRows,
   listZoneTruckPresence,
   updateDispatchDetailEstimates,
+  updateDispatchDetailPlan,
 } from '../../../api/dispatchPlanningClient';
 import { configClient } from '../../../api/configClient';
 
@@ -52,6 +54,7 @@ const getDispatchZonesMock = vi.mocked(configClient.getDispatchZones);
 const assignDispatchDetailPlateMock = vi.mocked(assignDispatchDetailPlate);
 const assignDispatchDetailCarrierMock = vi.mocked(assignDispatchDetailCarrier);
 const updateDispatchDetailEstimatesMock = vi.mocked(updateDispatchDetailEstimates);
+const updateDispatchDetailPlanMock = vi.mocked(updateDispatchDetailPlan);
 
 const assignmentResult = (assignedPlate: string | null) => ({
   fulfillmentId: 101,
@@ -387,5 +390,143 @@ describe('useDispatchDetailPlan issueOrder (phát lệnh)', () => {
     expect(item.taskStatus).toBe('READY');
     expect(item.dispatch.tripId).toBeUndefined();
     expect(result.current.assignmentError).toContain('tải lại');
+  });
+});
+
+describe('useDispatchDetailPlan plan-save error mapping', () => {
+  const saveResult = {
+    fulfillmentId: 101,
+    fulfillmentVersion: 4,
+    shipmentId: 11,
+    shipmentVersion: 6,
+    classification: 'SINGLE' as const,
+    isCombined: false,
+    operationalNotes: 'Trả về; Di động' as string | null,
+    dispatch: { carrierType: 'OWN' as const, carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: null },
+    estimates: { plannedRevenue: null, plannedCarrierCost: null },
+    lotFullyPlated: false,
+    driverNotified: false,
+    driverHint: null,
+    replayed: false,
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    listDispatchDetailPlanRowsMock.mockResolvedValue(page([row()], 1));
+    getDispatchZonesMock.mockResolvedValue({ items: [] });
+    listZoneTruckPresenceMock.mockResolvedValue({ date: '2026-08-20', zone: 'LACH_HUYEN', zoneLabel: 'Lạch Huyện', items: [] });
+  });
+
+  it('surfaces the backend 409 message instead of a blanket reload banner', async () => {
+    updateDispatchDetailPlanMock.mockRejectedValue(
+      Object.assign(new Error('Lô hàng đã kết thúc, không thể lưu kế hoạch.'), { status: 409 }),
+    );
+    const { result } = renderHook(() => useDispatchDetailPlan());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await expect(result.current.savePlan(result.current.items[0], {
+        carrierType: 'OWN',
+        plannedRevenue: null,
+        plannedCarrierCost: null,
+        classification: 'SINGLE',
+        operationalNotes: 'Trả về; Di động',
+      })).rejects.toBeTruthy();
+    });
+
+    expect(result.current.assignmentError).toBe('Lô hàng đã kết thúc, không thể lưu kế hoạch.');
+  });
+
+  it('falls back to the reload banner when a 409 carries no message', async () => {
+    updateDispatchDetailPlanMock.mockRejectedValue(Object.assign(new Error(''), { status: 409 }));
+    const { result } = renderHook(() => useDispatchDetailPlan());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await expect(result.current.savePlan(result.current.items[0], {
+        carrierType: 'OWN',
+        plannedRevenue: null,
+        plannedCarrierCost: null,
+        classification: 'SINGLE',
+        operationalNotes: 'Trả về; Di động',
+      })).rejects.toBeTruthy();
+    });
+
+    expect(result.current.assignmentError).toBe('Dữ liệu đã thay đổi. Vui lòng tải lại.');
+  });
+
+  it('keeps the generic save-failure banner for non-409 failures', async () => {
+    updateDispatchDetailPlanMock.mockRejectedValue(Object.assign(new Error('boom'), { status: 500 }));
+    const { result } = renderHook(() => useDispatchDetailPlan());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await expect(result.current.savePlan(result.current.items[0], {
+        carrierType: 'OWN',
+        plannedRevenue: null,
+        plannedCarrierCost: null,
+        classification: 'SINGLE',
+        operationalNotes: 'Trả về; Di động',
+      })).rejects.toBeTruthy();
+    });
+
+    expect(result.current.assignmentError).toBe('Không thể lưu kế hoạch. Vui lòng thử lại.');
+  });
+});
+
+describe('useDispatchDetailPlan background refresh vs loading skeleton', () => {
+  // The grid swaps to a skeleton while `loading` is true. A background
+  // refresh (30s auto-refresh tick / manual refresh) must not flip it:
+  // the skeleton unmounts the whole table including an open row editor,
+  // silently discarding drafted changes (2026-09-09 dialog self-close).
+  const deferredRow = () => ({
+    ...row(),
+    container: { containerNumber: 'MSCU9999999', containerTypeLabel: '40HC', cargoWeightKg: '1000.00' },
+  });
+
+  function deferredResponse() {
+    let resolve!: (value: ReturnType<typeof page>) => void;
+    const promise = new Promise<ReturnType<typeof page>>((res) => { resolve = res; });
+    return { promise, resolve };
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    listDispatchDetailPlanRowsMock.mockResolvedValue(page([row()], 1));
+    getDispatchZonesMock.mockResolvedValue({ items: [] });
+    listZoneTruckPresenceMock.mockResolvedValue({ date: '2026-08-20', zone: 'LACH_HUYEN', zoneLabel: 'Lạch Huyện', items: [] });
+  });
+
+  it('keeps loading false during a background refresh so the table stays mounted', async () => {
+    const { result } = renderHook(() => useDispatchDetailPlan());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    const pending = deferredResponse();
+    listDispatchDetailPlanRowsMock.mockImplementationOnce(() => pending.promise);
+
+    act(() => { result.current.refresh(); });
+    // Fetch in flight, same view → no skeleton flip: the editor dialog and
+    // its draft survive the background tick.
+    expect(result.current.loading).toBe(false);
+    await act(async () => {
+      pending.resolve(page([deferredRow()], 1));
+    });
+    await waitFor(() => expect(result.current.items[0]?.container.containerNumber).toBe('MSCU9999999'));
+    expect(result.current.loading).toBe(false);
+  });
+
+  it('still flips loading true on a real view change (filter edit)', async () => {
+    const { result } = renderHook(() => useDispatchDetailPlan());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    const pending = deferredResponse();
+    listDispatchDetailPlanRowsMock.mockImplementationOnce(() => pending.promise);
+
+    act(() => { result.current.updateFilters({ date: '2026-09-09' }); });
+    expect(result.current.loading).toBe(true);
+    await act(async () => {
+      pending.resolve(page([deferredRow()], 1));
+    });
+    await waitFor(() => expect(result.current.loading).toBe(false));
   });
 });

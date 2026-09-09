@@ -278,7 +278,7 @@
 .shipment-container-ledger__editor-heading strong { color: var(--ink); font-size: 13px; }
 .shipment-container-ledger__editor-heading span { color: var(--ink-3); font-family: var(--font-data); font-size: 11px; }
 .shipment-container-ledger__editor-grid { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 9px; }
-.shipment-container-ledger__editor-grid--schedule { grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr); }
+.shipment-container-ledger__editor-grid--schedule { grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); }
 .shipment-container-ledger__editor-grid > label { display: grid; min-width: 0; gap: 5px; }
 .shipment-container-ledger__editor-grid > label > span,
 .shipment-container-ledger__editor-grid [data-label] { color: var(--ink-3); font-size: 11px; font-weight: var(--fw-bold); line-height: 1.3; }

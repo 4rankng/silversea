@@ -234,4 +234,40 @@ describe('CusAppointmentPopover', () => {
     fireEvent.pointerDown(backdrop);
     expect(handleClose).toHaveBeenCalledTimes(1);
   });
+
+  it('prefills Vietnam wall-clock from a UTC instant on any browser timezone', () => {
+    const { container } = render(
+      <CusAppointmentPopover
+        isOpen={true}
+        value="2026-09-11T06:30:00.000Z"
+        containerLabel="MSKU1234567"
+        onClose={vi.fn()}
+        onChange={vi.fn()}
+      />,
+    );
+
+    // 06:30Z = 13:30 +07 — the old parse rendered browser-local (14:30 on a
+    // +08 host), so the recomposed write drifted another hour.
+    const timeInput = container.querySelector('input[type="time"]') as HTMLInputElement;
+    const dateInput = container.querySelector('input[type="date"]') as HTMLInputElement;
+    expect(timeInput.value).toBe('13:30');
+    expect(dateInput.value).toBe('2026-09-11');
+  });
+
+  it('round-trips a naive draft verbatim without re-interpreting it', () => {
+    const { container } = render(
+      <CusAppointmentPopover
+        isOpen={true}
+        value="2026-09-11T09:00"
+        containerLabel="MSK0098765"
+        onClose={vi.fn()}
+        onChange={vi.fn()}
+      />,
+    );
+
+    const timeInput = container.querySelector('input[type="time"]') as HTMLInputElement;
+    const dateInput = container.querySelector('input[type="date"]') as HTMLInputElement;
+    expect(timeInput.value).toBe('09:00');
+    expect(dateInput.value).toBe('2026-09-11');
+  });
 });

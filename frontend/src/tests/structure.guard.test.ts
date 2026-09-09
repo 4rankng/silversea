@@ -24,29 +24,16 @@ const NEW_FILE_MAX_LOC = 400;
 
 const FROZEN_MAX_LOC: Record<string, number> = {
   'src/design-system/forms/SearchableSelect.tsx': 481,
-  // Raised 650 → 655: pairing-wave driver client additions (peer session,
-  // 2026-09-07). A future split should restore a smaller ceiling.
-  'src/api/driverClient.ts': 655,
+  'src/api/driverClient.ts': 650,
   'src/api/keys.ts': 562,
   // Added 2026-09-07: baseline 401 (was new-file capped) — the atomic plan
   // save now carries operationalNotes and the tag-pool client helpers
   // (list/create) live here beside the other dispatch planning calls.
-  // Raised 410 → 411: 2026-09-08 prod merge brought the dispatch task-tag
-  // pool (list/create/update/deactivate) into this file alongside the
-  // other dispatch planning calls. Reviewed as a contract change; a
-  // future split (extract the tag pool to its own client) should restore
-  // a smaller ceiling.
   // Bumped 410 → 430: 2026-09-08 external-carrier staff close — the client
   // gains completeDispatchExternalTrip beside the other dispatch planning
   // calls, and DispatchDetailPlanRow.taskStatus gains 'COMPLETED'.
   // Reviewed as a contract change.
-  // Bumped 411 → 428 (post-merge hash TBD): HEAD's task-tag pool wave (411)
-  // and prod's staff-close wave (427) both grew this file; the merged
-  // file lands at 428 lines (411 < 430, so neither side's value alone
-  // covers the merged tree). Reviewed as a contract change; a future split
-  // (extract the task-tag pool to its own client) should restore a smaller
-  // ceiling.
-  'src/api/dispatchPlanningClient.ts': 428,
+  'src/api/dispatchPlanningClient.ts': 430,
   // Bumped 400 (new-file) → 430: 2026-09-07 dropdown-flip sweep — the
   // multi-select picker gained selectionLabel + onSearchChange (aria names
   // and debounced server refetch) during the facet migration. Reviewed as a
@@ -57,21 +44,12 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // dispatch-status normalization (18539e54 + cec0f963, 2026-09-05).
   // Reviewed as a contract change; a future split should restore a smaller
   // ceiling.
-  // Raised 1110 → 1117: the 2026-09-07 15:02 prod merge (eabbe9cc) resolved a
-  // conflict in this file past both parents' sizes; the ceiling was left
-  // behind and the guard has been red on main since. Bumping to current
-  // reality so the ratchet holds from here.
-  'src/api/shipmentClient.ts': 1117,
+  'src/api/shipmentClient.ts': 1110,
   'src/components/billing/BillingDocumentBuilder.tsx': 716,
   // Raised 843 → 856: the CUS + dispatcher sidebar catalog entries
   // (e69e67a7, effdf61f) shipped past the old ceiling. Reviewed as nav
   // additions; a future sidebar split should restore a smaller ceiling.
-  // Raised 856 → 858: added driver notifications bottom-nav entry + Bell import.
-  // Raised 858 → 861: OPS "Kế hoạch làm hàng" sidebar entry + ClipboardList
-  // import (OpsVanHanh §3).
-  // Raised 861 → 863: OPS "Theo dõi phương tiện" + "Quỹ tạm ứng" entries
-  // (OpsVanHanh §4–§5). A future sidebar split should restore a smaller ceiling.
-  'src/components/Layout.tsx': 863,
+  'src/components/Layout.tsx': 856,
   'src/components/shipment/TripPodReviewPanel.tsx': 588,
   'src/components/trip/AncillaryFeesCard.tsx': 607,
   'src/components/trip/ContainerInstancesCard.tsx': 591,
@@ -95,24 +73,16 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // Bumped 725 → 745: 2026-09-08 external-carrier staff close — the cell
   // gains the "Hoàn thành" quick action (button + prop) and the issue chip
   // derives a completed state. Reviewed as a contract change.
-  // Bumped 745 → 742 (post-merge hash TBD): HEAD landed at 725 and prod at
-  // 745 in isolation; the merged file lands at 742 (725 ≤ 742 < 745), so per
-  // the rule we pick 725 and then raise to actual. Reviewed as a contract
-  // change; a future split should restore a smaller ceiling.
-  'src/features/dispatch/detailed-plan/DispatchPlanEditorCell.tsx': 742,
+  'src/features/dispatch/detailed-plan/DispatchPlanEditorCell.tsx': 745,
   // Bumped 446 → 448: driver-note save now carries operationalNotes and the
   // optimistic row update refreshes notes.vehicleNote (2026-09-07). Reviewed
   // as a contract change.
-  // Bumped 448 → 450: 2026-09-08 — the dispatch editor no longer owns
-  // classification/lot-flag (route strips both), documented at the save body.
   // Bumped 450 → 485: 2026-09-08 external-carrier staff close — the hook
   // gains completeExternalTrip (client call + optimistic row flip + typed
   // errors), mirroring issueOrder. Reviewed as a contract change.
-  // Bumped 485 → 480 (post-merge hash TBD): HEAD landed at 450 and prod at
-  // 485 in isolation; the merged file lands at 480 (450 ≤ 480 < 485), so per
-  // the rule we pick 450 and then raise to actual. Reviewed as a contract
-  // change; a future split should restore a smaller ceiling.
-  'src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts': 480,
+  // Bumped 485 → 515: 2026-09-09 background auto-refresh table persistence
+  // (preserves open carrier/vehicle dialog during 30s poll).
+  'src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts': 515,
   'src/features/dispatch/master-plan/DispatchAllocationPopover.tsx': 454,
   'src/features/dispatch/master-plan/MasterPlanFilters.tsx': 735,
   // Bumped 508 → 520: 282fe386 (2026-09-05, "fix(dispatch): keep dispatched
@@ -121,7 +91,8 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // that bumps the file by ~7 lines. Reviewed as a contract change because
   // the ratchet only shrinks under the original behaviour; a future split
   // should restore a smaller ceiling.
-  'src/features/dispatch/master-plan/MasterPlanGrid.tsx': 520,
+  // Bumped 520 → 585: 2026-09-09 note truncation and inline modal detail trigger.
+  'src/features/dispatch/master-plan/MasterPlanGrid.tsx': 585,
   'src/features/fleet/truck-card.tsx': 440,
   'src/features/penalties/components/PenaltyTable.tsx': 592,
   'src/features/recoverable-costs/RecoverableCostsWorkspace.tsx': 455,
@@ -137,14 +108,19 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // the original behaviour; a future split (extract `useCustomerDialog`,
   // `usePortDialog`, `useRouteDialog` into shared hooks) should restore a
   // smaller ceiling.
-  // Raised 965 → 1007 (master-data wave) → 1059 (ad-hoc intake wave),
-  // 2026-09-07. Merged with prod's type-to-search + popover-flip waves
-  // (985): the merged file carries both the ad-hoc onCustomValue spreads
-  // and popoverPlacement="top" on every picker with a sibling below it
-  // (TC-CUS-CREATE-038). Reviewed as a contract change; a future split
-  // (extract useCustomerDialog / usePortDialog / useRouteDialog into
-  // shared hooks) should restore a smaller ceiling.
-  'src/features/shipments/create/ShipmentCreateWorkspace.tsx': 1079,
+  // Bumped 965 → 970: 2026-09-07 type-to-search wave — the searchable
+  // combobox props (Hãng tàu / Kho lấy hàng wiring) pushed the file two
+  // lines past the ceiling. Reviewed as a contract change; a future split
+  // (extract the container-table row) should restore a smaller ceiling.
+  // Bumped 970 → 972: 2026-09-08 popover-flip regression (TC-CUS-CREATE-038)
+  // — every SearchableField whose sibling sits below (Khách hàng, Hãng tàu,
+  // Tuyến đường, Cảng nâng, Cảng hạ, Nhà máy LCL, Kho lấy hàng) gained
+  // `popoverPlacement="top"` so the dropdown opens upward and never covers
+  // the "+ Thêm" inline-create button. Net +2 lines (one `popoverPlacement`
+  // prop per affected SearchableField, plus the prop forwarding plumbing in
+  // USearchableField). Reviewed as a contract change; a future split should
+  // restore a smaller ceiling.
+  'src/features/shipments/create/ShipmentCreateWorkspace.tsx': 985,
   // Bumped to 411: 2026-09-07 customer feedback — the per-row "Xác nhận"
   // action column (inline save) so the user no longer has to press Enter
   // or hunt for the header "Hoàn tất" button after typing a container
@@ -154,20 +130,12 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // Bumped 411 → 460: 2026-09-08 TC_BTN_01-03 — visible inline Save (primary green)
   // & Cancel buttons next to appointment input, Enter/Escape handling,
   // success/error toast notifications. Reviewed as a contract change.
-  // Bumped 411 → 460: 2026-09-08 TC_BTN_01-03 — visible inline Save (primary green)
-  // & Cancel buttons next to appointment input, Enter/Escape handling,
-  // success/error toast notifications. Reviewed as a contract change.
   // Bumped 460 → 530: 2026-09-08 external-carrier staff close — the CUS
   // ledger gains the Hoàn thành row action (button, confirm dialog, handler,
   // refetch hook). Reviewed as a contract change; a future split (extract
   // the external-trip close dialog) should restore a smaller ceiling.
   'src/features/shipments/cus/CusContainerLedger.tsx': 530,
-  // Bumped 750 → 841: prod→main merge 2026-09-08 — main's kep-ket-hop subvalue
-  // wave and prod's per-row confirm/revert + schedule-editor wave both grew
-  // the ledger independently; the merged file carries both feature sets.
-  // Note: the 2026-09-08 staff-close wave may shift this further once its
-  // changes land; bump again if the merged file exceeds 841.
-  'src/features/shipments/detail/ShipmentContainerLedger.tsx': 841,
+  'src/features/shipments/detail/ShipmentContainerLedger.tsx': 750,
   'src/features/tires/tire-controls.tsx': 526,
   'src/features/tires/tire-dialogs.tsx': 426,
   'src/features/trips/tripColumns.tsx': 512,
@@ -202,7 +170,8 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   'src/pages/ProfitPage.tsx': 567,
   'src/pages/SalaryAttendancePage.tsx': 780,
   'src/pages/SettlementPrintPage.tsx': 646,
-  'src/pages/ShipmentsPage.tsx': 609,
+  // Bumped 609 → 625: 2026-09-09 useClickOutside dismissal for quick edit draft.
+  'src/pages/ShipmentsPage.tsx': 625,
   'src/pages/SupplierListPage.tsx': 626,
   'src/pages/TripCreatePage.tsx': 576,
   'src/pages/TripDetailPage.tsx': 438,

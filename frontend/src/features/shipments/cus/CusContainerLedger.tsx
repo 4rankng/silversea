@@ -5,6 +5,7 @@ import {
   type ShipmentCusWorkspaceDetail,
 } from '@tingting/shared';
 import { formatDateTimeShort } from '../../../lib/format';
+import { localDateTimeToIso } from '../../../lib/shipment-operations';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 import { SearchableSelect } from '../../../design-system';
 import { updateCusShipmentContainerLine } from '../../../api/shipmentClient';
@@ -55,8 +56,10 @@ function buildContainerPatch(
     && vehicle.licensePlate.localeCompare(draft.plateNumber.trim(), 'vi', { sensitivity: 'base' }) === 0
   ));
   const appointmentChanged = permissions.customerAppointmentEditable && draft.customerAppointmentAt !== base.customerAppointmentAt;
-  const parsedAppointment = appointmentChanged && draft.customerAppointmentAt && !Number.isNaN(new Date(draft.customerAppointmentAt).getTime())
-    ? new Date(draft.customerAppointmentAt).toISOString()
+  // Popover drafts are naive "YYYY-MM-DDTHH:mm" — persist as Vietnam wall-clock
+  // (+07:00), matching saveSchedule's localDateTimeToIso wire format.
+  const parsedAppointment = appointmentChanged && draft.customerAppointmentAt
+    ? localDateTimeToIso(draft.customerAppointmentAt)
     : null;
 
   return {
@@ -99,7 +102,7 @@ function ContainerLineRow({
   onCompleteExternalTrip?: (line: ShipmentCusWorkspaceContainerLine) => void;
   completing?: boolean;
 }) {
-  const [selectOpen, setSelectOpen] = useState(false);
+  const [, setSelectOpen] = useState(false);
   const [appointmentOpen, setAppointmentOpen] = useState(false);
   const appointmentTriggerRef = useRef<HTMLButtonElement>(null);
   const p = line.permissions;

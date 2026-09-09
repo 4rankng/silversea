@@ -36,16 +36,11 @@
   - Hiển thị đúng 2 dòng container với container/seal đã nhập.
   - Ngày giao dự kiến lưu riêng theo từng container (không chỉ ở cấp lô).
   - Cước dự kiến tự động lấy theo Khách × Tuyến (read-only, không cho gõ tay).
-  - Phụ phí xăng dầu tự tính theo công thức: `(giá dầu hiện tại − giá dầu gốc) × số lít định mức khứ hồi` — **thu 100 %, KHÔNG nhân tỷ lệ chia sẻ**.
-  - Giá cước gốc được cộng `% chia sẻ` theo **cặp (Khách × Tuyến)**: `giá gốc × (1 + % chia sẻ)`.
-  - Tổng cước = 2 khoản trên cộng lại, **làm tròn đến từng đồng**.
-  - Nguồn chân lý công thức: `docs/prd/CuocPhiPhuPhiDau.md`.
+  - Phụ phí xăng dầu tự tính theo công thức: `(giá dầu hiện tại − giá dầu gốc) × số lít định mức × tỷ lệ chia sẻ`.
   - Ghi người tạo và thời điểm.
 - **Kỳ vọng sai (Fail nếu):**
   - Thiếu trường FCL (container, seal, ngày giao theo container).
   - Cước hoặc phụ phí không hiển thị / cho nhập tay.
-  - Phụ phí dầu bị nhân với `% chia sẻ` (sai công thức — xem `CuocPhiThietKeDB.md` §1.1).
-  - Giá trị tiền có phần thập phân (phải làm tròn đến đồng).
   - Ngày giao chỉ lưu ở cấp lô.
   - Mã lô trùng hoặc không sinh.
 - **Bằng chứng:** ảnh form đã điền + ảnh chi tiết lô + ảnh giá cước read-only
@@ -377,10 +372,7 @@
 
 ---
 
-### TC-CUS-CREATE-025 — Tạo cảng/bãi inline ngay từ ô Cảng nâng/hạ của container
-
-> **Ghi chú đánh số:** case này trước đây mang mã `TC-CUS-CREATE-019`, **trùng** với case
-> "Quy cách đóng gói free-text" ở §1.9. Đổi thành `-025` ngày 2026-09-06 để hết trùng mã.
+### TC-CUS-CREATE-019 — Tạo cảng/bãi inline ngay từ ô Cảng nâng/hạ của container
 
 - **Vai trò:** `CUS`
 - **Mức độ:** P0
@@ -484,314 +476,13 @@
 
 ---
 
-## 1.10 — Nhà máy → tự điền Tuyến + Vị trí (đặc tả master-data 2026-09-06)
-
-> **Nguồn:** đặc tả khách hàng 2026-09-06 (PHẦN 1) + PRD `QuyTrinhO2C.md` mục "Danh Mục: Quan Hệ
-> Khách hàng – Nhà máy – Tuyến – Vị Trí". Nhà máy là nơi neo duy nhất của Tuyến đường và Vị trí
-> đóng/trả hàng; chọn nhà máy → tự điền + khóa 2 trường này.
-
-### TC-CUS-CREATE-021 — Chọn nhà máy → tự điền và khóa Tuyến đường + Vị trí (FCL)
-
-- **Vai trò:** `cus`
-- **Mức độ:** P0
-- **Tiền điều kiện:** khách hàng đã chọn; có ≥1 nhà máy ACTIVE loại Factory đã gắn tuyến
-- **Các bước:**
-  1. Mở `/shipments/new`, chọn khách hàng, chuyển FCL.
-  2. Ở dòng container, chọn nhà máy đã cấu hình tuyến.
-  3. Quan sát trường Tuyến đường và Vị trí đóng/trả hàng.
-  4. Thử bấm/mở trường Tuyến đường để đổi tuyến khác.
-- **Kết quả mong đợi (Pass):**
-  - Ngay khi chọn nhà máy: Tuyến đường tự điền đúng tuyến của nhà máy và **read-only** (không đổi được).
-  - Vị trí đóng/trả hàng hiển thị read-only theo địa chỉ nhà máy (không có ô nhập).
-  - Nhà máy CHƯA cấu hình tuyến → trường Tuyến vẫn chọn tay được như cũ (không dead-end).
-- **Kỳ vọng sai (Fail nếu):** tuyến trống với nhà máy đã có tuyến; vẫn đổi được tuyến sau khi chọn nhà máy.
-- **Bằng chứng:** ảnh dropdown nhà máy + ảnh 2 trường read-only sau khi chọn
-
-### TC-CUS-CREATE-022 — Tương tự ở cấp lô LCL; nhà máy chưa có tuyến vẫn chọn tay được
-
-- **Vai trò:** `cus`
-- **Mức độ:** P1
-- **Các bước:**
-  1. Chuyển chế độ Hàng lẻ (LCL), chọn nhà máy của khách hàng.
-  2. Chọn nhà máy loại Kho (chưa gắn tuyến) hoặc nhà máy chưa cấu hình tuyến.
-- **Kết quả mong đợi (Pass):**
-  - LCL cấp lô: chọn nhà máy có tuyến → tuyến tự điền + khóa (giống TC-021).
-  - Nhà máy chưa có tuyến → tuyến chọn tay bình thường (hành vi cũ giữ nguyên).
-- **Bằng chứng:** ảnh 2 trường hợp
-
-### TC-CUS-CREATE-023 — Backend chốt nhất quán nhà máy ↔ tuyến (API)
-
-- **Vai trò:** `cus` (qua API)
-- **Mức độ:** P0
-- **Các bước:**
-  1. POST tạo lô với container có `operationalSiteId` của nhà máy A (tuyến T1) nhưng `routeId` = T2 (khác T1).
-  2. POST tạo lô với `operationalSiteId` nhà máy A và **bỏ trống** `routeId`.
-- **Kết quả mong đợi (Pass):**
-  - Lần 1: 422 lỗi tiếng Việt (tuyến không khớp nhà máy), không tạo lô.
-  - Lần 2: tạo thành công, `routeId` được tự suy = T1 theo nhà máy.
-- **Kỳ vọng sai (Fail nếu):** lưu được tuyến sai; bỏ trống tuyến thì lô rơi vào trạng thái thiếu tuyến dù nhà máy đã có.
-- **Bằng chứng:** Network tab (422 + 201) + DB `shipment_containers.route_id`
-
-### TC-CUS-CREATE-024 — Nhà máy loại Factory bắt buộc có tuyến
-
-- **Vai trò:** `cus` / `admin`
-- **Mức độ:** P1
-- **Các bước:**
-  1. Form "Thêm nhà máy": chọn loại Factory, điền đủ trừ tuyến, bấm thêm.
-  2. Thử sửa nhà máy Factory hiện có bỏ tuyến (qua admin).
-- **Kết quả mong đợi (Pass):**
-  - Cả 2 lần bị chặn với thông báo tiếng Việt yêu cầu chọn tuyến đường.
-  - Tạo/sửa thành công khi đã chọn tuyến.
-- **Bằng chứng:** ảnh lỗi + ảnh tạo thành công
-
----
-
-## 1.11 — Lệnh chạy ngoài & Combobox nhập text tự do (đặc tả master-data 2026-09-06)
-
-> **Nguồn:** `2026.9.6_Logic_nghiep_vu.docx` Phần 1 §2–§3 · PRD
-> [`docs/prd/MasterDataNhaMay.md`](../../docs/prd/MasterDataNhaMay.md) §2.1 và §4.
->
-> **Bản chất:** cuốc xe vãng lai (tối ưu xe rỗng) không có khách/nhà máy/cảng trong danh
-> mục. Form phải cho gõ text tự do, lưu vào `Raw_*` với ID = `null`, và **tuyệt đối
-> không** thêm chuỗi đó vào bảng danh mục gốc.
->
-> ⚠️ **Phân biệt với "tạo mới inline"** (`TC-CUS-CREATE-012 / -017 / -020 / -025`): nút
-> `+ Tạo mới` **có** ghi vào master data. Text tự do thì **không**. Hai cơ chế cùng tồn tại.
-
-### TC-CUS-CREATE-026 — Checkbox "Lệnh chạy ngoài" hiện đúng vị trí, mặc định tắt
-
-- **Vai trò:** `cus`
-- **Mức độ:** P0
-- **Thiết bị:** Desktop + Mobile (390 × 844)
-- **Các bước:**
-  1. Đăng nhập `cus`, mở `/shipments/new`.
-  2. Quan sát vùng đầu form **trước khi cuộn**.
-  3. Trên mobile, lặp lại bước 2.
-- **Kết quả mong đợi (Pass):**
-  - Checkbox nhãn chính xác `Lệnh chạy ngoài (Tối ưu xe rỗng)` nằm ở **đầu form**, thấy được không cần cuộn (cả desktop lẫn mobile).
-  - Mặc định **KHÔNG tích**.
-  - Vùng chạm ≥ 44 px trên mobile; label bấm được (không chỉ ô vuông).
-- **Kỳ vọng sai (Fail nếu):** checkbox nằm cuối form / phải cuộn mới thấy; mặc định đã tích; sai nhãn.
-- **Bằng chứng:** ảnh đầu form desktop + ảnh đầu form mobile
-
----
-
-### TC-CUS-CREATE-027 — Tích cờ ⇒ mở khoá Tuyến đường + Vị trí; bỏ tích ⇒ khoá lại
-
-- **Vai trò:** `cus`
-- **Mức độ:** **P0** (giao thoa trực tiếp với `TC-CUS-CREATE-021`)
-- **Tiền điều kiện:** có khách hàng với ≥ 1 nhà máy đã gắn tuyến
-- **Các bước:**
-  1. **Không** tích cờ. Chọn khách hàng → chọn nhà máy. Ghi lại trạng thái 2 trường `Tuyến đường`, `Vị trí đóng/trả hàng`.
-  2. Tích cờ `Lệnh chạy ngoài`. Quan sát lại 2 trường đó.
-  3. Gõ tay một tuyến khác vào ô `Tuyến đường`.
-  4. **Bỏ tích** cờ. Quan sát.
-- **Kết quả mong đợi (Pass):**
-  - Bước 1: cả 2 trường **read-only** và auto-fill đúng theo nhà máy (hành vi `TC-CUS-CREATE-021` giữ nguyên).
-  - Bước 2: cả 2 trường **mở khoá**, nhập tay được.
-  - Bước 3: text gõ tay được giữ lại.
-  - Bước 4: hệ thống **cảnh báo tiếng Việt** rằng các trường phải chọn lại từ danh mục trước khi lưu; **không** âm thầm xoá dữ liệu người dùng đã gõ.
-- **Kỳ vọng sai (Fail nếu):** tích cờ mà trường vẫn khoá; bỏ tích mà lưu được text tự do; bật/tắt cờ xoá trắng form.
-- **Bằng chứng:** ảnh 4 bước theo thứ tự
-
----
-
-### TC-CUS-CREATE-028 — Tích cờ ⇒ bypass validation định mức cước phí
-
-- **Vai trò:** `cus`
-- **Mức độ:** **P0**
-- **Tiền điều kiện:** có tuyến/khách hàng mà luồng chuẩn **bắt buộc** phải có định mức cước phí
-- **Các bước:**
-  1. **Không** tích cờ. Điền lô thiếu định mức cước phí. Bấm Lưu.
-  2. Tích cờ `Lệnh chạy ngoài`. Bấm Lưu lại với đúng dữ liệu đó.
-- **Kết quả mong đợi (Pass):**
-  - Bước 1: **bị chặn**, lỗi tiếng Việt về định mức cước phí (hành vi cũ giữ nguyên).
-  - Bước 2: **lưu thành công**, lô sang Điều vận được ngay.
-  - Lô lưu với `is_ad_hoc = true` trong DB.
-- **Kỳ vọng sai (Fail nếu):** cờ không bypass được; hoặc cờ bypass luôn cả validation an toàn (xem `TC-CUS-CREATE-029`).
-- **Bằng chứng:** ảnh lỗi bước 1 + ảnh lưu thành công bước 2 + truy vấn DB `is_ad_hoc`
-
----
-
-### TC-CUS-CREATE-029 — Bypass CHỈ áp dụng cho cước phí, không nới validation an toàn (negative)
-
-- **Vai trò:** `cus`
-- **Mức độ:** **P0** (chống hổng dữ liệu)
-- **Các bước:** tích cờ `Lệnh chạy ngoài`, rồi lần lượt thử lưu với:
-  1. Số container sai chuẩn ISO-6346 (sai chữ số kiểm tra).
-  2. Ngày giao dự kiến không hợp lệ / trước ngày lấy hàng.
-  3. Số lượng container = `0` hoặc âm.
-  4. Bỏ trống trường bắt buộc (ví dụ: Khách hàng).
-- **Kết quả mong đợi (Pass):**
-  - **Cả 4 lần đều bị chặn** với lỗi tiếng Việt cụ thể — cờ chạy ngoài **không** nới các validation này.
-- **Kỳ vọng sai (Fail nếu):** bất kỳ trường hợp nào lọt qua vì đang bật cờ.
-- **Bằng chứng:** ảnh 4 thông báo lỗi
-
----
-
-### TC-CUS-CREATE-030 — Gõ text tự do ⇒ lưu Raw_*, ID = null
-
-- **Vai trò:** `cus`
-- **Mức độ:** **P0** (case lõi của đặc tả)
-- **Các bước:**
-  1. Tích cờ `Lệnh chạy ngoài`.
-  2. Ô **Khách hàng**: gõ chuỗi chắc chắn không có trong danh mục, ví dụ `KH VÃNG LAI QA 0906`. Rời trường (blur).
-  3. Làm tương tự với **Nhà máy**, **Tuyến đường**, **Cảng nâng**, **Cảng hạ** (mỗi ô một chuỗi lạ riêng).
-  4. Điền nốt trường bắt buộc, bấm Lưu.
-  5. Truy vấn DB bản ghi lô vừa tạo.
-- **Kết quả mong đợi (Pass):**
-  - Chuỗi lạ **giữ nguyên trong ô sau khi blur** — không bị xoá, không tự nhảy về mục gần giống.
-  - Lô lưu thành công.
-  - DB: `customer_id`, `factory_id` (`operational_site_id`), `route_id`, cảng nâng/hạ **đều `null`**; các trường `raw_customer_name`, `raw_factory_name`, `raw_route_name`, `raw_port_*` chứa **đúng chuỗi đã gõ**, không cắt, không đổi hoa/thường.
-- **Kỳ vọng sai (Fail nếu):** text bị mất khi blur; lưu ID của bản ghi gần giống; `Raw_*` rỗng trong khi ID cũng `null` (mất dữ liệu).
-- **Bằng chứng:** ảnh form trước khi lưu + kết quả `SELECT` bản ghi lô
-
----
-
-### TC-CUS-CREATE-031 — Guardrail: text tự do KHÔNG được insert vào master data
-
-- **Vai trò:** `cus` (+ `admin` đối chiếu)
-- **Mức độ:** **P0** (bảo vệ danh mục của Kế toán)
-- **Tiền điều kiện:** ghi lại số bản ghi trước khi thử:
-  ```sql
-  SELECT (SELECT count(*) FROM customers)         AS kh,
-         (SELECT count(*) FROM operational_sites) AS nm,
-         (SELECT count(*) FROM routes)            AS tuyen,
-         (SELECT count(*) FROM ports)             AS cang;
-  ```
-- **Các bước:**
-  1. Chạy truy vấn trên, ghi lại 4 con số (gọi là `C0`).
-  2. Thực hiện trọn vẹn `TC-CUS-CREATE-030` (tạo lô chạy ngoài với 5 chuỗi lạ).
-  3. Chạy lại truy vấn (gọi là `C1`).
-  4. Đăng nhập `admin`, mở trang Khách hàng / Nhà máy / Tuyến / Cảng, tìm 5 chuỗi lạ.
-- **Kết quả mong đợi (Pass):**
-  - `C1 == C0` — **cả 4 con số không đổi**.
-  - Không tìm thấy chuỗi lạ nào trong 4 trang danh mục của admin.
-  - Dropdown ở form tạo lô mới **không** gợi ý các chuỗi lạ đó.
-- **Kỳ vọng sai (Fail nếu):** bất kỳ bảng danh mục nào tăng số bản ghi; chuỗi lạ xuất hiện trong danh mục.
-- **Bằng chứng:** 2 kết quả truy vấn cạnh nhau + ảnh 4 trang danh mục sau khi tìm
-
----
-
-### TC-CUS-CREATE-032 — Trộn ID và text tự do trong cùng một lô
-
-- **Vai trò:** `cus`
-- **Mức độ:** P1
-- **Các bước:**
-  1. Tích cờ. Ô **Khách hàng**: gõ text lạ. Ô **Cảng hạ**: **chọn** một cảng có sẵn từ dropdown.
-  2. Lưu, rồi truy vấn DB.
-- **Kết quả mong đợi (Pass):**
-  - `customer_id = null` + `raw_customer_name` có giá trị.
-  - `cảng hạ id` **có giá trị** + `raw` của cảng hạ = `null`.
-  - Hai trường độc lập — không trường nào ép trường kia sang cùng chế độ.
-- **Kỳ vọng sai (Fail nếu):** chọn dropdown ở 1 ô mà ô kia bị ép về ID (hoặc ngược lại).
-- **Bằng chứng:** kết quả `SELECT` cho thấy trạng thái hỗn hợp
-
----
-
-### TC-CUS-CREATE-033 — Combobox: xổ chọn, lọc, giữ text lạ, đóng đúng cách
-
-- **Vai trò:** `cus`
-- **Mức độ:** P0
-- **Áp dụng cho cả 5 ô:** Khách hàng · Nhà máy · Tuyến đường · Cảng nâng · Cảng hạ
-- **Các bước (lặp cho từng ô):**
-  1. Bấm mũi tên → danh sách xổ ra.
-  2. Gõ một phần tên có thật, **không dấu, chữ thường** (ví dụ `hai phong` cho `Hải Phòng`).
-  3. Dùng `↑`/`↓` rồi `Enter` để chọn mục đang tô sáng.
-  4. Xoá, gõ chuỗi lạ, bấm `Esc`.
-  5. Xoá, gõ chuỗi lạ, click ra vùng trống ngoài form.
-- **Kết quả mong đợi (Pass):**
-  - Bước 1: xổ đủ danh mục.
-  - Bước 2: lọc đúng — **không phân biệt hoa/thường và không phân biệt dấu tiếng Việt**.
-  - Bước 3: `Enter` chọn được mục tô sáng; `Esc` đóng danh sách.
-  - Bước 4 & 5: danh sách đóng **nhưng chuỗi lạ vẫn còn nguyên trong ô** (không bị revert, không bị xoá).
-  - Giá trị text tự do **nhìn phân biệt được** với giá trị chọn từ danh mục (chú thích "mới" hoặc tương đương).
-- **Kỳ vọng sai (Fail nếu):** gõ `hai phong` không ra `Hải Phòng`; `Esc`/click-ngoài xoá mất text; không phân biệt được 2 loại giá trị.
-- **Bằng chứng:** ảnh từng bước cho ít nhất 2 trong 5 ô + ảnh trạng thái phân biệt
-
----
-
-### TC-CUS-CREATE-034 — Nút "+ Tạo mới" vẫn ghi master data thật, kể cả khi cờ đang bật
-
-- **Vai trò:** `cus`
-- **Mức độ:** **P0** (chống lẫn lộn 2 cơ chế)
-- **Các bước:**
-  1. Tích cờ `Lệnh chạy ngoài`.
-  2. Ở ô **Khách hàng**, bấm nút `+ Tạo mới`, điền form phụ, xác nhận.
-  3. Truy vấn `SELECT count(*) FROM customers` trước/sau.
-  4. Mở form tạo lô **mới**, tìm khách hàng vừa tạo trong dropdown.
-- **Kết quả mong đợi (Pass):**
-  - Nút `+ Tạo mới` **vẫn hiển thị và dùng được** khi cờ bật.
-  - `customers` **tăng đúng 1** bản ghi (khác hẳn `TC-CUS-CREATE-031`).
-  - Khách hàng mới **tự chọn** vào ô và **xuất hiện trong dropdown** ở form sau.
-  - Lô lưu với `customer_id` **có giá trị**, `raw_customer_name = null`.
-- **Kỳ vọng sai (Fail nếu):** cờ ẩn/vô hiệu hoá nút `+ Tạo mới`; hoặc `+ Tạo mới` chỉ lưu text tự do mà không tạo bản ghi.
-- **Bằng chứng:** 2 kết quả `count(*)` + ảnh dropdown form sau
-
----
-
-### TC-CUS-CREATE-035 — Lô chạy ngoài hiển thị đủ xuôi dòng, không ô trống
-
-- **Vai trò:** `cus` → `dieuvan` → `laixe`
-- **Mức độ:** **P0** (đọc `Raw_*` ở mọi màn)
-- **Tiền điều kiện:** lô chạy ngoài từ `TC-CUS-CREATE-030`
-- **Các bước:**
-  1. `cus`: mở danh sách lô và chi tiết lô đó.
-  2. `dieuvan`: mở màn điều vận, phân xe + phát lệnh cho lô đó.
-  3. `laixe`: mở app, xem thẻ tổng quát và thẻ chi tiết của lệnh.
-- **Kết quả mong đợi (Pass):**
-  - Cả 3 màn hiển thị **tên khách hàng / nhà máy / tuyến / cảng bằng chuỗi đã gõ** — không ô trống, không chữ `null`, không `undefined`, không mã số trần.
-  - Danh sách + chi tiết lô có **nhãn "Chạy ngoài"** (chữ màu, **không** badge nền/chấm tròn).
-  - `dieuvan` phân xe và phát lệnh **không bị chặn** vì thiếu `Factory_ID`.
-- **Kỳ vọng sai (Fail nếu):** bất kỳ màn nào hiện ô trống/`null`; điều vận bị chặn; nhãn dùng badge nền.
-- **Bằng chứng:** ảnh 3 màn + ảnh nhãn "Chạy ngoài"
-
----
-
-### TC-CUS-CREATE-036 — Mở lại lô chạy ngoài để sửa: cờ và text giữ nguyên
-
-- **Vai trò:** `cus`
-- **Mức độ:** P1
-- **Các bước:**
-  1. Mở lô chạy ngoài ở chế độ sửa.
-  2. Đổi một trường không liên quan (ví dụ ghi chú), lưu lại.
-  3. Mở lại lần nữa.
-- **Kết quả mong đợi (Pass):**
-  - Checkbox `Lệnh chạy ngoài` vẫn ở trạng thái **tích**.
-  - Các ô master data hiển thị lại **đúng chuỗi `Raw_*`** đã lưu.
-  - Lưu lại **không** biến `Raw_*` thành ID, **không** tạo bản ghi danh mục mới (`count(*)` không đổi).
-- **Kỳ vọng sai (Fail nếu):** cờ mất sau khi mở lại; ô master data trống; lưu lại sinh bản ghi danh mục.
-- **Bằng chứng:** ảnh form mở lại + `count(*)` trước/sau
-
----
-
-### TC-CUS-CREATE-037 — Kế toán & báo cáo: lô chạy ngoài không lẫn vào công nợ khách hàng
-
-- **Vai trò:** `ketoan`
-- **Mức độ:** P1
-- **Tiền điều kiện:** ≥ 1 lô chạy ngoài (không `Customer_ID`) + ≥ 1 lô chuẩn của khách hàng thật
-- **Các bước:**
-  1. Mở báo cáo/công nợ theo khách hàng.
-  2. Mở báo cáo theo tuyến.
-- **Kết quả mong đợi (Pass):**
-  - Lô chạy ngoài **không** được gộp vào công nợ của bất kỳ khách hàng nào trong danh mục.
-  - Báo cáo gom lô chạy ngoài vào nhóm riêng nhãn **"Chạy ngoài"**, **không** nhét vào nhóm `null` / nhóm trống.
-  - Tổng tiền toàn báo cáo vẫn khớp (không mất dòng).
-- **Kỳ vọng sai (Fail nếu):** lô chạy ngoài gắn nhầm vào khách hàng khác; biến mất khỏi báo cáo.
-- **Bằng chứng:** ảnh 2 báo cáo + đối chiếu tổng
-
----
-
-## 1.12 — Xoá selections trong ô dropdown container (báo cáo khách hàng 2026-09-07)
+## 1.10 — Xoá selections trong ô dropdown container (báo cáo khách hàng 2026-09-07)
 
 > **Nguồn:** Customer relay 2026-09-07 — "mục nhà máy, tuyến đường, cảng nâng, cảng hạ khi đã chọn
 > dữ liệu mà muốn xóa đi để tìm lại thông tin đúng chọn lại nhưng không xóa được mà phải kéo chọn
 > những data có sẵn".
->
-> **Ghi chú đánh số:** các case trong mục này được đánh số lại từ `TC-CUS-CREATE-021`–`-025`
-> (trùng mã với §1.10–1.11 của đặc tả 2026-09-06) thành `-038`–`-042` khi gộp nhánh prod 2026-09-07.
 
-### TC-CUS-CREATE-038 — Xoá chọn trong ô Nhà máy container rồi chọn lại
+### TC-CUS-CREATE-021 — Xoá chọn trong ô Nhà máy container rồi chọn lại
 
 - **Vai trò:** `CUS`
 - **Mức độ:** P0
@@ -812,7 +503,7 @@
 
 ---
 
-### TC-CUS-CREATE-039 — Xoá chọn trong ô Tuyến đường container
+### TC-CUS-CREATE-022 — Xoá chọn trong ô Tuyến đường container
 
 - **Vai trò:** `CUS`
 - **Mức độ:** P0
@@ -828,7 +519,7 @@
 
 ---
 
-### TC-CUS-CREATE-040 — Xoá chọn trong ô Cảng nâng và Cảng hạ container
+### TC-CUS-CREATE-023 — Xoá chọn trong ô Cảng nâng và Cảng hạ container
 
 - **Vai trò:** `CUS`
 - **Mức độ:** P0
@@ -844,7 +535,7 @@
 
 ---
 
-### TC-CUS-CREATE-041 — Xoá chọn trong ô dropdown ở chế độ LCL
+### TC-CUS-CREATE-024 — Xoá chọn trong ô dropdown ở chế độ LCL
 
 - **Vai trò:** `CUS`
 - **Mức độ:** P1
@@ -858,7 +549,7 @@
 
 ---
 
-### TC-CUS-CREATE-042 — Nhấn Escape để revert giá trị dropdown container
+### TC-CUS-CREATE-025 — Nhấn Escape để revert giá trị dropdown container
 
 - **Vai trò:** `CUS`
 - **Mức độ:** P1
@@ -874,7 +565,7 @@
 
 ---
 
-## 1.13 — Nhà máy ở trang chi tiết hiển thị khi đã gán cho container (báo cáo khách hàng 2026-09-07)
+## 1.10 — Nhà máy ở trang chi tiết hiển thị khi đã gán cho container (báo cáo khách hàng 2026-09-07)
 
 > **Nguồn:** Khách hàng báo cáo 2026-09-07 — "ở giao diện cus: hiện đã nhập có nhà máy đóng trả hàng rồi mà
 > ở phần chi tiết lô hàng đang thể hiện chưa có nhà máy". Tái hiện trên staging sau `make stgdb` 2026-09-07:
@@ -883,11 +574,8 @@
 > Nguyên nhân: trang chi tiết dùng `getShipmentDetail` (shared) → trả `shipment.factoryName` legacy (rỗng)
 > mà không tra `shipment.operationalSiteId` / `shipment_containers.operationalSiteId` qua catalog
 > `operational_sites` để ra `effectiveFactoryName`. Các case dưới pin hành vi đã sửa.
->
-> **Ghi chú đánh số:** đánh số lại từ `TC-CUS-CREATE-023`/`-024` (trùng mã §1.10–1.12) thành
-> `-043`/`-044` khi gộp nhánh prod 2026-09-07.
 
-### TC-CUS-CREATE-043 — Nhà máy gán ở container hiển thị trên trang chi tiết `/shipments/:id`
+### TC-CUS-CREATE-023 — Nhà máy gán ở container hiển thị trên trang chi tiết `/shipments/:id`
 
 - **Mã PRD:** Q17, factory-display-pin (báo cáo 2026-09-07)
 - **Vai trò:** `CUS` (longminh-side account, vd `thanhdc`)
@@ -907,7 +595,7 @@
   - Hiển thị `shipment.factoryName` rỗng thay vì đã resolve.
 - **Bằng chứng:** ảnh trang chi tiết + DB `shipment_containers.operational_site_id=6` → `operational_sites.shortName='ASKEY-2'`.
 
-### TC-CUS-CREATE-044 — Nhà máy ở shipment-level vẫn ưu tiên khi cả hai đều set
+### TC-CUS-CREATE-024 — Nhà máy ở shipment-level vẫn ưu tiên khi cả hai đều set
 
 - **Vai trò:** `CUS`
 - **Mức độ:** P1
@@ -947,8 +635,9 @@
 | __/__/__ | TC-CUS-CREATE-018 | | | Form KH inline có địa chỉ | |
 | __/__/__ | TC-CUS-CREATE-019 | | | Quy cách đóng gói free-text | |
 | __/__/__ | TC-CUS-CREATE-020 | | | Tạo Loại container inline + tự chọn | |
-| __/__/__ | TC-CUS-CREATE-046 | | | Nhà máy gán ở container hiển thị trên /shipments/:id (regression bug 2026-09-07) | |
-| __/__/__ | TC-CUS-CREATE-047 | | | Ưu tiên factoryName free-text > operationalSiteId > container.operationalSiteId | |
+| __/__/__ | TC-CUS-CREATE-019 | | | Tạo cảng/bãi inline từ ô container | |
+| __/__/__ | TC-CUS-CREATE-023 | | | Nhà máy gán ở container hiển thị trên /shipments/:id (regression bug 2026-09-07) | |
+| __/__/__ | TC-CUS-CREATE-024 | | | Ưu tiên factoryName free-text > operationalSiteId > container.operationalSiteId | |
 | __/__/__ | TC-CUS-CREATE-021 | | | Xoá chọn Nhà máy container | |
 | __/__/__ | TC-CUS-CREATE-022 | | | Xoá chọn Tuyến đường container | |
 | __/__/__ | TC-CUS-CREATE-023 | | | Xoá chọn Cảng nâng/hạ container | |
@@ -969,50 +658,10 @@
 | __/__/__ | TC-CUS-CREATE-038 | | | Dropdown Cảng nâng / Tuyến đường che nút +Thêm khi trigger ở giữa/cuối màn hình → phải flip lên trên hoặc +Thêm vẫn click được (regression bug 2026-09-08) | |
 | __/__/__ | TC-CUS-CREATE-039 | | | Sửa Ngày/Giờ đóng hàng của container — không còn `Invalid datetime (customerAppointmentAt)` (regression bug 2026-09-08) | |
 | __/__/__ | TC-CUS-CREATE-040 | | | Không lộ thông báo lỗi nội bộ (tiếng Anh + tên field) ra giao diện khách hàng (regression bug 2026-09-08) | |
-| __/__/__ | TC-CUS-CREATE-041 | | | Nhà máy tự điền + khóa Tuyến/Vị trí (FCL) | |
-| __/__/__ | TC-CUS-CREATE-042 | | | Nhà máy tự điền (LCL) + chưa tuyến vẫn chọn tay | |
-| __/__/__ | TC-CUS-CREATE-043 | | | Backend chốt nhà máy ↔ tuyến | |
-| __/__/__ | TC-CUS-CREATE-044 | | | Factory bắt buộc có tuyến | |
-| __/__/__ | TC-CUS-CREATE-045 | | | Tạo cảng/bãi inline từ ô container (đổi từ mã -019/-025 trùng) | |
 
-**§1.11 — Lệnh chạy ngoài & combobox text tự do**
+---
 
-| Ngày thử | Mã TC | Người thử | Kết quả | Ghi chú | Bằng chứng |
-|-----------|-------|-----------|---------|---------|------------|
-| __/__/__ | TC-CUS-CREATE-026 | | | Checkbox đầu form, mặc định tắt | |
-| __/__/__ | TC-CUS-CREATE-027 | | | Cờ mở/khoá Tuyến + Vị trí | |
-| __/__/__ | TC-CUS-CREATE-028 | | | Bypass định mức cước phí | |
-| __/__/__ | TC-CUS-CREATE-029 | | | Không nới validation an toàn (P0) | |
-| __/__/__ | TC-CUS-CREATE-030 | | | Text tự do → Raw_*, ID null (P0) | |
-| __/__/__ | TC-CUS-CREATE-031 | | | Guardrail: master data không đổi (P0) | |
-| __/__/__ | TC-CUS-CREATE-032 | | | Trộn ID + text trong 1 lô | |
-| __/__/__ | TC-CUS-CREATE-033 | | | Combobox: lọc, giữ text, đóng đúng | |
-| __/__/__ | TC-CUS-CREATE-034 | | | "+ Tạo mới" vẫn ghi master data (P0) | |
-| __/__/__ | TC-CUS-CREATE-035 | | | Hiển thị xuôi dòng, không ô trống (P0) | |
-| __/__/__ | TC-CUS-CREATE-036 | | | Mở lại để sửa: cờ + text giữ nguyên | |
-| __/__/__ | TC-CUS-CREATE-037 | | | Không lẫn vào công nợ khách hàng | |
-
-**§1.12–1.13 — Xoá chọn dropdown & nhà máy ở trang chi tiết (báo cáo khách hàng 2026-09-07)**
-
-| Ngày thử | Mã TC | Người thử | Kết quả | Ghi chú | Bằng chứng |
-|-----------|-------|-----------|---------|---------|------------|
-| __/__/__ | TC-CUS-CREATE-038 | | | Xoá chọn Nhà máy container (nút X clear) | |
-| __/__/__ | TC-CUS-CREATE-039 | | | Xoá chọn Tuyến đường container | |
-| __/__/__ | TC-CUS-CREATE-040 | | | Xoá chọn Cảng nâng/hạ container | |
-| __/__/__ | TC-CUS-CREATE-041 | | | Xoá chọn dropdown ở chế độ LCL | |
-| __/__/__ | TC-CUS-CREATE-042 | | | Escape revert giá trị dropdown | |
-| __/__/__ | TC-CUS-CREATE-043 | | | Nhà máy container hiển thị trên /shipments/:id (hồi quy 2026-09-07) | |
-| __/__/__ | TC-CUS-CREATE-044 | | | Ưu tiên factoryName > operationalSiteId > container.operationalSiteId | |
-
-**§1.14 — Trùng Số Bill / Số tờ khai khi tạo lô (báo cáo khách hàng 2026-09-07)**
-
-| Ngày thử | Mã TC | Người thử | Kết quả | Ghi chú | Bằng chứng |
-|-----------|-------|-----------|---------|---------|------------|
-| __/__/__ | TC-CUS-CREATE-045 | | | Chặn tạo lô trùng BL/Tờ khai (regression bug 2026-09-07) | |
-| __/__/__ | TC-CUS-CREATE-046 | | | Cảnh báo inline khi gõ BL/Tờ khai đã tồn tại (regression bug 2026-09-07) | |
-| __/__/__ | TC-CUS-CREATE-047 | | | Màn Tổng quan không báo "Chưa chốt ngày" khi FCL đã có lịch container | |
-
-## 1.14 — Trùng Số Bill / Số tờ khai khi tạo lô (báo cáo khách hàng 2026-09-07)
+## 1.11 — Trùng Số Bill / Số tờ khai khi tạo lô (báo cáo khách hàng 2026-09-07)
 
 > **Nguồn:** Khách hàng (CUS) báo cáo 2026-09-07 — "lập trình giúp em là báo trùng với ạ, khi 1 lô hàng
 > đã nhập trước đó có số bil hoặc số tờ khai. mà sau lại nhập trùng cùng 1 số bil hoặc số tờ khai đó
@@ -1029,7 +678,7 @@
 > dẫn đến 2 màn Tổng quan / Chi tiết lô hiển thị khác nhau (1 lô "Chưa chốt ngày", 1 lô đã có lịch),
 > thao tác chỉnh ngày trên lô "Chưa chốt" bị vô hiệu vì lô kia đã chốt.
 
-### TC-CUS-CREATE-045 — Chặn tạo lô trùng Số Bill / Số Booking / Số tờ khai (regression bug 2026-09-07)
+### TC-CUS-CREATE-026 — Chặn tạo lô trùng Số Bill / Số Booking / Số tờ khai (regression bug 2026-09-07)
 
 - **Mã PRD:** duplicate-bill-guard (báo cáo 2026-09-07)
 - **Vai trò:** `CUS`
@@ -1065,11 +714,11 @@
 
 ---
 
-### TC-CUS-CREATE-046 — Cảnh báo inline trong form khi gõ Số Bill / Số Booking / Tờ khai đã tồn tại
+### TC-CUS-CREATE-027 — Cảnh báo inline trong form khi gõ Số Bill / Số Booking / Tờ khai đã tồn tại
 
 - **Vai trò:** `CUS`
 - **Mức độ:** P0
-- **Tiền điều kiện:** giống TC-CUS-CREATE-045
+- **Tiền điều kiện:** giống TC-CUS-CREATE-026
 - **Các bước:**
   1. Mở `/shipments/new`, chọn khách hàng, chọn **Nhập khẩu**.
   2. Gõ vào ô **Số Bill**: `BL-DUP-001` (đã có lô khác).
@@ -1080,7 +729,7 @@
     *"Số Bill này đã được nhập bởi <username> lúc <dd/MM HH:mm>. Vui lòng kiểm tra trước khi tạo."*
     kèm link "Xem lô đã nhập".
   - Nút "Tạo lô hàng" vẫn cho phép bấm (chưa hard-disable) nhưng khi submit sẽ nhận 409 và toast
-    lỗi như TC-CUS-CREATE-045 (defense in depth: server là nguồn quyết định cuối cùng).
+    lỗi như TC-CUS-CREATE-026 (defense in depth: server là nguồn quyết định cuối cùng).
   - Cảnh báo clear khi đổi sang giá trị Số Bill khác (không tồn tại).
   - Cùng hành vi cho Số Booking (Xuất khẩu) và Số tờ khai (LCL/Nhập — xem modal tờ khai nếu có).
   - Trước khi chọn hình thức nhập/xuất hoặc khi BL rỗng → không hiện cảnh báo.
@@ -1091,7 +740,7 @@
 
 ---
 
-### TC-CUS-CREATE-047 — Màn Tổng quan không báo "Chưa chốt ngày" khi FCL đã có lịch container
+### TC-CUS-CREATE-028 — Màn Tổng quan không báo "Chưa chốt ngày" khi FCL đã có lịch container
 
 - **Vai trò:** `CUS`
 - **Mức độ:** P1
@@ -1796,3 +1445,72 @@
 - **Kỳ vọng sai (Fail nếu):**
   - Mới nhập ngày cho 1 cont mà lô đã tự động chuyển sang "Sẵn sàng điều xe" và mất cảnh báo "Chưa chốt ngày" (hành vi lỗi khách hàng chụp ảnh báo).
 - **Bằng chứng:** `shipment-routes.test.ts` (builder/display assertions: partial lot reads PENDING_DATE, fully-dated lot reads READY_FOR_DISPATCH), `cus-shipment-workspace.test.ts`, QA screenshot.
+
+---
+
+### TC-CUS-CREATE-049 — Popover "Giờ hẹn đóng/trả" (CUS): nhập Giờ trước Ngày, ô giờ 24h, hiển thị ngoài danh sách dạng "HH:MM d/m/yy"
+
+- **Mã bug:** Regression staging 2026-09-08 (7-bug batch): popover sửa giờ hẹn đóng/trả phải ưu tiên nhập Giờ trước — Ngày sau, ô giờ theo định dạng 24h (không AM/PM), và hiển thị ngoài danh sách khớp định dạng "20:45 8/9/26".
+- **Vai trò:** `CUS`
+- **Mức độ:** P1
+- **Thiết bị:** Desktop (1440×900)
+- **Tiền điều kiện:** Lô hàng FCL đã tạo; mở chi tiết lô ở giao diện CUS, thấy bảng container (CusContainerLedger).
+- **Các bước:**
+  1. Đăng nhập CUS, mở `/shipments`, bấm "Chi tiết" để mở bảng container.
+  2. Bấm vào ô Lịch trình (giờ hẹn đóng/trả) của một container để mở popover `CusAppointmentPopover`.
+  3. Quan sát thứ tự trường nhập: ô **Giờ** (HH:mm) phải đứng **trước** ô **Ngày** (dd/mm/yyyy).
+  4. Kiểm tra ô Giờ theo định dạng 24h (00–23, không AM/PM; input được gắn `lang="en-GB"`).
+  5. Nhập giờ 20:45 và ngày 8/9/2026, bấm Lưu.
+  6. Quan sát hiển thị ngoài popover (bảng container / danh sách lô): ô lịch trình hiển thị **"20:45 8/9/26"** — giờ trước, ngày sau.
+- **Kết quả mong đợi (Pass):**
+  - Popover hiển thị Giờ trước Ngày, ô giờ 24h.
+  - Hiển thị ngoài popover khớp "20:45 8/9/26" (không "8/9/26 20:45", không có AM/PM).
+- **Kỳ vọng sai (Fail nếu):**
+  - Popover hiện Ngày trước Giờ; hoặc ô giờ 12h AM/PM; hoặc hiển thị ngoài lệch định dạng "HH:MM d/m/yy".
+- **Bằng chứng:** `CusAppointmentPopover.test.tsx` — it('renders giờ before ngày with 24h locale pinned to en-GB'). Liên quan: TC-CUS-CREATE-029/032 (nút Xác nhận + validate) trên cùng popover.
+
+---
+
+### TC-CUS-CREATE-050 — "Chỉnh sửa lịch trình" (nhân viên): nhập Giờ trước Ngày, giờ 24h — đồng bộ với popover CUS
+
+- **Mã bug:** Cùng cụm regression staging 2026-09-08: editor "Chỉnh sửa lịch trình" phía nhân viên (`ShipmentContainerScheduleEditor.tsx`) phải đồng bộ quyết định giờ-first/24h như popover CUS (quyết định 2026-09-09).
+- **Vai trò:** `DISPATCHER`, `CLERK`, `ADMIN`, `MANAGER`
+- **Mức độ:** P1
+- **Thiết bị:** Desktop (1440×900)
+- **Tiền điều kiện:** Lô FCL có container đã chốt lịch hẹn; mở chi tiết lô ở giao diện nhân viên (ShipmentContainerLedger).
+- **Các bước:**
+  1. Đăng nhập nhân viên (DISPATCHER/CLERK), mở chi tiết lô, bấm chỉnh sửa lịch trình của container để mở editor `ShipmentContainerScheduleEditor`.
+  2. Quan sát thứ tự trường: **Giờ** trước **Ngày**; ô giờ 24h (00–23, không AM/PM).
+  3. Nhập giờ 20:45 và ngày 8/9/2026, Lưu.
+  4. Quan sát hiển thị ngoài editor (bảng container nhân viên): **"20:45 8/9/26"**.
+- **Kết quả mong đợi (Pass):**
+  - Editor giờ-first + 24h; hiển thị ngoài khớp "HH:MM d/m/yy", đồng bộ với popover CUS (TC-CUS-CREATE-049).
+- **Kỳ vọng sai (Fail nếu):**
+  - Editor vẫn Ngày-trước-Giờ hoặc 12h AM/PM; hiển thị ngoài lệch định dạng so với popover CUS.
+- **Bằng chứng:** `ShipmentContainerScheduleEditor.tsx` (fix giờ-first đang thực hiện 2026-09-09, session silversea-prod-88) — bổ sung bằng chứng unit test khi fix landed.
+
+---
+
+## 1.22 — Known behavior: sửa container hủy fulfillments chưa phát hành lệnh (API pin 2026-09-09)
+
+> Phát hiện từ kiểm thử API staging 2026-09-09 (lô SHP-2609-00010). Quyết định của user (qua session prod-88): **document + pin bằng test, KHÔNG thêm guard chặn** — guard sẽ phá luồng sửa container của CUS sau khi phân bổ.
+
+### TC-CUS-CREATE-051 — Sửa container khi lô đã phân bổ nhưng CHƯA phát hành lệnh → fulfillments cũ bị hủy (REPLACED), lô rời bảng chi tiết điều vận đến khi phân bổ lại
+
+- **Mã:** API contract pin 2026-09-09
+- **Vai trò:** `ADMIN` (API contract; UI tương đương qua luồng sửa container CUS)
+- **Mức độ:** P2 (known behavior — không phải bug)
+- **Tiền điều kiện:** Lô FCL ≥1 container đã "Phân bổ nhà xe" (fulfillments active), lô đang hiển thị trên Bảng chi tiết điều vận.
+- **Các bước:**
+  1. `PUT /api/shipments/:id/containers` (full reconcile: thêm/bớt/sửa container) khi lô chưa có chuyến (no trips).
+  2. Quan sát response API và Bảng chi tiết điều vận.
+  3. Chạy lại "Phân bổ nhà xe" (carrier allocation) cho lô.
+- **Kết quả mong đợi (Pass):**
+  - Bước 1: PUT thành công (200), không có lỗi.
+  - Fulfillments chưa có chuyến bị hủy: `canceledAt` được set, `cancellationDisposition = "REPLACED"`, lý do đúng chuỗi "Container của lô hàng đã được cập nhật; cần gán lại nhà xe."
+  - Lô biến mất khỏi Bảng chi tiết điều vận ngay sau bước 1 (rows loại fulfillments đã hủy).
+  - Bước 3: phân bổ lại sinh fulfillments mới (id mới), lô trở lại bảng chi tiết; fulfillments cũ vẫn giữ trạng thái đã hủy.
+  - Trường hợp ngược lại: nếu lô có chuyến "live" (trip ≠ CANCELED, chưa soft-delete) thì PUT bị chặn **409** "Không thể thay đổi container sau khi đã phát hành lệnh điều xe…" và fulfillments giữ nguyên.
+- **Kỳ vọng sai (Fail nếu):**
+  - Reconcile báo lỗi khi chưa có chuyến; hoặc hủy sai disposition/lý do; hoặc lô vẫn còn trên bảng chi tiết sau bước 1; hoặc 409 trong khi chưa có chuyến nào.
+- **Bằng chứng:** `backend/src/tests/shipment-routes.test.ts` — describe **"PUT /:id/containers × fulfillments (reconcile guard contract)"**, 2 test: (1) "reconcile with untripped fulfillments cancels them (REPLACED) and drops the lot from the detail plan until re-allocation"; (2) "reconcile with a live trip is rejected 409 and leaves fulfillments untouched".

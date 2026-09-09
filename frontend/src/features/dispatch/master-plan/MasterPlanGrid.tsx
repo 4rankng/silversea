@@ -8,6 +8,12 @@ import {
   formatAppointmentGroupLine,
 } from '../../shipments/cus/cusUtils';
 import { formatISODate } from '../../../lib/format';
+import {
+  isNoteLong,
+  MasterPlanNoteModal,
+  truncateNote,
+  type ActiveNoteDetail,
+} from './MasterPlanNoteModal';
 import '../../../styles/operational-table-typography.css';
 import './MasterPlanGrid.css';
 
@@ -212,6 +218,7 @@ function aggregateContainerPortGroupLines(item: ShipmentListItem, scheduleDate?:
 export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {}, scheduleDate, onUpdateNotes }: MasterPlanGridProps) {
   const [editingNotesId, setEditingNotesId] = useState<number | null>(null);
   const [editingNotesValue, setEditingNotesValue] = useState('');
+  const [activeNoteModal, setActiveNoteModal] = useState<ActiveNoteDetail | null>(null);
   const notesInputRef = useRef<HTMLTextAreaElement | null>(null);
 
   const startNotesEdit = useCallback((item: ShipmentListItem) => {
@@ -388,7 +395,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                     aria-label={`Xem chi tiết container của ${item.shipmentCode ?? item.blNumber ?? item.bookingRef ?? 'lô hàng'}`}
                     onPress={(event) => onViewContainers(item, (event.target as HTMLElement).closest('button') as HTMLButtonElement)}
                   >
-                    Xem chi tiết cont
+                    Xem chi tiết
                   </UUIButton>
                 </td>
                 <td
@@ -492,12 +499,67 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                           role={onUpdateNotes ? 'button' : undefined}
                           tabIndex={onUpdateNotes ? 0 : undefined}
                         >
-                          {displayNote(item.operationalNotes) || (onUpdateNotes ? '—' : '')}
+                          {item.operationalNotes ? (
+                            isNoteLong(item.operationalNotes) ? (
+                              <>
+                                <div>{truncateNote(displayNote(item.operationalNotes))}</div>
+                                <UUIButton
+                                  size="xs"
+                                  color="tertiary"
+                                  className="master-plan-grid__note-detail-trigger"
+                                  aria-label="Xem chi tiết ghi chú điều hành"
+                                  onClick={(e) => e.stopPropagation()}
+                                  onPress={() => {
+                                    setActiveNoteModal({
+                                      title: 'Ghi chú điều hành',
+                                      note: item.operationalNotes!,
+                                      customerName: item.customerName,
+                                      blNumber: item.blNumber,
+                                      shipmentCode: item.shipmentCode,
+                                      isOperational: true,
+                                      shipment: item,
+                                    });
+                                  }}
+                                >
+                                  Xem chi tiết
+                                </UUIButton>
+                              </>
+                            ) : (
+                              displayNote(item.operationalNotes)
+                            )
+                          ) : (
+                            onUpdateNotes ? '—' : ''
+                          )}
                         </div>
                       )}
                       {item.factoryNotes && (
                         <div className="master-plan-grid__line master-plan-grid__line--muted master-plan-grid__line--notes" title={item.factoryNotes}>
-                          NM: {item.factoryNotes}
+                          {isNoteLong(item.factoryNotes) ? (
+                            <>
+                              <div>NM: {truncateNote(item.factoryNotes)}</div>
+                              <UUIButton
+                                size="xs"
+                                color="tertiary"
+                                className="master-plan-grid__note-detail-trigger"
+                                aria-label="Xem chi tiết ghi chú nhà máy"
+                                onPress={() => {
+                                  setActiveNoteModal({
+                                    title: 'Ghi chú nhà máy',
+                                    note: item.factoryNotes!,
+                                    customerName: item.customerName,
+                                    blNumber: item.blNumber,
+                                    shipmentCode: item.shipmentCode,
+                                    isOperational: false,
+                                    shipment: item,
+                                  });
+                                }}
+                              >
+                                Xem chi tiết
+                              </UUIButton>
+                            </>
+                          ) : (
+                            `NM: ${item.factoryNotes}`
+                          )}
                         </div>
                       )}
                     </>
@@ -508,6 +570,12 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
           })}
         </tbody>
       </table>
+
+      <MasterPlanNoteModal
+        activeNote={activeNoteModal}
+        onClose={() => setActiveNoteModal(null)}
+        onEditOperationalNote={onUpdateNotes ? startNotesEdit : undefined}
+      />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { render, screen, fireEvent, within, act } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { ShipmentListItem } from '../../../api/shipmentClient';
 
@@ -342,6 +342,90 @@ describe('MasterPlanGrid', () => {
     const notesCell = document.querySelector('td.master-plan-grid__cell[data-label="Ghi chú"]');
     expect(notesCell).toBeTruthy();
     expect(notesCell!.textContent).not.toContain('—');
+  });
+
+  it('truncates long factory notes and provides a "Chi tiết" trigger opening the full note modal', () => {
+    const longNote = '3. Lưu ý cần chú ý khi đóng/ trả hàng tại nhà máy - Lái xe đăng ký bảo vệ vào đóng/ trả cho công ty Long Minh- Trước khi vào đóng/ trả hàng lái xe gọi đúng SĐT';
+    render(
+      <MasterPlanGrid
+        items={[item({ factoryNotes: longNote })]}
+        onAllocate={vi.fn()}
+      />,
+    );
+
+    // Truncated text is rendered in the cell
+    expect(screen.getByText(/NM: 3\. Lưu ý cần chú ý/)).toBeTruthy();
+    // The "Xem chi tiết" button is visible
+    const detailBtn = screen.getByRole('button', { name: 'Xem chi tiết ghi chú nhà máy' });
+    expect(detailBtn).toBeTruthy();
+    expect(detailBtn.textContent).toBe('Xem chi tiết');
+
+    // Click "Chi tiết" to open the modal
+    fireEvent.click(detailBtn);
+
+    // Modal dialog opens
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Ghi chú nhà máy' })).toBeTruthy();
+    expect(screen.getByText(longNote)).toBeTruthy();
+
+    // Close the modal via the close button
+    const closeBtns = screen.getAllByRole('button', { name: 'Đóng' });
+    fireEvent.click(closeBtns[0]);
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('allows copying full note to clipboard from the note modal', async () => {
+    const writeTextMock = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, {
+      clipboard: {
+        writeText: writeTextMock,
+      },
+    });
+
+    const longNote = 'Nghiêm cấm hút thuốc trong địa phận công ty - Hàng đóng điện tử yêu cầu vỏ đẹp, sàn chắc khỏe.';
+    render(
+      <MasterPlanGrid
+        items={[item({ factoryNotes: longNote })]}
+        onAllocate={vi.fn()}
+      />,
+    );
+
+    const detailBtn = screen.getByRole('button', { name: 'Xem chi tiết ghi chú nhà máy' });
+    fireEvent.click(detailBtn);
+
+    const copyBtn = screen.getByRole('button', { name: 'Sao chép' });
+    await act(async () => {
+      fireEvent.click(copyBtn);
+    });
+
+    expect(writeTextMock).toHaveBeenCalledWith(longNote);
+  });
+
+  it('truncates long operational notes with Chi tiết button and allows switching to edit mode from the modal', () => {
+    const longOpNote = 'Lái xe chú ý liên hệ thủ kho trước 30 phút để chuẩn bị bốc xếp hàng hóa cẩn thận, không làm rách bao bì.';
+    const onUpdateNotes = vi.fn();
+    render(
+      <MasterPlanGrid
+        items={[item({ operationalNotes: longOpNote })]}
+        onAllocate={vi.fn()}
+        onUpdateNotes={onUpdateNotes}
+      />,
+    );
+
+    const detailBtn = screen.getByRole('button', { name: 'Xem chi tiết ghi chú điều hành' });
+    expect(detailBtn).toBeTruthy();
+    fireEvent.click(detailBtn);
+
+    // In modal, "Sửa ghi chú" button appears
+    expect(screen.getByRole('heading', { name: 'Ghi chú điều hành' })).toBeTruthy();
+    const editBtn = screen.getByRole('button', { name: 'Sửa ghi chú' });
+    fireEvent.click(editBtn);
+
+    // Modal is closed and textarea editor appears
+    expect(screen.queryByRole('dialog')).toBeNull();
+    const textarea = screen.getByLabelText('Ghi chú điều phối') as HTMLTextAreaElement;
+    expect(textarea).toBeTruthy();
+    expect(textarea.value).toBe(longOpNote);
   });
 
   it('opens the in-place container detail action with the shipment row and its trigger', () => {

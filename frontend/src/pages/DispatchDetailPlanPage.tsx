@@ -3,9 +3,8 @@ import { ConfirmDialog, PageHeader } from '../components/UI';
 import { Pagination } from '../design-system';
 import { DetailedPlanGrid } from '../features/dispatch/detailed-plan/DetailedPlanGrid';
 import { TripReassignDialog } from '../features/dispatch/detailed-plan/TripReassignDialog';
-import { PairTripsDialog } from '../features/dispatch/detailed-plan/PairTripsDialog';
-import type { DispatchDetailPlanRow } from '../api/dispatchPlanningClient';
 import { useDispatchDetailPlan } from '../features/dispatch/detailed-plan/useDispatchDetailPlan';
+import type { DispatchDetailPlanRow } from '../api/dispatchPlanningClient';
 import './DispatchPlanPage.css';
 
 /**
@@ -17,7 +16,6 @@ import './DispatchPlanPage.css';
 export default function DispatchDetailPlanPage() {
   const detailPlan = useDispatchDetailPlan();
   const [reassignTripId, setReassignTripId] = useState<number | null>(null);
-  const [pairRow, setPairRow] = useState<DispatchDetailPlanRow | null>(null);
   // Staff close for external-carrier trips: external drivers don't use the
   // app, so dispatch/CUS confirm the completion from the grid row.
   const [completingRow, setCompletingRow] = useState<DispatchDetailPlanRow | null>(null);
@@ -68,7 +66,6 @@ export default function DispatchDetailPlanPage() {
           onOpenTripReassign={setReassignTripId}
           onCompleteExternalTrip={setCompletingRow}
           onIssueOrder={detailPlan.issueOrder}
-          onOpenPair={setPairRow}
         />
         {detailPlan.total > detailPlan.pageSize && (
           <Pagination
@@ -86,15 +83,6 @@ export default function DispatchDetailPlanPage() {
         onClose={() => setReassignTripId(null)}
         onReassigned={detailPlan.refresh}
       />
-
-      {pairRow && (
-        <PairTripsDialog
-          row={pairRow}
-          candidates={detailPlan.items}
-          onClose={() => setPairRow(null)}
-          onPaired={detailPlan.refresh}
-        />
-      )}
 
       <ConfirmDialog
         isOpen={completingRow != null}

@@ -1,6 +1,6 @@
 // Schedule-mode body of the shipment-container inline editor — the
 // appointment-popover design language (7ad16f89): the popover header, the
-// quick-day pills, the paired ngày/giờ grid, and the common-hours presets.
+// quick-day pills, the giờ-first paired grid, and the common-hours presets.
 // Split out of ShipmentContainerLedger.tsx (structure-guard ratchet);
 // appointment state (ngày + giờ) stays owned by the parent InlineEditor,
 // which passes values and setters down.
@@ -87,8 +87,8 @@ export function ScheduleEditorBody({
         })}
       </div>
       <div className="shipment-container-ledger__editor-grid shipment-container-ledger__editor-grid--schedule">
-        <label><span>{row.direction === 'IMPORT' ? 'Ngày trả hàng' : 'Ngày đóng hàng'}</span><DateInput value={appointmentDate} onChange={onAppointmentDateChange} disabled={saving || !canEdit} /></label>
-        <label><span>{row.direction === 'IMPORT' ? 'Giờ trả hàng' : 'Giờ đóng hàng'}</span><input type="time" value={scheduleTime} onChange={(event) => onScheduleTimeChange(event.target.value)} disabled={saving || !canEdit} /></label>
+        <label><span>{row.direction === 'IMPORT' ? 'Giờ trả hàng' : 'Giờ đóng hàng'}</span><input type="time" lang="en-GB" value={scheduleTime} onChange={(event) => onScheduleTimeChange(event.target.value)} disabled={saving || !canEdit} /></label>
+        <label><span>{row.direction === 'IMPORT' ? 'Ngày trả hàng' : 'Ngày đóng hàng'}</span><DateInput lang="en-GB" value={appointmentDate} onChange={onAppointmentDateChange} disabled={saving || !canEdit} /></label>
       </div>
       <div className="shipment-container-ledger__schedule-section">
         <Clock size={11} aria-hidden="true" />

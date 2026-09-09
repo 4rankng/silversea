@@ -13,9 +13,13 @@ export function useClickOutside(
     escapeKey?: boolean;
     enabled?: boolean;
     additionalRefs?: RefObject<HTMLElement | null>[];
+    /** Event targets inside a matching element never dismiss this layer —
+     *  for portaled popovers (react-aria / SearchableSelect) whose own
+     *  backdrop owns the outside interaction. */
+    ignoreSelector?: string;
   },
 ) {
-  const { escapeKey = false, enabled = true } = options ?? {};
+  const { escapeKey = false, enabled = true, ignoreSelector } = options ?? {};
   const additionalRefs = options?.additionalRefs;
 
   useEffect(() => {
@@ -28,6 +32,10 @@ export function useClickOutside(
       token = registerOverlayToken();
     }
     const handler = (e: MouseEvent | KeyboardEvent | PointerEvent) => {
+      // Targets inside an ignored region (e.g. a portaled select popover whose
+      // own backdrop owns outside clicks) never dismiss this layer — pointer
+      // and Escape alike, so a dropdown's own shortcuts stay self-contained.
+      if (ignoreSelector && e.target instanceof Element && e.target.closest(ignoreSelector)) return;
       if (e instanceof KeyboardEvent) {
         if (escapeKey && e.key === 'Escape') {
           e.stopPropagation();
@@ -53,6 +61,6 @@ export function useClickOutside(
         if (token != null) unregisterOverlayToken(token);
       }
     };
-  }, [additionalRefs, ref, onDismiss, enabled, escapeKey]);
+  }, [additionalRefs, ref, onDismiss, enabled, escapeKey, ignoreSelector]);
 }
 

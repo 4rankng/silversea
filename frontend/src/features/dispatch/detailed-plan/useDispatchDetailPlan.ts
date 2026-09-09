@@ -130,9 +130,35 @@ export function useDispatchDetailPlan() {
     return () => window.clearTimeout(timer);
   }, [filters.q]);
 
+  // View signature of the in-flight/last fetch (page + every enumerated
+  // filter). Lets the effect tell a real view change from a background
+  // refreshKey tick (the 30s auto-refresh / manual refresh button): only a
+  // genuine view change may flip the grid to the skeleton.
+  const viewSignatureRef = useRef<string | null>(null);
   useEffect(() => {
     const requestId = ++requestIdRef.current;
-    setLoading(true);
+    const viewSignature = JSON.stringify([
+      page,
+      debouncedQ,
+      filters.date,
+      filters.direction,
+      filters.assignmentStatus,
+      filters.pickupIds,
+      filters.dropoffIds,
+      filters.deliveryPointIds,
+      filters.hourFrom,
+      filters.hourTo,
+      filters.zone,
+    ]);
+    // Background refreshes must keep the table mounted: swapping it for the
+    // skeleton unmounts the open row editor mid-edit and silently discards
+    // the dispatcher's drafted carrier/vehicle/note changes (2026-09-09 bug:
+    // the dialog self-closed on every 30s auto-refresh tick).
+    const isBackgroundRefresh = viewSignatureRef.current === viewSignature;
+    viewSignatureRef.current = viewSignature;
+    if (!isBackgroundRefresh) {
+      setLoading(true);
+    }
     setError(null);
     listDispatchDetailPlanRows({
       page,
@@ -362,8 +388,11 @@ export function useDispatchDetailPlan() {
       return result;
     } catch (mutationError) {
       const status = (mutationError as { status?: number }).status;
+      // Surface the backend's specific 409 message (version conflict vs lot
+      // guard) instead of a blanket "reload" banner — reloading never fixed
+      // the guard 409s and sent the dispatcher in circles.
       setAssignmentError(status === 409
-        ? 'Dữ liệu đã thay đổi. Vui lòng tải lại.'
+        ? ((mutationError as { message?: string }).message || 'Dữ liệu đã thay đổi. Vui lòng tải lại.')
         : 'Không thể lưu kế hoạch. Vui lòng thử lại.');
       throw mutationError;
     }

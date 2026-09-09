@@ -8,6 +8,7 @@ import type {
   ShipmentCusWorkspaceDetail,
 } from '@tingting/shared';
 import { requestContainerEdit } from '../../../api/shipmentClient';
+import { useClickOutside } from '../../../hooks/useClickOutside';
 import { displayNote } from '../cus/cusUtils';
 import { StatusStrip } from '../../../components/shared/StatusStrip';
 import { Badge, BadgeWithDot } from '../../../components/untitled-ui/base/badges/badges';
@@ -197,6 +198,15 @@ function InlineEditor({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [requestSuccess, setRequestSuccess] = useState<string | null>(null);
   const editorRef = useRef<HTMLDivElement>(null);
+  // Outside pointerdown / global Escape dismisses the editor, matching the CUS
+  // appointment popover; paused while a portaled select popover (SearchableSelect
+  // / UuiSelectField) is open so picking an option never cancels the draft.
+  useClickOutside(editorRef, () => {
+    if (!saving) onCancel();
+  }, {
+    escapeKey: true,
+    ignoreSelector: '.searchable-select__popover, .searchable-select__backdrop, .react-aria-Popover',
+  });
   const siteOptions = useMemo(() => detail.selectors.ports.map((port) => ({
     value: String(port.id), label: port.label, searchText: `${port.code ?? ''} ${port.name}`,
   })), [detail.selectors.ports]);

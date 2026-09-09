@@ -1,0 +1,115 @@
+{
+  "runId": "2026-09-09_dispatch-sweep-2026-09-09",
+  "timestamp": "2026-09-09T02:33:31.213Z",
+  "results": [
+    {
+      "caseId": "TC-CUS-CREATE-048",
+      "role": "ADMIN",
+      "file": "TC-CUS-CREATE-048.mjs",
+      "verdict": "PASS",
+      "durationMs": 4506,
+      "rowCount": 7,
+      "contractOk": true,
+      "sampleRows": [
+        {
+          "text": "LONG MINH SUNRISE KCN VÂN TRUNG, BẮC GIANG EBKG18452303 Chưa có tờ khai MSC Xuất 1x20DC 5 kg 13:00 8/9/2026 · SUNRISE · 1x20DC Toàn bộ chờ phân xe — Sẵn sàng đi",
+          "hasMissingDate": false,
+          "hasWaitingSignal": false,
+          "hasReadySignal": true
+        },
+        {
+          "text": "LOG COM NEWEB-1 KCN ĐỒNG VĂN, HÀ NAM BLEHPH260900002 108594123850 EVER Nhập 1x20DC 2.942 kg 08:00 8/9/2026 · NEWEB-1 · 1x20DC Toàn bộ chờ phân xe Kho 1 Sẵn sàng",
+          "hasMissingDate": false,
+          "hasWaitingSignal": false,
+          "hasReadySignal": true
+        },
+        {
+          "text": "LOG COM NEWEB-1 KCN ĐỒNG VĂN, HÀ NAM EHPH26080202 Chưa có tờ khai SITC Xuất 1x20DC 10.000 kg 08:00 8/9/2026 · NEWEB-1 · 1x20DC Toàn bộ chờ phân xe Kho 1-f2 Sẵn ",
+          "hasMissingDate": false,
+          "hasWaitingSignal": false,
+          "hasReadySignal": true
+        }
+      ]
+    },
+    {
+      "caseId": "TC-CUS-APPOINTMENT-001",
+      "role": "ADMIN",
+      "file": "TC-CUS-APPOINTMENT-001.mjs",
+      "verdict": "PASS",
+      "durationMs": 7887,
+      "fields": [
+        {
+          "label": "GIỜ",
+          "type": "time",
+          "value": "14:00",
+          "lang": "en-GB"
+        },
+        {
+          "label": "NGÀY",
+          "type": "date",
+          "value": "2026-09-08",
+          "lang": "en-GB"
+        }
+      ],
+      "isGioFirst": true
+    },
+    {
+      "caseId": "TC-SHIPMENTS-DETAIL-001",
+      "role": "ADMIN",
+      "file": "TC-SHIPMENTS-DETAIL-001.mjs",
+      "verdict": "PASS",
+      "durationMs": 4227,
+      "totalRows": 9,
+      "plannedCount": 3,
+      "platedCount": 4,
+      "samplePlanned": [
+        {
+          "vehicle": "SilverSea",
+          "plate": "15C-184.62",
+          "badge": "Đã phân xe"
+        },
+        {
+          "vehicle": "SilverSea",
+          "plate": "15H-205.57",
+          "badge": "Đã phân xe"
+        },
+        {
+          "vehicle": "SilverSea",
+          "plate": "15H-119.64",
+          "badge": "Đã phân xe"
+        }
+      ]
+    },
+    {
+      "caseId": "TC-DISPATCH-ALLOC-001",
+      "role": "ADMIN",
+      "file": "TC-DISPATCH-ALLOC-001.mjs",
+      "verdict": "PASS",
+      "durationMs": 5442,
+      "structure": {
+        "dayGroupCount": 1,
+        "dayTitles": [
+          "Ngày 08/09/2026 · Thứ Ba"
+        ]
+      }
+    },
+    {
+      "caseId": "TC-DISPATCH-EDIT-001",
+      "role": "ADMIN",
+      "file": "TC-DISPATCH-EDIT-001.mjs",
+      "verdict": "PASS",
+      "durationMs": 5478,
+      "classData": {
+        "hasSelect": true,
+        "options": [
+          "",
+          "Đơn",
+          "Kẹp",
+          "Kết hợp"
+        ],
+        "value": "DOUBLE"
+      },
+      "externalInspection": null
+    }
+  ]
+}
