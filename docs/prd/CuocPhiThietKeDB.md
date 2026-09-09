@@ -1,15 +1,26 @@
 # Thiết kế DB — Cước cơ bản & phụ phí dầu
 
-> **Trạng thái: ĐỀ XUẤT — chưa triển khai.** Tài liệu này thiết kế bảng dữ liệu để
-> chạy được nghiệp vụ trong [`CuocPhiPhuPhiDau.md`](CuocPhiPhuPhiDau.md).
+> **Trạng thái (2026-09-10): APPROVED DIRECTION — chốt ngày 10/09 sau khi wave spec
+> (`run-1788968588650-mctezn`) khóa 3 quyết định KH (Câu 1=B, Câu 2=A, Câu 4=A) và
+> anchor = Ngày vận chuyển (đóng item 2b).** Engine + schema đã merge ở `c959e7bb`
+> (migration `0064_cynical_eddie_brock.sql`); triển khai wiring/config/UI/tests đang
+> chạy theo các ticket T1–T6 trên board. Tài liệu này **không còn là đề xuất**: nó là
+> **đặc tả kỹ thuật đang áp dụng**, mọi lệch triển khai đều cần sửa về đây. Xem thêm
+> [`PhuongAnTinhCuocTuDong.md`](PhuongAnTinhCuocTuDong.md) §2 để biết mapping 5 mục
+> docx KH ↔ schema/engine, và §6.2 dưới đây để biết trạng thái open items còn lại.
 >
-> **Nguồn chân lý: file `18.7 - BG Long Minh T7.xlsx`.** Nơi nào code hiện tại khác
-> file Excel thì **file Excel đúng**, code phải sửa theo (xem §1).
+> **Nguồn chân lý nghiệp vụ:** [`CuocPhiPhuPhiDau.md`](CuocPhiPhuPhiDau.md) (công thức
+> + 4 quy tắc đã chốt 09/09) và file `18.7 - BG Long Minh T7.xlsx`. Nơi nào code hiện
+> tại khác file Excel thì **file Excel đúng**, code phải sửa theo (xem §1).
 >
 > **Làm tròn: đến từng đồng (VND).** Không có phần thập phân trong mọi giá trị tiền.
+> **Làm tròn từng thành phần (HALF_UP):** `J`, `H` tính và làm tròn RIÊNG rồi mới cộng
+> vào `K` — đây là điểm khác với làm tròn hết rồi cộng (xem §4.2).
 >
-> Phạm vi: chỉ bảng dữ liệu + thuật toán tra cước cho **chạy được**. **Bỏ qua phân
-> quyền / RBAC** trong tài liệu này.
+> Phạm vi: bảng dữ liệu + thuật toán tra cước + cơ chế snapshot + override debit note.
+> **RBAC cho config CRUD** (T2) và **UI** (T3/T4) **không nằm trong tài liệu này** —
+> xem [`PhuongAnTinhCuocTuDong.md`](PhuongAnTinhCuocTuDong.md) §2.5 + testplan
+> `TC-CUOC-020..024` (config RBAC, ticket T2 + T3).
 
 ---
 
@@ -378,35 +389,60 @@ Lưu **cả 4 id tham số** ⇒ trả lời được câu "vì sao lô này 5.0
 > ⚠️ Bước 4 đổi công thức tiền đang chạy. **Bắt buộc backup DB trước**, và đối chiếu lại
 > toàn bộ cước đã phát hành trước/sau khi đổi.
 
-### 6.2. Câu hỏi còn treo
+### 6.2. Câu hỏi & open items
 
-> **Cập nhật 2026-09-09:** câu 1, 2, 4 **đã có trả lời** (xem
-> [`CauHoiKhachHang_CuocPhi_2026-09-08.md`](CauHoiKhachHang_CuocPhi_2026-09-08.md)) —
-> thiết kế ở trên đã cập nhật theo. Còn treo: 3, 5 và 2 mục phụ mới (lag của 2 tuyến,
-> mốc ngày chọn kỳ giá).
+> **Cập nhật 2026-09-10 (wave `run-1788968588650-mctezn`):** câu 1, 2, 4 **đã có trả lời**
+> (xem [`CauHoiKhachHang_CuocPhi_2026-09-08.md`](CauHoiKhachHang_CuocPhi_2026-09-08.md)) —
+> thiết kế ở trên đã cập nhật theo. Item 2b (mốc ngày chọn kỳ) cũng đã **đóng** theo docx
+> §2D: anchor cố định = **Ngày vận chuyển** (transport_date). Câu 3 đã rút khỏi hỏi KH.
+>
+> **Còn mở 4 mục**, tất cả đều track trong ticket `e3873fbc` (board) — xem thêm
+> [`PhuongAnTinhCuocTuDong.md`](PhuongAnTinhCuocTuDong.md) §4 để biết chi tiết + mitigation.
 
-1. ~~**Giá dầu xuống dưới mốc `F`** → phụ phí âm (giảm cước) hay chặn về 0?~~ —
-   **ĐÃ CHỐT (09/09): Câu 1 = B — kẹp về 0** ⇒ `roundInt()` giữ `Math.max(0, …)` (§4.2);
-   bước 8 §4.1 đã có `MAX(0, …)`.
+#### ĐÃ CHỐT
+
+1. ~~**Giá dầu xuống dưới mốc `F`** → phụ phí âm hay chặn về 0?~~ —
+   **ĐÃ CHỐT (09/09): Câu 1 = B — kẹp về 0** ⇒ `computeFreightRate()` giữ
+   `Math.max(0, …)` (xem `shared/src/calculations/fuelSurcharge.ts:113`); `H` không bao
+   giờ âm trên chứng từ. **Lệch chủ ý so với Excel** (Excel không có clamp; mọi kỳ
+   trong file đều trên mốc nên nhánh chưa từng xuất hiện) — đã ghi nhận vào
+   `CuocPhiPhuPhiDau.md` §2.5.
 2. ~~**Cước đã phát hành có tính lại khi đổi kỳ giá dầu không?**~~ —
-   **ĐÃ CHỐT (09/09): Câu 2 = A — không hồi tố, snapshot** (§5). Kèm xác nhận cơ chế
-   độ trễ theo tuyến ⇒ thêm cột `fuel_lag_days` (§3.2).
-3. **Kỳ giá dầu của seed 30/7** (chênh 7.917,41 đ/l ⇒ ≈ 25.760 nếu cùng mốc `F`) bắt đầu
-   từ ngày nào, và giá dầu mốc kỳ đó có đúng bằng 17.842,59 không? Chỉ cần để dựng lại
-   lịch sử — **không ảnh hưởng công thức hay thiết kế**; nếu khách không có thông tin
-   thì bỏ qua, không đoán.
+   **ĐÃ CHỐT (09/09): Câu 2 = A — không hồi tố, snapshot** (§5). Cước đã ghi trên chứng
+   từ giữ nguyên khi kỳ giá dầu mới mở. Kèm xác nhận cơ chế độ trễ theo tuyến ⇒ cột
+   `freight_rate_terms.fuel_lag_days` (§3.2); NEWEB = 1 ngày đã seed.
+3. ~~**Kỳ giá dầu seed 30/7** (chênh 7.917,41 đ/l ⇒ ≈ 25.760 nếu cùng mốc `F`)…~~ —
+   **RÚT (09/09)** khỏi danh sách hỏi KH. Không cần số kỳ cũ để chạy công thức; giữ
+   dữ liệu 30/7 như snapshot lịch sử đã phát hành.
 4. ~~**`billing_km_multiplier` = 2 luôn đúng?**~~ — **ĐÃ CHỐT (09/09): Câu 4 = A — luôn
-   khứ hồi**; multiplier cố định 2, không expose tuỳ chọn per-trip.
-5. **Khách hàng khác Long Minh** có cùng mô hình này không? Nếu có khách tính theo
-   công thức khác thì cần thêm cột "loại biểu cước" vào `freight_rate_terms`.
-6. **Độ trễ của ASKEY / SUNRISE+SJ** (phụ lục 2a bản docx 09/09) — chỉ NEWEB = 1 đã có
-   số; 2 tuyến kia seed 0 tạm, **chờ khách**.
-7. **Mốc ngày nào của lô dùng để chọn kỳ giá dầu** (phụ lục 2b bản docx 09/09) — ngày
-   tạo lô / đóng hàng / trả hàng / xuất hoá đơn. Ảnh hưởng trực tiếp tham số `date`
-   trong `resolveFreightRate()` (§4.1).
+   khứ hồi**; multiplier cố định 2, không expose tuỳ chọn per-trip. Ghép/Kết hợp không
+   ảnh hưởng cước của từng lệnh.
+7. ~~**Mốc ngày nào của lô dùng để chọn kỳ giá dầu** (phụ lục 2b)…~~ —
+   **ĐÃ CHỐT (10/09, docx §2D): anchor = Ngày vận chuyển (`transport_date`).**
+   Engine input `transportDate` (`freight-pricing-engine.service.ts:53`) quyết định giá
+   dầu áp dụng; đổi `transport_date` sau khi tạo ⇒ **supersede** snapshot (không mutate
+   row cũ, xem `PhuongAnTinhCuocTuDong.md` §2.3 bước 3 + testplan `TC-CUOC-010`).
 
-> **Không phải câu hỏi thiết kế:** giá gốc `15T` đang trống ở cả Excel lẫn seed
-> (`basePrice: 0`). Đây chỉ là **một điểm dữ liệu còn thiếu — không ảnh hưởng logic**.
-> Schema và công thức chạy bình thường; chỉ cần điền số khi khách cung cấp. Cho đến lúc
-> đó, `resolveFreightRate()` không tìm thấy dòng `pricing_tables` cho `15T` và rơi về
-> nhánh **MANUAL** như mọi trường hợp thiếu giá catalog khác.
+#### CÒN MỞ (tracker: ticket `e3873fbc`)
+
+5. **Câu 5 — Khách hàng khác Long Minh** có dùng cùng mô hình cước không? Nếu KH = (B)
+   đa mô hình ⇒ cần cột `pricing_model` / `formula_variant` trên `freight_rate_terms`.
+   Mitigation hiện tại: schema đang đáp ứng Long Minh; khách khác tiếp tục nhập tay.
+6. **Độ trễ của ASKEY / SUNRISE+SJ** (phụ lục 2a) — chỉ NEWEB = 1 đã có số; 2 tuyến kia
+   seed `fuel_lag_days = 0` tạm. Mitigation: T2 (config CRUD) cho phép edit row mà
+   không cần code change; engine đọc đúng số khi KH cung cấp.
+8. **Giá gốc 15T × 3 tuyến** — `pricing_tables.base_price` = 0 cho 15T ở cả 3 tuyến.
+   Mitigation: rơi nhánh `MANUAL` (TC-CUOC-015), tạo lô vẫn proceed; Kế toán nhập tay
+   trên chứng từ. Khi KH cung cấp số, update 3 dòng `pricing_tables`; snapshot cũ giữ
+   nguyên (no-retro theo Câu 2 = A).
+9. **Threshold values X / Z cho từng khách** — `surcharge_threshold_pct` và
+   `surcharge_threshold_abs` đều null. Engine không ratchet ⇒ mọi kỳ giá mới đều áp
+   ngay. Mitigation: KH chọn **1 trong 2** dạng (XOR, validation ở T2 — `TC-CUOC-013`).
+   Nếu KH chưa quyết được, để null = không ratchet.
+
+> **Không phải câu hỏi thiết kế — đã track ở §6.2 mục 8:** giá gốc `15T` đang trống
+> ở cả Excel lẫn seed (`basePrice: 0`). Đây chỉ là **một điểm dữ liệu còn thiếu —
+> không ảnh hưởng logic**. Schema và công thức chạy bình thường; chỉ cần điền số khi
+> khách cung cấp. Cho đến lúc đó, `resolveFreightRate()` không tìm thấy dòng
+> `pricing_tables` cho `15T` và rơi về nhánh **MANUAL** như mọi trường hợp thiếu giá
+> catalog khác (testplan `TC-CUOC-015`).

@@ -11,20 +11,44 @@ từ khách hàng) ở đầu trang.
 | [`OpsVanHanh.md`](OpsVanHanh.md) | 3 màn hình nhân viên hiện trường: kế hoạch làm hàng, theo dõi phương tiện, ví tạm ứng | `2026.9.6_Man_hinh_ops.docx` |
 | [`ManHinhLaiXe.md`](ManHinhLaiXe.md) | App Lái xe: cấu trúc thẻ 2 lớp, luồng nhận lệnh, e-POD bắt buộc | `2026.8.27_Man_hinh_lai_xe.docx` |
 | [`CuocPhiPhuPhiDau.md`](CuocPhiPhuPhiDau.md) | **Bảng cước phí — thiết kế logic:** công thức, tham số, bảng cước thành phẩm, quy tắc làm tròn | `18.7 - BG Long Minh T7.xlsx` |
-| [`CuocPhiThietKeDB.md`](CuocPhiThietKeDB.md) | **Bảng cước phí — thiết kế DB schema:** 5 bảng mới + thuật toán tra cước + snapshot *(ĐỀ XUẤT)* | dẫn xuất từ `CuocPhiPhuPhiDau.md` |
+| [`CuocPhiThietKeDB.md`](CuocPhiThietKeDB.md) | **Bảng cước phí — thiết kế DB schema:** 5 bảng mới + thuật toán `resolveFreightRate()` + snapshot *(APPROVED DIRECTION — 10/09)* | dẫn xuất từ `CuocPhiPhuPhiDau.md` |
+| [`PhuongAnTinhCuocTuDong.md`](PhuongAnTinhCuocTuDong.md) | **Phương án tính cước tự động:** 5 mục docx KH ↔ engine/schema; mapping 4 nhóm tham số A-D, 3-step engine, debit-note override, fuel-price entry | `Phương án tính cước tự động.docx` (KH gửi 09/09) |
 | [`CauHoiKhachHang_CuocPhi_2026-09-08.md`](CauHoiKhachHang_CuocPhi_2026-09-08.md) | **5 câu hỏi nghiệp vụ cần khách hàng Long Minh trả lời** trước khi triển khai | — |
 
 `archive/` chứa 12 tệp `Module*.docx` gốc — giữ để tra cứu, **không** phải nguồn chân lý hiện hành.
 
-> **Trạng thái tài liệu:** các tệp trong bảng trên là **đặc tả đang có hiệu lực**, trừ
-> [`CuocPhiThietKeDB.md`](CuocPhiThietKeDB.md) — đây là **đề xuất kỹ thuật chưa được
-> duyệt, chưa triển khai**. Triển khai bị **chặn** bởi 5 câu hỏi nghiệp vụ trong
-> [`CauHoiKhachHang_CuocPhi_2026-09-08.md`](CauHoiKhachHang_CuocPhi_2026-09-08.md)
-> đang chờ khách hàng Long Minh phản hồi.
+> **Trạng thái tài liệu (2026-09-10):** tất cả PRD trong bảng trên là **đặc tả đang
+> có hiệu lực**. [`CuocPhiThietKeDB.md`](CuocPhiThietKeDB.md) đã chuyển từ `ĐỀ XUẤT`
+> sang **APPROVED DIRECTION** sau khi wave spec (`run-1788968588650-mctezn`) khóa 3
+> quyết định KH (Câu 1=B, 2=A, 4=A) và anchor = Ngày vận chuyển (đóng item 2b).
+> [`PhuongAnTinhCuocTuDong.md`](PhuongAnTinhCuocTuDong.md) là tài liệu mới cho wave
+> auto-pricing, neo 5 mục docx KH ↔ engine/schema hiện có. Còn **4 open items** theo
+> dõi trong ticket `e3873fbc` — xem chi tiết tại [`PhuongAnTinhCuocTuDong.md`](PhuongAnTinhCuocTuDong.md)
+> §4 và [`CuocPhiThietKeDB.md`](CuocPhiThietKeDB.md) §6.2 (Còn mở).
 
 ---
 
 ## Thay đổi có hiệu lực gần nhất
+
+**2026-09-10 — Wave auto-pricing (`run-1788968588650-mctezn`): tài liệu mới + flip status.**
+PRD mới [`PhuongAnTinhCuocTuDong.md`](PhuongAnTinhCuocTuDong.md) neo 5 mục của docx
+`Phương án tính cước tự động.docx` (KH gửi 09/09) vào engine/schema hiện có:
+(1) công thức cước cốt lõi,
+(2) 4 nhóm tham số A-D (lag, threshold pct/abs, activation trigger, transport-date anchor),
+(3) 3-step engine + snapshot no-retro,
+(4) debit-note override + reason rule,
+(5) fuel-price entry + RBAC.
+[`CuocPhiThietKeDB.md`](CuocPhiThietKeDB.md) chuyển từ `ĐỀ XUẤT` → **APPROVED
+DIRECTION** sau khi KH chốt Câu 1=B / 2=A / 4=A và docx §2D đóng item 2b
+(anchor = Ngày vận chuyển). Testplan
+[`flows/12-cuocphi-phuphi-dau.md`](../../testplan/flows/12-cuocphi-phuphi-dau.md)
+mở rộng với `TC-CUOC-009..025` (lock-at-create, supersede, threshold pct/abs/XOR,
+ratchet, MANUAL fallback 15T, override reason, config RBAC) — tất cả **BLOCKED —
+pending T1**, Phase-2 evidence. Matrix coverage mới ở §5 của
+[`2026-09-09-docx-trilogy.md`](../../testplan/matrix/2026-09-09-docx-trilogy.md). Còn
+4 open items (Câu 5, lag ASKEY/SUNRISE+SJ, giá gốc 15T ×3 tuyến, threshold X/Z) — track
+ticket `e3873fbc`. Wiring/config/UI/tests thuộc ticket T1 (`cf5f4e29`), T2 (`a7f6740f`),
+T3 (`06b1a41f`), T4 (`28002a59`), T6 (`2b5b9b5d`).
 
 **2026-09-09 — Đối chiếu trọn bộ 3 docx (trilogy reconciliation).** Toàn bộ yêu cầu
 của `Man_hinh_lai_xe` / `Logic_nghiep_vu` / `Man_hinh_ops` đã được đối chiếu code,
