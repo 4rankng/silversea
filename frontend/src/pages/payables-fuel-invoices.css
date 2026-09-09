@@ -73,7 +73,10 @@
 }
 
 .fuel-invoices-toolbar__select {
-  min-height: 42px;
+  /* Touch floor — the disclosure triggers measured 30px on the pre-wave
+     staging build. Hold the 44px standard from this file so it holds
+     regardless of shared-component cascade order. */
+  min-height: var(--control-touch-h, 44px);
 }
 
 .fuel-invoices-table th,
