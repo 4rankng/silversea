@@ -423,22 +423,28 @@ Lưu **cả 4 id tham số** ⇒ trả lời được câu "vì sao lô này 5.0
    dầu áp dụng; đổi `transport_date` sau khi tạo ⇒ **supersede** snapshot (không mutate
    row cũ, xem `PhuongAnTinhCuocTuDong.md` §2.3 bước 3 + testplan `TC-CUOC-010`).
 
-#### CÒN MỞ (tracker: ticket `e3873fbc`)
+#### CÒN MỞ (tracker: ticket `e3873fbc`) — defaults đã áp theo **D3 decision (10/09)**
 
-5. **Câu 5 — Khách hàng khác Long Minh** có dùng cùng mô hình cước không? Nếu KH = (B)
-   đa mô hình ⇒ cần cột `pricing_model` / `formula_variant` trên `freight_rate_terms`.
-   Mitigation hiện tại: schema đang đáp ứng Long Minh; khách khác tiếp tục nhập tay.
-6. **Độ trễ của ASKEY / SUNRISE+SJ** (phụ lục 2a) — chỉ NEWEB = 1 đã có số; 2 tuyến kia
-   seed `fuel_lag_days = 0` tạm. Mitigation: T2 (config CRUD) cho phép edit row mà
-   không cần code change; engine đọc đúng số khi KH cung cấp.
-8. **Giá gốc 15T × 3 tuyến** — `pricing_tables.base_price` = 0 cho 15T ở cả 3 tuyến.
-   Mitigation: rơi nhánh `MANUAL` (TC-CUOC-015), tạo lô vẫn proceed; Kế toán nhập tay
-   trên chứng từ. Khi KH cung cấp số, update 3 dòng `pricing_tables`; snapshot cũ giữ
-   nguyên (no-retro theo Câu 2 = A).
-9. **Threshold values X / Z cho từng khách** — `surcharge_threshold_pct` và
-   `surcharge_threshold_abs` đều null. Engine không ratchet ⇒ mọi kỳ giá mới đều áp
-   ngay. Mitigation: KH chọn **1 trong 2** dạng (XOR, validation ở T2 — `TC-CUOC-013`).
-   Nếu KH chưa quyết được, để null = không ratchet.
+> 4 mục dưới đây đều đã được **default** theo D3 decision (10/09) để không chặn code
+> wave; KH có thể reply bất cứ lúc nào (track `e3873fbc`). Chi tiết mirroring:
+> [`PhuongAnTinhCuocTuDong.md`](PhuongAnTinhCuocTuDong.md) §4.
+
+5. **Câu 5 — Khách hàng khác Long Minh.** D3 default: **assumed (A) only Long Minh**.
+   Schema + engine đáp ứng Long Minh duy nhất; khách khác tiếp tục nhập tay. Nếu KH
+   đổi ý = (B) đa mô hình ⇒ cần cột `pricing_model` / `formula_variant` trên
+   `freight_rate_terms` + UI chọn formula variant trong T2.
+6. **Độ trễ ASKEY / SUNRISE+SJ** (phụ lục 2a). D3 default: **`fuel_lag_days = 0` cho
+   cả 2 tuyến** (theo docx §2A example N=0 "khách áp dụng ngay"). NEWEB = 1 đã chốt
+   09/09. Edit per-row qua T2 admin UI không cần code change khi KH cung cấp số thật.
+8. **Giá gốc 15T × 3 tuyến.** D3 default: **deliberately missing**
+   (`pricing_tables.base_price = 0`). MANUAL fallback là **designed behavior** (testplan
+   `TC-CUOC-015`), không phải thiếu sót — tạo lô vẫn proceed, Kế toán nhập tay trên
+   chứng từ. Khi KH bổ sung số, update 3 dòng `pricing_tables`; snapshot cũ giữ nguyên
+   (no-retro theo Câu 2 = A).
+9. **Threshold values X / Z cho từng khách.** D3 default:
+   **`surcharge_threshold_pct = NULL` và `surcharge_threshold_abs = NULL`** (cả 3 tuyến
+   Long Minh). NULL = always-adjust (engine không ratchet, giá mới luôn áp). XOR
+   validation giữ nguyên khi KH edit (`TC-CUOC-013` ⇒ 422 nếu cả 2 set).
 
 > **Không phải câu hỏi thiết kế — đã track ở §6.2 mục 8:** giá gốc `15T` đang trống
 > ở cả Excel lẫn seed (`basePrice: 0`). Đây chỉ là **một điểm dữ liệu còn thiếu —

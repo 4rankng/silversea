@@ -303,44 +303,60 @@ cước riêng, sẽ bổ sung khi T2 land.
 
 ---
 
-## 4. Open items (chờ KH / User)
+## 4. Open items (chờ KH / User) — defaults đã áp theo **D3 decision (10/09)**
 
 > **Tracker chính:** ticket `e3873fbc` trên board. Mỗi open item dưới đây cần reply
-> từ KH Long Minh (Câu 5) hoặc user (data gaps) trước khi có thể đóng.
+> từ KH Long Minh (Câu 5) hoặc user (data gaps) trước khi có thể đóng. Trong lúc
+> chờ, **D3 decision (10/09)** đã chốt default cho từng mục để không chặn code wave:
+>
+> | Item | Default đã áp | Lý do / ràng buộc |
+> |---|---|---|
+> | Lag ASKEY / SUNRISE+SJ | **`fuel_lag_days = 0`** | Theo docx §2A example N=0 ("khách áp dụng ngay"); user edit khi KH cung cấp số thật |
+> | Threshold X / Z | **`surcharge_threshold_pct = NULL` và `surcharge_threshold_abs = NULL`** | NULL = always-adjust (engine không ratchet, giá mới luôn áp). XOR validation giữ nguyên khi KH edit |
+> | 15T base price ×3 | **deliberately missing = `pricing_tables.base_price = 0`** | MANUAL fallback là **designed behavior** (TC-CUOC-015), không phải thiếu sót |
+> | Câu 5 (other customers) | **assumed (A) only Long Minh** | Schema + engine đáp ứng Long Minh duy nhất; khách khác tiếp tục nhập tay. Nếu KH = (B), reopen thêm cột `pricing_model` + UI |
+>
+> Các mục dưới vẫn được track open (KH có thể reply bất cứ lúc nào) nhưng **không
+> chặn code wave** vì default đã hợp lệ vận hành.
 
 ### 4.1. Câu 5 — Khách hàng khác ngoài Long Minh có dùng mô hình này không?
 
-- Ảnh hưởng: có cần cột `pricing_model` / `formula_variant` trên `freight_rate_terms` không?
+- **Default (D3 decision 10/09): assumed (A) — chỉ Long Minh dùng mô hình này.** Schema
+  + engine hiện đáp ứng Long Minh duy nhất; khách khác tiếp tục nhập tay.
+- Ảnh hưởng nếu KH đổi ý: cần cột `pricing_model` / `formula_variant` trên
+  `freight_rate_terms`.
 - Nguồn: [`CauHoiKhachHang_CuocPhi_2026-09-08.md`](CauHoiKhachHang_CuocPhi_2026-09-08.md) §Câu 5
-- Chờ: KH trả lời.
-- Nếu KH = (A) Long Minh duy nhất ⇒ không cần cột mới.
-- Nếu KH = (B) đa mô hình ⇒ cần thêm cột + UI chọn formula variant trong T2.
+- Chờ: KH xác nhận (track ticket `e3873fbc`). KH có thể reply bất cứ lúc nào;
+  nếu đổi từ (A) → (B), reopen thêm cột + UI chọn formula variant trong T2.
 
 ### 4.2. Lag ASKEY / SUNRISE+SJ (phụ lục 2a)
 
-- Hiện tại: NEWEB = 1 (đã chốt), ASKEY = 0 (tạm seed), SUNRISE+SJ = 0 (tạm seed).
-- Ảnh hưởng: kỳ giá dầu mới áp lên chuyến 2 tuyến này sai ngày cho đến khi có số.
-- Chờ: KH cung cấp lag_days cho 2 tuyến.
-- Mitigation: ticket T2 (config CRUD) sẽ cho phép edit `fuel_lag_days` per-row mà không
-  cần code change — KH/user có thể cập nhật sau khi có số.
+- **Default (D3 decision 10/09): `fuel_lag_days = 0` cho cả ASKEY và SUNRISE+SJ** —
+  theo docx §2A example N=0 ("khách áp dụng ngay"). Khi KH cung cấp số thật, edit per-row
+  qua T2 admin UI không cần code change.
+- Hiện tại (sau D3): NEWEB = 1 (đã chốt), ASKEY = **0 (default D3)**, SUNRISE+SJ = **0
+  (default D3)**.
+- Ảnh hưởng nếu KH sửa: kỳ giá dầu mới sẽ áp lên 2 tuyến này sai ngày cho đến khi có số.
+- Chờ: KH xác nhận (track ticket `e3873fbc`).
 
 ### 4.3. Giá gốc 15T × 3 tuyến
 
-- Hiện tại: `pricing_tables.base_price` cho 15T = 0 ở cả 3 tuyến (NEWEB/ASKEY/SUNRISE+SJ).
-- Ảnh hưởng: chuyến xe 15T rơi nhánh MANUAL (không tính tự động).
-- Chờ: KH cung cấp 3 con số.
-- Mitigation: MANUAL fallback đã thiết kế (TC-CUOC-015) — tạo lô vẫn chạy, Kế toán nhập
-  tay trên chứng từ. Khi KH cung cấp số, update 3 dòng `pricing_tables`, snapshot cũ giữ
-  nguyên (no-retro).
+- **Default (D3 decision 10/09): deliberately missing — `pricing_tables.base_price = 0`
+  cho 15T ở cả 3 tuyến. MANUAL fallback là designed behavior**, không phải thiếu sót
+  (TC-CUOC-015 PASS, Kế toán nhập tay trên chứng từ).
+- Ảnh hưởng nếu KH cung cấp: update 3 dòng `pricing_tables` qua T2; snapshot cũ giữ
+  nguyên (no-retro theo Câu 2 = A).
+- Chờ: KH bổ sung (track ticket `e3873fbc`) — nhưng **không block wave** vì MANUAL đã hoạt
+  động.
 
 ### 4.4. Threshold values X / Z cho từng khách
 
-- Hiện tại: chưa seed `surcharge_threshold_pct` / `surcharge_threshold_abs` cho Long Minh
-  (cả 3 tuyến).
-- Ảnh hưởng: engine không ratchet ⇒ mọi kỳ giá dầu mới đều áp dụng ngay.
-- Chờ: KH cung cấp X (% biến động) hoặc Z (VND/lít biến động) cho mỗi tuyến.
-- Mitigation: KH cần **chọn 1 trong 2** dạng (XOR validation ở T2). Nếu KH chưa quyết
-  được, để null = không ratchet (giá mới luôn áp). Khi KH cung cấp, edit row qua UI T3.
+- **Default (D3 decision 10/09): `surcharge_threshold_pct = NULL` và
+  `surcharge_threshold_abs = NULL`** cho cả 3 tuyến Long Minh. NULL = always-adjust
+  (engine không ratchet, giá mới luôn áp).
+- Ảnh hưởng nếu KH cung cấp: KH chọn **1 trong 2** dạng (XOR validation ở T2 — `TC-CUOC-013`
+  ⇒ 422 khi cả 2 set). Edit row qua T3 admin UI không cần code change.
+- Chờ: KH bổ sung (track ticket `e3873fbc`) — **không block wave** vì NULL hoạt động hợp lệ.
 
 ### 4.5. Item 2a (đã đóng một phần 09/09) — ấn định lại
 
