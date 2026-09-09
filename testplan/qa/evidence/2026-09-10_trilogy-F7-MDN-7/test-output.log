@@ -1,0 +1,17 @@
+$ cd backend
+$ DATABASE_URL=postgres://postgres:postgres@localhost:5441/silversea \
+  npx tsx --test --test-concurrency=1 --test-name-pattern="MDN-7" \
+  'src/tests/shipment-intake-submit.test.ts'
+▶ operational site admin maintenance
+  ✔ MDN-7: hides inactive factories from intake listing (trilogy F7) (81.127959ms)
+✔ operational site admin maintenance (81.591042ms)
+ℹ tests 1
+ℹ suites 1
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 797.671458
+
+# Exit status: 0

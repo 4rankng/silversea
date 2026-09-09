@@ -647,6 +647,50 @@ describe('operational site admin maintenance', () => {
       (err: unknown) => err instanceof ApiError && err.statusCode === 409,
     );
   });
+
+  // Trilogy gap F7 / MDN-7 — MasterDataNhaMay.md §3.3: nhà máy bị vô hiệu hoá
+  // (`is_active = false`) không được xuất hiện trong dropdown tạo lô. Backend
+  // service đã filter ở shipment-intake.service.ts:289; test này chặn hồi quy.
+  test('MDN-7: hides inactive factories from intake listing (trilogy F7)', async () => {
+    const cus = await actor(Role.CUS);
+    const ref = await references();
+
+    // Create a second FACTORY for the same customer, then deactivate it.
+    const [inactiveFactory] = await db.insert(s.operationalSites).values({
+      customerId: ref.customer.id,
+      code: `INACTIVE-${suffix}-${siteIds.length}`,
+      name: `Factory đã vô hiệu hoá ${suffix}`,
+      siteType: 'FACTORY',
+      routeId: ref.route.id,
+      address: 'KCN cũ đã ngừng hoạt động',
+    }).returning();
+    siteIds.push(inactiveFactory.id);
+    await db.update(s.operationalSites)
+      .set({ isActive: false })
+      .where(eq(s.operationalSites.id, inactiveFactory.id));
+
+    const items = await listOperationalSitesForIntake(ref.customer.id, cus);
+
+    // Active factory from references() must be present.
+    assert.ok(
+      items.some((site) => site.id === ref.site.id),
+      'active factory should appear in intake listing',
+    );
+    // Inactive factory must NOT be present (MasterDataNhaMay.md §3.3).
+    assert.equal(
+      items.some((site) => site.id === inactiveFactory.id),
+      false,
+      'inactive factory must be hidden from intake listing',
+    );
+    // Admin endpoint is the only path that returns deactivated rows (so admin
+    // can re-enable them) — keep the two endpoints separated by intent.
+    const admin = await actor(Role.ADMIN);
+    const adminRows = await listOperationalSitesForAdmin(admin);
+    assert.ok(
+      adminRows.some((row) => row.id === inactiveFactory.id && row.isActive === false),
+      'admin endpoint keeps deactivated rows visible for re-enable',
+    );
+  });
 });
 
 after(async () => {

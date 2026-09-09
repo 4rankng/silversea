@@ -15,7 +15,7 @@ và cập nhật trạng thái bằng evidence thật (test run ids, UI-DRIVEN s
 > **Phase-2 refresh (2026-09-09 18:3x):** sau khi lanes 1-3 land + browser regression local
 > (evidence: `testplan/qa/evidence/2026-09-09_phase2-docx-trilogy/`), ma trận đổi trạng thái:
 > 53 COVERED / 3 PARTIAL / 0 UNCOVERED trên 56 rows. 3 PARTIAL còn lại đều chờ quyết định user
-> (F5 nhãn "Chạy ngoài" DEFERRED, F6 snapshot OPEN DESIGN, F7 inactive-factory evidence-only).
+> (F5 nhãn "Chạy ngoài" DEFERRED, F6 snapshot OPEN DESIGN; **F7 inactive-factory closed 10/09** — test `MDN-7` pass 81ms).
 
 ---
 
@@ -47,7 +47,7 @@ và cập nhật trạng thái bằng evidence thật (test run ids, UI-DRIVEN s
 | 4 | Case 2 không suy ra tuyến/vị trí (§2.1-5) | `CUS-SHIP-15` | storage XOR tests (`ad-hoc-orders.test.ts`) | UI-verified: L2/L3 detail render đúng raw, không derive catalog (`adhoc004_L2-detail.png`) | COVERED (phase-2 UI) |
 | 5 | Cascading: NM chỉ xổ theo KH; đổi KH ⇒ reset NM; chưa chọn KH ⇒ disabled (§3.1) | flows/01 `TC-CUS-CREATE-016/-021/-022/-023`; `CUS-SHIP-14` | `shipment-create-model.test.ts` | `shipment-create-model.ts:170` + `assertShipmentFactorySiteValid` | COVERED |
 | 6 | Auto-fill + read-only tuyến/vị trí khi chọn NM (§3.2) | flows/01 `-022` (clear/re-pick route cell); flows/01:38 (cước read-only) | `shipment-create-model.test.ts` | `shipment-create-model.ts:266,273` (FCL = per-container site/route) | COVERED (FCL per-container) |
-| 7 | Dữ liệu thiếu: NM thiếu tuyến chặn lưu đích danh; KH không NM ⇒ dropdown rỗng + link tạo nhanh; NM `is_active=false` ẩn khỏi dropdown (§3.3) | flows/01 `-016/-017` + `CUS-SHIP-14` | — | inactive filter chưa định vị — **evidence-only per lane-2 routing**, chờ evidence | PARTIAL (F7, evidence-only) |
+| 7 | Dữ liệu thiếu: NM thiếu tuyến chặn lưu đích danh; KH không NM ⇒ dropdown rỗng + link tạo nhanh; NM `is_active=false` ẩn khỏi dropdown (§3.3) | flows/01 `-016/-017` + `CUS-SHIP-14` | `shipment-intake-submit.test.ts` (`MDN-7: hides inactive factories from intake listing (trilogy F7)` — 81ms PASS 2026-09-10) | filter `eq(operationalSites.isActive, true)` confirmed at `backend/src/services/shipment-intake.service.ts:289`; intake endpoint `core.routes.ts:401-414` consumes it; admin endpoint `core.routes.ts:430-436` separately returns deactivated rows so admin can re-enable | COVERED (trilogy F7 closed 2026-09-10) |
 | 8 | Checkbox đầu form cố định; bật/tắt giữa chừng không mất dữ liệu; `is_ad_hoc` persist + reopen (§4.1) | `CUS-SHIP-10` (AC10) | `ad-hoc-orders.test.ts` (`reopen-for-edit keeps the ad-hoc flag (AC10)`) | `ShipmentCreateWorkspace.tsx:562-572` (fixed top) | COVERED |
 | 9 | Bypass chỉ định mức cước; validation an toàn giữ nguyên — ISO-6346, ngày hợp lệ, số lượng > 0 (§4.1) | `CUS-SHIP-11` | `ad-hoc-orders.test.ts` (`pricing projection reports the ad-hoc bypass…`); `shared/src/calculations/iso6346.ts` + test | containers service enforce ISO | COVERED |
 | 10 | Combobox: lọc chuỗi con hoa/thường + dấu; text lạ giữ sau blur; phân biệt "mới"; ↑↓/Enter/Esc; dismissal giữ text (§4.2) | `CUS-SHIP-14` | `uui-fields.test.tsx` (free-text passthrough + diacritic-insensitive + catalog-id commit — `f2a324ca`) | `uui-fields.tsx:170`; browser: text giữ sau Tab/blur (`adhoc002_L2-freetext-ports.png`) | COVERED (lane-2 unit + phase-2 UI) |
@@ -113,7 +113,7 @@ và cập nhật trạng thái bằng evidence thật (test run ids, UI-DRIVEN s
 - **F6 — snapshot khi phát lệnh chưa trọn.** MDN §2: fulfillment đã phát lệnh phải snapshot các trường vận hành của nhà máy.
   `trips.route_id` notNull snapshot route ✓ nhưng factory site/address derive-at-read (join master data lúc đọc) —
   sửa master data sau khi phát lệnh có thể trôi dữ liệu lô đang chạy.
-- **F7 — NM inactive ẩn khỏi dropdown tạo mới:** không định vị được filter `isActive` trên nguồn dropdown (routes restructured) — cần verify Phase 2.
+- **F7 — NM inactive ẩn khỏi dropdown tạo mới:** **CLOSED 2026-09-10** — filter `eq(operationalSites.isActive, true)` đã có ở `backend/src/services/shipment-intake.service.ts:289` (intake endpoint chỉ trả active rows; admin endpoint riêng trả cả deactivated để re-enable). Test `shipment-intake-submit.test.ts::MDN-7` pass 81ms — chặn hồi quy.
 - **F8 — push notification:** services tồn tại (`push.service.ts`, `notification.service.ts`, wiring `dispatch-planning-commands.service.ts`)
   nhưng chưa trace E2E → Phase 2 UI evidence.
 
@@ -123,7 +123,7 @@ và cập nhật trạng thái bằng evidence thật (test run ids, UI-DRIVEN s
 2. Push notification E2E (UI evidence).
 3. Wallet optimistic jump FE assertion.
 4. Combobox diacritic filter + keyboard nav unit/UI.
-5. NM inactive filter + "+Tạo mới" label check.
+5. ~~NM inactive filter~~ — **closed 10/09 (F7)**, evidence `shipment-intake-submit.test.ts::MDN-7` + intake.service.ts:289. "+Tạo mới" label check vẫn open.
 6. Hoàn thành ⇒ sync điều vận (UI).
 7. ~~44px vs 48px dev-tools probe~~ — RESOLVED 09-09: footer CTA = 48px (`DriverTripsPage.css:352,383`).
 8. `SELECT count(*)` master-data guardrail re-check sau khi các lane land.
@@ -197,16 +197,17 @@ và cập nhật trạng thái bằng evidence thật (test run ids, UI-DRIVEN s
 | PRD | Reqs | COVERED | PARTIAL | BLOCKED | UNCOVERED |
 |---|---|---|---|---|---|
 | ManHinhLaiXe | 13 | 13 | 0 | 0 | 0 |
-| MasterDataNhaMay | 14 | 11 | 3 | 0 | 0 |
+| MasterDataNhaMay | 14 | 12 | 2 | 0 | 0 |
 | LoHangKepKetHop | 12 | 12 | 0 | 0 | 0 |
 | OpsVanHanh | 17 | 17 | 0 | 0 | 0 |
 | `PhuongAnTinhCuocTuDong` *(2026-09-10, wave `run-1788968588650-mctezn`)* | 14 | 3 | 6 | 4 | 0 |
-| **Total** | **70** | **56** | **9** | **4** | **0** |
+| **Total** | **70** | **57** | **8** | **4** | **0** |
 
-**PARTIAL còn lại của wave cũ (3, đều chờ quyết định user / evidence-only):**
-1. MDN-7 (inactive factory — evidence-only per lane-2 routing)
-2. MDN-11b (nhãn "Chạy ngoài" F5 — PRD-only DEFERRED chờ user duyệt; browser FAIL-vs-PRD đã chụp)
-3. MDN-13 (snapshot F6 — OPEN DESIGN chờ user duyệt, không migration)
+**PARTIAL còn lại của wave cũ (2, đều chờ quyết định user / evidence-only):**
+1. MDN-11b (nhãn "Chạy ngoài" F5 — PRD-only DEFERRED chờ user duyệt; browser FAIL-vs-PRD đã chụp)
+2. MDN-13 (snapshot F6 — OPEN DESIGN chờ user duyệt, không migration)
+
+**F7 (MDN-7 inactive-factory filter) — CLOSED 2026-09-10:** xem row 7 §2 + finding F7 + §6 mục 5.
 
 **Wave auto-pricing (2026-09-10):**
 - **4 COVERED** (UT engine parity đã có sẵn): row 1 (công thức cốt lõi), 10 (ad-hoc bypass), 11 (rounding HALF_UP), 12 (base_fuel_price scale 4).
