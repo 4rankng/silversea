@@ -5,7 +5,7 @@ description: "System-level overview of SilverSea's product scope, runtime stack,
 tags: [overview, product, o2c, dispatch, ops]
 verified:
   - by: openwiki/0.5.0
-    at: 2026-09-09T05:48:17.279Z
+    at: 2026-09-09T05:57:42.350Z
 sources:
   - id: openwiki-source-8037e2358a2c4f9b2c722a11
     resource: repo://AGENTS.md
@@ -23,7 +23,7 @@ sources:
     resource: repo://package.json
   - id: openwiki-source-c70b83824774b69fa2b19556
     resource: repo://testplan/flows/README.md
-generated: { by: "opencode", at: "2026-09-09T05:48:17.279Z" }
+generated: { by: "opencode", at: "2026-09-09T05:57:42.350Z" }
 ---
 
 # SilverSea System Overview
@@ -60,7 +60,7 @@ The main tree as of commit `468bd371` (origin/prod merge) plus `7d4a55eb` (post-
 - **Partial-dispatch support.** A partially-dispatched lot keeps its remaining `READY` rows re-assignable in both the carrier-fleet reassign path and the detail-plan save path; only terminal statuses (`COMPLETED`, `CANCELED`) block further carrier changes.
 - **Per-row confirm/revert + giờ-first 24h inputs in the CUS detail ledger.** Inline `Xác nhận` / `Revert` actions with success/error toasts and Enter/Escape handling. The schedule editor (`ShipmentContainerScheduleEditor`) accepts the appointment in a `giờ`-first 24h input so the typed value matches the rendered chip text. Inline drafts dismiss via `useClickOutside`.
 - **Dispatch task-tag pool.** `listDispatchTaskTags` / `createDispatchTaskTag` / `updateDispatchTaskTag` / `deactivateDispatchTaskTag` live in `dispatchPlanningClient.ts` beside the other dispatch planning calls, with NFC-normalized duplicate detection and a soft-delete path that preserves historical notes.
-- **Idempotent detail-plan saves.** Plan-save conflicts surface the backend's 409 message verbatim so the UI can echo "Lô hàng đã có thay đổi khác, vui lòng tải lại" without re-deriving it.
+- **Idempotent detail-plan saves.** Plan-save conflicts surface the backend's 409 message verbatim so the UI can echo "Lô hàng đã có thay đổi khác, vui lòng tải lại" without re-deriving it. The editor modal closes on a successful save and restores focus to the trigger button (`a6e68a91`); a regression sweep (TC-DISPATCH-EDIT-002) keeps that behavior pinned.
 - **Font-family contract enforcement.** The allocation summary, schedule editor, and ledger rows drop the legacy `tabular-nums` declaration so Be Vietnam Pro's proportional figures render correctly under right-aligned numerics.
 
 ## Removed features — do not treat as current

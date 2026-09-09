@@ -5,7 +5,7 @@ description: "Shortest safe path to install, run, validate, and understand the c
 tags: [quickstart, setup, tests, scripts, validation]
 verified:
   - by: openwiki/0.5.0
-    at: 2026-09-09T05:48:17.279Z
+    at: 2026-09-09T05:57:42.350Z
 sources:
   - id: openwiki-source-39c3295efc089133e87a9c80
     resource: repo://CONTEXT.md

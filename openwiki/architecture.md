@@ -5,7 +5,7 @@ description: "System-level map of SilverSea's backend, frontend, shared contract
 tags: [architecture, dispatch, contracts, testing, operations]
 verified:
   - by: openwiki/0.5.0
-    at: 2026-09-09T05:48:17.279Z
+    at: 2026-09-09T05:57:42.350Z
 sources:
   - id: openwiki-source-8037e2358a2c4f9b2c722a11
     resource: repo://AGENTS.md
@@ -59,7 +59,7 @@ sources:
     resource: repo://shared/src/schemas/cus-shipment-workspace.ts
   - id: openwiki-source-b650eeedb63cbb73aa890ab2
     resource: repo://shared/src/schemas/index.ts
-generated: { by: "opencode", at: "2026-09-09T05:48:17.279Z" }
+generated: { by: "opencode", at: "2026-09-09T05:57:42.350Z" }
 ---
 
 # Architecture and Codebase Map
@@ -81,7 +81,7 @@ The dispatch UI has two complementary read models. The master plan groups shipme
 
 1. The master-plan grid renders one schedule block per container appointment and can restrict blocks to a selected business date. Its port columns aggregate container-type counts by pickup/dropoff pair so per-day appointment splits do not produce duplicate demand lines. When appointment groups are unavailable, the grid uses the shipment-level fallback fields.
 2. The detailed-plan client requests paginated rows with direction, assignment, port, delivery-point, hour, and dispatch-zone filters. The backend validates IDs, time formats, zone length, and allowed enum values before the service builds a stable priority order and applies the same filters to rows and totals. The detail-plan row carries a `taskStatus` of `'READY' | 'DISPATCHED' | 'COMPLETED'`, so the grid can render a finished chip the moment a trip's external-carrier staff close fires.
-3. Single-save edits flow through the atomic plan endpoint: carrier, vehicle, estimates, classification, and the optional driver note commit together or not at all, guarded by both row versions. The dispatcher-owned classification is persisted while the lot-level combined flag is CUS-owned and stripped at the route.
+3. Single-save edits flow through the atomic plan endpoint: carrier, vehicle, estimates, classification, and the optional driver note commit together or not at all, guarded by both row versions. The dispatcher-owned classification is persisted while the lot-level combined flag is CUS-owned and stripped at the route. On a successful save the editor modal closes and focus is restored to the trigger button so the dispatcher can re-open with a single keyboard action (`a6e68a91`); regression case TC-DV-DISPATCH-048 / TC-DISPATCH-EDIT-002 pins this behavior with evidence under `testplan/qa/evidence/2026-09-09_TC-DISPATCH-EDIT-002/`.
 4. The detailed-plan editor mounts a shared note composer that drives a global tag pool (`listDispatchTaskTags` / `createDispatchTaskTag` / `updateDispatchTaskTag` / `deactivateDispatchTaskTag` in `dispatchPlanningClient.ts`), validates labels (length, separator safety, NFC normalization), and exposes soft-delete with an active/inactive re-resurrection path so historical notes keep their text.
 5. Carrier-allocation edits in the master plan split demand by packing/return day (`DispatchAllocationDaySection` + `allocationDayHelpers`), validate against the per-day demand, and save through a partial-save endpoint that echoes the persisted row back to the grid. The dialog rebuild groups rows by day, surfaces per-day totals, and the inline edit dropdown collapses back to a compact view when the user dismisses the popover.
 6. External-carrier staff close (`completeDispatchExternalTrip` in `dispatchPlanningClient.ts`, served by `trip-external-close.service.ts`): when an external driver does not run the driver app, dispatch or CUS confirm completion from the detail-plan row. The row flips `taskStatus` to `'COMPLETED'` and the same `transitionTripStatus` machinery used by the driver close fires, so revenue/AP/AR post and ledger snapshots stay consistent.
