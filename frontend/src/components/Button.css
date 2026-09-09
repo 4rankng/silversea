@@ -106,3 +106,24 @@
     min-height: var(--control-touch-h);
   }
 }
+
+/* Touch tablets keep desktop-width layouts but still need the 44px touch
+   floor — the width-based bump above only covers ≤640px viewports, leaving
+   coarse-pointer tablets (iPad) with 30-34px targets in dense toolbars and
+   table rows (space-utilisation audit 2026-09-09: /dashboard row actions
+   measured 32px at tablet widths). Pointer-based, so desktop mice keep the
+   compact density contracts untouched. */
+@media (pointer: coarse) {
+  .btn,
+  .btn--sm {
+    min-height: var(--control-touch-h);
+  }
+
+  .btn--icon,
+  .btn--icon.btn--sm {
+    width: var(--control-touch-h);
+    min-width: var(--control-touch-h);
+    height: var(--control-touch-h);
+    min-height: var(--control-touch-h);
+  }
+}

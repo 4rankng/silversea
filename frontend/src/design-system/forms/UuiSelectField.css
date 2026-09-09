@@ -59,6 +59,11 @@
 .ds-uui-select--inline > label {
   flex: 0 0 auto;
   margin: 0;
+  /* Labels never split mid-word when a tight filter grid squeezes the
+     wrapper (space-utilisation audit 2026-09-09: "Nhà cung cấp" chopped to
+     "Nhà cung cấ/p" at ~340px cells). Word-boundary wraps stay allowed. */
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .ds-uui-select--inline .ds-uui-select__control {
