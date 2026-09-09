@@ -1,13 +1,13 @@
 {
   "runId": "2026-09-09_dispatch-sweep-2026-09-09",
-  "timestamp": "2026-09-09T07:15:35.979Z",
+  "timestamp": "2026-09-09T07:59:42.197Z",
   "results": [
     {
       "caseId": "TC-CUS-CREATE-048",
       "role": "ADMIN",
       "file": "TC-CUS-CREATE-048.mjs",
       "verdict": "PASS",
-      "durationMs": 5724,
+      "durationMs": 4522,
       "rowCount": 9,
       "contractOk": true,
       "sampleRows": [
@@ -36,7 +36,7 @@
       "role": "ADMIN",
       "file": "TC-CUS-APPOINTMENT-001.mjs",
       "verdict": "PASS",
-      "durationMs": 7160,
+      "durationMs": 6996,
       "fields": [
         {
           "label": "GIỜ",
@@ -58,7 +58,7 @@
       "role": "ADMIN",
       "file": "TC-SHIPMENTS-DETAIL-001.mjs",
       "verdict": "PASS",
-      "durationMs": 4280,
+      "durationMs": 4288,
       "totalRows": 12,
       "plannedCount": 4,
       "platedCount": 8,
@@ -69,8 +69,8 @@
           "badge": "Đã phân xe"
         },
         {
-          "vehicle": "SilverSea",
-          "plate": "15C-184.62",
+          "vehicle": "DUYÊN HẢI",
+          "plate": "15C-123456",
           "badge": "Đã phân xe"
         },
         {
@@ -85,7 +85,7 @@
       "role": "ADMIN",
       "file": "TC-DISPATCH-ALLOC-001.mjs",
       "verdict": "PASS",
-      "durationMs": 5505,
+      "durationMs": 5503,
       "structure": {
         "dayGroupCount": 1,
         "dayTitles": [
@@ -98,7 +98,7 @@
       "role": "ADMIN",
       "file": "TC-DISPATCH-EDIT-001.mjs",
       "verdict": "PASS",
-      "durationMs": 5478,
+      "durationMs": 5484,
       "classData": {
         "hasSelect": true,
         "options": [
@@ -116,7 +116,7 @@
       "role": "ADMIN",
       "file": "TC-DISPATCH-EDIT-002.mjs",
       "verdict": "PASS",
-      "durationMs": 5869,
+      "durationMs": 5882,
       "isDialogOpenBefore": true,
       "isDialogClosedAfter": true
     }
