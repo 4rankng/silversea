@@ -77,7 +77,7 @@ export default function ShipmentsPage() {
   const ws = useCusWorkspaceState({
     page, searchSuffix: suffixParam, transportDateFrom: dateFrom, transportDateTo: dateTo,
     direction, bucket, sortKey, sortDir,
-  });
+  }, drawerId);
   const qe = useCusQuickEdit({
     setError: ws.setError, setNotice: ws.setNotice, loadList: ws.loadList, invalidateDetail: ws.invalidateDetail,
   });
