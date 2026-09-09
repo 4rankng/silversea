@@ -408,8 +408,14 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  /* Tablet keeps the toolbar working two-up (search spans the first row) —
+     one-control-per-row stacks left ~65% of each row empty. */
   .fuel-invoices-toolbar {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .fuel-invoices-toolbar__search {
+    grid-column: 1 / -1;
   }
 }
 
@@ -421,6 +427,10 @@
   .fuel-invoice-editor__row-grid,
   .fuel-invoice-allocation-card__grid,
   .fuel-invoice-mobile-card__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .fuel-invoices-toolbar {
     grid-template-columns: 1fr;
   }
 
