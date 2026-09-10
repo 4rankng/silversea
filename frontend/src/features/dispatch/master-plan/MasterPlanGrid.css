@@ -1018,20 +1018,14 @@
   }
 }
 
-/* Phone records keep their primary identity in a single vertical story, then
-   pair the two short port facts. It removes redundant direction labels without
-   compressing meaningful text or making the allocation action harder to use. */
+/* Phone records use the same full 2-column pairing as the record-table
+   layout (config pages): every cell pairs side-by-side so mobile layouts
+   stay consistent app-wide. Only the smallest screens collapse to a single
+   column. The paired ports keep their divider styling. */
 @container (max-width: 599px) {
   .master-plan-grid__row {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .master-plan-grid__cell:nth-child(-n + 3),
-  .master-plan-grid__cell:nth-child(6),
-  .master-plan-grid__cell:nth-child(8),
-  .master-plan-grid__cell--action {
-    grid-column: 1 / -1;
   }
 
   .master-plan-grid__cell--lift-port,
