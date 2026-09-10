@@ -868,18 +868,6 @@ export async function decideShipmentDeleteRequest(
   );
 }
 
-export async function requestContainerEdit(
-  shipmentId: number,
-  containerId: number,
-  fields: Record<string, unknown>,
-  reason: string,
-): Promise<{ replayed: boolean }> {
-  return api.post<{ replayed: boolean }>(
-    `/shipments/cus-workspace/${shipmentId}/container-edit-request`,
-    { containerId, fields, reason },
-  );
-}
-
 export async function reviewShipmentPod(
   shipmentId: number,
   submissionId: number,

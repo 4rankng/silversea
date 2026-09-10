@@ -36,8 +36,6 @@ import {
 import {
   requestShipmentDelete,
   decideShipmentDeleteRequest,
-  requestContainerEdit,
-  decideContainerEditRequest,
 } from '../../services/shipment-governance.service';
 import { requireRoles } from '../../middleware/casbin';
 import { getUser } from '../../middleware/auth';
@@ -392,94 +390,4 @@ cusWorkspaceRoutes.post(
     sendShipmentWrite(res, result);
   }),
 );
-
-// ─── CONTAINER EDIT REQUEST — CUS requests container field edit past cutoff ─
-cusWorkspaceRoutes.post(
-  '/cus-workspace/:id/container-edit-request',
-  requireRoles(Role.CUS),
-  asyncHandler(async (req: Request, res: Response) => {
-    const shipmentId = parseId(req, res);
-    if (shipmentId === null) return;
-    const { containerId, fields, reason } = req.body ?? {};
-    if (!Number.isInteger(containerId) || containerId <= 0) {
-      throw new ApiError(400, 'containerId là bắt buộc');
-    }
-    if (!fields || typeof fields !== 'object') {
-      throw new ApiError(400, 'fields là bắt buộc');
-    }
-    if (!reason || typeof reason !== 'string' || !reason.trim()) {
-      throw new ApiError(400, 'Lý do là bắt buộc');
-    }
-    const { result } = await runShipmentWrite(
-      req,
-      IDEMPOTENCY_ENDPOINTS.CONTAINER_EDIT_REQUEST,
-      { shipmentId, containerId, fields, reason: reason.trim() },
-      async (tx) => {
-        const outcome = await requestContainerEdit({
-          shipmentId,
-          containerId,
-          fields,
-          reason: reason.trim(),
-          actor: getUser(req),
-          transaction: tx,
-        });
-        return {
-          body: outcome,
-          status: 201,
-          auditEntityId: shipmentId,
-          auditEntityKey: `shipment-${shipmentId}`,
-        };
-      },
-    );
-    sendShipmentWrite(res, result);
-  }),
-);
-
-// ─── CONTAINER EDIT REQUEST DECISION — Admin approves/rejects edit ──────────
-cusWorkspaceRoutes.post(
-  '/cus-workspace/:id/container-edit-requests/:actionId/decision',
-  requireRoles(Role.ADMIN, Role.MANAGER),
-  asyncHandler(async (req: Request, res: Response) => {
-    const shipmentId = parseId(req, res);
-    if (shipmentId === null) return;
-    const actionId = Number.parseInt(req.params.actionId as string, 10);
-    if (!Number.isInteger(actionId) || actionId <= 0) {
-      throw new ApiError(400, 'ID yêu cầu không hợp lệ');
-    }
-    const { decision, expectedVersion, reason } = req.body ?? {};
-    if (decision !== 'APPROVE' && decision !== 'REJECT') {
-      throw new ApiError(400, 'decision phải là APPROVE hoặc REJECT');
-    }
-    if (!Number.isInteger(expectedVersion) || expectedVersion < 0) {
-      throw new ApiError(400, 'expectedVersion là bắt buộc');
-    }
-    if (!reason || typeof reason !== 'string' || !reason.trim()) {
-      throw new ApiError(400, 'Lý do là bắt buộc');
-    }
-    const { result } = await runShipmentWrite(
-      req,
-      IDEMPOTENCY_ENDPOINTS.CONTAINER_EDIT_REQUEST_DECISION,
-      { shipmentId, actionId, decision, expectedVersion, reason: reason.trim() },
-      async (tx) => {
-        const outcome = await decideContainerEditRequest({
-          shipmentId,
-          actionId,
-          decision,
-          expectedVersion,
-          reason: reason.trim(),
-          actor: getUser(req),
-          transaction: tx,
-        });
-        return {
-          body: outcome,
-          status: 200,
-          auditEntityId: shipmentId,
-          auditEntityKey: `shipment-${shipmentId}`,
-        };
-      },
-    );
-    sendShipmentWrite(res, result);
-  }),
-);
-
 export { cusWorkspaceRoutes };
