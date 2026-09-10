@@ -46,14 +46,13 @@ export interface CusShipmentRowProps {
   /** Any draft is open — every other row's triggers disable while editing. */
   quickEditOpen: boolean;
   savingQuickEdit: boolean;
-  pendingDelete: boolean;
   onStartQuickEdit: (item: ShipmentCusWorkspaceListItem, field: ShipmentQuickEditDraft['field']) => void;
   onOpenAction: (item: ShipmentCusWorkspaceListItem, mode: 'confirm' | 'lock' | 'reopen' | 'delete') => void;
   onOpenDetail: (shipmentId: number) => void;
 }
 
 export function CusShipmentRow({
-  item, dateFrom, dateTo, editing, quickEditOpen, savingQuickEdit, pendingDelete,
+  item, dateFrom, dateTo, editing, quickEditOpen, savingQuickEdit,
   onStartQuickEdit, onOpenAction, onOpenDetail,
 }: CusShipmentRowProps) {
   const identity = item.billOrBookNumber || item.declarationNumber || item.customerName || 'lô hàng';
@@ -175,7 +174,6 @@ export function CusShipmentRow({
         <div className="cus-row-actions">
           <div className="cus-row-actions__summary">
             <WorkflowBadge item={item} />
-            {pendingDelete && <span className="cus-workflow-badge cus-workflow-badge--pending-delete">Chờ phê duyệt xóa</span>}
             {primarySignal && PrimarySignalIcon && <span className={`cus-attention-label cus-attention-label--${primarySignal.tone}`}><PrimarySignalIcon size={13} aria-hidden="true" /> {primarySignal.label}</span>}
           </div>
           <div className="cus-row-actions__buttons">
@@ -186,7 +184,7 @@ export function CusShipmentRow({
                 className="cus-dashboard-delete"
                 aria-label={`Yêu cầu xóa lô hàng ${identity}`}
                 onPress={() => onOpenAction(item, 'delete')}
-                isDisabled={editing || pendingDelete}
+                isDisabled={editing}
                 iconLeading={<Trash2 size={16} aria-hidden="true" />}
               >
                 Xóa
