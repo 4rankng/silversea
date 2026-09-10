@@ -62,8 +62,8 @@ staging:
 
 # Local-dev demo accounts for role-based QA (user-directory export, created
 # 2026-08-20/21, canonical @nepo.vn emails per backend/src/seed.ts). Same shared
-# password as above; role codes cross-checked against the demo seed table in
-# AGENTS.md. Drivers are bound to the listed truck plates. Customer-portal
+# password as above; role codes cross-checked against backend/src/seed.ts.
+# Drivers are bound to the listed truck plates. Customer-portal
 # accounts (samsung-cs, canon-cs) are row-scoped to their own customer.
 # These exist ONLY on local dev — staging mirrors prod users instead (above).
 demoUsers:

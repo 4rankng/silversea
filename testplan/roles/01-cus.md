@@ -237,7 +237,7 @@ applies (silent redirect to `/shipments`).
 ### Test steps (manual)
 
 1. `pnpm dev` is up; `pgrep -f vite` confirms.
-2. Open `http://localhost:7174`; log in as `CUS` / `Abc123`.
+2. Open `http://localhost:7174`; log in with the `CUS` demo account (credentials: [`../testaccounts.txt`](../testaccounts.txt)).
 3. Land on `/shipments`. Click `+ Tạo lô hàng` (or navigate to
    `/shipments/new`).
 4. Exercise AC 1–7 in order.

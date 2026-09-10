@@ -171,37 +171,9 @@ Structured knowledge graph in `.ua/` — committed to git, shared across agents.
 - Backend health: http://localhost:3001/api/health
 - Drizzle ORM only — **no raw SQL**. Financial precision via `round2dp()` / `computeTripTotals()`.
 
-## Demo accounts (all passwords `Abc123`)
+## Accounts & credentials
 
-| Username | Role |
-| --- | --- |
-| admin | ADMIN |
-| giamdoc | MANAGER |
-| cus | CLERK |
-| ketoan | ACCOUNTANT |
-| laixe | DRIVER |
-| giaonhan | FORWARDER |
-| thu | DRIVER |
-| pho | DRIVER |
-| quyet | DRIVER |
-
-Local: http://localhost:7174 — `admin / Abc123`
-
-## Staging accounts (password `Abc123`)
-
-The staging users table is inherited from prod (`make stgdb` restore), and prod
-does not seed the shared role logins — verified 2026-09-10, only these Abc123
-accounts exist on staging:
-
-| Username | Role |
-| --- | --- |
-| admin | ADMIN |
-| khachhang | CUSTOMER |
-
-`ketoan` / `giamdoc` / `laixe` / `giaonhan` do not exist on staging (login
-returns "Thông tin đăng nhập không hợp lệ"). Role-specific verification on
-staging must use prod-inherited name-based staff accounts (password is prod's,
-not Abc123) or create test rows via admin.
+All logins for every environment are centralized in [`testplan/testaccounts.txt`](testplan/testaccounts.txt) — users, roles, URLs, the shared password rule, and scripted-testing API notes. Do NOT add or duplicate account data in this file; update the canonical file only.
 
 Staging: https://vantai.tingting.vip/
 

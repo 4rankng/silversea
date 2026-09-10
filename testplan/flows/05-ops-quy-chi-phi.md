@@ -2,7 +2,7 @@
 
 > **Vai trò sở hữu:** Nhân viên vận hành / hiện trường (OPS)
 > **Vai trò tham gia:** Kế toán (ACCOUNTANT) — duyệt tạm ứng & chi phí; Điều vận — gán chuyến
-> **Tài khoản demo:** `giaonhan` / `Abc123`; đối chiếu: `ketoan`, `dieuvan`
+> **Tài khoản:** theo `testplan/testaccounts.txt` (mục `demoUsers` — chỉ tồn tại trên local dev)
 > **Route chính:** `/ops/orders`, `/ops/fleet-tracking`, `/ops/wallet`
 > **PRD nguồn:** [`docs/prd/OpsVanHanh.md`](../../docs/prd/OpsVanHanh.md)
 >

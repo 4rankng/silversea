@@ -2,7 +2,7 @@
 
 > **Vai trò sở hữu:** Điều vận (DISPATCHER)
 > **Vai trò tham gia:** Lái xe (DRIVER), Kế toán (ACCOUNTANT)
-> **Tài khoản demo:** `dieuvan`, `laixe`, `thu`, `ketoan` (password `Abc123`)
+> **Tài khoản:** theo `testplan/testaccounts.txt` (mục `demoUsers` — chỉ tồn tại trên local dev)
 > **Route chính:** `/dispatch-detail`, `/my-trips`, `/profit`, `/salary-attendance`
 > **PRD nguồn:** [`docs/prd/LoHangKepKetHop.md`](../../docs/prd/LoHangKepKetHop.md),
 > [`docs/prd/QuyTrinhO2C.md`](../../docs/prd/QuyTrinhO2C.md) §2b
