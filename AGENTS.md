@@ -189,14 +189,19 @@ Local: http://localhost:7174 — `admin / Abc123`
 
 ## Staging accounts (password `Abc123`)
 
+The staging users table is inherited from prod (`make stgdb` restore), and prod
+does not seed the shared role logins — verified 2026-09-10, only these Abc123
+accounts exist on staging:
+
 | Username | Role |
 | --- | --- |
 | admin | ADMIN |
-| giamdoc | MANAGER |
-| ketoan | ACCOUNTANT |
-| laixe | DRIVER |
-| giaonhan | FORWARDER |
 | khachhang | CUSTOMER |
+
+`ketoan` / `giamdoc` / `laixe` / `giaonhan` do not exist on staging (login
+returns "Thông tin đăng nhập không hợp lệ"). Role-specific verification on
+staging must use prod-inherited name-based staff accounts (password is prod's,
+not Abc123) or create test rows via admin.
 
 Staging: https://vantai.tingting.vip/
 
