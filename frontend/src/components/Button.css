@@ -80,23 +80,25 @@
 .btn[disabled] { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
 
 @media (max-width: 640px) {
+  /* Compact phone contract (ticket 6770b9cb): buttons match the 11px scale
+     instead of the old 44px touch heights; floor stays ≥28px. */
   .btn {
-    min-height: var(--control-touch-h);
-    padding: 11px 14px;
-    font-size: var(--fs-sm);
+    min-height: var(--control-mobile-h);
+    padding: 4px 8px;
+    font-size: var(--fs-3xs);
     white-space: normal;
   }
 
   .btn--sm {
-    min-height: var(--control-touch-h);
-    padding: 9px 11px;
+    min-height: var(--control-mobile-h);
+    padding: 4px 8px;
   }
 
   .btn--icon {
-    width: var(--control-touch-h);
-    min-width: var(--control-touch-h);
-    height: var(--control-touch-h);
-    min-height: var(--control-touch-h);
+    width: var(--control-mobile-h);
+    min-width: var(--control-mobile-h);
+    height: var(--control-mobile-h);
+    min-height: var(--control-mobile-h);
   }
 
   .btn--icon.btn--sm {

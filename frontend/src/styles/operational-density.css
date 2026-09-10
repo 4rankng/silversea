@@ -155,18 +155,18 @@
   .ds-uui-select--operational .ds-uui-select__control > button,
   .ds-uui-select--operational .ds-uui-select__control > [role='group'] {
     min-height: var(--control-touch-h);
-    font-size: var(--control-compact-touch-font-size);
-    line-height: var(--control-compact-touch-line-height);
+    font-size: var(--control-mobile-font-size);
+    line-height: var(--control-mobile-line-height);
   }
 
   .ds-uui-select--operational .ds-uui-select__control > button > span,
   .ds-uui-select--operational .ds-uui-select__control > [role='group'] [data-combobox-value] {
-    min-height: calc(var(--control-touch-h) - 2px);
+    min-height: calc(var(--control-mobile-h) - 2px);
   }
 
   .ds-uui-select--operational .ds-uui-select__control > button > span p,
   .ds-uui-select--operational .ds-uui-select__control > [role='group'] span p {
-    font-size: var(--control-compact-touch-font-size);
-    line-height: var(--control-compact-touch-line-height);
+    font-size: var(--control-mobile-font-size);
+    line-height: var(--control-mobile-line-height);
   }
 }

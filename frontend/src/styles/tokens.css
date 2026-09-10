@@ -209,6 +209,11 @@
   --control-compact-h: 30px;
   --control-default-h: 34px;
   --control-touch-h: 44px;
+  /* Phone compact contract (ticket 6770b9cb): controls proportional to the
+     11px text scale; touch floor stays ≥28px. */
+  --control-mobile-h: 32px;
+  --control-mobile-font-size: var(--fs-3xs);
+  --control-mobile-line-height: 14px;
   --control-compact-font-size: var(--fs-xs);
   --control-compact-line-height: 18px;
   /* 16px on touch so iOS Safari never focus-zooms compact controls. */
@@ -260,6 +265,8 @@
   --fs-2xs: 12px;
   --fs-xs:  12px;
   --fs-status-pill: 11px;
+  /* 11px compact scale (ticket 6770b9cb): phone controls/labels/sidebar. */
+  --fs-3xs: 11px;
   --fs-sm:  14px;
   --fs-md:  16px;
   --fs-lg:  18px;
@@ -337,12 +344,14 @@
   --slate-6: #E2E8F0;  /* slate-200 */
 }
 
-/* Preserve a 44px target on narrow touch canvases. Desktop and tablet filters
-   remain compact instead of inheriting general-form sizing. */
-@media (max-width: 767px) {
+/* Compact phone controls (ticket 6770b9cb, user directive): filters match the
+   11px text scale at ≤640px instead of the old 44px touch contract. Desktop
+   (≥768px) keeps the compact 30px token; 641–767px returns to default form
+   sizing rather than touch-44px. */
+@media (max-width: 640px) {
   :root {
-    --filter-control-h: var(--control-touch-h);
-    --filter-control-font-size: var(--control-compact-touch-font-size);
-    --filter-control-line-height: var(--control-compact-touch-line-height);
+    --filter-control-h: var(--control-mobile-h);
+    --filter-control-font-size: var(--control-mobile-font-size);
+    --filter-control-line-height: var(--control-mobile-line-height);
   }
 }

@@ -43,7 +43,9 @@ describe("TruckFormModal desktop density", () => {
       ".ds-uui-select--operational .ds-uui-select__control > button > span p",
     );
     expect(operationalStyles).toContain(
-      "font-size: var(--control-compact-touch-font-size)",
+      // Compact mobile contract (ticket 6770b9cb): the phone operational
+      // select scales to the 11px token instead of the 16px touch font.
+      "font-size: var(--control-mobile-font-size)",
     );
     expect(operationalStyles).toContain(
       ".ds-uui-select--operational .ds-uui-select__control > button",

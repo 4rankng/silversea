@@ -218,12 +218,12 @@
   transition: border-color 150ms var(--ease), box-shadow 150ms var(--ease);
 }
 
-@media (max-width: 767px) {
+@media (max-width: 640px) {
   .master-plan-filters__facet-trigger {
-    min-height: var(--control-touch-h);
-    height: var(--control-touch-h);
-    font-size: var(--control-compact-touch-font-size);
-    line-height: var(--control-compact-touch-line-height);
+    min-height: var(--control-mobile-h);
+    height: var(--control-mobile-h);
+    font-size: var(--fs-3xs);
+    line-height: var(--control-mobile-line-height);
   }
 }
 

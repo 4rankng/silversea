@@ -141,7 +141,7 @@
 
 @media (max-width: 640px) {
   .dispatch-catalogs__page-header > button {
-    min-height: var(--control-touch-h);
+    min-height: var(--control-mobile-h);
   }
 
   .dispatch-catalogs__toolbar {

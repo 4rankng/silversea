@@ -34,10 +34,11 @@ describe('global sizing contract', () => {
     expect(firstComponent).toBeGreaterThan(opsImport);
   });
 
-  it('keeps filter density on the compact desktop / touch contract', () => {
+  it('keeps filter density on the compact desktop / mobile contract', () => {
     const tokens = read('src/styles/tokens.css');
     expect(tokens).toContain('--filter-control-h: var(--control-compact-h);');
-    // Compact desktop 34px must yield to the 44px touch minimum on phones.
-    expect(tokens).toMatch(/@media \(max-width: 767px\)\s*\{[^]*--filter-control-h: var\(--control-touch-h\)/);
+    // Compact mobile (ticket 6770b9cb): phones drop the 44px touch contract
+    // for the 32px/11px compact scale; ≥641px canvases never see it.
+    expect(tokens).toMatch(/@media \(max-width: 640px\)\s*\{[^]*--filter-control-h: var\(--control-mobile-h\)/);
   });
 });

@@ -226,10 +226,10 @@
 
 @media (max-width: 640px) {
   .searchable-select__trigger--sm {
-    min-height: var(--control-touch-h);
-    height: var(--control-touch-h);
-    padding: 0 12px;
-    font-size: 16px;
+    min-height: var(--control-mobile-h);
+    height: var(--control-mobile-h);
+    padding: 0 8px;
+    font-size: var(--fs-3xs);
   }
 
   .searchable-select__backdrop {

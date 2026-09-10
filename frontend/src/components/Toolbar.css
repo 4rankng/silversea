@@ -66,11 +66,11 @@
   .toolbar__search {
     width: 100%;
     min-width: 0;
-    min-height: var(--control-touch-h);
+    min-height: var(--control-mobile-h);
   }
 
   .toolbar__search input {
-    font-size: 16px;
-    min-height: var(--control-touch-h);
+    font-size: var(--fs-3xs);
+    min-height: var(--control-mobile-h);
   }
 }

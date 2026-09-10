@@ -10,7 +10,9 @@ describe('global filter density contract', () => {
 
     expect(tokens).toContain('--filter-control-h: var(--control-compact-h);');
     expect(tokens).toContain('--filter-control-font-size: var(--control-compact-font-size);');
-    expect(tokens).toMatch(/@media \(max-width: 767px\)[\s\S]*--filter-control-h: var\(--control-touch-h\);/);
+    // Compact mobile contract (ticket 6770b9cb): phones use the 32px/11px
+    // scale instead of the old 44px touch override.
+    expect(tokens).toMatch(/@media \(max-width: 640px\)[\s\S]*--filter-control-h: var\(--control-mobile-h\);/);
   });
 
   it('applies the shared contract to common and accounting filters', () => {

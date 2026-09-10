@@ -268,7 +268,7 @@
 
 .dispatch-assignment-dialog__issue-driver {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--fs-3xs);
 }
 
 .dispatch-assignment-dialog__issue-warning {
@@ -531,8 +531,8 @@
   .dispatch-assignment-dialog__money .ds-field__input,
   .dispatch-assignment-dialog__money .ds-field__affix,
   .dispatch-assignment-dialog .searchable-select__trigger {
-    min-height: var(--control-touch-h, 44px);
-    font-size: 14px;
+    min-height: var(--control-mobile-h);
+    font-size: var(--fs-3xs);
   }
 
   .dispatch-assignment-dialog__classification {
@@ -540,8 +540,8 @@
   }
 
   .dispatch-assignment-cell__quick-issue {
-    height: var(--control-touch-h, 44px);
-    font-size: 13px;
+    height: var(--control-mobile-h);
+    font-size: var(--fs-3xs);
   }
 }
 
@@ -578,7 +578,7 @@
 
 @media (max-width: 640px) {
   .dispatch-assignment-dialog__fields > .dispatch-assignment-dialog__check {
-    min-height: var(--control-touch-h, 44px);
+    min-height: var(--control-mobile-h);
     white-space: normal;
   }
 }

@@ -229,17 +229,15 @@
  * ========================================================================== */
 @media (max-width: 640px) {
 
-  /* ── Universal touch-target floor (Vantai invariant) ──
-   * Every interactive control on phones must clear the 44px Apple/Material
-   * tap-target minimum. Applies to all native and link-styled controls under
-   * the app root. Form controls additionally get 16px text to stop iOS
-   * zoom-on-focus. */
+  /* ── Compact control floor (ticket 6770b9cb, user directive) ──
+   * Phone controls scale with the 11px text: 30-32px tall instead of the old
+   * 44px touch contract. Floor stays ≥28px so taps remain reliable. */
   #root button,
   #root [role="button"],
   #root a[href],
   #root input:not([type="checkbox"]):not([type="radio"]),
   #root select {
-    min-height: 44px;
+    min-height: 30px;
   }
 
   /* ── App shell ── */
@@ -278,8 +276,8 @@
     line-height: 1.2;
   }
   .topbar .icon-btn { display: none; }
-  /* Bump hamburger to a 44px touch target (was 40px) */
-  .topbar__toggle { width: 44px; height: 44px; }
+  /* Hamburger stays a comfortable tap target at the compact scale */
+  .topbar__toggle { width: 32px; height: 32px; }
   .topbar__toggle svg { width: 20px; height: 20px; }
   /* Driver identity (greeting + name + plate chip) replaces the old page-title
      topbar on phones — drivers no longer render the "Đang xem <page>" block. */
@@ -299,11 +297,11 @@
   .topbar-date { padding: 5px 8px; font-size: var(--fs-xs); gap: 5px; }
   .topbar-date__sep { display: none; }
   .topbar-date__trigger {
-    min-height: 44px;
-    height: 44px;
+    min-height: 32px;
+    height: 32px;
     gap: 3px;
     padding: 0 5px;
-    font-size: var(--fs-xs);
+    font-size: var(--fs-3xs);
     border-radius: 10px;
   }
   .topbar-date__body { gap: 0; }
@@ -329,7 +327,7 @@
   .page-actions .btn,
   .header-actions .btn,
   .page-header .btn:not(.btn--icon),
-  .page-header .btn-primary { min-height: 40px; }
+  .page-header .btn-primary { min-height: 30px; }
   .trip-detail-title { font-size: var(--fs-xl); gap: 8px; line-height: 1.2; }
   .trip-detail-title > span { flex: 1 1 auto; min-width: 0; }
   .trip-detail-subtitle { margin-left: 0; font-size: var(--fs-xs); }
@@ -360,13 +358,13 @@
   .kpi__meta > strong { font-weight: 600; }
 
   /* ── Dashboard widget touch targets ── */
-  .wf-link { min-height: 44px; padding: 6px 0; }
-  .wf-minibtn { min-height: 44px; padding: 4px 10px; }
-  .wf-btn { min-height: 44px; }
+  .wf-link { min-height: 30px; padding: 4px 0; }
+  .wf-minibtn { min-height: 30px; padding: 4px 10px; }
+  .wf-btn { min-height: 30px; }
   .approval-queue__quick { min-width: 36px; min-height: 36px; padding: 6px; }
 
   /* ── Status pills & pagination ── */
-  .stab-pill { min-height: 44px; padding: 6px 14px; }
+  .stab-pill { min-height: 30px; padding: 4px 10px; font-size: var(--fs-3xs); }
   .page-btn { min-width: 36px; min-height: 36px; }
 
   /* ── Panels ── */
@@ -426,9 +424,9 @@
   .toolbar::-webkit-scrollbar { display: none; }
   .filter-tabs > *, .pill-row > * { flex-shrink: 0; }
   .filter-pill {
-    min-height: 44px;
-    padding: 9px 12px;
-    font-size: var(--fs-xs);
+    min-height: var(--control-mobile-h);
+    padding: 4px 8px;
+    font-size: var(--fs-3xs);
     white-space: nowrap;
   }
 
@@ -489,27 +487,27 @@
   }
   .confirm-actions .btn {
     flex: 1 1 auto;
-    min-height: 44px;
+    min-height: 32px;
     justify-content: center;
   }
 
-  /* ── Tap targets (Apple/Material want ≥44px) ── */
+  /* ── Compact tap targets (ticket 6770b9cb: 11px scale, ≥28px floor) ── */
   .btn--sm,
-  .btn-sm { min-height: 44px; padding: 9px 12px; font-size: var(--fs-sm); }
+  .btn-sm { min-height: 32px; padding: 4px 8px; font-size: var(--fs-3xs); }
   .btn--icon,
-  .btn-icon { min-width: 44px; min-height: 44px; padding: 10px; }
+  .btn-icon { min-width: 32px; min-height: 32px; padding: 6px; }
   .btn--icon.btn--sm,
-  .btn-icon.btn-sm { min-width: 44px; min-height: 44px; padding: 8px; }
+  .btn-icon.btn-sm { min-width: 30px; min-height: 30px; padding: 5px; }
   .row-actions .btn--icon,
   .row-actions .btn-icon,
   td .btn--icon,
-  td .btn-icon { min-width: 44px; min-height: 44px; padding: 8px; }
+  td .btn-icon { min-width: 30px; min-height: 30px; padding: 5px; }
   .input,
   select.input,
   input.input,
   textarea.input {
-    font-size: 16px; /* prevents iOS zoom-on-focus */
-    min-height: 44px;
+    font-size: var(--fs-3xs);
+    min-height: var(--control-mobile-h);
   }
   textarea.input { min-height: 80px; }
 
@@ -646,9 +644,76 @@
   /* ── Misc layout helpers ── */
   .typo-eyebrow { letter-spacing: 0.04em; font-size: var(--fs-2xs); }
 
+  /* ── Compact scale: buttons, form controls, sidebar, labels, tables ──
+   * (ticket 6770b9cb) — controls proportional to the 11px text scale.
+   * Every selector here is #root-prefixed: component stylesheets load after
+   * responsive.css and would otherwise re-assert 44px touch sizing. The
+   * ≥28px tap floor is kept. Note: <16px inputs accept the iOS focus-zoom
+   * trade-off by explicit user decision (11px uniform scale). */
+  #root button,
+  #root [role="button"] {
+    font-size: var(--fs-3xs);
+  }
+  #root button,
+  #root [role="button"],
+  #root a[href],
+  #root input:not([type="checkbox"]):not([type="radio"]),
+  #root select,
+  #root textarea {
+    min-height: var(--control-mobile-h);
+  }
+  #root .btn { padding: 4px 8px; }
+  #root .btn--sm,
+  #root .btn-sm { min-height: var(--control-mobile-h); padding: 4px 8px; }
+  #root .btn--icon,
+  #root .btn-icon {
+    width: var(--control-mobile-h);
+    min-width: var(--control-mobile-h);
+    height: var(--control-mobile-h);
+    min-height: var(--control-mobile-h);
+    padding: 6px;
+  }
+  #root .row-actions .btn--icon,
+  #root td .btn--icon,
+  #root td .btn-icon { min-width: 30px; min-height: 30px; }
+  #root input:not([type="checkbox"]):not([type="radio"]),
+  #root select,
+  #root textarea,
+  #root .input {
+    font-size: var(--fs-3xs);
+  }
+  #root .input {
+    min-height: var(--control-mobile-h);
+  }
+  #root label {
+    font-size: var(--fs-3xs);
+  }
+  #root .sidebar-item,
+  #root .nav-item {
+    min-height: 32px;
+    padding: 4px 8px 4px 10px;
+    font-size: var(--fs-3xs);
+  }
+  #root .sidebar-item svg { width: 14px; height: 14px; }
+  #root .sidebar-section-label { min-height: 24px; padding: 8px 10px 2px; font-size: var(--fs-3xs); }
+  #root .tt-table thead th,
+  #root .tt-table tbody td { padding: 5px 6px; }
+  #root table tbody td { padding-block: 4px; }
+  #root .csc-container-cell__value,
+  #root .csc-container-cell__editor { min-height: var(--control-mobile-h); }
+  #root .filter-pill,
+  #root .stab-pill,
+  #root .wf-link,
+  #root .wf-minibtn,
+  #root .wf-btn,
+  #root .topbar-date__trigger { min-height: 30px; }
+
 } /* end PHONE ≤ 640px */
 
-@media (max-width: 900px) {
+/* Tablet-band touch sizing: phones (≤640px) now run the compact scale, so the
+   old blanket ≤900px 44px block is ranged to 641-900px only — otherwise its
+   later cascade position would override every phone compaction above. */
+@media (min-width: 641px) and (max-width: 900px) {
   .btn,
   .btn--sm,
   .btn-sm {

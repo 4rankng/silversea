@@ -77,7 +77,9 @@ describe('MasterPlanFilters', () => {
     expect(triggerRule).toContain('line-height: var(--control-compact-line-height)');
     expect(selectRule).toContain('height: var(--control-compact-h)');
     expect(selectRule).toContain('min-height: var(--control-compact-h)');
-    expect(css).toMatch(/@media \(max-width: 767px\)[\s\S]*?\.master-plan-filters__facet-trigger\s*\{[\s\S]*?height:\s*var\(--control-touch-h\);/);
+    // Compact mobile contract (ticket 6770b9cb): the phone facet trigger is
+    // 32px/11px at ≤640px instead of the old ≤767px 44px touch rule.
+    expect(css).toMatch(/@media \(max-width: 640px\)[\s\S]*?\.master-plan-filters__facet-trigger\s*\{[\s\S]*?height:\s*var\(--control-mobile-h\);/);
   });
 
   it('temporarily hides the Lạch Huyện and Hải Phòng port facets while preserving other zones', async () => {

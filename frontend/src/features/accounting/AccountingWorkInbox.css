@@ -49,13 +49,13 @@
 .accounting-work-inbox__pagination { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--border-1); color: var(--fg-3); font-size: 12px; }
 .accounting-work-inbox__pagination button:disabled { opacity: .45; }
 
-@media (max-width: 767px) {
+@media (max-width: 640px) {
   .accounting-work-inbox__shortcuts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .accounting-work-inbox__shortcuts a,
   .accounting-work-inbox__action,
   .accounting-work-inbox__state button,
-  .accounting-work-inbox__pagination button { min-height: var(--control-touch-h, 44px); font-size: 14px; }
+  .accounting-work-inbox__pagination button { min-height: var(--control-mobile-h); font-size: var(--fs-3xs); }
   .accounting-work-inbox__lane > header { align-items: start; padding: 12px; }
-  .accounting-work-inbox__lane > header button { width: 44px; height: 44px; }
+  .accounting-work-inbox__lane > header button { width: 32px; height: 32px; }
   .accounting-work-inbox__action { width: 100%; }
 }
