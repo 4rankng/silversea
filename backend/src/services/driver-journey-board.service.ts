@@ -1,6 +1,7 @@
 import { and, desc, eq, inArray, isNull, aliasedTable } from 'drizzle-orm';
 import { db } from '../db';
 import * as s from '../db/schema';
+import { operationalName } from '../db/master-data-name';
 import { getDriverCompletionEvidenceStatus } from './trip-pod.service';
 
 // Driver-app spec (260827) "Hành trình" screen: unlike work-inbox.service's
@@ -27,6 +28,7 @@ export interface DriverJourneyCard {
   linked: boolean;
   scheduledAt: string | null;
   factoryName: string | null;
+  factoryShortName: string | null;
   loadingPortName: string | null;
   routeName: string | null;
   dropPortName: string | null;
@@ -37,6 +39,7 @@ export interface DriverJourneyCard {
   contactPhone: string | null;
   truckPlate: string | null;
   trailerPlate: string | null;
+  operationalNotes: string | null;
 }
 
 /**
@@ -78,6 +81,7 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
     isCombined: s.shipments.isCombined,
     dispatchClassification: s.shipmentFulfillments.dispatchClassification,
     factoryName: s.shipments.factoryName,
+    operationalNotes: s.shipments.operationalNotes,
     pickupLocation: s.shipments.pickupLocation,
     deliveryLocation: s.shipments.deliveryLocation,
     routeName: s.routes.name,
@@ -91,6 +95,9 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
     containerPickupPortName: pickupPort.name,
     containerDropoffPortName: dropoffPort.name,
     containerFactoryName: containerFactory.name,
+    // Blank-safe site label: operational_sites.short_name is notNull with ''
+    // default, so a raw ?? fallback would never fire on unfilled rows.
+    containerFactoryShortName: operationalName(containerFactory.shortName, containerFactory.name),
   }).from(s.trips)
     .innerJoin(s.shipmentFulfillments, eq(s.shipmentFulfillments.id, s.trips.fulfillmentId))
     .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentFulfillments.shipmentId))
@@ -141,6 +148,7 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
       linked: row.isCombined && (shipmentCardCounts.get(row.shipmentId) ?? 0) >= 2,
       scheduledAt: row.plannedStartAt?.toISOString() ?? null,
       factoryName: row.factoryName ?? row.containerFactoryName,
+      factoryShortName: row.containerFactoryShortName ?? row.factoryName,
       loadingPortName: row.pickupLocation ?? row.containerPickupPortName,
       routeName: row.routeName,
       dropPortName: row.deliveryLocation ?? row.containerDropoffPortName,
@@ -151,5 +159,6 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
       contactPhone: row.contactPhone,
       truckPlate: row.truckPlate,
       trailerPlate: row.trailerPlate,
+      operationalNotes: row.operationalNotes,
     }));
 }

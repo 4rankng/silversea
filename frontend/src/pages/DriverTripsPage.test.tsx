@@ -3,13 +3,18 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DriverJourneyCard } from '../api/driverClient';
 
-const { useDriverJourneyBoardMock, navigateMock } = vi.hoisted(() => ({
+const { useDriverJourneyBoardMock, navigateMock, useDispatchTaskTagsMock } = vi.hoisted(() => ({
   useDriverJourneyBoardMock: vi.fn(),
   navigateMock: vi.fn(),
+  useDispatchTaskTagsMock: vi.fn().mockReturnValue({ tags: [], isLoading: false, error: null }),
 }));
 
 vi.mock('../hooks/useDriverQueries', () => ({
   useDriverJourneyBoard: useDriverJourneyBoardMock,
+}));
+
+vi.mock('../features/dispatch/detailed-plan/useDispatchTaskTags', () => ({
+  useDispatchTaskTags: useDispatchTaskTagsMock,
 }));
 
 vi.mock('react-router-dom', async () => {
@@ -31,6 +36,7 @@ function card(overrides: Partial<DriverJourneyCard> = {}): DriverJourneyCard {
     linked: false,
     scheduledAt: '2026-08-01T07:30:00.000Z',
     factoryName: 'Nhà máy Bình Dương',
+    factoryShortName: null,
     loadingPortName: 'Cát Lái',
     routeName: 'Cát Lái → Bình Dương',
     dropPortName: 'Sóng Thần',
@@ -41,6 +47,7 @@ function card(overrides: Partial<DriverJourneyCard> = {}): DriverJourneyCard {
     contactPhone: '0901234567',
     truckPlate: '51C-12345',
     trailerPlate: '51R-67890',
+    operationalNotes: null,
     ...overrides,
   };
 }
@@ -154,6 +161,52 @@ describe('DriverTripsPage', () => {
     fireEvent.click(screen.getByRole('tab', { name: /Lịch sử/ }));
     expect(await screen.findByRole('button', { name: /^Xem chi tiết/ })).toBeTruthy();
     expect(screen.queryByRole('button', { name: /Nhận lệnh/ })).toBeNull();
+  });
+
+  it('renders operation task chips from operationalNotes', async () => {
+    useDispatchTaskTagsMock.mockReturnValue({
+      tags: [
+        { id: 1, label: 'ĐẶT ĐẦU', displayOrder: 1 },
+        { id: 2, label: 'ĐẢO VỎ', displayOrder: 2 },
+      ],
+      isLoading: false,
+      error: null,
+    });
+    useDriverJourneyBoardMock.mockReturnValue({
+      data: [card({ operationalNotes: 'ĐẶT ĐẦU; ĐẢO VỎ; ghi chú thêm' })],
+      isLoading: false,
+      error: null,
+    });
+    renderPage();
+
+    expect(await screen.findByText('ĐẶT ĐẦU')).toBeTruthy();
+    expect(screen.getByText('ĐẢO VỎ')).toBeTruthy();
+    // Free text renders as a separate line, not a chip
+    expect(screen.getByText('ghi chú thêm')).toBeTruthy();
+  });
+
+  it('hides operation tasks section when operationalNotes is null', async () => {
+    useDriverJourneyBoardMock.mockReturnValue({
+      data: [card({ operationalNotes: null })],
+      isLoading: false,
+      error: null,
+    });
+    renderPage();
+
+    await screen.findByText('Nhà máy Bình Dương');
+    expect(screen.queryByText('ĐẶT ĐẦU')).toBeNull();
+  });
+
+  it('prefers factoryShortName over factoryName when present', async () => {
+    useDriverJourneyBoardMock.mockReturnValue({
+      data: [card({ factoryName: 'Nhà máy Rất Dài Hà Nội', factoryShortName: 'Hà Nội' })],
+      isLoading: false,
+      error: null,
+    });
+    renderPage();
+
+    expect(await screen.findByText('Hà Nội')).toBeTruthy();
+    expect(screen.queryByText('Nhà máy Rất Dài Hà Nội')).toBeNull();
   });
 
   it('shows the empty-state message when a tab has no cards', async () => {

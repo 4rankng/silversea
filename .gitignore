@@ -108,3 +108,4 @@ backend/.drizzle-generate.lock.d/
 ~$*
 .mcp.json
 .agentsroom/
+.omp/mcp.json

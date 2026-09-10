@@ -526,22 +526,22 @@ describe('DriverTripDetailPage', () => {
 
   // Spec A4: the detail fact grid mirrors the journey-card order, with
   // container number + type + seal sharing one line.
-  it('renders the spec-A4 field order with container, type and seal on one line', async () => {
+  it('renders the ticket-365943ea field order with container, type and seal on one line', async () => {
     renderPage();
 
     await screen.findByText(/Số cont & seal/);
     const labels = Array.from(document.querySelectorAll('.driver-task-fact__label')).map((el) => el.textContent);
     expect(labels).toEqual([
-      'Ngày giờ kế hoạch',
       'Nhà máy',
       'Tuyến',
-      'Người liên hệ',
-      'Số điện thoại',
       'Container / lô hàng',
-      'Điểm lấy',
-      'Điểm trả',
+      'Cảng nâng',
+      'Cảng hạ',
+      'Ngày giờ kế hoạch',
       'Đầu kéo',
       'Rơ moóc',
+      'Người liên hệ',
+      'Số điện thoại',
     ]);
     expect(screen.getByText('MSCU1234561 · 40FT · Seal SEAL-9')).toBeTruthy();
     expect(screen.queryByText('Loại container')).toBeNull();

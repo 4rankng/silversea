@@ -78,6 +78,7 @@ export interface DriverJourneyCard {
   linked: boolean;
   scheduledAt: string | null;
   factoryName: string | null;
+  factoryShortName: string | null;
   loadingPortName: string | null;
   routeName: string | null;
   dropPortName: string | null;
@@ -88,6 +89,7 @@ export interface DriverJourneyCard {
   contactPhone: string | null;
   truckPlate: string | null;
   trailerPlate: string | null;
+  operationalNotes: string | null;
 }
 
 /** The driver's current vehicle (topbar identity chip). */
@@ -214,6 +216,7 @@ export interface DriverTaskDetail {
     type: string | null;
     modeLabel?: string | null;
     factoryName: string | null;
+    factoryShortName: string | null;
     pickupPortName: string | null;
     dropPortName: string | null;
     pickupWarehouseName: string | null;
@@ -262,6 +265,7 @@ interface DriverFulfillmentDetailResponse {
   tripId: number;
   tripVersion: number;
   factoryName: string | null;
+  factoryShortName: string | null;
   pickupLocation: string | null;
   deliveryLocation: string | null;
   contactName: string | null;
@@ -313,6 +317,7 @@ function mapFulfillmentDetail(wire: DriverFulfillmentDetailResponse): DriverTask
       type: wire.fulfillmentType,
       modeLabel: wire.cargoMode,
       factoryName: wire.factoryName,
+      factoryShortName: wire.factoryShortName,
       pickupPortName: wire.pickupLocation,
       dropPortName: wire.deliveryLocation,
       pickupWarehouseName: wire.pickupLocation,

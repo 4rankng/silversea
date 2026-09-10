@@ -376,31 +376,26 @@ export default function DriverTripDetailPage() {
         <div className="driver-task-section__head">
           <span>Thông tin lệnh</span>
         </div>
-        {/* Spec A4 field order (matches the journey-board card): Ngày giờ kế
-            hoạch → Nhà máy → Tuyến → Người liên hệ → SĐT → Container/loại
-            cont/số seal (one line) → điểm nâng → điểm hạ → Đầu kéo → Mooc. */}
+        {/* Spec 365943ea field order: Nhà máy → Tuyến → Container → Cảng nâng/cảng hạ
+            (side-by-side) → remaining fields. Factory uses shortName. */}
         <div className="driver-task-grid">
-          <TaskFact icon={<CalendarClock size={16} />} label="Ngày giờ kế hoạch" value={formatDateTime(fulfillment?.plannedAt ?? trip.departureDate)} />
-          {/* Nhà máy stays paired with Ngày giờ kế hoạch: under the locked A4
-              order a fullWidth here leaves row 1's right column empty (auto
-              placement never backfills). Long factory names wrap within the
-              half column — verified at 390px. */}
-          <TaskFact icon={<Building2 size={16} />} label="Nhà máy" value={valueOrDash(fulfillment?.factoryName)} />
+          <TaskFact icon={<Building2 size={16} />} label="Nhà máy" value={valueOrDash(fulfillment?.factoryShortName || fulfillment?.factoryName)} fullWidth />
           <TaskFact icon={<Route size={16} />} label="Tuyến" value={valueOrDash(fulfillment?.routeSummary ?? trip.routeName)} fullWidth />
-          <TaskFact icon={<Phone size={16} />} label="Người liên hệ" value={valueOrDash(contactName)} />
-          <TaskFact
-            icon={<Phone size={16} />}
-            label="Số điện thoại"
-            value={contactPhone ? <a href={`tel:${contactPhone}`} className="driver-task-link">{contactPhone}</a> : '—'}
-          />
           <TaskFact icon={<Package2 size={16} />} label="Container / lô hàng" value={containerLine} fullWidth />
-          <TaskFact icon={<MapPinned size={16} />} label="Điểm lấy" value={pickupPoint} fullWidth />
-          <TaskFact icon={<MapPinned size={16} />} label="Điểm trả" value={dropPoint} fullWidth />
+          <TaskFact icon={<MapPinned size={16} />} label="Cảng nâng" value={pickupPoint} />
+          <TaskFact icon={<MapPinned size={16} />} label="Cảng hạ" value={dropPoint} />
+          <TaskFact icon={<CalendarClock size={16} />} label="Ngày giờ kế hoạch" value={formatDateTime(fulfillment?.plannedAt ?? trip.departureDate)} />
           <TaskFact icon={<Truck size={16} />} label="Đầu kéo" value={valueOrDash(trip.truckPlate)} />
           <TaskFact
             icon={<Truck size={16} />}
             label="Rơ moóc"
             value={trip.trailerPlate ? `${trip.trailerPlate}${trip.trailerType ? ` (${trip.trailerType})` : ''}` : '—'}
+          />
+          <TaskFact icon={<Phone size={16} />} label="Người liên hệ" value={valueOrDash(contactName)} />
+          <TaskFact
+            icon={<Phone size={16} />}
+            label="Số điện thoại"
+            value={contactPhone ? <a href={`tel:${contactPhone}`} className="driver-task-link">{contactPhone}</a> : '—'}
           />
         </div>
       </section>

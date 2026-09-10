@@ -67,36 +67,50 @@ to the driver's plate.
    - Each tab's count is shown in the tab label.
 
 3. **DRV-LIST-03 — Trip card anatomy**
-   - **Given** a trip card
-   - **Then** it shows, in this order:
-     - `Mã chuyến` (top-left, monospace).
-     - `Khách hàng` (one line, ellipsised).
-     - `Tuyến` (one line, `Điểm đi → Điểm đến`).
-     - `Tài xế` (driver name) with `🚚 {Biển số}` as **subtext**, not
-       a green pill (per the user's explicit override — see
-       commit history around `0fcedcde`).
-     - Status pill (`Mới tạo` / `Đang chạy` / `Hoàn thành` / `Đã hủy`)
-       with the canonical color from
-       `TRIP_STATUS_COLORS` (`shared/src/constants/index.ts:411`).
-   - **Evidence**: card screenshot; DOM inspection for the plate's
-     containing element (should be a plain `<span>` below the driver
-     name, not a `<div class="...pill...">`).
+   - **Given** a trip card on the journey board (`/my-trips`)
+   - **Then** it shows, in this order (ticket 365943ea):
+     1. **Header**: classification tag (`ĐƠN`/`KẸP`/`KẾT HỢP`/`LẺ`) + scheduled time.
+     2. **Factory name** (headline, 16px bold, brand icon) — the primary
+        identifier a driver scans for.
+     3. **Route** (secondary, 13px, muted icon).
+     4. **Container block** (tinted background): container number + type pill
+        + seal pill, followed by lift port (`Nâng`) and drop port (`Hạ`)
+        side-by-side below.
+     5. **Operation tasks** (`tác vụ`) — chips rendered from the dispatch
+        plan's `operationalNotes` field (e.g. `ĐẶT ĐẦU`, `ĐẢO VỎ`).
+        Hidden when no notes are set.
+     6. **Contact** (name + phone tel-link).
+     7. **Remaining facts** (2-col grid): `Đầu kéo` (truck plate), `Mooc`
+        (trailer plate).
+     8. **Footer CTA**: `Xem chi tiết & Nhận lệnh` (NEW) or
+        `Xem chi tiết` (RUNNING/HISTORY).
+   - **Evidence**: card screenshot at 390px; DOM inspection confirming
+     factory name renders before route; container + ports are visually
+     grouped.
 
-4. **DRV-LIST-04 — Tap target ≥ 48 px**
+4. **DRV-LIST-04 — Container + ports side-by-side**
+   - **Then** the container strip and the lift/drop port row are grouped
+     in a single visual block (`.driver-journey-card__container-block`).
+     At 360px, ports wrap below the container strip; at 768px they sit
+     on the same row if space allows.
+   - **Evidence**: screenshots at 360px and 768px showing the
+     container-block layout.
+
+5. **DRV-LIST-05 — Tap target ≥ 48 px**
    - **Then** every interactive element on the card is at least 48 × 48
      CSS pixels (per `c9012bd0` — the 48 px floor must out-rank the
      global button floor). Verify in dev-tools: the trip-card action
      and any inline button have `min-height: 48px`.
 
-5. **DRV-LIST-05 — Pull-to-refresh / refresh button**
+6. **DRV-LIST-06 — Pull-to-refresh / refresh button**
    - **Then** a pull-to-refresh or visible refresh control re-fetches
      the trip list. The control respects `prefers-reduced-motion`
      (no bouncy animation when the OS-level setting is on).
 
-6. **DRV-LIST-06 — Empty state**
+7. **DRV-LIST-07 — Empty state**
    - **Given** a driver with no trips
-   - **Then** the page shows the empty-state illustration + copy
-     (`Bạn chưa có chuyến nào`) and a refresh control.
+    - **Then** the page shows the empty-state illustration + copy
+      (`Bạn chưa có chuyến nào`) and a refresh control.
 
 ### Test steps
 
@@ -107,7 +121,11 @@ to the driver's plate.
 
 ### Regression hooks
 
-- `frontend/src/pages/DriverTripsPage.test.tsx` stays green.
+- `frontend/src/pages/DriverTripsPage.test.tsx` stays green (11 tests
+  including operation-tags rendering + the factoryShortName preference);
+  tag ordering (canonical seed 0066 → `display_order ASC NULLS LAST, label`)
+  is pinned by
+  `frontend/src/features/dispatch/detailed-plan/useDispatchTaskTags.test.tsx`.
 - `pnpm exec playwright test --headed` (or the visual QA script under
   `qa/visual_qa_driver*`) at 390 × 844.
 

@@ -528,6 +528,7 @@ export interface DriverFulfillmentDetail {
   tripId: number;
   tripVersion: number;
   factoryName: string | null;
+  factoryShortName: string | null;
   shippingLineName: string | null;
   expectedDeliveryDate: string | null;
   customsCutoffAt: string | null;
@@ -588,6 +589,10 @@ export async function getDriverFulfillmentDetail(
     containerPickupPortName: pickupPort.name,
     containerDropoffPortName: dropoffPort.name,
     containerFactoryName: containerFactory.name,
+    // Blank-safe: short_name is notNull defaulting to '', so resolve the
+    // display label in SQL (short → full) instead of an in-code ?? that
+    // never fires on unfilled rows.
+    containerFactoryShortName: operationalName(containerFactory.shortName, containerFactory.name),
     liftFeeInvoiceName: containerFactory.liftFeeInvoiceName,
     liftFeeInvoiceAddress: containerFactory.liftFeeInvoiceAddress,
     liftFeeTaxCode: containerFactory.liftFeeTaxCode,
@@ -677,6 +682,7 @@ export async function getDriverFulfillmentDetail(
     tripId: ownedTrip.tripId,
     tripVersion: ownedTrip.tripVersion,
     factoryName: shipmentRow.factoryName ?? deliverySiteName ?? shipmentRow.containerFactoryName,
+    factoryShortName: shipmentRow.containerFactoryShortName ?? shipmentRow.factoryName ?? deliverySiteName,
     shippingLineName: shipmentRow.shippingLineName,
     expectedDeliveryDate: shipmentRow.expectedDeliveryDate,
     customsCutoffAt: shipmentRow.customsCutoffAt?.toISOString() ?? null,

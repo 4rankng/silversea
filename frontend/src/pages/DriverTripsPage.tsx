@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowRight, Building2, Loader2, Package2, Phone, Route } from 'lucide-react';
 import { useDriverJourneyBoard } from '../hooks/useDriverQueries';
 import type { DriverJourneyCard } from '../api/driverClient';
+import { parseNote } from '../features/dispatch/detailed-plan/dispatchTaskTags';
+import { useDispatchTaskTags } from '../features/dispatch/detailed-plan/useDispatchTaskTags';
 import './DriverTripsPage.css';
 
 type JourneyTabKey = 'NEW' | 'RUNNING' | 'HISTORY';
@@ -84,7 +86,7 @@ function JourneyFact({ label, value }: { label: string; value: string }) {
   );
 }
 
-function JourneyCard({ card }: { card: DriverJourneyCard }) {
+function JourneyCard({ card, tagLabels }: { card: DriverJourneyCard; tagLabels: ReadonlyArray<string> }) {
   const navigate = useNavigate();
   const tag = tagLabelFor(card);
   const isPaired = tag === 'KẸP' || tag === 'KẾT HỢP';
@@ -92,23 +94,21 @@ function JourneyCard({ card }: { card: DriverJourneyCard }) {
   const footerLabel = isNew ? 'Xem chi tiết & Nhận lệnh' : 'Xem chi tiết';
   const hasContact = isPresent(card.contactName) || isPresent(card.contactPhone);
   const hasContainer = isPresent(card.containerNumber) || isPresent(card.sealNumber);
+  const hasPorts = isPresent(card.loadingPortName) || isPresent(card.dropPortName);
+  const { selectedLabels: operationTags, manualText: operationManualText } = parseNote(card.operationalNotes, tagLabels);
 
-  /* Only facts that actually carry a value earn a slot. Dispatch fills the
-     ports late, so on a history list nearly every card would otherwise spend
-     two full rows rendering nothing but dashes. */
+  /* Remaining facts: truck and trailer. Ports are rendered alongside the
+     container per the responsive-space-utilisation contract. */
   const facts = [
-    { label: 'Nâng', value: card.loadingPortName },
-    { label: 'Hạ', value: card.dropPortName },
     { label: 'Đầu kéo', value: card.truckPlate },
     { label: 'Mooc', value: card.trailerPlate },
   ].filter((fact): fact is { label: string; value: string } => isPresent(fact.value));
 
-  /* Spec A4 field order: Nhà máy → Tuyến đường → Người liên hệ → SĐT →
-     Cont/Loại cont/Seal (1 line) → Càng Nâng → Cảng Hạ → Đầu kéo → Mooc.
-     Order is preserved; the weight is not — the route is the one fact a driver
-     scans a list for, so it leads as the card's headline and everything else
-     ranks below it. Sections with nothing to say are omitted rather than
-     rendered as a row of dashes. */
+  /* Ticket 365943ea field order: Nhà máy (top) → Tuyến đường → Cont →
+     Cảng nâng / Cảng hạ → Tác vụ → Đầu kéo → Mooc.
+     Factory name is the headline — the primary identifier a driver scans
+     a 27-card history for. Route follows as the secondary line. Container
+     and ports sit side-by-side per responsive-space-utilisation. */
   return (
     <article className={`driver-journey-card${isPaired ? ' driver-journey-card--clamp' : ''}`}>
       <div className="driver-journey-card__header">
@@ -118,20 +118,62 @@ function JourneyCard({ card }: { card: DriverJourneyCard }) {
         <span className="driver-journey-card__time">{formatCardTime(card.scheduledAt)}</span>
       </div>
 
-      {/* No route name means no headline. A lone dash in the card's largest
-          type reads as a title rather than as absent data; the ports below
-          already say where the trip ran, and inventing a headline from them
-          would conflate a named route with its lift/drop pair. */}
-      {isPresent(card.routeName) ? (
-        <p className="driver-journey-card__route">
-          <Route size={16} aria-hidden="true" /> {card.routeName}
+      {/* 1. Factory name — top, headline */}
+      {isPresent(card.factoryShortName || card.factoryName) ? (
+        <p className="driver-journey-card__factory driver-journey-card__factory--headline">
+          <Building2 size={16} aria-hidden="true" /> {card.factoryShortName || card.factoryName}
         </p>
       ) : null}
 
-      {isPresent(card.factoryName) ? (
-        <p className="driver-journey-card__factory">
-          <Building2 size={13} aria-hidden="true" /> {card.factoryName}
+      {/* 2. Route — secondary line */}
+      {isPresent(card.routeName) ? (
+        <p className="driver-journey-card__route">
+          <Route size={13} aria-hidden="true" /> {card.routeName}
         </p>
+      ) : null}
+
+      {/* 3. Container + 4. Ports — side-by-side block */}
+      {(hasContainer || hasPorts) ? (
+        <div className="driver-journey-card__container-block">
+          {hasContainer ? (
+            <p className="driver-journey-card__container">
+              <Package2 size={13} aria-hidden="true" />
+              <span className="driver-journey-card__cont-no">{dash(card.containerNumber)}</span>
+              {isPresent(card.containerTypeName) ? (
+                <span className="driver-journey-card__cont-type">{card.containerTypeName}</span>
+              ) : null}
+              {isPresent(card.sealNumber) ? (
+                <span className="driver-journey-card__seal">Seal {card.sealNumber}</span>
+              ) : null}
+            </p>
+          ) : null}
+          {hasPorts ? (
+            <div className="driver-journey-card__ports">
+              {isPresent(card.loadingPortName) ? (
+                <span className="driver-journey-card__port">
+                  <span className="driver-journey-card__port-label">Nâng</span> {card.loadingPortName}
+                </span>
+              ) : null}
+              {isPresent(card.dropPortName) ? (
+                <span className="driver-journey-card__port">
+                  <span className="driver-journey-card__port-label">Hạ</span> {card.dropPortName}
+                </span>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {/* 5. Operation tasks (tác vụ) — chips from operationalNotes */}
+      {operationTags.length > 0 ? (
+        <div className="driver-journey-card__ops">
+          {operationTags.map((opTag) => (
+            <span key={opTag} className="driver-journey-card__ops-tag">{opTag}</span>
+          ))}
+        </div>
+      ) : null}
+      {isPresent(operationManualText) ? (
+        <p className="driver-journey-card__ops-note">{operationManualText}</p>
       ) : null}
 
       {hasContact ? (
@@ -145,19 +187,6 @@ function JourneyCard({ card }: { card: DriverJourneyCard }) {
             >
               {card.contactPhone}
             </a>
-          ) : null}
-        </p>
-      ) : null}
-
-      {hasContainer ? (
-        <p className="driver-journey-card__container">
-          <Package2 size={13} aria-hidden="true" />
-          <span className="driver-journey-card__cont-no">{dash(card.containerNumber)}</span>
-          {isPresent(card.containerTypeName) ? (
-            <span className="driver-journey-card__cont-type">{card.containerTypeName}</span>
-          ) : null}
-          {isPresent(card.sealNumber) ? (
-            <span className="driver-journey-card__seal">Seal {card.sealNumber}</span>
           ) : null}
         </p>
       ) : null}
@@ -185,6 +214,8 @@ function JourneyCard({ card }: { card: DriverJourneyCard }) {
 export default function DriverTripsPage() {
   const [activeTab, setActiveTab] = useState<JourneyTabKey>('NEW');
   const { data, isLoading, error, refetch, isFetching } = useDriverJourneyBoard();
+  const { tags } = useDispatchTaskTags();
+  const tagLabels = useMemo(() => tags.map((t) => t.label), [tags]);
 
   const countsByBucket = useMemo(() => {
     const counts: Record<JourneyTabKey, number> = { NEW: 0, RUNNING: 0, HISTORY: 0 };
@@ -241,7 +272,7 @@ export default function DriverTripsPage() {
                 className={group.length > 1 ? 'driver-journey-group driver-journey-group--clamp' : 'driver-journey-group'}
               >
                 {group.map((card) => (
-                  <JourneyCard key={card.fulfillmentId} card={card} />
+                  <JourneyCard key={card.fulfillmentId} card={card} tagLabels={tagLabels} />
                 ))}
               </div>
             ))}

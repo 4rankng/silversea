@@ -24,7 +24,8 @@ const NEW_FILE_MAX_LOC = 400;
 
 const FROZEN_MAX_LOC: Record<string, number> = {
   'src/design-system/forms/SearchableSelect.tsx': 481,
-  'src/api/driverClient.ts': 650,
+  // Bumped 650 -> 656: ticket 365943ea - factoryShortName and operationalNotes fields
+  'src/api/driverClient.ts': 656,
   'src/api/keys.ts': 562,
   // Added 2026-09-07: baseline 401 (was new-file capped) — the atomic plan
   // save now carries operationalNotes and the tag-pool client helpers
