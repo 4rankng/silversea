@@ -324,10 +324,9 @@ describe('Q15 debit-note issue governance', () => {
     }, 0, issueKey);
     assert.equal(issueMismatch.status, 409);
 
-    const selfCheck = await api('POST', `/api/governance-actions/${issue.body.id}/check`, {
-      expectedVersion: Number(issue.body.version),
-    }, 0, `q15-debit-self-check-${documentId}`);
-    assert.equal(selfCheck.status, 403);
+    // 2026-09-10 (phê duyệt removed): maker self-check would now succeed
+    // (200) and bump the version, so the three-actor main flow proceeds
+    // directly.
 
     const checked = await api('POST', `/api/governance-actions/${issue.body.id}/check`, {
       expectedVersion: Number(issue.body.version),
@@ -335,10 +334,7 @@ describe('Q15 debit-note issue governance', () => {
     assert.equal(checked.status, 200);
     assert.equal(checked.body.status, 'PENDING_APPROVAL');
 
-    const selfApprove = await api('POST', `/api/governance-actions/${issue.body.id}/approve`, {
-      expectedVersion: Number(checked.body.version),
-    }, 1, `q15-debit-self-approve-${documentId}`);
-    assert.equal(selfApprove.status, 403);
+    // 2026-09-10 (phê duyệt removed): same-actor approve is allowed too.
 
     const beforeApproveLedger = await db.select({ id: s.ledger.id })
       .from(s.ledger)

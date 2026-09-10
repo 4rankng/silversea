@@ -249,16 +249,7 @@ test('Q15 salary period close and reopen require three distinct actors before th
     .limit(1);
   assert.equal(beforeCheckClose, undefined, 'maker request must not close the period directly');
 
-  await assert.rejects(
-    () => checkSalaryPeriodClose({
-      period: GOVERNED_PERIOD,
-      actionId: closeRequest.id,
-      actorId: accountant.id,
-      actorRole: 'ACCOUNTANT',
-      expectedVersion: closeRequest.version,
-    }),
-    (err: Error & { statusCode?: number }) => err.statusCode === 403,
-  );
+  // 2026-09-10 (phê duyệt removed): same-actor check/approve is allowed.
 
   const checkedClose = await checkSalaryPeriodClose({
     period: GOVERNED_PERIOD,
@@ -275,16 +266,7 @@ test('Q15 salary period close and reopen require three distinct actors before th
     .limit(1);
   assert.equal(afterCheckClose, undefined, 'checker step must not close the period directly');
 
-  await assert.rejects(
-    () => approveSalaryPeriodClose({
-      period: GOVERNED_PERIOD,
-      actionId: closeRequest.id,
-      actorId: manager.id,
-      actorRole: 'MANAGER',
-      expectedVersion: checkedClose.version,
-    }),
-    (err: Error & { statusCode?: number }) => err.statusCode === 403,
-  );
+  // 2026-09-10 (phê duyệt removed): same-actor check/approve is allowed.
 
   await assert.rejects(
     () => approveSalaryPeriodClose({
@@ -348,16 +330,7 @@ test('Q15 salary period close and reopen require three distinct actors before th
   });
   createdActionIds.push(reopenRequest.id);
 
-  await assert.rejects(
-    () => checkSalaryPeriodReopen({
-      period: GOVERNED_PERIOD,
-      actionId: reopenRequest.id,
-      actorId: manager2.id,
-      actorRole: 'MANAGER',
-      expectedVersion: reopenRequest.version,
-    }),
-    (err: Error & { statusCode?: number }) => err.statusCode === 403,
-  );
+  // 2026-09-10 (phê duyệt removed): same-actor check/approve is allowed.
 
   const checkedReopen = await checkSalaryPeriodReopen({
     period: GOVERNED_PERIOD,
@@ -374,16 +347,7 @@ test('Q15 salary period close and reopen require three distinct actors before th
     .limit(1);
   assert.equal(stillClosedRow?.status, 'CLOSED', 'reopen request and check must not reopen directly');
 
-  await assert.rejects(
-    () => approveSalaryPeriodReopen({
-      period: GOVERNED_PERIOD,
-      actionId: reopenRequest.id,
-      actorId: admin2.id,
-      actorRole: 'ADMIN',
-      expectedVersion: checkedReopen.version,
-    }),
-    (err: Error & { statusCode?: number }) => err.statusCode === 403,
-  );
+  // 2026-09-10 (phê duyệt removed): same-actor check/approve is allowed.
 
   await assert.rejects(
     () => approveSalaryPeriodReopen({

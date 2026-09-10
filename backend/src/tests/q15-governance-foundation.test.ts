@@ -309,31 +309,28 @@ describe('Q15 shared governance foundation', () => {
 
     await expectApiError(checkGovernanceAction({
       actionId: action.id,
-      checkerId: actors[0]!.id,
-      checkerRole: Role.ACCOUNTANT,
-      expectedVersion: action.version,
-    }), 403, /tự kiểm tra/);
-    await expectApiError(checkGovernanceAction({
-      actionId: action.id,
       checkerId: actors[4]!.id,
       checkerRole: Role.DRIVER,
       expectedVersion: action.version,
     }), 403, /không có quyền/);
 
+    // 2026-09-10 (phê duyệt removed): the maker may check and approve their
+    // own request — maker/checker/approver segregation is gone; capability
+    // checks remain.
     const checked = await checkGovernanceAction({
       actionId: action.id,
-      checkerId: actors[1]!.id,
-      checkerRole: Role.MANAGER,
+      checkerId: actors[0]!.id,
+      checkerRole: Role.ACCOUNTANT,
       expectedVersion: action.version,
     });
-    assert.equal(checked.checkerRole, Role.MANAGER);
+    assert.equal(checked.checkerRole, Role.ACCOUNTANT);
     await expectApiError(approveGovernanceActionWithAdapter({
       actionId: action.id,
-      approverId: actors[1]!.id,
-      approverRole: Role.MANAGER,
+      approverId: actors[4]!.id,
+      approverRole: Role.DRIVER,
       expectedVersion: checked.version,
       apply: async () => undefined,
-    }), 403, /phải khác/);
+    }), 403, /không có quyền/);
 
     const approved = await approveGovernanceActionWithAdapter({
       actionId: action.id,
@@ -346,7 +343,7 @@ describe('Q15 shared governance foundation', () => {
     });
     assert.equal(approved.status, 'APPROVED');
     assert.equal(approved.makerRole, Role.ACCOUNTANT);
-    assert.equal(approved.checkerRole, Role.MANAGER);
+    assert.equal(approved.checkerRole, Role.ACCOUNTANT);
     assert.equal(approved.approverRole, Role.ADMIN);
     assert.deepEqual(approved.applicationResult, { resultingVersion: 2 });
   });
@@ -643,31 +640,29 @@ describe('Q15 shared governance foundation', () => {
     assert.equal(statusSum, unfiltered.total, 'statusCounts must partition the full unfiltered set');
   });
 
-  it('keeps application-owned actor separation as the final invariant', async () => {
+  it('allows the maker to check their own request (segregation removed 2026-09-10)', async () => {
     const [action] = await db.insert(s.governanceActions).values({
       subjectType: 'TRIP',
       subjectId: nextSubjectId++,
       actionKind: 'TRIP_AR_ADJUSTMENT',
-      reason: 'Invalid actor separation',
+      reason: 'Maker self-check',
       originalVersion: 1,
       beforeSnapshot: {},
       afterSnapshot: {},
+      deltaSnapshot: { signedAgreementRef: 'SA-SELF-CHECK' },
       makerId: actors[0]!.id,
       makerRole: Role.ACCOUNTANT,
     }).returning();
     actionIds.push(action.id);
 
-    await assert.rejects(
-      () => checkGovernanceAction({
-        actionId: action.id,
-        checkerId: actors[0]!.id,
-        checkerRole: Role.ACCOUNTANT,
-        expectedVersion: action.version,
-      }),
-      (error: unknown) => error instanceof ApiError
-        && error.statusCode === 403
-        && /người (tạo|lập)/i.test(error.message),
-    );
+    const checked = await checkGovernanceAction({
+      actionId: action.id,
+      checkerId: actors[0]!.id,
+      checkerRole: Role.ACCOUNTANT,
+      expectedVersion: action.version,
+    });
+    assert.equal(checked.status, 'PENDING_APPROVAL');
+    assert.equal(checked.checkerId, actors[0]!.id);
   });
 
   it('prevents duplicate active proposals for future subject-id action kinds', async () => {

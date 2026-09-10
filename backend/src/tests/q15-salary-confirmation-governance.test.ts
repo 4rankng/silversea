@@ -176,7 +176,8 @@ describe('Q15 salary confirmation governance', () => {
 
     const [saved] = await db.select().from(s.governanceActions)
       .where(eq(s.governanceActions.id, Number(first.body.id)));
-    assert.equal(saved.status, 'PENDING_CHECK');
+    // 2026-09-10 (phê duyệt removed): the request applies immediately.
+    assert.equal(saved.status, 'APPROVED');
     createdActionIds.push(saved.id);
   });
 
@@ -195,51 +196,19 @@ describe('Q15 salary confirmation governance', () => {
     });
     createdActionIds.push(requested.id);
 
-    const [beforeApproval] = await db.select().from(s.salaryConfirmations)
-      .where(and(
-        eq(s.salaryConfirmations.driverId, driver.id),
-        eq(s.salaryConfirmations.year, year),
-        eq(s.salaryConfirmations.month, month),
-      ))
-      .limit(1);
-    assert.equal(beforeApproval, undefined);
-
-    await assert.rejects(
-      () => checkSalaryConfirmation({
-        driverId: driver.id,
-        year,
-        month,
-        actionId: requested.id,
-        actorId: maker.id,
-        actorRole: maker.role,
-        expectedVersion: requested.version,
-      }),
-      (error: Error & { statusCode?: number }) => error.statusCode === 403,
-    );
-
+    // 2026-09-10 (phê duyệt removed): segregation is gone at the service
+    // level too — the maker may check their own request and the checker
+    // may approve it. Routes apply all three stages immediately.
     const checked = await checkSalaryConfirmation({
       driverId: driver.id,
       year,
       month,
       actionId: requested.id,
-      actorId: checker.id,
-      actorRole: checker.role,
+      actorId: maker.id,
+      actorRole: maker.role,
       expectedVersion: requested.version,
     });
     assert.equal(checked.status, 'PENDING_APPROVAL');
-
-    await assert.rejects(
-      () => approveSalaryConfirmation({
-        driverId: driver.id,
-        year,
-        month,
-        actionId: requested.id,
-        actorId: checker.id,
-        actorRole: checker.role,
-        expectedVersion: checked.version,
-      }),
-      (error: Error & { statusCode?: number }) => error.statusCode === 403,
-    );
 
     const approved = await approveSalaryConfirmation({
       driverId: driver.id,

@@ -264,33 +264,15 @@ describe('Q18 bounded adjustment governance', () => {
       0,
     );
 
-    await expectApiError(
-      checkGovernanceAction({
-        actionId: action.id,
-        checkerId: actors[0]!.id,
-        checkerRole: Role.ACCOUNTANT,
-        expectedVersion: action.version,
-      }),
-      403,
-      /tự kiểm tra/,
-    );
+    // 2026-09-10 (phê duyệt removed): the maker may check their own request
+    // and any capable actor may approve — no pairwise separation anymore.
     const checked = await checkGovernanceAction({
       actionId: action.id,
-      checkerId: actors[1]!.id,
-      checkerRole: Role.MANAGER,
+      checkerId: actors[0]!.id,
+      checkerRole: Role.ACCOUNTANT,
       expectedVersion: action.version,
     });
-    assert.equal(checked.checkerRole, Role.MANAGER);
-    await expectApiError(
-      approveGovernanceAction({
-        actionId: action.id,
-        approverId: actors[1]!.id,
-        approverRole: Role.MANAGER,
-        expectedVersion: checked.version,
-      }),
-      403,
-      /phải khác/,
-    );
+    assert.equal(checked.checkerRole, Role.ACCOUNTANT);
     const approved = await approveGovernanceAction({
       actionId: action.id,
       approverId: actors[2]!.id,
@@ -299,7 +281,7 @@ describe('Q18 bounded adjustment governance', () => {
     });
     assert.equal(approved.status, 'APPROVED');
     assert.equal(approved.makerId, actors[0]!.id);
-    assert.equal(approved.checkerId, actors[1]!.id);
+    assert.equal(approved.checkerId, actors[0]!.id);
     assert.equal(approved.approverId, actors[2]!.id);
     assert.equal(approved.approverRole, Role.ADMIN);
     assert.deepEqual(approved.applicationResult, {

@@ -451,10 +451,7 @@ describe('Q15 direct-money governance slice', () => {
     assert.equal(await fetchPenaltyByReason(penaltyReason), undefined);
     assert.equal(await fetchPenaltyReversalCount(fixture.seededPenalty.id, fixture.penaltyCancelDriver.id), 0);
 
-    const selfCheck = await api('POST', `/api/governance-actions/${paymentAction.id}/check`, {
-      expectedVersion: Number(paymentAction.version),
-    }, 0);
-    assert.equal(selfCheck.status, 403);
+    // 2026-09-10 (phê duyệt removed): maker self-check is allowed (200).
 
     const checkedResponses = await Promise.all([
       api('POST', `/api/governance-actions/${paymentAction.id}/check`, {

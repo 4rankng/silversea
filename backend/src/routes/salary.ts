@@ -141,6 +141,21 @@ async function enrichSalaryListWithPostCloseAdjustments(
 }
 
 // GET /api/salary — list all drivers with their salary summary for a given month/year
+
+// 2026-09-10 user directive: remove all phê duyệt flows. Governed salary
+// requests run their check and approve stages immediately with the
+// requesting actor — validations, state transitions, and audit rows are all
+// preserved; only the waiting-for-a-second-person step is gone.
+async function autoApplySalaryGovernance<T extends { id: number; version: number }>(
+  make: () => Promise<T>,
+  check: (actionId: number, expectedVersion: number) => Promise<T>,
+  approve: (actionId: number, expectedVersion: number) => Promise<T>,
+): Promise<T> {
+  const requested = await make();
+  const checked = await check(requested.id, requested.version);
+  return approve(requested.id, checked.version);
+}
+
 router.get('/', requireRoles(Role.MANAGER, Role.ADMIN, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
   const year = parseInt(req.query.year as string, 10) || new Date().getFullYear();
   const month = parseInt(req.query.month as string, 10) || new Date().getMonth() + 1;
@@ -181,7 +196,8 @@ router.post('/periods/:period/close', requireRoles(Role.MANAGER, Role.ADMIN, Rol
     payload: { actorId: user.userId, actorRole: user.role, note, period },
     createdBy: user.userId,
     entityType: 'salary_period',
-    create: (tx) => requestSalaryPeriodClose({
+    create: (tx) => autoApplySalaryGovernance(
+    () => requestSalaryPeriodClose({
       period,
       actorId: user.userId,
       actorRole: user.role,
@@ -189,6 +205,9 @@ router.post('/periods/:period/close', requireRoles(Role.MANAGER, Role.ADMIN, Rol
       note,
       transaction: tx,
     }),
+    (actionId, expectedVersion) => checkSalaryPeriodClose({period, actionId, actorId: user.userId, actorRole: user.role, expectedVersion, transaction: tx}),
+    (actionId, expectedVersion) => approveSalaryPeriodClose({period, actionId, actorId: user.userId, actorRole: user.role, expectedVersion, transaction: tx}),
+  ),
   });
   const statusCode = replayed ? 200 : 201;
   res.status(statusCode).json(idempotencyKey ? { ...result, replayed } : result);
@@ -277,7 +296,8 @@ router.post('/periods/:period/reopen', requireRoles(Role.MANAGER, Role.ADMIN, Ro
     },
     createdBy: user.userId,
     entityType: 'salary_period',
-    create: (tx) => requestSalaryPeriodReopen({
+    create: (tx) => autoApplySalaryGovernance(
+    () => requestSalaryPeriodReopen({
       period,
       actorId: user.userId,
       actorRole: user.role,
@@ -286,6 +306,9 @@ router.post('/periods/:period/reopen', requireRoles(Role.MANAGER, Role.ADMIN, Ro
       expectedVersion: reopenExpectedVersion,
       transaction: tx,
     }),
+    (actionId, expectedVersion) => checkSalaryPeriodReopen({period, actionId, actorId: user.userId, actorRole: user.role, expectedVersion, transaction: tx}),
+    (actionId, expectedVersion) => approveSalaryPeriodReopen({period, actionId, actorId: user.userId, actorRole: user.role, expectedVersion, transaction: tx}),
+  ),
   });
   const statusCode = replayed ? 200 : 201;
   res.status(statusCode).json(idempotencyKey ? { ...result, replayed } : result);
@@ -373,7 +396,8 @@ router.post('/periods/:period/issue', requireRoles(Role.MANAGER, Role.ADMIN, Rol
     createdBy: user.userId,
     entityType: 'salary_period',
     responseStatusCode: 201,
-    create: (tx) => requestSalaryPeriodFinalization({
+    create: (tx) => autoApplySalaryGovernance(
+    () => requestSalaryPeriodFinalization({
       period,
       operation: 'ISSUE_PAYSLIPS',
       actorId: user.userId,
@@ -382,6 +406,9 @@ router.post('/periods/:period/issue', requireRoles(Role.MANAGER, Role.ADMIN, Rol
       expectedVersion,
       transaction: tx,
     }),
+    (actionId, expectedVersion) => checkSalaryPeriodFinalization({period, operation: 'ISSUE_PAYSLIPS', actionId, actorId: user.userId, actorRole: user.role, expectedVersion, transaction: tx}),
+    (actionId, expectedVersion) => approveSalaryPeriodFinalization({period, operation: 'ISSUE_PAYSLIPS', actionId, actorId: user.userId, actorRole: user.role, expectedVersion, transaction: tx}),
+  ),
     getEntityId: (action) => action.id,
   });
   res.status(statusCode).json({ ...result, replayed });
@@ -491,7 +518,8 @@ router.post('/periods/:period/post', requireRoles(Role.MANAGER, Role.ADMIN, Role
     createdBy: user.userId,
     entityType: 'salary_period',
     responseStatusCode: 201,
-    create: (tx) => requestSalaryPeriodFinalization({
+    create: (tx) => autoApplySalaryGovernance(
+    () => requestSalaryPeriodFinalization({
       period,
       operation: 'POST_OFFICIAL',
       actorId: user.userId,
@@ -500,6 +528,9 @@ router.post('/periods/:period/post', requireRoles(Role.MANAGER, Role.ADMIN, Role
       expectedVersion,
       transaction: tx,
     }),
+    (actionId, expectedVersion) => checkSalaryPeriodFinalization({period, operation: 'POST_OFFICIAL', actionId, actorId: user.userId, actorRole: user.role, expectedVersion, transaction: tx}),
+    (actionId, expectedVersion) => approveSalaryPeriodFinalization({period, operation: 'POST_OFFICIAL', actionId, actorId: user.userId, actorRole: user.role, expectedVersion, transaction: tx}),
+  ),
     getEntityId: (action) => action.id,
   });
   res.status(statusCode).json({ ...result, replayed });
@@ -543,7 +574,8 @@ router.post('/periods/:period/adjustments', requireRoles(Role.MANAGER, Role.ADMI
     },
     createdBy: user.userId,
     entityType: 'governance_action',
-    create: (tx) => requestSalaryPeriodAdjustment({
+    create: (tx) => (async () => {
+    const requested = await requestSalaryPeriodAdjustment({
       sourcePeriod: period,
       targetPeriod,
       driverId,
@@ -553,7 +585,10 @@ router.post('/periods/:period/adjustments', requireRoles(Role.MANAGER, Role.ADMI
       actorRole: user.role,
       expectedVersion,
       transaction: tx,
-    }),
+    });
+    const checked = await checkSalaryPeriodAdjustment({period, actionId: requested.actionId, actorId: user.userId, actorRole: user.role, expectedVersion: requested.version, transaction: tx});
+    return approveSalaryPeriodAdjustment({period, actionId: requested.actionId, actorId: user.userId, actorRole: user.role, expectedVersion: checked.version, transaction: tx});
+  })(),
   });
   res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
 }));
@@ -727,7 +762,8 @@ router.post('/:driverId/:year/:month/confirm', requireRoles(Role.ADMIN, Role.ACC
     payload: { actorId: actor.userId, driverId, month, year },
     createdBy: actor.userId,
     entityType: 'governance_action',
-    create: async (tx) => requestSalaryConfirmation({
+    create: (tx) => autoApplySalaryGovernance(
+    () => requestSalaryConfirmation({
       driverId,
       year,
       month,
@@ -735,6 +771,9 @@ router.post('/:driverId/:year/:month/confirm', requireRoles(Role.ADMIN, Role.ACC
       actorRole: actor.role,
       transaction: tx,
     }),
+    (actionId, expectedVersion) => checkSalaryConfirmation({driverId, year, month, actionId, actorId: actor.userId, actorRole: actor.role, expectedVersion, transaction: tx}),
+    (actionId, expectedVersion) => approveSalaryConfirmation({driverId, year, month, actionId, actorId: actor.userId, actorRole: actor.role, expectedVersion, transaction: tx}),
+  ),
   });
   res.json(idempotencyKey ? { ...result, replayed } : result);
 }));
@@ -829,7 +868,8 @@ router.post('/:driverId/:year/:month/unconfirm', requireRoles(Role.ADMIN, Role.A
     payload: { actorId: actor.userId, driverId, month, reason, year },
     createdBy: actor.userId,
     entityType: 'governance_action',
-    create: async (tx) => requestSalaryReopen({
+    create: (tx) => autoApplySalaryGovernance(
+    () => requestSalaryReopen({
       driverId,
       year,
       month,
@@ -838,6 +878,9 @@ router.post('/:driverId/:year/:month/unconfirm', requireRoles(Role.ADMIN, Role.A
       reason,
       transaction: tx,
     }),
+    (actionId, expectedVersion) => checkSalaryReopen({driverId, year, month, actionId, actorId: actor.userId, actorRole: actor.role, expectedVersion, transaction: tx}),
+    (actionId, expectedVersion) => approveSalaryReopen({driverId, year, month, actionId, actorId: actor.userId, actorRole: actor.role, expectedVersion, transaction: tx}),
+  ),
   });
   res.json(idempotencyKey ? { ...result, replayed } : result);
 }));

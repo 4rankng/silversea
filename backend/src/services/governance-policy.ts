@@ -642,9 +642,9 @@ export function assertCanCheckGovernanceAction(
   actor: GovernanceActor,
 ): void {
   assertCapability(action.actionKind, actor.actorRole, 'checker');
-  if (action.makerId === actor.actorId) {
-    throw new ApiError(403, 'Người tạo không được tự kiểm tra yêu cầu');
-  }
+  // 2026-09-10 user directive (remove all phê duyệt flows): maker-checker
+  // segregation is removed — a capable actor may check (and approve) their
+  // own request so governed actions can apply immediately.
 }
 
 export function assertCanApproveGovernanceAction(
@@ -652,16 +652,9 @@ export function assertCanApproveGovernanceAction(
   actor: GovernanceActor,
 ): void {
   assertCapability(action.actionKind, actor.actorRole, 'approver');
-  if (
-    action.actionKind === 'PRICE_CONFIG_CHANGE'
-    && actor.actorRole === Role.ADMIN
-    && action.makerId === actor.actorId
-  ) {
-    return;
-  }
-  if (action.makerId === actor.actorId || action.checkerId === actor.actorId) {
-    throw new ApiError(403, 'Người phê duyệt phải khác người tạo và người kiểm tra');
-  }
+  // 2026-09-10 user directive (remove all phê duyệt flows): maker/approver
+  // segregation is removed — any actor holding the approve capability may
+  // approve, including the maker.
 }
 
 export function canViewGovernanceAction(role: string): boolean {

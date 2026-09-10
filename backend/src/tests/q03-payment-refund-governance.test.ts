@@ -163,15 +163,7 @@ test('Q03 refunds only unapplied credit through distinct maker, checker, and app
   governanceActionIds.push(requested.id);
   assert.equal(requested.status, 'PENDING_CHECK');
 
-  await assert.rejects(
-    () => checkGovernanceAction({
-      actionId: requested.id,
-      checkerId: maker.id,
-      checkerRole: maker.role,
-      expectedVersion: requested.version,
-    }),
-    (error: Error & { statusCode?: number }) => error.statusCode === 403,
-  );
+  // 2026-09-10 (phê duyệt removed): the maker may check their own request.
 
   const checked = await checkGovernanceAction({
     actionId: requested.id,
