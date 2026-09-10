@@ -484,8 +484,7 @@
 .detailed-plan-grid__col--container { width: 12%; }
 .detailed-plan-grid__col--assignment { width: 12%; }
 .detailed-plan-grid__col--classification { width: 8%; }
-.detailed-plan-grid__col--task-tags { width: 10%; }
-.detailed-plan-grid__col--notes { width: 13%; }
+.detailed-plan-grid__col--notes { width: 23%; }
 
 .detailed-plan-grid thead th {
   position: sticky;
@@ -765,7 +764,6 @@
   }
 
   .detailed-plan-grid__cell--classification,
-  .detailed-plan-grid__cell--task-tags,
   .detailed-plan-grid__cell--editable,
   .detailed-plan-grid__cell--notes {
     border-top: 1px solid var(--border-color, #eef2f7);
@@ -847,7 +845,6 @@
     border-top: 1px solid var(--border-color, #eef2f7);
   }
 
-  .detailed-plan-grid__cell--task-tags,
   .detailed-plan-grid__cell--notes,
   .detailed-plan-grid__cell--editable {
     border-top: 1px solid var(--border-color, #eef2f7);
@@ -893,13 +890,6 @@
 .detailed-plan-grid__classification--unclassified {
   color: var(--text-tertiary, #667085);
   border-style: dashed;
-}
-
-/* Task tags column (Tác vụ): compact badge stack for dispatch task labels. */
-.detailed-plan-grid__task-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
 }
 
 /* ─── Lạch Huyện zone toggle (filter drawer) ───────────────────────────── */

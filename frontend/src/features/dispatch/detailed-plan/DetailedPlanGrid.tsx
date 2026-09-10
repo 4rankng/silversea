@@ -16,8 +16,7 @@ import { ZoneTruckPresencePanel } from './ZoneTruckPresencePanel';
 import type { DetailedPlanFilterState, DetailPlanSortKey } from './useDispatchDetailPlan';
 import { formatISODate } from '../../../lib/format';
 import { displayNote } from '../../shipments/cus/cusUtils';
-import { parseNote } from './dispatchTaskTags';
-import { useDispatchTaskTags } from './useDispatchTaskTags';
+
 import '../../../styles/operational-table-typography.css';
 import './DetailedPlanGrid.css';
 
@@ -98,8 +97,6 @@ export function DetailedPlanGrid({
   onCompleteExternalTrip,
   onIssueOrder,
 }: DetailedPlanGridProps) {
-  const { tags } = useDispatchTaskTags();
-  const tagLabels = tags.map((tag) => tag.label);
 
   if (error) {
     return (
@@ -185,7 +182,6 @@ export function DetailedPlanGrid({
                 <th scope="col">Container</th>
                 <th scope="col">Điều phối</th>
                 <th scope="col">Phân loại</th>
-                <th scope="col">Tác vụ</th>
                 <th scope="col">Ghi chú</th>
               </tr>
             </thead>
@@ -265,19 +261,6 @@ export function DetailedPlanGrid({
                     <span className="detailed-plan-grid__classification">
                       {DISPATCH_CLASSIFICATION_LABELS[row.classification]}
                     </span>
-                  </td>
-                  <td className="detailed-plan-grid__cell detailed-plan-grid__cell--task-tags" data-label="Tác vụ">
-                    {(() => {
-                      const { selectedLabels } = parseNote(row.notes.vehicleNote, tagLabels);
-                      if (selectedLabels.length === 0) return <span className="detailed-plan-grid__line--muted">—</span>;
-                      return (
-                        <div className="detailed-plan-grid__task-tags">
-                          {selectedLabels.map((label) => (
-                            <Badge key={label} size="sm" color="blue">{label}</Badge>
-                          ))}
-                        </div>
-                      );
-                    })()}
                   </td>
                   <td className="detailed-plan-grid__cell detailed-plan-grid__cell--notes" data-label="Ghi chú">
                     {row.notes.vehicleNote && (

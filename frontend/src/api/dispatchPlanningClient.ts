@@ -408,6 +408,7 @@ export function completeDispatchExternalTrip(tripId: number) {
 export interface DispatchTaskTag {
   id: number;
   label: string;
+  displayOrder?: number | null;
 }
 
 export function listDispatchTaskTags() {

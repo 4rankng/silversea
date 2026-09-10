@@ -5,22 +5,26 @@ import {
   listDispatchTaskTags,
   updateDispatchTaskTag,
 } from '../../../api/dispatchPlanningClient';
+import type { DispatchTaskTag } from '../../../api/dispatchPlanningClient';
 import { qk } from '../../../api/keys';
 
 /**
  * Tag pool for the dispatch edit modal's note composer. Cached under
  * `qk.dispatchTaskTags.all` so an inline-add from one row's modal refreshes
  * the pool for every open modal; the list is tiny, so stale-while-revalidate
- * is free.
+ * is free. The API returns tags already sorted by displayOrder ASC NULLS LAST
+ * then label ASC — canonical tags (seed 0066) come first; user-created tags
+ * follow. No client-side sort needed.
  */
 export function useDispatchTaskTags() {
   const query = useQuery({
     queryKey: qk.dispatchTaskTags.all,
     queryFn: listDispatchTaskTags,
     staleTime: 60_000,
+    select: (data) => data.items,
   });
   return {
-    tags: query.data?.items ?? [],
+    tags: query.data ?? [],
     isLoading: query.isLoading,
     error: query.error,
   };
