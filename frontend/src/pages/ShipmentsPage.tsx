@@ -251,7 +251,7 @@ export default function ShipmentsPage() {
                 placeholder="Số đầy đủ hoặc tối thiểu 4 ký tự cuối"
                 inputProps={{
                   inputMode: 'text',
-                  pattern: '[A-Za-z0-9 .\\\\-\\\\/]{4,64}',
+                  pattern: '[A-Za-z0-9 .\\-\\/]{4,64}',
                   autoCapitalize: 'characters',
                   autoCorrect: 'off',
                   spellCheck: false,
