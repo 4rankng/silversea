@@ -138,11 +138,11 @@ The maker/checker endpoints that used to live at `/api/governance-actions/:id/ch
 - **Then**:
   - Settlement applies **immediately** — no `PENDING` state, no `CHECKED_BY_ACCOUNTANT` two-step
   - The approve/reject endpoints at `advances.routes.ts` :146/:178 are dead (404, or 403 where RBAC scopes them to another role)
-  - `governance_actions` audit row stamped `APPLIED` (history kept, per chunk invariants)
+  - Own-table audit written (approvedBy / approvedAt + ledger rows) — per the chunk-3/4 direct-apply pattern; a NEW governance_actions row is NOT required (historical governance rows stay untouched)
 - **Assert:**
   - `curl -X POST …/api/financial/advances/...settlement` returns an applied status in ONE call
   - `curl -X POST …/api/financial/advances/settlements/:id/approve` and `/reject` return 404 / 403 (dead)
-  - DB: `SELECT status FROM governance_actions WHERE kind LIKE '%SETTLEMENT%' ORDER BY id DESC LIMIT 1` returns `APPLIED`
+  - DB: settlement row shows own-table audit — `approvedBy` + `approvedAt` set, ledger rows written; `governance_actions` gains NO new PENDING row (historical rows remain as-is). [amended by pm 13:20Z — quartet writes own-table audit, not governance rows]
 - **Evidence:**
   - `qa/2026-09-10_approval-removal-chunk4_api-009-settlement.log`
   - `qa/2026-09-10_approval-removal-chunk4_db-009.sql`
