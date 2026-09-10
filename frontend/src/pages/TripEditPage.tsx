@@ -34,7 +34,7 @@ export default function TripEditPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { confirm, dialog: confirmDialog } = useConfirm();
-  const { data: trip, isLoading: loading, refetch: refetchTrip } = useTripDetail(id);
+  const { data: trip, isLoading: loading, error: tripError, refetch: refetchTrip } = useTripDetail(id);
   const { data: catalogData } = useCatalogs();
   const { rootRef } = usePageAnimations({ ready: !loading });
   const [governanceReason, setGovernanceReason] = useState('');
@@ -146,6 +146,20 @@ export default function TripEditPage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 80, gap: 10, color: 'var(--fg-3)' }}>
         <Spinner size={20} />
         <span style={{ fontSize: 14 }}>Đang tải dữ liệu…</span>
+      </div>
+    );
+  }
+
+  // A failed trip fetch must not fall through to the silent blank `null`
+  // below — mirror the reassign dialog's recoverable error state
+  // (ticket 7a74d6eb). Stale data on a transient error keeps the form.
+  if (tripError && !trip) {
+    return (
+      <div role="alert" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: 80 }}>
+        <p style={{ margin: 0, fontSize: 14, color: 'var(--danger, #b3261e)' }}>Không tải được dữ liệu chuyến đi. Vui lòng thử lại.</p>
+        <button type="button" className="btn btn--secondary btn--sm" onClick={() => void refetchTrip()}>
+          Thử lại
+        </button>
       </div>
     );
   }
