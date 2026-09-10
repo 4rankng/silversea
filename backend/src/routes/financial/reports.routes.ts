@@ -12,7 +12,6 @@ import { cacheGet } from '../../lib/redis';
 import { getDashboardWidgets } from '../../services/dashboard-widgets.service';
 import { totalArRangeKey } from '../../lib/report-cache';
 import { getCustomerAgingList, customerAgingSortQuerySchema } from '../../services/aging.service';
-import { getApprovalQueue } from '../../services/approval-queue.service';
 import { parsePagination } from '../utils/pagination';
 import { throwValidation } from '../../lib/validation';
 import { exportReceivablesAgingXlsx, attachmentDisposition } from '../../services/statement.service';
@@ -36,10 +35,9 @@ router.get('/reports/dashboard', requireRoles(Role.ADMIN, Role.MANAGER), asyncHa
   res.json(await getDashboardStats({ includeExecutive: true }));
 }));
 
-router.get('/dashboard/approval-queue', asyncHandler(async (req: Request, res: Response) => {
-  const result = await getApprovalQueue(getUser(req).userId, getUser(req).role);
-  res.json(result);
-}));
+// 2026-09-10 (phê duyệt removed, chunk 7): GET /dashboard/approval-queue is
+// GONE — every flow that fed the queue now applies at request time. Clients
+// still calling it get 404.
 
 // ─── P&L report ──────────────────────────────────────────────────────────────
 

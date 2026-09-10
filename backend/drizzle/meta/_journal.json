@@ -439,8 +439,15 @@
     {
       "idx": 62,
       "version": "7",
-      "when": 1789046561939,
+      "when": 1789069260000,
       "tag": "0066_seed_canonical_operation_tags",
+      "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1789069320000,
+      "tag": "0067_close_legacy_approval_requests",
       "breakpoints": true
     }
   ]
