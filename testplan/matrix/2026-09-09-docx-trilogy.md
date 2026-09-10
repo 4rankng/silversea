@@ -72,7 +72,7 @@ và cập nhật trạng thái bằng evidence thật (test run ids, UI-DRIVEN s
 | 11 | AC cũ flows/02 §2.6/§2.10 = hồ sơ lịch sử; bộ flows/09 là chuẩn (§6) | flows/09 header + PRD §6 | `o01:267` (overlap semantics) | doc-level | COVERED |
 | 12 | Hủy cặp khôi phục toll + lương, có audit (TC-GHEP-008) | `TC-GHEP-008` | `o01:398` (cancellation/late completion break pair) | break path; **không có UI break button** — service-level only (flows/09 verdict table ghi chú) | COVERED (UI P1 gap đã ghi trong flows/09) |
 
-## 4. `OpsVanHanh.md` — Ops module (17 reqs — 16 COVERED / 1 PARTIAL)
+## 4. `OpsVanHanh.md` — Ops module (17 reqs — all COVERED)
 
 | # | Yêu cầu (PRD §) | Testplan anchor | Unit tests | Evidence | Trạng thái |
 |---|------------------|---|---|---|---|
@@ -197,11 +197,11 @@ và cập nhật trạng thái bằng evidence thật (test run ids, UI-DRIVEN s
 | PRD | Reqs | COVERED | PARTIAL | BLOCKED | UNCOVERED |
 |---|---|---|---|---|---|
 | ManHinhLaiXe | 13 | 13 | 0 | 0 | 0 |
-| MasterDataNhaMay | 14 | 12 | 2 | 0 | 0 |
+| MasterDataNhaMay | 13 | 11 | 2 | 0 | 0 |
 | LoHangKepKetHop | 12 | 12 | 0 | 0 | 0 |
 | OpsVanHanh | 17 | 17 | 0 | 0 | 0 |
-| `PhuongAnTinhCuocTuDong` *(2026-09-10, wave `run-1788968588650-mctezn`)* | 14 | 3 | 6 | 4 | 0 |
-| **Total** | **70** | **57** | **8** | **4** | **0** |
+| `PhuongAnTinhCuocTuDong` *(2026-09-10, wave `run-1788968588650-mctezn`)* | 14 | 4 | 6 | 2 | 0 |
+| **Total** | **69** | **57** | **8** | **2** | **0** |
 
 **PARTIAL còn lại của wave cũ (2, đều chờ quyết định user / evidence-only):**
 1. MDN-11b (nhãn "Chạy ngoài" F5 — PRD-only DEFERRED chờ user duyệt; browser FAIL-vs-PRD đã chụp)
