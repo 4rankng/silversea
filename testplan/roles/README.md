@@ -67,7 +67,9 @@ Practical rules:
 - Roles `MANAGER` and `CUSTOMER` are **local-only** by design — staging
   has no users with those roles, so any case tagged with them is
   `BLOCKED` on staging until prod adds the role.
-- All passwords on both environments are `Abc123` (verified 2026-09-06).
+- Accounts and passwords for both environments live in
+  [`testaccounts.txt`](../testaccounts.txt) (canonical, user-maintained;
+  verified 2026-09-06) — this doc intentionally does not duplicate them.
 - The per-role docs (`01-cus.md` … `07-khachhang.md`) and per-flow docs
   (`flows/*.md`) follow the same role-only convention; none of them
   hardcode a username.

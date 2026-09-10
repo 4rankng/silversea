@@ -57,9 +57,9 @@ case gọi vai trò cần dùng (`CUS`, `DISPATCHER`, `ACCOUNTANT`, `MANAGER`,
   users (vd `thanhdc` cho CUS, `dungnv` cho DISPATCHER, `bqhuong` cho
   DRIVER). **Không** có `MANAGER` / `CUSTOMER` vì prod không có role đó.
 
-Mật khẩu chung mọi môi trường: `Abc123`. Chi tiết mapping xem
-`../testaccounts.txt` (đã verify 2026-09-06: 62 users trên staging reset
-về `Abc123`).
+Tài khoản & mật khẩu: xem file chuẩn hóa
+[`../testaccounts.txt`](../testaccounts.txt) (verify 2026-09-06: 62 users
+trên staging). Doc này không nhân bản thông tin đăng nhập.
 
 Khi viết test case mới: dùng role code in hoa (`CUS`, `DISPATCHER`, …)
 chứ không ghi username. Runner / tester tự map sang account thật theo

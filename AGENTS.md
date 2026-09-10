@@ -171,31 +171,14 @@ Structured knowledge graph in `.ua/` — committed to git, shared across agents.
 - Backend health: http://localhost:3001/api/health
 - Drizzle ORM only — **no raw SQL**. Financial precision via `round2dp()` / `computeTripTotals()`.
 
-## Demo accounts (all passwords `Abc123`)
+## Accounts (single source of truth)
 
-| Username | Role |
-| --- | --- |
-| admin | ADMIN |
-| giamdoc | MANAGER |
-| cus | CLERK |
-| ketoan | ACCOUNTANT |
-| laixe | DRIVER |
-| giaonhan | FORWARDER |
-| thu | DRIVER |
-| pho | DRIVER |
-| quyet | DRIVER |
+All test/staging accounts, roles, and credentials are centralized in
+[`testplan/testaccounts.txt`](testplan/testaccounts.txt) — user-maintained,
+verified 2026-09-06 (62 staging users). Local dev demo accounts (admin, cus,
+giamdoc, ketoan, laixe, giaonhan, …) are listed there too; they are **local-dev
+only** and do not exist on staging. Do not duplicate account lists or passwords
+in any other doc — link here instead.
 
-Local: http://localhost:7174 — `admin / Abc123`
-
-## Staging accounts (password `Abc123`)
-
-| Username | Role |
-| --- | --- |
-| admin | ADMIN |
-| giamdoc | MANAGER |
-| ketoan | ACCOUNTANT |
-| laixe | DRIVER |
-| giaonhan | FORWARDER |
-| khachhang | CUSTOMER |
-
-Staging: https://vantai.tingting.vip/
+- Local: http://localhost:7174
+- Staging: https://vantai.tingting.vip/

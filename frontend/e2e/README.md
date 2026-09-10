@@ -33,10 +33,10 @@ pnpm --filter frontend test:e2e:debug
 
 ## Credentials
 
-All tests use staging credentials:
-- URL: https://vantai.tingting.vip
-- Password: Abc123 (all users)
-- Users: admin, giamdoc, ketoan, laixe, giaonhan, customer, dieuvan, cus
+All tests run against staging (https://vantai.tingting.vip). Accounts,
+roles, and credentials: see the canonical file
+[`testplan/testaccounts.txt`](../../testplan/testaccounts.txt) — do not
+duplicate them here.
 
 ## Coverage
 
