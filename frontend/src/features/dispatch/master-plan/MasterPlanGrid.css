@@ -992,6 +992,20 @@
     padding: 10px 16px;
   }
 
+  /* Polish 2026-09-09 (PM seq-151 visual-quality gate): the action cell
+     holds a 44px trigger, so the cell body lands at ~64px tall. The notes
+     cell directly below is text-only — an empty "—" placeholder or a
+     short note would render ~40-50px, leaving a ~14-24px height pop in
+     the action + notes footer pair. Ground the notes-trigger to 44px so
+     empty/short notes share the action-cell rhythm AND keep the 44px
+     touch target that the design system reserves for tappable surfaces
+     (design-system.md: "Compact field typography is shared too: sm
+     fields use 12px on desktop and 14px at narrow widths, while
+     retaining the 44px touch target"). */
+  .master-plan-grid__notes-trigger {
+    min-height: 44px;
+  }
+
   .master-plan-grid__allocation-label {
     display: block;
     margin-bottom: 4px;
@@ -1004,20 +1018,14 @@
   }
 }
 
-/* Phone records keep their primary identity in a single vertical story, then
-   pair the two short port facts. It removes redundant direction labels without
-   compressing meaningful text or making the allocation action harder to use. */
+/* Phone records use the same full 2-column pairing as the record-table
+   layout (config pages): every cell pairs side-by-side so mobile layouts
+   stay consistent app-wide. Only the smallest screens collapse to a single
+   column. The paired ports keep their divider styling. */
 @container (max-width: 599px) {
   .master-plan-grid__row {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .master-plan-grid__cell:nth-child(-n + 3),
-  .master-plan-grid__cell:nth-child(6),
-  .master-plan-grid__cell:nth-child(8),
-  .master-plan-grid__cell--action {
-    grid-column: 1 / -1;
   }
 
   .master-plan-grid__cell--lift-port,
@@ -1061,8 +1069,14 @@
     border-top: 1px solid var(--line);
   }
 
+  /* Cell 7 (Phân bổ nhà xe) + cell 8 (Ghi chú) pair side-by-side in this
+     band (user 2026-09-10: one-line content spanning the full row leaves
+     the half dead). Child 7 is odd → left column; child 8 is even → right
+     column with the :nth-child(even) divider; :nth-child(n+3) separates
+     the pair from the row above. The action rule stays after
+     :nth-child(even) so border-inline-start: 0 wins by source order
+     without !important. */
   .master-plan-grid__cell--action {
-    grid-column: 1 / -1;
-    border-inline-start: 0 !important;
+    border-inline-start: 0;
   }
 }

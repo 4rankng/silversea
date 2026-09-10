@@ -564,8 +564,12 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     render(<MemoryRouter><ShipmentContainersPage /></MemoryRouter>);
     await screen.findByText('CONT-001');
     const input = screen.getByLabelText(/Container, Bill\/Booking hoặc tờ khai/i);
+    // Mid-typing prefixes of a valid reference (incl. separators) must not
+    // flash the error; only a truly invalid value may.
+    fireEvent.change(input, { target: { value: 'AB-' } });
+    await waitFor(() => expect(screen.queryByText(/tối thiểu 4 ký tự/i)).toBeNull());
     fireEvent.change(input, { target: { value: 'ABC!' } });
-    expect(await screen.findByText('Nhập số đầy đủ hoặc tối thiểu 4 ký tự chữ và số cuối.')).toBeTruthy();
+    expect(await screen.findByText('Nhập số Bill/Book, container hoặc tờ khai đầy đủ, hoặc tối thiểu 4 ký tự cuối (không dùng % hoặc _).')).toBeTruthy();
     expect(apiGet).toHaveBeenCalledTimes(1);
   });
 

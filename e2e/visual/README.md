@@ -98,5 +98,6 @@ VISUAL_API=https://vantai.tingting.vip \
 python3 visual/run_section.py s00_cross_cutting
 ```
 
-(Password must match — staging uses `123456`, localhost uses `Abc123`.
-Adjust `e2e/visual/lib/accounts.py` accordingly.)
+(Accounts and passwords: see the canonical
+[`testplan/testaccounts.txt`](../../testplan/testaccounts.txt). If a run
+fails to authenticate, sync `e2e/visual/lib/accounts.py` from that file.)

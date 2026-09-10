@@ -165,7 +165,10 @@
     min-width: 0;
     height: var(--filter-control-h);
     min-height: var(--filter-control-h);
-    flex: 1;
+    /* Full-width row of its own below the chip wrap — a right-stranded
+       search clipped past the viewport on /suppliers (user-reported
+       2026-09-09) and the flex spacer strands it mid-row otherwise. */
+    flex: 1 1 100%;
     max-width: none;
   }
 }

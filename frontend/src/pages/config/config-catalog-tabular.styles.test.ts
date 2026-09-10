@@ -48,6 +48,12 @@ describe('config catalog tables stay tabular below the shared card fold', () => 
   it('leaves the shared base owning cards below 680px', () => {
     const base = read('src/styles/record-table.css');
     expect(base).toContain('@container (max-width: 1100px)');
-    expect(base).toContain('@container (max-width: 640px)');
+    // 2026-09-09 space-utilisation audit: the base now pairs facts two-up
+    // across the WHOLE card band (≤1100px) instead of phones-only, so the
+    // fold never renders single-column stacks at tablet widths.
+    expect(base).toContain('repeat(2, minmax(0, 1fr))');
+    // Sub-360px keeps the single-column fallback — the base still owns the
+    // narrowest band outright.
+    expect(base).toContain('@container (max-width: 360px)');
   });
 });

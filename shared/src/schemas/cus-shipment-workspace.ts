@@ -16,10 +16,17 @@ const fieldAccessSchema = z.object({
 // suffix blocked pasting the full Bill/Book, container, or declaration
 // number. Full values end with themselves, so the ILIKE suffix match already
 // covers both — only the length cap needed lifting. Min 4 keeps the
-// unanchored scans bounded; 32 fits the longest real number.
+// unanchored scans bounded.
+// 2026-09-10 customer report: real references also carry separators (dashes,
+// slashes, dots, spaces) and the alnum-only charset rejected them at
+// validation. Separators are now allowed, but % and _ stay forbidden — they
+// are LIKE wildcards and the reads service interpolates the raw value into
+// the suffix ILIKE, so excluding them keeps wildcard injection out without
+// SQL-side escaping. 64 fits the longest pasted full reference.
+export const CUS_SEARCH_PATTERN = /^[A-Za-z0-9 ./-]{4,64}$/;
 const suffixSchema = z.string()
   .trim()
-  .regex(/^[A-Za-z0-9]{4,32}$/, 'Nhập số Bill/Book, container hoặc tờ khai đầy đủ, hoặc tối thiểu 4 ký tự cuối (chỉ chữ và số).');
+  .regex(CUS_SEARCH_PATTERN, 'Nhập số Bill/Book, container hoặc tờ khai đầy đủ, hoặc tối thiểu 4 ký tự cuối (không dùng % hoặc _).');
 
 // Shared filter shape for both CUS workspace GET surfaces. The overview and
 // container endpoints deliberately expose distinct strict contracts: only the

@@ -1513,9 +1513,7 @@ describe('POST /', () => {
 });
 
 describe('GET /cus-workspace', () => {
-  test('returns derived CUS rows and accepts full or suffix alphanumeric search', async () => {
-    // Pure-alphanumeric booking so the full-number probe below is itself a
-    // valid search value (searchSuffix rejects non-alphanumeric characters).
+  test('returns derived CUS rows and accepts full or suffix search incl. separators', async () => {
     const fullBookingRef = `BOOK${suffix.replace(/-/g, '')}Ab12X`.slice(0, 50);
     const shipment = await mkShipmentViaService({
       bookingRef: fullBookingRef,
@@ -1539,7 +1537,9 @@ describe('GET /cus-workspace', () => {
     // 2026-09-09 customer report: pasting the full Bill/Booking, container,
     // or declaration number must work too — a full value ends with itself,
     // so the suffix ILIKE covers both. Keep the 4-char suffix probes.
-    for (const validSuffix of ['aB12x', '9Zx4', fullBookingRef]) {
+    // 2026-09-10: references with separators must validate too — 'TK-9zX4'
+    // is this fixture's dashed declaration number, pasted whole.
+    for (const validSuffix of ['aB12x', '9Zx4', fullBookingRef, 'TK-9zX4']) {
       const ok = await testFetch(`/cus-workspace?searchSuffix=${validSuffix}&page=1&limit=20`, { token: adminToken });
       assert.equal(ok.status, 200);
       const row = ok.data.items.find((item: { id: number }) => item.id === shipment.id);
@@ -1567,7 +1567,9 @@ describe('GET /cus-workspace', () => {
     assert.equal(importOnly.status, 200);
     assert.equal(importOnly.data.items.some((item: { id: number }) => item.id === shipment.id), false);
 
-    for (const invalidSuffix of ['A12', 'AB$1']) {
+    // % and _ are LIKE wildcards — they must stay rejected alongside
+    // too-short and over-cap values.
+    for (const invalidSuffix of ['A12', 'AB$1', 'AB%1', 'AB_1', 'X'.repeat(65)]) {
       const invalid = await testFetch(`/cus-workspace?searchSuffix=${encodeURIComponent(invalidSuffix)}`, { token: adminToken });
       assert.equal(invalid.status, 400);
       assert.match(invalid.data.error, /tối thiểu 4 ký tự|4 ký tự/i);

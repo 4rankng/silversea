@@ -532,6 +532,50 @@ describe('MasterPlanGrid', () => {
     expect(css).toContain('color: var(--fg-2)');
     expect(css).toContain('color: var(--fg-3)');
   });
+
+  // User-reported 2026-09-10 (tablet screenshot): one-line cells 7 (Phân bổ
+  // nhà xe) and 8 (Ghi chú) spanned the full row in the 600-900px band,
+  // leaving half of each row dead. They now pair side-by-side: action sits
+  // the left column (odd child), notes the right (even child → the
+  // nth-child(even) divider), and the ≤599px phone spans are untouched.
+  it('pairs the allocation and notes cells side-by-side in the 600-900px band', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
+    const bandStart = css.indexOf('@container (min-width: 600px) and (max-width: 900px)');
+    expect(bandStart).toBeGreaterThan(-1);
+    const band = css.slice(bandStart);
+
+    // No full-width spans remain in the 600-900px band: cells 7|8 pair.
+    expect(band).not.toContain('grid-column: 1 / -1');
+
+    // The action cell stays in normal flow (odd child → left column) with
+    // its own inline-start suppressed by source order, not !important.
+    expect(band).toMatch(/\.master-plan-grid__cell--action\s*\{[\s\S]*?border-inline-start:\s*0/);
+    expect(band).not.toMatch(/\.master-plan-grid__cell--action\s*\{[\s\S]*?!important/);
+
+    // The ≤599px phone band still spans notes + action (parity).
+    const phoneStart = css.indexOf('@container (max-width: 599px)');
+    const phoneBand = css.slice(phoneStart, bandStart);
+    expect(phoneBand).toMatch(/\.master-plan-grid__cell:nth-child\(8\)[\s\S]*?grid-column:\s*1 \/ -1/);
+    expect(phoneBand).toMatch(/\.master-plan-grid__cell--action[\s\S]*?grid-column:\s*1 \/ -1/);
+  });
+
+  // Polish 2026-09-09 (PM seq-151 visual-quality gate): the action cell
+  // holds a 44px trigger (action + notes footer pair landed at 5324b1ad),
+  // so without a matching floor the notes cell below would render at its
+  // natural text height (40-50px) — a 14-24px rhythm pop. The
+  // notes-trigger must hit the same 44px touch target inside the
+  // ≤900px card view so empty/short notes ground to the action cell.
+  it('grounds the notes-trigger to the 44px touch floor inside the ≤900px card view', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
+
+    expect(css).toMatch(
+      /@container \(max-width: 900px\)[\s\S]*?\.master-plan-grid__notes-trigger\s*\{[\s\S]*?min-height:\s*44px/,
+    );
+
+    // Desktop table view stays untouched — only the card view pins the floor.
+    const desktopNotesTriggerRule = css.match(/\.master-plan-grid__notes-trigger \{([\s\S]*?)\n\}/)?.[1] ?? '';
+    expect(desktopNotesTriggerRule).not.toMatch(/min-height/);
+  });
 });
 
 describe('MasterPlanFilters', () => {

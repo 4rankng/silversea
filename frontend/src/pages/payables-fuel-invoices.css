@@ -72,8 +72,22 @@
   width: 100%;
 }
 
-.fuel-invoices-toolbar__select {
-  min-height: 42px;
+/* Size-consistency (program addendum 2026-09-09): one control-height scale
+   per toolbar. Trigger heights are owned by operational-density.css
+   (compact 30px on fine pointers, 44px touch floor on coarse pointers since
+   cf0b0db8) — never re-overridden here. What this page owns is the search
+   input, which inherited a hardcoded 32px: pin it to the shared filter
+   scale and mirror the trigger floor's pointer semantics so search and
+   triggers match at every width AND pointer density (width-based banding
+   alone would mismatch on coarse tablets at 768–1023). */
+.fuel-invoices-toolbar .payables-toolbar__search input {
+  min-height: var(--filter-control-h);
+}
+
+@media (pointer: coarse) {
+  .fuel-invoices-toolbar .payables-toolbar__search input {
+    min-height: var(--control-touch-h);
+  }
 }
 
 .fuel-invoices-table th,
@@ -408,8 +422,14 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  /* Tablet keeps the toolbar working two-up (search spans the first row) —
+     one-control-per-row stacks left ~65% of each row empty. */
   .fuel-invoices-toolbar {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .fuel-invoices-toolbar__search {
+    grid-column: 1 / -1;
   }
 }
 
@@ -421,6 +441,10 @@
   .fuel-invoice-editor__row-grid,
   .fuel-invoice-allocation-card__grid,
   .fuel-invoice-mobile-card__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .fuel-invoices-toolbar {
     grid-template-columns: 1fr;
   }
 

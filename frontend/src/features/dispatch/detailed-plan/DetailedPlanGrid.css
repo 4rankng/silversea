@@ -671,6 +671,17 @@
     grid-column: 1 / -1;
     width: 100%;
     min-width: 0;
+    height: auto;
+    min-height: 48px;
+  }
+
+  .detailed-plan-filters__date-shortcut {
+    /* Matches the 44px touch standard on phones; the base 30px !important
+       track sizing is for the desktop 34px pill row and needs the stronger
+       override here. */
+    min-height: 44px !important;
+    padding-top: 2px !important;
+    padding-bottom: 2px !important;
   }
 
   .detailed-plan-filters__toolbar-actions { width: 100%; justify-content: space-between; }
@@ -711,7 +722,12 @@
   }
 
   .detailed-plan-grid__row {
-    display: block;
+    /* Cards flow field groups 2-up so short groups stop hogging full rows
+       (user: utilise the full width on mobile and tablet); long-content
+       groups span both columns below. */
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     overflow: hidden;
     border: 1px solid var(--border-color-secondary, var(--border-color, #e2e8f0));
     border-radius: 10px;
@@ -725,11 +741,33 @@
 
   .detailed-plan-grid__cell {
     display: block;
+    min-width: 0;
     padding: 12px;
     border: 0;
   }
 
-  .detailed-plan-grid__cell + .detailed-plan-grid__cell {
+  /* Long-content groups span both columns; short groups pair up in the
+     2-column band. */
+  .detailed-plan-grid__cell--schedule,
+  .detailed-plan-grid__cell--route,
+  .detailed-plan-grid__cell--editable,
+  .detailed-plan-grid__cell--notes {
+    grid-column: 1 / -1;
+  }
+
+  .detailed-plan-grid__cell--schedule,
+  .detailed-plan-grid__cell--route {
+    border-bottom: 1px solid var(--border-color, #eef2f7);
+  }
+
+  .detailed-plan-grid__cell--documents {
+    border-right: 1px solid var(--border-color, #eef2f7);
+  }
+
+  .detailed-plan-grid__cell--classification,
+  .detailed-plan-grid__cell--task-tags,
+  .detailed-plan-grid__cell--editable,
+  .detailed-plan-grid__cell--notes {
     border-top: 1px solid var(--border-color, #eef2f7);
   }
 
@@ -758,9 +796,6 @@
   }
 
   .detailed-plan-grid__row {
-    position: relative;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
     box-shadow: none;
   }
 

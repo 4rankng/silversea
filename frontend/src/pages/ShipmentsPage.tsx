@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Download, FileLock2, Loader2, Plus, RotateCcw, Save, Search, X } from 'lucide-react';
 import {
+  CUS_SEARCH_PATTERN,
   SHIPMENT_CUS_BUCKET_LABELS,
   SHIPMENT_CUS_WORKSPACE_SORT_KEYS,
   SHIPMENT_DOCUMENT_CUSTODY_LABELS,
@@ -37,10 +38,6 @@ import '../styles/operational-table-typography.css';
 import '../styles/table-sort.css';
 import './ShipmentsPage.css';
 
-// Accepts the full Bill/Book, container, or declaration number as well as a
-// 4-5 char suffix — full values end with themselves, so the backend's ILIKE
-// suffix match covers both (2026-09-09 customer report).
-const SEARCH_PATTERN = /^[A-Za-z0-9]{4,32}$/;
 const BUCKETS = Object.values(ShipmentCusBucket);
 
 export default function ShipmentsPage() {
@@ -143,8 +140,8 @@ export default function ShipmentsPage() {
   const submitSearch = (event: React.FormEvent) => {
     event.preventDefault();
     const value = searchInput.trim();
-    if (value && !SEARCH_PATTERN.test(value)) {
-      setSearchError('Nhập số Bill/Book hoặc tờ khai đầy đủ, hoặc tối thiểu 4 ký tự chữ/số cuối.');
+    if (value && !CUS_SEARCH_PATTERN.test(value)) {
+      setSearchError('Nhập số Bill/Book, container hoặc tờ khai đầy đủ, hoặc tối thiểu 4 ký tự cuối (không dùng % hoặc _).');
       return;
     }
     setSearchError(null);
@@ -254,7 +251,7 @@ export default function ShipmentsPage() {
                 placeholder="Số đầy đủ hoặc tối thiểu 4 ký tự cuối"
                 inputProps={{
                   inputMode: 'text',
-                  pattern: '[A-Za-z0-9]{4,32}',
+                  pattern: '[A-Za-z0-9 .\\-\\/]{4,64}',
                   autoCapitalize: 'characters',
                   autoCorrect: 'off',
                   spellCheck: false,

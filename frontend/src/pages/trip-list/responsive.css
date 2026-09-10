@@ -28,33 +28,16 @@
   }
 }
 
-@media (max-width: 1023px) {
-  .trip-list-page .table-head,
-  .trip-list-page .table-row {
-    /* 7 visible cols: trip | truck | route | consumption | revenue | gross profit | status */
-    grid-template-columns: minmax(180px, 1.4fr) 116px minmax(160px, 1.2fr) 92px 100px 100px 90px;
-    min-width: unset;
-    gap: 10px;
-  }
-  .trip-list-page.quick-edit-mode .table-head,
-  .trip-list-page.quick-edit-mode .table-row {
-    min-width: 1280px;
-  }
-  .trip-list-page.quick-edit-mode .table-scroll-body {
-    overflow-x: auto;
-  }
-  .trip-list-page .table-head .col-container,
-  .trip-list-page .table-row .col-container,
-  .trip-list-page .table-head .col-road,
-  .trip-list-page .table-row .col-road,
-  .trip-list-page .table-head .col-total-cost,
-  .trip-list-page .table-row .col-total-cost { display: none; }
-}
+/* The compact 7-column grid that used to live here only ever rendered
+   beneath the (max-width: 1500px) card switch, so it never displayed.
+   Removed as dead code when the card switch moved to 1023px. */
 
-/* The sidebar leaves ~1112px for records at a 1440px viewport.
-   Switch to the established two-column operational cards before the grid
-   requires horizontal scrolling beneath the shell. */
-@media (max-width: 1500px) {
+/* Cards replace the 7-column table below this measure: the table's fixed
+   grid needs ~1280px of row width, which no sidebar-open tablet provides.
+   From 1024px up the full table renders inside its horizontal scroll body
+   (a genuine wide table per the layout standard). Previously cards ran all
+   the way up to 1500px, hiding the data table on desktop widths. */
+@media (max-width: 1023px) {
   .trip-list-page .table-card {
     background: transparent;
     border: none;
@@ -135,7 +118,7 @@
     gap: 6px;
   }
 
-  /* Desktop table is hidden and mobile cards shown by the (max-width: 1500px)
+  /* Desktop table is hidden and mobile cards shown by the (max-width: 1023px)
      block above, which already covers this narrower breakpoint. */
   .trip-list-page .infinite-sentinel {
     background: var(--surface);

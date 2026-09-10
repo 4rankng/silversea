@@ -189,7 +189,11 @@ const supplierLinkedCustomerNameSortSql = sql`(
 )`;
 
 router.use('/customers', createCrudRouter(s.customers, customerSchema, {
-  searchableFields: ['shortName', 'name'],
+  // 2026-09-10 customer report: lookup by tax code or phone tail found
+  // nothing — the catalog search only matched name fields. Identifiers are
+  // now searchable too; the factory's contains-ILIKE covers full values
+  // and last-4/5-char tails alike.
+  searchableFields: ['shortName', 'name', 'taxCode', 'phone', 'contactPerson'],
   sortableColumns: {
     name: operationalName(s.customers.shortName, s.customers.name),
     contactPerson: s.customers.contactPerson,
@@ -724,7 +728,9 @@ router.use('/truck-cap', createCrudRouter(s.truckCapTable, truckCapSchema, {
   },
 }));
 router.use('/suppliers', createCrudRouter(s.suppliers, supplierSchema, {
-  searchableFields: ['shortName', 'name'],
+  // Same identifier-search gap as /customers (taxCode/phone were sortable
+  // but not searchable) — see the 2026-09-10 customer report.
+  searchableFields: ['shortName', 'name', 'taxCode', 'phone', 'contactPerson'],
   sortableColumns: {
     name: operationalName(s.suppliers.shortName, s.suppliers.name),
     contactPerson: s.suppliers.contactPerson,
