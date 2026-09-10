@@ -27,6 +27,7 @@ import { assertCanMakeGovernanceAction } from './governance-policy';
 import {
   approveGovernanceActionWithAdapter,
   assertActiveApprovalApplication,
+  checkGovernanceAction,
   type GovernanceActionRow,
 } from './governance-action-core.service';
 import { applyBillingDocumentGovernanceAction } from './billing-document-governance.service';
@@ -842,4 +843,45 @@ export async function listTripGovernanceActions(tripId: number) {
       eq(s.governanceActions.subjectId, tripId),
     ))
     .orderBy(desc(s.governanceActions.id));
+}
+
+/**
+ * 2026-09-10 user directive: remove all phê duyệt (approval) flows. Governed
+ * requests run their check and approve stages immediately with the requesting
+ * actor — validations, apply adapters, ledger entries, and audit rows are all
+ * unchanged; only the wait-for-a-second-person step is gone.
+ */
+export async function autoApplyGovernanceAction<T extends { id: number; version: number }>(input: {
+  make: (tx: Tx) => Promise<T>;
+  approve?: (args: {
+    actionId: number;
+    approverId: number;
+    approverRole: string;
+    expectedVersion: number;
+    transaction?: Tx;
+  }) => Promise<T>;
+  actorId: number;
+  actorRole: string;
+  transaction?: Tx;
+}): Promise<T> {
+  const approve = input.approve ?? (async (args) => approveGovernanceAction(args) as Promise<T>);
+  const run = async (tx: Tx): Promise<T> => {
+    const requested = await input.make(tx);
+    const checked = await checkGovernanceAction({
+      actionId: requested.id,
+      checkerId: input.actorId,
+      checkerRole: input.actorRole,
+      expectedVersion: requested.version,
+      transaction: tx,
+    });
+    return approve({
+      actionId: requested.id,
+      approverId: input.actorId,
+      approverRole: input.actorRole,
+      expectedVersion: checked.version,
+      transaction: tx,
+    });
+  };
+  if (input.transaction) return run(input.transaction);
+  return db.transaction(run) as Promise<T>;
 }

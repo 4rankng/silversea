@@ -267,12 +267,7 @@ describe('Q01/Q02 credit override routes', () => {
     });
     assert.equal(directApprove.status, 409);
 
-    const makerCannotCheck = await request(`/api/finance/credit-overrides/${created.body.id}/check`, {
-      method: 'POST',
-      token: managerToken,
-      body: { expectedVersion: created.body.version },
-    });
-    assert.equal(makerCannotCheck.status, 403);
+    // 2026-09-10 (phê duyệt removed): the maker may check their own request.
 
     const checked = await request(`/api/finance/credit-overrides/${created.body.id}/check`, {
       method: 'POST',
@@ -289,12 +284,7 @@ describe('Q01/Q02 credit override routes', () => {
     assert.equal(checkedBusinessRecord?.approvedBy, null);
     assert.equal(checkedBusinessRecord?.approvedAt, null);
 
-    const checkerCannotApprove = await request(`/api/finance/credit-overrides/${created.body.id}/approve`, {
-      method: 'POST',
-      token: accountantToken,
-      body: { expectedVersion: checked.body.version },
-    });
-    assert.equal(checkerCannotApprove.status, 403);
+    // 2026-09-10 (phê duyệt removed): the checker may approve too.
 
     const approved = await request(`/api/finance/credit-overrides/${created.body.id}/approve`, {
       method: 'POST',

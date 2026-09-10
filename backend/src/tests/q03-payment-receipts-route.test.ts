@@ -324,7 +324,9 @@ describe('POST /api/payments/receive', () => {
     const first = await paymentFetch(body, key);
     assert.equal(first.status, 201);
     assert.equal(first.data.replayed, false);
-    assert.equal(first.data.result.status, 'PENDING_CHECK');
+    // 2026-09-10 (phê duyệt removed): the governed request applies at submit —
+    // status APPROVED, receipt/allocation/ledger rows all present immediately.
+    assert.equal(first.data.result.status, 'APPROVED');
     assert.equal(first.data.result.actionKind, 'PAYMENT_RECEIPT');
 
     const notificationCountAfterFirst = await waitForNotificationCount(first.data.result.id, 0);
@@ -335,10 +337,13 @@ describe('POST /api/payments/receive', () => {
     assert.equal(replay.data.replayed, true);
     assert.equal(replay.data.result.id, first.data.result.id);
     assert.equal(await fetchGovernanceActionCount(receiptId), 1);
-    assert.equal(await fetchReceiptCount(receiptId), 0);
-    assert.equal(await fetchAllocationCount(receiptId), 0);
-    assert.equal(await fetchPaymentLedgerCount(receiptId), 0);
-    assert.equal(await fetchTripOutstanding(customer.id, trip.id), 1_500_000);
+    assert.equal(await fetchReceiptCount(receiptId), 1);
+    // 2026-09-10: the payment applies at submit — allocation and ledger rows
+    // post immediately (the exact split shape depends on allocation policy
+    // and is not the contract under test) and the outstanding is settled.
+    assert.ok((await fetchAllocationCount(receiptId)) >= 1);
+    assert.ok((await fetchPaymentLedgerCount(receiptId)) >= 1);
+    assert.equal(await fetchTripOutstanding(customer.id, trip.id), 0);
 
     await new Promise((resolve) => setTimeout(resolve, 100));
     const notificationCountAfterReplay = await fetchNotificationCount(first.data.result.id);
@@ -440,9 +445,10 @@ describe('POST /api/payments/receive', () => {
     const statuses = [a.status, b.status].sort((left, right) => left - right);
     assert.deepEqual(statuses, [200, 201]);
     assert.equal(await fetchGovernanceActionCount(receiptId), 1);
-    assert.equal(await fetchReceiptCount(receiptId), 0);
-    assert.equal(await fetchAllocationCount(receiptId), 0);
-    assert.equal(await fetchPaymentLedgerCount(receiptId), 0);
+    // 2026-09-10: the winner applies at submit — money moved exactly once.
+    assert.equal(await fetchReceiptCount(receiptId), 1);
+    assert.equal(await fetchAllocationCount(receiptId), 1);
+    assert.equal(await fetchPaymentLedgerCount(receiptId), 1);
     const ids = [a.data.result.id, b.data.result.id];
     assert.equal(ids[0], ids[1]);
   });
@@ -471,9 +477,10 @@ describe('POST /api/payments/receive', () => {
     const statuses = [a.status, b.status].sort((left, right) => left - right);
     assert.deepEqual(statuses, [201, 409]);
     assert.equal(await fetchGovernanceActionCount(receiptId), 1);
-    assert.equal(await fetchReceiptCount(receiptId), 0);
-    assert.equal(await fetchAllocationCount(receiptId), 0);
-    assert.equal(await fetchPaymentLedgerCount(receiptId), 0);
+    // 2026-09-10: the first-winner applies at submit; the loser 409s.
+    assert.equal(await fetchReceiptCount(receiptId), 1);
+    assert.equal(await fetchAllocationCount(receiptId), 1);
+    assert.equal(await fetchPaymentLedgerCount(receiptId), 1);
   });
 
   test('different receipts racing on the same customer create separate governed requests without applying money yet', async () => {
@@ -496,11 +503,13 @@ describe('POST /api/payments/receive', () => {
     ]);
 
     assert.deepEqual([a.status, b.status].sort((left, right) => left - right), [201, 201]);
-    assert.equal(await fetchTripOutstanding(customer.id, trip.id), 1_000_000);
+    // 2026-09-10: both receipts apply at submit — allocations post and the
+    // trip's outstanding is settled by the combined 1.4M against 1M revenue.
+    assert.equal(await fetchTripOutstanding(customer.id, trip.id), 0);
     assert.equal(await fetchGovernanceActionCount(`Q03-RCPT-${suffix}-5a`), 1);
     assert.equal(await fetchGovernanceActionCount(`Q03-RCPT-${suffix}-5b`), 1);
-    assert.equal(await fetchReceiptCount(`Q03-RCPT-${suffix}-5a`), 0);
-    assert.equal(await fetchReceiptCount(`Q03-RCPT-${suffix}-5b`), 0);
-    assert.equal(await fetchPaymentLedgerCount(`Q03-RCPT-${suffix}-5a`) + await fetchPaymentLedgerCount(`Q03-RCPT-${suffix}-5b`), 0);
+    assert.equal(await fetchReceiptCount(`Q03-RCPT-${suffix}-5a`), 1);
+    assert.equal(await fetchReceiptCount(`Q03-RCPT-${suffix}-5b`), 1);
+    assert.equal(await fetchPaymentLedgerCount(`Q03-RCPT-${suffix}-5a`) + await fetchPaymentLedgerCount(`Q03-RCPT-${suffix}-5b`), 3);
   });
 });

@@ -6,7 +6,6 @@ import {
   NotificationType,
   Role,
   accountantSettlementExpensePatchSchema,
-  advanceMutationVersionSchema,
   governanceActionDecisionSchema,
   updateAdvanceSettlementSchema,
 } from '@tingting/shared';
@@ -18,9 +17,6 @@ import { exportSettlementXlsx, exportSettlementHtml } from '../../services/settl
 import {
   listAdvanceRequestsPaginated,
   listAdvanceSettlementsPaginated,
-  checkAdvanceSettlement,
-  approveAdvanceSettlement,
-  rejectAdvanceSettlement,
   getOutstandingAdvanceBalances,
   adjustSettlementExpense,
   updateAdvanceSettlement,
@@ -35,6 +31,7 @@ import { parsePagination } from '../utils/pagination';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency.service';
 import { emitNotification } from '../../services/notification.service';
+import { autoApplyGovernanceAction } from '../../services/adjustment-governance.service';
 
 const router = Router();
 
@@ -69,12 +66,20 @@ router.post('/advance-requests/:id/approve', requireRoles(Role.ADMIN, Role.MANAG
     payload: { actorId: actor.userId, id, ...parsed.data },
     createdBy: actor.userId,
     entityType: 'governance_action',
-    create: (tx) => requestAdvanceRequestApprovalGovernance({
+    create: (tx) => autoApplyGovernanceAction({
+      make: (tx) => requestAdvanceRequestApprovalGovernance({
       advanceRequestId: id,
       expectedVersion: parsed.data.expectedVersion,
       reason: parsed.data.reason,
       makerId: actor.userId,
       makerRole: actor.role,
+      transaction: tx,
+    }),
+      // No approve override: the default adapter routes ADVANCE_REQUEST_* kinds
+      // through applyAdvanceRequestGovernanceAction; the direct-money adapter
+      // would reject them with 409 (not in DIRECT_MONEY_ACTION_KINDS).
+      actorId: actor.userId,
+      actorRole: actor.role,
       transaction: tx,
     }),
     getEntityId: () => id,
@@ -94,12 +99,19 @@ router.post('/advance-requests/:id/reject', requireRoles(Role.ADMIN, Role.MANAGE
     payload: { actorId: actor.userId, id, ...parsed.data },
     createdBy: actor.userId,
     entityType: 'governance_action',
-    create: (tx) => requestAdvanceRequestRejectionGovernance({
+    create: (tx) => autoApplyGovernanceAction({
+      make: (tx) => requestAdvanceRequestRejectionGovernance({
       advanceRequestId: id,
       expectedVersion: parsed.data.expectedVersion,
       reason: parsed.data.reason,
       makerId: actor.userId,
       makerRole: actor.role,
+      transaction: tx,
+    }),
+      // Default adapter (see approve endpoint comment) — ADVANCE_REQUEST_* is
+      // not a direct-money kind.
+      actorId: actor.userId,
+      actorRole: actor.role,
       transaction: tx,
     }),
     getEntityId: () => id,
@@ -125,73 +137,10 @@ router.get('/advance-settlements', asyncHandler(async (req: Request, res: Respon
   res.json(await listAdvanceSettlementsPaginated({ status, page, limit }));
 }));
 
-router.post('/advance-settlements/:id/check', requireRoles(Role.ADMIN, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
-  const id = parseInt(req.params.id as string);
-  const parsed = advanceMutationVersionSchema.safeParse(req.body);
-  if (!parsed.success) throwValidation(parsed.error);
-  const actor = getUser(req);
-  const idempotencyKey = getRequestIdempotencyKey(req);
-  const { result, replayed } = await runIdempotent({
-    endpoint: IDEMPOTENCY_ENDPOINTS.ADVANCE_SETTLEMENT_CHECK,
-    idempotencyKey,
-    payload: { actorId: actor.userId, id, ...parsed.data },
-    createdBy: actor.userId,
-    entityType: 'advance_settlement',
-    create: (tx) => checkAdvanceSettlement(id, actor.userId, parsed.data.expectedVersion, tx),
-    getEntityId: () => id,
-  });
-  res.json(idempotencyKey ? { ...result, replayed } : result);
-}));
-
-router.post('/advance-settlements/:id/approve', requireRoles(Role.ADMIN, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
-  const id = parseInt(req.params.id as string);
-  const parsed = advanceMutationVersionSchema.safeParse(req.body);
-  if (!parsed.success) throwValidation(parsed.error);
-  const actor = getUser(req);
-  const idempotencyKey = getRequestIdempotencyKey(req);
-  const { result, replayed } = await runIdempotent({
-    endpoint: IDEMPOTENCY_ENDPOINTS.ADVANCE_SETTLEMENT_APPROVE,
-    idempotencyKey,
-    payload: { actorId: actor.userId, id, ...parsed.data },
-    createdBy: actor.userId,
-    entityType: 'advance_settlement',
-    create: (tx) => approveAdvanceSettlement(id, actor.userId, parsed.data.expectedVersion, {
-      transaction: tx,
-      emitNotification: false,
-    }),
-    getEntityId: () => id,
-  });
-  if (!replayed) {
-    emitNotification({
-      type: NotificationType.ADVANCE_SETTLEMENT_APPROVED,
-      title: 'Phiếu hoàn ứng đã duyệt',
-      message: `Phiếu ${result.code} được duyệt ${Number(result.totalExpenseAmount).toLocaleString('vi-VN')} ₫.`,
-      relatedEntityType: 'advance_settlements',
-      relatedEntityId: result.id,
-      targetUserId: result.forwarderId,
-      targetRoles: [],
-    });
-  }
-  res.json(idempotencyKey ? { ...result, replayed } : result);
-}));
-
-router.post('/advance-settlements/:id/reject', requireRoles(Role.ADMIN, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
-  const id = parseInt(req.params.id as string);
-  const parsed = advanceMutationVersionSchema.safeParse(req.body);
-  if (!parsed.success) throwValidation(parsed.error);
-  const actor = getUser(req);
-  const idempotencyKey = getRequestIdempotencyKey(req);
-  const { result, replayed } = await runIdempotent({
-    endpoint: IDEMPOTENCY_ENDPOINTS.ADVANCE_SETTLEMENT_REJECT,
-    idempotencyKey,
-    payload: { actorId: actor.userId, id, ...parsed.data },
-    createdBy: actor.userId,
-    entityType: 'advance_settlement',
-    create: (tx) => rejectAdvanceSettlement(id, actor.userId, parsed.data.expectedVersion, tx),
-    getEntityId: () => id,
-  });
-  res.json(idempotencyKey ? { ...result, replayed } : result);
-}));
+// 2026-09-10 (phê duyệt removed, TC-CHUNK4-009): the settlement
+// check/approve/reject endpoints are GONE — settlements apply at creation
+// (forwarder route chains create+approve in one transaction). Any client
+// still calling these gets 404.
 
 router.post('/advance-settlements/:id/reversal', requireRoles(Role.ADMIN, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string);

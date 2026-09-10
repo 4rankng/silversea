@@ -24,6 +24,9 @@ import {
   runProfitDistributionWithSerializationRetry,
 } from '../../services/profit-distribution.service';
 import { exportProfitabilityReport, getProfitabilityReport, PROFITABILITY_DIMENSIONS } from '../../services/profitability.service';
+import { autoApplyGovernanceAction } from '../../services/adjustment-governance.service';
+import { approveDirectMoneyGovernanceAction } from '../../services/governance-transition.service';
+import { AuditEvent } from '../../services/audit-types';
 
 const router = Router();
 
@@ -181,7 +184,7 @@ router.post('/reports/distribute-profit', requireRoles(Role.ADMIN, Role.MANAGER)
   if (quarter < 1 || quarter > 4) return res.status(400).json({ error: 'Quý phải từ 1 đến 4' });
   const user = getUser(req);
   const idempotencyKey = getRequestIdempotencyKey(req);
-  const { result, statusCode } = await runProfitDistributionWithSerializationRetry(() => (
+  const { result, statusCode, replayed } = await runProfitDistributionWithSerializationRetry(() => (
     runIdempotent({
       endpoint: IDEMPOTENCY_ENDPOINTS.PROFIT_DISTRIBUTE,
       idempotencyKey,
@@ -190,7 +193,8 @@ router.post('/reports/distribute-profit', requireRoles(Role.ADMIN, Role.MANAGER)
       entityType: 'profit_distribution',
       responseStatusCode: 201,
       transactionOptions: PROFIT_DISTRIBUTION_TRANSACTION_OPTIONS,
-      create: (tx) => requestProfitDistributionGovernance({
+      create: (tx) => autoApplyGovernanceAction({
+      make: (tx) => requestProfitDistributionGovernance({
         quarter,
         year,
         reason: typeof reason === 'string' ? reason : '',
@@ -198,9 +202,19 @@ router.post('/reports/distribute-profit', requireRoles(Role.ADMIN, Role.MANAGER)
         makerRole: user.role,
         transaction: tx,
       }),
+      approve: approveDirectMoneyGovernanceAction,
+      actorId: user.userId,
+      actorRole: user.role,
+      transaction: tx,
+    }),
     })
   ));
   res.locals.auditEntityId = result.id;
+  // 2026-09-10 (phê duyệt removed): money applies at request time — emit the
+  // distribution audit event the old approve step used to write.
+  if (!replayed) {
+    res.locals.auditEvent = AuditEvent.PROFIT_DISTRIBUTED;
+  }
   res.status(statusCode).json(result);
 }));
 

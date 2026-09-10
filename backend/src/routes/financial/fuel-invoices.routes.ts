@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { autoApplyGovernanceAction } from '../../services/adjustment-governance.service';
 import type { Request } from 'express';
 import { z } from 'zod';
 import { Role } from '@tingting/shared';
@@ -196,16 +197,21 @@ router.post(
       createdBy: actor.userId,
       entityType: 'governance_action',
       responseStatusCode: 201,
-      create: (tx) => requestFuelInvoiceCorrection({
-        invoiceId,
-        expectedVersion: payload.expectedVersion,
-        reason: payload.reason,
-        correctionType: payload.correctionType,
-        correctedInvoice: payload.correctionType === 'ADJUSTMENT'
-          ? payload.correctedInvoice
-          : undefined,
-        makerId: actor.userId,
-        makerRole: actor.role,
+      create: (tx) => autoApplyGovernanceAction({
+        make: (tx) => requestFuelInvoiceCorrection({
+          invoiceId,
+          expectedVersion: payload.expectedVersion,
+          reason: payload.reason,
+          correctionType: payload.correctionType,
+          correctedInvoice: payload.correctionType === 'ADJUSTMENT'
+            ? payload.correctedInvoice
+            : undefined,
+          makerId: actor.userId,
+          makerRole: actor.role,
+          transaction: tx,
+        }),
+        actorId: actor.userId,
+        actorRole: actor.role,
         transaction: tx,
       }),
     });

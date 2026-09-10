@@ -126,6 +126,10 @@ export async function transitionApproval(
     opts.toStatus === 'APPROVED'
     && 'createdBy' in record
     && record.createdBy === opts.actorId
+    // 2026-09-10 (phê duyệt removed): debt-offset creation applies
+    // immediately, so the creator legitimately self-approves. Trip-expense
+    // maker separation is retained (forwarder creates, accountant approves).
+    && opts.table !== 'debt_offsets'
   ) {
     const subject = opts.table === 'trip_expenses'
       ? 'chi phí'

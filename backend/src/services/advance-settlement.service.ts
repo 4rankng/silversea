@@ -604,20 +604,13 @@ export async function approveAdvanceSettlement(
     if (!settlement) throw new AdvanceError(404, 'Advance settlement not found');
     const version = expectedVersion ?? settlement.version;
     assertExpectedVersion(settlement.version, version, 'Phiếu hoàn ứng');
-    if (settlement.status !== 'CHECKED_BY_ACCOUNTANT') {
-      if (settlement.status === 'PENDING') {
-        throw new AdvanceError(409, 'Phiếu hoàn ứng phải được kế toán kiểm tra trước khi duyệt');
-      }
+    // 2026-09-10 (phê duyệt removed): settlements apply at creation — the
+    // creator self-approves (approvedBy = forwarder), so the segregation
+    // guards (forwarder-self, expense-maker, checker≠approver) are gone.
+    // PENDING is the live path; CHECKED_BY_ACCOUNTANT remains accepted for
+    // legacy rows approved through internal callers.
+    if (settlement.status !== 'CHECKED_BY_ACCOUNTANT' && settlement.status !== 'PENDING') {
       throw new AdvanceError(409, `Cannot approve settlement with status ${settlement.status}`);
-    }
-    if (settlement.forwarderId === approvedBy) {
-      throw new AdvanceError(403, 'Không thể duyệt phiếu thanh toán của chính mình');
-    }
-    if (settlement.checkedBy == null) {
-      throw new AdvanceError(409, 'Phiếu hoàn ứng thiếu thông tin người kiểm tra');
-    }
-    if (settlement.checkedBy === approvedBy) {
-      throw new AdvanceError(403, 'Người kiểm tra không được đồng thời phê duyệt phiếu hoàn ứng');
     }
     const [correctionConflict] = await tx.select({
       adjustedBy: s.settlementExpenseAdjustments.adjustedBy,
@@ -700,15 +693,9 @@ export async function approveAdvanceSettlement(
         'Không xác định được người tạo chi phí; cần đối soát thủ công trước khi duyệt phiếu hoàn ứng',
       );
     }
-    const makerConflict = links.find(link =>
-      link.approvalStatus === 'PENDING' && link.createdBy === approvedBy,
-    );
-    if (makerConflict) {
-      throw new AdvanceError(
-        403,
-        'Người tạo chi phí không được tự phê duyệt chi phí trong phiếu hoàn ứng',
-      );
-    }
+    // 2026-09-10 (phê duyệt removed): the expense-maker self-approval guard is
+    // gone — the settlement applies at creation with the forwarder (whose own
+    // expenses are in it) as the approver.
 
     const totalExpenseAmount = round2dp(links.reduce((sum, link) => sum + Number(link.buyAmount), 0));
     const now = new Date();
@@ -723,7 +710,7 @@ export async function approveAdvanceSettlement(
       })
       .where(and(
         eq(s.advanceSettlements.id, id),
-        eq(s.advanceSettlements.status, 'CHECKED_BY_ACCOUNTANT'),
+        inArray(s.advanceSettlements.status, ['PENDING', 'CHECKED_BY_ACCOUNTANT']),
         eq(s.advanceSettlements.version, version),
       ))
       .returning();

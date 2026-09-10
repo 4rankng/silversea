@@ -527,50 +527,44 @@ describe('Q23 approved financial route idempotency', () => {
   test('advance request approval is first-winner under concurrent distinct keys', async () => {
     const requester = await createUser(Role.OPS, 'q23-approve-forwarder');
     const request = await createPendingAdvanceRequest(requester.id, 275000);
-    const requested = await requestJson(`/advance-requests/${request.id}/approve`, {
-      body: { expectedVersion: request.version, reason: 'Trình duyệt tạm ứng' },
-      idempotencyKey: `q23-advance-request-${request.id}`,
-      userId: managerActor.id,
-    });
-    assert.equal(requested.status, 201, JSON.stringify(requested.data));
-    assert.equal(requested.data.actionKind, 'ADVANCE_REQUEST_APPROVAL');
 
-    const requestReplay = await requestJson(`/advance-requests/${request.id}/approve`, {
-      body: { expectedVersion: request.version, reason: 'Trình duyệt tạm ứng' },
-      idempotencyKey: `q23-advance-request-${request.id}`,
-      userId: managerActor.id,
-    });
-    assert.equal(requestReplay.status, 200);
-    assert.equal(requestReplay.data.replayed, true);
-
-    const requestConflict = await requestJson(`/advance-requests/${request.id}/approve`, {
-      body: { expectedVersion: request.version, reason: 'Đổi lý do' },
-      idempotencyKey: `q23-advance-request-${request.id}`,
-      userId: managerActor.id,
-    });
-    assert.equal(requestConflict.status, 409);
-
-    const checked = await requestJson(`/governance-actions/${requested.data.id}/check`, {
-      body: { expectedVersion: requested.data.version },
-      idempotencyKey: `q23-advance-check-${request.id}`,
-      userId: accountantActor.id,
-    });
-    assert.equal(checked.status, 200, JSON.stringify(checked.data));
-
+    // 2026-09-10 (phê duyệt removed): the approve route applies immediately —
+    // two concurrent distinct-key approvals: the first applies (201), the
+    // second finds the request already APPROVED and 409s.
     const [first, second] = await Promise.all([
-      requestJson(`/governance-actions/${requested.data.id}/approve`, {
-        body: { expectedVersion: checked.data.version },
+      requestJson(`/advance-requests/${request.id}/approve`, {
+        body: { expectedVersion: request.version, reason: 'Trình duyệt tạm ứng' },
         idempotencyKey: `q23-advance-approve-a-${request.id}`,
-        userId: actor.id,
+        userId: managerActor.id,
       }),
-      requestJson(`/governance-actions/${requested.data.id}/approve`, {
-        body: { expectedVersion: checked.data.version },
+      requestJson(`/advance-requests/${request.id}/approve`, {
+        body: { expectedVersion: request.version, reason: 'Trình duyệt tạm ứng' },
         idempotencyKey: `q23-advance-approve-b-${request.id}`,
-        userId: actor.id,
+        userId: managerActor.id,
       }),
     ]);
+    assert.deepEqual([first.status, second.status].sort((a, b) => a - b), [201, 409]);
+    const winner = first.status === 201 ? first : second;
+    assert.equal(winner.data.actionKind, 'ADVANCE_REQUEST_APPROVAL');
 
-    assert.deepEqual([first.status, second.status].sort((a, b) => a - b), [200, 409]);
+    const winnerKey = winner === first
+      ? `q23-advance-approve-a-${request.id}`
+      : `q23-advance-approve-b-${request.id}`;
+    const replay = await requestJson(`/advance-requests/${request.id}/approve`, {
+      body: { expectedVersion: request.version, reason: 'Trình duyệt tạm ứng' },
+      idempotencyKey: winnerKey,
+      userId: managerActor.id,
+    });
+    assert.equal(replay.status, 200);
+    assert.equal(replay.data.replayed, true);
+
+    const conflict = await requestJson(`/advance-requests/${request.id}/approve`, {
+      body: { expectedVersion: request.version, reason: 'Đổi lý do' },
+      idempotencyKey: winnerKey,
+      userId: managerActor.id,
+    });
+    assert.equal(conflict.status, 409);
+
     const [updated] = await db.select({ status: s.advanceRequests.status })
       .from(s.advanceRequests)
       .where(eq(s.advanceRequests.id, request.id))
@@ -587,48 +581,19 @@ describe('Q23 approved financial route idempotency', () => {
     assert.equal(ledgerRows.length, 1);
   });
 
-  test('advance request rejection is governed by three actors and has no ledger effect', async () => {
+  test('advance request rejection applies immediately with no ledger effect (phê duyệt removed)', async () => {
     const requester = await createUser(Role.OPS, 'q15-reject-forwarder');
     const request = await createPendingAdvanceRequest(requester.id, 315000);
-    const requested = await requestJson(`/advance-requests/${request.id}/reject`, {
+    const rejected = await requestJson(`/advance-requests/${request.id}/reject`, {
       body: { expectedVersion: request.version, reason: 'Chứng từ tạm ứng không hợp lệ' },
       idempotencyKey: `q15-advance-reject-${request.id}`,
       userId: managerActor.id,
     });
-    assert.equal(requested.status, 201, JSON.stringify(requested.data));
-    assert.equal(requested.data.actionKind, 'ADVANCE_REQUEST_REJECTION');
+    assert.equal(rejected.status, 201, JSON.stringify(rejected.data));
+    assert.equal(rejected.data.actionKind, 'ADVANCE_REQUEST_REJECTION');
 
-    const [beforeCheck] = await db.select().from(s.advanceRequests)
-      .where(eq(s.advanceRequests.id, request.id))
-      .limit(1);
-    assert.equal(beforeCheck.status, 'PENDING');
-    assert.equal(beforeCheck.approvedBy, null);
-    const ledgerBefore = await db.select().from(s.ledger).where(and(
-      eq(s.ledger.txnType, TxnType.OPS_ADVANCE),
-      eq(s.ledger.txnId, request.id),
-    ));
-    assert.equal(ledgerBefore.length, 0);
-
-    const checked = await requestJson(`/governance-actions/${requested.data.id}/check`, {
-      body: { expectedVersion: requested.data.version },
-      idempotencyKey: `q15-advance-reject-check-${request.id}`,
-      userId: accountantActor.id,
-    });
-    assert.equal(checked.status, 200, JSON.stringify(checked.data));
-    const [afterCheck] = await db.select().from(s.advanceRequests)
-      .where(eq(s.advanceRequests.id, request.id))
-      .limit(1);
-    assert.equal(afterCheck.status, 'PENDING');
-
-    const actionId = Number(requested.data.id);
-    assert.equal(Number.isInteger(actionId), true);
-    const approvedDecision = await requestJson(`/governance-actions/${actionId}/approve`, {
-      body: { expectedVersion: checked.data.version },
-      idempotencyKey: `q15-advance-reject-approve-${request.id}`,
-      userId: actor.id,
-    });
-    assert.equal(approvedDecision.status, 200, JSON.stringify(approvedDecision.data));
-    const [rejected, action] = await Promise.all([
+    const actionId = Number(rejected.data.id);
+    const [row, action] = await Promise.all([
       db.select().from(s.advanceRequests)
         .where(eq(s.advanceRequests.id, request.id))
         .limit(1)
@@ -638,10 +603,14 @@ describe('Q23 approved financial route idempotency', () => {
         .limit(1)
         .then((rows) => rows[0]),
     ]);
-    assert.ok(rejected);
+    assert.ok(row);
     assert.ok(action);
-    assert.equal(rejected.status, 'REJECTED');
-    assert.equal(new Set([action.makerId, action.checkerId, action.approverId]).size, 3);
+    // Applied in ONE call: the request is REJECTED, the audit action is
+    // APPROVED, and the single actor both made and applied the decision.
+    assert.equal(row.status, 'REJECTED');
+    assert.equal(row.approvedBy, managerActor.id);
+    assert.equal(action.status, 'APPROVED');
+    assert.equal(action.makerId, action.approverId);
     const ledgerAfter = await db.select().from(s.ledger).where(and(
       eq(s.ledger.txnType, TxnType.OPS_ADVANCE),
       eq(s.ledger.txnId, request.id),
@@ -649,7 +618,7 @@ describe('Q23 approved financial route idempotency', () => {
     assert.equal(ledgerAfter.length, 0);
   });
 
-  test('debt offset approval and cancel use governed replay and single-winner application', async () => {
+  test('debt offset create applies immediately; cancel applies with reversal entries (phê duyệt removed)', async () => {
     const { customer, supplier } = await createLinkedCounterparties();
     await postLedgerSeed('CUSTOMER', customer.id, TxnType.TRIP_REVENUE, 800000, 0, 'Q23 debt offset AR');
     await postLedgerSeed('VENDOR', supplier.id, TxnType.VENDOR_EXPENSE, 0, 800000, 'Q23 debt offset AP');
@@ -670,49 +639,9 @@ describe('Q23 approved financial route idempotency', () => {
     const offsetId = Number(created.data.id);
     debtOffsetIds.push(offsetId);
 
-    const requested = await requestJson(`/finance/debt-offsets/${offsetId}/approve`, {
-      body: { expectedVersion: 1, reason: 'Trình duyệt đối trừ' },
-      idempotencyKey: `q23-offset-approve-request-${offsetId}`,
-      userId: managerActor.id,
-    });
-    assert.equal(requested.status, 201, JSON.stringify(requested.data));
-    assert.equal(requested.data.actionKind, 'DEBT_OFFSET_APPROVAL');
-
-    const requestReplay = await requestJson(`/finance/debt-offsets/${offsetId}/approve`, {
-      body: { expectedVersion: 1, reason: 'Trình duyệt đối trừ' },
-      idempotencyKey: `q23-offset-approve-request-${offsetId}`,
-      userId: managerActor.id,
-    });
-    assert.equal(requestReplay.status, 200);
-    assert.equal(requestReplay.data.replayed, true);
-
-    const checked = await requestJson(`/governance-actions/${requested.data.id}/check`, {
-      body: { expectedVersion: requested.data.version },
-      idempotencyKey: `q23-offset-check-${offsetId}`,
-      userId: accountantActor.id,
-    });
-    assert.equal(checked.status, 200, JSON.stringify(checked.data));
-
-    const [approvedLeft, approvedRight] = await Promise.all([
-      requestJson(`/governance-actions/${requested.data.id}/approve`, {
-        body: { expectedVersion: checked.data.version },
-        idempotencyKey: `q23-offset-approve-left-${offsetId}`,
-        userId: actor.id,
-      }),
-      requestJson(`/governance-actions/${requested.data.id}/approve`, {
-        body: { expectedVersion: checked.data.version },
-        idempotencyKey: `q23-offset-approve-right-${offsetId}`,
-        userId: actor.id,
-      }),
-    ]);
-    assert.deepEqual([approvedLeft.status, approvedRight.status].sort((a, b) => a - b), [200, 409]);
-
-    const [approvedOffset] = await db.select({ status: s.debtOffsets.approvalStatus })
-      .from(s.debtOffsets)
-      .where(eq(s.debtOffsets.id, offsetId))
-      .limit(1);
-    assert.equal(approvedOffset?.status, 'APPROVED');
-
+    // 2026-09-10 (phê duyệt removed): the create applies immediately —
+    // APPROVED with the paired ADJUSTMENT entries posted in one call.
+    assert.equal(created.data.approvalStatus, 'APPROVED');
     const approveEntries = await db.select({ id: s.ledger.id })
       .from(s.ledger)
       .where(and(
@@ -723,28 +652,24 @@ describe('Q23 approved financial route idempotency', () => {
           and(eq(s.ledger.entityType, 'VENDOR'), eq(s.ledger.entityId, supplier.id)),
         ),
       ));
+    ledgerIds.push(...approveEntries.map((row) => row.id));
     assert.equal(approveEntries.length, 2);
 
-    const cancelRequested = await requestJson(`/finance/debt-offsets/${offsetId}/cancel`, {
+    // The approve endpoint is now a dead path on an applied offset: 409.
+    const approveAfter = await requestJson(`/finance/debt-offsets/${offsetId}/approve`, {
+      body: { expectedVersion: 2, reason: 'Trình duyệt đối trừ' },
+      idempotencyKey: `q23-offset-approve-after-${offsetId}`,
+      userId: managerActor.id,
+    });
+    assert.equal(approveAfter.status, 409);
+
+    // Cancel applies immediately: CANCELED with the reversing pair (4 total).
+    const cancelApplied = await requestJson(`/finance/debt-offsets/${offsetId}/cancel`, {
       body: { expectedVersion: 2, reason: 'Hoàn tác đối trừ Q23' },
       idempotencyKey: `q23-offset-cancel-request-${offsetId}`,
       userId: managerActor.id,
     });
-    assert.equal(cancelRequested.status, 201, JSON.stringify(cancelRequested.data));
-
-    const cancelChecked = await requestJson(`/governance-actions/${cancelRequested.data.id}/check`, {
-      body: { expectedVersion: cancelRequested.data.version },
-      idempotencyKey: `q23-offset-cancel-check-${offsetId}`,
-      userId: accountantActor.id,
-    });
-    assert.equal(cancelChecked.status, 200, JSON.stringify(cancelChecked.data));
-
-    const canceled = await requestJson(`/governance-actions/${cancelRequested.data.id}/approve`, {
-      body: { expectedVersion: cancelChecked.data.version },
-      idempotencyKey: `q23-offset-cancel-approve-${offsetId}`,
-      userId: actor.id,
-    });
-    assert.equal(canceled.status, 200, JSON.stringify(canceled.data));
+    assert.equal(cancelApplied.status, 201, JSON.stringify(cancelApplied.data));
 
     const [canceledOffset] = await db.select({ status: s.debtOffsets.approvalStatus })
       .from(s.debtOffsets)
@@ -762,6 +687,7 @@ describe('Q23 approved financial route idempotency', () => {
           and(eq(s.ledger.entityType, 'VENDOR'), eq(s.ledger.entityId, supplier.id)),
         ),
       ));
+    ledgerIds.push(...allAdjustmentEntries.map((row) => row.id));
     assert.equal(allAdjustmentEntries.length, 4);
   });
 

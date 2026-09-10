@@ -595,7 +595,8 @@ test('E2E — Financial operations (P&L, profit sharing, ledger, statements, rec
   });
   assert.strictEqual(distributeRes.status, 201);
   assert.strictEqual(distributeRes.data.actionKind, 'PROFIT_DISTRIBUTION');
-  assert.strictEqual(distributeRes.data.status, 'PENDING_CHECK');
+  // 2026-09-10 (phê duyệt removed): the distribution applies at request time.
+  assert.strictEqual(distributeRes.data.status, 'APPROVED');
   assert.ok(distributeRes.data.subjectKey);
 
   // 4. Ledger adjustments endpoint

@@ -223,11 +223,11 @@ const debtOffsetCancel = action(
   ),
   proof(
     'tests/q23-approved-financial-idempotency.test.ts',
-    'debt offset approval and cancel use governed replay and single-winner application',
-    'cancelRequested',
-    'cancelChecked',
-    'canceled',
-    "canceledOffset?.status, 'CANCELED'",
+    'debt offset create applies immediately; cancel applies with reversal entries (phê duyệt removed)',
+    'cancelApplied',
+    'allAdjustmentEntries',
+    'canceledOffset?.status',
+    "'CANCELED'",
   ),
 );
 
@@ -349,11 +349,11 @@ const fuelInvoiceCorrection = action(
   ),
   proof(
     'tests/q06-fuel-invoice-routes.test.ts',
-    'Q18 approved invoice stays immutable while governed adjustment and reversal require three distinct actors',
+    'approved invoice stays immutable while governed adjustment and reversal apply immediately',
     'corrections',
-    'makerCannotCheck',
-    'checkerCannotApprove',
-    'approvalResults',
+    'correction.body.status',
+    'immutableOriginal',
+    'correctionReplay',
     'beforeSnapshot',
     'afterSnapshot',
   ),
@@ -400,12 +400,11 @@ const profitDistribution = action(
   ),
   proof(
     'tests/q15-profit-distribution-governance.test.ts',
-    'enforces viewer, maker, checker, and distinct approver roles before one effect',
+    'enforces viewer roles at request time; the applied action has no pending window',
     'viewerRequest',
-    'makerCheck',
     'checked',
-    'checkerApprove',
-    'outcomes',
+    'checkAction(action, 1)',
+    'rowsFor',
   ),
 );
 
@@ -463,11 +462,10 @@ const advanceRequestRejection = action(
   ),
   proof(
     'tests/q23-approved-financial-idempotency.test.ts',
-    'advance request rejection is governed by three actors and has no ledger effect',
-    '/governance-actions/',
-    'approvedDecision',
-    "status, 'REJECTED'",
-    'ledgerBefore',
+    'advance request rejection applies immediately with no ledger effect (phê duyệt removed)',
+    '/advance-requests/',
+    'rejected.data.actionKind',
+    "row.status, 'REJECTED'",
     'ledgerAfter',
   ),
 );
@@ -589,7 +587,7 @@ export const LOCKED_ENTITY_BOUNDARIES: readonly LockedEntityBoundary[] = [
     ),
     directMutationProof: proof(
       'tests/q06-fuel-invoice-routes.test.ts',
-      'Q18 approved invoice stays immutable while governed adjustment and reversal require three distinct actors',
+      'approved invoice stays immutable while governed adjustment and reversal apply immediately',
       "method: 'PUT'",
       'directUpdate.status, 409',
       'corrections',

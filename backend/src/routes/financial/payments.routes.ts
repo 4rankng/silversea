@@ -41,6 +41,7 @@ import {
 } from '../../services/payment-allocation.service';
 import {
   approveGovernanceAction,
+  autoApplyGovernanceAction,
 } from '../../services/adjustment-governance.service';
 import {
   approveDirectMoneyGovernanceAction,
@@ -148,7 +149,8 @@ router.post('/payments/receive', asyncHandler(async (req: Request, res: Response
     },
     createdBy: actor.userId,
     entityType: 'governance_action',
-    create: (tx) => requestPaymentReceiptGovernance({
+    create: (tx) => autoApplyGovernanceAction({
+      make: (tx) => requestPaymentReceiptGovernance({
       payment: {
         customerId: data.customerId,
         receiptId: data.receiptId,
@@ -165,7 +167,15 @@ router.post('/payments/receive', asyncHandler(async (req: Request, res: Response
       makerRole: actor.role,
       transaction: tx,
     }),
+      approve: approveDirectMoneyGovernanceAction,
+      actorId: actor.userId,
+      actorRole: actor.role,
+      transaction: tx,
+    }),
   });
+  // Money now applies at request time (phê duyệt removed 2026-09-10) — refresh
+  // report caches the way the old approve step did.
+  if (!replayed) await invalidateReportCaches();
   res.locals.auditEntityId = result.id;
   res.locals.auditEntityKey = result.subjectKey ?? data.receiptId;
   res.status(replayed ? 200 : 201).json({ result, replayed });
@@ -199,7 +209,8 @@ router.post(
       },
       createdBy: actor.userId,
       entityType: 'governance_action',
-      create: (tx) => requestPaymentRefundGovernance({
+      create: (tx) => autoApplyGovernanceAction({
+      make: (tx) => requestPaymentRefundGovernance({
         paymentReceiptId,
         amount: data.amount,
         reason: data.reason,
@@ -207,6 +218,11 @@ router.post(
         makerRole: actor.role,
         transaction: tx,
       }),
+      approve: approveDirectMoneyGovernanceAction,
+      actorId: actor.userId,
+      actorRole: actor.role,
+      transaction: tx,
+    }),
     });
     res.locals.auditEntityId = result.id;
     res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
@@ -443,13 +459,22 @@ router.post('/payments/vendor', asyncHandler(async (req: Request, res: Response)
     },
     createdBy: actor.userId,
     entityType: 'governance_action',
-    create: (tx) => financialService.requestVendorPaymentGovernance({
+    create: (tx) => autoApplyGovernanceAction({
+      make: (tx) => financialService.requestVendorPaymentGovernance({
       payment: { ...data, amount: String(data.amount) },
       makerId: actor.userId,
       makerRole: actor.role,
       transaction: tx,
     }),
+      approve: approveDirectMoneyGovernanceAction,
+      actorId: actor.userId,
+      actorRole: actor.role,
+      transaction: tx,
+    }),
   });
+  // Money now applies at request time (phê duyệt removed 2026-09-10) — refresh
+  // report caches the way the old approve step did.
+  if (!replayed) await invalidateReportCaches();
   res.locals.auditEntityId = result.id;
   res.locals.auditEntityKey = result.subjectKey ?? data.receiptId;
   const statusCode = replayed ? 200 : (idempotencyKey ? 201 : 200);
@@ -471,13 +496,22 @@ router.post('/payments/carrier', asyncHandler(async (req: Request, res: Response
     },
     createdBy: actor.userId,
     entityType: 'governance_action',
-    create: (tx) => financialService.requestCarrierPaymentGovernance({
+    create: (tx) => autoApplyGovernanceAction({
+      make: (tx) => financialService.requestCarrierPaymentGovernance({
       payment: { ...data, amount: String(data.amount) },
       makerId: actor.userId,
       makerRole: actor.role,
       transaction: tx,
     }),
+      approve: approveDirectMoneyGovernanceAction,
+      actorId: actor.userId,
+      actorRole: actor.role,
+      transaction: tx,
+    }),
   });
+  // Money now applies at request time (phê duyệt removed 2026-09-10) — refresh
+  // report caches the way the old approve step did.
+  if (!replayed) await invalidateReportCaches();
   res.locals.auditEntityId = result.id;
   res.locals.auditEntityKey = result.subjectKey ?? data.receiptId;
   const statusCode = replayed ? 200 : (idempotencyKey ? 201 : 200);
@@ -555,13 +589,22 @@ router.post('/commissions', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTA
     },
     createdBy: actor.userId,
     entityType: 'governance_action',
-    create: (tx) => requestCommissionGovernance({
+    create: (tx) => autoApplyGovernanceAction({
+      make: (tx) => requestCommissionGovernance({
       commission: data,
       makerId: actor.userId,
       makerRole: actor.role,
       transaction: tx,
     }),
+      approve: approveDirectMoneyGovernanceAction,
+      actorId: actor.userId,
+      actorRole: actor.role,
+      transaction: tx,
+    }),
   });
+  // Money now applies at request time (phê duyệt removed 2026-09-10) — refresh
+  // report caches the way the old approve step did.
+  if (!replayed) await invalidateReportCaches();
   res.locals.auditEntityId = result.id;
   res.locals.auditEntityKey = result.subjectKey ?? "Quyết định chưa có tên";
   res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
@@ -595,7 +638,8 @@ router.post('/drivers/:driverId/payouts', requireRoles(Role.ADMIN, Role.MANAGER,
     },
     createdBy: actor.userId,
     entityType: 'governance_action',
-    create: (tx) => financialService.requestDriverPayoutGovernance({
+    create: (tx) => autoApplyGovernanceAction({
+      make: (tx) => financialService.requestDriverPayoutGovernance({
       payout: {
         driverId,
         amount: data.amount,
@@ -608,7 +652,15 @@ router.post('/drivers/:driverId/payouts', requireRoles(Role.ADMIN, Role.MANAGER,
       makerRole: actor.role,
       transaction: tx,
     }),
+      approve: approveDirectMoneyGovernanceAction,
+      actorId: actor.userId,
+      actorRole: actor.role,
+      transaction: tx,
+    }),
   });
+  // Money now applies at request time (phê duyệt removed 2026-09-10) — refresh
+  // report caches the way the old approve step did.
+  if (!replayed) await invalidateReportCaches();
   res.locals.auditEntityId = result.id;
   res.locals.auditEntityKey = result.subjectKey ?? "Quyết định chưa có tên";
   res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
@@ -663,6 +715,9 @@ router.post('/finance/treasury/accounts/setup', requireRoles(Role.ADMIN, Role.MA
       transaction: tx,
     }),
   });
+  // Money now applies at request time (phê duyệt removed 2026-09-10) — refresh
+  // report caches the way the old approve step did.
+  if (!replayed) await invalidateReportCaches();
   res.locals.auditEntityId = result.id;
   res.status(replayed ? 200 : 202).json({ ...result, replayed });
 }));
@@ -686,6 +741,9 @@ router.post('/finance/treasury/accounts/:id/cutover', requireRoles(Role.ADMIN, R
       transaction: tx,
     }),
   });
+  // Money now applies at request time (phê duyệt removed 2026-09-10) — refresh
+  // report caches the way the old approve step did.
+  if (!replayed) await invalidateReportCaches();
   res.locals.auditEntityId = result.id;
   res.status(replayed ? 200 : 202).json({ ...result, replayed });
 }));
@@ -709,6 +767,9 @@ router.post('/finance/treasury/movements/:id/reversal', requireRoles(Role.ADMIN,
       transaction: tx,
     }),
   });
+  // Money now applies at request time (phê duyệt removed 2026-09-10) — refresh
+  // report caches the way the old approve step did.
+  if (!replayed) await invalidateReportCaches();
   res.locals.auditEntityId = result.id;
   res.status(replayed ? 200 : 202).json({ ...result, replayed });
 }));

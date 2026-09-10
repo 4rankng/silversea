@@ -1051,7 +1051,7 @@ describe('Q06 fuel invoice routes', () => {
     assert.equal(stored.body.approvalStatus, 'APPROVED');
   });
 
-  test('Q18 approved invoice stays immutable while governed adjustment and reversal require three distinct actors', async () => {
+  test('approved invoice stays immutable while governed adjustment and reversal apply immediately', async () => {
     const supplier = await mkSupplier();
     const truck = await mkTruck();
     const trip = await mkTrip(supplier.id, truck.id);
@@ -1121,7 +1121,8 @@ describe('Q06 fuel invoice routes', () => {
       body: correctionBody,
     });
     assert.equal(correction.status, 201);
-    assert.equal(correction.body.status, 'PENDING_CHECK');
+    // 2026-09-10 (phê duyệt removed): the correction applies immediately.
+    assert.equal(correction.body.status, 'APPROVED');
     assert.equal(correction.body.beforeSnapshot.invoice.totalLiters, 100);
     assert.equal(correction.body.afterSnapshot.invoice.totalLiters, 110);
 
@@ -1135,52 +1136,8 @@ describe('Q06 fuel invoice routes', () => {
     assert.equal(correctionReplay.body.replayed, true);
     assert.equal(correctionReplay.body.id, correction.body.id);
 
-    const makerCannotCheck = await request(`/api/governance-actions/${correction.body.id}/check`, {
-      method: 'POST',
-      token: accountantToken,
-      body: { expectedVersion: correction.body.version },
-    });
-    assert.equal(makerCannotCheck.status, 403);
-
-    const checked = await request(`/api/governance-actions/${correction.body.id}/check`, {
-      method: 'POST',
-      token: managerToken,
-      body: { expectedVersion: correction.body.version },
-    });
-    assert.equal(checked.status, 200);
-    assert.equal(checked.body.status, 'PENDING_APPROVAL');
-
-    const checkerCannotApprove = await request(`/api/governance-actions/${correction.body.id}/approve`, {
-      method: 'POST',
-      token: managerToken,
-      body: { expectedVersion: checked.body.version },
-    });
-    assert.equal(checkerCannotApprove.status, 403);
-
-    const approveKey = `q18-fuel-adjust-approve-${correction.body.id}`;
-    const approvalKeys = [approveKey, `${approveKey}-race`];
-    const approvalResults = await Promise.all(approvalKeys.map((idempotencyKey) =>
-      request(`/api/governance-actions/${correction.body.id}/approve`, {
-        method: 'POST',
-        token: adminToken,
-        idempotencyKey,
-        body: { expectedVersion: checked.body.version },
-      }),
-    ));
-    assert.deepEqual(
-      approvalResults.map((result) => result.status).sort((left, right) => left - right),
-      [200, 409],
-    );
-    const winningApprovalIndex = approvalResults.findIndex((result) => result.status === 200);
-    assert.notEqual(winningApprovalIndex, -1);
-    const approvalReplay = await request(`/api/governance-actions/${correction.body.id}/approve`, {
-      method: 'POST',
-      token: adminToken,
-      idempotencyKey: approvalKeys[winningApprovalIndex]!,
-      body: { expectedVersion: checked.body.version },
-    });
-    assert.equal(approvalReplay.status, 200);
-    assert.equal(approvalReplay.body.replayed, true);
+    // The staged check/approve calls are gone; the correction above already
+    // applied atomically.
 
     const effective = await request(`/api/finance/fuel-invoices/${created.body.id}`, {
       token: managerToken,
@@ -1224,18 +1181,8 @@ describe('Q06 fuel invoice routes', () => {
       },
     });
     assert.equal(reversal.status, 201);
-    const reversalChecked = await request(`/api/governance-actions/${reversal.body.id}/check`, {
-      method: 'POST',
-      token: managerToken,
-      body: { expectedVersion: reversal.body.version },
-    });
-    assert.equal(reversalChecked.status, 200);
-    const reversalApproved = await request(`/api/governance-actions/${reversal.body.id}/approve`, {
-      method: 'POST',
-      token: adminToken,
-      body: { expectedVersion: reversalChecked.body.version },
-    });
-    assert.equal(reversalApproved.status, 200);
+    // 2026-09-10 (phê duyệt removed): the reversal applies immediately.
+    assert.equal(reversal.body.status, 'APPROVED');
 
     const reversed = await request(`/api/finance/fuel-invoices/${created.body.id}`, {
       token: managerToken,

@@ -110,10 +110,29 @@ router.post(
       createdBy: actor.userId,
       entityType: 'credit_override',
       responseStatusCode: 201,
-      create: (tx) => createCreditOverrideRequest(payload, {
-        userId: actor.userId,
-        role: actor.role,
-      }, tx),
+      // 2026-09-10 user directive: phê duyệt removed — the override request
+      // runs its check and approve stages immediately with the requester
+      // when their role satisfies the amount tier. Higher-tier overrides
+      // (the escalation control) stay pending for a tier holder.
+      create: async (tx) => {
+        const created = await createCreditOverrideRequest(payload, {
+          userId: actor.userId,
+          role: actor.role,
+        }, tx);
+        const tierSatisfied = created.requiredTier === 'FINANCE_TIER_1'
+          ? (actor.role === Role.ADMIN || actor.role === Role.ACCOUNTANT)
+          : (actor.role === Role.ADMIN || actor.role === Role.MANAGER);
+        if (!tierSatisfied) return created;
+        const checked = await checkCreditOverrideRequest(created.id, {
+          userId: actor.userId,
+          role: actor.role,
+        }, { expectedVersion: created.version }, tx);
+        const approval = await approveCreditOverrideRequest(created.id, {
+          userId: actor.userId,
+          role: actor.role,
+        }, { expectedVersion: checked.version }, tx);
+        return approval.request;
+      },
     });
     const request = replayed ? { ...result, replayed } : result;
     res.locals.auditEntityId = request.id;

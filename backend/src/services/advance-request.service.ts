@@ -347,9 +347,9 @@ export async function approveAdvanceRequest(
     if (request.status !== 'PENDING') {
       throw new AdvanceError(409, `Cannot approve request with status ${request.status}`);
     }
-    if (request.requesterId === approvedBy) {
-      throw new AdvanceError(403, 'Không thể duyệt yêu cầu tạm ứng của chính mình');
-    }
+    // 2026-09-10 (phê duyệt removed): self-approval is the contract — the
+    // requester's own create applies immediately, so the old segregation
+    // guard (requester cannot approve their own request) is gone.
 
     const [user] = await tx.select({ fullName: s.users.fullName })
       .from(s.users)

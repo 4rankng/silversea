@@ -189,5 +189,9 @@ test('Q03 refund HTTP boundary enforces RBAC, validation, replay, conflict, and 
     request(raceReceipt.id, payload, `q03-route-race-a-${suffix}`),
     request(raceReceipt.id, payload, `q03-route-race-b-${suffix}`),
   ]);
-  assert.deepEqual(race.map((result) => result.status).sort(), [201, 409]);
+  // 2026-09-10 (phê duyệt removed): with no pending window, two distinct
+  // refund commands on the same receipt both apply — each capped by
+  // unappliedAmount (5M ≥ 2×1M). Over-refund protection is the
+  // unapplied-amount cap, not the old one-active-request rule.
+  assert.deepEqual(race.map((result) => result.status).sort(), [201, 201]);
 });

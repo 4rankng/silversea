@@ -348,7 +348,7 @@ after(async () => {
 });
 
 describe('Q15 direct-money governance slice', () => {
-  it('submits all seven direct-money commands as pending actions and only applies them after check and approve', async () => {
+  it('applies all seven direct-money commands immediately at request time (phê duyệt removed 2026-09-10)', async () => {
     const fixture = await createFixture('all-seven');
     const paymentReceiptId = `Q15-RECEIPT-${suffix}`;
     const vendorReceiptId = `Q15-VENDOR-${suffix}`;
@@ -363,7 +363,7 @@ describe('Q15 direct-money governance slice', () => {
     }, 0);
     const paymentAction = paymentRequest.body.result as Record<string, unknown>;
     assert.equal(paymentRequest.status, 201);
-    assert.equal(paymentAction.status, 'PENDING_CHECK');
+    assert.equal(paymentAction.status, 'APPROVED');
     await trackGovernanceAction(paymentAction);
 
     const vendorRequest = await api('POST', '/api/payments/vendor', {
@@ -373,7 +373,7 @@ describe('Q15 direct-money governance slice', () => {
       date: '2026-07-27',
     }, 0);
     assert.equal(vendorRequest.status, 201);
-    assert.equal(vendorRequest.body.status, 'PENDING_CHECK');
+    assert.equal(vendorRequest.body.status, 'APPROVED');
     await trackGovernanceAction(vendorRequest.body);
 
     const carrierRequest = await api('POST', '/api/payments/carrier', {
@@ -383,7 +383,7 @@ describe('Q15 direct-money governance slice', () => {
       date: '2026-07-27',
     }, 0);
     assert.equal(carrierRequest.status, 201);
-    assert.equal(carrierRequest.body.status, 'PENDING_CHECK');
+    assert.equal(carrierRequest.body.status, 'APPROVED');
     await trackGovernanceAction(carrierRequest.body);
 
     const commissionRequest = await api('POST', '/api/commissions', {
@@ -393,7 +393,7 @@ describe('Q15 direct-money governance slice', () => {
       note: `Q15 commission ${suffix}`,
     }, 0);
     assert.equal(commissionRequest.status, 201);
-    assert.equal(commissionRequest.body.status, 'PENDING_CHECK');
+    assert.equal(commissionRequest.body.status, 'APPROVED');
     await trackGovernanceAction(commissionRequest.body);
 
     const payoutRequest = await api('POST', `/api/drivers/${fixture.payoutDriver.id}/payouts`, {
@@ -403,7 +403,7 @@ describe('Q15 direct-money governance slice', () => {
       receiptId: `Q15-PAYOUT-${suffix}`,
     }, 0);
     assert.equal(payoutRequest.status, 201);
-    assert.equal(payoutRequest.body.status, 'PENDING_CHECK');
+    assert.equal(payoutRequest.body.status, 'APPROVED');
     await trackGovernanceAction(payoutRequest.body);
 
     const penaltyCreateRequest = await api('POST', '/api/penalties', {
@@ -414,100 +414,18 @@ describe('Q15 direct-money governance slice', () => {
       date: '2026-07-27',
     }, 0);
     assert.equal(penaltyCreateRequest.status, 201);
-    assert.equal(penaltyCreateRequest.body.status, 'PENDING_CHECK');
+    assert.equal(penaltyCreateRequest.body.status, 'APPROVED');
     await trackGovernanceAction(penaltyCreateRequest.body);
 
     const penaltyCancelRequest = await api('POST', `/api/penalties/${fixture.seededPenalty.id}/cancel`, {
       reason: `Q15 cancel penalty ${suffix}`,
     }, 2);
     assert.equal(penaltyCancelRequest.status, 200);
-    assert.equal(penaltyCancelRequest.body.status, 'PENDING_CHECK');
+    assert.equal(penaltyCancelRequest.body.status, 'APPROVED');
     await trackGovernanceAction(penaltyCancelRequest.body);
 
-    assert.equal(await fetchPaymentReceiptCount(paymentReceiptId), 0);
-    assert.equal(await fetchLedgerCount({
-      entityType: 'VENDOR',
-      entityId: fixture.supplier.id,
-      txnType: TxnType.VENDOR_PAYMENT,
-      receiptId: vendorReceiptId,
-    }), 0);
-    assert.equal(await fetchLedgerCount({
-      entityType: 'CARRIER',
-      entityId: fixture.carrier.id,
-      txnType: TxnType.VENDOR_PAYMENT,
-      receiptId: carrierReceiptId,
-    }), 0);
-    assert.equal(await fetchLedgerCount({
-      entityType: 'VENDOR',
-      entityId: fixture.commissionSupplier.id,
-      txnType: TxnType.COMMISSION,
-      txnId: fixture.trip.id,
-    }), 0);
-    assert.equal(await fetchLedgerCount({
-      entityType: 'DRIVER',
-      entityId: fixture.payoutDriver.id,
-      txnType: TxnType.DRIVER_PAYOUT,
-    }), 0);
-    assert.equal(await fetchPenaltyByReason(penaltyReason), undefined);
-    assert.equal(await fetchPenaltyReversalCount(fixture.seededPenalty.id, fixture.penaltyCancelDriver.id), 0);
-
-    // 2026-09-10 (phê duyệt removed): maker self-check is allowed (200).
-
-    const checkedResponses = await Promise.all([
-      api('POST', `/api/governance-actions/${paymentAction.id}/check`, {
-        expectedVersion: Number(paymentAction.version),
-      }, 1),
-      api('POST', `/api/governance-actions/${vendorRequest.body.id}/check`, {
-        expectedVersion: Number(vendorRequest.body.version),
-      }, 1),
-      api('POST', `/api/governance-actions/${carrierRequest.body.id}/check`, {
-        expectedVersion: Number(carrierRequest.body.version),
-      }, 1),
-      api('POST', `/api/governance-actions/${commissionRequest.body.id}/check`, {
-        expectedVersion: Number(commissionRequest.body.version),
-      }, 1),
-      api('POST', `/api/governance-actions/${payoutRequest.body.id}/check`, {
-        expectedVersion: Number(payoutRequest.body.version),
-      }, 1),
-      api('POST', `/api/governance-actions/${penaltyCreateRequest.body.id}/check`, {
-        expectedVersion: Number(penaltyCreateRequest.body.version),
-      }, 1),
-      api('POST', `/api/governance-actions/${penaltyCancelRequest.body.id}/check`, {
-        expectedVersion: Number(penaltyCancelRequest.body.version),
-      }, 1),
-    ]);
-    for (const response of checkedResponses) {
-      assert.equal(response.status, 200);
-      assert.equal(response.body.status, 'PENDING_APPROVAL');
-    }
-
-    const approvedResponses = await Promise.all([
-      api('POST', `/api/governance-actions/${checkedResponses[0]!.body.id}/approve`, {
-        expectedVersion: Number(checkedResponses[0]!.body.version),
-      }, 2),
-      api('POST', `/api/governance-actions/${checkedResponses[1]!.body.id}/approve`, {
-        expectedVersion: Number(checkedResponses[1]!.body.version),
-      }, 2),
-      api('POST', `/api/governance-actions/${checkedResponses[2]!.body.id}/approve`, {
-        expectedVersion: Number(checkedResponses[2]!.body.version),
-      }, 2),
-      api('POST', `/api/governance-actions/${checkedResponses[3]!.body.id}/approve`, {
-        expectedVersion: Number(checkedResponses[3]!.body.version),
-      }, 2),
-      api('POST', `/api/governance-actions/${checkedResponses[4]!.body.id}/approve`, {
-        expectedVersion: Number(checkedResponses[4]!.body.version),
-      }, 2),
-      api('POST', `/api/governance-actions/${checkedResponses[5]!.body.id}/approve`, {
-        expectedVersion: Number(checkedResponses[5]!.body.version),
-      }, 2),
-      api('POST', `/api/governance-actions/${checkedResponses[6]!.body.id}/approve`, {
-        expectedVersion: Number(checkedResponses[6]!.body.version),
-      }, 0),
-    ]);
-    for (const response of approvedResponses) {
-      assert.equal(response.status, 200);
-      assert.equal(response.body.status, 'APPROVED');
-    }
+    // 2026-09-10: phê duyệt removed — the requests above already applied;
+    // no pending window, no separate check/approve calls.
 
     const paymentReceipt = await trackPaymentReceipt(paymentReceiptId);
     assert.ok(paymentReceipt);
@@ -559,53 +477,55 @@ describe('Q15 direct-money governance slice', () => {
     assert.equal(await fetchPenaltyReversalCount(fixture.seededPenalty.id, fixture.penaltyCancelDriver.id), 1);
   });
 
-  it('rejects governed payments without side effects and preserves replay and stale approval semantics', async () => {
-    const fixture = await createFixture('replay-and-stale');
+  it('applies governed payments at request time and preserves replay semantics (phê duyệt removed 2026-09-10)', async () => {
+    const fixture = await createFixture('replay-and-applied');
 
-    const rejectedReceiptId = `Q15-REJECT-${suffix}`;
-    const rejectedKey = `q15-reject-${suffix}`;
-    const rejectedBody = {
+    const appliedReceiptId = `Q15-APPLIED-${suffix}`;
+    const appliedKey = `q15-applied-${suffix}`;
+    const appliedBody = {
       supplierId: fixture.supplier.id,
-      receiptId: rejectedReceiptId,
+      receiptId: appliedReceiptId,
       amount: 200000,
       date: '2026-07-27',
     };
 
-    const firstSubmit = await api('POST', '/api/payments/vendor', rejectedBody, 0, rejectedKey);
+    // Submit applies immediately; replay returns the same applied outcome.
+    const firstSubmit = await api('POST', '/api/payments/vendor', appliedBody, 0, appliedKey);
     assert.equal(firstSubmit.status, 201);
     assert.equal(firstSubmit.body.replayed, false);
+    assert.equal(firstSubmit.body.status, 'APPROVED');
     await trackGovernanceAction(firstSubmit.body);
-
-    const replaySubmit = await api('POST', '/api/payments/vendor', rejectedBody, 0, rejectedKey);
-    assert.equal(replaySubmit.status, 200);
-    assert.equal(replaySubmit.body.replayed, true);
-    assert.equal(replaySubmit.body.status, 'PENDING_CHECK');
-    assert.equal(replaySubmit.body.id, firstSubmit.body.id);
-
-    const checkedRejected = await api('POST', `/api/governance-actions/${firstSubmit.body.id}/check`, {
-      expectedVersion: Number(firstSubmit.body.version),
-    }, 1);
-    assert.equal(checkedRejected.status, 200);
-
-    const rejected = await api('POST', `/api/governance-actions/${firstSubmit.body.id}/reject`, {
-      expectedVersion: Number(checkedRejected.body.version),
-      reason: `Q15 reject ${suffix}`,
-    }, 2);
-    assert.equal(rejected.status, 200);
-    assert.equal(rejected.body.status, 'REJECTED');
     assert.equal(await fetchLedgerCount({
       entityType: 'VENDOR',
       entityId: fixture.supplier.id,
       txnType: TxnType.VENDOR_PAYMENT,
-      receiptId: rejectedReceiptId,
-    }), 0);
+      receiptId: appliedReceiptId,
+    }), 1);
 
-    const replayAfterReject = await api('POST', '/api/payments/vendor', rejectedBody, 0, rejectedKey);
-    assert.equal(replayAfterReject.status, 200);
-    assert.equal(replayAfterReject.body.replayed, true);
-    assert.equal(replayAfterReject.body.status, 'PENDING_CHECK');
-    assert.equal(replayAfterReject.body.version, firstSubmit.body.version);
+    const replaySubmit = await api('POST', '/api/payments/vendor', appliedBody, 0, appliedKey);
+    assert.equal(replaySubmit.status, 200);
+    assert.equal(replaySubmit.body.replayed, true);
+    assert.equal(replaySubmit.body.status, 'APPROVED');
+    assert.equal(replaySubmit.body.id, firstSubmit.body.id);
 
+    // The old pending-reject path is gone: with nothing pending, the
+    // decision endpoints refuse rather than mutate an applied action.
+    const rejected = await api('POST', `/api/governance-actions/${firstSubmit.body.id}/reject`, {
+      expectedVersion: Number(firstSubmit.body.version),
+      reason: `Q15 no-longer-pending ${suffix}`,
+    }, 2);
+    assert.equal(rejected.status, 409);
+    assert.equal(await fetchLedgerCount({
+      entityType: 'VENDOR',
+      entityId: fixture.supplier.id,
+      txnType: TxnType.VENDOR_PAYMENT,
+      receiptId: appliedReceiptId,
+    }), 1);
+
+    // The old stale-source guard protected the window between request and
+    // approve; request+apply are now atomic in one transaction, so that
+    // window no longer exists and concurrent-balance conflicts surface as
+    // ordinary 409s at submit time.
     const staleReceiptId = `Q15-STALE-${suffix}`;
     const staleSubmit = await api('POST', '/api/payments/vendor', {
       supplierId: fixture.supplier.id,
@@ -614,71 +534,13 @@ describe('Q15 direct-money governance slice', () => {
       date: '2026-07-27',
     }, 0, `q15-stale-${suffix}`);
     assert.equal(staleSubmit.status, 201);
-    await trackGovernanceAction(staleSubmit.body);
-
-    const checkedStale = await api('POST', `/api/governance-actions/${staleSubmit.body.id}/check`, {
-      expectedVersion: Number(staleSubmit.body.version),
-    }, 1);
-    assert.equal(checkedStale.status, 200);
-
-    await db.insert(s.ledger).values({
-      entityType: 'VENDOR',
-      entityId: fixture.supplier.id,
-      txnType: TxnType.COMMISSION,
-      txnId: fixture.trip.id,
-      debit: '0',
-      credit: '10000',
-      balance: '910000',
-      note: `Q15 stale version ${suffix}`,
-      timestamp: new Date('2026-07-27T12:00:00+07:00'),
-    });
-
-    const staleApprove = await api('POST', `/api/governance-actions/${staleSubmit.body.id}/approve`, {
-      expectedVersion: Number(checkedStale.body.version),
-    }, 2);
-    assert.equal(staleApprove.status, 409);
-    assert.match(String(staleApprove.body.error ?? staleApprove.body.message ?? ''), /đã thay đổi|không thể áp dụng/i);
+    await trackGovernanceAction(staleSubmit.body as { id: number });
     assert.equal(await fetchLedgerCount({
       entityType: 'VENDOR',
       entityId: fixture.supplier.id,
       txnType: TxnType.VENDOR_PAYMENT,
       receiptId: staleReceiptId,
-    }), 0);
-
-    const approvedReceiptId = `Q15-APPROVE-${suffix}`;
-    const approvedSubmit = await api('POST', '/api/payments/vendor', {
-      supplierId: fixture.supplier.id,
-      receiptId: approvedReceiptId,
-      amount: 220000,
-      date: '2026-07-27',
-    }, 0, `q15-approve-submit-${suffix}`);
-    assert.equal(approvedSubmit.status, 201);
-    await trackGovernanceAction(approvedSubmit.body);
-
-    const checkedApproved = await api('POST', `/api/governance-actions/${approvedSubmit.body.id}/check`, {
-      expectedVersion: Number(approvedSubmit.body.version),
-    }, 1);
-    assert.equal(checkedApproved.status, 200);
-
-    const approvalKey = `q15-approve-action-${suffix}`;
-    const firstApprove = await api('POST', `/api/governance-actions/${approvedSubmit.body.id}/approve`, {
-      expectedVersion: Number(checkedApproved.body.version),
-    }, 2, approvalKey);
-    assert.equal(firstApprove.status, 200);
-    assert.equal(firstApprove.body.replayed, false);
-    assert.equal(firstApprove.body.status, 'APPROVED');
-
-    const replayApprove = await api('POST', `/api/governance-actions/${approvedSubmit.body.id}/approve`, {
-      expectedVersion: Number(checkedApproved.body.version),
-    }, 2, approvalKey);
-    assert.equal(replayApprove.status, 200);
-    assert.equal(replayApprove.body.replayed, true);
-    assert.equal(replayApprove.body.id, firstApprove.body.id);
-    assert.equal(await fetchLedgerCount({
-      entityType: 'VENDOR',
-      entityId: fixture.supplier.id,
-      txnType: TxnType.VENDOR_PAYMENT,
-      receiptId: approvedReceiptId,
     }), 1);
-  });
+
+});
 });
