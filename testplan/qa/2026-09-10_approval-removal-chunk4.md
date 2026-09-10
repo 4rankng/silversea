@@ -131,6 +131,23 @@ The maker/checker endpoints that used to live at `/api/governance-actions/:id/ch
   - `qa/2026-09-10_approval-removal-chunk4_db-004.sql`
   - `qa/2026-09-10_approval-removal-chunk4_ui-004-debt-offset.png`
 
+### TC-CHUNK4-009 — Advance settlement applies immediately (pm ruling C1b — settlements in scope)
+
+- **Given** ACCOUNTANT logged in; an advance settlement sitting in the PENDING → CHECKED_BY_ACCOUNTANT chain (`approval-queue.service.ts:123`)
+- **When** they submit the settlement via the advances API
+- **Then**:
+  - Settlement applies **immediately** — no `PENDING` state, no `CHECKED_BY_ACCOUNTANT` two-step
+  - The approve/reject endpoints at `advances.routes.ts` :146/:178 are dead (404, or 403 where RBAC scopes them to another role)
+  - `governance_actions` audit row stamped `APPLIED` (history kept, per chunk invariants)
+- **Assert:**
+  - `curl -X POST …/api/financial/advances/...settlement` returns an applied status in ONE call
+  - `curl -X POST …/api/financial/advances/settlements/:id/approve` and `/reject` return 404 / 403 (dead)
+  - DB: `SELECT status FROM governance_actions WHERE kind LIKE '%SETTLEMENT%' ORDER BY id DESC LIMIT 1` returns `APPLIED`
+- **Evidence:**
+  - `qa/2026-09-10_approval-removal-chunk4_api-009-settlement.log`
+  - `qa/2026-09-10_approval-removal-chunk4_db-009.sql`
+  - `qa/2026-09-10_approval-removal-chunk4_ui-009-settlement.png`
+
 ### TC-CHUNK4-005 — No dead "Chờ phê duyệt" / approve/reject UI elements
 
 - **Given** staging rendered after the cut
@@ -231,7 +248,7 @@ qa/
 
 ## Pass criteria
 
-PASS iff TC-CHUNK4-001 through TC-CHUNK4-008 ALL hold on **staging first** (local-only run is a smoke test). Any TC FAIL on staging is a cycle FAIL with `fix-and-re-run` block appended to the failing artifact; PM relays to backend before chunk 5.
+PASS iff TC-CHUNK4-001 through TC-CHUNK4-009 ALL hold on **staging first** (local-only run is a smoke test). Any TC FAIL on staging is a cycle FAIL with `fix-and-re-run` block appended to the failing artifact; PM relays to backend before chunk 5.
 
 ## Linked artifacts
 
