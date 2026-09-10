@@ -532,9 +532,12 @@ function parseDispatchTaskTagId(raw: string): number {
   return id;
 }
 
+// Read-only reference list: DRIVER is included so the driver portal can
+// resolve operationalNotes task tags into chips (drivers must never write
+// the pool — POST/PATCH/DELETE below stay dispatcher-and-above).
 dispatchPlanningRoutes.get(
   '/dispatch-task-tags',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER),
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER, Role.DRIVER),
   asyncHandler(async (_req: Request, res: Response) => {
     res.json(await listDispatchTaskTags());
   }),
