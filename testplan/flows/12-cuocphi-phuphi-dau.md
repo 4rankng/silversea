@@ -15,8 +15,10 @@
 > Các case dưới đây chốt trước theo đúng quy tắc nghiệp vụ đã có quyết định
 > (testplan-first). Khi module cước (5 bảng + `resolveFreightRate()` +
 > `freight_rate_snapshots`) được triển khai theo `CuocPhiThietKeDB.md` §6.1, bộ này
-> là nghiệm thu bắt buộc. Trạng thái chạy: **BLOCKED — awaiting implementation**
-> (đủ điều kiện tiền đề hạ tầng mới được tính BLOCKED, không SKIP).
+> là nghiệm thu bắt buộc. Trạng thái chạy: **ĐÃ CHẠY 2026-09-10** — engine + config
+> CRUD đã land (T1/T2), automated suites xanh (unit/integration), browser regression
+> 2026-09-10: PASS 5/6 nhóm case + 1 PARTIAL — bằng chứng:
+> `testplan/qa/evidence/2026-09-10_flows12-pricing-regression/` (RUN-SUMMARY + checks).
 >
 > **Quy tắc đã chốt (2026-09-09) mà mọi case kế thừa:**
 >
@@ -175,13 +177,13 @@
 
 ---
 
-## 12.4 — Auto-pricing engine (sau khi engine wired & snapshot persist) — `BLOCKED — pending T1`
+## 12.4 — Auto-pricing engine (sau khi engine wired & snapshot persist) — `ĐÃ CHẠY 2026-09-10 — PASS 5/6`
 
 > **Mục đích:** neo [`PhuongAnTinhCuocTuDong.md`](../../docs/prd/PhuongAnTinhCuocTuDong.md)
 > §2.3 (3-step engine) + §2.4 (override) + §2.5 (config CRUD) vào acceptance anchor.
-> Tất cả TC dưới đây **BLOCKED — pending T1** (wiring engine) / **pending T2**
-> (config CRUD); gắn nhãn **Phase-2 evidence** — chỉ chạy sau khi các ticket liên
-> quan đã land + regression local qua `flows/12` baseline green.
+> Kết quả chạy 2026-09-10: **PASS** (a–e) + **PARTIAL** (f — CUS workboard row-level
+> screenshot gap; data layer + bundle verified). Chi tiết claim ladder:
+> `testplan/qa/evidence/2026-09-10_flows12-pricing-regression/RUN-SUMMARY.md`.
 >
 > **Quy tắc snapshot (kế thừa `CuocPhiThietKeDB.md` §5):** mỗi lần `transport_date`
 > được set hoặc đổi, hệ thống **insert** row mới vào `freight_rate_snapshots` với
@@ -419,11 +421,13 @@
 
 | Ngày thử | Mã TC | Vai trò | Người thử | Kết quả | Ghi chú | Bằng chứng |
 |-----------|-------|---------|-----------|---------|---------|------------|
-| — | TC-CUOC-001…008 | — | — | **BLOCKED** | module chưa triển khai (UT test-first ở T6) | — |
-| — | TC-CUOC-009…010 | — | — | **BLOCKED — pending T1** | engine wiring + snapshot persist + supersede (Phase-2 evidence) | — |
-| — | TC-CUOC-011…014 | — | — | **BLOCKED — pending T1** | threshold pct/abs + ratchet single-step (PM test hint #1) | — |
-| — | TC-CUOC-015 | — | — | **BLOCKED — pending T1** | MANUAL fallback 15T (UT/IT) | — |
-| — | TC-CUOC-016 | — | — | **BLOCKED — pending T1** | snapshot immutability — rào chắn Câu 2 = A | — |
-| — | TC-CUOC-017…019 | — | — | **BLOCKED — pending T1** | debit-note override + reason rule + RBAC 403 | — |
-| — | TC-CUOC-020…024 | — | — | **BLOCKED — pending T2** | fuel-price entry CRUD + RBAC + dup validation | — |
-| — | TC-CUOC-025 | — | — | **BLOCKED — pending T1 (AC bắt buộc)** | engine 404 → MANUAL fallback khi target date < first fuel period | — |
+| — | TC-CUOC-001…008 | — | QA (unit) | **PASS (UT)** | engine math + boundary (fuelSurcharge.test 19/19, `fafe5e37`) | `qa/2026-09-09_pricing-engine_t6-phase1.log` |
+| 2026-09-10 | TC-CUOC-009…010 | admin (API) | frontend lane | **PASS (live)** | snapshot persist + INSERT-only supersede: 270→271 trên lô 132085, đủ 4 trace ids + billed_km/liters | evidence 2026-09-10_flows12-pricing-regression/checks.md §d |
+| — | TC-CUOC-011…014 | — | QA (unit) | **PASS (UT) / live run pending** | threshold pct/abs + ratchet single-step: unit TC-CUOC-007/008 xanh; live hai-ky-scenario chưa chạy | unit log + RUN-SUMMARY gaps |
+| 2026-09-10 | TC-CUOC-015 | admin (API) | frontend lane | **PASS (live)** | 15T: AUTO 3.570.000/3.536.000/3.587.500 ×3 tuyến (D4 seed); MANUAL hint khi thiếu điều khoản | evidence checks.md §b–c |
+| 2026-09-10 | TC-CUOC-016 | admin (API) | frontend lane | **PASS (live)** | snapshot INSERT-only (không UPDATE), max(id) = live row | evidence checks.md §d |
+| 2026-09-10 | TC-CUOC-017…018 | admin (API + UI) | frontend lane | **PASS (live)** | override 404-as-null + reason-iff-diff (400) + PUT 200 row 34; UI section "Giá cước — điều chỉnh báo nợ" | evidence checks.md §d |
+| — | TC-CUOC-019 | — | QA (IT) | **PASS (IT)** | RBAC 403 — backend config/RBAC suites (`4abd513b` config 6/6, phase-2) | qa/ phase-2 evidence dir |
+| 2026-09-10 | TC-CUOC-020…024 | admin (UI) | frontend lane | **PASS (UI-DRIVEN)** | fuel CRUD 201/409/PUT/DELETE; terms create/XOR radio/explicit-null clearing persisted/dup 409 | evidence RUN-SUMMARY "Re-verified anchors" |
+| — | (MDN F5 follow-up) | admin (UI) | frontend lane | **PARTIAL** | CUS workboard row label: data layer + bundle verified, row-level UI screenshot gap (workboard default window); 3 surfaces khác UI-verified | RUN-SUMMARY ladder (f) |
+| — | TC-CUOC-025 | — | — | **PASS (UT)** | engine 404→MANUAL fallback: covered by engine integration tests (MANUAL for lag-before-first-period + unconfigured) | backend engine suite |
