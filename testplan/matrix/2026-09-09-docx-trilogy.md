@@ -146,9 +146,9 @@ và cập nhật trạng thái bằng evidence thật (test run ids, UI-DRIVEN s
 | # | Yêu cầu (PRD §) | Testplan anchor | Unit/component tests | Evidence triển khai | Trạng thái |
 |---|------------------|-----------------|----------------------|---------------------|------------|
 | 1 | Công thức cước cốt lõi: `K = I × (1 + share) + MAX(0, (G−F)×E)` (PhuongAn §2.1, CuocPhi §2.5-2.8) | flows/12 `TC-CUOC-001..003` | `fuelSurcharge.test.ts` (computeFreightRate) | `shared/src/calculations/fuelSurcharge.ts:99-120` | COVERED (engine parity UT) |
-| 2 | 4 nhóm tham số A-D: `fuel_lag_days`, `surcharge_threshold_pct/abs`, anchor = transport_date (PhuongAn §2.2) | flows/12 `TC-CUOC-005` (lag), `TC-CUOC-011/012` (thresholds) | `fuelSurcharge.test.ts` + engine UT (test-first T6) | `freight_rate_terms` (c959e7bb) — schema COVERED; engine wiring = pending T1 | PARTIAL (schema COVERED, runtime BLOCKED-pending T1) |
-| 3 | 3-step engine: target date → fuel lookup + threshold ratchet → frozen snapshot (PhuongAn §2.3, CuocPhi §4) | flows/12 `TC-CUOC-009` (lock), `TC-CUOC-010` (supersede), `TC-CUOC-014` (ratchet) | engine UT (test-first T6: lag, threshold, ratchet, missing-prev) | `backend/src/services/freight-pricing-engine.service.ts` — service COVERED; wiring tại shipment-create = pending T1 | PARTIAL (service COVERED, wiring BLOCKED-pending T1) |
-| 4 | Snapshot no-retro: row cũ immutable khi transport_date đổi hoặc kỳ giá mới mở (PhuongAn §2.3 bước 3, CuocPhi §5) | flows/12 `TC-CUOC-004` (kỳ mới), `TC-CUOC-010` (date change), `TC-CUOC-016` (immutability qua config) | engine UT + IT | `freight_rate_snapshots` table + supersedes_id col (c959e7bb) | PARTIAL (table COVERED, persist/snapshot wiring BLOCKED-pending T1) |
+| 2 | 4 nhóm tham số A-D: `fuel_lag_days`, `surcharge_threshold_pct/abs`, anchor = transport_date (PhuongAn §2.2) | flows/12 `TC-CUOC-005` (lag), `TC-CUOC-011/012` (thresholds) | `fuelSurcharge.test.ts` + engine UT (T6) | `freight_rate_terms` (c959e7bb) — schema COVERED. **Wiring landed (PM cycle-3 correction)**: `lockShipmentFreightRate` at `freight-rate-snapshot-lifecycle.service.ts:129` is called from 4 lifecycle sites: `batchUpsertShipmentContainers` (`shipment-containers.service.ts:589`), `updateShipment` (`cus-shipment-workspace-writes.service.ts:640`), `updateCusShipmentContainerLine` (same file), and `issueOrderCreateOrUpdate` (`dispatch-planning-commands.service.ts:590`). `e12454cf`'s 400 redirect on containers[] confirms the wiring path goes through the FCL lock. | COVERED |
+| 3 | 3-step engine: target date → fuel lookup + threshold ratchet → frozen snapshot (PhuongAn §2.3, CuocPhi §4) | flows/12 `TC-CUOC-009` (lock), `TC-CUOC-010` (supersede), `TC-CUOC-014` (ratchet) | engine UT (T6: lag, threshold, ratchet, missing-prev) | `backend/src/services/freight-pricing-engine.service.ts` — engine COVERED. **Wiring landed (PM cycle-3 correction)**: 3-step engine runs inside `lockShipmentFreightRate` (`freight-rate-snapshot-lifecycle.service.ts:184` calls `resolveFreightRateWithManualFallback`, `:191` calls `persistFreightRateSnapshot`). Fired at every container-line write (`shipment-containers.service.ts:589`) + dispatch issue (`dispatch-planning-commands.service.ts:590`) + workspace update (`cus-shipment-workspace-writes.service.ts:640`). | COVERED |
+| 4 | Snapshot no-retro: row cũ immutable khi transport_date đổi hoặc kỳ giá mới mở (PhuongAn §2.3 bước 3, CuocPhi §5) | flows/12 `TC-CUOC-004` (kỳ mới), `TC-CUOC-010` (date change), `TC-CUOC-016` (immutability qua config) | engine UT + IT + lifecycle test (110810c5) | `freight_rate_snapshots` table + `supersedes_id` col (c959e7bb) + `debit_note_overrides_snapshot_uniq` index (`pricing.ts:339`). **Persist landed (PM cycle-3 correction)**: `persistFreightRateSnapshot` called from `lockShipmentFreightRate` at `:191`; lifecycle test at `freight-rate-snapshot-lifecycle.test.ts:563` covers TC-CUOC-009 + 010 + 016. QA TC-CUOC-005 passed via container-appointment edit path (FCL anchor) per cycle-2 handoff. | COVERED |
 | 5 | MANUAL fallback khi thiếu base price (15T) hoặc target date < first fuel period (PhuongAn §2.3, edge 3+8) | flows/12 `TC-CUOC-015` (15T), `TC-CUOC-025` (lag 404 → MANUAL) | engine UT (T6) + lifecycle test (110810c5) | **F11 closed (cycle 3)**: soften wrapper `resolveFreightRateWithManualFallback` at `freight-rate-snapshot-lifecycle.service.ts:77` wraps engine 404 → returns `source = 'MANUAL'` instead of throwing. Lifecycle test at `freight-rate-snapshot-lifecycle.test.ts:563` covers TC-CUOC-025. Engine branch still at `freight-pricing-engine.service.ts:116-129`. | COVERED |
 | 6 | Debit-note override: PATCH ghi `final_debit_freight` + reason rule + audit (PhuongAn §2.4) | flows/12 `TC-CUOC-017` (override), `TC-CUOC-018` (reason rule), `TC-CUOC-019` (RBAC 403) | route UT (T6) + lifecycle test (110810c5) | PUT `/api/pricing/snapshots/:id/override` at `freight-rate.routes.ts:90` (RBAC via `requireRoles(...ROLES)`), GET `/api/pricing/snapshots/:id/override` at `:76` (404-as-null for UI). Contract realigned in 110810c5 (`a49259c1 fix(pricing): map override PUT idempotency row to the override entity`). `debit_note_overrides_snapshot_uniq` index at `pricing.ts:339`. | COVERED |
 | 7 | Fuel-price entry: Kế toán / CUS nhập kỳ mới (PhuongAn §2.5) | flows/12 `TC-CUOC-020` (Kế toán), `TC-CUOC-021` (CUS), `TC-CUOC-022` (DRIVER 403), `TC-CUOC-023` (dup effective_from 409) | route UT (T6 Phase-2) | POST/GET/PUT/DELETE mounted via `createCrudRouter` at `catalog-crud.routes.ts:586` (`/fuel-price-periods`, orderBy=`effectiveFrom`). RBAC: financial-trio governed + CUS route-scoped bypass per code comment at `:574-576` ("the CUS fuel-price entry allowance is a route-scoped bypass"). Frontend runtime-verified (cycle-2 handoff): 201 create, 409 dup-effective_from surfaced, 200 PUT/DELETE. | COVERED |
@@ -162,11 +162,17 @@ và cập nhật trạng thái bằng evidence thật (test run ids, UI-DRIVEN s
 
 ### 7.1. Findings — Phase-1 pass (2026-09-10)
 
-- **F10 — engine + schema COVERED, runtime BLOCKED-pending-T1/T2.** Service file tồn tại
-  với đầy đủ nhánh (AUTO/MANUAL, threshold pct/abs, ratchet, lag); tables đã merge
-  (`c959e7bb`). Nhưng **chưa có caller ngoài service** nào — `resolveFreightRate` và
-  `persistFreightRateSnapshot` chưa được gọi từ shipment-create / dispatch path. Phải
-  đợi T1 wire xong mới chuyển từ PARTIAL sang COVERED.
+- **F10 — engine runtime wiring — CLOSED cycle 3 (PM correction).** Initial grep
+  on engine function names (`resolveFreightRate` / `persistFreightRateSnapshot`) missed
+  the wiring layer. Real wiring lives in `lockShipmentFreightRate` at
+  `freight-rate-snapshot-lifecycle.service.ts:129`, called from 4 lifecycle sites:
+  `batchUpsertShipmentContainers` (`shipment-containers.service.ts:589`),
+  `updateShipment` + `updateCusShipmentContainerLine`
+  (`cus-shipment-workspace-writes.service.ts:640`), and `issueOrderCreateOrUpdate`
+  (`dispatch-planning-commands.service.ts:590`). `e12454cf`'s 400 redirect on
+  `containers[]` redirects callers to PUT `/:id/containers` precisely because that
+  path fires the FCL lock — which is why QA TC-CUOC-005 (container-appointment lag
+  edit) passed via the real API. Rows 2/3/4 §7 flipped PARTIAL → COVERED.
 - **F11 — T1 AC: soften engine 404 thành MANUAL fallback — CLOSED cycle 3.**
   Wrapper `resolveFreightRateWithManualFallback` at `freight-rate-snapshot-lifecycle.service.ts:77`
   wraps engine 404 → returns `source = 'MANUAL'` instead of throwing. Lifecycle test
@@ -201,8 +207,8 @@ và cập nhật trạng thái bằng evidence thật (test run ids, UI-DRIVEN s
 | MasterDataNhaMay | 13 | 11 | 2 | 0 | 0 |
 | LoHangKepKetHop | 12 | 12 | 0 | 0 | 0 |
 | OpsVanHanh | 17 | 17 | 0 | 0 | 0 |
-| `PhuongAnTinhCuocTuDong` *(2026-09-10, wave `run-1788968588650-mctezn`)* | 14 | 8 | 4 | 0 | 0 |
-| **Total** | **69** | **63** | **4** | **0** | **0** |
+| `PhuongAnTinhCuocTuDong` *(2026-09-10, wave `run-1788968588650-mctezn`)* | 14 | 11 | 1 | 0 | 0 |
+| **Total** | **69** | **66** | **1** | **0** | **0** |
 
 **F5 (MDN-11b nhãn "Chạy ngoài") — CLOSED cycle 3:** xem row 11b §2 + commit `ff48a8f5` + `428d705b`.
 
@@ -210,12 +216,12 @@ và cập nhật trạng thái bằng evidence thật (test run ids, UI-DRIVEN s
 
 **F7 (MDN-7 inactive-factory filter) — CLOSED 2026-09-10:** xem row 7 §2 + finding F7 + §6 mục 5.
 
-**Wave auto-pricing (2026-09-10, cycle 3 sweep):**
-- **8 COVERED** (UT engine parity + landed code/test evidence): rows 1 (công thức cốt lõi), 5 (F11 soften 404→MANUAL wrapper landed), 6 (override PATCH endpoint), 7 (fuel-price CRUD mounted), 9 (unique indexes landed), 10 (ad-hoc bypass), 11 (rounding HALF_UP), 12 (base_fuel_price scale 4).
-- **4 PARTIAL** (engine code-side có, chưa wired tại shipment-create): rows 2 (4 nhóm tham số A-D wiring), 3 (3-step engine wiring), 4 (snapshot persist wiring), 8 (config RBAC code landed, flows/07 matrix extension owed = F13).
+**Wave auto-pricing (2026-09-10, cycle 3 sweep + PM correction):**
+- **11 COVERED** (UT engine parity + landed code/test evidence): rows 1 (công thức cốt lõi), 2 (4 nhóm A-D wired via `lockShipmentFreightRate`), 3 (3-step engine wired at lifecycle sites), 4 (snapshot persist wired + QA TC-CUOC-005 passed), 5 (F11 soften 404→MANUAL wrapper), 6 (override PATCH endpoint), 7 (fuel-price CRUD mounted), 9 (unique indexes landed), 10 (ad-hoc bypass), 11 (rounding HALF_UP), 12 (base_fuel_price scale 4).
+- **1 PARTIAL** (config RBAC code landed + QA RBAC green, flows/07 matrix extension owed): row 8 (F13 still open).
 - **0 BLOCKED.**
 - **2 tracker rows**: 13 (open items, chờ KH reply `e3873fbc`), 14 (wave AC close-out).
-- **Findings:** F10 (engine runtime wiring pending — still open for rows 2/3/4), F11 **CLOSED cycle 3**, F12 (single-step ratchet — design note, no change), F13 (flows/07 RBAC matrix extension still owed). Chi tiết §7.1.
+- **Findings:** F10 **CLOSED cycle 3** (rows 2/3/4 wiring landed), F11 **CLOSED cycle 3**, F12 (single-step ratchet — design note, no change), F13 (flows/07 RBAC matrix extension still owed). Chi tiết §7.1.
 
 **Open items chờ KH/user** (tracker `e3873fbc`, không block code): Câu 5, lag ASKEY/SUNRISE+SJ, giá gốc 15T ×3 tuyến, threshold X/Z — xem [`PhuongAnTinhCuocTuDong.md`](../../docs/prd/PhuongAnTinhCuocTuDong.md) §4 và [`CuocPhiThietKeDB.md`](../../docs/prd/CuocPhiThietKeDB.md) §6.2.
 
