@@ -357,6 +357,10 @@ export const dispatchTaskTags = pgTable('dispatch_task_tags', {
   // POST always fills it with the requesting dispatcher.
   createdBy: integer('created_by'),
   isActive: boolean('is_active').notNull().default(true),
+  // 1–14 for the canonical operation-tag set (ticket a6cb2543, migration
+  // 0066). Null for dispatcher-added labels — they list after the canonical
+  // set, alphabetically.
+  displayOrder: integer('display_order'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 

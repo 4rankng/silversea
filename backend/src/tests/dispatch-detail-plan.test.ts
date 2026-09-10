@@ -2108,8 +2108,14 @@ describe('dispatch task tags and driver-note plan save', () => {
     const response = await tagFetch<{ items: Array<{ id: number; label: string }> }>('GET');
     assert.equal(response.status, 200);
     const labels = response.data.items.map((item) => item.label);
-    for (const seed of ['Đặt đầu', 'Đặt đuôi', 'Đảo vỏ', 'Gửi bãi', 'Lấy vỏ ICD đi đóng', 'Di động']) {
+    // 2026-09-10 (ticket a6cb2543, migration 0066): the pool is the canonical
+    // 14-tag operation set. The old lowercase taxonomy ("Đặt đầu", "Gửi bãi",
+    // …) was deactivated — its labels must NOT resurface.
+    for (const seed of ['HẾT HẠN', 'ĐẢO VỎ', 'ĐẶT ĐUÔI', 'ĐẶT ĐẦU', 'KIỂM HÓA', 'QUAY ĐẦU', 'GỬI VỎ BÃI ĐĂNG KHOA', 'QUÁ TẢI', 'ĐẢO HÀNG', 'HẠ VỎ ICD QUẾ VÕ', 'GẮP VỎ ICD QUẾ VÕ', 'GẮP VỎ BÃI ĐĂNG KHOA', 'HẠ VỎ BÃI TRI PHƯƠNG', 'GẮP VỎ BÃI TRI PHƯƠNG']) {
       assert.ok(labels.includes(seed), `seed tag ${seed} missing from pool`);
+    }
+    for (const retired of ['Đặt đầu', 'Gửi bãi', 'Trả vỏ', 'Di động']) {
+      assert.ok(!labels.includes(retired), `retired tag ${retired} resurfaced in pool`);
     }
   });
 

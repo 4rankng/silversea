@@ -435,6 +435,13 @@
       "when": 1789069200000,
       "tag": "0061_retire-container-edit-requests",
       "breakpoints": false
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1789046561939,
+      "tag": "0066_seed_canonical_operation_tags",
+      "breakpoints": true
     }
   ]
 }

@@ -10,6 +10,7 @@ import type { AuthUser } from '../middleware/auth';
 import {
   createDispatchTaskTag,
   deactivateDispatchTaskTag,
+  listDispatchTaskTags,
   normalizeDispatchTaskTagLabel,
   updateDispatchTaskTag,
 } from '../services/dispatch-task-tags.service';
@@ -62,6 +63,48 @@ after(async () => {
 });
 
 describe('dispatch-task-tags service', () => {
+  describe('listDispatchTaskTags (canonical operation-tag set, ticket a6cb2543)', () => {
+    it('lists the 14 canonical tags verbatim, in display order, first', async () => {
+      const { items } = await listDispatchTaskTags();
+      // Migration 0066 seeds the canonical set (display_order 1–14); any
+      // dispatcher-added labels list after it. A test-created tag could push
+      // extra tail items, so the pin is prefix-equality on the canonical 14.
+      const canonical = items.filter((item) => item.displayOrder != null).slice(0, 14);
+      assert.deepEqual(
+        canonical.map((item) => item.label),
+        [
+          'HẾT HẠN',
+          'ĐẢO VỎ',
+          'ĐẶT ĐUÔI',
+          'ĐẶT ĐẦU',
+          'KIỂM HÓA',
+          'QUAY ĐẦU',
+          'GỬI VỎ BÃI ĐĂNG KHOA',
+          'QUÁ TẢI',
+          'ĐẢO HÀNG',
+          'HẠ VỎ ICD QUẾ VÕ',
+          'GẮP VỎ ICD QUẾ VÕ',
+          'GẮP VỎ BÃI ĐĂNG KHOA',
+          'HẠ VỎ BÃI TRI PHƯƠNG',
+          'GẮP VỎ BÃI TRI PHƯƠNG',
+        ],
+      );
+      assert.deepEqual(
+        canonical.map((item) => item.displayOrder),
+        Array.from({ length: 14 }, (_, i) => i + 1),
+      );
+    });
+
+    it('lists dispatcher-added labels after the canonical set, alphabetically', async () => {
+      const extra = await mkTag(uniq('zz canonical tail'));
+      const { items } = await listDispatchTaskTags();
+      const canonicalCount = items.filter((item) => item.displayOrder != null).length;
+      const tail = items.slice(canonicalCount);
+      assert.ok(tail.some((item) => item.id === extra.id));
+      assert.equal(items.find((item) => item.id === extra.id)?.displayOrder ?? null, null);
+    });
+  });
+
   describe('createDispatchTaskTag', () => {
     it('creates a tag with trimmed label, normalized key, and author', async () => {
       const label = uniq('Giao bãi');
