@@ -313,7 +313,7 @@ cước riêng, sẽ bổ sung khi T2 land.
 > |---|---|---|
 > | Lag ASKEY / SUNRISE+SJ | **`fuel_lag_days = 0`** | Theo docx §2A example N=0 ("khách áp dụng ngay"); user edit khi KH cung cấp số thật |
 > | Threshold X / Z | **`surcharge_threshold_pct = 5%` / `surcharge_threshold_abs = 1500đ` / `NULL`** | DEMO ladder: 5% pct cho NEWEB, 1500đ abs cho ASKEY, NULL (always-adjust) cho SUNRISE+SJ. Prod awaiting real customer values |
-> | 15T base price ×3 | **3.500.000đ (NEWEB) / 3.400.000đ (ASKEY/SUNRISE+SJ)** | DEMO ladder seeded for dev/staging; MANUAL fallback仍works if missing (TC-CUOC-015). Prod awaiting real customer values |
+> | 15T base price ×3 | **3.500.000đ (NEWEB) / 3.400.000đ (ASKEY/SUNRISE+SJ)** | DEMO ladder seeded for dev/staging; MANUAL fallback vẫn works if missing (TC-CUOC-015). Prod awaiting real customer values |
 > | Câu 5 (other customers) | **assumed (A) only Long Minh** | Schema + engine đáp ứng Long Minh duy nhất; khách khác tiếp tục nhập tay. Nếu KH = (B), reopen thêm cột `pricing_model` + UI |
 >
 > Các mục dưới vẫn được track open (KH có thể reply bất cứ lúc nào) nhưng **không
@@ -343,7 +343,7 @@ cước riêng, sẽ bổ sung khi T2 land.
 
 - **DEMO value (active on dev/staging): `pricing_tables.base_price = 3.500.000đ` (NEWEB) /
   `3.400.000đ` (ASKEY/SUNRISE+SJ)** — DEMO ladder seeded for dev/staging. MANUAL fallback
- 仍works when base price is missing (TC-CUOC-015 PASS, Kế toán nhập tay trên chứng từ).
+ vẫn works when base price is missing (TC-CUOC-015 PASS, Kế toán nhập tay trên chứng từ).
   Prod awaits real customer values.
 - Ảnh hưởng nếu KH cung cấp: update 3 dòng `pricing_tables` qua T2; snapshot cũ giữ
   nguyên (no-retro theo Câu 2 = A).

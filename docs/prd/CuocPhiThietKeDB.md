@@ -440,7 +440,7 @@ Lưu **cả 4 id tham số** ⇒ trả lời được câu "vì sao lô này 5.0
    Prod awaits real customer values.
 8. **Giá gốc 15T × 3 tuyến.** DEMO value (active on dev/staging): **3.500.000đ (NEWEB) /
    3.400.000đ (ASKEY/SUNRISE+SJ)** — DEMO ladder seeded for dev/staging. MANUAL fallback
-  仍works when base price is missing (testplan `TC-CUOC-015`), không phải thiếu sót —
+  vẫn works when base price is missing (testplan `TC-CUOC-015`), không phải thiếu sót —
    tạo lô vẫn proceed, Kế toán nhập tay trên chứng từ. Prod awaits real customer values.
 9. **Threshold values X / Z cho từng khách.** DEMO value (active on dev/staging):
    **`surcharge_threshold_pct = 5%` (NEWEB) / `surcharge_threshold_abs = 1500đ` (ASKEY) /
@@ -453,4 +453,4 @@ Lưu **cả 4 id tham số** ⇒ trả lời được câu "vì sao lô này 5.0
 > (3.500.000đ NEWEB / 3.400.000đ ASKEY/SUNRISE+SJ) trên dev/staging. Prod awaits real
 > customer values. Schema và công thức chạy bình thường; chỉ cần cập nhật số khi
 > khách cung cấp. Cho đến lúc đó, `resolveFreightRate()` dùng DEMO ladder hoặc rơi về
-> nhánh **MANUAL** nếu缺少 (testplan `TC-CUOC-015`).
+> nhánh **MANUAL** nếu thiếu (testplan `TC-CUOC-015`).
