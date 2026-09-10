@@ -86,7 +86,6 @@ export const IDEMPOTENCY_ENDPOINTS = {
   SHIPMENT_CUS_DOCUMENT_CUSTODY_UPDATE: 'shipments.cus.document-custody.update',
   SHIPMENT_CUS_LOCK: 'shipments.cus.lock',
   SHIPMENT_CUS_REOPEN_REQUEST: 'shipments.cus.reopen-request',
-  SHIPMENT_CUS_REOPEN_DECISION: 'shipments.cus.reopen-decision',
   SHIPMENT_RECOVERY_RECORD: 'shipments.recovery.record',
   CARRIER_FLEET_VEHICLE_CREATE: 'shipments.carrier-fleet-vehicles.create',
   CARRIER_FLEET_VEHICLE_UPDATE: 'shipments.carrier-fleet-vehicles.update',

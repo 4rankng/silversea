@@ -116,7 +116,6 @@ const MATERIAL_WRITE_RULES: readonly MaterialWriteRule[] = [
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_CUS_DOCUMENT_CUSTODY_UPDATE, pattern: /^\/api\/shipments\/cus-workspace\/[^/]+\/document-custody$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_CUS_LOCK, pattern: /^\/api\/shipments\/cus-workspace\/[^/]+\/lock$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_CUS_REOPEN_REQUEST, pattern: /^\/api\/shipments\/cus-workspace\/[^/]+\/reopen-requests$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_CUS_REOPEN_DECISION, pattern: /^\/api\/shipments\/cus-workspace\/[^/]+\/reopen-requests\/[^/]+\/decision$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_DELETE_REQUEST, pattern: /^\/api\/shipments\/cus-workspace\/[^/]+\/delete-request$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_DELETE_REQUEST_DECISION, pattern: /^\/api\/shipments\/cus-workspace\/[^/]+\/delete-requests\/[^/]+\/decision$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_RECOVERY_RECORD, pattern: /^\/api\/shipments\/[^/]+\/recovery-facts$/ },

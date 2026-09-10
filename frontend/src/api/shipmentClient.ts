@@ -855,19 +855,6 @@ export async function requestShipmentDelete(
   );
 }
 
-export async function decideShipmentDeleteRequest(
-  shipmentId: number,
-  actionId: number,
-  decision: 'APPROVE' | 'REJECT',
-  expectedVersion: number,
-  reason: string,
-): Promise<{ deleted: boolean }> {
-  return api.post<{ deleted: boolean }>(
-    `/shipments/cus-workspace/${shipmentId}/delete-requests/${actionId}/decision`,
-    { decision, expectedVersion, reason },
-  );
-}
-
 export async function reviewShipmentPod(
   shipmentId: number,
   submissionId: number,

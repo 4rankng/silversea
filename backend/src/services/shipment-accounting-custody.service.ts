@@ -2,7 +2,7 @@
 // request/decision governance flow (including Debit Note reconciliation on
 // reopen). Extracted from shipment-accounting-lock.service.ts verbatim (pure
 // code movement).
-import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { NotificationType, Role } from '@tingting/shared';
 import type {
   ShipmentCusDocumentCustodyUpdateInput,
@@ -17,8 +17,6 @@ import type { AuthUser } from '../middleware/auth';
 import type { Tx } from './trip-shared';
 import { persistNotificationInTx } from './notification.service';
 import {
-  SHIPMENT_REOPEN_REQUEST_KIND,
-  ACTIVE_GOVERNANCE_STATUSES,
   SHIPMENT_ACCOUNTING_LOCKED_MESSAGE,
   readNumber,
   lockShipment,
@@ -157,6 +155,7 @@ export async function activateShipmentAccountingLock(args: {
   return runInTx(args.transaction, execute);
 }
 
+
 export async function requestShipmentReopen(args: {
   shipmentId: number;
   input: ShipmentCusReopenRequestInput;
@@ -167,6 +166,11 @@ export async function requestShipmentReopen(args: {
     throw new ApiError(403, 'Chỉ CUS được gửi đề nghị điều chỉnh lô đã khóa.');
   }
 
+  // 2026-09-10 user directive: the phê duyệt step is removed — a reopen
+  // request takes effect immediately. The lock release, Debit Note
+  // reconciliation flag, audit log, and notification mirror what the old
+  // ADMIN approval used to apply; audit history rides on the released lock
+  // row and the audit-log entry below.
   const execute = async (tx: Tx) => {
     const shipment = await lockShipment(tx, args.shipmentId);
     if (shipment.version !== args.input.expectedShipmentVersion) {
@@ -178,127 +182,24 @@ export async function requestShipmentReopen(args: {
       throw new ApiError(409, 'Khóa lô hiện hành không còn hợp lệ. Vui lòng tải lại.');
     }
 
-    const [pending] = await tx.select().from(s.governanceActions)
-      .where(and(
-        eq(s.governanceActions.subjectType, 'SHIPMENT'),
-        eq(s.governanceActions.subjectId, shipment.id),
-        eq(s.governanceActions.actionKind, SHIPMENT_REOPEN_REQUEST_KIND),
-        inArray(s.governanceActions.status, [...ACTIVE_GOVERNANCE_STATUSES]),
-      ))
-      .orderBy(desc(s.governanceActions.id))
-      .limit(1)
-      .for('update');
-    if (pending) {
-      return { action: pending, replayed: true };
-    }
-
-    const [action] = await tx.insert(s.governanceActions).values({
-      subjectType: 'SHIPMENT',
-      subjectId: shipment.id,
-      actionKind: SHIPMENT_REOPEN_REQUEST_KIND,
-      status: 'PENDING_APPROVAL',
-      reason: args.input.reason,
-      originalVersion: shipment.version,
-      beforeSnapshot: {
-        activeLockId: activeLock.id,
-        confirmationActionId: activeLock.confirmationActionId,
-        billingDocumentId: activeLock.billingDocumentId,
-      },
-      afterSnapshot: {
-        state: 'REOPEN_REQUESTED',
-      },
-      deltaSnapshot: {
-        activeLockId: activeLock.id,
-      },
-      makerId: args.actor.userId,
-      makerRole: args.actor.role,
-    }).returning();
-    return { action, replayed: false };
-  };
-  return runInTx(args.transaction, execute);
-}
-
-export async function decideShipmentReopen(args: {
-  shipmentId: number;
-  actionId: number;
-  input: ShipmentCusReopenDecisionInput;
-  actor: AuthUser;
-  transaction?: Tx;
-}) {
-  if (args.actor.role !== Role.ADMIN) {
-    throw new ApiError(403, 'Chỉ ADMIN được xử lý đề nghị điều chỉnh lô đã khóa.');
-  }
-
-  const execute = async (tx: Tx) => {
-    const [action] = await tx.select().from(s.governanceActions)
-      .where(eq(s.governanceActions.id, args.actionId))
-      .limit(1)
-      .for('update');
-    if (
-      !action
-      || action.subjectType !== 'SHIPMENT'
-      || action.subjectId !== args.shipmentId
-      || action.actionKind !== SHIPMENT_REOPEN_REQUEST_KIND
-    ) {
-      throw new ApiError(404, 'Không tìm thấy đề nghị điều chỉnh của lô hàng');
-    }
-    if (action.version !== args.input.expectedVersion) {
-      throw new ApiError(409, 'Đề nghị đã được người khác xử lý. Vui lòng tải lại.');
-    }
-    if (action.status !== 'PENDING_APPROVAL') {
-      throw new ApiError(409, 'Đề nghị không còn ở trạng thái chờ ADMIN xử lý.');
-    }
-
     const now = new Date();
-    if (args.input.decision === 'REJECT') {
-      const [rejected] = await tx.update(s.governanceActions).set({
-        status: 'REJECTED',
-        rejectedBy: args.actor.userId,
-        rejectedRole: args.actor.role,
-        rejectedAt: now,
-        rejectionReason: args.input.reason,
-        updatedAt: now,
-        version: sql`${s.governanceActions.version} + 1`,
-      }).where(and(
-        eq(s.governanceActions.id, action.id),
-        eq(s.governanceActions.status, 'PENDING_APPROVAL'),
-        eq(s.governanceActions.version, args.input.expectedVersion),
-      )).returning();
-      if (!rejected) {
-        throw new ApiError(409, 'Đề nghị đã được người khác xử lý. Vui lòng tải lại.');
-      }
-      return rejected;
-    }
-
-    const shipment = await lockShipment(tx, args.shipmentId);
-    if (shipment.version !== action.originalVersion) {
-      throw new ApiError(409, 'Lô hàng đã thay đổi sau khi gửi đề nghị. Vui lòng tạo lại đề nghị mới.');
-    }
-    const activeLock = await loadActiveLockForUpdate(tx, shipment.id);
-    const before = action.beforeSnapshot as Record<string, unknown> | null;
-    const expectedLockId = readNumber(before, 'activeLockId');
-    if (!activeLock || expectedLockId == null || activeLock.id !== expectedLockId) {
-      throw new ApiError(409, 'Khóa lô hiện hành không còn khớp với đề nghị điều chỉnh.');
-    }
-
     await tx.update(s.shipmentAccountingLocks).set({
       releasedAt: now,
       releasedBy: args.actor.userId,
-      releaseGovernanceActionId: action.id,
       releaseReason: args.input.reason,
     }).where(eq(s.shipmentAccountingLocks.id, activeLock.id));
 
-    const reconciliationReason = `Lô ${shipment.shipmentCode ?? `#${shipment.id}`} đã được ADMIN mở lại theo đề nghị #${action.id}. Debit Note cần đối soát lại trước khi xác nhận tài chính mới.`;
+    const reopenedBy = args.actor.fullName ?? args.actor.username ?? 'CUS';
+    const reconciliationReason = `Lô ${shipment.shipmentCode ?? `#${shipment.id}`} đã được mở lại theo yêu cầu của ${reopenedBy}. Debit Note cần đối soát lại trước khi xác nhận tài chính mới.`;
     const [reconciliationDocument] = await tx.update(s.billingDocuments).set({
-      version: sql`${s.billingDocuments.version} + 1`,
+      version: sql`version + 1`,
       authorityState: 'ADJUSTMENT_REQUIRED',
       authorityWarningReason: reconciliationReason,
       authorityWarningAt: now,
       updatedAt: now,
-    }).where(and(
+    }).where(
       eq(s.billingDocuments.id, activeLock.billingDocumentId),
-      isNull(s.billingDocuments.deletedAt),
-    )).returning({
+    ).returning({
       id: s.billingDocuments.id,
       version: s.billingDocuments.version,
       authorityState: s.billingDocuments.authorityState,
@@ -309,14 +210,13 @@ export async function decideShipmentReopen(args: {
 
     await tx.insert(s.auditLogs).values({
       userId: args.actor.userId,
-      actorName: args.actor.fullName ?? args.actor.username,
+      actorName: reopenedBy,
       message: reconciliationReason,
       entityType: 'billing-document-source-change',
       entityId: reconciliationDocument.id,
       payload: {
         sourceType: 'SHIPMENT_REOPEN',
         shipmentId: shipment.id,
-        governanceActionId: action.id,
         releasedLockId: activeLock.id,
         invalidatedConfirmationId: activeLock.confirmationActionId,
         billingDocumentVersion: reconciliationDocument.version,
@@ -337,34 +237,18 @@ export async function decideShipmentReopen(args: {
       args.actor.userId,
     );
 
-    const [approved] = await tx.update(s.governanceActions).set({
-      status: 'APPROVED',
-      approverId: args.actor.userId,
-      approverRole: args.actor.role,
-      approvedAt: now,
-      appliedAt: now,
-      applicationResult: {
-        releasedLockId: activeLock.id,
-        invalidatedConfirmationId: activeLock.confirmationActionId,
-        resultingShipmentVersion: nextShipmentVersion,
-        reconciliation: {
-          billingDocumentId: reconciliationDocument.id,
-          billingDocumentVersion: reconciliationDocument.version,
-          authorityState: reconciliationDocument.authorityState,
-          reason: reconciliationReason,
-        },
+    return {
+      reopened: true,
+      releasedLockId: activeLock.id,
+      invalidatedConfirmationId: activeLock.confirmationActionId,
+      resultingShipmentVersion: nextShipmentVersion,
+      reconciliation: {
+        billingDocumentId: reconciliationDocument.id,
+        billingDocumentVersion: reconciliationDocument.version,
+        authorityState: reconciliationDocument.authorityState,
+        reason: reconciliationReason,
       },
-      updatedAt: now,
-      version: sql`${s.governanceActions.version} + 1`,
-    }).where(and(
-      eq(s.governanceActions.id, action.id),
-      eq(s.governanceActions.status, 'PENDING_APPROVAL'),
-      eq(s.governanceActions.version, args.input.expectedVersion),
-    )).returning();
-    if (!approved) {
-      throw new ApiError(409, 'Đề nghị đã được người khác xử lý. Vui lòng tải lại.');
-    }
-    return approved;
+    };
   };
   return runInTx(args.transaction, execute);
 }
