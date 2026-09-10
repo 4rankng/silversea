@@ -264,6 +264,10 @@ describe('RecoverableCostsPage', () => {
     expect(ledgerStyles).toMatch(/__ledger td\.num,\.recoverable-costs__ledger td \.recoverable-costs__money\{white-space:nowrap\}/);
   });
 
+  // 15s budget (default 5s): five sequential async waits + double 25-row
+  // table renders exceed the default under full-suite CPU contention — the
+  // 2026-09-10 load-flake (timed out twice in the suite, never isolated).
+  // Assertions untouched; only the budget grows.
   it('sends sortBy/sortDir on header clicks, toggles asc → desc, and resets to page 1', async () => {
     listRecoverableCostsMock.mockResolvedValue({
       items: Array.from({ length: 25 }, (_, index) => makeCost({ id: index + 1 })),
@@ -294,7 +298,7 @@ describe('RecoverableCostsPage', () => {
     fireEvent.click(within(ledger).getByRole('button', { name: 'Trạng thái' }));
     await waitFor(() => expect(listRecoverableCostsMock).toHaveBeenLastCalledWith({ page: 1, limit: 25, approvalStatus: undefined, sortBy: 'eligibility', sortDir: 'asc' }));
     expect(within(ledger).getByRole('columnheader', { name: 'Trạng thái' }).getAttribute('aria-sort')).toBe('ascending');
-  });
+  }, 15_000);
 
   // P0-W4: per-role page framing. CUS sees the per-shipment collection list
   // ("Chi phí thu hộ cần đối soát"); Accountant/Admin/Manager see the
