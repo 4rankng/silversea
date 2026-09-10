@@ -422,12 +422,14 @@ export const GOVERNANCE_POLICY_CATALOG: Readonly<
   SALARY_PERIOD_CLOSE: {
     actionKind: 'SALARY_PERIOD_CLOSE',
     subjectType: 'SALARY_PERIOD',
+    // 2026-09-10 (phê duyệt removed): the close applies at request with the
+    // requesting actor, so a single role must be able to run the whole
+    // chain — stage role lists are dropped and stages gate on capability
+    // only. MANAGER/ADMIN (PERIOD_CLOSE_APPROVE) close directly; an
+    // accountant who can make the request cannot self-apply it.
     makerCapability: 'GOVERNANCE_CREATE',
     checkerCapability: 'FINANCE_CHECK',
     approverCapability: 'PERIOD_CLOSE_APPROVE',
-    makerRoles: [Role.ACCOUNTANT],
-    checkerRoles: [Role.MANAGER, Role.ADMIN],
-    approverRoles: [Role.MANAGER, Role.ADMIN],
     requiresReason: true,
     requiresEvidence: false,
     evidenceFields: [],

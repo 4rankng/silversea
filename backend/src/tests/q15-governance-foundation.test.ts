@@ -222,14 +222,18 @@ describe('Q15 shared governance foundation', () => {
   });
 
   it('enforces the accepted Q11 salary-period role mapping', async () => {
+    // 2026-09-10 (phê duyệt removed): SALARY_PERIOD_CLOSE stages gate on
+    // capability only — the maker role list is gone so a single actor
+    // (MANAGER/ADMIN holding PERIOD_CLOSE_APPROVE) can run the whole chain.
+    // ACCOUNTANT can still make the request but cannot approve it.
     assert.doesNotThrow(() => assertCanMakeGovernanceAction(
       'SALARY_PERIOD_CLOSE',
       Role.ACCOUNTANT,
     ));
-    assert.throws(
-      () => assertCanMakeGovernanceAction('SALARY_PERIOD_CLOSE', Role.MANAGER),
-      (error: unknown) => error instanceof ApiError && error.statusCode === 403,
-    );
+    assert.doesNotThrow(() => assertCanMakeGovernanceAction(
+      'SALARY_PERIOD_CLOSE',
+      Role.MANAGER,
+    ));
 
     const closeAction = {
       actionKind: 'SALARY_PERIOD_CLOSE',

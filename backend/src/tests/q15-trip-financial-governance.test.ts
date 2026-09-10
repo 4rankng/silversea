@@ -399,14 +399,10 @@ describe('Q15 trip financial governance', () => {
     assert.equal(pending.version, expense.version);
     assert.equal((await ledgerRows(trip.id)).length, 0);
 
-    const selfCheck = await api(
-      'POST',
-      `/api/governance-actions/${requested.body.id}/check`,
-      { expectedVersion: requested.body.version },
-      0,
-      `q15-office-self-check-${suffix}`,
-    );
-    assert.equal(selfCheck.status, 403);
+    // 2026-09-10 (phê duyệt segregation removed): the maker may check their
+    // own request and any capability holder may approve — the old
+    // self-check/checker-approve 403 pins are gone. The expense stays
+    // unapplied until a check transitions the action.
     const checked = await api(
       'POST',
       `/api/governance-actions/${requested.body.id}/check`,
@@ -415,14 +411,6 @@ describe('Q15 trip financial governance', () => {
       `q15-office-check-${suffix}`,
     );
     assert.equal(checked.status, 200);
-    const checkerApprove = await api(
-      'POST',
-      `/api/governance-actions/${requested.body.id}/approve`,
-      { expectedVersion: checked.body.version },
-      1,
-      `q15-office-checker-approve-${suffix}`,
-    );
-    assert.equal(checkerApprove.status, 403);
     const approvals = await Promise.all([
       api(
         'POST',
@@ -595,20 +583,13 @@ describe('Q15 trip financial governance', () => {
       trip.id,
     ));
 
-    const selfCheck = await api('POST', `/api/governance-actions/${close.body.id}/check`, {
-      expectedVersion: close.body.version,
-    }, 1, `q15-close-self-check-${suffix}`);
-    assert.equal(selfCheck.status, 403);
-
+    // 2026-09-10 (phê duyệt segregation removed): self-check and
+    // checker-approve 403 pins are gone — the staged flow remains, with
+    // check then first-approver-wins.
     const checked = await api('POST', `/api/governance-actions/${close.body.id}/check`, {
       expectedVersion: close.body.version,
     }, 0, `q15-close-check-${suffix}`);
     assert.equal(checked.status, 200);
-
-    const checkerApprove = await api('POST', `/api/governance-actions/${close.body.id}/approve`, {
-      expectedVersion: checked.body.version,
-    }, 0, `q15-close-checker-approve-${suffix}`);
-    assert.equal(checkerApprove.status, 403);
 
     const approveKeyA = `q15-close-approve-a-${suffix}`;
     const approveKeyB = `q15-close-approve-b-${suffix}`;

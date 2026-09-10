@@ -351,9 +351,9 @@ export async function checkSalaryPeriodAdjustment(input: {
     if (existing.version !== input.expectedVersion) {
       throw new ApiError(409, 'Điều chỉnh hậu chốt đã được cập nhật. Vui lòng tải lại.');
     }
-    if (existing.makerId === input.actorId) {
-      throw new ApiError(409, 'Người tạo điều chỉnh không được tự kiểm tra yêu cầu của mình');
-    }
+    // 2026-09-10 (phê duyệt removed): maker self-check is the contract — the
+    // requesting actor runs the check and approve stages immediately, so the
+    // old maker≠checker segregation assert is gone.
     if (existing.status !== 'PENDING_CHECK') {
       throw new ApiError(
         409,
@@ -429,9 +429,8 @@ export async function approveSalaryPeriodAdjustment(input: {
     if (existing.version !== input.expectedVersion) {
       throw new ApiError(409, 'Điều chỉnh hậu chốt đã được cập nhật. Vui lòng tải lại.');
     }
-    if (existing.makerId === input.actorId || existing.checkerId === input.actorId) {
-      throw new ApiError(409, 'Người tạo hoặc người kiểm tra không được tự phê duyệt điều chỉnh hậu chốt');
-    }
+    // 2026-09-10 (phê duyệt removed): the maker/checker self-approval guard is
+    // gone — the requesting actor runs make+check+approve in one transaction.
     if (existing.status !== 'PENDING_APPROVAL') {
       throw new ApiError(
         409,

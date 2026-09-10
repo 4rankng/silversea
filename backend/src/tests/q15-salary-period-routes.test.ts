@@ -313,70 +313,39 @@ describe('Q15 salary-period governed routes', () => {
     assert.match(String(missingCloseKey.body.error), /Idempotency-Key/i);
 
     const closeRequestKey = `q15-close-request-${period}`;
+    // 2026-09-10 (phê duyệt removed, chunk 3): the close request applies
+    // immediately — status APPROVED and the period is CLOSED in one call.
+    // The single actor must hold the full capability chain (PERIOD_CLOSE_APPROVE),
+    // so the closer is the manager.
     const requested = await postSalary(
       `/periods/${period}/close`,
       { note: 'Q15 route close request' },
-      accountant,
+      checker,
       closeRequestKey,
     );
     assert.equal(requested.status, 201);
-    assert.equal(requested.body.status, 'PENDING_CHECK');
+    assert.equal(requested.body.status, 'APPROVED');
     createdGovernanceActionIds.push(Number(requested.body.id));
+    closePeriods.add(period);
 
     const replayedRequest = await postSalary(
       `/periods/${period}/close`,
       { note: 'Q15 route close request' },
-      accountant,
+      checker,
       closeRequestKey,
     );
     assert.equal(replayedRequest.status, 200);
     assert.equal(replayedRequest.body.replayed, true);
 
+    // The staged check endpoint is a dead path on an applied action: 409.
     const selfCheck = await postSalary(
       `/periods/${period}/close-actions/${requested.body.id}/check`,
       { expectedVersion: Number(requested.body.version) },
-      accountant,
+      checker,
       `q15-close-self-check-${period}`,
     );
-    assert.equal(selfCheck.status, 403);
+    assert.equal(selfCheck.status, 409);
 
-    const closeCheckKey = `q15-close-check-${period}`;
-    const checked = await postSalary(
-      `/periods/${period}/close-actions/${requested.body.id}/check`,
-      { expectedVersion: Number(requested.body.version) },
-      checker,
-      closeCheckKey,
-    );
-    assert.equal(checked.status, 200);
-    assert.equal(checked.body.status, 'PENDING_APPROVAL');
-
-    const replayedCheck = await postSalary(
-      `/periods/${period}/close-actions/${requested.body.id}/check`,
-      { expectedVersion: Number(requested.body.version) },
-      checker,
-      closeCheckKey,
-    );
-    assert.equal(replayedCheck.status, 200);
-    assert.equal(replayedCheck.body.replayed, true);
-
-    const selfApprove = await postSalary(
-      `/periods/${period}/close-actions/${requested.body.id}/approve`,
-      { expectedVersion: Number(checked.body.version) },
-      checker,
-      `q15-close-self-approve-${period}`,
-    );
-    assert.equal(selfApprove.status, 403);
-
-    const closeApproveKey = `q15-close-approve-${period}`;
-    const approved = await postSalary(
-      `/periods/${period}/close-actions/${requested.body.id}/approve`,
-      { expectedVersion: Number(checked.body.version) },
-      firstApprover,
-      closeApproveKey,
-    );
-    assert.equal(approved.status, 200);
-    closePeriods.add(period);
-    assert.equal(approved.body.status, 'APPROVED');
     const [closedRow] = await db.select({
       status: s.salaryPeriodCloses.status,
       version: s.salaryPeriodCloses.version,
@@ -387,15 +356,6 @@ describe('Q15 salary-period governed routes', () => {
     assert.equal(closedRow?.status, 'CLOSED');
     assert.ok(Number(closedRow?.version) >= 1);
 
-    const replayedApprove = await postSalary(
-      `/periods/${period}/close-actions/${requested.body.id}/approve`,
-      { expectedVersion: Number(checked.body.version) },
-      firstApprover,
-      closeApproveKey,
-    );
-    assert.equal(replayedApprove.status, 200);
-    assert.equal(replayedApprove.body.replayed, true);
-
     const reopenRequestKey = `q15-reopen-request-${period}`;
     const reopenRequested = await postSalary(
       `/periods/${period}/reopen`,
@@ -404,7 +364,7 @@ describe('Q15 salary-period governed routes', () => {
       reopenRequestKey,
     );
     assert.equal(reopenRequested.status, 201);
-    assert.equal(reopenRequested.body.status, 'PENDING_CHECK');
+    assert.equal(reopenRequested.body.status, 'APPROVED');
     createdGovernanceActionIds.push(Number(reopenRequested.body.id));
 
     const replayedReopenRequest = await postSalary(
@@ -416,48 +376,11 @@ describe('Q15 salary-period governed routes', () => {
     assert.equal(replayedReopenRequest.status, 200);
     assert.equal(replayedReopenRequest.body.replayed, true);
 
-    const reopenCheckKey = `q15-reopen-check-${period}`;
-    const reopenChecked = await postSalary(
-      `/periods/${period}/reopen-actions/${reopenRequested.body.id}/check`,
-      { expectedVersion: Number(reopenRequested.body.version) },
-      checker,
-      reopenCheckKey,
-    );
-    assert.equal(reopenChecked.status, 200);
-    assert.equal(reopenChecked.body.status, 'PENDING_APPROVAL');
-
-    const replayedReopenCheck = await postSalary(
-      `/periods/${period}/reopen-actions/${reopenRequested.body.id}/check`,
-      { expectedVersion: Number(reopenRequested.body.version) },
-      checker,
-      reopenCheckKey,
-    );
-    assert.equal(replayedReopenCheck.status, 200);
-    assert.equal(replayedReopenCheck.body.replayed, true);
-
-    const reopenApproveKey = `q15-reopen-approve-${period}`;
-    const reopened = await postSalary(
-      `/periods/${period}/reopen-actions/${reopenRequested.body.id}/approve`,
-      { expectedVersion: Number(reopenChecked.body.version) },
-      secondApprover,
-      reopenApproveKey,
-    );
-    assert.equal(reopened.status, 200);
-    assert.equal(reopened.body.status, 'APPROVED');
     const [reopenedRow] = await db.select({ status: s.salaryPeriodCloses.status })
       .from(s.salaryPeriodCloses)
       .where(eq(s.salaryPeriodCloses.period, period))
       .limit(1);
     assert.equal(reopenedRow?.status, 'REOPENED');
-
-    const replayedReopenApprove = await postSalary(
-      `/periods/${period}/reopen-actions/${reopenRequested.body.id}/approve`,
-      { expectedVersion: Number(reopenChecked.body.version) },
-      secondApprover,
-      reopenApproveKey,
-    );
-    assert.equal(replayedReopenApprove.status, 200);
-    assert.equal(replayedReopenApprove.body.replayed, true);
   });
 
   it('replays salary-period adjustment request/check/approve and rejects stale source versions', async () => {
@@ -479,7 +402,7 @@ describe('Q15 salary-period governed routes', () => {
         reason: 'Phiên bản cũ',
         expectedVersion: 1,
       },
-      accountant,
+      checker,
       `q15-adjust-stale-${sourcePeriod}`,
     );
     assert.equal(stale.status, 201);
@@ -499,7 +422,7 @@ describe('Q15 salary-period governed routes', () => {
         reason: 'Nguồn đã đổi',
         expectedVersion: 1,
       },
-      accountant,
+      checker,
       `q15-adjust-stale-conflict-${sourcePeriod}`,
     );
     assert.equal(staleConflict.status, 409);
@@ -516,12 +439,15 @@ describe('Q15 salary-period governed routes', () => {
         reason: 'Thiếu khóa điều chỉnh',
         expectedVersion: 1,
       },
-      accountant,
+      checker,
     );
     assert.equal(missingAdjustmentKey.status, 400);
     assert.match(String(missingAdjustmentKey.body.error), /Idempotency-Key/i);
 
     const requestKey = `q15-adjust-request-${freshPeriod}`;
+    // 2026-09-10 (phê duyệt removed, chunk 3): the adjustment applies at
+    // request — status APPROVED, the salary_period_adjustments row exists.
+    // The single actor needs FINANCE_APPROVE_DIRECTOR, hence the manager.
     const requested = await postSalary(
       `/periods/${freshPeriod}/adjustments`,
       {
@@ -531,12 +457,17 @@ describe('Q15 salary-period governed routes', () => {
         reason: 'Bổ sung công sau khi chốt',
         expectedVersion: 1,
       },
-      accountant,
+      checker,
       requestKey,
     );
     assert.equal(requested.status, 201);
-    assert.equal(requested.body.status, 'PENDING_CHECK');
+    assert.equal(requested.body.status, 'APPROVED');
     createdGovernanceActionIds.push(Number(requested.body.actionId));
+    const appliedAdjustments = await db.select()
+      .from(s.salaryPeriodAdjustments)
+      .where(eq(s.salaryPeriodAdjustments.governanceActionId, Number(requested.body.actionId)));
+    assert.equal(appliedAdjustments.length, 1);
+    createdAdjustmentIds.push(appliedAdjustments[0]!.id);
 
     const wrongPeriod = `${Number(freshPeriod.slice(0, 4)) + 1}-${freshPeriod.slice(5)}`;
     const wrongPeriodCheck = await postSalary(
@@ -556,75 +487,35 @@ describe('Q15 salary-period governed routes', () => {
         reason: 'Bổ sung công sau khi chốt',
         expectedVersion: 1,
       },
-      accountant,
+      checker,
       requestKey,
     );
     assert.equal(replayedRequest.status, 200);
     assert.equal(replayedRequest.body.replayed, true);
 
-    const checkKey = `q15-adjust-check-${freshPeriod}`;
+    // The staged check/approve endpoints are dead paths on an applied action.
     const checked = await postSalary(
       `/periods/${freshPeriod}/adjustments/${requested.body.actionId}/check`,
       { expectedVersion: Number(requested.body.version) },
       checker,
-      checkKey,
+      `q15-adjust-check-${freshPeriod}`,
     );
-    assert.equal(checked.status, 200);
-    assert.equal(checked.body.status, 'PENDING_APPROVAL');
-
-    const replayedCheck = await postSalary(
-      `/periods/${freshPeriod}/adjustments/${requested.body.actionId}/check`,
-      { expectedVersion: Number(requested.body.version) },
-      checker,
-      checkKey,
-    );
-    assert.equal(replayedCheck.status, 200);
-    assert.equal(replayedCheck.body.replayed, true);
-
-    const selfApprove = await postSalary(
-      `/periods/${freshPeriod}/adjustments/${requested.body.actionId}/approve`,
-      { expectedVersion: Number(checked.body.version) },
-      checker,
-      `q15-adjust-self-approve-${freshPeriod}`,
-    );
-    assert.equal(selfApprove.status, 409);
-
-    const wrongPeriodApprove = await postSalary(
-      `/periods/${wrongPeriod}/adjustments/${requested.body.actionId}/approve`,
-      { expectedVersion: Number(checked.body.version) },
-      approver,
-      `q15-adjust-wrong-period-approve-${freshPeriod}`,
-    );
-    assert.equal(wrongPeriodApprove.status, 404);
-    const adjustmentsBeforeBoundApproval = await db.select()
-      .from(s.salaryPeriodAdjustments)
-      .where(eq(s.salaryPeriodAdjustments.governanceActionId, Number(requested.body.actionId)));
-    assert.equal(adjustmentsBeforeBoundApproval.length, 0);
-
-    const approveKey = `q15-adjust-approve-${freshPeriod}`;
+    assert.equal(checked.status, 409);
     const approved = await postSalary(
       `/periods/${freshPeriod}/adjustments/${requested.body.actionId}/approve`,
-      { expectedVersion: Number(checked.body.version) },
+      { expectedVersion: Number(requested.body.version) },
       approver,
-      approveKey,
+      `q15-adjust-approve-${freshPeriod}`,
     );
-    assert.equal(approved.status, 200);
-    assert.equal(approved.body.status, 'APPROVED');
-    assert.ok(Number(approved.body.adjustmentId) > 0);
-    createdAdjustmentIds.push(Number(approved.body.adjustmentId));
-
-    const replayedApprove = await postSalary(
-      `/periods/${freshPeriod}/adjustments/${requested.body.actionId}/approve`,
-      { expectedVersion: Number(checked.body.version) },
-      approver,
-      approveKey,
-    );
-    assert.equal(replayedApprove.status, 200);
-    assert.equal(replayedApprove.body.replayed, true);
+    assert.equal(approved.status, 409);
+    const adjustmentsAfter = await db.select()
+      .from(s.salaryPeriodAdjustments)
+      .where(eq(s.salaryPeriodAdjustments.governanceActionId, Number(requested.body.actionId)));
+    assert.equal(adjustmentsAfter.length, 1);
   });
 
   it('salary-period adjustment request rolls back when idempotency persistence fails after the business callback', async () => {
-    const accountant = await mkUser(Role.ACCOUNTANT, 'adjust-rollback');
+    const manager = await mkUser(Role.MANAGER, 'adjust-rollback');
     const driver = await mkDriver('adjust-rollback-driver');
     const sourcePeriod = `${periodYear + 20}-03`;
     const targetPeriod = `${periodYear + 20}-04`;
@@ -633,6 +524,8 @@ describe('Q15 salary-period governed routes', () => {
 
     await insertClosedPeriod(sourcePeriod, 1);
 
+    // Manager holds the full single-actor chain (FINANCE_APPROVE_DIRECTOR),
+    // so the auto-apply reaches the idempotency persistence step.
     await withIdempotencyInsertFailure('salary-periods.adjustments.request', adjustmentKey, async () => {
       const response = await postSalary(
         `/periods/${sourcePeriod}/adjustments`,
@@ -643,7 +536,7 @@ describe('Q15 salary-period governed routes', () => {
           reason,
           expectedVersion: 1,
         },
-        accountant,
+        manager,
         adjustmentKey,
       );
       assert.equal(response.status, 500);
@@ -664,7 +557,7 @@ describe('Q15 salary-period governed routes', () => {
     assert.equal(storedKeys.length, 0);
   });
 
-  it('governs salary issue and official posting with three actors, no pre-effect and exact replay', async () => {
+  it('applies salary issue and official posting immediately with exact replay (phê duyệt removed)', async () => {
     const accountant = await mkUser(Role.ACCOUNTANT, 'issue-maker');
     const checker = await mkUser(Role.MANAGER, 'issue-checker');
     const approver = await mkUser(Role.ADMIN, 'issue-approver');
@@ -675,7 +568,7 @@ describe('Q15 salary-period governed routes', () => {
     const missingIssueKey = await postSalary(
       `/periods/${issuePeriod}/issue`,
       { expectedVersion: 1, note: 'thiếu khóa issue' },
-      accountant,
+      checker,
     );
     assert.equal(missingIssueKey.status, 400);
     assert.match(String(missingIssueKey.body.error), /Idempotency-Key/i);
@@ -683,7 +576,7 @@ describe('Q15 salary-period governed routes', () => {
     const missingIssueVersion = await postSalary(
       `/periods/${issuePeriod}/issue`,
       { note: 'thiếu phiên bản issue' },
-      accountant,
+      checker,
       `q23-issue-missing-version-${issuePeriod}`,
     );
     assert.equal(missingIssueVersion.status, 400);
@@ -698,24 +591,26 @@ describe('Q15 salary-period governed routes', () => {
     assert.equal(issueDenied.status, 403);
 
     const issueKey = `q23-issue-${issuePeriod}`;
+    // 2026-09-10 (phê duyệt removed, chunk 3): the issue applies at request —
+    // status APPROVED, payslipIssuedAt stamped, version bumped, in one call.
     const issued = await postSalary(
       `/periods/${issuePeriod}/issue`,
       { expectedVersion: 1, note: 'Phát hành phiếu lương Q23' },
-      accountant,
+      checker,
       issueKey,
     );
     assert.equal(issued.status, 201);
-    assert.equal(issued.body.status, 'PENDING_CHECK');
+    assert.equal(issued.body.status, 'APPROVED');
     createdGovernanceActionIds.push(Number(issued.body.id));
-    const [beforeIssueApproval] = await db.select().from(s.salaryPeriodCloses)
+    const [issuedClose] = await db.select().from(s.salaryPeriodCloses)
       .where(eq(s.salaryPeriodCloses.period, issuePeriod)).limit(1);
-    assert.equal(beforeIssueApproval.payslipIssuedAt, null);
-    assert.equal(beforeIssueApproval.version, 1);
+    assert.ok(issuedClose.payslipIssuedAt);
+    assert.ok(issuedClose.version > 1);
 
     const replayedIssue = await postSalary(
       `/periods/${issuePeriod}/issue`,
       { expectedVersion: 1, note: 'Phát hành phiếu lương Q23' },
-      accountant,
+      checker,
       issueKey,
     );
     assert.equal(replayedIssue.status, 201);
@@ -725,19 +620,20 @@ describe('Q15 salary-period governed routes', () => {
     const issueDrift = await postSalary(
       `/periods/${issuePeriod}/issue`,
       { expectedVersion: 1, note: 'Đổi ghi chú issue' },
-      accountant,
+      checker,
       issueKey,
     );
     assert.equal(issueDrift.status, 409);
     assert.match(String(issueDrift.body.error), /Khóa giao dịch trùng/i);
 
+    // The staged check/approve endpoints are dead paths on an applied action.
     const selfIssueCheck = await postSalary(
       `/periods/${issuePeriod}/issue-actions/${issued.body.id}/check`,
       { expectedVersion: Number(issued.body.version) },
-      accountant,
+      checker,
       `q15-issue-self-check-${issuePeriod}`,
     );
-    assert.equal(selfIssueCheck.status, 403);
+    assert.equal(selfIssueCheck.status, 409);
 
     const wrongIssuePeriod = `${Number(issuePeriod.slice(0, 4)) + 1}-${issuePeriod.slice(5)}`;
     const wrongIssueCheck = await postSalary(
@@ -748,51 +644,10 @@ describe('Q15 salary-period governed routes', () => {
     );
     assert.equal(wrongIssueCheck.status, 404);
 
-    const issueChecked = await postSalary(
-      `/periods/${issuePeriod}/issue-actions/${issued.body.id}/check`,
-      { expectedVersion: Number(issued.body.version) },
-      checker,
-      `q15-issue-check-${issuePeriod}`,
-    );
-    assert.equal(issueChecked.status, 200);
-    assert.equal(issueChecked.body.status, 'PENDING_APPROVAL');
-    assert.equal((await db.select().from(s.salaryPeriodCloses)
-      .where(eq(s.salaryPeriodCloses.period, issuePeriod)).limit(1))[0]?.payslipIssuedAt, null);
-
-    const issueSelfApprove = await postSalary(
-      `/periods/${issuePeriod}/issue-actions/${issued.body.id}/approve`,
-      { expectedVersion: Number(issueChecked.body.version) },
-      checker,
-      `q15-issue-self-approve-${issuePeriod}`,
-    );
-    assert.equal(issueSelfApprove.status, 403);
-
-    const issueApproveKey = `q15-issue-approve-${issuePeriod}`;
-    const issueApproved = await postSalary(
-      `/periods/${issuePeriod}/issue-actions/${issued.body.id}/approve`,
-      { expectedVersion: Number(issueChecked.body.version) },
-      approver,
-      issueApproveKey,
-    );
-    assert.equal(issueApproved.status, 200);
-    assert.equal(issueApproved.body.status, 'APPROVED');
-    const [issuedClose] = await db.select().from(s.salaryPeriodCloses)
-      .where(eq(s.salaryPeriodCloses.period, issuePeriod)).limit(1);
-    assert.ok(issuedClose.payslipIssuedAt);
-    assert.ok(issuedClose.version > 1);
-    const replayedIssueApproval = await postSalary(
-      `/periods/${issuePeriod}/issue-actions/${issued.body.id}/approve`,
-      { expectedVersion: Number(issueChecked.body.version) },
-      approver,
-      issueApproveKey,
-    );
-    assert.equal(replayedIssueApproval.status, 200);
-    assert.equal(replayedIssueApproval.body.replayed, true);
-
     const staleIssue = await postSalary(
       `/periods/${issuePeriod}/issue`,
       { expectedVersion: 1, note: 'Issue bằng phiên bản cũ' },
-      accountant,
+      checker,
       `q23-issue-stale-${issuePeriod}`,
     );
     assert.equal(staleIssue.status, 409);
@@ -803,7 +658,7 @@ describe('Q15 salary-period governed routes', () => {
     const postBeforeIssue = await postSalary(
       `/periods/${postBlockedPeriod}/post`,
       { expectedVersion: 1, note: 'post trước khi issue' },
-      accountant,
+      checker,
       `q23-post-preissue-${postBlockedPeriod}`,
     );
     assert.equal(postBeforeIssue.status, 409);
@@ -812,7 +667,7 @@ describe('Q15 salary-period governed routes', () => {
     const missingPostKey = await postSalary(
       `/periods/${issuePeriod}/post`,
       { expectedVersion: issuedClose.version, note: 'thiếu khóa post' },
-      accountant,
+      checker,
     );
     assert.equal(missingPostKey.status, 400);
     assert.match(String(missingPostKey.body.error), /Idempotency-Key/i);
@@ -826,24 +681,26 @@ describe('Q15 salary-period governed routes', () => {
     assert.equal(postDenied.status, 403);
 
     const postKey = `q23-post-${issuePeriod}`;
+    // 2026-09-10 (phê duyệt removed, chunk 3): the official post applies at
+    // request — status APPROVED, officialPostedAt stamped in one call.
     const posted = await postSalary(
       `/periods/${issuePeriod}/post`,
       { expectedVersion: issuedClose.version, note: 'Hạch toán chính thức Q23' },
-      accountant,
+      checker,
       postKey,
     );
     assert.equal(posted.status, 201);
-    assert.equal(posted.body.status, 'PENDING_CHECK');
+    assert.equal(posted.body.status, 'APPROVED');
     createdGovernanceActionIds.push(Number(posted.body.id));
-    const [beforePostApproval] = await db.select().from(s.salaryPeriodCloses)
+    const [postedClose] = await db.select().from(s.salaryPeriodCloses)
       .where(eq(s.salaryPeriodCloses.period, issuePeriod)).limit(1);
-    assert.equal(beforePostApproval.officialPostedAt, null);
-    assert.equal(beforePostApproval.version, issuedClose.version);
+    assert.ok(postedClose.officialPostedAt);
+    assert.ok(postedClose.version > issuedClose.version);
 
     const replayedPost = await postSalary(
       `/periods/${issuePeriod}/post`,
       { expectedVersion: issuedClose.version, note: 'Hạch toán chính thức Q23' },
-      accountant,
+      checker,
       postKey,
     );
     assert.equal(replayedPost.status, 201);
@@ -853,71 +710,50 @@ describe('Q15 salary-period governed routes', () => {
     const postDrift = await postSalary(
       `/periods/${issuePeriod}/post`,
       { expectedVersion: issuedClose.version, note: 'Đổi ghi chú post' },
-      accountant,
+      checker,
       postKey,
     );
     assert.equal(postDrift.status, 409);
     assert.match(String(postDrift.body.error), /Khóa giao dịch trùng/i);
 
+    // The staged check endpoint is a dead path on an applied action.
     const postChecked = await postSalary(
       `/periods/${issuePeriod}/post-actions/${posted.body.id}/check`,
       { expectedVersion: Number(posted.body.version) },
       checker,
       `q15-post-check-${issuePeriod}`,
     );
-    assert.equal(postChecked.status, 200);
-    assert.equal(postChecked.body.status, 'PENDING_APPROVAL');
+    assert.equal(postChecked.status, 409);
     const wrongPostApprove = await postSalary(
       `/periods/${wrongIssuePeriod}/post-actions/${posted.body.id}/approve`,
-      { expectedVersion: Number(postChecked.body.version) },
+      { expectedVersion: Number(posted.body.version) },
       approver,
       `q15-post-wrong-period-${issuePeriod}`,
     );
     assert.equal(wrongPostApprove.status, 404);
-    assert.equal((await db.select().from(s.salaryPeriodCloses)
-      .where(eq(s.salaryPeriodCloses.period, issuePeriod)).limit(1))[0]?.officialPostedAt, null);
-
-    const postApproveKey = `q15-post-approve-${issuePeriod}`;
-    const postApproved = await postSalary(
-      `/periods/${issuePeriod}/post-actions/${posted.body.id}/approve`,
-      { expectedVersion: Number(postChecked.body.version) },
-      approver,
-      postApproveKey,
-    );
-    assert.equal(postApproved.status, 200);
-    assert.equal(postApproved.body.status, 'APPROVED');
-    const [postedClose] = await db.select().from(s.salaryPeriodCloses)
-      .where(eq(s.salaryPeriodCloses.period, issuePeriod)).limit(1);
-    assert.ok(postedClose.officialPostedAt);
-    assert.ok(postedClose.version > issuedClose.version);
-    const replayedPostApproval = await postSalary(
-      `/periods/${issuePeriod}/post-actions/${posted.body.id}/approve`,
-      { expectedVersion: Number(postChecked.body.version) },
-      approver,
-      postApproveKey,
-    );
-    assert.equal(replayedPostApproval.status, 200);
-    assert.equal(replayedPostApproval.body.replayed, true);
+    assert.ok((await db.select().from(s.salaryPeriodCloses)
+      .where(eq(s.salaryPeriodCloses.period, issuePeriod)).limit(1))[0]?.officialPostedAt);
 
     const stalePost = await postSalary(
       `/periods/${issuePeriod}/post`,
       { expectedVersion: issuedClose.version, note: 'Post bằng phiên bản cũ' },
-      accountant,
+      checker,
       `q23-post-stale-${issuePeriod}`,
     );
     assert.equal(stalePost.status, 409);
     assert.match(String(stalePost.body.error), /Vui lòng tải lại/i);
   });
 
-  it('salary confirmation approve rolls back when idempotency persistence fails after the business callback', async () => {
+  it('salary confirmation applies immediately at the request (phê duyệt removed)', async () => {
     const accountant = await mkUser(Role.ACCOUNTANT, 'confirm-maker');
-    const checker = await mkUser(Role.MANAGER, 'confirm-checker');
-    const approver = await mkUser(Role.ADMIN, 'confirm-approver');
     const driver = await mkDriver('confirm-driver');
     const year = periodYear + 30;
     const month = 9;
 
     const requestKey = `q23-confirm-request-${driver.id}-${year}-${month}`;
+    // 2026-09-10 (phê duyệt removed, chunk 3): the confirmation applies at
+    // request — the audit action is APPROVED and the salary confirmation row
+    // exists immediately (accountant holds the full chain: FINANCE_APPROVE_STANDARD).
     const requested = await postSalary(
       `/${driver.id}/${year}/${month}/confirm`,
       {},
@@ -925,43 +761,20 @@ describe('Q15 salary-period governed routes', () => {
       requestKey,
     );
     assert.equal(requested.status, 200);
-    assert.equal(requested.body.status, 'PENDING_CHECK');
+    assert.equal(requested.body.status, 'APPROVED');
     createdGovernanceActionIds.push(Number(requested.body.id));
-
-    const checkKey = `q23-confirm-check-${driver.id}-${year}-${month}`;
-    const checked = await postSalary(
-      `/${driver.id}/${year}/${month}/confirm-actions/${requested.body.id}/check`,
-      { expectedVersion: Number(requested.body.version) },
-      checker,
-      checkKey,
-    );
-    assert.equal(checked.status, 200);
-    assert.equal(checked.body.status, 'PENDING_APPROVAL');
-
-    const approveKey = `q23-confirm-approve-fail-${driver.id}-${year}-${month}`;
-    await withIdempotencyInsertFailure('governance.approve', approveKey, async () => {
-      const response = await postSalary(
-        `/${driver.id}/${year}/${month}/confirm-actions/${requested.body.id}/approve`,
-        { expectedVersion: Number(checked.body.version) },
-        approver,
-        approveKey,
-      );
-      assert.equal(response.status, 500);
-    });
 
     const [storedAction] = await db.select({
       status: s.governanceActions.status,
-      version: s.governanceActions.version,
       approvedAt: s.governanceActions.approvedAt,
       approverId: s.governanceActions.approverId,
     })
       .from(s.governanceActions)
       .where(eq(s.governanceActions.id, Number(requested.body.id)))
       .limit(1);
-    assert.equal(storedAction?.status, 'PENDING_APPROVAL');
-    assert.equal(storedAction?.version, Number(checked.body.version));
-    assert.equal(storedAction?.approvedAt, null);
-    assert.equal(storedAction?.approverId, null);
+    assert.equal(storedAction?.status, 'APPROVED');
+    assert.equal(storedAction?.approverId, accountant.id);
+    assert.ok(storedAction?.approvedAt);
 
     const storedConfirmations = await db.select({
       status: s.salaryConfirmations.status,
@@ -974,16 +787,24 @@ describe('Q15 salary-period governed routes', () => {
         eq(s.salaryConfirmations.year, year),
         eq(s.salaryConfirmations.month, month),
       ));
-    assert.equal(storedConfirmations.length, 0);
+    assert.equal(storedConfirmations.length, 1);
+    assert.equal(storedConfirmations[0]?.status, 'CONFIRMED');
 
-    const storedKeys = await db.select()
-      .from(s.idempotencyKeys)
-      .where(eq(s.idempotencyKeys.idempotencyKey, approveKey));
-    assert.equal(storedKeys.length, 0);
+    // The staged check endpoint is a dead path on an applied action.
+    const checkKey = `q23-confirm-check-${driver.id}-${year}-${month}`;
+    const checked = await postSalary(
+      `/${driver.id}/${year}/${month}/confirm-actions/${requested.body.id}/check`,
+      { expectedVersion: Number(requested.body.version) },
+      accountant,
+      checkKey,
+    );
+    assert.equal(checked.status, 409);
   });
 
   it('salary issue rolls back when idempotency persistence fails after the business callback', async () => {
-    const accountant = await mkUser(Role.ACCOUNTANT, 'issue-rollback');
+    // Manager holds PERIOD_CLOSE_APPROVE, so the auto-apply reaches the
+    // idempotency persistence step where the failpoint fires.
+    const manager = await mkUser(Role.MANAGER, 'issue-rollback');
     const period = `${periodYear}-11`;
     await insertClosedPeriod(period, 1);
     const issueKey = `q23-salary-fail-${period}`;
@@ -992,7 +813,7 @@ describe('Q15 salary-period governed routes', () => {
       const response = await postSalary(
         `/periods/${period}/issue`,
         { expectedVersion: 1 },
-        accountant,
+        manager,
         issueKey,
       );
       assert.equal(response.status, 500);
