@@ -707,6 +707,24 @@
   #root .wf-minibtn,
   #root .wf-btn,
   #root .topbar-date__trigger { min-height: 30px; }
+  /* CUS workboard rows: two height drivers — the base cell rule's 72px
+     height floor + the page's own ≤620px block re-asserting min-height 72px
+     with 11px 12px padding. Compact both (PM remeasure: rows ≤56px). */
+  #root .cus-dashboard-table tbody > tr > th,
+  #root .cus-dashboard-table tbody > tr > td {
+    height: auto;
+    min-height: 0;
+    padding: 4px 6px;
+    grid-template-columns: 76px minmax(0, 1fr);
+  }
+  #root .cus-inline-trigger { min-height: 32px; padding: 4px 6px; }
+  #root .cus-multiline-cell { gap: 2px; }
+  #root .cus-multiline-cell > span { line-height: 1.25; }
+  /* Standard inputs measured 36px (10px vertical padding + 14px line + 2px
+     border overflowed the 32px floor). 4px block padding lets min-height
+     rule again: computed lands 32-34px. */
+  #root input:not([type="checkbox"]):not([type="radio"]),
+  #root select { padding-top: 4px; padding-bottom: 4px; }
 
 } /* end PHONE ≤ 640px */
 
