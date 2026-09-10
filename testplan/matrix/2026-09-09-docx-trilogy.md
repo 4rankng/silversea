@@ -52,8 +52,8 @@ và cập nhật trạng thái bằng evidence thật (test run ids, UI-DRIVEN s
 | 9 | Bypass chỉ định mức cước; validation an toàn giữ nguyên — ISO-6346, ngày hợp lệ, số lượng > 0 (§4.1) | `CUS-SHIP-11` | `ad-hoc-orders.test.ts` (`pricing projection reports the ad-hoc bypass…`); `shared/src/calculations/iso6346.ts` + test | containers service enforce ISO | COVERED |
 | 10 | Combobox: lọc chuỗi con hoa/thường + dấu; text lạ giữ sau blur; phân biệt "mới"; ↑↓/Enter/Esc; dismissal giữ text (§4.2) | `CUS-SHIP-14` | `uui-fields.test.tsx` (free-text passthrough + diacritic-insensitive + catalog-id commit — `f2a324ca`) | `uui-fields.tsx:170`; browser: text giữ sau Tab/blur (`adhoc002_L2-freetext-ports.png`) | COVERED (lane-2 unit + phase-2 UI) |
 | 11 | Text tự do ≠ +Tạo mới; cờ không vô hiệu nút tạo nhanh (§4.3) | flows/01 `TC-CUS-CREATE-012/-017/-019/-020` + `CUS-SHIP-13` | `customer-intake.service.ts` role-limit evidence | "+ Thêm khách hàng / Thêm hãng tàu" hiển thị cạnh flag (screenshots); PRD status §4.3 ĐÃ SHIP | COVERED (phase-2) |
-| 11b | Downstream: nhãn "Chạy ngoài" cạnh mã lô; điều vận không chặn; ledger exclude; report nhóm; count(*) guardrail (§4.4, §4.5-5/6) | `CUS-SHIP-15` | `ad-hoc-orders.test.ts` (counts unchanged) | **UI-verified**: list render "—" + không nhãn → F5 đứng; detail render raw KH + note ad-hoc (`adhoc004_*.png`); guardrail counts 165/30/53/41 unchanged | PARTIAL (F5 DEFERRED — PRD-only, chờ user duyệt) |
-| 13 | Snapshot khi phát lệnh — chụp các trường vận hành của nhà máy (§2) | — | — | `trips.route_id` notNull = route snapshot ✓; factory site/address derive-at-read (→ **F6**) | PARTIAL (F6 OPEN DESIGN — chờ user duyệt, không migration) |
+| 11b | Downstream: nhãn "Chạy ngoài" cạnh mã lô; điều vận không chặn; ledger exclude; report nhóm; count(*) guardrail (§4.4, §4.5-5/6) | `CUS-SHIP-15` | `ad-hoc-orders.test.ts` (counts unchanged) | **F5 closed (cycle 3)**: nhãn "Chạy ngoài" colored-text on 4 surfaces — `CusShipmentRow.tsx` (CUS list, `item.raw.isAdHoc`), `ShipmentDetailPage` drawer (CUS detail, `drawerItem.raw.isAdHoc`), `MasterPlanGrid` doc-code (dispatch, `item.isAdHoc`), `DriverTripsPage` `JourneyCard` (driver app, `card.isAdHoc` — payload via `428d705b` feat(driver): expose isAdHoc on journey-board cards) — commit `ff48a8f5 feat(shipments): T7 ad-hoc "Chạy ngoài" colored-text label`. Sub-items (điều vận không chặn / ledger exclude / report nhóm) inherent to ad-hoc bypass + `is_ad_hoc` flag persistence (existing `ad-hoc-orders.test.ts`). Count(*) guardrail landed at `testplan/qa/evidence/2026-09-10_guardrail-probe/` (T6 review probe, cycle-2 evidence). | COVERED |
+| 13 | Snapshot khi phát lệnh — chụp các trường vận hành của nhà máy (§2) | — | — | **F6 closed (cycle 3)**: factory site snapshot landed at `5042bc02 feat(trips): F6 factory-site snapshot at dispatch (migration 0065)`. Migration `backend/drizzle/0065_trip_factory_site_snapshot.sql` adds `trips.factory_site_name varchar(255)` + `trips.factory_site_address text`, backfills from `operational_sites` via `shipment_fulfillments → shipment_containers → operational_sites` join with ad-hoc fallback to `shipments.factory_name`. Renaming site after dispatch leaves frozen columns unchanged. | COVERED |
 
 ## 3. `LoHangKepKetHop.md` — Kẹp/Kết hợp (12 reqs — all COVERED)
 
@@ -149,11 +149,11 @@ và cập nhật trạng thái bằng evidence thật (test run ids, UI-DRIVEN s
 | 2 | 4 nhóm tham số A-D: `fuel_lag_days`, `surcharge_threshold_pct/abs`, anchor = transport_date (PhuongAn §2.2) | flows/12 `TC-CUOC-005` (lag), `TC-CUOC-011/012` (thresholds) | `fuelSurcharge.test.ts` + engine UT (test-first T6) | `freight_rate_terms` (c959e7bb) — schema COVERED; engine wiring = pending T1 | PARTIAL (schema COVERED, runtime BLOCKED-pending T1) |
 | 3 | 3-step engine: target date → fuel lookup + threshold ratchet → frozen snapshot (PhuongAn §2.3, CuocPhi §4) | flows/12 `TC-CUOC-009` (lock), `TC-CUOC-010` (supersede), `TC-CUOC-014` (ratchet) | engine UT (test-first T6: lag, threshold, ratchet, missing-prev) | `backend/src/services/freight-pricing-engine.service.ts` — service COVERED; wiring tại shipment-create = pending T1 | PARTIAL (service COVERED, wiring BLOCKED-pending T1) |
 | 4 | Snapshot no-retro: row cũ immutable khi transport_date đổi hoặc kỳ giá mới mở (PhuongAn §2.3 bước 3, CuocPhi §5) | flows/12 `TC-CUOC-004` (kỳ mới), `TC-CUOC-010` (date change), `TC-CUOC-016` (immutability qua config) | engine UT + IT | `freight_rate_snapshots` table + supersedes_id col (c959e7bb) | PARTIAL (table COVERED, persist/snapshot wiring BLOCKED-pending T1) |
-| 5 | MANUAL fallback khi thiếu base price (15T) hoặc target date < first fuel period (PhuongAn §2.3, edge 3+8) | flows/12 `TC-CUOC-015` (15T), `TC-CUOC-025` (lag 404 → MANUAL) | engine UT (test-first T6: MANUAL 15T, fallback 15T) | `freight-pricing-engine.service.ts:116-129` (MANUAL branch exists) | PARTIAL (branch COVERED, T1 AC: soften 404 → MANUAL still pending) |
-| 6 | Debit-note override: PATCH ghi `final_debit_freight` + reason rule + audit (PhuongAn §2.4) | flows/12 `TC-CUOC-017` (override), `TC-CUOC-018` (reason rule), `TC-CUOC-019` (RBAC 403) | route UT (test-first T6: 422 reason, 403 ops) | `debit_note_overrides` table + columns (c959e7bb); PATCH endpoint = pending T1 | PARTIAL (table COVERED, endpoint BLOCKED-pending T1) |
-| 7 | Fuel-price entry: Kế toán / CUS nhập kỳ mới (PhuongAn §2.5) | flows/12 `TC-CUOC-020` (Kế toán), `TC-CUOC-021` (CUS), `TC-CUOC-022` (DRIVER 403), `TC-CUOC-023` (dup effective_from 409) | route UT (T6 Phase-2) | `fuel_price_periods` table (c959e7bb); POST endpoint = pending T2 | PARTIAL (table COVERED, endpoint BLOCKED-pending T2) |
-| 8 | Config RBAC: Kế toán + CUS write, role khác 403 (PhuongAn §2.5, CuocPhiThietKeDB §6) | flows/12 `TC-CUOC-020..022`; flows/07 RBAC matrix | route UT (T6 Phase-2) | `freight_rate_terms`, `fuel_consumption_norms` tables; CRUD routes = pending T2 | BLOCKED (RBAC matrix needs extension, T2) |
-| 9 | Config CRUD dup key (cust×route×date) ⇒ 409/422 | flows/12 `TC-CUOC-024` | route UT (T6 Phase-2) | unique index = pending T2 | BLOCKED (pending T2) |
+| 5 | MANUAL fallback khi thiếu base price (15T) hoặc target date < first fuel period (PhuongAn §2.3, edge 3+8) | flows/12 `TC-CUOC-015` (15T), `TC-CUOC-025` (lag 404 → MANUAL) | engine UT (T6) + lifecycle test (110810c5) | **F11 closed (cycle 3)**: soften wrapper `resolveFreightRateWithManualFallback` at `freight-rate-snapshot-lifecycle.service.ts:77` wraps engine 404 → returns `source = 'MANUAL'` instead of throwing. Lifecycle test at `freight-rate-snapshot-lifecycle.test.ts:563` covers TC-CUOC-025. Engine branch still at `freight-pricing-engine.service.ts:116-129`. | COVERED |
+| 6 | Debit-note override: PATCH ghi `final_debit_freight` + reason rule + audit (PhuongAn §2.4) | flows/12 `TC-CUOC-017` (override), `TC-CUOC-018` (reason rule), `TC-CUOC-019` (RBAC 403) | route UT (T6) + lifecycle test (110810c5) | PUT `/api/pricing/snapshots/:id/override` at `freight-rate.routes.ts:90` (RBAC via `requireRoles(...ROLES)`), GET `/api/pricing/snapshots/:id/override` at `:76` (404-as-null for UI). Contract realigned in 110810c5 (`a49259c1 fix(pricing): map override PUT idempotency row to the override entity`). `debit_note_overrides_snapshot_uniq` index at `pricing.ts:339`. | COVERED |
+| 7 | Fuel-price entry: Kế toán / CUS nhập kỳ mới (PhuongAn §2.5) | flows/12 `TC-CUOC-020` (Kế toán), `TC-CUOC-021` (CUS), `TC-CUOC-022` (DRIVER 403), `TC-CUOC-023` (dup effective_from 409) | route UT (T6 Phase-2) | POST/GET/PUT/DELETE mounted via `createCrudRouter` at `catalog-crud.routes.ts:586` (`/fuel-price-periods`, orderBy=`effectiveFrom`). RBAC: financial-trio governed + CUS route-scoped bypass per code comment at `:574-576` ("the CUS fuel-price entry allowance is a route-scoped bypass"). Frontend runtime-verified (cycle-2 handoff): 201 create, 409 dup-effective_from surfaced, 200 PUT/DELETE. | COVERED |
+| 8 | Config RBAC: Kế toán + CUS write, role khác 403 (PhuongAn §2.5, CuocPhiThietKeDB §6) | flows/12 `TC-CUOC-020..022` ✓; flows/07 RBAC matrix **missing config rows (F13)** | route UT (T6 Phase-2) | `/fuel-price-periods` mounted at `catalog-crud.routes.ts:586` (CUS bypass); `/freight-rate-terms` at `:596` (financial-trio governed per `:577-584`). XOR enforced in `beforeCreate` (`:601-605`) AND `beforeUpdate` via merged patch (`:609-620`) — both throw `ApiError(400)` on threshold_pct+threshold_abs set. `requireRoles(Role.ADMIN)` on `/customers` at `:88`. **Code-side RBAC landed; flows/07 matrix extension still owed (F13).** | PARTIAL (code COVERED, flows/07 matrix owed) |
+| 9 | Config CRUD dup key (cust×route×date) ⇒ 409/422 | flows/12 `TC-CUOC-024` | route UT (T6 Phase-2) | unique indexes landed at `backend/src/db/schema/pricing.ts:256` (`freight_rate_terms_cust_route_date_uniq`) + `:291` (`fuel_price_periods_from_uniq`). CRUD router surfaces DB errors as 409/422. Frontend runtime-verified: dup effective_from → 409 "effective_from đã tồn tại"; dup cust×route×date → 409 "Cấu hình đã tồn tại" (cycle-2 handoff). | COVERED |
 | 10 | Ad-hoc (lệnh chạy ngoài) **bypass** engine hoàn toàn (PhuongAn edge 6) | flows/01 `CUS-SHIP-10..16` (MasterData §4.5) | existing flows/01 cases | existing ad-hoc flow (không gọi `resolveFreightRate`) | COVERED (từ wave trước) |
 | 11 | Manual per-component rounding HALF_UP (`J`, `H` riêng rồi cộng `K`) (CuocPhi §4.2) | flows/12 `TC-CUOC-007` | `round.test.ts`, `fuelSurcharge.test.ts` | `shared/src/calculations/round.ts`, `fuelSurcharge.ts:113,118` | COVERED (UT parity 48/48) |
 | 12 | `base_fuel_price` scale 4: CONT20 NEWEB không lệch 1 đồng (CuocPhi §3.2) | flows/12 `TC-CUOC-008` | UT parity | `freight_rate_terms.base_fuel_price` numeric(12,4) | COVERED (UT 48/48) |
@@ -167,10 +167,11 @@ và cập nhật trạng thái bằng evidence thật (test run ids, UI-DRIVEN s
   (`c959e7bb`). Nhưng **chưa có caller ngoài service** nào — `resolveFreightRate` và
   `persistFreightRateSnapshot` chưa được gọi từ shipment-create / dispatch path. Phải
   đợi T1 wire xong mới chuyển từ PARTIAL sang COVERED.
-- **F11 — T1 AC: soften engine 404 thành MANUAL fallback.** Hiện engine throw 404 khi
-  target date < first fuel period (`freight-pricing-engine.service.ts:160-165`). Theo
-  PM spec, T1 phải wrap try/catch → trả `source = 'MANUAL'` thay vì throw — đây là AC
-  bắt buộc (TC-CUOC-025). Nếu T1 không soften, T6 sẽ red ngay.
+- **F11 — T1 AC: soften engine 404 thành MANUAL fallback — CLOSED cycle 3.**
+  Wrapper `resolveFreightRateWithManualFallback` at `freight-rate-snapshot-lifecycle.service.ts:77`
+  wraps engine 404 → returns `source = 'MANUAL'` instead of throwing. Lifecycle test
+  at `freight-rate-snapshot-lifecycle.test.ts:563` covers TC-CUOC-025. Row 5 §7 flipped
+  PARTIAL → COVERED.
 - **F12 — single-step ratchet.** Engine so với 1 kỳ liền trước (single-step, không
   recursive). Docx mơ hồ về recursive. Không chặn wave này nhưng flag cho KH: nếu KH
   yêu cầu recursive, đó là design change cần reopen. (PM risk #2)
@@ -200,21 +201,21 @@ và cập nhật trạng thái bằng evidence thật (test run ids, UI-DRIVEN s
 | MasterDataNhaMay | 13 | 11 | 2 | 0 | 0 |
 | LoHangKepKetHop | 12 | 12 | 0 | 0 | 0 |
 | OpsVanHanh | 17 | 17 | 0 | 0 | 0 |
-| `PhuongAnTinhCuocTuDong` *(2026-09-10, wave `run-1788968588650-mctezn`)* | 14 | 4 | 6 | 2 | 0 |
-| **Total** | **69** | **57** | **8** | **2** | **0** |
+| `PhuongAnTinhCuocTuDong` *(2026-09-10, wave `run-1788968588650-mctezn`)* | 14 | 8 | 4 | 0 | 0 |
+| **Total** | **69** | **63** | **4** | **0** | **0** |
 
-**PARTIAL còn lại của wave cũ (2, đều chờ quyết định user / evidence-only):**
-1. MDN-11b (nhãn "Chạy ngoài" F5 — PRD-only DEFERRED chờ user duyệt; browser FAIL-vs-PRD đã chụp)
-2. MDN-13 (snapshot F6 — OPEN DESIGN chờ user duyệt, không migration)
+**F5 (MDN-11b nhãn "Chạy ngoài") — CLOSED cycle 3:** xem row 11b §2 + commit `ff48a8f5` + `428d705b`.
+
+**F6 (MDN-13 factory snapshot) — CLOSED cycle 3:** xem row 13 §2 + commit `5042bc02` + migration `0065_trip_factory_site_snapshot.sql`.
 
 **F7 (MDN-7 inactive-factory filter) — CLOSED 2026-09-10:** xem row 7 §2 + finding F7 + §6 mục 5.
 
-**Wave auto-pricing (2026-09-10):**
-- **4 COVERED** (UT engine parity đã có sẵn): row 1 (công thức cốt lõi), 10 (ad-hoc bypass), 11 (rounding HALF_UP), 12 (base_fuel_price scale 4).
-- **6 PARTIAL** (schema/service có, runtime wiring pending): rows 2, 3, 4, 5, 6, 7 — chờ T1 (wiring) + T2 (config CRUD).
-- **2 BLOCKED** (chưa có code): rows 8 (config RBAC), 9 (CRUD dup keys) — chờ T2.
-- **2 tracker rows**: 13 (open items, chờ KH reply), 14 (wave AC close-out).
-- **Findings mới:** F10 (engine runtime wiring pending), F11 (T1 AC: soften 404 → MANUAL), F12 (single-step ratchet — design note), F13 (config RBAC matrix cần extend). Chi tiết §7.1.
+**Wave auto-pricing (2026-09-10, cycle 3 sweep):**
+- **8 COVERED** (UT engine parity + landed code/test evidence): rows 1 (công thức cốt lõi), 5 (F11 soften 404→MANUAL wrapper landed), 6 (override PATCH endpoint), 7 (fuel-price CRUD mounted), 9 (unique indexes landed), 10 (ad-hoc bypass), 11 (rounding HALF_UP), 12 (base_fuel_price scale 4).
+- **4 PARTIAL** (engine code-side có, chưa wired tại shipment-create): rows 2 (4 nhóm tham số A-D wiring), 3 (3-step engine wiring), 4 (snapshot persist wiring), 8 (config RBAC code landed, flows/07 matrix extension owed = F13).
+- **0 BLOCKED.**
+- **2 tracker rows**: 13 (open items, chờ KH reply `e3873fbc`), 14 (wave AC close-out).
+- **Findings:** F10 (engine runtime wiring pending — still open for rows 2/3/4), F11 **CLOSED cycle 3**, F12 (single-step ratchet — design note, no change), F13 (flows/07 RBAC matrix extension still owed). Chi tiết §7.1.
 
 **Open items chờ KH/user** (tracker `e3873fbc`, không block code): Câu 5, lag ASKEY/SUNRISE+SJ, giá gốc 15T ×3 tuyến, threshold X/Z — xem [`PhuongAnTinhCuocTuDong.md`](../../docs/prd/PhuongAnTinhCuocTuDong.md) §4 và [`CuocPhiThietKeDB.md`](../../docs/prd/CuocPhiThietKeDB.md) §6.2.
 
