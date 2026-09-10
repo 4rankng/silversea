@@ -161,19 +161,6 @@ export function useDashboardAnimations(ready: boolean) {
       animateAuditRows();
       // Safety net: try again after data likely loaded
       setTimeout(animateAuditRows, 2000);
-
-      // Approval queue count follows the same flat fade language.
-      const countBadge = root.querySelector(
-        '.approval-queue__count',
-      ) as HTMLElement | null;
-      if (countBadge) {
-        animate(countBadge, {
-          opacity: [0, 1],
-          duration: 240,
-          delay: 400,
-          ease: 'out(3)',
-        });
-      }
     });
 
     scopeRef.current = scope;

@@ -269,8 +269,6 @@ export const qk = {
       ['dashboard', 'decision-inbox', page, sortBy ?? '', sortDir ?? ''] as const,
     /** Broad prefix — matches every decision-inbox query regardless of page/sort. */
     decisionInboxAll: ['dashboard', 'decision-inbox'] as const,
-    approvalQueue: (role: string | undefined, userId: number | undefined) =>
-      ['approval-queue', role, userId] as const,
   },
 
   /* ── Financial ──────────────────────────────────────────────────────── */
