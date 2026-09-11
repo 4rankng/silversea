@@ -2093,6 +2093,101 @@ describe('dispatch fulfillment workflow routes', () => {
       const reassignData = await reassign.json() as { trip: { driverId: number } };
       assert.equal(reassign.status, 201, JSON.stringify(reassignData));
       assert.equal(reassignData.trip.driverId, replacement.driver.id);
+
+      // A CREATED reassignment must not touch attendance at all.
+      const createdDays = await db.select({ id: s.driverWorkDays.id })
+        .from(s.driverWorkDays)
+        .where(eq(s.driverWorkDays.tripId, issue.data.trip.id));
+      assert.equal(createdDays.length, 0, 'CREATED reassignment must not write attendance');
+    });
+
+    test('OWN→EXTERNAL and back to OWN on an unacknowledged departure re-keys attendance each step', async () => {
+      const { resources, tripId, tripVersion } = await issueOwnAndDepartUnacknowledged();
+      const carrier = await createCustomer(`Reassign carrier ${suffix}-${createdCustomerIds.length}`);
+      await db.update(s.customers).set({ isCarrier: true }).where(eq(s.customers.id, carrier.id));
+      const replacement = await createOwnedResources();
+
+      // Step 1: OWN → EXTERNAL. The old driver's work-day is removed and no
+      // new one is written (external trips carry no app driver).
+      const toExternal = await fetch(`${baseUrl}/api/trips/${tripId}/reassign`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${dispatcherToken}`,
+          'Idempotency-Key': `reassign-ext-${suffix}-${tripId}`,
+        },
+        body: JSON.stringify({
+          carrierType: 'EXTERNAL',
+          externalCarrierId: carrier.id,
+          externalPlateNumber: '51H-69999',
+          expectedVersion: tripVersion,
+        }),
+      });
+      const externalData = await toExternal.json() as { trip: { version: number; driverId: number | null } };
+      assert.equal(toExternal.status, 201, JSON.stringify(externalData));
+      assert.equal(externalData.trip.driverId, null);
+      let days = await db.select({ driverId: s.driverWorkDays.driverId })
+        .from(s.driverWorkDays)
+        .where(and(eq(s.driverWorkDays.tripId, tripId), eq(s.driverWorkDays.status, 'TRIP_DAY')));
+      assert.equal(days.length, 0, 'OWN→EXTERNAL must remove the old driver work-day and write none');
+
+      // Step 2: EXTERNAL → OWN. The new own driver gets the work-day; there
+      // was no previous app driver to clean up.
+      const backToOwn = await fetch(`${baseUrl}/api/trips/${tripId}/reassign`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${dispatcherToken}`,
+          'Idempotency-Key': `reassign-ext-back-${suffix}-${tripId}`,
+        },
+        body: JSON.stringify({
+          carrierType: 'OWN',
+          truckId: replacement.truck.id,
+          driverId: replacement.driver.id,
+          expectedVersion: externalData.trip.version,
+        }),
+      });
+      const ownData = await backToOwn.json() as { trip: { driverId: number } };
+      assert.equal(backToOwn.status, 201, JSON.stringify(ownData));
+      days = await db.select({ driverId: s.driverWorkDays.driverId })
+        .from(s.driverWorkDays)
+        .where(and(eq(s.driverWorkDays.tripId, tripId), eq(s.driverWorkDays.status, 'TRIP_DAY')));
+      assert.ok(days.some((row) => row.driverId === replacement.driver.id),
+        'EXTERNAL→OWN must stamp the new driver work-day');
+      void resources;
+      await db.delete(s.driverWorkDays).where(and(eq(s.driverWorkDays.tripId, tripId), eq(s.driverWorkDays.status, 'TRIP_DAY')));
+    });
+
+    test('truck-only reassignment keeps the driver\'s attendance untouched', async () => {
+      const { resources, tripId, tripVersion } = await issueOwnAndDepartUnacknowledged();
+      const replacementTruck = await createOwnedResources();
+
+      const reassign = await fetch(`${baseUrl}/api/trips/${tripId}/reassign`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${dispatcherToken}`,
+          'Idempotency-Key': `reassign-truckonly-${suffix}-${tripId}`,
+        },
+        body: JSON.stringify({
+          carrierType: 'OWN',
+          truckId: replacementTruck.truck.id,
+          driverId: resources.driver.id,
+          expectedVersion: tripVersion,
+        }),
+      });
+      const reassignData = await reassign.json() as { trip: { truckId: number; driverId: number } };
+      assert.equal(reassign.status, 201, JSON.stringify(reassignData));
+      assert.equal(reassignData.trip.truckId, replacementTruck.truck.id);
+      assert.equal(reassignData.trip.driverId, resources.driver.id);
+
+      // Net-zero: the unchanged driver keeps exactly the ops-departure row.
+      const days = await db.select({ driverId: s.driverWorkDays.driverId, date: s.driverWorkDays.date })
+        .from(s.driverWorkDays)
+        .where(and(eq(s.driverWorkDays.tripId, tripId), eq(s.driverWorkDays.status, 'TRIP_DAY')));
+      assert.deepEqual(days.map((row) => row.driverId), [resources.driver.id]);
+      assert.equal(days[0]?.date, '2026-08-05');
+      await db.delete(s.driverWorkDays).where(and(eq(s.driverWorkDays.tripId, tripId), eq(s.driverWorkDays.status, 'TRIP_DAY')));
     });
 
     test('unlinked fallback path also allows reassigning an unacknowledged departure', async () => {
