@@ -250,10 +250,10 @@ describe('Dispatcher resource-catalog create authorization', () => {
           taxCode: '0312345678',
           contactPerson: 'Chị Lan',
           phone: '0909123456',
-          // status/isCarrier stay absent: the intake strip drops lifecycle
-          // gating and carrier-flag material fields with the billing keys
-          // (see restrictCustomerCreateForIntake) so CUS/Dispatcher creates
-          // keep bypassing the maker-checker gate.
+          // 2afda864: isCarrier is preserved through intake (carriers can be
+          // marked from intake) while the credit/billing/lifecycle strip
+          // keeps CUS/Dispatcher creates bypassing the maker-checker gate.
+          isCarrier: false,
         });
         for (const key of ['creditLimit', 'creditWarningThreshold', 'paymentTermDays',
           'paymentDatePolicy', 'fuelSurchargeSharePct', 'debitNoteMode', 'debitNoteTemplateId']) {
@@ -261,6 +261,9 @@ describe('Dispatcher resource-catalog create authorization', () => {
         }
       }
       assert.deepEqual(restrictCustomerCreateForIntake(payload, Role.MANAGER), payload);
+      // The preserved flag is a real pass-through, not a default echo: an
+      // intake-created carrier arrives flagged.
+      assert.equal(restrictCustomerCreateForIntake({ ...payload, isCarrier: true }, Role.CUS).isCarrier, true);
     });
 
     it('leaves MANAGER/ACCOUNTANT config writes exactly as before', async () => {
