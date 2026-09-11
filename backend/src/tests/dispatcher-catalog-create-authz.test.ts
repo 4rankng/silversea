@@ -250,10 +250,12 @@ describe('Dispatcher resource-catalog create authorization', () => {
           taxCode: '0312345678',
           contactPerson: 'Chị Lan',
           phone: '0909123456',
-          // status/isCarrier stay absent: the intake strip drops lifecycle
-          // gating and carrier-flag material fields with the billing keys
-          // (see restrictCustomerCreateForIntake) so CUS/Dispatcher creates
-          // keep bypassing the maker-checker gate.
+          // isCarrier materializes as its default and is PRESERVED through
+          // intake (carriers are created/marked via intake; dispatch partial
+          // wave). status stays absent: the strip drops lifecycle gating and
+          // billing keys so CUS/Dispatcher creates keep bypassing the
+          // maker-checker gate.
+          isCarrier: false,
         });
         for (const key of ['creditLimit', 'creditWarningThreshold', 'paymentTermDays',
           'paymentDatePolicy', 'fuelSurchargeSharePct', 'debitNoteMode', 'debitNoteTemplateId']) {

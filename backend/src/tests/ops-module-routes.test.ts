@@ -11,9 +11,12 @@ import { db, client } from '../db';
 import * as s from '../db/schema';
 import { Role } from '@tingting/shared';
 import { config } from '../config';
-import { authMiddleware } from '../middleware/auth';
+import { authMiddleware, assetAuthMiddleware } from '../middleware/auth';
+import { casbinAuthz } from '../middleware/casbin';
+import { initEnforcer } from '../casbin/enforcer';
 import { globalErrorHandler } from '../middleware/errorHandler';
 import opsRoutes from '../routes/ops';
+import { photosRouter } from '../routes/upload';
 
 /**
  * Ops module route tests (docs/prd/OpsVanHanh.md §9 P0): RBAC matrix, pins,
@@ -86,9 +89,16 @@ async function api(
 }
 
 before(async () => {
+  // casbinAuthz('photos') evaluates DB-backed policies; the mini-app must
+  // initialize the enforcer just like the production server does.
+  await initEnforcer();
   const app = express();
   app.use(express.json());
   app.use('/api/ops', authMiddleware, opsRoutes);
+  // Mount the photo-serving chain exactly as the production server does so
+  // the allowlist assertion below exercises THIS tree's code — the test used
+  // to lean on whatever dev server answered on :3001 (wrong-tree answers).
+  app.use('/api/photos', assetAuthMiddleware, casbinAuthz('photos'), photosRouter);
   app.use(globalErrorHandler);
   await new Promise<void>((resolve) => {
     server = http.createServer(app);
@@ -351,7 +361,7 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
     // The served URL passes the photos allowlist (404 = recognized shape but
     // no object on disk in tests; 400 would mean the prefix is still missing
     // from isProtectedPhotoStorageKey).
-    const served = await fetch(`http://localhost:3001${photosForAccountant.body.items[0].url}`, {
+    const served = await fetch(`${baseUrl}${photosForAccountant.body.items[0].url}`, {
       headers: { Authorization: `Bearer ${accountantToken}` },
     });
     assert.notEqual(served.status, 400);
