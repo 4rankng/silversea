@@ -529,4 +529,23 @@ describe('useDispatchDetailPlan background refresh vs loading skeleton', () => {
     });
     await waitFor(() => expect(result.current.loading).toBe(false));
   });
+
+  it('surfaces a visible error when a branch row carries no container id', async () => {
+    // 2026-09-12 closing-row repro: the branch serializer dropped
+    // shipmentContainerId and the editor click no-op'd invisibly.
+    const { result } = renderHook(() => useDispatchDetailPlan());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    const branchRow = {
+      ...row(),
+      fulfillmentId: null,
+      shipmentContainerId: undefined,
+    } as unknown as DispatchDetailPlanRow;
+
+    await act(async () => {
+      const outcome = await result.current.ensureFulfillment(branchRow);
+      expect(outcome).toBeNull();
+    });
+    expect(result.current.assignmentError).toContain('không thể tạo tác vụ');
+  });
 });

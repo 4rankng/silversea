@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAutoRefresh } from '../../../hooks/useAutoRefresh';
+import { decomposeDispatchDetailBranch } from '../../../api/dispatchDetailBranch';
 import type { DispatchClassification } from '@tingting/shared';
 import {
   assignDispatchDetailPlate,
   assignDispatchDetailCarrier,
   completeDispatchExternalTrip,
-  decomposeDispatchDetailBranch,
   listDispatchDeliveryPointFacets,
   listDispatchDetailPlanRows,
   listDispatchDropoffPortFacets,
@@ -477,12 +477,13 @@ export function useDispatchDetailPlan() {
     return response.items;
   }, []);
 
-  /** Fulfillment-less branch rows (READY_FOR_DISPATCH containers without a
-   *  fulfillment) have no editor identity — decompose the container first and
-   *  hand back the fresh row so the editor targets the created fulfillment. */
+  // Branch rows: decompose first, edit the fresh row (_4 item 7 debt).
   const ensureFulfillment = useCallback(async (row: DispatchDetailPlanRow): Promise<DispatchDetailPlanRow | null> => {
     setAssignmentError(null);
-    if (row.shipmentContainerId == null) return null;
+    if (row.shipmentContainerId == null) {
+      setAssignmentError('Dòng này không mang mã container — không thể tạo tác vụ. Vui lòng tải lại trang.');
+      return null;
+    }
     try {
       const outcome = await decomposeDispatchDetailBranch({
         shipmentId: row.shipmentId,

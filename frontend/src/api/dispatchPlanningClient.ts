@@ -189,9 +189,7 @@ export interface DispatchDetailPlanRow {
   version: number;
   shipmentId: number;
   shipmentVersion: number;
-  /** Container id behind the row — present on FCL and fulfillment-less branch
-   *  rows (the decompose entrypoint targets it); absent on LCL rows. */
-  shipmentContainerId?: number | null;
+  shipmentContainerId?: number | null; // decompose target (branch rows)
   shipmentCode: string | null;
   isCombined: boolean;
   fulfillmentType: 'FCL_CONTAINER' | 'LCL_SHIPMENT';
@@ -391,24 +389,6 @@ export function updateDispatchDetailPlan(fulfillmentId: number, body: {
 }
 
 // ─── Dispatch task tags (note-composer pool) ─────────────────────────────────
-
-/** Decompose a fulfillment-less branch row (READY_FOR_DISPATCH containers the
- *  grid now surfaces without fulfillments) and hand back the fresh fulfillment
- *  identity so the plan editor can target it. */
-export function decomposeDispatchDetailBranch(body: {
-  shipmentId: number;
-  containerId: number;
-  expectedShipmentVersion: number;
-}) {
-  return api.post<{
-    fulfillmentId: number;
-    fulfillmentVersion: number;
-    shipmentId: number;
-    shipmentVersion: number;
-  }>('/dispatch-detail-plan-rows/decompose', body, {
-    headers: { 'Idempotency-Key': crypto.randomUUID() },
-  });
-}
 
 /** Điều vận/CUS completes an external-carrier trip on the driver's behalf —
  *  external carriers don't use the app, so the grid is the only surface that
