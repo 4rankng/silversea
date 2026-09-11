@@ -51,6 +51,7 @@ import { runShipmentWrite, sendShipmentWrite } from './shipment-shared';
 import { and, desc, eq, isNull } from 'drizzle-orm';
 import { db } from '../../db';
 import * as s from '../../db/schema';
+import { normalizePlate } from '../../services/cus-shipment-workspace-reads.service';
 
 const updateCarrierFleetVehicleSchema = carrierFleetVehicleSchema
   .pick({ licensePlate: true, isActive: true })
@@ -591,11 +592,14 @@ dispatchPlanningRoutes.get(
   asyncHandler(async (req: Request, res: Response) => {
     const plate = typeof req.query.plate === 'string' ? req.query.plate.trim() : '';
     if (!plate) throw new ApiError(400, 'plate là bắt buộc.');
-    const normalized = plate.toUpperCase().replace(/\s+/g, '');
+    // Shared canonical normalization (uppercase + strip ALL non-alphanumerics)
+    // — an inline strip-whitespace-only variant silently misses dashed/dotted
+    // plates like "15H-061.14" whose stored normalizedPlate is "15H06114".
+    const normalized = normalizePlate(plate);
     const [row] = await db.select({
       carrierId: s.carrierFleetVehicles.carrierId,
       carrierName: s.customers.name,
-      isActive: s.customers.status,
+      status: s.customers.status,
     })
       .from(s.carrierFleetVehicles)
       .innerJoin(s.customers, eq(s.carrierFleetVehicles.carrierId, s.customers.id))
@@ -607,14 +611,14 @@ dispatchPlanningRoutes.get(
       ))
       .orderBy(desc(s.carrierFleetVehicles.id))
       .limit(1);
-    if (!row) {
+    // An INACTIVE carrier must surface as "no carrier" on BOTH fields — a
+    // non-null carrierId here would auto-fill the editor with an entity the
+    // dispatch write later rejects with a late 409.
+    if (!row || row.status !== 'ACTIVE') {
       res.json({ carrierId: null, carrierName: null });
       return;
     }
-    res.json({
-      carrierId: row.carrierId,
-      carrierName: row.isActive === 'ACTIVE' ? row.carrierName : null,
-    });
+    res.json({ carrierId: row.carrierId, carrierName: row.carrierName });
   }),
 );
 
