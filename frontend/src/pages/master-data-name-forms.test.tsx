@@ -163,7 +163,9 @@ describe('master-data full and short name forms', () => {
 
   it('restores the factory draft when route creation is cancelled', async () => {
     render(<OperationalSiteCreateDialog isOpen customerId={7} routes={[{ id: 11, name: 'Cảng Hải Phòng - Biển Bạc Bắc Ninh' }]} onClose={vi.fn()} onCreated={vi.fn()} />);
-    const factoryDialog = screen.getByRole('dialog', { name: 'Thêm nhà máy' });
+    // The polished modal animates in (opacity 0 → 1); await it so slow runs
+    // don't query a mid-animation dialog instance.
+    const factoryDialog = await screen.findByRole('dialog', { name: 'Thêm nhà máy' });
     fireEvent.change(within(factoryDialog).getByLabelText('Mã điểm vận hành'), { target: { value: 'BB-BN' } });
     fireEvent.click(within(factoryDialog).getByRole('button', { name: /Tuyến đường/ }));
     fireEvent.click(await screen.findByRole('option', { name: 'Cảng Hải Phòng - Biển Bạc Bắc Ninh' }));
