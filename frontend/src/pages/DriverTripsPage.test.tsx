@@ -37,12 +37,14 @@ function card(overrides: Partial<DriverJourneyCard> = {}): DriverJourneyCard {
     scheduledAt: '2026-08-01T07:30:00.000Z',
     factoryName: 'Nhà máy Bình Dương',
     factoryShortName: null,
+    factoryAddress: null,
     loadingPortName: 'Cát Lái',
     routeName: 'Cát Lái → Bình Dương',
     dropPortName: 'Sóng Thần',
     containerNumber: 'MSCU1234561',
     containerTypeName: "40'HC",
     sealNumber: 'SL001',
+    loadingType: null,
     contactName: 'Nguyễn Văn A',
     contactPhone: '0901234567',
     truckPlate: '51C-12345',
@@ -87,12 +89,14 @@ describe('DriverTripsPage', () => {
     expect(screen.getByText(expectedTime)).toBeTruthy();
     expect(screen.getByText(/Nhà máy Bình Dương/)).toBeTruthy();
     expect(screen.getByText(/Cát Lái → Bình Dương/)).toBeTruthy();
-    expect(screen.getByText(/Nguyễn Văn A/)).toBeTruthy();
-    expect(screen.getByText(/0901234567/)).toBeTruthy();
+    // Compact card per mockup: contact + Đầu kéo/Mooc live on the detail
+    // page, not the Layer-1 card.
+    expect(screen.queryByText(/Nguyễn Văn A/)).toBeNull();
+    expect(screen.queryByText(/0901234567/)).toBeNull();
+    expect(screen.queryByText(/51C-12345/)).toBeNull();
+    expect(screen.queryByText(/51R-67890/)).toBeNull();
     expect(screen.getByText(/MSCU1234561/)).toBeTruthy();
     expect(screen.getByText(/Seal SL001/)).toBeTruthy();
-    expect(screen.getByText(/51C-12345/)).toBeTruthy();
-    expect(screen.getByText(/51R-67890/)).toBeTruthy();
   });
 
   it('navigates to the fulfillment detail page when a card footer is pressed', async () => {
@@ -182,5 +186,33 @@ describe('DriverTripsPage', () => {
     fireEvent.click(await screen.findByRole('tab', { name: /Đã nhận/ }));
     expect(await screen.findByText('Nhà máy B')).toBeTruthy();
     expect(screen.queryByText('Nhà máy A')).toBeNull();
+  });
+
+  // 3a0bd5af: the HÀNG ĐÓNG/TRẢ pill rides the cont row (mockup col 3).
+  it('3a0bd5af: renders the Hàng đóng / Hàng trả pill from loadingType', async () => {
+    useDriverJourneyBoardMock.mockReturnValue(board([
+      card({ fulfillmentId: 1, loadingType: 'HANG' }),
+      card({ fulfillmentId: 2, loadingType: 'VO' }),
+      card({ fulfillmentId: 3, loadingType: null }),
+    ]));
+    renderPage();
+
+    expect(await screen.findByText('Hàng đóng')).toBeTruthy();
+    expect(screen.getByText('Hàng trả')).toBeTruthy();
+    const pills = screen.getAllByTestId('load-type');
+    expect(pills).toHaveLength(2);
+  });
+
+  // 3a0bd5af: the badge also surfaces on the Đã nhận tab (same card component,
+  // mockup: loại hình on the accepted card) — and stands alone without a cont.
+  it('3a0bd5af: shows the Hàng trả pill on an accepted cont-less card', async () => {
+    useDriverJourneyBoardMock.mockReturnValue(board([
+      card({ fulfillmentId: 7, bucket: 'RUNNING', loadingType: 'VO', containerNumber: null, sealNumber: null }),
+    ]));
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('tab', { name: /Đã nhận/ }));
+    expect(await screen.findByText('Hàng trả')).toBeTruthy();
+    expect(screen.getAllByTestId('load-type')).toHaveLength(1);
   });
 });

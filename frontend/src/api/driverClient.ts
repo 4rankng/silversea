@@ -12,6 +12,7 @@ import {
 } from '@tingting/shared';
 import { fileCommandFingerprint } from '../lib/api';
 import type { FuelEvidenceReviewRecord } from './fuelEvidenceClient';
+import type { DriverJourneyCard } from './driverJourneyBoard';
 
 type DriverMilestoneEventType = DriverProgressEventType;
 
@@ -62,35 +63,9 @@ const DRIVER_TASK = {
   VEHICLE: '/driver/me/vehicle',
 } as const;
 
-export type DriverJourneyBucket = 'NEW' | 'RUNNING' | 'HISTORY';
-// Raw fulfillment-owned classification (ĐƠN/KẸP/KẾT HỢP/LẺ labels) plus the
-// shipment-derived pairing signal for kẹp/kết-hợp cards that stick together.
-export type DriverJourneyClassification = 'SINGLE' | 'DOUBLE' | 'COMBINED' | 'LCL';
-
-export interface DriverJourneyCard {
-  fulfillmentId: number;
-  tripId: number;
-  shipmentId: number;
-  tripCode: string | null;
-  shipmentCode: string | null;
-  bucket: DriverJourneyBucket;
-  classification: DriverJourneyClassification;
-  linked: boolean;
-  scheduledAt: string | null;
-  factoryName: string | null;
-  factoryShortName: string | null;
-  loadingPortName: string | null;
-  routeName: string | null;
-  dropPortName: string | null;
-  containerNumber: string | null;
-  containerTypeName: string | null;
-  sealNumber: string | null;
-  contactName: string | null;
-  contactPhone: string | null;
-  truckPlate: string | null;
-  trailerPlate: string | null;
-  operationalNotes: string | null;
-}
+// Journey-board wire types moved to ./driverJourneyBoard (structure-guard
+// split — this file was at its frozen LOC ceiling).
+export type { DriverJourneyBucket, DriverJourneyClassification, DriverJourneyCard } from './driverJourneyBoard';
 
 /** The driver's current vehicle (topbar identity chip). */
 export interface DriverVehicle {
@@ -251,7 +226,7 @@ export interface DriverInvoiceMaster {
 
 export interface DriverContainerSealPhoto {
   id: number;
-  type: 'CONTAINER' | 'SEAL';
+  type: 'CONTAINER' | 'SEAL' | 'DELIVERY_NOTE';
   storageKey: string;
   uploadedAt: string;
 }

@@ -12,6 +12,7 @@
  *   - site short name wins when filled.
  *   - blank site short name falls back to the site's full name, never ''.
  *   - no container site (join miss) falls back to shipments.factoryName.
+ *   - card loadingType = the trip's LAST leg (ĐÓNG/TRẢ); null when leg-less.
  *   - fulfillment detail carries the same factoryShortName + driverNotes.
  */
 import { after, describe, test } from 'node:test';
@@ -27,6 +28,7 @@ const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const NOTES = 'LẤY SỐ; GÓI CUỘN';
 
 const createdTripIds: number[] = [];
+const createdLegIds: number[] = [];
 const createdFulfillmentIds: number[] = [];
 const createdContainerIds: number[] = [];
 const createdShipmentIds: number[] = [];
@@ -78,6 +80,19 @@ async function mkSite(customerId: number, name: string, shortName?: string) {
   }).returning();
   createdSiteIds.push(site.id);
   return site;
+}
+
+/** One trip leg (ĐÓNG/TRẢ loadingType per leg). */
+async function mkLeg(tripId: number, sequence: number, loadingType: 'HANG' | 'VO') {
+  const [leg] = await db.insert(s.tripLegs).values({
+    tripId,
+    sequence,
+    origin: `Điểm đi ${sequence}-${suffix}`,
+    destination: `Điểm đến ${sequence}-${suffix}`,
+    km: 10 * sequence,
+    loadingType,
+  }).returning();
+  createdLegIds.push(leg.id);
 }
 
 /** FCL shipment whose fulfillment owns a container tied to a factory site. */
@@ -170,21 +185,28 @@ describe('journey-board card fields — operationalNotes + factoryShortName', ()
   test('cards carry operationalNotes verbatim and resolve blank-safe factory labels', async () => {
     const { driver, customer, route, cargoType, containerType } = await setup();
 
-    // A: blank short_name (column default) + no shipment factoryName.
+    // A: blank short_name (column default) + no shipment factoryName. One
+    // HANG leg → the card's loadingType is that leg's.
     const blankShortSite = await mkSite(customer.id, 'Nhà máy Đầy Đủ');
-    const { fulfillment: fulfillmentA } = await mkContainerTrip({
+    const { fulfillment: fulfillmentA, trip: tripA } = await mkContainerTrip({
       driverId: driver.id, customerId: customer.id, routeId: route.id, cargoTypeId: cargoType.id,
       containerTypeId: containerType.id, siteId: blankShortSite.id, notes: NOTES, factoryName: null,
     });
+    await mkLeg(tripA.id, 1, 'HANG');
 
-    // B: filled short_name wins over every other factory source.
+    // B: filled short_name wins over every other factory source. Two legs —
+    // the LAST one (VO) must win the card's loadingType (destination
+    // semantics, same rule the billing draft applies).
     const shortSite = await mkSite(customer.id, 'Nhà máy Có Tên Ngắn', 'NM NGẮN');
-    await mkContainerTrip({
+    const { trip: tripB } = await mkContainerTrip({
       driverId: driver.id, customerId: customer.id, routeId: route.id, cargoTypeId: cargoType.id,
       containerTypeId: containerType.id, siteId: shortSite.id, notes: null, factoryName: 'Bị che bởi tên ngắn',
     });
+    await mkLeg(tripB.id, 1, 'HANG');
+    await mkLeg(tripB.id, 2, 'VO');
 
     // C: no container site at all — falls back to the shipment text column.
+    // No legs either → the card's loadingType stays null (graceful hide path).
     await mkContainerlessTrip({
       driverId: driver.id, customerId: customer.id, routeId: route.id, cargoTypeId: cargoType.id,
       notes: null, factoryName: 'Xưởng ABC',
@@ -216,6 +238,13 @@ describe('journey-board card fields — operationalNotes + factoryShortName', ()
     assert.ok(cardC, 'join-miss falls back to shipments.factoryName');
     assert.equal(cardC.factoryShortName, 'Xưởng ABC');
 
+    // 3a0bd5af: the card's ĐÓNG/TRẢ loadingType comes from the trip's LAST
+    // leg (destination semantics); leg-less trips stay null so the FE badge
+    // hides gracefully.
+    assert.equal(cardA.loadingType, 'HANG', 'single-leg trip → that leg wins');
+    assert.equal(cardB.loadingType, 'VO', 'multi-leg trip → last leg wins');
+    assert.equal(cardC.loadingType, null, 'leg-less trip → null, FE badge hides');
+
     // Fulfillment detail must agree with the card contract.
     const detail = await getDriverFulfillmentDetail(driver.id, fulfillmentA.id);
     assert.equal(detail.factoryShortName, 'Nhà máy Đầy Đủ');
@@ -233,6 +262,7 @@ describe('journey-board card fields — operationalNotes + factoryShortName', ()
 after(async () => {
   try {
     if (createdTripIds.length > 0) {
+      await db.delete(s.tripLegs).where(inArray(s.tripLegs.tripId, createdTripIds));
       await db.delete(s.tripContainers).where(inArray(s.tripContainers.tripId, createdTripIds));
       await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
     }
