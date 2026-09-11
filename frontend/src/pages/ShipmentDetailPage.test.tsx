@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Role, ShipmentStatus } from '@tingting/shared';
 import type { ShipmentDetail as ShipmentDetailData } from '../api/shipmentClient';
 
@@ -91,11 +92,13 @@ describe('ShipmentDetailPage', () => {
 
   it('shows CUS lock metadata without exposing the removed dossier action', async () => {
     render(
-      <MemoryRouter initialEntries={['/shipments/1']}>
-        <Routes>
-          <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
-        </Routes>
-      </MemoryRouter>,
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter initialEntries={['/shipments/1']}>
+          <Routes>
+            <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
     );
 
     expect(await screen.findByText(/Khóa lô do CUS/)).toBeTruthy();
@@ -120,11 +123,13 @@ describe('ShipmentDetailPage', () => {
       }],
     });
     render(
-      <MemoryRouter initialEntries={['/shipments/1']}>
-        <Routes>
-          <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
-        </Routes>
-      </MemoryRouter>,
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter initialEntries={['/shipments/1']}>
+          <Routes>
+            <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
     );
 
     expect(await screen.findByText('TGHU1234567')).toBeTruthy();
@@ -134,11 +139,13 @@ describe('ShipmentDetailPage', () => {
   it('renders the state-aware carrier section for an unassigned lot', async () => {
     getShipmentDetailMock.mockResolvedValue({ ...detail, carrierAssignments: [] });
     render(
-      <MemoryRouter initialEntries={['/shipments/1']}>
-        <Routes>
-          <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
-        </Routes>
-      </MemoryRouter>,
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter initialEntries={['/shipments/1']}>
+          <Routes>
+            <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
     );
 
     expect(await screen.findByText('Nhà xe')).toBeTruthy();
@@ -175,11 +182,13 @@ describe('ShipmentDetailPage', () => {
       }],
     });
     render(
-      <MemoryRouter initialEntries={['/shipments/1']}>
-        <Routes>
-          <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
-        </Routes>
-      </MemoryRouter>,
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter initialEntries={['/shipments/1']}>
+          <Routes>
+            <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
     );
 
     // The heading and the containers-table column share the label.
