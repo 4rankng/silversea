@@ -109,6 +109,7 @@ const MATERIAL_WRITE_RULES: readonly MaterialWriteRule[] = [
   { method: 'PATCH', endpoint: IDEMPOTENCY_ENDPOINTS.TRUCK_DRIVER_REASSIGN, pattern: /^\/api\/shipments\/dispatch-fleet\/trucks\/[^/]+\/assigned-driver$/ },
   { method: 'PATCH', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_FULFILLMENT_ESTIMATES_UPDATE, pattern: /^\/api\/shipments\/dispatch-detail-plan-rows\/[^/]+\/estimates$/ },
   { method: 'PATCH', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_FULFILLMENT_PLAN_UPDATE, pattern: /^\/api\/shipments\/dispatch-detail-plan-rows\/[^/]+\/plan$/ },
+  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_FULFILLMENTS_DECOMPOSE, pattern: /^\/api\/shipments\/dispatch-detail-plan-rows\/decompose$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_ACCOUNTING_LOCK_ACTIVATE, pattern: /^\/api\/shipments\/[^/]+\/accounting-lock$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_CUS_CONTAINER_LINE_UPDATE, pattern: /^\/api\/shipments\/cus-workspace\/[^/]+\/containers\/[^/]+$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_CUS_FINANCE_CONFIRM, pattern: /^\/api\/shipments\/cus-workspace\/[^/]+\/finance-confirmations$/ },

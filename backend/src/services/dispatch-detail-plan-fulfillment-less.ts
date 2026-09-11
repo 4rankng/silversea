@@ -29,6 +29,9 @@ import {
   shipmentQSearchPredicate,
 } from './dispatch-planning-utils.service';
 import * as s from '../db/schema';
+import { ApiError } from '../errors';
+import { ensureShipmentFulfillmentsInTx } from './shipment-fulfillment.service';
+import { assertActorCanAccessShipment } from './shipment-coordination.service';
 
 export interface FulfillmentLessFilters {
   q?: string;
@@ -198,4 +201,54 @@ export function compareDetailPlanRows(a: DetailPlanSortRow, b: DetailPlanSortRow
     || directionRank(a) - directionRank(b)
     || dateKey(a).localeCompare(dateKey(b))
     || idKey(a) - idKey(b);
+}
+
+/**
+ * Decompose entrypoint for the fulfillment-less branch (9e ruling, point d):
+ * the editor cannot target a branch row (no fulfillmentId), so this governed
+ * write decomposes the lot and returns the fresh fulfillment for that
+ * container. Idempotent via the durable command registry — a replay returns
+ * the SAME fulfillment, never a second row.
+ */
+export async function decomposeFulfillmentLessContainer(input: {
+  shipmentId: number;
+  containerId: number;
+  expectedShipmentVersion: number;
+  actorId: number;
+  actor: { userId: number; role: string };
+}): Promise<{ fulfillmentId: number; fulfillmentVersion: number; shipmentId: number; shipmentVersion: number }> {
+  const { runInTx } = await import('../lib/tx');
+  return runInTx(undefined, async (tx) => {
+    await assertActorCanAccessShipment(tx, input.shipmentId, input.actor as never, { write: true });
+    const [shipment] = await tx.select({ id: s.shipments.id, version: s.shipments.version })
+      .from(s.shipments)
+      .where(and(eq(s.shipments.id, input.shipmentId), isNull(s.shipments.deletedAt)))
+      .for('update')
+      .limit(1);
+    if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng.');
+    if (shipment.version !== input.expectedShipmentVersion) {
+      throw new ApiError(409, 'Lô hàng đã thay đổi. Vui lòng tải lại.');
+    }
+    const [container] = await tx.select({ id: s.shipmentContainers.id })
+      .from(s.shipmentContainers)
+      .where(and(eq(s.shipmentContainers.id, input.containerId), eq(s.shipmentContainers.shipmentId, input.shipmentId)))
+      .limit(1);
+    if (!container) throw new ApiError(404, 'Không tìm thấy container của lô hàng.');
+    const rows = await ensureShipmentFulfillmentsInTx(tx, {
+      shipmentId: input.shipmentId,
+      actorId: input.actorId,
+      allowClerkIntake: true,
+    });
+    const fresh = rows.find((row) => row.shipmentContainerId === input.containerId)
+      ?? rows[0];
+    if (!fresh) throw new ApiError(409, 'Lô hàng không thể phân tách tác vụ.');
+    const [after] = await tx.select({ version: s.shipments.version })
+      .from(s.shipments).where(eq(s.shipments.id, input.shipmentId)).limit(1);
+    return {
+      fulfillmentId: fresh.id,
+      fulfillmentVersion: fresh.version,
+      shipmentId: shipment.id,
+      shipmentVersion: after?.version ?? input.expectedShipmentVersion,
+    };
+  });
 }
