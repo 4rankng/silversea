@@ -12,11 +12,12 @@ import {
   getDocument,
   deleteDocument,
 } from '../services/billing-document.service';
+import { applyGovernanceActionDirect } from '../services/governance-action-core.service';
 import {
-  approveGovernanceAction,
-  checkGovernanceAction,
-} from '../services/adjustment-governance.service';
-import { approveFuelInvoice, createFuelInvoice } from '../services/fuel-invoice.service';
+  approveFuelInvoice,
+  applyFuelInvoiceGovernanceAction,
+  createFuelInvoice,
+} from '../services/fuel-invoice.service';
 import {
   assertFuelPeriodCanAbsorbLateApproval,
   closePeriodLock,
@@ -44,7 +45,6 @@ const createdShipmentIds: number[] = [];
 const createdFulfillmentIds: number[] = [];
 const createdPodSubmissionIds: number[] = [];
 const createdFuelInvoiceIds: number[] = [];
-const createdGovernanceActionIds: number[] = [];
 
 async function mkCustomer(overrides: Partial<typeof s.customers.$inferInsert> = {}) {
   const [row] = await db.insert(s.customers).values({
@@ -586,7 +586,6 @@ describe('Q21 period authority', () => {
         'Duyệt trước ranh giới tháng Việt Nam',
       ),
     );
-    createdGovernanceActionIds.push(beforeBoundaryAction.id);
     assert.equal(
       (beforeBoundaryAction.afterSnapshot as { targetPeriod?: string }).targetPeriod,
       '2027-06',
@@ -606,8 +605,6 @@ describe('Q21 period authority', () => {
         'Duyệt hóa đơn tháng 5 vào kỳ mở tháng 7',
       ),
     );
-    createdGovernanceActionIds.push(action.id);
-
     const delta = action.deltaSnapshot as {
       lateApprovalLinks?: Array<{ sourcePeriodLockId: number; sourcePeriod: string; targetPeriod: string }>;
     };
@@ -662,34 +659,23 @@ describe('Q21 period authority', () => {
         'Duyệt trễ sau khi khóa kỳ nguồn',
       ),
     );
-    createdGovernanceActionIds.push(requested.id);
-    assert.deepEqual(
-      (requested.deltaSnapshot as { lateApprovalLinks?: unknown[] }).lateApprovalLinks,
-      [],
-      'the source period was still open when the maker requested approval',
-    );
-
-    const checked = await checkGovernanceAction({
-      actionId: requested.id,
-      checkerId: accountant.id,
-      checkerRole: 'ACCOUNTANT',
-      expectedVersion: requested.version,
-    });
+    // 2026-09-11 (maker-checker removal): request and approval collapsed into
+    // one direct apply at the (mocked) approval instant — the source period
+    // closes in between, and the apply re-resolves the late links then.
     const sourceLock = await trackLock(resolveFuelPeriodAuthority('2031-09-12'));
-
     await withMockedNow(
       context,
       '2031-10-15T04:05:00.000Z',
-      () => approveGovernanceAction({
-        actionId: checked.id,
-        approverId: admin.id,
-        approverRole: 'ADMIN',
-        expectedVersion: checked.version,
+      () => applyGovernanceActionDirect({
+        action: requested,
+        actorId: admin.id,
+        actorRole: 'ADMIN',
+        apply: applyFuelInvoiceGovernanceAction,
       }),
     );
 
     const [adjustment] = await db.select().from(s.fuelPeriodAdjustments)
-      .where(eq(s.fuelPeriodAdjustments.governanceActionId, requested.id));
+      .where(eq(s.fuelPeriodAdjustments.fuelInvoiceId, invoice.id));
     assert.equal(adjustment?.sourcePeriodLockId, sourceLock.id);
     assert.equal(adjustment?.sourcePeriod, '2031-09');
     assert.equal(adjustment?.targetPeriod, '2031-10');
@@ -717,33 +703,23 @@ describe('Q21 period authority', () => {
         'Duyệt trễ sang kỳ đang mở mới',
       ),
     );
-    createdGovernanceActionIds.push(requested.id);
-    assert.equal(
-      (requested.afterSnapshot as { targetPeriod?: string }).targetPeriod,
-      '2032-07',
-    );
-
-    const checked = await checkGovernanceAction({
-      actionId: requested.id,
-      checkerId: accountant.id,
-      checkerRole: 'ACCOUNTANT',
-      expectedVersion: requested.version,
-    });
     await trackLock(resolveFuelPeriodAuthority('2032-07-15'));
 
+    // One direct apply at the mocked approval instant re-resolves the target
+    // to the currently open Vietnam month.
     await withMockedNow(
       context,
       '2032-08-15T04:00:00.000Z',
-      () => approveGovernanceAction({
-        actionId: checked.id,
-        approverId: admin.id,
-        approverRole: 'ADMIN',
-        expectedVersion: checked.version,
+      () => applyGovernanceActionDirect({
+        action: requested,
+        actorId: admin.id,
+        actorRole: 'ADMIN',
+        apply: applyFuelInvoiceGovernanceAction,
       }),
     );
 
     const [adjustment] = await db.select().from(s.fuelPeriodAdjustments)
-      .where(eq(s.fuelPeriodAdjustments.governanceActionId, requested.id));
+      .where(eq(s.fuelPeriodAdjustments.fuelInvoiceId, invoice.id));
     assert.equal(adjustment?.sourcePeriodLockId, sourceLock.id);
     assert.equal(adjustment?.sourcePeriod, '2032-05');
     assert.equal(adjustment?.targetPeriod, '2032-08');
@@ -795,9 +771,6 @@ after(async () => {
         .where(inArray(s.billingDocumentLines.documentId, createdDocumentIds));
       await db.delete(s.billingDocuments)
         .where(inArray(s.billingDocuments.id, createdDocumentIds));
-    }
-    if (createdGovernanceActionIds.length > 0) {
-      await db.delete(s.governanceActions).where(inArray(s.governanceActions.id, createdGovernanceActionIds));
     }
     if (createdFuelInvoiceIds.length > 0) {
       await db.delete(s.fuelInvoices).where(inArray(s.fuelInvoices.id, createdFuelInvoiceIds));

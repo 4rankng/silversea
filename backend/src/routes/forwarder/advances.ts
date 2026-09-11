@@ -7,6 +7,8 @@ import type { Request, Response } from 'express';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { throwValidation } from '../../lib/validation';
 import { createAdvanceRequest, listAdvanceRequests, getAdvanceRequestCounts, listAdvanceRequestsPaginated, createAdvanceSettlement, listAdvanceSettlementsPaginated, getAdvanceSettlement, getOutstandingAdvanceBalance } from '../../services/advance.service';
+import { approveAdvanceRequest } from '../../services/advance-request.service';
+import { approveAdvanceSettlement } from '../../services/advance-settlement.service';
 import { runIdempotent } from '../../services/idempotency.service';
 
 import {
@@ -59,7 +61,13 @@ router.post('/advance-requests', asyncHandler(async (req: Request, res: Response
     createdBy: forwarder.id,
     entityType: 'advance_request',
     responseStatusCode: 201,
-    create: (tx) => createAdvanceRequest(forwarder.id, parsed.data, tx),
+    create: async (tx) => {
+      // 2026-09-10 (phê duyệt removed): the requester's advance applies in
+      // the same transaction — status APPROVED, approvedBy self, OPS_ADVANCE
+      // ledger entry posted. No PENDING window, no second approver.
+      const created = await createAdvanceRequest(forwarder.id, parsed.data, tx);
+      return approveAdvanceRequest(created.id, forwarder.id, undefined, tx);
+    },
   });
   res.status(outcome.statusCode).json({ ...outcome.result, replayed: outcome.replayed });
 }));
@@ -150,7 +158,16 @@ router.post('/advance-settlements', asyncHandler(async (req: Request, res: Respo
     createdBy: forwarder.id,
     entityType: 'advance_settlement',
     responseStatusCode: 201,
-    create: (tx) => createAdvanceSettlement(forwarder.id, input, tx),
+    create: async (tx) => {
+      // 2026-09-10 (phê duyệt removed, TC-CHUNK4-009): the settlement applies
+      // at creation — status APPROVED in ONE call, linked expenses approved,
+      // ledger entries posted. The check/approve/reject endpoints are gone.
+      const created = await createAdvanceSettlement(forwarder.id, input, tx);
+      return approveAdvanceSettlement(created.id, forwarder.id, undefined, {
+        transaction: tx,
+        emitNotification: false,
+      });
+    },
   });
   res.status(outcome.statusCode).json({ ...outcome.result, replayed: outcome.replayed });
 }));

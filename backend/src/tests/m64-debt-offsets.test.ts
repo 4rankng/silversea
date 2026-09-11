@@ -238,6 +238,31 @@ describe('M6.4 — M06-04-02 createDebtOffset validation', () => {
   });
 });
 
+describe('M6.4 — 2026-09-10 phê duyệt removed: create applies immediately', () => {
+  test('create+approve compose in one transaction lands APPROVED with paired entries (route contract)', async () => {
+    const { cust, sup } = await mkLinkedPair();
+    await postAr(cust.id, 2_000_000);
+    await postAp(sup.id, 2_000_000);
+
+    // Mirrors POST /finance/debt-offsets: the creator applies the offset in
+    // the same transaction — status lands APPROVED, AR and AP are reduced,
+    // no PENDING row is ever visible.
+    const approved = await db.transaction(async (tx) => {
+      const created = await createDebtOffset({
+        ...offsetDraft(cust.id, sup.id, adminUserId),
+        transaction: tx,
+      });
+      return approveDebtOffset(created.id, adminUserId, 'ADMIN', tx);
+    });
+    createdOffsetIds.push(approved.id);
+
+    assert.equal(approved.approvalStatus, 'APPROVED');
+    assert.equal(Number(approved.amount), 2_000_000);
+    assert.equal(await balance('CUSTOMER', cust.id), 0, 'AR reduced to 0');
+    assert.equal(await balance('VENDOR', sup.id), 0, 'AP reduced to 0');
+  });
+});
+
 describe('M6.4 — M06-04-01 approve posts paired entries', () => {
   test('approve reduces AR and AP by the offset amount', async () => {
     const { cust, sup } = await mkLinkedPair();
@@ -477,18 +502,20 @@ describe('M6.4 — M06-04-04 role guard', () => {
     );
   });
 
-  test('creator cannot approve their own debt offset', async () => {
+  test('creator may approve their own debt offset (phê duyệt removed 2026-09-10)', async () => {
     const { cust, sup } = await mkLinkedPair();
     await postAr(cust.id, 1_000_000);
     await postAp(sup.id, 1_000_000);
     const offset = await createDebtOffset(offsetDraft(cust.id, sup.id, adminUserId));
     createdOffsetIds.push(offset.id);
 
-    await assert.rejects(
-      () => approveDebtOffset(offset.id, adminUserId, 'ADMIN'),
-      (err: Error & { statusCode?: number }) =>
-        err.statusCode === 403 && /Không thể duyệt phiếu đối trừ công nợ do chính mình tạo/.test(err.message),
-    );
+    // 2026-09-10: the segregation guard is gone — creation applies
+    // immediately with the creator as approver, so a self-approve succeeds
+    // and lands APPROVED with the paired entries posted.
+    const approved = await approveDebtOffset(offset.id, adminUserId, 'ADMIN');
+    assert.equal(approved.approvalStatus, 'APPROVED');
+    assert.equal(await balance('CUSTOMER', cust.id), 0, 'AR reduced to 0');
+    assert.equal(await balance('VENDOR', sup.id), 0, 'AP reduced to 0');
   });
 });
 

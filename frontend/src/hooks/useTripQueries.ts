@@ -3,6 +3,7 @@ import { tripClient } from '../api/tripClient';
 import { configClient } from '../api/configClient';
 import { financialClient } from '../api/financialClient';
 import { qk } from '../api/keys';
+import { raceWithTimeout } from '../lib/api/withTimeout';
 import type {
   TripDetail,
   TripPairSummary,
@@ -10,6 +11,11 @@ import type {
   Driver as DriverType,
 } from '@tingting/shared';
 import { useSalaryPeriod } from './useCatalogQueries';
+
+/** Bounded wait for the trip-detail query before it settles into the
+ *  consumer's error UI (stalled mid-restart connections otherwise pend
+ *  forever). See ticket 7a74d6eb. */
+const TRIP_DETAIL_TIMEOUT_MS = 15_000;
 
 export interface NormalizedTrip {
   id: number;
@@ -82,7 +88,10 @@ export function useTripDetail(id: string | undefined) {
   return useQuery<TripDetail>({
     queryKey: qk.trips.detail(id),
     enabled: !!id,
-    queryFn: () => tripClient.getTrip(Number(id)),
+    // A stalled connection (mid-restart backend) must settle the query into
+    // the consumer's error UI instead of spinning forever — ticket 7a74d6eb.
+    // Normal responses are sub-second; 15s is generous but bounded.
+    queryFn: () => raceWithTimeout(tripClient.getTrip(Number(id)), TRIP_DETAIL_TIMEOUT_MS),
   });
 }
 

@@ -1,0 +1,11 @@
+▶ journey-board card fields — operationalNotes + factoryShortName
+  ✔ cards carry operationalNotes verbatim and resolve blank-safe factory labels (94.095917ms)
+✔ journey-board card fields — operationalNotes + factoryShortName (94.464834ms)
+ℹ tests 1
+ℹ suites 1
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 848.584083

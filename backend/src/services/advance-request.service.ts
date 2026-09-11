@@ -13,7 +13,8 @@ import { AdvanceError } from './settlement-validation';
 import type { Tx } from './trip-shared';
 import { escapeLikeTerm } from '../lib/format';
 import { assertCanMakeGovernanceAction } from './governance-policy';
-import type { GovernanceApplyResult, GovernanceActionRow } from './governance-transition.service';
+import { buildGovernanceAction } from './governance-action-core.service';
+import type { GovernanceApplyResult, GovernanceActionRow } from './governance-action-core.service';
 import { assertExpectedVersion, clampPageLimit, enrichWithNames } from './advance-shared.service';
 
 export async function createAdvanceRequest(
@@ -252,7 +253,7 @@ export async function requestAdvanceRequestApprovalGovernance(input: {
       throw new AdvanceError(409, `Cannot submit approval for request with status ${request.status}`);
     }
 
-    const [action] = await tx.insert(s.governanceActions).values({
+    return buildGovernanceAction({
       subjectType: 'ADVANCE_REQUEST',
       subjectId: request.id,
       subjectKey: `advance-request:${request.id}:approve`,
@@ -274,8 +275,7 @@ export async function requestAdvanceRequestApprovalGovernance(input: {
       },
       makerId: input.makerId,
       makerRole: input.makerRole,
-    }).returning();
-    return action;
+    });
   };
 
   return runInTx(input.transaction, execute);
@@ -305,7 +305,7 @@ export async function requestAdvanceRequestRejectionGovernance(input: {
       throw new AdvanceError(409, `Cannot submit rejection for request with status ${request.status}`);
     }
 
-    const [action] = await tx.insert(s.governanceActions).values({
+    return buildGovernanceAction({
       subjectType: 'ADVANCE_REQUEST',
       subjectId: request.id,
       subjectKey: `advance-request:${request.id}:reject`,
@@ -323,8 +323,7 @@ export async function requestAdvanceRequestRejectionGovernance(input: {
       deltaSnapshot: { amount: request.amount },
       makerId: input.makerId,
       makerRole: input.makerRole,
-    }).returning();
-    return action;
+    });
   };
 
   return runInTx(input.transaction, execute);
@@ -347,9 +346,9 @@ export async function approveAdvanceRequest(
     if (request.status !== 'PENDING') {
       throw new AdvanceError(409, `Cannot approve request with status ${request.status}`);
     }
-    if (request.requesterId === approvedBy) {
-      throw new AdvanceError(403, 'Không thể duyệt yêu cầu tạm ứng của chính mình');
-    }
+    // 2026-09-10 (phê duyệt removed): self-approval is the contract — the
+    // requester's own create applies immediately, so the old segregation
+    // guard (requester cannot approve their own request) is gone.
 
     const [user] = await tx.select({ fullName: s.users.fullName })
       .from(s.users)
@@ -443,8 +442,8 @@ export async function applyAdvanceRequestGovernanceAction(
   }
 
   const decided = action.actionKind === 'ADVANCE_REQUEST_REJECTION'
-    ? await rejectAdvanceRequest(action.subjectId, action.approverId!, action.originalVersion, tx)
-    : await approveAdvanceRequest(action.subjectId, action.approverId!, action.originalVersion, tx);
+    ? await rejectAdvanceRequest(action.subjectId, action.approverId!, action.originalVersion!, tx)
+    : await approveAdvanceRequest(action.subjectId, action.approverId!, action.originalVersion!, tx);
 
   return {
     applicationResult: {

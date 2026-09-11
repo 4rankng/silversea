@@ -23,5 +23,4 @@ export {
   updateShipmentDocumentCustody,
   activateShipmentAccountingLock,
   requestShipmentReopen,
-  decideShipmentReopen,
 } from './shipment-accounting-custody.service';

@@ -24,7 +24,7 @@ import {
   effectiveBillingLineAmount, billOrBookNumberFor,
 } from './cus-workspace-mapping.service';
 import { getShipmentFinanceConfirmationSummary } from './shipment-accounting-lock.service';
-import { filterContainersByDateRange, isPastRunCutoff } from './container-date-filter';
+import { filterContainersByDateRange } from './container-date-filter';
 import type { AuthUser } from '../middleware/auth';
 import { ShipmentRow, ShipmentListRow, WorkspaceSupport, ContainerRow, AssignmentRow } from './cus-shipment-workspace-reads.service';
 
@@ -509,7 +509,6 @@ function buildContainerLine(
       actor,
       activeLock != null,
       assignment?.tripId != null,
-      isPastRunCutoff(container.customerAppointmentAt),
     ),
     permissions: {
       carrierEditable: canEditOperational,
@@ -592,10 +591,6 @@ export {
   shipmentFieldAccess, countContainerTypes,
 };
 
-const postDispatchDirectShipmentFields = new Set<keyof ShipmentCusWorkspaceListItem['fieldAccess']>([
-  'bookingRef', 'blNumber', 'closingAt', 'plannedReturnAt', 'customerNotes', 'operationalNotes',
-]);
-
 const allShipmentFieldKeys = [
   'customerId', 'factoryName', 'routeId', 'deliveryLocation', 'blNumber', 'bookingRef',
   'declarationNumber', 'tradeDirection', 'shippingLineName', 'packageCount', 'packageType',
@@ -615,8 +610,6 @@ function shipmentFieldAccess(
 ): ShipmentCusWorkspaceListItem['fieldAccess'] {
   const access = {} as ShipmentCusWorkspaceListItem['fieldAccess'];
   const canWriteShipment = actor.role === Role.CUS || actor.role === Role.ADMIN || actor.role === Role.MANAGER;
-  const preDispatch = canonicalShipmentStatus(shipment.status) === ShipmentStatus.PENDING_DATE
-    || canonicalShipmentStatus(shipment.status) === ShipmentStatus.READY_FOR_DISPATCH;
   for (const field of allShipmentFieldKeys) {
     if (field === 'declarationNumber') {
       access[field] = !canWriteShipment
@@ -632,8 +625,6 @@ function shipmentFieldAccess(
       access[field] = readOnly('Vai trò hiện tại chỉ được xem trường này.');
     } else if (hasContainers && (field === 'cargoWeightKg' || field === 'cargoVolumeCbm')) {
       access[field] = readOnly('Số liệu hiển thị là tổng theo container; hãy cập nhật từng container.');
-    } else if (actor.role === Role.CUS && !preDispatch && !postDispatchDirectShipmentFields.has(field)) {
-      access[field] = { mode: 'REQUEST', reason: 'Thay đổi sau điều xe cần gửi yêu cầu để Điều vận xem xét.' };
     } else {
       access[field] = { mode: 'DIRECT', reason: 'Bạn có thể cập nhật trực tiếp trường này.' };
     }
@@ -645,7 +636,6 @@ function containerFieldAccess(
   actor: AuthUser,
   hasActiveLock: boolean,
   hasTrip: boolean,
-  pastRunCutoff: boolean,
 ): ShipmentCusWorkspaceContainerLine['fieldAccess'] {
   const editable = !hasActiveLock && !hasTrip && (
     actor.role === Role.ADMIN
@@ -661,11 +651,12 @@ function containerFieldAccess(
         ? 'Vai trò hiện tại chỉ được xem dữ liệu container.'
         : 'Bạn có thể cập nhật trực tiếp trước khi điều xe.';
   const mode = editable ? 'DIRECT' as const : 'READ_ONLY' as const;
-  // Route/container-number/pickup-drop-off stay CUS-editable through the
-  // container's own run date even once a trip exists — past that date (or
-  // once a trip exists), CUS submits an admin-reviewed request instead of
-  // hitting the flat READ_ONLY every other field gets. Scoped to CUS only;
-  // DISPATCHER keeps the existing trip-based DIRECT/READ_ONLY split.
+  // 2026-09-10 user directive: all phê duyệt (approval) flows are removed.
+  // Route/container-number/pickup-drop-off used to flip CUS from DIRECT to a
+  // dispatcher-reviewed REQUEST once the container had a trip or its run date
+  // passed; these fields now save directly for CUS at any point before the
+  // accounting lock. The generic trip-based DIRECT/READ_ONLY split stays for
+  // DISPATCHER and other roles.
   const dateGatedFields = new Set(['containerNumber', 'routeId', 'liftSiteId', 'dropoffSiteId']);
   const access = (key: keyof ShipmentCusWorkspaceContainerLine['fieldAccess']): ShipmentCusWorkspaceFieldAccess => {
     // plateNumber intentionally has no OWN special case: since the internal
@@ -673,15 +664,7 @@ function containerFieldAccess(
     // generic editable/READ_ONLY mode, mirroring permissions.plateEditable —
     // the plate is a plan; the official dispatch trip confirms it.
     if (dateGatedFields.has(key) && actor.role === Role.CUS && !hasActiveLock) {
-      if (hasTrip || pastRunCutoff) {
-        return {
-          mode: 'REQUEST',
-          reason: hasTrip
-            ? 'Container đã có chuyến thực tế; thay đổi cần gửi yêu cầu để quản trị/quản lý phê duyệt.'
-            : 'Đã qua ngày chạy container; thay đổi cần gửi yêu cầu để quản trị/quản lý phê duyệt.',
-        };
-      }
-      return { mode: 'DIRECT', reason: 'Bạn có thể cập nhật trực tiếp trước khi điều xe.' };
+      return { mode: 'DIRECT', reason: 'Bạn có thể cập nhật trực tiếp.' };
     }
     return { mode, reason };
   };

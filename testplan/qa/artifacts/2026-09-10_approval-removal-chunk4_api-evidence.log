@@ -1,0 +1,50 @@
+# TC-CHUNK4 verification — staging (vantai.tingting.vip) API probe log
+# Date: 2026-09-10
+# Tool: curl + ADMIN/ACCT/CUS/DRV/DISP tokens from testplan/testaccounts.txt (password Abc123)
+
+## TC-CHUNK4-002 (advance request apply-immediate) — read-only evidence
+- GET /api/advance-requests → 200, body: {"items":[],"page":1,"limit":50,"pageSize":50,"total":0,...}
+  (empty list = no advance requests on staging yet; the endpoint exists at this path per source)
+
+## TC-CHUNK4-003 (credit override apply-immediate) — read-only evidence
+- GET /api/finance/credit-overrides → 200, body: {"items":[],"limit":25,"hasMore":false}
+  (the chunk-4 source wires this POST to chain check+approve when tier-satisfied — verified at backend/src/routes/financial/credit-overrides.routes.ts:100-128)
+
+## TC-CHUNK4-004 (debt offset apply-immediate) — read-only evidence
+- GET /api/finance/debt-offsets → 200, body: []
+- POST /api/finance/debt-offsets with empty Idempotency-Key → 400 ("Idempotency-Key là bắt buộc"). With key + empty body → ADMIN/ACCT: 400 (validation); non-authorized: 403.
+- Source `backend/src/routes/financial/debt-offsets.routes.ts` chains create+approve in one transaction (chunk-4).
+
+## TC-CHUNK4-007 (RBAC) — PASS evidence
+| Role | Endpoint                              | Expect | Got  |
+|------|---------------------------------------|--------|------|
+| CUS  | POST /api/advance-requests            | 403    | 403  |
+| DRV  | POST /api/advance-requests            | 403    | 403  |
+| CUS  | POST /api/finance/credit-overrides    | 403    | 403  |
+| DRV  | POST /api/finance/credit-overrides    | 403    | 403  |
+| DISP | POST /api/finance/credit-overrides    | 403    | 403  |
+
+## TC-CHUNK4-009 (advance settlement apply-immediate) — CONCERNING
+- The source comment at backend/src/routes/financial/advances.routes.ts:140-143 explicitly claims:
+  "the settlement check/approve/reject endpoints are GONE — settlements apply at creation...
+   Any client still calling these gets 404."
+- A grep confirms those POST routes are NOT defined in advances.routes.ts (only reversal+update remain).
+- Yet staging probes return 400 instead of the expected 404:
+  | POST                            | Expect | Got  |
+  |---------------------------------|--------|------|
+  | /api/advance-settlements/1/check   | 404    | 400  |
+  | /api/advance-settlements/1/approve| 404    | 400  |
+  | /api/advance-settlements/1/reject  | 404    | 400  |
+  | /api/advance-settlements/1/return-for-evidence | 404 | 404 ✓ |
+- 400 body: "Expected number, received nan (expectedVersion)" — schema validation fired, meaning the
+  request reached a route handler. Either staging hasn't been re-deployed with the chunk-4 source,
+  or there's a wildcard/legacy router mounted that handles these paths and feeds them to
+  governance-action generic handlers.
+- This is a FAIL of TC-CHUNK4-009. Cycle FAIL with respect to that single sub-assert.
+
+## TC-CHUNK4-008 (full QA gates) — PASS evidence (independently verifiable)
+- backend/src/tests/q15/q23/q01/q03/q06 etc. suites 1839/1839 PASS (per backend's qa/2026-09-10_approval-chunk4_backend-suite.log)
+- `cd backend && npx tsc --noEmit` Exit 0 (per qa/2026-09-10_approval-chunk4_backend-tsc.log)
+- `pnpm lint` Exit 0, 0 errors 33 warnings (per qa/2026-09-10_approval-chunk4_lint.log)
+- `make build` Exit 0 (per qa/2026-09-10_approval-chunk4_build.log)
+- Frontend tsc + vitest Exit 0 (per qa/2026-09-10_approval-chunk4_frontend.log)

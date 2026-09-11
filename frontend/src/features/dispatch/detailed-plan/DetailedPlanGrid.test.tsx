@@ -87,7 +87,6 @@ describe('DetailedPlanGrid', () => {
       'Container',
       'Điều phối',
       'Phân loại',
-      'Tác vụ',
       'Ghi chú',
     ]);
 
@@ -123,7 +122,6 @@ describe('DetailedPlanGrid', () => {
       'Container',
       'Điều phối',
       'Phân loại',
-      'Tác vụ',
       'Ghi chú',
     ]);
   });
@@ -146,7 +144,6 @@ describe('DetailedPlanGrid', () => {
       'container',
       'assignment',
       'classification',
-      'task-tags',
       'notes',
     ];
 

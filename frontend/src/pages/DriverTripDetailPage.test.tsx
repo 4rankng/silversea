@@ -526,22 +526,20 @@ describe('DriverTripDetailPage', () => {
 
   // Spec A4: the detail fact grid mirrors the journey-card order, with
   // container number + type + seal sharing one line.
-  it('renders the spec-A4 field order with container, type and seal on one line', async () => {
+  it('renders the ticket-365943ea field order with container, type and seal on one line', async () => {
     renderPage();
 
     await screen.findByText(/Số cont & seal/);
     const labels = Array.from(document.querySelectorAll('.driver-task-fact__label')).map((el) => el.textContent);
     expect(labels).toEqual([
-      'Ngày giờ kế hoạch',
       'Nhà máy',
       'Tuyến',
+      'Container / lô hàng',
+      'Cảng nâng',
+      'Cảng hạ',
+      'Ngày giờ kế hoạch',
       'Người liên hệ',
       'Số điện thoại',
-      'Container / lô hàng',
-      'Điểm lấy',
-      'Điểm trả',
-      'Đầu kéo',
-      'Rơ moóc',
     ]);
     expect(screen.getByText('MSCU1234561 · 40FT · Seal SEAL-9')).toBeTruthy();
     expect(screen.queryByText('Loại container')).toBeNull();
@@ -671,5 +669,179 @@ describe('DriverTripDetailPage', () => {
 
     expect(await screen.findByText(/Số cont & seal/)).toBeTruthy();
     expect(screen.queryByTestId('accept-sticky-bar')).toBeNull();
+  });
+  // ─── 36d0183d driver-app enhancements (wave 2026-09-11) ──────────────────
+
+  // TC-DA-004: Đầu kéo / Rơ moóc fact rows are GONE from the driver mobile
+  // grid (wire fields stay; the UI surface is what this ticket removes).
+  it('TC-DA-004: hides the Đầu kéo / Rơ moóc fact rows', async () => {
+    renderPage();
+
+    await screen.findByText(/Số cont & seal/);
+    expect(screen.queryByText('Đầu kéo')).toBeNull();
+    expect(screen.queryByText('Rơ moóc')).toBeNull();
+    expect(screen.queryByText('51C-12345')).toBeNull();
+    expect(screen.queryByText('51R-55555')).toBeNull();
+  });
+
+  // TC-DA-002: Tuyến row carries the factory site street ADDRESS when the
+  // site join provides one — never the factory name.
+  it('TC-DA-002: Tuyến row shows the factory address, not the name', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        fulfillment: {
+          ...makeTaskDetail().fulfillment!,
+          factoryAddress: '123 Nguyễn Văn A, Bình Dương',
+        },
+      }),
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+    renderPage();
+
+    await screen.findByText(/Số cont & seal/);
+    const routeRow = Array.from(document.querySelectorAll('.driver-task-fact'))
+      .find((el) => el.querySelector('.driver-task-fact__label')?.textContent === 'Tuyến');
+    const routeValue = routeRow?.querySelector('.driver-task-fact__value')?.textContent ?? '';
+    expect(routeValue).toBe('123 Nguyễn Văn A, Bình Dương');
+  });
+
+  // TC-DA-003: Kho phone row hidden when absent — no dash placeholder.
+  it('TC-DA-003: hides the Kho row when the site has no phone', async () => {
+    renderPage();
+
+    await screen.findByText(/Số cont & seal/);
+    const labels = Array.from(document.querySelectorAll('.driver-task-fact__label')).map((el) => el.textContent);
+    expect(labels).not.toContain('Kho');
+  });
+
+  it('TC-DA-003: renders the Kho row as a tel link when the site has a phone', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        fulfillment: {
+          ...makeTaskDetail().fulfillment!,
+          khoPhone: '0901234567',
+        },
+      }),
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+    renderPage();
+
+    await screen.findByText(/Số cont & seal/);
+    const khoLink = await screen.findByText('0901234567');
+    expect(khoLink.getAttribute('href')).toBe('tel:0901234567');
+  });
+
+  // TC-DA-005: customer master-data invoice rows render with the exact
+  // Vietnamese labels and per-row graceful hide.
+  it('TC-DA-005: renders MST / Tên công ty / Địa chỉ from master data, hiding nulls', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        invoiceMaster: { taxCode: '3701234567', companyName: 'Công ty TNHH ABC', address: null },
+      }),
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+    renderPage();
+
+    await screen.findByText(/Số cont & seal/);
+    expect(screen.getByText('MST')).toBeTruthy();
+    expect(screen.getByText('3701234567')).toBeTruthy();
+    expect(screen.getByText('Tên công ty')).toBeTruthy();
+    expect(screen.getByText('Công ty TNHH ABC')).toBeTruthy();
+    expect(screen.queryByText('Địa chỉ')).toBeNull();
+  });
+
+  // TC-DA-006: ONE chip carries the close status (EXPORT→Đóng, IMPORT→Trả),
+  // hidden when tradeDirection is null.
+  it('TC-DA-006: renders one Đóng chip for EXPORT and none without tradeDirection', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({ tradeDirection: 'EXPORT' }),
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+    const { unmount } = renderPage();
+    await screen.findByText(/Số cont & seal/);
+    expect(screen.getAllByTestId('close-status-chip').map((chip) => chip.textContent)).toEqual(['Đóng']);
+    unmount();
+
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail(),
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+    renderPage();
+    await screen.findByText(/Số cont & seal/);
+    expect(screen.queryByTestId('close-status-chip')).toBeNull();
+  });
+
+  it('TC-DA-006: renders Trả for IMPORT', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({ tradeDirection: 'IMPORT' }),
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+    renderPage();
+
+    await screen.findByText(/Số cont & seal/);
+    expect(screen.getAllByTestId('close-status-chip').map((chip) => chip.textContent)).toEqual(['Trả']);
+  });
+
+  // TC-DA-001: chips resolve via parseNote against the wire tag pool; N ≥ 6
+  // collapses to the first 4 behind a Mở rộng/Thu gọn toggle.
+  it('TC-DA-001: collapses 6+ chips behind a Mở rộng/Thu gọn toggle', async () => {
+    const tags = ['Kiểm đếm', 'Cân đầu', 'Chụp ảnh seal', 'Đóng hàng', 'Nâng cont', 'Hạ cont'];
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        knownTagLabels: tags,
+        fulfillment: {
+          ...makeTaskDetail().fulfillment!,
+          driverNotes: 'Kiểm đếm; Cân đầu; Chụp ảnh seal; Đóng hàng; Nâng cont; Hạ cont',
+        },
+      }),
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+    renderPage();
+
+    await screen.findByTestId('operation-chips');
+    let chips = screen.getAllByTestId('operation-chip');
+    expect(chips).toHaveLength(4);
+    const toggle = screen.getByRole('button', { name: /Mở rộng/ });
+    fireEvent.click(toggle);
+    chips = screen.getAllByTestId('operation-chip');
+    expect(chips).toHaveLength(6);
+    expect(screen.getByRole('button', { name: /Thu gọn/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /Thu gọn/ }));
+    expect(screen.getAllByTestId('operation-chip')).toHaveLength(4);
+  });
+
+  it('TC-DA-001: short lists render fully expanded without a toggle', async () => {
+    const tags = ['Kiểm đếm', 'Cân đầu', 'Chụp ảnh seal'];
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        knownTagLabels: tags,
+        fulfillment: {
+          ...makeTaskDetail().fulfillment!,
+          driverNotes: 'Kiểm đếm; Cân đầu; Chụp ảnh seal',
+        },
+      }),
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+    renderPage();
+
+    await screen.findByTestId('operation-chips');
+    expect(screen.getAllByTestId('operation-chip')).toHaveLength(3);
+    expect(screen.queryByRole('button', { name: /Mở rộng|Thu gọn/ })).toBeNull();
   });
 });

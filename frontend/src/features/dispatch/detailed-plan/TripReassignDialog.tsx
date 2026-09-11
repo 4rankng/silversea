@@ -23,7 +23,7 @@ interface TripReassignDialogProps {
  * the caller's page.
  */
 export function TripReassignDialog({ tripId, onClose, onReassigned }: TripReassignDialogProps) {
-  const { data: trip, isLoading: loadingTrip } = useTripDetail(tripId != null ? String(tripId) : undefined);
+  const { data: trip, isLoading: loadingTrip, error: tripError, refetch: refetchTrip } = useTripDetail(tripId != null ? String(tripId) : undefined);
   const { data: trucksDriversData } = useTrucksAndDrivers({ enabled: tripId != null });
   const { data: catalogData } = useCatalogs();
   const trucks = trucksDriversData?.trucks ?? [];
@@ -115,8 +115,20 @@ export function TripReassignDialog({ tripId, onClose, onReassigned }: TripReassi
         </>
       )}
     >
-      {loadingTrip || !trip ? (
+      {/* A failed trip fetch must never render as an eternal "Đang tải…":
+          the 2026-09-10 staging QA block was exactly that (fetch error +
+          no error branch). Show the spinner only while actually loading. */}
+      {loadingTrip || (!trip && !tripError) ? (
         <p>Đang tải…</p>
+      ) : !trip ? (
+        <div role="alert" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <p className="dispatch-assignment-dialog__error" style={{ margin: 0 }}>
+            Không tải được chuyến đi. Vui lòng thử lại.
+          </p>
+          <button type="button" className="btn btn--secondary btn--sm" onClick={() => void refetchTrip()}>
+            Thử lại
+          </button>
+        </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {error && <p className="dispatch-assignment-dialog__error" role="alert">{error}</p>}

@@ -7,7 +7,8 @@ import { LedgerService } from './ledger.service';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
 import { assertCanMakeGovernanceAction } from './governance-policy';
-import type { GovernanceApplyResult, GovernanceActionRow } from './governance-transition.service';
+import { buildGovernanceAction } from './governance-action-core.service';
+import type { GovernanceApplyResult, GovernanceActionRow } from './governance-action-core.service';
 import { lockApplicationOwnedUniquenessSet } from './application-owned-uniqueness.service';
 
 export interface ExpenseCreateInput {
@@ -270,7 +271,7 @@ export async function requestCompanyExpenseGovernance(input: {
         throw new ApiError(400, 'Yêu cầu tạo chi phí thiếu dữ liệu nguồn');
       }
       await validateExpenseInput(tx, input.createInput);
-      const [action] = await tx.insert(s.governanceActions).values({
+      return buildGovernanceAction({
         subjectType: 'COMPANY_EXPENSE',
         subjectId: null,
         subjectKey: `company-expense:create:${input.commandKey}`,
@@ -282,8 +283,7 @@ export async function requestCompanyExpenseGovernance(input: {
         deltaSnapshot: { mutation: 'CREATE' },
         makerId: input.makerId,
         makerRole: input.makerRole,
-      }).returning();
-      return action;
+      });
     }
     if (input.expenseId == null || input.expectedUpdatedAt == null) {
       throw new ApiError(400, 'Yêu cầu thay đổi chi phí thiếu phiên bản nguồn');
@@ -304,7 +304,7 @@ export async function requestCompanyExpenseGovernance(input: {
           : {}),
       };
 
-    const [action] = await tx.insert(s.governanceActions).values({
+    return buildGovernanceAction({
       subjectType: 'COMPANY_EXPENSE',
       subjectId: existing.id,
       subjectKey: `company-expense:${existing.id}:${input.mutation.toLowerCase()}`,
@@ -322,8 +322,7 @@ export async function requestCompanyExpenseGovernance(input: {
       },
       makerId: input.makerId,
       makerRole: input.makerRole,
-    }).returning();
-    return action;
+    });
   };
 
   return runInTx(input.transaction, execute);
@@ -524,9 +523,6 @@ export async function applyCompanyExpenseGovernanceAction(
       receiptId: snapshot.receiptId == null ? null : String(snapshot.receiptId),
       note: snapshot.note == null ? null : String(snapshot.note),
     }, action.makerId, true);
-    await tx.update(s.governanceActions)
-      .set({ subjectId: created.id })
-      .where(eq(s.governanceActions.id, action.id));
     return {
       applicationResult: {
         subjectType: 'COMPANY_EXPENSE',

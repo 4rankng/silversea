@@ -236,10 +236,10 @@ describe('AppSettingsConfigPage', () => {
     });
   });
 
-  it('shows a pending-review message instead of implying the app settings were applied', async () => {
+  it('confirms the app settings were applied directly under MC-1 governance removal', async () => {
     mocks.saveAppSettings.mockResolvedValue({
       id: 901,
-      status: 'PENDING_CHECK',
+      status: 'APPROVED',
       actionKind: 'PRICE_CONFIG_CHANGE',
       version: 1,
     });
@@ -251,9 +251,9 @@ describe('AppSettingsConfigPage', () => {
     await waitFor(() => {
       expect(mocks.saveAppSettings).toHaveBeenCalled();
     });
-    expect(screen.getByRole('status').textContent).toContain(
-      'Đã gửi yêu cầu cập nhật cài đặt ứng dụng để kiểm tra và phê duyệt. Cấu hình hiện chưa thay đổi.',
-    );
+    // MC-1 (maker-checker removal): the request and apply are one transaction,
+    // so the user sees the "saved" confirmation, not a pending-review message.
+    expect(screen.getByRole('status').textContent).toContain('Đã lưu cài đặt ứng dụng');
   });
 
   it('shows the unconfigured financial policy and truck states with explicit warnings', () => {

@@ -213,37 +213,33 @@ describe('Q18 executable locked-entity boundary inventory', () => {
   });
 
   test('binds the shared checker, approver, and applied reference persistence path', () => {
-    const checker = assertDeclarationBinding(
+    // 2026-09-11 maker-checker removal: the row machine (check/approve fn
+    // pair) is gone; the single in-request engine now performs every stage —
+    // check policy, evidence completeness, approve policy, apply adapter —
+    // and stamps checker/approver/applied + ledger references on the
+    // transient record.
+    const directApply = assertDeclarationBinding(
       {
         file: 'services/governance-action-core.service.ts',
-        symbol: 'checkGovernanceAction',
+        symbol: 'applyGovernanceActionDirect',
         requiredFragments: [
           'checkerId',
           'checkerRole',
           'checkedAt',
           "status: 'PENDING_APPROVAL'",
-        ],
-      },
-      'shared governance checker',
-    );
-    assert.match(checker, /throw new ApiError/);
-
-    const approval = assertDeclarationBinding(
-      {
-        file: 'services/governance-action-core.service.ts',
-        symbol: 'approveGovernanceActionWithAdapter',
-        requiredFragments: [
           'approverId',
           'approverRole',
           'approvedAt',
           'appliedAt',
           'ledgerEntryId',
           'applicationResult',
+          'enqueueDurableEffects',
         ],
       },
-      'shared governance approval/apply',
+      'shared governance checker',
     );
-    assert.match(approval, /PENDING_APPROVAL/);
+    assert.match(directApply, /throw new ApiError/);
+    assert.match(directApply, /PENDING_APPROVAL/);
   });
 
   test('never exposes a reopen action for entities whose terminal state is irreversible', () => {

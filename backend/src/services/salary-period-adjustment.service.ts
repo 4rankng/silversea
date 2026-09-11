@@ -1,10 +1,17 @@
-import { Role, FINANCIAL_ROLES } from '@tingting/shared';
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { FINANCIAL_ROLES } from '@tingting/shared';
+import { and, desc, eq, inArray, or, sql } from 'drizzle-orm';
 
 import { db } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import { LedgerService } from './ledger.service';
+import {
+  applyGovernanceActionDirect,
+  buildGovernanceAction,
+  type GovernanceActionRow,
+  type GovernanceApplyAdapter,
+  type GovernanceApplyResult,
+} from './governance-action-core.service';
 import {
   getClosedPeriodLock,
   resolveSalaryPeriodAuthority,
@@ -15,52 +22,6 @@ const PERIOD_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
 const CLOSE_ENTITY_TYPE = 'SALARY_PERIOD_CLOSE';
 const ADJUSTMENT_SUBJECT_TYPE = 'SALARY_PERIOD';
 const ADJUSTMENT_ACTION_KIND = 'SALARY_PERIOD_ADJUSTMENT';
-
-type SalaryAdjustmentStatus = 'PENDING_CHECK' | 'PENDING_APPROVAL' | 'APPROVED';
-
-export interface SalaryPeriodAdjustmentItem {
-  actionId: number;
-  adjustmentId: number | null;
-  version: number;
-  sourcePeriod: string;
-  targetPeriod: string;
-  driverId: number;
-  driverName: string;
-  amount: number;
-  reason: string;
-  status: SalaryAdjustmentStatus;
-  makerId: number;
-  makerName: string | null;
-  checkerId: number | null;
-  checkerName: string | null;
-  approverId: number | null;
-  approverName: string | null;
-  createdAt: string;
-  approvedAt: string | null;
-  relationship: 'SOURCE' | 'TARGET';
-}
-
-export interface SalaryPeriodAdjustmentResult {
-  actionId: number;
-  adjustmentId: number | null;
-  version: number;
-  sourcePeriod: string;
-  targetPeriod: string;
-  driverId: number;
-  amount: number;
-  reason: string;
-  status: SalaryAdjustmentStatus;
-  makerId: number;
-  checkerId: number | null;
-  approverId: number | null;
-}
-
-interface ParsedAdjustmentSnapshot {
-  sourcePeriod: string;
-  targetPeriod: string;
-  driverId: number;
-  amount: number;
-}
 
 function parsePeriod(period: string): void {
   if (!PERIOD_PATTERN.test(period)) {
@@ -99,6 +60,13 @@ function requireAmount(amount: number): number {
     throw new ApiError(400, 'Số tiền điều chỉnh phải là số nguyên VND');
   }
   return amount;
+}
+
+interface ParsedAdjustmentSnapshot {
+  sourcePeriod: string;
+  targetPeriod: string;
+  driverId: number;
+  amount: number;
 }
 
 function parseAdjustmentSubject(
@@ -202,30 +170,60 @@ async function getUserNameMap(userIds: number[]): Promise<Map<number, string | n
   return new Map(rows.map((row) => [row.id, row.name ?? null]));
 }
 
-function buildResult(
-  action: typeof s.governanceActions.$inferSelect,
-): SalaryPeriodAdjustmentResult {
+// Post-close adjustments persist directly in salary_period_adjustments.
+export interface SalaryPeriodAdjustmentItem {
+  adjustmentId: number;
+  sourcePeriod: string;
+  targetPeriod: string;
+  driverId: number;
+  driverName: string;
+  amount: number;
+  reason: string;
+  approvedBy: number;
+  approvedByName: string | null;
+  createdAt: string;
+  approvedAt: string;
+  relationship: 'SOURCE' | 'TARGET';
+}
+
+export interface SalaryPeriodAdjustmentResult {
+  adjustmentId: number;
+  sourcePeriod: string;
+  targetPeriod: string;
+  driverId: number;
+  amount: number;
+  reason: string;
+  approvedBy: number;
+  approvedAt: string;
+}
+
+/**
+ * Governed apply for the post-close adjustment: persists the durable row from
+ * the transient evidence envelope (q18 locked-entity manifest contract).
+ */
+const applySalaryPeriodAdjustmentAction: GovernanceApplyAdapter = async (tx, action) => {
   const parsed = parseAdjustmentSubject(
     action.subjectKey,
     action.afterSnapshot as Record<string, unknown> | null,
   );
-  const applicationResult = action.applicationResult as Record<string, unknown> | null;
-  const adjustmentId = Number(applicationResult?.adjustmentId ?? 0);
-  return {
-    actionId: action.id,
-    adjustmentId: Number.isInteger(adjustmentId) && adjustmentId > 0 ? adjustmentId : null,
-    version: action.version,
+  const approvedAt = new Date();
+  const [adjustment] = await tx.insert(s.salaryPeriodAdjustments).values({
     sourcePeriod: parsed.sourcePeriod,
     targetPeriod: parsed.targetPeriod,
     driverId: parsed.driverId,
-    amount: parsed.amount,
-    reason: action.reason,
-    status: action.status as SalaryAdjustmentStatus,
-    makerId: action.makerId,
-    checkerId: action.checkerId,
-    approverId: action.approverId,
-  };
-}
+    amount: String(parsed.amount),
+    reason: action.reason ?? '',
+    approvedBy: action.approverId ?? action.makerId,
+    approvedAt,
+  }).returning();
+  return {
+    ledgerEntryId: null,
+    applicationResult: {
+      adjustmentId: adjustment.id,
+      approvedAt: approvedAt.toISOString(),
+    },
+  } satisfies GovernanceApplyResult;
+};
 
 export async function requestSalaryPeriodAdjustment(input: {
   sourcePeriod: string;
@@ -274,11 +272,13 @@ export async function requestSalaryPeriodAdjustment(input: {
       throw new ApiError(404, 'Không tìm thấy lái xe đã chọn');
     }
 
-    const [action] = await tx.insert(s.governanceActions).values({
+    // q18 evidence contract: the governed request carries the full transient
+    // envelope (reason + before/after snapshots + maker) and rides the
+    // check + approve policy stages before the durable row is written.
+    const requested = buildGovernanceAction({
       subjectType: ADJUSTMENT_SUBJECT_TYPE,
       subjectKey: toAdjustmentSubjectKey(input.sourcePeriod, input.targetPeriod, input.driverId),
       actionKind: ADJUSTMENT_ACTION_KIND,
-      status: 'PENDING_CHECK',
       reason,
       originalVersion: sourceClose.version,
       beforeSnapshot: {
@@ -300,189 +300,26 @@ export async function requestSalaryPeriodAdjustment(input: {
       },
       makerId: input.actorId,
       makerRole: input.actorRole,
-    }).returning();
+    });
+    const { action } = await applyGovernanceActionDirect({
+      action: requested,
+      actorId: input.actorId,
+      actorRole: input.actorRole,
+      apply: applySalaryPeriodAdjustmentAction,
+      transaction: tx,
+    });
 
-    return buildResult(action);
-  };
-  if (input.transaction) {
-    return execute(input.transaction);
-  }
-  return db.transaction(execute);
-}
-
-export async function checkSalaryPeriodAdjustment(input: {
-  period: string;
-  actionId: number;
-  actorId: number;
-  actorRole: string;
-  expectedVersion: number;
-  transaction?: Tx;
-}): Promise<SalaryPeriodAdjustmentResult> {
-  if (!(FINANCIAL_ROLES as readonly string[]).includes(input.actorRole)) {
-    throw new ApiError(403, 'Bạn không có quyền kiểm tra điều chỉnh hậu chốt');
-  }
-  parsePeriod(input.period);
-  requireExpectedVersion(input.expectedVersion);
-
-  const execute = async (tx: Tx) => {
-    const [existing] = await tx.select()
-      .from(s.governanceActions)
-      .where(eq(s.governanceActions.id, input.actionId))
-      .limit(1)
-      .for('update');
-
-    if (
-      !existing ||
-      existing.subjectType !== ADJUSTMENT_SUBJECT_TYPE ||
-      existing.actionKind !== ADJUSTMENT_ACTION_KIND
-    ) {
-      throw new ApiError(404, 'Không tìm thấy điều chỉnh hậu chốt đã chọn');
-    }
-    const parsed = parseAdjustmentSubject(
-      existing.subjectKey,
-      existing.afterSnapshot as Record<string, unknown> | null,
-    );
-    if (parsed.sourcePeriod !== input.period) {
-      throw new ApiError(
-        404,
-        `Không tìm thấy điều chỉnh hậu chốt của kỳ ${input.period}`,
-      );
-    }
-    if (existing.version !== input.expectedVersion) {
-      throw new ApiError(409, 'Điều chỉnh hậu chốt đã được cập nhật. Vui lòng tải lại.');
-    }
-    if (existing.makerId === input.actorId) {
-      throw new ApiError(409, 'Người tạo điều chỉnh không được tự kiểm tra yêu cầu của mình');
-    }
-    if (existing.status !== 'PENDING_CHECK') {
-      throw new ApiError(
-        409,
-        `Điều chỉnh hậu chốt đang ở trạng thái ${existing.status}, không thể kiểm tra tiếp`,
-      );
-    }
-
-    const [updated] = await tx.update(s.governanceActions)
-      .set({
-        status: 'PENDING_APPROVAL',
-        checkerId: input.actorId,
-        checkerRole: input.actorRole,
-        checkedAt: new Date(),
-        version: sql`${s.governanceActions.version} + 1`,
-        updatedAt: new Date(),
-      })
-      .where(and(
-        eq(s.governanceActions.id, existing.id),
-        eq(s.governanceActions.status, 'PENDING_CHECK'),
-        eq(s.governanceActions.version, input.expectedVersion),
-      ))
-      .returning();
-    if (!updated) {
-      throw new ApiError(409, 'Điều chỉnh hậu chốt đã được người khác xử lý. Vui lòng tải lại.');
-    }
-
-    return buildResult(updated);
-  };
-  if (input.transaction) {
-    return execute(input.transaction);
-  }
-  return db.transaction(execute);
-}
-
-export async function approveSalaryPeriodAdjustment(input: {
-  period: string;
-  actionId: number;
-  actorId: number;
-  actorRole: string;
-  expectedVersion: number;
-  transaction?: Tx;
-}): Promise<SalaryPeriodAdjustmentResult> {
-  if (input.actorRole !== Role.ADMIN && input.actorRole !== Role.MANAGER) {
-    throw new ApiError(403, 'Bạn không có quyền phê duyệt điều chỉnh hậu chốt');
-  }
-  parsePeriod(input.period);
-  requireExpectedVersion(input.expectedVersion);
-
-  const execute = async (tx: Tx) => {
-    const [existing] = await tx.select()
-      .from(s.governanceActions)
-      .where(eq(s.governanceActions.id, input.actionId))
-      .limit(1)
-      .for('update');
-
-    if (
-      !existing ||
-      existing.subjectType !== ADJUSTMENT_SUBJECT_TYPE ||
-      existing.actionKind !== ADJUSTMENT_ACTION_KIND
-    ) {
-      throw new ApiError(404, 'Không tìm thấy điều chỉnh hậu chốt đã chọn');
-    }
-    const parsed = parseAdjustmentSubject(
-      existing.subjectKey,
-      existing.afterSnapshot as Record<string, unknown> | null,
-    );
-    if (parsed.sourcePeriod !== input.period) {
-      throw new ApiError(
-        404,
-        `Không tìm thấy điều chỉnh hậu chốt của kỳ ${input.period}`,
-      );
-    }
-    if (existing.version !== input.expectedVersion) {
-      throw new ApiError(409, 'Điều chỉnh hậu chốt đã được cập nhật. Vui lòng tải lại.');
-    }
-    if (existing.makerId === input.actorId || existing.checkerId === input.actorId) {
-      throw new ApiError(409, 'Người tạo hoặc người kiểm tra không được tự phê duyệt điều chỉnh hậu chốt');
-    }
-    if (existing.status !== 'PENDING_APPROVAL') {
-      throw new ApiError(
-        409,
-        `Điều chỉnh hậu chốt đang ở trạng thái ${existing.status}, không thể phê duyệt tiếp`,
-      );
-    }
-
-    await lockPeriods(tx, [parsed.sourcePeriod, parsed.targetPeriod]);
-    await getSourceCloseForWrite(tx, parsed.sourcePeriod);
-    await assertTargetPeriodOpen(tx, parsed.targetPeriod);
-
-    const approvedAt = new Date();
-    const [adjustment] = await tx.insert(s.salaryPeriodAdjustments).values({
-      governanceActionId: existing.id,
-      sourcePeriod: parsed.sourcePeriod,
-      targetPeriod: parsed.targetPeriod,
-      driverId: parsed.driverId,
-      amount: String(parsed.amount),
-      reason: existing.reason,
+    const applied = (action.applicationResult ?? {}) as Record<string, unknown>;
+    return {
+      adjustmentId: Number(applied.adjustmentId),
+      sourcePeriod: input.sourcePeriod,
+      targetPeriod: input.targetPeriod,
+      driverId: input.driverId,
+      amount,
+      reason,
       approvedBy: input.actorId,
-      approvedAt,
-    }).returning();
-
-    const [updated] = await tx.update(s.governanceActions)
-      .set({
-        status: 'APPROVED',
-        approverId: input.actorId,
-        approverRole: input.actorRole,
-        approvedAt,
-        appliedAt: approvedAt,
-        applicationResult: {
-          adjustmentId: adjustment.id,
-          sourcePeriod: parsed.sourcePeriod,
-          targetPeriod: parsed.targetPeriod,
-          driverId: parsed.driverId,
-          amount: parsed.amount,
-        },
-        version: sql`${s.governanceActions.version} + 1`,
-        updatedAt: approvedAt,
-      })
-      .where(and(
-        eq(s.governanceActions.id, existing.id),
-        eq(s.governanceActions.status, 'PENDING_APPROVAL'),
-        eq(s.governanceActions.version, input.expectedVersion),
-      ))
-      .returning();
-    if (!updated) {
-      throw new ApiError(409, 'Điều chỉnh hậu chốt đã được người khác xử lý. Vui lòng tải lại.');
-    }
-
-    return buildResult(updated);
+      approvedAt: String(applied.approvedAt ?? new Date().toISOString()),
+    };
   };
   if (input.transaction) {
     return execute(input.transaction);
@@ -496,85 +333,35 @@ export async function listSalaryPeriodAdjustments(input: {
 }): Promise<SalaryPeriodAdjustmentItem[]> {
   parsePeriod(input.period);
 
-  const rows = await db.select({
-    id: s.governanceActions.id,
-    version: s.governanceActions.version,
-    subjectKey: s.governanceActions.subjectKey,
-    reason: s.governanceActions.reason,
-    status: s.governanceActions.status,
-    makerId: s.governanceActions.makerId,
-    checkerId: s.governanceActions.checkerId,
-    approverId: s.governanceActions.approverId,
-    createdAt: s.governanceActions.createdAt,
-    approvedAt: s.governanceActions.approvedAt,
-    afterSnapshot: s.governanceActions.afterSnapshot,
-    applicationResult: s.governanceActions.applicationResult,
-  }).from(s.governanceActions)
-    .where(and(
-      eq(s.governanceActions.subjectType, ADJUSTMENT_SUBJECT_TYPE),
-      eq(s.governanceActions.actionKind, ADJUSTMENT_ACTION_KIND),
-      inArray(s.governanceActions.status, ['PENDING_CHECK', 'PENDING_APPROVAL', 'APPROVED']),
+  const rows = await db.select().from(s.salaryPeriodAdjustments)
+    .where(or(
+      eq(s.salaryPeriodAdjustments.sourcePeriod, input.period),
+      eq(s.salaryPeriodAdjustments.targetPeriod, input.period),
     ))
-    .orderBy(desc(s.governanceActions.createdAt), desc(s.governanceActions.id));
+    .orderBy(desc(s.salaryPeriodAdjustments.createdAt), desc(s.salaryPeriodAdjustments.id));
 
-  const parsedRows = rows
-    .map((row) => {
-      try {
-        const parsed = parseAdjustmentSubject(
-          row.subjectKey,
-          row.afterSnapshot as Record<string, unknown> | null,
-        );
-        if (parsed.sourcePeriod !== input.period && parsed.targetPeriod !== input.period) {
-          return null;
-        }
-        if (input.driverId != null && parsed.driverId !== input.driverId) {
-          return null;
-        }
-        const applicationResult = row.applicationResult as Record<string, unknown> | null;
-        const adjustmentId = Number(applicationResult?.adjustmentId ?? 0);
-        return {
-          ...row,
-          parsed,
-          adjustmentId: Number.isInteger(adjustmentId) && adjustmentId > 0 ? adjustmentId : null,
-          relationship: parsed.sourcePeriod === input.period ? 'SOURCE' as const : 'TARGET' as const,
-        };
-      } catch {
-        return null;
-      }
-    })
-    .filter((row): row is NonNullable<typeof row> => row != null);
-
-  const driverIds = [...new Set(parsedRows.map((row) => row.parsed.driverId))];
-  const userIds = [...new Set(parsedRows.flatMap((row) => [
-    row.makerId,
-    row.checkerId ?? null,
-    row.approverId ?? null,
-  ].filter((value): value is number => value != null)))];
+  const driverIds = [...new Set(rows.map((row) => row.driverId))];
+  const userIds = [...new Set(rows.map((row) => row.approvedBy))];
   const [driverNames, userNames] = await Promise.all([
     getDriverNameMap(driverIds),
     getUserNameMap(userIds),
   ]);
 
-  return parsedRows.map((row) => ({
-    actionId: row.id,
-    adjustmentId: row.adjustmentId,
-    version: row.version,
-    sourcePeriod: row.parsed.sourcePeriod,
-    targetPeriod: row.parsed.targetPeriod,
-    driverId: row.parsed.driverId,
-    driverName: driverNames.get(row.parsed.driverId) ?? 'Lái xe chưa xác định',
-    amount: row.parsed.amount,
+  return rows.map((row) => ({
+    adjustmentId: row.id,
+    sourcePeriod: row.sourcePeriod,
+    targetPeriod: row.targetPeriod,
+    driverId: row.driverId,
+    driverName: driverNames.get(row.driverId) ?? 'Lái xe chưa xác định',
+    amount: Number(row.amount),
     reason: row.reason,
-    status: row.status as SalaryAdjustmentStatus,
-    makerId: row.makerId,
-    makerName: userNames.get(row.makerId) ?? null,
-    checkerId: row.checkerId,
-    checkerName: row.checkerId ? userNames.get(row.checkerId) ?? null : null,
-    approverId: row.approverId,
-    approverName: row.approverId ? userNames.get(row.approverId) ?? null : null,
+    approvedBy: row.approvedBy,
+    approvedByName: userNames.get(row.approvedBy) ?? null,
     createdAt: row.createdAt.toISOString(),
-    approvedAt: row.approvedAt?.toISOString() ?? null,
-    relationship: row.relationship,
+    approvedAt: row.approvedAt.toISOString(),
+    relationship: row.sourcePeriod === input.period
+      ? ('SOURCE' as const)
+      : ('TARGET' as const),
   }));
 }
 

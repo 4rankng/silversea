@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { Pencil } from 'lucide-react';
-import { composeNote, parseNote } from './dispatchTaskTags';
+import { composeNote, parseNote } from '../../../lib/dispatchTaskTags';
 import { useCreateDispatchTaskTag, useDispatchTaskTags } from './useDispatchTaskTags';
 import { DispatchTaskTagManagerPopover } from './DispatchTaskTagManagerPopover';
 

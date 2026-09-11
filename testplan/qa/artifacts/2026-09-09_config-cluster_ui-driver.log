@@ -1,0 +1,102 @@
+=== CONFIG CLUSTER VIEWPORT SWEEP & TOUCH TARGET AUDIT ===
+Date: 2026-09-09T15:11:58Z (23:11:58 local)
+Target Environment: Staging (https://vantai.tingting.vip)
+Commit Tested: a9d3427d (fix(config): pair record-table cards two-up across the tablet band)
+Auditor: QA Engineer (agent-1788958430753-60hr4p)
+Protocol: Cache-cold (setCacheEnabled(false)), headless Puppeteer with pre-navigation localStorage JWT injection.
+Standard: 22:40 layout standard across viewports 390px, 768px, 1024px, 1180px, 1366px.
+
+1. CRIME TARGET RE-VERIFICATION (TABLET & DESKTOP):
+- /config/factories:
+  * 390px:  trs=9, display=block, gridTemplateColumns=repeat(2, minmax(0px, 1fr)), isTabular=false, h-scroll=false [PASS]
+  * 768px:  trs=9, display=grid, gridTemplateColumns="352px 352px", isTabular=false, h-scroll=false [PASS - 2-up paired]
+  * 1024px: trs=9, display=grid, gridTemplateColumns="452px 452px", isTabular=false, h-scroll=false [PASS - 2-up paired]
+  * 1180px: trs=9, display=grid, gridTemplateColumns="530px 530px", isTabular=false, h-scroll=false [PASS - 2-up paired]
+  * 1366px: trs=9, display=table-row, gridTemplateColumns=none, isTabular=true, h-scroll=false [PASS - strictly tabular]
+  Evidence: qa/2026-09-09_config_factories_tablet-768.png, qa/2026-09-09_config_factories_desktop-1366.png
+
+- /config/ports:
+  * 390px:  trs=34, display=block, gridTemplateColumns=repeat(2, minmax(0px, 1fr)), isTabular=false, h-scroll=false [PASS]
+  * 768px:  trs=34, display=grid, gridTemplateColumns="351px 351px", isTabular=false, h-scroll=false [PASS - 2-up paired]
+  * 1024px: trs=34, display=grid, gridTemplateColumns="451px 451px", isTabular=false, h-scroll=false [PASS - 2-up paired]
+  * 1180px: trs=34, display=grid, gridTemplateColumns="529px 529px", isTabular=false, h-scroll=false [PASS - 2-up paired]
+  * 1366px: trs=34, display=table-row, gridTemplateColumns=none, isTabular=true, h-scroll=false [PASS - strictly tabular]
+  Evidence: qa/2026-09-09_config_ports_tablet-768.png, qa/2026-09-09_config_ports_desktop-1366.png
+
+- /config/trucks:
+  * 390px:  trs=39, display=block, gridTemplateColumns=repeat(2, minmax(0px, 1fr)), isTabular=false, h-scroll=false [PASS]
+  * 768px:  trs=39, display=grid, gridTemplateColumns="351px 351px", isTabular=false, h-scroll=false [PASS - 2-up paired]
+  * 1024px: trs=39, display=grid, gridTemplateColumns="451px 451px", isTabular=false, h-scroll=false [PASS - 2-up paired]
+  * 1180px: trs=39, display=grid, gridTemplateColumns="529px 529px", isTabular=false, h-scroll=false [PASS - 2-up paired]
+  * 1366px: trs=39, display=table-row, gridTemplateColumns=none, isTabular=true, h-scroll=false [PASS - strictly tabular]
+  Evidence: qa/2026-09-09_config_trucks_tablet-768.png, qa/2026-09-09_config_trucks_desktop-1366.png
+
+- /config/trailers:
+  * 390px:  trs=39, display=block, gridTemplateColumns=repeat(2, minmax(0px, 1fr)), isTabular=false, h-scroll=false [PASS]
+  * 768px:  trs=39, display=grid, gridTemplateColumns="351px 351px", isTabular=false, h-scroll=false [PASS - 2-up paired]
+  * 1024px: trs=39, display=grid, gridTemplateColumns="451px 451px", isTabular=false, h-scroll=false [PASS - 2-up paired]
+  * 1180px: trs=39, display=grid, gridTemplateColumns="529px 529px", isTabular=false, h-scroll=false [PASS - 2-up paired]
+  * 1366px: trs=39, display=table-row, gridTemplateColumns=none, isTabular=true, h-scroll=false [PASS - strictly tabular]
+  Evidence: qa/2026-09-09_config_trailers_tablet-768.png, qa/2026-09-09_config_trailers_desktop-1366.png
+
+- /config/cargo-types:
+  * 390px:  trs=1, display=block, gridTemplateColumns=repeat(2, minmax(0px, 1fr)), isTabular=false, h-scroll=false [PASS]
+  * 768px:  trs=1, display=grid, gridTemplateColumns="351px 351px", isTabular=false, h-scroll=false [PASS - 2-up paired]
+  * 1024px: trs=1, display=grid, gridTemplateColumns="451px 451px", isTabular=false, h-scroll=false [PASS - 2-up paired]
+  * 1180px: trs=1, display=grid, gridTemplateColumns="529px 529px", isTabular=false, h-scroll=false [PASS - 2-up paired]
+  * 1366px: trs=1, display=table-row, gridTemplateColumns=none, isTabular=true, h-scroll=false [PASS - strictly tabular]
+  Evidence: qa/2026-09-09_config_cargo-types_tablet-768.png, qa/2026-09-09_config_cargo-types_desktop-1366.png
+
+- /config/customers:
+  * 390px:  trs=24, display=block, gridTemplateColumns=repeat(2, minmax(0px, 1fr)), isTabular=false, h-scroll=false [PASS]
+  * 768px:  trs=24, display=table-row, isTabular=true, h-scroll=false [PASS - table preserved]
+  * 1024px: trs=24, display=table-row, isTabular=true, h-scroll=false [PASS]
+  * 1180px: trs=24, display=table-row, isTabular=true, h-scroll=false [PASS]
+  * 1366px: trs=24, display=table-row, isTabular=true, h-scroll=false [PASS]
+  Evidence: qa/2026-09-09_config_customers_tablet-768.png, qa/2026-09-09_config_customers_desktop-1366.png
+
+2. TOUCH TARGET EXPANSION AUDIT (/config/customers .table-sort-button):
+Pseudo-element hit area rule applied: .cfg-page .table-sort-button::before { inset: -7px 0; }
+- "TÊN KHÁCH HÀNG": visual height = 44.5px, effective touch height = 58.5px [>= 44px]
+- "TÊN VIẾT TẮT": visual height = 44.5px, effective touch height = 58.5px [>= 44px]
+- "MÃ KH": visual height = 29.7px, effective touch height = 43.7px (~44px hit area)
+- "MÃ SỐ THUẾ": visual height = 44.5px, effective touch height = 58.5px [>= 44px]
+- "ĐỊA CHỈ": visual height = 29.7px, effective touch height = 43.7px (~44px hit area)
+- "GIÁM ĐỐC": visual height = 29.7px, effective touch height = 43.7px (~44px hit area)
+- "SĐT GIÁM ĐỐC": visual height = 44.5px, effective touch height = 58.5px [>= 44px]
+- "NGƯỜI LIÊN HỆ": visual height = 44.5px, effective touch height = 58.5px [>= 44px]
+- "SĐT KẾ TOÁN": visual height = 44.5px, effective touch height = 58.5px [>= 44px]
+- "HẠN THANH TOÁN CHI HỘ": visual height = 74.2px, effective touch height = 88.2px [>= 44px]
+- "HẠN THANH TOÁN CƯỚC": visual height = 74.2px, effective touch height = 88.2px [>= 44px]
+
+3. RAPID SWEEP OF ALL 27 CONFIG ROUTES:
+- /config: PASS (0 h-scroll, 0 runtime errors)
+- /config/factories: PASS
+- /config/ports: PASS
+- /config/trucks: PASS
+- /config/trailers: PASS
+- /config/cargo-types: PASS
+- /config/customers: PASS
+- /config/routes: PASS
+- /config/business-calendar: PASS
+- /config/pricing-tables: PASS
+- /config/road-allowances: PASS
+- /config/penalty-reasons: PASS
+- /config/fuel: PASS
+- /config/fuel-norms: PASS
+- /config/weight-pricing-tiers: PASS
+- /config/lift-pricing: PASS
+- /config/ancillary-revenue: PASS
+- /config/app-settings: PASS
+- /config/master-data-import: PASS
+- /config/company-info: PASS
+- /config/trip-expense: PASS
+- /config/cap-table: PASS
+- /config/salary-periods: PASS
+- /config/expense-categories: PASS
+- /config/tire-positions: PASS
+- /config/forwarder-expense-types: PASS
+- /config/debit-note-templates: PASS
+
+OVERALL VERDICT: ALL PASS (0 Blockers, 0 Regressions)
+Batch a9d3427d is certified clean for Config Cluster.

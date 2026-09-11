@@ -1,0 +1,25 @@
+TC-CHUNK7-009 — FE lockstep zero-ref sweep (run by backend lane, 2026-09-10 ~22:55 +07)
+
+Tree: origin/prod = 13b68a2b (rbac fix) on top of 8a7e6fc3 (chunk-7 FE teardown).
+Command: grep -rn "ApprovalQueueCard|ManagerDecisionInbox|useApprovalQueue|approval-queue" frontend/src/ --include=*.ts --include=*.tsx --include=*.css
+
+RESULT: 0 hits (including *.test.* files and CSS).
+
+VERDICT: TC-CHUNK7-009 PASS.
+
+---
+X1 label sweep (companion, same run) — grep "Chờ phê duyệt" / "Duyệt" frontend/src:
+
+RETAINED-FLOW labels (legit per Amendment 2 ruling B — do NOT remove):
+- GovernanceActionsPage.tsx:61,67,387 (+test :335,:352) — status labels for the retained maker-checker (TRIP_EXPENSE, CREDIT_OVERRIDE tier escalation, TRIP_AR); these rows genuinely sit PENDING_APPROVAL.
+- Layout.tsx:109,160,218 (+Layout.test) — "Duyệt vượt hạn mức" nav → credit-overrides (retained tier control).
+- TripPodReviewPanel.tsx:253 (+test) — "Duyệt e-POD" (retained POD review).
+- AncillaryFeesCard.tsx:148,152,251,294,360,406 — trip-expense decision buttons (retained maker-checker).
+- AccountingWorkInbox.tsx:121 — "Duyệt bằng chứng" fuel-evidence review (retained).
+
+STALE-CANDIDATE labels — **CLASSIFICATION CORRECTED 2026-09-11 (architect rejection seq 156; supersedes the 15:10Z re-scope)**:
+- salary-attendance-components.tsx:276,315,346 — NOT stale. PENDING_APPROVAL is LIVE for salary flows: retained multi-actor maker-checker chains traverse PENDING_CHECK → PENDING_APPROVAL → APPROVED (writers: salary-period-adjustment.service.ts:366/:434, salary-period-close-exclusion.service.ts:139, salary-confirmation-governance.service.ts:29, routes/salary.ts:53). Chunk 3 auto-applied single-actor chains only.
+- AdminAdvanceSettlementsPage.tsx:95 — NOT stale. CHECKED_BY_ACCOUNTANT is written today (advance-settlement.service.ts:575; handled :420/:581/:596 + reversal :59 — the retained trip-expense maker-checker exit, Amend-2 Ruling A).
+- CusShipmentRow.tsx:178 — genuinely stale (shipment-delete approval superseded by 0061); REMOVED by chunk-C commit 5731ca37.
+
+Verdict (REVISED 2026-09-11): X1 is scoped to the dashboard approval-queue UI + removed-flow residue only — NOT the salary/settlement maker-checker vocabulary, which is retained-flow labeling and stays. Chunk-C2 re-scoped accordingly to deleting the dead DASHBOARD_APPROVAL_QUEUE constant alone (shared/src/constants/api-paths.ts:152, zero refs repo-wide). The backend lane's earlier "stale" classification of the salary/settlement sites was wrong and is retracted.

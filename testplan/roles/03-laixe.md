@@ -70,43 +70,52 @@ to the driver's plate.
    - Each sub-tab's count is shown in its label.
    - **Spec**: `ManHinhLaiXe.md` §1. **Case**: `TC-LX-NHANLENH-014`.
 
-3. **DRV-LIST-03 — Layer-1 card anatomy: one card per container**
-   - **Given** the shipment list on any sub-tab
-   - **Then** **each container is its own card** — never one card per trip,
-     never several containers merged into one card.
-   - **And** each card shows, in this order:
-     | Region | Content |
-     |--------|---------|
-     | Header | `[Tag: ĐƠN / KẸP / KẾT HỢP]` + `Giờ đóng / trả: HH:MM - DD/MM` |
-     | Row 1 | `Nhà máy` **left-aligned** · `Cảng nâng` **right-aligned** |
-     | Row 2 | `Tuyến đường` **left-aligned** · `Cảng hạ` **right-aligned** |
-     | Row 3 | `Cont: [Số Cont] - [Loại cont]` (e.g. `40'HC`) |
-     | Footer | `Xem chi tiết & Nhận lệnh` |
-   - **No status pill on the card.** The header tag plus the footer CTA carry
-     the card's state; this matches the project convention of coloured text
-     over badge chrome. The plate moves to detail block 6
-     (`DRV-DET-09`), so the old driver-name + `🚚 {Biển số}` subtext line is
-     not part of this anatomy.
-   - No horizontal scroll; type legible in direct sunlight.
-   - **Spec**: `ManHinhLaiXe.md` §2.1. **Case**: `TC-LX-NHANLENH-015`.
-   - **Evidence**: card screenshot with each region annotated; DOM check that
-     the card count equals the container count (not the trip count).
+3. **DRV-LIST-03 — Trip card anatomy**
+   - **Given** a trip card on the journey board (`/my-trips`)
+   - **Then** it shows, in this order (ticket 365943ea):
+     1. **Header**: classification tag (`ĐƠN`/`KẸP`/`KẾT HỢP`/`LẺ`) + scheduled time.
+     2. **Factory name** (headline, 16px bold, brand icon) — the primary
+        identifier a driver scans for.
+     3. **Route** (secondary, 13px, muted icon).
+     4. **Container block** (tinted background): container number + type pill
+        + seal pill, followed by lift port (`Nâng`) and drop port (`Hạ`)
+        side-by-side below.
+     5. **Operation tasks** (`tác vụ`) — chips rendered from the dispatch
+        plan's `operationalNotes` field (e.g. `ĐẶT ĐẦU`, `ĐẢO VỎ`).
+        Hidden when no notes are set.
+     6. **Contact** (name + phone tel-link).
+     7. **Remaining facts** (2-col grid): `Đầu kéo` (truck plate), `Mooc`
+        (trailer plate).
+     8. **Footer CTA**: `Xem chi tiết & Nhận lệnh` on every card
+        (ManHinhLaiXe §2.1 anatomy; the 365943ea conditional-footer variant
+        was superseded by the docx anatomy in the 2026-09-11 merge redo).
+   - **Evidence**: card screenshot at 390px; DOM inspection confirming
+     factory name renders before route; container + ports are visually
+     grouped.
 
-4. **DRV-LIST-04 — Tap target ≥ 48 px**
+4. **DRV-LIST-04 — Container + ports side-by-side**
+   - **Then** the container strip and the lift/drop port row are grouped
+     in a single visual block (`.driver-journey-card__container-block`).
+     At 360px, ports wrap below the container strip; at 768px they sit
+     on the same row if space allows.
+   - **Evidence**: screenshots at 360px and 768px showing the
+     container-block layout.
+
+5. **DRV-LIST-05 — Tap target ≥ 48 px**
    - **Then** every interactive element on the card is at least 48 × 48
      CSS pixels (per `c9012bd0` — the 48 px floor must out-rank the
      global button floor). Verify in dev-tools: the trip-card action
      and any inline button have `min-height: 48px`.
 
-5. **DRV-LIST-05 — Pull-to-refresh / refresh button**
+6. **DRV-LIST-06 — Pull-to-refresh / refresh button**
    - **Then** a pull-to-refresh or visible refresh control re-fetches
      the trip list. The control respects `prefers-reduced-motion`
      (no bouncy animation when the OS-level setting is on).
 
-6. **DRV-LIST-06 — Empty state**
+7. **DRV-LIST-07 — Empty state**
    - **Given** a driver with no trips
-   - **Then** the page shows the empty-state illustration + copy
-     (`Bạn chưa có chuyến nào`) and a refresh control.
+    - **Then** the page shows the empty-state illustration + copy
+      (`Bạn chưa có chuyến nào`) and a refresh control.
 
 7. **DRV-LIST-07 — Paired shipments render as an adjacent combo**
    - **Given** two shipments sharing a pair (`KẸP` or `KẾT HỢP`)
@@ -154,7 +163,11 @@ to the driver's plate.
 
 ### Regression hooks
 
-- `frontend/src/pages/DriverTripsPage.test.tsx` stays green.
+- `frontend/src/pages/DriverTripsPage.test.tsx` stays green (11 tests
+  including operation-tags rendering + the factoryShortName preference);
+  tag ordering (canonical seed 0066 → `display_order ASC NULLS LAST, label`)
+  is pinned by
+  `frontend/src/features/dispatch/detailed-plan/useDispatchTaskTags.test.tsx`.
 - `pnpm exec playwright test --headed` (or the visual QA script under
   `qa/visual_qa_driver*`) at 390 × 844.
 

@@ -9,6 +9,10 @@ import type { CommissionInput } from '@tingting/shared';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from './idempotency.service';
 import type { Tx } from './trip-shared';
 import { assertCanMakeGovernanceAction } from './governance-policy';
+import {
+  buildGovernanceAction,
+  type GovernanceActionRow,
+} from './governance-action-core.service';
 
 /** Result of recording a commission — exposes the ledger row for audit. */
 export interface CommissionResult {
@@ -18,7 +22,6 @@ export interface CommissionResult {
 }
 
 type CommissionStoredResult = CommissionResult & { id: number };
-type GovernanceActionRow = typeof s.governanceActions.$inferSelect;
 
 function buildCommissionReason(input: CommissionInput): string {
   return input.note?.trim() || 'Đề nghị ghi nhận hoa hồng nhà cung cấp';
@@ -160,7 +163,7 @@ export async function requestCommissionGovernance(input: {
     const currentBalance = await LedgerService.getBalanceTx(tx, 'VENDOR', input.commission.supplierId);
     const currentVersion = await getLatestVendorLedgerVersionTx(tx, input.commission.supplierId);
 
-    const [action] = await tx.insert(s.governanceActions).values({
+    return buildGovernanceAction({
       subjectType: 'COMMISSION',
       subjectId: null,
       subjectKey: buildCommissionSubjectKey(input.commission),
@@ -183,8 +186,7 @@ export async function requestCommissionGovernance(input: {
       },
       makerId: input.makerId,
       makerRole: input.makerRole,
-    }).returning();
-    return action;
+    });
   };
 
   return runInTx(input.transaction, execute);
@@ -213,11 +215,6 @@ export async function applyCommissionGovernanceAction(tx: Tx, action: Governance
     tripId: afterSnapshot?.tripId == null ? undefined : Number(afterSnapshot.tripId),
     note: typeof afterSnapshot?.note === 'string' ? afterSnapshot.note : undefined,
   });
-
-  await tx.update(s.governanceActions).set({
-    subjectId: result.ledgerId,
-    updatedAt: new Date(),
-  }).where(eq(s.governanceActions.id, action.id));
 
   return {
     ledgerEntryId: result.ledgerId,

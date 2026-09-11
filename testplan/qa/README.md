@@ -98,3 +98,20 @@ Each case's verdict follows AGENTS.md §5 cross-cutting rule PASS / FAIL / BLOCK
 For failures, the structured payload in `results.json` includes the failing
 state (`factoryCellText`, `before`/`after`, `inlineWarnings`, etc.) so the
 report can be regenerated without re-running.
+
+## Regression specs (per-ticket per-cycle)
+
+Cycle-scoped regression specs (one per ticket per cycle, e.g. `2026-09-10_dispatch-detailed-plan.md`)
+follow a single shared header so the per-cycle context QA loads stays small.
+
+- **Template:** `_TEMPLATE.md` (sibling of this README) — the source for the
+  Environment / Accounts / Verification protocol / Evidence bundle / Pass
+  criteria / QA gates / Anti-lying guardrails / What is NOT covered blocks.
+- **Each spec carries only the ticket-specific parts:** the **Goal**,
+  **Out of scope**, **Acceptance criteria (TC-…)**, and **Linked artifacts**.
+- **Do not duplicate** the shared header blocks inside the per-ticket spec —
+  the QA harness and any agent reading the file already know them.
+- **Naming:** `testplan/qa/<YYYY-MM-DD>_<ticket-slug>.md`. The date is the
+  cycle date; the slug is the kanban ticket id or a short kebab name.
+- **Lifecycle:** `PREP` while waiting on the implementer; flip to `READY` /
+  `RUNNING` / `DONE` in the status line as the cycle progresses.

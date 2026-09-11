@@ -109,45 +109,12 @@ export type GovernanceActionStatus = typeof GOVERNANCE_ACTION_STATUSES[number];
 export type GovernanceCapability = typeof GOVERNANCE_CAPABILITIES[number];
 export type GovernanceAllowedAction = typeof GOVERNANCE_ALLOWED_ACTIONS[number];
 
-export const governanceActionVersionSchema = z.object({
+// 2026-09-11 (maker-checker removal): the staged-decision request shapes are
+// gone with the governance_actions queue. Only the in-request decision body
+// (expectedVersion + reason) survives — live endpoints still validate it.
+export const governanceActionDecisionSchema = z.object({
   expectedVersion: z.coerce.number().int().positive(),
-});
-
-export const governanceActionDecisionSchema = governanceActionVersionSchema.extend({
   reason: z.string().trim().min(1, 'Lý do là bắt buộc').max(1000),
 });
 
-// Sortable governance-card columns. Single source for the query enum, the
-// backend orderBy whitelist, and the client's sortBy typing.
-export const GOVERNANCE_ACTION_SORT_KEYS = [
-  'actionKind',
-  'status',
-  'subjectKey',
-  'makerRole',
-  'version',
-  'createdAt',
-  'reason',
-] as const;
-export type GovernanceActionSortKey = typeof GOVERNANCE_ACTION_SORT_KEYS[number];
-
-export const governanceActionListQuerySchema = z.object({
-  status: z.enum(GOVERNANCE_ACTION_STATUSES).optional(),
-  actionKind: z.enum(GOVERNANCE_ACTION_KINDS).optional(),
-  subjectType: z.enum(GOVERNANCE_SUBJECT_TYPES).optional(),
-  subjectId: z.coerce.number().int().positive().optional(),
-  subjectKey: z.string().trim().min(1).max(120).optional(),
-  // Column sorting: sortBy picks a whitelisted card field, sortDir flips it.
-  // Keep the frontend sort keys and the service's orderBy whitelist in sync
-  // with this enum.
-  sortBy: z.enum(GOVERNANCE_ACTION_SORT_KEYS).optional(),
-  sortDir: z.enum(['asc', 'desc']).optional(),
-  // When both page and offset are present, page wins: the route derives
-  // offset = (page - 1) * limit and ignores the explicit offset.
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(50),
-  offset: z.coerce.number().int().min(0).default(0),
-});
-
-export type GovernanceActionVersionInput = z.infer<typeof governanceActionVersionSchema>;
 export type GovernanceActionDecisionInput = z.infer<typeof governanceActionDecisionSchema>;
-export type GovernanceActionListQuery = z.infer<typeof governanceActionListQuerySchema>;

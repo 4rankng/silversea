@@ -9,6 +9,7 @@ import { asyncHandler } from '../middleware/asyncHandler';
 import { requireRoles } from '../middleware/casbin';
 import { getUser } from '../middleware/auth';
 import { runIdempotent } from '../services/idempotency.service';
+import { autoApplyGovernanceAction } from '../services/adjustment-governance.service';
 import {
   getRecoverableCost,
   listRecoverableCosts,
@@ -45,14 +46,19 @@ router.post('/:id/request', asyncHandler(async (req: Request, res: Response) => 
     payload: { expenseId, actorId: actor.userId, ...body },
     createdBy: actor.userId,
     entityType: 'governance_action',
-    responseStatusCode: 202,
-    create: (tx) => requestRecoverableCostDecision({
-      expenseId,
-      decision: body.decision,
-      reason: body.reason,
-      evidence: body.evidence,
-      expectedVersion: body.expectedVersion,
-      actor,
+    responseStatusCode: 200,
+    create: (tx) => autoApplyGovernanceAction({
+      make: (inner) => requestRecoverableCostDecision({
+        expenseId,
+        decision: body.decision,
+        reason: body.reason,
+        evidence: body.evidence,
+        expectedVersion: body.expectedVersion,
+        actor,
+        transaction: inner,
+      }),
+      actorId: actor.userId,
+      actorRole: actor.role,
       transaction: tx,
     }),
     getEntityId: (action) => action.id,

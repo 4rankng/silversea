@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Loader2, Package2, Phone } from 'lucide-react';
+import { ArrowRight, Building2, Loader2, Package2, Phone, Route } from 'lucide-react';
 import { useDriverJourneyBoard } from '../hooks/useDriverQueries';
 import type { DriverJourneyCard } from '../api/driverClient';
+import { parseNote } from '../lib/dispatchTaskTags';
 import './DriverTripsPage.css';
 
 type JourneyTabKey = 'NEW' | 'RUNNING' | 'HISTORY';
@@ -93,19 +94,27 @@ function JourneyFact({ label, value }: { label: string; value: string }) {
   );
 }
 
-function JourneyCard({ card }: { card: DriverJourneyCard }) {
+function JourneyCard({ card, tagLabels }: { card: DriverJourneyCard; tagLabels: ReadonlyArray<string> }) {
   const navigate = useNavigate();
   const tag = tagLabelFor(card);
   const isPaired = tag === 'KẸP' || tag === 'KẾT HỢP';
   const hasContact = isPresent(card.contactName) || isPresent(card.contactPhone);
-  const hasContainer = isPresent(card.containerNumber) || isPresent(card.containerTypeName) || isPresent(card.sealNumber);
-  const hasTruck = isPresent(card.truckPlate) || isPresent(card.trailerPlate);
+  const hasContainer = isPresent(card.containerNumber) || isPresent(card.sealNumber);
+  const hasPorts = isPresent(card.loadingPortName) || isPresent(card.dropPortName);
+  const { selectedLabels: operationTags, manualText: operationManualText } = parseNote(card.operationalNotes, tagLabels);
 
-  /* Spec Phần 2 A: two-column layout —
-     Row 1: Nhà máy (left) | Cảng nâng (right)
-     Row 2: Tuyến đường (left) | Cảng hạ (right)
-     Row 3: Cont: [Số Cont] - Loại cont
-     Sections with no value are omitted. */
+  /* Remaining facts: truck and trailer. Ports are rendered alongside the
+     container per the responsive-space-utilisation contract. */
+  const facts = [
+    { label: 'Đầu kéo', value: card.truckPlate },
+    { label: 'Mooc', value: card.trailerPlate },
+  ].filter((fact): fact is { label: string; value: string } => isPresent(fact.value));
+
+  /* Ticket 365943ea field order: Nhà máy (top) → Tuyến đường → Cont →
+     Cảng nâng / Cảng hạ → Tác vụ → Đầu kéo → Mooc.
+     Factory name is the headline — the primary identifier a driver scans
+     a 27-card history for. Route follows as the secondary line. Container
+     and ports sit side-by-side per responsive-space-utilisation. */
   return (
     <article className={`driver-journey-card${isPaired ? ' driver-journey-card--clamp' : ''}`}>
       <div className="driver-journey-card__header">
@@ -119,44 +128,62 @@ function JourneyCard({ card }: { card: DriverJourneyCard }) {
         </span>
       </div>
 
-      {/* Two-column pair rows per spec */}
-      <div className="driver-journey-card__pairs">
-        <div className="driver-journey-card__pair">
-          <div className="driver-journey-card__pair-left">
-            <span className="driver-journey-card__pair-label">Nhà máy</span>
-            <span className="driver-journey-card__pair-value">{dash(card.factoryName)}</span>
-          </div>
-          <div className="driver-journey-card__pair-right">
-            <span className="driver-journey-card__pair-label">Cảng nâng</span>
-            <span className="driver-journey-card__pair-value">{dash(card.loadingPortName)}</span>
-          </div>
-        </div>
-        <div className="driver-journey-card__pair">
-          <div className="driver-journey-card__pair-left">
-            <span className="driver-journey-card__pair-label">Tuyến đường</span>
-            <span className="driver-journey-card__pair-value driver-journey-card__pair-value--bold">{dash(card.routeName)}</span>
-          </div>
-          <div className="driver-journey-card__pair-right">
-            <span className="driver-journey-card__pair-label">Cảng hạ</span>
-            <span className="driver-journey-card__pair-value">{dash(card.dropPortName)}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Container line: Cont: [Số Cont] - Loại cont */}
-      {hasContainer ? (
-        <p className="driver-journey-card__container">
-          <Package2 size={13} aria-hidden="true" />
-          {isPresent(card.containerNumber) && (
-            <span className="driver-journey-card__cont-no">Cont: {card.containerNumber}</span>
-          )}
-          {isPresent(card.containerTypeName) && (
-            <span className="driver-journey-card__cont-type">{card.containerTypeName}</span>
-          )}
-          {isPresent(card.sealNumber) && (
-            <span className="driver-journey-card__seal">Seal {card.sealNumber}</span>
-          )}
+      {/* 1. Factory name — top, headline */}
+      {isPresent(card.factoryShortName || card.factoryName) ? (
+        <p className="driver-journey-card__factory driver-journey-card__factory--headline">
+          <Building2 size={16} aria-hidden="true" /> {card.factoryShortName || card.factoryName}
         </p>
+      ) : null}
+
+      {/* 2. Route — secondary line */}
+      {isPresent(card.routeName) ? (
+        <p className="driver-journey-card__route">
+          <Route size={13} aria-hidden="true" /> {card.routeName}
+        </p>
+      ) : null}
+
+      {/* 3. Container + 4. Ports — side-by-side block */}
+      {(hasContainer || hasPorts) ? (
+        <div className="driver-journey-card__container-block">
+          {hasContainer ? (
+            <p className="driver-journey-card__container">
+              <Package2 size={13} aria-hidden="true" />
+              <span className="driver-journey-card__cont-no">{dash(card.containerNumber)}</span>
+              {isPresent(card.containerTypeName) ? (
+                <span className="driver-journey-card__cont-type">{card.containerTypeName}</span>
+              ) : null}
+              {isPresent(card.sealNumber) ? (
+                <span className="driver-journey-card__seal">Seal {card.sealNumber}</span>
+              ) : null}
+            </p>
+          ) : null}
+          {hasPorts ? (
+            <div className="driver-journey-card__ports">
+              {isPresent(card.loadingPortName) ? (
+                <span className="driver-journey-card__port">
+                  <span className="driver-journey-card__port-label">Nâng</span> {card.loadingPortName}
+                </span>
+              ) : null}
+              {isPresent(card.dropPortName) ? (
+                <span className="driver-journey-card__port">
+                  <span className="driver-journey-card__port-label">Hạ</span> {card.dropPortName}
+                </span>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {/* 5. Operation tasks (tác vụ) — chips from operationalNotes */}
+      {operationTags.length > 0 ? (
+        <div className="driver-journey-card__ops">
+          {operationTags.map((opTag) => (
+            <span key={opTag} className="driver-journey-card__ops-tag">{opTag}</span>
+          ))}
+        </div>
+      ) : null}
+      {isPresent(operationManualText) ? (
+        <p className="driver-journey-card__ops-note">{operationManualText}</p>
       ) : null}
 
       {/* Contact */}
@@ -183,7 +210,7 @@ function JourneyCard({ card }: { card: DriverJourneyCard }) {
       ) : null}
 
       {/* Truck / trailer */}
-      {hasTruck ? (
+      {facts.length > 0 ? (
         <div className="driver-journey-card__facts">
           {isPresent(card.truckPlate) && <JourneyFact label="Đầu kéo" value={card.truckPlate} />}
           {isPresent(card.trailerPlate) && <JourneyFact label="Mooc" value={card.trailerPlate} />}
@@ -205,17 +232,21 @@ function JourneyCard({ card }: { card: DriverJourneyCard }) {
 export default function DriverTripsPage() {
   const [activeTab, setActiveTab] = useState<JourneyTabKey>('NEW');
   const { data, isLoading, error, refetch, isFetching } = useDriverJourneyBoard();
+  // Tag labels ride on the board response — the driver portal fetches nothing
+  // from the dispatcher-only tag pool (ticket 53a536f9).
+  const cards = data?.items ?? [];
+  const tagLabels = data?.knownTagLabels ?? [];
 
   const countsByBucket = useMemo(() => {
     const counts: Record<JourneyTabKey, number> = { NEW: 0, RUNNING: 0, HISTORY: 0 };
-    for (const card of data ?? []) counts[card.bucket] += 1;
+    for (const card of cards) counts[card.bucket] += 1;
     return counts;
-  }, [data]);
+  }, [cards]);
 
   const groupedCardsForTab = useMemo(() => {
-    const cardsInTab = (data ?? []).filter((card) => card.bucket === activeTab);
+    const cardsInTab = cards.filter((card) => card.bucket === activeTab);
     return groupCards(cardsInTab);
-  }, [data, activeTab]);
+  }, [cards, activeTab]);
 
   return (
     <div className="driver-journey">
@@ -261,7 +292,7 @@ export default function DriverTripsPage() {
                 className={group.length > 1 ? 'driver-journey-group driver-journey-group--clamp' : 'driver-journey-group'}
               >
                 {group.map((card) => (
-                  <JourneyCard key={card.fulfillmentId} card={card} />
+                  <JourneyCard key={card.fulfillmentId} card={card} tagLabels={tagLabels} />
                 ))}
               </div>
             ))}

@@ -308,7 +308,6 @@ export const shipmentAccountingLocks = pgTable('shipment_accounting_locks', {
   activatedAt: timestamp('activated_at', { withTimezone: true }).defaultNow().notNull(),
   releasedBy: integer('released_by'),
   releasedAt: timestamp('released_at', { withTimezone: true }),
-  releaseGovernanceActionId: integer('release_governance_action_id'),
   releaseReason: text('release_reason'),
 }, (table) => [
   uniqueIndex('shipment_accounting_locks_active_shipment_uniq_idx')
@@ -316,7 +315,6 @@ export const shipmentAccountingLocks = pgTable('shipment_accounting_locks', {
     .where(sql`${table.releasedAt} is null`),
   index('shipment_accounting_locks_document_idx').on(table.billingDocumentId),
   index('shipment_accounting_locks_confirmation_idx').on(table.confirmationActionId),
-  index('shipment_accounting_locks_release_governance_idx').on(table.releaseGovernanceActionId),
 ]);
 
 export const shipmentDocumentCustodyFacts = pgTable('shipment_document_custody_facts', {
@@ -330,6 +328,38 @@ export const shipmentDocumentCustodyFacts = pgTable('shipment_document_custody_f
 }, (table) => [
   index('shipment_document_custody_facts_shipment_idx')
     .on(table.shipmentId, table.changedAt),
+]);
+
+// Persistent record of accountant finance confirmations and charge-proposal
+// billing-link decisions for a shipment. These rows were governance_actions
+// entries before the maker-checker removal; they are real domain records
+// (confirmation ids are referenced by accounting locks and custody), so they
+// live in their own table instead of the dropped governance queue.
+export const shipmentFinanceActions = pgTable('shipment_finance_actions', {
+  id: serial('id').primaryKey(),
+  shipmentId: integer('shipment_id').notNull(),
+  actionKind: varchar('action_kind', { length: 60 }).notNull(),
+  shipmentVersion: integer('shipment_version').notNull(),
+  status: varchar('status', { length: 40 }).notNull().default('APPROVED'),
+  reason: text('reason'),
+  beforeSnapshot: jsonb('before_snapshot').$type<Record<string, unknown> | null>(),
+  afterSnapshot: jsonb('after_snapshot').$type<Record<string, unknown> | null>(),
+  deltaSnapshot: jsonb('delta_snapshot').$type<Record<string, unknown> | null>(),
+  makerId: integer('maker_id').notNull(),
+  makerRole: varchar('maker_role', { length: 20 }).notNull(),
+  checkerId: integer('checker_id'),
+  checkerRole: varchar('checker_role', { length: 20 }),
+  checkedAt: timestamp('checked_at', { withTimezone: true }),
+  approverId: integer('approver_id'),
+  approverRole: varchar('approver_role', { length: 20 }),
+  approvedAt: timestamp('approved_at', { withTimezone: true }),
+  appliedAt: timestamp('applied_at', { withTimezone: true }),
+  applicationResult: jsonb('application_result').$type<Record<string, unknown> | null>(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('shipment_finance_actions_shipment_kind_idx')
+    .on(table.shipmentId, table.actionKind, table.status),
 ]);
 
 

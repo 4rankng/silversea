@@ -3,7 +3,6 @@ import { toQuery } from '../lib/http/query';
 import { fetchAllPaginated } from '../lib/http/paginate';
 import { FINANCIAL, REPORTS, WORKSPACES } from '@tingting/shared';
 import type {
-  GovernanceActionSortKey,
   AccountantWorkInboxItem,
   GovernanceActionStatus,
   GovernanceAllowedAction,
@@ -63,25 +62,6 @@ export interface GovernanceActionRecord {
   createdAt: string;
   updatedAt: string;
   allowedActions: GovernanceAllowedAction[];
-}
-
-export interface GovernanceActionFilters {
-  status?: GovernanceActionStatus;
-  page?: number;
-  limit?: number;
-  offset?: number;
-  sortBy?: GovernanceActionSortKey;
-  sortDir?: 'asc' | 'desc';
-}
-
-/** GET /governance-actions envelope: page-scoped items plus full-set counts. */
-export interface GovernanceActionsEnvelope {
-  items: GovernanceActionRecord[];
-  total: number;
-  page: number;
-  pageSize: number;
-  /** GROUP BY status over the same filters as `total` (ignores paging). */
-  statusCounts: Record<string, number>;
 }
 
 export type FuelInvoiceStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
@@ -173,36 +153,6 @@ export const financialClient = {
   getWorkInbox: (view: 'ACTION' | 'WAITING', page = 1, sort?: { sortBy?: string; sortDir?: 'asc' | 'desc' }) =>
     api.get<WorkInboxResponseOf<AccountantWorkInboxItem>>(
       `${WORKSPACES.FINANCIAL_INBOX}${toQuery({ view, page, limit: 100, sortBy: sort?.sortBy, sortDir: sort?.sortDir })}`,
-    ),
-
-  getGovernanceActions: (filters?: GovernanceActionFilters) =>
-    api.get<GovernanceActionsEnvelope>(
-      `/governance-actions${toQuery({
-        status: filters?.status,
-        page: filters?.page,
-        limit: filters?.limit,
-        offset: filters?.offset,
-        sortBy: filters?.sortBy,
-        sortDir: filters?.sortDir,
-      })}`,
-    ),
-
-  checkGovernanceAction: (id: number, expectedVersion: number) =>
-    api.post<GovernanceActionRecord>(
-      `/governance-actions/${id}/check`,
-      { expectedVersion },
-    ),
-
-  approveGovernanceAction: (id: number, expectedVersion: number) =>
-    api.post<GovernanceActionRecord>(
-      `/governance-actions/${id}/approve`,
-      { expectedVersion },
-    ),
-
-  rejectGovernanceAction: (id: number, input: { expectedVersion: number; reason: string }) =>
-    api.post<GovernanceActionRecord>(
-      `/governance-actions/${id}/reject`,
-      input,
     ),
 
   getLedgerEntries: (params?: { entityType?: string; limit?: number }) =>

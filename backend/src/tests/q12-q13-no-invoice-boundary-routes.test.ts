@@ -5,7 +5,7 @@ import type { AddressInfo } from 'node:net';
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 
 import {
   NO_INVOICE_DEFAULT_CATEGORY_ALIASES,
@@ -100,22 +100,6 @@ async function request(path: string, init: {
   return { status: response.status, body };
 }
 
-/**
- * APPROVED PRICE_CONFIG_CHANGE audit actions applied onto a forwarder
- * expense-type row — the governance trail of a directly applied write.
- */
-async function approvedConfigActionCountForSubject(subjectId: number): Promise<number> {
-  const [row] = await db.select({ count: sql<number>`count(*)` })
-    .from(s.governanceActions)
-    .where(and(
-      eq(s.governanceActions.status, 'APPROVED'),
-      eq(s.governanceActions.actionKind, 'PRICE_CONFIG_CHANGE'),
-      sql`${s.governanceActions.applicationResult} ->> 'resource' = 'forwarder_expense_types'`,
-      sql`${s.governanceActions.applicationResult} ->> 'subjectId' = ${String(subjectId)}`,
-    ));
-  return Number(row?.count ?? 0);
-}
-
 before(async () => {
   await initEnforcer();
   await cacheInvalidate('catalogs:bootstrap');
@@ -171,10 +155,6 @@ after(async () => {
     });
     if (createdUserIds.length > 0) {
       await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.createdBy, createdUserIds));
-    }
-    if (createdUserIds.length > 0) {
-      await db.delete(s.governanceActions)
-        .where(inArray(s.governanceActions.makerId, createdUserIds));
     }
     if (createdExpenseTypeIds.length > 0) {
       await db.delete(s.forwarderExpenseTypes).where(inArray(s.forwarderExpenseTypes.id, createdExpenseTypeIds));
@@ -266,8 +246,6 @@ describe('Q12/Q13 no-invoice route boundaries', () => {
     assert.equal(created.noInvoiceFinanceLeadApprovalTitle, 'DIRECTOR');
     assert.equal(created.noInvoiceDirectorApprovalTitle, 'DIRECTOR');
     assert.equal(created.noInvoicePolicyVersion, 1);
-    assert.equal(await approvedConfigActionCountForSubject(created.id), 1,
-      'governed create must record an APPROVED audit action');
 
     const bootstrap = await request('/api/catalogs/bootstrap', { token: adminToken });
     const createdType = (bootstrap.body.forwarderExpenseTypes as BootstrapExpenseType[])
@@ -323,8 +301,6 @@ describe('Q12/Q13 no-invoice route boundaries', () => {
       .where(eq(s.forwarderExpenseTypes.id, created.id))
       .limit(1);
     assert.equal(updated.noInvoicePolicyVersion, 2);
-    assert.equal(await approvedConfigActionCountForSubject(created.id), 2,
-      'governed update must record its own APPROVED audit action');
   });
 
   test('invalid approval title is rejected at the config boundary', async () => {

@@ -9,7 +9,6 @@ import type { AuthUser } from '../middleware/auth';
 import {
   activateShipmentAccountingLock,
   confirmShipmentFinance,
-  decideShipmentReopen,
   getShipmentAccountingLockSummary,
   getShipmentFinanceConfirmationSummary,
   requestShipmentReopen,
@@ -189,10 +188,7 @@ after(async () => {
       inArray(s.auditLogs.entityId, shipmentIds),
     ));
     await db.delete(s.shipmentAccountingLocks).where(inArray(s.shipmentAccountingLocks.shipmentId, shipmentIds));
-    await db.delete(s.governanceActions).where(and(
-      eq(s.governanceActions.subjectType, 'SHIPMENT'),
-      inArray(s.governanceActions.subjectId, shipmentIds),
-    ));
+    await db.delete(s.shipmentFinanceActions).where(inArray(s.shipmentFinanceActions.shipmentId, shipmentIds));
   }
   if (documentIds.length) {
     await db.delete(s.notifications).where(and(
@@ -332,10 +328,9 @@ describe('shipment accounting lock', () => {
       }),
       /phải được phê duyệt trước khi xác nhận tài chính/,
     );
-    const actions = await db.select({ id: s.governanceActions.id }).from(s.governanceActions).where(and(
-      eq(s.governanceActions.subjectType, 'SHIPMENT'),
-      eq(s.governanceActions.subjectId, shipment.id),
-      eq(s.governanceActions.actionKind, 'SHIPMENT_COST_CONFIRMATION'),
+    const actions = await db.select({ id: s.shipmentFinanceActions.id }).from(s.shipmentFinanceActions).where(and(
+      eq(s.shipmentFinanceActions.shipmentId, shipment.id),
+      eq(s.shipmentFinanceActions.actionKind, 'SHIPMENT_COST_CONFIRMATION'),
     ));
     assert.equal(actions.length, 0);
   });
@@ -361,10 +356,9 @@ describe('shipment accounting lock', () => {
       }),
       /đề xuất phí thủ công chưa có liên kết nguồn có thẩm quyền trong Debit Note/,
     );
-    const actions = await db.select({ id: s.governanceActions.id }).from(s.governanceActions).where(and(
-      eq(s.governanceActions.subjectType, 'SHIPMENT'),
-      eq(s.governanceActions.subjectId, shipment.id),
-      eq(s.governanceActions.actionKind, 'SHIPMENT_COST_CONFIRMATION'),
+    const actions = await db.select({ id: s.shipmentFinanceActions.id }).from(s.shipmentFinanceActions).where(and(
+      eq(s.shipmentFinanceActions.shipmentId, shipment.id),
+      eq(s.shipmentFinanceActions.actionKind, 'SHIPMENT_COST_CONFIRMATION'),
     ));
     assert.equal(actions.length, 0);
   });
@@ -575,8 +569,8 @@ describe('shipment accounting lock', () => {
       input: { expectedVersion: currentShipment.version, billingDocumentId: document.id, reason: 'Đối soát nguồn.' },
       actor,
     });
-    const [action] = await db.select().from(s.governanceActions)
-      .where(eq(s.governanceActions.id, Number(confirmation.confirmation.confirmationId)));
+    const [action] = await db.select().from(s.shipmentFinanceActions)
+      .where(eq(s.shipmentFinanceActions.id, Number(confirmation.confirmation.confirmationId)));
     const after = action.afterSnapshot as Record<string, unknown>;
     assert.deepEqual(after.recoveryFacts, [{
       id: openFact.id,
@@ -613,8 +607,8 @@ describe('shipment accounting lock', () => {
     assert.equal((await getShipmentFinanceConfirmationSummary(shipment.id)).status, 'STALE');
   });
 
-  test('approved reopen invalidates confirmation and marks canonical Debit Note reconciliation authority atomically', async () => {
-    const { actor, cusActor, adminActor, shipment, document } = await setup();
+  test('direct reopen (approval flow removed 2026-09-10) invalidates confirmation and marks Debit Note reconciliation atomically', async () => {
+    const { actor, cusActor, shipment, document } = await setup();
     const confirmation = await confirmShipmentFinance({
       shipmentId: shipment.id,
       input: { expectedVersion: shipment.version, billingDocumentId: document.id, reason: 'Kế toán xác nhận.' },
@@ -642,16 +636,8 @@ describe('shipment accounting lock', () => {
       },
       actor: cusActor,
     });
-    const approved = await decideShipmentReopen({
-      shipmentId: shipment.id,
-      actionId: requested.action.id,
-      input: {
-        expectedVersion: requested.action.version,
-        decision: 'APPROVE',
-        reason: 'ADMIN chấp thuận mở lại để đối soát.',
-      },
-      actor: adminActor,
-    });
+    // The phê duyệt step is gone: the CUS request reopens immediately.
+    assert.equal(requested.reopened, true);
     const [updatedDocument] = await db.select().from(s.billingDocuments).where(eq(s.billingDocuments.id, document.id));
     const [sourceChangeAudit] = await db.select().from(s.auditLogs).where(and(
       eq(s.auditLogs.entityType, 'billing-document-source-change'),
@@ -661,7 +647,7 @@ describe('shipment accounting lock', () => {
     assert.ok(updatedDocument.authorityWarningAt);
     assert.match(updatedDocument.authorityWarningReason ?? '', /cần đối soát lại/i);
     assert.ok(sourceChangeAudit);
-    assert.equal((approved.applicationResult as Record<string, unknown>).invalidatedConfirmationId, confirmation.confirmation.confirmationId);
+    assert.equal(requested.invalidatedConfirmationId, confirmation.confirmation.confirmationId);
     assert.equal((await getShipmentFinanceConfirmationSummary(shipment.id)).status, 'STALE');
     assert.equal(await getShipmentAccountingLockSummary(shipment.id), null);
   });

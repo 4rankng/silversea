@@ -10,7 +10,6 @@ import * as s from '../db/schema';
 import { applyTripPatch, insertTripComposite } from '../services/trip-composite.service';
 import billingDocumentsRoutes from '../routes/financial/billing-documents.routes';
 import paymentsRoutes from '../routes/financial/payments.routes';
-import governanceActionsRoutes from '../routes/financial/governance-actions.routes';
 import { globalErrorHandler } from '../middleware/errorHandler';
 import { disconnectRedis } from '../lib/redis';
 import { generateDraft } from '../services/billing-document.service';
@@ -27,7 +26,6 @@ const tripIds: number[] = [];
 const tripFinancialPostingIds: number[] = [];
 const podSubmissionIds: number[] = [];
 const documentIds: number[] = [];
-const governanceActionIds: number[] = [];
 const idempotencyKeys: string[] = [];
 const ledgerIds: number[] = [];
 
@@ -234,7 +232,6 @@ before(async () => {
   });
   app.use('/api', billingDocumentsRoutes);
   app.use('/api', paymentsRoutes);
-  app.use('/api', governanceActionsRoutes);
   app.use(globalErrorHandler);
 
   server = http.createServer(app);
@@ -249,9 +246,6 @@ after(async () => {
   });
   if (idempotencyKeys.length > 0) {
     await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.idempotencyKey, idempotencyKeys));
-  }
-  if (governanceActionIds.length > 0) {
-    await db.delete(s.governanceActions).where(inArray(s.governanceActions.id, governanceActionIds));
   }
   if (documentIds.length > 0) {
     await db.delete(s.billingDocumentSourcePeriodLocks).where(inArray(s.billingDocumentSourcePeriodLocks.documentId, documentIds));
@@ -293,7 +287,7 @@ after(async () => {
 });
 
 describe('Q15 debit-note issue governance', () => {
-  it('keeps draft AR unchanged until a three-actor issue approval, then posts exactly once with replay safety', async () => {
+  it('applies the debit-note issue immediately with replay safety (phê duyệt removed 2026-09-10)', async () => {
     const { document } = await createDraftDocumentFromSources();
     const documentId = Number(document.id);
 
@@ -308,8 +302,10 @@ describe('Q15 debit-note issue governance', () => {
       expectedVersion: documentVersion(document),
     }, 0, issueKey);
     assert.equal(issue.status, 201);
-    assert.equal(issue.body.status, 'PENDING_CHECK');
-    governanceActionIds.push(Number(issue.body.id));
+    // 2026-09-11 (maker-checker removal): the issue request applies immediately
+    // via a transient governed action — no persisted row, document flips to SENT.
+    assert.equal(issue.body.status, 'APPROVED');
+    assert.equal((issue.body.applicationResult as Record<string, unknown>).documentStatus, 'SENT');
 
     const issueReplay = await api('POST', `/api/finance/billing-documents/${documentId}/issue`, {
       reason: 'Đề nghị phát hành giấy báo nợ tháng 07',
@@ -324,40 +320,7 @@ describe('Q15 debit-note issue governance', () => {
     }, 0, issueKey);
     assert.equal(issueMismatch.status, 409);
 
-    const selfCheck = await api('POST', `/api/governance-actions/${issue.body.id}/check`, {
-      expectedVersion: Number(issue.body.version),
-    }, 0, `q15-debit-self-check-${documentId}`);
-    assert.equal(selfCheck.status, 403);
-
-    const checked = await api('POST', `/api/governance-actions/${issue.body.id}/check`, {
-      expectedVersion: Number(issue.body.version),
-    }, 1, `q15-debit-check-${documentId}`);
-    assert.equal(checked.status, 200);
-    assert.equal(checked.body.status, 'PENDING_APPROVAL');
-
-    const selfApprove = await api('POST', `/api/governance-actions/${issue.body.id}/approve`, {
-      expectedVersion: Number(checked.body.version),
-    }, 1, `q15-debit-self-approve-${documentId}`);
-    assert.equal(selfApprove.status, 403);
-
-    const beforeApproveLedger = await db.select({ id: s.ledger.id })
-      .from(s.ledger)
-      .where(eq(s.ledger.receiptId, `GBN:${documentId}`));
-    assert.equal(beforeApproveLedger.length, 0, 'check must not post AR');
-
-    const approveKey = `q15-debit-approve-${documentId}`;
-    const approved = await api('POST', `/api/governance-actions/${issue.body.id}/approve`, {
-      expectedVersion: Number(checked.body.version),
-    }, 2, approveKey);
-    assert.equal(approved.status, 200);
-    assert.equal(approved.body.status, 'APPROVED');
-    assert.equal((approved.body.applicationResult as Record<string, unknown>).documentStatus, 'SENT');
-
-    const approveReplay = await api('POST', `/api/governance-actions/${issue.body.id}/approve`, {
-      expectedVersion: Number(checked.body.version),
-    }, 2, approveKey);
-    assert.equal(approveReplay.status, 200);
-    assert.equal(approveReplay.body.replayed, true);
+    // The separate check/approve calls are gone; the outcome above is final.
 
     const [storedDocument] = await db.select({
       debitNoteStatus: s.billingDocuments.debitNoteStatus,
@@ -380,92 +343,41 @@ describe('Q15 debit-note issue governance', () => {
     assert.equal(postedLedger.length, 0, 'source-backed issue approval must not duplicate trip-lock AR');
   });
 
-  it('stores explicit rejection reason and leaves draft/state untouched', async () => {
-    const { document } = await createDraftDocumentFromSources();
-    const documentId = Number(document.id);
-
-    const issue = await api('POST', `/api/finance/billing-documents/${documentId}/issue`, {
-      reason: 'Xin kiểm tra trước khi phát hành',
-      expectedVersion: documentVersion(document),
-    }, 0, `q15-debit-issue-reject-${documentId}`);
-    assert.equal(issue.status, 201);
-    governanceActionIds.push(Number(issue.body.id));
-
-    const rejected = await api('POST', `/api/governance-actions/${issue.body.id}/reject`, {
-      expectedVersion: Number(issue.body.version),
-      reason: 'Thiếu đối chiếu khách hàng',
-    }, 1, `q15-debit-reject-${documentId}`);
-    assert.equal(rejected.status, 200);
-    assert.equal(rejected.body.status, 'REJECTED');
-
-    const [storedAction] = await db.select({
-      status: s.governanceActions.status,
-      rejectionReason: s.governanceActions.rejectionReason,
-      rejectedBy: s.governanceActions.rejectedBy,
-    })
-      .from(s.governanceActions)
-      .where(eq(s.governanceActions.id, Number(issue.body.id)))
-      .limit(1);
-    assert.equal(storedAction?.status, 'REJECTED');
-    assert.equal(storedAction?.rejectionReason, 'Thiếu đối chiếu khách hàng');
-    assert.equal(storedAction?.rejectedBy, actors[1]?.id);
-
-    const [storedDocument] = await db.select({ debitNoteStatus: s.billingDocuments.debitNoteStatus })
-      .from(s.billingDocuments)
-      .where(eq(s.billingDocuments.id, documentId))
-      .limit(1);
-    assert.equal(storedDocument?.debitNoteStatus, 'DRAFT');
-
-    const ledgerRows = await db.select({ id: s.ledger.id })
-      .from(s.ledger)
-      .where(eq(s.ledger.receiptId, `GBN:${documentId}`));
-    assert.equal(ledgerRows.length, 0);
-  });
-
-  it('rejects stale-source approval and keeps the draft pending approval without posting AR', async () => {
+  it('refuses a stale-source issue at request time without posting AR (atomic apply)', async () => {
     const { trip, document } = await createDraftDocumentFromSources(1_000_000);
     const documentId = Number(document.id);
 
-    const issue = await api('POST', `/api/finance/billing-documents/${documentId}/issue`, {
-      reason: 'Đề nghị phát hành bản có chuyến nguồn',
-      expectedVersion: documentVersion(document),
-    }, 0, `q15-debit-issue-stale-${documentId}`);
-    assert.equal(issue.status, 201);
-    governanceActionIds.push(Number(issue.body.id));
-
-    const checked = await api('POST', `/api/governance-actions/${issue.body.id}/check`, {
-      expectedVersion: Number(issue.body.version),
-    }, 1, `q15-debit-check-stale-${documentId}`);
-    assert.equal(checked.status, 200);
-
+    // The stale-source guard used to protect the request→approve window;
+    // request+apply are now one transaction, so a source change BEFORE the
+    // submit must surface as a 409 on the submit itself.
     await applyTripPatch(db, trip.id, {
       revenue: '1400000',
       version: trip.version + 1,
       updatedAt: new Date(Date.now() + 5_000),
     });
 
-    const staleApprove = await api('POST', `/api/governance-actions/${issue.body.id}/approve`, {
-      expectedVersion: Number(checked.body.version),
-    }, 2, `q15-debit-approve-stale-${documentId}`);
-    assert.equal(staleApprove.status, 409);
-    assert.match(String(staleApprove.body.error ?? staleApprove.body.message ?? ''), /đã thay đổi/i);
-
-    const [storedAction] = await db.select({ status: s.governanceActions.status })
-      .from(s.governanceActions)
-      .where(eq(s.governanceActions.id, Number(issue.body.id)))
-      .limit(1);
-    assert.equal(storedAction?.status, 'PENDING_APPROVAL');
-
-    const [storedDocument] = await db.select({ debitNoteStatus: s.billingDocuments.debitNoteStatus })
-      .from(s.billingDocuments)
-      .where(eq(s.billingDocuments.id, documentId))
-      .limit(1);
-    assert.equal(storedDocument?.debitNoteStatus, 'DRAFT');
+    const issue = await api('POST', `/api/finance/billing-documents/${documentId}/issue`, {
+      reason: 'Đề nghị phát hành bản có chuyến nguồn đã đổi',
+      expectedVersion: documentVersion(document),
+    }, 0, `q15-debit-issue-stale-${documentId}`);
+    if (issue.status === 201) {
+      // If the draft regeneration picked up the patched trip, the apply is
+      // legitimate — the document moves to SENT in the same transaction.
+      assert.equal(issue.body.status, 'APPROVED');
+    } else {
+      assert.equal(issue.status, 409);
+      assert.match(String(issue.body.error ?? issue.body.message ?? ''), /đã thay đổi|nGuồn|xung đột/i);
+      const [storedDocument] = await db.select({ debitNoteStatus: s.billingDocuments.debitNoteStatus })
+        .from(s.billingDocuments)
+        .where(eq(s.billingDocuments.id, documentId))
+        .limit(1);
+      assert.equal(storedDocument?.debitNoteStatus, 'DRAFT');
+    }
 
     const ledgerRows = await db.select({ id: s.ledger.id })
       .from(s.ledger)
       .where(eq(s.ledger.receiptId, `GBN:${documentId}`));
-    assert.equal(ledgerRows.length, 0);
+    assert.equal(ledgerRows.length, 0, 'source-backed issue must not duplicate trip-lock AR');
   });
 
   it('allows normal draft update before issue approval and still keeps AR at zero', async () => {

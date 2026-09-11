@@ -4,10 +4,6 @@ import { qk } from '../api/keys';
 
 const salaryPeriodOverviewKey = (period: string, driverId: number | null) =>
   ['salary-period-overview', period, driverId ?? 'all'] as const;
-const salaryPeriodGovernanceKey = (period: string) =>
-  ['salary-period-governance', period] as const;
-const salaryConfirmationGovernanceKey = (driverId: number, year: number, month: number) =>
-  ['salary-confirmation-governance', driverId, year, month] as const;
 
 export function useSalaryList(year: number, month: number) {
   return useQuery({
@@ -99,7 +95,6 @@ export function useConfirmSalary(driverId: number, year: number, month: number) 
       queryClient.invalidateQueries({ queryKey: qk.salary.driverSalary(driverId, year, month) });
       queryClient.invalidateQueries({ queryKey: qk.salary.driverWorkdays(driverId, year, month) });
       queryClient.invalidateQueries({ queryKey: qk.salary.list(year, month) });
-      queryClient.invalidateQueries({ queryKey: salaryConfirmationGovernanceKey(driverId, year, month) });
     },
   });
 }
@@ -112,70 +107,9 @@ export function useUnconfirmSalary(driverId: number, year: number, month: number
       queryClient.invalidateQueries({ queryKey: qk.salary.driverSalary(driverId, year, month) });
       queryClient.invalidateQueries({ queryKey: qk.salary.driverWorkdays(driverId, year, month) });
       queryClient.invalidateQueries({ queryKey: qk.salary.list(year, month) });
-      queryClient.invalidateQueries({ queryKey: salaryConfirmationGovernanceKey(driverId, year, month) });
     },
   });
 }
-
-export function useSalaryConfirmationGovernanceActions(driverId: number | null, year: number, month: number) {
-  return useQuery({
-    queryKey: salaryConfirmationGovernanceKey(driverId ?? 0, year, month),
-    queryFn: () => salaryClient.listDriverGovernanceActions(driverId!, year, month),
-    enabled: !!driverId && year >= 2020 && month >= 1 && month <= 12,
-  });
-}
-
-export function useCheckConfirmSalary(driverId: number, year: number, month: number) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ actionId, expectedVersion }: { actionId: number; expectedVersion: number }) =>
-      salaryClient.checkConfirmSalary(driverId, year, month, actionId, expectedVersion),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: salaryConfirmationGovernanceKey(driverId, year, month) });
-      queryClient.invalidateQueries({ queryKey: qk.salary.list(year, month) });
-    },
-  });
-}
-
-export function useApproveConfirmSalary(driverId: number, year: number, month: number) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ actionId, expectedVersion }: { actionId: number; expectedVersion: number }) =>
-      salaryClient.approveConfirmSalary(driverId, year, month, actionId, expectedVersion),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: salaryConfirmationGovernanceKey(driverId, year, month) });
-      queryClient.invalidateQueries({ queryKey: qk.salary.driverSalary(driverId, year, month) });
-      queryClient.invalidateQueries({ queryKey: qk.salary.list(year, month) });
-    },
-  });
-}
-
-export function useCheckUnconfirmSalary(driverId: number, year: number, month: number) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ actionId, expectedVersion }: { actionId: number; expectedVersion: number }) =>
-      salaryClient.checkUnconfirmSalary(driverId, year, month, actionId, expectedVersion),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: salaryConfirmationGovernanceKey(driverId, year, month) });
-      queryClient.invalidateQueries({ queryKey: qk.salary.list(year, month) });
-    },
-  });
-}
-
-export function useApproveUnconfirmSalary(driverId: number, year: number, month: number) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ actionId, expectedVersion }: { actionId: number; expectedVersion: number }) =>
-      salaryClient.approveUnconfirmSalary(driverId, year, month, actionId, expectedVersion),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: salaryConfirmationGovernanceKey(driverId, year, month) });
-      queryClient.invalidateQueries({ queryKey: qk.salary.driverSalary(driverId, year, month) });
-      queryClient.invalidateQueries({ queryKey: qk.salary.driverWorkdays(driverId, year, month) });
-      queryClient.invalidateQueries({ queryKey: qk.salary.list(year, month) });
-    },
-  });
-}
-
 export function useSalaryPeriodOverview(period: string, driverId: number | null) {
   return useQuery({
     queryKey: salaryPeriodOverviewKey(period, driverId),
@@ -183,55 +117,17 @@ export function useSalaryPeriodOverview(period: string, driverId: number | null)
     enabled: /^\d{4}-(0[1-9]|1[0-2])$/.test(period),
   });
 }
-
-export function useSalaryPeriodGovernanceActions(period: string) {
-  return useQuery({
-    queryKey: salaryPeriodGovernanceKey(period),
-    queryFn: () => salaryClient.listPeriodGovernanceActions(period),
-    enabled: /^\d{4}-(0[1-9]|1[0-2])$/.test(period),
-  });
-}
-
 export function useCloseSalaryPeriod(period: string, year: number, month: number) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (note?: string | null) => salaryClient.closePeriod(period, note),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: salaryPeriodOverviewKey(period, null) });
-      queryClient.invalidateQueries({ queryKey: salaryPeriodGovernanceKey(period) });
       queryClient.invalidateQueries({ queryKey: qk.salary.list(year, month) });
       queryClient.invalidateQueries({ queryKey: qk.driver.payslips });
     },
   });
 }
-
-export function useCheckCloseSalaryPeriod(period: string, year: number, month: number) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ actionId, expectedVersion }: { actionId: number; expectedVersion: number }) =>
-      salaryClient.checkClosePeriod(period, actionId, expectedVersion),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: salaryPeriodOverviewKey(period, null) });
-      queryClient.invalidateQueries({ queryKey: salaryPeriodGovernanceKey(period) });
-      queryClient.invalidateQueries({ queryKey: qk.salary.list(year, month) });
-    },
-  });
-}
-
-export function useApproveCloseSalaryPeriod(period: string, year: number, month: number) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ actionId, expectedVersion }: { actionId: number; expectedVersion: number }) =>
-      salaryClient.approveClosePeriod(period, actionId, expectedVersion),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: salaryPeriodOverviewKey(period, null) });
-      queryClient.invalidateQueries({ queryKey: salaryPeriodGovernanceKey(period) });
-      queryClient.invalidateQueries({ queryKey: qk.salary.list(year, month) });
-      queryClient.invalidateQueries({ queryKey: qk.driver.payslips });
-    },
-  });
-}
-
 export function useReopenSalaryPeriod(period: string, driverId: number | null, year: number, month: number) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -239,35 +135,6 @@ export function useReopenSalaryPeriod(period: string, driverId: number | null, y
       salaryClient.reopenPeriod(period, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: salaryPeriodOverviewKey(period, driverId) });
-      queryClient.invalidateQueries({ queryKey: salaryPeriodGovernanceKey(period) });
-      queryClient.invalidateQueries({ queryKey: qk.salary.list(year, month) });
-      queryClient.invalidateQueries({ queryKey: qk.salary.driverSalaryAll });
-      queryClient.invalidateQueries({ queryKey: qk.driver.payslips });
-    },
-  });
-}
-
-export function useCheckReopenSalaryPeriod(period: string, year: number, month: number) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ actionId, expectedVersion }: { actionId: number; expectedVersion: number }) =>
-      salaryClient.checkReopenPeriod(period, actionId, expectedVersion),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: salaryPeriodOverviewKey(period, null) });
-      queryClient.invalidateQueries({ queryKey: salaryPeriodGovernanceKey(period) });
-      queryClient.invalidateQueries({ queryKey: qk.salary.list(year, month) });
-    },
-  });
-}
-
-export function useApproveReopenSalaryPeriod(period: string, year: number, month: number) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ actionId, expectedVersion }: { actionId: number; expectedVersion: number }) =>
-      salaryClient.approveReopenPeriod(period, actionId, expectedVersion),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: salaryPeriodOverviewKey(period, null) });
-      queryClient.invalidateQueries({ queryKey: salaryPeriodGovernanceKey(period) });
       queryClient.invalidateQueries({ queryKey: qk.salary.list(year, month) });
       queryClient.invalidateQueries({ queryKey: qk.salary.driverSalaryAll });
       queryClient.invalidateQueries({ queryKey: qk.driver.payslips });
@@ -286,32 +153,6 @@ export function useIssueSalaryPeriod(period: string, driverId: number | null) {
     },
   });
 }
-
-export function useCheckIssueSalaryPeriod(period: string, driverId: number | null) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ actionId, expectedVersion }: { actionId: number; expectedVersion: number }) =>
-      salaryClient.checkIssuePayslips(period, actionId, expectedVersion),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: salaryPeriodOverviewKey(period, driverId) });
-      queryClient.invalidateQueries({ queryKey: salaryPeriodGovernanceKey(period) });
-    },
-  });
-}
-
-export function useApproveIssueSalaryPeriod(period: string, driverId: number | null) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ actionId, expectedVersion }: { actionId: number; expectedVersion: number }) =>
-      salaryClient.approveIssuePayslips(period, actionId, expectedVersion),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: salaryPeriodOverviewKey(period, driverId) });
-      queryClient.invalidateQueries({ queryKey: salaryPeriodGovernanceKey(period) });
-      queryClient.invalidateQueries({ queryKey: qk.driver.payslips });
-    },
-  });
-}
-
 export function usePostSalaryPeriod(period: string, driverId: number | null) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -322,31 +163,6 @@ export function usePostSalaryPeriod(period: string, driverId: number | null) {
     },
   });
 }
-
-export function useCheckPostSalaryPeriod(period: string, driverId: number | null) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ actionId, expectedVersion }: { actionId: number; expectedVersion: number }) =>
-      salaryClient.checkPostOfficial(period, actionId, expectedVersion),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: salaryPeriodOverviewKey(period, driverId) });
-      queryClient.invalidateQueries({ queryKey: salaryPeriodGovernanceKey(period) });
-    },
-  });
-}
-
-export function useApprovePostSalaryPeriod(period: string, driverId: number | null) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ actionId, expectedVersion }: { actionId: number; expectedVersion: number }) =>
-      salaryClient.approvePostOfficial(period, actionId, expectedVersion),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: salaryPeriodOverviewKey(period, driverId) });
-      queryClient.invalidateQueries({ queryKey: salaryPeriodGovernanceKey(period) });
-    },
-  });
-}
-
 export function useRequestPostCloseAdjustment(period: string, driverId: number | null, year: number, month: number) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -360,30 +176,6 @@ export function useRequestPostCloseAdjustment(period: string, driverId: number |
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: salaryPeriodOverviewKey(period, driverId) });
       queryClient.invalidateQueries({ queryKey: qk.salary.list(year, month) });
-    },
-  });
-}
-
-export function useCheckPostCloseAdjustment(period: string, driverId: number | null) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (input: { actionId: number; expectedVersion: number }) =>
-      salaryClient.checkPostCloseAdjustment(period, input.actionId, input.expectedVersion),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: salaryPeriodOverviewKey(period, driverId) });
-    },
-  });
-}
-
-export function useApprovePostCloseAdjustment(period: string, driverId: number | null, year: number, month: number) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (input: { actionId: number; expectedVersion: number }) =>
-      salaryClient.approvePostCloseAdjustment(period, input.actionId, input.expectedVersion),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: salaryPeriodOverviewKey(period, driverId) });
-      queryClient.invalidateQueries({ queryKey: qk.salary.list(year, month) });
-      queryClient.invalidateQueries({ queryKey: qk.salary.driverSalaryAll });
     },
   });
 }

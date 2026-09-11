@@ -25,7 +25,6 @@ import {
   ChevronRight,
   Shield,
   Phone,
-  ClipboardCheck,
   SlidersHorizontal,
   Landmark,
   Calculator,
@@ -109,8 +108,6 @@ export function getNavItems(
         // Báo cáo & Phê duyệt (Reports & Approvals) per spec
         { key: 'finance', label: 'Báo cáo Lãi lỗ', path: routes.finance, icon: Wallet, section: 'reports' as SectionName },
         { key: 'profit', label: 'Báo cáo Lợi nhuận', path: routes.profit, icon: DollarSign, section: 'reports' as SectionName },
-        { key: 'credit-overrides', label: 'Duyệt vượt hạn mức', path: routes.creditOverrides, icon: Shield, section: 'reports' as SectionName },
-        { key: 'governance-actions', label: 'Trung tâm phê duyệt', path: routes.governanceActions, icon: ClipboardCheck, section: 'reports' as SectionName },
 
         // Công nợ & Dòng tiền (AR/AP) per spec
         ...(hasCapability('treasury.read') ? [
@@ -160,8 +157,6 @@ export function getNavItems(
         // Báo cáo & Phê duyệt (Reports & Approvals) per spec
         { key: 'finance', label: 'Báo cáo Lãi lỗ', path: routes.finance, icon: Wallet, section: 'reports' as SectionName },
         { key: 'profit', label: 'Báo cáo Lợi nhuận', path: routes.profit, icon: DollarSign, section: 'reports' as SectionName },
-        { key: 'credit-overrides', label: 'Duyệt vượt hạn mức', path: routes.creditOverrides, icon: Shield, section: 'reports' as SectionName },
-        { key: 'governance-actions', label: 'Trung tâm phê duyệt', path: routes.governanceActions, icon: ClipboardCheck, section: 'reports' as SectionName },
 
         // Công nợ & Dòng tiền (AR/AP) per spec
         ...(hasCapability('treasury.read') ? [
@@ -222,8 +217,6 @@ export function getNavItems(
         // Báo cáo & Phê duyệt (Reports & Approvals) per spec
         { key: 'finance', label: 'Báo cáo Lãi lỗ', path: routes.finance, icon: Wallet, section: 'reports' as SectionName },
         { key: 'profit', label: 'Báo cáo Lợi nhuận', path: routes.profit, icon: DollarSign, section: 'reports' as SectionName },
-        { key: 'credit-overrides', label: 'Duyệt vượt hạn mức', path: routes.creditOverrides, icon: Shield, section: 'reports' as SectionName },
-        { key: 'governance-actions', label: 'Trung tâm phê duyệt', path: routes.governanceActions, icon: ClipboardCheck, section: 'reports' as SectionName },
 
         // Vận hành liên quan (Operations - View-only/Audit) per spec.
         // Trips/fleet/salary/penalties/customers/suppliers/pricing were removed:

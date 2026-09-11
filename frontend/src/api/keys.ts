@@ -285,8 +285,6 @@ export const qk = {
       ['dashboard', 'decision-inbox', page, sortBy ?? '', sortDir ?? ''] as const,
     /** Broad prefix — matches every decision-inbox query regardless of page/sort. */
     decisionInboxAll: ['dashboard', 'decision-inbox'] as const,
-    approvalQueue: (role: string | undefined, userId: number | undefined) =>
-      ['approval-queue', role, userId] as const,
   },
 
   /* ── Financial ──────────────────────────────────────────────────────── */
@@ -391,9 +389,6 @@ export const qk = {
 
   /* ── Governance actions (approval inbox) ───────────────────────────── */
 
-  governance: {
-    actions: ['governance-actions'],
-  },
 
   /* ── Fuel-evidence review queue ────────────────────────────────────── */
 
@@ -462,8 +457,6 @@ export const qk = {
 
   creditOverrides: {
     all: ['credit-overrides'] as const,
-    detail: (id: number | null | undefined) =>
-      ['credit-overrides', 'detail', id ?? null] as const,
     list: (filters?: { status?: string; customerId?: number; shipmentId?: number; cursor?: string; limit?: number }) =>
       [
         'credit-overrides',

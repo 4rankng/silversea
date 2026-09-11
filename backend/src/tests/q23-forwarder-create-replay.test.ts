@@ -3,8 +3,8 @@ import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { after, before, describe, it } from 'node:test';
 import express from 'express';
-import { eq, inArray } from 'drizzle-orm';
-import { Role } from '@tingting/shared';
+import { and, eq, inArray } from 'drizzle-orm';
+import { Role, TxnType } from '@tingting/shared';
 
 import { client, db } from '../db';
 import * as s from '../db/schema';
@@ -180,12 +180,28 @@ describe('Q23 forwarder create-route replay', () => {
       .from(s.advanceRequests)
       .where(eq(s.advanceRequests.id, requestId));
     assert.equal(stored.length, 1);
+
+    // 2026-09-10 (phê duyệt removed): the create applies immediately —
+    // status APPROVED by the requester, OPS_ADVANCE ledger entry posted in
+    // the same transaction. No PENDING window.
+    assert.equal(first.body.status, 'APPROVED');
+    const advanceLedger = await db.select({ id: s.ledger.id })
+      .from(s.ledger)
+      .where(and(
+        eq(s.ledger.entityType, 'FORWARDER'),
+        eq(s.ledger.entityId, forwarderUserId),
+        eq(s.ledger.txnId, requestId),
+        eq(s.ledger.txnType, TxnType.OPS_ADVANCE),
+      ));
+    assert.equal(advanceLedger.length, 1);
   });
 
   it('replays advance-settlement create with the original 201 status/body and one stored effect', async () => {
     const [approvedRequest] = await db.insert(s.advanceRequests).values({
       requesterId: forwarderUserId,
-      amount: '900000',
+      // Balanced against the linked expense (buyAmount 1000) + refund 0 so the
+      // approve-time assertSettlementBalanced passes.
+      amount: '1000',
       reason: `Q23 approved request ${suffix}`,
       status: 'APPROVED',
       approvedBy: adminUserId,
@@ -232,6 +248,11 @@ describe('Q23 forwarder create-route replay', () => {
       .where(eq(s.settlementExpenses.settlementId, settlementId));
     assert.equal(requestLinks.length, 1);
     assert.equal(expenseLinks.length, 1);
+
+    // 2026-09-10 (phê duyệt removed, TC-CHUNK4-009): the settlement applies
+    // at creation — ONE call lands APPROVED (linked expenses approved, ledger
+    // posted); the check/approve/reject endpoints are gone.
+    assert.equal(first.body.status, 'APPROVED');
   });
 });
 
@@ -263,6 +284,16 @@ after(async () => {
         .where(inArray(s.advanceSettlementRequests.settlementId, settlementIds));
       await db.delete(s.advanceSettlements)
         .where(inArray(s.advanceSettlements.id, settlementIds));
+    }
+    const createdRequests = await db.select({ id: s.advanceRequests.id })
+      .from(s.advanceRequests)
+      .where(eq(s.advanceRequests.requesterId, forwarderUserId));
+    if (createdRequests.length > 0) {
+      await db.delete(s.ledger).where(and(
+        eq(s.ledger.entityType, 'FORWARDER'),
+        eq(s.ledger.entityId, forwarderUserId),
+        inArray(s.ledger.txnId, createdRequests.map((r) => r.id)),
+      ));
     }
     await db.delete(s.advanceRequests)
       .where(eq(s.advanceRequests.requesterId, forwarderUserId));

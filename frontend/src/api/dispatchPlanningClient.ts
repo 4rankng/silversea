@@ -203,7 +203,8 @@ export interface DispatchDetailPlanRow {
     /** Present once the dispatch order has created a live trip. */
     tripId?: number | null;
     tripStatus?: string | null;
-    carrierType: 'OWN' | 'EXTERNAL';
+    /** Null on carrier-less planned rows — no carrier chosen yet (8afc13a9). */
+    carrierType: 'OWN' | 'EXTERNAL' | null;
     carrierName: string | null;
     externalCarrierId: number | null;
     externalCarrierVehicleId: number | null;
@@ -409,6 +410,7 @@ export function completeDispatchExternalTrip(tripId: number) {
 export interface DispatchTaskTag {
   id: number;
   label: string;
+  displayOrder?: number | null;
 }
 
 export function listDispatchTaskTags() {

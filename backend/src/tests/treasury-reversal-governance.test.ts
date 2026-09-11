@@ -14,16 +14,12 @@ const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const userIds: number[] = [];
 const ledgerIds: number[] = [];
 const movementIds: number[] = [];
-const actionIds: number[] = [];
 let accountId: number | null = null;
 
 after(async () => {
   try {
     if (movementIds.length > 0) {
       await db.delete(s.treasuryMovements).where(inArray(s.treasuryMovements.id, movementIds));
-    }
-    if (actionIds.length > 0) {
-      await db.delete(s.governanceActions).where(inArray(s.governanceActions.id, actionIds));
     }
     if (accountId != null) {
       await db.delete(s.treasuryAccounts).where(eq(s.treasuryAccounts.id, accountId));

@@ -1,31 +1,72 @@
 /**
- * Governance action core — the approval transaction primitive shared by every
- * governed domain. Extracted from governance-transition.service so domain
- * governance services (adjustment-governance, salary-*, trip-*, credit-limit)
- * can call it WITHOUT importing the transition hub; the hub aggregates every
- * domain adapter (financial, payment-allocation, commission, …) and must never
- * be imported back by a domain it aggregates, or the services graph cycles
- * (governance-transition → financial → adjustment-governance → back).
+ * Governance action core — the governed-write primitive shared by every
+ * governed domain.
  *
- * Keep this module a LEAF: only db/schema, errors, governance-policy and
- * durable-effect imports — never another governance domain service.
+ * 2026-09-11 user directive: remove the maker-checker flow entirely. Actions
+ * APPLY DIRECTLY in-request: there is no persisted governance_actions table
+ * anymore (dropped by migration 0068). What survives is the part that made
+ * governed writes safe — policy assertions, evidence-completeness checks,
+ * apply adapters, ledger entries, durable effects, audit rows — executed
+ * against a TRANSIENT action record inside the caller's transaction. Only the
+ * wait-for-a-second-person step (and the row that parked it) is gone.
+ *
+ * Keep this module a LEAF: only errors, governance-policy and durable-effect
+ * imports — never another governance domain service.
  */
-import { and, eq, isNull, sql } from 'drizzle-orm';
-import { Role } from '@tingting/shared';
 import { db } from '../db';
-import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
 import {
   assertCanApproveGovernanceAction,
   assertCanCheckGovernanceAction,
-  canViewGovernanceAction,
   getMissingGovernanceEvidence,
-  getGovernanceAllowedActions,
 } from './governance-policy';
 import { enqueueDurableEffects, type DurableEffectInput } from './durable-effect.service';
 
-export type GovernanceActionRow = typeof s.governanceActions.$inferSelect;
+export interface GovernanceActionRecord {
+  /** Synthetic, unique per process; never a database id. */
+  id: number;
+  version: number;
+  createdAt: Date;
+  updatedAt: Date;
+  status: 'PENDING_CHECK' | 'PENDING_APPROVAL' | 'APPROVED' | 'RETURNED_FOR_EVIDENCE' | 'REJECTED' | 'CANCELED';
+  actionKind: string;
+  subjectType: string;
+  subjectId: number | null;
+  subjectKey: string | null;
+  reason: string | null;
+  originalVersion: number | null;
+  originalPeriodLockId: number | null;
+  beforeSnapshot: unknown;
+  afterSnapshot: unknown;
+  deltaSnapshot: unknown;
+  makerId: number;
+  makerRole: string;
+  checkerId: number | null;
+  checkerRole: string | null;
+  checkedAt: Date | null;
+  approverId: number | null;
+  approverRole: string | null;
+  approvedAt: Date | null;
+  appliedAt: Date | null;
+  ledgerEntryId: number | null;
+  applicationResult: Record<string, unknown> | null;
+  returnedBy: number | null;
+  returnedRole: string | null;
+  returnedAt: Date | null;
+  returnReason: string | null;
+  rejectedBy: number | null;
+  rejectedRole: string | null;
+  rejectedAt: Date | null;
+  rejectionReason: string | null;
+  canceledBy: number | null;
+  canceledRole: string | null;
+  canceledAt: Date | null;
+  cancelReason: string | null;
+}
+
+/** Compatibility alias: every apply adapter still speaks "the action row". */
+export type GovernanceActionRow = GovernanceActionRecord;
 
 export interface GovernanceApplyResult {
   ledgerEntryId?: number | null;
@@ -58,7 +99,7 @@ export function assertActiveApprovalApplication(
 
 export function setGovernanceApprovalAfterApplyHookForTest(
   hook: null | ((action: GovernanceActionRow) => void | Promise<void>),
-): void {
+) {
   afterGovernanceApplyHookForTest = hook;
 }
 
@@ -87,352 +128,127 @@ async function applyWithinActiveApproval(
   }
 }
 
-export function assertExpectedActionVersion(actual: number, expected: number): void {
-  if (!Number.isInteger(expected) || expected <= 0) {
-    throw new ApiError(400, 'expectedVersion không hợp lệ');
-  }
-  if (actual !== expected) {
-    throw new ApiError(409, 'Yêu cầu đã được người khác xử lý. Vui lòng tải lại.');
-  }
-}
+let transientActionIdSeq = 0;
 
-export async function lockGovernanceAction(tx: Tx, actionId: number): Promise<GovernanceActionRow> {
-  const [action] = await tx.select().from(s.governanceActions)
-    .where(eq(s.governanceActions.id, actionId))
-    .limit(1)
-    .for('update');
-  if (!action) throw new ApiError(404, 'Không tìm thấy yêu cầu điều chỉnh');
-  return action;
-}
-
-export async function approveGovernanceActionWithAdapter(input: {
-  actionId: number;
-  approverId: number;
-  approverRole: string;
-  expectedVersion: number;
-  apply: GovernanceApplyAdapter;
-  authorizeBeforeApply?: (action: GovernanceActionRow) => boolean;
-  transaction?: Tx;
-}) {
-  const execute = async (tx: Tx) => {
-    const action = await lockGovernanceAction(tx, input.actionId);
-    assertExpectedActionVersion(action.version, input.expectedVersion);
-    const isAdminPriceConfigMaker = action.actionKind === 'PRICE_CONFIG_CHANGE'
-      && action.makerId === input.approverId
-      && input.approverRole === Role.ADMIN;
-    if (
-      (action.status !== 'PENDING_APPROVAL' || action.checkerId == null)
-      && !(isAdminPriceConfigMaker && action.status === 'PENDING_CHECK')
-    ) {
-      throw new ApiError(409, 'Yêu cầu chưa được kiểm tra hoặc đã được xử lý');
-    }
-    assertCanApproveGovernanceAction(action, {
-      actorId: input.approverId,
-      actorRole: input.approverRole,
-    });
-
-    const now = new Date();
-    if (input.authorizeBeforeApply?.(action)) {
-      const [authorized] = await tx.update(s.governanceActions).set({
-        status: 'APPROVED',
-        approverId: input.approverId,
-        approverRole: input.approverRole,
-        approvedAt: now,
-        appliedAt: null,
-        ledgerEntryId: null,
-        applicationResult: null,
-        updatedAt: now,
-        version: sql`${s.governanceActions.version} + 1`,
-      }).where(and(
-        eq(s.governanceActions.id, action.id),
-        eq(s.governanceActions.status, action.status),
-        eq(s.governanceActions.version, input.expectedVersion),
-      )).returning();
-      if (!authorized) {
-        throw new ApiError(409, 'Yêu cầu đã được người khác xử lý. Vui lòng tải lại.');
-      }
-      const effect = await applyWithinActiveApproval(
-        tx,
-        authorized,
-        input.apply,
-      );
-      if (effect?.durableEffects?.length) {
-        await enqueueDurableEffects(tx, effect.durableEffects);
-      }
-      if (afterGovernanceApplyHookForTest) {
-        await afterGovernanceApplyHookForTest(authorized);
-      }
-      const appliedAt = new Date();
-      const [applied] = await tx.update(s.governanceActions).set({
-        appliedAt,
-        ledgerEntryId: effect?.ledgerEntryId ?? null,
-        applicationResult: effect?.applicationResult ?? null,
-        updatedAt: appliedAt,
-        version: sql`${s.governanceActions.version} + 1`,
-      }).where(and(
-        eq(s.governanceActions.id, authorized.id),
-        eq(s.governanceActions.status, 'APPROVED'),
-        eq(s.governanceActions.version, authorized.version),
-        eq(s.governanceActions.approverId, input.approverId),
-        isNull(s.governanceActions.appliedAt),
-      )).returning();
-      if (!applied) {
-        throw new ApiError(409, 'Yêu cầu đã được áp dụng hoặc thay đổi bởi tiến trình khác');
-      }
-      return applied;
-    }
-    // Adapters execute inside the same approval transaction before the
-    // governance row is persisted as APPROVED. Give them the authoritative
-    // decision actor so immutable domain rows can record the actual approver.
-    const effect = await applyWithinActiveApproval(
-      tx,
-      {
-        ...action,
-        approverId: input.approverId,
-        approverRole: input.approverRole,
-        approvedAt: now,
-      },
-      input.apply,
-    );
-    if (effect?.durableEffects?.length) {
-      await enqueueDurableEffects(tx, effect.durableEffects);
-    }
-    if (afterGovernanceApplyHookForTest) {
-      await afterGovernanceApplyHookForTest(action);
-    }
-    const [approved] = await tx.update(s.governanceActions).set({
-      status: 'APPROVED',
-      approverId: input.approverId,
-      approverRole: input.approverRole,
-      approvedAt: now,
-      appliedAt: now,
-      ledgerEntryId: effect?.ledgerEntryId ?? null,
-      applicationResult: effect?.applicationResult ?? null,
-      updatedAt: now,
-      version: sql`${s.governanceActions.version} + 1`,
-    }).where(and(
-      eq(s.governanceActions.id, action.id),
-      eq(s.governanceActions.status, action.status),
-      eq(s.governanceActions.version, input.expectedVersion),
-    )).returning();
-    if (!approved) {
-      throw new ApiError(409, 'Yêu cầu đã được người khác xử lý. Vui lòng tải lại.');
-    }
-    return approved;
+/**
+ * Build the transient action record for a governed write. The values mirror
+ * what the old governance_actions insert carried — adapters and policy
+ * assertions read the same fields, so governed behavior is unchanged.
+ */
+export function buildGovernanceAction(
+  values: Pick<GovernanceActionRecord, 'actionKind' | 'subjectType' | 'makerId' | 'makerRole'>
+    & Partial<GovernanceActionRecord>,
+): GovernanceActionRecord {
+  const now = new Date();
+  return {
+    id: --transientActionIdSeq,
+    version: 1,
+    createdAt: now,
+    updatedAt: now,
+    status: 'PENDING_CHECK',
+    subjectId: null,
+    subjectKey: null,
+    reason: null,
+    originalVersion: null,
+    originalPeriodLockId: null,
+    beforeSnapshot: null,
+    afterSnapshot: null,
+    deltaSnapshot: null,
+    checkerId: null,
+    checkerRole: null,
+    checkedAt: null,
+    approverId: null,
+    approverRole: null,
+    approvedAt: null,
+    appliedAt: null,
+    ledgerEntryId: null,
+    applicationResult: null,
+    returnedBy: null,
+    returnedRole: null,
+    returnedAt: null,
+    returnReason: null,
+    rejectedBy: null,
+    rejectedRole: null,
+    rejectedAt: null,
+    rejectionReason: null,
+    canceledBy: null,
+    canceledRole: null,
+    canceledAt: null,
+    cancelReason: null,
+    ...values,
   };
-  if (input.transaction) {
-    return execute(input.transaction);
-  }
-  return db.transaction(execute);
 }
 
-/* ── Decision lifecycle (check / reject / return / cancel) ─────────────────── */
-
-function requireDecisionReason(reason: string): string {
-  const normalized = reason.trim();
-  if (!normalized) throw new ApiError(400, 'Lý do là bắt buộc');
-  return normalized;
-}
-
-function assertDecisionAllowed(
-  action: GovernanceActionRow,
-  actor: { actorId: number; actorRole: string },
-  allowedAction: 'REJECT' | 'RETURN_FOR_EVIDENCE',
-): void {
-  if (action.status === 'PENDING_CHECK') {
-    assertCanCheckGovernanceAction(action, actor);
-  } else if (action.status === 'PENDING_APPROVAL') {
-    assertCanApproveGovernanceAction(action, actor);
-  } else {
-    throw new ApiError(409, 'Yêu cầu không còn ở bước ra quyết định');
-  }
-  if (!getGovernanceAllowedActions(action, actor).includes(allowedAction)) {
-    throw new ApiError(403, 'Bạn không có quyền thực hiện bước phê duyệt này');
-  }
-}
-
-export async function checkGovernanceAction(input: {
-  actionId: number;
-  checkerId: number;
-  checkerRole: string;
-  expectedVersion: number;
+/**
+ * Run the full governed lifecycle for a transient action in one request:
+ * check stage (policy + evidence completeness), approve stage (policy), then
+ * the domain apply adapter — all inside the caller's transaction. This is the
+ * direct-apply replacement for the old make→check→approve row machine; the
+ * requesting actor performs every stage, exactly like the auto-apply chain
+ * that preceded the table drop.
+ */
+export async function applyGovernanceActionDirect(input: {
+  action: GovernanceActionRow;
+  actorId: number;
+  actorRole: string;
+  apply: GovernanceApplyAdapter;
   transaction?: Tx;
-}) {
+}): Promise<{
+  action: GovernanceActionRow;
+  result: GovernanceApplyResult | void;
+}> {
   const execute = async (tx: Tx) => {
-    const action = await lockGovernanceAction(tx, input.actionId);
-    assertExpectedActionVersion(action.version, input.expectedVersion);
-    if (action.status !== 'PENDING_CHECK') {
-      throw new ApiError(409, 'Yêu cầu không còn ở bước kiểm tra');
-    }
-    assertCanCheckGovernanceAction(action, {
-      actorId: input.checkerId,
-      actorRole: input.checkerRole,
-    });
-
-    const now = new Date();
+    const actor = { actorId: input.actorId, actorRole: input.actorRole };
+    assertCanCheckGovernanceAction(input.action, actor);
     const missingEvidence = getMissingGovernanceEvidence(
-      action.actionKind,
-      action.deltaSnapshot as Record<string, unknown> | null,
+      input.action.actionKind,
+      input.action.deltaSnapshot as Record<string, unknown> | null,
     );
     if (missingEvidence.length > 0) {
-      const [returned] = await tx.update(s.governanceActions).set({
-        status: 'RETURNED_FOR_EVIDENCE',
-        returnedBy: input.checkerId,
-        returnedRole: input.checkerRole,
-        returnedAt: now,
-        returnReason: `Thiếu bằng chứng bắt buộc: ${missingEvidence.join(', ')}`,
-        updatedAt: now,
-        version: sql`${s.governanceActions.version} + 1`,
-      }).where(and(
-        eq(s.governanceActions.id, action.id),
-        eq(s.governanceActions.status, 'PENDING_CHECK'),
-        eq(s.governanceActions.version, input.expectedVersion),
-      )).returning();
-      if (!returned) {
-        throw new ApiError(409, 'Yêu cầu đã được người khác xử lý. Vui lòng tải lại.');
-      }
-      return returned;
+      // The old check stage parked the request as RETURNED_FOR_EVIDENCE; with
+      // nothing persisted to park, the same gap rejects the request outright.
+      throw new ApiError(422, `Thiếu bằng chứng bắt buộc: ${missingEvidence.join(', ')}`);
     }
-
-    const [updated] = await tx.update(s.governanceActions).set({
+    const now = new Date();
+    const checked: GovernanceActionRow = {
+      ...input.action,
       status: 'PENDING_APPROVAL',
-      checkerId: input.checkerId,
-      checkerRole: input.checkerRole,
+      checkerId: input.actorId,
+      checkerRole: input.actorRole,
       checkedAt: now,
+      version: input.action.version + 1,
       updatedAt: now,
-      version: sql`${s.governanceActions.version} + 1`,
-    }).where(and(
-      eq(s.governanceActions.id, action.id),
-      eq(s.governanceActions.status, 'PENDING_CHECK'),
-      eq(s.governanceActions.version, input.expectedVersion),
-    )).returning();
-    if (!updated) {
-      throw new ApiError(409, 'Yêu cầu đã được người khác xử lý. Vui lòng tải lại.');
+    };
+    assertCanApproveGovernanceAction(checked, actor);
+    // Adapters get the authoritative decision actor so immutable domain rows
+    // record the actual approver.
+    const forApply: GovernanceActionRow = {
+      ...checked,
+      approverId: input.actorId,
+      approverRole: input.actorRole,
+      approvedAt: now,
+    };
+    const result = await applyWithinActiveApproval(tx, forApply, input.apply);
+    if (result?.durableEffects?.length) {
+      await enqueueDurableEffects(tx, result.durableEffects);
     }
-    return updated;
-  };
-  if (input.transaction) {
-    return execute(input.transaction);
-  }
-  return db.transaction(execute);
-}
-
-async function recordNegativeDecision(input: {
-  actionId: number;
-  actorId: number;
-  actorRole: string;
-  expectedVersion: number;
-  reason: string;
-  kind: 'REJECT' | 'RETURN_FOR_EVIDENCE';
-  transaction?: Tx;
-}) {
-  const execute = async (tx: Tx) => {
-    const action = await lockGovernanceAction(tx, input.actionId);
-    assertExpectedActionVersion(action.version, input.expectedVersion);
-    const actor = { actorId: input.actorId, actorRole: input.actorRole };
-    assertDecisionAllowed(action, actor, input.kind);
-    const reason = requireDecisionReason(input.reason);
-    const now = new Date();
-    const [updated] = await tx.update(s.governanceActions).set(
-      input.kind === 'REJECT'
-        ? {
-            status: 'REJECTED',
-            rejectedBy: input.actorId,
-            rejectedRole: input.actorRole,
-            rejectedAt: now,
-            rejectionReason: reason,
-            updatedAt: now,
-            version: sql`${s.governanceActions.version} + 1`,
-          }
-        : {
-            status: 'RETURNED_FOR_EVIDENCE',
-            returnedBy: input.actorId,
-            returnedRole: input.actorRole,
-            returnedAt: now,
-            returnReason: reason,
-            updatedAt: now,
-            version: sql`${s.governanceActions.version} + 1`,
-          },
-    ).where(and(
-      eq(s.governanceActions.id, action.id),
-      eq(s.governanceActions.status, action.status),
-      eq(s.governanceActions.version, input.expectedVersion),
-    )).returning();
-    if (!updated) {
-      throw new ApiError(409, 'Yêu cầu đã được người khác xử lý. Vui lòng tải lại.');
+    if (afterGovernanceApplyHookForTest) {
+      await afterGovernanceApplyHookForTest(forApply);
     }
-    return updated;
-  };
-  if (input.transaction) {
-    return execute(input.transaction);
-  }
-  return db.transaction(execute);
-}
-
-export async function rejectGovernanceAction(input: {
-  actionId: number;
-  actorId: number;
-  actorRole: string;
-  expectedVersion: number;
-  reason: string;
-  transaction?: Tx;
-}) {
-  return recordNegativeDecision({ ...input, kind: 'REJECT' });
-}
-
-export async function returnGovernanceActionForEvidence(input: {
-  actionId: number;
-  actorId: number;
-  actorRole: string;
-  expectedVersion: number;
-  reason: string;
-  transaction?: Tx;
-}) {
-  return recordNegativeDecision({ ...input, kind: 'RETURN_FOR_EVIDENCE' });
-}
-
-export async function cancelGovernanceAction(input: {
-  actionId: number;
-  actorId: number;
-  actorRole: string;
-  expectedVersion: number;
-  reason: string;
-  transaction?: Tx;
-}) {
-  const execute = async (tx: Tx) => {
-    const action = await lockGovernanceAction(tx, input.actionId);
-    assertExpectedActionVersion(action.version, input.expectedVersion);
-    if (!canViewGovernanceAction(input.actorRole)) {
-      throw new ApiError(403, 'Bạn không có quyền thực hiện bước phê duyệt này');
-    }
-    if (action.makerId !== input.actorId) {
-      throw new ApiError(403, 'Chỉ người tạo mới được hủy yêu cầu chưa áp dụng');
-    }
-    if (!['PENDING_CHECK', 'PENDING_APPROVAL', 'RETURNED_FOR_EVIDENCE'].includes(action.status)) {
-      throw new ApiError(409, 'Chỉ có thể hủy yêu cầu chưa áp dụng');
-    }
-    const reason = requireDecisionReason(input.reason);
-    const now = new Date();
-    const [canceled] = await tx.update(s.governanceActions).set({
-      status: 'CANCELED',
-      canceledBy: input.actorId,
-      canceledRole: input.actorRole,
-      canceledAt: now,
-      cancelReason: reason,
+    const applied: GovernanceActionRow = {
+      ...forApply,
+      status: 'APPROVED',
+      appliedAt: now,
+      ledgerEntryId: result?.ledgerEntryId ?? null,
+      applicationResult: result?.applicationResult ?? null,
+      version: checked.version + 1,
       updatedAt: now,
-      version: sql`${s.governanceActions.version} + 1`,
-    }).where(and(
-      eq(s.governanceActions.id, action.id),
-      eq(s.governanceActions.status, action.status),
-      eq(s.governanceActions.version, input.expectedVersion),
-    )).returning();
-    if (!canceled) {
-      throw new ApiError(409, 'Yêu cầu đã được người khác xử lý. Vui lòng tải lại.');
-    }
-    return canceled;
+    };
+    return { action: applied, result };
   };
   if (input.transaction) {
     return execute(input.transaction);
   }
-  return db.transaction(execute);
+  // A bare call still owns its transaction so adapters always run inside one.
+  return db.transaction(execute) as Promise<{ action: GovernanceActionRow; result: GovernanceApplyResult | void }>;
 }

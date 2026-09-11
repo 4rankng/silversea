@@ -5,7 +5,7 @@ import { Role } from '@tingting/shared';
 import { client, db } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
-import { resolveCustomerDeliveryDispute, submitCustomerDeliveryResponse } from '../services/customer-delivery-response.service';
+import { submitCustomerDeliveryResponse } from '../services/customer-delivery-response.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const customerIds: number[] = [];
@@ -14,7 +14,6 @@ const shipmentIds: number[] = [];
 const eventIds: number[] = [];
 const attemptIds: number[] = [];
 const responseIds: number[] = [];
-const resolutionIds: number[] = [];
 const idempotencyKeys: string[] = [];
 
 let ownCustomerId = 0;
@@ -219,34 +218,9 @@ describe('customer delivery response authority', () => {
       idempotencyKey: key,
     }), /được thay thế/);
   });
-
-  test('Manager resolves a dispute through separate governance authority without mutating the response', async () => {
-    const { event } = await createDeliveryEvent(5);
-    const key = `resolve-dispute-${suffix}`;
-    idempotencyKeys.push(key);
-    const outcome = await submitCustomerDeliveryResponse({
-      shipmentId: ownShipmentId,
-      eventId: event.id,
-      selectedCustomerId: ownCustomerId,
-      actor: actor(ownUserId, ownCustomerId),
-      input: { expectedVersion: event.contentVersion, decision: 'DISPUTED', reason: 'Sai thời điểm giao' },
-      idempotencyKey: key,
-    });
-    responseIds.push(outcome.response.id);
-    const manager = { userId: ownUserId, username: 'manager', email: null, fullName: null, role: Role.MANAGER };
-    const first = await resolveCustomerDeliveryDispute({ responseId: outcome.response.id, actor: manager, resolution: 'Đã đối chiếu POD và liên hệ khách hàng' });
-    resolutionIds.push(first.id);
-    assert.equal(first.replayed, false);
-    const replay = await resolveCustomerDeliveryDispute({ responseId: outcome.response.id, actor: manager, resolution: 'Đã đối chiếu POD và liên hệ khách hàng' });
-    assert.equal(replay.replayed, true);
-    assert.equal(replay.id, first.id);
-    const [unchanged] = await db.select({ decision: s.customerDeliveryResponses.decision, reason: s.customerDeliveryResponses.reason }).from(s.customerDeliveryResponses).where(eq(s.customerDeliveryResponses.id, outcome.response.id));
-    assert.deepEqual(unchanged, { decision: 'DISPUTED', reason: 'Sai thời điểm giao' });
-  });
 });
 
 after(async () => {
-  if (resolutionIds.length) await db.delete(s.governanceActions).where(inArray(s.governanceActions.id, resolutionIds));
   if (responseIds.length) await db.delete(s.customerDeliveryResponses).where(inArray(s.customerDeliveryResponses.id, responseIds));
   if (idempotencyKeys.length) await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.idempotencyKey, idempotencyKeys));
   if (attemptIds.length) await db.delete(s.deliveryAttempts).where(inArray(s.deliveryAttempts.id, attemptIds));

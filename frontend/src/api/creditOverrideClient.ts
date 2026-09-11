@@ -44,13 +44,9 @@ export interface CreditOverrideRequestRecord {
   version: number;
   requestVersion: number;
   workflowStatus: CreditOverrideWorkflowStatus;
-  governanceActionId: number | null;
-  checkedBy: number | null;
-  checkedAt: string | null;
   customerName?: string | null;
   shipmentCode?: string | null;
   requestedByName?: string | null;
-  checkedByName?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -61,11 +57,6 @@ export interface CreateCreditOverrideRequestInput {
   reason: string;
   shipmentId?: number | null;
   expiresAt?: string | null;
-}
-
-export interface RejectCreditOverrideRequestInput {
-  expectedVersion: number;
-  reason: string;
 }
 
 export interface CreditOverrideListFilters {
@@ -106,13 +97,4 @@ export const creditOverrideClient = {
 
   createRequest: (body: CreateCreditOverrideRequestInput) =>
     api.post<CreditOverrideRequestRecord>('/finance/credit-overrides', body),
-
-  checkRequest: (id: number, expectedVersion: number) =>
-    api.post<CreditOverrideRequestRecord>(`/finance/credit-overrides/${id}/check`, { expectedVersion }),
-
-  approveRequest: (id: number, expectedVersion: number) =>
-    api.post<CreditOverrideRequestRecord>(`/finance/credit-overrides/${id}/approve`, { expectedVersion }),
-
-  rejectRequest: (id: number, body: RejectCreditOverrideRequestInput) =>
-    api.post<CreditOverrideRequestRecord>(`/finance/credit-overrides/${id}/reject`, body),
 };

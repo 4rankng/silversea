@@ -85,6 +85,7 @@ export interface DriverJourneyCard {
   pairLocked: boolean;
   scheduledAt: string | null;
   factoryName: string | null;
+  factoryShortName: string | null;
   loadingPortName: string | null;
   routeName: string | null;
   dropPortName: string | null;
@@ -95,6 +96,7 @@ export interface DriverJourneyCard {
   contactPhone: string | null;
   truckPlate: string | null;
   trailerPlate: string | null;
+  operationalNotes: string | null;
 }
 
 /** The driver's current vehicle (topbar identity chip). */
@@ -221,6 +223,11 @@ export interface DriverTaskDetail {
     type: string | null;
     modeLabel?: string | null;
     factoryName: string | null;
+    factoryShortName: string | null;
+    /** TC-DA-002: factory site street address (Tuyến row shows this first). */
+    factoryAddress: string | null;
+    /** TC-DA-003: kho site phone — hidden when null (graceful hide). */
+    khoPhone: string | null;
     pickupPortName: string | null;
     dropPortName: string | null;
     pickupWarehouseName: string | null;
@@ -237,6 +244,16 @@ export interface DriverTaskDetail {
   } | null;
   currentPod?: DriverTaskPodSubmission | null;
   podHistory?: DriverTaskPodSubmission[];
+  /** TC-DA-001: canonical tag pool (board embed contract, 320aad6b); FE resolves chips via lib/dispatchTaskTags parseNote. */
+  knownTagLabels?: string[];
+  /** TC-DA-005: customer master-data invoice block — hidden when null. */
+  invoiceMaster?: DriverInvoiceMaster | null;
+}
+
+export interface DriverInvoiceMaster {
+  taxCode: string | null;
+  companyName: string | null;
+  address: string | null;
 }
 
 export interface DriverContainerSealPhoto {
@@ -269,6 +286,11 @@ interface DriverFulfillmentDetailResponse {
   tripId: number;
   tripVersion: number;
   factoryName: string | null;
+  factoryShortName: string | null;
+  factoryAddress: string | null;
+  khoPhone: string | null;
+  invoiceMaster: DriverInvoiceMaster | null;
+  knownTagLabels: string[];
   pickupLocation: string | null;
   deliveryLocation: string | null;
   contactName: string | null;
@@ -320,6 +342,9 @@ function mapFulfillmentDetail(wire: DriverFulfillmentDetailResponse): DriverTask
       type: wire.fulfillmentType,
       modeLabel: wire.cargoMode,
       factoryName: wire.factoryName,
+      factoryShortName: wire.factoryShortName,
+      factoryAddress: wire.factoryAddress,
+      khoPhone: wire.khoPhone,
       pickupPortName: wire.pickupLocation,
       dropPortName: wire.deliveryLocation,
       pickupWarehouseName: wire.pickupLocation,
@@ -338,6 +363,10 @@ function mapFulfillmentDetail(wire: DriverFulfillmentDetailResponse): DriverTask
     },
     currentPod,
     podHistory,
+    // TC-DA-001/005: tag pool + customer master invoice block ride the detail
+    // wire; chips resolve FE-side via lib/dispatchTaskTags parseNote.
+    knownTagLabels: wire.knownTagLabels ?? [],
+    invoiceMaster: wire.invoiceMaster ?? null,
   };
 }
 
@@ -446,8 +475,8 @@ export const driverClient = {
   },
 
   getJourneyBoard: async () => {
-    const wire = await api.get<{ items: DriverJourneyCard[] }>(DRIVER_TASK.JOURNEY_BOARD);
-    return wire.items;
+    const wire = await api.get<{ items: DriverJourneyCard[]; knownTagLabels?: string[] }>(DRIVER_TASK.JOURNEY_BOARD);
+    return { items: wire.items, knownTagLabels: wire.knownTagLabels ?? [] };
   },
 
   /** Topbar identity chip — the driver's current vehicle plate. */
@@ -540,6 +569,11 @@ export const driverClient = {
     return api.upload(DRIVER_TASK.POD_FILES(args.tripId, args.submissionId), formData, {
       retryFingerprint: fingerprint,
     }) as Promise<DriverTaskPodSubmission>;
+  },
+
+  /** e-POD file blob — authenticated fetch for thumbnails + fullscreen viewer. */
+  downloadPodFile: async (fulfillmentId: number, fileId: number): Promise<Blob> => {
+    return api.getBlob(`/driver/me/fulfillments/${fulfillmentId}/pod-files/${fileId}`);
   },
 
   createIncidentalCost: async (

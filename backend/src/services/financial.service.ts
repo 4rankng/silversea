@@ -14,6 +14,10 @@ import { ApiError } from '../errors';
 import { requestTripArAdjustment } from './adjustment-governance.service';
 import { assertCanMakeGovernanceAction } from './governance-policy';
 import {
+  buildGovernanceAction,
+  type GovernanceActionRow,
+} from './governance-action-core.service';
+import {
   recordPaymentReceipt,
   recordPaymentReceiptIdempotent,
   type PaymentReceiptInput,
@@ -42,7 +46,6 @@ export { recordPaymentReceiptIdempotent };
 
 type LedgerEntryRow = typeof s.ledger.$inferSelect;
 type PenaltyRow = typeof s.penalties.$inferSelect;
-type GovernanceActionRow = typeof s.governanceActions.$inferSelect;
 type VendorPaymentResult = LedgerEntryRow & {
   warning?: string;
   overpayment?: number;
@@ -262,7 +265,7 @@ export async function requestDriverPayoutGovernance(input: {
     }
     const currentVersion = await getEntityLedgerVersionTx(tx, 'DRIVER', input.payout.driverId);
 
-    const [action] = await tx.insert(s.governanceActions).values({
+    return buildGovernanceAction({
       subjectType: 'DRIVER_PAYOUT',
       subjectId: null,
       subjectKey: buildDriverPayoutSubjectKey(input.payout.driverId, input.payout),
@@ -287,8 +290,7 @@ export async function requestDriverPayoutGovernance(input: {
       },
       makerId: input.makerId,
       makerRole: input.makerRole,
-    }).returning();
-    return action;
+    });
   };
 
   return runInTx(input.transaction, execute);
@@ -321,11 +323,6 @@ export async function applyDriverPayoutGovernanceAction(tx: Tx, action: Governan
       ? afterSnapshot.receiptId
       : undefined,
   });
-
-  await tx.update(s.governanceActions).set({
-    subjectId: posted.id,
-    updatedAt: new Date(),
-  }).where(eq(s.governanceActions.id, action.id));
 
   return {
     ledgerEntryId: posted.id,
@@ -491,7 +488,7 @@ export async function requestPenaltyCreateGovernance(input: {
     const currentBalance = await LedgerService.getBalanceTx(tx, 'DRIVER', input.penalty.driverId);
     const currentVersion = await getEntityLedgerVersionTx(tx, 'DRIVER', input.penalty.driverId);
 
-    const [action] = await tx.insert(s.governanceActions).values({
+    return buildGovernanceAction({
       subjectType: 'PENALTY',
       subjectId: null,
       subjectKey: buildPenaltyCreateSubjectKey(input.penalty),
@@ -516,8 +513,7 @@ export async function requestPenaltyCreateGovernance(input: {
       },
       makerId: input.makerId,
       makerRole: input.makerRole,
-    }).returning();
-    return action;
+    });
   };
 
   return runInTx(input.transaction, execute);
@@ -548,11 +544,6 @@ export async function applyPenaltyCreateGovernanceAction(tx: Tx, action: Governa
     amount: Number(afterSnapshot?.amount),
     date: String(afterSnapshot?.date ?? ''),
   });
-
-  await tx.update(s.governanceActions).set({
-    subjectId: penalty.id,
-    updatedAt: new Date(),
-  }).where(eq(s.governanceActions.id, action.id));
 
   return {
     applicationResult: {
@@ -643,7 +634,7 @@ export async function requestPenaltyCancelGovernance(input: {
     await LedgerService.lockEntity(tx, 'DRIVER', penalty.driverId);
     const driverVersion = await getEntityLedgerVersionTx(tx, 'DRIVER', penalty.driverId);
 
-    const [action] = await tx.insert(s.governanceActions).values({
+    return buildGovernanceAction({
       subjectType: 'PENALTY',
       subjectId: penalty.id,
       subjectKey: `penalty:${penalty.id}:cancel`,
@@ -665,8 +656,7 @@ export async function requestPenaltyCancelGovernance(input: {
       },
       makerId: input.makerId,
       makerRole: input.makerRole,
-    }).returning();
-    return action;
+    });
   };
 
   return runInTx(input.transaction, execute);
@@ -847,7 +837,7 @@ export async function requestVendorPaymentGovernance(input: {
     }
     const currentVersion = await getEntityLedgerVersionTx(tx, 'VENDOR', input.payment.supplierId);
 
-    const [action] = await tx.insert(s.governanceActions).values({
+    return buildGovernanceAction({
       subjectType: 'VENDOR_PAYMENT',
       subjectId: null,
       subjectKey: buildVendorPaymentSubjectKey('vendor', input.payment.supplierId, input.payment),
@@ -878,8 +868,7 @@ export async function requestVendorPaymentGovernance(input: {
       makerRole: input.makerRole,
       createdAt: requestedAt,
       updatedAt: requestedAt,
-    }).returning();
-    return action;
+    });
   };
 
   return runInTx(input.transaction, execute);
@@ -943,16 +932,10 @@ export async function applyVendorPaymentGovernanceAction(tx: Tx, action: Governa
       ledgerEntryId: posted.id,
       sourceVersion: posted.id,
       externalReference: posted.receiptId,
-      governanceActionId: action.id,
       createdBy: action.makerId,
     });
     treasuryMovementId = movement.id;
   }
-
-  await tx.update(s.governanceActions).set({
-    subjectId: posted.id,
-    updatedAt: new Date(),
-  }).where(eq(s.governanceActions.id, action.id));
 
   return {
     ledgerEntryId: posted.id,
@@ -1130,7 +1113,7 @@ export async function requestCarrierPaymentGovernance(input: {
     }
     const currentVersion = await getEntityLedgerVersionTx(tx, 'CARRIER', input.payment.supplierId);
 
-    const [action] = await tx.insert(s.governanceActions).values({
+    return buildGovernanceAction({
       subjectType: 'CARRIER_PAYMENT',
       subjectId: null,
       subjectKey: buildVendorPaymentSubjectKey('carrier', input.payment.supplierId, input.payment),
@@ -1161,8 +1144,7 @@ export async function requestCarrierPaymentGovernance(input: {
       makerRole: input.makerRole,
       createdAt: requestedAt,
       updatedAt: requestedAt,
-    }).returning();
-    return action;
+    });
   };
 
   return runInTx(input.transaction, execute);
@@ -1226,16 +1208,10 @@ export async function applyCarrierPaymentGovernanceAction(tx: Tx, action: Govern
       ledgerEntryId: posted.id,
       sourceVersion: posted.id,
       externalReference: posted.receiptId,
-      governanceActionId: action.id,
       createdBy: action.makerId,
     });
     treasuryMovementId = movement.id;
   }
-
-  await tx.update(s.governanceActions).set({
-    subjectId: posted.id,
-    updatedAt: new Date(),
-  }).where(eq(s.governanceActions.id, action.id));
 
   return {
     ledgerEntryId: posted.id,

@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import { Save, Loader2 } from 'lucide-react';
 import { useRoadConfig, useSaveRoadConfig } from '../../hooks/useCatalogQueries';
 import { PageHeader, Panel } from '../../components/UI';
-import { isGovernancePendingResponse } from '../../lib/governance';
 import './config-page.css';
 
 export default function TripExpenseConfigPage() {
@@ -40,17 +39,13 @@ export default function TripExpenseConfigPage() {
     setError(null);
     setMessage(null);
     try {
-      const result = await saveRoad.mutateAsync({
+      await saveRoad.mutateAsync({
         tollPerStation: Number(form.tollPerStation),
         returnCargoBonus: Number(form.returnCargoBonus),
         defaultDriverSalary: Number(form.defaultDriverSalary),
         twoPointDeliveryBonus: Number(form.twoPointDeliveryBonus),
         vehicleShiftDefault: Number(form.vehicleShiftDefault),
       });
-      if (isGovernancePendingResponse(result)) {
-        setMessage('Đã gửi yêu cầu cập nhật chi phí chuyến đi để kiểm tra và phê duyệt. Cấu hình hiện chưa thay đổi.');
-        return;
-      }
       navigate('/config');
     } catch (e: unknown) { setError((e as Error)?.message || 'Lỗi lưu'); } finally { setSaving(false); }
   };

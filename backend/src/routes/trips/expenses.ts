@@ -15,9 +15,9 @@ import {
   getTripExpensesForRoute, createTripExpense, updateTripExpense, deleteTripExpenseGuarded,
   getTripExpenseAuditInfo, latestTripPhotoKey, listTripPhotoKeys, listTripContainers,
 } from '../../services/forwarder.service';
-import { listTripGovernanceActions } from '../../services/adjustment-governance.service';
 import { ApiError } from '../../errors';
 import { requestTripExpenseDecision } from '../../services/approval.service';
+import { autoApplyGovernanceAction } from '../../services/adjustment-governance.service';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency.service';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { throwValidation } from '../../lib/validation';
@@ -27,11 +27,8 @@ const router = Router();
 
 router.get('/:id/adjustments', asyncHandler(async (req: Request, res: Response) => {
   const tripId = parseInt(req.params.id as string);
-  const [postedItems, actions] = await Promise.all([
-    financialService.getTripAdjustments(tripId),
-    listTripGovernanceActions(tripId),
-  ]);
-  res.json({ items: postedItems, actions });
+  const postedItems = await financialService.getTripAdjustments(tripId);
+  res.json({ items: postedItems });
 }));
 
 // Create adjustment for a specific trip
@@ -237,19 +234,25 @@ router.post(
       },
       createdBy: user.userId,
       entityType: 'governance_action',
-      create: (tx) => requestTripExpenseDecision({
-        tripId,
-        expenseId: eid,
-        decision: 'APPROVED',
-        reason: input.reason,
-        evidence: input.evidence,
-        expectedExpenseVersion: input.expectedVersion,
-        makerId: user.userId,
-        makerRole: user.role,
+      // 2026-09-11 maker-checker removal: apply directly in-request.
+      create: (tx) => autoApplyGovernanceAction({
+        make: (inner) => requestTripExpenseDecision({
+          tripId,
+          expenseId: eid,
+          decision: 'APPROVED',
+          reason: input.reason,
+          evidence: input.evidence,
+          expectedExpenseVersion: input.expectedVersion,
+          makerId: user.userId,
+          makerRole: user.role,
+          transaction: inner,
+        }),
+        actorId: user.userId,
+        actorRole: user.role,
         transaction: tx,
       }),
       getEntityId: (action) => action.id,
-      responseStatusCode: 202,
+      responseStatusCode: 200,
     });
     res.locals.auditEntityId = eid;
     res.status(statusCode).json(idempotencyKey ? { ...result, replayed } : result);
@@ -279,19 +282,25 @@ router.post(
       },
       createdBy: user.userId,
       entityType: 'governance_action',
-      create: (tx) => requestTripExpenseDecision({
-        tripId,
-        expenseId: eid,
-        decision: 'REJECTED',
-        reason: input.reason,
-        evidence: input.evidence,
-        expectedExpenseVersion: input.expectedVersion,
-        makerId: user.userId,
-        makerRole: user.role,
+      // 2026-09-11 maker-checker removal: apply directly in-request.
+      create: (tx) => autoApplyGovernanceAction({
+        make: (inner) => requestTripExpenseDecision({
+          tripId,
+          expenseId: eid,
+          decision: 'REJECTED',
+          reason: input.reason,
+          evidence: input.evidence,
+          expectedExpenseVersion: input.expectedVersion,
+          makerId: user.userId,
+          makerRole: user.role,
+          transaction: inner,
+        }),
+        actorId: user.userId,
+        actorRole: user.role,
         transaction: tx,
       }),
       getEntityId: (action) => action.id,
-      responseStatusCode: 202,
+      responseStatusCode: 200,
     });
     res.locals.auditEntityId = eid;
     res.status(statusCode).json(idempotencyKey ? { ...result, replayed } : result);

@@ -1,0 +1,21 @@
+[2026-09-08T09:06:16.673Z] Starting UI dismissal verification on http://localhost:7174/shipments?searchSuffix=1650
+[2026-09-08T09:06:16.757Z] Logged in successfully, acquired JWT token
+[2026-09-08T09:06:17.677Z] Navigating to http://localhost:7174/shipments?searchSuffix=1650
+[2026-09-08T09:06:19.087Z] Table loaded
+[2026-09-08T09:06:19.089Z] Clicking "Chi tiết" to open drawer
+[2026-09-08T09:06:19.808Z] Drawer opened and settled
+[2026-09-08T09:06:19.812Z] Container appointment trigger found and visible
+[2026-09-08T09:06:20.064Z] Clicked appointment trigger
+[2026-09-08T09:06:20.076Z] VERIFIED: .cus-appointment-popover is visible in DOM
+[2026-09-08T09:06:20.080Z] Popover hint text: "Bấm ra ngoài để đóng"
+[2026-09-08T09:06:20.147Z] Saved screenshot 1: /Users/dev/Documents/projects/silversea-prod/qa/2026-09-08_cus_dismiss_ui-01_popover_open.png
+[2026-09-08T09:06:20.147Z] Clicking outside popover onto drawer header (.drawer__heading)...
+[2026-09-08T09:06:20.689Z] VERIFIED: .cus-appointment-popover was dismissed upon outside click!
+[2026-09-08T09:06:20.689Z] VERIFIED: Drawer remains open and clean
+[2026-09-08T09:06:20.725Z] Saved screenshot 2: /Users/dev/Documents/projects/silversea-prod/qa/2026-09-08_cus_dismiss_ui-02_popover_closed_drawer_open.png
+[2026-09-08T09:06:20.725Z] Opening popover again to test Escape key dismissal
+[2026-09-08T09:06:20.754Z] Popover reopened
+[2026-09-08T09:06:21.265Z] VERIFIED: Popover dismissed cleanly on Escape key press
+[2026-09-08T09:06:21.266Z] VERIFIED: Drawer remains open after Escape dismissed the popover
+[2026-09-08T09:06:21.290Z] Saved screenshot 3: /Users/dev/Documents/projects/silversea-prod/qa/2026-09-08_cus_dismiss_ui-03_escape_dismiss.png
+[2026-09-08T09:06:21.290Z] ALL VERIFICATIONS PASSED SUCCESSFULLY (RUNG 3 UI DRIVEN)

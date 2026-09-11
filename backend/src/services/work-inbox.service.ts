@@ -12,7 +12,6 @@ import type {
 import { db } from '../db';
 import * as s from '../db/schema';
 import { getForwarderTrips } from './forwarder-trip-query.service';
-import { getApprovalQueue } from './approval-queue.service';
 import { COMPANY_INFO_SETTING_KEYS } from './company-info.service';
 import { ApiError } from '../errors';
 
@@ -259,20 +258,14 @@ export async function financialWorkInbox(query: InboxQuery) {
 
 export async function managerDecisionInbox(userId: number, query: InboxQuery) {
   const nowDate = new Date();
-  const [disputes, overdueHandoffs, slaExceptions, approvalQueue] = await Promise.all([
+  const [disputes, overdueHandoffs, slaExceptions] = await Promise.all([
     db.select({
       id: s.customerDeliveryResponses.id,
       attemptId: s.customerDeliveryResponses.deliveryAttemptId,
       reason: s.customerDeliveryResponses.reason,
       respondedAt: s.customerDeliveryResponses.respondedAt,
     }).from(s.customerDeliveryResponses)
-      .leftJoin(s.governanceActions, and(
-        eq(s.governanceActions.subjectType, 'CUSTOMER_DELIVERY_RESPONSE'),
-        eq(s.governanceActions.subjectId, s.customerDeliveryResponses.id),
-        eq(s.governanceActions.actionKind, 'CUSTOMER_DELIVERY_DISPUTE_RESOLUTION'),
-        eq(s.governanceActions.status, 'APPLIED'),
-      ))
-      .where(and(eq(s.customerDeliveryResponses.decision, 'DISPUTED'), isNull(s.governanceActions.id))),
+      .where(eq(s.customerDeliveryResponses.decision, 'DISPUTED')),
     db.select({
       id: s.trips.id,
       code: s.trips.tripCode,
@@ -299,7 +292,6 @@ export async function managerDecisionInbox(userId: number, query: InboxQuery) {
         lt(s.shipments.customsCutoffAt, nowDate),
         notInArray(s.shipments.status, ['COMPLETED', 'CANCELED']),
       )),
-    getApprovalQueue(userId, 'MANAGER'),
   ]);
   const now = Date.now();
   const ageHours = (date: Date) => Math.max(0, (now - date.getTime()) / 3_600_000);
@@ -337,18 +329,9 @@ export async function managerDecisionInbox(userId: number, query: InboxQuery) {
       ageHours: ageHours(row.cutoffAt!), impact: 'Có nguy cơ phát sinh lưu bãi hoặc trễ cam kết giao hàng.',
     });
   }
-  for (const approval of approvalQueue.items) {
-    const requestedAt = new Date(approval.requestedAt);
-    items.push({
-      id: `approval:${approval.id}`, entityType: 'approval', entityId: approval.id,
-      title: approval.title, subtitle: approval.subtitle, state: 'ACTION', priority: approval.severity === 'urgent' ? 98 : 88,
-      dueAt: null, freshnessAt: approval.requestedAt,
-      blockers: [{ code: 'APPROVAL_PENDING', label: 'Đang chờ quyết định phê duyệt', ownerRole: 'MANAGER', ownerLabel: 'Quản lý' }], advisories: emptyParty,
-      nextAction: { label: 'Xem yêu cầu', targetRoute: approval.href }, targetRoute: approval.href,
-      owner: { code: 'MANAGER', label: 'Phê duyệt', ownerRole: 'MANAGER', ownerLabel: 'Quản lý' },
-      ageHours: ageHours(requestedAt), impact: `${approval.amount.toLocaleString('vi-VN')} ₫ đang chờ quyết định.`,
-    });
-  }
+  // 2026-09-10 (phê duyệt removed, chunk 7): the approval-queue leg is GONE —
+  // every flow that fed it now applies at request time, so the manager inbox
+  // no longer surfaces pending approvals.
   return pageWorkInboxItems(items, query);
 }
 

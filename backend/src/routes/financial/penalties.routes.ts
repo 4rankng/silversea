@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { Role, createPenaltySchema, penaltyListQuerySchema, penaltyInsightsQuerySchema } from '@tingting/shared';
+import { NotificationType, Role, createPenaltySchema, penaltyListQuerySchema, penaltyInsightsQuerySchema } from '@tingting/shared';
 import { requireRoles } from '../../middleware/casbin';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { getUser } from '../../middleware/auth';
@@ -8,6 +8,10 @@ import * as financialService from '../../services/financial.service';
 import { getPenalties, getPenaltyInsights } from '../../services/penalty-reads.service';
 import { IDEMPOTENCY_ENDPOINTS, resolveIdempotencyKey, runIdempotent } from '../../services/idempotency.service';
 import { throwValidation } from '../../lib/validation';
+import { autoApplyGovernanceAction } from '../../services/adjustment-governance.service';
+import { applyDirectMoneyGovernanceAction } from '../../services/governance-transition.service';
+import { invalidateReportCaches } from '../../lib/report-cache';
+import { emitNotification } from '../../services/notification.service';
 
 const router = Router();
 
@@ -54,7 +58,8 @@ router.post('/penalties', asyncHandler(async (req: Request, res: Response) => {
     },
     createdBy: actor.userId,
     entityType: 'governance_action',
-    create: (tx) => financialService.requestPenaltyCreateGovernance({
+    create: (tx) => autoApplyGovernanceAction({
+      make: (tx) => financialService.requestPenaltyCreateGovernance({
       penalty: {
         driverId: data.driverId,
         tripId: data.tripId,
@@ -67,7 +72,31 @@ router.post('/penalties', asyncHandler(async (req: Request, res: Response) => {
       makerRole: actor.role,
       transaction: tx,
     }),
+      apply: applyDirectMoneyGovernanceAction,
+      actorId: actor.userId,
+      actorRole: actor.role,
+      transaction: tx,
+    }),
   });
+  if (!replayed) await invalidateReportCaches();
+  if (!replayed && result.actionKind === 'PENALTY_CREATE') {
+    const createdPenaltyId = typeof result.applicationResult?.penaltyId === 'number'
+      ? result.applicationResult.penaltyId
+      : result.subjectId;
+    const driverId = typeof result.applicationResult?.driverId === 'number'
+      ? result.applicationResult.driverId
+      : undefined;
+    if (createdPenaltyId != null) {
+      emitNotification({
+        type: NotificationType.PENALTY_CREATED,
+        title: 'Phạt mới',
+        message: 'Quyết định kỷ luật đã được phê duyệt',
+        relatedEntityType: 'penalties',
+        relatedEntityId: createdPenaltyId,
+        targetDriverId: driverId,
+      });
+    }
+  }
   res.locals.auditEntityId = result.id;
   res.locals.auditEntityKey = result.subjectKey ?? "Quyết định chưa có tên";
   res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
@@ -89,14 +118,39 @@ router.post('/penalties/:id/cancel', requireRoles(Role.ADMIN, Role.MANAGER), asy
     },
     createdBy: actor.userId,
     entityType: 'governance_action',
-    create: (tx) => financialService.requestPenaltyCancelGovernance({
+    create: (tx) => autoApplyGovernanceAction({
+      make: (tx) => financialService.requestPenaltyCancelGovernance({
       penaltyId,
       reason,
       makerId: actor.userId,
       makerRole: actor.role,
       transaction: tx,
     }),
+      apply: applyDirectMoneyGovernanceAction,
+      actorId: actor.userId,
+      actorRole: actor.role,
+      transaction: tx,
+    }),
   });
+  if (!replayed) await invalidateReportCaches();
+  if (!replayed && result.actionKind === 'PENALTY_CANCEL') {
+    const canceledPenaltyId = typeof result.applicationResult?.penaltyId === 'number'
+      ? result.applicationResult.penaltyId
+      : result.subjectId;
+    const driverId = typeof result.applicationResult?.driverId === 'number'
+      ? result.applicationResult.driverId
+      : undefined;
+    if (canceledPenaltyId != null) {
+      emitNotification({
+        type: NotificationType.PENALTY_CANCELED,
+        title: 'Hủy phạt',
+        message: 'Quyết định kỷ luật đã được hủy',
+        relatedEntityType: 'penalties',
+        relatedEntityId: canceledPenaltyId,
+        targetDriverId: driverId,
+      });
+    }
+  }
   res.locals.auditEntityId = result.id;
   res.locals.auditEntityKey = result.subjectKey ?? "Quyết định chưa có tên";
   res.status(200).json(idempotencyKey ? { ...result, replayed } : result);

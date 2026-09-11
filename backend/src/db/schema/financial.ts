@@ -17,7 +17,6 @@ export const tripFinancialPostings = pgTable('trip_financial_postings', {
   tripVersion: integer('trip_version').notNull(),
   status: varchar('status', { length: 20 }).notNull().default('ACTIVE'),
   reason: varchar('reason', { length: 30 }).notNull(),
-  governanceActionId: integer('governance_action_id'),
   supersedesId: integer('supersedes_id'),
   effectiveAt: timestamp('effective_at', { withTimezone: true }).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
@@ -218,72 +217,6 @@ export const periodLocks = pgTable('period_locks', {
 ]);
 
 
-// Q18/Q15: append-only authority envelope. Domain services still own and
-// atomically apply their effects; this table owns actor separation, evidence,
-// source versions and the decision lifecycle.
-// KEEP AS-IS (lean-down review 2026-09-06): the maker-checker queue was
-// removed (7eb62387) but this table is the ONLY record of who approved what
-// before the removal, and the 24 authority columns revive if the deferred
-// financial-accounting suite turns on. Slimming it would rewrite audit history.
-export const governanceActions = pgTable('governance_actions', {
-  id: serial('id').primaryKey(),
-  subjectType: varchar('subject_type', { length: 30 }).notNull(),
-  subjectId: integer('subject_id'),
-  subjectKey: varchar('subject_key', { length: 120 }),
-  actionKind: varchar('action_kind', { length: 40 }).notNull(),
-  status: varchar('status', { length: 30 }).notNull().default('PENDING_CHECK'),
-  reason: text('reason').notNull(),
-  originalVersion: integer('original_version').notNull(),
-  originalPeriodLockId: integer('original_period_lock_id')
-    ,
-  beforeSnapshot: jsonb('before_snapshot').$type<Record<string, unknown>>().notNull(),
-  afterSnapshot: jsonb('after_snapshot').$type<Record<string, unknown>>().notNull(),
-  deltaSnapshot: jsonb('delta_snapshot').$type<Record<string, unknown>>(),
-  makerId: integer('maker_id').notNull(),
-  makerRole: varchar('maker_role', { length: 20 }),
-  checkerId: integer('checker_id'),
-  checkerRole: varchar('checker_role', { length: 20 }),
-  checkedAt: timestamp('checked_at', { withTimezone: true }),
-  approverId: integer('approver_id'),
-  approverRole: varchar('approver_role', { length: 20 }),
-  approvedAt: timestamp('approved_at', { withTimezone: true }),
-  rejectedBy: integer('rejected_by'),
-  rejectedRole: varchar('rejected_role', { length: 20 }),
-  rejectedAt: timestamp('rejected_at', { withTimezone: true }),
-  rejectionReason: text('rejection_reason'),
-  returnedBy: integer('returned_by'),
-  returnedRole: varchar('returned_role', { length: 20 }),
-  returnedAt: timestamp('returned_at', { withTimezone: true }),
-  returnReason: text('return_reason'),
-  canceledBy: integer('canceled_by'),
-  canceledRole: varchar('canceled_role', { length: 20 }),
-  canceledAt: timestamp('canceled_at', { withTimezone: true }),
-  cancelReason: text('cancel_reason'),
-  appliedAt: timestamp('applied_at', { withTimezone: true }),
-  ledgerEntryId: integer('ledger_entry_id'),
-  applicationResult: jsonb('application_result').$type<Record<string, unknown>>(),
-  version: integer('version').notNull().default(1),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-}, (table) => [
-  index('governance_actions_subject_idx').on(
-    table.subjectType,
-    table.subjectId,
-    table.createdAt,
-  ),
-  index('governance_actions_subject_key_idx').on(
-    table.subjectType,
-    table.subjectKey,
-    table.createdAt,
-  ),
-  index('governance_actions_status_idx').on(table.status, table.createdAt),
-  uniqueIndex('governance_actions_active_subject_key_uniq')
-    .on(table.subjectType, table.subjectKey, table.actionKind, table.originalVersion)
-    .where(sql`${table.subjectKey} is not null and ${table.status} in ('PENDING_CHECK', 'PENDING_APPROVAL', 'RETURNED_FOR_EVIDENCE')`),
-  uniqueIndex('governance_actions_active_subject_id_uniq')
-    .on(table.subjectType, table.subjectId, table.actionKind, table.originalVersion)
-    .where(sql`${table.subjectId} is not null and ${table.actionKind} not in ('TRIP_AR_ADJUSTMENT', 'TRIP_REOPEN') and ${table.status} in ('PENDING_CHECK', 'PENDING_APPROVAL', 'RETURNED_FOR_EVIDENCE')`),
-]);
 
 export const financialReportingPolicyVersions = pgTable('financial_reporting_policy_versions', {
   id: serial('id').primaryKey(),
@@ -291,9 +224,6 @@ export const financialReportingPolicyVersions = pgTable('financial_reporting_pol
   depreciationMethod: varchar('depreciation_method', { length: 30 }).notNull(),
   allocationBasis: varchar('allocation_basis', { length: 50 }).notNull(),
   lowMarginThresholdRatio: numeric('low_margin_threshold_ratio', { precision: 5, scale: 4 }),
-  governanceActionId: integer('governance_action_id')
-
-    .notNull(),
   createdBy: integer('created_by')
 
     .notNull(),
@@ -301,8 +231,6 @@ export const financialReportingPolicyVersions = pgTable('financial_reporting_pol
 }, (table) => [
   uniqueIndex('financial_reporting_policy_versions_effective_from_uniq')
     .on(table.effectiveFrom),
-  uniqueIndex('financial_reporting_policy_versions_governance_action_uniq')
-    .on(table.governanceActionId),
   index('financial_reporting_policy_versions_effective_lookup_idx')
     .on(table.effectiveFrom, table.createdAt),
 ]);
@@ -318,9 +246,6 @@ export const truckFinancialProfileVersions = pgTable('truck_financial_profile_ve
   inServiceDate: date('in_service_date').notNull(),
   usefulLifeMonths: integer('useful_life_months').notNull(),
   monthlyFixedCost: numeric('monthly_fixed_cost', { precision: 15, scale: 0 }).notNull(),
-  governanceActionId: integer('governance_action_id')
-
-    .notNull(),
   createdBy: integer('created_by')
 
     .notNull(),
@@ -328,8 +253,6 @@ export const truckFinancialProfileVersions = pgTable('truck_financial_profile_ve
 }, (table) => [
   uniqueIndex('truck_financial_profile_versions_truck_month_uniq')
     .on(table.truckId, table.effectiveFrom),
-  uniqueIndex('truck_financial_profile_versions_governance_action_uniq')
-    .on(table.governanceActionId),
   index('truck_financial_profile_versions_lookup_idx')
     .on(table.truckId, table.effectiveFrom, table.createdAt),
 ]);
@@ -739,9 +662,6 @@ export const salaryPeriodCloses = pgTable('salary_period_closes', {
 
 export const salaryPeriodAdjustments = pgTable('salary_period_adjustments', {
   id: serial('id').primaryKey(),
-  governanceActionId: integer('governance_action_id')
-
-    .notNull(),
   sourcePeriod: varchar('source_period', { length: 7 }).notNull(),
   targetPeriod: varchar('target_period', { length: 7 }).notNull(),
   driverId: integer('driver_id').notNull(),
@@ -751,16 +671,12 @@ export const salaryPeriodAdjustments = pgTable('salary_period_adjustments', {
   approvedAt: timestamp('approved_at', { withTimezone: true }).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
-  uniqueIndex('salary_period_adjustments_action_uniq').on(table.governanceActionId),
   index('salary_period_adjustments_target_driver_idx').on(table.targetPeriod, table.driverId, table.createdAt),
   index('salary_period_adjustments_source_driver_idx').on(table.sourcePeriod, table.driverId, table.createdAt),
 ]);
 
 export const fuelPeriodAdjustments = pgTable('fuel_period_adjustments', {
   id: serial('id').primaryKey(),
-  governanceActionId: integer('governance_action_id')
-
-    .notNull(),
   fuelInvoiceId: integer('fuel_invoice_id')
 
     .notNull(),
@@ -771,8 +687,6 @@ export const fuelPeriodAdjustments = pgTable('fuel_period_adjustments', {
   targetPeriod: varchar('target_period', { length: 7 }).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
-  uniqueIndex('fuel_period_adjustments_action_source_uniq')
-    .on(table.governanceActionId, table.sourcePeriodLockId),
   index('fuel_period_adjustments_invoice_idx').on(table.fuelInvoiceId, table.createdAt),
   index('fuel_period_adjustments_source_idx').on(table.sourcePeriod, table.createdAt),
   index('fuel_period_adjustments_target_idx').on(table.targetPeriod, table.createdAt),

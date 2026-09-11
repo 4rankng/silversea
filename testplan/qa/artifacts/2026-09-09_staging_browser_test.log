@@ -1,0 +1,13 @@
+=== STAGING BROWSER TEST RUN (vantai.tingting.vip) ===
+[2026-09-09T02:24:39.199Z] Starting staging browser verification...
+[2026-09-09T02:24:39.421Z] Admin login successful, token acquired
+[2026-09-09T02:24:40.062Z] --- TEST 1: CUS Workspace & Appointment Popover Format ---
+[2026-09-09T02:24:41.322Z] Navigated to /shipments, found .cus-dashboard-detail buttons
+[2026-09-09T02:24:41.328Z] Found 7 shipments on the list
+[2026-09-09T02:24:41.328Z] Clicking first .cus-dashboard-detail button to open drawer...
+[2026-09-09T02:24:51.458Z] ERROR: Waiting for selector `.cus-drawer, .shipment-container-ledger` failed
+TimeoutError: Waiting for selector `.cus-drawer, .shipment-container-ledger` failed
+    at CSSQueryHandler.waitFor (file:///Users/dev/Documents/projects/silversea-prod/node_modules/.pnpm/puppeteer-core@25.1.0/node_modules/puppeteer-core/lib/puppeteer/common/QueryHandler.js:211:46)
+    at async CdpFrame.waitForSelector (file:///Users/dev/Documents/projects/silversea-prod/node_modules/.pnpm/puppeteer-core@25.1.0/node_modules/puppeteer-core/lib/puppeteer/api/Frame.js:541:21)
+    at async CdpPage.waitForSelector (file:///Users/dev/Documents/projects/silversea-prod/node_modules/.pnpm/puppeteer-core@25.1.0/node_modules/puppeteer-core/lib/puppeteer/api/Page.js:1387:20)
+    at async run (/Users/dev/.gemini/antigravity-cli/brain/34536bb9-1398-4c29-9298-e57d5d0d0a27/scratch/run-staging-browser-tests.cjs:63:7)

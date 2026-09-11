@@ -11,7 +11,6 @@ import {
   vendorPaymentSchema,
   commissionSchema,
   driverPayoutSchema,
-  governanceActionVersionSchema,
 } from '@tingting/shared';
 import type { PayablesCategory } from '@tingting/shared';
 import { db } from '../../db';
@@ -40,19 +39,16 @@ import {
   requestPaymentRefundGovernance,
 } from '../../services/payment-allocation.service';
 import {
-  approveGovernanceAction,
+  autoApplyGovernanceAction,
 } from '../../services/adjustment-governance.service';
 import {
-  approveDirectMoneyGovernanceAction,
-  checkGovernanceAction,
-  isDirectMoneyGovernanceActionKind,
+  applyDirectMoneyGovernanceAction,
 } from '../../services/governance-transition.service';
 import { getUser } from '../../middleware/auth';
 import { registerAuditEvent } from '../../services/audit-registry';
 import { AuditEvent } from '../../services/audit-types';
 import { IDEMPOTENCY_ENDPOINTS, resolveIdempotencyKey, runIdempotent } from '../../services/idempotency.service';
 import { ApiError } from '../../errors';
-import { parseActionId } from './governance-action-input';
 import {
   PROFIT_DISTRIBUTION_TRANSACTION_OPTIONS,
   runProfitDistributionWithSerializationRetry,
@@ -103,18 +99,6 @@ const router = Router();
 registerAuditEvent('POST', '/api/commissions', AuditEvent.ENTITY_CREATED);
 registerAuditEvent('POST', '/api/drivers/', '/payouts', AuditEvent.DRIVER_SALARY_RECORDED);
 
-async function loadGovernanceActionKind(actionId: number): Promise<string> {
-  const [action] = await db.select({
-    actionKind: s.governanceActions.actionKind,
-  }).from(s.governanceActions)
-    .where(eq(s.governanceActions.id, actionId))
-    .limit(1);
-  if (!action) {
-    throw new ApiError(404, 'Không tìm thấy yêu cầu điều chỉnh');
-  }
-  return action.actionKind;
-}
-
 function getRequestIdempotencyKey(req: Request): string | undefined {
   const requestBody = req.body as Record<string, unknown> | undefined;
   return resolveIdempotencyKey({
@@ -148,7 +132,8 @@ router.post('/payments/receive', asyncHandler(async (req: Request, res: Response
     },
     createdBy: actor.userId,
     entityType: 'governance_action',
-    create: (tx) => requestPaymentReceiptGovernance({
+    create: (tx) => autoApplyGovernanceAction({
+      make: (tx) => requestPaymentReceiptGovernance({
       payment: {
         customerId: data.customerId,
         receiptId: data.receiptId,
@@ -165,7 +150,15 @@ router.post('/payments/receive', asyncHandler(async (req: Request, res: Response
       makerRole: actor.role,
       transaction: tx,
     }),
+      apply: applyDirectMoneyGovernanceAction,
+      actorId: actor.userId,
+      actorRole: actor.role,
+      transaction: tx,
+    }),
   });
+  // Money now applies at request time (phê duyệt removed 2026-09-10) — refresh
+  // report caches the way the old approve step did.
+  if (!replayed) await invalidateReportCaches();
   res.locals.auditEntityId = result.id;
   res.locals.auditEntityKey = result.subjectKey ?? data.receiptId;
   res.status(replayed ? 200 : 201).json({ result, replayed });
@@ -199,7 +192,8 @@ router.post(
       },
       createdBy: actor.userId,
       entityType: 'governance_action',
-      create: (tx) => requestPaymentRefundGovernance({
+      create: (tx) => autoApplyGovernanceAction({
+      make: (tx) => requestPaymentRefundGovernance({
         paymentReceiptId,
         amount: data.amount,
         reason: data.reason,
@@ -207,6 +201,11 @@ router.post(
         makerRole: actor.role,
         transaction: tx,
       }),
+      apply: applyDirectMoneyGovernanceAction,
+      actorId: actor.userId,
+      actorRole: actor.role,
+      transaction: tx,
+    }),
     });
     res.locals.auditEntityId = result.id;
     res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
@@ -230,14 +229,20 @@ router.post('/adjustments', asyncHandler(async (req: Request, res: Response) => 
     createdBy: actor.userId,
     entityType: 'governance_action',
     responseStatusCode: 201,
-    create: (tx) => financialService.createAdjustment({
-      tripId: data.tripId,
-      amount: data.amount,
-      note: data.note,
-      signedAgreementRef: data.signedAgreementRef,
-      makerId: actor.userId,
-      makerRole: actor.role,
-      expectedTripVersion: data.expectedVersion,
+    // 2026-09-11 maker-checker removal: apply directly in-request.
+    create: (tx) => autoApplyGovernanceAction({
+      make: (inner) => financialService.createAdjustment({
+        tripId: data.tripId,
+        amount: data.amount,
+        note: data.note,
+        signedAgreementRef: data.signedAgreementRef,
+        makerId: actor.userId,
+        makerRole: actor.role,
+        expectedTripVersion: data.expectedVersion,
+        transaction: inner,
+      }),
+      actorId: actor.userId,
+      actorRole: actor.role,
       transaction: tx,
     }),
     getEntityId: (action) => action.id,
@@ -246,187 +251,6 @@ router.post('/adjustments', asyncHandler(async (req: Request, res: Response) => 
   res.locals.auditEntityKey = result.subjectKey;
   res.status(statusCode).json(idempotencyKey ? { ...result, replayed } : result);
 }));
-
-router.post(
-  '/governance-actions/:id/check',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT),
-  asyncHandler(async (req: Request, res: Response) => {
-    const input = governanceActionVersionSchema.parse(req.body);
-    const actor = getUser(req);
-    const actionId = parseActionId(req.params.id);
-    const idempotencyKey = getRequestIdempotencyKey(req);
-    const { result, replayed } = await runIdempotent({
-      endpoint: IDEMPOTENCY_ENDPOINTS.GOVERNANCE_CHECK,
-      idempotencyKey,
-      payload: {
-        actionId,
-        actorId: actor.userId,
-        actorRole: actor.role,
-        expectedVersion: input.expectedVersion,
-      },
-      createdBy: actor.userId,
-      entityType: 'governance_action',
-      create: (tx) => checkGovernanceAction({
-        actionId,
-        checkerId: actor.userId,
-        checkerRole: actor.role,
-        expectedVersion: input.expectedVersion,
-        transaction: tx,
-      }),
-    });
-    res.json(idempotencyKey ? { ...result, replayed } : result);
-  }),
-);
-
-router.post(
-  '/governance-actions/:id/approve',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT),
-  asyncHandler(async (req: Request, res: Response) => {
-    const input = governanceActionVersionSchema.parse(req.body);
-    const actor = getUser(req);
-    const actionId = parseActionId(req.params.id);
-    const idempotencyKey = getRequestIdempotencyKey(req);
-    const actionKind = await loadGovernanceActionKind(actionId);
-    const executeApproval = () => runIdempotent({
-      endpoint: IDEMPOTENCY_ENDPOINTS.GOVERNANCE_APPROVE,
-      idempotencyKey,
-      payload: {
-        actionId,
-        actorId: actor.userId,
-        actorRole: actor.role,
-        expectedVersion: input.expectedVersion,
-      },
-      createdBy: actor.userId,
-      entityType: 'governance_action',
-      transactionOptions: actionKind === 'PROFIT_DISTRIBUTION'
-        ? PROFIT_DISTRIBUTION_TRANSACTION_OPTIONS
-        : undefined,
-      create: (tx) => (
-        isDirectMoneyGovernanceActionKind(actionKind)
-          ? approveDirectMoneyGovernanceAction({
-            actionId,
-            approverId: actor.userId,
-            approverRole: actor.role,
-            expectedVersion: input.expectedVersion,
-            transaction: tx,
-          })
-          : approveGovernanceAction({
-            actionId,
-            approverId: actor.userId,
-            approverRole: actor.role,
-            expectedVersion: input.expectedVersion,
-            transaction: tx,
-          })
-      ),
-    });
-    const { result, replayed } = actionKind === 'PROFIT_DISTRIBUTION'
-      ? await runProfitDistributionWithSerializationRetry(executeApproval)
-      : await executeApproval();
-
-    if (!replayed) {
-      if (result.actionKind === 'PENALTY_CREATE' || result.actionKind === 'PENALTY_CANCEL') {
-        await cacheInvalidatePattern(REPORT_CACHE_KEYS.pnlPattern);
-      } else {
-        await invalidateReportCaches();
-      }
-    }
-
-    if (!replayed && result.actionKind === 'TRIP_REOPEN') {
-      emitNotification({
-        // O2C: TRIP_UNLOCKED notification removed (lock transition gone). The
-        // governed reopen of a completed trip is announced as a system event.
-        type: NotificationType.SYSTEM_ANNOUNCEMENT,
-        title: 'Chuyến đã mở lại',
-        message: 'Yêu cầu mở lại chuyến đã hoàn thành đã được phê duyệt',
-        relatedEntityType: 'trips',
-        relatedEntityId: result.subjectId ?? undefined,
-      });
-    }
-
-    if (result.actionKind === 'TRIP_FINANCIAL_CLOSE') {
-      res.locals.auditEvent = AuditEvent.TRIP_COMPLETED;
-    } else if (
-      result.actionKind === 'TRIP_FINANCIAL_CHANGE'
-      && result.applicationResult?.status === TripStatus.CANCELED
-    ) {
-      res.locals.auditEvent = AuditEvent.TRIP_CANCELED;
-    } else if (result.actionKind === 'TRIP_FINANCIAL_CHANGE') {
-      res.locals.auditEvent = AuditEvent.TRIP_UPDATED_ACTUALS;
-    } else if (!replayed && result.actionKind === 'PROFIT_DISTRIBUTION') {
-      res.locals.auditEvent = AuditEvent.PROFIT_DISTRIBUTED;
-      const quarter = result.applicationResult?.quarter;
-      const year = result.applicationResult?.year;
-      if (typeof quarter === 'number' && typeof year === 'number') {
-        res.locals.auditEntityKey = `Quý ${quarter}/${year}`;
-      }
-    }
-    if (
-      result.actionKind === 'TRIP_FINANCIAL_CLOSE'
-      || result.actionKind === 'TRIP_FINANCIAL_CHANGE'
-    ) {
-      res.locals.auditEntityId = result.subjectId;
-      res.locals.auditEntityKey = result.subjectKey;
-    }
-
-    if (!replayed && result.actionKind === 'PAYMENT_RECEIPT') {
-      const receiptId = typeof result.applicationResult?.receiptId === 'string'
-        ? result.applicationResult.receiptId
-        : null;
-      const paymentReceiptId = typeof result.applicationResult?.paymentReceiptId === 'number'
-        ? result.applicationResult.paymentReceiptId
-        : result.subjectId;
-      if (receiptId && paymentReceiptId != null) {
-        emitNotification({
-          type: NotificationType.PAYMENT_RECEIVED,
-          title: 'Thanh toán nhận được',
-          message: `Phiếu thu ${receiptId} đã được phê duyệt và ghi nhận`,
-          relatedEntityType: 'payments',
-          relatedEntityId: paymentReceiptId,
-        });
-      }
-    }
-
-    if (!replayed && result.actionKind === 'PENALTY_CREATE') {
-      const penaltyId = typeof result.applicationResult?.penaltyId === 'number'
-        ? result.applicationResult.penaltyId
-        : result.subjectId;
-      const driverId = typeof result.applicationResult?.driverId === 'number'
-        ? result.applicationResult.driverId
-        : undefined;
-      if (penaltyId != null) {
-        emitNotification({
-          type: NotificationType.PENALTY_CREATED,
-          title: 'Phạt mới',
-          message: 'Quyết định kỷ luật đã được phê duyệt',
-          relatedEntityType: 'penalties',
-          relatedEntityId: penaltyId,
-          targetDriverId: driverId,
-        });
-      }
-    }
-
-    if (!replayed && result.actionKind === 'PENALTY_CANCEL') {
-      const penaltyId = typeof result.applicationResult?.penaltyId === 'number'
-        ? result.applicationResult.penaltyId
-        : result.subjectId;
-      const driverId = typeof result.applicationResult?.driverId === 'number'
-        ? result.applicationResult.driverId
-        : undefined;
-      if (penaltyId != null) {
-        emitNotification({
-          type: NotificationType.PENALTY_CANCELED,
-          title: 'Hủy phạt',
-          message: 'Quyết định kỷ luật đã được hủy theo phê duyệt',
-          relatedEntityType: 'penalties',
-          relatedEntityId: penaltyId,
-          targetDriverId: driverId,
-        });
-      }
-    }
-
-    res.json(idempotencyKey ? { ...result, replayed } : result);
-  }),
-);
 
 router.post('/payments/vendor', asyncHandler(async (req: Request, res: Response) => {
   const actor = getUser(req);
@@ -443,13 +267,22 @@ router.post('/payments/vendor', asyncHandler(async (req: Request, res: Response)
     },
     createdBy: actor.userId,
     entityType: 'governance_action',
-    create: (tx) => financialService.requestVendorPaymentGovernance({
+    create: (tx) => autoApplyGovernanceAction({
+      make: (tx) => financialService.requestVendorPaymentGovernance({
       payment: { ...data, amount: String(data.amount) },
       makerId: actor.userId,
       makerRole: actor.role,
       transaction: tx,
     }),
+      apply: applyDirectMoneyGovernanceAction,
+      actorId: actor.userId,
+      actorRole: actor.role,
+      transaction: tx,
+    }),
   });
+  // Money now applies at request time (phê duyệt removed 2026-09-10) — refresh
+  // report caches the way the old approve step did.
+  if (!replayed) await invalidateReportCaches();
   res.locals.auditEntityId = result.id;
   res.locals.auditEntityKey = result.subjectKey ?? data.receiptId;
   const statusCode = replayed ? 200 : (idempotencyKey ? 201 : 200);
@@ -471,13 +304,22 @@ router.post('/payments/carrier', asyncHandler(async (req: Request, res: Response
     },
     createdBy: actor.userId,
     entityType: 'governance_action',
-    create: (tx) => financialService.requestCarrierPaymentGovernance({
+    create: (tx) => autoApplyGovernanceAction({
+      make: (tx) => financialService.requestCarrierPaymentGovernance({
       payment: { ...data, amount: String(data.amount) },
       makerId: actor.userId,
       makerRole: actor.role,
       transaction: tx,
     }),
+      apply: applyDirectMoneyGovernanceAction,
+      actorId: actor.userId,
+      actorRole: actor.role,
+      transaction: tx,
+    }),
   });
+  // Money now applies at request time (phê duyệt removed 2026-09-10) — refresh
+  // report caches the way the old approve step did.
+  if (!replayed) await invalidateReportCaches();
   res.locals.auditEntityId = result.id;
   res.locals.auditEntityKey = result.subjectKey ?? data.receiptId;
   const statusCode = replayed ? 200 : (idempotencyKey ? 201 : 200);
@@ -555,13 +397,22 @@ router.post('/commissions', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTA
     },
     createdBy: actor.userId,
     entityType: 'governance_action',
-    create: (tx) => requestCommissionGovernance({
+    create: (tx) => autoApplyGovernanceAction({
+      make: (tx) => requestCommissionGovernance({
       commission: data,
       makerId: actor.userId,
       makerRole: actor.role,
       transaction: tx,
     }),
+      apply: applyDirectMoneyGovernanceAction,
+      actorId: actor.userId,
+      actorRole: actor.role,
+      transaction: tx,
+    }),
   });
+  // Money now applies at request time (phê duyệt removed 2026-09-10) — refresh
+  // report caches the way the old approve step did.
+  if (!replayed) await invalidateReportCaches();
   res.locals.auditEntityId = result.id;
   res.locals.auditEntityKey = result.subjectKey ?? "Quyết định chưa có tên";
   res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
@@ -595,7 +446,8 @@ router.post('/drivers/:driverId/payouts', requireRoles(Role.ADMIN, Role.MANAGER,
     },
     createdBy: actor.userId,
     entityType: 'governance_action',
-    create: (tx) => financialService.requestDriverPayoutGovernance({
+    create: (tx) => autoApplyGovernanceAction({
+      make: (tx) => financialService.requestDriverPayoutGovernance({
       payout: {
         driverId,
         amount: data.amount,
@@ -608,7 +460,15 @@ router.post('/drivers/:driverId/payouts', requireRoles(Role.ADMIN, Role.MANAGER,
       makerRole: actor.role,
       transaction: tx,
     }),
+      apply: applyDirectMoneyGovernanceAction,
+      actorId: actor.userId,
+      actorRole: actor.role,
+      transaction: tx,
+    }),
   });
+  // Money now applies at request time (phê duyệt removed 2026-09-10) — refresh
+  // report caches the way the old approve step did.
+  if (!replayed) await invalidateReportCaches();
   res.locals.auditEntityId = result.id;
   res.locals.auditEntityKey = result.subjectKey ?? "Quyết định chưa có tên";
   res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
@@ -654,15 +514,24 @@ router.post('/finance/treasury/accounts/setup', requireRoles(Role.ADMIN, Role.MA
     createdBy: actor.userId,
     entityType: 'governance_action',
     responseStatusCode: 202,
-    create: (tx) => requestTreasuryAccountSetup({
-      account: body,
-      reason: body.reason,
-      openingBalanceEvidence: body.openingBalanceEvidence,
-      makerId: actor.userId,
-      makerRole: actor.role,
+    create: (tx) => autoApplyGovernanceAction({
+      make: (tx) => requestTreasuryAccountSetup({
+        account: body,
+        reason: body.reason,
+        openingBalanceEvidence: body.openingBalanceEvidence,
+        makerId: actor.userId,
+        makerRole: actor.role,
+        transaction: tx,
+      }),
+      apply: applyDirectMoneyGovernanceAction,
+      actorId: actor.userId,
+      actorRole: actor.role,
       transaction: tx,
     }),
   });
+  // Money now applies at request time (phê duyệt removed 2026-09-10) — refresh
+  // report caches the way the old approve step did.
+  if (!replayed) await invalidateReportCaches();
   res.locals.auditEntityId = result.id;
   res.status(replayed ? 200 : 202).json({ ...result, replayed });
 }));
@@ -678,14 +547,23 @@ router.post('/finance/treasury/accounts/:id/cutover', requireRoles(Role.ADMIN, R
     createdBy: actor.userId,
     entityType: 'governance_action',
     responseStatusCode: 202,
-    create: (tx) => requestTreasuryCutover({
-      accountId,
-      ...body,
-      makerId: actor.userId,
-      makerRole: actor.role,
+    create: (tx) => autoApplyGovernanceAction({
+      make: (tx) => requestTreasuryCutover({
+        accountId,
+        ...body,
+        makerId: actor.userId,
+        makerRole: actor.role,
+        transaction: tx,
+      }),
+      apply: applyDirectMoneyGovernanceAction,
+      actorId: actor.userId,
+      actorRole: actor.role,
       transaction: tx,
     }),
   });
+  // Money now applies at request time (phê duyệt removed 2026-09-10) — refresh
+  // report caches the way the old approve step did.
+  if (!replayed) await invalidateReportCaches();
   res.locals.auditEntityId = result.id;
   res.status(replayed ? 200 : 202).json({ ...result, replayed });
 }));
@@ -701,14 +579,23 @@ router.post('/finance/treasury/movements/:id/reversal', requireRoles(Role.ADMIN,
     createdBy: actor.userId,
     entityType: 'governance_action',
     responseStatusCode: 202,
-    create: (tx) => requestTreasuryMovementReversal({
-      movementId,
-      ...body,
-      makerId: actor.userId,
-      makerRole: actor.role,
+    create: (tx) => autoApplyGovernanceAction({
+      make: (tx) => requestTreasuryMovementReversal({
+        movementId,
+        ...body,
+        makerId: actor.userId,
+        makerRole: actor.role,
+        transaction: tx,
+      }),
+      apply: applyDirectMoneyGovernanceAction,
+      actorId: actor.userId,
+      actorRole: actor.role,
       transaction: tx,
     }),
   });
+  // Money now applies at request time (phê duyệt removed 2026-09-10) — refresh
+  // report caches the way the old approve step did.
+  if (!replayed) await invalidateReportCaches();
   res.locals.auditEntityId = result.id;
   res.status(replayed ? 200 : 202).json({ ...result, replayed });
 }));

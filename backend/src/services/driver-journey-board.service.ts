@@ -1,6 +1,8 @@
 import { and, desc, eq, inArray, isNull, aliasedTable } from 'drizzle-orm';
 import { db } from '../db';
 import * as s from '../db/schema';
+import { operationalName } from '../db/master-data-name';
+import { listDispatchTaskTags } from './dispatch-task-tags.service';
 import { getDriverCompletionEvidenceStatus } from './trip-pod.service';
 
 // Driver-app spec (260827) "Hành trình" screen: unlike work-inbox.service's
@@ -39,6 +41,7 @@ export interface DriverJourneyCard {
   pairLocked: boolean;
   scheduledAt: string | null;
   factoryName: string | null;
+  factoryShortName: string | null;
   loadingPortName: string | null;
   routeName: string | null;
   dropPortName: string | null;
@@ -49,6 +52,7 @@ export interface DriverJourneyCard {
   contactPhone: string | null;
   truckPlate: string | null;
   trailerPlate: string | null;
+  operationalNotes: string | null;
 }
 
 /**
@@ -74,11 +78,25 @@ function bucketForStatus(status: typeof s.trips.$inferSelect.status, evidenceRea
  * `linked` so the frontend renders its cards stuck together; the tag itself
  * is the fulfillment's own dispatchClassification (ĐƠN/KẸP/KẾT HỢP/LẺ).
  */
-export async function getDriverJourneyBoard(driverId: number): Promise<DriverJourneyCard[]> {
+/**
+ * The board response embeds the operation-tag pool the driver page needs to
+ * resolve shipments.operationalNotes into chips — one round-trip instead of
+ * a second tag-pool fetch (ticket 53a536f9), which also lets the driver
+ * portal drop its pages→detailed-plan imports (the M1 coupling).
+ */
+export interface DriverJourneyBoard {
+  items: DriverJourneyCard[];
+  knownTagLabels: string[];
+}
+
+export async function getDriverJourneyBoard(driverId: number): Promise<DriverJourneyBoard> {
   const pickupPort = aliasedTable(s.ports, 'journey_pickup_port');
   const dropoffPort = aliasedTable(s.ports, 'journey_dropoff_port');
   const containerFactory = aliasedTable(s.operationalSites, 'journey_container_factory');
 
+  // Tags ride along in parallel with the card query; same source query the
+  // composer uses, so the canonical display_order ordering comes free.
+  const tagsPromise = listDispatchTaskTags();
   const rows = await db.select({
     fulfillmentId: s.trips.fulfillmentId,
     tripId: s.trips.id,
@@ -93,6 +111,7 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
     isCombined: s.shipments.isCombined,
     dispatchClassification: s.shipmentFulfillments.dispatchClassification,
     factoryName: s.shipments.factoryName,
+    operationalNotes: s.shipments.operationalNotes,
     pickupLocation: s.shipments.pickupLocation,
     deliveryLocation: s.shipments.deliveryLocation,
     routeName: s.routes.name,
@@ -106,6 +125,9 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
     containerPickupPortName: pickupPort.name,
     containerDropoffPortName: dropoffPort.name,
     containerFactoryName: containerFactory.name,
+    // Blank-safe site label: operational_sites.short_name is notNull with ''
+    // default, so a raw ?? fallback would never fire on unfilled rows.
+    containerFactoryShortName: operationalName(containerFactory.shortName, containerFactory.name),
   }).from(s.trips)
     .innerJoin(s.shipmentFulfillments, eq(s.shipmentFulfillments.id, s.trips.fulfillmentId))
     .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentFulfillments.shipmentId))
@@ -163,7 +185,7 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
     statusByTripId.get(tripId) === 'COMPLETED'
     || (evidenceByTripId.get(tripId) ?? false);
 
-  return rows
+  const cards: DriverJourneyCard[] = rows
     .filter((row): row is typeof row & { fulfillmentId: number } => row.fulfillmentId != null)
     .map((row) => {
       const pair = row.activeTripPairId != null ? pairById.get(row.activeTripPairId) : undefined;
@@ -192,6 +214,7 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
         && !isTripFinished(firstTripId),
       scheduledAt: row.plannedStartAt?.toISOString() ?? null,
       factoryName: row.factoryName ?? row.containerFactoryName,
+      factoryShortName: row.containerFactoryShortName ?? row.factoryName,
       loadingPortName: row.pickupLocation ?? row.containerPickupPortName,
       routeName: row.routeName,
       dropPortName: row.deliveryLocation ?? row.containerDropoffPortName,
@@ -202,6 +225,10 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
       contactPhone: row.contactPhone,
       truckPlate: row.truckPlate,
       trailerPlate: row.trailerPlate,
-      };
-    });
+      operationalNotes: row.operationalNotes,
+    };
+  });
+
+  const { items: tagRows } = await tagsPromise;
+  return { items: cards, knownTagLabels: tagRows.map((tag) => tag.label) };
 }

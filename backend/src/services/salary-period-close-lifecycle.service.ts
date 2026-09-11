@@ -17,8 +17,8 @@ import {
 } from './period-lock.service';
 import { assertCanMakeGovernanceAction } from './governance-policy';
 import {
-  approveGovernanceActionWithAdapter,
-  checkGovernanceAction,
+  buildGovernanceAction,
+  type GovernanceApplyAdapter,
   type GovernanceApplyResult,
 } from './governance-action-core.service';
 import {
@@ -40,7 +40,6 @@ import {
   readSummaryAmount,
   buildCloseResult,
   requireGovernanceReason,
-  toGovernanceActionView,
   assertSalaryPeriodGovernanceAction,
 } from './salary-period-close-shared.service';
 
@@ -353,11 +352,10 @@ export async function requestSalaryPeriodClose(input: {
       throwSalaryReadinessBlocked(input.period, readiness);
     }
 
-    const [action] = await tx.insert(s.governanceActions).values({
+    return buildGovernanceAction({
       subjectType: SALARY_PERIOD_SUBJECT_TYPE,
       subjectKey: input.period,
       actionKind: SALARY_PERIOD_CLOSE_ACTION_KIND,
-      status: 'PENDING_CHECK',
       reason,
       originalVersion: existingClose?.version ?? 0,
       beforeSnapshot: {
@@ -381,8 +379,7 @@ export async function requestSalaryPeriodClose(input: {
       deltaSnapshot: null,
       makerId: input.actorId,
       makerRole: input.actorRole,
-    }).returning();
-    return toGovernanceActionView(action);
+    });
   };
   if (input.transaction) {
     return execute(input.transaction);
@@ -390,64 +387,40 @@ export async function requestSalaryPeriodClose(input: {
   return db.transaction(execute);
 }
 
-export async function checkSalaryPeriodClose(input: {
-  period: string;
-  actionId: number;
-  actorId: number;
-  actorRole: string;
-  expectedVersion: number;
-  transaction?: Tx;
-}) {
-  const action = await checkGovernanceAction({
-    actionId: input.actionId,
-    checkerId: input.actorId,
-    checkerRole: input.actorRole,
-    expectedVersion: input.expectedVersion,
-    transaction: input.transaction,
-  });
-  assertSalaryPeriodGovernanceAction(action, input.period, SALARY_PERIOD_CLOSE_ACTION_KIND);
-  return toGovernanceActionView(action);
+function assertTransientPeriodAction(
+  action: Parameters<GovernanceApplyAdapter>[1],
+  actionKind: typeof SALARY_PERIOD_CLOSE_ACTION_KIND | typeof SALARY_PERIOD_REOPEN_ACTION_KIND,
+): string {
+  const { subjectKey: period } = action;
+  assertSalaryPeriodGovernanceAction(action, period ?? '', actionKind);
+  return period ?? '';
 }
 
-export async function approveSalaryPeriodClose(input: {
-  period: string;
-  actionId: number;
-  actorId: number;
-  actorRole: string;
-  expectedVersion: number;
-  transaction?: Tx;
-}) {
-  const action = await approveGovernanceActionWithAdapter({
-    actionId: input.actionId,
-    approverId: input.actorId,
-    approverRole: input.actorRole,
-    expectedVersion: input.expectedVersion,
-    transaction: input.transaction,
-    apply: async (tx, governanceAction): Promise<GovernanceApplyResult> => {
-      assertSalaryPeriodGovernanceAction(governanceAction, input.period, SALARY_PERIOD_CLOSE_ACTION_KIND);
-      const afterSnapshot = governanceAction.afterSnapshot as Record<string, unknown> | null;
-      const result = await closeSalaryPeriod({
-        period: input.period,
-        actorId: input.actorId,
-        actorRole: input.actorRole,
-        note: typeof afterSnapshot?.requestedNote === 'string' ? afterSnapshot.requestedNote : null,
-        expectedVersion: governanceAction.originalVersion,
-        transaction: tx,
-      });
-      return {
-        ledgerEntryId: result.ledgerEntryId,
-        applicationResult: {
-          closeId: result.closeId,
-          status: result.status,
-          version: result.version,
-          periodTotalSalary: result.periodTotalSalary,
-        },
-      };
-    },
+/**
+ * Direct-apply adapter for SALARY_PERIOD_CLOSE: runs the same close the old
+ * approve stage ran, re-validated against the transient request record.
+ */
+export const applySalaryPeriodCloseAction: GovernanceApplyAdapter = async (tx, action) => {
+  const period = assertTransientPeriodAction(action, SALARY_PERIOD_CLOSE_ACTION_KIND);
+  const afterSnapshot = action.afterSnapshot as Record<string, unknown> | null;
+  const result = await closeSalaryPeriod({
+    period,
+    actorId: action.approverId ?? action.makerId,
+    actorRole: action.approverRole ?? action.makerRole,
+    note: typeof afterSnapshot?.requestedNote === 'string' ? afterSnapshot.requestedNote : null,
+    expectedVersion: action.originalVersion,
+    transaction: tx,
   });
-  assertSalaryPeriodGovernanceAction(action, input.period, SALARY_PERIOD_CLOSE_ACTION_KIND);
-  return toGovernanceActionView(action);
-}
+  return {
+    ledgerEntryId: result.ledgerEntryId,
+    applicationResult: {
+      closeId: result.closeId,
+      status: result.status,
+      version: result.version,
+      periodTotalSalary: result.periodTotalSalary,
+    },
+  };
+};
 
 export async function requestSalaryPeriodReopen(input: {
   period: string;
@@ -496,11 +469,10 @@ export async function requestSalaryPeriodReopen(input: {
       throw new ApiError(409, `${reopenBlockers[0]}, phải xử lý bằng điều chỉnh bổ sung.`);
     }
 
-    const [action] = await tx.insert(s.governanceActions).values({
+    return buildGovernanceAction({
       subjectType: SALARY_PERIOD_SUBJECT_TYPE,
       subjectKey: input.period,
       actionKind: SALARY_PERIOD_REOPEN_ACTION_KIND,
-      status: 'PENDING_CHECK',
       reason,
       originalVersion: existingClose.version,
       beforeSnapshot: {
@@ -519,8 +491,7 @@ export async function requestSalaryPeriodReopen(input: {
       deltaSnapshot: null,
       makerId: input.actorId,
       makerRole: input.actorRole,
-    }).returning();
-    return toGovernanceActionView(action);
+    });
   };
   if (input.transaction) {
     return execute(input.transaction);
@@ -528,60 +499,27 @@ export async function requestSalaryPeriodReopen(input: {
   return db.transaction(execute);
 }
 
-export async function checkSalaryPeriodReopen(input: {
-  period: string;
-  actionId: number;
-  actorId: number;
-  actorRole: string;
-  expectedVersion: number;
-  transaction?: Tx;
-}) {
-  const action = await checkGovernanceAction({
-    actionId: input.actionId,
-    checkerId: input.actorId,
-    checkerRole: input.actorRole,
-    expectedVersion: input.expectedVersion,
-    transaction: input.transaction,
+/**
+ * Direct-apply adapter for SALARY_PERIOD_REOPEN: runs the same reopen the old
+ * approve stage ran, re-validated against the transient request record.
+ */
+export const applySalaryPeriodReopenAction: GovernanceApplyAdapter = async (tx, action) => {
+  const period = assertTransientPeriodAction(action, SALARY_PERIOD_REOPEN_ACTION_KIND);
+  const afterSnapshot = action.afterSnapshot as Record<string, unknown> | null;
+  const result = await reopenSalaryPeriod({
+    period,
+    actorId: action.approverId ?? action.makerId,
+    actorRole: action.approverRole ?? action.makerRole,
+    note: typeof afterSnapshot?.requestedNote === 'string' ? afterSnapshot.requestedNote : null,
+    expectedVersion: action.originalVersion,
+    transaction: tx,
   });
-  assertSalaryPeriodGovernanceAction(action, input.period, SALARY_PERIOD_REOPEN_ACTION_KIND);
-  return toGovernanceActionView(action);
-}
-
-export async function approveSalaryPeriodReopen(input: {
-  period: string;
-  actionId: number;
-  actorId: number;
-  actorRole: string;
-  expectedVersion: number;
-  transaction?: Tx;
-}) {
-  const action = await approveGovernanceActionWithAdapter({
-    actionId: input.actionId,
-    approverId: input.actorId,
-    approverRole: input.actorRole,
-    expectedVersion: input.expectedVersion,
-    transaction: input.transaction,
-    apply: async (tx, governanceAction): Promise<GovernanceApplyResult> => {
-      assertSalaryPeriodGovernanceAction(governanceAction, input.period, SALARY_PERIOD_REOPEN_ACTION_KIND);
-      const afterSnapshot = governanceAction.afterSnapshot as Record<string, unknown> | null;
-      const result = await reopenSalaryPeriod({
-        period: input.period,
-        actorId: input.actorId,
-        actorRole: input.actorRole,
-        note: typeof afterSnapshot?.requestedNote === 'string' ? afterSnapshot.requestedNote : null,
-        expectedVersion: governanceAction.originalVersion,
-        transaction: tx,
-      });
-      return {
-        ledgerEntryId: result.ledgerEntryId,
-        applicationResult: {
-          closeId: result.closeId,
-          status: result.status,
-          version: result.version,
-        },
-      };
+  return {
+    ledgerEntryId: result.ledgerEntryId,
+    applicationResult: {
+      closeId: result.closeId,
+      status: result.status,
+      version: result.version,
     },
-  });
-  assertSalaryPeriodGovernanceAction(action, input.period, SALARY_PERIOD_REOPEN_ACTION_KIND);
-  return toGovernanceActionView(action);
-}
+  };
+};

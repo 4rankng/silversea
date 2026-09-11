@@ -1,0 +1,72 @@
+# Gate: frontend tsc -b && pnpm test — 2026-09-10, chunk 4 approval-removal (18f4a2dd)
+# Command: cd frontend && npx tsc -b && pnpm test
+# Exit: 0
+
+
+> @tingting/frontend@0.1.0 test /Users/dev/Documents/projects/silversea-prod/frontend
+> vitest run
+
+
+ RUN  v4.1.8 /Users/dev/Documents/projects/silversea-prod/frontend
+
+ ❯ src/features/dispatch/master-plan/MasterPlanGrid.test.tsx (32 tests | 1 failed) 2540ms
+     × pairs the allocation and notes cells side-by-side in the 600-900px band 6ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/features/dispatch/master-plan/MasterPlanGrid.test.tsx > MasterPlanGrid > pairs the allocation and notes cells side-by-side in the 600-900px band
+AssertionError: expected '@container (max-width: 599px) {\n  .m…' to match /\.master-plan-grid__cell:nth-child…/ -1
+
+- Expected:
+/\.master-plan-grid__cell:nth-child\(8\)[\s\S]*?grid-column:\s*1 \/ -1/
+
++ Received:
+"@container (max-width: 599px) {
+  .master-plan-grid__row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .master-plan-grid__cell--lift-port,
+  .master-plan-grid__cell--drop-port {
+    padding-inline: 12px;
+  }
+
+  .master-plan-grid__cell--drop-port {
+    border-inline-start: 1px solid var(--line);
+    border-top: 0;
+  }
+
+}
+
+@container (max-width: 360px) {
+  .master-plan-grid__row {
+    display: block;
+  }
+
+  .master-plan-grid__cell--drop-port {
+    border-inline-start: 0;
+    border-top: 1px solid var(--line);
+  }
+}
+
+"
+
+ ❯ src/features/dispatch/master-plan/MasterPlanGrid.test.tsx:553:23
+    551|     const phoneStart = css.indexOf('@container (max-width: 599px)');
+    552|     const phoneBand = css.slice(phoneStart, bandStart);
+    553|     expect(phoneBand).toMatch(/\.master-plan-grid__cell:nth-child\(8\)…
+       |                       ^
+    554|     expect(phoneBand).toMatch(/\.master-plan-grid__cell--action[\s\S]*…
+    555|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 263 passed (264)
+      Tests  1 failed | 1606 passed (1607)
+   Start at  20:08:38
+   Duration  89.28s (transform 20.76s, setup 22.22s, import 259.73s, tests 237.10s, environment 238.67s)
+
+ ELIFECYCLE  Test failed. See above for more details.
+EXIT:1

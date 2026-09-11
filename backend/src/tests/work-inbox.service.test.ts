@@ -5,8 +5,7 @@ import { client, db } from '../db';
 import * as s from '../db/schema';
 import { insertTripComposite } from '../services/trip-composite.service';
 import { adminHealth, customerWorkInbox, financialWorkInbox, managerDecisionInbox, operationsWorkInbox, pageWorkInboxItems } from '../services/work-inbox.service';
-import { resolveCustomerDeliveryDispute } from '../services/customer-delivery-response.service';
-import { Role, type ManagerWorkInboxItem, type WorkInboxItemBase } from '@tingting/shared';
+import { type ManagerWorkInboxItem, type WorkInboxItemBase } from '@tingting/shared';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const customerIds: number[] = [];
@@ -19,7 +18,6 @@ const snapshotIds: number[] = [];
 const eventIds: number[] = [];
 const attemptIds: number[] = [];
 const responseIds: number[] = [];
-const resolutionIds: number[] = [];
 
 let readyTripId = 0;
 let readyTripCode = '';
@@ -296,14 +294,6 @@ describe('work inbox projection', () => {
     assert.ok(row.ageHours >= 0);
     assert.match(row.impact, /không chặn đóng tài chính/i);
     assert.equal(row.targetRoute, `/dashboard?disputeId=${responseIds[0]}`);
-    const resolution = await resolveCustomerDeliveryDispute({
-      responseId: responseIds[0]!,
-      actor: { userId: 900_000_000, username: 'manager', email: null, fullName: null, role: Role.MANAGER },
-      resolution: 'Đã xử lý với khách hàng',
-    });
-    resolutionIds.push(resolution.id);
-    const afterResolution = await managerDecisionInbox(900_000_000, { page: 1, limit: 100 });
-    assert.equal(afterResolution.items.some((candidate) => candidate.entityId === responseIds[0]), false);
   });
 
   test('Admin health reports each real source and does not call an empty audit source unavailable', async () => {
@@ -325,7 +315,6 @@ describe('work inbox projection', () => {
 });
 
 after(async () => {
-  if (resolutionIds.length) await db.delete(s.governanceActions).where(inArray(s.governanceActions.id, resolutionIds));
   if (responseIds.length) await db.delete(s.customerDeliveryResponses).where(inArray(s.customerDeliveryResponses.id, responseIds));
   if (attemptIds.length) await db.delete(s.deliveryAttempts).where(inArray(s.deliveryAttempts.id, attemptIds));
   if (eventIds.length) await db.delete(s.customerVisibleEvents).where(inArray(s.customerVisibleEvents.id, eventIds));

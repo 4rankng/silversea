@@ -20,10 +20,7 @@ import {
   getFuelInvoice,
   updateFuelInvoice,
 } from '../services/fuel-invoice.service';
-import {
-  approveGovernanceAction,
-  checkGovernanceAction,
-} from '../services/adjustment-governance.service';
+import { autoApplyGovernanceAction } from '../services/adjustment-governance.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const createdTripIds: number[] = [];
@@ -38,7 +35,6 @@ const createdSettlementIds: number[] = [];
 const createdFuelInvoiceIds: number[] = [];
 const createdFuelAllocationIds: number[] = [];
 const createdUserIds: number[] = [];
-const createdGovernanceActionIds: number[] = [];
 
 let managerUserId: number;
 let accountantUserId: number;
@@ -73,25 +69,16 @@ async function mkUser(role: typeof Role[keyof typeof Role]) {
 }
 
 async function governFuelInvoiceApproval(invoiceId: number, version: number) {
-  const action = await approveFuelInvoice(
-    invoiceId,
-    managerUserId,
-    Role.MANAGER,
-    version,
-    'Đề nghị duyệt hóa đơn nhiên liệu đã đối soát',
-  );
-  createdGovernanceActionIds.push(action.id);
-  const checked = await checkGovernanceAction({
-    actionId: action.id,
-    checkerId: accountantUserId,
-    checkerRole: Role.ACCOUNTANT,
-    expectedVersion: action.version,
-  });
-  return approveGovernanceAction({
-    actionId: action.id,
-    approverId: adminUserId,
-    approverRole: Role.ADMIN,
-    expectedVersion: checked.version,
+  return autoApplyGovernanceAction({
+    make: () => approveFuelInvoice(
+      invoiceId,
+      managerUserId,
+      Role.MANAGER,
+      version,
+      'Đề nghị duyệt hóa đơn nhiên liệu đã đối soát',
+    ),
+    actorId: adminUserId,
+    actorRole: Role.ADMIN,
   });
 }
 
@@ -274,7 +261,6 @@ async function mkFuelAllocation(opts: {
 after(async () => {
   const namePattern = `M61 %${suffix}%`;
   try {
-    if (createdGovernanceActionIds.length > 0) await db.delete(s.governanceActions).where(inArray(s.governanceActions.id, createdGovernanceActionIds));
     if (createdFuelAllocationIds.length > 0) await db.delete(s.fuelInvoiceAllocations).where(inArray(s.fuelInvoiceAllocations.id, createdFuelAllocationIds));
     if (createdFuelInvoiceIds.length > 0) await db.delete(s.fuelInvoices).where(inArray(s.fuelInvoices.id, createdFuelInvoiceIds));
     if (createdSettlementExpenseIds.length > 0) await db.delete(s.settlementExpenses).where(inArray(s.settlementExpenses.id, createdSettlementExpenseIds));

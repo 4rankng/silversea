@@ -15,11 +15,8 @@ import { fmtMoM } from '../features/dashboard/utils';
 import { useMonth } from '../hooks/useMonth';
 import { RevenueTrendChart } from '../components/charts/RevenueTrendChart';
 import { AuditLogWidget } from '../features/dashboard/components/AuditLogWidget';
-import { ApprovalQueueCard } from '../features/dashboard/components/ApprovalQueueCard';
-import { useApprovalQueue, canSeeApprovalQueue } from '../features/dashboard/hooks/useApprovalQueue';
 import { useDashboardAnimations } from '../features/dashboard/hooks/useDashboardAnimations';
 import { CompanyInfoSetupBanner } from '../features/dashboard/components/CompanyInfoSetupBanner';
-import { ManagerDecisionInbox } from '../features/dashboard/components/ManagerDecisionInbox';
 import './DashboardPage.css';
 import './WorkflowFinance.css';
 import { ExecutiveFinancialStrip } from '../components/dashboard/ExecutiveFinancialStrip';
@@ -104,9 +101,6 @@ export default function DashboardPage() {
 
   // Animation hook — must be after loading is defined
   const { rootRef, animateCounters } = useDashboardAnimations(!loading);
-
-  const showApprovalQueue = canSeeApprovalQueue(user?.role);
-  const { data: approvalQueue, isLoading: approvalQueueLoading } = useApprovalQueue(user?.role, user?.userId);
 
   // ── Derived values (non-hook computations) ──────────────────────────────
   const d = derived ?? null;
@@ -372,8 +366,6 @@ export default function DashboardPage() {
           </button>
         </div>
       </header>
-
-      <ManagerDecisionInbox enabled={user?.role === 'MANAGER'} />
 
       <ExecutiveFinancialStrip enabled={Boolean(user?.capabilities?.includes('executive_dashboard.read'))} />
 
@@ -659,18 +651,6 @@ export default function DashboardPage() {
                 ))}
               </div>
             </div>
-
-        {/* Cần duyệt — full-width so its height does not inherit the much
-            taller decision list beside it. */}
-        {showApprovalQueue && user?.role !== 'MANAGER' && (
-          <div className="wf-bento-full">
-            <ApprovalQueueCard
-              data={approvalQueue}
-              loading={approvalQueueLoading}
-              navigate={navigate}
-            />
-          </div>
-        )}
 
         {/* Hoạt động gần đây (12 cols × 1 row) — full-width band, only for
             roles allowed by casbin. recentAudit is empty for DRIVER so this

@@ -40,14 +40,7 @@ describe('work inbox RBAC', () => {
     assert.equal(response.status, 403);
   });
 
-  test('Driver cannot resolve a customer delivery dispute', async () => {
-    const response = await fetch(`${baseUrl}/dashboard/delivery-disputes/1/resolve`, {
-      method: 'POST',
-      headers: { 'X-Test-Role': Role.DRIVER, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ resolution: 'Không có quyền' }),
-    });
-    assert.equal(response.status, 403);
-  });
+
 });
 
 after(async () => {

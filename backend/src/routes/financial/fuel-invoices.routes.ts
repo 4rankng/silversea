@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { autoApplyGovernanceAction } from '../../services/adjustment-governance.service';
 import type { Request } from 'express';
 import { z } from 'zod';
 import { Role } from '@tingting/shared';
@@ -196,16 +197,21 @@ router.post(
       createdBy: actor.userId,
       entityType: 'governance_action',
       responseStatusCode: 201,
-      create: (tx) => requestFuelInvoiceCorrection({
-        invoiceId,
-        expectedVersion: payload.expectedVersion,
-        reason: payload.reason,
-        correctionType: payload.correctionType,
-        correctedInvoice: payload.correctionType === 'ADJUSTMENT'
-          ? payload.correctedInvoice
-          : undefined,
-        makerId: actor.userId,
-        makerRole: actor.role,
+      create: (tx) => autoApplyGovernanceAction({
+        make: (tx) => requestFuelInvoiceCorrection({
+          invoiceId,
+          expectedVersion: payload.expectedVersion,
+          reason: payload.reason,
+          correctionType: payload.correctionType,
+          correctedInvoice: payload.correctionType === 'ADJUSTMENT'
+            ? payload.correctedInvoice
+            : undefined,
+          makerId: actor.userId,
+          makerRole: actor.role,
+          transaction: tx,
+        }),
+        actorId: actor.userId,
+        actorRole: actor.role,
         transaction: tx,
       }),
     });
@@ -235,14 +241,21 @@ router.post(
       },
       createdBy: actor.userId,
       entityType: 'fuel_invoice',
-      create: (tx) => approveFuelInvoice(
-        invoiceId,
-        actor.userId,
-        actor.role,
-        payload.expectedVersion,
-        payload.reason,
-        tx,
-      ),
+      // 2026-09-11 (maker-checker removal): the approval applies directly
+      // in-request via the transient governed action.
+      create: (tx) => autoApplyGovernanceAction({
+        make: (tx) => approveFuelInvoice(
+          invoiceId,
+          actor.userId,
+          actor.role,
+          payload.expectedVersion,
+          payload.reason,
+          tx,
+        ),
+        actorId: actor.userId,
+        actorRole: actor.role,
+        transaction: tx,
+      }),
       getEntityId: () => invoiceId,
     });
     const approved = replayed ? { ...result, replayed } : result;

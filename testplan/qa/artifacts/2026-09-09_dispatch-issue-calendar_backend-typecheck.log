@@ -1,0 +1,3 @@
+src/tests/dispatch-fulfillment.test.ts(1912,46): error TS2339: Property 'id' does not exist on type '{ externalCarrierId: number | null; }'.
+src/tests/dispatch-fulfillment.test.ts(1967,40): error TS2339: Property 'id' does not exist on type '{ externalCarrierId: number | null; }'.
+exit: 1

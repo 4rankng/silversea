@@ -10,6 +10,10 @@ import { IDEMPOTENCY_ENDPOINTS, runIdempotent, hashPayload } from './idempotency
 import type { Tx } from './trip-shared';
 import { assertCanMakeGovernanceAction } from './governance-policy';
 import {
+  buildGovernanceAction,
+  type GovernanceActionRow,
+} from './governance-action-core.service';
+import {
   insertTreasuryMovement,
   appendTreasuryReversal,
   resolveTreasuryPaymentContract,
@@ -61,8 +65,6 @@ export interface PaymentRefundRequest {
   makerId: number;
   makerRole: string;
 }
-
-type GovernanceActionRow = typeof s.governanceActions.$inferSelect;
 
 function toPublicPaymentReceiptResult(result: PersistedPaymentReceiptResult): PaymentReceiptResult {
   return {
@@ -353,18 +355,23 @@ async function getTripReceivableState(
     ));
 
   const documentIds = [...new Set(documentRows.map((row) => row.documentId))];
+  // 2026-09-11 (governance_actions dropped): debit-note adjustments persist as
+  // CUSTOMER ADJUSTMENT ledger rows stamped `GBN-ADJ:` by the apply adapter, so
+  // document outstanding is now reconciled from the ledger itself.
   const documentAdjustmentRows = documentIds.length > 0
     ? await tx.select({
-      documentId: s.governanceActions.subjectId,
-      deltaSnapshot: s.governanceActions.deltaSnapshot,
+      documentId: s.ledger.txnId,
+      delta: sql<string>`coalesce(sum(${s.ledger.debit}), 0) - coalesce(sum(${s.ledger.credit}), 0)`,
     })
-      .from(s.governanceActions)
+      .from(s.ledger)
       .where(and(
-        eq(s.governanceActions.subjectType, 'BILLING_DOCUMENT'),
-        eq(s.governanceActions.actionKind, 'DEBIT_NOTE_ADJUSTMENT'),
-        inArray(s.governanceActions.subjectId, documentIds),
-        inArray(s.governanceActions.status, ['APPROVED', 'APPLIED']),
+        eq(s.ledger.entityType, 'CUSTOMER'),
+        eq(s.ledger.entityId, customerId),
+        eq(s.ledger.txnType, TxnType.ADJUSTMENT),
+        inArray(s.ledger.txnId, documentIds),
+        sql`${s.ledger.receiptId} like 'GBN-ADJ:%'`,
       ))
+      .groupBy(s.ledger.txnId)
     : [];
   const documentPayments = documentIds.length > 0
     ? await tx.select({
@@ -411,10 +418,9 @@ async function getTripReceivableState(
   }
   for (const row of documentAdjustmentRows) {
     if (row.documentId == null) continue;
-    const delta = Number((row.deltaSnapshot as Record<string, unknown> | null)?.adjustmentAmount ?? 0);
     documentOutstandingById.set(
       row.documentId,
-      (documentOutstandingById.get(row.documentId) ?? 0) + delta,
+      (documentOutstandingById.get(row.documentId) ?? 0) + Number(row.delta),
     );
   }
   for (const row of documentPayments) {
@@ -840,7 +846,7 @@ export async function requestPaymentReceiptGovernance(input: {
     const currentBalance = await LedgerService.getBalanceTx(tx, 'CUSTOMER', normalized.customerId);
     const currentVersion = await getLatestCustomerLedgerVersionTx(tx, normalized.customerId);
 
-    const [action] = await tx.insert(s.governanceActions).values({
+    return buildGovernanceAction({
       subjectType: 'PAYMENT_RECEIPT',
       subjectId: null,
       subjectKey: buildPaymentReceiptSubjectKey(normalized),
@@ -872,8 +878,7 @@ export async function requestPaymentReceiptGovernance(input: {
       makerRole: input.makerRole,
       createdAt: requestedAt,
       updatedAt: requestedAt,
-    }).returning();
-    return action;
+    });
   };
 
   return runInTx(input.transaction, execute);
@@ -948,7 +953,6 @@ export async function applyPaymentReceiptGovernanceAction(
       paymentReceiptId: persisted.id,
       sourceVersion: persisted.version,
       externalReference: receiptId,
-      governanceActionId: action.id,
       createdBy: action.makerId,
     });
     treasuryMovementId = movement.id;
@@ -964,11 +968,6 @@ export async function applyPaymentReceiptGovernanceAction(
     ))
     .orderBy(asc(s.ledger.id))
     .limit(1);
-
-  await tx.update(s.governanceActions).set({
-    subjectId: persisted.id,
-    updatedAt: new Date(),
-  }).where(eq(s.governanceActions.id, action.id));
 
   return {
     ledgerEntryId: firstLedgerRow?.id ?? null,
@@ -1000,6 +999,15 @@ export async function requestPaymentRefundGovernance(
   }
 
   const execute = async (tx: Tx) => {
+    // 2026-09-11 (governance_actions dropped): the parked-request unique index
+    // is gone, so refund flows serialize on a per-receipt advisory lock — a
+    // concurrent refund re-reads fresh unappliedAmount/version instead of
+    // passing on a stale snapshot. Double-refund protection itself is the
+    // apply-time receipt version CAS in applyPaymentRefundGovernanceAction.
+    await tx.execute(
+      sql`select pg_advisory_xact_lock(hashtextextended(${`payment-refund${paymentReceiptId}`}, 0))`,
+    );
+
     const [receipt] = await tx.select().from(s.paymentReceipts)
       .where(eq(s.paymentReceipts.id, paymentReceiptId))
       .limit(1)
@@ -1022,7 +1030,7 @@ export async function requestPaymentRefundGovernance(
       throw new ApiError(409, 'Phiếu thu chưa có giao dịch kho quỹ gốc để hoàn tiền');
     }
 
-    const [action] = await tx.insert(s.governanceActions).values({
+    return buildGovernanceAction({
       subjectType: 'PAYMENT_REFUND',
       subjectId: receipt.id,
       subjectKey: `payment-receipt:${receipt.id}:refund:v${receipt.version}`,
@@ -1057,8 +1065,7 @@ export async function requestPaymentRefundGovernance(
       },
       makerId: input.makerId,
       makerRole: input.makerRole,
-    }).returning();
-    return action;
+    });
   };
 
   return runInTx(input.transaction, execute);
@@ -1111,7 +1118,6 @@ export async function applyPaymentRefundGovernanceAction(
 
   const [refund] = await tx.insert(s.paymentRefunds).values({
     paymentReceiptId: receipt.id,
-    governanceActionId: action.id,
     amount: String(amount),
     reason,
     createdBy: action.makerId,
@@ -1142,7 +1148,6 @@ export async function applyPaymentRefundGovernanceAction(
       valueDate: new Date().toISOString().slice(0, 10),
       sourceVersion: updatedReceipt.version,
       physicalReference: `REFUND:${receipt.id}:V${updatedReceipt.version}`,
-      governanceActionId: action.id,
       createdBy: action.makerId,
       ledgerEntryId: ledgerEntry.id,
     });

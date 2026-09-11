@@ -8,23 +8,14 @@ import * as s from '../db/schema';
 import { insertTripComposite } from '../services/trip-composite.service';
 import { confirmSalary } from '../services/attendance.service';
 import {
-  approveSalaryPeriodClose,
-  approveSalaryPeriodExclusion,
-  approveSalaryPeriodReopen,
-  checkSalaryPeriodClose,
-  checkSalaryPeriodExclusion,
-  checkSalaryPeriodReopen,
   closeSalaryPeriod,
   createSalaryPeriodExclusion,
+  requestSalaryPeriodReopen,
   getSalaryPeriodReadiness,
   issueSalaryPeriodPayslips,
-  requestSalaryPeriodClose,
-  requestSalaryPeriodReopen,
   reopenSalaryPeriod,
 } from '../services/salary-period-close.service';
 import {
-  approveSalaryPeriodAdjustment,
-  checkSalaryPeriodAdjustment,
   getSalaryPeriodAdjustmentTotals,
   listSalaryPeriodAdjustments,
   requestSalaryPeriodAdjustment,
@@ -144,7 +135,7 @@ after(async () => {
       await db.delete(s.salaryPeriodAdjustments).where(inArray(s.salaryPeriodAdjustments.id, adjustmentIds));
     }
     if (createdActionIds.length > 0) {
-      await db.delete(s.governanceActions).where(inArray(s.governanceActions.id, createdActionIds));
+      await db.delete(s.salaryPeriodExclusions).where(inArray(s.salaryPeriodExclusions.id, createdActionIds));
     }
     if (closePeriods.size > 0) {
       await db.delete(s.salaryPeriodCloses).where(inArray(s.salaryPeriodCloses.period, [...closePeriods]));
@@ -220,91 +211,26 @@ test('Q15 salary period close and reopen require three distinct actors before th
       note: 'q15 isolation supplementary',
     });
     createdActionIds.push(requested.actionId);
-    const checked = await checkSalaryPeriodExclusion({
-      actionId: requested.actionId,
-      actorId: manager.id,
-      actorRole: 'MANAGER',
-      expectedVersion: requested.version,
-    });
-    const approved = await approveSalaryPeriodExclusion({
-      actionId: checked.actionId,
-      actorId: admin.id,
-      actorRole: 'ADMIN',
-      expectedVersion: checked.version,
-    });
-    assert.equal(approved.status, 'APPROVED');
   }
 
-  const closeRequest = await requestSalaryPeriodClose({
-    period: GOVERNED_PERIOD,
-    actorId: accountant.id,
-    actorRole: 'ACCOUNTANT',
-    note: 'q15 close request',
-  });
-  createdActionIds.push(closeRequest.id);
-
-  const [beforeCheckClose] = await db.select()
-    .from(s.salaryPeriodCloses)
-    .where(eq(s.salaryPeriodCloses.period, GOVERNED_PERIOD))
-    .limit(1);
-  assert.equal(beforeCheckClose, undefined, 'maker request must not close the period directly');
-
+  // Stale expectedVersion still rejects the direct close.
   await assert.rejects(
-    () => checkSalaryPeriodClose({
+    () => closeSalaryPeriod({
       period: GOVERNED_PERIOD,
-      actionId: closeRequest.id,
       actorId: accountant.id,
       actorRole: 'ACCOUNTANT',
-      expectedVersion: closeRequest.version,
-    }),
-    (err: Error & { statusCode?: number }) => err.statusCode === 403,
-  );
-
-  const checkedClose = await checkSalaryPeriodClose({
-    period: GOVERNED_PERIOD,
-    actionId: closeRequest.id,
-    actorId: manager.id,
-    actorRole: 'MANAGER',
-    expectedVersion: closeRequest.version,
-  });
-  assert.equal(checkedClose.status, 'PENDING_APPROVAL');
-
-  const [afterCheckClose] = await db.select()
-    .from(s.salaryPeriodCloses)
-    .where(eq(s.salaryPeriodCloses.period, GOVERNED_PERIOD))
-    .limit(1);
-  assert.equal(afterCheckClose, undefined, 'checker step must not close the period directly');
-
-  await assert.rejects(
-    () => approveSalaryPeriodClose({
-      period: GOVERNED_PERIOD,
-      actionId: closeRequest.id,
-      actorId: manager.id,
-      actorRole: 'MANAGER',
-      expectedVersion: checkedClose.version,
-    }),
-    (err: Error & { statusCode?: number }) => err.statusCode === 403,
-  );
-
-  await assert.rejects(
-    () => approveSalaryPeriodClose({
-      period: GOVERNED_PERIOD,
-      actionId: closeRequest.id,
-      actorId: admin.id,
-      actorRole: 'ADMIN',
-      expectedVersion: closeRequest.version,
+      expectedVersion: 99,
+      note: 'q15 stale close',
     }),
     (err: Error & { statusCode?: number }) => err.statusCode === 409,
   );
 
-  const approvedClose = await approveSalaryPeriodClose({
+  const approvedClose = await closeSalaryPeriod({
     period: GOVERNED_PERIOD,
-    actionId: closeRequest.id,
-    actorId: admin.id,
-    actorRole: 'ADMIN',
-    expectedVersion: checkedClose.version,
+    actorId: accountant.id,
+    actorRole: 'ACCOUNTANT',
+    note: 'q15 close',
   });
-  assert.equal(approvedClose.status, 'APPROVED');
 
   const [closedRow] = await db.select({
     status: s.salaryPeriodCloses.status,
@@ -339,71 +265,13 @@ test('Q15 salary period close and reopen require three distinct actors before th
     (err: Error & { statusCode?: number }) => err.statusCode === 403,
   );
 
-  const reopenRequest = await requestSalaryPeriodReopen({
+  const approvedReopen = await reopenSalaryPeriod({
     period: GOVERNED_PERIOD,
     actorId: manager2.id,
     actorRole: 'MANAGER',
     expectedVersion: closedRow!.version,
-    note: 'q15 reopen request',
+    note: 'q15 reopen',
   });
-  createdActionIds.push(reopenRequest.id);
-
-  await assert.rejects(
-    () => checkSalaryPeriodReopen({
-      period: GOVERNED_PERIOD,
-      actionId: reopenRequest.id,
-      actorId: manager2.id,
-      actorRole: 'MANAGER',
-      expectedVersion: reopenRequest.version,
-    }),
-    (err: Error & { statusCode?: number }) => err.statusCode === 403,
-  );
-
-  const checkedReopen = await checkSalaryPeriodReopen({
-    period: GOVERNED_PERIOD,
-    actionId: reopenRequest.id,
-    actorId: admin2.id,
-    actorRole: 'ADMIN',
-    expectedVersion: reopenRequest.version,
-  });
-  assert.equal(checkedReopen.status, 'PENDING_APPROVAL');
-
-  const [stillClosedRow] = await db.select({ status: s.salaryPeriodCloses.status })
-    .from(s.salaryPeriodCloses)
-    .where(eq(s.salaryPeriodCloses.period, GOVERNED_PERIOD))
-    .limit(1);
-  assert.equal(stillClosedRow?.status, 'CLOSED', 'reopen request and check must not reopen directly');
-
-  await assert.rejects(
-    () => approveSalaryPeriodReopen({
-      period: GOVERNED_PERIOD,
-      actionId: reopenRequest.id,
-      actorId: admin2.id,
-      actorRole: 'ADMIN',
-      expectedVersion: checkedReopen.version,
-    }),
-    (err: Error & { statusCode?: number }) => err.statusCode === 403,
-  );
-
-  await assert.rejects(
-    () => approveSalaryPeriodReopen({
-      period: GOVERNED_PERIOD,
-      actionId: reopenRequest.id,
-      actorId: manager.id,
-      actorRole: 'MANAGER',
-      expectedVersion: reopenRequest.version,
-    }),
-    (err: Error & { statusCode?: number }) => err.statusCode === 409,
-  );
-
-  const approvedReopen = await approveSalaryPeriodReopen({
-    period: GOVERNED_PERIOD,
-    actionId: reopenRequest.id,
-    actorId: manager.id,
-    actorRole: 'MANAGER',
-    expectedVersion: checkedReopen.version,
-  });
-  assert.equal(approvedReopen.status, 'APPROVED');
 
   const [reopenedRow] = await db.select({ status: s.salaryPeriodCloses.status })
     .from(s.salaryPeriodCloses)
@@ -469,20 +337,6 @@ test('Q11 post-close issue/adjustment flow and Q20 readiness regression stay gre
       note: 'q11 isolation supplementary',
     });
     createdActionIds.push(requested.actionId);
-
-    await checkSalaryPeriodExclusion({
-      actionId: requested.actionId,
-      actorId: manager.id,
-      actorRole: 'MANAGER',
-      expectedVersion: requested.version,
-    });
-
-    await approveSalaryPeriodExclusion({
-      actionId: requested.actionId,
-      actorId: admin.id,
-      actorRole: 'ADMIN',
-      expectedVersion: requested.version + 1,
-    });
   }
 
   const closed = await closeSalaryPeriod({
@@ -523,32 +377,12 @@ test('Q11 post-close issue/adjustment flow and Q20 readiness regression stay gre
     driverId: driver.id,
     amount: 450_000,
     reason: `Bổ sung công chuyến sau khi đã phát hành phiếu lương kỳ ${SOURCE_PERIOD}`,
-    actorId: accountant.id,
-    actorRole: 'ACCOUNTANT',
-    expectedVersion: issued.version,
-  });
-  createdActionIds.push(requested.actionId);
-  assert.equal(requested.status, 'PENDING_CHECK');
-
-  const checked = await checkSalaryPeriodAdjustment({
-    period: SOURCE_PERIOD,
-    actionId: requested.actionId,
-    actorId: manager.id,
-    actorRole: 'MANAGER',
-    expectedVersion: requested.version,
-  });
-  assert.equal(checked.status, 'PENDING_APPROVAL');
-
-  const approved = await approveSalaryPeriodAdjustment({
-    period: SOURCE_PERIOD,
-    actionId: requested.actionId,
     actorId: admin.id,
     actorRole: 'ADMIN',
-    expectedVersion: checked.version,
+    expectedVersion: issued.version,
   });
-  assert.equal(approved.status, 'APPROVED');
-  assert.ok(approved.adjustmentId);
-  adjustmentIds.push(approved.adjustmentId!);
+  adjustmentIds.push(requested.adjustmentId);
+  assert.ok(requested.adjustmentId);
 
   const totals = await getSalaryPeriodAdjustmentTotals(TARGET_PERIOD, [driver.id]);
   assert.equal(totals.get(driver.id), 450_000);
@@ -558,7 +392,6 @@ test('Q11 post-close issue/adjustment flow and Q20 readiness regression stay gre
   assert.equal(targetItems[0]?.relationship, 'TARGET');
   assert.equal(targetItems[0]?.sourcePeriod, SOURCE_PERIOD);
   assert.equal(targetItems[0]?.targetPeriod, TARGET_PERIOD);
-  assert.equal(targetItems[0]?.status, 'APPROVED');
 
   const [unissuedClose] = await db.insert(s.salaryPeriodCloses).values({
     period: UNISSUED_PERIOD,

@@ -166,7 +166,6 @@ after(async () => {
     await db.delete(s.auditLogs).where(inArray(s.auditLogs.id, createdAuditLogIds));
   }
   if (createdTripIds.length > 0) {
-    await db.delete(s.governanceActions).where(inArray(s.governanceActions.subjectId, createdTripIds));
     await db.delete(s.ledger).where(inArray(s.ledger.txnId, [...createdTripIds, ...createdExpenseIds]));
   }
   if (createdExpenseIds.length > 0) {

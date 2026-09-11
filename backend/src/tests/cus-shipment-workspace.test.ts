@@ -24,7 +24,7 @@ import type { AuthUser } from '../middleware/auth';
 import { getCusShipmentWorkspaceDetail, listCusShipmentContainers, listCusShipmentWorkspace, updateCusShipmentContainerLine } from '../services/cus-shipment-workspace.service';
 import { ApiError } from '../errors';
 import { createShipment, updateShipment } from '../services/shipment.service';
-import { requestContainerEdit, requestShipmentDelete } from '../services/shipment-governance.service';
+import { requestShipmentDelete } from '../services/shipment-governance.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -571,8 +571,7 @@ describe('CUS shipment workspace projection — inline edit authority', () => {
     assert.equal(item.raw.closingAt, '2026-08-20T01:00:00.000Z');
     assert.equal(item.fieldAccess.closingAt.mode, 'DIRECT');
     assert.equal(item.fieldAccess.customerNotes.mode, 'DIRECT');
-    assert.equal(item.fieldAccess.factoryName.mode, 'REQUEST');
-    assert.match(item.fieldAccess.factoryName.reason, /Điều vận/i);
+    assert.equal(item.fieldAccess.factoryName.mode, 'DIRECT');
   });
 });
 
@@ -590,9 +589,7 @@ test('workspace detail returns safe route selectors for the route authority', as
 describe('CUS container-flat projection', () => {
   test('flattens every container of every shipment with shipment context and operational fields', async () => {
     // Future-dated on purpose: this test asserts plain field projection, not
-    // the CUS container-edit run-date cutoff — a past appointment would flip
-    // fieldAccess.containerNumber.mode to REQUEST and fail unrelated to this
-    // test's intent.
+    // run-date behavior.
     const appointmentA = new Date('2099-08-20T08:00:00Z');
     const shipmentA = await seedShipment({ blNumber: `FLATA${suffix}`, expectedDeliveryDate: '2026-08-21' });
     const shipmentB = await seedShipment({ bookingRef: `FLATB${suffix}` });
@@ -663,7 +660,7 @@ describe('CUS container-flat projection', () => {
     );
   });
 
-  test('past-run-date container fields switch CUS from DIRECT to REQUEST, not READ_ONLY', async () => {
+  test('past-run-date container fields stay DIRECT for CUS (approval flow removed 2026-09-10)', async () => {
     const shipment = await seedShipment({ blNumber: `CUTOFF${suffix}` });
     const pastAppointment = new Date('2020-01-01T08:00:00Z');
     const futureAppointment = new Date('2099-01-01T08:00:00Z');
@@ -677,7 +674,7 @@ describe('CUS container-flat projection', () => {
     assert.ok(future);
 
     for (const key of ['containerNumber', 'routeId', 'liftSiteId', 'dropoffSiteId'] as const) {
-      assert.equal(past.fieldAccess[key].mode, 'REQUEST', `past.fieldAccess.${key}`);
+      assert.equal(past.fieldAccess[key].mode, 'DIRECT', `past.fieldAccess.${key}`);
     }
     for (const key of ['containerNumber', 'routeId', 'liftSiteId', 'dropoffSiteId'] as const) {
       assert.equal(future.fieldAccess[key].mode, 'DIRECT', `future.fieldAccess.${key}`);
@@ -894,48 +891,6 @@ describe('CUS container-flat projection', () => {
       actor: cusActor,
     });
     assert.ok(decision, 'cross-unit delete request now succeeds without clerk scope');
-  });
-
-  test('allows a CUS container-edit-request against a shipment in another business unit', async () => {
-    const [outsideUnit] = await db.insert(s.businessUnits).values({
-      name: `CusWs outside-edit unit ${suffix}`,
-      status: 'ACTIVE',
-    }).returning();
-    createdBusinessUnitIds.push(outsideUnit.id);
-    const hiddenShipment = await seedShipment({
-      responsibleUnitId: outsideUnit.id,
-      blNumber: `HIDDENEDIT${suffix}`,
-    });
-    const hiddenContainer = await seedContainer(hiddenShipment.id, {
-      containerNumber: `HIDEDIT${suffix}`.slice(0, 50),
-    });
-
-    const proposed = 'MSKU7654321';
-    const edit = await requestContainerEdit({
-      shipmentId: hiddenShipment.id,
-      containerId: hiddenContainer.id,
-      fields: { containerNumber: proposed },
-      reason: 'Container edit request without unit assignment',
-      actor: cusActor,
-    });
-    assert.ok(edit, 'cross-unit container-edit request now succeeds without clerk scope');
-  });
-
-  test('rejects a container-edit-request whose container does not belong to the claimed shipment', async () => {
-    const shipmentA = await seedShipment({ blNumber: `XSHIP-A${suffix}` });
-    const shipmentB = await seedShipment({ blNumber: `XSHIP-B${suffix}` });
-    const containerOnB = await seedContainer(shipmentB.id, { containerNumber: `XSHIP-C${suffix}`.slice(0, 50) });
-
-    await assert.rejects(
-      requestContainerEdit({
-        shipmentId: shipmentA.id,
-        containerId: containerOnB.id,
-        fields: { containerNumber: `DENIED${suffix}`.slice(0, 50) },
-        reason: 'Cross-shipment guard',
-        actor: cusActor,
-      }),
-      (error: unknown) => error instanceof ApiError && error.statusCode === 404,
-    );
   });
 });
 

@@ -222,7 +222,7 @@ registerGovernedCustomResource({
     const currentGoverned = await getGovernedFinancialPolicyState(tx);
     assertGovernedFinancialPolicyUnchanged(
       before.fingerprint,
-      action.originalVersion,
+      action.originalVersion ?? 0,
       currentGoverned,
     );
     const current = await getAppSettingsFrom(tx);

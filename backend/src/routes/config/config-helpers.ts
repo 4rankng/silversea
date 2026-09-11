@@ -537,7 +537,7 @@ registerGovernedCustomResource({
     assertGovernedSnapshotUnchanged(
       GOVERNED_SINGLETON_RESOURCES.roadConfig,
       before.fingerprint,
-      action.originalVersion,
+      action.originalVersion!,
       existing ?? null,
       existing?.updatedAt ?? null,
     );
@@ -574,7 +574,7 @@ registerGovernedCustomResource({
     assertGovernedSnapshotUnchanged(
       GOVERNED_SINGLETON_RESOURCES.fuelConfig,
       before.fingerprint,
-      action.originalVersion,
+      action.originalVersion!,
       existing ?? null,
       currentUpdatedAt ? new Date(currentUpdatedAt) : null,
     );
@@ -614,7 +614,7 @@ registerGovernedCustomResource({
     assertGovernedSnapshotUnchanged(
       GOVERNED_SINGLETON_RESOURCES.companyInfo,
       before.fingerprint,
-      action.originalVersion,
+      action.originalVersion ?? 0,
       current,
       current?.updatedAt ?? null,
     );
@@ -654,7 +654,7 @@ registerGovernedCustomResource({
     assertGovernedSnapshotUnchanged(
       GOVERNED_SINGLETON_RESOURCES.salaryDefault,
       before.fingerprint,
-      action.originalVersion,
+      action.originalVersion ?? 0,
       current,
       current?.updatedAt ?? null,
     );
@@ -690,7 +690,7 @@ registerGovernedCustomResource({
       assertGovernedSnapshotUnchanged(
         GOVERNED_SINGLETON_RESOURCES.salaryOverride,
         before.fingerprint,
-        action.originalVersion,
+        action.originalVersion ?? 0,
         current ?? null,
         current?.updatedAt ?? null,
       );
@@ -729,7 +729,7 @@ registerGovernedCustomResource({
     assertGovernedSnapshotUnchanged(
       GOVERNED_SINGLETON_RESOURCES.salaryOverride,
       before.fingerprint,
-      action.originalVersion,
+      action.originalVersion ?? 0,
       current,
       current.updatedAt,
     );

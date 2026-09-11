@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { autoApplyGovernanceAction } from '../../services/adjustment-governance.service';
 import type { Request, Response } from 'express';
 import {
   Role,
@@ -116,11 +117,19 @@ router.post('/finance/billing-documents/:id/adjustments', requireRoles(...ROLES)
     payload: { actorId: actor.userId, actorRole: actor.role, documentId, ...input },
     createdBy: actor.userId,
     entityType: 'governance_action',
-    create: () => requestBillingDocumentAdjustment({
-      documentId,
-      reason: input.reason,
-      makerId: actor.userId,
-      makerRole: actor.role,
+    // 2026-09-11 (maker-checker removal): the source-diff adjustment applies
+    // directly in-request via the transient governed action.
+    create: (tx) => autoApplyGovernanceAction({
+      make: (tx) => requestBillingDocumentAdjustment({
+        documentId,
+        reason: input.reason,
+        makerId: actor.userId,
+        makerRole: actor.role,
+        transaction: tx,
+      }),
+      actorId: actor.userId,
+      actorRole: actor.role,
+      transaction: tx,
     }),
   });
   res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
@@ -137,12 +146,18 @@ router.post('/finance/billing-documents/:id/issue', requireRoles(...ROLES), asyn
     payload: { actorId: actor.userId, actorRole: actor.role, documentId, ...input },
     createdBy: actor.userId,
     entityType: 'governance_action',
-    create: () => requestBillingDocumentIssue({
-      documentId,
-      expectedVersion: input.expectedVersion,
-      reason: input.reason,
-      makerId: actor.userId,
-      makerRole: actor.role,
+    create: (tx) => autoApplyGovernanceAction({
+      make: (tx) => requestBillingDocumentIssue({
+        documentId,
+        expectedVersion: input.expectedVersion,
+        reason: input.reason,
+        makerId: actor.userId,
+        makerRole: actor.role,
+        transaction: tx,
+      }),
+      actorId: actor.userId,
+      actorRole: actor.role,
+      transaction: tx,
     }),
   });
   res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);

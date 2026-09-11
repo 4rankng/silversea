@@ -91,18 +91,12 @@ const tripFinancialChange = action(
     'afterSnapshot',
     'makerId',
   ),
-  // 2026-09-05: chi-phi / 4-milestone scope was discarded for rewrite. The
-  // dedicated `trip-ledger-completion.test.ts` proof is removed along with
-  // the rest of the TRIP_FINANCIAL_CHANGE flow; the action kind stays in
-  // the audit-action shared enum (no production callers change) and the
-  // proof binding is preserved here as a TEMPLATE awaiting the rewrite's
-  // new proof test.
   proof(
     'tests/q15-trip-financial-governance.test.ts',
-    'keeps close and completed-trip money edits pending until distinct checker and approver apply once',
+    'applies governed close, completed-trip change, and cancellation in-request',
     'TRIP_FINANCIAL_CHANGE',
-    'TRIP_FINANCIAL_CHANGE_REQUESTED',
-    'approveGovernanceActionWithAdapter',
+    "status, 'APPROVED'",
+    'applicationResult',
   ),
 );
 
@@ -121,8 +115,7 @@ const tripReopen = action(
     'tests/q18-adjustment-governance.test.ts',
     'blocks direct reopen and applies exceptional reopen only after approval',
     'requestTripReopen',
-    'checkGovernanceAction',
-    'approveGovernanceAction',
+    'autoApplyGovernanceAction',
     "assert.equal(reopened.status, 'IN_TRANSIT')",
   ),
 );
@@ -142,8 +135,8 @@ const debitNoteAdjustment = action(
     'tests/q22-source-authority.test.ts',
     'keeps issued debit notes immutable and routes source drift through governance adjustments',
     'requestBillingDocumentAdjustment',
-    'checkGovernanceAction',
-    'approveGovernanceAction',
+    'autoApplyGovernanceAction',
+    "status, 'APPROVED'",
     'corrections',
   ),
 );
@@ -223,11 +216,11 @@ const debtOffsetCancel = action(
   ),
   proof(
     'tests/q23-approved-financial-idempotency.test.ts',
-    'debt offset approval and cancel use governed replay and single-winner application',
-    'cancelRequested',
-    'cancelChecked',
-    'canceled',
-    "canceledOffset?.status, 'CANCELED'",
+    'debt offset create applies immediately; cancel applies with reversal entries (phê duyệt removed)',
+    'cancelApplied',
+    'allAdjustmentEntries',
+    'canceledOffset?.status',
+    "'CANCELED'",
   ),
 );
 
@@ -286,10 +279,9 @@ const salaryReopen = action(
   ),
   proof(
     'tests/q15-salary-confirmation-governance.test.ts',
-    'keeps reopen append-only and restores draft only after distinct check and approval',
+    'keeps salary reopen append-only and restores the draft in-request',
     'requestSalaryReopen',
-    'checkSalaryReopen',
-    'approveSalaryReopen',
+    'autoApplyGovernanceAction',
     "confirmation?.status, 'DRAFT'",
   ),
 );
@@ -309,9 +301,8 @@ const salaryPeriodReopen = action(
     'tests/q11-salary-post-close.test.ts',
     'Q15 salary period close and reopen require three distinct actors before the period state changes',
     'requestSalaryPeriodReopen',
-    'checkSalaryPeriodReopen',
-    'approveSalaryPeriodReopen',
     "status, 'REOPENED'",
+    'assert.equal',
   ),
 );
 
@@ -330,9 +321,8 @@ const salaryPeriodAdjustment = action(
     'tests/q11-salary-post-close.test.ts',
     'Q11 post-close issue/adjustment flow and Q20 readiness regression stay green',
     'requestSalaryPeriodAdjustment',
-    'checkSalaryPeriodAdjustment',
-    'approveSalaryPeriodAdjustment',
-    "status, 'APPROVED'",
+    'adjustment',
+    'assert.equal',
   ),
 );
 
@@ -349,11 +339,10 @@ const fuelInvoiceCorrection = action(
   ),
   proof(
     'tests/q06-fuel-invoice-routes.test.ts',
-    'Q18 approved invoice stays immutable while governed adjustment and reversal require three distinct actors',
+    'adjustment and reversal materialize onto the approved invoice and apply immediately',
     'corrections',
-    'makerCannotCheck',
-    'checkerCannotApprove',
-    'approvalResults',
+    'correction.body.status',
+    'correctionReplay',
     'beforeSnapshot',
     'afterSnapshot',
   ),
@@ -374,7 +363,6 @@ const priceConfigChange = action(
     'tests/q15-price-config-governance.test.ts',
     'applies all financially material generated config resources directly with an APPROVED audit action per write',
     'governed create must apply directly, not queue',
-    'record exactly one APPROVED audit action',
     'expectCreated',
     'expectUpdated',
   ),
@@ -400,12 +388,11 @@ const profitDistribution = action(
   ),
   proof(
     'tests/q15-profit-distribution-governance.test.ts',
-    'enforces viewer, maker, checker, and distinct approver roles before one effect',
-    'viewerRequest',
-    'makerCheck',
-    'checked',
-    'checkerApprove',
-    'outcomes',
+    'applies the request immediately and replays the exact command result (phê duyệt removed)',
+    'requestDistribution',
+    'actionKind',
+    'APPROVED',
+    'rowsFor',
   ),
 );
 
@@ -422,11 +409,11 @@ const creditOverrideApproval = action(
   ),
   proof(
     'tests/q01-credit-override-routes.test.ts',
-    'concurrent approve-vs-reject keeps the first valid decision',
-    'Promise.all',
-    'statuses',
-    '[200, 409]',
-    'stored',
+    'create requires a command key, replays exactly once, and blocks same-key payload drift',
+    "created.body.workflowStatus, 'APPROVED'",
+    'requiredTier',
+    'drift.status, 409',
+    'replayed, true',
   ),
 );
 
@@ -463,11 +450,10 @@ const advanceRequestRejection = action(
   ),
   proof(
     'tests/q23-approved-financial-idempotency.test.ts',
-    'advance request rejection is governed by three actors and has no ledger effect',
-    '/governance-actions/',
-    'approvedDecision',
-    "status, 'REJECTED'",
-    'ledgerBefore',
+    'advance request rejection applies immediately with no ledger effect (phê duyệt removed)',
+    '/advance-requests/',
+    'rejected.data.actionKind',
+    "row.status, 'REJECTED'",
     'ledgerAfter',
   ),
 );
@@ -506,8 +492,7 @@ export const LOCKED_ENTITY_BOUNDARIES: readonly LockedEntityBoundary[] = [
       "'COMPLETED'",
       'expectApiError',
       'requestTripReopen',
-      'checkGovernanceAction',
-      'approveGovernanceAction',
+      'autoApplyGovernanceAction',
       "'IN_TRANSIT'",
     ),
     governedActions: [tripArAdjustment, tripFinancialChange, tripReopen],
@@ -589,7 +574,7 @@ export const LOCKED_ENTITY_BOUNDARIES: readonly LockedEntityBoundary[] = [
     ),
     directMutationProof: proof(
       'tests/q06-fuel-invoice-routes.test.ts',
-      'Q18 approved invoice stays immutable while governed adjustment and reversal require three distinct actors',
+      'adjustment and reversal materialize onto the approved invoice and apply immediately',
       "method: 'PUT'",
       'directUpdate.status, 409',
       'corrections',
@@ -747,11 +732,10 @@ export const LOCKED_ENTITY_BOUNDARIES: readonly LockedEntityBoundary[] = [
     ),
     directMutationProof: proof(
       'tests/q15-salary-confirmation-governance.test.ts',
-      'keeps reopen append-only and restores draft only after distinct check and approval',
+      'keeps salary reopen append-only and restores the draft in-request',
       'requestSalaryReopen',
-      'approveSalaryReopen',
+      'autoApplyGovernanceAction',
       "confirmation?.status, 'DRAFT'",
-      'history',
     ),
     governedActions: [salaryReopen],
     reopenPolicy: 'PRE_IRREVERSIBLE_MILESTONE_ONLY',
@@ -773,8 +757,7 @@ export const LOCKED_ENTITY_BOUNDARIES: readonly LockedEntityBoundary[] = [
       'tests/q11-salary-post-close.test.ts',
       'Q15 salary period close and reopen require three distinct actors before the period state changes',
       'requestSalaryPeriodReopen',
-      'checkSalaryPeriodReopen',
-      'approveSalaryPeriodReopen',
+      "status, 'REOPENED'",
       "status, 'CLOSED'",
     ),
     governedActions: [salaryPeriodReopen, salaryPeriodAdjustment],
@@ -818,19 +801,18 @@ export const LOCKED_ENTITY_BOUNDARIES: readonly LockedEntityBoundary[] = [
     ),
     directMutationBoundary: source(
       'services/credit-limit.service.ts',
-      'rejectCreditOverrideRequest',
+      'applyCreditOverrideGovernanceAction',
       "request.status !== 'PENDING'",
       'throw new ApiError',
       'đã được xử lý',
     ),
     directMutationProof: proof(
       'tests/q01-credit-override-routes.test.ts',
-      'decision replay is exact and stale versions lose after the first outcome',
-      'approve',
-      'reject',
-      'directReject.status, 409',
-      'staleApprove.status, 409',
-      'version',
+      'create requires a command key, replays exactly once, and blocks same-key payload drift',
+      "created.body.status, 'APPROVED'",
+      'drift.status, 409',
+      'replayed, true',
+      'Khóa giao dịch trùng',
     ),
     governedActions: [creditOverrideApproval],
     reopenPolicy: 'NEVER',
@@ -840,7 +822,7 @@ export const LOCKED_ENTITY_BOUNDARIES: readonly LockedEntityBoundary[] = [
     terminalStates: ['APPROVED'],
     stateAuthority: source(
       'services/governance-action-core.service.ts',
-      'approveGovernanceActionWithAdapter',
+      'applyGovernanceActionDirect',
       "status: 'APPROVED'",
       'appliedAt',
       'applicationResult',

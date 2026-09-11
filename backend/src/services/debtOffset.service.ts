@@ -9,7 +9,11 @@ import { transitionApproval } from './approval.service';
 import { PARTNER_DEFAULT_CURRENCY } from './legal-partner.service';
 import type { Tx } from './trip-shared';
 import { assertCanMakeGovernanceAction } from './governance-policy';
-import type { GovernanceApplyResult, GovernanceActionRow } from './governance-transition.service';
+import {
+  buildGovernanceAction,
+  type GovernanceActionRow,
+} from './governance-action-core.service';
+import type { GovernanceApplyResult } from './governance-transition.service';
 
 type DualEntityCandidate = {
   customerId: number;
@@ -467,7 +471,7 @@ export async function requestDebtOffsetApprovalGovernance(input: {
       throw new ApiError(409, 'Chỉ có thể trình duyệt đối trừ đang chờ xử lý');
     }
 
-    const [action] = await tx.insert(s.governanceActions).values({
+    return buildGovernanceAction({
       subjectType: 'DEBT_OFFSET',
       subjectId: offset.id,
       subjectKey: `debt-offset:${offset.id}:approve`,
@@ -495,8 +499,7 @@ export async function requestDebtOffsetApprovalGovernance(input: {
       },
       makerId: input.makerId,
       makerRole: input.makerRole,
-    }).returning();
-    return action;
+    });
   };
 
   return runInTx(input.transaction, execute);
@@ -530,7 +533,7 @@ export async function requestDebtOffsetCancelGovernance(input: {
       throw new ApiError(409, 'Chỉ có thể trình hủy đối trừ đã được duyệt');
     }
 
-    const [action] = await tx.insert(s.governanceActions).values({
+    return buildGovernanceAction({
       subjectType: 'DEBT_OFFSET',
       subjectId: offset.id,
       subjectKey: `debt-offset:${offset.id}:cancel`,
@@ -559,8 +562,7 @@ export async function requestDebtOffsetCancelGovernance(input: {
       },
       makerId: input.makerId,
       makerRole: input.makerRole,
-    }).returning();
-    return action;
+    });
   };
 
   return runInTx(input.transaction, execute);
@@ -582,7 +584,7 @@ export async function applyDebtOffsetGovernanceAction(
   if (!offset) {
     throw new ApiError(404, 'Không tìm thấy bản ghi đối trừ');
   }
-  assertDebtOffsetStatusVersion(offset.approvalStatus, action.originalVersion);
+  assertDebtOffsetStatusVersion(offset.approvalStatus, action.originalVersion!);
 
   if (action.actionKind === 'DEBT_OFFSET_APPROVAL') {
     const approved = await approveDebtOffset(

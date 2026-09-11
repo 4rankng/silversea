@@ -358,10 +358,9 @@
   .kpi__meta > strong { font-weight: 600; }
 
   /* ── Dashboard widget touch targets ── */
-  .wf-link { min-height: 30px; padding: 4px 0; }
-  .wf-minibtn { min-height: 30px; padding: 4px 10px; }
-  .wf-btn { min-height: 30px; }
-  .approval-queue__quick { min-width: 36px; min-height: 36px; padding: 6px; }
+  .wf-link { min-height: 44px; padding: 6px 0; }
+  .wf-minibtn { min-height: 44px; padding: 4px 10px; }
+  .wf-btn { min-height: 44px; }
 
   /* ── Status pills & pagination ── */
   .stab-pill { min-height: 30px; padding: 4px 10px; font-size: var(--fs-3xs); }

@@ -422,12 +422,14 @@ export const GOVERNANCE_POLICY_CATALOG: Readonly<
   SALARY_PERIOD_CLOSE: {
     actionKind: 'SALARY_PERIOD_CLOSE',
     subjectType: 'SALARY_PERIOD',
+    // 2026-09-10 (phê duyệt removed): the close applies at request with the
+    // requesting actor, so a single role must be able to run the whole
+    // chain — stage role lists are dropped and stages gate on capability
+    // only. MANAGER/ADMIN (PERIOD_CLOSE_APPROVE) close directly; an
+    // accountant who can make the request cannot self-apply it.
     makerCapability: 'GOVERNANCE_CREATE',
     checkerCapability: 'FINANCE_CHECK',
     approverCapability: 'PERIOD_CLOSE_APPROVE',
-    makerRoles: [Role.ACCOUNTANT],
-    checkerRoles: [Role.MANAGER, Role.ADMIN],
-    approverRoles: [Role.MANAGER, Role.ADMIN],
     requiresReason: true,
     requiresEvidence: false,
     evidenceFields: [],
@@ -496,10 +498,14 @@ export const GOVERNANCE_POLICY_CATALOG: Readonly<
   TRIP_FINANCIAL_CLOSE: {
     actionKind: 'TRIP_FINANCIAL_CLOSE',
     subjectType: 'TRIP',
+    // 2026-09-11 (maker-checker removal): like SALARY_PERIOD_CLOSE, one role
+    // must be able to run the whole chain in-request. MANAGER/ADMIN close
+    // directly; ACCOUNTANT/CUS can still make the request but cannot
+    // self-apply the director approval.
     makerCapability: 'TRIP_CLOSE_REQUEST',
     checkerCapability: 'FINANCE_CHECK',
     approverCapability: 'FINANCE_APPROVE_DIRECTOR',
-    makerRoles: [Role.ACCOUNTANT, Role.CUS],
+    makerRoles: [Role.ACCOUNTANT, Role.CUS, Role.MANAGER, Role.ADMIN],
     checkerRoles: [Role.ACCOUNTANT, Role.MANAGER, Role.ADMIN],
     approverRoles: [Role.MANAGER, Role.ADMIN],
     requiresReason: true,
@@ -642,9 +648,9 @@ export function assertCanCheckGovernanceAction(
   actor: GovernanceActor,
 ): void {
   assertCapability(action.actionKind, actor.actorRole, 'checker');
-  if (action.makerId === actor.actorId) {
-    throw new ApiError(403, 'Người tạo không được tự kiểm tra yêu cầu');
-  }
+  // 2026-09-10 user directive (remove all phê duyệt flows): maker-checker
+  // segregation is removed — a capable actor may check (and approve) their
+  // own request so governed actions can apply immediately.
 }
 
 export function assertCanApproveGovernanceAction(
@@ -652,16 +658,9 @@ export function assertCanApproveGovernanceAction(
   actor: GovernanceActor,
 ): void {
   assertCapability(action.actionKind, actor.actorRole, 'approver');
-  if (
-    action.actionKind === 'PRICE_CONFIG_CHANGE'
-    && actor.actorRole === Role.ADMIN
-    && action.makerId === actor.actorId
-  ) {
-    return;
-  }
-  if (action.makerId === actor.actorId || action.checkerId === actor.actorId) {
-    throw new ApiError(403, 'Người phê duyệt phải khác người tạo và người kiểm tra');
-  }
+  // 2026-09-10 user directive (remove all phê duyệt flows): maker/approver
+  // segregation is removed — any actor holding the approve capability may
+  // approve, including the maker.
 }
 
 export function canViewGovernanceAction(role: string): boolean {

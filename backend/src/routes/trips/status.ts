@@ -9,7 +9,7 @@ import { ApiError } from '../../errors';
 import { requireRoles } from '../../middleware/casbin';
 import { completeExternalCarrierTrip } from '../../services/trip-external-close.service';
 import { dispatchTripWriteCommand, transitionTripWriteCommand } from '../../services/trip-command.service';
-import { requestCompletedTripCancellation, requestTripFinancialClose } from '../../services/adjustment-governance.service';
+import { autoApplyGovernanceAction, requestCompletedTripCancellation, requestTripFinancialClose } from '../../services/adjustment-governance.service';
 
 import { AuditEvent } from '../../services/audit-types';
 import { asyncHandler } from '../../middleware/asyncHandler';
@@ -18,7 +18,7 @@ import { getUser } from '../../middleware/auth';
 import * as tripService from '../../services/trip.service';
 import { getTripStatusOr404 } from '../../services/trip-mutations.service';
 import { emitNotification } from '../../services/notification.service';
-import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency.service';
+import { findIdempotencyRecord, IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency.service';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import {
   getExpectedVersion, getRequiredGovernanceReason,
@@ -64,18 +64,25 @@ router.post('/:id/complete', asyncHandler(async (req: Request, res: Response) =>
     },
     createdBy: user.userId,
     entityType: 'governance_action',
-    create: (tx) => requestTripFinancialClose({
-      tripId: id,
-      reason,
-      makerId: user.userId,
-      makerRole: user.role,
-      expectedTripVersion: expectedVersion,
+    // 2026-09-11 maker-checker removal: the governed close applies directly
+    // in-request — no staged request, no second approver.
+    create: (tx) => autoApplyGovernanceAction({
+      make: (inner) => requestTripFinancialClose({
+        tripId: id,
+        reason,
+        makerId: user.userId,
+        makerRole: user.role,
+        expectedTripVersion: expectedVersion,
+        transaction: inner,
+      }),
+      actorId: user.userId,
+      actorRole: user.role,
       transaction: tx,
     }),
     getEntityId: (result) => result.id,
-    responseStatusCode: 202,
+    responseStatusCode: 200,
   });
-  res.locals.auditEvent = AuditEvent.TRIP_FINANCIAL_CLOSE_REQUESTED;
+  res.locals.auditEvent = AuditEvent.TRIP_COMPLETED;
   res.locals.auditEntityId = id;
   res.locals.auditEntityKey = action.subjectKey;
   res.status(statusCode)
@@ -113,6 +120,22 @@ router.post('/:id/cancel', asyncHandler(async (req: Request, res: Response) => {
   const idempotencyKey = getRequestIdempotencyKey(req);
   const currentStatus = await getTripStatusOr404(id);
 
+  // 2026-09-11 maker-checker removal: a completed-trip cancellation now
+  // APPLIES in-request, so a retried (same-key) request observes the trip
+  // already CANCELED and must replay the stored outcome instead of falling
+  // through to the plain-cancel branch (which 409s on CANCELED).
+  if (idempotencyKey && currentStatus !== TripStatus.COMPLETED) {
+    const stored = await findIdempotencyRecord(
+      IDEMPOTENCY_ENDPOINTS.TRIP_COMPLETED_CANCEL,
+      idempotencyKey,
+    );
+    if (stored?.responseSnapshot != null) {
+      res.status(stored.responseStatusCode ?? 200)
+        .json({ ...(stored.responseSnapshot as Record<string, unknown>), replayed: true });
+      return;
+    }
+  }
+
   if (currentStatus === TripStatus.COMPLETED) {
     if (expectedVersion === undefined) {
       throw new ApiError(400, 'Phiên bản chuyến đi là bắt buộc');
@@ -131,18 +154,25 @@ router.post('/:id/cancel', asyncHandler(async (req: Request, res: Response) => {
       },
       createdBy: user.userId,
       entityType: 'governance_action',
-      create: (tx) => requestCompletedTripCancellation({
-        tripId: id,
-        reason,
-        makerId: user.userId,
-        makerRole: user.role,
-        expectedTripVersion: expectedVersion,
+      // 2026-09-11 maker-checker removal: governed completed-trip
+      // cancellation applies directly in-request.
+      create: (tx) => autoApplyGovernanceAction({
+        make: (inner) => requestCompletedTripCancellation({
+          tripId: id,
+          reason,
+          makerId: user.userId,
+          makerRole: user.role,
+          expectedTripVersion: expectedVersion,
+          transaction: inner,
+        }),
+        actorId: user.userId,
+        actorRole: user.role,
         transaction: tx,
       }),
       getEntityId: (result) => result.id,
-      responseStatusCode: 202,
+      responseStatusCode: 200,
     });
-    res.locals.auditEvent = AuditEvent.TRIP_FINANCIAL_CANCEL_REQUESTED;
+    res.locals.auditEvent = AuditEvent.TRIP_CANCELED;
     res.locals.auditEntityId = id;
     res.locals.auditEntityKey = action.subjectKey;
     res.status(statusCode)

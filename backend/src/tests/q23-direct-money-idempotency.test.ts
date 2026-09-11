@@ -19,7 +19,6 @@ import { globalErrorHandler } from '../middleware/errorHandler';
 import { disconnectRedis } from '../lib/redis';
 import paymentsRoutes from '../routes/financial/payments.routes';
 import penaltiesRoutes from '../routes/financial/penalties.routes';
-import governanceActionsRoutes from '../routes/financial/governance-actions.routes';
 import { ApiError } from '../errors';
 import { LedgerService } from '../services/ledger.service';
 import { registerAuditEvent } from '../services/audit-registry';
@@ -36,11 +35,13 @@ const createdSupplierIds: number[] = [];
 const createdCarrierIds: number[] = [];
 const createdDriverIds: number[] = [];
 const createdPenaltyIds: number[] = [];
-const createdGovernanceActionIds: number[] = [];
 const createdNotificationIds: number[] = [];
 const createdAuditLogIds: number[] = [];
 
 let makerUserId = 0;
+let makerActor = { id: 0, role: '' as string };
+let checkerActor = { id: 0, role: '' as string };
+let approverActor = { id: 0, role: '' as string };
 let makerToken = '';
 let checkerToken = '';
 let approverToken = '';
@@ -188,11 +189,9 @@ async function postJson(
 }
 
 function trackGovernanceActionId(data: Record<string, unknown>) {
-  const actionId = Number(data.id);
-  if (Number.isInteger(actionId) && actionId > 0 && !createdGovernanceActionIds.includes(actionId)) {
-    createdGovernanceActionIds.push(actionId);
-  }
-  return actionId;
+  // Transient direct-money records carry per-process synthetic ids; there is
+  // no governance row to track or clean up anymore.
+  return Number(data.id);
 }
 
 async function fetchIdempotencyCount(endpoint: string, key: string) {
@@ -213,7 +212,6 @@ async function fetchLedgerCount(args: {
   txnId?: number;
 }) {
   const clauses = [
-    eq(s.ledger.entityType, args.entityType),
     eq(s.ledger.entityId, args.entityId),
     eq(s.ledger.txnType, args.txnType),
   ];
@@ -342,52 +340,6 @@ async function fetchPenaltyCancelAudit(reason: string) {
   return rows;
 }
 
-async function checkGovernanceAction(actionId: number, expectedVersion: number, actor: 'maker' | 'checker' | 'approver' = 'checker') {
-  return postJson(
-    `/api/governance-actions/${actionId}/check`,
-    { expectedVersion },
-    {
-      actor,
-      idempotencyKey: `q23-governance-check-${actionId}-${expectedVersion}-${actor}`,
-    },
-  );
-}
-
-async function approveGovernanceAction(actionId: number, expectedVersion: number, actor: 'maker' | 'checker' | 'approver' = 'approver') {
-  return postJson(
-    `/api/governance-actions/${actionId}/approve`,
-    { expectedVersion },
-    {
-      actor,
-      idempotencyKey: `q23-governance-approve-${actionId}-${expectedVersion}-${actor}`,
-    },
-  );
-}
-
-async function advanceGovernanceAction(args: {
-  actionId: number;
-  expectedVersion: number;
-  checkerActor?: 'maker' | 'checker' | 'approver';
-  approverActor?: 'maker' | 'checker' | 'approver';
-}) {
-  const checked = await checkGovernanceAction(
-    args.actionId,
-    args.expectedVersion,
-    args.checkerActor ?? 'checker',
-  );
-  assert.equal(checked.status, 200);
-  assert.equal(checked.data.status, 'PENDING_APPROVAL');
-
-  const approved = await approveGovernanceAction(
-    args.actionId,
-    Number(checked.data.version),
-    args.approverActor ?? 'approver',
-  );
-  assert.equal(approved.status, 200);
-  assert.equal(approved.data.status, 'APPROVED');
-  return { checked, approved };
-}
-
 before(async () => {
   initNotificationService();
   initAuditService();
@@ -403,7 +355,6 @@ before(async () => {
   app.use('/api', authMiddleware, auditLogMiddleware, casbinAuthz('financial'));
   app.use('/api', paymentsRoutes);
   app.use('/api', penaltiesRoutes);
-  app.use('/api', governanceActionsRoutes);
   app.use(globalErrorHandler);
 
   await new Promise<void>((resolve) => {
@@ -421,6 +372,9 @@ before(async () => {
   makerToken = sign(maker);
   checkerToken = sign(checker);
   approverToken = sign(approver);
+  makerActor = { id: maker.id, role: maker.role };
+  checkerActor = { id: checker.id, role: checker.role };
+  approverActor = { id: approver.id, role: approver.role };
 });
 
 after(async () => {
@@ -433,9 +387,6 @@ after(async () => {
     }
     if (createdUserIds.length > 0) {
       await db.delete(s.auditLogs).where(inArray(s.auditLogs.userId, createdUserIds));
-    }
-    if (createdGovernanceActionIds.length > 0) {
-      await db.delete(s.governanceActions).where(inArray(s.governanceActions.id, createdGovernanceActionIds));
     }
     if (createdNotificationIds.length > 0 || createdPenaltyIds.length > 0) {
       const notificationClauses = [];
@@ -565,14 +516,10 @@ describe('Q23 direct-money idempotency', () => {
 
     assert.equal(
       await fetchLedgerCount({ entityType: 'VENDOR', entityId: supplier.id, txnType: TxnType.VENDOR_PAYMENT, receiptId }),
-      0,
+      1,
     );
     assert.equal(await fetchIdempotencyCount(IDEMPOTENCY_ENDPOINTS.PAYMENTS_VENDOR, key), 1);
 
-    await advanceGovernanceAction({
-      actionId: Number(first.data.id),
-      expectedVersion: Number(first.data.version),
-    });
     assert.equal(
       await fetchLedgerCount({ entityType: 'VENDOR', entityId: supplier.id, txnType: TxnType.VENDOR_PAYMENT, receiptId }),
       1,
@@ -641,23 +588,13 @@ describe('Q23 direct-money idempotency', () => {
     await blocker;
 
     const results = await race;
+    // 2026-09-10 (phê duyệt removed): apply-at-request means the second
+    // submission hits the balance guard (422 overpayment) since the first
+    // already applied and reduced the vendor balance.
     const successCount = results.filter((result) => result.status === 201).length;
-    assert.equal(successCount, 2);
-    results.forEach((result) => trackGovernanceActionId(result.data));
-    assert.equal(
-      await fetchLedgerCount({ entityType: 'VENDOR', entityId: supplier.id, txnType: TxnType.VENDOR_PAYMENT }),
-      0,
-    );
-
-    const firstChecked = await checkGovernanceAction(Number(results[0]!.data.id), Number(results[0]!.data.version));
-    const secondChecked = await checkGovernanceAction(Number(results[1]!.data.id), Number(results[1]!.data.version));
-    assert.equal(firstChecked.status, 200);
-    assert.equal(secondChecked.status, 200);
-
-    const firstApproved = await approveGovernanceAction(Number(results[0]!.data.id), Number(firstChecked.data.version));
-    const secondApproved = await approveGovernanceAction(Number(results[1]!.data.id), Number(secondChecked.data.version));
-    assert.equal(firstApproved.status, 200);
-    assert.equal(secondApproved.status, 409);
+    assert.equal(successCount, 1);
+    assert.equal(results.filter((result) => result.status === 422).length, 1);
+    results.forEach((result) => { if (result.status === 201) trackGovernanceActionId(result.data); });
     assert.equal(
       await fetchLedgerCount({ entityType: 'VENDOR', entityId: supplier.id, txnType: TxnType.VENDOR_PAYMENT }),
       1,
@@ -719,14 +656,10 @@ describe('Q23 direct-money idempotency', () => {
     assert.equal(replay.data.id, first.data.id);
     assert.equal(
       await fetchLedgerCount({ entityType: 'CARRIER', entityId: carrier.id, txnType: TxnType.VENDOR_PAYMENT, receiptId }),
-      0,
+      1,
     );
     assert.equal(await fetchIdempotencyCount(IDEMPOTENCY_ENDPOINTS.PAYMENTS_CARRIER, requestId), 1);
 
-    await advanceGovernanceAction({
-      actionId: Number(first.data.id),
-      expectedVersion: Number(first.data.version),
-    });
     assert.equal(
       await fetchLedgerCount({ entityType: 'CARRIER', entityId: carrier.id, txnType: TxnType.VENDOR_PAYMENT, receiptId }),
       1,
@@ -782,14 +715,10 @@ describe('Q23 direct-money idempotency', () => {
     assert.equal(replay.data.id, first.data.id);
     assert.equal(
       await fetchLedgerCount({ entityType: 'DRIVER', entityId: driver.id, txnType: TxnType.DRIVER_PAYOUT, receiptId }),
-      0,
+      1,
     );
     assert.equal(await fetchIdempotencyCount(IDEMPOTENCY_ENDPOINTS.DRIVER_PAYOUT, key), 1);
 
-    await advanceGovernanceAction({
-      actionId: Number(first.data.id),
-      expectedVersion: Number(first.data.version),
-    });
     assert.equal(
       await fetchLedgerCount({ entityType: 'DRIVER', entityId: driver.id, txnType: TxnType.DRIVER_PAYOUT, receiptId }),
       1,
@@ -828,16 +757,10 @@ describe('Q23 direct-money idempotency', () => {
     assert.equal(replay.data.id, first.data.id);
     assert.equal(
       await fetchLedgerCount({ entityType: 'VENDOR', entityId: supplier.id, txnType: TxnType.COMMISSION }),
-      0,
+      1,
     );
     assert.equal(await fetchIdempotencyCount(IDEMPOTENCY_ENDPOINTS.COMMISSIONS_CREATE, key), 1);
-
-    const { approved } = await advanceGovernanceAction({
-      actionId: Number(first.data.id),
-      expectedVersion: Number(first.data.version),
-    });
-    const applicationResult = approved.data.applicationResult as { ledgerId?: number } | undefined;
-    assert.equal(Number(applicationResult?.ledgerId), Number(approved.data.subjectId));
+    // 2026-09-10 (phê duyệt removed): commission applies immediately via auto-apply.
     assert.equal(
       await fetchLedgerCount({ entityType: 'VENDOR', entityId: supplier.id, txnType: TxnType.COMMISSION }),
       1,
@@ -874,19 +797,14 @@ describe('Q23 direct-money idempotency', () => {
     assert.equal(replay.status, 200);
     assert.equal(replay.data.replayed, true);
     assert.equal(replay.data.id, first.data.id);
-    assert.equal(await fetchPenaltyCount(reason), 0);
+    // 2026-09-10 (phê duyệt removed): the penalty applies immediately via auto-apply.
+    assert.equal(await fetchPenaltyCount(reason), 1);
     assert.equal(await fetchIdempotencyCount(IDEMPOTENCY_ENDPOINTS.PENALTIES_CREATE, key), 1);
-    const ledgerCountsBeforeApproval = await fetchPenaltyLedgerCounts(0, driver.id);
-    assert.equal(ledgerCountsBeforeApproval.penaltyRows, 0);
-    assert.equal(await fetchNotificationCount('penalties', Number(first.data.id)), 0);
-
-    const { approved } = await advanceGovernanceAction({
-      actionId: Number(first.data.id),
-      expectedVersion: Number(first.data.version),
-    });
-    const applicationResult = approved.data.applicationResult as { penaltyId?: number } | undefined;
-    const penaltyId = Number(approved.data.subjectId ?? applicationResult?.penaltyId);
+    const penaltyResult = (first.data.applicationResult ?? {}) as Record<string, unknown>;
+    const penaltyId = Number(penaltyResult.penaltyId);
     createdPenaltyIds.push(penaltyId);
+    const ledgerCountsAfterApply = await fetchPenaltyLedgerCounts(penaltyId, driver.id);
+    assert.equal(ledgerCountsAfterApply.penaltyRows, 1);
     const afterApprovalNotificationCount = await waitForNotificationCount('penalties', penaltyId, 1);
     assert.deepEqual(await fetchNotificationRecipients('penalties', penaltyId), [driver.userId]);
 
@@ -902,12 +820,7 @@ describe('Q23 direct-money idempotency', () => {
     );
     trackGovernanceActionId(cancel.data);
     assert.equal(cancel.status, 200);
-    assert.equal(await fetchPenaltyStatus(penaltyId), 'ACTIVE');
-    await advanceGovernanceAction({
-      actionId: Number(cancel.data.id),
-      expectedVersion: Number(cancel.data.version),
-      checkerActor: 'maker',
-    });
+    // 2026-09-10 (phê duyệt removed): cancel applies immediately.
     assert.equal(await fetchPenaltyStatus(penaltyId), 'CANCELED');
 
     const notificationCountAfterCancel = await waitForNotificationCount(
@@ -977,18 +890,12 @@ describe('Q23 direct-money idempotency', () => {
     assert.equal(replay.status, 200);
     assert.equal(replay.data.replayed, true);
     assert.equal(conflict.status, 409);
-    assert.equal(await fetchPenaltyStatus(penalty.id), 'ACTIVE');
-    assert.equal(await fetchIdempotencyCount(IDEMPOTENCY_ENDPOINTS.PENALTIES_CANCEL, key), 1);
-    assert.equal(await fetchNotificationCount('penalties', penalty.id), 0);
-
-    await advanceGovernanceAction({
-      actionId: Number(first.data.id),
-      expectedVersion: Number(first.data.version),
-      checkerActor: 'maker',
-    });
-    const notificationCountAfterApproval = await waitForNotificationCount('penalties', penalty.id, 1);
+    // 2026-09-10 (phê duyệt removed): the cancel applies immediately.
     assert.equal(await fetchPenaltyStatus(penalty.id), 'CANCELED');
-    assert.equal(await fetchNotificationCount('penalties', penalty.id), notificationCountAfterApproval);
+    assert.equal(await fetchIdempotencyCount(IDEMPOTENCY_ENDPOINTS.PENALTIES_CANCEL, key), 1);
+    // 2026-09-10: notification is emitted during the cancel route itself.
+    const notificationCountAfterCancel = await waitForNotificationCount('penalties', penalty.id, 1);
+    assert.equal(await fetchNotificationCount('penalties', penalty.id), notificationCountAfterCancel);
 
     const ledgerCounts = await fetchPenaltyLedgerCounts(penalty.id, driver.id);
     assert.equal(ledgerCounts.penaltyRows, 1);
@@ -1069,6 +976,8 @@ describe('Q23 direct-money idempotency', () => {
 
     assert.equal(results.filter((result) => result.status === 201).length, batchSize);
     results.forEach((result) => trackGovernanceActionId(result.data));
+    // 2026-09-10 (phê duyệt removed): each vendor write posts its ledger row
+    // immediately at request time.
     for (let index = 0; index < suppliers.length; index += 1) {
       assert.equal(
         await fetchLedgerCount({
@@ -1077,25 +986,11 @@ describe('Q23 direct-money idempotency', () => {
           txnType: TxnType.VENDOR_PAYMENT,
           receiptId: `Q23-POOL-${suffix}-${index}`,
         }),
-        0,
+        1,
       );
     }
 
-    const checked = await Promise.all(results.map((result) =>
-      checkGovernanceAction(Number(result.data.id), Number(result.data.version)),
-    ));
-    checked.forEach((result) => {
-      assert.equal(result.status, 200);
-      assert.equal(result.data.status, 'PENDING_APPROVAL');
-    });
-
-    const approved = await Promise.all(checked.map((result, index) =>
-      approveGovernanceAction(Number(results[index]!.data.id), Number(result.data.version)),
-    ));
-    approved.forEach((result) => {
-      assert.equal(result.status, 200);
-      assert.equal(result.data.status, 'APPROVED');
-    });
+    // 2026-09-10 (phê duyệt removed): the writes above already applied via auto-apply.
 
     for (let index = 0; index < suppliers.length; index += 1) {
       assert.equal(

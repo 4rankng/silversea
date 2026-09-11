@@ -141,11 +141,6 @@ export const PAGE_CATALOG = {
     path: '/advances',
     section: 'financials',
   },
-  governanceActions: {
-    title: 'Trung tâm phê duyệt',
-    path: '/governance-actions',
-    section: 'financials',
-  },
   adminAdvanceSettlements: {
     title: 'Tạm ứng & hoàn ứng',
     path: '/admin/advance-settlements',

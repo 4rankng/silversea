@@ -18,7 +18,6 @@ import { SnapshotServices } from './snapshot-services';
 import { assertTripShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import { getPairSalarySettingsFrom, pairSurchargeFor } from './pair-salary-settings.service';
 import type { Tx } from './trip-shared';
-import { requirePersistedTripGovernanceAuthorization } from './trip-governance-authorization.service';
 import { assertActiveApprovalApplication } from './governance-action-core.service';
 import { LedgerService } from './ledger.service';
 import {
@@ -127,17 +126,10 @@ export async function updateTripFigures(
     await assertTripShipmentAccountingUnlocked(tx, tripId);
     let governanceAuthorized = false;
     if (governanceActionId != null) {
+      // 2026-09-11 maker-checker removal: persisted authorization went with
+      // governance_actions; the in-memory approval-application guard carries
+      // the apply-time authorization.
       assertActiveApprovalApplication(tx, governanceActionId);
-      await requirePersistedTripGovernanceAuthorization({
-        tx,
-        actionId: governanceActionId,
-        tripId,
-        tripVersion: data.expectedVersion ?? 0,
-        actorId: data.userId ?? 0,
-        actorRole: data.userRole ?? '',
-        operation: 'EDIT_COMPLETED',
-        mutationPayload: data,
-      });
       governanceAuthorized = true;
     }
     // 1. Fetch trip and check lock status
@@ -627,7 +619,6 @@ export async function updateTripFigures(
         tripId: updated.id,
         tripVersion: updated.version,
         reason: 'GOVERNED_CORRECTION',
-        governanceActionId,
       });
 
       await LedgerService.postTripCompletion(tx, {

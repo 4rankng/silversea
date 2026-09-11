@@ -1,0 +1,29 @@
+# RBAC spot-audit — final sweep Phase 1 (AR lane)
+# Staging: vantai.tingting.vip @ e889e86a (cut-healthy 14:24:57 +08)
+# Probe account: bqhuong (DRIVER, from testplan/testaccounts.txt, Abc123 rule)
+# Expectation: removing approval steps must never remove authorization —
+# every direct-write endpoint must still 403 a wrong-role token.
+
+login POST /api/auth/login {identifier:bqhuong}        -> 200 (token len 315)
+
+[1] POST /api/finance/credit-overrides    (requireRoles ADMIN|MANAGER|ACCOUNTANT; casbin 'financial')
+    -> 403 {"error":"Không có quyền truy cập"}                         PASS
+
+[2] POST /api/salary/periods/2025-01/close (requireRoles MANAGER|ADMIN|ACCOUNTANT; casbin 'salary')
+    -> 403 {"error":"Không có quyền truy cập"}                         PASS
+
+[3] POST /api/recoverable-costs/1/request  (casbin 'recoverable_costs')
+    -> 403 {"error":"Không có quyền truy cập"}                         PASS
+
+VERDICT: RBAC spot-audit PASS 3/3.
+
+Middleware-order note: without Idempotency-Key the credit-overrides probe
+returned 400 (idempotency middleware enforces the header BEFORE the route's
+role gate on this route). Both layers present — defense in depth intact; not
+a defect, recorded for completeness.
+
+Open question routed to Phase 1 adjudication: salary.ts still mounts
+/periods/:period/close-actions/:actionId/check + /approve (lines ~216/~246,
+requireRoles MANAGER|ADMIN|ACCOUNTANT) — confirm these are direct-apply in
+one request (MC-2 chained shape) and not a leftover two-step maker-checker
+surface.

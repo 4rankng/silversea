@@ -538,25 +538,32 @@ describe('MasterPlanGrid', () => {
   // leaving half of each row dead. They now pair side-by-side: action sits
   // the left column (odd child), notes the right (even child → the
   // nth-child(even) divider), and the ≤599px phone spans are untouched.
-  it('pairs the allocation and notes cells side-by-side in the 600-900px band', () => {
+  it('pairs every cell 2-col in phone + 600-900px bands, collapsing only below 360px', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
+    const phoneStart = css.indexOf('@container (max-width: 599px)');
     const bandStart = css.indexOf('@container (min-width: 600px) and (max-width: 900px)');
-    expect(bandStart).toBeGreaterThan(-1);
+    expect(phoneStart).toBeGreaterThan(-1);
+    expect(bandStart).toBeGreaterThan(phoneStart);
+
+    // Phone band pairs EVERY cell side-by-side (record-table parity per
+    // reporter request, commit b0761a26): no cell spans the full row.
+    const phoneBand = css.slice(phoneStart, bandStart);
+    expect(phoneBand).toContain('grid-template-columns: repeat(2, minmax(0, 1fr))');
+    expect(phoneBand).not.toContain('grid-column: 1 / -1');
+
+    // Single-column collapse lives ONLY below 360px.
+    const narrowStart = css.indexOf('@container (max-width: 360px)');
+    expect(narrowStart).toBeGreaterThan(phoneStart);
+    const narrowBand = css.slice(narrowStart, bandStart);
+    expect(narrowBand).toContain('display: block');
+
+    // 600-900px band: cells 7|8 pair; the action cell keeps normal flow
+    // (odd child → left column) with its inline-start suppressed by source
+    // order, not !important.
     const band = css.slice(bandStart);
-
-    // No full-width spans remain in the 600-900px band: cells 7|8 pair.
     expect(band).not.toContain('grid-column: 1 / -1');
-
-    // The action cell stays in normal flow (odd child → left column) with
-    // its own inline-start suppressed by source order, not !important.
     expect(band).toMatch(/\.master-plan-grid__cell--action\s*\{[\s\S]*?border-inline-start:\s*0/);
     expect(band).not.toMatch(/\.master-plan-grid__cell--action\s*\{[\s\S]*?!important/);
-
-    // The ≤599px phone band still spans notes + action (parity).
-    const phoneStart = css.indexOf('@container (max-width: 599px)');
-    const phoneBand = css.slice(phoneStart, bandStart);
-    expect(phoneBand).toMatch(/\.master-plan-grid__cell:nth-child\(8\)[\s\S]*?grid-column:\s*1 \/ -1/);
-    expect(phoneBand).toMatch(/\.master-plan-grid__cell--action[\s\S]*?grid-column:\s*1 \/ -1/);
   });
 
   // Polish 2026-09-09 (PM seq-151 visual-quality gate): the action cell

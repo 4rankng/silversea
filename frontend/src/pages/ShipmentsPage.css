@@ -1348,12 +1348,6 @@
   color: var(--slate-4);
 }
 
-.cus-workflow-badge--pending-delete {
-  background: var(--warning-soft, #fef3c7);
-  color: var(--warning-text, #92400e);
-  border-color: var(--warning, #f59e0b);
-}
-
 .cus-row-actions__buttons {
   display: flex;
   flex-wrap: wrap;

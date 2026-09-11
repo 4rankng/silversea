@@ -1,0 +1,61 @@
+# Gate: pnpm lint (root) — 2026-09-10, chunk 4 approval-removal (18f4a2dd)
+# Command: pnpm lint
+# Exit: 0 (0 errors, 33 warnings)
+
+
+> tingting@ lint /Users/dev/Documents/projects/silversea-prod
+> eslint .
+
+
+/Users/dev/Documents/projects/silversea-prod/backend/src/routes/financial/billing-documents.routes.ts
+  142:14  warning  'tx' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea-prod/backend/src/services/shipment-accounting-custody.service.ts
+  11:3  warning  'ShipmentCusReopenDecisionInput' is defined but never used  @typescript-eslint/no-unused-vars
+  21:3  warning  'readNumber' is defined but never used                      @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea-prod/backend/src/tests/cus-shipment-workspace.test.ts
+  25:10  warning  'ApiError' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea-prod/backend/src/tests/dispatch-detail-plan.test.ts
+  1151:13  warning  'shipment' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  1192:13  warning  'shipment' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  1284:13  warning  'shipment' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  2156:13  warning  'shipment' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  2182:13  warning  'shipment' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea-prod/backend/src/tests/dispatch-fulfillment.test.ts
+  1878:14  warning  'vehicleA' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea-prod/backend/src/tests/q15-salary-confirmation-governance.test.ts
+  186:11  warning  'checker' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea-prod/backend/src/tests/q23-direct-money-idempotency.test.ts
+  366:16  warning  'advanceGovernanceAction' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea-prod/backend/src/tests/unit/customer-intake-fields.test.ts
+   59:25  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   64:22  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   73:25  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   76:31  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   77:31  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   78:31  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   79:31  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   80:31  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   87:25  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   92:22  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   93:28  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  110:65  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  111:31  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  112:31  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  113:31  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  114:31  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  119:65  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  120:31  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  121:31  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  122:31  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  129:65  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+✖ 33 problems (0 errors, 33 warnings)
+
+EXIT:0

@@ -1,6 +1,5 @@
 import { and, eq } from 'drizzle-orm';
 import { Role, type CustomerDeliveryResponseInput } from '@tingting/shared';
-import { db } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import type { AuthUser } from '../middleware/auth';
@@ -47,44 +46,3 @@ export async function submitCustomerDeliveryResponse(args: {
   return { response: result, replayed };
 }
 
-export async function resolveCustomerDeliveryDispute(args: {
-  responseId: number;
-  actor: AuthUser;
-  resolution: string;
-}) {
-  if (![Role.ADMIN, Role.MANAGER].includes(args.actor.role)) throw new ApiError(403, 'Chỉ quản lý mới có thể xử lý phản hồi sai lệch');
-  return db.transaction(async (tx) => {
-    const [response] = await tx.select().from(s.customerDeliveryResponses)
-      .where(and(eq(s.customerDeliveryResponses.id, args.responseId), eq(s.customerDeliveryResponses.decision, 'DISPUTED')))
-      .limit(1)
-      .for('update');
-    if (!response) throw new ApiError(404, 'Không tìm thấy phản hồi sai lệch');
-    const [existing] = await tx.select().from(s.governanceActions).where(and(
-      eq(s.governanceActions.subjectType, 'CUSTOMER_DELIVERY_RESPONSE'),
-      eq(s.governanceActions.subjectId, response.id),
-      eq(s.governanceActions.actionKind, 'CUSTOMER_DELIVERY_DISPUTE_RESOLUTION'),
-      eq(s.governanceActions.status, 'APPLIED'),
-    )).limit(1);
-    if (existing) return { id: existing.id, responseId: response.id, resolution: existing.reason, resolvedAt: existing.appliedAt?.toISOString() ?? existing.updatedAt.toISOString(), replayed: true };
-    const now = new Date();
-    const [created] = await tx.insert(s.governanceActions).values({
-      subjectType: 'CUSTOMER_DELIVERY_RESPONSE',
-      subjectId: response.id,
-      actionKind: 'CUSTOMER_DELIVERY_DISPUTE_RESOLUTION',
-      status: 'APPLIED',
-      reason: args.resolution,
-      originalVersion: response.eventVersion,
-      beforeSnapshot: { decision: response.decision, reason: response.reason, evidenceRefs: response.evidenceRefs },
-      afterSnapshot: { resolution: args.resolution },
-      makerId: args.actor.userId,
-      makerRole: args.actor.role,
-      approverId: args.actor.userId,
-      approverRole: args.actor.role,
-      approvedAt: now,
-      appliedAt: now,
-      applicationResult: { deliveryResponseId: response.id },
-    }).returning();
-    if (!created) throw new ApiError(409, 'Không thể ghi nhận xử lý phản hồi');
-    return { id: created.id, responseId: response.id, resolution: created.reason, resolvedAt: now.toISOString(), replayed: false };
-  });
-}

@@ -31,7 +31,7 @@ import { appSettingsRouter } from '../routes/app-settings';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const createdUserIds: number[] = [];
-const createdGovernanceActionIds: number[] = [];
+const createdReportingVersionIds: number[] = [];
 const createdBusinessUnitIds: number[] = [];
 const createdDriverIds: number[] = [];
 const createdTruckIds: number[] = [];
@@ -148,14 +148,11 @@ after(async () => {
       }
     } finally {
       try {
-        if (createdGovernanceActionIds.length > 0) {
+        if (createdReportingVersionIds.length > 0) {
           await db.delete(s.truckFinancialProfileVersions)
-            .where(inArray(s.truckFinancialProfileVersions.governanceActionId, createdGovernanceActionIds));
+            .where(inArray(s.truckFinancialProfileVersions.id, createdReportingVersionIds));
           await db.delete(s.financialReportingPolicyVersions)
-            .where(inArray(s.financialReportingPolicyVersions.governanceActionId, createdGovernanceActionIds));
-        }
-        if (createdGovernanceActionIds.length > 0) {
-          await db.delete(s.governanceActions).where(inArray(s.governanceActions.id, createdGovernanceActionIds));
+            .where(inArray(s.financialReportingPolicyVersions.id, createdReportingVersionIds));
         }
         if (createdTruckIds.length > 0) {
           await db.delete(s.trucks).where(inArray(s.trucks.id, createdTruckIds));
@@ -406,7 +403,9 @@ describe('app-settings route authorization', () => {
     });
     assert.equal(requested.status, 201);
     assert.equal(requested.body.status, 'APPROVED');
-    createdGovernanceActionIds.push(Number(requested.body.id));
+    createdReportingVersionIds.push(
+      Number((requested.body.applicationResult as { subjectId?: number }).subjectId),
+    );
 
     // Immediate apply: no pending phase — the future policy is live now.
     const approvedState = await request('/financial-reporting/policy', { token: adminToken });
@@ -448,7 +447,9 @@ describe('app-settings route authorization', () => {
     });
     assert.equal(requested.status, 201);
     assert.equal(requested.body.status, 'APPROVED');
-    createdGovernanceActionIds.push(Number(requested.body.id));
+    createdReportingVersionIds.push(
+      Number((requested.body.applicationResult as { subjectId?: number }).subjectId),
+    );
 
     const duplicate = await request('/financial-reporting/truck-profiles/requests', {
       method: 'POST',

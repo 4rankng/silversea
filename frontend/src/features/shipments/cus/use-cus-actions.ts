@@ -35,7 +35,6 @@ export function useCusActions(deps: UseCusActionsDeps) {
   } = deps;
   const [actionItem, setActionItem] = useState<ShipmentCusWorkspaceListItem | null>(null);
   const [actionMode, setActionMode] = useState<'confirm' | 'lock' | 'reopen' | 'delete' | null>(null);
-  const [pendingDeleteIds, setPendingDeleteIds] = useState<Set<number>>(() => new Set());
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -117,13 +116,8 @@ export function useCusActions(deps: UseCusActionsDeps) {
         }, idempotencyKey);
         setNotice('Đã khóa lô hàng. Mọi trường nhập và tệp tải lên hiện ở chế độ chỉ đọc.');
       } else if (actionMode === 'delete') {
-        const result = await requestShipmentDelete(actionItem.id, actionItem.version, reason.trim());
-        if (result.pendingApproval) {
-          setPendingDeleteIds((prev) => new Set(prev).add(actionItem.id));
-          setNotice('Yêu cầu xóa đã gửi ADMIN phê duyệt.');
-        } else {
-          setNotice('Đã xóa lô hàng.');
-        }
+        await requestShipmentDelete(actionItem.id, actionItem.version, reason.trim());
+        setNotice('Đã xóa lô hàng.');
       } else {
         if (!actionItem.activeLock?.id) {
           throw new Error('Không tìm thấy khóa lô hiện hành. Vui lòng tải lại dữ liệu.');
@@ -150,7 +144,7 @@ export function useCusActions(deps: UseCusActionsDeps) {
   }, [actionItem, actionMode, clearIdempotencyKey, drawerId, getIdempotencyKey, invalidateDetail, loadDetail, loadList, reason, setError, setNotice]);
 
   return {
-    actionItem, actionMode, reason, setReason, submitting, pendingDeleteIds,
+    actionItem, actionMode, reason, setReason, submitting,
     openAction, closeAction, submitAction, updateCustody,
   };
 }

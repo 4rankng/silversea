@@ -5,7 +5,7 @@
  * duplicate guard. Seeded by migration 0058; dispatcher-created labels join
  * the same pool.
  */
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, eq, sql } from 'drizzle-orm';
 
 import { db } from '../db';
 import * as s from '../db/schema';
@@ -19,12 +19,21 @@ export function normalizeDispatchTaskTagLabel(label: string): string {
   return label.normalize('NFC').toLowerCase().trim();
 }
 
-/** Active tags ordered by label for the composer's chip row. */
+/** Active tags for the composer's chip row: the canonical operation-tag set
+ *  (ticket a6cb2543, migration 0066) in display order first, then any
+ *  dispatcher-added labels alphabetically. */
 export async function listDispatchTaskTags() {
-  const rows = await db.select({ id: s.dispatchTaskTags.id, label: s.dispatchTaskTags.label })
+  const rows = await db.select({
+    id: s.dispatchTaskTags.id,
+    label: s.dispatchTaskTags.label,
+    displayOrder: s.dispatchTaskTags.displayOrder,
+  })
     .from(s.dispatchTaskTags)
     .where(eq(s.dispatchTaskTags.isActive, true))
-    .orderBy(asc(s.dispatchTaskTags.label));
+    .orderBy(
+      sql`${s.dispatchTaskTags.displayOrder} asc nulls last`,
+      asc(s.dispatchTaskTags.label),
+    );
   return { items: rows };
 }
 

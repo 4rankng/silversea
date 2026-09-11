@@ -47,19 +47,18 @@ function createWrapper() {
   };
 }
 
-describe('useCRUD pending governance UX', () => {
+describe('useCRUD success UX', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     invalidateAllCatalogsMock.mockResolvedValue(undefined);
   });
 
-  it('shows a truthful pending-review toast for governed updates', async () => {
+  it('shows the direct success toast for updates', async () => {
     const onRefresh = vi.fn().mockResolvedValue(undefined);
     apiPutMock.mockResolvedValue({
       id: 71,
-      status: 'PENDING_CHECK',
-      actionKind: 'PRICE_CONFIG_CHANGE',
-      version: 1,
+      name: 'Demo pricing table',
+      updatedAt: '2026-07-28T12:00:00.000Z',
     });
 
     const { result } = renderHook(
@@ -83,7 +82,7 @@ describe('useCRUD pending governance UX', () => {
     });
     expect(toastMock).toHaveBeenCalledWith({
       kind: 'success',
-      message: 'Đã gửi yêu cầu cập nhật cấu hình để kiểm tra và phê duyệt. Cấu hình chưa thay đổi.',
+      message: 'Đã cập nhật cấu hình.',
     });
   });
 

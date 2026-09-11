@@ -19,11 +19,9 @@ export {
   getSalaryPeriodLifecycle,
   listSalaryPeriodCloses,
   requestSalaryPeriodClose,
-  checkSalaryPeriodClose,
-  approveSalaryPeriodClose,
+  applySalaryPeriodCloseAction,
   requestSalaryPeriodReopen,
-  checkSalaryPeriodReopen,
-  approveSalaryPeriodReopen,
+  applySalaryPeriodReopenAction,
 } from './salary-period-close-lifecycle.service';
 export {
   issueSalaryPeriodPayslips,
@@ -33,7 +31,5 @@ export {
 export {
   listSalaryPeriodExclusions,
   createSalaryPeriodExclusion,
-  checkSalaryPeriodExclusion,
-  approveSalaryPeriodExclusion,
   completeSalaryPeriodExclusionFollowup,
 } from './salary-period-close-exclusion.service';

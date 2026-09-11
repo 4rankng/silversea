@@ -1,0 +1,93 @@
+[casbin] Enforcer initialized — 122 policies loaded
+▶ dispatch detail plan rows
+  ✔ returns one row per container with spec payload before any handoff (49.889208ms)
+  ✔ shows carrier-less containers of the day and lets dispatch allocate them here (63.1975ms)
+  ✔ keeps a published CREATED trip visible so dispatch can reassign it (93.913792ms)
+  ✔ CLERK and DRIVER get 403 (12.760208ms)
+  ✔ assignmentStatus filter narrows rows server-side (120.400083ms)
+  ✔ hour range and direction filters apply (31.849792ms)
+  ✔ date filter resolves each FCL row from its own container appointment in the business timezone (26.416083ms)
+  ✔ invalid hour filter is rejected with 400 (2.154375ms)
+  ✔ malformed PATCH body types are rejected with 400 (11.743209ms)
+  ✔ ACCOUNTANT read is customer-scoped and address-redacted (133.307458ms)
+  ✔ delivery point facet endpoint lists distinct sites (10.526083ms)
+  ✔ pickup and dropoff port facet endpoints list distinct ports (20.930209ms)
+  ✔ pickupIds and dropoffIds filters narrow the rows (35.267375ms)
+  ✔ zone filter narrows rows to a zone's ports (either side) (44.419709ms)
+  ✔ detail plan reads COMPLETED for a trip that completed outside the staff-close flow (15.533292ms)
+✔ dispatch detail plan rows (935.969458ms)
+▶ dispatch detail plan plate assignment
+  ✔ dispatcher changes one ready fulfillment carrier, clearing its stale vehicle, with idempotent replay (87.25775ms)
+  ✔ carrier change rejects a non-carrier and stale fulfillment version (19.098167ms)
+  ✔ OWN happy path assigns plate without notifying driver, flips lot flag on last container (93.963625ms)
+  ✔ version conflict yields 409 (68.68125ms)
+  ✔ OWN free-text plate is rejected (10.077ms)
+  ✔ EXTERNAL catalog pick, free text, and empty bypass all succeed (35.624042ms)
+  ✔ clearing a plate reverts the lot flag (83.864ms)
+  ✔ re-assigning the same truck never notifies (95.776875ms)
+  ✔ truck without assigned driver still allows assignment with hint (13.051459ms)
+  ✔ CUS cannot assign plates (7.781208ms)
+  ✔ accounting-locked shipment rejects plate changes (93.556959ms)
+  ✔ dispatcher saves versioned operational estimates without creating a financial record (21.852375ms)
+✔ dispatch detail plan plate assignment (630.921166ms)
+▶ atomic dispatch detail plan save
+  ✔ one save applies carrier, vehicle, estimates, and the dispatcher classification atomically; lot flag stays CUS-owned (81.300167ms)
+  ✔ omitting classification and isCombined leaves both stored values untouched (16.168625ms)
+  ✔ isCombined unchanged → shipment version not bumped; classification exposed on rows (21.298042ms)
+  ✔ dispatcher omits isCombined → lot flag is NOT touched (CUS owns it) (22.80875ms)
+  ✔ dispatcher explicitly sends false isCombined → silently coerced to "untouched" (per-container editor cannot rewrite lot flag) (14.260917ms)
+  ✔ OWN truck assignment via atomic save stays silent; replay is silent (85.436583ms)
+  ✔ carrier-less row promotes to OWN carrier when the atomic save carries an own-fleet truck (92.915709ms)
+  ✔ stale shipment version or stale fulfillment version changes nothing (78.386791ms)
+  ✔ invalid vehicle for the incoming carrier rolls everything back (73.923917ms)
+  ✔ classification omitted or invalid is rejected/ignored per CUS ownership (26.38925ms)
+  ✔ CUS cannot save the plan; accounting lock blocks the atomic save (18.789583ms)
+✔ atomic dispatch detail plan save (532.000417ms)
+▶ dispatch detail plan server ordering
+  ✔ rows follow cargo priority (20ft, 40ft, LCL, other) before pagination (17.134791ms)
+✔ dispatch detail plan server ordering (17.205292ms)
+▶ dispatch fleet LH truck suggestions
+  ✔ D-1 LH dropoff and D+1 LH pickup surface as ranked reasons; canceled evidence ignored (148.583ms)
+  ✔ both signals rank first; neither-signal trucks and no-context calls stay unsuggested (85.169834ms)
+  ✔ search narrows suggestions; current plate preserved outside suggestion set (108.077166ms)
+  ▶ presence endpoint (all trucks with zone evidence for a viewing date)
+    ✔ returns trucks with D-1 drop and D+1 pickup evidence; canceled lots excluded (214.733833ms)
+    ✔ missing date defaults to today (Asia/Ho_Chi_Minh) (64.961792ms)
+    ✔ non-dispatch role forbidden; garbage date rejected (2.634667ms)
+  ✔ presence endpoint (all trucks with zone evidence for a viewing date) (282.424125ms)
+✔ dispatch fleet LH truck suggestions (624.363042ms)
+▶ review fixes: carrier switch + explicit plate clear
+  ✔ carrier switch without a vehicle block clears the previous carrier plate (80.292542ms)
+  ✔ clearVehicle=true explicitly unassigns the plate through the atomic save (77.636042ms)
+✔ review fixes: carrier switch + explicit plate clear (158.009ms)
+▶ driver notification timing (xếp xe stays silent, issuance notifies)
+  ✔ legacy plate assignment alone: no driver notification, tap-through 404 (77.748042ms)
+  ✔ atomic plan save alone: no driver notification, tap-through 404 (82.955333ms)
+  ✔ issuing the dispatch order notifies the driver exactly once and the job opens (146.812834ms)
+✔ driver notification timing (xếp xe stays silent, issuance notifies) (307.62325ms)
+▶ dispatch task tags and driver-note plan save
+  ✔ GET lists the migration-seeded pool (2.12775ms)
+  ✔ GET denies drivers once the journey board embeds the pool (ticket 53a536f9) (1.376542ms)
+  ✔ POST creates a tag and duplicate (case/diacritics-insensitive) yields 409 (9.473417ms)
+  ✔ POST validation: empty label 400, over-80 label 400, semicolon 400, DRIVER 403 (6.855ms)
+  ✔ note rides the atomic save and persists to shipments.operational_notes (16.187459ms)
+  ✔ unchanged note → shipment version NOT bumped; omitted note → stored note untouched (30.738209ms)
+  ✔ empty note clears (null ≡ ""), and >4000 chars is rejected (37.829041ms)
+✔ dispatch task tags and driver-note plan save (104.753708ms)
+▶ planning remaining containers after partial dispatch
+  ✔ plan save with the tags note works on the READY container after the lot flipped DISPATCHED (124.242958ms)
+  ✔ carrier reassignment stays available on the READY row of a DISPATCHED lot (105.41075ms)
+  ✔ plan save on the already-issued container still refuses (per-row live-trip guard) (104.929916ms)
+  ✔ terminal lots still refuse plan save (10.029375ms)
+✔ planning remaining containers after partial dispatch (344.738958ms)
+▶ journey-board card fields — operationalNotes + factoryShortName
+  ✔ cards carry operationalNotes verbatim and resolve blank-safe factory labels (91.023917ms)
+✔ journey-board card fields — operationalNotes + factoryShortName (91.40625ms)
+ℹ tests 62
+ℹ suites 11
+ℹ pass 62
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4608.262125

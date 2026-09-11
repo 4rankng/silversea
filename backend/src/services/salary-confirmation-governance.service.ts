@@ -1,6 +1,8 @@
-import { and, desc, eq, inArray } from 'drizzle-orm';
+// Driver salary-confirmation / reopen governance. MC-4: the governance_actions
+// table is dropped; the make stage returns a TRANSIENT action record
+// (buildGovernanceAction) and the check + approve stages run in-request via
+// applyGovernanceActionDirect with these adapters. Nothing is persisted.
 import { db } from '../db';
-import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
 import {
@@ -12,9 +14,9 @@ import {
 } from './attendance.service';
 import { assertCanMakeGovernanceAction } from './governance-policy';
 import {
-  approveGovernanceActionWithAdapter,
-  checkGovernanceAction,
+  buildGovernanceAction,
   type GovernanceActionRow,
+  type GovernanceApplyAdapter,
   type GovernanceApplyResult,
 } from './governance-action-core.service';
 import {
@@ -26,34 +28,10 @@ import { resolveSalaryPeriodDateRange } from './salary-period.service';
 const SALARY_CONFIRMATION_SUBJECT_TYPE = 'SALARY_CONFIRMATION';
 const SALARY_CONFIRM_ACTION_KIND = 'SALARY_CONFIRMATION';
 const SALARY_REOPEN_ACTION_KIND = 'SALARY_REOPEN';
-const ACTIVE_STATUSES = ['PENDING_CHECK', 'PENDING_APPROVAL', 'RETURNED_FOR_EVIDENCE'] as const;
 
 type SalaryConfirmationActionKind =
   | typeof SALARY_CONFIRM_ACTION_KIND
   | typeof SALARY_REOPEN_ACTION_KIND;
-
-type SalaryConfirmationGovernanceView = {
-  id: number;
-  subjectType: string;
-  subjectId: number | null;
-  subjectKey: string | null;
-  actionKind: string;
-  status: string;
-  version: number;
-  reason: string;
-  makerId: number;
-  makerRole: string | null;
-  checkerId: number | null;
-  checkerRole: string | null;
-  approverId: number | null;
-  approverRole: string | null;
-  createdAt: string;
-  checkedAt: string | null;
-  approvedAt: string | null;
-  beforeSnapshot: unknown;
-  afterSnapshot: unknown;
-  deltaSnapshot: unknown;
-};
 
 function toPeriodKey(year: number, month: number): string {
   return `${year}-${String(month).padStart(2, '0')}`;
@@ -73,31 +51,6 @@ function hashSnapshot(value: string): number {
     hash = ((hash * 31) + value.charCodeAt(index)) >>> 0;
   }
   return hash & 0x7fffffff;
-}
-
-function toGovernanceActionView(action: GovernanceActionRow): SalaryConfirmationGovernanceView {
-  return {
-    id: action.id,
-    subjectType: action.subjectType,
-    subjectId: action.subjectId,
-    subjectKey: action.subjectKey,
-    actionKind: action.actionKind,
-    status: action.status,
-    version: action.version,
-    reason: action.reason,
-    makerId: action.makerId,
-    makerRole: action.makerRole,
-    checkerId: action.checkerId,
-    checkerRole: action.checkerRole,
-    approverId: action.approverId,
-    approverRole: action.approverRole,
-    createdAt: action.createdAt.toISOString(),
-    checkedAt: toIsoString(action.checkedAt),
-    approvedAt: toIsoString(action.approvedAt),
-    beforeSnapshot: action.beforeSnapshot,
-    afterSnapshot: action.afterSnapshot,
-    deltaSnapshot: action.deltaSnapshot,
-  };
 }
 
 function assertSalaryConfirmationAction(
@@ -122,27 +75,6 @@ function requireReopenReason(reason: string | null | undefined): string {
     throw new ApiError(400, 'Cần nhập lý do mở lại bảng công và lương');
   }
   return normalized;
-}
-
-async function assertNoActiveAction(
-  tx: Tx,
-  subjectKey: string,
-  actionKind: SalaryConfirmationActionKind,
-): Promise<void> {
-  const [existing] = await tx.select({ id: s.governanceActions.id })
-    .from(s.governanceActions)
-    .where(and(
-      eq(s.governanceActions.subjectType, SALARY_CONFIRMATION_SUBJECT_TYPE),
-      eq(s.governanceActions.subjectKey, subjectKey),
-      eq(s.governanceActions.actionKind, actionKind),
-      inArray(s.governanceActions.status, ACTIVE_STATUSES),
-    ))
-    .orderBy(desc(s.governanceActions.id))
-    .limit(1);
-
-  if (existing) {
-    throw new ApiError(409, 'Đang có yêu cầu cùng loại chờ xử lý cho bảng công và lương này');
-  }
 }
 
 async function assertPeriodStillEditable(
@@ -183,9 +115,7 @@ async function buildSnapshot(
   ]);
 
   const snapshot = {
-    driverId,
-    year,
-    month,
+    driverId, year, month,
     period: {
       start: period.start,
       end: period.end,
@@ -271,24 +201,21 @@ export async function requestSalaryConfirmation(input: {
   transaction?: Tx;
 }) {
   assertCanMakeGovernanceAction(SALARY_CONFIRM_ACTION_KIND, input.actorRole);
-  const subjectKey = toSubjectKey(input.driverId, input.year, input.month);
   const periodKey = toPeriodKey(input.year, input.month);
   const reason = input.reason?.trim() || `Đề nghị xác nhận bảng công và lương kỳ ${periodKey}`;
 
   const execute = async (tx: Tx) => {
     await assertPeriodStillEditable(tx, input.year, input.month);
-    await assertNoActiveAction(tx, subjectKey, SALARY_CONFIRM_ACTION_KIND);
 
     const snapshot = await buildSnapshot(tx, input.driverId, input.year, input.month);
     if (snapshot.confirmation?.status === 'CONFIRMED') {
       throw new ApiError(409, 'Bảng công và lương này đã được xác nhận');
     }
 
-    const [action] = await tx.insert(s.governanceActions).values({
+    return buildGovernanceAction({
       subjectType: SALARY_CONFIRMATION_SUBJECT_TYPE,
-      subjectKey,
+      subjectKey: toSubjectKey(input.driverId, input.year, input.month),
       actionKind: SALARY_CONFIRM_ACTION_KIND,
-      status: 'PENDING_CHECK',
       reason,
       originalVersion: snapshot.sourceVersion,
       beforeSnapshot: {
@@ -304,9 +231,7 @@ export async function requestSalaryConfirmation(input: {
       deltaSnapshot: null,
       makerId: input.actorId,
       makerRole: input.actorRole,
-    }).returning();
-
-    return toGovernanceActionView(action);
+    });
   };
   if (input.transaction) {
     return execute(input.transaction);
@@ -314,85 +239,44 @@ export async function requestSalaryConfirmation(input: {
   return db.transaction(execute);
 }
 
-export async function checkSalaryConfirmation(input: {
-  driverId: number;
-  year: number;
-  month: number;
-  actionId: number;
-  actorId: number;
-  actorRole: string;
-  expectedVersion: number;
-  transaction?: Tx;
-}) {
-  const action = await checkGovernanceAction({
-    actionId: input.actionId,
-    checkerId: input.actorId,
-    checkerRole: input.actorRole,
-    expectedVersion: input.expectedVersion,
-    transaction: input.transaction,
-  });
+/**
+ * Direct-apply adapter for SALARY_CONFIRMATION. Re-runs the period-lock and
+ * snapshot-integrity guards (READ COMMITTED can surface a committed
+ * workday change between the make and apply stages) before confirming.
+ */
+export const applySalaryConfirmationAction: GovernanceApplyAdapter = async (
+  tx,
+  governanceAction,
+): Promise<GovernanceApplyResult> => {
+  const afterSnapshot = governanceAction.afterSnapshot as Record<string, unknown>;
+  const driverId = Number(afterSnapshot.driverId);
+  const year = Number(afterSnapshot.year);
+  const month = Number(afterSnapshot.month);
   assertSalaryConfirmationAction(
-    action,
-    input.driverId,
-    input.year,
-    input.month,
+    governanceAction,
+    driverId,
+    year,
+    month,
     SALARY_CONFIRM_ACTION_KIND,
   );
-  return toGovernanceActionView(action);
-}
-
-export async function approveSalaryConfirmation(input: {
-  driverId: number;
-  year: number;
-  month: number;
-  actionId: number;
-  actorId: number;
-  actorRole: string;
-  expectedVersion: number;
-  transaction?: Tx;
-}) {
-  const action = await approveGovernanceActionWithAdapter({
-    actionId: input.actionId,
-    approverId: input.actorId,
-    approverRole: input.actorRole,
-    expectedVersion: input.expectedVersion,
-    transaction: input.transaction,
-    apply: async (tx, governanceAction): Promise<GovernanceApplyResult> => {
-      assertSalaryConfirmationAction(
-        governanceAction,
-        input.driverId,
-        input.year,
-        input.month,
-        SALARY_CONFIRM_ACTION_KIND,
-      );
-      await assertPeriodStillEditable(tx, input.year, input.month);
-      await assertSnapshotUnchanged(tx, governanceAction, input.driverId, input.year, input.month);
-      const result = await confirmSalary(
-        input.driverId,
-        input.year,
-        input.month,
-        input.actorId,
-        tx,
-      );
-      return {
-        applicationResult: {
-          confirmationId: result.confirmation.id,
-          status: result.confirmation.status,
-          confirmedBy: result.confirmation.confirmedBy,
-          confirmedAt: toIsoString(result.confirmation.confirmedAt),
-        },
-      };
+  await assertPeriodStillEditable(tx, year, month);
+  await assertSnapshotUnchanged(tx, governanceAction, driverId, year, month);
+  const result = await confirmSalary(
+    driverId,
+    year,
+    month,
+    governanceAction.approverId ?? governanceAction.makerId,
+    tx,
+  );
+  return {
+    applicationResult: {
+      confirmationId: result.confirmation.id,
+      status: result.confirmation.status,
+      confirmedBy: result.confirmation.confirmedBy,
+      confirmedAt: toIsoString(result.confirmation.confirmedAt),
     },
-  });
-  assertSalaryConfirmationAction(
-    action,
-    input.driverId,
-    input.year,
-    input.month,
-    SALARY_CONFIRM_ACTION_KIND,
-  );
-  return toGovernanceActionView(action);
-}
+  };
+};
 
 export async function requestSalaryReopen(input: {
   driverId: number;
@@ -404,23 +288,20 @@ export async function requestSalaryReopen(input: {
   transaction?: Tx;
 }) {
   assertCanMakeGovernanceAction(SALARY_REOPEN_ACTION_KIND, input.actorRole);
-  const subjectKey = toSubjectKey(input.driverId, input.year, input.month);
   const reason = requireReopenReason(input.reason);
 
   const execute = async (tx: Tx) => {
     await assertPeriodStillEditable(tx, input.year, input.month);
-    await assertNoActiveAction(tx, subjectKey, SALARY_REOPEN_ACTION_KIND);
 
     const snapshot = await buildSnapshot(tx, input.driverId, input.year, input.month);
     if (snapshot.confirmation?.status !== 'CONFIRMED') {
       throw new ApiError(409, 'Bảng công và lương này chưa được xác nhận để mở lại');
     }
 
-    const [action] = await tx.insert(s.governanceActions).values({
+    return buildGovernanceAction({
       subjectType: SALARY_CONFIRMATION_SUBJECT_TYPE,
-      subjectKey,
+      subjectKey: toSubjectKey(input.driverId, input.year, input.month),
       actionKind: SALARY_REOPEN_ACTION_KIND,
-      status: 'PENDING_CHECK',
       reason,
       originalVersion: snapshot.sourceVersion,
       beforeSnapshot: {
@@ -437,9 +318,7 @@ export async function requestSalaryReopen(input: {
       deltaSnapshot: null,
       makerId: input.actorId,
       makerRole: input.actorRole,
-    }).returning();
-
-    return toGovernanceActionView(action);
+    });
   };
   if (input.transaction) {
     return execute(input.transaction);
@@ -447,80 +326,37 @@ export async function requestSalaryReopen(input: {
   return db.transaction(execute);
 }
 
-export async function checkSalaryReopen(input: {
-  driverId: number;
-  year: number;
-  month: number;
-  actionId: number;
-  actorId: number;
-  actorRole: string;
-  expectedVersion: number;
-  transaction?: Tx;
-}) {
-  const action = await checkGovernanceAction({
-    actionId: input.actionId,
-    checkerId: input.actorId,
-    checkerRole: input.actorRole,
-    expectedVersion: input.expectedVersion,
-    transaction: input.transaction,
-  });
+/**
+ * Direct-apply adapter for SALARY_REOPEN.
+ */
+export const applySalaryReopenAction: GovernanceApplyAdapter = async (
+  tx,
+  governanceAction,
+): Promise<GovernanceApplyResult> => {
+  const afterSnapshot = governanceAction.afterSnapshot as Record<string, unknown>;
+  const driverId = Number(afterSnapshot.driverId);
+  const year = Number(afterSnapshot.year);
+  const month = Number(afterSnapshot.month);
   assertSalaryConfirmationAction(
-    action,
-    input.driverId,
-    input.year,
-    input.month,
+    governanceAction,
+    driverId,
+    year,
+    month,
     SALARY_REOPEN_ACTION_KIND,
   );
-  return toGovernanceActionView(action);
-}
-
-export async function approveSalaryReopen(input: {
-  driverId: number;
-  year: number;
-  month: number;
-  actionId: number;
-  actorId: number;
-  actorRole: string;
-  expectedVersion: number;
-  transaction?: Tx;
-}) {
-  const action = await approveGovernanceActionWithAdapter({
-    actionId: input.actionId,
-    approverId: input.actorId,
-    approverRole: input.actorRole,
-    expectedVersion: input.expectedVersion,
-    transaction: input.transaction,
-    apply: async (tx, governanceAction): Promise<GovernanceApplyResult> => {
-      assertSalaryConfirmationAction(
-        governanceAction,
-        input.driverId,
-        input.year,
-        input.month,
-        SALARY_REOPEN_ACTION_KIND,
-      );
-      await assertPeriodStillEditable(tx, input.year, input.month);
-      await assertSnapshotUnchanged(tx, governanceAction, input.driverId, input.year, input.month);
-      const result = await unconfirmSalary(
-        input.driverId,
-        input.year,
-        input.month,
-        tx,
-      );
-      return {
-        applicationResult: {
-          status: result.salary.confirmationStatus,
-          confirmedBy: result.salary.confirmedBy,
-          confirmedAt: result.salary.confirmedAt,
-        },
-      };
+  await assertPeriodStillEditable(tx, year, month);
+  await assertSnapshotUnchanged(tx, governanceAction, driverId, year, month);
+  const result = await unconfirmSalary(
+    driverId,
+    year,
+    month,
+    tx,
+  );
+  return {
+    applicationResult: {
+      status: result.salary.confirmationStatus,
+      confirmedBy: result.salary.confirmedBy,
+      confirmedAt: result.salary.confirmedAt,
     },
-  });
-  assertSalaryConfirmationAction(
-    action,
-    input.driverId,
-    input.year,
-    input.month,
-    SALARY_REOPEN_ACTION_KIND,
-  );
-  return toGovernanceActionView(action);
-}
+  };
+};

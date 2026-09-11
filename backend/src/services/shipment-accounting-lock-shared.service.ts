@@ -3,7 +3,7 @@
 // confirmation-summary mapper, row lockers, and version bumping. Extracted
 // from shipment-accounting-lock.service.ts verbatim (pure code movement); the
 // snapshot / reads / confirm / custody leaves import these one-way.
-import { and, desc, eq, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, isNotNull, isNull, sql } from 'drizzle-orm';
 import { createHash } from 'node:crypto';
 import { type ShipmentChargeProposalField } from '@tingting/shared';
 import * as s from '../db/schema';
@@ -20,12 +20,6 @@ export const ISSUED_DEBIT_NOTE_STATUSES = new Set([
   'PAID',
 ]);
 
-export const ACTIVE_GOVERNANCE_STATUSES = [
-  'PENDING_CHECK',
-  'PENDING_APPROVAL',
-  'RETURNED_FOR_EVIDENCE',
-] as const;
-
 export const SHIPMENT_COST_CONFIRMATION_KIND = 'SHIPMENT_COST_CONFIRMATION' as const;
 export const SHIPMENT_PROPOSAL_BILLING_LINK_KIND = 'SHIPMENT_PROPOSAL_BILLING_LINK' as const;
 export const SHIPMENT_REOPEN_REQUEST_KIND = 'SHIPMENT_REOPEN_REQUEST' as const;
@@ -38,7 +32,7 @@ export const PROPOSAL_FIELD_COLUMN_MAP = {
   INBOUND_HANDLING: 'inboundHandlingAmount',
 } as const satisfies Record<ShipmentChargeProposalField, string>;
 
-export type GovernanceRow = typeof s.governanceActions.$inferSelect;
+export type GovernanceRow = typeof s.shipmentFinanceActions.$inferSelect;
 
 export type ShipmentDocumentCustodyFactRow = {
   id: number;
@@ -267,17 +261,16 @@ export async function getLatestShipmentReopenApproval(
   tx: Tx,
 ) {
   const [row] = await tx.select({
-    id: s.governanceActions.id,
-    appliedAt: s.governanceActions.appliedAt,
-  }).from(s.governanceActions)
+    id: s.shipmentFinanceActions.id,
+    appliedAt: s.shipmentFinanceActions.appliedAt,
+  }).from(s.shipmentFinanceActions)
     .where(and(
-      eq(s.governanceActions.subjectType, 'SHIPMENT'),
-      eq(s.governanceActions.subjectId, shipmentId),
-      eq(s.governanceActions.actionKind, SHIPMENT_REOPEN_REQUEST_KIND),
-      eq(s.governanceActions.status, 'APPROVED'),
-      sql`${s.governanceActions.appliedAt} is not null`,
+      eq(s.shipmentFinanceActions.shipmentId, shipmentId),
+      eq(s.shipmentFinanceActions.actionKind, SHIPMENT_REOPEN_REQUEST_KIND),
+      eq(s.shipmentFinanceActions.status, 'APPROVED'),
+      isNotNull(s.shipmentFinanceActions.appliedAt),
     ))
-    .orderBy(desc(s.governanceActions.appliedAt), desc(s.governanceActions.id))
+    .orderBy(desc(s.shipmentFinanceActions.appliedAt), desc(s.shipmentFinanceActions.id))
     .limit(1);
   return row ?? null;
 }
@@ -287,19 +280,18 @@ export async function getLatestShipmentFinanceConfirmationRow(
   tx: Tx,
 ) {
   const [row] = await tx.select({
-    action: s.governanceActions,
+    action: s.shipmentFinanceActions,
     fullName: s.users.fullName,
     username: s.users.username,
-  }).from(s.governanceActions)
-    .leftJoin(s.users, eq(s.users.id, s.governanceActions.approverId))
+  }).from(s.shipmentFinanceActions)
+    .leftJoin(s.users, eq(s.users.id, s.shipmentFinanceActions.approverId))
     .where(and(
-      eq(s.governanceActions.subjectType, 'SHIPMENT'),
-      eq(s.governanceActions.subjectId, shipmentId),
-      eq(s.governanceActions.actionKind, SHIPMENT_COST_CONFIRMATION_KIND),
-      eq(s.governanceActions.status, 'APPROVED'),
-      sql`${s.governanceActions.appliedAt} is not null`,
+      eq(s.shipmentFinanceActions.shipmentId, shipmentId),
+      eq(s.shipmentFinanceActions.actionKind, SHIPMENT_COST_CONFIRMATION_KIND),
+      eq(s.shipmentFinanceActions.status, 'APPROVED'),
+      isNotNull(s.shipmentFinanceActions.appliedAt),
     ))
-    .orderBy(desc(s.governanceActions.appliedAt), desc(s.governanceActions.id))
+    .orderBy(desc(s.shipmentFinanceActions.appliedAt), desc(s.shipmentFinanceActions.id))
     .limit(1);
   if (!row) return null;
   return {

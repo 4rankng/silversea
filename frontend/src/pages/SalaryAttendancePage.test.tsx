@@ -10,28 +10,12 @@ const salaryQueriesMock = vi.hoisted(() => ({
   useUpdateWorkDays: vi.fn(),
   useConfirmSalary: vi.fn(),
   useUnconfirmSalary: vi.fn(),
-  useSalaryConfirmationGovernanceActions: vi.fn(),
-  useCheckConfirmSalary: vi.fn(),
-  useApproveConfirmSalary: vi.fn(),
-  useCheckUnconfirmSalary: vi.fn(),
-  useApproveUnconfirmSalary: vi.fn(),
-  useSalaryPeriodGovernanceActions: vi.fn(),
   useSalaryPeriodOverview: vi.fn(),
-  useCheckCloseSalaryPeriod: vi.fn(),
-  useApproveCloseSalaryPeriod: vi.fn(),
   useCloseSalaryPeriod: vi.fn(),
-  useCheckReopenSalaryPeriod: vi.fn(),
-  useApproveReopenSalaryPeriod: vi.fn(),
   useReopenSalaryPeriod: vi.fn(),
   useIssueSalaryPeriod: vi.fn(),
-  useCheckIssueSalaryPeriod: vi.fn(),
-  useApproveIssueSalaryPeriod: vi.fn(),
   usePostSalaryPeriod: vi.fn(),
-  useCheckPostSalaryPeriod: vi.fn(),
-  useApprovePostSalaryPeriod: vi.fn(),
   useRequestPostCloseAdjustment: vi.fn(),
-  useCheckPostCloseAdjustment: vi.fn(),
-  useApprovePostCloseAdjustment: vi.fn(),
 }));
 
 vi.mock('../hooks/useSalaryQueries', () => salaryQueriesMock);
@@ -130,27 +114,11 @@ describe('SalaryAttendancePage Q11 post-close surface', () => {
     salaryQueriesMock.useUpdateWorkDays.mockReturnValue(mutationStub());
     salaryQueriesMock.useConfirmSalary.mockReturnValue(mutationStub());
     salaryQueriesMock.useUnconfirmSalary.mockReturnValue(mutationStub());
-    salaryQueriesMock.useSalaryConfirmationGovernanceActions.mockReturnValue({ data: [], isLoading: false });
-    salaryQueriesMock.useCheckConfirmSalary.mockReturnValue(mutationStub());
-    salaryQueriesMock.useApproveConfirmSalary.mockReturnValue(mutationStub());
-    salaryQueriesMock.useCheckUnconfirmSalary.mockReturnValue(mutationStub());
-    salaryQueriesMock.useApproveUnconfirmSalary.mockReturnValue(mutationStub());
-    salaryQueriesMock.useSalaryPeriodGovernanceActions.mockReturnValue({ data: [], isLoading: false });
-    salaryQueriesMock.useCheckCloseSalaryPeriod.mockReturnValue(mutationStub());
-    salaryQueriesMock.useApproveCloseSalaryPeriod.mockReturnValue(mutationStub());
     salaryQueriesMock.useCloseSalaryPeriod.mockReturnValue(mutationStub());
-    salaryQueriesMock.useCheckReopenSalaryPeriod.mockReturnValue(mutationStub());
-    salaryQueriesMock.useApproveReopenSalaryPeriod.mockReturnValue(mutationStub());
     salaryQueriesMock.useReopenSalaryPeriod.mockReturnValue(mutationStub());
     salaryQueriesMock.useIssueSalaryPeriod.mockReturnValue(mutationStub());
-    salaryQueriesMock.useCheckIssueSalaryPeriod.mockReturnValue(mutationStub());
-    salaryQueriesMock.useApproveIssueSalaryPeriod.mockReturnValue(mutationStub());
     salaryQueriesMock.usePostSalaryPeriod.mockReturnValue(mutationStub());
-    salaryQueriesMock.useCheckPostSalaryPeriod.mockReturnValue(mutationStub());
-    salaryQueriesMock.useApprovePostSalaryPeriod.mockReturnValue(mutationStub());
     salaryQueriesMock.useRequestPostCloseAdjustment.mockReturnValue(mutationStub());
-    salaryQueriesMock.useCheckPostCloseAdjustment.mockReturnValue(mutationStub());
-    salaryQueriesMock.useApprovePostCloseAdjustment.mockReturnValue(mutationStub());
     salaryQueriesMock.useSalaryPeriodOverview.mockReturnValue({
       data: {
         lifecycle: {
@@ -181,7 +149,7 @@ describe('SalaryAttendancePage Q11 post-close surface', () => {
   it('shows the close action while the company period is still open', async () => {
     renderPage();
     await waitFor(() => expect(screen.getByText('Nguyen Van A')).toBeTruthy());
-    expect(screen.getByRole('button', { name: 'Gửi yêu cầu chốt kỳ' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Chốt kỳ lương' })).toBeTruthy();
   });
 
   it('shows a request-confirm button while the driver salary is still draft', async () => {
@@ -197,89 +165,7 @@ describe('SalaryAttendancePage Q11 post-close surface', () => {
     });
 
     renderPage();
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Gửi yêu cầu xác nhận' })).toBeTruthy());
-  });
-
-  it('shows the pending salary-confirmation governance request and checker action instead of another request button', async () => {
-    salaryQueriesMock.useSalaryList.mockReturnValue({
-      data: {
-        items: [{ id: 1, name: 'Nguyen Van A', status: 'ACTIVE', salary: { ...baseSalary, confirmationStatus: 'DRAFT', confirmedBy: null, confirmedAt: null } }],
-      },
-      isLoading: false,
-    });
-    salaryQueriesMock.useDriverSalary.mockReturnValue({
-      data: { ...baseSalary, confirmationStatus: 'DRAFT', confirmedBy: null, confirmedAt: null },
-      isLoading: false,
-    });
-    salaryQueriesMock.useSalaryConfirmationGovernanceActions.mockReturnValue({
-      data: [{
-        id: 51,
-        subjectType: 'SALARY_CONFIRMATION',
-        subjectId: null,
-        subjectKey: '1:2026-07',
-        actionKind: 'SALARY_CONFIRMATION',
-        status: 'PENDING_CHECK',
-        version: 2,
-        reason: 'Đề nghị xác nhận bảng công và lương tháng 07',
-        makerId: 18,
-        makerRole: 'ACCOUNTANT',
-        checkerId: null,
-        checkerRole: null,
-        approverId: null,
-        approverRole: null,
-        createdAt: '2026-07-31T10:00:00.000Z',
-        checkedAt: null,
-        approvedAt: null,
-        beforeSnapshot: null,
-        afterSnapshot: null,
-        deltaSnapshot: null,
-        allowedActions: ['CHECK'],
-      }],
-      isLoading: false,
-    });
-
-    renderPage();
-
-    await waitFor(() => expect(screen.getByText('Yêu cầu xác nhận bảng công và lương')).toBeTruthy());
-    expect(screen.queryByRole('button', { name: 'Gửi yêu cầu xác nhận' })).toBeNull();
-    expect(screen.getByText(/Đang có yêu cầu xác nhận bảng công và lương chờ xử lý bên dưới/)).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Kiểm tra' })).toBeTruthy();
-  });
-
-  it('shows the pending close governance request and manager check action instead of another close request', async () => {
-    salaryQueriesMock.useSalaryPeriodGovernanceActions.mockReturnValue({
-      data: [{
-        id: 41,
-        subjectType: 'SALARY_PERIOD',
-        subjectId: 15,
-        subjectKey: '2026-07',
-        actionKind: 'SALARY_PERIOD_CLOSE',
-        status: 'PENDING_CHECK',
-        version: 2,
-        reason: 'Đề nghị chốt kỳ lương tháng 07',
-        makerId: 18,
-        makerRole: 'ACCOUNTANT',
-        checkerId: null,
-        checkerRole: null,
-        approverId: null,
-        approverRole: null,
-        createdAt: '2026-07-31T10:00:00.000Z',
-        checkedAt: null,
-        approvedAt: null,
-        beforeSnapshot: null,
-        afterSnapshot: null,
-        deltaSnapshot: null,
-        allowedActions: ['CHECK'],
-      }],
-      isLoading: false,
-    });
-
-    renderPage();
-
-    await waitFor(() => expect(screen.getByText('Yêu cầu chốt kỳ')).toBeTruthy());
-    expect(screen.queryByRole('button', { name: 'Gửi yêu cầu chốt kỳ' })).toBeNull();
-    expect(screen.getByText(/Đang có yêu cầu chốt kỳ chờ xử lý bên dưới/)).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Kiểm tra' })).toBeTruthy();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Xác nhận' })).toBeTruthy());
   });
 
   it('blocks reopen in the UI after payslips have been issued and shows the adjustment path', async () => {
@@ -311,7 +197,7 @@ describe('SalaryAttendancePage Q11 post-close surface', () => {
 
     renderPage();
     await waitFor(() => expect(screen.getByText('Đã phát hành phiếu lương')).toBeTruthy());
-    expect(screen.queryByRole('button', { name: 'Mở lại kỳ lương' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Mở lại kỳ' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Tạo khoản điều chỉnh' })).toBeTruthy();
   });
 
@@ -327,16 +213,16 @@ describe('SalaryAttendancePage Q11 post-close surface', () => {
     });
 
     renderPage();
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Gửi yêu cầu mở lại' })).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Mở lại bảng công' })).toBeTruthy());
 
-    fireEvent.click(screen.getByRole('button', { name: 'Gửi yêu cầu mở lại' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mở lại bảng công' }));
     expect(screen.getByText('Cần nhập lý do mở lại bảng công và lương trước khi gửi yêu cầu.')).toBeTruthy();
     expect(reopenMutate).not.toHaveBeenCalled();
 
     fireEvent.change(screen.getByLabelText('Lý do mở lại bảng công và lương'), {
       target: { value: 'Điều chỉnh sau đối soát kỳ lương tháng 07' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Gửi yêu cầu mở lại' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mở lại bảng công' }));
 
     expect(reopenMutate).toHaveBeenCalledTimes(1);
     expect(reopenMutate).toHaveBeenCalledWith(
@@ -375,7 +261,6 @@ describe('SalaryAttendancePage Q11 post-close surface', () => {
           reopenBlockers: ['Kỳ lương chưa được chốt'],
         },
         adjustments: [{
-          actionId: 21,
           adjustmentId: 31,
           sourcePeriod: '2026-07',
           targetPeriod: '2026-08',
@@ -383,13 +268,8 @@ describe('SalaryAttendancePage Q11 post-close surface', () => {
           driverName: 'Nguyen Van A',
           amount: 450000,
           reason: 'Bổ sung chuyến hoàn tất sau khi đã phát hành phiếu lương kỳ 07',
-          status: 'APPROVED' as const,
-          makerId: 7,
-          makerName: 'Kế toán',
-          checkerId: 8,
-          checkerName: 'Trưởng phòng',
-          approverId: 99,
-          approverName: 'Giám đốc',
+          approvedBy: 7,
+          approvedByName: 'Kế toán',
           createdAt: '2026-08-02T09:00:00.000Z',
           approvedAt: '2026-08-02T11:00:00.000Z',
           relationship: 'TARGET' as const,

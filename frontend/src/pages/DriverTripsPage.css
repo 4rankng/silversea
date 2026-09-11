@@ -157,18 +157,9 @@
   color: var(--ink-3);
 }
 
-/* The spec header reads "Giờ đóng / trả: [HH:MM - DD/MM]" — the label sits
-   muted beside the time value instead of repeating its weight. */
-.driver-journey-card__time-label {
-  margin-right: 4px;
-  font-weight: 500;
-  color: var(--ink-4);
-}
-
-/* Headline. The route is what a driver scans a 27-card history for, so it
-   carries the card's largest type and is the only place the brand color
-   appears in the body. */
-.driver-journey-card__route {
+/* Headline — factory name is the primary identifier a driver scans a 27-card
+   history for. Carries the card's largest type and the brand-colored icon. */
+.driver-journey-card__factory--headline {
   display: flex;
   align-items: baseline;
   gap: 8px;
@@ -180,13 +171,31 @@
   overflow-wrap: anywhere;
 }
 
-.driver-journey-card__route svg {
+.driver-journey-card__factory--headline svg {
   flex-shrink: 0;
   align-self: center;
   color: var(--brand);
 }
 
-.driver-journey-card__factory,
+/* Route — secondary line below factory name. */
+.driver-journey-card__route {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+
+.driver-journey-card__route svg {
+  flex-shrink: 0;
+  align-self: center;
+  color: var(--ink-4);
+}
+
 .driver-journey-card__contact {
   display: flex;
   align-items: baseline;
@@ -201,7 +210,6 @@
 
 /* Text in these rows aligns on the baseline; the icons are graphics with no
    baseline of their own, so they centre against the line box instead. */
-.driver-journey-card__factory svg,
 .driver-journey-card__contact svg,
 .driver-journey-card__container svg {
   flex-shrink: 0;
@@ -233,6 +241,14 @@
   text-decoration: underline;
 }
 
+/* Container + ports block — groups the container strip and the lift/drop
+   ports into one visual unit per the responsive-space-utilisation contract. */
+.driver-journey-card__container-block {
+  display: grid;
+  gap: 6px;
+  margin: 2px 0 0;
+}
+
 /* Identifier strip — container number, type and seal are codes, not prose.
    Tabular figures and a tinted ground separate them from the narrative rows. */
 .driver-journey-card__container {
@@ -240,7 +256,7 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 6px;
-  margin: 2px 0 0;
+  margin: 0;
   padding: 6px 8px;
   border-radius: 10px;
   background: var(--surface-2);
@@ -264,31 +280,23 @@
   color: var(--ink-3);
 }
 
-/* Spec Phần 2 A: two-column pair rows — Nhà máy|Cảng nâng, Tuyến đường|Cảng hạ.
-   Each pair occupies one row; left and right share the space equally. */
-.driver-journey-card__pairs {
-  display: grid;
-  gap: 8px;
+/* Ports row — lift and drop port side-by-side below the container strip. */
+.driver-journey-card__ports {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  padding: 0 2px;
+  font-size: 12px;
+  color: var(--ink-2);
 }
 
-.driver-journey-card__pair {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+.driver-journey-card__port {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
 }
 
-.driver-journey-card__pair-left,
-.driver-journey-card__pair-right {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-}
-
-.driver-journey-card__pair-right {
-  text-align: right;
-}
-
-.driver-journey-card__pair-label {
+.driver-journey-card__port-label {
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -296,18 +304,35 @@
   color: var(--ink-3);
 }
 
-.driver-journey-card__pair-value {
-  font-size: 14px;
-  line-height: 1.35;
-  color: var(--ink);
-  overflow-wrap: anywhere;
+/* Operation task chips (tác vụ) — rendered from operationalNotes. */
+.driver-journey-card__ops {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 2px 0 0;
 }
 
-.driver-journey-card__pair-value--bold {
-  font-weight: 700;
+.driver-journey-card__ops-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  background: color-mix(in srgb, var(--brand) 10%, transparent);
+  color: var(--brand);
 }
 
-/* Two-column labelled grid for truck/trailer facts. */
+.driver-journey-card__ops-note {
+  margin: 2px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ink-3);
+}
+
+/* Two-column labelled grid, mirroring the trip-detail fact rows. Replaces the
+   old space-between rows, whose label and value were flung to opposite screen
+   edges and read as a broken table on anything wider than a phone. */
 .driver-journey-card__facts {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

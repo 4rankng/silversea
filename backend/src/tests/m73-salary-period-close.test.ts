@@ -7,8 +7,6 @@ import * as s from '../db/schema';
 import { insertTripComposite } from '../services/trip-composite.service';
 import { TripStatus, TxnType } from '@tingting/shared';
 import {
-  approveSalaryPeriodExclusion,
-  checkSalaryPeriodExclusion,
   closeSalaryPeriod,
   completeSalaryPeriodExclusionFollowup,
   createSalaryPeriodExclusion,
@@ -22,8 +20,6 @@ import {
   getWorkDays,
 } from '../services/attendance.service';
 import {
-  approveSalaryPeriodAdjustment,
-  checkSalaryPeriodAdjustment,
   requestSalaryPeriodAdjustment,
 } from '../services/salary-period-adjustment.service';
 import { syncAttendanceAfterStatusChange } from '../services/trip-attendance-sync.service';
@@ -48,7 +44,8 @@ const createdRouteIds: number[] = [];
 const createdCargoTypeIds: number[] = [];
 const createdTripIds: number[] = [];
 const createdLedgerIds: number[] = [];
-const createdGovernanceActionIds: number[] = [];
+const createdExclusionIds: number[] = [];
+const createdAdjustmentIds: number[] = [];
 const createdClosePeriods = new Set<string>();
 let testCatalogs: {
   customer: { id: number };
@@ -141,8 +138,11 @@ async function postDriverSalary(tripId: number, driverId: number, amount: number
 
 after(async () => {
   try {
-    if (createdGovernanceActionIds.length > 0) {
-      await db.delete(s.governanceActions).where(inArray(s.governanceActions.id, createdGovernanceActionIds));
+    if (createdExclusionIds.length > 0) {
+      await db.delete(s.salaryPeriodExclusions).where(inArray(s.salaryPeriodExclusions.id, createdExclusionIds));
+    }
+    if (createdAdjustmentIds.length > 0) {
+      await db.delete(s.salaryPeriodAdjustments).where(inArray(s.salaryPeriodAdjustments.id, createdAdjustmentIds));
     }
     if (createdClosePeriods.size > 0) {
       await db.delete(s.salaryPeriodCloses).where(inArray(s.salaryPeriodCloses.period, [...createdClosePeriods]));
@@ -287,25 +287,9 @@ test('M7.3 payroll close enforces readiness, approved exclusions, completion-per
       targetPeriod: SUPPLEMENTARY_PERIOD,
       note: 'm73 supplementary',
     });
-    createdGovernanceActionIds.push(requested.actionId);
-    assert.equal(requested.status, 'PENDING_CHECK');
-
-    const checked = await checkSalaryPeriodExclusion({
-      actionId: requested.actionId,
-      actorId: manager.id,
-      actorRole: 'MANAGER',
-      expectedVersion: requested.version,
-    });
-    assert.equal(checked.status, 'PENDING_APPROVAL');
-
-    const approved = await approveSalaryPeriodExclusion({
-      actionId: requested.actionId,
-      actorId: admin.id,
-      actorRole: 'ADMIN',
-      expectedVersion: checked.version,
-    });
-    assert.equal(approved.status, 'APPROVED');
-    approvedExclusions.push(approved);
+    createdExclusionIds.push(requested.actionId);
+    assert.equal(requested.followupStatus, 'PENDING');
+    approvedExclusions.push(requested);
   }
   assert.ok(approvedExclusions.some((item) => item.driverId === excludedDriver.id));
 
@@ -337,75 +321,37 @@ test('M7.3 payroll close enforces readiness, approved exclusions, completion-per
     SUPPLEMENTARY_MONTH,
     accountant.id,
   );
-  const completedFollowup = await completeSalaryPeriodExclusionFollowup({
-    actionId: excludedAction.actionId,
-    actorId: admin.id,
-    actorRole: 'ADMIN',
-  });
-  assert.equal(completedFollowup.followupStatus, 'COMPLETED');
-  assert.ok(completedFollowup.followupCompletedAt);
-  const replayedFollowup = await completeSalaryPeriodExclusionFollowup({
-    actionId: excludedAction.actionId,
-    actorId: manager.id,
-    actorRole: 'MANAGER',
-  });
-  assert.equal(replayedFollowup.followupCompletedAt, completedFollowup.followupCompletedAt);
-  const [raceAction] = await db.insert(s.governanceActions).values({
-    subjectType: 'SALARY_PERIOD',
-    subjectKey: `${PERIOD}:${excludedDriver.id}`,
-    actionKind: 'FINANCIAL_EXCEPTION',
-    status: 'APPROVED',
-    reason: `m73 first-completion race ${suffix}`,
-    originalVersion: 1,
-    beforeSnapshot: {},
-    afterSnapshot: {
-      handlingMode: 'SUPPLEMENTARY_PERIOD',
-      targetPeriod: SUPPLEMENTARY_PERIOD,
-      note: 'Race first completion',
-    },
-    applicationResult: {
-      followupStatus: 'PENDING',
-      handlingMode: 'SUPPLEMENTARY_PERIOD',
-      targetPeriod: SUPPLEMENTARY_PERIOD,
-    },
-    makerId: accountant.id,
-    makerRole: 'ACCOUNTANT',
-    checkerId: manager.id,
-    checkerRole: 'MANAGER',
-    approverId: admin.id,
-    approverRole: 'ADMIN',
-    checkedAt: new Date(),
-    approvedAt: new Date(),
-    version: 3,
-  }).returning();
-  createdGovernanceActionIds.push(raceAction.id);
+  // First completion is authoritative: two concurrent follow-up calls on the
+  // same exclusion row converge on one persisted completion.
   const firstCompletionRace = await Promise.all([
     completeSalaryPeriodExclusionFollowup({
-      actionId: raceAction.id,
+      actionId: excludedAction.actionId,
       actorId: admin.id,
       actorRole: 'ADMIN',
     }),
     completeSalaryPeriodExclusionFollowup({
-      actionId: raceAction.id,
+      actionId: excludedAction.actionId,
       actorId: manager.id,
       actorRole: 'MANAGER',
     }),
   ]);
   assert.ok(firstCompletionRace[0].followupCompletedAt);
   assert.equal(firstCompletionRace[1].followupCompletedAt, firstCompletionRace[0].followupCompletedAt);
-  const [completedAction] = await db.select({
-    applicationResult: s.governanceActions.applicationResult,
-    version: s.governanceActions.version,
-  }).from(s.governanceActions)
-    .where(eq(s.governanceActions.id, raceAction.id))
+  const [completedRow] = await db.select({
+    followupCompletedBy: s.salaryPeriodExclusions.followupCompletedBy,
+  }).from(s.salaryPeriodExclusions)
+    .where(eq(s.salaryPeriodExclusions.id, excludedAction.actionId))
     .limit(1);
-  assert.equal(completedAction?.version, raceAction.version + 1);
   assert.equal(
-    [admin.id, manager.id].includes(
-      Number((completedAction?.applicationResult as Record<string, unknown>)?.followupCompletedBy),
-    ),
+    [admin.id, manager.id].includes(Number(completedRow?.followupCompletedBy)),
     true,
   );
+  const replayedFollowup = await completeSalaryPeriodExclusionFollowup({
+    actionId: excludedAction.actionId,
+    actorId: admin.id,
+    actorRole: 'ADMIN',
+  });
+  assert.equal(replayedFollowup.followupCompletedAt, firstCompletionRace[0].followupCompletedAt);
   const persistedExclusion = (await listSalaryPeriodExclusions(PERIOD))
     .find((item) => item.driverId === excludedDriver.id);
   assert.equal(persistedExclusion?.followupStatus, 'COMPLETED');
@@ -451,16 +397,14 @@ test('M7.3 payroll close enforces readiness, approved exclusions, completion-per
   assert.equal(closeRow?.status, 'CLOSED');
   assert.match(closeRow?.note ?? '', /m73 close/);
 
-  const [governanceRow] = await db.select({
-    status: s.governanceActions.status,
-    approverId: s.governanceActions.approverId,
-    checkerId: s.governanceActions.checkerId,
-  }).from(s.governanceActions)
-    .where(eq(s.governanceActions.id, approvedExclusions.find((item) => item.driverId === excludedDriver.id)!.actionId))
+  const [exclusionRow] = await db.select({
+    followupStatus: s.salaryPeriodExclusions.followupStatus,
+    requestedBy: s.salaryPeriodExclusions.requestedBy,
+  }).from(s.salaryPeriodExclusions)
+    .where(eq(s.salaryPeriodExclusions.id, excludedAction.actionId))
     .limit(1);
-  assert.equal(governanceRow?.status, 'APPROVED');
-  assert.equal(governanceRow?.checkerId, manager.id);
-  assert.equal(governanceRow?.approverId, admin.id);
+  assert.equal(exclusionRow?.followupStatus, 'COMPLETED');
+  assert.equal(exclusionRow?.requestedBy, accountant.id);
 });
 
 test('Q10 adjustment-mode exclusions stay completable after the approved adjustment exists', async () => {
@@ -499,21 +443,9 @@ test('Q10 adjustment-mode exclusions stay completable after the approved adjustm
     handlingMode: 'ADJUSTMENT',
     note: 'm73 adjustment follow-up',
   });
-  createdGovernanceActionIds.push(requestedExclusion.actionId);
-
-  const checkedExclusion = await checkSalaryPeriodExclusion({
-    actionId: requestedExclusion.actionId,
-    actorId: manager.id,
-    actorRole: 'MANAGER',
-    expectedVersion: requestedExclusion.version,
-  });
-  const approvedExclusion = await approveSalaryPeriodExclusion({
-    actionId: requestedExclusion.actionId,
-    actorId: admin.id,
-    actorRole: 'ADMIN',
-    expectedVersion: checkedExclusion.version,
-  });
-  assert.equal(approvedExclusion.followupStatus, 'PENDING');
+  createdExclusionIds.push(requestedExclusion.actionId);
+  assert.equal(requestedExclusion.followupStatus, 'PENDING');
+  const approvedExclusion = requestedExclusion;
 
   await db.insert(s.salaryPeriodCloses).values({
     period: sourcePeriod,
@@ -530,27 +462,11 @@ test('Q10 adjustment-mode exclusions stay completable after the approved adjustm
     driverId: driver.id,
     amount: 500_000,
     reason: 'Bổ sung điều chỉnh cho lái xe bị loại trừ khỏi kỳ chính',
-    actorId: accountant.id,
-    actorRole: 'ACCOUNTANT',
-    expectedVersion: 1,
-  });
-  createdGovernanceActionIds.push(requestedAdjustment.actionId);
-
-  const checkedAdjustment = await checkSalaryPeriodAdjustment({
-    period: sourcePeriod,
-    actionId: requestedAdjustment.actionId,
-    actorId: manager.id,
-    actorRole: 'MANAGER',
-    expectedVersion: requestedAdjustment.version,
-  });
-  const approvedAdjustment = await approveSalaryPeriodAdjustment({
-    period: sourcePeriod,
-    actionId: requestedAdjustment.actionId,
     actorId: admin.id,
     actorRole: 'ADMIN',
-    expectedVersion: checkedAdjustment.version,
+    expectedVersion: 1,
   });
-  assert.equal(approvedAdjustment.status, 'APPROVED');
+  createdAdjustmentIds.push(requestedAdjustment.adjustmentId);
 
   const completed = await completeSalaryPeriodExclusionFollowup({
     actionId: approvedExclusion.actionId,

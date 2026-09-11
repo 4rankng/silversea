@@ -450,7 +450,6 @@ export default function ShipmentsPage() {
                       editing={quickEditDraft?.shipmentId === item.id}
                       quickEditOpen={Boolean(quickEditDraft)}
                       savingQuickEdit={savingQuickEdit}
-                      pendingDelete={actions.pendingDeleteIds.has(item.id)}
                       onStartQuickEdit={startQuickEdit}
                       onOpenAction={actions.openAction}
                       onOpenDetail={openShipmentDetail}

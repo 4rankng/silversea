@@ -39,6 +39,7 @@ import {
   runWithAuditRequestContext,
 } from '../services/audit.service';
 import { getRequestIdempotencyKey } from './utils/idempotency';
+import { autoApplyGovernanceAction } from '../services/adjustment-governance.service';
 import {
   armStorageCleanupGuard,
   cancelStorageCleanupGuard,
@@ -226,13 +227,18 @@ router.post('/', asyncHandler(async (req: Request, res: Response) => {
     payload: { reason, input },
     createdBy: actor.userId,
     entityType: 'governance_action',
-    create: (tx) => requestCompanyExpenseGovernance({
+    create: (tx) => autoApplyGovernanceAction({
+      make: (tx) => requestCompanyExpenseGovernance({
       reason,
       makerId: actor.userId,
       makerRole: actor.role,
       mutation: 'CREATE',
       createInput: input,
       commandKey,
+      transaction: tx,
+    }),
+      actorId: actor.userId,
+      actorRole: actor.role,
       transaction: tx,
     }),
   });
@@ -270,14 +276,19 @@ router.put('/:id', asyncHandler(async (req: Request, res: Response) => {
       },
       createdBy: userId,
       entityType: 'governance_action',
-      create: (tx) => requestCompanyExpenseGovernance({
-        expenseId: id,
-        expectedUpdatedAt,
-        reason,
-        makerId: userId,
-        makerRole: userRole,
-        mutation: 'UPDATE',
-        patch: serviceData,
+      create: (tx) => autoApplyGovernanceAction({
+        make: (tx) => requestCompanyExpenseGovernance({
+          expenseId: id,
+          expectedUpdatedAt,
+          reason,
+          makerId: userId,
+          makerRole: userRole,
+          mutation: 'UPDATE',
+          patch: serviceData,
+          transaction: tx,
+        }),
+        actorId: userId,
+        actorRole: userRole,
         transaction: tx,
       }),
     });
@@ -352,13 +363,18 @@ router.delete('/:id', asyncHandler(async (req: Request, res: Response) => {
       },
       createdBy: userId,
       entityType: 'governance_action',
-      create: (tx) => requestCompanyExpenseGovernance({
-        expenseId: id,
-        expectedUpdatedAt,
-        reason,
-        makerId: userId,
-        makerRole: userRole,
-        mutation: 'DELETE',
+      create: (tx) => autoApplyGovernanceAction({
+        make: (tx) => requestCompanyExpenseGovernance({
+          expenseId: id,
+          expectedUpdatedAt,
+          reason,
+          makerId: userId,
+          makerRole: userRole,
+          mutation: 'DELETE',
+          transaction: tx,
+        }),
+        actorId: userId,
+        actorRole: userRole,
         transaction: tx,
       }),
     });

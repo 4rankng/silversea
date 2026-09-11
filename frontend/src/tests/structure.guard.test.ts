@@ -30,14 +30,20 @@ const NEW_FILE_MAX_LOC = 400;
 
 const FROZEN_MAX_LOC: Record<string, number> = {
   'src/design-system/forms/SearchableSelect.tsx': 481,
-  // Bumped 656 → 657: 2026-09-10 T7 ad-hoc label — DriverJourneyCard gains
-  // the isAdHoc flag (backend 428d705b) for the "Chạy ngoài" card tag.
-  'src/api/driverClient.ts': 657,
+  // Bumped 650 -> 656: ticket 365943ea - factoryShortName and operationalNotes fields
+  // Bumped 656 -> 679: 2026-09-11 trip-detail polish — wire gains
+  // factoryAddress / khoPhone / invoiceMaster / knownTagLabels and their
+  // fulfillment mapping.
+  // Bumped 679 -> 684: e-POD thumbnails — downloadPodFile client method.
+  // Bumped 684 -> 691: 2026-09-11 prod-merge redo — union of the pair/ad-hoc
+  // card fields (T7 label, pairKind/pairOrder/pairLocked) with the
+  // tag-pool/trip-detail polish client. Reviewed as a contract change.
+  'src/api/driverClient.ts': 691,
+  'src/api/keys.ts': 562,
   // Added as baseline 432 (was new-file capped): 2026-09-10 T4 — the page
   // mounts DebitNoteFreightOverride (financial trio) reading the detail's
   // freightRate.latest snapshot view.
   'src/pages/ShipmentDetailPage.tsx': 432,
-  'src/api/keys.ts': 562,
   // Added 2026-09-07: baseline 401 (was new-file capped) — the atomic plan
   // save now carries operationalNotes and the tag-pool client helpers
   // (list/create) live here beside the other dispatch planning calls.
@@ -68,15 +74,19 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // additions; a future sidebar split should restore a smaller ceiling.
   'src/components/Layout.tsx': 870,
   'src/components/shipment/TripPodReviewPanel.tsx': 588,
-  'src/components/trip/AncillaryFeesCard.tsx': 608,
-  'src/components/trip/ContainerInstancesCard.tsx': 592,
-  'src/components/trip/DriverContainerCard.tsx': 586,
-  'src/components/trip/ShipmentCostEntryForm.tsx': 523,
-  'src/components/UI.tsx': 666,
-  'src/components/untitled-ui/base/badges/badges.tsx': 417,
-  'src/components/untitled-ui/base/select/tag-select.tsx': 402,
-  'src/components/work-inbox/RoleWorkInbox.tsx': 486,
-  'src/features/app-settings/FinancePolicySection.tsx': 432,
+  'src/components/trip/AncillaryFeesCard.tsx': 607,
+  'src/components/trip/ContainerInstancesCard.tsx': 591,
+  'src/components/trip/DriverContainerCard.tsx': 585,
+  // Baseline 410 (was new-file capped): e-POD photos now render as tappable
+  // thumbnails opening the fullscreen viewer — thumbnail state/effect + the
+  // render branch live beside the upload lifecycle they serve.
+  'src/components/trip/TripPodSubmission.tsx': 410,
+  'src/components/trip/ShipmentCostEntryForm.tsx': 522,
+  'src/components/UI.tsx': 665,
+  'src/components/untitled-ui/base/badges/badges.tsx': 416,
+  'src/components/untitled-ui/base/select/tag-select.tsx': 401,
+  'src/components/work-inbox/RoleWorkInbox.tsx': 485,
+  'src/features/app-settings/FinancePolicySection.tsx': 431,
   'src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx': 445,
   // Bumped 691 → 705: 2026-09-07 driver-note composer — the dispatch edit
   // dialog gains the "Ghi chú tác vụ" section (draft field, save body,
@@ -90,7 +100,9 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // Bumped 725 → 745: 2026-09-08 external-carrier staff close — the cell
   // gains the "Hoàn thành" quick action (button + prop) and the issue chip
   // derives a completed state. Reviewed as a contract change.
-  'src/features/dispatch/detailed-plan/DispatchPlanEditorCell.tsx': 745,
+  // Bumped 745 -> 789: ticket 8afc13a9 - carrier-less auto-load (Option B) + fleet error surfacing
+  // Bumped 789 -> 792: EXTERNAL-pick on a carrier-less row now loads that carrier's vehicles (predicate fix)
+  'src/features/dispatch/detailed-plan/DispatchPlanEditorCell.tsx': 792,
   // Bumped 446 → 448: driver-note save now carries operationalNotes and the
   // optimistic row update refreshes notes.vehicleNote (2026-09-07). Reviewed
   // as a contract change.
@@ -170,30 +182,34 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   'src/pages/config/DebitNoteTemplateEditorPage.tsx': 421,
   'src/pages/config/PenaltyReasonsConfigPage.tsx': 520,
   'src/pages/config/RoutesConfigPage.tsx': 449,
-  'src/pages/CreditOverrideQueuePage.tsx': 581,
   'src/pages/CustomersPage.tsx': 722,
   'src/pages/DashboardPage.tsx': 687,
   'src/pages/debt-detail-ledger.tsx': 444,
   'src/pages/DebtDetailPage.tsx': 816,
-  'src/pages/DebtListPage.tsx': 549,
-  'src/pages/DriverTripDetailPage.tsx': 624,
-  'src/pages/DriverTripPodPage.tsx': 521,
-  'src/pages/ExpenseEntryPage.tsx': 703,
-  'src/pages/FinancePage.tsx': 988,
-  'src/pages/ForwarderSettlementCreatePage.tsx': 504,
+  'src/pages/DebtListPage.tsx': 548,
+  // Bumped 623 -> 691: 2026-09-11 trip-detail polish — collapsible
+  // operation chips, address-first Tuyến row, conditional Kho row, plate
+  // rows removed, master invoice rows, Đóng/Trả header chip. Reviewed as a
+  // contract change; a future split (extract the fact grid) should restore
+  // a smaller ceiling.
+  'src/pages/DriverTripDetailPage.tsx': 691,
+  'src/pages/DriverTripPodPage.tsx': 520,
+  'src/pages/ExpenseEntryPage.tsx': 702,
+  'src/pages/FinancePage.tsx': 987,
+  'src/pages/ForwarderSettlementCreatePage.tsx': 503,
   'src/pages/ForwarderTripDetailPage.tsx': 1107,
-  'src/pages/GovernanceActionsPage.tsx': 634,
-  'src/pages/PayableDetailPage.tsx': 609,
-  'src/pages/PayableListPage.tsx': 665,
-  'src/pages/payables-fuel-invoices.tsx': 1079,
-  'src/pages/ProfitPage.tsx': 568,
-  'src/pages/SalaryAttendancePage.tsx': 781,
-  'src/pages/SettlementPrintPage.tsx': 647,
+  'src/pages/PayableDetailPage.tsx': 608,
+  'src/pages/PayableListPage.tsx': 664,
+  'src/pages/payables-fuel-invoices.tsx': 1078,
+  'src/pages/ProfitPage.tsx': 567,
+  'src/pages/SalaryAttendancePage.tsx': 780,
+  'src/pages/SettlementPrintPage.tsx': 646,
   // Bumped 609 → 625: 2026-09-09 useClickOutside dismissal for quick edit draft.
   'src/pages/ShipmentsPage.tsx': 625,
   'src/pages/SupplierListPage.tsx': 626,
   'src/pages/TripDetailPage.tsx': 438,
-  'src/pages/TripEditPage.tsx': 540,
+  // Bumped 540 -> 554: ticket 7a74d6eb - fetch-error branch (alert + retry)
+  'src/pages/TripEditPage.tsx': 554,
   'src/pages/TripListPage.tsx': 655,
   // Bumped 576 → 586: 2026-09-09 hard 24h contract — the credit-override
   // "Hiệu lực đến" datetime-local was replaced by a buffered time-first 24h

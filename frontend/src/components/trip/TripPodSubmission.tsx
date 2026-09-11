@@ -1,9 +1,10 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   Camera,
   CheckCircle2,
   Clock3,
+  FileImage,
   FileText,
   Loader2,
   Lock,
@@ -14,6 +15,8 @@ import type { OfflineCommand } from '../../features/driver/useOfflineCommandQueu
 import type { DriverTaskPodFile, DriverTaskPodSubmission } from '../../api/driverClient';
 import { formatDateTimeShort } from '../../lib/format';
 import { compressImageFile } from '../../lib/imageCompression';
+import { PhotoViewer } from '../PhotoViewer';
+import { driverClient } from '../../api/driverClient';
 import { ContainerScanner, dataUrlToFile } from '../shared/ContainerScanner';
 import './TripPodSubmission.css';
 
@@ -100,6 +103,40 @@ export function TripPodSubmission({
   // EPOD pattern: "Chụp" opens the live-camera overlay with torch + gallery,
   // not a bare <input capture> — camera-denied devices still get the picker).
   const [scanning, setScanning] = useState<TripPodFileType | null>(null);
+
+  // Ticket 36d0183d: uploaded e-POD images render as tappable thumbnails
+  // (authenticated blob fetch through the pod-files endpoint) that open the
+  // fullscreen PhotoViewer; PDFs and not-yet-loaded files keep the meta row.
+  const [thumbUrls, setThumbUrls] = useState<Record<number, string>>({});
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
+  const createdUrlsRef = useRef<string[]>([]);
+  const fetchedIdsRef = useRef<Set<number>>(new Set());
+
+  const imageFiles = useMemo(
+    () => (currentSubmission?.files ?? []).filter((file) => (file.mimeType ?? '').startsWith('image/')),
+    [currentSubmission],
+  );
+
+  useEffect(() => {
+    const fulfillmentId = currentSubmission?.fulfillmentId;
+    if (!fulfillmentId) return;
+    let cancelled = false;
+    for (const file of imageFiles) {
+      if (fetchedIdsRef.current.has(file.id)) continue;
+      fetchedIdsRef.current.add(file.id);
+      driverClient.downloadPodFile(fulfillmentId, file.id)
+        .then((blob) => {
+          if (cancelled) return;
+          const url = URL.createObjectURL(blob);
+          createdUrlsRef.current.push(url);
+          setThumbUrls((prev) => ({ ...prev, [file.id]: url }));
+        })
+        .catch(() => {
+          fetchedIdsRef.current.delete(file.id);
+        });
+    }
+    return () => { cancelled = true; };
+  }, [currentSubmission, imageFiles]);
 
   const fileRefs: Record<string, React.RefObject<HTMLInputElement | null>> = {
     [TripPodFileType.YARD_OR_DROP_RECEIPT]: useRef<HTMLInputElement | null>(null),
@@ -262,15 +299,34 @@ export function TripPodSubmission({
 
               {files.length > 0 ? (
                 <ul className="trip-pod__file-list">
-                  {files.map((file) => (
-                    <li key={file.id} className="trip-pod__file">
-                      <div className="trip-pod__file-meta">
-                        <FileText size={15} />
-                        <span className="trip-pod__file-name" title={file.originalFileName}>{file.originalFileName}</span>
-                      </div>
-                      <span className="trip-pod__file-time">{formatDateTime(file.createdAt)}</span>
-                    </li>
-                  ))}
+                  {files.map((file) => {
+                    const isImage = (file.mimeType ?? '').startsWith('image/');
+                    const thumb = thumbUrls[file.id];
+                    if (isImage && thumb) {
+                      const fileIndex = imageFiles.findIndex((item) => item.id === file.id);
+                      return (
+                        <li key={file.id} className="trip-pod__file">
+                          <button
+                            type="button"
+                            className="trip-pod__file-thumb"
+                            onClick={() => setViewerIndex(fileIndex)}
+                          >
+                            <img src={thumb} alt={file.originalFileName} />
+                          </button>
+                          <span className="trip-pod__file-time">{formatDateTime(file.createdAt)}</span>
+                        </li>
+                      );
+                    }
+                    return (
+                      <li key={file.id} className="trip-pod__file">
+                        <div className="trip-pod__file-meta">
+                          {(file.mimeType ?? '').startsWith('image/') ? <FileImage size={15} /> : <FileText size={15} />}
+                          <span className="trip-pod__file-name" title={file.originalFileName}>{file.originalFileName}</span>
+                        </div>
+                        <span className="trip-pod__file-time">{formatDateTime(file.createdAt)}</span>
+                      </li>
+                    );
+                  })}
                 </ul>
               ) : (
                 <p className="trip-pod__empty">Chưa có tệp nào cho mục này.</p>
@@ -327,6 +383,14 @@ export function TripPodSubmission({
             ))}
           </ul>
         </div>
+      )}
+
+      {viewerIndex != null && imageFiles[viewerIndex] && thumbUrls[imageFiles[viewerIndex].id] && (
+        <PhotoViewer
+          urls={imageFiles.map((item) => thumbUrls[item.id]).filter(Boolean)}
+          initialIndex={viewerIndex}
+          onClose={() => setViewerIndex(null)}
+        />
       )}
 
       {scanning && (

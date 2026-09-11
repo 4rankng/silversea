@@ -338,21 +338,15 @@ export {
   GOVERNANCE_ACTION_STATUSES,
   GOVERNANCE_CAPABILITIES,
   GOVERNANCE_ALLOWED_ACTIONS,
-  GOVERNANCE_ACTION_SORT_KEYS,
-  governanceActionVersionSchema,
   governanceActionDecisionSchema,
-  governanceActionListQuerySchema,
 } from './schemas/governance-action';
 export type {
   GovernanceSubjectType,
   GovernanceActionKind,
   GovernanceActionStatus,
-  GovernanceActionSortKey,
   GovernanceCapability,
   GovernanceAllowedAction,
-  GovernanceActionVersionInput,
   GovernanceActionDecisionInput,
-  GovernanceActionListQuery,
 } from './schemas/governance-action';
 export type {
   SourceAuthorityKind,

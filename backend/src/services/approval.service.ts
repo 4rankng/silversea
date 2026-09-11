@@ -11,6 +11,7 @@ import { reviewNoInvoiceDisbursementApproval, toNoInvoicePolicySnapshotValue } f
 import { propagateExpenseApproval } from './source-change.service';
 import { lockTripFinancialAuthority } from './trip-financial-authority-lock.service';
 import { assertCanMakeGovernanceAction } from './governance-policy';
+import { buildGovernanceAction } from './governance-action-core.service';
 import type {
   GovernanceActionRow,
   GovernanceApplyResult,
@@ -122,17 +123,9 @@ export async function transitionApproval(
       'Không xác định được người tạo chi phí; cần đối soát thủ công trước khi duyệt',
     );
   }
-  if (
-    opts.toStatus === 'APPROVED'
-    && 'createdBy' in record
-    && record.createdBy === opts.actorId
-  ) {
-    const subject = opts.table === 'trip_expenses'
-      ? 'chi phí'
-      : 'phiếu đối trừ công nợ';
-    throw new ApiError(403, `Không thể duyệt ${subject} do chính mình tạo`);
-  }
-
+  // 2026-09-11 (maker-checker removed): the self-approval ban is gone —
+  // governed requests run check + approve with the requesting actor. The
+  // fuel-recon and missing-creator data-integrity guards above remain.
   // Fuel-recon guard: only fuel-typed trip_expenses going TO APPROVED are
   // checked. Rejections, debt_offsets, and non-fuel expenses bypass it.
   if (opts.table === 'trip_expenses' && opts.toStatus === 'APPROVED') {
@@ -267,25 +260,8 @@ export async function requestTripExpenseDecision(input: {
     if (expense.version !== input.expectedExpenseVersion) {
       throw new ApiError(409, 'Chi phí đã được thay đổi. Vui lòng tải lại trước khi xử lý.');
     }
-    const [active] = await tx.select({ id: s.governanceActions.id })
-      .from(s.governanceActions)
-      .where(and(
-        eq(s.governanceActions.subjectType, 'TRIP_EXPENSE'),
-        eq(s.governanceActions.subjectId, expense.id),
-        eq(s.governanceActions.actionKind, 'TRIP_EXPENSE_APPROVAL'),
-        eq(s.governanceActions.originalVersion, expense.version),
-        inArray(s.governanceActions.status, [
-          'PENDING_CHECK',
-          'PENDING_APPROVAL',
-          'RETURNED_FOR_EVIDENCE',
-        ]),
-      ))
-      .limit(1);
-    if (active) {
-      throw new ApiError(409, 'Chi phí đã có yêu cầu xử lý đang chờ');
-    }
 
-    const [action] = await tx.insert(s.governanceActions).values({
+    return buildGovernanceAction({
       subjectType: 'TRIP_EXPENSE',
       subjectId: expense.id,
       subjectKey: `trip-expense:${expense.id}:decision`,
@@ -311,8 +287,7 @@ export async function requestTripExpenseDecision(input: {
       },
       makerId: input.makerId,
       makerRole: input.makerRole,
-    }).returning();
-    return action;
+    });
   };
   return runInTx(input.transaction, execute);
 }
@@ -345,7 +320,7 @@ export async function applyTripExpenseGovernanceAction(
     action.approverRole!,
     decision,
     tx,
-    action.originalVersion,
+    action.originalVersion ?? undefined,
   );
   if ('error' in result) {
     throw new ApiError(result.status, result.error);

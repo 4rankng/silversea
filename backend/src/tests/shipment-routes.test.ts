@@ -428,11 +428,8 @@ after(async () => {
           .where(inArray(s.shipmentDocumentCustodyFacts.shipmentId, createdShipmentIds));
         await tx.delete(s.shipmentAccountingLocks)
           .where(inArray(s.shipmentAccountingLocks.shipmentId, createdShipmentIds));
-        await tx.delete(s.governanceActions)
-          .where(and(
-            eq(s.governanceActions.subjectType, 'SHIPMENT'),
-            inArray(s.governanceActions.subjectId, createdShipmentIds),
-          ));
+        await tx.delete(s.shipmentFinanceActions)
+          .where(inArray(s.shipmentFinanceActions.shipmentId, createdShipmentIds));
         await tx.delete(s.notifications).where(and(
           eq(s.notifications.type, 'SHIPMENT_HANDOFF'),
           eq(s.notifications.relatedEntityType, 'shipments'),
@@ -2566,7 +2563,7 @@ describe('POST /cus-workspace/:id/lock', () => {
 });
 
 describe('POST /cus-workspace/:id/reopen-requests', () => {
-  test('CUS requests reopen and idempotent replay preserves the same action', async () => {
+  test('CUS reopen applies directly and idempotent replay returns the same outcome (approval flow removed 2026-09-10)', async () => {
     const fixture = await createCusWorkspaceLockFixture();
     const confirmed = await confirmFinanceViaRoute(fixture.shipment.id);
     assert.equal(confirmed.result.status, 201);
@@ -2594,9 +2591,10 @@ describe('POST /cus-workspace/:id/reopen-requests', () => {
         reason: 'Cần điều chỉnh sau khóa.',
       },
     });
-    assert.equal(first.status, 201);
-    assert.equal(replay.status, 201);
-    assert.equal(replay.data.action.id, first.data.action.id);
+    assert.equal(first.status, 200);
+    assert.equal(first.data.reopened, true);
+    assert.equal(replay.status, 200);
+    assert.equal(replay.data.reopened, true);
   });
 
   test('denies DISPATCHER from requesting reopen', async () => {
@@ -2607,83 +2605,6 @@ describe('POST /cus-workspace/:id/reopen-requests', () => {
       body: {
         expectedShipmentVersion: fixture.shipment.version,
         activeLockId: 1,
-        reason: 'Không hợp lệ.',
-      },
-    });
-    assert.equal(denied.status, 403);
-  });
-});
-
-describe('POST /cus-workspace/:id/reopen-requests/:actionId/decision', () => {
-  test('ADMIN approves a reopen request', async () => {
-    const fixture = await createCusWorkspaceLockFixture();
-    const confirmed = await confirmFinanceViaRoute(fixture.shipment.id);
-    assert.equal(confirmed.result.status, 201);
-    const locked = await lockShipmentViaRoute(fixture.shipment.id);
-    assert.equal(locked.result.status, 201);
-    const detail = await getCusWorkspaceDetail(fixture.shipment.id, clerkToken);
-    const request = await testFetch(`/cus-workspace/${fixture.shipment.id}/reopen-requests`, {
-      method: 'POST',
-      token: clerkToken,
-      body: {
-        expectedShipmentVersion: detail.summary.version,
-        activeLockId: Number(detail.summary.activeLock?.id),
-        reason: 'Cần mở khóa để chỉnh sửa.',
-      },
-    });
-    assert.equal(request.status, 201);
-
-    const decision = await testFetch(`/cus-workspace/${fixture.shipment.id}/reopen-requests/${request.data.action.id}/decision`, {
-      method: 'POST',
-      token: adminToken,
-      body: {
-        expectedVersion: request.data.action.version,
-        decision: 'APPROVE',
-        reason: 'ADMIN chấp thuận mở khóa.',
-      },
-    });
-    assert.equal(decision.status, 200);
-    assert.equal(decision.data.status, 'APPROVED');
-  });
-
-  test('rejects stale reopen decisions', async () => {
-    const fixture = await createCusWorkspaceLockFixture();
-    const confirmed = await confirmFinanceViaRoute(fixture.shipment.id);
-    assert.equal(confirmed.result.status, 201);
-    const locked = await lockShipmentViaRoute(fixture.shipment.id);
-    assert.equal(locked.result.status, 201);
-    const detail = await getCusWorkspaceDetail(fixture.shipment.id, clerkToken);
-    const request = await testFetch(`/cus-workspace/${fixture.shipment.id}/reopen-requests`, {
-      method: 'POST',
-      token: clerkToken,
-      body: {
-        expectedShipmentVersion: detail.summary.version,
-        activeLockId: Number(detail.summary.activeLock?.id),
-        reason: 'Cần mở khóa để chỉnh sửa.',
-      },
-    });
-    assert.equal(request.status, 201);
-
-    const stale = await testFetch(`/cus-workspace/${fixture.shipment.id}/reopen-requests/${request.data.action.id}/decision`, {
-      method: 'POST',
-      token: adminToken,
-      body: {
-        expectedVersion: request.data.action.version + 1,
-        decision: 'APPROVE',
-        reason: 'ADMIN chấp thuận mở khóa.',
-      },
-    });
-    assert.equal(stale.status, 409);
-  });
-
-  test('denies MANAGER from deciding a reopen request', async () => {
-    const fixture = await createCusWorkspaceLockFixture();
-    const denied = await testFetch(`/cus-workspace/${fixture.shipment.id}/reopen-requests/999999/decision`, {
-      method: 'POST',
-      token: managerToken,
-      body: {
-        expectedVersion: 1,
-        decision: 'REJECT',
         reason: 'Không hợp lệ.',
       },
     });

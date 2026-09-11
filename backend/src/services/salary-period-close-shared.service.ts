@@ -119,19 +119,15 @@ export interface SalaryPeriodLifecycleState {
 }
 
 export interface SalaryPeriodExclusionResult {
+  /** Exclusion record id in salary_period_exclusions. */
   actionId: number;
-  version: number;
   period: string;
   driverId: number;
-  status: 'PENDING_CHECK' | 'PENDING_APPROVAL' | 'APPROVED';
   handlingMode: SalaryExclusionHandlingMode;
   targetPeriod: string | null;
   reason: string;
   note: string | null;
-  makerId: number;
-  checkerId: number | null;
-  approverId: number | null;
-  followupStatus: 'PENDING' | 'COMPLETED' | null;
+  followupStatus: 'PENDING' | 'COMPLETED';
   followupCompletedAt: string | null;
 }
 
@@ -214,53 +210,33 @@ export function normalizeExclusionHandling(input: {
   };
 }
 
+/**
+ * Approved exclusions now live in salary_period_exclusions (migration 0070);
+ * latest row per driver wins, mirroring the old governance-map ordering.
+ */
 export async function loadApprovedExclusionMap(
   tx: Tx | typeof db,
   period: string,
 ): Promise<Map<number, SalaryPeriodApprovedExclusion>> {
-  const rows = await tx.select({
-    id: s.governanceActions.id,
-    subjectKey: s.governanceActions.subjectKey,
-    reason: s.governanceActions.reason,
-    approverId: s.governanceActions.approverId,
-    approvedAt: s.governanceActions.approvedAt,
-    afterSnapshot: s.governanceActions.afterSnapshot,
-    applicationResult: s.governanceActions.applicationResult,
-    updatedAt: s.governanceActions.updatedAt,
-  }).from(s.governanceActions)
-    .where(and(
-      eq(s.governanceActions.subjectType, SALARY_EXCLUSION_SUBJECT_TYPE),
-      eq(s.governanceActions.actionKind, SALARY_EXCLUSION_ACTION_KIND),
-      eq(s.governanceActions.status, 'APPROVED'),
-      sql`${s.governanceActions.subjectKey} like ${`${period}:%`}`,
-    ))
-    .orderBy(desc(s.governanceActions.updatedAt), desc(s.governanceActions.id));
+  const rows = await tx.select()
+    .from(s.salaryPeriodExclusions)
+    .where(eq(s.salaryPeriodExclusions.period, period))
+    .orderBy(desc(s.salaryPeriodExclusions.updatedAt), desc(s.salaryPeriodExclusions.id));
 
   const map = new Map<number, SalaryPeriodApprovedExclusion>();
   for (const row of rows) {
-    if (!row.subjectKey) continue;
-    const [, driverIdRaw] = row.subjectKey.split(':');
-    const driverId = Number(driverIdRaw);
-    if (!Number.isInteger(driverId) || driverId < 1 || map.has(driverId)) continue;
-    const afterSnapshot = row.afterSnapshot as Record<string, unknown> | null;
-    const parsed = parseExclusion(afterSnapshot);
-    const applicationResult = row.applicationResult as Record<string, unknown> | null;
-    const followupStatus = applicationResult?.followupStatus === 'COMPLETED'
-      ? 'COMPLETED'
-      : 'PENDING';
-    map.set(driverId, {
+    if (map.has(row.driverId)) continue;
+    map.set(row.driverId, {
       actionId: row.id,
-      driverId,
-      handlingMode: parsed.handlingMode,
-      targetPeriod: parsed.targetPeriod,
+      driverId: row.driverId,
+      handlingMode: row.handlingMode as SalaryExclusionHandlingMode,
+      targetPeriod: row.targetPeriod,
       reason: row.reason,
-      note: parsed.note,
-      approvedBy: row.approverId,
-      approvedAt: row.approvedAt?.toISOString() ?? null,
-      followupStatus,
-      followupCompletedAt: typeof applicationResult?.followupCompletedAt === 'string'
-        ? applicationResult.followupCompletedAt
-        : null,
+      note: row.note,
+      approvedBy: row.requestedBy,
+      approvedAt: row.requestedAt.toISOString(),
+      followupStatus: row.followupStatus === 'COMPLETED' ? 'COMPLETED' : 'PENDING',
+      followupCompletedAt: row.followupCompletedAt?.toISOString() ?? null,
     });
   }
   return map;

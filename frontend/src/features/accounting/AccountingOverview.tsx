@@ -4,7 +4,6 @@ import {
   ChartNoAxesCombined,
   CircleDollarSign,
   Fuel,
-  FileCheck2,
   ReceiptText,
   Truck,
   WalletCards,
@@ -140,13 +139,6 @@ export function AccountingOverview({
           title="Soát OCR nhiên liệu"
           description="Kế toán xác nhận hoặc từ chối ảnh màn hình bơm trước khi đối chiếu nhiên liệu."
           metric="Mở hàng đợi OCR"
-        />
-        <WorkflowLink
-          to={routes.governanceActions}
-          icon={FileCheck2}
-          title="Trung tâm phê duyệt"
-          description="Kiểm tra các đề nghị tài chính cần phân tách người lập và người duyệt."
-          metric="Mở hàng đợi"
         />
         <WorkflowLink
           to={routes.treasury}

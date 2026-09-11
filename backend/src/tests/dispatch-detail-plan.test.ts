@@ -246,7 +246,9 @@ type DetailPlanRow = {
   container: { containerNumber: string | null; containerTypeLabel: string | null; cargoWeightKg: string | null };
   notes: { vehicleNote: string | null; customerNote: string | null };
   dispatch: {
-    carrierType: 'OWN' | 'EXTERNAL';
+    // Carrier-less planned rows surface as null — the editor auto-loads the
+    // own-fleet truck list for them and promotes via the atomic plan save.
+    carrierType: 'OWN' | 'EXTERNAL' | null;
     carrierName: string | null;
     externalCarrierId: number | null;
     externalCarrierVehicleId: number | null;
@@ -1347,6 +1349,58 @@ describe('atomic dispatch detail plan save', () => {
     assert.equal(notes.length, 0);
   });
 
+  // Carrier-less → OWN + truck in one atomic save: the flow the editor enables
+  // for carrier-less rows (8afc13a9, Option B). null ≠ 'OWN' counts as a
+  // carrier switch, so the truck block must resolve and land with the carrier
+  // — pinning that the promotion cannot strand a plate without a carrier.
+  test('carrier-less row promotes to OWN carrier when the atomic save carries an own-fleet truck', async () => {
+    const { shipment, fulfillmentIds } = await createAllocatedLot({ carrierType: null });
+    const { truck } = await createOwnedTruckWithDriver();
+    const { shipment: freshShipment, fulfillment } = await fetchShipmentAndFulfillment(fulfillmentIds[0]!);
+
+    // Pre-save contract the grid relies on: the row is listed carrier-less.
+    const before = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}`);
+    assert.equal(before.status, 200, JSON.stringify(before.data));
+    const carrierLessRow = before.data.items.find((row) => row.fulfillmentId === fulfillment.id);
+    assert.ok(carrierLessRow, 'carrier-less row must be listed before the save');
+    assert.equal(carrierLessRow.dispatch.carrierType, null);
+    assert.equal(carrierLessRow.dispatch.carrierName, null);
+
+    const response = await apiFetch<PlanResponse>(`/dispatch-detail-plan-rows/${fulfillment.id}/plan`, {
+      method: 'PATCH',
+      token: dispatcherToken,
+      body: {
+        expectedFulfillmentVersion: fulfillment.version,
+        expectedShipmentVersion: freshShipment.version,
+        carrierType: 'OWN',
+        truckId: truck.id,
+        plannedRevenue: null,
+        plannedCarrierCost: null,
+        classification: 'SINGLE',
+        isCombined: freshShipment.isCombined,
+      },
+    });
+    assert.equal(response.status, 200, JSON.stringify(response.data));
+    assert.equal(response.data.dispatch.carrierType, 'OWN');
+    assert.equal(response.data.dispatch.carrierName, 'SilverSea');
+    assert.equal(response.data.dispatch.externalCarrierId, null);
+    assert.equal(response.data.dispatch.assignedPlate, truck.licensePlate);
+    assert.equal(response.data.driverNotified, false, 'planning saves never notify the driver');
+
+    const { fulfillment: after } = await fetchShipmentAndFulfillment(fulfillment.id);
+    assert.equal(after.plannedCarrierType, 'OWN');
+    assert.equal(after.plannedExternalCarrierId, null);
+    assert.equal(after.plannedVehiclePlateNumber, truck.licensePlate);
+
+    // Round-trip: the grid re-read shows the promoted carrier, matching the
+    // editor's optimistic update.
+    const rowsAfter = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}`);
+    const promotedRow = rowsAfter.data.items.find((row) => row.fulfillmentId === fulfillment.id);
+    assert.ok(promotedRow, 'promoted row must stay listed');
+    assert.equal(promotedRow.dispatch.carrierType, 'OWN');
+    assert.equal(promotedRow.dispatch.assignedPlate, truck.licensePlate);
+  });
+
   test('stale shipment version or stale fulfillment version changes nothing', async () => {
     const { fulfillmentIds } = await createAllocatedLot({ carrierType: 'OWN' });
     const { truck } = await createOwnedTruckWithDriver();
@@ -2111,9 +2165,28 @@ describe('dispatch task tags and driver-note plan save', () => {
     const response = await tagFetch<{ items: Array<{ id: number; label: string }> }>('GET');
     assert.equal(response.status, 200);
     const labels = response.data.items.map((item) => item.label);
-    for (const seed of ['Đặt đầu', 'Đặt đuôi', 'Đảo vỏ', 'Gửi bãi', 'Lấy vỏ ICD đi đóng', 'Di động']) {
+    // 2026-09-10 (ticket a6cb2543, migration 0066): the pool is the canonical
+    // 14-tag operation set. The old lowercase taxonomy ("Đặt đầu", "Gửi bãi",
+    // …) was deactivated — its labels must NOT resurface.
+    for (const seed of ['HẾT HẠN', 'ĐẢO VỎ', 'ĐẶT ĐUÔI', 'ĐẶT ĐẦU', 'KIỂM HÓA', 'QUAY ĐẦU', 'GỬI VỎ BÃI ĐĂNG KHOA', 'QUÁ TẢI', 'ĐẢO HÀNG', 'HẠ VỎ ICD QUẾ VÕ', 'GẮP VỎ ICD QUẾ VÕ', 'GẮP VỎ BÃI ĐĂNG KHOA', 'HẠ VỎ BÃI TRI PHƯƠNG', 'GẮP VỎ BÃI TRI PHƯƠNG']) {
       assert.ok(labels.includes(seed), `seed tag ${seed} missing from pool`);
     }
+    for (const retired of ['Đặt đầu', 'Gửi bãi', 'Trả vỏ', 'Di động']) {
+      assert.ok(!labels.includes(retired), `retired tag ${retired} resurfaced in pool`);
+    }
+  });
+
+  test('GET denies drivers once the journey board embeds the pool (ticket 53a536f9)', async () => {
+    // 53a536f9: the driver portal reads the tag pool from the journey-board
+    // response (knownTagLabels) instead of this endpoint, so the B1 casbin
+    // bypass is removed and the pool is dispatcher-only again. The
+    // journey-board knownTagLabels contract is pinned in
+    // driver-journey-board-fields.test.ts.
+    const response = await apiFetch<{ message: string }>('/dispatch-task-tags', {
+      method: 'GET',
+      token: driverToken,
+    });
+    assert.equal(response.status, 403, JSON.stringify(response.data));
   });
 
   test('POST creates a tag and duplicate (case/diacritics-insensitive) yields 409', async () => {

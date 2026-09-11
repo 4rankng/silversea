@@ -22,13 +22,10 @@ import { Pagination, UuiSelectField } from '../design-system';
 import { useAuth } from '../hooks/useAuth';
 import type { CreditOverrideRequestRecord } from '../api/creditOverrideClient';
 import {
-  useApproveCreditOverrideRequest,
   useCreateCreditOverrideRequest,
   useCreditOverrideQueue,
-  useRejectCreditOverrideRequest,
 } from '../hooks/useCreditOverrideQueries';
 import { formatCurrency } from '../lib/format';
-import { canDecideCreditOverride } from '../lib/credit-override-permissions';
 import './TripForm.css';
 import './TripCreatePage.css';
 
@@ -41,13 +38,9 @@ function defaultExpiryInput(): string {
   return local.toISOString().slice(0, 16);
 }
 
-function creditTierLabel(tier: CreditOverrideRequestRecord['requiredTier']): string {
-  return tier === 'DIRECTOR' ? 'Giám đốc' : 'Trưởng phòng Tài chính/Kế toán';
-}
-
 export default function TripCreatePage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  useAuth();
   const options = useTripOptions();
   const [creditBlock, setCreditBlock] = React.useState<{
     message: string;
@@ -62,10 +55,8 @@ export default function TripCreatePage() {
   const [creditRequest, setCreditRequest] = React.useState<CreditOverrideRequestRecord | null>(null);
   const [creditRequestIdInput, setCreditRequestIdInput] = React.useState('');
   const [creditPageCursors, setCreditPageCursors] = React.useState<Array<string | null>>([null]);
-  const [creditAction, setCreditAction] = React.useState<'request' | 'approve' | 'apply' | null>(null);
+  const [creditAction, setCreditAction] = React.useState<'request' | 'apply' | null>(null);
   const [creditError, setCreditError] = React.useState<string | null>(null);
-  const [rejectingRequestId, setRejectingRequestId] = React.useState<number | null>(null);
-  const [rejectReason, setRejectReason] = React.useState('');
   const form = useTripForm({
     options,
     onCreditLimitBlocked: (details) => {
@@ -102,8 +93,6 @@ export default function TripCreatePage() {
   );
   const creditQueue = useCreditOverrideQueue(queueFilters, creditBlock?.customerId != null);
   const createCreditRequest = useCreateCreditOverrideRequest([queueFilters]);
-  const approveCreditRequest = useApproveCreditOverrideRequest([queueFilters]);
-  const rejectCreditRequest = useRejectCreditOverrideRequest([queueFilters]);
   const estimatedProposedAmount = creditBlock?.proposedAmount && creditBlock.proposedAmount > 0
     ? creditBlock.proposedAmount
     : Math.round((form.suggestedPrice ?? 0) * expectedContainerCount);
@@ -160,54 +149,6 @@ export default function TripCreatePage() {
     }
   };
 
-  const handleApproveRequest = async (requestId: number) => {
-    const request = creditQueue.data?.items.find((item) => item.id === requestId) ?? creditRequest;
-    if (!request) {
-      setCreditError('Không tìm thấy phiên bản hiện tại của đề nghị để duyệt. Vui lòng tải lại hàng chờ.');
-      return null;
-    }
-    setCreditAction('approve');
-    setCreditError(null);
-    try {
-      const approved = await approveCreditRequest.mutateAsync({
-        id: requestId,
-        expectedVersion: request.version,
-      });
-      setCreditRequest(approved);
-      setCreditRequestIdInput(String(approved.id));
-      return approved.id;
-    } catch (error) {
-      setCreditError(error instanceof Error ? error.message : 'Không thể duyệt đề nghị vượt hạn mức.');
-      return null;
-    } finally {
-      setCreditAction(null);
-    }
-  };
-
-  const handleRejectRequest = async (request: CreditOverrideRequestRecord) => {
-    if (!rejectReason.trim()) {
-      setCreditError('Cần nhập lý do từ chối.');
-      return;
-    }
-    setRejectingRequestId(request.id);
-    setCreditError(null);
-    try {
-      await rejectCreditRequest.mutateAsync({
-        id: request.id,
-        body: {
-          expectedVersion: request.version,
-          reason: rejectReason.trim(),
-        },
-      });
-      setRejectReason('');
-      setRejectingRequestId(null);
-    } catch (error) {
-      setCreditError(error instanceof Error ? error.message : 'Không thể từ chối đề nghị vượt hạn mức.');
-    } finally {
-      setRejectingRequestId(null);
-    }
-  };
-
   const handleApplyApprovedRequest = async (requestId: number) => {
     setCreditAction('apply');
     setCreditError(null);
@@ -218,18 +159,6 @@ export default function TripCreatePage() {
       }
     } finally {
       setCreditAction(null);
-    }
-  };
-
-  const handleApproveAndApply = async () => {
-    const requestId = Number(creditRequestIdInput);
-    if (!Number.isInteger(requestId) || requestId <= 0) {
-      setCreditError('Cần chọn một đề nghị trước khi duyệt.');
-      return;
-    }
-    const approvedId = await handleApproveRequest(requestId);
-    if (approvedId) {
-      await handleApplyApprovedRequest(approvedId);
     }
   };
 
@@ -351,7 +280,6 @@ export default function TripCreatePage() {
                   <ShieldCheck size={16} />
                   <strong>Đề nghị vượt hạn mức</strong>
                   <span style={creditBadgeStyle}>{creditRequest.status === 'APPROVED' ? 'Đã duyệt' : 'Chờ duyệt'}</span>
-                  <span style={creditBadgeStyle}>{creditTierLabel(creditRequest.requiredTier)}</span>
                 </div>
                 <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}>
                   <div style={creditMetricStyle}>
@@ -371,11 +299,6 @@ export default function TripCreatePage() {
                     <strong>{formatCurrency(Number(creditRequest.overLimitAmount))}</strong>
                   </div>
                 </div>
-                {creditRequest.requestedBy === user?.userId && (
-                  <span style={{ color: 'var(--fg-2)', fontSize: 13 }}>
-                    Bạn là người tạo đề nghị này nên không thể tự duyệt. Hãy chuyển đề nghị cho một người duyệt khác.
-                  </span>
-                )}
               </div>
             )}
 
@@ -388,7 +311,6 @@ export default function TripCreatePage() {
                     <div key={request.id} style={{ display: 'grid', gap: 10, padding: 14, borderRadius: 12, background: 'rgba(255,255,255,0.72)' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                         <strong>{request.reason}</strong>
-                        <span style={creditBadgeStyle}>{creditTierLabel(request.requiredTier)}</span>
                       </div>
                       <div style={{ color: 'var(--fg-2)', fontSize: 14 }}>{request.reason}</div>
                       <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}>
@@ -405,60 +327,7 @@ export default function TripCreatePage() {
                           <strong>{request.expiresAt ? new Date(request.expiresAt).toLocaleString('vi-VN') : 'Theo phạm vi khác'}</strong>
                         </div>
                       </div>
-                      {request.requestedBy === user?.userId ? (
-                        <span style={{ color: 'var(--fg-2)', fontSize: 13 }}>
-                          Bạn là người tạo đề nghị này nên không thể tự duyệt hoặc từ chối.
-                        </span>
-                      ) : canDecideCreditOverride(user?.role, request.requiredTier) ? (
-                        <>
-                          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                            <button
-                              type="button"
-                              className="btn btn--secondary"
-                              onClick={() => { void handleApproveRequest(request.id).then((approvedId) => { if (approvedId) void handleApplyApprovedRequest(approvedId); }); }}
-                              disabled={creditAction !== null || rejectingRequestId === request.id}
-                            >
-                              Duyệt rồi tạo chuyến
-                            </button>
-                            <button
-                              type="button"
-                              className="btn btn--secondary"
-                              onClick={() => {
-                                setRejectingRequestId((current) => current === request.id ? null : request.id);
-                                setRejectReason('');
-                                setCreditError(null);
-                              }}
-                              disabled={creditAction !== null}
-                            >
-                              Từ chối
-                            </button>
-                          </div>
-                          {rejectingRequestId === request.id && (
-                            <div style={{ display: 'grid', gap: 8 }}>
-                              <textarea
-                                className="input"
-                                rows={3}
-                                value={rejectReason}
-                                onChange={(event) => setRejectReason(event.target.value)}
-                                placeholder="Nhập lý do từ chối để người tạo biết cách xử lý."
-                              />
-                              <button
-                                type="button"
-                                className="btn btn--secondary"
-                                onClick={() => { void handleRejectRequest(request); }}
-                                disabled={rejectCreditRequest.isPending}
-                              >
-                                {rejectCreditRequest.isPending ? <Loader2 size={16} className="spin" /> : null}
-                                Xác nhận từ chối
-                              </button>
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        <span style={{ color: 'var(--fg-2)', fontSize: 13 }}>
-                          Đề nghị này đang chờ đúng cấp {creditTierLabel(request.requiredTier)} xử lý.
-                        </span>
-                      )}
+
                     </div>
                   ))}
                 <Pagination
@@ -531,19 +400,7 @@ export default function TripCreatePage() {
                 {creditAction === 'apply' ? <Loader2 size={16} className="spin" /> : null}
                 Tạo chuyến với đề nghị đã duyệt
               </button>
-              {creditRequest
-                && canDecideCreditOverride(user?.role, creditRequest.requiredTier)
-                && creditRequest.requestedBy !== user?.userId && (
-                <button
-                  type="button"
-                className="btn btn--secondary"
-                onClick={() => { void handleApproveAndApply(); }}
-                disabled={creditAction !== null}
-              >
-                {creditAction === 'approve' ? <Loader2 size={16} className="spin" /> : null}
-                Duyệt đề nghị rồi tạo chuyến
-              </button>
-            )}
+
             </div>
 
             {creditError && (

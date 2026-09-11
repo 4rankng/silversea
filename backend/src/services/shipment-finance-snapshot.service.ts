@@ -35,16 +35,15 @@ export async function loadCurrentProposalCoverageByShipment(
   options: FinanceSnapshotOptions = {},
 ): Promise<Map<string, ProposalCoverageRow>> {
   const query = tx.select({
-    action: s.governanceActions,
-  }).from(s.governanceActions)
+    action: s.shipmentFinanceActions,
+  }).from(s.shipmentFinanceActions)
     .where(and(
-      eq(s.governanceActions.subjectType, 'SHIPMENT'),
-      eq(s.governanceActions.subjectId, shipmentId),
-      eq(s.governanceActions.actionKind, SHIPMENT_PROPOSAL_BILLING_LINK_KIND),
-      eq(s.governanceActions.status, 'APPROVED'),
-      sql`${s.governanceActions.appliedAt} is not null`,
+      eq(s.shipmentFinanceActions.shipmentId, shipmentId),
+      eq(s.shipmentFinanceActions.actionKind, SHIPMENT_PROPOSAL_BILLING_LINK_KIND),
+      eq(s.shipmentFinanceActions.status, 'APPROVED'),
+      sql`${s.shipmentFinanceActions.appliedAt} is not null`,
     ))
-    .orderBy(desc(s.governanceActions.appliedAt), desc(s.governanceActions.id));
+    .orderBy(desc(s.shipmentFinanceActions.appliedAt), desc(s.shipmentFinanceActions.id));
   const rows = await (options.lockRows === false ? query : query.for('update'));
   const coverage = new Map<string, ProposalCoverageRow>();
   for (const row of rows) {
@@ -64,17 +63,16 @@ export async function loadCurrentProposalCoverageForDocumentLine(
   billingDocumentLineId: number,
 ): Promise<ProposalCoverageRow[]> {
   const rows = await tx.select({
-    action: s.governanceActions,
-  }).from(s.governanceActions)
+    action: s.shipmentFinanceActions,
+  }).from(s.shipmentFinanceActions)
     .where(and(
-      eq(s.governanceActions.subjectType, 'SHIPMENT'),
-      eq(s.governanceActions.actionKind, SHIPMENT_PROPOSAL_BILLING_LINK_KIND),
-      eq(s.governanceActions.status, 'APPROVED'),
-      sql`${s.governanceActions.appliedAt} is not null`,
-      sql`(${s.governanceActions.afterSnapshot} ->> 'billingDocumentId')::int = ${billingDocumentId}`,
-      sql`(${s.governanceActions.afterSnapshot} ->> 'billingDocumentLineId')::int = ${billingDocumentLineId}`,
+      eq(s.shipmentFinanceActions.actionKind, SHIPMENT_PROPOSAL_BILLING_LINK_KIND),
+      eq(s.shipmentFinanceActions.status, 'APPROVED'),
+      sql`${s.shipmentFinanceActions.appliedAt} is not null`,
+      sql`(${s.shipmentFinanceActions.afterSnapshot} ->> 'billingDocumentId')::int = ${billingDocumentId}`,
+      sql`(${s.shipmentFinanceActions.afterSnapshot} ->> 'billingDocumentLineId')::int = ${billingDocumentLineId}`,
     ))
-    .orderBy(desc(s.governanceActions.appliedAt), desc(s.governanceActions.id));
+    .orderBy(desc(s.shipmentFinanceActions.appliedAt), desc(s.shipmentFinanceActions.id));
   const latestByKey = new Map<string, ProposalCoverageRow>();
   for (const row of rows) {
     const parsed = parseProposalCoverageRow(row.action);

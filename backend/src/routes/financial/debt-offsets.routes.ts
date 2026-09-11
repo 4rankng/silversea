@@ -7,12 +7,14 @@ import { getUser } from '../../middleware/auth';
 import {
   getDualEntities,
   createDebtOffset,
+  approveDebtOffset,
   listDebtOffsets,
   requestDebtOffsetApprovalGovernance,
   requestDebtOffsetCancelGovernance,
 } from '../../services/debtOffset.service';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency.service';
+import { autoApplyGovernanceAction } from '../../services/adjustment-governance.service';
 
 const router = Router();
 
@@ -45,11 +47,18 @@ router.post('/finance/debt-offsets', requireRoles(Role.ADMIN, Role.MANAGER, Role
     payload: { actorId: user.userId, ...data },
     createdBy: user.userId,
     entityType: 'debt_offset',
-    create: (tx) => createDebtOffset({
-      ...data,
-      createdBy: user.userId,
-      transaction: tx,
-    }),
+    create: async (tx) => {
+      // 2026-09-10 (phê duyệt removed): the creator applies the offset in the
+      // same transaction — paired ADJUSTMENT entries post immediately and the
+      // row lands APPROVED instead of PENDING. Audit: approvedBy/approvedAt +
+      // the ledger pair.
+      const created = await createDebtOffset({
+        ...data,
+        createdBy: user.userId,
+        transaction: tx,
+      });
+      return approveDebtOffset(created.id, user.userId, user.role, tx);
+    },
   });
   res.locals.auditEntityId = result.id;
   res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
@@ -68,7 +77,8 @@ router.post('/finance/debt-offsets/:id/approve',
       payload: { actorId: user.userId, actorRole: user.role, id, ...data },
       createdBy: user.userId,
       entityType: 'governance_action',
-      create: (tx) => requestDebtOffsetApprovalGovernance({
+      create: (tx) => autoApplyGovernanceAction({
+      make: (tx) => requestDebtOffsetApprovalGovernance({
         debtOffsetId: id,
         expectedVersion: data.expectedVersion,
         reason: data.reason,
@@ -76,6 +86,13 @@ router.post('/finance/debt-offsets/:id/approve',
         makerRole: user.role,
         transaction: tx,
       }),
+      // No approve override: DEBT_OFFSET_* kinds dispatch through the default
+      // adapter's applyDebtOffsetGovernanceAction; the direct-money adapter
+      // would reject them with 409.
+      actorId: user.userId,
+      actorRole: user.role,
+      transaction: tx,
+    }),
     });
     res.locals.auditEntityId = result.id;
     res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
@@ -97,7 +114,8 @@ router.post('/finance/debt-offsets/:id/cancel',
       payload: { actorId: user.userId, actorRole: user.role, id, ...data },
       createdBy: user.userId,
       entityType: 'governance_action',
-      create: (tx) => requestDebtOffsetCancelGovernance({
+      create: (tx) => autoApplyGovernanceAction({
+      make: (tx) => requestDebtOffsetCancelGovernance({
         debtOffsetId: id,
         expectedVersion: data.expectedVersion,
         reason: data.reason,
@@ -105,6 +123,11 @@ router.post('/finance/debt-offsets/:id/cancel',
         makerRole: user.role,
         transaction: tx,
       }),
+      // Default adapter — applyDebtOffsetGovernanceAction handles CANCEL.
+      actorId: user.userId,
+      actorRole: user.role,
+      transaction: tx,
+    }),
     });
     res.locals.auditEntityId = result.id;
     res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);

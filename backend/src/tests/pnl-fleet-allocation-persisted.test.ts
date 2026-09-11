@@ -28,7 +28,6 @@ describe('persisted fleet fixed-cost allocation', () => {
       depreciationMethod: 'STRAIGHT_LINE',
       allocationBasis: 'COMPLETED_TRIP_REVENUE_SHARE',
       lowMarginThresholdRatio: '0.2000',
-      governanceActionId: governanceBase,
       createdBy: governanceBase,
     }).returning({ id: s.financialReportingPolicyVersions.id });
     ids.policies.push(policy.id);
@@ -40,7 +39,6 @@ describe('persisted fleet fixed-cost allocation', () => {
       inServiceDate: '2098-06-01',
       usefulLifeMonths: 12,
       monthlyFixedCost: '4000',
-      governanceActionId: governanceBase + 1,
       createdBy: governanceBase,
     }).returning({ id: s.truckFinancialProfileVersions.id });
     ids.profiles.push(profile.id);

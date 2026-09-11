@@ -3,14 +3,13 @@ import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { after, before, describe, it } from 'node:test';
 import express from 'express';
-import { and, eq, inArray, like, or, sql } from 'drizzle-orm';
+import { and, eq, inArray, like } from 'drizzle-orm';
 import { Role, routeSchema } from '@tingting/shared';
 import { client, db } from '../db';
 import * as s from '../db/schema';
 import { disconnectRedis } from '../lib/redis';
 import { globalErrorHandler } from '../middleware/errorHandler';
 import configRoutes from '../routes/config';
-import governanceActionsRoutes from '../routes/financial/governance-actions.routes';
 import paymentsRoutes from '../routes/financial/payments.routes';
 import { createCrudRouter } from '../routes/utils/crud-factory';
 import { buildCrudIdempotencyEndpoint } from '../services/idempotency.service';
@@ -54,29 +53,12 @@ async function api(
   };
 }
 
-/**
- * APPROVED PRICE_CONFIG_CHANGE audit actions applied onto one customer row.
- * Governed customer writes apply directly now — this is the governance trail.
- */
-async function approvedCustomerConfigActionCount(subjectId: number): Promise<number> {
-  const [row] = await db.select({ count: sql<number>`count(*)` })
-    .from(s.governanceActions)
-    .where(and(
-      eq(s.governanceActions.status, 'APPROVED'),
-      eq(s.governanceActions.actionKind, 'PRICE_CONFIG_CHANGE'),
-      sql`${s.governanceActions.applicationResult} ->> 'resource' = 'customers'`,
-      sql`${s.governanceActions.applicationResult} ->> 'subjectId' = ${String(subjectId)}`,
-    ));
-  return Number(row?.count ?? 0);
-}
-
 before(async () => {
   const staleUsers = await db.select({ id: s.users.id }).from(s.users)
     .where(like(s.users.username, 'q23-config-%'));
   if (staleUsers.length > 0) {
     const staleIds = staleUsers.map((user) => user.id);
     await db.delete(s.notifications).where(inArray(s.notifications.userId, staleIds));
-    await db.delete(s.governanceActions).where(inArray(s.governanceActions.makerId, staleIds));
     await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.createdBy, staleIds));
     await db.delete(s.users).where(inArray(s.users.id, staleIds));
   }
@@ -134,7 +116,6 @@ before(async () => {
   }));
   app.use('/api/direct-routes', createCrudRouter(s.routes, routeSchema));
   app.use('/api', configRoutes);
-  app.use('/api', governanceActionsRoutes);
   app.use('/api', paymentsRoutes);
   app.use(globalErrorHandler);
 
@@ -172,11 +153,6 @@ after(async () => {
   const actorIds = [actorId, checkerId, approverId, alternateCheckerId].filter((id) => id > 0);
   if (actorIds.length > 0) {
     await db.delete(s.notifications).where(inArray(s.notifications.userId, actorIds));
-    await db.delete(s.governanceActions).where(or(
-      inArray(s.governanceActions.makerId, actorIds),
-      inArray(s.governanceActions.checkerId, actorIds),
-      inArray(s.governanceActions.approverId, actorIds),
-    ));
     await db.delete(s.users).where(inArray(s.users.id, actorIds));
   }
   await disconnectRedis();
@@ -184,7 +160,7 @@ after(async () => {
 });
 
 describe('Q23 generated configuration CRUD replay', () => {
-  it('applies an accountant fuel-surcharge share update directly with an APPROVED audit action', async () => {
+  it('applies an accountant fuel-surcharge share update directly', async () => {
     const created = await api('POST', '/api/customers', {
       name: `Q23 governed fuel customer ${suffix}`,
       fuelSurchargeSharePct: 10,
@@ -197,8 +173,6 @@ describe('Q23 generated configuration CRUD replay', () => {
     assert.ok(customer);
     customerIds.push(customer.id);
     assert.equal(customer.fuelSurchargeSharePct, '10.00');
-    assert.equal(await approvedCustomerConfigActionCount(customer.id), 1,
-      'governed create must record an APPROVED audit action');
 
     const updated = await api(
       'PUT',
@@ -214,8 +188,6 @@ describe('Q23 generated configuration CRUD replay', () => {
     const [changed] = await db.select().from(s.customers)
       .where(eq(s.customers.id, customer.id));
     assert.equal(changed.fuelSurchargeSharePct, '35.00');
-    assert.equal(await approvedCustomerConfigActionCount(customer.id), 2,
-      'governed update must record its own APPROVED audit action');
   });
 
   it('updates a customer directly when only non-material fields (e.g. shortName) change in a full-payload edit', async () => {
@@ -293,8 +265,6 @@ describe('Q23 generated configuration CRUD replay', () => {
     );
     assert.equal(governed.status, 200, JSON.stringify(governed.body));
     assert.ok(!('actionKind' in governed.body), `expected direct row: ${JSON.stringify(governed.body)}`);
-    assert.equal(await approvedCustomerConfigActionCount(customer.id), 2,
-      'governed create + material update must each record an APPROVED audit action');
   });
 
   it('requires an idempotency key for material generated writes', async () => {

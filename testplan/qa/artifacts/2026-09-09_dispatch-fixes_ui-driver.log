@@ -1,0 +1,42 @@
+=== DISPATCH CLUSTER FIX WAVE VIEWPORT SWEEP & AUDIT ===
+Date: 2026-09-09T15:19:13Z (23:19:13 local)
+Target Environment: Staging (https://vantai.tingting.vip)
+Commits Tested: 874bf1bb, 7eab78d3, f511cbbf, 38f4884d, 49269def
+Auditor: QA Engineer (agent-1788958430753-60hr4p)
+Protocol: Cache-cold (setCacheEnabled(false)), headless Puppeteer with pre-navigation localStorage JWT injection.
+Standard: 22:40 layout standard across viewports 390px, 768px, 1024px, 1180px, 1366px.
+
+1. /dispatch-detail PHONE DATE SHORTCUT ROW (390px):
+- Selector: .detailed-plan-filters__date-shortcut
+- Measured buttons:
+  * "Hôm nay": width=110px, height=44px, min-height=44px, padding=2px [PASS >= 44px]
+  * "Hôm sau": width=110px, height=44px, min-height=44px, padding=2px [PASS >= 44px]
+  * "Tất cả":  width=110px, height=44px, min-height=44px, padding=2px [PASS >= 44px]
+- Artifact: qa/2026-09-09_dispatch-detail_phone-390.png
+
+2. /shipments TABLET TOOLBAR COLLAPSE (768px):
+- Selector: .cus-worksheet-toolbar__filters
+- Measured layout:
+  * grid-template-columns: "331px 331px" (clean 2-column grid)
+  * search field grid-column: "1 / -1", width=674px (full-width row 1)
+  * total toolbar height: 230px (reduced from ~306px stacked)
+  * horizontal scroll: false (scrollWidth=768px, innerWidth=768px)
+- Artifact: qa/2026-09-09_shipments_tablet-768.png
+
+3. /trips TABLE RESTORATION (768px, 1024px, 1366px):
+- 768px:  tableWrapperDisplay="none", mobileListDisplay="grid" (operational cards visible, 0 h-scroll) [PASS]
+- 1024px: tableWrapperDisplay="block", mobileListDisplay="none" (DATA TABLE RESTORED, 0 h-scroll) [PASS]
+- 1366px: tableWrapperDisplay="block", mobileListDisplay="none" (DATA TABLE ACTIVE, 0 h-scroll) [PASS]
+- Artifacts: qa/2026-09-09_trips_tablet-768.png, qa/2026-09-09_trips_tablet-1024.png, qa/2026-09-09_trips_desktop-1366.png
+
+4. /dashboard TABLET BENTO PAIRING (768px):
+- Selector: .wf-bento
+- Measured layout:
+  * grid-template-columns: "345px 345px" (2-column bento grid)
+  * Priority board & Profit chart: width=706px, grid-column: 1 / -1 (hero tiles full-width)
+  * Fleet, Cost, and Half tiles: width=345px, grid-column: auto (clean 2-up pairing)
+  * horizontal scroll: false (scrollWidth=768px, innerWidth=768px)
+- Artifact: qa/2026-09-09_dashboard_tablet-768.png
+
+OVERALL VERDICT: ALL PASS (0 Blockers, 0 Regressions)
+Dispatch Cluster is certified clean across all responsive viewports.

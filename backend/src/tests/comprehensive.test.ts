@@ -510,33 +510,34 @@ test('E2E — Trip dispatch lifecycle (Create, Reassign, Pre-departure, Dispatch
   });
 
   // 6b. Explicit completion (B2): IN_TRANSIT -> COMPLETED via dedicated endpoint.
-  const completeRes = await testFetch(`/api/trips/${tripId}/complete`, {
+  // 2026-09-11 maker-checker removal: the governed close applies directly
+  // in-request. TRIP_FINANCIAL_CLOSE approverRoles are MANAGER/ADMIN, so a
+  // bare ACCOUNTANT close is rejected 403 before anything applies; MANAGER
+  // runs the whole chain — no staged check/approve HTTP calls.
+  const accountantCloseRes = await testFetch(`/api/trips/${tripId}/complete`, {
     method: 'POST',
     token: accountantToken,
+    headers: { 'Idempotency-Key': `comprehensive-trip-complete-acct-${tripId}` },
+    body: JSON.stringify({
+      expectedVersion: actualsRes.data.version,
+      governanceReason: 'Hoàn thành chuyến kiểm thử E2E theo quy trình quản trị',
+    }),
+  });
+  assert.strictEqual(accountantCloseRes.status, 403, JSON.stringify(accountantCloseRes.data));
+
+  const completeRes = await testFetch(`/api/trips/${tripId}/complete`, {
+    method: 'POST',
+    token: managerToken,
     headers: { 'Idempotency-Key': `comprehensive-trip-complete-${tripId}` },
     body: JSON.stringify({
       expectedVersion: actualsRes.data.version,
       governanceReason: 'Hoàn thành chuyến kiểm thử E2E theo quy trình quản trị',
     }),
   });
-  assert.strictEqual(completeRes.status, 202, JSON.stringify(completeRes.data));
+  assert.strictEqual(completeRes.status, 200, JSON.stringify(completeRes.data));
   assert.strictEqual(completeRes.data.actionKind, 'TRIP_FINANCIAL_CLOSE');
-
-  const checkCloseRes = await testFetch(`/api/governance-actions/${completeRes.data.id}/check`, {
-    method: 'POST',
-    token: managerToken,
-    headers: { 'Idempotency-Key': `comprehensive-trip-complete-check-${completeRes.data.id}` },
-    body: JSON.stringify({ expectedVersion: completeRes.data.version }),
-  });
-  assert.strictEqual(checkCloseRes.status, 200);
-
-  const approveCloseRes = await testFetch(`/api/governance-actions/${completeRes.data.id}/approve`, {
-    method: 'POST',
-    token: adminToken,
-    headers: { 'Idempotency-Key': `comprehensive-trip-complete-approve-${completeRes.data.id}` },
-    body: JSON.stringify({ expectedVersion: checkCloseRes.data.version }),
-  });
-  assert.strictEqual(approveCloseRes.status, 200);
+  assert.strictEqual(completeRes.data.status, 'APPROVED');
+  assert.ok(completeRes.data.appliedAt);
 
   const [completedTrip] = await db.select({ status: s.trips.status, version: s.trips.version })
     .from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
@@ -580,12 +581,6 @@ test('E2E — Financial operations (P&L, profit sharing, ledger, statements, rec
   // Clean up any prior distributions for Q2/2026 (idempotency guard returns 409)
   await db.delete(s.distributions)
     .where(and(eq(s.distributions.quarter, 2), eq(s.distributions.year, 2026)));
-  await db.delete(s.governanceActions)
-    .where(and(
-      eq(s.governanceActions.subjectType, 'PROFIT_DISTRIBUTION'),
-      eq(s.governanceActions.subjectKey, '2026-Q2'),
-      eq(s.governanceActions.actionKind, 'PROFIT_DISTRIBUTION'),
-    ));
 
   const distributeRes = await testFetch('/api/reports/distribute-profit', {
     method: 'POST',
@@ -595,7 +590,8 @@ test('E2E — Financial operations (P&L, profit sharing, ledger, statements, rec
   });
   assert.strictEqual(distributeRes.status, 201);
   assert.strictEqual(distributeRes.data.actionKind, 'PROFIT_DISTRIBUTION');
-  assert.strictEqual(distributeRes.data.status, 'PENDING_CHECK');
+  // 2026-09-10 (phê duyệt removed): the distribution applies at request time.
+  assert.strictEqual(distributeRes.data.status, 'APPROVED');
   assert.ok(distributeRes.data.subjectKey);
 
   // 4. Ledger adjustments endpoint

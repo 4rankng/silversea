@@ -25,9 +25,11 @@ import { assertCanMakeGovernanceAction } from './governance-policy';
 // aggregates this service via financial.service, and importing it back would
 // close a services-graph import cycle.
 import {
-  approveGovernanceActionWithAdapter,
+  applyGovernanceActionDirect,
   assertActiveApprovalApplication,
+  buildGovernanceAction,
   type GovernanceActionRow,
+  type GovernanceApplyAdapter,
 } from './governance-action-core.service';
 import { applyBillingDocumentGovernanceAction } from './billing-document-governance.service';
 import { applyPriceConfigGovernanceAction } from './price-config-governance.service';
@@ -53,8 +55,6 @@ import {
   getFinancialPostingForGovernanceAction,
 } from './financial-posting.service';
 import { captureProfitabilityAttributionSnapshot } from './profitability.service';
-
-export { checkGovernanceAction } from './governance-action-core.service';
 
 function requireReason(reason: string): string {
   const normalized = reason.trim();
@@ -166,7 +166,7 @@ export async function requestTripArAdjustment(input: {
       String(trip.departureDate).slice(0, 10),
     );
     const originalPeriodLock = await getClosedPeriodLock(tx, periodRef);
-    const [action] = await tx.insert(s.governanceActions).values({
+    return buildGovernanceAction({
       subjectType: 'TRIP',
       subjectId: trip.id,
       actionKind: 'TRIP_AR_ADJUSTMENT',
@@ -189,8 +189,7 @@ export async function requestTripArAdjustment(input: {
       },
       makerId: input.makerId,
       makerRole: input.makerRole,
-    }).returning();
-    return action;
+    });
   };
   return runInTx(input.transaction, execute);
 }
@@ -223,7 +222,7 @@ export async function requestTripReopen(input: {
     }
     await assertTripCanBeReopened(tx, trip.id);
 
-    const [action] = await tx.insert(s.governanceActions).values({
+    return buildGovernanceAction({
       subjectType: 'TRIP',
       subjectId: trip.id,
       actionKind: 'TRIP_REOPEN',
@@ -234,35 +233,9 @@ export async function requestTripReopen(input: {
       deltaSnapshot: null,
       makerId: input.makerId,
       makerRole: input.makerRole,
-    }).returning();
-    return action;
+    });
   };
   return runInTx(input.transaction, execute);
-}
-
-async function assertNoPendingTripGovernanceAction(
-  tx: Tx,
-  tripId: number,
-  actionKind: 'TRIP_FINANCIAL_CHANGE' | 'TRIP_FINANCIAL_CLOSE',
-  originalVersion: number,
-): Promise<void> {
-  const [pending] = await tx.select({ id: s.governanceActions.id })
-    .from(s.governanceActions)
-    .where(and(
-      eq(s.governanceActions.subjectType, 'TRIP'),
-      eq(s.governanceActions.subjectId, tripId),
-      eq(s.governanceActions.actionKind, actionKind),
-      eq(s.governanceActions.originalVersion, originalVersion),
-      inArray(s.governanceActions.status, [
-        'PENDING_CHECK',
-        'PENDING_APPROVAL',
-        'RETURNED_FOR_EVIDENCE',
-      ]),
-    ))
-    .limit(1);
-  if (pending) {
-    throw new ApiError(409, 'Chuyến đi đã có yêu cầu tài chính đang chờ xử lý');
-  }
 }
 
 export async function requestTripFinancialClose(input: {
@@ -298,14 +271,8 @@ export async function requestTripFinancialClose(input: {
       );
     }
     const closeEvidence = await requireTripCloseReadiness(tx, trip.id);
-    await assertNoPendingTripGovernanceAction(
-      tx,
-      trip.id,
-      'TRIP_FINANCIAL_CLOSE',
-      trip.version,
-    );
 
-    const [action] = await tx.insert(s.governanceActions).values({
+    return buildGovernanceAction({
       subjectType: 'TRIP',
       subjectId: trip.id,
       subjectKey: trip.tripCode,
@@ -322,8 +289,7 @@ export async function requestTripFinancialClose(input: {
       deltaSnapshot: null,
       makerId: input.makerId,
       makerRole: input.makerRole,
-    }).returning();
-    return action;
+    });
   };
   return runInTx(input.transaction, execute);
 }
@@ -356,14 +322,8 @@ export async function requestTripFinancialChange(input: {
     if (trip.status !== TripStatus.COMPLETED) {
       throw new ApiError(409, 'Chỉ tạo yêu cầu tài chính cho chuyến đã hoàn thành');
     }
-    await assertNoPendingTripGovernanceAction(
-      tx,
-      trip.id,
-      'TRIP_FINANCIAL_CHANGE',
-      trip.version,
-    );
 
-    const [action] = await tx.insert(s.governanceActions).values({
+    return buildGovernanceAction({
       subjectType: 'TRIP',
       subjectId: trip.id,
       subjectKey: trip.tripCode,
@@ -384,8 +344,7 @@ export async function requestTripFinancialChange(input: {
       deltaSnapshot: null,
       makerId: input.makerId,
       makerRole: input.makerRole,
-    }).returning();
-    return action;
+    });
   };
   return runInTx(input.transaction, execute);
 }
@@ -420,14 +379,8 @@ export async function requestCompletedTripCancellation(input: {
     if (trip.status !== TripStatus.COMPLETED) {
       throw new ApiError(409, 'Chỉ tạo yêu cầu hủy tài chính cho chuyến đã hoàn thành');
     }
-    await assertNoPendingTripGovernanceAction(
-      tx,
-      trip.id,
-      'TRIP_FINANCIAL_CHANGE',
-      trip.version,
-    );
 
-    const [action] = await tx.insert(s.governanceActions).values({
+    return buildGovernanceAction({
       subjectType: 'TRIP',
       subjectId: trip.id,
       subjectKey: trip.tripCode,
@@ -477,37 +430,9 @@ export async function requestCompletedTripCancellation(input: {
       deltaSnapshot: null,
       makerId: input.makerId,
       makerRole: input.makerRole,
-    }).returning();
-    return action;
+    });
   };
   return runInTx(input.transaction, execute);
-}
-
-export async function approveGovernanceAction(input: {
-  actionId: number;
-  approverId: number;
-  approverRole: string;
-  expectedVersion: number;
-  transaction?: Tx;
-}) {
-  const approved = await approveGovernanceActionWithAdapter({
-    ...input,
-    apply: applyGovernanceAction,
-    authorizeBeforeApply: (action) => (
-      action.subjectType === 'TRIP'
-      && (
-        action.actionKind === 'TRIP_FINANCIAL_CLOSE'
-        || action.actionKind === 'TRIP_FINANCIAL_CHANGE'
-      )
-    ),
-  });
-  if (approved.subjectType === 'PRICE_CONFIG' && approved.subjectId == null && approved.subjectKey) {
-    return approved;
-  }
-  if (approved.subjectId == null) {
-    throw new ApiError(409, 'Yêu cầu điều chỉnh không có đối tượng hợp lệ');
-  }
-  return { ...approved, subjectId: approved.subjectId };
 }
 
 async function applyGovernanceAction(
@@ -622,7 +547,6 @@ async function applyTripGovernanceAction(
         tripId: completed.id,
         tripVersion: completed.version,
         reason: 'COMPLETION',
-        governanceActionId: action.id,
         effectiveAt: completed.completedAt ?? new Date(),
       });
     await captureProfitabilityAttributionSnapshot(tx, completed.id, financialPosting.id);
@@ -658,12 +582,16 @@ async function applyTripGovernanceAction(
       if (canceled.driverId) {
         await removeTripWorkDays(canceled.driverId, canceled.id, tx);
       }
-      const cancellationPosting = await getFinancialPostingForGovernanceAction(
-        tx,
-        canceled.id,
-        action.id,
-        'CANCELLATION',
-      );
+      // The cancellation posting was linked to its governance row; with the
+      // row transient, resolve it as the trip's latest CANCELLATION version.
+      const [cancellationPosting] = await tx.select()
+        .from(s.tripFinancialPostings)
+        .where(and(
+          eq(s.tripFinancialPostings.tripId, canceled.id),
+          eq(s.tripFinancialPostings.reason, 'CANCELLATION'),
+        ))
+        .orderBy(desc(s.tripFinancialPostings.version))
+        .limit(1);
       if (!cancellationPosting) {
         throw new ApiError(409, 'Không tìm thấy phiên bản hạch toán hủy chuyến vừa tạo');
       }
@@ -835,11 +763,36 @@ async function applyTripGovernanceAction(
   };
 }
 
-export async function listTripGovernanceActions(tripId: number) {
-  return db.select().from(s.governanceActions)
-    .where(and(
-      eq(s.governanceActions.subjectType, 'TRIP'),
-      eq(s.governanceActions.subjectId, tripId),
-    ))
-    .orderBy(desc(s.governanceActions.id));
+/**
+ * 2026-09-10 user directive: remove all phê duyệt (approval) flows. Governed
+ * requests run their check and approve stages immediately with the requesting
+ * actor — validations, apply adapters, ledger entries, and audit rows are all
+ * unchanged; only the wait-for-a-second-person step is gone.
+ *
+ * 2026-09-11 (maker-checker removal, MC-4): the governance_actions table is
+ * gone; the make stage returns a TRANSIENT action record (buildGovernanceAction)
+ * and the check + approve stages run against it in-request via
+ * applyGovernanceActionDirect. Nothing is persisted.
+ */
+export async function autoApplyGovernanceAction<T extends { id: number; version: number }>(input: {
+  make: (tx: Tx) => Promise<T>;
+  /** Domain apply adapter override; defaults to the subjectType dispatch. */
+  apply?: GovernanceApplyAdapter;
+  actorId: number;
+  actorRole: string;
+  transaction?: Tx;
+}): Promise<T> {
+  const run = async (tx: Tx): Promise<T> => {
+    const requested = await input.make(tx);
+    const { action } = await applyGovernanceActionDirect({
+      action: requested as unknown as GovernanceActionRow,
+      actorId: input.actorId,
+      actorRole: input.actorRole,
+      apply: input.apply ?? applyGovernanceAction,
+      transaction: tx,
+    });
+    return action as unknown as T;
+  };
+  if (input.transaction) return run(input.transaction);
+  return db.transaction(run) as Promise<T>;
 }

@@ -11,8 +11,6 @@ import {
   MobileDayList,
   PostCloseAdjustmentList,
   PostCloseAdjustmentModal,
-  SalaryConfirmationGovernanceList,
-  SalaryPeriodGovernanceList,
   SalarySummaryCard,
 } from '../features/salary-attendance/salary-attendance-components';
 import { DOW_LABELS, STATUS_CONFIG } from '../features/salary-attendance/salary-attendance-constants';
@@ -28,23 +26,14 @@ export default function SalaryAttendancePage() {
     listLoading, salary, salaryLoading, wdLoading, isUpdating,
     toast, canPostPayout, canReopenCompanyPeriod,
     periodKey, lifecycle, periodOverviewLoading, periodAdjustments,
-    activePeriodGovernanceActions, activeSalaryConfirmationActions,
-    pendingSalaryConfirmationActions, confirmGovernanceActions, reopenSalaryGovernanceActions,
-    closeGovernanceActions, issueGovernanceActions, postGovernanceActions, reopenGovernanceActions,
     drivers, filteredDrivers, aggregates, workdayEditLocked, isConfirmed,
     adjustmentModalOpen, setAdjustmentModalOpen,
     payoutOpen, setPayoutOpen,
     reopenReason, setReopenReason, reopenReasonError, setReopenReasonError,
-    canCheckAdjustment, canApproveAdjustment,
-    handleCheckGovernanceAction, handleApproveGovernanceAction,
-    handleCheckSalaryConfirmationAction, handleApproveSalaryConfirmationAction,
     workDayMap, handleCellClick, parseLocalDate, dates, calCells,
     closePeriodMutation, issuePeriodMutation, postPeriodMutation, reopenPeriodMutation,
-    checkClosePeriodMutation, checkIssuePeriodMutation, checkPostPeriodMutation, checkReopenPeriodMutation,
-    approveClosePeriodMutation, approveIssuePeriodMutation, approvePostPeriodMutation, approveReopenPeriodMutation,
     confirmMutation, unconfirmMutation,
-    checkConfirmMutation, checkUnconfirmMutation, approveConfirmMutation, approveUnconfirmMutation,
-    requestAdjustmentMutation, checkAdjustmentMutation, approveAdjustmentMutation,
+    requestAdjustmentMutation,
   } = useSalaryAttendancePage(searchTerm);
 
   return (
@@ -231,9 +220,7 @@ export default function SalaryAttendancePage() {
                         <>
                           <Lock size={13} className="salary-attendance__legend-icon" />
                           <span>
-                            {pendingSalaryConfirmationActions.some((item) => item.actionKind === 'SALARY_CONFIRMATION')
-                              ? 'Đã gửi snapshot xác nhận — lịch chấm công tạm khóa chờ xử lý'
-                              : 'Kỳ lương đã xác nhận — lịch chấm công đã khóa'}
+                            Kỳ lương đã khóa — không thể chỉnh sửa ngày công
                           </span>
                         </>
                       ) : (
@@ -323,7 +310,7 @@ export default function SalaryAttendancePage() {
                     )}
 
                     <div className="salary-attendance__actions-grid">
-                      {lifecycle?.status === 'OPEN' && closeGovernanceActions.length === 0 && (
+                      {lifecycle?.status === 'OPEN' && (
                         <button
                           className="btn btn--primary btn--sm"
                           disabled={closePeriodMutation.isPending}
@@ -332,7 +319,7 @@ export default function SalaryAttendancePage() {
                               onSuccess: () => {
                                 toast({
                                   kind: 'success',
-                                  message: 'Đã tạo yêu cầu chốt kỳ lương. Cần người kiểm tra và người phê duyệt khác tiếp tục xử lý.',
+                                  message: 'Đã chốt kỳ lương.',
                                 });
                               },
                               onError: (err: unknown) => {
@@ -344,17 +331,11 @@ export default function SalaryAttendancePage() {
                             });
                           }}
                         >
-                          {closePeriodMutation.isPending ? 'Đang gửi yêu cầu…' : 'Gửi yêu cầu chốt kỳ'}
+                          {closePeriodMutation.isPending ? 'Đang xử lý…' : 'Chốt kỳ lương'}
                         </button>
                       )}
-                      {lifecycle?.status === 'OPEN' && closeGovernanceActions.length > 0 && (
-                        <div className="salary-attendance__info-text">
-                          Đang có yêu cầu chốt kỳ chờ xử lý bên dưới. Không thể tạo thêm yêu cầu mới cho cùng kỳ.
-                        </div>
-                      )}
                       {lifecycle?.status === 'CLOSED'
-                        && !lifecycle.payslipIssuedAt
-                        && issueGovernanceActions.length === 0 && (
+                        && !lifecycle.payslipIssuedAt && (
                         <button
                           className="btn btn--primary btn--sm"
                           disabled={issuePeriodMutation.isPending || lifecycle.version == null}
@@ -366,7 +347,7 @@ export default function SalaryAttendancePage() {
                                 onSuccess: () => {
                                   toast({
                                     kind: 'success',
-                                    message: 'Đã gửi yêu cầu phát hành phiếu lương. Kỳ lương chưa thay đổi cho đến khi người kiểm tra và người phê duyệt khác hoàn tất.',
+                                    message: 'Đã phát hành phiếu lương.',
                                   });
                                 },
                                 onError: (err: unknown) => {
@@ -379,20 +360,12 @@ export default function SalaryAttendancePage() {
                             );
                           }}
                         >
-                          {issuePeriodMutation.isPending ? 'Đang gửi yêu cầu…' : 'Gửi yêu cầu phát hành phiếu lương'}
+                          {issuePeriodMutation.isPending ? 'Đang xử lý…' : 'Phát hành phiếu lương'}
                         </button>
                       )}
                       {lifecycle?.status === 'CLOSED'
-                        && !lifecycle.payslipIssuedAt
-                        && issueGovernanceActions.length > 0 && (
-                        <div className="salary-attendance__info-text">
-                          Yêu cầu phát hành phiếu lương đang chờ kiểm tra hoặc phê duyệt. Chưa có phiếu lương nào được phát hành.
-                        </div>
-                      )}
-                      {lifecycle?.status === 'CLOSED'
                         && lifecycle.payslipIssuedAt
-                        && !lifecycle.officialPostedAt
-                        && postGovernanceActions.length === 0 && (
+                        && !lifecycle.officialPostedAt && (
                         <button
                           className="btn btn--secondary btn--sm"
                           disabled={postPeriodMutation.isPending || lifecycle.version == null}
@@ -404,7 +377,7 @@ export default function SalaryAttendancePage() {
                                 onSuccess: () => {
                                   toast({
                                     kind: 'success',
-                                    message: 'Đã gửi yêu cầu hạch toán chính thức. Kỳ lương chưa được đánh dấu chính thức cho đến khi hoàn tất kiểm tra và phê duyệt.',
+                                    message: 'Đã đánh dấu hạch toán chính thức kỳ lương.',
                                   });
                                 },
                                 onError: (err: unknown) => {
@@ -417,18 +390,10 @@ export default function SalaryAttendancePage() {
                             );
                           }}
                         >
-                          {postPeriodMutation.isPending ? 'Đang gửi yêu cầu…' : 'Gửi yêu cầu hạch toán chính thức'}
+                          {postPeriodMutation.isPending ? 'Đang xử lý…' : 'Hạch toán chính thức'}
                         </button>
                       )}
-                      {lifecycle?.status === 'CLOSED'
-                        && lifecycle.payslipIssuedAt
-                        && !lifecycle.officialPostedAt
-                        && postGovernanceActions.length > 0 && (
-                        <div className="salary-attendance__info-text">
-                          Yêu cầu hạch toán chính thức đang chờ kiểm tra hoặc phê duyệt. Kỳ lương chưa được đánh dấu chính thức.
-                        </div>
-                      )}
-                      {lifecycle?.status === 'CLOSED' && lifecycle.canReopen && canReopenCompanyPeriod && reopenGovernanceActions.length === 0 && (
+                      {lifecycle?.status === 'CLOSED' && lifecycle.canReopen && canReopenCompanyPeriod && (
                         <>
                           <div className="salary-attendance__form-group">
                             <label htmlFor="salary-period-reopen-reason" className="salary-attendance__form-label">
@@ -474,7 +439,7 @@ export default function SalaryAttendancePage() {
                                     setReopenReasonError(null);
                                     toast({
                                       kind: 'success',
-                                      message: 'Đã tạo yêu cầu mở lại kỳ lương. Cần người kiểm tra và người phê duyệt khác tiếp tục xử lý.',
+                                      message: 'Đã mở lại kỳ lương.',
                                     });
                                   },
                                   onError: (err: unknown) => {
@@ -487,14 +452,9 @@ export default function SalaryAttendancePage() {
                               );
                             }}
                           >
-                            {reopenPeriodMutation.isPending ? 'Đang gửi yêu cầu…' : 'Gửi yêu cầu mở lại kỳ'}
+                            {reopenPeriodMutation.isPending ? 'Đang xử lý…' : 'Mở lại kỳ'}
                           </button>
                         </>
-                      )}
-                      {lifecycle?.status === 'CLOSED' && reopenGovernanceActions.length > 0 && (
-                        <div className="salary-attendance__info-text">
-                          Đang có yêu cầu mở lại kỳ chờ xử lý bên dưới. Không thể tạo thêm yêu cầu mới cho cùng kỳ.
-                        </div>
                       )}
                       {lifecycle?.status === 'CLOSED' && selectedDriverId && (
                         <button
@@ -505,25 +465,6 @@ export default function SalaryAttendancePage() {
                         </button>
                       )}
                     </div>
-                    <SalaryPeriodGovernanceList
-                      items={activePeriodGovernanceActions}
-                      checkingActionId={
-                        checkClosePeriodMutation.variables?.actionId
-                        ?? checkIssuePeriodMutation.variables?.actionId
-                        ?? checkPostPeriodMutation.variables?.actionId
-                        ?? checkReopenPeriodMutation.variables?.actionId
-                        ?? null
-                      }
-                      approvingActionId={
-                        approveClosePeriodMutation.variables?.actionId
-                        ?? approveIssuePeriodMutation.variables?.actionId
-                        ?? approvePostPeriodMutation.variables?.actionId
-                        ?? approveReopenPeriodMutation.variables?.actionId
-                        ?? null
-                      }
-                      onCheck={handleCheckGovernanceAction}
-                      onApprove={handleApproveGovernanceAction}
-                    />
                   </>
                 )}
               </div>
@@ -573,11 +514,7 @@ export default function SalaryAttendancePage() {
 	                                  {reopenReasonError}
 	                                </div>
 	                              )}
-	                              {reopenSalaryGovernanceActions.length > 0 ? (
-	                                <div className="salary-attendance__pending-info">
-	                                  Đang có yêu cầu mở lại bảng công và lương chờ xử lý bên dưới.
-	                                </div>
-	                              ) : (
+	                              {(
 	                                <button
 	                                  className="btn btn--secondary btn--sm salary-attendance__btn-full salary-attendance__btn-full--mt8"
 	                                  disabled={unconfirmMutation.isPending}
@@ -590,7 +527,7 @@ export default function SalaryAttendancePage() {
 	                                    unconfirmMutation.mutate(normalizedReason, {
 	                                      onSuccess: () => {
 	                                        setReopenReasonError(null);
-	                                        toast({ kind: 'success', message: 'Đã gửi yêu cầu mở lại bảng công và lương.' });
+	                                        toast({ kind: 'success', message: 'Đã mở lại bảng công và lương.' });
 	                                      },
 	                                      onError: (err: unknown) => {
 	                                        toast({ kind: 'error', message: (err as Error)?.message || 'Không thể gửi yêu cầu mở lại bảng công và lương.' });
@@ -603,7 +540,7 @@ export default function SalaryAttendancePage() {
 	                                  ) : (
 	                                    <Unlock size={14} />
 	                                  )}
-	                                  Gửi yêu cầu mở lại
+	                                  Mở lại bảng công
 	                                </button>
 	                              )}
 	                            </>
@@ -611,18 +548,14 @@ export default function SalaryAttendancePage() {
 	                        </>
 	                      ) : (
 	                        <>
-	                          {confirmGovernanceActions.length > 0 ? (
-	                            <div className="salary-attendance__info-text">
-	                              Đang có yêu cầu xác nhận bảng công và lương chờ xử lý bên dưới.
-	                            </div>
-	                          ) : (
+	                          {(
 	                            <button
 	                              className="btn btn--primary btn--sm salary-attendance__btn-full"
 	                              disabled={confirmMutation.isPending}
 	                              onClick={() => {
 	                                confirmMutation.mutate(undefined, {
 	                                  onSuccess: () => {
-	                                    toast({ kind: 'success', message: 'Đã gửi yêu cầu xác nhận bảng công và lương.' });
+	                                    toast({ kind: 'success', message: 'Đã xác nhận bảng công và lương.' });
 	                                  },
 	                                  onError: (err: unknown) => {
 	                                    toast({
@@ -638,27 +571,12 @@ export default function SalaryAttendancePage() {
 	                              ) : (
 	                                <CheckCircle2 size={14} />
 	                              )}
-	                              Gửi yêu cầu xác nhận
+	                              Xác nhận
 	                            </button>
 	                          )}
 	                        </>
 	                      )}
 	                    </div>
-	                    <SalaryConfirmationGovernanceList
-	                      items={activeSalaryConfirmationActions}
-	                      checkingActionId={
-	                        checkConfirmMutation.variables?.actionId
-	                        ?? checkUnconfirmMutation.variables?.actionId
-	                        ?? null
-	                      }
-	                      approvingActionId={
-	                        approveConfirmMutation.variables?.actionId
-	                        ?? approveUnconfirmMutation.variables?.actionId
-	                        ?? null
-	                      }
-	                      onCheck={handleCheckSalaryConfirmationAction}
-	                      onApprove={handleApproveSalaryConfirmationAction}
-	                    />
 	                </>
               ) : (
                 <div className="salary-summary-dark salary-attendance__salary-error">
@@ -672,9 +590,7 @@ export default function SalaryAttendancePage() {
 	              <div className="salary-attendance__lock-notice">
 	                <Lock size={14} className="salary-attendance__lock-notice-icon" />
 	                <span>
-	                  {pendingSalaryConfirmationActions.some((item) => item.actionKind === 'SALARY_CONFIRMATION')
-	                    ? 'Đã gửi snapshot xác nhận — không thể chỉnh sửa ngày công cho đến khi yêu cầu được xử lý'
-	                    : 'Kỳ lương đã khóa — không thể chỉnh sửa ngày công'}
+	                  Kỳ lương đã khóa — không thể chỉnh sửa ngày công
 	                </span>
 	              </div>
 	            )}
@@ -691,36 +607,6 @@ export default function SalaryAttendancePage() {
                 </div>
                 <PostCloseAdjustmentList
                   items={periodAdjustments}
-                  canCheck={canCheckAdjustment}
-                  canApprove={canApproveAdjustment}
-                  checkingActionId={checkAdjustmentMutation.isPending ? checkAdjustmentMutation.variables?.actionId ?? null : null}
-                  approvingActionId={approveAdjustmentMutation.isPending ? approveAdjustmentMutation.variables?.actionId ?? null : null}
-                  onCheck={(item) => {
-                    checkAdjustmentMutation.mutate({
-                      actionId: item.actionId,
-                      expectedVersion: item.version,
-                    }, {
-                      onError: (err: unknown) => {
-                        toast({
-                          kind: 'error',
-                          message: (err as Error)?.message || 'Không thể kiểm tra điều chỉnh hậu chốt.',
-                        });
-                      },
-                    });
-                  }}
-                  onApprove={(item) => {
-                    approveAdjustmentMutation.mutate({
-                      actionId: item.actionId,
-                      expectedVersion: item.version,
-                    }, {
-                      onError: (err: unknown) => {
-                        toast({
-                          kind: 'error',
-                          message: (err as Error)?.message || 'Không thể phê duyệt điều chỉnh hậu chốt.',
-                        });
-                      },
-                    });
-                  }}
                 />
               </div>
             </Panel>

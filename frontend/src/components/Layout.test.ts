@@ -21,8 +21,6 @@ describe('getNavItems', () => {
       ['Đội xe', '/fleet'],
       ['Báo cáo Lãi lỗ', '/finance'],
       ['Báo cáo Lợi nhuận', '/profit'],
-      ['Duyệt vượt hạn mức', '/credit-overrides'],
-      ['Trung tâm phê duyệt', '/governance-actions'],
       ['Sổ quỹ / Ngân hàng', '/finance/treasury'],
       ['Công nợ phải thu', '/debt'],
       ['Công nợ phải trả', '/payables'],
@@ -50,8 +48,6 @@ describe('getNavItems', () => {
       ['Đội xe', '/fleet'],
       ['Báo cáo Lãi lỗ', '/finance'],
       ['Báo cáo Lợi nhuận', '/profit'],
-      ['Duyệt vượt hạn mức', '/credit-overrides'],
-      ['Trung tâm phê duyệt', '/governance-actions'],
       ['Sổ quỹ / Ngân hàng', '/finance/treasury'],
       ['Công nợ phải thu', '/debt'],
       ['Công nợ phải trả', '/payables'],
@@ -80,8 +76,6 @@ describe('getNavItems', () => {
       ['Điều khoản cước theo tuyến', '/config/freight-rate-terms'],
       ['Báo cáo Lãi lỗ', '/finance'],
       ['Báo cáo Lợi nhuận', '/profit'],
-      ['Duyệt vượt hạn mức', '/credit-overrides'],
-      ['Trung tâm phê duyệt', '/governance-actions'],
       ['Tổng quan lô hàng', '/shipments'],
       ['Nhật ký hệ thống', '/audit-logs'],
     ]],
@@ -176,7 +170,7 @@ describe('getNavItems', () => {
     expect(items.map((item) => item.path)).toEqual([
       '/accounting', '/finance/treasury', '/debt', '/payables', '/expenses', '/advances',
       '/config/fuel-price-periods', '/config/freight-rate-terms',
-      '/finance', '/profit', '/credit-overrides', '/governance-actions', '/shipments', '/audit-logs',
+      '/finance', '/profit', '/shipments', '/audit-logs',
     ]);
   });
 
@@ -228,21 +222,6 @@ describe('getNavItems', () => {
   });
 
   it('includes the dedicated credit-override approval queue for office roles only', () => {
-    expect(getNavItems(Role.ADMIN).some((item) => item.key === 'credit-overrides' && item.path === '/credit-overrides')).toBe(true);
-    expect(getNavItems(Role.ACCOUNTANT).some((item) => item.key === 'credit-overrides' && item.path === '/credit-overrides')).toBe(true);
-    expect(getNavItems(Role.CUSTOMER).some((item) => item.key === 'credit-overrides')).toBe(false);
-  });
-
-  it('includes the governance inbox for office roles only with spec-compliant label', () => {
-    const expectedLabel = 'Trung tâm phê duyệt';
-    expect(getNavItems(Role.ADMIN).some((item) => (
-      item.key === 'governance-actions'
-      && item.path === '/governance-actions'
-      && item.label === expectedLabel
-    ))).toBe(true);
-    expect(getNavItems(Role.MANAGER).some((item) => item.key === 'governance-actions' && item.path === '/governance-actions' && item.label === expectedLabel)).toBe(true);
-    expect(getNavItems(Role.ACCOUNTANT).some((item) => item.key === 'governance-actions' && item.path === '/governance-actions' && item.label === expectedLabel)).toBe(true);
-    expect(getNavItems(Role.DRIVER).some((item) => item.key === 'governance-actions')).toBe(false);
   });
 
   it('uses one canonical advance workspace item for office roles', () => {

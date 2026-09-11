@@ -148,14 +148,7 @@ async function seedQuarterProfitSource(targetQuarter: number, targetYear: number
   return { truckId: truck.id, tripIds };
 }
 
-async function checkAction(action: Record<string, unknown>, actorIndex = 1) {
-  return post(
-    `/api/governance-actions/${action.id}/check`,
-    { expectedVersion: action.version },
-    actorIndex,
-    `q15-profit-check-${action.id}-${actorIndex}-${suffix}`,
-  );
-}
+
 
 before(async () => {
   initAuditService();
@@ -250,9 +243,6 @@ after(async () => {
   if (createdDistributionIds.length > 0) {
     await db.delete(s.distributions).where(inArray(s.distributions.id, createdDistributionIds));
   }
-  if (createdActionIds.length > 0) {
-    await db.delete(s.governanceActions).where(inArray(s.governanceActions.id, createdActionIds));
-  }
   if (createdTripIds.length > 0) await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
   if (createdTruckCapIds.length > 0) {
     await db.delete(s.truckCapTable).where(inArray(s.truckCapTable.id, createdTruckCapIds));
@@ -289,119 +279,43 @@ describe('Q15 profit-distribution governance', () => {
     );
   });
 
-  it('keeps the public request pending and replays the exact command result', async () => {
+  it('applies the request immediately and replays the exact command result (phê duyệt removed)', async () => {
     const key = `q15-profit-replay-${suffix}`;
     const first = await requestDistribution(quarter, year, 0, key);
     assert.equal(first.status, 201);
     assert.equal(first.body.actionKind, 'PROFIT_DISTRIBUTION');
-    assert.equal(first.body.status, 'PENDING_CHECK');
-    assert.equal((await rowsFor(quarter, year)).length, 0);
+    // 2026-09-10 (phê duyệt removed): the request applies at submit —
+    // status APPROVED and the distribution rows exist immediately.
+    assert.equal(first.body.status, 'APPROVED');
+    assert.equal((await rowsFor(quarter, year)).length, 1);
     primaryAction = first.body;
     assert.ok(await waitForAuditEvent(
       actors[0]!.id,
-      AuditEvent.PROFIT_DISTRIBUTION_REQUESTED,
+      AuditEvent.PROFIT_DISTRIBUTED,
       Number(first.body.id),
     ));
-    assert.equal(
-      await waitForAuditEvent(actors[0]!.id, AuditEvent.PROFIT_DISTRIBUTED),
-      undefined,
-    );
 
     const replay = await requestDistribution(quarter, year, 0, key);
+    // This endpoint pins responseStatusCode 201, so replays also return 201
+    // with the identical body — the replay contract lives in the body.
     assert.equal(replay.status, first.status);
     assert.deepEqual(replay.body, first.body);
-    assert.equal((await rowsFor(quarter, year)).length, 0);
-  });
-
-  it('enforces viewer, maker, checker, and distinct approver roles before one effect', async () => {
-    const action = primaryAction;
-
-    const viewerRequest = await requestDistribution(quarter + 1, year, 3);
-    assert.equal(viewerRequest.status, 403);
-    const makerCheck = await checkAction(action, 0);
-    assert.equal(makerCheck.status, 403);
-    const viewerCheck = await checkAction(action, 3);
-    assert.equal(viewerCheck.status, 403);
-
-    const checked = await checkAction(action, 1);
-    assert.equal(checked.status, 200);
-    assert.equal(checked.body.status, 'PENDING_APPROVAL');
-    assert.equal((await rowsFor(quarter, year)).length, 0);
-
-    const checkerApprove = await post(
-      `/api/governance-actions/${action.id}/approve`,
-      { expectedVersion: checked.body.version },
-      1,
-      `q15-profit-checker-approve-${suffix}`,
-    );
-    assert.equal(checkerApprove.status, 403);
-
-    const outcomes = await Promise.all([
-      post(
-        `/api/governance-actions/${action.id}/approve`,
-        { expectedVersion: checked.body.version },
-        2,
-        `q15-profit-approve-a-${suffix}`,
-      ),
-      post(
-        `/api/governance-actions/${action.id}/approve`,
-        { expectedVersion: checked.body.version },
-        4,
-        `q15-profit-approve-b-${suffix}`,
-      ),
-    ]);
-    assert.equal(outcomes.filter(result => result.status === 200).length, 1);
-    assert.equal(outcomes.filter(result => result.status === 409).length, 1);
-    assert.equal((await rowsFor(quarter, year)).length, 1);
-    const winningActor = outcomes[0]!.status === 200 ? actors[2]! : actors[4]!;
-    const distributionAudit = await waitForAuditEvent(
-      winningActor.id,
-      AuditEvent.PROFIT_DISTRIBUTED,
-    );
-    assert.ok(distributionAudit);
-    assert.match(distributionAudit.message, new RegExp(`Quý ${quarter}/${year}`));
-
-    const stale = await post(
-      `/api/governance-actions/${action.id}/approve`,
-      { expectedVersion: checked.body.version },
-      2,
-      `q15-profit-stale-${suffix}`,
-    );
-    assert.equal(stale.status, 409);
     assert.equal((await rowsFor(quarter, year)).length, 1);
   });
 
-  it('leaves profit unchanged when a request is rejected or returned', async () => {
-    const rejected = (await requestDistribution(2, year)).body;
-    const rejectResponse = await post(
-      `/api/governance-actions/${rejected.id}/reject`,
-      { expectedVersion: rejected.version, reason: 'Không đủ căn cứ' },
-      1,
-      `q15-profit-reject-${suffix}`,
-    );
-    assert.equal(rejectResponse.status, 200);
-    assert.equal(rejectResponse.body.status, 'REJECTED');
-    assert.equal((await rowsFor(2, year)).length, 0);
 
-    const returned = (await requestDistribution(3, year)).body;
-    const returnResponse = await post(
-      `/api/governance-actions/${returned.id}/return-for-evidence`,
-      { expectedVersion: returned.version, reason: 'Bổ sung biên bản' },
-      1,
-      `q15-profit-return-${suffix}`,
-    );
-    assert.equal(returnResponse.status, 200);
-    assert.equal(returnResponse.body.status, 'RETURNED_FOR_EVIDENCE');
-    assert.equal((await rowsFor(3, year)).length, 0);
-  });
 
-  it('rejects approval when the underlying trip snapshot changes even if the computed plan is unchanged', async () => {
+  it('applies atomically against the current trip snapshot (no request-to-approve window)', async () => {
     const staleQuarter = 4;
     const { tripIds } = await seedQuarterProfitSource(staleQuarter, year, [600000, 400000]);
+
+    // 2026-09-10: request and apply are one transaction — the old
+    // request-to-approve window (and the stale-source 409 it enabled) no
+    // longer exists. The distribution applies against the live snapshot.
     const requested = await requestDistribution(staleQuarter, year);
     assert.equal(requested.status, 201);
-    const checked = await checkAction(requested.body, 1);
-    assert.equal(checked.status, 200);
+    assert.equal(requested.body.status, 'APPROVED');
+    assert.equal((await rowsFor(staleQuarter, year)).length, 1);
 
     await applyTripPatch(db, tripIds[0]!, {
       grossProfit: '550000',
@@ -415,16 +329,8 @@ describe('Q15 profit-distribution governance', () => {
       version: 2,
       updatedAt: new Date(),
     });
-
-    const staleApproval = await post(
-      `/api/governance-actions/${requested.body.id}/approve`,
-      { expectedVersion: checked.body.version },
-      2,
-      `q15-profit-stale-source-${suffix}`,
-    );
-    assert.equal(staleApproval.status, 409);
-    assert.match(String(staleApproval.body.error ?? ''), /đã thay đổi/i);
-    assert.equal((await rowsFor(staleQuarter, year)).length, 0);
+    // The applied distribution is immutable history — rows stay at 1.
+    assert.equal((await rowsFor(staleQuarter, year)).length, 1);
   });
 
   it('does not block unrelated-quarter trip writes while a profit request transaction stays open', async () => {

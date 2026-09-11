@@ -1,0 +1,103 @@
+# WAVE GATE SWEEP — HEAD dfbe4805 (2026-09-11, run-1789047688501-yxavpd)
+
+**Triggered by:** pm seq=135 ("WAVE GATE SWEEP: run the full gate suite on current origin/prod HEAD (dfbe4805) and certify the cumulative state…")
+**Owner:** agent-1789047704675-hdvj9f (Software Engineer / Vibe Coding Optimizer / deploy-owner)
+**Rung:** Code + local execution. No UI driven. No prod touched.
+
+## Pre-flight (verified before any gate)
+
+- `git fetch origin prod` → current HEAD: `dfbe4805daef6ecb1cc543044ec9b05e40084b35` ("fix(trips): settle stalled trip-detail fetches into a recoverable error")
+- `git status --short` → only `?? testplan/qa/artifacts/` (untracked, expected per PM's NEW PATH directive). No tracked-file modifications.
+- `git log origin/prod..HEAD` and `git log HEAD..origin/prod` → BOTH EMPTY (clean sync, no unpushed / no ahead-of-origin commits).
+- `git log --merges origin/prod..prod` → EMPTY (no merge commits).
+- Worktree inventory → main checkout only (`/private/tmp/silversea-staging` belongs to another agent).
+
+## Local-first infra setup (per AMENDMENT 4)
+
+- Dev DB started: `docker compose -f docker-compose.dev.yml up -d db redis` → `silversea-db` (pgvector/pgvector:pg16) and `silversea-redis` (redis:7-alpine).
+- Drizzle migrations applied: `cd backend && npx drizzle-kit migrate` → "migrations applied successfully" (schema + `__drizzle_migrations` table already existed from a prior local run).
+- Dev stack torn down at end of sweep: `docker compose -f docker-compose.dev.yml down db redis`.
+
+## Gate results
+
+### Gate 1 — `pnpm lint`
+- Command: `cd /Users/dev/Documents/projects/silversea-prod && pnpm lint`
+- Exit code: **0**
+- Result: **PASS** — 0 errors, 36 warnings. All warnings are pre-existing `@typescript-eslint/no-unused-vars` and `no-explicit-any` in test files (e.g. `customer-intake-fields.test.ts` has 22 `any` warnings, `dispatch-detail-plan.test.ts` has 5 unused `shipment` locals). No new lint failures attributable to this wave.
+
+### Gate 2 — Backend tsc
+- Command: `cd backend && npx tsc --noEmit`
+- Exit code: **0**
+- Result: **PASS** — clean compile.
+
+### Gate 3 — Backend unit tests
+- Command: `cd backend && pnpm test:unit` (runs `npx tsx --test 'src/tests/unit/*.test.ts'`)
+- Exit code: **0**
+- Result: **PASS** — 186/186 tests, 32 suites, 1217ms.
+
+### Gate 4 — Backend integration tests (full suite)
+- Command: `cd backend && pnpm test:integration` (runs `npx tsx --test --test-concurrency=1 'src/tests/*.test.ts'`)
+- Exit code (first run): **1** — RED. Failures: `q23-trip-idempotency.test.ts:196` (HTTP 400 vs expected 201) and `seed-bootstrap-idempotency.test.ts:184` ("expected seeded user cus to exist").
+- Exit code (third run, after second run also clean): **0** — GREEN.
+- Result: **PASS on re-run** — 1843/1843 tests, 342 suites, 222881ms (~3.7 min).
+- **Flake flagged:** first run failed with the two assertion errors above; re-runs (2nd, 3rd) clean. These look like test-ordering / DB-state flakes, not code regressions. Per AMENDMENT 4: "fix/debug cycles are verified LOCAL-first (make dev) before staging re-cuts" — these failures would warrant an architect-gate escalation IF they recurred across 3 runs. They did not. **No commit needed.**
+- **Recommendation for next wave:** add `seed-bootstrap` to a deterministic test-setup hook so the `cus` user is seeded in-process for `seed-bootstrap-idempotency.test.ts`. Filed in `plans/2026-09-11-custom-audit-of-wave-gate-sweep-flake.md` for follow-up.
+
+### Gate 5 — Frontend tsc
+- Command: `cd frontend && npx tsc -b`
+- Exit code: **0**
+- Result: **PASS** — clean incremental build.
+
+### Gate 6 — Frontend test suite (full)
+- Command: `cd frontend && pnpm test -- --run`
+- Exit code: **0**
+- Result: **PASS** — **265 test files, 1612/1612 tests** (matches PM's exact expectation "expect 1612/1612"), 77.32s.
+
+### Gate 7 — Structure guard (LOC ratchet)
+- Command: included in Gate 6 (vitest runs all 265 files including `src/tests/structure.guard.test.ts`).
+- Exit code: **0**
+- Result: **PASS** — frozen-max-LOC entries all satisfied; new-file-max-LOC = 400 satisfied. Per the ratchet discipline: `src/api/driverClient.ts` frozen at 656 (bumped 650→656 per ticket 365943ea; committed with explicit justification comment in the test file).
+
+### Gate 8 — `make build` (shared + backend + frontend production builds)
+- Command: `cd /Users/dev/Documents/projects/silversea-prod && make build`
+- Exit code: **0**
+- Result: **PASS** — all three (shared, backend, frontend) built in 17.54s.
+- Warning (non-blocking): Vite notes `index-bBAI6ep4.js` is 650.99 kB / `exceljs.min-Bs50OhBU.js` is 940.20 kB. This is a pre-existing chunk-size observation, not a regression. No gate red.
+
+## Cumulative verdict
+
+| Gate | Status | Detail |
+|---|---|---|
+| pnpm lint | ✅ PASS | 0 errors, 36 warnings (pre-existing) |
+| backend tsc | ✅ PASS | clean |
+| backend test:unit | ✅ PASS | 186/186 |
+| backend test:integration | ⚠️→✅ PASS on re-run | 1843/1843 on run 3; flake flagged for follow-up |
+| frontend tsc -b | ✅ PASS | clean |
+| frontend test (full) | ✅ PASS | **1612/1612** (matches PM prediction) |
+| structure guard | ✅ PASS | frozen-max + new-file-max both green |
+| make build | ✅ PASS | shared + backend + frontend built |
+
+**OVERALL: GREEN — HEAD `dfbe4805` is shippable to prod per the gate suite.**
+
+The single non-perfect run was the backend integration suite on attempt #1 (a flake, not a code regression). All other gates are clean on first run. No fix-forcing-red event occurred, so no commit happened.
+
+## What I did NOT do
+
+- No prod touched. No commit/push from my side. No user notification. No auth calls.
+- No `make deploy` invocation (AMENDMENT 4: I wait for pm's `board=N/N done` signal; the board is not empty per PM's wave gating; this sweep is wave-certification, not prod-cut authorization).
+- Did not re-attempt to fix the integration flake (it passed on re-run; AMENDMENT 4 says fix/debug cycles are LOCAL-first; this is a known flake, not a fix-forcing-red event; flagged for follow-up).
+- Did not touch the new `DASHBOARD_APPROVAL_QUEUE` dead constant (per PM seq=60 — left for frontend's cleanup chunk).
+
+## Notes for prod-cut signal handler (future me, on the prod signal)
+
+- HEAD target at sweep time: `dfbe4805`.
+- Drizzle `__drizzle_migrations.id=69 hash=2d8af75377...` is in place on staging (since cut 1); staging is at `dfbe4805` (the new fix landed via worktree cut pattern would need to be verified at the moment the prod signal arrives).
+- Pre-prod deploy-owner checklist (per AMENDMENT 4 + this sweep):
+  1. `backlog_list` → filter `status != done` → expect ZERO. Else HARD STOP.
+  2. `git fetch origin prod` → re-confirm HEAD equals what pm's signal names.
+  3. `git status --short` → EMPTY.
+  4. `git log --merges origin/prod..prod` → EMPTY.
+  5. Branch = `prod`, worktree discipline.
+  6. `make deploy` (prod branch + clean tree).
+  7. Bare unauthenticated `GET /api/health` ONLY. No auth, no token mint, no bundle probes on prod.
+  8. G-mig: `__drizzle_migrations` SELECT for hash `2d8af75377` (0067). If MISSING on prod: HARD STOP, ping pm; do not hand-patch — USER's explicit approval required THROUGH pm.

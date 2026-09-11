@@ -8,11 +8,10 @@ import { client, db } from '../db';
 import * as s from '../db/schema';
 import { insertTripComposite } from '../services/trip-composite.service';
 import {
-  approveGovernanceAction,
+  autoApplyGovernanceAction,
   requestTripFinancialClose,
 } from '../services/adjustment-governance.service';
 import { disconnectRedis } from '../lib/redis';
-import { checkGovernanceAction } from '../services/governance-transition.service';
 import {
   IDEMPOTENCY_ENDPOINTS,
   runIdempotent,
@@ -245,10 +244,6 @@ after(async () => {
     await db.delete(s.tripPhotos).where(inArray(s.tripPhotos.tripId, createdTripIds));
     await db.delete(s.driverWorkDays).where(inArray(s.driverWorkDays.tripId, createdTripIds));
     await db.delete(s.ledger).where(inArray(s.ledger.txnId, createdTripIds));
-    await db.delete(s.governanceActions).where(and(
-      eq(s.governanceActions.subjectType, 'TRIP'),
-      inArray(s.governanceActions.subjectId, createdTripIds),
-    ));
     await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.createdBy, createdUserIds));
     await cleanupTripCloseMilestones(createdTripIds);
     await db.update(s.trips).set({
@@ -421,27 +416,19 @@ describe('O01 persisted trip-pair concurrency', () => {
       reviewedBy: actors[1]!.id,
     });
     createdShipmentIds.push(closeEvidence.shipmentId);
-    const requested = await requestTripFinancialClose({
-      tripId: first.id,
-      reason: 'Xác nhận hoàn thành chuyến trong kiểm thử tranh chấp ghép chuyến',
-      makerId: actors[1]!.id,
-      makerRole: actors[1]!.role,
-      expectedTripVersion: first.version,
-    });
-    const checked = await checkGovernanceAction({
-      actionId: requested.id,
-      checkerId: actors[0]!.id,
-      checkerRole: actors[0]!.role,
-      expectedVersion: requested.version,
-    });
 
     assertOneWinnerOneConflict(await Promise.allSettled([
       runPair(pairPayload(first, second), `o01-race-pair-complete-${suffix}`),
-      approveGovernanceAction({
-        actionId: checked.id,
-        approverId: actors[2]!.id,
-        approverRole: actors[2]!.role,
-        expectedVersion: checked.version,
+      autoApplyGovernanceAction({
+        make: () => requestTripFinancialClose({
+          tripId: first.id,
+          reason: 'Xác nhận hoàn thành chuyến trong kiểm thử tranh chấp ghép chuyến',
+          makerId: actors[1]!.id,
+          makerRole: actors[1]!.role,
+          expectedTripVersion: first.version,
+        }),
+        actorId: actors[2]!.id,
+        actorRole: actors[2]!.role,
       }),
     ]));
     const pairRows = await db.select().from(s.tripPairs).where(or(

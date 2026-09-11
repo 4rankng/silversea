@@ -139,7 +139,7 @@ export function useIssueOrder({ row, open, canIssue, onIssueOrder, onIssued }: U
         plannedStartAt: startAt.toISOString(),
         plannedEndAt: endAt.toISOString(),
         endTimeConfirmed: true,
-        carrierType: row.dispatch.carrierType,
+        carrierType: row.dispatch.carrierType as 'OWN' | 'EXTERNAL',
         truckId: isOwn ? ownTruck!.id : undefined,
         driverId: isOwn ? ownTruck!.driverId : undefined,
         externalCarrierId: isOwn ? undefined : row.dispatch.externalCarrierId,

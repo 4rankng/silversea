@@ -12,7 +12,6 @@ import { cacheGet } from '../../lib/redis';
 import { getDashboardWidgets } from '../../services/dashboard-widgets.service';
 import { totalArRangeKey } from '../../lib/report-cache';
 import { getCustomerAgingList, customerAgingSortQuerySchema } from '../../services/aging.service';
-import { getApprovalQueue } from '../../services/approval-queue.service';
 import { parsePagination } from '../utils/pagination';
 import { throwValidation } from '../../lib/validation';
 import { exportReceivablesAgingXlsx, attachmentDisposition } from '../../services/statement.service';
@@ -24,6 +23,9 @@ import {
   runProfitDistributionWithSerializationRetry,
 } from '../../services/profit-distribution.service';
 import { exportProfitabilityReport, getProfitabilityReport, PROFITABILITY_DIMENSIONS } from '../../services/profitability.service';
+import { autoApplyGovernanceAction } from '../../services/adjustment-governance.service';
+import { applyDirectMoneyGovernanceAction } from '../../services/governance-transition.service';
+import { AuditEvent } from '../../services/audit-types';
 
 const router = Router();
 
@@ -33,10 +35,9 @@ router.get('/reports/dashboard', requireRoles(Role.ADMIN, Role.MANAGER), asyncHa
   res.json(await getDashboardStats({ includeExecutive: true }));
 }));
 
-router.get('/dashboard/approval-queue', asyncHandler(async (req: Request, res: Response) => {
-  const result = await getApprovalQueue(getUser(req).userId, getUser(req).role);
-  res.json(result);
-}));
+// 2026-09-10 (phê duyệt removed, chunk 7): GET /dashboard/approval-queue is
+// GONE — every flow that fed the queue now applies at request time. Clients
+// still calling it get 404.
 
 // ─── P&L report ──────────────────────────────────────────────────────────────
 
@@ -181,7 +182,7 @@ router.post('/reports/distribute-profit', requireRoles(Role.ADMIN, Role.MANAGER)
   if (quarter < 1 || quarter > 4) return res.status(400).json({ error: 'Quý phải từ 1 đến 4' });
   const user = getUser(req);
   const idempotencyKey = getRequestIdempotencyKey(req);
-  const { result, statusCode } = await runProfitDistributionWithSerializationRetry(() => (
+  const { result, statusCode, replayed } = await runProfitDistributionWithSerializationRetry(() => (
     runIdempotent({
       endpoint: IDEMPOTENCY_ENDPOINTS.PROFIT_DISTRIBUTE,
       idempotencyKey,
@@ -190,7 +191,8 @@ router.post('/reports/distribute-profit', requireRoles(Role.ADMIN, Role.MANAGER)
       entityType: 'profit_distribution',
       responseStatusCode: 201,
       transactionOptions: PROFIT_DISTRIBUTION_TRANSACTION_OPTIONS,
-      create: (tx) => requestProfitDistributionGovernance({
+      create: (tx) => autoApplyGovernanceAction({
+      make: (tx) => requestProfitDistributionGovernance({
         quarter,
         year,
         reason: typeof reason === 'string' ? reason : '',
@@ -198,9 +200,19 @@ router.post('/reports/distribute-profit', requireRoles(Role.ADMIN, Role.MANAGER)
         makerRole: user.role,
         transaction: tx,
       }),
+      apply: applyDirectMoneyGovernanceAction,
+      actorId: user.userId,
+      actorRole: user.role,
+      transaction: tx,
+    }),
     })
   ));
   res.locals.auditEntityId = result.id;
+  // 2026-09-10 (phê duyệt removed): money applies at request time — emit the
+  // distribution audit event the old approve step used to write.
+  if (!replayed) {
+    res.locals.auditEvent = AuditEvent.PROFIT_DISTRIBUTED;
+  }
   res.status(statusCode).json(result);
 }));
 

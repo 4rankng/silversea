@@ -312,8 +312,7 @@ router.get('/two-orders', asyncHandler(async (req: Request, res: Response) => {
 // the shared driverWorkInbox query.
 router.get('/journey-board', asyncHandler(async (req: Request, res: Response) => {
   const driver = await getDriverByUserId(getUser(req).userId);
-  const items = await getDriverJourneyBoard(driver.id);
-  res.json({ items });
+  res.json(await getDriverJourneyBoard(driver.id));
 }));
 
 // Driver-app topbar identity chip (260828): the driver's current vehicle

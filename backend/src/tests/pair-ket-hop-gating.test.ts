@@ -266,7 +266,7 @@ describe('kết hợp sequencing gate + journey board pair fields', () => {
 
     // Board shows the lock while Lệnh 1 is unfinished.
     let board = await getDriverJourneyBoard(driverId);
-    let lockedCard = board.find((card) => card.tripId === trips[1]);
+    let lockedCard = board.items.find((card) => card.tripId === trips[1]);
     assert.ok(lockedCard);
     assert.equal(lockedCard.pairKind, 'KET_HOP');
     assert.equal(lockedCard.pairOrder, 2);
@@ -276,7 +276,7 @@ describe('kết hợp sequencing gate + journey board pair fields', () => {
     await db.update(s.trips).set({ status: TripStatus.COMPLETED, completedAt: new Date() })
       .where(eq(s.trips.id, trips[0]));
     board = await getDriverJourneyBoard(driverId);
-    lockedCard = board.find((card) => card.tripId === trips[1]);
+    lockedCard = board.items.find((card) => card.tripId === trips[1]);
     assert.ok(lockedCard);
     assert.equal(lockedCard.pairLocked, false);
 
@@ -300,7 +300,7 @@ describe('kết hợp sequencing gate + journey board pair fields', () => {
 
     const board = await getDriverJourneyBoard(driverId);
     for (const tripId of trips) {
-      const card = board.find((item) => item.tripId === tripId);
+      const card = board.items.find((item) => item.tripId === tripId);
       assert.ok(card);
       assert.equal(card.pairKind, 'KEP');
       assert.equal(card.pairLocked, false);

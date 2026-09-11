@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Truck, Coffee, XCircle, DollarSign, Info, Edit, ArrowRightLeft, CheckCircle2, Clock3, Lock } from 'lucide-react';
+import { Truck, Coffee, XCircle, DollarSign, Info, Edit, ArrowRightLeft, Clock3 } from 'lucide-react';
 import { Money } from '../../components/shared/Money';
 import { Modal } from '../../components/UI';
 import { usePostDriverPayout } from '../../hooks/useFinancialQueries';
@@ -8,19 +8,12 @@ import type {
   WorkDayRecord,
   AttendanceSalary,
   SalaryPeriodAdjustmentItem,
-  SalaryConfirmationGovernanceAction,
-  SalaryPeriodGovernanceAction,
 } from '../../api/salaryClient';
 import { useToast } from '../../components/shared/Toast';
-import { ROLE_LABELS, Role } from '@tingting/shared';
 import { DateInput } from '../../design-system/forms/DateInput';
 import { UuiSelectField } from '../../design-system';
 import { DOW_LABELS, STATUS_CONFIG } from './salary-attendance-constants';
 import '../../pages/SalaryAttendancePage.css';
-
-function governanceActorLabel(role: string | null): string {
-  return role ? ROLE_LABELS[role as Role] ?? 'Người dùng không xác định' : 'Người dùng không xác định';
-}
 
 
 // ── Calendar Cell ─────────────────────────────────────────────────────────────
@@ -232,20 +225,8 @@ export function MobileDayList({ dates, workDayMap, isUpdating: _isUpdating, isCo
 
 export function PostCloseAdjustmentList({
   items,
-  canCheck,
-  canApprove,
-  checkingActionId,
-  approvingActionId,
-  onCheck,
-  onApprove,
 }: {
   items: SalaryPeriodAdjustmentItem[];
-  canCheck: (item: SalaryPeriodAdjustmentItem) => boolean;
-  canApprove: (item: SalaryPeriodAdjustmentItem) => boolean;
-  checkingActionId: number | null;
-  approvingActionId: number | null;
-  onCheck: (item: SalaryPeriodAdjustmentItem) => void;
-  onApprove: (item: SalaryPeriodAdjustmentItem) => void;
 }) {
   if (items.length === 0) {
     return (
@@ -261,7 +242,7 @@ export function PostCloseAdjustmentList({
       {items.map((item) => {
         const incoming = item.relationship === 'TARGET';
         return (
-          <div key={item.actionId} className="payslip-row">
+          <div key={item.adjustmentId} className="payslip-row">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700 }}>
                 <ArrowRightLeft size={14} />
@@ -273,228 +254,9 @@ export function PostCloseAdjustmentList({
             </div>
             <div style={{ marginTop: 6, fontSize: 13, color: 'var(--fg-2)' }}>{item.reason}</div>
             <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 8, fontSize: 12, color: 'var(--fg-3)' }}>
-              <span>{item.status === 'APPROVED' ? 'Đã phê duyệt' : item.status === 'PENDING_APPROVAL' ? 'Chờ phê duyệt' : 'Chờ kiểm tra'}</span>
-              <span>Tạo bởi {item.makerName || 'Người dùng không xác định'}</span>
-              {item.checkerName && <span>Kiểm tra: {item.checkerName}</span>}
-              {item.approverName && <span>Phê duyệt: {item.approverName}</span>}
+              <span>Duyệt bởi {item.approvedByName || 'Người dùng không xác định'}</span>
+              <span>{new Date(item.approvedAt).toLocaleDateString('vi-VN')}</span>
             </div>
-            {(canCheck(item) || canApprove(item)) && (
-              <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
-                {canCheck(item) && (
-                  <button
-                    className="btn btn--secondary btn--sm"
-                    disabled={checkingActionId === item.actionId}
-                    onClick={() => onCheck(item)}
-                  >
-                    {checkingActionId === item.actionId ? 'Đang kiểm tra…' : 'Kiểm tra'}
-                  </button>
-                )}
-                {canApprove(item) && (
-                  <button
-                    className="btn btn--primary btn--sm"
-                    disabled={approvingActionId === item.actionId}
-                    onClick={() => onApprove(item)}
-                  >
-                    {approvingActionId === item.actionId ? 'Đang phê duyệt…' : 'Phê duyệt'}
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function periodGovernanceStatusLabel(status: SalaryPeriodGovernanceAction['status']) {
-  switch (status) {
-    case 'PENDING_CHECK':
-      return 'Chờ kiểm tra';
-    case 'PENDING_APPROVAL':
-      return 'Chờ phê duyệt';
-    case 'APPROVED':
-      return 'Đã áp dụng';
-    case 'REJECTED':
-      return 'Đã từ chối';
-    case 'RETURNED_FOR_EVIDENCE':
-      return 'Bổ sung hồ sơ';
-    case 'CANCELED':
-      return 'Đã hủy';
-    case 'SUPERSEDED':
-      return 'Đã thay thế';
-    default:
-      return status;
-  }
-}
-
-function periodGovernanceActionLabel(item: SalaryPeriodGovernanceAction) {
-  const after = item.afterSnapshot;
-  const operation = after && typeof after === 'object' && !Array.isArray(after)
-    ? (after as { operation?: unknown }).operation
-    : null;
-  if (operation === 'ISSUE_PAYSLIPS') return 'Yêu cầu phát hành phiếu lương';
-  if (operation === 'POST_OFFICIAL') return 'Yêu cầu hạch toán chính thức';
-  return item.actionKind === 'SALARY_PERIOD_CLOSE' ? 'Yêu cầu chốt kỳ' : 'Yêu cầu mở lại kỳ';
-}
-
-function salaryConfirmationGovernanceStatusLabel(status: SalaryConfirmationGovernanceAction['status']) {
-  switch (status) {
-    case 'PENDING_CHECK':
-      return 'Chờ kiểm tra';
-    case 'PENDING_APPROVAL':
-      return 'Chờ phê duyệt';
-    case 'APPROVED':
-      return 'Đã áp dụng';
-    case 'REJECTED':
-      return 'Đã từ chối';
-    case 'RETURNED_FOR_EVIDENCE':
-      return 'Bổ sung hồ sơ';
-    case 'CANCELED':
-      return 'Đã hủy';
-    case 'SUPERSEDED':
-      return 'Đã thay thế';
-    default:
-      return status;
-  }
-}
-
-function salaryConfirmationGovernanceActionLabel(actionKind: SalaryConfirmationGovernanceAction['actionKind']) {
-  return actionKind === 'SALARY_CONFIRMATION'
-    ? 'Yêu cầu xác nhận bảng công và lương'
-    : 'Yêu cầu mở lại bảng công và lương';
-}
-
-export function SalaryPeriodGovernanceList({
-  items,
-  checkingActionId,
-  approvingActionId,
-  onCheck,
-  onApprove,
-}: {
-  items: SalaryPeriodGovernanceAction[];
-  checkingActionId: number | null;
-  approvingActionId: number | null;
-  onCheck: (item: SalaryPeriodGovernanceAction) => void;
-  onApprove: (item: SalaryPeriodGovernanceAction) => void;
-}) {
-  if (items.length === 0) {
-    return null;
-  }
-
-  return (
-    <div className="payslip-container">
-      {items.map((item) => {
-        const canCheck = item.allowedActions.includes('CHECK');
-        const canApprove = item.allowedActions.includes('APPROVE');
-        return (
-          <div key={item.id} className="payslip-row">
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700 }}>
-                {item.actionKind === 'SALARY_PERIOD_CLOSE' ? <Lock size={14} /> : <ArrowRightLeft size={14} />}
-                <span>{periodGovernanceActionLabel(item)}</span>
-              </div>
-              <span className={`salary-summary-dark__status ${item.status === 'APPROVED' ? 'is-confirmed' : ''}`} style={{ color: 'var(--fg-1)', background: 'var(--surface-2)' }}>
-                {periodGovernanceStatusLabel(item.status)}
-              </span>
-            </div>
-            <div style={{ marginTop: 6, fontSize: 13, color: 'var(--fg-2)' }}>{item.reason}</div>
-            <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 8, fontSize: 12, color: 'var(--fg-3)' }}>
-              <span>Tạo bởi {governanceActorLabel(item.makerRole)}</span>
-              {item.checkerId != null && <span>Kiểm tra: {governanceActorLabel(item.checkerRole)}</span>}
-              {item.approverId != null && <span>Phê duyệt: {governanceActorLabel(item.approverRole)}</span>}
-            </div>
-            {(canCheck || canApprove) && (
-              <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                {canCheck && (
-                  <button
-                    className="btn btn--secondary btn--sm"
-                    disabled={checkingActionId === item.id}
-                    onClick={() => onCheck(item)}
-                  >
-                    {checkingActionId === item.id ? 'Đang kiểm tra…' : 'Kiểm tra'}
-                  </button>
-                )}
-                {canApprove && (
-                  <button
-                    className="btn btn--primary btn--sm"
-                    disabled={approvingActionId === item.id}
-                    onClick={() => onApprove(item)}
-                  >
-                    {approvingActionId === item.id ? 'Đang phê duyệt…' : 'Phê duyệt'}
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-export function SalaryConfirmationGovernanceList({
-  items,
-  checkingActionId,
-  approvingActionId,
-  onCheck,
-  onApprove,
-}: {
-  items: SalaryConfirmationGovernanceAction[];
-  checkingActionId: number | null;
-  approvingActionId: number | null;
-  onCheck: (item: SalaryConfirmationGovernanceAction) => void;
-  onApprove: (item: SalaryConfirmationGovernanceAction) => void;
-}) {
-  if (items.length === 0) {
-    return null;
-  }
-
-  return (
-    <div className="payslip-container">
-      {items.map((item) => {
-        const allowedActions = item.allowedActions ?? [];
-        const canCheck = allowedActions.includes('CHECK');
-        const canApprove = allowedActions.includes('APPROVE');
-        return (
-          <div key={item.id} className="payslip-row">
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700 }}>
-                {item.actionKind === 'SALARY_CONFIRMATION' ? <CheckCircle2 size={14} /> : <ArrowRightLeft size={14} />}
-                <span>{salaryConfirmationGovernanceActionLabel(item.actionKind)}</span>
-              </div>
-              <span className={`salary-summary-dark__status ${item.status === 'APPROVED' ? 'is-confirmed' : ''}`} style={{ color: 'var(--fg-1)', background: 'var(--surface-2)' }}>
-                {salaryConfirmationGovernanceStatusLabel(item.status)}
-              </span>
-            </div>
-            <div style={{ marginTop: 6, fontSize: 13, color: 'var(--fg-2)' }}>{item.reason}</div>
-            <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 8, fontSize: 12, color: 'var(--fg-3)' }}>
-              <span>Tạo bởi {governanceActorLabel(item.makerRole)}</span>
-              {item.checkerId != null && <span>Kiểm tra: {governanceActorLabel(item.checkerRole)}</span>}
-              {item.approverId != null && <span>Phê duyệt: {governanceActorLabel(item.approverRole)}</span>}
-            </div>
-            {(canCheck || canApprove) && (
-              <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                {canCheck && (
-                  <button
-                    className="btn btn--secondary btn--sm"
-                    disabled={checkingActionId === item.id}
-                    onClick={() => onCheck(item)}
-                  >
-                    {checkingActionId === item.id ? 'Đang kiểm tra…' : 'Kiểm tra'}
-                  </button>
-                )}
-                {canApprove && (
-                  <button
-                    className="btn btn--primary btn--sm"
-                    disabled={approvingActionId === item.id}
-                    onClick={() => onApprove(item)}
-                  >
-                    {approvingActionId === item.id ? 'Đang phê duyệt…' : 'Phê duyệt'}
-                  </button>
-                )}
-              </div>
-            )}
           </div>
         );
       })}

@@ -13,8 +13,7 @@ import {
 } from '../services/statement.service';
 import { updateTripExpense, createTripExpense } from '../services/forwarder.service';
 import {
-  approveGovernanceAction,
-  checkGovernanceAction,
+  autoApplyGovernanceAction,
   requestCompletedTripCancellation,
   requestTripFinancialClose,
   requestTripFinancialChange,
@@ -86,13 +85,7 @@ after(async () => {
     if (createdForwarderExpenseTypeCodes.length > 0) {
       await db.delete(s.forwarderExpenseTypes).where(inArray(s.forwarderExpenseTypes.code, createdForwarderExpenseTypeCodes));
     }
-    if (createdGovernanceUserIds.length > 0) {
-      await db.delete(s.governanceActions).where(inArray(s.governanceActions.makerId, createdGovernanceUserIds));
-      await db.delete(s.governanceActions).where(inArray(s.governanceActions.checkerId, createdGovernanceUserIds));
-      await db.delete(s.governanceActions).where(inArray(s.governanceActions.approverId, createdGovernanceUserIds));
-    }
     if (createdTripIds.length > 0) {
-      await db.delete(s.governanceActions).where(inArray(s.governanceActions.subjectId, createdTripIds));
       await db.delete(s.auditLogs).where(inArray(s.auditLogs.entityId, createdTripIds));
       await db.delete(s.profitabilitySnapshots).where(inArray(s.profitabilitySnapshots.tripId, createdTripIds));
       await db.delete(s.tripFinancialPostings).where(inArray(s.tripFinancialPostings.tripId, createdTripIds));
@@ -156,47 +149,31 @@ async function governanceActors(label: string) {
 
 async function approveCompletedCancellation(tripId: number, expectedVersion: number) {
   const actors = await governanceActors('chiho-cancel');
-  const action = await requestCompletedTripCancellation({
-    tripId,
-    reason: 'Hủy chuyến đã hoàn thành và hoàn nhập công nợ',
-    makerId: actors[0]!.id,
-    makerRole: Role.MANAGER,
-    expectedTripVersion: expectedVersion,
-  });
-  const checked = await checkGovernanceAction({
-    actionId: action.id,
-    checkerId: actors[1]!.id,
-    checkerRole: Role.ACCOUNTANT,
-    expectedVersion: action.version,
-  });
-  return approveGovernanceAction({
-    actionId: action.id,
-    approverId: actors[2]!.id,
-    approverRole: Role.ADMIN,
-    expectedVersion: checked.version,
+  return autoApplyGovernanceAction({
+    make: () => requestCompletedTripCancellation({
+      tripId,
+      reason: 'Hủy chuyến đã hoàn thành và hoàn nhập công nợ',
+      makerId: actors[0]!.id,
+      makerRole: Role.MANAGER,
+      expectedTripVersion: expectedVersion,
+    }),
+    actorId: actors[2]!.id,
+    actorRole: Role.ADMIN,
   });
 }
 
 async function closeTripThroughGovernance(tripId: number, expectedVersion: number) {
   const actors = await governanceActors('chiho-close');
-  const action = await requestTripFinancialClose({
-    tripId,
-    reason: 'Hoàn thành chuyến theo quy trình quản trị kiểm thử',
-    makerId: actors[1]!.id,
-    makerRole: Role.ACCOUNTANT,
-    expectedTripVersion: expectedVersion,
-  });
-  const checked = await checkGovernanceAction({
-    actionId: action.id,
-    checkerId: actors[0]!.id,
-    checkerRole: Role.MANAGER,
-    expectedVersion: action.version,
-  });
-  await approveGovernanceAction({
-    actionId: action.id,
-    approverId: actors[2]!.id,
-    approverRole: Role.ADMIN,
-    expectedVersion: checked.version,
+  await autoApplyGovernanceAction({
+    make: () => requestTripFinancialClose({
+      tripId,
+      reason: 'Hoàn thành chuyến theo quy trình quản trị kiểm thử',
+      makerId: actors[1]!.id,
+      makerRole: Role.ACCOUNTANT,
+      expectedTripVersion: expectedVersion,
+    }),
+    actorId: actors[2]!.id,
+    actorRole: Role.ADMIN,
   });
   const [completed] = await db.select({ version: s.trips.version })
     .from(s.trips)
@@ -1111,32 +1088,24 @@ describe('US-005b edited-COMPLETED reconciliation: eligible debt-note totals sta
     const [current] = await db.select({ version: s.trips.version })
       .from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
     const actors = await governanceActors('chiho-change');
-    const action = await requestTripFinancialChange({
-      tripId: trip.id,
-      reason: 'Điều chỉnh doanh thu theo biên bản đối soát',
-      figures: {
-      legs: [{ sequence: 1, origin: 'A', destination: 'B', km: 100, loadingType: LoadingType.HANG }],
-      fuelMode: FuelMode.FLAT_RATE,
-      fuelLitersOverride: 0,
-      revenue: 7_500_000,
-      routeId: trip.routeId,
-      userId: actors[0]!.id,
-      },
-      makerId: actors[0]!.id,
-      makerRole: Role.MANAGER,
-      expectedTripVersion: current.version,
-    });
-    const checked = await checkGovernanceAction({
-      actionId: action.id,
-      checkerId: actors[1]!.id,
-      checkerRole: Role.ACCOUNTANT,
-      expectedVersion: action.version,
-    });
-    await approveGovernanceAction({
-      actionId: action.id,
-      approverId: actors[2]!.id,
-      approverRole: Role.ADMIN,
-      expectedVersion: checked.version,
+    await autoApplyGovernanceAction({
+      make: () => requestTripFinancialChange({
+        tripId: trip.id,
+        reason: 'Điều chỉnh doanh thu theo biên bản đối soát',
+        figures: {
+        legs: [{ sequence: 1, origin: 'A', destination: 'B', km: 100, loadingType: LoadingType.HANG }],
+        fuelMode: FuelMode.FLAT_RATE,
+        fuelLitersOverride: 0,
+        revenue: 7_500_000,
+        routeId: trip.routeId,
+        userId: actors[0]!.id,
+        },
+        makerId: actors[0]!.id,
+        makerRole: Role.MANAGER,
+        expectedTripVersion: current.version,
+      }),
+      actorId: actors[2]!.id,
+      actorRole: Role.ADMIN,
     });
 
     // Post-edit: read the trip's ACTUAL stored revenue (resolveRevenue may transform
