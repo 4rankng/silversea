@@ -5,6 +5,7 @@
  */
 import { CUSTOMER_OPERATIONAL_NAME, PORT_OPERATIONAL_NAME, ROUTE_OPERATIONAL_NAME, SITE_OPERATIONAL_NAME, DISPATCH_BUSINESS_TIME_ZONE, DispatchActor, INTERNAL_FLEET_CARRIER_NAME, Tx, addCalendarDays, assertDispatchActor, assertDispatchReadActor, buildPattern, dispatchDetailTransportDateSql, dispatchEffectiveRouteIdSql, loadDeclarationNumbers, normalizeDate, normalizeLimit, redactDispatchSiteForAccountant, requireAccountantDispatchScope, toFrozenSiteSummary, shipmentQSearchPredicate } from './dispatch-planning-utils.service';
 import { DISPATCH_DETAIL_PLAN_CARRIER_TYPES, loadLiveTripForFulfillment } from './dispatch-planning-commands.service';
+import { compareDetailPlanRows, countFulfillmentLessReadyRows, listFulfillmentLessReadyRows } from './dispatch-detail-plan-fulfillment-less';
 import { db } from '../db';
 import { ApiError } from '../errors';
 
@@ -345,7 +346,31 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
         .where(filters),
     ]);
 
-    const pageRows = rows;
+    // BUG 5 secondary (9e ruling 2026-09-12): historical READY_FOR_DISPATCH
+    // containers that never decomposed ride the page through a second
+    // branch query — same row shape, fulfillment-owned fields nulled — so
+    // dispatchers can see and allocate lots stuck before the write-path
+    // fix. Both branches page at the same offset; the merged slice keeps
+    // the shared priority order and the total adds both counts.
+    const unionFilters = {
+      q: input.q,
+      date,
+      direction: input.direction ?? null,
+      pickupIds,
+      dropoffIds,
+      deliveryPointIds,
+      hourFrom,
+      hourTo,
+      zone: input.zone ?? null,
+      assignmentStatus: input.assignmentStatus ?? null,
+    };
+    const [unionRows, unionCount] = await Promise.all([
+      listFulfillmentLessReadyRows(tx, unionFilters, accountantCustomerIds, limit, (page - 1) * limit),
+      countFulfillmentLessReadyRows(tx, unionFilters, accountantCustomerIds),
+    ]);
+    const pageRows = [...rows, ...unionRows]
+      .sort(compareDetailPlanRows)
+      .slice(0, limit);
     const shipmentIds = pageRows.map((row) => row.shipmentId);
     const carrierIds = pageRows
       .map((row) => row.plannedExternalCarrierId)
@@ -444,7 +469,7 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
         };
       }),
       limit,
-      total: Number(totals[0]?.total ?? 0),
+      total: Number(totals[0]?.total ?? 0) + unionCount,
       page,
       pageSize: limit,
     };
