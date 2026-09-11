@@ -12,6 +12,11 @@ export const trucks = pgTable('trucks', {
   trailerPlateNumber: varchar('trailer_plate_number', { length: 20 }),
   trailerType: trailerTypeEnum('trailer_type'),
   currentTrailerId: integer('current_trailer_id'),
+  // Owning nhà xe (carrier customer) for subcontracted tractors. Plain
+  // integer — no FK, same convention as trips.activeTripPairId — to avoid a
+  // master-data ↔ shipments module cycle; the catalog write path enforces
+  // the target is an ACTIVE isCarrier customer. Null = xe nhà (own fleet).
+  carrierId: integer('carrier_id'),
   status: truckStatusEnum('status').default('ACTIVE'),
   // N5 / A12 + B4: user-keyed compliance/service dates for alerts.
   nextInspectionDate: date('next_inspection_date'),
@@ -31,7 +36,12 @@ export const trucks = pgTable('trucks', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   deletedAt: timestamp('deleted_at'),
-});
+}, (table) => [
+  // Carrier-link lookups: "chọn nhà xe → thấy biển số của nó" filters the
+  // catalog by carrier_id (precedent: shipment_fulfillments planned-external-
+  // carrier index).
+  index('trucks_carrier_idx').on(table.carrierId),
+]);
 
 export const trailers = pgTable('trailers', {
   id: serial('id').primaryKey(),

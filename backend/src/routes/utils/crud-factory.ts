@@ -51,6 +51,13 @@ export interface CrudRouterOptions<
 > {
   searchableField?: string;
   searchableFields?: string[];
+  /** Whitelisted integer-equality list filters for the factory GET (e.g.
+   *  `['carrierId']` → `/trucks?carrierId=5`). An empty param value skips the
+   *  filter; a non-integer value 400s; a query param outside the whitelist
+   *  (and outside the factory's own page/limit/search/sort keys) 400s so a
+   *  silently-ignored filter never hides rows. items AND total share the
+   *  filtered WHERE. */
+  filterFields?: string[];
   disableDelete?: boolean;
   deleteMode?: 'soft' | 'hard';
   /** Override the default list-page maxLimit (100) for catalogs that may exceed
@@ -114,6 +121,7 @@ export function createCrudRouter<
   const {
     searchableField,
     searchableFields,
+    filterFields,
     disableDelete = false,
     deleteMode = 'soft',
     maxLimit,
@@ -252,6 +260,29 @@ export function createCrudRouter<
         sql`unaccent(${column(table, field)}) ILIKE unaccent(${"%" + escaped + "%"})`,
       );
       conditions.push(searchConditions.length === 1 ? searchConditions[0]! : or(...searchConditions)!);
+    }
+
+    // Integer-equality list filters (see CrudRouterOptions.filterFields).
+    // Evaluated before `where` is built so items and total share the filter.
+    const factoryQueryKeys = new Set(['page', 'limit', 'search', 'sortBy', 'sortDir']);
+    for (const [key] of Object.entries(req.query)) {
+      if (factoryQueryKeys.has(key)) continue;
+      if (filterFields && !filterFields.includes(key)) {
+        throw new ApiError(400, `Bộ lọc không được hỗ trợ: ${key}`);
+      }
+    }
+    if (filterFields) {
+      for (const field of filterFields) {
+        const raw = req.query[field];
+        if (raw === undefined) continue;
+        const value = String(raw).trim();
+        if (value === '') continue; // empty param = no filter
+        const parsed = Number(value);
+        if (!Number.isInteger(parsed) || parsed < 1) {
+          throw new ApiError(400, `Giá trị bộ lọc ${field} không hợp lệ`);
+        }
+        conditions.push(eq(column(table, field), parsed));
+      }
     }
 
     const where = conditions.length > 0 ? and(...conditions) : undefined;
