@@ -374,6 +374,19 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
 
+  it('offers the free-text plate option on a carrier-less row so plate→carrier autofill can fire', async () => {
+    // Regression: the free-text option used to require a SELECTED external
+    // carrier while the autofill guard requires NO carrier — mutually
+    // exclusive, so the autofill UX was unreachable on carrier-less rows.
+    renderCell(row({
+      dispatch: { carrierType: null, carrierName: null, externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: null },
+    }));
+    await openDialog();
+    fireEvent.click(document.getElementById('dispatch-vehicle-101')!);
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: '15H-061.14' } });
+    expect(await screen.findByRole('option', { name: /Dùng biển số: 15H-061\.14/ })).toBeTruthy();
+  });
+
   it('surfaces the backend 409 reason inline when the plan save is rejected', async () => {
     const onAtomicSave = vi.fn().mockRejectedValue({ status: 409, message: 'Không thể sửa kế hoạch sau khi đã phát hành lệnh điều xe.' });
     renderCell(row(), { onAtomicSave });
