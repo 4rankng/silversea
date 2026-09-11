@@ -8,7 +8,6 @@ import { getDriverByUserId } from '../services/driver.service';
 import { canAccessCustomer, scopedByCustomer } from '../lib/scoped-by-customer';
 import { ApiError } from '../errors';
 import { adminHealth, customerWorkInbox, driverWorkInbox, financialWorkInbox, managerDecisionInbox, operationsWorkInbox, WORK_INBOX_SORT_KEYS, type InboxQuery, type WorkInboxSortKey } from '../services/work-inbox.service';
-import { resolveCustomerDeliveryDispute } from '../services/customer-delivery-response.service';
 import { z } from 'zod';
 
 function query(req: Request): InboxQuery {
@@ -47,12 +46,7 @@ financialWorkInboxRouter.get('/work-inbox', requireRoles(Role.ADMIN, Role.MANAGE
 
 export const dashboardWorkInboxRouter = Router();
 dashboardWorkInboxRouter.get('/decision-inbox', requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => res.json(await managerDecisionInbox(getUser(req).userId, query(req)))));
-dashboardWorkInboxRouter.post('/delivery-disputes/:responseId/resolve', requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
-  const responseId = Number(req.params.responseId);
-  if (!Number.isInteger(responseId) || responseId <= 0) throw new ApiError(400, 'Phản hồi không hợp lệ');
-  const input = z.object({ resolution: z.string().trim().min(1, 'Cần nêu kết quả xử lý').max(2_000) }).parse(req.body);
-  res.json(await resolveCustomerDeliveryDispute({ responseId, actor: getUser(req), resolution: input.resolution }));
-}));
+
 
 export const systemWorkInboxRouter = Router();
 systemWorkInboxRouter.get('/admin-health', requireRoles(Role.ADMIN), asyncHandler(async (req: Request, res: Response) => res.json(await adminHealth(query(req)))));

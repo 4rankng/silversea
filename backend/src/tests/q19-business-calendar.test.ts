@@ -17,10 +17,7 @@ import { LedgerService } from '../services/ledger.service';
 import { getDocument, saveDocument } from '../services/billing-document.service';
 import { Role } from '@tingting/shared';
 import { createAdjustment } from '../services/financial.service';
-import {
-  approveGovernanceAction,
-  checkGovernanceAction,
-} from '../services/adjustment-governance.service';
+import { autoApplyGovernanceAction } from '../services/adjustment-governance.service';
 
 after(async () => {
   await client.end();
@@ -193,30 +190,26 @@ describe('Q19 business calendar', () => {
       assert.equal(historicalDocument.processingDueDate, nextDay);
       const [adjustmentSource] = await db.select({ version: s.trips.version })
         .from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
-      const action = await createAdjustment({
-        tripId,
-        amount: 25,
-        note: 'Q19 tăng công nợ',
-        signedAgreementRef: `Q19-${suffix}`,
-        makerId: actorIds[0]!,
-        makerRole: Role.ACCOUNTANT,
-        expectedTripVersion: adjustmentSource.version,
-      });
-      const checked = await checkGovernanceAction({
-        actionId: action.id,
-        checkerId: actorIds[1]!,
-        checkerRole: Role.MANAGER,
-        expectedVersion: action.version,
-      });
-      await approveGovernanceAction({
-        actionId: action.id,
-        approverId: actorIds[2]!,
-        approverRole: Role.ADMIN,
-        expectedVersion: checked.version,
+      // 2026-09-11 (maker-checker removal): the AR adjustment applies directly
+      // in-request via the transient governed action.
+      assert.ok(tripId != null);
+      const adjustedTripId = tripId!;
+      await autoApplyGovernanceAction({
+        make: () => createAdjustment({
+          tripId: adjustedTripId,
+          amount: 25,
+          note: 'Q19 tăng công nợ',
+          signedAgreementRef: `Q19-${suffix}`,
+          makerId: actorIds[0]!,
+          makerRole: Role.ACCOUNTANT,
+          expectedTripVersion: adjustmentSource.version,
+        }),
+        actorId: actorIds[2]!,
+        actorRole: Role.ADMIN,
       });
       const [adjustment] = await db.select().from(s.ledger).where(and(
         eq(s.ledger.txnType, 'ADJUSTMENT'),
-        eq(s.ledger.txnId, tripId),
+        eq(s.ledger.txnId, adjustedTripId),
       )).limit(1);
       assert.equal(adjustment.originalDueDate, holiday);
       assert.equal(adjustment.processingDueDate, nextDay);
@@ -244,8 +237,6 @@ describe('Q19 business calendar', () => {
           .where(eq(s.billingDocuments.id, documentId));
       }
       if (tripId != null) {
-        await db.delete(s.governanceActions)
-          .where(eq(s.governanceActions.subjectId, tripId));
         await db.delete(s.ledger).where(and(
           eq(s.ledger.entityType, 'CUSTOMER'),
           eq(s.ledger.txnId, tripId),

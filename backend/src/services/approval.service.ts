@@ -11,6 +11,7 @@ import { reviewNoInvoiceDisbursementApproval, toNoInvoicePolicySnapshotValue } f
 import { propagateExpenseApproval } from './source-change.service';
 import { lockTripFinancialAuthority } from './trip-financial-authority-lock.service';
 import { assertCanMakeGovernanceAction } from './governance-policy';
+import { buildGovernanceAction } from './governance-action-core.service';
 import type {
   GovernanceActionRow,
   GovernanceApplyResult,
@@ -259,25 +260,8 @@ export async function requestTripExpenseDecision(input: {
     if (expense.version !== input.expectedExpenseVersion) {
       throw new ApiError(409, 'Chi phí đã được thay đổi. Vui lòng tải lại trước khi xử lý.');
     }
-    const [active] = await tx.select({ id: s.governanceActions.id })
-      .from(s.governanceActions)
-      .where(and(
-        eq(s.governanceActions.subjectType, 'TRIP_EXPENSE'),
-        eq(s.governanceActions.subjectId, expense.id),
-        eq(s.governanceActions.actionKind, 'TRIP_EXPENSE_APPROVAL'),
-        eq(s.governanceActions.originalVersion, expense.version),
-        inArray(s.governanceActions.status, [
-          'PENDING_CHECK',
-          'PENDING_APPROVAL',
-          'RETURNED_FOR_EVIDENCE',
-        ]),
-      ))
-      .limit(1);
-    if (active) {
-      throw new ApiError(409, 'Chi phí đã có yêu cầu xử lý đang chờ');
-    }
 
-    const [action] = await tx.insert(s.governanceActions).values({
+    return buildGovernanceAction({
       subjectType: 'TRIP_EXPENSE',
       subjectId: expense.id,
       subjectKey: `trip-expense:${expense.id}:decision`,
@@ -303,8 +287,7 @@ export async function requestTripExpenseDecision(input: {
       },
       makerId: input.makerId,
       makerRole: input.makerRole,
-    }).returning();
-    return action;
+    });
   };
   return runInTx(input.transaction, execute);
 }
@@ -337,7 +320,7 @@ export async function applyTripExpenseGovernanceAction(
     action.approverRole!,
     decision,
     tx,
-    action.originalVersion,
+    action.originalVersion ?? undefined,
   );
   if ('error' in result) {
     throw new ApiError(result.status, result.error);

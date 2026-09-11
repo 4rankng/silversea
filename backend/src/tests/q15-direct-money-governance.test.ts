@@ -13,8 +13,6 @@ import { globalErrorHandler } from '../middleware/errorHandler';
 import paymentsRoutes from '../routes/financial/payments.routes';
 import penaltiesRoutes from '../routes/financial/penalties.routes';
 import { createPenalty } from '../services/financial.service';
-import { ApiError } from '../errors';
-import { rejectGovernanceAction } from '../services/governance-transition.service';
 
 const actorIds: number[] = [];
 const customerIds: number[] = [];
@@ -23,7 +21,6 @@ const driverIds: number[] = [];
 const tripIds: number[] = [];
 const routeIds: number[] = [];
 const cargoTypeIds: number[] = [];
-const governanceActionIds: number[] = [];
 const paymentReceiptIds: number[] = [];
 const penaltyIds: number[] = [];
 
@@ -188,12 +185,6 @@ async function createFixture(label: string) {
   };
 }
 
-async function trackGovernanceAction(responseBody: Record<string, unknown>) {
-  const actionId = Number(responseBody.id);
-  governanceActionIds.push(actionId);
-  return actionId;
-}
-
 async function trackPaymentReceipt(receiptId: string) {
   const [receipt] = await db.select({ id: s.paymentReceipts.id })
     .from(s.paymentReceipts)
@@ -286,9 +277,6 @@ after(async () => {
     server.close((error) => error ? reject(error) : resolve());
   });
 
-  if (governanceActionIds.length > 0) {
-    await db.delete(s.governanceActions).where(inArray(s.governanceActions.id, governanceActionIds));
-  }
   if (actorIds.length > 0) {
     await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.createdBy, actorIds));
     await db.delete(s.notifications).where(inArray(s.notifications.userId, actorIds));
@@ -364,7 +352,6 @@ describe('Q15 direct-money governance slice', () => {
     const paymentAction = paymentRequest.body.result as Record<string, unknown>;
     assert.equal(paymentRequest.status, 201);
     assert.equal(paymentAction.status, 'APPROVED');
-    await trackGovernanceAction(paymentAction);
 
     const vendorRequest = await api('POST', '/api/payments/vendor', {
       supplierId: fixture.supplier.id,
@@ -374,7 +361,6 @@ describe('Q15 direct-money governance slice', () => {
     }, 0);
     assert.equal(vendorRequest.status, 201);
     assert.equal(vendorRequest.body.status, 'APPROVED');
-    await trackGovernanceAction(vendorRequest.body);
 
     const carrierRequest = await api('POST', '/api/payments/carrier', {
       supplierId: fixture.carrier.id,
@@ -384,7 +370,6 @@ describe('Q15 direct-money governance slice', () => {
     }, 0);
     assert.equal(carrierRequest.status, 201);
     assert.equal(carrierRequest.body.status, 'APPROVED');
-    await trackGovernanceAction(carrierRequest.body);
 
     const commissionRequest = await api('POST', '/api/commissions', {
       supplierId: fixture.commissionSupplier.id,
@@ -394,7 +379,6 @@ describe('Q15 direct-money governance slice', () => {
     }, 0);
     assert.equal(commissionRequest.status, 201);
     assert.equal(commissionRequest.body.status, 'APPROVED');
-    await trackGovernanceAction(commissionRequest.body);
 
     const payoutRequest = await api('POST', `/api/drivers/${fixture.payoutDriver.id}/payouts`, {
       amount: 220000,
@@ -404,7 +388,6 @@ describe('Q15 direct-money governance slice', () => {
     }, 0);
     assert.equal(payoutRequest.status, 201);
     assert.equal(payoutRequest.body.status, 'APPROVED');
-    await trackGovernanceAction(payoutRequest.body);
 
     const penaltyCreateRequest = await api('POST', '/api/penalties', {
       driverId: fixture.penaltyCreateDriver.id,
@@ -415,14 +398,12 @@ describe('Q15 direct-money governance slice', () => {
     }, 0);
     assert.equal(penaltyCreateRequest.status, 201);
     assert.equal(penaltyCreateRequest.body.status, 'APPROVED');
-    await trackGovernanceAction(penaltyCreateRequest.body);
 
     const penaltyCancelRequest = await api('POST', `/api/penalties/${fixture.seededPenalty.id}/cancel`, {
       reason: `Q15 cancel penalty ${suffix}`,
     }, 2);
     assert.equal(penaltyCancelRequest.status, 200);
     assert.equal(penaltyCancelRequest.body.status, 'APPROVED');
-    await trackGovernanceAction(penaltyCancelRequest.body);
 
     // 2026-09-10: phê duyệt removed — the requests above already applied;
     // no pending window, no separate check/approve calls.
@@ -494,7 +475,6 @@ describe('Q15 direct-money governance slice', () => {
     assert.equal(firstSubmit.status, 201);
     assert.equal(firstSubmit.body.replayed, false);
     assert.equal(firstSubmit.body.status, 'APPROVED');
-    await trackGovernanceAction(firstSubmit.body);
     assert.equal(await fetchLedgerCount({
       entityType: 'VENDOR',
       entityId: fixture.supplier.id,
@@ -508,19 +488,6 @@ describe('Q15 direct-money governance slice', () => {
     assert.equal(replaySubmit.body.status, 'APPROVED');
     assert.equal(replaySubmit.body.id, firstSubmit.body.id);
 
-    // The old pending-reject path is gone: with nothing pending, the
-    // decision endpoints refuse rather than mutate an applied action.
-    // Governance endpoints removed: pin the same 409 at the service layer.
-    await assert.rejects(
-      rejectGovernanceAction({
-        actionId: Number(firstSubmit.body.id),
-        actorId: actors[2]!.id,
-        actorRole: actors[2]!.role,
-        expectedVersion: Number(firstSubmit.body.version),
-        reason: `Q15 no-longer-pending ${suffix}`,
-      }),
-      (error: unknown) => error instanceof ApiError && error.statusCode === 409,
-    );
     assert.equal(await fetchLedgerCount({
       entityType: 'VENDOR',
       entityId: fixture.supplier.id,
@@ -540,7 +507,6 @@ describe('Q15 direct-money governance slice', () => {
       date: '2026-07-27',
     }, 0, `q15-stale-${suffix}`);
     assert.equal(staleSubmit.status, 201);
-    await trackGovernanceAction(staleSubmit.body as { id: number });
     assert.equal(await fetchLedgerCount({
       entityType: 'VENDOR',
       entityId: fixture.supplier.id,

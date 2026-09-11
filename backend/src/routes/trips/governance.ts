@@ -6,7 +6,7 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { tripReopenRequestSchema } from '@tingting/shared';
 
-import { requestTripReopen } from '../../services/adjustment-governance.service';
+import { autoApplyGovernanceAction, requestTripReopen } from '../../services/adjustment-governance.service';
 
 import { asyncHandler } from '../../middleware/asyncHandler';
 
@@ -19,8 +19,8 @@ import { invalidateReportCaches } from '../../lib/report-cache';
 
 const router = Router();
 
-// Submit an exceptional reopen request. The trip remains COMPLETED until a
-// distinct checker and approver complete the governance action.
+// Exceptional reopen: applies directly in-request (maker-checker removed
+// 2026-09-11) — the completed trip reopens immediately on a valid request.
 router.post('/:id/unlock', asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string);
   const data = tripReopenRequestSchema.parse(req.body);
@@ -32,17 +32,23 @@ router.post('/:id/unlock', asyncHandler(async (req: Request, res: Response) => {
     payload: { actorId: user.userId, actorRole: user.role, tripId: id, data },
     createdBy: user.userId,
     entityType: 'governance_action',
-    create: (tx) => requestTripReopen({
-      tripId: id,
-      reason: data.reason,
-      makerId: user.userId,
-      makerRole: user.role,
-      expectedTripVersion: data.expectedVersion,
+    create: (tx) => autoApplyGovernanceAction({
+      make: (inner) => requestTripReopen({
+        tripId: id,
+        reason: data.reason,
+        makerId: user.userId,
+        makerRole: user.role,
+        expectedTripVersion: data.expectedVersion,
+        transaction: inner,
+      }),
+      actorId: user.userId,
+      actorRole: user.role,
       transaction: tx,
     }),
     getEntityId: (result) => result.id,
   });
-  res.status(202).json(idempotencyKey ? { ...action, replayed } : action);
+  if (!replayed) await invalidateReportCaches();
+  res.status(200).json(idempotencyKey ? { ...action, replayed } : action);
 }));
 
 // Change departure date (any status except CANCELED)

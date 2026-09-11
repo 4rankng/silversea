@@ -498,10 +498,14 @@ export const GOVERNANCE_POLICY_CATALOG: Readonly<
   TRIP_FINANCIAL_CLOSE: {
     actionKind: 'TRIP_FINANCIAL_CLOSE',
     subjectType: 'TRIP',
+    // 2026-09-11 (maker-checker removal): like SALARY_PERIOD_CLOSE, one role
+    // must be able to run the whole chain in-request. MANAGER/ADMIN close
+    // directly; ACCOUNTANT/CUS can still make the request but cannot
+    // self-apply the director approval.
     makerCapability: 'TRIP_CLOSE_REQUEST',
     checkerCapability: 'FINANCE_CHECK',
     approverCapability: 'FINANCE_APPROVE_DIRECTOR',
-    makerRoles: [Role.ACCOUNTANT, Role.CUS],
+    makerRoles: [Role.ACCOUNTANT, Role.CUS, Role.MANAGER, Role.ADMIN],
     checkerRoles: [Role.ACCOUNTANT, Role.MANAGER, Role.ADMIN],
     approverRoles: [Role.MANAGER, Role.ADMIN],
     requiresReason: true,

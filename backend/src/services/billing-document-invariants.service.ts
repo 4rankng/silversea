@@ -5,7 +5,7 @@
 // core imports these one-way.
 import { db } from '../db';
 import * as s from '../db/schema';
-import { eq, and, isNull, inArray, desc, sql } from 'drizzle-orm';
+import { eq, and, isNull, inArray, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { customerTripReceivableAmount } from './ledger.service';
 import type { BillingDocument } from '@tingting/shared';
@@ -707,36 +707,12 @@ export async function loadLineProvenance(
 
 export async function listDocumentCorrections(
   documentId: number,
-  executor: DbLike = db,
+  _executor: DbLike = db,
 ): Promise<NonNullable<BillingDocument['corrections']>> {
-  const actions = await executor.select({
-    id: s.governanceActions.id,
-    status: s.governanceActions.status,
-    reason: s.governanceActions.reason,
-    createdAt: s.governanceActions.createdAt,
-    approvedAt: s.governanceActions.approvedAt,
-    appliedAt: s.governanceActions.appliedAt,
-    ledgerEntryId: s.governanceActions.ledgerEntryId,
-    deltaSnapshot: s.governanceActions.deltaSnapshot,
-    applicationResult: s.governanceActions.applicationResult,
-  })
-    .from(s.governanceActions)
-    .where(and(
-      eq(s.governanceActions.subjectType, 'BILLING_DOCUMENT'),
-      eq(s.governanceActions.subjectId, documentId),
-      eq(s.governanceActions.actionKind, 'DEBIT_NOTE_ADJUSTMENT'),
-    ))
-    .orderBy(desc(s.governanceActions.createdAt));
-
-  return actions.map((action) => ({
-    actionId: action.id,
-    status: action.status,
-    reason: action.reason,
-    amount: Number((action.deltaSnapshot as Record<string, unknown> | null)?.adjustmentAmount ?? 0),
-    createdAt: action.createdAt.toISOString(),
-    approvedAt: action.approvedAt?.toISOString() ?? null,
-    appliedAt: action.appliedAt?.toISOString() ?? null,
-    ledgerEntryId: action.ledgerEntryId ?? null,
-    applicationResult: (action.applicationResult as Record<string, unknown> | null) ?? null,
-  }));
+  // 2026-09-11 (maker-checker removal): adjustment history lived only in the
+  // dropped governance_actions table, so there is no correction history to
+  // list. The signature is kept so the document detail payload shape is
+  // unchanged; corrections now show as empty.
+  void documentId;
+  return [];
 }

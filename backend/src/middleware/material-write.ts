@@ -226,7 +226,6 @@ const MATERIAL_WRITE_RULES: readonly MaterialWriteRule[] = [
   { method: 'DELETE', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_DELETE, pattern: /^\/api\/shipments\/[^/]+$/ },
   { method: 'POST', endpoint: 'portal.shipments.customer-events.acknowledge', pattern: /^\/api\/portal\/shipments\/[^/]+\/customer-events\/[^/]+\/acknowledge$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.PORTAL_DELIVERY_RESPONSE, pattern: /^\/api\/portal\/shipments\/[^/]+\/customer-events\/[^/]+\/delivery-response$/ },
-  { method: 'POST', endpoint: 'dashboard.delivery-disputes.resolve', pattern: /^\/api\/dashboard\/delivery-disputes\/[^/]+\/resolve$/ },
   { method: 'POST', endpoint: 'recoverable-costs.approval-request', pattern: /^\/api\/recoverable-costs\/[^/]+\/request$/ },
   { method: 'POST', endpoint: 'recoverable-costs.rejection-request', pattern: /^\/api\/recoverable-costs\/[^/]+\/request$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.TREASURY_ACCOUNT_SETUP, pattern: /^\/api\/finance\/treasury\/accounts\/setup$/ },

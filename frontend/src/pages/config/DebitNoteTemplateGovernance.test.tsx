@@ -120,7 +120,7 @@ const sampleTemplate: DebitNoteTemplate = {
   deletedAt: null,
 };
 
-describe('Debit note template governance UX', () => {
+describe('Debit note template save/delete UX', () => {
   beforeEach(() => {
     mocks.navigate.mockReset();
     mocks.toast.mockReset();
@@ -135,13 +135,20 @@ describe('Debit note template governance UX', () => {
     mocks.search = '';
   });
 
-  it('shows a pending-review save message without invalidating a fake template detail id', async () => {
+  it('invalidates the saved template detail and shows the direct save toast', async () => {
     mocks.useQuery.mockReturnValue({ data: undefined, isLoading: false });
     mocks.saveDebitNoteTemplate.mockResolvedValue({
       id: 901,
-      status: 'PENDING_CHECK',
-      actionKind: 'PRICE_CONFIG_CHANGE',
-      version: 1,
+      name: 'Mẫu mới',
+      documentType: 'DEBIT_NOTE',
+      titleText: 'GIẤY BÁO NỢ',
+      columns: [],
+      groupingMode: 'ROUTE',
+      orientation: 'landscape',
+      isDefault: false,
+      createdBy: 7,
+      createdAt: '2026-07-28T00:00:00.000Z',
+      updatedAt: '2026-07-28T00:00:00.000Z',
     });
 
     render(<DebitNoteTemplateEditorPage />);
@@ -151,27 +158,23 @@ describe('Debit note template governance UX', () => {
     await waitFor(() => {
       expect(mocks.saveDebitNoteTemplate).toHaveBeenCalledTimes(1);
     });
-    expect(mocks.invalidateQueries).toHaveBeenCalledTimes(1);
+    expect(mocks.invalidateQueries).toHaveBeenCalledTimes(2);
     expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: qk.catalogs.debitNoteTemplates });
+    expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: qk.catalogs.debitNoteTemplate(901) });
     expect(mocks.toast).toHaveBeenCalledWith({
       kind: 'success',
-      message: 'Đã gửi yêu cầu tạo mẫu giấy báo nợ để kiểm tra và phê duyệt. Mẫu chưa được áp dụng.',
+      message: 'Đã lưu mẫu giấy báo nợ.',
     });
     expect(mocks.navigate).toHaveBeenCalledWith('/config/debit-note-templates');
   });
 
-  it('shows a pending-review delete message instead of claiming the template was deleted', async () => {
+  it('shows the direct delete toast and refetches the template list', async () => {
     mocks.useQuery.mockReturnValue({
       data: [sampleTemplate],
       isLoading: false,
       refetch: mocks.refetch,
     });
-    mocks.deleteDebitNoteTemplate.mockResolvedValue({
-      id: 902,
-      status: 'PENDING_CHECK',
-      actionKind: 'PRICE_CONFIG_CHANGE',
-      version: 1,
-    });
+    mocks.deleteDebitNoteTemplate.mockResolvedValue({ ok: true });
 
     render(<DebitNoteTemplatesConfigPage />);
 
@@ -182,7 +185,7 @@ describe('Debit note template governance UX', () => {
     });
     expect(mocks.toast).toHaveBeenCalledWith({
       kind: 'success',
-      message: `Đã gửi yêu cầu xoá mẫu "${sampleTemplate.name}" để kiểm tra và phê duyệt. Mẫu hiện chưa bị xoá.`,
+      message: `Đã xoá mẫu "${sampleTemplate.name}".`,
     });
     expect(mocks.refetch).toHaveBeenCalledTimes(1);
   });

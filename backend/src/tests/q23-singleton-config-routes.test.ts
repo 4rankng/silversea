@@ -178,8 +178,7 @@ describe('Q23 singleton config routes', () => {
       expectApprovedGovernance(response.body);
       assert.equal(response.body.replayed, false);
 
-      await db.delete(s.governanceActions)
-        .where(eq(s.governanceActions.id, Number(response.body.id)));
+      // Transient applied record — nothing persisted to clean up.
       await db.delete(s.idempotencyKeys)
         .where(eq(s.idempotencyKeys.idempotencyKey, idempotencyKey));
     }
@@ -424,10 +423,6 @@ after(async () => {
   }
   await invalidateSingletonCaches();
 
-  if (createdUserIds.size > 0) {
-    await db.delete(s.governanceActions)
-      .where(inArray(s.governanceActions.makerId, [...createdUserIds]));
-  }
   if (idempotencyKeys.size > 0) {
     await db.delete(s.idempotencyKeys)
       .where(inArray(s.idempotencyKeys.idempotencyKey, [...idempotencyKeys]));

@@ -14,7 +14,6 @@ import {
   getTripCompositeInTx, splitTripPatch, tripCompositeSelect,
   upsertTripCarrierInfo, upsertTripFinancialState,
 } from './trip-composite.service';
-import { requirePersistedTripGovernanceAuthorization } from './trip-governance-authorization.service';
 import { assertActiveApprovalApplication } from './governance-action-core.service';
 import { deriveMilestoneFromTripStatus } from './milestone.service';
 import {
@@ -124,16 +123,10 @@ export async function transitionTripStatus(
       (targetStatus === TripStatus.COMPLETED && options?.routineShipmentClose !== true)
       || (targetStatus === TripStatus.CANCELED && options?.governanceActionId != null)
     ) {
+      // 2026-09-11 maker-checker removal: the cross-person persisted
+      // authorization is gone with governance_actions; the in-memory
+      // approval-application guard carries the apply-time authorization.
       assertActiveApprovalApplication(tx, options?.governanceActionId);
-      await requirePersistedTripGovernanceAuthorization({
-        tx,
-        actionId: options?.governanceActionId,
-        tripId,
-        tripVersion: options?.expectedVersion ?? 0,
-        actorId: userId,
-        actorRole: userRole,
-        operation: targetStatus === TripStatus.COMPLETED ? 'CLOSE' : 'CANCEL_COMPLETED',
-      });
       governanceAuthorized = true;
     }
 
@@ -435,7 +428,6 @@ export async function transitionTripStatus(
           tripId: updated.id,
           tripVersion: updated.version,
           reason: 'CANCELLATION',
-          governanceActionId: options?.governanceActionId,
           effectiveAt: new Date(),
         });
       }
@@ -499,7 +491,6 @@ export async function transitionTripStatus(
         tripId: updated.id,
         tripVersion: updated.version,
         reason: 'COMPLETION',
-        governanceActionId: options?.governanceActionId,
         effectiveAt: updated.completedAt ?? new Date(),
       });
 

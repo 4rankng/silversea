@@ -18,7 +18,11 @@ import {
   type PaymentDatePolicy,
 } from './business-calendar.service';
 import { assertCanMakeGovernanceAction } from './governance-policy';
-import type { GovernanceApplyResult, GovernanceActionRow } from './governance-transition.service';
+import {
+  applyGovernanceActionDirect,
+  buildGovernanceAction,
+} from './governance-action-core.service';
+import type { GovernanceApplyResult, GovernanceActionRow } from './governance-action-core.service';
 import {
   assertExpectedVersion,
   enrichSettlementWithRequests,
@@ -158,7 +162,7 @@ export async function adjustSettlementExpense(
           'Điều chỉnh làm số hoàn lại âm; cần hoàn tác phiếu và lập phiếu mới',
         );
       }
-      const [action] = await tx.insert(s.governanceActions).values({
+      const action = buildGovernanceAction({
         subjectType: 'ADVANCE_SETTLEMENT',
         subjectId: settlement.id,
         subjectKey: `advance-settlement:${settlement.id}:expense:${expenseId}`,
@@ -187,14 +191,21 @@ export async function adjustSettlementExpense(
         },
         makerId: actorId,
         makerRole: options.actorRole,
-      }).returning();
+      });
+      const { action: applied } = await applyGovernanceActionDirect({
+        action,
+        actorId,
+        actorRole: options.actorRole,
+        apply: applyAdvanceSettlementGovernanceAction,
+        transaction: tx,
+      });
       return {
         item: {
           id: linked.expenseId,
           tripId: linked.tripId,
           ...currentSnapshot,
         },
-        governanceAction: action,
+        governanceAction: applied,
         totalExpenseAmount: settlement.totalExpenseAmount,
         settlementCode: settlement.code,
         forwarderId: settlement.forwarderId,
@@ -299,7 +310,7 @@ export async function requestAdvanceSettlementReversal(input: {
     if (settlement.status !== 'APPROVED') {
       throw new AdvanceError(409, 'Chỉ phiếu đã duyệt mới được hoàn tác');
     }
-    const [action] = await tx.insert(s.governanceActions).values({
+    return buildGovernanceAction({
       subjectType: 'ADVANCE_SETTLEMENT',
       subjectId: settlement.id,
       subjectKey: `advance-settlement:${settlement.id}:reverse`,
@@ -320,8 +331,7 @@ export async function requestAdvanceSettlementReversal(input: {
       },
       makerId: input.makerId,
       makerRole: input.makerRole,
-    }).returning();
-    return action;
+    });
   };
 
   return runInTx(input.transaction, execute);
@@ -345,7 +355,7 @@ async function applyApprovedSettlementCorrection(
     .limit(1)
     .for('update');
   if (!settlement) throw new AdvanceError(404, 'Không tìm thấy phiếu hoàn ứng');
-  assertExpectedVersion(settlement.version, action.originalVersion, 'Phiếu hoàn ứng');
+  assertExpectedVersion(settlement.version, action.originalVersion!, 'Phiếu hoàn ứng');
   if (settlement.status !== 'APPROVED') {
     throw new AdvanceError(409, 'Phiếu hoàn ứng không còn ở trạng thái đã duyệt');
   }
@@ -397,7 +407,7 @@ async function applyApprovedSettlementCorrection(
     sourceVersion: nextSequence,
     beforeSnapshot: oldSnapshot,
     afterSnapshot: expense,
-    reason: action.reason,
+    reason: action.reason!,
     adjustedBy: action.makerId,
     adjustedAt: action.createdAt,
     approvedBy: action.approverId,
@@ -420,7 +430,7 @@ async function applyApprovedSettlementCorrection(
   }).where(and(
     eq(s.advanceSettlements.id, settlement.id),
     eq(s.advanceSettlements.status, 'APPROVED'),
-    eq(s.advanceSettlements.version, action.originalVersion),
+    eq(s.advanceSettlements.version, action.originalVersion!),
   )).returning({ id: s.advanceSettlements.id, version: s.advanceSettlements.version });
   if (!updated) throw new AdvanceError(409, 'Phiếu hoàn ứng đã được tác vụ khác cập nhật');
 
@@ -506,7 +516,7 @@ async function applyApprovedSettlementReversal(
     .limit(1)
     .for('update');
   if (!settlement) throw new AdvanceError(404, 'Không tìm thấy phiếu hoàn ứng');
-  assertExpectedVersion(settlement.version, action.originalVersion, 'Phiếu hoàn ứng');
+  assertExpectedVersion(settlement.version, action.originalVersion!, 'Phiếu hoàn ứng');
   if (settlement.status !== 'APPROVED') {
     throw new AdvanceError(409, 'Phiếu hoàn ứng không còn ở trạng thái đã duyệt');
   }
@@ -530,7 +540,7 @@ async function applyApprovedSettlementReversal(
   }).where(and(
     eq(s.advanceSettlements.id, settlement.id),
     eq(s.advanceSettlements.status, 'APPROVED'),
-    eq(s.advanceSettlements.version, action.originalVersion),
+    eq(s.advanceSettlements.version, action.originalVersion!),
   )).returning({ version: s.advanceSettlements.version });
   if (!updated) throw new AdvanceError(409, 'Phiếu hoàn ứng đã được tác vụ khác cập nhật');
   return {

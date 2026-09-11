@@ -103,9 +103,6 @@ before(async () => {
 after(async () => {
   server.closeAllConnections();
   await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
-  if (actionIds.length > 0) {
-    await db.delete(s.governanceActions).where(inArray(s.governanceActions.id, [...new Set(actionIds)]));
-  }
   if (movementId > 0) await db.delete(s.treasuryMovements).where(eq(s.treasuryMovements.id, movementId));
   if (accountId > 0) await db.delete(s.treasuryAccounts).where(eq(s.treasuryAccounts.id, accountId));
   if (ledgerId > 0) await db.delete(s.ledger).where(eq(s.ledger.id, ledgerId));

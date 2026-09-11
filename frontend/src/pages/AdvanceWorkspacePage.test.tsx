@@ -47,7 +47,8 @@ describe('AdvanceWorkspacePage', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Tạm ứng & hoàn ứng' })).toBeTruthy();
     expect(screen.getByText('Advance requests panel · embedded')).toBeTruthy();
     expect(screen.getByRole('tab', { name: /Yêu cầu tạm ứng/ }).getAttribute('aria-selected')).toBe('true');
-    expect(screen.getByRole('link', { name: /Mở Trung tâm phê duyệt/ }).getAttribute('href')).toBe('/governance-actions');
+    // Maker-checker removal: the approval-center surface is gone entirely.
+    expect(screen.queryByRole('link', { name: /Trung tâm phê duyệt/ })).toBeNull();
   });
 
   it('renders the settlement workflow from the durable query-backed view', () => {

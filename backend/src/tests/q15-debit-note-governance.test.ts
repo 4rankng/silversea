@@ -9,8 +9,6 @@ import { client, db } from '../db';
 import * as s from '../db/schema';
 import { applyTripPatch, insertTripComposite } from '../services/trip-composite.service';
 import billingDocumentsRoutes from '../routes/financial/billing-documents.routes';
-import { ApiError } from '../errors';
-import { rejectGovernanceAction } from '../services/governance-transition.service';
 import paymentsRoutes from '../routes/financial/payments.routes';
 import { globalErrorHandler } from '../middleware/errorHandler';
 import { disconnectRedis } from '../lib/redis';
@@ -28,7 +26,6 @@ const tripIds: number[] = [];
 const tripFinancialPostingIds: number[] = [];
 const podSubmissionIds: number[] = [];
 const documentIds: number[] = [];
-const governanceActionIds: number[] = [];
 const idempotencyKeys: string[] = [];
 const ledgerIds: number[] = [];
 
@@ -250,9 +247,6 @@ after(async () => {
   if (idempotencyKeys.length > 0) {
     await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.idempotencyKey, idempotencyKeys));
   }
-  if (governanceActionIds.length > 0) {
-    await db.delete(s.governanceActions).where(inArray(s.governanceActions.id, governanceActionIds));
-  }
   if (documentIds.length > 0) {
     await db.delete(s.billingDocumentSourcePeriodLocks).where(inArray(s.billingDocumentSourcePeriodLocks.documentId, documentIds));
     await db.delete(s.billingDocumentLines).where(inArray(s.billingDocumentLines.documentId, documentIds));
@@ -308,10 +302,10 @@ describe('Q15 debit-note issue governance', () => {
       expectedVersion: documentVersion(document),
     }, 0, issueKey);
     assert.equal(issue.status, 201);
-    // 2026-09-10 (phê duyệt removed): the issue request applies immediately.
+    // 2026-09-11 (maker-checker removal): the issue request applies immediately
+    // via a transient governed action — no persisted row, document flips to SENT.
     assert.equal(issue.body.status, 'APPROVED');
     assert.equal((issue.body.applicationResult as Record<string, unknown>).documentStatus, 'SENT');
-    governanceActionIds.push(Number(issue.body.id));
 
     const issueReplay = await api('POST', `/api/finance/billing-documents/${documentId}/issue`, {
       reason: 'Đề nghị phát hành giấy báo nợ tháng 07',
@@ -349,53 +343,6 @@ describe('Q15 debit-note issue governance', () => {
     assert.equal(postedLedger.length, 0, 'source-backed issue approval must not duplicate trip-lock AR');
   });
 
-  it('refuses to reject an issue that already applied and keeps the SENT state', async () => {
-    const { document } = await createDraftDocumentFromSources();
-    const documentId = Number(document.id);
-
-    const issue = await api('POST', `/api/finance/billing-documents/${documentId}/issue`, {
-      reason: 'Xin kiểm tra trước khi phát hành',
-      expectedVersion: documentVersion(document),
-    }, 0, `q15-debit-issue-reject-${documentId}`);
-    assert.equal(issue.status, 201);
-    // 2026-09-10 (phê duyệt removed): the issue applies immediately — there
-    // is no pending window to reject anymore.
-    assert.equal(issue.body.status, 'APPROVED');
-    governanceActionIds.push(Number(issue.body.id));
-
-    // Governance endpoints removed: pin the same 409 at the service layer
-    // (an applied row has no pending window left to reject).
-    await assert.rejects(
-      rejectGovernanceAction({
-        actionId: Number(issue.body.id),
-        actorId: actors[1]!.id,
-        actorRole: actors[1]!.role,
-        expectedVersion: Number(issue.body.version),
-        reason: 'Thiếu đối chiếu khách hàng',
-      }),
-      (error: unknown) => error instanceof ApiError && error.statusCode === 409,
-    );
-
-    const [storedAction] = await db.select({
-      status: s.governanceActions.status,
-    })
-      .from(s.governanceActions)
-      .where(eq(s.governanceActions.id, Number(issue.body.id)))
-      .limit(1);
-    assert.equal(storedAction?.status, 'APPROVED');
-
-    const [storedDocument] = await db.select({ debitNoteStatus: s.billingDocuments.debitNoteStatus })
-      .from(s.billingDocuments)
-      .where(eq(s.billingDocuments.id, documentId))
-      .limit(1);
-    assert.equal(storedDocument?.debitNoteStatus, 'SENT');
-
-    const ledgerRows = await db.select({ id: s.ledger.id })
-      .from(s.ledger)
-      .where(eq(s.ledger.receiptId, `GBN:${documentId}`));
-    assert.equal(ledgerRows.length, 0, 'source-backed issue must not duplicate trip-lock AR');
-  });
-
   it('refuses a stale-source issue at request time without posting AR (atomic apply)', async () => {
     const { trip, document } = await createDraftDocumentFromSources(1_000_000);
     const documentId = Number(document.id);
@@ -415,8 +362,7 @@ describe('Q15 debit-note issue governance', () => {
     }, 0, `q15-debit-issue-stale-${documentId}`);
     if (issue.status === 201) {
       // If the draft regeneration picked up the patched trip, the apply is
-      // legitimate — accept it but record the action for cleanup.
-      governanceActionIds.push(Number(issue.body.id));
+      // legitimate — the document moves to SENT in the same transaction.
       assert.equal(issue.body.status, 'APPROVED');
     } else {
       assert.equal(issue.status, 409);

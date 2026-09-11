@@ -7,35 +7,17 @@ import {
   useUpdateWorkDays,
   useConfirmSalary,
   useUnconfirmSalary,
-  useSalaryConfirmationGovernanceActions,
-  useCheckConfirmSalary,
-  useApproveConfirmSalary,
-  useCheckUnconfirmSalary,
-  useApproveUnconfirmSalary,
-  useSalaryPeriodGovernanceActions,
   useSalaryPeriodOverview,
-  useCheckCloseSalaryPeriod,
-  useApproveCloseSalaryPeriod,
   useCloseSalaryPeriod,
-  useCheckReopenSalaryPeriod,
-  useApproveReopenSalaryPeriod,
   useReopenSalaryPeriod,
   useIssueSalaryPeriod,
-  useCheckIssueSalaryPeriod,
-  useApproveIssueSalaryPeriod,
   usePostSalaryPeriod,
-  useCheckPostSalaryPeriod,
-  useApprovePostSalaryPeriod,
   useRequestPostCloseAdjustment,
-  useCheckPostCloseAdjustment,
-  useApprovePostCloseAdjustment,
 } from '../../hooks/useSalaryQueries';
 import { useAuth } from '../../hooks/useAuth';
 import type {
   WorkDayRecord,
   SalaryPeriodAdjustmentItem,
-  SalaryConfirmationGovernanceAction,
-  SalaryPeriodGovernanceAction,
 } from '../../api/salaryClient';
 import { useMonth } from '../../hooks/useMonth';
 import { useToast } from '../../components/shared/Toast';
@@ -43,22 +25,9 @@ import { usePageAnimations } from '../../hooks/animations';
 import { useBackShortcut } from '../../hooks/useBackShortcut';
 import { useSalaryPeriod } from '../../hooks/useCatalogQueries';
 
-type SalaryPeriodFinalizationOperation = 'ISSUE_PAYSLIPS' | 'POST_OFFICIAL';
-
-function salaryPeriodFinalizationOperation(
-  item: SalaryPeriodGovernanceAction,
-): SalaryPeriodFinalizationOperation | null {
-  const after = item.afterSnapshot;
-  if (!after || typeof after !== 'object' || Array.isArray(after)) return null;
-  const operation = (after as { operation?: unknown }).operation;
-  return operation === 'ISSUE_PAYSLIPS' || operation === 'POST_OFFICIAL'
-    ? operation
-    : null;
-}
-
 /**
  * useSalaryAttendancePage — all data and action logic for the Salary & Attendance page.
- * Returns queries, derived memos, governance handlers, and modal state.
+ * Returns queries, derived memos, and modal state.
  * No JSX — pure logic hook.
  */
 export function useSalaryAttendancePage(searchTerm: string) {
@@ -83,28 +52,12 @@ export function useSalaryAttendancePage(searchTerm: string) {
     user?.role === 'ADMIN' || user?.role === 'MANAGER' || user?.role === 'ACCOUNTANT';
   const canReopenCompanyPeriod = user?.role === 'ADMIN' || user?.role === 'MANAGER';
   const periodKey = useMemo(() => `${year}-${String(month).padStart(2, '0')}`, [month, year]);
-  const { data: salaryConfirmationActions = [] } = useSalaryConfirmationGovernanceActions(selectedDriverId, year, month);
   const { data: periodOverview, isLoading: periodOverviewLoading } = useSalaryPeriodOverview(periodKey, selectedDriverId);
-  const { data: periodGovernanceActions = [] } = useSalaryPeriodGovernanceActions(periodKey);
-  const checkConfirmMutation = useCheckConfirmSalary(selectedDriverId ?? 0, year, month);
-  const approveConfirmMutation = useApproveConfirmSalary(selectedDriverId ?? 0, year, month);
-  const checkUnconfirmMutation = useCheckUnconfirmSalary(selectedDriverId ?? 0, year, month);
-  const approveUnconfirmMutation = useApproveUnconfirmSalary(selectedDriverId ?? 0, year, month);
   const closePeriodMutation = useCloseSalaryPeriod(periodKey, year, month);
-  const checkClosePeriodMutation = useCheckCloseSalaryPeriod(periodKey, year, month);
-  const approveClosePeriodMutation = useApproveCloseSalaryPeriod(periodKey, year, month);
   const reopenPeriodMutation = useReopenSalaryPeriod(periodKey, selectedDriverId, year, month);
-  const checkReopenPeriodMutation = useCheckReopenSalaryPeriod(periodKey, year, month);
-  const approveReopenPeriodMutation = useApproveReopenSalaryPeriod(periodKey, year, month);
   const issuePeriodMutation = useIssueSalaryPeriod(periodKey, selectedDriverId);
-  const checkIssuePeriodMutation = useCheckIssueSalaryPeriod(periodKey, selectedDriverId);
-  const approveIssuePeriodMutation = useApproveIssueSalaryPeriod(periodKey, selectedDriverId);
   const postPeriodMutation = usePostSalaryPeriod(periodKey, selectedDriverId);
-  const checkPostPeriodMutation = useCheckPostSalaryPeriod(periodKey, selectedDriverId);
-  const approvePostPeriodMutation = useApprovePostSalaryPeriod(periodKey, selectedDriverId);
   const requestAdjustmentMutation = useRequestPostCloseAdjustment(periodKey, selectedDriverId, year, month);
-  const checkAdjustmentMutation = useCheckPostCloseAdjustment(periodKey, selectedDriverId);
-  const approveAdjustmentMutation = useApprovePostCloseAdjustment(periodKey, selectedDriverId, year, month);
   const [adjustmentModalOpen, setAdjustmentModalOpen] = useState(false);
   const [payoutOpen, setPayoutOpen] = useState(false);
   const [reopenReason, setReopenReason] = useState('');
@@ -113,54 +66,8 @@ export function useSalaryAttendancePage(searchTerm: string) {
   const isConfirmed = salary?.confirmationStatus === 'CONFIRMED';
   const lifecycle = periodOverview?.lifecycle;
   const periodAdjustments = periodOverview?.adjustments ?? [];
-  const activePeriodGovernanceActions = useMemo(
-    () => periodGovernanceActions.filter((item) =>
-      ['PENDING_CHECK', 'PENDING_APPROVAL', 'RETURNED_FOR_EVIDENCE'].includes(item.status)),
-    [periodGovernanceActions],
-  );
-  const activeSalaryConfirmationActions = useMemo(
-    () => salaryConfirmationActions.filter((item) =>
-      ['PENDING_CHECK', 'PENDING_APPROVAL', 'RETURNED_FOR_EVIDENCE'].includes(item.status)),
-    [salaryConfirmationActions],
-  );
-  const pendingSalaryConfirmationActions = useMemo(
-    () => salaryConfirmationActions.filter((item) =>
-      ['PENDING_CHECK', 'PENDING_APPROVAL'].includes(item.status)),
-    [salaryConfirmationActions],
-  );
-  const confirmGovernanceActions = useMemo(
-    () => activeSalaryConfirmationActions.filter((item) => item.actionKind === 'SALARY_CONFIRMATION'),
-    [activeSalaryConfirmationActions],
-  );
-  const reopenSalaryGovernanceActions = useMemo(
-    () => activeSalaryConfirmationActions.filter((item) => item.actionKind === 'SALARY_REOPEN'),
-    [activeSalaryConfirmationActions],
-  );
-  const closeGovernanceActions = useMemo(
-    () => activePeriodGovernanceActions.filter((item) =>
-      item.actionKind === 'SALARY_PERIOD_CLOSE'
-      && salaryPeriodFinalizationOperation(item) == null),
-    [activePeriodGovernanceActions],
-  );
-  const issueGovernanceActions = useMemo(
-    () => activePeriodGovernanceActions.filter((item) =>
-      salaryPeriodFinalizationOperation(item) === 'ISSUE_PAYSLIPS'),
-    [activePeriodGovernanceActions],
-  );
-  const postGovernanceActions = useMemo(
-    () => activePeriodGovernanceActions.filter((item) =>
-      salaryPeriodFinalizationOperation(item) === 'POST_OFFICIAL'),
-    [activePeriodGovernanceActions],
-  );
-  const reopenGovernanceActions = useMemo(
-    () => activePeriodGovernanceActions.filter((item) => item.actionKind === 'SALARY_PERIOD_REOPEN'),
-    [activePeriodGovernanceActions],
-  );
-
   const drivers = useMemo(() => salaryList?.items ?? [], [salaryList?.items]);
-  const workdayEditLocked = isConfirmed
-    || lifecycle?.status === 'CLOSED'
-    || pendingSalaryConfirmationActions.some((item) => item.actionKind === 'SALARY_CONFIRMATION');
+  const workdayEditLocked = isConfirmed || lifecycle?.status === 'CLOSED';
 
   // Cross-driver aggregates for hero metrics
   const aggregates = useMemo(() => {
@@ -191,150 +98,6 @@ export function useSalaryAttendancePage(searchTerm: string) {
     const term = removeDiacritics(searchTerm.trim()).toLowerCase();
     return drivers.filter(d => removeDiacritics(d.name).toLowerCase().includes(term));
   }, [drivers, searchTerm]);
-
-  const canCheckAdjustment = useCallback((item: SalaryPeriodAdjustmentItem) => {
-    if (!user) return false;
-    if (item.status !== 'PENDING_CHECK') return false;
-    if (!canPostPayout) return false;
-    return item.makerId !== user.userId;
-  }, [canPostPayout, user]);
-
-  const canApproveAdjustment = useCallback((item: SalaryPeriodAdjustmentItem) => {
-    if (!user) return false;
-    if (item.status !== 'PENDING_APPROVAL') return false;
-    if (user.role !== 'ADMIN' && user.role !== 'MANAGER') return false;
-    return item.makerId !== user.userId && item.checkerId !== user.userId;
-  }, [user]);
-
-  const handleCheckGovernanceAction = useCallback((item: SalaryPeriodGovernanceAction) => {
-    const operation = salaryPeriodFinalizationOperation(item);
-    const mutation = operation === 'ISSUE_PAYSLIPS'
-      ? checkIssuePeriodMutation
-      : operation === 'POST_OFFICIAL'
-        ? checkPostPeriodMutation
-        : item.actionKind === 'SALARY_PERIOD_CLOSE'
-          ? checkClosePeriodMutation
-          : checkReopenPeriodMutation;
-    mutation.mutate(
-      { actionId: item.id, expectedVersion: item.version },
-      {
-        onSuccess: () => {
-          toast({
-            kind: 'success',
-            message: operation === 'ISSUE_PAYSLIPS'
-              ? 'Đã chuyển yêu cầu phát hành phiếu lương sang bước phê duyệt.'
-              : operation === 'POST_OFFICIAL'
-                ? 'Đã chuyển yêu cầu hạch toán chính thức sang bước phê duyệt.'
-                : item.actionKind === 'SALARY_PERIOD_CLOSE'
-                  ? 'Đã chuyển yêu cầu chốt kỳ sang bước phê duyệt.'
-                  : 'Đã chuyển yêu cầu mở lại sang bước phê duyệt.',
-          });
-        },
-        onError: (err: unknown) => {
-          toast({
-            kind: 'error',
-            message: (err as Error)?.message || 'Không thể kiểm tra yêu cầu kỳ lương.',
-          });
-        },
-      },
-    );
-  }, [
-    checkClosePeriodMutation,
-    checkIssuePeriodMutation,
-    checkPostPeriodMutation,
-    checkReopenPeriodMutation,
-    toast,
-  ]);
-
-  const handleApproveGovernanceAction = useCallback((item: SalaryPeriodGovernanceAction) => {
-    const operation = salaryPeriodFinalizationOperation(item);
-    const mutation = operation === 'ISSUE_PAYSLIPS'
-      ? approveIssuePeriodMutation
-      : operation === 'POST_OFFICIAL'
-        ? approvePostPeriodMutation
-        : item.actionKind === 'SALARY_PERIOD_CLOSE'
-          ? approveClosePeriodMutation
-          : approveReopenPeriodMutation;
-    mutation.mutate(
-      { actionId: item.id, expectedVersion: item.version },
-      {
-        onSuccess: () => {
-          toast({
-            kind: 'success',
-            message: operation === 'ISSUE_PAYSLIPS'
-              ? 'Đã phê duyệt phát hành phiếu lương.'
-              : operation === 'POST_OFFICIAL'
-                ? 'Đã phê duyệt hạch toán chính thức kỳ lương.'
-                : item.actionKind === 'SALARY_PERIOD_CLOSE'
-                  ? 'Đã phê duyệt chốt kỳ lương.'
-                  : 'Đã phê duyệt mở lại kỳ lương.',
-          });
-        },
-        onError: (err: unknown) => {
-          toast({
-            kind: 'error',
-            message: (err as Error)?.message || 'Không thể phê duyệt yêu cầu kỳ lương.',
-          });
-        },
-      },
-    );
-  }, [
-    approveClosePeriodMutation,
-    approveIssuePeriodMutation,
-    approvePostPeriodMutation,
-    approveReopenPeriodMutation,
-    toast,
-  ]);
-
-  const handleCheckSalaryConfirmationAction = useCallback((item: SalaryConfirmationGovernanceAction) => {
-    const mutation = item.actionKind === 'SALARY_CONFIRMATION'
-      ? checkConfirmMutation
-      : checkUnconfirmMutation;
-    mutation.mutate(
-      { actionId: item.id, expectedVersion: item.version },
-      {
-        onSuccess: () => {
-          toast({
-            kind: 'success',
-            message: item.actionKind === 'SALARY_CONFIRMATION'
-              ? 'Đã chuyển yêu cầu xác nhận sang bước phê duyệt.'
-              : 'Đã chuyển yêu cầu mở lại sang bước phê duyệt.',
-          });
-        },
-        onError: (err: unknown) => {
-          toast({
-            kind: 'error',
-            message: (err as Error)?.message || 'Không thể kiểm tra yêu cầu bảng công và lương.',
-          });
-        },
-      },
-    );
-  }, [checkConfirmMutation, checkUnconfirmMutation, toast]);
-
-  const handleApproveSalaryConfirmationAction = useCallback((item: SalaryConfirmationGovernanceAction) => {
-    const mutation = item.actionKind === 'SALARY_CONFIRMATION'
-      ? approveConfirmMutation
-      : approveUnconfirmMutation;
-    mutation.mutate(
-      { actionId: item.id, expectedVersion: item.version },
-      {
-        onSuccess: () => {
-          toast({
-            kind: 'success',
-            message: item.actionKind === 'SALARY_CONFIRMATION'
-              ? 'Đã phê duyệt xác nhận bảng công và lương.'
-              : 'Đã phê duyệt mở lại bảng công và lương.',
-          });
-        },
-        onError: (err: unknown) => {
-          toast({
-            kind: 'error',
-            message: (err as Error)?.message || 'Không thể phê duyệt yêu cầu bảng công và lương.',
-          });
-        },
-      },
-    );
-  }, [approveConfirmMutation, approveUnconfirmMutation, toast]);
 
   // Build work day map from API data + pending local changes
   const workDayMap = useMemo(() => {
@@ -431,22 +194,13 @@ export function useSalaryAttendancePage(searchTerm: string) {
     listLoading, salary, salaryLoading, wdLoading, isUpdating,
     toast, canPostPayout, canReopenCompanyPeriod,
     periodKey, lifecycle, periodOverviewLoading, periodAdjustments,
-    activePeriodGovernanceActions, activeSalaryConfirmationActions,
-    pendingSalaryConfirmationActions, confirmGovernanceActions, reopenSalaryGovernanceActions,
-    closeGovernanceActions, issueGovernanceActions, postGovernanceActions, reopenGovernanceActions,
     drivers, filteredDrivers, aggregates, workdayEditLocked, isConfirmed,
     adjustmentModalOpen, setAdjustmentModalOpen,
     payoutOpen, setPayoutOpen,
     reopenReason, setReopenReason, reopenReasonError, setReopenReasonError,
-    canCheckAdjustment, canApproveAdjustment,
-    handleCheckGovernanceAction, handleApproveGovernanceAction,
-    handleCheckSalaryConfirmationAction, handleApproveSalaryConfirmationAction,
     workDayMap, handleCellClick, parseLocalDate, dates, calCells,
     closePeriodMutation, issuePeriodMutation, postPeriodMutation, reopenPeriodMutation,
-    checkClosePeriodMutation, checkIssuePeriodMutation, checkPostPeriodMutation, checkReopenPeriodMutation,
-    approveClosePeriodMutation, approveIssuePeriodMutation, approvePostPeriodMutation, approveReopenPeriodMutation,
     confirmMutation, unconfirmMutation,
-    checkConfirmMutation, checkUnconfirmMutation, approveConfirmMutation, approveUnconfirmMutation,
-    requestAdjustmentMutation, checkAdjustmentMutation, approveAdjustmentMutation,
+    requestAdjustmentMutation,
   };
 }

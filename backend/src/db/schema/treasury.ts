@@ -42,7 +42,6 @@ export const treasuryAccounts = pgTable('treasury_accounts', {
   openingBalance: numeric('opening_balance', { precision: 15, scale: 0 }).notNull().default('0'),
   openingBalanceDate: date('opening_balance_date'),
   cutoverAt: timestamp('cutover_at', { withTimezone: true }),
-  openingGovernanceActionId: integer('opening_governance_action_id'),
   status: varchar('status', { length: 20 }).notNull().default('DRAFT'),
   version: integer('version').notNull().default(1),
   createdBy: integer('created_by').notNull(),
@@ -93,7 +92,6 @@ export const treasuryMovements = pgTable('treasury_movements', {
   paymentContractVersion: integer('payment_contract_version').notNull(),
   physicalReference: varchar('physical_reference', { length: 160 }).notNull(),
   externalReference: varchar('external_reference', { length: 160 }),
-  governanceActionId: integer('governance_action_id'),
   reversalOfId: integer('reversal_of_id'),
   createdBy: integer('created_by').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
@@ -162,9 +160,6 @@ export const paymentRefunds = pgTable('payment_refunds', {
   paymentReceiptId: integer('payment_receipt_id')
 
     .notNull(),
-  governanceActionId: integer('governance_action_id')
-
-    .notNull(),
   amount: numeric('amount', { precision: 15, scale: 0 }).notNull(),
   reason: text('reason').notNull(),
   createdBy: integer('created_by').notNull(),
@@ -172,6 +167,5 @@ export const paymentRefunds = pgTable('payment_refunds', {
   ledgerEntryId: integer('ledger_entry_id').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
-  uniqueIndex('payment_refunds_governance_action_uniq').on(table.governanceActionId),
   index('payment_refunds_receipt_created_idx').on(table.paymentReceiptId, table.createdAt),
 ]);

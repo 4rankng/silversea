@@ -1,5 +1,4 @@
-import { Link, useSearchParams, useNavigate } from 'react-router-dom';
-import { ArrowUpRight } from 'lucide-react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { PageHeader } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { Tabs } from '../design-system';
@@ -53,12 +52,8 @@ export default function AdvanceWorkspacePage() {
         <PageHeader
           title="Tạm ứng & hoàn ứng"
           iconName="advances"
-          description="Quản lý yêu cầu tạm ứng và phiếu hoàn ứng trong một nơi. Yêu cầu tạm ứng được gửi sang Trung tâm phê duyệt để ra quyết định cuối cùng."
+          description="Quản lý yêu cầu tạm ứng và phiếu hoàn ứng trong một nơi. Quyết định duyệt hoặc từ chối được áp dụng ngay khi gửi."
         />
-        <Link className="advance-workspace__governance-link" to="/governance-actions">
-          Mở Trung tâm phê duyệt
-          <ArrowUpRight size={16} aria-hidden="true" />
-        </Link>
       </div>
 
       <Tabs

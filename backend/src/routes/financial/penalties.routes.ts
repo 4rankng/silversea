@@ -9,7 +9,7 @@ import { getPenalties, getPenaltyInsights } from '../../services/penalty-reads.s
 import { IDEMPOTENCY_ENDPOINTS, resolveIdempotencyKey, runIdempotent } from '../../services/idempotency.service';
 import { throwValidation } from '../../lib/validation';
 import { autoApplyGovernanceAction } from '../../services/adjustment-governance.service';
-import { approveDirectMoneyGovernanceAction } from '../../services/governance-transition.service';
+import { applyDirectMoneyGovernanceAction } from '../../services/governance-transition.service';
 import { invalidateReportCaches } from '../../lib/report-cache';
 import { emitNotification } from '../../services/notification.service';
 
@@ -72,7 +72,7 @@ router.post('/penalties', asyncHandler(async (req: Request, res: Response) => {
       makerRole: actor.role,
       transaction: tx,
     }),
-      approve: approveDirectMoneyGovernanceAction,
+      apply: applyDirectMoneyGovernanceAction,
       actorId: actor.userId,
       actorRole: actor.role,
       transaction: tx,
@@ -126,7 +126,7 @@ router.post('/penalties/:id/cancel', requireRoles(Role.ADMIN, Role.MANAGER), asy
       makerRole: actor.role,
       transaction: tx,
     }),
-      approve: approveDirectMoneyGovernanceAction,
+      apply: applyDirectMoneyGovernanceAction,
       actorId: actor.userId,
       actorRole: actor.role,
       transaction: tx,

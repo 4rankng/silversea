@@ -23,7 +23,10 @@ import { ApiError } from '../errors';
 import { localDateStr, quarterDateRange, resolveTruckCapSnapshot } from './reporting-shared';
 
 import { assertCanMakeGovernanceAction } from './governance-policy';
-import type { GovernanceActionRow } from './governance-transition.service';
+import {
+  buildGovernanceAction,
+  type GovernanceActionRow,
+} from './governance-action-core.service';
 import { hashPayload } from './idempotency.service';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -155,24 +158,7 @@ export async function requestProfitDistributionGovernance(input: {
     const snapshot = await computeDistributionSnapshot(tx, input.quarter, input.year);
     const plan = snapshot.plan;
 
-    const [pending] = await tx.select({ id: s.governanceActions.id })
-      .from(s.governanceActions)
-      .where(and(
-        eq(s.governanceActions.subjectType, 'PROFIT_DISTRIBUTION'),
-        eq(s.governanceActions.subjectKey, distributionSubjectKey(input.quarter, input.year)),
-        eq(s.governanceActions.actionKind, 'PROFIT_DISTRIBUTION'),
-        inArray(s.governanceActions.status, [
-          'PENDING_CHECK',
-          'PENDING_APPROVAL',
-          'RETURNED_FOR_EVIDENCE',
-        ]),
-      ))
-      .limit(1);
-    if (pending) {
-      throw new ApiError(409, 'Kỳ lợi nhuận này đã có yêu cầu đang chờ xử lý');
-    }
-
-    const [action] = await tx.insert(s.governanceActions).values({
+    return buildGovernanceAction({
       subjectType: 'PROFIT_DISTRIBUTION',
       subjectId: null,
       subjectKey: distributionSubjectKey(input.quarter, input.year),
@@ -199,8 +185,7 @@ export async function requestProfitDistributionGovernance(input: {
       },
       makerId: input.makerId,
       makerRole: input.makerRole,
-    }).returning();
-    return action;
+    });
   };
 
   return runInTx(input.transaction, execute);

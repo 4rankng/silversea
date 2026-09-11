@@ -148,10 +148,6 @@ const REVIEWED_SERVICE_DURABLE_BOUNDARIES = new Map<string, {
     serviceFile: path.resolve(process.cwd(), 'src/services/customer-delivery-response.service.ts'),
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.PORTAL_DELIVERY_RESPONSE',
   }],
-  ['work-inbox.ts|POST|/delivery-disputes/:responseId/resolve', {
-    serviceFile: path.resolve(process.cwd(), 'src/services/customer-delivery-response.service.ts'),
-    marker: 'export async function resolveCustomerDeliveryDispute(',
-  }],
   ['ocr.ts|POST|/fuel-evidence-reviews/:id/decision', {
     serviceFile: path.resolve(process.cwd(), 'src/routes/ocr.ts'),
     marker: 'ocr.fuel-evidence-reviews.decision',

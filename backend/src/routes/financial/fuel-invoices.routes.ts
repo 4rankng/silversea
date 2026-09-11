@@ -241,14 +241,21 @@ router.post(
       },
       createdBy: actor.userId,
       entityType: 'fuel_invoice',
-      create: (tx) => approveFuelInvoice(
-        invoiceId,
-        actor.userId,
-        actor.role,
-        payload.expectedVersion,
-        payload.reason,
-        tx,
-      ),
+      // 2026-09-11 (maker-checker removal): the approval applies directly
+      // in-request via the transient governed action.
+      create: (tx) => autoApplyGovernanceAction({
+        make: (tx) => approveFuelInvoice(
+          invoiceId,
+          actor.userId,
+          actor.role,
+          payload.expectedVersion,
+          payload.reason,
+          tx,
+        ),
+        actorId: actor.userId,
+        actorRole: actor.role,
+        transaction: tx,
+      }),
       getEntityId: () => invoiceId,
     });
     const approved = replayed ? { ...result, replayed } : result;

@@ -95,7 +95,6 @@ after(async () => {
     await db.delete(s.profitabilitySnapshots).where(eq(s.profitabilitySnapshots.tripId, tripId));
     await db.delete(s.tripFinancialPostings).where(eq(s.tripFinancialPostings.tripId, tripId));
   }
-  await db.delete(s.governanceActions).where(eq(s.governanceActions.subjectId, tripId));
   await db.delete(s.tripPhotos).where(eq(s.tripPhotos.tripId, tripId));
   await db.delete(s.tripPodSubmissions).where(eq(s.tripPodSubmissions.tripId, tripId));
   const milestones = await db.select({ id: s.shipmentMilestones.id })
@@ -145,7 +144,6 @@ async function replacePod(
 
 async function prepareReadyForDirectClose() {
   await db.delete(s.customerVisibleEvents).where(eq(s.customerVisibleEvents.shipmentId, shipmentId));
-  await db.delete(s.governanceActions).where(eq(s.governanceActions.subjectId, tripId));
   await db.delete(s.tripPhotos).where(eq(s.tripPhotos.tripId, tripId));
   await db.delete(s.tripExpenseCompletionScopes).where(eq(s.tripExpenseCompletionScopes.tripId, tripId));
   await replacePod('ACCEPTED');
@@ -823,11 +821,6 @@ describe('O2C trip close readiness authority', () => {
       deliveredEvents.filter((event) => event.title.title === 'Đã giao hàng').length,
       1,
     );
-
-    const [governanceCount] = await db.select({ count: sql<number>`count(*)::int` })
-      .from(s.governanceActions)
-      .where(eq(s.governanceActions.subjectId, tripId));
-    assert.equal(governanceCount.count, 0);
 
     const [postingCount] = await db.select({ count: sql<number>`count(*)::int` })
       .from(s.tripFinancialPostings)

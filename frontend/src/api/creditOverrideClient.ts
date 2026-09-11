@@ -44,13 +44,9 @@ export interface CreditOverrideRequestRecord {
   version: number;
   requestVersion: number;
   workflowStatus: CreditOverrideWorkflowStatus;
-  governanceActionId: number | null;
-  checkedBy: number | null;
-  checkedAt: string | null;
   customerName?: string | null;
   shipmentCode?: string | null;
   requestedByName?: string | null;
-  checkedByName?: string | null;
   createdAt: string;
   updatedAt: string;
 }

@@ -2,7 +2,6 @@ import { api, fileCommandFingerprint } from '../lib/api';
 import { toQuery } from '../lib/http/query';
 import { fetchAllPaginated } from '../lib/http/paginate';
 import type { TableSortState } from '../lib/table-sort';
-import type { PendingGovernanceResponse } from '../lib/governance';
 import { CONFIG } from '@tingting/shared';
 import type {
   Truck,
@@ -64,12 +63,12 @@ export const configClient = {
   saveFuelConfig: (data: {
     loadedNorm: number; emptyNorm: number; supplement: number;
     unitPrice: number; baseUnitPrice?: number | null; warningThreshold: number; criticalThreshold: number;
-  }) => api.put<FuelConfig | PendingGovernanceResponse>(CONFIG.FUEL_CONFIG, data),
+  }) => api.put<FuelConfig>(CONFIG.FUEL_CONFIG, data),
 
   getCompanyInfo: () => api.get<CompanyInfo>(CONFIG.COMPANY_INFO),
 
   saveCompanyInfo: (data: CompanyInfo) =>
-    api.put<CompanyInfo | PendingGovernanceResponse>(CONFIG.COMPANY_INFO, data),
+    api.put<CompanyInfo>(CONFIG.COMPANY_INFO, data),
 
   uploadCompanyLogo: async (file: File) => {
     const formData = new FormData();
@@ -85,7 +84,7 @@ export const configClient = {
     tollPerStation: number; returnCargoBonus: number;
     defaultDriverSalary: number; twoPointDeliveryBonus: number;
     vehicleShiftDefault: number;
-  }) => api.put<RoadConfig | PendingGovernanceResponse>(CONFIG.ROAD_CONFIG, data),
+  }) => api.put<RoadConfig>(CONFIG.ROAD_CONFIG, data),
 
   getPorts: () => fetchAllPaginated<Port>(CONFIG.PORTS),
 
@@ -146,11 +145,11 @@ export const configClient = {
     api.get<DebitNoteTemplate>(CONFIG.DEBIT_NOTE_TEMPLATE(id)),
 
   saveDebitNoteTemplate: (data: DebitNoteTemplateInput) =>
-    api.post<DebitNoteTemplate | PendingGovernanceResponse>(CONFIG.DEBIT_NOTE_TEMPLATES, data),
+    api.post<DebitNoteTemplate>(CONFIG.DEBIT_NOTE_TEMPLATES, data),
 
   updateDebitNoteTemplate: (id: number, data: DebitNoteTemplateInput) =>
-    api.put<DebitNoteTemplate | PendingGovernanceResponse>(CONFIG.DEBIT_NOTE_TEMPLATE(id), data),
+    api.put<DebitNoteTemplate>(CONFIG.DEBIT_NOTE_TEMPLATE(id), data),
 
   deleteDebitNoteTemplate: (id: number) =>
-    api.delete<{ ok: true } | PendingGovernanceResponse>(CONFIG.DEBIT_NOTE_TEMPLATE(id)),
+    api.delete<{ ok: true }>(CONFIG.DEBIT_NOTE_TEMPLATE(id)),
 };

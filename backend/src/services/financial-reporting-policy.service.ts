@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import {
   financialReportingPolicyRequestSchema,
   financialReportingPolicyStateSchema,
@@ -24,13 +24,11 @@ import {
   registerGovernedCustomResource,
   requestOrApplyGovernedConfigAction,
 } from './price-config-governance.service';
-import type { GovernanceActionRow } from './governance-transition.service';
+import type { GovernanceActionRow } from './governance-action-core.service';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 const VIETNAM_TIME_ZONE = 'Asia/Ho_Chi_Minh';
-const GOVERNANCE_QUEUE_PATH = '/governance-actions';
-const ACTIVE_GOVERNANCE_STATUSES = ['PENDING_CHECK', 'PENDING_APPROVAL', 'RETURNED_FOR_EVIDENCE'] as const;
 
 export const FINANCIAL_REPORTING_POLICY_RESOURCE = 'financial-reporting-policy';
 export const TRUCK_FINANCIAL_PROFILE_RESOURCE = 'truck-financial-profile';
@@ -173,67 +171,6 @@ export function reportingCacheEffects(actionId: number, effectiveFrom: string): 
   }));
 }
 
-async function findPendingRequest(
-  q: typeof db | Tx,
-  subjectKeyPrefix: string,
-) {
-  const [row] = await q.select({
-    status: s.governanceActions.status,
-    requestedAt: s.governanceActions.createdAt,
-    requestedByName: actorNameSql,
-    afterSnapshot: s.governanceActions.afterSnapshot,
-  })
-    .from(s.governanceActions)
-    .leftJoin(s.users, eq(s.users.id, s.governanceActions.makerId))
-    .where(and(
-      eq(s.governanceActions.subjectType, 'PRICE_CONFIG'),
-      eq(s.governanceActions.actionKind, 'PRICE_CONFIG_CHANGE'),
-      inArray(s.governanceActions.status, [...ACTIVE_GOVERNANCE_STATUSES]),
-      sql`${s.governanceActions.subjectKey} like ${`${subjectKeyPrefix}%`}`,
-    ))
-    .orderBy(desc(s.governanceActions.createdAt))
-    .limit(1);
-
-  if (!row) return null;
-  const snapshot = row.afterSnapshot as Record<string, unknown> | null;
-  const effectiveFrom = typeof snapshot?.data === 'object' && snapshot.data
-    ? String((snapshot.data as Record<string, unknown>).effectiveFrom ?? '')
-    : '';
-  return {
-    status: row.status as 'PENDING_CHECK' | 'PENDING_APPROVAL' | 'RETURNED_FOR_EVIDENCE',
-    requestedAt: row.requestedAt.toISOString(),
-    requestedByName: row.requestedByName,
-    effectiveFrom,
-    queuePath: GOVERNANCE_QUEUE_PATH,
-  };
-}
-
-async function assertNoActivePendingAction(q: typeof db | Tx, subjectKey: string): Promise<void> {
-  const [row] = await q.select({ id: s.governanceActions.id })
-    .from(s.governanceActions)
-    .where(and(
-      eq(s.governanceActions.subjectKey, subjectKey),
-      eq(s.governanceActions.subjectType, 'PRICE_CONFIG'),
-      eq(s.governanceActions.actionKind, 'PRICE_CONFIG_CHANGE'),
-      inArray(s.governanceActions.status, [...ACTIVE_GOVERNANCE_STATUSES]),
-    ))
-    .limit(1);
-  if (row) {
-    throw new ApiError(
-      409,
-      'Đã có yêu cầu chờ kiểm tra hoặc phê duyệt cho tháng hiệu lực này. Tải lại để kiểm tra.',
-    );
-  }
-}
-
-async function lockSubjectKey(q: Tx, subjectKey: string): Promise<void> {
-  await q.select({ id: s.governanceActions.id })
-    .from(s.governanceActions)
-    .where(eq(s.governanceActions.subjectKey, subjectKey))
-    .limit(1)
-    .for('update');
-}
-
 export async function getFinancialReportingPolicyState(
   q: typeof db | Tx = db,
 ): Promise<FinancialReportingPolicyState> {
@@ -263,7 +200,6 @@ export async function getFinancialReportingPolicyState(
   }));
   const currentPolicy = history.find((row) => row.effectiveFrom <= currentMonthStart) ?? null;
   const futurePolicies = history.filter((row) => row.effectiveFrom > currentMonthStart);
-  const pendingRequest = await findPendingRequest(q, `${FINANCIAL_REPORTING_POLICY_RESOURCE}:`);
 
   return financialReportingPolicyStateSchema.parse({
     status: currentPolicy ? 'CONFIGURED' : 'UNCONFIGURED',
@@ -272,7 +208,9 @@ export async function getFinancialReportingPolicyState(
     currentPolicy,
     futurePolicies,
     history,
-    pendingRequest,
+    // 2026-09-11 (maker-checker removal): no persisted request queue exists,
+    // so a pending-request banner can never be shown.
+    pendingRequest: null,
   });
 }
 
@@ -384,10 +322,6 @@ export async function getTruckFinancialProfileState(
   }));
   const currentProfile = history.find((row) => row.effectiveFrom <= currentMonthStart) ?? null;
   const futureProfiles = history.filter((row) => row.effectiveFrom > currentMonthStart);
-  const pendingRequest = await findPendingRequest(
-    q,
-    `${TRUCK_FINANCIAL_PROFILE_RESOURCE}:${selectedTruck.id}:`,
-  );
 
   return truckFinancialProfileStateSchema.parse({
     selectedTruckId: selectedTruck.id,
@@ -399,7 +333,8 @@ export async function getTruckFinancialProfileState(
     currentProfile,
     futureProfiles,
     history,
-    pendingRequest,
+    // No request queue exists anymore (maker-checker removal).
+    pendingRequest: null,
   });
 }
 
@@ -420,7 +355,6 @@ export async function requestFinancialReportingPolicyVersion(input: {
       );
     }
     const subjectKey = policySubjectKey(payload.effectiveFrom);
-    await assertNoActivePendingAction(tx, subjectKey);
     const [existing] = await tx.select({ id: s.financialReportingPolicyVersions.id })
       .from(s.financialReportingPolicyVersions)
       .where(eq(s.financialReportingPolicyVersions.effectiveFrom, payload.effectiveFrom))
@@ -476,7 +410,6 @@ export async function requestTruckFinancialProfileVersion(input: {
       );
     }
     const subjectKey = truckSubjectKey(payload.truckId, payload.effectiveFrom);
-    await assertNoActivePendingAction(tx, subjectKey);
     const [existing] = await tx.select({ id: s.truckFinancialProfileVersions.id })
       .from(s.truckFinancialProfileVersions)
       .where(and(
@@ -513,7 +446,9 @@ async function applyFinancialReportingPolicyVersion(
   payload: FinancialReportingPolicyRequest,
 ) {
   assertOpenVietnamMonth(payload.effectiveFrom);
-  await lockSubjectKey(tx, policySubjectKey(payload.effectiveFrom));
+  // Concurrency is serialized by the advisory subject lock taken in
+  // requestOrApplyGovernedConfigAction plus the effective_from unique index;
+  // the old governance-row FOR UPDATE lock is gone with the table.
   const [existing] = await tx.select({ id: s.financialReportingPolicyVersions.id })
     .from(s.financialReportingPolicyVersions)
     .where(eq(s.financialReportingPolicyVersions.effectiveFrom, payload.effectiveFrom))
@@ -531,7 +466,6 @@ async function applyFinancialReportingPolicyVersion(
     depreciationMethod: 'STRAIGHT_LINE',
     allocationBasis: 'COMPLETED_TRIP_REVENUE_SHARE',
     lowMarginThresholdRatio: toNullableRatio(payload.lowMarginThresholdPercent),
-    governanceActionId: action.id,
     createdBy: action.approverId ?? action.makerId,
   }).returning({
     id: s.financialReportingPolicyVersions.id,
@@ -554,7 +488,6 @@ async function applyTruckFinancialProfileVersion(
   payload: TruckFinancialProfileRequest,
 ) {
   assertOpenVietnamMonth(payload.effectiveFrom);
-  await lockSubjectKey(tx, truckSubjectKey(payload.truckId, payload.effectiveFrom));
   const [truck] = await tx.select({
     id: s.trucks.id,
     deletedAt: s.trucks.deletedAt,
@@ -589,7 +522,6 @@ async function applyTruckFinancialProfileVersion(
     inServiceDate: payload.inServiceDate,
     usefulLifeMonths: payload.usefulLifeMonths,
     monthlyFixedCost: payload.monthlyFixedCost,
-    governanceActionId: action.id,
     createdBy: action.approverId ?? action.makerId,
   }).returning({
     id: s.truckFinancialProfileVersions.id,

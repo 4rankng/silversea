@@ -9,8 +9,6 @@ import { ApiError } from '../../errors';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { runIdempotent } from '../../services/idempotency.service';
 import {
-  approveCreditOverrideRequest,
-  checkCreditOverrideRequest,
   createCreditOverrideRequest,
   getCreditOverrideRequest,
   listCreditOverrideRequests,
@@ -98,24 +96,13 @@ router.post(
       createdBy: actor.userId,
       entityType: 'credit_override',
       responseStatusCode: 201,
-      // 2026-09-11 user directive: phê duyệt removed ENTIRELY (AR R4) — every
-      // authorized role's override applies in-request via the retained
-      // make→check→approve service chain; no tier gate, nothing stays pending.
-      create: async (tx) => {
-        const created = await createCreditOverrideRequest(payload, {
-          userId: actor.userId,
-          role: actor.role,
-        }, tx);
-        const checked = await checkCreditOverrideRequest(created.id, {
-          userId: actor.userId,
-          role: actor.role,
-        }, { expectedVersion: created.version }, tx);
-        const approval = await approveCreditOverrideRequest(created.id, {
-          userId: actor.userId,
-          role: actor.role,
-        }, { expectedVersion: checked.version }, tx);
-        return approval.request;
-      },
+      // 2026-09-11 maker-checker removal: createCreditOverrideRequest applies
+      // the override in-request (transient governance record; tier role rules
+      // still enforced inside the apply adapter).
+      create: (tx) => createCreditOverrideRequest(payload, {
+        userId: actor.userId,
+        role: actor.role,
+      }, tx),
     });
     const request = replayed ? { ...result, replayed } : result;
     res.locals.auditEntityId = request.id;

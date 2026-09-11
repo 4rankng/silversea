@@ -20,7 +20,6 @@ import { useOcrSettings, useSaveOcrSettings } from '../../hooks/useOcrSettings';
 import { usePageAnimations } from '../../hooks/animations';
 import { userClient } from '../../api/userClient';
 import { qk } from '../../api/keys';
-import { isGovernancePendingResponse } from '../../lib/governance';
 import { FinancePolicySection, type FinanceTab } from '../../features/app-settings/FinancePolicySection';
 import { OperationalPolicySection } from '../../features/app-settings/OperationalPolicySection';
 import { OcrSection } from '../../features/app-settings/OcrSection';
@@ -130,16 +129,12 @@ export default function AppSettingsConfigPage() {
       return;
     }
     setGeneralMessage(null);
-    const result = await saveAppSettings.mutateAsync({
+    await saveAppSettings.mutateAsync({
       ...(appSettings.data ?? features),
       creditWarningThresholdDefault: threshold,
       creditTierOneAmountCap: parsedCap,
       salaryPayrollBusinessUnitId: features.salaryPayrollBusinessUnitId,
     });
-    if (isGovernancePendingResponse(result)) {
-      setGeneralMessage('Đã gửi yêu cầu cập nhật cài đặt ứng dụng để kiểm tra và phê duyệt. Cấu hình hiện chưa thay đổi.');
-      return;
-    }
     setGeneralMessage('Đã lưu cài đặt ứng dụng.');
   };
 

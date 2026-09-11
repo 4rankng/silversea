@@ -265,13 +265,7 @@ export async function managerDecisionInbox(userId: number, query: InboxQuery) {
       reason: s.customerDeliveryResponses.reason,
       respondedAt: s.customerDeliveryResponses.respondedAt,
     }).from(s.customerDeliveryResponses)
-      .leftJoin(s.governanceActions, and(
-        eq(s.governanceActions.subjectType, 'CUSTOMER_DELIVERY_RESPONSE'),
-        eq(s.governanceActions.subjectId, s.customerDeliveryResponses.id),
-        eq(s.governanceActions.actionKind, 'CUSTOMER_DELIVERY_DISPUTE_RESOLUTION'),
-        eq(s.governanceActions.status, 'APPLIED'),
-      ))
-      .where(and(eq(s.customerDeliveryResponses.decision, 'DISPUTED'), isNull(s.governanceActions.id))),
+      .where(eq(s.customerDeliveryResponses.decision, 'DISPUTED')),
     db.select({
       id: s.trips.id,
       code: s.trips.tripCode,

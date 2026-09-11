@@ -428,11 +428,8 @@ after(async () => {
           .where(inArray(s.shipmentDocumentCustodyFacts.shipmentId, createdShipmentIds));
         await tx.delete(s.shipmentAccountingLocks)
           .where(inArray(s.shipmentAccountingLocks.shipmentId, createdShipmentIds));
-        await tx.delete(s.governanceActions)
-          .where(and(
-            eq(s.governanceActions.subjectType, 'SHIPMENT'),
-            inArray(s.governanceActions.subjectId, createdShipmentIds),
-          ));
+        await tx.delete(s.shipmentFinanceActions)
+          .where(inArray(s.shipmentFinanceActions.shipmentId, createdShipmentIds));
         await tx.delete(s.notifications).where(and(
           eq(s.notifications.type, 'SHIPMENT_HANDOFF'),
           eq(s.notifications.relatedEntityType, 'shipments'),

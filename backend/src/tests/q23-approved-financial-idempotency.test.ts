@@ -389,11 +389,6 @@ after(async () => {
   await cleanup.deleteAll(s.auditLogs, auditLogIds);
   if (userIds.length > 0) {
     await db.delete(s.auditLogs).where(inArray(s.auditLogs.userId, userIds));
-    await db.delete(s.governanceActions).where(or(
-      inArray(s.governanceActions.makerId, userIds),
-      inArray(s.governanceActions.checkerId, userIds),
-      inArray(s.governanceActions.approverId, userIds),
-    ));
   }
   if (advanceSettlementIds.length > 0) {
     await db.delete(s.notifications).where(and(
@@ -590,25 +585,18 @@ describe('Q23 approved financial route idempotency', () => {
     assert.equal(rejected.status, 201, JSON.stringify(rejected.data));
     assert.equal(rejected.data.actionKind, 'ADVANCE_REQUEST_REJECTION');
 
-    const actionId = Number(rejected.data.id);
-    const [row, action] = await Promise.all([
-      db.select().from(s.advanceRequests)
-        .where(eq(s.advanceRequests.id, request.id))
-        .limit(1)
-        .then((rows) => rows[0]),
-      db.select().from(s.governanceActions)
-        .where(eq(s.governanceActions.id, actionId))
-        .limit(1)
-        .then((rows) => rows[0]),
-    ]);
+    const [row] = await db.select().from(s.advanceRequests)
+      .where(eq(s.advanceRequests.id, request.id))
+      .limit(1);
     assert.ok(row);
-    assert.ok(action);
-    // Applied in ONE call: the request is REJECTED, the audit action is
-    // APPROVED, and the single actor both made and applied the decision.
+    // Applied in ONE call: the request is REJECTED and the transient action
+    // record returned by the route is APPROVED with the single actor making
+    // and applying the decision.
     assert.equal(row.status, 'REJECTED');
     assert.equal(row.approvedBy, managerActor.id);
-    assert.equal(action.status, 'APPROVED');
-    assert.equal(action.makerId, action.approverId);
+    assert.equal(rejected.data.status, 'APPROVED');
+    assert.equal(rejected.data.makerId, rejected.data.approverId);
+    assert.equal(rejected.data.subjectId, request.id);
     const ledgerAfter = await db.select().from(s.ledger).where(and(
       eq(s.ledger.txnType, TxnType.OPS_ADVANCE),
       eq(s.ledger.txnId, request.id),

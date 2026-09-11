@@ -8,8 +8,7 @@ import { insertTripComposite } from '../services/trip-composite.service';
 import { LedgerService } from '../services/ledger.service';
 import { createTripExpense } from '../services/forwarder.service';
 import {
-  approveGovernanceAction,
-  checkGovernanceAction,
+  autoApplyGovernanceAction,
   requestCompletedTripCancellation,
   requestTripFinancialClose,
 } from '../services/adjustment-governance.service';
@@ -42,12 +41,8 @@ const createdGovernanceUserIds: number[] = [];
 const createdShipmentIds: number[] = [];
 
 after(async () => {
-  let cleanupStep = 'governance actions';
+  let cleanupStep = 'ledger';
   try {
-  if (createdTripIds.length > 0) {
-    await db.delete(s.governanceActions).where(inArray(s.governanceActions.subjectId, createdTripIds));
-  }
-  cleanupStep = 'ledger';
   // Ledger rows reference both trip ids (TRIP_REVENUE) and expense ids
   // (SERVICE_FEE / VENDOR_EXPENSE / OPS_ADVANCE) via txnId.
   const allTxnIds = [...createdTripIds, ...createdExpenseIds];
@@ -108,24 +103,16 @@ async function approveCompletedCancellation(tripId: number, expectedVersion: num
     { username: `chiho-ledger-approver-${suffix}`, passwordHash: 'x', role: Role.ADMIN },
   ]).returning({ id: s.users.id });
   createdGovernanceUserIds.push(...actors.map((actor) => actor.id));
-  const action = await requestCompletedTripCancellation({
-    tripId,
-    reason: 'Hủy chuyến đã hoàn thành và hoàn nhập phí chi hộ',
-    makerId: actors[0]!.id,
-    makerRole: Role.MANAGER,
-    expectedTripVersion: expectedVersion,
-  });
-  const checked = await checkGovernanceAction({
-    actionId: action.id,
-    checkerId: actors[1]!.id,
-    checkerRole: Role.ACCOUNTANT,
-    expectedVersion: action.version,
-  });
-  return approveGovernanceAction({
-    actionId: action.id,
-    approverId: actors[2]!.id,
-    approverRole: Role.ADMIN,
-    expectedVersion: checked.version,
+  return autoApplyGovernanceAction({
+    make: () => requestCompletedTripCancellation({
+      tripId,
+      reason: 'Hủy chuyến đã hoàn thành và hoàn nhập phí chi hộ',
+      makerId: actors[0]!.id,
+      makerRole: Role.MANAGER,
+      expectedTripVersion: expectedVersion,
+    }),
+    actorId: actors[2]!.id,
+    actorRole: Role.ADMIN,
   });
 }
 
@@ -150,24 +137,16 @@ async function completeTripGoverned(tripId: number, expectedVersion: number) {
     reviewedBy: actors[1]!.id,
   });
   createdShipmentIds.push(evidence.shipmentId);
-  const action = await requestTripFinancialClose({
-    tripId,
-    reason: 'Hoàn thành chuyến và ghi nhận phí chi hộ',
-    makerId: actors[1]!.id,
-    makerRole: Role.ACCOUNTANT,
-    expectedTripVersion: expectedVersion,
-  });
-  const checked = await checkGovernanceAction({
-    actionId: action.id,
-    checkerId: actors[0]!.id,
-    checkerRole: Role.MANAGER,
-    expectedVersion: action.version,
-  });
-  await approveGovernanceAction({
-    actionId: action.id,
-    approverId: actors[2]!.id,
-    approverRole: Role.ADMIN,
-    expectedVersion: checked.version,
+  await autoApplyGovernanceAction({
+    make: () => requestTripFinancialClose({
+      tripId,
+      reason: 'Hoàn thành chuyến và ghi nhận phí chi hộ',
+      makerId: actors[1]!.id,
+      makerRole: Role.ACCOUNTANT,
+      expectedTripVersion: expectedVersion,
+    }),
+    actorId: actors[2]!.id,
+    actorRole: Role.ADMIN,
   });
   const [completed] = await db.select().from(s.trips)
     .where(eq(s.trips.id, tripId))

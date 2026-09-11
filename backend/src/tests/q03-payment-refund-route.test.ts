@@ -20,7 +20,6 @@ import financialRoutes from '../routes/financial';
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const idempotencyKeys: string[] = [];
 const receiptIds: number[] = [];
-const governanceActionIds: number[] = [];
 const userIds: number[] = [];
 let customerId = 0;
 let makerId = 0;
@@ -115,15 +114,6 @@ after(async () => {
     server.close((error) => error ? reject(error) : resolve());
   });
   if (receiptIds.length > 0) {
-    const actions = await db.select({ id: s.governanceActions.id })
-      .from(s.governanceActions)
-      .where(inArray(s.governanceActions.subjectId, receiptIds));
-    governanceActionIds.push(...actions.map((row) => row.id));
-  }
-  if (governanceActionIds.length > 0) {
-    await db.delete(s.governanceActions).where(inArray(s.governanceActions.id, governanceActionIds));
-  }
-  if (receiptIds.length > 0) {
     await db.delete(s.paymentReceipts).where(inArray(s.paymentReceipts.id, receiptIds));
   }
   const uniqueKeys = [...new Set(idempotencyKeys)];
@@ -194,4 +184,27 @@ test('Q03 refund HTTP boundary enforces RBAC, validation, replay, conflict, and 
   // unappliedAmount (5M ≥ 2×1M). Over-refund protection is the
   // unapplied-amount cap, not the old one-active-request rule.
   assert.deepEqual(race.map((result) => result.status).sort(), [201, 201]);
+
+  const overReceipt = await createReceipt('over-refund');
+  // First refund applies in-request and drains unappliedAmount 5M → 4M.
+  const applied = await request(overReceipt.id, payload, `q03-route-over-1-${suffix}`);
+  assert.equal(applied.status, 201, JSON.stringify(applied.body));
+  // 2026-09-11 maker-checker removal: the duplicate-refund barrier moved
+  // from the dropped governance pending-unique index to the apply-time
+  // unapplied-amount guard — with 1M already refunded, a second refund of
+  // the full 5M must reject on the receipt balance.
+  const rejected = await request(
+    overReceipt.id,
+    { ...payload, amount: 5_000_000 },
+    `q03-route-over-2-${suffix}`,
+  );
+  assert.equal(rejected.status, 409, JSON.stringify(rejected.body));
+  assert.match(String(rejected.body.error ?? ''), /vượt quá khoản chưa phân bổ/);
+
+  const [persisted] = await db.select({
+    unappliedAmount: s.paymentReceipts.unappliedAmount,
+    refundedAmount: s.paymentReceipts.refundedAmount,
+  }).from(s.paymentReceipts).where(eq(s.paymentReceipts.id, overReceipt.id)).limit(1);
+  assert.equal(Number(persisted.unappliedAmount), 4_000_000);
+  assert.equal(Number(persisted.refundedAmount), 1_000_000);
 });

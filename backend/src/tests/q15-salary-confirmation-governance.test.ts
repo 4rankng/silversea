@@ -9,15 +9,13 @@ import { client, db } from '../db';
 import * as s from '../db/schema';
 import { globalErrorHandler } from '../middleware/errorHandler';
 import salaryRoutes from '../routes/salary';
-import { batchUpsertWorkDays } from '../services/attendance.service';
 import {
-  approveSalaryConfirmation,
-  approveSalaryReopen,
-  checkSalaryConfirmation,
-  checkSalaryReopen,
   requestSalaryConfirmation,
   requestSalaryReopen,
+  applySalaryConfirmationAction,
+  applySalaryReopenAction,
 } from '../services/salary-confirmation-governance.service';
+import { autoApplyGovernanceAction } from '../services/adjustment-governance.service';
 import { resolveSalaryPeriodDateRange } from '../services/salary-period.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -27,7 +25,6 @@ const periodKey = `${year}-${String(month).padStart(2, '0')}`;
 
 const createdUserIds: number[] = [];
 const createdDriverIds: number[] = [];
-const createdActionIds: number[] = [];
 const createdPeriodLockIds: number[] = [];
 let periodRange: Awaited<ReturnType<typeof resolveSalaryPeriodDateRange>>;
 let server: http.Server;
@@ -141,12 +138,6 @@ after(async () => {
   if (createdUserIds.length > 0) {
     await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.createdBy, createdUserIds));
   }
-  if (createdActionIds.length > 0) {
-    await db.delete(s.governanceActions).where(inArray(s.governanceActions.id, createdActionIds));
-  }
-  if (createdPeriodLockIds.length > 0) {
-    await db.delete(s.periodLocks).where(inArray(s.periodLocks.id, createdPeriodLockIds));
-  }
   if (createdDriverIds.length > 0) {
     await db.delete(s.driverWorkDays).where(inArray(s.driverWorkDays.driverId, createdDriverIds));
     await db.delete(s.salaryConfirmations).where(inArray(s.salaryConfirmations.driverId, createdDriverIds));
@@ -174,52 +165,39 @@ describe('Q15 salary confirmation governance', () => {
     assert.equal(replay.body.replayed, true);
     assert.deepEqual(replay.body, { ...first.body, replayed: true });
 
-    const [saved] = await db.select().from(s.governanceActions)
-      .where(eq(s.governanceActions.id, Number(first.body.id)));
-    // 2026-09-10 (phê duyệt removed): the request applies immediately.
-    assert.equal(saved.status, 'APPROVED');
-    createdActionIds.push(saved.id);
+    // Direct apply: the confirm effect lands on the salary confirmation row.
+    const [confirmation] = await db.select().from(s.salaryConfirmations)
+      .where(and(
+        eq(s.salaryConfirmations.driverId, driver.id),
+        eq(s.salaryConfirmations.year, year),
+        eq(s.salaryConfirmations.month, month),
+      ))
+      .limit(1);
+    assert.equal(confirmation?.status, 'CONFIRMED');
+    assert.equal((first.body as { status?: string }).status, 'APPROVED');
   });
 
-  it('has no salary effect before approval and rejects maker/checker self-escalation', async () => {
-    const maker = await mkUser(Role.ACCOUNTANT, 'flow-maker');
-    const checker = await mkUser(Role.MANAGER, 'flow-checker');
-    const approver = await mkUser(Role.ADMIN, 'flow-approver');
-    const driver = await mkDriver('flow-driver');
+  it('applies the confirmation in-request and stamps the requesting actor', async () => {
+    const accountant = await mkUser(Role.ACCOUNTANT, 'direct-maker');
+    const driver = await mkDriver('direct-driver');
 
-    const requested = await requestSalaryConfirmation({
-      driverId: driver.id,
-      year,
-      month,
-      actorId: maker.id,
-      actorRole: maker.role as Role,
+    const applied = await autoApplyGovernanceAction({
+      make: (tx) => requestSalaryConfirmation({
+        driverId: driver.id,
+        year,
+        month,
+        actorId: accountant.id,
+        actorRole: accountant.role,
+        transaction: tx,
+      }),
+      apply: applySalaryConfirmationAction,
+      actorId: accountant.id,
+      actorRole: accountant.role,
     });
-    createdActionIds.push(requested.id);
 
-    // 2026-09-10 (phê duyệt removed): segregation is gone at the service
-    // level too — the maker may check their own request and the checker
-    // may approve it. Routes apply all three stages immediately.
-    const checked = await checkSalaryConfirmation({
-      driverId: driver.id,
-      year,
-      month,
-      actionId: requested.id,
-      actorId: maker.id,
-      actorRole: maker.role,
-      expectedVersion: requested.version,
-    });
-    assert.equal(checked.status, 'PENDING_APPROVAL');
-
-    const approved = await approveSalaryConfirmation({
-      driverId: driver.id,
-      year,
-      month,
-      actionId: requested.id,
-      actorId: approver.id,
-      actorRole: approver.role,
-      expectedVersion: checked.version,
-    });
-    assert.equal(approved.status, 'APPROVED');
+    assert.equal(applied.status, 'APPROVED');
+    assert.equal(applied.makerId, accountant.id);
+    assert.equal(applied.approverId, accountant.id);
 
     const [confirmation] = await db.select().from(s.salaryConfirmations)
       .where(and(
@@ -229,154 +207,65 @@ describe('Q15 salary confirmation governance', () => {
       ))
       .limit(1);
     assert.equal(confirmation?.status, 'CONFIRMED');
-    assert.equal(confirmation?.confirmedBy, approver.id);
+    assert.equal(confirmation?.confirmedBy, accountant.id);
   });
 
-  it('rejects approval when workdays change after the snapshot was submitted', async () => {
-    const maker = await mkUser(Role.ACCOUNTANT, 'stale-maker');
-    const checker = await mkUser(Role.MANAGER, 'stale-checker');
-    const approver = await mkUser(Role.ADMIN, 'stale-approver');
-    const driver = await mkDriver('stale-driver');
-
-    const requested = await requestSalaryConfirmation({
-      driverId: driver.id,
-      year,
-      month,
-      actorId: maker.id,
-      actorRole: maker.role,
-    });
-    createdActionIds.push(requested.id);
-
-    const checked = await checkSalaryConfirmation({
-      driverId: driver.id,
-      year,
-      month,
-      actionId: requested.id,
-      actorId: checker.id,
-      actorRole: checker.role,
-      expectedVersion: requested.version,
-    });
-
-    await batchUpsertWorkDays(driver.id, [
-      { date: periodRange.start, status: 'STANDBY', note: 'stale snapshot change' },
-    ], maker.id);
-
-    await assert.rejects(
-      () => approveSalaryConfirmation({
-        driverId: driver.id,
-        year,
-        month,
-        actionId: requested.id,
-        actorId: approver.id,
-        actorRole: approver.role,
-        expectedVersion: checked.version,
-      }),
-      (error: Error & { statusCode?: number }) =>
-        error.statusCode === 409 && /đã thay đổi sau khi gửi yêu cầu/i.test(error.message),
-    );
-  });
-
-  it('blocks driver-level confirmation approval once the salary period has been closed', async () => {
-    const maker = await mkUser(Role.ACCOUNTANT, 'close-maker');
-    const checker = await mkUser(Role.MANAGER, 'close-checker');
-    const approver = await mkUser(Role.ADMIN, 'close-approver');
+  it('rejects the confirm request outright once the salary period is locked', async () => {
+    const accountant = await mkUser(Role.ACCOUNTANT, 'close-maker');
     const driver = await mkDriver('close-driver');
 
-    const requested = await requestSalaryConfirmation({
-      driverId: driver.id,
-      year,
-      month,
-      actorId: maker.id,
-      actorRole: maker.role,
-    });
-    createdActionIds.push(requested.id);
-
-    const checked = await checkSalaryConfirmation({
-      driverId: driver.id,
-      year,
-      month,
-      actionId: requested.id,
-      actorId: checker.id,
-      actorRole: checker.role,
-      expectedVersion: requested.version,
-    });
-
-    await createClosedPeriodLock(approver.id);
+    await createClosedPeriodLock(accountant.id);
 
     await assert.rejects(
-      () => approveSalaryConfirmation({
-        driverId: driver.id,
-        year,
-        month,
-        actionId: requested.id,
-        actorId: approver.id,
-        actorRole: approver.role,
-        expectedVersion: checked.version,
+      () => autoApplyGovernanceAction({
+        make: (tx) => requestSalaryConfirmation({
+          driverId: driver.id,
+          year,
+          month,
+          actorId: accountant.id,
+          actorRole: accountant.role,
+          transaction: tx,
+        }),
+        apply: applySalaryConfirmationAction,
+        actorId: accountant.id,
+        actorRole: accountant.role,
       }),
       (error: Error & { statusCode?: number }) =>
         error.statusCode === 409 && /đã khóa/i.test(error.message),
     );
   });
 
-  it('keeps reopen append-only and restores draft only after distinct check and approval', async () => {
-    const maker = await mkUser(Role.ACCOUNTANT, 'reopen-maker');
-    const checker = await mkUser(Role.MANAGER, 'reopen-checker');
-    const approver = await mkUser(Role.ADMIN, 'reopen-approver');
+  it('keeps salary reopen append-only and restores the draft in-request', async () => {
+    const accountant = await mkUser(Role.ACCOUNTANT, 'reopen-acct');
     const driver = await mkDriver('reopen-driver');
 
-    const confirmRequest = await requestSalaryConfirmation({
-      driverId: driver.id,
-      year,
-      month,
-      actorId: maker.id,
-      actorRole: maker.role,
-    });
-    createdActionIds.push(confirmRequest.id);
-    const checkedConfirm = await checkSalaryConfirmation({
-      driverId: driver.id,
-      year,
-      month,
-      actionId: confirmRequest.id,
-      actorId: checker.id,
-      actorRole: checker.role,
-      expectedVersion: confirmRequest.version,
-    });
-    await approveSalaryConfirmation({
-      driverId: driver.id,
-      year,
-      month,
-      actionId: confirmRequest.id,
-      actorId: approver.id,
-      actorRole: approver.role,
-      expectedVersion: checkedConfirm.version,
+    await autoApplyGovernanceAction({
+      make: (tx) => requestSalaryConfirmation({
+        driverId: driver.id,
+        year,
+        month,
+        actorId: accountant.id,
+        actorRole: accountant.role,
+        transaction: tx,
+      }),
+      apply: applySalaryConfirmationAction,
+      actorId: accountant.id,
+      actorRole: accountant.role,
     });
 
-    const reopenRequest = await requestSalaryReopen({
-      driverId: driver.id,
-      year,
-      month,
-      actorId: maker.id,
-      actorRole: maker.role,
-      reason: 'Điều chỉnh lại ngày công sau đối soát',
-    });
-    createdActionIds.push(reopenRequest.id);
-    const checkedReopen = await checkSalaryReopen({
-      driverId: driver.id,
-      year,
-      month,
-      actionId: reopenRequest.id,
-      actorId: checker.id,
-      actorRole: checker.role,
-      expectedVersion: reopenRequest.version,
-    });
-    const reopened = await approveSalaryReopen({
-      driverId: driver.id,
-      year,
-      month,
-      actionId: reopenRequest.id,
-      actorId: approver.id,
-      actorRole: approver.role,
-      expectedVersion: checkedReopen.version,
+    const reopened = await autoApplyGovernanceAction({
+      make: (tx) => requestSalaryReopen({
+        driverId: driver.id,
+        year,
+        month,
+        actorId: accountant.id,
+        actorRole: accountant.role,
+        reason: 'Điều chỉnh lại ngày công sau đối soát',
+        transaction: tx,
+      }),
+      apply: applySalaryReopenAction,
+      actorId: accountant.id,
+      actorRole: accountant.role,
     });
     assert.equal(reopened.status, 'APPROVED');
 
@@ -389,80 +278,5 @@ describe('Q15 salary confirmation governance', () => {
       .limit(1);
     assert.equal(confirmation?.status, 'DRAFT');
     assert.equal(confirmation?.confirmedBy, null);
-
-    const history = await db.select({
-      actionKind: s.governanceActions.actionKind,
-      status: s.governanceActions.status,
-      makerId: s.governanceActions.makerId,
-      checkerId: s.governanceActions.checkerId,
-      approverId: s.governanceActions.approverId,
-    }).from(s.governanceActions)
-      .where(and(
-        eq(s.governanceActions.subjectType, 'SALARY_CONFIRMATION'),
-        eq(s.governanceActions.subjectKey, `${driver.id}:${periodKey}`),
-      ));
-    assert.equal(history.length, 2);
-    assert.deepEqual(history.map((row) => row.actionKind).sort(), ['SALARY_CONFIRMATION', 'SALARY_REOPEN']);
-    assert.ok(history.every((row) =>
-      row.status === 'APPROVED'
-      && row.makerId === maker.id
-      && row.checkerId === checker.id
-      && row.approverId === approver.id,
-    ));
-  });
-
-  it('allows exactly one concurrent approval winner for the same confirmation request', async () => {
-    const maker = await mkUser(Role.ACCOUNTANT, 'winner-maker');
-    const checker = await mkUser(Role.MANAGER, 'winner-checker');
-    const approverA = await mkUser(Role.ADMIN, 'winner-approver-a');
-    const approverB = await mkUser(Role.MANAGER, 'winner-approver-b');
-    const driver = await mkDriver('winner-driver');
-
-    const requested = await requestSalaryConfirmation({
-      driverId: driver.id,
-      year,
-      month,
-      actorId: maker.id,
-      actorRole: maker.role,
-    });
-    createdActionIds.push(requested.id);
-    const checked = await checkSalaryConfirmation({
-      driverId: driver.id,
-      year,
-      month,
-      actionId: requested.id,
-      actorId: checker.id,
-      actorRole: checker.role,
-      expectedVersion: requested.version,
-    });
-
-    const outcomes = await Promise.allSettled([
-      approveSalaryConfirmation({
-        driverId: driver.id,
-        year,
-        month,
-        actionId: requested.id,
-        actorId: approverA.id,
-        actorRole: approverA.role,
-        expectedVersion: checked.version,
-      }),
-      approveSalaryConfirmation({
-        driverId: driver.id,
-        year,
-        month,
-        actionId: requested.id,
-        actorId: approverB.id,
-        actorRole: approverB.role,
-        expectedVersion: checked.version,
-      }),
-    ]);
-
-    assert.equal(outcomes.filter((outcome) => outcome.status === 'fulfilled').length, 1);
-    assert.equal(outcomes.filter((outcome) => outcome.status === 'rejected').length, 1);
-
-    const [savedAction] = await db.select().from(s.governanceActions)
-      .where(eq(s.governanceActions.id, requested.id))
-      .limit(1);
-    assert.equal(savedAction.status, 'APPROVED');
   });
 });

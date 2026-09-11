@@ -182,6 +182,16 @@ function isServiceFeeAdjustmentRow(note: string | null): boolean {
   return note.includes('Phí chi hộ') || note.includes('Tạm ứng/nộp hộ');
 }
 
+/**
+ * Trip AR adjustments post `"<reason> (HĐ: <signed agreement ref>)"`. The
+ * `(HĐ: ` suffix marker replaces the dropped governance-row link for
+ * classifying these ledger rows as TRIP authority.
+ */
+function isTripArAdjustmentRow(note: string | null): boolean {
+  if (!note) return false;
+  return note.includes('(HĐ: ');
+}
+
 export async function getCustomerReceivableSnapshot(
   customerId: number,
   opts: { asOfDate?: string } = {},
@@ -228,18 +238,23 @@ export async function getCustomerReceivableSnapshots(
     ));
 
   const docIds = [...new Set(docSeedRows.map((row) => row.documentId))];
+  // 2026-09-11 (maker-checker removal): debit-note adjustments live only in
+  // the customer ledger — the adjustment apply posts ADJUSTMENT rows with the
+  // `GBN-ADJ:` receipt marker, debit/credit carrying the signed delta that
+  // used to be re-read from the governance row's deltaSnapshot.
   const docAdjustmentRows = docIds.length > 0
     ? await db.select({
-      documentId: s.governanceActions.subjectId,
-      deltaSnapshot: s.governanceActions.deltaSnapshot,
+      documentId: s.ledger.txnId,
+      debit: s.ledger.debit,
+      credit: s.ledger.credit,
     })
-      .from(s.governanceActions)
+      .from(s.ledger)
       .where(and(
-        eq(s.governanceActions.subjectType, 'BILLING_DOCUMENT'),
-        eq(s.governanceActions.actionKind, 'DEBIT_NOTE_ADJUSTMENT'),
-        inArray(s.governanceActions.subjectId, docIds),
-        inArray(s.governanceActions.status, ['APPROVED', 'APPLIED']),
-        sql`coalesce(${s.governanceActions.appliedAt}, ${s.governanceActions.approvedAt}, ${s.governanceActions.createdAt}) < ${cutoff.endExclusive.toISOString()}::timestamptz`,
+        eq(s.ledger.entityType, 'CUSTOMER'),
+        eq(s.ledger.txnType, 'ADJUSTMENT'),
+        inArray(s.ledger.txnId, docIds),
+        sql`${s.ledger.receiptId} like ${'GBN-ADJ:%'}`,
+        lt(s.ledger.timestamp, cutoff.endExclusive),
       ))
     : [];
   const docAllocationRows = docIds.length > 0
@@ -306,7 +321,7 @@ export async function getCustomerReceivableSnapshots(
     if (row.documentId == null) continue;
     const doc = docById.get(row.documentId);
     if (!doc) continue;
-    doc.adjustmentDelta += Number((row.deltaSnapshot as Record<string, unknown> | null)?.adjustmentAmount ?? 0);
+    doc.adjustmentDelta += Number(row.debit ?? 0) - Number(row.credit ?? 0);
   }
 
   for (const row of docAllocationRows) {
@@ -401,19 +416,6 @@ export async function getCustomerReceivableSnapshots(
   const debtOffsetKeys = new Set(debtOffsetRows.map((row) => `${row.customerId}:${row.offsetId}`));
 
   const adjustmentRows = ledgerRowsWithTxnId.filter((row) => row.txnType === 'ADJUSTMENT' && row.txnId > 0);
-  const tripAdjustmentRows = adjustmentRows.length > 0
-    ? await db.select({
-      ledgerEntryId: s.governanceActions.ledgerEntryId,
-    })
-      .from(s.governanceActions)
-      .where(and(
-        eq(s.governanceActions.actionKind, 'TRIP_AR_ADJUSTMENT'),
-        inArray(s.governanceActions.ledgerEntryId, adjustmentRows.map((row) => row.id)),
-      ))
-    : [];
-  const tripAdjustmentIds = new Set(
-    tripAdjustmentRows.flatMap((row) => (row.ledgerEntryId == null ? [] : [row.ledgerEntryId])),
-  );
 
   const directGroups = new Map<string, DirectGroup>();
   for (const row of ledgerRowsWithTxnId) {
@@ -422,10 +424,14 @@ export async function getCustomerReceivableSnapshots(
     let authorityType = directAuthorityTypeForTxnType(row.txnType);
     if (row.txnType === 'ADJUSTMENT') {
       const relationKey = `${row.customerId}:${row.txnId}`;
-      if (tripAdjustmentIds.has(row.id)) {
+      // Trip AR adjustments keep the first claim: their note marker wins even
+      // when a rejected debit note collides on the same numeric id (the old
+      // governance-row lookup also ran before the document check).
+      if (isTripArAdjustmentRow(row.note)) {
         authorityType = 'TRIP';
       } else if (
         row.receiptId === `GBN:${row.txnId}`
+        || row.receiptId?.startsWith('GBN-ADJ:')
         || (issuedDocIdsByCustomer.get(row.customerId)?.has(row.txnId) ?? false)
       ) {
         authorityType = 'BILLING_DOCUMENT';

@@ -32,7 +32,6 @@ const createdCustomerIds: number[] = [];
 const createdExpenseIds: number[] = [];
 const createdExpensePhotoIds: number[] = [];
 const createdFuelInvoiceIds: number[] = [];
-const createdGovernanceActionIds: number[] = [];
 const createdPeriodLockIds: number[] = [];
 const idempotencyKeys: string[] = [];
 let failpointCounter = 0;
@@ -201,12 +200,6 @@ async function request(path: string, init: { method?: string; token: string; bod
     ) {
       createdFuelInvoiceIds.push(body.id);
     }
-    if (
-      (path.includes('/corrections') || path.includes('/governance-actions/') || body?.actionKind)
-      && !createdGovernanceActionIds.includes(body.id)
-    ) {
-      createdGovernanceActionIds.push(body.id);
-    }
   }
   return { status: response.status, body };
 }
@@ -222,29 +215,19 @@ async function withMockedNow<T>(isoDateTime: string, run: () => Promise<T>): Pro
   }
 }
 
-async function approveFuelInvoiceThroughGovernance(invoiceId: number, expectedVersion: number) {
-  const requested = await request(`/api/finance/fuel-invoices/${invoiceId}/approve`, {
+/**
+ * 2026-09-11 (maker-checker removal): the approve endpoint applies directly —
+ * one POST returns the transient governed action already APPROVED.
+ */
+async function approveFuelInvoiceDirect(invoiceId: number, expectedVersion: number) {
+  const approved = await request(`/api/finance/fuel-invoices/${invoiceId}/approve`, {
     method: 'POST',
     token: managerToken,
     body: { expectedVersion, reason: 'Đề nghị duyệt hóa đơn nhiên liệu đã đối soát' },
   });
-  assert.equal(requested.status, 201, JSON.stringify(requested.body));
-  assert.equal(requested.body.status, 'PENDING_CHECK');
-
-  const checked = await request(`/api/governance-actions/${requested.body.id}/check`, {
-    method: 'POST',
-    token: accountantToken,
-    body: { expectedVersion: requested.body.version },
-  });
-  assert.equal(checked.status, 200, JSON.stringify(checked.body));
-
-  const approved = await request(`/api/governance-actions/${requested.body.id}/approve`, {
-    method: 'POST',
-    token: adminToken,
-    body: { expectedVersion: checked.body.version },
-  });
-  assert.equal(approved.status, 200, JSON.stringify(approved.body));
-  return { requested, checked, approved };
+  assert.equal(approved.status, 201, JSON.stringify(approved.body));
+  assert.equal(approved.body.status, 'APPROVED');
+  return approved;
 }
 
 async function trackFuelLock(date: string, actorId: number) {
@@ -320,8 +303,13 @@ after(async () => {
     if (createdExpensePhotoIds.length > 0) {
       await db.delete(s.tripExpensePhotos).where(inArray(s.tripExpensePhotos.id, createdExpensePhotoIds));
     }
-    if (createdGovernanceActionIds.length > 0) {
-      await db.delete(s.governanceActions).where(inArray(s.governanceActions.id, createdGovernanceActionIds));
+    if (createdFuelInvoiceIds.length > 0) {
+      // Late-approval period links key by invoice id since the maker-checker
+      // removal; sweep them before the invoices themselves.
+      await db.delete(s.fuelPeriodAdjustments).where(inArray(
+        s.fuelPeriodAdjustments.fuelInvoiceId,
+        createdFuelInvoiceIds,
+      ));
     }
     if (createdPeriodLockIds.length > 0) {
       await db.delete(s.periodLocks).where(inArray(s.periodLocks.id, createdPeriodLockIds));
@@ -556,28 +544,12 @@ describe('Q06 fuel invoice routes', () => {
       })),
     ).returning({ id: s.fuelInvoices.id });
     createdFuelInvoiceIds.push(...inserted.map((row) => row.id));
-    const reversedInvoices = [inserted[4]!, inserted[2]!, inserted[0]!];
-    const reversalActions = await db.insert(s.governanceActions).values(
-      reversedInvoices.map((invoice) => ({
-        subjectType: 'FUEL_INVOICE',
-        subjectId: invoice.id,
-        subjectKey: `fuel-invoice:${invoice.id}`,
-        actionKind: 'FUEL_INVOICE_CORRECTION',
-        status: 'APPROVED',
-        reason: 'Q06 effective reversed pagination',
-        originalVersion: 1,
-        beforeSnapshot: {},
-        afterSnapshot: {
-          correctionType: 'REVERSAL',
-          invoice: null,
-          allocations: [],
-        },
-        deltaSnapshot: { correctionType: 'REVERSAL' },
-        makerId: createdUserIds[0]!,
-        makerRole: 'MANAGER',
-      })),
-    ).returning({ id: s.governanceActions.id });
-    createdGovernanceActionIds.push(...reversalActions.map((row) => row.id));
+    // 2026-09-11 (maker-checker removal): reversals materialize onto the
+    // invoice row itself, so REVERSED is seeded as the row status directly.
+    await db.update(s.fuelInvoices).set({ approvalStatus: 'REVERSED' }).where(inArray(
+      s.fuelInvoices.id,
+      [inserted[4]!.id, inserted[2]!.id, inserted[0]!.id],
+    ));
 
     const firstPage = await request(
       `/api/finance/fuel-invoices?supplierId=${supplier.id}&status=REVERSED&paginated=true&limit=2`,
@@ -1028,30 +1000,14 @@ describe('Q06 fuel invoice routes', () => {
     assert.deepEqual(statuses, [201, 409]);
     const approvalRequest = approvalRequestA.status === 201 ? approvalRequestA : approvalRequestB;
 
-    const pending = await request(`/api/finance/fuel-invoices/${created.body.id}`, {
-      token: managerToken,
-    });
-    assert.equal(pending.status, 200);
-    assert.equal(pending.body.approvalStatus, 'PENDING');
-
-    const checked = await request(`/api/governance-actions/${approvalRequest.body.id}/check`, {
-      method: 'POST',
-      token: accountantToken,
-      body: { expectedVersion: approvalRequest.body.version },
-    });
-    assert.equal(checked.status, 200);
-    const approved = await request(`/api/governance-actions/${approvalRequest.body.id}/approve`, {
-      method: 'POST',
-      token: adminToken,
-      body: { expectedVersion: checked.body.version },
-    });
-    assert.equal(approved.status, 200);
-
+    // 2026-09-11 (maker-checker removal): the winning approve request already
+    // applied — the invoice is APPROVED right after the 201 response, no
+    // check/approve queue steps.
     const stored = await request(`/api/finance/fuel-invoices/${created.body.id}`, { token: managerToken });
     assert.equal(stored.body.approvalStatus, 'APPROVED');
   });
 
-  test('approved invoice stays immutable while governed adjustment and reversal apply immediately', async () => {
+  test('adjustment and reversal materialize onto the approved invoice and apply immediately', async () => {
     const supplier = await mkSupplier();
     const truck = await mkTruck();
     const trip = await mkTrip(supplier.id, truck.id);
@@ -1085,7 +1041,7 @@ describe('Q06 fuel invoice routes', () => {
       body: invoiceBody,
     });
     assert.equal(created.status, 201);
-    await approveFuelInvoiceThroughGovernance(created.body.id, created.body.version);
+    await approveFuelInvoiceDirect(created.body.id, created.body.version);
     const approvedInvoice = await request(`/api/finance/fuel-invoices/${created.body.id}`, {
       token: managerToken,
     });
@@ -1121,7 +1077,8 @@ describe('Q06 fuel invoice routes', () => {
       body: correctionBody,
     });
     assert.equal(correction.status, 201);
-    // 2026-09-10 (phê duyệt removed): the correction applies immediately.
+    // 2026-09-11 (maker-checker removal): the correction applies immediately
+    // onto a transient governed action carrying the before/after snapshots.
     assert.equal(correction.body.status, 'APPROVED');
     assert.equal(correction.body.beforeSnapshot.invoice.totalLiters, 100);
     assert.equal(correction.body.afterSnapshot.invoice.totalLiters, 110);
@@ -1143,21 +1100,22 @@ describe('Q06 fuel invoice routes', () => {
       token: managerToken,
     });
     assert.equal(effective.status, 200);
-    assert.equal(effective.body.totalLiters, 110);
+    // Corrected values are materialized: the row itself now carries them.
+    assert.equal(Number(effective.body.totalLiters), 110);
     assert.equal(effective.body.note, 'Điều chỉnh theo biên bản đối soát');
-    assert.equal(effective.body.effectiveCorrection.correctionType, 'ADJUSTMENT');
     const adjustedReconciliation = await getFuelApReconciliation({
       from: '2026-07-25',
       to: '2026-07-25',
       supplierId: supplier.id,
     });
-    assert.equal(adjustedReconciliation.totals.invoicedFuelCost, 2_200_000);
+    assert.equal(adjustedReconciliation.totals.invoicedFuelCost, 2_200_000,
+      'recon reads allocation lines, which stay at the corrected 100L x 22000');
 
-    const [immutableOriginal] = await db.select().from(s.fuelInvoices)
+    const [materializedRow] = await db.select().from(s.fuelInvoices)
       .where(eq(s.fuelInvoices.id, created.body.id));
-    assert.equal(Number(immutableOriginal.totalLiters), 100);
-    assert.equal(immutableOriginal.note, 'Hóa đơn gốc đã duyệt');
-    assert.equal(immutableOriginal.approvalStatus, 'APPROVED');
+    assert.equal(Number(materializedRow.totalLiters), 110);
+    assert.equal(materializedRow.note, 'Điều chỉnh theo biên bản đối soát');
+    assert.equal(materializedRow.approvalStatus, 'APPROVED');
 
     const staleCorrection = await request(`/api/finance/fuel-invoices/${created.body.id}/corrections`, {
       method: 'POST',
@@ -1189,18 +1147,17 @@ describe('Q06 fuel invoice routes', () => {
     });
     assert.equal(reversed.status, 200);
     assert.equal(reversed.body.approvalStatus, 'REVERSED');
-    assert.equal(reversed.body.effectiveCorrection.correctionType, 'REVERSAL');
     const reversedReconciliation = await getFuelApReconciliation({
       from: '2026-07-25',
       to: '2026-07-25',
       supplierId: supplier.id,
     });
-    assert.equal(reversedReconciliation.totals.invoicedFuelCost, 0);
+    assert.equal(reversedReconciliation.totals.invoicedFuelCost, 0,
+      'reversed invoices leave the effective APPROVED filter');
 
-    const [stillImmutable] = await db.select().from(s.fuelInvoices)
+    const [reversedRow] = await db.select().from(s.fuelInvoices)
       .where(eq(s.fuelInvoices.id, created.body.id));
-    assert.equal(Number(stillImmutable.totalLiters), 100);
-    assert.equal(stillImmutable.approvalStatus, 'APPROVED');
+    assert.equal(reversedRow.approvalStatus, 'REVERSED');
   });
 
   test('Q21 governed late fuel approval writes a source-to-target period link and preserves the closed source month', async () => {
@@ -1239,33 +1196,29 @@ describe('Q06 fuel invoice routes', () => {
     });
     assert.equal(created.status, 201, JSON.stringify(created.body));
 
-    const { requested } = await withMockedNow(
+    const approved = await withMockedNow(
       '2026-07-28T12:00:00.000Z',
-      () => approveFuelInvoiceThroughGovernance(created.body.id, created.body.version),
+      () => approveFuelInvoiceDirect(created.body.id, created.body.version),
     );
+    const requested = approved.body;
     const links = await db.select()
       .from(s.fuelPeriodAdjustments)
-      .where(eq(s.fuelPeriodAdjustments.governanceActionId, requested.body.id));
+      .where(eq(s.fuelPeriodAdjustments.fuelInvoiceId, created.body.id));
     assert.equal(links.length, 1);
     assert.equal(links[0]?.fuelInvoiceId, created.body.id);
     assert.equal(links[0]?.sourcePeriodLockId, lockedMay.id);
     assert.equal(links[0]?.sourcePeriod, '2026-05');
     assert.equal(links[0]?.targetPeriod, '2026-07');
-    assert.equal(requested.body.afterSnapshot.targetPeriod, '2026-07');
+    assert.equal(requested.afterSnapshot.targetPeriod, '2026-07');
 
-    const [action] = await db.select({
-      reason: s.governanceActions.reason,
-      makerId: s.governanceActions.makerId,
-      approverId: s.governanceActions.approverId,
-      approvedAt: s.governanceActions.approvedAt,
-      applicationResult: s.governanceActions.applicationResult,
-    }).from(s.governanceActions).where(eq(s.governanceActions.id, requested.body.id)).limit(1);
-    assert.equal(action?.reason, 'Đề nghị duyệt hóa đơn nhiên liệu đã đối soát');
-    assert.ok(action?.makerId != null);
-    assert.ok(action?.approverId != null);
-    assert.ok(action?.approvedAt != null);
+    // The transient action carries the decision trail (reason/actors/audit
+    // result) that used to be re-read from the dropped governance row.
+    assert.equal(requested.reason, 'Đề nghị duyệt hóa đơn nhiên liệu đã đối soát');
+    assert.ok(requested.makerId != null);
+    assert.ok(requested.approverId != null);
+    assert.ok(requested.approvedAt != null);
     assert.equal(
-      (action?.applicationResult as { fuelInvoiceId?: number } | null)?.fuelInvoiceId,
+      (requested.applicationResult as { fuelInvoiceId?: number } | null)?.fuelInvoiceId,
       created.body.id,
     );
     const [storedInvoice] = await db.select({

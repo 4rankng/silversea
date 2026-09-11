@@ -3,7 +3,7 @@ import type { Request, Response } from 'express';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { requireRoles } from '../middleware/casbin';
 import { getUser } from '../middleware/auth';
-import { governanceActionVersionSchema, Role } from '@tingting/shared';
+import { Role } from '@tingting/shared';
 import {
   computeSalary,
   batchUpsertWorkDays,
@@ -12,26 +12,20 @@ import {
   computeAllDriverSalaries,
 } from '../services/attendance.service';
 import {
-  approveSalaryPeriodClose,
-  approveSalaryPeriodReopen,
-  checkSalaryPeriodClose,
-  checkSalaryPeriodReopen,
+  applySalaryPeriodCloseAction,
+  applySalaryPeriodReopenAction,
   getSalaryPeriodLifecycle,
   requestSalaryPeriodClose,
   requestSalaryPeriodReopen,
 } from '../services/salary-period-close.service';
 import {
-  approveSalaryPeriodAdjustment,
-  checkSalaryPeriodAdjustment,
   getSalaryPeriodAdjustmentTotals,
   listSalaryPeriodAdjustments,
   requestSalaryPeriodAdjustment,
 } from '../services/salary-period-adjustment.service';
 import {
-  approveSalaryPeriodFinalization,
-  checkSalaryPeriodFinalization,
+  applySalaryPeriodFinalizationAction,
   requestSalaryPeriodFinalization,
-  type SalaryPeriodFinalizationOperation,
 } from '../services/salary-period-finalization-governance.service';
 import { resolveSalaryPeriodDateRange } from '../services/salary-period.service';
 import { getClosedPeriodLock, resolveSalaryPeriodAuthority } from '../services/period-lock.service';
@@ -41,30 +35,16 @@ import { ApiError } from '../errors';
 import { getRequestIdempotencyKey as readRequestIdempotencyKey } from './utils/idempotency';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../services/idempotency.service';
 import {
-  approveSalaryConfirmation,
-  approveSalaryReopen,
-  checkSalaryConfirmation,
-  checkSalaryReopen,
+  applySalaryConfirmationAction,
+  applySalaryReopenAction,
   requestSalaryConfirmation,
   requestSalaryReopen,
 } from '../services/salary-confirmation-governance.service';
+import { autoApplyGovernanceAction } from '../services/adjustment-governance.service';
 
 const router = Router();
-const SALARY_CONFIRMATION_ACTIVE_STATUSES = ['PENDING_CHECK', 'PENDING_APPROVAL'] as const;
 const SALARY_PERIOD_ISSUE_ENDPOINT = 'salary-periods.issue';
 const SALARY_PERIOD_POST_ENDPOINT = 'salary-periods.post';
-
-function toSalaryConfirmationSubjectKey(driverId: number, year: number, month: number): string {
-  return `${driverId}:${toPeriodKey(year, month)}`;
-}
-
-function parseGovernanceActionId(raw: string): number {
-  const actionId = Number(raw);
-  if (!Number.isInteger(actionId) || actionId < 1) {
-    throw new ApiError(400, 'actionId không hợp lệ');
-  }
-  return actionId;
-}
 
 function requireMaterialIdempotencyKey(req: Request, message: string): string {
   const idempotencyKey = readRequestIdempotencyKey(req);
@@ -143,18 +123,9 @@ async function enrichSalaryListWithPostCloseAdjustments(
 // GET /api/salary — list all drivers with their salary summary for a given month/year
 
 // 2026-09-10 user directive: remove all phê duyệt flows. Governed salary
-// requests run their check and approve stages immediately with the
-// requesting actor — validations, state transitions, and audit rows are all
-// preserved; only the waiting-for-a-second-person step is gone.
-async function autoApplySalaryGovernance<T extends { id: number; version: number }>(
-  make: () => Promise<T>,
-  check: (actionId: number, expectedVersion: number) => Promise<T>,
-  approve: (actionId: number, expectedVersion: number) => Promise<T>,
-): Promise<T> {
-  const requested = await make();
-  const checked = await check(requested.id, requested.version);
-  return approve(requested.id, checked.version);
-}
+// requests apply directly in-request: the create endpoints run the make
+// stage (transient action record) and the check + approve stages through
+// autoApplyGovernanceAction with the domain apply adapters.
 
 router.get('/', requireRoles(Role.MANAGER, Role.ADMIN, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
   const year = parseInt(req.query.year as string, 10) || new Date().getFullYear();
@@ -196,81 +167,23 @@ router.post('/periods/:period/close', requireRoles(Role.MANAGER, Role.ADMIN, Rol
     payload: { actorId: user.userId, actorRole: user.role, note, period },
     createdBy: user.userId,
     entityType: 'salary_period',
-    create: (tx) => autoApplySalaryGovernance(
-    () => requestSalaryPeriodClose({
-      period,
+    create: (tx) => autoApplyGovernanceAction({
+      make: (tx) => requestSalaryPeriodClose({
+        period,
+        actorId: user.userId,
+        actorRole: user.role,
+        reason: note,
+        note,
+        transaction: tx,
+      }),
+      apply: applySalaryPeriodCloseAction,
       actorId: user.userId,
       actorRole: user.role,
-      reason: note,
-      note,
       transaction: tx,
     }),
-    (actionId, expectedVersion) => checkSalaryPeriodClose({period, actionId, actorId: user.userId, actorRole: user.role, expectedVersion, transaction: tx}),
-    (actionId, expectedVersion) => approveSalaryPeriodClose({period, actionId, actorId: user.userId, actorRole: user.role, expectedVersion, transaction: tx}),
-  ),
   });
   const statusCode = replayed ? 200 : 201;
   res.status(statusCode).json(idempotencyKey ? { ...result, replayed } : result);
-}));
-
-router.post('/periods/:period/close-actions/:actionId/check', requireRoles(Role.MANAGER, Role.ADMIN, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
-  const input = governanceActionVersionSchema.parse(req.body);
-  const user = getUser(req);
-  const period = String(req.params.period);
-  const actionId = parseGovernanceActionId(String(req.params.actionId));
-  const idempotencyKey = getRequestIdempotencyKey(req);
-  const { result, replayed } = await runIdempotent({
-    endpoint: IDEMPOTENCY_ENDPOINTS.GOVERNANCE_CHECK,
-    idempotencyKey,
-    payload: {
-      actionId,
-      actorId: user.userId,
-      actorRole: user.role,
-      expectedVersion: input.expectedVersion,
-      period,
-    },
-    createdBy: user.userId,
-    entityType: 'governance_action',
-    create: (tx) => checkSalaryPeriodClose({
-      period,
-      actionId,
-      actorId: user.userId,
-      actorRole: user.role,
-      expectedVersion: input.expectedVersion,
-      transaction: tx,
-    }),
-  });
-  res.json(idempotencyKey ? { ...result, replayed } : result);
-}));
-
-router.post('/periods/:period/close-actions/:actionId/approve', requireRoles(Role.MANAGER, Role.ADMIN, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
-  const input = governanceActionVersionSchema.parse(req.body);
-  const user = getUser(req);
-  const period = String(req.params.period);
-  const actionId = parseGovernanceActionId(String(req.params.actionId));
-  const idempotencyKey = getRequestIdempotencyKey(req);
-  const { result, replayed } = await runIdempotent({
-    endpoint: IDEMPOTENCY_ENDPOINTS.GOVERNANCE_APPROVE,
-    idempotencyKey,
-    payload: {
-      actionId,
-      actorId: user.userId,
-      actorRole: user.role,
-      expectedVersion: input.expectedVersion,
-      period,
-    },
-    createdBy: user.userId,
-    entityType: 'governance_action',
-    create: (tx) => approveSalaryPeriodClose({
-      period,
-      actionId,
-      actorId: user.userId,
-      actorRole: user.role,
-      expectedVersion: input.expectedVersion,
-      transaction: tx,
-    }),
-  });
-  res.json(idempotencyKey ? { ...result, replayed } : result);
 }));
 
 router.post('/periods/:period/reopen', requireRoles(Role.MANAGER, Role.ADMIN, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
@@ -296,82 +209,24 @@ router.post('/periods/:period/reopen', requireRoles(Role.MANAGER, Role.ADMIN, Ro
     },
     createdBy: user.userId,
     entityType: 'salary_period',
-    create: (tx) => autoApplySalaryGovernance(
-    () => requestSalaryPeriodReopen({
-      period,
+    create: (tx) => autoApplyGovernanceAction({
+      make: (tx) => requestSalaryPeriodReopen({
+        period,
+        actorId: user.userId,
+        actorRole: user.role,
+        reason,
+        note,
+        expectedVersion: reopenExpectedVersion,
+        transaction: tx,
+      }),
+      apply: applySalaryPeriodReopenAction,
       actorId: user.userId,
       actorRole: user.role,
-      reason,
-      note,
-      expectedVersion: reopenExpectedVersion,
       transaction: tx,
     }),
-    (actionId, expectedVersion) => checkSalaryPeriodReopen({period, actionId, actorId: user.userId, actorRole: user.role, expectedVersion, transaction: tx}),
-    (actionId, expectedVersion) => approveSalaryPeriodReopen({period, actionId, actorId: user.userId, actorRole: user.role, expectedVersion, transaction: tx}),
-  ),
   });
   const statusCode = replayed ? 200 : 201;
   res.status(statusCode).json(idempotencyKey ? { ...result, replayed } : result);
-}));
-
-router.post('/periods/:period/reopen-actions/:actionId/check', requireRoles(Role.MANAGER, Role.ADMIN, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
-  const input = governanceActionVersionSchema.parse(req.body);
-  const user = getUser(req);
-  const period = String(req.params.period);
-  const actionId = parseGovernanceActionId(String(req.params.actionId));
-  const idempotencyKey = getRequestIdempotencyKey(req);
-  const { result, replayed } = await runIdempotent({
-    endpoint: IDEMPOTENCY_ENDPOINTS.GOVERNANCE_CHECK,
-    idempotencyKey,
-    payload: {
-      actionId,
-      actorId: user.userId,
-      actorRole: user.role,
-      expectedVersion: input.expectedVersion,
-      period,
-    },
-    createdBy: user.userId,
-    entityType: 'governance_action',
-    create: (tx) => checkSalaryPeriodReopen({
-      period,
-      actionId,
-      actorId: user.userId,
-      actorRole: user.role,
-      expectedVersion: input.expectedVersion,
-      transaction: tx,
-    }),
-  });
-  res.json(idempotencyKey ? { ...result, replayed } : result);
-}));
-
-router.post('/periods/:period/reopen-actions/:actionId/approve', requireRoles(Role.MANAGER, Role.ADMIN, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
-  const input = governanceActionVersionSchema.parse(req.body);
-  const user = getUser(req);
-  const period = String(req.params.period);
-  const actionId = parseGovernanceActionId(String(req.params.actionId));
-  const idempotencyKey = getRequestIdempotencyKey(req);
-  const { result, replayed } = await runIdempotent({
-    endpoint: IDEMPOTENCY_ENDPOINTS.GOVERNANCE_APPROVE,
-    idempotencyKey,
-    payload: {
-      actionId,
-      actorId: user.userId,
-      actorRole: user.role,
-      expectedVersion: input.expectedVersion,
-      period,
-    },
-    createdBy: user.userId,
-    entityType: 'governance_action',
-    create: (tx) => approveSalaryPeriodReopen({
-      period,
-      actionId,
-      actorId: user.userId,
-      actorRole: user.role,
-      expectedVersion: input.expectedVersion,
-      transaction: tx,
-    }),
-  });
-  res.json(idempotencyKey ? { ...result, replayed } : result);
 }));
 
 router.post('/periods/:period/issue', requireRoles(Role.MANAGER, Role.ADMIN, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
@@ -396,105 +251,25 @@ router.post('/periods/:period/issue', requireRoles(Role.MANAGER, Role.ADMIN, Rol
     createdBy: user.userId,
     entityType: 'salary_period',
     responseStatusCode: 201,
-    create: (tx) => autoApplySalaryGovernance(
-    () => requestSalaryPeriodFinalization({
-      period,
-      operation: 'ISSUE_PAYSLIPS',
+    create: (tx) => autoApplyGovernanceAction({
+      make: (tx) => requestSalaryPeriodFinalization({
+        period,
+        operation: 'ISSUE_PAYSLIPS',
+        actorId: user.userId,
+        actorRole: user.role,
+        note,
+        expectedVersion,
+        transaction: tx,
+      }),
+      apply: applySalaryPeriodFinalizationAction,
       actorId: user.userId,
       actorRole: user.role,
-      note,
-      expectedVersion,
       transaction: tx,
     }),
-    (actionId, expectedVersion) => checkSalaryPeriodFinalization({period, operation: 'ISSUE_PAYSLIPS', actionId, actorId: user.userId, actorRole: user.role, expectedVersion, transaction: tx}),
-    (actionId, expectedVersion) => approveSalaryPeriodFinalization({period, operation: 'ISSUE_PAYSLIPS', actionId, actorId: user.userId, actorRole: user.role, expectedVersion, transaction: tx}),
-  ),
     getEntityId: (action) => action.id,
   });
   res.status(statusCode).json({ ...result, replayed });
 }));
-
-function registerSalaryPeriodFinalizationDecisionRoutes(input: {
-  segment: 'issue' | 'post';
-  operation: SalaryPeriodFinalizationOperation;
-}) {
-  router.post(
-    `/periods/:period/${input.segment}-actions/:actionId/check`,
-    requireRoles(Role.MANAGER, Role.ADMIN, Role.ACCOUNTANT),
-    asyncHandler(async (req: Request, res: Response) => {
-      const body = governanceActionVersionSchema.parse(req.body);
-      const user = getUser(req);
-      const period = String(req.params.period);
-      const actionId = parseGovernanceActionId(String(req.params.actionId));
-      const idempotencyKey = requireSalaryMutationIdempotencyKey(req);
-      const { result, replayed } = await runIdempotent({
-        endpoint: IDEMPOTENCY_ENDPOINTS.GOVERNANCE_CHECK,
-        idempotencyKey,
-        payload: {
-          actionId,
-          actorId: user.userId,
-          actorRole: user.role,
-          expectedVersion: body.expectedVersion,
-          operation: input.operation,
-          period,
-        },
-        createdBy: user.userId,
-        entityType: 'governance_action',
-        create: (tx) => checkSalaryPeriodFinalization({
-          period,
-          operation: input.operation,
-          actionId,
-          actorId: user.userId,
-          actorRole: user.role,
-          expectedVersion: body.expectedVersion,
-          transaction: tx,
-        }),
-      });
-      res.json({ ...result, replayed });
-    }),
-  );
-
-  router.post(
-    `/periods/:period/${input.segment}-actions/:actionId/approve`,
-    requireRoles(Role.MANAGER, Role.ADMIN, Role.ACCOUNTANT),
-    asyncHandler(async (req: Request, res: Response) => {
-      const body = governanceActionVersionSchema.parse(req.body);
-      const user = getUser(req);
-      const period = String(req.params.period);
-      const actionId = parseGovernanceActionId(String(req.params.actionId));
-      const idempotencyKey = requireSalaryMutationIdempotencyKey(req);
-      const { result, replayed } = await runIdempotent({
-        endpoint: IDEMPOTENCY_ENDPOINTS.GOVERNANCE_APPROVE,
-        idempotencyKey,
-        payload: {
-          actionId,
-          actorId: user.userId,
-          actorRole: user.role,
-          expectedVersion: body.expectedVersion,
-          operation: input.operation,
-          period,
-        },
-        createdBy: user.userId,
-        entityType: 'governance_action',
-        create: (tx) => approveSalaryPeriodFinalization({
-          period,
-          operation: input.operation,
-          actionId,
-          actorId: user.userId,
-          actorRole: user.role,
-          expectedVersion: body.expectedVersion,
-          transaction: tx,
-        }),
-      });
-      res.json({ ...result, replayed });
-    }),
-  );
-}
-
-registerSalaryPeriodFinalizationDecisionRoutes({
-  segment: 'issue',
-  operation: 'ISSUE_PAYSLIPS',
-});
 
 router.post('/periods/:period/post', requireRoles(Role.MANAGER, Role.ADMIN, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
@@ -518,28 +293,25 @@ router.post('/periods/:period/post', requireRoles(Role.MANAGER, Role.ADMIN, Role
     createdBy: user.userId,
     entityType: 'salary_period',
     responseStatusCode: 201,
-    create: (tx) => autoApplySalaryGovernance(
-    () => requestSalaryPeriodFinalization({
-      period,
-      operation: 'POST_OFFICIAL',
+    create: (tx) => autoApplyGovernanceAction({
+      make: (tx) => requestSalaryPeriodFinalization({
+        period,
+        operation: 'POST_OFFICIAL',
+        actorId: user.userId,
+        actorRole: user.role,
+        note,
+        expectedVersion,
+        transaction: tx,
+      }),
+      apply: applySalaryPeriodFinalizationAction,
       actorId: user.userId,
       actorRole: user.role,
-      note,
-      expectedVersion,
       transaction: tx,
     }),
-    (actionId, expectedVersion) => checkSalaryPeriodFinalization({period, operation: 'POST_OFFICIAL', actionId, actorId: user.userId, actorRole: user.role, expectedVersion, transaction: tx}),
-    (actionId, expectedVersion) => approveSalaryPeriodFinalization({period, operation: 'POST_OFFICIAL', actionId, actorId: user.userId, actorRole: user.role, expectedVersion, transaction: tx}),
-  ),
     getEntityId: (action) => action.id,
   });
   res.status(statusCode).json({ ...result, replayed });
 }));
-
-registerSalaryPeriodFinalizationDecisionRoutes({
-  segment: 'post',
-  operation: 'POST_OFFICIAL',
-});
 
 router.post('/periods/:period/adjustments', requireRoles(Role.MANAGER, Role.ADMIN, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
@@ -573,9 +345,8 @@ router.post('/periods/:period/adjustments', requireRoles(Role.MANAGER, Role.ADMI
       targetPeriod,
     },
     createdBy: user.userId,
-    entityType: 'governance_action',
-    create: (tx) => (async () => {
-    const requested = await requestSalaryPeriodAdjustment({
+    entityType: 'salary_period_adjustment',
+    create: (tx) => requestSalaryPeriodAdjustment({
       sourcePeriod: period,
       targetPeriod,
       driverId,
@@ -585,72 +356,10 @@ router.post('/periods/:period/adjustments', requireRoles(Role.MANAGER, Role.ADMI
       actorRole: user.role,
       expectedVersion,
       transaction: tx,
-    });
-    const checked = await checkSalaryPeriodAdjustment({period, actionId: requested.actionId, actorId: user.userId, actorRole: user.role, expectedVersion: requested.version, transaction: tx});
-    return approveSalaryPeriodAdjustment({period, actionId: requested.actionId, actorId: user.userId, actorRole: user.role, expectedVersion: checked.version, transaction: tx});
-  })(),
+    }),
+    getEntityId: (result) => result.adjustmentId,
   });
   res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
-}));
-
-router.post('/periods/:period/adjustments/:actionId/check', requireRoles(Role.MANAGER, Role.ADMIN, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
-  const input = governanceActionVersionSchema.parse(req.body);
-  const user = getUser(req);
-  const period = String(req.params.period);
-  const actionId = parseGovernanceActionId(String(req.params.actionId));
-  const idempotencyKey = getRequestIdempotencyKey(req);
-  const { result, replayed } = await runIdempotent({
-    endpoint: IDEMPOTENCY_ENDPOINTS.GOVERNANCE_CHECK,
-    idempotencyKey,
-    payload: {
-      actionId,
-      actorId: user.userId,
-      actorRole: user.role,
-      expectedVersion: input.expectedVersion,
-      period,
-    },
-    createdBy: user.userId,
-    entityType: 'governance_action',
-    create: (tx) => checkSalaryPeriodAdjustment({
-      period,
-      actionId,
-      actorId: user.userId,
-      actorRole: user.role,
-      expectedVersion: input.expectedVersion,
-      transaction: tx,
-    }),
-  });
-  res.json(idempotencyKey ? { ...result, replayed } : result);
-}));
-
-router.post('/periods/:period/adjustments/:actionId/approve', requireRoles(Role.MANAGER, Role.ADMIN, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
-  const input = governanceActionVersionSchema.parse(req.body);
-  const user = getUser(req);
-  const period = String(req.params.period);
-  const actionId = parseGovernanceActionId(String(req.params.actionId));
-  const idempotencyKey = getRequestIdempotencyKey(req);
-  const { result, replayed } = await runIdempotent({
-    endpoint: IDEMPOTENCY_ENDPOINTS.GOVERNANCE_APPROVE,
-    idempotencyKey,
-    payload: {
-      actionId,
-      actorId: user.userId,
-      actorRole: user.role,
-      expectedVersion: input.expectedVersion,
-      period,
-    },
-    createdBy: user.userId,
-    entityType: 'governance_action',
-    create: (tx) => approveSalaryPeriodAdjustment({
-      period,
-      actionId,
-      actorId: user.userId,
-      actorRole: user.role,
-      expectedVersion: input.expectedVersion,
-      transaction: tx,
-    }),
-  });
-  res.json(idempotencyKey ? { ...result, replayed } : result);
 }));
 
 // GET /api/salary/:driverId/:year/:month — full salary computation for one driver
@@ -722,21 +431,6 @@ router.put('/:driverId/:year/:month/workdays', requireRoles(Role.MANAGER, Role.A
           `Kỳ lương ${closedLock.periodKey} đã khóa. Sau khi chốt chỉ được xử lý bằng điều chỉnh bổ sung, không sửa trực tiếp ngày công cũ.`,
         );
       }
-      const [pendingConfirmation] = await tx.select({ id: s.governanceActions.id })
-        .from(s.governanceActions)
-        .where(and(
-          eq(s.governanceActions.subjectType, 'SALARY_CONFIRMATION'),
-          eq(s.governanceActions.subjectKey, toSalaryConfirmationSubjectKey(driverId, year, month)),
-          eq(s.governanceActions.actionKind, 'SALARY_CONFIRMATION'),
-          inArray(s.governanceActions.status, SALARY_CONFIRMATION_ACTIVE_STATUSES),
-        ))
-        .limit(1);
-      if (pendingConfirmation) {
-        throw new ApiError(
-          409,
-          'Đang có yêu cầu xác nhận bảng công và lương chờ xử lý. Hãy hoàn tất hoặc hủy yêu cầu trước khi sửa ngày công.',
-        );
-      }
       const results = await batchUpsertWorkDays(driverId, items, actor.userId, tx);
       const salary = await computeSalary(driverId, year, month, undefined, tx);
       return { results, salary };
@@ -762,88 +456,18 @@ router.post('/:driverId/:year/:month/confirm', requireRoles(Role.ADMIN, Role.ACC
     payload: { actorId: actor.userId, driverId, month, year },
     createdBy: actor.userId,
     entityType: 'governance_action',
-    create: (tx) => autoApplySalaryGovernance(
-    () => requestSalaryConfirmation({
-      driverId,
-      year,
-      month,
+    create: (tx) => autoApplyGovernanceAction({
+      make: (tx) => requestSalaryConfirmation({
+        driverId,
+        year,
+        month,
+        actorId: actor.userId,
+        actorRole: actor.role,
+        transaction: tx,
+      }),
+      apply: applySalaryConfirmationAction,
       actorId: actor.userId,
       actorRole: actor.role,
-      transaction: tx,
-    }),
-    (actionId, expectedVersion) => checkSalaryConfirmation({driverId, year, month, actionId, actorId: actor.userId, actorRole: actor.role, expectedVersion, transaction: tx}),
-    (actionId, expectedVersion) => approveSalaryConfirmation({driverId, year, month, actionId, actorId: actor.userId, actorRole: actor.role, expectedVersion, transaction: tx}),
-  ),
-  });
-  res.json(idempotencyKey ? { ...result, replayed } : result);
-}));
-
-router.post('/:driverId/:year/:month/confirm-actions/:actionId/check', requireRoles(Role.ADMIN, Role.ACCOUNTANT, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
-  const driverId = parseInt(String(req.params.driverId), 10);
-  const year = parseInt(String(req.params.year), 10);
-  const month = parseInt(String(req.params.month), 10);
-  const input = governanceActionVersionSchema.parse(req.body);
-  const actor = getUser(req);
-  const idempotencyKey = getRequestIdempotencyKey(req);
-  const actionId = parseGovernanceActionId(String(req.params.actionId));
-  const { result, replayed } = await runIdempotent({
-    endpoint: IDEMPOTENCY_ENDPOINTS.GOVERNANCE_CHECK,
-    idempotencyKey,
-    payload: {
-      actionId,
-      actorId: actor.userId,
-      actorRole: actor.role,
-      driverId,
-      expectedVersion: input.expectedVersion,
-      month,
-      year,
-    },
-    createdBy: actor.userId,
-    entityType: 'governance_action',
-    create: async (tx) => checkSalaryConfirmation({
-      driverId,
-      year,
-      month,
-      actionId,
-      actorId: actor.userId,
-      actorRole: actor.role,
-      expectedVersion: input.expectedVersion,
-      transaction: tx,
-    }),
-  });
-  res.json(idempotencyKey ? { ...result, replayed } : result);
-}));
-
-router.post('/:driverId/:year/:month/confirm-actions/:actionId/approve', requireRoles(Role.ADMIN, Role.ACCOUNTANT, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
-  const driverId = parseInt(String(req.params.driverId), 10);
-  const year = parseInt(String(req.params.year), 10);
-  const month = parseInt(String(req.params.month), 10);
-  const input = governanceActionVersionSchema.parse(req.body);
-  const actor = getUser(req);
-  const idempotencyKey = getRequestIdempotencyKey(req);
-  const actionId = parseGovernanceActionId(String(req.params.actionId));
-  const { result, replayed } = await runIdempotent({
-    endpoint: IDEMPOTENCY_ENDPOINTS.GOVERNANCE_APPROVE,
-    idempotencyKey,
-    payload: {
-      actionId,
-      actorId: actor.userId,
-      actorRole: actor.role,
-      driverId,
-      expectedVersion: input.expectedVersion,
-      month,
-      year,
-    },
-    createdBy: actor.userId,
-    entityType: 'governance_action',
-    create: async (tx) => approveSalaryConfirmation({
-      driverId,
-      year,
-      month,
-      actionId,
-      actorId: actor.userId,
-      actorRole: actor.role,
-      expectedVersion: input.expectedVersion,
       transaction: tx,
     }),
   });
@@ -868,89 +492,19 @@ router.post('/:driverId/:year/:month/unconfirm', requireRoles(Role.ADMIN, Role.A
     payload: { actorId: actor.userId, driverId, month, reason, year },
     createdBy: actor.userId,
     entityType: 'governance_action',
-    create: (tx) => autoApplySalaryGovernance(
-    () => requestSalaryReopen({
-      driverId,
-      year,
-      month,
+    create: (tx) => autoApplyGovernanceAction({
+      make: (tx) => requestSalaryReopen({
+        driverId,
+        year,
+        month,
+        actorId: actor.userId,
+        actorRole: actor.role,
+        reason,
+        transaction: tx,
+      }),
+      apply: applySalaryReopenAction,
       actorId: actor.userId,
       actorRole: actor.role,
-      reason,
-      transaction: tx,
-    }),
-    (actionId, expectedVersion) => checkSalaryReopen({driverId, year, month, actionId, actorId: actor.userId, actorRole: actor.role, expectedVersion, transaction: tx}),
-    (actionId, expectedVersion) => approveSalaryReopen({driverId, year, month, actionId, actorId: actor.userId, actorRole: actor.role, expectedVersion, transaction: tx}),
-  ),
-  });
-  res.json(idempotencyKey ? { ...result, replayed } : result);
-}));
-
-router.post('/:driverId/:year/:month/unconfirm-actions/:actionId/check', requireRoles(Role.ADMIN, Role.ACCOUNTANT, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
-  const driverId = parseInt(String(req.params.driverId), 10);
-  const year = parseInt(String(req.params.year), 10);
-  const month = parseInt(String(req.params.month), 10);
-  const input = governanceActionVersionSchema.parse(req.body);
-  const actor = getUser(req);
-  const idempotencyKey = getRequestIdempotencyKey(req);
-  const actionId = parseGovernanceActionId(String(req.params.actionId));
-  const { result, replayed } = await runIdempotent({
-    endpoint: IDEMPOTENCY_ENDPOINTS.GOVERNANCE_CHECK,
-    idempotencyKey,
-    payload: {
-      actionId,
-      actorId: actor.userId,
-      actorRole: actor.role,
-      driverId,
-      expectedVersion: input.expectedVersion,
-      month,
-      year,
-    },
-    createdBy: actor.userId,
-    entityType: 'governance_action',
-    create: async (tx) => checkSalaryReopen({
-      driverId,
-      year,
-      month,
-      actionId,
-      actorId: actor.userId,
-      actorRole: actor.role,
-      expectedVersion: input.expectedVersion,
-      transaction: tx,
-    }),
-  });
-  res.json(idempotencyKey ? { ...result, replayed } : result);
-}));
-
-router.post('/:driverId/:year/:month/unconfirm-actions/:actionId/approve', requireRoles(Role.ADMIN, Role.ACCOUNTANT, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
-  const driverId = parseInt(String(req.params.driverId), 10);
-  const year = parseInt(String(req.params.year), 10);
-  const month = parseInt(String(req.params.month), 10);
-  const input = governanceActionVersionSchema.parse(req.body);
-  const actor = getUser(req);
-  const idempotencyKey = getRequestIdempotencyKey(req);
-  const actionId = parseGovernanceActionId(String(req.params.actionId));
-  const { result, replayed } = await runIdempotent({
-    endpoint: IDEMPOTENCY_ENDPOINTS.GOVERNANCE_APPROVE,
-    idempotencyKey,
-    payload: {
-      actionId,
-      actorId: actor.userId,
-      actorRole: actor.role,
-      driverId,
-      expectedVersion: input.expectedVersion,
-      month,
-      year,
-    },
-    createdBy: actor.userId,
-    entityType: 'governance_action',
-    create: async (tx) => approveSalaryReopen({
-      driverId,
-      year,
-      month,
-      actionId,
-      actorId: actor.userId,
-      actorRole: actor.role,
-      expectedVersion: input.expectedVersion,
       transaction: tx,
     }),
   });

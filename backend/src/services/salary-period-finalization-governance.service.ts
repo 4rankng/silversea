@@ -1,4 +1,3 @@
-import { FINANCIAL_ROLES } from '@tingting/shared';
 import { eq } from 'drizzle-orm';
 
 
@@ -6,8 +5,10 @@ import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import {
-  approveGovernanceActionWithAdapter,
-  checkGovernanceAction,
+  buildGovernanceAction,
+  type GovernanceActionRow,
+  type GovernanceApplyAdapter,
+  type GovernanceApplyResult,
 } from './governance-action-core.service';
 import { assertCanMakeGovernanceAction } from './governance-policy';
 import {
@@ -40,32 +41,25 @@ function operationLabel(operation: SalaryPeriodFinalizationOperation): string {
     : 'hạch toán chính thức kỳ lương';
 }
 
-async function loadBoundAction(
-  tx: Tx,
-  actionId: number,
-  period: string,
+function assertFinalizationActionBinding(
+  action: GovernanceActionRow,
   operation: SalaryPeriodFinalizationOperation,
-) {
-  const [action] = await tx.select()
-    .from(s.governanceActions)
-    .where(eq(s.governanceActions.id, actionId))
-    .limit(1)
-    .for('update');
-  const after = action?.afterSnapshot as Record<string, unknown> | null | undefined;
+): string {
+  const after = action.afterSnapshot as Record<string, unknown> | null;
+  const period = typeof after?.period === 'string' ? after.period : null;
   if (
-    !action
-    || action.subjectType !== SUBJECT_TYPE
+    action.subjectType !== SUBJECT_TYPE
     || action.subjectKey !== period
     || action.actionKind !== ACTION_KIND
     || after?.operation !== operation
-    || after?.period !== period
+    || period == null
   ) {
     throw new ApiError(
       404,
-      `Không tìm thấy yêu cầu ${operationLabel(operation)} của kỳ ${period}`,
+      `Không tìm thấy yêu cầu ${operationLabel(operation)} của kỳ ${period ?? 'không xác định'}`,
     );
   }
-  return action;
+  return period;
 }
 
 export async function requestSalaryPeriodFinalization(input: {
@@ -113,7 +107,7 @@ export async function requestSalaryPeriodFinalization(input: {
       }
     }
 
-    const [action] = await tx.insert(s.governanceActions).values({
+    return buildGovernanceAction({
       subjectType: SUBJECT_TYPE,
       subjectKey: input.period,
       actionKind: ACTION_KIND,
@@ -132,95 +126,54 @@ export async function requestSalaryPeriodFinalization(input: {
       deltaSnapshot: null,
       makerId: input.actorId,
       makerRole: input.actorRole,
-    }).returning();
-    return action;
-  };
-  return runInTx(input.transaction, execute);
-}
-
-export async function checkSalaryPeriodFinalization(input: {
-  period: string;
-  operation: SalaryPeriodFinalizationOperation;
-  actionId: number;
-  actorId: number;
-  actorRole: string;
-  expectedVersion: number;
-  transaction?: Tx;
-}) {
-  validatePeriod(input.period);
-  validateExpectedVersion(input.expectedVersion);
-  const execute = async (tx: Tx) => {
-    await loadBoundAction(tx, input.actionId, input.period, input.operation);
-    return checkGovernanceAction({
-      actionId: input.actionId,
-      checkerId: input.actorId,
-      checkerRole: input.actorRole,
-      expectedVersion: input.expectedVersion,
-      transaction: tx,
     });
   };
   return runInTx(input.transaction, execute);
 }
 
-export async function approveSalaryPeriodFinalization(input: {
-  period: string;
-  operation: SalaryPeriodFinalizationOperation;
-  actionId: number;
-  actorId: number;
-  actorRole: string;
-  expectedVersion: number;
-  transaction?: Tx;
-}) {
-  if (!(FINANCIAL_ROLES as readonly string[]).includes(input.actorRole)) {
-    throw new ApiError(403, `Bạn không có quyền phê duyệt ${operationLabel(input.operation)}`);
+/**
+ * Direct-apply adapter for the SALARY_PERIOD_CLOSE finalization operations
+ * (payslip issue / official posting), dispatched on afterSnapshot.operation.
+ * The approve capability (PERIOD_CLOSE_APPROVE) is enforced by the check +
+ * approve policy stage.
+ */
+export const applySalaryPeriodFinalizationAction: GovernanceApplyAdapter = async (
+  applyTx,
+  action,
+): Promise<GovernanceApplyResult> => {
+  const after = action.afterSnapshot as Record<string, unknown> | null;
+  const operation: SalaryPeriodFinalizationOperation | null =
+    after?.operation === 'ISSUE_PAYSLIPS' || after?.operation === 'POST_OFFICIAL'
+      ? after.operation
+      : null;
+  const period = operation == null ? null : assertFinalizationActionBinding(action, operation);
+  if (operation == null || period == null) {
+    throw new ApiError(404, 'Không tìm thấy yêu cầu phát hành phiếu lương hoặc hạch toán chính thức');
   }
-  validatePeriod(input.period);
-  validateExpectedVersion(input.expectedVersion);
-
-  const execute = async (tx: Tx) => {
-    await loadBoundAction(tx, input.actionId, input.period, input.operation);
-    return approveGovernanceActionWithAdapter({
-      actionId: input.actionId,
-      approverId: input.actorId,
-      approverRole: input.actorRole,
-      expectedVersion: input.expectedVersion,
-      transaction: tx,
-      apply: async (applyTx, action) => {
-        const bounded = await loadBoundAction(
-          applyTx,
-          action.id,
-          input.period,
-          input.operation,
-        );
-        const after = bounded.afterSnapshot as Record<string, unknown>;
-        const result = input.operation === 'ISSUE_PAYSLIPS'
-          ? await issueSalaryPeriodPayslips({
-              period: input.period,
-              actorId: input.actorId,
-              actorRole: input.actorRole,
-              expectedVersion: bounded.originalVersion,
-              note: typeof after.note === 'string' ? after.note : null,
-              transaction: applyTx,
-            })
-          : await markSalaryPeriodOfficialPosting({
-              period: input.period,
-              actorId: input.actorId,
-              actorRole: input.actorRole,
-              expectedVersion: bounded.originalVersion,
-              note: typeof after.note === 'string' ? after.note : null,
-              transaction: applyTx,
-            });
-        return {
-          ledgerEntryId: null,
-          applicationResult: {
-            operation: input.operation,
-            period: input.period,
-            closeId: result.closeId,
-            resultingVersion: result.version,
-          },
-        };
-      },
-    });
+  const result = operation === 'ISSUE_PAYSLIPS'
+    ? await issueSalaryPeriodPayslips({
+        period,
+        actorId: action.approverId ?? action.makerId,
+        actorRole: action.approverRole ?? action.makerRole,
+        expectedVersion: action.originalVersion,
+        note: typeof after?.note === 'string' ? after.note : null,
+        transaction: applyTx,
+      })
+    : await markSalaryPeriodOfficialPosting({
+        period,
+        actorId: action.approverId ?? action.makerId,
+        actorRole: action.approverRole ?? action.makerRole,
+        expectedVersion: action.originalVersion,
+        note: typeof after?.note === 'string' ? after.note : null,
+        transaction: applyTx,
+      });
+  return {
+    ledgerEntryId: null,
+    applicationResult: {
+      operation,
+      period,
+      closeId: result.closeId,
+      resultingVersion: result.version,
+    },
   };
-  return runInTx(input.transaction, execute);
-}
+};

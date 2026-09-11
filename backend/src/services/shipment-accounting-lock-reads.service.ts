@@ -2,7 +2,7 @@
 // (single + bounded list projection) and the aggregate write guards.
 // Extracted from shipment-accounting-lock.service.ts verbatim (pure code
 // movement).
-import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
@@ -129,31 +129,29 @@ export async function getShipmentFinanceConfirmationSummaries(
   const executor = tx ?? db;
   const [confirmationRows, reopenRows, shipmentRows] = await Promise.all([
     executor.select({
-      action: s.governanceActions,
+      action: s.shipmentFinanceActions,
       fullName: s.users.fullName,
       username: s.users.username,
-    }).from(s.governanceActions)
-      .leftJoin(s.users, eq(s.users.id, s.governanceActions.approverId))
+    }).from(s.shipmentFinanceActions)
+      .leftJoin(s.users, eq(s.users.id, s.shipmentFinanceActions.approverId))
       .where(and(
-        eq(s.governanceActions.subjectType, 'SHIPMENT'),
-        inArray(s.governanceActions.subjectId, ids),
-        eq(s.governanceActions.actionKind, SHIPMENT_COST_CONFIRMATION_KIND),
-        eq(s.governanceActions.status, 'APPROVED'),
-        sql`${s.governanceActions.appliedAt} is not null`,
+        inArray(s.shipmentFinanceActions.shipmentId, ids),
+        eq(s.shipmentFinanceActions.actionKind, SHIPMENT_COST_CONFIRMATION_KIND),
+        eq(s.shipmentFinanceActions.status, 'APPROVED'),
+        isNotNull(s.shipmentFinanceActions.appliedAt),
       ))
-      .orderBy(desc(s.governanceActions.appliedAt), desc(s.governanceActions.id)),
+      .orderBy(desc(s.shipmentFinanceActions.appliedAt), desc(s.shipmentFinanceActions.id)),
     executor.select({
-      shipmentId: s.governanceActions.subjectId,
-      appliedAt: s.governanceActions.appliedAt,
-    }).from(s.governanceActions)
+      shipmentId: s.shipmentFinanceActions.shipmentId,
+      appliedAt: s.shipmentFinanceActions.appliedAt,
+    }).from(s.shipmentFinanceActions)
       .where(and(
-        eq(s.governanceActions.subjectType, 'SHIPMENT'),
-        inArray(s.governanceActions.subjectId, ids),
-        eq(s.governanceActions.actionKind, SHIPMENT_REOPEN_REQUEST_KIND),
-        eq(s.governanceActions.status, 'APPROVED'),
-        sql`${s.governanceActions.appliedAt} is not null`,
+        inArray(s.shipmentFinanceActions.shipmentId, ids),
+        eq(s.shipmentFinanceActions.actionKind, SHIPMENT_REOPEN_REQUEST_KIND),
+        eq(s.shipmentFinanceActions.status, 'APPROVED'),
+        isNotNull(s.shipmentFinanceActions.appliedAt),
       ))
-      .orderBy(desc(s.governanceActions.appliedAt), desc(s.governanceActions.id)),
+      .orderBy(desc(s.shipmentFinanceActions.appliedAt), desc(s.shipmentFinanceActions.id)),
     executor.select({ id: s.shipments.id, version: s.shipments.version })
       .from(s.shipments)
       .where(and(inArray(s.shipments.id, ids), isNull(s.shipments.deletedAt))),
@@ -161,8 +159,8 @@ export async function getShipmentFinanceConfirmationSummaries(
 
   const latestConfirmationByShipment = new Map<number, GovernanceRow & { approverName: string | null }>();
   for (const row of confirmationRows) {
-    if (row.action.subjectId == null || latestConfirmationByShipment.has(row.action.subjectId)) continue;
-    latestConfirmationByShipment.set(row.action.subjectId, {
+    if (latestConfirmationByShipment.has(row.action.shipmentId)) continue;
+    latestConfirmationByShipment.set(row.action.shipmentId, {
       ...row.action,
       approverName: nameOrUsername(row),
     });

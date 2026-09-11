@@ -1,6 +1,6 @@
 import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { TxnType } from '@tingting/shared';
-import { db } from '../db';
+import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import { LedgerService } from './ledger.service';
@@ -13,7 +13,11 @@ import {
 } from './billing-document.service';
 import { transitionDebitNoteStatus } from './debit-note-lifecycle.service';
 import { assertCanMakeGovernanceAction } from './governance-policy';
-import type { GovernanceActionRow, GovernanceApplyResult } from './governance-transition.service';
+import {
+  buildGovernanceAction,
+  type GovernanceActionRow,
+  type GovernanceApplyResult,
+} from './governance-action-core.service';
 import type { PaymentDatePolicy } from './business-calendar.service';
 import { lockTripFinancialAuthority } from './trip-financial-authority-lock.service';
 import {
@@ -234,34 +238,12 @@ async function captureIssueSourceSnapshots(
   });
 }
 
-async function assertNoActiveIssueAction(
-  tx: Tx,
-  documentId: number,
-  originalVersion: number,
-): Promise<void> {
-  const [existing] = await tx.select({ id: s.governanceActions.id })
-    .from(s.governanceActions)
-    .where(and(
-      eq(s.governanceActions.subjectType, 'BILLING_DOCUMENT'),
-      eq(s.governanceActions.subjectId, documentId),
-      eq(s.governanceActions.actionKind, 'DEBIT_NOTE_ISSUE'),
-      eq(s.governanceActions.originalVersion, originalVersion),
-      inArray(s.governanceActions.status, ['PENDING_CHECK', 'PENDING_APPROVAL', 'RETURNED_FOR_EVIDENCE']),
-    ))
-    .limit(1);
-  if (existing) {
-    throw new ApiError(
-      409,
-      'Giấy báo nợ này đã có yêu cầu phát hành đang chờ xử lý ở cùng phiên bản.',
-    );
-  }
-}
-
 export async function requestBillingDocumentAdjustment(input: {
   documentId: number;
   reason: string;
   makerId: number;
   makerRole: string;
+  transaction?: Tx;
 }) {
   assertCanMakeGovernanceAction('DEBIT_NOTE_ADJUSTMENT', input.makerRole);
   const normalizedReason = input.reason.trim();
@@ -269,7 +251,7 @@ export async function requestBillingDocumentAdjustment(input: {
     throw new ApiError(400, 'Lý do điều chỉnh là bắt buộc');
   }
 
-  return db.transaction(async (tx) => {
+  const execute = async (tx: Tx) => {
     const [document] = await tx.select()
       .from(s.billingDocuments)
       .where(and(eq(s.billingDocuments.id, input.documentId), isNull(s.billingDocuments.deletedAt)))
@@ -289,7 +271,7 @@ export async function requestBillingDocumentAdjustment(input: {
       throw new ApiError(409, 'Không có chênh lệch nguồn cần lập điều chỉnh');
     }
 
-    const [action] = await tx.insert(s.governanceActions).values({
+    return buildGovernanceAction({
       subjectType: 'BILLING_DOCUMENT',
       subjectId: document.id,
       actionKind: 'DEBIT_NOTE_ADJUSTMENT',
@@ -311,17 +293,24 @@ export async function requestBillingDocumentAdjustment(input: {
       },
       makerId: input.makerId,
       makerRole: input.makerRole,
-    }).returning();
-    return action;
-  });
+    });
+  };
+  return runInTx(input.transaction, execute);
 }
 
+/**
+ * 2026-09-11 (maker-checker removal): builds the TRANSIENT governed action for
+ * a debit-note issue; the route wraps it in autoApplyGovernanceAction so the
+ * issue applies in the same request/transaction. Period-lock and source-drift
+ * invariants run at build time exactly as before.
+ */
 export async function requestBillingDocumentIssue(input: {
   documentId: number;
   expectedVersion: number;
   reason: string;
   makerId: number;
   makerRole: string;
+  transaction?: Tx;
 }) {
   assertCanMakeGovernanceAction('DEBIT_NOTE_ISSUE', input.makerRole);
   const normalizedReason = input.reason.trim();
@@ -332,7 +321,7 @@ export async function requestBillingDocumentIssue(input: {
     throw new ApiError(400, 'expectedVersion không hợp lệ');
   }
 
-  return db.transaction(async (tx) => {
+  const execute = async (tx: Tx) => {
     const [document] = await tx.select()
       .from(s.billingDocuments)
       .where(and(eq(s.billingDocuments.id, input.documentId), isNull(s.billingDocuments.deletedAt)))
@@ -372,11 +361,10 @@ export async function requestBillingDocumentIssue(input: {
       lines: lines as unknown as import('@tingting/shared').BillingDocumentLine[],
       actorUserId: input.makerId,
     });
-    await assertNoActiveIssueAction(tx, document.id, currentVersion);
 
     const originalPeriodLock = await getClosedPeriodLock(tx, authority);
     const lineSnapshots = await captureIssueSourceSnapshots(tx, lines);
-    const [action] = await tx.insert(s.governanceActions).values({
+    return buildGovernanceAction({
       subjectType: 'BILLING_DOCUMENT',
       subjectId: document.id,
       actionKind: 'DEBIT_NOTE_ISSUE',
@@ -406,9 +394,9 @@ export async function requestBillingDocumentIssue(input: {
       },
       makerId: input.makerId,
       makerRole: input.makerRole,
-    }).returning();
-    return action;
-  });
+    });
+  };
+  return runInTx(input.transaction, execute);
 }
 
 export async function applyBillingDocumentGovernanceAction(

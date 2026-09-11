@@ -18,8 +18,6 @@ import { casbinAuthz } from '../middleware/casbin';
 import { globalErrorHandler } from '../middleware/errorHandler';
 import { disconnectRedis } from '../lib/redis';
 import paymentsRoutes from '../routes/financial/payments.routes';
-import { checkGovernanceAction as checkGovernanceActionService } from '../services/governance-transition.service';
-import { approveGovernanceAction as approveGovernanceActionService } from '../services/adjustment-governance.service';
 import penaltiesRoutes from '../routes/financial/penalties.routes';
 import { ApiError } from '../errors';
 import { LedgerService } from '../services/ledger.service';
@@ -37,7 +35,6 @@ const createdSupplierIds: number[] = [];
 const createdCarrierIds: number[] = [];
 const createdDriverIds: number[] = [];
 const createdPenaltyIds: number[] = [];
-const createdGovernanceActionIds: number[] = [];
 const createdNotificationIds: number[] = [];
 const createdAuditLogIds: number[] = [];
 
@@ -192,11 +189,9 @@ async function postJson(
 }
 
 function trackGovernanceActionId(data: Record<string, unknown>) {
-  const actionId = Number(data.id);
-  if (Number.isInteger(actionId) && actionId > 0 && !createdGovernanceActionIds.includes(actionId)) {
-    createdGovernanceActionIds.push(actionId);
-  }
-  return actionId;
+  // Transient direct-money records carry per-process synthetic ids; there is
+  // no governance row to track or clean up anymore.
+  return Number(data.id);
 }
 
 async function fetchIdempotencyCount(endpoint: string, key: string) {
@@ -345,66 +340,6 @@ async function fetchPenaltyCancelAudit(reason: string) {
   return rows;
 }
 
-// Governance endpoints removed: these helpers drive the SERVICE layer with
-// the same actor roles, returning the {status, data} envelope the tests use.
-function serviceEnvelope(fn: () => Promise<Record<string, unknown>>): Promise<{ status: number; data: Record<string, unknown> }> {
-  return fn().then(
-    (row) => ({ status: 200, data: row }),
-    (error) => {
-      if (error instanceof ApiError) return { status: error.statusCode, data: { message: error.message } };
-      throw error;
-    },
-  );
-}
-
-function actorFor(actor: 'maker' | 'checker' | 'approver') {
-  return actor === 'checker' ? checkerActor : actor === 'approver' ? approverActor : makerActor;
-}
-
-async function checkGovernanceAction(actionId: number, expectedVersion: number, actor: 'maker' | 'checker' | 'approver' = 'checker') {
-  const a = actorFor(actor);
-  return serviceEnvelope(() => checkGovernanceActionService({
-    actionId,
-    checkerId: a.id,
-    checkerRole: a.role,
-    expectedVersion,
-  }));
-}
-
-async function approveGovernanceAction(actionId: number, expectedVersion: number, actor: 'maker' | 'checker' | 'approver' = 'approver') {
-  const a = actorFor(actor);
-  return serviceEnvelope(() => approveGovernanceActionService({
-    actionId,
-    approverId: a.id,
-    approverRole: a.role,
-    expectedVersion,
-  }));
-}
-
-async function advanceGovernanceAction(args: {
-  actionId: number;
-  expectedVersion: number;
-  checkerActor?: 'maker' | 'checker' | 'approver';
-  approverActor?: 'maker' | 'checker' | 'approver';
-}) {
-  const checked = await checkGovernanceAction(
-    args.actionId,
-    args.expectedVersion,
-    args.checkerActor ?? 'checker',
-  );
-  assert.equal(checked.status, 200);
-  assert.equal(checked.data.status, 'PENDING_APPROVAL');
-
-  const approved = await approveGovernanceAction(
-    args.actionId,
-    Number(checked.data.version),
-    args.approverActor ?? 'approver',
-  );
-  assert.equal(approved.status, 200);
-  assert.equal(approved.data.status, 'APPROVED');
-  return { checked, approved };
-}
-
 before(async () => {
   initNotificationService();
   initAuditService();
@@ -452,9 +387,6 @@ after(async () => {
     }
     if (createdUserIds.length > 0) {
       await db.delete(s.auditLogs).where(inArray(s.auditLogs.userId, createdUserIds));
-    }
-    if (createdGovernanceActionIds.length > 0) {
-      await db.delete(s.governanceActions).where(inArray(s.governanceActions.id, createdGovernanceActionIds));
     }
     if (createdNotificationIds.length > 0 || createdPenaltyIds.length > 0) {
       const notificationClauses = [];
@@ -868,7 +800,8 @@ describe('Q23 direct-money idempotency', () => {
     // 2026-09-10 (phê duyệt removed): the penalty applies immediately via auto-apply.
     assert.equal(await fetchPenaltyCount(reason), 1);
     assert.equal(await fetchIdempotencyCount(IDEMPOTENCY_ENDPOINTS.PENALTIES_CREATE, key), 1);
-    const penaltyId = Number(first.data.subjectId);
+    const penaltyResult = (first.data.applicationResult ?? {}) as Record<string, unknown>;
+    const penaltyId = Number(penaltyResult.penaltyId);
     createdPenaltyIds.push(penaltyId);
     const ledgerCountsAfterApply = await fetchPenaltyLedgerCounts(penaltyId, driver.id);
     assert.equal(ledgerCountsAfterApply.penaltyRows, 1);

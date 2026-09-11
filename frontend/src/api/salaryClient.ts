@@ -1,11 +1,5 @@
 import { api } from '../lib/api';
 import { toQuery } from '../lib/http/query';
-import type { PendingGovernanceResponse } from '../lib/governance';
-import type {
-  GovernanceActionKind,
-  GovernanceActionStatus,
-  GovernanceAllowedAction,
-} from '@tingting/shared';
 import { SALARY, CONFIG } from '@tingting/shared';
 
 export interface WorkDayRecord {
@@ -93,73 +87,29 @@ export interface SalaryPeriodLifecycle {
 }
 
 export interface SalaryPeriodAdjustmentItem {
-  actionId: number;
-  adjustmentId: number | null;
-  version: number;
+  adjustmentId: number;
   sourcePeriod: string;
   targetPeriod: string;
   driverId: number;
   driverName: string;
   amount: number;
   reason: string;
-  status: 'PENDING_CHECK' | 'PENDING_APPROVAL' | 'APPROVED';
-  makerId: number;
-  makerName: string | null;
-  checkerId: number | null;
-  checkerName: string | null;
-  approverId: number | null;
-  approverName: string | null;
+  approvedBy: number;
+  approvedByName: string | null;
   createdAt: string;
-  approvedAt: string | null;
+  approvedAt: string;
   relationship: 'SOURCE' | 'TARGET';
 }
 
-export interface SalaryPeriodGovernanceAction {
+/** Applied transient governance record returned by salary create endpoints. */
+export interface SalaryGovernanceReceipt {
   id: number;
-  subjectType: 'SALARY_PERIOD';
-  subjectId: number | null;
-  subjectKey: string | null;
-  actionKind: Extract<GovernanceActionKind, 'SALARY_PERIOD_CLOSE' | 'SALARY_PERIOD_REOPEN'>;
-  status: GovernanceActionStatus;
+  actionKind: string;
+  status: 'APPROVED';
   version: number;
   reason: string;
-  makerId: number;
-  makerRole: string | null;
-  checkerId: number | null;
-  checkerRole: string | null;
-  approverId: number | null;
-  approverRole: string | null;
-  createdAt: string;
-  checkedAt: string | null;
-  approvedAt: string | null;
-  beforeSnapshot?: unknown;
-  afterSnapshot?: unknown;
-  deltaSnapshot?: unknown;
-  allowedActions: GovernanceAllowedAction[];
-}
-
-export interface SalaryConfirmationGovernanceAction {
-  id: number;
-  subjectType: 'SALARY_CONFIRMATION';
-  subjectId: number | null;
-  subjectKey: string | null;
-  actionKind: Extract<GovernanceActionKind, 'SALARY_CONFIRMATION' | 'SALARY_REOPEN'>;
-  status: GovernanceActionStatus;
-  version: number;
-  reason: string;
-  makerId: number;
-  makerRole: string | null;
-  checkerId: number | null;
-  checkerRole: string | null;
-  approverId: number | null;
-  approverRole: string | null;
-  createdAt: string;
-  checkedAt: string | null;
-  approvedAt: string | null;
-  beforeSnapshot?: unknown;
-  afterSnapshot?: unknown;
-  deltaSnapshot?: unknown;
-  allowedActions?: GovernanceAllowedAction[];
+  appliedAt: string | null;
+  applicationResult?: Record<string, unknown> | null;
 }
 
 export interface SalaryPeriodOverview {
@@ -193,133 +143,30 @@ export const salaryClient = {
 
   // Confirm salary period (DRAFT → CONFIRMED)
   confirmSalary: (driverId: number, year: number, month: number) =>
-    api.post<SalaryConfirmationGovernanceAction>(
+    api.post<SalaryGovernanceReceipt>(
       SALARY.CONFIRM(driverId, year, month), {}
     ),
 
   // Reopen a confirmed salary period for editing (CONFIRMED → DRAFT)
   unconfirmSalary: (driverId: number, year: number, month: number, reason: string) =>
-    api.post<SalaryConfirmationGovernanceAction>(
+    api.post<SalaryGovernanceReceipt>(
       SALARY.UNCONFIRM(driverId, year, month), { reason }
-    ),
-
-  listDriverGovernanceActions: async (driverId: number, year: number, month: number) => {
-    const subjectKey = `${driverId}:${year}-${String(month).padStart(2, '0')}`;
-    const [confirmActions, reopenActions] = await Promise.all([
-      api.get<SalaryConfirmationGovernanceAction[]>(`/governance-actions${toQuery({
-        subjectType: 'SALARY_CONFIRMATION',
-        actionKind: 'SALARY_CONFIRMATION',
-        subjectKey,
-        limit: 100,
-      })}`),
-      api.get<SalaryConfirmationGovernanceAction[]>(`/governance-actions${toQuery({
-        subjectType: 'SALARY_CONFIRMATION',
-        actionKind: 'SALARY_REOPEN',
-        subjectKey,
-        limit: 100,
-      })}`),
-    ]);
-
-    return [...confirmActions, ...reopenActions]
-      .filter((action) => action.subjectKey === subjectKey)
-      .sort((left, right) => right.id - left.id);
-  },
-
-  checkConfirmSalary: (driverId: number, year: number, month: number, actionId: number, expectedVersion: number) =>
-    api.post<SalaryConfirmationGovernanceAction>(
-      `/salary/${driverId}/${year}/${month}/confirm-actions/${actionId}/check`,
-      { expectedVersion },
-    ),
-
-  approveConfirmSalary: (driverId: number, year: number, month: number, actionId: number, expectedVersion: number) =>
-    api.post<SalaryConfirmationGovernanceAction>(
-      `/salary/${driverId}/${year}/${month}/confirm-actions/${actionId}/approve`,
-      { expectedVersion },
-    ),
-
-  checkUnconfirmSalary: (driverId: number, year: number, month: number, actionId: number, expectedVersion: number) =>
-    api.post<SalaryConfirmationGovernanceAction>(
-      `/salary/${driverId}/${year}/${month}/unconfirm-actions/${actionId}/check`,
-      { expectedVersion },
-    ),
-
-  approveUnconfirmSalary: (driverId: number, year: number, month: number, actionId: number, expectedVersion: number) =>
-    api.post<SalaryConfirmationGovernanceAction>(
-      `/salary/${driverId}/${year}/${month}/unconfirm-actions/${actionId}/approve`,
-      { expectedVersion },
     ),
 
   getPeriodOverview: (period: string, driverId?: number | null) =>
     api.get<SalaryPeriodOverview>(`/salary/periods/${period}/overview${toQuery({ driverId: driverId ?? undefined })}`),
 
-  listPeriodGovernanceActions: async (period: string) => {
-    const [closeActions, reopenActions] = await Promise.all([
-      api.get<SalaryPeriodGovernanceAction[]>(`/governance-actions${toQuery({
-        subjectType: 'SALARY_PERIOD',
-        actionKind: 'SALARY_PERIOD_CLOSE',
-        subjectKey: period,
-        limit: 100,
-      })}`),
-      api.get<SalaryPeriodGovernanceAction[]>(`/governance-actions${toQuery({
-        subjectType: 'SALARY_PERIOD',
-        actionKind: 'SALARY_PERIOD_REOPEN',
-        subjectKey: period,
-        limit: 100,
-      })}`),
-    ]);
-
-    return [...closeActions, ...reopenActions]
-      .filter((action) => action.subjectKey === period)
-      .sort((left, right) => right.id - left.id);
-  },
-
   closePeriod: (period: string, note?: string | null) =>
-    api.post<SalaryPeriodGovernanceAction>(`/salary/periods/${period}/close`, { note: note ?? null }),
-
-  checkClosePeriod: (period: string, actionId: number, expectedVersion: number) =>
-    api.post<SalaryPeriodGovernanceAction>(`/salary/periods/${period}/close-actions/${actionId}/check`, { expectedVersion }),
-
-  approveClosePeriod: (period: string, actionId: number, expectedVersion: number) =>
-    api.post<SalaryPeriodGovernanceAction>(`/salary/periods/${period}/close-actions/${actionId}/approve`, { expectedVersion }),
+    api.post<SalaryGovernanceReceipt>(`/salary/periods/${period}/close`, { note: note ?? null }),
 
   reopenPeriod: (period: string, payload: { expectedVersion: number; reason: string }) =>
-    api.post<SalaryPeriodGovernanceAction>(`/salary/periods/${period}/reopen`, payload),
-
-  checkReopenPeriod: (period: string, actionId: number, expectedVersion: number) =>
-    api.post<SalaryPeriodGovernanceAction>(`/salary/periods/${period}/reopen-actions/${actionId}/check`, { expectedVersion }),
-
-  approveReopenPeriod: (period: string, actionId: number, expectedVersion: number) =>
-    api.post<SalaryPeriodGovernanceAction>(`/salary/periods/${period}/reopen-actions/${actionId}/approve`, { expectedVersion }),
+    api.post<SalaryGovernanceReceipt>(`/salary/periods/${period}/reopen`, payload),
 
   issuePayslips: (period: string, payload: { expectedVersion: number; note?: string | null }) =>
-    api.post<SalaryPeriodGovernanceAction>(`/salary/periods/${period}/issue`, payload),
+    api.post<SalaryGovernanceReceipt>(`/salary/periods/${period}/issue`, payload),
 
   postOfficial: (period: string, payload: { expectedVersion: number; note?: string | null }) =>
-    api.post<SalaryPeriodGovernanceAction>(`/salary/periods/${period}/post`, payload),
-
-  checkIssuePayslips: (period: string, actionId: number, expectedVersion: number) =>
-    api.post<SalaryPeriodGovernanceAction>(
-      `/salary/periods/${period}/issue-actions/${actionId}/check`,
-      { expectedVersion },
-    ),
-
-  approveIssuePayslips: (period: string, actionId: number, expectedVersion: number) =>
-    api.post<SalaryPeriodGovernanceAction>(
-      `/salary/periods/${period}/issue-actions/${actionId}/approve`,
-      { expectedVersion },
-    ),
-
-  checkPostOfficial: (period: string, actionId: number, expectedVersion: number) =>
-    api.post<SalaryPeriodGovernanceAction>(
-      `/salary/periods/${period}/post-actions/${actionId}/check`,
-      { expectedVersion },
-    ),
-
-  approvePostOfficial: (period: string, actionId: number, expectedVersion: number) =>
-    api.post<SalaryPeriodGovernanceAction>(
-      `/salary/periods/${period}/post-actions/${actionId}/approve`,
-      { expectedVersion },
-    ),
+    api.post<SalaryGovernanceReceipt>(`/salary/periods/${period}/post`, payload),
 
   requestPostCloseAdjustment: (period: string, payload: {
     driverId: number;
@@ -329,11 +176,6 @@ export const salaryClient = {
     expectedVersion: number;
   }) => api.post(`/salary/periods/${period}/adjustments`, payload),
 
-  checkPostCloseAdjustment: (period: string, actionId: number, expectedVersion: number) =>
-    api.post(`/salary/periods/${period}/adjustments/${actionId}/check`, { expectedVersion }),
-
-  approvePostCloseAdjustment: (period: string, actionId: number, expectedVersion: number) =>
-    api.post(`/salary/periods/${period}/adjustments/${actionId}/approve`, { expectedVersion }),
 };
 
 // ─── Salary Period Config ─────────────────────────────────────────
@@ -354,7 +196,7 @@ export interface SalaryPeriodRange {
 export const salaryPeriodConfigClient = {
   getDefault: () => api.get<SalaryPeriodDefault | null>(CONFIG.SALARY_PERIOD_DEFAULT),
   updateDefault: (defaultStartDay: number, defaultEndDay: number) =>
-    api.put<SalaryPeriodDefault | PendingGovernanceResponse>(
+    api.put<SalaryPeriodDefault>(
       CONFIG.SALARY_PERIOD_DEFAULT,
       { defaultStartDay, defaultEndDay },
     ),

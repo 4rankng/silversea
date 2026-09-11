@@ -62,10 +62,6 @@ after(async () => {
       inArray(s.photoGeotags.entityId, geotagEntityIds),
     ));
   }
-  if (createdGovernanceActionIds.length > 0) {
-    await db.delete(s.governanceActions)
-      .where(inArray(s.governanceActions.id, createdGovernanceActionIds));
-  }
   if (createdPartnerIds.length > 0) {
     await db.delete(s.partners).where(inArray(s.partners.id, createdPartnerIds));
   }

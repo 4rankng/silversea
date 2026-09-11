@@ -12,11 +12,10 @@ import {
   saveDocument,
 } from '../services/billing-document.service';
 import { assembleDisbursementsForPeriod } from '../services/disbursement-assembly.service';
-import {
-  approveGovernanceAction,
-  checkGovernanceAction,
-} from '../services/adjustment-governance.service';
-import { approveDirectMoneyGovernanceAction } from '../services/governance-transition.service';
+import { autoApplyGovernanceAction } from '../services/adjustment-governance.service';
+import { applyGovernanceActionDirect } from '../services/governance-action-core.service';
+import { applyBillingDocumentGovernanceAction } from '../services/billing-document-governance.service';
+import { applyDirectMoneyGovernanceAction } from '../services/governance-transition.service';
 import { requestBillingDocumentAdjustment } from '../services/billing-document-governance.service';
 import { transitionDebitNoteStatus } from '../services/debit-note-lifecycle.service';
 import {
@@ -51,7 +50,6 @@ const containerTypeIds: number[] = [];
 const tripIds: number[] = [];
 const tripFinancialPostingIds: number[] = [];
 const documentIds: number[] = [];
-const governanceActionIds: number[] = [];
 const receiptIds: string[] = [];
 const expenseIds: number[] = [];
 const expenseTypeIds: number[] = [];
@@ -87,7 +85,6 @@ after(async () => {
     await db.delete(s.paymentRefunds).where(inArray(s.paymentRefunds.paymentReceiptId, paymentReceiptIds));
     await db.delete(s.paymentReceipts).where(inArray(s.paymentReceipts.id, paymentReceiptIds));
   }
-  await cleanup.deleteAll(s.governanceActions, governanceActionIds);
   if (receiptIds.length > 0 || expenseIds.length > 0) {
     await db.delete(s.ledger).where(or(
       receiptIds.length > 0 ? inArray(s.ledger.receiptId, receiptIds) : undefined,
@@ -318,27 +315,24 @@ function requireTripLine(document: Awaited<ReturnType<typeof getDocument>>) {
   return line;
 }
 
+/**
+ * 2026-09-11 (maker-checker removal): the adjustment runs the full governed
+ * lifecycle in-request on a transient action; the ledger entry keeps the
+ * `GBN-ADJ:<transient action id>` receipt marker.
+ */
 async function approveDebitNoteAdjustment(documentId: number) {
-  const action = await requestBillingDocumentAdjustment({
-    documentId,
-    reason: 'Điều chỉnh nguồn sau phát hành',
-    makerId: actors[0]!.id,
-    makerRole: Role.ACCOUNTANT,
+  const action = await autoApplyGovernanceAction({
+    make: () => requestBillingDocumentAdjustment({
+      documentId,
+      reason: 'Điều chỉnh nguồn sau phát hành',
+      makerId: actors[0]!.id,
+      makerRole: Role.ACCOUNTANT,
+    }),
+    actorId: actors[2]!.id,
+    actorRole: Role.ADMIN,
   });
-  governanceActionIds.push(action.id);
   receiptIds.push(`GBN-ADJ:${action.id}`);
-  const checked = await checkGovernanceAction({
-    actionId: action.id,
-    checkerId: actors[1]!.id,
-    checkerRole: Role.MANAGER,
-    expectedVersion: action.version,
-  });
-  return approveGovernanceAction({
-    actionId: action.id,
-    approverId: actors[2]!.id,
-    approverRole: Role.ADMIN,
-    expectedVersion: checked.version,
-  });
+  return action;
 }
 
 async function assertReceivableConsumers(args: {
@@ -746,31 +740,22 @@ describe('Q22 source authority propagation', () => {
       warningNotifications.every((row) => /Giấy báo nợ cần điều chỉnh theo nguồn/i.test(row.title)),
     );
 
-    const action = await requestBillingDocumentAdjustment({
-      documentId: document.id!,
-      reason: 'Điều chỉnh theo nguồn chuyến đã đổi',
-      makerId: actors[0]!.id,
-      makerRole: Role.ACCOUNTANT,
+    // 2026-09-11 (maker-checker removal): one direct apply — the transient
+    // action comes back APPROVED with the ledger already posted.
+    const action = await autoApplyGovernanceAction({
+      make: () => requestBillingDocumentAdjustment({
+        documentId: document.id!,
+        reason: 'Điều chỉnh theo nguồn chuyến đã đổi',
+        makerId: actors[0]!.id,
+        makerRole: Role.ACCOUNTANT,
+      }),
+      actorId: actors[2]!.id,
+      actorRole: Role.ADMIN,
     });
-    governanceActionIds.push(action.id);
     receiptIds.push(`GBN-ADJ:${action.id}`);
     assert.equal(action.subjectType, 'BILLING_DOCUMENT');
-    assert.equal(action.status, 'PENDING_CHECK');
-
-    const checked = await checkGovernanceAction({
-      actionId: action.id,
-      checkerId: actors[1]!.id,
-      checkerRole: Role.MANAGER,
-      expectedVersion: action.version,
-    });
-    const approved = await approveGovernanceAction({
-      actionId: action.id,
-      approverId: actors[2]!.id,
-      approverRole: Role.ADMIN,
-      expectedVersion: checked.version,
-    });
-    assert.equal(approved.status, 'APPROVED');
-    assert.deepEqual(approved.applicationResult, {
+    assert.equal(action.status, 'APPROVED');
+    assert.deepEqual(action.applicationResult, {
       originalDocumentId: document.id!,
       adjustmentAmount: 400_000,
       resultingTotalInclVat: 1_400_000,
@@ -793,8 +778,9 @@ describe('Q22 source authority propagation', () => {
     const correctedDocument = await getDocument(document.id!);
     const correctedLine = requireTripLine(correctedDocument);
     assert.equal(correctedLine.baseAmount, 1_000_000);
-    assert.equal(correctedDocument.corrections?.[0]?.actionId, action.id);
-    assert.equal(correctedDocument.corrections?.[0]?.status, 'APPROVED');
+    // Correction history lived only in the dropped governance table, so the
+    // document payload no longer lists corrections.
+    assert.deepEqual(correctedDocument.corrections, []);
   });
 
   test('routes trip-targeted receipts onto the issued debit note authority', async () => {
@@ -1017,7 +1003,18 @@ describe('Q22 source authority propagation', () => {
       makerId: actors[0]!.id,
       makerRole: Role.ACCOUNTANT,
     });
-    governanceActionIds.push(refundOne.id);
+
+    await applyGovernanceActionDirect({
+      action: refundOne,
+      actorId: actors[2]!.id,
+      actorRole: Role.ADMIN,
+      apply: applyDirectMoneyGovernanceAction,
+    });
+
+    // 2026-09-11 maker-checker removal: the duplicate-refund barrier moved
+    // from the dropped governance pending-unique index to the apply-time
+    // unapplied-amount guard — with the first refund applied, a second
+    // request for the same amount must reject on the receipt balance.
     await assert.rejects(
       () => requestPaymentRefundGovernance({
         paymentReceiptId: topUpReceipt.id,
@@ -1032,23 +1029,9 @@ describe('Q22 source authority propagation', () => {
           String((error as { message?: string }).message ?? ''),
           String((error as { cause?: { message?: string } }).cause?.message ?? ''),
         ].join('\n');
-        return /duplicate key|already exists|đã tồn tại/i.test(text);
+        return /vượt quá|đã tồn tại/i.test(text);
       },
     );
-
-    const refundOneChecked = await checkGovernanceAction({
-      actionId: refundOne.id,
-      checkerId: actors[1]!.id,
-      checkerRole: Role.MANAGER,
-      expectedVersion: refundOne.version,
-    });
-
-    await approveDirectMoneyGovernanceAction({
-      actionId: refundOne.id,
-      approverId: actors[2]!.id,
-      approverRole: Role.ADMIN,
-      expectedVersion: refundOneChecked.version,
-    });
 
     const [refundedReceipt] = await db.select({
       unappliedAmount: s.paymentReceipts.unappliedAmount,

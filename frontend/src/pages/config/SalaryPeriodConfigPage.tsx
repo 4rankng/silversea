@@ -5,7 +5,6 @@ import { CalendarDays, Settings2, Info } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../../components/UI';
 import { useSalaryPeriodDefault, useUpdateSalaryPeriodDefault } from '../../hooks/useSalaryQueries';
-import { isGovernancePendingResponse } from '../../lib/governance';
 import './SalaryPeriodConfigPage.css';
 
 /** Describe the default rule in human language */
@@ -51,11 +50,7 @@ export default function SalaryPeriodConfigPage() {
     try {
       const s = mode === 'calendar' ? 1 : startDay;
       const e = mode === 'calendar' ? 31 : endDay;
-      const result = await updateDefault.mutateAsync({ startDay: s, endDay: e });
-      if (isGovernancePendingResponse(result)) {
-        setSaveMessage('Đã gửi yêu cầu cập nhật mặc định kỳ lương để kiểm tra và phê duyệt. Cấu hình hiện chưa thay đổi.');
-        return;
-      }
+      await updateDefault.mutateAsync({ startDay: s, endDay: e });
       setSaveSuccess(true);
       setSaveMessage(null);
       setTimeout(() => setSaveSuccess(false), 2500);

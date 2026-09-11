@@ -75,13 +75,12 @@ export async function confirmShipmentFinance(args: {
     }
 
     const now = new Date();
-    const [action] = await tx.insert(s.governanceActions).values({
-      subjectType: 'SHIPMENT',
-      subjectId: shipment.id,
+    const [action] = await tx.insert(s.shipmentFinanceActions).values({
+      shipmentId: shipment.id,
       actionKind: SHIPMENT_COST_CONFIRMATION_KIND,
       status: 'APPROVED',
       reason: args.input.reason,
-      originalVersion: shipment.version,
+      shipmentVersion: shipment.version,
       beforeSnapshot: {
         supersedesConfirmationId: currentConfirmation.confirmationId,
       },
@@ -241,13 +240,12 @@ export async function reviewShipmentChargeProposal(args: {
     }
 
     const now = new Date();
-    const [action] = await tx.insert(s.governanceActions).values({
-      subjectType: 'SHIPMENT',
-      subjectId: shipment.id,
+    const [action] = await tx.insert(s.shipmentFinanceActions).values({
+      shipmentId: shipment.id,
       actionKind: SHIPMENT_PROPOSAL_BILLING_LINK_KIND,
       status: 'APPROVED',
       reason: args.input.reason,
-      originalVersion: shipment.version,
+      shipmentVersion: shipment.version,
       beforeSnapshot: currentCoverage == null
         ? {}
         : {

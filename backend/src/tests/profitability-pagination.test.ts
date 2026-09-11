@@ -30,7 +30,6 @@ before(async () => {
     depreciationMethod: 'STRAIGHT_LINE',
     allocationBasis: 'COMPLETED_TRIP_REVENUE_SHARE',
     lowMarginThresholdRatio: '0.6500',
-    governanceActionId: 2_000_000_000 + Math.floor(Math.random() * 100_000_000),
     createdBy: 2_000_000_000,
   }).returning({ id: s.financialReportingPolicyVersions.id });
   policyIds.push(policy.id);

@@ -798,7 +798,6 @@ after(async () => {
       }
       await db.delete(s.ledger).where(inArray(s.ledger.txnId, createdTripIds));
       await db.delete(s.tripFinancialPostings).where(inArray(s.tripFinancialPostings.tripId, createdTripIds));
-      await db.delete(s.governanceActions).where(inArray(s.governanceActions.subjectId, createdTripIds));
       await db.delete(s.tripContainers).where(inArray(s.tripContainers.tripId, createdTripIds));
       await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
     }

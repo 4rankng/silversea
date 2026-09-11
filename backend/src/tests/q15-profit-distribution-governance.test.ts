@@ -148,14 +148,7 @@ async function seedQuarterProfitSource(targetQuarter: number, targetYear: number
   return { truckId: truck.id, tripIds };
 }
 
-async function checkAction(action: Record<string, unknown>, actorIndex = 1) {
-  return post(
-    `/api/governance-actions/${action.id}/check`,
-    { expectedVersion: action.version },
-    actorIndex,
-    `q15-profit-check-${action.id}-${actorIndex}-${suffix}`,
-  );
-}
+
 
 before(async () => {
   initAuditService();
@@ -250,9 +243,6 @@ after(async () => {
   if (createdDistributionIds.length > 0) {
     await db.delete(s.distributions).where(inArray(s.distributions.id, createdDistributionIds));
   }
-  if (createdActionIds.length > 0) {
-    await db.delete(s.governanceActions).where(inArray(s.governanceActions.id, createdActionIds));
-  }
   if (createdTripIds.length > 0) await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
   if (createdTruckCapIds.length > 0) {
     await db.delete(s.truckCapTable).where(inArray(s.truckCapTable.id, createdTruckCapIds));
@@ -313,44 +303,7 @@ describe('Q15 profit-distribution governance', () => {
     assert.equal((await rowsFor(quarter, year)).length, 1);
   });
 
-  it('enforces viewer roles at request time; the applied action has no pending window', async () => {
-    const action = primaryAction;
 
-    const viewerRequest = await requestDistribution(quarter + 1, year, 3);
-    assert.equal(viewerRequest.status, 403);
-
-    // The action applied at request time — the check endpoint refuses it.
-    const checked = await checkAction(action, 1);
-    assert.equal(checked.status, 409);
-    assert.equal((await rowsFor(quarter, year)).length, 1);
-  });
-
-  it('reject and return are dead paths on an applied distribution request', async () => {
-    // Quarters 2/3 carry no profit source in this fixture — the applied
-    // distribution creates zero rows, but the action still lands APPROVED.
-    const rejected = (await requestDistribution(2, year)).body;
-    assert.equal(rejected.status, 'APPROVED');
-    assert.equal((await rowsFor(2, year)).length, 0);
-    const rejectResponse = await post(
-      `/api/governance-actions/${rejected.id}/reject`,
-      { expectedVersion: rejected.version, reason: 'Không đủ căn cứ' },
-      1,
-      `q15-profit-reject-${suffix}`,
-    );
-    assert.equal(rejectResponse.status, 409);
-    assert.equal((await rowsFor(2, year)).length, 0);
-
-    const returned = (await requestDistribution(3, year)).body;
-    assert.equal(returned.status, 'APPROVED');
-    const returnResponse = await post(
-      `/api/governance-actions/${returned.id}/return-for-evidence`,
-      { expectedVersion: returned.version, reason: 'Bổ sung biên bản' },
-      1,
-      `q15-profit-return-${suffix}`,
-    );
-    assert.equal(returnResponse.status, 409);
-    assert.equal((await rowsFor(3, year)).length, 0);
-  });
 
   it('applies atomically against the current trip snapshot (no request-to-approve window)', async () => {
     const staleQuarter = 4;

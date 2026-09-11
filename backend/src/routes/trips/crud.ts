@@ -9,7 +9,7 @@ import {
 } from '@tingting/shared';
 import { ApiError } from '../../errors';
 import { copyTripWriteCommand, createTripWriteCommand } from '../../services/trip-command.service';
-import { requestTripFinancialChange } from '../../services/adjustment-governance.service';
+import { autoApplyGovernanceAction, requestTripFinancialChange } from '../../services/adjustment-governance.service';
 import { loadTripStatusVersion } from '../../services/trip-queries.service';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { requireRoles } from '../../middleware/casbin';
@@ -167,24 +167,30 @@ router.post('/bulk-figures', asyncHandler(async (req: Request, res: Response) =>
             if (!governanceReason) {
               throw new ApiError(400, 'Lý do đề nghị thay đổi chuyến đã hoàn thành là bắt buộc');
             }
-            const action = await requestTripFinancialChange({
-              tripId: update.tripId,
-              reason: governanceReason,
-              figures: {
-                ...parsedFigures.data,
-                expectedVersion: parsedFigures.data.version,
-                userId: user.userId,
-                userRole: user.role,
-              },
-              makerId: user.userId,
-              makerRole: user.role,
-              expectedTripVersion: parsedFigures.data.version!,
+            // 2026-09-11 maker-checker removal: completed-trip bulk edits
+            // apply directly in-request.
+            const action = await autoApplyGovernanceAction({
+              make: (inner) => requestTripFinancialChange({
+                tripId: update.tripId,
+                reason: governanceReason,
+                figures: {
+                  ...parsedFigures.data,
+                  expectedVersion: parsedFigures.data.version,
+                  userId: user.userId,
+                  userRole: user.role,
+                },
+                makerId: user.userId,
+                makerRole: user.role,
+                expectedTripVersion: parsedFigures.data.version!,
+                transaction: inner,
+              }),
+              actorId: user.userId,
+              actorRole: user.role,
               transaction: tx,
             });
             results.push({
               tripId: update.tripId,
               ok: true,
-              pendingApproval: true,
               governanceAction: action,
             });
             continue;
@@ -204,9 +210,10 @@ router.post('/bulk-figures', asyncHandler(async (req: Request, res: Response) =>
           });
         }
       }
-      const updated = results.filter((row) => row.ok && !row.pendingApproval).length;
-      const pending = results.filter((row) => row.ok && row.pendingApproval).length;
-      return { results, updated, pending, failed: results.length - updated - pending };
+      const updated = results.filter((row) => row.ok).length;
+      // 2026-09-11 maker-checker removal: completed-trip edits apply in the
+      // same request — nothing lands in a pending stage anymore.
+      return { results, updated, pending: 0, failed: results.length - updated };
     },
   });
   if (!replayed) await invalidateReportCaches();

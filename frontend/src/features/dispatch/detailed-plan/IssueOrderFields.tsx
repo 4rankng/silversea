@@ -86,31 +86,52 @@ export function IssueOrderFields({
     const quickDate = getOffsetDateString(offsetDays);
     const resolvedStartTime = startTime || '08:00';
     const resolvedEndTime = endTime || addHoursToTime(resolvedStartTime, 2);
+    const resolvedEndDate = endDate && endDate >= quickDate ? endDate : quickDate;
 
     setIssueDraft((current) => ({
       ...current,
       plannedStartAt: `${quickDate}T${resolvedStartTime}`,
-      plannedEndAt: `${quickDate}T${resolvedEndTime}`,
+      plannedEndAt: `${resolvedEndDate}T${resolvedEndTime}`,
     }));
     onFieldTouched();
   };
 
-  const handleDateChange = (newDate: string) => {
+  const handleStartDateChange = (newDate: string) => {
     if (!newDate) {
       setIssueDraft((current) => ({
         ...current,
         plannedStartAt: '',
-        plannedEndAt: '',
       }));
       onFieldTouched();
       return;
     }
     const resolvedStartTime = startTime || '08:00';
     const resolvedEndTime = endTime || addHoursToTime(resolvedStartTime, 2);
+    const resolvedEndDate = endDate && endDate >= newDate ? endDate : newDate;
 
     setIssueDraft((current) => ({
       ...current,
       plannedStartAt: `${newDate}T${resolvedStartTime}`,
+      plannedEndAt: `${resolvedEndDate}T${resolvedEndTime}`,
+    }));
+    onFieldTouched();
+  };
+
+  const handleEndDateChange = (newDate: string) => {
+    if (!newDate) {
+      setIssueDraft((current) => ({
+        ...current,
+        plannedEndAt: '',
+      }));
+      onFieldTouched();
+      return;
+    }
+    const resolvedEndTime = endTime || addHoursToTime(startTime || '08:00', 2);
+    const resolvedStartDate = startDate && startDate <= newDate ? startDate : newDate;
+
+    setIssueDraft((current) => ({
+      ...current,
+      plannedStartAt: `${resolvedStartDate}T${startTime || '08:00'}`,
       plannedEndAt: `${newDate}T${resolvedEndTime}`,
     }));
     onFieldTouched();
@@ -126,15 +147,9 @@ export function IssueOrderFields({
     }
     if (!resolvedDate) resolvedDate = getOffsetDateString(0);
 
-    let resolvedEndTime = endTime;
-    if (!resolvedEndTime && resolvedStartTime) {
-      resolvedEndTime = addHoursToTime(resolvedStartTime, 2);
-    }
-
     setIssueDraft((current) => ({
       ...current,
       plannedStartAt: resolvedStartTime ? `${resolvedDate}T${resolvedStartTime}` : '',
-      plannedEndAt: resolvedEndTime ? `${resolvedDate}T${resolvedEndTime}` : '',
     }));
     onFieldTouched();
   };
@@ -146,8 +161,6 @@ export function IssueOrderFields({
       const [d, t] = val.split('T');
       resolvedEndDate = d;
       resolvedEndTime = t.slice(0, 5);
-    } else {
-      resolvedEndDate = startDate || getOffsetDateString(0);
     }
 
     setIssueDraft((current) => ({
@@ -160,10 +173,11 @@ export function IssueOrderFields({
   const handlePresetTimeClick = (presetTime: string) => {
     const curDate = startDate || getOffsetDateString(0);
     const newEndTime = addHoursToTime(presetTime, 2);
+    const resolvedEndDate = endDate && endDate >= curDate ? endDate : curDate;
     setIssueDraft((current) => ({
       ...current,
       plannedStartAt: `${curDate}T${presetTime}`,
-      plannedEndAt: `${curDate}T${newEndTime}`,
+      plannedEndAt: `${resolvedEndDate}T${newEndTime}`,
     }));
     onFieldTouched();
   };
@@ -230,12 +244,7 @@ export function IssueOrderFields({
           />
         </label>
         <label htmlFor={`${idPrefix}-end-${row.fulfillmentId}`}>
-          <span>
-            Giờ kết thúc
-            {endDate && startDate && endDate > startDate && (
-              <span className="dispatch-assignment-dialog__next-day-badge">+1 ngày</span>
-            )}
-          </span>
+          <span>Giờ kết thúc</span>
           <input
             id={`${idPrefix}-end-${row.fulfillmentId}`}
             type="time"
@@ -252,7 +261,17 @@ export function IssueOrderFields({
             lang="en-GB"
             className="input"
             value={startDate}
-            onChange={handleDateChange}
+            onChange={handleStartDateChange}
+          />
+        </label>
+        <label htmlFor={`${idPrefix}-end-date-${row.fulfillmentId}`}>
+          <span>Ngày kết thúc</span>
+          <DateInput
+            id={`${idPrefix}-end-date-${row.fulfillmentId}`}
+            lang="en-GB"
+            className="input"
+            value={endDate}
+            onChange={handleEndDateChange}
           />
         </label>
       </div>

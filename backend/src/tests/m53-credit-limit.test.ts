@@ -8,11 +8,8 @@ import * as s from '../db/schema';
 import { insertTripComposite } from '../services/trip-composite.service';
 import { getAppSettings, saveAppSettings } from '../services/app-settings.service';
 import {
-  approveCreditOverrideRequest,
-  checkCreditOverrideRequest,
   checkCreditLimit,
   createCreditOverrideRequest,
-  type CreditOverrideView,
 } from '../services/credit-limit.service';
 import { getStatementData } from '../services/statement.service';
 import { createTrip } from '../services/trip.service';
@@ -30,13 +27,7 @@ const createdTripIds: number[] = [];
 const createdShipmentIds: number[] = [];
 const createdLedgerIds: number[] = [];
 const createdCreditOverrideIds: number[] = [];
-const createdGovernanceActionIds: number[] = [];
 let originalSettings: Awaited<ReturnType<typeof getAppSettings>>;
-
-function trackGovernanceAction(request: CreditOverrideView) {
-  assert.notEqual(request.governanceActionId, null);
-  createdGovernanceActionIds.push(request.governanceActionId as number);
-}
 
 async function mkUser(role: Role) {
   const [user] = await db.insert(s.users).values({
@@ -140,7 +131,7 @@ async function mkTierBoundaryRequest(input: {
     reason: 'Kiểm tra ranh giới phân cấp phê duyệt',
   }, { userId: requester.id, role: requester.role });
   createdCreditOverrideIds.push(request.id);
-  trackGovernanceAction(request);
+  assert.equal(request.workflowStatus, 'APPROVED', 'override applies in-request');
   return request;
 }
 
@@ -170,9 +161,6 @@ before(async () => {
 after(async () => {
   try {
     await saveAppSettings(originalSettings);
-    if (createdGovernanceActionIds.length > 0) {
-      await db.delete(s.governanceActions).where(inArray(s.governanceActions.id, createdGovernanceActionIds));
-    }
     if (createdCreditOverrideIds.length > 0) {
       await db.delete(s.creditOverrideRequests).where(inArray(s.creditOverrideRequests.id, createdCreditOverrideIds));
     }
@@ -221,8 +209,6 @@ describe('M5.3/Q01 exposure authority', () => {
     const cargoType = await mkCargoType();
     const shipment = await mkShipment(customer.id);
     const requester = await mkUser(Role.MANAGER);
-    const checker = await mkUser(Role.ACCOUNTANT);
-    const approver = await mkUser(Role.ADMIN);
 
     const liveTrip = await mkLiveTrip(customer.id, route.id, cargoType.id, '4000000', TripStatus.CREATED);
     await mkLedger(customer.id, 3_000_000, 0, liveTrip.id);
@@ -234,22 +220,14 @@ describe('M5.3/Q01 exposure authority', () => {
       reason: 'Giữ chỗ tín dụng cho lô đang chờ điều vận',
     }, { userId: requester.id, role: requester.role });
     createdCreditOverrideIds.push(pending.id);
-    trackGovernanceAction(pending);
-    const checked = await checkCreditOverrideRequest(pending.id, {
-      userId: checker.id,
-      role: checker.role,
-    }, { expectedVersion: pending.version });
-    const approved = await approveCreditOverrideRequest(pending.id, {
-      userId: approver.id,
-      role: approver.role,
-    }, { expectedVersion: checked.version });
+    assert.equal(pending.workflowStatus, 'APPROVED', 'override applies in-request');
+    assert.equal(pending.status, 'APPROVED');
 
     const result = await checkCreditLimit(customer.id, { proposedAmount: 1_000_000 });
     assert.equal(result.outstanding, 3_000_000);
     assert.equal(result.approvedUncollected, 6_000_000);
     assert.equal(result.totalExposure, 10_000_000);
     assert.equal(result.exceedsLimit, true);
-    assert.equal(approved.request.status, 'APPROVED');
 
     const statement = await getStatementData(customer.id);
     assert.ok(statement);
@@ -324,8 +302,6 @@ describe('M5.3/Q02 overrides + canonical createTrip enforcement', () => {
     });
     const customer = await mkCustomer('10000000');
     const requester = await mkUser(Role.MANAGER);
-    const checker = await mkUser(Role.ACCOUNTANT);
-    const admin = await mkUser(Role.ADMIN);
     await mkLedger(customer.id, 10_200_000);
 
     const first = await createCreditOverrideRequest({
@@ -335,17 +311,7 @@ describe('M5.3/Q02 overrides + canonical createTrip enforcement', () => {
       reason: 'Ngoại lệ đầu tiên',
     }, { userId: requester.id, role: requester.role });
     createdCreditOverrideIds.push(first.id);
-    trackGovernanceAction(first);
-    const checked = await checkCreditOverrideRequest(
-      first.id,
-      { userId: checker.id, role: checker.role },
-      { expectedVersion: first.version },
-    );
-    await approveCreditOverrideRequest(
-      first.id,
-      { userId: admin.id, role: admin.role },
-      { expectedVersion: checked.version },
-    );
+    assert.equal(first.workflowStatus, 'APPROVED', 'override applies in-request');
 
     const second = await createCreditOverrideRequest({
       customerId: customer.id,
@@ -354,7 +320,6 @@ describe('M5.3/Q02 overrides + canonical createTrip enforcement', () => {
       reason: 'Ngoại lệ lặp lại',
     }, { userId: requester.id, role: requester.role });
     createdCreditOverrideIds.push(second.id);
-    trackGovernanceAction(second);
     assert.equal(second.requiredTier, 'DIRECTOR');
     assert.equal(second.repeatException, true);
   });
@@ -366,8 +331,6 @@ describe('M5.3/Q02 overrides + canonical createTrip enforcement', () => {
       creditTierOneAmountCap: 2_000_000,
     });
     const requester = await mkUser(Role.MANAGER);
-    const checker = await mkUser(Role.ACCOUNTANT);
-    const approver = await mkUser(Role.ADMIN);
     const customer = await mkCustomer('4000000');
     const route = await mkRoute();
     const cargoType = await mkCargoType();
@@ -393,15 +356,7 @@ describe('M5.3/Q02 overrides + canonical createTrip enforcement', () => {
       reason: 'Cho phép phục vụ đơn hàng gấp trong 48 giờ',
     }, { userId: requester.id, role: requester.role });
     createdCreditOverrideIds.push(pending.id);
-    trackGovernanceAction(pending);
-    const checked = await checkCreditOverrideRequest(pending.id, {
-      userId: checker.id,
-      role: checker.role,
-    }, { expectedVersion: pending.version });
-    await approveCreditOverrideRequest(pending.id, {
-      userId: approver.id,
-      role: approver.role,
-    }, { expectedVersion: checked.version });
+    assert.equal(pending.workflowStatus, 'APPROVED', 'override applies in-request');
 
     const trip = await createTrip({
       customerId: customer.id,
@@ -431,8 +386,6 @@ describe('M5.3/Q02 overrides + canonical createTrip enforcement', () => {
       creditTierOneAmountCap: 2_000_000,
     });
     const requester = await mkUser(Role.MANAGER);
-    const checker = await mkUser(Role.ACCOUNTANT);
-    const approver = await mkUser(Role.ADMIN);
     const customer = await mkCustomer('4000000');
     const route = await mkRoute();
     const cargoType = await mkCargoType();
@@ -447,15 +400,7 @@ describe('M5.3/Q02 overrides + canonical createTrip enforcement', () => {
       reason: 'Chỉ áp dụng cho lô hàng này',
     }, { userId: requester.id, role: requester.role });
     createdCreditOverrideIds.push(pending.id);
-    trackGovernanceAction(pending);
-    const checked = await checkCreditOverrideRequest(pending.id, {
-      userId: checker.id,
-      role: checker.role,
-    }, { expectedVersion: pending.version });
-    await approveCreditOverrideRequest(pending.id, {
-      userId: approver.id,
-      role: approver.role,
-    }, { expectedVersion: checked.version });
+    assert.equal(pending.workflowStatus, 'APPROVED', 'override applies in-request');
 
     const trip = await createTrip({
       customerId: customer.id,

@@ -3,24 +3,12 @@ import { useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { invalidateAllCatalogs } from '../api/keys';
 import { useToast } from '../components/shared/Toast';
-import { isGovernancePendingResponse } from '../lib/governance';
 
 function getErrorMessage(e: unknown): string {
   return e instanceof Error ? e.message : 'Unknown error';
 }
 
 type CrudMutationKind = 'create' | 'update' | 'delete';
-
-function mutationVerb(kind: CrudMutationKind): string {
-  switch (kind) {
-    case 'create':
-      return 'thêm';
-    case 'update':
-      return 'cập nhật';
-    case 'delete':
-      return 'xóa';
-  }
-}
 
 function directSuccessMessage(kind: CrudMutationKind): string {
   switch (kind) {
@@ -31,10 +19,6 @@ function directSuccessMessage(kind: CrudMutationKind): string {
     case 'delete':
       return 'Đã xóa cấu hình.';
   }
-}
-
-function governancePendingMessage(kind: CrudMutationKind): string {
-  return `Đã gửi yêu cầu ${mutationVerb(kind)} cấu hình để kiểm tra và phê duyệt. Cấu hình chưa thay đổi.`;
 }
 
 /**
@@ -65,15 +49,8 @@ export function useCRUD(apiPath: string, onRefresh: () => Promise<void>) {
     ]);
   }, [onRefresh, queryClient]);
 
-  const handleMutationSuccess = useCallback((kind: CrudMutationKind, result: unknown) => {
+  const handleMutationSuccess = useCallback((kind: CrudMutationKind) => {
     setError(null);
-    if (isGovernancePendingResponse(result)) {
-      toast({
-        kind: 'success',
-        message: governancePendingMessage(kind),
-      });
-      return;
-    }
     toast({
       kind: 'success',
       message: directSuccessMessage(kind),
@@ -86,7 +63,7 @@ export function useCRUD(apiPath: string, onRefresh: () => Promise<void>) {
       const result = await api.post(apiPath, body);
       setShowAddForm(false);
       await refreshAll();
-      handleMutationSuccess('create', result);
+      handleMutationSuccess('create');
     } catch (e: unknown) { setError(getErrorMessage(e) || 'Lỗi lưu'); } finally { setSaving(false); }
   }, [apiPath, handleMutationSuccess, refreshAll]);
 
@@ -96,7 +73,7 @@ export function useCRUD(apiPath: string, onRefresh: () => Promise<void>) {
       const result = await api.put(`${apiPath}/${id}`, body);
       setEditingId(null);
       await refreshAll();
-      handleMutationSuccess('update', result);
+      handleMutationSuccess('update');
     } catch (e: unknown) { setError(getErrorMessage(e) || 'Lỗi cập nhật'); } finally { setSaving(false); }
   }, [apiPath, handleMutationSuccess, refreshAll]);
 
@@ -105,7 +82,7 @@ export function useCRUD(apiPath: string, onRefresh: () => Promise<void>) {
     try {
       const result = await api.delete(`${apiPath}/${id}`);
       await refreshAll();
-      handleMutationSuccess('delete', result);
+      handleMutationSuccess('delete');
     } catch (e: unknown) { setError(getErrorMessage(e) || 'Lỗi xóa'); } finally { setDeleting(null); }
   }, [apiPath, handleMutationSuccess, refreshAll]);
 

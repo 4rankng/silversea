@@ -4,26 +4,14 @@ import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { after, before, describe, it } from 'node:test';
 import express from 'express';
-import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, eq, gte, inArray, isNull, like } from 'drizzle-orm';
 import { Role, TrailerType } from '@tingting/shared';
 import { client, db } from '../db';
 import * as s from '../db/schema';
 import { disconnectRedis } from '../lib/redis';
 import configRoutes from '../routes/config';
-import { ApiError } from '../errors';
-import {
-  checkGovernanceAction,
-  getGovernanceAction,
-  rejectGovernanceAction,
-  returnGovernanceActionForEvidence,
-} from '../services/governance-transition.service';
-import { approveGovernanceAction } from '../services/adjustment-governance.service';
 import paymentsRoutes from '../routes/financial/payments.routes';
 import { globalErrorHandler } from '../middleware/errorHandler';
-import {
-  buildGovernedConfigSnapshot,
-  governedConfigVersionFromUpdatedAt,
-} from '../services/price-config-governance.service';
 import { withTestCleanup } from './helpers/db-isolation';
 
 type RowWithUpdatedAt = { id: number; updatedAt: Date; deletedAt?: Date | null };
@@ -44,7 +32,6 @@ type ResourceCase<TRow extends RowWithUpdatedAt> = {
 
 const cleanup = withTestCleanup();
 const actorIds: number[] = [];
-const governanceActionIds: number[] = [];
 const customerIds: number[] = [];
 const businessCalendarIds: number[] = [];
 const expenseCategoryIds: number[] = [];
@@ -75,6 +62,7 @@ let containerTypeId = 0;
 let truckId = 0;
 let server: http.Server;
 let baseUrl = '';
+let runStartedAt = new Date();
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const uniqueContainerCode = `Q15-${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
 const uniqueTruckPlate = `Q15-${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
@@ -114,63 +102,6 @@ async function api(
   };
 }
 
-// Governance endpoints removed (maker-checker teardown): the four
-// transition helpers now drive the SERVICE layer directly, pinning the same
-// state machine and validations the HTTP boundary used to forward to.
-async function runTransition(fn: () => Promise<Record<string, unknown>>): Promise<{ status: number; body: Record<string, unknown> }> {
-  try {
-    return { status: 200, body: await fn() };
-  } catch (error) {
-    if (error instanceof ApiError) {
-      return { status: error.statusCode, body: { message: error.message } };
-    }
-    throw error;
-  }
-}
-
-function actorOf(actorIndex: number): { id: number; role: string } {
-  const actor = actors[actorIndex] ?? actors[0]!;
-  return { id: actor.id, role: actor.role as string };
-}
-
-async function checkAction(actionId: number, expectedVersion: number, actorIndex = 1) {
-  return runTransition(() => checkGovernanceAction({
-    actionId,
-    checkerId: actorOf(actorIndex).id,
-    checkerRole: actorOf(actorIndex).role,
-    expectedVersion,
-  }));
-}
-
-async function approveAction(actionId: number, expectedVersion: number, actorIndex = 2) {
-  return runTransition(() => approveGovernanceAction({
-    actionId,
-    approverId: actorOf(actorIndex).id,
-    approverRole: actorOf(actorIndex).role,
-    expectedVersion,
-  } as never));
-}
-
-async function rejectAction(actionId: number, expectedVersion: number, reason: string, actorIndex = 1) {
-  return runTransition(() => rejectGovernanceAction({
-    actionId,
-    actorId: actorOf(actorIndex).id,
-    actorRole: actorOf(actorIndex).role,
-    expectedVersion,
-    reason,
-  }));
-}
-
-async function returnForEvidence(actionId: number, expectedVersion: number, reason: string, actorIndex = 1) {
-  return runTransition(() => returnGovernanceActionForEvidence({
-    actionId,
-    actorId: actorOf(actorIndex).id,
-    actorRole: actorOf(actorIndex).role,
-    expectedVersion,
-    reason,
-  }));
-}
-
 /**
  * Asserts the governed write applied directly: the response is the mutated
  * table row, not a queued governance action.
@@ -182,57 +113,8 @@ function expectAppliedRow(response: Awaited<ReturnType<typeof api>>, label: stri
   );
 }
 
-/** APPROVED PRICE_CONFIG_CHANGE audit actions applied onto one subject row. */
-async function approvedConfigActionCountForSubject(resource: string, subjectId: number): Promise<number> {
-  const [row] = await db.select({ count: sql<number>`count(*)` })
-    .from(s.governanceActions)
-    .where(and(
-      eq(s.governanceActions.status, 'APPROVED'),
-      eq(s.governanceActions.actionKind, 'PRICE_CONFIG_CHANGE'),
-      sql`${s.governanceActions.applicationResult} ->> 'resource' = ${resource}`,
-      sql`${s.governanceActions.applicationResult} ->> 'subjectId' = ${String(subjectId)}`,
-    ));
-  return Number(row?.count ?? 0);
-}
-
-/**
- * Inserts a PENDING_CHECK PRICE_CONFIG action the way the pre-2026-09-05
- * maker flow created them, so the legacy queue endpoints (check / approve /
- * reject / return-for-evidence) stay covered against old rows still open in
- * the wild.
- */
-async function insertLegacyPendingPriceConfigAction(input: {
-  resource: string;
-  operation: 'CREATE' | 'UPDATE';
-  subjectId: number | null;
-  beforeRow: Record<string, unknown> | null;
-  afterData: Record<string, unknown> | null;
-  makerIndex?: number;
-}) {
-  const maker = actors[input.makerIndex ?? 0]!;
-  const originalVersion = input.operation === 'UPDATE' && input.beforeRow?.updatedAt instanceof Date
-    ? governedConfigVersionFromUpdatedAt(input.beforeRow.updatedAt as Date)
-    : 0;
-  const [action] = await db.insert(s.governanceActions).values({
-    subjectType: 'PRICE_CONFIG',
-    subjectId: input.subjectId,
-    subjectKey: input.subjectId == null
-      ? `${input.resource}:${createHash('sha1').update(JSON.stringify(input.afterData)).digest('hex')}`
-      : null,
-    actionKind: 'PRICE_CONFIG_CHANGE',
-    reason: 'Yêu cầu quản trị cấu hình cũ (trước bỏ hàng chờ)',
-    originalVersion,
-    beforeSnapshot: buildGovernedConfigSnapshot(input.resource, input.beforeRow),
-    afterSnapshot: { resource: input.resource, data: input.afterData },
-    deltaSnapshot: { resource: input.resource, operation: input.operation },
-    makerId: maker.id,
-    makerRole: maker.role as Role,
-  }).returning();
-  governanceActionIds.push(action.id);
-  return action;
-}
-
 before(async () => {
+  runStartedAt = new Date();
   actors = await db.insert(s.users).values([
     { username: `q15-price-maker-${suffix}`, passwordHash: 'x', role: Role.MANAGER, status: 'ACTIVE' },
     { username: `q15-price-checker-${suffix}`, passwordHash: 'x', role: Role.ACCOUNTANT, status: 'ACTIVE' },
@@ -316,31 +198,16 @@ after(async () => {
     }
   } finally {
     try {
-      // Scoped pre-cleanups whose targets are not row-for-row tracked:
-      // governance actions + idempotency keys created by our actors, and
-      // durable jobs keyed to those actions. These reference actorIds, so
-      // they must run before the harness deletes the users themselves.
-      // Direct-apply actions are captured by makerId too, so the durable-job
-      // scoping covers every action this run authored, fixture or not.
-      const ourActionIds = new Set<number>(governanceActionIds);
+      // Idempotency keys created by our actors must be removed before the
+      // users themselves. Cache-invalidation jobs authored through transient
+      // governance actions carry the negative synthetic action id in their
+      // dedupe key, so sweep only those created during this run.
       if (actorIds.length > 0) {
-        for (const row of await db.select({ id: s.governanceActions.id })
-          .from(s.governanceActions)
-          .where(inArray(s.governanceActions.makerId, actorIds))) {
-          ourActionIds.add(row.id);
-        }
-        await db.delete(s.governanceActions).where(inArray(s.governanceActions.makerId, actorIds));
         await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.createdBy, actorIds));
-      }
-      const scopedDurableJobs = ourActionIds.size === 0 ? [] : (await db.select({
-        id: s.durableEffectJobs.id,
-        dedupeKey: s.durableEffectJobs.dedupeKey,
-      }).from(s.durableEffectJobs)).filter((row) => [...ourActionIds].some(
-        (actionId) => row.dedupeKey.endsWith(`governance-action:${actionId}`),
-      ));
-      if (scopedDurableJobs.length > 0) {
-        await db.delete(s.durableEffectJobs)
-          .where(inArray(s.durableEffectJobs.id, scopedDurableJobs.map((row) => row.id)));
+        await db.delete(s.durableEffectJobs).where(and(
+          like(s.durableEffectJobs.dedupeKey, '%:governance-action:-%'),
+          gte(s.durableEffectJobs.createdAt, runStartedAt),
+        ));
       }
       // Catalog teardown: same child-first order as before, but each delete is
       // error-isolated and empty-safe, so one failure cannot orphan the rest.
@@ -379,13 +246,9 @@ after(async () => {
 });
 
 /**
- * Product decision 2026-09-05: governed price-config writes apply directly
- * (HTTP returns the mutated row; an APPROVED PRICE_CONFIG_CHANGE action is
- * written at apply time — see src/tests/config-material-update-governance
- * .test.ts). The legacy maker→checker→approver queue survives only for old
- * PENDING_CHECK rows: these tests fixture such rows via db.insert and pin the
- * queue endpoints (check / approve / reject / return-for-evidence) against
- * them.
+ * 2026-09-05 + 2026-09-11 (maker-checker removal): governed price-config
+ * writes apply directly — the HTTP boundary returns the mutated row, nothing
+ * is queued or persisted outside the domain tables.
  */
 describe('Q15 governed material config resources', { concurrency: false }, () => {
   // Each case in the table has its own row shape; the loop only relies on the
@@ -759,7 +622,7 @@ describe('Q15 governed material config resources', { concurrency: false }, () =>
     },
   ];
 
-  it('applies a new Admin price-config change immediately with an auditable approval', async () => {
+  it('applies a new Admin price-config change immediately', async () => {
     const response = await api('POST', '/api/pricing-tables', {
       actorIndex: 2,
       body: {
@@ -776,60 +639,10 @@ describe('Q15 governed material config resources', { concurrency: false }, () =>
     const pricingTableId = Number(response.body.id);
     pricingTableIds.push(pricingTableId);
 
-    const audits = await db.select().from(s.governanceActions).where(and(
-      eq(s.governanceActions.makerId, actors[2]!.id),
-      eq(s.governanceActions.status, 'APPROVED'),
-      eq(s.governanceActions.actionKind, 'PRICE_CONFIG_CHANGE'),
-    ));
-    const audit = audits.find((row) => Number(row.applicationResult?.subjectId) === pricingTableId);
-    assert.ok(audit, 'Admin immediate apply must retain a governance audit row');
-    governanceActionIds.push(audit.id);
-    assert.equal(audit.checkerId, null);
-    assert.equal(audit.approverId, actors[2]!.id);
-    assert.ok(audit.appliedAt instanceof Date);
-  });
-
-  it('lets Admin directly approve a legacy pending price-config request they created', async () => {
-    // The API no longer mints pending requests; this fixture reproduces a row
-    // created by the pre-2026-09-05 maker flow so the queue endpoint contract
-    // for legacy data stays pinned.
-    const pending = await insertLegacyPendingPriceConfigAction({
-      resource: 'pricing_tables',
-      operation: 'CREATE',
-      subjectId: null,
-      beforeRow: null,
-      afterData: {
-        customerId,
-        routeId,
-        price: 1_876_543,
-        effectiveDate: '2098-10-01',
-      },
-      makerIndex: 2,
-    });
-
-    const detail = await getGovernanceAction({
-      actionId: Number(pending.id),
-      actorId: actors[2]!.id,
-      actorRole: actors[2]!.role,
-    });
-    assert.deepEqual(detail.allowedActions, ['CANCEL', 'APPROVE']);
-
-    const approved = await approveAction(
-      Number(pending.id),
-      Number(pending.version),
-      2,
-    );
-    assert.equal(approved.status, 200, JSON.stringify(approved.body));
-    assert.equal(approved.body.status, 'APPROVED');
-    assert.equal(approved.body.checkerId, null);
-    assert.equal(approved.body.approverId, actors[2]!.id);
-    const approvedPricingTableId = Number(approved.body.subjectId);
-    pricingTableIds.push(approvedPricingTableId);
-
-    const [appliedRow] = await db.select().from(s.pricingTables)
-      .where(eq(s.pricingTables.id, approvedPricingTableId)).limit(1);
-    assert.ok(appliedRow, 'legacy approval must still apply the create');
-    assert.equal(Number(appliedRow.price), 1_876_543);
+    const [createdRow] = await db.select().from(s.pricingTables)
+      .where(eq(s.pricingTables.id, pricingTableId)).limit(1);
+    assert.ok(createdRow, 'Admin immediate apply must persist the row');
+    assert.equal(Number(createdRow.price), 1_765_432);
   });
 
   it('serializes duplicate governed requests even with different idempotency keys', async () => {
@@ -855,19 +668,8 @@ describe('Q15 governed material config resources', { concurrency: false }, () =>
     const winnerId = Number(winner.body.id);
     pricingTableIds.push(winnerId);
 
-    // Exactly one apply won: one APPROVED audit action, no active request left
-    // behind, and a single persisted pricing row for the duplicate payload.
-    assert.equal(await approvedConfigActionCountForSubject('pricing_tables', winnerId), 1,
-      'the winning governed create must record exactly one APPROVED audit action');
-    const activeRows = await db.select({ id: s.governanceActions.id })
-      .from(s.governanceActions)
-      .where(and(
-        eq(s.governanceActions.subjectType, 'PRICE_CONFIG'),
-        eq(s.governanceActions.actionKind, 'PRICE_CONFIG_CHANGE'),
-        eq(s.governanceActions.subjectId, winnerId),
-        inArray(s.governanceActions.status, ['PENDING_CHECK', 'PENDING_APPROVAL', 'RETURNED_FOR_EVIDENCE']),
-      ));
-    assert.equal(activeRows.length, 0);
+    // Exactly one apply won: a single persisted pricing row for the duplicate
+    // payload (the loser 409'd on the governed canonical-uniqueness check).
     const persistedRows = await db.select({ id: s.pricingTables.id })
       .from(s.pricingTables)
       .where(and(
@@ -892,8 +694,6 @@ describe('Q15 governed material config resources', { concurrency: false }, () =>
       const createdRow = await resource.fetchById(createdId);
       assert.ok(createdRow, `${resource.name}: governed create must persist immediately`);
       await resource.expectCreated(createdRow);
-      assert.equal(await approvedConfigActionCountForSubject(resource.resource, createdId), 1,
-        `${resource.name}: governed create must record exactly one APPROVED audit action`);
 
       const updated = await api('PUT', `${resource.endpoint}/${createdId}`, {
         actorIndex,
@@ -905,8 +705,6 @@ describe('Q15 governed material config resources', { concurrency: false }, () =>
       const updatedRow = await resource.fetchById(createdId);
       assert.ok(updatedRow, `${resource.name}: governed update must keep row visible`);
       await resource.expectUpdated(updatedRow);
-      assert.equal(await approvedConfigActionCountForSubject(resource.resource, createdId), 2,
-        `${resource.name}: governed update must record its own APPROVED audit action`);
 
       const deleted = await api('DELETE', `${resource.endpoint}/${createdId}`, {
         actorIndex,
@@ -915,12 +713,10 @@ describe('Q15 governed material config resources', { concurrency: false }, () =>
       });
       assert.equal(deleted.status, 200, `${resource.name}: ${JSON.stringify(deleted.body)}`);
       await resource.expectDeleted(createdId);
-      assert.equal(await approvedConfigActionCountForSubject(resource.resource, createdId), 3,
-        `${resource.name}: governed delete must record its own APPROVED audit action`);
     }
   });
 
-  it('replays identical governed requests, rejects viewers, blocks legacy checker self-approval, and prevents stale approval on the shared config path', async () => {
+  it('replays identical governed requests, rejects viewers, and prevents stale writes on the shared config path', async () => {
     const key = `q15-price-replay-${suffix}`;
     const [replayRoute] = await db.insert(s.routes).values({
       name: `Q15 Pricing Replay/drift fixture route ${suffix}`,
@@ -960,158 +756,25 @@ describe('Q15 governed material config resources', { concurrency: false }, () =>
     });
     assert.equal(viewerDenied.status, 403, `viewer denial body ${JSON.stringify(viewerDenied.body)}`);
 
-    // Legacy pending row: the checker may advance it, must not approve it, and
-    // a stale apply-time snapshot must fail the approval without any effect.
-    const [fixtureRow] = await db.insert(s.pricingTables).values({
-      customerId,
-      routeId: replayRoute.id,
-      price: '2300000',
-      effectiveDate: '2098-09-01',
-    }).returning();
-    pricingTableIds.push(fixtureRow.id);
-    const legacyPending = await insertLegacyPendingPriceConfigAction({
-      resource: 'pricing_tables',
-      operation: 'UPDATE',
-      subjectId: fixtureRow.id,
-      beforeRow: fixtureRow,
-      afterData: { price: 2400000 },
-    });
-
-    const checked = await checkAction(Number(legacyPending.id), Number(legacyPending.version));
-    assert.equal(checked.status, 200, JSON.stringify(checked.body));
-
-    const checkerApprove = await approveAction(Number(legacyPending.id), Number(checked.body.version), 1);
-    assert.equal(checkerApprove.status, 403, `checker self-approval body ${JSON.stringify(checkerApprove.body)}`);
-
+    // Stale governed updates are still rejected on the direct path: bump the
+    // row behind the client's back, then replay the old expectedUpdatedAt.
+    const [replayTarget] = await db.select().from(s.pricingTables)
+      .where(eq(s.pricingTables.id, firstPricingTableId)).limit(1);
+    assert.ok(replayTarget);
     await db.update(s.pricingTables).set({
       price: '2500000',
       updatedAt: new Date(Date.now() + 5000),
-    }).where(eq(s.pricingTables.id, fixtureRow.id));
+    }).where(eq(s.pricingTables.id, firstPricingTableId));
 
-    const staleApproval = await approveAction(Number(legacyPending.id), Number(checked.body.version));
-    assert.equal(staleApproval.status, 409);
-    assert.match(String(staleApproval.body.error ?? staleApproval.body.message ?? ''), /đã thay đổi/i);
-
-    // The failed stale approval must leave the action open and the row as the
-    // concurrent writer left it — no partial apply.
-    const [stillPending] = await db.select().from(s.governanceActions)
-      .where(eq(s.governanceActions.id, legacyPending.id)).limit(1);
-    assert.equal(stillPending.status, 'PENDING_APPROVAL');
+    const stale = await api('PUT', `/api/pricing-tables/${firstPricingTableId}`, {
+      body: { price: 2400000 },
+      expectedUpdatedAt: replayTarget.updatedAt,
+    });
+    assert.equal(stale.status, 409);
+    assert.match(String(stale.body.error ?? stale.body.message ?? ''), /đã được người khác cập nhật|đã thay đổi/i);
     const [driftedRow] = await db.select().from(s.pricingTables)
-      .where(eq(s.pricingTables.id, fixtureRow.id)).limit(1);
+      .where(eq(s.pricingTables.id, firstPricingTableId)).limit(1);
     assert.equal(Number(driftedRow.price), 2500000);
-  });
-
-  it('keeps governed rows unchanged when returned for evidence or rejected', async () => {
-    // Negative decisions only exist on legacy pending rows now; each fixture
-    // reproduces one and pins the no-apply guarantee end to end.
-    const fixtureA = await insertLegacyPendingPriceConfigAction({
-      resource: 'fuel_norms',
-      operation: 'CREATE',
-      subjectId: null,
-      beforeRow: null,
-      afterData: {
-        routeId,
-        truckId: null,
-        loadedLitersPer100Km: 28,
-        emptyLitersPer100Km: 22,
-        supplementLiters: 0,
-        flatRateLiters: null,
-        effectiveDate: '2099-07-01',
-      },
-    });
-
-    const checked = await checkAction(Number(fixtureA.id), Number(fixtureA.version));
-    assert.equal(checked.status, 200);
-
-    const returned = await returnForEvidence(Number(fixtureA.id), Number(checked.body.version), 'Thiếu căn cứ điều chỉnh', 2);
-    assert.equal(returned.status, 200, `return for evidence body ${JSON.stringify(returned.body)}`);
-    assert.equal(returned.body.status, 'RETURNED_FOR_EVIDENCE');
-
-    const [afterReturn] = await db.select().from(s.fuelNorms)
-      .where(and(
-        eq(s.fuelNorms.routeId, routeId),
-        isNull(s.fuelNorms.deletedAt),
-      ))
-      .orderBy(s.fuelNorms.id);
-    assert.equal(afterReturn, undefined);
-
-    const fixtureB = await insertLegacyPendingPriceConfigAction({
-      resource: 'fuel_norms',
-      operation: 'CREATE',
-      subjectId: null,
-      beforeRow: null,
-      afterData: {
-        routeId,
-        truckId: null,
-        loadedLitersPer100Km: 29,
-        emptyLitersPer100Km: 23,
-        supplementLiters: 0,
-        flatRateLiters: null,
-        effectiveDate: '2099-08-01',
-      },
-    });
-
-    const rejectedChecked = await checkAction(Number(fixtureB.id), Number(fixtureB.version));
-    assert.equal(rejectedChecked.status, 200);
-
-    const rejection = await rejectAction(Number(fixtureB.id), Number(rejectedChecked.body.version), 'Không đủ căn cứ phê duyệt', 2);
-    assert.equal(rejection.status, 200, `rejection body ${JSON.stringify(rejection.body)}`);
-    assert.equal(rejection.body.status, 'REJECTED');
-
-    const [afterReject] = await db.select().from(s.fuelNorms)
-      .where(and(
-        eq(s.fuelNorms.routeId, routeId),
-        isNull(s.fuelNorms.deletedAt),
-      ))
-      .orderBy(s.fuelNorms.id);
-    assert.equal(afterReject, undefined);
-  });
-
-  it('applies ADMIN price-config writes immediately even when a pending request exists', async () => {
-    // The reported bug: an ADMIN edit 409'd because a pending governance
-    // request was already open for the same customer version. ADMIN is the
-    // final authority — the write must apply immediately, superseding the
-    // queue entry instead of being blocked by it. Uses its own customer so
-    // the shared-row tests below are unaffected. The queue entry is now a
-    // legacy fixture (the API no longer mints pending requests).
-    const [ownCustomer] = await db.insert(s.customers).values({
-      name: `Q15 Admin Final Customer ${suffix}`,
-    }).returning();
-    customerIds.push(ownCustomer.id);
-    const [before] = await db.select().from(s.customers).where(eq(s.customers.id, ownCustomer.id)).limit(1);
-    assert.ok(before);
-
-    // A (legacy) pending update on the current customer version…
-    const pending = await insertLegacyPendingPriceConfigAction({
-      resource: 'customers',
-      operation: 'UPDATE',
-      subjectId: ownCustomer.id,
-      beforeRow: before,
-      afterData: { paymentTermDays: 45 },
-    });
-
-    // …and ADMIN edits the same row at the same version: direct 200 row, no queue.
-    const direct = await api('PUT', `/api/customers/${ownCustomer.id}`, {
-      actorIndex: 2,
-      body: { paymentTermDays: 21 },
-      expectedUpdatedAt: before.updatedAt,
-    });
-    assert.equal(direct.status, 200, `admin direct body ${JSON.stringify(direct.body)}`);
-    assert.ok(!('actionKind' in direct.body), `expected direct row, got action: ${JSON.stringify(direct.body)}`);
-    assert.equal(direct.body.paymentTermDays, 21);
-
-    const [after] = await db.select().from(s.customers).where(eq(s.customers.id, ownCustomer.id)).limit(1);
-    assert.equal(after?.paymentTermDays, 21);
-
-    // The superseded pending action was canceled outright (the partial unique
-    // index on active actions would otherwise block the admin's insert).
-    const [superseded] = await db.select().from(s.governanceActions)
-      .where(eq(s.governanceActions.id, pending.id))
-      .limit(1);
-    assert.equal(superseded?.status, 'CANCELED', `superseded action: ${JSON.stringify(superseded)}`);
-    assert.equal(await approvedConfigActionCountForSubject('customers', ownCustomer.id), 1,
-      'admin direct apply must record one APPROVED audit action');
   });
 
   it('keeps ordinary customer edits direct while debt-authority fields require governance', async () => {
@@ -1139,11 +802,6 @@ describe('Q15 governed material config resources', { concurrency: false }, () =>
     });
     expectAppliedRow(governedUpdate, 'customer governed update');
     assert.equal(governedUpdate.status, 200, JSON.stringify(governedUpdate.body));
-
-    // The debt-authority write applies immediately AND records its APPROVED
-    // audit action; the ordinary contact edit above records none.
-    assert.equal(await approvedConfigActionCountForSubject('customers', customerId), 1,
-      'debt-authority change must route through governance with an APPROVED audit action');
 
     const [afterApproval] = await db.select().from(s.customers).where(eq(s.customers.id, customerId)).limit(1);
     assert.equal(Number(afterApproval?.creditLimit), 5000000);

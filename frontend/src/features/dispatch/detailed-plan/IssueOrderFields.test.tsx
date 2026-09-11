@@ -33,7 +33,7 @@ const mockRow: DispatchDetailPlanRow = {
 };
 
 describe('IssueOrderFields — New Calendar Design', () => {
-  it('renders quick days, 24h time inputs, DateInput with lang="en-GB", and common hours presets', () => {
+  it('renders quick days, 24h time inputs, start/end DateInputs, and common hours presets', () => {
     const draft: IssueOrderDraft = {
       plannedStartAt: '2026-09-10T14:00',
       plannedEndAt: '2026-09-10T16:00',
@@ -64,27 +64,32 @@ describe('IssueOrderFields — New Calendar Design', () => {
     expect(screen.getByRole('button', { name: 'Ngày mai' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Ngày kia' })).toBeTruthy();
 
-    // Inputs: Giờ chạy, Giờ kết thúc, Ngày chạy
+    // Inputs: Giờ chạy, Giờ kết thúc, Ngày chạy, Ngày kết thúc
     const startTimeInput = document.getElementById('test-issue-start-101') as HTMLInputElement;
     const endTimeInput = document.getElementById('test-issue-end-101') as HTMLInputElement;
-    const dateInput = document.getElementById('test-issue-date-101') as HTMLInputElement;
+    const startDateInput = document.getElementById('test-issue-date-101') as HTMLInputElement;
+    const endDateInput = document.getElementById('test-issue-end-date-101') as HTMLInputElement;
 
     expect(startTimeInput).toBeTruthy();
     expect(endTimeInput).toBeTruthy();
-    expect(dateInput).toBeTruthy();
+    expect(startDateInput).toBeTruthy();
+    expect(endDateInput).toBeTruthy();
 
     expect(startTimeInput.type).toBe('time');
     expect(endTimeInput.type).toBe('time');
-    expect(dateInput.type).toBe('date');
+    expect(startDateInput.type).toBe('date');
+    expect(endDateInput.type).toBe('date');
 
     // Pinned to 24h format and dd/mm/yyyy
     expect(startTimeInput.getAttribute('lang')).toBe('en-GB');
     expect(endTimeInput.getAttribute('lang')).toBe('en-GB');
-    expect(dateInput.getAttribute('lang')).toBe('en-GB');
+    expect(startDateInput.getAttribute('lang')).toBe('en-GB');
+    expect(endDateInput.getAttribute('lang')).toBe('en-GB');
 
     expect(startTimeInput.value).toBe('14:00');
     expect(endTimeInput.value).toBe('16:00');
-    expect(dateInput.value).toBe('2026-09-10');
+    expect(startDateInput.value).toBe('2026-09-10');
+    expect(endDateInput.value).toBe('2026-09-10');
 
     // Preset pills
     expect(screen.getByRole('button', { name: '08:00' })).toBeTruthy();
@@ -93,7 +98,7 @@ describe('IssueOrderFields — New Calendar Design', () => {
     expect(screen.getByRole('button', { name: '16:00' })).toBeTruthy();
   });
 
-  it('clicking a quick-day pill updates the date in both plannedStartAt and plannedEndAt', () => {
+  it('clicking a quick-day pill updates start date and auto-adjusts end date when needed', () => {
     let draft: IssueOrderDraft = {
       plannedStartAt: '2026-09-10T14:00',
       plannedEndAt: '2026-09-10T16:00',
@@ -128,11 +133,12 @@ describe('IssueOrderFields — New Calendar Design', () => {
     const d = String(expectedDate.getDate()).padStart(2, '0');
     const dateStr = `${y}-${m}-${d}`;
 
+    // Start date moves to tomorrow, end date auto-adjusts because it was before the new start date
     expect(draft.plannedStartAt).toBe(`${dateStr}T14:00`);
     expect(draft.plannedEndAt).toBe(`${dateStr}T16:00`);
   });
 
-  it('clicking a common-hours preset updates start time and sets end time to +2 hours', () => {
+  it('clicking a common-hours preset updates start time and sets end time to +2 hours on the end date', () => {
     let draft: IssueOrderDraft = {
       plannedStartAt: '2026-09-10T14:00',
       plannedEndAt: '2026-09-10T16:00',
@@ -163,14 +169,16 @@ describe('IssueOrderFields — New Calendar Design', () => {
     expect(draft.plannedEndAt).toBe('2026-09-10T10:00');
   });
 
-  it('displays the next-day badge (+1 ngày) when end time is overnight', () => {
-    const draft: IssueOrderDraft = {
+  it('supports cross-day trips: start on day 1, end on day 2', () => {
+    let draft: IssueOrderDraft = {
       plannedStartAt: '2026-09-10T22:00',
       plannedEndAt: '2026-09-11T02:00',
       externalDriverName: '',
       externalDriverPhone: '',
     };
-    const setIssueDraft = vi.fn();
+    const setIssueDraft = vi.fn((updater) => {
+      draft = updater(draft);
+    });
     const onFieldTouched = vi.fn();
 
     render(
@@ -185,6 +193,74 @@ describe('IssueOrderFields — New Calendar Design', () => {
       />,
     );
 
-    expect(screen.getByText('+1 ngày')).toBeTruthy();
+    // Both dates should render independently
+    const startDateInput = document.getElementById('test-issue-date-101') as HTMLInputElement;
+    const endDateInput = document.getElementById('test-issue-end-date-101') as HTMLInputElement;
+
+    expect(startDateInput.value).toBe('2026-09-10');
+    expect(endDateInput.value).toBe('2026-09-11');
+  });
+
+  it('changing start time does not overwrite end date', () => {
+    let draft: IssueOrderDraft = {
+      plannedStartAt: '2026-09-10T22:00',
+      plannedEndAt: '2026-09-11T02:00',
+      externalDriverName: '',
+      externalDriverPhone: '',
+    };
+    const setIssueDraft = vi.fn((updater) => {
+      draft = updater(draft);
+    });
+    const onFieldTouched = vi.fn();
+
+    render(
+      <IssueOrderFields
+        row={mockRow}
+        ownTruck={{ id: 1, driverId: 1, driverName: 'Lương Văn Long' }}
+        loadingOwnTruck={false}
+        issueDraft={draft}
+        setIssueDraft={setIssueDraft}
+        onFieldTouched={onFieldTouched}
+        idPrefix="test-issue"
+      />,
+    );
+
+    const startTimeInput = document.getElementById('test-issue-start-101') as HTMLInputElement;
+    fireEvent.change(startTimeInput, { target: { value: '23:00' } });
+
+    expect(draft.plannedStartAt).toBe('2026-09-10T23:00');
+    // End date must stay on 2026-09-11, not be dragged to 2026-09-10
+    expect(draft.plannedEndAt).toBe('2026-09-11T02:00');
+  });
+
+  it('changing end date independently updates only plannedEndAt', () => {
+    let draft: IssueOrderDraft = {
+      plannedStartAt: '2026-09-10T22:00',
+      plannedEndAt: '2026-09-10T23:00',
+      externalDriverName: '',
+      externalDriverPhone: '',
+    };
+    const setIssueDraft = vi.fn((updater) => {
+      draft = updater(draft);
+    });
+    const onFieldTouched = vi.fn();
+
+    render(
+      <IssueOrderFields
+        row={mockRow}
+        ownTruck={{ id: 1, driverId: 1, driverName: 'Lương Văn Long' }}
+        loadingOwnTruck={false}
+        issueDraft={draft}
+        setIssueDraft={setIssueDraft}
+        onFieldTouched={onFieldTouched}
+        idPrefix="test-issue"
+      />,
+    );
+
+    const endDateInput = document.getElementById('test-issue-end-date-101') as HTMLInputElement;
+    fireEvent.change(endDateInput, { target: { value: '2026-09-11' } });
+
+    expect(draft.plannedStartAt).toBe('2026-09-10T22:00');
+    expect(draft.plannedEndAt).toBe('2026-09-11T23:00');
   });
 });

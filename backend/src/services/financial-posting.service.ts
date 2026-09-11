@@ -24,7 +24,6 @@ export async function getFinancialPostingForGovernanceAction(
   const [posting] = await tx.select().from(s.tripFinancialPostings)
     .where(and(
       eq(s.tripFinancialPostings.tripId, tripId),
-      eq(s.tripFinancialPostings.governanceActionId, governanceActionId),
       eq(s.tripFinancialPostings.reason, reason),
     ))
     .orderBy(desc(s.tripFinancialPostings.version))
@@ -41,7 +40,6 @@ export async function createFinancialPosting(tx: Tx, input: {
   tripId: number;
   tripVersion: number;
   reason: FinancialPostingReason;
-  governanceActionId?: number | null;
   effectiveAt?: Date;
 }) {
   const active = await getActiveFinancialPosting(tx, input.tripId);
@@ -76,7 +74,6 @@ export async function createFinancialPosting(tx: Tx, input: {
     version: (latest?.version ?? 0) + 1,
     status: input.reason === 'CANCELLATION' ? 'REVERSED' : 'ACTIVE',
     reason: input.reason,
-    governanceActionId: input.governanceActionId ?? null,
     supersedesId: active?.id ?? null,
     effectiveAt: input.effectiveAt ?? new Date(),
   }).returning();

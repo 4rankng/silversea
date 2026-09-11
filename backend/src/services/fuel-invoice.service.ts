@@ -13,13 +13,13 @@ import {
   resolveFuelLateApprovalLinks,
   resolveFuelPeriodAuthority,
 } from './period-lock.service';
-import type {
-  GovernanceActionRow,
-  GovernanceApplyResult,
-} from './governance-transition.service';
+import {
+  buildGovernanceAction,
+  type GovernanceActionRow,
+  type GovernanceApplyResult,
+} from './governance-action-core.service';
 
 type FuelInvoiceRow = typeof s.fuelInvoices.$inferSelect;
-type FuelInvoiceCorrectionRow = typeof s.governanceActions.$inferSelect;
 type FuelPeriodAdjustmentRow = typeof s.fuelPeriodAdjustments.$inferSelect;
 
 function amountsMatch(left: number, right: number): boolean {
@@ -200,65 +200,19 @@ function allocationRowsToInput(
   }));
 }
 
-async function findLatestApprovedFuelInvoiceCorrection(
-  executor: Tx | typeof db,
-  invoiceId: number,
-) {
-  const [action] = await executor.select().from(s.governanceActions)
-    .where(and(
-      eq(s.governanceActions.subjectType, 'FUEL_INVOICE'),
-      eq(s.governanceActions.subjectId, invoiceId),
-      eq(s.governanceActions.actionKind, 'FUEL_INVOICE_CORRECTION'),
-      eq(s.governanceActions.status, 'APPROVED'),
-    ))
-    .orderBy(desc(s.governanceActions.id))
-    .limit(1);
-  return action;
-}
-
-async function toEffectiveFuelInvoiceView(
-  executor: Tx | typeof db,
+/**
+ * 2026-09-11 (maker-checker removal): corrections/reversals MATERIALIZED onto
+ * the fuel invoice row at apply time — corrected values replace the stored
+ * values and a reversal flips approval_status to REVERSED (allocations are
+ * removed). The row itself is therefore the effective view; no overlay.
+ */
+function toEffectiveFuelInvoiceView(
   invoice: FuelInvoiceRow,
   allocationRows: Array<typeof s.fuelInvoiceAllocations.$inferSelect>,
-  suppliedCorrection?: FuelInvoiceCorrectionRow | null,
 ) {
-  const correction = suppliedCorrection === undefined
-    ? await findLatestApprovedFuelInvoiceCorrection(executor, invoice.id)
-    : suppliedCorrection;
-  const base = {
+  return {
     ...toFuelInvoiceView(invoice),
     allocations: allocationRowsToInput(allocationRows),
-  };
-  if (!correction) return base;
-
-  const snapshot = correction.afterSnapshot as FuelInvoiceEffectiveSnapshot;
-  if (snapshot.correctionType === 'REVERSAL') {
-    return {
-      ...base,
-      approvalStatus: 'REVERSED',
-      effectiveCorrection: {
-        actionId: correction.id,
-        correctionType: snapshot.correctionType,
-        reason: correction.reason,
-        approvedBy: correction.approverId,
-        approvedAt: correction.approvedAt,
-      },
-    };
-  }
-  if (!snapshot.invoice) {
-    throw new ApiError(409, 'Bản điều chỉnh hóa đơn nhiên liệu thiếu dữ liệu hiệu lực');
-  }
-  return {
-    ...base,
-    ...snapshot.invoice,
-    allocations: snapshot.allocations,
-    effectiveCorrection: {
-      actionId: correction.id,
-      correctionType: snapshot.correctionType,
-      reason: correction.reason,
-      approvedBy: correction.approverId,
-      approvedAt: correction.approvedAt,
-    },
   };
 }
 
@@ -565,7 +519,7 @@ export async function getFuelInvoice(invoiceId: number) {
   const allocations = await db.select().from(s.fuelInvoiceAllocations)
     .where(eq(s.fuelInvoiceAllocations.fuelInvoiceId, invoiceId))
     .orderBy(s.fuelInvoiceAllocations.id);
-  return toEffectiveFuelInvoiceView(db, invoice, allocations);
+  return toEffectiveFuelInvoiceView(invoice, allocations);
 }
 
 function encodeFuelInvoiceCursor(invoice: FuelInvoiceRow): string {
@@ -586,37 +540,19 @@ async function loadEffectiveFuelInvoiceRows(rows: FuelInvoiceRow[]) {
   if (invoiceIds.length === 0) {
     return [];
   }
-  const [allocationRows, correctionRows] = await Promise.all([
-    db.select().from(s.fuelInvoiceAllocations)
-      .where(inArray(s.fuelInvoiceAllocations.fuelInvoiceId, invoiceIds))
-      .orderBy(s.fuelInvoiceAllocations.fuelInvoiceId, s.fuelInvoiceAllocations.id),
-    db.select().from(s.governanceActions)
-      .where(and(
-        eq(s.governanceActions.subjectType, 'FUEL_INVOICE'),
-        inArray(s.governanceActions.subjectId, invoiceIds),
-        eq(s.governanceActions.actionKind, 'FUEL_INVOICE_CORRECTION'),
-        eq(s.governanceActions.status, 'APPROVED'),
-      ))
-      .orderBy(s.governanceActions.subjectId, desc(s.governanceActions.id)),
-  ]);
+  const allocationRows = await db.select().from(s.fuelInvoiceAllocations)
+    .where(inArray(s.fuelInvoiceAllocations.fuelInvoiceId, invoiceIds))
+    .orderBy(s.fuelInvoiceAllocations.fuelInvoiceId, s.fuelInvoiceAllocations.id);
   const allocationsByInvoice = new Map<number, typeof allocationRows>();
   for (const allocation of allocationRows) {
     const current = allocationsByInvoice.get(allocation.fuelInvoiceId) ?? [];
     current.push(allocation);
     allocationsByInvoice.set(allocation.fuelInvoiceId, current);
   }
-  const correctionByInvoice = new Map<number, FuelInvoiceCorrectionRow>();
-  for (const correction of correctionRows) {
-    if (correction.subjectId != null && !correctionByInvoice.has(correction.subjectId)) {
-      correctionByInvoice.set(correction.subjectId, correction);
-    }
-  }
   return Promise.all(rows.map((invoice) =>
     toEffectiveFuelInvoiceView(
-      db,
       invoice,
       allocationsByInvoice.get(invoice.id) ?? [],
-      correctionByInvoice.get(invoice.id) ?? null,
     )));
 }
 
@@ -715,18 +651,6 @@ export async function approveFuelInvoice(
     if (invoice.createdBy != null && invoice.createdBy === actorId) {
       throw new ApiError(403, 'Không thể duyệt hóa đơn nhiên liệu do chính mình tạo');
     }
-    const [existingAction] = await tx.select({ id: s.governanceActions.id })
-      .from(s.governanceActions)
-      .where(and(
-        eq(s.governanceActions.subjectType, 'FUEL_INVOICE'),
-        eq(s.governanceActions.subjectId, invoice.id),
-        eq(s.governanceActions.actionKind, 'FUEL_INVOICE_APPROVAL'),
-        inArray(s.governanceActions.status, ['PENDING_CHECK', 'PENDING_APPROVAL']),
-      ))
-      .limit(1);
-    if (existingAction) {
-      throw new ApiError(409, 'Hóa đơn đã có yêu cầu duyệt đang chờ xử lý');
-    }
 
     const allocations = await tx.select()
       .from(s.fuelInvoiceAllocations)
@@ -819,7 +743,7 @@ export async function approveFuelInvoice(
       );
     }
 
-    const [action] = await tx.insert(s.governanceActions).values({
+    return buildGovernanceAction({
       subjectType: 'FUEL_INVOICE',
       subjectId: invoice.id,
       subjectKey: `fuel-invoice:${invoice.id}:approval:${expectedVersion}`,
@@ -846,8 +770,7 @@ export async function approveFuelInvoice(
       },
       makerId: actorId,
       makerRole: actorRole,
-    }).returning();
-    return action;
+    });
   };
   return runInTx(transaction, execute);
 }
@@ -893,29 +816,12 @@ export async function requestFuelInvoiceCorrection(input: {
     const allocationRows = await tx.select().from(s.fuelInvoiceAllocations)
       .where(eq(s.fuelInvoiceAllocations.fuelInvoiceId, invoice.id))
       .orderBy(s.fuelInvoiceAllocations.id);
-    const latestCorrection = await findLatestApprovedFuelInvoiceCorrection(tx, invoice.id);
-    const beforeSnapshot = latestCorrection
-      ? latestCorrection.afterSnapshot as FuelInvoiceEffectiveSnapshot
-      : toFuelInvoiceSnapshot(invoice, allocationRowsToInput(allocationRows));
-    if (beforeSnapshot.correctionType === 'REVERSAL') {
-      throw new ApiError(409, 'Hóa đơn nhiên liệu đã được hoàn tác và không thể điều chỉnh tiếp');
-    }
-    const [activeCorrection] = await tx.select({ id: s.governanceActions.id })
-      .from(s.governanceActions)
-      .where(and(
-        eq(s.governanceActions.subjectType, 'FUEL_INVOICE'),
-        eq(s.governanceActions.subjectId, invoice.id),
-        eq(s.governanceActions.actionKind, 'FUEL_INVOICE_CORRECTION'),
-        inArray(s.governanceActions.status, [
-          'PENDING_CHECK',
-          'PENDING_APPROVAL',
-          'RETURNED_FOR_EVIDENCE',
-        ]),
-      ))
-      .limit(1);
-    if (activeCorrection) {
-      throw new ApiError(409, 'Hóa đơn nhiên liệu đã có yêu cầu điều chỉnh đang chờ xử lý');
-    }
+    // Corrections used to chain from the latest APPROVED correction snapshot;
+    // with the row storage gone, corrected values are materialized onto the
+    // invoice itself, so the current row IS the correction chain state. The
+    // approvalStatus === 'APPROVED' guard above also rejects corrected rows
+    // that were later reversed (reversal materializes REVERSED on the row).
+    const beforeSnapshot = toFuelInvoiceSnapshot(invoice, allocationRowsToInput(allocationRows));
 
     let afterSnapshot: FuelInvoiceEffectiveSnapshot;
     if (input.correctionType === 'REVERSAL') {
@@ -952,14 +858,14 @@ export async function requestFuelInvoiceCorrection(input: {
       };
     }
 
-    const [action] = await tx.insert(s.governanceActions).values({
+    return buildGovernanceAction({
       subjectType: 'FUEL_INVOICE',
       subjectId: invoice.id,
       subjectKey: `fuel-invoice:${invoice.id}`,
       actionKind: 'FUEL_INVOICE_CORRECTION',
       reason,
-      // The exact millisecond source version is retained in deltaSnapshot.
-      // originalVersion stays within the existing 32-bit governance column.
+      // The exact millisecond source value is retained in deltaSnapshot.
+      // originalVersion stays within the 32-bit original_version range.
       originalVersion: Math.max(1, Math.floor(input.expectedVersion / 1000)),
       beforeSnapshot: beforeSnapshot as unknown as Record<string, unknown>,
       afterSnapshot: afterSnapshot as unknown as Record<string, unknown>,
@@ -969,8 +875,7 @@ export async function requestFuelInvoiceCorrection(input: {
       },
       makerId: input.makerId,
       makerRole: input.makerRole,
-    }).returning();
-    return action;
+    });
   };
   return runInTx(input.transaction, execute);
 }
@@ -1033,7 +938,6 @@ export async function applyFuelInvoiceGovernanceAction(
       }
       lateAdjustments = await tx.insert(s.fuelPeriodAdjustments).values(
         finalLateApprovalLinks.map((link) => ({
-          governanceActionId: action.id,
           fuelInvoiceId: invoice.id,
           sourcePeriodLockId: link.sourcePeriodLockId,
           sourcePeriod: link.sourcePeriod,
@@ -1076,8 +980,56 @@ export async function applyFuelInvoiceGovernanceAction(
   }
 
   const nextUpdatedAt = new Date(Math.max(Date.now(), invoice.updatedAt.getTime() + 1));
+  const snapshot = action.afterSnapshot as FuelInvoiceEffectiveSnapshot;
+
+  if (snapshot.correctionType === 'REVERSAL') {
+    // Materialized reversal: the row flips to REVERSED and its allocations
+    // are removed, so every reader (list filter, fuel-AP recon via the
+    // effective 'APPROVED' filter) sees the reversal without the dropped
+    // governance overlay.
+    const [reversed] = await tx.update(s.fuelInvoices)
+      .set({
+        approvalStatus: 'REVERSED',
+        updatedAt: nextUpdatedAt,
+      })
+      .where(and(
+        eq(s.fuelInvoices.id, invoice.id),
+        eq(s.fuelInvoices.approvalStatus, 'APPROVED'),
+        eq(s.fuelInvoices.updatedAt, invoice.updatedAt),
+      ))
+      .returning({ id: s.fuelInvoices.id });
+    if (!reversed) {
+      throw new ApiError(409, 'Hóa đơn nhiên liệu đã được người khác xử lý. Vui lòng tải lại.');
+    }
+    await tx.delete(s.fuelInvoiceAllocations)
+      .where(eq(s.fuelInvoiceAllocations.fuelInvoiceId, invoice.id));
+    return {
+      applicationResult: {
+        fuelInvoiceId: invoice.id,
+        correctionType: 'REVERSAL',
+        sourceVersion,
+        effectiveVersion: fuelInvoiceVersion(nextUpdatedAt),
+      },
+    };
+  }
+
+  if (!snapshot.invoice) {
+    throw new ApiError(409, 'Bản điều chỉnh hóa đơn nhiên liệu thiếu dữ liệu hiệu lực');
+  }
+  // Materialized adjustment: corrected header values replace the stored ones
+  // and allocation lines are rewritten to match, so the row itself is the
+  // effective invoice.
   const [advanced] = await tx.update(s.fuelInvoices)
-    .set({ updatedAt: nextUpdatedAt })
+    .set({
+      supplierId: snapshot.invoice.supplierId,
+      invoiceNumber: snapshot.invoice.invoiceNumber,
+      invoiceDate: snapshot.invoice.invoiceDate,
+      totalLiters: String(snapshot.invoice.totalLiters),
+      unitPrice: String(snapshot.invoice.unitPrice),
+      totalAmount: String(round2dp(snapshot.invoice.totalLiters * snapshot.invoice.unitPrice)),
+      note: snapshot.invoice.note,
+      updatedAt: nextUpdatedAt,
+    })
     .where(and(
       eq(s.fuelInvoices.id, invoice.id),
       eq(s.fuelInvoices.approvalStatus, 'APPROVED'),
@@ -1087,12 +1039,26 @@ export async function applyFuelInvoiceGovernanceAction(
   if (!advanced) {
     throw new ApiError(409, 'Hóa đơn nhiên liệu đã được người khác xử lý. Vui lòng tải lại.');
   }
-
-  const snapshot = action.afterSnapshot as FuelInvoiceEffectiveSnapshot;
+  const correctedRows = snapshot.allocations.map((allocation) => ({
+    fuelInvoiceId: invoice.id,
+    tripId: allocation.tripId,
+    truckId: allocation.truckId ?? null,
+    tripExpenseId: allocation.tripExpenseId ?? null,
+    voucherReference: allocation.voucherReference,
+    voucherDate: allocation.voucherDate,
+    liters: String(allocation.liters),
+    amount: allocation.amount,
+    note: allocation.note ?? null,
+  }));
+  await tx.delete(s.fuelInvoiceAllocations)
+    .where(eq(s.fuelInvoiceAllocations.fuelInvoiceId, invoice.id));
+  if (correctedRows.length > 0) {
+    await tx.insert(s.fuelInvoiceAllocations).values(correctedRows);
+  }
   return {
     applicationResult: {
       fuelInvoiceId: invoice.id,
-      correctionType: snapshot.correctionType,
+      correctionType: 'ADJUSTMENT',
       sourceVersion,
       effectiveVersion: fuelInvoiceVersion(nextUpdatedAt),
     },

@@ -10,8 +10,7 @@ import { applyTripPatch, insertTripComposite } from '../services/trip-composite.
 import { disconnectRedis } from '../lib/redis';
 import { requestTripExpenseDecision } from '../services/approval.service';
 import {
-  approveGovernanceAction,
-  checkGovernanceAction,
+  autoApplyGovernanceAction,
   requestTripFinancialClose,
   requestTripFinancialChange,
 } from '../services/adjustment-governance.service';
@@ -48,13 +47,11 @@ before(async () => {
 
 after(async () => {
   if (createdExpenseIds.length > 0) {
-    await db.delete(s.governanceActions).where(inArray(s.governanceActions.subjectId, createdExpenseIds));
     await db.delete(s.tripExpenses).where(inArray(s.tripExpenses.id, createdExpenseIds));
   }
   if (createdTripIds.length > 0) {
     await db.delete(s.notifications).where(inArray(s.notifications.relatedEntityId, createdTripIds));
     await db.delete(s.driverWorkDays).where(inArray(s.driverWorkDays.tripId, createdTripIds));
-    await db.delete(s.governanceActions).where(inArray(s.governanceActions.subjectId, createdTripIds));
     await db.delete(s.ledger).where(inArray(s.ledger.txnId, [...createdTripIds, ...createdExpenseIds]));
     await db.delete(s.profitabilitySnapshots).where(inArray(s.profitabilitySnapshots.tripId, createdTripIds));
     await db.delete(s.tripFinancialPostings).where(inArray(s.tripFinancialPostings.tripId, createdTripIds));
@@ -223,24 +220,16 @@ async function completeTripGoverned(tripId: number, expectedVersion: number) {
     reviewedBy: actors.checkerId,
   });
   createdShipmentIds.push(closeEvidence.shipmentId);
-  const action = await requestTripFinancialClose({
-    tripId,
-    reason: 'Hoàn thành chuyến để chụp AP snapshot',
-    makerId: actors.checkerId,
-    makerRole: Role.ACCOUNTANT,
-    expectedTripVersion: expectedVersion,
-  });
-  const checked = await checkGovernanceAction({
-    actionId: action.id,
-    checkerId: actors.makerId,
-    checkerRole: Role.MANAGER,
-    expectedVersion: action.version,
-  });
-  await approveGovernanceAction({
-    actionId: action.id,
-    approverId: actors.approverAId,
-    approverRole: Role.ADMIN,
-    expectedVersion: checked.version,
+  await autoApplyGovernanceAction({
+    make: () => requestTripFinancialClose({
+      tripId,
+      reason: 'Hoàn thành chuyến để chụp AP snapshot',
+      makerId: actors.checkerId,
+      makerRole: Role.ACCOUNTANT,
+      expectedTripVersion: expectedVersion,
+    }),
+    actorId: actors.approverAId,
+    actorRole: Role.ADMIN,
   });
 
   const [completed] = await db.select()
@@ -253,105 +242,33 @@ async function completeTripGoverned(tripId: number, expectedVersion: number) {
 
 async function governTripExpenseApproval(tripId: number, expenseId: number, expectedVersion: number) {
   const actors = await createActors('expense-approve');
-  const action = await requestTripExpenseDecision({
-    tripId,
-    expenseId,
-    decision: 'APPROVED',
-    reason: 'Duyệt chi phí NCC cho chuyến đã hoàn thành',
-    evidence: {
-      reviewNote: 'Đã đối chiếu chứng từ và số tiền chi hộ',
-      attachmentRefs: ['O2C-AP-P1'],
-    },
-    expectedExpenseVersion: expectedVersion,
-    makerId: actors.makerId,
-    makerRole: Role.MANAGER,
+  const approved = await autoApplyGovernanceAction({
+    make: () => requestTripExpenseDecision({
+      tripId,
+      expenseId,
+      decision: 'APPROVED',
+      reason: 'Duyệt chi phí NCC cho chuyến đã hoàn thành',
+      evidence: {
+        reviewNote: 'Đã đối chiếu chứng từ và số tiền chi hộ',
+        attachmentRefs: ['O2C-AP-P1'],
+      },
+      expectedExpenseVersion: expectedVersion,
+      makerId: actors.makerId,
+      makerRole: Role.MANAGER,
+    }),
+    actorId: actors.approverAId,
+    actorRole: Role.ADMIN,
   });
-  const checked = await checkGovernanceAction({
-    actionId: action.id,
-    checkerId: actors.checkerId,
-    checkerRole: Role.ACCOUNTANT,
-    expectedVersion: action.version,
-  });
-
-  const approve = async (approverId: number) => {
-    try {
-      await approveGovernanceAction({
-        actionId: action.id,
-        approverId,
-        approverRole: Role.ADMIN,
-        expectedVersion: checked.version,
-      });
-      return { ok: true as const };
-    } catch (error) {
-      const err = error as Error & { statusCode?: number };
-      return { ok: false as const, status: err.statusCode ?? 500, message: err.message };
-    }
-  };
-
-  return Promise.all([
-    approve(actors.approverAId),
-    approve(actors.approverBId),
-  ]);
+  assert.equal(approved.status, 'APPROVED');
+  return [{ ok: true as const }];
 }
 
-async function prepareTripExpenseApproval(tripId: number, expenseId: number, expectedVersion: number) {
-  const actors = await createActors('expense-race');
-  const action = await requestTripExpenseDecision({
-    tripId,
-    expenseId,
-    decision: 'APPROVED',
-    reason: 'Duyệt chi phí NCC cho chuyến đã hoàn thành',
-    evidence: {
-      reviewNote: 'Đã đối chiếu chứng từ và số tiền chi hộ',
-      attachmentRefs: ['O2C-AP-RACE'],
-    },
-    expectedExpenseVersion: expectedVersion,
-    makerId: actors.makerId,
-    makerRole: Role.MANAGER,
-  });
-  const checked = await checkGovernanceAction({
-    actionId: action.id,
-    checkerId: actors.checkerId,
-    checkerRole: Role.ACCOUNTANT,
-    expectedVersion: action.version,
-  });
-  return {
-    checkedActionId: action.id,
-    checkedVersion: checked.version,
-    approverId: actors.approverAId,
-  };
+function prepareTripExpenseApproval(tripId: number, expenseId: number, expectedVersion: number) {
+  return createActors('expense-race').then((actors) => ({ actors, expenseId, expectedVersion }));
 }
 
-async function prepareTripFinancialChange(tripId: number, expectedVersion: number) {
-  const actors = await createActors('trip-change');
-  const action = await requestTripFinancialChange({
-    tripId,
-    reason: 'Điều chỉnh chuyến đã hoàn thành trong lúc duyệt chi phí',
-    figures: {
-      legs: [],
-      fuelMode: FuelMode.AUTO,
-      fuelSupplementLiters: 0,
-      tollsDiscount: 0,
-      tollsAddition: 0,
-      tollsStations: 0,
-      hasReturnCargo: false,
-      revenue: 2_450_000,
-    },
-    makerId: actors.makerId,
-    makerRole: Role.MANAGER,
-    expectedTripVersion: expectedVersion,
-  });
-  const checked = await checkGovernanceAction({
-    actionId: action.id,
-    checkerId: actors.checkerId,
-    checkerRole: Role.ACCOUNTANT,
-    expectedVersion: action.version,
-  });
-  return {
-    checkedActionId: action.id,
-    checkedVersion: checked.version,
-    approverId: actors.approverAId,
-  };
+function prepareTripFinancialChange(tripId: number, expectedVersion: number) {
+  return createActors('trip-change').then((actors) => ({ actors, expectedVersion }));
 }
 
 function trackSettlement<T>(promise: Promise<T>) {
@@ -425,12 +342,7 @@ describe('O2C final AP P1 fixes', () => {
     await completeTripGoverned(trip.id, trip.version);
 
     const results = await governTripExpenseApproval(trip.id, expense.id, expense.version);
-    assert.deepEqual(
-      results.map((result) => result.ok).sort(),
-      [false, true],
-    );
-    const rejected = results.find((result) => !result.ok);
-    assert.equal(rejected?.status, 409);
+    assert.deepEqual(results.map((result) => result.ok), [true]);
 
     const vendorRows = await db.select().from(s.ledger).where(eq(s.ledger.txnId, expense.id));
     const vendorExpenseRows = vendorRows.filter((row) => (
@@ -481,19 +393,45 @@ describe('O2C final AP P1 fixes', () => {
     });
     await holderReadyPromise;
 
-    const approvalAttempt = trackSettlement(approveGovernanceAction({
-      actionId: expenseApproval.checkedActionId,
-      approverId: expenseApproval.approverId,
-      approverRole: Role.ADMIN,
-      expectedVersion: expenseApproval.checkedVersion,
+    const approvalAttempt = trackSettlement(autoApplyGovernanceAction({
+      make: () => requestTripExpenseDecision({
+        tripId: trip.id,
+        expenseId: expense.id,
+        decision: 'APPROVED',
+        reason: 'Duyệt chi phí NCC cho chuyến đã hoàn thành',
+        evidence: {
+          reviewNote: 'Đã đối chiếu chứng từ và số tiền chi hộ',
+          attachmentRefs: ['O2C-AP-RACE'],
+        },
+        expectedExpenseVersion: expense.version,
+        makerId: expenseApproval.actors.makerId,
+        makerRole: Role.MANAGER,
+      }),
+      actorId: expenseApproval.actors.approverAId,
+      actorRole: Role.ADMIN,
     }));
     await assertRemainsPending('late approval', approvalAttempt);
 
-    const correctionAttempt = trackSettlement(approveGovernanceAction({
-      actionId: financialChange.checkedActionId,
-      approverId: financialChange.approverId,
-      approverRole: Role.ADMIN,
-      expectedVersion: financialChange.checkedVersion,
+    const correctionAttempt = trackSettlement(autoApplyGovernanceAction({
+      make: () => requestTripFinancialChange({
+        tripId: trip.id,
+        reason: 'Điều chỉnh chuyến đã hoàn thành trong lúc duyệt chi phí',
+        figures: {
+          legs: [],
+          fuelMode: FuelMode.AUTO,
+          fuelSupplementLiters: 0,
+          tollsDiscount: 0,
+          tollsAddition: 0,
+          tollsStations: 0,
+          hasReturnCargo: false,
+          revenue: 2_450_000,
+        },
+        makerId: financialChange.actors.makerId,
+        makerRole: Role.MANAGER,
+        expectedTripVersion: financialChange.expectedVersion,
+      }),
+      actorId: financialChange.actors.approverAId,
+      actorRole: Role.ADMIN,
     }));
     await assertRemainsPending('completed-trip financial correction', correctionAttempt);
 

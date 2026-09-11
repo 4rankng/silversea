@@ -171,7 +171,7 @@ after(async () => {
     await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.idempotencyKey, idempotencyKeys));
   }
   if (createdActionIds.length > 0) {
-    await db.delete(s.governanceActions).where(inArray(s.governanceActions.id, createdActionIds));
+    await db.delete(s.salaryPeriodExclusions).where(inArray(s.salaryPeriodExclusions.id, createdActionIds));
   }
   if (createdLedgerIds.length > 0) {
     await db.delete(s.ledger).where(inArray(s.ledger.id, createdLedgerIds));
@@ -238,14 +238,11 @@ describe('Q10 salary exclusion route validation', () => {
     createdActionIds.push(Number(adjustment.body.actionId));
 
     const [stored] = await db.select({
-      afterSnapshot: s.governanceActions.afterSnapshot,
-    }).from(s.governanceActions)
-      .where(eq(s.governanceActions.id, Number(adjustment.body.actionId)))
+      targetPeriod: s.salaryPeriodExclusions.targetPeriod,
+    }).from(s.salaryPeriodExclusions)
+      .where(eq(s.salaryPeriodExclusions.id, Number(adjustment.body.actionId)))
       .limit(1);
-    assert.equal(
-      ((stored?.afterSnapshot as Record<string, unknown> | null)?.targetPeriod ?? null),
-      null,
-    );
+    assert.equal(stored?.targetPeriod ?? null, null);
   });
 
   test('commits effect, replay key, and material audit atomically and rolls all back on audit failure', async () => {
@@ -275,8 +272,8 @@ describe('Q10 salary exclusion route validation', () => {
       .where(eq(s.idempotencyKeys.idempotencyKey, key))
       .limit(1);
     assert.equal(persistedKey?.entityId, actionId);
-    const [persistedAction] = await db.select().from(s.governanceActions)
-      .where(eq(s.governanceActions.id, actionId))
+    const [persistedAction] = await db.select().from(s.salaryPeriodExclusions)
+      .where(eq(s.salaryPeriodExclusions.id, actionId))
       .limit(1);
     assert.equal(persistedAction?.reason, body.reason);
     const audits = await db.select().from(s.auditLogs)
@@ -303,8 +300,8 @@ describe('Q10 salary exclusion route validation', () => {
     const failedKeys = await db.select().from(s.idempotencyKeys)
       .where(eq(s.idempotencyKeys.idempotencyKey, failingKey));
     assert.equal(failedKeys.length, 0);
-    const failedActions = await db.select().from(s.governanceActions)
-      .where(eq(s.governanceActions.reason, failingReason));
+    const failedActions = await db.select().from(s.salaryPeriodExclusions)
+      .where(eq(s.salaryPeriodExclusions.reason, failingReason));
     assert.equal(failedActions.length, 0);
   });
 });

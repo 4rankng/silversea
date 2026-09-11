@@ -9,22 +9,19 @@ import { runIdempotent } from '../../services/idempotency.service';
 import * as H from './config-helpers';
 import { getSalaryPeriodDefault, getSalaryPeriodDefaultFrom, getSalaryPeriodOverrides, resolveSalaryPeriodDateRange } from '../../services/salary-period.service';
 import {
-  approveSalaryPeriodClose,
-  approveSalaryPeriodReopen,
-  checkSalaryPeriodClose,
-  checkSalaryPeriodReopen,
+  applySalaryPeriodCloseAction,
+  applySalaryPeriodReopenAction,
   getSalaryPeriodClose,
   listSalaryPeriodCloses,
   getSalaryPeriodReadiness,
   listSalaryPeriodExclusions,
   createSalaryPeriodExclusion,
-  checkSalaryPeriodExclusion,
-  approveSalaryPeriodExclusion,
   completeSalaryPeriodExclusionFollowup,
   requestSalaryPeriodClose,
   requestSalaryPeriodReopen,
 } from '../../services/salary-period-close.service';
-import { salaryPeriodSchema, salaryPeriodDefaultSchema, governanceActionVersionSchema } from '@tingting/shared';
+import { autoApplyGovernanceAction } from '../../services/adjustment-governance.service';
+import { salaryPeriodSchema, salaryPeriodDefaultSchema } from '@tingting/shared';
 import { requestOrApplyGovernedConfigAction } from '../../services/price-config-governance.service';
 
 // Salary period config routes (T3c split) — the public resolve router and
@@ -308,60 +305,6 @@ salaryPeriodsAdminRouter.post('/:period/exclusions', asyncHandler(async (req: Re
   res.status(outcome.statusCode).json({ ...outcome.result, replayed: outcome.replayed });
 }));
 
-salaryPeriodsAdminRouter.post('/:period/exclusions/:actionId/check', asyncHandler(async (req: Request, res: Response) => {
-  const actionId = Number(req.params.actionId);
-  if (!Number.isInteger(actionId) || actionId < 1) {
-    throw new ApiError(400, 'actionId không hợp lệ');
-  }
-  const u = getUser(req);
-  const period = req.params.period as string;
-  const expectedVersion = Number((req.body as { expectedVersion?: unknown } | undefined)?.expectedVersion);
-  const note = typeof req.body?.note === 'string' ? req.body.note : null;
-  const outcome = await runIdempotent({
-    endpoint: H.CONFIG_COMMANDS.SALARY_EXCLUSION_CHECK,
-    idempotencyKey: H.requireIdempotencyKey(req, 'Idempotency-Key là bắt buộc khi kiểm tra loại trừ kỳ lương.'),
-    payload: { period, actionId, expectedVersion: Number.isInteger(expectedVersion) ? expectedVersion : null, note },
-    createdBy: u.userId,
-    entityType: 'governance_action',
-    create: (tx) => checkSalaryPeriodExclusion({
-      actionId,
-      actorId: u.userId,
-      actorRole: u.role,
-      expectedVersion: Number.isInteger(expectedVersion) ? expectedVersion : null,
-      note,
-      transaction: tx,
-    }),
-    getEntityId: (result) => result.actionId,
-  });
-  res.json({ ...outcome.result, replayed: outcome.replayed });
-}));
-
-salaryPeriodsAdminRouter.post('/:period/exclusions/:actionId/approve', asyncHandler(async (req: Request, res: Response) => {
-  const actionId = Number(req.params.actionId);
-  if (!Number.isInteger(actionId) || actionId < 1) {
-    throw new ApiError(400, 'actionId không hợp lệ');
-  }
-  const u = getUser(req);
-  const period = req.params.period as string;
-  const expectedVersion = Number((req.body as { expectedVersion?: unknown } | undefined)?.expectedVersion);
-  const outcome = await runIdempotent({
-    endpoint: H.CONFIG_COMMANDS.SALARY_EXCLUSION_APPROVE,
-    idempotencyKey: H.requireIdempotencyKey(req, 'Idempotency-Key là bắt buộc khi phê duyệt loại trừ kỳ lương.'),
-    payload: { period, actionId, expectedVersion: Number.isInteger(expectedVersion) ? expectedVersion : null },
-    createdBy: u.userId,
-    entityType: 'governance_action',
-    create: (tx) => approveSalaryPeriodExclusion({
-      actionId,
-      actorId: u.userId,
-      actorRole: u.role,
-      expectedVersion: Number.isInteger(expectedVersion) ? expectedVersion : null,
-      transaction: tx,
-    }),
-    getEntityId: (result) => result.actionId,
-  });
-  res.json({ ...outcome.result, replayed: outcome.replayed });
-}));
-
 salaryPeriodsAdminRouter.post('/:period/exclusions/:actionId/complete-followup', asyncHandler(async (req: Request, res: Response) => {
   const actionId = Number(req.params.actionId);
   if (!Number.isInteger(actionId) || actionId < 1) {
@@ -397,68 +340,22 @@ salaryPeriodsAdminRouter.post('/:period/close', asyncHandler(async (req: Request
     createdBy: u.userId,
     entityType: 'governance_action',
     responseStatusCode: 201,
-    create: (tx) => requestSalaryPeriodClose({
-      period,
+    create: (tx) => autoApplyGovernanceAction({
+      make: (tx) => requestSalaryPeriodClose({
+        period,
+        actorId: u.userId,
+        actorRole: u.role,
+        reason: note,
+        note,
+        transaction: tx,
+      }),
+      apply: applySalaryPeriodCloseAction,
       actorId: u.userId,
       actorRole: u.role,
-      reason: note,
-      note,
       transaction: tx,
     }),
   });
   res.status(outcome.statusCode).json({ ...outcome.result, replayed: outcome.replayed });
-}));
-
-salaryPeriodsAdminRouter.post('/:period/close-actions/:actionId/check', asyncHandler(async (req: Request, res: Response) => {
-  const actionId = Number(req.params.actionId);
-  if (!Number.isInteger(actionId) || actionId < 1) {
-    throw new ApiError(400, 'actionId không hợp lệ');
-  }
-  const input = governanceActionVersionSchema.parse(req.body);
-  const u = getUser(req);
-  const period = req.params.period as string;
-  const outcome = await runIdempotent({
-    endpoint: H.CONFIG_COMMANDS.SALARY_CLOSE_CHECK,
-    idempotencyKey: H.requireIdempotencyKey(req, 'Idempotency-Key là bắt buộc khi kiểm tra đề nghị chốt kỳ lương.'),
-    payload: { period, actionId, expectedVersion: input.expectedVersion },
-    createdBy: u.userId,
-    entityType: 'governance_action',
-    create: (tx) => checkSalaryPeriodClose({
-      period,
-      actionId,
-      actorId: u.userId,
-      actorRole: u.role,
-      expectedVersion: input.expectedVersion,
-      transaction: tx,
-    }),
-  });
-  res.json({ ...outcome.result, replayed: outcome.replayed });
-}));
-
-salaryPeriodsAdminRouter.post('/:period/close-actions/:actionId/approve', asyncHandler(async (req: Request, res: Response) => {
-  const actionId = Number(req.params.actionId);
-  if (!Number.isInteger(actionId) || actionId < 1) {
-    throw new ApiError(400, 'actionId không hợp lệ');
-  }
-  const input = governanceActionVersionSchema.parse(req.body);
-  const u = getUser(req);
-  const period = req.params.period as string;
-  const outcome = await runIdempotent({
-    endpoint: H.CONFIG_COMMANDS.SALARY_CLOSE_APPROVE,
-    idempotencyKey: H.requireIdempotencyKey(req, 'Idempotency-Key là bắt buộc khi phê duyệt chốt kỳ lương.'),
-    payload: { period, actionId, expectedVersion: input.expectedVersion },
-    createdBy: u.userId,
-    entityType: 'governance_action',
-    create: (tx) => approveSalaryPeriodClose({
-      period,
-      actionId,
-      actorId: u.userId,
-      actorRole: u.role,
-      expectedVersion: input.expectedVersion,
-      transaction: tx,
-    }),
-  });
-  res.json({ ...outcome.result, replayed: outcome.replayed });
 }));
 
 salaryPeriodsAdminRouter.post('/:period/reopen', asyncHandler(async (req: Request, res: Response) => {
@@ -475,69 +372,23 @@ salaryPeriodsAdminRouter.post('/:period/reopen', asyncHandler(async (req: Reques
     createdBy: u.userId,
     entityType: 'governance_action',
     responseStatusCode: 201,
-    create: (tx) => requestSalaryPeriodReopen({
-      period,
+    create: (tx) => autoApplyGovernanceAction({
+      make: (tx) => requestSalaryPeriodReopen({
+        period,
+        actorId: u.userId,
+        actorRole: u.role,
+        expectedVersion: normalizedVersion,
+        reason,
+        note,
+        transaction: tx,
+      }),
+      apply: applySalaryPeriodReopenAction,
       actorId: u.userId,
       actorRole: u.role,
-      expectedVersion: normalizedVersion,
-      reason,
-      note,
       transaction: tx,
     }),
   });
   res.status(outcome.statusCode).json({ ...outcome.result, replayed: outcome.replayed });
-}));
-
-salaryPeriodsAdminRouter.post('/:period/reopen-actions/:actionId/check', asyncHandler(async (req: Request, res: Response) => {
-  const actionId = Number(req.params.actionId);
-  if (!Number.isInteger(actionId) || actionId < 1) {
-    throw new ApiError(400, 'actionId không hợp lệ');
-  }
-  const input = governanceActionVersionSchema.parse(req.body);
-  const u = getUser(req);
-  const period = req.params.period as string;
-  const outcome = await runIdempotent({
-    endpoint: H.CONFIG_COMMANDS.SALARY_REOPEN_CHECK,
-    idempotencyKey: H.requireIdempotencyKey(req, 'Idempotency-Key là bắt buộc khi kiểm tra đề nghị mở lại kỳ lương.'),
-    payload: { period, actionId, expectedVersion: input.expectedVersion },
-    createdBy: u.userId,
-    entityType: 'governance_action',
-    create: (tx) => checkSalaryPeriodReopen({
-      period,
-      actionId,
-      actorId: u.userId,
-      actorRole: u.role,
-      expectedVersion: input.expectedVersion,
-      transaction: tx,
-    }),
-  });
-  res.json({ ...outcome.result, replayed: outcome.replayed });
-}));
-
-salaryPeriodsAdminRouter.post('/:period/reopen-actions/:actionId/approve', asyncHandler(async (req: Request, res: Response) => {
-  const actionId = Number(req.params.actionId);
-  if (!Number.isInteger(actionId) || actionId < 1) {
-    throw new ApiError(400, 'actionId không hợp lệ');
-  }
-  const input = governanceActionVersionSchema.parse(req.body);
-  const u = getUser(req);
-  const period = req.params.period as string;
-  const outcome = await runIdempotent({
-    endpoint: H.CONFIG_COMMANDS.SALARY_REOPEN_APPROVE,
-    idempotencyKey: H.requireIdempotencyKey(req, 'Idempotency-Key là bắt buộc khi phê duyệt mở lại kỳ lương.'),
-    payload: { period, actionId, expectedVersion: input.expectedVersion },
-    createdBy: u.userId,
-    entityType: 'governance_action',
-    create: (tx) => approveSalaryPeriodReopen({
-      period,
-      actionId,
-      actorId: u.userId,
-      actorRole: u.role,
-      expectedVersion: input.expectedVersion,
-      transaction: tx,
-    }),
-  });
-  res.json({ ...outcome.result, replayed: outcome.replayed });
 }));
 
 // ─── Audit logs (mounted separately with audit_logs Casbin resource) ─────────

@@ -24,7 +24,7 @@ import {
 } from '../../services/profit-distribution.service';
 import { exportProfitabilityReport, getProfitabilityReport, PROFITABILITY_DIMENSIONS } from '../../services/profitability.service';
 import { autoApplyGovernanceAction } from '../../services/adjustment-governance.service';
-import { approveDirectMoneyGovernanceAction } from '../../services/governance-transition.service';
+import { applyDirectMoneyGovernanceAction } from '../../services/governance-transition.service';
 import { AuditEvent } from '../../services/audit-types';
 
 const router = Router();
@@ -200,7 +200,7 @@ router.post('/reports/distribute-profit', requireRoles(Role.ADMIN, Role.MANAGER)
         makerRole: user.role,
         transaction: tx,
       }),
-      approve: approveDirectMoneyGovernanceAction,
+      apply: applyDirectMoneyGovernanceAction,
       actorId: user.userId,
       actorRole: user.role,
       transaction: tx,

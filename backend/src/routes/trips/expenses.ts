@@ -15,7 +15,6 @@ import {
   getTripExpensesForRoute, createTripExpense, updateTripExpense, deleteTripExpenseGuarded,
   getTripExpenseAuditInfo, latestTripPhotoKey, listTripPhotoKeys, listTripContainers,
 } from '../../services/forwarder.service';
-import { listTripGovernanceActions } from '../../services/adjustment-governance.service';
 import { ApiError } from '../../errors';
 import { requestTripExpenseDecision } from '../../services/approval.service';
 import { autoApplyGovernanceAction } from '../../services/adjustment-governance.service';
@@ -28,11 +27,8 @@ const router = Router();
 
 router.get('/:id/adjustments', asyncHandler(async (req: Request, res: Response) => {
   const tripId = parseInt(req.params.id as string);
-  const [postedItems, actions] = await Promise.all([
-    financialService.getTripAdjustments(tripId),
-    listTripGovernanceActions(tripId),
-  ]);
-  res.json({ items: postedItems, actions });
+  const postedItems = await financialService.getTripAdjustments(tripId);
+  res.json({ items: postedItems });
 }));
 
 // Create adjustment for a specific trip

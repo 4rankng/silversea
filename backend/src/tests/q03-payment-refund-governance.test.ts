@@ -6,17 +6,16 @@ import { client, db } from '../db';
 import * as s from '../db/schema';
 import { TxnType } from '@tingting/shared';
 import {
+  applyPaymentRefundGovernanceAction,
   requestPaymentRefundGovernance,
 } from '../services/payment-allocation.service';
-import {
-  approveDirectMoneyGovernanceAction,
-  checkGovernanceAction,
-} from '../services/governance-transition.service';
+import { autoApplyGovernanceAction } from '../services/adjustment-governance.service';
+import { applyDirectMoneyGovernanceAction } from '../services/governance-transition.service';
+import { applyGovernanceActionDirect } from '../services/governance-action-core.service';
 import { getTreasuryPosition } from '../services/treasury.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const userIds: number[] = [];
-const governanceActionIds: number[] = [];
 const ledgerIds: number[] = [];
 let customerId: number | null = null;
 let paymentReceiptId: number | null = null;
@@ -35,10 +34,6 @@ after(async () => {
     }
     if (paymentReceiptId != null) {
       await db.delete(s.paymentRefunds).where(eq(s.paymentRefunds.paymentReceiptId, paymentReceiptId));
-    }
-    if (governanceActionIds.length > 0) {
-      await db.delete(s.governanceActions)
-        .where(inArray(s.governanceActions.id, governanceActionIds));
     }
     if (paymentReceiptId != null) {
       await db.delete(s.paymentReceipts).where(eq(s.paymentReceipts.id, paymentReceiptId));
@@ -73,8 +68,8 @@ async function createUser(role: 'ADMIN' | 'MANAGER' | 'ACCOUNTANT') {
 
 test('Q03 refunds only unapplied credit through distinct maker, checker, and approver', async () => {
   const maker = await createUser('ACCOUNTANT');
-  const checker = await createUser('MANAGER');
-  const approver = await createUser('ADMIN');
+  await createUser('MANAGER');
+  await createUser('ADMIN');
   const [customer] = await db.insert(s.customers).values({
     name: `Q03 refund customer ${suffix}`,
     status: 'ACTIVE',
@@ -153,31 +148,20 @@ test('Q03 refunds only unapplied credit through distinct maker, checker, and app
       error.statusCode === 409 && /vượt quá khoản chưa phân bổ/i.test(error.message),
   );
 
-  const requested = await requestPaymentRefundGovernance({
-    paymentReceiptId: receipt.id,
-    amount: 4_000_000,
-    reason: 'Khách chuyển thừa và gửi yêu cầu hoàn tiền',
-    makerId: maker.id,
-    makerRole: maker.role,
+  const requested = await autoApplyGovernanceAction({
+    make: () => requestPaymentRefundGovernance({
+      paymentReceiptId: receipt.id,
+      amount: 4_000_000,
+      reason: 'Khách chuyển thừa và gửi yêu cầu hoàn tiền',
+      makerId: maker.id,
+      makerRole: maker.role,
+    }),
+    actorId: maker.id,
+    actorRole: maker.role,
+    apply: applyDirectMoneyGovernanceAction,
   });
-  governanceActionIds.push(requested.id);
-  assert.equal(requested.status, 'PENDING_CHECK');
-
-  // 2026-09-10 (phê duyệt removed): the maker may check their own request.
-
-  const checked = await checkGovernanceAction({
-    actionId: requested.id,
-    checkerId: checker.id,
-    checkerRole: checker.role,
-    expectedVersion: requested.version,
-  });
-  const approved = await approveDirectMoneyGovernanceAction({
-    actionId: requested.id,
-    approverId: approver.id,
-    approverRole: approver.role,
-    expectedVersion: checked.version,
-  });
-  assert.equal(approved.status, 'APPROVED');
+  assert.equal(requested.status, 'APPROVED');
+  assert.equal(requested.approverId, maker.id);
 
   const [updatedReceipt] = await db.select().from(s.paymentReceipts)
     .where(eq(s.paymentReceipts.id, receipt.id));
@@ -192,10 +176,10 @@ test('Q03 refunds only unapplied credit through distinct maker, checker, and app
   );
 
   const [refund] = await db.select().from(s.paymentRefunds)
-    .where(eq(s.paymentRefunds.governanceActionId, requested.id));
+    .where(eq(s.paymentRefunds.paymentReceiptId, receipt.id));
   assert.equal(Number(refund.amount), 4_000_000);
   assert.equal(refund.createdBy, maker.id);
-  assert.equal(refund.approvedBy, approver.id);
+  assert.equal(refund.approvedBy, maker.id);
   ledgerIds.push(refund.ledgerEntryId);
 
   const [refundLedger] = await db.select().from(s.ledger)
@@ -220,47 +204,33 @@ test('Q03 refunds only unapplied credit through distinct maker, checker, and app
     .where(eq(s.treasuryMovements.id, treasuryMovement.id));
   assert.equal(immutableOriginal.status, 'POSTED');
 
+  // Staging mechanics are gone: re-running the apply stage against the already
+  // applied action must refuse — the receipt version has moved on — instead of
+  // replaying a parked approval row.
   await assert.rejects(
-    () => approveDirectMoneyGovernanceAction({
-      actionId: requested.id,
-      approverId: approver.id,
-      approverRole: approver.role,
-      expectedVersion: checked.version,
+    () => applyGovernanceActionDirect({
+      action: requested,
+      actorId: maker.id,
+      actorRole: maker.role,
+      apply: applyPaymentRefundGovernanceAction,
     }),
     (error: Error & { statusCode?: number }) => error.statusCode === 409,
     'stale replay cannot post a duplicate refund',
   );
 
-  const secondRequested = await requestPaymentRefundGovernance({
-    paymentReceiptId: receipt.id,
-    amount: 2_000_000,
-    reason: 'Hoàn tiếp phần tiền chưa phân bổ còn lại',
-    makerId: maker.id,
-    makerRole: maker.role,
-  });
-  governanceActionIds.push(secondRequested.id);
-  const secondChecked = await checkGovernanceAction({
-    actionId: secondRequested.id,
-    checkerId: checker.id,
-    checkerRole: checker.role,
-    expectedVersion: secondRequested.version,
-  });
-  const concurrentApprovals = await Promise.allSettled([
-    approveDirectMoneyGovernanceAction({
-      actionId: secondRequested.id,
-      approverId: approver.id,
-      approverRole: approver.role,
-      expectedVersion: secondChecked.version,
+  const secondRequested = await autoApplyGovernanceAction({
+    make: () => requestPaymentRefundGovernance({
+      paymentReceiptId: receipt.id,
+      amount: 2_000_000,
+      reason: 'Hoàn tiếp phần tiền chưa phân bổ còn lại',
+      makerId: maker.id,
+      makerRole: maker.role,
     }),
-    approveDirectMoneyGovernanceAction({
-      actionId: secondRequested.id,
-      approverId: approver.id,
-      approverRole: approver.role,
-      expectedVersion: secondChecked.version,
-    }),
-  ]);
-  assert.equal(concurrentApprovals.filter(result => result.status === 'fulfilled').length, 1);
-  assert.equal(concurrentApprovals.filter(result => result.status === 'rejected').length, 1);
+    actorId: maker.id,
+    actorRole: maker.role,
+    apply: applyDirectMoneyGovernanceAction,
+  });
+  assert.equal(secondRequested.status, 'APPROVED');
 
   const refunds = await db.select().from(s.paymentRefunds)
     .where(eq(s.paymentRefunds.paymentReceiptId, receipt.id));

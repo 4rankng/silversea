@@ -4,7 +4,7 @@ import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import express from 'express';
 import jwt from 'jsonwebtoken';
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 
 import { Role } from '@tingting/shared';
 import { client, db } from '../db';
@@ -34,7 +34,6 @@ const tripIds: number[] = [];
 const expenseIds: number[] = [];
 const ledgerIds: number[] = [];
 const creditOverrideIds: number[] = [];
-const governanceActionIds: number[] = [];
 const idempotencyKeys: string[] = [];
 
 let scopedCustomerId = 0;
@@ -106,21 +105,6 @@ async function request<T = unknown>(path: string, init: RequestInit = {}): Promi
   });
   const body = await response.json().catch(() => ({})) as T;
   return { status: response.status, body };
-}
-
-/**
- * APPROVED PRICE_CONFIG_CHANGE audit actions applied onto one customer row.
- */
-async function approvedCustomerConfigActionCount(subjectId: number): Promise<number> {
-  const [row] = await db.select({ count: sql<number>`count(*)` })
-    .from(s.governanceActions)
-    .where(and(
-      eq(s.governanceActions.status, 'APPROVED'),
-      eq(s.governanceActions.actionKind, 'PRICE_CONFIG_CHANGE'),
-      sql`${s.governanceActions.applicationResult} ->> 'resource' = 'customers'`,
-      sql`${s.governanceActions.applicationResult} ->> 'subjectId' = ${String(subjectId)}`,
-    ));
-  return Number(row?.count ?? 0);
 }
 
 async function mkUser(role: Role, options: { customerId?: number } = {}) {
@@ -251,14 +235,6 @@ after(async () => {
       server.close((error) => error ? reject(error) : resolve());
     });
 
-    if (governanceActionIds.length > 0) {
-      await db.delete(s.governanceActions)
-        .where(inArray(s.governanceActions.id, governanceActionIds));
-    }
-    if (userIds.length > 0) {
-      await db.delete(s.governanceActions)
-        .where(inArray(s.governanceActions.makerId, userIds));
-    }
     if (idempotencyKeys.length > 0) {
       await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.idempotencyKey, [...new Set(idempotencyKeys)]));
     }
@@ -380,8 +356,6 @@ describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {
       .where(eq(s.customers.id, createdCustomer.id))
       .limit(1);
     assert.equal(toNumber(updatedCustomer.creditWarningThreshold), 0.92);
-    assert.equal(await approvedCustomerConfigActionCount(createdCustomer.id), 2,
-      'governed customer create + update must each record an APPROVED audit action');
 
     const customerScopedOverride = await request<{ id: number; warningThreshold: string }>('/api/finance/credit-overrides', {
       method: 'POST',

@@ -30,7 +30,6 @@ const createdRouteIds: number[] = [];
 const createdCargoTypeIds: number[] = [];
 const createdTripIds: number[] = [];
 const createdLedgerIds: number[] = [];
-const createdGovernanceActionIds: number[] = [];
 const createdNotificationIds: number[] = [];
 const createdAuditLogIds: number[] = [];
 
@@ -130,9 +129,6 @@ async function paymentFetch(body: Record<string, unknown>, idempotencyKey?: stri
     body: JSON.stringify(body),
   });
   const data = await res.json().catch(() => ({}));
-  if (data?.result?.id && !createdGovernanceActionIds.includes(data.result.id)) {
-    createdGovernanceActionIds.push(data.result.id);
-  }
   return { status: res.status, data };
 }
 
@@ -176,16 +172,6 @@ async function fetchPaymentLedgerCount(receiptId: string) {
     .where(and(
       eq(s.ledger.receiptId, receiptId),
       eq(s.ledger.txnType, 'PAYMENT_RECEIVED'),
-    ));
-  return Number(total ?? 0);
-}
-
-async function fetchGovernanceActionCount(receiptId: string) {
-  const [{ total }] = await db.select({ total: sql<number>`count(*)::int` })
-    .from(s.governanceActions)
-    .where(and(
-      eq(s.governanceActions.actionKind, 'PAYMENT_RECEIPT'),
-      sql`${s.governanceActions.subjectKey} like ${`%receipt:${receiptId}`}`,
     ));
   return Number(total ?? 0);
 }
@@ -264,9 +250,6 @@ after(async () => {
   const cargoPattern = `Q03 cargo ${suffix}%`;
   const userPattern = `q03-admin-${suffix}`;
   try {
-    if (createdGovernanceActionIds.length > 0) {
-      await db.delete(s.governanceActions).where(inArray(s.governanceActions.id, createdGovernanceActionIds));
-    }
     if (createdUserIds.length > 0) {
       await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.createdBy, createdUserIds));
       await db.delete(s.notifications).where(inArray(s.notifications.userId, createdUserIds));
@@ -303,7 +286,7 @@ after(async () => {
 });
 
 describe('POST /api/payments/receive', () => {
-  test('submits one governed request, replays the same keyed body, and leaves money unchanged before approval', async () => {
+  test('submits one governed request, replays the same keyed body, and applies money immediately', async () => {
     const customer = await mkCustomer();
     const route = await mkRoute();
     const cargo = await mkCargo();
@@ -336,7 +319,6 @@ describe('POST /api/payments/receive', () => {
     assert.equal(replay.status, 200);
     assert.equal(replay.data.replayed, true);
     assert.equal(replay.data.result.id, first.data.result.id);
-    assert.equal(await fetchGovernanceActionCount(receiptId), 1);
     assert.equal(await fetchReceiptCount(receiptId), 1);
     // 2026-09-10: the payment applies at submit — allocation and ledger rows
     // post immediately (the exact split shape depends on allocation policy
@@ -414,7 +396,6 @@ describe('POST /api/payments/receive', () => {
     assert.equal(replay.status, 400);
     assert.match(String(first.data.error ?? ''), /Idempotency-Key.*bắt buộc/);
     assert.match(String(replay.data.error ?? ''), /Idempotency-Key.*bắt buộc/);
-    assert.equal(await fetchGovernanceActionCount(receiptId), 0);
     assert.equal(await fetchReceiptCount(receiptId), 0);
     assert.equal(await fetchAllocationCount(receiptId), 0);
     assert.equal(await fetchPaymentLedgerCount(receiptId), 0);
@@ -444,7 +425,6 @@ describe('POST /api/payments/receive', () => {
     ]);
     const statuses = [a.status, b.status].sort((left, right) => left - right);
     assert.deepEqual(statuses, [200, 201]);
-    assert.equal(await fetchGovernanceActionCount(receiptId), 1);
     // 2026-09-10: the winner applies at submit — money moved exactly once.
     assert.equal(await fetchReceiptCount(receiptId), 1);
     assert.equal(await fetchAllocationCount(receiptId), 1);
@@ -476,14 +456,13 @@ describe('POST /api/payments/receive', () => {
 
     const statuses = [a.status, b.status].sort((left, right) => left - right);
     assert.deepEqual(statuses, [201, 409]);
-    assert.equal(await fetchGovernanceActionCount(receiptId), 1);
     // 2026-09-10: the first-winner applies at submit; the loser 409s.
     assert.equal(await fetchReceiptCount(receiptId), 1);
     assert.equal(await fetchAllocationCount(receiptId), 1);
     assert.equal(await fetchPaymentLedgerCount(receiptId), 1);
   });
 
-  test('different receipts racing on the same customer create separate governed requests without applying money yet', async () => {
+  test('different receipts racing on the same customer apply independently and settle the outstanding', async () => {
     const customer = await mkCustomer();
     const route = await mkRoute();
     const cargo = await mkCargo();
@@ -506,8 +485,6 @@ describe('POST /api/payments/receive', () => {
     // 2026-09-10: both receipts apply at submit — allocations post and the
     // trip's outstanding is settled by the combined 1.4M against 1M revenue.
     assert.equal(await fetchTripOutstanding(customer.id, trip.id), 0);
-    assert.equal(await fetchGovernanceActionCount(`Q03-RCPT-${suffix}-5a`), 1);
-    assert.equal(await fetchGovernanceActionCount(`Q03-RCPT-${suffix}-5b`), 1);
     assert.equal(await fetchReceiptCount(`Q03-RCPT-${suffix}-5a`), 1);
     assert.equal(await fetchReceiptCount(`Q03-RCPT-${suffix}-5b`), 1);
     assert.equal(await fetchPaymentLedgerCount(`Q03-RCPT-${suffix}-5a`) + await fetchPaymentLedgerCount(`Q03-RCPT-${suffix}-5b`), 3);

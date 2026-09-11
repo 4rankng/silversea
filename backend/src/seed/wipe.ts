@@ -48,19 +48,26 @@ export const WIPE_TABLES = {
     'driver_work_days', 'trip_pod_files', 'trip_pod_submissions',
   ],
   // 2. Shipment children → shipments
+  // NOTE: 'shipment_finance_actions' was added under MC-4 (0069) — real domain
+  // record (finance confirmations are durable feature state, not audit log).
   shipmentsChildren: [
+    'shipment_finance_actions',
     'shipment_milestones', 'shipment_change_requests', 'shipment_containers',
     'shipment_documents', 'shipment_declarations', 'shipment_status_history',
     'user_shipment_links', 'shipment_fulfillments', 'shipments',
   ],
   // 3. Financial / billing / ledger
+  // NOTE: 'governance_actions' was removed under MC-4 (0068) — the maker-checker
+  // flow is direct-apply now, so the audit table itself is gone. POSTGRES WILL
+  // FAIL ON TRUNCATE WITHOUT 'IF EXISTS' if we kept it here.
   financial: [
     'billing_document_lines', 'billing_document_source_period_locks',
-    'billing_documents', 'period_locks', 'governance_actions',
+    'billing_documents', 'period_locks',
     'debit_note_templates', 'payment_allocations', 'payment_refunds',
     'payment_receipts', 'credit_override_requests',
     'ledger', 'distributions', 'debt_offsets',
     'salary_period_adjustments', 'salary_period_closes', 'salary_confirmations',
+    'salary_period_exclusions',
     'settlement_expense_adjustments', 'settlement_expenses',
     'advance_settlement_requests', 'advance_settlements', 'advance_requests',
     'management_fees', 'salary_periods',

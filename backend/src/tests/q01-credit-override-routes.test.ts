@@ -23,16 +23,13 @@ const createdUserIds: number[] = [];
 const createdCustomerIds: number[] = [];
 const createdLedgerIds: number[] = [];
 const createdCreditOverrideIds: number[] = [];
-const createdGovernanceActionIds: number[] = [];
 const idempotencyKeys: string[] = [];
 let failpointCounter = 0;
 
 let server: http.Server;
 let baseUrl: string;
 let originalSettings: Awaited<ReturnType<typeof getAppSettings>>;
-let adminToken: string;
 let managerToken: string;
-let accountantToken: string;
 
 async function mkUser(role: Role) {
   const [user] = await db.insert(s.users).values({
@@ -98,13 +95,6 @@ async function request(path: string, init: { method?: string; token: string; bod
   if (body?.id && typeof body.id === 'number' && !createdCreditOverrideIds.includes(body.id)) {
     createdCreditOverrideIds.push(body.id);
   }
-  if (
-    body?.governanceActionId
-    && typeof body.governanceActionId === 'number'
-    && !createdGovernanceActionIds.includes(body.governanceActionId)
-  ) {
-    createdGovernanceActionIds.push(body.governanceActionId);
-  }
   return { status: response.status, body };
 }
 
@@ -146,12 +136,8 @@ before(async () => {
     creditTierOneAmountCap: 1_000_000,
   });
 
-  const admin = await mkUser(Role.ADMIN);
   const manager = await mkUser(Role.MANAGER);
-  const accountant = await mkUser(Role.ACCOUNTANT);
-  adminToken = sign(admin);
   managerToken = sign(manager);
-  accountantToken = sign(accountant);
 
   const app = express();
   app.use(express.json());
@@ -173,9 +159,6 @@ after(async () => {
     await new Promise<void>((resolve) => server.close(() => resolve()));
     if (idempotencyKeys.length > 0) {
       await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.idempotencyKey, idempotencyKeys));
-    }
-    if (createdGovernanceActionIds.length > 0) {
-      await db.delete(s.governanceActions).where(inArray(s.governanceActions.id, createdGovernanceActionIds));
     }
     if (createdCreditOverrideIds.length > 0) {
       await db.delete(s.creditOverrideRequests).where(inArray(s.creditOverrideRequests.id, createdCreditOverrideIds));
@@ -227,7 +210,8 @@ describe('Q01/Q02 credit override routes', () => {
     });
     assert.equal(created.status, 201);
     assert.equal(created.body.requiredTier, 'FINANCE_TIER_1');
-    assert.equal(created.body.workflowStatus, 'PENDING_CHECK');
+    assert.equal(created.body.workflowStatus, 'APPROVED');
+    assert.equal(created.body.status, 'APPROVED');
     assert.equal(created.body.replayed, undefined);
 
     const replayed = await request('/api/finance/credit-overrides', {
@@ -259,202 +243,6 @@ describe('Q01/Q02 credit override routes', () => {
     assert.equal(drift.status, 409);
     assert.match(String(drift.body.error), /Khóa giao dịch trùng/i);
 
-    const directApprove = await request(`/api/finance/credit-overrides/${created.body.id}/approve`, {
-      method: 'POST',
-      token: managerToken,
-      idempotencyKey: `q23-credit-self-approve-${created.body.id}`,
-      body: { expectedVersion: created.body.version },
-    });
-    assert.equal(directApprove.status, 409);
-
-    // 2026-09-10 (phê duyệt removed): the maker may check their own request.
-
-    const checked = await request(`/api/finance/credit-overrides/${created.body.id}/check`, {
-      method: 'POST',
-      token: accountantToken,
-      body: { expectedVersion: created.body.version },
-    });
-    assert.equal(checked.status, 200);
-    assert.equal(checked.body.workflowStatus, 'PENDING_APPROVAL');
-    const [checkedBusinessRecord] = await db.select()
-      .from(s.creditOverrideRequests)
-      .where(eq(s.creditOverrideRequests.id, created.body.id))
-      .limit(1);
-    assert.equal(checkedBusinessRecord?.status, 'PENDING');
-    assert.equal(checkedBusinessRecord?.approvedBy, null);
-    assert.equal(checkedBusinessRecord?.approvedAt, null);
-
-    // 2026-09-10 (phê duyệt removed): the checker may approve too.
-
-    const approved = await request(`/api/finance/credit-overrides/${created.body.id}/approve`, {
-      method: 'POST',
-      token: adminToken,
-      body: { expectedVersion: checked.body.version },
-    });
-    assert.equal(approved.status, 200);
-    assert.equal(approved.body.status, 'APPROVED');
-    assert.equal(approved.body.workflowStatus, 'APPROVED');
-    const [approvedAction] = await db.select()
-      .from(s.governanceActions)
-      .where(eq(s.governanceActions.id, created.body.governanceActionId))
-      .limit(1);
-    assert.equal(new Set([
-      approvedAction?.makerId,
-      approvedAction?.checkerId,
-      approvedAction?.approverId,
-    ]).size, 3);
-  });
-
-  test('concurrent approve-vs-reject keeps the first valid decision', async () => {
-    const customer = await mkCustomer('10000000');
-    await mkLedger(customer.id, 10_300_000);
-
-    const created = await request('/api/finance/credit-overrides', {
-      method: 'POST',
-      token: managerToken,
-      idempotencyKey: `q23-credit-race-create-${customer.id}`,
-      body: {
-        customerId: customer.id,
-        proposedAmount: 200_000,
-        expiresAt: futureExpiry,
-        reason: 'Đề nghị ngoại lệ cạnh tranh',
-      },
-    });
-    assert.equal(created.status, 201);
-    const checked = await request(`/api/finance/credit-overrides/${created.body.id}/check`, {
-      method: 'POST',
-      token: adminToken,
-      body: { expectedVersion: created.body.version },
-    });
-    assert.equal(checked.status, 200);
-
-    const [first, second] = await Promise.all([
-      request(`/api/finance/credit-overrides/${created.body.id}/approve`, {
-        method: 'POST',
-        token: accountantToken,
-        idempotencyKey: `q23-credit-race-approve-${created.body.id}`,
-        body: { expectedVersion: checked.body.version },
-      }),
-      request(`/api/finance/credit-overrides/${created.body.id}/reject`, {
-        method: 'POST',
-        token: accountantToken,
-        idempotencyKey: `q23-credit-race-reject-${created.body.id}`,
-        body: {
-          expectedVersion: checked.body.version,
-          reason: 'Người duyệt còn lại đến muộn hơn',
-        },
-      }),
-    ]);
-    const statuses = [first.status, second.status].sort((a, b) => a - b);
-    assert.deepEqual(statuses, [200, 409]);
-
-    const [stored] = await db.select()
-      .from(s.creditOverrideRequests)
-      .where(eq(s.creditOverrideRequests.id, created.body.id))
-      .limit(1);
-    assert.ok(stored?.status === 'APPROVED' || stored?.status === 'REJECTED');
-    assert.equal(stored?.version, created.body.requestVersion + 1);
-  });
-
-  test('decision replay is exact and stale versions lose after the first outcome', async () => {
-    const customer = await mkCustomer('10000000');
-    await mkLedger(customer.id, 11_100_000);
-
-    const created = await request('/api/finance/credit-overrides', {
-      method: 'POST',
-      token: accountantToken,
-      idempotencyKey: `q23-credit-director-create-${customer.id}`,
-      body: {
-        customerId: customer.id,
-        proposedAmount: 100_000,
-        expiresAt: futureExpiry,
-        reason: 'Ngoại lệ lớn cần giám đốc xem xét',
-      },
-    });
-    assert.equal(created.status, 201);
-    assert.equal(created.body.requiredTier, 'DIRECTOR');
-
-    const directReject = await request(`/api/finance/credit-overrides/${created.body.id}/reject`, {
-      method: 'POST',
-      token: managerToken,
-      body: {
-        expectedVersion: created.body.version,
-        reason: 'Không được từ chối trước bước kiểm tra',
-      },
-    });
-    assert.equal(directReject.status, 409);
-
-    const checked = await request(`/api/finance/credit-overrides/${created.body.id}/check`, {
-      method: 'POST',
-      token: adminToken,
-      body: { expectedVersion: created.body.version },
-    });
-    assert.equal(checked.status, 200);
-
-    const listed = await request('/api/finance/credit-overrides?status=PENDING', {
-      token: managerToken,
-    });
-    assert.equal(listed.status, 200);
-    const listedRequest = listed.body.items.find((row: { id: number }) => row.id === created.body.id);
-    assert.ok(listedRequest);
-    assert.equal(listedRequest.customerName, customer.name);
-    assert.equal(listedRequest.requestedByName, 'Kế toán');
-    assert.equal(listedRequest.checkedByName, 'Quản trị viên');
-
-    const detailed = await request(`/api/finance/credit-overrides/${created.body.id}`, {
-      token: managerToken,
-    });
-    assert.equal(detailed.status, 200);
-    assert.equal(detailed.body.customerName, customer.name);
-    assert.equal(detailed.body.requestedByName, 'Kế toán');
-    assert.equal(detailed.body.checkedByName, 'Quản trị viên');
-
-    const rejectKey = `q23-credit-reject-${created.body.id}`;
-    const rejected = await request(`/api/finance/credit-overrides/${created.body.id}/reject`, {
-      method: 'POST',
-      token: managerToken,
-      idempotencyKey: rejectKey,
-      body: {
-        expectedVersion: checked.body.version,
-        reason: 'Chưa đủ cơ sở để vượt hạn mức',
-      },
-    });
-    assert.equal(rejected.status, 200);
-    assert.equal(rejected.body.status, 'REJECTED');
-    assert.equal(rejected.body.workflowStatus, 'REJECTED');
-
-    const replayed = await request(`/api/finance/credit-overrides/${created.body.id}/reject`, {
-      method: 'POST',
-      token: managerToken,
-      idempotencyKey: rejectKey,
-      body: {
-        expectedVersion: checked.body.version,
-        reason: 'Chưa đủ cơ sở để vượt hạn mức',
-      },
-    });
-    assert.equal(replayed.status, 200);
-    assert.equal(replayed.body.replayed, true);
-    assert.equal(replayed.body.id, created.body.id);
-
-    const drift = await request(`/api/finance/credit-overrides/${created.body.id}/reject`, {
-      method: 'POST',
-      token: managerToken,
-      idempotencyKey: rejectKey,
-      body: {
-        expectedVersion: checked.body.version,
-        reason: 'Lý do đã thay đổi',
-      },
-    });
-    assert.equal(drift.status, 409);
-    assert.match(String(drift.body.error), /Khóa giao dịch trùng/i);
-
-    const staleApprove = await request(`/api/finance/credit-overrides/${created.body.id}/approve`, {
-      method: 'POST',
-      token: adminToken,
-      idempotencyKey: `q23-credit-stale-approve-${created.body.id}`,
-      body: { expectedVersion: checked.body.version },
-    });
-    assert.equal(staleApprove.status, 409);
   });
 
   test('sorts the queue by whitelisted columns with sort-aware cursor pagination', async () => {
@@ -479,7 +267,7 @@ describe('Q01/Q02 credit override routes', () => {
     }
 
     const listUrl = (params: string) =>
-      `/api/finance/credit-overrides?customerId=${customer.id}&status=PENDING&${params}`;
+      `/api/finance/credit-overrides?customerId=${customer.id}&status=APPROVED&${params}`;
     const amountsOf = (body: { items: Array<{ proposedAmount: string }> }) =>
       body.items.map((item) => Number(item.proposedAmount));
 
@@ -550,7 +338,7 @@ describe('Q01/Q02 credit override routes', () => {
 
     const originalIds = [...createdCreditOverrideIds].slice(-3);
     const firstPage = await request(
-      `/api/finance/credit-overrides?customerId=${customer.id}&status=PENDING&limit=2`,
+      `/api/finance/credit-overrides?customerId=${customer.id}&status=APPROVED&limit=2`,
       { token: managerToken },
     );
 
@@ -571,7 +359,7 @@ describe('Q01/Q02 credit override routes', () => {
       .where(eq(s.creditOverrideRequests.id, firstPage.body.items[0].id));
 
     const secondPage = await request(
-      `/api/finance/credit-overrides?customerId=${customer.id}&status=PENDING&limit=2&cursor=${encodeURIComponent(firstPage.body.nextCursor)}`,
+      `/api/finance/credit-overrides?customerId=${customer.id}&status=APPROVED&limit=2&cursor=${encodeURIComponent(firstPage.body.nextCursor)}`,
       { token: managerToken },
     );
 

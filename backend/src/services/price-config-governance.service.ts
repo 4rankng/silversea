@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { Request } from 'express';
-import { and, eq, getTableName, inArray, isNull, ne, sql, type SQL } from 'drizzle-orm';
+import { and, eq, getTableName, isNull, ne, sql, type SQL } from 'drizzle-orm';
 import type { AnyPgTable, PgColumn, PgTable } from 'drizzle-orm/pg-core';
 import { Role } from '@tingting/shared';
 import { db } from '../db';
@@ -8,7 +8,11 @@ import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import { assertCanMakeGovernanceAction } from './governance-policy';
-import type { GovernanceApplyResult, GovernanceActionRow } from './governance-transition.service';
+import {
+  buildGovernanceAction,
+  type GovernanceActionRow,
+  type GovernanceApplyResult,
+} from './governance-action-core.service';
 import {
   DURABLE_EFFECT_KIND,
   type DurableEffectInput,
@@ -248,72 +252,20 @@ function syntheticApprovalRequest(action: GovernanceActionRow): Request {
   } as Request;
 }
 
-async function insertGovernanceAction(
+async function lockSubjectIdentity(
   tx: Tx,
-  values: Omit<typeof s.governanceActions.$inferInsert, 'id' | 'status' | 'version' | 'createdAt' | 'updatedAt'>,
-  options?: { supersedePending?: boolean },
-) {
-  const identity = values.subjectKey ?? values.subjectId;
+  input: { subjectType: string; actionKind: string; originalVersion: number; subjectId: number | null; subjectKey: string | null },
+): Promise<void> {
+  const identity = input.subjectKey ?? input.subjectId;
   if (identity != null) {
+    // Serializes concurrent governed writes to the same config subject+version
+    // (replaces the dropped partial-unique/pending-row guard on the old table).
     await lockApplicationOwnedUniqueness(
       tx,
       'active-governance-action',
-      [values.subjectType, values.actionKind, values.originalVersion, identity],
+      [input.subjectType, input.actionKind, input.originalVersion, identity],
     );
-    // ADMIN immediate-apply writes supersede any pending request on the same
-    // config version: they apply in this transaction and bump the row's
-    // updatedAt, so the superseded request can never pass its apply-time
-    // fingerprint/version check. The stale rows are canceled first — the
-    // partial unique index on active statuses would otherwise reject the
-    // admin's insert.
-    if (options?.supersedePending) {
-      const supersedeCondition = values.subjectKey != null
-        ? eq(s.governanceActions.subjectKey, values.subjectKey)
-        : eq(s.governanceActions.subjectId, values.subjectId as number);
-      const supersededAt = new Date();
-      await tx.update(s.governanceActions).set({
-        status: 'CANCELED',
-        canceledBy: values.makerId,
-        canceledRole: values.makerRole,
-        canceledAt: supersededAt,
-        cancelReason: 'Bị thay thế bởi điều chỉnh trực tiếp của quản trị',
-        updatedAt: supersededAt,
-      }).where(and(
-        eq(s.governanceActions.subjectType, values.subjectType),
-        eq(s.governanceActions.actionKind, values.actionKind),
-        eq(s.governanceActions.originalVersion, values.originalVersion),
-        supersedeCondition,
-        inArray(s.governanceActions.status, [
-          'PENDING_CHECK',
-          'PENDING_APPROVAL',
-          'RETURNED_FOR_EVIDENCE',
-        ]),
-      ));
-    } else {
-      const identityCondition = values.subjectKey != null
-        ? eq(s.governanceActions.subjectKey, values.subjectKey)
-        : eq(s.governanceActions.subjectId, values.subjectId as number);
-      const [existing] = await tx.select({ id: s.governanceActions.id })
-        .from(s.governanceActions)
-        .where(and(
-          eq(s.governanceActions.subjectType, values.subjectType),
-          eq(s.governanceActions.actionKind, values.actionKind),
-          eq(s.governanceActions.originalVersion, values.originalVersion),
-          identityCondition,
-          inArray(s.governanceActions.status, [
-            'PENDING_CHECK',
-            'PENDING_APPROVAL',
-            'RETURNED_FOR_EVIDENCE',
-          ]),
-        ))
-        .limit(1);
-      if (existing) {
-        throw new ApiError(409, 'Đã có yêu cầu quản trị đang xử lý cho cấu hình này');
-      }
-    }
   }
-  const [action] = await tx.insert(s.governanceActions).values(values).returning();
-  return action;
 }
 
 function canonicalPayloadConditions(
@@ -394,53 +346,15 @@ export async function requestGovernedConfigAction(input: {
   const definition = getDefinition(input.resource);
   assertCanMakeGovernanceAction(definition.actionKind, input.makerRole);
   const reason = resolveReason(definition, input.operation, input.reason);
-  const execute = async (tx: Tx) => insertGovernanceAction(tx, {
-    subjectType: definition.subjectType,
-    subjectId: input.subjectId,
-    subjectKey: input.subjectKey,
-    actionKind: definition.actionKind,
-    reason,
-    originalVersion: input.originalVersion,
-    beforeSnapshot: snapshotEnvelope(definition.resource, input.beforeRow),
-    afterSnapshot: {
-      resource: definition.resource,
-      data: input.afterData,
-    },
-    deltaSnapshot: {
-      resource: definition.resource,
-      operation: input.operation,
-    },
-    makerId: input.makerId,
-    makerRole: input.makerRole,
-  });
-  const tx = input.transaction;
-  if (tx) return execute(tx);
-  return db.transaction(execute);
-}
-
-/**
- * Product decision (2026-09-05): the maker → checker → approver queue is
- * removed for governed price configuration. Every maker permitted by
- * assertCanMakeGovernanceAction has their change recorded as an APPROVED
- * governance action (full audit trail with before/after snapshots) and
- * applied in the same transaction — no pending queue. Application failures
- * roll the whole write back, and any older pending request for the same
- * subject dies at its own apply-time version check.
- */
-export type GovernedConfigOutcome = {
-  action: GovernanceActionRow;
-  /** Resulting table row when a CRUD resource was applied immediately. */
-  appliedRow: CrudRow | null;
-};
-
-export async function requestOrApplyGovernedConfigAction(
-  input: Parameters<typeof requestGovernedConfigAction>[0],
-): Promise<GovernedConfigOutcome> {
-  const definition = getDefinition(input.resource);
-  assertCanMakeGovernanceAction(definition.actionKind, input.makerRole);
-  const reason = resolveReason(definition, input.operation, input.reason);
-  const execute = async (tx: Tx): Promise<GovernedConfigOutcome> => {
-    const action = await insertGovernanceAction(tx, {
+  const execute = async (tx: Tx) => {
+    await lockSubjectIdentity(tx, {
+      subjectType: definition.subjectType,
+      actionKind: definition.actionKind,
+      originalVersion: input.originalVersion,
+      subjectId: input.subjectId,
+      subjectKey: input.subjectKey,
+    });
+    return buildGovernanceAction({
       subjectType: definition.subjectType,
       subjectId: input.subjectId,
       subjectKey: input.subjectKey,
@@ -458,32 +372,79 @@ export async function requestOrApplyGovernedConfigAction(
       },
       makerId: input.makerId,
       makerRole: input.makerRole,
-    }, { supersedePending: true });
+    });
+  };
+  const tx = input.transaction;
+  if (tx) return execute(tx);
+  return db.transaction(execute);
+}
+
+/**
+ * Product decision (2026-09-05, reaffirmed 2026-09-11 with the governance_actions
+ * table dropped): governed price configuration applies directly in-request. The
+ * action record is TRANSIENT (buildGovernanceAction) — nothing persists except
+ * the domain row itself plus the cache-invalidation durable effect. Application
+ * failures roll the whole write back; the advisory subject lock serializes
+ * concurrent writers to the same config subject+version.
+ */
+export type GovernedConfigOutcome = {
+  action: GovernanceActionRow;
+  /** Resulting table row when a CRUD resource was applied immediately. */
+  appliedRow: CrudRow | null;
+};
+
+export async function requestOrApplyGovernedConfigAction(
+  input: Parameters<typeof requestGovernedConfigAction>[0],
+): Promise<GovernedConfigOutcome> {
+  const definition = getDefinition(input.resource);
+  assertCanMakeGovernanceAction(definition.actionKind, input.makerRole);
+  const reason = resolveReason(definition, input.operation, input.reason);
+  const execute = async (tx: Tx): Promise<GovernedConfigOutcome> => {
+    await lockSubjectIdentity(tx, {
+      subjectType: definition.subjectType,
+      actionKind: definition.actionKind,
+      originalVersion: input.originalVersion,
+      subjectId: input.subjectId,
+      subjectKey: input.subjectKey,
+    });
+    const action = buildGovernanceAction({
+      subjectType: definition.subjectType,
+      subjectId: input.subjectId,
+      subjectKey: input.subjectKey,
+      actionKind: definition.actionKind,
+      reason,
+      originalVersion: input.originalVersion,
+      beforeSnapshot: snapshotEnvelope(definition.resource, input.beforeRow),
+      afterSnapshot: {
+        resource: definition.resource,
+        data: input.afterData,
+      },
+      deltaSnapshot: {
+        resource: definition.resource,
+        operation: input.operation,
+      },
+      makerId: input.makerId,
+      makerRole: input.makerRole,
+    });
     const now = new Date();
     const effect = await applyPriceConfigGovernanceAction(tx, {
       ...action,
       approverId: input.makerId,
       approverRole: input.makerRole,
+      approvedAt: now,
     });
     if (effect?.durableEffects?.length) {
       await enqueueDurableEffects(tx, effect.durableEffects);
     }
-    const [applied] = await tx.update(s.governanceActions).set({
-      status: 'APPROVED',
-      checkerId: null,
-      checkerRole: null,
-      checkedAt: null,
+    const applied = {
+      ...action,
+      status: 'APPROVED' as const,
       approverId: input.makerId,
       approverRole: input.makerRole,
       approvedAt: now,
       appliedAt: now,
       applicationResult: (effect?.applicationResult ?? null) as Record<string, unknown> | null,
-      updatedAt: now,
-      version: sql`${s.governanceActions.version} + 1`,
-    }).where(eq(s.governanceActions.id, action.id)).returning();
-    if (!applied) {
-      throw new ApiError(409, 'Không thể ghi nhận phê duyệt của quản trị');
-    }
+    };
     let appliedRow: CrudRow | null = null;
     const appliedSubjectId = effect?.applicationResult?.subjectId;
     if (definition.kind === 'crud' && typeof appliedSubjectId === 'number') {
@@ -735,12 +696,6 @@ async function applyGovernedCreate(
     if (!refreshed) throw new ApiError(404, 'Không tìm thấy cấu hình vừa tạo');
     created = refreshed as CrudRow;
   }
-  await tx.update(s.governanceActions)
-    .set({
-      subjectId: created.id,
-      updatedAt: new Date(),
-    })
-    .where(eq(s.governanceActions.id, action.id));
   return {
     applicationResult: {
       resource: definition.resource,

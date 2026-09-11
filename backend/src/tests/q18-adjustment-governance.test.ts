@@ -12,8 +12,7 @@ import * as s from '../db/schema';
 import { insertTripComposite } from '../services/trip-composite.service';
 import { ApiError } from '../errors';
 import {
-  approveGovernanceAction,
-  checkGovernanceAction,
+  autoApplyGovernanceAction,
   requestTripArAdjustment,
   requestTripReopen,
 } from '../services/adjustment-governance.service';
@@ -55,7 +54,6 @@ before(async () => {
 
 after(async () => {
   if (tripIds.length > 0) {
-    await db.delete(s.governanceActions).where(inArray(s.governanceActions.subjectId, tripIds));
     await db.delete(s.paymentAllocations).where(and(
       eq(s.paymentAllocations.targetType, 'TRIP'),
       inArray(s.paymentAllocations.targetId, tripIds),
@@ -235,53 +233,33 @@ describe('Q18 bounded adjustment governance', () => {
       /không có quyền/,
     );
 
-    const action = await requestTripArAdjustment({
-      tripId: trip.id,
-      amount: 125000,
-      reason: 'Bổ sung cước theo biên bản',
-      signedAgreementRef: 'Q18-AGREEMENT-01',
-      makerId: actors[0]!.id,
-      makerRole: Role.ACCOUNTANT,
-      expectedTripVersion: trip.version,
+    const approved = await autoApplyGovernanceAction({
+      make: () => requestTripArAdjustment({
+        tripId: trip.id,
+        amount: 125000,
+        reason: 'Bổ sung cước theo biên bản',
+        signedAgreementRef: 'Q18-AGREEMENT-01',
+        makerId: actors[0]!.id,
+        makerRole: Role.ACCOUNTANT,
+        expectedTripVersion: trip.version,
+      }),
+      actorId: actors[2]!.id,
+      actorRole: Role.ADMIN,
     });
-    assert.equal(action.status, 'PENDING_CHECK');
-    assert.equal(action.makerRole, Role.ACCOUNTANT);
-    assert.equal(action.originalPeriodLockId, periodLock.id);
-    assert.deepEqual(action.beforeSnapshot, {
+    assert.equal(approved.makerRole, Role.ACCOUNTANT);
+    assert.equal(approved.originalPeriodLockId, periodLock.id);
+    assert.deepEqual(approved.beforeSnapshot, {
       tripStatus: 'COMPLETED',
       tripRevenue: '1000000',
       customerId: customer.id,
     });
-    assert.deepEqual(action.deltaSnapshot, {
+    assert.deepEqual(approved.deltaSnapshot, {
       customerBalanceDelta: 125000,
       signedAgreementRef: 'Q18-AGREEMENT-01',
     });
-    assert.equal(
-      (await db.select().from(s.ledger).where(and(
-        eq(s.ledger.txnType, 'ADJUSTMENT'),
-        eq(s.ledger.txnId, trip.id),
-      ))).length,
-      0,
-    );
-
-    // 2026-09-10 (phê duyệt removed): the maker may check their own request
-    // and any capable actor may approve — no pairwise separation anymore.
-    const checked = await checkGovernanceAction({
-      actionId: action.id,
-      checkerId: actors[0]!.id,
-      checkerRole: Role.ACCOUNTANT,
-      expectedVersion: action.version,
-    });
-    assert.equal(checked.checkerRole, Role.ACCOUNTANT);
-    const approved = await approveGovernanceAction({
-      actionId: action.id,
-      approverId: actors[2]!.id,
-      approverRole: Role.ADMIN,
-      expectedVersion: checked.version,
-    });
     assert.equal(approved.status, 'APPROVED');
     assert.equal(approved.makerId, actors[0]!.id);
-    assert.equal(approved.checkerId, actors[0]!.id);
+    assert.equal(approved.checkerId, actors[2]!.id);
     assert.equal(approved.approverId, actors[2]!.id);
     assert.equal(approved.approverRole, Role.ADMIN);
     assert.deepEqual(approved.applicationResult, {
@@ -298,46 +276,32 @@ describe('Q18 bounded adjustment governance', () => {
 
   it('allows only one concurrent adjustment against the original version', async () => {
     const { trip } = await createTrip();
-    const requests = await Promise.all([
-      requestTripArAdjustment({
-        tripId: trip.id,
-        amount: 100,
-        reason: 'Điều chỉnh A',
-        signedAgreementRef: 'Q18-A',
-        makerId: actors[0]!.id,
-        makerRole: Role.ACCOUNTANT,
-        expectedTripVersion: trip.version,
-      }),
-      requestTripArAdjustment({
-        tripId: trip.id,
-        amount: 200,
-        reason: 'Điều chỉnh B',
-        signedAgreementRef: 'Q18-B',
-        makerId: actors[0]!.id,
-        makerRole: Role.ACCOUNTANT,
-        expectedTripVersion: trip.version,
-      }),
-    ]);
-    const checked = await Promise.all(requests.map((action) =>
-      checkGovernanceAction({
-        actionId: action.id,
-        checkerId: actors[1]!.id,
-        checkerRole: Role.MANAGER,
-        expectedVersion: action.version,
-      })));
-
     const outcomes = await Promise.allSettled([
-      approveGovernanceAction({
-        actionId: checked[0]!.id,
-        approverId: actors[2]!.id,
-        approverRole: Role.ADMIN,
-        expectedVersion: checked[0]!.version,
+      autoApplyGovernanceAction({
+        make: () => requestTripArAdjustment({
+          tripId: trip.id,
+          amount: 100,
+          reason: 'Điều chỉnh A',
+          signedAgreementRef: 'Q18-A',
+          makerId: actors[0]!.id,
+          makerRole: Role.ACCOUNTANT,
+          expectedTripVersion: trip.version,
+        }),
+        actorId: actors[2]!.id,
+        actorRole: Role.ADMIN,
       }),
-      approveGovernanceAction({
-        actionId: checked[1]!.id,
-        approverId: actors[3]!.id,
-        approverRole: Role.MANAGER,
-        expectedVersion: checked[1]!.version,
+      autoApplyGovernanceAction({
+        make: () => requestTripArAdjustment({
+          tripId: trip.id,
+          amount: 200,
+          reason: 'Điều chỉnh B',
+          signedAgreementRef: 'Q18-B',
+          makerId: actors[0]!.id,
+          makerRole: Role.ACCOUNTANT,
+          expectedTripVersion: trip.version,
+        }),
+        actorId: actors[3]!.id,
+        actorRole: Role.MANAGER,
       }),
     ]);
     assert.equal(outcomes.filter((outcome) => outcome.status === 'fulfilled').length, 1);
@@ -387,25 +351,18 @@ describe('Q18 bounded adjustment governance', () => {
       403,
       /không có quyền/,
     );
-    const action = await requestTripReopen({
-      tripId: trip.id,
-      reason: 'Sửa chứng từ trước khi phát hành',
-      makerId: actors[1]!.id,
-      makerRole: Role.MANAGER,
-      expectedTripVersion: trip.version,
+    const action = await autoApplyGovernanceAction({
+      make: () => requestTripReopen({
+        tripId: trip.id,
+        reason: 'Sửa chứng từ trước khi phát hành',
+        makerId: actors[1]!.id,
+        makerRole: Role.MANAGER,
+        expectedTripVersion: trip.version,
+      }),
+      actorId: actors[2]!.id,
+      actorRole: Role.ADMIN,
     });
-    const checked = await checkGovernanceAction({
-      actionId: action.id,
-      checkerId: actors[3]!.id,
-      checkerRole: Role.MANAGER,
-      expectedVersion: action.version,
-    });
-    await approveGovernanceAction({
-      actionId: action.id,
-      approverId: actors[2]!.id,
-      approverRole: Role.ADMIN,
-      expectedVersion: checked.version,
-    });
+    assert.equal(action.status, 'APPROVED');
     const [reopened] = await db.select().from(s.trips).where(eq(s.trips.id, trip.id));
     assert.equal(reopened.status, 'IN_TRANSIT');
     assert.equal(reopened.version, trip.version + 1);
@@ -496,19 +453,6 @@ describe('Q18 bounded adjustment governance', () => {
 
   it('O2C C2: reopen succeeds and reverses completion postings at approval', async () => {
     const { trip, customer } = await createTrip('COMPLETED');
-    const action = await requestTripReopen({
-      tripId: trip.id,
-      reason: 'Pre-posting correction',
-      makerId: actors[1]!.id,
-      makerRole: Role.MANAGER,
-      expectedTripVersion: trip.version,
-    });
-    const checked = await checkGovernanceAction({
-      actionId: action.id,
-      checkerId: actors[3]!.id,
-      checkerRole: Role.MANAGER,
-      expectedVersion: action.version,
-    });
     await db.insert(s.ledger).values({
       txnType: 'TRIP_REVENUE',
       txnId: trip.id,
@@ -517,15 +461,20 @@ describe('Q18 bounded adjustment governance', () => {
       debit: '1000000',
       credit: '0',
       balance: '1000000',
-      note: 'Posted after request',
+      note: 'Posted before request',
     });
     // O2C C2: reopen now SUCCEEDS — the completion postings are reversed
-    // inside the approval transaction (formerly blocked with "đã hạch toán").
-    const approved = await approveGovernanceAction({
-      actionId: action.id,
-      approverId: actors[2]!.id,
-      approverRole: Role.ADMIN,
-      expectedVersion: checked.version,
+    // inside the apply transaction (formerly blocked with "đã hạch toán").
+    const approved = await autoApplyGovernanceAction({
+      make: () => requestTripReopen({
+        tripId: trip.id,
+        reason: 'Pre-posting correction',
+        makerId: actors[1]!.id,
+        makerRole: Role.MANAGER,
+        expectedTripVersion: trip.version,
+      }),
+      actorId: actors[2]!.id,
+      actorRole: Role.ADMIN,
     });
     assert.ok(approved, 'reopen approved');
     const [reopenedTrip] = await db.select().from(s.trips)
@@ -536,19 +485,6 @@ describe('Q18 bounded adjustment governance', () => {
 
   it('serializes concurrent debit-note issue and reopen approval so exactly one wins', async () => {
     const { trip, customer } = await createTrip('COMPLETED');
-    const action = await requestTripReopen({
-      tripId: trip.id,
-      reason: 'Concurrent issue/reopen authority',
-      makerId: actors[1]!.id,
-      makerRole: Role.MANAGER,
-      expectedTripVersion: trip.version,
-    });
-    const checked = await checkGovernanceAction({
-      actionId: action.id,
-      checkerId: actors[3]!.id,
-      checkerRole: Role.MANAGER,
-      expectedVersion: action.version,
-    });
     const [document] = await db.insert(s.billingDocuments).values({
       type: 'DEBIT_NOTE',
       entityType: 'CUSTOMER',
@@ -590,11 +526,16 @@ describe('Q18 bounded adjustment governance', () => {
 
     let raceSettled = false;
     const race = Promise.allSettled([
-      approveGovernanceAction({
-        actionId: action.id,
-        approverId: actors[2]!.id,
-        approverRole: Role.ADMIN,
-        expectedVersion: checked.version,
+      autoApplyGovernanceAction({
+        make: () => requestTripReopen({
+          tripId: trip.id,
+          reason: 'Concurrent issue/reopen authority',
+          makerId: actors[1]!.id,
+          makerRole: Role.MANAGER,
+          expectedTripVersion: trip.version,
+        }),
+        actorId: actors[2]!.id,
+        actorRole: Role.ADMIN,
       }),
       transitionDebitNoteStatus({
         documentId: document.id,
@@ -619,25 +560,26 @@ describe('Q18 bounded adjustment governance', () => {
     const [savedTrip] = await db.select().from(s.trips).where(eq(s.trips.id, trip.id));
     const [savedDocument] = await db.select().from(s.billingDocuments)
       .where(eq(s.billingDocuments.id, document.id));
-    const [savedAction] = await db.select().from(s.governanceActions)
-      .where(eq(s.governanceActions.id, action.id));
-    const reopenWon = savedAction.status === 'APPROVED';
+    // No persisted governance row decides the winner anymore — the domain
+    // state (trip vs document) plus the settled promise carry the same proof.
+    const reopenOutcome = results[0]!;
+    const reopenWon = reopenOutcome.status === 'fulfilled';
     assert.deepEqual(
       {
         tripStatus: savedTrip.status,
         documentStatus: savedDocument.debitNoteStatus,
-        actionStatus: savedAction.status,
+        reopenApplied: reopenWon ? 'APPROVED' : 'REJECTED',
       },
       reopenWon
         ? {
             tripStatus: 'IN_TRANSIT',
             documentStatus: 'DRAFT',
-            actionStatus: 'APPROVED',
+            reopenApplied: 'APPROVED',
           }
         : {
             tripStatus: 'COMPLETED',
             documentStatus: 'SENT',
-            actionStatus: 'PENDING_APPROVAL',
+            reopenApplied: 'REJECTED',
           },
     );
   });
@@ -768,23 +710,15 @@ describe('Q18 bounded adjustment governance', () => {
     assert.equal(expense.createdBy, actors[0]!.id);
     assert.equal(expense.approvalStatus, 'PENDING');
 
-    await expectApiError(
-      db.transaction((tx) => transitionApproval(tx, {
-        table: 'trip_expenses',
-        id: expense.id,
-        toStatus: 'APPROVED',
-        actorId: actors[0]!.id,
-        actorRole: Role.ACCOUNTANT,
-      })),
-      403,
-      /chính mình tạo/,
-    );
+    // 2026-09-11 (maker-checker removed): the self-approval ban is gone — the
+    // creator may approve their own expense; the guards that remain are the
+    // approved-rewrite and approved-delete locks asserted below.
     await db.transaction((tx) => transitionApproval(tx, {
       table: 'trip_expenses',
       id: expense.id,
       toStatus: 'APPROVED',
-      actorId: actors[1]!.id,
-      actorRole: Role.MANAGER,
+      actorId: actors[0]!.id,
+      actorRole: Role.ACCOUNTANT,
     }));
     await expectApiError(
       db.transaction((tx) => updateTripExpense(tx, expense.id, { buyAmount: '70000' })),

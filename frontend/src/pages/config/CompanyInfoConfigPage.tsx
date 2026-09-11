@@ -7,7 +7,6 @@ import { useCompanyInfo, useSaveCompanyInfo } from '../../hooks/useCatalogQuerie
 import { configClient } from '../../api/configClient';
 import { photoSrc } from '../../lib/api/photo';
 import { usePageAnimations } from '../../hooks/animations';
-import { isGovernancePendingResponse } from '../../lib/governance';
 import './config-page.css';
 
 type CompanyInfoForm = {
@@ -127,7 +126,7 @@ export default function CompanyInfoConfigPage() {
     setError(null);
     setMessage(null);
     try {
-      const result = await saveCompanyInfo.mutateAsync({
+      await saveCompanyInfo.mutateAsync({
         name: form.name.trim(),
         shortName: form.shortName.trim(),
         address: form.address.trim(),
@@ -140,10 +139,6 @@ export default function CompanyInfoConfigPage() {
         email: form.email.trim(),
         logoStorageKey: form.logoStorageKey,
       });
-      if (isGovernancePendingResponse(result)) {
-        setMessage('Đã gửi yêu cầu cập nhật thông tin công ty để kiểm tra và phê duyệt. Hồ sơ hiện chưa thay đổi.');
-        return;
-      }
       navigate('/config');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Lỗi lưu thông tin công ty');

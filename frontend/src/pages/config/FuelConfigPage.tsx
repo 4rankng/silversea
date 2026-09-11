@@ -12,7 +12,6 @@ import '../../styles/record-table.css';
 import '../../styles/operational-table-typography.css';
 import './config-page.css';
 import { resolveEmptyIllustration } from '../../lib/emptyIllustrations';
-import { isGovernancePendingResponse } from '../../lib/governance';
 
 export default function FuelConfigPage() {
   const { rootRef: pageRef } = usePageAnimations({ ready: true, selectors: ['.cfg-row'] });
@@ -65,7 +64,7 @@ export default function FuelConfigPage() {
     setError(null);
     setMessage(null);
     try {
-      const result = await saveFuel.mutateAsync({
+      await saveFuel.mutateAsync({
         loadedNorm: Number(form.loadedNorm),
         emptyNorm: Number(form.emptyNorm),
         supplement: Number(form.supplement) || 0,
@@ -74,10 +73,6 @@ export default function FuelConfigPage() {
         warningThreshold: form.warningThreshold ? Number(form.warningThreshold) : 37,
         criticalThreshold: form.criticalThreshold ? Number(form.criticalThreshold) : 40,
       });
-      if (isGovernancePendingResponse(result)) {
-        setMessage('Đã gửi yêu cầu cập nhật định mức nhiên liệu để kiểm tra và phê duyệt. Cấu hình hiện chưa thay đổi.');
-        return;
-      }
       navigate('/config');
     } catch (e) { setError(e instanceof Error ? e.message : 'Lỗi lưu'); } finally { setSaving(false); }
   };

@@ -17,13 +17,10 @@ import { casbinAuthz } from '../middleware/casbin';
 import { globalErrorHandler } from '../middleware/errorHandler';
 import configRoutes from '../routes/config';
 import { disconnectRedis } from '../lib/redis';
-import {
-} from '../services/adjustment-governance.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const createdUserIds: number[] = [];
 const createdCalendarIds: number[] = [];
-const createdGovernanceActionIds: number[] = [];
 const createdIdempotencyKeys = [
   `q19-invalid-date-${suffix}`,
   `q19-create-${suffix}`,
@@ -101,10 +98,6 @@ after(async () => {
     server.close((error) => error ? reject(error) : resolve());
     server.closeAllConnections();
   });
-  if (createdGovernanceActionIds.length > 0) {
-    await db.delete(s.governanceActions)
-      .where(inArray(s.governanceActions.id, createdGovernanceActionIds));
-  }
   if (createdCalendarIds.length > 0) {
     await db.delete(s.businessCalendarDays)
       .where(inArray(s.businessCalendarDays.id, createdCalendarIds));

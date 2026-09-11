@@ -7,7 +7,7 @@ import type { Request, Response } from 'express';
 import { TripStatus, updateTripFiguresSchema } from '@tingting/shared';
 import { AuditEvent } from '../../services/audit-types';
 
-import { requestTripFinancialChange } from '../../services/adjustment-governance.service';
+import { autoApplyGovernanceAction, requestTripFinancialChange } from '../../services/adjustment-governance.service';
 import { loadTripStatusVersion } from '../../services/trip-queries.service';
 import { asyncHandler } from '../../middleware/asyncHandler';
 
@@ -37,18 +37,25 @@ router.put('/:id/pre-departure', asyncHandler(async (req: Request, res: Response
     create: async (tx) => {
       const current = await loadTripStatusVersion(tx, id);
       if (current?.status === TripStatus.COMPLETED) {
-        return requestTripFinancialChange({
-          tripId: id,
-          reason: governanceReason,
-          figures: {
-            ...data,
-            expectedVersion: data.version,
-            userId: user.userId,
-            userRole: user.role,
-          },
-          makerId: user.userId,
-          makerRole: user.role,
-          expectedTripVersion: data.version!,
+        // 2026-09-11 maker-checker removal: completed-trip figure changes
+        // apply directly in-request.
+        return autoApplyGovernanceAction({
+          make: (inner) => requestTripFinancialChange({
+            tripId: id,
+            reason: governanceReason,
+            figures: {
+              ...data,
+              expectedVersion: data.version,
+              userId: user.userId,
+              userRole: user.role,
+            },
+            makerId: user.userId,
+            makerRole: user.role,
+            expectedTripVersion: data.version!,
+            transaction: inner,
+          }),
+          actorId: user.userId,
+          actorRole: user.role,
           transaction: tx,
         });
       }
@@ -61,15 +68,13 @@ router.put('/:id/pre-departure', asyncHandler(async (req: Request, res: Response
     },
     getEntityId: (value) => value.id,
   });
-  const pendingGovernance = 'actionKind' in result
-    && result.actionKind === 'TRIP_FINANCIAL_CHANGE';
-  if (pendingGovernance) {
-    res.locals.auditEvent = AuditEvent.TRIP_FINANCIAL_CHANGE_REQUESTED;
+  if ('actionKind' in result && result.actionKind === 'TRIP_FINANCIAL_CHANGE') {
+    res.locals.auditEvent = AuditEvent.TRIP_UPDATED_ACTUALS;
     res.locals.auditEntityId = id;
     res.locals.auditEntityKey = result.subjectKey;
   }
-  if (!replayed && !pendingGovernance) await invalidateReportCaches();
-  res.status(pendingGovernance && !replayed ? 202 : 200)
+  if (!replayed) await invalidateReportCaches();
+  res.status(200)
     .json(idempotencyKey ? { ...result, replayed } : result);
 }));
 
@@ -91,18 +96,25 @@ router.put('/:id/actuals', asyncHandler(async (req: Request, res: Response) => {
     create: async (tx) => {
       const current = await loadTripStatusVersion(tx, id);
       if (current?.status === TripStatus.COMPLETED) {
-        return requestTripFinancialChange({
-          tripId: id,
-          reason: governanceReason,
-          figures: {
-            ...data,
-            expectedVersion: data.version,
-            userId: user.userId,
-            userRole: user.role,
-          },
-          makerId: user.userId,
-          makerRole: user.role,
-          expectedTripVersion: data.version!,
+        // 2026-09-11 maker-checker removal: completed-trip figure changes
+        // apply directly in-request.
+        return autoApplyGovernanceAction({
+          make: (inner) => requestTripFinancialChange({
+            tripId: id,
+            reason: governanceReason,
+            figures: {
+              ...data,
+              expectedVersion: data.version,
+              userId: user.userId,
+              userRole: user.role,
+            },
+            makerId: user.userId,
+            makerRole: user.role,
+            expectedTripVersion: data.version!,
+            transaction: inner,
+          }),
+          actorId: user.userId,
+          actorRole: user.role,
           transaction: tx,
         });
       }
@@ -115,15 +127,13 @@ router.put('/:id/actuals', asyncHandler(async (req: Request, res: Response) => {
     },
     getEntityId: (value) => value.id,
   });
-  const pendingGovernance = 'actionKind' in result
-    && result.actionKind === 'TRIP_FINANCIAL_CHANGE';
-  if (pendingGovernance) {
-    res.locals.auditEvent = AuditEvent.TRIP_FINANCIAL_CHANGE_REQUESTED;
+  if ('actionKind' in result && result.actionKind === 'TRIP_FINANCIAL_CHANGE') {
+    res.locals.auditEvent = AuditEvent.TRIP_UPDATED_ACTUALS;
     res.locals.auditEntityId = id;
     res.locals.auditEntityKey = result.subjectKey;
   }
-  if (!replayed && !pendingGovernance) await invalidateReportCaches();
-  res.status(pendingGovernance && !replayed ? 202 : 200)
+  if (!replayed) await invalidateReportCaches();
+  res.status(200)
     .json(idempotencyKey ? { ...result, replayed } : result);
 }));
 

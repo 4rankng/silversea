@@ -3,33 +3,24 @@ import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { after, before, describe, it } from 'node:test';
 import express from 'express';
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 import { FuelMode, LoadingType, Role, TripStatus, TxnType } from '@tingting/shared';
 import { client, db } from '../db';
 import * as s from '../db/schema';
 import { applyTripPatch, insertTripComposite } from '../services/trip-composite.service';
 import tripsRoutes from '../routes/trips';
 import paymentsRoutes from '../routes/financial/payments.routes';
-import { ApiError } from '../errors';
 import {
-  listGovernanceActions as listGovernanceActionsService,
-  cancelGovernanceAction as cancelGovernanceActionService,
-  checkGovernanceAction as checkGovernanceActionService,
-  rejectGovernanceAction as rejectGovernanceActionService,
-  returnGovernanceActionForEvidence as returnGovernanceActionForEvidenceService,
-} from '../services/governance-transition.service';
-import { approveGovernanceAction as approveGovernanceActionService } from '../services/adjustment-governance.service';
+  applyGovernanceActionDirect,
+  assertActiveApprovalApplication,
+  buildGovernanceAction,
+} from '../services/governance-action-core.service';
 import { globalErrorHandler } from '../middleware/errorHandler';
 import { auditLogMiddleware } from '../middleware/audit';
 import { disconnectRedis } from '../lib/redis';
 import { initAuditService } from '../services/audit.service';
 import { transitionTripStatus } from '../services/trip-status-machine.service';
 import { matchDeclaredMaterialWrite } from '../middleware/material-write';
-import { updateTripFigures } from '../services/trip-mutations.service';
-import {
-  approveGovernanceActionWithAdapter,
-  assertActiveApprovalApplication,
-} from '../services/governance-transition.service';
 import type { Tx } from '../services/trip-shared';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -41,7 +32,6 @@ const cargoTypeIds: number[] = [];
 const tripIds: number[] = [];
 const driverIds: number[] = [];
 const truckIds: number[] = [];
-const actionIds: number[] = [];
 const tripExpenseIds: number[] = [];
 const expenseTypeIds: number[] = [];
 const idempotencyKeys: string[] = [];
@@ -62,83 +52,6 @@ async function api(
   if (idempotencyKey && !idempotencyKeys.includes(idempotencyKey)) {
     idempotencyKeys.push(idempotencyKey);
   }
-  // Governance endpoints removed (maker-checker teardown): route these calls
-  // to the service layer with the same actor semantics and envelope.
-  const govMatch = path.match(/^\/api\/governance-actions\/(\d+)\/(check|approve|reject|return-for-evidence|cancel)$/);
-  if (govMatch) {
-    const actionId = Number(govMatch[1]);
-    const expectedVersion = Number((body as Record<string, unknown> | undefined)?.expectedVersion);
-    const a = actors[actorIndex] ?? actors[0]!;
-    const actorId = a.id;
-    const actorRole = a.role as string;
-    const reason = String((body as Record<string, unknown> | undefined)?.reason ?? '');
-    const fn = govMatch[2] === 'check' ? () => checkGovernanceActionService({
-      actionId,
-      checkerId: actorId,
-      checkerRole: actorRole,
-      expectedVersion,
-    })
-      : govMatch[2] === 'approve' ? () => approveGovernanceActionService({
-        actionId,
-        approverId: actorId,
-        approverRole: actorRole,
-        expectedVersion,
-      })
-        : govMatch[2] === 'reject' ? () => rejectGovernanceActionService({
-          actionId,
-          actorId,
-          actorRole,
-          expectedVersion,
-          reason,
-        })
-          : govMatch[2] === 'return-for-evidence' ? () => returnGovernanceActionForEvidenceService({
-            actionId,
-            actorId,
-            actorRole,
-            expectedVersion,
-            reason,
-          })
-            : () => cancelGovernanceActionService({
-              actionId,
-              actorId,
-              actorRole,
-              expectedVersion,
-              reason,
-            });
-    return fn().then(
-      (row) => ({ status: 200, body: row as Record<string, unknown> }),
-      (error) => {
-        if (error instanceof ApiError) {
-          return { status: error.statusCode, body: { message: error.message } as Record<string, unknown> };
-        }
-        throw error;
-      },
-    ) as Promise<{ status: number; body: Record<string, unknown> }>;
-  }
-  const govListMatch = path.match(/^\/api\/governance-actions\?(.*)$/);
-  if (govListMatch) {
-    const params = new URLSearchParams(govListMatch[1]);
-    const actorRow = actors[actorIndex] ?? actors[0]!;
-    return listGovernanceActionsService({
-      actorId: actorRow.id,
-      actorRole: actorRow.role as string,
-      query: {
-        subjectType: params.get('subjectType') ?? undefined,
-        subjectId: params.get('subjectId') ? Number(params.get('subjectId')) : undefined,
-        page: 1,
-        limit: 10,
-        offset: 0,
-      },
-    }).then(
-      (body) => ({ status: 200, body: body as unknown as Record<string, unknown> }),
-      (error) => {
-        if (error instanceof ApiError) {
-          return { status: error.statusCode, body: { message: error.message } as Record<string, unknown> };
-        }
-        throw error;
-      },
-    ) as Promise<{ status: number; body: Record<string, unknown> }>;
-  }
   const response = await fetch(`${baseUrl}${path}`, {
     method,
     headers: {
@@ -154,7 +67,12 @@ async function api(
   };
 }
 
-async function createInTransitTrip() {
+/**
+ * Governed-trip fixture. 2026-09-11 maker-checker removal: the governed close
+ * applies in-request, so tests that need a COMPLETED trip seed the row
+ * directly here instead of staging one through a check→approve sequence.
+ */
+async function createTripFixture(status: TripStatus) {
   const [customer] = await db.insert(s.customers).values({
     name: `Q15 trip customer ${suffix}-${customerIds.length}`,
   }).returning();
@@ -210,7 +128,7 @@ async function createInTransitTrip() {
     driverId: driver.id,
     routeId: route.id,
     cargoTypeId: cargoType.id,
-    status: TripStatus.IN_TRANSIT,
+    status,
     departureDate: '2026-07-28',
     revenue: '1200000',
     totalFuelCost: '300000',
@@ -219,12 +137,14 @@ async function createInTransitTrip() {
     carrierType: 'OWN',
     shipmentId: shipment.id,
     fulfillmentId: fulfillment.id,
+    ...(status === TripStatus.COMPLETED ? { completedAt: new Date() } : {}),
     // O2C: the governed-close path requires POD recovery before completion.
     podRecoveredAt: new Date(),
     podRecoveredBy: driverUser.id,
   });
   // O2C: the photo-evidence gate fires on IN_TRANSIT → COMPLETED. Insert a
-  // baseline photo so the governed close passes the ≥1-photo requirement.
+  // baseline photo so a governed close passes the ≥1-photo requirement
+  // (evidence-gate tests delete it explicitly).
   await db.insert(s.tripPhotos).values({
     tripId: trip.id,
     type: 'OTHER',
@@ -292,13 +212,14 @@ async function createOfficeTripExpense(input: {
   return expense;
 }
 
-async function waitForAuditEvent(userId: number, event: string, tripId: number) {
+async function waitForAuditEvent(userId: number, event: string | string[], tripId: number) {
+  const events = Array.isArray(event) ? event : [event];
   for (let attempt = 0; attempt < 40; attempt += 1) {
     const rows = await db.select().from(s.auditLogs)
       .where(and(eq(s.auditLogs.userId, userId), eq(s.auditLogs.entityId, tripId)))
       .orderBy(desc(s.auditLogs.id));
     const match = rows.find((row) => (
-      (row.payload as Record<string, unknown>).event === event
+      events.includes((row.payload as Record<string, unknown>).event as string)
     ));
     if (match) return match;
     await new Promise((resolve) => setTimeout(resolve, 25));
@@ -355,8 +276,6 @@ after(async () => {
     ));
     await db.delete(s.driverWorkDays).where(inArray(s.driverWorkDays.tripId, tripIds));
     await db.delete(s.profitabilitySnapshots).where(inArray(s.profitabilitySnapshots.tripId, tripIds));
-    await db.delete(s.governanceActions)
-      .where(inArray(s.governanceActions.subjectId, tripIds));
     await db.delete(s.ledger).where(inArray(s.ledger.txnId, tripIds));
     await db.delete(s.tripFinancialPostings).where(inArray(s.tripFinancialPostings.tripId, tripIds));
     const milestones = await db.select({ id: s.shipmentMilestones.id })
@@ -368,13 +287,11 @@ after(async () => {
     }
     await db.delete(s.shipmentMilestones).where(inArray(s.shipmentMilestones.tripId, tripIds));
     await db.delete(s.tripLegs).where(inArray(s.tripLegs.tripId, tripIds));
-    // createInTransitTrip inserts a trip_photos row per trip; trips.id has a
-    // RESTRICT FK from trip_photos.trip_id, so these must be removed before the
+    // The fixture inserts a trip_photos row per trip; trips.id has a RESTRICT
+    // FK from trip_photos.trip_id, so these must be removed before the
     // `DELETE trips` below or the teardown fails with a FK violation.
     await db.delete(s.tripPhotos).where(inArray(s.tripPhotos.tripId, tripIds));
     if (tripExpenseIds.length > 0) {
-      await db.delete(s.governanceActions)
-        .where(inArray(s.governanceActions.subjectId, tripExpenseIds));
       await db.delete(s.tripExpenses).where(inArray(s.tripExpenses.id, tripExpenseIds));
     }
     await db.delete(s.tripFinancialState).where(inArray(s.tripFinancialState.tripId, tripIds));
@@ -386,9 +303,6 @@ after(async () => {
   }
   if (shipmentIds.length > 0) {
     await db.delete(s.shipments).where(inArray(s.shipments.id, shipmentIds));
-  }
-  if (actionIds.length > 0) {
-    await db.delete(s.governanceActions).where(inArray(s.governanceActions.id, actionIds));
   }
   if (cargoTypeIds.length > 0) {
     await db.delete(s.cargoTypes).where(inArray(s.cargoTypes.id, cargoTypeIds));
@@ -428,7 +342,7 @@ after(async () => {
 
 describe('Q15 trip financial governance', () => {
   it('governs office trip-expense approval/rejection and preserves final evidence guards', async () => {
-    const trip = await createInTransitTrip();
+    const trip = await createTripFixture(TripStatus.IN_TRANSIT);
     const expense = await createOfficeTripExpense({ tripId: trip.id });
     const requestBody = {
       expectedVersion: expense.version,
@@ -457,7 +371,10 @@ describe('Q15 trip financial governance', () => {
     );
     assert.equal(requested.status, 200, JSON.stringify(requested.body));
     assert.equal(requested.body.actionKind, 'TRIP_EXPENSE_APPROVAL');
-    actionIds.push(Number(requested.body.id));
+    // 2026-09-11 maker-checker removed: the create response IS the applied
+    // record — no staged pending window remains.
+    assert.equal(requested.body.status, 'APPROVED');
+    assert.ok(requested.body.applicationResult);
     const replay = await api(
       'POST',
       `/api/trips/${trip.id}/expenses/${expense.id}/approve`,
@@ -477,18 +394,16 @@ describe('Q15 trip financial governance', () => {
     );
     assert.equal(drift.status, 409);
 
-    // 2026-09-11 maker-checker removed: the decision applies in-request —
-    // no staged pending window, the expense is final and the ledger posted.
+    // The decision applied in-request — the expense is final, and trip-expense
+    // decisions mutate the expense row only (ledger posting happens at trip
+    // close, not at expense decision time).
     const [applied] = await db.select().from(s.tripExpenses)
       .where(eq(s.tripExpenses.id, expense.id)).limit(1);
     assert.equal(applied.approvalStatus, 'APPROVED');
     assert.equal(applied.version, expense.version + 1);
-    // Trip-expense decisions mutate the expense row only — ledger posting
-    // happens at trip close, not at expense decision time.
     assert.equal((await ledgerRows(trip.id)).length, 0);
 
-    // 2026-09-11 maker-checker removed: no staged transitions remain. The
-    // reject route applies REJECTED in-request...
+    // The reject route applies REJECTED in-request the same way.
     const rejectExpense = await createOfficeTripExpense({ tripId: trip.id });
     const rejection = await api(
       'POST',
@@ -498,12 +413,13 @@ describe('Q15 trip financial governance', () => {
       `q15-office-reject-${suffix}`,
     );
     assert.equal(rejection.status, 200, JSON.stringify(rejection.body));
-    actionIds.push(Number(rejection.body.id));
+    assert.equal(rejection.body.status, 'APPROVED');
+    assert.ok(rejection.body.applicationResult);
     const [rejectedRow] = await db.select().from(s.tripExpenses)
       .where(eq(s.tripExpenses.id, rejectExpense.id)).limit(1);
     assert.equal(rejectedRow.approvalStatus, 'REJECTED');
 
-    // ...and the missing-evidence guard still applies in-request: an
+    // The missing-evidence guard still applies in-request: an
     // invoice-required expense without receipts returns for evidence.
     const incomplete = await createOfficeTripExpense({
       tripId: trip.id,
@@ -527,57 +443,34 @@ describe('Q15 trip financial governance', () => {
     assert.equal(returnedByFinalGuard.approvalStatus, 'RETURN_FOR_EVIDENCE');
   });
 
-  it('keeps close and completed-trip money edits pending until distinct checker and approver apply once', async () => {
-    const trip = await createInTransitTrip();
+  it('applies governed close, completed-trip change, and cancellation in-request', async () => {
+    const trip = await createTripFixture(TripStatus.IN_TRANSIT);
     const closeKey = `q15-close-${suffix}`;
-    const close = await api('POST', `/api/trips/${trip.id}/complete`, {
+    const closeBody = {
       expectedVersion: trip.version,
       reason: 'Hoàn thành vận chuyển và ghi nhận công nợ',
-    }, 1, closeKey);
-    assert.equal(close.status, 202);
+    };
+    const close = await api('POST', `/api/trips/${trip.id}/complete`, closeBody, 2, closeKey);
+    assert.equal(close.status, 200, JSON.stringify(close.body));
     assert.equal(close.body.actionKind, 'TRIP_FINANCIAL_CLOSE');
-    actionIds.push(Number(close.body.id));
+    assert.equal(close.body.status, 'APPROVED');
+    assert.ok(close.body.applicationResult);
 
-    const closeReplay = await api('POST', `/api/trips/${trip.id}/complete`, {
-      expectedVersion: trip.version,
-      reason: 'Hoàn thành vận chuyển và ghi nhận công nợ',
-    }, 1, closeKey);
-    assert.equal(closeReplay.status, 202);
+    const closeReplay = await api('POST', `/api/trips/${trip.id}/complete`, closeBody, 2, closeKey);
+    assert.equal(closeReplay.status, 200);
     assert.equal(closeReplay.body.id, close.body.id);
     assert.equal(closeReplay.body.replayed, true);
 
-    const [stillInTransit] = await db.select().from(s.trips)
-      .where(eq(s.trips.id, trip.id)).limit(1);
-    assert.equal(stillInTransit.status, TripStatus.IN_TRANSIT);
-    assert.equal((await ledgerRows(trip.id)).length, 0);
-    assert.ok(await waitForAuditEvent(
-      actors[1]!.id,
-      'TRIP_FINANCIAL_CLOSE_REQUESTED',
-      trip.id,
-    ));
-
-    // 2026-09-10 (phê duyệt segregation removed): self-check and
-    // checker-approve 403 pins are gone — the staged flow remains, with
-    // check then first-approver-wins.
-    const checked = await api('POST', `/api/governance-actions/${close.body.id}/check`, {
-      expectedVersion: close.body.version,
-    }, 0, `q15-close-check-${suffix}`);
-    assert.equal(checked.status, 200);
-
-    const approveKeyA = `q15-close-approve-a-${suffix}`;
-    const approveKeyB = `q15-close-approve-b-${suffix}`;
-    const [firstApprove, concurrentApprove] = await Promise.all([
-      api('POST', `/api/governance-actions/${close.body.id}/approve`, {
-        expectedVersion: checked.body.version,
-      }, 2, approveKeyA),
-      api('POST', `/api/governance-actions/${close.body.id}/approve`, {
-        expectedVersion: checked.body.version,
-      }, 2, approveKeyB),
-    ]);
-    assert.deepEqual(
-      [firstApprove.status, concurrentApprove.status].sort((a, b) => a - b),
-      [200, 409],
+    // A duplicate close after apply is refused: the trip is no longer
+    // IN_TRANSIT, so a second governed close cannot be requested.
+    const duplicateClose = await api(
+      'POST',
+      `/api/trips/${trip.id}/complete`,
+      closeBody,
+      2,
+      `q15-close-dup-${suffix}`,
     );
+    assert.equal(duplicateClose.status, 409, JSON.stringify(duplicateClose.body));
 
     const [completed] = await db.select().from(s.trips)
       .where(eq(s.trips.id, trip.id)).limit(1);
@@ -607,33 +500,14 @@ describe('Q15 trip financial governance', () => {
       notificationsBeforeReplay.map((row) => row.userId),
       [tripDriver.userId],
     );
-    // Idempotent replay was an endpoint idempotency feature; the service
-    // transition converges instead — re-approving an applied action 409s.
-    const approveReplay = await api('POST', `/api/governance-actions/${close.body.id}/approve`, {
-      expectedVersion: checked.body.version,
-    }, 2, firstApprove.status === 200 ? approveKeyA : approveKeyB);
-    assert.equal(approveReplay.status, 409);
-    assert.equal((await ledgerRows(trip.id)).length, completedLedger.length);
-    const notificationsAfterReplay = await db.select({
-      id: s.notifications.id,
-      userId: s.notifications.userId,
-    }).from(s.notifications)
-      .where(and(
-        eq(s.notifications.type, 'TRIP_COMPLETED'),
-        eq(s.notifications.relatedEntityType, 'trips'),
-        eq(s.notifications.relatedEntityId, trip.id),
-      ));
-    assert.deepEqual(notificationsAfterReplay, notificationsBeforeReplay);
-    // The TRIP_COMPLETED audit fired from the removed approve endpoint's
-    // middleware; the transition audit now lives in the governance row.
-    const [closedAction] = await db.select().from(s.governanceActions)
-      .where(eq(s.governanceActions.id, Number(close.body.id))).limit(1);
-    assert.equal(closedAction.status, 'APPROVED');
-    assert.ok(closedAction.appliedAt instanceof Date);
+    assert.ok(await waitForAuditEvent(
+      actors[2]!.id,
+      ['TRIP_FINANCIAL_CLOSE_REQUESTED', 'TRIP_COMPLETED'],
+      trip.id,
+    ));
 
-    const viewer = await api('GET', `/api/governance-actions?subjectType=TRIP&subjectId=${trip.id}`, undefined, 3);
-    assert.equal(viewer.status, 403);
-
+    // Completed-trip money edits still apply through a governed change, now
+    // in-request: the response record carries the applied effects.
     const change = await api('PUT', `/api/trips/${trip.id}/actuals`, {
       legs: [{
         sequence: 1,
@@ -646,65 +520,16 @@ describe('Q15 trip financial governance', () => {
       revenue: 1_700_000,
       version: completed.version,
       governanceReason: 'Điều chỉnh doanh thu theo biên bản đối soát',
-    }, 0, `q15-change-${suffix}`);
-    assert.equal(change.status, 202);
+    }, 2, `q15-change-${suffix}`);
+    assert.equal(change.status, 200, JSON.stringify(change.body));
     assert.equal(change.body.actionKind, 'TRIP_FINANCIAL_CHANGE');
-    actionIds.push(Number(change.body.id));
+    assert.equal(change.body.status, 'APPROVED');
+    assert.ok(change.body.applicationResult);
     assert.ok(await waitForAuditEvent(
-      actors[0]!.id,
-      'TRIP_FINANCIAL_CHANGE_REQUESTED',
+      actors[2]!.id,
+      ['TRIP_FINANCIAL_CHANGE_REQUESTED', 'TRIP_UPDATED_ACTUALS'],
       trip.id,
     ));
-
-    const [beforeChangeApproval] = await db.select().from(s.tripsComposite)
-      .where(eq(s.tripsComposite.id, trip.id)).limit(1);
-    assert.equal(beforeChangeApproval.revenue, '1200000');
-    assert.equal((await ledgerRows(trip.id)).length, completedLedger.length);
-
-    const checkedChange = await api('POST', `/api/governance-actions/${change.body.id}/check`, {
-      expectedVersion: change.body.version,
-    }, 1, `q15-change-check-${suffix}`);
-    assert.equal(checkedChange.status, 200);
-    await assert.rejects(
-      approveGovernanceActionWithAdapter({
-        actionId: Number(change.body.id),
-        approverId: actors[2]!.id,
-        approverRole: actors[2]!.role,
-        expectedVersion: Number(checkedChange.body.version),
-        authorizeBeforeApply: () => true,
-        apply: async (tx, action) => {
-          const after = action.afterSnapshot as {
-            figures: Parameters<typeof updateTripFigures>[1];
-          };
-          await updateTripFigures(
-            trip.id,
-            {
-              ...after.figures,
-              revenue: 1_900_000,
-              expectedVersion: action.originalVersion,
-              userId: actors[2]!.id,
-              userRole: actors[2]!.role as Role,
-            },
-            tx,
-            action.id,
-          );
-        },
-      }),
-      /không khớp với nội dung thay đổi chuyến đi đã được phê duyệt/,
-    );
-    const [afterDivergentAttempt] = await db.select().from(s.tripsComposite)
-      .where(eq(s.tripsComposite.id, trip.id)).limit(1);
-    assert.equal(afterDivergentAttempt.revenue, '1200000');
-    assert.equal((await ledgerRows(trip.id)).length, completedLedger.length);
-    const [stillCheckedChange] = await db.select().from(s.governanceActions)
-      .where(eq(s.governanceActions.id, Number(change.body.id))).limit(1);
-    assert.equal(stillCheckedChange.status, 'PENDING_APPROVAL');
-    assert.equal(stillCheckedChange.version, checkedChange.body.version);
-
-    const approvedChange = await api('POST', `/api/governance-actions/${change.body.id}/approve`, {
-      expectedVersion: checkedChange.body.version,
-    }, 2, `q15-change-approve-${suffix}`);
-    assert.equal(approvedChange.status, 200);
 
     const [changed] = await db.select().from(s.tripsComposite)
       .where(eq(s.tripsComposite.id, trip.id)).limit(1);
@@ -713,30 +538,7 @@ describe('Q15 trip financial governance', () => {
     assert.equal(changedLedger.filter((row) => row.txnType === TxnType.TRIP_REVENUE).length, 2);
     assert.ok(changedLedger.some((row) => row.txnType === TxnType.UNLOCK_REVERSAL));
 
-    const cancelKey = `q15-completed-cancel-${suffix}`;
-    const cancel = await api('POST', `/api/trips/${trip.id}/cancel`, {
-      expectedVersion: changed.version,
-      reason: 'Hủy chuyến đã hoàn thành và hoàn nhập công nợ',
-    }, 0, cancelKey);
-    assert.equal(cancel.status, 202);
-    assert.equal(cancel.body.actionKind, 'TRIP_FINANCIAL_CHANGE');
-    actionIds.push(Number(cancel.body.id));
-    assert.ok(await waitForAuditEvent(
-      actors[0]!.id,
-      'TRIP_FINANCIAL_CANCEL_REQUESTED',
-      trip.id,
-    ));
-    const cancelReplay = await api('POST', `/api/trips/${trip.id}/cancel`, {
-      expectedVersion: changed.version,
-      reason: 'Hủy chuyến đã hoàn thành và hoàn nhập công nợ',
-    }, 0, cancelKey);
-    assert.equal(cancelReplay.status, 202);
-    assert.equal(cancelReplay.body.replayed, true);
-
-    const [beforeCancelApproval] = await db.select().from(s.trips)
-      .where(eq(s.trips.id, trip.id)).limit(1);
-    assert.equal(beforeCancelApproval.status, TripStatus.COMPLETED);
-    assert.equal((await ledgerRows(trip.id)).length, changedLedger.length);
+    // Cancellation of a completed trip also applies in-request.
     await applyTripPatch(db, trip.id, {
       fuelLitersOverride: '1',
       fuelSupplementLiters: '2',
@@ -766,15 +568,34 @@ describe('Q15 trip financial governance', () => {
       externalFreightCost: '24',
     });
 
-    const checkedCancel = await api('POST', `/api/governance-actions/${cancel.body.id}/check`, {
-      expectedVersion: cancel.body.version,
-    }, 1, `q15-completed-cancel-check-${suffix}`);
-    assert.equal(checkedCancel.status, 200);
-    const cancelApprovalKey = `q15-completed-cancel-approve-${suffix}`;
-    const approvedCancel = await api('POST', `/api/governance-actions/${cancel.body.id}/approve`, {
-      expectedVersion: checkedCancel.body.version,
-    }, 2, cancelApprovalKey);
-    assert.equal(approvedCancel.status, 200);
+    const cancelKey = `q15-completed-cancel-${suffix}`;
+    const cancelBody = {
+      expectedVersion: changed.version,
+      reason: 'Hủy chuyến đã hoàn thành và hoàn nhập công nợ',
+    };
+    const cancel = await api('POST', `/api/trips/${trip.id}/cancel`, cancelBody, 2, cancelKey);
+    assert.equal(cancel.status, 200, JSON.stringify(cancel.body));
+    assert.equal(cancel.body.actionKind, 'TRIP_FINANCIAL_CHANGE');
+    assert.equal(cancel.body.status, 'APPROVED');
+    assert.ok(cancel.body.applicationResult);
+    assert.ok(await waitForAuditEvent(
+      actors[2]!.id,
+      ['TRIP_FINANCIAL_CANCEL_REQUESTED', 'TRIP_CANCELED'],
+      trip.id,
+    ));
+    const cancelReplay = await api('POST', `/api/trips/${trip.id}/cancel`, cancelBody, 2, cancelKey);
+    assert.equal(cancelReplay.status, 200);
+    assert.equal(cancelReplay.body.replayed, true);
+
+    // A duplicate cancel after apply is refused: the trip is already CANCELED.
+    const duplicateCancel = await api(
+      'POST',
+      `/api/trips/${trip.id}/cancel`,
+      cancelBody,
+      2,
+      `q15-completed-cancel-dup-${suffix}`,
+    );
+    assert.equal(duplicateCancel.status, 409, JSON.stringify(duplicateCancel.body));
 
     const [canceled] = await db.select().from(s.tripsComposite)
       .where(eq(s.tripsComposite.id, trip.id)).limit(1);
@@ -816,9 +637,6 @@ describe('Q15 trip financial governance', () => {
       assert.equal(Number(value), 0);
     }
     assert.equal(canceled.hasReturnCargo, false);
-    // The TRIP_CANCELED audit fired from the removed approve endpoint's
-    // middleware; the transition audit now lives in the governance row.
-    assert.ok(await waitForAuditEvent(actors[0]!.id, 'TRIP_FINANCIAL_CANCEL_REQUESTED', trip.id));
     assert.equal(
       (await db.select().from(s.driverWorkDays)
         .where(eq(s.driverWorkDays.tripId, trip.id))).length,
@@ -829,21 +647,12 @@ describe('Q15 trip financial governance', () => {
       canceledLedger.filter((row) => row.txnType === TxnType.UNLOCK_REVERSAL).length,
       changedLedger.filter((row) => row.txnType !== TxnType.UNLOCK_REVERSAL).length,
     );
-
-    const cancelApprovalReplay = await api(
-      'POST',
-      `/api/governance-actions/${cancel.body.id}/approve`,
-      { expectedVersion: checkedCancel.body.version },
-      2,
-      cancelApprovalKey,
-    );
-    // Endpoint idempotent-replay is gone; re-approving an applied action 409s.
-    assert.equal(cancelApprovalReplay.status, 409);
+    // The idempotent replay applied nothing extra.
     assert.equal((await ledgerRows(trip.id)).length, canceledLedger.length);
   });
 
   it('rejects direct service completion without an approved governance action', async () => {
-    const trip = await createInTransitTrip();
+    const trip = await createTripFixture(TripStatus.IN_TRANSIT);
     await assert.rejects(
       transitionTripStatus(
         trip.id,
@@ -859,34 +668,33 @@ describe('Q15 trip financial governance', () => {
     assert.equal((await ledgerRows(trip.id)).length, 0);
   });
 
-  it('rejects forged or merely checked action identities at every completed-trip mutation boundary', async () => {
-    const trip = await createInTransitTrip();
-    const close = await api('POST', `/api/trips/${trip.id}/complete`, {
-      expectedVersion: trip.version,
-      reason: 'Kiểm thử ranh giới ủy quyền bền vững',
-    }, 1, `q15-forged-close-${suffix}`);
-    actionIds.push(Number(close.body.id));
-    const checkedClose = await api('POST', `/api/governance-actions/${close.body.id}/check`, {
-      expectedVersion: close.body.version,
-    }, 0, `q15-forged-close-check-${suffix}`);
-    assert.equal(checkedClose.status, 200);
+  it('binds apply authority to the in-flight governed application', async () => {
+    const trip = await createTripFixture(TripStatus.IN_TRANSIT);
 
-    let retainedCallbackArgument: unknown;
-    let retainedApprovalTx: Tx | undefined;
-    let retainedApprovalActionId: number | undefined;
+    // A hostile adapter proves the apply authority is real inside the governed
+    // application, cannot be reused for another action or transaction, and is
+    // cleared once the adapter throws and the transaction rolls back.
+    let retainedTx: Tx | undefined;
+    let retainedActionId: number | undefined;
+    let adapterArgCount = 0;
     await assert.rejects(
-      approveGovernanceActionWithAdapter({
-        actionId: Number(close.body.id),
-        approverId: actors[2]!.id,
-        approverRole: actors[2]!.role,
-        expectedVersion: Number(checkedClose.body.version),
-        authorizeBeforeApply: () => true,
+      applyGovernanceActionDirect({
+        action: buildGovernanceAction({
+          actionKind: 'TRIP_FINANCIAL_CLOSE',
+          subjectType: 'TRIP',
+          subjectId: trip.id,
+          originalVersion: trip.version,
+          makerId: actors[0]!.id,
+          makerRole: Role.MANAGER,
+        }),
+        actorId: actors[2]!.id,
+        actorRole: Role.ADMIN,
         apply: async (...args: unknown[]) => {
           const approvalTx = args[0] as Tx;
           const approvalAction = args[1] as { id: number };
-          retainedApprovalTx = approvalTx;
-          retainedApprovalActionId = approvalAction.id;
-          retainedCallbackArgument = args[2];
+          retainedTx = approvalTx;
+          retainedActionId = approvalAction.id;
+          adapterArgCount = args.length;
           assert.doesNotThrow(() => {
             assertActiveApprovalApplication(approvalTx, approvalAction.id);
           });
@@ -906,277 +714,59 @@ describe('Q15 trip financial governance', () => {
       /hostile adapter forced rollback/,
     );
     assert.equal(
-      retainedCallbackArgument,
-      undefined,
-      'the generic adapter callback must never receive retainable approval authority',
+      adapterArgCount,
+      2,
+      'the adapter must receive only the transaction and the action — no retainable authority argument',
     );
-    assert.ok(retainedApprovalTx);
-    assert.ok(retainedApprovalActionId);
+    assert.ok(retainedTx);
+    assert.ok(retainedActionId);
     assert.throws(
-      () => assertActiveApprovalApplication(retainedApprovalTx!, retainedApprovalActionId),
+      () => assertActiveApprovalApplication(retainedTx!, retainedActionId!),
       /phê duyệt quản trị/,
-      'approval activity must be cleared after the adapter throws and the transaction rolls back',
+      'apply authority must be cleared after the adapter throws and the transaction rolls back',
     );
 
-    const attemptForgedAuthorizedClose = async (overrides: Record<string, unknown>, actor = actors[2]!) => (
-      db.transaction(async (tx) => {
-        await tx.update(s.governanceActions).set({
-          status: 'APPROVED',
-          approverId: actors[2]!.id,
-          approverRole: actors[2]!.role,
-          approvedAt: new Date(),
-          appliedAt: null,
-          applicationResult: null,
-          ...overrides,
-        }).where(eq(s.governanceActions.id, Number(close.body.id)));
-        return transitionTripStatus(
-          trip.id,
-          TripStatus.COMPLETED,
-          actor.id,
-          actor.role,
-          false,
-          false,
-          {
-            expectedVersion: trip.version,
-            transaction: tx,
-            governanceActionId: Number(close.body.id),
-          },
-        );
-      })
-    );
-    let exactCloseForgeryApplied = false;
-    await assert.rejects(
-      db.transaction(async (tx) => {
-        await tx.update(s.governanceActions).set({
-          status: 'APPROVED',
-          approverId: actors[2]!.id,
-          approverRole: actors[2]!.role,
-          approvedAt: new Date(),
-          appliedAt: null,
-          applicationResult: null,
-        }).where(eq(s.governanceActions.id, Number(close.body.id)));
-        try {
-          await transitionTripStatus(
-            trip.id,
-            TripStatus.COMPLETED,
-            actors[2]!.id,
-            actors[2]!.role,
-            false,
-            false,
-            {
-              expectedVersion: trip.version,
-              transaction: tx,
-              governanceActionId: Number(close.body.id),
-            },
-          );
-          exactCloseForgeryApplied = true;
-        } finally {
-          throw new Error('rollback exact forged close probe');
-        }
+    // A compliant adapter runs the whole lifecycle in one request: policy
+    // stages pass, the adapter holds real authority, and the returned record
+    // is final (APPROVED + appliedAt + applicationResult).
+    let benignAuthorityInside = false;
+    const applied = await applyGovernanceActionDirect({
+      action: buildGovernanceAction({
+        actionKind: 'TRIP_FINANCIAL_CLOSE',
+        subjectType: 'TRIP',
+        subjectId: trip.id,
+        originalVersion: trip.version,
+        makerId: actors[0]!.id,
+        makerRole: Role.MANAGER,
       }),
-      /rollback exact forged close probe/,
-    );
-    assert.equal(
-      exactCloseForgeryApplied,
-      false,
-      'an exact persisted APPROVED row must not authorize close without the approval-engine capability',
-    );
-    await assert.rejects(
-      attemptForgedAuthorizedClose({}, actors[1]!),
-      /quản trị/,
-    );
-    await assert.rejects(
-      attemptForgedAuthorizedClose({ approverRole: Role.ADMIN }, {
-        id: actors[2]!.id,
-        role: Role.MANAGER,
-      }),
-      /quản trị/,
-    );
-    const wrongSubject = await createInTransitTrip();
-    await assert.rejects(
-      attemptForgedAuthorizedClose({ subjectId: wrongSubject.id }),
-      /quản trị/,
-    );
-    await assert.rejects(
-      attemptForgedAuthorizedClose({ originalVersion: trip.version + 1 }),
-      /quản trị/,
-    );
-    await assert.rejects(
-      attemptForgedAuthorizedClose({ appliedAt: new Date() }),
-      /quản trị/,
-    );
-    await assert.rejects(
-      attemptForgedAuthorizedClose({ actionKind: 'TRIP_FINANCIAL_CHANGE' }),
-      /quản trị/,
-    );
+      actorId: actors[2]!.id,
+      actorRole: Role.ADMIN,
+      apply: async (tx, action) => {
+        assert.doesNotThrow(() => assertActiveApprovalApplication(tx, action.id));
+        benignAuthorityInside = true;
+        return { applicationResult: { probe: 'applied' } };
+      },
+    });
+    assert.equal(benignAuthorityInside, true);
+    assert.equal(applied.action.status, 'APPROVED');
+    assert.ok(applied.action.appliedAt instanceof Date);
+    assert.deepEqual(applied.action.applicationResult, { probe: 'applied' });
 
-    await assert.rejects(
-      transitionTripStatus(
-        trip.id,
-        TripStatus.COMPLETED,
-        actors[2]!.id,
-        actors[2]!.role,
-        false,
-        false,
-        { expectedVersion: trip.version, governanceActionId: Number(close.body.id) },
-      ),
-      /quản trị/,
-    );
-    await assert.rejects(
-      transitionTripStatus(
-        trip.id,
-        TripStatus.COMPLETED,
-        actors[2]!.id,
-        actors[2]!.role,
-        false,
-        false,
-        { expectedVersion: trip.version, governanceActionId: 2_000_000_000 },
-      ),
-      /quản trị/,
-    );
-
-    const approvedClose = await api('POST', `/api/governance-actions/${close.body.id}/approve`, {
-      expectedVersion: checkedClose.body.version,
-    }, 2, `q15-forged-close-approve-${suffix}`);
-    assert.equal(approvedClose.status, 200);
-    const [completed] = await db.select().from(s.trips)
-      .where(eq(s.trips.id, trip.id)).limit(1);
-
-    const edit = await api('PUT', `/api/trips/${trip.id}/actuals`, {
+    // Completed-trip mutation boundaries stay closed at create time: a
+    // governed change and a completed-trip cancellation each require a reason.
+    const completedFixture = await createTripFixture(TripStatus.COMPLETED);
+    const editWithoutReason = await api('PUT', `/api/trips/${completedFixture.id}/actuals`, {
       legs: [{ sequence: 1, origin: 'A', destination: 'B', km: 20, loadingType: LoadingType.HANG }],
       fuelMode: FuelMode.AUTO,
       revenue: 1_800_000,
-      version: completed.version,
-      governanceReason: 'Kiểm thử yêu cầu sửa chưa được duyệt',
-    }, 0, `q15-forged-edit-${suffix}`);
-    actionIds.push(Number(edit.body.id));
-    const checkedEdit = await api('POST', `/api/governance-actions/${edit.body.id}/check`, {
-      expectedVersion: edit.body.version,
-    }, 1, `q15-forged-edit-check-${suffix}`);
-    assert.equal(checkedEdit.status, 200);
-    let exactEditForgeryApplied = false;
-    await assert.rejects(
-      db.transaction(async (tx) => {
-        await tx.update(s.governanceActions).set({
-          status: 'APPROVED',
-          approverId: actors[2]!.id,
-          approverRole: actors[2]!.role,
-          approvedAt: new Date(),
-          appliedAt: null,
-          applicationResult: null,
-        }).where(eq(s.governanceActions.id, Number(edit.body.id)));
-        try {
-          await updateTripFigures(
-            trip.id,
-            {
-              legs: [{
-                sequence: 1,
-                origin: 'A',
-                destination: 'B',
-                km: 20,
-                loadingType: LoadingType.HANG,
-              }],
-              fuelMode: FuelMode.AUTO,
-              revenue: 1_800_000,
-              expectedVersion: completed.version,
-              userId: actors[2]!.id,
-              userRole: actors[2]!.role as Role,
-            },
-            tx,
-            Number(edit.body.id),
-          );
-          exactEditForgeryApplied = true;
-        } finally {
-          throw new Error('rollback exact forged edit probe');
-        }
-      }),
-      /rollback exact forged edit probe/,
-    );
-    assert.equal(
-      exactEditForgeryApplied,
-      false,
-      'an exact persisted APPROVED row must not authorize edit without the approval-engine capability',
-    );
-    await assert.rejects(
-      updateTripFigures(
-        trip.id,
-        {
-          legs: [{ sequence: 1, origin: 'A', destination: 'B', km: 20, loadingType: LoadingType.HANG }],
-          fuelMode: FuelMode.AUTO,
-          revenue: 1_800_000,
-          expectedVersion: completed.version,
-          userId: actors[2]!.id,
-          userRole: actors[2]!.role as Role,
-        },
-        undefined,
-        Number(edit.body.id),
-      ),
-      /quản trị/,
-    );
+      version: completedFixture.version,
+    }, 2, `q15-boundary-edit-${suffix}`);
+    assert.equal(editWithoutReason.status, 400);
 
-    const rejectedEdit = await api('POST', `/api/governance-actions/${edit.body.id}/reject`, {
-      expectedVersion: checkedEdit.body.version,
-      reason: 'Kết thúc yêu cầu thử nghiệm',
-    }, 2, `q15-forged-edit-reject-${suffix}`);
-    assert.equal(rejectedEdit.status, 200);
-    const cancel = await api('POST', `/api/trips/${trip.id}/cancel`, {
-      expectedVersion: completed.version,
-      reason: 'Kiểm thử yêu cầu hủy chưa được duyệt',
-    }, 0, `q15-forged-cancel-${suffix}`);
-    actionIds.push(Number(cancel.body.id));
-    const checkedCancel = await api('POST', `/api/governance-actions/${cancel.body.id}/check`, {
-      expectedVersion: cancel.body.version,
-    }, 1, `q15-forged-cancel-check-${suffix}`);
-    assert.equal(checkedCancel.status, 200);
-    let exactCancelForgeryApplied = false;
-    await assert.rejects(
-      db.transaction(async (tx) => {
-        await tx.update(s.governanceActions).set({
-          status: 'APPROVED',
-          approverId: actors[2]!.id,
-          approverRole: actors[2]!.role,
-          approvedAt: new Date(),
-          appliedAt: null,
-          applicationResult: null,
-        }).where(eq(s.governanceActions.id, Number(cancel.body.id)));
-        try {
-          await transitionTripStatus(
-            trip.id,
-            TripStatus.CANCELED,
-            actors[2]!.id,
-            actors[2]!.role,
-            false,
-            false,
-            {
-              expectedVersion: completed.version,
-              transaction: tx,
-              governanceActionId: Number(cancel.body.id),
-            },
-          );
-          exactCancelForgeryApplied = true;
-        } finally {
-          throw new Error('rollback exact forged cancel probe');
-        }
-      }),
-      /rollback exact forged cancel probe/,
-    );
-    assert.equal(
-      exactCancelForgeryApplied,
-      false,
-      'an exact persisted APPROVED row must not authorize cancellation without the approval-engine capability',
-    );
-    await assert.rejects(
-      transitionTripStatus(
-        trip.id,
-        TripStatus.CANCELED,
-        actors[2]!.id,
-        actors[2]!.role,
-        false,
-        false,
-        { expectedVersion: completed.version, governanceActionId: Number(cancel.body.id) },
-      ),
-      /quản trị/,
-    );
+    const cancelWithoutReason = await api('POST', `/api/trips/${completedFixture.id}/cancel`, {
+      expectedVersion: completedFixture.version,
+    }, 2, `q15-boundary-cancel-${suffix}`);
+    assert.equal(cancelWithoutReason.status, 400);
   });
 
   it('declares close and completed cancellation as material writes', () => {
@@ -1190,33 +780,21 @@ describe('Q15 trip financial governance', () => {
     );
   });
 
-  it('routes completed bulk rows into pending governance while applying open rows', async () => {
-    const completedSource = await createInTransitTrip();
-    const close = await api('POST', `/api/trips/${completedSource.id}/complete`, {
-      expectedVersion: completedSource.version,
-      reason: 'Hoàn thành để kiểm thử cập nhật hàng loạt',
-    }, 1, `q15-bulk-close-${suffix}`);
-    actionIds.push(Number(close.body.id));
-    const checked = await api('POST', `/api/governance-actions/${close.body.id}/check`, {
-      expectedVersion: close.body.version,
-    }, 0, `q15-bulk-close-check-${suffix}`);
-    await api('POST', `/api/governance-actions/${close.body.id}/approve`, {
-      expectedVersion: checked.body.version,
-    }, 2, `q15-bulk-close-approve-${suffix}`);
-    const [completed] = await db.select().from(s.trips)
-      .where(eq(s.trips.id, completedSource.id)).limit(1);
-    const open = await createInTransitTrip();
+  it('applies bulk figure rows in-request, including completed trips', async () => {
+    const completedSource = await createTripFixture(TripStatus.COMPLETED);
+    const open = await createTripFixture(TripStatus.IN_TRANSIT);
+    const noReasonTrip = await createTripFixture(TripStatus.COMPLETED);
 
     const bulk = await api('POST', '/api/trips/bulk-figures', {
       updates: [
         {
-          tripId: completed.id,
+          tripId: completedSource.id,
           governanceReason: 'Điều chỉnh hàng loạt theo biên bản đối soát',
           figures: {
             legs: [{ sequence: 1, origin: 'A', destination: 'B', km: 20, loadingType: LoadingType.HANG }],
             fuelMode: FuelMode.AUTO,
             revenue: 2_000_000,
-            version: completed.version,
+            version: completedSource.version,
           },
         },
         {
@@ -1228,57 +806,77 @@ describe('Q15 trip financial governance', () => {
             version: open.version,
           },
         },
+        {
+          // A completed trip without a governance reason is a per-row failure.
+          tripId: noReasonTrip.id,
+          figures: {
+            legs: [{ sequence: 1, origin: 'A', destination: 'B', km: 12, loadingType: LoadingType.HANG }],
+            fuelMode: FuelMode.AUTO,
+            revenue: 1_400_000,
+            version: noReasonTrip.version,
+          },
+        },
       ],
-    }, 0, `q15-bulk-${suffix}`);
-    assert.equal(bulk.status, 200);
-    assert.equal(bulk.body.updated, 1, JSON.stringify(bulk.body));
-    assert.equal(bulk.body.pending, 1, JSON.stringify(bulk.body));
-    assert.equal(bulk.body.failed, 0);
+    }, 2, `q15-bulk-${suffix}`);
+    assert.equal(bulk.status, 200, JSON.stringify(bulk.body));
+    assert.equal(bulk.body.failed, 1, JSON.stringify(bulk.body));
     const rows = bulk.body.results as Array<Record<string, unknown>>;
-    assert.equal(rows.find((row) => row.tripId === completed.id)?.pendingApproval, true);
-    const pendingAction = rows.find((row) => row.tripId === completed.id)?.governanceAction as Record<string, unknown>;
-    actionIds.push(Number(pendingAction.id));
+    assert.equal(rows.find((row) => row.tripId === completedSource.id)?.ok, true);
+    assert.equal(rows.find((row) => row.tripId === open.id)?.ok, true);
+    assert.equal(rows.find((row) => row.tripId === noReasonTrip.id)?.ok, false);
+
+    // Direct apply: the completed-trip figures changed in-request, the open
+    // trip applied as before, and the refused row left its trip untouched.
+    const [appliedCompleted] = await db.select().from(s.tripsComposite)
+      .where(eq(s.tripsComposite.id, completedSource.id)).limit(1);
+    assert.equal(appliedCompleted.revenue, '2000000');
+    const [appliedOpen] = await db.select().from(s.tripsComposite)
+      .where(eq(s.tripsComposite.id, open.id)).limit(1);
+    assert.equal(appliedOpen.revenue, '1300000');
+    const [refusedRow] = await db.select().from(s.tripsComposite)
+      .where(eq(s.tripsComposite.id, noReasonTrip.id)).limit(1);
+    assert.equal(refusedRow.revenue, '1200000');
   });
 
-  it('rejects or stales a close without changing trip or ledger state', async () => {
-    const rejectedTrip = await createInTransitTrip();
-    const rejected = await api('POST', `/api/trips/${rejectedTrip.id}/complete`, {
-      expectedVersion: rejectedTrip.version,
-      reason: 'Đề nghị hoàn thành',
-    }, 1, `q15-close-reject-${suffix}`);
-    actionIds.push(Number(rejected.body.id));
-    const rejectedChecked = await api('POST', `/api/governance-actions/${rejected.body.id}/check`, {
-      expectedVersion: rejected.body.version,
-    }, 0, `q15-rejected-check-${suffix}`);
-    const rejection = await api('POST', `/api/governance-actions/${rejected.body.id}/reject`, {
-      expectedVersion: rejectedChecked.body.version,
-      reason: 'Chưa đủ căn cứ hoàn thành',
-    }, 2, `q15-rejected-decision-${suffix}`);
-    assert.equal(rejection.status, 200);
+  it('rejects role-, stale-, and evidence-gated close requests without changing trip or ledger state', async () => {
+    // Role gate at create time: a driver cannot request a governed close.
+    const roleTrip = await createTripFixture(TripStatus.IN_TRANSIT);
+    const forbidden = await api('POST', `/api/trips/${roleTrip.id}/complete`, {
+      expectedVersion: roleTrip.version,
+      reason: 'Tài xế không được đề nghị hoàn thành',
+    }, 3, `q15-close-role-${suffix}`);
+    assert.equal(forbidden.status, 403);
+    const [unchangedRoleTrip] = await db.select().from(s.trips)
+      .where(eq(s.trips.id, roleTrip.id)).limit(1);
+    assert.equal(unchangedRoleTrip.status, TripStatus.IN_TRANSIT);
+    assert.equal((await ledgerRows(roleTrip.id)).length, 0);
 
-    const [unchangedRejected] = await db.select().from(s.trips)
-      .where(eq(s.trips.id, rejectedTrip.id)).limit(1);
-    assert.equal(unchangedRejected.status, TripStatus.IN_TRANSIT);
-    assert.equal((await ledgerRows(rejectedTrip.id)).length, 0);
+    // Photo-evidence gate at create time: completion without a photo is 422.
+    const photoTrip = await createTripFixture(TripStatus.IN_TRANSIT);
+    await db.delete(s.tripPhotos).where(eq(s.tripPhotos.tripId, photoTrip.id));
+    const noPhoto = await api('POST', `/api/trips/${photoTrip.id}/complete`, {
+      expectedVersion: photoTrip.version,
+      reason: 'Hoàn thành khi chưa có ảnh bằng chứng',
+    }, 1, `q15-close-photo-${suffix}`);
+    assert.equal(noPhoto.status, 422, JSON.stringify(noPhoto.body));
+    const [unchangedPhotoTrip] = await db.select().from(s.trips)
+      .where(eq(s.trips.id, photoTrip.id)).limit(1);
+    assert.equal(unchangedPhotoTrip.status, TripStatus.IN_TRANSIT);
+    assert.equal((await ledgerRows(photoTrip.id)).length, 0);
 
-    const staleTrip = await createInTransitTrip();
-    const stale = await api('POST', `/api/trips/${staleTrip.id}/complete`, {
-      expectedVersion: staleTrip.version,
-      reason: 'Đề nghị hoàn thành',
-    }, 1, `q15-close-stale-${suffix}`);
-    actionIds.push(Number(stale.body.id));
-    const staleChecked = await api('POST', `/api/governance-actions/${stale.body.id}/check`, {
-      expectedVersion: stale.body.version,
-    }, 0, `q15-stale-check-${suffix}`);
+    // Stale version at create time: the request is refused and changes nothing.
+    const staleTrip = await createTripFixture(TripStatus.IN_TRANSIT);
     await db.update(s.trips).set({ version: staleTrip.version + 1 })
       .where(eq(s.trips.id, staleTrip.id));
-    const staleApproval = await api('POST', `/api/governance-actions/${stale.body.id}/approve`, {
-      expectedVersion: staleChecked.body.version,
-    }, 2, `q15-stale-approve-${suffix}`);
-    assert.equal(staleApproval.status, 409);
+    const stale = await api('POST', `/api/trips/${staleTrip.id}/complete`, {
+      expectedVersion: staleTrip.version,
+      reason: 'Đề nghị hoàn thành với phiên bản cũ',
+    }, 1, `q15-close-stale-${suffix}`);
+    assert.equal(stale.status, 409, JSON.stringify(stale.body));
     const [unchangedStale] = await db.select().from(s.trips)
       .where(eq(s.trips.id, staleTrip.id)).limit(1);
     assert.equal(unchangedStale.status, TripStatus.IN_TRANSIT);
+    assert.equal(unchangedStale.version, staleTrip.version + 1);
     assert.equal((await ledgerRows(staleTrip.id)).length, 0);
   });
 });
