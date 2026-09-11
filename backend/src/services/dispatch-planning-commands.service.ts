@@ -507,23 +507,10 @@ export async function issueOrderCreateOrUpdate(
   }
 
   const liveTrip = await loadLiveTripForFulfillment(tx, fulfillment.id);
+
+  // Strict guard for the issued-trip reassign path (regression 2026-09-11 /
   if (liveTrip && liveTrip.status !== TripStatus.CREATED) {
-    if (!input.allowUnacknowledgedDeparture) {
-      throw new ApiError(409, 'Không thể điều chỉnh tác vụ đã xuất phát.');
-    }
-    // Reassignment relaxation (TODO/20260911_2 BUG1): an ops "xuất phát"
-    // (POST /trips/:id/dispatch) can flip the trip to IN_TRANSIT before any
-    // driver acknowledgement, so status alone must not block the correction.
-    // COMPLETED stays terminal, and IN_TRANSIT blocks only once the assigned
-    // driver acknowledged the order.
-    if (
-      liveTrip.status === TripStatus.COMPLETED
-      || await tripHasDriverAcknowledgement(tx, liveTrip.id)
-    ) {
-      throw new ApiError(409, liveTrip.status === TripStatus.COMPLETED
-        ? 'Không thể điều chỉnh tác vụ đã hoàn thành.'
-        : 'Không thể điều chỉnh tác vụ đã được lái xe nhận việc.');
-    }
+    throw new ApiError(409, 'Chỉ có thể đổi lái xe/xe cho chuyến chưa xuất phát');
   }
   if (liveTrip && input.expectedTripVersion !== undefined && liveTrip.version !== input.expectedTripVersion) {
     throw new ApiError(409, 'Lệnh điều xe đã thay đổi. Vui lòng tải lại.');

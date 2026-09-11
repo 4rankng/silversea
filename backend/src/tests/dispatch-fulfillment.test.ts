@@ -2235,14 +2235,13 @@ describe('dispatch fulfillment workflow routes', () => {
         },
       });
       assert.equal(reissue.status, 409, JSON.stringify(reissue.data));
-      assert.match(String(reissue.data.error ?? ''), /đã xuất phát/);
+      assert.match(String(reissue.data.error ?? ''), /chưa xuất phát/);
     });
 
     test('a completed trip stays terminal for reassignment regardless of acknowledgement', async () => {
       const { tripId } = await issueOwnAndDepartUnacknowledged();
       await db.update(s.trips).set({ status: 'COMPLETED', completedAt: new Date() }).where(eq(s.trips.id, tripId));
       const replacement = await createOwnedResources();
-
       const reassign = await fetch(`${baseUrl}/api/trips/${tripId}/reassign`, {
         method: 'PATCH',
         headers: {
