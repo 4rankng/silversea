@@ -30,6 +30,7 @@ import {
 import {
   createCarrierFleetVehicle,
   listCarrierFleetVehicles,
+  resolveCarrierByPlate,
   updateCarrierFleetVehicle,
 } from '../../services/carrier-fleet-vehicle.service';
 import {
@@ -48,10 +49,6 @@ import { IDEMPOTENCY_ENDPOINTS } from '../../services/idempotency.service';
 import { cacheInvalidate } from '../../lib/redis';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { runShipmentWrite, sendShipmentWrite } from './shipment-shared';
-import { and, desc, eq, isNull } from 'drizzle-orm';
-import { db } from '../../db';
-import * as s from '../../db/schema';
-import { normalizePlate } from '../../services/cus-shipment-workspace-reads.service';
 import { decomposeFulfillmentLessContainer } from '../../services/dispatch-detail-plan-fulfillment-less';
 
 const updateCarrierFleetVehicleSchema = carrierFleetVehicleSchema
@@ -630,33 +627,7 @@ dispatchPlanningRoutes.get(
   asyncHandler(async (req: Request, res: Response) => {
     const plate = typeof req.query.plate === 'string' ? req.query.plate.trim() : '';
     if (!plate) throw new ApiError(400, 'plate là bắt buộc.');
-    // Shared canonical normalization (uppercase + strip ALL non-alphanumerics)
-    // — an inline strip-whitespace-only variant silently misses dashed/dotted
-    // plates like "15H-061.14" whose stored normalizedPlate is "15H06114".
-    const normalized = normalizePlate(plate);
-    const [row] = await db.select({
-      carrierId: s.carrierFleetVehicles.carrierId,
-      carrierName: s.customers.name,
-      status: s.customers.status,
-    })
-      .from(s.carrierFleetVehicles)
-      .innerJoin(s.customers, eq(s.carrierFleetVehicles.carrierId, s.customers.id))
-      .where(and(
-        eq(s.carrierFleetVehicles.normalizedPlate, normalized),
-        eq(s.carrierFleetVehicles.isActive, true),
-        isNull(s.carrierFleetVehicles.deletedAt),
-        isNull(s.customers.deletedAt),
-      ))
-      .orderBy(desc(s.carrierFleetVehicles.id))
-      .limit(1);
-    // An INACTIVE carrier must surface as "no carrier" on BOTH fields — a
-    // non-null carrierId here would auto-fill the editor with an entity the
-    // dispatch write later rejects with a late 409.
-    if (!row || row.status !== 'ACTIVE') {
-      res.json({ carrierId: null, carrierName: null });
-      return;
-    }
-    res.json({ carrierId: row.carrierId, carrierName: row.carrierName });
+    res.json(await resolveCarrierByPlate(plate));
   }),
 );
 
