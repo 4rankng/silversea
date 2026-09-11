@@ -5,12 +5,12 @@ import type { DispatchClassification } from '@tingting/shared';
 import { DISPATCH_CLASSIFICATIONS, DISPATCH_CLASSIFICATION_LABELS } from '@tingting/shared';
 import {
   listDispatchFleetResources,
-  resolveCarrierByPlate,
   type DispatchCarrierVehicle,
   type DispatchDetailPlanRow,
   type DispatchExternalCarrier,
   type DispatchTruck,
 } from '../../../api/dispatchPlanningClient';
+import { api } from '../../../lib/api';
 import type { DispatchShipmentRequest, DispatchShipmentResponse } from '../../../api/shipmentClient';
 import { Modal } from '../../../components/UI';
 import { SearchableSelect, TextField, type SearchableSelectOption } from '../../../design-system';
@@ -643,10 +643,11 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
                   }));
                   setError(null);
                   // Reverse lookup: when a free-text plate is entered and no
-                  // carrier is selected, resolve the carrier from the plate.
+                  // carrier is selected, resolve the carrier from the plate
+                  // (inline — dispatchPlanningClient is at its LOC ceiling).
                   if (value.startsWith(FREE_TEXT_PREFIX) && !draft.carrierValue) {
                     const plate = value.slice(FREE_TEXT_PREFIX.length);
-                    resolveCarrierByPlate(plate).then(({ carrierId }) => {
+                    api.get<{ carrierId: number | null }>(`/shipments/carrier-fleet-vehicles/resolve-carrier?plate=${encodeURIComponent(plate)}`).then(({ carrierId }) => {
                       if (carrierId) {
                         setDraft((current) => ({
                           ...current,

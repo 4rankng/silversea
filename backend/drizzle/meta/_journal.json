@@ -505,6 +505,13 @@
       "when": 1789107851000,
       "tag": "0071_salary_period_exclusions",
       "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1789143979936,
+      "tag": "0071_trucks_carrier_id",
+      "breakpoints": true
     }
   ]
 }

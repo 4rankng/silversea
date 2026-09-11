@@ -4,6 +4,7 @@ import { Modal } from "../../components/UI";
 import { Input } from "../../components/untitled-ui/base/input/input";
 import { TextArea } from "../../components/untitled-ui/base/textarea/textarea";
 import { EntityFormSection, UnitInput, DateField, RequiredHint } from "../../components/shared/EntityFormParts";
+import { UuiSelectField } from "../../design-system/forms/UuiSelectField";
 import {
   computeVehicleAlerts,
 } from "@tingting/shared";
@@ -20,14 +21,20 @@ export function TruckFormModal({
   onsave,
   oncancel,
   isOpen,
+  carrierOptions = [],
 }: {
   saving: boolean;
   item?: TruckType;
   onsave: (d: Record<string, unknown>) => void;
   oncancel: () => void;
   isOpen: boolean;
+  /** Nhà xe catalog (EXTERNAL_CARRIER fleet list) — the owning-carrier picker. */
+  carrierOptions?: Array<{ id: number; name: string }>;
 }) {
   const [plate, setPlate] = useState(item?.licensePlate || "");
+  // '' = chưa phân (saves explicit null = UNASSIGN per the carrier-link
+  // contract); a numeric string saves that carrier id.
+  const [carrierId, setCarrierId] = useState(item?.carrierId != null ? String(item.carrierId) : "");
   const [vehicleClass, setVehicleClass] = useState(item?.vehicleClass || "");
   const [brand, setBrand] = useState(item?.brand || "");
   const [towCapacityTons, setTowCapacityTons] = useState<string | number>(item?.towCapacityTons ?? "");
@@ -44,6 +51,7 @@ export function TruckFormModal({
   useEffect(() => {
     if (isOpen) {
       setPlate(item?.licensePlate || "");
+      setCarrierId(item?.carrierId != null ? String(item.carrierId) : "");
       setVehicleClass(item?.vehicleClass || "");
       setBrand(item?.brand || "");
       setTowCapacityTons(item?.towCapacityTons ?? "");
@@ -71,6 +79,7 @@ export function TruckFormModal({
     if (!plate.trim()) return;
     onsave({
       licensePlate: plate.trim(),
+      carrierId: carrierId === "" ? null : Number(carrierId),
       vehicleClass: vehicleClass.trim() || undefined,
       brand: brand.trim() || undefined,
       towCapacityTons: towCapacityTons !== "" ? Number(towCapacityTons) : null,
@@ -130,6 +139,15 @@ export function TruckFormModal({
             value={vehicleClass}
             onChange={setVehicleClass}
             placeholder="Loại hình xe"
+          />
+          <UuiSelectField
+            label="Nhà xe"
+            value={carrierId}
+            onChange={(e) => setCarrierId(e.target.value)}
+            options={[
+              { value: '', label: '— Chưa phân —' },
+              ...carrierOptions.map((c) => ({ value: String(c.id), label: c.name })),
+            ]}
           />
           <Input
             label="Hãng xe"

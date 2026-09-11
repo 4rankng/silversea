@@ -724,6 +724,9 @@ export const truckSchema = z.object({
   trailerPlateNumber: z.string().optional().nullable(),
   trailerType: z.nativeEnum(TrailerType).optional().nullable(),
   currentTrailerId: z.number().optional().nullable(),
+  // Owning nhà xe (carrier customer). Null = own fleet; undefined on update
+  // keeps the current assignment. Validated at the catalog write path.
+  carrierId: z.coerce.number().int().positive().nullable().optional(),
   status: z.nativeEnum(TruckStatus).optional().default(TruckStatus.ACTIVE),
   // N5 / A12 + B4: ISO 'YYYY-MM-DD' or null/empty. Accepted on create + update.
   nextInspectionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),

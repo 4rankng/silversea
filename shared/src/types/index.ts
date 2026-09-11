@@ -102,6 +102,10 @@ export interface Truck {
   trailerPlateNumber: string | null;
   trailerType: TrailerType | null;
   currentTrailerId: number | null;
+  /** Owning carrier (nhà xe) — Convention-FK plain integer, no DB-level
+   *  reference; null = chưa phân nhà xe. Optional so payloads that omit it
+   *  keep the stored value on partial updates. */
+  carrierId?: number | null;
   vehicleClass: string | null;
   brand: string | null;
   towCapacityTons: number | null;

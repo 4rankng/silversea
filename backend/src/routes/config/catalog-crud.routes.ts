@@ -306,13 +306,46 @@ router.use(
     },
   }),
 );
+/**
+ * Carrier-link validation for trucks.carrierId — mirrors the dispatch
+ * planning carrier check exactly: the target must be an ACTIVE, non-deleted
+ * customer with isCarrier=true. Null (unassign / own fleet) always passes.
+ *
+ * Reverse-lock semantics (documented per review): deleting a carrier
+ * customer is SOFT (customers tombstone via deletedAt); trucks pointing at
+ * a tombstoned carrier keep their carrier_id, this guard blocks NEW
+ * assignments to it, and list filters still resolve the id. The FE maps
+ * id → name from the live EXTERNAL_CARRIER pool, so a tombstoned carrier's
+ * trucks surface with no name rather than dangling text.
+ */
+async function assertActiveCarrier(tx: H.CrudTx, carrierId: number | null | undefined): Promise<void> {
+  if (carrierId == null) return;
+  await H.lockCatalogRelationship(tx, 'customer', carrierId);
+  const [carrier] = await tx.select({ id: s.customers.id })
+    .from(s.customers)
+    .where(and(
+      eq(s.customers.id, carrierId),
+      eq(s.customers.isCarrier, true),
+      eq(s.customers.status, 'ACTIVE'),
+      isNull(s.customers.deletedAt),
+    ))
+    .limit(1)
+    .for('share');
+  if (!carrier) {
+    throw new ApiError(409, 'Nhà xe không còn hiệu lực hoặc không phải nhà xe.');
+  }
+}
+
 router.use('/trucks', createCrudRouter(s.trucks, truckSchema, {
   searchableField: 'licensePlate',
+  // "Chọn nhà xe → thấy biển số của nó" list filter (integer equality).
+  filterFields: ['carrierId'],
   // Dispatchers may add new tractors (casbin route-scoped POST allowance) but
   // not edit or retire existing ones.
   beforeCreate: async (data, _req, tx) => {
     await H.assertUniqueCatalogString({ tx, scope: 'truck.license-plate', value: data.licensePlate, table: s.trucks, column: s.trucks.licensePlate, message: 'Biển số xe đầu kéo đã tồn tại' });
     await H.requireActiveCatalogRow(tx, 'trailer', s.trailers, data.currentTrailerId, 'Rơ-moóc liên kết không tồn tại hoặc đã ngưng dùng');
+    await assertActiveCarrier(tx, data.carrierId);
     return syncTrailerFields(data);
   },
   beforeUpdate: async (id, data, _req, tx) => {
@@ -321,9 +354,9 @@ router.use('/trucks', createCrudRouter(s.trucks, truckSchema, {
     }
     if (data.currentTrailerId !== undefined) {
       await H.requireActiveCatalogRow(tx, 'trailer', s.trailers, data.currentTrailerId, 'Rơ-moóc liên kết không tồn tại hoặc đã ngưng dùng');
-      return syncTrailerFields(data);
     }
-    return data;
+    await assertActiveCarrier(tx, data.carrierId);
+    return data.currentTrailerId !== undefined ? syncTrailerFields(data) : data;
   },
   beforeDelete: (id, _req, tx) => H.lockCatalogDelete(tx, 'truck', id),
 }));

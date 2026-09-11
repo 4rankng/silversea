@@ -161,14 +161,6 @@ export function updateCarrierFleetVehicle(vehicleId: number, body: { isActive: b
   });
 }
 
-/** Reverse lookup: plate number → owning carrier. Used by the dispatch editor
- *  to auto-fill the carrier dropdown when a plate is typed or selected. */
-export function resolveCarrierByPlate(plate: string) {
-  return api.get<{ carrierId: number | null; carrierName: string | null }>(
-    `/shipments/carrier-fleet-vehicles/resolve-carrier?plate=${encodeURIComponent(plate)}`,
-  );
-}
-
 export function resolveDispatchHandoff(item: DispatchHandoffItem, resolution: 'SEEN' | 'ACCEPTED' | 'REJECTED') {
   return api.post<{ handoff: { id: number; status: string; version: number }; fulfillments?: DispatchQueueItem[]; replayed?: boolean }>(
     `/shipments/${item.shipmentId}/dispatch-handoffs/${item.handoffId}/resolve`,
