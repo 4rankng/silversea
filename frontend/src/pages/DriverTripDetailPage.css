@@ -133,11 +133,10 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  font-size: 12px;
+  /* Section-title tier (13/700, sentence-case) — one type system. */
+  font-size: 13px;
   font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--ink-3);
+  color: var(--ink-2, #4a5550);
 }
 
 .driver-task-grid,

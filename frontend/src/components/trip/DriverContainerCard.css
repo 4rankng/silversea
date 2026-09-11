@@ -55,10 +55,9 @@
 }
 
 .dcc-bento__eyebrow {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  /* Label tier (12/600, no transform) — one type system across the page. */
+  font-size: 12px;
+  font-weight: 600;
   color: var(--ink-3);
 }
 
@@ -343,6 +342,6 @@
 
 .dcc-note__title {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--ink-2, #4a5550);
 }
