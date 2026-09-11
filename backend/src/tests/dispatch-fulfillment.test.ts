@@ -1968,4 +1968,183 @@ describe('dispatch fulfillment workflow routes', () => {
       assert.equal(ok.data.trip.externalCarrierId, carrier.id);
     });
   });
+
+  describe('reassignment guard: driver acknowledgement gates re-deploy', () => {
+    async function issueOwnAndDepartUnacknowledged() {
+      const accepted = await createAcceptedFulfillment();
+      const resources = await createOwnedResources();
+      const issue = await apiFetch<{ trip: { id: number; version: number; driverId: number } }>(`/${accepted.shipmentId}/dispatch`, {
+        method: 'POST',
+        token: managerToken,
+        body: {
+          fulfillmentId: accepted.fulfillmentId,
+          expectedVersion: accepted.fulfillmentVersion,
+          plannedStartAt: '2026-08-05T08:00:00+07:00',
+          plannedEndAt: '2026-08-05T12:00:00+07:00',
+          endTimeConfirmed: true,
+          carrierType: 'OWN',
+          truckId: resources.truck.id,
+          driverId: resources.driver.id,
+          trailerId: resources.trailer.id,
+        },
+      });
+      assert.equal(issue.status, 201, JSON.stringify(issue.data));
+      createdTripIds.push(issue.data.trip.id);
+
+      // Ops marks departure before the driver acknowledges (TODO/20260911_2
+      // BUG1): ADMIN/MANAGER/DISPATCHER may flip CREATED → IN_TRANSIT with no
+      // ORDER_RECEIVED milestone, which is exactly how the reported trip got
+      // stuck.
+      const departed = await fetch(`${baseUrl}/api/trips/${issue.data.trip.id}/dispatch`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${managerToken}`,
+          'Idempotency-Key': `trip-depart-${suffix}-${issue.data.trip.id}`,
+        },
+        body: JSON.stringify({ expectedVersion: issue.data.trip.version }),
+      });
+      const departedTrip = await departed.json() as { version: number };
+      assert.equal(departed.status, 200, JSON.stringify(departedTrip));
+
+      return { accepted, resources, tripId: issue.data.trip.id, tripVersion: departedTrip.version };
+    }
+
+    test('ops-departed trip with no driver acknowledgement can be reassigned', async () => {
+      const { resources, tripId, tripVersion } = await issueOwnAndDepartUnacknowledged();
+      const replacement = await createOwnedResources();
+
+      const reassign = await fetch(`${baseUrl}/api/trips/${tripId}/reassign`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${dispatcherToken}`,
+          'Idempotency-Key': `reassign-unacked-${suffix}-${tripId}`,
+        },
+        body: JSON.stringify({
+          carrierType: 'OWN',
+          truckId: replacement.truck.id,
+          driverId: replacement.driver.id,
+          expectedVersion: tripVersion,
+        }),
+      });
+      const reassignData = await reassign.json() as {
+        trip: { id: number; truckId: number; driverId: number };
+      };
+      assert.equal(reassign.status, 201, JSON.stringify(reassignData));
+      assert.equal(reassignData.trip.id, tripId);
+      assert.equal(reassignData.trip.truckId, replacement.truck.id);
+      assert.equal(reassignData.trip.driverId, replacement.driver.id);
+    });
+
+    test('unlinked fallback path also allows reassigning an unacknowledged departure', async () => {
+      const { tripId, tripVersion } = await issueOwnAndDepartUnacknowledged();
+      // Detach the trip from its dispatch order — the route then falls back
+      // to the plain reassignTrip write (the ADMIN/MANAGER unlinked branch).
+      await db.update(s.trips).set({ shipmentId: null, fulfillmentId: null }).where(eq(s.trips.id, tripId));
+      const replacement = await createOwnedResources();
+
+      const reassign = await fetch(`${baseUrl}/api/trips/${tripId}/reassign`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${managerToken}`,
+          'Idempotency-Key': `reassign-fallback-${suffix}-${tripId}`,
+        },
+        body: JSON.stringify({
+          carrierType: 'OWN',
+          truckId: replacement.truck.id,
+          driverId: replacement.driver.id,
+          expectedVersion: tripVersion,
+        }),
+      });
+      const reassignData = await reassign.json() as { truckId: number; driverId: number };
+      assert.equal(reassign.status, 200, JSON.stringify(reassignData));
+      assert.equal(reassignData.driverId, replacement.driver.id);
+      assert.equal(reassignData.truckId, replacement.truck.id);
+    });
+
+    test('reassignment stays blocked once the driver acknowledged the order', async () => {
+      const { resources, tripId, tripVersion } = await issueOwnAndDepartUnacknowledged();
+      // The driver's "nhận việc" milestone, recorded after the ops departure.
+      await db.insert(s.driverProgressEvents).values({
+        tripId,
+        driverId: resources.driver.id,
+        eventType: 'ORDER_RECEIVED',
+        occurredAt: new Date(),
+        recordedBy: adminUserId,
+      });
+      const replacement = await createOwnedResources();
+
+      const reassign = await fetch(`${baseUrl}/api/trips/${tripId}/reassign`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${dispatcherToken}`,
+          'Idempotency-Key': `reassign-acked-${suffix}-${tripId}`,
+        },
+        body: JSON.stringify({
+          carrierType: 'OWN',
+          truckId: replacement.truck.id,
+          driverId: replacement.driver.id,
+          expectedVersion: tripVersion,
+        }),
+      });
+      const reassignData = await reassign.json() as { error?: string };
+      assert.equal(reassign.status, 409, JSON.stringify(reassignData));
+      assert.match(String(reassignData.error ?? ''), /đã được lái xe nhận việc/);
+      await db.delete(s.driverProgressEvents).where(eq(s.driverProgressEvents.tripId, tripId));
+    });
+
+    test('issue path still blocks an ops-departed trip (guard relax is reassign-only)', async () => {
+      const { accepted } = await issueOwnAndDepartUnacknowledged();
+      const [freshFulfillment] = await db.select({ version: s.shipmentFulfillments.version })
+        .from(s.shipmentFulfillments)
+        .where(eq(s.shipmentFulfillments.id, accepted.fulfillmentId))
+        .limit(1);
+      const resources = await createOwnedResources();
+
+      const reissue = await apiFetch<{ error?: string }>(`/${accepted.shipmentId}/dispatch`, {
+        method: 'POST',
+        token: managerToken,
+        body: {
+          fulfillmentId: accepted.fulfillmentId,
+          expectedVersion: freshFulfillment!.version,
+          plannedStartAt: '2026-08-05T08:00:00+07:00',
+          plannedEndAt: '2026-08-05T12:00:00+07:00',
+          endTimeConfirmed: true,
+          carrierType: 'OWN',
+          truckId: resources.truck.id,
+          driverId: resources.driver.id,
+          trailerId: resources.trailer.id,
+        },
+      });
+      assert.equal(reissue.status, 409, JSON.stringify(reissue.data));
+      assert.match(String(reissue.data.error ?? ''), /đã xuất phát/);
+    });
+
+    test('a completed trip stays terminal for reassignment regardless of acknowledgement', async () => {
+      const { tripId } = await issueOwnAndDepartUnacknowledged();
+      await db.update(s.trips).set({ status: 'COMPLETED', completedAt: new Date() }).where(eq(s.trips.id, tripId));
+      const replacement = await createOwnedResources();
+
+      const reassign = await fetch(`${baseUrl}/api/trips/${tripId}/reassign`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${dispatcherToken}`,
+          'Idempotency-Key': `reassign-done-${suffix}-${tripId}`,
+        },
+        body: JSON.stringify({
+          carrierType: 'OWN',
+          truckId: replacement.truck.id,
+          driverId: replacement.driver.id,
+          expectedVersion: 1,
+        }),
+      });
+      const reassignData = await reassign.json() as { error?: string };
+      assert.equal(reassign.status, 409, JSON.stringify(reassignData));
+      assert.match(String(reassignData.error ?? ''), /đã hoàn thành/);
+    });
+  });
 });

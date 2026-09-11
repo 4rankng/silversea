@@ -5,7 +5,7 @@ import { db } from '../db';
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { eq, and, isNull, sql } from 'drizzle-orm';
-import { TripStatus, Role } from '@tingting/shared';
+import { TripStatus, Role, DriverProgressEventType } from '@tingting/shared';
 import { ApiError } from '../errors';
 import { assertTripShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import {
@@ -89,6 +89,21 @@ export async function updateDepartureDate(
 
 // ─── reassignTrip ───────────────────────────────────────────────────────────
 
+/** Whether the assigned driver acknowledged the order on the driver app.
+ * ORDER_RECEIVED is the explicit "nhận việc" action and the first milestone —
+ * nothing later can be recorded without it — so its presence is the
+ * acceptance signal. */
+export async function tripHasDriverAcknowledgement(tx: Tx, tripId: number): Promise<boolean> {
+  const [row] = await tx.select({ id: s.driverProgressEvents.id })
+    .from(s.driverProgressEvents)
+    .where(and(
+      eq(s.driverProgressEvents.tripId, tripId),
+      eq(s.driverProgressEvents.eventType, DriverProgressEventType.ORDER_RECEIVED),
+    ))
+    .limit(1);
+  return row != null;
+}
+
 export async function reassignTrip(
   tripId: number,
   data: { carrierType?: 'OWN' | 'EXTERNAL'; truckId?: number | null; driverId?: number | null; externalCarrierId?: number | null; externalPlateNumber?: string | null; externalDriverName?: string | null; externalDriverPhone?: string | null; expectedVersion?: number; },
@@ -109,7 +124,19 @@ export async function reassignTrip(
     if (data.expectedVersion !== undefined && trip.version !== data.expectedVersion) {
       throw new ApiError(409, 'Dữ liệu đã bị thay đổi bởi người khác. Vui lòng tải lại trang.');
     }
-    if (trip.status !== TripStatus.CREATED) throw new ApiError(409, 'Chỉ có thể đổi lái xe/xe cho chuyến chưa xuất phát');
+    if (trip.status !== TripStatus.CREATED) {
+      // Reassignment relaxation (TODO/20260911_2 BUG1): an ops "xuất phát"
+      // can flip the trip to IN_TRANSIT before any driver acknowledgement, so
+      // IN_TRANSIT alone must not block the correction — only the driver's
+      // ORDER_RECEIVED milestone does. COMPLETED/CANCELED stay terminal.
+      const reassignable = trip.status === TripStatus.IN_TRANSIT
+        && !(await tripHasDriverAcknowledgement(tx, tripId));
+      if (!reassignable) {
+        throw new ApiError(409, trip.status === TripStatus.IN_TRANSIT
+          ? 'Không thể điều chỉnh tác vụ đã được lái xe nhận việc.'
+          : 'Chỉ có thể đổi lái xe/xe cho chuyến chưa xuất phát');
+      }
+    }
 
     const carrierType = data.carrierType || 'OWN';
     let trailerId = trip.trailerId;

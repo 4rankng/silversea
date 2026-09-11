@@ -16,12 +16,13 @@ import { assertActorCanAccessShipment } from './shipment-coordination.service';
 import { ensureShipmentFulfillmentsInTx } from './shipment-fulfillment.service';
 import { transitionShipmentStatus } from './shipment.service';
 import { createTrip } from './trip-mutations.service';
+import { tripHasDriverAcknowledgement } from './trip-lifecycle-ops.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import { completeExternalCarrierTrip } from './trip-external-close.service';
 
 
 import { and, count, eq, gt, inArray, isNotNull, isNull, lt, ne, or, sql } from 'drizzle-orm';
-import { canonicalShipmentStatus, NotificationType, Role, TripStatus, type FuelMode } from '@tingting/shared';
+import { canonicalShipmentStatus, DriverProgressEventType, NotificationType, Role, TripStatus, type FuelMode } from '@tingting/shared';
 
 import * as s from '../db/schema';
 import { CARGO_MODE } from '../db/schema';
@@ -50,6 +51,14 @@ export interface IssueFulfillmentDispatchOrderInput {
   expectedVersion: number;
   /** Required when correcting a published trip to prevent a silent overwrite. */
   expectedTripVersion?: number;
+  /**
+   * Reassignment-only relaxation (TODO/20260911_2 BUG1): allow correcting a
+   * trip whose status already left CREATED through the ops departure write
+   * while the assigned driver never acknowledged the order. Set by
+   * reassignIssuedDispatchWriteCommand; the issue path leaves it unset so
+   * issuance keeps blocking every non-CREATED live trip.
+   */
+  allowUnacknowledgedDeparture?: boolean;
   plannedStartAt: string;
   plannedEndAt: string;
   endTimeConfirmed: boolean;
@@ -485,7 +494,22 @@ export async function issueOrderCreateOrUpdate(
 
   const liveTrip = await loadLiveTripForFulfillment(tx, fulfillment.id);
   if (liveTrip && liveTrip.status !== TripStatus.CREATED) {
-    throw new ApiError(409, 'Không thể điều chỉnh tác vụ đã xuất phát.');
+    if (!input.allowUnacknowledgedDeparture) {
+      throw new ApiError(409, 'Không thể điều chỉnh tác vụ đã xuất phát.');
+    }
+    // Reassignment relaxation (TODO/20260911_2 BUG1): an ops "xuất phát"
+    // (POST /trips/:id/dispatch) can flip the trip to IN_TRANSIT before any
+    // driver acknowledgement, so status alone must not block the correction.
+    // COMPLETED stays terminal, and IN_TRANSIT blocks only once the assigned
+    // driver acknowledged the order.
+    if (
+      liveTrip.status === TripStatus.COMPLETED
+      || await tripHasDriverAcknowledgement(tx, liveTrip.id)
+    ) {
+      throw new ApiError(409, liveTrip.status === TripStatus.COMPLETED
+        ? 'Không thể điều chỉnh tác vụ đã hoàn thành.'
+        : 'Không thể điều chỉnh tác vụ đã được lái xe nhận việc.');
+    }
   }
   if (liveTrip && input.expectedTripVersion !== undefined && liveTrip.version !== input.expectedTripVersion) {
     throw new ApiError(409, 'Lệnh điều xe đã thay đổi. Vui lòng tải lại.');
@@ -738,7 +762,7 @@ export async function issueFulfillmentDispatchOrder(input: IssueFulfillmentDispa
  */
 
 export async function reassignIssuedDispatchWriteCommand(input: IssueFulfillmentDispatchOrderInput) {
-  return issueFulfillmentDispatchOrder(input);
+  return issueFulfillmentDispatchOrder({ ...input, allowUnacknowledgedDeparture: true });
 }
 
 // ─── Dispatch detail plan grid ("Kế hoạch Chi tiết Xe") ─────────────────────
