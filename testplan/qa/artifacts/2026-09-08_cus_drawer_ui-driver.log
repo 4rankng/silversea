@@ -1,0 +1,54 @@
+[08:38:57] Starting Puppeteer UI DRIVEN verification for CUS Date-Time Picker & Drawer Save/Cancel
+[08:38:57] Authenticated admin via API, token received
+[08:38:58] Navigating to http://localhost:7174/shipments?searchSuffix=13336
+[08:38:58] [BROWSER CONSOLE] debug: [vite] connecting...
+[08:38:58] [HTTP 200] http://localhost:7174/src/api/keys.ts?t=1788782944565
+[08:38:58] [HTTP 200] http://localhost:7174/src/lib/api/index.ts
+[08:38:58] [HTTP 200] http://localhost:7174/src/lib/api/session.ts
+[08:38:58] [BROWSER CONSOLE] debug: [vite] connected.
+[08:38:58] [HTTP 200] http://localhost:7174/src/lib/api/client.ts
+[08:38:58] [HTTP 200] http://localhost:7174/src/lib/api/errors.ts
+[08:38:58] [HTTP 200] http://localhost:7174/src/lib/api/photo.ts
+[08:38:58] [HTTP 200] http://localhost:7174/src/api/salaryClient.ts?t=1788850709839
+[08:38:58] [HTTP 200] http://localhost:7174/src/api/configClient.ts?t=1788850709839
+[08:38:58] [HTTP 200] http://localhost:7174/src/api/reportClient.ts?t=1788850709839
+[08:38:58] [HTTP 200] http://localhost:7174/src/api/driverClient.ts?t=1788850709839
+[08:38:58] [HTTP 200] http://localhost:7174/src/api/tripClient.ts?t=1788850709839
+[08:38:58] [HTTP 200] http://localhost:7174/src/api/financialClient.ts?t=1788850709839
+[08:38:58] [HTTP 200] http://localhost:7174/src/api/forwarderClient.ts?t=1788850709839
+[08:38:58] [BROWSER CONSOLE] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[08:38:58] [HTTP 200] http://localhost:7174/api/auth/me
+[08:38:58] [HTTP 200] http://localhost:7174/api/notifications/unread-count
+[08:38:58] [HTTP 200] http://localhost:7174/api/notifications?page=1&limit=20
+[08:38:58] [HTTP 200] http://localhost:7174/api/salary-periods/resolve?month=9&year=2026
+[08:38:58] [HTTP 200] http://localhost:7174/api/penalties
+[08:38:58] [HTTP 200] http://localhost:7174/api/trips?status=CREATED&limit=1
+[08:38:58] [HTTP 200] http://localhost:7174/src/api/shipmentClient.ts?t=1788850709839
+[08:38:58] [HTTP 200] http://localhost:7174/api/shipments/cus-workspace?page=1&limit=20&searchSuffix=13336
+[08:38:59] Shipments table rendered
+[08:38:59] Clicking detail button for shipment 9716
+[08:38:59] [HTTP 200] http://localhost:7174/api/shipments/cus-workspace/9716
+[08:38:59] Drawer opened successfully
+[08:39:00] Initial footer text (must NOT contain 'Chưa có thay đổi'): "HủyLưu"
+[08:39:00] Saved Step 1 screenshot: /Users/dev/Documents/projects/silversea-prod/qa/2026-09-08_cus_drawer_ui-01_drawer_open.png
+[08:39:00] Edit toggle button text: "Hoàn tất"
+[08:39:00] Found 2 appointment trigger buttons
+[08:39:00] Clicked appointment trigger button
+[08:39:00] Appointment popover appeared
+[08:39:00] Popover assertions: {"hasDateInput":true,"hasTimeInput":true,"hasInlineConfirmGroup":false,"hasClearBtn":true,"hintText":"Bấm ra ngoài để đóng","buttons":["","Hôm nay","Ngày mai","Ngày kia","08:00","10:00","13:30","16:00","Xóa hẹn"]}
+[08:39:00] Saved Step 2 screenshot: /Users/dev/Documents/projects/silversea-prod/qa/2026-09-08_cus_drawer_ui-02_appointment_popover.png
+[08:39:00] Trigger text before click: "13:30 8/9/26"
+[08:39:00] Trigger text after click: "13:30 9/9/26"
+[08:39:00] Clicked backdrop to close popover
+[08:39:01] Drawer footer dirty state: {"dirtyNote":"Có thay đổi container chưa lưu","hasSaveBtn":true,"hasDiscardBtn":true,"saveBtnDisabled":false}
+[08:39:01] Saved Step 3 screenshot: /Users/dev/Documents/projects/silversea-prod/qa/2026-09-08_cus_drawer_ui-03_dirty_footer.png
+[08:39:01] Clicking [ Lưu ] button in Drawer footer
+[08:39:01] [HTTP 200] http://localhost:7174/api/shipments/cus-workspace/9716/containers/3596
+[08:39:01] [HTTP 200] http://localhost:7174/api/shipments/cus-workspace?page=1&limit=20&searchSuffix=13336
+[08:39:02] Drawer closed automatically after successful save!
+[08:39:02] Toast notification: "Đã lưu dữ liệu container. Xác nhận Kế toán cũ (nếu có) sẽ được kiểm tra lại theo nguồn mới."
+[08:39:03] Saved Step 4 screenshot: /Users/dev/Documents/projects/silversea-prod/qa/2026-09-08_cus_drawer_ui-04_saved_success.png
+[08:39:03] Re-opening drawer to verify persistence
+[08:39:03] Re-opened footer text: "HủyLưu"
+[08:39:03] Saved Step 5 screenshot: /Users/dev/Documents/projects/silversea-prod/qa/2026-09-08_cus_drawer_ui-05_reopened_clean.png
+[08:39:03] Puppeteer test finished successfully! Rung 3 UI DRIVEN verification complete.

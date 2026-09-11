@@ -1,0 +1,963 @@
+
+> @tingting/frontend@0.1.0 test /Users/dev/Documents/projects/silversea-prod/frontend
+> vitest run
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.8 [39m[90m/Users/dev/Documents/projects/silversea-prod/frontend[39m
+
+[90mstderr[2m | src/pages/master-data-name-forms.test.tsx[2m > [22m[2mmaster-data full and short name forms[2m > [22m[2msubmits both route names
+[22m[39mIf you do not provide a visible label, you must specify an aria-label or aria-labelledby attribute for accessibility
+If you do not provide a visible label, you must specify an aria-label or aria-labelledby attribute for accessibility
+If you do not provide a visible label, you must specify an aria-label or aria-labelledby attribute for accessibility
+
+ [32m✓[39m src/features/dispatch/master-plan/DispatchAllocationPopover.test.tsx [2m([22m[2m21 tests[22m[2m)[22m[33m 1705[2mms[22m[39m
+ [32m✓[39m src/components/trip/ShipmentCostEntryForm.test.tsx [2m([22m[2m7 tests[22m[2m)[22m[33m 1835[2mms[22m[39m
+     [33m[2m✓[22m[39m autosaves the section-level Ghi chú after the driver edits and pauses typing [33m 632[2mms[22m[39m
+     [33m[2m✓[22m[39m does not autosave the section-level Ghi chú when the value is unchanged [33m 911[2mms[22m[39m
+ [32m✓[39m src/features/dispatch/detailed-plan/DispatchPlanEditorCell.test.tsx [2m([22m[2m19 tests[22m[2m)[22m[33m 1990[2mms[22m[39m
+     [33m[2m✓[22m[39m composes chips + manual text into the atomic save body and re-anchors [33m 521[2mms[22m[39m
+ [32m✓[39m src/pages/RecoverableCostsPage.test.tsx [2m([22m[2m14 tests[22m[2m)[22m[33m 2443[2mms[22m[39m
+     [33m[2m✓[22m[39m filters by approval status and resets the requested page to one [33m 670[2mms[22m[39m
+     [33m[2m✓[22m[39m submits the unchanged decision, evidence, version, and idempotency contract [33m 323[2mms[22m[39m
+     [33m[2m✓[22m[39m sends sortBy/sortDir on header clicks, toggles asc → desc, and resets to page 1 [33m 610[2mms[22m[39m
+ [32m✓[39m src/App.accounting-routes.test.tsx [2m([22m[2m9 tests[22m[2m)[22m[33m 2566[2mms[22m[39m
+     [33m[2m✓[22m[39m admits ACCOUNTANT to /debt [33m 326[2mms[22m[39m
+     [33m[2m✓[22m[39m admits ACCOUNTANT to /debt/5 [33m 319[2mms[22m[39m
+     [33m[2m✓[22m[39m admits ACCOUNTANT to /advances?view=settlements&tripId=10 [33m 317[2mms[22m[39m
+     [33m[2m✓[22m[39m admits ACCOUNTANT to /expenses?tripId=10 [33m 315[2mms[22m[39m
+     [33m[2m✓[22m[39m admits ACCOUNTANT to /payables [33m 307[2mms[22m[39m
+     [33m[2m✓[22m[39m admits ACCOUNTANT to /payables/7 [33m 310[2mms[22m[39m
+     [33m[2m✓[22m[39m admits ACCOUNTANT to /finance [33m 309[2mms[22m[39m
+     [33m[2m✓[22m[39m keeps DRIVER out of the financial workspaces [33m 321[2mms[22m[39m
+ [32m✓[39m src/pages/master-data-name-forms.test.tsx [2m([22m[2m7 tests[22m[2m)[22m[33m 2655[2mms[22m[39m
+     [33m[2m✓[22m[39m submits both factory names [33m 341[2mms[22m[39m
+     [33m[2m✓[22m[39m creates a route below the factory route selector and selects it [33m 609[2mms[22m[39m
+     [33m[2m✓[22m[39m restores the factory draft when route creation is cancelled [33m 665[2mms[22m[39m
+     [33m[2m✓[22m[39m keeps the factory draft while a route creation error is resolved [33m 593[2mms[22m[39m
+ [32m✓[39m src/features/dispatch/detailed-plan/useDispatchDetailPlan.test.tsx [2m([22m[2m17 tests[22m[2m)[22m[33m 1081[2mms[22m[39m
+ [32m✓[39m src/pages/CreditOverrideQueuePage.test.tsx [2m([22m[2m13 tests[22m[2m)[22m[33m 1286[2mms[22m[39m
+     [33m[2m✓[22m[39m sorts server-side: header click sends sortBy/sortDir and restarts pagination [33m 359[2mms[22m[39m
+ [32m✓[39m src/components/LocationAutocomplete.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 1146[2mms[22m[39m
+     [33m[2m✓[22m[39m renders Google Places suggestions without the badge [33m 523[2mms[22m[39m
+     [33m[2m✓[22m[39m skips Places fetch below 3 chars and fires after debounce above it [33m 510[2mms[22m[39m
+[90mstderr[2m | src/pages/clerk/ClerkShipmentCreatePage.test.tsx[2m > [22m[2mClerkShipmentCreatePage[2m > [22m[2mrenders every populated container field as a compact localized table value
+[22m[39mWARN: A component changed from uncontrolled to controlled.
+
+[90mstderr[2m | src/features/dispatch/detailed-plan/DetailedPlanFilters.test.tsx[2m > [22m[2mDetailedPlanFilters[2m > [22m[2mlets a user clear all selections from inside the popover footer
+[22m[39mAn update to FacetMultiSelect inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/features/dispatch/detailed-plan/DetailedPlanFilters.test.tsx [2m([22m[2m12 tests[22m[2m)[22m[33m 1460[2mms[22m[39m
+     [33m[2m✓[22m[39m provides visible labels and forwards dispatch-specific filter changes [33m 405[2mms[22m[39m
+     [33m[2m✓[22m[39m lets a user narrow the facet list by typing into the popover search [33m 336[2mms[22m[39m
+[90mstderr[2m | src/App.shipment-operations-route.test.tsx[2m > [22m[2mAppRoutes shipment operations reachability[2m > [22m[2mredirects DRIVER away from /shipments/new
+[22m[39mError: No QueryClient set, use QueryClientProvider to set one
+    at useQueryClient (file:///Users/dev/Documents/projects/silversea-prod/node_modules/[4m.pnpm[24m/@tanstack+react-query@5.100.14_react@19.2.6/node_modules/[4m@tanstack/react-query[24m/build/modern/QueryClientProvider.js:15:11)
+    at useBaseQuery (file:///Users/dev/Documents/projects/silversea-prod/node_modules/[4m.pnpm[24m/@tanstack+react-query@5.100.14_react@19.2.6/node_modules/[4m@tanstack/react-query[24m/build/modern/useBaseQuery.js:30:18)
+    at useQuery (file:///Users/dev/Documents/projects/silversea-prod/node_modules/[4m.pnpm[24m/@tanstack+react-query@5.100.14_react@19.2.6/node_modules/[4m@tanstack/react-query[24m/build/modern/useQuery.js:7:10)
+    at useDriverJourneyBoard [90m(/Users/dev/Documents/projects/silversea-prod/frontend/[39msrc/hooks/useDriverQueries.ts:80:10[90m)[39m
+    at DriverTripsPage [90m(/Users/dev/Documents/projects/silversea-prod/frontend/[39msrc/pages/DriverTripsPage.tsx:187:59[90m)[39m
+    at Object.react_stack_bottom_frame (/Users/dev/Documents/projects/silversea-prod/node_modules/[4m.pnpm[24m/react-dom@19.2.6_react@19.2.6/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:25904:20)
+    at renderWithHooks (/Users/dev/Documents/projects/silversea-prod/node_modules/[4m.pnpm[24m/react-dom@19.2.6_react@19.2.6/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:7662:22)
+    at updateFunctionComponent (/Users/dev/Documents/projects/silversea-prod/node_modules/[4m.pnpm[24m/react-dom@19.2.6_react@19.2.6/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:10166:19)
+    at beginWork (/Users/dev/Documents/projects/silversea-prod/node_modules/[4m.pnpm[24m/react-dom@19.2.6_react@19.2.6/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:11727:35)
+    at runWithFiberInDEV (/Users/dev/Documents/projects/silversea-prod/node_modules/[4m.pnpm[24m/react-dom@19.2.6_react@19.2.6/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:874:13) {
+  [stack]: [36m[Getter/Setter][39m,
+  [message]: [32m'No QueryClient set, use QueryClientProvider to set one'[39m
+}
+
+The above error occurred in the <DriverTripsPage> component.
+
+React will try to recreate this component tree from scratch using the error boundary you provided, ErrorBoundary.
+
+[ErrorBoundary] Error: No QueryClient set, use QueryClientProvider to set one
+    at useQueryClient (file:///Users/dev/Documents/projects/silversea-prod/node_modules/[4m.pnpm[24m/@tanstack+react-query@5.100.14_react@19.2.6/node_modules/[4m@tanstack/react-query[24m/build/modern/QueryClientProvider.js:15:11)
+    at useBaseQuery (file:///Users/dev/Documents/projects/silversea-prod/node_modules/[4m.pnpm[24m/@tanstack+react-query@5.100.14_react@19.2.6/node_modules/[4m@tanstack/react-query[24m/build/modern/useBaseQuery.js:30:18)
+    at useQuery (file:///Users/dev/Documents/projects/silversea-prod/node_modules/[4m.pnpm[24m/@tanstack+react-query@5.100.14_react@19.2.6/node_modules/[4m@tanstack/react-query[24m/build/modern/useQuery.js:7:10)
+    at useDriverJourneyBoard [90m(/Users/dev/Documents/projects/silversea-prod/frontend/[39msrc/hooks/useDriverQueries.ts:80:10[90m)[39m
+    at DriverTripsPage [90m(/Users/dev/Documents/projects/silversea-prod/frontend/[39msrc/pages/DriverTripsPage.tsx:187:59[90m)[39m
+    at Object.react_stack_bottom_frame (/Users/dev/Documents/projects/silversea-prod/node_modules/[4m.pnpm[24m/react-dom@19.2.6_react@19.2.6/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:25904:20)
+    at renderWithHooks (/Users/dev/Documents/projects/silversea-prod/node_modules/[4m.pnpm[24m/react-dom@19.2.6_react@19.2.6/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:7662:22)
+    at updateFunctionComponent (/Users/dev/Documents/projects/silversea-prod/node_modules/[4m.pnpm[24m/react-dom@19.2.6_react@19.2.6/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:10166:19)
+    at beginWork (/Users/dev/Documents/projects/silversea-prod/node_modules/[4m.pnpm[24m/react-dom@19.2.6_react@19.2.6/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:11727:35)
+    at runWithFiberInDEV (/Users/dev/Documents/projects/silversea-prod/node_modules/[4m.pnpm[24m/react-dom@19.2.6_react@19.2.6/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:874:13) 
+    at DriverTripsPage (/Users/dev/Documents/projects/silversea-prod/frontend/src/pages/DriverTripsPage.tsx:231:71)
+    at Suspense (<anonymous>)
+    at ErrorBoundary (/Users/dev/Documents/projects/silversea-prod/frontend/src/components/shared/ErrorBoundary.tsx:7:1)
+    at RenderedRoute (file:///Users/dev/Documents/projects/silversea-prod/node_modules/.pnpm/react-router@7.18.2_react-dom@19.2.6_react@19.2.6__react@19.2.6/node_modules/react-router/dist/development/chunk-62JRHF6Z.mjs:6218:26)
+    at Routes (file:///Users/dev/Documents/projects/silversea-prod/node_modules/.pnpm/react-router@7.18.2_react-dom@19.2.6_react@19.2.6__react@19.2.6/node_modules/react-router/dist/development/chunk-62JRHF6Z.mjs:7097:3)
+    at div (<anonymous>)
+    at default (/Users/dev/Documents/projects/silversea-prod/frontend/src/App.shipment-operations-route.test.tsx:27:15)
+    at AppRoutes (/Users/dev/Documents/projects/silversea-prod/frontend/src/App.tsx:137:57)
+    at Router (file:///Users/dev/Documents/projects/silversea-prod/node_modules/.pnpm/react-router@7.18.2_react-dom@19.2.6_react@19.2.6__react@19.2.6/node_modules/react-router/dist/development/chunk-62JRHF6Z.mjs:7036:13)
+    at MemoryRouter (file:///Users/dev/Documents/projects/silversea-prod/node_modules/.pnpm/react-router@7.18.2_react-dom@19.2.6_react@19.2.6__react@19.2.6/node_modules/react-router/dist/development/chunk-62JRHF6Z.mjs:6952:3)
+
+ [32m✓[39m src/App.shipment-operations-route.test.tsx [2m([22m[2m22 tests[22m[2m)[22m[33m 1849[2mms[22m[39m
+     [33m[2m✓[22m[39m admits MANAGER to the shipment create route [33m 323[2mms[22m[39m
+     [33m[2m✓[22m[39m redirects the removed dossier URL to the CUS shipment overview [33m 321[2mms[22m[39m
+     [33m[2m✓[22m[39m keeps ACCOUNTANT out of shipment write routes [33m 311[2mms[22m[39m
+     [33m[2m✓[22m[39m admits ADMIN to the container-flat view /shipments-detail [33m 318[2mms[22m[39m
+ [32m✓[39m src/pages/TripListPage.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 1249[2mms[22m[39m
+     [33m[2m✓[22m[39m loads page 1 without sort params so the default order stays untouched [33m 373[2mms[22m[39m
+     [33m[2m✓[22m[39m sends sortBy/sortDir when a header is clicked and flips asc → desc on repeat [33m 532[2mms[22m[39m
+     [33m[2m✓[22m[39m resets to page 1 when a sort is applied from a later page [33m 341[2mms[22m[39m
+ [32m✓[39m src/styles/workboard-standard.styles.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 1234[2mms[22m[39m
+     [33m[2m✓[22m[39m no surface re-declares header case or tracking outside the allowlist [33m 1228[2mms[22m[39m
+[90mstderr[2m | src/pages/clerk/ClerkShipmentCreatePage.test.tsx[2m > [22m[2mClerkShipmentCreatePage[2m > [22m[2mcreates a new container type from the FCL cell add button and selects it into the row
+[22m[39mWARN: A component changed from uncontrolled to controlled.
+
+ [32m✓[39m src/internal-product-copy.test.ts [2m([22m[2m2 tests[22m[2m)[22m[33m 1261[2mms[22m[39m
+     [33m[2m✓[22m[39m does not ship internal Q decision codes in frontend runtime strings [33m 1259[2mms[22m[39m
+ [32m✓[39m src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx [2m([22m[2m29 tests[22m[2m)[22m[33m 1451[2mms[22m[39m
+     [33m[2m✓[22m[39m renders the 8 spec columns with multi-line typography [33m 320[2mms[22m[39m
+     [33m[2m✓[22m[39m saves the whole editor atomically: estimates plus the dispatcher Phân loại — lot flag stays CUS-owned [33m 415[2mms[22m[39m
+[90mstderr[2m | src/features/dispatch/master-plan/MasterPlanGrid.test.tsx[2m > [22m[2mMasterPlanFilters[2m > [22m[2mpropagates every filter control change
+[22m[39mAn update to MasterPlanFilters inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/features/dispatch/master-plan/MasterPlanGrid.test.tsx[2m > [22m[2mMasterPlanFilters[2m > [22m[2mkeeps the complete delivery-date range and create action in one responsive control group
+[22m[39mAn update to MasterPlanFilters inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/features/dispatch/master-plan/MasterPlanGrid.test.tsx [2m([22m[2m30 tests[22m[2m)[22m[33m 1082[2mms[22m[39m
+ [32m✓[39m src/pages/config/FactoriesConfigPage.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[33m 1389[2mms[22m[39m
+     [33m[2m✓[22m[39m creates a site from the toolbar button through the customer-picker dialog [33m 815[2mms[22m[39m
+ [32m✓[39m src/pages/ShipmentContainersPage.test.tsx [2m([22m[2m40 tests[22m[2m)[22m[33m 8526[2mms[22m[39m
+     [33m[2m✓[22m[39m loads today by default and renders the seven multi-line groups with warning semantics [33m 324[2mms[22m[39m
+     [33m[2m✓[22m[39m opens value-cell editors with click, Enter, and Space without pencil controls [33m 474[2mms[22m[39m
+     [33m[2m✓[22m[39m edits the previously read-only identity and document cells through the shipment authority [33m 318[2mms[22m[39m
+     [33m[2m✓[22m[39m keeps the same idempotency key when a route save is retried and supports Escape cancel [33m 779[2mms[22m[39m
+     [33m[2m✓[22m[39m saves the selected container schedule without changing the whole shipment [33m 369[2mms[22m[39m
+     [33m[2m✓[22m[39m edits the selected container appointment without exposing a shipment-level delivery date [33m 363[2mms[22m[39m
+     [33m[2m✓[22m[39m reloads and rebases an inline editor after an optimistic conflict [33m 695[2mms[22m[39m
+     [33m[2m✓[22m[39m keeps the route draft and shows a domain 409 inline instead of treating it as stale data [33m 528[2mms[22m[39m
+     [33m[2m✓[22m[39m treats a newer change-request 409 as stale data and rebases the editor [33m 362[2mms[22m[39m
+     [33m[2m✓[22m[39m closes a stale editor when refreshed permissions become read-only [33m 407[2mms[22m[39m
+[90mstderr[2m | src/pages/clerk/ClerkShipmentCreatePage.test.tsx[2m > [22m[2mClerkShipmentCreatePage[2m > [22m[2mpersists an FCL appointment as the shipment dispatch-date authority
+[22m[39mWARN: A component changed from uncontrolled to controlled.
+
+ [32m✓[39m src/features/dispatch/detailed-plan/DispatchTaskTagEditor.test.tsx [2m([22m[2m12 tests[22m[2m)[22m[33m 875[2mms[22m[39m
+ [32m✓[39m src/features/users/components/UserForm.test.tsx [2m([22m[2m7 tests[22m[2m)[22m[33m 1106[2mms[22m[39m
+     [33m[2m✓[22m[39m requires and submits every selected customer when creating an active CUSTOMER account [33m 482[2mms[22m[39m
+ [32m✓[39m src/pages/clerk/ClerkShipmentCreatePage.test.tsx [2m([22m[2m32 tests[22m[2m)[22m[33m 9959[2mms[22m[39m
+     [33m[2m✓[22m[39m uses the approved Vietnamese cargo-mode copy while payloads keep FCL/LCL wire values [33m 436[2mms[22m[39m
+     [33m[2m✓[22m[39m removes the FCL shipment-level factory/route section and keeps each container route independent [33m 361[2mms[22m[39m
+     [33m[2m✓[22m[39m renders every populated container field as a compact localized table value [33m 1142[2mms[22m[39m
+     [33m[2m✓[22m[39m adds the requested number of container rows with a default of one [33m 544[2mms[22m[39m
+     [33m[2m✓[22m[39m exposes Quy cách đóng gói as a free-text input on the LCL form [33m 816[2mms[22m[39m
+     [33m[2m✓[22m[39m creates a new container type from the FCL cell add button and selects it into the row [33m 315[2mms[22m[39m
+     [33m[2m✓[22m[39m confirms before deleting a populated container record [33m 541[2mms[22m[39m
+     [33m[2m✓[22m[39m persists an FCL appointment as the shipment dispatch-date authority [33m 1273[2mms[22m[39m
+     [33m[2m✓[22m[39m opens the factory dialog after a customer is selected [33m 488[2mms[22m[39m
+ [32m✓[39m src/pages/ExpenseListPage.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[33m 1040[2mms[22m[39m
+     [33m[2m✓[22m[39m sorts server-side: header click sends sortBy/sortDir and resets the page [33m 327[2mms[22m[39m
+ [32m✓[39m src/pages/PenaltyPage.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 877[2mms[22m[39m
+     [33m[2m✓[22m[39m requests page 2 server-side, then resets to page 1 when a status chip filter is applied [33m 436[2mms[22m[39m
+ [32m✓[39m src/pages/PayableListPage.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 938[2mms[22m[39m
+     [33m[2m✓[22m[39m queries one bounded page and forwards the debounced server search term [33m 642[2mms[22m[39m
+ [32m✓[39m src/pages/ForwarderTripDetailPage.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[33m 1067[2mms[22m[39m
+     [33m[2m✓[22m[39m fills the lift buy amount from the selected port and container matrix [33m 381[2mms[22m[39m
+     [33m[2m✓[22m[39m reapplies the same matrix suggestion for a consecutive expense entry [33m 329[2mms[22m[39m
+ [32m✓[39m src/pages/DebtDetailPage.payment.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 937[2mms[22m[39m
+     [33m[2m✓[22m[39m submits amount-only with a stable retry key, does not cap overpayment, and shows allocated/unapplied copy [33m 615[2mms[22m[39m
+ [32m✓[39m src/pages/GovernanceActionsPage.test.tsx [2m([22m[2m13 tests[22m[2m)[22m[33m 915[2mms[22m[39m
+ [32m✓[39m src/pages/SupplierListPage.sort.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 970[2mms[22m[39m
+     [33m[2m✓[22m[39m sends sortBy/sortDir to the endpoint, toggles asc→desc, and resets to page 1 [33m 476[2mms[22m[39m
+     [33m[2m✓[22m[39m exposes each data column's backend sort key through its header button [33m 455[2mms[22m[39m
+[90mstderr[2m | src/pages/payables-fuel-invoices.test.tsx[2m > [22m[2mFuelInvoicesPanel[2m > [22m[2mshows computed line amounts and lets MANAGER submit a governed approval request when complete
+[22m[39mAn update to FuelInvoicesPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to FuelInvoicesPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/payables-fuel-invoices.test.tsx[2m > [22m[2mFuelInvoicesPanel[2m > [22m[2mpasses the current version when saving an edited draft invoice
+[22m[39mAn update to FuelInvoicesPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to FuelInvoicesPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/pages/payables-fuel-invoices.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[33m 798[2mms[22m[39m
+ [32m✓[39m src/pages/ShipmentsPage.test.tsx [2m([22m[2m75 tests[22m[2m)[22m[33m 12203[2mms[22m[39m
+     [33m[2m✓[22m[39m rejects invalid suffixes locally and sends the exact mixed-case alphanumeric suffix [33m 387[2mms[22m[39m
+     [33m[2m✓[22m[39m opens one compact edit dialog from the cell control and reserves the drawer for Chi tiết [33m 327[2mms[22m[39m
+     [33m[2m✓[22m[39m uses exactly one full-cell button to open the matching edit dialog [33m 313[2mms[22m[39m
+     [33m[2m✓[22m[39m deduplicates repeated keyboard saves while a cell update is in flight [33m 523[2mms[22m[39m
+     [33m[2m✓[22m[39m loads operational container detail lazily and keeps finance entry outside the expansion [33m 358[2mms[22m[39m
+     [33m[2m✓[22m[39m protects unsaved container changes when closing the drawer [33m 580[2mms[22m[39m
+     [33m[2m✓[22m[39m cancels an individual container draft with Escape [33m 587[2mms[22m[39m
+     [33m[2m✓[22m[39m asks before closing the mobile container drawer with unsaved changes [33m 356[2mms[22m[39m
+     [33m[2m✓[22m[39m keeps the mobile drawer open while a container save is in progress [33m 368[2mms[22m[39m
+     [33m[2m✓[22m[39m saves only the server-permitted container fields with optimistic versions [33m 712[2mms[22m[39m
+     [33m[2m✓[22m[39m saves the container route from the CUS dashboard ledger when the plan needs one [33m 536[2mms[22m[39m
+     [33m[2m✓[22m[39m keeps a sibling container draft while refreshing its shipment version after another save [33m 802[2mms[22m[39m
+     [33m[2m✓[22m[39m creates a new external carrier through the container workflow [33m 590[2mms[22m[39m
+     [33m[2m✓[22m[39m confirms the consequential lock action and closes the dialog after success [33m 331[2mms[22m[39m
+     [33m[2m✓[22m[39m reuses the same idempotency key for a retried lock action and rotates after success [33m 544[2mms[22m[39m
+[90mstderr[2m | src/pages/AdminAdvancesPage.test.tsx[2m > [22m[2mAdminAdvancesPage server-driven listing[2m > [22m[2mrenders Pagination with the server total and navigates pages
+[22m[39mAn update to AdminAdvancesPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/pages/config/AppSettingsConfigPage.test.tsx [2m([22m[2m9 tests[22m[2m)[22m[33m 715[2mms[22m[39m
+[90mstderr[2m | src/pages/AdminAdvancesPage.test.tsx[2m > [22m[2mAdminAdvancesPage server-driven listing[2m > [22m[2mresets to page 1 when the status filter changes
+[22m[39mAn update to AdminAdvancesPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/AdminAdvancesPage.test.tsx[2m > [22m[2mAdminAdvancesPage server-driven listing[2m > [22m[2mresets to page 1 when the status filter changes
+[22m[39mAn update to AdminAdvancesPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to AdminAdvancesPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/AdminAdvancesPage.test.tsx[2m > [22m[2mAdminAdvancesPage server-driven listing[2m > [22m[2mresets to page 1 when the status filter changes
+[22m[39mAn update to AdminAdvancesPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/AdminAdvancesPage.test.tsx[2m > [22m[2mAdminAdvancesPage server-driven listing[2m > [22m[2msorts server-side: grid header click sends sortBy/sortDir and resets the page
+[22m[39mAn update to AdminAdvancesPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/pages/SalaryAttendancePage.test.tsx [2m([22m[2m7 tests[22m[2m)[22m[33m 723[2mms[22m[39m
+[90mstderr[2m | src/pages/AdminAdvancesPage.test.tsx[2m > [22m[2mAdminAdvancesPage server-driven listing[2m > [22m[2msorts server-side: grid header click sends sortBy/sortDir and resets the page
+[22m[39mAn update to AdminAdvancesPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to AdminAdvancesPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/AdminAdvancesPage.test.tsx[2m > [22m[2mAdminAdvancesPage server-driven listing[2m > [22m[2msorts server-side: grid header click sends sortBy/sortDir and resets the page
+[22m[39mAn update to AdminAdvancesPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/pages/AdminAdvancesPage.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[33m 672[2mms[22m[39m
+ [32m✓[39m src/pages/AccountingWorkspacePage.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[33m 924[2mms[22m[39m
+     [33m[2m✓[22m[39m opens the bounded transport register inside the dedicated workspace [33m 499[2mms[22m[39m
+ [32m✓[39m src/pages/config/MasterDataImportPage.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 457[2mms[22m[39m
+ [32m✓[39m src/features/penalties/components/PenaltyFormDrawer.test.tsx [2m([22m[2m1 test[22m[2m)[22m[33m 611[2mms[22m[39m
+     [33m[2m✓[22m[39m queries a bounded driver-scoped page and forwards the debounced search term [33m 609[2mms[22m[39m
+ [32m✓[39m src/App.logout-route.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 799[2mms[22m[39m
+     [33m[2m✓[22m[39m replaces a protected route with the login route after logout [33m 387[2mms[22m[39m
+     [33m[2m✓[22m[39m redirects an accountant without executive dashboard access to the accounting home [33m 324[2mms[22m[39m
+ [32m✓[39m src/features/penalties/components/PenaltyTable.test.tsx [2m([22m[2m8 tests[22m[2m)[22m[33m 651[2mms[22m[39m
+ [32m✓[39m src/features/accounting/AccountingWorkspaceRoot.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 726[2mms[22m[39m
+     [33m[2m✓[22m[39m loads without sort params and renders every data column as a sort header [33m 396[2mms[22m[39m
+     [33m[2m✓[22m[39m header click writes sortBy/sortDir into the query and restarts from page 1 [33m 328[2mms[22m[39m
+[90mstderr[2m | src/pages/CustomersPage.mutation-errors.test.tsx[2m > [22m[2mCustomersPage mutation error surfacing[2m > [22m[2mtoasts a 409 conflict verbatim and keeps the modal open
+[22m[39mAn update to CustomersPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/components/control-density.styles.test.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 443[2mms[22m[39m
+     [33m[2m✓[22m[39m keeps controlClassName selectors honest — the class sits on the trigger button itself [33m 423[2mms[22m[39m
+[90mstderr[2m | src/pages/CustomersPage.mutation-errors.test.tsx[2m > [22m[2mCustomersPage mutation error surfacing[2m > [22m[2mtoasts non-409 mutation errors verbatim without the governance hint
+[22m[39mAn update to CustomersPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/pages/CustomersPage.mutation-errors.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 435[2mms[22m[39m
+ [32m✓[39m src/App.company-info-route.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 677[2mms[22m[39m
+     [33m[2m✓[22m[39m admits office role ADMIN [33m 335[2mms[22m[39m
+     [33m[2m✓[22m[39m redirects DRIVER away from company configuration [33m 328[2mms[22m[39m
+ [32m✓[39m src/design-system/forms/SearchableSelect.test.tsx [2m([22m[2m18 tests[22m[2m)[22m[33m 608[2mms[22m[39m
+ [32m✓[39m src/App.governance-actions-route.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[33m 709[2mms[22m[39m
+     [33m[2m✓[22m[39m admits office role ADMIN [33m 367[2mms[22m[39m
+     [33m[2m✓[22m[39m redirects DRIVER away from the office governance route [33m 321[2mms[22m[39m
+ [32m✓[39m src/pages/PayableDetailPage.ledger-sort.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 419[2mms[22m[39m
+[90mstderr[2m | src/components/work-inbox/RoleWorkInbox.test.tsx[2m > [22m[2mRoleWorkInbox[2m > [22m[2mloads each tab from its server-scoped page and supports Arrow, Home, and End keyboard navigation
+[22m[39mAn update to RoleWorkInbox inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to RoleWorkInbox inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/components/work-inbox/RoleWorkInbox.test.tsx [2m([22m[2m13 tests[22m[2m)[22m[33m 681[2mms[22m[39m
+ [32m✓[39m src/pages/CustomersPage.sort.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 771[2mms[22m[39m
+     [33m[2m✓[22m[39m sends sortBy/sortDir to the endpoint, toggles asc→desc, and resets to page 1 [33m 440[2mms[22m[39m
+     [33m[2m✓[22m[39m exposes each data column's backend sort key through its header button [33m 306[2mms[22m[39m
+ [32m✓[39m src/features/shipments/cus/CusContainerLedger.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[33m 718[2mms[22m[39m
+ [32m✓[39m src/pages/DebtListPage.sort.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 486[2mms[22m[39m
+ [32m✓[39m src/pages/FinancePage.sort.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 443[2mms[22m[39m
+     [33m[2m✓[22m[39m keeps the report profit-desc default and sorts by profit and plate client-side [33m 400[2mms[22m[39m
+ [32m✓[39m src/pages/portal/CustomerPortalLayout.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 475[2mms[22m[39m
+ [32m✓[39m src/pages/DebtDetailPage.ledger-sort.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 561[2mms[22m[39m
+[90mstderr[2m | src/features/dispatch/master-plan/MasterPlanFilters.test.tsx[2m > [22m[2mMasterPlanFilters[2m > [22m[2mkeeps search and cargo direction in the phone toolbar while opening advanced filters in a drawer
+[22m[39mAn update to MasterPlanFilters inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to MasterPlanFilters inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/features/dispatch/master-plan/MasterPlanFilters.test.tsx[2m > [22m[2mMasterPlanFilters[2m > [22m[2mrenders date shortcuts as explicit pressed buttons
+[22m[39mAn update to MasterPlanFilters inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to MasterPlanFilters inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/DriverTripDetailPage.test.tsx[2m > [22m[2mDriverTripDetailPage[2m > [22m[2mdoes not trigger any complete/enqueue command from the trip detail CTA
+[22m[39mNo routes matched location "/my-trips/88/pod" 
+
+ [32m✓[39m src/features/dispatch/master-plan/MasterPlanFilters.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 500[2mms[22m[39m
+     [33m[2m✓[22m[39m keeps search and cargo direction in the phone toolbar while opening advanced filters in a drawer [33m 334[2mms[22m[39m
+ [32m✓[39m src/features/accounting/AccountingWorkInbox.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 328[2mms[22m[39m
+ [32m✓[39m src/pages/DriverTripDetailPage.test.tsx [2m([22m[2m17 tests[22m[2m)[22m[33m 744[2mms[22m[39m
+[90mstderr[2m | src/features/dispatch/catalogs/SuppliersView.test.tsx[2m > [22m[2mSuppliersView (dispatcher read-only)[2m > [22m[2mcreates a subcontractor through the form modal and refreshes catalogs
+[22m[39mIf you do not provide a visible label, you must specify an aria-label or aria-labelledby attribute for accessibility
+If you do not provide a visible label, you must specify an aria-label or aria-labelledby attribute for accessibility
+If you do not provide a visible label, you must specify an aria-label or aria-labelledby attribute for accessibility
+
+[90mstderr[2m | src/features/dispatch/catalogs/SuppliersView.test.tsx[2m > [22m[2mSuppliersView (dispatcher read-only)[2m > [22m[2mcreates a subcontractor through the form modal and refreshes catalogs
+[22m[39mIf you do not provide a visible label, you must specify an aria-label or aria-labelledby attribute for accessibility
+
+ [32m✓[39m src/features/dispatch/catalogs/SuppliersView.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 373[2mms[22m[39m
+[90mstderr[2m | src/pages/UsersPage.pagination.test.tsx[2m > [22m[2mUsersPage server-driven table query[2m > [22m[2msends the role filter as a param (never filtering client-side)
+[22m[39mAn update to UsersPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to UsersPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/UsersPage.pagination.test.tsx[2m > [22m[2mUsersPage server-driven table query[2m > [22m[2msends the role filter as a param (never filtering client-side)
+[22m[39mAn update to UsersPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to UsersPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/UsersPage.pagination.test.tsx[2m > [22m[2mUsersPage server-driven table query[2m > [22m[2mdebounces search and resets to page 1 on a new term
+[22m[39mAn update to UsersPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/UsersPage.pagination.test.tsx[2m > [22m[2mUsersPage server-driven table query[2m > [22m[2mdebounces search and resets to page 1 on a new term
+[22m[39mAn update to UsersPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to UsersPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/UsersPage.pagination.test.tsx[2m > [22m[2mUsersPage server-driven table query[2m > [22m[2mtoggles sort params: same field flips order, new field starts asc
+[22m[39mAn update to UsersPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to UsersPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/UsersPage.pagination.test.tsx[2m > [22m[2mUsersPage server-driven table query[2m > [22m[2mtoggles sort params: same field flips order, new field starts asc
+[22m[39mAn update to UsersPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to UsersPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/components/UI.overlay.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[33m 383[2mms[22m[39m
+[90mstderr[2m | src/pages/UsersPage.pagination.test.tsx[2m > [22m[2mUsersPage server-driven table query[2m > [22m[2mtoggles sort params: same field flips order, new field starts asc
+[22m[39mAn update to UsersPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to UsersPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/pages/UsersPage.pagination.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 429[2mms[22m[39m
+     [33m[2m✓[22m[39m debounces search and resets to page 1 on a new term [33m 325[2mms[22m[39m
+[90mstderr[2m | src/design-system/forms/FormFields.test.tsx[2m > [22m[2mform field accessibility[2m > [22m[2msupports keyboard listbox navigation, selection, and Escape focus restoration
+[22m[39mAn update to $c8bb816105474884$var$SelectInner inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ForwardRef(Button) inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ForwardRef(Button) inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to $c8bb816105474884$var$SelectInner inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to $c8bb816105474884$var$SelectInner inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/design-system/forms/FormFields.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 371[2mms[22m[39m
+ [32m✓[39m src/pages/config/PortsConfigPage.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 397[2mms[22m[39m
+ [32m✓[39m src/features/dispatch/catalogs/SuppliersView.sort.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 376[2mms[22m[39m
+ [32m✓[39m src/features/fleet/DriverFormModal.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 350[2mms[22m[39m
+ [32m✓[39m src/components/shipment/TripPodReviewPanel.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[33m 577[2mms[22m[39m
+ [32m✓[39m src/pages/config/CustomersConfigPage.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 371[2mms[22m[39m
+ [32m✓[39m src/features/dispatch/catalogs/FleetVehiclesView.sort.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 294[2mms[22m[39m
+ [32m✓[39m src/features/dashboard/components/ManagerDecisionInbox.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[33m 443[2mms[22m[39m
+ [32m✓[39m src/pages/portal/PortalPages.test.tsx [2m([22m[2m14 tests[22m[2m)[22m[33m 448[2mms[22m[39m
+ [32m✓[39m src/features/dispatch/components/DispatchTripCard.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 326[2mms[22m[39m
+ [32m✓[39m src/components/trip/ContainerInstancesCard.test.tsx [2m([22m[2m8 tests[22m[2m)[22m[33m 404[2mms[22m[39m
+ [32m✓[39m src/components/trip/DriverProgressCard.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[33m 424[2mms[22m[39m
+ [32m✓[39m src/pages/ForwarderTripDetailPage.lcl.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 484[2mms[22m[39m
+     [33m[2m✓[22m[39m hides synthetic LCL container UI but preserves its scope id for expense and completion actions [33m 412[2mms[22m[39m
+ [32m✓[39m src/features/dispatch/catalogs/FleetDriversView.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 461[2mms[22m[39m
+ [32m✓[39m src/pages/config/FuelNormsConfigPage.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 289[2mms[22m[39m
+ [32m✓[39m src/pages/DriverTripPodPage.test.tsx [2m([22m[2m9 tests[22m[2m)[22m[33m 334[2mms[22m[39m
+ [32m✓[39m src/pages/config/MasterDataImportPage.sort.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 477[2mms[22m[39m
+     [33m[2m✓[22m[39m keeps the sheet order first, then sorts Dòng asc → desc [33m 375[2mms[22m[39m
+ [32m✓[39m src/features/dashboard/components/ManagerDecisionInbox.sort.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 266[2mms[22m[39m
+ [32m✓[39m src/pages/portal/PortalStatementPage.sort.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 211[2mms[22m[39m
+ [32m✓[39m src/App.ops-route.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 367[2mms[22m[39m
+     [33m[2m✓[22m[39m renders the canonical Ops workspace at / [33m 339[2mms[22m[39m
+ [32m✓[39m src/components/trip/TripPodSubmission.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[32m 273[2mms[22m[39m
+[90mstderr[2m | src/features/dispatch/catalogs/FleetVehiclesView.test.tsx[2m > [22m[2mFleetVehiclesView (dispatcher read-only)[2m > [22m[2mcreates a tractor through the form modal and refreshes catalogs
+[22m[39mIf you do not provide a visible label, you must specify an aria-label or aria-labelledby attribute for accessibility
+If you do not provide a visible label, you must specify an aria-label or aria-labelledby attribute for accessibility
+If you do not provide a visible label, you must specify an aria-label or aria-labelledby attribute for accessibility
+
+[90mstderr[2m | src/features/dispatch/catalogs/FleetVehiclesView.test.tsx[2m > [22m[2mFleetVehiclesView (dispatcher read-only)[2m > [22m[2mcreates a tractor through the form modal and refreshes catalogs
+[22m[39mIf you do not provide a visible label, you must specify an aria-label or aria-labelledby attribute for accessibility
+
+ [32m✓[39m src/features/dispatch/catalogs/FleetVehiclesView.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 330[2mms[22m[39m
+ [32m✓[39m src/features/dispatch/catalogs/FleetDriversView.sort.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 344[2mms[22m[39m
+ [32m✓[39m src/App.dispatcher-trips-route.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 359[2mms[22m[39m
+     [33m[2m✓[22m[39m bounces DISPATCHER off /trips to their dispatch home (user 2026-09-01: role never meant to have it) [33m 349[2mms[22m[39m
+ [32m✓[39m src/components/trip/DriverContainerCard.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 257[2mms[22m[39m
+ [32m✓[39m src/components/finance/ProfitabilityReportPanel.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 421[2mms[22m[39m
+     [33m[2m✓[22m[39m shows the configured threshold and requests the bounded low-margin filter [33m 302[2mms[22m[39m
+ [32m✓[39m src/pages/DriverTripsPage.test.tsx [2m([22m[2m8 tests[22m[2m)[22m[32m 246[2mms[22m[39m
+ [32m✓[39m src/features/shipments/cus/CusAppointmentPopover.test.tsx [2m([22m[2m14 tests[22m[2m)[22m[32m 245[2mms[22m[39m
+ [32m✓[39m src/features/tires/tire-tables.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 263[2mms[22m[39m
+ [32m✓[39m src/pages/AuditLogPage.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 233[2mms[22m[39m
+ [32m✓[39m src/hooks/useAuth.logout.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[32m 287[2mms[22m[39m
+ [32m✓[39m src/features/shipments/detail/ShipmentContainerLedger.test.tsx [2m([22m[2m8 tests[22m[2m)[22m[32m 279[2mms[22m[39m
+ [32m✓[39m src/components/shipment/CarrierAllocationDialog.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 218[2mms[22m[39m
+ [32m✓[39m src/pages/ForwarderTripDateRangePicker.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 313[2mms[22m[39m
+ [32m✓[39m src/components/untitled-ui/base/select/combobox.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[32m 228[2mms[22m[39m
+ [32m✓[39m src/App.audit-route.test.tsx [2m([22m[2m1 test[22m[2m)[22m[33m 335[2mms[22m[39m
+     [33m[2m✓[22m[39m renders the audit page directly for ACCOUNTANT at /audit-logs [33m 333[2mms[22m[39m
+ [32m✓[39m src/pages/ProfitPage.governance.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 281[2mms[22m[39m
+ [32m✓[39m src/components/trip/FuelRefillReportForm.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[32m 157[2mms[22m[39m
+ [32m✓[39m src/pages/ForwarderAdvancesPage.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 211[2mms[22m[39m
+ [32m✓[39m src/pages/portal/PortalShipmentDetailPage.sort.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 184[2mms[22m[39m
+ [32m✓[39m src/pages/DriverTripDetailPage.shipmentCostEntry.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[32m 142[2mms[22m[39m
+ [32m✓[39m src/hooks/usePersistedContainerType.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 242[2mms[22m[39m
+ [32m✓[39m src/features/dispatch/master-plan/useDispatchMasterPlan.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[32m 248[2mms[22m[39m
+ [32m✓[39m src/pages/linked-supplier-payable-ledger.test.tsx [2m([22m[2m7 tests[22m[2m)[22m[32m 177[2mms[22m[39m
+ [32m✓[39m src/pages/driver/DriverTwoOrdersPage.test.tsx [2m([22m[2m9 tests[22m[2m)[22m[32m 196[2mms[22m[39m
+[90mstderr[2m | src/design-system/forms/SearchableMultiSelect.test.tsx[2m > [22m[2mSearchableMultiSelect[2m > [22m[2mrenders selected chips inside the trigger and exposes remove buttons
+[22m[39mIn HTML, <button> cannot be a descendant of <button>.
+This will cause a hydration error.
+
+  <Controlled>
+    <SearchableMultiSelect id="carriers" values={[...]} onChange={function bound dispatchSetState} options={[...]}>
+      <div ref={{current:null}} className="searchable...">
+>       <button
+>         ref={{current:null}}
+>         id="carriers"
+>         type="button"
+>         className="input searchable-select__trigger searchable-select__trigger--md"
+>         onClick={function onClick}
+>         disabled={false}
+>         aria-haspopup="listbox"
+>         aria-expanded={false}
+>         aria-required={false}
+>         aria-label="2 đã chọn"
+>       >
+          <span className="searchable...">
+            <span className="searchable...">
+              <span>
+>             <button
+>               type="button"
+>               className="searchable-select__chip-remove"
+>               aria-label="Xóa Xe SilverSea"
+>               onClick={function onClick}
+>               tabIndex={-1}
+>             >
+            ...
+          ...
+        ...
+
+<button> cannot contain a nested <button>.
+See this log for the ancestor stack trace.
+
+ [32m✓[39m src/pages/TreasuryPositionPage.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 242[2mms[22m[39m
+ [32m✓[39m src/design-system/forms/SearchableMultiSelect.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[32m 186[2mms[22m[39m
+ [32m✓[39m src/features/dispatch/master-plan/useCarrierAllocationOptions.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 230[2mms[22m[39m
+ [32m✓[39m src/features/admin-center/AdminHealthWorkspace.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 204[2mms[22m[39m
+ [32m✓[39m src/pages/config/RoutesConfigPage.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 250[2mms[22m[39m
+ [32m✓[39m src/pages/config/DebitNoteTemplateGovernance.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 249[2mms[22m[39m
+ [32m✓[39m src/features/shipments/cus/use-cus-workspace-state.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[32m 209[2mms[22m[39m
+ [32m✓[39m src/features/shipments/detail/ShipmentContainerScheduleEditor.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[32m 142[2mms[22m[39m
+ [32m✓[39m src/pages/config/CompanyInfoConfigPage.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 183[2mms[22m[39m
+ [32m✓[39m src/components/trip/AllowanceSection.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 393[2mms[22m[39m
+     [33m[2m✓[22m[39m uses the compact shared checkbox card instead of an oversized inline control [33m 350[2mms[22m[39m
+ [32m✓[39m src/features/dashboard/components/CompanyInfoSetupBanner.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 216[2mms[22m[39m
+ [32m✓[39m src/design-system/Pagination.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[32m 177[2mms[22m[39m
+ [32m✓[39m src/components/shipment/AccountingLockBanner.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 203[2mms[22m[39m
+ [32m✓[39m src/features/dispatch/master-plan/DispatchContainerDetailDrawer.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 296[2mms[22m[39m
+ [32m✓[39m src/design-system/SummaryRail.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[32m 183[2mms[22m[39m
+ [32m✓[39m src/pages/ForwarderTripsPage.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 164[2mms[22m[39m
+ [32m✓[39m src/pages/ShipmentDetailPage.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 271[2mms[22m[39m
+ [32m✓[39m src/components/debt/PeriodFilter.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 318[2mms[22m[39m
+ [32m✓[39m src/components/page-chrome.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 177[2mms[22m[39m
+ [32m✓[39m src/pages/ProfitPage.alerts.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 271[2mms[22m[39m
+ [32m✓[39m src/features/dispatch/detailed-plan/IssueOrderFields.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[32m 295[2mms[22m[39m
+[90mstderr[2m | src/pages/debt-payable-aging.test.tsx[2m > [22m[2mAR/AP aging grid characterization[2m > [22m[2mDebtDetailPage renders the four aging ranges with amounts and active highlight
+[22m[39mQuery data cannot be undefined. Please make sure to return a value other than undefined from your query function. Affected query key: ["dual-entities"]
+
+ [32m✓[39m src/pages/debt-payable-aging.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 187[2mms[22m[39m
+ [32m✓[39m src/pages/admin-advance-settlement-ledger-density.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 94[2mms[22m[39m
+ [32m✓[39m src/features/dashboard/components/ApprovalQueueCard.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 151[2mms[22m[39m
+ [32m✓[39m src/components/dashboard/ExecutiveFinancialStrip.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[32m 187[2mms[22m[39m
+ [32m✓[39m src/pages/ledger-mobile-cards.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[32m 210[2mms[22m[39m
+ [32m✓[39m src/pages/AdminCenterPage.test.tsx [2m([22m[2m1 test[22m[2m)[22m[33m 306[2mms[22m[39m
+     [33m[2m✓[22m[39m renders the health workspace from the admin-health endpoint [33m 305[2mms[22m[39m
+ [32m✓[39m src/design-system/DataTable.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[32m 212[2mms[22m[39m
+ [32m✓[39m src/features/shipments/cus/CusDrawerFooter.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 195[2mms[22m[39m
+ [32m✓[39m src/components/untitled-ui/base/buttons/button.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 225[2mms[22m[39m
+ [32m✓[39m src/lib/api.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 150[2mms[22m[39m
+ [32m✓[39m src/components/shared/Banner.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 246[2mms[22m[39m
+ [32m✓[39m src/hooks/useDropdownDismiss.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[32m 249[2mms[22m[39m
+ [32m✓[39m src/pages/driver/DriverPayslipsPage.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[32m 213[2mms[22m[39m
+ [32m✓[39m src/pages/AdvanceWorkspacePage.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[32m 208[2mms[22m[39m
+ [32m✓[39m src/features/driver/useOfflineCommandQueue.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 66[2mms[22m[39m
+ [32m✓[39m src/components/layout/Sidebar.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 205[2mms[22m[39m
+ [32m✓[39m src/features/trip-detail/components/BasicInfoCard.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 54[2mms[22m[39m
+ [32m✓[39m src/features/dispatch/detailed-plan/ZoneTruckPresencePanel.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 273[2mms[22m[39m
+ [32m✓[39m src/styles/font-family-contract.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 179[2mms[22m[39m
+ [32m✓[39m src/lib/offline-queue.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 141[2mms[22m[39m
+ [32m✓[39m src/hooks/useSyncedState.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 54[2mms[22m[39m
+ [32m✓[39m src/pages/UsersPage.business-units.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 157[2mms[22m[39m
+ [32m✓[39m src/hooks/useOnline.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[32m 49[2mms[22m[39m
+ [32m✓[39m src/features/trip-detail/components/ContainersCard.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 158[2mms[22m[39m
+ [32m✓[39m src/tests/structure.guard.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 235[2mms[22m[39m
+ [32m✓[39m src/design-system/forms/DateField.test.tsx [2m([22m[2m10 tests[22m[2m)[22m[32m 252[2mms[22m[39m
+ [32m✓[39m src/features/dispatch/components/DispatchIssueStatus.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[32m 65[2mms[22m[39m
+ [32m✓[39m src/hooks/use-trip-form-submit.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 79[2mms[22m[39m
+ [32m✓[39m src/components/untitled-ui/base/input/input.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 99[2mms[22m[39m
+ [32m✓[39m src/styles/placeholder-casing.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 56[2mms[22m[39m
+ [32m✓[39m src/components/untitled-ui/base/textarea/textarea.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 72[2mms[22m[39m
+ [32m✓[39m src/hooks/useAutoRefresh.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32m✓[39m src/hooks/useFocusDeepLink.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 71[2mms[22m[39m
+ [32m✓[39m src/features/users/components/UserTable.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 221[2mms[22m[39m
+ [32m✓[39m src/features/users/hooks/useUserMutations.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[32m 27[2mms[22m[39m
+ [32m✓[39m src/data/searchRegistry.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 79[2mms[22m[39m
+ [32m✓[39m src/styles/dialog-density-contract.styles.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 50[2mms[22m[39m
+ [32m✓[39m src/features/forwarder/forwarder-trip-detail-sections.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 135[2mms[22m[39m
+ [32m✓[39m src/hooks/useGeolocation.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 59[2mms[22m[39m
+ [32m✓[39m src/design-system/hooks/hooks.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[32m 63[2mms[22m[39m
+ [32m✓[39m src/lib/format.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m src/features/dispatch/master-plan/allocationDayHelpers.test.ts [2m([22m[2m21 tests[22m[2m)[22m[32m 25[2mms[22m[39m
+ [32m✓[39m src/lib/moneyInput.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 34[2mms[22m[39m
+ [32m✓[39m src/components/untitled-ui/base/select/select-native.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 53[2mms[22m[39m
+ [32m✓[39m src/features/dashboard/hooks/useDashboardAnimations.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 42[2mms[22m[39m
+ [32m✓[39m src/features/shipments/cus/cusExport.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 43[2mms[22m[39m
+ [32m✓[39m src/features/forwarder/forwarder-expense-model.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 39[2mms[22m[39m
+ [32m✓[39m src/lib/shipment-operations.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 72[2mms[22m[39m
+ [32m✓[39m src/hooks/useCRUD.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32m✓[39m src/components/debt/PeriodSummaryCards.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 82[2mms[22m[39m
+ [32m✓[39m src/features/shipments/create/shipment-create-model.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 49[2mms[22m[39m
+ [32m✓[39m src/lib/format.helpers.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 26[2mms[22m[39m
+ [32m✓[39m src/lib/tourTarget.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m src/lib/imageCompression.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/styles/canvas-fit-polish.styles.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/hooks/useFinancialQueries.company-info.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 26[2mms[22m[39m
+ [32m✓[39m src/pages/finance-trip-details.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+ [32m✓[39m src/features/shipments/cus/cusQuickEditModel.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 42[2mms[22m[39m
+ [32m✓[39m src/components/Layout.test.ts [2m([22m[2m40 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/lib/table-sort.client.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m src/features/dashboard/utils.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 38[2mms[22m[39m
+ [32m✓[39m src/api/dispatchPlanningClient.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m src/pages/clerk/ClerkShipmentCreatePage.styles.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m src/design-system/hooks/useBufferedDateValue.test.tsx [2m([22m[2m13 tests[22m[2m)[22m[32m 65[2mms[22m[39m
+ [32m✓[39m src/hooks/useTripFormLegs.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 20[2mms[22m[39m
+ [32m✓[39m src/hooks/useDirtyGuard.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+ [32m✓[39m src/styles/table-sort.styles.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/api/customerServiceFinanceClient.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m src/components/keyboard-shortcut-visibility.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 34[2mms[22m[39m
+ [32m✓[39m src/api/keys.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m src/features/shipments/cus/dispatchStatusVocabulary.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m src/pages/ShipmentsPage.density.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/lib/role-helpers.test.ts [2m([22m[2m26 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/styles/selection-state-contract.styles.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/pages/ShipmentContainersPage.styles.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m src/lib/operational-density.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/components/untitled-ui/base/form-control-boundaries.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/styles/filter-density.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/components/mobile-card-interaction.styles.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m src/lib/overlayState.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m src/features/shipments/cus/cargoDayFilter.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/api/tireClient.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/components/billing/billing-document-builder-utils.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/styles/operational-table-typography.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m src/api/salaryClient.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m src/styles/global-sizing-contract.styles.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m src/styles/operational-color-contract.styles.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/pages/AccountingWorkspacePage.styles.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m src/api/financialClient.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m src/pages/admin-advance-settlement-summary.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m src/pages/TreasuryPositionPage.styles.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m src/hooks/useAuth.token-expiry.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m src/hooks/tripFormDispatchUtils.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m src/components/layout/mobile-gutter-contract.styles.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m src/pages/config/config-catalog-tabular.styles.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/pages/settlement-review-policy.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/lib/routes.test.ts [2m([22m[2m64 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/features/tires/tireUtils.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/pages/driver-mobile-full-bleed.styles.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/features/dispatch/catalogs/CatalogHeaders.styles.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m src/styles/operational-density.styles.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m src/pages/RoleWorkspacePagination.styles.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/lib/customerDebitNoteMode.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/lib/status-vocab-parity.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/api/driverClient.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/components/layout/Topbar.styles.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/features/dispatch/detailed-plan/dispatchTaskTags.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m src/pages/DebtListPage.styles.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m src/lib/audit-helpers.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/pages/expense-entry-utils.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/pages/finance-derived.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/brand.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m src/lib/api/photo.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/components/layout/app-shell.styles.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/hooks/useTripOptions.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/lib/credit-override-permissions.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 1[2mms[22m[39m
+ [32m✓[39m src/pages/trip-list/responsive.styles.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/pages/WorkflowFinance.styles.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 1[2mms[22m[39m
+ [32m✓[39m src/lib/profit-preview.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/components/layout/bottom-nav.styles.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/design-system/hooks/useAuthedQuery.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m src/design-system/Tabs.styles.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/pages/SupplierListPage.design.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m src/features/offline/roleCommandSender.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/styles/responsive-polish.styles.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/features/fleet/TruckFormModal.styles.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m src/features/expenses/expenseCatalogs.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/components/FilterBar.styles.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/features/fleet/DriverFormModal.styles.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/api/creditOverrideClient.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m src/styles/base.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/lib/notificationClient.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m src/components/layout/Sidebar.styles.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m src/features/trips/tripHelpers.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m src/pages/customer-debt-projection.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 1[2mms[22m[39m
+ [32m✓[39m src/lib/role-access.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/pages/financial-governance-ui.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m src/features/trip-detail/useTripDetailPage.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 1[2mms[22m[39m
+ [32m✓[39m src/pages/payable-carrier-navigation.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 1[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m263 passed[39m[22m[90m (263)[39m
+[2m      Tests [22m [1m[32m1585 passed[39m[22m[90m (1585)[39m
+[2m   Start at [22m 14:58:53
+[2m   Duration [22m 49.01s[2m (transform 11.69s, setup 14.79s, import 141.54s, tests 110.24s, environment 137.84s)[22m
+
+exit: 0

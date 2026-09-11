@@ -1,0 +1,13 @@
+[16:44:29] Starting staging verification on https://vantai.tingting.vip
+[16:44:29] Authenticated on staging, token received
+[16:44:31] Navigated to /shipments on staging
+[16:44:31] Shipments table rows found
+[16:44:31] Found 5 shipments on page 1
+[16:44:34] Shipment index 2 has container data!
+[16:44:35] Staging drawer footer text: "HủyLưu"
+[16:44:35] SUCCESS: "Chưa có thay đổi" is NOT rendered in drawer footer when clean.
+[16:44:35] Edit toggle button text: "Hoàn tất"
+[16:44:35] Found appointment trigger button, clicking it
+[16:44:36] Popover inspection: {"exists":true,"top":510,"left":1138,"width":275,"height":264.5,"bottom":774.5,"right":1413,"windowWidth":1440,"windowHeight":900,"text":"Giờ hẹn đóng/trảCont 2Chọn nhanh ngàyHôm nayNgày maiNgày kiaNgàyGiờKhung giờ phổ biến08:0010:0013:3016:00Xóa hẹnBấm ra ngoài để đóng"}
+[16:44:36] SUCCESS: Popover is cleanly positioned inside the viewport!
+[16:44:36] Staging verification completed successfully!

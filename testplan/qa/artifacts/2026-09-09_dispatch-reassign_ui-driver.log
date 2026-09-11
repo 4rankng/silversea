@@ -1,0 +1,42 @@
+=== DISPATCH REASSIGN CARRIER UI DRIVER RUN ===
+Date: 2026-09-09T07:41:21.429Z
+Environment: Staging (https://vantai.tingting.vip)
+Case ID: TC-DISPATCH-REASSIGN-001
+User / Role: dungnv (DISPATCHER / Điều vận)
+Command: STAGING_URL=https://vantai.tingting.vip node testplan/qa/scripts/run-case.mjs testplan/qa/cases/dispatch-sweep-2026-09-09/TC-DISPATCH-REASSIGN-001.mjs
+Exit Status: 0
+
+Execution Steps:
+1. Navigate to https://vantai.tingting.vip/login
+2. Fill credentials: username=dungnv, password=Abc123
+3. Click submit button -> Logged in successfully as Nguyễn Văn Dũng (Điều vận)
+4. Navigate to https://vantai.tingting.vip/dispatch-detail
+5. Wait for table rows to render
+6. Locate CREATED trip row: Bill YMJAE492321975 (Trip ID 5, Fulfillment ID 11), previously assigned to SilverSea / 15H-119.64
+7. Click "Phân xe lại" button (aria-label="Phân xe lại YMJAE492321975")
+8. Modal "Phân xe lại" opened
+9. Switch carrier type from "Xe nội bộ" to "Xe ngoài"
+10. Open external carrier ComboBox, type "DUYÊN HẢI", select option "DUYÊN HẢI" (key 14)
+11. Fill plate number: "15C-123456"
+12. Fill driver name: "Tài xế ngoài A"
+13. Fill driver phone: "0901234567"
+14. Click button "Xác nhận phân xe lại"
+15. Wait for modal to close (no alert error displayed, error "Không thể đổi nhà xe đã được CUS gán tại bước điều xe." is absent)
+16. Post-submit assertion:
+    - Modal closed: true
+    - Row updated on UI table: "DUYÊN HẢI", "15C-123456", "Đã phát lệnh cho tài xế"
+    - API side-effect confirmed on GET /shipments/dispatch-detail-plan-rows:
+      tripId: 5
+      tripStatus: "CREATED"
+      carrierType: "EXTERNAL"
+      carrierName: "DUYÊN HẢI"
+      externalCarrierId: 14
+      assignedPlate: "15C-123456"
+
+Result: PASS (14023ms)
+Artifacts:
+- qa/2026-09-09_dispatch-reassign_ui-01-detail-view.png
+- qa/2026-09-09_dispatch-reassign_ui-02-dialog-open.png
+- qa/2026-09-09_dispatch-reassign_ui-03-switch-external.png
+- qa/2026-09-09_dispatch-reassign_ui-04-dialog-filled.png
+- qa/2026-09-09_dispatch-reassign_ui-05-after-submit.png

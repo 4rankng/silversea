@@ -1,0 +1,115 @@
+{
+  "dispatchShortcuts": {
+    "containerHeight": null,
+    "containerMinHeight": null,
+    "buttons": [
+      {
+        "text": "Hôm nay",
+        "width": 110,
+        "height": 44,
+        "minHeight": "44px",
+        "paddingTop": "2px",
+        "paddingBottom": "2px"
+      },
+      {
+        "text": "Hôm sau",
+        "width": 110,
+        "height": 44,
+        "minHeight": "44px",
+        "paddingTop": "2px",
+        "paddingBottom": "2px"
+      },
+      {
+        "text": "Tất cả",
+        "width": 110,
+        "height": 44,
+        "minHeight": "44px",
+        "paddingTop": "2px",
+        "paddingBottom": "2px"
+      }
+    ]
+  },
+  "shipmentsToolbar": {
+    "hasHorizontalScroll": false,
+    "scrollWidth": 768,
+    "innerWidth": 768,
+    "gridTemplateColumns": "331px 331px",
+    "searchGridColumn": "1 / -1",
+    "searchWidth": 674,
+    "totalToolbarHeight": 230
+  },
+  "trips": {
+    "tablet-768": {
+      "scrollWidth": 768,
+      "innerWidth": 768,
+      "hasHorizontalScroll": false,
+      "tableCardDisplay": "flex",
+      "tableWrapperDisplay": "none",
+      "mobileListDisplay": "grid",
+      "tableIsVisible": false,
+      "mobileCardsVisible": true
+    },
+    "tablet-1024": {
+      "scrollWidth": 1024,
+      "innerWidth": 1024,
+      "hasHorizontalScroll": false,
+      "tableCardDisplay": "flex",
+      "tableWrapperDisplay": "block",
+      "mobileListDisplay": "none",
+      "tableIsVisible": true,
+      "mobileCardsVisible": false
+    },
+    "desktop-1366": {
+      "scrollWidth": 1366,
+      "innerWidth": 1366,
+      "hasHorizontalScroll": false,
+      "tableCardDisplay": "flex",
+      "tableWrapperDisplay": "block",
+      "mobileListDisplay": "none",
+      "tableIsVisible": true,
+      "mobileCardsVisible": false
+    }
+  },
+  "dashboard": {
+    "bentoColumns": "345px 345px",
+    "tileCount": 8,
+    "tiles": [
+      {
+        "className": "d-card d-card-border bg-base-100 wf-card wf-att wf-att--wide wf-bento-full wf-priority-board",
+        "width": 706,
+        "height": 324.4375,
+        "gridColumn": "1 / -1"
+      },
+      {
+        "className": "d-card d-card-border bg-base-100 wf-card wf-chart wf-bento-hero",
+        "width": 706,
+        "height": 443.109375,
+        "gridColumn": "1 / -1"
+      },
+      {
+        "className": "d-card d-card-border bg-base-100 wf-card wf-fleet wf-bento-third",
+        "width": 345,
+        "height": 273.984375,
+        "gridColumn": "auto"
+      },
+      {
+        "className": "d-card d-card-border bg-base-100 wf-card wf-cost wf-bento-third",
+        "width": 345,
+        "height": 273.984375,
+        "gridColumn": "auto"
+      },
+      {
+        "className": "d-card d-card-border bg-base-100 wf-card wf-bento-half",
+        "width": 345,
+        "height": 185,
+        "gridColumn": "auto"
+      },
+      {
+        "className": "d-card d-card-border bg-base-100 wf-card wf-bento-half",
+        "width": 345,
+        "height": 185,
+        "gridColumn": "auto"
+      }
+    ]
+  }
+}

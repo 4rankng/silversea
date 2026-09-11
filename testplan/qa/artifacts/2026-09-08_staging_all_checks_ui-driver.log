@@ -1,0 +1,30 @@
+[07:27:08] ================================================================
+[07:27:08] === STARTING AUTOMATED TESTING ON STAGING (vantai.tingting.vip) ===
+[07:27:08] ================================================================
+[07:27:09] Successfully authenticated admin and tiepvv (CUS) on staging.
+[07:27:09] --- CHECK 1: STAGING /shipments & DRAWER CONTAINER LEDGER ---
+[07:27:14] Saved overview screenshot: qa/2026-09-08_staging_01_overview.png
+[07:27:14] Clicked Chi tiết button on staging: true
+[07:27:17] Staging Drawer Ledger layout metrics: {"rowFound":false,"rowHeight":null,"rowBoundingHeight":null,"identityDisplay":"grid","identityVerticalAlign":"baseline","actionsWidth":null,"errorRowPresent":false,"errorBannersCount":0}
+[07:27:17] Saved drawer ledger screenshot: qa/2026-09-08_staging_02_drawer_ledger.png
+[07:27:17] --- CHECK 2: STAGING /shipments/new (HÃNG TÀU, POPOVER, CLEAR) ---
+[07:27:20] Staging shipping line input: {"placeholder":"Gõ chọn hoặc nhập hãng tàu","value":""}
+[07:27:21] Staging shipping line options count: 20
+[07:27:21] Staging shipping line sample: ["Maersk","MSC","COSCO","CMA CGM","Hapag-Lloyd","ONE","Evergreen","OOCL"]
+[07:27:22] Saved staging shipments/new screenshot: qa/2026-09-08_staging_03_hang-tau.png
+[07:27:25] Staging Popover placement: {"placement":"top"}
+[07:27:25] Saved staging popover placement screenshot: qa/2026-09-08_staging_04_popover_placement.png
+[07:27:25] --- CHECK 3: STAGING /dispatch-detail (ĐÓNG KẾT HỢP & TASK TAGS) ---
+[07:27:29] Staging clicked dispatch trigger: true
+[07:27:31] Staging dispatch dialog data: {"checkboxCombined":null,"tags":["Đảo vỏ","Đặt đầu","Đặt đuôi","Di động","Giao thẳng","Gửi bãi","Lấy vỏ ICD đi đóng","Trả vỏ"]}
+[07:27:31] Saved staging dispatch dialog screenshot: qa/2026-09-08_staging_05_dispatch_dialog.png
+[07:27:31] --- CHECK 4: STAGING /shipments-detail (DATE EDIT BUTTONS) ---
+[07:27:35] Staging opened container schedule editor: true
+[07:27:36] Staging container ledger action buttons: {"saveFound":true,"cancelFound":true}
+[07:27:36] Saved staging container ledger screenshot: qa/2026-09-08_staging_06_container_ledger.png
+[07:27:36] --- CHECK 5: STAGING /shipments/4 (FACTORY DISPLAY & DETAILS) ---
+[07:27:39] Staging factory display check: {"hasAskey":true,"hasSunrise":false,"hasDashesOnly":false}
+[07:27:39] Saved staging shipment 4 detail screenshot: qa/2026-09-08_staging_07_shipment_detail.png
+[07:27:39] --- CHECK 6: STAGING DUPLICATE BL CHECK (API) ---
+[07:27:40] Staging duplicate BL response status: 409 (expected 409)
+[07:27:40] Staging duplicate BL response body: {"error":"Số Bill đã được nhập bởi thanhdc lúc 2026-09-06T09:25:05.261Z. Vui lòng kiểm tra lại trước khi tạo lô hàng mới.","details":"SHIPMENT_REFERENCE_DUPLICATE","code":"SHIPMENT_REFERENCE_DUPLICATE","conflict":{"shipmentId":4,"shipmentCode":"SHP-2609-00004","field":"blNumber","reference":"JJCTCHPDY260305","createdBy":{"id":18,"username":"thanhdc","fullName":"Đinh Công Thành"},"createdAt":"2026-09-06T09:25:05.261Z"}}

@@ -1,0 +1,1331 @@
+{
+  "targetPages": {
+    "/config/factories": {
+      "phone-390": {
+        "url": "/config/factories",
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "hasHorizontalScroll": false,
+        "trCount": 9,
+        "trDisplay": "block",
+        "gridTemplateColumns": "repeat(2, minmax(0px, 1fr))",
+        "cellCount": 10,
+        "isTabular": false,
+        "hasTable": true,
+        "hasError": false
+      },
+      "tablet-768": {
+        "url": "/config/factories",
+        "scrollWidth": 768,
+        "innerWidth": 768,
+        "hasHorizontalScroll": false,
+        "trCount": 9,
+        "trDisplay": "grid",
+        "gridTemplateColumns": "352px 352px",
+        "cellCount": 10,
+        "isTabular": false,
+        "hasTable": true,
+        "hasError": false
+      },
+      "tablet-1024": {
+        "url": "/config/factories",
+        "scrollWidth": 1024,
+        "innerWidth": 1024,
+        "hasHorizontalScroll": false,
+        "trCount": 9,
+        "trDisplay": "grid",
+        "gridTemplateColumns": "452px 452px",
+        "cellCount": 10,
+        "isTabular": false,
+        "hasTable": true,
+        "hasError": false
+      },
+      "laptop-1180": {
+        "url": "/config/factories",
+        "scrollWidth": 1180,
+        "innerWidth": 1180,
+        "hasHorizontalScroll": false,
+        "trCount": 9,
+        "trDisplay": "grid",
+        "gridTemplateColumns": "530px 530px",
+        "cellCount": 10,
+        "isTabular": false,
+        "hasTable": true,
+        "hasError": false
+      },
+      "desktop-1366": {
+        "url": "/config/factories",
+        "scrollWidth": 1366,
+        "innerWidth": 1366,
+        "hasHorizontalScroll": false,
+        "trCount": 9,
+        "trDisplay": "table-row",
+        "gridTemplateColumns": "none",
+        "cellCount": 10,
+        "isTabular": true,
+        "hasTable": true,
+        "hasError": false
+      }
+    },
+    "/config/ports": {
+      "phone-390": {
+        "url": "/config/ports",
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "hasHorizontalScroll": false,
+        "trCount": 34,
+        "trDisplay": "block",
+        "gridTemplateColumns": "repeat(2, minmax(0px, 1fr))",
+        "cellCount": 10,
+        "isTabular": false,
+        "hasTable": true,
+        "hasError": false
+      },
+      "tablet-768": {
+        "url": "/config/ports",
+        "scrollWidth": 768,
+        "innerWidth": 768,
+        "hasHorizontalScroll": false,
+        "trCount": 34,
+        "trDisplay": "grid",
+        "gridTemplateColumns": "351px 351px",
+        "cellCount": 10,
+        "isTabular": false,
+        "hasTable": true,
+        "hasError": false
+      },
+      "tablet-1024": {
+        "url": "/config/ports",
+        "scrollWidth": 1024,
+        "innerWidth": 1024,
+        "hasHorizontalScroll": false,
+        "trCount": 34,
+        "trDisplay": "grid",
+        "gridTemplateColumns": "451px 451px",
+        "cellCount": 10,
+        "isTabular": false,
+        "hasTable": true,
+        "hasError": false
+      },
+      "laptop-1180": {
+        "url": "/config/ports",
+        "scrollWidth": 1180,
+        "innerWidth": 1180,
+        "hasHorizontalScroll": false,
+        "trCount": 34,
+        "trDisplay": "grid",
+        "gridTemplateColumns": "529px 529px",
+        "cellCount": 10,
+        "isTabular": false,
+        "hasTable": true,
+        "hasError": false
+      },
+      "desktop-1366": {
+        "url": "/config/ports",
+        "scrollWidth": 1366,
+        "innerWidth": 1366,
+        "hasHorizontalScroll": false,
+        "trCount": 34,
+        "trDisplay": "table-row",
+        "gridTemplateColumns": "none",
+        "cellCount": 10,
+        "isTabular": true,
+        "hasTable": true,
+        "hasError": false
+      }
+    },
+    "/config/trucks": {
+      "phone-390": {
+        "url": "/config/trucks",
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "hasHorizontalScroll": false,
+        "trCount": 39,
+        "trDisplay": "block",
+        "gridTemplateColumns": "repeat(2, minmax(0px, 1fr))",
+        "cellCount": 3,
+        "isTabular": false,
+        "hasTable": true,
+        "hasError": false
+      },
+      "tablet-768": {
+        "url": "/config/trucks",
+        "scrollWidth": 768,
+        "innerWidth": 768,
+        "hasHorizontalScroll": false,
+        "trCount": 39,
+        "trDisplay": "grid",
+        "gridTemplateColumns": "351px 351px",
+        "cellCount": 3,
+        "isTabular": false,
+        "hasTable": true,
+        "hasError": false
+      },
+      "tablet-1024": {
+        "url": "/config/trucks",
+        "scrollWidth": 1024,
+        "innerWidth": 1024,
+        "hasHorizontalScroll": false,
+        "trCount": 39,
+        "trDisplay": "grid",
+        "gridTemplateColumns": "451px 451px",
+        "cellCount": 3,
+        "isTabular": false,
+        "hasTable": true,
+        "hasError": false
+      },
+      "laptop-1180": {
+        "url": "/config/trucks",
+        "scrollWidth": 1180,
+        "innerWidth": 1180,
+        "hasHorizontalScroll": false,
+        "trCount": 39,
+        "trDisplay": "grid",
+        "gridTemplateColumns": "529px 529px",
+        "cellCount": 3,
+        "isTabular": false,
+        "hasTable": true,
+        "hasError": false
+      },
+      "desktop-1366": {
+        "url": "/config/trucks",
+        "scrollWidth": 1366,
+        "innerWidth": 1366,
+        "hasHorizontalScroll": false,
+        "trCount": 39,
+        "trDisplay": "table-row",
+        "gridTemplateColumns": "none",
+        "cellCount": 3,
+        "isTabular": true,
+        "hasTable": true,
+        "hasError": false
+      }
+    },
+    "/config/trailers": {
+      "phone-390": {
+        "url": "/config/trailers",
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "hasHorizontalScroll": false,
+        "trCount": 39,
+        "trDisplay": "block",
+        "gridTemplateColumns": "repeat(2, minmax(0px, 1fr))",
+        "cellCount": 4,
+        "isTabular": false,
+        "hasTable": true,
+        "hasError": false
+      },
+      "tablet-768": {
+        "url": "/config/trailers",
+        "scrollWidth": 768,
+        "innerWidth": 768,
+        "hasHorizontalScroll": false,
+        "trCount": 39,
+        "trDisplay": "grid",
+        "gridTemplateColumns": "351px 351px",
+        "cellCount": 4,
+        "isTabular": false,
+        "hasTable": true,
+        "hasError": false
+      },
+      "tablet-1024": {
+        "url": "/config/trailers",
+        "scrollWidth": 1024,
+        "innerWidth": 1024,
+        "hasHorizontalScroll": false,
+        "trCount": 39,
+        "trDisplay": "grid",
+        "gridTemplateColumns": "451px 451px",
+        "cellCount": 4,
+        "isTabular": false,
+        "hasTable": true,
+        "hasError": false
+      },
+      "laptop-1180": {
+        "url": "/config/trailers",
+        "scrollWidth": 1180,
+        "innerWidth": 1180,
+        "hasHorizontalScroll": false,
+        "trCount": 39,
+        "trDisplay": "grid",
+        "gridTemplateColumns": "529px 529px",
+        "cellCount": 4,
+        "isTabular": false,
+        "hasTable": true,
+        "hasError": false
+      },
+      "desktop-1366": {
+        "url": "/config/trailers",
+        "scrollWidth": 1366,
+        "innerWidth": 1366,
+        "hasHorizontalScroll": false,
+        "trCount": 39,
+        "trDisplay": "table-row",
+        "gridTemplateColumns": "none",
+        "cellCount": 4,
+        "isTabular": true,
+        "hasTable": true,
+        "hasError": false
+      }
+    },
+    "/config/cargo-types": {
+      "phone-390": {
+        "url": "/config/cargo-types",
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "hasHorizontalScroll": false,
+        "trCount": 1,
+        "trDisplay": "block",
+        "gridTemplateColumns": "repeat(2, minmax(0px, 1fr))",
+        "cellCount": 2,
+        "isTabular": false,
+        "hasTable": true,
+        "hasError": false
+      },
+      "tablet-768": {
+        "url": "/config/cargo-types",
+        "scrollWidth": 768,
+        "innerWidth": 768,
+        "hasHorizontalScroll": false,
+        "trCount": 1,
+        "trDisplay": "grid",
+        "gridTemplateColumns": "351px 351px",
+        "cellCount": 2,
+        "isTabular": false,
+        "hasTable": true,
+        "hasError": false
+      },
+      "tablet-1024": {
+        "url": "/config/cargo-types",
+        "scrollWidth": 1024,
+        "innerWidth": 1024,
+        "hasHorizontalScroll": false,
+        "trCount": 1,
+        "trDisplay": "grid",
+        "gridTemplateColumns": "451px 451px",
+        "cellCount": 2,
+        "isTabular": false,
+        "hasTable": true,
+        "hasError": false
+      },
+      "laptop-1180": {
+        "url": "/config/cargo-types",
+        "scrollWidth": 1180,
+        "innerWidth": 1180,
+        "hasHorizontalScroll": false,
+        "trCount": 1,
+        "trDisplay": "grid",
+        "gridTemplateColumns": "529px 529px",
+        "cellCount": 2,
+        "isTabular": false,
+        "hasTable": true,
+        "hasError": false
+      },
+      "desktop-1366": {
+        "url": "/config/cargo-types",
+        "scrollWidth": 1366,
+        "innerWidth": 1366,
+        "hasHorizontalScroll": false,
+        "trCount": 1,
+        "trDisplay": "table-row",
+        "gridTemplateColumns": "none",
+        "cellCount": 2,
+        "isTabular": true,
+        "hasTable": true,
+        "hasError": false
+      }
+    },
+    "/config/customers": {
+      "phone-390": {
+        "url": "/config/customers",
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "hasHorizontalScroll": false,
+        "trCount": 24,
+        "trDisplay": "block",
+        "gridTemplateColumns": "repeat(2, minmax(0px, 1fr))",
+        "cellCount": 13,
+        "isTabular": false,
+        "hasTable": true,
+        "hasError": false
+      },
+      "tablet-768": {
+        "url": "/config/customers",
+        "scrollWidth": 768,
+        "innerWidth": 768,
+        "hasHorizontalScroll": false,
+        "trCount": 24,
+        "trDisplay": "table-row",
+        "gridTemplateColumns": "repeat(2, minmax(0px, 1fr))",
+        "cellCount": 13,
+        "isTabular": true,
+        "hasTable": true,
+        "hasError": false
+      },
+      "tablet-1024": {
+        "url": "/config/customers",
+        "scrollWidth": 1024,
+        "innerWidth": 1024,
+        "hasHorizontalScroll": false,
+        "trCount": 24,
+        "trDisplay": "table-row",
+        "gridTemplateColumns": "repeat(2, minmax(0px, 1fr))",
+        "cellCount": 13,
+        "isTabular": true,
+        "hasTable": true,
+        "hasError": false
+      },
+      "laptop-1180": {
+        "url": "/config/customers",
+        "scrollWidth": 1180,
+        "innerWidth": 1180,
+        "hasHorizontalScroll": false,
+        "trCount": 24,
+        "trDisplay": "table-row",
+        "gridTemplateColumns": "repeat(2, minmax(0px, 1fr))",
+        "cellCount": 13,
+        "isTabular": true,
+        "hasTable": true,
+        "hasError": false
+      },
+      "desktop-1366": {
+        "url": "/config/customers",
+        "scrollWidth": 1366,
+        "innerWidth": 1366,
+        "hasHorizontalScroll": false,
+        "trCount": 24,
+        "trDisplay": "table-row",
+        "gridTemplateColumns": "none",
+        "cellCount": 13,
+        "isTabular": true,
+        "hasTable": true,
+        "hasError": false
+      }
+    }
+  },
+  "allPages": {
+    "/config": {
+      "phone-390": {
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Cấu hình hệ thống",
+        "gridCols": null,
+        "cardRowCount": 0
+      },
+      "tablet-768": {
+        "scrollWidth": 768,
+        "innerWidth": 768,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Cấu hình hệ thống",
+        "gridCols": null,
+        "cardRowCount": 0
+      },
+      "desktop-1366": {
+        "scrollWidth": 1366,
+        "innerWidth": 1366,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Cấu hình hệ thống",
+        "gridCols": null,
+        "cardRowCount": 0
+      }
+    },
+    "/config/factories": {
+      "phone-390": {
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Nhà máy / Kho",
+        "gridCols": "repeat(2, minmax(0px, 1fr))",
+        "cardRowCount": 9
+      },
+      "tablet-768": {
+        "scrollWidth": 768,
+        "innerWidth": 768,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Nhà máy / Kho",
+        "gridCols": "352px 352px",
+        "cardRowCount": 9
+      },
+      "desktop-1366": {
+        "scrollWidth": 1366,
+        "innerWidth": 1366,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Nhà máy / Kho",
+        "gridCols": "none",
+        "cardRowCount": 9
+      }
+    },
+    "/config/ports": {
+      "phone-390": {
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Cảng / Bãi",
+        "gridCols": "repeat(2, minmax(0px, 1fr))",
+        "cardRowCount": 34
+      },
+      "tablet-768": {
+        "scrollWidth": 768,
+        "innerWidth": 768,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Cảng / Bãi",
+        "gridCols": "351px 351px",
+        "cardRowCount": 34
+      },
+      "desktop-1366": {
+        "scrollWidth": 1366,
+        "innerWidth": 1366,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Cảng / Bãi",
+        "gridCols": "none",
+        "cardRowCount": 34
+      }
+    },
+    "/config/trucks": {
+      "phone-390": {
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Xe đầu kéo",
+        "gridCols": "repeat(2, minmax(0px, 1fr))",
+        "cardRowCount": 39
+      },
+      "tablet-768": {
+        "scrollWidth": 768,
+        "innerWidth": 768,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Xe đầu kéo",
+        "gridCols": "351px 351px",
+        "cardRowCount": 39
+      },
+      "desktop-1366": {
+        "scrollWidth": 1366,
+        "innerWidth": 1366,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Xe đầu kéo",
+        "gridCols": "none",
+        "cardRowCount": 39
+      }
+    },
+    "/config/trailers": {
+      "phone-390": {
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Rơ-moóc",
+        "gridCols": "repeat(2, minmax(0px, 1fr))",
+        "cardRowCount": 39
+      },
+      "tablet-768": {
+        "scrollWidth": 768,
+        "innerWidth": 768,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Rơ-moóc",
+        "gridCols": "351px 351px",
+        "cardRowCount": 39
+      },
+      "desktop-1366": {
+        "scrollWidth": 1366,
+        "innerWidth": 1366,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Rơ-moóc",
+        "gridCols": "none",
+        "cardRowCount": 39
+      }
+    },
+    "/config/cargo-types": {
+      "phone-390": {
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Loại hàng hóa",
+        "gridCols": "repeat(2, minmax(0px, 1fr))",
+        "cardRowCount": 1
+      },
+      "tablet-768": {
+        "scrollWidth": 768,
+        "innerWidth": 768,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Loại hàng hóa",
+        "gridCols": "351px 351px",
+        "cardRowCount": 1
+      },
+      "desktop-1366": {
+        "scrollWidth": 1366,
+        "innerWidth": 1366,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Loại hàng hóa",
+        "gridCols": "none",
+        "cardRowCount": 1
+      }
+    },
+    "/config/customers": {
+      "phone-390": {
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Khách hàng & Đối tácXuất Excel Thêm khách hàng",
+        "gridCols": "repeat(2, minmax(0px, 1fr))",
+        "cardRowCount": 24
+      },
+      "tablet-768": {
+        "scrollWidth": 768,
+        "innerWidth": 768,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Khách hàng & Đối tácXuất Excel Thêm khách hàng",
+        "gridCols": "repeat(2, minmax(0px, 1fr))",
+        "cardRowCount": 24
+      },
+      "desktop-1366": {
+        "scrollWidth": 1366,
+        "innerWidth": 1366,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Khách hàng & Đối tácXuất Excel Thêm khách hàng",
+        "gridCols": "none",
+        "cardRowCount": 24
+      }
+    },
+    "/config/routes": {
+      "phone-390": {
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Tuyến đường & Cự ly Thêm tuyến",
+        "gridCols": "repeat(2, minmax(0px, 1fr))",
+        "cardRowCount": 4
+      },
+      "tablet-768": {
+        "scrollWidth": 768,
+        "innerWidth": 768,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Tuyến đường & Cự ly Thêm tuyến",
+        "gridCols": "repeat(2, minmax(0px, 1fr))",
+        "cardRowCount": 4
+      },
+      "desktop-1366": {
+        "scrollWidth": 1366,
+        "innerWidth": 1366,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Tuyến đường & Cự ly Thêm tuyến",
+        "gridCols": "none",
+        "cardRowCount": 4
+      }
+    },
+    "/config/business-calendar": {
+      "phone-390": {
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Lịch ngày làm việc",
+        "gridCols": "repeat(2, minmax(0px, 1fr))",
+        "cardRowCount": 1
+      },
+      "tablet-768": {
+        "scrollWidth": 768,
+        "innerWidth": 768,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Lịch ngày làm việc",
+        "gridCols": "351px 351px",
+        "cardRowCount": 1
+      },
+      "desktop-1366": {
+        "scrollWidth": 1366,
+        "innerWidth": 1366,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Lịch ngày làm việc",
+        "gridCols": "none",
+        "cardRowCount": 1
+      }
+    },
+    "/config/pricing-tables": {
+      "phone-390": {
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Bảng giá cước",
+        "gridCols": "repeat(2, minmax(0px, 1fr))",
+        "cardRowCount": 1
+      },
+      "tablet-768": {
+        "scrollWidth": 768,
+        "innerWidth": 768,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Bảng giá cước",
+        "gridCols": "351px 351px",
+        "cardRowCount": 1
+      },
+      "desktop-1366": {
+        "scrollWidth": 1366,
+        "innerWidth": 1366,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Bảng giá cước",
+        "gridCols": "none",
+        "cardRowCount": 1
+      }
+    },
+    "/config/road-allowances": {
+      "phone-390": {
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Tiền đi đường",
+        "gridCols": "repeat(2, minmax(0px, 1fr))",
+        "cardRowCount": 1
+      },
+      "tablet-768": {
+        "scrollWidth": 768,
+        "innerWidth": 768,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Tiền đi đường",
+        "gridCols": "351px 351px",
+        "cardRowCount": 1
+      },
+      "desktop-1366": {
+        "scrollWidth": 1366,
+        "innerWidth": 1366,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Tiền đi đường",
+        "gridCols": "none",
+        "cardRowCount": 1
+      }
+    },
+    "/config/penalty-reasons": {
+      "phone-390": {
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Danh mục lỗi vi phạmThêm lỗi mới",
+        "gridCols": null,
+        "cardRowCount": 0
+      },
+      "tablet-768": {
+        "scrollWidth": 768,
+        "innerWidth": 768,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Danh mục lỗi vi phạmThêm lỗi mới",
+        "gridCols": null,
+        "cardRowCount": 0
+      },
+      "desktop-1366": {
+        "scrollWidth": 1366,
+        "innerWidth": 1366,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Danh mục lỗi vi phạmThêm lỗi mới",
+        "gridCols": null,
+        "cardRowCount": 0
+      }
+    },
+    "/config/fuel": {
+      "phone-390": {
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Định mức nhiên liệu",
+        "gridCols": null,
+        "cardRowCount": 0
+      },
+      "tablet-768": {
+        "scrollWidth": 768,
+        "innerWidth": 768,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Định mức nhiên liệu",
+        "gridCols": null,
+        "cardRowCount": 0
+      },
+      "desktop-1366": {
+        "scrollWidth": 1366,
+        "innerWidth": 1366,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Định mức nhiên liệu",
+        "gridCols": null,
+        "cardRowCount": 0
+      }
+    },
+    "/config/fuel-norms": {
+      "phone-390": {
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Định mức nhiên liệu",
+        "gridCols": "repeat(2, minmax(0px, 1fr))",
+        "cardRowCount": 1
+      },
+      "tablet-768": {
+        "scrollWidth": 768,
+        "innerWidth": 768,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Định mức nhiên liệu",
+        "gridCols": "351px 351px",
+        "cardRowCount": 1
+      },
+      "desktop-1366": {
+        "scrollWidth": 1366,
+        "innerWidth": 1366,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Định mức nhiên liệu",
+        "gridCols": "none",
+        "cardRowCount": 1
+      }
+    },
+    "/config/weight-pricing-tiers": {
+      "phone-390": {
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Bảng giá theo trọng lượng",
+        "gridCols": "repeat(2, minmax(0px, 1fr))",
+        "cardRowCount": 1
+      },
+      "tablet-768": {
+        "scrollWidth": 768,
+        "innerWidth": 768,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Bảng giá theo trọng lượng",
+        "gridCols": "351px 351px",
+        "cardRowCount": 1
+      },
+      "desktop-1366": {
+        "scrollWidth": 1366,
+        "innerWidth": 1366,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Bảng giá theo trọng lượng",
+        "gridCols": "none",
+        "cardRowCount": 1
+      }
+    },
+    "/config/lift-pricing": {
+      "phone-390": {
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Bảng giá nâng/hạ container",
+        "gridCols": "repeat(2, minmax(0px, 1fr))",
+        "cardRowCount": 48
+      },
+      "tablet-768": {
+        "scrollWidth": 768,
+        "innerWidth": 768,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Bảng giá nâng/hạ container",
+        "gridCols": "351px 351px",
+        "cardRowCount": 48
+      },
+      "desktop-1366": {
+        "scrollWidth": 1366,
+        "innerWidth": 1366,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Bảng giá nâng/hạ container",
+        "gridCols": "none",
+        "cardRowCount": 48
+      }
+    },
+    "/config/ancillary-revenue": {
+      "phone-390": {
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Doanh thu phi-vận-tải",
+        "gridCols": "repeat(2, minmax(0px, 1fr))",
+        "cardRowCount": 1
+      },
+      "tablet-768": {
+        "scrollWidth": 768,
+        "innerWidth": 768,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Doanh thu phi-vận-tải",
+        "gridCols": "351px 351px",
+        "cardRowCount": 1
+      },
+      "desktop-1366": {
+        "scrollWidth": 1366,
+        "innerWidth": 1366,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Doanh thu phi-vận-tải",
+        "gridCols": "none",
+        "cardRowCount": 1
+      }
+    },
+    "/config/app-settings": {
+      "phone-390": {
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Chính sách tài chính",
+        "gridCols": null,
+        "cardRowCount": 0
+      },
+      "tablet-768": {
+        "scrollWidth": 768,
+        "innerWidth": 768,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Chính sách tài chính",
+        "gridCols": null,
+        "cardRowCount": 0
+      },
+      "desktop-1366": {
+        "scrollWidth": 1366,
+        "innerWidth": 1366,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Chính sách tài chính",
+        "gridCols": null,
+        "cardRowCount": 0
+      }
+    },
+    "/config/master-data-import": {
+      "phone-390": {
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Nạp dữ liệu nền tảng",
+        "gridCols": null,
+        "cardRowCount": 0
+      },
+      "tablet-768": {
+        "scrollWidth": 768,
+        "innerWidth": 768,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Nạp dữ liệu nền tảng",
+        "gridCols": null,
+        "cardRowCount": 0
+      },
+      "desktop-1366": {
+        "scrollWidth": 1366,
+        "innerWidth": 1366,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Nạp dữ liệu nền tảng",
+        "gridCols": null,
+        "cardRowCount": 0
+      }
+    },
+    "/config/company-info": {
+      "phone-390": {
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Thông tin công ty",
+        "gridCols": null,
+        "cardRowCount": 0
+      },
+      "tablet-768": {
+        "scrollWidth": 768,
+        "innerWidth": 768,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Thông tin công ty",
+        "gridCols": null,
+        "cardRowCount": 0
+      },
+      "desktop-1366": {
+        "scrollWidth": 1366,
+        "innerWidth": 1366,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Thông tin công ty",
+        "gridCols": null,
+        "cardRowCount": 0
+      }
+    },
+    "/config/trip-expense": {
+      "phone-390": {
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Chi phí chuyến đi",
+        "gridCols": null,
+        "cardRowCount": 0
+      },
+      "tablet-768": {
+        "scrollWidth": 768,
+        "innerWidth": 768,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Chi phí chuyến đi",
+        "gridCols": null,
+        "cardRowCount": 0
+      },
+      "desktop-1366": {
+        "scrollWidth": 1366,
+        "innerWidth": 1366,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Chi phí chuyến đi",
+        "gridCols": null,
+        "cardRowCount": 0
+      }
+    },
+    "/config/cap-table": {
+      "phone-390": {
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Cổ đông & Vốn góp",
+        "gridCols": "repeat(2, minmax(0px, 1fr))",
+        "cardRowCount": 1
+      },
+      "tablet-768": {
+        "scrollWidth": 768,
+        "innerWidth": 768,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Cổ đông & Vốn góp",
+        "gridCols": "351px 351px",
+        "cardRowCount": 1
+      },
+      "desktop-1366": {
+        "scrollWidth": 1366,
+        "innerWidth": 1366,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Cổ đông & Vốn góp",
+        "gridCols": "none",
+        "cardRowCount": 1
+      }
+    },
+    "/config/salary-periods": {
+      "phone-390": {
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Kỳ lương",
+        "gridCols": null,
+        "cardRowCount": 0
+      },
+      "tablet-768": {
+        "scrollWidth": 768,
+        "innerWidth": 768,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Kỳ lương",
+        "gridCols": null,
+        "cardRowCount": 0
+      },
+      "desktop-1366": {
+        "scrollWidth": 1366,
+        "innerWidth": 1366,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Kỳ lương",
+        "gridCols": null,
+        "cardRowCount": 0
+      }
+    },
+    "/config/expense-categories": {
+      "phone-390": {
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Hạng mục chi phí",
+        "gridCols": "repeat(2, minmax(0px, 1fr))",
+        "cardRowCount": 1
+      },
+      "tablet-768": {
+        "scrollWidth": 768,
+        "innerWidth": 768,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Hạng mục chi phí",
+        "gridCols": "351px 351px",
+        "cardRowCount": 1
+      },
+      "desktop-1366": {
+        "scrollWidth": 1366,
+        "innerWidth": 1366,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Hạng mục chi phí",
+        "gridCols": "none",
+        "cardRowCount": 1
+      }
+    },
+    "/config/tire-positions": {
+      "phone-390": {
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Vị trí lốp",
+        "gridCols": "repeat(2, minmax(0px, 1fr))",
+        "cardRowCount": 1
+      },
+      "tablet-768": {
+        "scrollWidth": 768,
+        "innerWidth": 768,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Vị trí lốp",
+        "gridCols": "351px 351px",
+        "cardRowCount": 1
+      },
+      "desktop-1366": {
+        "scrollWidth": 1366,
+        "innerWidth": 1366,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Vị trí lốp",
+        "gridCols": "none",
+        "cardRowCount": 1
+      }
+    },
+    "/config/forwarder-expense-types": {
+      "phone-390": {
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Loại chi phí giao nhận",
+        "gridCols": "repeat(2, minmax(0px, 1fr))",
+        "cardRowCount": 1
+      },
+      "tablet-768": {
+        "scrollWidth": 768,
+        "innerWidth": 768,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Loại chi phí giao nhận",
+        "gridCols": "351px 351px",
+        "cardRowCount": 1
+      },
+      "desktop-1366": {
+        "scrollWidth": 1366,
+        "innerWidth": 1366,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Loại chi phí giao nhận",
+        "gridCols": "none",
+        "cardRowCount": 1
+      }
+    },
+    "/config/debit-note-templates": {
+      "phone-390": {
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Mẫu giấy báo nợ Thêm mẫu",
+        "gridCols": null,
+        "cardRowCount": 0
+      },
+      "tablet-768": {
+        "scrollWidth": 768,
+        "innerWidth": 768,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Mẫu giấy báo nợ Thêm mẫu",
+        "gridCols": null,
+        "cardRowCount": 0
+      },
+      "desktop-1366": {
+        "scrollWidth": 1366,
+        "innerWidth": 1366,
+        "hasHorizontalScroll": false,
+        "hasError": false,
+        "header": "Mẫu giấy báo nợ Thêm mẫu",
+        "gridCols": null,
+        "cardRowCount": 0
+      }
+    }
+  },
+  "sortButtonAudit": [
+    {
+      "index": 0,
+      "text": "TÊN KHÁCH HÀNG",
+      "width": 61.578125,
+      "height": 44.53125,
+      "position": "relative",
+      "beforeContent": "\"\"",
+      "beforePosition": "absolute",
+      "beforeInset": "-7px 0px -7px 0px",
+      "effectiveHeight": 58.53125
+    },
+    {
+      "index": 1,
+      "text": "TÊN VIẾT TẮT",
+      "width": 46.109375,
+      "height": 44.53125,
+      "position": "relative",
+      "beforeContent": "\"\"",
+      "beforePosition": "absolute",
+      "beforeInset": "-7px 0px -7px 0px",
+      "effectiveHeight": 58.53125
+    },
+    {
+      "index": 2,
+      "text": "MÃ KH",
+      "width": 36.75,
+      "height": 29.6875,
+      "position": "relative",
+      "beforeContent": "\"\"",
+      "beforePosition": "absolute",
+      "beforeInset": "-7px 0px -7px 0px",
+      "effectiveHeight": 43.6875
+    },
+    {
+      "index": 3,
+      "text": "MÃ SỐ THUẾ",
+      "width": 51.015625,
+      "height": 44.53125,
+      "position": "relative",
+      "beforeContent": "\"\"",
+      "beforePosition": "absolute",
+      "beforeInset": "-7px 0px -7px 0px",
+      "effectiveHeight": 58.53125
+    },
+    {
+      "index": 4,
+      "text": "ĐỊA CHỈ",
+      "width": 39.84375,
+      "height": 29.6875,
+      "position": "relative",
+      "beforeContent": "\"\"",
+      "beforePosition": "absolute",
+      "beforeInset": "-7px 0px -7px 0px",
+      "effectiveHeight": 43.6875
+    },
+    {
+      "index": 5,
+      "text": "GIÁM ĐỐC",
+      "width": 50.265625,
+      "height": 29.6875,
+      "position": "relative",
+      "beforeContent": "\"\"",
+      "beforePosition": "absolute",
+      "beforeInset": "-7px 0px -7px 0px",
+      "effectiveHeight": 43.6875
+    },
+    {
+      "index": 6,
+      "text": "SĐT GIÁM ĐỐC",
+      "width": 50.265625,
+      "height": 44.53125,
+      "position": "relative",
+      "beforeContent": "\"\"",
+      "beforePosition": "absolute",
+      "beforeInset": "-7px 0px -7px 0px",
+      "effectiveHeight": 58.53125
+    },
+    {
+      "index": 7,
+      "text": "NGƯỜI LIÊN HỆ",
+      "width": 58.625,
+      "height": 44.53125,
+      "position": "relative",
+      "beforeContent": "\"\"",
+      "beforePosition": "absolute",
+      "beforeInset": "-7px 0px -7px 0px",
+      "effectiveHeight": 58.53125
+    },
+    {
+      "index": 8,
+      "text": "SĐT KẾ TOÁN",
+      "width": 52.515625,
+      "height": 44.53125,
+      "position": "relative",
+      "beforeContent": "\"\"",
+      "beforePosition": "absolute",
+      "beforeInset": "-7px 0px -7px 0px",
+      "effectiveHeight": 58.53125
+    },
+    {
+      "index": 9,
+      "text": "EMAIL",
+      "width": 56.453125,
+      "height": 14.84375,
+      "position": "relative",
+      "beforeContent": "\"\"",
+      "beforePosition": "absolute",
+      "beforeInset": "-7px 0px -7px 0px",
+      "effectiveHeight": 28.84375
+    },
+    {
+      "index": 10,
+      "text": "HẠN THANH TOÁN CHI HỘ (NGÀY)",
+      "width": 64.03125,
+      "height": 74.21875,
+      "position": "relative",
+      "beforeContent": "\"\"",
+      "beforePosition": "absolute",
+      "beforeInset": "-7px 0px -7px 0px",
+      "effectiveHeight": 88.21875
+    },
+    {
+      "index": 11,
+      "text": "HẠN THANH TOÁN CƯỚC (NGÀY)",
+      "width": 64.046875,
+      "height": 74.21875,
+      "position": "relative",
+      "beforeContent": "\"\"",
+      "beforePosition": "absolute",
+      "beforeInset": "-7px 0px -7px 0px",
+      "effectiveHeight": 88.21875
+    }
+  ],
+  "summary": {
+    "totalAudited": 27,
+    "passCount": 27,
+    "failCount": 0,
+    "findings": []
+  }
+}

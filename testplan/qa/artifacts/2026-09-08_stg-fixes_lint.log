@@ -1,0 +1,37 @@
+
+> tingting@ lint /Users/dev/Documents/projects/silversea-prod
+> eslint .
+
+
+/Users/dev/Documents/projects/silversea-prod/backend/src/tests/dispatch-detail-plan.test.ts
+  1086:13  warning  'shipment' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  1127:13  warning  'shipment' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  1219:13  warning  'shipment' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  2091:13  warning  'shipment' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  2117:13  warning  'shipment' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/dev/Documents/projects/silversea-prod/backend/src/tests/unit/customer-intake-fields.test.ts
+   59:25  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   64:22  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   73:25  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   76:31  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   77:31  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   78:31  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   79:31  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   80:31  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   87:25  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   92:22  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   93:28  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  110:65  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  111:31  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  112:31  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  113:31  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  114:31  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  119:65  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  120:31  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  121:31  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  122:31  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  129:65  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+✖ 26 problems (0 errors, 26 warnings)
+

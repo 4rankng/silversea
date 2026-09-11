@@ -1,0 +1,25 @@
+[START] Verifying staging Master Plan notes truncation & detail modal on https://vantai.tingting.vip/dispatch
+1. Authenticating as admin on staging...
+   Got auth token successfully.
+2. Navigating to https://vantai.tingting.vip/dispatch...
+   Master plan grid loaded.
+   Found 8 container detail triggers.
+   First container detail trigger text: "Xem chi tiết"
+   Contains old "Xem chi tiết cont" text: false
+   Found 1 note detail triggers currently on this view.
+   Saved grid screenshot to /Users/dev/Documents/projects/silversea-prod/qa/2026-09-09_master-plan-notes_ui-01_grid.png
+3. Clicking first note detail trigger...
+   Modal opened and animation settled.
+   Modal title: "Ghi chú nhà máy"
+   Modal subtitle: "undefined"
+   Modal content: ""3. Lưu ý cần chú ý khi đóng/ trả hàng tại nhà máy
+- Lái xe đăng ký bảo vệ vào đóng/ trả cho công ty Long Minh- Trước khi vào đóng/ trả hàng lái xe gọi đúng SĐT
+người quản lý hàng xuất/nhập trong kho để hướng dẫn vị trí đóng/ trả hàng- Nghiêm cấm hút thuốc trong địa phận công ty
+- Hàng đóng điện tử yêu cầu vỏ đẹp, sàn chắc khỏe, ko thủng rách, dính dầu, nước, không, mù""
+   Copy button text: "Sao chép"
+   Saved modal screenshot to /Users/dev/Documents/projects/silversea-prod/qa/2026-09-09_master-plan-notes_ui-02_modal.png
+4. Clicking "Sao chép" button in modal...
+   After click copy button text: "Đã sao chép"
+5. Clicking "Đóng" button...
+   Modal closed cleanly.
+[PASS] Staging UI test completed successfully.

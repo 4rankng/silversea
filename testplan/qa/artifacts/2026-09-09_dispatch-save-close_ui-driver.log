@@ -1,0 +1,28 @@
+# UI DRIVEN Verification Run: TC-DISPATCH-EDIT-002
+# Date: 2026-09-09
+# Target: http://localhost:7174
+# Role: ADMIN
+# Test: testplan/qa/cases/dispatch-sweep-2026-09-09/TC-DISPATCH-EDIT-002.mjs
+
+Command:
+node testplan/qa/scripts/run-case.mjs testplan/qa/cases/dispatch-sweep-2026-09-09/TC-DISPATCH-EDIT-002.mjs
+
+Output:
+[run-case] case=/Users/dev/Documents/projects/silversea-prod/testplan/qa/cases/dispatch-sweep-2026-09-09/TC-DISPATCH-EDIT-002.mjs
+[run-case] env=local url=http://localhost:7174
+[run-case] evidenceDir=/Users/dev/Documents/projects/silversea-prod/testplan/qa/evidence/2026-09-09_TC-DISPATCH-EDIT-002
+[run-case] PASS in 4207ms
+[run-case] summary written to /Users/dev/Documents/projects/silversea-prod/testplan/qa/evidence/2026-09-09_TC-DISPATCH-EDIT-002/results.json
+
+DOM Assertion:
+- Dialog opened: isDialogOpenBefore = true (found .dispatch-assignment-dialog within modal overlay)
+- Action: Clicked button containing text "Lưu thay đổi"
+- Dialog closed: isDialogClosedAfter = true (!document.querySelector('.dispatch-assignment-dialog'))
+
+DB Proof:
+- Query: SELECT id, shipment_id, planned_carrier_type, version, updated_at FROM shipment_fulfillments WHERE id = 2724;
+- Output: id=2724, shipment_id=9969, planned_carrier_type=OWN, version=2, updated_at=2026-09-09 05:47:32.285+00
+
+Screenshots:
+- qa/2026-09-09_dispatch-save-close_ui-01_modal_open.png
+- qa/2026-09-09_dispatch-save-close_ui-02_modal_closed_after_save.png

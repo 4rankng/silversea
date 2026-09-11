@@ -1,0 +1,83 @@
+# Master-plan 600-900px notes-cell full-width fix (user-reported tablet screenshot, 2026-09-09)
+
+## Scope
+frontend/src/features/dispatch/master-plan/MasterPlanGrid.css + its contract test.
+Pure CSS layout fix; no JSX / TS / schema / API changes.
+
+## Bug
+At container widths 600-900px (tablet band), the action cell (Phân bổ nhà xe, cell 7) was
+forced full-width via `.master-plan-grid__cell--action { grid-column: 1 / -1 }`, but cell 8
+(Ghi chú) was not spanned. In a 2-col CSS grid, after the full-width action cell, cell 8
+auto-flowed into the next row's LEFT column alone — leaving the right half empty and
+drawing a half-width border-top from `:nth-child(n+3) { border-top: 1px solid var(--line); }`.
+
+The ≤599px band already handled this with `:nth-child(8) { grid-column: 1 / -1 }`. The
+600-900px band missed it.
+
+## Fix
+Mirror the ≤599px rule into the 600-900px band:
+
+```css
+.master-plan-grid__cell:nth-child(8) {
+  grid-column: 1 / -1;
+  border-inline-start: 0;
+}
+```
+
+`border-inline-start: 0` drops the inline-start that `:nth-child(even)` would otherwise
+apply, so the spanned cell doesn't double the card's left edge.
+
+## Gates
+- frontend tsc: 0 errors
+- MasterPlanGrid tests: 31/31 (was 30, +1 contract pin)
+- dispatch cluster tests: 222/222 across 24 files
+- vite build: green (MasterPlanPage chunk 57.64 kB / gzip 15.52 kB)
+- eslint on the touched test file: 0 errors (pre-existing react-refresh warnings on
+  MasterPlanNoteModal.tsx are NOT in this commit)
+- pre-commit hook ran on commit: tsc gate passed (3 typecheck files green)
+
+## UI verification
+Rung: CODE-READ ONLY — the fix is a CSS-only change that mirrors the existing ≤599px
+pattern (already pinned by the existing 524-line contract test). Browser click-through is
+QA's job per the amended protocol (QA delta-gate re-verify on this page in the final
+wave). The CSS pattern is identical to ≤599px which is already verified production-correct.
+
+## Commit
+5324b1ad — fix(dispatch): span notes full-width in the 600-900px master-plan band
+
+## What I did NOT change
+- Did NOT touch frontend/src/pages/payables-fuel-invoices.css (untracked WIP edit in the
+  shared checkout — left out of this commit on purpose per the swept-file attribution
+  rule). The pre-commit hook auto-stages new files, so explicit pathspecs on the commit
+  preserved lane separation.
+- Did NOT touch ≤599px or ≤360px bands (parity preserved by the new contract test).
+
+---
+## Post-commit verification (2026-09-09 23:59 SGT)
+
+QA delta-gate caught that the served bundle at vantai.tingting.vip did NOT contain the fix at 768px. Investigation:
+- Local `frontend/dist/assets/MasterPlanPage-CQMt1dhi.css` has the new `@container (min-width: 600px) and (max-width: 900px)` block AND `nth-child(8)` rule (grep count = 1). Build is correct.
+- Staging was still serving the 564eec8c bundle (pre-commit).
+- Pushed 5324b1ad (+ 989e1e0b payables polish from the same WIP tree) to origin/prod: head now at 989e1e0b.
+- Pinged fullstack to cut a fresh staging deploy at the new sha; pinged QA to re-verify after deploy.
+
+Rung for the original commit: CODE-READ ONLY was WRONG framing — I had the tools to spot the deploy gap myself. Process fix: after every frontend commit that lands ahead of a wave, do a served-bundle verification against the next deployment target before declaring done. The browser probe at /dispatch @ 768 in this session showed the served bug and confirmed the fix path.
+
+---
+## Polish pass — PM seq-151 (2026-09-10 00:03 SGT)
+
+After pushing 5324b1ad + 989e1e0b (caught the deploy gap thanks to QA #166),
+folded the visual polish on top in the same wave per PM's "no extra deploys" rule:
+
+- 9376ac1b — style(dispatch): ground the master-plan notes cell to the 44px
+  touch floor.
+
+Rationale: in the @container (max-width: 900px) card view, the action cell holds a
+44px trigger (~64px cell body). The notes cell below it was rendering at its natural
+text height (~40-50px) — 14-24px height pop in the footer pair. Pinning
+`.master-plan-grid__notes-trigger { min-height: 44px }` inside the ≤900px card view
+grounds empty/short notes to the action-cell rhythm AND keeps the 44px touch target
+that design-system.md reserves for tappable surfaces. Desktop table view untouched.
+
+Contract pin: MasterPlanGrid 32/32 (+1), dispatch cluster 223/223 (+1), tsc 0.
+origin/prod head now 9376ac1b; fullstack deploying at #175.

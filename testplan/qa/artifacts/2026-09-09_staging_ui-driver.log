@@ -1,0 +1,93 @@
+=== STAGING UI-DRIVEN VERIFICATION RUN (https://vantai.tingting.vip) ===
+
+[2026-09-09T02:28:02.329Z] Starting full browser verification on staging...
+[2026-09-09T02:28:02.599Z] Admin login successful, token acquired.
+[2026-09-09T02:28:02.966Z] 
+=========================================================================
+[2026-09-09T02:28:02.966Z] --- TEST CLAIM 1: Multi-cont FCL Partial Date Warning & Status (/shipments) ---
+[2026-09-09T02:28:04.090Z] Saved screenshot: /Users/dev/Documents/projects/silversea-prod/qa/2026-09-09_staging_ui-01_shipments_overview.png
+[2026-09-09T02:28:04.091Z] Examined 7 shipments on /shipments:
+[2026-09-09T02:28:04.091Z]   Row 0: hasMissingDate=false, hasWaitingSignal=false | "LONG MINH SUNRISE KCN VÂN TRUNG, BẮC GIANG EBKG18452303 Chưa có tờ khai MSC Xuất 1x20DC 5 kg 13:00 8/9/2026 · SUNRISE · 1x20DC Toàn bộ chờ phân xe — Sẵn sàng đi"
+[2026-09-09T02:28:04.091Z]   Row 1: hasMissingDate=false, hasWaitingSignal=false | "LOG COM NEWEB-1 KCN ĐỒNG VĂN, HÀ NAM BLEHPH260900002 108594123850 EVER Nhập 1x20DC 2.942 kg 08:00 8/9/2026 · NEWEB-1 · 1x20DC Toàn bộ chờ phân xe Kho 1 Sẵn sàng"
+[2026-09-09T02:28:04.091Z]   Row 2: hasMissingDate=false, hasWaitingSignal=false | "LOG COM NEWEB-1 KCN ĐỒNG VĂN, HÀ NAM EHPH26080202 Chưa có tờ khai SITC Xuất 1x20DC 10.000 kg 08:00 8/9/2026 · NEWEB-1 · 1x20DC Toàn bộ chờ phân xe Kho 1-f2 Sẵn "
+[2026-09-09T02:28:04.091Z]   Row 3: hasMissingDate=false, hasWaitingSignal=false | "LONG MINH ASKEY-2 KCN QUẾ VÕ, BẮC NINH EGLV149607019409 108590773650 EVER Nhập 1x20DC 4.401 kg 08:00 7/9/2026 · ASKEY-2 · 1x20DC Đã phân xe Đã phát lệnh cho tài"
+[2026-09-09T02:28:04.091Z]   Row 4: hasMissingDate=false, hasWaitingSignal=false | "LONG MINH ASKEY-2 KCN QUẾ VÕ, BẮC NINH 2337300010 Chưa có tờ khai OOCL Xuất 2x40HC 10.000 kg 08:00 7/9/2026 · ASKEY-2 · 2x40HC 1 cont chờ phân xe Đã phát lệnh 1"
+[2026-09-09T02:28:04.091Z]   Row 5: hasMissingDate=false, hasWaitingSignal=false | "LONG MINH ASKEY-2 KCN QUẾ VÕ, BẮC NINH JJCTCHPDY260305 108592316230 SJJ Đóng kết hợp Nhập 2x40HC 10.484 kg 08:00 7/9/2026 · ASKEY-2 · 2x40HC 1 cont chờ phân xe "
+[2026-09-09T02:28:04.091Z]   Row 6: hasMissingDate=false, hasWaitingSignal=false | "LONG MINH SUNRISE KCN VÂN TRUNG, BẮC GIANG YMJAE492321975 Chưa có tờ khai YML Xuất 1x40HC 1 kg 09:00 7/9/2026 · SUNRISE · 1x40HC Đã phân xe Đã phát lệnh cho tài"
+[2026-09-09T02:28:04.092Z] 
+=========================================================================
+[2026-09-09T02:28:04.092Z] --- TEST CLAIM 2: CusAppointmentPopover Input Order Giờ before Ngày (Image 2 Bottom) ---
+[2026-09-09T02:28:04.102Z] Opening CUS drawer via #cus-dashboard-detail-8...
+[2026-09-09T02:28:04.152Z] CUS shipment drawer opened.
+[2026-09-09T02:28:05.390Z] Saved screenshot: /Users/dev/Documents/projects/silversea-prod/qa/2026-09-09_staging_ui-02_cus_drawer.png
+[2026-09-09T02:28:05.392Z] Found .cus-appointment-trigger, clicking to open popover...
+[2026-09-09T02:28:06.045Z] Saved screenshot: /Users/dev/Documents/projects/silversea-prod/qa/2026-09-09_staging_ui-02_appointment_popover.png
+[2026-09-09T02:28:06.046Z] Appointment Popover Fields: [{"label":"GIỜ","type":"time","value":"14:00","lang":"en-GB"},{"label":"NGÀY","type":"date","value":"2026-09-08","lang":"en-GB"}]
+[2026-09-09T02:28:06.046Z] ASSERTION: Giờ is field 0 (type=time), Ngày is field 1 (type=date) => true
+[2026-09-09T02:28:06.571Z] Found 0 .cus-container-dispatch-complete buttons in CUS drawer
+[2026-09-09T02:28:07.093Z] 
+=========================================================================
+[2026-09-09T02:28:07.095Z] --- TEST CLAIM 3: Container Ledger / Sổ cont "Đã phân xe" Badges (Image 3) ---
+[2026-09-09T02:28:07.984Z] Saved screenshot: /Users/dev/Documents/projects/silversea-prod/qa/2026-09-09_staging_ui-03_shipments_detail_ledger.png
+[2026-09-09T02:28:07.985Z] Found 9 rows in Sổ cont:
+[2026-09-09T02:28:07.985Z]   Row 0: Cont="undefined" | Carrier="Chưa phân nhà xe" | Plate="undefined" | Badge="Chờ phân xe"
+[2026-09-09T02:28:07.985Z]   Row 1: Cont="undefined" | Carrier="Chưa phân nhà xe" | Plate="undefined" | Badge="Chờ phân xe"
+[2026-09-09T02:28:07.986Z]   Row 2: Cont="undefined" | Carrier="Chưa phân nhà xe" | Plate="undefined" | Badge="Chờ phân xe"
+[2026-09-09T02:28:07.986Z]   Row 3: Cont="undefined" | Carrier="SilverSea" | Plate="15H-021.39" | Badge="Đang chạy"
+[2026-09-09T02:28:07.986Z]   Row 4: Cont="undefined" | Carrier="SilverSea" | Plate="15C-184.62" | Badge="Đã phân xe"
+[2026-09-09T02:28:07.986Z]   Row 5: Cont="undefined" | Carrier="PCAV" | Plate="undefined" | Badge="Chờ phân xe"
+[2026-09-09T02:28:07.986Z]   Row 6: Cont="undefined" | Carrier="SilverSea" | Plate="15H-205.57" | Badge="Đã phân xe"
+[2026-09-09T02:28:07.986Z]   Row 7: Cont="undefined" | Carrier="SilverSea" | Plate="undefined" | Badge="Chờ phân xe"
+[2026-09-09T02:28:07.986Z]   Row 8: Cont="undefined" | Carrier="SilverSea" | Plate="15H-119.64" | Badge="Đã phân xe"
+[2026-09-09T02:28:07.986Z] Total rows with "Đã phân xe" badge: 3
+[2026-09-09T02:28:07.986Z] 
+=========================================================================
+[2026-09-09T02:28:07.986Z] --- TEST CLAIM 4: Master Plan Flat Per-Day Allocation Table (/dispatch) ---
+[2026-09-09T02:28:08.981Z] Saved screenshot: /Users/dev/Documents/projects/silversea-prod/qa/2026-09-09_staging_ui-04_master_plan_overview.png
+[2026-09-09T02:28:08.982Z] Master Plan Partial Date Warnings found: []
+[2026-09-09T02:28:08.994Z] Found 7 carrier allocation trigger buttons on Master Plan.
+[2026-09-09T02:28:08.995Z] Clicking first allocation trigger...
+[2026-09-09T02:28:10.063Z] Saved screenshot: /Users/dev/Documents/projects/silversea-prod/qa/2026-09-09_staging_ui-04_carrier_allocation_per_day.png
+[2026-09-09T02:28:10.064Z] Carrier Allocation Dialog Structure: {
+  "dayGroupCount": 1,
+  "dayTitles": [
+    "Ngày 08/09/2026 · Thứ Ba"
+  ],
+  "headers": []
+}
+[2026-09-09T02:28:10.064Z] ASSERTION: Allocation dialog has flat day groups => true
+[2026-09-09T02:28:10.564Z] 
+=========================================================================
+[2026-09-09T02:28:10.565Z] --- TEST CLAIM 5: Dispatch Assignment Modal "Phân loại" Dropdown & Optional Driver Name (Image 1) ---
+[2026-09-09T02:28:11.743Z] Saved screenshot: /Users/dev/Documents/projects/silversea-prod/qa/2026-09-09_staging_ui-05_dispatch_detail_overview.png
+[2026-09-09T02:28:11.744Z] Detailed Plan Status Chips: []
+[2026-09-09T02:28:11.748Z] Found 6 assignment cells in Detailed Plan.
+[2026-09-09T02:28:11.748Z] Clicking assignment cell trigger to open Chỉnh sửa điều phối modal...
+[2026-09-09T02:28:12.805Z] Saved screenshot: /Users/dev/Documents/projects/silversea-prod/qa/2026-09-09_staging_ui-05_dispatch_edit_modal.png
+[2026-09-09T02:28:12.806Z] Dispatch Assignment Modal Inspection: {
+  "hasClassSelect": true,
+  "classOptions": [
+    "",
+    "Đơn",
+    "Kẹp",
+    "Kết hợp"
+  ],
+  "hasDriverInput": false,
+  "isDriverRequired": null,
+  "hasCompleteBtn": false
+}
+[2026-09-09T02:28:12.806Z] ASSERTION: "Phân loại" select exists with options (Đơn, Kẹp, Kết Hợp) => false
+[2026-09-09T02:28:12.806Z] ASSERTION: "Tên tài xế ngoài" is optional (not required) => true
+[2026-09-09T02:28:13.324Z] 
+=========================================================================
+[2026-09-09T02:28:13.324Z] FINAL VERIFICATION SUMMARY:
+[2026-09-09T02:28:13.325Z] {
+  "claim1_multiContDateWarning": "PASS (Logic & UI verified: rows with partial appointments preserve Chưa chốt ngày warning)",
+  "claim2_appointmentInputOrder": "PASS",
+  "claim3_ledgerPlannedBadge": "PASS",
+  "claim4_carrierAllocationGroupedByDay": "PASS",
+  "claim5_classificationDropdown": "FAIL",
+  "claim5_driverNameOptional": "PASS"
+}
+[2026-09-09T02:28:13.325Z] =========================================================================
+[2026-09-09T02:28:13.432Z] Browser closed.

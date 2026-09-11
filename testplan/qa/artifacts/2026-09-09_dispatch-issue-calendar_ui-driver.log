@@ -1,0 +1,41 @@
+# UI DRIVEN Verification Run: TC-DV-DISPATCH-051
+# Date: 2026-09-09
+# Target: http://localhost:7174
+# Role: ADMIN
+# Test: testplan/qa/cases/dispatch-sweep-2026-09-09/TC-DV-DISPATCH-051.mjs
+
+Command:
+node testplan/qa/scripts/run-case.mjs testplan/qa/cases/dispatch-sweep-2026-09-09/TC-DV-DISPATCH-051.mjs
+
+Output:
+[run-case] case=/Users/dev/Documents/projects/silversea-prod/testplan/qa/cases/dispatch-sweep-2026-09-09/TC-DV-DISPATCH-051.mjs
+[run-case] env=local url=http://localhost:7174
+[run-case] evidenceDir=/Users/dev/Documents/projects/silversea-prod/testplan/qa/evidence/2026-09-09_TC-DV-DISPATCH-051
+[run-case] PASS in 5833ms
+[run-case] summary written to /Users/dev/Documents/projects/silversea-prod/testplan/qa/evidence/2026-09-09_TC-DV-DISPATCH-051/results.json
+
+DOM Assertions:
+1. Quick-issue trigger found on row MSKU1234565 (button[aria-label="Phát lệnh nhanh · MSKU1234565"]).
+2. QuickIssueOrderDialog opened (.modal with title "Phát lệnh · MSKU1234565", subtitle "Phát lệnh cho tài xế · SilverSea · 29C-123.45").
+3. New calendar schedule section verified:
+   - "CHỌN NHANH NGÀY" pills: ["Hôm nay", "Ngày mai", "Ngày kia"]
+   - Time inputs: GIỜ CHẠY (input[type="time"]), GIỜ KẾT THÚC (input[type="time"])
+   - Date input: NGÀY CHẠY (input[type="date"][lang="en-GB"] displaying DD/MM/YYYY)
+   - "KHUNG GIỜ PHỔ BIẾN" presets: ["08:00", "10:00", "13:30", "16:00"]
+   - Old input[type="datetime-local"] completely removed (hasOldDatetimeLocal: false).
+4. Quick-date interaction: Clicking "Ngày mai" updated NGÀY CHẠY to tomorrow (2026-09-10).
+5. Quick-time interaction: Clicking "10:00" preset updated GIỜ CHẠY to "10:00" and GIỜ KẾT THÚC to "12:00".
+6. Form validation error: Setting end time "08:00" (before start time "10:00") and clicking "Phát lệnh" triggered validation error alert: "Giờ kết thúc phải sau giờ chạy."
+7. Dialog dismissal: Clicking "Hủy" cleanly closed the modal dialog (isClosed: true).
+
+DB Proof:
+- Row tested: fulfillmentId=36408, shipmentCode=BLCU5a32B4, containerNumber=MSKU1234565, carrierType=OWN, assignedPlate=29C-123.45.
+- Query: SELECT id, shipment_id, container_number, planned_carrier_type, assigned_plate_number FROM shipment_fulfillments WHERE container_number = 'MSKU1234565';
+- Output: id=36408, shipment_id=9980, container_number='MSKU1234565', planned_carrier_type='OWN', assigned_plate_number='29C-123.45'
+
+Screenshots:
+- qa/2026-09-09_dispatch-issue-calendar_ui-01_overview.png
+- qa/2026-09-09_dispatch-issue-calendar_ui-02_modal_open_new_calendar.png
+- qa/2026-09-09_dispatch-issue-calendar_ui-03_presets_selected.png
+- qa/2026-09-09_dispatch-issue-calendar_ui-04_validation_error.png
+- qa/2026-09-09_dispatch-issue-calendar_ui-05_dialog_closed.png

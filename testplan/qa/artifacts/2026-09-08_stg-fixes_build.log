@@ -1,0 +1,323 @@
+pnpm --dir shared build
+
+> @tingting/shared@0.1.0 build /Users/dev/Documents/projects/silversea-prod/shared
+> tsc && node fix-esm-imports.js
+
+Fixed 1 bare imports in /Users/dev/Documents/projects/silversea-prod/shared/dist
+pnpm --dir backend build
+
+> @tingting/backend@0.1.0 prebuild /Users/dev/Documents/projects/silversea-prod/backend
+> pnpm --dir ../shared build
+
+
+> @tingting/shared@0.1.0 build /Users/dev/Documents/projects/silversea-prod/shared
+> tsc && node fix-esm-imports.js
+
+Fixed 0 bare imports in /Users/dev/Documents/projects/silversea-prod/shared/dist
+
+> @tingting/backend@0.1.0 build /Users/dev/Documents/projects/silversea-prod/backend
+> tsc -p tsconfig.build.json && node fix-esm-imports.js
+
+Fixed 124 bare imports in /Users/dev/Documents/projects/silversea-prod/backend/dist
+pnpm --dir frontend build
+
+> @tingting/frontend@0.1.0 build /Users/dev/Documents/projects/silversea-prod/frontend
+> vite build
+
+vite v6.4.3 building for production...
+transforming...
+✓ 4881 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                            2.31 kB │ gzip:   0.93 kB
+dist/assets/CustomersPage-i-lZtH0G.css                     0.25 kB │ gzip:   0.17 kB
+dist/assets/Money-tgS0Dch5.css                             0.26 kB │ gzip:   0.19 kB
+dist/assets/PhotoViewer-wCVc5Kjd.css                       0.31 kB │ gzip:   0.22 kB
+dist/assets/CarrierAllocationSummary-aQrwfNbW.css          0.87 kB │ gzip:   0.31 kB
+dist/assets/operational-table-typography-Ch7zo45A.css      1.27 kB │ gzip:   0.25 kB
+dist/assets/ShipmentContainerCell-DEqSZeUS.css             1.46 kB │ gzip:   0.53 kB
+dist/assets/useGeolocation-DX61K0W9.css                    1.85 kB │ gzip:   0.63 kB
+dist/assets/TreasuryPositionPage-CEbJ_u-j.css              2.38 kB │ gzip:   0.67 kB
+dist/assets/ConfigPage-pGVU9eoJ.css                        2.59 kB │ gzip:   0.86 kB
+dist/assets/driver-2DKMumT3.css                            2.97 kB │ gzip:   0.97 kB
+dist/assets/record-table-zxvR6LJ3.css                      3.05 kB │ gzip:   1.02 kB
+dist/assets/DispatchPlanPage-DfyKOdn8.css                  3.06 kB │ gzip:   0.95 kB
+dist/assets/catalogs-DBXowrEd.css                          3.11 kB │ gzip:   1.00 kB
+dist/assets/HeroKpiRow-D0_uPXQz.css                        3.28 kB │ gzip:   1.07 kB
+dist/assets/AdminCenterPage-Djj06H2w.css                   3.88 kB │ gzip:   0.98 kB
+dist/assets/DriverTripDetailPage-CMrpHKdq.css              4.28 kB │ gzip:   1.13 kB
+dist/assets/DriverTripsPage-Bh9Udo6X.css                   4.47 kB │ gzip:   1.19 kB
+dist/assets/SalaryPeriodConfigPage-D2TasUMj.css            4.65 kB │ gzip:   1.36 kB
+dist/assets/ExpenseEntryPage-OO3KcX02.css                  4.70 kB │ gzip:   1.38 kB
+dist/assets/AuditLogPage-CtesgnM6.css                      5.11 kB │ gzip:   1.39 kB
+dist/assets/SupplierListPage-DPE-Rn6o.css                  5.35 kB │ gzip:   1.44 kB
+dist/assets/DebtListPage-Dnc-nW1G.css                      6.06 kB │ gzip:   1.75 kB
+dist/assets/ForwarderAdvancesPage-CY80SFPe.css             6.10 kB │ gzip:   1.67 kB
+dist/assets/DriverPenaltyPage-jJsLCrvV.css                 6.63 kB │ gzip:   1.48 kB
+dist/assets/DriverTripPodPage-CRbc7XiU.css                 7.72 kB │ gzip:   1.89 kB
+dist/assets/LoginPage-D-Lg6yKH.css                         8.38 kB │ gzip:   2.40 kB
+dist/assets/TripEditPage-COunl64Y.css                      8.46 kB │ gzip:   2.27 kB
+dist/assets/CreditOverrideQueuePage-x5QUJe3I.css           8.55 kB │ gzip:   1.84 kB
+dist/assets/ForwarderTripDetailPage-DhWn1AHo.css           8.56 kB │ gzip:   2.04 kB
+dist/assets/DriverEarningsPage-BcQZltR1.css                8.75 kB │ gzip:   1.98 kB
+dist/assets/ExpenseListPage-BDsqIcB6.css                   8.76 kB │ gzip:   2.18 kB
+dist/assets/RoleWorkInbox-Bd1rhFKX.css                     9.01 kB │ gzip:   2.02 kB
+dist/assets/SettlementPrintPage-Cux18H8O.css               9.37 kB │ gzip:   2.20 kB
+dist/assets/RecoverableCostsPage-B-2zhUPs.css              9.64 kB │ gzip:   1.98 kB
+dist/assets/ShipmentDetailPage-DmuIKHWs.css                9.87 kB │ gzip:   2.02 kB
+dist/assets/GovernanceActionsPage-LvKEEsCX.css             9.99 kB │ gzip:   2.08 kB
+dist/assets/WorkflowFinance-DVwMpwxj.css                  10.46 kB │ gzip:   2.06 kB
+dist/assets/TripCreatePage-JT1zJEAf.css                   11.08 kB │ gzip:   2.46 kB
+dist/assets/DriverTripDetailPage-CLKVp6id.css             11.48 kB │ gzip:   2.37 kB
+dist/assets/ProfitPage-QWF5W0lP.css                       11.67 kB │ gzip:   2.21 kB
+dist/assets/FinancePage-BHrGarFv.css                      12.49 kB │ gzip:   2.87 kB
+dist/assets/PayableListPage-DNX6h4bu.css                  13.45 kB │ gzip:   2.87 kB
+dist/assets/AccountingWorkspacePage-B3LOoKcm.css          14.35 kB │ gzip:   2.69 kB
+dist/assets/ForwarderSettlementsPage-CvwK01QX.css         15.05 kB │ gzip:   3.13 kB
+dist/assets/PortalPages-XuHi3xKx.css                      15.49 kB │ gzip:   3.20 kB
+dist/assets/TruckTiresPage-Dr5xqrb5.css                   17.56 kB │ gzip:   3.80 kB
+dist/assets/UsersPage-C2IEi47E.css                        18.81 kB │ gzip:   3.75 kB
+dist/assets/config-page-uoUm5anp.css                      19.97 kB │ gzip:   4.13 kB
+dist/assets/constants-BmqFFvaX.css                        20.20 kB │ gzip:   3.73 kB
+dist/assets/ClerkShipmentCreatePage-Ca9KerdY.css          20.63 kB │ gzip:   4.20 kB
+dist/assets/PenaltyPage-6JK34Wk1.css                      21.58 kB │ gzip:   3.80 kB
+dist/assets/TripForm-CyBRJxX-.css                         22.31 kB │ gzip:   4.43 kB
+dist/assets/TripDetailPage-BPjPL4rf.css                   23.94 kB │ gzip:   5.26 kB
+dist/assets/SalaryAttendancePage-BT2mNQnd.css             27.46 kB │ gzip:   5.38 kB
+dist/assets/AdvanceWorkspacePage-iXQzecSg.css             27.93 kB │ gzip:   4.39 kB
+dist/assets/MasterPlanPage-BQGkItkR.css                   30.56 kB │ gzip:   5.42 kB
+dist/assets/ShipmentContainersPage-DdDRLkhO.css           31.46 kB │ gzip:   4.89 kB
+dist/assets/DispatchDetailPlanPage-Bry_K-Od.css           32.99 kB │ gzip:   5.51 kB
+dist/assets/DebitNoteTemplateEditorPage-CCpS46Rt.css      34.17 kB │ gzip:   5.78 kB
+dist/assets/DashboardPage-AqADT-tp.css                    41.61 kB │ gzip:   7.21 kB
+dist/assets/TripListPage-z_zQJ14H.css                     42.34 kB │ gzip:   7.02 kB
+dist/assets/ShipmentsPage-Bt3KLbdp.css                    44.38 kB │ gzip:   7.66 kB
+dist/assets/PeriodSummaryCards-zbI-KH-u.css               49.80 kB │ gzip:   8.52 kB
+dist/assets/index-Bpp8Ea4O.css                           346.54 kB │ gzip:  56.33 kB
+dist/assets/Breadcrumbs-Bnvm1v27.js                        0.04 kB │ gzip:   0.06 kB
+dist/assets/index-B2MRi5gO.js                              0.08 kB │ gzip:   0.10 kB
+dist/assets/expenseCatalogs-YK3wo1OL.js                    0.09 kB │ gzip:   0.10 kB
+dist/assets/company-info-qSx_PltV.js                       0.11 kB │ gzip:   0.12 kB
+dist/assets/tripStatus-DVtu-Uzb.js                         0.16 kB │ gzip:   0.14 kB
+dist/assets/governance-DX8vO2l5.js                         0.16 kB │ gzip:   0.16 kB
+dist/assets/round-CFmSqWfU.js                              0.17 kB │ gzip:   0.15 kB
+dist/assets/Field-BZfuYV-z.js                              0.18 kB │ gzip:   0.16 kB
+dist/assets/useCatalogs-CBe7WJ0v.js                        0.22 kB │ gzip:   0.20 kB
+dist/assets/InlineForm-DDTxzPny.js                         0.22 kB │ gzip:   0.20 kB
+dist/assets/moneyInput-h-t6GBWC.js                         0.24 kB │ gzip:   0.19 kB
+dist/assets/check-DbvxSQGh.js                              0.30 kB │ gzip:   0.24 kB
+dist/assets/chevron-left-D3KZsNpl.js                       0.30 kB │ gzip:   0.25 kB
+dist/assets/loader-circle-BopXmddq.js                      0.31 kB │ gzip:   0.26 kB
+dist/assets/plus-D8_GCKn4.js                               0.32 kB │ gzip:   0.25 kB
+dist/assets/arrow-right-abrgT6aE.js                        0.33 kB │ gzip:   0.26 kB
+dist/assets/trending-up-C6epgBx8.js                        0.34 kB │ gzip:   0.27 kB
+dist/assets/useDirtyGuard-BqUO51qO.js                      0.34 kB │ gzip:   0.24 kB
+dist/assets/search-Badc-Wqg.js                             0.35 kB │ gzip:   0.27 kB
+dist/assets/circle-check-BRKxtykC.js                       0.35 kB │ gzip:   0.27 kB
+dist/assets/trending-down-e3-Q0Z6B.js                      0.35 kB │ gzip:   0.27 kB
+dist/assets/clock-DUgnJHSQ.js                              0.36 kB │ gzip:   0.28 kB
+dist/assets/clock-3-DpJK0upm.js                            0.36 kB │ gzip:   0.28 kB
+dist/assets/rotate-ccw-k7yO1qzw.js                         0.37 kB │ gzip:   0.29 kB
+dist/assets/credit-card-KKPXsnnz.js                        0.38 kB │ gzip:   0.29 kB
+dist/assets/upload-DNwAzxnb.js                             0.40 kB │ gzip:   0.29 kB
+dist/assets/ellipsis-DSAxnEP4.js                           0.40 kB │ gzip:   0.27 kB
+dist/assets/download-Dei-G1ag.js                           0.40 kB │ gzip:   0.29 kB
+dist/assets/history-Ce6D4stt.js                            0.41 kB │ gzip:   0.30 kB
+dist/assets/ellipsis-vertical-BJTfRNOf.js                  0.41 kB │ gzip:   0.28 kB
+dist/assets/copy-C-MnyCte.js                               0.41 kB │ gzip:   0.31 kB
+dist/assets/arrow-up-down-DVpbJbEc.js                      0.41 kB │ gzip:   0.30 kB
+dist/assets/photo-C-DP0Eo0.js                              0.41 kB │ gzip:   0.25 kB
+dist/assets/banknote-CHwYnNdC.js                           0.42 kB │ gzip:   0.31 kB
+dist/assets/Money-VuLjk_0g.js                              0.42 kB │ gzip:   0.27 kB
+dist/assets/camera-CbLnTrzP.js                             0.42 kB │ gzip:   0.31 kB
+dist/assets/circle-dollar-sign-CerkmHZs.js                 0.42 kB │ gzip:   0.31 kB
+dist/assets/external-link-BnaUTlH6.js                      0.42 kB │ gzip:   0.30 kB
+dist/assets/settings-2-CCzkCV4D.js                         0.43 kB │ gzip:   0.30 kB
+dist/assets/eye-C6Xnfhxc.js                                0.43 kB │ gzip:   0.31 kB
+dist/assets/file-check-2-D9t5vFYo.js                       0.43 kB │ gzip:   0.30 kB
+dist/assets/map-pin-BU8XO5jk.js                            0.43 kB │ gzip:   0.33 kB
+dist/assets/zap-R1dAz4Q4.js                                0.44 kB │ gzip:   0.31 kB
+dist/assets/image-BdZns8bx.js                              0.44 kB │ gzip:   0.33 kB
+dist/assets/pencil-BOmx9ZJP.js                             0.45 kB │ gzip:   0.33 kB
+dist/assets/SummaryRail-qC-q7wML.js                        0.46 kB │ gzip:   0.30 kB
+dist/assets/send-B0ykUcFn.js                               0.46 kB │ gzip:   0.34 kB
+dist/assets/hash-DimIifex.js                               0.47 kB │ gzip:   0.30 kB
+dist/assets/badge-check-0Cwc9PQS.js                        0.49 kB │ gzip:   0.32 kB
+dist/assets/userClient-BtrwMsei.js                         0.49 kB │ gzip:   0.26 kB
+dist/assets/table-sort-Dv1NivTJ.js                         0.49 kB │ gzip:   0.30 kB
+dist/assets/printer-DPhk_yzU.js                            0.49 kB │ gzip:   0.34 kB
+dist/assets/shield-check-CIHn6GVy.js                       0.49 kB │ gzip:   0.36 kB
+dist/assets/refresh-cw-Bm1OmpI8.js                         0.49 kB │ gzip:   0.33 kB
+dist/assets/refresh-ccw-CUudCH1D.js                        0.49 kB │ gzip:   0.33 kB
+dist/assets/tag-DeGF5PiZ.js                                0.50 kB │ gzip:   0.35 kB
+dist/assets/save-CvR5eCrQ.js                               0.50 kB │ gzip:   0.33 kB
+dist/assets/package-2-NNdoY3O_.js                          0.51 kB │ gzip:   0.35 kB
+dist/assets/shield-alert-BVP4LqAV.js                       0.53 kB │ gzip:   0.37 kB
+dist/assets/trash-2-3LI9jKLG.js                            0.53 kB │ gzip:   0.36 kB
+dist/assets/fuel-BvJi3yaI.js                               0.54 kB │ gzip:   0.35 kB
+dist/assets/file-spreadsheet-fwrab_AX.js                   0.55 kB │ gzip:   0.33 kB
+dist/assets/shuffle-BkstuSQg.js                            0.56 kB │ gzip:   0.35 kB
+dist/assets/calendar-clock-CxHFdnrb.js                     0.56 kB │ gzip:   0.36 kB
+dist/assets/octagon-alert-Bs_0hB6P.js                      0.60 kB │ gzip:   0.35 kB
+dist/assets/eye-off-nuLffsg-.js                            0.60 kB │ gzip:   0.38 kB
+dist/assets/ForwarderTripsPage-ClzAGXN6.js                 0.61 kB │ gzip:   0.44 kB
+dist/assets/building-2-C2rI3X1S.js                         0.61 kB │ gzip:   0.35 kB
+dist/assets/arrow-up-BqOTwHdL.js                           0.62 kB │ gzip:   0.32 kB
+dist/assets/ClickableCard-CpSFErM6.js                      0.63 kB │ gzip:   0.38 kB
+dist/assets/useCounterAnimation-B65Is4Ts.js                0.63 kB │ gzip:   0.43 kB
+dist/assets/image-off-D0KyLG7l.js                          0.64 kB │ gzip:   0.40 kB
+dist/assets/star-CP4mbCaw.js                               0.65 kB │ gzip:   0.40 kB
+dist/assets/PortalShipmentsPage-BPTkiZKr.js                0.67 kB │ gzip:   0.46 kB
+dist/assets/useBackShortcut-BcL8RO6W.js                    0.70 kB │ gzip:   0.45 kB
+dist/assets/SortHeader-Cb8i3ExG.js                         0.74 kB │ gzip:   0.43 kB
+dist/assets/cap-table-D-EbwnMC.js                          0.86 kB │ gzip:   0.40 kB
+dist/assets/AccountingLockBanner-B2nU4WWB.js               0.91 kB │ gzip:   0.60 kB
+dist/assets/DispatchIssueStatus-BAFOHPPD.js                0.92 kB │ gzip:   0.53 kB
+dist/assets/StatusStrip-Pe0lANDB.js                        0.95 kB │ gzip:   0.44 kB
+dist/assets/usePageAnimations-D1us0MJc.js                  0.98 kB │ gzip:   0.54 kB
+dist/assets/Skeleton-CgSr8ILe.js                           0.98 kB │ gzip:   0.49 kB
+dist/assets/Badge-DNd6sW23.js                              1.00 kB │ gzip:   0.51 kB
+dist/assets/useListAnimations-BTSNTZKB.js                  1.05 kB │ gzip:   0.58 kB
+dist/assets/TextField-pym5H6sG.js                          1.12 kB │ gzip:   0.49 kB
+dist/assets/FormActions-BkKCKC3Z.js                        1.13 kB │ gzip:   0.60 kB
+dist/assets/ForwarderSettlementsPage-Ck-UWTL6.js           1.21 kB │ gzip:   0.64 kB
+dist/assets/shipment-operations-DQSsSNYS.js                1.25 kB │ gzip:   0.67 kB
+dist/assets/useDashboardQueries-BqubGOBj.js                1.27 kB │ gzip:   0.54 kB
+dist/assets/useTableQueryState-Bk8uVhf4.js                 1.27 kB │ gzip:   0.67 kB
+dist/assets/Tabs-BuXuiIdG.js                               1.28 kB │ gzip:   0.71 kB
+dist/assets/ShipmentContainerCell-BvLl-6hI.js              1.36 kB │ gzip:   0.73 kB
+dist/assets/Pagination-3jQk1Gr6.js                         1.56 kB │ gzip:   0.77 kB
+dist/assets/useCRUD-C6cSYKrp.js                            1.64 kB │ gzip:   0.81 kB
+dist/assets/EntityFormParts-C_O5cCaM.js                    1.69 kB │ gzip:   0.79 kB
+dist/assets/useTireQueries-Dqf6u4Ng.js                     1.73 kB │ gzip:   0.62 kB
+dist/assets/textarea-CF1BEANp.js                           1.81 kB │ gzip:   0.94 kB
+dist/assets/useFocusDeepLink-CaEzyAco.js                   1.84 kB │ gzip:   1.07 kB
+dist/assets/iso6346-rE2izBiH.js                            1.85 kB │ gzip:   0.98 kB
+dist/assets/dispatchPlanningClient-Ygw3Vk4O.js             1.88 kB │ gzip:   0.61 kB
+dist/assets/CargoTypesConfigPage-BX5q2GnB.js               1.94 kB │ gzip:   1.07 kB
+dist/assets/useSearchableSelectPosition-D7LQpUYe.js        1.95 kB │ gzip:   0.82 kB
+dist/assets/format-DRqx0L28.js                             2.02 kB │ gzip:   0.83 kB
+dist/assets/TirePositionsConfigPage-BIWdXVQq.js            2.02 kB │ gzip:   1.11 kB
+dist/assets/customerServiceFinanceClient-CSbAuc06.js       2.14 kB │ gzip:   0.79 kB
+dist/assets/catalogs-OloAocB-.js                           2.15 kB │ gzip:   0.94 kB
+dist/assets/credit-override-permissions-B7HwRlIM.js        2.18 kB │ gzip:   0.72 kB
+dist/assets/EmptyState-DsTBILH4.js                         2.27 kB │ gzip:   0.62 kB
+dist/assets/DriverTripDetailPage-BjSNAD5T.js               2.35 kB │ gzip:   1.29 kB
+dist/assets/audit-helpers-C03wXmPV.js                      2.38 kB │ gzip:   1.28 kB
+dist/assets/CarrierAllocationSummary-CxEUYmz9.js           2.53 kB │ gzip:   1.17 kB
+dist/assets/WeightPricingTiersConfigPage-C4GbxzMN.js       2.55 kB │ gzip:   1.17 kB
+dist/assets/TrucksConfigPage-DBdlnbmq.js                   2.65 kB │ gzip:   1.36 kB
+dist/assets/confirm-dialog-CuFomTBF.js                     2.71 kB │ gzip:   1.33 kB
+dist/assets/AdminCenterPage-Dg8sq6IN.js                    2.74 kB │ gzip:   1.33 kB
+dist/assets/TrailersConfigPage-DiIEIxW5.js                 2.88 kB │ gzip:   1.37 kB
+dist/assets/AncillaryRevenueConfigPage-zuLMsHQT.js         2.92 kB │ gzip:   1.41 kB
+dist/assets/RoadAllowancesConfigPage-Bhvo7g67.js           3.01 kB │ gzip:   1.51 kB
+dist/assets/useFinancialQueries-Si8mh_yC.js                3.27 kB │ gzip:   1.11 kB
+dist/assets/BusinessCalendarConfigPage-CX3HJevQ.js         3.37 kB │ gzip:   1.66 kB
+dist/assets/forwarderClient-EOANqamJ.js                    3.40 kB │ gzip:   1.17 kB
+dist/assets/salaryClient-CAVbBv7D.js                       3.44 kB │ gzip:   0.92 kB
+dist/assets/DriverFormModal-DMmBcrOb.js                    3.59 kB │ gzip:   1.36 kB
+dist/assets/LiftPricingConfigPage-5EQny4Wn.js              3.66 kB │ gzip:   1.58 kB
+dist/assets/ExpenseCategoriesConfigPage-RRFqlPp7.js        3.80 kB │ gzip:   1.62 kB
+dist/assets/DriverPayslipsPage-BfUKlHf9.js                 3.94 kB │ gzip:   1.60 kB
+dist/assets/CrudTable-qWh4sJhH.js                          4.15 kB │ gzip:   1.86 kB
+dist/assets/PricingTablesConfigPage-RAwtUmLr.js            4.28 kB │ gzip:   1.80 kB
+dist/assets/DebitNoteTemplatesConfigPage-Bi6P1X3s.js       4.30 kB │ gzip:   1.81 kB
+dist/assets/CapTableConfigPage-DIZOKJsH.js                 4.30 kB │ gzip:   2.00 kB
+dist/assets/TreasuryPositionPage-Crg0uGvN.js               4.49 kB │ gzip:   1.84 kB
+dist/assets/FuelNormsConfigPage-CYmxxNAy.js                4.69 kB │ gzip:   1.88 kB
+dist/assets/PhotoViewer-Dfgwjmep.js                        4.71 kB │ gzip:   2.04 kB
+dist/assets/LoginPage-DVBGYHlQ.js                          4.85 kB │ gzip:   1.90 kB
+dist/assets/useForwarderQueries-BkQnkW1I.js                4.88 kB │ gzip:   0.97 kB
+dist/assets/RevenueTrendChart-CvE4i9Zp.js                  4.97 kB │ gzip:   2.11 kB
+dist/assets/FleetDriversPage-DlkQo5Di.js                   5.12 kB │ gzip:   2.08 kB
+dist/assets/DriverTripsPage-Y-SYTHXk.js                    5.22 kB │ gzip:   1.96 kB
+dist/assets/TripExpenseConfigPage-DlDVNzTf.js              5.22 kB │ gzip:   1.82 kB
+dist/assets/SalaryPeriodConfigPage-ZUALZFpd.js             5.26 kB │ gzip:   2.04 kB
+dist/assets/DispatchSuppliersPage-CTh84o0E.js              5.33 kB │ gzip:   2.41 kB
+dist/assets/shipmentClient-Cj8u_82p.js                     5.37 kB │ gzip:   1.36 kB
+dist/assets/useGeolocation-YOp_6lYY.js                     5.58 kB │ gzip:   2.11 kB
+dist/assets/ContainerScanner-CoB7oNoR.js                   5.98 kB │ gzip:   2.65 kB
+dist/assets/ConfigPage-BEAwjA8X.js                         6.14 kB │ gzip:   2.38 kB
+dist/assets/cusUtils-DlqILBP8.js                           6.27 kB │ gzip:   2.85 kB
+dist/assets/csv-CNDth1yJ.js                                6.28 kB │ gzip:   2.86 kB
+dist/assets/constants-mRAQgjj9.js                          6.31 kB │ gzip:   2.58 kB
+dist/assets/DriverTwoOrdersPage-3UYBmHxW.js                6.39 kB │ gzip:   2.36 kB
+dist/assets/SearchableSelect-CRc8lNai.js                   6.41 kB │ gzip:   2.56 kB
+dist/assets/DriverPenaltyPage-BrPOUWVM.js                  6.76 kB │ gzip:   2.40 kB
+dist/assets/roleCommandSender-BnAmaC7-.js                  7.22 kB │ gzip:   2.69 kB
+dist/assets/useSalaryQueries-WWAwPiLA.js                   7.40 kB │ gzip:   1.17 kB
+dist/assets/FleetVehiclesPage-BclmCSGK.js                  7.70 kB │ gzip:   3.05 kB
+dist/assets/TruckOwnersConfigPage-tOHO1Y6w.js              7.81 kB │ gzip:   3.21 kB
+dist/assets/CompanyInfoConfigPage-CdNyrO_e.js              7.88 kB │ gzip:   2.69 kB
+dist/assets/ForwarderSettlementsPage-C-jD0tyY.js           7.90 kB │ gzip:   2.83 kB
+dist/assets/PortalStatementPage-BQcaDLpm.js                7.92 kB │ gzip:   2.67 kB
+dist/assets/PortalShipmentDetailPage-QnDOJags.js           8.12 kB │ gzip:   2.74 kB
+dist/assets/FuelEvidenceReviewPage-DQVrUmLL.js             8.21 kB │ gzip:   3.15 kB
+dist/assets/PortalDebitNotesPage-YuLusYqC.js               8.64 kB │ gzip:   3.18 kB
+dist/assets/FuelConfigPage-B83hRJSW.js                     8.92 kB │ gzip:   2.88 kB
+dist/assets/DispatchPlanPage-BrtnizzS.js                   8.93 kB │ gzip:   3.38 kB
+dist/assets/RoutesConfigPage-CBjMj35-.js                   8.98 kB │ gzip:   3.45 kB
+dist/assets/PortsConfigPage-Cv3lQ-U-.js                    8.98 kB │ gzip:   2.82 kB
+dist/assets/ExpenseListPage-CnEWdgic.js                    9.30 kB │ gzip:   3.32 kB
+dist/assets/DriverEarningsPage-BTGEa_K5.js                 9.73 kB │ gzip:   2.87 kB
+dist/assets/ForwarderAdvancesPage-CziPdj6j.js              9.80 kB │ gzip:   3.08 kB
+dist/assets/ForwarderExpenseTypesConfigPage-CNLmODzU.js   10.39 kB │ gzip:   3.55 kB
+dist/assets/FactoriesConfigPage-BEvWRZQ1.js               10.60 kB │ gzip:   3.59 kB
+dist/assets/MasterDataImportPage-cKnV3fRe.js              10.70 kB │ gzip:   3.70 kB
+dist/assets/OperationalSiteCreateDialog-gJn1r_D1.js       11.91 kB │ gzip:   4.18 kB
+dist/assets/ForwarderSettlementCreatePage-B-k_VNwc.js     13.19 kB │ gzip:   4.14 kB
+dist/assets/DebtListPage-CcksObyi.js                      13.91 kB │ gzip:   4.89 kB
+dist/assets/GovernanceActionsPage-DYpDXNdf.js             14.33 kB │ gzip:   5.00 kB
+dist/assets/AncillaryFeesCard-CUw4pd6J.js                 14.45 kB │ gzip:   4.23 kB
+dist/assets/CreditOverrideQueuePage-B_VCW4YS.js           14.72 kB │ gzip:   4.56 kB
+dist/assets/RoleWorkInbox-DdQMpq5F.js                     14.77 kB │ gzip:   5.35 kB
+dist/assets/AuditLogPage-DTBrEDrV.js                      15.19 kB │ gzip:   5.37 kB
+dist/assets/SupplierListPage-G51xESA-.js                  16.42 kB │ gzip:   5.48 kB
+dist/assets/PenaltyReasonsConfigPage-BkQqLlHj.js          16.44 kB │ gzip:   5.28 kB
+dist/assets/DriverTripPodPage-Y3Xpma7u.js                 16.49 kB │ gzip:   5.58 kB
+dist/assets/SettlementPrintPage-DQFWJjfz.js               16.91 kB │ gzip:   5.10 kB
+dist/assets/CustomersPage-DxWM-HIf.js                     17.80 kB │ gzip:   6.12 kB
+dist/assets/CustomersConfigPage-DO63sd_Q.js               19.73 kB │ gzip:   6.25 kB
+dist/assets/PayableDetailPage-Dd-KRWmE.js                 21.90 kB │ gzip:   6.45 kB
+dist/assets/driver.js-CK928fzB.js                         22.53 kB │ gzip:   6.55 kB
+dist/assets/RecoverableCostsPage-dGHOYLkF.js              23.00 kB │ gzip:   7.69 kB
+dist/assets/ExpenseEntryPage-BnOSuY4M.js                  23.05 kB │ gzip:   6.97 kB
+dist/assets/ProfitPage-DmU_IRQq.js                        23.51 kB │ gzip:   6.93 kB
+dist/assets/AdvanceWorkspacePage-DplrskdV.js              26.06 kB │ gzip:   6.96 kB
+dist/assets/AccountingWorkspacePage-3vLIk1EV.js           26.09 kB │ gzip:   8.56 kB
+dist/assets/PenaltyPage-BzoxEzv5.js                       29.14 kB │ gzip:   9.16 kB
+dist/assets/DriverTripDetailPage-BM2ztKzs.js              29.16 kB │ gzip:   9.42 kB
+dist/assets/PeriodSummaryCards-CK3-zOqN.js                29.97 kB │ gzip:   9.29 kB
+dist/assets/DebtDetailPage-CjAqQOqY.js                    30.16 kB │ gzip:   9.10 kB
+dist/assets/ShipmentDetailPage-DnbG6_K1.js                30.73 kB │ gzip:   8.94 kB
+dist/assets/DebitNoteTemplateEditorPage--hWVDZAw.js       31.63 kB │ gzip:   8.68 kB
+dist/assets/AppSettingsConfigPage-B8oOVf-P.js             34.24 kB │ gzip:   8.95 kB
+dist/assets/TripCreatePage-u3L67EUH.js                    37.73 kB │ gzip:  10.73 kB
+dist/assets/TruckTiresPage-BanewkUN.js                    38.00 kB │ gzip:  10.02 kB
+dist/assets/FleetPage-DTwzKA2g.js                         38.05 kB │ gzip:   7.75 kB
+dist/assets/ForwarderTripDetailPage-C_M1Z4eO.js           39.59 kB │ gzip:  12.14 kB
+dist/assets/UsersPage-DS4OYENL.js                         40.51 kB │ gzip:  11.40 kB
+dist/assets/TripEditPage-DtYlgyVm.js                      41.07 kB │ gzip:  11.20 kB
+dist/assets/TripDetailPage-UtCdvD0-.js                    41.36 kB │ gzip:  11.70 kB
+dist/assets/vendor-anim-g6q4TpDu.js                       41.97 kB │ gzip:  15.75 kB
+dist/assets/DashboardPage-BBJSyKPT.js                     45.30 kB │ gzip:  14.47 kB
+dist/assets/FinancePage-CWLwNQkQ.js                       45.57 kB │ gzip:  11.89 kB
+dist/assets/PayableListPage-FOeTAFJ0.js                   45.84 kB │ gzip:  12.37 kB
+dist/assets/SalaryAttendancePage-BgDNaNwc.js              48.45 kB │ gzip:  12.15 kB
+dist/assets/ShipmentContainersPage-krz__G7L.js            49.32 kB │ gzip:  13.41 kB
+dist/assets/ClerkShipmentCreatePage-CgKBOWwh.js           51.55 kB │ gzip:  14.00 kB
+dist/assets/MasterPlanPage-WatiqRZH.js                    52.73 kB │ gzip:  14.66 kB
+dist/assets/DispatchDetailPlanPage-Dv0-M5hI.js            57.03 kB │ gzip:  15.34 kB
+dist/assets/TripForm-DmmmjnnX.js                          63.70 kB │ gzip:  18.79 kB
+dist/assets/ShipmentsPage-C2UtkeFP.js                     70.78 kB │ gzip:  19.54 kB
+dist/assets/TripListPage-DUX9eY9L.js                      90.79 kB │ gzip:  25.81 kB
+dist/assets/vendor-react-CXN32SaQ.js                     280.28 kB │ gzip:  88.22 kB
+dist/assets/index-D0SomYct.js                            646.39 kB │ gzip: 185.19 kB
+dist/assets/exceljs.min-DVh3W5Fc.js                      940.20 kB │ gzip: 271.34 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 7.16s
