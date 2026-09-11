@@ -17,7 +17,7 @@
  */
 import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { inArray } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 
 import { client, db } from '../db';
 import * as s from '../db/schema';
@@ -99,6 +99,7 @@ async function mkLeg(tripId: number, sequence: number, loadingType: 'HANG' | 'VO
 async function mkContainerTrip(args: {
   driverId: number; customerId: number; routeId: number; cargoTypeId: number;
   containerTypeId: number; siteId: number; notes: string | null; factoryName: string | null;
+  tripStatus?: 'CREATED' | 'IN_TRANSIT' | 'COMPLETED';
 }) {
   const [shipment] = await db.insert(s.shipments).values({
     customerId: args.customerId,
@@ -133,7 +134,7 @@ async function mkContainerTrip(args: {
     customerId: args.customerId,
     routeId: args.routeId,
     cargoTypeId: args.cargoTypeId,
-    status: 'CREATED',
+    status: args.tripStatus ?? 'CREATED',
     departureDate: new Date().toISOString().slice(0, 10),
     shipmentId: shipment.id,
     fulfillmentId: fulfillment.id,
@@ -256,6 +257,49 @@ describe('journey-board card fields — operationalNotes + factoryShortName', ()
     assert.equal(detail.invoiceMaster, null, 'customer without master data → no master block');
     assert.ok(detail.knownTagLabels.length > 0, 'tag pool must ride on the detail response');
     assert.ok(detail.knownTagLabels.every((label) => typeof label === 'string'));
+  });
+});
+
+describe('journey-board bucketing — acceptance, not departure, marks Đã nhận (Docx4 BUG2)', () => {
+  test('ops-departed unacknowledged trip buckets NEW; acknowledged IN_TRANSIT buckets RUNNING', async () => {
+    const { driver, customer, route, cargoType, containerType } = await setup();
+    const site = await mkSite(customer.id, 'Nhà máy Bucket');
+
+    // A: ops "Phát lệnh" flipped the trip to IN_TRANSIT and the driver never
+    // acknowledged — the card must stay in Lệnh mới so the accept bar stays
+    // reachable (the reported bug had it under Đã nhận with no way in).
+    const { trip: tripA } = await mkContainerTrip({
+      driverId: driver.id, customerId: customer.id, routeId: route.id, cargoTypeId: cargoType.id,
+      containerTypeId: containerType.id, siteId: site.id, notes: null, factoryName: null,
+      tripStatus: 'IN_TRANSIT',
+    });
+
+    // B: same ops departure, but the driver HAS acknowledged — Đã nhận.
+    const { trip: tripB } = await mkContainerTrip({
+      driverId: driver.id, customerId: customer.id, routeId: route.id, cargoTypeId: cargoType.id,
+      containerTypeId: containerType.id, siteId: site.id, notes: null, factoryName: null,
+      tripStatus: 'IN_TRANSIT',
+    });
+    await db.insert(s.driverProgressEvents).values({
+      tripId: tripB.id,
+      driverId: driver.id,
+      eventType: 'ORDER_RECEIVED',
+      occurredAt: new Date(),
+    });
+
+    // C: CREATED (issued, nothing departed) — NEW as before.
+    const { trip: tripC } = await mkContainerTrip({
+      driverId: driver.id, customerId: customer.id, routeId: route.id, cargoTypeId: cargoType.id,
+      containerTypeId: containerType.id, siteId: site.id, notes: null, factoryName: null,
+    });
+
+    const board = await getDriverJourneyBoard(driver.id);
+    const bucketByTrip = new Map(board.items.map((card) => [card.tripId, card.bucket]));
+    assert.equal(bucketByTrip.get(tripA.id), 'NEW', 'ops-departed unacknowledged → Lệnh mới');
+    assert.equal(bucketByTrip.get(tripB.id), 'RUNNING', 'acknowledged IN_TRANSIT → Đã nhận');
+    assert.equal(bucketByTrip.get(tripC.id), 'NEW', 'CREATED → Lệnh mới (unchanged)');
+
+    await db.delete(s.driverProgressEvents).where(eq(s.driverProgressEvents.tripId, tripB.id));
   });
 });
 
