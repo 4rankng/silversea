@@ -49,6 +49,7 @@ import { IDEMPOTENCY_ENDPOINTS } from '../../services/idempotency.service';
 import { cacheInvalidate } from '../../lib/redis';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { runShipmentWrite, sendShipmentWrite } from './shipment-shared';
+import { decomposeFulfillmentLessContainer } from '../../services/dispatch-detail-plan-fulfillment-less';
 
 const updateCarrierFleetVehicleSchema = carrierFleetVehicleSchema
   .pick({ licensePlate: true, isActive: true })
@@ -580,6 +581,43 @@ dispatchPlanningRoutes.delete(
   }),
 );
 
+
+// Decompose entrypoint for fulfillment-less branch rows (BUG 5 secondary,
+// 9e ruling): the grid surfaces READY_FOR_DISPATCH containers that never
+// decomposed; the editor cannot target them (no fulfillmentId), so this
+// governed write decomposes the lot and hands back the fresh fulfillment.
+dispatchPlanningRoutes.post(
+  '/dispatch-detail-plan-rows/decompose',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER),
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = z.object({
+      shipmentId: z.number().int().positive(),
+      containerId: z.number().int().positive(),
+      expectedShipmentVersion: z.number().int().positive(),
+    }).safeParse(req.body);
+    if (!parsed.success) throwValidation(parsed.error);
+    const user = getUser(req);
+    const { result } = await runShipmentWrite(
+      req,
+      IDEMPOTENCY_ENDPOINTS.SHIPMENT_FULFILLMENTS_DECOMPOSE,
+      parsed.data,
+      async (tx) => {
+        const outcome = await decomposeFulfillmentLessContainer({
+          ...parsed.data,
+          actorId: user.userId,
+          actor: user,
+        });
+        void tx;
+        return {
+          status: 201,
+          body: outcome,
+          auditEntityId: outcome.shipmentId,
+        };
+      },
+    );
+    sendShipmentWrite(res, result);
+  }),
+);
 
 // Reverse lookup: plate → carrier. When a dispatcher types or selects a plate,
 // the frontend calls this to auto-fill the carrier dropdown.

@@ -14,6 +14,7 @@ import { CARGO_MODE } from '../db/schema';
 import { and, desc, eq, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
+import { ensureShipmentFulfillmentsInTx } from './shipment-fulfillment.service';
 import {
   canonicalShipmentStatus,
   localDateInBusinessZone,
@@ -352,6 +353,19 @@ export async function reconcileShipmentContainersInTx(
         reason: 'Đã bổ sung ngày đóng/trả theo container và sẵn sàng điều xe.',
         changedBy: userId,
       });
+      // BUG 5 (2026-09-12): this appointment-driven flip is the intake path
+      // real lots take (see SHP-2609-00007) — without decomposing fulfillments
+      // the shipment turns ready but never reaches the dispatch detail plan,
+      // whose rows query inner-joins live fulfillments. Route callers always
+      // pass a userId; the legacy null-actor overload (seed/programmatic)
+      // keeps its prior behavior.
+      if (userId != null) {
+        await ensureShipmentFulfillmentsInTx(tx, {
+          shipmentId,
+          actorId: userId,
+          allowClerkIntake: true,
+        });
+      }
       // Both reconcile callers bump version to preBump+1 after this returns;
       // snapshot that final version so handoffVersion matches the shipment.
       await ensureReadyShipmentHandoff(tx, { ...updatedShipment, version: shipment.version + 1 }, userId);

@@ -333,7 +333,11 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
         ? (response.items as DispatchTruck[]).map((truck) => ({ value: `${OWN_TRUCK_PREFIX}${truck.id}`, label: ownTruckLabel(truck) }))
         : (response.items as DispatchCarrierVehicle[]).map((vehicle) => ({ value: `${EXTERNAL_VEHICLE_PREFIX}${vehicle.id}`, label: vehicle.licensePlate }));
       const normalizedSearch = normalizePlate(vehicleSearch);
-      const freeTextOption = !isOwnFleet
+      // Free-text entry must also exist on a carrier-less row: the plate→
+      // carrier autofill only fires when NO carrier is selected, and the
+      // carrier-less default list is own-fleet — without this the operator
+      // could never reach the free-text option that triggers the lookup.
+      const freeTextOption = (!isOwnFleet || rowIsCarrierLess)
         && normalizedSearch.length >= 4
         && !mapped.some((option) => option.label === normalizedSearch)
         ? [{ value: `${FREE_TEXT_PREFIX}${normalizedSearch}`, label: `Dùng biển số: ${normalizedSearch}` }]

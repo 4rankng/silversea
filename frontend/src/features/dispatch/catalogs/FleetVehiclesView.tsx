@@ -2,7 +2,7 @@
  * Danh mục Xe nội bộ — dispatcher CRUD for internal tractors. Dispatchers
  * may add, edit, and retire tractors from this view.
  */
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Truck } from 'lucide-react';
 import { Plus } from '@untitledui/icons';
 import { KPI } from '../../../components/UI';
@@ -14,7 +14,8 @@ import { useTrucksAndDrivers, useTrailers } from '../../../hooks/useCatalogQueri
 import { useQueryClient } from '@tanstack/react-query';
 import { usePageAnimations } from '../../../hooks/animations';
 import { invalidateAllCatalogs, qk } from '../../../api/keys';
-import { reassignTruckDriver } from '../../../api/dispatchPlanningClient';
+import { listDispatchFleetResources, reassignTruckDriver } from '../../../api/dispatchPlanningClient';
+import { UuiSelectField } from '../../../design-system/forms/UuiSelectField';
 import { AssignDriverDialog } from './AssignDriverDialog';
 import { AssignOpsDialog } from '../../ops/AssignOpsDialog';
 import { opsClient } from '../../../api/opsClient';
@@ -110,9 +111,26 @@ export function FleetVehiclesView() {
   }, [trucks, drivers, trailers]);
 
   const needle = search.trim().toLowerCase();
+  // Carrier-link (docx4 BUG 3): owning carrier per tractor. Options come from
+  // the same EXTERNAL_CARRIER fleet list every carrier dropdown uses; the
+  // filter is client-side until GET /trucks grows the generic carrierId param.
+  const [carriers, setCarriers] = useState<Array<{ id: number; name: string }>>([]);
+  const [carrierFilter, setCarrierFilter] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    listDispatchFleetResources('EXTERNAL_CARRIER', { limit: 100 }).then((response) => {
+      if (cancelled) return;
+      setCarriers(response.items.map((c) => ({ id: c.id, name: c.name })));
+    }).catch(() => { if (!cancelled) setCarriers([]); });
+    return () => { cancelled = true; };
+  }, []);
+  const carrierNameById = useMemo(() => new Map(carriers.map((c) => [c.id, c.name])), [carriers]);
   const filtered = useMemo(() => {
-    if (!needle) return trucks;
-    return trucks.filter((t) => {
+    const byCarrier = carrierFilter === ''
+      ? trucks
+      : trucks.filter((t) => (carrierFilter === 'UNASSIGNED' ? t.carrierId == null : t.carrierId === Number(carrierFilter)));
+    if (!needle) return byCarrier;
+    return byCarrier.filter((t) => {
       const trailer = t.currentTrailerId ? trailerById.get(t.currentTrailerId) : undefined;
       return (
         t.licensePlate.toLowerCase().includes(needle) ||
@@ -120,7 +138,7 @@ export function FleetVehiclesView() {
         (driverByTruck.get(t.id) ?? '').toLowerCase().includes(needle)
       );
     });
-  }, [trucks, needle, driverByTruck, trailerById]);
+  }, [trucks, needle, carrierFilter, carriers, driverByTruck, trailerById]);
 
   // Full catalog is already client-side (unpaginated lookup table), so sorting
   // happens locally with the shared contract: empty cells last, id tiebreaker.
@@ -156,6 +174,20 @@ export function FleetVehiclesView() {
         <KPI label="Bảo trì / Ngưng" value={maintenance} unit="xe" icon={Truck} variant="warn" />
       </div>
       {error && <div className="dispatch-catalogs__error">Không thể tải dữ liệu</div>}
+      <UuiSelectField
+        label="Lọc theo nhà xe"
+        hideLabel
+        ariaLabel="Lọc theo nhà xe"
+        inline
+        width="content"
+        value={carrierFilter}
+        onChange={(e) => setCarrierFilter(e.target.value)}
+        options={[
+          { value: '', label: 'Tất cả nhà xe' },
+          { value: 'UNASSIGNED', label: 'Chưa phân nhà xe' },
+          ...carriers.map((c) => ({ value: String(c.id), label: c.name })),
+        ]}
+      />
       <CatalogTableShell
         search={search}
         onSearchChange={setSearch}
@@ -173,6 +205,7 @@ export function FleetVehiclesView() {
             <thead>
               <tr>
                 <SortHeader label="Biển số" sortKey="licensePlate" sort={sort} onSortChange={applySort} />
+                <SortHeader label="Nhà xe" sortKey="carrierName" sort={sort} onSortChange={applySort} />
                 <SortHeader label="Rơ-moóc đang nối" sortKey="trailerPlate" sort={sort} onSortChange={applySort} />
                 <SortHeader label="Tài xế được gán" sortKey="driverName" sort={sort} onSortChange={applySort} />
                 <SortHeader label="Trạng thái" sortKey="status" sort={sort} onSortChange={applySort} />
@@ -193,6 +226,7 @@ export function FleetVehiclesView() {
                     aria-label={`Chỉnh sửa xe ${t.licensePlate}`}
                   >
                     <td data-label="Biển số" className="dispatch-catalogs__plate">{t.licensePlate}</td>
+                    <td data-label="Nhà xe">{t.carrierId != null ? carrierNameById.get(t.carrierId) ?? 'Nhà xe chưa xác định' : '—'}</td>
                     <td data-label="Rơ-moóc đang nối">{trailer ? trailer.licensePlate : '—'}</td>
                     <td data-label="Tài xế được gán">{driverByTruck.get(t.id) ?? '—'}</td>
                     <td data-label="Trạng thái">
@@ -245,6 +279,7 @@ export function FleetVehiclesView() {
         isOpen={crud.open}
         saving={crud.saving}
         item={crud.editingId != null ? trucks.find((t) => t.id === crud.editingId) : undefined}
+        carrierOptions={carriers}
         onsave={(d) => crud.editingId != null ? crud.update(crud.editingId, d) : crud.create(d)}
         oncancel={crud.closeForm}
       />

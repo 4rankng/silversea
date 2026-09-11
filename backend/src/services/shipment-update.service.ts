@@ -19,6 +19,7 @@ import {
   hasDispatchDate,
   isDirectlyEditableIntakeStatus,
 } from './shipment-intake.service';
+import { ensureShipmentFulfillmentsInTx } from './shipment-fulfillment.service';
 import {
   syncShipmentAuthorityToTrips,
   toNullableFixedDecimal,
@@ -212,7 +213,38 @@ export async function updateShipment(
         reason: 'Đã bổ sung ngày vận chuyển, giờ đóng hoặc thời gian trả hàng và sẵn sàng điều xe.',
         changedBy: input.updatedBy ?? actor?.userId ?? null,
       });
-      await ensureReadyShipmentHandoff(tx, updated, input.updatedBy ?? actor?.userId ?? null);
+      // BUG 5 (2026-09-12): this date-driven PENDING_DATE → READY_FOR_DISPATCH
+      // flip is an intake path of its own — without decomposing fulfillments
+      // here the shipment turns ready but stays invisible to the dispatch
+      // detail plan (its rows query inner-joins live fulfillments). The
+      // submit-for-dispatch flow already ensures; mirror it.
+      const readyActorId = input.updatedBy ?? actor?.userId ?? null;
+      if (readyActorId == null) throw new ApiError(400, 'Người thực hiện không hợp lệ.');
+      // Legacy rows can predate the explicit cargo-mode column (same repair
+      // as updateCusShipmentContainerLine): a lot with containers is FCL, a
+      // container-less one is LCL.
+      const [anyContainer] = await tx.select({ id: s.shipmentContainers.id })
+        .from(s.shipmentContainers).where(eq(s.shipmentContainers.shipmentId, id)).limit(1);
+      const hasContainers = anyContainer != null;
+      if (updated.cargoMode == null) {
+        const repairedMode = hasContainers ? 'FCL' : 'LCL';
+        await tx.update(s.shipments).set({ cargoMode: repairedMode, updatedAt: new Date() })
+          .where(eq(s.shipments.id, id));
+        updated.cargoMode = repairedMode;
+      }
+      // Decompose only when there is something dispatchable: LCL always
+      // (one shipment-level fulfillment), FCL only with containers — an FCL
+      // lot with zero containers cannot appear on the plan either way (rows
+      // join containers), so its date update keeps the pre-fix behavior
+      // instead of failing the whole save.
+      if (updated.cargoMode === 'LCL' || hasContainers) {
+        await ensureShipmentFulfillmentsInTx(tx, {
+          shipmentId: id,
+          actorId: readyActorId,
+          allowClerkIntake: true,
+        });
+      }
+      await ensureReadyShipmentHandoff(tx, updated, readyActorId);
     }
     if (shipmentAuthorityChanged && isDirectlyEditableIntakeStatus(updated.status)) {
       await syncShipmentAuthorityToTrips(tx, updated);

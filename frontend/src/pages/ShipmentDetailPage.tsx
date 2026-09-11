@@ -250,7 +250,7 @@ export default function ShipmentDetailPage() {
 
         <section className="shipment-detail__card">
           <h3 className="shipment-detail__section-title">
-            <Container size={16} /> Nhà xe đã gán
+            <Container size={16} /> {carrierAllocationSummary.length > 0 ? 'Nhà xe đã gán' : 'Nhà xe'}
           </h3>
           <CarrierAllocationSummary
             allocations={carrierAllocationSummary.map((row) => ({
@@ -260,7 +260,7 @@ export default function ShipmentDetailPage() {
               count20: row.count20,
               count40: row.count40,
             }))}
-            emptyLabel="Chưa có dữ liệu gán nhà xe cho lô hàng này."
+            emptyLabel="Chưa phân nhà xe"
           />
         </section>
 
@@ -318,7 +318,7 @@ export default function ShipmentDetailPage() {
                 <tr>
                   <th>Loại</th>
                   <th>Số container</th>
-                  <th>Nhà xe đã gán</th>
+                  <th>Nhà xe</th>
                   <th>Xe đã gán</th>
                   <th>Số seal</th>
                   <th>Lịch giao</th>

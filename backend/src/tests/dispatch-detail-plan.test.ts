@@ -5,12 +5,12 @@ import type { AddressInfo } from 'node:net';
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray , isNull } from 'drizzle-orm';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
 import { insertTripComposite } from '../services/trip-composite.service';
-import { Role } from '@tingting/shared';
+import { Role , calculateCheckDigit } from '@tingting/shared';
 import { config } from '../config';
 import { initEnforcer } from '../casbin/enforcer';
 import { initAuditService } from '../services/audit.service';
@@ -2522,7 +2522,7 @@ describe('planning remaining containers after partial dispatch', () => {
   test('resolve-carrier: dashed plate normalizes to the stored form; unknown and inactive carriers return nulls', async () => {
     const active = await createCustomer(`Resolve carrier A ${suffix}-${createdCustomerIds.length}`, true);
     const inactive = await createCustomer(`Resolve carrier B ${suffix}-${createdCustomerIds.length}`, true);
-    await db.update(s.customers).set({ status: 'INACTIVE' }).where(eq(s.customers.id, inactive.id));
+    await db.update(s.customers).set({ status: 'LOCKED' }).where(eq(s.customers.id, inactive.id));
     await db.insert(s.carrierFleetVehicles).values([
       { carrierId: active.id, licensePlate: '15H-061.14', normalizedPlate: '15H06114', isActive: true, createdBy: adminUserId },
       { carrierId: inactive.id, licensePlate: '16H-070.70', normalizedPlate: '16H07070', isActive: true, createdBy: adminUserId },
@@ -2545,7 +2545,7 @@ describe('planning remaining containers after partial dispatch', () => {
     );
     assert.deepEqual(unknown.data, { carrierId: null, carrierName: null });
 
-    // An INACTIVE carrier resolves to nulls on BOTH fields — a non-null id
+    // A LOCKED (non-ACTIVE) carrier resolves to nulls on BOTH fields — a non-null id
     // would auto-fill the editor with an entity the dispatch write later 409s.
     const dead = await apiFetch<{ carrierId: number | null; carrierName: string | null }>(
       '/carrier-fleet-vehicles/resolve-carrier?plate=16H-070.70',
@@ -2553,4 +2553,378 @@ describe('planning remaining containers after partial dispatch', () => {
     );
     assert.deepEqual(dead.data, { carrierId: null, carrierName: null });
   });
+
+  // ── 2026-09-12 regression: unassigned fulfillments must appear in the detail plan ──
+
+  test('detail plan includes fulfillments with plannedCarrierType NULL (unassigned)', async () => {
+    // Create a lot manually with NO carrier assigned (carrierType: null).
+    const customer = await createCustomer(`Unassigned cust ${suffix}-${createdCustomerIds.length}`);
+    const route = await createRoute();
+    const site = await createOperationalSite(customer.id);
+    const ct = await createContainerType(`UN${createdContainerTypeIds.length}`);
+    const [pp] = await db.insert(s.ports).values({ name: `Un PP ${suffix}-${createdPortIds.length}` }).returning();
+    createdPortIds.push(pp.id);
+    const [dp] = await db.insert(s.ports).values({ name: `Un DP ${suffix}-${createdPortIds.length}` }).returning();
+    createdPortIds.push(dp.id);
+    const [shipment] = await db.insert(s.shipments).values({
+      customerId: customer.id,
+      status: 'READY_FOR_DISPATCH',
+      cargoMode: 'FCL',
+      tradeDirection: 'EXPORT',
+      operationalSiteId: site.id,
+      createdBy: adminUserId,
+    }).returning();
+    createdShipmentIds.push(shipment.id);
+    const [container] = await db.insert(s.shipmentContainers).values({
+      shipmentId: shipment.id,
+      containerTypeId: ct.id,
+      containerNumber: `UNSH${String(700000 + shipment.id).slice(-6)}`,
+      routeId: route.id,
+      pickupPortId: pp.id,
+      dropoffPortId: dp.id,
+      customerAppointmentAt: new Date('2026-09-15T08:00:00.000Z'),
+      createdBy: adminUserId,
+    }).returning();
+    const [fulfillment] = await db.insert(s.shipmentFulfillments).values({
+      shipmentId: shipment.id,
+      fulfillmentType: 'FCL_CONTAINER',
+      cargoMode: 'FCL',
+      shipmentContainerId: container.id,
+      sourceShipmentVersion: shipment.version,
+      siteSnapshot: { deliverySite: { id: site.id, name: site.name, address: site.address } },
+      plannedCarrierType: null,
+      createdBy: adminUserId,
+    }).returning();
+
+    // Fetch the detail plan — search by container number to avoid pagination issues.
+    const response = await apiFetch<{ items: Array<{
+      fulfillmentId: number;
+      dispatch: { carrierType: string | null; carrierName: string | null };
+      container: { containerNumber: string | null };
+    }> }>(
+      `/dispatch-detail-plan-rows?limit=50&q=${container.containerNumber}`,
+      { token: dispatcherToken },
+    );
+    assert.equal(response.status, 200);
+    const unassignedRow = response.data.items.find((r) => r.fulfillmentId === fulfillment.id);
+    assert.ok(unassignedRow, `unassigned fulfillment ${fulfillment.id} must appear in the detail plan`);
+    assert.equal(unassignedRow.dispatch.carrierType, null, 'unassigned row must have null carrierType');
+  });
+
+  test('detail plan with date filter: unassigned fulfillment with matching appointment date appears', async () => {
+    // Create a lot with a specific appointment date and no carrier.
+    const customer = await createCustomer(`Date filter cust ${suffix}-${createdCustomerIds.length}`);
+    const route = await createRoute();
+    const site = await createOperationalSite(customer.id);
+    const containerTypeLocal = await createContainerType(`20G${createdContainerTypeIds.length}`);
+    const appointmentDate = '2026-08-26';
+    const [pickupPortLocal] = await db.insert(s.ports).values({ name: `DF pickup ${suffix}-${createdPortIds.length}` }).returning();
+    createdPortIds.push(pickupPortLocal.id);
+    const [dropoffPortLocal] = await db.insert(s.ports).values({ name: `DF dropoff ${suffix}-${createdPortIds.length}` }).returning();
+    createdPortIds.push(dropoffPortLocal.id);
+    const [shipment] = await db.insert(s.shipments).values({
+      customerId: customer.id,
+      status: 'READY_FOR_DISPATCH',
+      cargoMode: 'FCL',
+      operationalSiteId: site.id,
+      expectedDeliveryDate: appointmentDate,
+      createdBy: adminUserId,
+    }).returning();
+    createdShipmentIds.push(shipment.id);
+    const [container] = await db.insert(s.shipmentContainers).values({
+      shipmentId: shipment.id,
+      containerTypeId: containerTypeLocal.id,
+      containerNumber: `DCNU${String(800000 + shipment.id).slice(-6)}0`,
+      routeId: route.id,
+      pickupPortId: pickupPortLocal.id,
+      dropoffPortId: dropoffPortLocal.id,
+      customerAppointmentAt: new Date(`${appointmentDate}T08:00:00.000Z`),
+      createdBy: adminUserId,
+    }).returning();
+    const [fulfillment] = await db.insert(s.shipmentFulfillments).values({
+      shipmentId: shipment.id,
+      fulfillmentType: 'FCL_CONTAINER',
+      cargoMode: 'FCL',
+      shipmentContainerId: container.id,
+      sourceShipmentVersion: shipment.version,
+      siteSnapshot: { deliverySite: { id: site.id, name: site.name, address: site.address } },
+      plannedCarrierType: null,
+      createdBy: adminUserId,
+    }).returning();
+
+    // Fetch with matching date filter
+    const response = await apiFetch<{ items: Array<{ fulfillmentId: number; dispatch: { carrierType: string | null } }> }>(
+      `/dispatch-detail-plan-rows?date=${appointmentDate}&limit=50`,
+      { token: dispatcherToken },
+    );
+    assert.equal(response.status, 200);
+    const row = response.data.items.find((r) => r.fulfillmentId === fulfillment.id);
+    assert.ok(row, `unassigned fulfillment with appointmentAt=${appointmentDate} must appear when filtering by that date`);
+    assert.equal(row.dispatch.carrierType, null);
+  });
+
+  // ─── BUG 5 root cause (2026-09-12): the date-driven becomesReady flip is an
+  // intake path of its own — it must decompose fulfillments or the shipment
+  // turns READY_FOR_DISPATCH but never reaches the detail plan (its rows
+  // query inner-joins live fulfillments). Pinned by the write-path
+  // regression below + the NULL-transport-date filter contract.
+
+  test('TC-UNASSIGNED-001: appointment-driven and date-driven READY_FOR_DISPATCH flips both decompose fulfillments so the container reaches the detail plan', async () => {
+    // Reproduces SHP-2609-00007 both ways its status history shows the flip:
+    // the containers reconcile ("ngày đóng/trả theo container") and the
+    // shipment update ("ngày vận chuyển..."). Before the fix the lot turned
+    // ready with ZERO fulfillments and the detail plan (inner-join on live
+    // fulfillments) never showed it.
+    const customer = await createCustomer(`Bug5 customer ${suffix}-${createdCustomerIds.length}`);
+    const site = await createOperationalSite(customer.id);
+    const containerType = await createContainerType(`20G${createdContainerTypeIds.length}`);
+
+    // A: appointment lands via the containers batch reconcile.
+    const [shipmentA] = await db.insert(s.shipments).values({
+      customerId: customer.id, routeId: null, cargoMode: 'FCL',
+      shipmentCode: `BUG5A-${suffix}-${createdShipmentIds.length}`,
+      bookingRef: `BOOK5A-${suffix}-${createdShipmentIds.length}`,
+      status: 'PENDING_DATE', tradeDirection: 'EXPORT',
+      operationalSiteId: site.id, createdBy: adminUserId,
+    }).returning();
+    createdShipmentIds.push(shipmentA.id);
+    const [containerA] = await db.insert(s.shipmentContainers).values({
+      shipmentId: shipmentA.id, containerTypeId: containerType.id,
+      containerNumber: (() => { const p = `MSKU${String(400000 + shipmentA.id).slice(-6)}`; return `${p}${calculateCheckDigit(p)}`; })(),
+      createdBy: adminUserId,
+    }).returning();
+    const reconcile = await apiFetch<{ shipmentVersion: number }>(`/${shipmentA.id}/containers`, {
+      method: 'PUT',
+      token: dispatcherToken,
+      body: {
+        expectedVersion: shipmentA.version,
+        containers: [{ id: containerA.id, containerTypeId: containerType.id, containerNumber: containerA.containerNumber, customerAppointmentAt: '2026-08-20T08:00:00.000Z' }],
+      },
+    });
+    assert.equal(reconcile.status, 200, JSON.stringify(reconcile.data));
+    const [flippedA] = await db.select({ status: s.shipments.status }).from(s.shipments).where(eq(s.shipments.id, shipmentA.id));
+    assert.equal(flippedA.status, 'READY_FOR_DISPATCH');
+    const fulfillmentsA = await db.select({ id: s.shipmentFulfillments.id })
+      .from(s.shipmentFulfillments)
+      .where(and(eq(s.shipmentFulfillments.shipmentId, shipmentA.id), isNull(s.shipmentFulfillments.canceledAt)));
+    assert.ok(fulfillmentsA.length > 0, 'appointment-driven becomesReady must decompose fulfillments');
+
+    // B: delivery date lands via the plain shipment update.
+    const [shipmentB] = await db.insert(s.shipments).values({
+      customerId: customer.id, routeId: null, cargoMode: 'FCL',
+      shipmentCode: `BUG5B-${suffix}-${createdShipmentIds.length}`,
+      bookingRef: `BOOK5B-${suffix}-${createdShipmentIds.length}`,
+      status: 'PENDING_DATE', tradeDirection: 'EXPORT',
+      operationalSiteId: site.id, createdBy: adminUserId,
+    }).returning();
+    createdShipmentIds.push(shipmentB.id);
+    await db.insert(s.shipmentContainers).values({
+      shipmentId: shipmentB.id, containerTypeId: containerType.id,
+      containerNumber: (() => { const p = `MSKU${String(500000 + shipmentB.id).slice(-6)}`; return `${p}${calculateCheckDigit(p)}`; })(),
+      customerAppointmentAt: new Date('2026-08-20T08:00:00.000Z'),
+      createdBy: adminUserId,
+    });
+    const updated = await apiFetch<{ status: string }>(`/${shipmentB.id}`, {
+      method: 'PUT',
+      token: dispatcherToken,
+      body: { expectedVersion: shipmentB.version, expectedDeliveryDate: '2026-08-20' },
+    });
+    assert.equal(updated.status, 200, JSON.stringify(updated.data));
+    assert.equal(updated.data.status, 'READY_FOR_DISPATCH');
+    const fulfillmentsB = await db.select({ id: s.shipmentFulfillments.id })
+      .from(s.shipmentFulfillments)
+      .where(and(eq(s.shipmentFulfillments.shipmentId, shipmentB.id), isNull(s.shipmentFulfillments.canceledAt)));
+    assert.ok(fulfillmentsB.length > 0, 'date-driven becomesReady must decompose fulfillments');
+
+    // Both lots must now ride the detail plan as unassigned rows.
+    // The shared dev DB carries hundreds of plan rows — target each lot by
+    // its unique shipment code instead of scanning page 1 of the whole grid.
+    const rowsA = await fetchRows(dispatcherToken, `?limit=50&q=${shipmentA.shipmentCode}`);
+    const rowsB = await fetchRows(dispatcherToken, `?limit=50&q=${shipmentB.shipmentCode}`);
+    const rowA = rowsA.data.items.find((r) => r.shipmentId === shipmentA.id);
+    const rowB = rowsB.data.items.find((r) => r.shipmentId === shipmentB.id);
+    assert.ok(rowA, 'appointment-flipped container appears in the detail plan');
+    assert.ok(rowB, 'date-flipped container appears in the detail plan');
+    assert.equal(rowA!.dispatch.carrierType, null, 'carrier cell renders unassigned');
+    assert.ok(rowA!.fulfillmentId != null && rowA!.version != null, 'row is renderable');
+  });
+
+  test('TC-UNASSIGNED-004: a specific date filter excludes a fulfillment whose transport date is NULL', async () => {
+    const { shipment, fulfillmentIds } = await createAllocatedLot({ carrierType: null });
+    const [container] = await db.select({ id: s.shipmentContainers.id })
+      .from(s.shipmentContainers).where(eq(s.shipmentContainers.shipmentId, shipment.id)).limit(1);
+    await db.update(s.shipmentContainers).set({ customerAppointmentAt: null }).where(eq(s.shipmentContainers.id, container.id));
+    await db.update(s.shipments).set({ expectedDeliveryDate: null }).where(eq(s.shipments.id, shipment.id));
+
+    const rows = await fetchRows(dispatcherToken, '?limit=50&date=2026-08-20');
+    const row = rows.data.items.find((r) => r.fulfillmentId === fulfillmentIds[0]);
+    assert.equal(row, undefined, 'NULL transport date cannot match a specific date');
+  });
+  // ─── BUG 5 secondary (9e ruling): fulfillment-less branch + decompose seam ──
+
+  test('UNION-branch: a READY lot with NO fulfillments surfaces as an unassigned row (row + total)', async () => {
+    const customer = await createCustomer(`Union customer ${suffix}-${createdCustomerIds.length}`);
+    const site = await createOperationalSite(customer.id);
+    const ct = await createContainerType(`UL${createdContainerTypeIds.length}`);
+    const [shipment] = await db.insert(s.shipments).values({
+      customerId: customer.id, routeId: null, cargoMode: 'FCL',
+      status: 'READY_FOR_DISPATCH', tradeDirection: 'EXPORT',
+      operationalSiteId: site.id, createdBy: adminUserId,
+      shipmentCode: `UNION-${suffix}-${createdShipmentIds.length}`,
+    }).returning();
+    createdShipmentIds.push(shipment.id);
+    await db.insert(s.shipmentContainers).values({
+      shipmentId: shipment.id, containerTypeId: ct.id,
+      containerNumber: `UNION${String(800000 + shipment.id).slice(-6)}`,
+      customerAppointmentAt: new Date('2026-08-20T08:00:00.000Z'),
+      createdBy: adminUserId,
+    });
+
+    const rows = await fetchRows(dispatcherToken, `?limit=50&q=${shipment.shipmentCode}`);
+    const row = rows.data.items.find((r) => r.shipmentId === shipment.id);
+    assert.ok(row, 'fulfillment-less READY container surfaces via the union branch');
+    assert.equal(row.fulfillmentId, null, 'no fulfillment id on a branch row');
+    assert.equal(row.dispatch.carrierType, null, 'carrier cell renders unassigned');
+    assert.equal(row.dispatch.tripId, null);
+    assert.ok(rows.data.total >= 1, 'total counts the branch row');
+  });
+
+  test('UNION-branch: date filter matches the branch row by its appointment; a NULL-dated branch row only shows unfiltered', async () => {
+    const customer = await createCustomer(`UnionB customer ${suffix}-${createdCustomerIds.length}`);
+    const site = await createOperationalSite(customer.id);
+    const ct = await createContainerType(`UB${createdContainerTypeIds.length}`);
+    const mk = async (dated: boolean, tag: string) => {
+      const [shipment] = await db.insert(s.shipments).values({
+        customerId: customer.id, routeId: null, cargoMode: 'FCL',
+        status: 'READY_FOR_DISPATCH', tradeDirection: 'EXPORT',
+        operationalSiteId: site.id, createdBy: adminUserId,
+        shipmentCode: `${tag}-${suffix}-${createdShipmentIds.length}`,
+      }).returning();
+      createdShipmentIds.push(shipment.id);
+      await db.insert(s.shipmentContainers).values({
+        shipmentId: shipment.id, containerTypeId: ct.id,
+        containerNumber: `${tag}${String(810000 + shipment.id).slice(-6)}`,
+        ...(dated ? { customerAppointmentAt: new Date('2026-08-21T08:00:00.000Z') } : {}),
+        createdBy: adminUserId,
+      });
+      return shipment;
+    };
+    const dated = await mk(true, 'UND');
+    const undated = await mk(false, 'UNN');
+
+    const filtered = await fetchRows(dispatcherToken, `?limit=50&q=${dated.shipmentCode}&date=2026-08-21`);
+    assert.ok(filtered.data.items.some((r) => r.shipmentId === dated.id), 'dated branch row matches its date');
+
+    const undatedFiltered = await fetchRows(dispatcherToken, `?limit=50&q=${undated.shipmentCode}&date=2026-08-21`);
+    assert.ok(!undatedFiltered.data.items.some((r) => r.shipmentId === undated.id), 'NULL-dated branch row excluded by a date filter');
+
+    const undatedOpen = await fetchRows(dispatcherToken, `?limit=50&q=${undated.shipmentCode}`);
+    assert.ok(undatedOpen.data.items.some((r) => r.shipmentId === undated.id), 'NULL-dated branch row visible unfiltered');
+  });
+
+  test('UNION-branch: PENDING_DATE lots stay out (READY_FOR_DISPATCH only)', async () => {
+    const customer = await createCustomer(`UnionC customer ${suffix}-${createdCustomerIds.length}`);
+    const ct = await createContainerType(`UC${createdContainerTypeIds.length}`);
+    const [shipment] = await db.insert(s.shipments).values({
+      customerId: customer.id, routeId: null, cargoMode: 'FCL',
+      status: 'PENDING_DATE', tradeDirection: 'EXPORT',
+      createdBy: adminUserId,
+      shipmentCode: `UNP-${suffix}-${createdShipmentIds.length}`,
+    }).returning();
+    createdShipmentIds.push(shipment.id);
+    await db.insert(s.shipmentContainers).values({
+      shipmentId: shipment.id, containerTypeId: ct.id,
+      containerNumber: `UNP${String(820000 + shipment.id).slice(-6)}`,
+      createdBy: adminUserId,
+    });
+
+    const rows = await fetchRows(dispatcherToken, `?limit=50&q=${shipment.shipmentCode}`);
+    assert.ok(!rows.data.items.some((r) => r.shipmentId === shipment.id), 'PENDING_DATE stays out of the branch');
+  });
+
+  test('UNION-branch: canceled-only fulfillments resurface until re-decomposed', async () => {
+    const customer = await createCustomer(`UnionD customer ${suffix}-${createdCustomerIds.length}`);
+    const site = await createOperationalSite(customer.id);
+    const ct = await createContainerType(`UD${createdContainerTypeIds.length}`);
+    const [shipment] = await db.insert(s.shipments).values({
+      customerId: customer.id, routeId: null, cargoMode: 'FCL',
+      status: 'READY_FOR_DISPATCH', tradeDirection: 'EXPORT',
+      operationalSiteId: site.id, createdBy: adminUserId,
+      shipmentCode: `UNC-${suffix}-${createdShipmentIds.length}`,
+    }).returning();
+    createdShipmentIds.push(shipment.id);
+    const [container] = await db.insert(s.shipmentContainers).values({
+      shipmentId: shipment.id, containerTypeId: ct.id,
+      containerNumber: `UNC${String(830000 + shipment.id).slice(-6)}`,
+      createdBy: adminUserId,
+    }).returning();
+    await db.insert(s.shipmentFulfillments).values({
+      shipmentId: shipment.id, fulfillmentType: 'FCL_CONTAINER', cargoMode: 'FCL',
+      shipmentContainerId: container.id, sourceShipmentVersion: shipment.version,
+      canceledAt: new Date(), createdBy: adminUserId,
+    });
+
+    const rows = await fetchRows(dispatcherToken, `?limit=50&q=${shipment.shipmentCode}`);
+    assert.ok(rows.data.items.some((r) => r.shipmentId === shipment.id), 'canceled-only lot resurfaces via the branch');
+  });
+
+  test('decompose: fresh fulfillment for a branch row; replay returns the SAME id; CUS denied; stale version 409', async () => {
+    const customer = await createCustomer(`Dec customer ${suffix}-${createdCustomerIds.length}`);
+    const site = await createOperationalSite(customer.id);
+    const ct = await createContainerType(`DC${createdContainerTypeIds.length}`);
+    const [shipment] = await db.insert(s.shipments).values({
+      customerId: customer.id, routeId: null, cargoMode: 'FCL',
+      status: 'READY_FOR_DISPATCH', tradeDirection: 'EXPORT',
+      operationalSiteId: site.id, createdBy: adminUserId,
+      shipmentCode: `DEC-${suffix}-${createdShipmentIds.length}`,
+    }).returning();
+    createdShipmentIds.push(shipment.id);
+    const [container] = await db.insert(s.shipmentContainers).values({
+      shipmentId: shipment.id, containerTypeId: ct.id,
+      containerNumber: `DEC${String(840000 + shipment.id).slice(-6)}`,
+      createdBy: adminUserId,
+    }).returning();
+
+    const first = await apiFetch<{ fulfillmentId: number; shipmentVersion: number }>(
+      '/dispatch-detail-plan-rows/decompose',
+      { method: 'POST', token: dispatcherToken, body: { shipmentId: shipment.id, containerId: container.id, expectedShipmentVersion: shipment.version } },
+    );
+    assert.equal(first.status, 201, JSON.stringify(first.data));
+    assert.ok(Number.isInteger(first.data.fulfillmentId), 'fresh fulfillment id returned');
+
+    const key = `be2-decompose-replay-${suffix}-${shipment.id}`;
+    const replayBody = { shipmentId: shipment.id, containerId: container.id, expectedShipmentVersion: first.data.shipmentVersion };
+    const replayFirst = await fetch(`${baseUrl}/api/shipments/dispatch-detail-plan-rows/decompose`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${dispatcherToken}`, 'Idempotency-Key': key },
+      body: JSON.stringify(replayBody),
+    });
+    const replaySecond = await fetch(`${baseUrl}/api/shipments/dispatch-detail-plan-rows/decompose`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${dispatcherToken}`, 'Idempotency-Key': key },
+      body: JSON.stringify(replayBody),
+    });
+    const firstJson = await replayFirst.json() as { fulfillmentId: number };
+    const secondJson = await replaySecond.json() as { fulfillmentId: number };
+    assert.equal(replaySecond.status, replayFirst.status);
+    assert.equal(secondJson.fulfillmentId, firstJson.fulfillmentId, 'durable replay returns the SAME fulfillment');
+
+    const [cusUser] = await db.insert(s.users).values({
+      username: `dec-cus-${suffix}`, passwordHash: 'x', role: 'CUS', status: 'ACTIVE',
+    }).returning();
+    createdUserIds.push(cusUser.id);
+    const cusToken = signToken({ id: cusUser.id, username: cusUser.username, role: 'CUS' });
+    const denied = await apiFetch('/dispatch-detail-plan-rows/decompose', {
+      method: 'POST', token: cusToken,
+      body: { shipmentId: shipment.id, containerId: container.id, expectedShipmentVersion: first.data.shipmentVersion },
+    });
+    assert.equal(denied.status, 403, 'CUS stays out of the decompose path');
+
+    const stale = await apiFetch('/dispatch-detail-plan-rows/decompose', {
+      method: 'POST', token: dispatcherToken,
+      body: { shipmentId: shipment.id, containerId: container.id, expectedShipmentVersion: 999999 },
+    });
+    assert.equal(stale.status, 409, 'stale expectedShipmentVersion rejected');
+  });
+
 });
