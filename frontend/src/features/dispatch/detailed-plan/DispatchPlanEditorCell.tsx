@@ -5,6 +5,7 @@ import type { DispatchClassification } from '@tingting/shared';
 import { DISPATCH_CLASSIFICATIONS, DISPATCH_CLASSIFICATION_LABELS } from '@tingting/shared';
 import {
   listDispatchFleetResources,
+  resolveCarrierByPlate,
   type DispatchCarrierVehicle,
   type DispatchDetailPlanRow,
   type DispatchExternalCarrier,
@@ -641,6 +642,19 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
                     carrierValue: !current.carrierValue && value.startsWith(OWN_TRUCK_PREFIX) ? OWN_CARRIER_VALUE : current.carrierValue,
                   }));
                   setError(null);
+                  // Reverse lookup: when a free-text plate is entered and no
+                  // carrier is selected, resolve the carrier from the plate.
+                  if (value.startsWith(FREE_TEXT_PREFIX) && !draft.carrierValue) {
+                    const plate = value.slice(FREE_TEXT_PREFIX.length);
+                    resolveCarrierByPlate(plate).then(({ carrierId }) => {
+                      if (carrierId) {
+                        setDraft((current) => ({
+                          ...current,
+                          carrierValue: current.carrierValue || `${EXTERNAL_CARRIER_PREFIX}${carrierId}`,
+                        }));
+                      }
+                    }).catch(() => { /* best-effort */ });
+                  }
                 }}
                 onSearchChange={setVehicleSearch}
                 options={selectableVehicleOptions}
