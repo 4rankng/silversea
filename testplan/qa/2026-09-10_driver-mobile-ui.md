@@ -126,6 +126,20 @@ Per [[responsive-space-utilisation]] memory note: cache-cold sweeps are required
 5. **Computed-style read**: assert `getComputedStyle(el).display`, `flex-direction`, `grid-template-columns` where the pairing rule is implemented — do **not** rely on visual approximation alone.
 6. **Log + screenshot**: every assertion writes to `qa/2026-09-10_driver-mobile-ui_ui-driver.log` with `[{ width, selector, top, left, right, scrollWidth, clientWidth, pass }]`.
 
+### G-mig — migration hash check (wave gate, pm Amendment 2 2026-09-10)
+
+After every migrate on staging AND prod, verify `__drizzle_migrations` carries hash prefix `2d8af75377` (0067, the chunk-7 supersede migration):
+
+```sql
+SELECT id, hash, created_at FROM drizzle.__drizzle_migrations
+WHERE hash LIKE '2d8af75377%' ORDER BY id DESC LIMIT 1;
+```
+
+- If **MISSING** on staging post-cut: HARD STOP, ping pm; do not hand-patch.
+- If **MISSING** on prod post-deploy: HARD STOP, ping pm; user explicit approval required through pm.
+
+Evidence: `qa/2026-09-10_driver-mobile-ui_g-mig.log` (psql output per env).
+
 ## Evidence bundle (mandatory for the cycle's gate verdict)
 
 ```
@@ -137,6 +151,7 @@ qa/
 ├── 2026-09-10_driver-mobile-ui_ui-390-canonical.png
 ├── 2026-09-10_driver-mobile-ui_ui-005-list-390.png
 ├── 2026-09-10_driver-mobile-ui_ui-driver.log
+├── 2026-09-10_driver-mobile-ui_g-mig.log
 └── 2026-09-10_driver-mobile-ui_ui-gate.txt     # PASS / FAIL line + per-TC verdict
 ```
 

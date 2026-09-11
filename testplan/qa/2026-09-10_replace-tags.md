@@ -124,6 +124,21 @@ Drop the current per-trip operation tags and replace with this **exact 15-tag se
 - **Then** the JSON response is the 15-tag list in order
 - **Evidence:** `curl -H "Authorization: Bearer …" /api/…/operations` output in `qa/2026-09-10_replace-tags_api.log`
 
+### TC-REPLACE-TAGS-008 — G-mig: migration hash check (wave gate)
+
+- **Given** the seed migration lands on staging (0066 `seed_canonical_operation_tags`, content sha256 `48054b8de8…`, from commit `47506150`) and the chunk-7 supersede lands (0067 `close_legacy_approval_requests`, hash `2d8af75377`)
+- **When** QA verifies post-migrate state
+- **Then** `__drizzle_migrations` carries hash prefix `2d8af75377` on staging AND prod after the cut
+
+```sql
+SELECT id, hash, created_at FROM drizzle.__drizzle_migrations
+WHERE hash LIKE '2d8af75377%' ORDER BY id DESC LIMIT 1;
+```
+
+- If **MISSING** on staging post-cut: HARD STOP, ping pm; do not hand-patch.
+- If **MISSING** on prod post-deploy: HARD STOP, ping pm; user explicit approval required through pm.
+- **Evidence:** `qa/2026-09-10_replace-tags_g-mig.log` (psql output per env).
+
 ## Verification protocol
 
 1. **Find the seed file** (`backend/src/seed/data/*.ts` or `drizzle/<NNNN>_*.ts`) — confirm the **exact** 15 strings and order before any DB write. If order or contents drift from the ticket, **STOP** and notify PM (do not silently accept).
@@ -144,8 +159,11 @@ qa/
 ├── 2026-09-10_replace_tags_db-historical-after.sql
 ├── 2026-09-10_replace-tags_staging-seed.log
 ├── 2026-09-10_replace-tags_prod-seed.log
+├── 2026-09-10_replace-tags_g-mig.log
 └── 2026-09-10_replace-tags_gate.txt
 ```
+
+
 
 ## Pass criteria
 
