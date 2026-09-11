@@ -370,6 +370,10 @@ export type {
   EffectiveFactoryInput,
   EffectiveDateInput,
 } from './shipment-effective';
+export {
+  composeDriverTaskNote,
+  parseDriverTaskNote,
+} from './driverTaskNote';
 
 export {
   penaltyListQuerySchema,

@@ -147,7 +147,10 @@ async function openDialog() {
 }
 
 function issueButton(): HTMLButtonElement {
-  return [...screen.getAllByRole('button')].find((b) => b.textContent?.includes('Phát lệnh')) as HTMLButtonElement;
+  // The row now carries its own labeled "Phát lệnh" action, so the dialog's
+  // issue button is matched by its dedicated class, not by its text.
+  return [...screen.getAllByRole('button')]
+    .find((b) => b.classList.contains('dispatch-assignment-dialog__issue-btn')) as HTMLButtonElement;
 }
 
 function setIssueTimes(start: string, end: string) {
@@ -172,7 +175,7 @@ describe('DispatchPlanEditorCell — driver note composer', () => {
       shipmentVersion: 6,
       classification: 'SINGLE',
       isCombined: false,
-      operationalNotes: 'Đặt đầu; gọi lái trước 30p',
+      operationalNotes: 'Đặt đầu\ngọi lái trước 30p',
       dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '15H-052.82' },
       estimates: { plannedRevenue: null, plannedCarrierCost: null },
       lotFullyPlated: false,
@@ -184,7 +187,7 @@ describe('DispatchPlanEditorCell — driver note composer', () => {
     fireEvent.change(screen.getByLabelText('Ghi chú thêm'), { target: { value: 'gọi lái trước 30p' } });
     fireEvent.click(screen.getByRole('button', { name: /Lưu thay đổi/ }));
     await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));
-    expect(onAtomicSave.mock.calls[0]![1]).toMatchObject({ operationalNotes: 'Đặt đầu; gọi lái trước 30p' });
+    expect(onAtomicSave.mock.calls[0]![1]).toMatchObject({ operationalNotes: 'Đặt đầu\ngọi lái trước 30p' });
     // Saving closes the dialog.
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });

@@ -23,6 +23,12 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('../../api/tripClient', () => ({ tripClient: { getBootstrap: mocks.bootstrap } }));
+
+// Prod's CustomerCreateDialog invalidates the catalog blob via useQueryClient
+// after creating a customer — stub it so the page renders without a provider.
+vi.mock('@tanstack/react-query', () => ({
+  useQueryClient: () => ({ invalidateQueries: vi.fn().mockResolvedValue(undefined) }),
+}));
 // The page's tests render the workspace without a QueryClientProvider; the
 // preview card's useQuery would throw — stub the component like the APIs above.
 vi.mock('../../features/shipments/create/FreightPreviewCard', () => ({ FreightPreviewCard: () => null }));

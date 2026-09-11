@@ -13,13 +13,14 @@ import { requireRoles } from '../../middleware/casbin';
 import { getUser } from '../../middleware/auth';
 import * as tripService from '../../services/trip.service';
 import { reassignIssuedDispatchWriteCommand } from '../../services/dispatch-planning.service';
-import { loadReassignmentGuardContext, loadFulfillmentVersion } from '../../services/trip-lifecycle-ops.service';
+import { loadReassignmentGuardContext, loadFulfillmentVersion, resyncAttendanceAfterReassignment } from '../../services/trip-lifecycle-ops.service';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 
 const router = Router();
 
-// Reassign truck/driver (only for CREATED trips). Dispatchers own this
-// pre-departure correction after an order has been issued.
+// Reassign truck/driver for not-yet-acknowledged trips (CREATED, or IN_TRANSIT
+// when only ops marked departure and the driver never accepted). Dispatchers
+// own this pre-acceptance correction after an order has been issued.
 router.patch('/:id/reassign', requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER), asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string);
   const data = req.body;
@@ -40,6 +41,7 @@ router.patch('/:id/reassign', requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPAT
       throw new ApiError(409, 'Chỉ có thể phân xe lại từ Điều phối cho lệnh gắn với tác vụ điều xe.');
     }
     const reassigned = await tripService.reassignTrip(id, data);
+    await resyncAttendanceAfterReassignment(trip, reassigned, getUser(req).userId);
     return res.json(reassigned);
   }
   if (data.expectedVersion === undefined) {
@@ -48,13 +50,14 @@ router.patch('/:id/reassign', requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPAT
   const fulfillmentVersion = await loadFulfillmentVersion(trip.fulfillmentId as number);
   // Field-reported bug: a late-issued trip can carry a fulfillmentId that no
   // longer resolves (legacy migration, manual data fix, or a fulfillment that
-  // was re-decomposed out of existence). The reassign button is only shown
-  // for trips in CREATED status, so falling back to the simple
+  // was re-decomposed out of existence). The reassign button is shown for
+  // trips the driver has not acknowledged yet, so falling back to the simple
   // tripService.reassignTrip is safe for every role — it just updates the
   // trip's vehicle/driver pair, and the next dispatch issuance can re-link
   // a fresh fulfillment if the operator wants the full governed flow.
   if (fulfillmentVersion == null) {
     const reassigned = await tripService.reassignTrip(id, data);
+    await resyncAttendanceAfterReassignment(trip, reassigned, getUser(req).userId);
     return res.json(reassigned);
   }
   const user = getUser(req);

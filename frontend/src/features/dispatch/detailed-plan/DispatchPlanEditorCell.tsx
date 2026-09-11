@@ -582,13 +582,13 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
         <button
           ref={quickIssueTriggerRef}
           type="button"
-          className="dispatch-assignment-cell__quick-issue"
+          className="dispatch-assignment-cell__text-action"
           onClick={openQuickIssue}
           disabled={disabled}
           aria-label={`Phát lệnh nhanh · ${identity}`}
           title="Phát lệnh nhanh — không cần mở ô điều phối"
         >
-          <Send size={13} aria-hidden="true" />
+          Phát lệnh
         </button>
       )}
 
@@ -597,13 +597,13 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
         && row.taskStatus === 'DISPATCHED' && (
         <button
           type="button"
-          className="dispatch-assignment-cell__quick-issue"
+          className="dispatch-assignment-cell__text-action"
           onClick={() => onCompleteExternalTrip(row)}
           disabled={disabled}
           aria-label={`Hoàn thành chuyến xe ngoài · ${identity}`}
           title="Hoàn thành chuyến với xe ngoài — xe ngoài không dùng app nên điều vận/CUS chốt thay"
         >
-          <CheckCircle2 size={13} aria-hidden="true" />
+          Hoàn thành
         </button>
       )}
 

@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNull, aliasedTable } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, aliasedTable, sql } from 'drizzle-orm';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { operationalName } from '../db/master-data-name';
@@ -42,12 +42,17 @@ export interface DriverJourneyCard {
   scheduledAt: string | null;
   factoryName: string | null;
   factoryShortName: string | null;
+  // 3a0bd5af: factory site street address — the card's Tuyến line prefers it.
+  factoryAddress: string | null;
   loadingPortName: string | null;
   routeName: string | null;
   dropPortName: string | null;
   containerNumber: string | null;
   containerTypeName: string | null;
   sealNumber: string | null;
+  // 3a0bd5af: loại hình cell — the trip's LAST leg ĐÓNG/TRẢ (destination
+  // semantics, same rule the billing draft applies); null when no legs.
+  loadingType: string | null;
   contactName: string | null;
   contactPhone: string | null;
   truckPlate: string | null;
@@ -118,6 +123,16 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
     containerNumber: s.shipmentContainers.containerNumber,
     containerTypeName: s.containerTypes.name,
     sealNumber: s.shipmentContainers.sealNumber,
+    // 3a0bd5af: HÀNG ĐÓNG/TRẢ badge source — the trip's last leg loadingType.
+    // Scalar subquery keeps one row per fulfillment (a trip_legs join would
+    // fan out multi-leg trips into duplicate cards).
+    loadingType: sql<string | null>`(
+      select tl.loading_type
+      from ${s.tripLegs} tl
+      where tl.trip_id = ${s.trips.id}
+      order by tl.sequence desc
+      limit 1
+    )`,
     contactName: s.shipments.contactName,
     contactPhone: s.shipments.contactPhone,
     truckPlate: s.trucks.licensePlate,
@@ -125,6 +140,8 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
     containerPickupPortName: pickupPort.name,
     containerDropoffPortName: dropoffPort.name,
     containerFactoryName: containerFactory.name,
+    // 3a0bd5af: the card Tuyến line = factory site street address.
+    containerFactoryAddress: containerFactory.address,
     // Blank-safe site label: operational_sites.short_name is notNull with ''
     // default, so a raw ?? fallback would never fire on unfilled rows.
     containerFactoryShortName: operationalName(containerFactory.shortName, containerFactory.name),
@@ -215,12 +232,14 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
       scheduledAt: row.plannedStartAt?.toISOString() ?? null,
       factoryName: row.factoryName ?? row.containerFactoryName,
       factoryShortName: row.containerFactoryShortName ?? row.factoryName,
+      factoryAddress: row.containerFactoryAddress,
       loadingPortName: row.pickupLocation ?? row.containerPickupPortName,
       routeName: row.routeName,
       dropPortName: row.deliveryLocation ?? row.containerDropoffPortName,
       containerNumber: row.containerNumber,
       containerTypeName: row.containerTypeName,
       sealNumber: row.sealNumber,
+      loadingType: row.loadingType,
       contactName: row.contactName,
       contactPhone: row.contactPhone,
       truckPlate: row.truckPlate,

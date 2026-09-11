@@ -5,7 +5,6 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { client, db } from '../db';
 import * as s from '../db/schema';
 import { createHandoff } from '../services/dispatch-handoff.service';
-import { createShipmentChangeRequest } from '../services/shipment-edit-boundary.service';
 import { ensureShipmentFulfillmentsInTx } from '../services/shipment-fulfillment.service';
 import { createTrip } from '../services/trip-mutations.service';
 
@@ -136,29 +135,6 @@ describe('application-owned trip workflow guards', () => {
     assert.equal(results[0][0].id, results[1][0].id);
     const persisted = await db.select().from(s.shipmentFulfillments)
       .where(eq(s.shipmentFulfillments.shipmentId, shipment.id));
-    assert.equal(persisted.length, 1);
-  });
-
-  test('concurrent change requests produce one row and one domain conflict', async () => {
-    const actor = await createActor();
-    const shipment = await createLclShipment(actor.id);
-    const command = () => db.transaction((tx) => createShipmentChangeRequest(tx, {
-      shipment,
-      sourceVersion: shipment.version,
-      requestKind: 'PLAN_UPDATE',
-      requestedBy: actor.id,
-      beforeSnapshot: { operationalNotes: null },
-      afterSnapshot: { operationalNotes: 'Đổi kế hoạch' },
-    }));
-
-    const results = await Promise.allSettled([command(), command()]);
-    assert.equal(results.filter((result) => result.status === 'fulfilled').length, 1);
-    const rejected = results.find((result) => result.status === 'rejected');
-    assert.ok(rejected && rejected.status === 'rejected');
-    assert.equal((rejected.reason as { statusCode?: number }).statusCode, 409);
-    assert.match((rejected.reason as Error).message, /yêu cầu thay đổi mới hơn/i);
-    const persisted = await db.select().from(s.shipmentChangeRequests)
-      .where(eq(s.shipmentChangeRequests.shipmentId, shipment.id));
     assert.equal(persisted.length, 1);
   });
 

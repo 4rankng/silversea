@@ -37,7 +37,6 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { client, db } from '../db';
 import * as s from '../db/schema';
 import { applyTripPatch, insertTripComposite } from '../services/trip-composite.service';
-import { createShipmentChangeRequest } from '../services/shipment-edit-boundary.service';
 import { Role, ShipmentStatus, ShipmentDocumentType } from '@tingting/shared';
 import { config } from '../config';
 import { initEnforcer } from '../casbin/enforcer';
@@ -99,20 +98,20 @@ let baseUrl: string;
 
 // Approval workflow parked (customer undecided 2026-09-08): write paths no
 // longer open change requests, but the review surface still ships. Seed a
-// pending request the same way the parked routing did so review lifecycle
-// coverage survives.
+// pending request row directly so review lifecycle coverage survives.
 async function seedPendingPlanRequest(shipmentId: number, before: unknown, after: unknown): Promise<number> {
   const [shipment] = await db.select().from(s.shipments)
     .where(eq(s.shipments.id, shipmentId)).limit(1);
   assert.ok(shipment);
-  return db.transaction((tx) => createShipmentChangeRequest(tx, {
-    shipment,
+  const [row] = await db.insert(s.shipmentChangeRequests).values({
+    shipmentId,
     sourceVersion: shipment.version,
     requestKind: 'PLAN_UPDATE',
     requestedBy: clerkUserId,
     beforeSnapshot: before,
     afterSnapshot: after,
-  }));
+  }).returning({ id: s.shipmentChangeRequests.id });
+  return row.id;
 }
 
 // Container reconcile requests keep the snapshot shape the review-apply
@@ -124,9 +123,6 @@ async function seedPendingContainerRequest(
   sealNumber: string,
   sourceVersion: number,
 ): Promise<number> {
-  const [shipment] = await db.select().from(s.shipments)
-    .where(eq(s.shipments.id, shipmentId)).limit(1);
-  assert.ok(shipment);
   const currentRows = await db.select().from(s.shipmentContainers)
     .where(eq(s.shipmentContainers.shipmentId, shipmentId));
   const before = currentRows.map((row) => ({
@@ -138,14 +134,15 @@ async function seedPendingContainerRequest(
   const after = before.map((row) => (
     row.id === containerId ? { ...row, containerNumber, sealNumber } : row
   ));
-  return db.transaction((tx) => createShipmentChangeRequest(tx, {
-    shipment,
+  const [row] = await db.insert(s.shipmentChangeRequests).values({
+    shipmentId,
     sourceVersion,
     requestKind: 'CONTAINER_RECONCILE',
     requestedBy: clerkUserId,
     beforeSnapshot: before,
     afterSnapshot: after,
-  }));
+  }).returning({ id: s.shipmentChangeRequests.id });
+  return row.id;
 }
 
 async function mkUser(username: string, role: Role) {
@@ -4123,28 +4120,6 @@ describe('POST /:id/change-requests/:requestId/review', () => {
     const detail = await testFetch(`/${shipment.id}`, { token: adminToken });
     assert.equal(detail.data.shipment.pickupLocation, 'Kho mới');
     assert.equal(detail.data.pendingChangeRequests.length, 0);
-  });
-
-  test('request creation persists notifications for both manager and admin recipients', async () => {
-    const { transitionShipmentStatus } = await import('../services/shipment.service');
-    const shipment = await mkClerkScopedShipmentViaService({
-      pickupLocation: 'Kho A',
-      closingAt: '2026-08-04T08:00:00.000Z',
-    });
-    await transitionShipmentStatus(shipment.id, ShipmentStatus.DISPATCHED);
-    await seedPendingPlanRequest(shipment.id,
-      { pickupLocation: 'Kho A' },
-      { pickupLocation: 'Kho B' });
-
-    const notifications = await db.select()
-      .from(s.notifications)
-      .where(and(
-        eq(s.notifications.relatedEntityType, 'shipments'),
-        eq(s.notifications.relatedEntityId, shipment.id),
-        inArray(s.notifications.userId, [adminUserId, managerUserId]),
-      ));
-    const recipientIds = notifications.map((row) => row.userId).sort((a, b) => a - b);
-    assert.deepEqual(recipientIds, [adminUserId, managerUserId]);
   });
 
   test('stale apply conflicts but stale reject closes the request and targets only its requester', async () => {

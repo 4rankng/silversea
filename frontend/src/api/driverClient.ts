@@ -12,6 +12,7 @@ import {
 } from '@tingting/shared';
 import { fileCommandFingerprint } from '../lib/api';
 import type { FuelEvidenceReviewRecord } from './fuelEvidenceClient';
+import type { DriverJourneyCard } from './driverJourneyBoard';
 
 type DriverMilestoneEventType = DriverProgressEventType;
 
@@ -62,42 +63,9 @@ const DRIVER_TASK = {
   VEHICLE: '/driver/me/vehicle',
 } as const;
 
-export type DriverJourneyBucket = 'NEW' | 'RUNNING' | 'HISTORY';
-// Raw fulfillment-owned classification (ĐƠN/KẸP/KẾT HỢP/LẺ labels) plus the
-// shipment-derived pairing signal for kẹp/kết-hợp cards that stick together.
-export type DriverJourneyClassification = 'SINGLE' | 'DOUBLE' | 'COMBINED' | 'LCL';
-
-export interface DriverJourneyCard {
-  fulfillmentId: number;
-  tripId: number;
-  shipmentId: number;
-  tripCode: string | null;
-  shipmentCode: string | null;
-  /** Lệnh chạy ngoài (MDN §4.4) — drives the "Chạy ngoài" label on the card. */
-  isAdHoc: boolean;
-  bucket: DriverJourneyBucket;
-  classification: DriverJourneyClassification;
-  linked: boolean;
-  pairId: number | null;
-  pairKind: 'KEP' | 'KET_HOP' | null;
-  pairOrder: 1 | 2 | null;
-  /** KẾT HỢP lock: true on Lệnh 2 until Lệnh 1 finishes (TC-GHEP-010). */
-  pairLocked: boolean;
-  scheduledAt: string | null;
-  factoryName: string | null;
-  factoryShortName: string | null;
-  loadingPortName: string | null;
-  routeName: string | null;
-  dropPortName: string | null;
-  containerNumber: string | null;
-  containerTypeName: string | null;
-  sealNumber: string | null;
-  contactName: string | null;
-  contactPhone: string | null;
-  truckPlate: string | null;
-  trailerPlate: string | null;
-  operationalNotes: string | null;
-}
+// Journey-board wire types moved to ./driverJourneyBoard (structure-guard
+// split — this file was at its frozen LOC ceiling).
+export type { DriverJourneyBucket, DriverJourneyClassification, DriverJourneyCard } from './driverJourneyBoard';
 
 /** The driver's current vehicle (topbar identity chip). */
 export interface DriverVehicle {
@@ -244,7 +212,7 @@ export interface DriverTaskDetail {
   } | null;
   currentPod?: DriverTaskPodSubmission | null;
   podHistory?: DriverTaskPodSubmission[];
-  /** TC-DA-001: canonical tag pool (board embed contract, 320aad6b); FE resolves chips via lib/dispatchTaskTags parseNote. */
+  /** TC-DA-001: canonical tag pool (board embed contract, 320aad6b); FE resolves chips via @tingting/shared parseDriverTaskNote. */
   knownTagLabels?: string[];
   /** TC-DA-005: customer master-data invoice block — hidden when null. */
   invoiceMaster?: DriverInvoiceMaster | null;
@@ -258,7 +226,7 @@ export interface DriverInvoiceMaster {
 
 export interface DriverContainerSealPhoto {
   id: number;
-  type: 'CONTAINER' | 'SEAL';
+  type: 'CONTAINER' | 'SEAL' | 'DELIVERY_NOTE';
   storageKey: string;
   uploadedAt: string;
 }
@@ -364,7 +332,7 @@ function mapFulfillmentDetail(wire: DriverFulfillmentDetailResponse): DriverTask
     currentPod,
     podHistory,
     // TC-DA-001/005: tag pool + customer master invoice block ride the detail
-    // wire; chips resolve FE-side via lib/dispatchTaskTags parseNote.
+    // wire; chips resolve FE-side via @tingting/shared parseDriverTaskNote.
     knownTagLabels: wire.knownTagLabels ?? [],
     invoiceMaster: wire.invoiceMaster ?? null,
   };

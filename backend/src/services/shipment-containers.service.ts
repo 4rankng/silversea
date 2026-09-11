@@ -27,8 +27,6 @@ import {
   ensureReadyShipmentHandoff,
 } from './shipment-intake.service';
 import { lockShipmentFreightRate } from './freight-rate-snapshot-lifecycle.service';
-import {
-} from './shipment-edit-boundary.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import type {
   ShipmentContainerInput,
@@ -563,10 +561,9 @@ export async function batchUpsertShipmentContainers(
     const synchronizedContainers = synchronizeContainerShippingLine(containers, shippingLineName);
     assertContainerSetValid(synchronizedContainers);
 
-    // Approval workflow parked (customer undecided 2026-09-08): clerk
-    // container reconciles apply directly instead of opening a change
-    // request. Re-route through createShipmentChangeRequest here when the
-    // customer signs off on an approval process.
+    // 2026-09-10 user directive: all phê duyệt (approval) flows are removed —
+    // clerk container reconciles apply directly, with no change-request
+    // routing to reintroduce later.
 
     const reconciled = await reconcileShipmentContainersWithFulfillmentGuard(
       tx,

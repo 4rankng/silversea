@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import type { Customer } from '@tingting/shared';
 import { configClient } from '../../../api/configClient';
+import { qk } from '../../../api/keys';
 import { Modal } from '../../../components/UI';
 import { UTextField, UTextAreaField } from './uui-fields';
 
@@ -11,6 +13,7 @@ interface CustomerCreateDialogProps {
 }
 
 export function CustomerCreateDialog({ isOpen, onClose, onCreated }: CustomerCreateDialogProps) {
+  const queryClient = useQueryClient();
   const [name, setName] = useState('');
   const [shortName, setShortName] = useState('');
   const [taxCode, setTaxCode] = useState('');
@@ -65,6 +68,11 @@ export function CustomerCreateDialog({ isOpen, onClose, onCreated }: CustomerCre
         accountantName: accountantName.trim() || undefined,
         accountantPhone: accountantPhone.trim() || undefined,
       });
+      // The bootstrap catalog blob feeds every carrier/customer dropdown in
+      // the app (trip reassign, dispatch editor). A just-created record must
+      // be selectable immediately — in-session SPA navigation never fires the
+      // window-focus refetch that backs this cache up.
+      await queryClient.invalidateQueries({ queryKey: qk.catalogs.all });
       onCreated(customer);
     } catch (submitError) {
       setError(submitError instanceof Error && submitError.message.trim()

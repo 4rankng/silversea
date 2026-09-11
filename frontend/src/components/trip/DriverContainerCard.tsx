@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react';
-import { Camera, Loader2, Save, Package, AlertCircle, Pencil, X, Check, ImageOff } from 'lucide-react';
-import { api, fileCommandFingerprint, getAuthenticatedPhotoUrl } from '../../lib/api';
+import { useState } from 'react';
+import { Camera, Loader2, Save, Package, AlertCircle, Pencil, X, Check } from 'lucide-react';
+import { api, fileCommandFingerprint } from '../../lib/api';
 import { compressImageFile } from '../../lib/imageCompression';
 import { useToast } from '../shared/Toast';
 import { ContainerScanner, dataUrlToFile } from '../shared/ContainerScanner';
+import { photoSrc, renderThumb } from './DriverTripPhotos';
+import { DriverDeliveryNoteCard } from './DriverDeliveryNoteCard';
 import {
   normalizeContainerNumber,
   validateContainerFormat,
@@ -14,23 +16,13 @@ import { TextField } from '../../design-system';
 import './DriverContainerCard.css';
 
 /**
- * Container & seal section for the driver trip-detail page.
- *
- * Unlike `ContainerInstancesCard` (back-office, lives inside the trip-form
- * context and batch-saves the whole list), this card is standalone: the driver
- * detail page is NOT wrapped in a TripFormProvider. The driver uploads a photo
- * of the container/seal, the server recognizes the numbers via OCR, the numbers
- * auto-fill an inline form for review/editing, and the driver confirms by
- * saving — one container at a time through `POST /driver/me/trips/:id/containers`.
- *
- * Numbers are NEVER auto-committed (locked design decision #1): the OCR result
- * only pre-fills the form; nothing reaches the DB until the driver taps Lưu.
- *
- * After a container is saved, the card switches to a bento read-only view
- * (license-plate hero + 1/1+1/1 cells for seal / cont photo, wide tile for
- * seal photo). A Sửa button on the hero re-enters the form pre-filled with
- * the saved values; saving there PATCHes the existing row instead of creating
- * a new one.
+ * Container & seal section for the driver trip-detail page. Standalone (the
+ * driver page is NOT wrapped in a TripFormProvider): OCR pre-fills an inline
+ * form; numbers are NEVER auto-committed (locked design decision #1) — nothing
+ * reaches the DB until the driver taps Lưu (POST/PATCH
+ * /driver/me/trips/:id/containers). After save, a bento read-only view shows
+ * plate hero + photo tiles; Sửa re-enters the form (PATCH). The biên bản
+ * giao hàng block mounts DriverDeliveryNoteCard outside the form/bento switch.
  */
 
 interface ExistingContainer {
@@ -61,6 +53,8 @@ interface Props {
   contPhotoKey: string | null;
   /** Storage key of the latest seal photo — shown as a thumbnail once saved. */
   sealPhotoKey: string | null;
+  /** 40f3ae15: latest biên bản giao hàng photo (trip_photos type OTHER). */
+  deliveryNotePhotoKey: string | null;
   /** Shipment trade direction. IMPORT (trả hàng) scans are cross-checked
    *  against the declared container number (spec A6, advisory only). */
   tradeDirection: string | null;
@@ -83,58 +77,9 @@ function checkContainerNumber(cn: string): CheckStatus {
   return { warning: 'Số cont sai chữ số kiểm tra — kiểm tra lại.', suggestion: corrections[0] ?? null };
 }
 
-/** Normalize a stored photo reference to an authenticated `/api/photos/` URL.
- *  Accepts either a bare storage key (e.g. `trips/154/container-…jpg`, as
- *  returned by getDriverTripDetail) or an already-formed `/api/photos/…` URL
- *  (as returned by a fresh OCR upload). Bare keys are encoded so the slashes
- *  survive as a single path segment that the wildcard photo route decodes. */
-function photoSrc(value: string | null | undefined): string {
-  if (!value) return '';
-  const url = value.startsWith('/api/photos/') ? value : `/api/photos/${encodeURIComponent(value)}`;
-  return getAuthenticatedPhotoUrl(url);
-}
-
-function EmptyThumb({ label }: { label: string }) {
-  return <div className="dcc-bento__thumb-empty"><ImageOff size={15} /><span>{label}</span></div>;
-}
-
-/** One bento thumbnail: preflight the protected photo URL so missing files render
- *  as a calm placeholder instead of a broken browser image on the driver phone. */
-function BentoThumb({ photoKey, label }: { photoKey: string | null; label: string }) {
-  const [src, setSrc] = useState('');
-
-  useEffect(() => {
-    if (!photoKey) {
-      setSrc('');
-      return;
-    }
-
-    const nextSrc = photoSrc(photoKey);
-    const controller = new AbortController();
-
-    fetch(nextSrc, { method: 'HEAD', signal: controller.signal })
-      .then(response => {
-        setSrc(response.ok ? nextSrc : '');
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) setSrc('');
-      });
-
-    return () => controller.abort();
-  }, [photoKey]);
-
-  return src
-    ? <img className="dcc-bento__thumb" src={src} alt={`Ảnh ${label.toLowerCase()}`} onError={() => setSrc('')} />
-    : <EmptyThumb label={label} />;
-}
-
-/** One bento thumbnail: the photo if `key` is present and valid, else a labelled
- *  empty placeholder. Cont and Seal thumbs are identical modulo key + label. */
-function renderThumb(key: string | null, label: string) {
-  return <BentoThumb photoKey={key} label={label} />;
-}
-
-export function DriverContainerCard({ tripId, containers, contPhotoKey, sealPhotoKey, tradeDirection, onSaved }: Props) {
+// photoSrc + renderThumb/BentoThumb primitives live in ./DriverTripPhotos
+// (structure-guard split shared with DriverDeliveryNoteCard).
+export function DriverContainerCard({ tripId, containers, contPhotoKey, sealPhotoKey, deliveryNotePhotoKey, tradeDirection, onSaved }: Props) {
   const { toast } = useToast();
   const [draft, setDraft] = useState({ containerNumber: '', sealNumber: '', containerTypeId: '' });
   const [lastPhotos, setLastPhotos] = useState<{ cont: string | null; seal: string | null }>({ cont: null, seal: null });
@@ -372,6 +317,7 @@ export function DriverContainerCard({ tripId, containers, contPhotoKey, sealPhot
               <div className="dcc-bento__thumbs">
                 {renderThumb(contPhotoKey, 'Cont')}
                 {renderThumb(sealPhotoKey, 'Seal')}
+                {renderThumb(deliveryNotePhotoKey, 'Biên bản')}
               </div>
             </div>
           </div>
@@ -579,6 +525,11 @@ export function DriverContainerCard({ tripId, containers, contPhotoKey, sealPhot
             </p>
           </>
         )}
+
+        {/* 40f3ae15: biên bản giao hàng — extracted to DriverDeliveryNoteCard
+            (LOC ratchet), mounted here so it stays OUTSIDE the form/bento
+            switch: reachable whether or not a container row is saved. */}
+        <DriverDeliveryNoteCard tripId={tripId} photoKey={deliveryNotePhotoKey} onSaved={onSaved} />
       </div>
     </section>
   );

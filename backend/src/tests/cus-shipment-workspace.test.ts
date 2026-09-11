@@ -573,6 +573,49 @@ describe('CUS shipment workspace projection — inline edit authority', () => {
     assert.equal(item.fieldAccess.customerNotes.mode, 'DIRECT');
     assert.equal(item.fieldAccess.factoryName.mode, 'DIRECT');
   });
+
+  // TODO/20260911_3 BUG3: CUS creates the lot before the container numbers
+  // arrive, then supplements them the next day. The save must be DIRECT —
+  // no approval request, no pending row — as long as dispatch has not
+  // attached a live trip to the container yet (that denial is a separate,
+  // retained operational gate, pinned by TC_UNAS_03).
+  test('CUS supplements a placeholder container number directly with no approval request', async () => {
+    const marker = Math.random().toString(16).slice(2, 8).replace(/[a-f]/g, (c) => String(c.charCodeAt(0) % 10));
+    const prefix = `MSKU${marker}`;
+    const validNumber = `${prefix}${calculateCheckDigit(prefix)}`;
+    const shipment = await seedShipment({
+      blNumber: `WS-SUPP-${marker}`,
+      cargoMode: 'FCL',
+      expectedDeliveryDate: '2026-08-24',
+      status: 'DISPATCHED',
+    });
+    const container = await seedContainer(shipment.id, { containerNumber: null });
+    const fulfillment = await seedFulfillment(shipment.id, container.id);
+    void fulfillment;
+
+    const result = await updateCusShipmentContainerLine({
+      shipmentId: shipment.id,
+      containerId: container.id,
+      input: {
+        expectedShipmentVersion: shipment.version,
+        containerNumber: validNumber,
+      },
+      actor: cusActor,
+    });
+    assert.equal(result.line.raw.containerNumber, validNumber);
+
+    const [stored] = await db.select({ containerNumber: s.shipmentContainers.containerNumber })
+      .from(s.shipmentContainers)
+      .where(eq(s.shipmentContainers.id, container.id))
+      .limit(1);
+    assert.equal(stored?.containerNumber, validNumber);
+
+    // Direct apply: no change-request row was ever opened for this shipment.
+    const requestRows = await db.select({ id: s.shipmentChangeRequests.id })
+      .from(s.shipmentChangeRequests)
+      .where(eq(s.shipmentChangeRequests.shipmentId, shipment.id));
+    assert.equal(requestRows.length, 0);
+  });
 });
 
 test('workspace detail returns safe route selectors for the route authority', async () => {

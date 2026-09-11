@@ -59,6 +59,7 @@ function renderCard(overrides: Partial<Parameters<typeof DriverContainerCard>[0]
       containers={[]}
       contPhotoKey={null}
       sealPhotoKey={null}
+      deliveryNotePhotoKey={null}
       tradeDirection="IMPORT"
       onSaved={onSaved}
       {...overrides}
@@ -115,5 +116,36 @@ describe('DriverContainerCard — spec A6 OCR cross-check', () => {
     expect(await screen.findByDisplayValue('TCKU7654321')).toBeTruthy();
     expect(screen.queryByTestId('container-scan-mismatch')).toBeNull();
     expect(toastSpy).toHaveBeenCalledWith(expect.objectContaining({ kind: 'info' }));
+  });
+});
+
+describe('DriverContainerCard — 40f3ae15 biên bản giao hàng photo', () => {
+  it('uploads through /upload with type DELIVERY_NOTE and refreshes via onSaved', async () => {
+    const { onSaved } = renderCard({ deliveryNotePhotoKey: null });
+    uploadMock.mockResolvedValueOnce({ ok: true, storageKey: 'k', url: '/api/photos/k' } as never);
+
+    const input = document.querySelector('.dcc-note input[type="file"]') as HTMLInputElement;
+    expect(input).toBeTruthy();
+    const file = new File(['note-bytes'], 'note.jpg', { type: 'image/jpeg' });
+    await fireEvent.change(input, { target: { files: [file] } });
+    // onChange handler is async — flush it.
+    await waitFor(() => expect(onSaved).toHaveBeenCalled());
+
+    // The mock accumulates calls from the OCR tests above — pick the /upload one.
+    const uploadCall = uploadMock.mock.calls.find(([path]) => path === '/upload');
+    expect(uploadCall).toBeTruthy();
+    const [, formData] = uploadCall!;
+    expect(formData).toBeInstanceOf(FormData);
+    expect((formData as FormData).get('type')).toBe('DELIVERY_NOTE');
+    expect((formData as FormData).get('trip_id')).toBe('55');
+    expect(toastSpy).toHaveBeenCalledWith(expect.objectContaining({ kind: 'success' }));
+  });
+
+  it('renders the thumbnail with a remove action when a biên bản photo exists', async () => {
+    renderCard({ deliveryNotePhotoKey: 'trips/55/other-note.jpg' });
+
+    const img = await screen.findByAltText('Ảnh biên bản giao hàng');
+    expect(img.getAttribute('src')).toContain(encodeURIComponent('trips/55/other-note.jpg'));
+    expect(screen.getByRole('button', { name: 'Xóa ảnh biên bản' })).toBeTruthy();
   });
 });

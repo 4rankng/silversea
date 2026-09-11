@@ -92,6 +92,28 @@
   font-size: 13px;
 }
 
+/* 2a618442: collapsed-header Tuyến line + 44px expand/collapse toggle. */
+.driver-task-header__route {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--ink-3);
+  overflow-wrap: anywhere;
+}
+
+.driver-task-header__toggle {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+}
+
 .driver-task-section {
   display: grid;
   gap: 12px;

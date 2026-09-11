@@ -10,8 +10,6 @@ import { canonicalShipmentStatus } from '@tingting/shared';
 import type { AuthUser } from '../middleware/auth';
 import type { Tx } from './trip-shared';
 import type { UpdateShipmentInput } from './shipment-types';
-import {
-} from './shipment-edit-boundary.service';
 
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import { lockShipmentFreightRate } from './freight-rate-snapshot-lifecycle.service';
@@ -115,10 +113,9 @@ export async function updateShipment(
 
 
 
-    // Approval workflow parked (customer undecided 2026-09-08): authority and
-    // clerk plan updates apply directly instead of opening change requests.
-    // Re-route through createShipmentChangeRequest when the customer signs
-    // off on an approval process.
+    // 2026-09-10 user directive: all phê duyệt (approval) flows are removed —
+    // authority and clerk plan updates apply directly, with no
+    // change-request routing to reintroduce later.
     const shipmentAuthorityChanged = (
       input.customerId !== undefined && input.customerId !== existing.customerId
     ) || (

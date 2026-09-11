@@ -7,7 +7,6 @@ import * as s from '../db/schema';
 import { batchUpsertShipmentContainers, createShipment } from '../services/shipment.service';
 import { reconcileShipmentContainersInTx } from '../services/shipment-containers.service';
 import { runInTx } from '../lib/tx';
-import { classifyClerkContainerChange } from '../services/shipment-edit-boundary.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const shipmentIds: number[] = [];
@@ -222,42 +221,6 @@ describe('shipment container site authority (SILVER L1 P2)', () => {
         return true;
       },
     );
-  });
-
-  test('an appointment-only post-handoff container edit classifies REQUESTED, never NOOP', async () => {
-    const customer = await makeCustomer('Edit boundary');
-    const containerType = await makeContainerType('EB');
-    const shipment = await createShipment({ customerId: customer.id, cargoMode: 'FCL' });
-    shipmentIds.push(shipment.id);
-
-    // createShipment starts with no containers — create the current row the
-    // classifier compares against.
-    await batchUpsertShipmentContainers(shipment.id, null, [{
-      containerTypeId: containerType.id,
-      containerNumber: 'EEEU4004002',
-      customerAppointmentAt: '2026-08-24T04:00:00.000Z',
-    }]);
-    const [row] = await db.select().from(s.shipmentContainers)
-      .where(eq(s.shipmentContainers.shipmentId, shipment.id)).limit(1);
-
-    const result = classifyClerkContainerChange(
-      [{ ...row, operationalSiteId: row.operationalSiteId ?? null }],
-      [{
-        id: row.id,
-        containerTypeId: row.containerTypeId,
-        containerNumber: row.containerNumber,
-        sealNumber: row.sealNumber,
-        cargoWeightKg: row.cargoWeightKg,
-        shippingLineName: row.shippingLineName,
-        pickupPortId: row.pickupPortId,
-        dropoffPortId: row.dropoffPortId,
-        operationalSiteId: row.operationalSiteId,
-        // Only the appointment moved.
-        customerAppointmentAt: '2026-08-26T04:00:00.000Z',
-        notes: row.notes,
-      }],
-    );
-    assert.equal(result.mode, 'REQUESTED');
   });
 
   test('decomposition snapshots carry per-container factory authority; re-decompose after a site change shows the new factory', async () => {

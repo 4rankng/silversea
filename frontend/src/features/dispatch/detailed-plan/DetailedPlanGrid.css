@@ -605,6 +605,36 @@
   line-height: var(--ops-table-note-line-height);
 }
 
+/* Ghi chú: long notes clamp to three lines; the whole note is a button that
+   reopens the full text in a dialog so nothing is truncated out of reach. */
+.detailed-plan-grid__note {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.detailed-plan-grid__note-clamp {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.detailed-plan-grid__note-full {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-primary, #101828);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .detailed-plan-grid__lot-flag {
   margin-top: 4px;
   display: inline-block;

@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { composeNote, parseNote } from './dispatchTaskTags';
 
 describe('composeNote', () => {
-  it('joins tags first, then manual text, with "; "', () => {
-    expect(composeNote(['Đặt đầu', 'Lấy vỏ ICD đi đóng'], 'gọi lái trước 30p')).toBe('Đặt đầu; Lấy vỏ ICD đi đóng; gọi lái trước 30p');
+  it('composes v2: tags as line 1, manual text as line 2', () => {
+    expect(composeNote(['Đặt đầu', 'Lấy vỏ ICD đi đóng'], 'gọi lái trước 30p')).toBe('Đặt đầu; Lấy vỏ ICD đi đóng\ngọi lái trước 30p');
   });
 
   it('emits tags only when manual text is empty', () => {
@@ -44,8 +44,14 @@ describe('parseNote', () => {
     });
   });
 
-  it('round-trips an untouched note byte-identically', () => {
+  it('migrates a legacy single-line note to v2 on the next save', () => {
     const note = 'Đặt đầu; Đặt đuôi; gọi lái trước 30p';
+    const parsed = parseNote(note, known);
+    expect(composeNote(parsed.selectedLabels, parsed.manualText)).toBe('Đặt đầu; Đặt đuôi\ngọi lái trước 30p');
+  });
+
+  it('round-trips a v2 note byte-identically', () => {
+    const note = 'Đặt đầu; Đặt đuôi\ngọi lái trước 30p';
     const parsed = parseNote(note, known);
     expect(composeNote(parsed.selectedLabels, parsed.manualText)).toBe(note);
   });

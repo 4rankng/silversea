@@ -93,7 +93,7 @@ describe('DispatchTaskTagEditor', () => {
     await screen.findByRole('button', { name: 'Đặt đầu' });
     const box = screen.getByLabelText('Ghi chú thêm') as HTMLTextAreaElement;
     fireEvent.change(box, { target: { value: 'ghi mới' } });
-    await waitFor(() => expect(screen.getByText('Hiển thị: Đặt đầu; ghi mới')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText((_, el) => el?.textContent === 'Hiển thị: Đặt đầu\nghi mới')).toBeTruthy());
   });
 
   it('inline-add posts a new tag, renders its chip, and selects it', async () => {
@@ -185,7 +185,7 @@ describe('DispatchTaskTagEditor manage popover', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Lưu' }));
     await waitFor(() => expect(updateMock).toHaveBeenCalledWith(1, 'Đặt đầu sớm'));
     // The draft note re-composes: renamed chip stays selected, manual text intact.
-    await screen.findByText('Hiển thị: Đặt đầu sớm; gọi lái trước 30p');
+    await screen.findByText((_, el) => el?.textContent === 'Hiển thị: Đặt đầu sớm\ngọi lái trước 30p');
     // Refetched pool renders the renamed chip as selected.
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Đặt đầu sớm' }).getAttribute('aria-pressed')).toBe('true');

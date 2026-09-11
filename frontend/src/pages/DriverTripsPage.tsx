@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Building2, Loader2, Package2, Phone, Route } from 'lucide-react';
+import { ArrowRight, Building2, Loader2, Package2, Route } from 'lucide-react';
 import { useDriverJourneyBoard } from '../hooks/useDriverQueries';
-import type { DriverJourneyCard } from '../api/driverClient';
-import { parseNote } from '../lib/dispatchTaskTags';
+import type { DriverJourneyCard } from '../api/driverJourneyBoard';
+import { parseDriverTaskNote } from '@tingting/shared';
 import './DriverTripsPage.css';
 
 type JourneyTabKey = 'NEW' | 'RUNNING' | 'HISTORY';
@@ -73,6 +73,17 @@ function groupCards(cards: DriverJourneyCard[]): DriverJourneyCard[][] {
   return order.map((key) => groups.get(key)!);
 }
 
+/** 3a0bd5af: loại hình cell wording from the customer mockup — trips carry
+ *  leg-level ĐÓNG/TRẢ (loadingType); null/unknown renders nothing. */
+const LOADING_TYPE_CARD_LABELS: Record<string, string> = {
+  HANG: 'Hàng đóng',
+  VO: 'Hàng trả',
+};
+
+function loadingTypeLabel(card: DriverJourneyCard): string | null {
+  return card.loadingType ? LOADING_TYPE_CARD_LABELS[card.loadingType] ?? null : null;
+}
+
 function isPresent(value: string | null | undefined): value is string {
   return typeof value === 'string' && value.trim().length > 0;
 }
@@ -81,34 +92,16 @@ function dash(value: string | null | undefined): string {
   return isPresent(value) ? value : '—';
 }
 
-/**
- * Labelled cell in the card's fact grid. The label carries the field name so
- * the value can stand alone as data.
- */
-function JourneyFact({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="driver-journey-fact">
-      <span className="driver-journey-fact__label">{label}</span>
-      <span className="driver-journey-fact__value">{value}</span>
-    </div>
-  );
-}
-
 function JourneyCard({ card, tagLabels }: { card: DriverJourneyCard; tagLabels: ReadonlyArray<string> }) {
   const navigate = useNavigate();
   const tag = tagLabelFor(card);
   const isPaired = tag === 'KẸP' || tag === 'KẾT HỢP';
-  const hasContact = isPresent(card.contactName) || isPresent(card.contactPhone);
+  const isNew = card.bucket === 'NEW';
+  const footerLabel = isNew ? 'Xem chi tiết & Nhận lệnh' : 'Xem chi tiết';
   const hasContainer = isPresent(card.containerNumber) || isPresent(card.sealNumber);
   const hasPorts = isPresent(card.loadingPortName) || isPresent(card.dropPortName);
-  const { selectedLabels: operationTags, manualText: operationManualText } = parseNote(card.operationalNotes, tagLabels);
-
-  /* Remaining facts: truck and trailer. Ports are rendered alongside the
-     container per the responsive-space-utilisation contract. */
-  const facts = [
-    { label: 'Đầu kéo', value: card.truckPlate },
-    { label: 'Mooc', value: card.trailerPlate },
-  ].filter((fact): fact is { label: string; value: string } => isPresent(fact.value));
+  const loadTypeLabel = loadingTypeLabel(card);
+  const { selectedLabels: operationTags, manualText: operationManualText } = parseDriverTaskNote(card.operationalNotes, tagLabels);
 
   /* Ticket 365943ea field order: Nhà máy (top) → Tuyến đường → Cont →
      Cảng nâng / Cảng hạ → Tác vụ → Đầu kéo → Mooc.
@@ -135,15 +128,18 @@ function JourneyCard({ card, tagLabels }: { card: DriverJourneyCard; tagLabels: 
         </p>
       ) : null}
 
-      {/* 2. Route — secondary line */}
-      {isPresent(card.routeName) ? (
+      {/* 2. Route — secondary line. 3a0bd5af: prefers the factory site
+          ADDRESS (detail-page Tuyến parity), route name as fallback. */}
+      {isPresent(card.factoryAddress ?? card.routeName) ? (
         <p className="driver-journey-card__route">
-          <Route size={13} aria-hidden="true" /> {card.routeName}
+          <Route size={13} aria-hidden="true" /> {isPresent(card.factoryAddress) ? card.factoryAddress : card.routeName}
         </p>
       ) : null}
 
-      {/* 3. Container + 4. Ports — side-by-side block */}
-      {(hasContainer || hasPorts) ? (
+      {/* 3. Container + loại hình + 4. Ports — side-by-side block. 3a0bd5af:
+          the HÀNG ĐÓNG/TRẢ pill rides the cont row (mockup col 3) and stands
+          alone when the card has no container data. */}
+      {(hasContainer || hasPorts || loadTypeLabel) ? (
         <div className="driver-journey-card__container-block">
           {hasContainer ? (
             <p className="driver-journey-card__container">
@@ -152,9 +148,16 @@ function JourneyCard({ card, tagLabels }: { card: DriverJourneyCard; tagLabels: 
               {isPresent(card.containerTypeName) ? (
                 <span className="driver-journey-card__cont-type">{card.containerTypeName}</span>
               ) : null}
+              {loadTypeLabel ? (
+                <span className="driver-journey-card__cont-type" data-testid="load-type">{loadTypeLabel}</span>
+              ) : null}
               {isPresent(card.sealNumber) ? (
                 <span className="driver-journey-card__seal">Seal {card.sealNumber}</span>
               ) : null}
+            </p>
+          ) : loadTypeLabel ? (
+            <p className="driver-journey-card__container">
+              <span className="driver-journey-card__cont-type" data-testid="load-type">{loadTypeLabel}</span>
             </p>
           ) : null}
           {hasPorts ? (
@@ -186,22 +189,6 @@ function JourneyCard({ card, tagLabels }: { card: DriverJourneyCard; tagLabels: 
         <p className="driver-journey-card__ops-note">{operationManualText}</p>
       ) : null}
 
-      {/* Contact */}
-      {hasContact ? (
-        <p className="driver-journey-card__contact">
-          <Phone size={13} aria-hidden="true" /> {dash(card.contactName)}
-          {isPresent(card.contactPhone) ? (
-            <a
-              className="driver-journey-card__phone"
-              href={`tel:${card.contactPhone}`}
-              onClick={(event) => event.stopPropagation()}
-            >
-              {card.contactPhone}
-            </a>
-          ) : null}
-        </p>
-      ) : null}
-
       {/* KẾT HỢP sequencing lock (TC-GHEP-010) */}
       {card.pairLocked ? (
         <p className="driver-journey-card__locked">
@@ -209,20 +196,15 @@ function JourneyCard({ card, tagLabels }: { card: DriverJourneyCard; tagLabels: 
         </p>
       ) : null}
 
-      {/* Truck / trailer */}
-      {facts.length > 0 ? (
-        <div className="driver-journey-card__facts">
-          {isPresent(card.truckPlate) && <JourneyFact label="Đầu kéo" value={card.truckPlate} />}
-          {isPresent(card.trailerPlate) && <JourneyFact label="Mooc" value={card.trailerPlate} />}
-        </div>
-      ) : null}
+      {/* 3a0bd5af: contact + Đầu kéo/Mooc rows dropped from the compact card
+          (mockup image3 has neither) — the detail page carries full info. */}
 
       <button
         type="button"
         className="driver-journey-card__footer"
         onClick={() => navigate(`/my-trips/${card.fulfillmentId}`)}
       >
-        <span>Xem chi tiết & Nhận lệnh</span>
+        <span>{footerLabel}</span>
         <ArrowRight size={16} aria-hidden="true" />
       </button>
     </article>
