@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Truck } from 'lucide-react';
 import { EmptyState } from '../../../design-system';
 import { SkeletonTable } from '../../../components/shared/Skeleton';
@@ -5,6 +6,7 @@ import { DISPATCH_CLASSIFICATION_LABELS } from '@tingting/shared';
 import type { DispatchClassification } from '@tingting/shared';
 import type { DispatchDetailPlanRow, ZoneTruckPresenceItem } from '../../../api/dispatchPlanningClient';
 import { Badge } from '../../../components/untitled-ui/base/badges/badges';
+import { Modal } from '../../../components/UI';
 import {
   DispatchPlanEditorCell,
   type AtomicPlanSaveResult,
@@ -97,6 +99,9 @@ export function DetailedPlanGrid({
   onCompleteExternalTrip,
   onIssueOrder,
 }: DetailedPlanGridProps) {
+  // Long notes clamp to three lines; tapping reopens the full text in a
+  // dialog so the column stays scannable without hiding content.
+  const [expandedNote, setExpandedNote] = useState<{ title: string; text: string } | null>(null);
 
   if (error) {
     return (
@@ -264,14 +269,28 @@ export function DetailedPlanGrid({
                   </td>
                   <td className="detailed-plan-grid__cell detailed-plan-grid__cell--notes" data-label="Ghi chú">
                     {row.notes.vehicleNote && (
-                      <div className="detailed-plan-grid__line detailed-plan-grid__line--notes">
-                        Xe: {displayNote(row.notes.vehicleNote)}
-                      </div>
+                      <button
+                        type="button"
+                        className="detailed-plan-grid__note"
+                        onClick={() => setExpandedNote({ title: 'Ghi chú xe', text: displayNote(row.notes.vehicleNote) })}
+                        title="Bấm để xem toàn bộ ghi chú"
+                      >
+                        <span className="detailed-plan-grid__line detailed-plan-grid__line--notes detailed-plan-grid__note-clamp">
+                          Xe: {displayNote(row.notes.vehicleNote)}
+                        </span>
+                      </button>
                     )}
                     {row.notes.customerNote && (
-                      <div className="detailed-plan-grid__line detailed-plan-grid__line--muted">
-                        Khách: {displayNote(row.notes.customerNote)}
-                      </div>
+                      <button
+                        type="button"
+                        className="detailed-plan-grid__note"
+                        onClick={() => setExpandedNote({ title: 'Ghi chú khách hàng', text: displayNote(row.notes.customerNote) })}
+                        title="Bấm để xem toàn bộ ghi chú"
+                      >
+                        <span className="detailed-plan-grid__line detailed-plan-grid__line--muted detailed-plan-grid__note-clamp">
+                          Khách: {displayNote(row.notes.customerNote)}
+                        </span>
+                      </button>
                     )}
                   </td>
                 </tr>
@@ -280,6 +299,14 @@ export function DetailedPlanGrid({
           </table>
         </div>
       )}
+      <Modal
+        isOpen={expandedNote != null}
+        title={expandedNote?.title ?? ''}
+        onClose={() => setExpandedNote(null)}
+        maxWidth={520}
+      >
+        <p className="detailed-plan-grid__note-full">{expandedNote?.text ?? ''}</p>
+      </Modal>
     </>
   );
 }

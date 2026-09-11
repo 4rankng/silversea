@@ -147,7 +147,10 @@ async function openDialog() {
 }
 
 function issueButton(): HTMLButtonElement {
-  return [...screen.getAllByRole('button')].find((b) => b.textContent?.includes('Phát lệnh')) as HTMLButtonElement;
+  // The row now carries its own labeled "Phát lệnh" action, so the dialog's
+  // issue button is matched by its dedicated class, not by its text.
+  return [...screen.getAllByRole('button')]
+    .find((b) => b.classList.contains('dispatch-assignment-dialog__issue-btn')) as HTMLButtonElement;
 }
 
 function setIssueTimes(start: string, end: string) {
