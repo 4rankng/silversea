@@ -2922,6 +2922,12 @@ describe('planning remaining containers after partial dispatch', () => {
       body: { shipmentId: shipment.id, containerId: container.id, expectedShipmentVersion: 999999 },
     });
     assert.equal(stale.status, 409, 'stale expectedShipmentVersion rejected');
+
+    const missing = await apiFetch('/dispatch-detail-plan-rows/decompose', {
+      method: 'POST', token: dispatcherToken,
+      body: { shipmentId: 999999999, containerId: container.id, expectedShipmentVersion: 1 },
+    });
+    assert.equal(missing.status, 404, 'missing shipment is a clean 404, not a 500');
   });
 
 });
