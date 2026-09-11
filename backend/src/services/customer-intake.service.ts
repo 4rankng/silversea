@@ -7,7 +7,7 @@ export type CustomerCreateInput = z.infer<typeof customerSchema>;
 export type CustomerIntakeData = Omit<CustomerCreateInput,
   | 'creditLimit' | 'creditWarningThreshold' | 'paymentTermDays' | 'paymentDatePolicy'
   | 'fuelSurchargeSharePct' | 'debitNoteMode' | 'debitNoteTemplateId' | 'linkedSupplierId'
-  | 'status' | 'isCarrier'
+  | 'status'
 >;
 
 /**
@@ -16,8 +16,9 @@ export type CustomerIntakeData = Omit<CustomerCreateInput,
  * credit terms and billing policy left to their database defaults. Omitting
  * the governed keys (rather than nulling them) also keeps the create out of
  * the maker-checker gate, so intake gets a selectable row back immediately.
- * `status`/`isCarrier` are stripped with them: lifecycle gating and the
- * external-carrier catalog membership are material fields, not identity.
+ * `status` is stripped with them: lifecycle gating is a material field, not
+ * identity. `isCarrier` is preserved so carriers added via intake appear in
+ * the external-carrier dropdown.
  */
 export function restrictCustomerCreateForIntake(data: CustomerCreateInput, role: Role): CustomerIntakeData {
   if (role !== Role.CUS && role !== Role.DISPATCHER) return data;
@@ -28,7 +29,7 @@ export function restrictCustomerCreateForIntake(data: CustomerCreateInput, role:
   const restricted = new Set([
     'creditLimit', 'creditWarningThreshold', 'paymentTermDays', 'paymentDatePolicy',
     'fuelSurchargeSharePct', 'debitNoteMode', 'debitNoteTemplateId', 'linkedSupplierId',
-    'status', 'isCarrier',
+    'status',
   ]);
   return Object.fromEntries(
     Object.entries(data).filter(([key]) => !restricted.has(key)),
@@ -39,13 +40,13 @@ export function restrictCustomerCreateForIntake(data: CustomerCreateInput, role:
 const INTAKE_RESTRICTED_UPDATE_KEYS = new Set([
   'creditLimit', 'creditWarningThreshold', 'paymentTermDays', 'paymentDatePolicy',
   'fuelSurchargeSharePct', 'debitNoteMode', 'debitNoteTemplateId', 'linkedSupplierId',
-  'status', 'isCarrier',
+  'status',
 ]);
 
 /**
  * CUS may update a customer's identity fields (name, shortName, taxCode,
  * contactPerson, phone, address, etc.) but not financial-configuration
- * fields. Mirrors restrictCustomerCreateForIntake's field set for updates.
+ * fields. `isCarrier` is preserved so carriers can be marked from intake.
  */
 export function restrictCustomerUpdateForIntake(
   data: Partial<CustomerCreateInput>,
