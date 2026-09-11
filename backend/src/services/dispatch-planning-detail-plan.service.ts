@@ -403,6 +403,10 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
         return {
           fulfillmentId: row.fulfillmentId,
           version: row.fulfillmentVersion,
+          // Branch rows (fulfillment-less) carry no fulfillmentId — the FE's
+          // decompose entrypoint targets the container, so the id must ride
+          // the wire for BOTH row families.
+          shipmentContainerId: row.shipmentContainerId,
           shipmentId: row.shipmentId,
           shipmentVersion: row.shipmentVersion,
           shipmentCode: row.shipmentCode,
