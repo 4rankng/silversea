@@ -156,6 +156,20 @@ describe('DriverTripsPage', () => {
     expect(screen.getByText('ghi chú thêm')).toBeTruthy();
   });
 
+  it('renders v2 two-line notes as chips + free text (851e8f7d)', async () => {
+    useDriverJourneyBoardMock.mockReturnValue(board(
+      [card({ operationalNotes: 'ĐẶT ĐẦU; ĐẢO VỎ\nvào kho mang mũ bảo hộ, cân tại cầu 3' })],
+      ['ĐẶT ĐẦU', 'ĐẢO VỎ'],
+    ));
+    renderPage();
+
+    expect(await screen.findByText('ĐẶT ĐẦU')).toBeTruthy();
+    expect(screen.getByText('ĐẢO VỎ')).toBeTruthy();
+    // The free-text line renders without the tag line glued to it.
+    expect(screen.getByText('vào kho mang mũ bảo hộ, cân tại cầu 3')).toBeTruthy();
+    expect(screen.queryByText(/ĐẶT ĐẦU; ĐẢO VỖ/)).toBeNull();
+  });
+
   it('hides operation tasks section when operationalNotes is null', async () => {
     useDriverJourneyBoardMock.mockReturnValue(board([card({ operationalNotes: null })]));
     renderPage();

@@ -854,6 +854,31 @@ describe('DriverTripDetailPage', () => {
     expect(within(screen.getByTestId('operation-chips')).queryByRole('button', { name: /Mở rộng|Thu gọn/ })).toBeNull();
   });
 
+  // 851e8f7d format v2: two-line note — line 1 feeds the chips, the free-text
+  // part renders in the note section WITHOUT the tag line duplicated.
+  it('851e8f7d: v2 two-line note renders chips + free text without duplication', async () => {
+    const tags = ['KIỂM HÓA', 'QUAY ĐẦU'];
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        knownTagLabels: tags,
+        fulfillment: {
+          ...makeTaskDetail().fulfillment!,
+          driverNotes: 'KIỂM HÓA; QUAY ĐẦU\nghép cont với lô khác, cẩn thận seal',
+        },
+      }),
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+    renderPage();
+
+    await screen.findByTestId('operation-chips');
+    expect(screen.getAllByTestId('operation-chip').map((chip) => chip.textContent)).toEqual(tags);
+    const note = await screen.findByTestId('driver-task-driver-notes');
+    expect(note.textContent).toContain('ghép cont với lô khác, cẩn thận seal');
+    expect(note.textContent).not.toContain('KIỂM HÓA');
+  });
+
   // 2a618442: the TÁC VỤ TÀI XẾ header is DEFAULT EXPANDED (route title +
   // customer); collapsing is the user's opt-out — collapsed shows the factory
   // short name + Tuyến line and hides the customer name. Status pill +

@@ -212,7 +212,7 @@ export interface DriverTaskDetail {
   } | null;
   currentPod?: DriverTaskPodSubmission | null;
   podHistory?: DriverTaskPodSubmission[];
-  /** TC-DA-001: canonical tag pool (board embed contract, 320aad6b); FE resolves chips via lib/dispatchTaskTags parseNote. */
+  /** TC-DA-001: canonical tag pool (board embed contract, 320aad6b); FE resolves chips via @tingting/shared parseDriverTaskNote. */
   knownTagLabels?: string[];
   /** TC-DA-005: customer master-data invoice block — hidden when null. */
   invoiceMaster?: DriverInvoiceMaster | null;
@@ -332,7 +332,7 @@ function mapFulfillmentDetail(wire: DriverFulfillmentDetailResponse): DriverTask
     currentPod,
     podHistory,
     // TC-DA-001/005: tag pool + customer master invoice block ride the detail
-    // wire; chips resolve FE-side via lib/dispatchTaskTags parseNote.
+    // wire; chips resolve FE-side via @tingting/shared parseDriverTaskNote.
     knownTagLabels: wire.knownTagLabels ?? [],
     invoiceMaster: wire.invoiceMaster ?? null,
   };

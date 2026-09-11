@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowRight, Building2, Loader2, Package2, Route } from 'lucide-react';
 import { useDriverJourneyBoard } from '../hooks/useDriverQueries';
 import type { DriverJourneyCard } from '../api/driverJourneyBoard';
-import { parseNote } from '../lib/dispatchTaskTags';
+import { parseDriverTaskNote } from '@tingting/shared';
 import './DriverTripsPage.css';
 
 type JourneyTabKey = 'NEW' | 'RUNNING' | 'HISTORY';
@@ -92,7 +92,7 @@ function JourneyCard({ card, tagLabels }: { card: DriverJourneyCard; tagLabels: 
   const hasContainer = isPresent(card.containerNumber) || isPresent(card.sealNumber);
   const hasPorts = isPresent(card.loadingPortName) || isPresent(card.dropPortName);
   const loadTypeLabel = loadingTypeLabel(card);
-  const { selectedLabels: operationTags, manualText: operationManualText } = parseNote(card.operationalNotes, tagLabels);
+  const { selectedLabels: operationTags, manualText: operationManualText } = parseDriverTaskNote(card.operationalNotes, tagLabels);
 
   /* Ticket 365943ea field order: Nhà máy (top) → Tuyến đường → Cont →
      Cảng nâng / Cảng hạ → Tác vụ → Đầu kéo → Mooc.

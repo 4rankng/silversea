@@ -42,7 +42,7 @@ import { ContainerScanner, dataUrlToFile } from '../components/shared/ContainerS
 import './DriverTripDetailPage.css';
 
 import { MILESTONES, FUEL_EVIDENCE_OUTCOME_LABELS, FUEL_EVIDENCE_REVIEW_LABELS, valueOrDash, completeCtaLabel, fuelEvidenceUploadErrorMessage, getLatestMilestoneEvent, isCommandPayload, commandStateForMilestone, timelineState, type MilestoneType, formatDateTime } from '../features/driver/driver-trip-model';
-import { parseNote } from '../lib/dispatchTaskTags';
+import { parseDriverTaskNote } from '@tingting/shared';
 
 export default function DriverTripDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -131,12 +131,14 @@ export default function DriverTripDetailPage() {
 
   const nextMilestoneIndex = latestCompletedIndex >= MILESTONES.length - 1 ? -1 : latestCompletedIndex + 1;
 
-  // TC-DA-001: resolve the trip's operation-task chips with the SAME parseNote
-  // codepath the /my-trips board cards use (tag pool rides the detail wire).
-  const operationTags = useMemo(() => parseNote(
+  // TC-DA-001: resolve the trip's operation-task chips with the SAME shared
+  // parser the /my-trips board cards use (tag pool rides the detail wire).
+  // Format v2 (851e8f7d): line 1 = tag labels, remainder = free text.
+  const operationNote = useMemo(() => parseDriverTaskNote(
     trip?.fulfillment?.driverNotes ?? '',
     trip?.knownTagLabels ?? [],
-  ).selectedLabels, [trip?.fulfillment?.driverNotes, trip?.knownTagLabels]);
+  ), [trip?.fulfillment?.driverNotes, trip?.knownTagLabels]);
+  const operationTags = operationNote.selectedLabels;
 
   // D1 fix: a terminal CONFLICT on the accept command used to dead-end the
   // sticky bar (button relabelled but stayed disabled forever, no dismissal
@@ -268,8 +270,13 @@ export default function DriverTripDetailPage() {
   const fulfillment = trip.fulfillment ?? null;
   const siteRules = fulfillment?.siteRules ?? [];
   // Khối 5 (spec): site rules plus the shipment-level note CUS wrote for the
-  // driver ("note dành cho lái xe") — both belong on this section.
-  const driverNotes = fulfillment?.driverNotes ?? trip.notes ?? null;
+  // driver ("note dành cho lái xe") — both belong on this section. When the
+  // note is the tag-composed fulfillment note (format v2), the free-text part
+  // renders here while the tag line lives in the chips section above; the
+  // trip.memo fallback was never tag-composed, so it renders verbatim.
+  const driverNotes = trip.fulfillment?.driverNotes != null
+    ? (operationNote.manualText || null)
+    : (trip.notes ?? null);
   // TC-DA-001: N ≥ 6 collapses to the first ~4 chips behind a Mở rộng/Thu gọn
   // toggle; N ≤ 5 renders fully expanded (no toggle needed).
   const shouldCollapseChips = operationTags.length >= 6;
