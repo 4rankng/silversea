@@ -79,6 +79,9 @@ interface DispatchPlanEditorCellProps {
   /** Staff close for external-carrier trips: opens the confirm dialog so
    *  dispatch/CUS can complete the trip the external driver can't (no app). */
   onCompleteExternalTrip: (row: DispatchDetailPlanRow) => void;
+  /** Fulfillment-less branch rows must decompose before the editor can open;
+   *  resolves to the fresh (fulfilled) row, or null when the write fails. */
+  onEnsureFulfillment?: (row: DispatchDetailPlanRow) => Promise<DispatchDetailPlanRow | null>;
   /** "Phát lệnh" — issues the order for the already-saved plan (carrier +
    *  vehicle), creating the live trip and notifying the driver. */
   onIssueOrder: (
@@ -208,7 +211,7 @@ function vehicleBody(value: string): VehicleBody | null {
  * hợp flag is CUS-owned and has no control here — the checkbox was removed as
  * redundant with the Kết hợp classification.
  */
-export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, onCompleteExternalTrip, onIssueOrder, disabled = false }: DispatchPlanEditorCellProps) {
+export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, onCompleteExternalTrip, onIssueOrder, onEnsureFulfillment, disabled = false }: DispatchPlanEditorCellProps) {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const restoreFocusRef = useRef(false);
   const [open, setOpen] = useState(false);
@@ -230,6 +233,9 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
   const [carrierError, setCarrierError] = useState(false);
   const [vehicleError, setVehicleError] = useState(false);
   const [fleetRetryNonce, setFleetRetryNonce] = useState(0);
+  // Branch-row decompose in flight (fulfillment-less rows must decompose
+  // before the editor can target a fulfillment identity).
+  const [ensuring, setEnsuring] = useState(false);
 
   const selectedCarrier = parseCarrier(draft.carrierValue);
   const draftUsesOwnFleet = selectedCarrier?.carrierType === 'OWN';
@@ -401,7 +407,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
     return [{ value: draft.vehicleValue, label }, ...withoutDuplicate];
   }, [draft.vehicleValue, row.dispatch.assignedPlate, suggestions, vehicleOptions]);
 
-  function openEditor() {
+  async function openEditor() {
     if (disabled) return;
     // An issued order owns a trip. While it runs, its vehicle must be changed
     // through the trip reassignment flow so the driver/vehicle state stays
@@ -414,6 +420,20 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
       return;
     }
     if (row.taskStatus === 'COMPLETED') return;
+    // Fulfillment-less branch row: the editor needs a fulfillment identity,
+    // so decompose the container first and reopen on the fresh row (the
+    // parent patches items, making props.row the created fulfillment).
+    if (row.fulfillmentId == null) {
+      if (!onEnsureFulfillment) return;
+      setEnsuring(true);
+      let ensured = false;
+      try {
+        ensured = (await onEnsureFulfillment(row)) != null;
+      } finally {
+        setEnsuring(false);
+      }
+      if (!ensured) return;
+    }
     setDraft(draftForRow(row));
     setCarrierSearch('');
     setVehicleSearch('');
@@ -542,7 +562,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
         className="dispatch-assignment-cell__trigger"
         data-cell-label="Điều phối"
         onClick={openEditor}
-        disabled={disabled || planFrozen}
+        disabled={disabled || planFrozen || ensuring}
         aria-haspopup={canReassignIssuedTrip ? undefined : 'dialog'}
         aria-label={canReassignIssuedTrip ? `Phân xe lại ${identity}` : `Sửa ô điều phối ${identity}`}
         title={planFrozen

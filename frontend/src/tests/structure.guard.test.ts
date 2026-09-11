@@ -38,7 +38,10 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // gains completeDispatchExternalTrip beside the other dispatch planning
   // calls, and DispatchDetailPlanRow.taskStatus gains 'COMPLETED'.
   // Reviewed as a contract change.
-  'src/api/dispatchPlanningClient.ts': 430,
+  // Bumped 430 → 450: 2026-09-12 decompose branch-row client (grid's
+  // fulfillment-less rows get an editor entrypoint + row container id).
+  // Reviewed as a contract change.
+  'src/api/dispatchPlanningClient.ts': 450,
   // Bumped 400 (new-file) → 430: 2026-09-07 dropdown-flip sweep — the
   // multi-select picker gained selectionLabel + onSearchChange (aria names
   // and debounced server refetch) during the facet migration. Reviewed as a
@@ -93,7 +96,9 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // errors), mirroring issueOrder. Reviewed as a contract change.
   // Bumped 485 → 515: 2026-09-09 background auto-refresh table persistence
   // (preserves open carrier/vehicle dialog during 30s poll).
-  'src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts': 515,
+  // Bumped 515 → 540: 2026-09-12 ensureFulfillment — decompose-then-edit for
+  // fulfillment-less branch rows (BUG 5 secondary, 9e ruling).
+  'src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts': 540,
   'src/features/dispatch/master-plan/DispatchAllocationPopover.tsx': 454,
   'src/features/dispatch/master-plan/MasterPlanFilters.tsx': 735,
   // Bumped 508 → 520: 282fe386 (2026-09-05, "fix(dispatch): keep dispatched
