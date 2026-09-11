@@ -65,6 +65,8 @@ Each criterion below is rung 3 (`UI DRIVEN`): must be backed by a post-click scr
   - `qa/2026-09-10_driver-app-enhancements_ui-001-expanded.png`
   - DOM asserts in `ui-driver.log`
 
+> **Architect amendment (2026-09-11):** the detail wire embeds `knownTagLabels[]` — the SAME contract the journey-board response carries since 320aad6b — and the FE resolves chips by reusing `parseNote` from `lib/dispatchTaskTags`, exactly as `DriverTripsPage` does. NO backend parseNote-equivalent: tag-resolution logic stays in one place.
+
 ### TC-DA-002 — Route line shows factory ADDRESS, not factory name
 
 - **Given** driver trip on staging where the shipment has a factory with both `factoryName` ("Nhà máy ABC") and `factoryAddress` ("123 Nguyễn Văn A, Bình Dương")
@@ -89,7 +91,7 @@ Each criterion below is rung 3 (`UI DRIVEN`): must be backed by a post-click scr
   - If `khoPhone IS NULL`, the label is **not rendered** (no empty dash, no "—" placeholder) — graceful hide
 - **Assert:**
   - `browser_evaluate` on the kho block: phone matches `/0[0-9]{9,10}/` when present; not present when null
-  - DB-side: `SELECT kho_phone FROM shipment_containers WHERE id = $1` matches the rendered phone string OR is NULL
+  - DB-side: `SELECT contact_phone FROM operational_sites WHERE id = $1` (the trip's container factory/kho site) matches the rendered phone string OR is NULL. *(Architect amendment 2026-09-11: no `kho_phone` column exists anywhere — the spec's original `shipment_containers.kho_phone` probe was wrong. Render source = `operational_sites.contact_phone` (structured single value, nullable). `warehouse_contact_info` is free-text multi-phone and is NOT the render source.)*
 - **Evidence:**
   - `qa/2026-09-10_driver-app-enhancements_ui-003a-with-phone.png`
   - `qa/2026-09-10_driver-app-enhancements_ui-003b-without-phone.png` (master-data trip with NULL kho_phone)
@@ -165,7 +167,7 @@ These run in the BE lane; FE gating depends on them.
 | Probe | Why |
 |---|---|
 | `SELECT factory_name, factory_address FROM shipments WHERE id = $1` for fixture trips | TC-DA-002 parity with master-plan |
-| `SELECT kho_phone FROM shipment_containers WHERE id = $1` (mixed NULL + populated rows) | TC-DA-003 hide/show behaviour |
+| `SELECT contact_phone, warehouse_contact_info FROM operational_sites WHERE id = $1` (container factory/kho site; mixed NULL + populated) | TC-DA-003 hide/show behaviour — render source is `contact_phone` |
 | `SELECT tractor_plate, trailer_plate FROM trips WHERE id = $1` (any leftover fields?) | TC-DA-004 — confirm whether the BE keeps the fields |
 | `SELECT tax_code, company_name, address FROM customers WHERE id = $1` for invoice data | TC-DA-005 |
 | `GET /api/driver/me/trips/:id` response shape (full diff before/after FE work) | TC-DA-007 — POD upload endpoint |
