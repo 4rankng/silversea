@@ -124,8 +124,24 @@
   background: var(--surface);
 }
 
+/* Banner sections (QUY ĐỊNH / bypass-ops / sync): one treatment — brand-tinted
+   surface with a brand rail, body capped at 13px so it never outweighs
+   section titles. */
 .driver-task-section--banner {
   padding: 12px 14px;
+  background: color-mix(in srgb, var(--brand, #005a2d) 8%, white);
+  border-left: 3px solid var(--brand, #005a2d);
+  border-radius: 10px;
+}
+
+.driver-task-section--banner,
+.driver-task-section--banner strong {
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.driver-task-section--banner strong {
+  font-weight: 700;
 }
 
 .driver-task-section__head {
@@ -137,6 +153,7 @@
   font-size: 13px;
   font-weight: 700;
   color: var(--ink-2, #4a5550);
+  margin-bottom: 8px;
 }
 
 .driver-task-grid,
