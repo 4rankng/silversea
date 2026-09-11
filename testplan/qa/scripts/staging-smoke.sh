@@ -3,10 +3,11 @@
 # Usage: bash testplan/qa/scripts/staging-smoke.sh [BASE_URL]
 set -euo pipefail
 BASE="${1:-https://vantai.tingting.vip}"
+PASSWORD="${PASSWORD:-Abc123}"   # staging creds — see testplan/testaccounts.txt
 API="$BASE/api"
 PASS=0; FAIL=0
 
-login() { curl -s -X POST "$API/auth/login" -H 'Content-Type: application/json' -d "{\"identifier\":\"$1\",\"password\":\"Abc123\"}" | python3 -c "import sys,json; print(json.load(sys.stdin)['token'])"; }
+login() { curl -s -X POST "$API/auth/login" -H 'Content-Type: application/json' -d "{\"identifier\":\"$1\",\"password\":\"$PASSWORD\"}" | python3 -c "import sys,json; print(json.load(sys.stdin)['token'])"; }
 api() { curl -s "$API/$1" -H "Authorization: Bearer $2"; }
 check() { if echo "$2" | grep -q "$3"; then echo "  PASS: $1"; PASS=$((PASS+1)); else echo "  FAIL: $1 (expected '$3')"; FAIL=$((FAIL+1)); fi; }
 
