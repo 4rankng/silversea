@@ -33,7 +33,7 @@ vi.mock('../../../api/configClient', () => ({
 }));
 
 vi.mock('../../../lib/api', () => ({
-  api: { post: apiPost, put: apiPut, delete: apiDelete },
+  api: { get: vi.fn(async () => ({ items: [], nextCursor: null, total: 0 })), post: apiPost, put: apiPut, delete: apiDelete },
 }));
 
 vi.mock('../../../api/keys', async (importOriginal) => ({

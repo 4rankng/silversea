@@ -161,4 +161,46 @@ describe('ShipmentDetailPage', () => {
     expect(screen.getAllByText('Đội xe nội bộ SilverSea').length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText('Chưa phân nhà xe')).toBeNull();
   });
+
+  it('renders unassigned wording when a fulfillment exists but no carrier does (decomposed-carrier-null)', async () => {
+    getShipmentDetailMock.mockResolvedValue({
+      ...detail,
+      containers: [{
+        id: 22,
+        shipmentId: 1,
+        containerTypeId: 4,
+        containerTypeCode: '40HC',
+        containerTypeName: "40'HC",
+        containerNumber: 'QATU0900043',
+        sealNumber: null,
+        cargoWeightKg: null,
+        deletedAt: null,
+        createdAt: '2026-08-11T00:00:00.000Z',
+        updatedAt: '2026-08-11T00:00:00.000Z',
+      }],
+      carrierAssignments: [{
+        fulfillmentId: 41,
+        fulfillmentVersion: 1,
+        shipmentContainerId: 22,
+        containerTypeCode: '40HC',
+        containerTypeName: "40'HC",
+        carrierType: null,
+        externalCarrierId: null,
+        externalCarrierName: null,
+      }],
+    });
+    render(
+      <MemoryRouter initialEntries={['/shipments/1']}>
+        <Routes>
+          <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    // Fulfillment presence must NOT flip the section to "đã gán": the state
+    // keys on carrier presence (user's reported scenario, 9e refined ruling).
+    expect((await screen.findAllByText('Nhà xe')).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('Chưa phân nhà xe')).toBeTruthy();
+    expect(screen.queryByText('Nhà xe đã gán')).toBeNull();
+  });
 });
