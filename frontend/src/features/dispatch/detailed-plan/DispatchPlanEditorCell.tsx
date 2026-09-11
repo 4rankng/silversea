@@ -230,10 +230,6 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
   const [vehicleError, setVehicleError] = useState(false);
   const [fleetRetryNonce, setFleetRetryNonce] = useState(0);
 
-  const [quickIssueOpen, setQuickIssueOpen] = useState(false);
-  const quickIssueTriggerRef = useRef<HTMLButtonElement>(null);
-  const restoreQuickFocusRef = useRef(false);
-
   const selectedCarrier = parseCarrier(draft.carrierValue);
   const draftUsesOwnFleet = selectedCarrier?.carrierType === 'OWN';
 
@@ -278,12 +274,6 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
     restoreFocusRef.current = false;
     triggerRef.current?.focus({ preventScroll: true });
   }, [open]);
-
-  useEffect(() => {
-    if (quickIssueOpen || !restoreQuickFocusRef.current) return;
-    restoreQuickFocusRef.current = false;
-    quickIssueTriggerRef.current?.focus({ preventScroll: true });
-  }, [quickIssueOpen]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -530,16 +520,6 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
     }
   }
 
-  function openQuickIssue() {
-    if (disabled) return;
-    setQuickIssueOpen(true);
-  }
-
-  function closeQuickIssue() {
-    restoreQuickFocusRef.current = true;
-    setQuickIssueOpen(false);
-  }
-
   const identity = row.container.containerNumber || row.docs.billNumber || row.shipmentCode || `dòng ${row.fulfillmentId}`;
   const currentPlate = row.dispatch.assignedPlate;
   // Completed rows are frozen history (the backend rejects plan saves), so the
@@ -554,7 +534,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
       <button
         ref={triggerRef}
         type="button"
-        className={`dispatch-assignment-cell__trigger${issueStatus === 'PLATED_NOT_ISSUED' ? ' dispatch-assignment-cell__trigger--has-quick-issue' : ''}`}
+        className="dispatch-assignment-cell__trigger"
         data-cell-label="Điều phối"
         onClick={openEditor}
         disabled={disabled || planFrozen}
@@ -577,42 +557,6 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
           <span className="detailed-plan-grid__lot-flag">Đã phân xe</span>
         )}
       </button>
-
-      {issueStatus === 'PLATED_NOT_ISSUED' && (
-        <button
-          ref={quickIssueTriggerRef}
-          type="button"
-          className="dispatch-assignment-cell__text-action"
-          onClick={openQuickIssue}
-          disabled={disabled}
-          aria-label={`Phát lệnh nhanh · ${identity}`}
-          title="Phát lệnh nhanh — không cần mở ô điều phối"
-        >
-          Phát lệnh
-        </button>
-      )}
-
-      {row.dispatch.carrierType === 'EXTERNAL'
-        && row.dispatch.tripId != null
-        && row.taskStatus === 'DISPATCHED' && (
-        <button
-          type="button"
-          className="dispatch-assignment-cell__text-action"
-          onClick={() => onCompleteExternalTrip(row)}
-          disabled={disabled}
-          aria-label={`Hoàn thành chuyến xe ngoài · ${identity}`}
-          title="Hoàn thành chuyến với xe ngoài — xe ngoài không dùng app nên điều vận/CUS chốt thay"
-        >
-          Hoàn thành
-        </button>
-      )}
-
-      <QuickIssueOrderDialog
-        row={row}
-        open={quickIssueOpen}
-        onClose={closeQuickIssue}
-        onIssueOrder={onIssueOrder}
-      />
 
       <Modal
         isOpen={open}

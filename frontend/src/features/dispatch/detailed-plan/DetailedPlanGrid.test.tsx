@@ -499,4 +499,44 @@ describe('DetailedPlanGrid', () => {
     expect(actions).not.toMatch(/\bbackground\s*:/);
     expect(clear).toContain('flex: 0 0 auto');
   });
+
+  it('renders the Phát lệnh action inside the Ghi chú cell, not the assignment cell', () => {
+    const { container } = renderGrid([row({
+      taskStatus: 'READY',
+      dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '51C-12345' },
+    })]);
+    const notesCell = container.querySelector('.detailed-plan-grid__cell--notes') as HTMLElement;
+    const assignmentCell = container.querySelector('.detailed-plan-grid__cell--editable') as HTMLElement;
+    expect(within(notesCell).getByRole('button', { name: /Phát lệnh/ })).toBeTruthy();
+    expect(within(assignmentCell).queryByRole('button', { name: /Phát lệnh/ })).toBeNull();
+  });
+
+  it('opens the quick-issue dialog from the Ghi chú action', async () => {
+    renderGrid([row({
+      taskStatus: 'READY',
+      dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '51C-12345' },
+    })]);
+    fireEvent.click(screen.getByRole('button', { name: /Phát lệnh/ }));
+    expect(await screen.findByText(/Phát lệnh · MSCU1234567/)).toBeTruthy();
+  });
+
+  it('renders the Hoàn thành action inside the Ghi chú cell for in-flight external rows', () => {
+    const onCompleteExternalTrip = vi.fn();
+    const { container } = renderGrid([row({
+      taskStatus: 'DISPATCHED',
+      dispatch: { carrierType: 'EXTERNAL', carrierName: 'Carrier QA', externalCarrierId: 9, externalCarrierVehicleId: null, assignedPlate: 'E2E-QA1', tripId: 77, tripStatus: 'CREATED' },
+    })], { onCompleteExternalTrip });
+    const notesCell = container.querySelector('.detailed-plan-grid__cell--notes') as HTMLElement;
+    fireEvent.click(within(notesCell).getByRole('button', { name: /Hoàn thành/ }));
+    expect(onCompleteExternalTrip).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders no row action for an already-issued own row', () => {
+    const { container } = renderGrid([row({
+      taskStatus: 'DISPATCHED',
+      dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '51C-12345', tripId: 55, tripStatus: 'CREATED' },
+    })]);
+    const notesCell = container.querySelector('.detailed-plan-grid__cell--notes') as HTMLElement;
+    expect(within(notesCell).queryByRole('button', { name: /Phát lệnh|Hoàn thành/ })).toBeNull();
+  });
 });

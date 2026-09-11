@@ -271,16 +271,6 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
     expect(body.externalDriverName).toBeFalsy();
   });
 
-  it('offers the external staff close button on issued external rows', () => {
-    const onCompleteExternalTrip = vi.fn();
-    renderCell(row({
-      taskStatus: 'DISPATCHED',
-      dispatch: { carrierType: 'EXTERNAL', carrierName: 'Carrier QA', externalCarrierId: 9, externalCarrierVehicleId: null, assignedPlate: 'E2E-QA1', tripId: 77, tripStatus: 'CREATED' },
-    }), { onCompleteExternalTrip });
-    fireEvent.click(screen.getByRole('button', { name: /Hoàn thành chuyến xe ngoài/ }));
-    expect(onCompleteExternalTrip).toHaveBeenCalledTimes(1);
-  });
-
   it('flips the row chip to Đã hoàn thành and locks the editor once the trip completes', () => {
     const onOpenTripReassign = vi.fn();
     renderCell(row({

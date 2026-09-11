@@ -12,6 +12,8 @@ import {
   type AtomicPlanSaveResult,
   type IssueOrderResult,
 } from './DispatchPlanEditorCell';
+import { QuickIssueOrderDialog } from './QuickIssueOrderDialog';
+import { deriveDispatchIssueStatus } from '../components/DispatchIssueStatus';
 import type { DispatchShipmentRequest } from '../../../api/shipmentClient';
 import { DetailedPlanFilters } from './DetailedPlanFilters';
 import { ZoneTruckPresencePanel } from './ZoneTruckPresencePanel';
@@ -102,6 +104,10 @@ export function DetailedPlanGrid({
   // Long notes clamp to three lines; tapping reopens the full text in a
   // dialog so the column stays scannable without hiding content.
   const [expandedNote, setExpandedNote] = useState<{ title: string; text: string } | null>(null);
+  // Row-level quick issue: the labeled "Phát lệnh"/"Hoàn thành" action lives
+  // inside the Ghi chú cell (customer ruling: no floating pills over the
+  // assignment cell), so the dialog opens from grid level, one instance.
+  const [quickIssueRow, setQuickIssueRow] = useState<DispatchDetailPlanRow | null>(null);
 
   if (error) {
     return (
@@ -268,6 +274,41 @@ export function DetailedPlanGrid({
                     </span>
                   </td>
                   <td className="detailed-plan-grid__cell detailed-plan-grid__cell--notes" data-label="Ghi chú">
+                    {(() => {
+                      // Same state derivation as the assignment cell's chip:
+                      // "Phát lệnh" for plated-not-issued rows, "Hoàn thành"
+                      // for external trips in flight. Mutually exclusive.
+                      const issueStatus = deriveDispatchIssueStatus({
+                        vehicleAssigned: row.dispatch.assignedPlate != null,
+                        issued: row.taskStatus === 'DISPATCHED' && row.dispatch.tripId != null,
+                        completed: row.taskStatus === 'COMPLETED',
+                      });
+                      const canQuickIssue = issueStatus === 'PLATED_NOT_ISSUED';
+                      const canCompleteExternal = row.dispatch.carrierType === 'EXTERNAL'
+                        && row.dispatch.tripId != null
+                        && row.taskStatus === 'DISPATCHED';
+                      const actionLabel = canQuickIssue
+                        ? 'Phát lệnh'
+                        : canCompleteExternal ? 'Hoàn thành' : null;
+                      if (actionLabel == null) return null;
+                      const rowIdentity = row.container.containerNumber || row.docs.billNumber
+                        || row.shipmentCode || `dòng ${row.fulfillmentId}`;
+                      return (
+                        <button
+                          type="button"
+                          className="detailed-plan-grid__note-action"
+                          onClick={() => (canQuickIssue
+                            ? setQuickIssueRow(row)
+                            : onCompleteExternalTrip(row))}
+                          aria-label={`${actionLabel} · ${rowIdentity}`}
+                          title={canQuickIssue
+                            ? 'Phát lệnh nhanh — không cần mở ô điều phối'
+                            : 'Hoàn thành chuyến với xe ngoài — xe ngoài không dùng app nên điều vận/CUS chốt thay'}
+                        >
+                          {actionLabel}
+                        </button>
+                      );
+                    })()}
                     {row.notes.vehicleNote && (
                       <button
                         type="button"
@@ -307,6 +348,14 @@ export function DetailedPlanGrid({
       >
         <p className="detailed-plan-grid__note-full">{expandedNote?.text ?? ''}</p>
       </Modal>
+      {quickIssueRow != null && (
+        <QuickIssueOrderDialog
+          row={quickIssueRow}
+          open
+          onClose={() => setQuickIssueRow(null)}
+          onIssueOrder={onIssueOrder}
+        />
+      )}
     </>
   );
 }
