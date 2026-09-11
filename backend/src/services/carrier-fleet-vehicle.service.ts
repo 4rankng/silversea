@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull } from 'drizzle-orm';
+import { and, asc, desc, eq, isNull } from 'drizzle-orm';
 
 import { db } from '../db';
 import * as s from '../db/schema';
@@ -100,4 +100,30 @@ export async function updateCarrierFleetVehicle(id: number, input: {
     updatedAt: new Date(),
   }).where(eq(s.carrierFleetVehicles.id, id)).returning();
   return vehicle;
+}
+
+export async function resolveCarrierByPlate(plate: string): Promise<{
+  carrierId: number | null;
+  carrierName: string | null;
+}> {
+  const normalized = normalizePlate(plate);
+  const [row] = await db.select({
+    carrierId: s.carrierFleetVehicles.carrierId,
+    carrierName: s.customers.name,
+    isActive: s.customers.status,
+  })
+    .from(s.carrierFleetVehicles)
+    .innerJoin(s.customers, eq(s.carrierFleetVehicles.carrierId, s.customers.id))
+    .where(and(
+      eq(s.carrierFleetVehicles.normalizedPlate, normalized),
+      eq(s.carrierFleetVehicles.isActive, true),
+      isNull(s.carrierFleetVehicles.deletedAt),
+      isNull(s.customers.deletedAt),
+    ))
+    .orderBy(desc(s.carrierFleetVehicles.id))
+    .limit(1);
+  if (!row || row.isActive !== 'ACTIVE') {
+    return { carrierId: null, carrierName: null };
+  }
+  return { carrierId: row.carrierId, carrierName: row.carrierName };
 }

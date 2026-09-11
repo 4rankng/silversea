@@ -30,6 +30,7 @@ import {
 import {
   createCarrierFleetVehicle,
   listCarrierFleetVehicles,
+  resolveCarrierByPlate,
   updateCarrierFleetVehicle,
 } from '../../services/carrier-fleet-vehicle.service';
 import {
@@ -48,9 +49,6 @@ import { IDEMPOTENCY_ENDPOINTS } from '../../services/idempotency.service';
 import { cacheInvalidate } from '../../lib/redis';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { runShipmentWrite, sendShipmentWrite } from './shipment-shared';
-import { and, desc, eq, isNull } from 'drizzle-orm';
-import { db } from '../../db';
-import * as s from '../../db/schema';
 
 const updateCarrierFleetVehicleSchema = carrierFleetVehicleSchema
   .pick({ licensePlate: true, isActive: true })
@@ -591,30 +589,7 @@ dispatchPlanningRoutes.get(
   asyncHandler(async (req: Request, res: Response) => {
     const plate = typeof req.query.plate === 'string' ? req.query.plate.trim() : '';
     if (!plate) throw new ApiError(400, 'plate là bắt buộc.');
-    const normalized = plate.toUpperCase().replace(/\s+/g, '');
-    const [row] = await db.select({
-      carrierId: s.carrierFleetVehicles.carrierId,
-      carrierName: s.customers.name,
-      isActive: s.customers.status,
-    })
-      .from(s.carrierFleetVehicles)
-      .innerJoin(s.customers, eq(s.carrierFleetVehicles.carrierId, s.customers.id))
-      .where(and(
-        eq(s.carrierFleetVehicles.normalizedPlate, normalized),
-        eq(s.carrierFleetVehicles.isActive, true),
-        isNull(s.carrierFleetVehicles.deletedAt),
-        isNull(s.customers.deletedAt),
-      ))
-      .orderBy(desc(s.carrierFleetVehicles.id))
-      .limit(1);
-    if (!row) {
-      res.json({ carrierId: null, carrierName: null });
-      return;
-    }
-    res.json({
-      carrierId: row.carrierId,
-      carrierName: row.isActive === 'ACTIVE' ? row.carrierName : null,
-    });
+    res.json(await resolveCarrierByPlate(plate));
   }),
 );
 
