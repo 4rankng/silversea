@@ -330,3 +330,19 @@
     justify-content: center;
   }
 }
+
+/* 40f3ae15: biên bản giao hàng photo block — a dashed separator + reuse of
+   the capture/photo primitives; single thumbnail so the 2-col grid stays. */
+.dcc-note {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line, #d7ddd8);
+  display: grid;
+  gap: 10px;
+}
+
+.dcc-note__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2, #4a5550);
+}

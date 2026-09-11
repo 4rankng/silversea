@@ -487,7 +487,7 @@ uploadRouter.post('/', upload.single('file'), asyncHandler(async (req: Request, 
 
   if (!file) return res.status(400).json({ error: 'Không có file tải lên' });
   if (isNaN(tripId)) return res.status(400).json({ error: 'trip_id không hợp lệ' });
-  if (!['CONTAINER', 'SEAL', 'OTHER'].includes(type)) {
+  if (!['CONTAINER', 'SEAL', 'OTHER', 'DELIVERY_NOTE'].includes(type)) {
     return res.status(400).json({ error: 'Loại ảnh không hợp lệ' });
   }
 
@@ -573,8 +573,11 @@ uploadRouter.post('/trips/:tripId/photos/:type/delete', asyncHandler(async (req:
   if (isNaN(tripId)) return res.status(400).json({ error: 'trip_id không hợp lệ' });
 
   const photoType = String(req.params.type).toUpperCase();
-  if (photoType !== 'CONTAINER' && photoType !== 'SEAL') {
-    return res.status(400).json({ error: 'Loại ảnh không hợp lệ (container hoặc seal)' });
+  // 40f3ae15: DELIVERY_NOTE (biên bản giao hàng) deletes per exact storage
+  // key. OTHER is intentionally NOT deletable here — the driver route owns
+  // delete-all-of-type semantics and receipts ride that path.
+  if (!['CONTAINER', 'SEAL', 'DELIVERY_NOTE'].includes(photoType)) {
+    return res.status(400).json({ error: 'Loại ảnh không hợp lệ (container, seal hoặc delivery note)' });
   }
 
   const storageKey = String(req.body?.storage_key ?? req.body?.storageKey ?? '');

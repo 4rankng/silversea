@@ -28,7 +28,10 @@ export const driverStatusEnum = applicationEnum(['ACTIVE', 'INACTIVE']);
 
 export const customerStatusEnum = applicationEnum(['ACTIVE', 'LOCKED']);
 
-export const tripPhotoTypeEnum = applicationEnum(['CONTAINER', 'SEAL', 'OTHER']);
+// 40f3ae15: DELIVERY_NOTE = biên bản giao hàng photo the driver attaches in
+// the SỐ CONT & SEAL section (applicationEnum is a text column — additive
+// value, no migration).
+export const tripPhotoTypeEnum = applicationEnum(['CONTAINER', 'SEAL', 'OTHER', 'DELIVERY_NOTE']);
 
 export const penaltyStatusEnum = applicationEnum(['ACTIVE', 'CANCELED']);
 

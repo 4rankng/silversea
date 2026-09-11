@@ -550,7 +550,7 @@ export interface DriverFulfillmentDetail {
   driverNotes: string | null;
   siteSnapshot: Record<string, unknown>;
   invoiceInfo: DriverFulfillmentInvoiceInfo | null;
-  containerSealPhotos: Array<{ id: number; type: 'CONTAINER' | 'SEAL'; storageKey: string; uploadedAt: string }>;
+  containerSealPhotos: Array<{ id: number; type: 'CONTAINER' | 'SEAL' | 'DELIVERY_NOTE'; storageKey: string; uploadedAt: string }>;
   evidenceStatus: DriverCompletionEvidenceStatus;
   milestones: DriverProgressEvent[];
   podSubmissions: Awaited<ReturnType<typeof listPodSubmissionsForDriver>>;
@@ -639,7 +639,9 @@ export async function getDriverFulfillmentDetail(
       storageKey: s.tripPhotos.storageKey,
       uploadedAt: s.tripPhotos.uploadedAt,
     }).from(s.tripPhotos)
-      .where(and(eq(s.tripPhotos.tripId, ownedTrip.tripId), inArray(s.tripPhotos.type, ['CONTAINER', 'SEAL'])))
+      // 40f3ae15: DELIVERY_NOTE rides the wire too — the driver's biên bản
+      // giao hàng photo is stored as its own trip_photos type.
+      .where(and(eq(s.tripPhotos.tripId, ownedTrip.tripId), inArray(s.tripPhotos.type, ['CONTAINER', 'SEAL', 'DELIVERY_NOTE'])))
       .orderBy(desc(s.tripPhotos.uploadedAt)),
     // TC-DA-001: same pool embed the journey-board response carries (320aad6b
     // contract) — the FE resolves chips with lib/dispatchTaskTags parseNote.
@@ -647,7 +649,7 @@ export async function getDriverFulfillmentDetail(
   ]);
   const containerSealPhotos = containerSealPhotoRows.map((row) => ({
     id: row.id,
-    type: row.type as 'CONTAINER' | 'SEAL',
+    type: row.type as 'CONTAINER' | 'SEAL' | 'DELIVERY_NOTE',
     storageKey: row.storageKey,
     uploadedAt: row.uploadedAt.toISOString(),
   }));
