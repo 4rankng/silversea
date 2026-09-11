@@ -3421,7 +3421,13 @@ describe('PUT /:id/containers × fulfillments (reconcile guard contract)', () =>
       assert.equal(f.cancellationReason, 'Container của lô hàng đã được cập nhật; cần gán lại nhà xe.');
     }
     const after = await listDispatchDetailPlanRows({ actor: adminActor(), q, limit: 50 });
-    assert.equal(after.total, 0);
+    // BUG 5 secondary (union branch): the KEPT container's fulfillment was
+    // canceled with the rest, so it resurfaces as a fulfillment-less READY
+    // row the dispatcher can re-allocate — only the DROPPED container stays
+    // gone. Pre-union this whole lot disappeared until re-allocation.
+    assert.equal(after.total, 1);
+    assert.equal(after.items[0]?.container?.containerNumber, 'MSKU1234565');
+    assert.equal(after.items[0]?.fulfillmentId, null);
     assert.equal((await db.select().from(s.trips).where(eq(s.trips.shipmentId, shipment.id))).length, 0);
 
     // Recovery path: re-running the allocation rebuilds active fulfillments
