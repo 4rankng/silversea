@@ -73,7 +73,7 @@ describe('AuthProvider logout', () => {
     vi.unstubAllGlobals();
   });
 
-  it('posts /auth/logout before clearing local auth state', async () => {
+  it('clears local auth state immediately; the revocation posts asynchronously', async () => {
     const logoutDeferred = createDeferred<Response>();
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({
@@ -97,7 +97,15 @@ describe('AuthProvider logout', () => {
     queryClient.setQueryData(['financial', 'customer-a'], { outstanding: 123_000 });
     fireEvent.click(screen.getByRole('button', { name: 'logout' }));
 
-    expect(localStorage.getItem('token')).toBe(VALID_TEST_JWT);
+    // Teardown does not wait for the revocation request: the session is gone
+    // while the fetch is still unsettled (a hung fetch must never keep the
+    // user signed in).
+    await waitFor(() => {
+      expect(screen.getByTestId('auth-state').textContent).toBe('signed-out');
+    });
+    expect(localStorage.getItem('token')).toBeNull();
+    expect(queryClient.getQueryData(['financial', 'customer-a'])).toBeUndefined();
+    // The revocation was still fired.
     expect(fetchMock.mock.calls[1]?.[0]).toBe('/api/auth/logout');
 
     logoutDeferred.resolve(new Response(JSON.stringify({ success: true }), {
@@ -106,11 +114,55 @@ describe('AuthProvider logout', () => {
     }));
 
     await waitFor(() => {
+      expect(localStorage.getItem('pending_logout_tokens')).toBeNull();
+    });
+  });
+
+  it('clears local auth state even when the revocation fetch never resolves (hung network)', async () => {
+    const hungLogout = createDeferred<Response>();
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        userId: 1,
+        username: 'admin',
+        email: null,
+        phone: null,
+        role: 'ADMIN',
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }))
+      .mockImplementationOnce(() => hungLogout.promise);
+    vi.stubGlobal('fetch', fetchMock);
+
+    localStorage.setItem('token', VALID_TEST_JWT);
+    api.refreshTokenFromStorage();
+    const { queryClient } = renderWithAuth(<AuthProbe />);
+
+    expect((await screen.findByTestId('auth-state')).textContent).toBe('signed-in');
+    queryClient.setQueryData(['financial', 'customer-a'], { outstanding: 123_000 });
+    fireEvent.click(screen.getByRole('button', { name: 'logout' }));
+
+    // The prod bug (user stuck signed in): the revocation fetch hangs, but
+    // the local session must still be gone, and a re-tap must not be
+    // swallowed into a permanently in-flight logout.
+    await waitFor(() => {
       expect(screen.getByTestId('auth-state').textContent).toBe('signed-out');
     });
     expect(localStorage.getItem('token')).toBeNull();
-    expect(localStorage.getItem('pending_logout_tokens')).toBeNull();
     expect(queryClient.getQueryData(['financial', 'customer-a'])).toBeUndefined();
+    expect(localStorage.getItem('pending_logout_tokens')).toContain(VALID_TEST_JWT);
+    // Re-tap while the revocation phase is in flight: the teardown is already
+    // done, so this is a harmless no-op (token stays cleared).
+    fireEvent.click(screen.getByRole('button', { name: 'logout' }));
+    expect(localStorage.getItem('token')).toBeNull();
+
+    hungLogout.resolve(new Response(JSON.stringify({ success: true }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    }));
+    await waitFor(() => {
+      expect(localStorage.getItem('pending_logout_tokens')).toBeNull();
+    });
   });
 
   it('still clears local auth state when the logout request fails', async () => {
