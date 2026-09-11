@@ -246,7 +246,9 @@ type DetailPlanRow = {
   container: { containerNumber: string | null; containerTypeLabel: string | null; cargoWeightKg: string | null };
   notes: { vehicleNote: string | null; customerNote: string | null };
   dispatch: {
-    carrierType: 'OWN' | 'EXTERNAL';
+    // Carrier-less planned rows surface as null — the editor auto-loads the
+    // own-fleet truck list for them and promotes via the atomic plan save.
+    carrierType: 'OWN' | 'EXTERNAL' | null;
     carrierName: string | null;
     externalCarrierId: number | null;
     externalCarrierVehicleId: number | null;
@@ -1342,6 +1344,58 @@ describe('atomic dispatch detail plan save', () => {
         eq(s.notifications.relatedEntityId, fulfillment.id),
       ));
     assert.equal(notes.length, 0);
+  });
+
+  // Carrier-less → OWN + truck in one atomic save: the flow the editor enables
+  // for carrier-less rows (8afc13a9, Option B). null ≠ 'OWN' counts as a
+  // carrier switch, so the truck block must resolve and land with the carrier
+  // — pinning that the promotion cannot strand a plate without a carrier.
+  test('carrier-less row promotes to OWN carrier when the atomic save carries an own-fleet truck', async () => {
+    const { shipment, fulfillmentIds } = await createAllocatedLot({ carrierType: null });
+    const { truck } = await createOwnedTruckWithDriver();
+    const { shipment: freshShipment, fulfillment } = await fetchShipmentAndFulfillment(fulfillmentIds[0]!);
+
+    // Pre-save contract the grid relies on: the row is listed carrier-less.
+    const before = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}`);
+    assert.equal(before.status, 200, JSON.stringify(before.data));
+    const carrierLessRow = before.data.items.find((row) => row.fulfillmentId === fulfillment.id);
+    assert.ok(carrierLessRow, 'carrier-less row must be listed before the save');
+    assert.equal(carrierLessRow.dispatch.carrierType, null);
+    assert.equal(carrierLessRow.dispatch.carrierName, null);
+
+    const response = await apiFetch<PlanResponse>(`/dispatch-detail-plan-rows/${fulfillment.id}/plan`, {
+      method: 'PATCH',
+      token: dispatcherToken,
+      body: {
+        expectedFulfillmentVersion: fulfillment.version,
+        expectedShipmentVersion: freshShipment.version,
+        carrierType: 'OWN',
+        truckId: truck.id,
+        plannedRevenue: null,
+        plannedCarrierCost: null,
+        classification: 'SINGLE',
+        isCombined: freshShipment.isCombined,
+      },
+    });
+    assert.equal(response.status, 200, JSON.stringify(response.data));
+    assert.equal(response.data.dispatch.carrierType, 'OWN');
+    assert.equal(response.data.dispatch.carrierName, 'SilverSea');
+    assert.equal(response.data.dispatch.externalCarrierId, null);
+    assert.equal(response.data.dispatch.assignedPlate, truck.licensePlate);
+    assert.equal(response.data.driverNotified, false, 'planning saves never notify the driver');
+
+    const { fulfillment: after } = await fetchShipmentAndFulfillment(fulfillment.id);
+    assert.equal(after.plannedCarrierType, 'OWN');
+    assert.equal(after.plannedExternalCarrierId, null);
+    assert.equal(after.plannedVehiclePlateNumber, truck.licensePlate);
+
+    // Round-trip: the grid re-read shows the promoted carrier, matching the
+    // editor's optimistic update.
+    const rowsAfter = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}`);
+    const promotedRow = rowsAfter.data.items.find((row) => row.fulfillmentId === fulfillment.id);
+    assert.ok(promotedRow, 'promoted row must stay listed');
+    assert.equal(promotedRow.dispatch.carrierType, 'OWN');
+    assert.equal(promotedRow.dispatch.assignedPlate, truck.licensePlate);
   });
 
   test('stale shipment version or stale fulfillment version changes nothing', async () => {
