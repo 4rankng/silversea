@@ -45,6 +45,7 @@ export type LiveTripRow = Pick<
   | 'truckId'
   | 'driverId'
   | 'trailerId'
+  | 'departureDate'
   | 'plannedStartAt'
   | 'plannedEndAt'
   | 'externalEntityId'
@@ -70,6 +71,7 @@ export const LIVE_TRIP_RETURNING = {
   truckId: s.tripsComposite.truckId,
   driverId: s.tripsComposite.driverId,
   trailerId: s.tripsComposite.trailerId,
+  departureDate: s.tripsComposite.departureDate,
   plannedStartAt: s.tripsComposite.plannedStartAt,
   plannedEndAt: s.tripsComposite.plannedEndAt,
   externalEntityId: s.tripsComposite.externalEntityId,

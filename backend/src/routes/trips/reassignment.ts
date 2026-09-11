@@ -13,7 +13,7 @@ import { requireRoles } from '../../middleware/casbin';
 import { getUser } from '../../middleware/auth';
 import * as tripService from '../../services/trip.service';
 import { reassignIssuedDispatchWriteCommand } from '../../services/dispatch-planning.service';
-import { loadReassignmentGuardContext, loadFulfillmentVersion } from '../../services/trip-lifecycle-ops.service';
+import { loadReassignmentGuardContext, loadFulfillmentVersion, resyncAttendanceAfterReassignment } from '../../services/trip-lifecycle-ops.service';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 
 const router = Router();
@@ -41,6 +41,7 @@ router.patch('/:id/reassign', requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPAT
       throw new ApiError(409, 'Chỉ có thể phân xe lại từ Điều phối cho lệnh gắn với tác vụ điều xe.');
     }
     const reassigned = await tripService.reassignTrip(id, data);
+    await resyncAttendanceAfterReassignment(trip, reassigned, getUser(req).userId);
     return res.json(reassigned);
   }
   if (data.expectedVersion === undefined) {
@@ -56,6 +57,7 @@ router.patch('/:id/reassign', requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPAT
   // a fresh fulfillment if the operator wants the full governed flow.
   if (fulfillmentVersion == null) {
     const reassigned = await tripService.reassignTrip(id, data);
+    await resyncAttendanceAfterReassignment(trip, reassigned, getUser(req).userId);
     return res.json(reassigned);
   }
   const user = getUser(req);

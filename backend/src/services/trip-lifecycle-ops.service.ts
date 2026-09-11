@@ -8,6 +8,7 @@ import { eq, and, isNull, sql } from 'drizzle-orm';
 import { TripStatus, Role, DriverProgressEventType } from '@tingting/shared';
 import { ApiError } from '../errors';
 import { assertTripShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
+import { removeTripWorkDays, syncTripWorkDays } from './attendance.service';
 import {
   getTripCompositeInTx, splitTripPatch, tripCompositeSelect, upsertTripCarrierInfo,
 } from './trip-composite.service';
@@ -229,6 +230,8 @@ export async function loadReassignmentGuardContext(tripId: number) {
   const [trip] = await db.select({
     id: s.tripsComposite.id,
     version: s.tripsComposite.version,
+    status: s.tripsComposite.status,
+    driverId: s.tripsComposite.driverId,
     shipmentId: s.tripsComposite.shipmentId,
     fulfillmentId: s.tripsComposite.fulfillmentId,
     plannedStartAt: s.tripsComposite.plannedStartAt,
@@ -236,6 +239,31 @@ export async function loadReassignmentGuardContext(tripId: number) {
     externalCarrierVehicleId: s.tripsComposite.externalCarrierVehicleId,
   }).from(s.tripsComposite).where(and(eq(s.tripsComposite.id, tripId), isNull(s.tripsComposite.deletedAt))).limit(1);
   return trip ?? null;
+}
+
+/**
+ * Fallback-reassignment attendance re-key (TODO/20260911_2 BUG1 follow-up):
+ * when an unlinked trip is reassigned after an ops "Phát lệnh" already
+ * stamped the OLD driver's attendance work-days, move them to the new
+ * driver. Best-effort — an attendance failure must never block the
+ * reassignment (same contract as syncAttendanceAfterStatusChange).
+ */
+export async function resyncAttendanceAfterReassignment(
+  before: { id: number; status: string | null; driverId: number | null },
+  after: { id: number; driverId: number | null; departureDate: string | null },
+  actorId: number | null,
+): Promise<void> {
+  if (before.status == null || before.status === TripStatus.CREATED || (before.driverId ?? null) === (after.driverId ?? null)) return;
+  try {
+    if (before.driverId != null) {
+      await removeTripWorkDays(before.driverId, after.id);
+    }
+    if (after.driverId != null && after.departureDate != null) {
+      await syncTripWorkDays(after.driverId, after.id, after.departureDate, null, actorId);
+    }
+  } catch (error) {
+    console.warn('[attendance] fallback reassignment resync failed for trip', after.id, error);
+  }
 }
 
 export async function loadFulfillmentVersion(fulfillmentId: number): Promise<number | null> {

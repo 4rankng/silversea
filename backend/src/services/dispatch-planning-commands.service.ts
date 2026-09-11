@@ -17,6 +17,7 @@ import { ensureShipmentFulfillmentsInTx } from './shipment-fulfillment.service';
 import { transitionShipmentStatus } from './shipment.service';
 import { createTrip } from './trip-mutations.service';
 import { tripHasDriverAcknowledgement } from './trip-lifecycle-ops.service';
+import { removeTripWorkDays, syncTripWorkDays } from './attendance.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import { completeExternalCarrierTrip } from './trip-external-close.service';
 
@@ -86,6 +87,18 @@ export interface IssueOrderMutationResult {
   fulfillment: typeof s.shipmentFulfillments.$inferSelect;
   trip: LiveTripRow;
   notificationPersisted: boolean;
+  /**
+   * Set when a reassignment corrected a departed-but-unacknowledged trip AND
+   * the driver changed: the ops "Phát lệnh" had already stamped attendance
+   * work-days for the OLD driver, so the command's caller must re-key them
+   * to the new driver after commit (best-effort, never blocks the write).
+   */
+  attendanceResync?: {
+    tripId: number;
+    previousDriverId: number | null;
+    driverId: number | null;
+    departureDate: string | null;
+  };
 }
 
 
@@ -131,6 +144,7 @@ export async function loadLiveTripForFulfillment(tx: Tx, fulfillmentId: number):
     truckId: s.trips.truckId,
     driverId: s.trips.driverId,
     trailerId: s.trips.trailerId,
+    departureDate: s.trips.departureDate,
     plannedStartAt: s.trips.plannedStartAt,
     plannedEndAt: s.trips.plannedEndAt,
     externalEntityId: s.tripCarrierInfo.externalEntityId,
@@ -677,10 +691,23 @@ export async function issueOrderCreateOrUpdate(
     );
   }
 
+  const departedDriverChanged = input.allowUnacknowledgedDeparture
+    && liveTrip != null
+    && liveTrip.status !== TripStatus.CREATED
+    && (liveTrip.driverId ?? null) !== (driverId ?? null);
+
   return {
     fulfillment: updatedFulfillment ?? fulfillment,
     trip,
     notificationPersisted,
+    ...(departedDriverChanged ? {
+      attendanceResync: {
+        tripId: trip.id,
+        previousDriverId: liveTrip?.driverId ?? null,
+        driverId: driverId ?? null,
+        departureDate: trip.departureDate ?? null,
+      },
+    } : {}),
   };
 }
 
@@ -719,6 +746,25 @@ export async function issueFulfillmentDispatchOrder(input: IssueFulfillmentDispa
 
   const notificationPayload = buildNotificationPayload(outcome.result.trip);
   const hasExplicitInAppTarget = hasExplicitNotificationTarget(notificationPayload);
+
+  // Reassignment of a departed-but-unacknowledged trip: the ops "Phát lệnh"
+  // stamped the OLD driver's attendance work-days, so re-key them to the new
+  // driver. Best-effort and outside the write transaction — an attendance
+  // failure must never block the reassignment (same contract as
+  // syncAttendanceAfterStatusChange).
+  if (!outcome.replayed && outcome.result.attendanceResync) {
+    const resync = outcome.result.attendanceResync;
+    try {
+      if (resync.previousDriverId != null) {
+        await removeTripWorkDays(resync.previousDriverId, resync.tripId);
+      }
+      if (resync.driverId != null && resync.departureDate != null) {
+        await syncTripWorkDays(resync.driverId, resync.tripId, resync.departureDate, null, input.actor.userId);
+      }
+    } catch (error) {
+      console.warn('[attendance] reassignment resync failed for trip', resync.tripId, error);
+    }
+  }
 
   if (!outcome.replayed && outcome.result.notificationPersisted && hasExplicitInAppTarget) {
     await sendNotificationPush(notificationPayload).catch((error) => {
