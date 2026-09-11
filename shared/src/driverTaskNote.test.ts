@@ -61,4 +61,53 @@ describe('composeDriverTaskNote / parseDriverTaskNote (format v2)', () => {
     assert.deepEqual(parseDriverTaskNote('', KNOWN), { selectedLabels: [], manualText: '' });
     assert.deepEqual(parseDriverTaskNote('\n', KNOWN), { selectedLabels: [], manualText: '' });
   });
+
+  // Full 14-tag pool from TODO/20260911_3 BUG4
+  const FULL_TAG_POOL = [
+    'HẾT HẠN',
+    'ĐẢO VỎ',
+    'ĐẶT ĐUÔI',
+    'ĐẶT ĐẦU',
+    'KIỂM HÓA',
+    'QUAY ĐẦU',
+    'GỬI VỎ BÃI ĐĂNG KHOA',
+    'QUÁ TẢI',
+    'ĐẢO HÀNG',
+    'HẠ VỎ ICD QUẾ VÕ',
+    'GẮP VỎ ICD QUẾ VÕ',
+    'GẮP VỎ BÃI ĐĂNG KHOA',
+    'HẠ VỎ BÃI TRI PHƯƠNG',
+    'GẮP VỎ BÃI TRI PHƯƠNG',
+  ];
+
+  test('full 14-tag pool: all tags parse correctly', () => {
+    const note = composeDriverTaskNote(FULL_TAG_POOL, 'ghi chú đầy đủ');
+    const parsed = parseDriverTaskNote(note, FULL_TAG_POOL);
+    assert.deepEqual(parsed, { selectedLabels: FULL_TAG_POOL, manualText: 'ghi chú đầy đủ' });
+  });
+
+  test('full 14-tag pool: subset of tags round-trips correctly', () => {
+    const subset = ['ĐẶT ĐẦU', 'ĐẶT ĐUÔI', 'QUAY ĐẦU', 'QUÁ TẢI'];
+    const note = composeDriverTaskNote(subset, '');
+    const parsed = parseDriverTaskNote(note, FULL_TAG_POOL);
+    assert.deepEqual(parsed, { selectedLabels: subset, manualText: '' });
+    assert.equal(composeDriverTaskNote(parsed.selectedLabels, parsed.manualText), note);
+  });
+
+  test('full 14-tag pool: mix of known tags and unknown text degrades gracefully', () => {
+    const note = 'HẾT HẠN; ĐẢO VỎ; tay駅unknown\nghi chú thêm';
+    const parsed = parseDriverTaskNote(note, FULL_TAG_POOL);
+    assert.deepEqual(parsed.selectedLabels, ['HẾT HẠN', 'ĐẢO VỎ']);
+    assert.ok(parsed.manualText.includes('tay駅unknown'));
+    assert.ok(parsed.manualText.includes('ghi chú thêm'));
+  });
+
+  test('full 14-tag pool: compose with all tags + multi-line text', () => {
+    const text = 'dòng 1\ndòng 2\ndòng 3';
+    const note = composeDriverTaskNote(FULL_TAG_POOL, text);
+    assert.ok(note.startsWith('HẾT HẠN; ĐẢO VỎ;'));
+    assert.ok(note.endsWith('dòng 1\ndòng 2\ndòng 3'));
+    const parsed = parseDriverTaskNote(note, FULL_TAG_POOL);
+    assert.deepEqual(parsed, { selectedLabels: FULL_TAG_POOL, manualText: text });
+  });
 });
