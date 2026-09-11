@@ -29,7 +29,7 @@ describe('clearFocusSearchParams', () => {
     highlightMock.mockReturnValueOnce(false).mockReturnValue(true);
 
     render(
-      <MemoryRouter initialEntries={['/governance-actions?filter=all&focus=42&source=agent']}>
+      <MemoryRouter initialEntries={['/treasury?filter=all&focus=42&source=agent']}>
         <FocusHarness />
       </MemoryRouter>,
     );

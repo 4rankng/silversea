@@ -10,7 +10,6 @@ import * as s from '../db/schema';
 import { disconnectRedis } from '../lib/redis';
 import { globalErrorHandler } from '../middleware/errorHandler';
 import configRoutes from '../routes/config';
-import governanceActionsRoutes from '../routes/financial/governance-actions.routes';
 import paymentsRoutes from '../routes/financial/payments.routes';
 import { createCrudRouter } from '../routes/utils/crud-factory';
 import { buildCrudIdempotencyEndpoint } from '../services/idempotency.service';
@@ -134,7 +133,6 @@ before(async () => {
   }));
   app.use('/api/direct-routes', createCrudRouter(s.routes, routeSchema));
   app.use('/api', configRoutes);
-  app.use('/api', governanceActionsRoutes);
   app.use('/api', paymentsRoutes);
   app.use(globalErrorHandler);
 

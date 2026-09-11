@@ -7,7 +7,6 @@ import {
   type FuelInvoiceInput,
   type FuelInvoiceStatus,
   type GovernanceActionRecord,
-  type GovernanceActionFilters,
 } from '../api/financialClient';
 import { qk } from '../api/keys';
 import { tripClient } from '../api/tripClient';
@@ -26,56 +25,6 @@ export interface FuelInvoiceTripOption {
   routeName: string | null;
 }
 
-export const governanceActionKeys = {
-  all: ['governance-actions'] as const,
-  /** Full param bag (status/page/limit/…) keeps each request in its own cache entry. */
-  list: (filters?: GovernanceActionFilters) =>
-    ['governance-actions', filters ?? {}] as const,
-};
-
-export function useGovernanceActions(filters?: GovernanceActionFilters) {
-  return useQuery({
-    queryKey: governanceActionKeys.list(filters),
-    queryFn: () => financialClient.getGovernanceActions(filters),
-  });
-}
-
-function useGovernanceActionMutation(
-  mutationFn: (input: { id: number; expectedVersion: number; reason?: string }) => Promise<GovernanceActionRecord>,
-  refreshApprovedCompanyInfo = false,
-) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn,
-    onSuccess: async (action) => {
-      await qc.invalidateQueries({ queryKey: governanceActionKeys.all });
-      if (refreshApprovedCompanyInfo && action.subjectKey === 'company-info') {
-        await Promise.all([
-          qc.invalidateQueries({ queryKey: qk.catalogs.companyInfo }),
-          qc.invalidateQueries({ queryKey: qk.configCounts.companyInfo }),
-        ]);
-      }
-    },
-  });
-}
-
-export function useCheckGovernanceAction() {
-  return useGovernanceActionMutation(({ id, expectedVersion }) =>
-    financialClient.checkGovernanceAction(id, expectedVersion));
-}
-
-export function useApproveGovernanceAction() {
-  return useGovernanceActionMutation(({ id, expectedVersion }) =>
-    financialClient.approveGovernanceAction(id, expectedVersion), true);
-}
-
-export function useRejectGovernanceAction() {
-  return useGovernanceActionMutation(({ id, expectedVersion, reason }) =>
-    financialClient.rejectGovernanceAction(id, {
-      expectedVersion,
-      reason: reason ?? '',
-    }));
-}
 
 export function useCustomerAging(params?: { search?: string; page?: number; limit?: number; bucket?: 'all' | 'current' | 'd30' | 'd60' | 'over90' }) {
   return useQuery<CustomerAgingResponse>({
@@ -189,7 +138,6 @@ export function useApproveFuelInvoice() {
       financialClient.approveFuelInvoice(id, expectedVersion, reason),
     onSuccess: (action) => {
       if (action.subjectId != null) invalidateFuelInvoiceQueries(qc, action.subjectId);
-      qc.invalidateQueries({ queryKey: qk.governance.actions });
     },
   });
 }

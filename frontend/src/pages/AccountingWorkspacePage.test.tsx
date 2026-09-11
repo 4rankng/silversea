@@ -181,7 +181,6 @@ describe('AccountingWorkspacePage', () => {
     renderPage('/?view=overview');
 
     expect((await screen.findByRole('alert')).textContent).toContain('Một phần số liệu chưa tải được');
-    expect(screen.getByRole('link', { name: /Trung tâm phê duyệt/ })).toBeTruthy();
   });
 
   it('opens the bounded transport register inside the dedicated workspace', async () => {

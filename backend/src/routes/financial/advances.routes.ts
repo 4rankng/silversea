@@ -154,12 +154,18 @@ router.post('/advance-settlements/:id/reversal', requireRoles(Role.ADMIN, Role.A
     payload: { actorId: actor.userId, actorRole: actor.role, id, ...parsed.data },
     createdBy: actor.userId,
     entityType: 'governance_action',
-    create: (tx) => requestAdvanceSettlementReversal({
-      settlementId: id,
-      expectedVersion: parsed.data.expectedVersion,
-      reason: parsed.data.reason,
-      makerId: actor.userId,
-      makerRole: actor.role,
+    // 2026-09-11 maker-checker removal: apply directly in-request.
+    create: (tx) => autoApplyGovernanceAction({
+      make: (inner) => requestAdvanceSettlementReversal({
+        settlementId: id,
+        expectedVersion: parsed.data.expectedVersion,
+        reason: parsed.data.reason,
+        makerId: actor.userId,
+        makerRole: actor.role,
+        transaction: inner,
+      }),
+      actorId: actor.userId,
+      actorRole: actor.role,
       transaction: tx,
     }),
     getEntityId: () => id,

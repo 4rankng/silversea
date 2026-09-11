@@ -10,8 +10,15 @@ import { client, db } from '../db';
 import * as s from '../db/schema';
 import { disconnectRedis } from '../lib/redis';
 import configRoutes from '../routes/config';
+import { ApiError } from '../errors';
+import {
+  checkGovernanceAction,
+  getGovernanceAction,
+  rejectGovernanceAction,
+  returnGovernanceActionForEvidence,
+} from '../services/governance-transition.service';
+import { approveGovernanceAction } from '../services/adjustment-governance.service';
 import paymentsRoutes from '../routes/financial/payments.routes';
-import governanceActionsRoutes from '../routes/financial/governance-actions.routes';
 import { globalErrorHandler } from '../middleware/errorHandler';
 import {
   buildGovernedConfigSnapshot,
@@ -107,32 +114,61 @@ async function api(
   };
 }
 
+// Governance endpoints removed (maker-checker teardown): the four
+// transition helpers now drive the SERVICE layer directly, pinning the same
+// state machine and validations the HTTP boundary used to forward to.
+async function runTransition(fn: () => Promise<Record<string, unknown>>): Promise<{ status: number; body: Record<string, unknown> }> {
+  try {
+    return { status: 200, body: await fn() };
+  } catch (error) {
+    if (error instanceof ApiError) {
+      return { status: error.statusCode, body: { message: error.message } };
+    }
+    throw error;
+  }
+}
+
+function actorOf(actorIndex: number): { id: number; role: string } {
+  const actor = actors[actorIndex] ?? actors[0]!;
+  return { id: actor.id, role: actor.role as string };
+}
+
 async function checkAction(actionId: number, expectedVersion: number, actorIndex = 1) {
-  return api('POST', `/api/governance-actions/${actionId}/check`, {
-    actorIndex,
-    body: { expectedVersion },
-  });
+  return runTransition(() => checkGovernanceAction({
+    actionId,
+    checkerId: actorOf(actorIndex).id,
+    checkerRole: actorOf(actorIndex).role,
+    expectedVersion,
+  }));
 }
 
 async function approveAction(actionId: number, expectedVersion: number, actorIndex = 2) {
-  return api('POST', `/api/governance-actions/${actionId}/approve`, {
-    actorIndex,
-    body: { expectedVersion },
-  });
+  return runTransition(() => approveGovernanceAction({
+    actionId,
+    approverId: actorOf(actorIndex).id,
+    approverRole: actorOf(actorIndex).role,
+    expectedVersion,
+  } as never));
 }
 
 async function rejectAction(actionId: number, expectedVersion: number, reason: string, actorIndex = 1) {
-  return api('POST', `/api/governance-actions/${actionId}/reject`, {
-    actorIndex,
-    body: { expectedVersion, reason },
-  });
+  return runTransition(() => rejectGovernanceAction({
+    actionId,
+    actorId: actorOf(actorIndex).id,
+    actorRole: actorOf(actorIndex).role,
+    expectedVersion,
+    reason,
+  }));
 }
 
 async function returnForEvidence(actionId: number, expectedVersion: number, reason: string, actorIndex = 1) {
-  return api('POST', `/api/governance-actions/${actionId}/return-for-evidence`, {
-    actorIndex,
-    body: { expectedVersion, reason },
-  });
+  return runTransition(() => returnGovernanceActionForEvidence({
+    actionId,
+    actorId: actorOf(actorIndex).id,
+    actorRole: actorOf(actorIndex).role,
+    expectedVersion,
+    reason,
+  }));
 }
 
 /**
@@ -264,7 +300,6 @@ before(async () => {
   });
   app.use('/api', configRoutes);
   app.use('/api', paymentsRoutes);
-  app.use('/api', governanceActionsRoutes);
   app.use(globalErrorHandler);
   server = http.createServer(app);
   await new Promise<void>((resolve) => server.listen(0, resolve));
@@ -772,11 +807,12 @@ describe('Q15 governed material config resources', { concurrency: false }, () =>
       makerIndex: 2,
     });
 
-    const detail = await api('GET', `/api/governance-actions/${pending.id}`, {
-      actorIndex: 2,
+    const detail = await getGovernanceAction({
+      actionId: Number(pending.id),
+      actorId: actors[2]!.id,
+      actorRole: actors[2]!.role,
     });
-    assert.equal(detail.status, 200, JSON.stringify(detail.body));
-    assert.deepEqual(detail.body.allowedActions, ['CANCEL', 'APPROVE']);
+    assert.deepEqual(detail.allowedActions, ['CANCEL', 'APPROVE']);
 
     const approved = await approveAction(
       Number(pending.id),

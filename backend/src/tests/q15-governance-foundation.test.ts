@@ -15,7 +15,6 @@ import { client, db } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import { globalErrorHandler } from '../middleware/errorHandler';
-import governanceActionsRoutes from '../routes/financial/governance-actions.routes';
 import paymentsRoutes from '../routes/financial/payments.routes';
 import {
   assertCanApproveGovernanceAction,
@@ -68,7 +67,6 @@ before(async () => {
     next();
   });
   app.use('/api', paymentsRoutes);
-  app.use('/api', governanceActionsRoutes);
   app.use(globalErrorHandler);
   server = http.createServer(app);
   await new Promise<void>((resolve) => server.listen(0, resolve));
@@ -91,25 +89,6 @@ after(async () => {
   }
   await client.end();
 });
-
-async function postGovernance(
-  path: string,
-  body: Record<string, unknown>,
-  actorIndex = 1,
-) {
-  const response = await fetch(`${baseUrl}${path}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Test-Actor': String(actorIndex),
-    },
-    body: JSON.stringify(body),
-  });
-  return {
-    status: response.status,
-    body: await response.json() as Record<string, unknown>,
-  };
-}
 
 async function createAction() {
   const [action] = await db.insert(s.governanceActions).values({
@@ -142,49 +121,6 @@ async function expectApiError(
 }
 
 describe('Q15 shared governance foundation', () => {
-  it('validates every governance decision at the HTTP boundary before service access', async () => {
-    for (const path of [
-      '/api/governance-actions/not-a-number/check',
-      '/api/governance-actions/0/check',
-      '/api/governance-actions/-1/approve',
-    ]) {
-      const response = await postGovernance(path, { expectedVersion: 1 });
-      assert.equal(response.status, 400, `${path} must reject an invalid action id`);
-    }
-
-    for (const path of [
-      '/api/governance-actions/999999991/check',
-      '/api/governance-actions/999999991/approve',
-    ]) {
-      for (const body of [{}, { expectedVersion: 0 }, { expectedVersion: 'invalid' }]) {
-        const response = await postGovernance(path, body);
-        assert.equal(response.status, 400, `${path} must reject ${JSON.stringify(body)}`);
-      }
-    }
-
-    for (const path of [
-      '/api/governance-actions/999999991/reject',
-      '/api/governance-actions/999999991/return-for-evidence',
-      '/api/governance-actions/999999991/cancel',
-    ]) {
-      for (const body of [
-        { expectedVersion: 1 },
-        { expectedVersion: 1, reason: '   ' },
-        { expectedVersion: 0, reason: 'Có lý do' },
-      ]) {
-        const response = await postGovernance(path, body);
-        assert.equal(response.status, 400, `${path} must reject ${JSON.stringify(body)}`);
-      }
-    }
-
-    const unauthorized = await postGovernance(
-      '/api/governance-actions/1/check',
-      { expectedVersion: 1 },
-      4,
-    );
-    assert.equal(unauthorized.status, 403);
-  });
-
   it('validates shared transition and bounded list contracts', () => {
     assert.deepEqual(governanceActionVersionSchema.parse({ expectedVersion: '2' }), {
       expectedVersion: 2,
@@ -529,119 +465,6 @@ describe('Q15 shared governance foundation', () => {
       actorRole: Role.DRIVER,
       query: { page: 1, limit: 10, offset: 0 },
     }), 403, /không có quyền xem/);
-  });
-
-  it('filters by subject key before applying the list limit', async () => {
-    const targetSubjectKey = `q15-target:${Date.now()}`;
-    const [target] = await db.insert(s.governanceActions).values({
-      subjectType: 'SALARY_CONFIRMATION',
-      subjectKey: targetSubjectKey,
-      actionKind: 'SALARY_CONFIRMATION',
-      reason: 'Target salary history',
-      originalVersion: 1,
-      beforeSnapshot: {},
-      afterSnapshot: {},
-      makerId: actors[0]!.id,
-      makerRole: Role.ACCOUNTANT,
-    }).returning();
-    actionIds.push(target.id);
-
-    const noise = await db.insert(s.governanceActions).values(
-      Array.from({ length: 101 }, (_, index) => ({
-        subjectType: 'SALARY_CONFIRMATION' as const,
-        subjectKey: `q15-noise:${target.id}:${index}`,
-        actionKind: 'SALARY_CONFIRMATION' as const,
-        reason: 'Newer unrelated salary history',
-        originalVersion: 1,
-        beforeSnapshot: {},
-        afterSnapshot: {},
-        makerId: actors[0]!.id,
-        makerRole: Role.ACCOUNTANT,
-      })),
-    ).returning({ id: s.governanceActions.id });
-    actionIds.push(...noise.map(action => action.id));
-
-    const response = await fetch(
-      `${baseUrl}/api/governance-actions?subjectType=SALARY_CONFIRMATION`
-      + `&actionKind=SALARY_CONFIRMATION&subjectKey=${encodeURIComponent(targetSubjectKey)}&limit=100`,
-      { headers: { 'X-Test-Actor': '0' } },
-    );
-    assert.equal(response.status, 200);
-    const body = await response.json() as {
-      items: Array<{ id: number; subjectKey: string | null }>;
-    };
-    assert.deepEqual(body.items.map(action => action.id), [target.id]);
-    assert.equal(body.items[0]!.subjectKey, targetSubjectKey);
-  });
-
-  it('returns a paginated envelope where total spans pages and filters still apply', async () => {
-    const subjectKey = `q15-page:${Date.now()}`;
-    const created = await db.insert(s.governanceActions).values(
-      Array.from({ length: 5 }, (_, index) => ({
-        subjectType: 'SALARY_CONFIRMATION' as const,
-        subjectKey,
-        actionKind: 'SALARY_CONFIRMATION' as const,
-        reason: 'Paginated salary history',
-        // distinct originalVersion keeps rows apart under the active-subject-key uniqueness rule
-        originalVersion: index + 1,
-        beforeSnapshot: {},
-        afterSnapshot: {},
-        makerId: actors[0]!.id,
-        makerRole: Role.ACCOUNTANT,
-      })),
-    ).returning({ id: s.governanceActions.id });
-    actionIds.push(...created.map(action => action.id));
-
-    const fetchList = async (search: string) => {
-      const response = await fetch(`${baseUrl}/api/governance-actions${search}`, {
-        headers: { 'X-Test-Actor': '0' },
-      });
-      assert.equal(response.status, 200);
-      return response.json() as Promise<{
-        items: Array<{ id: number }>;
-        total: number;
-        page: number;
-        pageSize: number;
-        statusCounts: Record<string, number>;
-      }>;
-    };
-    const filteredBySubjectKey = (extra: string) =>
-      `?subjectKey=${encodeURIComponent(subjectKey)}${extra}`;
-
-    const page1 = await fetchList(filteredBySubjectKey('&limit=2&page=1'));
-    assert.equal(page1.page, 1);
-    assert.equal(page1.pageSize, 2);
-    assert.equal(page1.items.length, 2);
-    assert.equal(page1.total, 5);
-    assert.deepEqual(page1.statusCounts, { PENDING_CHECK: 5 }, 'statusCounts must cover the full filtered set, not the page');
-
-    const page2 = await fetchList(filteredBySubjectKey('&limit=2&page=2'));
-    assert.equal(page2.page, 2);
-    assert.equal(page2.total, 5);
-    assert.equal(page2.items.length, 2);
-    const page1Ids = new Set(page1.items.map(action => action.id));
-    assert.equal(page2.items.some(action => page1Ids.has(action.id)), false, 'page 2 must show different rows than page 1');
-
-    const page3 = await fetchList(filteredBySubjectKey('&limit=2&page=3'));
-    assert.equal(page3.items.length, 1);
-    assert.equal(page3.total, 5);
-    const allIds = [...page1.items, ...page2.items, ...page3.items].map(action => action.id);
-    assert.deepEqual([...allIds].sort((a, b) => b - a), allIds, 'pages must follow the id-desc ordering');
-    assert.deepEqual(new Set(allIds), new Set(created.map(action => action.id)));
-
-    const offsetIgnored = await fetchList(filteredBySubjectKey('&limit=2&page=2&offset=0'));
-    assert.deepEqual(offsetIgnored.items.map(action => action.id), page2.items.map(action => action.id), 'page wins over an explicit offset');
-
-    const statusFiltered = await fetchList(filteredBySubjectKey('&status=PENDING_CHECK&limit=2&page=1'));
-    assert.equal(statusFiltered.total, 5);
-    assert.deepEqual(statusFiltered.statusCounts, { PENDING_CHECK: 5 });
-
-    const unfiltered = await fetchList('?limit=2&page=1');
-    assert.ok(unfiltered.total > 5, 'filters must narrow the counted total');
-    assert.ok((unfiltered.statusCounts.PENDING_CHECK ?? 0) > 5, 'statusCounts must reflect the same filters as total');
-    const statusSum = Object.values(unfiltered.statusCounts)
-      .reduce((sum, count) => sum + count, 0);
-    assert.equal(statusSum, unfiltered.total, 'statusCounts must partition the full unfiltered set');
   });
 
   it('allows the maker to check their own request (segregation removed 2026-09-10)', async () => {

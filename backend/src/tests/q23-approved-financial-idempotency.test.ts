@@ -14,7 +14,6 @@ import { globalErrorHandler } from '../middleware/errorHandler';
 import advancesRoutes from '../routes/financial/advances.routes';
 import billingDocumentsRoutes from '../routes/financial/billing-documents.routes';
 import debtOffsetsRoutes from '../routes/financial/debt-offsets.routes';
-import governanceActionsRoutes from '../routes/financial/governance-actions.routes';
 import paymentsRoutes from '../routes/financial/payments.routes';
 import { initAuditService } from '../services/audit.service';
 import { generateDraft } from '../services/billing-document.service';
@@ -368,7 +367,6 @@ before(async () => {
   app.use('/api', billingDocumentsRoutes);
   app.use('/api', debtOffsetsRoutes);
   app.use('/api', paymentsRoutes);
-  app.use('/api', governanceActionsRoutes);
   app.use(globalErrorHandler);
 
   await new Promise<void>((resolve) => {

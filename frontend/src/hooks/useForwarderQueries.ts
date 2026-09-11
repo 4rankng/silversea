@@ -314,7 +314,6 @@ export function useReverseAdvanceSettlement() {
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: qk.adminForwarder.settlementDetail(variables.id) });
       qc.invalidateQueries({ queryKey: qk.adminForwarder.settlementsAll });
-      qc.invalidateQueries({ queryKey: qk.governance.actions });
     },
   });
 }

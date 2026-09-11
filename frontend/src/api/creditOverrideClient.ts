@@ -63,11 +63,6 @@ export interface CreateCreditOverrideRequestInput {
   expiresAt?: string | null;
 }
 
-export interface RejectCreditOverrideRequestInput {
-  expectedVersion: number;
-  reason: string;
-}
-
 export interface CreditOverrideListFilters {
   status?: string;
   customerId?: number;
@@ -106,13 +101,4 @@ export const creditOverrideClient = {
 
   createRequest: (body: CreateCreditOverrideRequestInput) =>
     api.post<CreditOverrideRequestRecord>('/finance/credit-overrides', body),
-
-  checkRequest: (id: number, expectedVersion: number) =>
-    api.post<CreditOverrideRequestRecord>(`/finance/credit-overrides/${id}/check`, { expectedVersion }),
-
-  approveRequest: (id: number, expectedVersion: number) =>
-    api.post<CreditOverrideRequestRecord>(`/finance/credit-overrides/${id}/approve`, { expectedVersion }),
-
-  rejectRequest: (id: number, body: RejectCreditOverrideRequestInput) =>
-    api.post<CreditOverrideRequestRecord>(`/finance/credit-overrides/${id}/reject`, body),
 };

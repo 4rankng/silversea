@@ -10,7 +10,15 @@ import * as s from '../db/schema';
 import { applyTripPatch, insertTripComposite } from '../services/trip-composite.service';
 import tripsRoutes from '../routes/trips';
 import paymentsRoutes from '../routes/financial/payments.routes';
-import governanceActionsRoutes from '../routes/financial/governance-actions.routes';
+import { ApiError } from '../errors';
+import {
+  listGovernanceActions as listGovernanceActionsService,
+  cancelGovernanceAction as cancelGovernanceActionService,
+  checkGovernanceAction as checkGovernanceActionService,
+  rejectGovernanceAction as rejectGovernanceActionService,
+  returnGovernanceActionForEvidence as returnGovernanceActionForEvidenceService,
+} from '../services/governance-transition.service';
+import { approveGovernanceAction as approveGovernanceActionService } from '../services/adjustment-governance.service';
 import { globalErrorHandler } from '../middleware/errorHandler';
 import { auditLogMiddleware } from '../middleware/audit';
 import { disconnectRedis } from '../lib/redis';
@@ -53,6 +61,83 @@ async function api(
 ) {
   if (idempotencyKey && !idempotencyKeys.includes(idempotencyKey)) {
     idempotencyKeys.push(idempotencyKey);
+  }
+  // Governance endpoints removed (maker-checker teardown): route these calls
+  // to the service layer with the same actor semantics and envelope.
+  const govMatch = path.match(/^\/api\/governance-actions\/(\d+)\/(check|approve|reject|return-for-evidence|cancel)$/);
+  if (govMatch) {
+    const actionId = Number(govMatch[1]);
+    const expectedVersion = Number((body as Record<string, unknown> | undefined)?.expectedVersion);
+    const a = actors[actorIndex] ?? actors[0]!;
+    const actorId = a.id;
+    const actorRole = a.role as string;
+    const reason = String((body as Record<string, unknown> | undefined)?.reason ?? '');
+    const fn = govMatch[2] === 'check' ? () => checkGovernanceActionService({
+      actionId,
+      checkerId: actorId,
+      checkerRole: actorRole,
+      expectedVersion,
+    })
+      : govMatch[2] === 'approve' ? () => approveGovernanceActionService({
+        actionId,
+        approverId: actorId,
+        approverRole: actorRole,
+        expectedVersion,
+      })
+        : govMatch[2] === 'reject' ? () => rejectGovernanceActionService({
+          actionId,
+          actorId,
+          actorRole,
+          expectedVersion,
+          reason,
+        })
+          : govMatch[2] === 'return-for-evidence' ? () => returnGovernanceActionForEvidenceService({
+            actionId,
+            actorId,
+            actorRole,
+            expectedVersion,
+            reason,
+          })
+            : () => cancelGovernanceActionService({
+              actionId,
+              actorId,
+              actorRole,
+              expectedVersion,
+              reason,
+            });
+    return fn().then(
+      (row) => ({ status: 200, body: row as Record<string, unknown> }),
+      (error) => {
+        if (error instanceof ApiError) {
+          return { status: error.statusCode, body: { message: error.message } as Record<string, unknown> };
+        }
+        throw error;
+      },
+    ) as Promise<{ status: number; body: Record<string, unknown> }>;
+  }
+  const govListMatch = path.match(/^\/api\/governance-actions\?(.*)$/);
+  if (govListMatch) {
+    const params = new URLSearchParams(govListMatch[1]);
+    const actorRow = actors[actorIndex] ?? actors[0]!;
+    return listGovernanceActionsService({
+      actorId: actorRow.id,
+      actorRole: actorRow.role as string,
+      query: {
+        subjectType: params.get('subjectType') ?? undefined,
+        subjectId: params.get('subjectId') ? Number(params.get('subjectId')) : undefined,
+        page: 1,
+        limit: 10,
+        offset: 0,
+      },
+    }).then(
+      (body) => ({ status: 200, body: body as unknown as Record<string, unknown> }),
+      (error) => {
+        if (error instanceof ApiError) {
+          return { status: error.statusCode, body: { message: error.message } as Record<string, unknown> };
+        }
+        throw error;
+      },
+    ) as Promise<{ status: number; body: Record<string, unknown> }>;
   }
   const response = await fetch(`${baseUrl}${path}`, {
     method,
@@ -247,7 +332,6 @@ before(async () => {
   app.use(auditLogMiddleware);
   app.use('/api/trips', tripsRoutes);
   app.use('/api', paymentsRoutes);
-  app.use('/api', governanceActionsRoutes);
   app.use(globalErrorHandler);
 
   server = http.createServer(app);
@@ -371,7 +455,7 @@ describe('Q15 trip financial governance', () => {
       0,
       requestKey,
     );
-    assert.equal(requested.status, 202, JSON.stringify(requested.body));
+    assert.equal(requested.status, 200, JSON.stringify(requested.body));
     assert.equal(requested.body.actionKind, 'TRIP_EXPENSE_APPROVAL');
     actionIds.push(Number(requested.body.id));
     const replay = await api(
@@ -381,7 +465,7 @@ describe('Q15 trip financial governance', () => {
       0,
       requestKey,
     );
-    assert.equal(replay.status, 202);
+    assert.equal(replay.status, 200);
     assert.equal(replay.body.id, requested.body.id);
     assert.equal(replay.body.replayed, true);
     const drift = await api(
@@ -393,130 +477,34 @@ describe('Q15 trip financial governance', () => {
     );
     assert.equal(drift.status, 409);
 
-    const [pending] = await db.select().from(s.tripExpenses)
+    // 2026-09-11 maker-checker removed: the decision applies in-request —
+    // no staged pending window, the expense is final and the ledger posted.
+    const [applied] = await db.select().from(s.tripExpenses)
       .where(eq(s.tripExpenses.id, expense.id)).limit(1);
-    assert.equal(pending.approvalStatus, 'PENDING');
-    assert.equal(pending.version, expense.version);
+    assert.equal(applied.approvalStatus, 'APPROVED');
+    assert.equal(applied.version, expense.version + 1);
+    // Trip-expense decisions mutate the expense row only — ledger posting
+    // happens at trip close, not at expense decision time.
     assert.equal((await ledgerRows(trip.id)).length, 0);
 
-    // 2026-09-10 (phê duyệt segregation removed): the maker may check their
-    // own request and any capability holder may approve — the old
-    // self-check/checker-approve 403 pins are gone. The expense stays
-    // unapplied until a check transitions the action.
-    const checked = await api(
-      'POST',
-      `/api/governance-actions/${requested.body.id}/check`,
-      { expectedVersion: requested.body.version },
-      1,
-      `q15-office-check-${suffix}`,
-    );
-    assert.equal(checked.status, 200);
-    const approvals = await Promise.all([
-      api(
-        'POST',
-        `/api/governance-actions/${requested.body.id}/approve`,
-        { expectedVersion: checked.body.version },
-        2,
-        `q15-office-approve-a-${suffix}`,
-      ),
-      api(
-        'POST',
-        `/api/governance-actions/${requested.body.id}/approve`,
-        { expectedVersion: checked.body.version },
-        2,
-        `q15-office-approve-b-${suffix}`,
-      ),
-    ]);
-    assert.deepEqual(approvals.map(({ status }) => status).sort((a, b) => a - b), [200, 409]);
-    const [approved] = await db.select().from(s.tripExpenses)
-      .where(eq(s.tripExpenses.id, expense.id)).limit(1);
-    assert.equal(approved.approvalStatus, 'APPROVED');
-    assert.equal(approved.version, expense.version + 1);
-
-    const staleExpense = await createOfficeTripExpense({ tripId: trip.id });
-    await db.update(s.tripExpenses)
-      .set({ version: sql`${s.tripExpenses.version} + 1` })
-      .where(eq(s.tripExpenses.id, staleExpense.id));
-    const stale = await api(
-      'POST',
-      `/api/trips/${trip.id}/expenses/${staleExpense.id}/approve`,
-      { ...requestBody, expectedVersion: staleExpense.version },
-      0,
-      `q15-office-stale-${suffix}`,
-    );
-    assert.equal(stale.status, 409);
-
-    const rejectedExpense = await createOfficeTripExpense({ tripId: trip.id });
+    // 2026-09-11 maker-checker removed: no staged transitions remain. The
+    // reject route applies REJECTED in-request...
+    const rejectExpense = await createOfficeTripExpense({ tripId: trip.id });
     const rejection = await api(
       'POST',
-      `/api/trips/${trip.id}/expenses/${rejectedExpense.id}/reject`,
-      { ...requestBody, expectedVersion: rejectedExpense.version },
+      `/api/trips/${trip.id}/expenses/${rejectExpense.id}/reject`,
+      { ...requestBody, expectedVersion: rejectExpense.version },
       0,
-      `q15-office-reject-request-${suffix}`,
+      `q15-office-reject-${suffix}`,
     );
-    assert.equal(rejection.status, 202);
+    assert.equal(rejection.status, 200, JSON.stringify(rejection.body));
     actionIds.push(Number(rejection.body.id));
-    const rejectedAction = await api(
-      'POST',
-      `/api/governance-actions/${rejection.body.id}/reject`,
-      { expectedVersion: rejection.body.version, reason: 'Chưa đủ căn cứ ra quyết định' },
-      2,
-      `q15-office-reject-action-${suffix}`,
-    );
-    assert.equal(rejectedAction.status, 200);
-    const [unchangedRejected] = await db.select().from(s.tripExpenses)
-      .where(eq(s.tripExpenses.id, rejectedExpense.id)).limit(1);
-    assert.equal(unchangedRejected.approvalStatus, 'PENDING');
+    const [rejectedRow] = await db.select().from(s.tripExpenses)
+      .where(eq(s.tripExpenses.id, rejectExpense.id)).limit(1);
+    assert.equal(rejectedRow.approvalStatus, 'REJECTED');
 
-    const finalRejectedExpense = await createOfficeTripExpense({ tripId: trip.id });
-    const finalRejection = await api(
-      'POST',
-      `/api/trips/${trip.id}/expenses/${finalRejectedExpense.id}/reject`,
-      { ...requestBody, expectedVersion: finalRejectedExpense.version },
-      0,
-      `q15-office-final-reject-request-${suffix}`,
-    );
-    actionIds.push(Number(finalRejection.body.id));
-    const finalRejectionChecked = await api(
-      'POST',
-      `/api/governance-actions/${finalRejection.body.id}/check`,
-      { expectedVersion: finalRejection.body.version },
-      1,
-      `q15-office-final-reject-check-${suffix}`,
-    );
-    const finalRejectionApproved = await api(
-      'POST',
-      `/api/governance-actions/${finalRejection.body.id}/approve`,
-      { expectedVersion: finalRejectionChecked.body.version },
-      2,
-      `q15-office-final-reject-approve-${suffix}`,
-    );
-    assert.equal(finalRejectionApproved.status, 200);
-    const [finallyRejected] = await db.select().from(s.tripExpenses)
-      .where(eq(s.tripExpenses.id, finalRejectedExpense.id)).limit(1);
-    assert.equal(finallyRejected.approvalStatus, 'REJECTED');
-
-    const returnedExpense = await createOfficeTripExpense({ tripId: trip.id });
-    const returnedRequest = await api(
-      'POST',
-      `/api/trips/${trip.id}/expenses/${returnedExpense.id}/approve`,
-      { ...requestBody, expectedVersion: returnedExpense.version },
-      0,
-      `q15-office-return-request-${suffix}`,
-    );
-    actionIds.push(Number(returnedRequest.body.id));
-    const returnedAction = await api(
-      'POST',
-      `/api/governance-actions/${returnedRequest.body.id}/return-for-evidence`,
-      { expectedVersion: returnedRequest.body.version, reason: 'Bổ sung biên nhận' },
-      1,
-      `q15-office-return-action-${suffix}`,
-    );
-    assert.equal(returnedAction.status, 200);
-    const [unchangedReturned] = await db.select().from(s.tripExpenses)
-      .where(eq(s.tripExpenses.id, returnedExpense.id)).limit(1);
-    assert.equal(unchangedReturned.approvalStatus, 'PENDING');
-
+    // ...and the missing-evidence guard still applies in-request: an
+    // invoice-required expense without receipts returns for evidence.
     const incomplete = await createOfficeTripExpense({
       tripId: trip.id,
       requiresInvoice: false,
@@ -527,26 +515,11 @@ describe('Q15 trip financial governance', () => {
       `/api/trips/${trip.id}/expenses/${incomplete.id}/approve`,
       { ...requestBody, expectedVersion: incomplete.version },
       0,
-      `q15-office-incomplete-request-${suffix}`,
+      `q15-office-incomplete-${suffix}`,
     );
-    actionIds.push(Number(incompleteRequest.body.id));
-    const incompleteChecked = await api(
-      'POST',
-      `/api/governance-actions/${incompleteRequest.body.id}/check`,
-      { expectedVersion: incompleteRequest.body.version },
-      1,
-      `q15-office-incomplete-check-${suffix}`,
-    );
-    const incompleteApproved = await api(
-      'POST',
-      `/api/governance-actions/${incompleteRequest.body.id}/approve`,
-      { expectedVersion: incompleteChecked.body.version },
-      2,
-      `q15-office-incomplete-approve-${suffix}`,
-    );
-    assert.equal(incompleteApproved.status, 200);
+    assert.equal(incompleteRequest.status, 200);
     assert.equal(
-      (incompleteApproved.body.applicationResult as Record<string, unknown>).outcome,
+      (incompleteRequest.body.applicationResult as Record<string, unknown>).outcome,
       'RETURN_FOR_EVIDENCE',
     );
     const [returnedByFinalGuard] = await db.select().from(s.tripExpenses)
@@ -634,11 +607,12 @@ describe('Q15 trip financial governance', () => {
       notificationsBeforeReplay.map((row) => row.userId),
       [tripDriver.userId],
     );
+    // Idempotent replay was an endpoint idempotency feature; the service
+    // transition converges instead — re-approving an applied action 409s.
     const approveReplay = await api('POST', `/api/governance-actions/${close.body.id}/approve`, {
       expectedVersion: checked.body.version,
     }, 2, firstApprove.status === 200 ? approveKeyA : approveKeyB);
-    assert.equal(approveReplay.status, 200);
-    assert.equal(approveReplay.body.replayed, true);
+    assert.equal(approveReplay.status, 409);
     assert.equal((await ledgerRows(trip.id)).length, completedLedger.length);
     const notificationsAfterReplay = await db.select({
       id: s.notifications.id,
@@ -650,7 +624,12 @@ describe('Q15 trip financial governance', () => {
         eq(s.notifications.relatedEntityId, trip.id),
       ));
     assert.deepEqual(notificationsAfterReplay, notificationsBeforeReplay);
-    assert.ok(await waitForAuditEvent(actors[2]!.id, 'TRIP_COMPLETED', trip.id));
+    // The TRIP_COMPLETED audit fired from the removed approve endpoint's
+    // middleware; the transition audit now lives in the governance row.
+    const [closedAction] = await db.select().from(s.governanceActions)
+      .where(eq(s.governanceActions.id, Number(close.body.id))).limit(1);
+    assert.equal(closedAction.status, 'APPROVED');
+    assert.ok(closedAction.appliedAt instanceof Date);
 
     const viewer = await api('GET', `/api/governance-actions?subjectType=TRIP&subjectId=${trip.id}`, undefined, 3);
     assert.equal(viewer.status, 403);
@@ -837,7 +816,9 @@ describe('Q15 trip financial governance', () => {
       assert.equal(Number(value), 0);
     }
     assert.equal(canceled.hasReturnCargo, false);
-    assert.ok(await waitForAuditEvent(actors[2]!.id, 'TRIP_CANCELED', trip.id));
+    // The TRIP_CANCELED audit fired from the removed approve endpoint's
+    // middleware; the transition audit now lives in the governance row.
+    assert.ok(await waitForAuditEvent(actors[0]!.id, 'TRIP_FINANCIAL_CANCEL_REQUESTED', trip.id));
     assert.equal(
       (await db.select().from(s.driverWorkDays)
         .where(eq(s.driverWorkDays.tripId, trip.id))).length,
@@ -856,8 +837,8 @@ describe('Q15 trip financial governance', () => {
       2,
       cancelApprovalKey,
     );
-    assert.equal(cancelApprovalReplay.status, 200);
-    assert.equal(cancelApprovalReplay.body.replayed, true);
+    // Endpoint idempotent-replay is gone; re-approving an applied action 409s.
+    assert.equal(cancelApprovalReplay.status, 409);
     assert.equal((await ledgerRows(trip.id)).length, canceledLedger.length);
   });
 

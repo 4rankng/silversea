@@ -142,13 +142,6 @@ export function AccountingOverview({
           metric="Mở hàng đợi OCR"
         />
         <WorkflowLink
-          to={routes.governanceActions}
-          icon={FileCheck2}
-          title="Trung tâm phê duyệt"
-          description="Kiểm tra các đề nghị tài chính cần phân tách người lập và người duyệt."
-          metric="Mở hàng đợi"
-        />
-        <WorkflowLink
           to={routes.treasury}
           icon={WalletCards}
           title="Sổ quỹ / ngân hàng"

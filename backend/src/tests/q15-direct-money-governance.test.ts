@@ -10,10 +10,11 @@ import * as s from '../db/schema';
 import { insertTripComposite } from '../services/trip-composite.service';
 import { disconnectRedis } from '../lib/redis';
 import { globalErrorHandler } from '../middleware/errorHandler';
-import governanceActionsRoutes from '../routes/financial/governance-actions.routes';
 import paymentsRoutes from '../routes/financial/payments.routes';
 import penaltiesRoutes from '../routes/financial/penalties.routes';
 import { createPenalty } from '../services/financial.service';
+import { ApiError } from '../errors';
+import { rejectGovernanceAction } from '../services/governance-transition.service';
 
 const actorIds: number[] = [];
 const customerIds: number[] = [];
@@ -272,7 +273,6 @@ before(async () => {
   });
   app.use('/api', paymentsRoutes);
   app.use('/api', penaltiesRoutes);
-  app.use('/api', governanceActionsRoutes);
   app.use(globalErrorHandler);
 
   server = http.createServer(app);
@@ -510,11 +510,17 @@ describe('Q15 direct-money governance slice', () => {
 
     // The old pending-reject path is gone: with nothing pending, the
     // decision endpoints refuse rather than mutate an applied action.
-    const rejected = await api('POST', `/api/governance-actions/${firstSubmit.body.id}/reject`, {
-      expectedVersion: Number(firstSubmit.body.version),
-      reason: `Q15 no-longer-pending ${suffix}`,
-    }, 2);
-    assert.equal(rejected.status, 409);
+    // Governance endpoints removed: pin the same 409 at the service layer.
+    await assert.rejects(
+      rejectGovernanceAction({
+        actionId: Number(firstSubmit.body.id),
+        actorId: actors[2]!.id,
+        actorRole: actors[2]!.role,
+        expectedVersion: Number(firstSubmit.body.version),
+        reason: `Q15 no-longer-pending ${suffix}`,
+      }),
+      (error: unknown) => error instanceof ApiError && error.statusCode === 409,
+    );
     assert.equal(await fetchLedgerCount({
       entityType: 'VENDOR',
       entityId: fixture.supplier.id,

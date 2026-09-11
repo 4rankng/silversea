@@ -122,21 +122,9 @@ export async function transitionApproval(
       'Không xác định được người tạo chi phí; cần đối soát thủ công trước khi duyệt',
     );
   }
-  if (
-    opts.toStatus === 'APPROVED'
-    && 'createdBy' in record
-    && record.createdBy === opts.actorId
-    // 2026-09-10 (phê duyệt removed): debt-offset creation applies
-    // immediately, so the creator legitimately self-approves. Trip-expense
-    // maker separation is retained (forwarder creates, accountant approves).
-    && opts.table !== 'debt_offsets'
-  ) {
-    const subject = opts.table === 'trip_expenses'
-      ? 'chi phí'
-      : 'phiếu đối trừ công nợ';
-    throw new ApiError(403, `Không thể duyệt ${subject} do chính mình tạo`);
-  }
-
+  // 2026-09-11 (maker-checker removed): the self-approval ban is gone —
+  // governed requests run check + approve with the requesting actor. The
+  // fuel-recon and missing-creator data-integrity guards above remain.
   // Fuel-recon guard: only fuel-typed trip_expenses going TO APPROVED are
   // checked. Rejections, debt_offsets, and non-fuel expenses bypass it.
   if (opts.table === 'trip_expenses' && opts.toStatus === 'APPROVED') {

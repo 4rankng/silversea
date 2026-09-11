@@ -18,8 +18,9 @@ import { casbinAuthz } from '../middleware/casbin';
 import { globalErrorHandler } from '../middleware/errorHandler';
 import { disconnectRedis } from '../lib/redis';
 import paymentsRoutes from '../routes/financial/payments.routes';
+import { checkGovernanceAction as checkGovernanceActionService } from '../services/governance-transition.service';
+import { approveGovernanceAction as approveGovernanceActionService } from '../services/adjustment-governance.service';
 import penaltiesRoutes from '../routes/financial/penalties.routes';
-import governanceActionsRoutes from '../routes/financial/governance-actions.routes';
 import { ApiError } from '../errors';
 import { LedgerService } from '../services/ledger.service';
 import { registerAuditEvent } from '../services/audit-registry';
@@ -41,6 +42,9 @@ const createdNotificationIds: number[] = [];
 const createdAuditLogIds: number[] = [];
 
 let makerUserId = 0;
+let makerActor = { id: 0, role: '' as string };
+let checkerActor = { id: 0, role: '' as string };
+let approverActor = { id: 0, role: '' as string };
 let makerToken = '';
 let checkerToken = '';
 let approverToken = '';
@@ -341,26 +345,40 @@ async function fetchPenaltyCancelAudit(reason: string) {
   return rows;
 }
 
-async function checkGovernanceAction(actionId: number, expectedVersion: number, actor: 'maker' | 'checker' | 'approver' = 'checker') {
-  return postJson(
-    `/api/governance-actions/${actionId}/check`,
-    { expectedVersion },
-    {
-      actor,
-      idempotencyKey: `q23-governance-check-${actionId}-${expectedVersion}-${actor}`,
+// Governance endpoints removed: these helpers drive the SERVICE layer with
+// the same actor roles, returning the {status, data} envelope the tests use.
+function serviceEnvelope(fn: () => Promise<Record<string, unknown>>): Promise<{ status: number; data: Record<string, unknown> }> {
+  return fn().then(
+    (row) => ({ status: 200, data: row }),
+    (error) => {
+      if (error instanceof ApiError) return { status: error.statusCode, data: { message: error.message } };
+      throw error;
     },
   );
 }
 
+function actorFor(actor: 'maker' | 'checker' | 'approver') {
+  return actor === 'checker' ? checkerActor : actor === 'approver' ? approverActor : makerActor;
+}
+
+async function checkGovernanceAction(actionId: number, expectedVersion: number, actor: 'maker' | 'checker' | 'approver' = 'checker') {
+  const a = actorFor(actor);
+  return serviceEnvelope(() => checkGovernanceActionService({
+    actionId,
+    checkerId: a.id,
+    checkerRole: a.role,
+    expectedVersion,
+  }));
+}
+
 async function approveGovernanceAction(actionId: number, expectedVersion: number, actor: 'maker' | 'checker' | 'approver' = 'approver') {
-  return postJson(
-    `/api/governance-actions/${actionId}/approve`,
-    { expectedVersion },
-    {
-      actor,
-      idempotencyKey: `q23-governance-approve-${actionId}-${expectedVersion}-${actor}`,
-    },
-  );
+  const a = actorFor(actor);
+  return serviceEnvelope(() => approveGovernanceActionService({
+    actionId,
+    approverId: a.id,
+    approverRole: a.role,
+    expectedVersion,
+  }));
 }
 
 async function advanceGovernanceAction(args: {
@@ -402,7 +420,6 @@ before(async () => {
   app.use('/api', authMiddleware, auditLogMiddleware, casbinAuthz('financial'));
   app.use('/api', paymentsRoutes);
   app.use('/api', penaltiesRoutes);
-  app.use('/api', governanceActionsRoutes);
   app.use(globalErrorHandler);
 
   await new Promise<void>((resolve) => {
@@ -420,6 +437,9 @@ before(async () => {
   makerToken = sign(maker);
   checkerToken = sign(checker);
   approverToken = sign(approver);
+  makerActor = { id: maker.id, role: maker.role };
+  checkerActor = { id: checker.id, role: checker.role };
+  approverActor = { id: approver.id, role: approver.role };
 });
 
 after(async () => {

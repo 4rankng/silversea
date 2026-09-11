@@ -9,8 +9,9 @@ import { client, db } from '../db';
 import * as s from '../db/schema';
 import { applyTripPatch, insertTripComposite } from '../services/trip-composite.service';
 import billingDocumentsRoutes from '../routes/financial/billing-documents.routes';
+import { ApiError } from '../errors';
+import { rejectGovernanceAction } from '../services/governance-transition.service';
 import paymentsRoutes from '../routes/financial/payments.routes';
-import governanceActionsRoutes from '../routes/financial/governance-actions.routes';
 import { globalErrorHandler } from '../middleware/errorHandler';
 import { disconnectRedis } from '../lib/redis';
 import { generateDraft } from '../services/billing-document.service';
@@ -234,7 +235,6 @@ before(async () => {
   });
   app.use('/api', billingDocumentsRoutes);
   app.use('/api', paymentsRoutes);
-  app.use('/api', governanceActionsRoutes);
   app.use(globalErrorHandler);
 
   server = http.createServer(app);
@@ -363,11 +363,18 @@ describe('Q15 debit-note issue governance', () => {
     assert.equal(issue.body.status, 'APPROVED');
     governanceActionIds.push(Number(issue.body.id));
 
-    const rejected = await api('POST', `/api/governance-actions/${issue.body.id}/reject`, {
-      expectedVersion: Number(issue.body.version),
-      reason: 'Thiếu đối chiếu khách hàng',
-    }, 1, `q15-debit-reject-${documentId}`);
-    assert.equal(rejected.status, 409);
+    // Governance endpoints removed: pin the same 409 at the service layer
+    // (an applied row has no pending window left to reject).
+    await assert.rejects(
+      rejectGovernanceAction({
+        actionId: Number(issue.body.id),
+        actorId: actors[1]!.id,
+        actorRole: actors[1]!.role,
+        expectedVersion: Number(issue.body.version),
+        reason: 'Thiếu đối chiếu khách hàng',
+      }),
+      (error: unknown) => error instanceof ApiError && error.statusCode === 409,
+    );
 
     const [storedAction] = await db.select({
       status: s.governanceActions.status,

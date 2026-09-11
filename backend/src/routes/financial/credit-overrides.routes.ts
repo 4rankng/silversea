@@ -14,7 +14,6 @@ import {
   createCreditOverrideRequest,
   getCreditOverrideRequest,
   listCreditOverrideRequests,
-  rejectCreditOverrideRequest,
   CREDIT_OVERRIDE_SORT_KEYS,
 } from '../../services/credit-limit.service';
 
@@ -34,14 +33,6 @@ const createCreditOverrideSchema = z.object({
       path: ['shipmentId'],
     });
   }
-});
-
-const decisionSchema = z.object({
-  expectedVersion: z.coerce.number().int().positive('Phiên bản đề nghị không hợp lệ'),
-});
-
-const rejectSchema = decisionSchema.extend({
-  reason: z.string().trim().min(1, 'Lý do từ chối là bắt buộc').max(1000),
 });
 
 const listSchema = z.object({
@@ -66,9 +57,6 @@ function parseRequestId(rawId: string | string[]): number {
 }
 
 const CREDIT_OVERRIDE_CREATE_ENDPOINT = 'credit-overrides.create';
-const CREDIT_OVERRIDE_CHECK_ENDPOINT = 'credit-overrides.check';
-const CREDIT_OVERRIDE_APPROVE_ENDPOINT = 'credit-overrides.approve';
-const CREDIT_OVERRIDE_REJECT_ENDPOINT = 'credit-overrides.reject';
 
 function requireIdempotencyKey(req: Request): string {
   const idempotencyKey = getRequestIdempotencyKey(req);
@@ -110,19 +98,14 @@ router.post(
       createdBy: actor.userId,
       entityType: 'credit_override',
       responseStatusCode: 201,
-      // 2026-09-10 user directive: phê duyệt removed — the override request
-      // runs its check and approve stages immediately with the requester
-      // when their role satisfies the amount tier. Higher-tier overrides
-      // (the escalation control) stay pending for a tier holder.
+      // 2026-09-11 user directive: phê duyệt removed ENTIRELY (AR R4) — every
+      // authorized role's override applies in-request via the retained
+      // make→check→approve service chain; no tier gate, nothing stays pending.
       create: async (tx) => {
         const created = await createCreditOverrideRequest(payload, {
           userId: actor.userId,
           role: actor.role,
         }, tx);
-        const tierSatisfied = created.requiredTier === 'FINANCE_TIER_1'
-          ? (actor.role === Role.ADMIN || actor.role === Role.ACCOUNTANT)
-          : (actor.role === Role.ADMIN || actor.role === Role.MANAGER);
-        if (!tierSatisfied) return created;
         const checked = await checkCreditOverrideRequest(created.id, {
           userId: actor.userId,
           role: actor.role,
@@ -138,103 +121,6 @@ router.post(
     res.locals.auditEntityId = request.id;
     res.locals.auditEntityKey = `credit-override-${request.id}`;
     res.status(statusCode).json(request);
-  }),
-);
-
-router.post(
-  '/finance/credit-overrides/:id/check',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT),
-  asyncHandler(async (req, res) => {
-    const id = parseRequestId(req.params.id);
-    const payload = decisionSchema.parse(req.body);
-    const actor = getUser(req);
-    const { result, replayed } = await runIdempotent({
-      endpoint: CREDIT_OVERRIDE_CHECK_ENDPOINT,
-      idempotencyKey: requireIdempotencyKey(req),
-      payload: {
-        actorId: actor.userId,
-        actorRole: actor.role,
-        expectedVersion: payload.expectedVersion,
-        id,
-      },
-      createdBy: actor.userId,
-      entityType: 'credit_override',
-      create: (tx) => checkCreditOverrideRequest(id, {
-        userId: actor.userId,
-        role: actor.role,
-      }, payload, tx),
-      getEntityId: () => id,
-    });
-    const request = replayed ? { ...result, replayed } : result;
-    res.locals.auditEntityId = request.id;
-    res.locals.auditEntityKey = `credit-override-${request.id}`;
-    res.json(request);
-  }),
-);
-
-router.post(
-  '/finance/credit-overrides/:id/approve',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT),
-  asyncHandler(async (req, res) => {
-    const id = parseRequestId(req.params.id);
-    const payload = decisionSchema.parse(req.body);
-    const actor = getUser(req);
-    const { result, replayed } = await runIdempotent({
-      endpoint: CREDIT_OVERRIDE_APPROVE_ENDPOINT,
-      idempotencyKey: requireIdempotencyKey(req),
-      payload: {
-        actorId: actor.userId,
-        actorRole: actor.role,
-        expectedVersion: payload.expectedVersion,
-        id,
-      },
-      createdBy: actor.userId,
-      entityType: 'credit_override',
-      create: async (tx) => {
-        const approval = await approveCreditOverrideRequest(id, {
-          userId: actor.userId,
-          role: actor.role,
-        }, payload, tx);
-        return approval.request;
-      },
-      getEntityId: () => id,
-    });
-    const request = replayed ? { ...result, replayed } : result;
-    res.locals.auditEntityId = request.id;
-    res.locals.auditEntityKey = `credit-override-${request.id}`;
-    res.json(request);
-  }),
-);
-
-router.post(
-  '/finance/credit-overrides/:id/reject',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT),
-  asyncHandler(async (req, res) => {
-    const id = parseRequestId(req.params.id);
-    const payload = rejectSchema.parse(req.body);
-    const actor = getUser(req);
-    const { result, replayed } = await runIdempotent({
-      endpoint: CREDIT_OVERRIDE_REJECT_ENDPOINT,
-      idempotencyKey: requireIdempotencyKey(req),
-      payload: {
-        actorId: actor.userId,
-        actorRole: actor.role,
-        expectedVersion: payload.expectedVersion,
-        id,
-        reason: payload.reason,
-      },
-      createdBy: actor.userId,
-      entityType: 'credit_override',
-      create: (tx) => rejectCreditOverrideRequest(id, {
-        userId: actor.userId,
-        role: actor.role,
-      }, payload, tx),
-      getEntityId: () => id,
-    });
-    const request = replayed ? { ...result, replayed } : result;
-    res.locals.auditEntityId = request.id;
-    res.locals.auditEntityKey = `credit-override-${request.id}`;
-    res.json(request);
   }),
 );
 
