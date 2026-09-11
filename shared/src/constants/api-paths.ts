@@ -149,7 +149,6 @@ export const FINANCIAL = {
   ADVANCE_SETTLEMENT_DETAIL: (id: number) => `/advance-settlements/${id}`,
   ADVANCE_SETTLEMENT_EXPORT: (id: number, format: string) => `/advance-settlements/${id}/export?format=${format}`,
   ADVANCE_BALANCES: '/advance-balances',
-  DASHBOARD_APPROVAL_QUEUE: '/dashboard/approval-queue',
   LEDGER_BALANCES: '/ledger/balances',
   COMMISSIONS: '/commissions',
   DRIVER_PAYOUT: (driverId: number) => `/drivers/${driverId}/payouts`,
