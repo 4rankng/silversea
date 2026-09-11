@@ -281,7 +281,7 @@ export default function ShipmentDetailPage() {
                 <tr>
                   <th>Loại</th>
                   <th>Số container</th>
-                  <th>Nhà xe đã gán</th>
+                  <th>Nhà xe</th>
                   <th>Xe đã gán</th>
                   <th>Số seal</th>
                   <th>Lịch giao</th>
