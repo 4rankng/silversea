@@ -235,6 +235,7 @@ async function createOwnedTruckWithDriver() {
 type DetailPlanRow = {
   fulfillmentId: number;
   version: number;
+  shipmentContainerId: number | null;
   shipmentId: number;
   shipmentCode: string | null;
   isCombined: boolean;
