@@ -27,8 +27,9 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // Bumped 650 -> 656: ticket 365943ea - factoryShortName and operationalNotes fields
   // Bumped 656 -> 679: 2026-09-11 trip-detail polish — wire gains
   // factoryAddress / khoPhone / invoiceMaster / knownTagLabels and their
-  // fulfillment mapping. Reviewed as a contract change.
-  'src/api/driverClient.ts': 679,
+  // fulfillment mapping.
+  // Bumped 679 -> 684: e-POD thumbnails — downloadPodFile client method.
+  'src/api/driverClient.ts': 684,
   'src/api/keys.ts': 562,
   // Added 2026-09-07: baseline 401 (was new-file capped) — the atomic plan
   // save now carries operationalNotes and the tag-pool client helpers
@@ -58,6 +59,10 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   'src/components/trip/AncillaryFeesCard.tsx': 607,
   'src/components/trip/ContainerInstancesCard.tsx': 591,
   'src/components/trip/DriverContainerCard.tsx': 585,
+  // Baseline 410 (was new-file capped): e-POD photos now render as tappable
+  // thumbnails opening the fullscreen viewer — thumbnail state/effect + the
+  // render branch live beside the upload lifecycle they serve.
+  'src/components/trip/TripPodSubmission.tsx': 410,
   'src/components/trip/ShipmentCostEntryForm.tsx': 522,
   'src/components/UI.tsx': 665,
   'src/components/untitled-ui/base/badges/badges.tsx': 416,

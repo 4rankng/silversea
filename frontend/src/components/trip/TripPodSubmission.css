@@ -414,3 +414,23 @@
     white-space: normal;
   }
 }
+
+/* Ticket 36d0183d: uploaded e-POD images render as tappable thumbnails
+   (72px square — clears the 44px coarse-pointer floor) opening the
+   fullscreen PhotoViewer. */
+.trip-pod__file-thumb {
+  display: inline-flex;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.trip-pod__file-thumb img {
+  display: block;
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+}

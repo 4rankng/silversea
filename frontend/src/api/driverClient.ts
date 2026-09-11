@@ -564,6 +564,11 @@ export const driverClient = {
     }) as Promise<DriverTaskPodSubmission>;
   },
 
+  /** e-POD file blob — authenticated fetch for thumbnails + fullscreen viewer. */
+  downloadPodFile: async (fulfillmentId: number, fileId: number): Promise<Blob> => {
+    return api.getBlob(`/driver/me/fulfillments/${fulfillmentId}/pod-files/${fileId}`);
+  },
+
   createIncidentalCost: async (
     tripId: number,
     body: { costType: DriverIncidentalCostType; amount: number; occurredAt: string; note?: string; receiptStorageKey?: string },

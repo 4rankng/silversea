@@ -220,6 +220,13 @@ describe('journey-board card fields — operationalNotes + factoryShortName', ()
     const detail = await getDriverFulfillmentDetail(driver.id, fulfillmentA.id);
     assert.equal(detail.factoryShortName, 'Nhà máy Đầy Đủ');
     assert.equal(detail.driverNotes, NOTES);
+    // Trip-detail polish (2026-09-11): the detail wire carries the same
+    // contract fields the FE surface renders.
+    assert.equal(detail.factoryAddress, `Địa chỉ ${suffix}-0`, 'site street address rides the detail wire');
+    assert.equal(detail.khoPhone, null, 'site without contact_phone → kho phone hidden path');
+    assert.equal(detail.invoiceMaster, null, 'customer without master data → no master block');
+    assert.ok(detail.knownTagLabels.length > 0, 'tag pool must ride on the detail response');
+    assert.ok(detail.knownTagLabels.every((label) => typeof label === 'string'));
   });
 });
 
