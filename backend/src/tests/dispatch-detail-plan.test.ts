@@ -2173,17 +2173,17 @@ describe('dispatch task tags and driver-note plan save', () => {
     }
   });
 
-  test('GET is driver-readable (driver portal resolves note tags into chips)', async () => {
-    // 2026-09-10 architect blocker B1: DriverTripsPage mounts the tag-pool
-    // hook; without DRIVER on the GET, drivers 403 → tags:[] → every note
-    // degrades to plain text and the tác vụ chips never render. Reads widen;
-    // the write endpoints (POST/PATCH/DELETE) stay dispatcher-and-above.
-    const response = await apiFetch<{ items: Array<{ id: number; label: string }> }>('/dispatch-task-tags', {
+  test('GET denies drivers once the journey board embeds the pool (ticket 53a536f9)', async () => {
+    // 53a536f9: the driver portal reads the tag pool from the journey-board
+    // response (knownTagLabels) instead of this endpoint, so the B1 casbin
+    // bypass is removed and the pool is dispatcher-only again. The
+    // journey-board knownTagLabels contract is pinned in
+    // driver-journey-board-fields.test.ts.
+    const response = await apiFetch<{ message: string }>('/dispatch-task-tags', {
       method: 'GET',
       token: driverToken,
     });
-    assert.equal(response.status, 200, JSON.stringify(response.data));
-    assert.ok(Array.isArray(response.data.items) && response.data.items.length > 0);
+    assert.equal(response.status, 403, JSON.stringify(response.data));
   });
 
   test('POST creates a tag and duplicate (case/diacritics-insensitive) yields 409', async () => {

@@ -66,20 +66,6 @@ function hasRouteScopedRoleAllowance(req: Request, resource: string) {
   ) {
     return true;
   }
-  // The driver portal's journey cards resolve shipments.operationalNotes
-  // task tags into chips, which needs the dispatch task-tag pool (a shared
-  // read-only reference list). DRIVER holds no `shipments` Casbin grant by
-  // design; this GET-only, single-route bypass widens nothing else. Writes
-  // to the pool (POST/PATCH/DELETE) stay dispatcher-and-above via
-  // requireRoles in dispatch-planning.routes.ts.
-  if (
-    resource === 'shipments'
-    && req.user.role === Role.DRIVER
-    && req.method === 'GET'
-    && /^\/dispatch-task-tags\/?(\?|$)/.test(req.path)
-  ) {
-    return true;
-  }
   // CUS and DISPATCHER may update or delete identity fields on customers and
   // routes from the catalog management pages. POST already allowed above for
   // create; PUT/DELETE extends the same pattern to edit and undo recent

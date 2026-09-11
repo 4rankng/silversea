@@ -190,8 +190,17 @@ describe('journey-board card fields — operationalNotes + factoryShortName', ()
       notes: null, factoryName: 'Xưởng ABC',
     });
 
-    const cards = await getDriverJourneyBoard(driver.id);
+    const board = await getDriverJourneyBoard(driver.id);
+    const cards = board.items;
     assert.equal(cards.length, 3, JSON.stringify(cards.map((c) => c.tripCode)));
+
+    // The board embeds the operation-tag pool (ticket 53a536f9): the driver
+    // page resolves note chips from this response alone, no tag-pool fetch.
+    assert.ok(board.knownTagLabels.length > 0, 'tag pool must ride on the board response');
+    assert.ok(board.knownTagLabels.every((label) => typeof label === 'string'));
+    for (const seed of ['ĐẶT ĐẦU', 'ĐẶT ĐUÔI', 'ĐẢO VỎ']) {
+      assert.ok(board.knownTagLabels.includes(seed), `canonical seed ${seed} must be in knownTagLabels`);
+    }
 
     const cardA = cards.find((c) => c.fulfillmentId === fulfillmentA.id)!;
     assert.equal(cardA.operationalNotes, NOTES);

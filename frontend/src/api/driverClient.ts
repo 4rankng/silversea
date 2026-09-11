@@ -444,8 +444,8 @@ export const driverClient = {
   },
 
   getJourneyBoard: async () => {
-    const wire = await api.get<{ items: DriverJourneyCard[] }>(DRIVER_TASK.JOURNEY_BOARD);
-    return wire.items;
+    const wire = await api.get<{ items: DriverJourneyCard[]; knownTagLabels?: string[] }>(DRIVER_TASK.JOURNEY_BOARD);
+    return { items: wire.items, knownTagLabels: wire.knownTagLabels ?? [] };
   },
 
   /** Topbar identity chip — the driver's current vehicle plate. */

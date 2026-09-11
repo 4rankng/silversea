@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowRight, Building2, Loader2, Package2, Phone, Route } from 'lucide-react';
 import { useDriverJourneyBoard } from '../hooks/useDriverQueries';
 import type { DriverJourneyCard } from '../api/driverClient';
-import { parseNote } from '../features/dispatch/detailed-plan/dispatchTaskTags';
-import { useDispatchTaskTags } from '../features/dispatch/detailed-plan/useDispatchTaskTags';
+import { parseNote } from '../lib/dispatchTaskTags';
 import './DriverTripsPage.css';
 
 type JourneyTabKey = 'NEW' | 'RUNNING' | 'HISTORY';
@@ -214,19 +213,21 @@ function JourneyCard({ card, tagLabels }: { card: DriverJourneyCard; tagLabels: 
 export default function DriverTripsPage() {
   const [activeTab, setActiveTab] = useState<JourneyTabKey>('NEW');
   const { data, isLoading, error, refetch, isFetching } = useDriverJourneyBoard();
-  const { tags } = useDispatchTaskTags();
-  const tagLabels = useMemo(() => tags.map((t) => t.label), [tags]);
+  // Tag labels ride on the board response — the driver portal fetches nothing
+  // from the dispatcher-only tag pool (ticket 53a536f9).
+  const cards = data?.items ?? [];
+  const tagLabels = data?.knownTagLabels ?? [];
 
   const countsByBucket = useMemo(() => {
     const counts: Record<JourneyTabKey, number> = { NEW: 0, RUNNING: 0, HISTORY: 0 };
-    for (const card of data ?? []) counts[card.bucket] += 1;
+    for (const card of cards) counts[card.bucket] += 1;
     return counts;
-  }, [data]);
+  }, [cards]);
 
   const groupedCardsForTab = useMemo(() => {
-    const cardsInTab = (data ?? []).filter((card) => card.bucket === activeTab);
+    const cardsInTab = cards.filter((card) => card.bucket === activeTab);
     return groupCards(cardsInTab);
-  }, [data, activeTab]);
+  }, [cards, activeTab]);
 
   return (
     <div className="driver-journey">

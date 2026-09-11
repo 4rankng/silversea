@@ -3,18 +3,13 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DriverJourneyCard } from '../api/driverClient';
 
-const { useDriverJourneyBoardMock, navigateMock, useDispatchTaskTagsMock } = vi.hoisted(() => ({
+const { useDriverJourneyBoardMock, navigateMock } = vi.hoisted(() => ({
   useDriverJourneyBoardMock: vi.fn(),
   navigateMock: vi.fn(),
-  useDispatchTaskTagsMock: vi.fn().mockReturnValue({ tags: [], isLoading: false, error: null }),
 }));
 
 vi.mock('../hooks/useDriverQueries', () => ({
   useDriverJourneyBoard: useDriverJourneyBoardMock,
-}));
-
-vi.mock('../features/dispatch/detailed-plan/useDispatchTaskTags', () => ({
-  useDispatchTaskTags: useDispatchTaskTagsMock,
 }));
 
 vi.mock('react-router-dom', async () => {
@@ -23,6 +18,11 @@ vi.mock('react-router-dom', async () => {
 });
 
 import DriverTripsPage from './DriverTripsPage';
+
+/** The board wire shape: cards + the embedded tag pool (ticket 53a536f9). */
+function board(cards: DriverJourneyCard[], knownTagLabels: string[] = []) {
+  return { data: { items: cards, knownTagLabels }, isLoading: false, error: null };
+}
 
 function card(overrides: Partial<DriverJourneyCard> = {}): DriverJourneyCard {
   return {
@@ -68,11 +68,7 @@ describe('DriverTripsPage', () => {
   });
 
   it('shows the New Orders tab by default with tab counts', async () => {
-    useDriverJourneyBoardMock.mockReturnValue({
-      data: [card({ fulfillmentId: 1, bucket: 'NEW' }), card({ fulfillmentId: 2, bucket: 'RUNNING' }), card({ fulfillmentId: 3, bucket: 'HISTORY' })],
-      isLoading: false,
-      error: null,
-    });
+    useDriverJourneyBoardMock.mockReturnValue(board([card({ fulfillmentId: 1, bucket: 'NEW' }), card({ fulfillmentId: 2, bucket: 'RUNNING' }), card({ fulfillmentId: 3, bucket: 'HISTORY' })]));
     renderPage();
 
     expect(await screen.findByText('Nhà máy Bình Dương')).toBeTruthy();
@@ -80,11 +76,7 @@ describe('DriverTripsPage', () => {
   });
 
   it('renders each Layer-1 card field per the spec layout', async () => {
-    useDriverJourneyBoardMock.mockReturnValue({
-      data: [card()],
-      isLoading: false,
-      error: null,
-    });
+    useDriverJourneyBoardMock.mockReturnValue(board([card()]));
     renderPage();
 
     const scheduled = new Date('2026-08-01T07:30:00.000Z');
@@ -104,11 +96,7 @@ describe('DriverTripsPage', () => {
   });
 
   it('navigates to the fulfillment detail page when a card footer is pressed', async () => {
-    useDriverJourneyBoardMock.mockReturnValue({
-      data: [card({ fulfillmentId: 42 })],
-      isLoading: false,
-      error: null,
-    });
+    useDriverJourneyBoardMock.mockReturnValue(board([card({ fulfillmentId: 42 })]));
     renderPage();
 
     fireEvent.click(await screen.findByRole('button', { name: /Xem chi tiết & Nhận lệnh/ }));
@@ -116,14 +104,10 @@ describe('DriverTripsPage', () => {
   });
 
   it('tags sibling linked cards with KẸP and groups them visually', async () => {
-    useDriverJourneyBoardMock.mockReturnValue({
-      data: [
-        card({ fulfillmentId: 10, shipmentId: 5, linked: true, containerNumber: 'CONT-A' }),
-        card({ fulfillmentId: 11, shipmentId: 5, linked: true, containerNumber: 'CONT-B' }),
-      ],
-      isLoading: false,
-      error: null,
-    });
+    useDriverJourneyBoardMock.mockReturnValue(board([
+      card({ fulfillmentId: 10, shipmentId: 5, linked: true, containerNumber: 'CONT-A' }),
+      card({ fulfillmentId: 11, shipmentId: 5, linked: true, containerNumber: 'CONT-B' }),
+    ]));
     renderPage();
 
     expect(await screen.findAllByText('KẸP')).toHaveLength(2);
@@ -132,14 +116,10 @@ describe('DriverTripsPage', () => {
   });
 
   it('tags COMBINED classifications as KẾT HỢP and LCL as LẺ', async () => {
-    useDriverJourneyBoardMock.mockReturnValue({
-      data: [
-        card({ fulfillmentId: 20, classification: 'COMBINED' }),
-        card({ fulfillmentId: 21, classification: 'LCL' }),
-      ],
-      isLoading: false,
-      error: null,
-    });
+    useDriverJourneyBoardMock.mockReturnValue(board([
+      card({ fulfillmentId: 20, classification: 'COMBINED' }),
+      card({ fulfillmentId: 21, classification: 'LCL' }),
+    ]));
     renderPage();
 
     expect(await screen.findByText('KẾT HỢP')).toBeTruthy();
@@ -147,11 +127,7 @@ describe('DriverTripsPage', () => {
   });
 
   it('shows a plain "Xem chi tiết" footer on accepted and history cards', async () => {
-    useDriverJourneyBoardMock.mockReturnValue({
-      data: [card({ fulfillmentId: 30, bucket: 'RUNNING' }), card({ fulfillmentId: 31, bucket: 'HISTORY' })],
-      isLoading: false,
-      error: null,
-    });
+    useDriverJourneyBoardMock.mockReturnValue(board([card({ fulfillmentId: 30, bucket: 'RUNNING' }), card({ fulfillmentId: 31, bucket: 'HISTORY' })]));
     renderPage();
 
     fireEvent.click(await screen.findByRole('tab', { name: /Đã nhận/ }));
@@ -163,20 +139,11 @@ describe('DriverTripsPage', () => {
     expect(screen.queryByRole('button', { name: /Nhận lệnh/ })).toBeNull();
   });
 
-  it('renders operation task chips from operationalNotes', async () => {
-    useDispatchTaskTagsMock.mockReturnValue({
-      tags: [
-        { id: 1, label: 'ĐẶT ĐẦU', displayOrder: 1 },
-        { id: 2, label: 'ĐẢO VỎ', displayOrder: 2 },
-      ],
-      isLoading: false,
-      error: null,
-    });
-    useDriverJourneyBoardMock.mockReturnValue({
-      data: [card({ operationalNotes: 'ĐẶT ĐẦU; ĐẢO VỎ; ghi chú thêm' })],
-      isLoading: false,
-      error: null,
-    });
+  it('renders operation task chips from the board-embedded tag pool', async () => {
+    useDriverJourneyBoardMock.mockReturnValue(board(
+      [card({ operationalNotes: 'ĐẶT ĐẦU; ĐẢO VỎ; ghi chú thêm' })],
+      ['ĐẶT ĐẦU', 'ĐẢO VỎ'],
+    ));
     renderPage();
 
     expect(await screen.findByText('ĐẶT ĐẦU')).toBeTruthy();
@@ -186,11 +153,7 @@ describe('DriverTripsPage', () => {
   });
 
   it('hides operation tasks section when operationalNotes is null', async () => {
-    useDriverJourneyBoardMock.mockReturnValue({
-      data: [card({ operationalNotes: null })],
-      isLoading: false,
-      error: null,
-    });
+    useDriverJourneyBoardMock.mockReturnValue(board([card({ operationalNotes: null })]));
     renderPage();
 
     await screen.findByText('Nhà máy Bình Dương');
@@ -198,11 +161,7 @@ describe('DriverTripsPage', () => {
   });
 
   it('prefers factoryShortName over factoryName when present', async () => {
-    useDriverJourneyBoardMock.mockReturnValue({
-      data: [card({ factoryName: 'Nhà máy Rất Dài Hà Nội', factoryShortName: 'Hà Nội' })],
-      isLoading: false,
-      error: null,
-    });
+    useDriverJourneyBoardMock.mockReturnValue(board([card({ factoryName: 'Nhà máy Rất Dài Hà Nội', factoryShortName: 'Hà Nội' })]));
     renderPage();
 
     expect(await screen.findByText('Hà Nội')).toBeTruthy();
@@ -210,22 +169,14 @@ describe('DriverTripsPage', () => {
   });
 
   it('shows the empty-state message when a tab has no cards', async () => {
-    useDriverJourneyBoardMock.mockReturnValue({
-      data: [],
-      isLoading: false,
-      error: null,
-    });
+    useDriverJourneyBoardMock.mockReturnValue(board([]));
     renderPage();
 
     expect(await screen.findByText(/Chưa có lệnh mới nào được giao\./)).toBeTruthy();
   });
 
   it('switches tabs and shows the Running bucket', async () => {
-    useDriverJourneyBoardMock.mockReturnValue({
-      data: [card({ fulfillmentId: 1, bucket: 'NEW', factoryName: 'Nhà máy A' }), card({ fulfillmentId: 2, bucket: 'RUNNING', factoryName: 'Nhà máy B' })],
-      isLoading: false,
-      error: null,
-    });
+    useDriverJourneyBoardMock.mockReturnValue(board([card({ fulfillmentId: 1, bucket: 'NEW', factoryName: 'Nhà máy A' }), card({ fulfillmentId: 2, bucket: 'RUNNING', factoryName: 'Nhà máy B' })]));
     renderPage();
 
     fireEvent.click(await screen.findByRole('tab', { name: /Đã nhận/ }));

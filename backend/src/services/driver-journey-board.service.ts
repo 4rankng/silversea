@@ -2,6 +2,7 @@ import { and, desc, eq, inArray, isNull, aliasedTable } from 'drizzle-orm';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { operationalName } from '../db/master-data-name';
+import { listDispatchTaskTags } from './dispatch-task-tags.service';
 import { getDriverCompletionEvidenceStatus } from './trip-pod.service';
 
 // Driver-app spec (260827) "Hành trình" screen: unlike work-inbox.service's
@@ -65,11 +66,25 @@ function bucketForStatus(status: typeof s.trips.$inferSelect.status, evidenceRea
  * `linked` so the frontend renders its cards stuck together; the tag itself
  * is the fulfillment's own dispatchClassification (ĐƠN/KẸP/KẾT HỢP/LẺ).
  */
-export async function getDriverJourneyBoard(driverId: number): Promise<DriverJourneyCard[]> {
+/**
+ * The board response embeds the operation-tag pool the driver page needs to
+ * resolve shipments.operationalNotes into chips — one round-trip instead of
+ * a second tag-pool fetch (ticket 53a536f9), which also lets the driver
+ * portal drop its pages→detailed-plan imports (the M1 coupling).
+ */
+export interface DriverJourneyBoard {
+  items: DriverJourneyCard[];
+  knownTagLabels: string[];
+}
+
+export async function getDriverJourneyBoard(driverId: number): Promise<DriverJourneyBoard> {
   const pickupPort = aliasedTable(s.ports, 'journey_pickup_port');
   const dropoffPort = aliasedTable(s.ports, 'journey_dropoff_port');
   const containerFactory = aliasedTable(s.operationalSites, 'journey_container_factory');
 
+  // Tags ride along in parallel with the card query; same source query the
+  // composer uses, so the canonical display_order ordering comes free.
+  const tagsPromise = listDispatchTaskTags();
   const rows = await db.select({
     fulfillmentId: s.trips.fulfillmentId,
     tripId: s.trips.id,
@@ -135,7 +150,7 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
       }),
   );
 
-  return rows
+  const cards = rows
     .filter((row): row is typeof row & { fulfillmentId: number } => row.fulfillmentId != null)
     .map((row) => ({
       fulfillmentId: row.fulfillmentId,
@@ -161,4 +176,7 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
       trailerPlate: row.trailerPlate,
       operationalNotes: row.operationalNotes,
     }));
+
+  const { items: tagRows } = await tagsPromise;
+  return { items: cards, knownTagLabels: tagRows.map((tag) => tag.label) };
 }
