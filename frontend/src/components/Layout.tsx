@@ -47,6 +47,7 @@ import { usePushNotifications } from '../hooks/usePushNotifications';
 import { routes, titleForPath } from '../lib/routes';
 import { getModernRole } from '../lib/role-helpers';
 import { hasOperationalDensity } from '../lib/operational-density';
+import { useDispatchFullwidthSidebar } from '../lib/dispatch-sidebar-policy';
 import { BRAND } from '../brand';
 
 // ─── Navigation config ────────────────────────────────────────────────────
@@ -435,13 +436,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     return () => media.removeEventListener('change', handleViewportChange);
   }, []);
 
-  // Compact desktop (1024–1439px): collapse the sidebar so wide tables get full
-  // width; reopen when growing past the wide-desktop threshold. Mirrors the
-  // mobile listener above — one state set per crossing, manual toggles persist
-  // until the next crossing. Resolves from window.innerWidth rather than
-  // event.matches so a 1024→1023 shrink (where both listeners fire) never
-  // leaves the mobile drawer open: resolve() is false at every boundary this
-  // query can flip, and the compact listener runs after the mobile one.
+  // Compact desktop (1024–1439px): collapse for full-width tables, reopen
+  // past the threshold; one state set per crossing, manual toggles persist
+  // until then. Resolves from window.innerWidth (not event.matches) so a
+  // 1024→1023 shrink never leaves the mobile drawer open (resolve() is
+  // false at every flippable boundary; compact listener fires after mobile).
   useEffect(() => {
     const media = window.matchMedia(COMPACT_DESKTOP_MEDIA_QUERY);
     const handleCompactDesktopChange = () => {
@@ -450,6 +449,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     media.addEventListener('change', handleCompactDesktopChange);
     return () => media.removeEventListener('change', handleCompactDesktopChange);
   }, []);
+
+  // /dispatch-detail (customer doc2 BUG2): sidebar yields to the plan table
+  // below the wide-desktop threshold — policy+hook in lib/dispatch-sidebar-policy.
+  useDispatchFullwidthSidebar(location.pathname, closeSidebar);
 
   // Auto-subscribe drivers to push notifications (spec AC-DISPATCH-001).
   // Drivers must receive dispatch orders even when the app is backgrounded.
