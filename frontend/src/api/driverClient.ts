@@ -217,6 +217,10 @@ export interface DriverTaskDetail {
     modeLabel?: string | null;
     factoryName: string | null;
     factoryShortName: string | null;
+    /** TC-DA-002: factory site street address (Tuyến row shows this first). */
+    factoryAddress: string | null;
+    /** TC-DA-003: kho site phone — hidden when null (graceful hide). */
+    khoPhone: string | null;
     pickupPortName: string | null;
     dropPortName: string | null;
     pickupWarehouseName: string | null;
@@ -233,6 +237,16 @@ export interface DriverTaskDetail {
   } | null;
   currentPod?: DriverTaskPodSubmission | null;
   podHistory?: DriverTaskPodSubmission[];
+  /** TC-DA-001: canonical tag pool (board embed contract, 320aad6b); FE resolves chips via lib/dispatchTaskTags parseNote. */
+  knownTagLabels?: string[];
+  /** TC-DA-005: customer master-data invoice block — hidden when null. */
+  invoiceMaster?: DriverInvoiceMaster | null;
+}
+
+export interface DriverInvoiceMaster {
+  taxCode: string | null;
+  companyName: string | null;
+  address: string | null;
 }
 
 export interface DriverContainerSealPhoto {
@@ -266,6 +280,10 @@ interface DriverFulfillmentDetailResponse {
   tripVersion: number;
   factoryName: string | null;
   factoryShortName: string | null;
+  factoryAddress: string | null;
+  khoPhone: string | null;
+  invoiceMaster: DriverInvoiceMaster | null;
+  knownTagLabels: string[];
   pickupLocation: string | null;
   deliveryLocation: string | null;
   contactName: string | null;
@@ -318,6 +336,8 @@ function mapFulfillmentDetail(wire: DriverFulfillmentDetailResponse): DriverTask
       modeLabel: wire.cargoMode,
       factoryName: wire.factoryName,
       factoryShortName: wire.factoryShortName,
+      factoryAddress: wire.factoryAddress,
+      khoPhone: wire.khoPhone,
       pickupPortName: wire.pickupLocation,
       dropPortName: wire.deliveryLocation,
       pickupWarehouseName: wire.pickupLocation,
@@ -336,6 +356,10 @@ function mapFulfillmentDetail(wire: DriverFulfillmentDetailResponse): DriverTask
     },
     currentPod,
     podHistory,
+    // TC-DA-001/005: tag pool + customer master invoice block ride the detail
+    // wire; chips resolve FE-side via lib/dispatchTaskTags parseNote.
+    knownTagLabels: wire.knownTagLabels ?? [],
+    invoiceMaster: wire.invoiceMaster ?? null,
   };
 }
 

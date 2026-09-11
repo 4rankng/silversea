@@ -801,3 +801,59 @@
     padding-right: 8px;
   }
 }
+
+/* ─── TC-DA-001/006: operation-task chips + close-status chip ──────────────
+   Chip chrome per the size-consistency scale: pill, 4/8–10px padding,
+   11–12px label. The collapse toggle is a real control: compact base with
+   the 44px coarse-pointer floor (control-density contract — compact base
+   and coarse override ship together). */
+.driver-task-ops {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.driver-task-ops-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.driver-task-ops-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.driver-task-close-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+@media (pointer: coarse) {
+  .driver-task-ops-toggle {
+    min-height: var(--control-touch-h, 44px);
+  }
+}

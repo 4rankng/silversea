@@ -7,8 +7,11 @@ import {
   CalendarClock,
   Camera,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   Clock3,
   FileCheck2,
+  FileText,
   Loader2,
   MapPinned,
   Package2,
@@ -16,7 +19,6 @@ import {
   Route,
   ShieldAlert,
   StickyNote,
-  Truck,
   Zap,
 } from 'lucide-react';
 import { DriverProgressEventType, TRIP_STATUS_LABELS } from '@tingting/shared';
@@ -47,6 +49,7 @@ import { ContainerScanner, dataUrlToFile } from '../components/shared/ContainerS
 import './DriverTripDetailPage.css';
 
 import { MILESTONES, FUEL_EVIDENCE_OUTCOME_LABELS, FUEL_EVIDENCE_REVIEW_LABELS, valueOrDash, completeCtaLabel, fuelEvidenceUploadErrorMessage, getLatestMilestoneEvent, isCommandPayload, commandStateForMilestone, timelineState, type MilestoneType, formatDateTime } from '../features/driver/driver-trip-model';
+import { parseNote } from '../lib/dispatchTaskTags';
 function TaskFact({ icon, label, value, fullWidth }: { icon: React.ReactNode; label: string; value: React.ReactNode; fullWidth?: boolean }) {
   return (
     <div className={`driver-task-fact${fullWidth ? ' driver-task-fact--full' : ''}`}>
@@ -71,6 +74,9 @@ export default function DriverTripDetailPage() {
   // scanner overlay as the e-POD photos (vantaiphucloc pattern) instead of a
   // bare <input capture>, so camera-denied devices still get the gallery.
   const [fuelScanning, setFuelScanning] = useState(false);
+  // TC-DA-001: chips collapse by default once the list is dense (N ≥ 6) so a
+  // long task list never pushes the layout; short lists render fully expanded.
+  const [chipsExpanded, setChipsExpanded] = useState(false);
 
   const fulfillmentId = Number(id);
   const validFulfillmentId = Number.isInteger(fulfillmentId) && fulfillmentId > 0 ? fulfillmentId : undefined;
@@ -142,6 +148,13 @@ export default function DriverTripDetailPage() {
   }, [progress.data]);
 
   const nextMilestoneIndex = latestCompletedIndex >= MILESTONES.length - 1 ? -1 : latestCompletedIndex + 1;
+
+  // TC-DA-001: resolve the trip's operation-task chips with the SAME parseNote
+  // codepath the /my-trips board cards use (tag pool rides the detail wire).
+  const operationTags = useMemo(() => parseNote(
+    trip?.fulfillment?.driverNotes ?? '',
+    trip?.knownTagLabels ?? [],
+  ).selectedLabels, [trip?.fulfillment?.driverNotes, trip?.knownTagLabels]);
 
   // D1 fix: a terminal CONFLICT on the accept command used to dead-end the
   // sticky bar (button relabelled but stayed disabled forever, no dismissal
@@ -288,6 +301,12 @@ export default function DriverTripDetailPage() {
   // Khối 5 (spec): site rules plus the shipment-level note CUS wrote for the
   // driver ("note dành cho lái xe") — both belong on this section.
   const driverNotes = fulfillment?.driverNotes ?? trip.notes ?? null;
+  // TC-DA-001: N ≥ 6 collapses to the first ~4 chips behind a Mở rộng/Thu gọn
+  // toggle; N ≤ 5 renders fully expanded (no toggle needed).
+  const shouldCollapseChips = operationTags.length >= 6;
+  const visibleOperationTags = shouldCollapseChips && !chipsExpanded
+    ? operationTags.slice(0, 4)
+    : operationTags;
   const invoiceInfo = fulfillment?.invoiceInfo ?? null;
   const containerSealPhotos = fulfillment?.containerSealPhotos ?? [];
   const contPhotoKey = containerSealPhotos.find((p) => p.type === 'CONTAINER')?.storageKey ?? null;
@@ -332,6 +351,11 @@ export default function DriverTripDetailPage() {
             <StatusPill variant={tripStatusVariant(trip.status)}>
               {TRIP_STATUS_LABELS[trip.status] || trip.status}
             </StatusPill>
+            {trip.tradeDirection ? (
+              <span className="driver-task-close-chip" data-testid="close-status-chip">
+                {trip.tradeDirection === 'EXPORT' ? 'Đóng' : 'Trả'}
+              </span>
+            ) : null}
             {trip.customerName && <span className="driver-task-header__customer">{trip.customerName}</span>}
           </div>
         </div>
@@ -380,17 +404,31 @@ export default function DriverTripDetailPage() {
             (side-by-side) → remaining fields. Factory uses shortName. */}
         <div className="driver-task-grid">
           <TaskFact icon={<Building2 size={16} />} label="Nhà máy" value={valueOrDash(fulfillment?.factoryShortName || fulfillment?.factoryName)} fullWidth />
-          <TaskFact icon={<Route size={16} />} label="Tuyến" value={valueOrDash(fulfillment?.routeSummary ?? trip.routeName)} fullWidth />
+          {/* TC-DA-002: the Tuyến row carries the factory site STREET ADDRESS
+              (not the name) — parity with the dispatcher ledger. Falls back to
+              the route summary / route name when the site has no address. */}
+          <TaskFact
+            icon={<Route size={16} />}
+            label="Tuyến"
+            value={valueOrDash(fulfillment?.factoryAddress ?? fulfillment?.routeSummary ?? trip.routeName)}
+            fullWidth
+          />
           <TaskFact icon={<Package2 size={16} />} label="Container / lô hàng" value={containerLine} fullWidth />
           <TaskFact icon={<MapPinned size={16} />} label="Cảng nâng" value={pickupPoint} />
           <TaskFact icon={<MapPinned size={16} />} label="Cảng hạ" value={dropPoint} />
+          {/* TC-DA-003: kho site phone — rendered ONLY when present; no dash
+              placeholder (graceful hide per spec). Pairs with Ngày giờ. */}
+          {fulfillment?.khoPhone ? (
+            <TaskFact
+              icon={<Phone size={16} />}
+              label="Kho"
+              value={<a href={`tel:${fulfillment.khoPhone}`} className="driver-task-link">{fulfillment.khoPhone}</a>}
+            />
+          ) : null}
           <TaskFact icon={<CalendarClock size={16} />} label="Ngày giờ kế hoạch" value={formatDateTime(fulfillment?.plannedAt ?? trip.departureDate)} />
-          <TaskFact icon={<Truck size={16} />} label="Đầu kéo" value={valueOrDash(trip.truckPlate)} />
-          <TaskFact
-            icon={<Truck size={16} />}
-            label="Rơ moóc"
-            value={trip.trailerPlate ? `${trip.trailerPlate}${trip.trailerType ? ` (${trip.trailerType})` : ''}` : '—'}
-          />
+          {/* TC-DA-004: Đầu kéo / Rơ moóc rows removed from the driver mobile
+              surface (user no longer uses them). Wire fields stay; FE drops
+              the rows only. */}
           <TaskFact icon={<Phone size={16} />} label="Người liên hệ" value={valueOrDash(contactName)} />
           <TaskFact
             icon={<Phone size={16} />}
@@ -399,6 +437,29 @@ export default function DriverTripDetailPage() {
           />
         </div>
       </section>
+
+      {/* TC-DA-001: operation-task chips (tác vụ) — resolved with the same
+          parseNote codepath as the /my-trips board cards (architect amendment:
+          one tag-resolution codepath app-wide). N ≥ 6 collapses to the first
+          4 chips behind a Mở rộng/Thu gọn toggle. */}
+      {operationTags.length > 0 && (
+        <section className="driver-task-section">
+          <div className="driver-task-section__head">
+            <span>Tác vụ</span>
+          </div>
+          <div className="driver-task-ops" data-testid="operation-chips">
+            {visibleOperationTags.map((tag) => (
+              <span key={tag} className="driver-task-ops-chip" data-testid="operation-chip">{tag}</span>
+            ))}
+            {shouldCollapseChips && (
+              <button type="button" className="driver-task-ops-toggle" onClick={() => setChipsExpanded((v) => !v)}>
+                {chipsExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                <span>{chipsExpanded ? 'Thu gọn' : 'Mở rộng'}</span>
+              </button>
+            )}
+          </div>
+        </section>
+      )}
 
       <section className="driver-task-section">
         <DriverContainerCard
@@ -411,20 +472,32 @@ export default function DriverTripDetailPage() {
         />
       </section>
 
-      {invoiceInfo && (
+      {(invoiceInfo || trip.invoiceMaster) && (
         <section className="driver-task-section">
           <div className="driver-task-section__head">
             <span>Thông tin hóa đơn</span>
           </div>
           <div className="driver-task-grid">
-            {invoiceInfo.liftFeeInvoiceName && (
-              <TaskFact icon={<FileCheck2 size={16} />} label="Hóa đơn phí nâng" value={`${invoiceInfo.liftFeeInvoiceName}${invoiceInfo.liftFeeTaxCode ? ` · MST ${invoiceInfo.liftFeeTaxCode}` : ''}`} fullWidth />
+            {/* TC-DA-005: customer master-data invoice rows (MST → company →
+                address). Source: customers via shipments.customerId (approved
+                spec probe). Per-row graceful hide on sparse master data. */}
+            {trip.invoiceMaster?.taxCode ? (
+              <TaskFact icon={<FileText size={16} />} label="MST" value={trip.invoiceMaster.taxCode} fullWidth />
+            ) : null}
+            {trip.invoiceMaster?.companyName ? (
+              <TaskFact icon={<Building2 size={16} />} label="Tên công ty" value={trip.invoiceMaster.companyName} fullWidth />
+            ) : null}
+            {trip.invoiceMaster?.address ? (
+              <TaskFact icon={<MapPinned size={16} />} label="Địa chỉ" value={trip.invoiceMaster.address} fullWidth />
+            ) : null}
+            {invoiceInfo?.liftFeeInvoiceName && (
+              <TaskFact icon={<FileCheck2 size={16} />} label="Hóa đơn phí nâng" value={`${invoiceInfo?.liftFeeInvoiceName}${invoiceInfo.liftFeeTaxCode ? ` · MST ${invoiceInfo.liftFeeTaxCode}` : ''}`} fullWidth />
             )}
-            {invoiceInfo.dropFeeInvoiceName && (
-              <TaskFact icon={<FileCheck2 size={16} />} label="Hóa đơn phí hạ" value={`${invoiceInfo.dropFeeInvoiceName}${invoiceInfo.dropFeeTaxCode ? ` · MST ${invoiceInfo.dropFeeTaxCode}` : ''}`} fullWidth />
+            {invoiceInfo?.dropFeeInvoiceName && (
+              <TaskFact icon={<FileCheck2 size={16} />} label="Hóa đơn phí hạ" value={`${invoiceInfo?.dropFeeInvoiceName}${invoiceInfo.dropFeeTaxCode ? ` · MST ${invoiceInfo.dropFeeTaxCode}` : ''}`} fullWidth />
             )}
-            {invoiceInfo.cleaningInvoiceName && (
-              <TaskFact icon={<FileCheck2 size={16} />} label="Hóa đơn vệ sinh cont" value={`${invoiceInfo.cleaningInvoiceName}${invoiceInfo.cleaningTaxCode ? ` · MST ${invoiceInfo.cleaningTaxCode}` : ''}`} fullWidth />
+            {invoiceInfo?.cleaningInvoiceName && (
+              <TaskFact icon={<FileCheck2 size={16} />} label="Hóa đơn vệ sinh cont" value={`${invoiceInfo?.cleaningInvoiceName}${invoiceInfo.cleaningTaxCode ? ` · MST ${invoiceInfo.cleaningTaxCode}` : ''}`} fullWidth />
             )}
           </div>
         </section>

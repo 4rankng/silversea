@@ -15,6 +15,7 @@ import { storageService } from './storage.service';
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
 import { getActiveTruckIdForDriver } from './truck-driver-assignment.service';
 import { getShipmentAccountingLockSummary } from './shipment-accounting-lock.service';
+import { listDispatchTaskTags } from './dispatch-task-tags.service';
 import type { Tx } from './trip-shared';
 import {
   assertTripOwnedByDriver,
@@ -529,6 +530,14 @@ export interface DriverFulfillmentDetail {
   tripVersion: number;
   factoryName: string | null;
   factoryShortName: string | null;
+  /** TC-DA-002: the container factory site's street address (Tuyến row). */
+  factoryAddress: string | null;
+  /** TC-DA-003: the container's kho site phone (render only when present). */
+  khoPhone: string | null;
+  /** TC-DA-005: shipment customer master-data invoice block (hidden when all null). */
+  invoiceMaster: { taxCode: string | null; companyName: string | null; address: string | null } | null;
+  /** TC-DA-001: canonical tag pool; FE resolves chips with lib/dispatchTaskTags parseNote. */
+  knownTagLabels: string[];
   shippingLineName: string | null;
   expectedDeliveryDate: string | null;
   customsCutoffAt: string | null;
@@ -586,6 +595,10 @@ export async function getDriverFulfillmentDetail(
     siteSnapshot: s.shipmentFulfillments.siteSnapshot,
     siteContactName: containerFactory.contactName,
     siteContactPhone: containerFactory.contactPhone,
+    containerFactoryAddress: containerFactory.address,
+    customerTaxCode: s.customers.taxCode,
+    customerCompanyName: s.customers.name,
+    customerAddress: s.customers.address,
     containerPickupPortName: pickupPort.name,
     containerDropoffPortName: dropoffPort.name,
     containerFactoryName: containerFactory.name,
@@ -604,6 +617,7 @@ export async function getDriverFulfillmentDetail(
     cleaningTaxCode: containerFactory.cleaningTaxCode,
   }).from(s.shipmentFulfillments)
     .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentFulfillments.shipmentId))
+    .leftJoin(s.customers, eq(s.customers.id, s.shipments.customerId))
     .leftJoin(s.shipmentContainers, eq(s.shipmentContainers.id, s.shipmentFulfillments.shipmentContainerId))
     .leftJoin(pickupPort, eq(pickupPort.id, s.shipmentContainers.pickupPortId))
     .leftJoin(dropoffPort, eq(dropoffPort.id, s.shipmentContainers.dropoffPortId))
@@ -615,7 +629,7 @@ export async function getDriverFulfillmentDetail(
     throw new ApiError(404, 'Không tìm thấy tác vụ được giao.');
   }
 
-  const [evidenceStatus, milestones, podSubmissions, containerSealPhotoRows] = await Promise.all([
+  const [evidenceStatus, milestones, podSubmissions, containerSealPhotoRows, tagPool] = await Promise.all([
     getDriverCompletionEvidenceStatus(ownedTrip.tripId),
     listDriverFulfillmentProgress(fulfillmentId, driverId),
     listPodSubmissionsForDriver(driverId, fulfillmentId),
@@ -627,6 +641,9 @@ export async function getDriverFulfillmentDetail(
     }).from(s.tripPhotos)
       .where(and(eq(s.tripPhotos.tripId, ownedTrip.tripId), inArray(s.tripPhotos.type, ['CONTAINER', 'SEAL'])))
       .orderBy(desc(s.tripPhotos.uploadedAt)),
+    // TC-DA-001: same pool embed the journey-board response carries (320aad6b
+    // contract) — the FE resolves chips with lib/dispatchTaskTags parseNote.
+    listDispatchTaskTags().then((tags) => tags.items.map((tag) => tag.label)),
   ]);
   const containerSealPhotos = containerSealPhotoRows.map((row) => ({
     id: row.id,
@@ -683,6 +700,11 @@ export async function getDriverFulfillmentDetail(
     tripVersion: ownedTrip.tripVersion,
     factoryName: shipmentRow.factoryName ?? deliverySiteName ?? shipmentRow.containerFactoryName,
     factoryShortName: shipmentRow.containerFactoryShortName ?? shipmentRow.factoryName ?? deliverySiteName,
+    // TC-DA-002: street address of the container's factory/kho site (Tuyến row
+    // on the driver screen). Null-safe: the site join is left.
+    factoryAddress: shipmentRow.containerFactoryAddress ?? null,
+    // TC-DA-003: kho site phone — render only when present (graceful hide).
+    khoPhone: shipmentRow.siteContactPhone ?? null,
     shippingLineName: shipmentRow.shippingLineName,
     expectedDeliveryDate: shipmentRow.expectedDeliveryDate,
     customsCutoffAt: shipmentRow.customsCutoffAt?.toISOString() ?? null,
@@ -718,6 +740,17 @@ export async function getDriverFulfillmentDetail(
     milestones,
     podSubmissions,
     trip,
+    // TC-DA-005: shipment customer master-data invoice block; FE hides the
+    // block when every member is null (graceful hide per spec).
+    invoiceMaster: shipmentRow.customerTaxCode != null || shipmentRow.customerAddress != null
+      ? {
+        taxCode: shipmentRow.customerTaxCode,
+        companyName: shipmentRow.customerCompanyName,
+        address: shipmentRow.customerAddress,
+      }
+      : null,
+    // TC-DA-001: canonical tag pool for the FE parseNote resolution.
+    knownTagLabels: tagPool,
   };
 }
 

@@ -25,7 +25,10 @@ const NEW_FILE_MAX_LOC = 400;
 const FROZEN_MAX_LOC: Record<string, number> = {
   'src/design-system/forms/SearchableSelect.tsx': 481,
   // Bumped 650 -> 656: ticket 365943ea - factoryShortName and operationalNotes fields
-  'src/api/driverClient.ts': 656,
+  // Bumped 656 -> 679: 2026-09-11 trip-detail polish — wire gains
+  // factoryAddress / khoPhone / invoiceMaster / knownTagLabels and their
+  // fulfillment mapping. Reviewed as a contract change.
+  'src/api/driverClient.ts': 679,
   'src/api/keys.ts': 562,
   // Added 2026-09-07: baseline 401 (was new-file capped) — the atomic plan
   // save now carries operationalNotes and the tag-pool client helpers
@@ -160,7 +163,12 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   'src/pages/debt-detail-ledger.tsx': 443,
   'src/pages/DebtDetailPage.tsx': 816,
   'src/pages/DebtListPage.tsx': 548,
-  'src/pages/DriverTripDetailPage.tsx': 623,
+  // Bumped 623 -> 691: 2026-09-11 trip-detail polish — collapsible
+  // operation chips, address-first Tuyến row, conditional Kho row, plate
+  // rows removed, master invoice rows, Đóng/Trả header chip. Reviewed as a
+  // contract change; a future split (extract the fact grid) should restore
+  // a smaller ceiling.
+  'src/pages/DriverTripDetailPage.tsx': 691,
   'src/pages/DriverTripPodPage.tsx': 520,
   'src/pages/ExpenseEntryPage.tsx': 702,
   'src/pages/FinancePage.tsx': 987,
