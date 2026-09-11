@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '../../components/shared/Toast';
@@ -73,10 +74,13 @@ const sites = [
 ];
 
 function renderPage() {
-  return render(<MemoryRouter initialEntries={['/shipments/new']}><ReducedMotionProvider><ToastProvider><Routes>
+  // CustomerCreateDialog (rendered by this page) reads useQueryClient at
+  // mount — the harness needs a provider with fresh per-test caching.
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(<MemoryRouter initialEntries={['/shipments/new']}><QueryClientProvider client={client}><ReducedMotionProvider><ToastProvider><Routes>
     <Route path="/shipments/new" element={<ClerkShipmentCreatePage />} />
     <Route path="/shipments" element={<div data-testid="shipment-list" />} />
-  </Routes></ToastProvider></ReducedMotionProvider></MemoryRouter>);
+  </Routes></ToastProvider></ReducedMotionProvider></QueryClientProvider></MemoryRouter>);
 }
 
 async function choose(label: string, value: string) {
