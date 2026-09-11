@@ -32,6 +32,7 @@ import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import { ensureShipmentFulfillmentsInTx } from './shipment-fulfillment.service';
 import { assertActorCanAccessShipment } from './shipment-coordination.service';
+import { runInTx } from '../lib/tx';
 
 export interface FulfillmentLessFilters {
   q?: string;
@@ -223,7 +224,6 @@ export async function decomposeFulfillmentLessContainer(input: {
   actorId: number;
   actor: { userId: number; role: string };
 }): Promise<{ fulfillmentId: number; fulfillmentVersion: number; shipmentId: number; shipmentVersion: number }> {
-  const { runInTx } = await import('../lib/tx');
   return runInTx(undefined, async (tx) => {
     await assertActorCanAccessShipment(tx, input.shipmentId, input.actor as never, { write: true });
     const [shipment] = await tx.select({ id: s.shipments.id, version: s.shipments.version })

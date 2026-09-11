@@ -5,6 +5,7 @@ import {
   assignDispatchDetailPlate,
   assignDispatchDetailCarrier,
   completeDispatchExternalTrip,
+  decomposeDispatchDetailBranch,
   listDispatchDeliveryPointFacets,
   listDispatchDetailPlanRows,
   listDispatchDropoffPortFacets,
@@ -476,8 +477,37 @@ export function useDispatchDetailPlan() {
     return response.items;
   }, []);
 
+  /** Fulfillment-less branch rows (READY_FOR_DISPATCH containers without a
+   *  fulfillment) have no editor identity — decompose the container first and
+   *  hand back the fresh row so the editor targets the created fulfillment. */
+  const ensureFulfillment = useCallback(async (row: DispatchDetailPlanRow): Promise<DispatchDetailPlanRow | null> => {
+    setAssignmentError(null);
+    if (row.shipmentContainerId == null) return null;
+    try {
+      const outcome = await decomposeDispatchDetailBranch({
+        shipmentId: row.shipmentId,
+        containerId: row.shipmentContainerId,
+        expectedShipmentVersion: row.shipmentVersion,
+      });
+      const fresh: DispatchDetailPlanRow = {
+        ...row,
+        fulfillmentId: outcome.fulfillmentId,
+        version: outcome.fulfillmentVersion,
+        shipmentVersion: outcome.shipmentVersion,
+      };
+      setItems((previous) => previous.map((item) => (
+        item.fulfillmentId == null && item.shipmentContainerId === row.shipmentContainerId ? fresh : item
+      )));
+      return fresh;
+    } catch {
+      setAssignmentError('Không thể tạo tác vụ điều xe cho container này. Vui lòng thử lại.');
+      return null;
+    }
+  }, []);
+
   return {
     filters,
+    ensureFulfillment,
     updateFilters,
     items: sortedItems,
     loading,

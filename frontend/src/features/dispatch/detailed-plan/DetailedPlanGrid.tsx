@@ -68,6 +68,8 @@ interface DetailedPlanGridProps {
   onOpenTripReassign: (tripId: number) => void;
   /** Staff close for external-carrier trips (dispatch/CUS on the driver's behalf). */
   onCompleteExternalTrip: (row: DispatchDetailPlanRow) => void;
+  /** Decompose-then-edit for fulfillment-less branch rows. */
+  onEnsureFulfillment?: (row: DispatchDetailPlanRow) => Promise<DispatchDetailPlanRow | null>;
   onIssueOrder: (
     row: DispatchDetailPlanRow,
     body: Omit<DispatchShipmentRequest, 'fulfillmentId' | 'expectedVersion'>,
@@ -104,6 +106,7 @@ export function DetailedPlanGrid({
   onCompleteExternalTrip,
   onIssueOrder,
   onOpenPair,
+  onEnsureFulfillment,
 }: DetailedPlanGridProps) {
   // Long notes clamp to three lines; tapping reopens the full text in a
   // dialog so the column stays scannable without hiding content.
@@ -273,6 +276,7 @@ export function DetailedPlanGrid({
                       row={row}
                       onAtomicSave={onAtomicSave}
                       onOpenTripReassign={onOpenTripReassign}
+                      onEnsureFulfillment={onEnsureFulfillment}
                       onCompleteExternalTrip={onCompleteExternalTrip}
                       onIssueOrder={onIssueOrder}
                     />

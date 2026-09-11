@@ -111,6 +111,7 @@ function renderCell(
     onIssueOrder?: (row: DispatchDetailPlanRow, body: IssueOrderBody) => Promise<DispatchShipmentResponse>;
     onOpenTripReassign?: (tripId: number) => void;
     onCompleteExternalTrip?: (row: DispatchDetailPlanRow) => void;
+    onEnsureFulfillment?: (row: DispatchDetailPlanRow) => Promise<DispatchDetailPlanRow | null>;
   } = {},
 ) {
   const defaultAtomicSave = vi.fn().mockResolvedValue({
@@ -137,6 +138,7 @@ function renderCell(
       onOpenTripReassign={(handlers.onOpenTripReassign as never) ?? (vi.fn() as never)}
       onCompleteExternalTrip={(handlers.onCompleteExternalTrip as never) ?? (vi.fn() as never)}
       onIssueOrder={(handlers.onIssueOrder as never) ?? (defaultIssueOrder as never)}
+      onEnsureFulfillment={handlers.onEnsureFulfillment}
     />,
   );
 }
@@ -385,6 +387,29 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
     fireEvent.click(document.getElementById('dispatch-vehicle-101')!);
     fireEvent.change(screen.getByRole('combobox'), { target: { value: '15H-061.14' } });
     expect(await screen.findByRole('option', { name: /Dùng biển số: 15H-061\.14/ })).toBeTruthy();
+  });
+
+  it('decomposes a fulfillment-less branch row before opening the editor', async () => {
+    const onEnsureFulfillment = vi.fn(async (branch: DispatchDetailPlanRow) => (
+      { ...branch, fulfillmentId: 999, version: 1 }
+    ));
+    renderCell(row({ fulfillmentId: null as unknown as number }), { onEnsureFulfillment });
+
+    await openDialog();
+
+    expect(onEnsureFulfillment).toHaveBeenCalledTimes(1);
+    expect(onEnsureFulfillment.mock.calls[0]![0].fulfillmentId).toBeNull();
+    expect(screen.getByText(/Chỉnh sửa điều phối/)).toBeTruthy();
+  });
+
+  it('does not open the editor when the branch decompose fails', async () => {
+    const onEnsureFulfillment = vi.fn(async () => null);
+    renderCell(row({ fulfillmentId: null as unknown as number }), { onEnsureFulfillment });
+
+    fireEvent.click(screen.getByRole('button', { name: /Sửa ô điều phối/ }));
+    await waitFor(() => expect(onEnsureFulfillment).toHaveBeenCalledTimes(1));
+
+    expect(screen.queryByText(/Chỉnh sửa điều phối/)).toBeNull();
   });
 
   it('surfaces the backend 409 reason inline when the plan save is rejected', async () => {
