@@ -76,6 +76,10 @@ async function revokeToken(token: string): Promise<void> {
       'Content-Type': 'application/json',
     },
     body: '{}',
+    // A revocation that can't reach the server must not hold the logout
+    // (or the pending queue) hostage — abort and let the retry queue pick
+    // the token back up on the next mount/online event.
+    signal: AbortSignal.timeout(10_000),
   });
   if (!response.ok) {
     // 401/403 means the token is already expired or revoked server-side —
@@ -185,24 +189,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       finalizeLocalLogout();
       return;
     }
+    // Local teardown happens IMMEDIATELY — a revocation request that hangs
+    // (mobile network with no fetch timeout) must never keep the user signed
+    // in, and the in-flight guard must not swallow re-taps while it runs.
+    // Failed server revocations stay in the pending queue and are retried
+    // when connectivity returns (mount/online listeners below).
+    finalizeLocalLogout();
     // Skip the revocation queue when the caller already revoked the token
     // server-side (change-password does it in the same request) or when the
     // JWT is expired client-side — the server would only 401 both, seeding a
     // permanent retry loop instead of a clean local teardown.
     const shouldRevoke = opts?.revoke !== false && !isTokenExpired(token);
+    if (!shouldRevoke) return;
     logoutInFlightRef.current = (async () => {
       try {
-        if (shouldRevoke) {
-          enqueuePendingLogoutToken(token);
+        enqueuePendingLogoutToken(token);
+        await retryPendingRevocations();
+        if (readPendingLogoutTokens().includes(token)) {
           await retryPendingRevocations();
-          if (readPendingLogoutTokens().includes(token)) {
-            await retryPendingRevocations();
-          }
         }
       } finally {
-        // Local teardown is unconditional, while failed server revocations stay
-        // in a separate queue and are retried when connectivity returns.
-        finalizeLocalLogout();
         logoutInFlightRef.current = null;
       }
     })();

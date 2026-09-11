@@ -119,6 +119,21 @@ describe('DriverContainerCard — spec A6 OCR cross-check', () => {
   });
 });
 
+describe('DriverContainerCard — saved rows with null fields', () => {
+  it('opens Sửa without crashing when the saved container number is null (seal-only save)', () => {
+    renderCard({
+      containers: [{ ...declaredContainer('MSKU1234567'), containerNumber: null, sealNumber: 'SL-only' }],
+    });
+    // Prod crash: tapping Sửa seeded the draft with null and the render-time
+    // ISO-6346 check called .trim() on it before the form could paint.
+    fireEvent.click(screen.getByRole('button', { name: /Sửa/ }));
+    const sealInput = screen.getByDisplayValue('SL-only') as HTMLInputElement;
+    expect(sealInput).toBeTruthy();
+    expect(screen.getAllByDisplayValue('').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByRole('button', { name: 'Hủy' })).toBeTruthy();
+  });
+});
+
 describe('DriverContainerCard — 40f3ae15 biên bản giao hàng photo', () => {
   it('uploads through /upload with type DELIVERY_NOTE and refreshes via onSaved', async () => {
     const { onSaved } = renderCard({ deliveryNotePhotoKey: null });

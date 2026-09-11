@@ -1312,11 +1312,28 @@ cho 2 mô hình còn thiếu test chính thức: ghép kết hợp cùng/khác l
   6. Bấm "Xác nhận phân xe lại".
 - **Kết quả mong đợi (Pass):**
   - Không xuất hiện thông báo lỗi `Không thể đổi nhà xe đã được CUS gán tại bước điều xe.`.
-  - Modal "Phân xe lại" đóng thành công.
-  - Bảng Kế hoạch Chi tiết cập nhật ngay lập tức: hiển thị đối tác xe ngoài mới (`DUYÊN HẢI`), biển số mới (`15C-123456`), trạng thái "Đã phát lệnh cho tài xế".
-  - Backend API cập nhật chuyến xe sang `carrierType = 'EXTERNAL'`, lưu đúng `externalCarrierId` và biển số.
-- **Kỳ vọng sai (Fail nếu):** Hiện lỗi cảnh báo đỏ chặn lưu `Không thể đổi nhà xe đã được CUS gán tại bước điều xe.`, hoặc modal không lưu được thay đổi.
 - **Bằng chứng:** Rung 3 UI Driven trên staging: `qa/2026-09-09_dispatch-reassign_ui-04-dialog-filled.png`, `qa/2026-09-09_dispatch-reassign_ui-05-after-submit.png`, `qa/2026-09-09_dispatch-reassign_ui-driver.log`.
+
+### TC-DV-DISPATCH-053 — Phân xe lại bị chặn khi lái xe chưa nhận việc (regression 2026-09-11)
+
+- **Mã PRD:** User-reported regression 2026-09-11 (DOC 1 BUG 1, kanban `/Kanban/IN_PROGRESS/20260911_1.docx`) — trên `/dispatch-detail`, người dùng phát hiện "Lái xe chưa nhận việc thì vẫn phân lại được": chuyến đã được ops "Phát lệnh" + "xuất phát" (`status = IN_TRANSIT`) nhưng lái xe chưa bấm "Nhận việc" (chưa có `driver_progress_events.eventType = ORDER_RECEIVED`), điều vận vẫn có thể PATCH `/api/trips/:id/reassign` thành công (HTTP 201) và thay đổi được xe/tài xế/nhà xe. Đây là relaxation do commit `60bef131 fix(dispatch): allow reassigning a trip the driver has not acknowledged` (2026-09-09) — không còn phù hợp với yêu cầu vận hành.
+- **Vai trò:** `DISPATCHER` (ví dụ `dungnv` trên staging)
+- **Mức độ:** P0
+- **Thiết bị:** Desktop (1440×900)
+- **Tiền điều kiện:** Chuyến xe ở trạng thái `IN_TRANSIT` do ops "Phát lệnh" + "xuất phát" đã được thực hiện, **chưa có** `driver_progress_events` với `eventType = ORDER_RECEIVED` cho trip đó. Có thể mô phỏng bằng API: `POST /api/driver/me/fulfillments/:id/progress` với eventType khác (ví dụ `ARRIVED_AT_PICKUP`) mà không gửi ORDER_RECEIVED, hoặc tận dụng trip có sẵn trên staging.
+- **Các bước:**
+  1. Đăng nhập với tài khoản Điều vận (`dungnv`).
+  2. Chuẩn bị trip `T` ở trạng thái `IN_TRANSIT`, không có `ORDER_RECEIVED` milestone (xác nhận qua `GET /api/trips/T` → `status = IN_TRANSIT`, và `GET /api/driver/me/fulfillments/F/progress` cho fulfillment `F` của trip không có event `ORDER_RECEIVED`).
+  3. Gọi `PATCH /api/trips/T/reassign` (token `dungnv`) với payload `{carrierType:"OWN"|"EXTERNAL", truckId, driverId|externalCarrierId|externalPlateNumber, externalDriverName, externalDriverPhone, expectedVersion:<hiện tại>}`, header `Idempotency-Key: <unique>`.
+  4. Quan sát HTTP status code + body.
+- **Kết quả mong đợi (Pass):**
+  - HTTP **409 Conflict** với body chứa `"error":"Chỉ có thể đổi lái xe/xe cho chuyến chưa xuất phát"` (hoặc thông điệp tiếng Việt tương đương nói rõ "chuyến chưa xuất phát").
+  - Trip `T` không thay đổi `version`, không thay đổi `truckId/driverId/externalCarrierId/...`.
+  - Bảng `/dispatch-detail` sau refresh vẫn giữ nguyên xe/tài xế cũ.
+- **Kỳ vọng sai (Fail nếu):**
+  - HTTP 200/201 — reassign thành công (là hành vi cũ trước fix này, đã từng là relaxation `60bef131`).
+  - Trip `version` tăng và trường nhà xe/tài xế bị thay đổi.
+- **Bằng chứng:** API response payload (`qa/<date>_dispatch-reassign-blocked.log`); DB row `trips` qua `GET /api/trips/T` sau khi gọi — `version` không đổi. Code path: `backend/src/services/trip-lifecycle-ops.service.ts:128-141` (`reassignTrip` guard). Reusable probe: `testplan/qa/reassign-before-accept-blocked.sh`.
 
 ---
 

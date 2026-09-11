@@ -125,18 +125,19 @@ export async function reassignTrip(
     if (data.expectedVersion !== undefined && trip.version !== data.expectedVersion) {
       throw new ApiError(409, 'Dữ liệu đã bị thay đổi bởi người khác. Vui lòng tải lại trang.');
     }
+    // Strict reassignment guard (regression 2026-09-11 / DOC 1 BUG 1):
+    // only `CREATED` (pre-departure, pre-driver-acknowledgement) trips
+    // are reassignable. The earlier relaxation that allowed reassigning
+    // an `IN_TRANSIT` trip whenever the driver had not yet acknowledged
+    // (commit 60bef131) was rolled back per user feedback — operators
+    // were re-assigning trucks after ops stamped "xuất phát" but before
+    // the driver saw the order, leaving the driver no signal. The
+    // driver-app "Phân xe lại" exception in TripReassignDialog still
+    // routes the pre-departure correction; everything past CREATED is
+    // owned by the driver app's acknowledgement flow. COMPLETED and
+    // CANCELED stay terminal.
     if (trip.status !== TripStatus.CREATED) {
-      // Reassignment relaxation (TODO/20260911_2 BUG1): an ops "xuất phát"
-      // can flip the trip to IN_TRANSIT before any driver acknowledgement, so
-      // IN_TRANSIT alone must not block the correction — only the driver's
-      // ORDER_RECEIVED milestone does. COMPLETED/CANCELED stay terminal.
-      const reassignable = trip.status === TripStatus.IN_TRANSIT
-        && !(await tripHasDriverAcknowledgement(tx, tripId));
-      if (!reassignable) {
-        throw new ApiError(409, trip.status === TripStatus.IN_TRANSIT
-          ? 'Không thể điều chỉnh tác vụ đã được lái xe nhận việc.'
-          : 'Chỉ có thể đổi lái xe/xe cho chuyến chưa xuất phát');
-      }
+      throw new ApiError(409, 'Chỉ có thể đổi lái xe/xe cho chuyến chưa xuất phát');
     }
 
     const carrierType = data.carrierType || 'OWN';

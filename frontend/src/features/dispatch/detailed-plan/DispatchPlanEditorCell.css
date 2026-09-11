@@ -92,61 +92,15 @@
 
 /* Row-level "phát lệnh" shortcut — layered above the full-cell trigger so a
    dispatcher can issue an already-plated row without opening the editor. */
-/* Reserves room at the top-right of the trigger so the labeled action button
-   never sits on top of the carrier name — narrow desktop columns (13% share)
-   run that text the full cell width, and an opaque button there hides the tail. */
-.dispatch-assignment-cell__trigger--has-quick-issue {
-  padding-right: 84px;
-}
 
 /* Row action rendered as a labeled text button ("Phát lệnh" / "Hoàn thành")
-   instead of an icon-only control — the customer reads the action, not a
-   glyph. Absolute in the trigger's top-right slot; one action shows per cell
-   (the two conditions are mutually exclusive). */
-.dispatch-assignment-cell__text-action {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  z-index: 2;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: max-content;
-  height: 26px;
-  padding: 0 10px;
-  color: #fff;
-  background: #4A9E7D;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: background 120ms ease;
-}
 
-.dispatch-assignment-cell__text-action:hover:not(:disabled) {
-  background: #3D8B6E;
-}
+/* Row action rendered as a labeled text button ("Phát lệnh" / "Hoàn thành")
+   now lives inside the Ghi chú cell (`.detailed-plan-grid__note-action` in
+   DetailedPlanGrid.css) per the customer's placement ruling — nothing floats
+   over the assignment cell anymore. */
 
-.dispatch-assignment-cell__text-action:active:not(:disabled) {
-  background: #2D6B54;
-}
 
-.dispatch-assignment-cell__text-action:focus-visible {
-  z-index: 3;
-  outline: 2px solid color-mix(in srgb, var(--color-bg-success-solid, #17b26a) 55%, transparent);
-  outline-offset: 2px;
-}
-
-.dispatch-assignment-cell__text-action:disabled {
-  cursor: default;
-  filter: grayscale(0.3);
-  opacity: 0.55;
-  box-shadow: none;
-  transform: none;
-}
 
 .dispatch-assignment-dialog {
   display: grid;
@@ -476,22 +430,6 @@
     min-height: 0;
   }
 
-  .dispatch-assignment-cell__trigger--has-quick-issue {
-    padding-right: 12px;
-  }
-
-  .dispatch-assignment-cell__text-action {
-    position: static;
-    width: calc(100% - 24px);
-    height: var(--control-compact-h, 34px);
-    margin: 6px 12px 8px;
-    padding: 0 14px;
-    gap: 6px;
-    font-size: 12px;
-    font-weight: 600;
-    border-radius: 8px;
-  }
-
   /* `td` keeps this above the grid's `.detailed-plan-grid__cell::before`
      label rule (equal class specificity would lose on bundle order). */
   td.detailed-plan-grid__cell--editable::before {
@@ -533,11 +471,6 @@
 
   .dispatch-assignment-dialog__classification {
     width: min(180px, 100%);
-  }
-
-  .dispatch-assignment-cell__text-action {
-    height: var(--control-touch-h, 44px);
-    font-size: 13px;
   }
 }
 
