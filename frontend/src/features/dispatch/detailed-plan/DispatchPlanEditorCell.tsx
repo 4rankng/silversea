@@ -223,6 +223,12 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
   const [suggestions, setSuggestions] = useState<Array<{ truckId: number; plateNumber: string; reasons: Array<'D-1_DROP' | 'D+1_PICKUP'> }>>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Fleet fetches must never masquerade as "no data": a failed list load
+  // renders a retry affordance instead of the misleading empty message
+  // (debug order #2 — QA's combobox evidence came from this swallow).
+  const [carrierError, setCarrierError] = useState(false);
+  const [vehicleError, setVehicleError] = useState(false);
+  const [fleetRetryNonce, setFleetRetryNonce] = useState(0);
 
   const [quickIssueOpen, setQuickIssueOpen] = useState(false);
   const quickIssueTriggerRef = useRef<HTMLButtonElement>(null);
@@ -290,24 +296,36 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
           .filter((carrier) => carrier.isActive !== false)
           .map((carrier) => ({ value: `${EXTERNAL_CARRIER_PREFIX}${carrier.id}`, label: carrier.name })));
         setCarrierCursor(response.nextCursor);
+        setCarrierError(false);
       })
       .catch(() => {
         if (!cancelled) {
           setCarrierOptions([]);
           setCarrierCursor(null);
+          setCarrierError(true);
         }
       })
       .finally(() => { if (!cancelled) setLoadingCarriers(false); });
     return () => { cancelled = true; };
-  }, [carrierSearch, open]);
+  }, [carrierSearch, open, fleetRetryNonce]);
 
+  // A carrier-less row (dispatch.carrierType null) has no carrier option to
+  // pick first, so waiting for one would leave the vehicle combobox empty
+  // forever — auto-load the own-fleet TRUCK list instead; picking a truck
+  // below promotes it to the OWN carrier (ticket 8afc13a9, Option B).
+  const rowIsCarrierLess = row.dispatch.carrierType == null;
   useEffect(() => {
-    if (!open || !selectedCarrier) return undefined;
+    if (!open) return undefined;
+    if (!selectedCarrier && !rowIsCarrierLess) return undefined;
     let cancelled = false;
     setLoadingVehicles(true);
+    // OWN once picked; carrier-less with nothing picked yet defaults to the
+    // own-fleet TRUCK list; an EXTERNAL pick always wins over the row's
+    // carrier-less origin.
+    const isOwnFleet = selectedCarrier?.carrierType === 'OWN' || (rowIsCarrierLess && selectedCarrier == null);
     // Own-truck loads carry the row context so the backend can pin LH
     // D-1/D+1 suggestions beside the page.
-    const request = selectedCarrier.carrierType === 'OWN'
+    const request = isOwnFleet
       ? listDispatchFleetResources('TRUCK', {
         limit: PAGE_LOAD_SIZE,
         q: vehicleSearch || undefined,
@@ -316,34 +334,36 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
       : listDispatchFleetResources('EXTERNAL_VEHICLE', {
         limit: PAGE_LOAD_SIZE,
         q: vehicleSearch || undefined,
-        carrierId: selectedCarrier.externalCarrierId,
+        carrierId: selectedCarrier!.externalCarrierId,
       });
     request.then((response) => {
       if (cancelled) return;
-      const mapped = selectedCarrier.carrierType === 'OWN'
+      const mapped = isOwnFleet
         ? (response.items as DispatchTruck[]).map((truck) => ({ value: `${OWN_TRUCK_PREFIX}${truck.id}`, label: ownTruckLabel(truck) }))
         : (response.items as DispatchCarrierVehicle[]).map((vehicle) => ({ value: `${EXTERNAL_VEHICLE_PREFIX}${vehicle.id}`, label: vehicle.licensePlate }));
       const normalizedSearch = normalizePlate(vehicleSearch);
-      const freeTextOption = selectedCarrier.carrierType === 'EXTERNAL'
+      const freeTextOption = !isOwnFleet
         && normalizedSearch.length >= 4
         && !mapped.some((option) => option.label === normalizedSearch)
         ? [{ value: `${FREE_TEXT_PREFIX}${normalizedSearch}`, label: `Dùng biển số: ${normalizedSearch}` }]
         : [];
       setVehicleOptions([...freeTextOption, ...mapped]);
       setVehicleCursor(response.nextCursor);
-      setSuggestions(selectedCarrier.carrierType === 'OWN' ? response.suggestedItems ?? [] : []);
+      setSuggestions(isOwnFleet ? response.suggestedItems ?? [] : []);
+      setVehicleError(false);
     }).catch(() => {
       if (!cancelled) {
         setVehicleOptions([]);
         setVehicleCursor(null);
         setSuggestions([]);
+        setVehicleError(true);
       }
     }).finally(() => { if (!cancelled) setLoadingVehicles(false); });
     return () => { cancelled = true; };
     // `selectedCarrier` is a fresh object every render (parseCarrier of the
     // draft); the effect keys on the two primitives it actually consumes so
     // the vehicle list doesn't reload on every keystroke elsewhere.
-  }, [open, row.fulfillmentId, selectedCarrier?.carrierType, selectedCarrier?.externalCarrierId, vehicleSearch]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, row.fulfillmentId, selectedCarrier?.carrierType, selectedCarrier?.externalCarrierId, vehicleSearch, rowIsCarrierLess, fleetRetryNonce]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const selectableCarrierOptions = useMemo(() => {
     const options = [{ value: OWN_CARRIER_VALUE, label: 'SilverSea — xe nội bộ' }, ...carrierOptions];
@@ -443,18 +463,19 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
   }
 
   function loadMoreVehicles() {
-    if (vehicleCursor == null || loadingVehicles || !selectedCarrier) return;
+    if (vehicleCursor == null || loadingVehicles) return;
     setLoadingVehicles(true);
-    const request = selectedCarrier.carrierType === 'OWN'
+    const isOwnFleet = selectedCarrier?.carrierType === 'OWN' || (rowIsCarrierLess && selectedCarrier == null);
+    const request = isOwnFleet
       ? listDispatchFleetResources('TRUCK', { limit: PAGE_LOAD_SIZE, q: vehicleSearch || undefined, cursor: vehicleCursor, fulfillmentId: row.fulfillmentId })
       : listDispatchFleetResources('EXTERNAL_VEHICLE', {
         limit: PAGE_LOAD_SIZE,
         q: vehicleSearch || undefined,
-        carrierId: selectedCarrier.externalCarrierId,
+        carrierId: selectedCarrier!.externalCarrierId,
         cursor: vehicleCursor,
       });
     request.then((response) => {
-      const mapped = selectedCarrier.carrierType === 'OWN'
+      const mapped = isOwnFleet
         ? (response.items as DispatchTruck[]).map((truck) => ({ value: `${OWN_TRUCK_PREFIX}${truck.id}`, label: ownTruckLabel(truck) }))
         : (response.items as DispatchCarrierVehicle[]).map((vehicle) => ({ value: `${EXTERNAL_VEHICLE_PREFIX}${vehicle.id}`, label: vehicle.licensePlate }));
       setVehicleOptions((previous) => [...previous, ...mapped.filter((item) => !previous.some((option) => option.value === item.value))]);
@@ -655,18 +676,36 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
                 size="sm"
               />
             </label>
+            {carrierError ? (
+              <p className="dispatch-assignment-dialog__error" role="status">
+                Không tải được danh sách nhà xe.{' '}
+                <button type="button" className="btn btn--ghost btn--sm" onClick={() => setFleetRetryNonce((n) => n + 1)}>
+                  Thử lại
+                </button>
+              </p>
+            ) : null}
             <label htmlFor={`dispatch-vehicle-${row.fulfillmentId}`} className="dispatch-assignment-dialog__vehicle">
               <span>Xe / biển số</span>
               <SearchableSelect
                 id={`dispatch-vehicle-${row.fulfillmentId}`}
                 value={draft.vehicleValue}
-                onChange={(value) => { setDraft((current) => ({ ...current, vehicleValue: value })); setError(null); }}
+                onChange={(value) => {
+                  setDraft((current) => ({
+                    ...current,
+                    vehicleValue: value,
+                    // Picking an own-fleet truck on a carrier-less row promotes
+                    // the pick to the OWN carrier (Option B) so save passes
+                    // its carrier check.
+                    carrierValue: !current.carrierValue && value.startsWith(OWN_TRUCK_PREFIX) ? OWN_CARRIER_VALUE : current.carrierValue,
+                  }));
+                  setError(null);
+                }}
                 onSearchChange={setVehicleSearch}
                 options={selectableVehicleOptions}
-                placeholder={draftUsesOwnFleet ? 'Chọn biển số xe' : 'Chọn hoặc nhập biển số'}
+                placeholder={draftUsesOwnFleet || rowIsCarrierLess ? 'Chọn biển số xe' : 'Chọn hoặc nhập biển số'}
                 searchPlaceholder="Tìm biển số xe…"
                 emptyMessage={loadingVehicles ? 'Đang tải…' : 'Không tìm thấy xe phù hợp.'}
-                disabled={saving || !selectedCarrier}
+                disabled={saving || (!selectedCarrier && !rowIsCarrierLess)}
                 clearable
                 clearLabel="Bỏ gán biển số"
                 hasMore={vehicleCursor != null}
@@ -675,6 +714,14 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
                 size="sm"
               />
             </label>
+            {vehicleError ? (
+              <p className="dispatch-assignment-dialog__error" role="status">
+                Không tải được danh sách xe.{' '}
+                <button type="button" className="btn btn--ghost btn--sm" onClick={() => setFleetRetryNonce((n) => n + 1)}>
+                  Thử lại
+                </button>
+              </p>
+            ) : null}
             <UuiSelectField
               label="Phân loại"
               width="content"

@@ -509,4 +509,91 @@ describe('DispatchPlanEditorCell — editor mount stability across background re
     fireEvent.click(screen.getByRole('button', { name: 'Hủy' }));
     await waitFor(() => expect(screen.queryByText(/Chỉnh sửa điều phối/)).toBeNull());
   });
+
+  it('auto-loads the own-fleet TRUCK list when the editor opens on a carrier-less row', async () => {
+    const carrierLess = row({ dispatch: { carrierType: null, carrierName: null, externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: null } });
+    mockFleetResources();
+    renderCell(carrierLess);
+    await openDialog();
+
+    await waitFor(() => expect(listResourcesMock).toHaveBeenCalledWith('TRUCK', expect.objectContaining({ fulfillmentId: 101 })));
+    fireEvent.click([...screen.getAllByRole('button')].find((b) => b.textContent?.includes('Chọn biển số xe'))!);
+    expect((await screen.findAllByText(/15H-052\.82/)).length).toBeGreaterThan(0);
+  });
+
+  it('promotes a truck pick on a carrier-less row to the OWN carrier so save passes', async () => {
+    const carrierLess = row({ dispatch: { carrierType: null, carrierName: null, externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: null } });
+    mockFleetResources();
+    const onAtomicSave = vi.fn().mockResolvedValue({
+      fulfillmentVersion: 4,
+      shipmentVersion: 6,
+      classification: 'SINGLE',
+      isCombined: false,
+      operationalNotes: null,
+      dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '15H-052.82' },
+      estimates: { plannedRevenue: null, plannedCarrierCost: null },
+      lotFullyPlated: false,
+    });
+    renderCell(carrierLess, { onAtomicSave });
+    await openDialog();
+
+    // Open the vehicle combobox and pick the own-fleet truck.
+    fireEvent.click([...screen.getAllByRole('button')].find((b) => b.textContent?.includes('Chọn biển số xe'))!);
+    const truckOption = (await screen.findAllByText(/15H-052\.82/))[0];
+    fireEvent.click(truckOption);
+    expect(screen.getByText('SilverSea — xe nội bộ')).toBeTruthy();
+
+    // Save must now pass the carrier check with the promoted OWN carrier.
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
+    await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));
+    const body = onAtomicSave.mock.calls[0]![1] as Record<string, unknown>;
+    expect(body.carrierType).toBe('OWN');
+    expect(body.truckId).toBe(154);
+  });
+
+  it('keeps the external path intact on an external-carrier row (regression)', async () => {
+    const externalRow = row({ dispatch: { carrierType: 'EXTERNAL', carrierName: 'Carrier QA', externalCarrierId: 9, externalCarrierVehicleId: null, assignedPlate: null } });
+    mockFleetResources();
+    renderCell(externalRow);
+    await openDialog();
+
+    await waitFor(() => expect(listResourcesMock).toHaveBeenCalledWith('EXTERNAL_VEHICLE', expect.objectContaining({ carrierId: 9 })));
+  });
+
+  it('points the vehicle list at the picked external carrier on a carrier-less row (EXTERNAL pick must not stay own-fleet)', async () => {
+    listResourcesMock.mockClear();
+    const carrierLess = row({ dispatch: { carrierType: null, carrierName: null, externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: null } });
+    mockFleetResources();
+    renderCell(carrierLess);
+    await openDialog();
+
+    // Carrier-less default: own-fleet TRUCK auto-load.
+    await waitFor(() => expect(listResourcesMock).toHaveBeenCalledWith('TRUCK', expect.objectContaining({ fulfillmentId: 101 })));
+
+    // Picking an external carrier must switch the vehicle list to that carrier's fleet.
+    fireEvent.click([...screen.getAllByRole('button')].find((b) => b.textContent?.includes('Chọn nhà xe'))!);
+    fireEvent.click((await screen.findAllByText('Carrier QA'))[0]);
+    await waitFor(() => expect(listResourcesMock).toHaveBeenCalledWith('EXTERNAL_VEHICLE', expect.objectContaining({ carrierId: 9 })));
+
+    // …and no own-fleet reload may follow the EXTERNAL pick.
+    const externalCallIndex = listResourcesMock.mock.calls.findIndex(([resource]) => resource === 'EXTERNAL_VEHICLE');
+    expect(externalCallIndex).toBeGreaterThan(-1);
+    expect(listResourcesMock.mock.calls.slice(externalCallIndex + 1).some(([resource]) => resource === 'TRUCK')).toBe(false);
+  });
+
+  it('surfaces fleet-fetch failures with a retry instead of a fake-empty list', async () => {
+    listResourcesMock.mockRejectedValue(new Error('outage'));
+    const carrierLess = row({ dispatch: { carrierType: null, carrierName: null, externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: null } });
+    renderCell(carrierLess);
+    await openDialog();
+
+    expect(await screen.findByText(/Không tải được danh sách xe/)).toBeTruthy();
+    // Restore the fleet and retry via the vehicle-select retry affordance.
+    mockFleetResources();
+    const retryButtons = screen.getAllByRole('button', { name: 'Thử lại' });
+    fireEvent.click(retryButtons[retryButtons.length - 1]);
+    fireEvent.click([...screen.getAllByRole('button')].find((b) => b.textContent?.includes('Chọn biển số xe'))!);
+    expect((await screen.findAllByText(/15H-052\.82/)).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Không tải được danh sách xe/)).toBeNull();
+  });
 });

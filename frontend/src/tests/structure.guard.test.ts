@@ -74,7 +74,9 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // Bumped 725 → 745: 2026-09-08 external-carrier staff close — the cell
   // gains the "Hoàn thành" quick action (button + prop) and the issue chip
   // derives a completed state. Reviewed as a contract change.
-  'src/features/dispatch/detailed-plan/DispatchPlanEditorCell.tsx': 745,
+  // Bumped 745 -> 789: ticket 8afc13a9 - carrier-less auto-load (Option B) + fleet error surfacing
+  // Bumped 789 -> 792: EXTERNAL-pick on a carrier-less row now loads that carrier's vehicles (predicate fix)
+  'src/features/dispatch/detailed-plan/DispatchPlanEditorCell.tsx': 792,
   // Bumped 446 → 448: driver-note save now carries operationalNotes and the
   // optimistic row update refreshes notes.vehicleNote (2026-09-07). Reviewed
   // as a contract change.
