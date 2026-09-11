@@ -1,6 +1,6 @@
 import { DispatchIssueStatusChip, deriveDispatchIssueStatus } from '../components/DispatchIssueStatus';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { CheckCircle2, Save, Send } from 'lucide-react';
+import { Save } from 'lucide-react';
 import type { DispatchClassification } from '@tingting/shared';
 import { DISPATCH_CLASSIFICATIONS, DISPATCH_CLASSIFICATION_LABELS } from '@tingting/shared';
 import {
@@ -578,7 +578,6 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
                 disabled={!canIssue || issuing || saving}
                 title={planDirty ? 'Lưu thay đổi điều phối trước khi phát lệnh' : undefined}
               >
-                <Send size={16} aria-hidden="true" />
                 {issuing ? 'Đang phát lệnh…' : 'Phát lệnh'}
               </button>
             )}
@@ -592,7 +591,6 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
                 }}
                 disabled={saving || issuing}
               >
-                <CheckCircle2 size={16} aria-hidden="true" />
                 Hoàn thành chuyến
               </button>
             )}
