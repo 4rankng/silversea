@@ -274,10 +274,36 @@ export function DetailedPlanGrid({
                     </span>
                   </td>
                   <td className="detailed-plan-grid__cell detailed-plan-grid__cell--notes" data-label="Ghi chú">
+                    {row.notes.vehicleNote && (
+                      <button
+                        type="button"
+                        className="detailed-plan-grid__note"
+                        onClick={() => setExpandedNote({ title: 'Ghi chú xe', text: displayNote(row.notes.vehicleNote) })}
+                        title="Bấm để xem toàn bộ ghi chú"
+                      >
+                        <span className="detailed-plan-grid__line detailed-plan-grid__line--notes detailed-plan-grid__note-clamp">
+                          Xe: {displayNote(row.notes.vehicleNote)}
+                        </span>
+                      </button>
+                    )}
+                    {row.notes.customerNote && (
+                      <button
+                        type="button"
+                        className="detailed-plan-grid__note"
+                        onClick={() => setExpandedNote({ title: 'Ghi chú khách hàng', text: displayNote(row.notes.customerNote) })}
+                        title="Bấm để xem toàn bộ ghi chú"
+                      >
+                        <span className="detailed-plan-grid__line detailed-plan-grid__line--muted detailed-plan-grid__note-clamp">
+                          Khách: {displayNote(row.notes.customerNote)}
+                        </span>
+                      </button>
+                    )}
                     {(() => {
-                      // Same state derivation as the assignment cell's chip:
-                      // "Phát lệnh" for plated-not-issued rows, "Hoàn thành"
-                      // for external trips in flight. Mutually exclusive.
+                      // Row action BENEATH the notes (customer placement
+                      // ruling): "Phát lệnh" for plated-not-issued rows,
+                      // "Hoàn thành" for external trips in flight — same
+                      // derivation as the assignment cell's chip; the two
+                      // conditions are mutually exclusive.
                       const issueStatus = deriveDispatchIssueStatus({
                         vehicleAssigned: row.dispatch.assignedPlate != null,
                         issued: row.taskStatus === 'DISPATCHED' && row.dispatch.tripId != null,
@@ -309,30 +335,6 @@ export function DetailedPlanGrid({
                         </button>
                       );
                     })()}
-                    {row.notes.vehicleNote && (
-                      <button
-                        type="button"
-                        className="detailed-plan-grid__note"
-                        onClick={() => setExpandedNote({ title: 'Ghi chú xe', text: displayNote(row.notes.vehicleNote) })}
-                        title="Bấm để xem toàn bộ ghi chú"
-                      >
-                        <span className="detailed-plan-grid__line detailed-plan-grid__line--notes detailed-plan-grid__note-clamp">
-                          Xe: {displayNote(row.notes.vehicleNote)}
-                        </span>
-                      </button>
-                    )}
-                    {row.notes.customerNote && (
-                      <button
-                        type="button"
-                        className="detailed-plan-grid__note"
-                        onClick={() => setExpandedNote({ title: 'Ghi chú khách hàng', text: displayNote(row.notes.customerNote) })}
-                        title="Bấm để xem toàn bộ ghi chú"
-                      >
-                        <span className="detailed-plan-grid__line detailed-plan-grid__line--muted detailed-plan-grid__note-clamp">
-                          Khách: {displayNote(row.notes.customerNote)}
-                        </span>
-                      </button>
-                    )}
                   </td>
                 </tr>
               ))}

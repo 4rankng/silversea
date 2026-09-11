@@ -507,8 +507,11 @@ describe('DetailedPlanGrid', () => {
     })]);
     const notesCell = container.querySelector('.detailed-plan-grid__cell--notes') as HTMLElement;
     const assignmentCell = container.querySelector('.detailed-plan-grid__cell--editable') as HTMLElement;
-    expect(within(notesCell).getByRole('button', { name: /Phát lệnh/ })).toBeTruthy();
+    const note = notesCell.querySelector('.detailed-plan-grid__note') as HTMLElement;
+    const action = within(notesCell).getByRole('button', { name: /Phát lệnh/ });
     expect(within(assignmentCell).queryByRole('button', { name: /Phát lệnh/ })).toBeNull();
+    // Customer ruling: the action sits BENEATH the notes inside the cell.
+    expect(action.compareDocumentPosition(note) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
   });
 
   it('opens the quick-issue dialog from the Ghi chú action', async () => {
