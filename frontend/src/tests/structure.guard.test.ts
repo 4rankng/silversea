@@ -95,11 +95,10 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // errors), mirroring issueOrder. Reviewed as a contract change.
   // Bumped 485 → 515: 2026-09-09 background auto-refresh table persistence
   // (preserves open carrier/vehicle dialog during 30s poll).
-  // Bumped 515 → 540: 2026-09-12 ensureFulfillment — decompose-then-edit for
-  // fulfillment-less branch rows (BUG 5 secondary, 9e ruling). Extraction of
-  // the ensure logic + ceiling return to 515 tracked under ticket
-  // 2026.9 (1)._4 item 7.
-  'src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts': 540,
+  // Bumped 515 → 540 on 2026-09-12 (ensureFulfillment decompose-then-edit),
+  // returned to 515 the same day: the ensure logic extracted to
+  // ensureFulfillment.ts — ticket 2026.9 (1)._4 item 7 DEBT CLEARED.
+  'src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts': 515,
   'src/features/dispatch/master-plan/DispatchAllocationPopover.tsx': 454,
   'src/features/dispatch/master-plan/MasterPlanFilters.tsx': 735,
   // Bumped 508 → 520: 282fe386 (2026-09-05, "fix(dispatch): keep dispatched
