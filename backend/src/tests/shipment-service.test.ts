@@ -1134,6 +1134,9 @@ describe('updateShipment (optimistic lock)', () => {
     const updated = await updateShipment(shipment.id, {
       version: shipment.version,
       expectedDeliveryDate: '2026-08-18',
+      // BUG 5 wave: the date-driven readiness flip decomposes fulfillments,
+      // which requires a concrete acting user.
+      updatedBy: 1,
     });
 
     assert.equal(updated.expectedDeliveryDate, '2026-08-18');
@@ -1194,6 +1197,9 @@ describe('updateShipment (optimistic lock)', () => {
       closingAt: '2026-07-29T06:30:00.000Z',
       plannedReturnAt: '2026-07-31T04:45:00.000Z',
       cargoWeightKg: 876.54,
+      // The closingAt here drives a readiness flip; the decomposition path
+      // needs a concrete acting user (BUG 5 wave).
+      updatedBy: 1,
       cargoVolumeCbm: 12.345,
       packageCount: 24,
       packageType: 'Carton',
@@ -1280,6 +1286,8 @@ describe('transitionShipmentStatus', () => {
     const ready = await updateShipment(shipment.id, {
       version: shipment.version,
       closingAt: '2026-08-05T08:00:00.000Z',
+      // Readiness flip decomposes fulfillments; needs a concrete actor (BUG 5).
+      updatedBy: 1,
     });
     assert.equal(ready.status, 'READY_FOR_DISPATCH');
     await transitionShipmentStatus(shipment.id, 'DISPATCHED');

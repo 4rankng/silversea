@@ -3373,7 +3373,7 @@ describe('PUT /:id/containers × fulfillments (reconcile guard contract)', () =>
     fullName: 'Admin Tester',
   });
 
-  test('reconcile with untripped fulfillments cancels them (REPLACED) and drops the lot from the detail plan until re-allocation', async () => {
+  test('reconcile with untripped fulfillments cancels them (REPLACED) and surfaces the lot as an unassigned READY row (BUG 5 union branch)', async () => {
     const { batchUpsertShipmentContainers } = await import('../services/shipment.service');
     const { assignShipmentCarriers } = await import('../services/shipment-intake.service');
     const { listDispatchDetailPlanRows } = await import('../services/dispatch-planning-detail-plan.service');
@@ -3435,7 +3435,10 @@ describe('PUT /:id/containers × fulfillments (reconcile guard contract)', () =>
       assert.equal(f.cancellationReason, 'Container của lô hàng đã được cập nhật; cần gán lại nhà xe.');
     }
     const after = await listDispatchDetailPlanRows({ actor: adminActor(), q, limit: 50 });
-    assert.equal(after.total, 0);
+    // BUG 5 union branch: a READY lot with canceled fulfillments surfaces as
+    // an unassigned row so dispatch can re-allocate — it no longer drops off
+    // the plan. One container left ⇒ one row.
+    assert.equal(after.total, 1);
     assert.equal((await db.select().from(s.trips).where(eq(s.trips.shipmentId, shipment.id))).length, 0);
 
     // Recovery path: re-running the allocation rebuilds active fulfillments
