@@ -968,10 +968,10 @@ router.delete('/trips/:tripId/photos/:type', asyncHandler(async (req: Request, r
     }
   }
   const idempotencyKey = requireDriverIdempotencyKey(req);
-  const expectedUpdatedAt = requireExpectedUpdatedAt(
-    req,
-    'Cần tải lại phiên bản ảnh mới nhất trước khi xóa.',
-  );
+  // 2026-09-11 user directive: the version precondition on photo delete is
+  // removed — deletes always proceed. Ownership (getDriverTripDetail), the
+  // COMPLETED block, the type check, and idempotency stay; the command
+  // already treats an absent expectedUpdatedAt as "skip the staleness check".
   const outcome = await runIdempotent({
     endpoint: DRIVER_IDEMPOTENCY_ENDPOINTS.PHOTO_DELETE,
     idempotencyKey,
@@ -979,7 +979,6 @@ router.delete('/trips/:tripId/photos/:type', asyncHandler(async (req: Request, r
       tripId,
       photoType,
       containerId: containerId ?? null,
-      expectedUpdatedAt: expectedUpdatedAt.toISOString(),
     },
     createdBy: getUser(req).userId,
     responseStatusCode: 200,
@@ -988,7 +987,7 @@ router.delete('/trips/:tripId/photos/:type', asyncHandler(async (req: Request, r
       tripId,
       photoType as TripPhotoType,
       containerId,
-      expectedUpdatedAt,
+      undefined,
     ),
   });
   res.json({ ok: true, removed: outcome.result.removed });

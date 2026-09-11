@@ -665,33 +665,40 @@ describe('Q23 field operations replay boundary', () => {
     assert.equal(stale.status, 409);
   });
 
-  it('replays driver photo deletion and rejects stale evidence deletes', async () => {
-    const seeded = await seedDriverPhotos([
+  it('replays driver photo deletion; deletes proceed without a version header', async () => {
+    await seedDriverPhotos([
       `driver-photos/${suffix}-1.jpg`,
       `driver-photos/${suffix}-2.jpg`,
     ]);
-    const latestUploadedAt = seeded[seeded.length - 1].uploadedAt.toISOString();
+    // 2026-09-11 user directive: the photo-delete version precondition is
+    // removed — a driver tapping X deletes immediately, no reload demanded.
     const missingVersion = await jsonRequest(`/api/driver/me/trips/${tripId}/photos/container?container_id=${tripContainerId}`, {
       method: 'DELETE',
       idempotencyKey: `q23-driver-photo-missing-version-${suffix}`,
     });
-    assert.equal(missingVersion.status, 428);
+    assert.equal(missingVersion.status, 200, JSON.stringify(missingVersion.body));
+    assert.equal(missingVersion.body.removed, 2);
 
+    // Re-seed for the replay leg: the headerless delete above emptied the set.
+    await seedDriverPhotos([
+      `driver-photos/${suffix}-1.jpg`,
+      `driver-photos/${suffix}-2.jpg`,
+    ]);
     const key = `q23-driver-photo-delete-${suffix}`;
     const first = await jsonRequest(`/api/driver/me/trips/${tripId}/photos/container?container_id=${tripContainerId}`, {
       method: 'DELETE',
       idempotencyKey: key,
-      expectedUpdatedAt: latestUploadedAt,
     });
     const replay = await jsonRequest(`/api/driver/me/trips/${tripId}/photos/container?container_id=${tripContainerId}`, {
       method: 'DELETE',
       idempotencyKey: key,
-      expectedUpdatedAt: latestUploadedAt,
     });
     assert.equal(first.status, 200, JSON.stringify(first.body));
     assert.deepEqual(replay, first);
     assert.equal(first.body.removed, 2);
 
+    // A stale version header no longer blocks the delete either — it is
+    // simply ignored.
     const stalePhoto = await seedDriverPhotos([`driver-photos/${suffix}-stale-a.jpg`]);
     const staleHeader = new Date(stalePhoto[0].uploadedAt.getTime() - 1).toISOString();
     await seedDriverPhotos([`driver-photos/${suffix}-stale-b.jpg`]);
@@ -700,23 +707,19 @@ describe('Q23 field operations replay boundary', () => {
       idempotencyKey: `q23-driver-photo-stale-${suffix}`,
       expectedUpdatedAt: staleHeader,
     });
-    assert.equal(stale.status, 409);
+    assert.equal(stale.status, 200, JSON.stringify(stale.body));
+    assert.equal(stale.body.removed, 2);
   });
 
-  it('requires the current version on mutable and destructive field writes', async () => {
+  it('requires the current version on mutable field writes', async () => {
     const missingDriverVersion = await jsonRequest(`/api/driver/me/trips/${tripId}/containers/${tripContainerId}`, {
       method: 'PATCH',
       idempotencyKey: `q23-driver-missing-version-${suffix}`,
       body: { notes: 'missing-version' },
     });
     assert.equal(missingDriverVersion.status, 428);
-
-    await seedDriverPhotos([`driver-photos/${suffix}-missing-version.jpg`]);
-    const missingDriverPhotoVersion = await jsonRequest(`/api/driver/me/trips/${tripId}/photos/container?container_id=${tripContainerId}`, {
-      method: 'DELETE',
-      idempotencyKey: `q23-driver-photo-missing-version-${suffix}`,
-    });
-    assert.equal(missingDriverPhotoVersion.status, 428);
+    // Photo deletes need no version header (user directive 2026-09-11) —
+    // pinned in the replay test above.
   });
 
   it('replays forwarder expense create/update/delete flows and rejects missing or stale versions', async () => {
