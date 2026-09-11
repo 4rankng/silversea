@@ -50,11 +50,10 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // Bumped 410 → 430: 2026-09-08 external-carrier staff close — the client
   // gains completeDispatchExternalTrip beside the other dispatch planning
   // calls, and DispatchDetailPlanRow.taskStatus gains 'COMPLETED'.
-  // Reviewed as a contract change.
-  // Bumped 430 → 450: 2026-09-12 decompose branch-row client (grid's
-  // fulfillment-less rows get an editor entrypoint + row container id).
-  // Reviewed as a contract change.
-  'src/api/dispatchPlanningClient.ts': 450,
+  // Reviewed as a contract change. 2026-09-12: the 450 decompose bump was
+  // reverted by extracting the client to dispatchDetailBranch.ts (ticket
+  // 2026.9 (1)._4 item 7) — ceiling restored to 430.
+  'src/api/dispatchPlanningClient.ts': 430,
   // Bumped 400 (new-file) → 430: 2026-09-07 dropdown-flip sweep — the
   // multi-select picker gained selectionLabel + onSearchChange (aria names
   // and debounced server refetch) during the facet migration. Reviewed as a
@@ -115,7 +114,9 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // Bumped 485 → 515: 2026-09-09 background auto-refresh table persistence
   // (preserves open carrier/vehicle dialog during 30s poll).
   // Bumped 515 → 540: 2026-09-12 ensureFulfillment — decompose-then-edit for
-  // fulfillment-less branch rows (BUG 5 secondary, 9e ruling).
+  // fulfillment-less branch rows (BUG 5 secondary, 9e ruling). Extraction of
+  // the ensure logic + ceiling return to 515 tracked under ticket
+  // 2026.9 (1)._4 item 7.
   'src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts': 540,
   'src/features/dispatch/master-plan/DispatchAllocationPopover.tsx': 454,
   'src/features/dispatch/master-plan/MasterPlanFilters.tsx': 735,

@@ -500,6 +500,19 @@ describe('DetailedPlanGrid', () => {
     expect(clear).toContain('flex: 0 0 auto');
   });
 
+  it('clicks a branch row through the grid wiring: decompose fires and the editor opens', async () => {
+    const onEnsureFulfillment = vi.fn(async (branch: DispatchDetailPlanRow) => (
+      { ...branch, fulfillmentId: 999, version: 1 }
+    ));
+    renderGrid([row({ fulfillmentId: null as unknown as number })], { onEnsureFulfillment });
+
+    // Integration gate: the click must reach the cell's handler through the
+    // grid's prop chain (QA closed-row repro: silent no-op on the live cut).
+    fireEvent.click(screen.getByRole('button', { name: /Sửa ô điều phối/ }));
+    expect(await screen.findByText(/Chỉnh sửa điều phối/)).toBeTruthy();
+    expect(onEnsureFulfillment).toHaveBeenCalledTimes(1);
+  });
+
   it('renders the Phát lệnh action inside the Ghi chú cell, not the assignment cell', () => {
     const { container } = renderGrid([row({
       taskStatus: 'READY',

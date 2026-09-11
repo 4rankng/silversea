@@ -235,6 +235,7 @@ async function createOwnedTruckWithDriver() {
 type DetailPlanRow = {
   fulfillmentId: number;
   version: number;
+  shipmentContainerId: number | null;
   shipmentId: number;
   shipmentCode: string | null;
   isCombined: boolean;
@@ -2784,6 +2785,7 @@ describe('planning remaining containers after partial dispatch', () => {
     const row = rows.data.items.find((r) => r.shipmentId === shipment.id);
     assert.ok(row, 'fulfillment-less READY container surfaces via the union branch');
     assert.equal(row.fulfillmentId, null, 'no fulfillment id on a branch row');
+    assert.ok(Number.isInteger(row.shipmentContainerId), 'branch row carries its container id on the wire (decompose entrypoint)');
     assert.equal(row.dispatch.carrierType, null, 'carrier cell renders unassigned');
     assert.equal(row.dispatch.tripId, null);
     assert.ok(rows.data.total >= 1, 'total counts the branch row');
