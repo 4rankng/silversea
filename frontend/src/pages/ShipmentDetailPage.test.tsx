@@ -104,4 +104,61 @@ describe('ShipmentDetailPage', () => {
     expect(screen.queryByText(/Đã khóa bởi Kế toán/)).toBeNull();
     await waitFor(() => expect(getShipmentDetailMock).toHaveBeenCalledWith(1));
   });
+
+  it('renders the state-aware carrier section for an unassigned lot', async () => {
+    getShipmentDetailMock.mockResolvedValue({ ...detail, carrierAssignments: [] });
+    render(
+      <MemoryRouter initialEntries={['/shipments/1']}>
+        <Routes>
+          <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('Nhà xe')).toBeTruthy();
+    expect(screen.getByText('Chưa phân nhà xe')).toBeTruthy();
+    // No "đã gán" heading on an unassigned lot (user ruling).
+    expect(screen.queryByText('Nhà xe đã gán')).toBeNull();
+  });
+
+  it('keeps the assigned rendering when carrier assignments exist', async () => {
+    getShipmentDetailMock.mockResolvedValue({
+      ...detail,
+      containers: [{
+        id: 21,
+        shipmentId: 1,
+        containerTypeId: 4,
+        containerTypeCode: '40HC',
+        containerTypeName: "40'HC",
+        containerNumber: 'QATU0900001',
+        sealNumber: null,
+        cargoWeightKg: null,
+        deletedAt: null,
+        createdAt: '2026-08-11T00:00:00.000Z',
+        updatedAt: '2026-08-11T00:00:00.000Z',
+      }],
+      carrierAssignments: [{
+        fulfillmentId: 31,
+        fulfillmentVersion: 1,
+        shipmentContainerId: 21,
+        containerTypeCode: '40HC',
+        containerTypeName: "40'HC",
+        carrierType: 'OWN',
+        externalCarrierId: null,
+        externalCarrierName: null,
+      }],
+    });
+    render(
+      <MemoryRouter initialEntries={['/shipments/1']}>
+        <Routes>
+          <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    // The heading and the containers-table column share the label.
+    expect((await screen.findAllByText('Nhà xe đã gán')).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Đội xe nội bộ SilverSea').length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText('Chưa phân nhà xe')).toBeNull();
+  });
 });
