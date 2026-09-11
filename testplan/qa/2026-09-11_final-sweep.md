@@ -10,9 +10,9 @@
 |---|---|---|---|
 | 0.1 | Deploy pre-reqs | board ALL done; clean prod tree; `make demo` exits 0 | `2026-09-11_final-sweep_deploy.log` |
 | 0.2 | Health | `GET https://vantai.tingting.vip/api/health` → 200 (unauthenticated) | same log |
-| 0.3 | G-mig | staging `__drizzle_migrations` carries 0067 prefix `2d8af75377` **AND** the new MC-4 migration sha256 prefix (FS records the prefix at authoring in NOTES — sweep must read it from there, never guess). Missing either = **HARD STOP** via PM; never hand-patch | `2026-09-11_final-sweep_g-mig.log` |
-| 0.4 | Bundle fingerprint | capture the served bundle chunk hash BEFORE testing (staging `:latest` tag-race trap — a one-time flip proves nothing; hard-reload after capture) | `2026-09-11_final-sweep_bundle.txt` |
-| 0.5 | Login | staging account from `testplan/testaccounts.txt` authenticates; token lands in `localStorage['token']` | screenshot 01 |
+| 0.3 | G-mig | per BE's staging-cut runbook (NOTES 13:45): via ssh psql, `__drizzle_migrations` carries 0067 prefix `2d8af75377` **AND** the new MC-4 migration sha256 prefix **computed at cut time** (`shasum -a 256 backend/drizzle/<NNNN>_*.sql`, first 10 hex). Missing either = **HARD STOP** via PM; never hand-patch | `2026-09-11_final-sweep_g-mig.log` |
+| 0.4 | Bundle fingerprint | served entry-JS content hash must DIFFER from pre-cut, verified **twice ≥30s apart, cache-cold** (tag-race trap — a one-time flip proves nothing) | `2026-09-11_final-sweep_bundle.txt` |
+| 0.5 | Login | staging account from `testplan/testaccounts.txt` authenticates; token lands in `localStorage['token']`. Caveat: if a prod→staging DB mirror happened since the last cut, re-run the bcrypt reset first (Abc123 rule) | screenshot 01 |
 | 0.6 | Fixtures (AR risk baked in) | select/seed trips so ALL of: (a) one trip's container factory site has `contact_phone` populated AND one NULL — TC-DA-003 needs both halves; (b) one trip with ≥6 operation tags — TC-DA-001; (c) one trip with invoice master data + one without — TC-DA-005; (d) one POD-capable trip — TC-DA-007. NO new driver accounts; existing seeded drivers only | `2026-09-11_final-sweep_fixtures.sql` |
 
 ## Phase 1 — d80f76ae maker-checker removal (MC-1..MC-4, FS-executed per AR Amendment-5 + cycle-1 rulings)
@@ -22,6 +22,7 @@
 - **MC-2:** salary period close/reopen/adjustments apply directly; zero PENDING/approve vocabulary renders anywhere in the salary FE.
 - **MC-3:** work-inbox accountant expense blocker gone; advance settlement applies directly; no pending `CHECKED_BY_ACCOUNTANT` states.
 - **MC-4:** staging `to_regclass('drizzle.governance_actions')` IS NULL (dropped); soft-ref `governance_action_id` columns dropped iff Condition-A pre-check was 0 (verify + record counts); `governance_actions` absent from FE API client + BE schema exports.
+- **MC-2/3 defer stamp (AR, 13:52):** PM/FS evidence VERIFIED — salary routes chain make→check→approve in-request via `autoApplySalaryGovernance` (salary.ts:149); remaining PENDING writes are transient in-transaction states. Defer of cosmetic type-union narrowing APPROVED. **Condition:** one DB assertion in this phase — after exercising the direct-apply flows, `SELECT count(*) FROM <affected tables> WHERE approval_status LIKE 'PENDING%'` = 0 (catches any lane not actually chained; work-inbox legacy-row reads exempt).
 - Evidence: `2026-09-11_final-sweep_mc{1..4}_*.{log,png}`.
 
 ## Phase 2 — 36d0183d driver-app enhancements (spec @ `09dc2595`, incl. AR amendments + BE probe corrections)
@@ -36,6 +37,12 @@ CUS container supplemental edit saves directly on staging; DOM contains no appro
 ## Phase 4 — 75be58a3 Task Management UI
 
 Per PM spec: factory short-name first + route below; container+ports column; tag chips; **no Tác vụ column**. Screenshot per check at 1366 + 390.
+
+## Phase 5 — earlier-wave spot checks (PM skeleton, merged)
+
+- Catalog search matches taxCode / phone / contactPerson on customers + suppliers (d4ea9d9b regression).
+- Master-plan card pairing intact at 901–1512px (responsive wave gate).
+- One catalog page responsive spot check at 768.
 
 ## Triage & verdict
 
