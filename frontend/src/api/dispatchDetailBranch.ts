@@ -15,7 +15,7 @@ export function decomposeDispatchDetailBranch(body: {
     fulfillmentVersion: number;
     shipmentId: number;
     shipmentVersion: number;
-  }>('/dispatch-detail-plan-rows/decompose', body, {
+  }>('/shipments/dispatch-detail-plan-rows/decompose', body, {
     headers: { 'Idempotency-Key': crypto.randomUUID() },
   });
 }
