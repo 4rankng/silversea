@@ -4,7 +4,8 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { TruckStatus, DriverStatus } from '@tingting/shared';
 import type { Truck, Driver, Trailer } from '@tingting/shared';
 
-const { apiPost, apiPut, apiDelete, invalidateAllCatalogs } = vi.hoisted(() => ({
+const { apiGet, apiPost, apiPut, apiDelete, invalidateAllCatalogs } = vi.hoisted(() => ({
+  apiGet: vi.fn(),
   apiPost: vi.fn(),
   apiPut: vi.fn(),
   apiDelete: vi.fn(),
@@ -33,7 +34,7 @@ vi.mock('../../../api/configClient', () => ({
 }));
 
 vi.mock('../../../lib/api', () => ({
-  api: { post: apiPost, put: apiPut, delete: apiDelete },
+  api: { get: apiGet, post: apiPost, put: apiPut, delete: apiDelete },
 }));
 
 vi.mock('../../../api/keys', async (importOriginal) => ({
@@ -103,6 +104,10 @@ describe('FleetVehiclesView (dispatcher read-only)', () => {
     fleetState.data = undefined;
     fleetState.isLoading = false;
     fleetState.error = null;
+    // The view fetches the EXTERNAL_CARRIER carrier list on mount (BUG 5
+    // wave); default to an empty cursor page.
+    apiGet.mockReset();
+    apiGet.mockResolvedValue({ items: [], nextCursor: null });
   });
 
   it('renders truck rows with plate, assigned driver, status', () => {
