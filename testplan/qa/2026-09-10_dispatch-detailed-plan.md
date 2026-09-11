@@ -163,6 +163,36 @@ Confined to the dispatcher detailed-plan surface. Master-plan overview, other ro
   - `qa/2026-09-10_dispatch-detailed-plan_ui-007-no-regression.png`
   - `qa/2026-09-10_dispatch-detailed-plan_ui-driver.log`
 
+### TC-DDP-008 — Carrier-less row: auto-load own-fleet + promote-to-OWN on save (cycle-2)
+
+- **Given** ĐIỀU VẬN logged in on staging; date D contains at least one row with `dispatch.carrierType IS NULL` (the new carrier-less state surfaced by the `8afc13a9` patch)
+- **When** ĐIỀU VẬN opens the carrier-less row → opens the edit dialog
+- **Then**:
+  - The "Xe / biển số" combobox is **pre-loaded with the own-fleet TRUCK list** WITHOUT requiring a prior carrier pick (the new auto-load behavior; ticket 8afc13a9 cycle-2, Option B).
+  - Picking any SilverSea truck promotes the row to OWN carrier so the "Lưu thay đổi" save passes (post-save label = "SilverSea — xe nội bộ").
+- **Assert:**
+  - On dialog open, before any carrier click, the TRUCK list API has been called: `curl` or `browser_evaluate` confirms at least one SilverSea plate option present in the combobox.
+  - After picking a truck and saving, the saved row carries `carrierType: 'OWN'` and `carrierName: 'SilverSea'` (probe `dispatch.carrierType` field in the rendered row, not just label).
+- **Evidence:**
+  - `qa/2026-09-10_dispatch-detailed-plan_ui-008a-auto-load.png` (dialog pre-click, trucks already populated)
+  - `qa/2026-09-10_dispatch-detailed-plan_ui-008b-promoted.png` (post-save OWN label)
+  - `qa/2026-09-10_dispatch-detailed-plan_api-008.log`
+
+### TC-DDP-009 — Fleet-fetch failure surfaces a retry affordance (regression for the silent-empty swallow)
+
+- **Given** ĐIỀU VẬN opens a row in the edit dialog
+- **When** the fleet API returns 500 for `TRUCK` or `EXTERNAL_VEHICLE` resources (dev backend stub returns 500)
+- **Then**:
+  - The dialog shows "Không tải được danh sách nhà xe." (carrier load) OR "Không tải được danh sách xe." (vehicle load) with a `Thử lại` button.
+  - The empty list is NOT silently rendered — the user sees the error message, not a misleading "Không tìm thấy xe phù hợp." empty state.
+  - Clicking `Thử lại` after the endpoint recovers re-runs the load and clears the error.
+- **Assert:**
+  - `browser_evaluate(() => /Không tải được|Thử lại/.test(document.body.innerText))` returns true under the forced-failure.
+  - Click `Thử lại`, restore the endpoint, confirm the TRUCK list reappears and the error block disappears.
+- **Evidence:**
+  - `qa/2026-09-10_dispatch-detailed-plan_ui-009a-error.png`
+  - `qa/2026-09-10_dispatch-detailed-plan_ui-009b-retry-ok.png`
+
 ## QA gates required (run before push)
 
 ```
@@ -170,13 +200,27 @@ pnpm lint                                                        # 0 errors
 cd backend && npx tsc --noEmit                                   # 0 errors (no BE change expected, but verify nothing leaked)
 cd backend && pnpm test                                          # all pass
 cd frontend && npx tsc -b                                        # 0 errors
-cd frontend && pnpm test                                         # all pass (including new tests for TC-DDP-003 / TC-DDP-004 if added)
+cd frontend && pnpm test                                         # all pass (including new tests for TC-DDP-003 / TC-DDP-004 / TC-DDP-008 / TC-DDP-009 if added)
 make build                                                       # succeeds
 ```
 
 The chunk commit must push per-chunk (commit+push after every task rule). After push, qa runs the gate on **staging first**; if green, PM authorises the next ticket.
 
 - **Evidence:** `qa/2026-09-10_dispatch-detailed-plan_gates.log`
+
+### G-mig — migration hash check (wave gate, pm Amendment 2 2026-09-10)
+
+After every migrate on staging AND prod, verify `__drizzle_migrations` carries hash prefix `2d8af75377` (0067, the chunk-7 supersede migration):
+
+```sql
+SELECT id, hash, created_at FROM drizzle.__drizzle_migrations
+WHERE hash LIKE '2d8af75377%' ORDER BY id DESC LIMIT 1;
+```
+
+- If **MISSING** on staging post-cut: HARD STOP, ping pm; do not hand-patch.
+- If **MISSING** on prod post-deploy: HARD STOP, ping pm; user explicit approval required through pm.
+
+Evidence: `qa/2026-09-10_dispatch-detailed-plan_g-mig.log` (psql output per env).
 
 ## Verification protocol
 
@@ -199,26 +243,33 @@ qa/
 ├── 2026-09-10_dispatch-detailed-plan_ui-005a-cus-no-button.png
 ├── 2026-09-10_dispatch-detailed-plan_ui-006-master-plan.png
 ├── 2026-09-10_dispatch-detailed-plan_ui-007-no-regression.png
+├── 2026-09-10_dispatch-detailed-plan_ui-008a-auto-load.png
+├── 2026-09-10_dispatch-detailed-plan_ui-008b-promoted.png
+├── 2026-09-10_dispatch-detailed-plan_ui-009a-error.png
+├── 2026-09-10_dispatch-detailed-plan_ui-009b-retry-ok.png
 ├── 2026-09-10_dispatch-detailed-plan_ui-driver.log
 ├── 2026-09-10_dispatch-detailed-plan_api-003.log
 ├── 2026-09-10_dispatch-detailed-plan_api-004.log
 ├── 2026-09-10_dispatch-detailed-plan_api-005.log
+├── 2026-09-10_dispatch-detailed-plan_api-008.log
 ├── 2026-09-10_dispatch-detailed-plan_db-001-count.sql
 ├── 2026-09-10_dispatch-detailed-plan_db-003.sql
 ├── 2026-09-10_dispatch-detailed-plan_db-004.sql
 ├── 2026-09-10_dispatch-detailed-plan_gates.log
+├── 2026-09-10_dispatch-detailed-plan_g-mig.log
 └── 2026-09-10_dispatch-detailed-plan_gate.txt
 ```
 
 ## Pass criteria
 
-PASS iff TC-DDP-001 through TC-DDP-007 ALL hold on **staging first** (local-only run is a smoke test). Any TC FAIL on staging is a cycle FAIL with `fix-and-re-run` block appended to the failing artifact; PM relays to fullstack.
+PASS iff TC-DDP-001 through TC-DDP-009 ALL hold on **staging first** (local-only run is a smoke test). Any TC FAIL on staging is a cycle FAIL with `fix-and-re-run` block appended to the failing artifact; PM relays to fullstack.
 
 ## Linked artifacts
 
 - Ticket: `8afc13a9` (kanban, todo)
 - Companion specs in this cycle: `testplan/qa/2026-09-10_approval-removal-chunk4.md`, `testplan/qa/2026-09-10_driver-mobile-ui.md`, `testplan/qa/2026-09-10_replace-tags.md`
 - Memory: [[prd-roadmap-and-decisions]] (O2C business flow), [[frontend-architecture]] (api/hook patterns)
+- Audit memory: `load-failure-retry-duplication` (cycle-1 custom finding; TC-DDP-009 covers the editor's instance)
 
 ## Anti-lying guardrails
 
@@ -227,6 +278,8 @@ PASS iff TC-DDP-001 through TC-DDP-007 ALL hold on **staging first** (local-only
 - TC-DDP-003 / TC-DDP-004 require DB-side proof (carrier_id + history row), not just the UI row appearance.
 - TC-DDP-005 must test BOTH the UI (no button) and the API (403). UI-only is rung 1.
 - TC-DDP-006 / TC-DDP-007 are non-negotiable: a fix that introduces a regression on master-plan or other dispatcher flows fails the ticket.
+- TC-DDP-008: "TRUCK list shows up" without a probe before any carrier click = rung 1. The auto-load is the requirement; clicking any carrier first would mask the bug.
+- TC-DDP-009: "retry button works" without the forced-failure assertion = rung 1. The whole point is that the silent-empty swallow is gone.
 
 ## What is NOT covered (be honest)
 

@@ -1,0 +1,9 @@
+
+ RUN  v4.1.8 /Users/dev/Documents/projects/silversea-prod/frontend
+
+
+ Test Files  6 passed (6)
+      Tests  111 passed (111)
+   Start at  10:54:29
+   Duration  9.30s (transform 2.70s, setup 610ms, import 9.05s, tests 21.05s, environment 4.70s)
+
