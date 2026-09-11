@@ -28,7 +28,6 @@ const RESTRICTED_KEYS = [
   'debitNoteTemplateId',
   'linkedSupplierId',
   'status',
-  'isCarrier',
 ] as const;
 
 /** A full customer-create payload with every field populated. */
@@ -54,7 +53,7 @@ const FULL_PAYLOAD: Record<string, unknown> = {
 
 describe('restrictCustomerCreateForIntake', () => {
   for (const role of [Role.CUS, Role.DISPATCHER]) {
-    test(`${role}: strips all 10 financial/material keys`, () => {
+    test(`${role}: strips all 9 financial/material keys`, () => {
       const result = restrictCustomerCreateForIntake(
         FULL_PAYLOAD as any,
         role,
@@ -114,11 +113,11 @@ describe('restrictCustomerUpdateForIntake', () => {
       assert.equal((result as any).debitNoteMode, undefined);
     });
 
-    test(`${role}: strips status and isCarrier from update`, () => {
+    test(`${role}: preserves isCarrier on update for carrier intake`, () => {
       const partial = { status: 'INACTIVE', isCarrier: true, shortName: 'NEW' };
       const result = restrictCustomerUpdateForIntake(partial as any, role);
       assert.equal((result as any).status, undefined);
-      assert.equal((result as any).isCarrier, undefined);
+      assert.equal((result as any).isCarrier, true);
       assert.equal((result as any).shortName, 'NEW');
     });
   }
