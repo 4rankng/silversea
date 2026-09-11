@@ -68,9 +68,21 @@ export interface DriverJourneyCard {
  * milestones + required POD files, already-submitted), so History uses that
  * readiness signal, not trip.status, for anything still IN_TRANSIT.
  */
-function bucketForStatus(status: typeof s.trips.$inferSelect.status, evidenceReady: boolean): DriverJourneyBucket {
+function bucketForStatus(
+  status: typeof s.trips.$inferSelect.status,
+  evidenceReady: boolean,
+  acknowledged: boolean,
+): DriverJourneyBucket {
   if (status === 'COMPLETED') return 'HISTORY';
-  if (status === 'IN_TRANSIT') return evidenceReady ? 'HISTORY' : 'RUNNING';
+  if (status === 'IN_TRANSIT') {
+    // Docx4 BUG2: ops "Phát lệnh" can flip a trip to IN_TRANSIT before the
+    // driver acknowledges (the same premise as the reassignment relaxation).
+    // Status alone must not mark the order "Đã nhận" — without the driver's
+    // ORDER_RECEIVED milestone the card belongs in Lệnh mới so the accept
+    // bar stays reachable.
+    if (!acknowledged) return 'NEW';
+    return evidenceReady ? 'HISTORY' : 'RUNNING';
+  }
   return 'NEW';
 }
 
@@ -171,15 +183,25 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
 
   // Only IN_TRANSIT trips can possibly need the readiness check (CREATED
   // hasn't started; COMPLETED is already HISTORY) — skip the extra query for
-  // everything else.
+  // everything else. The acknowledgement lookup shares the same filter: only
+  // an IN_TRANSIT trip can carry an ORDER_RECEIVED milestone (recording it
+  // is what flips CREATED → IN_TRANSIT on the driver path, and the
+  // reassignment guard keeps accepted trips from changing drivers).
+  const inTransitRows = rows.filter((row) => row.tripStatus === 'IN_TRANSIT');
   const evidenceByTripId = new Map<number, boolean>();
   await Promise.all(
-    rows
-      .filter((row) => row.tripStatus === 'IN_TRANSIT')
-      .map(async (row) => {
-        const status = await getDriverCompletionEvidenceStatus(row.tripId);
-        evidenceByTripId.set(row.tripId, status.ready);
-      }),
+    inTransitRows.map(async (row) => {
+      const status = await getDriverCompletionEvidenceStatus(row.tripId);
+      evidenceByTripId.set(row.tripId, status.ready);
+    }),
+  );
+  const acknowledgedTripIds = new Set(
+    inTransitRows.length === 0 ? [] : (await db.select({ tripId: s.driverProgressEvents.tripId })
+      .from(s.driverProgressEvents)
+      .where(and(
+        inArray(s.driverProgressEvents.tripId, inTransitRows.map((row) => row.tripId)),
+        eq(s.driverProgressEvents.eventType, 'ORDER_RECEIVED'),
+      ))).map((row) => row.tripId),
   );
 
   // Ghép chuyến pairs (kẹp/kết-hợp): ACTIVE pairs drive grouping + tags. KẾT
@@ -218,7 +240,11 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
       tripCode: row.tripCode,
       shipmentCode: row.shipmentCode,
       isAdHoc: row.isAdHoc,
-      bucket: bucketForStatus(row.tripStatus, evidenceByTripId.get(row.tripId) ?? false),
+      bucket: bucketForStatus(
+        row.tripStatus,
+        evidenceByTripId.get(row.tripId) ?? false,
+        acknowledgedTripIds.has(row.tripId),
+      ),
       classification: row.dispatchClassification,
       linked: pairActive || (row.isCombined && (shipmentCardCounts.get(row.shipmentId) ?? 0) >= 2),
       pairId: pairActive && row.activeTripPairId != null ? row.activeTripPairId : null,

@@ -29,7 +29,7 @@ interface ExistingContainer {
   id: number;
   /** Optimistic-lock token for PATCH — the backend requires If-Unmodified-Since. */
   updatedAt: string;
-  containerNumber: string;
+  containerNumber: string | null;
   sealNumber: string | null;
   containerTypeId: number | null;
   containerTypeName: string | null;
@@ -102,7 +102,10 @@ export function DriverContainerCard({ tripId, containers, contPhotoKey, sealPhot
     if (!hasSaved) return;
     const c = containers[0];
     setDraft({
-      containerNumber: c.containerNumber,
+      // Saved rows can carry a null container number (seal-only / LCL saves) —
+      // seeding the draft with null would crash the render-time ISO-6346
+      // check (`.trim()` on null) the moment Sửa opens the form.
+      containerNumber: c.containerNumber ?? '',
       sealNumber: c.sealNumber ?? '',
       containerTypeId: c.containerTypeId ? String(c.containerTypeId) : '',
     });

@@ -50,8 +50,10 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // Bumped 410 → 430: 2026-09-08 external-carrier staff close — the client
   // gains completeDispatchExternalTrip beside the other dispatch planning
   // calls, and DispatchDetailPlanRow.taskStatus gains 'COMPLETED'.
+  // Bumped 430 → 440: 2026-09-11 plate→carrier reverse lookup — added
+  // resolveCarrierByPlate for auto-filling carrier from plate number.
   // Reviewed as a contract change.
-  'src/api/dispatchPlanningClient.ts': 430,
+  'src/api/dispatchPlanningClient.ts': 440,
   // Bumped 400 (new-file) → 430: 2026-09-07 dropdown-flip sweep — the
   // multi-select picker gained selectionLabel + onSearchChange (aria names
   // and debounced server refetch) during the facet migration. Reviewed as a
