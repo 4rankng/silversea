@@ -569,7 +569,7 @@ describe('DriverTripDetailPage', () => {
     renderPage();
 
     expect(await screen.findByText(/Số cont & seal/)).toBeTruthy();
-    expect(screen.queryByText(/Thông tin hóa đơn/)).toBeNull();
+    expect(screen.queryByText(/Thông tin xuất hóa đơn/)).toBeNull();
   });
 
   it('renders the CUS driver note in the site-rules section and keeps the empty state only when both are absent', async () => {
@@ -672,8 +672,8 @@ describe('DriverTripDetailPage', () => {
   });
   // ─── 36d0183d driver-app enhancements (wave 2026-09-11) ──────────────────
 
-  // TC-DA-004: Đầu kéo / Rơ moóc fact rows are GONE from the driver mobile
-  // grid (wire fields stay; the UI surface is what this ticket removes).
+  // TC-DA-004 (re-confirmed 2a618442): "Bỏ đầu kéo - moóc" = BOTH vehicle
+  // rows stay OFF the driver mobile grid; wire fields remain.
   it('TC-DA-004: hides the Đầu kéo / Rơ moóc fact rows', async () => {
     renderPage();
 
@@ -707,13 +707,14 @@ describe('DriverTripDetailPage', () => {
     expect(routeValue).toBe('123 Nguyễn Văn A, Bình Dương');
   });
 
-  // TC-DA-003: Kho phone row hidden when absent — no dash placeholder.
-  it('TC-DA-003: hides the Kho row when the site has no phone', async () => {
+  // TC-DA-003: kho phone row hidden when absent — no dash placeholder.
+  // 2a618442: label follows the mockup copy "SĐT kho".
+  it('TC-DA-003: hides the SĐT kho row when the site has no phone', async () => {
     renderPage();
 
     await screen.findByText(/Số cont & seal/);
     const labels = Array.from(document.querySelectorAll('.driver-task-fact__label')).map((el) => el.textContent);
-    expect(labels).not.toContain('Kho');
+    expect(labels).not.toContain('SĐT kho');
   });
 
   it('TC-DA-003: renders the Kho row as a tel link when the site has a phone', async () => {
@@ -736,8 +737,9 @@ describe('DriverTripDetailPage', () => {
   });
 
   // TC-DA-005: customer master-data invoice rows render with the exact
-  // Vietnamese labels and per-row graceful hide.
-  it('TC-DA-005: renders MST / Tên công ty / Địa chỉ from master data, hiding nulls', async () => {
+  // Vietnamese labels and per-row graceful hide. 2a618442: head follows the
+  // mockup copy "Thông tin xuất hóa đơn", row order company → address → MST.
+  it('TC-DA-005: renders Tên công ty / Địa chỉ / MST from master data, hiding nulls', async () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
         invoiceMaster: { taxCode: '3701234567', companyName: 'Công ty TNHH ABC', address: null },
@@ -748,10 +750,12 @@ describe('DriverTripDetailPage', () => {
     });
     renderPage();
 
-    await screen.findByText(/Số cont & seal/);
-    expect(screen.getByText('MST')).toBeTruthy();
+    await screen.findByText('Thông tin xuất hóa đơn');
+    const headLabels = Array.from(document.querySelectorAll('.driver-task-grid .driver-task-fact__label'))
+      .map((el) => el.textContent)
+      .filter((label) => ['Tên công ty', 'Địa chỉ', 'MST'].includes(label ?? ''));
+    expect(headLabels).toEqual(['Tên công ty', 'MST']);
     expect(screen.getByText('3701234567')).toBeTruthy();
-    expect(screen.getByText('Tên công ty')).toBeTruthy();
     expect(screen.getByText('Công ty TNHH ABC')).toBeTruthy();
     expect(screen.queryByText('Địa chỉ')).toBeNull();
   });
@@ -815,12 +819,15 @@ describe('DriverTripDetailPage', () => {
     await screen.findByTestId('operation-chips');
     let chips = screen.getAllByTestId('operation-chip');
     expect(chips).toHaveLength(4);
-    const toggle = screen.getByRole('button', { name: /Mở rộng/ });
+    // Scope to the chips region: the 2a618442 header toggle's accessible name
+    // also contains "Mở rộng", so a page-wide query would be ambiguous.
+    const chipsRegion = screen.getByTestId('operation-chips');
+    const toggle = within(chipsRegion).getByRole('button', { name: /Mở rộng/ });
     fireEvent.click(toggle);
     chips = screen.getAllByTestId('operation-chip');
     expect(chips).toHaveLength(6);
-    expect(screen.getByRole('button', { name: /Thu gọn/ })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: /Thu gọn/ }));
+    expect(within(chipsRegion).getByRole('button', { name: /Thu gọn/ })).toBeTruthy();
+    fireEvent.click(within(chipsRegion).getByRole('button', { name: /Thu gọn/ }));
     expect(screen.getAllByTestId('operation-chip')).toHaveLength(4);
   });
 
@@ -842,6 +849,101 @@ describe('DriverTripDetailPage', () => {
 
     await screen.findByTestId('operation-chips');
     expect(screen.getAllByTestId('operation-chip')).toHaveLength(3);
-    expect(screen.queryByRole('button', { name: /Mở rộng|Thu gọn/ })).toBeNull();
+    // No chips toggle here — and the header toggle (also matching "Mở rộng")
+    // lives OUTSIDE the chips region, so scoping keeps this assertion honest.
+    expect(within(screen.getByTestId('operation-chips')).queryByRole('button', { name: /Mở rộng|Thu gọn/ })).toBeNull();
+  });
+
+  // 2a618442: the TÁC VỤ TÀI XẾ header is DEFAULT EXPANDED (route title +
+  // customer); collapsing is the user's opt-out — collapsed shows the factory
+  // short name + Tuyến line and hides the customer name. Status pill +
+  // Đóng/Trả chip stay visible in both states.
+  it('2a618442: collapses to factory short name + route line on toggle, expanding restores route + customer', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        fulfillment: {
+          ...makeTaskDetail().fulfillment!,
+          factoryShortName: 'ASKEY',
+          factoryAddress: 'KCN Quế Võ, Bắc Ninh',
+        },
+      }),
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+    renderPage();
+
+    await screen.findByText(/Số cont & seal/);
+    // Default EXPANDED: route title + customer, no route line.
+    const toggle = screen.getByRole('button', { name: 'Thu gọn thông tin tác vụ' });
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByText('Cảng Cát Lái → Nhà máy Bình Dương')).toBeTruthy();
+    expect(screen.getByText('SilverSea')).toBeTruthy();
+    expect(document.querySelector('.driver-task-header__route')).toBeNull();
+
+    fireEvent.click(toggle);
+    // Collapsed: factory short name + Tuyến line, customer hidden.
+    expect(screen.getByText('ASKEY')).toBeTruthy();
+    expect(document.querySelector('.driver-task-header__route')?.textContent).toBe('KCN Quế Võ, Bắc Ninh');
+    expect(screen.queryByText('SilverSea')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Mở rộng thông tin tác vụ' })).toBeTruthy();
+  });
+
+  // 2a618442: without factory data the collapsed title falls back to the
+  // route name and the redundant route line stays hidden (it belongs under a
+  // factory title only).
+  it('2a618442: falls back to the route title and hides the route line without factory name', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        fulfillment: {
+          ...makeTaskDetail().fulfillment!,
+          factoryName: null,
+          factoryShortName: null,
+        },
+      }),
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+    renderPage();
+
+    await screen.findByText(/Số cont & seal/);
+    // Collapse first — expanded title is the route either way.
+    fireEvent.click(screen.getByRole('button', { name: 'Thu gọn thông tin tác vụ' }));
+    expect(document.querySelector('.driver-task-header__title')?.textContent).toBe('Cảng Cát Lái → Nhà máy Bình Dương');
+    expect(document.querySelector('.driver-task-header__route')).toBeNull();
+  });
+
+  // 40f3ae15: the biên bản giao hàng capture block lives in the SỐ CONT & SEAL
+  // section (always reachable — outside the container form/bento switch); its
+  // thumbnail shows only when an OTHER photo rides the wire.
+  it('40f3ae15: shows the biên bản capture block and hides its thumbnail without an OTHER photo', async () => {
+    renderPage();
+
+    await screen.findByTestId('delivery-note-block');
+    expect(screen.getByText('Chụp / chọn ảnh biên bản giao hàng')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Mở camera biên bản' })).toBeTruthy();
+    expect(screen.queryByAltText('Ảnh biên bản giao hàng')).toBeNull();
+  });
+
+  it('40f3ae15: renders the biên bản thumbnail when a DELIVERY_NOTE photo rides the wire', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        fulfillment: {
+          ...makeTaskDetail().fulfillment!,
+          containerSealPhotos: [
+            { id: 3, type: 'DELIVERY_NOTE', storageKey: 'trips/55/delivery-note.jpg', uploadedAt: '2026-08-01T02:00:00.000Z' },
+          ],
+        },
+      }),
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+    renderPage();
+
+    const img = await screen.findByAltText('Ảnh biên bản giao hàng');
+    expect(img.getAttribute('src')).toContain(encodeURIComponent('trips/55/delivery-note.jpg'));
+    expect(screen.getByRole('button', { name: 'Xóa ảnh biên bản' })).toBeTruthy();
   });
 });
