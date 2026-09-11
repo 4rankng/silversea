@@ -2519,7 +2519,7 @@ describe('planning remaining containers after partial dispatch', () => {
   test('resolve-carrier: dashed plate normalizes to the stored form; unknown and inactive carriers return nulls', async () => {
     const active = await createCustomer(`Resolve carrier A ${suffix}-${createdCustomerIds.length}`, true);
     const inactive = await createCustomer(`Resolve carrier B ${suffix}-${createdCustomerIds.length}`, true);
-    await db.update(s.customers).set({ status: 'INACTIVE' }).where(eq(s.customers.id, inactive.id));
+    await db.update(s.customers).set({ status: 'LOCKED' }).where(eq(s.customers.id, inactive.id));
     await db.insert(s.carrierFleetVehicles).values([
       { carrierId: active.id, licensePlate: '15H-061.14', normalizedPlate: '15H06114', isActive: true, createdBy: adminUserId },
       { carrierId: inactive.id, licensePlate: '16H-070.70', normalizedPlate: '16H07070', isActive: true, createdBy: adminUserId },
@@ -2542,7 +2542,7 @@ describe('planning remaining containers after partial dispatch', () => {
     );
     assert.deepEqual(unknown.data, { carrierId: null, carrierName: null });
 
-    // An INACTIVE carrier resolves to nulls on BOTH fields — a non-null id
+    // A LOCKED (non-ACTIVE) carrier resolves to nulls on BOTH fields — a non-null id
     // would auto-fill the editor with an entity the dispatch write later 409s.
     const dead = await apiFetch<{ carrierId: number | null; carrierName: string | null }>(
       '/carrier-fleet-vehicles/resolve-carrier?plate=16H-070.70',
