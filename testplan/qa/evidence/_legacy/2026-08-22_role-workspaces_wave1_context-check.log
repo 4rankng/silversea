@@ -1,9 +1,0 @@
-Command: pnpm context:check
-Started: 2026-08-22T22:26:36+08:00
-
-> tingting@ context:check /Users/dev/Documents/projects/silversea
-> node scripts/context-for.mjs --check
-
-Context manifest valid: v1, 9 profiles, 33 context paths.
-Exit status: 0
-Finished: 2026-08-22T22:26:36+08:00

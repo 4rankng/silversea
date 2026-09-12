@@ -1,4 +1,0 @@
-# Gate: UI + brand contracts
-# Command: pnpm --dir frontend check:ui
-# Exit status: 0 (PASS)
-# Output: "UI contract check passed." / "TransTing brand contract passed."

@@ -1,5 +1,0 @@
- id | approval_status | approved_by_id | ops_settlement_id 
-----+-----------------+----------------+-------------------
- 82 | APPROVED        |              9 |                  
-(1 row)
-

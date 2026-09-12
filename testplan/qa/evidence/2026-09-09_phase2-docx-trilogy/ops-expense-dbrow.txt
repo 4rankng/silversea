@@ -1,5 +1,0 @@
- id | amount | approval_status | paid_by_id | expense_type_code | photos 
-----+--------+-----------------+------------+-------------------+--------
- 82 | 150000 | PENDING         |          3 | CUSTOMS           |      0
-(1 row)
-
