@@ -1,2 +1,0 @@
-Command: cd backend && npx tsc --noEmit
-Exit status: 0

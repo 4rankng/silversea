@@ -1,8 +1,0 @@
-Command: authenticated Playwright visual QA for Accountant at 1440x900, 768x1024, and 390x844
-Started: 2026-08-22T23:04:00+08:00
-ketoan/desktop: PASS; rows=128; ready lane=visible; blocked lane=visible; overflow=False; keyboard=True; minPrimaryControl=34px; consoleErrors=0; server5xx=0; screenshot=qa/2026-08-22_role-workspaces_wave2-after/ketoan_desktop.png
-ketoan/tablet: PASS; rows=128; ready lane=visible; blocked lane=visible; overflow=False; keyboard=True; minPrimaryControl=34px; consoleErrors=0; server5xx=0; screenshot=qa/2026-08-22_role-workspaces_wave2-after/ketoan_tablet.png
-ketoan/mobile: PASS; rows=128; ready lane=visible; blocked lane=visible; responsive cards=True; overflow=False; keyboard=True; minPrimaryControl=44px; consoleErrors=0; server5xx=0; screenshot=qa/2026-08-22_role-workspaces_wave2-after/ketoan_mobile.png
-Visual inspection: PASS; dense desktop table, bounded tablet table, readable mobile cards, advisory labels, blockers, and direct actions are visually distinct. Mobile label overlap found in the first capture was corrected and the screenshots above are the rerun evidence.
-Exit status: 0
-Finished: 2026-08-22T23:04:09+08:00

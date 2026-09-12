@@ -1,3 +1,0 @@
-# Gate: root lint
-# Command: pnpm lint
-# Exit status: 0 (PASS) — 0 errors, 111 warnings (pre-existing react-refresh warnings, unrelated to this change)

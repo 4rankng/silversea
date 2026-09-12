@@ -1,7 +1,0 @@
-
-> @tingting/frontend@0.1.0 check:ui /Users/dev/Documents/projects/silversea/frontend
-> node scripts/check-ui-contract.mjs && node scripts/check-brand-contract.mjs
-
-UI contract check passed.
-TransTing brand contract passed.
-EXIT=0
