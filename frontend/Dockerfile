@@ -1,5 +1,11 @@
 # ── Stage 1: Build ────────────────────────────────────────────────────────────
-FROM node:22-alpine AS build
+# $BUILDPLATFORM keeps the toolchain native when cross-building for the amd64
+# servers from an arm64 Mac: node/tsc/vite run without emulation. Go-based
+# esbuild crashes under amd64 emulation (Go runtime `lfstack.push` fault, seen
+# 2026-09-12), so emulating this stage is not an option. The dist output is
+# architecture-independent JS/CSS, so the native-built artifacts stay valid
+# for the amd64 nginx runtime stage below.
+FROM --platform=$BUILDPLATFORM node:22-alpine AS build
 
 ARG NODE_OPTIONS=--max-old-space-size=8192
 ENV NODE_OPTIONS=${NODE_OPTIONS}
