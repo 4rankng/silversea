@@ -2,10 +2,10 @@
         db-backup db-recreate db-drift-check devdb devdb-prod devdb-sync stgdb \
         demo deploy deploy-advance deploy-db-backup deploy-seed deploy-server-setup
 
-# ─── Ports (silversea — de-conflicted from nepocorp) ─────────────────────────
+# ─── Ports ─────────────────────────────────────────────────────────────────────
 # PostgreSQL: 5441  |  Redis: 6391  |  Backend: 3001  |  Frontend: 7174  |  Adminer: 8083
-# nepocorp uses 5440/6390/3090/7173/8081 + tingting-* containers; this stack
-# runs alongside it without port or container-name collisions.
+# Deliberately off the common defaults so this stack can run alongside other
+# projects on this machine without port or container-name collisions.
 
 # ─── Full dev environment ─────────────────────────────────────────────────────
 dev: ## Start everything (db, redis, backend, frontend)
@@ -330,7 +330,7 @@ help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
 	@echo ""
-	@echo "silversea dev ports (de-conflicted from nepocorp):"
+	@echo "silversea dev ports:"
 	@echo "  Frontend 7174  ·  Backend 3001  ·  Postgres 5441  ·  Redis 6391  ·  Adminer 8083"
 	@echo ""
 	@echo "demo:  make demo  →  https://vantai.tingting.vip  (DB preserved)"
