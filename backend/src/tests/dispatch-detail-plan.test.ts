@@ -750,7 +750,10 @@ describe('dispatch detail plan rows', () => {
     assert.ok(unfiltered.data.items.some((item) => item.shipmentId === lhShipment.id));
     assert.ok(unfiltered.data.items.some((item) => item.shipmentId === plainShipment.id));
 
-    const lhOnly = await apiFetch<{ items: DetailPlanRow[] }>('/dispatch-detail-plan-rows?zone=LACH_HUYEN', { token: dispatcherToken });
+    // q keeps the zone queries scoped to this run's lots: an unscoped zone
+    // page-1 depends on how many zone rows the accumulated local DB holds
+    // (same accumulation trap the unfiltered fetch above avoids).
+    const lhOnly = await apiFetch<{ items: DetailPlanRow[] }>(`/dispatch-detail-plan-rows?zone=LACH_HUYEN&q=${suffix}`, { token: dispatcherToken });
     assert.equal(lhOnly.status, 200, JSON.stringify(lhOnly.data));
     assert.ok(lhOnly.data.items.some((item) => item.shipmentId === lhShipment.id), 'LH lot must be present');
     assert.ok(!lhOnly.data.items.some((item) => item.shipmentId === plainShipment.id), 'plain lot must be excluded');
@@ -763,7 +766,7 @@ describe('dispatch detail plan rows', () => {
     await db.update(s.shipmentContainers)
       .set({ pickupPortId: lhPort.id })
       .where(eq(s.shipmentContainers.id, plainContainer.id));
-    const lhPickupSide = await apiFetch<{ items: DetailPlanRow[] }>('/dispatch-detail-plan-rows?zone=LACH_HUYEN', { token: dispatcherToken });
+    const lhPickupSide = await apiFetch<{ items: DetailPlanRow[] }>(`/dispatch-detail-plan-rows?zone=LACH_HUYEN&q=${suffix}`, { token: dispatcherToken });
     assert.equal(lhPickupSide.status, 200);
     assert.ok(lhPickupSide.data.items.some((item) => item.shipmentId === plainShipment.id), 'pickup-side LH port must match');
 

@@ -961,34 +961,37 @@ describe('Q23 field operations replay boundary', () => {
     assert.equal(createConflict.status, 409);
 
     const createdRow = await createForwarderExpensePhoto(`forwarder-photos/${suffix}-delete.jpg`);
-    // 2026-09-12: version precondition removed — delete without version now succeeds
+    // 2026-09-12: version precondition removed — delete without version now
+    // succeeds. This consumes `createdRow`, so the versioned-delete block
+    // below gets its own fresh row to exercise version+replay against.
     const missingDeleteVersion = await jsonRequest(`/api/forwarder/me/expense-photos/${createdRow.id}`, {
       method: 'DELETE',
       idempotencyKey: `q23-forwarder-photo-missing-version-${suffix}`,
     });
     assert.equal(missingDeleteVersion.status, 200, JSON.stringify(missingDeleteVersion.body));
 
+    const versionedRow = await createForwarderExpensePhoto(`forwarder-photos/${suffix}-delete-versioned.jpg`);
     const deleteKey = `q23-forwarder-photo-delete-${suffix}`;
-    const deleted = await jsonRequest(`/api/forwarder/me/expense-photos/${createdRow.id}`, {
+    const deleted = await jsonRequest(`/api/forwarder/me/expense-photos/${versionedRow.id}`, {
       method: 'DELETE',
       idempotencyKey: deleteKey,
-      expectedUpdatedAt: createdRow.uploadedAt.toISOString(),
+      expectedUpdatedAt: versionedRow.uploadedAt.toISOString(),
     });
-    const deletedReplay = await jsonRequest(`/api/forwarder/me/expense-photos/${createdRow.id}`, {
+    const deletedReplay = await jsonRequest(`/api/forwarder/me/expense-photos/${versionedRow.id}`, {
       method: 'DELETE',
       idempotencyKey: deleteKey,
-      expectedUpdatedAt: createdRow.uploadedAt.toISOString(),
+      expectedUpdatedAt: versionedRow.uploadedAt.toISOString(),
     });
     assert.equal(deleted.status, 200, JSON.stringify(deleted.body));
     assert.deepEqual(deletedReplay, deleted);
     const [deleteJob] = (await listStorageDeleteJobs()).filter((row) => {
       const payload = row.payload as Record<string, unknown>;
-      return payload.storageKey === createdRow.storageKey
+      return payload.storageKey === versionedRow.storageKey
         && payload.mode === STORAGE_DELETE_MODE.FINAL_DELETE;
     });
     assert.ok(deleteJob);
     assert.equal(deleteJob.status, DURABLE_EFFECT_STATUS.PENDING);
-    assert.equal(await storageService.exists(createdRow.storageKey), true);
+    assert.equal(await storageService.exists(versionedRow.storageKey), true);
     await db.update(s.durableEffectJobs)
       .set({ nextAttemptAt: new Date(0) })
       .where(eq(s.durableEffectJobs.id, deleteJob.id));
@@ -998,7 +1001,7 @@ describe('Q23 field operations replay boundary', () => {
     });
     const processedDelete = deletePass.find((job) => job.id === deleteJob.id);
     assert.equal(processedDelete?.status, DURABLE_EFFECT_STATUS.SUCCEEDED);
-    assert.equal(await storageService.exists(createdRow.storageKey), false);
+    assert.equal(await storageService.exists(versionedRow.storageKey), false);
 
     // 2026-09-12: version precondition removed — stale version delete now succeeds
     const staleRow = await createForwarderExpensePhoto(`forwarder-photos/${suffix}-stale-a.jpg`);
