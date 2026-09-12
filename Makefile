@@ -215,6 +215,11 @@ DEMO_SERVER := vantai.tingting.vip
 DEMO_PATH   := /opt/vantai
 DEMO_COMPOSE := docker compose -f deploy/docker-compose.prod.yml
 
+# Build label stamped into the backend containers at cutover (BUILD_HASH env →
+# /api/health buildHash) so a staging/prod that lagged behind is diagnosable
+# from one curl. Same short-sha family the GHCR secondary tags use.
+DEPLOY_BUILD_HASH := $(shell git rev-parse --short HEAD 2>/dev/null || echo dev)
+
 demo: ## Deploy the current tree to staging (vantai.tingting.vip) — keeps existing DB
 	@echo "=== Deploying to $(DEMO_SERVER) ==="
 	@echo "1/4  Building + pushing :latest images..."
@@ -227,7 +232,9 @@ demo: ## Deploy the current tree to staging (vantai.tingting.vip) — keeps exis
 	@ssh root@$(DEMO_SERVER) "set -eu; cd $(DEMO_PATH); mkdir -p .db-backups; pg_container=\$$($(DEMO_COMPOSE) ps -q postgres); test -n \"\$$pg_container\" || { echo 'No postgres container running' >&2; exit 1; }; pg_env_of() { docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' \"\$$1\"; }; pg_user=\$$(pg_env_of \"\$$pg_container\" | sed -n 's/^POSTGRES_USER=//p' | head -1); pg_db=\$$(pg_env_of \"\$$pg_container\" | sed -n 's/^POSTGRES_DB=//p' | head -1); pg_user=\$${pg_user:-postgres}; pg_db=\$${pg_db:-\$$pg_user}; backup=\".db-backups/db-\$$(date -u +%Y%m%dT%H%M%SZ).dump\"; docker exec -i \"\$$pg_container\" pg_dump -U \"\$$pg_user\" -Fc \"\$$pg_db\" > \"\$$backup\"; size=\$$(wc -c < \"\$$backup\" | tr -d ' '); if [ \"\$$size\" -lt 1024 ]; then echo \"Backup suspiciously small (\$$size bytes) — aborting deploy\" >&2; exit 1; fi; echo \"✅ Server DB backup: $(DEMO_PATH)/\$$backup (\$$size bytes) [user=\$$pg_user db=\$$pg_db]\""
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && flock -w 900 .deploy-migrate.lock $(DEMO_COMPOSE) run --rm --no-deps backend npx drizzle-kit migrate"
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) rm -sf backend frontend || true"
-	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) up -d --no-deps backend frontend"
+	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && BUILD_HASH=$(DEPLOY_BUILD_HASH) $(DEMO_COMPOSE) up -d --no-deps backend frontend"
+	@echo "  Frontend stale-asset guard (04:43 lesson)..."
+	@ssh root@$(DEMO_SERVER) "set -eu; cd $(DEMO_PATH); fr_container=\$$($(DEMO_COMPOSE) ps -q frontend); test -n \"\$$fr_container\" || { echo 'No frontend container after cutover' >&2; exit 1; }; docker exec -i \"\$$fr_container\" sh" < scripts/frontend-asset-guard.sh
 	@echo "4/4  Public health checks..."
 	@echo "  Backend: https://$(DEMO_SERVER)/api/health"
 	@for i in $$(seq 1 12); do \
@@ -299,7 +306,9 @@ deploy: ## Deploy prod (silversea.tingting.vip) — run from the prod branch; sh
 	@bash deploy/silversea-server-db-backup.sh
 	@ssh root@$(PROD_SERVER) "cd $(PROD_PATH) && flock -w 900 .deploy-migrate.lock $(PROD_COMPOSE) run --rm --no-deps backend npx drizzle-kit migrate"
 	@ssh root@$(PROD_SERVER) "cd $(PROD_PATH) && $(PROD_COMPOSE) rm -sf backend frontend || true"
-	@ssh root@$(PROD_SERVER) "cd $(PROD_PATH) && $(PROD_COMPOSE) up -d --no-deps backend frontend"
+	@ssh root@$(PROD_SERVER) "cd $(PROD_PATH) && BUILD_HASH=$(DEPLOY_BUILD_HASH) $(PROD_COMPOSE) up -d --no-deps backend frontend"
+	@echo "  Frontend stale-asset guard (04:43 lesson)..."
+	@ssh root@$(PROD_SERVER) "set -eu; cd $(PROD_PATH); fr_container=\$$($(PROD_COMPOSE) ps -q frontend); test -n \"\$$fr_container\" || { echo 'No frontend container after cutover' >&2; exit 1; }; docker exec -i \"\$$fr_container\" sh" < scripts/frontend-asset-guard.sh
 	@echo "4/4  Public health checks..."
 	@echo "  Backend: https://$(PROD_SERVER)/api/health"
 	@for i in $$(seq 1 12); do \

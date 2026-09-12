@@ -760,6 +760,61 @@ describe('DriverTripDetailPage', () => {
     expect(screen.queryByText('Địa chỉ')).toBeNull();
   });
 
+  // TC-COMP-004 (20260911_2 BUG 1): the task-info section collapses behind its
+  // head row to save screen space; collapsed, the head keeps the factory
+  // short-name summary so the driver still recognizes the trip.
+  it('TC-COMP-004: task info section collapses behind its head and restores', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        fulfillment: { ...makeTaskDetail().fulfillment!, factoryShortName: 'ASKEY' },
+      }),
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+    renderPage();
+
+    await screen.findByText('Thông tin lệnh');
+    const toggle = screen.getByTestId('task-section-toggle-driver-task-info-grid');
+    const grid = document.getElementById('driver-task-info-grid') as HTMLElement;
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(grid.hidden).toBe(false);
+    expect(screen.queryByTestId('task-section-summary-driver-task-info-grid')).toBeNull();
+
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(grid.hidden).toBe(true);
+    expect(screen.getByTestId('task-section-summary-driver-task-info-grid').textContent).toBe('ASKEY');
+
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(grid.hidden).toBe(false);
+    expect(screen.queryByTestId('task-section-summary-driver-task-info-grid')).toBeNull();
+  });
+
+  // TC-COMP-004b: the invoice section collapses independently — collapsing
+  // one section must not touch the other.
+  it('TC-COMP-004b: invoice section toggles independently of task info', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        invoiceMaster: { taxCode: '3701234567', companyName: 'Công ty TNHH ABC', address: null },
+      }),
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+    renderPage();
+
+    await screen.findByText('Thông tin xuất hóa đơn');
+    const invoiceToggle = screen.getByTestId('task-section-toggle-driver-task-invoice-grid');
+    const invoiceGrid = document.getElementById('driver-task-invoice-grid') as HTMLElement;
+    const infoGrid = document.getElementById('driver-task-info-grid') as HTMLElement;
+    fireEvent.click(invoiceToggle);
+    expect(invoiceToggle.getAttribute('aria-expanded')).toBe('false');
+    expect(invoiceGrid.hidden).toBe(true);
+    expect(infoGrid.hidden).toBe(false);
+  });
+
   // TC-DA-006: ONE chip carries the close status (EXPORT→Đóng, IMPORT→Trả),
   // hidden when tradeDirection is null.
   it('TC-DA-006: renders one Đóng chip for EXPORT and none without tradeDirection', async () => {

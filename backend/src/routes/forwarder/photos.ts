@@ -24,7 +24,7 @@ import { sniffImageType } from '../../lib/format';
 import {
   acquireForwarderCleanupGuard, releaseForwarderCleanupGuard,
   deleteForwarderExpensePhotoCommand,
-  requireExpectedUpdatedAt, requireForwarderIdempotencyKey,
+  requireForwarderIdempotencyKey,
   withMaterialWriteAuditContext, hashStorageKey,
   expensePhotoAfterUploadHookForTest, FORWARDER_IDEMPOTENCY_ENDPOINTS,
 } from './forwarder-shared';
@@ -162,22 +162,20 @@ router.delete('/expense-photos/:id', asyncHandler(async (req: Request, res: Resp
   const forwarder = req.forwarder!;
   const photoId = parseInt(req.params.id as string, 10);
   const idempotencyKey = requireForwarderIdempotencyKey(req);
-  const expectedUpdatedAt = requireExpectedUpdatedAt(
-    req,
-    'Cần tải lại phiên bản ảnh mới nhất trước khi xóa.',
-  );
+  // 2026-09-12 user directive: the version precondition on photo delete is
+  // removed — deletes always proceed. Ownership, idempotency stay; the command
+  // already treats an absent expectedUpdatedAt as "skip the staleness check".
   await runIdempotent({
     endpoint: FORWARDER_IDEMPOTENCY_ENDPOINTS.EXPENSE_PHOTO_DELETE,
     idempotencyKey,
     payload: {
       photoId,
       forwarderId: forwarder.id,
-      expectedUpdatedAt: expectedUpdatedAt.toISOString(),
     },
     createdBy: forwarder.id,
     responseStatusCode: 200,
     create: async (tx) => {
-      const result = await deleteForwarderExpensePhotoCommand(tx, photoId, forwarder.id, expectedUpdatedAt);
+      const result = await deleteForwarderExpensePhotoCommand(tx, photoId, forwarder.id, undefined);
       if (!result) {
         throw new ApiError(404, 'Không tìm thấy ảnh');
       }

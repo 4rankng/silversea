@@ -55,6 +55,9 @@ services:
       - PORT=3090
       - UPLOAD_DIR=/app/backend/uploads
       - CORS_ORIGIN=https://silversea.tingting.vip
+      # Stamped by `make deploy` at cutover — /api/health reports it as
+      # buildHash so a lagging prod behind staging is diagnosable from one curl.
+      - BUILD_HASH=${BUILD_HASH:-dev}
     expose:
       - "3090"
     ports:

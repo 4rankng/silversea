@@ -961,11 +961,12 @@ describe('Q23 field operations replay boundary', () => {
     assert.equal(createConflict.status, 409);
 
     const createdRow = await createForwarderExpensePhoto(`forwarder-photos/${suffix}-delete.jpg`);
+    // 2026-09-12: version precondition removed — delete without version now succeeds
     const missingDeleteVersion = await jsonRequest(`/api/forwarder/me/expense-photos/${createdRow.id}`, {
       method: 'DELETE',
       idempotencyKey: `q23-forwarder-photo-missing-version-${suffix}`,
     });
-    assert.equal(missingDeleteVersion.status, 428);
+    assert.equal(missingDeleteVersion.status, 200, JSON.stringify(missingDeleteVersion.body));
 
     const deleteKey = `q23-forwarder-photo-delete-${suffix}`;
     const deleted = await jsonRequest(`/api/forwarder/me/expense-photos/${createdRow.id}`, {
@@ -999,6 +1000,7 @@ describe('Q23 field operations replay boundary', () => {
     assert.equal(processedDelete?.status, DURABLE_EFFECT_STATUS.SUCCEEDED);
     assert.equal(await storageService.exists(createdRow.storageKey), false);
 
+    // 2026-09-12: version precondition removed — stale version delete now succeeds
     const staleRow = await createForwarderExpensePhoto(`forwarder-photos/${suffix}-stale-a.jpg`);
     const staleHeader = new Date(staleRow.uploadedAt.getTime() - 1).toISOString();
     const staleDelete = await jsonRequest(`/api/forwarder/me/expense-photos/${staleRow.id}`, {
@@ -1006,7 +1008,7 @@ describe('Q23 field operations replay boundary', () => {
       idempotencyKey: `q23-forwarder-photo-stale-${suffix}`,
       expectedUpdatedAt: staleHeader,
     });
-    assert.equal(staleDelete.status, 409);
+    assert.equal(staleDelete.status, 200, JSON.stringify(staleDelete.body));
   });
 
   it('cleans uploaded storage when forwarder photo persistence fails after upload', async () => {

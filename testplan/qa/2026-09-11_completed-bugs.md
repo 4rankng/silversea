@@ -108,6 +108,12 @@ Verify 10 bugs + 2 features from three completed kanban cards are properly fixed
   - `qa/2026-09-11_completed_comp-004a-collapsed.png`
   - `qa/2026-09-11_completed_comp-004b-expanded.png`
 - **Existing coverage:** `testplan/qa/2026-09-10_driver-app-enhancements.md` TC-DA-001 through 005
+- **UPDATE 2026-09-12:** the collapsible piece (last open sub-item) is DONE —
+  `DriverTaskInfoSections.tsx` collapsible heads (`Thông tin lệnh` +
+  `Thông tin xuất hóa đơn` toggle independently; collapsed head keeps the
+  factory short-name summary). Unit: `DriverTripDetailPage.test.tsx`
+  TC-COMP-004 / TC-COMP-004b. Live: local dev as `laixe`, trip 8 —
+  `qa/2026-09-12_driver-detail-design/{ui-driver.log,comp-004a-collapsed.png,comp-004b-expanded.png,REPORT.md}`
 
 ### 20260911_2 — BUG 2: Driver app UI adjustments
 

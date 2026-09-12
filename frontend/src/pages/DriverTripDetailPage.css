@@ -156,6 +156,56 @@
   margin-bottom: 8px;
 }
 
+/* Collapsible section head (20260911_2 BUG 1 — "thu nhỏ vào đỡ chiếm diện
+   tích"): the whole head row is the toggle. Collapsed, the head keeps the
+   factory short-name summary so the driver still recognizes the trip.
+   Coarse-pointer padding mirrors the .driver-task-ops-toggle 44px rule. */
+.driver-task-section__toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.driver-task-section__summary {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--ink-3);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.driver-task-section__chev {
+  margin-left: auto;
+  flex-shrink: 0;
+  color: var(--ink-3);
+  transition: transform 150ms ease;
+}
+
+.driver-task-section__toggle[aria-expanded='false'] .driver-task-section__chev {
+  transform: rotate(-90deg);
+}
+
+.driver-task-section--collapsed .driver-task-section__head {
+  margin-bottom: 0;
+}
+
+@media (pointer: coarse) {
+  .driver-task-section__toggle {
+    padding: 13px 0;
+  }
+}
+
 .driver-task-grid,
 .driver-task-finance {
   display: grid;

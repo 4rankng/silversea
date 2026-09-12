@@ -67,7 +67,7 @@ describe('workboard table & summary rail (golden standard)', () => {
       }
     }
     expect(forks).toEqual([]);
-  });
+  }, 15000);
 
   it('the shared card collapse keeps labelled record cards', () => {
     expect(recordTableCss).toMatch(

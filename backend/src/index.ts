@@ -160,8 +160,9 @@ app.use((req, res, next) => {
 app.use(auditLogMiddleware);
 
 // ── Public routes ──────────────────────────────────────────────────────────
+const BUILD_HASH = process.env.BUILD_HASH || 'dev';
 app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({ status: 'ok', timestamp: new Date().toISOString(), buildHash: BUILD_HASH });
 });
 
 // Auth routes: login is public, /me and /users use their own authMiddleware
