@@ -795,9 +795,11 @@
   }
 
   .detailed-plan-grid__row {
-    /* Cards flow field groups 2-up so short groups stop hogging full rows
-       (user: utilise the full width on mobile and tablet); long-content
-       groups span both columns below. */
+    /* Data-dense card band (user: utilise the available space, cut the dead
+       vertical air): every field group pairs 2-up and the label sits INLINE
+       with its value, so one lot ≈ half the height of the old stacked-label
+       layout. Only the interactive dispatch cell and the notes cell keep the
+       full card width. */
     position: relative;
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -812,51 +814,79 @@
     background: var(--surface, #fff);
   }
 
-  .detailed-plan-grid__cell {
+  /* td specificity: must out-rank the base `.detailed-plan-grid td`
+     padding or the 12px desktop padding wins and the card stays airy. */
+  td.detailed-plan-grid__cell {
     display: block;
     min-width: 0;
-    padding: 12px;
+    padding: 5px 10px;
     border: 0;
   }
 
-  /* Long-content groups span both columns; short groups pair up in the
-     2-column band. */
-  .detailed-plan-grid__cell--schedule,
-  .detailed-plan-grid__cell--route,
-  .detailed-plan-grid__cell--editable,
-  .detailed-plan-grid__cell--notes {
-    grid-column: 1 / -1;
-  }
-
-  .detailed-plan-grid__cell--schedule,
-  .detailed-plan-grid__cell--route {
-    border-bottom: 1px solid var(--border-color, #eef2f7);
-  }
-
-  .detailed-plan-grid__cell--documents {
-    border-right: 1px solid var(--border-color, #eef2f7);
-  }
-
-  .detailed-plan-grid__cell--classification,
-  .detailed-plan-grid__cell--editable,
-  .detailed-plan-grid__cell--notes {
-    border-top: 1px solid var(--border-color, #eef2f7);
-  }
-
+  /* Label rides on the same line as the value — no dedicated label row.
+     The field lines below are inlined too, so label + fields flow as one
+     dense record line per cell (the data-intensive treatment). */
   .detailed-plan-grid__cell::before {
-    display: block;
-    margin-bottom: 6px;
+    display: inline;
+    margin: 0 6px 0 0;
     color: var(--text-secondary, #64748b);
     content: attr(data-label);
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 700;
     letter-spacing: 0.04em;
-    line-height: 1.3;
+    line-height: 1.6;
     text-transform: uppercase;
   }
 
   .detailed-plan-grid__cell .detailed-plan-grid__line {
+    display: inline;
+    margin-right: 10px;
     overflow-wrap: anywhere;
+  }
+
+  /* Middot separator between consecutive inline fields keeps the record
+     line scannable without giving each field its own row. */
+  .detailed-plan-grid__cell .detailed-plan-grid__line + .detailed-plan-grid__line::before {
+    margin-right: 10px;
+    color: var(--text-tertiary, #98a2b3);
+    content: '·';
+  }
+
+  /* The dispatch decision cell keeps its editor layout — never inline it. */
+  td.detailed-plan-grid__cell--editable .detailed-plan-grid__line {
+    display: block;
+    margin-right: 0;
+  }
+
+  td.detailed-plan-grid__cell--editable .detailed-plan-grid__line + .detailed-plan-grid__line::before {
+    content: none;
+  }
+
+  /* Row 1: time | route; row 2: customer & lot | container. All four are
+     short field groups — pairing them halves the card height. */
+  .detailed-plan-grid__cell--schedule { grid-column: 1; border-right: 1px solid var(--border-color, #eef2f7); border-bottom: 1px solid var(--border-color, #eef2f7); }
+  .detailed-plan-grid__cell--documents { grid-column: 2; padding-right: 92px; border-bottom: 1px solid var(--border-color, #eef2f7); }
+  .detailed-plan-grid__cell--route { grid-column: 1; border-right: 1px solid var(--border-color, #eef2f7); border-bottom: 1px solid var(--border-color, #eef2f7); }
+  .detailed-plan-grid__cell--container { grid-column: 2; border-bottom: 1px solid var(--border-color, #eef2f7); }
+
+  /* The interactive dispatch decision and the notes stay full-width. */
+  .detailed-plan-grid__cell--editable,
+  .detailed-plan-grid__cell--notes {
+    grid-column: 1 / -1;
+    border-top: 0;
+  }
+
+  /* Phân loại pill pins to the card corner — the full-width row it used to
+     occupy is gone. Reserve its space on the documents cell (top-right). */
+  .detailed-plan-grid__cell--classification {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    padding: 0;
+  }
+
+  .detailed-plan-grid__cell--classification::before {
+    display: none;
   }
 }
 
@@ -881,6 +911,9 @@
   }
 
   .detailed-plan-grid__cell::before {
+    /* Phone tier keeps the label ABOVE the value (block) — the inline label
+       from the ≤900px tier is a tablet-band treatment. */
+    display: block;
     margin-bottom: 3px;
     font-size: 10px;
   }
