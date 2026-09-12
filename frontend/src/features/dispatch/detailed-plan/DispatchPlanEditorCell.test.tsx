@@ -628,3 +628,92 @@ describe('DispatchPlanEditorCell — editor mount stability across background re
     expect(screen.queryByText(/Không tải được danh sách xe/)).toBeNull();
   });
 });
+
+describe('DispatchPlanEditorCell — vehicle picker trailer compatibility', () => {
+  // Mirrors of the backend issue gate (inferTrailerTypeFromContainerCode):
+  // a container code starting with 20 needs a 20FT trailer, anything else a
+  // 40FT one — a provable mismatch 409s at Phát lệnh ("Rơ-moóc không phù hợp
+  // với loại container").
+  const FIT_TRUCK = PAIRED_TRUCK; // 20FT, plate 15H-052.82
+  const MISMATCH_TRUCK = { ...OTHER_TRUCK, id: 156, licensePlate: '60C-123.45', trailerType: '40FT' };
+  const UNKNOWN_TRUCK = { ...PAIRED_TRUCK, id: 157, licensePlate: '70H-000.01', trailerType: null };
+
+  function mockTruckPage(trucks: Array<Record<string, unknown>>, suggestedItems: Array<Record<string, unknown>> = []) {
+    listResourcesMock.mockImplementation((async (resource: string, filters: { q?: string; limit?: number } = {}) => {
+      if (resource === 'EXTERNAL_CARRIER') return { items: [], nextCursor: null, total: 0, limit: 50 };
+      if (resource === 'EXTERNAL_VEHICLE') return { items: [], nextCursor: null, total: 0, limit: 50 };
+      if (filters.limit === 5 && filters.q) return { items: trucks, nextCursor: null, total: trucks.length, limit: 5 };
+      return { items: trucks, nextCursor: null, total: trucks.length, limit: 50, suggestedItems };
+    }) as never);
+  }
+
+  async function openVehicleDropdown() {
+    await openDialog();
+    fireEvent.click(document.getElementById('dispatch-vehicle-101')!);
+    return (await screen.findAllByRole('option')).map((option) => option.textContent ?? '');
+  }
+
+  it('annotates and demotes a trailer-incompatible truck on a 20-foot container row', async () => {
+    // The fleet serves the mismatch first — the picker must not let the
+    // operator's first pick be a truck the issue gate will reject.
+    mockTruckPage([MISMATCH_TRUCK, FIT_TRUCK]);
+    renderCell(row());
+    const options = await openVehicleDropdown();
+
+    const fitLabel = options.find((label) => label.includes('15H-052.82'))!;
+    const mismatchLabel = options.find((label) => label.includes('60C-123.45'))!;
+    expect(fitLabel).not.toContain('⚠');
+    expect(mismatchLabel).toContain('⚠ rơ-moóc 40FT, cần 20FT');
+    expect(options.indexOf(mismatchLabel)).toBe(options.length - 1);
+  });
+
+  it('keeps an unknown trailer type unannotated but below a fitting truck', async () => {
+    mockTruckPage([UNKNOWN_TRUCK, FIT_TRUCK]);
+    renderCell(row());
+    const options = await openVehicleDropdown();
+
+    // No provable mismatch → no warning; the fit still outranks "unknown".
+    expect(options.every((label) => !label.includes('⚠'))).toBe(true);
+    expect(options.findIndex((label) => label.includes('15H-052.82'))).toBeLessThan(options.findIndex((label) => label.includes('70H-000.01')));
+  });
+
+  it('mirrors the backend rule in the 40-foot direction too', async () => {
+    // The row's current plate is pinned to the top of the list by the
+    // current-vehicle fold — point it at the fitting truck so the ranking of
+    // the fetched options is what's under test.
+    mockTruckPage([FIT_TRUCK, MISMATCH_TRUCK]);
+    renderCell(row({
+      container: { containerNumber: 'MSCU7654321', containerTypeLabel: '40HC', cargoWeightKg: '24000.00' },
+      dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '60C-123.45' },
+    }));
+    const options = await openVehicleDropdown();
+
+    const fitLabel = options.find((label) => label.includes('60C-123.45'))!;
+    const mismatchLabel = options.find((label) => label.includes('15H-052.82'))!;
+    expect(fitLabel).not.toContain('⚠');
+    expect(mismatchLabel).toContain('⚠ rơ-moóc 20FT, cần 40FT');
+    expect(options.indexOf(mismatchLabel)).toBe(options.length - 1);
+  });
+
+  it('keeps the row\'s current plate pinned first but annotated when it mismatches', async () => {
+    // The current assignment must stay findable at the top (it's the existing
+    // choice), yet visibly warn so the operator knows Phát lệnh will reject it.
+    mockTruckPage([FIT_TRUCK, MISMATCH_TRUCK]);
+    renderCell(row({ container: { containerNumber: 'MSCU7654321', containerTypeLabel: '40HC', cargoWeightKg: '24000.00' } }));
+    const options = await openVehicleDropdown();
+
+    expect(options[0]).toContain('15H-052.82');
+    expect(options[0]).toContain('⚠ rơ-moóc 20FT, cần 40FT');
+    expect(options[options.length - 1]).not.toContain('⚠');
+  });
+
+  it('carries the mismatch warning on pinned D±1 suggestion labels too', async () => {
+    // The proximity suggestion pins the truck to the top of the list — the
+    // warning must travel with the pinned label, not just the page list.
+    mockTruckPage([FIT_TRUCK, MISMATCH_TRUCK], [{ truckId: 156, plateNumber: '60C-123.45', reasons: ['D-1_DROP'] }]);
+    renderCell(row());
+    const options = await openVehicleDropdown();
+
+    expect(options.some((label) => label.includes('60C-123.45 — Hạ tại khu vực D-1 — ⚠ rơ-moóc 40FT, cần 20FT'))).toBe(true);
+  });
+});
