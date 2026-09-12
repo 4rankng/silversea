@@ -652,7 +652,7 @@ export async function listDispatchFleet(input: ListDispatchFleetInput) {
       const [trailers, assignedDriverMap] = await Promise.all([
         trailerIds.length === 0
           ? []
-          : tx.select({ id: s.trailers.id, licensePlate: s.trailers.licensePlate })
+          : tx.select({ id: s.trailers.id, licensePlate: s.trailers.licensePlate, type: s.trailers.type })
             .from(s.trailers)
             .where(inArray(s.trailers.id, [...new Set(trailerIds)])),
         getActiveAssignmentsByTruckIds(tx, truckIds),
@@ -669,17 +669,26 @@ export async function listDispatchFleet(input: ListDispatchFleetInput) {
         : [];
 
       return {
-        items: pageRows.map((row) => ({
-          id: row.id,
-          licensePlate: row.licensePlate,
-          trailerType: row.trailerType,
-          currentTrailerId: row.currentTrailerId,
-          currentTrailerPlate: row.currentTrailerId ? trailerById.get(row.currentTrailerId)?.licensePlate ?? null : null,
-          capacityKg: inferredVehicleCapacityKg(row.trailerType),
-          status: row.status,
-          assignedDriverId: assignedDriverByTruckId.get(row.id)?.id ?? null,
-          assignedDriverName: assignedDriverByTruckId.get(row.id)?.name ?? null,
-        })),
+        items: pageRows.map((row) => {
+          // Same precedence as the issue gate (trailer.type ?? truck.trailerType):
+          // the coupled trailer's live type wins — the denormalized column is
+          // unpopulated on this data, which starved the picker's compatibility
+          // warning and the capacity inference of any signal.
+          const trailerType = row.currentTrailerId != null
+            ? trailerById.get(row.currentTrailerId)?.type ?? row.trailerType
+            : row.trailerType;
+          return {
+            id: row.id,
+            licensePlate: row.licensePlate,
+            trailerType,
+            currentTrailerId: row.currentTrailerId,
+            currentTrailerPlate: row.currentTrailerId ? trailerById.get(row.currentTrailerId)?.licensePlate ?? null : null,
+            capacityKg: inferredVehicleCapacityKg(trailerType),
+            status: row.status,
+            assignedDriverId: assignedDriverByTruckId.get(row.id)?.id ?? null,
+            assignedDriverName: assignedDriverByTruckId.get(row.id)?.name ?? null,
+          };
+        }),
         suggestedItems,
         total: Number(truckTotals[0]?.value ?? 0),
         limit,
