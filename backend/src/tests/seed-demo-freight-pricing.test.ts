@@ -29,7 +29,7 @@ const EXPECTED_15T_FREIGHT: Record<string, number> = {
 };
 
 let customerId = 0;
-let routeIds: Record<string, number> = {};
+const routeIds: Record<string, number> = {};
 let fixtureClassCountBefore = 0;
 
 describe('seed-demo-freight-pricing (D4 demo chain convergence)', () => {
