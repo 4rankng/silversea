@@ -624,7 +624,7 @@ describe('dispatch detail plan rows', () => {
   test('delivery point facet endpoint lists distinct sites', async () => {
     const { site } = await createAllocatedLot({ carrierType: 'OWN' });
     const response = await apiFetch<{ items: Array<{ id: number; name: string }> }>(
-      '/dispatch-delivery-point-facets',
+      `/dispatch-delivery-point-facets?q=${suffix}`,
       { token: dispatcherToken },
     );
     assert.equal(response.status, 200);
@@ -644,15 +644,18 @@ describe('dispatch detail plan rows', () => {
     const dropoffId = row.ports.dropoffPortId;
     assert.ok(pickupId != null || dropoffId != null, 'fixture lot should reference ports');
 
+    // Facets cap at 100 rows ordered by name on the accumulated local DB, so
+    // the membership asserts below ride on a q-narrowed fetch (this run's
+    // ports are the only ones matching the run suffix).
     const pickup = await apiFetch<{ items: Array<{ id: number; name: string }> }>(
-      '/dispatch-pickup-port-facets',
+      `/dispatch-pickup-port-facets?q=${suffix}`,
       { token: dispatcherToken },
     );
     assert.equal(pickup.status, 200);
     if (pickupId != null) assert.ok(pickup.data.items.some((item) => item.id === pickupId));
 
     const dropoff = await apiFetch<{ items: Array<{ id: number; name: string }> }>(
-      '/dispatch-dropoff-port-facets',
+      `/dispatch-dropoff-port-facets?q=${suffix}`,
       { token: dispatcherToken },
     );
     assert.equal(dropoff.status, 200);
