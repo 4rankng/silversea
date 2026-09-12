@@ -477,6 +477,13 @@
       "when": 1789143979936,
       "tag": "0071_trucks_carrier_id",
       "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1789241007334,
+      "tag": "0072_renormalize_carrier_fleet_plates",
+      "breakpoints": true
     }
   ]
 }
