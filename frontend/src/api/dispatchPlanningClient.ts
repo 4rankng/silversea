@@ -11,6 +11,11 @@ export interface DispatchTruck {
   capacityKg: string | null;
   assignedDriverId: number | null;
   assignedDriverName: string | null;
+  /** Owning nhà xe when the truck is a subcontracted tractor linked on the
+   *  fleet page; null = xe nhà (own fleet). Only ACTIVE carrier links ride
+   *  the wire — a LOCKED carrier reads as unlinked. */
+  carrierId: number | null;
+  carrierName: string | null;
 }
 
 export interface DispatchDriver {
@@ -194,7 +199,10 @@ export interface DispatchDetailPlanRow {
   fulfillmentType: 'FCL_CONTAINER' | 'LCL_SHIPMENT';
   cargoMode: 'FCL' | 'LCL';
   taskStatus: 'READY' | 'DISPATCHED' | 'COMPLETED';
-  time: { deliveryDate: string | null; runHour: number | null };
+  /** Full run timestamp (appointment → closing → planned return) —
+   * minutes-preserving display + chronological sort. Optional for older
+   * fixtures; runHour stays for the issue-order dialog. */
+  time: { deliveryDate: string | null; runAt?: string | null; runHour: number | null };
   customerRoute: { customerName: string; factoryName: string | null; deliveryPoint: string | null; routeName?: string | null };
   docs: { billNumber: string | null; tradeDirection: 'IMPORT' | 'EXPORT' | null; declarationNumbers: string[] };
   container: { containerNumber: string | null; containerTypeLabel: string | null; cargoWeightKg: string | null };
@@ -202,6 +210,9 @@ export interface DispatchDetailPlanRow {
   dispatch: {
     /** Present once the dispatch order has created a live trip. */
     tripId?: number | null;
+    /** True once the trip's driver acknowledged the order (ORDER_RECEIVED
+     *  milestone) — locks reassignment. Optional for older fixtures. */
+    driverAccepted?: boolean;
     tripStatus?: string | null;
     /** Null on carrier-less planned rows — no carrier chosen yet (8afc13a9). */
     carrierType: 'OWN' | 'EXTERNAL' | null;

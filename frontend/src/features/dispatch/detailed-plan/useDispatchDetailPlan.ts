@@ -199,19 +199,20 @@ export function useDispatchDetailPlan() {
     setSortKey((current) => (current === key ? null : key));
   }, []);
 
-  // Client-side sort over the loaded page (spec: bundle trips by run hour or
-  // dropoff point).
+  // Client-side sort over the loaded page (spec: bundle trips by run time or
+  // dropoff point). Run-time order follows the full runAt timestamp — minutes
+  // decide within the hour; time-less rows last; runHour breaks pre-runAt ties.
   const sortedItems = sortKey == null
     ? items
     : [...items].sort((a, b) => {
       if (sortKey === 'runHour') {
-        const av = a.time.runHour ?? 99;
-        const bv = b.time.runHour ?? 99;
-        return av - bv;
+        const [av, bv] = [a.time.runAt ?? null, b.time.runAt ?? null];
+        return av != null && bv != null ? av.localeCompare(bv)
+          : av != null ? -1
+            : bv != null ? 1
+              : (a.time.runHour ?? 99) - (b.time.runHour ?? 99);
       }
-      const av = a.customerRoute.deliveryPoint ?? '';
-      const bv = b.customerRoute.deliveryPoint ?? '';
-      return av.localeCompare(bv, 'vi');
+      return (a.customerRoute.deliveryPoint ?? '').localeCompare(b.customerRoute.deliveryPoint ?? '', 'vi');
     });
 
   const assignPlate = useCallback(async (

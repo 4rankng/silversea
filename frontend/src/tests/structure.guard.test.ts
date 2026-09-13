@@ -53,7 +53,11 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // Reviewed as a contract change. 2026-09-12: the 450 decompose bump was
   // reverted by extracting the client to dispatchDetailBranch.ts (ticket
   // 2026.9 (1)._4 item 7) — ceiling restored to 430.
-  'src/api/dispatchPlanningClient.ts': 430,
+  // Bumped 430 → 441: 2026-09-14 appointment-minutes fix — detail-plan rows
+  // gain the runAt iso field (coalesced time source) so the grid can sort and
+  // render minutes off one timestamp. Reviewed as a contract change; a future
+  // split should restore a smaller ceiling.
+  'src/api/dispatchPlanningClient.ts': 441,
   // Bumped 400 (new-file) → 430: 2026-09-07 dropdown-flip sweep — the
   // multi-select picker gained selectionLabel + onSearchChange (aria names
   // and debounced server refetch) during the facet migration. Reviewed as a

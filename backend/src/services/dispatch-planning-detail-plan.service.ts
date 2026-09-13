@@ -96,6 +96,9 @@ export interface DispatchDetailPlanMutationResult {
     externalCarrierId: number | null;
     externalCarrierVehicleId: number | null;
     assignedPlate: string | null;
+    /** True once the trip's driver acknowledged (ORDER_RECEIVED) — locks
+     *  reassignment; always false for fulfillment-less rows. */
+    driverAccepted: boolean;
   };
   estimates: {
     plannedRevenue: string | null;
@@ -322,6 +325,10 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       dropoffPortId: s.shipmentContainers.dropoffPortId,
       tripId: s.trips.id,
       tripStatus: s.trips.status,
+      // Acceptance signal (ORDER_RECEIVED milestone) — lets the grid chip and
+      // the reassignment dialog show the lock before the driver edits.
+      driverAccepted: sql<boolean>`exists (select 1 from ${s.driverProgressEvents} dpe
+        where dpe.trip_id = ${s.trips.id} and dpe.event_type = 'ORDER_RECEIVED')`,
       activeTripPairId: s.trips.activeTripPairId,
       pairKind: s.tripPairs.pairKind,
       pairStatus: s.tripPairs.status,
@@ -430,6 +437,11 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
             : 'READY',
           time: {
             deliveryDate: row.transportDate,
+            // Full run timestamp (appointment → closing → planned return —
+            // same precedence as the hour below) so the grid can
+            // render minutes and sort chronologically. The hour-int runHour
+            // stays on the wire for the issue-order dialog and older readers.
+            runAt: (row.customerAppointmentAt ?? row.closingAt ?? row.plannedReturnAt)?.toISOString() ?? null,
             runHour: dispatchDetailDisplayHour(row.customerAppointmentAt, row.closingAt ?? row.plannedReturnAt),
           },
           customerRoute: {
@@ -455,6 +467,7 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
           dispatch: {
             tripId: row.tripId,
             tripStatus: row.tripStatus,
+            driverAccepted: row.tripId != null && row.driverAccepted === true,
             carrierType: row.plannedCarrierType,
             carrierName: row.plannedCarrierType === 'OWN'
               ? INTERNAL_FLEET_CARRIER_NAME
@@ -1198,6 +1211,9 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
       externalCarrierId: plannedExternalCarrierId,
       externalCarrierVehicleId: vehicle?.plannedExternalCarrierVehicleId ?? updatedFulfillment.plannedExternalCarrierVehicleId,
       assignedPlate: vehicle?.plannedVehiclePlateNumber ?? updatedFulfillment.plannedVehiclePlateNumber,
+      // Plan saves only reach rows without a live trip (the per-row live-trip
+      // guard keeps issued rows un-editable), so no acceptance can exist.
+      driverAccepted: false,
     },
     estimates: {
       plannedRevenue: updatedFulfillment.plannedRevenue,

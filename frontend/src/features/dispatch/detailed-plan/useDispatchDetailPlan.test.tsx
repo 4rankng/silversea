@@ -533,3 +533,35 @@ describe('useDispatchDetailPlan background refresh vs loading skeleton', () => {
     expect(result.current.assignmentError).toContain('không thể tạo tác vụ');
   });
 });
+
+// QA-001 (appointment minutes): run-time sorting orders by the full runAt
+// timestamp — minutes decide within the same hour (the hour-int sort could
+// not distinguish 20:30 from 20:45) — and rows with no time source sort
+// last, matching the ?? 99 behaviour it replaces.
+describe('useDispatchDetailPlan run-time sorting (QA-001)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getDispatchZonesMock.mockResolvedValue({ items: [] });
+    listZoneTruckPresenceMock.mockResolvedValue({
+      date: '2026-09-11',
+      zone: 'LACH_HUYEN',
+      zoneLabel: 'Lạch Huyện',
+      items: [],
+    });
+  });
+
+  it('orders same-hour rows by minutes from runAt and keeps time-less rows last', async () => {
+    // Deliberately same-hour: 20:45 first, then a no-time row, then 20:30 —
+    // the hour-int sort would leave this order untouched (all "hour 20").
+    const late = row({ fulfillmentId: 201, time: { deliveryDate: '2026-09-11', runAt: '2026-09-11T13:45:00.000Z', runHour: 20 } });
+    const noTime = row({ fulfillmentId: 203, time: { deliveryDate: '2026-09-11', runHour: null } });
+    const early = row({ fulfillmentId: 202, time: { deliveryDate: '2026-09-11', runAt: '2026-09-11T13:30:00.000Z', runHour: 20 } });
+    listDispatchDetailPlanRowsMock.mockResolvedValue(page([late, noTime, early]));
+
+    const { result } = renderHook(() => useDispatchDetailPlan());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    act(() => result.current.toggleSort('runHour'));
+    expect(result.current.items.map((item) => item.fulfillmentId)).toEqual([202, 201, 203]);
+  });
+});

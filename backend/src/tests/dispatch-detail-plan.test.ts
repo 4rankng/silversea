@@ -10,7 +10,7 @@ import { and, eq, inArray , isNull } from 'drizzle-orm';
 import { db, client } from '../db';
 import * as s from '../db/schema';
 import { insertTripComposite } from '../services/trip-composite.service';
-import { Role , calculateCheckDigit } from '@tingting/shared';
+import { Role , calculateCheckDigit, DriverProgressEventType } from '@tingting/shared';
 import { config } from '../config';
 import { initEnforcer } from '../casbin/enforcer';
 import { initAuditService } from '../services/audit.service';
@@ -241,7 +241,17 @@ type DetailPlanRow = {
   isCombined: boolean;
   cargoMode: 'FCL' | 'LCL';
   taskStatus: 'READY' | 'DISPATCHED' | 'COMPLETED';
-  time: { deliveryDate: string | null; runHour: number | null };
+  time: { deliveryDate: string | null; runAt: string | null; runHour: number | null };
+  dispatch: {
+    carrierType: 'OWN' | 'EXTERNAL' | null;
+    carrierName: string | null;
+    externalCarrierId: number | null;
+    externalCarrierVehicleId: number | null;
+    assignedPlate: string | null;
+    tripId?: number;
+    tripStatus?: string;
+    driverAccepted?: boolean;
+  };
   customerRoute: { customerName: string; factoryName: string | null; deliveryPoint: string | null };
   docs: { billNumber: string | null; tradeDirection: string | null; declarationNumbers: string[] };
   container: { containerNumber: string | null; containerTypeLabel: string | null; cargoWeightKg: string | null };
@@ -427,6 +437,9 @@ describe('dispatch detail plan rows', () => {
     assert.equal(row.isCombined, true);
     assert.equal(row.taskStatus, 'READY');
     assert.equal(row.time.runHour, 15);
+    // QA-001: the full timestamp rides the wire beside the hour int so the
+    // grid can render minutes (08:00Z = 15:00 +07 on the default fixture).
+    assert.equal(row.time.runAt, '2026-08-20T08:00:00.000Z');
     assert.equal(row.customerRoute.customerName, shipment.customerId != null ? row.customerRoute.customerName : null);
     assert.ok(row.customerRoute.factoryName);
     assert.ok(row.customerRoute.deliveryPoint);
@@ -435,6 +448,37 @@ describe('dispatch detail plan rows', () => {
     assert.equal(row.dispatch.carrierName, 'SilverSea');
     assert.equal(row.dispatch.assignedPlate, null);
     assert.equal(row.lotFullyPlated, false);
+  });
+
+  test('QA-001: runAt keeps appointment minutes and nulls out with no time source', async () => {
+    const { shipment, fulfillmentIds } = await createAllocatedLot({ carrierType: 'OWN', containerCount: 1, isCombined: false });
+    const [container] = await db.select({ id: s.shipmentContainers.id }).from(s.shipmentContainers)
+      .where(eq(s.shipmentContainers.shipmentId, shipment.id))
+      .orderBy(s.shipmentContainers.id);
+
+    // 13:45Z = 20:45 +07 — minutes must survive the wire (MNBU0000283 class).
+    await db.update(s.shipmentContainers)
+      .set({ customerAppointmentAt: new Date('2026-08-20T13:45:00.000Z') })
+      .where(eq(s.shipmentContainers.id, container!.id));
+    let response = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}`);
+    assert.equal(response.status, 200, JSON.stringify(response.data));
+    const row = response.data.items.find((item) => item.fulfillmentId === fulfillmentIds[0])!;
+    assert.equal(row.time.runAt, '2026-08-20T13:45:00.000Z');
+    assert.equal(row.time.runHour, 20);
+
+    // No appointment, closing, or planned return → explicit nulls, never a
+    // fabricated time.
+    await db.update(s.shipmentContainers)
+      .set({ customerAppointmentAt: null })
+      .where(eq(s.shipmentContainers.id, container!.id));
+    await db.update(s.shipments)
+      .set({ closingAt: null, plannedReturnAt: null })
+      .where(eq(s.shipments.id, shipment.id));
+    response = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}`);
+    assert.equal(response.status, 200, JSON.stringify(response.data));
+    const nullRow = response.data.items.find((item) => item.fulfillmentId === fulfillmentIds[0])!;
+    assert.equal(nullRow.time.runAt, null);
+    assert.equal(nullRow.time.runHour, null);
   });
 
   test('shows carrier-less containers of the day and lets dispatch allocate them here', async () => {
@@ -2968,4 +3012,126 @@ describe('planning remaining containers after partial dispatch', () => {
     assert.equal(missing.status, 404, 'missing shipment is a clean 404, not a 500');
   });
 
+});
+
+describe('dispatch fleet carrier-link resolution (plate → carrier)', () => {
+  test('truck fleet-page link resolves for punctuated and normalized plates; unlinked and locked stay null', async () => {
+    const carrier = await createCustomer('Fleet link carrier', true);
+    const plate = `15E-${String(100 + createdTruckIds.length)}.26`;
+    const [truck] = await db.insert(s.trucks).values({
+      licensePlate: plate,
+      status: 'ACTIVE',
+      carrierId: carrier.id,
+    }).returning();
+    createdTruckIds.push(truck.id);
+
+    const punctuated = await apiFetch<{ carrierId: number | null; carrierName: string | null }>(
+      `/carrier-fleet-vehicles/resolve-carrier?plate=${encodeURIComponent(plate)}`,
+      { token: dispatcherToken },
+    );
+    assert.equal(punctuated.data.carrierId, carrier.id);
+    assert.equal(punctuated.data.carrierName, 'Fleet link carrier');
+
+    // The normalized form (no separators) resolves the SAME link.
+    const normalized = await apiFetch<{ carrierId: number | null }>(
+      `/carrier-fleet-vehicles/resolve-carrier?plate=${encodeURIComponent(plate.replace(/[^A-Za-z0-9]/g, ''))}`,
+      { token: dispatcherToken },
+    );
+    assert.equal(normalized.data.carrierId, carrier.id);
+
+    // Unknown plate → nulls; the dispatcher picks the carrier deliberately.
+    const unknown = await apiFetch<{ carrierId: number | null }>(
+      '/carrier-fleet-vehicles/resolve-carrier?plate=99B-000.99',
+      { token: dispatcherToken },
+    );
+    assert.equal(unknown.data.carrierId, null);
+
+    // A LOCKED carrier's link reads as unlinked — never auto-fill an entity
+    // the dispatch write would 409 on.
+    await db.update(s.customers).set({ status: 'LOCKED' }).where(eq(s.customers.id, carrier.id));
+    const locked = await apiFetch<{ carrierId: number | null }>(
+      `/carrier-fleet-vehicles/resolve-carrier?plate=${encodeURIComponent(plate)}`,
+      { token: dispatcherToken },
+    );
+    assert.equal(locked.data.carrierId, null);
+  });
+
+  test('TRUCK fleet search matches normalized plates and carries the carrier link', async () => {
+    const carrier = await createCustomer('Fleet search carrier', true);
+    const plate = `30D-${String(200 + createdTruckIds.length)}.77`;
+    const [truck] = await db.insert(s.trucks).values({
+      licensePlate: plate,
+      status: 'ACTIVE',
+      carrierId: carrier.id,
+    }).returning();
+    createdTruckIds.push(truck.id);
+
+    const response = await apiFetch<{ items: Array<{ id: number; licensePlate: string; carrierId: number | null; carrierName: string | null }> }>(
+      `/dispatch-fleet?resource=TRUCK&q=${encodeURIComponent(plate.replace(/[^A-Za-z0-9]/g, ''))}`,
+      { token: dispatcherToken },
+    );
+    const found = response.data.items.find((item) => item.id === truck.id);
+    assert.ok(found, 'normalized q finds the punctuated truck');
+    assert.equal(found!.carrierId, carrier.id);
+    assert.equal(found!.carrierName, 'Fleet search carrier');
+  });
+});
+
+describe('driver acceptance on the detail-plan row wire', () => {
+  /** Plate + issue the lot's first container so a live trip exists. */
+  async function issueFirstContainer(lot: { shipment: { id: number }; fulfillmentIds: number[] }) {
+    const { truck, driver } = await createOwnedTruckWithDriver();
+    const [first] = await db.select().from(s.shipmentFulfillments)
+      .where(eq(s.shipmentFulfillments.id, lot.fulfillmentIds[0]!));
+    const plated = await apiFetch<{ version: number }>(`/dispatch-detail-plan-rows/${lot.fulfillmentIds[0]}/plate`, {
+      method: 'PATCH',
+      token: dispatcherToken,
+      body: { expectedVersion: first.version, truckId: truck.id },
+    });
+    assert.equal(plated.status, 200, JSON.stringify(plated.data));
+    const issued = await apiFetch<{ trip: { id: number } }>(`/${lot.shipment.id}/dispatch`, {
+      method: 'POST',
+      token: dispatcherToken,
+      body: {
+        fulfillmentId: lot.fulfillmentIds[0],
+        expectedVersion: plated.data.version,
+        plannedStartAt: '2026-08-20T08:00:00+07:00',
+        plannedEndAt: '2026-08-20T12:00:00+07:00',
+        endTimeConfirmed: true,
+        carrierType: 'OWN',
+        truckId: truck.id,
+        driverId: driver.id,
+      },
+    });
+    assert.equal(issued.status, 201, JSON.stringify(issued.data));
+    createdTripIds.push(issued.data.trip.id);
+    return { driver, tripId: issued.data.trip.id };
+  }
+
+  test('issued rows surface driverAccepted only once the ORDER_RECEIVED milestone exists', async () => {
+    const acceptedLot = await createAllocatedLot({ carrierType: 'OWN', containerCount: 1 });
+    const plainLot = await createAllocatedLot({ carrierType: 'OWN', containerCount: 1 });
+    const accepted = await issueFirstContainer(acceptedLot);
+    await issueFirstContainer(plainLot);
+
+    const [event] = await db.insert(s.driverProgressEvents).values({
+      tripId: accepted.tripId,
+      driverId: accepted.driver.id,
+      eventType: DriverProgressEventType.ORDER_RECEIVED,
+      occurredAt: new Date(),
+    }).returning();
+
+    try {
+      const acceptedRows = await fetchRows(dispatcherToken, `?q=${acceptedLot.shipment.shipmentCode}`);
+      const acceptedRow = acceptedRows.data.items.find((item) => item.fulfillmentId === acceptedLot.fulfillmentIds[0])!;
+      assert.equal(acceptedRow.taskStatus, 'DISPATCHED');
+      assert.equal(acceptedRow.dispatch.driverAccepted, true);
+
+      const plainRows = await fetchRows(dispatcherToken, `?q=${plainLot.shipment.shipmentCode}`);
+      const plainRow = plainRows.data.items.find((item) => item.fulfillmentId === plainLot.fulfillmentIds[0])!;
+      assert.equal(plainRow.dispatch.driverAccepted, false);
+    } finally {
+      await db.delete(s.driverProgressEvents).where(eq(s.driverProgressEvents.id, event.id));
+    }
+  });
 });

@@ -556,3 +556,28 @@ describe('DetailedPlanGrid', () => {
     expect(within(notesCell).queryByRole('button', { name: /Phát lệnh|Hoàn thành/ })).toBeNull();
   });
 });
+
+// QA-001 (appointment minutes): the schedule cell renders the full +07
+// "HH:mm dd/mm/yyyy" from time.runAt — same formatter as the overview grid
+// (formatAppointmentGroupLine) — with the hour-int fallback for older rows
+// and an explicit em-dash when no time source exists. Own describe block so
+// the QA-010 carrier-status lane can add coverage here without collisions.
+describe('DetailedPlanGrid — QA-001 appointment minutes', () => {
+  it('renders Giờ with minutes and date from runAt (20:45 11/09/2026)', () => {
+    renderGrid([row({ time: { deliveryDate: '2026-09-11', runAt: '2026-09-11T13:45:00.000Z', runHour: 20 } })]);
+
+    expect(screen.getByText('Giờ: 20:45 11/09/2026')).toBeTruthy();
+  });
+
+  it('falls back to the hour-int render for rows without runAt', () => {
+    renderGrid([row({ time: { deliveryDate: '2026-09-11', runHour: 20 } })]);
+
+    expect(screen.getByText('Giờ: 20H')).toBeTruthy();
+  });
+
+  it('renders Giờ: — when the row carries no time source at all', () => {
+    renderGrid([row({ time: { deliveryDate: '2026-09-11', runHour: null } })]);
+
+    expect(screen.getByText('Giờ: —')).toBeTruthy();
+  });
+});

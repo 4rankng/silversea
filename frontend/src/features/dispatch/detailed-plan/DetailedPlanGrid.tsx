@@ -14,6 +14,7 @@ import {
 } from './DispatchPlanEditorCell';
 import { QuickIssueOrderDialog } from './QuickIssueOrderDialog';
 import { deriveDispatchIssueStatus } from '../components/DispatchIssueStatus';
+import { formatAppointmentGroupLine } from '../../shipments/cus/cusUtils';
 import type { DispatchShipmentRequest } from '../../../api/shipmentClient';
 import { DetailedPlanFilters } from './DetailedPlanFilters';
 import { ZoneTruckPresencePanel } from './ZoneTruckPresencePanel';
@@ -211,7 +212,12 @@ export function DetailedPlanGrid({
                       {row.docs.tradeDirection === 'IMPORT' ? 'Nhận:' : 'Giao:'} {formatISODate(row.time.deliveryDate)}
                     </div>
                     <div className="detailed-plan-grid__line detailed-plan-grid__line--muted">
-                      Giờ: {row.time.runHour != null ? `${row.time.runHour}H` : '—'}
+                      {/* Full "HH:mm d/m/yyyy" (+07) from the appointment
+                          timestamp — same formatter as the overview grid; the
+                          hour-int fallback covers older rows without runAt. */}
+                      Giờ: {row.time.runAt
+                        ? formatAppointmentGroupLine(row.time.runAt)
+                        : row.time.runHour != null ? `${row.time.runHour}H` : '—'}
                     </div>
                   </td>
                   <td className="detailed-plan-grid__cell detailed-plan-grid__cell--route" data-label="Khách hàng & lộ trình">
