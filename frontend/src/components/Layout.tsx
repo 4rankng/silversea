@@ -766,7 +766,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
       {/* Mobile User Menu Sheet for Drivers — Vantai Design System */}
       {isDriver && userMenuOpen && (
-        <div className="mobile-user-sheet-overlay" onClick={closeUserMenu}>
+        // data-dropdown-root tells useDropdownDismiss this sheet is an open
+        // menu: without the marker the dismiss layer closes it mid-press, the
+        // button unmounts before mouseup, and no click/logout fires on touch.
+        <div className="mobile-user-sheet-overlay" data-dropdown-root="" onClick={closeUserMenu}>
           <div className="mobile-user-sheet" onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
             {/* Drag handle */}
             <div className="mobile-user-sheet-handle" />
