@@ -246,4 +246,36 @@ describe('ShipmentDetailPage', () => {
     expect(screen.getByText('Chưa phân nhà xe')).toBeTruthy();
     expect(screen.queryByText('Nhà xe đã gán')).toBeNull();
   });
+
+  it('keeps the assigned rendering for an LCL fulfillment with no container row', async () => {
+    getShipmentDetailMock.mockResolvedValue({
+      ...detail,
+      containers: [],
+      carrierAssignments: [{
+        fulfillmentId: 51,
+        fulfillmentVersion: 1,
+        shipmentContainerId: null,
+        containerTypeCode: null,
+        containerTypeName: null,
+        carrierType: 'OWN',
+        externalCarrierId: null,
+        externalCarrierName: null,
+      }],
+    });
+    render(
+      <MemoryRouter initialEntries={['/shipments/1']}>
+        <Routes>
+          <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    // An LCL assignment has no container to resolve (the backend left join
+    // returns null container fields for it) — it is still a real carrier
+    // assignment, so the section must not fall back to the unassigned
+    // wording and the OWN fleet chip must render.
+    expect((await screen.findAllByText('Nhà xe đã gán')).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Đội xe nội bộ SilverSea').length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText('Chưa phân nhà xe')).toBeNull();
+  });
 });
