@@ -8,6 +8,7 @@ import type {
 import {
   ShipmentContainerLedger,
   type ShipmentDetailEditMode,
+  type ShipmentScheduleDraft,
 } from './ShipmentContainerLedger';
 
 // Minimal row/line/detail fixtures — the ledger only reads a per-mode subset,
@@ -327,6 +328,65 @@ describe('ShipmentContainerLedger missing-fields summary', () => {
     expect(onStartEdit).toHaveBeenCalledWith(row, 'container', expect.stringContaining('shipment-detail-missing-CONTAINER_NUMBER-'));
     fireEvent.click(screen.getByRole('button', { name: 'Biển số xe' }));
     expect(onStartEdit).toHaveBeenLastCalledWith(row, 'vehicle', expect.stringContaining('shipment-detail-missing-BKS-'));
+    view.unmount();
+  });
+});
+
+describe('schedule editor lot transport date (non-FCL affordance)', () => {
+  function renderScheduleEditor(cargoMode: 'FCL' | 'LCL') {
+    const row = baseRow({ shipmentScheduleEditable: true });
+    const onSaveSchedule = vi.fn(async (
+      _line: ShipmentCusWorkspaceContainerLine,
+      _row: ShipmentCusContainerFlatRow,
+      _draft: ShipmentScheduleDraft,
+    ) => {});
+    const detail = { ...baseDetail(), summary: { ...baseDetail().summary, cargoMode } };
+    const view = render(
+      <ShipmentContainerLedger
+        rows={[row]}
+        totalContainers={1}
+        today="2026-09-10"
+        sort={null}
+        onSortChange={vi.fn()}
+        activeEdit={{ row, detail, line: baseLine(), mode: 'schedule' }}
+        editLoadingRowId={null}
+        editError={null}
+        onStartEdit={vi.fn()}
+        onCancelEdit={vi.fn()}
+        onSaveRoute={vi.fn(async () => {})}
+        onSaveVehicle={vi.fn(async () => {})}
+        onSaveSchedule={onSaveSchedule}
+        onSaveNotes={vi.fn(async () => {})}
+        onSaveIdentity={vi.fn(async () => {})}
+        onSaveDocuments={vi.fn(async () => {})}
+        onSaveContainer={vi.fn(async () => {})}
+      />,
+    );
+    return { view, onSaveSchedule };
+  }
+
+  it('LCL rows expose the lot transport date and save it in the schedule draft', () => {
+    const { view, onSaveSchedule } = renderScheduleEditor('LCL');
+
+    expect(screen.getByText('Ngày vận chuyển')).toBeTruthy();
+    const dateInputs = document.querySelectorAll('input[type="date"]');
+    expect(dateInputs).toHaveLength(2);
+    fireEvent.change(dateInputs[1], { target: { value: '2026-09-20' } });
+    fireEvent.click(screen.getByRole('button', { name: /^Lưu lịch trình/ }));
+    expect(onSaveSchedule).toHaveBeenCalledTimes(1);
+    const [, , draft] = onSaveSchedule.mock.calls[0];
+    // Only the lot date moved — the appointment draft stays untouched (the
+    // fixture's 08:00Z appointment reads 15:00 on the VN-pinned wall clock).
+    expect(draft.transportDate).toBe('2026-09-20');
+    expect(draft.customerAppointmentAt).toBe('2026-09-10T15:00');
+    view.unmount();
+  });
+
+  it('FCL rows keep the schedule editor appointment-only', () => {
+    const { view } = renderScheduleEditor('FCL');
+
+    expect(screen.queryByText('Ngày vận chuyển')).toBeNull();
+    expect(document.querySelectorAll('input[type="date"]')).toHaveLength(1);
     view.unmount();
   });
 });

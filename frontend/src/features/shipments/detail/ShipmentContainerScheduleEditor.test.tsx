@@ -70,4 +70,42 @@ describe('ScheduleEditorBody', () => {
     expect(props.onScheduleTimeChange).toHaveBeenCalledWith('13:30');
     expect(props.onAppointmentDateChange).toHaveBeenCalledWith(expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/));
   });
+
+  it('offers the lot transport date on non-FCL rows and reports complete-date changes', () => {
+    const onTransportDateChange = vi.fn();
+    const props = baseProps({
+      cargoMode: 'LCL',
+      transportDate: '2026-09-14',
+      canEditTransport: true,
+      onTransportDateChange,
+    });
+    const { container } = render(<ScheduleEditorBody {...props} />);
+
+    // Appointment date + the lot transport date — the transport input is the
+    // second date field, under its own section.
+    const dateInputs = Array.from(container.querySelectorAll('input[type="date"]'));
+    expect(dateInputs).toHaveLength(2);
+    const transport = dateInputs[1];
+    expect((transport as HTMLInputElement).value).toBe('2026-09-14');
+    expect(screen.getByText('Ngày vận chuyển')).toBeTruthy();
+    fireEvent.change(transport, { target: { value: '2026-09-20' } });
+    expect(onTransportDateChange).toHaveBeenCalledWith('2026-09-20');
+  });
+
+  it('renders no lot transport date on FCL rows — it derives from the appointments', () => {
+    const props = baseProps({ cargoMode: 'FCL' });
+    const { container } = render(<ScheduleEditorBody {...props} />);
+
+    expect(container.querySelectorAll('input[type="date"]')).toHaveLength(1);
+    expect(screen.queryByText('Ngày vận chuyển')).toBeNull();
+  });
+
+  it('disables the lot transport date while saving or when the shipment schedule is read-only', () => {
+    const props = baseProps({ cargoMode: 'LCL', canEditTransport: false });
+    const { container, rerender } = render(<ScheduleEditorBody {...props} />);
+    expect((container.querySelectorAll('input[type="date"]')[1] as HTMLInputElement).disabled).toBe(true);
+
+    rerender(<ScheduleEditorBody {...baseProps({ cargoMode: 'LCL', canEditTransport: true, saving: true })} />);
+    expect((container.querySelectorAll('input[type="date"]')[1] as HTMLInputElement).disabled).toBe(true);
+  });
 });

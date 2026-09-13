@@ -38,6 +38,16 @@ export interface ScheduleEditorBodyProps {
   onAppointmentDateChange: (value: string) => void;
   onScheduleTimeChange: (value: string) => void;
   onClose: () => void;
+  /** Lot cargo mode — non-FCL rows additionally carry the lot-level
+   *  transport date (shipments.expectedDeliveryDate), which no appointment
+   *  field can set (FCL derives its transport date from the container
+   *  appointments, so FCL rows offer only the appointment fields). */
+  cargoMode?: 'FCL' | 'LCL' | null;
+  /** Current lot transport date (yyyy-mm-dd) — empty when unset. */
+  transportDate?: string;
+  /** Mirrors row.shipmentScheduleEditable — the lot-level schedule gate. */
+  canEditTransport?: boolean;
+  onTransportDateChange?: (value: string) => void;
 }
 
 /**
@@ -48,6 +58,7 @@ export interface ScheduleEditorBodyProps {
 export function ScheduleEditorBody({
   row, appointmentDate, scheduleTime, saving, canEdit,
   onAppointmentDateChange, onScheduleTimeChange, onClose,
+  cargoMode, transportDate = '', canEditTransport = false, onTransportDateChange,
 }: ScheduleEditorBodyProps) {
   return (
     <>
@@ -90,6 +101,23 @@ export function ScheduleEditorBody({
         <label><span>{row.direction === 'IMPORT' ? 'Giờ trả hàng' : 'Giờ đóng hàng'}</span><input type="time" lang="en-GB" value={scheduleTime} onChange={(event) => onScheduleTimeChange(event.target.value)} disabled={saving || !canEdit} /></label>
         <label><span>{row.direction === 'IMPORT' ? 'Ngày trả hàng' : 'Ngày đóng hàng'}</span><DateInput lang="en-GB" value={appointmentDate} onChange={onAppointmentDateChange} disabled={saving || !canEdit} /></label>
       </div>
+      {cargoMode != null && cargoMode !== 'FCL' && (
+        <>
+          <div className="shipment-container-ledger__schedule-section">Ngày vận chuyển toàn lô</div>
+          <div className="shipment-container-ledger__editor-grid">
+            <label>
+              <span>Ngày vận chuyển</span>
+              <DateInput
+                lang="en-GB"
+                value={transportDate}
+                onChange={(value) => onTransportDateChange?.(value)}
+                disabled={saving || !canEditTransport}
+              />
+            </label>
+          </div>
+          <small>Ngày vận chuyển áp dụng cho cả lô hàng; lịch hẹn ở trên thuộc riêng container này.</small>
+        </>
+      )}
       <div className="shipment-container-ledger__schedule-section">
         <Clock size={11} aria-hidden="true" />
         Khung giờ phổ biến

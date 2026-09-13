@@ -174,6 +174,10 @@ function InlineEditor({
   const appointmentInput = formatVietnamDateTimeInput(row.customerAppointmentAt);
   const [appointmentDate, setAppointmentDate] = useState(appointmentInput?.slice(0, 10) ?? '');
   const [scheduleTime, setScheduleTime] = useState(formatScheduleTime(row) ?? '');
+  // Non-FCL transport date (shipments.expectedDeliveryDate) — the lot-level
+  // schedule field the schedule editor also owns; FCL never edits it (its
+  // transport date derives from the container appointments).
+  const [transportDate, setTransportDate] = useState(row.transportDate ?? '');
   const [customerNotes, setCustomerNotes] = useState(row.customerNotes ?? '');
   const [operationalNotes, setOperationalNotes] = useState(row.operationalNotes ?? '');
   const [factoryName, setFactoryName] = useState(detail.summary.raw.factoryName ?? '');
@@ -240,7 +244,7 @@ function InlineEditor({
     : mode === 'vehicle'
       ? carrierId !== initialCarrier || plateNumber.trim() !== (line.plateNumber ?? '') || newCarrierName.trim() !== ''
     : mode === 'schedule'
-        ? appointmentScheduleDirty
+        ? appointmentScheduleDirty || transportDate !== (row.transportDate ?? '')
         : customerNotes.trim() !== (row.customerNotes ?? '').trim()
           || operationalNotes.trim() !== (row.operationalNotes ?? '').trim();
   const modeLabel = mode === 'identity' ? 'khách hàng và lộ trình'
@@ -314,7 +318,7 @@ function InlineEditor({
         if (scheduleTime && !appointmentDate) throw new Error('Chọn ngày đóng/trả trước khi nhập giờ.');
         if (appointmentDate && !scheduleTime) throw new Error('Vui lòng nhập đầy đủ cả Ngày và Giờ giao hàng.');
         await onSaveSchedule(line, row, {
-          transportDate: row.transportDate,
+          transportDate: transportDate || null,
           customerAppointmentAt: appointmentDate ? `${appointmentDate}T${scheduleTime || '12:00'}` : null,
         });
       } else {
@@ -363,6 +367,10 @@ function InlineEditor({
           onAppointmentDateChange={setAppointmentDate}
           onScheduleTimeChange={setScheduleTime}
           onClose={onCancel}
+          cargoMode={detail.summary.cargoMode}
+          transportDate={transportDate}
+          canEditTransport={row.shipmentScheduleEditable}
+          onTransportDateChange={setTransportDate}
         />
       ) : (
         <div className="shipment-container-ledger__editor-heading">

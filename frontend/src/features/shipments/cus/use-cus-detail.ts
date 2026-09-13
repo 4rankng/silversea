@@ -302,7 +302,10 @@ export function useCusDetail(params: CusDetailListParams) {
     // editable scheduling authority is customerAppointmentAt on this line.
     const transportChanged = activeEdit.detail.summary.cargoMode !== 'FCL'
       && draft.transportDate !== row.transportDate;
-    const appointmentChanged = draft.customerAppointmentAt !== currentAppointmentInput;
+    // Normalize empty-vs-null: an appointment-less row drafts null while the
+    // formatter reads '' — without this, the both-changed guard below fires
+    // on every transport-only save for appointment-less rows.
+    const appointmentChanged = (draft.customerAppointmentAt || null) !== (currentAppointmentInput || null);
     if (transportChanged && appointmentChanged) {
       throw new Error('Ngày vận chuyển và lịch hẹn được lưu độc lập. Hãy lưu từng nhóm một.');
     }
