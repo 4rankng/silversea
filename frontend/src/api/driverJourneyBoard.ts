@@ -41,6 +41,9 @@ export interface DriverJourneyCard {
   loadingPortName: string | null;
   routeName: string | null;
   dropPortName: string | null;
+  /** Stage-2 empty-container return depot — distinct from the delivery point;
+   *  null when the dropoff port names the same place (delivery-stage.ts). */
+  returnDepotName: string | null;
   containerNumber: string | null;
   containerTypeName: string | null;
   sealNumber: string | null;

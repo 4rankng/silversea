@@ -46,6 +46,7 @@ function card(overrides: Partial<DriverJourneyCard> = {}): DriverJourneyCard {
     loadingPortName: 'Cát Lái',
     routeName: 'Cát Lái → Bình Dương',
     dropPortName: 'Sóng Thần',
+    returnDepotName: null,
     containerNumber: 'MSCU1234561',
     containerTypeName: "40'HC",
     sealNumber: 'SL001',
@@ -75,6 +76,21 @@ describe('DriverTripsPage', () => {
     navigateMock.mockReset();
   });
 
+  it('renders the card time VN-pinned — a 17:30Z trip reads 00:30 on the NEXT day', async () => {
+    useDriverJourneyBoardMock.mockReturnValue(board([card({ scheduledAt: '2026-09-06T17:30:00.000Z' })]));
+    renderPage();
+
+    expect(await screen.findByText('00:30 - 07/09')).toBeTruthy();
+  });
+
+  it('renders the Trả rỗng port line when the card carries a distinct return depot', async () => {
+    useDriverJourneyBoardMock.mockReturnValue(board([card({ returnDepotName: 'Bãi JJ LOGISTICS' })]));
+    renderPage();
+
+    const depotLine = await screen.findByText(/Bãi JJ LOGISTICS/);
+    expect(depotLine.textContent).toContain('Trả rỗng');
+  });
+
   it('shows the New Orders tab by default with tab counts', async () => {
     useDriverJourneyBoardMock.mockReturnValue(board([card({ fulfillmentId: 1, bucket: 'NEW' }), card({ fulfillmentId: 2, bucket: 'RUNNING' }), card({ fulfillmentId: 3, bucket: 'HISTORY' })]));
     renderPage();
@@ -87,9 +103,10 @@ describe('DriverTripsPage', () => {
     useDriverJourneyBoardMock.mockReturnValue(board([card()]));
     renderPage();
 
-    const scheduled = new Date('2026-08-01T07:30:00.000Z');
-    const expectedTime = `${String(scheduled.getHours()).padStart(2, '0')}:${String(scheduled.getMinutes()).padStart(2, '0')}`
-      + ` - ${String(scheduled.getDate()).padStart(2, '0')}/${String(scheduled.getMonth() + 1).padStart(2, '0')}`;
+    // Card time is pinned to Vietnam wall-clock (Asia/Ho_Chi_Minh) — the
+    // assertion is a fixed string, NOT device-local, so a runner in any
+    // timezone proves the pin: 07:30Z = 14:30 VN on 01/08.
+    const expectedTime = '14:30 - 01/08';
 
     expect(await screen.findByText('ĐƠN')).toBeTruthy();
     expect(screen.getByText('Giờ đóng / trả:')).toBeTruthy();
@@ -252,10 +269,11 @@ describe('DriverTripsPage', () => {
   });
 
   // The pill also surfaces on the Đã nhận tab (same card component) — and
-  // stands alone without a cont.
+  // stands alone without a cont (number, seal AND type all unknown, else the
+  // known type would keep the strip rendered).
   it('shows the TRẢ pill on an accepted cont-less card', async () => {
     useDriverJourneyBoardMock.mockReturnValue(board([
-      card({ fulfillmentId: 7, bucket: 'RUNNING', tradeDirection: 'IMPORT', containerNumber: null, sealNumber: null }),
+      card({ fulfillmentId: 7, bucket: 'RUNNING', tradeDirection: 'IMPORT', containerNumber: null, sealNumber: null, containerTypeName: null }),
     ]));
     renderPage();
 
@@ -264,9 +282,42 @@ describe('DriverTripsPage', () => {
     expect(screen.getAllByTestId('load-type')).toHaveLength(1);
   });
 
-  // Criteria 1+2: the factory abbreviation is a bold standalone header and the
-  // route a standalone line right under it — no inline "NHÀ MÁY:"/"TUYẾN:"
-  // label prefixes.
+  // Unassigned number with a known type: the strip still renders — the type
+  // carries the container identity and the concise pending label holds the
+  // number slot until dispatch saves one.
+  it('renders the container type with "Chưa có số cont" while the number is unassigned', async () => {
+    useDriverJourneyBoardMock.mockReturnValue(board([
+      card({ containerNumber: null, sealNumber: null, containerTypeName: "40'HC", tradeDirection: 'EXPORT' }),
+    ]));
+    renderPage();
+
+    expect(await screen.findByText('Chưa có số cont')).toBeTruthy();
+    expect(screen.getByText("40'HC")).toBeTruthy();
+    expect(screen.queryByText(/MSCU1234561/)).toBeNull();
+    // The pill rides the strip as its 3rd column while the number is pending.
+    expect(screen.getAllByTestId('load-type')).toHaveLength(1);
+    expect(screen.getByTestId('load-type').textContent).toBe('ĐÓNG');
+  });
+
+  // Honest empty state: number AND type unknown → no identifier strip at
+  // all — a pending label alone would promise a type that doesn't exist.
+  it('renders no container strip when both number and type are unknown', async () => {
+    useDriverJourneyBoardMock.mockReturnValue(board([
+      card({ containerNumber: null, sealNumber: null, containerTypeName: null }),
+    ]));
+    renderPage();
+
+    await screen.findByText(/Nhà máy Bình Dương/);
+    expect(screen.queryByText('Chưa có số cont')).toBeNull();
+    expect(document.querySelector('.driver-journey-card__container')).toBeNull();
+    // tradeDirection is null on this card → not even the pill-only row.
+    expect(screen.queryByTestId('load-type')).toBeNull();
+  });
+
+  // Criteria 1+2: the factory abbreviation is a bold standalone header and
+  // the ROUTE a standalone line right under it — no inline "NHÀ MÁY:"/
+  // "TUYẾN:" label prefixes, and never the factory street address (that
+  // renders in the detail factory block, not on the compact card).
   it('renders factory as the bold standalone header and route as its own line', async () => {
     useDriverJourneyBoardMock.mockReturnValue(board([
       card({
@@ -285,8 +336,10 @@ describe('DriverTripsPage', () => {
 
     const route = document.querySelector('.driver-journey-card__route');
     expect(route).toBeTruthy();
-    expect(route!.textContent).toContain('Đường HS7');
-    expect(route!.textContent).not.toContain('TUYẾN:');
+    expect(route!.textContent).toContain('Cát Lái → Bình Dương');
+    expect(route!.textContent).not.toContain('Đường HS7');
+    // The street address renders nowhere on the card at all.
+    expect(screen.queryByText(/Đường HS7/)).toBeNull();
   });
 
   // Criterion 4: the ports row carries the NÂNG/HẠ labels with the lift and

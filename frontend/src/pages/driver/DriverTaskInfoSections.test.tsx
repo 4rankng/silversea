@@ -209,4 +209,35 @@ describe('DriverTaskInfoSections', () => {
 
     expect(screen.queryByText('Thông tin xuất hóa đơn')).toBeNull();
   });
+
+  it('renders the empty-container return depot as its own row between Cảng hạ and Tuyến', () => {
+    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { returnDepotName: 'Bãi JJ LOGISTICS' } })} />);
+
+    expect(labels()).toEqual([
+      'Nhà máy',
+      'Tên nhà máy',
+      'Địa chỉ nhà máy',
+      'Container / lô hàng',
+      'Cảng nâng',
+      'Cảng hạ',
+      'Trả cont rỗng',
+      'Tuyến',
+      'SĐT kho',
+      'Ngày giờ kế hoạch',
+      'Người liên hệ',
+      'Số điện thoại',
+    ]);
+    expect(valueOf('Cảng hạ')).toBe('Sóng Thần');
+    expect(valueOf('Trả cont rỗng')).toBe('Bãi JJ LOGISTICS');
+  });
+
+  it('renders the wire drop point authoritatively — "—" when the chain resolves null, ignoring legacy local fallbacks', () => {
+    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: {
+      dropPortName: null,
+      dropWarehouseName: 'Legacy Kho',
+      lclWarehouseName: 'Legacy LCL',
+    } })} />);
+
+    expect(valueOf('Cảng hạ')).toBe('—');
+  });
 });

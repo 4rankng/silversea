@@ -73,7 +73,10 @@ export function DriverTaskInfoSections({ trip }: { trip: DriverTaskDetail }) {
   const [invoiceOpen, setInvoiceOpen] = useState(true);
   const fulfillment = trip.fulfillment ?? null;
   const pickupPoint = fulfillment?.pickupPortName ?? fulfillment?.pickupWarehouseName ?? fulfillment?.lclWarehouseName ?? '—';
-  const dropPoint = fulfillment?.dropPortName ?? fulfillment?.dropWarehouseName ?? fulfillment?.lclWarehouseName ?? '—';
+  // The delivery point is the wire's resolved delivery-stage output — no
+  // local re-chaining (the whole chain lives backend-side in one helper, so
+  // this screen, the journey card, and the CUS ledger can never disagree).
+  const dropPoint = valueOrDash(fulfillment?.dropPortName);
   // Spec A4: container number, type and seal share one line (same idiom as
   // the journey-board card).
   const containerLine = trip.containers.length > 0
@@ -123,6 +126,12 @@ export function DriverTaskInfoSections({ trip }: { trip: DriverTaskDetail }) {
           <TaskFact icon={<Package2 size={16} />} label="Container / lô hàng" value={containerLine} fullWidth />
           <TaskFact icon={<MapPinned size={16} />} label="Cảng nâng" value={pickupPoint} />
           <TaskFact icon={<MapPinned size={16} />} label="Cảng hạ" value={dropPoint} />
+          {/* Stage-2 empty-container return depot — its own labeled row only
+              when the dropoff port names a DIFFERENT place than the delivery
+              point above; hidden when they agree or the port is absent. */}
+          {fulfillment?.returnDepotName ? (
+            <TaskFact icon={<MapPinned size={16} />} label="Trả cont rỗng" value={fulfillment.returnDepotName} />
+          ) : null}
           {/* Route text only — the factory address renders in its own row
               above; falls back through route summary → route name. */}
           <TaskFact

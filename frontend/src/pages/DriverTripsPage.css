@@ -270,6 +270,13 @@
   color: var(--ink);
 }
 
+/* Pending-number stand-in — italic + muted so it reads as a placeholder,
+   never as data; the real number replaces it on the first save. */
+.driver-journey-card__cont-pending {
+  font-style: italic;
+  color: var(--ink-3);
+}
+
 .driver-journey-card__cont-type,
 .driver-journey-card__seal {
   padding: 1px 7px;

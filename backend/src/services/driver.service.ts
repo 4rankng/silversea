@@ -16,6 +16,7 @@ import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
 import { getActiveTruckIdForDriver } from './truck-driver-assignment.service';
 import { getShipmentAccountingLockSummary } from './shipment-accounting-lock.service';
 import { listDispatchTaskTags } from './dispatch-task-tags.service';
+import { readSnapshotDeliverySiteName, resolveDeliveryStage } from './delivery-stage';
 import type { Tx } from './trip-shared';
 import {
   assertTripOwnedByDriver,
@@ -549,6 +550,9 @@ export interface DriverFulfillmentDetail {
   plannedReturnAt: string | null;
   pickupLocation: string | null;
   deliveryLocation: string | null;
+  /** Stage-2 empty-container return depot — distinct from the delivery point;
+   *  null when the dropoff port names the same place (delivery-stage.ts). */
+  returnDepotName: string | null;
   contactName: string | null;
   contactPhone: string | null;
   driverNotes: string | null;
@@ -670,11 +674,7 @@ export async function getDriverFulfillmentDetail(
     && typeof (siteSnapshot.pickupWarehouse as { name?: unknown }).name === 'string'
     ? (siteSnapshot.pickupWarehouse as { name: string }).name
     : null;
-  const deliverySiteName = typeof siteSnapshot.deliverySite === 'object'
-    && siteSnapshot.deliverySite !== null
-    && typeof (siteSnapshot.deliverySite as { name?: unknown }).name === 'string'
-    ? (siteSnapshot.deliverySite as { name: string }).name
-    : null;
+  const deliverySiteName = readSnapshotDeliverySiteName(siteSnapshot);
   // Khối 3 (spec): the yard/factory contact person belongs on the driver's
   // task screen. Same snapshot-vs-live precedence as the site names above:
   // CUS-typed shipment contact → point-in-time snapshot contact → live site.
@@ -694,6 +694,14 @@ export async function getDriverFulfillmentDetail(
     if (fromDelivery.name || fromDelivery.phone) return fromDelivery;
     return snapshotContact(siteSnapshot.pickupWarehouse);
   })();
+  // One delivery-stage chain shared with the journey-board card and the CUS
+  // ledger cell (delivery-stage.ts) — the FE renders this output as-is, and
+  // stage 2 surfaces the empty-container return depot when it differs.
+  const deliveryStage = resolveDeliveryStage(
+    deliverySiteName,
+    shipmentRow.deliveryLocation,
+    shipmentRow.containerDropoffPortName,
+  );
   return {
     fulfillmentId,
     shipmentId: shipmentRow.shipmentId,
@@ -713,7 +721,7 @@ export async function getDriverFulfillmentDetail(
     // TC-DA-002: street address of the container's factory/kho site (Tuyến row
     // on the driver screen). Null-safe: the site join is left.
     factoryAddress: shipmentRow.containerFactoryAddress ?? null,
-    // TC-DA-003: kho site phone — render only when present (graceful hide).
+    // Kho site phone — the FE warehouse-phone row always renders (tel link or "—").
     khoPhone: shipmentRow.siteContactPhone ?? null,
     shippingLineName: shipmentRow.shippingLineName,
     expectedDeliveryDate: shipmentRow.expectedDeliveryDate,
@@ -721,7 +729,8 @@ export async function getDriverFulfillmentDetail(
     closingAt: shipmentRow.closingAt?.toISOString() ?? null,
     plannedReturnAt: shipmentRow.plannedReturnAt?.toISOString() ?? null,
     pickupLocation: shipmentRow.pickupLocation ?? pickupWarehouseName ?? shipmentRow.containerPickupPortName,
-    deliveryLocation: shipmentRow.deliveryLocation ?? deliverySiteName ?? shipmentRow.containerDropoffPortName,
+    deliveryLocation: deliveryStage.deliveryName,
+    returnDepotName: deliveryStage.returnDepotName,
     contactName: shipmentRow.contactName
       ?? deliverySiteContact.name
       ?? shipmentRow.siteContactName

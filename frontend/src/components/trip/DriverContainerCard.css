@@ -361,18 +361,30 @@
   }
 }
 
-/* 40f3ae15: biên bản giao hàng photo block — a dashed separator + reuse of
-   the capture/photo primitives; single thumbnail so the 2-col grid stays. */
-.dcc-note {
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px dashed var(--line, #d7ddd8);
-  display: grid;
-  gap: 10px;
+/* Biên bản slot inside the bento thumb strip — carries its own delete overlay
+   (same .dcc-photo-remove primitive as the form photo figures). */
+.dcc-bento__slot {
+  position: relative;
 }
 
-.dcc-note__title {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--ink-2, #4a5550);
+/* Populated slots open the fullscreen PhotoViewer — the tile itself is the
+   button, so strip the chrome and keep the 96×96 geometry untouched. */
+.dcc-bento__tile-btn {
+  display: block;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: zoom-in;
+  border-radius: 10px;
+}
+
+.dcc-bento__tile-btn:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+/* Ghost retake row under the saved tile strip — full cell width, one ghost
+   style (design spec photo block). */
+.dcc-capture--note {
+  grid-template-columns: minmax(0, 1fr);
 }

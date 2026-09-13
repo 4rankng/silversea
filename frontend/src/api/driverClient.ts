@@ -200,6 +200,9 @@ export interface DriverTaskDetail {
     khoPhone: string | null;
     pickupPortName: string | null;
     dropPortName: string | null;
+    /** Stage-2 empty-container return depot — rendered in its own row only
+     *  when it names a different place than the delivery point. */
+    returnDepotName?: string | null;
     pickupWarehouseName: string | null;
     dropWarehouseName: string | null;
     lclWarehouseName: string | null;
@@ -264,6 +267,7 @@ interface DriverFulfillmentDetailResponse {
   knownTagLabels: string[];
   pickupLocation: string | null;
   deliveryLocation: string | null;
+  returnDepotName: string | null;
   contactName: string | null;
   contactPhone: string | null;
   driverNotes: string | null;
@@ -319,6 +323,7 @@ function mapFulfillmentDetail(wire: DriverFulfillmentDetailResponse): DriverTask
       khoPhone: wire.khoPhone,
       pickupPortName: wire.pickupLocation,
       dropPortName: wire.deliveryLocation,
+      returnDepotName: wire.returnDepotName ?? null,
       pickupWarehouseName: wire.pickupLocation,
       dropWarehouseName: wire.deliveryLocation,
       lclWarehouseName: wire.cargoMode === 'LCL' ? wire.pickupLocation : null,

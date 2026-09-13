@@ -3,6 +3,7 @@ import { db } from '../db';
 import * as s from '../db/schema';
 import { operationalName } from '../db/master-data-name';
 import { listDispatchTaskTags } from './dispatch-task-tags.service';
+import { readSnapshotDeliverySiteName, resolveDeliveryStage } from './delivery-stage';
 import { getDriverCompletionEvidenceStatus } from './trip-pod.service';
 
 // Driver-app spec (260827) "Hành trình" screen: unlike work-inbox.service's
@@ -47,6 +48,9 @@ export interface DriverJourneyCard {
   loadingPortName: string | null;
   routeName: string | null;
   dropPortName: string | null;
+  /** Stage-2 empty-container return depot — distinct from the delivery point;
+   *  null when the dropoff port names the same place (delivery-stage.ts). */
+  returnDepotName: string | null;
   containerNumber: string | null;
   containerTypeName: string | null;
   sealNumber: string | null;
@@ -131,6 +135,7 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
     isAdHoc: s.shipments.isAdHoc,
     isCombined: s.shipments.isCombined,
     dispatchClassification: s.shipmentFulfillments.dispatchClassification,
+    siteSnapshot: s.shipmentFulfillments.siteSnapshot,
     factoryName: s.shipments.factoryName,
     operationalNotes: s.shipments.operationalNotes,
     pickupLocation: s.shipments.pickupLocation,
@@ -238,6 +243,14 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
         : pairActive && row.activeTripPairOrder === 1 ? 1
         : null;
       const firstTripId = pair?.firstTripId ?? null;
+      // One delivery-stage chain shared with the driver detail and the CUS
+      // ledger cell (delivery-stage.ts); stage 2 names the empty-container
+      // return depot when it differs from the delivery point.
+      const deliveryStage = resolveDeliveryStage(
+        readSnapshotDeliverySiteName(row.siteSnapshot),
+        row.deliveryLocation,
+        row.containerDropoffPortName,
+      );
       return {
       fulfillmentId: row.fulfillmentId,
       tripId: row.tripId,
@@ -266,7 +279,8 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
       factoryAddress: row.containerFactoryAddress,
       loadingPortName: row.pickupLocation ?? row.containerPickupPortName,
       routeName: row.routeName,
-      dropPortName: row.deliveryLocation ?? row.containerDropoffPortName,
+      dropPortName: deliveryStage.deliveryName,
+      returnDepotName: deliveryStage.returnDepotName,
       containerNumber: row.containerNumber,
       containerTypeName: row.containerTypeName,
       sealNumber: row.sealNumber,

@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DriverContainerCard } from './DriverContainerCard';
 
 const toastSpy = vi.hoisted(() => vi.fn());
@@ -139,7 +139,9 @@ describe('DriverContainerCard — 40f3ae15 biên bản giao hàng photo', () => 
     const { onSaved } = renderCard({ deliveryNotePhotoKey: null });
     uploadMock.mockResolvedValueOnce({ ok: true, storageKey: 'k', url: '/api/photos/k' } as never);
 
-    const input = document.querySelector('.dcc-note input[type="file"]') as HTMLInputElement;
+    const input = screen.getByText('Chụp / chọn ảnh biên bản')
+      .closest('label')!
+      .querySelector('input[type="file"]') as HTMLInputElement;
     expect(input).toBeTruthy();
     const file = new File(['note-bytes'], 'note.jpg', { type: 'image/jpeg' });
     await fireEvent.change(input, { target: { files: [file] } });
@@ -162,5 +164,88 @@ describe('DriverContainerCard — 40f3ae15 biên bản giao hàng photo', () => 
     const img = await screen.findByAltText('Ảnh biên bản giao hàng');
     expect(img.getAttribute('src')).toContain(encodeURIComponent('trips/55/other-note.jpg'));
     expect(screen.getByRole('button', { name: 'Xóa ảnh biên bản' })).toBeTruthy();
+  });
+});
+
+// QA-003: all three photo types live in ONE card — equal slots, one capture
+// row (form), ghost retake row (saved bento) — and the standalone big-button
+// biên bản section is gone. QA-008: the hero shows one canonical container
+// type, not name · raw-code side by side.
+describe('DriverContainerCard — unified photo block', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('saved bento shows three equal slots, ghost retake row and tile delete — no standalone biên bản section', async () => {
+    // BentoThumb HEAD-preflights the authenticated photo URL before rendering
+    // an <img> — satisfy the preflight so tiles render as images, not placeholders.
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true }) as Response));
+    renderCard({
+      containers: [declaredContainer('MSKU1234567')],
+      contPhotoKey: 'trips/55/cont.jpg',
+      sealPhotoKey: 'trips/55/seal.jpg',
+      deliveryNotePhotoKey: 'trips/55/note.jpg',
+    });
+
+    expect(await screen.findByAltText('Ảnh cont')).toBeTruthy();
+    expect(screen.getByAltText('Ảnh seal')).toBeTruthy();
+    expect(screen.getByAltText('Ảnh biên bản')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Xóa ảnh biên bản' })).toBeTruthy();
+    expect(screen.getByText('Chụp / chọn ảnh biên bản')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Mở camera biên bản' })).toBeTruthy();
+
+    expect(screen.queryByText('Biên bản giao hàng')).toBeNull();
+    expect(document.querySelector('.dcc-note')).toBeNull();
+    expect(screen.queryByText(/tùy chọn/)).toBeNull();
+  });
+
+  it('renders one canonical container-type value on the hero (no raw-code duplicate)', () => {
+    renderCard({ containers: [declaredContainer('MSKU1234567')] });
+
+    const meta = document.querySelector('.dcc-bento__hero-meta');
+    expect(meta?.textContent).toBe("40'HC");
+    expect(meta?.textContent).not.toContain('40HC');
+  });
+});
+
+// QA-018: populated slots open the shared fullscreen PhotoViewer (the e-POD
+// pattern) through a named button; empty slots stay inert; Escape closes and
+// returns focus to the opener tile; opening/closing never mutates the tiles.
+describe('DriverContainerCard — full-image viewer', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('opens the viewer on a populated tile and returns focus to it on Escape', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true }) as Response));
+    renderCard({
+      containers: [declaredContainer('MSKU1234567')],
+      contPhotoKey: 'trips/55/cont.jpg',
+      sealPhotoKey: 'trips/55/seal.jpg',
+      deliveryNotePhotoKey: 'trips/55/note.jpg',
+    });
+
+    const opener = await screen.findByRole('button', { name: 'Xem ảnh biên bản' });
+    fireEvent.click(opener);
+
+    expect(document.querySelector('.pv-overlay')).toBeTruthy();
+    // Gallery starts on the clicked slot (3rd of 3 populated).
+    expect(document.querySelector('.pv-counter')?.textContent).toBe('3 / 3');
+    // Opening never removes the compact tile underneath.
+    expect(screen.getByAltText('Ảnh biên bản')).toBeTruthy();
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    await waitFor(() => expect(document.querySelector('.pv-overlay')).toBeNull());
+    expect(document.activeElement).toBe(opener);
+    // Closing never changed or removed the attachment.
+    expect(screen.getByAltText('Ảnh biên bản')).toBeTruthy();
+  });
+
+  it('empty slots expose no viewer action', () => {
+    renderCard({ containers: [declaredContainer('MSKU1234567')] });
+
+    expect(screen.queryByRole('button', { name: 'Xem ảnh cont' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Xem ảnh seal' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Xem ảnh biên bản' })).toBeNull();
   });
 });

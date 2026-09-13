@@ -4,6 +4,7 @@ import { ArrowRight, Building2, Loader2, Package2, Route } from 'lucide-react';
 import { useDriverJourneyBoard } from '../hooks/useDriverQueries';
 import type { DriverJourneyCard } from '../api/driverJourneyBoard';
 import { parseDriverTaskNote } from '@tingting/shared';
+import { formatCardTimeShort } from '../lib/format';
 import './DriverTripsPage.css';
 
 type JourneyTabKey = 'NEW' | 'RUNNING' | 'HISTORY';
@@ -19,17 +20,6 @@ const EMPTY_MESSAGE: Record<JourneyTabKey, string> = {
   RUNNING: 'Không có chuyến nào đang chạy.',
   HISTORY: 'Chưa có chuyến nào trong lịch sử.',
 };
-
-function formatCardTime(iso: string | null): string {
-  if (!iso) return '—';
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return '—';
-  const hh = String(date.getHours()).padStart(2, '0');
-  const mm = String(date.getMinutes()).padStart(2, '0');
-  const dd = String(date.getDate()).padStart(2, '0');
-  const mo = String(date.getMonth() + 1).padStart(2, '0');
-  return `${hh}:${mm} - ${dd}/${mo}`;
-}
 
 /**
  * Spec tag taxonomy: ĐƠN/KẸP/KẾT HỢP (+ LCL's LẺ). DOUBLE and COMBINED carry
@@ -88,17 +78,13 @@ function isPresent(value: string | null | undefined): value is string {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
-function dash(value: string | null | undefined): string {
-  return isPresent(value) ? value : '—';
-}
-
 function JourneyCard({ card, tagLabels }: { card: DriverJourneyCard; tagLabels: ReadonlyArray<string> }) {
   const navigate = useNavigate();
   const tag = tagLabelFor(card);
   const isPaired = tag === 'KẸP' || tag === 'KẾT HỢP';
   const isNew = card.bucket === 'NEW';
   const footerLabel = isNew ? 'Xem chi tiết & Nhận lệnh' : 'Xem chi tiết';
-  const hasContainer = isPresent(card.containerNumber) || isPresent(card.sealNumber);
+  const hasContainer = isPresent(card.containerNumber) || isPresent(card.sealNumber) || isPresent(card.containerTypeName);
   const hasPorts = isPresent(card.loadingPortName) || isPresent(card.dropPortName);
   const tradeLabel = tradeDirectionLabel(card);
   const { selectedLabels: operationTags, manualText: operationManualText } = parseDriverTaskNote(card.operationalNotes, tagLabels);
@@ -117,7 +103,7 @@ function JourneyCard({ card, tagLabels }: { card: DriverJourneyCard; tagLabels: 
         {card.isAdHoc && <span className="adhoc-label" data-adhoc-label>Chạy ngoài</span>}
         <span className="driver-journey-card__time">
           <span className="driver-journey-card__time-label">Giờ đóng / trả:</span>
-          {formatCardTime(card.scheduledAt)}
+          {formatCardTimeShort(card.scheduledAt)}
         </span>
       </div>
 
@@ -128,24 +114,30 @@ function JourneyCard({ card, tagLabels }: { card: DriverJourneyCard; tagLabels: 
         </p>
       ) : null}
 
-      {/* 2. Route — secondary line. 3a0bd5af: prefers the factory site
-          ADDRESS (detail-page Tuyến parity), route name as fallback. */}
-      {isPresent(card.factoryAddress ?? card.routeName) ? (
+      {/* 2. Route — secondary line: the route NAME only, mirroring the
+          detail page's route-only Tuyến row. The factory site address
+          renders in the detail factory block, never on the compact card. */}
+      {isPresent(card.routeName) ? (
         <p className="driver-journey-card__route">
-          <Route size={13} aria-hidden="true" /> {isPresent(card.factoryAddress) ? card.factoryAddress : card.routeName}
+          <Route size={13} aria-hidden="true" /> {card.routeName}
         </p>
       ) : null}
 
       {/* 3. Container + loại hình + 4. Ports — side-by-side block. The
           ĐÓNG/TRẢ pill rides the cont row as its 3rd column (em-dash when the
           shipment's trade direction is unknown) and stands alone when the card
-          has no container data. */}
+          has no container data. A known type keeps the strip rendered while
+          the number is still unassigned ("Chưa có số cont"). */}
       {(hasContainer || hasPorts || tradeLabel) ? (
         <div className="driver-journey-card__container-block">
           {hasContainer ? (
             <p className="driver-journey-card__container">
               <Package2 size={13} aria-hidden="true" />
-              <span className="driver-journey-card__cont-no">{dash(card.containerNumber)}</span>
+              {isPresent(card.containerNumber) ? (
+                <span className="driver-journey-card__cont-no">{card.containerNumber}</span>
+              ) : (
+                <span className="driver-journey-card__cont-pending">Chưa có số cont</span>
+              )}
               {isPresent(card.containerTypeName) ? (
                 <span className="driver-journey-card__cont-type">{card.containerTypeName}</span>
               ) : null}
@@ -170,6 +162,11 @@ function JourneyCard({ card, tagLabels }: { card: DriverJourneyCard; tagLabels: 
               {isPresent(card.dropPortName) ? (
                 <span className="driver-journey-card__port">
                   <span className="driver-journey-card__port-label">Hạ</span> {card.dropPortName}
+                </span>
+              ) : null}
+              {isPresent(card.returnDepotName) ? (
+                <span className="driver-journey-card__port">
+                  <span className="driver-journey-card__port-label">Trả rỗng</span> {card.returnDepotName}
                 </span>
               ) : null}
             </div>

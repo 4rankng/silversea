@@ -1059,16 +1059,18 @@ describe('DriverTripDetailPage', () => {
     expect(document.querySelector('.driver-task-header__route')).toBeNull();
   });
 
-  // 40f3ae15: the biên bản giao hàng capture block lives in the SỐ CONT & SEAL
-  // section (always reachable — outside the container form/bento switch); its
-  // thumbnail shows only when an OTHER photo rides the wire.
-  it('40f3ae15: shows the biên bản capture block and hides its thumbnail without an OTHER photo', async () => {
+  // 40f3ae15 + photo-block unification: biên bản giao hàng capture lives in
+  // the ONE SỐ CONT & SEAL card (ghost affordances under the saved slots —
+  // always reachable, saved row or not), never a standalone big-button
+  // section; its thumbnail shows only when a DELIVERY_NOTE photo rides the wire.
+  it('shows the unified biên bản affordances and no standalone section', async () => {
     renderPage();
 
-    await screen.findByTestId('delivery-note-block');
-    expect(screen.getByText('Chụp / chọn ảnh biên bản giao hàng')).toBeTruthy();
+    expect(screen.getByText('Chụp / chọn ảnh biên bản')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Mở camera biên bản' })).toBeTruthy();
-    expect(screen.queryByAltText('Ảnh biên bản giao hàng')).toBeNull();
+    expect(screen.queryByTestId('delivery-note-block')).toBeNull();
+    expect(screen.queryByText('Biên bản giao hàng')).toBeNull();
+    expect(screen.queryByAltText('Ảnh biên bản')).toBeNull();
   });
 
   it('40f3ae15: renders the biên bản thumbnail when a DELIVERY_NOTE photo rides the wire', async () => {
@@ -1085,10 +1087,18 @@ describe('DriverTripDetailPage', () => {
       error: null,
       refetch: vi.fn().mockResolvedValue(undefined),
     });
+    // BentoThumb HEAD-preflights the authenticated photo URL inside its mount
+    // effect — the stub must be in place BEFORE renderPage() paints the tile,
+    // or the failed preflight permanently falls back to the placeholder.
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true }) as Response));
     renderPage();
 
-    const img = await screen.findByAltText('Ảnh biên bản giao hàng');
-    expect(img.getAttribute('src')).toContain(encodeURIComponent('trips/55/delivery-note.jpg'));
-    expect(screen.getByRole('button', { name: 'Xóa ảnh biên bản' })).toBeTruthy();
+    try {
+      const img = await screen.findByAltText('Ảnh biên bản');
+      expect(img.getAttribute('src')).toContain(encodeURIComponent('trips/55/delivery-note.jpg'));
+      expect(screen.getByRole('button', { name: 'Xóa ảnh biên bản' })).toBeTruthy();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });
