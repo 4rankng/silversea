@@ -612,6 +612,47 @@ describe('CUS shipment workspace projection — inline edit authority', () => {
       .where(eq(s.shipmentChangeRequests.shipmentId, shipment.id));
     assert.equal(requestRows.length, 0);
   });
+
+  test('completed lot rejects the workspace container edit with the terminal-lot guard', async () => {
+    // Guard-consistency regression: the dispatch plan save already 409s on
+    // terminal lots; the CUS container-line save used to accept the same
+    // write on a COMPLETED shipment.
+    const marker = String(Date.now()).slice(-6);
+    const prefix = `MSKU${marker}`;
+    const validNumber = `${prefix}${calculateCheckDigit(prefix)}`;
+    const shipment = await seedShipment({
+      blNumber: `WS-TERM-${marker}`,
+      cargoMode: 'FCL',
+      expectedDeliveryDate: '2026-08-24',
+      status: 'COMPLETED',
+    });
+    const container = await seedContainer(shipment.id, { containerNumber: null });
+    await seedFulfillment(shipment.id, container.id);
+
+    await assert.rejects(
+      () => updateCusShipmentContainerLine({
+        shipmentId: shipment.id,
+        containerId: container.id,
+        input: {
+          expectedShipmentVersion: shipment.version,
+          containerNumber: validNumber,
+        },
+        actor: cusActor,
+      }),
+      (error: unknown) => {
+        assert.ok(error instanceof ApiError);
+        assert.equal(error.statusCode, 409);
+        assert.match(error.message, /Lô hàng đã kết thúc/);
+        return true;
+      },
+    );
+
+    const [stored] = await db.select({ containerNumber: s.shipmentContainers.containerNumber })
+      .from(s.shipmentContainers)
+      .where(eq(s.shipmentContainers.id, container.id))
+      .limit(1);
+    assert.equal(stored?.containerNumber, null);
+  });
 });
 
 test('workspace detail returns safe route selectors for the route authority', async () => {

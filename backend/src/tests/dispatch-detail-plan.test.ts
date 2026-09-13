@@ -1099,6 +1099,28 @@ describe('dispatch detail plan plate assignment', () => {
     }
   });
 
+  test('completed lot rejects plate assignment with the terminal-lot guard', async () => {
+    // Guard-consistency regression: the atomic plan save and the carrier
+    // change already 409 on terminal lots; the single-field plate endpoint
+    // used to accept the same write on a COMPLETED shipment.
+    const { shipment, fulfillmentIds } = await createAllocatedLot({ carrierType: 'OWN' });
+    const { truck } = await createOwnedTruckWithDriver();
+    const [fulfillment] = await db.select().from(s.shipmentFulfillments)
+      .where(eq(s.shipmentFulfillments.id, fulfillmentIds[0]!));
+    try {
+      await db.update(s.shipments).set({ status: 'COMPLETED' }).where(eq(s.shipments.id, shipment.id));
+      const response = await apiFetch<PlateResponse>(`/dispatch-detail-plan-rows/${fulfillment.id}/plate`, {
+        method: 'PATCH',
+        token: dispatcherToken,
+        body: { expectedVersion: fulfillment.version, truckId: truck.id },
+      });
+      assert.equal(response.status, 409);
+      assert.ok(String((response.data as { error?: string }).error ?? '').includes('đã kết thúc'), JSON.stringify(response.data));
+    } finally {
+      await db.update(s.shipments).set({ status: 'READY_FOR_DISPATCH' }).where(eq(s.shipments.id, shipment.id));
+    }
+  });
+
   test('dispatcher saves versioned operational estimates without creating a financial record', async () => {
     const { shipment, fulfillmentIds } = await createAllocatedLot({ carrierType: 'OWN' });
     const [fulfillment] = await db.select().from(s.shipmentFulfillments)
