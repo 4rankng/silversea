@@ -1,4 +1,4 @@
-import { fireEvent, render } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type {
   ShipmentCusContainerFlatRow,
@@ -260,5 +260,73 @@ describe('ShipmentContainerLedger inline editor dismissal', () => {
     const { onCancelEdit } = renderLedger('identity');
     fireEvent.pointerDown(document.body);
     expect(onCancelEdit).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('ShipmentContainerLedger missing-fields summary', () => {
+  function renderLedgerWithRow(row: ShipmentCusContainerFlatRow) {
+    const onStartEdit = vi.fn();
+    const view = render(
+      <ShipmentContainerLedger
+        rows={[row]}
+        totalContainers={1}
+        today="2026-09-10"
+        sort={null}
+        onSortChange={vi.fn()}
+        activeEdit={null}
+        editLoadingRowId={null}
+        editError={null}
+        onStartEdit={onStartEdit}
+        onCancelEdit={vi.fn()}
+        onSaveRoute={vi.fn(async () => {})}
+        onSaveVehicle={vi.fn(async () => {})}
+        onSaveSchedule={vi.fn(async () => {})}
+        onSaveNotes={vi.fn(async () => {})}
+        onSaveIdentity={vi.fn(async () => {})}
+        onSaveDocuments={vi.fn(async () => {})}
+        onSaveContainer={vi.fn(async () => {})}
+      />,
+    );
+    return { view, onStartEdit };
+  }
+
+  it('collapses the missing list to a count control; key blockers stay visible outside it', () => {
+    const row = baseRow({
+      transportDate: null,
+      customerAppointmentAt: null,
+      informationStatus: 'MISSING',
+      missingFields: [
+        { code: 'TRANSPORT_DATE', label: 'Ngày vận chuyển' },
+        { code: 'CONTAINER_NUMBER', label: 'Số container' },
+        { code: 'BKS', label: 'Biển số xe' },
+      ],
+    });
+    const { view } = renderLedgerWithRow(row);
+
+    const toggle = screen.getByRole('button', { name: /Thiếu 3 thông tin/ });
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.queryByText('Số container')).toBeNull();
+    // Key dispatch blockers render without expanding anything: the schedule
+    // cell's badge plus the summary rail stat both carry the date gap.
+    expect(screen.getAllByText('Thiếu ngày vận chuyển').length).toBeGreaterThanOrEqual(2);
+    view.unmount();
+  });
+
+  it('expands to jump-to-editor buttons that open the owning cell editor', () => {
+    const row = baseRow({
+      informationStatus: 'MISSING',
+      missingFields: [
+        { code: 'CONTAINER_NUMBER', label: 'Số container' },
+        { code: 'BKS', label: 'Biển số xe' },
+      ],
+    });
+    const { view, onStartEdit } = renderLedgerWithRow(row);
+
+    fireEvent.click(screen.getByRole('button', { name: /Thiếu 2 thông tin/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Số container' }));
+    expect(onStartEdit).toHaveBeenCalledWith(row, 'container', expect.stringContaining('shipment-detail-missing-CONTAINER_NUMBER-'));
+    fireEvent.click(screen.getByRole('button', { name: 'Biển số xe' }));
+    expect(onStartEdit).toHaveBeenLastCalledWith(row, 'vehicle', expect.stringContaining('shipment-detail-missing-BKS-'));
+    view.unmount();
   });
 });

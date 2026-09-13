@@ -198,20 +198,18 @@ describe('shipment detail workboard styling', () => {
     expect(css).not.toMatch(/__plate--missing\s*\{[^}]*border/);
     expect(css).toMatch(/\.shipment-container-ledger__vehicle-state\s*\{[^}]*color:\s*var\(--warning-text\);[^}]*font-size:\s*11px;/);
     expect(css).toMatch(/\.shipment-container-ledger__schedule-gap\s*\{[^}]*color:\s*var\(--warning-text\);/);
-    expect(css).toMatch(/\.shipment-container-ledger__missing-fields-label\s*\{[^}]*margin-right:\s*4px;/);
     expect(ledgerSource).toMatch(/<BadgeWithDot size="sm" color="warning" className="shipment-container-ledger__plate--missing">/);
     expect(ledgerSource).toMatch(/<Badge size="sm" color="warning" className="shipment-container-ledger__vehicle-state">/);
     expect(ledgerSource).toMatch(/<Badge size="sm" color="warning" className="shipment-container-ledger__schedule-gap">/);
     expect(css).toMatch(/\.shipment-container-ledger__schedule-gap\s*\{[^}]*width:\s*fit-content;[^}]*font-size:\s*11px;/);
-    // The triage list is one compact amber chip whose labels flow inline with
-    // CSS-generated "·" separators — the DOM text stays comma-free.
+    // The triage summary is one compact amber chip — a count disclosure that
+    // expands to jump-to-editor buttons. The list wraps at the chip's own
+    // 10px size (no shrinking for density) and the DOM text stays comma-free.
     expect(css).toMatch(/\.shipment-container-ledger__multiline > \.shipment-container-ledger__row-warning\s*\{[^}]*display:\s*inline-flex;[^}]*background:\s*var\(--warning-soft\);/);
-    expect(css).toMatch(/\.shipment-container-ledger__multiline > \.shipment-container-ledger__row-warning\.shipment-container-ledger__missing-fields\s*\{[^}]*white-space:\s*normal;/);
-    expect(css).toMatch(/\.shipment-container-ledger__missing-fields-text\s*\{[^}]*display:\s*inline;/);
-    expect(css).toMatch(/\.shipment-container-ledger__missing-fields-label\s*\{[^}]*color:\s*var\(--warning-text\);/);
-    expect(css).toMatch(/\.shipment-container-ledger__missing-fields-list\s*\{[^}]*display:\s*inline;[^}]*color:\s*var\(--ink-2\);/);
-    expect(css).toMatch(/\.shipment-container-ledger__missing-fields-list > span\s*\{[^}]*display:\s*inline;/);
-    expect(css).toMatch(/\.shipment-container-ledger__missing-fields-list > span \+ span::before\s*\{[^}]*content:\s*'·';/);
+    expect(css).toMatch(/\.shipment-container-ledger__multiline > \.shipment-container-ledger__row-warning\.shipment-container-ledger__missing-fields\s*\{[^}]*flex-wrap:\s*wrap;/);
+    expect(css).toMatch(/\.shipment-container-ledger__missing-fields-toggle\s*\{[^}]*background:\s*none;[^}]*cursor:\s*pointer;/);
+    expect(css).toMatch(/\.shipment-container-ledger__missing-fields-list\s*\{[^}]*display:\s*flex;[^}]*flex-wrap:\s*wrap;/);
+    expect(css).toMatch(/\.shipment-container-ledger__missing-fields-item\s*\{[^}]*font-size:\s*10px;/);
     expect(css).toMatch(/\.shipment-container-ledger__row-warning svg\s*\{[^}]*flex:\s*0 0 12px;/);
     // Structural classification chips stay neutral — accent fills are state-only.
     expect(css).toMatch(/\.shipment-container-ledger__direction\s*\{[^}]*background:\s*var\(--surface-3\);[^}]*color:\s*var\(--ink-2\);/);

@@ -142,16 +142,20 @@
 .shipment-container-ledger__multiline > .shipment-container-ledger__row-warning { display: inline-flex; width: fit-content; max-width: 100%; align-items: center; gap: 4px; margin-top: 2px; padding: 2px 8px; border-radius: 6px; background: var(--warning-soft); color: var(--warning-text); font-size: 10px; font-weight: var(--fw-bold); line-height: 1.5; white-space: nowrap; }
 .shipment-container-ledger__row-warning svg { width: 12px; height: 12px; flex: 0 0 12px; }
 
-/* Server-derived missing-field triage. One amber chip whose labels flow
-   inline with "·" separators (generated in CSS so the DOM text stays a clean
-   comma-free list) instead of a stacked line per field — same information,
-   a fraction of the row height. */
-.shipment-container-ledger__multiline > .shipment-container-ledger__row-warning.shipment-container-ledger__missing-fields { white-space: normal; }
-.shipment-container-ledger__missing-fields-text { display: inline; min-width: 0; overflow-wrap: anywhere; }
-.shipment-container-ledger__missing-fields-label { margin-right: 4px; color: var(--warning-text); }
-.shipment-container-ledger__missing-fields-list { display: inline; min-width: 0; color: var(--ink-2); font-weight: var(--fw-medium); }
-.shipment-container-ledger__missing-fields-list > span { display: inline; min-width: 0; overflow-wrap: anywhere; }
-.shipment-container-ledger__missing-fields-list > span + span::before { content: '·'; margin: 0 4px; color: var(--ink-3); }
+/* Server-derived missing-field triage, compact form: one amber line — icon +
+   "Thiếu N thông tin" disclosure — instead of the full label list, so an
+   incomplete row keeps the workboard's compact height (the 11% status column
+   wrapped a 13-label list to ~180px on incomplete lots). Expanding reveals
+   every field as a jump-to-editor button; the list wraps at the same text
+   size, nothing is shrunk or permanently hidden. */
+.shipment-container-ledger__multiline > .shipment-container-ledger__row-warning.shipment-container-ledger__missing-fields { flex-wrap: wrap; white-space: normal; align-content: flex-start; }
+.shipment-container-ledger__missing-fields-toggle { border: 0; padding: 0; background: none; color: inherit; font: inherit; font-weight: inherit; cursor: pointer; text-align: left; text-decoration: underline dotted; text-underline-offset: 2px; }
+.shipment-container-ledger__missing-fields-toggle:hover { text-decoration: underline solid; }
+.shipment-container-ledger__missing-fields-list { display: flex; width: 100%; flex-wrap: wrap; gap: 3px; margin-top: 2px; min-width: 0; }
+.shipment-container-ledger__missing-fields-item { border: 1px solid color-mix(in srgb, var(--warning) 45%, transparent); border-radius: 4px; padding: 1px 6px; background: var(--surface); color: var(--ink-2); font-size: 10px; font-weight: var(--fw-medium); line-height: 1.5; cursor: pointer; }
+.shipment-container-ledger__missing-fields-item:hover:not(:disabled) { background: var(--warning-soft); color: var(--warning-text); }
+.shipment-container-ledger__missing-fields-item:disabled { opacity: .55; cursor: default; }
+.shipment-container-ledger__missing-fields-item--external { color: var(--ink-3); font-size: 10px; line-height: 1.5; }
 .shipment-container-ledger__code { font-family: var(--font-data); letter-spacing: .01em; }
 /* Direction is structural classification, not a status: neutral token chip
    (surface-3/ink-2) matching the frozen overview's treatment — accent fills

@@ -158,21 +158,26 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     const identityCell = screen.getByRole('button', { name: /^Chỉnh sửa ô khách hàng và lộ trình CONT-001/ });
     expect(identityCell.textContent).toContain('Công ty Silver Sea');
     const missingDateIdentityCell = screen.getByRole('button', { name: /^Chỉnh sửa ô khách hàng và lộ trình CONT-002/ });
-    const warningText = screen.getByText('Chưa cập nhật:');
-    const rowWarning = warningText.closest<HTMLElement>('.shipment-container-ledger__row-warning');
+    // Missing-data summary stays compact: the full list collapses behind a
+    // count disclosure; expanding reveals jump-to-editor items in list order.
+    const warningToggle = screen.getByRole('button', { name: /Thiếu 4 thông tin/ });
+    const rowWarning = warningToggle.closest<HTMLElement>('.shipment-container-ledger__row-warning');
     expect(rowWarning).toBeTruthy();
     if (!rowWarning) throw new Error('Expected the missing-fields warning wrapper');
-    expect(rowWarning.classList.contains('shipment-container-ledger__row-warning')).toBe(true);
-    expect(warningText.classList.contains('shipment-container-ledger__missing-fields-label')).toBe(true);
-    const missingFieldsList = within(rowWarning).getByRole('list', { name: 'Thông tin còn thiếu' });
-    expect(missingFieldsList.classList.contains('shipment-container-ledger__missing-fields-list')).toBe(true);
-    expect(within(missingFieldsList).getAllByRole('listitem').map((item) => item.textContent)).toEqual([
+    expect(warningToggle.classList.contains('shipment-container-ledger__missing-fields-toggle')).toBe(true);
+    expect(warningToggle.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.queryByText('Điểm nhận hàng')).toBeNull();
+    fireEvent.click(warningToggle);
+    expect(warningToggle.getAttribute('aria-expanded')).toBe('true');
+    const missingFieldsList = rowWarning.querySelector('.shipment-container-ledger__missing-fields-list');
+    expect(missingFieldsList).toBeTruthy();
+    expect(missingFieldsList?.getAttribute('aria-label')).toBe('Thông tin còn thiếu');
+    expect(Array.from(missingFieldsList!.querySelectorAll('.shipment-container-ledger__missing-fields-item')).map((item) => item.textContent)).toEqual([
       'Ngày vận chuyển',
       'Điểm nhận hàng',
       'Điểm trả hàng',
       'Lịch hẹn',
     ]);
-    expect(rowWarning.querySelector('.shipment-container-ledger__missing-fields-text')).toBeTruthy();
     expect(rowWarning.textContent).not.toContain(',');
     // The missing-fields warning lives in the multiline Trạng thái stack
     // (badge + warning), not in the identity cell.

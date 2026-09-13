@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Button as AriaButton } from 'react-aria-components';
-import { AlertTriangle, CalendarOff, Clock3 } from 'lucide-react';
+import { CalendarOff, Clock3 } from 'lucide-react';
 import { DISPATCH_CLASSIFICATION_LABELS } from '@tingting/shared';
 import type {
   ShipmentCusContainerFlatRow,
@@ -16,6 +16,7 @@ import { SearchableSelect, SummaryRail } from '../../../design-system';
 import { UuiSelectField } from '../../../design-system/forms/UuiSelectField';
 import { EditActions } from './ShipmentContainerEditActions';
 import { ScheduleEditorBody } from './ShipmentContainerScheduleEditor';
+import { ShipmentMissingFieldsSummary } from './ShipmentMissingFieldsSummary';
 import { formatVietnamDateTimeInput } from '../../../lib/shipment-operations';
 import type { TableSortState } from '../../../lib/table-sort';
 import { SortHeader } from '../../../components/shared/SortHeader';
@@ -97,7 +98,10 @@ const DISPATCH_STRIP_COLORS: Record<DispatchStatus, string> = {
   COMPLETED: 'var(--success)',
 };
 
-function modeLabelForTrigger(mode: ShipmentDetailEditMode): string {
+// Shared with the missing-fields summary control, whose jump-to-editor
+// buttons reuse the same cell vocabulary.
+// eslint-disable-next-line react-refresh/only-export-components -- shared cell vocabulary consumed by the missing-fields summary
+export function modeLabelForTrigger(mode: ShipmentDetailEditMode): string {
   if (mode === 'identity') return 'khách hàng và lộ trình';
   if (mode === 'documents') return 'chứng từ và hãng tàu';
   if (mode === 'container') return 'thông số container';
@@ -657,15 +661,19 @@ export function ShipmentContainerLedger({
                     <div className="shipment-container-ledger__multiline">
                       <span className={`shipment-container-ledger__dispatch-badge shipment-container-ledger__dispatch-badge--${row.dispatchStatus.toLowerCase()}`}>{DISPATCH_STATUS[row.dispatchStatus].label}</span>
                       {row.informationStatus === 'MISSING' && (
-                        <span className="shipment-container-ledger__row-warning shipment-container-ledger__missing-fields">
-                          <AlertTriangle aria-hidden="true" />
-                          <span className="shipment-container-ledger__missing-fields-text">
-                            <span className="shipment-container-ledger__missing-fields-label">Chưa cập nhật:</span>
-                            <span className="shipment-container-ledger__missing-fields-list" role="list" aria-label="Thông tin còn thiếu">
-                              {row.missingFields.map((field) => <span key={field.code} role="listitem">{field.label}</span>)}
-                            </span>
-                          </span>
-                        </span>
+                        <ShipmentMissingFieldsSummary
+                          row={row}
+                          missingFields={row.missingFields}
+                          editableModes={{
+                            documents: documentsEditable,
+                            container: containerEditable,
+                            route: routeEditable,
+                            schedule: row.customerAppointmentEditable,
+                            vehicle: vehicleEditable,
+                          }}
+                          editLocked={activeEdit != null || editLoadingRowId === row.id}
+                          onStartEdit={onStartEdit}
+                        />
                       )}
                     </div>
                   </td>
