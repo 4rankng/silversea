@@ -1216,6 +1216,10 @@ export interface TripDetail extends Trip {
   pairing?: TripPairSummary | null;
   instructions?: TripInstruction | null;
   accountingLock: ShipmentAccountingLockSummary | null;
+  /** True once the assigned driver acknowledged the order (ORDER_RECEIVED
+   *  milestone) — locks reassignment per the server guard. Optional for
+   *  older payloads. */
+  driverAccepted?: boolean;
 }
 
 export interface ShipmentAccountingLockSummary {

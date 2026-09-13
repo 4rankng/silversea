@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Loader2, Shuffle, X } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { tripClient } from '../../../api/tripClient';
+import { qk } from '../../../api/keys';
 import { useCatalogs } from '../../../hooks/useCatalogs';
 import { useTrucksAndDrivers } from '../../../hooks/useCatalogQueries';
 import { useTripDetail } from '../../../hooks/useTripQueries';
@@ -23,6 +25,7 @@ interface TripReassignDialogProps {
  * the caller's page.
  */
 export function TripReassignDialog({ tripId, onClose, onReassigned }: TripReassignDialogProps) {
+  const queryClient = useQueryClient();
   const { data: trip, isLoading: loadingTrip, error: tripError, refetch: refetchTrip } = useTripDetail(tripId != null ? String(tripId) : undefined);
   const { data: trucksDriversData } = useTrucksAndDrivers({ enabled: tripId != null });
   const { data: catalogData } = useCatalogs();
@@ -66,8 +69,13 @@ export function TripReassignDialog({ tripId, onClose, onReassigned }: TripReassi
     setError('');
   }, [trip, tripId]);
 
+  // Acceptance lock — mirrors the server guard exactly: an IN_TRANSIT trip
+  // whose driver acknowledged (ORDER_RECEIVED) can no longer be reassigned;
+  // CREATED trips stay reassignable (pre-acceptance correction right).
+  const lockedByAcceptance = trip?.status === 'IN_TRANSIT' && trip?.driverAccepted === true;
+
   async function handleSave() {
-    if (!trip || tripId == null || saving) return;
+    if (!trip || tripId == null || saving || lockedByAcceptance) return;
     if (carrierType === 'OWN') {
       if (!truckId || !driverId) {
         setError('Vui lòng chọn xe và lái xe');
@@ -80,7 +88,7 @@ export function TripReassignDialog({ tripId, onClose, onReassigned }: TripReassi
     setSaving(true);
     setError('');
     try {
-      await tripClient.reassignTrip(tripId, {
+      const freshTrip = await tripClient.reassignTrip(tripId, {
         carrierType,
         truckId: truckId ? Number(truckId) : null,
         driverId: driverId ? Number(driverId) : null,
@@ -90,16 +98,27 @@ export function TripReassignDialog({ tripId, onClose, onReassigned }: TripReassi
         externalDriverPhone,
         expectedVersion: trip.version,
       });
+      // Prime the trip-detail cache with the reassign response: with the
+      // default 5-minute staleTime, reopening this dialog would otherwise
+      // seed from the stale pre-reassign snapshot until a full reload. The
+      // fresh entry seeds the saved defaults immediately; the invalidation
+      // converges any other mounted trip-detail observer.
+      queryClient.setQueryData(qk.trips.detail(String(tripId)), freshTrip);
+      void queryClient.invalidateQueries({ queryKey: qk.trips.detail(String(tripId)) });
       onReassigned();
       onClose();
     } catch (reassignError) {
       setError(reassignError instanceof Error && reassignError.message ? reassignError.message : 'Lỗi khi phân xe lại');
+      // A late conflict usually means the driver accepted while the dialog
+      // was open — refetch so the fresh acceptance flips this dialog into
+      // the read-only lock instead of inviting a futile retry.
+      void refetchTrip();
     } finally {
       setSaving(false);
     }
   }
 
-  const confirmDisabled = saving || !trip
+  const confirmDisabled = saving || !trip || lockedByAcceptance
     || (carrierType === 'OWN' ? (!truckId || !driverId) : (!externalCarrierId && !externalPlateNumber));
 
   return (
@@ -114,10 +133,14 @@ export function TripReassignDialog({ tripId, onClose, onReassigned }: TripReassi
           <button type="button" className="btn btn--ghost btn--sm" onClick={onClose} disabled={saving}>
             <X size={14} aria-hidden="true" /> Hủy
           </button>
-          <button type="button" className="btn btn--primary btn--sm" onClick={() => void handleSave()} disabled={confirmDisabled}>
-            {saving ? <Loader2 size={14} className="spin" aria-hidden="true" /> : <Shuffle size={14} aria-hidden="true" />}
-            Xác nhận phân xe lại
-          </button>
+          {/* No confirmation control on a locked trip — the dispatcher must
+              not be offered a save the server guard will reject. */}
+          {!lockedByAcceptance && (
+            <button type="button" className="btn btn--primary btn--sm" onClick={() => void handleSave()} disabled={confirmDisabled}>
+              {saving ? <Loader2 size={14} className="spin" aria-hidden="true" /> : <Shuffle size={14} aria-hidden="true" />}
+              Xác nhận phân xe lại
+            </button>
+          )}
         </>
       )}
     >
@@ -134,6 +157,30 @@ export function TripReassignDialog({ tripId, onClose, onReassigned }: TripReassi
           <button type="button" className="btn btn--secondary btn--sm" onClick={() => void refetchTrip()}>
             Thử lại
           </button>
+        </div>
+      ) : lockedByAcceptance ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <p className="dispatch-assignment-dialog__error" role="status">
+            Tài xế đã nhận việc — không thể phân xe lại. Chỉ có thể đổi xe/lái xe khi chuyến chưa được tài xế nhận.
+          </p>
+          {/* Read-only current assignment so the dispatcher still sees what
+              the trip runs with, without any editable controls. */}
+          <div style={{ display: 'grid', gap: 4, fontSize: 13, color: 'var(--ink)' }}>
+            <span>
+              Loại xe: <strong>{trip.carrierType === 'EXTERNAL' ? 'Xe ngoài' : 'Xe nhà'}</strong>
+            </span>
+            {trip.carrierType === 'EXTERNAL' ? (
+              <>
+                <span>Biển số: <strong>{trip.externalPlateNumber || '—'}</strong></span>
+                <span>Lái xe: <strong>{trip.externalDriverName || '—'}</strong></span>
+              </>
+            ) : (
+              <>
+                <span>Xe đầu kéo: <strong>{trip.truck?.licensePlate || '—'}</strong></span>
+                <span>Lái xe: <strong>{trip.driver?.name || '—'}</strong></span>
+              </>
+            )}
+          </div>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>

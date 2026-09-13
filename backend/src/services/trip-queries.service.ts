@@ -510,6 +510,11 @@ export async function getTripById(id: number) {
     customerCommission: s.tripsComposite.customerCommission,
     tripWageDays: s.tripsComposite.tripWageDays,
     createdAt: s.tripsComposite.createdAt, updatedAt: s.tripsComposite.updatedAt, deletedAt: s.tripsComposite.deletedAt,
+    // Acceptance signal (ORDER_RECEIVED milestone) — the same fact the
+    // reassignment guard keys on, surfaced so dispatcher UI can show the
+    // lock before offering reassignment.
+    driverAccepted: sql<boolean>`exists (select 1 from ${s.driverProgressEvents} dpe
+      where dpe.trip_id = ${s.tripsComposite.id} and dpe.event_type = 'ORDER_RECEIVED')`,
     ...TRIP_RELATION_FIELDS,
   }).from(s.tripsComposite))
     .where(and(eq(s.tripsComposite.id, id), isNull(s.tripsComposite.deletedAt))).limit(1);

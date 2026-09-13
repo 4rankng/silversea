@@ -242,16 +242,6 @@ type DetailPlanRow = {
   cargoMode: 'FCL' | 'LCL';
   taskStatus: 'READY' | 'DISPATCHED' | 'COMPLETED';
   time: { deliveryDate: string | null; runAt: string | null; runHour: number | null };
-  dispatch: {
-    carrierType: 'OWN' | 'EXTERNAL' | null;
-    carrierName: string | null;
-    externalCarrierId: number | null;
-    externalCarrierVehicleId: number | null;
-    assignedPlate: string | null;
-    tripId?: number;
-    tripStatus?: string;
-    driverAccepted?: boolean;
-  };
   customerRoute: { customerName: string; factoryName: string | null; deliveryPoint: string | null };
   docs: { billNumber: string | null; tradeDirection: string | null; declarationNumbers: string[] };
   container: { containerNumber: string | null; containerTypeLabel: string | null; cargoWeightKg: string | null };
@@ -266,6 +256,7 @@ type DetailPlanRow = {
     assignedPlate: string | null;
     tripId?: number;
     tripStatus?: 'CREATED' | 'IN_TRANSIT' | 'COMPLETED' | 'CANCELED';
+    driverAccepted?: boolean;
   };
   estimates: { plannedRevenue: string | null; plannedCarrierCost: string | null };
   classification: 'SINGLE' | 'DOUBLE' | 'COMBINED' | 'LCL' | null;

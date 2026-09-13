@@ -7,12 +7,13 @@
  */
 import { Badge } from '../../../components/untitled-ui/base/badges/badges';
 
-export type DispatchIssueStatus = 'UNASSIGNED' | 'PLATED_NOT_ISSUED' | 'ISSUED' | 'COMPLETED';
+export type DispatchIssueStatus = 'UNASSIGNED' | 'PLATED_NOT_ISSUED' | 'ISSUED' | 'ACCEPTED' | 'COMPLETED';
 
 export const DISPATCH_ISSUE_STATUS_LABELS: Record<DispatchIssueStatus, string> = {
   UNASSIGNED: 'Chưa xếp xe',
   PLATED_NOT_ISSUED: 'Đã xếp xe',
   ISSUED: 'Đã phát lệnh cho tài xế',
+  ACCEPTED: 'Đã nhận lệnh',
   COMPLETED: 'Đã hoàn thành',
 };
 
@@ -21,6 +22,10 @@ export const DISPATCH_ISSUE_STATUS_LABELS: Record<DispatchIssueStatus, string> =
  * notification on: a live (non-canceled) trips row for the fulfillment.
  * `vehicleAssigned` is a planned plate/vehicle — visible to the dispatcher,
  * invisible to the driver until issuance.
+ * `driverAccepted` (optional) refines ISSUED: the driver acknowledged the
+ * order — the same fact the reassignment guard keys on, so the chip shows
+ * the lock before the dispatcher edits. Callers without the signal keep the
+ * plain ISSUED reading.
  * `completed` outranks both: once the trip closes, the issue lifecycle is
  * over (driver-completed or closed by dispatch/CUS for external carriers).
  */
@@ -28,9 +33,10 @@ export function deriveDispatchIssueStatus(input: {
   vehicleAssigned: boolean;
   issued: boolean;
   completed?: boolean;
+  driverAccepted?: boolean;
 }): DispatchIssueStatus {
   if (input.completed) return 'COMPLETED';
-  if (input.issued) return 'ISSUED';
+  if (input.issued) return input.driverAccepted ? 'ACCEPTED' : 'ISSUED';
   if (input.vehicleAssigned) return 'PLATED_NOT_ISSUED';
   return 'UNASSIGNED';
 }

@@ -582,6 +582,72 @@ describe('DispatchPlanEditorCell — editor mount stability across background re
     expect(body.truckId).toBe(154);
   });
 
+  it("fills a linked truck's owning carrier instead of the internal default", async () => {
+    const carrierLess = row({ dispatch: { carrierType: null, carrierName: null, externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: null } });
+    // One page truck carries an ACTIVE fleet carrier link — the explicit link
+    // must win over the generic SilverSea default.
+    mockFleetResources();
+    listResourcesMock.mockImplementation((async (resource: string, filters: { q?: string; limit?: number } = {}) => {
+      if (resource === 'EXTERNAL_CARRIER') {
+        return { items: [{ id: 9, name: 'Carrier QA', isActive: true }], nextCursor: null, total: 1, limit: filters.limit ?? 50 };
+      }
+      if (resource === 'EXTERNAL_VEHICLE') {
+        return { items: [], nextCursor: null, total: 0, limit: filters.limit ?? 50 };
+      }
+      return {
+        items: [PAIRED_TRUCK, { ...OTHER_TRUCK, id: 156, licensePlate: '15E-016.26', carrierId: 9, carrierName: 'Carrier QA' }],
+        nextCursor: null,
+        total: 2,
+        limit: filters.limit ?? 50,
+        suggestedItems: [],
+      };
+    }) as never);
+    const onAtomicSave = vi.fn().mockResolvedValue({
+      fulfillmentVersion: 4,
+      shipmentVersion: 6,
+      classification: 'SINGLE',
+      isCombined: false,
+      operationalNotes: null,
+      dispatch: { carrierType: 'EXTERNAL', carrierName: 'Carrier QA', externalCarrierId: 9, externalCarrierVehicleId: null, assignedPlate: '15E-016.26' },
+      estimates: { plannedRevenue: null, plannedCarrierCost: null },
+      lotFullyPlated: false,
+    });
+    renderCell(carrierLess, { onAtomicSave });
+    await openDialog();
+
+    fireEvent.click([...screen.getAllByRole('button')].find((b) => b.textContent?.includes('Chọn biển số xe'))!);
+    const linkedOption = (await screen.findAllByText(/15E-016\.26/))[0];
+    fireEvent.click(linkedOption);
+
+    // Carrier select shows the owning nhà xe — not "SilverSea — xe nội bộ".
+    expect(screen.getByText('Carrier QA')).toBeTruthy();
+
+    // Save sends the EXTERNAL carrier + the linked plate as free text (the
+    // truck rides as its owning carrier's plate).
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
+    await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));
+    const body = onAtomicSave.mock.calls[0]![1] as Record<string, unknown>;
+    expect(body.carrierType).toBe('EXTERNAL');
+    expect(body.externalCarrierId).toBe(9);
+    expect(body.plateNumber).toBe('15E-016.26');
+    expect(body.truckId).toBeUndefined();
+  });
+
+  it('refines the issued chip to Đã nhận lệnh once the driver acknowledged', async () => {
+    renderCell(row({
+      taskStatus: 'DISPATCHED',
+      dispatch: {
+        ...row().dispatch,
+        tripId: 55,
+        driverAccepted: true,
+      } as never,
+    }));
+    await openDialog();
+
+    expect(screen.getByText('Đã nhận lệnh')).toBeTruthy();
+    expect(screen.queryByText('Đã phát lệnh cho tài xế')).toBeNull();
+  });
+
   it('keeps the external path intact on an external-carrier row (regression)', async () => {
     const externalRow = row({ dispatch: { carrierType: 'EXTERNAL', carrierName: 'Carrier QA', externalCarrierId: 9, externalCarrierVehicleId: null, assignedPlate: null } });
     mockFleetResources();

@@ -19,6 +19,12 @@ describe('deriveDispatchIssueStatus', () => {
     expect(deriveDispatchIssueStatus({ vehicleAssigned: true, issued: true, completed: true })).toBe('COMPLETED');
     expect(DISPATCH_ISSUE_STATUS_LABELS.COMPLETED).toBe('Đã hoàn thành');
   });
+
+  it('driver acceptance refines ISSUED into ACCEPTED — no signal keeps the plain ISSUED reading', () => {
+    expect(deriveDispatchIssueStatus({ vehicleAssigned: true, issued: true, driverAccepted: true })).toBe('ACCEPTED');
+    expect(deriveDispatchIssueStatus({ vehicleAssigned: true, issued: true, driverAccepted: false })).toBe('ISSUED');
+    expect(DISPATCH_ISSUE_STATUS_LABELS.ACCEPTED).toBe('Đã nhận lệnh');
+  });
 });
 
 describe('DispatchIssueStatusChip', () => {

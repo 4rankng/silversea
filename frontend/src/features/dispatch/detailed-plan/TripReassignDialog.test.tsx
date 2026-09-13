@@ -1,5 +1,6 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { TripDetail } from '@tingting/shared';
 
 vi.mock('../../../hooks/useTripQueries', () => ({
@@ -11,11 +12,17 @@ vi.mock('../../../hooks/useCatalogs', () => ({
 vi.mock('../../../hooks/useCatalogQueries', () => ({
   useTrucksAndDrivers: () => ({ data: null }),
 }));
+vi.mock('../../../api/tripClient', () => ({
+  tripClient: { reassignTrip: vi.fn() },
+}));
 
 import { useTripDetail } from '../../../hooks/useTripQueries';
+import { tripClient } from '../../../api/tripClient';
+import { qk } from '../../../api/keys';
 import { TripReassignDialog } from './TripReassignDialog';
 
 const useTripDetailMock = vi.mocked(useTripDetail);
+const reassignMock = vi.mocked(tripClient.reassignTrip);
 
 const TRIP = {
   id: 3,
@@ -29,8 +36,20 @@ const TRIP = {
   externalDriverPhone: null,
 } as unknown as TripDetail;
 
+/** Current test client — renderDialog recreates it per render. */
+let queryClient: QueryClient;
+
+function dialogElement() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TripReassignDialog tripId={3} onClose={vi.fn()} onReassigned={vi.fn()} />
+    </QueryClientProvider>
+  );
+}
+
 function renderDialog() {
-  return render(<TripReassignDialog tripId={3} onClose={vi.fn()} onReassigned={vi.fn()} />);
+  queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(dialogElement());
 }
 
 describe('TripReassignDialog — fetch-state rendering', () => {
@@ -97,7 +116,7 @@ describe('TripReassignDialog — draft seeding across trip versions', () => {
     useTripDetailMock.mockReturnValue({
       data: REASSIGNED_TRIP, isLoading: false, error: null, refetch: vi.fn(),
     } as never);
-    rerender(<TripReassignDialog tripId={3} onClose={vi.fn()} onReassigned={vi.fn()} />);
+    rerender(dialogElement());
 
     expect(screen.getByDisplayValue('Xe ngoài')).toBeTruthy();
     expect(screen.getByDisplayValue('60C-999.99')).toBeTruthy();
@@ -115,9 +134,89 @@ describe('TripReassignDialog — draft seeding across trip versions', () => {
     useTripDetailMock.mockReturnValue({
       data: { ...TRIP }, isLoading: false, error: null, refetch: vi.fn(),
     } as never);
-    rerender(<TripReassignDialog tripId={3} onClose={vi.fn()} onReassigned={vi.fn()} />);
+    rerender(dialogElement());
 
     expect(screen.getByDisplayValue('Xe ngoài')).toBeTruthy();
     expect(screen.queryByDisplayValue('60C-999.99')).toBeNull();
+  });
+});
+
+// The reassign save must prime the trip-detail cache with the response —
+// with the app-wide 5-minute staleTime, reopening would otherwise keep
+// seeding the stale pre-reassign snapshot until a full page reload.
+describe('TripReassignDialog — save primes the trip-detail cache', () => {
+  beforeEach(() => {
+    useTripDetailMock.mockReset();
+    reassignMock.mockReset();
+  });
+
+  it('writes the reassign response into the cache so reopening seeds the saved values', async () => {
+    useTripDetailMock.mockReturnValue({
+      data: TRIP, isLoading: false, error: null, refetch: vi.fn(),
+    } as never);
+    const REASSIGNED = { ...TRIP, version: 4, truckId: 30, driverId: 9 } as unknown as TripDetail;
+    reassignMock.mockResolvedValue(REASSIGNED);
+
+    renderDialog();
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận phân xe lại' }));
+
+    await waitFor(() => expect(reassignMock).toHaveBeenCalledWith(3, expect.objectContaining({ expectedVersion: 3 })));
+    // The fresh trip now rides the detail cache — the next open seeds the
+    // SAVED truck/driver immediately, no refetch or reload required.
+    await waitFor(() => expect(queryClient.getQueryData(qk.trips.detail('3'))).toEqual(REASSIGNED));
+  });
+});
+
+// Acceptance lock — mirrors the server guard: an IN_TRANSIT trip whose
+// driver acknowledged (ORDER_RECEIVED) shows the lock BEFORE form entry;
+// CREATED trips stay reassignable (pre-acceptance correction right).
+describe('TripReassignDialog — acceptance lock', () => {
+  beforeEach(() => {
+    useTripDetailMock.mockReset();
+    reassignMock.mockReset();
+  });
+
+  it('shows a read-only lock for an acknowledged IN_TRANSIT trip — no inputs, no confirm control', () => {
+    useTripDetailMock.mockReturnValue({
+      data: {
+        ...TRIP,
+        status: 'IN_TRANSIT',
+        driverAccepted: true,
+        truck: { licensePlate: '15H-104.03' },
+        driver: { name: 'Bùi Tiến Dũng' },
+      } as unknown as TripDetail,
+      isLoading: false, error: null, refetch: vi.fn(),
+    } as never);
+    renderDialog();
+
+    expect(screen.getByText(/Tài xế đã nhận việc/)).toBeTruthy();
+    expect(screen.getByText('15H-104.03')).toBeTruthy();
+    expect(screen.getByText('Bùi Tiến Dũng')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Xác nhận phân xe lại' })).toBeNull();
+    expect(screen.queryByText('Xe đầu kéo')).toBeNull();
+  });
+
+  it('keeps a CREATED trip editable even with acceptance on record', () => {
+    useTripDetailMock.mockReturnValue({
+      data: { ...TRIP, status: 'CREATED', driverAccepted: true } as unknown as TripDetail,
+      isLoading: false, error: null, refetch: vi.fn(),
+    } as never);
+    renderDialog();
+
+    expect(screen.getByText('Xe đầu kéo')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Xác nhận phân xe lại' })).toBeTruthy();
+  });
+
+  it('a late conflict surfaces the error and refetches so the lock can land', async () => {
+    const refetch = vi.fn().mockResolvedValue(undefined);
+    useTripDetailMock.mockReturnValue({
+      data: TRIP, isLoading: false, error: null, refetch,
+    } as never);
+    reassignMock.mockRejectedValue(new Error('Không thể điều chỉnh tác vụ đã được lái xe nhận việc.'));
+    renderDialog();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận phân xe lại' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('đã được lái xe nhận việc');
+    await waitFor(() => expect(refetch).toHaveBeenCalled());
   });
 });

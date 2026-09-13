@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, isNull } from 'drizzle-orm';
+import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm';
 
 import { db } from '../db';
 import * as s from '../db/schema';
@@ -29,8 +29,10 @@ async function assertActiveCarrier(carrierId: number, tx?: Tx) {
 }
 
 /**
- * Reverse lookup: plate → owning carrier (BUG 3 autofill). Normalizes with
- * the shared plate normalizer so dashed/dotted plates match their stored
+ * Reverse lookup: plate → owning carrier (BUG 3 autofill). Two sources,
+ * catalog first: carrier-fleet-vehicles rows, then fleet-page truck links
+ * (trucks.carrier_id — separator-insensitive match). Normalizes with the
+ * shared plate normalizer so dashed/dotted plates match their stored
  * alphanumeric form; a LOCKED (non-ACTIVE) carrier resolves to nulls on
  * BOTH fields so the editor never auto-fills an entity the dispatch write
  * would later 409 on.
@@ -52,8 +54,35 @@ export async function resolveCarrierByPlate(plate: string): Promise<{ carrierId:
     ))
     .orderBy(desc(s.carrierFleetVehicles.id))
     .limit(1);
-  if (!row || row.status !== 'ACTIVE') return { carrierId: null, carrierName: null };
-  return { carrierId: row.carrierId, carrierName: row.carrierName };
+  if (row) {
+    // Catalog hit: a LOCKED carrier resolves to nulls on BOTH fields so the
+    // editor never auto-fills an entity the dispatch write would later 409 on.
+    if (row.status !== 'ACTIVE') return { carrierId: null, carrierName: null };
+    return { carrierId: row.carrierId, carrierName: row.carrierName };
+  }
+  // Fleet-page links (trucks.carrier_id) resolve with the same contract —
+  // separator-insensitive plate match (15E-016.26 ≡ 15E01626); only ACTIVE
+  // trucks owned by ACTIVE carriers qualify, so the explicit link always
+  // wins over the generic internal-fleet default.
+  const [truck] = await db.select({
+    carrierId: s.trucks.carrierId,
+    carrierName: s.customers.name,
+  })
+    .from(s.trucks)
+    .innerJoin(s.customers, and(
+      eq(s.customers.id, s.trucks.carrierId),
+      eq(s.customers.status, 'ACTIVE'),
+      isNull(s.customers.deletedAt),
+    ))
+    .where(and(
+      sql`regexp_replace(upper(${s.trucks.licensePlate}), '[^A-Z0-9]', '', 'g') = ${normalized}`,
+      eq(s.trucks.status, 'ACTIVE'),
+      isNull(s.trucks.deletedAt),
+    ))
+    .orderBy(desc(s.trucks.id))
+    .limit(1);
+  if (truck) return { carrierId: truck.carrierId, carrierName: truck.carrierName };
+  return { carrierId: null, carrierName: null };
 }
 
 export async function listCarrierFleetVehicles(carrierId: number) {

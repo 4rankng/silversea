@@ -122,6 +122,14 @@ function vehicleValueForRow(row: DispatchDetailPlanRow): string {
   return row.dispatch.assignedPlate ? `${CURRENT_PLATE_PREFIX}${row.dispatch.assignedPlate}` : '';
 }
 
+/** Comparison key for plate equality: separator-stripped uppercase, so the
+ *  punctuated and normalized forms of one plate (15E-016.26 / 15E01626)
+ *  compare equal wherever they meet — picker option, current-row placeholder
+ *  or free text. */
+function plateCompareKey(value: string): string {
+  return normalizePlate(value).replace(/[^A-Z0-9 ]/g, '');
+}
+
 /** Resolves any vehicle-select value to its plate for comparison. The row's
  *  own-fleet placeholder (`current:{plate}`) and the same truck's fetched
  *  option (`truck:{id}`) are two different value strings for one vehicle —
@@ -130,10 +138,10 @@ function vehicleValueForRow(row: DispatchDetailPlanRow): string {
  *  same plate twice. */
 function vehiclePlateKey(value: string, options: SearchableSelectOption[]): string {
   if (!value) return '';
-  if (value.startsWith(CURRENT_PLATE_PREFIX)) return normalizePlate(value.slice(CURRENT_PLATE_PREFIX.length));
-  if (value.startsWith(FREE_TEXT_PREFIX)) return normalizePlate(value.slice(FREE_TEXT_PREFIX.length));
+  if (value.startsWith(CURRENT_PLATE_PREFIX)) return plateCompareKey(value.slice(CURRENT_PLATE_PREFIX.length));
+  if (value.startsWith(FREE_TEXT_PREFIX)) return plateCompareKey(value.slice(FREE_TEXT_PREFIX.length));
   const label = options.find((option) => option.value === value)?.label;
-  return label ? normalizePlate(label.split(' — ')[0]) : value;
+  return label ? plateCompareKey(label.split(' — ')[0]) : value;
 }
 
 /** Cont rows offer the three cont models (Đơn/Kẹp/Kết hợp) — the dispatcher's
@@ -223,6 +231,10 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
   // Trailer type per loaded truck id — lets the pinned D±1 suggestion labels
   // carry the same mismatch warning as the page list without re-fetching.
   const truckTrailerTypesRef = useRef(new Map<number, string | null>());
+  // Truck fleet-page carrier links (id → link) from the loaded pages — the
+  // own-truck promotion reads this so an explicit link wins over the generic
+  // internal default.
+  const truckCarrierLinksRef = useRef(new Map<number, { plate: string; carrierId: number; carrierName: string }>());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Fleet fetches must never masquerade as "no data": a failed list load
@@ -242,6 +254,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
     vehicleAssigned: row.dispatch.assignedPlate != null,
     issued: row.taskStatus === 'DISPATCHED' && row.dispatch.tripId != null,
     completed: row.taskStatus === 'COMPLETED',
+    driverAccepted: row.dispatch.driverAccepted === true,
   });
   // Issuing acts on the saved plan, not unsaved draft edits — block it while
   // the dialog has pending carrier/vehicle changes so it can't fire against
@@ -337,6 +350,9 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
       if (isOwnFleet) {
         const trucks = response.items as DispatchTruck[];
         truckTrailerTypesRef.current = new Map(trucks.map((truck) => [truck.id, truck.trailerType]));
+        truckCarrierLinksRef.current = new Map(trucks
+          .filter((truck) => truck.carrierId != null)
+          .map((truck) => [truck.id, { plate: truck.licensePlate, carrierId: truck.carrierId!, carrierName: truck.carrierName ?? '' }]));
         const requiredTrailerType = requiredTrailerTypeForContainer(row.container.containerTypeLabel);
         // Stable sort (ES2019+): fits first, unknowns keep page order, mismatches sink.
         const ranked = requiredTrailerType != null
@@ -376,9 +392,17 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
 
   const selectableCarrierOptions = useMemo(() => {
     const options = [{ value: OWN_CARRIER_VALUE, label: 'SilverSea — xe nội bộ' }, ...carrierOptions];
-    // Fallback option only for a real selection — '' (unassigned) keeps the placeholder.
+    // Fallback option only for a real selection — '' (unassigned) keeps the
+    // placeholder. A carrier promoted from a truck link resolves its name
+    // from the link before falling back to the row's saved carrier.
     if (draft.carrierValue && !options.some((option) => option.value === draft.carrierValue)) {
-      options.splice(1, 0, { value: draft.carrierValue, label: row.dispatch.carrierName ?? 'Nhà xe đã ngừng hoạt động' });
+      const promotedId = draft.carrierValue.startsWith(EXTERNAL_CARRIER_PREFIX)
+        ? Number(draft.carrierValue.slice(EXTERNAL_CARRIER_PREFIX.length))
+        : null;
+      const promotedName = promotedId != null
+        ? [...truckCarrierLinksRef.current.values()].find((link) => link.carrierId === promotedId)?.carrierName
+        : null;
+      options.splice(1, 0, { value: draft.carrierValue, label: promotedName ?? row.dispatch.carrierName ?? 'Nhà xe đã ngừng hoạt động' });
     }
     return options;
   }, [carrierOptions, draft.carrierValue, row.dispatch.carrierName]);
@@ -503,7 +527,12 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
       let mapped: SearchableSelectOption[];
       if (isOwnFleet) {
         const trucks = response.items as DispatchTruck[];
-        for (const truck of trucks) truckTrailerTypesRef.current.set(truck.id, truck.trailerType);
+        for (const truck of trucks) {
+          truckTrailerTypesRef.current.set(truck.id, truck.trailerType);
+          if (truck.carrierId != null) {
+            truckCarrierLinksRef.current.set(truck.id, { plate: truck.licensePlate, carrierId: truck.carrierId, carrierName: truck.carrierName ?? '' });
+          }
+        }
         const requiredTrailerType = requiredTrailerTypeForContainer(row.container.containerTypeLabel);
         const ranked = requiredTrailerType != null
           ? [...trucks].sort((a, b) => trailerFitRank(a.trailerType, requiredTrailerType) - trailerFitRank(b.trailerType, requiredTrailerType))
@@ -676,14 +705,25 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
                 id={`dispatch-vehicle-${row.fulfillmentId}`}
                 value={draft.vehicleValue}
                 onChange={(value) => {
-                  setDraft((current) => ({
-                    ...current,
-                    vehicleValue: value,
-                    // Picking an own-fleet truck on a carrier-less row promotes
-                    // the pick to the OWN carrier (Option B) so save passes
-                    // its carrier check.
-                    carrierValue: !current.carrierValue && value.startsWith(OWN_TRUCK_PREFIX) ? OWN_CARRIER_VALUE : current.carrierValue,
-                  }));
+                  // Explicit fleet carrier link wins over the generic internal
+                  // default: picking a subcontracted tractor on a carrier-less
+                  // row fills its owning nhà xe and rides as that carrier's
+                  // plate. Unlinked trucks keep the OWN promotion (Option B)
+                  // so save still passes its carrier check.
+                  const truckId = value.startsWith(OWN_TRUCK_PREFIX) ? Number(value.slice(OWN_TRUCK_PREFIX.length)) : null;
+                  const linkedCarrier = truckId != null ? truckCarrierLinksRef.current.get(truckId) : undefined;
+                  setDraft((current) => {
+                    if (truckId == null || current.carrierValue) {
+                      return { ...current, vehicleValue: value };
+                    }
+                    return linkedCarrier
+                      ? {
+                        ...current,
+                        vehicleValue: `${FREE_TEXT_PREFIX}${linkedCarrier.plate}`,
+                        carrierValue: `${EXTERNAL_CARRIER_PREFIX}${linkedCarrier.carrierId}`,
+                      }
+                      : { ...current, vehicleValue: value, carrierValue: OWN_CARRIER_VALUE };
+                  });
                   setError(null);
                   // Reverse lookup: when a free-text plate is entered and no
                   // carrier is selected, resolve the carrier from the plate

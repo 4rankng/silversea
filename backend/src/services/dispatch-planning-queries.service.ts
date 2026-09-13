@@ -618,12 +618,23 @@ export async function listDispatchFleet(input: ListDispatchFleetInput) {
   const cursor = parseFleetCursor(input.cursor, input.resource);
   const limit = normalizeLimit(input.limit, 100);
   const qPattern = buildPattern(input.q);
+  // Plate search matches the stored form AND its separator-stripped form —
+  // a typed "15E01626" must find the punctuated "15E-016.26" and vice versa.
+  const strippedQ = (input.q ?? '').replace(/[^A-Za-z0-9]/g, '');
+  const truckPlateSearch = qPattern == null
+    ? undefined
+    : strippedQ
+      ? or(
+        unaccentedIlike(s.trucks.licensePlate, qPattern),
+        sql`regexp_replace(unaccent(${s.trucks.licensePlate}), '[^A-Za-z0-9]', '', 'g') ILIKE ${`%${strippedQ}%`}`,
+      )
+      : unaccentedIlike(s.trucks.licensePlate, qPattern);
 
   return db.transaction(async (tx) => {
     if (input.resource === 'TRUCK') {
       const truckWhere = and(
         isNull(s.trucks.deletedAt),
-        qPattern ? unaccentedIlike(s.trucks.licensePlate, qPattern) : undefined,
+        truckPlateSearch,
         cursor ? or(
           gt(s.trucks.licensePlate, cursor.sortKey),
           and(eq(s.trucks.licensePlate, cursor.sortKey), gt(s.trucks.id, cursor.id)),
@@ -631,7 +642,7 @@ export async function listDispatchFleet(input: ListDispatchFleetInput) {
       );
       const truckCountWhere = and(
         isNull(s.trucks.deletedAt),
-        qPattern ? unaccentedIlike(s.trucks.licensePlate, qPattern) : undefined,
+        truckPlateSearch,
       );
       const [truckTotals, truckRows] = await Promise.all([
         tx.select({ value: count() }).from(s.trucks).where(truckCountWhere),
@@ -649,18 +660,32 @@ export async function listDispatchFleet(input: ListDispatchFleetInput) {
       const pageRows = truckRows.slice(0, limit);
       const trailerIds = pageRows.map((row) => row.currentTrailerId).filter((id): id is number => id != null);
       const truckIds = pageRows.map((row) => row.id);
-      const [trailers, assignedDriverMap] = await Promise.all([
+      const [trailers, assignedDriverMap, carrierLinks] = await Promise.all([
         trailerIds.length === 0
           ? []
           : tx.select({ id: s.trailers.id, licensePlate: s.trailers.licensePlate, type: s.trailers.type })
             .from(s.trailers)
             .where(inArray(s.trailers.id, [...new Set(trailerIds)])),
         getActiveAssignmentsByTruckIds(tx, truckIds),
+        // Fleet-page carrier links ride beside the page rows — only ACTIVE
+        // carrier customers, so the editor can auto-fill a link that the
+        // dispatch write would accept (a LOCKED link reads as unlinked).
+        truckIds.length === 0
+          ? []
+          : tx.select({ truckId: s.trucks.id, carrierId: s.trucks.carrierId, carrierName: s.customers.name })
+            .from(s.trucks)
+            .innerJoin(s.customers, and(
+              eq(s.customers.id, s.trucks.carrierId),
+              eq(s.customers.status, 'ACTIVE'),
+              isNull(s.customers.deletedAt),
+            ))
+            .where(inArray(s.trucks.id, truckIds)),
       ]);
       const trailerById = new Map(trailers.map((row) => [row.id, row]));
       const assignedDriverByTruckId = new Map<number, { id: number; name: string }>(
         [...assignedDriverMap.entries()].map(([truckId, driver]) => [truckId, { id: driver.driverId, name: driver.driverName }]),
       );
+      const carrierByTruckId = new Map(carrierLinks.map((row) => [row.truckId, row]));
 
       // Advisory same-zone suggestions ride beside the cursor page — never
       // inside it, so pagination semantics stay byte-compatible for callers.
@@ -687,6 +712,8 @@ export async function listDispatchFleet(input: ListDispatchFleetInput) {
             status: row.status,
             assignedDriverId: assignedDriverByTruckId.get(row.id)?.id ?? null,
             assignedDriverName: assignedDriverByTruckId.get(row.id)?.name ?? null,
+            carrierId: carrierByTruckId.get(row.id)?.carrierId ?? null,
+            carrierName: carrierByTruckId.get(row.id)?.carrierName ?? null,
           };
         }),
         suggestedItems,
