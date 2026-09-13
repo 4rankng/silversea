@@ -157,7 +157,7 @@ export function TruckFormModal({
             placeholder="Hãng xe"
           />
           <UnitInput
-            label="Trọng tài kéo"
+            label="Trọng tải kéo"
             unit="tấn"
             icon={Weight}
             value={String(towCapacityTons)}
