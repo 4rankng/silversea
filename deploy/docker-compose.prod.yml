@@ -1,4 +1,7 @@
-name: nepocorp
+# ─── vantai.tingting.vip (STAGING/demo server) stack ─────────────────────────
+# Server-side home: /opt/vantai/deploy/ (this file + .env with real values).
+# Deployed by `make demo` (root Makefile) — images ride the `:latest` channel.
+name: vantai
 
 services:
   postgres:
@@ -7,15 +10,15 @@ services:
     image: pgvector/pgvector:pg16
     restart: unless-stopped
     environment:
-      POSTGRES_USER: nepocorp
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-NepoProd2026}
-      POSTGRES_DB: nepocorp
+      POSTGRES_USER: vantai
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-VantaiDemo2026}
+      POSTGRES_DB: vantai
     volumes:
-      - /opt/nepocorp/data/postgres:/var/lib/postgresql/data
+      - /opt/vantai/data/postgres:/var/lib/postgresql/data
     expose:
       - "5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U nepocorp -d nepocorp"]
+      test: ["CMD-SHELL", "pg_isready -U vantai -d vantai"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -27,7 +30,7 @@ services:
     expose:
       - "6379"
     volumes:
-      - /opt/nepocorp/data/redis:/data
+      - /opt/vantai/data/redis:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -40,18 +43,21 @@ services:
     env_file:
       - .env
     environment:
-      - DATABASE_URL=postgres://nepocorp:${DB_PASSWORD:-NepoProd2026}@postgres:5432/nepocorp
+      - DATABASE_URL=postgres://vantai:${DB_PASSWORD:-VantaiDemo2026}@postgres:5432/vantai
       - REDIS_URL=redis://redis:6379
       - NODE_ENV=production
       - PORT=3090
       - UPLOAD_DIR=/app/backend/uploads
       - CORS_ORIGIN=https://vantai.tingting.vip
+      # Stamped by `make demo` at cutover — /api/health reports it as buildHash
+      # so a lagging staging/prod is diagnosable from one curl.
+      - BUILD_HASH=${BUILD_HASH:-dev}
     expose:
       - "3090"
     ports:
       - "127.0.0.1:3090:3090"
     volumes:
-      - /opt/nepocorp/data/uploads:/app/backend/uploads
+      - /opt/vantai/data/uploads:/app/backend/uploads
     depends_on:
       postgres:
         condition: service_healthy

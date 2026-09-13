@@ -862,6 +862,22 @@ export async function assignFulfillmentPlateInTx(tx: Tx, input: AssignFulfillmen
     throw new ApiError(409, 'CUS chưa gán nhà xe cho tác vụ này.');
   }
 
+  // Terminal lot statuses block plate writes on this single-field endpoint
+  // too — the atomic plan save and the carrier change already reject with
+  // 409 "Lô hàng đã kết thúc", and this legacy path accepting the same write
+  // on a COMPLETED lot was a guard inconsistency. Deliberately a plain read
+  // (no FOR UPDATE): the fulfillment row lock above already serializes this
+  // endpoint, and locking the shipment here would invert the carrier path's
+  // lock order (shipment → fulfillment) and deadlock the two endpoints.
+  const [plateLot] = await tx.select({ status: s.shipments.status })
+    .from(s.shipments)
+    .where(and(eq(s.shipments.id, fulfillment.shipmentId), isNull(s.shipments.deletedAt)))
+    .limit(1);
+  if (!plateLot) throw new ApiError(404, 'Không tìm thấy lô hàng.');
+  if (canonicalShipmentStatus(plateLot.status) === 'COMPLETED' || canonicalShipmentStatus(plateLot.status) === 'CANCELED') {
+    throw new ApiError(409, 'Lô hàng đã kết thúc, không thể gán biển số.');
+  }
+
   await assertShipmentAccountingUnlocked(tx, fulfillment.shipmentId);
 
   const vehicle = await resolveDispatchVehicleAssignment(tx, {

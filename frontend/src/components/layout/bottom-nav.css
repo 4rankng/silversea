@@ -474,19 +474,22 @@
     to { opacity: 1; }
   }
 
+  /* Entrance is fade-only by design: a slide-up transform keeps the sheet's
+     buttons off-screen or moving for the whole animation, so a quick tap at
+     the button's resting spot fires on nothing — the mobile "Đăng xuất tap
+     silently does nothing" bug (20261109_4 BUG 1 reopen, 2026-09-13). The
+     sheet renders at its final position from frame 1; only opacity animates. */
   @keyframes sheetUp {
-    from { transform: translateY(100%); }
-    to { transform: translateY(0); }
+    from { opacity: 0; }
+    to { opacity: 1; }
   }
 
   @keyframes sheetItemIn {
     from {
       opacity: 0;
-      transform: translateY(12px);
     }
     to {
       opacity: 1;
-      transform: translateY(0);
     }
   }
 }

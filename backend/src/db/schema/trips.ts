@@ -5,6 +5,7 @@ import {
   boolean, date, index, integer, jsonb, numeric, pgTable, pgView, serial, text, timestamp, uniqueIndex, varchar,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
+import { shipmentFulfillments } from './shipments';
 import { fuelModeEnum, loadingTypeEnum, pricingSourceEnum, trailerTypeEnum, tripPhotoTypeEnum, tripStatusEnum } from './_enums';
 // ─── Operations ──────────────────────────────────────────────────────────────
 export const trips = pgTable('trips', {
@@ -59,9 +60,12 @@ export const trips = pgTable('trips', {
   // later checkbox). Trip creation refactor to *require* this comes with the
   // SHIPMENT_FIRST_CREATE feature flag in a separate Wave 0 item.
   // Application delete guards prevent hard-deleting a shipment with live trips.
-  // Use shipments.deletedAt for tombstoning.
+  // Use shipments.deletedAt for tombstoning. The RESTRICT FK on fulfillmentId
+  // (migration 0073) backs that guard at the database level: cascade-deleting
+  // a shipment's fulfillments cannot strand or silently take live trips.
   shipmentId: integer('shipment_id'),
-  fulfillmentId: integer('fulfillment_id'),
+  fulfillmentId: integer('fulfillment_id')
+    .references(() => shipmentFulfillments.id, { onDelete: 'restrict' }),
   sourceShipmentVersion: integer('source_shipment_version'),
   completedAt: timestamp('completed_at'),
   // O2C POD-recovery gate (docs/prd/O2C dev.md). Distinct from digital e-POD

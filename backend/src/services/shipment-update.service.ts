@@ -219,7 +219,6 @@ export async function updateShipment(
       // detail plan (its rows query inner-joins live fulfillments). The
       // submit-for-dispatch flow already ensures; mirror it.
       const readyActorId = input.updatedBy ?? actor?.userId ?? null;
-      if (readyActorId == null) throw new ApiError(400, 'Người thực hiện không hợp lệ.');
       // Legacy rows can predate the explicit cargo-mode column (same repair
       // as updateCusShipmentContainerLine): a lot with containers is FCL, a
       // container-less one is LCL.
@@ -237,7 +236,10 @@ export async function updateShipment(
       // lot with zero containers cannot appear on the plan either way (rows
       // join containers), so its date update keeps the pre-fix behavior
       // instead of failing the whole save.
-      if (updated.cargoMode === 'LCL' || hasContainers) {
+      // Route callers always supply an actor; a null-actor service-level flip
+      // (legacy programmatic path) cannot decompose — the union branch keeps
+      // the lot visible until a dispatched write decomposes it.
+      if (readyActorId != null && (updated.cargoMode === 'LCL' || hasContainers)) {
         await ensureShipmentFulfillmentsInTx(tx, {
           shipmentId: id,
           actorId: readyActorId,

@@ -35,7 +35,8 @@
       "postcss": "~8.5.26",
       "protobufjs": "^7.6.5",
       "qs": ">=6.16.0",
-      "browserslist": ">=4.28.7"
+      "browserslist": ">=4.28.7",
+      "csv-parse": "^7.0.2"
     }
   },
   "dependencies": {

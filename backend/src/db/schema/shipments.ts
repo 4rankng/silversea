@@ -157,8 +157,12 @@ export const shipmentStatusHistory = pgTable('shipment_status_history', {
 // mirror trip_container_seals when the dispatch service lands.
 export const shipmentContainers = pgTable('shipment_containers', {
   id: serial('id').primaryKey(),
+  // CASCADE: a hard shipment delete takes its container rows along — the app
+  // normally tombstones (deletedAt), and the FK exists so test/QA hard
+  // deletes can no longer strand orphan children (migration 0073).
   shipmentId: integer('shipment_id')
-    .notNull(),
+    .notNull()
+    .references(() => shipments.id, { onDelete: 'cascade' }),
   containerTypeId: integer('container_type_id'),
   containerNumber: varchar('container_number', { length: 50 }),
   sealNumber: varchar('seal_number', { length: 50 }),
@@ -211,8 +215,11 @@ export const shipmentContainers = pgTable('shipment_containers', {
 // assignment snapshots, and governed cancellation/replacement provenance.
 export const shipmentFulfillments = pgTable('shipment_fulfillments', {
   id: serial('id').primaryKey(),
+  // CASCADE: same rationale as shipmentContainers (migration 0073); live
+  // trips stay protected by the trips.fulfillment_id RESTRICT FK.
   shipmentId: integer('shipment_id')
-    .notNull(),
+    .notNull()
+    .references(() => shipments.id, { onDelete: 'cascade' }),
   fulfillmentType: shipmentFulfillmentTypeEnum('fulfillment_type').notNull(),
   cargoMode: shipmentCargoModeEnum('cargo_mode').notNull(),
   shipmentContainerId: integer('shipment_container_id')

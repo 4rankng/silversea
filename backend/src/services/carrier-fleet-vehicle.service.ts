@@ -28,6 +28,34 @@ async function assertActiveCarrier(carrierId: number, tx?: Tx) {
   }
 }
 
+/**
+ * Reverse lookup: plate → owning carrier (BUG 3 autofill). Normalizes with
+ * the shared plate normalizer so dashed/dotted plates match their stored
+ * alphanumeric form; a LOCKED (non-ACTIVE) carrier resolves to nulls on
+ * BOTH fields so the editor never auto-fills an entity the dispatch write
+ * would later 409 on.
+ */
+export async function resolveCarrierByPlate(plate: string): Promise<{ carrierId: number | null; carrierName: string | null }> {
+  const normalized = normalizePlate(plate);
+  const [row] = await db.select({
+    carrierId: s.carrierFleetVehicles.carrierId,
+    carrierName: s.customers.name,
+    status: s.customers.status,
+  })
+    .from(s.carrierFleetVehicles)
+    .innerJoin(s.customers, eq(s.carrierFleetVehicles.carrierId, s.customers.id))
+    .where(and(
+      eq(s.carrierFleetVehicles.normalizedPlate, normalized),
+      eq(s.carrierFleetVehicles.isActive, true),
+      isNull(s.carrierFleetVehicles.deletedAt),
+      isNull(s.customers.deletedAt),
+    ))
+    .orderBy(desc(s.carrierFleetVehicles.id))
+    .limit(1);
+  if (!row || row.status !== 'ACTIVE') return { carrierId: null, carrierName: null };
+  return { carrierId: row.carrierId, carrierName: row.carrierName };
+}
+
 export async function listCarrierFleetVehicles(carrierId: number) {
   await assertActiveCarrier(carrierId);
   return db.select().from(s.carrierFleetVehicles).where(and(

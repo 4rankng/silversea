@@ -196,4 +196,121 @@ describe('ShipmentDetailPage', () => {
     expect(screen.getAllByText('Đội xe nội bộ SilverSea').length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText('Chưa phân nhà xe')).toBeNull();
   });
+
+  it('keeps the assigned rendering for a 45ft container too (non-20/40 size)', async () => {
+    getShipmentDetailMock.mockResolvedValue({
+      ...detail,
+      containers: [{
+        id: 21,
+        shipmentId: 1,
+        containerTypeId: 7,
+        containerTypeCode: '45HC',
+        containerTypeName: "45'HC",
+        containerNumber: 'MEDU4927126',
+        sealNumber: null,
+        cargoWeightKg: null,
+        deletedAt: null,
+        createdAt: '2026-08-11T00:00:00.000Z',
+        updatedAt: '2026-08-11T00:00:00.000Z',
+      }],
+      carrierAssignments: [{
+        fulfillmentId: 31,
+        fulfillmentVersion: 1,
+        shipmentContainerId: 21,
+        containerTypeCode: '45HC',
+        containerTypeName: "45'HC",
+        carrierType: 'OWN',
+        externalCarrierId: null,
+        externalCarrierName: null,
+      }],
+    });
+    render(
+      <MemoryRouter initialEntries={['/shipments/1']}>
+        <Routes>
+          <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    // A 45'HC has no 20/40 bucket but IS a real carrier assignment — the
+    // section must not fall back to the unassigned wording (the chip simply
+    // omits the size counts).
+    expect((await screen.findAllByText('Nhà xe đã gán')).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Đội xe nội bộ SilverSea').length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText('Chưa phân nhà xe')).toBeNull();
+  });
+
+  it('renders unassigned wording when a fulfillment exists but no carrier does (decomposed-carrier-null)', async () => {
+    getShipmentDetailMock.mockResolvedValue({
+      ...detail,
+      containers: [{
+        id: 22,
+        shipmentId: 1,
+        containerTypeId: 4,
+        containerTypeCode: '40HC',
+        containerTypeName: "40'HC",
+        containerNumber: 'QATU0900043',
+        sealNumber: null,
+        cargoWeightKg: null,
+        deletedAt: null,
+        createdAt: '2026-08-11T00:00:00.000Z',
+        updatedAt: '2026-08-11T00:00:00.000Z',
+      }],
+      carrierAssignments: [{
+        fulfillmentId: 41,
+        fulfillmentVersion: 1,
+        shipmentContainerId: 22,
+        containerTypeCode: '40HC',
+        containerTypeName: "40'HC",
+        carrierType: null,
+        externalCarrierId: null,
+        externalCarrierName: null,
+      }],
+    });
+    render(
+      <MemoryRouter initialEntries={['/shipments/1']}>
+        <Routes>
+          <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    // Fulfillment presence must NOT flip the section to "đã gán": the state
+    // keys on carrier presence (user's reported scenario, 9e refined ruling).
+    expect((await screen.findAllByText('Nhà xe')).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('Chưa phân nhà xe')).toBeTruthy();
+    expect(screen.queryByText('Nhà xe đã gán')).toBeNull();
+  });
+
+  it('keeps the assigned rendering for an LCL fulfillment with no container row', async () => {
+    getShipmentDetailMock.mockResolvedValue({
+      ...detail,
+      containers: [],
+      carrierAssignments: [{
+        fulfillmentId: 51,
+        fulfillmentVersion: 1,
+        shipmentContainerId: null,
+        containerTypeCode: null,
+        containerTypeName: null,
+        carrierType: 'OWN',
+        externalCarrierId: null,
+        externalCarrierName: null,
+      }],
+    });
+    render(
+      <MemoryRouter initialEntries={['/shipments/1']}>
+        <Routes>
+          <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    // An LCL assignment has no container to resolve (the backend left join
+    // returns null container fields for it) — it is still a real carrier
+    // assignment, so the section must not fall back to the unassigned
+    // wording and the OWN fleet chip must render.
+    expect((await screen.findAllByText('Nhà xe đã gán')).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Đội xe nội bộ SilverSea').length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText('Chưa phân nhà xe')).toBeNull();
+  });
 });

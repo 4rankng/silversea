@@ -479,26 +479,40 @@
     {
       "idx": 68,
       "version": "7",
+      "when": 1789241007334,
+      "tag": "0072_renormalize_carrier_fleet_plates",
+      "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1789269610890,
+      "tag": "0073_shipment_children_foreign_keys",
+      "breakpoints": true
+    },
+    {
+      "idx": 70,
+      "version": "7",
       "when": 1789269610891,
       "tag": "0074_gorgeous_tinkerer",
       "breakpoints": true
     },
     {
-      "idx": 69,
+      "idx": 71,
       "version": "7",
       "when": 1789269610892,
       "tag": "0075_brief_firestar",
       "breakpoints": true
     },
     {
-      "idx": 70,
+      "idx": 72,
       "version": "7",
       "when": 1789269610893,
       "tag": "0076_broken_la_nuit",
       "breakpoints": true
     },
     {
-      "idx": 71,
+      "idx": 73,
       "version": "7",
       "when": 1789269610894,
       "tag": "0077_trip_factory_site_snapshot",

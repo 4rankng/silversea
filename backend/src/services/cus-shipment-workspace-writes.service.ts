@@ -290,6 +290,12 @@ export async function updateCusShipmentContainerLine(args: {
 
   const execute = async (tx: Tx) => {
     const shipment = await assertShipmentAccountingUnlocked(tx, args.shipmentId);
+    // Terminal lots refuse workspace container edits, matching the dispatch
+    // plan-save guard ("Lô hàng đã kết thúc"): a COMPLETED/CANCELED lot is
+    // closed for business edits everywhere, not just on the dispatch side.
+    if (canonicalShipmentStatus(shipment.status) === 'COMPLETED' || canonicalShipmentStatus(shipment.status) === 'CANCELED') {
+      throw new ApiError(409, 'Lô hàng đã kết thúc, không thể cập nhật dòng container.');
+    }
     if (shipment.version !== args.input.expectedShipmentVersion) {
       throw new ApiError(409, 'Lô hàng vừa thay đổi. Vui lòng tải lại trước khi cập nhật dòng container.');
     }

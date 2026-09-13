@@ -67,7 +67,10 @@ function minimalPdf(label: string): { buffer: Buffer; mimetype: string; original
 
 /** Match the plate normalization used across fleet screens. */
 function plateKey(plate: string): string {
-  return plate.replace(/[.\s]/g, '').toUpperCase();
+  // Must match the runtime carrier-fleet normalizer (resolve-carrier lookup):
+  // strip EVERY non-alphanumeric — a dash kept here ("15H-15498") can never
+  // match the lookup key ("15H15498") and the carrier autofill breaks.
+  return plate.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
 }
 
 /** One ACTIVE 40FT trailer per ACTIVE 60C truck, plus the trucks.currentTrailerId link. */

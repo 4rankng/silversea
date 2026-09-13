@@ -20,6 +20,7 @@ import { formatMoneyInput, normalizeMoneyInput } from '../../../lib/moneyInput';
 import { IssueOrderFields } from './IssueOrderFields';
 import { QuickIssueOrderDialog } from './QuickIssueOrderDialog';
 import { useIssueOrder } from './useIssueOrder';
+import { ownTruckLabel, requiredTrailerTypeForContainer, trailerFitRank, trailerMismatchSuffix } from './trailerFit';
 import './DispatchPlanEditorCell.css';
 
 export type IssueOrderResult = DispatchShipmentResponse;
@@ -99,12 +100,6 @@ interface PlanEditorDraft {
   classification: DispatchClassification;
   /** Composed driver note (tags + manual text) — see DispatchTaskTagEditor. */
   operationalNotes: string | null;
-}
-
-/** Plate alone doesn't tell a dispatcher which driver they're assigning —
- *  pair it with the driver name so the picker is recognizable. */
-function ownTruckLabel(truck: DispatchTruck): string {
-  return `${truck.licensePlate} — ${truck.assignedDriverName ?? 'Chưa gán tài xế'}`;
 }
 
 function normalizePlate(value: string): string {
@@ -225,6 +220,9 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
   const [vehicleCursor, setVehicleCursor] = useState<string | null>(null);
   const [loadingVehicles, setLoadingVehicles] = useState(false);
   const [suggestions, setSuggestions] = useState<Array<{ truckId: number; plateNumber: string; reasons: Array<'D-1_DROP' | 'D+1_PICKUP'> }>>([]);
+  // Trailer type per loaded truck id — lets the pinned D±1 suggestion labels
+  // carry the same mismatch warning as the page list without re-fetching.
+  const truckTrailerTypesRef = useRef(new Map<number, string | null>());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Fleet fetches must never masquerade as "no data": a failed list load
@@ -335,9 +333,19 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
       });
     request.then((response) => {
       if (cancelled) return;
-      const mapped = isOwnFleet
-        ? (response.items as DispatchTruck[]).map((truck) => ({ value: `${OWN_TRUCK_PREFIX}${truck.id}`, label: ownTruckLabel(truck) }))
-        : (response.items as DispatchCarrierVehicle[]).map((vehicle) => ({ value: `${EXTERNAL_VEHICLE_PREFIX}${vehicle.id}`, label: vehicle.licensePlate }));
+      let mapped: SearchableSelectOption[];
+      if (isOwnFleet) {
+        const trucks = response.items as DispatchTruck[];
+        truckTrailerTypesRef.current = new Map(trucks.map((truck) => [truck.id, truck.trailerType]));
+        const requiredTrailerType = requiredTrailerTypeForContainer(row.container.containerTypeLabel);
+        // Stable sort (ES2019+): fits first, unknowns keep page order, mismatches sink.
+        const ranked = requiredTrailerType != null
+          ? [...trucks].sort((a, b) => trailerFitRank(a.trailerType, requiredTrailerType) - trailerFitRank(b.trailerType, requiredTrailerType))
+          : trucks;
+        mapped = ranked.map((truck) => ({ value: `${OWN_TRUCK_PREFIX}${truck.id}`, label: ownTruckLabel(truck, requiredTrailerType) }));
+      } else {
+        mapped = (response.items as DispatchCarrierVehicle[]).map((vehicle) => ({ value: `${EXTERNAL_VEHICLE_PREFIX}${vehicle.id}`, label: vehicle.licensePlate }));
+      }
       const normalizedSearch = normalizePlate(vehicleSearch);
       // Free-text entry must also exist on a carrier-less row: the plate→
       // carrier autofill only fires when NO carrier is selected, and the
@@ -377,15 +385,17 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
 
   // Pinned LH suggestions render ahead of the page's trucks, deduped by option
   // value; reason tags travel in the label so screen readers get the same
-  // signal as sighted users.
+  // signal as sighted users, and a trailer mismatch warns there too.
   const selectableVehicleOptions = useMemo(() => {
+    const requiredTrailerType = requiredTrailerTypeForContainer(row.container.containerTypeLabel);
     const suggestionOptions: SearchableSelectOption[] = suggestions
       .filter((suggestion) => vehicleOptions.some((option) => option.value === `${OWN_TRUCK_PREFIX}${suggestion.truckId}`))
       .map((suggestion) => {
         const tags = suggestion.reasons.map((reason) => SUGGESTION_LABELS[reason]).join(' · ');
+        const warning = trailerMismatchSuffix(truckTrailerTypesRef.current.get(suggestion.truckId) ?? null, requiredTrailerType);
         return {
           value: `${OWN_TRUCK_PREFIX}${suggestion.truckId}`,
-          label: `${suggestion.plateNumber} — ${tags}`,
+          label: `${suggestion.plateNumber} — ${tags}${warning}`,
         };
       });
     const merged: SearchableSelectOption[] = [];
@@ -490,9 +500,18 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
         cursor: vehicleCursor,
       });
     request.then((response) => {
-      const mapped = isOwnFleet
-        ? (response.items as DispatchTruck[]).map((truck) => ({ value: `${OWN_TRUCK_PREFIX}${truck.id}`, label: ownTruckLabel(truck) }))
-        : (response.items as DispatchCarrierVehicle[]).map((vehicle) => ({ value: `${EXTERNAL_VEHICLE_PREFIX}${vehicle.id}`, label: vehicle.licensePlate }));
+      let mapped: SearchableSelectOption[];
+      if (isOwnFleet) {
+        const trucks = response.items as DispatchTruck[];
+        for (const truck of trucks) truckTrailerTypesRef.current.set(truck.id, truck.trailerType);
+        const requiredTrailerType = requiredTrailerTypeForContainer(row.container.containerTypeLabel);
+        const ranked = requiredTrailerType != null
+          ? [...trucks].sort((a, b) => trailerFitRank(a.trailerType, requiredTrailerType) - trailerFitRank(b.trailerType, requiredTrailerType))
+          : trucks;
+        mapped = ranked.map((truck) => ({ value: `${OWN_TRUCK_PREFIX}${truck.id}`, label: ownTruckLabel(truck, requiredTrailerType) }));
+      } else {
+        mapped = (response.items as DispatchCarrierVehicle[]).map((vehicle) => ({ value: `${EXTERNAL_VEHICLE_PREFIX}${vehicle.id}`, label: vehicle.licensePlate }));
+      }
       setVehicleOptions((previous) => [...previous, ...mapped.filter((item) => !previous.some((option) => option.value === item.value))]);
       setVehicleCursor(response.nextCursor);
     }).catch(() => setVehicleCursor(null)).finally(() => setLoadingVehicles(false));

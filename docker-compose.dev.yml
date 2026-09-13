@@ -4,8 +4,8 @@ services:
     # preinstalled. Required for the FAQ fast lane (vector(1536) cosine index).
     # Switched from postgres:16-alpine — the stock alpine image lacks the extension.
     image: pgvector/pgvector:pg16
-    # Namespaced silversea-* (not tingting-*) so this stack runs alongside the
-    # nepocorp project without Docker container-name collisions.
+    # Namespaced silversea-* so this stack runs alongside other projects
+    # without Docker container-name collisions.
     container_name: silversea-db
     environment:
       POSTGRES_USER: postgres

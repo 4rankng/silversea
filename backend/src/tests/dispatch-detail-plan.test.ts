@@ -386,6 +386,11 @@ after(async () => {
           db.select({ id: s.shipmentFulfillments.id }).from(s.shipmentFulfillments).where(inArray(s.shipmentFulfillments.shipmentId, createdShipmentIds)),
         ),
       ));
+      // Trips reference fulfillments (RESTRICT FK, migration 0073): take the
+      // fixture trips out before the fulfillments they fulfill.
+      await db.delete(s.trips).where(inArray(s.trips.fulfillmentId,
+        db.select({ id: s.shipmentFulfillments.id }).from(s.shipmentFulfillments)
+          .where(inArray(s.shipmentFulfillments.shipmentId, createdShipmentIds))));
       await db.delete(s.shipmentFulfillments).where(inArray(s.shipmentFulfillments.shipmentId, createdShipmentIds));
       await db.delete(s.shipmentContainers).where(inArray(s.shipmentContainers.shipmentId, createdShipmentIds));
       await db.delete(s.shipments).where(inArray(s.shipments.id, createdShipmentIds));
@@ -627,7 +632,7 @@ describe('dispatch detail plan rows', () => {
   test('delivery point facet endpoint lists distinct sites', async () => {
     const { site } = await createAllocatedLot({ carrierType: 'OWN' });
     const response = await apiFetch<{ items: Array<{ id: number; name: string }> }>(
-      '/dispatch-delivery-point-facets',
+      `/dispatch-delivery-point-facets?q=${suffix}`,
       { token: dispatcherToken },
     );
     assert.equal(response.status, 200);
@@ -647,15 +652,18 @@ describe('dispatch detail plan rows', () => {
     const dropoffId = row.ports.dropoffPortId;
     assert.ok(pickupId != null || dropoffId != null, 'fixture lot should reference ports');
 
+    // Facets cap at 100 rows ordered by name on the accumulated local DB, so
+    // the membership asserts below ride on a q-narrowed fetch (this run's
+    // ports are the only ones matching the run suffix).
     const pickup = await apiFetch<{ items: Array<{ id: number; name: string }> }>(
-      '/dispatch-pickup-port-facets',
+      `/dispatch-pickup-port-facets?q=${suffix}`,
       { token: dispatcherToken },
     );
     assert.equal(pickup.status, 200);
     if (pickupId != null) assert.ok(pickup.data.items.some((item) => item.id === pickupId));
 
     const dropoff = await apiFetch<{ items: Array<{ id: number; name: string }> }>(
-      '/dispatch-dropoff-port-facets',
+      `/dispatch-dropoff-port-facets?q=${suffix}`,
       { token: dispatcherToken },
     );
     assert.equal(dropoff.status, 200);
@@ -753,7 +761,10 @@ describe('dispatch detail plan rows', () => {
     assert.ok(unfiltered.data.items.some((item) => item.shipmentId === lhShipment.id));
     assert.ok(unfiltered.data.items.some((item) => item.shipmentId === plainShipment.id));
 
-    const lhOnly = await apiFetch<{ items: DetailPlanRow[] }>('/dispatch-detail-plan-rows?zone=LACH_HUYEN', { token: dispatcherToken });
+    // q keeps the zone queries scoped to this run's lots: an unscoped zone
+    // page-1 depends on how many zone rows the accumulated local DB holds
+    // (same accumulation trap the unfiltered fetch above avoids).
+    const lhOnly = await apiFetch<{ items: DetailPlanRow[] }>(`/dispatch-detail-plan-rows?zone=LACH_HUYEN&q=${suffix}`, { token: dispatcherToken });
     assert.equal(lhOnly.status, 200, JSON.stringify(lhOnly.data));
     assert.ok(lhOnly.data.items.some((item) => item.shipmentId === lhShipment.id), 'LH lot must be present');
     assert.ok(!lhOnly.data.items.some((item) => item.shipmentId === plainShipment.id), 'plain lot must be excluded');
@@ -766,7 +777,7 @@ describe('dispatch detail plan rows', () => {
     await db.update(s.shipmentContainers)
       .set({ pickupPortId: lhPort.id })
       .where(eq(s.shipmentContainers.id, plainContainer.id));
-    const lhPickupSide = await apiFetch<{ items: DetailPlanRow[] }>('/dispatch-detail-plan-rows?zone=LACH_HUYEN', { token: dispatcherToken });
+    const lhPickupSide = await apiFetch<{ items: DetailPlanRow[] }>(`/dispatch-detail-plan-rows?zone=LACH_HUYEN&q=${suffix}`, { token: dispatcherToken });
     assert.equal(lhPickupSide.status, 200);
     assert.ok(lhPickupSide.data.items.some((item) => item.shipmentId === plainShipment.id), 'pickup-side LH port must match');
 
@@ -1093,6 +1104,28 @@ describe('dispatch detail plan plate assignment', () => {
     } finally {
       await db.delete(s.shipmentAccountingLocks).where(eq(s.shipmentAccountingLocks.shipmentId, shipment.id));
       await db.delete(s.billingDocuments).where(eq(s.billingDocuments.id, billingDoc.id));
+    }
+  });
+
+  test('completed lot rejects plate assignment with the terminal-lot guard', async () => {
+    // Guard-consistency regression: the atomic plan save and the carrier
+    // change already 409 on terminal lots; the single-field plate endpoint
+    // used to accept the same write on a COMPLETED shipment.
+    const { shipment, fulfillmentIds } = await createAllocatedLot({ carrierType: 'OWN' });
+    const { truck } = await createOwnedTruckWithDriver();
+    const [fulfillment] = await db.select().from(s.shipmentFulfillments)
+      .where(eq(s.shipmentFulfillments.id, fulfillmentIds[0]!));
+    try {
+      await db.update(s.shipments).set({ status: 'COMPLETED' }).where(eq(s.shipments.id, shipment.id));
+      const response = await apiFetch<PlateResponse>(`/dispatch-detail-plan-rows/${fulfillment.id}/plate`, {
+        method: 'PATCH',
+        token: dispatcherToken,
+        body: { expectedVersion: fulfillment.version, truckId: truck.id },
+      });
+      assert.equal(response.status, 409);
+      assert.ok(String((response.data as { error?: string }).error ?? '').includes('đã kết thúc'), JSON.stringify(response.data));
+    } finally {
+      await db.update(s.shipments).set({ status: 'READY_FOR_DISPATCH' }).where(eq(s.shipments.id, shipment.id));
     }
   });
 

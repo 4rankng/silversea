@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAutoRefresh } from '../../../hooks/useAutoRefresh';
-import { decomposeDispatchDetailBranch } from '../../../api/dispatchDetailBranch';
+import { ensureFulfillmentFor } from './ensureFulfillment';
 import type { DispatchClassification } from '@tingting/shared';
 import {
   assignDispatchDetailPlate,
@@ -477,34 +477,8 @@ export function useDispatchDetailPlan() {
     return response.items;
   }, []);
 
-  // Branch rows: decompose first, edit the fresh row (_4 item 7 debt).
-  const ensureFulfillment = useCallback(async (row: DispatchDetailPlanRow): Promise<DispatchDetailPlanRow | null> => {
-    setAssignmentError(null);
-    if (row.shipmentContainerId == null) {
-      setAssignmentError('Dòng này không mang mã container — không thể tạo tác vụ. Vui lòng tải lại trang.');
-      return null;
-    }
-    try {
-      const outcome = await decomposeDispatchDetailBranch({
-        shipmentId: row.shipmentId,
-        containerId: row.shipmentContainerId,
-        expectedShipmentVersion: row.shipmentVersion,
-      });
-      const fresh: DispatchDetailPlanRow = {
-        ...row,
-        fulfillmentId: outcome.fulfillmentId,
-        version: outcome.fulfillmentVersion,
-        shipmentVersion: outcome.shipmentVersion,
-      };
-      setItems((previous) => previous.map((item) => (
-        item.fulfillmentId == null && item.shipmentContainerId === row.shipmentContainerId ? fresh : item
-      )));
-      return fresh;
-    } catch {
-      setAssignmentError('Không thể tạo tác vụ điều xe cho container này. Vui lòng thử lại.');
-      return null;
-    }
-  }, []);
+  // Branch-row decompose (ensureFulfillment.ts — closes _4 item 7).
+  const ensureFulfillment = useCallback((row: DispatchDetailPlanRow) => ensureFulfillmentFor(row, { patchItems: setItems, onError: setAssignmentError }), []);
 
   return {
     filters,

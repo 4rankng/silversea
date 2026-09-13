@@ -524,23 +524,30 @@ describe('DriverTripDetailPage', () => {
     expect(toastMock).not.toHaveBeenCalled();
   });
 
-  // Spec A4: the detail fact grid mirrors the journey-card order, with
-  // container number + type + seal sharing one line.
-  it('renders the ticket-365943ea field order with container, type and seal on one line', async () => {
+  // 20260911_3 BUG 5 (supersedes the 365943ea order): the fact grid leads
+  // with the factory (short name), then the working facts (container, ports)
+  // — the Tuyến address line is demoted below them — and container number +
+  // type + seal still share one line.
+  it('renders the bug5 field order: factory, container, ports, then Tuyến', async () => {
     renderPage();
 
     await screen.findByText(/Số cont & seal/);
     const labels = Array.from(document.querySelectorAll('.driver-task-fact__label')).map((el) => el.textContent);
     expect(labels).toEqual([
       'Nhà máy',
-      'Tuyến',
       'Container / lô hàng',
       'Cảng nâng',
       'Cảng hạ',
+      'Tuyến',
       'Ngày giờ kế hoạch',
       'Người liên hệ',
       'Số điện thoại',
     ]);
+    // BUG 5: the fixture has no short name → the grid falls back to the
+    // full factory name.
+    const factoryRow = Array.from(document.querySelectorAll('.driver-task-fact'))
+      .find((el) => el.querySelector('.driver-task-fact__label')?.textContent === 'Nhà máy');
+    expect(factoryRow?.querySelector('.driver-task-fact__value')?.textContent).toBe('Nhà máy Bình Dương');
     expect(screen.getByText('MSCU1234561 · 40FT · Seal SEAL-9')).toBeTruthy();
     expect(screen.queryByText('Loại container')).toBeNull();
     expect(screen.queryByText('Số seal')).toBeNull();
@@ -760,6 +767,65 @@ describe('DriverTripDetailPage', () => {
     expect(screen.queryByText('Địa chỉ')).toBeNull();
   });
 
+  // TC-COMP-004 (20260911_2 BUG 1): the task-info section collapses behind its
+  // head row to save screen space; collapsed, the head keeps the factory
+  // short-name summary so the driver still recognizes the trip.
+  it('TC-COMP-004: task info section collapses behind its head and restores', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        fulfillment: { ...makeTaskDetail().fulfillment!, factoryShortName: 'ASKEY' },
+      }),
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+    renderPage();
+
+    await screen.findByText('Thông tin lệnh');
+    // BUG 5: with a short name present, the expanded grid leads with it.
+    const factoryRow = Array.from(document.querySelectorAll('.driver-task-fact'))
+      .find((el) => el.querySelector('.driver-task-fact__label')?.textContent === 'Nhà máy');
+    expect(factoryRow?.querySelector('.driver-task-fact__value')?.textContent).toBe('ASKEY');
+    const toggle = screen.getByTestId('task-section-toggle-driver-task-info-grid');
+    const grid = document.getElementById('driver-task-info-grid') as HTMLElement;
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(grid.hidden).toBe(false);
+    expect(screen.queryByTestId('task-section-summary-driver-task-info-grid')).toBeNull();
+
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(grid.hidden).toBe(true);
+    expect(screen.getByTestId('task-section-summary-driver-task-info-grid').textContent).toBe('ASKEY');
+
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(grid.hidden).toBe(false);
+    expect(screen.queryByTestId('task-section-summary-driver-task-info-grid')).toBeNull();
+  });
+
+  // TC-COMP-004b: the invoice section collapses independently — collapsing
+  // one section must not touch the other.
+  it('TC-COMP-004b: invoice section toggles independently of task info', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        invoiceMaster: { taxCode: '3701234567', companyName: 'Công ty TNHH ABC', address: null },
+      }),
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+    renderPage();
+
+    await screen.findByText('Thông tin xuất hóa đơn');
+    const invoiceToggle = screen.getByTestId('task-section-toggle-driver-task-invoice-grid');
+    const invoiceGrid = document.getElementById('driver-task-invoice-grid') as HTMLElement;
+    const infoGrid = document.getElementById('driver-task-info-grid') as HTMLElement;
+    fireEvent.click(invoiceToggle);
+    expect(invoiceToggle.getAttribute('aria-expanded')).toBe('false');
+    expect(invoiceGrid.hidden).toBe(true);
+    expect(infoGrid.hidden).toBe(false);
+  });
+
   // TC-DA-006: ONE chip carries the close status (EXPORT→Đóng, IMPORT→Trả),
   // hidden when tradeDirection is null.
   it('TC-DA-006: renders one Đóng chip for EXPORT and none without tradeDirection', async () => {
@@ -907,8 +973,10 @@ describe('DriverTripDetailPage', () => {
     expect(document.querySelector('.driver-task-header__route')).toBeNull();
 
     fireEvent.click(toggle);
-    // Collapsed: factory short name + Tuyến line, customer hidden.
-    expect(screen.getByText('ASKEY')).toBeTruthy();
+    // Collapsed: factory short name + Tuyến line, customer hidden. (BUG 5:
+    // the expanded grid below now shows the short name too, so scope the
+    // assertion to the header title element.)
+    expect(document.querySelector('.driver-task-header__title')?.textContent).toBe('ASKEY');
     expect(document.querySelector('.driver-task-header__route')?.textContent).toBe('KCN Quế Võ, Bắc Ninh');
     expect(screen.queryByText('SilverSea')).toBeNull();
     expect(screen.getByRole('button', { name: 'Mở rộng thông tin tác vụ' })).toBeTruthy();

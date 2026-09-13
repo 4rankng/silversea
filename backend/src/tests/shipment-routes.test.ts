@@ -432,6 +432,11 @@ after(async () => {
           eq(s.notifications.relatedEntityType, 'shipments'),
           inArray(s.notifications.relatedEntityId, createdShipmentIds),
         ));
+        // Trips reference fulfillments (RESTRICT FK, migration 0073): take
+        // the fixture trips out before the fulfillments they fulfill.
+        await tx.delete(s.trips).where(inArray(s.trips.fulfillmentId,
+          tx.select({ id: s.shipmentFulfillments.id }).from(s.shipmentFulfillments)
+            .where(inArray(s.shipmentFulfillments.shipmentId, createdShipmentIds))));
         await tx.delete(s.shipmentFulfillments)
           .where(inArray(s.shipmentFulfillments.shipmentId, createdShipmentIds));
         await tx.delete(s.dispatchHandoffs)
@@ -2346,6 +2351,12 @@ describe('POST /cus-workspace/:id/containers/:containerId', () => {
 
   test('rejects operational rewrites after a trip already exists', async () => {
     const fixture = await createCusWorkspaceLockFixture();
+    // The lock fixture stages a COMPLETED lot (the accounting-lock tests want
+    // terminal state). This test guards the trip-exists rewrite rejection,
+    // which sits BELOW the terminal-lot guard — restore a live-lot status so
+    // the trip check is the one that fires.
+    await db.update(s.shipments).set({ status: ShipmentStatus.DISPATCHED, updatedAt: new Date() })
+      .where(eq(s.shipments.id, fixture.shipment.id));
     const detail = await getCusWorkspaceDetail(fixture.shipment.id, clerkToken);
     const line = detail.containers.find((item) => item.id === fixture.container.id);
     assert.ok(line);
@@ -3435,10 +3446,13 @@ describe('PUT /:id/containers × fulfillments (reconcile guard contract)', () =>
       assert.equal(f.cancellationReason, 'Container của lô hàng đã được cập nhật; cần gán lại nhà xe.');
     }
     const after = await listDispatchDetailPlanRows({ actor: adminActor(), q, limit: 50 });
-    // BUG 5 union branch: a READY lot with canceled fulfillments surfaces as
-    // an unassigned row so dispatch can re-allocate — it no longer drops off
-    // the plan. One container left ⇒ one row.
+    // BUG 5 secondary (union branch): the KEPT container's fulfillment was
+    // canceled with the rest, so it resurfaces as a fulfillment-less READY
+    // row the dispatcher can re-allocate — only the DROPPED container stays
+    // gone. Pre-union this whole lot disappeared until re-allocation.
     assert.equal(after.total, 1);
+    assert.equal(after.items[0]?.container?.containerNumber, 'MSKU1234565');
+    assert.equal(after.items[0]?.fulfillmentId, null);
     assert.equal((await db.select().from(s.trips).where(eq(s.trips.shipmentId, shipment.id))).length, 0);
 
     // Recovery path: re-running the allocation rebuilds active fulfillments

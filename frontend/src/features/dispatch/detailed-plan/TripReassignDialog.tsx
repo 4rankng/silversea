@@ -40,16 +40,22 @@ export function TripReassignDialog({ tripId, onClose, onReassigned }: TripReassi
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  // Seed the draft once per open trip — a background refetch of the trip
-  // while the dialog is open must not clobber in-progress edits.
-  const initializedForRef = useRef<number | null>(null);
+  // Seed the draft once per trip version — a background refetch that comes
+  // back unchanged must not clobber in-progress edits, but a version bump
+  // (the trip was reassigned elsewhere, or by a previous open of this very
+  // dialog) must reseed; otherwise reopening right after a reassign shows
+  // the stale pre-reassign snapshot react-query serves from cache while it
+  // refetches.
+  const initializedForRef = useRef<string | null>(null);
   useEffect(() => {
     if (tripId == null) {
       initializedForRef.current = null;
       return;
     }
-    if (!trip || trip.id !== tripId || initializedForRef.current === tripId) return;
-    initializedForRef.current = tripId;
+    if (!trip || trip.id !== tripId) return;
+    const seedKey = `${tripId}:${trip.version}`;
+    if (initializedForRef.current === seedKey) return;
+    initializedForRef.current = seedKey;
     setCarrierType(trip.carrierType || 'OWN');
     setTruckId(String(trip.truckId ?? ''));
     setDriverId(String(trip.driverId ?? ''));
