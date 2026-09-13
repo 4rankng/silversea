@@ -386,6 +386,11 @@ after(async () => {
           db.select({ id: s.shipmentFulfillments.id }).from(s.shipmentFulfillments).where(inArray(s.shipmentFulfillments.shipmentId, createdShipmentIds)),
         ),
       ));
+      // Trips reference fulfillments (RESTRICT FK, migration 0073): take the
+      // fixture trips out before the fulfillments they fulfill.
+      await db.delete(s.trips).where(inArray(s.trips.fulfillmentId,
+        db.select({ id: s.shipmentFulfillments.id }).from(s.shipmentFulfillments)
+          .where(inArray(s.shipmentFulfillments.shipmentId, createdShipmentIds))));
       await db.delete(s.shipmentFulfillments).where(inArray(s.shipmentFulfillments.shipmentId, createdShipmentIds));
       await db.delete(s.shipmentContainers).where(inArray(s.shipmentContainers.shipmentId, createdShipmentIds));
       await db.delete(s.shipments).where(inArray(s.shipments.id, createdShipmentIds));

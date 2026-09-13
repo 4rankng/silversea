@@ -484,6 +484,13 @@
       "when": 1789241007334,
       "tag": "0072_renormalize_carrier_fleet_plates",
       "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1789269610890,
+      "tag": "0073_shipment_children_foreign_keys",
+      "breakpoints": true
     }
   ]
 }

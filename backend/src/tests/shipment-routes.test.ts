@@ -432,6 +432,11 @@ after(async () => {
           eq(s.notifications.relatedEntityType, 'shipments'),
           inArray(s.notifications.relatedEntityId, createdShipmentIds),
         ));
+        // Trips reference fulfillments (RESTRICT FK, migration 0073): take
+        // the fixture trips out before the fulfillments they fulfill.
+        await tx.delete(s.trips).where(inArray(s.trips.fulfillmentId,
+          tx.select({ id: s.shipmentFulfillments.id }).from(s.shipmentFulfillments)
+            .where(inArray(s.shipmentFulfillments.shipmentId, createdShipmentIds))));
         await tx.delete(s.shipmentFulfillments)
           .where(inArray(s.shipmentFulfillments.shipmentId, createdShipmentIds));
         await tx.delete(s.dispatchHandoffs)
@@ -2332,6 +2337,12 @@ describe('POST /cus-workspace/:id/containers/:containerId', () => {
 
   test('rejects operational rewrites after a trip already exists', async () => {
     const fixture = await createCusWorkspaceLockFixture();
+    // The lock fixture stages a COMPLETED lot (the accounting-lock tests want
+    // terminal state). This test guards the trip-exists rewrite rejection,
+    // which sits BELOW the terminal-lot guard — restore a live-lot status so
+    // the trip check is the one that fires.
+    await db.update(s.shipments).set({ status: ShipmentStatus.DISPATCHED, updatedAt: new Date() })
+      .where(eq(s.shipments.id, fixture.shipment.id));
     const detail = await getCusWorkspaceDetail(fixture.shipment.id, clerkToken);
     const line = detail.containers.find((item) => item.id === fixture.container.id);
     assert.ok(line);
