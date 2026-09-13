@@ -317,9 +317,10 @@ describe('DriverTripDetailPage', () => {
 
     const acceptStickyBar = await screen.findByTestId('accept-sticky-bar');
     expect(within(acceptStickyBar).getByRole('button', { name: /Nhận lệnh vận chuyển/ })).toBeTruthy();
-    // AC-DISPATCH-002: the bypass banner tells the driver the order is
-    // acceptable immediately (Ops field confirmation is skipped for now).
-    expect(screen.getByTestId('bypass-ops-banner').textContent).toContain('Nhận lệnh ngay, không cần chờ Ops');
+    // AC-DISPATCH-002: the pre-acceptance banner gives one short task
+    // instruction plus its effect — plain copy, no rollout/Ops terminology.
+    expect(screen.getByTestId('bypass-ops-banner').textContent).toContain('Kiểm tra thông tin chuyến rồi chọn Nhận lệnh');
+    expect(screen.getByTestId('bypass-ops-banner').textContent).toContain('Sau khi nhận lệnh, chuyến bắt đầu');
   });
 
   // D1 fix: a terminal CONFLICT on the accept command must not dead-end the

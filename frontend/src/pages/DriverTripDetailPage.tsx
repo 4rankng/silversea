@@ -336,16 +336,17 @@ export default function DriverTripDetailPage() {
         </section>
       )}
 
-      {/* Spec Phần 3 / AC-DISPATCH-002: the Ops field-confirmation step is
-          bypassed while the Ops module is unfinished — tell the driver the
-          order is acceptable immediately instead of leaving them guessing. */}
+      {/* Spec Phần 3 / AC-DISPATCH-002: acceptance is direct while the Ops
+          field-confirmation module is unfinished — guide the driver to check
+          the order, then accept; keep the banner short and secondary to the
+          accept action itself. */}
       {acceptState === 'available' && (
         <section className="driver-task-section driver-task-section--banner" data-testid="bypass-ops-banner">
           <div className="driver-task-bypass">
             <Zap size={16} />
             <div>
-              <strong>Nhận lệnh ngay, không cần chờ Ops</strong>
-              <p>App tạm bỏ qua xác nhận hiện trường — bấm nhận lệnh để bắt đầu chuyến.</p>
+              <strong>Kiểm tra thông tin chuyến rồi chọn Nhận lệnh</strong>
+              <p>Sau khi nhận lệnh, chuyến bắt đầu.</p>
             </div>
           </div>
         </section>
