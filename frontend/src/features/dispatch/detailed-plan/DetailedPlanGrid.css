@@ -888,10 +888,21 @@
   .detailed-plan-grid__cell--classification::before {
     display: none;
   }
+
+  /* An all-empty notes cell (no notes, no row action) collapses — it would
+     otherwise reserve a labelled blank band at the card tail. */
+  .detailed-plan-grid__cell--blank {
+    display: none;
+  }
 }
 
-/* Phone records favor the next dispatch decision over a vertical re-statement
-   of every desktop column. The touch-sized allocation trigger remains intact. */
+/* Phone records: compact single-band cards. The 390px QA pass showed the
+   block-label treatment giving every section its own label line plus a
+   labelled-but-empty notes tail, and inline field runs splitting short
+   codes mid-token (40'D / C). Phone cards adopt the tablet band's inline
+   label, wrap each field as a whole unit (inline-block — codes never
+   split), collapse all-empty notes cells, and run tighter paddings. The
+   touch-sized allocation trigger remains intact. */
 @container (max-width: 640px) {
   .detailed-plan-grid tbody {
     gap: 8px;
@@ -903,7 +914,7 @@
 
   .detailed-plan-grid__cell {
     min-width: 0;
-    padding: 8px 12px;
+    padding: 6px 10px;
   }
 
   .detailed-plan-grid__cell + .detailed-plan-grid__cell {
@@ -911,11 +922,18 @@
   }
 
   .detailed-plan-grid__cell::before {
-    /* Phone tier keeps the label ABOVE the value (block) — the inline label
-       from the ≤900px tier is a tablet-band treatment. */
-    display: block;
-    margin-bottom: 3px;
+    display: inline;
+    margin: 0 6px 0 0;
     font-size: 10px;
+  }
+
+  /* Each field is an atomic unit: lines break BETWEEN fields, never inside
+     a code; long names and notes still wrap inside their own box. */
+  .detailed-plan-grid__cell .detailed-plan-grid__line {
+    display: inline-block;
+    max-width: 100%;
+    vertical-align: top;
+    overflow-wrap: break-word;
   }
 
   .detailed-plan-grid__cell--schedule,
@@ -934,12 +952,10 @@
     border-bottom: 1px solid var(--border-color, #eef2f7);
   }
 
-  .detailed-plan-grid__cell--documents,
-  .detailed-plan-grid__cell--container {
-    padding-block: 10px;
-  }
-
+  /* The corner pill overlaps the schedule row here — the tablet band's 92px
+     reservation on this cell is dead width at phone size. */
   .detailed-plan-grid__cell--documents {
+    padding-right: 10px;
     border-right: 1px solid var(--border-color, #eef2f7);
   }
 
@@ -952,15 +968,10 @@
     border-top: 1px solid var(--border-color, #eef2f7);
   }
 
-  .detailed-plan-grid__cell--notes,
-  .detailed-plan-grid__cell--editable {
-    border-top: 1px solid var(--border-color, #eef2f7);
-  }
-
   .detailed-plan-grid__cell--classification {
     position: absolute;
-    top: 8px;
-    right: 12px;
+    top: 6px;
+    right: 10px;
     padding: 0;
   }
 

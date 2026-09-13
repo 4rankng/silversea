@@ -217,7 +217,28 @@ export function DetailedPlanGrid({
               </tr>
             </thead>
             <tbody>
-              {items.map((row) => (
+              {items.map((row) => {
+                // Row action BENEATH the notes (customer placement ruling):
+                // "Phát lệnh" for plated-not-issued rows, "Hoàn thành" for
+                // external trips in flight — same derivation as the
+                // assignment cell's chip; the two conditions are mutually
+                // exclusive. Computed up front so the notes cell can also
+                // tell the narrow-card CSS whether it renders anything at
+                // all (an all-empty notes cell collapses on phones).
+                const issueStatus = deriveDispatchIssueStatus({
+                  vehicleAssigned: row.dispatch.assignedPlate != null,
+                  issued: row.taskStatus === 'DISPATCHED' && row.dispatch.tripId != null,
+                  completed: row.taskStatus === 'COMPLETED',
+                });
+                const canQuickIssue = issueStatus === 'PLATED_NOT_ISSUED';
+                const canCompleteExternal = row.dispatch.carrierType === 'EXTERNAL'
+                  && row.dispatch.tripId != null
+                  && row.taskStatus === 'DISPATCHED';
+                const actionLabel = canQuickIssue
+                  ? 'Phát lệnh'
+                  : canCompleteExternal ? 'Hoàn thành' : null;
+                const notesCellBlank = !row.notes.vehicleNote && !row.notes.customerNote && actionLabel == null;
+                return (
                 <tr key={detailRowKey(row)} className={`detailed-plan-grid__row${row.lotFullyPlated ? ' detailed-plan-grid__row--plated' : ''}`}>
                   <td className="detailed-plan-grid__cell detailed-plan-grid__cell--schedule" data-label="Thời gian & lịch trình">
                     <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">
@@ -317,7 +338,7 @@ export function DetailedPlanGrid({
                       </button>
                     )}
                   </td>
-                  <td className="detailed-plan-grid__cell detailed-plan-grid__cell--notes" data-label="Ghi chú">
+                  <td className={`detailed-plan-grid__cell detailed-plan-grid__cell--notes${notesCellBlank ? ' detailed-plan-grid__cell--blank' : ''}`} data-label="Ghi chú">
                     {row.notes.vehicleNote && (
                       <button
                         type="button"
@@ -342,46 +363,25 @@ export function DetailedPlanGrid({
                         </span>
                       </button>
                     )}
-                    {(() => {
-                      // Row action BENEATH the notes (customer placement
-                      // ruling): "Phát lệnh" for plated-not-issued rows,
-                      // "Hoàn thành" for external trips in flight — same
-                      // derivation as the assignment cell's chip; the two
-                      // conditions are mutually exclusive.
-                      const issueStatus = deriveDispatchIssueStatus({
-                        vehicleAssigned: row.dispatch.assignedPlate != null,
-                        issued: row.taskStatus === 'DISPATCHED' && row.dispatch.tripId != null,
-                        completed: row.taskStatus === 'COMPLETED',
-                      });
-                      const canQuickIssue = issueStatus === 'PLATED_NOT_ISSUED';
-                      const canCompleteExternal = row.dispatch.carrierType === 'EXTERNAL'
-                        && row.dispatch.tripId != null
-                        && row.taskStatus === 'DISPATCHED';
-                      const actionLabel = canQuickIssue
-                        ? 'Phát lệnh'
-                        : canCompleteExternal ? 'Hoàn thành' : null;
-                      if (actionLabel == null) return null;
-                      const rowIdentity = row.container.containerNumber || row.docs.billNumber
-                        || row.shipmentCode || `dòng ${row.fulfillmentId}`;
-                      return (
-                        <button
-                          type="button"
-                          className="detailed-plan-grid__note-action"
-                          onClick={() => (canQuickIssue
-                            ? setQuickIssueRow(row)
-                            : onCompleteExternalTrip(row))}
-                          aria-label={`${actionLabel} · ${rowIdentity}`}
-                          title={canQuickIssue
-                            ? 'Phát lệnh nhanh — không cần mở ô điều phối'
-                            : 'Hoàn thành chuyến với xe ngoài — xe ngoài không dùng app nên điều vận/CUS chốt thay'}
-                        >
-                          {actionLabel}
-                        </button>
-                      );
-                    })()}
+                    {actionLabel != null && (
+                      <button
+                        type="button"
+                        className="detailed-plan-grid__note-action"
+                        onClick={() => (canQuickIssue
+                          ? setQuickIssueRow(row)
+                          : onCompleteExternalTrip(row))}
+                        aria-label={`${actionLabel} · ${row.container.containerNumber || row.docs.billNumber || row.shipmentCode || `dòng ${row.fulfillmentId}`}`}
+                        title={canQuickIssue
+                          ? 'Phát lệnh nhanh — không cần mở ô điều phối'
+                          : 'Hoàn thành chuyến với xe ngoài — xe ngoài không dùng app nên điều vận/CUS chốt thay'}
+                      >
+                        {actionLabel}
+                      </button>
+                    )}
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>

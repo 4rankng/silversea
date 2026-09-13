@@ -454,7 +454,11 @@ describe('DetailedPlanGrid', () => {
     expect(css).toMatch(/\.detailed-plan-grid__row\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
     expect(css).toContain('.detailed-plan-grid__cell--schedule,\n  .detailed-plan-grid__cell--route,\n  .detailed-plan-grid__cell--notes,\n  .detailed-plan-grid__cell--editable {\n    grid-column: 1 / -1;');
     expect(css).toContain('.detailed-plan-grid__cell--classification {\n    position: absolute;');
-    expect(css).toContain('.detailed-plan-grid__cell--documents,\n  .detailed-plan-grid__cell--container {\n    padding-block: 10px;');
+    // Compact phone band: labels ride inline, each field wraps as a whole
+    // unit so short codes (20'DC-style) never split mid-token, and all-empty
+    // notes cells collapse instead of reserving a labelled blank band.
+    expect(css).toMatch(/@container \(max-width: 640px\)[\s\S]*?\.detailed-plan-grid__cell \.detailed-plan-grid__line \{[\s\S]*?display: inline-block;[\s\S]*?overflow-wrap: break-word;/);
+    expect(css).toContain('.detailed-plan-grid__cell--blank {\n    display: none;\n  }');
   });
 
   it('keeps the detailed filters flat instead of nesting another card surface', () => {
@@ -640,5 +644,33 @@ describe('DetailedPlanGrid — unique row keys', () => {
     } finally {
       errorSpy.mockRestore();
     }
+  });
+});
+
+// Compact phone cards (QA-011): an all-empty notes cell (no notes, no row
+// action) collapses at the card tiers via the --blank modifier, so phone
+// cards stop reserving a labelled blank band. Any content — a note or the
+// Phát lệnh/Hoàn thành action — keeps the cell present.
+describe('DetailedPlanGrid — blank notes cell collapse', () => {
+  it('marks the notes cell blank when there are no notes and no row action', () => {
+    const { container } = renderGrid([row({
+      notes: { vehicleNote: null, customerNote: null },
+    })]);
+    expect(container.querySelector('.detailed-plan-grid__cell--notes.detailed-plan-grid__cell--blank')).toBeTruthy();
+  });
+
+  it('keeps the notes cell present for vehicle notes', () => {
+    const { container } = renderGrid([row()]);
+    expect(container.querySelector('.detailed-plan-grid__cell--blank')).toBeNull();
+  });
+
+  it('keeps the notes cell present when only the row action renders', () => {
+    // PLATED_NOT_ISSUED: plate assigned, order not yet issued.
+    const { container } = renderGrid([row({
+      notes: { vehicleNote: null, customerNote: null },
+      dispatch: { ...row().dispatch, assignedPlate: '15H-104.03' },
+    })]);
+    expect(container.querySelector('.detailed-plan-grid__cell--blank')).toBeNull();
+    expect(screen.getByRole('button', { name: /Phát lệnh/ })).toBeTruthy();
   });
 });
