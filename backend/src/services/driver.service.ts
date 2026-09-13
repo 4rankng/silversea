@@ -517,6 +517,28 @@ export interface DriverFulfillmentInvoiceInfo {
   cleaningTaxCode: string | null;
 }
 
+/** Factory's own invoice identity: the container factory site's fee-invoice
+ *  profile with precedence lift → drop → cleaning (the only site-level
+ *  invoice fields that exist). Null when the site is unconfigured — the FE
+ *  renders an honest empty state instead of falling back to the customer. */
+export function factoryInvoiceProfile(row: {
+  liftFeeInvoiceName: string | null;
+  liftFeeInvoiceAddress: string | null;
+  liftFeeTaxCode: string | null;
+  dropFeeInvoiceName: string | null;
+  dropFeeInvoiceAddress: string | null;
+  dropFeeTaxCode: string | null;
+  cleaningInvoiceName: string | null;
+  cleaningInvoiceAddress: string | null;
+  cleaningTaxCode: string | null;
+}): { name: string | null; address: string | null; taxCode: string | null } | null {
+  return [
+    { name: row.liftFeeInvoiceName, address: row.liftFeeInvoiceAddress, taxCode: row.liftFeeTaxCode },
+    { name: row.dropFeeInvoiceName, address: row.dropFeeInvoiceAddress, taxCode: row.dropFeeTaxCode },
+    { name: row.cleaningInvoiceName, address: row.cleaningInvoiceAddress, taxCode: row.cleaningTaxCode },
+  ].find((profile) => profile.name != null) ?? null;
+}
+
 export interface DriverFulfillmentDetail {
   fulfillmentId: number;
   shipmentId: number;
@@ -541,6 +563,11 @@ export interface DriverFulfillmentDetail {
   khoPhone: string | null;
   /** TC-DA-005: shipment customer master-data invoice block (hidden when all null). */
   invoiceMaster: { taxCode: string | null; companyName: string | null; address: string | null } | null;
+  /** Factory's own invoice identity for the trip — explicit party attribution
+   *  in the driver invoice section; null when the factory site carries no
+   *  invoice configuration (FE renders an honest empty state, never a
+   *  customer fallback). */
+  invoiceFactory: { name: string | null; address: string | null; taxCode: string | null } | null;
   /** TC-DA-001: canonical tag pool; FE resolves chips with lib/dispatchTaskTags parseNote. */
   knownTagLabels: string[];
   shippingLineName: string | null;
@@ -768,6 +795,7 @@ export async function getDriverFulfillmentDetail(
         address: shipmentRow.customerAddress,
       }
       : null,
+    invoiceFactory: factoryInvoiceProfile(shipmentRow),
     // TC-DA-001: canonical tag pool for the FE parseNote resolution.
     knownTagLabels: tagPool,
   };

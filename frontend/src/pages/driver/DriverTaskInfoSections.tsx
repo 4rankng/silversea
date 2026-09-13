@@ -162,7 +162,7 @@ export function DriverTaskInfoSections({ trip }: { trip: DriverTaskDetail }) {
       {/* 2a618442: customer wording — "THÔNG TIN XUẤT HÓA ĐƠN". Block hides
           when there is nothing to show (per-row graceful hide; fee-invoice
           rows may still surface alone). */}
-      {(invoiceInfo || trip.invoiceMaster) && (
+      {(invoiceInfo || trip.invoiceMaster || trip.invoiceFactory) && (
         <section className={`driver-task-section${invoiceOpen ? '' : ' driver-task-section--collapsed'}`}>
           <CollapsibleSectionHead
             id="driver-task-invoice-grid"
@@ -171,6 +171,22 @@ export function DriverTaskInfoSections({ trip }: { trip: DriverTaskDetail }) {
             onToggle={() => setInvoiceOpen((v) => !v)}
           />
           <div className="driver-task-grid" id="driver-task-invoice-grid" hidden={!invoiceOpen}>
+            {/* Party attribution: the factory's own invoice profile leads —
+                the site billing the lift/drop/cleaning fees — under an
+                explicit party label. An unconfigured factory renders the
+                honest empty note; the customer block is never a fallback. */}
+            <p className="driver-task-invoice-party">Nhà máy</p>
+            {trip.invoiceFactory?.name ? (
+              <TaskFact icon={<Building2 size={16} />} label="Tên công ty" value={trip.invoiceFactory.name} fullWidth />
+            ) : (
+              <p className="driver-task-invoice-empty">Nhà máy chưa cấu hình thông tin xuất hóa đơn.</p>
+            )}
+            {trip.invoiceFactory?.address ? (
+              <TaskFact icon={<MapPinned size={16} />} label="Địa chỉ" value={trip.invoiceFactory.address} fullWidth />
+            ) : null}
+            {trip.invoiceFactory?.taxCode ? (
+              <TaskFact icon={<FileText size={16} />} label="MST" value={trip.invoiceFactory.taxCode} fullWidth />
+            ) : null}
             {/* TC-DA-005: customer master-data invoice rows. Row order:
                 company name → address → MST (mockup). Source: customers via
                 shipments.customerId. Per-row graceful hide on sparse data. */}
@@ -182,6 +198,11 @@ export function DriverTaskInfoSections({ trip }: { trip: DriverTaskDetail }) {
             ) : null}
             {trip.invoiceMaster?.taxCode ? (
               <TaskFact icon={<FileText size={16} />} label="MST" value={trip.invoiceMaster.taxCode} fullWidth />
+            ) : null}
+            {/* Party labels only render when customer rows exist — the fee
+                rows below carry their own explicit per-fee labels. */}
+            {trip.invoiceMaster && (trip.invoiceMaster.companyName || trip.invoiceMaster.address || trip.invoiceMaster.taxCode) ? (
+              <p className="driver-task-invoice-party">Khách hàng</p>
             ) : null}
             {invoiceInfo?.liftFeeInvoiceName && (
               <TaskFact icon={<FileCheck2 size={16} />} label="Hóa đơn phí nâng" value={feeInvoiceValue(invoiceInfo.liftFeeInvoiceName, invoiceInfo.liftFeeInvoiceAddress, invoiceInfo.liftFeeTaxCode)} fullWidth />

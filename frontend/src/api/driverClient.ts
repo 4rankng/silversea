@@ -221,12 +221,24 @@ export interface DriverTaskDetail {
   knownTagLabels?: string[];
   /** TC-DA-005: customer master-data invoice block — hidden when null. */
   invoiceMaster?: DriverInvoiceMaster | null;
+  /** Factory's own invoice identity — explicit party attribution; null when
+   *  the factory site has no invoice configuration. */
+  invoiceFactory?: DriverInvoiceFactory | null;
 }
 
 export interface DriverInvoiceMaster {
   taxCode: string | null;
   companyName: string | null;
   address: string | null;
+}
+
+/** Factory's own invoice identity (site fee-invoice profile; null when the
+ *  site has no invoice configuration — the section shows an honest empty
+ *  state, never the customer's data). */
+export interface DriverInvoiceFactory {
+  name: string | null;
+  address: string | null;
+  taxCode: string | null;
 }
 
 export interface DriverContainerSealPhoto {
@@ -264,6 +276,7 @@ interface DriverFulfillmentDetailResponse {
   factoryAddress: string | null;
   khoPhone: string | null;
   invoiceMaster: DriverInvoiceMaster | null;
+  invoiceFactory: DriverInvoiceFactory | null;
   knownTagLabels: string[];
   pickupLocation: string | null;
   deliveryLocation: string | null;
@@ -344,6 +357,7 @@ function mapFulfillmentDetail(wire: DriverFulfillmentDetailResponse): DriverTask
     // wire; chips resolve FE-side via @tingting/shared parseDriverTaskNote.
     knownTagLabels: wire.knownTagLabels ?? [],
     invoiceMaster: wire.invoiceMaster ?? null,
+    invoiceFactory: wire.invoiceFactory ?? null,
   };
 }
 

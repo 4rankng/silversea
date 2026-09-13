@@ -16,6 +16,7 @@ import type { DriverTaskDetail } from '../../api/driverClient';
 function makeTrip(overrides: {
   fulfillment?: Partial<NonNullable<DriverTaskDetail['fulfillment']>>;
   invoiceMaster?: DriverTaskDetail['invoiceMaster'];
+  invoiceFactory?: DriverTaskDetail['invoiceFactory'];
   routeName?: string | null;
 } = {}): DriverTaskDetail {
   return {
@@ -69,6 +70,7 @@ function makeTrip(overrides: {
       ...overrides.fulfillment,
     },
     invoiceMaster: overrides.invoiceMaster,
+    invoiceFactory: overrides.invoiceFactory ?? null,
   };
 }
 
@@ -208,6 +210,39 @@ describe('DriverTaskInfoSections', () => {
     render(<DriverTaskInfoSections trip={makeTrip()} />);
 
     expect(screen.queryByText('Thông tin xuất hóa đơn')).toBeNull();
+  });
+
+  it('labels the factory invoice profile under its own party heading — never the customer fallback', () => {
+    render(<DriverTaskInfoSections trip={makeTrip({
+      // SUNRISE-style positive fixture: factory profile rides the wire
+      // (site fee-invoice fields), distinct from the customer master data.
+      invoiceFactory: { name: 'CÔNG TY TNHH SUNRISE TECHNOLOGY (VIỆT NAM)', address: 'Một phần Lô CN-09, KCN Vân Trung, Bắc Ninh', taxCode: '2301123456' },
+      invoiceMaster: { taxCode: '2300540419', companyName: 'Long Minh', address: null },
+    })} />);
+
+    const grid = document.getElementById('driver-task-invoice-grid');
+    expect(grid).toBeTruthy();
+    const partyLabels = Array.from(grid!.querySelectorAll('.driver-task-invoice-party')).map((el) => el.textContent);
+    expect(partyLabels).toEqual(['Nhà máy', 'Khách hàng']);
+    // Factory rows lead, with the factory's OWN tax code — not the customer's.
+    expect(screen.getByText('CÔNG TY TNHH SUNRISE TECHNOLOGY (VIỆT NAM)')).toBeTruthy();
+    expect(screen.getByText('2301123456')).toBeTruthy();
+    // Customer rows stay correctly attributed with their own values.
+    expect(screen.getByText('Long Minh')).toBeTruthy();
+    expect(screen.getByText('2300540419')).toBeTruthy();
+  });
+
+  it('renders the honest empty note for an unconfigured factory — customer data never stands in', () => {
+    render(<DriverTaskInfoSections trip={makeTrip({
+      invoiceMaster: { taxCode: '2300540419', companyName: 'Long Minh', address: '12 Nguyễn Trãi' },
+    })} />);
+
+    expect(screen.getByText('Nhà máy chưa cấu hình thông tin xuất hóa đơn.')).toBeTruthy();
+    // Exactly one MST row — the customer's. No factory-labeled stand-in.
+    const mstValues = Array.from(document.querySelectorAll('.driver-task-fact'))
+      .filter((el) => el.querySelector('.driver-task-fact__label')?.textContent === 'MST')
+      .map((el) => el.querySelector('.driver-task-fact__value')?.textContent);
+    expect(mstValues).toEqual(['2300540419']);
   });
 
   it('renders the empty-container return depot as its own row between Cảng hạ and Tuyến', () => {

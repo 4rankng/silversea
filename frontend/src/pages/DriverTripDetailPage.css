@@ -245,6 +245,26 @@
   color: var(--ink-3);
 }
 
+/* Party attribution inside the invoice section: full-width muted headers
+   above the factory rows and the customer rows; the empty note renders when
+   the factory site has no invoice configuration (never a customer fallback). */
+.driver-task-invoice-party {
+  grid-column: 1 / -1;
+  margin: 4px 0 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.driver-task-invoice-empty {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+
 .driver-task-fact__value {
   font-size: 14px;
   line-height: 1.45;
