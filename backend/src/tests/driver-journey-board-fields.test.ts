@@ -14,6 +14,8 @@
  *   - no container site (join miss) falls back to shipments.factoryName.
  *   - card loadingType = the trip's LAST leg (ĐÓNG/TRẢ); null when leg-less.
  *   - fulfillment detail carries the same factoryShortName + driverNotes.
+ *   - fulfillment photo wire: CONTAINER/SEAL/DELIVERY_NOTE newest-first;
+ *     OTHER (incidental-cost receipts) never rides the driver wire.
  */
 import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -33,6 +35,7 @@ const createdFulfillmentIds: number[] = [];
 const createdContainerIds: number[] = [];
 const createdShipmentIds: number[] = [];
 const createdContainerTypeIds: number[] = [];
+const createdPortIds: number[] = [];
 const createdSiteIds: number[] = [];
 const createdCargoTypeIds: number[] = [];
 const createdRouteIds: number[] = [];
@@ -82,6 +85,16 @@ async function mkSite(customerId: number, name: string, shortName?: string) {
   return site;
 }
 
+/** A dropoff/pickup port row (the container's port columns reference it). */
+async function mkPort(name: string) {
+  const [port] = await db.insert(s.ports).values({
+    name,
+    code: `JB${suffix.slice(-6)}${createdPortIds.length}`.slice(0, 10),
+  }).returning();
+  createdPortIds.push(port.id);
+  return port;
+}
+
 /** One trip leg (ĐÓNG/TRẢ loadingType per leg). */
 async function mkLeg(tripId: number, sequence: number, loadingType: 'HANG' | 'VO') {
   const [leg] = await db.insert(s.tripLegs).values({
@@ -102,6 +115,12 @@ async function mkContainerTrip(args: {
   containerTypeId: number; siteId: number; notes: string | null; factoryName: string | null;
   tripStatus?: 'CREATED' | 'IN_TRANSIT' | 'COMPLETED';
   tradeDirection?: 'IMPORT' | 'EXPORT';
+  /** Dispatcher free-text delivery override (shipments.deliveryLocation). */
+  deliveryLocation?: string | null;
+  /** The container's dropoff port (the stage-2 depot source). */
+  dropoffPortId?: number | null;
+  /** Snapshot deliverySite display name (the structured fallback). */
+  deliverySiteName?: string | null;
 }) {
   const [shipment] = await db.insert(s.shipments).values({
     customerId: args.customerId,
@@ -112,6 +131,7 @@ async function mkContainerTrip(args: {
     operationalNotes: args.notes,
     factoryName: args.factoryName,
     tradeDirection: args.tradeDirection,
+    ...(args.deliveryLocation === undefined ? {} : { deliveryLocation: args.deliveryLocation }),
   }).returning();
   createdShipmentIds.push(shipment.id);
   const [container] = await db.insert(s.shipmentContainers).values({
@@ -119,6 +139,7 @@ async function mkContainerTrip(args: {
     containerTypeId: args.containerTypeId,
     containerNumber: `JB${String(400000 + shipment.id).slice(-6)}`,
     operationalSiteId: args.siteId,
+    ...(args.dropoffPortId == null ? {} : { dropoffPortId: args.dropoffPortId }),
   }).returning();
   createdContainerIds.push(container.id);
   const [fulfillment] = await db.insert(s.shipmentFulfillments).values({
@@ -128,7 +149,7 @@ async function mkContainerTrip(args: {
     dispatchClassification: 'SINGLE',
     sourceShipmentVersion: shipment.version,
     shipmentContainerId: container.id,
-    siteSnapshot: {},
+    siteSnapshot: args.deliverySiteName ? { deliverySite: { name: args.deliverySiteName } } : {},
   }).returning();
   createdFulfillmentIds.push(fulfillment.id);
   const [trip] = await db.insert(s.trips).values({
@@ -330,9 +351,137 @@ describe('journey-board bucketing — acceptance, not departure, marks Đã nh�
   });
 });
 
+// One delivery-stage resolution shared by the journey card and the
+// fulfillment detail (delivery-stage.ts): free text ?? snapshot site ?? port,
+// with the dropoff port resurfacing as the Trả cont rỗng depot only when it
+// names a DIFFERENT place than the delivery point.
+describe('delivery-stage chain — card + detail share one resolution', () => {
+  test('IMPORT with distinct depot: snapshot site delivers, port becomes the return depot on both surfaces', async () => {
+    const { driver, customer, route, cargoType, containerType } = await setup();
+    const site = await mkSite(customer.id, 'Nhà máy Nhập Hàng');
+    const depot = await mkPort('Bãi JJ LOGISTICS');
+    const { fulfillment } = await mkContainerTrip({
+      driverId: driver.id, customerId: customer.id, routeId: route.id, cargoTypeId: cargoType.id,
+      containerTypeId: containerType.id, siteId: site.id, notes: null, factoryName: null,
+      tradeDirection: 'IMPORT',
+      dropoffPortId: depot.id,
+      deliverySiteName: 'Kho NEWEB-1',
+    });
+
+    const board = await getDriverJourneyBoard(driver.id);
+    const card = board.items.find((c) => c.fulfillmentId === fulfillment.id)!;
+    assert.equal(card.dropPortName, 'Kho NEWEB-1', 'snapshot delivery site leads the card drop');
+    assert.equal(card.returnDepotName, 'Bãi JJ LOGISTICS', 'distinct depot port surfaces as the return depot');
+
+    const detail = await getDriverFulfillmentDetail(driver.id, fulfillment.id);
+    assert.equal(detail.deliveryLocation, 'Kho NEWEB-1', 'detail agrees with the card');
+    assert.equal(detail.returnDepotName, 'Bãi JJ LOGISTICS', 'detail return depot agrees with the card');
+  });
+
+  test('free-text deliveryLocation overrides the snapshot on both surfaces; depot still distinct', async () => {
+    const { driver, customer, route, cargoType, containerType } = await setup();
+    const site = await mkSite(customer.id, 'Nhà máy Giao Hàng');
+    const depot = await mkPort('Bãi Trả Rỗng');
+    const { fulfillment } = await mkContainerTrip({
+      driverId: driver.id, customerId: customer.id, routeId: route.id, cargoTypeId: cargoType.id,
+      containerTypeId: containerType.id, siteId: site.id, notes: null, factoryName: null,
+      deliveryLocation: 'Điểm giao điều vận chỉ định',
+      dropoffPortId: depot.id,
+      deliverySiteName: 'Kho Snapshot',
+    });
+
+    const board = await getDriverJourneyBoard(driver.id);
+    const card = board.items.find((c) => c.fulfillmentId === fulfillment.id)!;
+    assert.equal(card.dropPortName, 'Điểm giao điều vận chỉ định', 'dispatcher free text wins over the snapshot');
+    assert.equal(card.returnDepotName, 'Bãi Trả Rỗng');
+    const detail = await getDriverFulfillmentDetail(driver.id, fulfillment.id);
+    assert.equal(detail.deliveryLocation, 'Điểm giao điều vận chỉ định');
+    assert.equal(detail.returnDepotName, 'Bãi Trả Rỗng');
+  });
+
+  test('EXPORT same place: port equals the delivery → one row, no return depot', async () => {
+    const { driver, customer, route, cargoType, containerType } = await setup();
+    const site = await mkSite(customer.id, 'Nhà máy Xuất Hàng');
+    const depot = await mkPort('Cảng Sóng Thần');
+    const { fulfillment } = await mkContainerTrip({
+      driverId: driver.id, customerId: customer.id, routeId: route.id, cargoTypeId: cargoType.id,
+      containerTypeId: containerType.id, siteId: site.id, notes: null, factoryName: null,
+      tradeDirection: 'EXPORT',
+      deliveryLocation: 'Cảng Sóng Thần',
+      dropoffPortId: depot.id,
+    });
+
+    const board = await getDriverJourneyBoard(driver.id);
+    const card = board.items.find((c) => c.fulfillmentId === fulfillment.id)!;
+    assert.equal(card.dropPortName, 'Cảng Sóng Thần');
+    assert.equal(card.returnDepotName, null, 'port == delivery → no second row');
+    const detail = await getDriverFulfillmentDetail(driver.id, fulfillment.id);
+    assert.equal(detail.returnDepotName, null);
+  });
+
+  test('all sources null → null drop and no return depot', async () => {
+    const { driver, customer, route, cargoType, containerType } = await setup();
+    const site = await mkSite(customer.id, 'Nhà máy Rỗng Dữ Liệu');
+    const { fulfillment } = await mkContainerTrip({
+      driverId: driver.id, customerId: customer.id, routeId: route.id, cargoTypeId: cargoType.id,
+      containerTypeId: containerType.id, siteId: site.id, notes: null, factoryName: null,
+      deliveryLocation: null,
+    });
+
+    const board = await getDriverJourneyBoard(driver.id);
+    const card = board.items.find((c) => c.fulfillmentId === fulfillment.id)!;
+    assert.equal(card.dropPortName, null);
+    assert.equal(card.returnDepotName, null);
+    const detail = await getDriverFulfillmentDetail(driver.id, fulfillment.id);
+    assert.equal(detail.deliveryLocation, null);
+    assert.equal(detail.returnDepotName, null);
+  });
+});
+
+// The biên bản (delivery note) photo loop: the driver's capture control
+// uploads type DELIVERY_NOTE (DriverContainerCard onPickNote → POST /upload),
+// and the fulfillment wire must carry it back for the Biên bản tile — while
+// OTHER (the incidental-cost receipt type) never surfaces on the driver wire.
+// Newest-first order lets the FE .find() pick the latest of each type.
+describe('driver fulfillment photo wire (biên bản = DELIVERY_NOTE)', () => {
+  test('detail carries CONTAINER/SEAL/DELIVERY_NOTE newest-first; OTHER never rides', async () => {
+    const { driver, user, customer, route, cargoType, containerType } = await setup();
+    const site = await mkSite(customer.id, 'Nhà máy Ảnh Giao Hàng');
+    const { fulfillment, trip } = await mkContainerTrip({
+      driverId: driver.id, customerId: customer.id, routeId: route.id, cargoTypeId: cargoType.id,
+      containerTypeId: containerType.id, siteId: site.id, notes: null, factoryName: null,
+    });
+
+    // Staggered upload times make the newest-first order deterministic.
+    const base = new Date('2026-09-14T00:00:00Z');
+    const rows = [
+      { type: 'CONTAINER' as const, storageKey: `trips/${trip.id}/cont-old.png`, uploadedAt: new Date(base.getTime()) },
+      { type: 'DELIVERY_NOTE' as const, storageKey: `trips/${trip.id}/note.png`, uploadedAt: new Date(base.getTime() + 60_000) },
+      { type: 'SEAL' as const, storageKey: `trips/${trip.id}/seal.png`, uploadedAt: new Date(base.getTime() + 120_000) },
+      { type: 'CONTAINER' as const, storageKey: `trips/${trip.id}/cont-new.png`, uploadedAt: new Date(base.getTime() + 180_000) },
+      { type: 'OTHER' as const, storageKey: `trips/${trip.id}/other.png`, uploadedAt: new Date(base.getTime() + 240_000) },
+    ];
+    for (const row of rows) {
+      await db.insert(s.tripPhotos).values({ tripId: trip.id, ...row, uploadedBy: user.id });
+    }
+
+    const detail = await getDriverFulfillmentDetail(driver.id, fulfillment.id);
+    assert.deepEqual(
+      detail.containerSealPhotos.map((photo) => `${photo.type}:${photo.storageKey}`),
+      [
+        `CONTAINER:trips/${trip.id}/cont-new.png`,
+        `SEAL:trips/${trip.id}/seal.png`,
+        `DELIVERY_NOTE:trips/${trip.id}/note.png`,
+        `CONTAINER:trips/${trip.id}/cont-old.png`,
+      ],
+    );
+  });
+});
+
 after(async () => {
   try {
     if (createdTripIds.length > 0) {
+      await db.delete(s.tripPhotos).where(inArray(s.tripPhotos.tripId, createdTripIds));
       await db.delete(s.tripLegs).where(inArray(s.tripLegs.tripId, createdTripIds));
       await db.delete(s.tripContainers).where(inArray(s.tripContainers.tripId, createdTripIds));
       await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
@@ -341,6 +490,7 @@ after(async () => {
     if (createdContainerIds.length > 0) await db.delete(s.shipmentContainers).where(inArray(s.shipmentContainers.id, createdContainerIds));
     if (createdShipmentIds.length > 0) await db.delete(s.shipments).where(inArray(s.shipments.id, createdShipmentIds));
     if (createdContainerTypeIds.length > 0) await db.delete(s.containerTypes).where(inArray(s.containerTypes.id, createdContainerTypeIds));
+    if (createdPortIds.length > 0) await db.delete(s.ports).where(inArray(s.ports.id, createdPortIds));
     if (createdSiteIds.length > 0) await db.delete(s.operationalSites).where(inArray(s.operationalSites.id, createdSiteIds));
     if (createdCargoTypeIds.length > 0) await db.delete(s.cargoTypes).where(inArray(s.cargoTypes.id, createdCargoTypeIds));
     if (createdRouteIds.length > 0) await db.delete(s.routes).where(inArray(s.routes.id, createdRouteIds));

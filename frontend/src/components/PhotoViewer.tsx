@@ -2,6 +2,12 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
 import { registerOverlay, unregisterOverlay } from '../lib/overlayState';
+// The stylesheet must ride with the component: the overlay portals to
+// <body>, so it cannot inherit page-level styles, and consumers live in
+// separate lazy route chunks — without this import a fresh session on a
+// chunk whose siblings never loaded the css renders the overlay unstyled
+// (no fixed positioning, no backdrop; controls hit-test under app chrome).
+import './PhotoViewer.css';
 
 interface PhotoViewerProps {
   urls: string[];
