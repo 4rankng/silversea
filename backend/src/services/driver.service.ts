@@ -530,9 +530,13 @@ export interface DriverFulfillmentDetail {
   tripVersion: number;
   factoryName: string | null;
   factoryShortName: string | null;
-  /** TC-DA-002: the container factory site's street address (Tuyến row). */
+  /** Canonical full site name for the driver's full-name row: the container
+   *  factory join wins over the shipment's free-text factory name, which can
+   *  hold stale or abbreviated values. */
+  factoryFullName: string | null;
+  /** Factory site street address (own "Địa chỉ nhà máy" row on the driver grid). */
   factoryAddress: string | null;
-  /** TC-DA-003: the container's kho site phone (render only when present). */
+  /** Kho site phone — the warehouse-phone row always renders, tel link or "—". */
   khoPhone: string | null;
   /** TC-DA-005: shipment customer master-data invoice block (hidden when all null). */
   invoiceMaster: { taxCode: string | null; companyName: string | null; address: string | null } | null;
@@ -702,6 +706,10 @@ export async function getDriverFulfillmentDetail(
     tripVersion: ownedTrip.tripVersion,
     factoryName: shipmentRow.factoryName ?? deliverySiteName ?? shipmentRow.containerFactoryName,
     factoryShortName: shipmentRow.containerFactoryShortName ?? shipmentRow.factoryName ?? deliverySiteName,
+    // Canonical site name first: the shipment free-text factoryName can be a
+    // stale or abbreviated value, so the full-name row reads the container
+    // factory join before falling back to the free-text/snapshot names.
+    factoryFullName: shipmentRow.containerFactoryName ?? shipmentRow.factoryName ?? deliverySiteName ?? null,
     // TC-DA-002: street address of the container's factory/kho site (Tuyến row
     // on the driver screen). Null-safe: the site join is left.
     factoryAddress: shipmentRow.containerFactoryAddress ?? null,

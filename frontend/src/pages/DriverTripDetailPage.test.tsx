@@ -535,10 +535,13 @@ describe('DriverTripDetailPage', () => {
     const labels = Array.from(document.querySelectorAll('.driver-task-fact__label')).map((el) => el.textContent);
     expect(labels).toEqual([
       'Nhà máy',
+      'Tên nhà máy',
+      'Địa chỉ nhà máy',
       'Container / lô hàng',
       'Cảng nâng',
       'Cảng hạ',
       'Tuyến',
+      'SĐT kho',
       'Ngày giờ kế hoạch',
       'Người liên hệ',
       'Số điện thoại',
@@ -548,6 +551,16 @@ describe('DriverTripDetailPage', () => {
     const factoryRow = Array.from(document.querySelectorAll('.driver-task-fact'))
       .find((el) => el.querySelector('.driver-task-fact__label')?.textContent === 'Nhà máy');
     expect(factoryRow?.querySelector('.driver-task-fact__value')?.textContent).toBe('Nhà máy Bình Dương');
+    // Sparse fixture: full name / address / warehouse phone all absent → the
+    // rows stay visible with the em-dash placeholder, and Tuyến falls back to
+    // the route summary (no address on this row anymore).
+    const valueOf = (label: string) => Array.from(document.querySelectorAll('.driver-task-fact'))
+      .find((el) => el.querySelector('.driver-task-fact__label')?.textContent === label)
+      ?.querySelector('.driver-task-fact__value')?.textContent;
+    expect(valueOf('Tên nhà máy')).toBe('—');
+    expect(valueOf('Địa chỉ nhà máy')).toBe('—');
+    expect(valueOf('Tuyến')).toBe('Cát Lái → Bình Dương');
+    expect(valueOf('SĐT kho')).toBe('—');
     expect(screen.getByText('MSCU1234561 · 40FT · Seal SEAL-9')).toBeTruthy();
     expect(screen.queryByText('Loại container')).toBeNull();
     expect(screen.queryByText('Số seal')).toBeNull();
@@ -691,9 +704,9 @@ describe('DriverTripDetailPage', () => {
     expect(screen.queryByText('51R-55555')).toBeNull();
   });
 
-  // TC-DA-002: Tuyến row carries the factory site street ADDRESS when the
-  // site join provides one — never the factory name.
-  it('TC-DA-002: Tuyến row shows the factory address, not the name', async () => {
+  // TC-DA-002 (superseded placement): the factory site street address now
+  // renders in its own "Địa chỉ nhà máy" row; Tuyến carries route text only.
+  it('Tuyến row carries route text only; the factory address renders in its own row', async () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
         fulfillment: {
@@ -708,20 +721,25 @@ describe('DriverTripDetailPage', () => {
     renderPage();
 
     await screen.findByText(/Số cont & seal/);
-    const routeRow = Array.from(document.querySelectorAll('.driver-task-fact'))
-      .find((el) => el.querySelector('.driver-task-fact__label')?.textContent === 'Tuyến');
-    const routeValue = routeRow?.querySelector('.driver-task-fact__value')?.textContent ?? '';
-    expect(routeValue).toBe('123 Nguyễn Văn A, Bình Dương');
+    const valueOf = (label: string) => Array.from(document.querySelectorAll('.driver-task-fact'))
+      .find((el) => el.querySelector('.driver-task-fact__label')?.textContent === label)
+      ?.querySelector('.driver-task-fact__value')?.textContent;
+    expect(valueOf('Địa chỉ nhà máy')).toBe('123 Nguyễn Văn A, Bình Dương');
+    expect(valueOf('Tuyến')).toBe('Cát Lái → Bình Dương');
   });
 
-  // TC-DA-003: kho phone row hidden when absent — no dash placeholder.
-  // 2a618442: label follows the mockup copy "SĐT kho".
-  it('TC-DA-003: hides the SĐT kho row when the site has no phone', async () => {
+  // TC-DA-003 (superseded placement): the warehouse-phone row is always
+  // visible — "—" placeholder when the site has no phone (wireframe
+  // supersedes the old graceful-hide on this screen).
+  it('SĐT kho row stays visible with "—" when the site has no phone', async () => {
     renderPage();
 
     await screen.findByText(/Số cont & seal/);
     const labels = Array.from(document.querySelectorAll('.driver-task-fact__label')).map((el) => el.textContent);
-    expect(labels).not.toContain('SĐT kho');
+    expect(labels).toContain('SĐT kho');
+    const khoRow = Array.from(document.querySelectorAll('.driver-task-fact'))
+      .find((el) => el.querySelector('.driver-task-fact__label')?.textContent === 'SĐT kho');
+    expect(khoRow?.querySelector('.driver-task-fact__value')?.textContent).toBe('—');
   });
 
   it('TC-DA-003: renders the Kho row as a tel link when the site has a phone', async () => {
@@ -765,6 +783,37 @@ describe('DriverTripDetailPage', () => {
     expect(screen.getByText('3701234567')).toBeTruthy();
     expect(screen.getByText('Công ty TNHH ABC')).toBeTruthy();
     expect(screen.queryByText('Địa chỉ')).toBeNull();
+  });
+
+  // Fee-invoice rows must be complete: name · address · MST on one line,
+  // with each segment hiding itself when its field is missing.
+  it('TC-DA-005: fee-invoice rows render name, address and MST with per-segment graceful hide', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        fulfillment: {
+          ...makeTaskDetail().fulfillment!,
+          invoiceInfo: {
+            liftFeeInvoiceName: 'CTY TNHH Nâng Hàng',
+            liftFeeInvoiceAddress: '12 Đường Số 5, KCN Sóng Thần',
+            liftFeeTaxCode: '3701234567',
+            dropFeeInvoiceName: 'CTY TNHH Hạ Hàng',
+            dropFeeInvoiceAddress: null,
+            dropFeeTaxCode: '3707654321',
+            cleaningInvoiceName: 'CTY Vệ Sinh Container',
+            cleaningInvoiceAddress: '9 Phạm Ngũ Lão',
+            cleaningTaxCode: null,
+          },
+        },
+      }),
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+    renderPage();
+
+    expect(await screen.findByText('CTY TNHH Nâng Hàng · 12 Đường Số 5, KCN Sóng Thần · MST 3701234567')).toBeTruthy();
+    expect(screen.getByText('CTY TNHH Hạ Hàng · MST 3707654321')).toBeTruthy();
+    expect(screen.getByText('CTY Vệ Sinh Container · 9 Phạm Ngũ Lão')).toBeTruthy();
   });
 
   // TC-COMP-004 (20260911_2 BUG 1): the task-info section collapses behind its
@@ -945,10 +994,9 @@ describe('DriverTripDetailPage', () => {
     expect(note.textContent).not.toContain('KIỂM HÓA');
   });
 
-  // 2a618442: the TÁC VỤ TÀI XẾ header is DEFAULT EXPANDED (route title +
-  // customer); collapsing is the user's opt-out — collapsed shows the factory
-  // short name + Tuyến line and hides the customer name. Status pill +
-  // Đóng/Trả chip stay visible in both states.
+  // 2a618442: the TÁC VỤ TÀI XẾ header is DEFAULT EXPANDED — factory title +
+  // subordinate route line + customer; collapsing only hides the customer
+  // name. Status pill + Đóng/Trả chip stay visible in both states.
   it('2a618442: collapses to factory short name + route line on toggle, expanding restores route + customer', async () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
@@ -965,25 +1013,26 @@ describe('DriverTripDetailPage', () => {
     renderPage();
 
     await screen.findByText(/Số cont & seal/);
-    // Default EXPANDED: route title + customer, no route line.
+    // Default EXPANDED: factory title + route-line text (route summary — the
+    // factory address never rides this line) + customer.
     const toggle = screen.getByRole('button', { name: 'Thu gọn thông tin tác vụ' });
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
-    expect(screen.getByText('Cảng Cát Lái → Nhà máy Bình Dương')).toBeTruthy();
+    expect(document.querySelector('.driver-task-header__title')?.textContent).toBe('ASKEY');
+    expect(document.querySelector('.driver-task-header__route')?.textContent).toBe('Cát Lái → Bình Dương');
     expect(screen.getByText('SilverSea')).toBeTruthy();
-    expect(document.querySelector('.driver-task-header__route')).toBeNull();
 
     fireEvent.click(toggle);
-    // Collapsed: factory short name + Tuyến line, customer hidden. (BUG 5:
-    // the expanded grid below now shows the short name too, so scope the
+    // Collapsed: same factory title + route line; only the customer hides.
+    // (BUG 5: the expanded grid below also shows the short name, so scope the
     // assertion to the header title element.)
     expect(document.querySelector('.driver-task-header__title')?.textContent).toBe('ASKEY');
-    expect(document.querySelector('.driver-task-header__route')?.textContent).toBe('KCN Quế Võ, Bắc Ninh');
+    expect(document.querySelector('.driver-task-header__route')?.textContent).toBe('Cát Lái → Bình Dương');
     expect(screen.queryByText('SilverSea')).toBeNull();
     expect(screen.getByRole('button', { name: 'Mở rộng thông tin tác vụ' })).toBeTruthy();
   });
 
-  // 2a618442: without factory data the collapsed title falls back to the
-  // route name and the redundant route line stays hidden (it belongs under a
+  // 2a618442: without factory data the title falls back to the route name in
+  // both states and the redundant route line stays hidden (it belongs under a
   // factory title only).
   it('2a618442: falls back to the route title and hides the route line without factory name', async () => {
     useDriverTaskDetailMock.mockReturnValue({
@@ -1001,7 +1050,9 @@ describe('DriverTripDetailPage', () => {
     renderPage();
 
     await screen.findByText(/Số cont & seal/);
-    // Collapse first — expanded title is the route either way.
+    // No factory → route title in BOTH states, route line hidden.
+    expect(document.querySelector('.driver-task-header__title')?.textContent).toBe('Cảng Cát Lái → Nhà máy Bình Dương');
+    expect(document.querySelector('.driver-task-header__route')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Thu gọn thông tin tác vụ' }));
     expect(document.querySelector('.driver-task-header__title')?.textContent).toBe('Cảng Cát Lái → Nhà máy Bình Dương');
     expect(document.querySelector('.driver-task-header__route')).toBeNull();

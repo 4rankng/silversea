@@ -7,12 +7,13 @@ import type { DriverTaskDetail } from '../../api/driverClient';
  * 2a618442 (structure-guard split): the THÔNG TIN LỆNH fact grid + the
  * THÔNG TIN XUẤT HÓA ĐƠN block, extracted from DriverTripDetailPage.
  *
- * Field order (20260911_3 BUG 5, superseding the 365943ea/wave-20260911
- * order): Nhà máy (SHORT name, full-name fallback) → Container / lô hàng →
- * Cảng nâng | Cảng hạ → Tuyến (factory address, demoted below the ports) →
- * SĐT kho (graceful hide) → Ngày giờ kế hoạch → Người liên hệ | Số điện
- * thoại. ĐẦU KÉO and RƠ MOÓC are both OFF this surface ("Bỏ đầu kéo -
- * moóc"): the wire fields stay, only the rows are dropped.
+ * Field order: Nhà máy (SHORT name, full-name fallback) → Tên nhà máy (tên
+ * đầy đủ, canonical site name) → Địa chỉ nhà máy → Container / lô hàng →
+ * Cảng nâng | Cảng hạ → Tuyến (route text only — the address lives in its
+ * own row above) → SĐT kho (always visible, "—" when the site has no
+ * phone) → Ngày giờ kế hoạch → Người liên hệ | Số điện thoại. ĐẦU KÉO and
+ * RƠ MOÓC are both OFF this surface: the wire fields stay, only the rows
+ * are dropped.
  */
 function TaskFact({ icon, label, value, fullWidth }: { icon: React.ReactNode; label: string; value: React.ReactNode; fullWidth?: boolean }) {
   return (
@@ -24,6 +25,12 @@ function TaskFact({ icon, label, value, fullWidth }: { icon: React.ReactNode; la
       </div>
     </div>
   );
+}
+
+/** One fee-invoice row reads "name · address · MST x" — each segment hides
+ *  itself when its field is missing. */
+function feeInvoiceValue(name: string, address: string | null | undefined, taxCode: string | null | undefined): string {
+  return `${name}${address ? ` · ${address}` : ''}${taxCode ? ` · MST ${taxCode}` : ''}`;
 }
 
 /**
@@ -81,6 +88,16 @@ export function DriverTaskInfoSections({ trip }: { trip: DriverTaskDetail }) {
 
   const invoiceInfo = fulfillment?.invoiceInfo ?? null;
 
+  // No adjacent duplicate rows in the factory block: the abbrev row keeps its
+  // full-name fallback, so when the canonical full name resolves to the SAME
+  // string (site-miss or blank site short name), the full-name row dashes
+  // instead of echoing its neighbor.
+  const factoryRowValue = valueOrDash(fulfillment?.factoryShortName || fulfillment?.factoryName);
+  const fullFactoryName = valueOrDash(fulfillment?.factoryFullName);
+  const distinctFullFactoryName = fullFactoryName !== '—' && fullFactoryName !== factoryRowValue
+    ? fullFactoryName
+    : '—';
+
   return (
     <>
       <section className={`driver-task-section${infoOpen ? '' : ' driver-task-section--collapsed'}`}>
@@ -95,29 +112,34 @@ export function DriverTaskInfoSections({ trip }: { trip: DriverTaskDetail }) {
           {/* BUG 5: the grid leads with the SHORT factory name (tên viết
               tắt) — full name only when no short name exists. The collapsed
               header summary keeps the short name too. */}
-          <TaskFact icon={<Building2 size={16} />} label="Nhà máy" value={valueOrDash(fulfillment?.factoryShortName || fulfillment?.factoryName)} fullWidth />
+          <TaskFact icon={<Building2 size={16} />} label="Nhà máy" value={factoryRowValue} fullWidth />
+          {/* Full factory name: canonical site name from the container
+              factory join; dashes when missing OR when it would duplicate
+              the abbrev row above. */}
+          <TaskFact icon={<Building2 size={16} />} label="Tên nhà máy" value={distinctFullFactoryName} fullWidth />
+          {/* Factory site street address in its own row — the Tuyến row
+              below stays route text only. */}
+          <TaskFact icon={<MapPinned size={16} />} label="Địa chỉ nhà máy" value={valueOrDash(fulfillment?.factoryAddress)} fullWidth />
           <TaskFact icon={<Package2 size={16} />} label="Container / lô hàng" value={containerLine} fullWidth />
           <TaskFact icon={<MapPinned size={16} />} label="Cảng nâng" value={pickupPoint} />
           <TaskFact icon={<MapPinned size={16} />} label="Cảng hạ" value={dropPoint} />
-          {/* TC-DA-002: the Tuyến row carries the factory site STREET ADDRESS
-              (not the name) — parity with the dispatcher ledger. Falls back to
-              the route summary / route name when the site has no address.
-              BUG 5 demotes it below the ports (tuyến đường xuống dưới). */}
+          {/* Route text only — the factory address renders in its own row
+              above; falls back through route summary → route name. */}
           <TaskFact
             icon={<Route size={16} />}
             label="Tuyến"
-            value={valueOrDash(fulfillment?.factoryAddress ?? fulfillment?.routeSummary ?? trip.routeName)}
+            value={valueOrDash(fulfillment?.routeSummary ?? trip.routeName)}
             fullWidth
           />
-          {/* TC-DA-003: kho site phone — rendered ONLY when present; no dash
-              placeholder (graceful hide per spec). Pairs with Ngày giờ. */}
-          {fulfillment?.khoPhone ? (
-            <TaskFact
-              icon={<Phone size={16} />}
-              label="SĐT kho"
-              value={<a href={`tel:${fulfillment.khoPhone}`} className="driver-task-link">{fulfillment.khoPhone}</a>}
-            />
-          ) : null}
+          {/* Warehouse phone is always visible — a tel link when the site
+              has one, "—" otherwise. */}
+          <TaskFact
+            icon={<Phone size={16} />}
+            label="SĐT kho"
+            value={fulfillment?.khoPhone
+              ? <a href={`tel:${fulfillment.khoPhone}`} className="driver-task-link">{fulfillment.khoPhone}</a>
+              : '—'}
+          />
           <TaskFact icon={<CalendarClock size={16} />} label="Ngày giờ kế hoạch" value={formatDateTime(fulfillment?.plannedAt ?? trip.departureDate)} />
           <TaskFact icon={<Phone size={16} />} label="Người liên hệ" value={valueOrDash(contactName)} />
           <TaskFact
@@ -153,13 +175,13 @@ export function DriverTaskInfoSections({ trip }: { trip: DriverTaskDetail }) {
               <TaskFact icon={<FileText size={16} />} label="MST" value={trip.invoiceMaster.taxCode} fullWidth />
             ) : null}
             {invoiceInfo?.liftFeeInvoiceName && (
-              <TaskFact icon={<FileCheck2 size={16} />} label="Hóa đơn phí nâng" value={`${invoiceInfo?.liftFeeInvoiceName}${invoiceInfo.liftFeeTaxCode ? ` · MST ${invoiceInfo.liftFeeTaxCode}` : ''}`} fullWidth />
+              <TaskFact icon={<FileCheck2 size={16} />} label="Hóa đơn phí nâng" value={feeInvoiceValue(invoiceInfo.liftFeeInvoiceName, invoiceInfo.liftFeeInvoiceAddress, invoiceInfo.liftFeeTaxCode)} fullWidth />
             )}
             {invoiceInfo?.dropFeeInvoiceName && (
-              <TaskFact icon={<FileCheck2 size={16} />} label="Hóa đơn phí hạ" value={`${invoiceInfo?.dropFeeInvoiceName}${invoiceInfo.dropFeeTaxCode ? ` · MST ${invoiceInfo.dropFeeTaxCode}` : ''}`} fullWidth />
+              <TaskFact icon={<FileCheck2 size={16} />} label="Hóa đơn phí hạ" value={feeInvoiceValue(invoiceInfo.dropFeeInvoiceName, invoiceInfo.dropFeeInvoiceAddress, invoiceInfo.dropFeeTaxCode)} fullWidth />
             )}
             {invoiceInfo?.cleaningInvoiceName && (
-              <TaskFact icon={<FileCheck2 size={16} />} label="Hóa đơn vệ sinh cont" value={`${invoiceInfo?.cleaningInvoiceName}${invoiceInfo.cleaningTaxCode ? ` · MST ${invoiceInfo.cleaningTaxCode}` : ''}`} fullWidth />
+              <TaskFact icon={<FileCheck2 size={16} />} label="Hóa đơn vệ sinh cont" value={feeInvoiceValue(invoiceInfo.cleaningInvoiceName, invoiceInfo.cleaningInvoiceAddress, invoiceInfo.cleaningTaxCode)} fullWidth />
             )}
           </div>
         </section>

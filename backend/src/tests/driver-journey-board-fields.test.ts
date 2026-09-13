@@ -207,7 +207,7 @@ describe('journey-board card fields — operationalNotes + factoryShortName', ()
     // the LAST one (VO) must win the card's loadingType (destination
     // semantics, same rule the billing draft applies).
     const shortSite = await mkSite(customer.id, 'Nhà máy Có Tên Ngắn', 'NM NGẮN');
-    const { trip: tripB } = await mkContainerTrip({
+    const { fulfillment: fulfillmentB, trip: tripB } = await mkContainerTrip({
       driverId: driver.id, customerId: customer.id, routeId: route.id, cargoTypeId: cargoType.id,
       containerTypeId: containerType.id, siteId: shortSite.id, notes: null, factoryName: 'Bị che bởi tên ngắn',
     });
@@ -267,7 +267,16 @@ describe('journey-board card fields — operationalNotes + factoryShortName', ()
     // Fulfillment detail must agree with the card contract.
     const detail = await getDriverFulfillmentDetail(driver.id, fulfillmentA.id);
     assert.equal(detail.factoryShortName, 'Nhà máy Đầy Đủ');
+    // The full-name row reads the canonical site name (container factory
+    // join) — the free-text shipment factoryName only rides as a fallback.
+    assert.equal(detail.factoryFullName, 'Nhà máy Đầy Đủ');
     assert.equal(detail.driverNotes, NOTES);
+    // Chain order lock: B's shipment free text ("Bị che bởi tên ngắn") is a
+    // distinct stale value — the canonical site name must still win the
+    // full-name chain, exactly as the card's short-name resolution does.
+    const detailB = await getDriverFulfillmentDetail(driver.id, fulfillmentB.id);
+    assert.equal(detailB.factoryFullName, 'Nhà máy Có Tên Ngắn', 'canonical site name beats stale free text');
+    assert.equal(detailB.factoryShortName, 'NM NGẮN');
     // Trip-detail polish (2026-09-11): the detail wire carries the same
     // contract fields the FE surface renders.
     assert.equal(detail.factoryAddress, `Địa chỉ ${suffix}-0`, 'site street address rides the detail wire');

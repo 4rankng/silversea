@@ -192,9 +192,11 @@ export interface DriverTaskDetail {
     modeLabel?: string | null;
     factoryName: string | null;
     factoryShortName: string | null;
-    /** TC-DA-002: factory site street address (Tuyến row shows this first). */
+    /** Canonical full site name — the full-name row renders this. */
+    factoryFullName?: string | null;
+    /** Factory site street address (own "Địa chỉ nhà máy" row in the grid). */
     factoryAddress: string | null;
-    /** TC-DA-003: kho site phone — hidden when null (graceful hide). */
+    /** Kho site phone — the warehouse-phone row always renders, tel link or "—". */
     khoPhone: string | null;
     pickupPortName: string | null;
     dropPortName: string | null;
@@ -255,6 +257,7 @@ interface DriverFulfillmentDetailResponse {
   tripVersion: number;
   factoryName: string | null;
   factoryShortName: string | null;
+  factoryFullName: string | null;
   factoryAddress: string | null;
   khoPhone: string | null;
   invoiceMaster: DriverInvoiceMaster | null;
@@ -311,6 +314,7 @@ function mapFulfillmentDetail(wire: DriverFulfillmentDetailResponse): DriverTask
       modeLabel: wire.cargoMode,
       factoryName: wire.factoryName,
       factoryShortName: wire.factoryShortName,
+      factoryFullName: wire.factoryFullName ?? null,
       factoryAddress: wire.factoryAddress,
       khoPhone: wire.khoPhone,
       pickupPortName: wire.pickupLocation,
