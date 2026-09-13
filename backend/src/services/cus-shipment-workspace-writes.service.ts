@@ -351,20 +351,35 @@ export async function updateCusShipmentContainerLine(args: {
       .limit(1)
       .for('update');
 
+    // Linked-trip guard is VALUE-aware: it fires only when a guarded
+    // operational field would actually change. Presence alone must not block
+    // — the CUS container dialog submits the full spec set on every save, so
+    // a number-only edit rides alongside unchanged type/weight echoes, and
+    // the container NUMBER itself is identity, not an operational parameter
+    // a trip schedules around (it stays writable with format + in-lot
+    // duplicate validation). Each comparison mirrors the write-block below
+    // so the guard blocks exactly the writes that would land.
+    const appointmentChanged = args.input.customerAppointmentAt !== undefined && (
+      (args.input.customerAppointmentAt == null) !== (container.customerAppointmentAt == null)
+      || (
+        args.input.customerAppointmentAt != null
+        && container.customerAppointmentAt != null
+        && new Date(args.input.customerAppointmentAt).getTime() !== container.customerAppointmentAt.getTime()
+      )
+    );
     const requestedOperationalMutation = (
-      args.input.containerTypeId !== undefined
-      || args.input.containerNumber !== undefined
-      || args.input.cargoWeightKg !== undefined
-      || args.input.cargoVolumeCbm !== undefined
-      || args.input.routeId !== undefined
-      || args.input.liftSiteId !== undefined
-      || args.input.dropoffSiteId !== undefined
-      || args.input.customerAppointmentAt !== undefined
-      || args.input.carrierType !== undefined
-      || args.input.externalCarrierId !== undefined
-      || args.input.externalCarrierVehicleId !== undefined
-      || args.input.plateNumber !== undefined
-      || args.input.newExternalCarrier !== undefined
+      (args.input.containerTypeId !== undefined && args.input.containerTypeId !== container.containerTypeId)
+      || (args.input.cargoWeightKg !== undefined && args.input.cargoWeightKg !== container.cargoWeightKg)
+      || (args.input.cargoVolumeCbm !== undefined && args.input.cargoVolumeCbm !== container.cargoVolumeCbm)
+      || (args.input.routeId !== undefined && args.input.routeId !== container.routeId)
+      || (args.input.liftSiteId !== undefined && args.input.liftSiteId !== container.pickupPortId)
+      || (args.input.dropoffSiteId !== undefined && args.input.dropoffSiteId !== container.dropoffPortId)
+      || appointmentChanged
+      || (args.input.carrierType !== undefined && args.input.carrierType !== fulfillment.plannedCarrierType)
+      || (args.input.externalCarrierId !== undefined && args.input.externalCarrierId !== fulfillment.plannedExternalCarrierId)
+      || (args.input.externalCarrierVehicleId !== undefined && args.input.externalCarrierVehicleId !== fulfillment.plannedExternalCarrierVehicleId)
+      || (args.input.plateNumber !== undefined && trimOrNull(args.input.plateNumber) !== fulfillment.plannedVehiclePlateNumber)
+      || args.input.newExternalCarrier != null
     );
     if (trip && requestedOperationalMutation) {
       const tripLabel = trip.tripCode || `TRP-${trip.id}`;

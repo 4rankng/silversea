@@ -2152,3 +2152,217 @@ describe('Container workboard "Chưa cập nhật" completeness', () => {
     assert.equal(codes.includes('CARRIER'), false);
   });
 });
+
+describe('Linked-trip guard is value-aware (container number is identity, not an operational edit)', () => {
+  // 2026-09-13 CUS repro: a number-only save on an assigned nonterminal
+  // container was rejected by the linked-trip guard because the guard keyed
+  // on field PRESENCE — and the CUS container dialog submits the full spec
+  // set on every save. The guard now fires only when a guarded field's
+  // VALUE actually changes; the number write itself stays validated
+  // (format + in-lot duplicates) and never disturbs trip linkage.
+
+  let numberSeq = 0;
+  function validContainerNumber(): string {
+    // ISO 6346 owner+serial must total 10 chars before the check digit; the
+    // per-call sequence keeps every generated number unique within the lot.
+    numberSeq += 1;
+    const base = `QATU${String(1000000 + numberSeq).slice(1)}`;
+    return `${base}${calculateCheckDigit(base)}`;
+  }
+
+  async function seedAssignedLot(args: { status?: 'DISPATCHED' | 'COMPLETED' | 'READY_FOR_DISPATCH' } = {}) {
+    const marker = Math.random().toString(16).slice(2, 8);
+    const shipment = await seedShipment({
+      blNumber: `WS-NUM-${marker}`,
+      cargoMode: 'FCL',
+      expectedDeliveryDate: '2026-08-24',
+      status: args.status ?? 'DISPATCHED',
+    });
+    const container = await seedContainer(shipment.id); // unnumbered by default
+    const fulfillment = await seedFulfillment(shipment.id, container.id);
+    return { marker, shipment, container, fulfillment };
+  }
+
+  async function attachTrip(fulfillmentId: number, marker: string) {
+    const route = await seedRoute();
+    const [trip] = await db.insert(s.trips).values({
+      tripCode: `TRP-NUM-${marker}`,
+      customerId,
+      routeId: route.id,
+      departureDate: '2026-08-25',
+      fulfillmentId,
+      status: 'CREATED',
+    }).returning();
+    createdTripIds.push(trip.id);
+    return trip;
+  }
+
+  test('a number-only add on an assigned nonterminal container saves without the linked-trip guard', async () => {
+    const { marker, shipment, container, fulfillment } = await seedAssignedLot();
+    const trip = await attachTrip(fulfillment.id, marker);
+    const nextNumber = validContainerNumber();
+
+    const result = await updateCusShipmentContainerLine({
+      shipmentId: shipment.id,
+      containerId: container.id,
+      input: { expectedShipmentVersion: shipment.version, containerNumber: nextNumber },
+      actor: adminActor,
+    });
+    assert.equal(result.line.containerNumber, nextNumber);
+
+    // Schedule/carrier/vehicle/trip linkage untouched: the fulfillment's
+    // planned block and the trip row are exactly what they were.
+    const [fulfillmentAfter] = await db.select().from(s.shipmentFulfillments)
+      .where(eq(s.shipmentFulfillments.id, fulfillment.id));
+    assert.equal(fulfillmentAfter.version, fulfillment.version);
+    assert.equal(fulfillmentAfter.plannedCarrierType, null);
+    assert.equal(fulfillmentAfter.plannedVehiclePlateNumber, null);
+    const [tripAfter] = await db.select({ status: s.trips.status })
+      .from(s.trips).where(eq(s.trips.id, trip.id));
+    assert.equal(tripAfter.status, 'CREATED');
+
+    // Visible after reload through the CUS projection.
+    const flat = await listCusShipmentContainers({ page: 1, limit: 100, searchSuffix: marker }, cusActor);
+    const flatRow = flat.items.find((item) => item.id === container.id);
+    assert.equal(flatRow?.containerNumber, nextNumber);
+  });
+
+  test('the CUS dialog full-form echo (number + unchanged type/weight/volume) saves on a tripped row', async () => {
+    const { marker, shipment, container, fulfillment } = await seedAssignedLot();
+    await attachTrip(fulfillment.id, marker);
+    const nextNumber = validContainerNumber();
+
+    // Mirrors the container dialog's save: every spec field rides the wire
+    // even when only the number changed. The echoes match the seeded values
+    // (default type, no weight/volume), so the value-aware guard stays cold.
+    const result = await updateCusShipmentContainerLine({
+      shipmentId: shipment.id,
+      containerId: container.id,
+      input: {
+        expectedShipmentVersion: shipment.version,
+        containerNumber: nextNumber,
+        containerTypeId,
+        cargoWeightKg: null,
+        cargoVolumeCbm: null,
+      },
+      actor: adminActor,
+    });
+    assert.equal(result.line.containerNumber, nextNumber);
+  });
+
+  test('a real container-type change on a tripped row still follows the linked-trip workflow', async () => {
+    const { marker, shipment, container, fulfillment } = await seedAssignedLot();
+    await attachTrip(fulfillment.id, marker);
+
+    await assert.rejects(
+      () => updateCusShipmentContainerLine({
+        shipmentId: shipment.id,
+        containerId: container.id,
+        input: { expectedShipmentVersion: shipment.version, containerTypeId: containerType20Id },
+        actor: adminActor,
+      }),
+      (error: unknown) => {
+        assert.ok(error instanceof Error);
+        assert.match(error.message, /Container đã gắn chuyến xe \(TRP-NUM-/);
+        return true;
+      },
+    );
+  });
+
+  test('a same-value appointment echo does not trip the guard on a tripped row', async () => {
+    const { marker, shipment, container, fulfillment } = await seedAssignedLot();
+    await attachTrip(fulfillment.id, marker);
+    const sameInstant = '2026-08-24T02:00:00.000Z';
+    await db.update(s.shipmentContainers)
+      .set({ customerAppointmentAt: new Date(sameInstant) })
+      .where(eq(s.shipmentContainers.id, container.id));
+
+    const result = await updateCusShipmentContainerLine({
+      shipmentId: shipment.id,
+      containerId: container.id,
+      input: { expectedShipmentVersion: shipment.version, customerAppointmentAt: sameInstant },
+      actor: adminActor,
+    });
+    assert.equal(result.line.customerAppointmentAt, sameInstant);
+  });
+
+  test('terminal lots still refuse the number add with the terminal-lot message', async () => {
+    const { marker, shipment, container, fulfillment } = await seedAssignedLot({ status: 'COMPLETED' });
+    await attachTrip(fulfillment.id, marker);
+
+    await assert.rejects(
+      () => updateCusShipmentContainerLine({
+        shipmentId: shipment.id,
+        containerId: container.id,
+        input: { expectedShipmentVersion: shipment.version, containerNumber: validContainerNumber() },
+        actor: adminActor,
+      }),
+      (error: unknown) => {
+        assert.ok(error instanceof Error);
+        assert.match(error.message, /Lô hàng đã kết thúc/);
+        return true;
+      },
+    );
+  });
+
+  test('a multi-container lot updates only the intended row; in-lot duplicate numbers still reject', async () => {
+    const { marker, shipment, container, fulfillment } = await seedAssignedLot();
+    await attachTrip(fulfillment.id, marker);
+    const siblingNumber = validContainerNumber();
+    const sibling = await seedContainer(shipment.id, { containerNumber: siblingNumber });
+    await seedFulfillment(shipment.id, sibling.id);
+
+    // The intended row: the unnumbered, tripped container takes the number.
+    const targetNumber = validContainerNumber();
+    const result = await updateCusShipmentContainerLine({
+      shipmentId: shipment.id,
+      containerId: container.id,
+      input: { expectedShipmentVersion: shipment.version, containerNumber: targetNumber },
+      actor: adminActor,
+    });
+    assert.equal(result.line.containerNumber, targetNumber);
+    const [siblingAfter] = await db.select({ containerNumber: s.shipmentContainers.containerNumber })
+      .from(s.shipmentContainers).where(eq(s.shipmentContainers.id, sibling.id));
+    assert.equal(siblingAfter.containerNumber, siblingNumber);
+
+    // Writing the sibling's number onto another row is a 400 duplicate —
+    // the number edit kept its own validation. (Ride the post-save version:
+    // the first number write bumped the shipment.)
+    const third = await seedContainer(shipment.id);
+    await seedFulfillment(shipment.id, third.id);
+    await assert.rejects(
+      () => updateCusShipmentContainerLine({
+        shipmentId: shipment.id,
+        containerId: third.id,
+        input: { expectedShipmentVersion: result.line.shipmentVersion, containerNumber: siblingNumber },
+        actor: adminActor,
+      }),
+      (error: unknown) => {
+        assert.ok(error instanceof Error);
+        assert.match(error.message, /đã tồn tại trong lô hàng/);
+        return true;
+      },
+    );
+  });
+
+  test('an unnumbered unassigned container keeps saving numbers directly', async () => {
+    const marker = Math.random().toString(16).slice(2, 8);
+    const shipment = await seedShipment({
+      blNumber: `WS-NUM-FREE-${marker}`,
+      cargoMode: 'FCL',
+      expectedDeliveryDate: '2026-08-24',
+      status: 'READY_FOR_DISPATCH',
+    });
+    const container = await seedContainer(shipment.id);
+    await seedFulfillment(shipment.id, container.id);
+    const nextNumber = validContainerNumber();
+
+    const result = await updateCusShipmentContainerLine({
+      shipmentId: shipment.id,
+      containerId: container.id,
+      input: { expectedShipmentVersion: shipment.version, containerNumber: nextNumber },
+      actor: adminActor,
+    });
+    assert.equal(result.line.containerNumber, nextNumber);
+  });
+});
