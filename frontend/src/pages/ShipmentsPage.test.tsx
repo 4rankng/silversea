@@ -1263,10 +1263,10 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(screen.getByLabelText(/Loại container MSKU1234567/)).toBeTruthy();
     fireEvent.change(plate, { target: { value: '15C-999.99' } });
     fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả tại nhà máy của container MSKU1234567/ }));
-    const dateInput = screen.getByLabelText('Ngày') as HTMLInputElement;
-    const timeInput = screen.getByLabelText('Giờ') as HTMLInputElement;
-    fireEvent.change(dateInput, { target: { value: '2026-08-14' } });
-    fireEvent.change(timeInput, { target: { value: '10:30' } });
+    // Single buffered 24h text input (combined date+time contract) — one
+    // complete entry replaces the old separate Ngày/Giờ native inputs.
+    const datetimeInput = screen.getByLabelText('Ngày giờ') as HTMLInputElement;
+    fireEvent.change(datetimeInput, { target: { value: '10:30 14/08/2026' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
 
     await waitFor(() => expect(apiPost).toHaveBeenCalledWith(
