@@ -564,7 +564,11 @@
 }
 
 .detailed-plan-grid__line--muted {
-  color: var(--text-secondary, #94a3b8);
+  /* Fallback is the WCAG-passing slate-500 (4.76:1 on white, 4.55:1 on the
+     hover tint): the previous #94a3b8 fallback resolved whenever
+     --text-secondary was unset and rendered times/weights/customer notes at
+     2.56:1 — operational data must not read as disabled UI. */
+  color: var(--text-secondary, #64748b);
   font-size: var(--ops-table-meta-size);
   line-height: var(--ops-table-meta-line-height);
 }

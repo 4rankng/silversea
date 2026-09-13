@@ -85,7 +85,11 @@
 
 .dispatch-assignment-cell__plate.is-placeholder,
 .dispatch-assignment-cell__estimate.is-placeholder {
-  color: var(--text-tertiary, #98a2b3);
+  /* Placeholder copy ("CUS sẽ bổ sung", "Chưa phân xe") is operational
+     guidance, not disabled UI — the fallback must meet text contrast
+     (4.76:1 on white); italic + regular weight already mark the
+     placeholder semantic. */
+  color: var(--text-tertiary, #64748b);
   font-family: inherit;
   font-style: italic;
 }

@@ -674,3 +674,23 @@ describe('DetailedPlanGrid — blank notes cell collapse', () => {
     expect(screen.getByRole('button', { name: /Phát lệnh/ })).toBeTruthy();
   });
 });
+
+// Secondary-info contrast (QA-007): --text-secondary/--text-tertiary are
+// undefined app-wide, so each rule's FALLBACK is the computed color. Muted
+// operational lines (Giờ times, weights, customer notes) and the editor's
+// placeholder copy must resolve to the WCAG-passing slate-500 (4.76:1 on
+// white, 4.55:1 on the hover tint) — never back to the 2.5:1 pale grays.
+// Decorative middot separators stay lighter by design (exempt).
+describe('DetailedPlanGrid — secondary text contrast pins', () => {
+  it('resolves muted operational lines to the contrast-passing fallback', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'), 'utf8');
+    const muted = css.match(/\.detailed-plan-grid__line--muted \{([\s\S]*?)\n\}/)?.[1] ?? '';
+    expect(muted.match(/color:\s*([^;]+);/)?.[1]).toBe('var(--text-secondary, #64748b)');
+  });
+
+  it('resolves the editor placeholder copy to the contrast-passing fallback', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DispatchPlanEditorCell.css'), 'utf8');
+    const placeholder = css.match(/\.dispatch-assignment-cell__plate\.is-placeholder,[\s\S]*?\{([\s\S]*?)\n\}/)?.[1] ?? '';
+    expect(placeholder.match(/color:\s*([^;]+);/)?.[1]).toBe('var(--text-tertiary, #64748b)');
+  });
+});
