@@ -82,7 +82,13 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   'src/components/shipment/TripPodReviewPanel.tsx': 588,
   'src/components/trip/AncillaryFeesCard.tsx': 607,
   'src/components/trip/ContainerInstancesCard.tsx': 591,
-  'src/components/trip/DriverContainerCard.tsx': 585,
+  // Bumped 585 → 720: 2026-09-13 driver attachments unification — the card
+  // absorbs the deleted DriverDeliveryNoteCard (single photo block: note
+  // capture moves in, scanner renders in both states) and mounts the shared
+  // PhotoViewer with focus restore for full-image viewing. Reviewed as a
+  // contract change; a future split (extract the photo block) should restore
+  // a smaller ceiling.
+  'src/components/trip/DriverContainerCard.tsx': 720,
   // Baseline 410 (was new-file capped): e-POD photos now render as tappable
   // thumbnails opening the fullscreen viewer — thumbnail state/effect + the
   // render branch live beside the upload lifecycle they serve.
@@ -94,6 +100,10 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   'src/components/work-inbox/RoleWorkInbox.tsx': 485,
   'src/features/app-settings/FinancePolicySection.tsx': 431,
   'src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx': 445,
+  // Baseline 407 (was new-file capped 400): 2026-09-14 header sort direction —
+  // both sortable headers gain aria-sort + flipping ▲/▼ glyphs, and rows key
+  // on a stable identity helper (branch rows carry a null fulfillment id).
+  'src/features/dispatch/detailed-plan/DetailedPlanGrid.tsx': 407,
   // Bumped 691 → 705: 2026-09-07 driver-note composer — the dispatch edit
   // dialog gains the "Ghi chú tác vụ" section (draft field, save body,
   // re-anchor, and the DispatchTaskTagEditor mount). The composer itself is
@@ -108,7 +118,12 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // derives a completed state. Reviewed as a contract change.
   // Bumped 745 -> 789: ticket 8afc13a9 - carrier-less auto-load (Option B) + fleet error surfacing
   // Bumped 789 -> 792: EXTERNAL-pick on a carrier-less row now loads that carrier's vehicles (predicate fix)
-  'src/features/dispatch/detailed-plan/DispatchPlanEditorCell.tsx': 792,
+  // Bumped 792 → 832: 2026-09-13/14 dispatch editor — carrier resolution by
+  // linked plate (truck→carrier map promotes the pick, plate-compare key,
+  // carrier-options fallback label) + the driver-acceptance chip derive.
+  // Reviewed as a contract change; a future split (extract the carrier-link
+  // resolution) should restore a smaller ceiling.
+  'src/features/dispatch/detailed-plan/DispatchPlanEditorCell.tsx': 832,
   // Bumped 446 → 448: driver-note save now carries operationalNotes and the
   // optimistic row update refreshes notes.vehicleNote (2026-09-07). Reviewed
   // as a contract change.
@@ -120,7 +135,11 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // Bumped 515 → 540 on 2026-09-12 (ensureFulfillment decompose-then-edit),
   // returned to 515 the same day: the ensure logic extracted to
   // ensureFulfillment.ts — ticket 2026.9 (1)._4 item 7 DEBT CLEARED.
-  'src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts': 515,
+  // Bumped 515 → 533: 2026-09-14 QA-001 AC4 — three-state header sort
+  // (unsorted → asc → desc → unsorted) with a direction-aware comparator;
+  // time-less rows sort last in both directions. Reviewed as a contract
+  // change.
+  'src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts': 533,
   'src/features/dispatch/master-plan/DispatchAllocationPopover.tsx': 454,
   'src/features/dispatch/master-plan/MasterPlanFilters.tsx': 735,
   // Bumped 508 → 520: 282fe386 (2026-09-05, "fix(dispatch): keep dispatched

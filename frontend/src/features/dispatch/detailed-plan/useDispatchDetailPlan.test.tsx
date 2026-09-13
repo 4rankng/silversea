@@ -564,4 +564,61 @@ describe('useDispatchDetailPlan run-time sorting (QA-001)', () => {
     act(() => result.current.toggleSort('runHour'));
     expect(result.current.items.map((item) => item.fulfillmentId)).toEqual([202, 201, 203]);
   });
+
+  it('second toggle flips to descending while time-less rows stay last', async () => {
+    // Staging repro (QA-001 AC4): the second header click showed no visible
+    // change — the old two-state toggle silently reverted to the server's
+    // cargo-priority order. The flip must reverse the timed rows and keep the
+    // unknown-time rows anchored at the bottom.
+    const late = row({ fulfillmentId: 201, time: { deliveryDate: '2026-09-11', runAt: '2026-09-11T13:45:00.000Z', runHour: 20 } });
+    const early = row({ fulfillmentId: 202, time: { deliveryDate: '2026-09-11', runAt: '2026-09-11T13:30:00.000Z', runHour: 20 } });
+    const noTime = row({ fulfillmentId: 203, time: { deliveryDate: '2026-09-11', runHour: null } });
+    listDispatchDetailPlanRowsMock.mockResolvedValue(page([early, late, noTime]));
+
+    const { result } = renderHook(() => useDispatchDetailPlan());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    act(() => result.current.toggleSort('runHour'));
+    expect(result.current.items.map((item) => item.fulfillmentId)).toEqual([202, 201, 203]);
+
+    act(() => result.current.toggleSort('runHour'));
+    expect(result.current.sortDirection).toBe('desc');
+    expect(result.current.items.map((item) => item.fulfillmentId)).toEqual([201, 202, 203]);
+  });
+
+  it('third toggle returns to the unsorted server order', async () => {
+    const late = row({ fulfillmentId: 201, time: { deliveryDate: '2026-09-11', runAt: '2026-09-11T13:45:00.000Z', runHour: 20 } });
+    const early = row({ fulfillmentId: 202, time: { deliveryDate: '2026-09-11', runAt: '2026-09-11T13:30:00.000Z', runHour: 20 } });
+    listDispatchDetailPlanRowsMock.mockResolvedValue(page([late, early]));
+
+    const { result } = renderHook(() => useDispatchDetailPlan());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    act(() => result.current.toggleSort('runHour'));
+    act(() => result.current.toggleSort('runHour'));
+    act(() => result.current.toggleSort('runHour'));
+    expect(result.current.sortKey).toBeNull();
+    // Back to the server's row order (cargo priority), not a residual sort.
+    expect(result.current.items.map((item) => item.fulfillmentId)).toEqual([201, 202]);
+  });
+
+  it('switching columns restarts the cycle at ascending', async () => {
+    const a = row({ fulfillmentId: 201, customerRoute: { customerName: 'Công ty ABC', factoryName: null, deliveryPoint: 'Kho Bình Dương' }, time: { deliveryDate: '2026-09-11', runAt: '2026-09-11T13:45:00.000Z', runHour: 20 } });
+    const b = row({ fulfillmentId: 202, customerRoute: { customerName: 'Công ty ABC', factoryName: null, deliveryPoint: 'Kho An Phú' }, time: { deliveryDate: '2026-09-11', runAt: '2026-09-11T13:30:00.000Z', runHour: 20 } });
+    listDispatchDetailPlanRowsMock.mockResolvedValue(page([a, b]));
+
+    const { result } = renderHook(() => useDispatchDetailPlan());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    // Take the time column to descending, then pick the other column: the new
+    // column must start ascending, not inherit the descending direction.
+    act(() => result.current.toggleSort('runHour'));
+    act(() => result.current.toggleSort('runHour'));
+    expect(result.current.sortDirection).toBe('desc');
+    act(() => result.current.toggleSort('deliveryPoint'));
+    expect(result.current.sortKey).toBe('deliveryPoint');
+    expect(result.current.sortDirection).toBe('asc');
+    // Ascending delivery-point order: An Phú before Bình Dương (vi collation).
+    expect(result.current.items.map((item) => item.fulfillmentId)).toEqual([202, 201]);
+  });
 });

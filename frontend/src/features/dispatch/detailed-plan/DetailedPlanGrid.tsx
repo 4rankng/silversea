@@ -18,7 +18,7 @@ import { formatAppointmentGroupLine } from '../../shipments/cus/cusUtils';
 import type { DispatchShipmentRequest } from '../../../api/shipmentClient';
 import { DetailedPlanFilters } from './DetailedPlanFilters';
 import { ZoneTruckPresencePanel } from './ZoneTruckPresencePanel';
-import type { DetailedPlanFilterState, DetailPlanSortKey } from './useDispatchDetailPlan';
+import type { DetailedPlanFilterState, DetailPlanSortDirection, DetailPlanSortKey } from './useDispatchDetailPlan';
 import { formatISODate } from '../../../lib/format';
 import { displayNote } from '../../shipments/cus/cusUtils';
 
@@ -30,6 +30,16 @@ function formatWeight(kg: string | null | undefined): string {
   const value = Number(kg);
   if (!Number.isFinite(value)) return kg;
   return `${new Intl.NumberFormat('vi-VN').format(value)} kg`;
+}
+
+/** Stable unique row key. Fulfillment rows key on the fulfillment id; branch
+ *  rows (not yet decomposed) on their container id — the wire sends a null
+ *  fulfillment id there, and keying on it floods the console with
+ *  "two children with the same key, null" on every render. */
+function detailRowKey(row: DispatchDetailPlanRow): string {
+  if (row.fulfillmentId != null) return `f-${row.fulfillmentId}`;
+  if (row.shipmentContainerId != null) return `c-${row.shipmentContainerId}`;
+  return `s-${row.shipmentId}-${row.shipmentCode ?? 'lot'}`;
 }
 
 interface DetailedPlanGridProps {
@@ -48,6 +58,7 @@ interface DetailedPlanGridProps {
   presence: { zone: string; zoneLabel: string; date: string; items: ZoneTruckPresenceItem[] } | null;
   zones: Array<{ code: string; label: string }>;
   sortKey: DetailPlanSortKey;
+  sortDirection: DetailPlanSortDirection;
   onToggleSort: (key: 'runHour' | 'deliveryPoint') => void;
   onAtomicSave: (
     row: DispatchDetailPlanRow,
@@ -101,6 +112,7 @@ export function DetailedPlanGrid({
   presence,
   zones,
   sortKey,
+  sortDirection,
   onToggleSort,
   onAtomicSave,
   onOpenTripReassign,
@@ -177,24 +189,24 @@ export function DetailedPlanGrid({
             </colgroup>
             <thead>
               <tr>
-                <th scope="col">
+                <th scope="col" aria-sort={sortKey === 'runHour' ? (sortDirection === 'desc' ? 'descending' : 'ascending') : undefined}>
                   <button
                     type="button"
                     className={`detailed-plan-grid__sort${sortKey === 'runHour' ? ' is-sorted' : ''}`}
                     onClick={() => onToggleSort('runHour')}
                     aria-label="Sắp xếp theo giờ chạy"
                   >
-                    Thời gian &amp; lịch trình {sortKey === 'runHour' ? '▲' : '↕'}
+                    Thời gian &amp; lịch trình {sortKey === 'runHour' ? (sortDirection === 'desc' ? '▼' : '▲') : '↕'}
                   </button>
                 </th>
-                <th scope="col">
+                <th scope="col" aria-sort={sortKey === 'deliveryPoint' ? (sortDirection === 'desc' ? 'descending' : 'ascending') : undefined}>
                   <button
                     type="button"
                     className={`detailed-plan-grid__sort${sortKey === 'deliveryPoint' ? ' is-sorted' : ''}`}
                     onClick={() => onToggleSort('deliveryPoint')}
                     aria-label="Sắp xếp theo điểm trả"
                   >
-                    Khách hàng &amp; lộ trình {sortKey === 'deliveryPoint' ? '▲' : '↕'}
+                    Khách hàng &amp; lộ trình {sortKey === 'deliveryPoint' ? (sortDirection === 'desc' ? '▼' : '▲') : '↕'}
                   </button>
                 </th>
                 <th scope="col">Tuyến đường</th>
@@ -206,7 +218,7 @@ export function DetailedPlanGrid({
             </thead>
             <tbody>
               {items.map((row) => (
-                <tr key={row.fulfillmentId} className={`detailed-plan-grid__row${row.lotFullyPlated ? ' detailed-plan-grid__row--plated' : ''}`}>
+                <tr key={detailRowKey(row)} className={`detailed-plan-grid__row${row.lotFullyPlated ? ' detailed-plan-grid__row--plated' : ''}`}>
                   <td className="detailed-plan-grid__cell detailed-plan-grid__cell--schedule" data-label="Thời gian & lịch trình">
                     <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">
                       {row.docs.tradeDirection === 'IMPORT' ? 'Nhận:' : 'Giao:'} {formatISODate(row.time.deliveryDate)}

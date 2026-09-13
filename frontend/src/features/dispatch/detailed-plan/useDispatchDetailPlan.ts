@@ -56,6 +56,7 @@ export function createDefaultDetailedPlanFilters(): DetailedPlanFilterState {
 }
 
 export type DetailPlanSortKey = 'runHour' | 'deliveryPoint' | null;
+export type DetailPlanSortDirection = 'asc' | 'desc';
 
 /** Query params shared by the list, load-more, and refresh requests. */
 function detailPlanQuery(filters: DetailedPlanFilterState, q: string) {
@@ -87,6 +88,7 @@ export function useDispatchDetailPlan() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<DetailPlanSortKey>(null);
+  const [sortDirection, setSortDirection] = useState<DetailPlanSortDirection>('asc');
   const [lotBanner, setLotBanner] = useState<string | null>(null);
   const [assignmentError, setAssignmentError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -195,24 +197,39 @@ export function useDispatchDetailPlan() {
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
+  // Three-state header sort: unsorted → ascending → descending → unsorted.
+  // Picking a different column restarts at ascending.
   const toggleSort = useCallback((key: Exclude<DetailPlanSortKey, null>) => {
-    setSortKey((current) => (current === key ? null : key));
-  }, []);
+    if (sortKey !== key) {
+      setSortKey(key);
+      setSortDirection('asc');
+    } else if (sortDirection === 'asc') {
+      setSortDirection('desc');
+    } else {
+      setSortKey(null);
+      setSortDirection('asc');
+    }
+  }, [sortKey, sortDirection]);
 
   // Client-side sort over the loaded page (spec: bundle trips by run time or
   // dropoff point). Run-time order follows the full runAt timestamp — minutes
-  // decide within the hour; time-less rows last; runHour breaks pre-runAt ties.
+  // decide within the hour. Time-less rows sort LAST in both directions (an
+  // unknown time is never "before" a known one); runHour only breaks ties
+  // between two time-less rows.
   const sortedItems = sortKey == null
     ? items
     : [...items].sort((a, b) => {
       if (sortKey === 'runHour') {
         const [av, bv] = [a.time.runAt ?? null, b.time.runAt ?? null];
-        return av != null && bv != null ? av.localeCompare(bv)
-          : av != null ? -1
-            : bv != null ? 1
-              : (a.time.runHour ?? 99) - (b.time.runHour ?? 99);
+        if (av == null || bv == null) {
+          return av != null ? -1 : bv != null ? 1
+            : (a.time.runHour ?? 99) - (b.time.runHour ?? 99);
+        }
+        const cmp = av.localeCompare(bv);
+        return sortDirection === 'desc' ? -cmp : cmp;
       }
-      return (a.customerRoute.deliveryPoint ?? '').localeCompare(b.customerRoute.deliveryPoint ?? '', 'vi');
+      const cmp = (a.customerRoute.deliveryPoint ?? '').localeCompare(b.customerRoute.deliveryPoint ?? '', 'vi');
+      return sortDirection === 'desc' ? -cmp : cmp;
     });
 
   const assignPlate = useCallback(async (
@@ -494,6 +511,7 @@ export function useDispatchDetailPlan() {
     pageSize: PAGE_SIZE,
     setPage,
     sortKey,
+    sortDirection,
     toggleSort,
     assignPlate,
     assignCarrier,

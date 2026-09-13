@@ -61,6 +61,7 @@ export default function DispatchDetailPlanPage() {
           presence={detailPlan.presence}
           zones={detailPlan.zones}
           sortKey={detailPlan.sortKey}
+          sortDirection={detailPlan.sortDirection}
           onToggleSort={detailPlan.toggleSort}
           onAtomicSave={detailPlan.savePlan}
           onOpenTripReassign={setReassignTripId}

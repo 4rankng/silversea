@@ -65,6 +65,7 @@ function renderGrid(items: DispatchDetailPlanRow[], extraProps: Record<string, u
       presence={null}
       zones={[]}
       sortKey={null}
+      sortDirection="asc"
       onToggleSort={vi.fn()}
       onAtomicSave={vi.fn()}
       onOpenTripReassign={vi.fn()}
@@ -579,5 +580,65 @@ describe('DetailedPlanGrid — QA-001 appointment minutes', () => {
     renderGrid([row({ time: { deliveryDate: '2026-09-11', runHour: null } })]);
 
     expect(screen.getByText('Giờ: —')).toBeTruthy();
+  });
+});
+
+// QA-001 AC4: the header toggle must visibly flip — the active column glyph
+// tracks the direction (▲ ascending / ▼ descending), not a static marker.
+describe('DetailedPlanGrid — header sort direction', () => {
+  it('shows ▲ for an ascending active column and ▼ once flipped to descending', () => {
+    const ascView = renderGrid([row()], { sortKey: 'runHour', sortDirection: 'asc' });
+    expect(screen.getByRole('button', { name: 'Sắp xếp theo giờ chạy' })).toHaveTextContent('▲');
+    ascView.unmount();
+
+    renderGrid([row()], { sortKey: 'runHour', sortDirection: 'desc' });
+    expect(screen.getByRole('button', { name: 'Sắp xếp theo giờ chạy' })).toHaveTextContent('▼');
+  });
+
+  it('mirrors the flip on the delivery-point column and announces it via aria-sort', () => {
+    const { container } = renderGrid([row()], { sortKey: 'deliveryPoint', sortDirection: 'desc' });
+    expect(screen.getByRole('button', { name: 'Sắp xếp theo điểm trả' })).toHaveTextContent('▼');
+    const sortedHeaders = container.querySelectorAll('th[aria-sort]');
+    expect(sortedHeaders).toHaveLength(1);
+    expect(sortedHeaders[0]).toHaveAttribute('aria-sort', 'descending');
+  });
+});
+
+// Duplicate-key regression (20260914_1): branch rows ride the wire with a
+// null fulfillmentId; keying <tr> on it flooded the console with
+// "Encountered two children with the same key, null" on every render. Every
+// row must key on a stable unique identity instead.
+describe('DetailedPlanGrid — unique row keys', () => {
+  it('renders multiple fulfillment-less branch rows without duplicate-key warnings', () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      renderGrid([
+        row({ fulfillmentId: null as unknown as number, shipmentContainerId: 501, container: { containerNumber: null, containerTypeLabel: '20DC', cargoWeightKg: null } }),
+        row({ fulfillmentId: null as unknown as number, shipmentContainerId: 502, container: { containerNumber: null, containerTypeLabel: '20DC', cargoWeightKg: null } }),
+      ]);
+
+      // Header row + both branch rows render — nothing dropped.
+      expect(screen.getAllByRole('row')).toHaveLength(3);
+      expect(screen.getAllByText('Chưa có số')).toHaveLength(2);
+      const duplicateKeyWarnings = errorSpy.mock.calls
+        .filter((call) => String(call[0]).includes('same key'));
+      expect(duplicateKeyWarnings).toEqual([]);
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
+  it('keeps fulfillment and branch rows keyed apart in one grid', () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      renderGrid([
+        row({ fulfillmentId: 101 }),
+        row({ fulfillmentId: null as unknown as number, shipmentContainerId: 501, container: { containerNumber: null, containerTypeLabel: '20DC', cargoWeightKg: null } }),
+      ]);
+      expect(screen.getAllByRole('row')).toHaveLength(3);
+      expect(errorSpy.mock.calls.filter((call) => String(call[0]).includes('same key'))).toEqual([]);
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 });
