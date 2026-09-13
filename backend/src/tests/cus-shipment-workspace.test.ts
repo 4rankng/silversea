@@ -19,7 +19,7 @@ import { db, client } from '../db';
 import * as s from '../db/schema';
 import { insertTripComposite } from '../services/trip-composite.service';
 import { calculateCheckDigit } from '@tingting/shared';
-import { Role, shipmentCusContainerQuerySchema, shipmentCusWorkspaceQuerySchema } from '@tingting/shared';
+import { Role, shipmentCusContainerLineUpdateSchema, shipmentCusContainerQuerySchema, shipmentCusWorkspaceQuerySchema } from '@tingting/shared';
 import type { AuthUser } from '../middleware/auth';
 import { getCusShipmentWorkspaceDetail, listCusShipmentContainers, listCusShipmentWorkspace, updateCusShipmentContainerLine } from '../services/cus-shipment-workspace.service';
 import { ApiError } from '../errors';
@@ -2024,8 +2024,10 @@ describe('Container workboard "Chưa cập nhật" completeness', () => {
       plannedVehiclePlateNumber: '29C-888.88',
     });
 
-    // Case 2 — an issued OWN trip whose truck carries the plate (the plate
-    // surfaces through the trip's truck, not the allocation plan).
+    // Case 2 — an issued OWN trip whose truck carries the plate: trip
+    // resources are status-only now. With no planned allocation the line
+    // reads "Chờ phân xe" — dispatch shows "Chưa phân nhà xe, CUS sẽ bổ
+    // sung" for the exact same state, and the two workspaces must agree.
     const ownTruck = await seedShipment({ blNumber: `OT-${marker}`, cargoMode: 'FCL', expectedDeliveryDate: '2026-08-20' });
     const ownTruckContainer = await seedContainer(ownTruck.id, {
       containerNumber: `OT-${marker}`.slice(0, 50),
@@ -2066,13 +2068,14 @@ describe('Container workboard "Chưa cập nhật" completeness', () => {
     const response = await listCusShipmentContainers({ page: 1, limit: 100, searchSuffix: marker }, cusActor);
     const rowsByShipment = new Map(response.items.map((row) => [row.shipmentId, row]));
     assert.equal(rowsByShipment.get(allocationOnly.id)?.dispatchStatus, 'PLANNED', 'a planned plate without a trip is Đã phân xe');
-    assert.equal(rowsByShipment.get(ownTruck.id)?.dispatchStatus, 'PLANNED', 'an OWN trip with a truck plate is Đã phân xe');
+    assert.equal(rowsByShipment.get(ownTruck.id)?.dispatchStatus, 'AWAITING_VEHICLE', 'a trip without a planned allocation stays Chờ phân xe — dispatch reads the same state as Chưa phân nhà xe');
     assert.equal(rowsByShipment.get(noVehicle.id)?.dispatchStatus, 'AWAITING_VEHICLE', 'date without a vehicle stays Chờ phân xe');
 
     // The plate the Phân xe column shows is exactly the plate that moved the
-    // badge — badge and column can never disagree.
+    // badge — badge and column can never disagree. Trip resources surface
+    // nowhere as current identity: the trip's truck is not the planned value.
     assert.equal(rowsByShipment.get(allocationOnly.id)?.plateNumber, '29C-888.88');
-    assert.equal(rowsByShipment.get(ownTruck.id)?.plateNumber, `15C-${marker}`);
+    assert.equal(rowsByShipment.get(ownTruck.id)?.plateNumber, null);
 
     const plannedFilter = await listCusShipmentContainers({
       page: 1,
@@ -2081,7 +2084,7 @@ describe('Container workboard "Chưa cập nhật" completeness', () => {
       dispatchStatus: 'PLANNED',
     }, cusActor);
     assert.ok(plannedFilter.items.some((row) => row.shipmentId === allocationOnly.id));
-    assert.ok(plannedFilter.items.some((row) => row.shipmentId === ownTruck.id));
+    assert.equal(plannedFilter.items.some((row) => row.shipmentId === ownTruck.id), false);
     assert.equal(plannedFilter.items.some((row) => row.shipmentId === noVehicle.id), false);
     assert.ok(plannedFilter.items.every((row) => row.dispatchStatus === 'PLANNED'));
 
@@ -2092,8 +2095,27 @@ describe('Container workboard "Chưa cập nhật" completeness', () => {
       dispatchStatus: 'AWAITING_VEHICLE',
     }, cusActor);
     assert.ok(awaitingFilter.items.some((row) => row.shipmentId === noVehicle.id));
+    assert.ok(awaitingFilter.items.some((row) => row.shipmentId === ownTruck.id));
     assert.equal(awaitingFilter.items.some((row) => row.shipmentId === allocationOnly.id), false);
-    assert.equal(awaitingFilter.items.some((row) => row.shipmentId === ownTruck.id), false);
+
+    // Plan-vs-execution counters: the planned allocation IS the current
+    // assignment, so the CUS counter agrees with dispatch's reading. A
+    // trip-only OWN row (no plan) is not counted; a plan-only OWN row with a
+    // plate is assigned-by-plan.
+    const planOnlyOwn = await seedShipment({ blNumber: `PO-${marker}`, cargoMode: 'FCL', expectedDeliveryDate: '2026-08-20' });
+    const planOnlyOwnContainer = await seedContainer(planOnlyOwn.id, {
+      containerNumber: `PO-${marker}`.slice(0, 50),
+      customerAppointmentAt: new Date('2026-08-20T02:00:00.000Z'),
+    });
+    await seedFulfillment(planOnlyOwn.id, planOnlyOwnContainer.id, {
+      plannedCarrierType: 'OWN',
+      plannedVehiclePlateNumber: '15C-777.77',
+    });
+
+    const counterBoard = await listCusShipmentWorkspace({ page: 1, limit: 100, searchSuffix: marker }, cusActor);
+    const countersById = new Map(counterBoard.items.map((item) => [item.id, item]));
+    assert.equal(countersById.get(ownTruck.id)?.operational.assignedContainers, 0, 'trip-only OWN is execution, not assignment — counter stays 0');
+    assert.equal(countersById.get(planOnlyOwn.id)?.operational.assignedContainers, 1, 'plan-only OWN with a plate counts as assigned-by-plan');
   });
 
   test('FCL carrier readiness follows the container appointment, not the shipment date', async () => {
@@ -2150,6 +2172,183 @@ describe('Container workboard "Chưa cập nhật" completeness', () => {
     const codes = row.missingFields.map((field) => field.code);
     assert.equal(codes.includes('BKS'), false);
     assert.equal(codes.includes('CARRIER'), false);
+  });
+});
+
+describe('LCL delivery date — create persistence and workspace projection', () => {
+  test('an LCL lot created with a primary delivery date keeps and shows it without container rows', async () => {
+    const marker = Math.random().toString(36).slice(2, 7).toUpperCase().padEnd(5, 'X');
+
+    // Same shape the Tạo lô hàng LCL flow submits (buildShipmentRootPayload):
+    // LCL keeps a shipment-level delivery date; no container rows exist.
+    const shipment = await createShipment({
+      customerId,
+      cargoMode: 'LCL',
+      tradeDirection: 'IMPORT',
+      blNumber: `LCLDATE-${marker}`,
+      expectedDeliveryDate: '2026-09-14',
+      packageCount: 10,
+      packageType: 'QA Carton',
+      cargoWeightKg: '100',
+      cargoVolumeCbm: '2',
+    });
+    createdShipmentIds.push(shipment.id);
+
+    // Root row keeps the entered date and reads dispatch-ready by date.
+    assert.equal(shipment.expectedDeliveryDate, '2026-09-14');
+    assert.equal(shipment.status, 'READY_FOR_DISPATCH');
+
+    // Overview shows the date — never "Chưa chốt ngày".
+    const board = await listCusShipmentWorkspace({ page: 1, limit: 100, searchSuffix: marker }, cusActor);
+    const item = board.items.find((row) => row.id === shipment.id);
+    assert.ok(item, 'LCL lot appears in the overview');
+    assert.equal(item!.transportDate, '2026-09-14');
+    assert.equal(item!.operational.scheduleReadiness, 'SCHEDULED');
+
+    // Detail summary agrees with the overview.
+    const detail = await getCusShipmentWorkspaceDetail(shipment.id, cusActor);
+    assert.equal(detail.summary.transportDate, '2026-09-14');
+    assert.equal(detail.summary.operational.scheduleReadiness, 'SCHEDULED');
+
+    // The dated LCL lot opens the dispatch handoff — the master plan's rows
+    // inner-join dispatchHandoffs, so no handoff row means no dispatch path.
+    const [handoff] = await db.select({ id: s.dispatchHandoffs.id })
+      .from(s.dispatchHandoffs)
+      .where(eq(s.dispatchHandoffs.shipmentId, shipment.id));
+    assert.ok(handoff, 'dated LCL create opens the dispatch handoff');
+
+    // Before any allocation the LCL lot shows genuine waiting states — never
+    // "Không áp dụng điều xe" (transport applies to LCL with zero containers).
+    assert.equal(item!.operational.vehicleReadiness, 'WAITING_CARRIER');
+
+    // Allocating the lot-level LCL fulfillment (no container row) surfaces
+    // the carrier chip and READY readiness in overview + detail alike.
+    await seedFulfillment(shipment.id, null, {
+      fulfillmentType: 'LCL_SHIPMENT',
+      cargoMode: 'LCL',
+      dispatchClassification: 'LCL',
+      plannedCarrierType: 'OWN',
+      plannedVehiclePlateNumber: '15C-555.55',
+    });
+    const boardAfter = await listCusShipmentWorkspace({ page: 1, limit: 100, searchSuffix: marker }, cusActor);
+    const itemAfter = boardAfter.items.find((row) => row.id === shipment.id);
+    assert.ok(itemAfter, 'LCL lot still listed after allocation');
+    assert.equal(itemAfter!.operational.vehicleReadiness, 'READY');
+    assert.deepEqual(itemAfter!.carrierAssignments, [{ carrierName: 'SilverSea', plateNumber: '15C-555.55' }]);
+
+    const detailAfter = await getCusShipmentWorkspaceDetail(shipment.id, cusActor);
+    assert.equal(detailAfter.summary.operational.vehicleReadiness, 'READY');
+    assert.deepEqual(detailAfter.summary.carrierAssignments, [{ carrierName: 'SilverSea', plateNumber: '15C-555.55' }]);
+  });
+});
+
+describe('Container appointment removal — drawer clear persistence', () => {
+  // The drawer's Xóa hẹn sends { customerAppointmentAt: null } through the
+  // line-update endpoint. HEAD behavior pins what QA's "clear never saves"
+  // report should read on a fresh build: a legitimate clear persists, and the
+  // one guarded case rejects with an explanatory message.
+  test('clearing an appointment on a partially dated PENDING_DATE lot persists as unscheduled', async () => {
+    const marker = Math.random().toString(16).slice(2, 8);
+    const shipment = await seedShipment({
+      cargoMode: 'FCL',
+      expectedDeliveryDate: '2026-09-20',
+      status: 'PENDING_DATE',
+    });
+    const dated = await seedContainer(shipment.id, {
+      containerNumber: `CLRA${marker}`,
+      customerAppointmentAt: new Date('2026-09-20T01:00:00.000Z'),
+    });
+    // Second container without an appointment keeps the lot pre-dispatch, so
+    // the READY_FOR_DISPATCH clear guard below does not apply here.
+    await seedContainer(shipment.id, { containerNumber: `CLRB${marker}` });
+    await seedFulfillment(shipment.id, dated.id);
+
+    const result = await updateCusShipmentContainerLine({
+      shipmentId: shipment.id,
+      containerId: dated.id,
+      input: {
+        expectedShipmentVersion: shipment.version,
+        customerAppointmentAt: null,
+      },
+      actor: cusActor,
+    });
+
+    assert.equal(result.line.customerAppointmentAt, null);
+
+    const [stored] = await db.select({ customerAppointmentAt: s.shipmentContainers.customerAppointmentAt })
+      .from(s.shipmentContainers)
+      .where(eq(s.shipmentContainers.id, dated.id))
+      .limit(1);
+    assert.equal(stored?.customerAppointmentAt, null);
+
+    // Root projection follows the containers: no dated container left → no
+    // transport date, and the lot never left the pre-dispatch state.
+    const [root] = await db.select({
+      expectedDeliveryDate: s.shipments.expectedDeliveryDate,
+      status: s.shipments.status,
+    }).from(s.shipments)
+      .where(eq(s.shipments.id, shipment.id))
+      .limit(1);
+    assert.equal(root?.expectedDeliveryDate, null);
+    assert.equal(root?.status, 'PENDING_DATE');
+
+    const detail = await getCusShipmentWorkspaceDetail(shipment.id, cusActor);
+    assert.equal(detail.containers.find((row) => row.id === dated.id)?.customerAppointmentAt, null);
+  });
+
+  test('clearing the only dated appointment on a READY_FOR_DISPATCH lot is rejected with an explanation', async () => {
+    const marker = Math.random().toString(16).slice(2, 8);
+    const shipment = await seedShipment({
+      cargoMode: 'FCL',
+      expectedDeliveryDate: '2026-09-20',
+      status: 'READY_FOR_DISPATCH',
+    });
+    const dated = await seedContainer(shipment.id, {
+      containerNumber: `CLRR${marker}`,
+      customerAppointmentAt: new Date('2026-09-20T01:00:00.000Z'),
+    });
+    await seedFulfillment(shipment.id, dated.id);
+
+    await assert.rejects(
+      () => updateCusShipmentContainerLine({
+        shipmentId: shipment.id,
+        containerId: dated.id,
+        input: {
+          expectedShipmentVersion: shipment.version,
+          customerAppointmentAt: null,
+        },
+        actor: cusActor,
+      }),
+      (error: unknown) => {
+        assert.ok(error instanceof ApiError);
+        assert.equal(error.statusCode, 409);
+        assert.match(error.message, /Không thể xóa lịch hẹn cuối cùng/);
+        return true;
+      },
+    );
+
+    // Rejection keeps the appointment — the drawer stays dirty and explains why.
+    const [stored] = await db.select({ customerAppointmentAt: s.shipmentContainers.customerAppointmentAt })
+      .from(s.shipmentContainers)
+      .where(eq(s.shipmentContainers.id, dated.id))
+      .limit(1);
+    assert.ok(stored?.customerAppointmentAt);
+  });
+
+  test('line-update wire contract accepts the null clear and the offset-bearing set', () => {
+    // Drawer save path: localDateTimeToIso produces the offset-bearing form;
+    // Xóa hẹn produces null. Both must keep parsing or the drawer clear dies.
+    const clear = shipmentCusContainerLineUpdateSchema.safeParse({
+      expectedShipmentVersion: 1,
+      customerAppointmentAt: null,
+    });
+    assert.equal(clear.success, true);
+
+    const set = shipmentCusContainerLineUpdateSchema.safeParse({
+      expectedShipmentVersion: 1,
+      customerAppointmentAt: '2026-09-20T08:00:00+07:00',
+    });
+    assert.equal(set.success, true);
   });
 });
 

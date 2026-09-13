@@ -18,13 +18,14 @@ import { useAuth } from '../hooks/useAuth';
 import {
   getShipmentDetail as getShipmentDetailRequest,
   type ShipmentDetail as ShipmentDetailData,
-  type ShipmentCarrierAllocationGroup,
 } from '../api/shipmentClient';
 import { ShipmentCoordinationPanel } from '../components/shipment/ShipmentCoordinationPanel';
 import { DebitNoteFreightOverride } from '../components/billing/DebitNoteFreightOverride';
 import { useDebitNoteOverride, useSaveDebitNoteOverride } from '../hooks/usePricingQueries';
 import { TripPodReviewPanel } from '../components/shipment/TripPodReviewPanel';
 import { CarrierAllocationSummary } from '../components/shipment/CarrierAllocationSummary';
+import { formatDate, formatDateTimeVN as formatDateTime } from '../lib/format';
+import { formatVnd, allocationSummaryFromDetail } from '../features/shipments/detail/shipment-detail-view';
 import './WorkflowFinance.css';
 import './ShipmentDetailPage.css';
 
@@ -37,55 +38,6 @@ const STATUS_DOT_CLASS: Record<ShipmentStatus, string> = {
   COMPLETED: 'shipment-detail__dot--success',
   CANCELED: 'shipment-detail__dot--danger',
 };
-
-function formatDate(iso: string | null): string {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString('vi-VN');
-}
-
-function formatDateTime(iso: string | null | undefined): string {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return iso;
-  return d.toLocaleString('vi-VN');
-}
-
-function formatVnd(value: number | null | undefined): string {
-  if (value == null) return '—';
-  return `${Math.round(value).toLocaleString('vi-VN')} ₫`;
-}
-
-function allocationSummaryFromDetail(data: ShipmentDetailData): ShipmentCarrierAllocationGroup[] {
-  const grouped = new Map<string, ShipmentCarrierAllocationGroup>();
-  const containerById = new Map(data.containers.map((container) => [container.id, container]));
-  for (const assignment of data.carrierAssignments) {
-    if (!assignment.carrierType) continue;
-    // Group by carrier FIRST (20260912_2: a 45'HC — or a row without a
-    // resolvable container — is still a real assignment; the section must
-    // not fall back to "Chưa phân nhà xe"). The 20/40 buckets only feed the
-    // chip counts, which hide zeros anyway.
-    const container = assignment.shipmentContainerId != null
-      ? containerById.get(assignment.shipmentContainerId)
-      : undefined;
-    const rawLabel = container
-      ? `${assignment.containerTypeCode ?? ''} ${assignment.containerTypeName ?? ''}`.toUpperCase()
-      : '';
-    const bucket = rawLabel.includes('20') ? 'count20' : rawLabel.includes('40') ? 'count40' : null;
-    const key = `${assignment.carrierType}:${assignment.externalCarrierId ?? 'own'}`;
-    const current = grouped.get(key) ?? {
-      carrierType: assignment.carrierType,
-      externalCarrierId: assignment.externalCarrierId,
-      carrierName: assignment.carrierType === 'OWN' ? 'Đội xe nội bộ SilverSea' : assignment.externalCarrierName,
-      count20: 0,
-      count40: 0,
-    };
-    if (bucket) current[bucket] += 1;
-    grouped.set(key, current);
-  }
-  return [...grouped.values()];
-}
 
 export default function ShipmentDetailPage() {
   const { id } = useParams<{ id: string }>();

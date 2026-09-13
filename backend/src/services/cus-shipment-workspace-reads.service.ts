@@ -133,6 +133,7 @@ export type RecoveryFactRow = {
 
 export type AssignmentRow = {
   shipmentContainerId: number | null;
+  shipmentId: number | null;
   fulfillmentId: number;
   fulfillmentVersion: number;
   dispatchClassification: DispatchClassification;
@@ -218,6 +219,7 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
       tripsByShipment: new Map<number, TripRow[]>(),
       billingLinesByShipment: new Map<number, BillingLineRow[]>(),
       assignmentsByContainer: new Map<number, AssignmentRow>(),
+      assignmentsByShipment: new Map<number, AssignmentRow>(),
       recoveryFactsByShipment: new Map<number, RecoveryFactRow[]>(),
       factoryNameBySiteId: new Map<number, { shortName: string; fullName: string }>(),
       portsById: new Map<number, { id: number; code: string | null; name: string }>(),
@@ -379,6 +381,7 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
       .where(isNull(s.billingDocumentTripClaims.releasedAt)),
     executor.select({
       shipmentContainerId: s.shipmentFulfillments.shipmentContainerId,
+      shipmentId: s.shipmentFulfillments.shipmentId,
       fulfillmentId: s.shipmentFulfillments.id,
       fulfillmentVersion: s.shipmentFulfillments.version,
       dispatchClassification: s.shipmentFulfillments.dispatchClassification,
@@ -484,8 +487,17 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
   }
 
   const assignmentsByContainer = new Map<number, AssignmentRow>();
+  // Lot-level (LCL) allocations ride fulfillments with no container row —
+  // keyed by shipment so lot-level readiness and carrier chips can read the
+  // allocation without any container line existing.
+  const assignmentsByShipment = new Map<number, AssignmentRow>();
   for (const row of assignmentRows) {
-    if (row.shipmentContainerId == null || assignmentsByContainer.has(row.shipmentContainerId)) continue;
+    if (row.shipmentContainerId == null) {
+      if (row.shipmentId == null || assignmentsByShipment.has(row.shipmentId)) continue;
+      assignmentsByShipment.set(row.shipmentId, row as AssignmentRow);
+      continue;
+    }
+    if (assignmentsByContainer.has(row.shipmentContainerId)) continue;
     assignmentsByContainer.set(row.shipmentContainerId, row as AssignmentRow);
   }
 
@@ -551,6 +563,7 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
     tripsByShipment,
     billingLinesByShipment,
     assignmentsByContainer,
+    assignmentsByShipment,
     recoveryFactsByShipment,
     factoryNameBySiteId,
     portsById,
@@ -795,11 +808,11 @@ async function buildShipmentPageConditions(
     conditions.push(eq(s.shipments.cargoMode, 'FCL'));
     conditions.push(containerIncompleteSql());
   }
-  // Detail-only dispatch triage: ASSIGNED = the container line has any active
-  // carrier (trip first, planned as fallback); UNASSIGNED is its legacy
-  // carrier-absence complement. Both predate the four-state badge vocabulary
-  // and stay in the query schema so older links keep filtering. The badge
-  // values filter on the derivation itself (the same rank expression that
+  // Detail-only dispatch triage: ASSIGNED = the container line has a planned
+  // carrier (the same planned-only identity the rows display); UNASSIGNED is
+  // its legacy carrier-absence complement. Both predate the four-state badge
+  // vocabulary and stay in the query schema so older links keep filtering.
+  // The badge values filter on the derivation itself (the same rank expression that
   // orders the Trạng thái column); AWAITING_VEHICLE is the coalesced rank-0
   // complement — no trip, or a CREATED trip whose ngày đóng/trả exists.
   if (searchMode === 'container' && 'dispatchStatus' in query) {

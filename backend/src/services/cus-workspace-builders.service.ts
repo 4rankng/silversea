@@ -24,9 +24,43 @@ import {
   effectiveBillingLineAmount, billOrBookNumberFor,
 } from './cus-workspace-mapping.service';
 import { getShipmentFinanceConfirmationSummary } from './shipment-accounting-lock.service';
+import { readSnapshotDeliverySiteName, resolveDeliveryStage } from './delivery-stage';
 import { filterContainersByDateRange } from './container-date-filter';
 import type { AuthUser } from '../middleware/auth';
 import { ShipmentRow, ShipmentListRow, WorkspaceSupport, ContainerRow, AssignmentRow } from './cus-shipment-workspace-reads.service';
+
+/**
+ * Current-assignment identity: the planned allocation (the dispatch plan's
+ * own fields) is the ONLY carrier-identity source for the CUS workspace,
+ * mirroring dispatch-planning-detail-plan.service. Trip resources are
+ * execution records — they feed status only and never present a carrier or
+ * vehicle as current — so a stale, historical, or canceled trip can no longer
+ * disagree with the dispatch plan's "Chưa phân nhà xe, CUS sẽ bổ sung".
+ * (Supersedes the 2026-09-08 executed-plate-wins wording decision: unifying
+ * the two workspaces on one source outranks execution-first display, and the
+ * badge, counter, and Phân xe column still cannot disagree — they now all
+ * derive from the same planned value.)
+ */
+function currentAssignmentIdentity(assignment?: AssignmentRow | null): {
+  carrierType: 'OWN' | 'EXTERNAL' | null;
+  externalCarrierId: number | null;
+  externalCarrierVehicleId: number | null;
+  carrierName: string | null;
+  plateNumber: string | null;
+} {
+  const carrierType = (assignment?.plannedCarrierType as 'OWN' | 'EXTERNAL' | null) ?? null;
+  return {
+    carrierType,
+    externalCarrierId: assignment?.plannedExternalCarrierId ?? null,
+    externalCarrierVehicleId: assignment?.plannedExternalCarrierVehicleId ?? null,
+    carrierName: carrierType == null
+      ? null
+      : carrierType === 'OWN'
+        ? 'SilverSea'
+        : (assignment?.plannedCarrierShortName?.trim() || assignment?.plannedCarrierName) ?? null,
+    plateNumber: trimOrNull(assignment?.plannedVehiclePlateNumber),
+  };
+}
 
 function buildOperationalSummary(
   row: ShipmentListRow,
@@ -44,37 +78,43 @@ function buildOperationalSummary(
 
   for (const container of containers) {
     const assignment = support.assignmentsByContainer.get(container.id) ?? null;
-    const carrierType = assignment?.tripCarrierType ?? assignment?.plannedCarrierType ?? null;
+    const { carrierType, plateNumber } = currentAssignmentIdentity(assignment);
     // "Issued" mirrors the driver-notification gate exactly: a live (not
     // canceled) trips row is the only thing the driver's task list and
     // tap-through match against — planned plates alone never count.
     if (assignment?.tripId != null && assignment.tripStatus !== 'CANCELED') {
       orderIssuedContainers += 1;
     }
-    // Own-fleet plates: the dispatch plan already snapshots the truck plate
-    // into plannedVehiclePlateNumber at allocation time, so mirror the
-    // EXTERNAL fallback chain instead of waiting for the executed trip.
-    const plateNumber = carrierType === 'OWN'
-      ? assignment?.tripTruckPlate ?? assignment?.plannedVehiclePlateNumber ?? null
-      : assignment?.tripExternalPlateNumber ?? assignment?.plannedVehiclePlateNumber ?? null;
     if (carrierType == null) {
       missingCarrierContainers += 1;
       continue;
     }
     const hasAssignedVehicle = carrierType === 'EXTERNAL'
-      ? assignment?.plannedExternalCarrierId != null || assignment?.tripExternalCarrierId != null
-      : assignment?.tripTruckId != null;
+      ? assignment?.plannedExternalCarrierId != null
+      : plateNumber != null;
     if (hasAssignedVehicle) assignedContainers += 1;
     if (carrierType === 'EXTERNAL') {
       externalContainers += 1;
     }
-    if (!trimOrNull(plateNumber)) missingPlateContainers += 1;
+    if (!plateNumber) missingPlateContainers += 1;
     else plateAssignedContainers += 1;
   }
 
   const totalContainers = containers.length;
+  // An LCL lot allocates at the fulfillment level: transport readiness is
+  // real even with zero container rows. No lot-level carrier = WAITING_CARRIER,
+  // carrier without a planned plate = WAITING_PLATE, both = READY. Only a row
+  // with no fulfillment at all keeps NO_CONTAINERS ("Không áp dụng điều xe").
+  const lotLevelAssignment = row.shipment.cargoMode === CARGO_MODE.FCL
+    ? null
+    : support.assignmentsByShipment.get(row.shipment.id) ?? null;
+  const lotIdentity = currentAssignmentIdentity(lotLevelAssignment);
   const vehicleReadiness = totalContainers === 0
-    ? 'NO_CONTAINERS' as const
+    ? (lotIdentity.carrierType == null
+      ? 'WAITING_CARRIER' as const
+      : lotIdentity.plateNumber == null
+        ? 'WAITING_PLATE' as const
+        : 'READY' as const)
     : missingCarrierContainers > 0
       ? 'WAITING_CARRIER' as const
       : missingPlateContainers > 0
@@ -202,7 +242,13 @@ function buildListItem(
   const authoritativeCustomerTotal = customerTotalsAvailable
     ? toNumber(customerInvoiceTotal) + toNumber(customerNoInvoiceTotal)
     : null;
-  const assignments = containers.map((container) => support.assignmentsByContainer.get(container.id) ?? null);
+  const assignments = [
+    ...containers.map((container) => support.assignmentsByContainer.get(container.id) ?? null),
+    // Lot-level (LCL) allocation renders its carrier chip with no container
+    // row — assigned LCL fulfillments must read the same as container rows
+    // (customer requirement 2026-09-12: assigned LCL summary carrier chip).
+    support.assignmentsByShipment.get(row.shipment.id) ?? null,
+  ];
   const liftSiteNames = uniqueNonEmpty(assignments.map((assignment) => (
     readSiteSnapshotSite(assignment?.siteSnapshot ?? null, 'pickupWarehouse')?.name
   )));
@@ -238,15 +284,7 @@ function buildListItem(
     : uniqueNonEmpty([row.routeName]);
   const carrierAssignments = assignments.reduce<Array<{ carrierName: string | null; plateNumber: string | null }>>((result, assignment) => {
     if (assignment == null) return result;
-    const carrierType = assignment.tripCarrierType ?? assignment.plannedCarrierType ?? null;
-    const carrierName = carrierType === 'OWN'
-      ? 'SilverSea'
-      : (assignment.tripExternalCarrierShortName?.trim() || assignment.tripExternalCarrierName)
-        ?? (assignment.plannedCarrierShortName?.trim() || assignment.plannedCarrierName)
-        ?? null;
-    const plateNumber = trimOrNull(carrierType === 'OWN'
-      ? assignment.tripTruckPlate ?? assignment.plannedVehiclePlateNumber
-      : assignment.tripExternalPlateNumber ?? assignment.plannedVehiclePlateNumber);
+    const { carrierName, plateNumber } = currentAssignmentIdentity(assignment);
     if (carrierName == null && plateNumber == null) return result;
     if (!result.some((item) => item.carrierName === carrierName && item.plateNumber === plateNumber)) {
       result.push({ carrierName, plateNumber });
@@ -403,9 +441,11 @@ function buildListItem(
 // Lift/drop authority is the per-container port columns (same columns the
 // create form writes). The fulfillment site-snapshot remains the fallback
 // for legacy rows decomposed before ports existed. The missing-status bits
-// in containerMissingFields/containerMissingBitsSql resolve through the
-// same helpers so a row can never display a site name while its status
-// still says "Chưa cập nhật" (or the reverse).
+// in containerMissingFields/containerMissingBitsSql resolve through these
+// same id-based helpers. The dropoffSite DISPLAY name, however, rides the
+// shared delivery-stage chain (free text ?? snapshot site ?? port), so a
+// row can show a delivery name while DROPOFF_SITE still flags the port
+// missing — the intended view/edit split, not an inconsistency.
 function resolveLiftSite(
   support: WorkspaceSupport,
   container: ContainerRow,
@@ -444,23 +484,15 @@ function buildContainerLine(
   const canEditOperational = editableBase && assignment?.tripId == null;
   const liftSite = resolveLiftSite(support, container, assignment);
   const dropoffSite = resolveDropoffSite(support, container, assignment);
-  const carrierType = assignment?.tripCarrierType ?? assignment?.plannedCarrierType ?? null;
-  const externalCarrierId = assignment?.tripExternalCarrierId ?? assignment?.plannedExternalCarrierId ?? null;
-  const carrierName = carrierType === 'OWN'
-    ? 'SilverSea'
-    : (assignment?.tripExternalCarrierShortName?.trim() || assignment?.tripExternalCarrierName)
-      ?? (assignment?.plannedCarrierShortName?.trim() || assignment?.plannedCarrierName)
-      ?? null;
+  // Carrier identity follows the planned allocation only (see
+  // currentAssignmentIdentity): the dispatch plan is the shared source of
+  // truth, so CUS and dispatch can never disagree about the current
+  // carrier/vehicle; trip resources stay status-only.
+  const { carrierType, externalCarrierId, externalCarrierVehicleId, carrierName, plateNumber } = currentAssignmentIdentity(assignment);
   // CUS may plan the plate for BOTH external carriers and the internal fleet
   // (customer ask, Cap_nhat_UI_va_logic 1.3): the value is a plan; the
-  // official dispatch trip plate wins once a trip carries one.
+  // executed trip never overrides it — dispatch shows the planned value too.
   const plateEditable = canEditOperational;
-  // The plate the Phân xe column displays: the executed trip's plate wins over
-  // the allocation plan. The dispatch chip keys off this same value so the
-  // badge, the counter, and the Phân xe column can never disagree.
-  const plateNumber = carrierType === 'OWN'
-    ? assignment?.tripTruckPlate ?? assignment?.plannedVehiclePlateNumber ?? null
-    : assignment?.tripExternalPlateNumber ?? assignment?.plannedVehiclePlateNumber ?? null;
   // Dispatch chip vocabulary (customer decision 2026-09-08, revised the same
   // evening): a running or finished trip outranks everything. A CREATED trip
   // reads "Đã tạo chuyến" while its ngày đóng/trả is still missing; once the
@@ -490,13 +522,21 @@ function buildContainerLine(
     tripStatus: (assignment?.tripStatus as TripStatus | null) ?? null,
     carrierType: carrierType as 'OWN' | 'EXTERNAL' | null,
     externalCarrierId,
-    externalCarrierVehicleId: assignment?.tripExternalCarrierVehicleId ?? assignment?.plannedExternalCarrierVehicleId ?? null,
+    externalCarrierVehicleId,
     carrierName,
     plateNumber,
     liftSiteId: container.pickupPortId ?? liftSite?.id ?? null,
     liftSite: liftSite?.name ?? null,
     dropoffSiteId: container.dropoffPortId ?? dropoffSite?.id ?? null,
-    dropoffSite: dropoffSite?.name ?? null,
+    // Display name rides the ONE delivery-stage chain shared with the driver
+    // surfaces (free text ?? snapshot site ?? port); the id/selector machinery
+    // above stays port-first — editing and missing-status semantics are
+    // untouched.
+    dropoffSite: resolveDeliveryStage(
+      readSnapshotDeliverySiteName(assignment?.siteSnapshot ?? null),
+      row.shipment.deliveryLocation,
+      container.dropoffPortId != null ? dropoffSite?.name ?? null : null,
+    ).deliveryName,
     customerAppointmentAt: container.customerAppointmentAt?.toISOString() ?? null,
     raw: {
       containerNumber: container.containerNumber,
@@ -537,7 +577,7 @@ function containerMissingFields(
   const transportDate = row.shipment.cargoMode === CARGO_MODE.FCL
     ? (container.customerAppointmentAt ? localDateInBusinessZone(container.customerAppointmentAt) : null)
     : row.shipment.expectedDeliveryDate;
-  const carrierType = assignment?.tripCarrierType ?? assignment?.plannedCarrierType ?? null;
+  const carrierType = assignment?.plannedCarrierType ?? null;
   const push = (code: ShipmentCusMissingFieldCode, absent: boolean) => {
     if (absent) missing.push(code);
   };
@@ -555,11 +595,13 @@ function containerMissingFields(
   push('DROPOFF_SITE', resolveDropoffSite(support, container, assignment) == null);
   push('APPOINTMENT', container.customerAppointmentAt == null);
   // Vehicle stage: carrier only after a transport date exists; BKS only for
-  // an external carrier (own-fleet plates come from the dispatch trip).
+  // an external carrier — the same planned-only identity rule everywhere, so
+  // this JS projection can never disagree with its SQL twin
+  // (containerIncompleteSql's activePlannedPlateSql gate).
   push('CARRIER', transportDate != null && carrierType == null);
   push('BKS', transportDate != null
     && carrierType === 'EXTERNAL'
-    && (assignment?.tripExternalPlateNumber ?? assignment?.plannedVehiclePlateNumber) == null);
+    && assignment?.plannedVehiclePlateNumber == null);
   return missing.map((code) => ({ code, label: SHIPMENT_CUS_MISSING_FIELD_LABELS[code] }));
 }
 

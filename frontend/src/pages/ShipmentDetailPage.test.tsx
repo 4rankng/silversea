@@ -225,11 +225,13 @@ describe('ShipmentDetailPage', () => {
       }],
     });
     render(
-      <MemoryRouter initialEntries={['/shipments/1']}>
-        <Routes>
-          <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
-        </Routes>
-      </MemoryRouter>,
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter initialEntries={['/shipments/1']}>
+          <Routes>
+            <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
     );
 
     // A 45'HC has no 20/40 bucket but IS a real carrier assignment — the
@@ -268,11 +270,13 @@ describe('ShipmentDetailPage', () => {
       }],
     });
     render(
-      <MemoryRouter initialEntries={['/shipments/1']}>
-        <Routes>
-          <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
-        </Routes>
-      </MemoryRouter>,
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter initialEntries={['/shipments/1']}>
+          <Routes>
+            <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
     );
 
     // Fulfillment presence must NOT flip the section to "đã gán": the state
@@ -298,11 +302,13 @@ describe('ShipmentDetailPage', () => {
       }],
     });
     render(
-      <MemoryRouter initialEntries={['/shipments/1']}>
-        <Routes>
-          <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
-        </Routes>
-      </MemoryRouter>,
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter initialEntries={['/shipments/1']}>
+          <Routes>
+            <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
     );
 
     // An LCL assignment has no container to resolve (the backend left join

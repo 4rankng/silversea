@@ -53,9 +53,9 @@ export function containerTransportDateSql() {
 
 /** Rank mirrors buildContainerLine's dispatchStatus derivation: trip status
  * COMPLETED > IN_TRANSIT > a CREATED trip still missing its ngày đóng/trả;
- * then a line carrying a vehicle — the executed trip's plate, else the
- * planned plate the Phân xe column displays — is PLANNED ("Đã phân xe");
- * everything else (no vehicle yet, with or without a trip) is
+ * then a line whose PLAN carries a vehicle — the planned plate, the same
+ * value the Phân xe column displays — is PLANNED ("Đã phân xe"); everything
+ * else (no vehicle in the plan yet, with or without a trip) is
  * AWAITING_VEHICLE (rank 0). Only relative order matters for sorting. */
 function containerDispatchRankSql(): SQL {
   return sql`(
@@ -63,18 +63,12 @@ function containerDispatchRankSql(): SQL {
       when t.status = 'COMPLETED' then 4
       when t.status = 'IN_TRANSIT' then 3
       when t.status = 'CREATED' and ${s.shipmentContainers.customerAppointmentAt} is null then 2
-      when coalesce(
-        case when coalesce(t.carrier_type, sf.planned_carrier_type) = 'OWN' then tr.license_plate end,
-        t.external_plate_number,
-        sf.planned_vehicle_plate_number
-      ) is not null then 1
+      when ${trimmedPresentSql(sql`sf.planned_vehicle_plate_number`)} then 1
       else 0
     end
     from ${s.shipmentFulfillments} sf
     left join ${s.tripsComposite} t
       on t.fulfillment_id = sf.id and t.deleted_at is null and t.status <> 'CANCELED'
-    left join ${s.trucks} tr
-      on tr.id = t.truck_id
     where sf.shipment_container_id = ${s.shipmentContainers.id}
       and sf.canceled_at is null
     order by sf.id, t.id
@@ -94,22 +88,20 @@ const CONTAINER_DISPATCH_RANKS = {
 } as const;
 
 /** Mirrors buildContainerLine's carrierName: own fleet renders as the fixed
- * SilverSea label; otherwise the executed trip's carrier wins over the plan. */
+ * SilverSea label; otherwise the planned allocation's carrier wins — the
+ * planned-only identity rule shared with the row builders, so sort order
+ * agrees with the displayed Phân xe column. */
 function containerCarrierNameSql(): SQL {
   return sql`(
     select coalesce(
-      case when coalesce(t.carrier_type, sf.planned_carrier_type) = 'OWN' then 'SilverSea' end,
-      coalesce(nullif(trim(ac.short_name), ''), ac.name),
+      case when sf.planned_carrier_type = 'OWN' then 'SilverSea' end,
       coalesce(nullif(trim(pc.short_name), ''), pc.name)
     )
     from ${s.shipmentFulfillments} sf
-    left join ${s.tripsComposite} t
-      on t.fulfillment_id = sf.id and t.deleted_at is null and t.status <> 'CANCELED'
-    left join ${s.customers} ac on ac.id = t.external_entity_id
     left join ${s.customers} pc on pc.id = sf.planned_external_carrier_id
     where sf.shipment_container_id = ${s.shipmentContainers.id}
       and sf.canceled_at is null
-    order by sf.id, t.id
+    order by sf.id
     limit 1
   )`;
 }
@@ -193,20 +185,9 @@ const WORKSPACE_SORT_SQL: Record<ShipmentCusWorkspaceSortKey, SQL> = {
 //
 // Fulfillment/trip lookups are correlated scalar subqueries rather than joins:
 // the container page queries only join shipments/customers/routes, and a join
-// could fan out container rows and corrupt pagination counts. Precedence is
-// trip value ?? planned value with canceled fulfillments ignored — identical
-// to the in-memory assignmentsByContainer projection.
-
-function activeTripCarrierTypeSql(): SQL {
-  return sql`(select ${s.tripsComposite.carrierType}
-    from ${s.shipmentFulfillments}
-    join ${s.tripsComposite} on ${s.tripsComposite.fulfillmentId} = ${s.shipmentFulfillments.id}
-      and ${s.tripsComposite.deletedAt} is null
-      and ${s.tripsComposite.status} <> 'CANCELED'
-    where ${s.shipmentFulfillments.shipmentContainerId} = ${s.shipmentContainers.id}
-      and ${s.shipmentFulfillments.canceledAt} is null
-    limit 1)`;
-}
+// could fan out container rows and corrupt pagination counts. Carrier
+// identity is planned-allocation-only with canceled fulfillments ignored —
+// identical to the in-memory assignmentsByContainer projection.
 
 function activePlannedCarrierTypeSql(): SQL {
   return sql`(select ${s.shipmentFulfillments.plannedCarrierType}
@@ -217,18 +198,9 @@ function activePlannedCarrierTypeSql(): SQL {
 }
 
 function activeCarrierTypeSql(): SQL {
-  return sql`coalesce(${activeTripCarrierTypeSql()}, ${activePlannedCarrierTypeSql()})`;
-}
-
-function activeTripPlateSql(): SQL {
-  return sql`(select ${s.tripsComposite.externalPlateNumber}
-    from ${s.shipmentFulfillments}
-    join ${s.tripsComposite} on ${s.tripsComposite.fulfillmentId} = ${s.shipmentFulfillments.id}
-      and ${s.tripsComposite.deletedAt} is null
-      and ${s.tripsComposite.status} <> 'CANCELED'
-    where ${s.shipmentFulfillments.shipmentContainerId} = ${s.shipmentContainers.id}
-      and ${s.shipmentFulfillments.canceledAt} is null
-    limit 1)`;
+  // Mirror the row builders' planned-allocation-only identity rule: the
+  // Trạng thái facet must agree with what the Phân xe column displays.
+  return activePlannedCarrierTypeSql();
 }
 
 function activePlannedPlateSql(): SQL {
@@ -291,7 +263,7 @@ function containerMissingBitsSql(): SQL[] {
     // Vehicle stage (date-gated carrier; external-only BKS).
     sql`${transportDate} is not null and ${carrierType} is null`,
     sql`${transportDate} is not null and ${carrierType} = 'EXTERNAL'
-      and coalesce(${activeTripPlateSql()}, ${activePlannedPlateSql()}) is null`,
+      and ${activePlannedPlateSql()} is null`,
   ];
 }
 
@@ -328,7 +300,7 @@ export {
   ROUTE_OPERATIONAL_NAME, plannedCarrier, actualCarrier, billingSourceTrip, billingExpenseTrip, liftPort,
   containerDispatchRankSql, CONTAINER_DISPATCH_RANKS, containerCarrierNameSql, containerSnapshotLiftSiteSql,
   billOrBookNumberSortSql, CONTAINER_SORT_SQL, workspaceBucketRankSql, WORKSPACE_SORT_SQL,
-  activeTripCarrierTypeSql, activePlannedCarrierTypeSql, activeCarrierTypeSql, activeTripPlateSql,
+  activePlannedCarrierTypeSql, activeCarrierTypeSql,
   activePlannedPlateSql, portRowExistsSql, siteSnapshotHalfIsObjectSql, trimmedPresentSql,
   containerMissingBitsSql, containerIncompleteSql, cargoRankSql,
 };
