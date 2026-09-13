@@ -95,11 +95,13 @@ async function mkLeg(tripId: number, sequence: number, loadingType: 'HANG' | 'VO
   createdLegIds.push(leg.id);
 }
 
-/** FCL shipment whose fulfillment owns a container tied to a factory site. */
+/** FCL shipment with optional trade direction + fulfillment-owned container
+ *  tied to a factory site. */
 async function mkContainerTrip(args: {
   driverId: number; customerId: number; routeId: number; cargoTypeId: number;
   containerTypeId: number; siteId: number; notes: string | null; factoryName: string | null;
   tripStatus?: 'CREATED' | 'IN_TRANSIT' | 'COMPLETED';
+  tradeDirection?: 'IMPORT' | 'EXPORT';
 }) {
   const [shipment] = await db.insert(s.shipments).values({
     customerId: args.customerId,
@@ -109,6 +111,7 @@ async function mkContainerTrip(args: {
     status: 'DISPATCHED',
     operationalNotes: args.notes,
     factoryName: args.factoryName,
+    tradeDirection: args.tradeDirection,
   }).returning();
   createdShipmentIds.push(shipment.id);
   const [container] = await db.insert(s.shipmentContainers).values({
@@ -143,10 +146,12 @@ async function mkContainerTrip(args: {
   return { shipment, container, fulfillment, trip };
 }
 
-/** LCL shipment with no container — the factory-site join misses entirely. */
+/** LCL shipment (optional trade direction) with no container — the
+ *  factory-site join misses entirely. */
 async function mkContainerlessTrip(args: {
   driverId: number; customerId: number; routeId: number; cargoTypeId: number;
   notes: string | null; factoryName: string | null;
+  tradeDirection?: 'IMPORT' | 'EXPORT';
 }) {
   const [shipment] = await db.insert(s.shipments).values({
     customerId: args.customerId,
@@ -156,6 +161,7 @@ async function mkContainerlessTrip(args: {
     status: 'DISPATCHED',
     operationalNotes: args.notes,
     factoryName: args.factoryName,
+    tradeDirection: args.tradeDirection,
   }).returning();
   createdShipmentIds.push(shipment.id);
   const [fulfillment] = await db.insert(s.shipmentFulfillments).values({
@@ -187,11 +193,13 @@ describe('journey-board card fields — operationalNotes + factoryShortName', ()
     const { driver, customer, route, cargoType, containerType } = await setup();
 
     // A: blank short_name (column default) + no shipment factoryName. One
-    // HANG leg → the card's loadingType is that leg's.
+    // HANG leg → the card's loadingType is that leg's. EXPORT shipment → the
+    // card's tradeDirection passes through for the FE ĐÓNG pill.
     const blankShortSite = await mkSite(customer.id, 'Nhà máy Đầy Đủ');
     const { fulfillment: fulfillmentA, trip: tripA } = await mkContainerTrip({
       driverId: driver.id, customerId: customer.id, routeId: route.id, cargoTypeId: cargoType.id,
       containerTypeId: containerType.id, siteId: blankShortSite.id, notes: NOTES, factoryName: null,
+      tradeDirection: 'EXPORT',
     });
     await mkLeg(tripA.id, 1, 'HANG');
 
@@ -208,9 +216,12 @@ describe('journey-board card fields — operationalNotes + factoryShortName', ()
 
     // C: no container site at all — falls back to the shipment text column.
     // No legs either → the card's loadingType stays null (graceful hide path).
+    // IMPORT shipment → the card's tradeDirection passes through for the FE
+    // TRẢ pill.
     await mkContainerlessTrip({
       driverId: driver.id, customerId: customer.id, routeId: route.id, cargoTypeId: cargoType.id,
       notes: null, factoryName: 'Xưởng ABC',
+      tradeDirection: 'IMPORT',
     });
 
     const board = await getDriverJourneyBoard(driver.id);
@@ -245,6 +256,13 @@ describe('journey-board card fields — operationalNotes + factoryShortName', ()
     assert.equal(cardA.loadingType, 'HANG', 'single-leg trip → that leg wins');
     assert.equal(cardB.loadingType, 'VO', 'multi-leg trip → last leg wins');
     assert.equal(cardC.loadingType, null, 'leg-less trip → null, FE badge hides');
+
+    // The card wire carries shipments.trade_direction pass-through — the FE
+    // pill's source axis (EXPORT → ĐÓNG, IMPORT → TRẢ), a DIFFERENT axis from
+    // the leg handling-type loadingType above.
+    assert.equal(cardA.tradeDirection, 'EXPORT', 'FCL EXPORT passes through');
+    assert.equal(cardB.tradeDirection, null, 'shipment without direction → null');
+    assert.equal(cardC.tradeDirection, 'IMPORT', 'LCL IMPORT passes through');
 
     // Fulfillment detail must agree with the card contract.
     const detail = await getDriverFulfillmentDetail(driver.id, fulfillmentA.id);

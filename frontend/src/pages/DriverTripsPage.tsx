@@ -73,15 +73,15 @@ function groupCards(cards: DriverJourneyCard[]): DriverJourneyCard[][] {
   return order.map((key) => groups.get(key)!);
 }
 
-/** 3a0bd5af: loại hình cell wording from the customer mockup — trips carry
- *  leg-level ĐÓNG/TRẢ (loadingType); null/unknown renders nothing. */
-const LOADING_TYPE_CARD_LABELS: Record<string, string> = {
-  HANG: 'Hàng đóng',
-  VO: 'Hàng trả',
+/** Container-row 3rd column wording — shipments.trade_direction: EXPORT →
+ *  ĐÓNG, IMPORT → TRẢ; unknown renders the em-dash, never a blank. */
+const TRADE_DIRECTION_CARD_LABELS: Record<string, string> = {
+  EXPORT: 'ĐÓNG',
+  IMPORT: 'TRẢ',
 };
 
-function loadingTypeLabel(card: DriverJourneyCard): string | null {
-  return card.loadingType ? LOADING_TYPE_CARD_LABELS[card.loadingType] ?? null : null;
+function tradeDirectionLabel(card: DriverJourneyCard): string | null {
+  return card.tradeDirection ? TRADE_DIRECTION_CARD_LABELS[card.tradeDirection] ?? null : null;
 }
 
 function isPresent(value: string | null | undefined): value is string {
@@ -100,7 +100,7 @@ function JourneyCard({ card, tagLabels }: { card: DriverJourneyCard; tagLabels: 
   const footerLabel = isNew ? 'Xem chi tiết & Nhận lệnh' : 'Xem chi tiết';
   const hasContainer = isPresent(card.containerNumber) || isPresent(card.sealNumber);
   const hasPorts = isPresent(card.loadingPortName) || isPresent(card.dropPortName);
-  const loadTypeLabel = loadingTypeLabel(card);
+  const tradeLabel = tradeDirectionLabel(card);
   const { selectedLabels: operationTags, manualText: operationManualText } = parseDriverTaskNote(card.operationalNotes, tagLabels);
 
   /* Ticket 365943ea field order: Nhà máy (top) → Tuyến đường → Cont →
@@ -136,10 +136,11 @@ function JourneyCard({ card, tagLabels }: { card: DriverJourneyCard; tagLabels: 
         </p>
       ) : null}
 
-      {/* 3. Container + loại hình + 4. Ports — side-by-side block. 3a0bd5af:
-          the HÀNG ĐÓNG/TRẢ pill rides the cont row (mockup col 3) and stands
-          alone when the card has no container data. */}
-      {(hasContainer || hasPorts || loadTypeLabel) ? (
+      {/* 3. Container + loại hình + 4. Ports — side-by-side block. The
+          ĐÓNG/TRẢ pill rides the cont row as its 3rd column (em-dash when the
+          shipment's trade direction is unknown) and stands alone when the card
+          has no container data. */}
+      {(hasContainer || hasPorts || tradeLabel) ? (
         <div className="driver-journey-card__container-block">
           {hasContainer ? (
             <p className="driver-journey-card__container">
@@ -148,16 +149,15 @@ function JourneyCard({ card, tagLabels }: { card: DriverJourneyCard; tagLabels: 
               {isPresent(card.containerTypeName) ? (
                 <span className="driver-journey-card__cont-type">{card.containerTypeName}</span>
               ) : null}
-              {loadTypeLabel ? (
-                <span className="driver-journey-card__cont-type" data-testid="load-type">{loadTypeLabel}</span>
-              ) : null}
+              {/* 3rd column — trade-direction ĐÓNG/TRẢ, em-dash when unknown. */}
+              <span className="driver-journey-card__cont-type" data-testid="load-type">{tradeLabel ?? '—'}</span>
               {isPresent(card.sealNumber) ? (
                 <span className="driver-journey-card__seal">Seal {card.sealNumber}</span>
               ) : null}
             </p>
-          ) : loadTypeLabel ? (
+          ) : tradeLabel ? (
             <p className="driver-journey-card__container">
-              <span className="driver-journey-card__cont-type" data-testid="load-type">{loadTypeLabel}</span>
+              <span className="driver-journey-card__cont-type" data-testid="load-type">{tradeLabel}</span>
             </p>
           ) : null}
           {hasPorts ? (

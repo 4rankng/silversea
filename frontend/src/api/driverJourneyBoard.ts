@@ -46,6 +46,9 @@ export interface DriverJourneyCard {
   sealNumber: string | null;
   /** 3a0bd5af: last-leg ĐÓNG/TRẢ (loại hình pill on the card). */
   loadingType: string | null;
+  /** shipments.trade_direction — drives the container-row 3rd column
+   *  (EXPORT → ĐÓNG, IMPORT → TRẢ, null → '—'). NOT the loadingType axis. */
+  tradeDirection: string | null;
   contactName: string | null;
   contactPhone: string | null;
   truckPlate: string | null;

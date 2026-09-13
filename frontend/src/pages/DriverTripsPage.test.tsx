@@ -50,6 +50,7 @@ function card(overrides: Partial<DriverJourneyCard> = {}): DriverJourneyCard {
     containerTypeName: "40'HC",
     sealNumber: 'SL001',
     loadingType: null,
+    tradeDirection: null,
     contactName: 'Nguyễn Văn A',
     contactPhone: '0901234567',
     truckPlate: '51C-12345',
@@ -231,31 +232,72 @@ describe('DriverTripsPage', () => {
     expect(screen.queryByText('Nhà máy A')).toBeNull();
   });
 
-  // 3a0bd5af: the HÀNG ĐÓNG/TRẢ pill rides the cont row (mockup col 3).
-  it('3a0bd5af: renders the Hàng đóng / Hàng trả pill from loadingType', async () => {
+  // Container-row 3rd column: ĐÓNG/TRẢ from shipments.trade_direction
+  // (EXPORT → ĐÓNG, IMPORT → TRẢ, unknown → em-dash). The leg handling-type
+  // loadingType is a DIFFERENT axis and must not drive the pill.
+  it('renders the ĐÓNG / TRẢ pill from tradeDirection with an em-dash fallback', async () => {
     useDriverJourneyBoardMock.mockReturnValue(board([
-      card({ fulfillmentId: 1, loadingType: 'HANG' }),
-      card({ fulfillmentId: 2, loadingType: 'VO' }),
-      card({ fulfillmentId: 3, loadingType: null }),
+      card({ fulfillmentId: 1, tradeDirection: 'EXPORT' }),
+      card({ fulfillmentId: 2, tradeDirection: 'IMPORT' }),
+      // Axis guard: a loadingType without a trade direction still shows '—'.
+      card({ fulfillmentId: 3, loadingType: 'HANG', tradeDirection: null }),
     ]));
     renderPage();
 
-    expect(await screen.findByText('Hàng đóng')).toBeTruthy();
-    expect(screen.getByText('Hàng trả')).toBeTruthy();
+    expect(await screen.findByText('ĐÓNG')).toBeTruthy();
+    expect(screen.getByText('TRẢ')).toBeTruthy();
     const pills = screen.getAllByTestId('load-type');
-    expect(pills).toHaveLength(2);
+    expect(pills).toHaveLength(3);
+    expect(pills[2].textContent).toBe('—');
   });
 
-  // 3a0bd5af: the badge also surfaces on the Đã nhận tab (same card component,
-  // mockup: loại hình on the accepted card) — and stands alone without a cont.
-  it('3a0bd5af: shows the Hàng trả pill on an accepted cont-less card', async () => {
+  // The pill also surfaces on the Đã nhận tab (same card component) — and
+  // stands alone without a cont.
+  it('shows the TRẢ pill on an accepted cont-less card', async () => {
     useDriverJourneyBoardMock.mockReturnValue(board([
-      card({ fulfillmentId: 7, bucket: 'RUNNING', loadingType: 'VO', containerNumber: null, sealNumber: null }),
+      card({ fulfillmentId: 7, bucket: 'RUNNING', tradeDirection: 'IMPORT', containerNumber: null, sealNumber: null }),
     ]));
     renderPage();
 
     fireEvent.click(await screen.findByRole('tab', { name: /Đã nhận/ }));
-    expect(await screen.findByText('Hàng trả')).toBeTruthy();
+    expect(await screen.findByText('TRẢ')).toBeTruthy();
     expect(screen.getAllByTestId('load-type')).toHaveLength(1);
+  });
+
+  // Criteria 1+2: the factory abbreviation is a bold standalone header and the
+  // route a standalone line right under it — no inline "NHÀ MÁY:"/"TUYẾN:"
+  // label prefixes.
+  it('renders factory as the bold standalone header and route as its own line', async () => {
+    useDriverJourneyBoardMock.mockReturnValue(board([
+      card({
+        factoryShortName: 'ASKEY-2',
+        factoryName: 'Công ty TNHH Askey - Nhà máy 2',
+        factoryAddress: 'Đường HS7, KCN Việt Nam - Singapore II',
+        routeName: 'Cát Lái → Bình Dương',
+      }),
+    ]));
+    renderPage();
+
+    const factory = await screen.findByText(/ASKEY-2/);
+    const header = factory.closest('.driver-journey-card__factory--headline');
+    expect(header).toBeTruthy();
+    expect(header!.textContent).not.toContain('NHÀ MÁY:');
+
+    const route = document.querySelector('.driver-journey-card__route');
+    expect(route).toBeTruthy();
+    expect(route!.textContent).toContain('Đường HS7');
+    expect(route!.textContent).not.toContain('TUYẾN:');
+  });
+
+  // Criterion 4: the ports row carries the NÂNG/HẠ labels with the lift and
+  // drop port names beside them.
+  it('renders the NÂNG/HẠ ports row with lift and drop port names', async () => {
+    useDriverJourneyBoardMock.mockReturnValue(board([card({})]));
+    renderPage();
+
+    const lift = await screen.findByText('Nâng');
+    expect(lift.closest('.driver-journey-card__port')!.textContent).toContain('Cát Lái');
+    const drop = screen.getByText('Hạ');
+    expect(drop.closest('.driver-journey-card__port')!.textContent).toContain('Sóng Thần');
   });
 });

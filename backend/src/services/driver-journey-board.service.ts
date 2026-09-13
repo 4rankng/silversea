@@ -53,6 +53,10 @@ export interface DriverJourneyCard {
   // 3a0bd5af: loại hình cell — the trip's LAST leg ĐÓNG/TRẢ (destination
   // semantics, same rule the billing draft applies); null when no legs.
   loadingType: string | null;
+  // shipments.trade_direction — drives the card's container-row 3rd column
+  // (EXPORT → ĐÓNG, IMPORT → TRẢ, null → '—'). The handling-type loadingType
+  // (HANG/VO) is a different axis and must not drive that pill.
+  tradeDirection: string | null;
   contactName: string | null;
   contactPhone: string | null;
   truckPlate: string | null;
@@ -145,6 +149,7 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
       order by tl.sequence desc
       limit 1
     )`,
+    tradeDirection: s.shipments.tradeDirection,
     contactName: s.shipments.contactName,
     contactPhone: s.shipments.contactPhone,
     truckPlate: s.trucks.licensePlate,
@@ -266,6 +271,7 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
       containerTypeName: row.containerTypeName,
       sealNumber: row.sealNumber,
       loadingType: row.loadingType,
+      tradeDirection: row.tradeDirection,
       contactName: row.contactName,
       contactPhone: row.contactPhone,
       truckPlate: row.truckPlate,
