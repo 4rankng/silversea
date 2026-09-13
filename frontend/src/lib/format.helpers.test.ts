@@ -44,6 +44,18 @@ describe('formatDateTimeShort', () => {
     expect(formatDateTimeShort('')).toBe('—');
     expect(formatDateTimeShort('garbage')).toBe('—');
   });
+  it('renders naive draft values as Vietnam wall-clock, never the host zone', () => {
+    // The ledger draft wire shape ("YYYY-MM-DDTHH:mm", +07:00 by convention
+    // via localDateTimeToIso) must render identically to the equivalent +07
+    // instant on ANY host — a GMT+8 host used to show 12:30 for a 13:30 draft.
+    expect(formatDateTimeShort('2026-09-13T13:30')).toBe('13:30 13/9/26');
+    // Same wall-clock, different wire shape — the two forms must agree.
+    expect(formatDateTimeShort('2026-09-13T06:30:00Z')).toBe('13:30 13/9/26');
+  });
+  it('keeps naive entry on the 24h clock across the day', () => {
+    expect(formatDateTimeShort('2026-08-19T00:15')).toBe('00:15 19/8/26');
+    expect(formatDateTimeShort('2026-08-19T23:45')).toBe('23:45 19/8/26');
+  });
 });
 
 describe('formatCardTimeShort', () => {

@@ -68,6 +68,15 @@ export function formatDate(d: string | null): string {
  */
 export function formatDateTimeShort(value: string | null | undefined): string {
   if (!value) return '—';
+  // Naive draft values ("YYYY-MM-DDTHH:mm" — the editor draft wire shape,
+  // Vietnam wall-clock by convention: localDateTimeToIso appends +07:00 when
+  // persisting) must not ride the host timezone: a GMT+8 host parses them as
+  // local and shows 13:30 as 12:30. Render by string surgery, same compact
+  // shape — host-independent like the instant path below.
+  if (!/[Zz]$|[+-]\d{2}:\d{2}$/.test(value)) {
+    const draft = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(value);
+    if (draft) return `${draft[4]}:${draft[5]} ${Number(draft[3])}/${Number(draft[2])}/${draft[1].slice(2)}`;
+  }
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '—';
   const parts = new Intl.DateTimeFormat('en-GB', {

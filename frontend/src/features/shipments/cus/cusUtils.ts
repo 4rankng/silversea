@@ -13,6 +13,7 @@ import {
 } from '@tingting/shared';
 import { ApiError } from '../../../lib/api';
 import { formatDateTimeShort } from '../../../lib/format';
+import { formatVietnamDateTimeInput } from '../../../lib/shipment-operations';
 
 export function formatQuantity(value: string | null, maximumFractionDigits = 2): string {
   if (value == null || value === '') return '—';
@@ -232,11 +233,12 @@ export interface ContainerLineDraft {
 }
 
 export function toLocalDateTime(value: string | null): string {
-  if (!value) return '';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  const offset = date.getTimezoneOffset() * 60_000;
-  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+  // Draft base must be Vietnam wall-clock, never the browser's: the popover
+  // prefills from this value and the save path (localDateTimeToIso) persists
+  // naive +07:00, so a GMT+8 host must not shift the base draft — that made
+  // rows spuriously dirty, prefilled the popover an hour off, and fed the
+  // −1h preview bug.
+  return formatVietnamDateTimeInput(value);
 }
 
 export function lineDraft(line: ShipmentCusWorkspaceContainerLine): ContainerLineDraft {
