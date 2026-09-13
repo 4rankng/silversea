@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TripDetail } from '@tingting/shared';
 
@@ -66,5 +66,58 @@ describe('TripReassignDialog — fetch-state rendering', () => {
     expect(screen.getByText('Loại xe')).toBeTruthy();
     expect(screen.getByDisplayValue('Xe nhà')).toBeTruthy();
     expect(screen.queryByRole('alert')).toBeNull();
+  });
+});
+
+describe('TripReassignDialog — draft seeding across trip versions', () => {
+  beforeEach(() => {
+    useTripDetailMock.mockReset();
+  });
+
+  it('reseeds the draft when the served trip carries a new version after a reassign', () => {
+    useTripDetailMock.mockReturnValue({
+      data: TRIP, isLoading: false, error: null, refetch: vi.fn(),
+    } as never);
+    const { rerender } = renderDialog();
+    expect(screen.getByDisplayValue('Xe nhà')).toBeTruthy();
+
+    // A successful reassign bumps the trip version. Whenever the hook serves
+    // that new snapshot — a refetch landing on an open dialog, or the cached
+    // pre-reassign copy being replaced on reopen — the draft must follow the
+    // fresh data instead of staying on the stale pre-reassign fields.
+    const REASSIGNED_TRIP = {
+      ...TRIP,
+      version: 4,
+      carrierType: 'EXTERNAL',
+      truckId: null,
+      driverId: null,
+      externalCarrierId: 9,
+      externalPlateNumber: '60C-999.99',
+    } as unknown as TripDetail;
+    useTripDetailMock.mockReturnValue({
+      data: REASSIGNED_TRIP, isLoading: false, error: null, refetch: vi.fn(),
+    } as never);
+    rerender(<TripReassignDialog tripId={3} onClose={vi.fn()} onReassigned={vi.fn()} />);
+
+    expect(screen.getByDisplayValue('Xe ngoài')).toBeTruthy();
+    expect(screen.getByDisplayValue('60C-999.99')).toBeTruthy();
+  });
+
+  it('keeps in-progress edits when a refetch returns the same version', () => {
+    useTripDetailMock.mockReturnValue({
+      data: TRIP, isLoading: false, error: null, refetch: vi.fn(),
+    } as never);
+    const { rerender } = renderDialog();
+    fireEvent.change(screen.getByDisplayValue('Xe nhà'), { target: { value: 'EXTERNAL' } });
+    expect(screen.getByDisplayValue('Xe ngoài')).toBeTruthy();
+
+    // Same version, fresh snapshot object — must not reseed over the edit.
+    useTripDetailMock.mockReturnValue({
+      data: { ...TRIP }, isLoading: false, error: null, refetch: vi.fn(),
+    } as never);
+    rerender(<TripReassignDialog tripId={3} onClose={vi.fn()} onReassigned={vi.fn()} />);
+
+    expect(screen.getByDisplayValue('Xe ngoài')).toBeTruthy();
+    expect(screen.queryByDisplayValue('60C-999.99')).toBeNull();
   });
 });
