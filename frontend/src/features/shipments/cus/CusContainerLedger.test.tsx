@@ -111,12 +111,10 @@ describe('ContainerLedger confirm affordances', () => {
     const view = renderLedger();
     updateCusShipmentContainerLine.mockResolvedValue({ line: { id: 10, shipmentVersion: 5 } });
 
-    // Open popover and change date
+    // Open popover and type the complete 24h entry into the single text input
     fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ }));
-    const dateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
-    const timeInput = document.querySelector('input[type="time"]') as HTMLInputElement;
-    fireEvent.change(dateInput, { target: { value: '2026-09-11' } });
-    fireEvent.change(timeInput, { target: { value: '09:00' } });
+    const datetimeInput = document.querySelector('.cus-appointment-input') as HTMLInputElement;
+    fireEvent.change(datetimeInput, { target: { value: '09:00 11/09/2026' } });
 
     // Close popover
     fireEvent.click(document.querySelector('.cus-appointment-backdrop')!);

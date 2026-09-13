@@ -30,13 +30,14 @@ describe('CusAppointmentPopover', () => {
     expect(screen.getByRole('dialog', { name: /MSKU1234567/ })).toBeDefined();
     expect(screen.getByText('MSKU1234567')).toBeDefined();
 
-    const dateInput = container.querySelector('input[type="date"]') as HTMLInputElement;
-    const timeInput = container.querySelector('input[type="time"]') as HTMLInputElement;
-    expect(dateInput.value).toBe('2026-09-08');
-    expect(timeInput.value).toBe('10:30');
+    // Single buffered 24h text input under the combined date+time contract.
+    const datetimeInput = container.querySelector('.cus-appointment-input') as HTMLInputElement;
+    expect(datetimeInput.type).toBe('text');
+    expect(datetimeInput.value).toBe('10:30 08/09/2026');
+    expect(datetimeInput.placeholder).toBe('HH:mm DD/MM/YYYY');
   });
 
-  it('renders giờ before ngày with 24h locale pinned to en-GB', () => {
+  it('labels the single 24h input "Ngày giờ" with no native locale-driven inputs', () => {
     const { container } = render(
       <CusAppointmentPopover
         isOpen={true}
@@ -47,15 +48,12 @@ describe('CusAppointmentPopover', () => {
       />,
     );
 
-    // Thứ tự trường khớp định dạng cột bảng "20:45 8/9/26": giờ trước, ngày sau.
+    // Thứ tự hiển thị khớp hợp đồng "giờ trước ngày" qua đúng MỘT trường văn
+    // bản 24h — không còn input native theo locale trình duyệt (AM/PM).
     const labels = Array.from(container.querySelectorAll('.cus-appointment-input-wrap label'));
-    expect(labels.map((label) => label.textContent)).toEqual(['Giờ', 'Ngày']);
-
-    // ép input date/time hiển thị 24h + dd/mm/yyyy bất kể locale trình duyệt (AM/PM)
-    const timeInput = container.querySelector('input[type="time"]') as HTMLInputElement;
-    const dateInput = container.querySelector('input[type="date"]') as HTMLInputElement;
-    expect(timeInput.getAttribute('lang')).toBe('en-GB');
-    expect(dateInput.getAttribute('lang')).toBe('en-GB');
+    expect(labels.map((label) => label.textContent)).toEqual(['Ngày giờ']);
+    expect(container.querySelector('input[type="time"]')).toBeNull();
+    expect(container.querySelector('input[type="date"]')).toBeNull();
   });
 
   it('selects quick date pill and immediately calls onChange', () => {
@@ -99,7 +97,7 @@ describe('CusAppointmentPopover', () => {
     expect(handleChange).toHaveBeenCalledWith('2026-09-08T13:30');
   });
 
-  it('updates value when date and time inputs change', () => {
+  it('emits the draft value for complete 24h text entry across the day', () => {
     const handleChange = vi.fn();
     const { container } = render(
       <CusAppointmentPopover
@@ -111,13 +109,43 @@ describe('CusAppointmentPopover', () => {
       />,
     );
 
-    const dateInput = container.querySelector('input[type="date"]') as HTMLInputElement;
-    fireEvent.change(dateInput, { target: { value: '2026-09-15' } });
-    expect(handleChange).toHaveBeenCalledWith('2026-09-15T08:00');
+    const datetimeInput = container.querySelector('.cus-appointment-input') as HTMLInputElement;
+    // Card verify list: 20:46, 00:15, 23:45 — every entry stays on the 24h
+    // clock and rehydrates the same naive wire value.
+    fireEvent.change(datetimeInput, { target: { value: '20:46 15/09/2026' } });
+    expect(handleChange).toHaveBeenCalledWith('2026-09-15T20:46');
 
-    const timeInput = container.querySelector('input[type="time"]') as HTMLInputElement;
-    fireEvent.change(timeInput, { target: { value: '14:00' } });
-    expect(handleChange).toHaveBeenCalledWith('2026-09-15T14:00');
+    fireEvent.change(datetimeInput, { target: { value: '00:15 15/09/2026' } });
+    expect(handleChange).toHaveBeenCalledWith('2026-09-15T00:15');
+
+    fireEvent.change(datetimeInput, { target: { value: '23:45 15/09/2026' } });
+    expect(handleChange).toHaveBeenCalledWith('2026-09-15T23:45');
+
+    // 08:00/13:30 through the input agree with the preset pills.
+    fireEvent.change(datetimeInput, { target: { value: '13:30 15/09/2026' } });
+    expect(handleChange).toHaveBeenCalledWith('2026-09-15T13:30');
+  });
+
+  it('keeps typing without firing onChange until the entry is complete', () => {
+    const handleChange = vi.fn();
+    const { container } = render(
+      <CusAppointmentPopover
+        isOpen={true}
+        value="2026-09-08T08:00"
+        containerLabel="Cont 1"
+        onClose={vi.fn()}
+        onChange={handleChange}
+      />,
+    );
+
+    const datetimeInput = container.querySelector('.cus-appointment-input') as HTMLInputElement;
+    fireEvent.change(datetimeInput, { target: { value: '13:3' } });
+    fireEvent.change(datetimeInput, { target: { value: '13:30 15/0' } });
+    expect(handleChange).not.toHaveBeenCalled();
+
+    // Blur normalizes the abandoned incomplete draft back to the current value.
+    fireEvent.blur(datetimeInput);
+    expect(datetimeInput.value).toBe('08:00 08/09/2026');
   });
 
   it('calls onChange with empty string when clicking Xóa hẹn', () => {
@@ -248,10 +276,8 @@ describe('CusAppointmentPopover', () => {
 
     // 06:30Z = 13:30 +07 — the old parse rendered browser-local (14:30 on a
     // +08 host), so the recomposed write drifted another hour.
-    const timeInput = container.querySelector('input[type="time"]') as HTMLInputElement;
-    const dateInput = container.querySelector('input[type="date"]') as HTMLInputElement;
-    expect(timeInput.value).toBe('13:30');
-    expect(dateInput.value).toBe('2026-09-11');
+    const datetimeInput = container.querySelector('.cus-appointment-input') as HTMLInputElement;
+    expect(datetimeInput.value).toBe('13:30 11/09/2026');
   });
 
   it('round-trips a naive draft verbatim without re-interpreting it', () => {
@@ -265,9 +291,7 @@ describe('CusAppointmentPopover', () => {
       />,
     );
 
-    const timeInput = container.querySelector('input[type="time"]') as HTMLInputElement;
-    const dateInput = container.querySelector('input[type="date"]') as HTMLInputElement;
-    expect(timeInput.value).toBe('09:00');
-    expect(dateInput.value).toBe('2026-09-11');
+    const datetimeInput = container.querySelector('.cus-appointment-input') as HTMLInputElement;
+    expect(datetimeInput.value).toBe('09:00 11/09/2026');
   });
 });

@@ -2190,8 +2190,9 @@
 
 .cus-appointment-popover__inputs {
   display: grid;
-  /* Giờ trước ngày: cột giờ hẹp (0.8fr), cột ngày rộng (1.2fr) */
-  grid-template-columns: 0.8fr 1.2fr;
+  /* Một trường "Ngày giờ" 24h duy nhất ("HH:mm DD/MM/YYYY") — input văn bản
+     theo hợp đồng ngày+giờ kết hợp, pill nhanh bên dưới vẫn là đường tắt. */
+  grid-template-columns: 1fr;
   gap: 8px;
   margin-bottom: 8px;
 }

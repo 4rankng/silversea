@@ -10,6 +10,7 @@ import { createPortal } from 'react-dom';
 import { Calendar, Clock, X } from 'lucide-react';
 import { useClickOutside } from '../../../hooks/useClickOutside';
 import { formatVietnamDateTimeInput } from '../../../lib/shipment-operations';
+import { DATE_TIME_24_PLACEHOLDER, useBufferedDateTimeValue } from '../../../design-system';
 
 export interface CusAppointmentPopoverProps {
   value: string | null | undefined;
@@ -67,6 +68,21 @@ export function CusAppointmentPopover({
       setTime(parts.time || '08:00');
     }
   }, [isOpen, value]);
+
+  // Combined 24h text input (see the input block below): the draft date+time
+  // state rehydrates it on pills/presets, and a complete "HH:mm DD/MM/YYYY"
+  // entry splits back into the draft state AND emits the recomposed naive
+  // value — same wire shape the old native inputs produced. Incomplete
+  // typing never fires.
+  const buffered = useBufferedDateTimeValue({
+    value: date && time ? `${date}T${time}` : '',
+    onChange: (next) => {
+      const [nextDate, nextTime] = next ? next.split('T') : ['', ''];
+      setDate(nextDate);
+      setTime(nextTime.slice(0, 5));
+      onChange(next);
+    },
+  });
 
   useClickOutside(popoverRef, onClose, {
     escapeKey: true,
@@ -227,29 +243,24 @@ export function CusAppointmentPopover({
         </div>
 
         {/* Time and Date Inputs — giờ trước ngày, khớp định dạng "20:45 8/9/26" của cột bảng.
-            lang="en-GB" ép input hiển thị 24h + dd/mm/yyyy thay vì theo locale trình duyệt (AM/PM). */}
+            Native time/date inputs render per browser UI locale (12h AM/PM) and element lang
+            cannot override it, so this types into the same buffered 24h text input as
+            /shipments/new ("HH:mm DD/MM/YYYY"); the pills below stay the fast path. */}
         <div className="cus-appointment-popover__inputs">
           <div className="cus-appointment-input-wrap">
-            <label htmlFor={`${idPrefix}-time`}>Giờ</label>
+            <label htmlFor={`${idPrefix}-datetime`}>Ngày giờ</label>
             <input
-              id={`${idPrefix}-time`}
-              type="time"
-              lang="en-GB"
+              ref={buffered.ref}
+              id={`${idPrefix}-datetime`}
+              type="text"
+              inputMode="numeric"
               className="cus-appointment-input"
-              value={time}
-              onChange={(e) => updateDateTime(date || todayStr, e.target.value)}
-            />
-          </div>
-          <div className="cus-appointment-input-wrap">
-            <label htmlFor={`${idPrefix}-date`}>Ngày</label>
-            <input
-              id={`${idPrefix}-date`}
-              type="date"
-              lang="en-GB"
-              className="cus-appointment-input"
-              value={date}
-              onChange={(e) => updateDateTime(e.target.value, time || '08:00')}
-              required
+              placeholder={DATE_TIME_24_PLACEHOLDER}
+              maxLength={16}
+              autoComplete="off"
+              defaultValue={buffered.defaultValue}
+              onChange={buffered.onChange}
+              onBlur={buffered.onBlur}
             />
           </div>
         </div>
