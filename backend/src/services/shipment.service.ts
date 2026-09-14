@@ -37,7 +37,6 @@ export type {
 } from './shipment-lifecycle.service';
 
 export {
-  reviewTripPodSubmission,
   reviewShipmentChangeRequest,
   downloadShipmentPodFile,
 } from './shipment-review.service';

@@ -251,11 +251,15 @@ export async function financialWorkInbox(query: InboxQuery) {
     const tripSettlementRows = settlementRows.filter((expense) => expense.tripId === row.id);
     const attempts = attemptRows.filter((attempt) => attempt.tripId === row.id);
     const responses = responseRows.filter((response) => response.tripId === row.id);
-    const acceptedPodReady = latestPod?.status === 'ACCEPTED';
+    // Internal e-POD approval removed: a saved submission (not a draft, not
+    // customer-rejected) is ready evidence for accounting reconciliation.
+    const acceptedPodReady = latestPod?.status != null
+      && latestPod.status !== 'DRAFT'
+      && latestPod.status !== 'REJECTED';
     const settlementComplete = tripSettlementRows.every((expense) => expense.settlementStatus === 'APPROVED');
     const profitabilitySnapshotReady = snapshotTripIds.has(row.id) && !row.dirty;
     const blockers = [];
-    if (!acceptedPodReady) blockers.push({ code: 'POD', label: 'Thiếu POD đã chấp nhận', ownerRole: 'OPS', ownerLabel: 'Vận hành' });
+    if (!acceptedPodReady) blockers.push({ code: 'POD', label: 'Chưa có e-POD hợp lệ', ownerRole: 'OPS', ownerLabel: 'Vận hành' });
     if (pendingExpenseTripIds.has(row.id)) blockers.push({ code: 'EXPENSE_APPROVAL', label: 'Chi phí đang chờ phê duyệt', ownerRole: 'ACCOUNTANT', ownerLabel: 'Kế toán' });
     if (!settlementComplete) blockers.push({ code: 'SETTLEMENT', label: 'Quyết toán tạm ứng chưa hoàn tất', ownerRole: 'OPS', ownerLabel: 'Vận hành' });
     if (!profitabilitySnapshotReady) blockers.push({ code: 'PROFITABILITY', label: 'Thiếu ảnh chụp lợi nhuận hiện hành', ownerRole: 'ACCOUNTANT', ownerLabel: 'Kế toán' });

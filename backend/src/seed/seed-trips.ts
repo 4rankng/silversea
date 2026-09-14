@@ -28,7 +28,6 @@ import {
 import { transitionTripStatus } from '../services/trip-status-machine.service';
 import { createTripExpense } from '../services/forwarder.service';
 import { createPodSubmission, submitPod, attachPodFile } from '../services/trip-pod.service';
-import { reviewTripPodSubmission } from '../services/shipment.service';
 import { TripPodFileType } from '@tingting/shared';
 
 /** Demo actor ids resolved at runtime by username. */
@@ -567,15 +566,12 @@ export async function seedTrips(seedActors: SeedActors & {
           expectedVersion: submission.version,
           idempotencyKey: `${key}:submit`,
         });
-        await reviewTripPodSubmission({
-          shipmentId: shipment.id,
-          submissionId: submitted.submission.id,
-          expectedVersion: submitted.submission.version,
-          resolution: 'ACCEPT',
-          idempotencyKey: `${key}:review`,
-          actor: cusActor,
-          podRecovered: true,
-        });
+        // Internal review removed — the seed marks the demo submission
+        // accepted directly (customer acknowledgement shape).
+        await tx.update(s.tripPodSubmissions).set({
+          status: 'ACCEPTED',
+          updatedAt: new Date(),
+        }).where(eq(s.tripPodSubmissions.id, submitted.submission.id));
       }
 
       await transitionTripStatus(

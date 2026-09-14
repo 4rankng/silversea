@@ -99,15 +99,15 @@ export enum TripPodStatus {
 }
 
 /**
- * Canonical Vietnamese labels for e-POD states. Unified 2026-09-01 (user
- * decision): reviewer and submitter surfaces render the same words —
- * 'Chờ duyệt' / 'Đã duyệt' — instead of per-audience phrasing.
+ * Vietnamese labels for e-POD states. The internal approval lifecycle is
+ * removed: SUBMITTED evidence is already usable, and ACCEPTED/REJECTED are
+ * purely the external customer's acknowledgement outcome.
  */
 export const TRIP_POD_STATUS_LABELS: Record<TripPodStatus, string> = {
   [TripPodStatus.DRAFT]: 'Đang chuẩn bị',
-  [TripPodStatus.SUBMITTED]: 'Chờ duyệt',
-  [TripPodStatus.ACCEPTED]: 'Đã duyệt',
-  [TripPodStatus.REJECTED]: 'Bị từ chối',
+  [TripPodStatus.SUBMITTED]: 'Chờ khách xác nhận',
+  [TripPodStatus.ACCEPTED]: 'Khách đã xác nhận',
+  [TripPodStatus.REJECTED]: 'Khách từ chối',
 };
 
 export enum TripPodFileType {

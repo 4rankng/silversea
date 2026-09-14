@@ -69,8 +69,14 @@ export async function requireTripCloseReadiness(
     .limit(1)
     .for('update');
   const currentPod = submissions[0];
-  if (!currentPod || currentPod.status !== TripPodStatus.ACCEPTED) {
-    throw new ApiError(409, 'e-POD hiện tại chưa được duyệt. Không thể chốt tài chính chuyến đi.');
+  // Internal e-POD approval removed: a saved submission (not a draft, not
+  // customer-rejected) satisfies the close precondition.
+  if (
+    !currentPod
+    || currentPod.status === TripPodStatus.DRAFT
+    || currentPod.status === TripPodStatus.REJECTED
+  ) {
+    throw new ApiError(409, 'Chưa có e-POD hợp lệ. Không thể chốt tài chính chuyến đi.');
   }
 
   const [containers, scopes] = await Promise.all([

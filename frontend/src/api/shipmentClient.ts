@@ -513,24 +513,6 @@ export interface ShipmentDocumentReplacementResponse extends ShipmentDocument {
   shipmentVersion: number;
 }
 
-export interface ReviewShipmentPodRequest {
-  expectedVersion: number;
-  resolution: 'ACCEPT' | 'REJECT';
-  rejectionReason?: string | null;
-  /** O2C C1: required when ACCEPT — confirms paper POD is in hand. */
-  podRecovered?: boolean;
-}
-
-export interface ReviewShipmentPodResponse {
-  shipment: Shipment;
-  submissionId: number;
-  submissionStatus: TripPodStatus;
-  tripId: number;
-  tripStatus: 'CREATED' | 'IN_TRANSIT' | 'COMPLETED' | 'CANCELED';
-  shipmentVersion: number;
-  replayed: boolean;
-}
-
 export interface CompleteShipmentRequest {
   expectedVersion: number;
   vatRate: 0 | 0.05 | 0.08 | 0.1;
@@ -901,19 +883,6 @@ export async function requestShipmentDelete(
   return api.post<{ pendingApproval: boolean }>(
     `/shipments/cus-workspace/${shipmentId}/delete-request`,
     { version, reason },
-  );
-}
-
-export async function reviewShipmentPod(
-  shipmentId: number,
-  submissionId: number,
-  body: ReviewShipmentPodRequest,
-  idempotencyKey: string,
-): Promise<ReviewShipmentPodResponse> {
-  return api.post<ReviewShipmentPodResponse>(
-    `/shipments/${shipmentId}/pod-reviews/${submissionId}/review`,
-    body,
-    { headers: { 'Idempotency-Key': idempotencyKey } },
   );
 }
 

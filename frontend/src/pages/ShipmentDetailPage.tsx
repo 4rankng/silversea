@@ -22,7 +22,6 @@ import {
 import { ShipmentCoordinationPanel } from '../components/shipment/ShipmentCoordinationPanel';
 import { DebitNoteFreightOverride } from '../components/billing/DebitNoteFreightOverride';
 import { useDebitNoteOverride, useSaveDebitNoteOverride } from '../hooks/usePricingQueries';
-import { TripPodReviewPanel } from '../components/shipment/TripPodReviewPanel';
 import { CarrierAllocationSummary } from '../components/shipment/CarrierAllocationSummary';
 import { formatDate, formatDateTimeVN as formatDateTime } from '../lib/format';
 import { formatVnd, allocationSummaryFromDetail } from '../features/shipments/detail/shipment-detail-view';
@@ -44,9 +43,7 @@ export default function ShipmentDetailPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const shipmentId = Number(id);
-  const canReviewPod = user?.role === Role.CUS;
   const canCompleteShipment = user?.role === Role.ACCOUNTANT;
-  const canSeePodReview = canReviewPod || canCompleteShipment || user?.role === Role.ADMIN || user?.role === Role.MANAGER;
   const canResolveCancellation = user?.role === Role.ADMIN || user?.role === Role.MANAGER;
   const coordinationActive = Boolean(user?.capabilities?.includes('shipments.read'));
   const canWriteCoordination = coordinationActive
@@ -221,19 +218,6 @@ export default function ShipmentDetailPage() {
             emptyLabel="Chưa phân nhà xe"
           />
         </section>
-
-        {canSeePodReview && (
-          <TripPodReviewPanel
-            shipmentId={shipment.id}
-            shipmentVersion={shipment.version}
-            shipmentStatus={shipment.status}
-            items={podReviews}
-            canReview={canReviewPod}
-            canComplete={canCompleteShipment}
-            canResolveCancellation={canResolveCancellation}
-            onChanged={fetchDetail}
-          />
-        )}
 
         {coordinationActive && (
           <ShipmentCoordinationPanel shipmentId={shipment.id} canWrite={canWriteCoordination} />

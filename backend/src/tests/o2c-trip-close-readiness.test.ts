@@ -335,12 +335,16 @@ async function prepareFixtureForDirectClose(shipmentIdForFixture: number, tripId
 }
 
 describe('O2C trip close readiness authority', () => {
-  test('rejects no e-POD and every non-accepted current e-POD state', async () => {
-    await assert.rejects(() => db.transaction((tx) => requireTripCloseReadiness(tx, tripId)), /e-POD hiện tại chưa được duyệt/);
-    for (const status of ['DRAFT', 'SUBMITTED', 'REJECTED'] as const) {
+  test('rejects missing, draft, and rejected e-POD; a saved submission passes the gate', async () => {
+    await assert.rejects(() => db.transaction((tx) => requireTripCloseReadiness(tx, tripId)), /Chưa có e-POD hợp lệ/);
+    for (const status of ['DRAFT', 'REJECTED'] as const) {
       await replacePod(status);
-      await assert.rejects(() => db.transaction((tx) => requireTripCloseReadiness(tx, tripId)), /e-POD hiện tại chưa được duyệt/);
+      await assert.rejects(() => db.transaction((tx) => requireTripCloseReadiness(tx, tripId)), /Chưa có e-POD hợp lệ/);
     }
+    // Internal approval removed: a saved submission clears the e-POD gate —
+    // the flow proceeds to the next precondition (Ops expense scopes).
+    await replacePod('SUBMITTED');
+    await assert.rejects(() => db.transaction((tx) => requireTripCloseReadiness(tx, tripId)), /Ops chưa xác nhận/);
   });
 
   test('accepted e-POD still requires general and every container expense scope', async () => {
@@ -380,7 +384,7 @@ describe('O2C trip close readiness authority', () => {
       reviewedAt: new Date(),
       rejectionReason: 'Phiên mới bị từ chối',
     });
-    await assert.rejects(() => db.transaction((tx) => requireTripCloseReadiness(tx, tripId)), /e-POD hiện tại chưa được duyệt/);
+    await assert.rejects(() => db.transaction((tx) => requireTripCloseReadiness(tx, tripId)), /Chưa có e-POD hợp lệ/);
   });
 
   test('synthetic LCL scope completion keeps submitted or accepted e-POD trips running (expense stage retired)', async () => {
