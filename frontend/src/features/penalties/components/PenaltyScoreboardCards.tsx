@@ -65,7 +65,7 @@ export function PenaltyScoreboardCards({ rows, avgStreak, driversOver90, onOpenD
                 <div className="mm">
                   <span className="lab">Phạt YTD</span>
                   <span className={d.fineYtd > 0 ? 'val danger' : 'val empty'}>
-                    {d.fineYtd > 0 ? `${formatCurrency(d.fineYtd)} ₫` : '—'}
+                    {d.fineYtd > 0 ? formatCurrency(d.fineYtd) : '—'}
                   </span>
                 </div>
               </div>

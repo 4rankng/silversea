@@ -187,6 +187,10 @@ function PenaltyReasonForm({
 }) {
   const [reason, setReason] = useState(item?.reasonText || '');
   const [amount, setAmount] = useState(item?.defaultAmount?.toString() || '');
+  // Negative or blank fines are rejected visibly: the field explains itself
+  // and Save stays disabled until the value is a non-negative number.
+  const amountNum = Number(amount);
+  const amountInvalid = amount.trim() === '' || !Number.isFinite(amountNum) || amountNum < 0;
   const [severity, setSeverity] = useState<Severity>(item?.severity || 'mid');
 
   const isDuplicate =
@@ -215,7 +219,15 @@ function PenaltyReasonForm({
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
           placeholder="0"
+          min="0"
+          aria-invalid={amountInvalid || undefined}
+          aria-describedby={amountInvalid ? 'pr-amount-error' : undefined}
         />
+        {amountInvalid && (
+          <p id="pr-amount-error" role="alert" style={{ margin: '6px 0 0', fontSize: 13, color: 'var(--danger)' }}>
+            Mức phạt phải là số không âm (VNĐ). Hãy nhập lại để bật nút lưu.
+          </p>
+        )}
       </FormGroup>
       <FormGroup label="Mức độ nghiêm trọng">
         <div style={{ display: 'flex', gap: '8px' }}>
@@ -247,10 +259,10 @@ function PenaltyReasonForm({
         <Btn
           variant="primary"
           onClick={() => {
-            if (!reason.trim() || isDuplicate) return;
-            onSave({ reasonText: reason.trim(), defaultAmount: Number(amount) || 0, severity });
+            if (!reason.trim() || isDuplicate || amountInvalid) return;
+            onSave({ reasonText: reason.trim(), defaultAmount: amountNum, severity });
           }}
-          disabled={saving || !reason.trim() || isDuplicate}
+          disabled={saving || !reason.trim() || isDuplicate || amountInvalid}
         >
           {saving ? 'Đang lưu...' : item ? 'Lưu thay đổi' : 'Thêm mới'}
         </Btn>
