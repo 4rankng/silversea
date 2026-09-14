@@ -19,7 +19,7 @@ import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../services/idempotency.se
 import { getRequestIdempotencyKey } from './utils/idempotency';
 import { formatLocalDate, sniffImageType } from '../lib/format';
 import { storageService } from '../services/storage.service';
-import { createAdvanceRequest, listAdvanceRequestsPaginated } from '../services/advance-request.service';
+import { approveAdvanceRequest, createAdvanceRequest, listAdvanceRequestsPaginated } from '../services/advance-request.service';
 import { listOpsOrders, setShipmentPin } from '../services/ops-orders.service';
 import { getOpsWalletSummary } from '../services/ops-wallet.service';
 import {
@@ -116,7 +116,10 @@ router.post('/wallet/advance-requests', OPS_ONLY, asyncHandler(async (req: Reque
     payload: { ...parsed, userId: user.userId },
     createdBy: user.userId,
     responseStatusCode: 201,
-    create: (tx) => createAdvanceRequest(user.userId, parsed, tx),
+    // Direct-effect save: the requester's own create applies the advance
+    // (status + ledger) in the same transaction — no approval handoff.
+    create: (tx) => createAdvanceRequest(user.userId, parsed, tx)
+      .then((created) => approveAdvanceRequest(created.id, user.userId, undefined, tx)),
   });
   res.status(outcome.statusCode).json(outcome.result);
 }));

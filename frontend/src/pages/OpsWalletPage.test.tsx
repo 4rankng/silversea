@@ -54,9 +54,8 @@ describe('OpsWalletPage (OpsVanHanh §5)', () => {
     renderPage();
     expect(await screen.findByText(/1\.560\.000/)).toBeInTheDocument();
     // Card labels also appear in the history status column — assert presence.
-    expect(screen.getAllByText('Đã duyệt').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Chờ duyệt').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Bị từ chối').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Đã ghi nhận').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Đã trả lại').length).toBeGreaterThan(0);
   });
 
   it('flags entries without photos as Nợ chứng từ', async () => {
@@ -72,7 +71,7 @@ describe('OpsWalletPage (OpsVanHanh §5)', () => {
     const amountInput = await screen.findByLabelText(/Số tiền \(VND\)/);
     fireEvent.change(amountInput, { target: { value: '500000' } });
     fireEvent.change(screen.getByLabelText(/Lý do \/ Ghi chú/), { target: { value: 'ứng phí cảng' } });
-    fireEvent.click(screen.getByRole('button', { name: /Gửi yêu cầu/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Lưu tạm ứng/ }));
 
     await waitFor(() => {
       expect(apiPost).toHaveBeenCalledWith('/ops/wallet/advance-requests', {

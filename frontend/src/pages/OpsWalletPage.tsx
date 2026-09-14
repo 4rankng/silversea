@@ -13,9 +13,11 @@ const ADVANCE_STATUS_COLORS: Record<string, string> = {
   REJECTED: 'var(--err, #dc2626)',
 };
 
+// Direct-effect vocabulary (QA-113): an advance save applies immediately —
+// no approval handoff. PENDING survives only as a transient/legacy state.
 const ADVANCE_STATUS_LABELS: Record<string, string> = {
-  PENDING: 'Chờ duyệt',
-  APPROVED: 'Đã duyệt',
+  PENDING: 'Đang ghi nhận',
+  APPROVED: 'Đã ghi nhận',
   REJECTED: 'Từ chối',
 };
 
@@ -55,16 +57,8 @@ export default function OpsWalletPage() {
           <small>Tiền đã hoàn về công ty theo quyết toán</small>
         </div>
         <div className="ops-wallet-card">
-          <span className="ops-wallet-card__label">Đã duyệt</span>
+          <span className="ops-wallet-card__label">Đã ghi nhận</span>
           <strong style={{ color: 'var(--ok, #16a34a)' }}>{summary ? formatVnd(summary.approved) : '…'}</strong>
-        </div>
-        <div className="ops-wallet-card">
-          <span className="ops-wallet-card__label">Chờ duyệt (đang giữ chỗ)</span>
-          <strong style={{ color: 'var(--warn, #d97706)' }}>{summary ? formatVnd(summary.pending) : '…'}</strong>
-        </div>
-        <div className="ops-wallet-card">
-          <span className="ops-wallet-card__label">Bị từ chối</span>
-          <strong style={{ color: 'var(--err, #dc2626)' }}>{summary ? formatVnd(summary.rejected) : '…'}</strong>
         </div>
       </section>
 

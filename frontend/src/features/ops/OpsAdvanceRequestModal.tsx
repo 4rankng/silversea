@@ -25,10 +25,10 @@ export function OpsAdvanceRequestModal({ onClose }: { onClose: () => void }) {
     if (!canSubmit) return;
     try {
       await createAdvance.mutateAsync({ amount: Number(amountDigits), reason: reason.trim() });
-      toast({ kind: 'success', message: 'Đã gửi yêu cầu tạm ứng — chờ duyệt.' });
+      toast({ kind: 'success', message: 'Đã lưu tạm ứng.' });
       onClose();
     } catch (error) {
-      toast({ kind: 'error', message: error instanceof Error ? error.message : 'Gửi yêu cầu thất bại.' });
+      toast({ kind: 'error', message: error instanceof Error ? error.message : 'Không thể lưu tạm ứng.' });
     }
   }
 
@@ -74,7 +74,7 @@ export function OpsAdvanceRequestModal({ onClose }: { onClose: () => void }) {
           <div className="ops-modal__actions">
             <button type="button" className="btn-secondary" onClick={onClose} disabled={createAdvance.isPending}>Đóng</button>
             <button type="submit" className="btn-primary" disabled={!canSubmit || createAdvance.isPending}>
-              {createAdvance.isPending ? <Loader2 size={14} className="spin" /> : null} Gửi yêu cầu
+              {createAdvance.isPending ? <Loader2 size={14} className="spin" /> : null} Lưu tạm ứng
             </button>
           </div>
         </footer>

@@ -276,6 +276,12 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // placeholder/maxLength attrs). Reviewed as a contract change; the value
   // contract ('YYYY-MM-DDTHH:mm') is unchanged.
   'src/pages/TripCreatePage.tsx': 586,
+  // Baseline 430 (was new-file capped 400): 2026-09-14 _18 self-healing
+  // version-token writes — the transport now detects the backend's
+  // VERSION_TOKEN_REQUIRED 428, refetches the row once, and retries with the
+  // fresh token (request/requestOnce split + heal branch + dev warn).
+  // Reviewed as a contract change; future splits should restore smaller.
+  'src/lib/api/client.ts': 430,
 };
 
 /** Source roots the size ratchet covers. */
