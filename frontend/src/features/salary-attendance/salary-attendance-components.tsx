@@ -180,7 +180,7 @@ export interface MobileDayListProps {
   parseLocalDate: (s: string) => Date;
 }
 
-export function MobileDayList({ dates, workDayMap, isUpdating: _isUpdating, isConfirmed, onCycle, parseLocalDate }: MobileDayListProps) {
+export function MobileDayList({ dates, workDayMap, isUpdating, isConfirmed, onCycle, parseLocalDate }: MobileDayListProps) {
   return (
     <div className="mobile-day-list">
       {dates.map(dateStr => {
@@ -193,12 +193,26 @@ export function MobileDayList({ dates, workDayMap, isUpdating: _isUpdating, isCo
         const workDay = workDayMap.get(dateStr);
         const status = workDay?.status ?? (isSun ? 'WEEKLY_OFF' : 'STANDBY');
         const cfg = STATUS_CONFIG[status];
-        const isClickable = !isConfirmed && status !== 'TRIP_DAY';
+        const isClickable = !isUpdating && !isConfirmed && status !== 'TRIP_DAY';
+        const stateLabel = workDay?.trip?.tripCode
+          ? `${workDay.trip.tripCode} – ${workDay.trip.routeName || ''}`
+          : cfg?.label || '';
+        const ariaLabel = `${day}/${cellMonth} — ${stateLabel}`;
 
         return (
           <div
             key={dateStr}
+            role="button"
+            tabIndex={isClickable ? 0 : undefined}
+            aria-disabled={!isClickable}
+            aria-label={ariaLabel}
             onClick={() => isClickable && onCycle(dateStr, workDay)}
+            onKeyDown={(e) => {
+              if (isClickable && (e.key === 'Enter' || e.key === ' ')) {
+                e.preventDefault();
+                onCycle(dateStr, workDay);
+              }
+            }}
             className={`mobile-day-row status-${status.toLowerCase()} ${isClickable ? 'is-clickable' : ''}`}
           >
             {/* Date column */}
