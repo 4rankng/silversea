@@ -11,10 +11,9 @@ import { useAllCustomers } from '../hooks/useCatalogQueries';
 import { useUserMutations } from '../features/users/hooks/useUserMutations';
 import { UserTable } from '../features/users/components/UserTable';
 import { AddPanel, EditPanel } from '../features/users/components/UserForm';
-import { BUSINESS_UNIT_STATUS_LABELS } from '../features/users/utils';
 import type { UserRow, FilterKey } from '../features/users/utils';
+import { BusinessUnitsManager } from '../features/users/components/BusinessUnitsManager';
 import { usePageAnimations } from '../hooks/animations';
-import { useToast } from '../components/shared/Toast';
 import '../features/users/users.css';
 
 async function loadAllShipmentScopeOptions() {
@@ -59,7 +58,6 @@ export default function UsersPage() {
   const canDelete = me?.role === Role.ADMIN;
   // Accountants get scoped /users access: read-only except DRIVER rows (salary/truck/contact).
   const canEditDriversOnly = !canManage && me?.role === Role.ACCOUNTANT;
-  const { toast } = useToast();
 
   const usersTable = useTableQueryState<UserRow, UsersTableFilters, UsersResponse>({
     endpoint: (params) => userClient.getUsers(params),
@@ -105,10 +103,6 @@ export default function UsersPage() {
 
   const [showAdd, setShowAdd] = useState(false);
   const [editingUser, setEditingUser] = useState<UserRow | null>(null);
-  const [unitDraft, setUnitDraft] = useState({ code: '', name: '' });
-  const [editingUnitId, setEditingUnitId] = useState<number | null>(null);
-  const [savingUnit, setSavingUnit] = useState(false);
-  const [unitError, setUnitError] = useState<string | null>(null);
 
   const handleFilterChange = (f: FilterKey) => {
     usersTable.setFilter('role', f === 'all' ? undefined : f);
@@ -127,57 +121,6 @@ export default function UsersPage() {
   const openAdd  = () => { clearPanelError(); setShowAdd(true); setEditingUser(null); };
   const closeAdd  = () => { setShowAdd(false); clearPanelError(); };
   const closeEdit = () => { setEditingUser(null); clearPanelError(); };
-
-  async function handleSaveBusinessUnit() {
-    if (!canManageBusinessUnits) return;
-    if (!unitDraft.name.trim()) {
-      setUnitError('Tên đơn vị là bắt buộc.');
-      return;
-    }
-    setSavingUnit(true);
-    setUnitError(null);
-    try {
-      if (editingUnitId != null) {
-        await userClient.updateBusinessUnit(editingUnitId, {
-          code: unitDraft.code.trim() || null,
-          name: unitDraft.name.trim(),
-        });
-        toast({ kind: 'success', message: 'Đã cập nhật đơn vị phụ trách' });
-      } else {
-        await userClient.createBusinessUnit({
-          code: unitDraft.code.trim() || null,
-          name: unitDraft.name.trim(),
-        });
-        toast({ kind: 'success', message: 'Đã tạo đơn vị phụ trách' });
-      }
-      setUnitDraft({ code: '', name: '' });
-      setEditingUnitId(null);
-      await refetchUsers();
-    } catch (err) {
-      setUnitError(err instanceof Error ? err.message : 'Không thể lưu đơn vị phụ trách');
-    } finally {
-      setSavingUnit(false);
-    }
-  }
-
-  async function handleDeactivateBusinessUnit(id: number) {
-    if (!canManageBusinessUnits) return;
-    setSavingUnit(true);
-    setUnitError(null);
-    try {
-      await userClient.deactivateBusinessUnit(id);
-      toast({ kind: 'success', message: 'Đã ngưng sử dụng đơn vị phụ trách' });
-      if (editingUnitId === id) {
-        setEditingUnitId(null);
-        setUnitDraft({ code: '', name: '' });
-      }
-      await refetchUsers();
-    } catch (err) {
-      setUnitError(err instanceof Error ? err.message : 'Không thể ngưng sử dụng đơn vị phụ trách');
-    } finally {
-      setSavingUnit(false);
-    }
-  }
 
   if (loading) {
     return (
@@ -254,101 +197,7 @@ export default function UsersPage() {
       )}
 
       {canManageBusinessUnits && (
-        <section className="business-units">
-          <div className="business-units__header">
-            <div>
-              <h2 className="business-units__title">Đơn vị phụ trách</h2>
-              <p className="business-units__subtitle">
-                Ngừng sử dụng để ẩn đơn vị khỏi các lựa chọn mới. Lịch sử và các liên kết hiện có vẫn được giữ nguyên.
-              </p>
-            </div>
-          </div>
-
-          <div className="business-units__form-grid">
-            <label className="business-units__form-label">
-              <span>Mã đơn vị</span>
-              <input
-                className="input"
-                value={unitDraft.code}
-                onChange={(event) => setUnitDraft((current) => ({ ...current, code: event.target.value }))}
-                placeholder="Ví dụ: HCM"
-                disabled={savingUnit}
-              />
-            </label>
-            <label className="business-units__form-label">
-              <span>Tên đơn vị</span>
-              <input
-                className="input"
-                value={unitDraft.name}
-                onChange={(event) => setUnitDraft((current) => ({ ...current, name: event.target.value }))}
-                placeholder="Ví dụ: Điều hành miền Nam"
-                disabled={savingUnit}
-              />
-            </label>
-          </div>
-
-          <div className="business-units__actions">
-            <button type="button" onClick={handleSaveBusinessUnit} disabled={savingUnit} className="btn btn-primary">
-              {editingUnitId != null ? 'Lưu đơn vị' : 'Tạo đơn vị'}
-            </button>
-            {editingUnitId != null && (
-              <button
-                type="button"
-                onClick={() => {
-                  setEditingUnitId(null);
-                  setUnitDraft({ code: '', name: '' });
-                  setUnitError(null);
-                }}
-                disabled={savingUnit}
-                className="btn btn-ghost"
-              >
-                Hủy sửa
-              </button>
-            )}
-          </div>
-
-          {unitError && <div className="users-error-banner">{unitError}</div>}
-
-          <div className="business-units__list">
-            {businessUnits.map((unit) => (
-              <article
-                key={unit.id}
-                className="business-units__card"
-              >
-                <div>
-                  <strong>{unit.name}</strong>
-                  <div className="business-units__card-meta">
-                    {unit.code ? `Mã ${unit.code}` : 'Không có mã'} · {BUSINESS_UNIT_STATUS_LABELS[unit.status]}
-                  </div>
-                </div>
-                <div className="business-units__card-actions">
-                  <button
-                    type="button"
-                    className="btn btn-ghost"
-                    onClick={() => {
-                      setEditingUnitId(unit.id);
-                      setUnitDraft({ code: unit.code ?? '', name: unit.name });
-                      setUnitError(null);
-                    }}
-                    disabled={savingUnit}
-                  >
-                    Sửa
-                  </button>
-                  {unit.status === 'ACTIVE' && (
-                    <button
-                      type="button"
-                      className="btn btn-danger"
-                      onClick={() => handleDeactivateBusinessUnit(unit.id)}
-                      disabled={savingUnit}
-                    >
-                      Ngưng dùng
-                    </button>
-                  )}
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
+        <BusinessUnitsManager businessUnits={businessUnits} onRefresh={refetchUsers} />
       )}
 
       {confirmDialog}

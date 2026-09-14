@@ -66,11 +66,15 @@ export function AddPanel({
     customerIds.length === 0
     || (customerAccountType === CustomerAccountType.SINGLE_ENTITY && customerIds.length > 1)
   );
-  const businessUnitOptions: SelectionOption[] = businessUnits.map((unit) => ({
-    id: unit.id,
-    title: unit.name,
-    subtitle: unit.code ? `Mã ${unit.code}` : undefined,
-  }));
+  // New assignments only offer ACTIVE units — a deactivated unit must drop
+  // out of fresh selections while existing links (edit panel) stay visible.
+  const businessUnitOptions: SelectionOption[] = businessUnits
+    .filter((unit) => unit.status === 'ACTIVE')
+    .map((unit) => ({
+      id: unit.id,
+      title: unit.name,
+      subtitle: unit.code ? `Mã ${unit.code}` : undefined,
+    }));
   const shipmentSelectionOptions: SelectionOption[] = shipmentOptions.map((shipment) => ({
     id: shipment.id,
     title: shipment.shipmentCode ?? 'Lô hàng chưa có mã',
