@@ -25,6 +25,16 @@
   color: var(--fg-3);
 }
 
+/* Visible vehicle identity above the maintenance workbench (the plate was
+   previously sr-only, leaving the tire page unidentified). */
+.ttp-header .ttp-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.35;
+}
+
 .ttp-back {
   display: inline-flex;
   align-items: center;

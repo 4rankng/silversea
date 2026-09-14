@@ -102,7 +102,7 @@ export function CrudTable<T extends { id: number }>({
 
   return (
     <div className={wrapperClass}>
-      <PageHeader title={title} description={description} onBack={() => navigate(backTo)} iconName={iconName} />
+      <PageHeader title={title} description={description} onBack={() => navigate(backTo)} iconName={iconName} showTitle />
       <Panel flush>
         <div className="toolbar">
           <div style={{ flex: 1, minWidth: 0 }}>

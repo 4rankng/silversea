@@ -91,8 +91,10 @@ export function ExecutiveFinancialStrip({ enabled }: { enabled: boolean }) {
         ))}
       </div>
 
-      <footer>
-        Cập nhật {formatDateTimeVN(data.asOf)} · {data.definitionVersion}
+      {/* The definition identifier stays available to support via tooltip —
+          out of the visible summary an admin reads (QA-033 family). */}
+      <footer title={`Định nghĩa dữ liệu: ${data.definitionVersion}`}>
+        Cập nhật {formatDateTimeVN(data.asOf)}
       </footer>
     </section>
   );
