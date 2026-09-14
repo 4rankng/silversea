@@ -14,6 +14,11 @@ export function ActionBar({ loading, onCancel, onSubmit }: ActionBarProps) {
   const barRef = useRef<HTMLDivElement>(null);
   const form = useTripFormContext();
   const allFilled = form.requiredFieldsFilled >= form.totalRequiredFields;
+  // Leg validity gates the button with the SAME rule the submit path
+  // enforces — the bar must never promise "ready" for a form that would
+  // fail validation on submit.
+  const legsReady = form.legsValid;
+  const ready = allFilled && legsReady;
   const disabled = form.submitting || isAnyUploading(form.uploading) || loading;
 
   // The guided tour is mounted at the app root, while this bar is fixed within
@@ -46,14 +51,16 @@ export function ActionBar({ loading, onCancel, onSubmit }: ActionBarProps) {
           </span>
           <div>
             <div className="tc-action-bar__status-main">
-              {allFilled ? 'Sẵn sàng tạo lệnh' : `Còn ${form.totalRequiredFields - form.requiredFieldsFilled} trường bắt buộc chưa điền`}
+              {allFilled && !legsReady
+                ? 'Chặng chưa hợp lệ — cần đủ điểm đi, điểm đến và quãng đường không âm'
+                : allFilled ? 'Sẵn sàng tạo lệnh' : `Còn ${form.totalRequiredFields - form.requiredFieldsFilled} trường bắt buộc chưa điền`}
             </div>
             <div className="tc-action-bar__status-sub">Điền đủ trường bắt buộc để bật nút "Tạo lệnh"</div>
           </div>
         </div>
         <div className="tc-action-bar__spacer" />
         <button className="btn btn--ghost" type="button" onClick={onCancel} disabled={form.submitting}>Hủy</button>
-        <button className="btn btn--primary" id="trip-new-submit" type="button" disabled={disabled || !allFilled} onClick={onSubmit}>
+        <button className="btn btn--primary" id="trip-new-submit" type="button" disabled={disabled || !ready} onClick={onSubmit}>
           {form.submitting ? <Loader2 size={16} className="spin" /> : <ArrowRight size={16} />}
           Tạo lệnh
         </button>

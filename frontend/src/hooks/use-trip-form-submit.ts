@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { FuelMode, TripStatus } from '@tingting/shared';
 import type { TripDetail } from '@tingting/shared';
@@ -14,6 +14,21 @@ import { moneyInputToNumber } from '../lib/moneyInput';
 function moneyOrZero(value: string): number { return moneyInputToNumber(value) ?? 0; }
 function moneyOrUndefined(value: string): number | undefined { return moneyInputToNumber(value); }
 function moneyOrNull(value: string): number | null { return moneyInputToNumber(value) ?? null; }
+
+/** Pre-create leg validation: a leg with any field filled must carry both
+ *  endpoints and a non-negative numeric distance. Pure and shared with the
+ *  form's readiness bar so submit-time errors and the bar can never
+ *  disagree about the same legs. Fully-empty rows are exempt (they are
+ *  filtered out of the submission). */
+export function findInvalidLeg(legs: FormLeg[]): FormLeg | null {
+  for (const leg of legs) {
+    const filled = leg.origin.trim() !== '' || leg.destination.trim() !== '' || leg.km.trim() !== '';
+    if (!filled) continue;
+    const kmNum = leg.km.trim() === '' ? 0 : Number(leg.km);
+    if (!leg.origin.trim() || !leg.destination.trim() || Number.isNaN(kmNum) || kmNum < 0) return leg;
+  }
+  return null;
+}
 type ServerContainerAfterSave = { id: number; containerTypeId?: number | null; containerNumber?: string | null; sealNumber?: string | null; cargoWeightKg?: string | number | null; notes?: string | null; seals?: Array<{ id: number; sealNumber: string; sealType?: string | null; notes?: string | null }>; photos?: Array<{ id: number; type: 'CONTAINER' | 'SEAL'; storageKey: string; uploadedAt: string }> };
 
 interface SubmitOptions {
@@ -36,6 +51,14 @@ interface Params {
 export function useTripFormSubmit({ state: s, isEditMode, existingTrip, legs, requiredFieldsFilled, hasOptionalData, photoUrls, flushPendingPhotos, flushPendingContainerPhotos, governanceReason, onCreditLimitBlocked }: Params): (e?: React.FormEvent, options?: SubmitOptions) => Promise<number | undefined> {
 const queryClient = useQueryClient();
 const { toast: showToast } = useToast();
+// One create idempotency key per form session: a retry of the SAME payload
+// replays the same trip server-side instead of duplicating it (the create
+// endpoint already persists an Idempotency-Key ledger). If the user edits
+// the form after a stranded create and retries, the old key 409s ("nội dung
+// khác"); that conflict mints a fresh key once so the corrected submission
+// is never stuck. Cleared on success — an intentional second create must
+// never replay the first.
+const createIdempotencyKeyRef = useRef<string | null>(null);
 const handleSubmit = useCallback(
   async (e?: React.FormEvent, options?: SubmitOptions): Promise<number | undefined> => {
     e?.preventDefault();
@@ -421,6 +444,22 @@ const handleSubmit = useCallback(
         return existingTrip.id;
       }
 
+      // Validate the optional block BEFORE creating anything. The old flow
+      // POSTed the base trip first and validated legs after — an invalid leg
+      // stranded a "Mới tạo" trip and the corrected retry duplicated it.
+      if (hasOptionalData) {
+        const invalidLeg = findInvalidLeg(legs);
+        if (invalidLeg) {
+          throw new Error(
+            `Leg ${invalidLeg.sequence} is invalid (Both origin and destination are required; Distance must be a non-negative number).`,
+          );
+        }
+        const supplementNum = Number(s.fuelSupplementLiters);
+        if (supplementNum > 0 && !s.fuelSupplementReason.trim()) {
+          throw new Error("Please enter a reason for fuel supplement.");
+        }
+      }
+
       const createPayload: Record<string, unknown> = {
         customerId: Number(s.customerId),
         routeId: Number(s.routeId),
@@ -457,7 +496,27 @@ const handleSubmit = useCallback(
       if (effectiveCreditApprovalRequestId != null) {
         createPayload.creditApprovalRequestId = effectiveCreditApprovalRequestId;
       }
-      const trip = await api.post<{ id: number }>("/trips", createPayload);
+      const postCreate = () => {
+        createIdempotencyKeyRef.current ??= crypto.randomUUID();
+        return api.post<{ id: number }>("/trips", createPayload, {
+          headers: { 'Idempotency-Key': createIdempotencyKeyRef.current },
+        });
+      };
+      let trip: { id: number };
+      try {
+        trip = await postCreate();
+      } catch (keyError) {
+        const keyConflict = keyError instanceof ApiError
+          && keyError.status === 409
+          && keyError.message.includes('mã giao dịch');
+        if (!keyConflict) throw keyError;
+        // Same form-session key, different payload (the form was edited
+        // after a stranded create): the server refuses the replay — mint a
+        // fresh key and retry once so the corrected submission proceeds.
+        console.warn('Trip create idempotency key conflict — regenerating key and retrying once.', keyError.message);
+        createIdempotencyKeyRef.current = crypto.randomUUID();
+        trip = await postCreate();
+      }
 
       // Upload any create-mode OCR photos now that we have a trip id,
       // replacing their local previews with real server URLs.
@@ -472,27 +531,9 @@ const handleSubmit = useCallback(
         const legsToSubmit = legs.filter(
           (leg) => leg.origin.trim() !== '' || leg.destination.trim() !== '' || leg.km.trim() !== '',
         );
-        for (const leg of legsToSubmit) {
-          const kmRaw = (leg.km ?? '').toString().trim();
-          const kmNum = kmRaw === '' ? 0 : Number(kmRaw);
-          if (
-            !leg.origin.trim() ||
-            !leg.destination.trim() ||
-            Number.isNaN(kmNum) ||
-            kmNum < 0
-          ) {
-            throw new Error(
-              `Leg ${leg.sequence} is invalid (Both origin and destination are required; Distance must be a non-negative number).`,
-            );
-          }
-        }
-
-        const supplementNum = Number(s.fuelSupplementLiters);
-        if (supplementNum > 0 && !s.fuelSupplementReason.trim()) {
-          throw new Error("Please enter a reason for fuel supplement.");
-        }
 
         if (legsToSubmit.length === 0) {
+          createIdempotencyKeyRef.current = null;
           return trip.id;
         }
 
@@ -544,6 +585,7 @@ const handleSubmit = useCallback(
       // empty and a no-op upsert would still create an empty row + an
       // audit entry. The user fills the instructions later on the edit
       // page, where the upsert runs.
+      createIdempotencyKeyRef.current = null;
       await queryClient.invalidateQueries({ queryKey: qk.trips.all });
       return trip.id;
     } catch (err) {

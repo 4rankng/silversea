@@ -200,8 +200,14 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   'src/features/trips/tripColumns.tsx': 513,
   'src/features/users/components/UserEditPanel.tsx': 423,
   'src/features/users/components/UserTable.tsx': 603,
-  'src/hooks/use-trip-form-submit.ts': 609,
-  'src/hooks/useTripFormDispatch.ts': 546,
+  // Bumped 609 → 650: 2026-09-14 trip-create atomicity — pre-create leg
+  // validation (shared findInvalidLeg helper) + form-session idempotency key
+  // with conflict regen. Reviewed as a contract change.
+  'src/hooks/use-trip-form-submit.ts': 650,
+  // Bumped 546 → 553: 2026-09-14 readiness includes leg validity (same
+  // shared rule as submit) exposed to the action bar. Reviewed as a
+  // contract change.
+  'src/hooks/useTripFormDispatch.ts': 553,
   'src/pages/AdminAdvanceSettlementsPage.tsx': 609,
   'src/pages/AdminAdvancesPage.tsx': 564,
   'src/pages/AuditLogPage.tsx': 568,

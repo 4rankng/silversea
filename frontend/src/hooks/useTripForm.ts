@@ -134,6 +134,7 @@ export interface UseTripFormReturn {
   completedSections: number;
   requiredFieldsFilled: number;
   totalRequiredFields: number;
+  legsValid: boolean;
 
   submitting: boolean;
   uploading: UploadingState;
@@ -230,6 +231,7 @@ export function useTripForm(arg: TripOptions | UseTripFormParams): UseTripFormRe
     completedSections: d.completedSections,
     requiredFieldsFilled: d.requiredFieldsFilled,
     totalRequiredFields: d.totalRequiredFields,
+    legsValid: d.legsValid,
     submitting: s.submitting, uploading: d.uploading, ocrResult: d.ocrResult, error: s.error, setError: s.setError, handleSubmit: d.handleSubmit,
     tripId: isEditMode ? existingTrip?.id : undefined,
     tripStatus: isEditMode ? existingTrip?.status : undefined,

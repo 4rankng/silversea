@@ -19,10 +19,12 @@ vi.mock('../lib/api', () => ({
     post: postMock,
     put: putMock,
   },
+  // Mirrors the real constructor (status, raw, message) so tests construct
+  // failures exactly like the api client parses them.
   ApiError: class extends Error {
     status: number;
 
-    constructor(message: string, status = 500) {
+    constructor(status: number, raw: unknown, message: string) {
       super(message);
       this.status = status;
     }
@@ -39,7 +41,8 @@ vi.mock('../components/shared/Toast', () => ({
   useToast: () => ({ toast: toastMock }),
 }));
 
-import { useTripFormSubmit } from './use-trip-form-submit';
+import { ApiError } from '../lib/api';
+import { findInvalidLeg, useTripFormSubmit } from './use-trip-form-submit';
 
 function createWrapper() {
   const queryClient = new QueryClient({
@@ -256,5 +259,130 @@ describe('useTripFormSubmit cargo type validation', () => {
       kind: 'error',
       message: 'Loại hàng là bắt buộc.',
     });
+  });
+});
+
+// Trip-create atomicity (QA-030): the old flow POSTed the base trip before
+// validating generated legs — an invalid leg stranded a "Mới tạo" trip and
+// the corrected retry duplicated it. Validation now runs BEFORE any network
+// call; the create POST carries a form-session idempotency key (same
+// payload retried = same trip server-side); a key/payload conflict after an
+// edited retry regenerates the key once instead of stranding the user.
+describe('useTripFormSubmit create atomicity', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  function renderSubmitHook(args: Partial<Parameters<typeof useTripFormSubmit>[0]> = {}) {
+    const { result } = renderHook(
+      () => useTripFormSubmit({
+      state: makeState(),
+      isEditMode: false,
+      existingTrip: undefined,
+      legs: validLegs,
+      requiredFieldsFilled: 99,
+      hasOptionalData: true,
+      photoUrls: [],
+      flushPendingPhotos: vi.fn(async () => []),
+      flushPendingContainerPhotos: vi.fn(async () => new Map()),
+        ...args,
+      }),
+      { wrapper: createWrapper() },
+    );
+    return result;
+  }
+
+  it('rejects invalid legs BEFORE creating anything — no POST, no stranded trip', async () => {
+    const setError = vi.fn();
+    const result = renderSubmitHook({
+      state: makeState({ setError }),
+      legs: [{ ...validLegs[0]!, origin: '', destination: 'Kho Bắc Ninh', km: '120' }],
+    });
+
+    const outcome = await act(async () => result.current());
+
+    expect(outcome).toBeUndefined();
+    expect(postMock).not.toHaveBeenCalled();
+    expect(setError).toHaveBeenCalledWith('Leg 1 is invalid (Both origin and destination are required; Distance must be a non-negative number).');
+  });
+
+  it('rejects a fuel supplement without a reason before creating', async () => {
+    const setError = vi.fn();
+    const result = renderSubmitHook({
+      state: makeState({ fuelSupplementLiters: '10', fuelSupplementReason: '', setError }),
+    });
+
+    const outcome = await act(async () => result.current());
+
+    expect(outcome).toBeUndefined();
+    expect(postMock).not.toHaveBeenCalled();
+    expect(setError).toHaveBeenCalledWith('Please enter a reason for fuel supplement.');
+  });
+
+  it('creates once with an idempotency key and forwards the legs to pre-departure', async () => {
+    postMock.mockResolvedValue({ id: 77 });
+    putMock.mockResolvedValue({});
+    const result = renderSubmitHook();
+
+    const outcome = await act(async () => result.current());
+
+    expect(outcome).toBe(77);
+    expect(postMock).toHaveBeenCalledTimes(1);
+    expect(postMock.mock.calls[0]![0]).toBe('/trips');
+    expect(typeof postMock.mock.calls[0]![2].headers['Idempotency-Key']).toBe('string');
+    expect(putMock).toHaveBeenCalledWith('/trips/77/pre-departure', expect.objectContaining({
+      legs: [expect.objectContaining({ origin: 'Cảng Hải Phòng', destination: 'Kho Bắc Ninh', km: 120 })],
+    }));
+  });
+
+  it('retries the same payload under the SAME key after a mid-chain failure — the server replays, no duplicate', async () => {
+    postMock.mockResolvedValue({ id: 88 });
+    putMock.mockRejectedValueOnce(new Error('network down')).mockResolvedValue({});
+    const result = renderSubmitHook();
+
+    const first = await act(async () => result.current());
+    expect(first).toBeUndefined();
+
+    const second = await act(async () => result.current());
+    expect(second).toBe(88);
+    expect(postMock).toHaveBeenCalledTimes(2);
+    const key1 = postMock.mock.calls[0]![2].headers['Idempotency-Key'];
+    const key2 = postMock.mock.calls[1]![2].headers['Idempotency-Key'];
+    expect(key2).toBe(key1);
+  });
+
+  it('regenerates the key once when an edited retry 409s on key/payload mismatch', async () => {
+    postMock
+      .mockRejectedValueOnce(new ApiError(409, undefined, 'Khóa giao dịch trùng nhưng nội dung khác — vui lòng dùng mã giao dịch mới.'))
+      .mockResolvedValueOnce({ id: 99 });
+    const result = renderSubmitHook();
+
+    const outcome = await act(async () => result.current());
+
+    expect(outcome).toBe(99);
+    expect(postMock).toHaveBeenCalledTimes(2);
+    const key1 = postMock.mock.calls[0]![2].headers['Idempotency-Key'];
+    const key2 = postMock.mock.calls[1]![2].headers['Idempotency-Key'];
+    expect(key2).not.toBe(key1);
+  });
+
+  it('surfaces other 409s without a key retry', async () => {
+    postMock.mockRejectedValueOnce(new ApiError(409, undefined, 'Version conflict'));
+    const result = renderSubmitHook();
+
+    const outcome = await act(async () => result.current());
+
+    expect(outcome).toBeUndefined();
+    expect(postMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('findInvalidLeg (shared submit/readiness rule)', () => {
+  it('flags partially-filled legs; passes complete and fully-empty ones', () => {
+    expect(findInvalidLeg(validLegs)).toBeNull();
+    expect(findInvalidLeg([{ ...validLegs[0]!, destination: '' }])?.sequence).toBe(1);
+    expect(findInvalidLeg([{ ...validLegs[0]!, origin: '', destination: '', km: '' }])).toBeNull();
+    expect(findInvalidLeg([{ ...validLegs[0]!, km: '-5' }])?.sequence).toBe(1);
+    expect(findInvalidLeg([{ ...validLegs[0]!, km: 'abc' }])?.sequence).toBe(1);
   });
 });

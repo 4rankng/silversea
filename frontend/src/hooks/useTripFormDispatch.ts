@@ -17,6 +17,7 @@ import { qk } from '../api/keys';
 
 import type { TripOptions, RouteOption } from './useTripOptions';
 import { useTripFormLegs } from './useTripFormLegs';
+import { findInvalidLeg } from './use-trip-form-submit';
 import type { FormLeg } from './useTripFormLegs';
 import { useTripFormPhotos } from './useTripFormPhotos';
 import type { OcrResultHandler, UploadingState, ContainerPhotoUploadResult } from './useTripFormPhotos';
@@ -75,6 +76,7 @@ export interface UseTripFormDispatchReturn {
   completedSections: number;
   requiredFieldsFilled: number;
   totalRequiredFields: number;
+  legsValid: boolean;
   uploading: UploadingState;
   ocrResult: OcrSignal | null;
   handleSubmit: (e?: React.FormEvent, options?: { creditApprovalRequestId?: number | null }) => Promise<number | undefined>;
@@ -417,6 +419,11 @@ export function useTripFormDispatch(params: UseTripFormDispatchParams): UseTripF
     s.externalFreightCost, s.externalDriverName, s.externalDriverPhone
   ]);
 
+  // Readiness includes the legs: the bar must agree with the submit-time
+  // validation (same shared rule) — "Sẵn sàng tạo lệnh" never shows while a
+  // partially-filled leg would fail the create.
+  const legsValid = findInvalidLeg(legs) == null;
+
   const completionStatus = useMemo((): CompletionStatus => {
     let fuelRevenue = 0;
     if (s.fuelMode) fuelRevenue++;
@@ -518,6 +525,7 @@ export function useTripFormDispatch(params: UseTripFormDispatchParams): UseTripF
 
   return {
     legs, addLeg, removeLeg, updateLeg,
+    legsValid,
     photoUrls, uploading, uploadPhotos, removePhoto,
     uploadContainerPhoto, revokeRowPhotos, revokeContainerPhoto,
     ocrResult,
