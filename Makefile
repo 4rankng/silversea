@@ -201,12 +201,13 @@ down: ## Stop everything including db and redis
 # containers and applies pending Drizzle migrations on top of the existing DB.
 # It never touches the database volume, so existing data is preserved.
 #
-# Flow:  build+push images → record the running backend/frontend images for
-#        rollback → pull on server → recreate backend/frontend only → drizzle-kit
-#        migrate (additive, on top of live DB) → public backend + frontend checks.
+# Flow:  build+push images → pull on server → recreate backend/frontend only →
+#        drizzle-kit migrate (additive, on top of live DB) → public backend +
+#        frontend checks.
 #
-# Automatic image pruning is intentionally excluded: the recorded pre-cutover
-# image IDs must remain available until a later, explicitly reviewed cleanup.
+# No backup or rollback snapshot files are created on the staging server
+# (user ruling 2026-09-14): staging data is disposable, and backup files
+# filled the droplet disk. The prod `deploy` target keeps its own backups.
 #
 # Prereqs: gh CLI authenticated with the `write:packages` scope
 # (gh auth refresh -h github.com -s write:packages), and SSH access to
@@ -226,11 +227,9 @@ demo: ## Deploy the current tree to staging (vantai.tingting.vip) — keeps exis
 	@echo "1/4  Building + pushing :latest images..."
 	@$(MAKE) --no-print-directory -C backend push
 	@$(MAKE) --no-print-directory -C frontend push
-	@echo "2/4  Rollback capture + image pull on $(DEMO_SERVER) (DB volume untouched)..."
-	@ssh root@$(DEMO_SERVER) "set -eu; cd $(DEMO_PATH); rollback_dir=.deploy-rollbacks; mkdir -p \"\$$rollback_dir\"; backend_container=\$$($(DEMO_COMPOSE) ps -q backend); frontend_container=\$$($(DEMO_COMPOSE) ps -q frontend); test -n \"\$$backend_container\" || { echo 'No running backend container; refusing cutover without rollback image.' >&2; exit 1; }; test -n \"\$$frontend_container\" || { echo 'No running frontend container; refusing cutover without rollback image.' >&2; exit 1; }; backend_image_id=\$$(docker inspect --format='{{.Image}}' \"\$$backend_container\"); frontend_image_id=\$$(docker inspect --format='{{.Image}}' \"\$$frontend_container\"); backend_digest=\$$(docker image inspect --format='{{if .RepoDigests}}{{index .RepoDigests 0}}{{end}}' \"\$$backend_image_id\"); frontend_digest=\$$(docker image inspect --format='{{if .RepoDigests}}{{index .RepoDigests 0}}{{end}}' \"\$$frontend_image_id\"); snapshot=\"\$$rollback_dir/pre-cutover-\$$(date -u +%Y%m%dT%H%M%SZ).env\"; { printf 'BACKEND_IMAGE_ID=%s\\n' \"\$$backend_image_id\"; printf 'BACKEND_REPO_DIGEST=%s\\n' \"\$$backend_digest\"; printf 'FRONTEND_IMAGE_ID=%s\\n' \"\$$frontend_image_id\"; printf 'FRONTEND_REPO_DIGEST=%s\\n' \"\$$frontend_digest\"; } > \"\$$snapshot\"; ln -sfn \"\$$(basename \"\$$snapshot\")\" \"\$$rollback_dir/latest\"; echo \"Rollback snapshot retained: $(DEMO_PATH)/\$$snapshot\"; cat \"\$$snapshot\""
+	@echo "2/4  Image pull on $(DEMO_SERVER) (DB volume untouched)..."
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) pull backend frontend"
-	@echo "3/4  Server DB backup + migrate + cutover..."
-	@ssh root@$(DEMO_SERVER) "set -eu; cd $(DEMO_PATH); mkdir -p .db-backups; pg_container=\$$($(DEMO_COMPOSE) ps -q postgres); test -n \"\$$pg_container\" || { echo 'No postgres container running' >&2; exit 1; }; pg_env_of() { docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' \"\$$1\"; }; pg_user=\$$(pg_env_of \"\$$pg_container\" | sed -n 's/^POSTGRES_USER=//p' | head -1); pg_db=\$$(pg_env_of \"\$$pg_container\" | sed -n 's/^POSTGRES_DB=//p' | head -1); pg_user=\$${pg_user:-postgres}; pg_db=\$${pg_db:-\$$pg_user}; backup=\".db-backups/db-\$$(date -u +%Y%m%dT%H%M%SZ).dump\"; docker exec -i \"\$$pg_container\" pg_dump -U \"\$$pg_user\" -Fc \"\$$pg_db\" > \"\$$backup\"; size=\$$(wc -c < \"\$$backup\" | tr -d ' '); if [ \"\$$size\" -lt 1024 ]; then echo \"Backup suspiciously small (\$$size bytes) — aborting deploy\" >&2; exit 1; fi; echo \"✅ Server DB backup: $(DEMO_PATH)/\$$backup (\$$size bytes) [user=\$$pg_user db=\$$pg_db]\""
+	@echo "3/4  Migrate + cutover..."
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && flock -w 900 .deploy-migrate.lock $(DEMO_COMPOSE) run --rm --no-deps backend npx drizzle-kit migrate"
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) rm -sf backend frontend || true"
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && BUILD_HASH=$(DEPLOY_BUILD_HASH) $(DEMO_COMPOSE) up -d --no-deps backend frontend"
