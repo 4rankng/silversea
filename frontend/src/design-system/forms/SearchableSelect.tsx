@@ -100,6 +100,7 @@ export function SearchableSelect({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const optionRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
@@ -186,6 +187,14 @@ export function SearchableSelect({
       setActiveIndex(Math.max(0, filteredOptions.length - 1));
     }
   }, [activeIndex, filteredOptions.length]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const el = optionRefs.current[activeIndex];
+    if (el && typeof el.scrollIntoView === 'function') {
+      el.scrollIntoView({ block: 'nearest' });
+    }
+  }, [activeIndex, isOpen]);
 
   const open = () => {
     if (disabled) return;
@@ -318,6 +327,7 @@ export function SearchableSelect({
               return (
                 <li key={option.value} role="presentation">
                   <button
+                    ref={(el) => { optionRefs.current[index] = el; }}
                     id={`${listboxId}-option-${option.value}`}
                     type="button"
                     role="option"
