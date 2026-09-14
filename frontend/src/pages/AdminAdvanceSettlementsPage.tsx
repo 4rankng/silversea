@@ -17,7 +17,6 @@ import { Money } from '../components/shared/Money';
 import {
   useAdminSettlements,
   useAdminAdvanceBalances,
-  useRejectSettlement,
 } from '../hooks/useForwarderQueries';
 import { advanceSettlementStatusVariant } from '../lib/status-variants';
 import { useFocusDeepLink } from '../hooks/useFocusDeepLink';
@@ -92,7 +91,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 function settlementStatusLabel(status: AdvanceSettlementStatus): string {
   return status === AdvanceSettlementStatus.CHECKED_BY_ACCOUNTANT
-    ? 'Đã kiểm tra · Chờ phê duyệt'
+    ? 'KT đã kiểm tra (dữ liệu cũ)'
     : ADVANCE_SETTLEMENT_STATUS_LABELS[status];
 }
 
@@ -149,17 +148,11 @@ function AsKPI({ label, value, meta, variant, iconName, active = false, hasItems
 
 export function SettlementGridRow({
   s,
-  rejectMutation,
   focusId,
-  canApproveReject,
 }: {
   s: Settlement;
-  rejectMutation: ReturnType<typeof useRejectSettlement>;
   focusId?: string;
-  canApproveReject: boolean;
 }) {
-  const isRejecting = rejectMutation.isPending && rejectMutation.variables?.id === s.id;
-  const canAct = s.status === AdvanceSettlementStatus.PENDING || s.status === AdvanceSettlementStatus.CHECKED_BY_ACCOUNTANT;
   const plans = groupSettlementExpensesByTrip(s.linkedExpenses ?? []);
   const rows = plans.length > 0 ? plans : [null];
 
@@ -232,40 +225,14 @@ export function SettlementGridRow({
             </StatusPill>
           </div>
 
-          <div className={`as-actions${canAct ? '' : ' as-actions--history'}`}>
-            {canAct ? (
-              <>
-                <Link
-                  className="as-row-action"
-                  to={`/settlements/${s.id}`}
-                  aria-label={`${canApproveReject ? 'Kiểm tra' : 'Xem'} ${s.code}`}
-                >
-                  {canApproveReject && <Pencil size={15} aria-hidden="true" />}
-                  {canApproveReject ? 'Kiểm tra' : 'Xem phiếu'}
-                </Link>
-                {canApproveReject && (
-                  <button
-                    className="as-reject-action"
-                    onClick={() => rejectMutation.mutate({ id: s.id, expectedVersion: s.version })}
-                    disabled={isRejecting}
-                    title="Từ chối hoàn ứng"
-                    aria-label={`Từ chối hoàn ứng ${s.code}`}
-                  >
-                    {isRejecting ? <Loader2 size={16} className="spin" /> : <XCircle size={16} />}
-                  </button>
-                )}
-              </>
-            ) : (
-              <>
-                <Link className="as-row-action as-row-action--quiet" to={`/settlements/${s.id}`}>
-                  Xem phiếu
-                </Link>
-                {(s.approverName || s.checkerName) && (
-                  <div className="as-approver">
-                    {s.approverName ? <>Duyệt bởi <strong>{s.approverName}</strong></> : <>KT <strong>{s.checkerName}</strong></>}
-                  </div>
-                )}
-              </>
+          <div className="as-actions as-actions--history">
+            <Link className="as-row-action as-row-action--quiet" to={`/settlements/${s.id}`}>
+              Xem phiếu
+            </Link>
+            {(s.approverName || s.checkerName) && (
+              <div className="as-approver">
+                {s.approverName ? <>Ghi nhận bởi <strong>{s.approverName}</strong></> : <>KT <strong>{s.checkerName}</strong></>}
+              </div>
             )}
           </div>
         </div>
@@ -278,17 +245,11 @@ export function SettlementGridRow({
 
 export function SettlementMobileCard({
   s,
-  rejectMutation,
   focusId,
-  canApproveReject,
 }: {
   s: Settlement;
-  rejectMutation: ReturnType<typeof useRejectSettlement>;
   focusId?: string;
-  canApproveReject: boolean;
 }) {
-  const isRejecting = rejectMutation.isPending && rejectMutation.variables?.id === s.id;
-  const canAct = s.status === AdvanceSettlementStatus.PENDING || s.status === AdvanceSettlementStatus.CHECKED_BY_ACCOUNTANT;
   const scope = summarizeSettlementExpenses(s.linkedExpenses);
   const plans = groupSettlementExpensesByTrip(s.linkedExpenses ?? []);
 
@@ -375,29 +336,11 @@ export function SettlementMobileCard({
         </div>
       )}
 
-      {/* Actions */}
-      {canAct ? (
-        <div className="as-mcard__actions">
-          {canApproveReject && (
-            <Link className="btn btn--primary" to={`/settlements/${s.id}`}>
-              <Pencil size={16} aria-hidden="true" /> Kiểm tra &amp; hoàn tất
-            </Link>
-          )}
-          {canApproveReject && (
-            <button
-              className="btn as-mcard__reject"
-              onClick={() => rejectMutation.mutate({ id: s.id, expectedVersion: s.version })}
-              disabled={isRejecting}
-              aria-label={`Từ chối hoàn ứng ${s.code}`}
-            >
-              {isRejecting ? <Loader2 size={16} className="spin" /> : <XCircle size={16} />}
-              Từ chối
-            </button>
-          )}
-        </div>
-      ) : (s.approverName || s.checkerName) ? (
+      {/* Actions — direct-effect: view the voucher; reviewer names are
+          historical audit records, not pending handoffs. */}
+      {(s.approverName || s.checkerName) ? (
         <div className="as-mcard__reviewer">
-          <span>{s.approverName ? 'Duyệt bởi' : 'KT kiểm tra'}</span>
+          <span>{s.approverName ? 'Ghi nhận bởi' : 'KT kiểm tra'}</span>
           <strong>{s.approverName ?? s.checkerName}</strong>
         </div>
       ) : null}
@@ -420,9 +363,6 @@ export default function AdminAdvanceSettlementsPage({ embedded = false }: { embe
   });
   const { data: balancesData } = useAdminAdvanceBalances();
   const { rootRef } = usePageAnimations({ ready: !isLoading });
-  const rejectMutation = useRejectSettlement();
-  const { user } = useAuth();
-  const canApproveReject = user?.role === Role.ADMIN || user?.role === Role.ACCOUNTANT;
 
   const settlements: Settlement[] = useMemo(
     () => (data?.items ?? []) as Settlement[],
@@ -568,9 +508,7 @@ export default function AdminAdvanceSettlementsPage({ embedded = false }: { embe
                     <SettlementGridRow
                       key={s.id}
                       s={s}
-                      rejectMutation={rejectMutation}
                       focusId={`as-${s.id}`}
-                      canApproveReject={canApproveReject}
                     />
                   ))}
                 </div>
@@ -583,9 +521,7 @@ export default function AdminAdvanceSettlementsPage({ embedded = false }: { embe
                 <SettlementMobileCard
                   key={s.id}
                   s={s}
-                  rejectMutation={rejectMutation}
                   focusId={`as-${s.id}`}
-                  canApproveReject={canApproveReject}
                 />
               ))}
             </div>
