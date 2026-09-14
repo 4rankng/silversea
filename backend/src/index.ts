@@ -146,10 +146,8 @@ app.use(cors({
       : false,
 }));
 app.use(express.json());
-app.use('/uploads', express.static(config.uploadDir));
-
 // Inlined request logger (was middleware/logger.ts — too shallow for its own module)
-const LOG_SKIP_PATHS = ['/api/health', '/uploads', '/favicon.ico'];
+const LOG_SKIP_PATHS = ['/api/health', '/favicon.ico'];
 app.use((req, res, next) => {
   if (LOG_SKIP_PATHS.some(p => req.path.startsWith(p))) return next();
   const start = Date.now();
