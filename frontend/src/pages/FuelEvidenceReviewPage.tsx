@@ -93,6 +93,14 @@ export default function FuelEvidenceReviewPage() {
           max-width: 220px !important;
           min-height: 44px;
         }
+        /* The select's WRAPPER is the toolbar's flex child; its width:100%
+         * sets flex-basis to the full row, so with flex-shrink on, the
+         * guidance (min-width: 0) collapsed to a 0px word-column beneath it.
+         * Give the wrapper an explicit 220px flex-basis (matching the
+         * control's min/max cap) so the guidance owns the remaining space. */
+        .fuel-evidence-review__toolbar > .ds-uui-select {
+          flex: 0 0 220px;
+        }
         .fuel-evidence-review__card {
           display: grid;
           gap: 14px;

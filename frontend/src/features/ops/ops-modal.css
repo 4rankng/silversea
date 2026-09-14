@@ -1,0 +1,217 @@
+/* Shared ops modal shell — owned by the components that render it, not by
+ * any page stylesheet. History: these rules lived in OpsOrdersPage.css, so
+ * the same dialogs rendered UNSTYLED inline (no backdrop, no card, joined
+ * ĐóngLưu) on pages that never imported that file — /fleet/vehicles'
+ * Ops-phụ-trách dialog and /ops/wallet on a fresh load. The components
+ * import this stylesheet themselves, so wherever a modal renders, its
+ * surface paints. The backdrop outranks the app topbar (z-index 100) so the
+ * fixed header can never cover a dialog's title or close control.
+ */
+.ops-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 15, 15, 0.45);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 24px 12px;
+  overflow-y: auto;
+  z-index: var(--z-modal);
+}
+
+.ops-modal {
+  width: min(640px, 100%);
+  background: var(--bg-1, #fff);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.ops-modal__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line, #e7e2d8);
+}
+
+.ops-modal__head h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.ops-modal__head button {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--fg-2, #555);
+}
+
+.ops-modal__body {
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ops-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.ops-form-grid label,
+.ops-form-note {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg-2, #444);
+}
+
+.ops-form-grid input,
+.ops-form-grid select,
+.ops-form-note textarea {
+  border: 1px solid var(--line, #d8d3cb);
+  border-radius: 9px;
+  padding: 9px 10px;
+  font-size: 14px;
+  font-weight: 400;
+  background: var(--bg-1, #fff);
+  color: var(--fg-1, #222);
+}
+
+.ops-form-grid input[readonly] {
+  background: var(--bg-2, #f5f2ec);
+  color: var(--fg-2, #666);
+}
+
+.ops-form-photos__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg-2, #444);
+}
+
+.ops-form-photos__list {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 8px 0 0;
+  padding: 0;
+}
+
+.ops-form-photos__list li {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  border-radius: 9px;
+  overflow: hidden;
+  border: 1px solid var(--line, #e3ded5);
+}
+
+.ops-form-photos__list img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ops-form-photos__list button {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(20, 20, 20, 0.65);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.ops-form-photos__hint {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--fg-3, #6b7280);
+}
+
+.ops-modal__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--line, #e7e2d8);
+  font-size: 13px;
+  color: var(--fg-2, #444);
+}
+
+.ops-modal__actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Modal action buttons — styled here (not page css) so the footer actions
+ * never render as joined bare text on a page that lacks a modal context. */
+.btn-secondary,
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.btn-secondary {
+  border: 1px solid var(--line, #d8d3cb);
+  background: var(--bg-1, #fff);
+  color: var(--fg-1, #222);
+}
+
+.btn-primary {
+  border: none;
+  background: var(--ink, #1c1c1c);
+  color: #fff;
+}
+
+.btn-primary:disabled,
+.btn-secondary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.spin {
+  animation: ops-spin 0.9s linear infinite;
+}
+
+@keyframes ops-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 680px) {
+  .ops-modal__foot {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+
+  .ops-modal__actions {
+    flex-direction: column-reverse;
+  }
+
+  .ops-modal__actions .btn-primary,
+  .ops-modal__actions .btn-secondary {
+    width: 100%;
+    justify-content: center;
+  }
+}

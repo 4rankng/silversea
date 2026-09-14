@@ -13,6 +13,7 @@ import { OpsSettlementSheet } from './OpsSettlementsPanel';
 import { useAdminOpsSettlement } from '../../hooks/useOpsQueries';
 import { formatVnd } from './opsStatus';
 
+import './ops-modal.css';
 const STATUS_FILTERS: Array<{ value: OpsExpenseStatus | undefined; label: string }> = [
   { value: 'PENDING', label: 'Chờ duyệt' },
   { value: 'APPROVED', label: 'Đã duyệt' },

@@ -11,6 +11,7 @@ import { OpsExpensePhotosModal } from './OpsExpensePhotosModal';
 import { OpsExpenseEditModal } from './OpsExpenseEditModal';
 import { formatVnd } from './opsStatus';
 
+import './ops-modal.css';
 const STATUS_FILTERS: Array<{ value: OpsExpenseStatus | undefined; label: string }> = [
   { value: undefined, label: 'Tất cả' },
   { value: 'PENDING', label: 'Chờ duyệt' },

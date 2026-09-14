@@ -9,6 +9,7 @@ import { opsClient } from '../../api/opsClient';
 import { useToast } from '../../components/shared/Toast';
 import { formatVnd } from './opsStatus';
 
+import './ops-modal.css';
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   PENDING: { label: 'Chờ kế toán', color: 'var(--warn, #d97706)' },
   APPROVED: { label: 'Đã quyết toán', color: 'var(--ok, #16a34a)' },

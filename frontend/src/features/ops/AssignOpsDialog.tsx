@@ -5,6 +5,8 @@ import { opsClient } from '../../api/opsClient';
 import { qk } from '../../api/keys';
 import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
 
+import './ops-modal.css';
+import { useOpsModalDismiss } from './useOpsModalDismiss';
 interface UserOption {
   id: number;
   fullName: string | null;
@@ -24,6 +26,7 @@ export function AssignOpsDialog({
   currentOpsName: string | null;
   onClose: () => void;
 }) {
+  const backdropRef = useOpsModalDismiss<HTMLDivElement>(onClose);
   const queryClient = useQueryClient();
   const [choice, setChoice] = useState('__KEEP__');
   const [saving, setSaving] = useState(false);
@@ -61,7 +64,7 @@ export function AssignOpsDialog({
   const options = usersData?.items ?? [];
 
   return (
-    <div className="ops-modal-backdrop" role="dialog" aria-modal="true" aria-label={`Gán Ops phụ trách xe ${truck.licensePlate}`}>
+    <div ref={backdropRef} tabIndex={-1} className="ops-modal-backdrop" role="dialog" aria-modal="true" aria-label={`Gán Ops phụ trách xe ${truck.licensePlate}`}>
       <form className="ops-modal" onSubmit={handleSave}>
         <header className="ops-modal__head">
           <h2>Ops phụ trách — {truck.licensePlate}</h2>

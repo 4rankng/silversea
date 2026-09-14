@@ -5,6 +5,8 @@ import { getAuthenticatedPhotoUrl } from '../../lib/api';
 import { PhotoViewer } from '../../components/PhotoViewer';
 import '../../components/PhotoViewer.css';
 
+import './ops-modal.css';
+import { useOpsModalDismiss } from './useOpsModalDismiss';
 interface Props {
   expenseId: number;
   /** Author may remove photos while the entry is still editable. */
@@ -14,6 +16,7 @@ interface Props {
 
 /** Receipt viewer shared by the Ops wallet and the accountant review tab. */
 export function OpsExpensePhotosModal({ expenseId, canDelete = false, onClose }: Props) {
+  const backdropRef = useOpsModalDismiss<HTMLDivElement>(onClose);
   const { data, isLoading } = useOpsExpensePhotos(expenseId);
   const deletePhoto = useDeleteOpsExpensePhoto();
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
@@ -21,7 +24,7 @@ export function OpsExpensePhotosModal({ expenseId, canDelete = false, onClose }:
   const urls = photos.map((photo) => getAuthenticatedPhotoUrl(photo.url));
 
   return (
-    <div className="ops-modal-backdrop" role="dialog" aria-modal="true" aria-label="Ảnh biên lai">
+    <div ref={backdropRef} tabIndex={-1} className="ops-modal-backdrop" role="dialog" aria-modal="true" aria-label="Ảnh biên lai">
       <div className="ops-modal">
         <header className="ops-modal__head">
           <h2>Ảnh biên lai ({photos.length})</h2>

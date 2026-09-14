@@ -6,12 +6,15 @@ import { useToast } from '../../components/shared/Toast';
 import { formatVnd } from './opsStatus';
 import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
 
+import './ops-modal.css';
+import { useOpsModalDismiss } from './useOpsModalDismiss';
 /**
  * Author edit of an own PENDING/REJECTED, unlinked expense (OpsVanHanh §5.5
  * "được sửa/xóa (chỉ người nhập)"). Container scope is fixed after create —
  * only type, amount, date and note are editable.
  */
 export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; onClose: () => void }) {
+  const backdropRef = useOpsModalDismiss<HTMLDivElement>(onClose);
   const { data: typesData } = useOpsExpenseTypes();
   const updateExpense = useUpdateOpsExpense();
   const { toast } = useToast();
@@ -70,7 +73,7 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
   }
 
   return (
-    <div className="ops-modal-backdrop" role="dialog" aria-modal="true" aria-label={`Sửa khoản chi ${entry.shipmentCode ?? ''}`}>
+    <div ref={backdropRef} tabIndex={-1} className="ops-modal-backdrop" role="dialog" aria-modal="true" aria-label={`Sửa khoản chi ${entry.shipmentCode ?? ''}`}>
       <form className="ops-modal" onSubmit={handleSubmit}>
         <header className="ops-modal__head">
           <h2>Sửa khoản chi · {entry.shipmentCode ?? entry.shipmentId}{entry.containerNumber ? ` · ${entry.containerNumber}` : ''}</h2>
