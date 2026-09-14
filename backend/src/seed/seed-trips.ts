@@ -101,44 +101,61 @@ async function ensureTrailers() {
 
 /** Backfill drivers.user_id for demo drivers lacking the link. */
 async function ensureDriverUserLinks() {
+  // Orphan cleanup first: partial wipes preserve driver rows whose user_id
+  // points at users that no longer exist — the dispatch validity check joins
+  // the users table and 409s on such links, so they are worse than none.
+  await db.update(s.drivers)
+    .set({ userId: null })
+    .where(and(
+      isNotNull(s.drivers.userId),
+      notInArray(s.drivers.userId, db.select({ id: s.users.id }).from(s.users)),
+    ));
+
   const driverUsers = await db.select({ id: s.users.id, phone: s.users.phone })
     .from(s.users)
     .where(and(eq(s.users.role, Role.DRIVER), isNull(s.users.deletedAt)));
+  // The drivers_active_user_uniq_idx index allows ONE ACTIVE driver per user
+  // — a user already holding a link must never be re-linked.
+  const takenUsers = new Set((await db.select({ userId: s.drivers.userId })
+    .from(s.drivers)
+    .where(and(isNotNull(s.drivers.userId), isNull(s.drivers.deletedAt))))
+    .map((d) => d.userId));
   let linked = 0;
   for (const u of driverUsers) {
-    if (!u.phone) continue;
-    const updated = await db.update(s.drivers)
-      .set({ userId: u.id })
+    if (!u.phone || takenUsers.has(u.id)) continue;
+    const [candidate] = await db.select({ id: s.drivers.id })
+      .from(s.drivers)
       .where(and(
         eq(s.drivers.phone, u.phone),
         isNull(s.drivers.userId),
         isNull(s.drivers.deletedAt),
-      )).returning({ id: s.drivers.id });
-    linked += updated.length;
+      ))
+      .orderBy(s.drivers.id)
+      .limit(1);
+    if (!candidate) continue;
+    await db.update(s.drivers)
+      .set({ userId: u.id })
+      .where(eq(s.drivers.id, candidate.id));
+    takenUsers.add(u.id);
+    linked += 1;
   }
 
   // Fresh-wipe databases: the demo DRIVER users carry synthetic phones that
   // never match the seeded drivers, so the phone pass above can link nothing
   // and the dispatch-order stage then 409s on driver validity. Pair whatever
-  // remains deterministically (id order on both sides, one-to-one) so a
-  // from-scratch reseed completes.
+  // remains deterministically (id order on both sides) so a from-scratch
+  // reseed completes.
   const stillUnlinked = await db.select({ id: s.drivers.id })
     .from(s.drivers)
     .where(and(isNull(s.drivers.userId), isNull(s.drivers.deletedAt), eq(s.drivers.status, 'ACTIVE')))
     .orderBy(s.drivers.id);
-  const freeUsers = await db.select({ id: s.users.id })
-    .from(s.users)
-    .where(and(
-      eq(s.users.role, Role.DRIVER),
-      isNull(s.users.deletedAt),
-      notInArray(s.users.id, db.select({ id: s.drivers.userId }).from(s.drivers).where(isNotNull(s.drivers.userId))),
-    ))
-    .orderBy(s.users.id);
+  const freeUsers = driverUsers.filter((u) => !takenUsers.has(u.id));
   const pairs = Math.min(stillUnlinked.length, freeUsers.length);
   for (let i = 0; i < pairs; i += 1) {
     await db.update(s.drivers)
       .set({ userId: freeUsers[i].id })
       .where(eq(s.drivers.id, stillUnlinked[i].id));
+    takenUsers.add(freeUsers[i].id);
     linked += 1;
   }
 

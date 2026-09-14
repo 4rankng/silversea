@@ -7,7 +7,7 @@ import {
   NO_INVOICE_POLICY_DEFAULTS,
   Role,
 } from '@tingting/shared';
-import { eq, and, desc, isNull, sql } from 'drizzle-orm';
+import { eq, and, desc, isNotNull, isNull, sql } from 'drizzle-orm';
 import { COMPANY_INFO_SETTING_KEYS, COMPANY_INFO_DEFAULTS } from './services/company-info.service';
 import { reassignTruckDriverInTx } from './services/truck-driver-assignment.service';
 import {
@@ -165,19 +165,29 @@ export async function seed() {
   // drivers created by an earlier run (or a roster whose phones diverged
   // from the demo users') stay functional for the driver portal and the
   // dispatch driver-validity check (userId + ACTIVE DRIVER user).
+  // A user can hold only ONE ACTIVE driver (drivers_active_user_uniq_idx) —
+  // skip users whose link is already taken by an earlier pass.
+  const takenUserIds = new Set((await db.select({ userId: schema.drivers.userId })
+    .from(schema.drivers)
+    .where(and(isNotNull(schema.drivers.userId), isNull(schema.drivers.deletedAt))))
+    .map((d) => d.userId));
   for (const d of driverSeeds) {
-    if (d.userId == null) continue;
-    const linked = await db.update(schema.drivers)
-      .set({ userId: d.userId })
+    if (d.userId == null || takenUserIds.has(d.userId)) continue;
+    const [candidate] = await db.select({ id: schema.drivers.id })
+      .from(schema.drivers)
       .where(and(
         eq(schema.drivers.name, d.name),
         isNull(schema.drivers.userId),
         isNull(schema.drivers.deletedAt),
       ))
-      .returning({ id: schema.drivers.id });
-    if (linked.length > 0) {
-      console.log(`  🔗 driver "${d.name}" ← user_id=${d.userId}`);
-    }
+      .orderBy(schema.drivers.id)
+      .limit(1);
+    if (!candidate) continue;
+    await db.update(schema.drivers)
+      .set({ userId: d.userId })
+      .where(eq(schema.drivers.id, candidate.id));
+    takenUserIds.add(d.userId);
+    console.log(`  🔗 driver "${d.name}" ← user_id=${d.userId}`);
   }
 
   // ─── Backfill drivers.user_id by phone ─────────────────────────────────
@@ -191,18 +201,32 @@ export async function seed() {
     .from(schema.users)
     .where(and(eq(schema.users.role, Role.DRIVER), isNull(schema.users.deletedAt)));
 
+  // A user can hold only ONE ACTIVE driver (drivers_active_user_uniq_idx):
+  // skip users whose link is already held — by a previous pass here, by the
+  // name pass above, or by an earlier seed run — or the update collides.
+  const takenUserIdsPhone = new Set((await db.select({ userId: schema.drivers.userId })
+    .from(schema.drivers)
+    .where(and(isNotNull(schema.drivers.userId), isNull(schema.drivers.deletedAt))))
+    .map((d) => d.userId));
+
   let linkedCount = 0;
   for (const u of driverUsers) {
-    if (!u.phone) continue;
-    const updated = await db.update(schema.drivers)
-      .set({ userId: u.id })
+    if (!u.phone || takenUserIdsPhone.has(u.id)) continue;
+    const [candidate] = await db.select({ id: schema.drivers.id })
+      .from(schema.drivers)
       .where(and(
         eq(schema.drivers.phone, u.phone),
         isNull(schema.drivers.userId),
         isNull(schema.drivers.deletedAt),
       ))
-      .returning({ id: schema.drivers.id });
-    linkedCount += updated.length;
+      .orderBy(schema.drivers.id)
+      .limit(1);
+    if (!candidate) continue;
+    await db.update(schema.drivers)
+      .set({ userId: u.id })
+      .where(eq(schema.drivers.id, candidate.id));
+    takenUserIdsPhone.add(u.id);
+    linkedCount += 1;
   }
   if (linkedCount > 0) {
     console.log(`✅ Drivers linked to user accounts! (${linkedCount} linked by phone)`);
