@@ -430,6 +430,14 @@ export function TruckCard({ trucks, driverByTruck, trailers, crud }: { trucks: T
         isOpen={crud.showAddForm || crud.editingId != null}
         saving={crud.saving}
         item={crud.editingId != null ? trucks.find((t) => t.id === crud.editingId) : undefined}
+        trailerOptions={trailers
+          .filter((t) => (t as { status?: string }).status === 'ACTIVE')
+          .map((t) => ({
+            id: t.id,
+            licensePlate: t.licensePlate,
+            type: t.type,
+            coupledToPlate: trucks.find((truck) => truck.currentTrailerId === t.id)?.licensePlate ?? null,
+          }))}
         onsave={(d) => {
           if (crud.editingId != null) crud.doUpdate(crud.editingId, d);
           else crud.doCreate(d);

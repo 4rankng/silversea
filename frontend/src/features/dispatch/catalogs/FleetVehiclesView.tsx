@@ -280,6 +280,14 @@ export function FleetVehiclesView() {
         saving={crud.saving}
         item={crud.editingId != null ? trucks.find((t) => t.id === crud.editingId) : undefined}
         carrierOptions={carriers}
+        trailerOptions={trailers
+          .filter((t) => (t as { status?: string }).status === 'ACTIVE')
+          .map((t) => ({
+            id: t.id,
+            licensePlate: t.licensePlate,
+            type: (t as { type?: string | null }).type ?? null,
+            coupledToPlate: trucks.find((truck) => truck.currentTrailerId === t.id)?.licensePlate ?? null,
+          }))}
         onsave={(d) => crud.editingId != null ? crud.update(crud.editingId, d) : crud.create(d)}
         oncancel={crud.closeForm}
       />
