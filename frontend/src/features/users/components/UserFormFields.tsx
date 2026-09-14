@@ -7,7 +7,7 @@ import {
 import type { Customer } from '@tingting/shared';
 // ── Icon Input ─────────────────────────────────────────────────────────────
 
-export function IconInput({ icon, value, onChange, placeholder, type = 'text', autoComplete, valid, error, rightElement, disabled }: {
+export function IconInput({ icon, value, onChange, placeholder, type = 'text', autoComplete, valid, error, rightElement, disabled, inputRef, ariaInvalid, ariaDescribedBy }: {
   icon: React.ReactNode;
   value: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -16,6 +16,10 @@ export function IconInput({ icon, value, onChange, placeholder, type = 'text', a
   autoComplete?: string;
   valid?: boolean;
   error?: boolean;
+  /** Field-level validation wiring: focus target + a11y association. */
+  inputRef?: React.RefObject<HTMLInputElement | null>;
+  ariaInvalid?: boolean;
+  ariaDescribedBy?: string;
   rightElement?: React.ReactNode;
   disabled?: boolean;
 }) {
@@ -30,6 +34,9 @@ export function IconInput({ icon, value, onChange, placeholder, type = 'text', a
         placeholder={placeholder}
         autoComplete={autoComplete}
         disabled={disabled}
+        ref={inputRef}
+        aria-invalid={ariaInvalid || undefined}
+        aria-describedby={ariaDescribedBy}
       />
       {valid && !rightElement && (
         <span className="icon-input__check"><Check size={14} /></span>
