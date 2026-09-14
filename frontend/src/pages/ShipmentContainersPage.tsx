@@ -131,6 +131,9 @@ export default function ShipmentContainersPage() {
   const totalContainers = detail.data?.total ?? 0;
   const customers = detail.data?.filterOptions.customers ?? [];
   const hasFilters = Boolean(suffixParam || customerId || direction || dateFrom || dateTo || dispatchStatus);
+  const activeDetailFilterCount = [customerId, direction, dateFrom, dateTo, dispatchStatus].filter(Boolean).length;
+  // Phone/tablet: secondary criteria collapse so records start higher.
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   const resetFilters = () => {
     appliedSearchRef.current = '';
@@ -194,6 +197,15 @@ export default function ShipmentContainersPage() {
         <div className="shipments-detail-workspace__header">
           <div className="shipments-detail-filters">
             <UUIInput label="Container, Bill/Booking hoặc tờ khai" size="sm" icon={Search} value={searchInput} onChange={updateSearch} placeholder="Số đầy đủ hoặc tối thiểu 4 ký tự cuối" hint={searchError ?? undefined} isInvalid={Boolean(searchError)} inputProps={{ maxLength: 64, autoCapitalize: 'characters', autoCorrect: 'off', spellCheck: false }} className="shipments-detail-filter shipments-detail-filter--search" />
+            <button
+              type="button"
+              className="cus-advanced-toggle"
+              aria-expanded={advancedOpen}
+              onClick={() => setAdvancedOpen((o) => !o)}
+            >
+              Bộ lọc nâng cao{activeDetailFilterCount > 0 ? ` · ${activeDetailFilterCount} đang áp dụng` : ''}
+            </button>
+            <div className="shipments-detail-filters__advanced" data-open={advancedOpen ? '' : undefined}>
             <div className="shipments-detail-filters__group shipments-detail-filters__group--dates">
               <BufferedUuiDateInput label="Từ ngày vận chuyển" size="sm" value={dateFrom} onChange={(value) => updateParam('transportDateFrom', value || null)} inputProps={{ max: dateTo || undefined }} className="shipments-detail-filter" />
               <BufferedUuiDateInput label="Đến ngày vận chuyển" size="sm" value={dateTo} onChange={(value) => updateParam('transportDateTo', value || null)} inputProps={{ min: dateFrom || undefined }} className="shipments-detail-filter" />
@@ -202,6 +214,7 @@ export default function ShipmentContainersPage() {
               <UuiSelectField label="Khách hàng" value={customerId ? String(customerId) : ''} onChange={(event) => updateParam('customerId', event.target.value || null)} options={[{ value: '', label: 'Tất cả khách hàng' }, ...customers.map((customer) => ({ value: String(customer.id), label: customer.name }))]} wrapperClassName="shipments-detail-filter" />
               <UuiSelectField label="Nhập / Xuất" value={direction} onChange={(event) => updateParam('direction', event.target.value || null)} options={[{ value: '', label: 'Tất cả' }, { value: 'IMPORT', label: 'Nhập' }, { value: 'EXPORT', label: 'Xuất' }]} wrapperClassName="shipments-detail-filter" />
               <UuiSelectField label="Trạng thái" value={dispatchStatus} onChange={(event) => updateParam('dispatchStatus', event.target.value || null)} options={[{ value: '', label: 'Tất cả' }, ...Object.entries(DISPATCH_STATUS).map(([value, meta]) => ({ value, label: meta.label }))]} wrapperClassName="shipments-detail-filter" />
+            </div>
             </div>
             <div className="shipments-detail-filters__footer">
               <div className="shipments-detail-filters__date-actions">
