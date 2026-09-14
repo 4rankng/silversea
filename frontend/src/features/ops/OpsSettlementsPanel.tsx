@@ -10,6 +10,7 @@ import { useToast } from '../../components/shared/Toast';
 import { formatVnd } from './opsStatus';
 
 import './ops-modal.css';
+import { OpsModalBackdrop } from './OpsModalBackdrop';
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   PENDING: { label: 'Chờ kế toán', color: 'var(--warn, #d97706)' },
   APPROVED: { label: 'Đã quyết toán', color: 'var(--ok, #16a34a)' },
@@ -84,7 +85,7 @@ export function OpsSettlementsPanel() {
       </div>
 
       {detailId != null && detail.data && (
-        <div className="ops-modal-backdrop" role="dialog" aria-modal="true" aria-label={`Đề nghị thanh toán ${detail.data.settlement.code}`}>
+        <OpsModalBackdrop onClose={() => setDetailId(null)} ariaLabel={`Đề nghị thanh toán ${detail.data.settlement.code}`}>
           <div className="ops-modal">
             <header className="ops-modal__head">
               <h2>{detail.data.settlement.code}</h2>
@@ -116,7 +117,7 @@ export function OpsSettlementsPanel() {
               }} />
             </div>
           </div>
-        </div>
+        </OpsModalBackdrop>
       )}
     </section>
   );

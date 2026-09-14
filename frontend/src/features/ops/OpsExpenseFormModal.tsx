@@ -9,7 +9,7 @@ import { formatVnd, localDateInputValue } from './opsStatus';
 import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
 
 import './ops-modal.css';
-import { useOpsModalDismiss } from './useOpsModalDismiss';
+import { OpsModalBackdrop } from './OpsModalBackdrop';
 interface Props {
   order: OpsOrderItem;
   onClose: () => void;
@@ -27,7 +27,6 @@ interface PendingPhoto {
  * bổ sung ảnh sau (tạo "nợ chứng từ").
  */
 export function OpsExpenseFormModal({ order, onClose }: Props) {
-  const backdropRef = useOpsModalDismiss<HTMLDivElement>(onClose);
   const { data: typesData } = useOpsExpenseTypes();
   const createExpense = useCreateOpsExpense();
   const attachPhoto = useAttachOpsExpensePhoto();
@@ -119,7 +118,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
   const busy = createExpense.isPending;
 
   return (
-    <div ref={backdropRef} tabIndex={-1} className="ops-modal-backdrop" role="dialog" aria-modal="true" aria-label="Khai báo chi phí">
+    <OpsModalBackdrop onClose={onClose} ariaLabel="Khai báo chi phí">
       <form className="ops-modal" onSubmit={handleSubmit}>
         <header className="ops-modal__head">
           <h2>Khai báo chi phí</h2>
@@ -227,7 +226,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
           </div>
         </footer>
       </form>
-    </div>
+    </OpsModalBackdrop>
   );
 }
 

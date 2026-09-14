@@ -14,6 +14,7 @@ import { useAdminOpsSettlement } from '../../hooks/useOpsQueries';
 import { formatVnd } from './opsStatus';
 
 import './ops-modal.css';
+import { OpsModalBackdrop } from './OpsModalBackdrop';
 const STATUS_FILTERS: Array<{ value: OpsExpenseStatus | undefined; label: string }> = [
   { value: 'PENDING', label: 'Chờ duyệt' },
   { value: 'APPROVED', label: 'Đã duyệt' },
@@ -210,7 +211,7 @@ export function OpsAccountantTab() {
       </section>
 
       {rejectingSettlement && (
-        <div className="ops-modal-backdrop" role="dialog" aria-modal="true" aria-label={`Từ chối phiếu ${rejectingSettlement.code}`}>
+        <OpsModalBackdrop onClose={() => setRejectingSettlement(null)} ariaLabel={`Từ chối phiếu ${rejectingSettlement.code}`}>
           <form
             className="ops-modal"
             onSubmit={(event) => {
@@ -251,11 +252,11 @@ export function OpsAccountantTab() {
               </div>
             </footer>
           </form>
-        </div>
+        </OpsModalBackdrop>
       )}
 
       {approvingInPerson && (
-        <div className="ops-modal-backdrop" role="dialog" aria-modal="true" aria-label="Duyệt không ảnh biên lai">
+        <OpsModalBackdrop onClose={() => setApprovingInPerson(null)} ariaLabel="Duyệt không ảnh biên lai">
           <form
             className="ops-modal"
             onSubmit={(event) => {
@@ -298,7 +299,7 @@ export function OpsAccountantTab() {
               </div>
             </footer>
           </form>
-        </div>
+        </OpsModalBackdrop>
       )}
 
       {photosFor != null && (
@@ -306,7 +307,7 @@ export function OpsAccountantTab() {
       )}
 
       {rejecting && (
-        <div className="ops-modal-backdrop" role="dialog" aria-modal="true" aria-label="Từ chối khoản chi">
+        <OpsModalBackdrop onClose={() => setRejecting(null)} ariaLabel="Từ chối khoản chi">
           <form
             className="ops-modal"
             onSubmit={(event) => {
@@ -339,11 +340,11 @@ export function OpsAccountantTab() {
               </div>
             </footer>
           </form>
-        </div>
+        </OpsModalBackdrop>
       )}
 
       {sheetFor != null && sheet.data && (
-        <div className="ops-modal-backdrop" role="dialog" aria-modal="true" aria-label="Phiếu thanh toán Ops">
+        <OpsModalBackdrop onClose={() => setSheetFor(null)} ariaLabel="Phiếu thanh toán Ops">
           <div className="ops-modal">
             <header className="ops-modal__head">
               <h2>{sheet.data.settlement.code}</h2>
@@ -372,7 +373,7 @@ export function OpsAccountantTab() {
               }} />
             </div>
           </div>
-        </div>
+        </OpsModalBackdrop>
       )}
     </div>
   );

@@ -5,11 +5,10 @@ import { useToast } from '../../components/shared/Toast';
 import { formatVnd } from './opsStatus';
 
 import './ops-modal.css';
-import { useOpsModalDismiss } from './useOpsModalDismiss';
+import { OpsModalBackdrop } from './OpsModalBackdrop';
 /** "+ Xin Tạm Ứng" (OpsVanHanh §5.1) — lands in the shared advance_requests
  *  approval flow; the wallet total jumps only after approval. */
 export function OpsAdvanceRequestModal({ onClose }: { onClose: () => void }) {
-  const backdropRef = useOpsModalDismiss<HTMLDivElement>(onClose);
   const createAdvance = useCreateOpsAdvanceRequest();
   const { toast } = useToast();
   const [amount, setAmount] = useState('');
@@ -34,7 +33,7 @@ export function OpsAdvanceRequestModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div ref={backdropRef} tabIndex={-1} className="ops-modal-backdrop" role="dialog" aria-modal="true" aria-label="Xin tạm ứng">
+    <OpsModalBackdrop onClose={onClose} ariaLabel="Xin tạm ứng">
       <form className="ops-modal" onSubmit={handleSubmit}>
         <header className="ops-modal__head">
           <h2>Xin tạm ứng</h2>
@@ -80,6 +79,6 @@ export function OpsAdvanceRequestModal({ onClose }: { onClose: () => void }) {
           </div>
         </footer>
       </form>
-    </div>
+    </OpsModalBackdrop>
   );
 }
