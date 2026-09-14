@@ -4,7 +4,6 @@ import { and, eq, inArray, sql } from 'drizzle-orm';
 
 import { client, db } from '../db';
 import * as s from '../db/schema';
-import { applyTripPatch, insertTripComposite } from '../services/trip-composite.service';
 import {
   buildExpenseSourceVersionToken,
   generateDraft,
@@ -12,16 +11,6 @@ import {
   getDocument,
   deleteDocument,
 } from '../services/billing-document.service';
-import { applyGovernanceActionDirect } from '../services/governance-action-core.service';
-import {
-  applyFuelInvoiceGovernanceAction,
-  createFuelInvoice,
-} from '../services/fuel-invoice.service';
-import type { GovernanceActionRow } from '../services/governance-action-core.service';
-// KP-152: approveFuelInvoice removed — invoices are auto-approved at creation.
-async function approveFuelInvoice(_invoiceId: number, _actorId: number, _actorRole: string, _expectedVersion: number, _reason?: string, _transaction?: unknown): Promise<GovernanceActionRow> {
-  throw new Error('approveFuelInvoice removed — invoices are auto-approved at creation');
-}
 import {
   assertFuelPeriodCanAbsorbLateApproval,
   closePeriodLock,
@@ -58,28 +47,6 @@ async function mkCustomer(overrides: Partial<typeof s.customers.$inferInsert> = 
   }).returning();
   createdCustomerIds.push(row.id);
   return row;
-}
-
-async function mkTrip(customerId: number, departureDate: string) {
-  const [route] = await db.insert(s.routes).values({
-    name: `Q21 route ${suffix}-${createdRouteIds.length}`,
-  }).returning({ id: s.routes.id });
-  createdRouteIds.push(route.id);
-  const [cargoType] = await db.insert(s.cargoTypes).values({
-    name: `Q21 cargo ${suffix}-${createdCargoTypeIds.length}`,
-  }).returning({ id: s.cargoTypes.id });
-  createdCargoTypeIds.push(cargoType.id);
-  const trip = await insertTripComposite(db, {
-    tripCode: `Q21-${suffix}-${createdTripIds.length}`.slice(0, 50),
-    customerId,
-    routeId: route.id,
-    cargoTypeId: cargoType.id,
-    status: 'CREATED',
-    departureDate,
-    carrierType: 'OWN',
-  });
-  createdTripIds.push(trip.id);
-  return trip;
 }
 
 async function mkBillableTrip(params: {
@@ -205,23 +172,6 @@ async function mkExpense(tripId: number, invoiceDate: string) {
   return expense;
 }
 
-async function mkSupplier() {
-  const [supplier] = await db.insert(s.suppliers).values({
-    name: `Q21 fuel supplier ${suffix}-${createdSupplierIds.length}`,
-    isFuelSupplier: true,
-  }).returning();
-  createdSupplierIds.push(supplier.id);
-  return supplier;
-}
-
-async function mkTruck() {
-  const [truck] = await db.insert(s.trucks).values({
-    licensePlate: `Q21-${suffix.slice(-8)}-${createdTruckIds.length}`,
-  }).returning();
-  createdTruckIds.push(truck.id);
-  return truck;
-}
-
 async function mkUser(role: 'ADMIN' | 'ACCOUNTANT' | 'MANAGER', tag: string) {
   const [user] = await db.insert(s.users).values({
     username: `q21-${role}-${tag}-${suffix}-${createdUserIds.length}`,
@@ -252,70 +202,6 @@ async function confirmAllDriversForPeriod(year: number, month: number, actorId: 
     confirmedAt: new Date(),
   }))).onConflictDoNothing().returning({ id: s.salaryConfirmations.id });
   createdSalaryConfirmationIds.push(...inserted.map((row) => row.id));
-}
-
-async function withMockedNow<T>(
-  context: TestContext,
-  isoDateTime: string,
-  run: () => Promise<T>,
-): Promise<T> {
-  context.mock.timers.enable({
-    apis: ['Date'],
-    now: new Date(isoDateTime),
-  });
-  try {
-    return await run();
-  } finally {
-    context.mock.timers.reset();
-  }
-}
-
-async function mkFuelInvoiceForApproval(params: {
-  sourceDate: string;
-  tag: string;
-  creatorId: number;
-}) {
-  const supplier = await mkSupplier();
-  const truck = await mkTruck();
-  const trip = await mkTrip((await mkCustomer()).id, params.sourceDate);
-  await applyTripPatch(db, trip.id, {
-    truckId: truck.id,
-    fuelSupplierId: supplier.id,
-    totalFuelCost: '2200000',
-    updatedAt: new Date(),
-  });
-  const expense = await mkExpense(trip.id, params.sourceDate);
-  const voucherReference = `PXD-Q21-${params.tag}-${suffix}`;
-  await db.update(s.tripExpenses)
-    .set({
-      supplierId: supplier.id,
-      expenseDate: params.sourceDate,
-      invoiceNumber: voucherReference,
-      buyAmount: '2200000',
-      sellAmount: '0',
-      expenseType: 'FUEL_DIESEL',
-      createdBy: params.creatorId,
-    })
-    .where(eq(s.tripExpenses.id, expense.id));
-
-  const invoice = await createFuelInvoice({
-    supplierId: supplier.id,
-    invoiceNumber: `HD-Q21-${params.tag}-${suffix}`,
-    invoiceDate: params.sourceDate,
-    totalLiters: 100,
-    unitPrice: 22000,
-    note: 'Kiểm tra thẩm quyền kỳ tại lúc áp dụng phê duyệt',
-    allocations: [{
-      tripId: trip.id,
-      truckId: truck.id,
-      tripExpenseId: expense.id,
-      voucherReference,
-      voucherDate: params.sourceDate,
-      liters: 100,
-    }],
-  }, params.creatorId);
-  createdFuelInvoiceIds.push(invoice.id);
-  return invoice;
 }
 
 describe('Q21 period authority', () => {
