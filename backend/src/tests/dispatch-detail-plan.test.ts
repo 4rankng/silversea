@@ -2909,6 +2909,33 @@ describe('planning remaining containers after partial dispatch', () => {
     assert.ok(rows.data.total >= 1, 'total counts the branch row');
   });
 
+  test('UNION-branch: route-less container on a routed lot shows the shipment route (same fallback as the rows branch)', async () => {
+    const customer = await createCustomer(`UnionR customer ${suffix}-${createdCustomerIds.length}`);
+    const site = await createOperationalSite(customer.id);
+    const ct = await createContainerType(`UR${createdContainerTypeIds.length}`);
+    const lotRoute = await createRoute();
+    const [shipment] = await db.insert(s.shipments).values({
+      customerId: customer.id, routeId: lotRoute.id, cargoMode: 'FCL',
+      status: 'READY_FOR_DISPATCH', tradeDirection: 'EXPORT',
+      operationalSiteId: site.id, createdBy: adminUserId,
+      shipmentCode: `UNIONR-${suffix}-${createdShipmentIds.length}`,
+    }).returning();
+    createdShipmentIds.push(shipment.id);
+    await db.insert(s.shipmentContainers).values({
+      shipmentId: shipment.id, containerTypeId: ct.id,
+      // Deliberately NO container routeId — the lot-level route must surface
+      // on the branch row exactly as CUS shows it.
+      containerNumber: `UNIONR${String(810000 + shipment.id).slice(-6)}`,
+      customerAppointmentAt: new Date('2026-08-20T08:00:00.000Z'),
+      createdBy: adminUserId,
+    });
+
+    const rows = await fetchRows(dispatcherToken, `?limit=50&q=${shipment.shipmentCode}`);
+    const row = rows.data.items.find((r) => r.shipmentId === shipment.id);
+    assert.ok(row, 'branch row renders');
+    assert.equal(row.customerRoute.routeName, lotRoute.name);
+  });
+
   test('UNION-branch: date filter matches the branch row by its appointment; a NULL-dated branch row only shows unfiltered', async () => {
     const customer = await createCustomer(`UnionB customer ${suffix}-${createdCustomerIds.length}`);
     const site = await createOperationalSite(customer.id);

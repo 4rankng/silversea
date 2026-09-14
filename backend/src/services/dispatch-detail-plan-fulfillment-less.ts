@@ -25,7 +25,6 @@ import {
   CUSTOMER_OPERATIONAL_NAME,
   ROUTE_OPERATIONAL_NAME,
   buildPattern,
-  dispatchEffectiveRouteIdSql,
   shipmentQSearchPredicate,
 } from './dispatch-planning-utils.service';
 import * as s from '../db/schema';
@@ -155,7 +154,13 @@ export async function listFulfillmentLessReadyRows(
     .innerJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
     .leftJoin(s.containerTypes, eq(s.shipmentContainers.containerTypeId, s.containerTypes.id))
     .leftJoin(s.operationalSites, eq(s.shipments.operationalSiteId, s.operationalSites.id))
-    .leftJoin(s.routes, eq(s.routes.id, dispatchEffectiveRouteIdSql()))
+    // Same container → shipment FCL fallback as the fulfillment-owned rows
+    // query (QA-045): a route-less container on a routed lot shows the lot's
+    // route here too. Local — the shared util feeds the master plan's INNER
+    // join, whose row-set semantics must not change.
+    .leftJoin(s.routes, eq(s.routes.id, sql<number>`case when ${s.shipments.cargoMode} = 'FCL'
+      then coalesce(${s.shipmentContainers.routeId}, ${s.shipments.routeId})
+      else ${s.shipments.routeId} end`))
     .where(and(...buildSharedConditions(filters, accountantCustomerIds)))
     .orderBy(sql`coalesce(${TRANSPORT_DATE_SQL}, '9999-12-31') asc`, s.shipmentContainers.id)
     .limit(limit)
