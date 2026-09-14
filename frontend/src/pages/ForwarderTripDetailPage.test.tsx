@@ -1,3 +1,4 @@
+const tripDetailOverrides: { data?: Record<string, unknown> } = {};
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -52,7 +53,7 @@ vi.mock('../api/geotagClient', () => ({
 
 vi.mock('../hooks/useQueries', () => ({
   useForwarderTripDetail: () => ({
-    data: {
+    data: tripDetailOverrides.data ?? {
       id: 15,
       routeName: 'Hải Phòng - ICD',
       status: 'IN_TRANSIT',
@@ -330,5 +331,60 @@ describe('ForwarderTripDetailPage photo upload geolocation recovery', () => {
     }));
     expect(renderHistory.at(-1)).toBeNull();
     expect(screen.getByText('Sẵn sàng')).toBeTruthy();
+  });
+});
+
+
+// Terminal handoff (QA-058): a completed/canceled trip never advertises the
+// paper-handoff action the server guard would reject — the card explains the
+// dispatcher-owned correction route instead; active trips keep the flow.
+describe('ForwarderTripDetailPage terminal handoff', () => {
+  const baseTrip = {
+    id: 19,
+    routeName: 'KCN Quế Võ',
+    status: 'COMPLETED',
+    tripCode: 'TRP-202609-0017',
+    customerName: 'SilverSea',
+    truckPlate: '15H-104.03',
+    departureDate: '2026-09-13',
+    orderExchangeStatus: 'COMPLETED',
+    paperOrderCollectedAt: null,
+    paperOrderCollectedByName: null,
+    cargoTypeName: null,
+    customerReference: null,
+    notes: null,
+    instructions: null,
+    containers: [],
+    legs: [],
+    completionScopes: [],
+    expenses: [],
+  };
+
+  it('shows the dispatcher-owned explanation and keeps confirm disabled on a completed trip', () => {
+    tripDetailOverrides.data = baseTrip;
+    const { unmount } = render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter><ForwarderTripDetailPage /></MemoryRouter>
+      </QueryClientProvider>,
+    );
+    expect(screen.getByText(/cần điều vận xử lý/)).toBeTruthy();
+    const confirm = screen.queryByRole('button', { name: 'Xác nhận giao lệnh gốc' });
+    if (confirm) expect((confirm as HTMLButtonElement).disabled).toBe(true);
+    unmount();
+    tripDetailOverrides.data = undefined;
+  });
+
+  it('keeps the handoff flow enabled on an active trip with exchange completed', () => {
+    tripDetailOverrides.data = { ...baseTrip, status: 'IN_TRANSIT' };
+    const { unmount } = render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter><ForwarderTripDetailPage /></MemoryRouter>
+      </QueryClientProvider>,
+    );
+    expect(screen.getAllByText(/Đã đổi lệnh/).length).toBeGreaterThan(0);
+    const confirm = screen.getByRole('button', { name: 'Xác nhận giao lệnh gốc' }) as HTMLButtonElement;
+    expect(confirm.disabled).toBe(false);
+    unmount();
+    tripDetailOverrides.data = undefined;
   });
 });
