@@ -41,7 +41,6 @@ export {
   downloadShipmentPodFile,
 } from './shipment-review.service';
 export type {
-  ReviewTripPodResult,
   ShipmentChangeRequestReviewResult,
 } from './shipment-review.service';
 

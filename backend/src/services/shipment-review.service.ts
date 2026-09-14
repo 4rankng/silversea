@@ -55,41 +55,6 @@ function isPodReviewWriter(actor: AuthUser): boolean {
   return actor.role === Role.CUS;
 }
 
-async function loadReviewTripPodResult(
-  tx: Tx,
-  shipmentId: number,
-  submissionId: number,
-): Promise<ReviewTripPodResult> {
-  const [row] = await tx.select({
-    shipment: s.shipments,
-    submissionId: s.tripPodSubmissions.id,
-    submissionStatus: s.tripPodSubmissions.status,
-    tripId: s.trips.id,
-    tripStatus: s.trips.status,
-  }).from(s.tripPodSubmissions)
-    .innerJoin(s.shipmentFulfillments, eq(s.shipmentFulfillments.id, s.tripPodSubmissions.fulfillmentId))
-    .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentFulfillments.shipmentId))
-    .innerJoin(s.trips, eq(s.trips.id, s.tripPodSubmissions.tripId))
-    .where(and(
-      eq(s.tripPodSubmissions.id, submissionId),
-      eq(s.shipments.id, shipmentId),
-      isNull(s.shipments.deletedAt),
-      isNull(s.trips.deletedAt),
-    ))
-    .limit(1);
-  if (!row) {
-    throw new ApiError(404, 'Không tìm thấy e-POD cần xử lý.');
-  }
-  return {
-    shipment: row.shipment,
-    submissionId: row.submissionId,
-    submissionStatus: row.submissionStatus as TripPodStatus,
-    tripId: row.tripId,
-    tripStatus: row.tripStatus,
-    shipmentVersion: row.shipment.version,
-  };
-}
-
 export async function downloadShipmentPodFile(
   shipmentId: number,
   fileId: number,

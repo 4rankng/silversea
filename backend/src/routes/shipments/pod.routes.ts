@@ -4,10 +4,12 @@
 
 import { Router } from 'express';
 import type { Request, Response } from 'express';
+import { Role } from '@tingting/shared';
 import { downloadShipmentPodFile } from '../../services/shipment.service';
 import { attachmentDisposition } from '../../services/statement.service';
 import { getUser } from '../../middleware/auth';
 import { asyncHandler } from '../../middleware/asyncHandler';
+import { requireRoles } from '../../middleware/casbin';
 import { parseId } from './shipment-shared';
 
 const podRoutes = Router();
