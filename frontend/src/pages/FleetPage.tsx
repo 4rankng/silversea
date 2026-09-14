@@ -67,6 +67,9 @@ export default function FleetPage() {
 
   const ft40 = trailers.filter((t) => t.type === TrailerType.FT40).length;
   const ft20 = trailers.filter((t) => t.type === TrailerType.FT20).length;
+  // Nullable by design (fleet sheets ship blank): the KPI must count EVERY
+  // trailer, not just typed ones — reconcile with the trailer card's legend.
+  const unknownType = trailers.length - ft40 - ft20;
 
   return (
     <div className="fleet-page" ref={rootRef}>
@@ -131,7 +134,7 @@ export default function FleetPage() {
         />
         <KPI
           label="Rơ-moóc"
-          value={ft40 + ft20}
+          value={ft40 + ft20 + unknownType}
           unit="moóc"
           icon={Container}
           assetIconName="semi-trailer"
@@ -147,6 +150,16 @@ export default function FleetPage() {
               <span className="fleet-kpi-meta__mono">
                 {ft20}×20FT
               </span>
+              {unknownType > 0 && (
+                <>
+                  <span className="fleet-kpi-meta__sep">
+                    ·
+                  </span>
+                  <span className="fleet-kpi-meta__mono">
+                    {unknownType}×Chưa rõ loại
+                  </span>
+                </>
+              )}
             </span>
           }
         />

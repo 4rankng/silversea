@@ -56,7 +56,7 @@ export default function TrailersConfigPage() {
       emptyHint="Thêm rơ-moóc đầu tiên để bắt đầu phân chuyến."
       columns={[
         { header: 'Biển số', render: (t) => <span style={{ fontWeight: 600, color: 'var(--fg-1)', fontFamily: 'var(--font-data)' }}>{t.licensePlate}</span> },
-        { header: 'Loại', render: (t) => <span style={{ color: 'var(--fg-2)' }}>{TRAILER_TYPE_LABELS[t.type] || t.type}</span> },
+        { header: 'Loại', render: (t) => <span style={{ color: 'var(--fg-2)' }}>{t.type ? (TRAILER_TYPE_LABELS[t.type] || t.type) : 'Chưa rõ loại'}</span> },
         { header: 'Trạng thái', render: (t) => <StatusPill variant={t.status === 'ACTIVE' ? 'success' : t.status === 'MAINTENANCE' ? 'warn' : 'neutral'}>{TRAILER_STATUS_LABELS[t.status] || t.status}</StatusPill> },
       ]}
       renderForm={(p) => <TrailerForm saving={p.saving} item={p.item} onsave={p.onSave} oncancel={p.onCancel} onDelete={p.onDelete} deleting={p.deleting} />}

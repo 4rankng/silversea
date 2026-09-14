@@ -26,9 +26,11 @@ const Plate = memo(function Plate({ plate, tag }: { plate: string; tag: string }
   );
 });
 
-const TypeChip = memo(function TypeChip({ type }: { type: string }) {
-  const cls = type === TrailerType.FT40 ? "ft40" : "ft20";
-  return <span className={`fleet-type-chip ${cls}`}>{TRAILER_TYPE_LABELS[type as TrailerType] || type}</span>;
+const TypeChip = memo(function TypeChip({ type }: { type: string | null }) {
+  // Blank type renders the explicit unknown label on a neutral chip — never
+  // an empty pill borrowing the 20FT style.
+  const cls = type === TrailerType.FT40 ? "ft40" : type === TrailerType.FT20 ? "ft20" : "unknown";
+  return <span className={`fleet-type-chip ${cls}`}>{type ? (TRAILER_TYPE_LABELS[type as TrailerType] || type) : "Chưa rõ loại"}</span>;
 });
 
 const StatusDot = memo(function StatusDot({ status }: { status: string }) {
@@ -136,7 +138,7 @@ function DetailModal({ isOpen, title, onClose, details, onEdit, onDelete, deleti
 
 // ─── TrailerCard ────────────────────────────────────────────────────────────
 
-export function TrailerCard({ trailers, trucks, crud }: { trailers: Array<{ id: number; licensePlate: string; type: string; status: string }>; trucks: TruckType[]; crud: ReturnType<typeof useCRUD> }) {
+export function TrailerCard({ trailers, trucks, crud }: { trailers: Array<{ id: number; licensePlate: string; type: string | null; status: string }>; trucks: TruckType[]; crud: ReturnType<typeof useCRUD> }) {
   const [viewingId, setViewingId] = useState<number | null>(null);
   const { confirm, dialog: confirmDialog } = useConfirm();
   const { data: tires = [] } = useTires();
@@ -161,6 +163,11 @@ export function TrailerCard({ trailers, trucks, crud }: { trailers: Array<{ id: 
   }, [tires]);
   const ft40 = trailers.filter((t) => t.type === TrailerType.FT40).length;
   const ft20 = trailers.filter((t) => t.type === TrailerType.FT20).length;
+  // Fleet sheets routinely leave Loại Moóc blank (the column is nullable by
+  // design), so the subtotals must reconcile with the list through an
+  // explicit unknown bucket — ft40 + ft20 + unknown === trailers.length.
+  // Counts anything outside the two known types (null included).
+  const unknownType = trailers.length - ft40 - ft20;
   const active = trailers.filter((t) => t.status === "ACTIVE").length;
 
   return (
@@ -257,6 +264,14 @@ export function TrailerCard({ trailers, trucks, crud }: { trailers: Array<{ id: 
             <span>
               <strong style={styles.fontMono}>{ft20}</strong> × 20FT
             </span>
+            {unknownType > 0 && (
+              <>
+                <span style={styles.dotSep}>·</span>
+                <span>
+                  <strong style={styles.fontMono}>{unknownType}</strong> × Chưa rõ loại
+                </span>
+              </>
+            )}
             <span style={styles.dotSep}>·</span>
             <span>{active} đang hoạt động</span>
             <span style={styles.dotSep}>·</span>
@@ -336,6 +351,14 @@ export function TrailerCard({ trailers, trucks, crud }: { trailers: Array<{ id: 
             <span>
               <strong style={styles.fontMono}>{ft20}</strong> × 20FT
             </span>
+            {unknownType > 0 && (
+              <>
+                <span style={styles.dotSep}>·</span>
+                <span>
+                  <strong style={styles.fontMono}>{unknownType}</strong> × Chưa rõ loại
+                </span>
+              </>
+            )}
             <span style={styles.dotSep}>·</span>
             <span>{active} đang hoạt động</span>
             <span style={styles.dotSep}>·</span>

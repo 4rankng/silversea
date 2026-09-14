@@ -746,7 +746,9 @@ export const truckSchema = z.object({
 
 export const trailerSchema = z.object({
   licensePlate: z.string().min(1),
-  type: z.nativeEnum(TrailerType),
+  // Nullable by design — fleet sheets ship blank Loại Moóc; the FE renders
+  // those as the explicit "Chưa rõ loại" bucket.
+  type: z.nativeEnum(TrailerType).nullable(),
   status: z.nativeEnum(TrailerStatus).optional().default(TrailerStatus.ACTIVE),
 });
 

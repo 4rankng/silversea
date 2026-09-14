@@ -262,6 +262,10 @@
   border-color: var(--fleet-blue-border);
 }
 
+.fleet-page .fleet-type-chip.unknown {
+  background: var(--bg-3, #f1f5f9);
+  color: var(--fg-3, #64748b);
+}
 .fleet-page .fleet-type-chip.ft20 {
   background: linear-gradient(180deg, var(--accent-soft), var(--fleet-green-end));
   color: var(--accent-2);
