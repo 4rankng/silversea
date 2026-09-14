@@ -756,7 +756,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <nav className="bottom-nav" ref={bottomNavRef as React.RefObject<HTMLElement>}>
             {navItems.map(item => {
               const IconC = item.icon;
-              const isActive = item.key === activeKey;
+              const isActive = item.key === activeKey && !userMenuOpen;
               const displayLabel = item.mobileLabel || item.label;
               return (
                 <button
