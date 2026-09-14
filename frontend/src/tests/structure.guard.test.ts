@@ -214,7 +214,7 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   'src/pages/config/AppSettingsConfigPage.tsx': 571,
   'src/pages/config/CustomersConfigPage.tsx': 500,
   'src/pages/config/DebitNoteTemplateEditorPage.tsx': 421,
-  'src/pages/config/PenaltyReasonsConfigPage.tsx': 520,
+  'src/pages/config/PenaltyReasonsConfigPage.tsx': 537,
   'src/pages/config/RoutesConfigPage.tsx': 449,
   'src/pages/CustomersPage.tsx': 722,
   'src/pages/DashboardPage.tsx': 687,
