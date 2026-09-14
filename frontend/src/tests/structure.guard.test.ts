@@ -229,7 +229,10 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   'src/pages/DriverTripDetailPage.tsx': 691,
   'src/pages/DriverTripPodPage.tsx': 520,
   'src/pages/ExpenseEntryPage.tsx': 702,
-  'src/pages/FinancePage.tsx': 987,
+  // Bumped 987 → 999: 2026-09-14 chart empty-state three-way
+  // branch — the no-trip message now keys on completed-trip presence with a
+  // distinct completed-but-zero explanation. Reviewed as a contract change.
+    'src/pages/FinancePage.tsx': 999,
   'src/pages/ForwarderSettlementCreatePage.tsx': 503,
   'src/pages/ForwarderTripDetailPage.tsx': 1107,
   'src/pages/PayableDetailPage.tsx': 608,
