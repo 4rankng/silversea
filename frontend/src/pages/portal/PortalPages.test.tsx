@@ -67,7 +67,7 @@ describe('customer portal pages', () => {
 
   it('PortalShipmentsPage calls the role-scoped customer inbox endpoint', async () => {
     apiGet.mockResolvedValue(portalInbox([{
-      id: 'shipment:42', entityType: 'shipment', entityId: 42, title: 'SHP-2607-00042', subtitle: 'Đang theo dõi vận chuyển', state: 'WAITING', priority: 30, dueAt: '2026-07-31T00:00:00.000Z', freshnessAt: new Date().toISOString(), blockers: [], advisories: [], nextAction: null, targetRoute: '/portal/shipments/42', shipmentId: 42, containerSummary: 'MSBU1234567', deliveryTruth: 'IN_TRANSIT', deliveryResponseRequired: false, deliveryEventId: null, deliveryEventVersion: null,
+      id: 'shipment:42', entityType: 'shipment', entityId: 42, title: 'SHP-2607-00042', subtitle: 'Đang theo dõi', state: 'WAITING', priority: 30, dueAt: '2026-07-31T00:00:00.000Z', freshnessAt: new Date().toISOString(), blockers: [], advisories: [], nextAction: null, targetRoute: '/portal/shipments/42', shipmentId: 42, containerSummary: 'MSBU1234567', deliveryTruth: 'IN_TRANSIT', deliveryResponseRequired: false, deliveryEventId: null, deliveryEventVersion: null,
     }]));
 
     render(
@@ -77,15 +77,17 @@ describe('customer portal pages', () => {
     );
 
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/portal/work-inbox?view=ACTION&page=1&limit=100'));
-    fireEvent.click(screen.getByRole('tab', { name: /Đang vận chuyển/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /Đang xử lý/ }));
     expect(await screen.findByText('SHP-2607-00042')).toBeTruthy();
     expect(screen.getByText('MSBU1234567')).toBeTruthy();
+    // The in-transit row's delivery-truth fact keeps the transport claim —
+    // only the bucket label went neutral.
     expect(screen.getAllByText('Đang vận chuyển').length).toBeGreaterThan(0);
   });
 
   it('shows the authoritative shipment identity once in the customer inbox', async () => {
     apiGet.mockResolvedValue(portalInbox([{
-      id: 'shipment:43', entityType: 'shipment', entityId: 43, title: 'SHP-2607-00043', subtitle: 'Đang theo dõi vận chuyển', state: 'ACTION', priority: 100, dueAt: null, freshnessAt: new Date().toISOString(), blockers: [], advisories: [], nextAction: { label: 'Phản hồi giao hàng', targetRoute: '/portal/shipments/43' }, targetRoute: '/portal/shipments/43', shipmentId: 43, containerSummary: null, deliveryTruth: 'DRIVER_REPORTED', deliveryResponseRequired: true, deliveryEventId: 91, deliveryEventVersion: 2,
+      id: 'shipment:43', entityType: 'shipment', entityId: 43, title: 'SHP-2607-00043', subtitle: 'Đang theo dõi', state: 'ACTION', priority: 100, dueAt: null, freshnessAt: new Date().toISOString(), blockers: [], advisories: [], nextAction: { label: 'Phản hồi giao hàng', targetRoute: '/portal/shipments/43' }, targetRoute: '/portal/shipments/43', shipmentId: 43, containerSummary: null, deliveryTruth: 'DRIVER_REPORTED', deliveryResponseRequired: true, deliveryEventId: 91, deliveryEventVersion: 2,
     }]));
 
     render(<MemoryRouter><PortalShipmentsPage /></MemoryRouter>);

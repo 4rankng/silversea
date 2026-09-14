@@ -46,7 +46,7 @@ export const driverWorkInboxItemSchema = workInboxItemBaseSchema.extend({
 export const customerWorkInboxItemSchema = workInboxItemBaseSchema.extend({
   shipmentId: z.number().int().positive(),
   containerSummary: z.string().nullable(),
-  deliveryTruth: z.enum(['IN_TRANSIT', 'DRIVER_REPORTED', 'POD_ACCEPTED']),
+  deliveryTruth: z.enum(['NO_REPORT', 'IN_TRANSIT', 'DRIVER_REPORTED', 'POD_ACCEPTED']),
   deliveryResponseRequired: z.boolean(),
   deliveryEventId: z.number().int().positive().nullable(),
   deliveryEventVersion: z.number().int().positive().nullable(),

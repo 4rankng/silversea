@@ -286,6 +286,39 @@ describe('work inbox projection', () => {
     podIds.splice(podIds.indexOf(rejected.id), 1);
   });
 
+  test('assigned-only shipments report no delivery truth; only in-transit claims transport', async () => {
+    const [assigned] = await db.insert(s.shipments).values({
+      customerId: inboxCustomerId,
+      shipmentCode: `ASSIGNED-${suffix}`.slice(0, 50),
+      status: 'DISPATCHED',
+      cargoMode: 'LCL',
+    }).returning();
+    shipmentIds.push(assigned.id);
+    const [running] = await db.insert(s.shipments).values({
+      customerId: inboxCustomerId,
+      shipmentCode: `RUNNING-${suffix}`.slice(0, 50),
+      status: 'IN_TRANSIT',
+      cargoMode: 'LCL',
+    }).returning();
+    shipmentIds.push(running.id);
+
+    const inbox = await customerWorkInbox(inboxCustomerId, { page: 1, limit: 100 });
+    const assignedRow = inbox.items.find((candidate) => candidate.shipmentId === assigned.id);
+    const runningRow = inbox.items.find((candidate) => candidate.shipmentId === running.id);
+    const readyRow = inbox.items.find((candidate) => candidate.shipmentId === preTripShipmentId);
+    // Assignment is not transport: with no delivery evidence and no
+    // in-transit status, the row must not claim movement — the detail's own
+    // status history for these lots has no departure event.
+    assert.equal(assignedRow?.deliveryTruth, 'NO_REPORT');
+    assert.equal(readyRow?.deliveryTruth, 'NO_REPORT');
+    assert.equal(assignedRow?.subtitle, 'Đang theo dõi');
+    assert.equal(assignedRow?.state, 'WAITING');
+    // A genuinely in-transit shipment keeps the transport claim, and the
+    // neutral subtitle never says "vận chuyển" on its own.
+    assert.equal(runningRow?.deliveryTruth, 'IN_TRANSIT');
+    assert.equal(runningRow?.subtitle, 'Đang theo dõi');
+  });
+
   test('Manager decision items identify the owner, age, impact, and direct route', async () => {
     const result = await managerDecisionInbox(900_000_000, { page: 1, limit: 100 });
     const row = result.items.find((candidate) => candidate.entityId === responseIds[0]);

@@ -245,4 +245,22 @@ describe('RoleWorkInbox', () => {
     const table = await screen.findByRole('table');
     expect(within(table).queryByRole('list', { name: /Mốc nghiệp vụ/ })).toBeNull();
   });
+
+  it('customer middle bucket stays neutral: NO_REPORT rows never claim transport', async () => {
+    apiGet.mockResolvedValue(response([
+      { ...customerItem, id: 'shipment:21', entityId: 21, title: 'SHP-21', shipmentId: 21, state: 'WAITING', deliveryTruth: 'NO_REPORT', subtitle: 'Đang theo dõi', nextAction: null, deliveryResponseRequired: false },
+      { ...customerItem, id: 'shipment:22', entityId: 22, title: 'SHP-22', shipmentId: 22, state: 'WAITING', deliveryTruth: 'IN_TRANSIT', subtitle: 'Đang theo dõi', nextAction: null, deliveryResponseRequired: false },
+    ]));
+    render(<MemoryRouter><RoleWorkInbox role="customer" title="Lô hàng của tôi" description="Mô tả" customerId={14} scopeReady={true} /></MemoryRouter>);
+
+    // The tablist tuple reads neutral: the active-work bucket is no longer
+    // labeled "Đang vận chuyển". (Tab names carry a count span — regex.)
+    const neutralTab = await screen.findByRole('tab', { name: /Đang xử lý/ });
+    expect(screen.queryByRole('tab', { name: /Đang vận chuyển/ })).toBeNull();
+    fireEvent.click(neutralTab);
+    // Inside the bucket, facts stay event-derived: assigned-only rows report
+    // no news; only a genuinely in-transit row may read as transport.
+    expect(await screen.findByText('Chưa có báo cáo giao hàng')).toBeTruthy();
+    expect(screen.getAllByText('Đang vận chuyển').length).toBe(1);
+  });
 });

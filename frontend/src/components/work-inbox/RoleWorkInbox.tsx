@@ -30,7 +30,7 @@ type InboxData = WorkInboxResponseOf<RoleItem>;
 const labels: Record<Role, readonly [string, string, string]> = {
   operations: ['Cần làm', 'Đang chờ', 'Hoàn tất'],
   driver: ['Cần làm', 'Đang chờ', 'Hoàn tất'],
-  customer: ['Cần xác nhận', 'Đang vận chuyển', 'Hoàn tất'],
+  customer: ['Cần xác nhận', 'Đang xử lý', 'Hoàn tất'], // neutral active-work bucket — "Đang vận chuyển" overstated assigned-not-departed lots
 };
 const states = ['ACTION', 'WAITING', 'DONE'] as const;
 const countKeys = ['action', 'waiting', 'done'] as const;
@@ -72,7 +72,7 @@ function statusLabel(item: WorkInboxItemBase) {
 //   - "Đã phân xe" — dispatcher has assigned plates to every container
 //   - "Đã đổi lệnh" — ops has collected the paper order from the customer
 // Customer-facing rows don't need this gate; the customer's state is
-// "Đang vận chuyển / Hoàn tất" and the driver-facing row only needs to show
+// "Đang xử lý / Hoàn tất" and the driver-facing row only needs to show
 // the gate that blocks *them* (Đã đổi lệnh = ops handoff).
 type Gate = { label: string; satisfied: boolean; pending?: string };
 
@@ -139,7 +139,7 @@ function factsFor(item: RoleItem, role: Role): Array<{ label: string; value: str
   const value = item as CustomerWorkInboxItem;
   return [
     { label: 'Container', value: value.containerSummary || 'Không áp dụng' },
-    { label: 'Nguồn trạng thái', value: value.deliveryTruth === 'DRIVER_REPORTED' ? 'Tài xế báo đã giao' : value.deliveryTruth === 'POD_ACCEPTED' ? 'POD đã được chấp nhận' : 'Đang vận chuyển' },
+    { label: 'Nguồn trạng thái', value: value.deliveryTruth === 'DRIVER_REPORTED' ? 'Tài xế báo đã giao' : value.deliveryTruth === 'POD_ACCEPTED' ? 'POD đã được chấp nhận' : value.deliveryTruth === 'IN_TRANSIT' ? 'Đang vận chuyển' : 'Chưa có báo cáo giao hàng' },
   ];
 }
 
