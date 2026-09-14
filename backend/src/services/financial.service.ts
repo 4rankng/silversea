@@ -13,6 +13,7 @@ import { LedgerService } from './ledger.service';
 import { ApiError } from '../errors';
 import { requestTripArAdjustment } from './adjustment-governance.service';
 import { assertCanMakeGovernanceAction } from './governance-policy';
+import { settleExpensesForPayment } from './expense.service';
 import {
   buildGovernanceAction,
   type GovernanceActionRow,
@@ -731,6 +732,8 @@ export interface VendorPaymentInput extends TreasuryPaymentFields {
   date: string;
   note?: string;
   confirmOverpay?: boolean;
+  /** QA-089: linked expenses that flip PAID with this payment. */
+  expenseIds?: number[];
 }
 
 async function recordVendorPaymentTx(tx: Tx, input: VendorPaymentInput): Promise<VendorPaymentResult> {
@@ -863,6 +866,9 @@ export async function requestVendorPaymentGovernance(input: {
       },
       deltaSnapshot: {
         vendorBalanceDelta: -paymentAmount,
+        linkedExpenseIds: Array.isArray(input.payment?.expenseIds)
+          ? input.payment.expenseIds.map(Number)
+          : [],
       },
       makerId: input.makerId,
       makerRole: input.makerRole,
@@ -937,6 +943,24 @@ export async function applyVendorPaymentGovernanceAction(tx: Tx, action: Governa
     treasuryMovementId = movement.id;
   }
 
+  // QA-089: settle the linked expenses inside the same transaction — the
+  // payment posts its ledger entry above; the listed rows now flip PAID with
+  // settledByPaymentId so expense status and supplier debt agree.
+  const delta = (action.deltaSnapshot ?? {}) as Record<string, unknown>;
+  const expenseIds = Array.isArray(delta.linkedExpenseIds)
+    ? (delta.linkedExpenseIds as unknown[]).map(Number).filter(Number.isInteger)
+    : [];
+  let settledExpenseIds: number[] = [];
+  if (expenseIds.length > 0) {
+    await settleExpensesForPayment({
+      expenseIds,
+      supplierId,
+      paymentLedgerId: posted.id,
+      transaction: tx,
+    });
+    settledExpenseIds = expenseIds;
+  }
+
   return {
     ledgerEntryId: posted.id,
     applicationResult: {
@@ -946,6 +970,7 @@ export async function applyVendorPaymentGovernanceAction(tx: Tx, action: Governa
       overpayment: posted.overpayment ?? null,
       treasuryMovementId,
       paymentContractVersion: treasury.paymentContractVersion,
+      settledExpenseIds,
     },
   };
 }

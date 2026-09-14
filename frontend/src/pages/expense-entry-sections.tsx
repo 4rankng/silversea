@@ -37,17 +37,35 @@ export function ExpenseBasicFields({ form, errors, isEdit, existingExpense, set 
                   </div>
 
                   <div className="expense-group">
-                    <UuiSelectField
-                      id="paymentStatus"
-                      label="Trạng thái thanh toán"
-                      required
-                      value={form.paymentStatus}
-                      onChange={e => set('paymentStatus', e.target.value as 'PAID' | 'UNPAID')}
-                      options={[{ value: 'UNPAID', label: 'Ghi nợ' }, { value: 'PAID', label: 'Trả ngay' }]}
-                      error={errors.paymentStatus}
-                      wrapperClassName="expense-group"
-                      controlClassName="expense-input"
-                    />
+                    {/* Payment status is ledger-backed (QA-089): create only
+                        offers Ghi nợ — a paid-on-create row would assert a
+                        settlement that never posted; edit shows the current
+                        ledger-backed state read-only, settled via the NCC
+                        payments screen. */}
+                    {isEdit ? (
+                      <>
+                        <label className="expense-label" htmlFor="paymentStatus-ro">Trạng thái thanh toán</label>
+                        <div id="paymentStatus-ro" className="expense-input" aria-readonly="true" style={{ display: 'flex', alignItems: 'center', minHeight: 38 }}>
+                          {existingExpense?.paymentStatus === 'PAID' ? 'Đã trả (theo phiếu thanh toán)' : 'Ghi nợ'}
+                        </div>
+                        <p className="expense-hint">
+                          Trạng thái tự cập nhật khi thanh toán NCC được ghi (màn Thanh toán NCC — chọn các khoản chi liên quan khi ghi thanh toán).
+                          Thanh toán một phần: chỉ các khoản chi được chọn chuyển Đã trả — phần còn dư giữ nguyên Ghi nợ.
+                        </p>
+                      </>
+                    ) : (
+                      <UuiSelectField
+                        id="paymentStatus"
+                        label="Trạng thái thanh toán"
+                        required
+                        value="UNPAID"
+                        onChange={() => { /* ledger-backed: stays Ghi nợ until settled */ }}
+                        options={[{ value: 'UNPAID', label: 'Ghi nợ' }]}
+                        error={errors.paymentStatus}
+                        wrapperClassName="expense-group"
+                        controlClassName="expense-input"
+                      />
+                    )}
                   </div>
   </>;
 }

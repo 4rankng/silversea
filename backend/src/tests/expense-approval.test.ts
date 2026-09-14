@@ -5,7 +5,7 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { db, client } from '../db';
 import * as s from '../db/schema';
 import { runInTx } from '../lib/tx';
-import { submitExpense, reviewExpense } from '../services/expense.service';
+import { submitExpense, reviewExpense, settleExpensesForPayment, restoreExpensesForPaymentReversal } from '../services/expense.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const createdSupplierIds: number[] = [];
@@ -115,5 +115,75 @@ describe('expense dual-control review', () => {
     assert.equal(rejected.approvalStatus, 'REJECTED');
     assert.equal(rejected.rejectionReason, 'Không đủ hóa đơn');
     assert.equal(await ledgerCount(expense.supplierId), before, 'rejection must not post supplier debt');
+  });
+});
+
+// QA-089: payment status is ledger-backed — direct flips are rejected and
+// settlements flow through the payment linkage helpers.
+describe('expense payment-status ledger backing', () => {
+  before(async () => {
+    // Re-seed users for this suite (the outer before ran once).
+    const f = fixture();
+    if (!f) {
+      const [submitter] = await db.insert(s.users).values({ username: `exp-sub2-${suffix}`, passwordHash: 'x', role: 'MANAGER', status: 'ACTIVE' }).returning();
+      createdUserIds.push(submitter.id);
+      (globalThis as unknown as { __expFixture: unknown }).__expFixture = { submitter };
+    }
+  });
+
+  test('rejects paid-on-create submissions', async () => {
+    const f = fixture();
+    const input = await baseInput();
+    await assert.rejects(
+      () => runInTx(undefined, (tx) => submitExpense(tx, { ...input, paymentStatus: 'PAID' }, 'reason', f.submitter.id)),
+      /chỉ được ghi dưới dạng Ghi nợ/,
+    );
+  });
+
+  test('settle helper flips APPROVED/UNPAID rows once and records the payment; guards reject bad linkage', async () => {
+    const f = fixture();
+    const input = await baseInput();
+    const { expense } = await runInTx(undefined, (tx) => submitExpense(tx, input, 'reason', f.submitter.id));
+    createdExpenseIds.push(expense.id);
+    await reviewExpense({ expenseId: expense.id, action: 'CHECK', actorId: f.checker.id, actorRole: 'ACCOUNTANT' }).catch(() => {});
+    await reviewExpense({ expenseId: expense.id, action: 'APPROVE', actorId: f.approver.id, actorRole: 'ADMIN' }).catch(() => {});
+
+    // Wrong supplier 409s.
+    await assert.rejects(
+      () => runInTx(undefined, (tx) => settleExpensesForPayment({ expenseIds: [expense.id], supplierId: expense.supplierId + 1, paymentLedgerId: 9001, transaction: tx })),
+      /không thuộc nhà cung cấp/,
+    );
+    await runInTx(undefined, (tx) => settleExpensesForPayment({ expenseIds: [expense.id], supplierId: expense.supplierId, paymentLedgerId: 9001, transaction: tx }));
+    const [settled] = await db.select().from(s.expenses).where(eq(s.expenses.id, expense.id));
+    assert.equal(settled.paymentStatus, 'PAID');
+    assert.equal(settled.settledByPaymentId, 9001);
+
+    // Already paid 409s (retry cannot double-settle).
+    await assert.rejects(
+      () => runInTx(undefined, (tx) => settleExpensesForPayment({ expenseIds: [expense.id], supplierId: expense.supplierId, paymentLedgerId: 9002, transaction: tx })),
+      /đã được ghi trả/,
+    );
+  });
+
+  test('restore returns rows still pointing at the payment; a re-settled row keeps PAID', async () => {
+    const f = fixture();
+    const input = await baseInput();
+    const { expense } = await runInTx(undefined, (tx) => submitExpense(tx, input, 'reason', f.submitter.id));
+    createdExpenseIds.push(expense.id);
+    await reviewExpense({ expenseId: expense.id, action: 'CHECK', actorId: f.checker.id, actorRole: 'ACCOUNTANT' }).catch(() => {});
+    await reviewExpense({ expenseId: expense.id, action: 'APPROVE', actorId: f.approver.id, actorRole: 'ADMIN' }).catch(() => {});
+    await runInTx(undefined, (tx) => settleExpensesForPayment({ expenseIds: [expense.id], supplierId: expense.supplierId, paymentLedgerId: 9101, transaction: tx }));
+    // A newer payment re-settles the row (reversal of 9101 must NOT touch it).
+    await db.update(s.expenses).set({ settledByPaymentId: 9202 }).where(eq(s.expenses.id, expense.id));
+    const restored = await runInTx(undefined, (tx) => restoreExpensesForPaymentReversal({ paymentLedgerId: 9101, transaction: tx }));
+    assert.deepEqual(restored, []);
+    const [still] = await db.select().from(s.expenses).where(eq(s.expenses.id, expense.id));
+    assert.equal(still.paymentStatus, 'PAID');
+    // Restoring the newer payment works.
+    const restored2 = await runInTx(undefined, (tx) => restoreExpensesForPaymentReversal({ paymentLedgerId: 9202, transaction: tx }));
+    assert.deepEqual(restored2, [expense.id]);
+    const [back] = await db.select().from(s.expenses).where(eq(s.expenses.id, expense.id));
+    assert.equal(back.paymentStatus, 'UNPAID');
+    assert.equal(back.settledByPaymentId, null);
   });
 });

@@ -70,6 +70,10 @@ export const expenses = pgTable('expenses', {
   approvedBy: integer('approved_by'),
   approvedAt: timestamp('approved_at'),
   rejectionReason: text('rejection_reason'),
+  // QA-089: which supplier payment settled this row — paid-status is
+  // ledger-backed; reversals restore UNPAID only when this payment still
+  // covers the row.
+  settledByPaymentId: integer('settled_by_payment_id'),
   createdBy: integer('created_by'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),

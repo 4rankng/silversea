@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { normalizeContainerNumber, validateCheckDigit, validateContainerFormat } from '../calculations/iso6346';
 import {
   CustomerAccountType, FuelMode, LoadingType, Role, SupplierType,
   TrailerType, TruckStatus, TrailerStatus, DriverStatus, CustomerStatus,
@@ -1116,6 +1117,11 @@ export const vendorPaymentSchema = z.object({
   amount: positiveNumeric,
   date: z.string().min(1),
   confirmOverpay: z.boolean().optional(),
+  /** QA-089: optional expense linkage — listed APPROVED/UNPAID expenses of
+   *  this supplier flip to PAID with the payment (ledger-backed status).
+   *  Unlisted expenses stay UNPAID even when over-covered (partial-payment
+   *  semantics: the supplier-level remainder stays unallocated). */
+  expenseIds: z.array(z.coerce.number().int().positive()).max(200).optional(),
 });
 
 // ─── Forwarder catalogs ──────────────────────────────────────────────────────
@@ -1233,6 +1239,34 @@ export const tripContainerSchema = z.object({
   seals: z.lazy(() => z.array(tripContainerSealSchema)).optional(),
 });
 
+// ISO 6346 gate for container-number writes: the add-to-trip routes (driver
+// + forwarder) validate format + check digit on the NORMALIZED number so a
+// malformed identifier ('ABC') can never persist as a container or become a
+// cost-allocation group. The batch trip-edit form's check is FE-advisory, so
+// these chains are the strong boundaries. A bad check digit REJECTS —
+// correction is an explicit user action (the FE offers a one-tap suggestion),
+// never a silent auto-correct.
+
+
+/** Add-container payload with the shared ISO 6346 gate — the number is
+ *  REQUIRED and must pass format + check digit on the normalized form. */
+export const validatedTripContainerSchema = tripContainerSchema
+  .refine(
+    (container) => Boolean(container.containerNumber?.trim()),
+    { path: ['containerNumber'], message: 'Số container không được để trống' },
+  )
+  .refine(
+    (container) => validateContainerFormat(container.containerNumber ?? ''),
+    { path: ['containerNumber'], message: 'Số container sai định dạng (4 chữ cái + 7 số).' },
+  )
+  .refine(
+    (container) => {
+      const normalized = normalizeContainerNumber(container.containerNumber ?? '');
+      return !normalized || validateCheckDigit(normalized);
+    },
+    { path: ['containerNumber'], message: 'Số container sai chữ số kiểm tra — kiểm tra lại.' },
+  );
+
 // ─── Multi-seal (Phase 2) ───────────────────────────────────────────────
 // A container can have multiple seals (customs seal, carrier seal, etc.).
 // sealType is a free-form string ("Customs", "Carrier", …) — no enum, since
@@ -1259,6 +1293,31 @@ export const tripContainerPatchSchema = z.object({
   // dedicated PUT /seals endpoint, not this patch.
   addSeals: z.array(tripContainerSealSchema).optional(),
 });
+
+/** Patch-container payload with the same gate — number optional, but any
+ *  value present must pass (clearing to null stays legal). */
+export const validatedTripContainerPatchSchema = tripContainerPatchSchema
+  .refine(
+    (container) => container.containerNumber == null || Boolean(container.containerNumber.trim()),
+    { path: ['containerNumber'], message: 'Số container không được để trống' },
+  )
+  .refine(
+    (container) => {
+      const value = container.containerNumber;
+      if (value == null || !value.trim()) return true;
+      return validateContainerFormat(value);
+    },
+    { path: ['containerNumber'], message: 'Số container sai định dạng (4 chữ cái + 7 số).' },
+  )
+  .refine(
+    (container) => {
+      const value = container.containerNumber;
+      if (value == null || !value.trim()) return true;
+      return validateCheckDigit(normalizeContainerNumber(value));
+    },
+    { path: ['containerNumber'], message: 'Số container sai chữ số kiểm tra — kiểm tra lại.' },
+  );
+
 
 // Batch upsert payload used by the trip-edit form: the client sends the full
 // desired list of container instances for a trip, and the backend reconciles
