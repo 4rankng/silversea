@@ -128,10 +128,10 @@ export function DriverTaskInfoSections({ trip }: { trip: DriverTaskDetail }) {
           {/* Factory site street address in its own row — the Tuyến row
               below stays route text only. */}
           <TaskFact icon={<MapPinned size={16} />} label="Địa chỉ nhà máy" value={valueOrDash(fulfillment?.factoryAddress)} fullWidth />
-          {/* SĐT kho sits directly under the factory address (sketch row 4). */}
+          {/* SĐT liên hệ sits directly under the factory address (sketch row 4). */}
           <TaskFact
             icon={<Phone size={16} />}
-            label="SĐT kho"
+            label="SĐT liên hệ"
             value={fulfillment?.khoPhone
               ? <a href={`tel:${fulfillment.khoPhone}`} className="driver-task-link">{fulfillment.khoPhone}</a>
               : '—'}
@@ -142,7 +142,7 @@ export function DriverTaskInfoSections({ trip }: { trip: DriverTaskDetail }) {
           {/* Stage-2 empty-container return depot — its own labeled row only
               when the dropoff port names a DIFFERENT place than the delivery
               point above; hidden when they agree or the port is absent. */}
-          {fulfillment?.returnDepotName ? (
+          {fulfillment?.returnDepotName && fulfillment.returnDepotName !== dropPoint ? (
             <TaskFact icon={<MapPinned size={16} />} label="Trả cont rỗng" value={fulfillment.returnDepotName} />
           ) : null}
           {/* Route text only — the factory address renders in its own row

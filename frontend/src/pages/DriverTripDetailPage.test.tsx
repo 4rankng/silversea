@@ -615,7 +615,7 @@ describe('DriverTripDetailPage', () => {
       'Nhà máy',
       'Tên nhà máy',
       'Địa chỉ nhà máy',
-      'SĐT kho',
+      'SĐT liên hệ',
       'Container / lô hàng',
       'Cảng nâng',
       'Cảng hạ',
@@ -637,7 +637,7 @@ describe('DriverTripDetailPage', () => {
     expect(valueOf('Tên nhà máy')).toBe('—');
     expect(valueOf('Địa chỉ nhà máy')).toBe('—');
     expect(valueOf('Tuyến')).toBe('Cát Lái → Bình Dương');
-    expect(valueOf('SĐT kho')).toBe('—');
+    expect(valueOf('SĐT liên hệ')).toBe('—');
     expect(screen.getByText('MSCU1234561 · 1 x 40G1 · Seal SEAL-9')).toBeTruthy();
     expect(screen.queryByText('Loại container')).toBeNull();
     expect(screen.queryByText('Số seal')).toBeNull();
@@ -808,14 +808,14 @@ describe('DriverTripDetailPage', () => {
   // TC-DA-003 (superseded placement): the warehouse-phone row is always
   // visible — "—" placeholder when the site has no phone (wireframe
   // supersedes the old graceful-hide on this screen).
-  it('SĐT kho row stays visible with "—" when the site has no phone', async () => {
+  it('SĐT liên hệ row stays visible with "—" when the site has no phone', async () => {
     renderPage();
 
     await screen.findByText(/Số cont & seal/);
     const labels = Array.from(document.querySelectorAll('.driver-task-fact__label')).map((el) => el.textContent);
-    expect(labels).toContain('SĐT kho');
+    expect(labels).toContain('SĐT liên hệ');
     const khoRow = Array.from(document.querySelectorAll('.driver-task-fact'))
-      .find((el) => el.querySelector('.driver-task-fact__label')?.textContent === 'SĐT kho');
+      .find((el) => el.querySelector('.driver-task-fact__label')?.textContent === 'SĐT liên hệ');
     expect(khoRow?.querySelector('.driver-task-fact__value')?.textContent).toBe('—');
   });
 

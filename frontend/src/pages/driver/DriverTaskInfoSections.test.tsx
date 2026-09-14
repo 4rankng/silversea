@@ -89,7 +89,7 @@ describe('DriverTaskInfoSections', () => {
       'Nhà máy',
       'Tên nhà máy',
       'Địa chỉ nhà máy',
-      'SĐT kho',
+      'SĐT liên hệ',
       'Container / lô hàng',
       'Cảng nâng',
       'Cảng hạ',
@@ -156,8 +156,8 @@ describe('DriverTaskInfoSections', () => {
   it('keeps the warehouse-phone row visible with "—" when the site has no phone', () => {
     render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { khoPhone: null } })} />);
 
-    expect(labels()).toContain('SĐT kho');
-    expect(valueOf('SĐT kho')).toBe('—');
+    expect(labels()).toContain('SĐT liên hệ');
+    expect(valueOf('SĐT liên hệ')).toBe('—');
   });
 
   it('renders route text on Tuyến — the factory address never leaks into it', () => {
@@ -253,7 +253,7 @@ describe('DriverTaskInfoSections', () => {
       'Nhà máy',
       'Tên nhà máy',
       'Địa chỉ nhà máy',
-      'SĐT kho',
+      'SĐT liên hệ',
       'Container / lô hàng',
       'Cảng nâng',
       'Cảng hạ',
@@ -264,6 +264,18 @@ describe('DriverTaskInfoSections', () => {
     ]);
     expect(valueOf('Cảng hạ')).toBe('Sóng Thần');
     expect(valueOf('Trả cont rỗng')).toBe('Bãi JJ LOGISTICS');
+  });
+
+  it('hides the return depot row when it equals the drop point', () => {
+    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { returnDepotName: 'Sóng Thần' } })} />);
+
+    expect(labels()).not.toContain('Trả cont rỗng');
+  });
+
+  it('hides the return depot row when returnDepotName is null', () => {
+    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { returnDepotName: null } })} />);
+
+    expect(labels()).not.toContain('Trả cont rỗng');
   });
 
   it('renders the container line in booking quantity format', () => {
