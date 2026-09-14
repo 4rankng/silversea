@@ -4,6 +4,7 @@ import * as s from '../db/schema';
 import type { Tx } from './trip-shared';
 import { eq, and, desc, inArray, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
+import { normalizeContainerNumber } from '@tingting/shared';
 import { assertTripShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 
 export type DbOrTx = typeof db | Tx;
@@ -444,7 +445,12 @@ export async function batchUpsertTripContainers(
     for (const c of containers) {
       const payload = {
         containerTypeId: c.containerTypeId ?? null,
-        containerNumber: c.containerNumber?.trim() || null,
+        // Canonical number everywhere: the batch path accepts separator/
+        // lowercase input (validation normalizes before checking) and stores
+        // the normalized form, mirroring the driver add path — a raw
+        // 'temu 1234 586' would otherwise read as a distinct cost-allocation
+        // group from its canonical twin.
+        containerNumber: c.containerNumber ? normalizeContainerNumber(c.containerNumber) : null,
         sealNumber: null,
         cargoWeightKg: c.cargoWeightKg != null ? String(c.cargoWeightKg) : null,
         notes: c.notes ?? null,

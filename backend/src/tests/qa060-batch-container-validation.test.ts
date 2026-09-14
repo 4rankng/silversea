@@ -6,6 +6,7 @@
  */
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
+import { eq } from 'drizzle-orm';
 import { tripContainerBatchSchema } from '@tingting/shared';
 
 const valid = (containerNumber: string | null) => ({
@@ -70,6 +71,56 @@ describe('QA-060 — tripContainerBatchSchema ISO 6346 gate', () => {
     assert.equal(r.success, false);
     if (!r.success) {
       assert.deepEqual(r.error.issues[0].path, ['containers', 1, 'containerNumber']);
+    }
+  });
+
+  test('accepts separator/lowercase input (validation normalizes before checking)', () => {
+    const r = tripContainerBatchSchema.safeParse({
+      containers: [{ containerNumber: 'tcku 123456 0' }],
+    });
+    assert.equal(r.success, true);
+  });
+});
+
+describe('QA-060 — batch write canonicalizes stored numbers', () => {
+  // Storage-level pin: the service persists the NORMALIZED form (uppercase,
+  // separators stripped) — mirroring the driver add path — so a raw
+  // 'tcku 1234 565' can never read as a distinct cost-allocation group from
+  // its canonical twin.
+  test('batchUpsertTripContainers stores normalizeContainerNumber output', async () => {
+    const { client, db } = await import('../db');
+    const s = await import('../db/schema');
+    const [customer] = await db.insert(s.customers).values({
+      name: `QA060 canon ${Date.now()}`,
+    }).returning();
+    const [route] = await db.insert(s.routes).values({
+      name: `QA060 canon route ${Date.now()}`,
+    }).returning();
+    const [trip] = await db.insert(s.trips).values({
+      tripCode: `QA060-CANON-${Date.now()}`,
+      customerId: customer.id,
+      routeId: route.id,
+      departureDate: '2026-09-14',
+      status: 'CREATED',
+    }).returning();
+    try {
+      const { batchUpsertTripContainers } = await import('../services/forwarder-container.service');
+      const items = await batchUpsertTripContainers(trip.id, null, [
+        { containerNumber: 'tcku 123456 0' },
+      ]);
+      assert.equal(items.length, 1);
+      assert.equal(items[0].containerNumber, 'TCKU1234560');
+
+      const [row] = await db.select({ number: s.tripContainers.containerNumber })
+        .from(s.tripContainers)
+        .where(eq(s.tripContainers.id, items[0].id));
+      assert.equal(row?.number, 'TCKU1234560');
+    } finally {
+      await db.delete(s.tripContainers).where(eq(s.tripContainers.tripId, trip.id));
+      await db.delete(s.trips).where(eq(s.trips.id, trip.id));
+      await db.delete(s.routes).where(eq(s.routes.id, route.id));
+      await db.delete(s.customers).where(eq(s.customers.id, customer.id));
+      await client.end();
     }
   });
 });

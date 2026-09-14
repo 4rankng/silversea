@@ -1241,13 +1241,14 @@ export const tripContainerSchema = z.object({
   seals: z.lazy(() => z.array(tripContainerSealSchema)).optional(),
 });
 
-// ISO 6346 gate for container-number writes: the add-to-trip routes (driver
-// + forwarder) validate format + check digit on the NORMALIZED number so a
-// malformed identifier ('ABC') can never persist as a container or become a
-// cost-allocation group. The batch trip-edit form's check is FE-advisory, so
-// these chains are the strong boundaries. A bad check digit REJECTS —
-// correction is an explicit user action (the FE offers a one-tap suggestion),
-// never a silent auto-correct.
+// ISO 6346 gate for container-number writes: every surface that can put a
+// container number into the database (add-to-trip routes, the driver patch
+// path, and the batch trip-edit PUT) validates format + check digit on the
+// NORMALIZED number so a malformed identifier ('ABC') can never persist as a
+// container or become a cost-allocation group. The FE advisory stays as UX,
+// but the persistence boundary is strong on all routes. A bad check digit
+// REJECTS — correction is an explicit user action (the FE offers a one-tap
+// suggestion), never a silent auto-correct.
 
 
 /** Add-container payload with the shared ISO 6346 gate — the number is
@@ -1296,29 +1297,44 @@ export const tripContainerPatchSchema = z.object({
   addSeals: z.array(tripContainerSealSchema).optional(),
 });
 
+/** Optional-number ISO 6346 gate shared by every surface that may legally
+ *  omit or clear the container number (driver patch, batch trip-edit PUT):
+ *  blank/null stays legal, but any value present must pass format + check
+ *  digit on the normalized form. Refines see the POST-transform value — the
+ *  '' → null property transform runs first, so an empty string reads as a
+ *  clear, not a malformed value.
+ *
+ *  Generic stays ZodTypeAny with NO explicit return type: a narrower
+ *  constraint or a declared ZodEffects<...> return clamps the chained
+ *  refinement inference and breaks downstream consumers that read sibling
+ *  fields (containerTypeId/seals/…) off the parsed output. */
+function withOptionalContainerNumberGate<S extends z.ZodTypeAny>(schema: S) {
+  return schema
+    .refine(
+      (container) => container.containerNumber == null || Boolean(container.containerNumber.trim()),
+      { path: ['containerNumber'], message: 'Số container không được để trống' },
+    )
+    .refine(
+      (container) => {
+        const value = container.containerNumber;
+        if (value == null || !value.trim()) return true;
+        return validateContainerFormat(value);
+      },
+      { path: ['containerNumber'], message: 'Số container sai định dạng (4 chữ cái + 7 số).' },
+    )
+    .refine(
+      (container) => {
+        const value = container.containerNumber;
+        if (value == null || !value.trim()) return true;
+        return validateCheckDigit(normalizeContainerNumber(value));
+      },
+      { path: ['containerNumber'], message: 'Số container sai chữ số kiểm tra — kiểm tra lại.' },
+    );
+}
+
 /** Patch-container payload with the same gate — number optional, but any
  *  value present must pass (clearing to null stays legal). */
-export const validatedTripContainerPatchSchema = tripContainerPatchSchema
-  .refine(
-    (container) => container.containerNumber == null || Boolean(container.containerNumber.trim()),
-    { path: ['containerNumber'], message: 'Số container không được để trống' },
-  )
-  .refine(
-    (container) => {
-      const value = container.containerNumber;
-      if (value == null || !value.trim()) return true;
-      return validateContainerFormat(value);
-    },
-    { path: ['containerNumber'], message: 'Số container sai định dạng (4 chữ cái + 7 số).' },
-  )
-  .refine(
-    (container) => {
-      const value = container.containerNumber;
-      if (value == null || !value.trim()) return true;
-      return validateCheckDigit(normalizeContainerNumber(value));
-    },
-    { path: ['containerNumber'], message: 'Số container sai chữ số kiểm tra — kiểm tra lại.' },
-  );
+export const validatedTripContainerPatchSchema = withOptionalContainerNumberGate(tripContainerPatchSchema);
 
 
 // Batch upsert payload used by the trip-edit form: the client sends the full
@@ -1326,40 +1342,24 @@ export const validatedTripContainerPatchSchema = tripContainerPatchSchema
 // (insert new, update existing by id, delete the rest). Each container may
 // carry a full seals[] list, reconciled the same way by id. sealNumber
 // (scalar) is kept for back-compat — when seals[] is absent, backend writes
-// the scalar value as the container's first seal row.
-//
-// ISO 6346 validation: every non-empty containerNumber passes the same
-// format + check-digit gate as the driver/forwarder add paths. This is a
-// hard boundary — the batch endpoint is the admin/dispatch persistence path.
+// the scalar value as the container's first seal row. The number is optional
+// (type-only rows are legal) but gated with the SAME shared refines as the
+// driver patch path — the batch endpoint is the admin/dispatch persistence
+// boundary and can no longer persist a malformed identifier that the
+// driver/forwarder surfaces would reject.
+const tripContainerBatchElementSchema = z.object({
+  id: z.coerce.number().int().positive().optional(),
+  containerTypeId: z.coerce.number().int().positive().optional().nullable(),
+  containerNumber: z.string().max(50, 'Số container không được quá 50 ký tự').optional().nullable().transform(v => (v === '' ? null : v)),
+  sealNumber: z.string().optional().nullable().transform(v => (v === '' ? null : v)),
+  cargoWeightKg: nonNegNumeric.optional().nullable(),
+  notes: z.string().optional().nullable().transform(v => (v === '' ? null : v)),
+  seals: z.array(tripContainerSealSchema).optional(),
+});
+
 export const tripContainerBatchSchema = z.object({
   expectedVersion: z.coerce.number().int().positive().optional(),
-  containers: z.array(z.object({
-    id: z.coerce.number().int().positive().optional(),
-    containerTypeId: z.coerce.number().int().positive().optional().nullable(),
-    containerNumber: z.string().max(50, 'Số container không được quá 50 ký tự').optional().nullable().transform(v => (v === '' ? null : v)),
-    sealNumber: z.string().optional().nullable().transform(v => (v === '' ? null : v)),
-    cargoWeightKg: nonNegNumeric.optional().nullable(),
-    notes: z.string().optional().nullable().transform(v => (v === '' ? null : v)),
-    seals: z.array(tripContainerSealSchema).optional(),
-  })),
-}).superRefine((data, ctx) => {
-  for (const [i, c] of data.containers.entries()) {
-    const value = c.containerNumber;
-    if (value == null || !value.trim()) continue;
-    if (!validateContainerFormat(value)) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['containers', i, 'containerNumber'],
-        message: 'Số container sai định dạng (4 chữ cái + 7 số).',
-      });
-    } else if (!validateCheckDigit(normalizeContainerNumber(value))) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['containers', i, 'containerNumber'],
-        message: 'Số container sai chữ số kiểm tra — kiểm tra lại.',
-      });
-    }
-  }
+  containers: z.array(withOptionalContainerNumberGate(tripContainerBatchElementSchema)),
 });
 
 // Full reconcile payload for one container's seals. PUT /containers/:id/seals
