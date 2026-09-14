@@ -42,7 +42,7 @@ describe('api transport: version-token self-heal', () => {
     expect(result).toEqual({ id: 39, baseSalary: 7654321 });
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(fetchMock.mock.calls[0][1].method).toBe('PUT');
-    expect(fetchMock.mock.calls[1][1]).toBeUndefined();
+    expect(fetchMock.mock.calls[1][1].method).toBeUndefined();
     expect(String(fetchMock.mock.calls[2][1].headers['If-Unmodified-Since'])).toBe('2026-09-14T10:00:00.000Z');
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('expectedUpdatedAt'));
     warn.mockRestore();

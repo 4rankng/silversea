@@ -72,6 +72,7 @@ class ApiClient {
   private readonly updatedAtByPath = new Map<string, string>();
   private readonly retryableCommandKeys = new Map<string, {
     activeRequests: number;
+    key: string;
     expiresAt: number;
   }>();
 

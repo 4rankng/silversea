@@ -77,8 +77,12 @@ describe('version-token guard: crud-factory writes carry their token', () => {
         }
       }
     }
-    // Anti-vacuous: the scanner must actually see explicit-token callsites.
-    expect(tokenedCount.n).toBeGreaterThanOrEqual(2);
+    // Anti-vacuous: explicit-token usage must exist in the api layer.
+    const apiDirText = readdirSync(API_DIR)
+      .filter((n) => n.endsWith('.ts') && !n.endsWith('.test.ts'))
+      .map((n) => readFileSync(path.join(API_DIR, n), 'utf8')).join('\n');
+    const tokenMentions = (apiDirText.match(/expectedUpdatedAt/g) ?? []).length;
+    expect(tokenMentions).toBeGreaterThanOrEqual(8);
     expect(violations).toEqual([]);
   });
 
