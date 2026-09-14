@@ -27,7 +27,7 @@ export default function ForwarderAdvancesPage() {
   const activeFilter: StatusFilter = table.filters.status ?? '';
   const { data: balanceData } = useForwarderAdvanceBalance();
   // C2b/C2c — settlement (hoàn ứng) figures shown alongside advances. Buckets
-  // are disjoint: "Chờ duyệt hoàn ứng" = requested but not yet approved/rejected;
+  // are disjoint: "Chờ quyết toán hoàn ứng" = requested, not yet reconciled;
   // "Đã thanh toán" = approved. Rejected settlements count in neither.
   const { data: settlementsData } = useForwarderSettlements();
   const settlements = (settlementsData?.items ?? []) as AdvanceSettlementWithRefs[];
@@ -73,7 +73,7 @@ export default function ForwarderAdvancesPage() {
     animateCounters([
       { el: heroAmountRef.current, value: totalAmount, format: (v: number) => Math.round(v).toLocaleString('vi-VN') },
       { el: heroTotalRef.current, value: totalRequests, suffix: ' yêu cầu' },
-      { el: heroPendingRef.current, value: pendingCount, suffix: ' chờ duyệt' },
+      { el: heroPendingRef.current, value: pendingCount, suffix: ' đang ghi nhận' },
       { el: heroOutstandingRef.current, value: outstanding, format: (v: number) => Math.round(v).toLocaleString('vi-VN') },
     ]);
   }, [loading, totalRequests, totalAmount, pendingCount, outstanding, animateCounters, prefersReduced]);
@@ -149,7 +149,7 @@ export default function ForwarderAdvancesPage() {
             <div className="hero-kpi-mini hero-kpi-mini--warn">
               <div className="hero-kpi-mini__body">
                 <span className="hero-kpi-mini__value" ref={heroPendingRef}>{pendingCount}</span>
-                <span className="hero-kpi-mini__label">chờ duyệt</span>
+                <span className="hero-kpi-mini__label">đang ghi nhận</span>
               </div>
               <Clock size={40} className="hero-kpi-mini__watermark" aria-hidden="true" />
             </div>
@@ -310,7 +310,7 @@ export default function ForwarderAdvancesPage() {
                 {req.approverName && req.approvedAt && (
                   <div className="fadv-card-trip__approver">
                     <User size={12} />
-                    <span>{req.status === 'APPROVED' ? 'Duyệt' : 'Từ chối'} bởi {req.approverName}</span>
+                    <span>{req.status === 'APPROVED' ? 'Ghi nhận' : 'Từ chối'} bởi {req.approverName}</span>
                     <span className="fadv-card-trip__meta-sep">·</span>
                     <span>{formatDate(req.approvedAt)}</span>
                   </div>

@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { Loader2, Wallet, CheckCircle2, XCircle, ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
+import { Loader2, Wallet, ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 import { usePageAnimations } from '../hooks/animations';
 import { formatNumber, formatDate } from '../lib/format';
 import {
@@ -12,16 +11,11 @@ import { PageHeader, StatusPill, Toolbar, FilterPill } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { AssetIcon, type AssetIconName } from '../components/AssetIcon';
 import { Money } from '../components/shared/Money';
-import {
-  useAdminAdvanceBalances,
-  useApproveAdvanceRequest,
-  useRejectAdvanceRequest,
-} from '../hooks/useQueries';
+import { useAdminAdvanceBalances } from '../hooks/useQueries';
 import { forwarderClient } from '../api/forwarderClient';
 import { qk } from '../api/keys';
 import { advanceRequestStatusVariant } from '../lib/status-variants';
 import { useFocusDeepLink } from '../hooks/useFocusDeepLink';
-import { useAuth } from '../hooks/useAuth';
 import { Pagination, UuiSelectField } from '../design-system';
 import { useTableQueryState } from '../design-system/hooks/useTableQueryState';
 import { nextTableSort, type TableSortState } from '../lib/table-sort';
@@ -92,10 +86,12 @@ function GridSortHeader({
   );
 }
 
+// Direct-effect vocabulary (QA-113): saves apply immediately, so the old
+// waiting-for-approval bucket is gone; PENDING survives only as a legacy
+// filter for pre-removal rows.
 const TABS: { key: StatusFilter; label: string }[] = [
   { key: '', label: 'Tất cả' },
-  { key: AdvanceRequestStatus.PENDING, label: 'Chờ xử lý' },
-  { key: AdvanceRequestStatus.APPROVED, label: 'Đã duyệt' },
+  { key: AdvanceRequestStatus.APPROVED, label: 'Đã ghi nhận' },
   { key: AdvanceRequestStatus.REJECTED, label: 'Từ chối' },
 ];
 
@@ -152,20 +148,11 @@ function AdvKPI({ label, value, meta, variant, iconName, active = false, hasItem
 
 function AdvanceGridRow({
   req,
-  approveMutation,
-  rejectMutation,
   focusId,
-  canPropose,
 }: {
   req: AdvanceRequest;
-  approveMutation: ReturnType<typeof useApproveAdvanceRequest>;
-  rejectMutation: ReturnType<typeof useRejectAdvanceRequest>;
   focusId?: string;
-  canPropose: boolean;
 }) {
-  const [decisionReason, setDecisionReason] = useState('');
-  const isApproving = approveMutation.isPending && approveMutation.variables?.id === req.id;
-  const isRejecting = rejectMutation.isPending && rejectMutation.variables?.id === req.id;
   const isPending = req.status === AdvanceRequestStatus.PENDING;
 
   return (
@@ -200,41 +187,10 @@ function AdvanceGridRow({
       {/* Reason */}
       <div className="adv-reason">{req.reason}</div>
 
-      {/* Actions / Approver */}
+      {/* Direct-effect save: no approve/reject handoff remains. Legacy
+          PENDING rows (pre-removal data) render read-only. */}
       <div className="adv-actions">
-        {isPending && canPropose ? (
-          <>
-            <input
-              className="form-input"
-              aria-label={`Lý do xử lý đề nghị của ${req.requesterName || 'đối tác không xác định'}`}
-              value={decisionReason}
-              onChange={(event) => setDecisionReason(event.target.value)}
-              placeholder="Lý do đề nghị"
-            />
-            <button
-              type="button"
-              className="btn btn--ghost btn--icon btn--sm"
-              onClick={() => approveMutation.mutate(buildAdvanceDecision(req, decisionReason)!)}
-              disabled={isApproving || isRejecting || !buildAdvanceDecision(req, decisionReason)}
-              title="Gửi đề nghị duyệt"
-              aria-label={`Gửi đề nghị duyệt cho ${req.requesterName || 'đối tác không xác định'}`}
-              style={{ color: 'var(--success)' }}
-            >
-              {isApproving ? <Loader2 size={16} className="spin" /> : <CheckCircle2 size={16} />}
-            </button>
-            <button
-              type="button"
-              className="btn btn--ghost btn--icon btn--sm"
-              onClick={() => rejectMutation.mutate(buildAdvanceDecision(req, decisionReason)!)}
-              disabled={isApproving || isRejecting || !buildAdvanceDecision(req, decisionReason)}
-              title="Gửi đề nghị từ chối"
-              aria-label={`Gửi đề nghị từ chối cho ${req.requesterName || 'đối tác không xác định'}`}
-              style={{ color: 'var(--danger)' }}
-            >
-              {isRejecting ? <Loader2 size={16} className="spin" /> : <XCircle size={16} />}
-            </button>
-          </>
-        ) : isPending ? (
+        {isPending ? (
           <span className="adv-readonly-state">Chỉ có quyền xem</span>
         ) : req.approverName ? (
           <div className="adv-approver">
@@ -250,20 +206,11 @@ function AdvanceGridRow({
 
 function AdvanceMobileCard({
   req,
-  approveMutation,
-  rejectMutation,
   focusId,
-  canPropose,
 }: {
   req: AdvanceRequest;
-  approveMutation: ReturnType<typeof useApproveAdvanceRequest>;
-  rejectMutation: ReturnType<typeof useRejectAdvanceRequest>;
   focusId?: string;
-  canPropose: boolean;
 }) {
-  const [decisionReason, setDecisionReason] = useState('');
-  const isApproving = approveMutation.isPending && approveMutation.variables?.id === req.id;
-  const isRejecting = rejectMutation.isPending && rejectMutation.variables?.id === req.id;
   const isPending = req.status === AdvanceRequestStatus.PENDING;
 
   return (
@@ -302,38 +249,8 @@ function AdvanceMobileCard({
         )}
       </div>
 
-      {/* Actions */}
-      {isPending && canPropose ? (
-        <div className="adv-mcard__actions">
-          <label className="adv-decision-reason">
-            <span>Lý do đề nghị</span>
-            <input
-              className="form-input"
-              value={decisionReason}
-              onChange={(event) => setDecisionReason(event.target.value)}
-              placeholder="Nhập căn cứ xử lý"
-            />
-          </label>
-          <button
-            type="button"
-            className="btn btn--primary"
-            onClick={() => approveMutation.mutate(buildAdvanceDecision(req, decisionReason)!)}
-            disabled={isApproving || isRejecting || !buildAdvanceDecision(req, decisionReason)}
-          >
-            {isApproving ? <Loader2 size={16} className="spin" /> : <CheckCircle2 size={16} />}
-            Gửi đề nghị duyệt
-          </button>
-          <button
-            type="button"
-            className="btn btn--danger"
-            onClick={() => rejectMutation.mutate(buildAdvanceDecision(req, decisionReason)!)}
-            disabled={isApproving || isRejecting || !buildAdvanceDecision(req, decisionReason)}
-          >
-            {isRejecting ? <Loader2 size={16} className="spin" /> : <XCircle size={16} />}
-            Gửi đề nghị từ chối
-          </button>
-        </div>
-      ) : isPending ? (
+      {/* Actions — direct-effect save: no approve/reject handoff remains. */}
+      {isPending ? (
         <div className="adv-readonly-state adv-readonly-state--mobile">
           Bạn chỉ có quyền xem yêu cầu này.
         </div>
@@ -366,10 +283,6 @@ export default function AdminAdvancesPage({ embedded = false }: { embedded?: boo
   });
   const { data: balancesData } = useAdminAdvanceBalances();
   const { rootRef } = usePageAnimations({ ready: !table.isLoading });
-  const approveMutation = useApproveAdvanceRequest();
-  const rejectMutation = useRejectAdvanceRequest();
-  const { user } = useAuth();
-  const canPropose = user?.role === Role.ADMIN || user?.role === Role.MANAGER;
 
   const statusFilter = (table.filters.status ?? '') as StatusFilter;
   const setStatusFilter = (next: StatusFilter) => {
@@ -432,17 +345,7 @@ export default function AdminAdvancesPage({ embedded = false }: { embedded?: boo
       {/* ── KPI strip ─────────────────────────────────────────────────── */}
       <div className="adv-kpi-row">
         <AdvKPI
-          label="Chờ xử lý"
-          value={countOf(AdvanceRequestStatus.PENDING)}
-          meta={`${formatNumber(amountOf(AdvanceRequestStatus.PENDING))} ₫`}
-          variant="warn"
-          iconName="advances"
-          active={statusFilter === AdvanceRequestStatus.PENDING}
-          hasItems={countOf(AdvanceRequestStatus.PENDING) > 0}
-          onClick={() => setStatusFilter(statusFilter === AdvanceRequestStatus.PENDING ? '' : AdvanceRequestStatus.PENDING)}
-        />
-        <AdvKPI
-          label="Đã duyệt"
+          label="Đã ghi nhận"
           value={countOf(AdvanceRequestStatus.APPROVED)}
           meta={`${formatNumber(amountOf(AdvanceRequestStatus.APPROVED))} ₫`}
           variant="success"
@@ -526,10 +429,7 @@ export default function AdminAdvancesPage({ embedded = false }: { embedded?: boo
                 <AdvanceGridRow
                   key={req.id}
                   req={req}
-                  approveMutation={approveMutation}
-                  rejectMutation={rejectMutation}
                   focusId={`adv-${req.id}`}
-                  canPropose={canPropose}
                 />
               ))}
             </div>
@@ -540,10 +440,7 @@ export default function AdminAdvancesPage({ embedded = false }: { embedded?: boo
                 <AdvanceMobileCard
                   key={req.id}
                   req={req}
-                  approveMutation={approveMutation}
-                  rejectMutation={rejectMutation}
                   focusId={`adv-${req.id}`}
-                  canPropose={canPropose}
                 />
               ))}
             </div>

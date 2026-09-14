@@ -111,20 +111,20 @@ describe('AdminAdvancesPage server-driven listing', () => {
     const { container } = renderPage();
     expect((await screen.findAllByText('An Nguyễn')).length).toBeGreaterThan(0);
 
-    // KPI values 7/5/2 — the loaded page only holds 2 rows, so these can only
-    // come from the full-set envelope aggregates.
+    // KPI values 5/2/0 (direct-effect vocabulary — no pending bucket) — the
+    // loaded page only holds 2 rows, so these can only come from the
+    // full-set envelope aggregates.
     const kpiValues = Array.from(container.querySelectorAll('.adv-kpi__value')).map(
       (el) => el.textContent,
     );
-    expect(kpiValues).toEqual(['7', '5', '2', '0']);
+    expect(kpiValues).toEqual(['5', '2', '0']);
 
     // KPI meta amounts come from statusAmounts (vi-VN grouping).
-    expect(screen.getAllByText('7.000.000 ₫').length).toBeGreaterThan(0);
     expect(screen.getAllByText('5.000.000 ₫').length).toBeGreaterThan(0);
 
     // Filter pills carry full-set counts, including the "all" total (7+5+2).
     // (Pill label + count spans concatenate without a space in the accname.)
-    expect(screen.getByRole('button', { name: 'Chờ duyệt7' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Đã ghi nhận5' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Tất cả14' })).toBeTruthy();
   });
 
@@ -151,9 +151,9 @@ describe('AdminAdvancesPage server-driven listing', () => {
     await waitFor(() => expect(lastCallParams()).toMatchObject({ page: 2 }));
 
     // Switching the status filter must send the filter and reset the page.
-    screen.getByRole('button', { name: 'Chờ duyệt7' }).click();
+    screen.getByRole('button', { name: 'Đã ghi nhận5' }).click();
     await waitFor(() =>
-      expect(lastCallParams()).toMatchObject({ status: 'PENDING', page: 1 }),
+      expect(lastCallParams()).toMatchObject({ status: 'APPROVED', page: 1 }),
     );
 
     // Going back to "all" drops the status param: the unfiltered page-1 query
