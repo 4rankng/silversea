@@ -1,6 +1,6 @@
 import { qk } from '../../api/keys';
 import { useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle,
@@ -423,8 +423,8 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
                     navigate(withOrigin(rowTarget));
                   };
                   return (
+                    <Fragment key={item.id}>
                     <tr
-                      key={item.id}
                       data-row-key={item.id}
                       className={item.priority >= 80 ? 'is-priority' : ''}
                       role="link"
@@ -461,19 +461,25 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
                         ) : customerAction && customerItem ? (
                           <div className="role-work-inbox__customer-actions">
                             <button type="button" className="role-work-inbox__button is-primary" disabled={respondingItemId === item.id} onClick={() => void sendCustomerResponse(customerItem, 'CONFIRMED')}>Xác nhận đã nhận hàng</button>
-                            {disputeItemId === item.id ? (
-                              <div className="role-work-inbox__dispute">
-                                <label htmlFor={`dispute-${item.id}`}>Lý do sai lệch</label>
-                                <textarea id={`dispute-${item.id}`} value={disputeReason} onChange={(event) => setDisputeReason(event.target.value)} maxLength={1000} autoFocus />
-                                <div><button type="button" className="role-work-inbox__button is-danger" disabled={respondingItemId === item.id} onClick={() => void sendCustomerResponse(customerItem, 'DISPUTED')}>Gửi báo sai lệch</button><button type="button" className="role-work-inbox__button" onClick={() => setDisputeItemId(null)}>Hủy</button></div>
-                              </div>
-                            ) : <button type="button" className="role-work-inbox__button" onClick={() => { setDisputeItemId(item.id); setDisputeReason(''); }}>Báo sai lệch</button>}
+                            <button type="button" className="role-work-inbox__button" onClick={() => { setDisputeItemId(item.id); setDisputeReason(''); }}>Báo sai lệch</button>
                           </div>
                         ) : item.nextAction ? (
                           <Link className="role-work-inbox__button" to={item.nextAction.targetRoute}>{item.nextAction.label}</Link>
                         ) : <Link className="role-work-inbox__detail-link" to={withOrigin(item.targetRoute)}>Xem hồ sơ</Link>}
                       </td>
                     </tr>
+                    {disputeItemId === item.id && customerItem && (
+                      <tr className="role-work-inbox__dispute-row">
+                        <td colSpan={role === 'customer' ? 6 : 7}>
+                          <div className="role-work-inbox__dispute">
+                            <label htmlFor={`dispute-${item.id}`}>Lý do sai lệch</label>
+                            <textarea id={`dispute-${item.id}`} value={disputeReason} onChange={(event) => setDisputeReason(event.target.value)} maxLength={1000} autoFocus />
+                            <div><button type="button" className="role-work-inbox__button is-danger" disabled={respondingItemId === item.id} onClick={() => void sendCustomerResponse(customerItem, 'DISPUTED')}>Gửi báo sai lệch</button><button type="button" className="role-work-inbox__button" onClick={() => setDisputeItemId(null)}>Hủy</button></div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    </Fragment>
                   );
                 })}
               </tbody>

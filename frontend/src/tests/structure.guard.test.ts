@@ -103,7 +103,11 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // Bumped 485 → 493: 2026-09-14 order-exchange refresh — the trip detail
   // refetch after a confirmed exchange adds the confirmed-state fact rows.
   // Reviewed as a contract change.
-  'src/components/work-inbox/RoleWorkInbox.tsx': 493,
+  // Bumped 493 → 499: 2026-09-14 expand dispute form to full row —
+  // the Fragment wrapper and expanded <tr> for the discrepancy editor
+  // add 6 lines over the previous inline-in-cell layout.
+  // Reviewed as a contract change.
+  'src/components/work-inbox/RoleWorkInbox.tsx': 499,
   // Bumped 431 → 444: 2026-09-14 duplicate-month picker guard —
   // taken months warn before submit (rework of the staging round-5 loop).
   // Reviewed as a contract change.
