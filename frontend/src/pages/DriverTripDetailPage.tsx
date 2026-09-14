@@ -49,6 +49,7 @@ export default function DriverTripDetailPage() {
   const [fuelScanning, setFuelScanning] = useState(false);
   const [chipsExpanded, setChipsExpanded] = useState(false);
   const [accepting, setAccepting] = useState(false);
+  const [blockingTripCode, setBlockingTripCode] = useState<string | null>(null);
 
   const fulfillmentId = Number(id);
   const validFulfillmentId = Number.isInteger(fulfillmentId) && fulfillmentId > 0 ? fulfillmentId : undefined;
@@ -106,10 +107,15 @@ export default function DriverTripDetailPage() {
       await refreshAll();
       toast({ kind: 'success', message: 'Đã ghi nhận mốc tiến độ.' });
     } catch (error) {
-      toast({
-        kind: 'error',
-        message: error instanceof Error ? error.message : 'Không thể gửi lệnh. Vui lòng thử lại.',
-      });
+      const msg = error instanceof Error ? error.message : 'Không thể gửi lệnh. Vui lòng thử lại.';
+      // KP-087: detect blocking-trip rejection and surface the trip code
+      const blockingMatch = msg.match(/Xe đang chạy chuyến\s+(\S+)/);
+      if (blockingMatch) {
+        setBlockingTripCode(blockingMatch[1]);
+      } else {
+        setBlockingTripCode(null);
+      }
+      toast({ kind: 'error', message: msg });
     } finally {
       setAccepting(false);
     }
@@ -472,7 +478,7 @@ export default function DriverTripDetailPage() {
               type="button"
               className="driver-task-accept-sticky__btn"
               disabled={!acceptClickable}
-              onClick={() => void handleMilestone(DriverProgressEventType.ORDER_RECEIVED)}
+              onClick={() => { setBlockingTripCode(null); void handleMilestone(DriverProgressEventType.ORDER_RECEIVED); }}
             >
               {accepting ? <Loader2 size={18} className="spin" /> : <CheckCircle2 size={18} />}
               <span>{acceptButtonLabel}</span>
@@ -480,6 +486,17 @@ export default function DriverTripDetailPage() {
           </div>
         </div>
       )}
+
+      {/* KP-087: blocking-trip reference when acceptance is rejected */}
+      {blockingTripCode && (
+        <div className="driver-task-section driver-task-section--banner" role="alert" data-testid="blocking-trip-banner">
+          <div className="driver-task-bypass" style={{ background: 'var(--err-bg, #fef2f2)', color: 'var(--err, #dc2626)' }}>
+            <ShieldAlert size={16} />
+            <span>Xe đang chạy chuyến <strong>{blockingTripCode}</strong> — hoàn thành chuyến đó trước khi nhận lệnh mới.</span>
+          </div>
+        </div>
+      )}
+
       </fieldset>
 
       {fuelScanning && (

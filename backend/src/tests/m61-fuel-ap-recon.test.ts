@@ -220,6 +220,10 @@ async function mkFuelInvoice(opts: {
     unitPrice: opts.unitPrice,
     totalAmount: opts.totalAmount,
     createdBy: opts.createdBy ?? null,
+    // KP-152: invoices are APPROVED at creation — raw fixture rows must match
+    // the service's create semantics or the reconciliation report (which
+    // counts APPROVED invoices only) ignores them.
+    approvalStatus: 'APPROVED',
   }).returning();
   createdFuelInvoiceIds.push(invoice.id);
   return invoice;

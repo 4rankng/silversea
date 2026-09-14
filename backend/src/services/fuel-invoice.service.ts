@@ -488,9 +488,10 @@ export async function updateFuelInvoice(
     if (fuelInvoiceVersion(existing.updatedAt) !== expectedVersion) {
       throw new ApiError(409, 'Hóa đơn nhiên liệu đã được cập nhật. Vui lòng tải lại trước khi lưu');
     }
-    if (existing.approvalStatus !== 'PENDING') {
-      throw new ApiError(409, 'Chỉ được sửa hóa đơn nhiên liệu đang chờ duyệt');
-    }
+    // KP-152 (approval removal): invoices are APPROVED at creation, so a
+    // PENDING-only edit gate would make every correction impossible. The
+    // version guard above + the idempotency envelope already protect
+    // concurrency; correcting an APPROVED invoice is an ordinary edit.
     await assertFuelSupplier(tx, input.supplierId);
     const rows = await buildAllocationRows(tx, invoiceId, input);
     await tx.delete(s.fuelInvoiceAllocations)
