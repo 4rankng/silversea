@@ -2,7 +2,6 @@ import { DispatchIssueStatusChip, deriveDispatchIssueStatus } from '../component
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Save } from 'lucide-react';
 import type { DispatchClassification } from '@tingting/shared';
-import { DISPATCH_CLASSIFICATIONS, DISPATCH_CLASSIFICATION_LABELS } from '@tingting/shared';
 import {
   listDispatchFleetResources,
   type DispatchCarrierVehicle,
@@ -14,6 +13,21 @@ import { api } from '../../../lib/api';
 import type { DispatchShipmentRequest, DispatchShipmentResponse } from '../../../api/shipmentClient';
 import { Modal } from '../../../components/UI';
 import { SearchableSelect, TextField, type SearchableSelectOption } from '../../../design-system';
+import {
+  CURRENT_PLATE_PREFIX,
+  EXTERNAL_VEHICLE_PREFIX,
+  EXTERNAL_CARRIER_PREFIX,
+  FREE_TEXT_PREFIX,
+  OWN_CARRIER_VALUE,
+  SUGGESTION_LABELS,
+  carrierValueForRow,
+  classificationOptionsForRow,
+  normalizePlate,
+  parseCarrier,
+  plateCompareKey,
+  vehiclePlateKey,
+  vehicleValueForRow,
+} from './DispatchPlanCellValues';
 import { UuiSelectField } from '../../../design-system/forms/UuiSelectField';
 import { DispatchTaskTagEditor } from './DispatchTaskTagEditor';
 import { formatMoneyInput, normalizeMoneyInput } from '../../../lib/moneyInput';
@@ -27,18 +41,6 @@ export type IssueOrderResult = DispatchShipmentResponse;
 
 const PAGE_LOAD_SIZE = 50;
 const OWN_TRUCK_PREFIX = 'truck:';
-const EXTERNAL_VEHICLE_PREFIX = 'vehicle:';
-const EXTERNAL_CARRIER_PREFIX = 'carrier:';
-const OWN_CARRIER_VALUE = 'carrier:own';
-const FREE_TEXT_PREFIX = 'free:';
-const CURRENT_PLATE_PREFIX = 'current:';
-
-// Zone-agnostic wording: suggestions derive from whichever zone the order's
-// own ports sit in (not just Lạch Huyện), so the tag must not hard-code "LH".
-const SUGGESTION_LABELS: Record<'D-1_DROP' | 'D+1_PICKUP', string> = {
-  'D-1_DROP': 'Hạ tại khu vực D-1',
-  'D+1_PICKUP': 'Lấy tại khu vực D+1',
-};
 
 export interface AtomicPlanSaveResult {
   fulfillmentVersion: number;
@@ -102,62 +104,6 @@ interface PlanEditorDraft {
   operationalNotes: string | null;
 }
 
-function normalizePlate(value: string): string {
-  return value.trim().toUpperCase().replace(/\s+/g, ' ');
-}
-
-function carrierValueForRow(row: DispatchDetailPlanRow): string {
-  // Carrier-less rows (detail plan since 2026-09-09): '' keeps the picker's
-  // "Chọn nhà xe" placeholder instead of a garbage `EXT:undefined` value.
-  if (row.dispatch.carrierType == null) return '';
-  return row.dispatch.carrierType === 'OWN'
-    ? OWN_CARRIER_VALUE
-    : `${EXTERNAL_CARRIER_PREFIX}${row.dispatch.externalCarrierId}`;
-}
-
-function vehicleValueForRow(row: DispatchDetailPlanRow): string {
-  if (row.dispatch.externalCarrierVehicleId != null) {
-    return `${EXTERNAL_VEHICLE_PREFIX}${row.dispatch.externalCarrierVehicleId}`;
-  }
-  return row.dispatch.assignedPlate ? `${CURRENT_PLATE_PREFIX}${row.dispatch.assignedPlate}` : '';
-}
-
-/** Comparison key for plate equality: separator-stripped uppercase, so the
- *  punctuated and normalized forms of one plate (15E-016.26 / 15E01626)
- *  compare equal wherever they meet — picker option, current-row placeholder
- *  or free text. */
-function plateCompareKey(value: string): string {
-  return normalizePlate(value).replace(/[^A-Z0-9 ]/g, '');
-}
-
-/** Resolves any vehicle-select value to its plate for comparison. The row's
- *  own-fleet placeholder (`current:{plate}`) and the same truck's fetched
- *  option (`truck:{id}`) are two different value strings for one vehicle —
- *  without this, re-selecting the already-assigned truck (or just opening
- *  the picker) registers as an unsaved change and the fetched list shows the
- *  same plate twice. */
-function vehiclePlateKey(value: string, options: SearchableSelectOption[]): string {
-  if (!value) return '';
-  if (value.startsWith(CURRENT_PLATE_PREFIX)) return plateCompareKey(value.slice(CURRENT_PLATE_PREFIX.length));
-  if (value.startsWith(FREE_TEXT_PREFIX)) return plateCompareKey(value.slice(FREE_TEXT_PREFIX.length));
-  const label = options.find((option) => option.value === value)?.label;
-  return label ? plateCompareKey(label.split(' — ')[0]) : value;
-}
-
-/** Cont rows offer the three cont models (Đơn/Kẹp/Kết hợp) — the dispatcher's
- *  call since 2026-09-08. LCL rows are cargo-mode bound: the select shows Lẻ,
- *  locked (PRD §2b keeps Lẻ separate from the three cont models). */
-function classificationOptionsForRow(classification: DispatchClassification): Array<{
-  value: DispatchClassification;
-  label: string;
-}> {
-  if (classification === 'LCL') {
-    return [{ value: 'LCL', label: DISPATCH_CLASSIFICATION_LABELS.LCL }];
-  }
-  return DISPATCH_CLASSIFICATIONS
-    .filter((value) => value !== 'LCL')
-    .map((value) => ({ value, label: DISPATCH_CLASSIFICATION_LABELS[value] }));
-}
 
 function draftForRow(row: DispatchDetailPlanRow): PlanEditorDraft {
   return {
@@ -170,14 +116,6 @@ function draftForRow(row: DispatchDetailPlanRow): PlanEditorDraft {
   };
 }
 
-function parseCarrier(value: string): { carrierType: 'OWN' | 'EXTERNAL'; externalCarrierId?: number } | null {
-  if (value === OWN_CARRIER_VALUE) return { carrierType: 'OWN' };
-  if (!value.startsWith(EXTERNAL_CARRIER_PREFIX)) return null;
-  const externalCarrierId = Number(value.slice(EXTERNAL_CARRIER_PREFIX.length));
-  return Number.isInteger(externalCarrierId) && externalCarrierId > 0
-    ? { carrierType: 'EXTERNAL', externalCarrierId }
-    : null;
-}
 
 function parseVnd(value: string): { valid: true; value: number | null } | { valid: false; value: null } {
   const normalized = value.trim();
