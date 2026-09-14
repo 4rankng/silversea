@@ -1359,7 +1359,10 @@ export const noInvoiceEvidenceTypesSchema = z.array(noInvoiceEvidenceTypeSchema)
 
 export const baseTripExpenseSchema = z.object({
   tripId: z.coerce.number().int().positive(),
-  expenseType: z.enum(ANCILLARY_EXPENSE_TYPES),
+  // Shape only — semantic validity (active catalog code ∪ seeded legacy
+  // codes) is asserted at the route against forwarder_expense_types; the
+  // old fixed enum rejected configured categories at save time.
+  expenseType: z.string().trim().min(1).max(50),
   buyAmount: z.number().positive(),
   sellAmount: z.number().min(0).optional().default(0),
   settlementMethod: z.enum(['COMPANY_DIRECT', 'OPS_ADVANCE']).default('OPS_ADVANCE'),

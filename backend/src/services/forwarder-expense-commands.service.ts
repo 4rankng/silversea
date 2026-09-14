@@ -8,6 +8,7 @@
  */
 import { createHash } from 'node:crypto';
 import { sql, eq, and, lte, isNull, desc } from 'drizzle-orm';
+import { db } from '../db';
 import type { z } from 'zod';
 import {
   tripExpenseSchema, tripExpensePatchSchema, tripExpenseCompletionSchema,
@@ -439,4 +440,24 @@ export async function deleteForwarderExpenseCommand(args: {
       return { success: true as const, auditEntityKey };
     },
   });
+}
+
+
+/** Semantic expenseType gate (catalog-backed categories): the code must be an
+ *  ACTIVE, non-deleted forwarder_expense_types row. The seeded legacy codes
+ *  (LIFTING/…/OTHER) are catalog rows too, so one check covers both worlds.
+ *  Vietnamese field-level message per the card; exact match — no silent
+ *  normalization or substitution. */
+export async function assertActiveExpenseTypeCode(tx: Tx | typeof db, code: string): Promise<void> {
+  const [row] = await tx.select({ id: s.forwarderExpenseTypes.id })
+    .from(s.forwarderExpenseTypes)
+    .where(and(
+      eq(s.forwarderExpenseTypes.code, code),
+      eq(s.forwarderExpenseTypes.status, 'ACTIVE'),
+      isNull(s.forwarderExpenseTypes.deletedAt),
+    ))
+    .limit(1);
+  if (!row) {
+    throw new ApiError(400, `Loại chi phí "${code}" không tồn tại hoặc đã ngừng hiệu lực — chọn lại loại phí trong danh sách.`);
+  }
 }

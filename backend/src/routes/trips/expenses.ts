@@ -11,11 +11,13 @@ import { asyncHandler } from '../../middleware/asyncHandler';
 import { requireRoles } from '../../middleware/casbin';
 import { getUser } from '../../middleware/auth';
 import * as financialService from '../../services/financial.service';
+import { assertActiveExpenseTypeCode } from '../../services/forwarder-expense-commands.service';
 import {
   getTripExpensesForRoute, createTripExpense, updateTripExpense, deleteTripExpenseGuarded,
   getTripExpenseAuditInfo, latestTripPhotoKey, listTripPhotoKeys, listTripContainers,
 } from '../../services/forwarder.service';
 import { ApiError } from '../../errors';
+import { db } from '../../db';
 import { requestTripExpenseDecision } from '../../services/approval.service';
 import { autoApplyGovernanceAction } from '../../services/adjustment-governance.service';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency.service';
@@ -102,6 +104,7 @@ router.post('/:id/expenses', asyncHandler(async (req: Request, res: Response) =>
   const tripId = parseInt(req.params.id as string, 10);
   const parsed = tripExpenseSchema.safeParse({ ...req.body, tripId });
   if (!parsed.success) throwValidation(parsed.error);
+  await assertActiveExpenseTypeCode(db, parsed.data.expenseType);
   const user = getUser(req);
   const idempotencyKey = getRequestIdempotencyKey(req);
   const { result: item, replayed } = await runIdempotent({
@@ -142,6 +145,9 @@ router.put('/:id/expenses/:eid', asyncHandler(async (req: Request, res: Response
   const eid = parseInt(req.params.eid as string, 10);
   const parsed = tripExpensePatchSchema.safeParse(req.body);
   if (!parsed.success) throwValidation(parsed.error);
+  if (parsed.data.expenseType !== undefined) {
+    await assertActiveExpenseTypeCode(db, parsed.data.expenseType);
+  }
   const tripId = parseInt(req.params.id as string, 10);
   const user = getUser(req);
   const idempotencyKey = getRequestIdempotencyKey(req);
