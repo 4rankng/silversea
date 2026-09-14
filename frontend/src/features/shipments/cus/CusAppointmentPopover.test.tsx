@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { CusAppointmentPopover } from './CusAppointmentPopover';
 
@@ -254,6 +254,30 @@ describe('CusAppointmentPopover', () => {
 
     fireEvent.keyDown(dialog, { key: 'Enter' });
     expect(handleClose).toHaveBeenCalledTimes(2);
+  });
+
+  it('Enter fires the commit callback once; Escape never commits', async () => {
+    const handleClose = vi.fn();
+    const handleCommit = vi.fn();
+    render(
+      <CusAppointmentPopover
+        isOpen={true}
+        value="2026-09-08T08:00"
+        containerLabel="Cont 1"
+        onClose={handleClose}
+        onChange={vi.fn()}
+        onCommit={handleCommit}
+      />,
+    );
+
+    const dialog = screen.getByRole('dialog');
+    fireEvent.keyDown(dialog, { key: 'Enter' });
+    expect(handleCommit).toHaveBeenCalledTimes(1);
+    // The close waits for the commit result — async even for a void commit.
+    await waitFor(() => expect(handleClose).toHaveBeenCalledTimes(1));
+
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+    expect(handleCommit).toHaveBeenCalledTimes(1);
   });
 
   it('closes when clicking outside via mousedown on document', () => {

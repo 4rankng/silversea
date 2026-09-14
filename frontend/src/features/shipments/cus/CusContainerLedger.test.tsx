@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ShipmentCusWorkspaceDetail } from '@tingting/shared';
 import { ToastProvider } from '../../../components/shared/Toast';
 import { ContainerLedger } from './CusContainerLedger';
@@ -64,6 +64,13 @@ function renderLedger() {
 }
 
 describe('ContainerLedger confirm affordances', () => {
+  // The save mock is module-level: without a clear, call counts accumulate
+  // across tests and every assertion would have to track the whole file's
+  // history.
+  beforeEach(() => {
+    updateCusShipmentContainerLine.mockClear();
+  });
+
   it('renders Lưu/Hủy actions when row inputs change, and discards on Hủy', () => {
     const view = renderLedger();
     const plateInput = screen.getByLabelText(/Biển số xe/) as HTMLInputElement;
@@ -132,6 +139,44 @@ describe('ContainerLedger confirm affordances', () => {
     // browser zone — a +08 host used to shift the stored instant by an hour.
     expect(payload.customerAppointmentAt).toBe('2026-09-11T09:00:00+07:00');
     expect(payload.plateNumber).toBe('15C-999.99');
+  });
+
+  it('Enter inside the popover saves the ledger and returns the row to display', async () => {
+    renderLedger();
+    updateCusShipmentContainerLine.mockResolvedValue({ line: { id: 10, shipmentVersion: 5 } });
+
+    fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ }));
+    const datetimeInput = document.querySelector('.cus-appointment-input') as HTMLInputElement;
+    fireEvent.change(datetimeInput, { target: { value: '09:00 11/09/2026' } });
+
+    // Enter commits straight from the portaled popover — no backdrop click,
+    // no footer button, no table-level key handler.
+    fireEvent.keyDown(screen.getByRole('dialog', { name: /Chọn giờ hẹn đóng\/trả/ }), { key: 'Enter' });
+
+    await waitFor(() => expect(updateCusShipmentContainerLine).toHaveBeenCalledTimes(1));
+    const [, , payload] = updateCusShipmentContainerLine.mock.calls[0];
+    expect(payload.customerAppointmentAt).toBe('2026-09-11T09:00:00+07:00');
+
+    // Back to display: popover closed, the trigger shows the saved value.
+    await waitFor(() => expect(document.querySelector('.cus-appointment-popover')).toBeNull());
+    const trigger = screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ });
+    expect(trigger.getAttribute('aria-label')).toContain('09:00 11/9/26');
+  });
+
+  it('Escape in the popover closes without saving', async () => {
+    renderLedger();
+    updateCusShipmentContainerLine.mockResolvedValue({ line: { id: 10, shipmentVersion: 5 } });
+
+    fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ }));
+    const datetimeInput = document.querySelector('.cus-appointment-input') as HTMLInputElement;
+    fireEvent.change(datetimeInput, { target: { value: '09:00 11/09/2026' } });
+
+    fireEvent.keyDown(screen.getByRole('dialog', { name: /Chọn giờ hẹn đóng\/trả/ }), { key: 'Escape' });
+
+    // Popover closes, but the draft stays — nothing is sent.
+    expect(document.querySelector('.cus-appointment-popover')).toBeNull();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(updateCusShipmentContainerLine).not.toHaveBeenCalled();
   });
 });
 

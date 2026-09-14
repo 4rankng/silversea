@@ -89,6 +89,7 @@ function ContainerLineRow({
   editing,
   onCompleteExternalTrip,
   completing,
+  onAppointmentCommit,
 }: {
   detail: ShipmentCusWorkspaceDetail;
   line: ShipmentCusWorkspaceContainerLine;
@@ -101,6 +102,9 @@ function ContainerLineRow({
    *  app) — absent when the line has no completable external trip. */
   onCompleteExternalTrip?: (line: ShipmentCusWorkspaceContainerLine) => void;
   completing?: boolean;
+  /** Enter inside the appointment popover: validate and persist the value.
+   *  Return false to keep the popover open on failure. */
+  onAppointmentCommit?: (val: string) => Promise<boolean> | boolean | void;
 }) {
   const [, setSelectOpen] = useState(false);
   const [appointmentOpen, setAppointmentOpen] = useState(false);
@@ -244,6 +248,7 @@ function ContainerLineRow({
             containerLabel={line.containerNumber || `Cont ${line.ordinal}`}
             onClose={() => setAppointmentOpen(false)}
             onChange={(val) => onDraftChange({ customerAppointmentAt: val })}
+            onCommit={onAppointmentCommit}
             idPrefix={`${idPrefix}-apt-${line.id}`}
             triggerRef={appointmentTriggerRef}
           />
@@ -400,6 +405,36 @@ export function ContainerLedger({
     }
   }, [clearIdempotencyKey, detail, dirtyLineIds, drafts, getIdempotencyKey, onLineSaved, saving, toast]);
 
+  /** Persist a single container's appointment directly — bypasses the draft
+   *  dirty-tracking so the Enter key in the popover saves immediately without
+   *  waiting for a React re-render cycle. */
+  const commitAppointment = useCallback(async (lineId: number, value: string): Promise<boolean> => {
+    const line = detail.containers.find((c) => c.id === lineId);
+    if (!line || !line.permissions.customerAppointmentEditable) return false;
+    setSaving(true);
+    try {
+      const expectedVersion = detail.summary.version ?? (line.shipmentVersion ?? 1);
+      const patch = {
+        expectedShipmentVersion: expectedVersion,
+        customerAppointmentAt: value ? localDateTimeToIso(value) : null,
+      };
+      const signature = idempotencySignature('container', detail.summary.id, line.id, expectedVersion);
+      const idempotencyKey = getIdempotencyKey(signature);
+      const result = await updateCusShipmentContainerLine(detail.summary.id, line.id, patch, idempotencyKey);
+      clearIdempotencyKey(signature);
+      if (result?.line) {
+        await onLineSaved(result.line);
+      }
+      toast({ kind: 'success', message: 'Đã lưu giờ hẹn.' });
+      return true;
+    } catch (error) {
+      toast({ kind: 'error', message: safeError(error, 'Không thể lưu giờ hẹn.') });
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  }, [clearIdempotencyKey, detail, getIdempotencyKey, onLineSaved, toast]);
+
   useEffect(() => {
     if (actionsRef) actionsRef.current = { saveAll, discardAll };
     return () => {
@@ -479,6 +514,7 @@ export function ContainerLedger({
                   editing={editing}
                   onCompleteExternalTrip={externalCloseForLine(line)}
                   completing={completing}
+                  onAppointmentCommit={(val) => commitAppointment(line.id, val)}
                 />
               ))}
             </tbody>

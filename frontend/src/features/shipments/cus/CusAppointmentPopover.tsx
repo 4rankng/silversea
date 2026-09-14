@@ -18,6 +18,9 @@ export interface CusAppointmentPopoverProps {
   isOpen: boolean;
   onClose: () => void;
   onChange: (val: string) => void;
+  /** Called on Enter — should validate and persist the value. Return false
+   *  to keep the popover open (e.g. validation failure). */
+  onCommit?: (val: string) => Promise<boolean> | boolean | void;
   idPrefix?: string;
   triggerRef?: RefObject<HTMLElement | null>;
   portal?: boolean;
@@ -51,6 +54,7 @@ export function CusAppointmentPopover({
   isOpen,
   onClose,
   onChange,
+  onCommit,
   idPrefix = 'cus-apt',
   triggerRef,
   portal,
@@ -160,7 +164,19 @@ export function CusAppointmentPopover({
       onClose();
     } else if (event.key === 'Enter') {
       event.preventDefault();
-      onClose();
+      // React routes portal events through the fiber tree: without this,
+      // Enter also bubbles into the ledger table's key handler and fires a
+      // second concurrent saveAll.
+      event.stopPropagation();
+      const composed = date ? `${date}T${time || '08:00'}` : '';
+      onChange(composed);
+      if (onCommit) {
+        Promise.resolve(onCommit(composed)).then((ok) => {
+          if (ok !== false) onClose();
+        });
+      } else {
+        onClose();
+      }
     }
   };
 
