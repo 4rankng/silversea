@@ -289,3 +289,27 @@
 @media (max-width: 420px) {
   .trip-list-page .stats-strip { grid-template-columns: 1fr; }
 } /* end 420px */
+
+/* ── QA-031: records start in the first half of a 390px viewport ──
+   The featured status chart repeats the counts the status pills already
+   carry, and the hero/filter paddings stack ~a viewport of chrome above the
+   first card. Phone: drop the duplicate chart, tighten the chrome. */
+@media (max-width: 640px) {
+  .trip-list-page .hero {
+    padding: 14px;
+    margin-bottom: 10px;
+  }
+
+  .trip-list-page .metric.featured {
+    display: none;
+  }
+
+  .trip-list-page .metrics {
+    gap: 8px;
+  }
+
+  .trip-list-page .filters-card {
+    padding: 10px;
+    margin-bottom: 10px;
+  }
+}
