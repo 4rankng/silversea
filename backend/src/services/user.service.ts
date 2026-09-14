@@ -200,7 +200,7 @@ async function assertBusinessUnitIdentityAvailable(
     ? identityClause
     : and(ne(businessUnits.id, options.excludeId), identityClause);
   const [conflict] = await tx.select({ id: businessUnits.id }).from(businessUnits).where(where).limit(1);
-  if (conflict) throw new ApiError(409, 'Mã hoặc tên đơn vị phụ trách đã tồn tại');
+  if (conflict) throw new ApiError(409, 'Mã hoặc tên đơn vị phụ trách đã tồn tại', undefined, { code: 'DUPLICATE_CODE' });
 }
 
 async function loadCustomerIds(
