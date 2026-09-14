@@ -76,10 +76,11 @@ export default function FuelEvidenceReviewPage() {
           align-items: center;
           gap: 12px;
           margin-bottom: 20px;
+          flex-wrap: wrap;
         }
         .fuel-evidence-review__toolbar-main {
           flex: 1;
-          min-width: 0;
+          min-width: 200px;
         }
         .fuel-evidence-review__select {
           /* Use min/max rather than width so the global .ds-uui-select
