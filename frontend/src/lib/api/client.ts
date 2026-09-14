@@ -127,16 +127,30 @@ class ApiClient {
       }
       throw error;
     }
-    if (generatedCommandKey) {
-      if (res.status < 500) {
+    this.handleSessionExpiry(res, token);
+    if (!res.ok) {
+      // Non-server HTTP errors still mean the server processed the request;
+      // release the key so it doesn't block future mutations.
+      if (generatedCommandKey) {
         this.releaseMutationTransactionKey(generatedCommandKey);
-      } else {
+      }
+      throw await ApiError.fromResponse(res);
+    }
+    let result: T;
+    try {
+      result = (await res.json()) as T;
+    } catch (error) {
+      // Malformed JSON — retain the key so a retry can reuse it.
+      if (generatedCommandKey) {
         this.retainMutationTransactionKeyForRetry(generatedCommandKey);
       }
+      throw error;
     }
-    this.handleSessionExpiry(res, token);
-    if (!res.ok) throw await ApiError.fromResponse(res);
-    const result = (await res.json()) as T;
+    // Release the command key only after the response is fully parsed —
+    // a JSON parse failure before this point keeps the key retryable.
+    if (generatedCommandKey) {
+      this.releaseMutationTransactionKey(generatedCommandKey);
+    }
     this.rememberUpdatedAt(path, options?.method, result);
     return result;
   }

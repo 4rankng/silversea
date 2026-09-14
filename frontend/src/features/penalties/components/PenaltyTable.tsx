@@ -4,7 +4,7 @@ import { ShieldCheck, Download, Plus, FileText, Trophy, XCircle, Loader2, UserRo
 import { Panel, Btn, PageHeader } from '../../../components/UI';
 import { Pagination, SummaryRail, UuiSelectField } from '../../../design-system';
 import { Money } from '../../../components/shared/Money';
-import { formatCurrency, formatDate } from '../../../lib/format';
+import { formatCurrency, formatNumber, formatDate } from '../../../lib/format';
 import { downloadCSV } from '../../../lib/csv';
 import { PenaltyStatus } from '@tingting/shared';
 import { getSeverity, getSeverityLabel, getViolationGrade, getGradeClass, formatTenure } from '../utils';
@@ -277,7 +277,7 @@ export function PenaltyTable({
                       </td>
                       <td data-label="Phạt YTD" className="num">
                         <span className={`penalty-money ${moneyClass}`}>
-                          {d.fineYtd > 0 ? formatCurrency(d.fineYtd) : `0`}<span className="unit">đ</span>
+                          {d.fineYtd > 0 ? formatNumber(d.fineYtd) : `0`}<span className="unit">đ</span>
                         </span>
                       </td>
                       <td data-label="Mức" className="penalty-scoreboard-col-center">
@@ -401,7 +401,7 @@ export function PenaltyTable({
                 <div className="penalty-empty-divider" />
                 <div className="penalty-empty-stat">
                   <div className="lbl">Tiết kiệm phạt</div>
-                  <div className="val pos">~{formatCurrency(ytdTotal)}<span className="u">đ</span></div>
+                  <div className="val pos">~{formatNumber(ytdTotal)}<span className="u">đ</span></div>
                 </div>
               </div>
               <div className="penalty-empty-actions">

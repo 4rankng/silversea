@@ -125,7 +125,16 @@ export default function DriverEarningsPage() {
   const tripIncomeNum = parseFloat(earnings.productionSalary) + parseFloat(earnings.roadAllowance);
   const adjustmentLabel = adjustmentNum >= 0 ? 'Thưởng công' : 'Trừ công';
   const adjustmentValue = `${adjustmentNum >= 0 ? '+' : '-'}${formatNumber(Math.abs(adjustmentNum))}`;
-  const payableLabel = payableNum >= 0 ? 'Lương chưa thanh toán' : 'Đã tạm ứng vượt';
+  // KP-172: negative balance can be from excess advances, penalty
+  // deductions, or both. Compare pre-penalty income to advances to
+  // pick an accurate hero label.
+  const paidOrAdvancedNum2 = parseFloat(earnings.paidOrAdvanced ?? '0');
+  const incomeBeforePenalties = netNum + penaltyNum + tripIncomeNum;
+  const payableLabel = payableNum >= 0
+    ? 'Lương chưa thanh toán'
+    : (incomeBeforePenalties < paidOrAdvancedNum2
+        ? 'Đã tạm ứng vượt'
+        : 'Khấu trừ vượt thu nhập');
 
   return (
     <div ref={rootRef} className="driver-earnings-page">

@@ -156,9 +156,9 @@ export function useTripFormPhotos(onError: (msg: string) => void, onOcrResult?: 
   const flushPendingPhotos = useCallback(async (tripId: number): Promise<string[]> => {
     const pending = pendingRef.current;
     if (pending.length === 0) return photoUrls;
-    pendingRef.current = [];
 
     const objToReal = new Map<string, string>();
+    const succeeded: PendingPhoto[] = [];
     for (const p of pending) {
       const formData = new FormData();
       formData.append('file', p.file);
@@ -169,9 +169,24 @@ export function useTripFormPhotos(onError: (msg: string) => void, onOcrResult?: 
         p.file,
         [p.type, tripId, p.objectUrl],
       );
-      const result = await api.upload('/upload', formData, { retryFingerprint }) as { url: string };
-      objToReal.set(p.objectUrl, result.url);
-      URL.revokeObjectURL(p.objectUrl);
+      try {
+        const result = await api.upload('/upload', formData, { retryFingerprint }) as { url: string };
+        if (result.url) {
+          objToReal.set(p.objectUrl, result.url);
+          succeeded.push(p);
+          // Server confirmed — safe to release blob URL.
+          URL.revokeObjectURL(p.objectUrl);
+        }
+        // Missing URL in response: keep photo in pending buffer for retry.
+      } catch {
+        // Upload failed: keep photo in pending buffer for retry.
+      }
+    }
+
+    // Remove only successfully flushed photos from the pending buffer.
+    if (succeeded.length > 0) {
+      const succeededSet = new Set(succeeded);
+      pendingRef.current = pendingRef.current.filter(p => !succeededSet.has(p));
     }
 
     const finalUrls = photoUrls.map(u => objToReal.get(u) ?? u);
@@ -242,13 +257,15 @@ export function useTripFormPhotos(onError: (msg: string) => void, onOcrResult?: 
   ): Promise<Map<string, string>> => {
     const pending = pendingContainerPhotosRef.current;
     if (pending.length === 0) return new Map();
-    pendingContainerPhotosRef.current = [];
 
     const swaps = new Map<string, string>();
+    const succeeded: PendingContainerPhoto[] = [];
     for (const p of pending) {
       const containerId = rowKeyToContainerId.get(p.rowKey);
       if (!containerId) {
+        // Row deleted before save — drop this buffered photo.
         URL.revokeObjectURL(p.objectUrl);
+        succeeded.push(p);
         continue;
       }
       const formData = new FormData();
@@ -261,12 +278,26 @@ export function useTripFormPhotos(onError: (msg: string) => void, onOcrResult?: 
         p.file,
         [p.type, tripId, p.rowKey, containerId, p.objectUrl],
       );
-      const result = await api.upload('/ocr/persist-only', formData, { retryFingerprint }) as OcrResponse;
-      if (result.photoUrl) {
-        swaps.set(p.objectUrl, result.photoUrl);
+      try {
+        const result = await api.upload('/ocr/persist-only', formData, { retryFingerprint }) as OcrResponse;
+        if (result.photoUrl) {
+          swaps.set(p.objectUrl, result.photoUrl);
+          succeeded.push(p);
+          // Server confirmed — safe to release blob URL.
+          URL.revokeObjectURL(p.objectUrl);
+        }
+        // Missing photoUrl: keep in pending buffer for retry.
+      } catch {
+        // Upload failed: keep in pending buffer for retry.
       }
-      URL.revokeObjectURL(p.objectUrl);
     }
+
+    // Remove only successfully flushed photos from the pending buffer.
+    if (succeeded.length > 0) {
+      const succeededSet = new Set(succeeded);
+      pendingContainerPhotosRef.current = pendingContainerPhotosRef.current.filter(p => !succeededSet.has(p));
+    }
+
     return swaps;
   }, []);
 

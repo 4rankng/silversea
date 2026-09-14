@@ -39,7 +39,7 @@ export function CancelPenaltyDialog({
       </div>
       <div style={{ fontSize: 13, marginBottom: 12, padding: '10px 12px', background: 'var(--bg-2)', borderRadius: 8 }}>
         <div><strong>Lái xe:</strong> {penalty.driverName || 'Lái xe'}</div>
-        <div><strong>Số tiền:</strong> <span style={{ color: 'var(--danger)' }}>{formatCurrency(Number(penalty.amount))}đ</span></div>
+        <div><strong>Số tiền:</strong> <span style={{ color: 'var(--danger)' }}>{formatCurrency(Number(penalty.amount))}</span></div>
         <div><strong>Lý do:</strong> {penalty.reasonText || penalty.customReason || '—'}</div>
       </div>
       <FormGroup label="Lý do hủy (tùy chọn)">
