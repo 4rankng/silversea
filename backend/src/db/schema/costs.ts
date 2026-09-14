@@ -14,7 +14,12 @@ export const penalties = pgTable('penalties', {
   customReason: text('custom_reason'),
   amount: numeric('amount', { precision: 15, scale: 0 }).notNull(),
   date: date('date').notNull(),
-  status: penaltyStatusEnum('status').default('ACTIVE').notNull(),
+  status: penaltyStatusEnum('status').default('PENDING').notNull(),
+  // Maker/approver trail: new records carry the submitter so approval can
+  // never be self-approval; grandfathered rows (pre-workflow) stay NULL.
+  createdBy: integer('created_by'),
+  approvedBy: integer('approved_by'),
+  approvedAt: timestamp('approved_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   deletedAt: timestamp('deleted_at'),

@@ -429,7 +429,7 @@ export async function computeSalary(
     .where(and(
       eq(s.penalties.driverId, driverId),
       isNull(s.penalties.deletedAt),
-      ne(s.penalties.status, 'CANCELED'),
+      eq(s.penalties.status, 'ACTIVE'),
       gte(s.penalties.date, start),
       lte(s.penalties.date, end),
     ));

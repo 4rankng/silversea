@@ -86,6 +86,8 @@ function normalizeNotificationType(input: NotificationType | string): Notificati
       return 'PENALTY_CREATED';
     case 'PENALTY_CANCELED':
       return 'PENALTY_CANCELED';
+    case 'PENALTY_APPROVED':
+      return 'PENALTY_APPROVED';
     case 'OVERDUE_PAYMENT':
       return 'OVERDUE_PAYMENT';
     case 'SALARY_PERIOD_CLOSING':

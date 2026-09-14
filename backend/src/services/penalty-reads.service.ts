@@ -131,6 +131,7 @@ export async function getPenalties(filters: PenaltyListFilters = {}) {
       id: s.penalties.id, driverId: s.penalties.driverId, tripId: s.penalties.tripId,
       reasonId: s.penalties.reasonId, customReason: s.penalties.customReason,
       amount: s.penalties.amount, date: s.penalties.date, status: s.penalties.status,
+      createdBy: s.penalties.createdBy,
       driverName: s.drivers.name,
       reasonText: s.penaltyReasons.reasonText,
       tripCode: s.trips.tripCode,
@@ -211,7 +212,7 @@ export async function getPenaltyInsights(input: { month?: number; year?: number 
   // excludes them (attendance.service sums ne(status,'CANCELED')), so every
   // window, streak, and total here must agree: a canceled record neither adds
   // a violation/fine nor resets a driver's safe streak.
-  const alive = and(isNull(s.penalties.deletedAt), ne(s.penalties.status, 'CANCELED'));
+  const alive = and(isNull(s.penalties.deletedAt), eq(s.penalties.status, 'ACTIVE'));
   const inRange = (start: string, end: string) => and(
     alive,
     gte(s.penalties.date, start),

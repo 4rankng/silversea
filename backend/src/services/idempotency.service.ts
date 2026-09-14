@@ -107,6 +107,7 @@ export const IDEMPOTENCY_ENDPOINTS = {
   COMMISSIONS_CREATE: 'commissions.create',
   PENALTIES_CREATE: 'penalties.create',
   PENALTIES_CANCEL: 'penalties.cancel',
+  PENALTIES_APPROVE: 'penalties.approve',
   // Ops field-operations portal (OpsVanHanh): financial cash commands with
   // durable response replays.
   OPS_EXPENSE_CREATE: 'ops.expenses.create',
