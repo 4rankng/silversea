@@ -1119,11 +1119,13 @@ export const vendorPaymentSchema = z.object({
   amount: positiveNumeric,
   date: z.string().min(1),
   confirmOverpay: z.boolean().optional(),
-  /** QA-089: optional expense linkage — listed APPROVED/UNPAID expenses of
-   *  this supplier flip to PAID with the payment (ledger-backed status).
-   *  Unlisted expenses stay UNPAID even when over-covered (partial-payment
-   *  semantics: the supplier-level remainder stays unallocated). */
-  expenseIds: z.array(z.coerce.number().int().positive()).max(200).optional(),
+  /** KP-075: explicit per-expense allocations with amounts. Each allocation
+   *  records how much of this payment is applied to a specific expense.
+   *  An expense flips PAID only when its total allocations cover its amount. */
+  allocations: z.array(z.object({
+    expenseId: z.coerce.number().int().positive(),
+    amount: positiveNumeric,
+  })).max(200).optional(),
 });
 
 // ─── Forwarder catalogs ──────────────────────────────────────────────────────

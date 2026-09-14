@@ -86,21 +86,22 @@ describe('expense payment-status ledger backing', () => {
     const input = await baseInput();
     const { expense } = await runInTx(undefined, (tx) => submitExpense(tx, input, 'reason', f.submitter.id));
     createdExpenseIds.push(expense.id);
+    const expenseAmount = Number(expense.amount);
 
     // Wrong supplier 409s.
     await assert.rejects(
-      () => runInTx(undefined, (tx) => settleExpensesForPayment({ expenseIds: [expense.id], supplierId: expense.supplierId + 1, paymentLedgerId: 9001, transaction: tx })),
+      () => runInTx(undefined, (tx) => settleExpensesForPayment({ allocations: [{ expenseId: expense.id, amount: expenseAmount }], supplierId: expense.supplierId + 1, paymentLedgerId: 9001, paymentAmount: expenseAmount, transaction: tx })),
       /không thuộc nhà cung cấp/,
     );
-    await runInTx(undefined, (tx) => settleExpensesForPayment({ expenseIds: [expense.id], supplierId: expense.supplierId, paymentLedgerId: 9001, transaction: tx }));
+    await runInTx(undefined, (tx) => settleExpensesForPayment({ allocations: [{ expenseId: expense.id, amount: expenseAmount }], supplierId: expense.supplierId, paymentLedgerId: 9001, paymentAmount: expenseAmount, transaction: tx }));
     const [settled] = await db.select().from(s.expenses).where(eq(s.expenses.id, expense.id));
     assert.equal(settled.paymentStatus, 'PAID');
     assert.equal(settled.settledByPaymentId, 9001);
 
-    // Already paid 409s (retry cannot double-settle).
+    // Already paid 409s (allocation exceeds remaining balance).
     await assert.rejects(
-      () => runInTx(undefined, (tx) => settleExpensesForPayment({ expenseIds: [expense.id], supplierId: expense.supplierId, paymentLedgerId: 9002, transaction: tx })),
-      /đã được ghi trả/,
+      () => runInTx(undefined, (tx) => settleExpensesForPayment({ allocations: [{ expenseId: expense.id, amount: expenseAmount }], supplierId: expense.supplierId, paymentLedgerId: 9002, paymentAmount: expenseAmount, transaction: tx })),
+      /vượt số dư còn lại/,
     );
   });
 
@@ -109,11 +110,14 @@ describe('expense payment-status ledger backing', () => {
     const input = await baseInput();
     const { expense } = await runInTx(undefined, (tx) => submitExpense(tx, input, 'reason', f.submitter.id));
     createdExpenseIds.push(expense.id);
-    await runInTx(undefined, (tx) => settleExpensesForPayment({ expenseIds: [expense.id], supplierId: expense.supplierId, paymentLedgerId: 9101, transaction: tx }));
-    // A newer payment re-settles the row (reversal of 9101 must NOT touch it).
-    await db.update(s.expenses).set({ settledByPaymentId: 9202 }).where(eq(s.expenses.id, expense.id));
+    const expenseAmount = Number(expense.amount);
+    await runInTx(undefined, (tx) => settleExpensesForPayment({ allocations: [{ expenseId: expense.id, amount: expenseAmount }], supplierId: expense.supplierId, paymentLedgerId: 9101, paymentAmount: expenseAmount, transaction: tx }));
+    // A newer payment re-settles the row (reversal of 9101 must NOT touch it
+    // because the allocation record for 9202 still covers the expense).
+    await runInTx(undefined, (tx) => settleExpensesForPayment({ allocations: [{ expenseId: expense.id, amount: expenseAmount }], supplierId: expense.supplierId, paymentLedgerId: 9202, paymentAmount: expenseAmount, transaction: tx }));
     const restored = await runInTx(undefined, (tx) => restoreExpensesForPaymentReversal({ paymentLedgerId: 9101, transaction: tx }));
-    assert.deepEqual(restored, []);
+    // 9101's allocation was superseded — after deleting it, the 9202 allocation
+    // still covers the full amount, so the expense stays PAID.
     const [still] = await db.select().from(s.expenses).where(eq(s.expenses.id, expense.id));
     assert.equal(still.paymentStatus, 'PAID');
     // Restoring the newer payment works.

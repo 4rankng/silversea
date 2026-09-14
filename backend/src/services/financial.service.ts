@@ -742,8 +742,8 @@ export interface VendorPaymentInput extends TreasuryPaymentFields {
   date: string;
   note?: string;
   confirmOverpay?: boolean;
-  /** QA-089: linked expenses that flip PAID with this payment. */
-  expenseIds?: number[];
+  /** KP-075: explicit per-expense allocations with amounts. */
+  allocations?: Array<{ expenseId: number; amount: number }>;
 }
 
 async function recordVendorPaymentTx(tx: Tx, input: VendorPaymentInput): Promise<VendorPaymentResult> {
@@ -810,6 +810,7 @@ export async function recordVendorPaymentIdempotent(args: {
       date: args.input.date,
       note: args.input.note ?? '',
       confirmOverpay: args.input.confirmOverpay ?? false,
+      allocations: args.input.allocations ?? [],
     },
     createdBy: args.createdBy ?? null,
     entityType: 'ledger',
@@ -876,8 +877,8 @@ export async function requestVendorPaymentGovernance(input: {
       },
       deltaSnapshot: {
         vendorBalanceDelta: -paymentAmount,
-        linkedExpenseIds: Array.isArray(input.payment?.expenseIds)
-          ? input.payment.expenseIds.map(Number)
+        allocations: Array.isArray(input.payment?.allocations)
+          ? input.payment.allocations.map((a) => ({ expenseId: Number(a.expenseId), amount: Number(a.amount) }))
           : [],
       },
       makerId: input.makerId,
@@ -953,22 +954,24 @@ export async function applyVendorPaymentGovernanceAction(tx: Tx, action: Governa
     treasuryMovementId = movement.id;
   }
 
-  // QA-089: settle the linked expenses inside the same transaction — the
+  // KP-079: settle the linked expenses inside the same transaction — the
   // payment posts its ledger entry above; the listed rows now flip PAID with
   // settledByPaymentId so expense status and supplier debt agree.
   const delta = (action.deltaSnapshot ?? {}) as Record<string, unknown>;
-  const expenseIds = Array.isArray(delta.linkedExpenseIds)
-    ? (delta.linkedExpenseIds as unknown[]).map(Number).filter(Number.isInteger)
+  const allocations = Array.isArray(delta.allocations)
+    ? (delta.allocations as Array<{ expenseId: unknown; amount: unknown }>)
+        .map((a) => ({ expenseId: Number(a.expenseId), amount: Number(a.amount) }))
+        .filter((a) => Number.isInteger(a.expenseId) && a.expenseId > 0 && Number.isFinite(a.amount) && a.amount > 0)
     : [];
   let settledExpenseIds: number[] = [];
-  if (expenseIds.length > 0) {
-    await settleExpensesForPayment({
-      expenseIds,
+  if (allocations.length > 0) {
+    settledExpenseIds = await settleExpensesForPayment({
+      allocations,
       supplierId,
       paymentLedgerId: posted.id,
+      paymentAmount: Number(afterSnapshot?.amount ?? 0),
       transaction: tx,
     });
-    settledExpenseIds = expenseIds;
   }
 
   return {

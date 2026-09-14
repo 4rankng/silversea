@@ -86,6 +86,21 @@ export const expenses = pgTable('expenses', {
   index('expenses_vehicle_idx').on(table.truckId, table.vehicleComponent),
 ]);
 
+// KP-075: explicit per-expense allocation records for supplier payments.
+// Each row tracks how much of a payment was allocated to a specific expense,
+// enabling partial payment support and proper reversal.
+export const expensePaymentAllocations = pgTable('expense_payment_allocations', {
+  id: serial('id').primaryKey(),
+  expenseId: integer('expense_id').notNull(),
+  paymentLedgerId: integer('payment_ledger_id').notNull(),
+  amount: numeric('amount', { precision: 15, scale: 0 }).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => [
+  index('exp_pay_alloc_expense_idx').on(table.expenseId),
+  index('exp_pay_alloc_payment_idx').on(table.paymentLedgerId),
+  uniqueIndex('exp_pay_alloc_expense_payment_uniq').on(table.expenseId, table.paymentLedgerId),
+]);
+
 export const expensePhotos = pgTable('expense_photos', {
   id: serial('id').primaryKey(),
   expenseId: integer('expense_id').notNull(),

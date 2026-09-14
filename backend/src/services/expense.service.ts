@@ -984,25 +984,55 @@ export async function getRenewalReminders(dbOrTx: typeof db | Tx) {
 
 
 /**
- * Settle expenses against a posted supplier payment (QA-089). Each listed
- * expense must belong to the payment's supplier, be APPROVED and currently
- * UNPAID — anything else 409s so the caller learns the linkage is wrong
- * before any money moves. Rows flip to PAID recording settledByPaymentId,
- * making paid-status ledger-backed. Expenses NOT listed stay UNPAID even if
- * the payment more than covers them (partial-payment semantics).
+ * KP-079: Settle expenses against a posted supplier payment using explicit
+ * allocation amounts. Each allocation records how much of the payment is
+ * applied to a specific expense.
+ *
+ * Validates:
+ * - Same supplier as the payment
+ * - Expense exists, not deleted, APPROVED status
+ * - Positive allocation amount
+ * - Allocation ≤ remaining expense balance (expense amount − prior allocations)
+ * - Total allocations ≤ unallocated payment amount
+ *
+ * Creates allocation records and marks expenses PAID only when fully allocated.
+ * Returns the list of expense IDs that were fully settled.
  */
 export async function settleExpensesForPayment(input: {
-  expenseIds: number[];
+  allocations: Array<{ expenseId: number; amount: number }>;
   supplierId: number;
   paymentLedgerId: number;
+  paymentAmount: number;
   transaction: Tx;
-}) {
-  if (input.expenseIds.length === 0) return;
+}): Promise<number[]> {
+  if (input.allocations.length === 0) return [];
+
+  // Deduplicate: merge multiple allocations for the same expense.
+  const mergedByExpense = new Map<number, number>();
+  for (const alloc of input.allocations) {
+    if (!Number.isFinite(alloc.amount) || alloc.amount <= 0) {
+      throw new ApiError(400, `Số tiền phân bổ cho khoản chi ${alloc.expenseId} phải lớn hơn 0.`);
+    }
+    mergedByExpense.set(alloc.expenseId, (mergedByExpense.get(alloc.expenseId) ?? 0) + alloc.amount);
+  }
+
+  const expenseIds = [...mergedByExpense.keys()];
   const rows = await input.transaction.select().from(s.expenses)
-    .where(and(inArray(s.expenses.id, input.expenseIds), isNull(s.expenses.deletedAt)))
+    .where(and(inArray(s.expenses.id, expenseIds), isNull(s.expenses.deletedAt)))
     .for('update');
   const byId = new Map(rows.map((row) => [row.id, row]));
-  for (const id of input.expenseIds) {
+
+  // Validate each expense and compute already-allocated amounts.
+  const existingAllocs = await input.transaction.select({
+    expenseId: s.expensePaymentAllocations.expenseId,
+    total: sql<string>`coalesce(sum(${s.expensePaymentAllocations.amount}), '0')`,
+  })
+    .from(s.expensePaymentAllocations)
+    .where(inArray(s.expensePaymentAllocations.expenseId, expenseIds))
+    .groupBy(s.expensePaymentAllocations.expenseId);
+  const priorAllocated = new Map(existingAllocs.map((r) => [r.expenseId, Number(r.total)]));
+
+  for (const id of expenseIds) {
     const row = byId.get(id);
     if (!row) throw new ApiError(409, `Khoản chi ${id} không tồn tại — không thể ghi thanh toán.`);
     if (row.supplierId !== input.supplierId) {
@@ -1011,34 +1041,110 @@ export async function settleExpensesForPayment(input: {
     if (row.approvalStatus !== 'APPROVED') {
       throw new ApiError(409, `Khoản chi ${id} chưa được phê duyệt — không thể ghi trả.`);
     }
-    if (row.paymentStatus !== 'UNPAID') {
-      throw new ApiError(409, `Khoản chi ${id} đã được ghi trả.`);
+    const expenseAmount = Number(row.amount);
+    const alreadyAllocated = priorAllocated.get(id) ?? 0;
+    const remaining = expenseAmount - alreadyAllocated;
+    const newAlloc = mergedByExpense.get(id)!;
+    if (newAlloc > remaining + 0.001) {
+      throw new ApiError(409, `Khoản chi ${id}: số tiền phân bổ ${newAlloc.toLocaleString('vi-VN')}₫ vượt số dư còn lại ${remaining.toLocaleString('vi-VN')}₫.`);
     }
   }
-  await input.transaction.update(s.expenses).set({
-    paymentStatus: 'PAID',
-    settledByPaymentId: input.paymentLedgerId,
-    updatedAt: new Date(),
-  }).where(inArray(s.expenses.id, input.expenseIds));
+
+  // Validate total allocations ≤ unallocated payment amount.
+  const existingPaymentAllocs = await input.transaction.select({
+    total: sql<string>`coalesce(sum(${s.expensePaymentAllocations.amount}), '0')`,
+  })
+    .from(s.expensePaymentAllocations)
+    .where(eq(s.expensePaymentAllocations.paymentLedgerId, input.paymentLedgerId));
+  const alreadyUsedForPayment = Number(existingPaymentAllocs[0]?.total ?? '0');
+  const totalNewAllocations = [...mergedByExpense.values()].reduce((a, b) => a + b, 0);
+  const unallocatedPaymentAmount = input.paymentAmount - alreadyUsedForPayment;
+  if (totalNewAllocations > unallocatedPaymentAmount + 0.001) {
+    throw new ApiError(409, `Tổng số tiền phân bổ ${totalNewAllocations.toLocaleString('vi-VN')}₫ vượt số tiền chưa phân bổ ${unallocatedPaymentAmount.toLocaleString('vi-VN')}₫.`);
+  }
+
+  // Insert allocation records.
+  for (const [expenseId, amount] of mergedByExpense) {
+    await input.transaction.insert(s.expensePaymentAllocations).values({
+      expenseId,
+      paymentLedgerId: input.paymentLedgerId,
+      amount: String(amount),
+    }).onConflictDoUpdate({
+      target: [s.expensePaymentAllocations.expenseId, s.expensePaymentAllocations.paymentLedgerId],
+      set: { amount: sql`excluded.amount` },
+    });
+  }
+
+  // Recompute total allocated per expense and mark PAID if fully allocated.
+  const fullySettledIds: number[] = [];
+  for (const id of expenseIds) {
+    const expenseAmount = Number(byId.get(id)!.amount);
+    const prior = priorAllocated.get(id) ?? 0;
+    const newAlloc = mergedByExpense.get(id)!;
+    const totalAllocated = prior + newAlloc;
+    if (totalAllocated >= expenseAmount - 0.001) {
+      await input.transaction.update(s.expenses).set({
+        paymentStatus: 'PAID',
+        settledByPaymentId: input.paymentLedgerId,
+        updatedAt: new Date(),
+      }).where(eq(s.expenses.id, id));
+      fullySettledIds.push(id);
+    }
+  }
+
+  return fullySettledIds;
 }
 
 /**
- * Reversal counterpart (QA-089): restore UNPAID for the expenses THIS
- * payment settled — but only those still pointing at it. If another payment
- * has since re-settled a row (settledByPaymentId moved on), that row keeps
- * its PAID state; restoring it would break the newer settlement's truth.
+ * KP-079: Reversal counterpart — remove allocation records for this payment
+ * and recompute payment status for affected expenses. An expense that was
+ * fully settled only by this payment returns to UNPAID; one still covered
+ * by other allocations keeps its PAID state.
  */
 export async function restoreExpensesForPaymentReversal(input: {
   paymentLedgerId: number;
   transaction: Tx;
 }) {
-  const restored = await input.transaction.update(s.expenses).set({
-    paymentStatus: 'UNPAID',
-    settledByPaymentId: null,
-    updatedAt: new Date(),
-  }).where(and(
-    eq(s.expenses.settledByPaymentId, input.paymentLedgerId),
-    eq(s.expenses.paymentStatus, 'PAID'),
-  )).returning({ id: s.expenses.id });
-  return restored.map((row) => row.id);
+  // Find all expenses that had allocations from this payment.
+  const affected = await input.transaction.select({
+    expenseId: s.expensePaymentAllocations.expenseId,
+  })
+    .from(s.expensePaymentAllocations)
+    .where(eq(s.expensePaymentAllocations.paymentLedgerId, input.paymentLedgerId));
+  const affectedIds = [...new Set(affected.map((r) => r.expenseId))];
+  if (affectedIds.length === 0) return [];
+
+  // Delete the allocation records for this payment.
+  await input.transaction.delete(s.expensePaymentAllocations)
+    .where(eq(s.expensePaymentAllocations.paymentLedgerId, input.paymentLedgerId));
+
+  // Recompute: for each affected expense, check if remaining allocations
+  // still cover the full amount.
+  const restoredIds: number[] = [];
+  for (const expenseId of affectedIds) {
+    const [expense] = await input.transaction.select({ amount: s.expenses.amount })
+      .from(s.expenses)
+      .where(eq(s.expenses.id, expenseId))
+      .limit(1);
+    if (!expense) continue;
+
+    const [remaining] = await input.transaction.select({
+      total: sql<string>`coalesce(sum(${s.expensePaymentAllocations.amount}), '0')`,
+    })
+      .from(s.expensePaymentAllocations)
+      .where(eq(s.expensePaymentAllocations.expenseId, expenseId));
+
+    const totalAllocated = Number(remaining?.total ?? '0');
+    const expenseAmount = Number(expense.amount);
+    if (totalAllocated < expenseAmount - 0.001) {
+      await input.transaction.update(s.expenses).set({
+        paymentStatus: 'UNPAID',
+        settledByPaymentId: null,
+        updatedAt: new Date(),
+      }).where(eq(s.expenses.id, expenseId));
+      restoredIds.push(expenseId);
+    }
+  }
+
+  return restoredIds;
 }
