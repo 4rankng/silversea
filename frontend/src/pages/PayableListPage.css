@@ -426,3 +426,10 @@
     flex-wrap: wrap;
   }
 }
+
+.payables-fuel-secondary {
+  margin: 16px 0 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}

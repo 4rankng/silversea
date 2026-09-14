@@ -246,6 +246,8 @@ export default function PayableListPage() {
 
   /* ── Commission modal ── */
   const [commissionOpen, setCommissionOpen] = useState(false);
+  // Fuel-invoice capture/lookup is secondary here: debt lookup leads.
+  const [fuelOpen, setFuelOpen] = useState(false);
   const postCommission = usePostCommission();
   const commissionError = postCommission.error
     ? (postCommission.error as Error).message
@@ -382,8 +384,6 @@ export default function PayableListPage() {
           </div>
         }
       />
-
-      <FuelInvoicesPanel />
 
       {/* ── Zone 1: Summary rail — one ruled row before the aging lanes ── */}
       <SummaryRail
@@ -643,6 +643,20 @@ export default function PayableListPage() {
             </div>
           </>
         )}
+      </div>
+
+      {/* ── Fuel invoices: secondary capture/lookup, collapsed by default so
+          debt totals, search and the payable queue lead the initial view ── */}
+      <div className="payables-fuel-secondary">
+        <button
+          type="button"
+          className="btn btn--secondary btn--sm"
+          aria-expanded={fuelOpen}
+          onClick={() => setFuelOpen((o) => !o)}
+        >
+          Hóa đơn nhiên liệu nhiều xe {fuelOpen ? '— ẩn' : '— mở'}
+        </button>
+        {fuelOpen && <FuelInvoicesPanel />}
       </div>
 
       {/* ── Commission posting modal ── */}
