@@ -114,7 +114,16 @@ export default function SalaryAttendancePage() {
                 <button
                   type="button"
                   key={d.id}
-                  onClick={() => setSelectedDriverId(d.id)}
+                  onClick={() => {
+                    setSelectedDriverId(d.id);
+                    // Phone/tablet: bring the selected driver's detail next to
+                    // the pick instead of leaving it below the roster.
+                    if (window.matchMedia('(max-width: 1023px)').matches) {
+                      requestAnimationFrame(() => {
+                        document.querySelector('.salary-page-layout__sidebar')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      });
+                    }
+                  }}
                   className={`driver-select-card ${isSelected ? 'is-active' : ''}`}
                   aria-pressed={isSelected}
                   aria-label={`Xem bảng công của ${d.name}${salaryLabel}`}

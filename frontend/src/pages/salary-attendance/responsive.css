@@ -55,10 +55,19 @@
   }
 
   .driver-select-row__list {
-    flex-wrap: wrap;
-    overflow: visible;
+    /* Bounded roster: 39 permanent cards must not push the selected
+       driver's detail below the viewport — scroll inside the strip. */
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-height: 280px;
+    overflow-y: auto;
     padding: 2px 0 6px;
     gap: 8px;
+    align-content: start;
+  }
+
+  .driver-select-card {
+    min-width: 0;
   }
 
   .driver-select-row__list::-webkit-scrollbar {
