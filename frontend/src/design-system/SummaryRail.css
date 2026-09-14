@@ -93,14 +93,21 @@
   .summary-rail__item:nth-child(n + 3) { border-top: 1px solid var(--line); }
 }
 
-@media (max-width: 380px) {
-  /* Mirrors the workboard rail's phone sheet: every item spans the full row
-     flush to the gutters (padding-inline 0, no vertical rule between stacked
-     items), separated by hairlines. */
+@media (max-width: 480px) {
+  /* Phone sheet: every item spans the full row, label stacked above value
+     so Vietnamese labels and formatted ₫ amounts never overlap. Matches the
+     workboard rail's collapse convention (flush gutters, hairline dividers). */
   .summary-rail__item {
     flex-basis: 100%;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
     padding-inline: 0;
     border-right: 0;
+  }
+
+  .summary-rail dd {
+    font-size: 16px;
   }
 
   .summary-rail__item:nth-child(n + 2) { border-top: 1px solid var(--line); }
