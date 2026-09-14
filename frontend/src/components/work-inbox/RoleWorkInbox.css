@@ -59,9 +59,14 @@
 }
 
 .role-work-inbox__button.is-primary {
-  border-color: var(--primary);
-  background: var(--primary);
+  border-color: var(--brand);
+  background: var(--brand);
   color: var(--fg-on-brand);
+}
+
+.role-work-inbox__button.is-primary:hover:not(:disabled) {
+  border-color: var(--brand-hover);
+  background: var(--brand-hover);
 }
 
 .role-work-inbox__button.is-danger {
@@ -281,10 +286,16 @@
 .role-work-inbox__customer-actions { display: grid; gap: 6px; justify-items: stretch; }
 .role-work-inbox__detail-link { color: var(--primary); font-weight: 650; }
 
+.role-work-inbox__dispute-row td {
+  padding: 8px 12px 12px;
+  background: var(--bg-1);
+  border-bottom: 1px solid var(--border-1);
+}
+
 .role-work-inbox__dispute {
   display: grid;
   gap: 5px;
-  min-width: 220px;
+  max-width: 520px;
   text-align: left;
 }
 
@@ -372,7 +383,7 @@
   .role-work-inbox__action::before { display: none; }
   .role-work-inbox__action .role-work-inbox__button { width: 100%; }
   .role-work-inbox__customer-actions { width: 100%; }
-  .role-work-inbox__dispute { min-width: 0; }
+  .role-work-inbox__dispute { max-width: 100%; }
   .role-work-inbox__dispute > div { display: grid; }
   .role-work-inbox__pagination { justify-content: space-between; }
   .role-work-inbox__pagination button { min-height: 44px; }
