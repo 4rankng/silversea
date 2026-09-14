@@ -5,10 +5,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ExpenseWithRefs, PaginatedResponse } from '@tingting/shared';
 
 const apiGet = vi.fn();
+const apiPost = vi.fn();
 
 vi.mock('../lib/api', () => ({
-  api: { get: (...args: unknown[]) => apiGet(...args) },
+  api: { get: (...args: unknown[]) => apiGet(...args), post: (...args: unknown[]) => apiPost(...args) },
 }));
+
+const useAuthMock = vi.fn(() => ({ user: null }));
+vi.mock('../hooks/useAuth', () => ({ useAuth: () => useAuthMock() }));
 
 vi.mock('../api/configClient', () => ({
   configClient: {
@@ -187,5 +191,40 @@ describe('ExpenseListPage', () => {
     await waitFor(() => {
       expect(apiGet).toHaveBeenCalledWith('/expenses?page=1&limit=20&sortBy=amount&sortDir=desc');
     });
+  });
+});
+
+
+// Dual-control review surface (QA-086 FE): pending rows badge as Chờ kiểm
+// tra, checked rows offer role-gated Duyệt/Từ chối, and the review actions
+// post to the approval endpoints then refetch.
+describe('ExpenseListPage approval states', () => {
+  beforeEach(() => {
+    apiPost.mockReset().mockResolvedValue({});
+    useAuthMock.mockReturnValue({ user: null });
+  });
+
+  it('badges a pending row and hides review actions without a role', async () => {
+    apiGet.mockResolvedValueOnce(envelope([{ ...rows[0]!, id: 101, approvalStatus: 'PENDING' }]));
+    renderPage();
+    expect(await screen.findByText('Chờ kiểm tra')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Kiểm tra' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Duyệt' })).toBeNull();
+  });
+
+  it('offers role-gated review actions and posts to the approval endpoint', async () => {
+    useAuthMock.mockReturnValue({ user: { role: 'ADMIN', userId: 1, username: 'admin' } });
+    apiGet.mockResolvedValueOnce(envelope([{ ...rows[0]!, id: 102, approvalStatus: 'CHECKED' }]));
+    renderPage();
+    const approve = await screen.findByRole('button', { name: 'Duyệt' });
+    expect(screen.getByText('Chờ duyệt')).toBeTruthy();
+    fireEvent.click(approve);
+    await waitFor(() => expect(apiPost).toHaveBeenCalledWith(expect.stringContaining('/approve'), expect.anything()));
+  });
+
+  it('keeps posted payment badges for approved legacy rows', async () => {
+    apiGet.mockResolvedValueOnce(envelope([{ ...rows[0]!, id: 103 }]));
+    renderPage();
+    expect(await screen.findByText('Ghi nợ')).toBeTruthy();
   });
 });

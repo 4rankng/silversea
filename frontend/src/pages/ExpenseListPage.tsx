@@ -1,7 +1,9 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, ChevronRight, AlertTriangle, X, Loader2 } from 'lucide-react';
+import { useState } from 'react';
 import { api } from '../lib/api';
+import { useAuth } from '../hooks/useAuth';
 import { configClient } from '../api/configClient';
 import { formatNumber, formatDate } from '../lib/format';
 import { PageHeader } from '../components/UI';
@@ -76,6 +78,25 @@ export default function ExpenseListPage() {
     isLoading, error: queryError, query,
   } = table;
   const refetch = query.refetch;
+  const { user } = useAuth();
+  const role = user?.role;
+  const canCheck = role === 'ADMIN' || role === 'MANAGER' || role === 'ACCOUNTANT';
+  const canApprove = role === 'ADMIN' || role === 'MANAGER';
+
+  // Dual-control review actions (server enforces the actor-distinct rules;
+  // the buttons are convenience-gated by role only).
+  const [reviewingId, setReviewingId] = useState<number | null>(null);
+  const reviewExpense = async (id: number, action: 'check' | 'approve' | 'reject') => {
+    setReviewingId(id);
+    try {
+      await api.post(`${FINANCIAL.EXPENSES}/${id}/${action}`, action === 'reject' ? { reason: 'Từ chối từ danh sách' } : {});
+      await refetch();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Không thể xử lý yêu cầu.');
+    } finally {
+      setReviewingId(null);
+    }
+  };
 
   // Server-side column sort: state rides the filters bag (setFilters resets
   // the page automatically); the endpoint speaks sortBy/sortDir.
@@ -127,8 +148,11 @@ export default function ExpenseListPage() {
     if (envelopeSummary) return envelopeSummary;
     const items = expenses;
     const totalAmount = items.reduce((s, e) => s + parseFloat(String(e.amount)), 0);
-    const unpaidItems = items.filter(e => e.paymentStatus === 'UNPAID');
-    const paidItems = items.filter(e => e.paymentStatus === 'PAID');
+    // Pending-review rows carry no supplier debt yet — they must not count
+    // toward the unpaid aggregates.
+    const posted = items.filter((e) => (e.approvalStatus ?? 'APPROVED') !== 'PENDING' && (e.approvalStatus ?? 'APPROVED') !== 'CHECKED' && e.approvalStatus !== 'REJECTED');
+    const unpaidItems = posted.filter((e) => e.paymentStatus === 'UNPAID');
+    const paidItems = posted.filter((e) => e.paymentStatus === 'PAID');
     const unpaidAmount = unpaidItems.reduce((s, e) => s + parseFloat(String(e.amount)), 0);
     const paidAmount = paidItems.reduce((s, e) => s + parseFloat(String(e.amount)), 0);
     return { totalAmount, unpaidCount: unpaidItems.length, unpaidAmount, paidCount: paidItems.length, paidAmount };
@@ -136,15 +160,27 @@ export default function ExpenseListPage() {
 
   const hasFilters = Object.keys(filters).length > 0;
 
-  const renderStatusBadge = (status: string) => status === 'PAID' ? (
-    <span className="expense-status expense-status--paid">
-      <span className="expense-status__dot" /> Đã trả
-    </span>
-  ) : (
-    <span className="expense-status expense-status--unpaid">
-      <span className="expense-status__dot" /> Ghi nợ
-    </span>
-  );
+  const renderStatusBadge = (expense: ExpenseWithRefs) => {
+    const approval = expense.approvalStatus ?? 'APPROVED';
+    if (approval === 'PENDING') {
+      return <span className="expense-status expense-status--unpaid"><span className="expense-status__dot" /> Chờ kiểm tra</span>;
+    }
+    if (approval === 'CHECKED') {
+      return <span className="expense-status expense-status--unpaid"><span className="expense-status__dot" /> Chờ duyệt</span>;
+    }
+    if (approval === 'REJECTED') {
+      return <span className="expense-status expense-status--paid"><span className="expense-status__dot" /> Từ chối</span>;
+    }
+    return expense.paymentStatus === 'PAID' ? (
+      <span className="expense-status expense-status--paid">
+        <span className="expense-status__dot" /> Đã trả
+      </span>
+    ) : (
+      <span className="expense-status expense-status--unpaid">
+        <span className="expense-status__dot" /> Ghi nợ
+      </span>
+    );
+  };
 
   const renderEmptyState = () => (
     <EmptyState
@@ -328,9 +364,18 @@ export default function ExpenseListPage() {
                     />
                   </td>
                   <td data-label="Trạng thái">
-                    {renderStatusBadge(e.paymentStatus)}
+                    {renderStatusBadge(e)}
                   </td>
                   <td data-label="" className="record-table__action expense-record-table__action">
+                    {e.approvalStatus === 'PENDING' && canCheck && (
+                      <button type="button" className="btn btn--secondary btn--sm" disabled={reviewingId === e.id} onClick={() => reviewExpense(e.id, 'check')}>Kiểm tra</button>
+                    )}
+                    {e.approvalStatus === 'CHECKED' && canApprove && (
+                      <>
+                        <button type="button" className="btn btn--primary btn--sm" disabled={reviewingId === e.id} onClick={() => reviewExpense(e.id, 'approve')}>Duyệt</button>
+                        <button type="button" className="btn btn--secondary btn--sm" disabled={reviewingId === e.id} onClick={() => reviewExpense(e.id, 'reject')}>Từ chối</button>
+                      </>
+                    )}
                     <ChevronRight size={14} className="expense-record-table__chevron" />
                   </td>
                 </tr>

@@ -684,6 +684,9 @@ export interface Expense {
   validTo: string | null;
   receiptId: string | null;
   note: string | null;
+  /** Dual-control review state — undefined on legacy responses (treated
+   *  as APPROVED/posted). Supplier debt only exists once APPROVED. */
+  approvalStatus?: 'PENDING' | 'CHECKED' | 'APPROVED' | 'REJECTED';
   createdBy: number | null;
   createdAt: string;
   updatedAt: string;
