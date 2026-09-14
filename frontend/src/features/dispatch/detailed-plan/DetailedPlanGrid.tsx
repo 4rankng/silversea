@@ -93,7 +93,7 @@ interface DetailedPlanGridProps {
 
 /**
  * "Kế hoạch Chi tiết" grid (docx §5): one row per container (or LCL shipment),
- * 6 multi-line columns, in-row plate assignment. Rows are pre-derived from the
+ * 9 multi-line columns, in-row plate assignment. Rows are pre-derived from the
  * carrier allocation made on the master-plan screen.
  */
 export function DetailedPlanGrid({
@@ -165,7 +165,7 @@ export function DetailedPlanGrid({
 
       {loading ? (
         <div role="status">
-          <SkeletonTable rows={6} cols={7} />
+          <SkeletonTable rows={6} cols={9} />
           <span className="sr-only">Đang tải dữ liệu…</span>
         </div>
       ) : items.length === 0 ? (
@@ -181,6 +181,8 @@ export function DetailedPlanGrid({
             <colgroup>
               <col className="detailed-plan-grid__col detailed-plan-grid__col--schedule" />
               <col className="detailed-plan-grid__col detailed-plan-grid__col--route" />
+              <col className="detailed-plan-grid__col detailed-plan-grid__col--ports" />
+              <col className="detailed-plan-grid__col detailed-plan-grid__col--ports" />
               <col className="detailed-plan-grid__col detailed-plan-grid__col--documents" />
               <col className="detailed-plan-grid__col detailed-plan-grid__col--container" />
               <col className="detailed-plan-grid__col detailed-plan-grid__col--assignment" />
@@ -209,6 +211,8 @@ export function DetailedPlanGrid({
                     Khách hàng &amp; lộ trình {sortKey === 'deliveryPoint' ? (sortDirection === 'desc' ? '▼' : '▲') : '↕'}
                   </button>
                 </th>
+                <th scope="col">Nâng hàng</th>
+                <th scope="col">Trả hàng</th>
                 <th scope="col">Tuyến đường</th>
                 <th scope="col">Container</th>
                 <th scope="col">Điều phối</th>
@@ -264,6 +268,30 @@ export function DetailedPlanGrid({
                       {row.docs.billNumber ? `Bill: ${row.docs.billNumber}` : '—'}
                     </div>
                   </td>
+                  {/* Lift/drop ports — direction-aware: IMPORT lifts at pickup, EXPORT lifts at dropoff */}
+                  {(() => {
+                    const isImport = row.docs.tradeDirection === 'IMPORT';
+                    const liftPort = isImport ? row.ports.pickupPortName : row.ports.dropoffPortName;
+                    const liftShort = isImport ? row.ports.pickupPortShortName : row.ports.dropoffPortShortName;
+                    const dropPort = isImport ? row.ports.dropoffPortName : row.ports.pickupPortName;
+                    const dropShort = isImport ? row.ports.dropoffPortShortName : row.ports.pickupPortShortName;
+                    return (
+                      <>
+                        <td className="detailed-plan-grid__cell detailed-plan-grid__cell--ports" data-label="Nâng hàng">
+                          <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">{liftShort ?? liftPort ?? '—'}</div>
+                          {liftShort && liftPort && liftShort !== liftPort && (
+                            <div className="detailed-plan-grid__line detailed-plan-grid__line--muted">{liftPort}</div>
+                          )}
+                        </td>
+                        <td className="detailed-plan-grid__cell detailed-plan-grid__cell--ports" data-label="Trả hàng">
+                          <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">{dropShort ?? dropPort ?? '—'}</div>
+                          {dropShort && dropPort && dropShort !== dropPort && (
+                            <div className="detailed-plan-grid__line detailed-plan-grid__line--muted">{dropPort}</div>
+                          )}
+                        </td>
+                      </>
+                    );
+                  })()}
                   <td className="detailed-plan-grid__cell detailed-plan-grid__cell--documents" data-label="Tuyến đường">
                     {row.customerRoute.routeName ? (
                       <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">{row.customerRoute.routeName}</div>

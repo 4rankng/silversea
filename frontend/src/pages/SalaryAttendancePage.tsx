@@ -144,122 +144,8 @@ export default function SalaryAttendancePage() {
 
 
       <div className={`salary-page-layout ${selectedDriverId ? 'has-selected' : ''}`}>
-        {/* ── Left Column: Calendar ── */}
-        <div className="salary-page-layout__main">
-          {/* Calendar Card (middle/bottom) */}
-          {!selectedDriverId ? (
-            <Panel>
-              <div className="salary-empty-panel">
-                <EmptyIllustration name="empty-salary" />
-                <p className="salary-attendance__empty-panel-text">Chọn lái xe ở trên để xem lịch chấm công</p>
-              </div>
-            </Panel>
-          ) : (
-            <div className="salary-calendar-area">
-              <Panel flush>
-                <div className="calendar-container">
-                  {isUpdating && (
-                    <Loader2 size={14} className="spin salary-attendance__calendar-updating-loader" />
-                  )}
-                  {/* Day-of-week headers */}
-                  <div className="calendar-dow-header">
-                    {DOW_LABELS.map(dow => (
-                      <div key={dow} className={`calendar-dow-cell ${dow === 'CN' ? 'is-sunday' : ''}`}>
-                        {dow}
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Calendar cells */}
-                  {wdLoading ? (
-                    <div className="salary-attendance__loading-center">
-                      <Loader2 size={20} className="spin" />
-                    </div>
-                  ) : (
-                    <div className="calendar-grid">
-                      {calCells.map((dateStr, idx) => {
-                        if (dateStr === null) {
-                          return <div key={`blank-${idx}`} className="cal-cell is-empty" />;
-                        }
-                        const [cy, cm, cd] = dateStr.split('-').map(Number);
-                        const dateObj = new Date(cy, cm - 1, cd);
-                        const day = dateObj.getDate();
-                        const cellMonth = dateObj.getMonth() + 1;
-                        const isSun = dateObj.getDay() === 0;
-
-                        const showMonthLabel = day === 1 || dateStr === dates[0];
-                        const dayLabel = showMonthLabel ? `${day}/${cellMonth}` : `${day}`;
-
-                        return (
-                          <CalCell
-                            key={dateStr}
-                            dateStr={dateStr}
-                            day={day}
-                            isSunday={isSun}
-                            dayLabel={dayLabel}
-                            workDay={workDayMap.get(dateStr)}
-                            isUpdating={isUpdating}
-                            isLocked={workdayEditLocked}
-                            onCycle={handleCellClick}
-                          />
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {/* Legend */}
-                  <div className="calendar-legend-bar">
-                    <div className="calendar-legend-items">
-                      {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
-                        <div key={key} className="calendar-legend-item">
-                          <cfg.icon size={12} strokeWidth={2} />
-                          <span>{cfg.label}</span>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="calendar-legend-instruction">
-                      {workdayEditLocked ? (
-                        <>
-                          <Lock size={13} className="salary-attendance__legend-icon" />
-                          <span>
-                            Kỳ lương đã khóa — không thể chỉnh sửa ngày công
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          <Info size={13} className="salary-attendance__legend-icon" />
-                          <span>Bấm vào ngày để chuyển trạng thái: Chờ việc ⇄ Nghỉ riêng ⇄ Nghỉ tuần</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </Panel>
-            </div>
-          )}
-        </div>
-
-        {/* ── Mobile Day List (hidden on desktop, shown on mobile via CSS) ── */}
-        {selectedDriverId && (
-          <div className="mobile-day-list-wrapper">
-            {wdLoading ? (
-              <div className="salary-attendance__loading-center salary-attendance__loading-center--ink">
-                <Loader2 size={20} className="spin" />
-              </div>
-            ) : (
-              <MobileDayList
-                dates={dates}
-                workDayMap={workDayMap}
-                isUpdating={isUpdating}
-                isConfirmed={workdayEditLocked}
-                onCycle={handleCellClick}
-                parseLocalDate={parseLocalDate}
-              />
-            )}
-          </div>
-        )}
-
-        {/* ── Right Column: Sidebar (Driver info + Summary Card) ── */}
+        {/* ── Sidebar: Payroll details — first on mobile (near driver picker),
+              reordered to right column on desktop via CSS grid. ── */}
         {selectedDriverId && (
           <aside className="salary-page-layout__sidebar">
             <Panel>
@@ -632,6 +518,111 @@ export default function SalaryAttendancePage() {
               </button>
             </div>
           </aside>
+        )}
+
+        {/* ── Calendar (desktop: left column; reordered via CSS grid on desktop) ── */}
+        <div className="salary-page-layout__main">
+          {!selectedDriverId ? (
+            <Panel>
+              <div className="salary-empty-panel">
+                <EmptyIllustration name="empty-salary" />
+                <p className="salary-attendance__empty-panel-text">Chọn lái xe ở trên để xem lịch chấm công</p>
+              </div>
+            </Panel>
+          ) : (
+            <div className="salary-calendar-area">
+              <Panel flush>
+                <div className="calendar-container">
+                  {isUpdating && (
+                    <Loader2 size={14} className="spin salary-attendance__calendar-updating-loader" />
+                  )}
+                  <div className="calendar-dow-header">
+                    {DOW_LABELS.map(dow => (
+                      <div key={dow} className={`calendar-dow-cell ${dow === 'CN' ? 'is-sunday' : ''}`}>
+                        {dow}
+                      </div>
+                    ))}
+                  </div>
+                  {wdLoading ? (
+                    <div className="salary-attendance__loading-center">
+                      <Loader2 size={20} className="spin" />
+                    </div>
+                  ) : (
+                    <div className="calendar-grid">
+                      {calCells.map((dateStr, idx) => {
+                        if (dateStr === null) {
+                          return <div key={`blank-${idx}`} className="cal-cell is-empty" />;
+                        }
+                        const [cy, cm, cd] = dateStr.split('-').map(Number);
+                        const dateObj = new Date(cy, cm - 1, cd);
+                        const day = dateObj.getDate();
+                        const cellMonth = dateObj.getMonth() + 1;
+                        const isSun = dateObj.getDay() === 0;
+                        const showMonthLabel = day === 1 || dateStr === dates[0];
+                        const dayLabel = showMonthLabel ? `${day}/${cellMonth}` : `${day}`;
+                        return (
+                          <CalCell
+                            key={dateStr}
+                            dateStr={dateStr}
+                            day={day}
+                            isSunday={isSun}
+                            dayLabel={dayLabel}
+                            workDay={workDayMap.get(dateStr)}
+                            isUpdating={isUpdating}
+                            isLocked={workdayEditLocked}
+                            onCycle={handleCellClick}
+                          />
+                        );
+                      })}
+                    </div>
+                  )}
+                  <div className="calendar-legend-bar">
+                    <div className="calendar-legend-items">
+                      {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
+                        <div key={key} className="calendar-legend-item">
+                          <cfg.icon size={12} strokeWidth={2} />
+                          <span>{cfg.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="calendar-legend-instruction">
+                      {workdayEditLocked ? (
+                        <>
+                          <Lock size={13} className="salary-attendance__legend-icon" />
+                          <span>Kỳ lương đã khóa — không thể chỉnh sửa ngày công</span>
+                        </>
+                      ) : (
+                        <>
+                          <Info size={13} className="salary-attendance__legend-icon" />
+                          <span>Bấm vào ngày để chuyển trạng thái: Chờ việc ⇄ Nghỉ riêng ⇄ Nghỉ tuần</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </Panel>
+            </div>
+          )}
+        </div>
+
+        {/* ── Mobile Day List ── */}
+        {selectedDriverId && (
+          <div className="mobile-day-list-wrapper">
+            {wdLoading ? (
+              <div className="salary-attendance__loading-center salary-attendance__loading-center--ink">
+                <Loader2 size={20} className="spin" />
+              </div>
+            ) : (
+              <MobileDayList
+                dates={dates}
+                workDayMap={workDayMap}
+                isUpdating={isUpdating}
+                isConfirmed={workdayEditLocked}
+                onCycle={handleCellClick}
+                parseLocalDate={parseLocalDate}
+              />
+            )}
+          </div>
         )}
       </div>
       {canPostPayout && (
