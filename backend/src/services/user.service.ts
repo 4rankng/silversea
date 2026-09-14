@@ -446,7 +446,10 @@ export async function verifyPassword(userId: number, password: string): Promise<
     .from(users).where(eq(users.id, userId)).limit(1);
   if (!user) throw new ApiError(404, 'Không tìm thấy người dùng');
   const valid = await bcrypt.compare(password, user.passwordHash);
-  if (!valid) throw new ApiError(401, 'Mật khẩu hiện tại không đúng');
+  // 400, not 401: a wrong current password is a field-validation failure —
+  // the session token is still valid, and a 401 here makes the FE's global
+  // session-expiry handler log the user out mid-dialog.
+  if (!valid) throw new ApiError(400, 'Mật khẩu hiện tại không đúng');
 }
 
 /**
@@ -1076,7 +1079,8 @@ export async function changePasswordWithTx(
     .from(users).where(eq(users.id, userId)).limit(1).for('update');
   if (!user) throw new ApiError(404, 'Không tìm thấy người dùng');
   const valid = await bcrypt.compare(currentPassword, user.passwordHash);
-  if (!valid) throw new ApiError(401, 'Mật khẩu hiện tại không đúng');
+  // Same class as verifyPassword above: field validation, session stays.
+  if (!valid) throw new ApiError(400, 'Mật khẩu hiện tại không đúng');
   await tx.update(users).set({ passwordHash: nextPasswordHash, updatedAt: sql`now()` })
     .where(eq(users.id, userId));
 }

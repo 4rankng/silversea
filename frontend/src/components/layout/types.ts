@@ -86,6 +86,11 @@ export interface PasswordModalProps {
   onClose: () => void;
   saving: boolean;
   error: string | null;
+  /** Focus target + field-error marker for the current-password input —
+   *  a wrong current password is a field error (cleared + refocused), never
+   *  a session expiry. */
+  currentPasswordFieldRef?: React.RefObject<HTMLInputElement | null>;
+  isCurrentPasswordError?: boolean;
   form: { currentPassword: string; newPassword: string; confirmPassword: string };
   onFormChange: (form: { currentPassword: string; newPassword: string; confirmPassword: string }) => void;
   onSave: () => void;

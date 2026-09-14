@@ -9,6 +9,8 @@ function PasswordModal({
   onClose,
   saving,
   error,
+  currentPasswordFieldRef,
+  isCurrentPasswordError,
   form,
   onFormChange,
   onSave,
@@ -50,9 +52,19 @@ function PasswordModal({
               value={form.currentPassword}
               onChange={e => onFormChange({ ...form, currentPassword: e.target.value })}
               placeholder="Nhập mật khẩu hiện tại"
+              ref={currentPasswordFieldRef}
+              aria-invalid={isCurrentPasswordError || undefined}
+              aria-describedby={isCurrentPasswordError ? 'current-password-error' : undefined}
             />
           </div>
         </FormGroup>
+        {isCurrentPasswordError && (
+          // Sibling, not child: FormGroup force-ids its direct children
+          // (cloneElement), which would clobber this element's id.
+          <p id="current-password-error" role="alert" className="mt-1 text-xs" style={{ color: 'var(--err, #dc2626)', margin: 0 }}>
+            Mật khẩu hiện tại không đúng
+          </p>
+        )}
         <FormGroup label="Mật khẩu mới">
           <div className="input-icon">
             <Lock size={16} />
