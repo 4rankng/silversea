@@ -298,11 +298,13 @@ export async function updateTripFigures(
     }
 
     // If roadAllowanceBase is zero and we have a route+trailerType, try to resolve it.
-    if (roadAllowanceBaseApplied === 0 && trip.trailerType) {
+    // Uses finalTrailerType (not trip.trailerType) so a missing rate for the new
+    // type stays zero instead of silently falling back to the previous type.
+    if (roadAllowanceBaseApplied === 0 && finalTrailerType) {
       const [liveAllowance] = await tx.select().from(s.roadAllowances).where(
         and(
           eq(s.roadAllowances.routeId, finalRouteId),
-          eq(s.roadAllowances.trailerType, trip.trailerType),
+          eq(s.roadAllowances.trailerType, finalTrailerType as '20FT' | '40FT'),
           isNull(s.roadAllowances.deletedAt)
         )
       ).limit(1);
