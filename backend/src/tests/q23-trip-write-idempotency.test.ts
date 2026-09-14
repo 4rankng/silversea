@@ -418,7 +418,7 @@ describe('Q23 trip write contracts', () => {
     const containers = await batchUpsertTripContainers(
       trip.id,
       user.id,
-      [{ containerNumber: 'TCLU1234567' }],
+      [{ containerNumber: 'TCLU1234568' }],
       1,
     );
     assert.equal(containers.length, 1);
@@ -452,7 +452,7 @@ describe('Q23 trip write contracts', () => {
       .where(eq(s.trips.id, trip.id));
     const [storedTrip] = await db.select({ version: s.trips.version }).from(s.trips)
       .where(eq(s.trips.id, trip.id));
-    assert.equal(storedContainer.containerNumber, 'TCLU1234567');
+    assert.equal(storedContainer.containerNumber, 'TCLU1234568');
     assert.equal(storedInstruction.notes, 'Chỉ dẫn mới');
     assert.equal(storedTrip.version, 3);
   });

@@ -1327,6 +1327,10 @@ export const validatedTripContainerPatchSchema = tripContainerPatchSchema
 // carry a full seals[] list, reconciled the same way by id. sealNumber
 // (scalar) is kept for back-compat — when seals[] is absent, backend writes
 // the scalar value as the container's first seal row.
+//
+// ISO 6346 validation: every non-empty containerNumber passes the same
+// format + check-digit gate as the driver/forwarder add paths. This is a
+// hard boundary — the batch endpoint is the admin/dispatch persistence path.
 export const tripContainerBatchSchema = z.object({
   expectedVersion: z.coerce.number().int().positive().optional(),
   containers: z.array(z.object({
@@ -1338,6 +1342,24 @@ export const tripContainerBatchSchema = z.object({
     notes: z.string().optional().nullable().transform(v => (v === '' ? null : v)),
     seals: z.array(tripContainerSealSchema).optional(),
   })),
+}).superRefine((data, ctx) => {
+  for (const [i, c] of data.containers.entries()) {
+    const value = c.containerNumber;
+    if (value == null || !value.trim()) continue;
+    if (!validateContainerFormat(value)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['containers', i, 'containerNumber'],
+        message: 'Số container sai định dạng (4 chữ cái + 7 số).',
+      });
+    } else if (!validateCheckDigit(normalizeContainerNumber(value))) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['containers', i, 'containerNumber'],
+        message: 'Số container sai chữ số kiểm tra — kiểm tra lại.',
+      });
+    }
+  }
 });
 
 // Full reconcile payload for one container's seals. PUT /containers/:id/seals
