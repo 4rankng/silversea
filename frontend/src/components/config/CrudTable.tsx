@@ -181,7 +181,10 @@ export function CrudTable<T extends { id: number }>({
           </div>
         </div>
       </Panel>
-      {crud.error && (
+      {/* Validation errors render INSIDE the open dialog — a page-level
+          alert here sits behind the modal backdrop and is unreadable on
+          desktop overlap and blurred phone backdrops alike. */}
+      {crud.error && !crud.showAddForm && crud.editingId == null && (
         <Alert variant="error" style="soft" icon={<AlertCircle size={16} />} className="mt-3">
           {crud.error}
         </Alert>
@@ -197,6 +200,11 @@ export function CrudTable<T extends { id: number }>({
         ariaLabel={`Thêm ${title.toLowerCase()}`}
       >
         <div style={{ padding: '8px 4px' }}>
+          {crud.error && (
+            <div role="alert" className="mb-3"><Alert variant="error" style="soft" icon={<AlertCircle size={16} />}>
+              {crud.error}
+            </Alert></div>
+          )}
           {renderForm({
             saving: crud.saving,
             onSave: crud.doCreate,
@@ -222,6 +230,11 @@ export function CrudTable<T extends { id: number }>({
             headerRight={modalChip?.(item)}
           >
             <div style={{ padding: '8px 4px' }}>
+              {crud.error && (
+                <div role="alert" className="mb-3"><Alert variant="error" style="soft" icon={<AlertCircle size={16} />}>
+                  {crud.error}
+                </Alert></div>
+              )}
               {renderForm({
                 item,
                 saving: crud.saving,
