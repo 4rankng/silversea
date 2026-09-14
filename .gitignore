@@ -109,3 +109,5 @@ backend/.drizzle-generate.lock.d/
 .mcp.json
 .agentsroom/
 .omp/mcp.json
+.kanban-dir
+testplan/qa/evidence/
