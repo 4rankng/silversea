@@ -7,7 +7,7 @@
  * the persisted figures (base, totalRoadAllowance, totalCost, grossProfit)
  * read back after the update.
  */
-import { after, before, describe, test } from 'node:test';
+import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { eq, inArray } from 'drizzle-orm';
 
@@ -45,7 +45,7 @@ async function mkCatalogs() {
 
 async function mkAllowance(routeId: number, trailerType: '20FT' | '40FT', baseAmount: string) {
   const [row] = await db.insert(s.roadAllowances)
-    .values({ routeId, trailerType, baseAmount, createdBy: 1 })
+    .values({ routeId, trailerType, baseAmount })
     .returning();
   createdAllowanceIds.push(row.id);
   return row;
