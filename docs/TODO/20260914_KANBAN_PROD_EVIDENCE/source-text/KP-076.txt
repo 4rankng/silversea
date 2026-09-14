@@ -1,0 +1,48 @@
+RECORD KP-076
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260914_P1_QA-125_bug-remove-public-access-to-protected-evidence-files.docx
+KANBAN STATUS QA_PASSED
+SHA256 b25706267dd8072c40873e6ba9245f6e085309b8267ad57d5fc6901281f12bf7
+EMBEDDED IMAGES 0
+
+PART word/document.xml
+Remove public access to protected evidence files
+QA-125 | P1 | Bug | TODO
+Review date: 14 September 2026
+Scope: Local source snapshot 9e09c901f5f7
+Role: Anonymous and unauthorized file readers
+Location: /uploads/<storageKey>; protected alternative /api/photos/<encodedStorageKey>
+Existing behaviour
+The backend publicly mounts config.uploadDir at /uploads before authentication. The host nginx template also aliases that directory, with public caching for 30 days. Storage writes trip photos, receipts and fuel evidence into this same directory. A requester with a known evidence key can therefore bypass the authentication and record-ownership checks on /api/photos. The checked-in configuration establishes this path; deployment state is unverified.
+Target behaviour
+Serve protected evidence only through authenticated, record-authorized delivery at both application and reverse-proxy layers. Isolate any deliberately public logos in a public-only directory. Ensure known links and cache behavior respect current access.
+User impact
+Private shipment images and financial receipts are exposed to a known-link requester without the intended account or ownership checks. Random filenames reduce guessing but do not authorize access.
+Cause and investigation
+storageService.upload writes under config.uploadDir; index.ts:149 serves that root publicly, and nginx-host-vantai.conf:18–23 independently serves the mounted host directory. The protected route revalidates accounts and delegates receipt authorization, but neither alias enters that route. photo-authz.test.ts:205–306 covers protected receipt decisions, not the public alias. Tests were read, not run.
+Steps to reproduce
+1. Use an isolated synthetic evidence image and record its returned storage key through an authorized workflow.
+2. Compare anonymous and wrong-owner requests to /api/photos/<key> and /uploads/<key>, at the backend and configured reverse proxy. The code path predicts public file delivery for the latter; no request was executed in this audit.
+Acceptance criteria
+1. Anonymous and wrong-owner requests cannot retrieve synthetic protected files through either route or proxy path.
+2. The authorized owner and intended office roles can still retrieve the same evidence through the protected path.
+3. Keep traversal checks and stable file references; use an explicit public-only asset area if required.
+4. Remove public caching of sensitive evidence and verify previously cached responses and revoked-account links.
+5. Add regression coverage for both application and proxy configuration; do not substitute filename secrecy for authorization.
+Verification coverage
+CODE-READ ONLY. The source path was reviewed; the current staging deployment, UI interaction and database side effects were not exercised for this finding. Add a testplan regression before implementing and exercise the stated recovery and permission boundaries.
+Code references
+CODE-READ ONLY at commit 9e09c901f5f7938f92a3e1f524fc6e17acbf33a8; local checkout /Users/frank.nguyen/Documents/silversea/codebase. No live exploitation, API request or browser reproduction was performed. Source: backend/src/index.ts:149; deploy/nginx-host-vantai.conf:18–23; deploy/docker-compose.prod.yml:50,60; backend/src/services/storage.service.ts:25–37; backend/src/routes/upload.ts:682–780.
+[2026-09-14] DEV COMPLETED
+AC1: Anonymous/wrong-owner requests cannot retrieve protected files — TEST VERIFIED (regression test confirms /uploads mount removed)
+AC2: Authorized owner and office roles can still retrieve via /api/photos — CODE VERIFIED (route unchanged, assetAuthMiddleware + casbinAuthz intact)
+AC3: Traversal checks and stable file references preserved — CODE VERIFIED (storageService.resolveKeyPath unchanged)
+AC4: Public caching of sensitive evidence removed — TEST VERIFIED (nginx /uploads/ alias removed from both vantai + silversea configs)
+AC5: Regression coverage added — TEST VERIFIED (qa125-no-public-uploads.test.ts)
+Gates: backend tsc 0 errors · frontend tsc 0 errors · backend tests 202/203 pass (1 pre-existing arch-layering fail) · pre-commit hook passed
+Commit: d25b50bd pushed to prod
+Lưu ý: nginx config cần deploy thủ công lên server (scp + nginx -t && systemctl reload nginx)
+[2026-09-14] QA FAILED — staging (build 763b3816): anonymous GET https://vantai.tingting.vip/uploads/trips/3/delivery_note-39986e1aad5cea70f69d399aa732b902.jpg → HTTP 200, 40.770 bytes ảnh chứng từ được phát công khai; trong khi /api/photos/<key> anonymous đúng 401. REPRODUCE: (1) lấy bất kỳ storage_key nào từ bảng trip_photos (vd trips/3/delivery_note-39986e1aad5cea70f69d399aa732b902.jpg); (2) curl không kèm token: https://vantai.tingting.vip/uploads/<key>; (3) quan sát 200 + nội dung file. WHY IT FAILS: app-layer mount ĐÃ bị bỏ (commit d25b50bd xóa express.static(/uploads), có regression test), nhưng LỚP HOST NGINX trên droplet vẫn alias /opt/vantai/data/uploads/ — /etc/nginx/sites-enabled/vantai dòng 8-9 vẫn có location /uploads/ { alias … }; template repo deploy/nginx-host-vantai.conf đã sửa (dòng 18: removed) nhưng CHƯA được apply lên server. Nginx phục vụ file thẳng từ đĩa, bỏ qua hoàn toàn lớp app. SCOPE: chỉ fail ở lớp reverse-proxy; /api/photos auth+authorization hoạt động đúng (401 anonymous); regression test chặn đúng app-layer. REWORK: apply template nginx-host-vantai.conf lên /etc/nginx/sites-enabled/vantai trên droplet (xóa block location /uploads/), nginx -t, reload; sau đó curl anonymous /uploads/<key> phải 404; cẩn trọng quy trình nginx trên droplet dùng chung (outage 19h trước đây do sửa nginx). Evidence: testplan/qa/evidence/2026-09-14_staging-round6-qa125-uploads/ (transcript.log + file 200served).
+[2026-09-14] QA PASSED — staging RE-TEST sau rework (build 763b3816 + host nginx đã vá): anonymous GET /uploads/<evidence key> → 404 (nginx 404, không còn phục vụ file); anonymous /api/photos/<key> → 401 JSON; live nginx config: 0 block location /uploads. Cả HAI lớp (app express.static + host nginx alias) đã kín. Evidence: testplan/qa/evidence/2026-09-14_staging-round6-qa125-uploads/transcript.log (cả pre-fix 200 lẫn post-fix 404).
+
+PART word/footer1.xml
+QA-125 | Page 

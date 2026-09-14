@@ -1,0 +1,19 @@
+RECORD KP-062
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260914_14-dispatch-edit-container-count.docx
+KANBAN STATUS QA_PASSED
+SHA256 6da7edca91c4ae7a2be32d295b7d6ae33a4d345728ae502622789fef91ff10ce
+EMBEDDED IMAGES 0
+
+PART word/document.xml
+Nãy tôi thử điều chỉnh bổ sung số cont của 1 cont trong lô hàng (khi tạo lô hàng chưa điền), role điều vận không cho sửa, role cus sửa được. mở cho phép điều vận sửa nhé và không cần phê duyệt nhé
+[2026-09-14] DEV COMPLETED — điều vận sửa trực tiếp số cont, không cần phê duyệt
+Nguyên nhân: đường ghi (write path) đã cho phép lưu sửa số cont trên cont đã có chuyến (value-aware linked-trip guard), nhưng ma trận fieldAccess vẫn báo READ_ONLY cho DISPATCHER khi cont đã gắn chuyến — nên ledger của điều vận không bao giờ mở ô nhập. Sửa tại backend/src/services/cus-workspace-builders.service.ts: DISPATCHER được flag DIRECT cho containerNumber (trước khóa kế toán, có chuyến hay không); route/cảng giữ nguyên tắc chia theo chuyến; khóa kế toán vẫn chặn trường này.
+Bằng chứng: test mới 'DISPATCHER edits containerNumber directly (trip or not); route/ports keep the generic split' trong backend/src/tests/cus-shipment-workspace.test.ts — bao phủ cont có chuyến (số cont DIRECT, route/ports READ_ONLY), CUS không đổi (4 trường kế hoạch vẫn DIRECT), ACCOUNTANT chỉ đọc, và lô đã khóa kế toán thì READ_ONLY. Suite 74/74 pass; BE tsc 0 lỗi; eslint sạch. Commit c54d1575 (chỉ 2 file backend), đã push prod.
+Hướng dẫn xác minh:
+1. Đăng nhập https://vantai.tingting.vip bằng dungnv (Điều vận).
+2. Mở workspace lô hàng có cont chưa điền số cont (hoặc cont đã có chuyến thực tế).
+3. Bấm sửa dòng cont: ô 'Số cont' nhận trực tiếp (không disabled, không bước phê duyệt). Ô Tuyến/Điểm lấy/Điểm trả trên cont đã có chuyến vẫn chỉ đọc — đúng thiết kế.
+4. Nhập số cont, Lưu — lưu ngay không qua hàng chờ phê duyệt.
+5. Tải lại trang: số cont còn nguyên giá trị vừa lưu. Đăng nhập bằng kế toán (nếu có): ô số cont chỉ đọc.
+Trạng thái: QA PASSED — đã xác minh trên staging
+[2026-09-14] QA PASSED — staging: DISPATCHER (dungnv) edits tripped container → 200, no approval; CUS view reflects change; fieldAccess DIRECT Evidence: testplan/qa/evidence/2026-09-14_QA-batch-staging-cut-9/api/20260914_14-dispatch-edit-container-count.md

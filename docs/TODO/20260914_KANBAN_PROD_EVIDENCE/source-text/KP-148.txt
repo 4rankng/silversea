@@ -1,0 +1,45 @@
+RECORD KP-148
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/TODO/20260914_P2_QA-113_requirement-remove-approval-handoffs-from-advances-and-settlements.docx
+KANBAN STATUS TODO
+SHA256 ff374547c013b0e36ca143b988cc0d03c78118761cd85a99ae7121c520c16f67
+EMBEDDED IMAGES 3
+
+PART word/document.xml
+Remove approval handoffs from advances and settlements
+QA-113 | P2 | Requirement | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 14 September 2026
+Role: OPS, ADMIN, ACCOUNTANT and MANAGER within ordinary role access.
+Page: /my-advances; /advances; /settlements/1; /my-settlements/new; /ops/wallet
+Existing behaviour
+Advance requests remain in Chờ duyệt / Đã duyệt / Từ chối buckets, with reason fields and approval/rejection proposals. Settlement creation requires approved advances. PT-2609-0001 says reversal needs a preparer, checker and approver, and offers Gửi yêu cầu hoàn tác.
+Target behaviour
+Save authorized advance and settlement operations directly. Replace approval handoffs with clear recorded, outstanding, settled and reversed states; retain data validation, reconciliation and audit history.
+Impact
+Routine reconciliation waits on approval stages that the product owner has removed from scope.
+Cause and investigation
+The displayed lifecycle still models internal approval. Update corresponding server transitions as well as controls; hiding buttons alone could leave records blocked.
+Steps to reproduce
+1. As Ops, open advance and settlement creation; inspect request wording and the approved-advance prerequisite.
+2. As Admin or Accountant, inspect Tạm ứng & Hoàn ứng, then Phiếu hoàn ứng → Xem phiếu for PT-2609-0001.
+Acceptance criteria
+1. Authorized creation, correction, settlement and reversal save directly, with clear success/error feedback and no reviewer or approver.
+2. Remove approval buckets, proposal reasons and reviewer handoffs. Keep useful business notes and ordinary role access.
+3. Eligibility uses recorded advances/expenses, remaining balances and completeness. Preserve arithmetic, required fields and duplicate-posting protection.
+4. Migrate pending requests through a logged transition so none remain stranded. Retain historical audit evidence without active approval requirements.
+5. Saving a record must not falsely report an unperformed cash transfer. Verify refresh, failures and the complete direct lifecycle.
+6. Use compact controls on phone, tablet and desktop. Coordinate Ops expense removal with QA-114.
+Requirement reference
+User decision, 14 September 2026: remove approval workflows until customers define future requirements.
+Evidence 1
+Remove approval handoffs from advances and settlements
+Figure 1. Fresh Admin request workspace: approval buckets and proposal controls remain active.
+Evidence 2
+Remove approval handoffs from advances and settlements
+Figure 2. Settlement detail still requires preparer, checker and approver before reversal can take effect.
+Evidence 3
+Remove approval handoffs from advances and settlements
+Figure 3. Ops phone advance form still sends the request into the approval lifecycle.
+
+PART word/footer1.xml
+QA-113 | Page 

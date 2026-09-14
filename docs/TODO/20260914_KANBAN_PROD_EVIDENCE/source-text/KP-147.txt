@@ -1,0 +1,40 @@
+RECORD KP-147
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/TODO/20260914_P2_QA-110_enhancement-remove-approval-steps-from-financial-configuration.docx
+KANBAN STATUS TODO
+SHA256 10b6762ff6f681dd8e691a06f69f29fe4b49457e5e5f64b503559580a0a17e9b
+EMBEDDED IMAGES 2
+
+PART word/document.xml
+Remove approval steps from financial configuration
+QA-110 | P2 | Enhancement | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 14 September 2026
+Role: ADMIN · 1440 × 900, 834 × 1112 and 390 × 844
+Page: /config/app-settings · Chính sách báo cáo and Hồ sơ tài chính xe
+Existing behaviour
+Both financial tabs still offer Gửi yêu cầu phê duyệt. Reporting policy labels history Lịch sử đã duyệt and refers to an approved version when the effective month exists. The vehicle form uses the same approval action, contrary to the requirement to remove internal approvals.
+Target behaviour
+Let authorized users save valid policy and vehicle financial versions directly. Apply each on its effective date with clear saved state, version history and audit trail. Remove approval requests, reviewer and approver steps, approval-only labels and blockers.
+Impact
+Administrators are directed into an obsolete approval process instead of completing an authorized configuration update.
+Cause and investigation
+Align both tabs and submission paths with the simplified workflow. Renaming the button or automatically marking requests approved is insufficient. Submission internals were not inspected.
+Steps to reproduce
+1. As Admin, open /config/app-settings and select Chính sách báo cáo; inspect the version form, history and Gửi yêu cầu phê duyệt action.
+2. Switch to Hồ sơ tài chính xe and choose 15C-167.31. The monthly vehicle form also presents Gửi yêu cầu phê duyệt.
+Acceptance criteria
+1. A valid authorized save completes directly, persists after reload and takes effect on the stated date without a second user or an approval queue.
+2. Keep input validation, permitted date ranges, closed-period rules, role access and clear conflict recovery. Removing approval must not bypass ordinary data checks.
+3. Retain meaningful version and change history with actor and time. Resolve pre-existing pending requests during migration without duplicate versions or silent data loss.
+4. Remove approval-only wording, statuses and request actions in both tabs. Show clear success, validation and save-error feedback at 390, 834 and 1440 px with usable keyboard and touch controls.
+Requirement reference
+User requirement to remove internal approval flows; current financial configuration UI.
+Evidence 1
+Remove approval steps from financial configuration
+Figure 1. Reporting policy at 1440 px: the screen describes approved versions and shows Lịch sử đã duyệt; its version form still belongs to an approval workflow.
+Evidence 2
+Remove approval steps from financial configuration
+Figure 2. Vehicle financial profile at 834 px: Gửi yêu cầu phê duyệt remains the primary action for creating a monthly version.
+
+PART word/footer1.xml
+QA-110 | Page 

@@ -1,0 +1,47 @@
+RECORD KP-088
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260914_P2_QA-048_bug-reconcile-fleet-trailer-totals-with-listed-trailers.docx
+KANBAN STATUS QA_PASSED
+SHA256 5a34aca200387ac79b327ae62161c5e7e218b3de7227061a3f57ffd66e6b71f0
+EMBEDDED IMAGES 2
+
+PART word/document.xml
+Reconcile fleet trailer totals with listed trailers
+QA-048 | P2 | Bug | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 14 September 2026
+Role: Admin; Chrome desktop 1440 × 900
+Page: https://vantai.tingting.vip/fleet
+Existing behaviour
+The settled Rơ-moóc summary shows 0 moóc, 0×40FT and 0×20FT while the trailer section contains 39 records and truck rows show assigned 40FT trailers. Adding QA-0914-RM as 40FT changes the summary to 1 moóc while the section contains 40 records. Existing trailer rows have blank type pills.
+Target behaviour
+Count all trailers in the declared inventory scope. Reconcile summary, list and assigned-trailer types; represent unknown types explicitly without excluding those records from the total.
+Impact
+The headline understates trailer inventory, making fleet capacity and type summaries unreliable.
+Cause and investigation
+Hypothesis: summary aggregation depends on populated trailer types or a different data mapping. Blank legacy types correlate with the discrepancy; the implementation and stored-data cause remain unverified.
+Steps to reproduce
+1. As Admin, open /fleet and wait for the inventory to settle. Compare the Rơ-moóc summary with the trailer section count and assigned trailers in truck rows.
+2. Create a clearly identified 40FT trailer. QA-0914-RM changed the observed summary/list totals from 0/39 to 1/40.
+Acceptance criteria
+1. The total includes every trailer in the same declared scope, including existing records with unknown types.
+2. Type subtotals plus explicitly unknown types reconcile with the total; matching trailer identities show consistent types across sections.
+3. Verify existing and newly created records, then refresh and confirm coherent totals. Distinguish loading or unavailable data from a true zero.
+4. Keep the existing compact summary layout readable on desktop, tablet and phone.
+Requirement reference
+Exploratory staging review, 14 September 2026.
+Evidence 1
+Reconcile fleet trailer totals with listed trailers
+Figure 1. Before creation: the settled summary reports 0 moóc and zero type totals while truck rows show assigned 40FT trailers. The paired page snapshot records 39 trailers in the lower section.
+Evidence 2
+Reconcile fleet trailer totals with listed trailers
+Figure 2. After adding QA-0914-RM as 40FT: the trailer section contains 40 records and existing rows show blank type pills. The paired snapshot records a headline total of only 1 moóc; that headline is above this viewport.
+[2026-09-14] DEV COMPLETED — Unknown bucket 'N × Chưa rõ loại' ở cả 2 legend twin + FleetPage KPI (value + meta), gated >0; identity ft40+ft20+unknown === total unit-locked. Type-truth pass: props/Trailer type/trailerSchema nhận NULL thiết kế; config page render label cho blank. Silent-retype bug (reviewer HIGH): edit giữ blank / add default FT40 / save map ''→null — payload test có teeth. Live capture 3/3 trên fleet thật (60×40FT · 48×20FT · 7×Chưa rõ loại · Hiển thị 115, mobile twin, 0 lỗi) + matrix 6/6 + 2 modal locks. Fleet 17/17. Commit 4308927f.
+QA PASSED (API/DB slice d8, staging round-6) — 2026-09-14
+Build: cut #8 (2c41f420) trên staging https://vantai.tingting.vip. Hành trình: API/DB rung (không browser). Kết quả: tổng 40 rơ-moóc (39 'Chưa rõ loại' + 1 20FT) — identity ft40+ft20+unknown === total đúng cả khi thêm/bớt bản ghi; fixture riêng D8-RM-SLICE-MU0WF8R3 (40FT): tạo 201 → vào tổng, byType 39+1+1, tổng vẫn khớp (41); xóa sạch (200 với If-Unmodified-Since = updatedAt ISO) → tổng về 40; fixture QA-0914-RM của card hiển thị trong list (id 40, 20FT, ACTIVE).
+1. GET /api/trailers (admin): total=40 === items.length; group theo type: UNKNOWN 39, 20FT 1 → tổng khớp.
+2. POST /api/trailers fixture 40FT riêng (Idempotency-Key + If-Unmodified-Since contract) → 201; list lại: 41 bản ghi, 40FT=1 được đếm.
+3. DELETE fixture (version token đúng dạng ISO updatedAt) → 200; list: về đúng 40 — staging sạch.
+Evidence: testplan/qa/evidence/2026-09-14_staging-round6-api-d8/ (slice-results.json, slice2-results.json, probe6c.mjs output, cleanup logs). Trạng thái: QA PASSED.
+
+PART word/footer1.xml
+QA-048 | Page 

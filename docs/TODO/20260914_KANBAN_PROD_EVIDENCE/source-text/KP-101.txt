@@ -1,0 +1,44 @@
+RECORD KP-101
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260914_P2_QA-067_bug-align-completed-trip-corrections-with-the-promised-review-flow.docx
+KANBAN STATUS QA_PASSED
+SHA256 57517789a458faede5ebf1088891b444b798aadbaf2fb5bd17966e7eb4138d61
+EMBEDDED IMAGES 2
+
+PART word/document.xml
+Align completed trip corrections with the promised review flow
+QA-067 | P2 | Bug | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 14 September 2026
+Role: Manager qa.audit.manager.0914; desktop 1440 × 900
+Page: /trips/19/edit and /trips/19
+Existing behaviour
+The completed-trip editor requires a reason and promises Yêu cầu sẽ được gửi để kiểm tra và phê duyệt. Submitting a reason and revenue correction from 0 to 2,000,000 VND immediately updates TRP-202609-0017. The detail retains that revenue after reload, with no pending-review state visible.
+Target behaviour
+If review is required, stage the correction and retain current values until authorized approval. If Managers may apply corrections immediately, replace the review promise with clear immediate-save wording and confirm the financial impact before commitment.
+Impact
+A Manager expecting review can instead change completed-trip financial figures immediately, without an accurate explanation of when the correction takes effect.
+Cause and investigation
+Generic review wording may cover a path that applies changes directly. Verify intended permissions and outcome; an authorization bypass is not established.
+Steps to reproduce
+1. As Manager, open Chỉnh sửa on completed TRP-202609-0017, initially at revenue 0. Read the review promise.
+2. Enter a reason and revenue 2,000,000 VND. Remove empty optional journey legs if blocked by QA-066, then select Lưu cập nhật.
+3. Reload the detail. Current revenue remains 2,000,000 VND without a visible pending-review step.
+Acceptance criteria
+1. The permitted outcome for each role and completed-trip state is explicit before submission.
+2. Review-required corrections preserve current figures and expose the pending request. Permitted direct corrections clearly confirm their immediate effect.
+3. Feedback, detail and reload agree on pending or applied status, with the correction reason and actor recorded.
+4. Retest permitted and denied roles, validation and repeated submission. Verify readable confirmation on phone, tablet and desktop.
+Requirement reference
+Staging Chrome audit, 14 September 2026. User requirement: predictable workflow and truthful feedback.
+Evidence 1
+Align completed trip corrections with the promised review flow
+Figure 1. The completed-trip editor requires a reason and states that the request will be sent for checking and approval. The revenue summary starts at 0 VND.
+Evidence 2
+Align completed trip corrections with the promised review flow
+Figure 2. After submission and reload, TRP-202609-0017 displays current revenue of 2,000,000 VND, with no pending-review state visible.
+[2026-09-14] DEV COMPLETED — Copy trung thực 'Cập nhật sẽ được áp dụng ngay' + confirm hiển thị revenue delta (old→new) cho completed trips; reason section tách component giữ ceiling. Commit 66f2239d.
+[2026-09-14] QA PASSED — staging: Copy now "Cập nhật sẽ được áp dụng ngay cho chuyến đã hoàn thành" (no misleading "phê duyệt"); confirm dialog shows revenue delta; backend applies immediately — aligns with user ruling that no approval flow exists Evidence: testplan/qa/evidence/2026-09-14_QA-batch-staging-cut-9/api/20260914_P2_QA-067_bug-align-completed-trip-corrections-with-the-promised-review-flow.md
+Trạng thái: QA PASSED — đã xác minh trên staging
+
+PART word/footer1.xml
+QA-067 | Page 

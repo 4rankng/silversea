@@ -1,0 +1,41 @@
+RECORD KP-143
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/TODO/20260914_P1_QA-140_enhancement-require-a-live-connection-before-allowing-application-work.docx
+KANBAN STATUS TODO
+SHA256 6af8f8ce80cac46c10f44d463f87b7aa4911a8c80a07256b6a14f0772c2f3181
+EMBEDDED IMAGES 0
+
+PART word/document.xml
+Require a live connection before allowing application work
+QA-140 | P1 | Enhancement | TODO
+Review date: 14 September 2026
+Scope: Local source snapshot 9e09c901f5f7
+Role: All signed-in roles and login recovery
+Location: Shared application shell, customer portal, login and API mutation entry points
+Existing behaviour
+The shared OfflineBanner says changes will be saved temporarily and synchronized when the network returns. It is informational and does not block interaction. CustomerPortalLayout renders its own main content without this banner. useOnline trusts browser connection events, while the API client performs requests without a shared connection-required gate. These paths do not implement the new internet-required product contract.
+Target behaviour
+Provide one compact connection-required state across every role and shell. Block business interaction while disconnected and clearly state that changes are not saved. Keep the current draft visible but inert, with no offline editing or persistence; allow local sign-out. Re-enable work only after service reachability is confirmed. Reconnection may refresh reads, but must never submit a previously attempted mutation automatically.
+User impact
+Users can continue interacting with stale data or believe failed changes will be synchronized. Inconsistent shells make connectivity failures harder to understand and recover from.
+Cause and investigation
+OfflineBanner.tsx:15–43 deliberately supplies status text only. Layout.tsx:718–719 mounts it, while CustomerPortalLayout.tsx:182 renders a separate main region. main.tsx:9–17 configures query defaults but no application-wide online-only mutation policy. API client.ts:121–140 propagates fetch outcomes without a common connectivity state.
+Steps to reproduce
+1. With an already loaded page, disconnect Chrome and inspect the standard and customer shells. The source currently describes an informational banner and continued interaction; this scenario has not been executed in staging.
+2. Attempt save by mouse, keyboard shortcut and a modal action. Restore connectivity and check whether any request runs without another user action.
+3. Repeat with navigator.onLine true but the API unavailable, then with a lost response after a mutation may already have committed.
+Acceptance criteria
+1. At phone 390 px, tablet 768 px and desktop 1440 px, show a concise Vietnamese connection message and Retry without nested cards or oversized padding. Prevent pointer, keyboard and modal bypasses of the business-action gate.
+2. Audit direct API calls and mutation hooks. No business mutation is queued, paused for later automatic execution, or replayed on reconnect. Configure library behavior explicitly and test it; retain manual online retry and idempotency.
+3. Treat navigator.onLine as a hint. Distinguish no connection from temporary service failure; use bounded reachability checks and show stable recovery feedback.
+4. Do not report an uncertain save as definitely failed or definitely saved. After reconnect, read back the result before an explicit retry with the original idempotency identity.
+5. Cover all role shells, startup/deep links, rapid connection changes, account switching, an open modal and pending saves. Keep auth recovery in QA-124 and local logout in QA-135 functional.
+Verification coverage
+CODE-READ ONLY. This is a new product requirement based on the user’s decision to remove offline operation. Source inspected; no staging connectivity or mutation-replay test executed. Add the specified controlled regressions before implementing.
+Code references
+Checkout /Users/frank.nguyen/Documents/silversea/codebase; commit 9e09c901f5f7938f92a3e1f524fc6e17acbf33a8.
+frontend/src/components/shared/OfflineBanner.tsx:1–43; frontend/src/hooks/useOnline.ts:1–28.
+frontend/src/components/Layout.tsx:718–719; frontend/src/pages/portal/CustomerPortalLayout.tsx:154–182.
+frontend/src/main.tsx:9–17; frontend/src/lib/api/client.ts:121–140. Coordinate queue removal QA-139 and service-worker retirement QA-141.
+
+PART word/footer1.xml
+QA-140 | Page 

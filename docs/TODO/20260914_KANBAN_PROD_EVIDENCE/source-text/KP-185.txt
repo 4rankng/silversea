@@ -1,0 +1,43 @@
+RECORD KP-185
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/TODO/20260914_P3_QA-106_enhancement-keep-the-company-profile-editor-and-save-action-together.docx
+KANBAN STATUS TODO
+SHA256 db882f91fc08d39db96dde54a2ee90ec98adb38b890f2668d7ed3eda93afa3a4
+EMBEDDED IMAGES 3
+
+PART word/document.xml
+Keep the company profile editor and save action together
+QA-106 | P3 | Enhancement | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 14 September 2026
+Role: ADMIN · 390 × 844, 834 × 1112, 1440 × 900
+Page: /config/company-info
+Existing behaviour
+The editor permanently repeats all ten profile values in a read-only summary. On the phone, that summary occupies about 670 px between the editable fields and Lưu thông tin. Tablet also places the summary below the form. Desktop shows it beside the editor, consuming roughly 465 px and narrowing the editable fields. Large field-group gaps add to the long form.
+Target behaviour
+Use a compact profile editor with Save next to the editing workflow. Present saved details in a separate read mode or an explicit collapsible comparison, with clear saved-versus-draft meaning. Give long-name fields useful width and use modest spacing and content-appropriate field heights.
+Impact
+Administrators scroll through a second copy of the profile to save edits and have less useful width while editing on desktop.
+Cause and investigation
+Review responsive form and summary placement. The captured summary may reflect saved or draft data; establish that meaning before changing its presentation. No save or data-loss failure is claimed.
+Steps to reproduce
+1. As Admin, open the populated company profile at /config/company-info.
+2. At 390 × 844, scroll past the editable fields: the ten-field summary appears before Lưu thông tin. Compare the stacked tablet and side-by-side desktop layouts.
+Acceptance criteria
+1. Save is reachable directly from the editable form without traversing a permanently expanded duplicate profile; keep its state and validation feedback clear.
+2. If comparison is useful, make it optional and explicitly identify saved and draft values. Preserve all company, contact, bank and logo controls.
+3. Use available width for long fields, compact related groups and appropriate field heights. Avoid extra nested cards and large blank gaps.
+4. Verify populated, blank and invalid drafts at all three widths, with readable labels, usable touch targets, keyboard order and visible validation. Preserve permissions, values and saving behavior.
+Requirement reference
+Fresh company profile captures and the requested compact responsive interface.
+Evidence 1
+Keep the company profile editor and save action together
+Figure 1. Phone 390 px: the ten-field read-only summary spans about 670 px after the editor; Lưu thông tin appears below it.
+Evidence 2
+Keep the company profile editor and save action together
+Figure 2. Tablet 834 px: editable fields fill the page and the repeated profile summary begins below them.
+Evidence 3
+Keep the company profile editor and save action together
+Figure 3. Desktop 1440 px: the complete summary occupies roughly 465 px beside the form, reducing the width available to editable fields.
+
+PART word/footer1.xml
+QA-106 | Page 

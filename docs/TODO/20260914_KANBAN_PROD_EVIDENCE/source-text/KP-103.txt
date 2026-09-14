@@ -1,0 +1,55 @@
+RECORD KP-103
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260914_P2_QA-069_bug-make-vehicle-ownership-setup-reachable-from-profit-distribution.docx
+KANBAN STATUS QA_PASSED
+SHA256 66c67d4ee68914b63d7935dfc374fe170507def642a4e3492ecca7c123e97546
+EMBEDDED IMAGES 2
+
+PART word/document.xml
+Make vehicle ownership setup reachable from profit distribution
+QA-069 | P2 | Bug | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 14 September 2026
+Role: MANAGER and ADMIN · desktop 1440 × 900
+Page: /profit → /config/trucks → Chỉnh sửa xe đầu kéo
+Existing behaviour
+The quarterly preview excludes 2,000,000 VND because vehicles lack valid partner ownership. Its Cấu hình → Xe → Sở hữu link opens /config/trucks. Editing 15H-021.39 exposes only plate and activity status, with no ownership setup. This was confirmed as both Manager and Admin. The monthly 60/40 shareholder split is correct; it does not resolve the vehicle ownership requirement.
+Target behaviour
+Link each blocked vehicle to an authorized ownership editor, or provide that setup at the linked destination. Support effective-dated partner ownership under defined business rules, then let users return and refresh the preview. Preserve the guard against distributing profit without valid ownership.
+Impact
+The prescribed recovery path cannot resolve the blocker, leaving the displayed quarterly profit undistributable.
+Cause and investigation
+The warning and linked editor appear misaligned. Existing Admin fleet captures also show no ownership fields; an unvisited editor may still exist.
+Steps to reproduce
+1. At /profit, preview Quý 3 / 2026 and observe the missing-ownership warning for 2,000,000 VND.
+2. Follow Cấu hình → Xe → Sở hữu, then edit 15H-021.39 in /config/trucks.
+3. Observe the plate/status-only form; repeat as Admin and confirm there is no ownership action.
+Acceptance criteria
+1. The warning identifies affected vehicles and opens the correct authorized ownership editor with context.
+2. Validate eligible partners, effective dates and share totals using explicitly defined business rules.
+3. After saving, reopen ownership and refresh the quarterly preview; eligible amounts reflect the saved configuration.
+4. Retain the ownership guard, explain role restrictions and verify desktop, tablet and phone recovery.
+Requirement reference
+Observed quarterly distribution recovery path; distinct from Ops staff assignment and company capital contribution setup.
+Evidence 1
+Make vehicle ownership setup reachable from profit distribution
+Figure 1. The quarterly preview excludes 2,000,000 VND for missing vehicle ownership and directs users to Cấu hình → Xe → Sở hữu. The valid monthly 60/40 capital split is also visible.
+Evidence 2
+Make vehicle ownership setup reachable from profit distribution
+Figure 2. Admin follows the prescribed configuration destination. The full editor for 15H-021.39 has plate and status fields, with no ownership action.
+[2026-09-14] DEV COMPLETED — ownership warning links the affected trucks (1359029e):
+AC1 — warning names the blocked trucks (plates, profit>0, cap 3 + "+k xe khác") and links each plate to /config/trucks/{id}/owners (the real ownership editor) for admins; managers see plates + "yêu cầu Admin cấu hình".
+AC2 — partners/effective dates/share totals: unchanged existing editor validation + service Σ%=100 guard (verified complete at HEAD — no backend change needed).
+AC3 — after saving ownership, re-selecting the quarter re-previews: previously-undistributed amounts distribute. Staging rung pending (cut #9).
+AC4 — guard retained (Σ%≠100 aborts with plate-named error); adminOnly editor restriction explained via manager-variant note; TrucksConfig "Đối tác sở hữu" action column added so the prescribed destination offers the setup.
+Gates: FE tsc 0, scoped eslint clean, profit test files 3/3 (governance-harness link test: blocked truck href pinned, non-blocked omitted).
+Hướng dẫn xác minh:
+1. ADMIN → /profit → chọn Quý 3/2026 → Xem trước: cảnh báo liệt kê biển số xe bị chặn (VD 15H-021.39), mỗi biển số là link.
+2. Bấm biển số → mở trang "Đối tác sở hữu" đúng xe đó → thêm dòng đối tác (tỷ lệ tổng 100%, ngày hiệu lực).
+3. Quay lại /profit → Xem trước lại: khoản bị chặn đã vào phân phối, cảnh báo biến mất.
+4. Đăng nhập MANAGER: cảnh báo hiện biển số + dòng "yêu cầu Admin cấu hình" (không có link).
+5. /config/trucks: cột mới "Sở hữu — Đối tác sở hữu" trên mỗi dòng xe.
+[2026-09-14] QA PASSED — staging: ProfitPage.tsx:463 per-truck link /config/trucks/{truckId}/owners for truck 20 (15H-021.39, profit 2.1M VND, partners:[]); adminOnly route at App.tsx:309 Evidence: testplan/qa/evidence/2026-09-14_QA-batch-staging-cut-9/api/20260914_P2_QA-069_bug-make-vehicle-ownership-setup-reachable-from-profit-distribution.md
+Trạng thái: QA PASSED — đã xác minh trên staging
+
+PART word/footer1.xml
+QA-069 | Page 

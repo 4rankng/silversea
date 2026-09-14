@@ -1,0 +1,44 @@
+RECORD KP-050
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260913_P2_QA-023_bug-show-the-transport-route-beneath-the-factory-on-driver-trip-cards.docx
+KANBAN STATUS QA_PASSED
+SHA256 26fcaed65ef5de1a8163e356a9d5197d8e3c060b396ef5ec7b1d772fb31b6c7e
+EMBEDDED IMAGES 3
+
+PART word/document.xml
+Show the transport route beneath the factory on driver trip cards
+QA-023 | P2 | Bug | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 13 September 2026
+Role: Lái xe — Dương Văn Thực; login dvthuc; Chrome 390 × 844
+Page: https://vantai.tingting.vip/my-trips — Đã nhận; comparison with /my-trips/8
+Existing behaviour
+The ASKEY-2 cards show the full street address beneath the factory abbreviation: Lô C7-2, KCN Quế Võ, Phường Nam Sơn, Tỉnh Bắc Ninh, Việt Nam. Trip 8 details separately show the route KCN QUẾ VÕ, BẮC NINH in the task header. The card uses the address where the supplied wireframe requests the route.
+Target behaviour
+Place the configured route immediately below the factory abbreviation. Keep the full address in expanded details and retain a compact card. The route-led detail header matches the new wireframe.
+Impact
+The longer address slows card scanning and obscures the separate route identity used in details.
+Cause and investigation
+Hypothesis: the card subtitle selects factory address instead of the route field used by the detail header. Verify both mappings; no code or API diagnosis was performed.
+Steps to reproduce
+1. As dvthuc at 390 × 844, open Hành trình → Đã nhận and find the first ASKEY-2 card with the XƯỞNG 2 note.
+2. Read the subtitle, then open Xem chi tiết at /my-trips/8.
+3. Compare the card subtitle with the detail route and the IMG_6370 board wireframe.
+Acceptance criteria
+1. Cards show the factory abbreviation first, followed immediately by the correct configured route.
+2. With distinct route and address values, each appears in its intended location; details retain the complete street address.
+3. At 390px, route text stays compact and readable without overlap, oversized components or font shrinking.
+4. Preserve container/type, ports, notes and navigation. Missing operation remains tracked in QA-002.
+Requirement reference
+IMG_6369.png — factory abbreviation first, route below, then container/type/operation and ports.
+IMG_6370.png — compact board route and separate full factory address in details.
+Evidence 1
+Show the transport route beneath the factory on driver trip cards
+Figure 1. Staging, 13 September 2026, dvthuc: both ASKEY-2 cards use a long street address beneath the abbreviated factory name.
+Evidence 2
+Show the transport route beneath the factory on driver trip cards
+Figure 2. Trip 8 details show KCN QUẾ VÕ, BẮC NINH as the route and a separate full street address. The wireframe supports this route-led detail header; the defect concerns the board subtitle.
+[2026-09-14] DEV COMPLETED — Xác minh trực tiếp (lead-qa, local dev, nvtho /my-trips): card ASKEY-2 hiển thị ROUTE 'KCN Quế Võ, Nam Sơn, Bắc Ninh' ngay dưới tên viết tắt nhà máy; KHÔNG có địa chỉ đường phố ('Lô C7-2 / Phường Nam Sơn / Việt Nam' vắng mặt trên card — kiểm tra DOM). Địa chỉ đầy đủ vẫn thuộc trang chi tiết. Staging cũ hiển thị địa chỉ vì build cũ — tái kiểm staging sau cut. Bằng chứng: /Volumes/LexarSSD/projects/silversea-prod/testplan/qa/evidence/2026-09-14_journey-card-route-numberless-qa023-qa024/01-nvtho-board.png + 02-closeup-route-numberless.png. Commit 59d5d6e3 (trong cụm journey-card).
+[2026-09-14] QA PASSED — staging2: card hiển thị route 'KCN Quế Võ, Nam Sơn, Bắc Ninh' dưới tên viết tắt; KHÔNG có địa chỉ trên card (DOM) và địa chỉ giữ nguyên ở ĐỊA CHỈ NHÀ MÁY (detail). Bằng chứng: staging2-qa023-route-card/.
+
+PART word/footer1.xml
+QA-023 | Page 

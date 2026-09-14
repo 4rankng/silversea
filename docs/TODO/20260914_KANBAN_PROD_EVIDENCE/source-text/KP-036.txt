@@ -1,0 +1,44 @@
+RECORD KP-036
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260913_P2_QA-003_bug-unify-driver-attachment-sections-and-their-visual-hierarchy.docx
+KANBAN STATUS QA_PASSED
+SHA256 6e90f828e3c81267e00b75ac93761269304f0e80ccf5c17d2380eb65444424cf
+EMBEDDED IMAGES 3
+
+PART word/document.xml
+Unify driver attachment sections and their visual hierarchy
+QA-003 | P2 | Bug | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 13 September 2026
+Role: Lái xe — bqhuong (Bùi Quang Hường), empty state; btdung (Bùi Tiến Dũng), uploaded-image state; Chrome 390 × 844
+Page: https://vantai.tingting.vip/my-trips/20 and /my-trips/29 — SỐ CONT & SEAL
+Existing behaviour
+Hình ảnh has Cont, Seal and Biên bản tiles, followed by a separate Biên bản giao hàng uploader and camera control. After uploading and reloading trip 29, the same report image appeared in both places with inconsistent headings and controls. All three saved images loaded successfully.
+Target behaviour
+Present all three attachment types once in a compact group with consistent tile sizes, text, spacing and controls. Preserve file selection, camera, saving and deletion. Full-image inspection is covered by QA-018.
+Impact
+Duplicated report controls create uncertainty and unnecessary scrolling.
+Cause and investigation
+Hypothesis: an older report component may coexist with the unified component. Verify composition and styles; no code diagnosis was performed.
+Steps to reproduce
+1. As bqhuong at 390 × 844, open /my-trips/20 or an equivalent empty trip and collapse information sections.
+2. Compare the three Hình ảnh tiles with the separate report uploader and camera control.
+3. As btdung, save all three test-image types on an active trip and reload. The observed trip 29 duplicated the report; that fixture was later completed.
+Acceptance criteria
+1. Show Cont, Seal and Biên bản giao hàng once in one attachment group.
+2. Equivalent tiles and actions have consistent dimensions, spacing and styling at 390px.
+3. Use the agreed heading, label, body and caption styles; remove obsolete italic captions.
+4. Keep actions usable, including touch targets of at least 44px where specified.
+5. Verify viewing, selecting/capturing, saving and deleting every type on empty and populated fixtures; deleted images stay absent after refresh.
+Requirement reference
+20260912_6.docx — unified attachments, typography, spacing and touch controls.
+Evidence 1
+Unify driver attachment sections and their visual hierarchy
+Figure 1. Staging, 13 September 2026: Hình ảnh contains Cont, Seal and Biên bản tiles, followed by a separate Biên bản giao hàng uploader and camera control.
+Evidence 2
+Unify driver attachment sections and their visual hierarchy
+Figure 2. Staging, 13 September 2026, btdung: after saving and reloading all three images on trip 29, the delivery-report image appears both in the Biên bản tile and the standalone report section.
+[2026-09-14] DEV COMPLETED — Một card duy nhất SỐ CONT & SEAL: tiles Cont/Seal/Biên bản + hàng chụp trong cùng card; DriverDeliveryNoteCard ĐÃ XÓA (0 phần tử delivery-note trong DOM; import sạch). Upload thật qua card → toast 'Đã lưu ảnh biên bản giao hàng.' + trip_photos 6383 DELIVERY_NOTE. Trạng thái rỗng + đã upload đều xác minh. Camera thật: chờ vòng staging/thiết bị thật. Bằng chứng: /Volumes/LexarSSD/projects/silversea-prod/testplan/qa/evidence/2026-09-14_qa003-unified-photo-section/REPORT.md. Commit 59d5d6e3.
+[2026-09-14] QA PASSED — staging: khối ảnh hợp nhất trên /my-trips/20 + upload THẬT persist (tile có ảnh). Thư mục: testplan/qa/evidence/2026-09-14_staging-*/.
+
+PART word/footer1.xml
+QA-003 | Page 

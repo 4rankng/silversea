@@ -1,0 +1,16 @@
+RECORD KP-011
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260911_3-bug1-carrier-dropdown-missing.docx
+KANBAN STATUS QA_PASSED
+SHA256 8aa3b5412349eabaf73d7b293e8ac54dc67446bdc500842e35bf55b0f01abe56
+EMBEDDED IMAGES 3
+
+PART word/document.xml
+Nguồn: 20260911_3.docx — BUG 1
+Tôi thêm nhà xe vào xong, đã hiện thể hiện trên list, nhưng dropdown lựa chọn nhà xe không thấy hiển thị
+Trạng thái: QA PASSED — chờ deploy prod
+Tiêu chí nghiệm thu: thêm nhà xe inline từ lô hàng (Thêm nhà xe) xong, nhà xe mới phải xuất hiện trong dropdown 'Chọn nhà xe' mà không cần tải lại trang.
+[2026-09-13] QA PASSED — bằng chứng QA trên dev local (workspace CUS /shipments, lô BULK-IMP-0005, container DRYU7867814, điều vận dieuvan, agent-browser)
+TC1 PASS — Luồng 'Thêm nhà xe' hoạt động và lưu được: nhập tên 'Nhà Xe QA Kiem Thu' + biển '99C-123.45' ngay trong dòng container (ảnh e1), bấm Lưu → toast 'Cập nhật dữ liệu container thành công!', dòng hiển thị nhà xe mới (ảnh e2). BE tạo nhà xe đúng trạng thái (ACTIVE + isCarrier=true) và xóa cache catalogs:bootstrap ngay sau khi lưu.
+TC2 PASS — Nhà xe mới XUẤT HIỆN TRONG DROPDOWN (lõi của bug): mở lại dropdown nhà xe ngay sau khi lưu (không reload trang) → danh sách có 'Nhà Xe QA Kiem Thu' với dấu ✓ cạnh SilverSea và Gaya Container Lines (ảnh e3). API /catalogs/bootstrap cũng trả về nhà xe mới (id 138, isActive=true) — nguồn cấp cho các dropdown khác (điều phối, tạo lô, dialog chuyến). Transcript: bootstrap-transcript.txt.
+Gates: backend cus-shipment-workspace 61/61 PASS; frontend CusContainerLedger 6/6 PASS; backend tsc 0 lỗi; frontend tsc 0 lỗi. Không sửa code lần này — fix đã có trên prod (comment code BE trích đúng báo cáo khách hàng 2026-09-09), nhiệm vụ là chứng minh bằng chứng thật.
+Đã khôi phục nguyên trạng seed sau QA: hoàn trả fulfillment 17 về OWN/không biển số, xóa nhà xe QA (id 138) khỏi DB. Lưu ý thiết kế: khách hàng không tích ô 'Nhà xe (đối tác vận tải ngoài)' sẽ hiện trong danh sách khách hàng nhưng KHÔNG nằm trong dropdown nhà xe — đây là hành vi đúng, không phải bug. Chi tiết: qa/2026-09-13_bug1-carrier-dropdown/REPORT.md.

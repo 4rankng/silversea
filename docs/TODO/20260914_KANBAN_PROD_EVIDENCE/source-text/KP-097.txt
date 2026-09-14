@@ -1,0 +1,46 @@
+RECORD KP-097
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260914_P2_QA-061_bug-align-financial-policy-messages-with-approval-state.docx
+KANBAN STATUS QA_PASSED
+SHA256 bf2d9963107610151ff3fd5cc2abdfc0444b457950d1b46bea7c8f79075cedb0
+EMBEDDED IMAGES 2
+
+PART word/document.xml
+Align financial policy messages with approval state
+QA-061 | P2 | Bug | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 14 September 2026
+Role: Admin; desktop 1440 × 900
+Page: /config/app-settings — Chính sách báo cáo and Hồ sơ tài chính xe
+Existing behaviour
+Submitting the first reporting policy at 15% for September 2026 shows current version 1 and Lịch sử đã duyệt. Yet feedback says Đã gửi yêu cầu. Cấu hình hiện tại chưa thay đổi. Creating vehicle 15C-167.31's financial profile also updates current version and history immediately beside the same unchanged-configuration message.
+Target behaviour
+Make confirmation and feedback match the resulting policy state. If initial Admin creation intentionally approves immediately, state that before confirmation and report approval afterward. If it only requests approval, retain the current policy and show the pending request.
+Impact
+Administrators cannot tell whether the policy is current or awaiting approval, leading to unnecessary waiting or repeat submissions.
+Cause and investigation
+Initial creation may differ from the workflow described by shared feedback. Verify the rule and returned state; implementation and approval authorization were not inspected.
+Steps to reproduce
+1. As Admin, create the first reporting policy at 15% for the current open month. Select Tạo yêu cầu đầu tiên and confirm Gửi yêu cầu.
+2. Compare the unchanged-configuration message with current version 1 and Lịch sử đã duyệt.
+3. Repeat via Hồ sơ tài chính xe with a vehicle's first valid monthly profile. Compare its updated current version and history with the same message.
+Acceptance criteria
+1. Define the initial-policy outcome and label the confirmation accurately before the user commits.
+2. Both tabs report the resulting state and effective date accurately; changed current versions never receive an unchanged-configuration message.
+3. Pending and approved outcomes are distinct, with a valid next step when approval remains necessary. Preserve the existing permissions and closed-period constraints.
+4. Retest first-policy creation, subsequent requests and rejected duplicate effective months. Verify readable feedback on phone, tablet and desktop.
+Requirement reference
+Staging Chrome audit, 14 September 2026. User requirement: clear, reliable feedback for every workflow.
+Evidence 1
+Align financial policy messages with approval state
+Figure 1. The result shows current version 1 at 15% and Lịch sử đã duyệt. Beside the approval-request button, the message says the current configuration has not changed.
+Evidence 2
+Align financial policy messages with approval state
+Figure 2. Vehicle 15C-167.31's first financial profile updates current version 1 and history while reporting that the current configuration has not changed. Its saved in-service date is 31/10/2026; no date defect is claimed.
+[2026-09-14] DEV COMPLETED — Confirm nói rõ hiệu lực ngay ('Áp dụng … ngay lập tức?', nút 'Áp dụng ngay') cả 2 tab; post-submit message branch theo action.status trả về: APPROVED → 'Đã phê duyệt và áp dụng … có hiệu lực ngay' (invalidation refetch — version + Lịch sử hiển thị khớp bên cạnh); PENDING-family → copy riêng + next step (branch keyed, hiện unreachable theo thiết kế auto-apply). Test: chuỗi sai cũ assert ABSENT + 2 test pin nhánh approved/pending. Vitest 11/11. Commit dddb54d3. Browser rung (2 tab × 3 width) staging.
+[2026-09-14] QA FAILED (2/3) — pre-submit disclosure ✓ + old string absent ✓; NHƯNG mọi clean pass → 'Dữ liệu đã thay đổi hoặc tháng hiệu lực đã có phiên bản' + version stuck 1 — 'Đã phê duyệt và áp dụng' unreachable. Nghi defect apply-path backend. Rework 52 với staging evidence (staging5-batch/REPORT.md).
+[2026-09-14] REWORK LANDED (c8583bc3) — VERDICT CORRECTED theo evidence: apply-path ĐÚNG (guard duplicate-month hoạt động đúng — 3 lần thử round 5 đều trúng tháng 9 đã có v1); loop là FE + copy conflated. Fix: 4 câu 409 tách biệt (stale-data vs duplicate-month, cả 2 path); month picker cảnh báo ngay khi chọn tháng đã có phiên bản (history có sẵn trong state); FE catch map từng message sang recovery đúng. Staging re-verify: tháng TƯƠNG LAI (2026-10) áp dụng end-to-end → 'Đã phê duyệt và áp dụng'; chọn lại cùng tháng → warning + 409 copy đúng.
+[2026-09-14] QA PASSED — staging: REWORK c8583bc3 verified: future month 2026-10 → 201 APPROVED, history + futurePolicies both v2; duplicate-month → distinct VN 409 Evidence: testplan/qa/evidence/2026-09-14_QA-batch-staging-cut-9/api/20260914_P2_QA-061_bug-align-financial-policy-messages-with-approval-state.md
+Trạng thái: QA PASSED — đã xác minh trên staging
+
+PART word/footer1.xml
+QA-061 | Page 

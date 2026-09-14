@@ -1,0 +1,39 @@
+RECORD KP-181
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/TODO/20260914_P3_QA-099_enhancement-keep-the-driver-creation-footer-compact-on-phones.docx
+KANBAN STATUS TODO
+SHA256 1beb980d6090ae490ee5bbc675ce58af6fc91eed39029ba01d6cc2074a27aee9
+EMBEDDED IMAGES 1
+
+PART word/document.xml
+Keep the driver creation footer compact on phones
+QA-099 | P3 | Enhancement | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 14 September 2026
+Role: Dispatcher — 390 × 844 phone; compared with 834 × 1112 tablet and 1440 × 900 desktop
+Page: https://vantai.tingting.vip/fleet/drivers — Thêm lái xe
+Existing behaviour
+On the blank phone form, “* Trường bắt buộc” is squeezed into four lines beside Hủy and Thêm lái xe. Both action buttons stretch to approximately 75 pixels high, and the footer occupies roughly 90 pixels. Larger-width forms show a single-line hint and shorter actions. This finding concerns footer distribution; no unreachable control or failed submission is asserted.
+Target behaviour
+Separate the required-field hint from the action row when phone width is limited. Keep readable guidance and compact actions with approximately 44-pixel touch targets, preserving more space for the form.
+Impact
+The footer takes more phone space than its two actions and short guidance require.
+Cause and investigation
+Hypothesis: the hint and actions share a constrained row that stretches to the wrapped hint. Source implementation is unverified.
+Steps to reproduce
+1. Open Danh mục Tài xế as Dispatcher and choose Thêm tài xế.
+2. At 390 × 844, inspect the blank form footer: the required-field hint wraps while both actions stretch vertically.
+3. Compare at 834 × 1112 and 1440 × 900; the hint remains on one line and actions are compact.
+Acceptance criteria
+1. At supported phone widths, the required-field hint remains readable without forming a narrow word column beside the actions.
+2. Place the hint separately where needed; keep Hủy and Thêm lái xe in a compact, balanced action row with adequate touch targets around 44 pixels.
+3. Do not enlarge text, fields or the footer to resolve the layout. Retain readable labels, button states and access to the final form fields.
+4. Preserve required-field validation, disabled submission, cancel behavior and logical keyboard focus. Verify long labels and validation messages.
+5. Check 360, 390 and 430-pixel phones plus tablet and desktop; no overlapping content, horizontal overflow or obscured footer actions.
+Requirement reference
+Current staging Chrome evidence; user request for compact data-heavy UI.
+Evidence 1
+Keep the driver creation footer compact on phones
+Figure 1. Blank driver form at 390 × 844: the required-field hint breaks into four lines at the left; both actions stretch to about 75 pixels. The screenshot does not establish that either action is unreachable.
+
+PART word/footer1.xml
+QA-099 | Page 

@@ -1,0 +1,41 @@
+RECORD KP-028
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260913_7-driver-detail-add-factory-info.docx
+KANBAN STATUS QA_PASSED
+SHA256 9ee762090955eed5c89e9eeb8c82fcac08271c3a950372fcb40b8c052ce9bf19
+EMBEDDED IMAGES 9
+
+PART word/document.xml
+Driver Detail View — Add Full Factory Name, Address, Phone
+Nguồn: 20260911_2.docx — Wireframe Gap Analysis
+Trạng thái: QA PASSED — chờ deploy prod
+Yêu cầu (từ wireframe khách hàng):
+Màn hình chi tiết chuyến (khi bấm "Xem chi tiết") cần hiển thị thêm:
+1. TÊN NHÀ MÁY (TÊN ĐẦY ĐỦ) — hiển thị tên đầy đủ bên dưới tên viết tắt
+   Hiện tại: chỉ hiển thị "ASKEY-2" (viết tắt), thiếu tên đầy đủ
+2. ĐỊA CHÍ NHÀ MÁY — hiển thị địa chỉ nhà máy
+   Hiện tại: không hiển thị
+3. SDT KHO — hiển thị số điện thoại kho
+   Hiện tại: hiển thị "—" (không có dữ liệu)
+4. THÔNG TIN XUẤT HÓA ĐƠN — hiển thị đầy đủ tên nhà máy, địa chỉ, MST
+   Hiện tại: đã có trong expandable section, cần kiểm tra đầy đủ
+Tiêu chí nghiệm thu:
+1. Dòng "Tên nhà máy (tên đầy đủ)" hiển thị bên dưới tên viết tắt
+2. Dòng "Địa chỉ nhà máy" hiển thị
+3. Dòng "SDT kho" hiển thị (hoặc "—" nếu không có dữ liệu)
+4. Thông tin xuất hóa đơn hiển thị đầy đủ tên, địa chỉ, MST
+[2026-09-13] QA PASSED — khối nhà máy đầy đủ trên màn hình chi tiết lái xe (commit kèm theo)
+Tiêu chí 1 — Tên nhà máy (đầy đủ): ĐẠT — factoryFullName (chuỗi: containerFactoryName ?? factoryName ?? deliverySiteName ?? null, tên canonical của site đứng trước) hiển thị dưới tên viết tắt, cả hai fixture có site (ảnh 03/09).
+Tiêu chí 2 — Địa chỉ nhà máy: ĐẠT — dòng riêng 'ĐỊA CHỈ NHÀ MÁY' (04/10); TUYẾN chỉ còn nội dung tuyến (routeSummary/routeName), không lẫn địa chỉ.
+Tiêu chí 3 — SĐT kho: ĐẠT — luôn hiển thị: link tel: khi có (SUNRISE, ảnh 05 — dữ liệu seed có sao lưu), '—' khi không có (ASKEY-2, ảnh 11). Đảo ngược graceful-hide TC-DA-003 có chủ đích theo wireframe 2026-09-13, đã ghi rõ trong REPORT.
+Tiêu chí 4 — Thông tin xuất hóa đơn đầy đủ: ĐẠT — mỗi phân khúc 'tên · địa chỉ · MST' (lift+drop có địa chỉ khác nhau, ảnh 06); graceful-hide đúng cấp (section/fee-row, ảnh 14).
+Bổ sung QA-006 (5) — heading factory-first: ĐẠT — h1 = tên viết tắt nhà máy ở CẢ hai trạng thái expanded/collapsed (08; before-state là tuyến — có ảnh trước/sau); dòng tuyến phụ thuộc; collapse chỉ ẩn tên khách.
+Bổ sung QA-006 (6) — dòng tuyến thu gọn: ĐẠT — chỉ routeName, không bao giờ factoryAddress (07, DOM-assert); SUNRISE không có routeName → ẩn dòng hợp lý (02).
+Biến thể dự phòng: fixture không có dữ liệu (pho 1621) render toàn '—' (13) — không undefined, không trùng lặp hàng (guard chống trùng: hàng 'Tên nhà máy' hiển thị '—' khi giá trị trùng hàng viết tắt).
+Gates: lint 0 lỗi / 100 cảnh báo cũ; tsc sạch; vitest 1702 pass / 4 fail cũ (card 20260913_13, chứng minh sẵn trên HEAD sạch); build PASS; task suites 46/46; backend driver suites 4/4. Review lane: APPROVE (3 minor đã sửa + xác minh lại). Console 0 lỗi; mạng 0 lỗi 4xx/5xx.
+Bằng chứng đầy đủ: testplan/qa/evidence/2026-09-13_driver-detail-factory-info/ (REPORT.md + 14 file). Ghi chú trung thực: bằng chứng trên dev local (fixture thay thế được duyệt); xác minh repro staging (bqhuong /my-trips/20) sẽ chạy sau đợt cắt staging khi tree sạch WIP.
+Hướng dẫn xác minh:
+1. Mở http://localhost:7174 (make dev), đăng nhập pvtruong / Abc123 → 'Đã nhận' → Xem chi tiết chuyến SUNRISE (trip 5): khối Thông tin lệnh có Tên nhà máy đầy đủ + Địa chỉ nhà máy riêng.
+2. Trên cùng màn: SĐT kho hiển thị số (link bấm gọi được); mục hóa đơn phí lift/drop hiển thị 'tên · địa chỉ · MST'.
+3. Thu gọn summary (chevron): heading vẫn là tên viết tắt nhà máy; dòng tuyến chỉ là tuyến.
+4. Đăng nhập nvtho / Abc123 → chi tiết chuyến ASKEY-2 (trip 6): Tên nhà máy đầy đủ (CÔNG TY TNHH CÔNG NGHỆ ASKEY VIỆT NAM), SĐT kho '—', không có mục hóa đơn (graceful-hide).
+5. Đăng nhập pho / Abc123 → chi tiết chuyến 1621: các dòng nhà máy đều '—' — không undefined, không trùng lặp.

@@ -1,0 +1,45 @@
+RECORD KP-087
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260914_P2_QA-047_enhancement-link-the-blocking-trip-when-driver-acceptance-is-rejected.docx
+KANBAN STATUS QA_PASSED
+SHA256 1eafd57508434eff9b66042495cc9a4edc014404aac5ef9fb11211a065ef9f84
+EMBEDDED IMAGES 2
+
+PART word/document.xml
+Link the blocking trip when driver acceptance is rejected
+QA-047 | P2 | Enhancement | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 14 September 2026
+Role: Driver dvthuc (Dương Văn Thực); Chrome phone 390 × 844
+Page: https://vantai.tingting.vip/my-trips/32; accepted list /my-trips
+Existing behaviour
+Accepting QATU0914005 correctly reports that the vehicle is running TRP-202609-0001. The retained screen shows only a synchronization-conflict summary and Tải lại để xử lý xung đột. Reload restores acceptance and advises retrying if the vehicle is free; retry correctly rejects the unchanged condition. Đã nhận cards omit TRP codes, so the reported blocker is hard to identify.
+Target behaviour
+Retain the specific busy-trip reason with an authorized link to the blocking trip and clear next steps. Preserve conditional retry guidance, the acceptance guard and compact sizing.
+Impact
+The driver loses the concrete blocker identity and must search accepted records to work out the next step.
+Cause and investigation
+Hypothesis: the persistent conflict view omits the business dependency returned during acceptance. Inspect recovery-state presentation; no datastore cause is established.
+Steps to reproduce
+1. As dvthuc, open /my-trips/32, container QATU0914005, and click Nhận lệnh vận chuyển while the vehicle has an active trip.
+2. Observe the busy-trip toast naming TRP-202609-0001, then the retained reload-only action. Reload and retry: the conflict returns.
+3. Open Đã nhận 2 in /my-trips. Neither card shows the reported TRP code.
+Acceptance criteria
+1. Keep the blocking trip identity and reason visible after the toast expires.
+2. Link to the correct authorized active trip; if unavailable, provide a clear dispatcher handoff without exposing unauthorized records.
+3. Preserve guidance to complete the active trip through its real workflow and retry when the vehicle is free; recheck current state and retain the guard.
+4. Verify compact phone and tablet layouts, including a still-busy retry and recovery after the blocker is resolved.
+Requirement reference
+Exploratory staging review, 14 September 2026.
+User direction: smooth, compact workflows with clear guidance.
+Evidence 1
+Link the blocking trip when driver acceptance is rejected
+Figure 1. After the rejection, the persistent screen shows a generic synchronization-conflict summary and reload action. The specific busy-trip toast was observed during the interaction and is not visible in this capture.
+Evidence 2
+Link the blocking trip when driver acceptance is rejected
+Figure 2. Đã nhận 2: cards identify factory, container, route and date, but neither shows a TRP code to match the blocker named during acceptance.
+[2026-09-14] DEV COMPLETED — Sync banner persist verbatim conflict reason (TRP identity sống qua toast); TRP match против driver's OWN board → link 'Mở chuyến TRP-…' authorized; no-match (tàu khác tài xế cùng xe) → handoff 'liên hệ điều vận', không lộ foreign record; conflict-reload + retry giữ nguyên; RUNNING cards có TRP chip compact. Tests 37/22. Self-caught: TRP code YYMM 6 chữ số. Commit 1b8857b9 (pathspec — race-immune sau 2 incident reverted). Browser rung staging.
+[2026-09-14] QA PASSED — staging: AC1: blocking-trip identity visible (TRP-260914-8801 in banner); AC2: dispatcher handoff branch verified (banner says "Chuyến này không phải của bạn — liên hệ điều vận"), no foreign record exposure; AC3: guard blocks acceptance; AC4: phone verified — own-trip-link branch untestable in current fixture (dvthuc has 0 accepted trips) Evidence: testplan/qa/evidence/2026-09-14_QA-batch-staging-cut-9/ui/QA-047-conflict-banner-390.png
+Trạng thái: QA PASSED — đã xác minh trên staging
+
+PART word/footer1.xml
+QA-047 | Page 

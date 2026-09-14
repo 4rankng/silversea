@@ -1,0 +1,43 @@
+RECORD KP-125
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260914_P3_QA-041_enhancement-show-a-compact-status-on-every-advance-request.docx
+KANBAN STATUS QA_PASSED
+SHA256 ad04f320f53ce91fe280466650e104e57b5cd7d026b2246cf7869adcd29144d7
+EMBEDDED IMAGES 5
+
+PART word/document.xml
+Show a compact status on every advance request
+QA-041 | P3 | Enhancement | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 14 September 2026
+Role: Ops, hoangnh (Nguyễn Huy Hoàng); Chrome desktop and mobile
+Page: https://vantai.tingting.vip/my-advances
+Existing behaviour
+The Tất cả list shows three advance requests without explicit status labels on individual rows. The pending 12,345 and 50,000 VND requests show only amount, date and purpose. The approved 75,000 VND request is distinguished indirectly by approver metadata. Desktop and phone show this gap. The Chờ duyệt 2 filter correctly returns the two pending requests.
+Target behaviour
+Display a short textual status on every advance row or card, using the existing status vocabulary. Place it within the current compact layout, keeping amount and purpose easy to scan and approval metadata secondary.
+Impact
+Users must switch filters or infer status from absent metadata to identify requests awaiting approval in a mixed list.
+Cause and investigation
+Design hypothesis: status is communicated at summary and filter level but omitted from each record. Confirm the row or card rendering; no incorrect stored state or approval-policy defect is established.
+Steps to reproduce
+1. As Ops, open Yêu cầu Tạm ứng and select Tất cả. Inspect the three captured requests at desktop width.
+2. Select Chờ duyệt 2: the 12,345 and 50,000 VND requests appear. Return to Tất cả and compare their row labels with the approved request.
+3. Repeat at 390 × 844 and scroll through the cards. Approval is indicated only by approver metadata, while pending cards have no explicit state.
+Acceptance criteria
+1. Every row or card shows its actual status in text, including the All view; status remains consistent with filters and counts.
+2. Use a compact label or badge within existing space at desktop, tablet and mobile widths; do not add taller cards or oversized text.
+3. Retain approval metadata. Where a rejected state and reason exist, make the reason accessible without expanding every row by default. No rejected fixture was exercised.
+Requirement reference
+Exploratory staging review, 14 September 2026.
+User direction: professional, compact, data-heavy UI across desktop, tablet and mobile.
+Evidence 1
+Show a compact status on every advance request
+Figure 1. Desktop All view: 12,345 and 50,000 VND pending requests have no state label; the 75,000 VND approved request has only approver/date metadata. The summary and filters show the state totals.
+Evidence 2
+Show a compact status on every advance request
+Figure 2. Phone All view, scrolled to the cards: visible requests still lack explicit status labels. This later capture follows a full advance return, so the outstanding balance differs from Figure 1; balance correctness is outside this ticket.
+[2026-09-14] DEV COMPLETED — Status pill từng card dùng vocabulary chung Chờ duyệt/Đã duyệt/Từ chối, tuck vào card head. Commit e9b2d927 (f3331325 là commit bị sweep — swap disclosed, attribution ở thẻ QA-063). Visual rung (mixed list qua hoangnh) staging.
+[2026-09-14] QA PASSED — staging (vantai, build 9d064b50, ops hoangnh): mọi dòng tạm ứng có nhãn trạng thái compact — "12.345 ₫ · 14/9/2026 · Chờ duyệt · QA FULL AUDIT 20260914" (facet Tất cả 3 · Chờ duyệt 2 · Đã duyệt 1); tab Đã duyệt hiển thị dòng đã duyệt với nhãn Đã duyệt; 1280 + 390. Evidence: testplan/qa/evidence/2026-09-14_staging-round6-qa041-advance-status/.
+
+PART word/footer1.xml
+QA-041 | Page 

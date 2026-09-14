@@ -1,0 +1,41 @@
+RECORD KP-100
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260914_P2_QA-066_bug-keep-optional-generated-journey-legs-from-blocking-trip-corrections.docx
+KANBAN STATUS QA_PASSED
+SHA256 47fb496e656291e5800d6b921bf7c67ce5bb4a792bd570bce33b1e7a6ad12b8c
+EMBEDDED IMAGES 1
+
+PART word/document.xml
+Keep optional generated journey legs from blocking trip corrections
+QA-066 | P2 | Bug | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 14 September 2026
+Role: MANAGER · qa.audit.manager.0914 · desktop 1440 × 900
+Page: /trips/19/edit · TRP-202609-0017
+Existing behaviour
+A completed trip has no detailed journey in its Ops detail. Chỉnh sửa generates two incomplete legs under Hành trình chi tiết, labelled Tùy chọn. After only entering a reason and revenue of 2,000,000 VND, Lưu cập nhật focuses leg 1’s blank Điểm đến with “Please fill in this field.” Leg 2 also lacks Điểm đi. Browser validation blocks this submission. Removing both generated legs allowed the revenue update to save and persist after reload.
+Target behaviour
+Preserve absent journey details during unrelated corrections. Untouched suggestions must not require invented endpoints. Validate a leg when the user intentionally adds or edits it.
+Impact
+Managers cannot submit an unrelated correction without first resolving journey fields they did not add.
+Cause and investigation
+Generated suggestions appear to become required form fields. Investigate initialization and validation; no API rejection is established.
+Steps to reproduce
+1. Open completed TRP-202609-0017 via Chỉnh sửa; leave its generated optional legs untouched.
+2. Enter a correction reason and set Doanh thu đóng/ trả hàng to 2,000,000 VND; leave journey fields untouched.
+3. Select Lưu cập nhật and observe native validation on the first blank destination.
+Acceptance criteria
+1. Save unrelated corrections on a trip without detailed legs without forcing users to remove generated rows.
+2. Preserve existing legs; validate endpoints and nonnegative distance for intentionally added or edited legs.
+3. Dismiss optional suggestions without changing unrelated values; explain genuine blocking requirements.
+4. Retest absent, existing and new journeys at desktop, tablet and phone sizes; preserve applicable change controls.
+Requirement reference
+Observed edit workflow. Related QA-030 addresses creation and partial persistence, not this validation defect.
+Evidence 1
+Keep optional generated journey legs from blocking trip corrections
+Figure 1. Saving an unrelated revenue correction focuses an empty generated destination and shows native required-field validation. The second generated leg also has an empty origin.
+[2026-09-14] DEV COMPLETED — JourneyLegRow endpoints required chỉ khi leg có nội dung; submit drop untouched blank legs khỏi payload (leg có nội dung — kể cả km-only — vẫn submit). Suite 82/82. Commit 66f2239d.
+[2026-09-14] QA PASSED — staging: PUT /trips/19/actuals with blank generated legs + revenue change → 200; revenue 2M→2.1M persisted; km 0→100; version bumped Evidence: testplan/qa/evidence/2026-09-14_QA-batch-staging-cut-9/api/20260914_P2_QA-066_bug-keep-optional-generated-journey-legs-from-blocking-trip-corrections.md
+Trạng thái: QA PASSED — đã xác minh trên staging
+
+PART word/footer1.xml
+QA-066 | Page 

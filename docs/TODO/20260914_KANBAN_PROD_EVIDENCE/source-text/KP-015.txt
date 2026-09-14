@@ -1,0 +1,19 @@
+RECORD KP-015
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260911_3-bug5-driver-ui-factory-abbrev.docx
+KANBAN STATUS QA_PASSED
+SHA256 3b39902743d2fb39f1eb00674b48b3125c337748f0ab58981ce72128e826b48e
+EMBEDDED IMAGES 2
+
+PART word/document.xml
+Nguồn: 20260911_3.docx — BUG 5
+Và điều chỉnh UI màn hình lái xe ở nhóm khách hàng: điêu chỉnh giúp em : Tên nhà máy để tên viết tắt - và cho lên đầu tuyến đường xuống dưới xong đến số cont cảng nâng / cảng hạ tác vụ : đặt đầu; đặt đuôi; đảo vỏ ,....
+Trạng thái: QA PASSED — chờ deploy prod.
+Tiêu chí nghiệm thu:
+1. Hàng "Nhà máy" trên màn hình lệnh của lái xe hiển thị TÊN VIẾT TẮT của nhà máy (factoryShortName); khi nhà máy không có tên viết tắt thì hiển thị tên đầy đủ (fallback).
+2. Thứ tự các hàng trong khối "Thông tin lệnh" trở thành: Nhà máy (đầu tiên) → Container / lô hàng → Cảng nâng → Cảng hạ → Tuyến (đẩy xuống dưới) → SĐT kho (chỉ khi có) → Ngày giờ kế hoạch → Người liên hệ → Số điện thoại.
+3. Tác vụ (đặt đầu; đặt đuôi; đảo vỏ; ...) vẫn hiển thị cho lái xe trên màn hình lệnh (section "Tác vụ" ngay sau khối thông tin) — không bị mất khi đổi thứ tự.
+[2026-09-13] QA PASSED — driver screen, nhóm khách hàng (fulfillment 11 / HLXU6109346, tài xế quyet, /my-trips/11). Bằng chứng: qa/2026-09-13_bug5-driver-ui-factory-abbrev/
+1. Tên nhà máy viết tắt, lên đầu — ĐẠT: hàng NHÀ MÁY hiển thị "LM Võ Cường" (tên viết tắt của "Nhà máy Long Minh - Võ Cường"), là hàng đầu tiên của khối Thông tin lệnh. API GET /api/driver/me/fulfillments/11: factoryShortName "LM Võ Cường" ≠ factoryName đầy đủ. Khi không có tên viết tắt, fallback sang tên đầy đủ (unit test). Ảnh: b3-driver-grid-new-order.png + b4 (thu gọn vẫn hiện tên viết tắt):
+2. Thứ tự mới Nhà máy → Container → Cảng nâng → Cảng hạ → Tuyến (xuống dưới) → … — ĐẠT: ảnh b3 hiển thị đúng thứ tự; DOM thật: Nhà máy → Container / lô hàng → Cảng nâng → Cảng hạ → Tuyến → Ngày giờ kế hoạch → Người liên hệ → Số điện thoại; unit test khoá đúng thứ tự này (33/33 pass, tsc exit 0).
+3. Tác vụ (đặt đầu; đặt đuôi; đảo vỏ; …) vẫn hiển thị — ĐẠT: section "Tác vụ" với chips HẾT HẠN / ĐẶT ĐẦU / ĐẢO VỎ ngay sau khối thông tin trên cùng màn hình:
+Gates: DriverTripDetailPage 33/33, DriverTripsPage 14/14 (fe-gates.log), frontend tsc -b exit 0. Không đổi source backend. Ghi chú: "tuyến đường xuống dưới" = Tuyến được đẩy xuống dưới Container + 2 cảng (diễn giải đã ghi trong REPORT.md — nếu ý là ngay dưới Nhà máy thì đổi 1 dòng).

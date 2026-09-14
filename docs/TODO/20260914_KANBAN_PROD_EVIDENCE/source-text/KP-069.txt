@@ -1,0 +1,18 @@
+RECORD KP-069
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260914_6-ops-plan-route-fulfillment-less-fallback.docx
+KANBAN STATUS QA_PASSED
+SHA256 8b5330808ce14492972bdbf1170bb63a6ccd58a9e8954788c93db4441b258698
+EMBEDDED IMAGES 0
+
+PART word/document.xml
+Nguồn: QA-045 review (2026-09-14) — MEDIUM follow-up ngoài scope thẻ gốc.
+Yêu cầu: Nhánh fulfillment-less của detailed-plan (dispatch-detail-plan-fulfillment-less.ts:158) vẫn resolve route container-only; rows merge vào cùng grid với deliveryPoint null cấu trúc → hàng không route hiển thị 'Chưa có tuyến đường' dù CUS hiện route của shipment. Đối xứng fix QA-045: coalesce fallback shipment + test phân biệt.
+Tiêu chí nghiệm thu: (1) hàng fulfillment-less có route shipment hiển thị đúng; (2) unit test khóa fallback theo pattern pin QA-045; (3) master-plan/util không đổi.
+Trạng thái: DEV COMPLETED — chờ deploy staging + QA
+[2026-09-14] DEV COMPLETED — Nhánh fulfillment-less dùng cùng local coalesce; container không route trên lot có route hiển thị route lot (wire + browser PASS; UNION-branch 78/78). Master plan + shared util không đổi. Commit 8cc7d8b7.
+QA PASSED (API/DB slice d8, staging round-6) — 2026-09-14
+Build: cut #8 (2c41f420) trên staging https://vantai.tingting.vip. Hành trình: API/DB rung (không browser). Kết quả: GET /shipments/dispatch-detail-plan-rows: 2 hàng fulfillment-less thuộc SHP-2609-00022 — hàng 1 hiển thị route 'KCN ĐỒNG VĂN, HÀ NAM' dù shipment-level routeId=null (coalesce không tầm thường đã chạy); hàng 2 null HỢP LỆ vì shipment 22 không có route ở bất kỳ cấp nào trong chuỗi (đối chiếu GET /shipments/22: routeId=null, rawRouteName=null) — không có counter-example nào (không hàng FL nào có route sẵn mà hiển thị null). Khớp wire+browser PASS và unit lock UNION-branch 78/78 của card.
+1. GET /api/shipments/dispatch-detail-plan-rows (dispatcher dungnv): xác định hàng fulfillmentId=null.
+2. Hàng FL của SHP-2609-00022 #1: customerRoute.routeName = 'KCN ĐỒNG VĂN, HÀ NAM' (coalesce chạy).
+3. Hàng FL #2: null — đối chiếu shipment 22 không có route → null trung thực, không phải lỗi fallback.
+Evidence: testplan/qa/evidence/2026-09-14_staging-round6-api-d8/ (slice-results.json, slice2-results.json, probe6c.mjs output, cleanup logs). Trạng thái: QA PASSED.

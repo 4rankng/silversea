@@ -1,0 +1,38 @@
+RECORD KP-190
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/TODO/20260914_P3_QA-136_tech-debt-restore-the-repository-context-resolver-on-a-clean-checkout.docx
+KANBAN STATUS TODO
+SHA256 dcc2591aa8ad9819e8f067a402e6783674dd90dd4e02bc8d227b06c597e7676b
+EMBEDDED IMAGES 0
+
+PART word/document.xml
+Restore the repository context resolver on a clean checkout
+QA-136 | P3 | Tech-Debt | TODO
+Review date: 14 September 2026
+Scope: Local source snapshot 9e09c901f5f7
+Role: Engineers and code review tooling
+Location: pnpm context and pnpm context check
+Existing behaviour
+The tracked context manifest names plans/silversea-prd-roadmap/plan.md and qa/README.md, but neither file exists in this supplied clean checkout. Global validation fails before resolving even the frontend profile.
+Target behaviour
+Keep required manifest references present in a clean checkout, or classify optional local references so they do not invalidate unrelated profiles. Correct stale paths rather than bypassing useful validation.
+User impact
+Engineers cannot use the prescribed narrow context resolver and the context check fails before relevant work can be loaded.
+Cause and investigation
+scripts/context-for.mjs validates all referenced paths before returning a profile. The manifest contains two missing references. No repository files were changed to work around this.
+Steps to reproduce
+1. At the reviewed commit, run pnpm context:check or node scripts/context-for.mjs --check.
+2. Run node scripts/context-for.mjs --profile frontend.
+3. The check lists both missing paths, and the frontend resolver returns Context manifest is invalid.
+Acceptance criteria
+1. Context validation succeeds on a fresh checkout with documented setup only.
+2. Frontend and backend profiles resolve existing sources even when optional local QA or plan artifacts are absent.
+3. Add a clean-checkout fixture covering missing optional and invalid required references.
+Verification coverage
+CODE-READ ONLY for application behavior. The repository context checker and frontend resolver were executed; both reported the missing references. Application runtime was not exercised. Staging UI, API and database outcomes were not exercised for this finding. Add a regression case in testplan before implementing.
+Code references
+Checkout /Users/frank.nguyen/Documents/silversea/codebase; commit 9e09c901f5f7938f92a3e1f524fc6e17acbf33a8.
+.codex/context-manifest.json:21,181 required context references.
+scripts/context-for.mjs:140,222–240 manifest validation before profile resolution.
+
+PART word/footer1.xml
+QA-136 | Page 

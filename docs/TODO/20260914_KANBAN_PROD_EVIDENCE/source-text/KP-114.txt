@@ -1,0 +1,51 @@
+RECORD KP-114
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260914_P2_QA-083_bug-exclude-cancelled-penalties-from-active-rankings-and-discipline-totals.docx
+KANBAN STATUS QA_PASSED
+SHA256 a79e9c8f201395f6bd7e7ce80fb2cc1b51e712db696b3ee76c552c7f6d88d6d4
+EMBEDDED IMAGES 1
+
+PART word/document.xml
+Exclude cancelled penalties from active rankings and discipline totals
+QA-083 | P2 | Bug | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 14 September 2026
+Role: ADMIN · desktop 1440 × 900
+Page: /penalties
+Existing behaviour
+After cancelling Dương Văn Thực's 60,000 VND record and reloading, Đã hủy shows 1, Chờ duyệt shows 0 and the ledger row is struck through. His ranking still shows position 39, zero safe days, one violation, 60,000 VND and grade A. Before this record, he had 10 safe days, zero violations/fines and A+. Monthly totals still show one violation, 60,000 VND and 38/39 compliant drivers. Payroll correctly reverses the deduction to zero.
+Target behaviour
+Exclude cancelled records from active violation/fine totals, safety streaks and ranking calculations. Recompute affected summaries consistently while retaining the cancelled record and its audit history.
+Impact
+A voided record continues to lower the driver's standing and misstate the fleet's active discipline totals.
+Cause and investigation
+Ranking and aggregate calculations may use different cancellation eligibility from the ledger and payroll. Verify the calculation inputs and refresh behavior; no source or API cause is confirmed. Pending-record payroll eligibility is separate QA-077.
+Steps to reproduce
+1. In /penalties, use a staging record equivalent to QA AUDIT 0914 - staging only: Dương Văn Thực, TRP-202609-0017, 60,000 VND.
+2. Cancel the record with a reason, reload and select Đã hủy.
+3. Compare the cancelled row with the driver's ranking and monthly summary; the cancelled penalty still contributes.
+Acceptance criteria
+1. Cancellation removes the record's contribution from active counts, fine totals, compliance grade and safety streak immediately and after reload.
+2. Recompute from remaining eligible records across each ranking period; do not reset unrelated records or drivers.
+3. Retain the cancelled record and cancellation audit details in history, clearly distinct from active totals.
+4. Verify desktop, tablet and phone summaries; preserve the correctly working payroll reversal.
+Requirement reference
+Observed cancellation, ledger readback and ranking comparison for the only September 2026 discipline record.
+Evidence 1
+Exclude cancelled penalties from active rankings and discipline totals
+Figure 1. After reload, the only record is struck through under Đã hủy 1, yet Dương Văn Thực remains ranked last with one violation, 60,000 VND, zero safe days and grade A.
+DEV COMPLETED (frontend lane) — 2026-09-14
+Commit: c1126c96 trên origin/prod (pathspec commit, 3 file).
+Nội dung: chốt chính sách 'bản ghi đã hủy = lịch sử audit, không phải vi phạm hiệu lực'. Toàn bộ cửa sổ xếp hạng (7d/30d/90d/YTD), chuỗi an toàn, tổng tiền phạt, tổng tháng và danh sách kỷ luật của tài xế (GET /driver/penalties) hiện loại bỏ status=CANCELED. Payroll (attendance.service) vốn đã loại CANCELED — không đổi. Sổ biên bản admin giữ nguyên audit: hàng đã hủy vẫn hiển thị, chip đếm không đổi.
+Gates: penalties-list.test.ts 12/12 (golden-parity cập nhật cả hai phía + sanity khẳng định bản ghi CANCELED không bị tính), q15-direct-money-governance 2/2, backend tsc sạch. Lưu ý: comprehensive.test.ts:632 đỏ có sẵn trên dev DB dùng chung (replay idempotency POST /api/adjustments, luân chuyển khác) — đã báo lead, được lập thẻ _15.
+Hướng dẫn xác minh (QA)
+1. ADMIN · /penalties: ghi lại Bảng xếp hạng (Chuỗi an toàn, Vi phạm 90N, Phạt YTD của driver có biên bản) và SummaryRail (Vi phạm kỳ, Tổng phạt) trong kỳ lương hiện tại.
+2. Hủy một biên bản còn hiệu lực (nút Hủy kỷ luật, nhập lý do), reload trang.
+3. Kỳ vọng: các số ở bước 1 giảm đúng theo bản ghi vừa hủy; nếu đó là vi phạm duy nhất trong 90 ngày, hạng driver về A+; chip Đã hủy +1; hàng đã hủy vẫn nằm trong Sổ biên bản khi chọn chip Đã hủy (gạch ngang).
+4. DRIVER · /my-penalties (tài khoản driver có bản ghi bị hủy): bản ghi đã hủy không còn xuất hiện; KPI Khấu trừ và Tổng biên bản không tính bản ghi đã hủy.
+5. Kiểm tra API (tùy chọn): GET /api/driver/penalties không trả bản ghi status=CANCELED; GET /api/penalties/insights không cộng bản ghi hủy vào scoreboard/tổng.
+Evidence cục bộ: testplan/qa/evidence/2026-09-14_discipline-cluster-head-probe/ (probe-results.json + ảnh 390px: chip admin trước fix, KPI tài xế).
+Trạng thái: QA PASSED — đã xác minh trên staging
+[2026-09-14] QA PASSED — staging: AC1: cancelled 60.000₫ excluded from summary rail (1 vụ, 50.000₫ total, 38/39 compliant); AC2: dvthuc ranking shows 1 active 50.000₫ not cancelled; AC3: cancelled row preserved with penalty-log-row--canceled class Evidence: testplan/qa/evidence/2026-09-14_QA-batch-staging-cut-9/ui/QA-083-penalties-desktop-cancel-excluded.png
+
+PART word/footer1.xml
+QA-083 | Page 

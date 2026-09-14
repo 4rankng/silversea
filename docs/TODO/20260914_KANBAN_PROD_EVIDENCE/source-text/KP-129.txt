@@ -1,0 +1,40 @@
+RECORD KP-129
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260914_P3_QA-056_enhancement-keep-vehicle-card-actions-compact-and-readable-on-phones.docx
+KANBAN STATUS QA_PASSED
+SHA256 cdedc85ada93106310e5f8bc9a6d6c7fee17d0147d50a4b2bddce8166ebc2946
+EMBEDDED IMAGES 1
+
+PART word/document.xml
+Keep vehicle card actions compact and readable on phones
+QA-056 | P3 | Enhancement | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 14 September 2026
+Role: Admin; Chrome phone 390 × 844
+Page: https://vantai.tingting.vip/fleet/vehicles
+Existing behaviour
+The phone card for 15H-021.39 squeezes its three actions into the left side of the Thao tác area, leaving substantial unused space to the right. Phân công lái xe and Ops phụ trách each wrap across three lines. Xóa breaks into individual characters on separate lines. The narrow action group is harder to scan than the vehicle details above it.
+Target behaviour
+Use the available card width for compact, clearly labeled actions. A full-width action row with sensible wrapping or an accessible overflow menu can preserve readable labels without enlarging text or controls unnecessarily.
+Impact
+Administrators must decipher fragmented action labels, especially the delete action, when working through vehicle cards on a phone.
+Cause and investigation
+Hypothesis: the responsive action cell retains a narrow column allocation or conflicting button sizing. The layout implementation has not been inspected.
+Steps to reproduce
+1. As Admin, open /fleet/vehicles at 390 × 844 and search for 15H-021.39.
+2. Inspect the card's Thao tác area. Compare the three wrapped actions with the unused space to their right.
+Acceptance criteria
+1. Keep every action label readable as intact words; prevent character-by-character wrapping of Xóa.
+2. Use the card width efficiently, retain adequate touch targets and distinguish the destructive action without oversized text or excess vertical space.
+3. If using an overflow menu, give it a clear accessible name and expose all permitted actions with keyboard and touch support.
+4. Verify phone widths and longer labels, plus tablet and desktop regression. Preserve each action's vehicle context, permissions and existing confirmation behavior.
+Requirement reference
+Exploratory staging review, 14 September 2026; responsive internal-vehicle cards.
+Evidence 1
+Keep vehicle card actions compact and readable on phones
+Figure 1. At 390 × 844, the vehicle card compresses Phân công lái xe and Ops phụ trách into three lines each, while Xóa wraps one character per line despite unused space to the right.
+[2026-09-14] DEV COMPLETED — 390px: hàng action full-card (310px), nút single-line 107/95/40px (trước: wrap 3 dòng 64/58/29px); 'Xóa' không đứt từng ký tự. Commit 96cd1153.
+[2026-09-14] QA PASSED — staging: commit 96cd1153 in build; FleetPage.tsx/.css touched; action group spans full card width at 390px Evidence: testplan/qa/evidence/2026-09-14_QA-batch-staging-cut-9/api/20260914_P3_QA-056_enhancement-keep-vehicle-card-actions-compact-and-readable-on-phones.md
+Trạng thái: QA PASSED — đã xác minh trên staging
+
+PART word/footer1.xml
+QA-056 | Page 

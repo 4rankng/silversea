@@ -1,0 +1,42 @@
+RECORD KP-178
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/TODO/20260914_P3_QA-096_enhancement-align-profit-metrics-for-compact-customer-comparison.docx
+KANBAN STATUS TODO
+SHA256 f3fc5a7edadb87c94ec314c89e650d3f2c5b68e577d942fe4b6bac7bdc1d3f99
+EMBEDDED IMAGES 2
+
+PART word/document.xml
+Align profit metrics for compact customer comparison
+QA-096 | P3 | Enhancement | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 14 September 2026
+Role: Manager — 1440 × 900 desktop and 834 × 1112 tablet
+Page: https://vantai.tingting.vip/profit — Khách hàng analysis
+Existing behaviour
+Long Minh and LOG COM each occupy about 163 pixels vertically, even on desktop. Each card repeats six metric labels across three rows below the name and source links. Labels and values span wide gaps; there are no visible shared column headings. Comparing the same measure across customers requires moving through repeated labels. Values remain readable; no arithmetic error is asserted.
+Target behaviour
+Use compact aligned financial comparison rows where readable columns fit. Keep customer identity, trip count, revenue, direct cost, fleet cost, profit and margin easy to compare, with source links readily available.
+Impact
+Repeated labels and long scanning distances slow comparisons between customer results.
+Cause and investigation
+Hypothesis: record cards prioritize individual reading over cross-customer comparison. Source implementation is unverified.
+Steps to reproduce
+1. Open Báo cáo Lợi nhuận as Manager for September 2026; select Khách hàng.
+2. At 1440 × 900, compare Long Minh and LOG COM across the repeated metric rows.
+3. Repeat at 834 × 1112; each customer retains roughly the same card height.
+Acceptance criteria
+1. At wide widths, align comparable amounts beneath shared headings or an equally clear compact row structure.
+2. Keep customer identity and source links available without duplicating a large label inventory for every record.
+3. At tablet and phone widths, adapt to available space without squeezing seven unreadable columns. Preserve clear label/value associations and compact spacing.
+4. Verify long names, long source lists, large or negative amounts, zero values and unavailable margins; keep units and signs intact.
+5. Preserve financial calculations, analysis selection, low-margin filtering, exports and authorized source navigation. Check readable text, keyboard focus and adequate touch targets.
+Requirement reference
+Current staging Chrome evidence; user request for compact data-heavy UI.
+Evidence 1
+Align profit metrics for compact customer comparison
+Figure 1. Desktop at 1440 × 900: Long Minh and LOG COM each use approximately 163 pixels with three repeated metric rows. Wide label/value gaps make cross-customer comparison less direct.
+Evidence 2
+Align profit metrics for compact customer comparison
+Figure 2. Tablet at 834 × 1112: the same customer cards remain approximately 163 pixels high. Preserve readable financial distinctions while improving aligned comparison.
+
+PART word/footer1.xml
+QA-096 | Page 

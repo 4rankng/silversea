@@ -1,0 +1,42 @@
+RECORD KP-030
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260913_P1_QA-004_bug-reconcile-drop-off-destinations-across-driver-trip-views.docx
+KANBAN STATUS QA_PASSED
+SHA256 b931291fb2aa1bef424ad00d2535d6dced850b1ae98332a22dd0a90adbf6dcf8
+EMBEDDED IMAGES 3
+
+PART word/document.xml
+Reconcile drop off destinations across driver trip views
+QA-004 | P1 | Bug | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 13 September 2026
+Role: Driver bqhuong; Chrome phone viewport 390 by 844, 13 September 2026
+Page: https://vantai.tingting.vip/my-trips and /my-trips/20
+Existing behaviour
+The accepted card for TSTU4182600 shows HẠ Bãi JJ LOGISTICS. Opening its detail page /my-trips/20 shows Cảng hạ NEWEB-1. The customer-service container ledger also shows Bãi JJ LOGISTICS for this container. These screens label different destinations as the drop-off port for the same trip.
+Target behaviour
+Use the same authoritative destination for the same journey stage. If one value is the delivery factory and another is the empty-container return depot, show both with distinct stage labels rather than labeling both Hạ or Cảng hạ.
+Impact
+A driver could follow the wrong destination depending on which screen is read. Prioritize reconciliation before release.
+Cause and investigation
+Possible inconsistent mapping of fulfillment destination, factory and return-depot fields. The authoritative intended destination must be checked in the shipment model; this review establishes the display inconsistency only.
+Steps to reproduce
+1. Sign in as bqhuong, select Đã nhận and locate TSTU4182600.
+2. Read HẠ on the card: Bãi JJ LOGISTICS.
+3. Open Xem chi tiết and expand Thông tin lệnh. Read Cảng hạ: NEWEB-1.
+Acceptance criteria
+1. Card, trip detail and customer-service view agree on each named journey stage.
+2. Factory delivery and depot return remain distinct when both exist.
+3. Verify both import and export examples with different factories and depots.
+Requirement reference
+20260911_2.docx; 20260911_3-bug5-driver-ui-factory-abbrev.docx; 20260913_6-driver-card-view-layout.docx
+Evidence 1
+Reconcile drop off destinations across driver trip views
+Figure 1. Accepted card identifies the drop-off location as Bãi JJ LOGISTICS.
+Evidence 2
+Reconcile drop off destinations across driver trip views
+Figure 2. The same container in trip 20 identifies Cảng hạ as NEWEB-1.
+[2026-09-14] DEV COMPLETED — Chuỗi delivery-stage dùng chung (delivery-stage.ts): card 'Hạ X · Trả rỗng Y', detail 'Cảng hạ X · TRẢ CONT RỖNG Y', CUS cell dropoffSite=X — 3 bề mặt đồng nhất, 2 chiều (IMPORT TEST1234560 KCN ĐỒNG VĂN→Bãi JJ LOGISTICS; EXPORT SUNRISE→Bãi GIC native). Hàng stage-2 chỉ hiện khi port khác điểm giao. Fixture repair công bố (driver_id users→drivers). Bằng chứng: /Volumes/LexarSSD/projects/silversea-prod/testplan/qa/evidence/2026-09-14_qa004-delivery-stage/REPORT.md (4 tiêu chí). Commit 59d5d6e3.
+[2026-09-14] QA PASSED — staging: trip 14 card 'Hạ NEWEB-1 + Trả rỗng Bãi JJ LOGISTICS'; detail 'CẢNG HẠ NEWEB-1 + TRẢ CONT RỖNG Bãi JJ'; CUS cell dropoffSite=NEWEB-1 — 3 bề mặt đồng nhất trên staging. Thư mục: testplan/qa/evidence/2026-09-14_staging-*/.
+
+PART word/footer1.xml
+QA-004 | Page 

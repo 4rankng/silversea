@@ -1,0 +1,21 @@
+RECORD KP-013
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260911_3-bug3-auto-approve-shipment-edits.docx
+KANBAN STATUS QA_PASSED
+SHA256 d1db3d39485c3df66871ed30fcd14a703dcf910dcfdd2f7d531eea8e75eac8c4
+EMBEDDED IMAGES 3
+
+PART word/document.xml
+Nguồn: 20260911_3.docx — BUG 3
+cus nhập liệu - lô hàng ban đầu nhập khi k có số cont - ngày hôm sau mới có số cont - nhập bổ sung - hiện đang báo phải gửi phê duyệt , bỏ giúp em bước phê duyệt @Trung Kiên Yêu cầu này của khách, tạm thời bây giờ những gì cần phê duyệt liên quan đến thay đổi thông tin lô hàng hay cont hàng, dev để tự động phê duyệt đồng ý nhé
+Trạng thái: QA PASSED — chờ deploy prod
+Tiêu chí nghiệm thu:
+1. CUS nhập bổ sung số container cho lô ban đầu không có số cont → thay đổi lưu NGAY, không có bước 'gửi phê duyệt' nào hiển thị.
+2. Sau khi lưu không tạo trạng thái/chờ phê duyệt nào — thay đổi áp dụng trực tiếp trong DB.
+3. Số cont mới hiển thị sau khi tải lại trang (lưu bền vững).
+[2026-09-13] QA PASSED
+Luồng kiểm chứng: đăng nhập bằng user CUS thật (cus — chính user đã tạo lô 148), lô BULK-IMP-0129 được dựng lại đúng tình huống báo lỗi: lô chưa có dòng cont nào, sau đó bổ sung số cont qua UI thật.
+Tiêu chí 1 — Nhập bổ sung số cont lưu NGAY, không có bước phê duyệt: ĐÃ XÁC MINH. g1: editor mở với ô Số container trống; nhập TEST6001508 → Lưu → áp dụng tức thì trên dòng (g3), không có hộp thoại/chữ 'gửi phê duyệt' nào trong toàn luồng.
+Tiêu chí 2 — Không tạo yêu cầu phê duyệt, thay đổi áp dụng trực tiếp: ĐÃ XÁC MINH. DB: shipment_containers = TEST6001508 ngay sau lưu; shipment_change_requests có 0 dòng cho lô 148.
+Tiêu chí 3 — Lưu bền vững: ĐÃ XÁC MINH. Sau khi tải lại trang, tìm kiếm TEST6001508 ra đúng 1 lô (g4) và dòng kế hoạch chi tiết vẫn hiện số cont (g5).
+Gate: backend cus-shipment-workspace 72/72 PASS; frontend ledger tests 14/14 PASS; tsc FE+BE exit 0. Không có thay đổi source trong run này (tree = e40a1ab9, clean).
+Ghi chú: luồng phê duyệt đã bị gỡ từ 2026-09-10 (FE) / 2026-09-08 (BE ghi 'approval parked') — build của người báo lỗi cũ hơn build hiện tại. Bằng chứng đầy đủ: qa/2026-09-13_bug3-auto-approve-shipment-edits/.

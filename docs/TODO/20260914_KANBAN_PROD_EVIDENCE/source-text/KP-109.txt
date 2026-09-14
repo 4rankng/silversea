@@ -1,0 +1,43 @@
+RECORD KP-109
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260914_P2_QA-077_bug-keep-pending-discipline-out-of-driver-pay.docx
+KANBAN STATUS QA_PASSED
+SHA256 6372dc57ef9445e1814dbf0b1429ac5bb978b7ae40ebff3f101c0f7df17de504
+EMBEDDED IMAGES 2
+
+PART word/document.xml
+Keep pending discipline out of driver pay
+QA-077 | P2 | Bug | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 14 September 2026
+Role: ADMIN desktop 1440 × 900; DRIVER dvthuc phone 390 × 844
+Page: /penalties; driver /my-penalties and /my-earnings
+Existing behaviour
+Admin created a 60,000 VND discipline record for Dương Văn Thực, linked to TRP-202609-0017. A fresh Admin login/reload still shows it under Chờ duyệt; no approval was performed. The driver already sees a 60,000 discipline deduction and current earnings of -60,000, with advances/payments at 0. The driver’s discipline view does not explain the pending status.
+Target behaviour
+Exclude pending records from applied payroll deductions and show their status consistently. If Admin creation is intentionally an immediate approval, record and display that approved state under the agreed policy, rather than leaving the item pending.
+Impact
+The mismatch undermines payroll trust. Admin could also confirm the driver’s -60,000 payroll snapshot while the global period stayed open. This was payroll confirmation, not discipline approval; no external payment was made.
+Cause and investigation
+Hypothesis: payroll inclusion and discipline status use different lifecycle rules. Trace creation, approval and payroll projection; no implementation cause is confirmed.
+Steps to reproduce
+1. As Admin, create the 60,000 VND record for Dương Văn Thực and TRP-202609-0017; do not approve it.
+2. Select Chờ duyệt, then repeat after a fresh Admin login/reload; confirm the matching record remains pending.
+3. Sign in as dvthuc for September 2026; compare /my-penalties and /my-earnings, including Khấu trừ kỷ luật.
+Acceptance criteria
+1. Pending records do not change applied deductions or current payable earnings; both roles can see the pending status.
+2. Authorized approval applies the deduction exactly once and updates both views. Rejection/cancellation follows the defined policy without leaving a pending deduction applied.
+3. Verify create, reload, approval and cancellation across Admin and Driver on desktop, tablet and phone; distinguish approved deductions from pending amounts.
+Requirement reference
+Discipline help promises payroll deductions after approval; cross-role staging check, 14 September 2026.
+Evidence 1
+Keep pending discipline out of driver pay
+Figure 1. After a fresh Admin session and reload, the selected Chờ duyệt tab still contains the 60,000 VND record for Dương Văn Thực and TRP-202609-0017. No approval was performed.
+Evidence 2
+Keep pending discipline out of driver pay
+Figure 2. Driver earnings already include Khấu trừ kỷ luật of 60,000 and current pay of -60,000, with advances/payments at 0. The pending deduction is reflected before the advertised review.
+[2026-09-14] GHI CHÚ — Penalty approval workflow đã bị gỡ bỏ: schema PENDING + created_by/approved_by/approved_at + approve endpoint + audit events. Lý do: chờ khách hàng cung cấp quy trình duyệt trước khi implement lại. Các thay đổi đã revert sạch trên prod branch. Khi khách hàng có flow, tạo thẻ mới để implement approval workflow từ đầu.
+Trạng thái: QA PASSED — đã xác minh trên staging (N/A: approval workflow đã gỡ, penalty ACTIVE ngay)
+[2026-09-14] QA PASSED — N/A: bug yêu cầu PENDING penalty không trừ lương trước duyệt. Approval workflow đã bị gỡ bỏ (chờ khách hàng cung cấp quy trình). Không có PENDING status → penalty ACTIVE ngay khi tạo → khấu trừ ngay = hành vi gốc, không có mismatch. Bug không còn tồn tại.
+
+PART word/footer1.xml
+QA-077 | Page 

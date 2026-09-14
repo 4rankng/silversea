@@ -1,0 +1,27 @@
+RECORD KP-020
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260912_6.docx
+KANBAN STATUS QA_PASSED
+SHA256 3b2666a780cd9e203aa488691651957a791b4c2935633c2ac14acb2e8e7fc7bd
+EMBEDDED IMAGES 0
+
+PART word/document.xml
+TASK: Thống nhất thiết kế + cỡ chữ màn hình chi tiết chuyến (App tài xế)
+Màn hình: /my-trips/:id — các khối SEAL, HÌNH ẢNH, Biên bản giao hàng, QUY ĐỊNH TẠI ĐIỂM LÀM HÀNG.
+Vấn đề (theo ảnh khách hàng gửi):
+1. Cỡ chữ không nhất quán: labeluppercase nhỏ (HÌNH ẢNH, SEAL) vs tiêu đề to (Biên bản giao hàng) vs chữ thông báo to đậm (khối QUY ĐỊNH).
+2. Hai khu ảnh trùng chức năng: 3 ô nhỏ Cont/Seal/Biên bản + riêng khối Biên bản giao hàng 2 nút to — gây rối, kích thước và style khác nhau.
+3. Nút to/nút nhỏ trộn lẫn; caption lỗi thời (chữ nghiêng nhỏ) cạnh chữ đậm to.
+4. Khoảng cách (spacing) giữa các khối không đều.
+Kỳ vọng:
+1. Một hệ thống tiêu đề duy nhất (1 cỡ section-title, 1 cỡ label, 1 cỡ body, 1 cỡ caption) áp dụng toàn màn.
+2. Gộp/điều chỉnh 2 khu ảnh thành 1 khối nhất quán (Cont/Seal/Biên bản cùng kích thước, cùng style).
+3. Nút: 1 cỡ chính + 1 cỡ phụ, đủ 44px chạm.
+4. Khối QUY ĐỊNH: chữ body chuẩn, không to đậm; chip giữ riêng.
+5. Không đổi chức năng — chỉ design (spacing, font, hierarchy).
+Trạng thái: ĐANG XỬ LÝ — reviewer viết spec thiết kế chi tiết, FE triển khai sau khi xong gates hiện tại. Flow local → staging → prod.
+[2026-09-12] HOÀN THÀNH — spec thiết kế chi tiết + xác nhận triển khai:
+1. Spec ràng buộc: docs/driver-trip-detail-design-spec.md (bảng 4 vai trò chữ + tier tiêu đề màn, khoảng cách, khối ảnh, nút, QUY ĐỊNH banner).
+2. Một hệ thống cỡ chữ toàn màn: đo live toàn bộ chữ trên màn (census) — 14 body · 13 tiêu đề mục · 12 phụ · 11 label · 20-24 tiêu đề màn; 2 ngoại lệ cố ý đã ghi trong spec (mốc 16, seal 15). Không còn caption nghiêng cũ.
+3. Ảnh gộp 1 khối duy nhất: Cont / Seal / Biên bản giao hàng cùng 1 card, cùng cỡ ô 96×96 — screenshot qa/2026-09-12_driver-detail-design/design-photo-block.png.
+4. Nút 1 chính + 1 phụ, đủ 44px touch; QUY ĐỊNH chữ body 13px trong banner brand-rail, không to đậm.
+5. Không đổi chức năng — chỉ design. Gates: lint 0 lỗi · tsc 0 · vitest 264 file/1622 pass · build ✓.

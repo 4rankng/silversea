@@ -1,0 +1,17 @@
+RECORD KP-135
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/TODO/20260914_18-self-healing-version-token-writes.docx
+KANBAN STATUS TODO
+SHA256 3b28f52d8e2296887522808197f3698b1f83bcc9b3daa49998add87296283cad
+EMBEDDED IMAGES 0
+
+PART word/document.xml
+Self-healing version-token writes across crud-factory clients
+20260914_18 | P2 | Enhancement | TODO
+Nguồn: QA-084 defect #2 (7f lane) — third instance of the omission class (QA-072 fuel, QA-085 units, QA-084 salary modal): crud-factory PUT/PATCH requires If-Unmodified-Since; FE callers repeatedly forget.
+Yêu cầu (7f's three-layer design, lead-approved): (1) BE: 428 responses carry a machine-readable code (VERSION_TOKEN_REQUIRED) distinct from genuine 409 conflicts; (2) FE transport: on that code, auto-GET the target row once, retry the write with the fresh token, dev-mode console.warn — the omission class becomes self-healing; (3) guard-style unit test enumerating client modules: every api.put/patch/delete against a CONFIG.* path must pass expectedUpdatedAt.
+Tiêu chí nghiệm thu:
+1. 428 carries the distinct code; 409 conflicts unchanged — backend tests pin both.
+2. Transport self-heal proven end-to-end on one client (e.g. fuel config) — omitted token still saves, exactly once, with the warn emitted.
+3. The enumeration test red-reproduces when a new client omits the token (mutation-proven).
+4. Existing explicit-token clients unchanged (no double-send).
+Trạng thái: MỞ — giao lane 7f (sau QA-143)

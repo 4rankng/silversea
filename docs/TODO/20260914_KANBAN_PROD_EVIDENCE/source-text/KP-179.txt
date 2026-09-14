@@ -1,0 +1,37 @@
+RECORD KP-179
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/TODO/20260914_P3_QA-097_bug-distinguish-adjacent-currency-labels-on-financial-chart-axes.docx
+KANBAN STATUS TODO
+SHA256 9fd7fd384f1bb9699125a960082cacf445394b05cffb7d93e0c27dad4d371fbc
+EMBEDDED IMAGES 1
+
+PART word/document.xml
+Distinguish adjacent currency labels on financial chart axes
+QA-097 | P3 | Bug | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 14 September 2026
+Role: Accountant; also observed in Manager finance. Desktop 1440 × 900 is the conclusive evidence.
+Page: https://vantai.tingting.vip/finance — Doanh thu chart
+Existing behaviour
+The September 2026 daily revenue chart shows “1tr₫” at two different Y-axis positions and “2tr₫” at two more positions. Each repeated caption aligns with a different horizontal grid line, leaving the scale ambiguous. The screenshot, saved page text and live DOM positions corroborate the repeated labels. This finding concerns displayed scale labels, not incorrect revenue or profit calculations.
+Target behaviour
+Give each distinct Y-axis position an unambiguous monetary label. Choose localized units and sufficient precision, or reduce tick density where space is limited. Keep the axis and tooltip units consistent without enlarging the chart or changing financial values.
+Impact
+Users cannot reliably judge a plotted amount against adjacent grid lines when those lines carry the same displayed value.
+Cause and investigation
+Hypothesis: the compact currency formatting or tick-selection policy produces indistinguishable captions. Inspect both together; source code and raw numerical tick values have not been verified.
+Steps to reproduce
+1. Sign in as Accountant and open Báo cáo Lãi lỗ at /finance. Select September 2026 and the Ngày chart view.
+2. At 1440 × 900, inspect the revenue chart’s left axis: “1tr₫” repeats on two separate grid lines, and “2tr₫” repeats above it.
+Acceptance criteria
+1. Distinct Y-axis positions have distinguishable monetary meanings; the captured repeated “1tr₫” and “2tr₫” captions no longer make adjacent grid lines ambiguous.
+2. Apply a consistent Vietnamese currency/unit policy with enough precision for the active scale. Keep exact tooltip values and chart data consistent with that policy.
+3. Verify zero, small, million-scale and larger values, plus day/month views. Negative values, if supported, remain correctly signed. Do not alter financial records to fix presentation.
+4. Check Accountant and Manager views at phone, tablet and desktop widths. Keep tick labels readable without overlap, excessive decimals or oversized chart/text.
+Requirement reference
+Current staging Chrome screenshot and live DOM observation; user request for clear production-grade financial UI.
+Evidence 1
+Distinguish adjacent currency labels on financial chart axes
+Figure 1. Accountant /finance at 1440 × 900: the left revenue-chart axis displays 1tr₫ twice and 2tr₫ twice at distinct vertical positions. These are repeated scale captions; no financial calculation error is asserted.
+
+PART word/footer1.xml
+QA-097 | Page 

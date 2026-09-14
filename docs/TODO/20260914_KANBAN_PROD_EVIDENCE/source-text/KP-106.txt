@@ -1,0 +1,44 @@
+RECORD KP-106
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260914_P2_QA-072_bug-allow-first-fuel-configuration-to-save-without-a-missing-version-loop.docx
+KANBAN STATUS QA_PASSED
+SHA256 5d200ae4134c9f9240ba0af641e24edb73423da4fe40ffd80abdeb1ad566fac9
+EMBEDDED IMAGES 2
+
+PART word/document.xml
+Allow first fuel configuration to save without a missing version loop
+QA-072 | P2 | Bug | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 14 September 2026
+Role: ADMIN · desktop 1440 × 900 and tablet 834 × 1112
+Page: /config/fuel
+Existing behaviour
+The fuel form starts with five empty values, default thresholds 37/40 and no history. Entering valid settings enables Lưu cấu hình, but saving shows “Thiếu phiên bản cấu hình nhiên liệu. Vui lòng tải lại trước khi cập nhật.” Reloading and re-entering the same values produces the same error. The proposed reload recovery does not enable first setup; nothing was saved.
+Target behaviour
+Support the initial configuration save and later version-checked edits. Load or initialize the required state before enabling submission. If loading fails, provide a recovery action that can actually resolve it while preserving the user’s draft.
+Impact
+Admin cannot establish the fuel settings that the page describes as inputs to trip fuel-cost calculations.
+Cause and investigation
+Initial-state handling or version loading appears inconsistent with the save requirements. Inspect both paths without weakening concurrency protection; no API or code-level cause is confirmed.
+Steps to reproduce
+1. Open /config/fuel in the observed unconfigured state.
+2. Enter loaded 35, empty 22 L/100km; extra 3 L; current price 23,000 and base price 20,000 VND/L. Keep warning 37 and critical 40.
+3. Activate Lưu cấu hình; observe the missing-version error. Reload, re-enter these values and retry; the error repeats.
+Acceptance criteria
+1. A valid initial configuration saves and is visible after reload; fuel-price history reflects the first save.
+2. Subsequent changes use valid version state; stale edits receive meaningful recovery without silently overwriting changes.
+3. Distinguish loading, unconfigured and error states; preserve draft input during recoverable failures.
+4. Verify initial save, later edit and reload recovery on desktop, tablet and phone, preserving numeric and threshold validation.
+Requirement reference
+Observed first-setup form and repeated save after reload at /config/fuel. No successful fuel configuration save was observed.
+Evidence 1
+Allow first fuel configuration to save without a missing version loop
+Figure 1. The initial tablet form has five empty settings, default 37/40 thresholds and a disabled save button. The numbers shown as examples are placeholders.
+Evidence 2
+Allow first fuel configuration to save without a missing version loop
+Figure 2. After reload and re-entry of valid values, saving still reports a missing fuel-configuration version and asks the user to reload again.
+[2026-09-14] DEV COMPLETED — saveFuelConfig gửi updatedAt của row đã load qua If-Unmodified-Since (client option có sẵn — tireClient pattern); omit khi config thật-null (first-save backend cho phép); 428/409 → message recovery VN + invalidation fuelConfig, draft giữ. Mid-impl correction disclosed: form seeding ĐÃ CÓ ở HEAD (staging symptom = build cũ); hai defect thật là header + 428 mapping. 24 dòng. Gap test disclosed (page chưa có harness — sibling pattern + staging rung flow thẻ). Commit cb024a58.
+[2026-09-14] QA PASSED — staging: PUT without If-Unmodified-Since on existing row → 428 VN; PUT with correct header → 201 APPROVED, appliedAt set; loadedNorm 35→36.50, emptyNorm 22→22.80 Evidence: testplan/qa/evidence/2026-09-14_QA-batch-staging-cut-9/api/20260914_P2_QA-072_bug-allow-first-fuel-configuration-to-save-without-a-missing-version-loop.md
+Trạng thái: QA PASSED — đã xác minh trên staging
+
+PART word/footer1.xml
+QA-072 | Page 

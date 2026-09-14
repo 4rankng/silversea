@@ -1,0 +1,42 @@
+RECORD KP-122
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260914_P2_QA-133_bug-keep-keyboard-active-options-visible-in-searchable-selectors.docx
+KANBAN STATUS QA_PASSED
+SHA256 02dde08a13770646a3fde31f2b8fdb3d398b44ce1dd2ab74fbfd7499b8789320
+EMBEDDED IMAGES 0
+
+PART word/document.xml
+Keep keyboard active options visible in searchable selectors
+QA-133 | P2 | Bug | DONE
+Review date: 14 September 2026
+Scope: Local source snapshot 9e09c901f5f7
+Role: Admin/Manager trip entry and Dispatcher planning
+Location: https://vantai.tingting.vip/trips/new, /dispatch and /dispatch-detail
+Existing behaviour
+The custom selectors keep focus in the search input. Arrow keys prevent default scrolling and move only activeIndex; Enter acts on that index. Once the active option is below the bounded list viewport, no code scrolls it into view. Reopening a selection near the end similarly sets its active index without revealing it. Multi-select uses the same pattern. Pointer scrolling and filtering still offer workarounds; keyboard selection itself is implemented, so this is not a claim that every keyboard interaction is unavailable.
+Target behaviour
+Keep the active option visibly inside the list viewport as keyboard navigation, filtering or opening changes it. Preserve search-input focus, the active-descendant relationship and compact list height.
+User impact
+A sighted keyboard user can lose track of the current option and commit an unseen route or filter value in a long catalog.
+Cause and investigation
+Confirmed source gap: state and accessibility attributes change without corresponding list scroll management. The positioning hook measures the whole popover, not the active list item.
+Steps to reproduce
+1. Proposed regression: open a route picker containing at least 20 options, keep focus in its search input and press ArrowDown until the active option passes the initial visible rows.
+2. Verify the active option rectangle against the list viewport before pressing Enter. Repeat upward navigation and reopening with a late option selected.
+3. Repeat in dispatch multi-select, after filtering, and after loading more options where that caller supports pagination.
+Acceptance criteria
+1. Every active option is visible while navigating with ArrowUp/ArrowDown and on reopening. Scroll only the list as needed; avoid jumping the page or moving typing focus.
+2. Enter selects the visible active option; multi-select toggles it without losing focus. Empty results and changed option sets have a valid active index.
+3. Add overflow-list tests and a real-browser geometry check at desktop, tablet and phone widths, including zoom. Retain search, clearing, Escape and focus return.
+4. Verify accessible active-option announcements separately with a screen reader. Keep compact typography and existing touch target dimensions.
+Verification coverage
+CODE-READ ONLY. The source path was reviewed; the current staging deployment, UI interaction and database side effects were not exercised for this finding. Add a testplan regression before implementing and exercise the stated recovery and permission boundaries.
+Code references
+Code-read audit, 14 September 2026; repository /Users/frank.nguyen/Documents/silversea/codebase; commit 9e09c901f5f7938f92a3e1f524fc6e17acbf33a8. No browser or screen-reader execution.
+frontend/src/design-system/forms/SearchableSelect.tsx:190–194, 230–245 and 287–325 update activeIndex and aria-activedescendant without scrolling the active option. SearchableSelect.css:102–108 caps the scrollable list at min(320px,45vh).
+frontend/src/design-system/forms/SearchableMultiSelect.tsx:251–264 repeats the active-index behavior. useSearchableSelectPosition.ts positions the outer popover and has no active-option visibility handling.
+Reachable callers: components/trip/TripInfoCard.tsx:118–131 route picker; features/dispatch/detailed-plan/DetailedPlanFilters.tsx:89 and master-plan/MasterPlanFilters.tsx:147 multi-select filters. SearchableSelect.test.tsx:254–280 tests ArrowDown/Enter with only three options, not an overflowing list.
+Resolution
+Commit b4433860 (prod). Added optionRefs + useEffect with scrollIntoView({block:"nearest"}) to both SearchableSelect and SearchableMultiSelect. The effect fires when activeIndex changes while the popover is open, keeping the active option inside the scrollable list viewport. Guarded with typeof check for jsdom test compatibility. All 18 SearchableSelect tests and 6 SearchableMultiSelect tests pass. Structure guard ceiling bumped for SearchableMultiSelect (+3 lines).
+
+PART word/footer1.xml
+QA-133 | Page 

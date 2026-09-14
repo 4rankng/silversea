@@ -1,0 +1,48 @@
+RECORD KP-123
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260914_P3_QA-028_enhancement-show-a-clear-compact-title-for-each-configuration-page.docx
+KANBAN STATUS QA_PASSED
+SHA256 099e8b114ae9944d0ead7aaf099d775cab63513a71b553da10457a61650cf5be
+EMBEDDED IMAGES 4
+
+PART word/document.xml
+Show compact module and record titles across the app
+QA-028 | P3 | Enhancement | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 14 September 2026
+Role: Admin; Chrome desktop 1728 × 873, tablet 768 × 1024 and phone 390 × 844
+Page: /config/trucks; /config/trailers; /config/fuel-price-periods; /config/freight-rate-terms; /config/salary-periods; /fleet/trailers/40/tires
+Existing behaviour
+Configuration pages for tractors, trailers, fuel prices, route terms and payroll periods show only Cấu hình with an icon-only back arrow; their specific headings are present in accessibility snapshots but not visible. On tablet and phone, the tire page shows Lốp rơ-moóc but hides its QA-0914-RM heading, leaving the vehicle unidentified above maintenance controls.
+Target behaviour
+Show the current module and, on record pages, the relevant identity in one compact header or toolbar. Preserve clear parent context and back navigation without a large banner.
+Impact
+Users must infer the module or remember the selected vehicle while entering maintenance records, increasing orientation effort and the risk of working on the wrong asset.
+Cause and investigation
+Hypothesis: generic route labels and visually hidden headings omit module or record context. Inspect shared heading presentation; no implementation cause is confirmed.
+Steps to reproduce
+1. From /config, open tractors, trailers, fuel-price periods, route terms and payroll periods; compare their visible page identities.
+2. Open /fleet/trailers/40/tires for QA-0914-RM at tablet and phone widths. The accessible heading names the trailer, but the visible screen does not.
+Acceptance criteria
+1. Each affected configuration page visibly names its module; tire pages visibly identify the selected vehicle plate beside the module context.
+2. Visible title, accessible heading and selected record agree after direct navigation, record changes and back navigation.
+3. Keep titles readable and compact across desktop, tablet and phone, preserving space for data and controls.
+Requirement reference
+Exploratory staging review, 14 September 2026.
+User direction: professional, compact, data-heavy UI across desktop, tablet and mobile.
+Evidence 1
+Show compact module and record titles across the app
+Figure 1. Xe đầu kéo shows the generic Cấu hình header and vehicle rows without a visible module title. The captured accessibility snapshot names Xe đầu kéo.
+Evidence 2
+Show compact module and record titles across the app
+Figure 2. Fuel-price periods also shows Cấu hình and an icon-only back arrow. Its specific module heading is present in the accessibility snapshot but not visible here.
+Evidence 3
+Show compact module and record titles across the app
+Figure 3. Tablet: Lốp rơ-moóc is visible, but the QA-0914-RM vehicle heading is not. Maintenance entry controls and the installed-tire record have no visible vehicle identifier.
+Evidence 4
+Show compact module and record titles across the app
+Figure 4. Phone: the page likewise omits QA-0914-RM above the installed-tire section and entry form. This later capture follows moving the tire to spare; its changed count is not the reported issue.
+[2026-09-14] DEV COMPLETED — PageHeader tách module riêng (UI re-export, zero import churn; 633L) + prop showTitle; CrudTable family hiện title compact đều ('Xe đầu kéo' browser-verified, sr-only double-check false); tire workbench heading cùng pattern (code-identical — rung staging). Commit 452b20c0.
+[2026-09-14] QA PASSED — staging (build e72f10c5, round 4): titles compact render đúng (Xe đầu kéo/Rơ-moóc/Lốp + record identity).
+
+PART word/footer1.xml
+QA-028 | Page 

@@ -1,0 +1,10 @@
+RECORD KP-191
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/TODO/P0_Mobile_Lai xe role man hinh chi tiet.docx
+KANBAN STATUS TODO
+SHA256 1019218b72eb55ae82c9b217a892e3ad1ee2a81b4f366e6dd96c62c9e885d11c
+EMBEDDED IMAGES 5
+
+PART word/document.xml
+Lai xe role, man hinh chi tiet
+Existing UI
+List of changes requirements

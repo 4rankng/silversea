@@ -1,0 +1,40 @@
+RECORD KP-160
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/TODO/20260914_P2_QA-131_bug-retain-buffered-trip-photos-until-each-upload-is-confirmed.docx
+KANBAN STATUS TODO
+SHA256 f2265d5bfefaff13a7c84a7ed9200537c63b1a59b4b5396b7592964245e007dc
+EMBEDDED IMAGES 0
+
+PART word/document.xml
+Retain buffered trip photos until each upload is confirmed
+QA-131 | P2 | Bug | TODO
+Review date: 14 September 2026
+Scope: Local source snapshot 9e09c901f5f7
+Role: Admin/Manager trip editor
+Location: https://vantai.tingting.vip/trips/new and /trips/:id/edit
+Existing behaviour
+A capture for an unsaved container row is buffered until save supplies an ID. Both photo flush functions empty their pending array before any network completion. If an upload rejects, failed and unattempted files are no longer available for the next explicit save. If an earlier file succeeded, its blob URL is already revoked but its replacement map is never returned after the later failure. The trip-level create path additionally ignores the flush error and may continue navigation. This is a deterministic source path; no image loss was reproduced in staging during this audit.
+Target behaviour
+During the current online form submission, keep each selected photo and usable preview until its upload is confirmed. Show partial failures and successful URL replacements immediately. After connectivity is restored, require the user to retry unresolved uploads explicitly. Do not persist an offline queue or upload automatically on reconnect or reopening the app.
+User impact
+A transient upload failure can silently discard the only retryable copy of captured evidence and leave broken previews or an apparently saved trip with missing attachments.
+Cause and investigation
+Confirmed in source: whole-buffer removal occurs before awaited side effects, while results are published only at the end. Existing retry fingerprints identify requests but cannot retry a file removed from the buffer.
+Steps to reproduce
+1. Proposed controlled regression: edit an existing eligible trip, add an unsaved container row, and capture container and seal images. Let container save return IDs.
+2. Make the first persist-only upload succeed and the second fail. Retry Save without recapturing. Inspect upload calls, pending entries, preview URLs and persisted attachments.
+3. Repeat with failure on the first upload and with create-mode trip-level OCR photos; verify the UI exposes any remaining attachment work.
+Acceptance criteria
+1. A failed or unattempted file remains available in the open form for an explicit online retry; upload only unresolved files with stable idempotency identity. No durable offline storage or reconnect replay.
+2. Successful uploads immediately replace their previews. Never revoke a blob still displayed, or retain a blob as a durable server attachment URL.
+3. A partial failure preserves the saved trip/container IDs and explains which attachments remain; a retry does not create a duplicate trip or duplicate confirmed attachment.
+4. Test first/middle upload failure, missing returned photo URL and lost connection. Verify explicit online retry and readback without recapturing, duplicate saves or automatic reconnection upload. Preserve row deletion and replacement behavior.
+Verification coverage
+CODE-READ ONLY. The source path was reviewed; the current staging deployment, UI interaction and database side effects were not exercised for this finding. Add a testplan regression before implementing and exercise the stated recovery and permission boundaries.
+Code references
+Code-read audit, 14 September 2026; repository /Users/frank.nguyen/Documents/silversea/codebase; commit 9e09c901f5f7938f92a3e1f524fc6e17acbf33a8. No runtime or staging reproduction.
+frontend/src/hooks/useTripFormPhotos.ts:156–179 and 239–270: both flush functions clear pending refs before awaiting uploads; URL swaps return only after the entire loop succeeds.
+frontend/src/components/trip/ContainerInstancesCard.tsx:328–362 captures into the row buffer; frontend/src/hooks/use-trip-form-submit.ts:312–329 flushes after container IDs are saved. Lines 519–525 swallow trip-level flush errors.
+Tests read: frontend/src/hooks/use-trip-form-submit.test.tsx:199–201, 285–287 mock the flush functions; ContainerInstancesCard.test.tsx mocks capture. No real buffer-failure/retry test was found.
+
+PART word/footer1.xml
+QA-131 | Page 

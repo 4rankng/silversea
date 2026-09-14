@@ -1,0 +1,44 @@
+RECORD KP-189
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/TODO/20260914_P3_QA-120_enhancement-prioritize-required-trip-fields-with-compact-estimate-and-progress-summaries.docx
+KANBAN STATUS TODO
+SHA256 cc04995e41d75837ebba6a727f7732cc015cda6a5972022ebfa3fd6e752f9158
+EMBEDDED IMAGES 3
+
+PART word/document.xml
+Prioritize required trip fields with compact estimate and progress summaries
+QA-120 | P3 | Enhancement | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 14 September 2026
+Role: Admin — desktop 1440 × 900, tablet 834 × 1112 and phone 390 × 844
+Page: https://vantai.tingting.vip/trips/new
+Existing behaviour
+Large estimate and completion cards precede required fields on desktop and tablet. The fresh desktop panel spans approximately y92–470; fields start at y493. Zero estimates and incomplete progress occupy much of the initial view. Phone already presents fields first. The fixed footer usefully identifies missing fields.
+Target behaviour
+Put essential trip entry first. Use a compact estimate/progress summary or adjacent desktop area, retaining the full breakdown, phone field-first ordering and validation footer.
+Impact
+Large secondary panels reduce useful space for entering the information needed to create a trip.
+Cause and investigation
+Hypothesis: prominent secondary summaries displace primary entry fields. Source implementation is unverified.
+Steps to reproduce
+1. As Admin, open Tạo chuyến đi at /trips/new without entering data.
+2. Compare the estimate/completion panels and first required fields at desktop, tablet and phone widths.
+Acceptance criteria
+1. Place the first required fields close to the form introduction on desktop and tablet; avoid a large stacked summary block before data entry.
+2. Use a concise estimate and progress treatment with access to complete costs, revenue and completion details. Preserve all values and calculation behavior.
+3. Keep required-field feedback and the create/cancel actions easy to find. Retain a logical keyboard order and visible focus.
+4. Preserve the phone’s field-first ordering. Use readable type, compact spacing and suitable touch targets without enlarging headings or adding nested decorative cards.
+5. Verify empty, partially completed and completed forms at all three widths. Summary updates and validation must remain understandable without covering fields or hiding errors.
+Requirement reference
+Current staging captures and user request for compact, data-heavy UI.
+Evidence 1
+Prioritize required trip fields with compact estimate and progress summaries
+Figure 1. Fresh desktop 1440 × 900: the large estimate/progress panel occupies y92–470 before the required-field section at y493.
+Evidence 2
+Prioritize required trip fields with compact estimate and progress summaries
+Figure 2. Tablet 834 × 1112: the two summary cards still precede the primary trip fields.
+Evidence 3
+Prioritize required trip fields with compact estimate and progress summaries
+Figure 3. Phone 390 × 844 comparison: required fields appear directly below the introduction, with missing-field feedback in the footer. Preserve this useful ordering.
+
+PART word/footer1.xml
+QA-120 | Page 

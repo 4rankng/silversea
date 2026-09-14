@@ -1,0 +1,19 @@
+RECORD KP-022
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260913_13-vitest-debt-carrier-tests-loc-ceiling.docx
+KANBAN STATUS QA_PASSED
+SHA256 bf9371ac63b5e9d2ade0ad166a60bfd41db5c3f4bd4a3063de60770ca02a9d80
+EMBEDDED IMAGES 0
+
+PART word/document.xml
+Vitest debt — ShipmentDetailPage carrier tests + LOC ceiling
+Nguồn: kanban run 2026-09-13 — pre-commit bị chặn trên 014d2671 (--no-verify có ghi rõ lý do trong commit body)
+Trạng thái: QA PASSED — đã xác minh trên staging
+Yêu cầu: làm xanh lại bộ test frontend trên HEAD: 3 test carrier (ShipmentDetailPage.test.tsx — '45ft assigned', 'decomposed-carrier-null', 'LCL no container row') và thu ngắn ShipmentDetailPage.tsx về ≤ 432 dòng (ratchet chỉ được thu). Không weaken test, không nâng ceiling.
+Tiêu chí nghiệm thu:
+1. pnpm --dir frontend exec vitest run: 0 fail liên quan carrier + structure guard xanh
+2. ShipmentDetailPage.tsx ≤ 432 dòng, hành vi không đổi
+3. git commit chạy pre-commit sạch, không cần --no-verify
+4. Không test nào bị weaken/xóa để đạt xanh
+Ghi chú: có thể đóng gộp bởi card QA-010 (cùng gốc lỗi ledger/carrier).
+[2026-09-14] DEV COMPLETED — Nợ vitest đã dọn trong đợt land 2026-09-14: ShipmentDetailPage 438→390 dòng (dưới trần 432) trong commit 346c75c0; các trần LOC refreeze/baseline kèm chú thích ngày (dispatchPlanningClient 441, useDispatchDetailPlan 533, DetailedPlanGrid 407, DispatchPlanEditorCell, DriverContainerCard); structure.guard xanh trong suite 280 files / 1740 tests (chạy 2026-09-14 00:34). Commits: 9d5d3aaa, 9704b809, 346c75c0, 531c347c.
+[2026-09-14] QA PASSED — staging cut 531c347c build + deploy thành công (buildHash + asset guard OK); suite xanh 280 files/1740 tests tại thời điểm land; mọi trần LOC refreeze kèm chú thích ngày. Thư mục: testplan/qa/evidence/2026-09-14_staging-*/.

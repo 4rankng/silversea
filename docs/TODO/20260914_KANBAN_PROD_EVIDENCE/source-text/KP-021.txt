@@ -1,0 +1,27 @@
+RECORD KP-021
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260913_1-dependabot-default-branch-vulnerabilities.docx
+KANBAN STATUS QA_PASSED
+SHA256 39fa1658e3808a856c4f2f7de74f0f396ed86bd975144810a84cf8d96dd16042
+EMBEDDED IMAGES 0
+
+PART word/document.xml
+Nợ kỹ thuật: 8 lỗ hổng Dependabot trên nhánh mặc định
+GitHub Dependabot báo 8 vulnerabilities (4 high, 3 moderate, 1 low) trên nhánh mặc định của 4rankng/silversea (xuất hiện trong output push 2026-09-12/13). Chi tiết: https://github.com/4rankng/silversea/security/dependabot.Việc cần làm: xem từng alert, phân loại (dependency frontend/backend), nâng cấp package hoặc override phiên bản, chạy lại gates (lint/tsc/test/build) và deploy lại staging để xác nhận. Ưu tiên 4 mức high trước.Nguồn: phát hiện khi push commit f8b186b1..e40a1ab9 (2026-09-12/13, session kanban-work).
+Trạng thái: QA PASSED — chờ deploy prod. 9/9 alert Dependabot = fixed (8 gốc + n45 js-yaul phát hiện thêm, 0 alert mở). Gates xanh cả prod lẫn main; staging chạy buildHash bed47fd8.
+Tiêu chí nghiệm thu:
+1. Khớp từng alert với manifest (frontend/backend/transitive) — 8 alert đều được phân loại và xử lý: nâng cấp trực tiếp (multer, sharp, vitest) hoặc override (csv-parse vì casbin vẫn khai báo csv-parse ^5).
+2. pnpm-lock.yaml không còn phiên bản lỗi: multer 2.3.0, sharp 0.35.4, vitest 4.1.11, @vitest/mocker 4.1.11, csv-parse 7.0.2.
+3. Gates xanh sau nâng cấp: pnpm lint, tsc backend + frontend, toàn bộ test backend (unit + integration) và frontend (vitest), pnpm build cho cả backend lẫn frontend.
+4. Deploy lại staging (make demo): /api/health trả status ok với buildHash mới; không 5xx sau cutover; migration 0072 áp lên staging DB trong bước migrate của demo flow.
+5. Re-check Dependabot alerts sau push: các alert tương ứng chuyển sang fixed / không còn mở.
+[2026-09-13] QA PASSED — tổng kết evidence (chi tiết đầy đủ: qa/2026-09-13_20260913_1-dependabot/REPORT.md)
+1. Phân loại 8 alert: multer 2.2.0 → 2.3.0 (n37/n40/n41 high + n42 low, backend dep trực tiếp); sharp 0.35.3 → 0.35.4 (n44 high, backend dep trực tiếp); vitest 4.1.8 → 4.1.11 (n43 moderate, frontend) kéo @vitest/mocker 4.1.11 (n39); csv-parse 5.6.0 → 7.0.2 (n38 moderate, TRANSITIVE qua casbin — casbin mới nhất 5.51.1 vẫn khai báo csv-parse ^5 nên dùng pnpm overrides, đúng pattern overrides hiện có của repo). An toàn override: call-site duy nhất của casbin là csv-parse/sync parse() với 4 option không đổi ở v7.
+2. pnpm-lock.yaml: multer@2.3.0, sharp@0.35.4, vitest@4.1.11, @vitest/mocker@4.1.11, csv-parse@7.0.2 — đủ 5 gói đúng fix version trên cả nhánh prod (commit bed47fd8) lẫn default branch main (commit c6627953).
+3. Gates trên prod: lint exit 0; tsc backend + frontend exit 0; backend test 186/186 unit + 1846/1846 integration (0 fail); frontend vitest 264 files / 1623 pass chạy TRÊN vitest 4.1.11; build (shared+backend+frontend) exit 0.
+4. Staging: make demo cutover thành công — DB backup db-20260912T195150Z.dump (1.1MB) → migrate (migration 0072 áp lên staging DB, normalized_plate đã bỏ gạch: 51K99999/15H06114/17H08080) → asset guard OK → /api/health = {"status":"ok","buildHash":"bed47fd8"}; container backend chạy multer 2.3.0; 0 dòng 5xx/error trong log backend từ sau cutover (staging-verify-transcript.txt).
+5. Re-check Dependabot sau push: 0 alert mở. Cả 8 alert gốc = fixed 2026-09-12T20:48Z (alerts-after.json). Push làm GitHub quét lại và phát hiện thêm n45 (js-yaml <4.3.2, dev scope) — nâng override floor lên ^4.3.2, n45 = fixed 20:53Z (main df508934, prod c5d2a0ab).
+Lưu ý quan trọng cho main (default branch — nơi Dependabot quét):
+• main đang PHÂN RÉT thật với prod: main chứa ~147 commit chưa merge (OPS portal, driver notifications, ad-hoc orders + migrations riêng 0058–0064+ chưa từng deploy). Merge prod→main đầy đủ đã thử trong clone sạch: chỉ 3 conflict text (giải theo phía prod) NHƯNG journal migration dính conflict NGHIÊM TRỌNG (duplicate idx 68, main và prod cùng đánh số 0058+) — test bất biến journal bắt được. Việc đánh lại số migration của main là quyết định database-history của luồng work trên main — KHÔNG tự ý làm trong task dependency này.
+• Giải pháp trong phạm vi task: commit chỉ-dependency lên main (không đụng feature/migration) để đóng alert. Gates trên main (trần thật của tree này): lint 0, backend tsc sạch, unit 195/195, frontend tsc 0, vitest 275 files / 1663 pass, vite+backend build exit 0. Backend integration trên main KHÔNG thể xanh trong môi trường này vì các suite feature-only của main cần schema của migration main chưa áp vào dev DB (lỗi 'relation does not exist', ví dụ freight_rate_terms đến từ migration 0064 chỉ có trên main) — sai số có trước, không liên quan dep. Hành vi runtime của 5 gói được chứng minh bằng full suite phía prod (2032 test) + staging thật.
+• Khuyến nghị (followup): merge main↔prod có chủ đích — đánh lại số migration main sau 0072 (hoặc bỏ nếu schema OPS vào prod theo cách khác), chạy đủ gates main trước khi deploy từ main.
+• Repo git local bị hỏng object store (fsck lỗi, checkout main fail 'unable to read tree') — toàn bộ việc trên main làm trong clone sạch /tmp/ss-main-merge. Nên clone lại repo khi tiện.

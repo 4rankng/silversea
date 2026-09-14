@@ -1,0 +1,43 @@
+RECORD KP-040
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260913_P2_QA-011_enhancement-compact-dispatcher-phone-cards-and-keep-container-codes-readable.docx
+KANBAN STATUS QA_PASSED
+SHA256 a84e14c2f16710d08a02cf550ee285ec239cba4436063790662be7321d798e95
+EMBEDDED IMAGES 2
+
+PART word/document.xml
+Compact dispatcher phone cards and keep container codes readable
+QA-011 | P2 | Enhancement | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 13 September 2026
+Role: Dispatcher dungnv; Chrome viewport 390 by 844, with 820-pixel comparison; 13 September 2026
+Page: https://vantai.tingting.vip/dispatch-detail
+Existing behaviour
+At 390 pixels wide, detailed-plan cards retain large empty areas between information groups. Short container-type codes such as 20'DC wrap the final C onto a separate line. The information remains accessible, but these gaps and fragmented codes make scanning slower and consume scarce phone space. The stable 820-pixel card layout is more compact. This finding does not concern the mobile filter drawer, which fitted correctly on retest.
+Target behaviour
+Use a compact phone layout with related fields grouped together and no empty grid cells reserving unnecessary height. Keep short container and equipment codes together on one line while allowing natural wrapping for names, addresses and notes.
+Impact
+Dispatchers need extra scrolling and visual effort to compare containers on a phone, despite relatively little information per card.
+Cause and investigation
+Likely inherited desktop column allocation or fixed grid spans in the narrow card variant. This is a visual hypothesis; inspect the layout rules before choosing a change.
+Steps to reproduce
+1. Sign in as dungnv and open Kế hoạch chi tiết at a 390 by 844 Chrome viewport.
+2. Close navigation and filters, then inspect the unfiltered container cards.
+3. Observe the unused internal areas and a 20'DC type split across lines; compare with the same page at 820 pixels.
+Acceptance criteria
+1. At 360, 390 and 430 pixels, short type codes stay intact and remain readable at normal zoom.
+2. Related identity, schedule, allocation and note fields form a compact readable sequence without large empty grid areas.
+3. Long real names and multiline notes wrap without clipping, and all edit and completion controls remain accessible.
+4. The desktop table and stable tablet card layout retain their existing data and actions.
+Requirement reference
+The UI waste lots of space-data-intensive-design.docx; 20260911_1-bug2-data-as-table-hide-sidebar.docx
+Evidence 1
+Compact dispatcher phone cards and keep container codes readable
+Figure 1. Current 390-pixel card layout leaves substantial internal gaps and breaks a short container type across lines.
+Evidence 2
+Compact dispatcher phone cards and keep container codes readable
+Figure 2. The stable 820-pixel card view provides a comparison for grouping and density.
+[2026-09-14] DEV COMPLETED — Density fix cbde6431: trường inline là đơn vị atomic (không cắt ngang token), label inline, notes-cell trống collapse, bỏ dead reservation; 3 test blank-collapse + CSS re-pin. Scoped 47/47.
+[2026-09-14] QA PASSED — staging: ảnh 390/430 (overview + detail + closeup mã cont) trên build 531c347c — fix (00:54) có trong build (01:03); mã cont đọc được không cắt token. Thư mục: testplan/qa/evidence/2026-09-14_staging-qa011-phone-cards/.
+
+PART word/footer1.xml
+QA-011 | Page 

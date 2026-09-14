@@ -1,0 +1,46 @@
+RECORD KP-094
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260914_P2_QA-057_bug-refresh-handoff-readiness-after-a-confirmed-order-exchange.docx
+KANBAN STATUS QA_PASSED
+SHA256 55aff2e828e85b59a90e69bd502028cc51a11601d44f614c39818587991dec7d
+EMBEDDED IMAGES 3
+
+PART word/document.xml
+Refresh handoff readiness after a confirmed order exchange
+QA-057 | P2 | Bug | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 14 September 2026
+Role: OPS qa.audit.ops.0914 (QA Audit Ops 0914); Chrome desktop 1440 × 900
+Page: https://vantai.tingting.vip/my-orders → /my-forwarder-trips/20
+Existing behaviour
+After visiting trip 20 and then confirming its exchange in /my-orders, the queue reports server confirmation and Sẵn sàng bàn giao. Following its handoff link reopens a stale detail: Chờ đổi lệnh with Xác nhận giao lệnh gốc disabled. Reloading shows Đã đổi lệnh and enables the action; handoff then succeeds. This case involved an active Mới tạo trip, not a terminal trip.
+Target behaviour
+Refresh the affected detail state after confirmed exchange and on return navigation, so readiness and the handoff action match current authoritative state without a full page reload.
+Impact
+OPS completes the prerequisite but is blocked from the next handoff step and receives contradictory instructions until refreshing the page.
+Cause and investigation
+Hypothesis: the exchange update does not invalidate or refresh previously loaded detail state. No specific cache, API or storage cause is established.
+Steps to reproduce
+1. As qa.audit.ops.0914, first visit /my-forwarder-trips/20, then return to /my-orders. Use an equivalent eligible fixture because the observed handoff is now completed.
+2. Choose Bắt đầu đổi lệnh, then Xác nhận đã đổi lệnh. Wait for confirmation and Sẵn sàng bàn giao; follow the row’s Bàn giao lệnh gốc link.
+3. Observe Chờ đổi lệnh and the disabled handoff button. Reload: Đã đổi lệnh appears, and confirming handoff succeeds.
+Acceptance criteria
+1. Previously visited detail pages show the confirmed exchange and correct handoff eligibility on in-app return, without manual reload.
+2. Keep the action blocked while exchange is unconfirmed or fails; preserve current workflow and permission checks.
+3. Verify queue, detail and handoff readback agree after save, navigation and refresh, including repeated eligible records and slow responses.
+Requirement reference
+Exploratory staging review, 14 September 2026; TRP-202609-0018 / SHP-2609-00020.
+Evidence 1
+Refresh handoff readiness after a confirmed order exchange
+Figure 1. The queue confirms exchange completion. SHP-2609-00020, container QATU0913544, shows Sẵn sàng bàn giao and links to /my-forwarder-trips/20.
+Evidence 2
+Refresh handoff readiness after a confirmed order exchange
+Figure 2. Following that link shows the same container and TRP-202609-0018, but Bàn giao lệnh gốc still says Ops has not completed exchange; Chờ đổi lệnh and the disabled button remain.
+Evidence 3
+Refresh handoff readiness after a confirmed order exchange
+Figure 3. A page reload updates the same detail to Đã đổi lệnh and enables Xác nhận giao lệnh gốc. The subsequent handoff succeeded and was recorded under QA Audit Ops 0914.
+[2026-09-14] DEV COMPLETED — Exchange DONE invalidates qk.forwarder.tripDetail(id) + tripsAll prefix — return navigation refetches (hết snapshot 5-phút pre-exchange); CONFLICT/FAILED không invalidate (action chặn đến khi confirmed). Gap trung thực: chưa có per-handler harness (invalidation 11 dòng, key shapes verify vs keys.ts) — browser rung AC1/AC3 staging. Commit 691863bb.
+[2026-09-14] QA PASSED — staging: AC1: returning to /my-forwarder-trips/20 from /my-orders shows fresh "Đã đổi lệnh" + "Đã bàn giao" state (no stale "Chờ đổi lệnh" — original bug); AC2: action button disabled when terminal; AC3: queue/detail/reload agree Evidence: testplan/qa/evidence/2026-09-14_QA-batch-staging-cut-9/ui/QA-057-handoff-return-state.png
+Trạng thái: QA PASSED — đã xác minh trên staging
+
+PART word/footer1.xml
+QA-057 | Page 

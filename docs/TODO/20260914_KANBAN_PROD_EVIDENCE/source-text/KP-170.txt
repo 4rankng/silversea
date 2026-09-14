@@ -1,0 +1,38 @@
+RECORD KP-170
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/TODO/20260914_P3_QA-074_bug-explain-rejected-negative-amounts-in-discipline-rule-edits.docx
+KANBAN STATUS TODO
+SHA256 dfd08daa364f5d822750b85066a45615a569ac50147d434e53a6430fa67a5b9b
+EMBEDDED IMAGES 1
+
+PART word/document.xml
+Explain rejected negative amounts in discipline rule edits
+QA-074 | P3 | Bug | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 14 September 2026
+Role: ADMIN · desktop 1440 × 900
+Page: /config/penalty-reasons → Chỉnh sửa lỗi vi phạm
+Existing behaviour
+For QA AUDIT 0914 - staging only, entering −50000 in Mức phạt mặc định (VNĐ) leaves Lưu thay đổi enabled. Activating it by Enter and by click keeps the dialog open without a visible error or invalid-field marking. The saved row remains 50,000 VND. Correcting the amount to 60,000 VND succeeds and survives reload. No negative amount persisted.
+Target behaviour
+Explain the invalid amount beside its field in Vietnamese and give a clear submission state. Keep the draft available for correction, associate and announce the error, and focus the affected field. A valid correction must save normally.
+Impact
+Admin cannot tell why Save does nothing or which correction is required, encouraging repeated attempts.
+Cause and investigation
+An invalid-value guard may return without presenting feedback. Inspect validation and submit state; no backend or source-code cause is confirmed.
+Steps to reproduce
+1. Edit QA AUDIT 0914 - staging only, initially 50,000 VND with severity Nhẹ.
+2. Enter -50000 in Mức phạt mặc định (VNĐ); activate Lưu thay đổi by Enter, then click.
+3. Observe the unchanged dialog without feedback. Correct to 60000, save and reload to confirm the valid update.
+Acceptance criteria
+1. Reject negative amounts with a visible Vietnamese explanation beside the field; preserve the saved value.
+2. Expose the invalid state and message accessibly, with focus after a rejected submission.
+3. If Save is disabled for invalid input, explain why; never leave an enabled submission silently ineffective.
+4. Verify Enter, click, correction and reload on desktop, tablet and phone; retain name and severity values.
+Requirement reference
+Observed discipline-rule editing; invalid amount produces no saved change, while a valid correction succeeds.
+Evidence 1
+Explain rejected negative amounts in discipline rule edits
+Figure 1. After Save is activated with −50000, the dialog stays open with no visible error. The saved row behind it still shows 50,000 VND.
+
+PART word/footer1.xml
+QA-074 | Page 

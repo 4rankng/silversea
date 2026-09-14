@@ -1,0 +1,41 @@
+RECORD KP-048
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260913_P2_QA-021_bug-use-24-hour-formatting-in-the-cus-shipment-drawer.docx
+KANBAN STATUS QA_PASSED
+SHA256 6468cef0dd95b53040810f8ac2f44fa40e37f65f8f169d4de29c06be2e2bf5a9
+EMBEDDED IMAGES 3
+
+PART word/document.xml
+Use 24 hour formatting in the CUS shipment drawer
+QA-021 | P2 | Bug | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 13 September 2026
+Role: CUS thanhdc (Đinh Công Thành); Chrome desktop on macOS
+Page: https://vantai.tingting.vip/shipments — CUS shipment drawer, Giờ hẹn đóng/trả
+Existing behaviour
+The shipment drawer uses a 12-hour GIỜ control with an AM/PM segment. On booking QA-R2-0913-54321 (LOG COM / NEWEB-1, 20DC), selecting the 13:30 preset displays 01:30 PM. The presets themselves use 24-hour labels. The separate /shipments/new form accepted and saved 13:30 through its HH:mm DD/MM/YYYY field, so this failure is specific to the drawer control.
+Target behaviour
+Use consistent 24-hour HH:mm entry in the CUS shipment drawer, matching the quick presets and creation form. Preserve the intended hour/minute and the working bottom Lưu action.
+Impact
+CUS operators must switch between 24-hour presets and AM/PM entry, contrary to the requested format and increasing the chance of afternoon or evening entry mistakes.
+Cause and investigation
+Hypothesis: the native time control follows browser or operating-system locale while the presets use an application formatter. Verify the control and supported locale behavior before choosing a consistent 24-hour presentation.
+Steps to reproduce
+1. As thanhdc, open /shipments, search QA-R2-0913-54321 and open Chi tiết, or use an equivalent editable container shipment.
+2. Open Giờ hẹn đóng/trả, select a valid date and click 13:30. Observe GIỜ displaying 01:30 PM.
+3. Use the native keyboard time control to select a morning value and observe the AM segment.
+Acceptance criteria
+1. The drawer time field displays and accepts 24-hour HH:mm values without AM/PM in supported CUS browsers.
+2. 08:00, 13:30, 20:46, 00:15 and 23:45 use the same format in the input and presets.
+3. Save, reopen and reload preserve the selected date, hour and minute; bottom Lưu remains usable.
+4. Retest /shipments/new and shared schedule-edit controls for consistent 24-hour entry without changing the already working creation-form behavior.
+5. Verify the separate hour-alignment fix under QA-022; a formatting change alone does not establish that fix.
+Requirement reference
+IMG_6360.png — customer explicitly requests 24h format for CUS return-time entry.
+Evidence 1
+Use 24 hour formatting in the CUS shipment drawer
+Figure 1. CUS drawer: the 13:30 preset is selected, while GIỜ displays 01:30 PM. Bottom Lưu is enabled. The row-preview hour mismatch is tracked separately in QA-022.
+[2026-09-14] DEV COMPLETED — Popover Giờ hẹn dùng MỘT ô text 24h 'HH:mm DD/MM/YYYY' (buffered, cùng contract /shipments/new); không còn input time/date native; không AM/PM ở bất kỳ rung nào. Gõ thật (keyboard events): 20:46, 00:15 hiển thị đúng như gõ; preset 13:30 khớp input + row. Commits 42b959d1 (+16148368 preview). Bằng chứng: /Volumes/LexarSSD/projects/silversea-prod/testplan/qa/evidence/2026-09-14_cus-appointment-popover-qa021-qa022/REPORT.md — 7 ảnh, real-keys cho các mục gõ. Staging tái kiểm sau cut thứ hai.
+[2026-09-14] QA PASSED — staging2: popover = textbox 24h 'NGÀY GIỜ' ('08:00 14/09/2026'), không AM/PM; gõ '13:30 15/09/2026' chấp nhận. Bằng chứng: staging2-qa021-qa022-appointment-popover/.
+
+PART word/footer1.xml
+QA-021 | Page 

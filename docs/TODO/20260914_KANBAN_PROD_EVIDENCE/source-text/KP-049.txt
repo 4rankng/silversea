@@ -1,0 +1,44 @@
+RECORD KP-049
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260913_P2_QA-022_bug-align-the-cus-schedule-preview-with-the-selected-time.docx
+KANBAN STATUS QA_PASSED
+SHA256 462a43aec0d88048abc769700e4794f4839788438c12634099c8ac12553e7716
+EMBEDDED IMAGES 3
+
+PART word/document.xml
+Align the CUS schedule preview with the selected time
+QA-022 | P2 | Bug | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 13 September 2026
+Role: CUS thanhdc (Đinh Công Thành); Chrome desktop on macOS
+Page: https://vantai.tingting.vip/shipments — Giờ hẹn đóng/trả in the CUS shipment drawer
+Existing behaviour
+On QA-R2-0913-54321, selecting 13:30 on 14 September 2026 sets GIỜ to 01:30 PM, but the container row immediately shows 12:30 14/9/26. A later keyboard change to 20:46 previewed as 19:46; after Lưu, the overview showed 20:46. The draft preview differs by one hour. This does not establish incorrect database storage.
+Target behaviour
+Display the same intended appointment date, hour and minute in the picker, immediate row preview and saved summary, using consistent operational-timezone rules. Preserve the explicit Lưu action.
+Impact
+CUS users cannot reliably review an appointment before saving and may compensate for the misleading preview by changing an already correct selection.
+Cause and investigation
+Hypothesis: the picker and preview use different timezone rules or apply an extra local-time conversion. Inspect date construction and formatting across these paths before changing storage semantics.
+Steps to reproduce
+1. As thanhdc, open /shipments, find QA-R2-0913-54321 and open its editable container appointment in Chi tiết.
+2. Choose 14 September 2026 and click 13:30. Compare GIỜ 01:30 PM with the simultaneous row preview 12:30 14/9/26.
+3. Use the native keyboard time control to enter 20:46. The observed draft preview showed 19:46.
+4. Click Lưu. The saved overview showed 20:46; verify reopened and reloaded readback when retesting.
+Acceptance criteria
+1. 13:30 immediately previews as 13:30, and 20:46 as 20:46, with the same date.
+2. Preset and manual entry agree with the saved overview, reopened drawer and reload readback; check date boundaries and supported timezone/locale configurations.
+3. Confirm time semantics before changing conversions; do not alter stored appointments to compensate for a display mismatch.
+4. Retest shared schedule-edit controls and preserve bottom Lưu. QA-021 separately covers 24-hour input formatting.
+Requirement reference
+IMG_6359.png and IMG_6360.png — CUS appointment entry and confirmation.
+Evidence 1
+Align the CUS schedule preview with the selected time
+Figure 1. Simultaneous state: the 13:30 preset and 01:30 PM input disagree with the same row’s 12:30 14/9/26 preview.
+Evidence 2
+Align the CUS schedule preview with the selected time
+Figure 2. After a later 20:46 selection and Lưu, the saved overview shows 20:46. This capture uses a different selection from Figure 1.
+[2026-09-14] DEV COMPLETED — Lỗi −1h đã chết: gõ 13:30 → preview row '13:30 20/9/26' cùng ngày (máy +8 cũ hiển thị 12:30); 20:46 → '20:46 20/9/26' (19:46 chết). Root cause: parse naive theo browser-local + toLocalDateTime dùng getTimezoneOffset — sửa bằng formatVietnamDateTimeInput VN-pinned + naive branch string-surgery cho formatDateTimeShort. Draft-state criterion (không cần save). Commit 16148368. Bằng chứng: /Volumes/LexarSSD/projects/silversea-prod/testplan/qa/evidence/2026-09-14_cus-appointment-popover-qa021-qa022/REPORT.md — 06-typed-1330-preview-agreement là specimen chính. Staging tái kiểm (card-env gốc là staging).
+[2026-09-14] QA PASSED — staging2: preview row '13:30 15/9/26' == picker NGAY LẬP TỨC; Lưu → toast + DB container 33 = 2026-09-15T06:30Z = 13:30 ICT — picker/preview/saved 3 chiều khớp. Bằng chứng: staging2-qa021-qa022-appointment-popover/.
+
+PART word/footer1.xml
+QA-022 | Page 

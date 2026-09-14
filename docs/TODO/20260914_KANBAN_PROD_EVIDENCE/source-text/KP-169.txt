@@ -1,0 +1,37 @@
+RECORD KP-169
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/TODO/20260914_P3_QA-032_bug-match-container-helper-text-to-the-trip-creation-action.docx
+KANBAN STATUS TODO
+SHA256 f7b7976d4d361cf1cd485f893d95ac83e654ad200582671c2482aa41dca8631f
+EMBEDDED IMAGES 1
+
+PART word/document.xml
+Match container helper text to the trip creation action
+QA-032 | P3 | Bug | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 14 September 2026
+Role: Administrator (admin); Chrome mobile viewport 390 × 844
+Page: https://vantai.tingting.vip/trips/new
+Existing behaviour
+In the trip creation form, the helper below Thêm container says that container data is saved with the Lưu cập nhật button at the bottom of the form. The actual footer action is Tạo lệnh. The guidance therefore names a button that is not present in this creation flow.
+Target behaviour
+Make the helper describe the action available in the current form mode. Use creation wording that agrees with Tạo lệnh, or concise wording that is valid for both creation and editing.
+Impact
+The mismatch makes users look for a nonexistent button and obscures when container data is submitted.
+Cause and investigation
+Hypothesis: shared container-form help may retain edit-only wording in create mode. Check how help text is selected; no persistence defect is claimed by this ticket.
+Steps to reproduce
+1. Open Sổ chuyến đi → Thêm chuyến and scroll to the container section.
+2. Read the helper below Thêm container, then compare the footer action label.
+Acceptance criteria
+1. Creation help references the current creation action and never instructs users to find an absent Lưu cập nhật button.
+2. Editing help also agrees with its actual footer action.
+3. Keep the help concise and readable on mobile, tablet and desktop without changing the save behavior or adding a large message panel.
+Requirement reference
+Exploratory staging review, 14 September 2026.
+User direction: professional, compact, data-heavy UI across desktop, tablet and mobile.
+Evidence 1
+Match container helper text to the trip creation action
+Figure 1. The helper names Lưu cập nhật, while the bottom action visibly reads Tạo lệnh. This screenshot supports the copy mismatch only; validation and persistence are covered separately.
+
+PART word/footer1.xml
+QA-032 | Page 

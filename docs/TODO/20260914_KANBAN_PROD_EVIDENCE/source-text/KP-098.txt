@@ -1,0 +1,49 @@
+RECORD KP-098
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260914_P2_QA-063_bug-keep-the-session-active-after-an-incorrect-current-password.docx
+KANBAN STATUS QA_PASSED
+SHA256 9958c552bc305b0121bb81dcecc8b5f44888e3a6e0e530f1adb93bcf28dcdc8d
+EMBEDDED IMAGES 2
+
+PART word/document.xml
+Keep the session active after an incorrect current password
+QA-063 | P2 | Bug | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 14 September 2026
+Role: Manager qa.audit.manager.0914; desktop 1440 × 900
+Page: Menu người dùng → Đổi mật khẩu; unexpected redirect to /login
+Existing behaviour
+Submitting an incorrect current password with matching valid new-password fields closes the dialog and redirects to login. The page says Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại để tiếp tục. Reproduced twice, including within 30 seconds of a fresh login. The existing password still worked when signing back in after the first attempt.
+Target behaviour
+Keep a valid session active and show an inline current-password error. Clear and focus the incorrect sensitive field so the user can retry. Use session-expired feedback and reauthentication when the session has actually expired.
+Impact
+A typing mistake interrupts the whole session and gives the wrong recovery explanation. Users must sign in again without knowing whether the password changed.
+Cause and investigation
+Global authentication-error handling may treat failed current-password verification as session expiry. Check the response contract and dialog handling; neither code nor the response status was inspected.
+Steps to reproduce
+1. Sign in successfully, then immediately open Menu người dùng → Đổi mật khẩu.
+2. Enter an incorrect current password and a matching valid new password and confirmation. Submit Đổi mật khẩu.
+3. Observe the redirect to /login and expired-session message. Sign in using the unchanged existing password.
+Acceptance criteria
+1. An incorrect current password produces a field-specific error without ending a valid session or changing the password.
+2. The dialog supports correcting the value and retrying, with keyboard focus and accessible error announcement. Do not expose password values.
+3. A genuinely expired session still follows the intended reauthentication flow with an accurate message.
+4. Retest empty fields, mismatched new passwords, wrong current password and a successful change on phone, tablet and desktop. Existing empty and mismatch validation must remain intact.
+Requirement reference
+Staging Chrome audit, 14 September 2026. User requirement: clear validation and recoverable unsuccessful flows.
+Evidence 1
+Keep the session active after an incorrect current password
+Figure 1. A freshly signed-in Manager is in the password-change dialog before submitting the wrong current password. All password fields are masked.
+Evidence 2
+Keep the session active after an incorrect current password
+Figure 2. Submitting the wrong current password redirects to login and reports that the session has expired.
+[2026-09-14] DEV COMPLETED — Wrong current password → 400 (cả changePasswordWithTx + verifyPassword — cùng lớp, mỗi chỗ 1 dòng); session token chứng minh còn hợp lệ (test trực tiếp: same token authorize được + old password vẫn login được); FE dialog: field error — banner nêu đúng trường, aria-invalid/describedby + announced, clear + refocus for retry (FormGroup sibling — cloneElement-force-ids clobber id nếu để trong children); success-logout giữ nguyên (server revoke by design). BE 3/3 + FE 2/2. ATTRIBUTION: code landed SPLIT — 6 file chính trong f3331325 (ops lane sweep — shared-index race, disclosed), guard refreeze + mô tả trong 6ae20241 của 52. Không rewrite history. Browser rung (matrix 4 case ×3 width) staging.
+QA PASSED (API/DB slice d8, staging round-6) — 2026-09-14
+Build: cut #8 (2c41f420) trên staging https://vantai.tingting.vip. Hành trình: API/DB rung (không browser). Kết quả: sai mật khẩu hiện tại → 400 {'error': 'Mật khẩu hiện tại không đúng'} (không phải 401/403, không redirect-flow); token CÒN HỢP LỆ ngay sau đó (GET /auth/me → 200); mật khẩu mới quá ngắn → 400 validation, session vẫn 200; KHÔNG có mật khẩu nào bị đổi. AC1 (field-specific, giữ session) + AC3 (chỉ session thật sự hết hạn mới vào flow đăng nhập lại) thỏa ở rung API.
+1. Login qa.audit.manager.0914 → token.
+2. POST /api/auth/change-password (Idempotency-Key riêng) với currentPassword sai → 400, message field-specific.
+3. GET /api/auth/me cùng token → 200: session còn.
+4. POST change-password với newPassword '123' → 400 validation; GET /auth/me → 200.
+Evidence: testplan/qa/evidence/2026-09-14_staging-round6-api-d8/ (slice-results.json, slice2-results.json, probe6c.mjs output, cleanup logs). Trạng thái: QA PASSED.
+
+PART word/footer1.xml
+QA-063 | Page 

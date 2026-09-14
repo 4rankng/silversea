@@ -1,0 +1,19 @@
+RECORD KP-072
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260914_9-driver-add-path-container-validation.docx
+KANBAN STATUS QA_PASSED
+SHA256 c54e0a3e13338688d964aa9cc3b2705b7260dcf1c01540cfe33ac88d7490eaa2
+EMBEDDED IMAGES 0
+
+PART word/document.xml
+Nguồn: QA-060 review (2026-09-14) — cùng bug-class, path khác.
+Yêu cầu: Driver add path (routes/driver.ts:811) vẫn chỉ validate non-empty + lưu số KHÔNG normalize — cùng lỗ hổ QA-060 đóng ở forwarder (FE-protected only). Áp shared ISO 6346 validator + normalize canonical. Ghi chú kèm: idempotency fingerprint số RAW (pre-existing, client tự viết mới ảnh hưởng) — sửa kèm nếu rẻ.
+Tiêu chí nghiệm thu: (1) BE driver path enforce format + check-digit + normalize; (2) unit theo reject matrix QA-060; (3) FE surface (nếu có) dùng cùng helper.
+Trạng thái: DEV COMPLETED — chờ deploy staging + QA
+[2026-09-14] DEV COMPLETED — Chuỗi QA-060 tách lên shared (validatedTripContainerSchema + Patch); driver POST+PATCH consume, persist canonical, fingerprint normalized; forwarder alias cùng chuỗi. Direct-API probe 7/7. Patch test pin ''→clear; matrix 6/6. Commit 23566b92. Provenance ghi commit body. Finding-3 (HTTP wiring test) → thẻ 20260914_10.
+QA PASSED (API/DB slice d8, staging round-6) — 2026-09-14
+Build: cut #8 (2c41f420) trên staging https://vantai.tingting.vip. Hành trình: API/DB rung (không browser). Kết quả: driver add-path đã enforce validator QA-060: POST /driver/me/trips/14/containers với 'AB12' (sai định dạng) → 400; 'CSQU3054384' (sai check-digit ISO 6346) → 400; PATCH container sai số → 400 ('Dữ liệu không hợp lệ' — zod details kèm theo). Không thực hiện write hợp lệ nào trên chuyến dùng chung.
+1. Login driver bqhuong → GET /driver/me/trips → trip 14.
+2. POST container 'AB12' → 400; POST 'CSQU3054384' → 400 (sai check-digit).
+3. PATCH container hiện có với số sai → 400.
+4. Không tạo container hợp lệ — không đụng dữ liệu dùng chung.
+Evidence: testplan/qa/evidence/2026-09-14_staging-round6-api-d8/ (slice-results.json, slice2-results.json, probe6c.mjs output, cleanup logs). Trạng thái: QA PASSED.

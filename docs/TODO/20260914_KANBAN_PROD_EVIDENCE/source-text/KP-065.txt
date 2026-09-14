@@ -1,0 +1,19 @@
+RECORD KP-065
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260914_16-refreeze-structure-guard-ceilings.docx
+KANBAN STATUS QA_PASSED
+SHA256 e346eb7d11a6f042180f1aa15e7bbe1f0847cd17579d637fc993f4083bf73389
+EMBEDDED IMAGES 0
+
+PART word/document.xml
+Refreeze structure-guard ceilings after fleet/profit/ops overshoots
+20260914_16 | P2 | Debt | TODO
+Nguồn: QA-085 landing window (7f lane flag) — verified by lead: guard red tree-wide at HEAD, 5 violations; every lane's landing silently rides --no-verify.
+Yêu cầu: frontend/src/tests/structure.guard.test.ts frozen ceilings lag reality on 4 files (last-growth commits in parens): ProfitPage 591>567 (1359029e), fleet/trailer-card 418>400 new-file ceiling, needs first baseline entry (4308927f), fleet/truck-card 450>441 (97069fb5), work-inbox/RoleWorkInbox 493>485 (691863bb). PenaltyTable 599>593 is working-tree only and resolves via the lane's in-flight extraction (target ~540).
+Tiêu chí nghiệm thu:
+1. Dedicated refreeze commit: each overshoot gets an honest baseline at CURRENT LOC with dated comment (house style in structure.guard.test.ts) — disclosed per file, no silent ratchet loosening beyond truth.
+2. Guard green tree-wide at HEAD after the commit (full vitest run of structure.guard.test.ts, real count in evidence).
+3. PenaltyTable stays <=593 via the extraction landing (verify in the same run; if extraction not yet landed, its baseline stays 593 and the file must be green at HEAD when extracted).
+4. Shrink debt recorded: each refrozen file listed with target (e.g. ProfitPage ->567, RoleWorkInbox ->485) so the ratchet direction survives.
+Trạng thái: QA PASSED — đã xác minh trên staging
+[2026-09-14] DEV COMPLETED — refreeze landed as 076d5c58 (7f lane): RoleWorkInbox 485→493, trailer-card first entry 418, truck-card 441→450, ProfitPage 567→591, dated comments, PenaltyTable untouched at 593 (resolved separately by d8's extraction, 563L at 6ef8ba63). Guard GREEN tree-wide: lead-verified at HEAD — structure.guard.test.ts full pass (3 tests, 0 violations); lane-verified twice via pre-commit during landing. Shrink targets recorded: ProfitPage→567, RoleWorkInbox→485, truck-card→441 (ratchet resumes from truth).
+[2026-09-14] QA PASSED — staging cut #9 (buildHash 9d064b50) built clean from a detached worktree at the exact HEAD carrying 076d5c58 (deploy's own typecheck/build gates green, asset guard OK, health 200); structure guard green at that HEAD in three independent runs (lead full vitest run at HEAD — file pass, 0 violations; two clean pre-commit passes during landing). Test-only change; no UI surface to verify.

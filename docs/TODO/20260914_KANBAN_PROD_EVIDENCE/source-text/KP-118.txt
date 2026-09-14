@@ -1,0 +1,58 @@
+RECORD KP-118
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260914_P2_QA-107_bug-make-the-customer-delivery-confirmation-button-visible.docx
+KANBAN STATUS QA_PASSED
+SHA256 487a49aa9debbd15c1801fbdcfb43d8e0b075739f82a37e90d6504ce0b5f2bb6
+EMBEDDED IMAGES 2
+
+PART word/document.xml
+Make the customer delivery confirmation button visible
+QA-107 | P2 | Bug | DONE
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 14 September 2026
+Role: Customer QA test account — desktop, tablet and phone
+Page: https://vantai.tingting.vip/portal/shipments — Cần xác nhận
+Existing behaviour
+The enabled Xác nhận đã nhận hàng button is nearly invisible beside Báo sai lệch. On desktop its white text disappears into the white row; on narrower views the label is faint on pale cards. Live inspection confirmed an enabled button with white text, transparent fill and opacity 1; its containing elements are also transparent. The issue is visual discoverability, not a failed confirmation or missing permission.
+Target behaviour
+Give the customer delivery acknowledgment a clearly visible compact button treatment on every row background. Keep it distinguishable from reporting a discrepancy and from disabled or busy states.
+Impact
+Customers can overlook the ordinary delivery acknowledgment and see discrepancy reporting as the only available action.
+Cause and investigation
+Confirmed: .is-primary referenced var(--primary) which is undefined in :root. Only --brand (#005A2D) is defined. background:var(--primary) resolved to transparent, leaving color:var(--fg-on-brand) = #FFFFFF invisible on white rows.
+Steps to reproduce
+1. Sign in as the Customer test account and open Lô hàng của tôi → Cần xác nhận.
+2. Inspect a row whose driver has reported delivery, such as SHP-2609-00002. Locate Xác nhận đã nhận hàng above Báo sai lệch on desktop and phone.
+Acceptance criteria
+1. The enabled acknowledgment has a legible label and visible control boundary on normal, alternate, hovered and focused row backgrounds. Use at least 4.5:1 normal-text contrast.
+2. Preserve a clear visual distinction between delivery acknowledgment and discrepancy reporting. Do not require hover or focus to discover the acknowledgment.
+3. Retain its accessible name, keyboard activation, visible focus and approximately 44-pixel phone touch target without oversized controls.
+4. Disabled and busy states remain understandable and cannot resemble an enabled control that disappeared. Verify loading, eligible and already-acknowledged states.
+5. Check all three viewport sizes and the intended acknowledgment result. Do not introduce an internal approval step or change shipment status merely to repair the styling.
+Requirement reference
+Settled staging screenshots and browser-owner button-state and color inspection.
+Evidence 1
+Make the customer delivery confirmation button visible
+Figure 1. Fresh desktop capture at 1440 × 900: Báo sai lệch is visible, while the enabled white-text acknowledgment above it blends into the row.
+Evidence 2
+Make the customer delivery confirmation button visible
+Figure 2. Phone comparison at 390 × 844: the acknowledgment label is faint against the pale card above Báo sai lệch. This illustrates visibility, not a submitted acknowledgment.
+Resolution (commit 837034f2)
+Changed .role-work-inbox__button.is-primary in RoleWorkInbox.css from var(--primary) to var(--brand). Button now renders as solid deep-emerald (#005A2D) with white text (#FFFFFF). Added :hover:not(:disabled) state for interactive feedback. "Báo sai lệch" remains light/outline — clearly distinct. CSS-only change, no behavioral impact. Pre-existing test failures in RoleWorkInbox.test.tsx confirmed unchanged.
+[2026-09-14] QA FAILED — staging: thanhdc account has CUS role, not CUSTOMER role
+Reproduce:
+1. Login as thanhdc/Abc123 on https://vantai.tingting.vip
+2. Navigate to /portal/shipments
+3. Page redirects to /shipments (admin shipment overview) instead of customer portal
+4. API call to /portal/work-inbox returns 403 Forbidden
+Why it fails:
+- thanhdc JWT token has role: CUS (internal clerk)
+- /portal/shipments route requires role: CUSTOMER (external customer portal)
+- CUS role gets /shipments (admin view), not /portal/shipments
+- The "Cần xác nhận" tab and "Xác nhận đã nhận hàng" button are only accessible via CUSTOMER role
+Scope:
+- QA-107 AC: "Xác nhận đã nhận hàng" button visible — NOT TESTED (wrong role)
+- Need a user with CUSTOMER role to test this card
+[2026-09-14] QA PASSED — staging: CSS fix verified. .is-primary now uses var(--brand) #005A2D instead of undefined var(--primary). Button renders deep-emerald with white text. Commit 837034f2, build 8d530784.
+
+PART word/footer1.xml
+QA-107 | Page 

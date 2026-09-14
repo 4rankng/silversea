@@ -1,0 +1,44 @@
+RECORD KP-146
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/TODO/20260914_P2_QA-094_enhancement-keep-selected-payroll-details-close-to-the-driver-picker.docx
+KANBAN STATUS TODO
+SHA256 af3864b0c2c3b43d472d8fb50f7d50768667e006dd111c12d3fae7230492013e
+EMBEDDED IMAGES 3
+
+PART word/document.xml
+Keep selected payroll details close to the driver picker
+QA-094 | P2 | Enhancement | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 14 September 2026
+Role: MANAGER · 390 × 844; comparisons at 834 × 1112 and 1440 × 900
+Page: /salary
+Existing behaviour
+All 39 driver selectors appear as bordered cards before the calendar and selected-person detail. At 390 px, clicking Dương Văn Thực updates the selected tile but leaves the viewport among the roster; calendar and details remain below it. The tablet first viewport is also consumed by the roster, while desktop only begins the calendar near its bottom. The selected detail reports a loading error in the captured page text; this task does not assess payroll data correctness.
+Target behaviour
+Use a compact searchable picker that keeps the selected driver visible and places their calendar/detail state close to the selection. The full roster should remain available on demand, without permanently preceding all selected-person work.
+Impact
+Reviewing one employee requires navigating past dozens of unrelated selector cards, especially on phones and tablets.
+Cause and investigation
+The unbounded roster appears before the selected content in responsive layouts. Review selection presentation and navigation; no payroll service cause is asserted.
+Steps to reproduce
+1. Open September 2026 payroll as Manager with the 39-driver roster.
+2. At 390 × 844, select Dương Văn Thực from the unfiltered roster. Observe the selected tile and offscreen calendar/detail area.
+3. Compare the expanded roster and selected-content position at 834 × 1112 and 1440 × 900.
+Acceptance criteria
+1. Selecting a driver exposes their calendar/detail or its loading/error state without manually traversing the whole roster. Keep the selected identity visible.
+2. Provide compact search and a clear way to reopen or browse the full roster; preserve every driver and existing selection semantics.
+3. Use responsive columns or a bounded selector instead of 39 permanent cards above the work area; avoid extra nested surfaces or oversized controls.
+4. Verify all three widths, long names, keyboard selection and 39 or more drivers. Preserve period/payment actions; metric overlap is QA-093 and calendar behavior remains separate.
+Requirement reference
+Fresh Manager selection and the requested compact data-heavy interface.
+Evidence 1
+Keep selected payroll details close to the driver picker
+Figure 1. After selecting Dương Văn Thực at 390 px, the selected tile is outlined but the view remains inside the long roster; calendar and details are not visible.
+Evidence 2
+Keep selected payroll details close to the driver picker
+Figure 2. At 834 px, the first viewport is occupied by summary and driver cards; the selected employee work area is below the roster.
+Evidence 3
+Keep selected payroll details close to the driver picker
+Figure 3. Desktop comparison: the 39-card picker consumes several rows, and the calendar begins near the bottom of the initial viewport.
+
+PART word/footer1.xml
+QA-094 | Page 

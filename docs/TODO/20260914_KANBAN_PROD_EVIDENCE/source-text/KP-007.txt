@@ -1,0 +1,22 @@
+RECORD KP-007
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260911_1-bug1-reassign-before-driver-accept.docx
+KANBAN STATUS QA_PASSED
+SHA256 3af0a6307f0ad22d1e04b03e2418fa674886918fc75d2e7e58eaac06787d267b
+EMBEDDED IMAGES 5
+
+PART word/document.xml
+Nguồn: 20260911_1.docx — BUG 1
+https://vantai.tingting.vip/dispatch-detail
+Lái xe chưa nhận việc thì vẫn phân lại được
+Trạng thái: QA PASSED — chờ deploy prod
+Tiêu chí nghiệm thu:
+1. Tác vụ lái xe CHƯA nhận việc (chưa xác nhận lệnh): điều vận bấm Phân xe lại → lưu thành công, không còn lỗi 'Không thể điều chỉnh tác vụ đã xuất phát'.
+2. Tác vụ ĐÃ xuất phát / lái xe ĐÃ nhận: vẫn chặn điều chỉnh như cũ (giữ nguyên biên giới an toàn).
+3. Sau phân lại: lưới/screen điều vận và màn lái xe thể hiện đúng tài xế mới.
+Trạng thái: ĐANG XỬ LÝ — truy nguyên điều kiện chặn 'đã xuất phát' trong BE/FE, nới lối cho trạng thái chưa nhận việc.
+[2026-09-13] QA PASSED — bằng chứng QA (chạy trên dev local, điều vận dieuvan + tài xế laixe, agent-browser)
+TC1 PASS — Láixe CHƯA nhận việc vẫn phân lại được, không còn lỗi "Không thể điều chỉnh tác vụ đã xuất phát": chuyến TRP-202608-0004 (HLXU6109346, IN_TRANSIT, chưa có ORDER_RECEIVED), mở dialog Phân xe lại, chọn tài xế Phạm Văn Hùng → Xác nhận lưu THÀNH CÔNG, không có banner lỗi. DB xác nhận: driver_id 3 → 1, version 3 → 4. Ảnh: b2b (chọn tài xế trong dialog), b6 (xác nhận xong, không lỗi), b8 (reload trang — tài xế mới được lưu).
+TC2 PASS — Láixe ĐÃ nhận việc thì VẪN bị chặn như cũ: sau khi tài xế bấm nhận việc (API driver thật: POST /api/driver/me/fulfillments/8/progress, ORDER_RECEIVED), bấm Phân xe lại → banner "Không thể điều chỉnh tác vụ đã được lái xe nhận việc."; gọi thẳng PATCH /api/trips/6/reassign → HTTP 409 cùng thông điệp (qa/2026-09-13_bug1-reassign-before-driver-accept/api-transcript.txt). Ảnh: c1.
+TC3 PASS — Sau phân lại, dữ liệu thể hiện đúng tài xế mới ở cả 3 phía: lưới điều vận (b6 — dòng chuyền giữ nguyên, "Đã phát lệnh cho tài xế"), dialog sau khi reload trang (b8 — Phạm Văn Hùng), và journey-board phía lái xe (GET /api/driver/me/journey-board của laixe liệt kê TRP-202608-0004 HLXU6109346).
+Gates: backend test dispatch-fulfillment 33/33 PASS (bao gồm: chặn khi đã nhận việc, issue path vẫn chặn, completed vẫn terminal — backend-dispatch-fulfillment.log); backend tsc --noEmit: 0 lỗi; frontend tsc -b: 0 lỗi. Không sửa code lần này — fix đã có trên nhánh prod, nhiệm vụ là chứng minh bằng chứng thật.
+Chưa cover (ghi nhận thẳng thắn, xem qa/2026-09-13_bug1-reassign-before-driver-accept/REPORT.md): (1) phân lại đồng thời xe+rơ-móc+tài xế bị chặn do seed trùng lịch kế hoạch (guard tài nguyên, không phải lỗi này); (2) mở lại dialog ngay sau khi lưu có thể hiện tài xế cũ trong cùng phiên SPA (cache react-query, ảnh b7) — đã ghi vào tracker 20260912_4; (3) 4 chuyến seed 162/165/167/168 tạm CANCELED trong DB dev để mở lịch, đã khôi phục nguyên trạng sau QA (trip-temp-cancel-originals.txt).

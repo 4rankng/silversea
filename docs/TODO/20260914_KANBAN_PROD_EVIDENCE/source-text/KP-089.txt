@@ -1,0 +1,43 @@
+RECORD KP-089
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260914_P2_QA-049_bug-provide-the-trailer-selector-promised-by-the-fleet-assignment-flow.docx
+KANBAN STATUS QA_PASSED
+SHA256 85536c09b78b37260b2c914b356639c7ecbad821487923ddd902dddddf208865
+EMBEDDED IMAGES 2
+
+PART word/document.xml
+Provide the trailer selector promised by the fleet assignment flow
+QA-049 | P2 | Bug | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 14 September 2026
+Role: Admin; Chrome desktop 1440 × 900
+Page: https://vantai.tingting.vip/fleet
+Existing behaviour
+Thêm rơ-moóc instructs users to assign a trailer by editing the tractor and choosing it from a list. The complete Sửa xe editor for 15H-021.39 has no trailer selector. It contains vehicle details, carrier, fuel, maintenance and notes only. QA-0914-RM was successfully created as 40FT and edited to 20FT, but the displayed assignment path cannot be completed.
+Target behaviour
+Provide an authorized, searchable trailer selector in the indicated truck editor, showing the current assignment and available trailers. Keep the guidance aligned with the working assignment action.
+Impact
+An administrator can create a trailer but cannot attach it to a tractor through the workflow the app instructs them to use.
+Cause and investigation
+Hypothesis: assignment guidance and the current truck form are out of sync. No source-code, permission or datastore cause has been established.
+Steps to reproduce
+1. As Admin, open /fleet → Thêm rơ-moóc. Read the instruction below Ghi chú; create a clearly identified trailer.
+2. Follow the instruction: open truck 15H-021.39 (observed row 19) → Sửa. Inspect the entire editor; no trailer selection is available.
+Acceptance criteria
+1. Search trailers by plate, distinguish their types and current assignments, and select an eligible trailer from the truck editor.
+2. Handle an already assigned trailer explicitly under the existing assignment rules; prevent silent conflicting assignments.
+3. Save and read back the relationship in both truck and trailer views; reopen and reload to verify persistence. Show actionable save errors.
+4. Keep guidance accurate and the selector compact, keyboard accessible and usable on phone, tablet and desktop.
+Requirement reference
+Staging trailer-form guidance and exploratory review, 14 September 2026.
+Evidence 1
+Provide the trailer selector promised by the fleet assignment flow
+Figure 1. Thêm rơ-moóc explicitly instructs the user to edit the tractor and choose a trailer from its list. The new-trailer draft is QA-0914-RM, initially 40FT.
+Evidence 2
+Provide the trailer selector promised by the fleet assignment flow
+Figure 2. The complete Sửa xe dialog for 15H-021.39 exposes no trailer selector. Its visible fields and the paired accessibility snapshot end with maintenance, notes and the save controls.
+[2026-09-14] DEV COMPLETED — SearchableSelect trong TruckFormModal (plate + type + hint 'đang ghép {xe}'; eligible ACTIVE-only); save currentTrailerId; TRANSFER semantics với auto-clear (truck cũ bị clear cùng tx khi trailer chuyển — rollback-proven bằng probe HTTP reviewer); readback 2 chiều truck/trailer; guidance text giờ ĐÚNG. BE 4/4 + FE 17/17 (416a64c2 + 97069fb5 — FE half re-applied sau cherry-pick incident, stat-check bắt được). Browser rung interactive staging (delete-coupled→edit-truck sequence). F4 (sep2026 import double-claim) → thẻ 20260914_13.
+[2026-09-14] QA PASSED — staging: AC1: Sửa xe editor at /fleet has Rơ-moóc đang ghép searchable selector (4 SearchableSelects in modal); AC2: shows current assignment (15RM-013.12 · Chưa rõ loại · đang ghép 15H-021.39); AC3: 2-way readback verified in row state; AC4: guidance text aligned Evidence: testplan/qa/evidence/2026-09-14_QA-batch-staging-cut-9/ui/QA-049-trailer-selector-sua-desktop.png
+Trạng thái: QA PASSED — đã xác minh trên staging
+
+PART word/footer1.xml
+QA-049 | Page 

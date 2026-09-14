@@ -1,0 +1,38 @@
+RECORD KP-163
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/TODO/20260914_P2_QA-138_enhancement-replace-trip-credit-override-approval-requests-with-direct-authorized-except.docx
+KANBAN STATUS TODO
+SHA256 1c78f0727d2f243fc767c3d36e967fb27dd5b00253d18f3f41c4698834831f44
+EMBEDDED IMAGES 0
+
+PART word/document.xml
+Replace trip credit override approval requests with direct authorized exception handling
+QA-138 | P2 | Enhancement | TODO
+Review date: 14 September 2026
+Scope: Local source snapshot 9e09c901f5f7
+Role: Admin / Manager authorized to create trips and record the applicable credit exception
+Location: /trips/new → POST /api/finance/credit-overrides → trip creation
+Existing behaviour
+An over-limit trip opens a request workflow with 'Gửi đề nghị vượt hạn mức', approval-status options and 'Tạo chuyến với đề nghị đã duyệt'. The user must create/select a request and submit the trip with its approvalRequestId. The backend enforces an APPROVED record, although new requests apply and become APPROVED within the same transaction. There is no second-person waiting step on this path; the remaining defect is its approval-based user workflow and record dependency.
+Target behaviour
+Replace the request/approved-selection workflow with clear direct authorized credit-exception handling during trip creation. Retain credit limits and exposure checks, reason, scope/expiry, permission checks and auditable exception history. Do not require an internal approval status or silently auto-approve a UI request. A user without exception authority should receive a clear permission/credit-policy outcome.
+User impact
+The trip workflow still tells users to obtain approval and adds separate request/selection steps after approval removal. Approved-request terminology obscures that the authorized actor is applying an exception directly.
+Cause and investigation
+TripCreatePage.tsx:118–160 creates a request separately; 261–282 and 383–401 render approval-state selection and actions. use-trip-form-submit.ts:589–599 opens this panel on the credit-limit response. trip-create.service.ts:210–215 passes the approvalRequestId; credit-limit.service.ts:766–834 requires APPROVED status for over-limit use. The same service's 431–498 path inserts PENDING, applies directly and returns the APPROVED record.
+Steps to reproduce
+1. In a controlled fixture, set a customer's credit limit/exposure so a valid priced trip exceeds its limit. Submit through /trips/new using an authorized role.
+2. Observe the over-limit panel's request action, approval statuses and requirement to select a previously approved request before applying it to trip creation.
+3. Trace request creation and trip retry: request creation finalizes within its transaction, yet trip creation still requires the approved-record identifier. This scenario has not been executed against staging.
+Acceptance criteria
+1. The over-limit user flow contains no internal approval request, waiting/approved selection or approval queue. An authorized exception has a direct, clearly described result.
+2. Keep credit-limit warning/blocking behavior and enforce permitted exception authority, customer/scope matching, expiry, exposure ceiling and single-use rules where applicable.
+3. Record the actual actor and exception reason without fabricated reviewer/approver actions. Preserve historical records read-only with truthful legacy labels.
+4. Cover within-limit, authorized over-limit, unauthorized, expired/wrong-customer exception, changed exposure, duplicate submit and failed-save recovery. Verify the full trip flow on desktop, tablet and phone.
+Verification coverage
+CODE-READ ONLY. The source path was reviewed; the current staging deployment, UI interaction and database side effects were not exercised for this finding. Add a testplan regression before implementing and exercise the stated recovery and permission boundaries.
+Code references
+CODE-READ ONLY at /Users/frank.nguyen/Documents/silversea/codebase, commit 9e09c901f5f7938f92a3e1f524fc6e17acbf33a8. User explicitly requests removal of all internal approval workflows. No staging credit-limit mutation or tests executed.
+backend/src/tests/q01-credit-override-routes.test.ts:181–214 explicitly expects request creation to return APPROVED immediately; it does not remove the frontend request/selection flow. Test inspected, not run.
+
+PART word/footer1.xml
+QA-138 | Page 

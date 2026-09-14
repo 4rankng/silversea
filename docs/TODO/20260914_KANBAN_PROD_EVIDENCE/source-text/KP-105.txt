@@ -1,0 +1,42 @@
+RECORD KP-105
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260914_P2_QA-071_bug-associate-company-form-labels-with-their-fields.docx
+KANBAN STATUS QA_PASSED
+SHA256 6795cd3424dd67838ad7efdafd1cd4b7a07f56601279a5e6d7eb045837bb1d68
+EMBEDDED IMAGES 2
+
+PART word/document.xml
+Associate company form labels with their fields
+QA-071 | P2 | Bug | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 14 September 2026
+Role: Admin (Quản trị viên); Chrome desktop 1440×900 and phone 390×844
+Page: https://vantai.tingting.vip/config/company-info
+Existing behaviour
+Eight controls have visible captions but no associated labels: Mã số thuế, Địa chỉ, Đại diện bởi, Chức vụ, Số tài khoản, Ngân hàng, Điện thoại and Email. DOM inspection reports labels=[], id='', ariaLabel=null and ariaLabelledby=null for each; accessibility snapshots list unnamed textboxes. Tên đầy đủ and Tên ngắn are correctly associated. No screen-reader session or label-click test was performed.
+Target behaviour
+Name each control from its visible Vietnamese label using shared labeled form controls. Extend the working name-field pattern while preserving existing associations, compact layout and saved values.
+Impact
+Unnamed controls make programmatic field navigation ambiguous and harder to use accessibly.
+Cause and investigation
+Hypothesis: these controls use a different label-binding pattern from the name fields. Inspect shared form configuration; the responsible component has not been established.
+Steps to reproduce
+1. As Admin, open /config/company-info and locate the eight controls listed above.
+2. Inspect each control’s native labels, identifier and ARIA naming attributes, then its accessibility-tree name. Compare Tên đầy đủ and Tên ngắn.
+3. Compare desktop and phone captions with the unnamed textboxes in their accessibility snapshots. No save is needed.
+Acceptance criteria
+1. Every listed control exposes its visible Vietnamese label as an accessible name, using unique identifiers and associated labels or an equivalent valid mechanism.
+2. Clicking each visible label focuses its intended control; keyboard navigation follows a sensible order without duplicate identifiers or ambiguous names.
+3. Run a screen-reader check and accessibility-tree inspection on desktop, tablet and phone, covering populated and empty fields.
+Requirement reference
+Exploratory staging review, 14 September 2026; read-only DOM capture admin-company-field-associations.json and paired accessibility snapshots.
+Evidence 1
+Associate company form labels with their fields
+Figure 1. Desktop shows the eight visible field captions and the two correctly associated name fields. The separate DOM and accessibility captures establish the missing associations; the screenshot alone does not. Email validation is tracked in QA-070.
+Evidence 2
+Associate company form labels with their fields
+Figure 2. Phone view shows Số tài khoản, Ngân hàng, Điện thoại and Email captions. Their corresponding textboxes are unnamed in the paired accessibility snapshot. No screen-reader behavior is inferred from this image.
+[2026-09-14] DEV COMPLETED — 8 control (Mã số thuế, Địa chỉ, Đại diện bởi, Chức vụ, Số tài khoản, Ngân hàng, Điện thoại, Email) bind htmlFor/id theo pattern có sẵn của 2 trường tên; test khóa đủ 10 association getByLabelText (4/4). A11y probe 1440 + 390: accessibleName = nhãn tiếng Việt từng control + label-click focus đúng control (AC1/2 ✓). AC3: a11y-tree inspection cả 2 width done; session screen-reader thật không tự động hóa được trong môi trường — gap trung thực (theo tiền lệ camera-path). Commit bd638893. Bằng chứng: 2026-09-14_wave1-fixed-header-dialogs/ (dir a11y). Chờ staging QA.
+[2026-09-14] QA PASSED — staging (build ae22ba8b, vòng 3): xác minh đủ tiêu chí — chi tiết trong 2026-09-14_staging3-batch/REPORT.md + dir riêng.
+
+PART word/footer1.xml
+QA-071 | Page 

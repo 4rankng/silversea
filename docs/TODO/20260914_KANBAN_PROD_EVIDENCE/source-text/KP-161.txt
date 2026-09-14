@@ -1,0 +1,39 @@
+RECORD KP-161
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/TODO/20260914_P2_QA-135_bug-allow-the-current-account-to-log-out-while-an-earlier-revocation-waits.docx
+KANBAN STATUS TODO
+SHA256 97d825f9c5bf7d963e4a5f0d76e0bf63e3b25f82ab669c8785ae098c29955226
+EMBEDDED IMAGES 0
+
+PART word/document.xml
+Allow the current account to log out while an earlier revocation waits
+QA-135 | P2 | Bug | TODO
+Review date: 14 September 2026
+Scope: Local source snapshot 9e09c901f5f7
+Role: All roles on shared browsers
+Location: Sign out then sign in as another account
+Existing behaviour
+After account A logs out, its slow server revocation keeps a provider-wide guard set. If B signs in before that request finishes, B’s sign-out handler returns before clearing B’s session.
+Target behaviour
+Clear the current local session immediately. Scope revocation deduplication to the token/request so an earlier account cannot block logout.
+User impact
+A user can believe a shared browser has signed out while their account remains active.
+Cause and investigation
+useAuth.tsx:186 returns before reading the current token. Login at 144–154 accepts B without resetting or scoping A’s guard; only A’s asynchronous completion clears it.
+Steps to reproduce
+1. Delay account A’s logout revocation response.
+2. Sign in as account B while A’s local session is already cleared.
+3. Press sign out as B before A’s response completes; inspect B’s local identity and token. The isolated handler probe retained B’s token.
+Acceptance criteria
+1. B signs out locally immediately while A’s revocation is pending.
+2. Online revocation targets the correct token; a late response cannot alter another session. Do not add an offline revocation queue.
+3. Repeated sign-out taps remain idempotent.
+4. Test failed or hung revocation followed by account switching and logout.
+Verification coverage
+CODE-READ ONLY for the application. An isolated logout-callback probe retained B’s token while A’s revocation waited. No staging UI, API or database reproduction; add a testplan regression before implementing.
+Code references
+Checkout /Users/frank.nguyen/Documents/silversea/codebase; commit 9e09c901f5f7938f92a3e1f524fc6e17acbf33a8.
+frontend/src/hooks/useAuth.tsx:144–161,183–215.
+frontend/src/App.tsx:399–407 AuthProvider lifetime; useAuth.logout.test.tsx: existing same-session tests.
+
+PART word/footer1.xml
+QA-135 | Page 

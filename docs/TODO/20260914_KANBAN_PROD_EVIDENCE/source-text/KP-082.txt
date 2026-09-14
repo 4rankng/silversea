@@ -1,0 +1,46 @@
+RECORD KP-082
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260914_P2_QA-038_bug-fix-ocr-review-header-overlap-on-desktop-and-tablet.docx
+KANBAN STATUS QA_PASSED
+SHA256 34534ee923d845ffe5cb00593a3f94a06d34b587b31af9dedb9ee7286014fd98
+EMBEDDED IMAGES 3
+
+PART word/document.xml
+Fix OCR review header overlap on desktop and tablet
+QA-038 | P2 | Bug | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 14 September 2026
+Role: Accountant, hoapt (Phạm Thị Hòa); Chrome desktop, tablet and mobile
+Page: https://vantai.tingting.vip/accounting/fuel-evidence
+Existing behaviour
+At 1440 × 900 and 768 × 1024, the OCR guidance collapses into a narrow word-by-word column. The status filter overlaps that column, and the header consumes excessive height despite available width. Reloading desktop reproduces it. At 390 × 844, the guidance and filter wrap into separate readable rows.
+Target behaviour
+Keep guidance readable beside or above the filter, with a clear back action and no overlap. Use available width and compact spacing while preserving the working phone layout and explicit accountant review requirement.
+Impact
+The malformed header obscures guidance explaining that OCR is only a suggestion and each image requires accountant confirmation or rejection.
+Cause and investigation
+Hypothesis: header flex sizing, minimum widths or wrapping allow the guidance to collapse beneath the filter. Inspect responsive header layout; the implementation cause is unconfirmed.
+Steps to reproduce
+1. As Accountant, open Tổng Quan Kế Toán → Công việc → Duyệt bằng chứng, at 1440 × 900.
+2. After loading, inspect the guidance and status filter; reload and repeat at 768 × 1024.
+3. Compare 390 × 844. Changing Chờ xác nhận to Tất cả trạng thái works; both captured results are empty.
+Acceptance criteria
+1. At desktop, tablet and intermediate widths, guidance wraps naturally without word-column collapse or overlap with controls.
+2. Back and status controls remain usable by pointer, touch and keyboard; preserve filtering and accountant confirmation or rejection.
+3. Retain the readable 390-pixel layout and compact sizing. Verify empty and populated review states without enlarging the whole interface.
+Requirement reference
+Exploratory staging review, 14 September 2026.
+User direction: professional, compact, data-heavy UI across desktop, tablet and mobile.
+Evidence 1
+Fix OCR review header overlap on desktop and tablet
+Figure 1. Desktop, 1440 × 900, after reload: guidance forms a narrow vertical column and the Chờ xác nhận filter crosses it. The issue remains after loading.
+Evidence 2
+Fix OCR review header overlap on desktop and tablet
+Figure 2. Tablet, 768 × 1024: the same word-column collapse persists with Tất cả trạng thái selected. The empty result is separate from this header defect.
+Evidence 3
+Fix OCR review header overlap on desktop and tablet
+Figure 3. Phone, 390 × 844: guidance wraps across the available width and the filter sits on its own row. Preserve this readable compact behavior.
+[2026-09-14] DEV COMPLETED — Wrapper select flex-basis 220px (flex:0 0 auto một mình chưa đủ — basis auto suy về width:100%); guidance 790px@1440/416@768/334@390 (trước: 0px). Commit 1f80311c (rider).
+[2026-09-14] QA PASSED — staging (build ae22ba8b, vòng 3): xác minh đủ tiêu chí — chi tiết trong 2026-09-14_staging3-batch/REPORT.md + dir riêng.
+
+PART word/footer1.xml
+QA-038 | Page 

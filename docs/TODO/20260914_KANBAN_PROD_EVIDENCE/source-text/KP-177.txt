@@ -1,0 +1,42 @@
+RECORD KP-177
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/TODO/20260914_P3_QA-095_enhancement-prioritize-supplier-debt-lookup-on-the-payables-page.docx
+KANBAN STATUS TODO
+SHA256 7495ed98caf215c27dd3c55f899662ef4129cd2e1767fc997006cf3cd5490976
+EMBEDDED IMAGES 2
+
+PART word/document.xml
+Prioritize supplier debt lookup on the payables page
+QA-095 | P3 | Enhancement | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 14 September 2026
+Role: Manager — 1440 × 900 desktop and 834 × 1112 tablet
+Page: https://vantai.tingting.vip/payables
+Existing behaviour
+The empty Hóa đơn nhiên liệu nhiều xe workspace precedes the supplier debt summary and queue. It occupies about 520 pixels on desktop and 489 on tablet, with four zero-value tiles, search and filters. Desktop repeats the empty message inside and below its table. The 1,496,000 VND balance for four suppliers appears beneath this workspace; no supplier record is visible in either initial viewport.
+Target behaviour
+Make supplier balances, search and the payable queue the primary entry view. Present fuel-invoice capture and lookup as a compact secondary section or clearly accessible tab.
+Impact
+Users scroll past an empty secondary workspace before finding suppliers and outstanding balances.
+Cause and investigation
+Hypothesis: the invoice workspace is always expanded ahead of the main debt workflow. Source implementation is unverified.
+Steps to reproduce
+1. Open Công nợ phải trả as Manager for September 2026 at 1440 × 900.
+2. Observe the empty fuel-invoice workspace above the four-supplier debt summary; scroll to reach supplier records.
+3. Repeat at 834 × 1112; the same workspace precedes the debt queue.
+Acceptance criteria
+1. At desktop, tablet and phone widths, the initial view prioritizes debt totals, supplier search and available supplier records.
+2. Keep invoice capture and lookup easy to open, with concise invoice counts when useful. Do not preserve or introduce internal approval queues or gates.
+3. Use one concise empty message. Reduce repeated tiles, nested containers and excess spacing without enlarging components or shrinking readable text.
+4. Preserve supplier filters, relevant invoice search, balances, aging categories, ordinary role access and navigation to invoice and supplier detail views.
+5. Verify empty and populated invoice states with a populated supplier queue; preserve keyboard navigation, visible focus and adequate phone touch targets.
+Requirement reference
+Current staging Chrome evidence; user request for compact data-heavy UI.
+Evidence 1
+Prioritize supplier debt lookup on the payables page
+Figure 1. Desktop at 1440 × 900: the empty fuel-invoice workspace spans approximately y126–646. The supplier debt summary appears beneath it; supplier records are below the viewport.
+Evidence 2
+Prioritize supplier debt lookup on the payables page
+Figure 2. Tablet at 834 × 1112: zero-value invoice tiles and filters precede the debt summary and aging cards. Supplier tabs begin near the bottom; no supplier record is initially visible.
+
+PART word/footer1.xml
+QA-095 | Page 

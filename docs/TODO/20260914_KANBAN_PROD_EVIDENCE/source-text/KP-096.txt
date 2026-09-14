@@ -1,0 +1,43 @@
+RECORD KP-096
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260914_P2_QA-059_bug-allow-configured-ops-categories-when-saving-trip-expenses.docx
+KANBAN STATUS QA_PASSED
+SHA256 566d4c51922c23ebd5b32ac003bae6e1d4d2dd3158a12c4d5e62f954cb52d539
+EMBEDDED IMAGES 2
+
+PART word/document.xml
+Allow configured Ops categories when saving trip expenses
+QA-059 | P2 | Bug | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 14 September 2026
+Role: OPS qa.audit.ops.0914; category created by ADMIN; desktop 1440 × 900
+Page: /my-forwarder-trips/20; configuration /config/forwarder-expense-types
+Existing behaviour
+The form offers QA Audit 0914 - Staging (QA0914), but saving rejects it with “Invalid enum value” and “received 'QA0914' (expenseType)”, listing fixed internal codes. The completed draft stays open; Chi phí phát sinh remains 0 and no expense is created.
+Target behaviour
+Save selectable configured categories with their correct identity and rules. Explain unusable categories before submission with actionable Vietnamese feedback; retain the draft on errors.
+Impact
+Ops cannot record the expense using the only offered category, blocking cost completion and its downstream review.
+Cause and investigation
+Category selection and expenseType validation appear inconsistent. Inspect their mapping and shared rules; the implementation and failing layer are unverified.
+Steps to reproduce
+1. Confirm QA0914 exists in /config/forwarder-expense-types with no-invoice permission. As qa.audit.ops.0914, open /my-forwarder-trips/20 (TRP-202609-0018).
+2. Select QATU0913544 and add an expense. Choose QA Audit 0914 - Staging, buy amount 34,567 VND (sell auto-fills 34,567), Chi hộ tạm ứng, date 2026-09-14, a reason and receiver QA Staging Receiver. Check Phiếu thu / biên nhận / vé lẻ.
+3. Select Lưu chi phí. The enum error rejects QA0914; the expense count remains 0.
+Acceptance criteria
+1. A configured selectable category saves successfully; reload retains the correct category, container, amounts and evidence choice.
+2. Verify both configured codes and supported legacy categories. Disabled or ineligible categories cannot be selected without an explanation.
+3. Apply the category’s invoice, amount and approval rules consistently; do not bypass them or silently substitute another category.
+4. Show a clear field-level Vietnamese error for invalid data, preserve the draft and prevent duplicate entries when corrected and retried.
+Requirement reference
+Chrome staging review, 14 September 2026; configured forwarder expense category and trip expense submission.
+Evidence 1
+Allow configured Ops categories when saving trip expenses
+Figure 1. Lưu chi phí returns a raw expenseType enum rejection for QA0914. The completed draft remains visible and no expense row is created.
+Evidence 2
+Allow configured Ops categories when saving trip expenses
+Figure 2. QA0914 / QA Audit 0914 - Staging is saved in the expense-type catalog with no-invoice permission and explicit amount/approval rules.
+[2026-09-14] DEV COMPLETED — expenseType shape-only ở shared; gate ngữ nghĩa assertActiveExpenseTypeCode tại CẢ HAI write route (create + PATCH-when-present): ACTIVE catalog row, exact match, không substitution; message VN field-level ('không tồn tại hoặc đã ngừng hiệu lực — chọn lại loại phí') — hết raw enum. FE sweep: 2 select đã catalog-first (static list chỉ fallback vô hại — mọi code legacy là catalog row). Suite 5/5 (ACTIVE/legacy/INACTIVE/garbage/lowercase-reject) + re-run 2+7+12 xanh. Commit e72f10c5. Browser rung (flow TRP-202609-0018) staging.
+[2026-09-14] QA PASSED — staging (build e72f10c5, round 4): QA0914 lưu qua native select — hết lớp lỗi 'Invalid enum value'; row 'Đã kê xong'.
+
+PART word/footer1.xml
+QA-059 | Page 

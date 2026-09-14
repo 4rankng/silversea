@@ -1,0 +1,16 @@
+RECORD KP-012
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260911_3-bug2-detail-plan-show-all-containers.docx
+KANBAN STATUS QA_PASSED
+SHA256 04835e86b702fa7706362947447259aeb8e55c9bd4e3a4ba1862920d6cc0deb0
+EMBEDDED IMAGES 3
+
+PART word/document.xml
+Nguồn: 20260911_3.docx — BUG 2
+Role Điều vận, Kế hoạch chi tiết chỉ hiển thị các cont đã được phân nhà xe tại màn hình tổng quát => Kế hoạch chi tiết hiển thị toàn bộ các cont hàng của ngày lựa chọn, kể cả chưa phân nhà xe, cho phép phân hoặc thay đổi nhà xe của cont tại kế hoạch chi tiết
+Trạng thái: QA PASSED — chờ deploy prod
+[2026-09-13] QA PASSED
+Tiêu chí 1 — Kế hoạch chi tiết hiển thị TOÀN BỘ cont của ngày, kể cả CHƯA phân nhà xe: ĐÃ XÁC MINH. Cont MEDU4927126 (lô READY_FOR_DISPATCH) chưa phân nhà xe hiện trên kế hoạch chi tiết với nhãn "Chưa phân nhà xe / CUS sẽ bổ sung" (f1b-active-shipment-carrier-less.png); GET API trả về đúng dòng carrierType=null (api-transcript.txt); test backend "shows carrier-less containers of the day and lets dispatch allocate them here" PASS.
+Tiêu chí 2 — Phân nhà xe TẠI kế hoạch chi tiết: ĐÃ XÁC MINH. Từ ô nhà xe trên dòng chưa phân, chọn Gaya Container Lines + xe 15H-154.98, lưu thành công, banner "Lô 52 đã phân xe đủ.", dòng chuyển "Đã xếp xe" (f2-assigned-from-detail-plan.png).
+Tiêu chí 3 — THAY ĐỔI nhà xe tại kế hoạch chi tiết: ĐÃ XÁC MINH. Chỉnh sửa cùng dòng → SilverSea (OWN) + xe 15C-167.31, lưu thành công (f3-changed-carrier-from-detail-plan.png); API xác nhận carrierType=OWN/SilverSea/15C-167.31.
+Gate: suite backend dispatch-detail-plan 81/81 PASS trên DB sạch (DB dev chung đang dính artifact phân trang do lượng seed tích tụ — chẩn đoán đầy đủ trong zone-pagination-diagnosis.txt); tsc frontend+backend exit 0. Không có thay đổi source trong run này (tree = e40a1ab9, clean).
+Bằng chứng đầy đủ: qa/2026-09-13_bug2-detail-plan-show-all-containers/ (REPORT.md kèm bảng coverage, ảnh, transcript API, biên bản restore fulfillment 48).

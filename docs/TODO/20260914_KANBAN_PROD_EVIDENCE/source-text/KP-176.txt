@@ -1,0 +1,46 @@
+RECORD KP-176
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/TODO/20260914_P3_QA-092_enhancement-keep-template-column-properties-close-to-selection.docx
+KANBAN STATUS TODO
+SHA256 60771753c59feff37811ec6f9fb9889e56751a29e155ced9d3275bd909b45764
+EMBEDDED IMAGES 3
+
+PART word/document.xml
+Keep template column properties close to selection
+QA-092 | P3 | Enhancement | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 14 September 2026
+Role: Admin — 390 × 844 phone, 834 × 1112 tablet and 1440 × 900 desktop
+Page: https://vantai.tingting.vip/config/debit-note-templates/1 — Cột Excel
+Existing behaviour
+On phone, selecting TÊN NHÀ MÁY changes its pressed state but leaves properties around y=1630, below all 20 selectors and the 844-pixel viewport. Scrolling or keyboard focus reaches them, while the selected column moves offscreen. Larger captures show properties after the grid within the initial view. No template was saved.
+Target behaviour
+Keep the selected column and its properties together using compact navigation, optional search and adjacent or inline controls. Make phone properties immediately reachable.
+Impact
+Repeated scrolling and remembering the offscreen selection make column editing harder.
+Cause and investigation
+Hypothesis: the full selector list separates selection from editing. Source implementation is unverified.
+Steps to reproduce
+1. Open MẪU DEBIT LONG MINH → Cột Excel as Admin at 390 × 844.
+2. Select TÊN NHÀ MÁY; its state changes while properties remain below all 20 selectors.
+3. Scroll or move keyboard focus to properties; the selected early column is now offscreen.
+Acceptance criteria
+1. Selecting a phone column exposes its properties without traversing the full list; return preserves the list position.
+2. Identify the selected column beside its property controls.
+3. Keep navigation compact and properties adjacent or inline where space allows. Search is optional; traversing the full grid must not be required.
+4. Preserve column identity, order, visibility, alignment, total settings, preview, saving and navigation with unsaved changes.
+5. Check first/middle/last, hidden and long-name columns at all three widths. Preserve readable text, focus continuity and adequate touch targets.
+6. Edited values and preview remain tied to the intended column. Do not silently save or discard changes.
+Requirement reference
+Current staging Chrome evidence; user request for compact data-heavy editing across screen sizes.
+Evidence 1
+Keep template column properties close to selection
+Figure 1. After selecting TÊN NHÀ MÁY at 390 × 844, its outline changes but the properties remain outside the viewport beneath the full selector list.
+Evidence 2
+Keep template column properties close to selection
+Figure 2. After moving down to the properties, the selected early column is offscreen; the property section begins only after the final column selectors.
+Evidence 3
+Keep template column properties close to selection
+Figure 3. Tablet at 834 × 1112: the properties are visible after the three-column grid. Preserve this visibility while improving the phone selection workflow.
+
+PART word/footer1.xml
+QA-092 | Page 

@@ -1,0 +1,47 @@
+RECORD KP-119
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260914_P2_QA-108_bug-keep-the-customer-discrepancy-form-within-the-visible-row.docx
+KANBAN STATUS QA_PASSED
+SHA256 41a931f4d443a6417b0859535aac50a632c02209af58156b049701b202aab8c9
+EMBEDDED IMAGES 3
+
+PART word/document.xml
+Keep the customer discrepancy form within the visible row
+QA-108 | P2 | Bug | DONE
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 14 September 2026
+Role: CUSTOMER · qa.audit.customer.0914 · 1440 × 900; comparison at 834 × 1112 and 390 × 844
+Page: /portal/shipments · Cần xác nhận
+Existing behaviour
+Opening Báo sai lệch in the desktop shipment table expands the editor inside a narrow action cell. The 220 px reason field extends about 62 px beyond the visible table edge, and Hủy is partly clipped. A horizontal scrollbar is present below the table, so revealing the right edge requires moving away from the active form to scroll. Phone and tablet captures show the complete field and actions.
+Target behaviour
+Keep the expanded discrepancy editor and its actions visible together. Use a full-width expanded row, a suitably sized popover or a sheet with shipment context. Fit the form to the available width with modest padding, a useful reason field and clear Submit and Cancel actions.
+Impact
+Customers must reposition the desktop table while composing a discrepancy and cannot see the complete field and Cancel action in the initial editing view.
+Cause and investigation
+The observed editor exceeds its action cell. Review the expanded layout and overflow containment. No submission failure, data loss or permanently inaccessible control is claimed.
+Steps to reproduce
+1. As the Customer account, open /portal/shipments at 1440 × 900 and select Cần xác nhận.
+2. For SHP-2609-00002, container EMCU6163403, open Báo sai lệch.
+3. Focus Lý do sai lệch. Observe that the field and Hủy extend beyond the table’s right edge; the horizontal scrollbar is below the records.
+Acceptance criteria
+1. Opening the editor keeps the entire reason field and both actions inside the visible content area without table-level horizontal scrolling.
+2. Preserve the shipment identity and existing permissions, validation, submission and cancellation behavior; do not trigger the row’s navigation while editing.
+3. At 390, 834 and 1440 px, keep labels and actions readable, spacing compact and touch targets usable. Avoid nested decorative cards or unnecessary blank space.
+4. Verify keyboard entry, focus order, visible focus, long reasons, inline errors, pending submission and cancellation; opening or resizing the editor must preserve the draft.
+Requirement reference
+Live Customer discrepancy editor and the requested compact responsive interface.
+Evidence 1
+Keep the customer discrepancy form within the visible row
+Figure 1. Desktop 1440 px: the reason field and Hủy extend beyond the visible right edge; a horizontal scrollbar sits below the table.
+Evidence 2
+Keep the customer discrepancy form within the visible row
+Figure 2. Tablet 834 px comparison: the expanded reason field and both actions are visible together within the record.
+Evidence 3
+Keep the customer discrepancy form within the visible row
+Figure 3. Phone 390 px comparison: the reason field and stacked Submit and Cancel actions fit the record width.
+Resolution
+Moved the dispute form out of the narrow 12 %-width action cell into a full-width expanded row beneath the triggering table row. The “Báo sai lệch” button remains in the action cell; clicking it now reveals a colSpan’d <tr> with the textarea and Confirm / Cancel buttons rendered side by side. The row pair is wrapped in a <Fragment key> so React’s list reconciliation stays correct.
+Commit: f94dbaa7  fix(portal): expand discrepancy form to full row width
+
+PART word/footer1.xml
+QA-108 | Page 

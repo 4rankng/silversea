@@ -1,0 +1,47 @@
+RECORD KP-042
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260913_P2_QA-013_bug-allow-container-number-updates-without-triggering-the-trip-schedule-guard.docx
+KANBAN STATUS QA_PASSED
+SHA256 7b26362830c573bf05e646bd09f6b48053d56ece1a5c8760ce6c933b50e6fc4c
+EMBEDDED IMAGES 2
+
+PART word/document.xml
+Allow container number updates without triggering the trip schedule guard
+QA-013 | P2 | Bug | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 13 September 2026
+Role: CUS — Đinh Công Thành; login thanhdc; visible Chrome staging review on 13 September 2026
+Page: https://vantai.tingting.vip/shipments-detail — Chi tiết lô hàng, Bill 2337300010
+Existing behaviour
+During the CUS reproduction, Bill 2337300010, Container số 1 had no number, type 40HC, carrier SilverSea, plate 15H-149.80 and visible status Đã phân xe. Its enabled editor rejected a number-only QATU9001239 save with: “Container đã gắn chuyến xe (TRP-202609-0004). Vui lòng đổi lịch trên chuyến xe hoặc gỡ phân xe trước khi sửa.” No schedule was edited, and cancelling left the CUS row unnumbered. Container số 2 was a different running row and was not tested. Later, driver nvquynh saved QATU9001239 plus seal QA-NULL-SEAL on the associated unaccepted /my-trips/7 container, confirmed after reload. The CUS ledger was not read back, and later dispatch still displayed Chưa có số for the shipment row. Driver save does not certify cross-surface propagation or establish that the CUS row is now numbered. Re-establish both CUS and linked-trip initial states before retesting. No SQL NULL representation was queried.
+Target behaviour
+Allow CUS to add a missing container number on an assigned, nonterminal shipment through the enabled editor, without an approval step or a requirement to reschedule or remove its assignment. Persist the number while leaving the schedule, carrier, vehicle and trip linkage unchanged. Preserve existing terminal-lot protections and guards for actual schedule or resource changes. If another documented field-specific restriction applies, expose that restriction accurately in the UI rather than reporting an unrequested schedule change.
+Impact
+CUS cannot complete the missing container identifier after allocation and receives advice to disturb a trip schedule or assignment that was not being edited. This blocks the late-number entry workflow requested by the customer.
+Cause and investigation
+Hypothesis only: a shared CUS save path may apply a linked-trip scheduling guard to every container edit, or submit unchanged schedule fields in a way that is treated as a plan change. The request payload and implementation were not inspected. Confirm the changed-field detection and the linked-trip guard before adjusting either; do not remove terminal or real schedule-change protection.
+Steps to reproduce
+1. Sign in to staging as thanhdc and open Chi tiết lô hàng at /shipments-detail.
+2. Choose Tất cả and search Bill 2337300010, then select Container số 1 with SilverSea / 15H-149.80 and Đã phân xe, not the separate running Container số 2. Re-establish the CUS and linked-trip initial states: the associated driver trip later received a number, but CUS propagation was not verified. Use an equivalent fixture if needed.
+3. Open Chỉnh sửa thông số container. Confirm Số container is empty, and enter QATU9001239 without changing schedule, route, allocation or other fields.
+4. Click Lưu. Observe the linked-trip message referring to TRP-202609-0004 and asking to change the trip schedule or remove allocation.
+5. Cancel and check the CUS row. In the historical reproduction it remained without a number. Record CUS and linked-trip readbacks separately; do not infer one from the other.
+Acceptance criteria
+1. For an assigned, initially unnumbered nonterminal fixture equivalent to the original Bill 2337300010 row, adding a valid missing container number saves directly and remains visible after reload, with no approval request.
+2. A number-only update leaves schedule, carrier, plate, driver and trip linkage unchanged and does not invoke schedule-change validation.
+3. Terminal shipments remain protected by the existing terminal-lot rule with an accurate message; this change does not bypass those guards.
+4. Actual schedule or resource edits continue through the required linked-trip workflow and retain their existing validation.
+5. Any separate immutable-field restriction is reflected consistently in edit availability and a field-specific error. Do not instruct users to reschedule or unassign for an unrelated rejected number edit.
+6. Retest initially unnumbered unassigned and assigned nonterminal rows, the terminal-lot case, and a genuine schedule-change case; confirm that the intended row is updated when one Bill contains multiple containers.
+Requirement reference
+20260911_3-bug3-auto-approve-shipment-edits.docx — acceptance criteria 1–3 require CUS to add a previously missing container number, save immediately without approval, and retain it after reload.
+20260912_4-tech-followups-tracker.docx — item 9a preserves the terminal-lot guard for CUS container writes. This does not establish a blanket prohibition on adding a number to an assigned, nonterminal container.
+Evidence 1
+Allow container number updates without triggering the trip schedule guard
+Figure 1. Historical CUS reproduction, before the later driver test: Bill 2337300010, Container số 1 has an empty number and SilverSea / 15H-149.80 allocation. Container số 2 is a separate running row.
+Evidence 2
+Allow container number updates without triggering the trip schedule guard
+Figure 2. After entering only QATU9001239 and pressing Lưu, the editor rejects the save with a message about changing the linked trip schedule or removing allocation.
+[2026-09-14] QA PASSED — Guard đổi thành value-aware (chỉ chặn khi GIÁ TRỊ trường được bảo vệ thực sự đổi; containerNumber là định danh, loại khỏi guard; so sánh từng trường mirror đúng write-block của nó). Bằng chứng DB·API VERIFIED: red-proof — tách fix, chạy repro trên guard cũ → ném đúng thông báo TRP của thẻ; khôi phục fix → xanh. 7 test mới xanh (73/73 suite, tsc BE 0 lỗi, lint baseline): (a) lưu chỉ-số-cont trên hàng đã phân xe非terminal, planned* + version byte-identical, hiển thị lại qua CUS projection; (b) echo full-form (số + type/weight/volume không đổi) vẫn lưu; (c) đổi type thật vẫn 409 TRP; (d) echo hẹn giờ cùng giá trị qua guard; (e) lot terminal vẫn 409 'Lô hàng đã kết thúc'; (f) lot đa cont: số đúng hàng + trùng trong lot vẫn 400; (g) hàng chưa số chưa phân lưu thẳng. AC1–6 đạt. Ghi chú: spot-check UI drawer (lưu chỉ-số qua giao diện) xếp vào sweep #3 như kiểm chứng thêm. Commit 24fee31e.
+
+PART word/footer1.xml
+QA-013 | Page 

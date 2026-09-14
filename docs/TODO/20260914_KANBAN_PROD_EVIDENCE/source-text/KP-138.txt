@@ -1,0 +1,12 @@
+RECORD KP-138
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/TODO/20260914_P0_QA-146_enhancement-remove-dispatch-date-picker.docx
+KANBAN STATUS TODO
+SHA256 fcbc56098d81173b6c90a27eea92f0d2406fa7f8f2929f5a99b07485b019d785
+EMBEDDED IMAGES 0
+
+PART word/document.xml
+Remove unnecessary date picker from dispatch issue form
+Nguồn: 20260914_P0_composite-ui-bugs-cus-dispatch — item 4
+Yêu cầu: phần phát lệnh không cần chọn ngày giờ, xóa date picker thừa
+Tiêu chí nghiệm thu: (1) Form phát lệnh không hiển thị date picker; (2) Phát lệnh hoạt động bình thường không cần ngày giờ; (3) Regression test
+Trạng thái: MỞ — chờ pick up

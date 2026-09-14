@@ -1,0 +1,43 @@
+RECORD KP-052
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260913_P2_QA-025_requirement-gap-provide-factory-invoice-information-in-driver-trip-details.docx
+KANBAN STATUS QA_PASSED
+SHA256 d48f54ef75babb41e9bdf9a728c091720558ecb2b16d8ec9e339cf999a4ddcec
+EMBEDDED IMAGES 2
+
+PART word/document.xml
+Provide factory invoice information in driver trip details
+QA-025 | P2 | Requirement Gap | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 13 September 2026
+Role: Lái xe — Dương Văn Thực; login dvthuc; Chrome 390 × 844
+Page: https://vantai.tingting.vip/my-trips/12
+Existing behaviour
+Trip 12, container EMCU6163403, identifies ASKEY-2 as its factory. Thông tin xuất hóa đơn shows CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH, Khu 2, Phường Võ Cường, Tỉnh Bắc Ninh, and MST 2300540419. These customer details do not provide the factory invoice information requested in the wireframe.
+Target behaviour
+Show a clearly identified factory invoice profile with its configured legal name, invoice address and MST. Preserve valid customer billing as a distinct party when needed. Use the configured invoice address; do not assume it is the delivery address. Identify missing configuration instead of substituting another party's values.
+Impact
+Drivers cannot obtain the requested factory invoice details from this screen and must confirm the party and information elsewhere.
+Cause and investigation
+The displayed values match the Long Minh customer profile. Investigate invoice party selection and factory profile mapping. Invoice issuance and the factory's tax ID were not verified.
+Steps to reproduce
+1. As dvthuc, open the accepted EMCU6163403 trip at /my-trips/12.
+2. Expand Thông tin lệnh and confirm ASKEY-2. Expand Thông tin xuất hóa đơn and observe the Long Minh company, address and MST.
+3. Compare with IMG_6370 and IMG_6371. If this fixture changes, use a trip where customer and factory differ.
+Acceptance criteria
+1. For different customer and factory entities, show the configured factory legal name, invoice address and MST with an explicit party label.
+2. Customer billing remains correctly attributed. Factory details neither overwrite customer billing nor silently fall back to it.
+3. Identify missing factory fields. Verify against configured values; do not invent an ASKEY tax ID.
+4. Keep the section compact and readable at 390px. Reload preserves the correct party and values.
+Requirement reference
+IMG_6366.png, IMG_6370.png and IMG_6371.png require full factory name, address and MST in driver invoice information. Related QA-006 covers ordinary order identity and address labeling.
+Evidence 1
+Provide factory invoice information in driver trip details
+Figure 1. Staging, 13 September 2026, dvthuc: trip 12 identifies ASKEY-2 as the factory for EMCU6163403. The separate invoice section begins with Long Minh company information.
+Evidence 2
+Provide factory invoice information in driver trip details
+Figure 2. The expanded invoice section displays Long Minh name, address and MST 2300540419. No factory invoice profile is shown for this ASKEY-2 trip.
+[2026-09-14] DEV COMPLETED — Cả 3 biến thể: SUNRISE profile đầy đủ dưới nhãn NHÀ MÁY (name/addr/MST; địa chỉ hóa đơn ≠ địa chỉ giao); pho /my-trips/2437 honest-empty 'Nhà máy chưa cấu hình...' + khách hàng là party riêng (không thay thế); ASKEY-2 trip 7 ẩn section (không fallback). Commit 7174ebcb. Bằng chứng: 2026-09-14_local-qa025-factory-invoice/.
+[2026-09-14] QA PASSED — staging2: /my-trips/31 + /my-trips/12 (ASKEY-2 — specimen gốc của thẻ) đều 'NHÀ MÁY: Nhà máy chưa cấu hình thông tin xuất hóa đơn.' + khách hàng là party riêng, không thay thế. Biến thể full-profile không có site configured trên staging — phủ bằng local (đã DEV COMPLETED), ghi chú trong report. Bằng chứng: staging2-qa025-factory-invoice/.
+
+PART word/footer1.xml
+QA-025 | Page 

@@ -1,0 +1,50 @@
+RECORD KP-035
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260913_P2_QA-002_bug-show-the-return-or-loading-operation-on-driver-trip-cards.docx
+KANBAN STATUS QA_PASSED
+SHA256 d44d6ed8d69649a59e76a7addb678b49b4a65479b12eebaed597ee0e4ecf4c37
+EMBEDDED IMAGES 5
+
+PART word/document.xml
+Show the return or loading operation on driver trip cards
+QA-002 | P2 | Bug | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 13 September 2026
+Role: Lái xe — Bùi Quang Hường; login bqhuong; Chrome mobile viewport 390 × 844
+Page: https://vantai.tingting.vip/my-trips — Đã nhận; comparison with /my-trips/20
+Existing behaviour
+The accepted TSTU4182600 card shows the factory, address, container, type, seal and ports, but does not identify Trả hàng or Đóng hàng. Its Giờ đóng / trả label names both possibilities. The corresponding detail at /my-trips/20 shows Trả. Factory and port information are already present.
+Target behaviour
+Show one explicit operation value, such as TRẢ HÀNG or ĐÓNG HÀNG, alongside container number and type on every driver trip card. Use the same business meaning as the corresponding detail page and retain the current factory, route, port, task-note and detail-button information.
+Impact
+Drivers must open each trip to learn its operation, slowing list scanning and making otherwise similar jobs harder to distinguish.
+Cause and investigation
+Hypothesis only: the card renderer may omit an operation value already available to the detail view. No source-code or API mapping diagnosis was performed for this task; inspect the two display mappings before changing data contracts.
+Steps to reproduce
+1. On 13 September 2026, open the staging site in Chrome at a 390 × 844 viewport and sign in as bqhuong.
+2. Open Hành trình and select Đã nhận.
+3. Find the NEWEB-1 card for container TSTU4182600. Read the container/type row and the generic Giờ đóng / trả label.
+4. Select Xem chi tiết to open /my-trips/20 and compare the visible Trả badge with the card.
+Acceptance criteria
+1. The TSTU4182600 card visibly identifies TRẢ HÀNG without opening its details.
+2. A confirmed loading fixture visibly identifies ĐÓNG HÀNG, using the same operation as its detail page.
+3. The operation appears in the container/type information group, remains legible at 390px width, and does not overlap other content.
+4. Factory abbreviation, route, both ports, any populated task notes, and Xem chi tiết remain available.
+Requirement reference
+20260911_2.docx — BUG 2 / FEATURE 1.
+20260913_6-driver-card-view-layout.docx — acceptance criterion 3.
+Evidence 1
+Show the return or loading operation on driver trip cards
+Figure 1. Staging, 13 September 2026, bqhuong: the TSTU4182600 card contains container/type and a generic Giờ đóng / trả label, but no operation value.
+Evidence 2
+Show the return or loading operation on driver trip cards
+Figure 2. The same trip at /my-trips/20 displays Trả beneath the task heading, confirming that the operation can be shown to the driver.
+[2026-09-13] QA PASSED — đóng gộp bởi task 20260913_6 (tiêu chí 3, trùng yêu cầu), commit 014d2671
+AC1 TRẢ live: pho — TCLU5830190 | 40'DC | TRẢ. AC2 ĐÓNG live: thu — TRHU4510296 | 40'DC | ĐÓNG. AC3 pill nằm trên dòng cont/loại cont (SỐ CONT | LOẠI CONT | pill). AC4 không phá layout — đầy đủ trong REPORT task 6. Cách dùng từ 'TRẢ/ĐÓNG' ngắn đúng nghĩa nghiệp vụ như badge 'Trả' ở trang chi tiết (hình 2 của card).
+Ghi chú trung thực: (i) bằng chứng chạy trên dev local, không phải staging — thay đổi tài khoản QA được lead duyệt (xem bảng substitution trong REPORT); (ii) biến thể '—' xác minh bằng unit test (dev data không có mẫu live).
+Hướng dẫn xác minh:
+1. Mở http://localhost:7174, đăng nhập pho / Abc123 → dòng cont: TCLU5830190 | 40'DC | TRẢ.
+2. Đăng nhập thu / Abc123 → TRHU4510296 | 40'DC | ĐÓNG.
+3. Đăng nhập nvtho / Abc123 → card ASKEY-2: pill ĐÓNG dòng riêng, bố cục nguyên vẹn.
+
+PART word/footer1.xml
+QA-002 | Page 

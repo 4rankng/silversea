@@ -1,0 +1,40 @@
+RECORD KP-044
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260913_P2_QA-015_enhancement-keep-customer-service-rows-compact-with-concise-missing-data-summaries.docx
+KANBAN STATUS QA_PASSED
+SHA256 95e4c5f25f8974eece469543bded6fd00b5f249cf2c401bee8c89ca0d27f0b1e
+EMBEDDED IMAGES 1
+
+PART word/document.xml
+Keep customer service rows compact with concise missing data summaries
+QA-015 | P2 | Enhancement | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 13 September 2026
+Role: CUS — Đinh Công Thành; login thanhdc; Chrome desktop 1728 × 929
+Page: https://vantai.tingting.vip/shipments-detail — Chi tiết lô hàng
+Existing behaviour
+The QATU0900038 and QATU0900043 rows show long missing-field lists in narrow yellow status panels. Wrapping makes each row about 180px tall, leaving much of the adjacent cells empty. This finding concerns row height, not the empty page below two filtered results.
+Target behaviour
+Keep the workflow state and key dispatch blocker visible in a compact summary. Provide a missing-field count and a clear details control for the complete list and relevant editing destination. Use readable text and content-driven row height.
+Impact
+Repeated warning lists reduce the number of visible containers and slow ledger scanning.
+Cause and investigation
+Design hypothesis: full explanations in a narrow status cell determine the height of the whole row. No code diagnosis was performed.
+Steps to reproduce
+1. As thanhdc, open Chi tiết lô hàng at 1728 × 929 with incomplete containers missing several fields. The observed QATU0900038 and QATU0900043 fixtures later changed.
+2. Compare the tall Chưa cập nhật lists with neighboring container, location and schedule values.
+Acceptance criteria
+1. Incomplete rows use less vertical space at the same viewport while container identity, schedule, assignment and key blocker remain readable.
+2. A labeled details control exposes every missing field and its editing destination by mouse, keyboard and touch; its count matches the list.
+3. Critical dispatch blockers remain visible without opening details; secondary metadata does not dominate row height.
+4. Long names and expanded notes wrap naturally without clipping or overlap. Do not shrink text or hide required information to increase density.
+Requirement reference
+User UI/UX direction, 13 September 2026: professional, compact, data-heavy presentation.
+The UI waste lots of space-data-intensive-design.docx: related density intent, applied here to the customer-service ledger.
+Evidence 1
+Keep customer service rows compact with concise missing data summaries
+Figure 1. Staging, 13 September 2026, thanhdc: long missing-field lists in the rightmost status column make both rows about 180px tall despite shorter neighboring data.
+[2026-09-14] DEV COMPLETED — Local renders: 'Thiếu 6 thông tin ▾' một dòng (row 101–109px vs ~180px wrap cũ; sàn 72px), count == list; expand → 7 nút nhảy-editor đúng đích, toggle hai chiều. Hai row 179px = nội dung kề cao, không phải wrap danh sách (ghi trong report). Commit 56c38686. Bằng chứng: 2026-09-14_local-qa015-compact-cus-rows/.
+[2026-09-14] QA PASSED — staging2: 'Thiếu 1/9/10/6 thông tin ▾' một dòng (101–119px); 'Thiếu 9' expand → 7 nút nhảy-editor; aria-expanded hai chiều. Bằng chứng: staging2-qa015-compact-cus-rows/.
+
+PART word/footer1.xml
+QA-015 | Page 

@@ -1,0 +1,41 @@
+RECORD KP-079
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260914_P2_QA-035_bug-distinguish-zero-revenue-from-no-completed-trips.docx
+KANBAN STATUS QA_PASSED
+SHA256 f212528687d27fb3ba4b6cef8109b0ebb52c275d35396d6993b7517669420ebb
+EMBEDDED IMAGES 1
+
+PART word/document.xml
+Distinguish zero revenue from no completed trips
+QA-035 | P2 | Bug | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 14 September 2026
+Role: MANAGER; qa.audit.manager.0914; Chrome desktop
+Page: https://vantai.tingting.vip/finance — Báo cáo lãi lỗ, September 2026
+Existing behaviour
+The revenue chart says “Chưa có chuyến nào hoàn thành trong tháng 9/2026” and “Hoàn thành chuyến để xem xu hướng doanh thu”. The same report shows “4 chuyến × giá cước chặng”; vehicle analysis lists one trip for 15H-104.03 and three for Xe ngoài. A known completed trip, TRP-202609-0013, was matched through the vehicle drilldown. Monetary values are zero. The message incorrectly describes the trip state; no arithmetic defect is asserted.
+Target behaviour
+Base the no-trip message on completed-trip count. For completed trips with zero amounts, use accurate zero-value messaging. If monetary inputs are demonstrably missing, identify the missing data and the relevant next step.
+Impact
+The message directs managers to complete trips instead of explaining zero or missing revenue.
+Cause and investigation
+Hypothesis: the chart treats an all-zero financial series as no completed trips. Inspect the empty-state condition and its data source; the reason for the zero monetary values is outside this finding.
+Steps to reproduce
+1. Sign in as qa.audit.manager.0914, open /finance and select September 2026.
+2. Read the revenue-chart empty message, then compare Doanh thu vận tải on the same page: 4 chuyến × giá cước chặng.
+3. Open Phân tích lãi gộp theo phương tiện. Compare 15H-104.03 with one trip and Xe ngoài with three; use the vehicle drilldown to inspect the underlying records.
+Acceptance criteria
+1. A month with no completed trips shows a genuine no-trip state; a month with completed trips and zero amounts does not claim that none are completed.
+2. Distinguish valid zero amounts from missing monetary inputs. Display a zero-value chart or an accurate explanation, with action text appropriate to the known condition.
+3. Chart messaging, trip counts, vehicle drilldowns and selected period agree after reload and when switching Ngày/Tháng. Verify mobile, tablet and desktop.
+4. Keep financial calculations unchanged while correcting the empty-state selection.
+Requirement reference
+Full-app Chrome audit, 14 September 2026; manager-profit-loss-desktop.txt and the attached same-page capture.
+Evidence 1
+Distinguish zero revenue from no completed trips
+Figure 1. The September 2026 chart says there are no completed trips, while the same page’s Doanh thu vận tải row states 4 chuyến × giá cước chặng. Displayed revenue is 0.
+[2026-09-14] DEV COMPLETED — Ba nhánh chart: loading / thật-sự-không-có-chuyến (copy cũ) / HOÀN-THÀNH-nhưng-series-0 → 'Có {N} chuyến hoàn thành … doanh thu/lợi nhuận ghi nhận bằng 0' + 'Kiểm tra giá cước và các khoản thu đã nhập'. PnlReport.tripCount verify TRƯỚC (field thật — fallback không phải dùng). Filter zero-bucket không đổi (AC4). Suite 4/4 (state thẻ: 4 COMPLETED zero-revenue → count=4 AND hasChartData=false — phân biệt được). Commit a322ddc0. Browser rung staging.
+[2026-09-14] QA PASSED — staging: Sep 2026: 7 completed trips with 0 revenue → correct "Có 7 chuyến hoàn thành..." message (NOT "Chưa có chuyến nào"); Oct: 0 trips → genuine empty state; arithmetic unchanged Evidence: testplan/qa/evidence/2026-09-14_QA-batch-staging-cut-9/api/20260914_P2_QA-035_bug-distinguish-zero-revenue-from-no-completed-trips.md
+Trạng thái: QA PASSED — đã xác minh trên staging
+
+PART word/footer1.xml
+QA-035 | Page 

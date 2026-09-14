@@ -1,0 +1,40 @@
+{
+  "source_head": "161a2e7098dfab3466a88b0224cb6b8e427d5b37",
+  "source_documents": 191,
+  "source_hashes_rechecked": true,
+  "source_hash_drift": [],
+  "all_source_text_read": true,
+  "classification_counts": {
+    "IMPLEMENTATION_PRESENT_UNVERIFIED": 92,
+    "PARTIAL": 43,
+    "SUPERSEDED": 5,
+    "DUPLICATE": 4,
+    "NOT_IMPLEMENTED": 28,
+    "OPEN_RETEST_REQUIRED": 19
+  },
+  "qa_passed_counts": {
+    "IMPLEMENTATION_PRESENT_UNVERIFIED": 87,
+    "PARTIAL": 32,
+    "SUPERSEDED": 5,
+    "DUPLICATE": 4
+  },
+  "packages": 27,
+  "runtime_scope": "Two helper probes, context check, health read, narrow Chrome config/trip observation. No complete application suite or multi-role/device flow pass.",
+  "outputs": [
+    {
+      "file": "/Users/frank.nguyen/Documents/silversea/TODO/20260914_KANBAN_PROD_Implementation_Plan.md",
+      "sha256": "12c127f8093573ca2eb417c212e02b276acbe8bf4805a24820c05b55f074e473",
+      "bytes": 208245
+    },
+    {
+      "file": "/Users/frank.nguyen/Documents/silversea/TODO/20260914_KANBAN_PROD_Technical_Design.md",
+      "sha256": "f8ed149c50ff79b331a05653a69ff1ba22558356cd4792caf0aebe331e4911dc",
+      "bytes": 49003
+    },
+    {
+      "file": "/Users/frank.nguyen/Documents/silversea/TODO/20260914_KANBAN_PROD_Completion_Audit.md",
+      "sha256": "6c652917ce664b07b319101a40de0c8ff9d7c1e4676a181da4546eb1f4062a51",
+      "bytes": 693504
+    }
+  ]
+}

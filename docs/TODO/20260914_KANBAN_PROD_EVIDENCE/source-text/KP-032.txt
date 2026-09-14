@@ -1,0 +1,53 @@
+RECORD KP-032
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260913_P1_QA-019_bug-show-the-saved-lcl-delivery-date-and-provide-a-usable-dispatch-path.docx
+KANBAN STATUS QA_PASSED
+SHA256 b2688dafb0c2cd0166fab76850d5eeb07611eaefb4d296c02460a285d14c4761
+EMBEDDED IMAGES 3
+
+PART word/document.xml
+Show the saved LCL delivery date and provide a usable dispatch path
+QA-019 | P1 | Bug | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 13 September 2026
+Role: Reproduced as CUS thanhdc and dispatcher dungnv; visible Chrome desktop staging review on 13 September 2026
+Page: https://vantai.tingting.vip — Tạo lô hàng, /shipments, /shipments-detail and /dispatch
+Existing behaviour
+Two newly created Hàng lẻ shipments accepted primary Ngày giao dự kiến 2026-09-14 but appeared in /shipments as Chưa chốt ngày and Không áp dụng điều xe. The first was Bill QA-LCL-20260913 created by thanhdc; the repeat was QA-LCL-SCHED-20260913 created by dungnv. Both used LOG COM, NEWEB-1, 10 QA Carton, 100 kg and 2 CBM. The repeat screenshot shows the primary date immediately before creation; a separately added optional date field had been removed while the primary date remained. After save and full reload, its summary still showed no scheduled date. Searching that exact Bill in /dispatch with Tất cả returned no eligible lot. The first shipment's detail exposed a container-only view with 0 containers and no visible LCL schedule correction. This proves the visible schedule contradiction and missing operational path, not that the database date was lost. The creation screenshot has no selected pickup warehouse, so full READY eligibility is not inferred from the date alone.
+Target behaviour
+Preserve the selected LCL delivery date and display it consistently after save and reload. Provide an LCL-aware detail and scheduling/allocation path without requiring a fabricated container row. When other data is required before dispatch, show the exact missing prerequisites and a usable way to supply them. Once those prerequisites are satisfied, the LCL shipment should appear in the appropriate dispatch plan and allow supported carrier allocation; its summary should show the assigned carrier. Do not label transport as inapplicable solely because an LCL shipment has zero containers.
+Impact
+CUS and dispatchers cannot rely on a date they just entered or progress the observed LCL records through the visible planning flow. The same result occurs across both roles and blocks verification of the required assigned-LCL summary path.
+Cause and investigation
+Hypothesis: shipment summary, scheduling or dispatch eligibility may read only container-derived dates and assignments instead of the LCL shipment/fulfillment fields. Another possibility is a create-form mapping or persistence mismatch. Inspect the submitted payload, saved shipment data and LCL projections before choosing a fix; the UI evidence does not identify which layer lost or ignored the date.
+Steps to reproduce
+1. As CUS thanhdc or dispatcher dungnv, open Tạo lô hàng and select Hàng lẻ. Use an unused QA Bill; the observed reproductions were QA-LCL-20260913 and QA-LCL-SCHED-20260913.
+2. Select LOG COM and NEWEB-1. Enter packaging QA Carton, quantity 10, weight 100 kg and volume 2 CBM. Set the primary Ngày giao dự kiến to 2026-09-14. Do not confuse it with the optional field added by Thêm ngày giao.
+3. Confirm the primary date is visible immediately before creating the shipment, then click Tạo lô hàng.
+4. In /shipments search the exact Bill, then reload and repeat the search. Observe Chưa chốt ngày and Không áp dụng điều xe despite the entered date.
+5. Open its detail and check for a usable LCL schedule or allocation control. In the first reproduction, the view only showed the 0-container structure.
+6. As dungnv, open /dispatch, choose Tất cả các ngày and search the exact Bill. The second reproduction showed Không có lô hàng nào cần phân xe and Lô hàng có ngày giao sẽ xuất hiện ở đây. Record any genuine missing prerequisite separately rather than assuming that date entry alone guarantees READY.
+Acceptance criteria
+1. Create equivalent LCL shipments as CUS and dispatcher with a primary delivery date; after save and reload, overview and detail show that same date and do not incorrectly say Chưa chốt ngày.
+2. Confirm whether the date is persisted and rendered correctly through the LCL branch. Test primary date alone and primary plus additional delivery dates, including removing an optional date without clearing the primary date.
+3. LCL detail exposes its schedule and genuine missing prerequisites without depending on a container row. Users can complete any required warehouse, route or fulfillment data through an explicit supported path.
+4. An LCL shipment that satisfies dispatch prerequisites appears under the correct date/filter and can be allocated. Ineligible drafts show actionable missing prerequisites rather than the blanket Không áp dụng điều xe solely because there are no containers.
+5. Allocated LCL fulfillment with zero container rows renders the correct carrier chip across the required role views. Unassigned LCL displays the accurate unassigned state.
+6. Retain container-shipment date and allocation behavior, and verify that other date filters and genuine readiness rules remain correct.
+Requirement reference
+Exploratory staging reproduction on 13 September 2026: LCL creation visibly accepts a primary Ngày giao dự kiến, but the saved summary shows Chưa chốt ngày and Không áp dụng điều xe.
+20260912_2-shipment-detail-unassigned-carrier.docx — unassigned ready shipments must appear in the detailed plan and support carrier allocation; assigned shipment summaries must show the carrier.
+20260912_4-tech-followups-tracker.docx — the frontend LCL follow-up requires assigned LCL fulfillment to render its carrier chip, establishing that LCL fulfillment is a supported path. This source alone does not make every LCL draft READY.
+Evidence 1
+Show the saved LCL delivery date and provide a usable dispatch path
+Figure 1. Dispatcher repeat before creation: Hàng lẻ is selected and the primary Ngày giao dự kiến contains 2026-09-14. The separate optional date was removed; the primary date remains visible.
+Evidence 2
+Show the saved LCL delivery date and provide a usable dispatch path
+Figure 2. Saved QA-LCL-SCHED-20260913 shows Chưa chốt ngày and Không áp dụng điều xe. The same state was confirmed after full reload.
+Evidence 3
+Show the saved LCL delivery date and provide a usable dispatch path
+Figure 3. Tất cả các ngày search returns no lot for the same Bill and says Lô hàng có ngày giao sẽ xuất hiện ở đây. This records the unavailable planning path; date entry alone does not prove every readiness prerequisite.
+[2026-09-14] DEV COMPLETED — C1/C2: repro test端-to-end chứng minh giữ ngày LCL từ tạo → root → overview → detail → handoff (67/67 suite trước QA-026, nay 73/73). C3 một phần + C4 eligibility: readiness lot-level (WAITING_CARRIER/WAITING_PLATE/READY từ phân bổ LCL; NO_CONTAINERS chỉ cho hàng không fulfillment). C5: chip nhà xe gồm phân bổ lot-level (overview + detail có assert). C6: FCL không đổi. C3/C4 đường workboard: PHÂN CÔNG RIÊNG — chặn hợp đồng schema (id nguyên dương + save theo line-id); quyết định sau staging cut + repro trên build mới (nếu dead-end còn thì phương án A). Commit 346c75c0.
+[2026-09-14] QA PASSED — staging: C3/C4 đường workboard ĐÓNG KHÔNG CẦN CODE — tạo SHP-2609-00025 (LCL LOG COM/NEWEB-1, hẹn 15/9) → DB expectedDeliveryDate 2026-09-15 + READY_FOR_DISPATCH tự động; workboard điều phối hiển thị nhóm 15/09 LOG COM/NEWEB-1 với đường Xem chi tiết. Lot cũ 18/19 'Chưa chốt ngày' vì ngày chưa từng được lưu pre-fix (null thật) — render trung thực. Phương án A không cần. Thư mục: testplan/qa/evidence/2026-09-14_staging-*/.
+
+PART word/footer1.xml
+QA-019 | Page 

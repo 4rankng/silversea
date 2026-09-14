@@ -1,0 +1,38 @@
+RECORD KP-166
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/TODO/20260914_P3_QA-027_bug-remove-duplicate-configuration-entries-from-the-settings-overview.docx
+KANBAN STATUS TODO
+SHA256 a000b3ac48aae649ea501278bc05303c48906f69b9e65be7f134723abdf35fc1
+EMBEDDED IMAGES 1
+
+PART word/document.xml
+Remove duplicate configuration entries from the settings overview
+QA-027 | P3 | Bug | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 14 September 2026
+Role: Administrator (admin); Chrome desktop 1728 × 873
+Page: /config; /config/fuel-price-periods; /config/freight-rate-terms
+Existing behaviour
+The configuration overview displays Giá dầu DO theo kỳ twice, each with a 2 kỳ giá count, and Điều khoản cước theo tuyến twice, each with a 3 điều khoản count. Both fuel entries open the same fuel-price-periods page and two records. Both terms entries open the same freight-rate-terms page and three records.
+Target behaviour
+Show one entry for each configuration destination, with one clear title, description and current count. Remove the redundant fuel and route-terms choices while retaining the existing settings and actions.
+Impact
+Duplicate choices add scanning effort and uncertainty about which entry owns the setting, and consume space in a long configuration list.
+Cause and investigation
+Hypothesis: overlapping configuration registry entries may point to the same destinations. Inspect entry identity and route mapping; source code was not reviewed.
+Steps to reproduce
+1. Open Hệ thống → Cấu hình chung as admin and scroll to the pricing settings.
+2. Open each Giá dầu DO theo kỳ entry, returning to the overview between visits; compare the route and two records.
+3. Repeat for both Điều khoản cước theo tuyến entries; compare the route and three records.
+Acceptance criteria
+1. The overview contains one fuel-price-periods entry and one route-terms entry.
+2. Each entry retains the correct destination, current count and existing create/edit actions.
+3. Desktop, tablet and mobile present the remaining choices compactly without oversized replacement panels.
+Requirement reference
+Exploratory staging review, 14 September 2026.
+User direction: professional, compact, data-heavy UI across desktop, tablet and mobile.
+Evidence 1
+Remove duplicate configuration entries from the settings overview
+Figure 1. The overview shows two Giá dầu DO theo kỳ cards with 2 kỳ giá and two Điều khoản cước theo tuyến cards with 3 điều khoản. Click-through confirmed that each pair opens the same destination and records.
+
+PART word/footer1.xml
+QA-027 | Page 

@@ -1,0 +1,36 @@
+RECORD KP-172
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/TODO/20260914_P3_QA-079_bug-describe-negative-earnings-balances-without-assuming-excess-advances.docx
+KANBAN STATUS TODO
+SHA256 d78c78ad49579e521943865f02dba0b0c3f8e58c43b1650ce78b3ccf17b3c9f5
+EMBEDDED IMAGES 1
+
+PART word/document.xml
+Describe negative earnings balances without assuming excess advances
+QA-079 | P3 | Bug | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 14 September 2026
+Role: DRIVER · Dương Văn Thực (dvthuc) · phone 390 × 844
+Page: /my-earnings
+Existing behaviour
+For September 2026, the headline says Đã tạm ứng vượt above −60,000 VND. The same screen shows Đã tạm ứng/đã thanh toán as 0 and Khấu trừ kỷ luật as 60,000 VND, with base and trip earnings at zero. The displayed negative balance comes from the deduction, yet its headline attributes it to excess advances.
+Target behaviour
+Use a neutral signed-balance label, such as Số dư sổ lương, or explain the actual contributing components. Show an excess-advance label only when supported by actual advances and the applicable balance rule.
+Impact
+The driver may believe an advance was paid or exceeded an allowance when the screen records no such payment.
+Cause and investigation
+The headline may be selected only from the balance sign. Inspect label selection and available components; implementation is unverified. Deduction eligibility is tracked separately in QA-077; this task does not dispute the displayed arithmetic.
+Steps to reproduce
+1. Open /my-earnings for Dương Văn Thực and select September 2026.
+2. Compare the −60,000 VND headline with zero advances/payments and the 60,000 VND discipline deduction.
+Acceptance criteria
+1. A negative balance caused solely by deductions must not claim that excess advances were paid.
+2. Cover deduction-only, actual advance, mixed, zero and positive balances with accurate Vietnamese wording.
+3. Preserve the balance calculation and component amounts; keep the label consistent on phone, tablet and desktop.
+Requirement reference
+Observed driver earnings summary and its displayed balance components.
+Evidence 1
+Describe negative earnings balances without assuming excess advances
+Figure 1. The headline attributes −60,000 VND to excess advances, while the visible summary shows advances/payments 0 and a 60,000 VND discipline deduction.
+
+PART word/footer1.xml
+QA-079 | Page 

@@ -1,0 +1,39 @@
+RECORD KP-153
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/TODO/20260914_P2_QA-118_requirement-replace-profit-allocation-approval-with-direct-authorized-finalization.docx
+KANBAN STATUS TODO
+SHA256 f44e676354d226ba6548d356160d0a81bc581f328899492e610fa94811a9d362
+EMBEDDED IMAGES 1
+
+PART word/document.xml
+Replace profit allocation approval with direct authorized finalization
+QA-118 | P2 | Requirement | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 14 September 2026
+Role: ADMIN; other roles with authorized profit-allocation access.
+Page: /profit · Quyết toán & Chốt Quý
+Existing behaviour
+Quyết toán & Chốt Quý shows Xem trước and Gửi duyệt phân bổ, so official allocation still uses approval submission. The current preview also flags missing vehicle ownership; this is a separate data prerequisite.
+Target behaviour
+Let an authorized user preview and finalize a valid allocation directly. Remove approval submission and waiting states while retaining ownership, period and arithmetic validation.
+Impact
+The final action introduces an internal review handoff outside the agreed product scope.
+Cause and investigation
+The displayed action still reflects approval. Update its server transition and dependent statuses together; renaming the button is insufficient.
+Steps to reproduce
+1. As Admin, open /profit and scroll to Quyết toán & Chốt Quý.
+2. Inspect the quarter, year, preview and Gửi duyệt phân bổ. No request was submitted during this check.
+Acceptance criteria
+1. Provide direct authorized finalization with preview, saving feedback and a persisted result; no reviewer or approver.
+2. Remove approval-only queues, reasons and waiting/rejected states. Give existing pending records a logged migration path.
+3. Retain ownership percentages, period consistency, arithmetic and duplicate-finalization protection. Missing data remains actionable.
+4. Preserve audit history and role access. Recording allocation must not claim an actual payment or transfer occurred.
+5. Rename Báo cáo & Phê duyệt to an accurate approval-free group label, retaining both report links.
+6. Keep period, preview and finalization together across phone, tablet and desktop. Verify readback, duplicate attempts and validation failures.
+Requirement reference
+User decision, 14 September 2026: no approval workflows; live Admin profit screen.
+Evidence 1
+Replace profit allocation approval with direct authorized finalization
+Figure 1. Live quarterly panel: Gửi duyệt phân bổ remains beside Xem trước. The ownership warning is a separate validation prerequisite.
+
+PART word/footer1.xml
+QA-118 | Page 

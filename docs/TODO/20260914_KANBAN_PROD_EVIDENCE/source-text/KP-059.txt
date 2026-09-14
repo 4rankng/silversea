@@ -1,0 +1,13 @@
+RECORD KP-059
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260914_11-ops-orders-route-fallback.docx
+KANBAN STATUS QA_PASSED
+SHA256 fa4ba7ac273d0374968a2fea17eb63630728b8921851ca41d166456e64e91d01
+EMBEDDED IMAGES 2
+
+PART word/document.xml
+Nguồn: QA-045 staging round 3 (88) — scope gap: thẻ gốc nêu /ops/orders nhưng fix landed ở detail-plan.
+Yêu cầu: Ô Tuyến trên /ops/orders vẫn '—' cho lot có route (ship 21 specimen) — áp cùng pattern fallback coalesce + cell chain cho surface ops-orders (query + cell riêng của surface đó).
+Tiêu chí nghiệm thu: (1) /ops/orders hiển thị route cho lot có route (khớp CUS); (2) explicit missing label khi thật sự thiếu; (3) unit + browser staging.
+Trạng thái: QA PASSED — đã xác minh trên staging
+[2026-09-14] DEV COMPLETED — routeName = scalar coalesce(DISTINCT container routes ' · ' [NULL không đóng góp, order by name — deterministic], fallback shipment route); FE explicit 'Chưa có tuyến đường'. Wire probe 3/3 + browser 2/2 + label unit-pinned. BE 3/3, FE 4/4; tsc exit-code verified thật (sau process-fix bắt exit của grep thay vì tsc — tự báo cáo, đã sửa pipeline). RULING finding 3: CHẤP NHẬN divergence mixed-routing — ops xem tên route THẬT của container (thấy gap = actionable), CUS fill-in cho khách: semantics khác nhau cho audience khác nhau, đúng thiết kế. Commit bf321535.
+[2026-09-14] QA PASSED — staging RE-VERIFY (vantai, build 4fc23c36, OPS hoangnh): (1) lot có route hiển thị tên tuyến ở TUYẾN ĐƯỜNG — SHP-2609-00021 → KCN Quế Võ, Nam Sơn, Bắc Ninh; SHP-2609-00020 → KCN Đồng Văn, Ninh Bình (14/9); (2) lot thiếu route hiển thị nhãn rõ "Chưa có tuyến đường" — SHP-2609-00026 ngày 16/9. Cùng chuỗi resolveDeliveryStage với CUS (round-3 đã xác minh nhánh CUS). Evidence: testplan/qa/evidence/2026-09-14_staging-round6-card11-ops-orders/.

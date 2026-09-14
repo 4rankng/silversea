@@ -1,0 +1,207 @@
+Browser tab: 484026522, Title: "Cấu hình hệ thống · TransTing", URL: "https://vantai.tingting.vip/config".
+0 AXWebArea Cấu hình hệ thống · TransTing, URL: vantai.tingting.vip/config
+	1 container root
+		2 link Description: Bỏ qua đến nội dung chính, Value: vantai.tingting.vip/config#main-content
+		3 text Đã chuyển đến Cấu hình hệ thống
+		4 container sidebar-navigation
+			5 container
+				6 button Tổng quan Quản trị
+				7 button Tổng quan lô hàng
+				8 button Điều vận
+				9 button Sổ chuyến đi
+				10 button Đội xe
+				11 button Báo cáo Lãi lỗ
+				12 button Báo cáo Lợi nhuận
+				13 button Sổ quỹ / Ngân hàng
+				14 button Công nợ phải thu
+				15 button Công nợ phải trả
+				16 button Chi phí phát sinh
+				17 button Tạm ứng & Hoàn ứng
+				18 button Lương & Chấm công
+				19 button Kỷ luật
+				20 button Khách hàng
+				21 button Nhà cung cấp / Nhà xe
+				22 button Tuyến đường
+				23 button Nhà máy / Kho
+				24 button Cảng / Bãi & Biểu phí
+				25 button Bảng giá cước
+				26 button Trung tâm quản trị
+				27 button Quản lý Người dùng
+				28 button Nhật ký hệ thống
+				29 button Cài đặt ứng dụng
+				30 button Cấu hình chung
+			31 button (collapsed) Description: Menu người dùng, Secondary Actions: Expand
+		32 container
+			33 button (collapsed) Description: Mở menu điều hướng, Help: Ẩn / hiện menu, Secondary Actions: Expand
+			34 container Trang hiện tại
+				35 text Đang xem
+				36 text Cấu hình hệ thống
+			37 text field (settable) Tìm trang, cấu hình hoặc thao tác
+			38 pop up button (collapsed) Description: Chọn tháng, Secondary Actions: Expand
+				39 text Tháng 
+				40 text 9
+				41 text /
+				42 text 2026
+				43 text 01/09 – 30/09
+			44 button (collapsed) Description: Thông báo, Secondary Actions: Expand
+		45 container main-content
+			46 heading Cấu hình hệ thống, Value: 1
+				47 text Cấu hình hệ thống
+			48 button Nạp dữ liệu nền tảng Kiểm tra và cập nhật khách hàng, nhà máy, cảng bãi, xe, rơ-moóc và lái xe từ tệp Master Data. — Nạp dữ liệu
+				49 heading Nạp dữ liệu nền tảng, Value: 3
+					50 text Nạp dữ liệu nền tảng
+				51 text Kiểm tra và cập nhật khách hàng, nhà máy, cảng bãi, xe, rơ-moóc và lái xe từ tệp Master Data.
+				52 text —
+				53 text Nạp dữ liệu
+			54 button Thông tin công ty Tên pháp lý, địa chỉ, mã số thuế, người đại diện, liên hệ và tài khoản ngân hàng. Đã cấu hình Sửa
+				55 heading Thông tin công ty, Value: 3
+					56 text Thông tin công ty
+				57 text Tên pháp lý, địa chỉ, mã số thuế, người đại diện, liên hệ và tài khoản ngân hàng.
+				58 text Đã cấu hình
+				59 text Sửa
+			60 button Định mức nhiên liệu Định mức tiêu hao theo xe, loại tải (vỏ rỗng, <20t, >20t) và loại tuyến (đồng bằng / núi). Đã cấu hình Sửa
+				61 heading Định mức nhiên liệu, Value: 3
+					62 text Định mức nhiên liệu
+				63 text Định mức tiêu hao theo xe, loại tải (vỏ rỗng, <20t, >20t) và loại tuyến (đồng bằng / núi).
+				64 text Đã cấu hình
+				65 text Sửa
+			66 button Tiền đi đường Tiền chuẩn theo tuyến × loại rơ-mooc. Quy tắc: − vé QL5, + chuyến về có hàng, − phí/trạm. 0 tuyến Sửa
+				67 heading Tiền đi đường, Value: 3
+					68 text Tiền đi đường
+				69 text Tiền chuẩn theo tuyến × loại rơ-mooc. Quy tắc: − vé QL5, + chuyến về có hàng, − phí/trạm.
+				70 text 0 tuyến
+				71 text Sửa
+			72 button Chi phí chuyến đi Tiền kết hợp, trả hàng 2 điểm, lưu ca xe, tiền trạm BOT, thưởng chuyến về có hàng. 5 mục Sửa
+				73 heading Chi phí chuyến đi, Value: 3
+					74 text Chi phí chuyến đi
+				75 text Tiền kết hợp, trả hàng 2 điểm, lưu ca xe, tiền trạm BOT, thưởng chuyến về có hàng.
+				76 text 5 mục
+				77 text Sửa
+			78 button Quy tắc kỷ luật & phạt Thiếu hoá đơn dầu (100K), vi phạm ATGT (500K / sa thải). 1 quy tắc Sửa
+				79 heading Quy tắc kỷ luật & phạt, Value: 3
+					80 text Quy tắc kỷ luật & phạt
+				81 text Thiếu hoá đơn dầu (100K), vi phạm ATGT (500K / sa thải).
+				82 text 1 quy tắc
+				83 text Sửa
+			84 button Người dùng & lái xe Quản lý tài khoản lái xe, lương cơ bản, xe phụ trách và thông tin hồ sơ liên hệ. 39 lái xe Sửa
+				85 heading Người dùng & lái xe, Value: 3
+					86 text Người dùng & lái xe
+				87 text Quản lý tài khoản lái xe, lương cơ bản, xe phụ trách và thông tin hồ sơ liên hệ.
+				88 text 39 lái xe
+				89 text Sửa
+			90 button Cổ phần & vốn góp Tỷ lệ vốn góp giữa các đối tác cổ đông dùng cho phân chia lợi nhuận. 3 cổ đông Xem
+				91 heading Cổ phần & vốn góp, Value: 3
+					92 text Cổ phần & vốn góp
+				93 text Tỷ lệ vốn góp giữa các đối tác cổ đông dùng cho phân chia lợi nhuận.
+				94 text 3 cổ đông
+				95 text Xem
+			96 button Khách hàng & Đối tác Danh mục đối tác vận chuyển hàng hóa, thông tin liên hệ và mã số thuế phục vụ công nợ. 31 khách hàng Sửa
+				97 heading Khách hàng & Đối tác, Value: 3
+					98 text Khách hàng & Đối tác
+				99 text Danh mục đối tác vận chuyển hàng hóa, thông tin liên hệ và mã số thuế phục vụ công nợ.
+				100 text 31 khách hàng
+				101 text Sửa
+			102 button Tuyến đường & Cự ly Danh sách các tuyến chặng, số trạm thu phí BOT, quãng đường di chuyển chuẩn. 7 tuyến chặng Sửa
+				103 heading Tuyến đường & Cự ly, Value: 3
+					104 text Tuyến đường & Cự ly
+				105 text Danh sách các tuyến chặng, số trạm thu phí BOT, quãng đường di chuyển chuẩn.
+				106 text 7 tuyến chặng
+				107 text Sửa
+			108 button Nhà máy / Kho Danh mục nhà máy và kho lấy hàng của từng khách hàng — tuyến chuẩn, liên hệ, xuất hóa đơn nâng hạ. — Sửa
+				109 heading Nhà máy / Kho, Value: 3
+					110 text Nhà máy / Kho
+				111 text Danh mục nhà máy và kho lấy hàng của từng khách hàng — tuyến chuẩn, liên hệ, xuất hóa đơn nâng hạ.
+				112 text —
+				113 text Sửa
+			114 button Xe đầu kéo Biển số các đầu kéo kéo container đang vận hành, định mức mặc định và lịch bảo dưỡng đầu xe. 39 xe Sửa
+				115 heading Xe đầu kéo, Value: 3
+					116 text Xe đầu kéo
+				117 text Biển số các đầu kéo kéo container đang vận hành, định mức mặc định và lịch bảo dưỡng đầu xe.
+				118 text 39 xe
+				119 text Sửa
+			120 button Vị trí lốp Danh mục vị trí lốp dùng khi thêm hoặc cập nhật lốp trên xe. 2 vị trí Sửa
+				121 heading Vị trí lốp, Value: 3
+					122 text Vị trí lốp
+				123 text Danh mục vị trí lốp dùng khi thêm hoặc cập nhật lốp trên xe.
+				124 text 2 vị trí
+				125 text Sửa
+			126 button Rơ-moóc Danh sách rơ-moóc, loại rơ-moóc và thông tin đăng kiểm. 40 rơ-moóc Sửa
+				127 heading Rơ-moóc, Value: 3
+					128 text Rơ-moóc
+				129 text Danh sách rơ-moóc, loại rơ-moóc và thông tin đăng kiểm.
+				130 text 40 rơ-moóc
+				131 text Sửa
+			132 button Loại hàng hóa Bảng quy chuẩn loại hàng hóa vận chuyển ảnh hưởng đến việc phân xe chặng. 1 loại hàng Sửa
+				133 heading Loại hàng hóa, Value: 3
+					134 text Loại hàng hóa
+				135 text Bảng quy chuẩn loại hàng hóa vận chuyển ảnh hưởng đến việc phân xe chặng.
+				136 text 1 loại hàng
+				137 text Sửa
+			138 button Bảng giá cước Bảng giá cước chi tiết thỏa thuận với từng đối tác khách hàng trên mỗi tuyến. 27 đơn giá Sửa
+				139 heading Bảng giá cước, Value: 3
+					140 text Bảng giá cước
+				141 text Bảng giá cước chi tiết thỏa thuận với từng đối tác khách hàng trên mỗi tuyến.
+				142 text 27 đơn giá
+				143 text Sửa
+			144 button Giá dầu DO theo kỳ Giá dầu DO Petrolimex công bố theo kỳ — đầu vào cho động cơ tính cước tự động. 2 kỳ giá Sửa
+				145 heading Giá dầu DO theo kỳ, Value: 3
+					146 text Giá dầu DO theo kỳ
+				147 text Giá dầu DO Petrolimex công bố theo kỳ — đầu vào cho động cơ tính cước tự động.
+				148 text 2 kỳ giá
+				149 text Sửa
+			150 button Điều khoản cước theo tuyến Hệ số chia sẻ, km tính cước, giá gốc dầu và ngưỡng điều chỉnh giá dầu cho từng khách hàng × tuyến. 3 điều khoản Sửa
+				151 heading Điều khoản cước theo tuyến, Value: 3
+					152 text Điều khoản cước theo tuyến
+				153 text Hệ số chia sẻ, km tính cước, giá gốc dầu và ngưỡng điều chỉnh giá dầu cho từng khách hàng × tuyến.
+				154 text 3 điều khoản
+				155 text Sửa
+			156 button Giá dầu DO theo kỳ Giá dầu Petrolimex công bố theo kỳ — đầu vào cho động cơ tính cước tự động. 2 kỳ giá Sửa
+				157 heading Giá dầu DO theo kỳ, Value: 3
+					158 text Giá dầu DO theo kỳ
+				159 text Giá dầu Petrolimex công bố theo kỳ — đầu vào cho động cơ tính cước tự động.
+				160 text 2 kỳ giá
+				161 text Sửa
+			162 button Điều khoản cước theo tuyến Điều khoản hợp đồng theo khách hàng × tuyến: % chia sẻ, km, giá gốc dầu, lag, ngưỡng. 3 điều khoản Sửa
+				163 heading Điều khoản cước theo tuyến, Value: 3
+					164 text Điều khoản cước theo tuyến
+				165 text Điều khoản hợp đồng theo khách hàng × tuyến: % chia sẻ, km, giá gốc dầu, lag, ngưỡng.
+				166 text 3 điều khoản
+				167 text Sửa
+			168 button Kỳ lương Cấu hình kỳ lương hàng tháng. Mặc định: ngày 26 tháng trước đến ngày 25 tháng này. Ngày 1 → cuối tháng Sửa
+				169 heading Kỳ lương, Value: 3
+					170 text Kỳ lương
+				171 text Cấu hình kỳ lương hàng tháng. Mặc định: ngày 26 tháng trước đến ngày 25 tháng này.
+				172 text Ngày 1 → cuối tháng
+				173 text Sửa
+			174 button Lịch ngày làm việc Ngày nghỉ lễ và ngày làm việc bù dùng để điều chỉnh hạn thanh toán, quá hạn và lịch nhắc. — Sửa
+				175 heading Lịch ngày làm việc, Value: 3
+					176 text Lịch ngày làm việc
+				177 text Ngày nghỉ lễ và ngày làm việc bù dùng để điều chỉnh hạn thanh toán, quá hạn và lịch nhắc.
+				178 text —
+				179 text Sửa
+			180 button Hạng mục chi phí Phân loại chi phí vận hành. Bật định kỳ để theo dõi ngày gia hạn bảo hiểm, đăng kiểm, bảo dưỡng. 2 hạng mục Sửa
+				181 heading Hạng mục chi phí, Value: 3
+					182 text Hạng mục chi phí
+				183 text Phân loại chi phí vận hành. Bật định kỳ để theo dõi ngày gia hạn bảo hiểm, đăng kiểm, bảo dưỡng.
+				184 text 2 hạng mục
+				185 text Sửa
+			186 button Loại chi phí giao nhận Danh mục các khoản chi phí phát sinh do nhân viên giao nhận nhập (nâng hạ, hải quan, cân xe, kiểm tra…). 1 loại Sửa
+				187 heading Loại chi phí giao nhận, Value: 3
+					188 text Loại chi phí giao nhận
+				189 text Danh mục các khoản chi phí phát sinh do nhân viên giao nhận nhập (nâng hạ, hải quan, cân xe, kiểm tra…).
+				190 text 1 loại
+				191 text Sửa
+			192 button Mẫu giấy báo nợ Tạo và chọn mẫu xuất Excel giấy báo nợ theo từng khách hàng — logo, tiêu đề, cột, màu, điều khoản. 1 mẫu Sửa
+				193 heading Mẫu giấy báo nợ, Value: 3
+					194 text Mẫu giấy báo nợ
+				195 text Tạo và chọn mẫu xuất Excel giấy báo nợ theo từng khách hàng — logo, tiêu đề, cột, màu, điều khoản.
+				196 text 1 mẫu
+				197 text Sửa
+			198 button Cài đặt ứng dụng Bật/tắt tính năng và chọn nhà cung cấp AI. — Sửa
+				199 heading Cài đặt ứng dụng, Value: 3
+					200 text Cài đặt ứng dụng
+				201 text Bật/tắt tính năng và chọn nhà cung cấp AI.
+				202 text —
+				203 text Sửa
+
+The focused UI element is 0 AXWebArea Cấu hình hệ thống · TransTing, URL: vantai.tingting.vip/config

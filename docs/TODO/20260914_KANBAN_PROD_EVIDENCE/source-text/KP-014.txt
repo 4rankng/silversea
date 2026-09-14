@@ -1,0 +1,20 @@
+RECORD KP-014
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260911_3-bug4-task-tags-into-driver-note.docx
+KANBAN STATUS QA_PASSED
+SHA256 9fb0e82490e58a02190cc0c48e0969fee398cdd0d567ae7025c1b7b7090b9de4
+EMBEDDED IMAGES 5
+
+PART word/document.xml
+Nguồn: 20260911_3.docx — BUG 4
+Ghi chú tác vụ bao gồm các tag: + HẾT HẠN + ĐẢO VỎ +ĐẶT ĐUÔI + ĐẶT ĐẦU +KIỂM HÓA +QUAY ĐẦU + GỬI VỎ BÃI ĐĂNG KHOA + QUÁ TẢI +ĐẢO HÀNG +HẠ VỎ ICD QUẾ VÕ + GẮP VỎ ICD QUẾ VÕ + GẮP VỎ BÃI ĐĂNG KHOA +HẠ VỎ BÃI TRI PHƯƠNG + GẮP VỎ BÃI TRI PHƯƠNG Thông tin này nhập tại màn hình thêm mới lô hàng hoặc Chỉnh sửa điều phối Hiện tại, thông tin này sẽ hiển thị tại cột Tác vụ tại màn hình kế hoạch chi tiết và chèn vào ghi chú lái xe => Xoá cột tác vụ, chỉ giữ lại thông tin được đưa vào ghi chú lái xe theo format: Dòng trên: các tác vụ, dòng dưới: ghi chú text
+Trạng thái: QA PASSED — chờ deploy prod
+Tiêu chí nghiệm thu:
+1. Kế hoạch chi tiết KHÔNG còn cột 'Tác vụ' (thông tin tag không hiển thị thành cột riêng).
+2. Tại 'Chỉnh sửa điều phối' (editor dòng kế hoạch chi tiết): chọn tag + nhập ghi chú text → lưu vào ghi chú lái xe theo format: dòng 1 = các tác vụ (tag), dòng 2 = ghi chú text.
+3. Phía lái xe thấy đúng ghi chú đã lưu (driverNotes = dòng 1 tag, dòng 2 text).
+[2026-09-13] QA PASSED
+Tiêu chí 1 — Kế hoạch chi tiết KHÔNG còn cột 'Tác vụ': ĐÃ XÁC MINH. Lưới chỉ còn 7 cột (Thời gian & lịch trình, Tuyến đường, Container, Điều phối, Phân loại, Ghi chú); không còn chữ 'Tác vụ' nào trên trang (a1).
+Tiêu chí 2 — Tag + ghi chú lưu vào GHI CHÚ LÁI XE đúng format (dòng 1 = tag, dòng 2 = text): ĐÃ XÁC MINH. Tại 'Chỉnh sửa điều phối' chọn tag HẾT HẠN + ĐẶT ĐUÔI và nhập text (a2); DB lưu đúng 2 dòng: 'HẾT HẠN; ĐẶT ĐUÔI' xuống dòng 'Kiem thu BUG4 - dong 2 ghi chu text'; dòng Ghi chú trên lưới hiển thị note đã lưu (a3). Lặp lại thành công trên lô khác với HẾT HẠN + ĐẢO HÀNG.
+Tiêu chí 3 — Lái xe thấy đúng ghi chú: ĐÃ XÁC MINH. Phát lệnh thật cho tài xế Lê Văn Quyết (a4, a5) → chuyến TRP-202609-0004; màn hình lái xe /my-trips hiện mục 'Tác vụ' với 2 tag (a6) và phần ghi chú text (a7); API lái xe trả driverNotes đúng 2 dòng format.
+Gate: shared driverTaskNote 11/11 PASS; backend task-tags 8/8 PASS; FE detailed-plan suites 84/84 PASS; tsc FE+BE exit 0. Không có thay đổi source trong run này (tree = e40a1ab9, clean). Dữ liệu QA đã được khôi phục nguyên trạng (note về NULL, xoá chuyến + thông báo QA, xoá biển số thử trên dòng 48).
+Bằng chứng đầy đủ: qa/2026-09-13_bug4-task-tags-driver-note/ (REPORT.md, ảnh, transcript).

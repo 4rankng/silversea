@@ -1,0 +1,22 @@
+RECORD KP-010
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260911_2.docx
+KANBAN STATUS QA_PASSED
+SHA256 c75952a1d562384c6359d97dd0512b7c1d26fa494dac28d81d527462d07a001c
+EMBEDDED IMAGES 5
+
+PART word/document.xml
+BUG 1
+ở mục tài xế - ấn chi tiết : ở tác vụ tài xế có thể thu nhỏ vào đỡ chiếm diện tích : TÊN NHÀ MÁY ( ASKEY ) TUYẾN ĐƯỜNG ( KCN QUẾ VÕ BẮC NINH) *THÔNG TIN LỆNH : - tuyến đường : sửa thành địa chỉ nhà máy - sdt kho : * Bỏ đầu kéo - mooc thêm cho e thông tin lên hóa đơn bao gồm mã số thuế - tên công ty - địa chỉ mã số thuế
+BUG 2
+app cho lái xe : điêu chỉnh giúp em : Tên nhà máy để tên viết tắt - và cho lên đầu tuyến đường xuống dưới xong đến số cont cảng nâng / cảng hạ tác vụ : đặt đầu; đặt đuôi; đảo vỏ ,.... xong ấn vào chi tiết thì sẽ hiển thị đầy đủ thông tin
+ở giao diện bên ngoài khi nhận kế hoạch của xe : thêm giúp em loại hình là đóng hay trả
+app cho lái xe : điêu chỉnh giúp em : Tên nhà máy để tên viết tắt - và cho lên đầu tuyến đường xuống dưới xong đến số cont / Loại cont / TRẢ HÀNG ( ĐÓNG HÀNG ) cảng nâng / cảng hạ tác vụ : đặt đầu; đặt đuôi; đảo vỏ ,...
+FEATURE 1
+Y tuong khach hang cho layout no dang nhu nay
+Khi bam xem chi tiet thi hien
+Feature 2
+ở chỗ update ảnh cont ./ chì thêm giúp em cả ảnh biên bản giao hàng
+[2026-09-12] BUG 1 — mục thu nhỏ thông tin lệnh: HOÀN THÀNH.
+Thông tin lệnh + Thông tin xuất hóa đơn thu gọn/mở được: bấm vào đầu mục để thu nhỏ; khi thu nhỏ, đầu mục vẫn giữ tên viết tắt nhà máy để nhận biết chuyến; hai mục toggle độc lập nhau; nút bấm đủ 44px trên mobile.
+Kiểm thử: DriverTripDetailPage.test.tsx TC-COMP-004/TC-COMP-004b (suite 1622/1622 pass). Thử thật trên local dev (tài xế laixe, chuyến 8): bấm thu nhỏ → lưới ẩn, mũi tên xoay; bấm lại → hiện như cũ.
+Bằng chứng: qa/2026-09-12_driver-detail-design/comp-004a-collapsed.png, comp-004b-expanded.png, REPORT.md. Spec: docs/driver-trip-detail-design-spec.md.

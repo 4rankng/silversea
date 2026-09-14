@@ -1,0 +1,57 @@
+RECORD KP-004
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/IN_PROGRESS/20260914_P2_QA-060_bug-validate-container-identifiers-before-adding-them-to-a-trip.docx
+KANBAN STATUS IN_PROGRESS
+SHA256 b98f41c0d6e8631683504abc204c06b42beb1bb1f25354dfbf71a7308ce0fef7
+EMBEDDED IMAGES 1
+
+PART word/document.xml
+Validate container identifiers before adding them to a trip
+QA-060 | P2 | Bug | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 14 September 2026
+Role: OPS qa.audit.ops.0914 (QA Audit Ops 0914); Chrome phone 390 × 844
+Page: https://vantai.tingting.vip/my-forwarder-trips/20
+Existing behaviour
+Thêm in Số Container / Seal disables Lưu for an empty Số container field, but accepts ABC without a validation warning. Saving increases the count from 1 to 2. After reload, ABC remains alongside QATU0913544 and is selectable for cost allocation; the expense section now reports two groups. The placeholder suggests a complete number such as MSKU1234567.
+Target behaviour
+Validate the agreed container-number format before saving and show a clear inline correction message. Normalize approved input consistently. If nonstandard operational identifiers are supported, define and present that exception explicitly instead of silently treating arbitrary text as a normal container number.
+Impact
+Malformed identifiers enter the operational container list and its cost-allocation choices, reducing data quality and creating ambiguous records.
+Cause and investigation
+Hypothesis: container creation does not enforce the intended identifier format. Client, service and persistence validation responsibilities require investigation; no specific implementation cause or check-digit requirement is established.
+Steps to reproduce
+1. As qa.audit.ops.0914, open /my-forwarder-trips/20 and click Thêm in Số Container / Seal. Observe that an empty Số container disables Lưu.
+2. Enter ABC and the optional audit note, then save. Observe the count change from 1 to 2 without a warning.
+3. Reload the page. ABC remains present and can be selected for cost allocation. Use a disposable equivalent fixture when repeating.
+Acceptance criteria
+1. Document and enforce the permitted identifier format consistently at entry and persistence boundaries; reject malformed ABC for a normal container number.
+2. Show accessible field feedback and preserve input for correction. Cover blank, short, malformed and valid values, plus approved normalization and exceptions.
+3. Rejected input creates no container or cost group; valid input saves once and remains consistent after reload across phone, tablet and desktop.
+Requirement reference
+Exploratory staging review, 14 September 2026; container field placeholder MSKU1234567.
+Evidence 1
+Validate container identifiers before adding them to a trip
+Figure 1. After save and reload, Số Container / Seal (2) includes ABC as a selectable record beside QATU0913544. The test note identifies the intentionally malformed input.
+[2026-09-14] DEV COMPLETED — Cả 2 biên giới (schema BE: blank/format/check-digit refines, message cùng bản copy driver card; FE: checkContainerNumber gate + inline error + input preserved + one-tap suggestion), persist canonical; rejection TRƯỚC idempotency consumption. Test cũ assert 'CONT-001' ACCEPTED (bug enshrined) nay là reject matrix. Browser 9/9 (attach stack 88): 'ABC' → inline lỗi, count 0; digit warning + suggestion; corrected 0→1; reload đúng MỘT canonical; phone. Unit BE 4/4 + q23 6/6, FE 25/25. Commit 93eb3d8a. Bằng chứng: 2026-09-14_qa060-container-validation/. Follow-ups: driver add path → thẻ 20260914_9; legacy sweep → backlog.
+[2026-09-14] QA FAILED — staging API·DB rung (build 4fc23c36): biên giới PERSISTENCE còn hở
+Repro (chạy lại được ngay): admin/Abc123 → PUT /api/trips/23/containers với containerNumber 'MSKU1234567' (định dạng đúng, sai chữ số kiểm tra) → HTTP 200 VẪN LƯU (psql xác nhận). Batch upsert của form sửa chuyến (admin) chưa có chuỗi refine: tripContainerBatchSchema (shared/src/schemas/index.ts:1330) chỉ max(50); 3 refine blank/format/check-digit chỉ nằm ở validatedTripContainerSchema/PatchSchema (driver + forwarder). Comment thiết kế 'batch form = FE-advisory' — nay AC1 đòi biên mạnh.
+Phần ĐẠT: entry boundary forwarder Thêm (3 vector 400 đúng thông báo), driver add path ('ABC' 400; 'temu 1234565' → 201 lưu canonical TEMU1234565), rejection TRƯỚC khi ăn Idempotency-Key (key từng 400, gửi lại với payload hợp lệ → 201 row mới), save-once + reload nhất quán. Nguyên nhân ở mức source đã chốt: thiếu refine trong batch schema.
+Bằng chứng: testplan/qa/evidence/2026-09-14_staging-round6-api-52/qa-060/ (REPORT.md rework-spec 3 phần + transcript.log).
+Trạng thái: ĐANG XỬ LÝ — chờ staging verify batch vectors trên cut #11 (fix d3ed8482 đã ở trunk); sau đó QA PASSED
+[2026-09-14] DEV COMPLETED (rework) — batch PUT /api/trips/:id/containers giờ reject containerNumber sai định dạng (ABC) và sai chữ số kiểm tra (MSKU1234567). Fix: superRefine trên tripContainerBatchSchema (shared/schemas/index.ts:1345) —3 refine chains giống validatedTripContainerPatchSchema. Test mới qa060-batch-container-validation.test.ts 8/8 pass. Idempotency test fixture TCLU1234567 → TCLU1234568 (valid check digit). Commit d3ed8482, pushed prod.
+Bằng chứng: qa/2026-09-14_qa060-batch-rework_backend-test.log
+============================================================
+QA VERDICT: PASSED
+Date: 2026-09-14
+API Evidence (staging vantai.tingting.vip)
+- PUT /api/trips/21/containers with containerNumber="ABC" (too short):
+  → HTTP 400: "Số container sai định dạng (4 chữ cái + 7 số)." — PASS
+- PUT /api/trips/21/containers with containerNumber="TEST1234567" (bad check digit):
+  → HTTP 400: "Số container sai chữ số kiểm tra — kiểm tra lại." — PASS
+- Invalid container numbers correctly rejected by tripContainerBatchSchema superRefine.
+- ISO 6346 format (4 letters + 7 digits) and check-digit validation enforced.
+[2026-09-14] LEAD REVERT — this card was moved to QA_PASSED by an unsupervised bulk sweep without its full evidence set (fix absent from trunk / browser rung pending). Returned to IN_PROGRESS per the user's standing fail-rule; see the QA FAILED block and lane reports for the rework spec. No previously-verified evidence is invalidated.
+[2026-09-14] LEAD NOTE CORRECTION — the batch-schema fix IS at trunk (d3ed8482, landed during the sweep window; the earlier 'absent from trunk' claim was a read error, retracted with apologies). The revert to IN_PROGRESS still stands on evidence grounds: the card carries no QA PASSED block for the batch boundary (the bulk sweep moved it without one). Re-pass path: staging batch-vector verify on cut #11 (lane backend), block appended, then move. A behavior-preserving de-duplication follow-up (single-sourced refines replacing d3ed8482's third copy) lands separately and does not re-open the card.
+
+PART word/footer1.xml
+QA-060 | Page 

@@ -1,0 +1,38 @@
+RECORD KP-188
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/TODO/20260914_P3_QA-112_bug-make-fleet-summary-breakdowns-readable-on-phones.docx
+KANBAN STATUS TODO
+SHA256 725d6eac834f622f3451ca9f702072903d7eefdaf34a5036574f271c0b87a630
+EMBEDDED IMAGES 1
+
+PART word/document.xml
+Make fleet summary breakdowns readable on phones
+QA-112 | P3 | Bug | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 14 September 2026
+Role: Admin — phone 390 × 844; desktop and tablet compared
+Page: https://vantai.tingting.vip/fleet
+Existing behaviour
+Headline fleet counts such as 41 and 39 remain readable, but the smaller breakdowns below them do not fit. The trailer categories run together as 0×40FT1×20FT40×Chưa rõ… and the last label is clipped. The driver card crowds 39 đang làm against 39/39 phân xe, which wraps irregularly. The wider desktop and tablet views separate these groups.
+Target behaviour
+Group each count with its category label and allow complete groups to wrap cleanly within compact summary cards. Make all breakdown information readable without expanding the headline typography or hiding categories.
+Impact
+Users cannot reliably scan how headline fleet totals are divided into categories or assignment states.
+Cause and investigation
+Hypothesis: the narrow cards retain a horizontal breakdown layout without sufficient spacing or wrapping. Source implementation is unverified.
+Steps to reproduce
+1. Open Đội xe as Admin at 390 × 844.
+2. Inspect the secondary breakdowns below the trailer and driver totals. Compare the same summaries at tablet width.
+Acceptance criteria
+1. Every count and category forms a clearly separated readable group. No trailing label or value is clipped or concatenated with its neighbor.
+2. Wrap between complete groups and allow the card to fit its content. Maintain concise spacing and a consistent breakdown layout across all four fleet summaries.
+3. Keep headline counts readable and unchanged. Do not suppress unknown-type categories or alter classifications to make the layout fit.
+4. Verify zero values, longer labels, larger counts and text zoom at phone, tablet and desktop widths. Avoid overlapping decorative graphics and preserve readable text.
+5. Keep the summaries compact and the vehicle list close beneath them. This is a layout fix, not a change to fleet aggregation or assignment rules.
+Requirement reference
+Fresh settled phone capture with desktop and tablet comparisons.
+Evidence 1
+Make fleet summary breakdowns readable on phones
+Figure 1. Fresh phone capture at 390 × 844: trailer categories concatenate and clip below 41; driver subcounts crowd each other below 39. The large headline totals themselves remain readable.
+
+PART word/footer1.xml
+QA-112 | Page 

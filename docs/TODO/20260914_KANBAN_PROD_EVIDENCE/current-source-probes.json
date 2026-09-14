@@ -1,0 +1,78 @@
+{
+  "at": "2026-09-14T12:11:05.943Z",
+  "sourceHead": "161a2e7098dfab3466a88b0224cb6b8e427d5b37",
+  "scope": "Isolated current production helpers. TypeScript types stripped; extensionless round and tripFormDefaults imports resolved to the same source via data/file URLs. No calculation logic changed. Not an app/browser/API/DB test.",
+  "note": {
+    "typed": "gọi lái xe",
+    "stored": "gọiláixe",
+    "passes": false
+  },
+  "allowances": [
+    {
+      "override": null,
+      "result": {
+        "totalFuelLiters": 0,
+        "legCalculations": [],
+        "totalFuelCost": 0,
+        "fuelPriceVariance": 0,
+        "effectiveFuelPrice": 0,
+        "totalRoadAllowance": 500000,
+        "tollCost": 0,
+        "tollDeduction": 0,
+        "totalCost": 500000,
+        "grossProfit": 500000,
+        "freightExVat": 1000000,
+        "recordedRevenue": 1000000,
+        "serviceMargin": 0,
+        "totalServiceBuy": 0,
+        "totalServiceSell": 0,
+        "externalMargin": 0,
+        "externalFreightExVat": 0
+      }
+    },
+    {
+      "override": 0,
+      "result": {
+        "totalFuelLiters": 0,
+        "legCalculations": [],
+        "totalFuelCost": 0,
+        "fuelPriceVariance": 0,
+        "effectiveFuelPrice": 0,
+        "totalRoadAllowance": 500000,
+        "tollCost": 0,
+        "tollDeduction": 0,
+        "totalCost": 500000,
+        "grossProfit": 500000,
+        "freightExVat": 1000000,
+        "recordedRevenue": 1000000,
+        "serviceMargin": 0,
+        "totalServiceBuy": 0,
+        "totalServiceSell": 0,
+        "externalMargin": 0,
+        "externalFreightExVat": 0
+      }
+    },
+    {
+      "override": 100000,
+      "result": {
+        "totalFuelLiters": 0,
+        "legCalculations": [],
+        "totalFuelCost": 0,
+        "fuelPriceVariance": 0,
+        "effectiveFuelPrice": 0,
+        "totalRoadAllowance": 100000,
+        "tollCost": 0,
+        "tollDeduction": 0,
+        "totalCost": 100000,
+        "grossProfit": 900000,
+        "freightExVat": 1000000,
+        "recordedRevenue": 1000000,
+        "serviceMargin": 0,
+        "totalServiceBuy": 0,
+        "totalServiceSell": 0,
+        "externalMargin": 0,
+        "externalFreightExVat": 0
+      }
+    }
+  ]
+}

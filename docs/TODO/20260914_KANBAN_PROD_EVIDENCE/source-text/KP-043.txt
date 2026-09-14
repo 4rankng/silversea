@@ -1,0 +1,49 @@
+RECORD KP-043
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260913_P2_QA-014_bug-refresh-reassignment-defaults-after-saving-a-new-driver-and-vehicle.docx
+KANBAN STATUS QA_PASSED
+SHA256 50d199e3f7e45cd23134d50ef9265710967a3638f9985092f1b23c87d238a9e4
+EMBEDDED IMAGES 4
+
+PART word/document.xml
+Refresh reassignment defaults after saving a new driver and vehicle
+QA-014 | P2 | Bug | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 13 September 2026
+Role: Điều vận — Nguyễn Văn Dũng; login dungnv; Chrome desktop
+Page: https://vantai.tingting.vip/dispatch-detail — QATU0900043; associated driver trip /my-trips/29
+Existing behaviour
+After unaccepted QATU0900043 changed from 15H-061.14 / Bùi Quang Hường to 15H-104.03 / Bùi Tiến Dũng, the plan showed the new vehicle. Reopened Phân xe lại kept the old assignment, including after 10 seconds. Full reload recovered the saved values. Persistence succeeded; dialog defaults were stale.
+Target behaviour
+Show saved reassignment defaults immediately. Refresh on changed trip versions; preserve unsaved edits during same-version refetch, as tracker 9b requires.
+Impact
+Stale confirmation risks accidental reversion; QA did not execute a reversal.
+Cause and investigation
+Hypothesis: cache and draft refresh differ after saving. Inspect invalidation, trip version and initialization; the responsible layer is unconfirmed.
+Steps to reproduce
+1. As dungnv, use an owned issued, unaccepted trip; QATU0900043 was later completed.
+2. In Phân xe lại, save another valid vehicle/driver and check the row.
+3. Reopen without reload, immediately and after 10 seconds. Compare defaults with the saved row.
+4. Reload, reopen and wait for loading. The observed defaults then matched the saved assignment.
+Acceptance criteria
+1. Immediate and repeated reopening show the latest saved vehicle and driver without reloading.
+2. Plan, dialog, driver view and full-reload readback agree.
+3. Changed trip versions refresh defaults; same-version refetch preserves unsaved edits.
+4. Reopening and delayed responses never restore stale defaults unnoticed; cancelling keeps the saved assignment.
+5. Preserve reassignment before acceptance and the accepted/departed guard.
+Requirement reference
+20260912_4-tech-followups-tracker.docx — item 9b, version-aware draft preservation.
+20260911_1-bug1-reassign-before-driver-accept.docx — reassignment boundary.
+Evidence 1
+Refresh reassignment defaults after saving a new driver and vehicle
+Figure 1. Staging, 13 September 2026, dungnv: after confirming reassignment, the QATU0900043 row displays 15H-104.03.
+Evidence 2
+Refresh reassignment defaults after saving a new driver and vehicle
+Figure 2. In the same session, reopened Phân xe lại shows the former 15H-061.14 and Bùi Quang Hường while the row shows 15H-104.03. A follow-up read about 10 seconds later remained stale.
+Evidence 3
+Refresh reassignment defaults after saving a new driver and vehicle
+Figure 3. After a full page reload and completion of dialog loading, Phân xe lại correctly shows the saved 15H-104.03 and Bùi Tiến Dũng. No second reassignment was required for recovery.
+[2026-09-14] DEV COMPLETED — Dialog prime cache sau save (setQueryData + invalidate): mở lại NGAY và sau 10 giây đều hiện default mới (15H-052.82 + Phí Xuân Hoàn), không cần reload; row hiển thị đúng phân xe mới. Save qua dialog persist DB (v2, v3). Bằng chứng: /Volumes/LexarSSD/projects/silversea-prod/testplan/qa/evidence/2026-09-14_qa014-reassign-defaults/REPORT.md (4 tiêu chí, fixture repair công bố). Commit 531c347c.
+[2026-09-14] QA PASSED — staging: chuyến tươi TRP-202609-0018 — reassign → Nguyễn Huy Vương (v3 persist); mở lại ngay + 10s = default mới. Thư mục: testplan/qa/evidence/2026-09-14_staging-*/.
+
+PART word/footer1.xml
+QA-014 | Page 

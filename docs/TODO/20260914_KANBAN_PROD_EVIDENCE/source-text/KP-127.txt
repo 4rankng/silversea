@@ -1,0 +1,42 @@
+RECORD KP-127
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260914_P3_QA-044_enhancement-make-customer-shipment-cards-easier-to-scan-on-phones.docx
+KANBAN STATUS QA_PASSED
+SHA256 0127d768e92a82178deb43fb2148837ae3d72b7e3f592695f68d547e2dfe60db
+EMBEDDED IMAGES 3
+
+PART word/document.xml
+Make customer shipment cards easier to scan on phones
+QA-044 | P3 | Enhancement | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 14 September 2026
+Role: Customer qa.audit.customer.0914, scoped to Long Minh; Chrome phone 390 × 844
+Page: https://vantai.tingting.vip/portal/shipments
+Existing behaviour
+A phone shipment card occupies about 276 pixels, including a blank Mốc nghiệp vụ row, Trở ngại: Không có and repeated tracking/status copy. At 390 × 844, one complete card and part of the next fit below the controls, slowing comparison across six shipments.
+Target behaviour
+Prioritize shipment identity, container, clearly labeled status and the record action. Omit empty milestone rows, show actual blockers and group secondary metadata. Preserve full detail access without enlarging components or text.
+Impact
+Customers must scroll through repeated and empty fields to compare shipments and reach the next record.
+Cause and investigation
+Design hypothesis: table columns become separate mobile rows even when blank or non-actionable. Review responsive card composition; no missing data or failed action is established.
+Steps to reproduce
+1. As Customer, open Lô hàng của tôi at 390 × 844 and select Đang vận chuyển 6.
+2. Inspect SHP-2609-00002: note the blank milestone row, no-blocker row and separate repeated tracking/status lines.
+3. Scroll through subsequent cards and compare identifying data with empty or repeated metadata.
+Acceptance criteria
+1. Empty milestone fields do not create dedicated rows. Actual milestones and blockers remain clearly visible when present.
+2. Group secondary metadata and remove redundant copy while retaining shipment/container identity, meaningful status and Xem hồ sơ.
+3. At 390 × 844 with these fixtures, aim to show two complete compact cards in the current content area, with readable text and usable touch actions.
+4. Verify long identifiers, multiple containers and populated blockers; retain the compact desktop table. Status wording is handled separately in QA-042.
+Requirement reference
+Exploratory staging review, 14 September 2026.
+User direction: professional, compact, data-heavy UI without oversized components or text.
+Evidence 1
+Make customer shipment cards easier to scan on phones
+Figure 1. Phone shipment queue: the first card stacks a blank milestone row, a no-blocker row and repeated tracking/status metadata. One full card and part of the next are visible below the controls.
+[2026-09-14] Code landed 96cd1153 — cột 'Mốc nghiệp vụ' luôn rỗng đã ẩn cho role customer (th+td role-scoped; gate cell tách RoleWorkInboxGateCell.tsx); cell 'Trở ngại' rỗng drop khỏi phone card (cell--empty). Gap trung thực: account 'customer' local không có shipment rows — rung empty-obstacle chờ fixture staging (như QA-082).
+[2026-09-14] REWORK LANDED (257ba4a9) — Root cause CSS specificity: rule card-mode td (0,1,1) thắng .cell--empty (0,1,0) nên hide không bao giờ fire. Fix: selector table-qualified (0,2,1) display:none thắng; gate condition không đổi. Chờ staging re-verify round sau.
+[2026-09-14] QA PASSED — staging RE-VERIFY (vantai, build 9d064b50, customer qa.audit.customer.0914, 390+1280): round-5 FAIL đã hết — chuỗi "Trở ngại" và hàng trống "Mốc nghiệp vụ" KHÔNG CÒN xuất hiện trong card-mode (body innerText không chứa); "Không có" còn lại thuộc dòng meaningful "Cần xử lý". Card gọn: code + trạng thái + container + Nguồn trạng thái + action. Evidence: testplan/qa/evidence/2026-09-14_staging-round6-qa044-reverify/.
+
+PART word/footer1.xml
+QA-044 | Page 

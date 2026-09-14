@@ -1,0 +1,58 @@
+RECORD KP-084
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260914_P2_QA-040_bug-reject-negative-advance-amounts-without-changing-their-sign.docx
+KANBAN STATUS QA_PASSED
+SHA256 21a55601341c2a9aae546cb36971e814cfe2965ed09c8f3d50610a064d9eed35
+EMBEDDED IMAGES 3
+
+PART word/document.xml
+Reject negative OPS advance and expense amounts
+QA-040 | P2 | Bug | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 14 September 2026
+Role: OPS; hoangnh (Nguyễn Huy Hoàng); Chrome desktop 1440×900
+Page: /ops/wallet → Xin Tạm Ứng; /ops/orders → Khai chi phí; comparison /my-advances
+Existing behaviour
+Entering -12345 in the wallet advance form becomes positive 12.345 in the field and summary; Gửi yêu cầu stays enabled. This repeated twice. The /ops/orders expense form similarly changes -12345 to positive 12.345. Neither converted negative-input case was submitted. In contrast, /my-advances preserves -12345 and blocks submission, leaving three requests unchanged. Separately entered positive amounts saved successfully: 12,345 VND advance and 23,456 VND expense.
+Target behaviour
+Preserve the entered amount’s meaning. Reject disallowed negatives with an accessible inline error and block submission until corrected; retain readable thousands separators.
+Impact
+Silently changing the sign can create a positive advance or expense the user did not intend.
+Cause and investigation
+Hypothesis: currency formatting strips the minus sign before validation. No backend defect or persistence of the converted negative-input cases is established.
+Steps to reproduce
+1. As hoangnh, open /ops/wallet → Xin Tạm Ứng. Enter a reason and -12345; observe positive formatting and enabled submission. Close without submitting.
+2. Open /ops/orders → Khai chi phí. Select a category, enter -12345 and observe positive 12.345 without saving.
+3. Compare /my-advances → Tạo yêu cầu tạm ứng: -12345 remains negative and submission triggers minimum-value validation.
+Acceptance criteria
+1. Typing or pasting a negative value never silently turns it positive; show an inline error and prevent invalid submission.
+2. Each entry point enforces its allowed range for negative, zero, empty and positive values. Editing and blur preserve the intended amount.
+3. Valid positive amounts remain consistent through formatting, summary, save and reload.
+4. Verify keyboard, paste and mobile input across screen sizes; retain the working minimum-value guard and existing permissions.
+Requirement reference
+Full-app Chrome audit, 14 September 2026; OPS advance and expense amount forms.
+Evidence 1
+Reject negative OPS advance and expense amounts
+Figure 1. After entering -12345, the wallet dialog shows positive 12.345 in both the amount field and summary. Gửi yêu cầu is enabled. This case was not submitted.
+Evidence 2
+Reject negative OPS advance and expense amounts
+Figure 2. The separate /my-advances form retains -12345 and blocks submission with minimum-value validation. The visible 12,345 VND record was a separate, deliberately positive request.
+Evidence 3
+Reject negative OPS advance and expense amounts
+Figure 3. Expense creation also turns entered -12345 into positive 12.345 in the field and summary. This converted case was not saved; the amount was later deliberately replaced with positive 23.456 before creation.
+[2026-09-14] DEV COMPLETED — 3 modals preserve minus sign + inline error "Số tiền phải là số dương" + block submit. Commit 961d9d39.
+============================================================
+QA VERDICT: PASSED
+Date: 2026-09-14
+API Evidence (staging vantai.tingting.vip)
+- Advance request (OPS role) POST /api/forwarder/me/advance-requests with amount=-5000:
+  → HTTP 400: "Phải là số dương (amount)" — PASS
+- Expense POST /api/expenses with amount=-5000:
+  → HTTP 400: "Phải là số dương (amount)" — PASS
+- Expense POST /api/expenses with amount="-10000" (string negative):
+  → HTTP 400: "Phải là số dương (amount)" — PASS
+- Expense POST /api/expenses with amount=0 (zero edge case):
+  → HTTP 400: "Phải là số dương (amount)" — PASS
+- All negative/zero amounts correctly rejected by positiveNumeric schema transform.
+
+PART word/footer1.xml
+QA-040 | Page 

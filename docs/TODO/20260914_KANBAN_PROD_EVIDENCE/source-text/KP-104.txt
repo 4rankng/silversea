@@ -1,0 +1,79 @@
+RECORD KP-104
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260914_P2_QA-070_bug-reject-malformed-company-email-before-saving-the-profile.docx
+KANBAN STATUS QA_PASSED
+SHA256 d8bd1d29261fc1ba462c996db84e2099a714111c6ad26afd900898c476f9b991
+EMBEDDED IMAGES 2
+
+PART word/document.xml
+Reject malformed company email before saving the profile
+QA-070 | P2 | Bug | DEV COMPLETED — chờ deploy staging + QA
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 14 September 2026
+Role: ADMIN · desktop 1440 × 900 and phone 390 × 844
+Page: /config/company-info
+Existing behaviour
+Email accepts not-an-email. Selecting Lưu thông tin returns to /config without rejecting the value. Reopening /config/company-info and reloading shows not-an-email in both the input and saved company summary; the phone form shows it too. The invalid value has therefore persisted. A blank Tên đầy đủ correctly disables saving, so this finding is specific to email validation.
+Target behaviour
+Reject a malformed nonblank email with clear Vietnamese feedback at Email and keep the form open for correction. Preserve optional blank behavior where supported. A valid corrected address must save and survive reload.
+Impact
+The saved company contact becomes invalid and is presented as reusable company information. Email delivery and downstream document effects were not tested.
+Cause and investigation
+Email-format validation is absent or not enforced on this save path. Check form validation and the write boundary; no implementation cause is established.
+Steps to reproduce
+1. As Admin, open /config/company-info with the other profile fields valid.
+2. Set Email to not-an-email and select Lưu thông tin.
+3. Reopen the company profile, reload it and compare Email in the input and saved summary.
+Acceptance criteria
+1. Malformed nonblank email is rejected without replacing the previously saved address.
+2. Provide a Vietnamese field error with an accessible association; preserve unrelated draft values.
+3. Valid email saves and reloads correctly; retain supported optional blank behavior and required-name validation.
+4. Verify desktop, tablet and phone correction flows, including malformed, corrected and optional blank values.
+Requirement reference
+Observed company profile save and reload. The page describes these values as defaults for configuration screens and internal documents.
+Evidence 1
+Reject malformed company email before saving the profile
+Figure 1. After saving and reopening the profile, not-an-email appears in both the Email input and saved company summary.
+Evidence 2
+Reject malformed company email before saving the profile
+Figure 2. The phone form also displays the persisted malformed Email value. No validation message is visible beside it.
+============================================================
+QA VERDICT: FAILED
+Date: 2026-09-14
+API Evidence (staging vantai.tingting.vip)
+- PUT /api/company-info with email="not-an-email" (malformed):
+  → HTTP 201: ACCEPTED (governed action created) — FAIL
+- PUT /api/company-info with email="valid@company.com":
+  → HTTP 201: accepted (expected)
+Root Cause
+- companyInfoSchema in shared/src/schemas/index.ts defines:
+  email: z.string().trim().default('')
+- This uses NO .email() validation. Any non-empty string passes.
+- Compare with createUserSchema which correctly uses:
+  email: z.string().email().optional()
+Reproduction Steps (curl)
+1. Login: curl -X POST https://vantai.tingting.vip/api/auth/login -H 'Content-Type: application/json' -d '{"identifier":"admin","password":"Abc123"}'
+2. Get updatedAt: curl https://vantai.tingting.vip/api/company-info -H 'Authorization: Bearer <TOKEN>'
+3. PUT malformed email:
+   curl -X PUT https://vantai.tingting.vip/api/company-info \
+     -H 'Authorization: Bearer <TOKEN>' \
+     -H 'Content-Type: application/json' \
+     -H 'Idempotency-Key: test-bad-email' \
+     -H 'If-Unmodified-Since: <updatedAt>' \
+     -d '{"name":"Test","shortName":"T","address":"123 Test","taxCode":"0123456789","representative":"Test","representativeTitle":"","bankAccount":"000","bankName":"Test","phone":"0123456789","email":"not-an-email"}'
+4. Expected: HTTP 400 with email validation error
+5. Actual: HTTP 201 (accepted without validation)
+Fix Required
+- Change companyInfoSchema email field from:
+  email: z.string().trim().default('')
+  to:
+  email: z.string().trim().email('Email không hợp lệ').default('')
+[2026-09-14] QA PASSED — staging: backend schema fix commit 8d530784. PUT /api/company-info with email='not-an-email' → 400 'Email không hợp lệ'. Valid email → accepted. Blank email → accepted. Frontend validation also in place.
+Evidence — QA-070 (2026-09-14)
+• File: frontend/src/pages/config/CompanyInfoConfigPage.tsx — added email regex validation at top of handleSave(), returns error ‘Email không hợp lệ’ for malformed non-blank email
+• Test: CompanyInfoConfigPage.test.tsx — 3 new test cases: reject malformed email, allow blank email, allow valid email
+• Verification: npx tsc --noEmit ✓, vitest run 7/7 passed
+• Commit: 7e1c7ce0 on prod — fix(config): validate company email format before save
+• Pushed to origin prod
+
+PART word/footer1.xml
+QA-070 | Page 

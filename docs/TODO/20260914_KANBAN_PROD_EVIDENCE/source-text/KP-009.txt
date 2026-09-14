@@ -1,0 +1,16 @@
+RECORD KP-009
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260911_1-bug3-dispatch-note-column.docx
+KANBAN STATUS QA_PASSED
+SHA256 b12776294aeaf26f167ff85cb68956904703106b40d208d8e25a244eaae4e9ce
+EMBEDDED IMAGES 4
+
+PART word/document.xml
+Nguồn: 20260911_1.docx — BUG 3
+Nút Phát lệnh và Hoàn thành nên để cột ghi chú, đừng dùng icon button, viết chữ ra, cột ghi chú rộng đủ chỗ, ghi chú nếu dài thì hiện một phần, bấm để hiện đủ
+Trạng thái: QA PASSED — chờ deploy prod
+[2026-09-13] QA PASSED — bằng chứng QA trên dev local (/dispatch-detail, điều vận dieuvan, agent-browser 1600px)
+TC1 PASS — Nút HOÀN THÀNH là nút CHỮ nằm trong cột Ghi chú (không phải icon): dòng MSDU1245780 (xe ngoài, đã phát lệnh) hiển thị nút xanh chữ "Hoàn thành" ngay dưới phần ghi chú. Ảnh: d1.
+TC2 PASS — Ghi chú DÀI thì hiện MỘT PHẦN (kẹp 3 dòng có dấu …) và BẤM để hiện ĐỦ: đã đặt ghi chú dài tạm thời cho dòng này (218 ký tự), ảnh d1 thấy phần bị kẹp; bấm vào ghi chú mở dialog "Ghi chú xe" hiển thị TOÀN BỘ nội dung (ảnh d2). Đã khôi phục ghi chú gốc sau QA.
+TC3 PASS — Nút PHÁT LỆNH cũng là nút CHỮ trong cột Ghi chú: gán biển số cho dòng DRYU7867814 (đúng API phân quyền mà ô điều phối dùng), dòng chuyển "Đã xếp xe" và hiện nút chữ "Phát lệnh" (ảnh d3). Đã hủy gán biển số sau QA, không sinh chuyến (verified DB: 0 trips). Cột ghi chú đủ rộng, nút nằm riêng một dòng không chồng chéo.
+Gates: vitest DetailedPlanGrid.test.tsx + dispatch-sidebar-policy.test.ts 36/36 PASS (gồm test render nút phát lệnh nhanh và kẹp ghi chú); frontend tsc -b: 0 lỗi. Không sửa code lần này — đã đúng luật khách hàng từ trước (commit trước ngày báo bug), nhiệm vụ là chứng minh bằng chứng thật.
+Chưa cover (xem qa/2026-09-13_bug3-dispatch-note-column/REPORT.md): KHÔNG bấm thật nút Hoàn thành/Phát lệnh (sẽ tạo/thay đổi nghiệp vụ thật trên seed — luồng bấm đã có unit test phủ); deploy prod ngoài phạm vi.

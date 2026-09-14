@@ -1,0 +1,16 @@
+RECORD KP-140
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/TODO/20260914_P1_5-regression-lift-drop-info-missing-dispatch-detail.docx
+KANBAN STATUS TODO
+SHA256 42806dd980a10200a10f3dbd46f0accd92fbeb95c159c8875e3a2f3a690d1a30
+EMBEDDED IMAGES 1
+
+PART word/document.xml
+Role điều vận màn hình chi tiết
+Please show Thông tin địa điểm nâng hạ
+Before 11 Sep the info is there
+After 13 Sep the info is not shown
+Please fix
+Nguồn: thẻ gốc của user (đổi tên theo convention). REGRESSION: trước 11/9 còn, sau 13/9 mất — nghi ngờ cụm detailed-plan land 11–13/9 (density/compact cells). Ưu tiên cao: đã lên prod sáng nay.
+Tiêu chí nghiệm thu: (1) Thông tin địa điểm nâng/hạ hiển thị lại trên màn chi tiết điều vận đúng dữ liệu từng chuyến; (2) commit gây regression xác định + regression test khóa hiển thị; (3) layout các viewport giữ tính compact của đợt density.
+Trạng thái: CẦN THÔNG TIN — cần mã chuyến/cont bị lỗi + URL từ user
+[2026-09-14] CẦN THÔNG TIN — Sau khảo sát kỹ (52): (i) /dispatch-detail không có drawer — màn trong thẻ là trip detail kiểu driver do staff xem; (ii) chuỗi render nâng/há ĐÃ SỐNG ở HEAD cho row có port (thu/fulfillment 2445/trip 1622: pickupLocation 'Kho ASKEY', deliveryLocation 'Cảng Hải Phòng', returnDepotName 'TC - HICT' — wire + FE + coalesce đều đúng; giả thuyết data-null rút lại sau khi sửa lỗi key probe). Cần USER cung cấp: MÃ CHUYỆN/SỐ cont cụ thể bị mất thông tin + URL màn hình đã xem. Có reference → pin một query; nếu row đó render đúng trên staging hiện tại → thẻ đóng already-fixed-by-wave. Vòng staging của 88 sẽ spot-check tổng quát các section nâng/há.

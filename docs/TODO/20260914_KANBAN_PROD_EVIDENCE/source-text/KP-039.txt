@@ -1,0 +1,39 @@
+RECORD KP-039
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260913_P2_QA-007_enhancement-improve-readability-of-secondary-dispatch-information.docx
+KANBAN STATUS QA_PASSED
+SHA256 764412fee4458ad55fbcb065986f641b91664d38083dc16814c184b7deaf0bb4
+EMBEDDED IMAGES 1
+
+PART word/document.xml
+Improve readability of secondary dispatch information
+QA-007 | P2 | Enhancement | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 13 September 2026
+Role: Dispatcher dungnv; Chrome desktop 1728 by 929 and 1280 by 900, 13 September 2026
+Page: https://vantai.tingting.vip/dispatch-detail
+Existing behaviour
+Appointment-time lines, cargo weights, customer notes and the CUS sẽ bổ sung hint use very pale gray text on a white table background. In the TESTSS2609 filtered view these operational values are much harder to read than adjacent bold container IDs. The issue was confirmed visually; an exact contrast ratio was not measured.
+Target behaviour
+Keep secondary data readable at normal zoom while retaining clear hierarchy. Use a text color meeting at least 4.5:1 contrast for normal-size text against every table background and avoid treating operational values as disabled UI.
+Impact
+Frequent scanning becomes harder, especially on dim displays or for users with reduced vision.
+Cause and investigation
+Likely an overly light shared muted-text token or inherited opacity. Confirm computed colors and opacity before changing styles.
+Steps to reproduce
+1. Sign in as dungnv and open Kế hoạch chi tiết.
+2. Search TESTSS2609 and read the time, weight and customer-note text at normal zoom.
+3. Compare readability at 1280 pixels and in narrow cards.
+Acceptance criteria
+1. Normal-size operational text meets 4.5:1 contrast on white, highlighted and alternate row backgrounds.
+2. Notes, times and weights are comfortably readable without increasing browser zoom.
+3. Disabled actions remain distinguishable without dimming unrelated shipment data.
+Requirement reference
+The UI waste lots of space-data-intensive-design.docx; visual staging review
+Evidence 1
+Improve readability of secondary dispatch information
+Figure 1. Time and customer-note lines are visibly pale compared with primary row data.
+[2026-09-14] DEV COMPLETED — Contrast đo TRỰC TIẾP trên staging (getComputedStyle sau hard-reload, build 531c347c): dòng muted rgb(100,116,139) trên nền trắng = 4.76:1 ĐẠT (walk effective-bg đúng). CSS deployed mang 14× #64748b gồm rule muted + placeholder. Delta còn lại của 393fab38 (empty-rule + pins) chưa trong build — tái kiểm trên cut #2. Bằng chứng: 2026-09-14_staging-qa007-contrast/REPORT.md (đã hiệu đính nguồn).
+[2026-09-14] QA PASSED — staging2 (build 7174ebcb): pins giữ — dòng muted ('Giờ: …', '18.500 kg') rgb(100,116,139) = 4.76:1 trên trắng. Lưu ý build: chunk CSS dispatch giống hệt giữa 2 cut (nội dung 393fab38 đã có từ cut-1). Ghi nhận: rule .detailed-plan-grid__empty còn 94a3b8 nhưng phần tử KHÔNG BAO GIỜ render (empty-UI khác) — chấp nhận dormant, sửa ở lần chạm sau. Bằng chứng: 2026-09-14_staging2-qa007-contrast/.
+
+PART word/footer1.xml
+QA-007 | Page 

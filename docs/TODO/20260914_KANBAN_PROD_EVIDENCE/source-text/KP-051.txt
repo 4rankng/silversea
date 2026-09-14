@@ -1,0 +1,43 @@
+RECORD KP-051
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260913_P2_QA-024_bug-keep-the-container-type-visible-when-its-number-is-not-assigned.docx
+KANBAN STATUS QA_PASSED
+SHA256 e8aa9e86999e72ef1b9386914bafbc1f5db967fbcebf63fdff67c4ea257c1132
+EMBEDDED IMAGES 3
+
+PART word/document.xml
+Keep the container type visible when its number is not assigned
+QA-024 | P2 | Bug | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 13 September 2026
+Role: Lái xe — Dương Văn Thực; login dvthuc; Chrome 390 × 844
+Page: https://vantai.tingting.vip/my-trips — Đã nhận; comparison with /my-trips/8
+Existing behaviour
+The first ASKEY-2 card, with XƯỞNG 2 - GỬI ẢNH CONT TRƯỚC 8H SÁNG, has no number/type group. Its trip 8 detail shows 40HC without a container number. The card hides this available type and does not indicate that the number is pending. The numbered EMCU6163403 card below displays both number and type.
+Target behaviour
+Render container type independently of the number. For an unassigned number, show a concise label such as Chưa có số cont beside the known type. Replace the placeholder after the first number is saved, retaining the compact information group.
+Impact
+Drivers must open the trip to learn its type and cannot distinguish a pending number from omitted information.
+Cause and investigation
+Hypothesis: the number/type group is conditional on a nonempty number. Verify independent rendering; no code or API mapping was inspected.
+Steps to reproduce
+1. As dvthuc at 390 × 844, open Đã nhận and find the first ASKEY-2 card with the XƯỞNG 2 note.
+2. Compare its absent number/type group with the populated group on EMCU6163403 below.
+3. Open the first card at /my-trips/8 and confirm the available 40HC type. Use an equivalent unnumbered trip if its state changes.
+Acceptance criteria
+1. An unnumbered trip with a known type shows that type and an explicit missing-number label.
+2. Saving the first number replaces the placeholder after refresh without losing or duplicating the type.
+3. Numbered and unnumbered cards share a compact, readable group at 390px; avoid oversized empty-state panels.
+4. If type is also absent, use an honest empty state. Operation labeling remains tracked in QA-002.
+Requirement reference
+IMG_6369.png and IMG_6370.png — driver cards separately show container number and container type. A clear missing-number label is the proposed empty-state treatment.
+Evidence 1
+Keep the container type visible when its number is not assigned
+Figure 1. Staging, 13 September 2026, dvthuc: the first ASKEY-2 card has no number/type group or missing-number label; the numbered card below displays EMCU6163403 and 20DC.
+Evidence 2
+Keep the container type visible when its number is not assigned
+Figure 2. Staging, 13 September 2026, dvthuc: trip 8 details show the known 40HC type without a container number. This is the first ASKEY-2 card shown in Figure 1.
+[2026-09-14] DEV COMPLETED — Xác minh trực tiếp (lead-qa, local dev, nvtho): card chưa có số cont hiển thị 'Chưa có số cont' (muted) BÊN CẠNH type '40'HC' đã biết — type không biến mất khi thiếu số; pill ĐÓNG trong strip; các phần khác (route, ports, note XƯỞNG 2) nguyên vẹn. Placeholder theo dữ liệu — số cont đầu tiên lưu xong sẽ thay thế. Commit 59d5d6e3. Bằng chứng: /Volumes/LexarSSD/projects/silversea-prod/testplan/qa/evidence/2026-09-14_journey-card-route-numberless-qa023-qa024/01 + 02-closeup (cùng capture với QA-023).
+[2026-09-14] QA PASSED — staging2: 'Chưa có số cont40'HC' trên card thiếu số (detail: 'Số cont 40'HC'). Bằng chứng: staging2-qa024-numberless-type/.
+
+PART word/footer1.xml
+QA-024 | Page 

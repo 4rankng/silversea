@@ -1,0 +1,42 @@
+RECORD KP-121
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260914_P2_QA-132_bug-persist-clearing-of-optional-truck-text-fields.docx
+KANBAN STATUS QA_PASSED
+SHA256 dd14702dd645ce61d17f2dde04d51fcce5bd8c7093ff85bb98199c499edffa64
+EMBEDDED IMAGES 0
+
+PART word/document.xml
+Persist clearing of optional truck text fields
+QA-132 | P2 | Bug | QA_PASSED
+Review date: 14 September 2026
+Scope: Local source snapshot 9e09c901f5f7
+Role: Admin editing an existing truck
+Location: https://vantai.tingting.vip/fleet and /fleet/vehicles — Sửa xe
+Existing behaviour
+Clearing Loại hình xe, Hãng xe or Ghi chú causes the form to submit undefined for vehicleClass, brand or note. JSON serialization removes those properties. The backend applies only supplied properties, so a successful update retains the old stored text and it returns on reload. The same form already sends null when clearing numeric and date fields. Existing version and idempotency transport guards do not restore the omitted fields.
+Target behaviour
+Represent an intentional clear with the supported explicit null value, while preserving any deliberately untouched fields. Reopened and reloaded truck data must match the saved blank form.
+User impact
+Users cannot remove obsolete or incorrect truck metadata through the editor, even when a save reports success.
+Cause and investigation
+Confirmed source mismatch: empty text becomes undefined in the form; the JSON payload therefore expresses omission, while the partial update correctly leaves omitted database fields unchanged. The schema already supports null.
+Steps to reproduce
+1. Proposed regression: create or use an owned truck fixture with nonempty vehicle class, brand and note. Open Sửa xe as Admin after its data loads.
+2. Clear one field, save with a current record version, then reopen and reload. Repeat for all three fields and for clearing them together; inspect the serialized request and readback.
+3. Repeat from both /fleet and /fleet/vehicles, without altering plate or trailer assignment.
+Acceptance criteria
+1. Each intentionally cleared text field is sent as explicit null and remains blank in API readback and both editors after reload.
+2. Nonempty text remains trimmed where appropriate. Unchanged metadata and carrier/trailer relationships remain intact.
+3. Add a component/serialization test for clear versus unchanged values and an API persistence regression using the existing nullable schema. Retain optimistic concurrency and idempotency guards.
+4. Verify clearing and saving at phone, tablet and desktop widths; no additional field or oversized control is needed.
+Verification coverage
+CODE-READ + FIX IMPLEMENTED. TypeScript compilation passed (npx tsc --noEmit). Vitest suite ran; 288/293 test files passed; 5 failing files are pre-existing (PenaltyPage, DispatchPlanEditorCell, ShipmentContainersPage, ShipmentsPage, SearchableSelect, structure guard) and unrelated to this change. No fleet/truck tests were affected.
+Evidence
+Fix committed 2026-09-14. Commit 1ee2335: fix(fleet): send null for cleared optional truck fields. Pushed to prod. Change: frontend/src/features/fleet/TruckFormModal.tsx lines 96, 97, 103 — vehicleClass, brand, note now send null instead of undefined when trimmed value is empty.
+Code references
+Code-read audit, 14 September 2026; repository /Users/frank.nguyen/Documents/silversea/codebase; commit 9e09c901f5f7938f92a3e1f524fc6e17acbf33a8. No runtime or staging reproduction.
+frontend/src/features/fleet/TruckFormModal.tsx:90–103 builds cleared vehicleClass, brand and note as undefined. frontend/src/features/fleet/truck-card.tsx:428–446 and features/dispatch/catalogs/FleetVehiclesView.tsx:278–292 wire the editor to update.
+frontend/src/lib/api/client.ts:268–273 serializes PUT with JSON.stringify. shared/src/schemas/index.ts:723–745 permits null for the three fields. backend/src/routes/config/catalog-crud.routes.ts:339–382 preserves the update payload; routes/utils/crud-factory.ts:378–401 parses a partial update and writes supplied fields.
+Tests inspected: TruckFormModal.styles.test.ts covers styling; useCRUD.test.tsx mocks the transport. Backend truck-carrier-link.test.ts and truck-trailer-transfer.test.ts cover nullable relationship clearing, not clearing these text fields.
+
+PART word/footer1.xml
+QA-132 | Page 

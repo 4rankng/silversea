@@ -1,0 +1,40 @@
+RECORD KP-144
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/TODO/20260914_P2_QA-053_bug-enable-adding-receipts-to-saved-pending-ops-expenses.docx
+KANBAN STATUS TODO
+SHA256 8387d1971a96090ec625dba4682549c26a63488cf6cc409e4bb322e8e1f04a47
+EMBEDDED IMAGES 2
+
+PART word/document.xml
+Enable adding receipts to saved pending OPS expenses
+QA-053 | P2 | Bug | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 14 September 2026
+Role: OPS hoangnh (Nguyễn Huy Hoàng); Chrome desktop 1440 × 900, tablet 768 × 1024 and phone 390 × 844
+Page: https://vantai.tingting.vip/ops/orders → https://vantai.tingting.vip/ops/wallet
+Existing behaviour
+Khai báo chi phí promises users can save first and add receipt photos later. A positive 23,456 VND expense for SHP-2609-00020 saved as Chờ duyệt with Nợ chứng từ. Its Quỹ tạm ứng editor exposes only category, amount, date and notes on desktop, tablet and phone. The tested Nợ chứng từ action opens an empty viewer without upload controls. Neither tested path lets OPS fulfil the promised follow-up.
+Target behaviour
+Let authorized OPS users add and manage receipts on the existing pending expense through its editor or a clearly linked receipt action. Preserve the ability to save without photos and attach them later without recreating the expense.
+Impact
+OPS cannot resolve missing-document status through the saved-expense controls, leaving the record incomplete for review.
+Cause and investigation
+Hypothesis: receipt upload is available during creation but was not connected to these saved-expense controls. Other routes and the underlying API were not established.
+Steps to reproduce
+1. In /ops/orders, choose Khai chi phí for SHP-2609-00020. Select QA Audit 0914 - Staging, enter positive 23456, and save without photos.
+2. Open /ops/wallet. Find the pending expense, choose Sửa khoản chi and inspect all fields; no receipt controls appear.
+3. Close the editor and select Nợ chứng từ; the empty viewer also has no upload action.
+Acceptance criteria
+1. Attach and manage receipts on a saved pending expense using compact controls on phone, tablet and desktop.
+2. Persist attachments to the same expense and display them after reopening and reload; preserve its amount and shipment association.
+3. Update Nợ chứng từ only after confirmed persistence satisfies the receipt rule. Upload failure must retain accurate status and provide retry.
+Requirement reference
+Staging Khai báo chi phí guidance and saved-expense workflow review, 14 September 2026.
+Evidence 1
+Enable adding receipts to saved pending OPS expenses
+Figure 1. The creation form explicitly permits saving first and adding photos later. This earlier draft shows 12.345; the saved test expense was subsequently entered as positive 23.456.
+Evidence 2
+Enable adding receipts to saved pending OPS expenses
+Figure 2. The saved 23.456 expense editor has category, amount, date, notes and save/close controls, with no receipt uploader. Its Nợ chứng từ and Chờ duyệt status remain visible in the row behind it.
+
+PART word/footer1.xml
+QA-053 | Page 

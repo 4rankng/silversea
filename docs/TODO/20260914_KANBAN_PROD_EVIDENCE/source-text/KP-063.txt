@@ -1,0 +1,44 @@
+RECORD KP-063
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260914_143_bug-hide-redundant-empty-container-return-when-equal-to-unloading-port.docx
+KANBAN STATUS QA_PASSED
+SHA256 1723c229eb584a21dbd82c8d1f4686193ff20e53aae76a235ea62bc260137390
+EMBEDDED IMAGES 3
+
+PART word/document.xml
+Màn hình chi tiết lái xe — ẩn "Trả cont rỗng" khi cảng hạ = nơi trả
+Trạng thái: QA PASSED — đã xác minh trên staging
+Nguồn: Pham Trung Kiên (b_d) — chat 2026-09-14
+Yêu cầu
+Trên màn hình chi tiết lệnh (láixe role), khi chuyến hàng nhập phải trả cont rỗng, cảng hạ chính là Nơi trả cont rỗng. Ở trường hợp này, dòng "Trả cont rỗng" không cần hiển thị vì信息 bị trùng lặp với cảng hạ.
+Hiện tại (HEAD), DriverTaskInfoSections.tsx luôn hiển thị dòng "Trả cont rỗng" khi returnDepotName có giá trị — kể cả khi giá trị đó bằng cảng hạ (dropPoint). Kết quả: 2 dòng hiển thị cùng 1 địa chỉ, gây nhầm lẫn cho lái xe.
+Hành vi hiện tại (HEAD)
+Component: frontend/src/pages/driver/DriverTaskInfoSections.tsx• Dòng "Cảng hạ" hiển thị dropPoint (dropPortName → dropWarehouseName → "—").• Dòng "Trả cont rỗng" hiển thị khi returnDepotName tồn tại, bất kể giá trị.• Khi cảng hạ = nơi trả cont rỗng → 2 dòng giống nhau, thông tin trùng lặp.
+Tiêu chí nghiệm thu
+AC1: Khi returnDepotName trùng với dropPoint → ẩn dòng "Trả cont rỗng".
+AC2: Khi returnDepotName KHÁC dropPoint → giữ nguyên dòng "Trả cont rỗng".
+AC3: Khi returnDepotName = null → không hiển thị dòng "Trả cont rỗng" (giữ nguyên hành vi hiện tại).
+AC4: Đổi label "SĐT kho" thành "Số điện thoại liên hệ" trên cùng component.
+AC5: Test unit cho cả 3 trường hợp (trùng / khác / null) passes.
+Phạm vi
+Sửa 1 file: frontend/src/pages/driver/DriverTaskInfoSections.tsxSửa 1 test: frontend/src/pages/driver/DriverTaskInfoSections.test.tsxKhông ảnh hưởng backend, shared types, hay các role khác.
+Files liên quan
+• frontend/src/pages/driver/DriverTaskInfoSections.tsx (chỉnh điều kiện render + label)
+• frontend/src/pages/driver/DriverTaskInfoSections.test.tsx (thêm test cases)
+Xác minh
+• pnpm --dir frontend exec vitest run — tất cả pass
+• pnpm --dir frontend exec tsc — 0 errors
+• QA trên staging với tài khoản dvthuc (láixe role) — kiểm tra màn hình chi tiết lệnh có return cont rỗng trùng cảng hạ.
+[2026-09-14] DEV COMPLETED
+AC1: returnDepotName == dropPoint → row hidden — TEST VERIFIED (unit test)
+AC2: returnDepotName != dropPoint → row shown — UI DRIVEN (staging, dvthuc, trip #31)
+AC3: returnDepotName = null → row hidden — TEST VERIFIED (unit test)
+AC4: Label "SĐT kho" → "SĐT liên hệ" — UI DRIVEN (staging screenshot)
+AC5: Unit tests for all 3 cases — TEST VERIFIED (20/20 pass)
+Gates: tsc 0 errors · vitest 1827 pass / 24 fail (pre-existing) · pre-commit hook passed
+Evidence: testplan/qa/evidence/2026-09-14_143-hide-return-depot/
+Hướng dẫn xác minh:
+1. Đăng nhập dvthuc / Abc123 → https://vantai.tingting.vip/my-trips
+2. Mở chuyến có "Trả cont rỗng" (VD: TRP-202609-0014)
+3. Kiểm tra: "SĐT liên hệ" (không phải "SĐT kho") hiển thị đúng
+4. Kiểm tra: "Trả cont rỗng" chỉ hiện khi khác "Cảng hạ"
+[2026-09-14] QA PASSED — staging (build 763b3816, driver dvthuc): AC1 — fixture riêng (shipment QA-R6-143, container hạ port "Sao Á DC", không deliveryLocation, snapshot không deliverySite) → CẢNG HẠ = "Sao Á DC" và DÒNG "Trả cont rỗng" BỊ ẨN (port == điểm hạ → không hiển thị gì thêm); AC2 — trip 16 (Cảng hạ QA-R2-PHONE ≠ Cảng Hateco) → dòng TRẢ CONT RỖNG "Cảng Hateco" hiển thị. Cùng chuỗi resolveDeliveryStage với board + CUS. Fixture đã dọn sạch (0|0|0). Evidence: testplan/qa/evidence/2026-09-14_staging-round6-card143-return-depot/.

@@ -1,0 +1,37 @@
+RECORD KP-156
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/TODO/20260914_P2_QA-127_bug-enforce-ops-shipment-scope-when-serving-trip-photos.docx
+KANBAN STATUS TODO
+SHA256 80d87f329f37a9c9cfd2cfc0fa91befcaa83303bfa29e89aeded896d67f8892d
+EMBEDDED IMAGES 0
+
+PART word/document.xml
+Enforce OPS shipment scope when serving trip photos
+QA-127 | P2 | Bug | TODO
+Review date: 14 September 2026
+Scope: Local source snapshot 9e09c901f5f7
+Role: OPS outside the trip’s current shipment assignment
+Location: GET /api/photos/trips/:tripId/<photo>; compare /api/forwarder/me/trips/:id
+Existing behaviour
+OPS has photos:read. For trips/<id>/ keys, the photo-serving route checks record ownership only when the role is DRIVER; an OPS caller falls through to sendFile. The normal OPS trip detail filters user_shipment_links and denies an out-of-scope trip. Receipt authorization also checks current assignment. Consequently, a known private trip-photo link is not subject to the assignment boundary enforced by the associated detail page.
+Target behaviour
+Apply current OPS shipment scope before serving private trip photos. Permit assigned OPS and intended office roles; deny unassigned or revoked OPS access consistently with the trip detail. Keep company-wide planning visibility separate from access to private shipment evidence.
+User impact
+A known photo link can remain readable after an OPS shipment assignment is removed, even when that user can no longer open the trip detail.
+Cause and investigation
+index.ts:188 authenticates the account and applies photos Casbin. policy.csv:46 permits OPS reads, but upload.ts:705–718 adds a row check only for DRIVER. forwarder-trip-query.service.ts:390–397 applies the missing shipment-link predicate to trip detail. Test source forwarder-trip-scope.test.ts:236–249 covers out-of-scope detail; photo-authz.test.ts:252–264 covers receipt revocation, not this trip-photo branch. Tests were not run.
+Steps to reproduce
+1. Prepare a synthetic trip photo and an OPS account initially assigned to that shipment; retain the photo key.
+2. Remove the shipment assignment. Compare denied trip detail with a request for the same photo through /api/photos. The source predicts the photo still passes; no file request was executed in this audit.
+Acceptance criteria
+1. Assigned OPS can retrieve the synthetic trip photo through the authenticated route.
+2. Unassigned OPS and an account whose assignment was revoked cannot retrieve the same known key.
+3. Office permissions and DRIVER ownership behavior remain consistent.
+4. Add route-level tests for current assignment, revocation and absent trip records; keep errors consistent with record visibility.
+5. Retest this authenticated boundary independently of QA-125: closing the public alias alone must not be treated as an OPS authorization fix.
+Verification coverage
+CODE-READ ONLY. The source path was reviewed; the current staging deployment, UI interaction and database side effects were not exercised for this finding. Add a testplan regression before implementing and exercise the stated recovery and permission boundaries.
+Code references
+CODE-READ ONLY at commit 9e09c901f5f7938f92a3e1f524fc6e17acbf33a8; local checkout /Users/frank.nguyen/Documents/silversea/codebase. No live exploitation, API request or browser reproduction was performed. Source: backend/src/routes/upload.ts:705–718,780; backend/src/casbin/policy.csv:46; backend/src/services/forwarder-trip-query.service.ts:45–53,390–397; backend/src/tests/forwarder-trip-scope.test.ts:236–249.
+
+PART word/footer1.xml
+QA-127 | Page 

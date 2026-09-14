@@ -1,0 +1,49 @@
+RECORD KP-142
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/TODO/20260914_P1_QA-139_enhancement-remove-offline-business-command-queues-and-retire-saved-commands.docx
+KANBAN STATUS TODO
+SHA256 2a6c905edfbd7292eeae59d45fd99ca02f6f5bb45a3a553c96e84d2702c0f90d
+EMBEDDED IMAGES 0
+
+PART word/document.xml
+Remove offline business command queues and retire saved commands
+QA-139 | P1 | Enhancement | TODO
+Review date: 14 September 2026
+Scope: Local source snapshot 9e09c901f5f7
+Role: DRIVER and OPS; shared queue consumers
+Location: /my-trips/:id; /my-trips/:id/pod; /my-orders; /my-forwarder-trips and /my-forwarder-trips/:id
+Existing behaviour
+Driver acceptance/progress, e-POD submission/completion, OPS paper handoff and order exchange persist commands before sending. Failed commands remain locally and page/inbox effects replay them when connectivity returns. Queue-specific pending/retry/conflict states remain in the UI. This contradicts the decision that all operations require internet.
+Target behaviour
+Replace enqueue/drain with explicit online submissions. Remove deferred business writes and automatic replay. Retire existing queue data before any old command can drain, inform affected users that unsent actions were not applied, and require manual re-entry after checking current server state. Global connection UI is QA-140; service-worker fallback is QA-141.
+User impact
+Previously saved actions can otherwise execute later without a fresh user decision, including trip completion and shipment handoff. Leaving a second queue implementation or old storage behind would make an internet-only migration incomplete.
+Cause and investigation
+Four active consumers share useOfflineCommandQueue and roleCommandSender. The store persists scoped and unscoped localStorage keys; reconnect effects drain saved commands. A separate IndexedDB queue and DriverProgressCard remain in source, although the card has no current production importer in the inspected checkout. Direct-submit forms also import the key helper from the queue module.
+Steps to reproduce
+1. In a controlled regression fixture, load an eligible Driver task online, interrupt the request, then attempt a milestone or e-POD completion; inspect the queue store and local status.
+2. Repeat for OPS paper handoff and order-exchange start/complete. Current source enqueues before sending and exposes offline-retention feedback.
+3. Seed legacy scoped/unscoped localStorage and IndexedDB commands, then reconnect, reload and switch accounts. The replacement must retire these records without submitting them; these migration scenarios were not executed during this review.
+Acceptance criteria
+1. Acceptance/progress, e-POD submission/completion, paper handoff and both order-exchange actions submit explicitly online. Offline or failed requests never enter a persistent or in-memory replay queue.
+2. Reconnect, reload, route changes and account switches never automatically submit business commands. A lost response remains an uncertain outcome: refresh server state before an explicit retry, using the same operation idempotency key where appropriate.
+3. Retire silversea.driver-offline-command-queue.v1 and its role/account-scoped keys, plus the offline-queue object store in IndexedDB database silversea, before any drain. Remove queue memory singletons/listeners; preserve unrelated storage. Storage-access failures must not re-enable replay.
+4. Notify affected users that unsent queued actions were not applied and require manual re-entry. Do not describe an in-flight request with an unknown server outcome as definitely unapplied, and do not expose another account’s action details.
+5. Remove queue-only state, replay controls, sender code and unused legacy consumer. Move the idempotency helper out of the queue module for online callers. Preserve server permissions, validation, version checks and duplicate protection; introduce no approval gate.
+6. Add migration and online-submit regressions across every listed action, including response loss, rapid clicks, blocked storage, populated old queues and account switching. Replace tests that require offline retention/replay.
+Verification coverage
+CODE-READ ONLY. Traced production imports, routes, storage and sender branches; no live offline scenario, API call, database write or migration was executed. QA-122 and QA-123 queue-repair tasks are superseded by this removal scope. Existing queue and page tests document the old feature and require replacement; they were not run.
+Code references
+Checkout /Users/frank.nguyen/Documents/silversea/codebase; commit 9e09c901f5f7938f92a3e1f524fc6e17acbf33a8.
+frontend/src/App.tsx:364–379: active Driver and OPS routes.
+frontend/src/features/driver/useOfflineCommandQueue.ts:43–85,89–95,131–180,194–274,277–331: storage, key helper, enqueue, drain and hook.
+frontend/src/features/offline/roleCommandSender.ts:30–97: milestone, POD, completion, handoff and exchange API dispatch.
+frontend/src/pages/DriverTripDetailPage.tsx:72–75,97–121,164–185,308–320: acceptance/progress queue and reconnect replay.
+frontend/src/pages/DriverTripPodPage.tsx:76–85,126–156,175–208,240–338: queue replay, direct draft helper use, POD submit and completion.
+frontend/src/pages/ForwarderTripDetailPage.tsx:63–66,88–99,202–229: paper-handoff queue and replay.
+frontend/src/components/work-inbox/RoleWorkInbox.tsx:136–139,216–237,256–292: OPS exchange and replay; 295–319: Customer response already submits directly.
+frontend/src/features/driver/driver-trip-model.ts:144–163; frontend/src/components/trip/TripPodSubmission.tsx:79–83,159–160: queue-derived display states.
+frontend/src/lib/offline-queue.ts:86–105,109–151,212–254,343–362: legacy IndexedDB store and singleton; frontend/src/components/trip/DriverProgressCard.tsx:101–140,193–209: legacy consumer.
+frontend/src/components/trip/FuelRefillReportForm.tsx:97–114; frontend/src/components/trip/ShipmentCostEntryForm.tsx:238–256: online callers importing the queue key helper.
+
+PART word/footer1.xml
+QA-139 | Page 

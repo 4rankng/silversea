@@ -1,0 +1,49 @@
+RECORD KP-027
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260913_6-driver-card-view-layout.docx
+KANBAN STATUS QA_PASSED
+SHA256 308cf4c1162ddc12d0c3529b85f62fe70ab979ec0c9b1614641b22ccc5087a46
+EMBEDDED IMAGES 8
+
+PART word/document.xml
+Driver Card View Layout Polish
+Nguồn: 20260911_2.docx — Wireframe Gap Analysis
+Trạng thái: QA PASSED — chờ deploy prod
+Yêu cầu (từ wireframe khách hàng):
+Màn hình Lệnh mới / Đã nhận trên app lái xe cần hiển thị dạng card với layout đúng như wireframe:
+1. TÊN NHÀ MÁY (viết tắt) — HIỆN ĐẦU DÒNG, CHỮ ĐẬM, DẠNG STANDALONE
+   Hiện tại: inline label "NHÀ MÁY: ASKEY-2" — cần đổi thành bold standalone header
+2. TUYẾN ĐƯỜNG — HIỆN DƯỚI TÊN NHÀ MÁY, CHỮ ĐẬM, DẠNG STANDALONE
+   Hiện tại: inline label "TUYẾN: Lô C7-2,KCN Quế Võ..." — cần đổi thành bold standalone
+3. DÒNG BẢNG: SỐ CONT | LOẠI CONT | HÀNG TRẢ / HÀNG ĐÓNG
+   Hiện tại: thiếu cột HÀNG TRẢ/HÀNG ĐÓNG (đóng hay trả)
+4. DÒNG BẢNG: NÂNG | HẠ
+   Hiện tại: thiếu thông tin cảng nâng/ạ trên card view
+5. GHI CHÚ (TÁC VỤ) — hiện task tags
+   Hiện tại: đã đúng
+6. NÚT XEM CHI TIẾT
+   Hiện tại: đã đúng
+Tiêu chí nghiệm thu:
+1. Tên nhà máy hiện dạng bold standalone, không inline với label
+2. Tuyến đường hiện dạng bold standalone dưới tên nhà máy
+3. Dòng bảng có 3 cột: SỐ CONT | LOẠI CONT | HÀNG TRẢ/HÀNG ĐÓNG
+4. Dòng NÂNG | HẠ hiển thị trên card
+5. Ghi chú (tác vụ) hiển thị đúng
+6. Nút "Xem chi tiết" hoạt động
+[2026-09-13] QA PASSED — layout card lái xe màn hình Lệnh mới / Đã nhận (JourneyCard, DriverTripsPage.tsx)
+Tiêu chí 1 — Tên nhà máy (viết tắt) in đậm, standalone, đầu dòng: ĐẠT (sẵn từ commit 365943ea, xác minh lại trên ASKEY-2 & SUNRISE).
+Tiêu chí 2 — Tuyến đường in đậm, standalone, ngay dưới tên nhà máy: ĐẠT (365943ea, xác minh lại).
+Tiêu chí 3 — Cột HÀNG TRẢ/HÀNG ĐÓNG (cột 3 dòng cont), giá trị ĐÓNG/TRẢ/— theo shipments.trade_direction (EXPORT→ĐÓNG, IMPORT→TRẢ, không rõ→'—'): ĐẠT — task này đổi trục từ loadingType sang trade_direction. TRẢ live (pho: TCLU5830190 | 40'DC | TRẢ), ĐÓNG live (thu: TRHU4510296 | 40'DC | ĐÓNG), ĐÓNG pill riêng trên card không cont (nvtho). Biến thể '—' xác minh bằng unit test (dev data không có mẫu live).
+Tiêu chí 4 — Dòng NÂNG | HẠ trên card: ĐẠT (sẵn từ 3a0bd5af, xác minh lại; label CSS uppercase).
+Tiêu chí 5 — GHI CHÚ (tác vụ): ĐẠT — ghi chú thường hiển thị live; tag chips xác minh bằng unit test (không có data mẫu trong dev).
+Tiêu chí 6 — Nút "Xem chi tiết": ĐẠT — tap thật (hit-test) mở màn hình chi tiết /my-trips/7 đầy đủ.
+Gates: lint 0 lỗi / 100 cảnh báo cũ; tsc 0 lỗi; vitest 1691 pass / 4 fail cũ có sẵn trên HEAD sạch (3× ShipmentDetailPage carrier + structure guard 438>432, không liên quan task); backend suite 1919/3 fail cũ (FK tests); build PASS. Console 0 lỗi; mạng 0 lỗi 4xx/5xx. Review lane: PASS, không blocker/major.
+Bằng chứng đầy đủ: testplan/qa/evidence/2026-09-13_driver-card-view-layout/ (REPORT.md + 18 file ảnh/log). Trục pill: pill đọc trade_direction, KHÔNG fallback loadingType (DriverTripsPage.tsx:83-84). Card không cont + không rõ hướng: ẩn pill đúng thiết kế (graceful-hide, xác minh live trên 53 card của tdtrung).
+Hướng dẫn xác minh:
+1. Mở http://localhost:7174 (make dev), đăng nhập tdtrung / Abc123 → danh sách Lệnh mới / Đã nhận: tên nhà máy in đậm đứng đầu card.
+2. Trên cùng card: dòng tuyến đường in đậm ngay dưới tên nhà máy.
+3. Dòng NÂNG | HẠ hiển thị trên card.
+4. Đăng xuất, đăng nhập pho / Abc123 → dòng cont: TCLU5830190 | 40'DC | TRẢ.
+5. Đăng nhập thu / Abc123 → TRHU4510296 | 40'DC | ĐÓNG.
+6. Đăng nhập nvtho / Abc123 → card ASKEY-2: pill ĐÓNG dòng riêng (card không có cont).
+7. Card có ghi chú: mục GHI CHÚ hiển thị nội dung.
+8. Bấm nút "Xem chi tiết" → màn hình chi tiết chuyến mở đầy đủ.

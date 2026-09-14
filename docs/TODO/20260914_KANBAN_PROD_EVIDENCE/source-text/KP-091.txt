@@ -1,0 +1,52 @@
+RECORD KP-091
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260914_P2_QA-052_bug-keep-ops-dialogs-clear-of-the-fixed-page-header.docx
+KANBAN STATUS QA_PASSED
+SHA256 d8b53d2c89070992391ba4fad022c7014290ebb61fa1851e96c00498d6748c05
+EMBEDDED IMAGES 4
+
+PART word/document.xml
+Keep Ops dialogs clear of the fixed page header
+QA-052 | P2 | Bug | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 14 September 2026
+Role: OPS hoangnh; desktop 1440 × 900, tablet 768 × 1024, phone 390 × 844
+Page: https://vantai.tingting.vip/ops/wallet; related create flow /ops/orders
+Existing behaviour
+The fixed page header covers the expense dialog's title and top close control at all three tested sizes. On desktop, the empty receipt viewer also opens behind the header, hiding its title and close control. Expense footer actions remain visible; the receipt viewer could be closed by activating its close button with Enter.
+Target behaviour
+Keep dialog titles, close controls and content visible and reachable across screen sizes and scrolling. The fixed page header must not cover or intercept dialog controls.
+Impact
+Users lose the dialog's identity and expected pointer close action. The receipt viewer has no visible close action in the captured state.
+Cause and investigation
+Likely inconsistent dialog position or stacking relative to the fixed header. The exact layout implementation has not been inspected.
+Steps to reproduce
+1. As hoangnh, open /ops/wallet and find the 23,456 VND QA Audit 0914 - Staging expense for SHP-2609-00020.
+2. Open Sửa khoản chi. At 1440×900, 768×1024 and 390×844, inspect the title and top close control beneath the page header.
+3. Close the editor, then open Nợ chứng từ on desktop. The empty Ảnh biên lai viewer's title and close control are obscured.
+Acceptance criteria
+1. Expense and receipt dialogs expose their full title and pointer-accessible close control at all three tested sizes.
+2. Dialog content scrolls within the viewport; the title, close control and required actions remain reachable.
+3. Contain keyboard focus, support closing and return focus to the trigger. Verify the intended Escape behavior.
+4. Retest wallet edit/view dialogs and the new-expense dialog on /ops/orders, including empty receipts, long content and viewport resizing.
+Requirement reference
+Chrome staging review, 14 September 2026; expense editing and receipt viewing in the Ops wallet.
+Evidence 1
+Keep Ops dialogs clear of the fixed page header
+Figure 1. Desktop 1440×900: the fixed header covers the expense dialog heading and top close control; the footer Đóng and Lưu actions remain visible.
+Evidence 2
+Keep Ops dialogs clear of the fixed page header
+Figure 2. Tablet 768×1024: the same dialog begins behind the green page header, hiding its heading and top close control.
+Evidence 3
+Keep Ops dialogs clear of the fixed page header
+Figure 3. Phone 390×844: only the bottom of the dialog title and close icon appears below the fixed header; the form and footer remain visible.
+Evidence 4
+Keep Ops dialogs clear of the fixed page header
+Figure 4. Desktop receipt viewer: its empty-state message is visible, but the Ảnh biên lai title and close control are covered by the fixed page header.
+[2026-09-14] DEV COMPLETED — Portal ops modals to document.body
+Root cause: ops modals rendered inline inside .app-body (same stacking context as topbar). When the topbar entrance animation sets a transform, it creates a stacking context that traps inline descendants below the topbar, so the fixed header visually covered dialog titles and close controls.
+Fix: new OpsModalBackdrop wrapper uses createPortal to render into document.body, matching the standard Modal/Drawer pattern. Applied to all8 ops modal components.
+Commit: 87e57285 fix(ops): portal ops modals to document.body above the topbar
+Gates: tsc 0 errors, vitest 19/19 ops-modal tests pass, lint 0 errors
+
+PART word/footer1.xml
+QA-052 | Page 

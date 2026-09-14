@@ -1,0 +1,41 @@
+RECORD KP-171
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/TODO/20260914_P3_QA-075_bug-remove-the-duplicate-currency-unit-from-discipline-rankings.docx
+KANBAN STATUS TODO
+SHA256 faf9eacd856957fdb630d03cc1f59a68f0fdd49debf85f0aa1f929971fdf09cb
+EMBEDDED IMAGES 2
+
+PART word/document.xml
+Remove duplicate currency units from discipline amounts
+QA-075 | P3 | Bug | TODO
+Environment: Staging https://vantai.tingting.vip
+Reviewed: 14 September 2026
+Role: ADMIN; Chrome desktop 1440 × 900
+Page: /penalties — Phạt YTD ranking and cancellation confirmation
+Existing behaviour
+Dương Văn Thực’s populated ranking row shows 60.000 ₫ followed by an extra đ; its accessibility text is 60.000 ₫đ. The ledger and violation rule below show the same amount with one currency unit. Zero-value ranking rows show 0đ. Opening Hủy kỷ luật repeats 60.000 ₫đ in the confirmation’s Số tiền field.
+Target behaviour
+Render discipline amounts with exactly one consistent VND unit, using the shared currency formatter for zero and nonzero values in the ranking and confirmation.
+Impact
+The duplicated unit makes the financial column look unfinished and inconsistent with nearby amounts. No arithmetic error was established.
+Cause and investigation
+Hypothesis: an already formatted currency value receives an additional manual suffix. Inspect the ranking renderer and use one formatting path; no implementation cause is confirmed.
+Steps to reproduce
+1. As Admin, open /penalties with the September 2026 staging data.
+2. Scroll to Dương Văn Thực in the ranking (rank 39 in the captured fixture), with Phạt YTD of 60,000 VND.
+3. Compare its duplicated currency unit with the ledger and violation-rule amounts below.
+4. Open Hủy kỷ luật on that record and compare Số tiền in the confirmation; it repeats the duplicate unit. No cancellation is needed to observe this.
+Acceptance criteria
+1. The 60,000 VND ranking and confirmation amounts display one unit, such as 60.000 ₫, without an added đ.
+2. Zero and nonzero amounts use the same formatting convention; preserve underlying values, sorting and compact column alignment.
+3. Check visible and accessibility text on desktop, tablet and phone; ledger and rule amounts remain consistently formatted.
+Requirement reference
+Observed staging discipline ranking and paired accessibility capture on 14 September 2026.
+Evidence 1
+Remove duplicate currency units from discipline amounts
+Figure 1. Rank 39, Dương Văn Thực: 60.000 ₫ has an extra đ at the right. The ledger and rule below each display a single currency unit. The paired accessibility capture reads 60.000 ₫đ.
+Evidence 2
+Remove duplicate currency units from discipline amounts
+Figure 2. The same 60.000 ₫đ formatting appears in Số tiền inside the cancellation confirmation. This is the same currency-rendering symptom; dialog focus management is tracked separately in QA-082.
+
+PART word/footer1.xml
+QA-075 | Page 

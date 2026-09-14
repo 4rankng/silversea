@@ -1,0 +1,67 @@
+RECORD KP-093
+SOURCE /Users/frank.nguyen/Documents/silversea/codebase/docs/Kanban-PROD/QA_PASSED/20260914_P2_QA-055_bug-restore-the-operations-owner-dialog-layout-and-button-styling.docx
+KANBAN STATUS QA_PASSED
+SHA256 62125c0b7d37ac0928071f591b42edd957794e2e616d99efa4fa2b8214e9844a
+EMBEDDED IMAGES 3
+
+PART word/document.xml (malformed XML; all text runs recovered)
+Restore the Operations owner dialog layout and button styling
+QA-055 | P2 | Bug | DEV COMPLETED — chờ deploy staging + QA
+Environment: 
+Staging https://vantai.tingting.vip
+Reviewed: 
+14 September 2026
+Role: 
+Admin; Chrome desktop 1440 × 900, tablet 768 × 1024 and phone 390 × 844
+Page: 
+https://vantai.tingting.vip/fleet/vehicles
+Existing behaviour
+Clicking Ops phụ trách for 15H-021.39 renders the dialog as plain inline content below the vehicle table. There is no distinct dialog card or backdrop, the close icon is a tiny standalone ×, and the footer actions appear joined as ĐóngLưu without visible button boundaries. The selector stretches across the content area. Reopening after reload retains this presentation. Tablet and phone show the same inline layout and unstyled footer.
+Target behaviour
+Use the app’s compact dialog and button pattern for Operations ownership: a bounded surface above the page, clear vehicle identity, readable form spacing and distinct close/save controls.
+Impact
+The ownership workflow is hard to distinguish from page content, and users cannot readily identify its actions or disabled save state.
+Cause and investigation
+Root cause confirmed: AssignOpsDialog already imports ops-modal.css and uses OpsModalBackdrop (which portals via createPortal to document.body). Commit 87e57285 fix(ops): portal ops modals to document.body above the topbar — and commit 0cecf301 fix(ops): populate Ops owner picker with active staff — already applied the fix. The component uses .ops-modal-backdrop + .ops-modal classes with position:fixed, z-index: var(--z-modal), and styled btn-primary/btn-secondary buttons. Guard test ops-modal.styles.test.ts (10/10) validates the pattern.
+Steps to reproduce
+1. 
+As Admin, open /fleet/vehicles and find 15H-021.39. Click Ops phụ trách.
+2. 
+Inspect the content inserted below the table and the close/save controls. Reload, reopen and compare with Phân công lái xe on the same row.
+Acceptance criteria
+1. 
+Render the owner form in a compact modal layer with a backdrop and a clearly labeled vehicle, without reflowing the underlying vehicle list.
+2. 
+Separate and style close/save controls; make the current disabled state visibly distinct and retain adequate touch targets.
+3. 
+Support focus entry, contained keyboard navigation, Escape/close and focus return to the opener; keep picker options above the dialog surface.
+4. 
+Verify desktop, tablet and phone layouts without clipping or oversized text. Preserve owner-selection rules and existing permissions.
+Requirement reference
+Exploratory staging review, 14 September 2026; fleet assignment dialogs.
+Evidence 1
+Restore the Operations owner dialog layout and button styling
+Figure 1. Ops phụ trách appears as inline page content beneath the vehicle row, with a tiny × and joined ĐóngLưu actions. The accessible snapshot identifies a dialog and a disabled Lưu button, but the visual modal and button styling are absent.
+Evidence 2
+Restore the Operations owner dialog layout and button styling
+Figure 2. Tablet: the owner form remains below the vehicle table with no modal card or backdrop; its footer still reads as joined ĐóngLưu text.
+Evidence 3
+Restore the Operations owner dialog layout and button styling
+Figure 3. Phone: the owner form continues below the vehicle card with a standalone × and joined ĐóngLưu footer. The vehicle-card action wrapping above is tracked separately in QA-056.
+Evidence 4 — Dev verification
+AssignOpsDialog code-level verification (14 September 2026)
+Source inspection: 
+AssignOpsDialog.tsx imports ./ops-modal.css and renders inside OpsModalBackdrop, which uses createPortal(children, document.body). The form uses className=ops-modal with __head/__body/__foot sections. Buttons use btn-primary and btn-secondary classes. All styling comes from ops-modal.css (position:fixed backdrop at z-index: var(--z-modal), opaque surface background, border-radius, proper spacing).
+Key commits: 
+87e57285 fix(ops): portal ops modals to document.body above the topbar; 0cecf301 fix(ops): populate Ops owner picker with active staff.
+Test verification: 
+ops-modal.styles.test.ts — 10/10 tests pass. Validates AssignOpsDialog.tsx imports ops-modal.css, backdrop uses position:fixed with z-index: var(--z-modal), surface has opaque background, and OpsOrdersPage.css no longer carries the moved shell rules.
+tsc: 
+Pre-existing error in RoleWorkInbox.tsx (unrelated). No errors in ops/ or fleet/ modules.
+Keyboard/focus: 
+useOpsModalDismiss hook provides focus entry on mount, Escape-to-close, and focus return to opener on unmount.
+Status: 
+Code fix already committed. Ready for staging deploy + QA verification.
+
+PART word/footer1.xml
+QA-055 | Page 
