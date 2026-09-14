@@ -116,6 +116,7 @@ const MATERIAL_WRITE_RULES: readonly MaterialWriteRule[] = [
   { method: 'POST', endpoint: 'admin.financial-reporting-policy.request', pattern: /^\/api\/admin\/app-settings\/financial-reporting\/policy\/requests$/ },
   { method: 'POST', endpoint: 'admin.truck-financial-profile.request', pattern: /^\/api\/admin\/app-settings\/financial-reporting\/truck-profiles\/requests$/ },
   { method: 'PUT', endpoint: 'admin.ocr-settings.update', pattern: /^\/api\/admin\/ocr-settings$/ },
+  { method: 'POST', endpoint: 'expenses.submit', pattern: /^\/api\/expenses$/ },
   { method: 'POST', endpoint: 'expenses.governed-create', pattern: /^\/api\/expenses$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.CARRIER_FLEET_VEHICLE_CREATE, pattern: /^\/api\/shipments\/carrier-fleet-vehicles$/ },
   { method: 'PATCH', endpoint: IDEMPOTENCY_ENDPOINTS.CARRIER_FLEET_VEHICLE_UPDATE, pattern: /^\/api\/shipments\/carrier-fleet-vehicles\/[^/]+$/ },

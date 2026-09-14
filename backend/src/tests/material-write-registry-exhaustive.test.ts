@@ -47,6 +47,9 @@ const REVIEWED_NON_MATERIAL_MUTATIONS = new Map<string, string>([
   ['ops.ts|POST|/expenses/:id/photos', 'Attach keyed by the unique (ops_expense_id, storage_key) pair with onConflictDoNothing — a replay converges instead of duplicating evidence.'],
   ['ops.ts|DELETE|/expense-photos/:id', 'Idempotent single-row photo deletion; the storage object is removed only when no other row references it.'],
   ['ops.ts|PUT|/trucks/:truckId/ops-assignment', 'Replaceable ops-oversight config: deactivate-then-insert converges to one active row per truck; a replay lands the same end state.'],
+  ['expense.ts|POST|/:id/check', 'Dual-control review state transition (CHECK); idempotent by status guard — re-checking a CHECKED expense is a no-op. No financial mutation.'],
+  ['expense.ts|POST|/:id/approve', 'Dual-control review state transition (APPROVE); idempotent by status guard — re-approving an APPROVED expense is a no-op. No financial mutation.'],
+  ['expense.ts|POST|/:id/reject', 'Dual-control review state transition (REJECT); idempotent by status guard — re-rejecting a REJECTED expense is a no-op. No financial mutation.'],
 ]);
 
 const REVIEWED_SERVICE_DURABLE_BOUNDARIES = new Map<string, {
