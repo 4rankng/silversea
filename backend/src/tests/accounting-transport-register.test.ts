@@ -44,7 +44,8 @@ async function createLockedTrip(input: {
   completedAt: Date;
   carrierType: 'OWN' | 'EXTERNAL';
   withSnapshot: boolean;
-  /** false seeds a REJECTED submission — the trip lists as MISSING_ACCEPTED_POD. */
+  /** false seeds a legacy-REJECTED submission — KP-151: any submission
+   *  counts (review removal), so the trip still lists READY. */
   acceptedPod?: boolean;
 }) {
   const [shipment] = await db.insert(s.shipments).values({
@@ -216,8 +217,8 @@ before(async () => {
     customerId: customers[0].id,
     completedAt: new Date('2042-01-18T08:00:00.000Z'),
     carrierType: 'OWN',
-    withSnapshot: true, // snapshot present — the POD gate is the only blocker
-    acceptedPod: false,
+    withSnapshot: true,
+    acceptedPod: false, // legacy REJECTED row — still counts under KP-151
   });
   blockedTripId = blockedTrip.id;
 
@@ -297,26 +298,28 @@ describe('accounting transport register service', () => {
     assert.equal(result.items[1].readiness.status, 'MISSING_PROFITABILITY_SNAPSHOT');
   });
 
-  test('a POD-blocked trip lists with MISSING_ACCEPTED_POD and null acceptance provenance', async () => {
+  test('KP-151: any POD submission (even legacy REJECTED) counts — trip lists READY', async () => {
     const result = await listAccountingTransportRows({
       from: '2042-01-01',
       to: '2042-01-31',
       page: 1,
       limit: 25,
     });
-    const blocked = result.items.find((item) => item.tripId === blockedTripId);
-    assert.ok(blocked, 'the POD-blocked trip must appear in the register');
-    assert.equal(blocked.readiness.status, 'MISSING_ACCEPTED_POD');
-    assert.equal(blocked.readiness.acceptedPodSubmissionId, null);
-    assert.equal(blocked.readiness.acceptedPodVersion, null);
-    assert.equal(blocked.readiness.acceptedPodAt, null);
-    assert.deepEqual(blocked.readiness.evidence, [
+    const former = result.items.find((item) => item.tripId === blockedTripId);
+    assert.ok(former, 'the trip with a legacy REJECTED submission must appear');
+    assert.equal(former.readiness.status, 'READY');
+    assert.ok(former.readiness.acceptedPodSubmissionId != null);
+    assert.ok(former.readiness.acceptedPodVersion != null);
+    assert.ok(former.readiness.acceptedPodAt != null);
+    assert.deepEqual(former.readiness.evidence, [
       'ACTIVE_FINANCIAL_POSTING',
       'COMPLETED_TRIP',
+      'ACCEPTED_EPOD',
+      'PROFITABILITY_SNAPSHOT',
     ]);
   });
 
-  test('the MISSING_ACCEPTED_POD facet selects only blocked trips and counts agree', async () => {
+  test('the MISSING_ACCEPTED_POD facet is now empty (any submission counts)', async () => {
     const facet = await listAccountingTransportRows({
       from: '2042-01-01',
       to: '2042-01-31',
@@ -324,9 +327,9 @@ describe('accounting transport register service', () => {
       page: 1,
       limit: 100,
     });
-    assert.deepEqual(facet.items.map((item) => item.tripId), [blockedTripId]);
-    assert.equal(facet.total, 1);
-    // READY keeps excluding the blocked trip.
+    assert.deepEqual(facet.items.map((item) => item.tripId), []);
+    assert.equal(facet.total, 0);
+    // READY now includes the legacy-REJECTED trip.
     const ready = await listAccountingTransportRows({
       from: '2042-01-01',
       to: '2042-01-31',
@@ -334,7 +337,7 @@ describe('accounting transport register service', () => {
       page: 1,
       limit: 100,
     });
-    assert.equal(ready.items.some((item) => item.tripId === blockedTripId), false);
+    assert.equal(ready.items.some((item) => item.tripId === blockedTripId), true);
   });
 
   test('supports readiness, carrier, ownership, and search filters without changing money', async () => {
@@ -402,11 +405,13 @@ describe('accounting transport register service', () => {
     const revenueDesc = await listAccountingTransportRows({ ...base, sortBy: 'revenue', sortDir: 'desc' });
     assert.deepEqual(revenueDesc.items.map((item) => item.tripId), [readyTripId, blockedTripId, missingSnapshotTripId]);
 
-    // Readiness ranks via case-rank (READY = 0, MISSING_SNAPSHOT = 1, MISSING_POD = 2).
+    // Readiness ranks via case-rank (READY = 0, MISSING_SNAPSHOT = 1).
+    // KP-151: the legacy-REJECTED trip counts as READY, tying with the ready
+    // trip at rank 0 — the secondary key (id) orders the tie.
     const readinessAsc = await listAccountingTransportRows({ ...base, sortBy: 'readiness', sortDir: 'asc' });
-    assert.deepEqual(readinessAsc.items.map((item) => item.tripId), [readyTripId, missingSnapshotTripId, blockedTripId]);
+    assert.deepEqual(readinessAsc.items.map((item) => item.tripId), [readyTripId, blockedTripId, missingSnapshotTripId]);
     const readinessDesc = await listAccountingTransportRows({ ...base, sortBy: 'readiness', sortDir: 'desc' });
-    assert.deepEqual(readinessDesc.items.map((item) => item.tripId), [blockedTripId, missingSnapshotTripId, readyTripId]);
+    assert.deepEqual(readinessDesc.items.map((item) => item.tripId), [missingSnapshotTripId, readyTripId, blockedTripId]);
 
     // tripCode asc/desc are exact mirrors of each other.
     const codeAsc = await listAccountingTransportRows({ ...base, sortBy: 'tripCode', sortDir: 'asc' });
