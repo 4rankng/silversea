@@ -85,6 +85,38 @@ describe('CompanyInfoConfigPage save readiness', () => {
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Lưu thông tin' }).disabled).toBe(true);
   });
 
+  it('rejects malformed email with Vietnamese error before saving', async () => {
+    renderPage();
+    const emailInput = await screen.findByLabelText('Email');
+    fireEvent.change(emailInput, { target: { value: 'not-an-email' } });
+
+    const saveButton = screen.getByRole<HTMLButtonElement>('button', { name: 'Lưu thông tin' });
+    fireEvent.click(saveButton);
+
+    expect(saveCompanyInfoMock).not.toHaveBeenCalled();
+    expect(screen.getByText('Email không hợp lệ')).toBeTruthy();
+  });
+
+  it('allows saving when email is blank (optional)', async () => {
+    renderPage();
+    const emailInput = await screen.findByLabelText('Email');
+    fireEvent.change(emailInput, { target: { value: '' } });
+
+    const saveButton = screen.getByRole<HTMLButtonElement>('button', { name: 'Lưu thông tin' });
+    expect(saveButton.disabled).toBe(false);
+  });
+
+  it('allows saving when email is valid', async () => {
+    renderPage();
+    const emailInput = await screen.findByLabelText('Email');
+    fireEvent.change(emailInput, { target: { value: 'info@company.com' } });
+
+    const saveButton = screen.getByRole<HTMLButtonElement>('button', { name: 'Lưu thông tin' });
+    fireEvent.click(saveButton);
+
+    expect(saveCompanyInfoMock).toHaveBeenCalled();
+  });
+
   it('associates every company field with its visible Vietnamese label', async () => {
     // A11y contract: each control's accessible name comes from its visible
     // caption via label htmlFor + id — the pattern the two name fields

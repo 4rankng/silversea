@@ -122,6 +122,11 @@ export default function CompanyInfoConfigPage() {
   };
 
   const handleSave = async () => {
+    const trimmedEmail = form.email.trim();
+    if (trimmedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      setError('Email không hợp lệ');
+      return;
+    }
     setSaving(true);
     setError(null);
     setMessage(null);
