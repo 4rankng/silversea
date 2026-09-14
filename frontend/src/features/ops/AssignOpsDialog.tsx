@@ -34,7 +34,7 @@ export function AssignOpsDialog({
 
   const { data: usersData } = useQuery<{ items: UserOption[] }>({
     queryKey: qk.ops.opsUsers,
-    queryFn: () => api.get('/users?role=OPS&limit=100'),
+    queryFn: () => api.get('/auth/users?role=OPS&limit=100'),
     staleTime: 60_000,
   });
 
@@ -62,6 +62,7 @@ export function AssignOpsDialog({
   }
 
   const options = usersData?.items ?? [];
+  const noOpsStaff = usersData && options.length === 0;
 
   return (
     <div ref={backdropRef} tabIndex={-1} className="ops-modal-backdrop" role="dialog" aria-modal="true" aria-label={`Gán Ops phụ trách xe ${truck.licensePlate}`}>
@@ -90,6 +91,7 @@ export function AssignOpsDialog({
             ]}
           />
           {error && <p className="ops-reject-reason" role="alert">{error}</p>}
+          {noOpsStaff && <p className="ops-form-photos__hint" style={{ color: 'var(--warn, #d97706)' }}>Không tìm thấy nhân viên vận hành nào đang hoạt động.</p>}
         </div>
         <footer className="ops-modal__foot">
           <div />
