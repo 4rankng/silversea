@@ -41,9 +41,9 @@ export function TripSummaryCard() {
           </span>
         </div>
         <div className="tc-summary-row tc-summary-row--total">
-          <span className="tc-summary-row__lbl" style={{ color: 'rgba(255,255,255,0.85)' }}>Lợi nhuận dự kiến</span>
-          <span className="tc-summary-row__val tc-summary-row__val--pos">
-            <Money value={Math.abs(profit)} sign="+" />
+          <span className="tc-summary-row__lbl">Lợi nhuận dự kiến</span>
+          <span className={`tc-summary-row__val ${profit >= 0 ? 'tc-summary-row__val--pos' : 'tc-summary-row__val--neg'}`}>
+            <Money value={Math.abs(profit)} sign={profit >= 0 ? '+' : '−'} />
           </span>
         </div>
       </div>
