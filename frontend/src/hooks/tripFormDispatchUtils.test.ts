@@ -64,3 +64,14 @@ describe('tripFormDispatchUtils', () => {
     ]);
   });
 });
+
+describe('trip editor completion date seeding', () => {
+  // The QA-022-family lock: the wire instant is UTC; slicing its first ten
+  // characters yields the UTC calendar day, one behind the Vietnam wall date
+  // the detail shows. The editor must seed from the VN business date.
+  it('seeds the VN business date from a UTC evening instant', async () => {
+    const { businessDateISO } = await import('../lib/format');
+    const instant = '2026-09-13T17:30:00.000Z'; // 00:30 +07 on 14/09
+    expect(businessDateISO(new Date(instant))).toBe('2026-09-14');
+  });
+});
