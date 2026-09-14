@@ -419,7 +419,7 @@ describe('DriverTripDetailPage', () => {
   // with the factory (short name), then the working facts (container, ports)
   // — the Tuyến address line is demoted below them — and container number +
   // type + seal still share one line.
-  it('renders the bug5 field order: factory, contact, warehouse phone, container, seal, ports, then Tuyến', async () => {
+  it('renders the bug5 field order: factory, contact, container, seal, ports, then Tuyến (no standalone phone row)', async () => {
     renderPage();
 
     await screen.findByText(/Số cont & seal/);
@@ -430,7 +430,6 @@ describe('DriverTripDetailPage', () => {
       'Tên nhà máy',
       'Địa chỉ nhà máy',
       'Số điện thoại liên hệ',
-      'SĐT liên hệ',
       'Container / lô hàng',
       'Seal',
       'Cảng nâng',
@@ -451,7 +450,6 @@ describe('DriverTripDetailPage', () => {
     expect(valueOf('Tên nhà máy')).toBe('—');
     expect(valueOf('Địa chỉ nhà máy')).toBe('—');
     expect(valueOf('Tuyến')).toBe('Cát Lái → Bình Dương');
-    expect(valueOf('SĐT liên hệ')).toBe('—');
     // KP-191: container number paired with type code; seal on own row.
     expect(screen.getByText('MSCU1234561 · 40G1')).toBeTruthy();
     expect(screen.getByText('Seal SEAL-9')).toBeTruthy();
@@ -601,37 +599,13 @@ describe('DriverTripDetailPage', () => {
     expect(valueOf('Tuyến')).toBe('Cát Lái → Bình Dương');
   });
 
-  // TC-DA-003 (superseded placement): the warehouse-phone row is always
-  // visible — "—" placeholder when the site has no phone (wireframe
-  // supersedes the old graceful-hide on this screen).
-  it('SĐT liên hệ row stays visible with "—" when the site has no phone', async () => {
+  // _30: the standalone warehouse-phone row is removed at the source — the
+  // combined contact row carries the callable number.
+  it('renders no standalone SĐT liên hệ row', async () => {
     renderPage();
 
     await screen.findByText(/Số cont & seal/);
-    const labels = Array.from(document.querySelectorAll('.driver-task-fact__label')).map((el) => el.textContent);
-    expect(labels).toContain('SĐT liên hệ');
-    const khoRow = Array.from(document.querySelectorAll('.driver-task-fact'))
-      .find((el) => el.querySelector('.driver-task-fact__label')?.textContent === 'SĐT liên hệ');
-    expect(khoRow?.querySelector('.driver-task-fact__value')?.textContent).toBe('—');
-  });
-
-  it('TC-DA-003: renders the Kho row as a tel link when the site has a phone', async () => {
-    useDriverTaskDetailMock.mockReturnValue({
-      data: makeTaskDetail({
-        fulfillment: {
-          ...makeTaskDetail().fulfillment!,
-          khoPhone: '0901234567',
-        },
-      }),
-      isLoading: false,
-      error: null,
-      refetch: vi.fn().mockResolvedValue(undefined),
-    });
-    renderPage();
-
-    await screen.findByText(/Số cont & seal/);
-    const khoLink = await screen.findByText('0901234567');
-    expect(khoLink.getAttribute('href')).toBe('tel:0901234567');
+    expect(screen.queryByText('SĐT liên hệ')).toBeNull();
   });
 
   // TC-DA-005: customer master-data invoice rows render with the exact
