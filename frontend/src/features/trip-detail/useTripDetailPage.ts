@@ -313,21 +313,39 @@ export function useTripDetailPage(id: string | undefined): TripDetailPageData {
 
   const handleAdjustSubmit = async () => {
     if (!id || !adjustNote.trim() || !adjustRef.trim() || adjustAmount === '') return;
+    // Publish with the loaded trip's current version — the backend schema
+    // requires it (undefined coerces to NaN and leaks a raw zod error) and
+    // the 409 conflict guard keys off it.
+    const expectedVersion = trip?.version;
+    if (typeof expectedVersion !== 'number' || !Number.isFinite(expectedVersion)) return;
     setAdjustSubmitting(true);
     setAdjustError('');
+    // One idempotency key per attempt: an in-flight retry replays safely,
+    // while a corrected resubmit after a failure is a NEW logical
+    // submission — it must never replay the failed payload.
+    const idempotencyKey = crypto.randomUUID();
     try {
       await api.post(`/trips/${id}/adjustment`, {
         amount: Number(adjustAmount),
         note: adjustNote.trim(),
         signedAgreementRef: adjustRef.trim(),
-      });
+        expectedVersion,
+      }, { headers: { 'Idempotency-Key': idempotencyKey } });
       await queryClient.invalidateQueries({ queryKey: qk.trips.adjustmentsAll });
       await refetchTrip();
       setAdjustAmount('');
       setAdjustNote('');
       setAdjustRef('');
     } catch (e: unknown) {
-      setAdjustError((e as Error).message || 'Lỗi khi tạo điều chỉnh');
+      const status = (e as { status?: number }).status;
+      if (status === 409) {
+        // Stale version: refresh the state, keep the drafted inputs, and ask
+        // for review before retrying — never a blind resubmit.
+        setAdjustError('Dữ liệu chuyến đi đã thay đổi — đã tải lại bản mới; kiểm tra lại thông tin rồi phát hành lại.');
+        await refetchTrip();
+      } else {
+        setAdjustError((e as Error).message || 'Lỗi khi tạo điều chỉnh');
+      }
     } finally {
       setAdjustSubmitting(false);
     }
