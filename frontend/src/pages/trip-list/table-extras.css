@@ -128,23 +128,30 @@
 }
 
 /* ── Sticky status column ─────────────────────────────────────────── */
+/* The pin engages only once the table is horizontally scrolled: a
+   sticky-right element pins at the scrollport edge even at scrollLeft 0,
+   where it painted over the still-visible neighbor columns (Tổng đi
+   đường/Doanh thu) instead of sitting in its natural slot at the far right.
+   At rest the status column is a plain grid column — headers and values
+   separate at every offset. */
 .trip-list-page .col-status {
+  border-left: 1px solid var(--line);
+  transition: background 150ms ease;
+}
+.trip-list-page.is-scrolled .col-status {
   position: sticky;
   right: 0;
   background: var(--surface);
   z-index: 2;
-  border-left: 1px solid var(--line);
-  transition: background 150ms ease;
 }
 .trip-list-page .table-row:hover .col-status {
   background: var(--tbl-green-050);
 }
-.trip-list-page .table-head .col-status {
+.trip-list-page.is-scrolled .table-head .col-status {
   position: sticky;
   right: 0;
   background: var(--surface-2);
   z-index: 11;
-  border-left: 1px solid var(--line);
 }
 
 /* ── Infinite scroll sentinel ─────────────────────────────────────────── */

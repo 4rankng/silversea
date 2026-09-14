@@ -17,6 +17,7 @@ import { nextTableSort, type TableSortDir, type TableSortState } from '../lib/ta
 import { buildTripColumns, tripColumnAriaSort, tripRowStyle, TripMobileCard, TripFiltersBar, breakdownPctFromCounts, defaultStatusCounts, DEFAULT_WARN_THRESHOLD, PAGE_SIZE, formatMoney, STATUS_PILL_CLASS, type StatusFilter, type StatusCounts, type TripQuickEditDraft, buildTripCode, getTripDistance, getTripDisplayGrossProfit } from '../features/trips';
 import { columnClass, draftChanged, figuresPayloadFromDraft, isEditableInQuickMode, quickDraftFromTrip } from './trip-list-helpers';
 import { TripListHero } from './trip-list-hero';
+import { useArrowKeyScroll } from './trip-list/useArrowKeyScroll';
 import { useTripListAnimations } from './use-trip-list-animations';
 import './TripListPage.css';
 import { resolveEmptyIllustration } from '../lib/emptyIllustrations';
@@ -39,6 +40,10 @@ export default function TripListPage() {
   );
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('');
+  // The pinned Trạng thái column engages only once the table is horizontally
+  // scrolled — a sticky-right cell pins at the scrollport edge even at
+  // scrollLeft 0, where it painted over the still-visible neighbor columns.
+  const [scrolled, setScrolled] = useState(false);
   const [truckFilter, setTruckFilter] = useState<number | ''>('');
   const [customerFilter, setCustomerFilter] = useState<number | ''>('');
   const [searchInput, setSearchInput] = useState('');
@@ -386,27 +391,10 @@ export default function TripListPage() {
 
   // ── Keyboard scroll ──
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-      const el = scrollRef.current;
-      if (!el) return;
-      if (e.key === 'ArrowLeft') {
-        e.preventDefault();
-        el.scrollLeft = Math.max(0, el.scrollLeft - 200);
-      }
-      if (e.key === 'ArrowRight') {
-        e.preventDefault();
-        el.scrollLeft = Math.min(el.scrollWidth - el.clientWidth, el.scrollLeft + 200);
-      }
-    };
-    document.addEventListener('keydown', handler, true);
-    return () => document.removeEventListener('keydown', handler, true);
-  }, []);
+  useArrowKeyScroll(scrollRef);
 
   return (
-    <div ref={rootRef} className={`trip-list-page${quickEdit ? ' quick-edit-mode' : ''}`}>
+    <div ref={rootRef} className={`trip-list-page${quickEdit ? ' quick-edit-mode' : ''}${scrolled ? ' is-scrolled' : ''}`}>
       <Breadcrumbs
         className="trip-list-page__crumbs"
         items={[
@@ -489,7 +477,7 @@ export default function TripListPage() {
       )}
       <div className="table-card">
         <div className="table-scroll-wrapper">
-          <div className="table-scroll-body" ref={scrollRef} tabIndex={-1}>
+          <div className="table-scroll-body" ref={scrollRef} tabIndex={-1} onScroll={(e) => setScrolled(e.currentTarget.scrollLeft > 0)}>
             <div className="table-head">
               {tableInstance.getHeaderGroups().map((headerGroup) => (
                 <React.Fragment key={headerGroup.id}>
