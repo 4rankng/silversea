@@ -39,6 +39,7 @@ const {
 
 vi.mock('../hooks/useDriverQueries', () => ({
   useDriverTaskDetail: useDriverTaskDetailMock,
+  useDriverJourneyBoard: () => ({ data: { items: boardItems } }),
   useDriverTaskProgress: useDriverTaskProgressMock,
   useDriverEvidenceStatus: useDriverEvidenceStatusMock,
 }));
@@ -83,18 +84,24 @@ vi.mock('../components/trip/FuelRefillReportForm', () => ({
 
 vi.mock('../features/driver/useOfflineCommandQueue', () => ({
   buildOfflineCommandKey: (...parts: Array<string | number>) => parts.join(':'),
-  useOfflineCommandQueue: () => ({
-    commands: commandsMock(),
-    enqueue: enqueueMock,
-    drain: drainMock,
-    remove: removeMock,
-    pendingCount: 0,
-    failedCount: 0,
-    conflictCount: 0,
-  }),
+  useOfflineCommandQueue: () => {
+    const commands = commandsMock();
+    return {
+      commands,
+      enqueue: enqueueMock,
+      drain: drainMock,
+      remove: removeMock,
+      pendingCount: commands.filter((c) => c.status === 'PENDING').length,
+      failedCount: commands.filter((c) => c.status === 'FAILED').length,
+      conflictCount: commands.filter((c) => c.status === 'CONFLICT').length,
+    };
+  },
 }));
 
 import DriverTripDetailPage from './DriverTripDetailPage';
+
+/** Board cards the journey-board mock returns (default: none). */
+let boardItems: Array<Record<string, unknown>> = [];
 
 function makeTaskDetail(overrides: Record<string, unknown> = {}) {
   return {
@@ -209,6 +216,7 @@ function PodRouteStub() {
 
 describe('DriverTripDetailPage', () => {
   beforeEach(() => {
+    boardItems = [];
     commandsMock.mockReset();
     commandsMock.mockReturnValue([]);
     enqueueMock.mockReset();
@@ -326,6 +334,74 @@ describe('DriverTripDetailPage', () => {
   // D1 fix: a terminal CONFLICT on the accept command must not dead-end the
   // sticky bar. The reload action discards the stuck command for THIS
   // fulfillment and refetches — the bar then returns to available.
+  // Acceptance-blocker identity (QA-047): the busy-trip reason PERSISTS in
+  // the sync banner (the toast expires) and links to the driver's own board
+  // card when the blocking trip is theirs; a foreign trip renders a handoff.
+  it('keeps the blocking trip reason visible in the banner after the conflict', async () => {
+    commandsMock.mockReturnValue([
+      {
+        id: 'cmd-busy-1',
+        endpoint: 'driver.task.milestone',
+        method: 'POST',
+        path: '/driver/me/fulfillments/88/progress',
+        payload: { kind: 'milestone', fulfillmentId: 88, eventType: 'ORDER_RECEIVED', occurredAt: '2026-09-14T01:00:00.000Z', expectedVersion: 3 },
+        status: 'CONFLICT',
+        retryCount: 0,
+        lastError: 'Xe đang chạy chuyến TRP-202609-0001. Vui lòng hoàn thành chuyến đó trước.',
+        createdAt: '2026-09-14T01:00:00.000Z',
+        updatedAt: '2026-09-14T01:00:00.000Z',
+      },
+    ]);
+    renderPage();
+
+    expect(await screen.findByText(/TRP-202609-0001/)).toBeTruthy();
+    expect(screen.getByText(/hoàn thành chuyến đó/i)).toBeTruthy();
+  });
+
+  it('links to the blocking trip when it is the driver\'s own board card', async () => {
+    boardItems = [{ id: 1, fulfillmentId: 55, tripCode: 'TRP-202609-0042', bucket: 'RUNNING', classification: 'SINGLE', linked: false, ordinal: 1, departureDate: '2026-09-14' }];
+    commandsMock.mockReturnValue([
+      {
+        id: 'cmd-busy-2',
+        endpoint: 'driver.task.milestone',
+        method: 'POST',
+        path: '/driver/me/fulfillments/88/progress',
+        payload: { kind: 'milestone', fulfillmentId: 88, eventType: 'ORDER_RECEIVED', occurredAt: '2026-09-14T01:00:00.000Z', expectedVersion: 3 },
+        status: 'CONFLICT',
+        retryCount: 0,
+        lastError: 'Xe đang chạy chuyến TRP-202609-0042. Vui lòng hoàn thành chuyến đó trước.',
+        createdAt: '2026-09-14T01:00:00.000Z',
+        updatedAt: '2026-09-14T01:00:00.000Z',
+      },
+    ]);
+    // The mock\'s board returns []; patch it to include the blocking card.
+    vi.mocked(await import('../hooks/useDriverQueries'));
+    renderPage();
+    const link = await screen.findByRole('link', { name: /Mở chuyến TRP-202609-0042/ });
+    expect(link.getAttribute('href')).toBe('/my-trips/55');
+  });
+
+  it('renders a dispatcher handoff when the blocking trip is not on the driver\'s board', async () => {
+    commandsMock.mockReturnValue([
+      {
+        id: 'cmd-busy-3',
+        endpoint: 'driver.task.milestone',
+        method: 'POST',
+        path: '/driver/me/fulfillments/88/progress',
+        payload: { kind: 'milestone', fulfillmentId: 88, eventType: 'ORDER_RECEIVED', occurredAt: '2026-09-14T01:00:00.000Z', expectedVersion: 3 },
+        status: 'CONFLICT',
+        retryCount: 0,
+        lastError: 'Xe đang chạy chuyến TRP-202609-0099. Vui lòng hoàn thành chuyến đó trước.',
+        createdAt: '2026-09-14T01:00:00.000Z',
+        updatedAt: '2026-09-14T01:00:00.000Z',
+      },
+    ]);
+    renderPage();
+    expect(await screen.findByText(/TRP-202609-0099/)).toBeTruthy();
+    expect(await screen.findByText(/liên hệ điều vận/)).toBeTruthy();
+    expect(screen.queryByRole('link', { name: /Mở chuyến/ })).toBeNull();
+  });
+
   it('recovers the accept bar from a terminal CONFLICT via the reload action', async () => {
     commandsMock.mockReturnValue([
       {
