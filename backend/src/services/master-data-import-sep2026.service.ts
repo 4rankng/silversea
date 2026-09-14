@@ -1,6 +1,6 @@
 import path from 'node:path';
 import bcrypt from 'bcryptjs';
-import { and, eq, isNull, sql } from 'drizzle-orm';
+import { and, eq, isNull, ne, sql } from 'drizzle-orm';
 import ExcelJS from 'exceljs';
 import { Role } from '@tingting/shared';
 
@@ -591,6 +591,17 @@ export async function applyFleetSpecs(
     if (payload.pairedTractor) {
       const truckRow = trucksByPlate.get(payload.pairedTractor);
       if (truckRow) {
+        // Same transfer semantics as the catalog CRUD: pairing T to THIS
+        // truck clears any OTHER truck's link to T in the same transaction —
+        // without it two trucks would display the same trailer. (The
+        // fleet-payload import REJECTS on conflict instead; both are valid
+        // policies, but CRUD + this path agree on auto-clear.)
+        await tx.update(s.trucks)
+          .set({ currentTrailerId: null, updatedAt: new Date() })
+          .where(and(
+            eq(s.trucks.currentTrailerId, trailer.id),
+            ne(s.trucks.id, truckRow.id),
+          ));
         await tx.update(s.trucks).set({ trailerPlateNumber: payload.plate, currentTrailerId: trailer.id, updatedAt: new Date() })
           .where(eq(s.trucks.id, truckRow.id));
       }
