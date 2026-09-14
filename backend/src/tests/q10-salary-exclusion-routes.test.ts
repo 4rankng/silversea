@@ -34,6 +34,8 @@ let idempotencyCounter = 0;
 
 let server: http.Server;
 let baseUrl = '';
+let savedPayrollUnitSetting: string | null = null;
+let fixtureUnitId = 0;
 
 async function mkUser(role: Role, tag: string) {
   const [user] = await db.insert(s.users).values({
@@ -55,6 +57,12 @@ async function mkDriver(tag: string) {
     baseSalary: '12000000',
   }).returning();
   createdDriverIds.push(driver.id);
+  // The readiness scope joins the driver's user to the payroll unit
+  // configured in app_settings — pin the fixture user to the fixture unit.
+  await db.insert(s.userBusinessUnitLinks).values({
+    userId: user.id,
+    businessUnitId: fixtureUnitId,
+  });
   return driver;
 }
 
@@ -137,6 +145,25 @@ async function postExclusion(
 
 before(async () => {
   setAuditEnrichmentHandlerForTest(async () => undefined);
+  // Hermetic payroll-unit scope: the readiness driver query scopes to the
+  // unit configured in app_settings, which the shared dev DB may hold as any
+  // value from other runs. Pin it to a fixture unit for this suite.
+  const [prior] = await db.select()
+    .from(s.appSettings)
+    .where(eq(s.appSettings.key, 'salary.payroll_business_unit_id'))
+    .limit(1);
+  savedPayrollUnitSetting = prior?.value ?? null;
+  const [unit] = await db.insert(s.businessUnits).values({
+    code: `Q10-${suffix.slice(-6).toUpperCase()}`,
+    name: `Q10 payroll unit ${suffix}`,
+    status: 'ACTIVE',
+  }).returning();
+  fixtureUnitId = unit.id;
+  await db.update(s.appSettings).set({
+    value: String(unit.id),
+    updatedAt: new Date(),
+  }).where(eq(s.appSettings.key, 'salary.payroll_business_unit_id'));
+
   const app = express();
   app.use(express.json());
   app.use('/api/salary-periods', (req, _res, next) => {
@@ -158,6 +185,20 @@ before(async () => {
 });
 
 after(async () => {
+  try {
+    if (fixtureUnitId > 0 && savedPayrollUnitSetting !== null) {
+      await db.update(s.appSettings).set({
+        value: savedPayrollUnitSetting,
+        updatedAt: new Date(),
+      }).where(eq(s.appSettings.key, 'salary.payroll_business_unit_id'));
+      // Links reference the unit — clear them before the unit delete.
+      await db.delete(s.userBusinessUnitLinks)
+        .where(eq(s.userBusinessUnitLinks.businessUnitId, fixtureUnitId));
+      await db.delete(s.businessUnits).where(eq(s.businessUnits.id, fixtureUnitId));
+    }
+  } catch (cleanupError) {
+    console.warn('[q10] payroll-unit cleanup skipped:', (cleanupError as Error).message);
+  }
   setAuditPersistHandlerForTest(null);
   setAuditEnrichmentHandlerForTest(null);
   server.closeAllConnections();
