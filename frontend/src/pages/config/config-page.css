@@ -1217,3 +1217,29 @@
     width: 100%;
   }
 }
+
+/* ── Customer form (dialog) — compact data-heavy spacing ────────────────
+ * The hardcoded 2-col grid forced ~134px inputs at phone width. Two columns
+ * only where both fit; long-value fields span the full row. */
+.customer-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.customer-form__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+@media (max-width: 640px) {
+  .customer-form {
+    gap: 12px;
+  }
+
+  .customer-form__grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
