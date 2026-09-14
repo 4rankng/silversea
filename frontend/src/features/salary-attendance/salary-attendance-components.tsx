@@ -32,11 +32,23 @@ export function CalCell({ dateStr, day: _day, isSunday, dayLabel, workDay, isUpd
   const status = workDay?.status ?? (isSunday ? 'WEEKLY_OFF' : 'STANDBY');
   const cfg = status ? STATUS_CONFIG[status] : null;
   const isClickable = !isUpdating && !isLocked && status !== 'TRIP_DAY';
+  // Full calendar date + attendance state as the accessible name — the
+  // compact cell shows only a day number, so screen readers get the whole
+  // sentence ("15/09/2026 — Đã làm việc").
+  const [cy, cm, cd] = dateStr.split('-').map(Number);
+  const fullDate = `${cd}/${cm}/${cy}`;
+  const stateLabel = workDay?.trip?.tripCode
+    ? `${workDay.trip.tripCode} – ${workDay.trip.routeName || ''}`
+    : cfg?.label || '';
+  const label = `${fullDate}${stateLabel ? ` — ${stateLabel}` : ''}`;
 
   return (
-    <div
+    <button
+      type="button"
       title={workDay?.trip ? `${workDay.trip.tripCode || ''} – ${workDay.trip.routeName || ''}` : cfg?.label || ''}
       onClick={() => isClickable && onCycle(dateStr, workDay)}
+      aria-label={label}
+      aria-disabled={!isClickable}
       className={`cal-cell ${isClickable ? 'is-clickable' : ''} ${status ? `status-${status.toLowerCase()}` : ''}`}
     >
       <span className="cal-cell-day-num">
@@ -57,7 +69,7 @@ export function CalCell({ dateStr, day: _day, isSunday, dayLabel, workDay, isUpd
       {workDay?.note && (
         <div className="cal-cell-note-dot" />
       )}
-    </div>
+    </button>
   );
 }
 

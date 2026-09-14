@@ -220,6 +220,14 @@
   padding: 6px 5px 5px;
   transition: border-color 140ms ease, background 140ms ease, transform 140ms ease, box-shadow 140ms ease;
   min-width: 0;
+  /* Native-button reset: cells render as <button type="button"> so the
+     calendar is keyboard operable (QA keyboard-a11y family) — strip the UA
+     chrome that would otherwise shift the compact layout. */
+  appearance: none;
+  font: inherit;
+  color: inherit;
+  line-height: inherit;
+  text-align: inherit;
   user-select: none;
   overflow: hidden;
 }
