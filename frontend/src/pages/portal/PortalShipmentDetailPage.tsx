@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { api } from '../../lib/api';
 import { Modal } from '../../components/UI';
@@ -59,6 +59,21 @@ interface PortalShipmentDetail {
 export default function PortalShipmentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { selectedCustomerId, ready: customerScopeReady } = useCustomerPortalScope();
+  // Queue/page/row echoed back to the list so its return link restores the
+  // exact queue, page, and (one-shot) the originating record's focus.
+  const [searchParams] = useSearchParams();
+  const returnListHref = useMemo(() => {
+    const origin = new URLSearchParams();
+    for (const key of ['tab', 'page', 'row']) {
+      const value = searchParams.get(key);
+      if (value) origin.set(key, value);
+    }
+    const query = origin.toString();
+    return withCustomerScope(
+      routes.portalShipments + (query ? `?${query}` : ''),
+      selectedCustomerId,
+    );
+  }, [searchParams, selectedCustomerId]);
   const [data, setData] = useState<PortalShipmentDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -146,7 +161,7 @@ export default function PortalShipmentDetailPage() {
 
   return (
     <div className="portal-page">
-      <Link to={withCustomerScope(routes.portalShipments, selectedCustomerId)} className="portal-back"><ArrowLeft size={16} /> Danh sách lô hàng</Link>
+      <Link to={returnListHref} className="portal-back"><ArrowLeft size={16} /> Danh sách lô hàng</Link>
       <header className="portal-page__header">
         <span className="portal-page__eyebrow">Chi tiết lô hàng</span>
         <h1>{customerShipmentReference}</h1>

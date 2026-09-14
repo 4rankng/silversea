@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -111,8 +111,15 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
   const user = auth?.user ?? null;
   const navigate = useNavigate();
   const [data, setData] = useState<InboxData | null>(null);
-  const [active, setActive] = useState(0);
-  const [page, setPage] = useState(1);
+  // Queue + page restore (QA-043): the selected queue and page serialize into
+  // the URL so a detail's "back to list" link can return the customer to the
+  // exact queue they left, and the `row` param focuses the originating record.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const paramTab = Number(searchParams.get('tab'));
+  const [active, setActive] = useState(() => (Number.isInteger(paramTab) && paramTab > 0 ? paramTab : 0));
+  const paramPage = Number(searchParams.get('page'));
+  const [page, setPage] = useState(() => (Number.isInteger(paramPage) && paramPage > 0 ? paramPage : 1));
+  const focusRowKey = searchParams.get('row');
   const [loading, setLoading] = useState(true);
   const [refreshError, setRefreshError] = useState(false);
   const [online, setOnline] = useState(() => typeof navigator === 'undefined' || navigator.onLine);
@@ -154,10 +161,40 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
     void load('initial');
   }, [load]);
 
+  // Reset queue/page only when the scope actually changes — not on mount,
+  // where it would wipe the URL-restored state (QA-043 round trip).
+  const scopeKey = `${customerId ?? ''}:${role}`;
+  const prevScopeRef = useRef(scopeKey);
   useEffect(() => {
+    if (prevScopeRef.current === scopeKey) return;
+    prevScopeRef.current = scopeKey;
     setActive(0);
     setPage(1);
   }, [customerId, role]);
+
+  // Mirror queue/page into the URL (replace — no history spam) so the detail
+  // page's return link can rebuild the exact list context. The one-shot `row`
+  // param is managed by the focus effect below.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (active > 0) params.set('tab', String(active)); else params.delete('tab');
+    if (page > 1) params.set('page', String(page)); else params.delete('page');
+    setSearchParams(params, { replace: true });
+  }, [active, page, setSearchParams]);
+
+  // After data lands, focus the originating record once, then consume the
+  // row param so refreshes don't re-steal focus.
+  useEffect(() => {
+    if (!data || !focusRowKey) return;
+    const el = document.querySelector(`[data-row-key="${focusRowKey}"]`);
+    if (el) {
+      el.scrollIntoView({ block: 'center' });
+      (el as HTMLElement).focus?.();
+    }
+    const params = new URLSearchParams(window.location.search);
+    params.delete('row');
+    setSearchParams(params, { replace: true });
+  }, [data, focusRowKey, setSearchParams]);
 
   useEffect(() => {
     const update = () => setOnline(navigator.onLine);
@@ -360,16 +397,24 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
                   const customerAction = Boolean(customerItem?.deliveryResponseRequired && customerItem.deliveryEventId && customerItem.deliveryEventVersion);
                   const orderExchangeAction = Boolean(operationsItem && operationsItem.orderExchangeState !== 'COMPLETED');
                   const rowTarget = item.nextAction?.targetRoute ?? item.targetRoute;
+                  // Customer detail round-trips carry the queue/page/row so
+                  // "Danh sách lô hàng" can restore the exact list context.
+                  const withOrigin = (route: string) => {
+                    if (role !== 'customer') return route;
+                    const joiner = route.includes('?') ? '&' : '?';
+                    return `${route}${joiner}tab=${active}&page=${page}&row=${encodeURIComponent(item.id)}`;
+                  };
                   const handleRowActivate = (event: React.MouseEvent<HTMLTableRowElement> | React.KeyboardEvent<HTMLTableRowElement>) => {
                     // Don't navigate when the user clicked an inner button/link/textarea —
                     // those have their own handlers and must take precedence.
                     const target = event.target as HTMLElement;
                     if (target.closest('a, button, textarea, input, label')) return;
-                    navigate(rowTarget);
+                    navigate(withOrigin(rowTarget));
                   };
                   return (
                     <tr
                       key={item.id}
+                      data-row-key={item.id}
                       className={item.priority >= 80 ? 'is-priority' : ''}
                       role="link"
                       tabIndex={0}
@@ -415,7 +460,7 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
                           </div>
                         ) : item.nextAction ? (
                           <Link className="role-work-inbox__button" to={item.nextAction.targetRoute}>{item.nextAction.label}</Link>
-                        ) : <Link className="role-work-inbox__detail-link" to={item.targetRoute}>Xem hồ sơ</Link>}
+                        ) : <Link className="role-work-inbox__detail-link" to={withOrigin(item.targetRoute)}>Xem hồ sơ</Link>}
                       </td>
                     </tr>
                   );
