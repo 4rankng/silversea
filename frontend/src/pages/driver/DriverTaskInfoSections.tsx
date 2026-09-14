@@ -7,13 +7,13 @@ import type { DriverTaskDetail } from '../../api/driverClient';
  * 2a618442 (structure-guard split): the THÔNG TIN LỆNH fact grid + the
  * THÔNG TIN XUẤT HÓA ĐƠN block, extracted from DriverTripDetailPage.
  *
- * Field order: Nhà máy (SHORT name, full-name fallback) → Tên nhà máy (tên
- * đầy đủ, canonical site name) → Địa chỉ nhà máy → Container / lô hàng →
- * Cảng nâng | Cảng hạ → Tuyến (route text only — the address lives in its
- * own row above) → SĐT kho (always visible, "—" when the site has no
- * phone) → Ngày giờ kế hoạch → Người liên hệ | Số điện thoại. ĐẦU KÉO and
- * RƠ MOÓC are both OFF this surface: the wire fields stay, only the rows
- * are dropped.
+ * Field order (mobile target sketch, card _4): NGÀY GIỜ KẾ HOẠCH | NHÀ MÁY
+ * (short) → TÊN NHÀ MÁY (full) → ĐỊA CHỈ NHÀ MÁY (full) → SĐT kho (always
+ * visible, "—" when the site has no phone) → Container / lô hàng (booking
+ * quantity idiom "1 x 20 DC") → CẢNG NÂNG | CẢNG HẠ → Trả cont rỗng (when
+ * distinct) → TUYẾN (route text only) → Người liên hệ | Số điện thoại.
+ * ĐẦU KÉO and RƠ MOÓC are both OFF this surface: the wire fields stay, only
+ * the rows are dropped.
  */
 function TaskFact({ icon, label, value, fullWidth }: { icon: React.ReactNode; label: string; value: React.ReactNode; fullWidth?: boolean }) {
   return (
@@ -78,13 +78,18 @@ export function DriverTaskInfoSections({ trip }: { trip: DriverTaskDetail }) {
   // this screen, the journey card, and the CUS ledger can never disagree).
   const dropPoint = valueOrDash(fulfillment?.dropPortName);
   // Spec A4: container number, type and seal share one line (same idiom as
-  // the journey-board card).
+  // the journey-board card). Quantity format follows the booking idiom
+  // ("1 x 20 DC"): counts per container type, joined with "+".
   const containerLine = trip.containers.length > 0
-    ? trip.containers.map((container) => [
-        container.containerNumber,
-        container.containerTypeName,
-        container.sealNumber ? `Seal ${container.sealNumber}` : null,
-      ].filter(Boolean).join(' · ') || '—').join(' · ')
+    ? [
+        trip.containers.map((container) => container.containerNumber).filter(Boolean).join(' · '),
+        Array.from(trip.containers.reduce((counts, container) => {
+          const code = container.containerTypeCode || container.containerTypeName;
+          if (code) counts.set(code, (counts.get(code) ?? 0) + 1);
+          return counts;
+        }, new Map<string, number>())).map(([code, count]) => `${count} x ${code}`).join(' + '),
+        trip.containers.map((container) => container.sealNumber ? `Seal ${container.sealNumber}` : null).filter(Boolean).join(' · ') || null,
+      ].filter(Boolean).join(' · ') || '—'
     : valueOrDash(fulfillment?.modeLabel ?? trip.cargoTypeName);
   const contactName = fulfillment?.contactName ?? trip.instructions?.contactName ?? null;
   const contactPhone = fulfillment?.contactPhone ?? trip.instructions?.contactPhone ?? null;
@@ -112,10 +117,11 @@ export function DriverTaskInfoSections({ trip }: { trip: DriverTaskDetail }) {
           onToggle={() => setInfoOpen((v) => !v)}
         />
         <div className="driver-task-grid" id="driver-task-info-grid" hidden={!infoOpen}>
-          {/* BUG 5: the grid leads with the SHORT factory name (tên viết
-              tắt) — full name only when no short name exists. The collapsed
-              header summary keeps the short name too. */}
-          <TaskFact icon={<Building2 size={16} />} label="Nhà máy" value={factoryRowValue} fullWidth />
+          {/* Row 1 — NGÀY GIỜ KẾ HOẠCH | NHÀ MÁY (short name), per the
+              mobile target sketch: the plan time pairs with the destination
+              the driver scans for first. */}
+          <TaskFact icon={<CalendarClock size={16} />} label="Ngày giờ kế hoạch" value={formatDateTime(fulfillment?.plannedAt ?? trip.departureDate)} />
+          <TaskFact icon={<Building2 size={16} />} label="Nhà máy" value={factoryRowValue} />
           {/* Full factory name: canonical site name from the container
               factory join; dashes when missing OR when it would duplicate
               the abbrev row above. */}
@@ -123,6 +129,14 @@ export function DriverTaskInfoSections({ trip }: { trip: DriverTaskDetail }) {
           {/* Factory site street address in its own row — the Tuyến row
               below stays route text only. */}
           <TaskFact icon={<MapPinned size={16} />} label="Địa chỉ nhà máy" value={valueOrDash(fulfillment?.factoryAddress)} fullWidth />
+          {/* SĐT kho sits directly under the factory address (sketch row 4). */}
+          <TaskFact
+            icon={<Phone size={16} />}
+            label="SĐT kho"
+            value={fulfillment?.khoPhone
+              ? <a href={`tel:${fulfillment.khoPhone}`} className="driver-task-link">{fulfillment.khoPhone}</a>
+              : '—'}
+          />
           <TaskFact icon={<Package2 size={16} />} label="Container / lô hàng" value={containerLine} fullWidth />
           <TaskFact icon={<MapPinned size={16} />} label="Cảng nâng" value={pickupPoint} />
           <TaskFact icon={<MapPinned size={16} />} label="Cảng hạ" value={dropPoint} />
@@ -140,16 +154,6 @@ export function DriverTaskInfoSections({ trip }: { trip: DriverTaskDetail }) {
             value={valueOrDash(fulfillment?.routeSummary ?? trip.routeName)}
             fullWidth
           />
-          {/* Warehouse phone is always visible — a tel link when the site
-              has one, "—" otherwise. */}
-          <TaskFact
-            icon={<Phone size={16} />}
-            label="SĐT kho"
-            value={fulfillment?.khoPhone
-              ? <a href={`tel:${fulfillment.khoPhone}`} className="driver-task-link">{fulfillment.khoPhone}</a>
-              : '—'}
-          />
-          <TaskFact icon={<CalendarClock size={16} />} label="Ngày giờ kế hoạch" value={formatDateTime(fulfillment?.plannedAt ?? trip.departureDate)} />
           <TaskFact icon={<Phone size={16} />} label="Người liên hệ" value={valueOrDash(contactName)} />
           <TaskFact
             icon={<Phone size={16} />}

@@ -535,15 +535,15 @@ describe('DriverTripDetailPage', () => {
     await screen.findByText(/Số cont & seal/);
     const labels = Array.from(document.querySelectorAll('.driver-task-fact__label')).map((el) => el.textContent);
     expect(labels).toEqual([
+      'Ngày giờ kế hoạch',
       'Nhà máy',
       'Tên nhà máy',
       'Địa chỉ nhà máy',
+      'SĐT kho',
       'Container / lô hàng',
       'Cảng nâng',
       'Cảng hạ',
       'Tuyến',
-      'SĐT kho',
-      'Ngày giờ kế hoạch',
       'Người liên hệ',
       'Số điện thoại',
     ]);
@@ -562,7 +562,7 @@ describe('DriverTripDetailPage', () => {
     expect(valueOf('Địa chỉ nhà máy')).toBe('—');
     expect(valueOf('Tuyến')).toBe('Cát Lái → Bình Dương');
     expect(valueOf('SĐT kho')).toBe('—');
-    expect(screen.getByText('MSCU1234561 · 40FT · Seal SEAL-9')).toBeTruthy();
+    expect(screen.getByText('MSCU1234561 · 1 x 40G1 · Seal SEAL-9')).toBeTruthy();
     expect(screen.queryByText('Loại container')).toBeNull();
     expect(screen.queryByText('Số seal')).toBeNull();
   });
@@ -583,7 +583,7 @@ describe('DriverTripDetailPage', () => {
     });
     renderPage();
 
-    expect(await screen.findByText('MSCU1234561 · 40FT · Seal SEAL-9 · MSCU7654321 · 40FT · Seal SEAL-8')).toBeTruthy();
+    expect(await screen.findByText('MSCU1234561 · MSCU7654321 · 2 x 40G1 · Seal SEAL-9 · Seal SEAL-8')).toBeTruthy();
   });
 
   it('renders the container card and hides the invoice block when there is no invoice info', async () => {

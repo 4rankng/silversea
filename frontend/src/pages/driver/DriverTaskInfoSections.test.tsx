@@ -81,19 +81,19 @@ const valueOf = (label: string) => Array.from(document.querySelectorAll('.driver
   ?.querySelector('.driver-task-fact__value')?.textContent;
 
 describe('DriverTaskInfoSections', () => {
-  it('renders the full fact-grid order: factory block, container, ports, route, warehouse phone, schedule, contacts', () => {
+  it('renders the full fact-grid order: schedule+factory, factory block, warehouse phone, container, ports, route, contacts', () => {
     render(<DriverTaskInfoSections trip={makeTrip()} />);
 
     expect(labels()).toEqual([
+      'Ngày giờ kế hoạch',
       'Nhà máy',
       'Tên nhà máy',
       'Địa chỉ nhà máy',
+      'SĐT kho',
       'Container / lô hàng',
       'Cảng nâng',
       'Cảng hạ',
       'Tuyến',
-      'SĐT kho',
-      'Ngày giờ kế hoạch',
       'Người liên hệ',
       'Số điện thoại',
     ]);
@@ -249,21 +249,29 @@ describe('DriverTaskInfoSections', () => {
     render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { returnDepotName: 'Bãi JJ LOGISTICS' } })} />);
 
     expect(labels()).toEqual([
+      'Ngày giờ kế hoạch',
       'Nhà máy',
       'Tên nhà máy',
       'Địa chỉ nhà máy',
+      'SĐT kho',
       'Container / lô hàng',
       'Cảng nâng',
       'Cảng hạ',
       'Trả cont rỗng',
       'Tuyến',
-      'SĐT kho',
-      'Ngày giờ kế hoạch',
       'Người liên hệ',
       'Số điện thoại',
     ]);
     expect(valueOf('Cảng hạ')).toBe('Sóng Thần');
     expect(valueOf('Trả cont rỗng')).toBe('Bãi JJ LOGISTICS');
+  });
+
+  it('renders the container line in booking quantity format', () => {
+    render(<DriverTaskInfoSections trip={makeTrip()} />);
+
+    // "1 x <type>" — the booking idiom from the mobile sketch; container
+    // numbers stay in front, seals stay attached.
+    expect(valueOf('Container / lô hàng')).toBe('MSCU1234561 · 1 x 40G1 · Seal SEAL-9');
   });
 
   it('renders the wire drop point authoritatively — "—" when the chain resolves null, ignoring legacy local fallbacks', () => {
