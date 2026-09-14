@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { salaryClient, salaryPeriodConfigClient, type WorkDayUpdate } from '../api/salaryClient';
+import { salaryClient, salaryPeriodConfigClient, type WorkDayUpdate, type WorkDayRecord } from '../api/salaryClient';
 import { qk } from '../api/keys';
 
 const salaryPeriodOverviewKey = (period: string, driverId: number | null) =>
@@ -31,11 +31,38 @@ export function useDriverWorkDays(driverId: number | null, year: number, month: 
 
 export function useUpdateWorkDays(driverId: number, year: number, month: number) {
   const queryClient = useQueryClient();
+  const workdaysKey = qk.salary.driverWorkdays(driverId, year, month);
   return useMutation({
     mutationFn: (items: WorkDayUpdate[]) =>
       salaryClient.updateWorkDays(driverId, year, month, items),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: qk.salary.driverWorkdays(driverId, year, month) });
+    onMutate: async (items) => {
+      await queryClient.cancelQueries({ queryKey: workdaysKey });
+      type WorkdaysResponse = { period: { start: string; end: string; label: string }; workDays: WorkDayRecord[] };
+      const previous = queryClient.getQueryData<WorkdaysResponse>(workdaysKey);
+      queryClient.setQueryData<WorkdaysResponse>(workdaysKey, (old) => {
+        if (!old) return old;
+        const updated = [...old.workDays];
+        for (const item of items) {
+          const idx = updated.findIndex((w) => w.date === item.date);
+          if (item.status === null) {
+            if (idx >= 0) updated.splice(idx, 1);
+          } else if (idx >= 0) {
+            updated[idx] = { ...updated[idx], status: item.status, note: item.note ?? updated[idx].note };
+          } else {
+            updated.push({ id: 0, driverId, date: item.date, status: item.status, tripId: null, note: item.note ?? null });
+          }
+        }
+        return { ...old, workDays: updated };
+      });
+      return { previous };
+    },
+    onError: (_err, _items, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(workdaysKey, context.previous);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: workdaysKey });
       queryClient.invalidateQueries({ queryKey: qk.salary.driverSalary(driverId, year, month) });
       queryClient.invalidateQueries({ queryKey: qk.salary.list(year, month) });
     },

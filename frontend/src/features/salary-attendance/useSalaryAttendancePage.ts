@@ -23,6 +23,7 @@ import { useToast } from '../../components/shared/Toast';
 import { usePageAnimations } from '../../hooks/animations';
 import { useBackShortcut } from '../../hooks/useBackShortcut';
 import { useSalaryPeriod } from '../../hooks/useCatalogQueries';
+import { STATUS_CONFIG } from './salary-attendance-constants';
 
 /**
  * useSalaryAttendancePage — all data and action logic for the Salary & Attendance page.
@@ -136,10 +137,17 @@ export function useSalaryAttendancePage(searchTerm: string) {
     const items = [{ date: dateStr, status: newStatus, note: null }];
     try {
       await updateMutation.mutateAsync(items);
-    } catch {
-      // Error is surfaced via mutation.error state; suppress unhandled rejection
+      // When newStatus is null, the day reverts to its default (STANDBY / WEEKLY_OFF).
+      const [cy, cm, cd] = dateStr.split('-').map(Number);
+      const isSun = new Date(cy, cm - 1, cd).getDay() === 0;
+      const effectiveStatus = newStatus ?? (isSun ? 'WEEKLY_OFF' : 'STANDBY');
+      const label = STATUS_CONFIG[effectiveStatus]?.label ?? 'Đã cập nhật';
+      toast({ kind: 'success', message: `Đã lưu: ${label}` });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Không thể cập nhật ngày công.';
+      toast({ kind: 'error', message: msg });
     }
-  }, [selectedDriverId, updateMutation, workdayEditLocked]);
+  }, [selectedDriverId, updateMutation, workdayEditLocked, toast]);
 
   // Parse a YYYY-MM-DD string using local timezone (avoids UTC midnight parsing issue)
   const parseLocalDate = useCallback((s: string): Date => {
