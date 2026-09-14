@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AlignCenter, AlignLeft, AlignRight, ArrowDown, ArrowUp, Eye, EyeOff, Plus, RotateCcw } from 'lucide-react';
 import { UuiSelectField } from '../../design-system';
 import type { DebitNoteColumnVariable, DebitNoteTemplateColumn } from '@tingting/shared';
@@ -17,6 +17,11 @@ export function ColumnTable({
   onChange: (columns: DebitNoteTemplateColumn[]) => void;
 }) {
   const [selectedColumnId, setSelectedColumnId] = useState(columns[0]?.id ?? '');
+  // Phone/tablet: the properties inspector sits below the whole column list —
+  // after an explicit selection change, bring it into view (skipping the
+  // initial mount so first paint never jumps).
+  const inspectorRef = useRef<HTMLElement | null>(null);
+  const lastSeenColumnRef = useRef<string>('');
   const update = (index: number, patch: Partial<DebitNoteTemplateColumn>) => {
     onChange(columns.map((column, idx) => idx === index ? { ...column, ...patch } : column));
   };
@@ -50,6 +55,20 @@ export function ColumnTable({
       setSelectedColumnId(columns[0].id);
     }
   }, [columns, selectedColumnId]);
+
+  useEffect(() => {
+    if (lastSeenColumnRef.current === '') {
+      lastSeenColumnRef.current = selectedColumnId;
+      return;
+    }
+    if (selectedColumnId === lastSeenColumnRef.current) return;
+    lastSeenColumnRef.current = selectedColumnId;
+    if (window.matchMedia('(max-width: 899px)').matches) {
+      requestAnimationFrame(() => {
+        inspectorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    }
+  }, [selectedColumnId]);
 
   return (
     <section className="debit-editor-table-wrap">
@@ -142,7 +161,7 @@ export function ColumnTable({
         </div>
 
         {selectedColumn && (
-          <aside className="debit-editor-column-inspector">
+          <aside ref={inspectorRef} className="debit-editor-column-inspector">
             <div className="debit-editor-column-stack">
               <div className="debit-editor-column-inspector__header">
                 <div>
