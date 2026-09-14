@@ -413,3 +413,72 @@ describe('customer account scope', () => {
     });
   });
 });
+
+describe('business-unit option visibility by status', () => {
+  const mixedUnits: BusinessUnit[] = [
+    { id: 11, code: 'HCM', name: 'Đơn vị A', status: 'ACTIVE', createdAt: '2026-07-27T00:00:00.000Z', updatedAt: '2026-07-27T00:00:00.000Z' },
+    { id: 12, code: 'HAN', name: 'Đơn vị B', status: 'INACTIVE', createdAt: '2026-07-27T00:00:00.000Z', updatedAt: '2026-07-27T00:00:00.000Z' },
+  ];
+
+  it('new accounts offer only ACTIVE units — a deactivated unit drops out', () => {
+    render(
+      <AddPanel
+        isOpen
+        saving={false}
+        error={null}
+        customerList={customers}
+        businessUnits={mixedUnits}
+        shipmentOptions={shipmentOptions}
+        onClose={vi.fn()}
+        onSave={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('checkbox', { name: /Đơn vị A/ })).toBeTruthy();
+    expect(screen.queryByRole('checkbox', { name: /Đơn vị B/ })).toBeNull();
+  });
+
+  it('an edited account keeps its already-assigned inactive unit visible, labeled', () => {
+    const user: UserRow = {
+      id: 61,
+      username: 'driver.unit-b',
+      fullName: 'Lái xe Đơn vị B',
+      email: null,
+      phone: null,
+      role: Role.DRIVER,
+      status: 'ACTIVE',
+      createdAt: '2026-07-27T00:00:00.000Z',
+      customerId: null,
+      customerIds: [],
+      businessUnitIds: [12],
+      shipmentIds: [],
+      employeeCode: null,
+      driverId: null,
+      assignedTruckId: null,
+      baseSalary: null,
+      socialInsurance: null,
+    };
+
+    render(
+      <EditPanel
+        isOpen
+        user={user}
+        isMe={false}
+        saving={false}
+        error={null}
+        customerList={customers}
+        businessUnits={mixedUnits}
+        shipmentOptions={shipmentOptions}
+        onClose={vi.fn()}
+        onSave={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('checkbox', { name: /Đơn vị A/ })).toBeTruthy();
+    const assignedInactive = screen.getByRole('checkbox', { name: /Đơn vị B/ });
+    expect(assignedInactive).toBeTruthy();
+    // The retained link is marked, so the picker never presents a deactivated
+    // unit as if it were a fresh, recommended choice.
+    expect(screen.getByText(/Ngừng sử dụng/)).toBeTruthy();
+  });
+});

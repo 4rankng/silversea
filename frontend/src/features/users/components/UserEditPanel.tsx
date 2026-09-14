@@ -88,11 +88,19 @@ export function EditPanel({
     customerIds.length === 0
     || (customerAccountType === CustomerAccountType.SINGLE_ENTITY && customerIds.length > 1)
   );
-  const businessUnitOptions: SelectionOption[] = businessUnits.map((unit) => ({
-    id: unit.id,
-    title: unit.name,
-    subtitle: unit.code ? `Mã ${unit.code}` : undefined,
-  }));
+  // ACTIVE units for new picks, plus the user's already-assigned units even
+  // when deactivated — removing an existing link must be a deliberate act,
+  // never a side effect of the filter.
+  const businessUnitOptions: SelectionOption[] = businessUnits
+    .filter((unit) => unit.status === 'ACTIVE' || user.businessUnitIds?.includes(unit.id))
+    .map((unit) => ({
+      id: unit.id,
+      title: unit.name,
+      subtitle: [
+        unit.code ? `Mã ${unit.code}` : null,
+        unit.status === 'INACTIVE' ? 'Ngừng sử dụng' : null,
+      ].filter(Boolean).join(' · ') || undefined,
+    }));
   const shipmentSelectionOptions: SelectionOption[] = shipmentOptions.map((shipment) => ({
     id: shipment.id,
     title: shipment.shipmentCode ?? 'Lô hàng chưa có mã',

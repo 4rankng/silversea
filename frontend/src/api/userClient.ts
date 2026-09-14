@@ -61,11 +61,17 @@ export const userClient = {
     return api.post<BusinessUnit>(BUSINESS_UNITS_PATH, data);
   },
 
-  updateBusinessUnit: async (id: number, data: { code?: string | null; name?: string; status?: 'ACTIVE' | 'INACTIVE' }) => {
-    return api.patch<BusinessUnit>(`${BUSINESS_UNITS_PATH}/${id}`, data);
+  /** Optimistic-lock token from the loaded unit row — the backend rejects
+   *  PATCH/DELETE without it (428), so it is required, never optional. */
+  updateBusinessUnit: async (
+    id: number,
+    data: { code?: string | null; name?: string; status?: 'ACTIVE' | 'INACTIVE' },
+    expectedUpdatedAt: string,
+  ) => {
+    return api.patch<BusinessUnit>(`${BUSINESS_UNITS_PATH}/${id}`, data, { expectedUpdatedAt });
   },
 
-  deactivateBusinessUnit: async (id: number) => {
-    return api.delete<BusinessUnit>(`${BUSINESS_UNITS_PATH}/${id}`);
+  deactivateBusinessUnit: async (id: number, expectedUpdatedAt: string) => {
+    return api.delete<BusinessUnit>(`${BUSINESS_UNITS_PATH}/${id}`, { expectedUpdatedAt });
   },
 };
