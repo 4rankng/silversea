@@ -1,4 +1,6 @@
+import { qk } from '../../api/keys';
 import { useState, useEffect, useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { usePageAnimations } from '../../hooks/animations';
 import { useNavigate } from 'react-router-dom';
 import { Save, Loader2 } from 'lucide-react';
@@ -14,6 +16,7 @@ import './config-page.css';
 import { resolveEmptyIllustration } from '../../lib/emptyIllustrations';
 
 export default function FuelConfigPage() {
+  const queryClient = useQueryClient();
   const { rootRef: pageRef } = usePageAnimations({ ready: true, selectors: ['.cfg-row'] });
   const navigate = useNavigate();
   const { data: fuelConfig } = useFuelConfig();
@@ -65,6 +68,9 @@ export default function FuelConfigPage() {
     setMessage(null);
     try {
       await saveFuel.mutateAsync({
+        // Optimistic-lock token: present once a config exists (the form seeds
+        // from the same row); omitted on a genuine first configuration.
+        expectedUpdatedAt: fuelConfig?.updatedAt ?? null,
         loadedNorm: Number(form.loadedNorm),
         emptyNorm: Number(form.emptyNorm),
         supplement: Number(form.supplement) || 0,
@@ -74,7 +80,18 @@ export default function FuelConfigPage() {
         criticalThreshold: form.criticalThreshold ? Number(form.criticalThreshold) : 40,
       });
       navigate('/config');
-    } catch (e) { setError(e instanceof Error ? e.message : 'Lỗi lưu'); } finally { setSaving(false); }
+    } catch (e) {
+      const status = (e as { status?: number }).status;
+      if (status === 428 || status === 409) {
+        // Version conflict: the config changed under us (or the page state
+        // predates a config created elsewhere). Reload the authoritative row
+        // and keep the draft for review — never a blind retry loop.
+        setError('Cấu hình đã thay đổi — đã tải lại bản mới. Giữ nguyên các giá trị bạn nhập; kiểm tra rồi lưu lại.');
+        void queryClient.invalidateQueries({ queryKey: qk.catalogs.fuelConfig });
+      } else {
+        setError(e instanceof Error ? e.message : 'Lỗi lưu');
+      }
+    } finally { setSaving(false); }
   };
 
   const currentUnitPrice = Number(form.unitPrice || 0);

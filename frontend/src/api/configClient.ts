@@ -63,7 +63,12 @@ export const configClient = {
   saveFuelConfig: (data: {
     loadedNorm: number; emptyNorm: number; supplement: number;
     unitPrice: number; baseUnitPrice?: number | null; warningThreshold: number; criticalThreshold: number;
-  }) => api.put<FuelConfig>(CONFIG.FUEL_CONFIG, data),
+    /** Optimistic-lock token from the loaded config — omitted on a genuine
+     *  first configuration (no row yet), which the backend permits. */
+    expectedUpdatedAt?: string | null;
+  }) => api.put<FuelConfig>(CONFIG.FUEL_CONFIG, data, data.expectedUpdatedAt
+    ? { expectedUpdatedAt: data.expectedUpdatedAt }
+    : undefined),
 
   getCompanyInfo: () => api.get<CompanyInfo>(CONFIG.COMPANY_INFO),
 
