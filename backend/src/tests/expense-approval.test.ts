@@ -24,6 +24,11 @@ before(async () => {
 });
 
 after(async () => {
+  // Allocation rows keyed by the suite's hardcoded synthetic ledger ids must
+  // go first — leftover rows from an interrupted run make the unallocated-
+  // amount guard reject the next run's settlements.
+  await db.delete(s.expensePaymentAllocations)
+    .where(inArray(s.expensePaymentAllocations.paymentLedgerId, [9001, 9002, 9101, 9202]));
   await db.delete(s.ledger).where(and(eq(s.ledger.entityType, 'VENDOR'), inArray(s.ledger.entityId, createdSupplierIds)));
   if (createdExpenseIds.length) await db.delete(s.expenses).where(inArray(s.expenses.id, createdExpenseIds));
   await db.delete(s.suppliers).where(inArray(s.suppliers.id, createdSupplierIds));
@@ -111,18 +116,22 @@ describe('expense payment-status ledger backing', () => {
     const { expense } = await runInTx(undefined, (tx) => submitExpense(tx, input, 'reason', f.submitter.id));
     createdExpenseIds.push(expense.id);
     const expenseAmount = Number(expense.amount);
-    await runInTx(undefined, (tx) => settleExpensesForPayment({ allocations: [{ expenseId: expense.id, amount: expenseAmount }], supplierId: expense.supplierId, paymentLedgerId: 9101, paymentAmount: expenseAmount, transaction: tx }));
-    // A newer payment re-settles the row (reversal of 9101 must NOT touch it
-    // because the allocation record for 9202 still covers the expense).
-    await runInTx(undefined, (tx) => settleExpensesForPayment({ allocations: [{ expenseId: expense.id, amount: expenseAmount }], supplierId: expense.supplierId, paymentLedgerId: 9202, paymentAmount: expenseAmount, transaction: tx }));
+    // KP-075 allocation semantics: PAID ⇔ Σ allocations ≥ amount; a payment
+    // may only allocate up to the row's REMAINING balance (over-cover is
+    // rejected), so the old "newer payment re-settles on top" scenario is
+    // unconstructable. Pin the coverage rule instead.
+    await runInTx(undefined, (tx) => settleExpensesForPayment({ allocations: [{ expenseId: expense.id, amount: 50000 }], supplierId: expense.supplierId, paymentLedgerId: 9101, paymentAmount: 50000, transaction: tx }));
+    const [partial] = await db.select().from(s.expenses).where(eq(s.expenses.id, expense.id));
+    assert.equal(partial.paymentStatus, 'UNPAID', 'partial allocation leaves the row unpaid');
+
+    await runInTx(undefined, (tx) => settleExpensesForPayment({ allocations: [{ expenseId: expense.id, amount: expenseAmount - 50000 }], supplierId: expense.supplierId, paymentLedgerId: 9202, paymentAmount: expenseAmount - 50000, transaction: tx }));
+    const [covered] = await db.select().from(s.expenses).where(eq(s.expenses.id, expense.id));
+    assert.equal(covered.paymentStatus, 'PAID');
+
+    // Reversing the partial payment drops coverage below the amount — the
+    // row returns to UNPAID and lands in the restored list.
     const restored = await runInTx(undefined, (tx) => restoreExpensesForPaymentReversal({ paymentLedgerId: 9101, transaction: tx }));
-    // 9101's allocation was superseded — after deleting it, the 9202 allocation
-    // still covers the full amount, so the expense stays PAID.
-    const [still] = await db.select().from(s.expenses).where(eq(s.expenses.id, expense.id));
-    assert.equal(still.paymentStatus, 'PAID');
-    // Restoring the newer payment works.
-    const restored2 = await runInTx(undefined, (tx) => restoreExpensesForPaymentReversal({ paymentLedgerId: 9202, transaction: tx }));
-    assert.deepEqual(restored2, [expense.id]);
+    assert.deepEqual(restored, [expense.id]);
     const [back] = await db.select().from(s.expenses).where(eq(s.expenses.id, expense.id));
     assert.equal(back.paymentStatus, 'UNPAID');
     assert.equal(back.settledByPaymentId, null);
