@@ -141,6 +141,13 @@ before(async () => {
 after(async () => {
   try {
     await saveAppSettings(originalSettings);
+  } catch (restoreError) {
+    // The captured "original" may reference a payroll unit deleted by an
+    // earlier run's cleanup (the settings row persists across runs in the
+    // shared dev DB). The restore is best-effort: warn and continue so the
+    // fixture cleanup below still runs.
+    console.warn('[app-settings-routes.test] settings restore skipped:',
+      (restoreError as Error).message);
   } finally {
     try {
       if (server) {
@@ -342,7 +349,7 @@ describe('app-settings route authorization', () => {
     assert.equal('resendApiKey' in write.body, false);
   });
 
-  test('manager and accountant can read financial reporting routes but cannot request changes', async () => {
+  test('manager and accountant can read financial reporting routes but cannot change them (KP-149: direct ADMIN-only writes)', async () => {
     const truck = await mkTruck();
 
     for (const token of [managerToken, accountantToken]) {
@@ -355,7 +362,7 @@ describe('app-settings route authorization', () => {
       assert.equal(truckRead.body.selectedTruckId, truck.id);
     }
 
-    const deniedPolicyWrite = await request('/financial-reporting/policy/requests', {
+    const deniedPolicyWrite = await request('/financial-reporting/policy', {
       method: 'POST',
       token: managerToken,
       idempotencyKey: `finance-policy-denied-${suffix}`,
@@ -367,7 +374,7 @@ describe('app-settings route authorization', () => {
     });
     assert.equal(deniedPolicyWrite.status, 403);
 
-    const deniedTruckWrite = await request('/financial-reporting/truck-profiles/requests', {
+    const deniedTruckWrite = await request('/financial-reporting/truck-profiles', {
       method: 'POST',
       token: accountantToken,
       idempotencyKey: `finance-truck-denied-${suffix}`,
@@ -385,13 +392,13 @@ describe('app-settings route authorization', () => {
     assert.equal(deniedTruckWrite.status, 403);
   });
 
-  test('policy request persists as governance and appears in future approved history after approval', async () => {
+  test('policy write applies immediately and appears in the future-policy history', async () => {
     const effectiveFrom = '2099-12-01';
 
     // ADMIN is the final authority: the policy request applies immediately
     // (recorded as an APPROVED governance action), so the pending-request
     // branch below stays empty and futurePolicies holds the row right away.
-    const requested = await request('/financial-reporting/policy/requests', {
+    const requested = await request('/financial-reporting/policy', {
       method: 'POST',
       token: adminToken,
       idempotencyKey: `finance-policy-${suffix}`,
@@ -418,7 +425,7 @@ describe('app-settings route authorization', () => {
     assert.equal(approvedState.body.pendingRequest, null);
   });
 
-  test('truck financial profile requests lock duplicate submissions and expose the approved current profile', async () => {
+  test('truck financial profile direct write exposes the configured profile', async () => {
     const truck = await mkTruck();
     const effectiveFrom = currentVietnamMonthStart();
 
@@ -430,7 +437,7 @@ describe('app-settings route authorization', () => {
     assert.equal(initial.body.selectedTruckId, truck.id);
 
     // ADMIN maker applies immediately — see the policy-request test above.
-    const requested = await request('/financial-reporting/truck-profiles/requests', {
+    const requested = await request('/financial-reporting/truck-profiles', {
       method: 'POST',
       token: adminToken,
       idempotencyKey: `finance-truck-${suffix}`,
@@ -451,25 +458,9 @@ describe('app-settings route authorization', () => {
       Number((requested.body.applicationResult as { subjectId?: number }).subjectId),
     );
 
-    const duplicate = await request('/financial-reporting/truck-profiles/requests', {
-      method: 'POST',
-      token: adminToken,
-      idempotencyKey: `finance-truck-duplicate-${suffix}`,
-      body: {
-        expectedPublicVersion: null,
-        truckId: truck.id,
-        effectiveFrom,
-        acquisitionCost: '1250000000',
-        residualValue: '150000000',
-        inServiceDate: '2024-03-15',
-        usefulLifeMonths: 84,
-        monthlyFixedCost: '24000000',
-      },
-    });
-    assert.equal(duplicate.status, 409);
+    // KP-149: no request queue — a second write is an ordinary edit, not a
+    // duplicate submission to lock.
 
-    // ADMIN applied immediately at request time — the profile is live without
-    // the check/approve steps that used to run here.
     const approved = await request(`/financial-reporting/truck-profiles?truckId=${truck.id}`, {
       token: adminToken,
     });
