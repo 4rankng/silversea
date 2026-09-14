@@ -14,7 +14,6 @@ import {
   isGovernedCompanyExpenseMutation,
   requestCompanyExpenseGovernance,
   submitExpense,
-  reviewExpense,
   getExpensePhotoList,
   EXPENSE_LIST_SORT_KEYS,
 } from '../services/expense.service';
@@ -241,36 +240,7 @@ router.post('/', asyncHandler(async (req: Request, res: Response) => {
   res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
 }));
 
-// ─── Dual-control review: a checker first, then a DIFFERENT approver ────────
-
-router.post('/:id/check', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
-  if (!Number.isFinite(id) || id <= 0) return res.status(400).json({ error: 'ID không hợp lệ' });
-  const actor = getUser(req);
-  const expense = await reviewExpense({ expenseId: id, action: 'CHECK', actorId: actor.userId, actorRole: actor.role });
-  res.locals.auditEntityId = expense.id;
-  res.json(expense);
-}));
-
-router.post('/:id/approve', requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
-  if (!Number.isFinite(id) || id <= 0) return res.status(400).json({ error: 'ID không hợp lệ' });
-  const actor = getUser(req);
-  const expense = await reviewExpense({ expenseId: id, action: 'APPROVE', actorId: actor.userId, actorRole: actor.role });
-  await invalidateExpenseCreateReports(false);
-  res.locals.auditEntityId = expense.id;
-  res.json(expense);
-}));
-
-router.post('/:id/reject', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
-  if (!Number.isFinite(id) || id <= 0) return res.status(400).json({ error: 'ID không hợp lệ' });
-  const actor = getUser(req);
-  const reason = typeof req.body?.reason === 'string' ? req.body.reason : undefined;
-  const expense = await reviewExpense({ expenseId: id, action: 'REJECT', actorId: actor.userId, actorRole: actor.role, reason });
-  res.locals.auditEntityId = expense.id;
-  res.json(expense);
-}));
+// KP-150: check/approve/reject endpoints removed — expenses post directly.
 
 router.put('/:id', asyncHandler(async (req: Request, res: Response) => {
   const validatedData = expenseSchema.partial().parse(req.body);

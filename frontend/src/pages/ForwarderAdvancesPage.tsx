@@ -161,15 +161,15 @@ export default function ForwarderAdvancesPage() {
       {settlements.length > 0 && (
         <div className="fadv-settlement-summary fade-up">
           <div className="fadv-settlement-summary__card fadv-settlement-summary__card--info">
-            <span className="fadv-settlement-summary__label">Chờ duyệt hoàn ứng</span>
+            <span className="fadv-settlement-summary__label">Chờ quyết toán hoàn ứng</span>
             <span className="fadv-settlement-summary__value">{formatCurrency(requestedReimbursement)}</span>
-            <span className="fadv-settlement-summary__meta">{pendingSettlements.length} phiếu chờ duyệt</span>
+            <span className="fadv-settlement-summary__meta">{pendingSettlements.length} phiếu chờ quyết toán</span>
             <FileText size={40} className="fadv-settlement-summary__watermark" aria-hidden="true" />
           </div>
           <div className="fadv-settlement-summary__card fadv-settlement-summary__card--success">
             <span className="fadv-settlement-summary__label">Đã thanh toán</span>
             <span className="fadv-settlement-summary__value">{formatCurrency(settledPaid)}</span>
-            <span className="fadv-settlement-summary__meta">{approvedSettlements.length} phiếu đã duyệt</span>
+            <span className="fadv-settlement-summary__meta">{approvedSettlements.length} phiếu đã quyết toán</span>
             <CheckCircle2 size={40} className="fadv-settlement-summary__watermark" aria-hidden="true" />
           </div>
         </div>
@@ -185,7 +185,7 @@ export default function ForwarderAdvancesPage() {
                 <Wallet size={16} aria-hidden="true" />
                 Tạo yêu cầu tạm ứng
               </h2>
-              <p className="fadv-form-panel__hint">Điền số tiền và lý do để gửi yêu cầu đến bộ phận duyệt.</p>
+              <p className="fadv-form-panel__hint">Điền số tiền và lý do để tạo yêu cầu tạm ứng.</p>
             </div>
             <button
               className="btn btn--ghost btn--sm fadv-form-panel__close"
@@ -232,7 +232,7 @@ export default function ForwarderAdvancesPage() {
               </button>
               <button className="btn btn--primary btn--sm" type="submit" disabled={createAdvanceRequest.isPending}>
                 {createAdvanceRequest.isPending ? <Loader2 size={14} className="spin" /> : <Wallet size={14} />}
-                Gửi yêu cầu
+                Tạo yêu cầu
               </button>
             </div>
           </form>

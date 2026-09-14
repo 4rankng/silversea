@@ -204,10 +204,10 @@ function ExpenseTypeForm({
             <Field label="Ngưỡng/người/ngày">
               <input className="input mono" type="number" min="0" step="1000" value={perDayLimit} disabled={!noInvoiceEnabled} onChange={(event) => setPerDayLimit(event.target.value)} />
             </Field>
-            <Field label="Tài chính duyệt tối đa/khoản">
+            <Field label="Giới hạn/khoản">
               <input className="input mono" type="number" min="0" step="1000" value={financeLeadLimit} disabled={!noInvoiceEnabled} onChange={(event) => setFinanceLeadLimit(event.target.value)} />
             </Field>
-            <Field label="Giám đốc duyệt khi tổng ngày vượt">
+            <Field label="Giới hạn/ngày (vượt ngưỡng)">
               <input className="input mono" type="number" min="0" step="1000" value={directorDayLimit} disabled={!noInvoiceEnabled} onChange={(event) => setDirectorDayLimit(event.target.value)} />
             </Field>
           </div>
@@ -347,11 +347,11 @@ export default function ForwarderExpenseTypesConfigPage() {
             ),
           },
           {
-            header: 'Điều hướng duyệt',
+            header: 'Giới hạn',
             render: (item) => (
               <div style={{ fontSize: 12, color: 'var(--fg-2)', lineHeight: 1.45 }}>
-                <div>Tài chính: {formatVnd(item.noInvoiceFinanceLeadItemApprovalLimit)}</div>
-                <div>Giám đốc: {formatVnd(item.noInvoiceDirectorDayApprovalLimit)} / ngày</div>
+                <div>{formatVnd(item.noInvoiceFinanceLeadItemApprovalLimit)} / khoản</div>
+                <div>{formatVnd(item.noInvoiceDirectorDayApprovalLimit)} / ngày</div>
               </div>
             ),
           },

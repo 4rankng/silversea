@@ -148,6 +148,9 @@ export async function createOpsExpense(
       paidById: userId,
       paidAt: input.paidAt,
       note: input.note?.trim() || null,
+      approvalStatus: 'APPROVED' as const,
+      approvedById: userId,
+      approvedAt: new Date(),
     })
     .returning();
 

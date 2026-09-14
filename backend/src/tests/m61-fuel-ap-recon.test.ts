@@ -15,11 +15,16 @@ import * as s from '../db/schema';
 import { insertTripComposite } from '../services/trip-composite.service';
 import { getFuelApReconciliation } from '../services/fuel-ap-recon.service';
 import {
-  approveFuelInvoice,
   createFuelInvoice,
   getFuelInvoice,
   updateFuelInvoice,
 } from '../services/fuel-invoice.service';
+import type { GovernanceActionRow } from '../services/governance-action-core.service';
+// KP-152: approveFuelInvoice removed — invoices are auto-approved at creation.
+// Stub for tests that still reference it.
+async function approveFuelInvoice(_invoiceId: number, _actorId: number, _actorRole: string, _expectedVersion: number, _reason?: string, _transaction?: unknown): Promise<GovernanceActionRow> {
+  throw new Error('approveFuelInvoice removed — invoices are auto-approved at creation');
+}
 import { autoApplyGovernanceAction } from '../services/adjustment-governance.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -66,20 +71,6 @@ async function mkUser(role: typeof Role[keyof typeof Role]) {
   }).returning();
   createdUserIds.push(user.id);
   return user;
-}
-
-async function governFuelInvoiceApproval(invoiceId: number, version: number) {
-  return autoApplyGovernanceAction({
-    make: () => approveFuelInvoice(
-      invoiceId,
-      managerUserId,
-      Role.MANAGER,
-      version,
-      'Đề nghị duyệt hóa đơn nhiên liệu đã đối soát',
-    ),
-    actorId: adminUserId,
-    actorRole: Role.ADMIN,
-  });
 }
 
 async function mkCustomer() {
@@ -547,8 +538,6 @@ describe('M6.1 — getFuelApReconciliation', () => {
       amount: '1000000',
     });
 
-    await governFuelInvoiceApproval(invoice.id, invoice.updatedAt.getTime());
-
     const report = await getFuelApReconciliation({ from: '2026-06-01', to: '2026-06-30', supplierId: sup.id });
     const row = report.suppliers.find((supplier) => supplier.supplierId === sup.id);
     assert.ok(row);
@@ -596,7 +585,7 @@ describe('M6.1 — getFuelApReconciliation', () => {
     assert.equal(detail.allocations.find((row) => row.truckId === truckB.id)?.amount, '800000.00');
   });
 
-  test('keeps an incomplete invoice pending, supports replacement, and blocks approval until fully allocated', async () => {
+  test('supports replacing an incomplete invoice allocation with a fully linked one (KP-152: approved at creation)', async () => {
     const sup = await mkSupplier();
     const truck = await mkTruck();
     const trip = await mkTrip({ supplierId: sup.id, truckId: truck.id, totalFuelCost: '2000000', departureDate: '2026-06-10' });
@@ -625,12 +614,6 @@ describe('M6.1 — getFuelApReconciliation', () => {
     }, managerUserId);
     createdFuelInvoiceIds.push(created.id);
 
-    await assert.rejects(
-      () => approveFuelInvoice(created.id, managerUserId + 1, 'MANAGER', created.version),
-      (err: Error & { statusCode?: number }) =>
-        err.statusCode === 400 && /chưa liên kết chi phí nhiên liệu thực tế đã duyệt/i.test(err.message),
-    );
-
     await updateFuelInvoice(created.id, {
       supplierId: sup.id,
       invoiceNumber,
@@ -647,44 +630,6 @@ describe('M6.1 — getFuelApReconciliation', () => {
     }, created.version);
     const detail = await getFuelInvoice(created.id);
     assert.equal(detail.allocations[0]?.amount, '2000000.00');
-  });
-
-  test('fuel invoice approval rejects incomplete allocation reconciliation', async () => {
-    const sup = await mkSupplier();
-    const truck = await mkTruck();
-    const trip = await mkTrip({ supplierId: sup.id, truckId: truck.id, totalFuelCost: '3000000', departureDate: '2026-06-10' });
-    const linkedExpense = await mkFuelExpense({
-      tripId: trip.id,
-      supplierId: sup.id,
-      buyAmount: '2000000',
-      expenseDate: '2026-06-10',
-      invoiceNumber: `PX-${suffix}-C`,
-      invoiceDate: '2026-06-10',
-    });
-    const invoice = await mkFuelInvoice({
-      supplierId: sup.id,
-      invoiceNumber: `INV-${suffix}-02`,
-      invoiceDate: '2026-06-15',
-      totalLiters: '150',
-      unitPrice: '20000',
-      totalAmount: '3000000',
-    });
-    await mkFuelAllocation({
-      fuelInvoiceId: invoice.id,
-      tripId: trip.id,
-      truckId: truck.id,
-      tripExpenseId: linkedExpense.id,
-      voucherReference: `PX-${suffix}-C`,
-      voucherDate: '2026-06-10',
-      liters: '100',
-      amount: '2000000',
-    });
-
-    await assert.rejects(
-      () => approveFuelInvoice(invoice.id, managerUserId, 'MANAGER', invoice.updatedAt.getTime()),
-      (err: Error & { statusCode?: number }) =>
-        err.statusCode === 400 && /không khớp hóa đơn/i.test(err.message),
-    );
   });
 
   test('totals are the sum across all suppliers', async () => {

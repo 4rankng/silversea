@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useCallback, useMemo, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronUp,
-  Clock3,
   FileCheck2,
   Loader2,
   ShieldAlert,
@@ -23,25 +22,20 @@ import { podRequiredFilesReady } from '../lib/podReadiness';
 import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
 import { useAuth } from '../hooks/useAuth';
-import { useDriverTaskDetail, useDriverTaskProgress, useDriverJourneyBoard } from '../hooks/useDriverQueries';
+import { useDriverTaskDetail, useDriverTaskProgress } from '../hooks/useDriverQueries';
 import { driverClient, type DriverTaskDetail, type DriverTaskPodSubmission } from '../api/driverClient';
 import { getAuthenticatedPhotoUrl } from '../lib/api';
 import { compressImageFile } from '../lib/imageCompression';
 import { formatCurrency } from '../lib/format';
 import { useOnline } from '../hooks/useOnline';
 import { useGeolocation } from '../hooks/useGeolocation';
-import {
-  buildOfflineCommandKey,
-
-  useOfflineCommandQueue,
-} from '../features/driver/useOfflineCommandQueue';
-import { sendRoleOfflineCommand } from '../features/offline/roleCommandSender';
+import { buildIdempotencyKey } from '../lib/idempotency';
 import { useToast } from '../components/shared/Toast';
 import { AccountingLockBanner } from '../components/shipment/AccountingLockBanner';
 import { ContainerScanner, dataUrlToFile } from '../components/shared/ContainerScanner';
 import './DriverTripDetailPage.css';
 
-import { MILESTONES, FUEL_EVIDENCE_OUTCOME_LABELS, FUEL_EVIDENCE_REVIEW_LABELS, completeCtaLabel, fuelEvidenceUploadErrorMessage, getLatestMilestoneEvent, isCommandPayload, commandStateForMilestone, timelineState, type MilestoneType, formatDateTime } from '../features/driver/driver-trip-model';
+import { MILESTONES, FUEL_EVIDENCE_OUTCOME_LABELS, FUEL_EVIDENCE_REVIEW_LABELS, completeCtaLabel, fuelEvidenceUploadErrorMessage, getLatestMilestoneEvent, milestoneActionState, type MilestoneType, formatDateTime } from '../features/driver/driver-trip-model';
 import { parseDriverTaskNote } from '@tingting/shared';
 
 export default function DriverTripDetailPage() {
@@ -52,27 +46,15 @@ export default function DriverTripDetailPage() {
   const online = useOnline();
   const geolocation = useGeolocation();
   const [uploadingFuelEvidence, setUploadingFuelEvidence] = useState(false);
-  // 27.8 "GIỮ NGUYÊN" fuel screenshot — captured through the same fullscreen
-  // scanner overlay as the e-POD photos (vantaiphucloc pattern) instead of a
-  // bare <input capture>, so camera-denied devices still get the gallery.
   const [fuelScanning, setFuelScanning] = useState(false);
-  // TC-DA-001: chips collapse by default once the list is dense (N ≥ 6) so a
-  // long task list never pushes the layout; short lists render fully expanded.
   const [chipsExpanded, setChipsExpanded] = useState(false);
+  const [accepting, setAccepting] = useState(false);
 
   const fulfillmentId = Number(id);
   const validFulfillmentId = Number.isInteger(fulfillmentId) && fulfillmentId > 0 ? fulfillmentId : undefined;
 
   const taskDetail = useDriverTaskDetail(validFulfillmentId);
-  // The driver's own board — the ONLY authorization source for the blocker
-  // link (a blocking trip the driver cannot see is another driver's trip on
-  // the same truck; that renders a dispatcher handoff, never a link).
-  const board = useDriverJourneyBoard();
   const progress = useDriverTaskProgress(validFulfillmentId);
-  const { commands, enqueue, drain, remove, pendingCount, failedCount, conflictCount } = useOfflineCommandQueue({
-    maxPending: 12,
-    storageScope: user ? `${user.role}:${user.userId}` : null,
-  });
   const { rootRef } = usePageAnimations({
     ready: !taskDetail.isLoading && !progress.isLoading,
   });
@@ -80,45 +62,12 @@ export default function DriverTripDetailPage() {
   const handleBack = useCallback(() => navigate('/my-trips'), [navigate]);
   useBackShortcut(handleBack);
 
-  const tripCommands = useMemo(() => commands.filter((command) =>
-    isCommandPayload(command.payload) && command.payload.fulfillmentId === validFulfillmentId,
-  ), [commands, validFulfillmentId]);
-
-  // Deps are the refetch functions (referentially stable in TanStack v5), not
-  // the query result objects — whole-result deps re-create this callback on
-  // every render and re-fire the auto-drain effect below in a loop.
   const refreshAll = useCallback(async () => {
     await Promise.all([
       taskDetail.refetch(),
       progress.refetch(),
     ]);
   }, [progress.refetch, taskDetail.refetch]);
-
-  const runDrain = useCallback(async (successMessage?: string, currentCommandId?: string) => {
-    const result = await drain(sendRoleOfflineCommand);
-    const currentStatus = currentCommandId ? result.statusById?.[currentCommandId] : undefined;
-    if (currentStatus === 'DONE' || (!currentCommandId && result.done > 0)) {
-      await refreshAll();
-      if (successMessage && currentStatus === 'DONE') {
-        toast({ kind: 'success', message: successMessage });
-      }
-    } else if (currentStatus === 'FAILED') {
-      toast({ kind: 'info', message: 'Đã lưu ngoại tuyến. Hệ thống sẽ tự gửi lại khi có mạng.' });
-    } else if (currentStatus === 'CONFLICT' || currentStatus === 'REJECTED') {
-      toast({
-        kind: 'error',
-        message: result.messageById?.[currentCommandId!] ?? (currentStatus === 'CONFLICT' ? 'Dữ liệu đã đổi trên hệ thống. Vui lòng tải lại chuyến.' : 'Máy chủ từ chối lệnh. Bản nháp vẫn được giữ để kiểm tra.'),
-      });
-    } else if (currentCommandId) {
-      toast({ kind: 'info', message: 'Lệnh đang chờ đồng bộ; chưa được xem là hoàn tất.' });
-    }
-    return result;
-  }, [drain, refreshAll, toast]);
-
-  useEffect(() => {
-    if (!online || tripCommands.length === 0) return;
-    void runDrain();
-  }, [online, runDrain, tripCommands.length]);
 
   const trip = taskDetail.data as DriverTaskDetail | undefined;
   const currentSubmission = (trip?.currentPod ?? null) as DriverTaskPodSubmission | null;
@@ -135,54 +84,35 @@ export default function DriverTripDetailPage() {
 
   const nextMilestoneIndex = latestCompletedIndex >= MILESTONES.length - 1 ? -1 : latestCompletedIndex + 1;
 
-  // TC-DA-001: resolve the trip's operation-task chips with the SAME shared
-  // parser the /my-trips board cards use (tag pool rides the detail wire).
-  // Format v2 (851e8f7d): line 1 = tag labels, remainder = free text.
   const operationNote = useMemo(() => parseDriverTaskNote(
     trip?.fulfillment?.driverNotes ?? '',
     trip?.knownTagLabels ?? [],
   ), [trip?.fulfillment?.driverNotes, trip?.knownTagLabels]);
   const operationTags = operationNote.selectedLabels;
 
-  // D1 fix: a terminal CONFLICT on the accept command used to dead-end the
-  // sticky bar (button relabelled but stayed disabled forever, no dismissal
-  // UI anywhere). Reloading now discards this fulfillment's CONFLICT commands
-  // — the server is the source of truth; if the blocker (e.g. truck busy on
-  // another running trip) has cleared, the bar returns to available.
-  async function handleConflictReload() {
-    const stuck = tripCommands.filter((command) => command.status === 'CONFLICT');
-    stuck.forEach((command) => remove(command.id));
-    await refreshAll();
-    toast({
-      kind: stuck.length > 0 ? 'success' : 'info',
-      message: stuck.length > 0
-        ? 'Đã tải lại chuyến và bỏ lệnh xung đột. Thử nhận lại nếu xe đã rảnh.'
-        : 'Đã tải lại dữ liệu chuyến.',
-    });
-  }
-
   async function handleMilestone(eventType: MilestoneType) {
-    if (!trip) return;
+    if (!trip || !validFulfillmentId || !online) return;
     const milestoneIndex = MILESTONES.findIndex((milestone) => milestone.eventType === eventType);
     if (milestoneIndex !== nextMilestoneIndex) return;
-    const idempotencyKey = buildOfflineCommandKey('driver', 'task', validFulfillmentId, 'milestone', eventType, 'version', trip.version);
-    enqueue({
-      id: idempotencyKey,
-      endpoint: 'driver.task.milestone',
-      method: 'POST',
-      path: `/driver/me/fulfillments/${validFulfillmentId}/progress`,
-      fulfillmentScopeKey: `fulfillment:${validFulfillmentId}`,
-      expectedVersion: trip.version,
-      actionKind: `MILESTONE_${eventType}`,
-      payload: {
-        kind: 'milestone',
-        fulfillmentId: validFulfillmentId,
+    const idempotencyKey = buildIdempotencyKey('driver', 'task', validFulfillmentId, 'milestone', eventType, 'version', trip.version);
+    setAccepting(true);
+    try {
+      await driverClient.recordProgress(validFulfillmentId, {
         eventType,
         occurredAt: new Date().toISOString(),
         expectedVersion: trip.version,
-      },
-    });
-    await runDrain('Đã ghi nhận mốc tiến độ.', idempotencyKey);
+        fulfillmentId: validFulfillmentId,
+      }, idempotencyKey);
+      await refreshAll();
+      toast({ kind: 'success', message: 'Đã ghi nhận mốc tiến độ.' });
+    } catch (error) {
+      toast({
+        kind: 'error',
+        message: error instanceof Error ? error.message : 'Không thể gửi lệnh. Vui lòng thử lại.',
+      });
+    } finally {
+      setAccepting(false);
+    }
   }
 
   async function handleUploadFuelEvidence(file: File) {
@@ -301,62 +231,23 @@ export default function DriverTripDetailPage() {
   const { hasYardReceipt, hasSignedNote, podReady } = podRequiredFilesReady(currentSubmission);
   const latestFuelEvidence = trip.fuelEvidenceReviews?.[0] ?? null;
 
-  // Layer 2 Block 7: "Nhận lệnh vận chuyển" is a sticky button pinned to the
-  // bottom of the screen (spec: "Ghim cố định nút bấm ở đáy màn hình"), not
-  // an inline timeline step — computed here from the same milestone state
-  // machine the timeline uses, scoped to the ORDER_RECEIVED (index 0) step.
   const acceptEvent = getLatestMilestoneEvent(progress.data, DriverProgressEventType.ORDER_RECEIVED);
-  const acceptCommand = commandStateForMilestone(tripCommands, trip.fulfillment?.id ?? validFulfillmentId, DriverProgressEventType.ORDER_RECEIVED);
-  const acceptState = timelineState(Boolean(acceptEvent), acceptCommand, nextMilestoneIndex, 0);
+  const acceptState = milestoneActionState(Boolean(acceptEvent), nextMilestoneIndex, 0);
   const showAcceptStickyBar = acceptState !== 'done';
-  // 'conflict' must stay clickable (D1): the click reloads the trip and
-  // discards the stuck command instead of accepting — see handleConflictReload.
-  const acceptClickable = acceptState === 'available' || acceptState === 'retry' || acceptState === 'conflict';
-  const acceptButtonLabel = acceptState === 'pending'
-    ? 'Đang gửi…'
-    : acceptState === 'retry'
-      ? 'Thử gửi lại'
-      : acceptState === 'conflict'
-        ? 'Tải lại để xử lý xung đột'
-        : 'Nhận lệnh vận chuyển';
+  const acceptClickable = acceptState === 'available' && !accepting;
+  const acceptButtonLabel = accepting ? 'Đang gửi…' : 'Nhận lệnh vận chuyển';
 
   return (
     <div ref={rootRef} className={`driver-task-screen${showAcceptStickyBar ? ' driver-task-screen--has-accept-bar' : ''}`}>
       <DriverTripHeader trip={trip} onBack={handleBack} />
 
-      {(pendingCount > 0 || failedCount > 0 || conflictCount > 0) && (
+      {!online && (
         <section className="driver-task-section driver-task-section--banner">
-          <div className="driver-task-sync">
-            <Clock3 size={16} />
+          <div className="driver-task-sync" role="status">
+            <AlertTriangle size={16} />
             <div>
-              <strong>Đồng bộ hiện trường</strong>
-              <p>
-                {pendingCount > 0 && `${pendingCount} lệnh đang chờ gửi. `}
-                {failedCount > 0 && `${failedCount} lệnh sẽ thử lại. `}
-                {conflictCount > 0 && `${conflictCount} lệnh cần tải lại để xử lý xung đột.`}
-              </p>
-              {/* The conflict reason PERSISTS here — the busy-trip toast
-                  expires, but the blocker identity ("Xe đang chạy chuyến
-                  TRP-…") must stay visible until the conflict is resolved. */}
-              {(() => {
-                const stuck = tripCommands.find((command) => command.status === 'CONFLICT' && command.lastError);
-                const stuckError = stuck?.lastError ?? null;
-                if (!stuckError) return null;
-                const match = stuckError.match(/TRP-\d{6}-\d+/);
-                const blockingCard = match
-                  ? (board.data?.items ?? []).find((card) => card.tripCode === match[0])
-                  : undefined;
-                return (
-                  <p role="alert" style={{ margin: '6px 0 0' }}>
-                    {stuckError}{' '}
-                    {blockingCard ? (
-                      <Link to={`/my-trips/${blockingCard.fulfillmentId}`}>Mở chuyến {blockingCard.tripCode}</Link>
-                    ) : match ? (
-                      <>Chuyến này không phải của bạn — liên hệ điều vận để xử lý.</>
-                    ) : null}
-                  </p>
-                );
-              })()}
+              <strong>Đang ngoại tuyến</strong>
+              <p>Cần kết nối mạng để gửi lệnh. Vui lòng kiểm tra mạng và thử lại.</p>
             </div>
           </div>
         </section>
@@ -581,11 +472,9 @@ export default function DriverTripDetailPage() {
               type="button"
               className="driver-task-accept-sticky__btn"
               disabled={!acceptClickable}
-              onClick={() => void (acceptState === 'conflict'
-                ? handleConflictReload()
-                : handleMilestone(DriverProgressEventType.ORDER_RECEIVED))}
+              onClick={() => void handleMilestone(DriverProgressEventType.ORDER_RECEIVED)}
             >
-              {acceptState === 'pending' ? <Loader2 size={18} className="spin" /> : <CheckCircle2 size={18} />}
+              {accepting ? <Loader2 size={18} className="spin" /> : <CheckCircle2 size={18} />}
               <span>{acceptButtonLabel}</span>
             </button>
           </div>

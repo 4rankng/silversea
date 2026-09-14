@@ -24,11 +24,21 @@ function defaultIssueTimes(): { plannedStartAt: string; plannedEndAt: string } {
   return { plannedStartAt: toDatetimeLocalValue(start), plannedEndAt: toDatetimeLocalValue(end) };
 }
 
-/** Quick-issue draft times: prefer the row's CUS-locked schedule (deliveryDate
- *  + runHour derive from the customer appointment / closing time) so "Giờ chạy"
- *  starts from the appointment instead of the wall clock. The clock default is
- *  only the fallback for rows without a schedule hour. */
+/** Quick-issue draft times: prefer the row's CUS-locked schedule so "Giờ chạy"
+ *  starts from the appointment instead of the wall clock. When `runAt` is
+ *  available, use the full instant (preserving minutes — KP-037). Fall back to
+ *  `deliveryDate` + `runHour` for older rows, then wall clock as last resort. */
 function draftIssueTimesFor(row: DispatchDetailPlanRow): { plannedStartAt: string; plannedEndAt: string } {
+  // Prefer the full appointment instant when available — preserves minutes
+  // that the integer runHour approach loses (20:45 vs 20:00).
+  const runAt = row.time?.runAt;
+  if (runAt) {
+    const instant = new Date(runAt);
+    if (!Number.isNaN(instant.getTime())) {
+      const endAt = new Date(instant.getTime() + 2 * 60 * 60_000);
+      return { plannedStartAt: toDatetimeLocalValue(instant), plannedEndAt: toDatetimeLocalValue(endAt) };
+    }
+  }
   const date = row.time?.deliveryDate;
   const hour = row.time?.runHour;
   if (!date || hour == null || hour < 0 || hour > 23) return defaultIssueTimes();
@@ -39,8 +49,6 @@ function draftIssueTimesFor(row: DispatchDetailPlanRow): { plannedStartAt: strin
 }
 
 export interface IssueOrderDraft {
-  plannedStartAt: string;
-  plannedEndAt: string;
   externalDriverName: string;
   externalDriverPhone: string;
 }
@@ -74,11 +82,10 @@ interface UseIssueOrderArgs {
 export function useIssueOrder({ row, open, canIssue, onIssueOrder, onIssued }: UseIssueOrderArgs) {
   const [ownTruck, setOwnTruck] = useState<OwnTruckDriver | null>(null);
   const [loadingOwnTruck, setLoadingOwnTruck] = useState(false);
-  const [issueDraft, setIssueDraft] = useState<IssueOrderDraft>(() => ({
-    ...draftIssueTimesFor(row),
+  const [issueDraft, setIssueDraft] = useState<IssueOrderDraft>({
     externalDriverName: '',
     externalDriverPhone: '',
-  }));
+  });
   const [issuing, setIssuing] = useState(false);
   const [issueError, setIssueError] = useState<string | null>(null);
 
@@ -103,7 +110,7 @@ export function useIssueOrder({ row, open, canIssue, onIssueOrder, onIssued }: U
 
   useEffect(() => {
     if (open) {
-      setIssueDraft({ ...draftIssueTimesFor(row), externalDriverName: '', externalDriverPhone: '' });
+      setIssueDraft({ externalDriverName: '', externalDriverPhone: '' });
       setIssueError(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only on row identity/version change; full `row` identity flips on every board refetch and would clobber in-progress dispatcher input
@@ -111,8 +118,11 @@ export function useIssueOrder({ row, open, canIssue, onIssueOrder, onIssued }: U
 
   async function issue() {
     if (issuing || !canIssue) return;
-    const startAt = new Date(issueDraft.plannedStartAt);
-    const endAt = new Date(issueDraft.plannedEndAt);
+    // Planned times ride the row's CUS-locked schedule (deliveryDate + runHour)
+    // with a wall-clock fallback — dispatchers never pick times.
+    const { plannedStartAt, plannedEndAt } = draftIssueTimesFor(row);
+    const startAt = new Date(plannedStartAt);
+    const endAt = new Date(plannedEndAt);
     if (Number.isNaN(startAt.getTime()) || Number.isNaN(endAt.getTime())) {
       setIssueError('Giờ chạy / giờ kết thúc không hợp lệ.');
       return;

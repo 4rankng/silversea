@@ -6,7 +6,7 @@ import crypto from 'crypto';
 import sharp from 'sharp';
 import { db } from '../db';
 import * as s from '../db/schema';
-import { eq, and, inArray } from 'drizzle-orm';
+import { eq, and, inArray, isNull } from 'drizzle-orm';
 // auth + Casbin applied at mount point in index.ts
 import { Role } from '@tingting/shared';
 import { storageService } from '../services/storage.service';
@@ -595,17 +595,6 @@ uploadRouter.post('/trips/:tripId/photos/:type/delete', asyncHandler(async (req:
     if (isNaN(containerId)) return res.status(400).json({ error: 'container_id không hợp lệ' });
   }
   const user = getUser(req);
-  // QA-126: require current driver ownership before deleting trip photos.
-  // Office roles (ADMIN, MANAGER, etc.) pass through — only DRIVER is gated.
-  if (user.role === Role.DRIVER) {
-    const access = await checkDriverTripPhotoAccess(user.userId, tripId);
-    if (access === 'no_profile') {
-      return res.status(403).json({ error: 'Không có quyền truy cập ảnh này' });
-    }
-    if (access === 'not_owned') {
-      return res.status(403).json({ error: 'Không có quyền xóa ảnh cho chuyến đi này' });
-    }
-  }
   const idempotencyKey = requireUploadIdempotencyKey(req);
   const { result } = await runIdempotent({
     endpoint: IDEMPOTENCY_ENDPOINTS.UPLOAD_TRIP_PHOTO_DELETE,
@@ -614,11 +603,32 @@ uploadRouter.post('/trips/:tripId/photos/:type/delete', asyncHandler(async (req:
     createdBy: user.userId,
     entityType: 'TRIP_PHOTO',
     create: async (tx) => {
-      const [trip] = await tx.select({ id: s.trips.id, status: s.trips.status })
+      // KP-077: ownership, terminal status, and container existence are
+      // verified inside the destructive transaction so a concurrent
+      // reassignment or completion cannot slip through between the pre-check
+      // and the actual delete + outbox write.
+      const [trip] = await tx.select({ id: s.trips.id, status: s.trips.status, driverId: s.trips.driverId })
         .from(s.trips)
         .where(eq(s.trips.id, tripId))
+        .for('update')
         .limit(1);
       if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
+
+      // QA-126 / KP-077: require current driver ownership inside the tx.
+      // Office roles (ADMIN, MANAGER, etc.) pass through — only DRIVER is gated.
+      if (user.role === Role.DRIVER) {
+        const [driver] = await tx.select({ id: s.drivers.id })
+          .from(s.drivers)
+          .where(eq(s.drivers.userId, user.userId))
+          .limit(1);
+        if (!driver) {
+          throw new ApiError(403, 'Không có quyền truy cập ảnh này');
+        }
+        if (trip.driverId !== driver.id) {
+          throw new ApiError(403, 'Không có quyền xóa ảnh cho chuyến đi này');
+        }
+      }
+
       if (trip.status === 'COMPLETED') {
         throw new ApiError(409, 'Không thể xóa ảnh của chuyến đã hoàn thành');
       }
@@ -717,13 +727,29 @@ photosRouter.get('/{*path}', asyncHandler(async (req: Request, res: Response) =>
     const tripId = parseInt(tripMatch[1]);
 
     // Check permissions
-    if (getUser(req).role === Role.DRIVER) {
+    const photoUser = getUser(req);
+    if (photoUser.role === Role.DRIVER) {
       // Driver may only fetch photos of trips assigned to their own profile.
-      const access = await checkDriverTripPhotoAccess(getUser(req).userId, tripId);
+      const access = await checkDriverTripPhotoAccess(photoUser.userId, tripId);
       if (access === 'no_profile') {
         return res.status(403).json({ error: 'Không có quyền truy cập ảnh này' });
       }
       if (access === 'not_owned') {
+        return res.status(403).json({ error: 'Không có quyền truy cập ảnh của chuyến đi này' });
+      }
+    } else if (photoUser.role === Role.OPS) {
+      // OPS may only fetch photos of trips belonging to shipments they are
+      // assigned to (user_shipment_links). This mirrors the forwarder scope
+      // enforcement used throughout the forwarder portal.
+      const [assignment] = await db.select({ id: s.userShipmentLinks.id })
+        .from(s.trips)
+        .innerJoin(s.userShipmentLinks, and(
+          eq(s.userShipmentLinks.shipmentId, s.trips.shipmentId),
+          eq(s.userShipmentLinks.userId, photoUser.userId),
+        ))
+        .where(eq(s.trips.id, tripId))
+        .limit(1);
+      if (!assignment) {
         return res.status(403).json({ error: 'Không có quyền truy cập ảnh của chuyến đi này' });
       }
     }

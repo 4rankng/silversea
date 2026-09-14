@@ -155,7 +155,7 @@ export default function ProfitPage() {
   }, [selectedQuarter, distQuarterYear, showToast]);
 
   const handleDistributeProfit = async () => {
-    if (!await confirm(`Gửi yêu cầu phân chia lợi nhuận Quý ${selectedQuarter}/${distQuarterYear} để kiểm tra và phê duyệt?`)) {
+    if (!await confirm(`Phân bổ lợi nhuận Quý ${selectedQuarter}/${distQuarterYear} ngay?`)) {
       return;
     }
 
@@ -168,9 +168,9 @@ export default function ProfitPage() {
       });
       setDistributionRequest(res);
       setPreview(null);
-      showToast({ kind: 'success', message: 'Đã gửi yêu cầu phân chia lợi nhuận để kiểm tra và phê duyệt.' });
+      showToast({ kind: 'success', message: 'Đã phân bổ lợi nhuận.' });
     } catch (err) {
-      showToast({ kind: 'error', message: err instanceof Error ? err.message : 'Lỗi khi gửi yêu cầu phân chia lợi nhuận.' });
+      showToast({ kind: 'error', message: err instanceof Error ? err.message : 'Lỗi khi phân bổ lợi nhuận.' });
     } finally {
       setDistributing(false);
     }
@@ -432,7 +432,7 @@ export default function ProfitPage() {
                     disabled={distributing}
                   >
                     <CheckSquare size={14} />
-                    {distributing ? 'Đang gửi...' : 'Gửi duyệt phân bổ'}
+                    {distributing ? 'Đang xử lý...' : 'Phân bổ lợi nhuận'}
                   </button>
                 </div>
               </div>
@@ -549,10 +549,10 @@ export default function ProfitPage() {
               {distributionRequest && (
                 <div className="profit-settlement__request">
                   <h4 className="profit-settlement__request-title">
-                    Đã gửi yêu cầu phân chia Quý {distributionRequest.afterSnapshot.quarter} / {distributionRequest.afterSnapshot.year}
+                    Đã phân bổ Quý {distributionRequest.afterSnapshot.quarter} / {distributionRequest.afterSnapshot.year}
                   </h4>
                   <p className="profit-settlement__request-body">
-                    Yêu cầu phân chia lợi nhuận đang chờ kiểm tra. Chưa có khoản lợi nhuận nào được phân phối; một người kiểm tra và một người phê duyệt độc lập phải hoàn tất trước khi hệ thống ghi nhận.
+                    Lợi nhuận đã được phân bổ theo tỷ lệ cổ phần.
                   </p>
                 </div>
               )}

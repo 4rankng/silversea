@@ -207,10 +207,11 @@ export async function createTrip(data: {
 
     const revenue = freightPrice.price;
 
+    // KP-163: creditApprovalRequestId removed — overrides apply immediately.
     const creditCheck = await assertCreditLimit({
       customerId: data.customerId,
       proposedAmount: revenue,
-      approvalRequestId: data.creditApprovalRequestId ?? null,
+      approvalRequestId: null,
       shipmentId: data.shipmentId ?? null,
       transaction: tx,
     });

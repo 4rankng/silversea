@@ -32,25 +32,11 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   </React.StrictMode>
 );
 
-// Register the service worker for PWA installability (Android) + offline app shell.
-// Production-only: a cache-first SW in Vite dev would break HMR.
+// Register the service worker for PWA installability (Android) + push notifications.
+// Production-only: a SW in Vite dev would break HMR.
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').then(async (reg) => {
-      // Request periodic background sync for drivers — keeps the journey board
-      // fresh even when the app is backgrounded (spec AC-DISPATCH-001).
-      const periodicSync = (reg as unknown as { periodicSync?: PeriodicSyncManager }).periodicSync;
-      if (periodicSync) {
-        try {
-          const status = await navigator.permissions.query({ name: 'periodic-background-sync' as PermissionName });
-          if (status.state === 'granted') {
-            await periodicSync.register('refresh-journey-board', { minInterval: 15 * 60 * 1000 });
-          }
-        } catch {
-          // Periodic sync not available or denied — polling fallback covers this.
-        }
-      }
-    }).catch((err) => {
+    navigator.serviceWorker.register('/sw.js').catch((err) => {
       console.warn('SW registration failed:', err);
     });
     // sw.js calls skipWaiting() + clients.claim(), so a newly deployed SW takes

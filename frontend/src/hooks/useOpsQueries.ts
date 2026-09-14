@@ -170,6 +170,14 @@ export function useCreateOpsAdvanceRequest() {
   });
 }
 
+export function useOpsAdvanceRequests(status?: string) {
+  return useQuery({
+    queryKey: ['ops', 'wallet-advance-requests', status ?? 'all'],
+    queryFn: () => opsClient.getWalletAdvanceRequests({ status, limit: 50 }),
+    staleTime: 30_000,
+  });
+}
+
 // ── Fleet ───────────────────────────────────────────────────────────────────
 
 /** Read-only 30s polling per PRD §4. */

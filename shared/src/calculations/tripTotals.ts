@@ -138,7 +138,7 @@ export function computeTripTotals(input: ComputeTripTotalsInput): ComputeTripTot
   });
 
   const totalRoadAllowance =
-    input.roadAllowanceOverride != null && input.roadAllowanceOverride > 0
+    input.roadAllowanceOverride != null
       ? input.roadAllowanceOverride
       : computedRoadAllowance;
 

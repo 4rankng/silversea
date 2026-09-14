@@ -1,285 +1,194 @@
-# PRD: Vận Hành Hiện Trường (Ops) — Kế hoạch làm hàng · Theo dõi xe · Quỹ tạm ứng
+# PRD: Vận hành hiện trường — Kế hoạch, phương tiện và quỹ Ops
 
 **Dự án:** TTransport — Silver Sea
-**Ngày:** 2026-09-06 · **Cập nhật:** 2026-09-07 · **Trạng thái:** Đã triển khai
-(local dev — schema, API, 3 màn hình, tab kế toán; staging/prop chờ deploy)
-**Phạm vi tài liệu:** Module làm việc của Nhân viên Hiện trường (Ops, `Role.OPS`), chạy
-song song trên Web PC và trình duyệt điện thoại (responsive web — không phải app native,
-không phải PWA).
 
-> **Quan hệ với tài liệu khác:** Quy trình O2C lõi (`QuyTrinhO2C.md`) không đổi. Tài liệu
-> này bổ sung luồng tiền & giám sát của riêng vai trò Ops (docx `2026.9.6_Man_hinh_ops.docx`),
-> tách biệt với chi phí lái xe trên app (Bước 3 O2C) và với luồng tạm ứng/hoàn ứng theo chuyến hiện có
-> (`/my-advances`, `/my-settlements` — vẫn hoạt động nguyên trạng).
->
-> **Ghi chú triển khai (audit 2026-09-09):** các điểm lệch có chủ đích so với docx —
-> (1) bản in phiếu = modal + `@media print` trong `OpsSettlementsPanel.tsx`/`OpsWalletPage.css`
-> (A4, có ô ký tên, ẩn chrome app), **không** có route in riêng; (2) API **chặn duyệt** khoản chi
-> chưa có ảnh biên lai (`decideOpsExpense`) — quy tắc **hai đường duyệt**: đường chính là từ chối
-> (kèm lý do) → Ops bổ sung ảnh → gửi lại (TC-OPS-VI-011); đường thứ hai (docx "kiểm chứng giấy
-> tận tay"): kế toán duyệt được khoản không ảnh **chỉ khi** có cờ `inPersonCheck` + ghi chú bắt buộc
-> (dialog "Duyệt không ảnh biên lai"), ghi chú lưu `audit_logs` (event
-> `OPS_EXPENSE_APPROVE_IN_PERSON`, không thêm bảng);
-> (3) màn Kế toán **gom các khoản cùng lô dưới một mã lô** bất kể người chi, lot giữ thứ tự mới-trước
-> (`cda12f57`); (4) ghim dùng PUT set-semantics — request replay về cùng trạng thái, không lật đảo.
+**Cập nhật:** 14/09/2026
 
----
+Tài liệu mô tả nhu cầu và hành vi sản phẩm cần đáp ứng cho nhân viên hiện trường, gọi tắt là **Ops**, trong [Quy trình O2C](QuyTrinhO2C.md).
 
-## 1. Mục tiêu
+## 1. Vấn đề cần giải quyết
 
-1. Ops nắm kế hoạch làm hàng trong ngày (toàn bộ lô của công ty), tự đánh dấu lô cần
-   theo dõi (ghim), và khai báo chi phí phát sinh tại cảng ngay tại chỗ kèm ảnh biên lai.
-2. Ops theo dõi thụ động (read-only) các đầu xe được giao quản lý: lệnh đang gán và
-   trạng thái thời gian thực đồng bộ từ thao tác của Lái xe trên app.
-3. Ops kiểm soát quỹ tiền mặt tạm ứng theo thời gian thực: xin tạm ứng đầu ngày, xem số
-   dư nhảy tức thời khi chi tiền, đối chiếu chứng từ còn nợ, và xuất đề nghị thanh toán
-   nhóm theo lô để Kế toán rà soát.
+Ops cần biết hôm nay có những lô nào phải làm, xe mình phụ trách đang ở bước nào, đã chi tiền cho lô nào và còn thiếu giấy tờ gì. Việc tra cứu, nhập lại thông tin và đối chiếu tiền không được làm gián đoạn công việc tại hiện trường.
 
-## 2. Vai trò & phân quyền
+Sản phẩm cần giúp Ops:
 
-| Hành động | OPS | ADMIN | MANAGER | ACCOUNTANT | DISPATCHER | CUS | DRIVER | CUSTOMER |
-|-----------|-----|-------|---------|------------|------------|-----|--------|----------|
-| /ops/orders (xem lô, ghim, khai chi phí) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| /ops/fleet-tracking (xem) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| /ops/wallet (ví của mình) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Cấu hình "Ops phụ trách" trên xe | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Duyệt / từ chối tạm ứng (bảng `advance_requests` sẵn có) | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Duyệt / từ chối khoản chi Ops | ❌ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Duyệt đề nghị thanh toán Ops | ❌ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+- Tìm nhanh kế hoạch công ty và ghim các lô cần theo dõi riêng.
+- Theo dõi đúng xe được giao, phân biệt đã phát lệnh với lái xe đã nhận.
+- Ghi một khoản thực chi ngay trong lô đang làm, bổ sung biên lai sau khi có.
+- Hiểu số dư quỹ và đối chiếu từng khoản tiền nhận, chi, hoàn trả.
+- Lập bảng kê, biết giấy tờ còn thiếu và hoàn tất quyết toán mà không nhập lại khoản chi.
 
-- Vai trò khác vào nhầm route `/ops/*` → chuyển về trang chủ của vai trò đó (chuẩn
-  AUTH-03, §5 README testplan).
-- Mọi so sánh vai trò phía frontend đi qua `getModernRole` (FORWARDER cũ → OPS).
+Người có quyền thực hiện trực tiếp nghiệp vụ của mình. Không có bước gửi, kiểm tra rồi phê duyệt nội bộ. Ứng dụng cần Internet để làm việc; không có chế độ nhập nghiệp vụ ngoại tuyến rồi tự gửi sau.
 
-## 3. Màn hình 1 — Kế hoạch làm hàng (/ops/orders)
+## 2. Người sử dụng và quyền hạn
 
-### 3.1 Danh sách lô theo ngày
+| Người sử dụng | Nhu cầu và quyền trong phạm vi này |
+|---|---|
+| Ops | Xem toàn bộ lô công ty theo ngày kế hoạch, ghim riêng; ghi chi và bổ sung ảnh trong phạm vi được giao; xem quỹ của mình; lập bảng kê cá nhân. |
+| Quản trị viên đội xe | Phân công Ops đang hoạt động phụ trách xe; thay đổi hoặc thu hồi phân công. |
+| Kế toán và người có quyền tài chính | Ghi nhận tiền thực giao/nhận, hoàn trả, điều chỉnh và quyết toán theo phạm vi được cấp; tra cứu bảng kê và lịch sử liên quan. |
+| Quản lý | Theo dõi hoạt động và số liệu trong phạm vi được cấp; chỉ ghi hoặc sửa khi có quyền nghiệp vụ tương ứng. |
 
-- Bộ chọn ngày, **mặc định hôm nay**; trục ngày = `expected_delivery_date` (Ngày giao
-  dự kiến của lô). Cho phép tra cứu ngày bất kỳ trong quá khứ/tương lai.
-- Hiển thị **toàn bộ lô của công ty** trong ngày đã chọn (không lọc theo người),
-  bỏ qua lô đã hủy. Tìm kiếm theo mã lô / khách hàng / số container.
-- Bảng: Mã lô | Khách hàng | Tuyến | Cont (số lượng + danh sách số vỏ) | Bill/Booking
-  (theo chiều xuất/nhập) | Trạng thái (chữ màu, không badge) | hành động.
-- Mobile: bảng giữ dạng tabular tới giới hạn container 680px, mục tiêu chạm ≥ 44px.
+Quyền xem kế hoạch toàn công ty không đồng nghĩa được sửa mọi lô, xem mọi ảnh hoặc ghi tiền cho mọi người. Quyền xem ví không tự cấp quyền chi tiền. Người đã mất phân công không được tiếp tục thao tác hay truy cập ảnh ngoài quyền hiện tại, kể cả ảnh từng mở trước đó.
 
-### 3.2 Ghim lệnh (sổ tay cá nhân)
+Mọi nơi người dùng mở cùng một khoản chi hoặc số dư phải thể hiện cùng thông tin. Không có hai cách tính quỹ hoặc hai quy trình quyết toán khác nhau giữa các màn hình.
 
-- Mỗi dòng lô có nút hành động **Ghim** (ghim/bỏ ghim).
-- Lô được ghim nổi lên **đầu danh sách** (giữ nguyên thứ tự tương đối theo giờ ghim,
-  mới nhất trước) — chỉ áp dụng cho **tài khoản Ops đó** (bookmark cá nhân, không ảnh
-  hưởng người khác).
-- Ghim lưu ngay (optimistic); trạng thái giữ nguyên qua các lần tải lại và các ngày
-  tra cứu khác (lô đã ghim vẫn hiển thị ghim khi rơi vào ngày đang xem).
+## 3. Kế hoạch làm hàng
 
-### 3.3 Khai báo chi phí (context-first)
+### 3.1 Tìm lô cần làm
 
-- Bấm vào dòng lô → mở form **Khai báo chi phí** trong ngữ cảnh lô đó:
-  - Tự điền readonly: **Mã lô**, **Số Bill** (`bl_number` với IMPORT, `booking_ref`
-    với EXPORT), số vỏ container có sẵn của lô.
-  - **Số Cont**: chọn 1 vỏ trong danh sách vỏ của lô; lô nhiều vỏ cho thêm lựa chọn
-    "Phí chung lô" (không gắn vỏ riêng).
-  - **Loại phí**: chọn từ danh mục loại phí đang hoạt động, nhóm hiển thị
-    "Có hóa đơn" / "Không hóa đơn" (theo cột `requires_invoice` của danh mục).
-  - **Số tiền**: nguyên dương, VND, không phân tách thập phân.
-  - **Ảnh biên lai**: 0..n ảnh (nén trước khi tải; cho chụp trực tiếp từ camera trên
-    điện thoại). Cho phép lưu trước - bổ sung ảnh sau (tạo "nợ chứng từ" — xem §5.3).
-  - **Ghi chú**: tùy chọn.
-- Lưu → hệ thống ghi khoản chi với `paid_by = Ops hiện tại`, trạng thái **Chờ duyệt
-  (PENDING)**, và cập nhật ngay Màn hình 3 (ví).
+- Mặc định là hôm nay theo giờ Việt Nam, lọc theo **ngày giao dự kiến** của lô. Cho chọn ngày quá khứ hoặc tương lai.
+- Hiển thị toàn bộ lô công ty phù hợp ngày, không lọc theo người phụ trách hoặc người đã ghim. Nếu có lọc theo ngày vận chuyển, phải ghi rõ đó là một loại ngày khác.
+- Lô chưa có lịch vẫn lưu và tìm lại được trong nhóm chưa chốt lịch. Không tự gán ngày giả.
+- Tìm theo mã lô, khách hàng, Bill/Booking hoặc số container đầy đủ và 4–5 ký tự cuối. Khi không thấy kết quả, người dùng biết bộ lọc nào đang áp dụng và cách xóa lọc.
+- Mỗi lô có mã, khách hàng/nhà máy, tuyến, số lượng và số container đã biết, Bill/Booking đúng chiều nhập/xuất, trạng thái và việc cần làm tiếp.
+- Lô hủy tách khỏi công việc đang làm nhưng vẫn tra cứu được. Lô hoàn thành không biến mất khỏi lịch sử.
+- Nếu còn thiếu lệnh giấy hoặc chứng từ, nêu rõ thiếu gì, ai phụ trách và cách bổ sung. Không đưa người dùng tới một nút mà chắc chắn không thể thực hiện vì chuyến đã kết thúc.
 
-### 3.4 Danh mục loại phí (tái sử dụng `forwarder_expense_types`)
+### 3.2 Ghim cá nhân
 
-| Nhóm | Loại phí (mã gợi ý) | `requires_invoice` |
-|------|--------------------|--------------------|
-| Có hóa đơn | Nâng/hạ (NANGHA), Phí cảng (PHICANG), Lưu kho (LUUKHO), Cơ sở hạ tầng (CSHT) | true |
-| Không hóa đơn | Phí làm hàng hải quan (HQLH), Bồi dưỡng (BOIDUONG), Tiền luật (TIENLUAT), Cân xe (CANXE) | false |
+Ops có thể ghim hoặc bỏ ghim một lô mà không ảnh hưởng đồng nghiệp. Trong kết quả phù hợp bộ lọc, lô ghim đứng đầu, lô mới ghim trước. Trạng thái giữ nguyên khi mở lại trang; bấm lặp không làm kết quả đảo ngược ngoài ý muốn. Nếu chưa lưu được, giao diện phải nói rõ.
 
-Danh mục là dữ liệu cấu hình (Admin sửa được); nhóm "Có/Không hóa đơn" luôn suy từ
-`requires_invoice`, không hard-code theo tên.
+### 3.3 Ghi chi ngay từ lô
 
-## 4. Màn hình 2 — Theo dõi phương tiện (/ops/fleet-tracking)
+Khi mở **Khai báo chi phí**, sản phẩm giữ ngữ cảnh lô và không bắt Ops nhập lại thông tin đã có.
 
-**Tính chất:** read-only. Không có bất kỳ thao tác xác nhận/chỉnh sửa nào trên màn này.
+| Thông tin | Yêu cầu |
+|---|---|
+| Lô và Bill/Booking | Tự điền đúng lô, đúng chiều nhập/xuất. |
+| Container hoặc phí chung | Chọn đúng container; có “Phí chung lô” khi phù hợp. Hàng lẻ không cần số container giả. |
+| Loại phí | Chọn loại đang sử dụng; phân biệt có/không yêu cầu hóa đơn theo danh mục. |
+| Số tiền | Số nguyên dương bằng đồng Việt Nam. Số âm hoặc sai định dạng được giải thích, không tự biến thành giá trị khác. |
+| Ngày và người chi | Phản ánh thực tế. Khi được nhập thay, vẫn phân biệt người chi với người ghi thông tin. |
+| Biên lai | Cho chụp hoặc chọn ảnh; có thể ghi khoản đã thực chi rồi bổ sung ảnh sau. |
+| Ghi chú | Có thể thêm khi cần; sửa/hủy khoản ảnh hưởng tiền phải có lý do. |
 
-**Đặc thù vận hành SS:** mỗi Ops được giao quản lý việc giao lệnh cho một số đầu xe nhà
-nhất định. Việc gán xe ↔ Ops do **Admin cấu hình** tại trang Đội xe (trường "Ops phụ
-trách", một Ops active duy nhất cho mỗi xe; một Ops quản lý nhiều xe).
+Lưu hợp lệ thì khoản chi được ghi nhận trực tiếp và phản ánh vào quỹ liên quan. Không chuyển sang chờ duyệt. Nội dung còn đang nhập chưa được tính là khoản đã ghi.
 
-**Dữ liệu tự động:**
+Chi phí nâng/hạ do Ops khai dùng số tiền thực chi, không tự áp giá từ bảng định mức nâng/hạ. Quy tắc này không thay đổi cách tính cước hoặc chi phí lái xe ở phân hệ khác.
 
-- Backend join `truck_ops_assignments` (xe của Ops) với `trips` (chuyến do Điều vận
-  phân công cho xe đó). Khi Điều vận phát lệnh/đổi xe cho một xe thuộc danh sách của
-  Ops, chuyến tương ứng **tự xuất hiện** trên màn của Ops đó — không cần thao tác nào.
-- Trạng thái đồng bộ trực tiếp từ thao tác của Lái xe trên app (nhận lệnh, lấy vỏ/hàng,
-  đóng/trả, hạ bãi, hoàn thành).
+## 4. Theo dõi xe phụ trách
 
-**Danh sách:** Biển số xe | Rơ-moóc (nếu có) | Lệnh đang gán (mã chuyến + mã lô; "—"
-khi xe rảnh) | Tài xế | Trạng thái | Thời gian cập nhật.
+Một xe có một Ops phụ trách tại một thời điểm; một Ops có thể phụ trách nhiều xe. Chỉ chọn người đang hoạt động. Người quản lý phải tìm được người phù hợp dù danh sách dài hoặc trùng tên.
 
-| Hiển thị | Nguồn |
-|----------|-------|
-| Chờ nhận lệnh | Trip `CREATED`, lái xe chưa nhận |
-| Đang vận chuyển | Trip `IN_TRANSIT` (kèm mốc tiến độ mới nhất của lái xe) |
-| Đã hoàn thành | Trip `COMPLETED` (mới nhất của xe trong ngày) |
-| Đang rảnh | Không có trip active |
+Màn theo dõi chỉ để xem: biển số, rơ-moóc, lệnh và mã lô, tài xế, tiến độ, lần cập nhật gần nhất. Ops không xác nhận hay sửa tiến độ tại đây. Khi Điều vận đổi xe hoặc phân công hợp lệ, người cũ và người mới nhìn thấy đúng phần việc của mình.
 
-Tự làm mới (polling 30s). Trang trống: "Chưa có xe nào được giao cho bạn quản lý" +
-gợi ý liên hệ Admin.
+| Thông tin hiển thị | Ý nghĩa |
+|---|---|
+| Chưa có lệnh hoạt động | Xe chưa có công việc phù hợp đang thực hiện. |
+| Chờ lái xe nhận | Đã phát lệnh nhưng lái xe chưa nhận thực tế. |
+| Đã nhận / đang thực hiện | Lái xe đã nhận và có tiến độ được ghi nhận. |
+| Hoàn thành | Công việc đã kết thúc, vẫn có thể tra cứu. |
+| Dữ liệu chưa cập nhật | Chưa lấy được thông tin mới; hiển thị thời điểm thông tin đang xem. |
 
-## 5. Màn hình 3 — Quỹ tạm ứng cá nhân & chi phí (/ops/wallet)
+Thông tin được cập nhật kịp thời khi có Internet. Khi chưa có xe được giao, giải thích rõ và hướng tới người quản lý phân công, thay vì hiện bảng trống khó hiểu.
 
-### 5.1 Xin tạm ứng (Advance Request)
+## 5. Quỹ tạm ứng và đối chiếu chi phí
 
-- Nút **+ Xin Tạm Ứng** cố định đầu màn. Form: **Số tiền** (VND nguyên), **Lý do / Ghi
-  chú** (bắt buộc).
-- Lưu → ghi vào bảng `advance_requests` (tái sử dụng nguyên trạng thái PENDING /
-  APPROVED / REJECTED và luồng duyệt sẵn có của phân hệ Kế toán — cùng dữ liệu với
-  `/my-advances`).
-- Khi Kế toán/Admin duyệt → **Tổng tiền đã ứng** của Ops tăng, kéo theo **Số dư hiện
-  tại** tăng.
+### 5.1 Ghi nhận tiền nhận và hoàn trả
 
-### 5.2 Bảng điều khiển ví (4 thẻ, real-time + optimistic)
+Người có quyền ghi tiền thực giao cho Ops, gồm người nhận, số tiền, ngày, nguồn quỹ hoặc phương thức và chứng từ cần thiết. Ghi trong phần mềm không tự thực hiện hay chứng minh một chuyển khoản ngân hàng.
 
-```text
-[SỐ DƯ HIỆN TẠI]  =  Tổng tiền đã ứng  −  (Đã duyệt + Chờ duyệt)
-```
+Tiền Ops hoàn trả là một giao dịch riêng: ai nhận tiền về, số tiền, ngày và khoản ứng liên quan. Quyết toán chi phí không tự có nghĩa Ops đã hoàn tiền.
 
-| Thẻ | Nguồn | Màu |
-|-----|-------|-----|
-| **SỐ DƯ HIỆN TẠI** (cỡ chữ lớn nhất — tâm màn hình) | Σ advance_requests APPROVED của Ops − (Σ chi APPROVED + Σ chi PENDING) | Mực (nhấn mạnh) |
-| Đã duyệt | Σ chi phí Ops APPROVED (chưa + đã quyết toán) | Xanh lá |
-| Chờ duyệt | Σ chi phí Ops PENDING | Vàng/cam |
-| Bị từ chối | Σ chi phí Ops REJECTED | Đỏ |
+Một yêu cầu ứng cũ chưa có chứng cứ giao tiền không được tính thành tiền thực nhận. Các khoản lịch sử chưa rõ phải được chỉ ra để đối chiếu, không tự giải ngân hoặc hoàn tiền chỉ vì tên trạng thái cũ.
 
-- **Optimistic UI:** bấm Lưu một khoản chi → Số dư **giảm** và Chờ duyệt **tăng** ngay
-  lập tức (local patch), đối chiếu lại với server sau khi refetch.
-- Kế toán duyệt tạm ứng → Số dư tăng. Kế toán **từ chối** một khoản chi → khoản rời
-  khối "Chờ duyệt", số tiền **cộng ngược vào Số dư**, và hiển thị ở "Bị từ chối" — sự
-  chênh lệch với tiền mặt thực có buộc Ops tìm lại hóa đơn hợp lệ chụp lại, hoặc tự
-  đền bằng tiền túi.
+### 5.2 Số dư quỹ
 
-### 5.3 Lịch sử chi phí & nhắc nợ chứng từ (Smart Tags)
+**Số dư cuối = Số dư đầu + Tiền ứng thực nhận − Khoản thực chi từ quỹ − Tiền ứng đã hoàn trả + Điều chỉnh có căn cứ.**
 
-- Bảng chi phí của Ops: Ngày | Mã lô | Cont | Loại phí | Số tiền | Chứng từ | Trạng thái.
-- **Nhãn đỏ "Nợ chứng từ"** (chữ đỏ): khoản chi đã có số tiền nhưng **chưa có ảnh biên
-  lai** nào. Ops nhìn danh sách là biết đang nợ Kế toán giấy tờ của lô nào.
-- Khoản bị từ chối: hiển thị lý do + thao tác **Chụp lại/Gửi lại** (bổ sung ảnh rồi
-  gửi lại → trả về Chờ duyệt).
-- Bộ lọc: Tất cả / Chờ duyệt / Đã duyệt / Bị từ chối.
-- **Micro-ledger:** mỗi khoản ghi `paid_by` = người nhập. Nhiều Ops chi cho cùng một lô
-  thì backend vẫn gom hết về **một mã lô duy nhất** khi Kế toán tổng hợp.
+- Mỗi số tổng mở được danh sách giao dịch tạo nên nó; số dư đầu khớp số chuyển sang từ kỳ trước.
+- Phân biệt Ops trả từ quỹ, công ty trả trực tiếp và khoản còn nợ nhà cung cấp. Một khoản không bị trừ hai lần hoặc trừ vào hai quỹ.
+- Thêm ảnh, bổ sung giấy tờ, lập bảng kê và quyết toán không làm khoản đã chi bị trừ thêm lần nữa.
+- Thiếu hoặc khó đọc biên lai không làm tiền tự quay lại ví. Sửa sai số tiền hoặc hủy một khoản ghi nhầm phải có lý do và lịch sử trước/sau.
+- Số dư âm hiển thị đúng số và các khoản tạo ra nó. Không tự kết luận Ops nhận quá nhiều tiền ứng hoặc tự bỏ tiền túi khi không có thông tin chứng minh.
+- Người dùng phân biệt được số đã ghi với khoản đang lưu. Khi chưa biết thao tác đã thành công hay chưa, sản phẩm nói rõ và giúp xác định kết quả trước khi người dùng nhập lại.
 
-### 5.4 Đề nghị thanh toán & sổ phụ
+Các thông tin **Số dư**, **Tiền nhận**, **Đã chi**, **Đã hoàn trả** phải dễ đọc, nhưng không chiếm gần hết màn hình. Lịch sử giao dịch và hành động thường dùng xuất hiện sớm trên điện thoại và máy tính bảng.
 
-- Nút **Tạo Đề Nghị Thanh Toán** (cuối ngày/cuối tuần):
-  - Tự query toàn bộ chi phí **PENDING + APPROVED chưa quyết toán** của Ops.
-  - Group by **lô hàng** (Mã lô + Bill/Booking); mỗi lô chia 2 rổ: **Có hóa đơn** /
-    **Không hóa đơn** (theo `requires_invoice` của loại phí) + tổng từng rổ + tổng chung.
-  - Xác nhận → tạo phiếu (`ops_settlements`) mang mã phiếu, khóa danh sách khoản chi
-    tham gia; khoản mới nhập sau đó rơi vào phiếu kế tiếp.
-- **Xuất file:** Excel (bảng kê theo lô + 2 rổ, dòng tổng) để Ops in đính kèm hồ sơ
-  giấy; **In phiếu** (bản in A4, không khung điều hướng, có ô ký tên).
-- **Đồng bộ Kế toán:** phiếu + từng khoản chi hiển thị ở phân hệ Kế toán (tab "Chi phí
-  Ops" trong workspace tạm ứng). Kế toán:
-  - Duyệt từng khoản (đủ ảnh hợp lệ) → nhãn xanh, khớp trừ chính thức vào tạm ứng
-    (không đổi công thức ví — Đã duyệt đã trừ từ lúc duyệt).
-  - Từ chối (ảnh mờ, mất hóa đơn…) → cần lý do; khoản rơi khỏi phiếu, Ops bổ sung.
-  - Duyệt cả phiếu khi mọi khoản trong phiếu đã Đã duyệt → phiếu chốt "đã quyết toán".
+### 5.3 Chứng từ và biên lai
+
+Lịch sử khoản chi cho biết ngày, lô, container/phí chung, loại phí, người chi, tiền, chứng từ và tình trạng quyết toán. Có thể lọc theo ngày, lô, loại phí, còn thiếu chứng từ, chưa/đã quyết toán và khoản điều chỉnh/hủy.
+
+“Nợ chứng từ” phải nói rõ tài liệu còn thiếu. Không đồng nhất hóa đơn, biên lai và thông tin thuế; loại phí không cần hóa đơn vẫn có thể cần chứng từ khác theo quy định đã xác định.
+
+Ops bổ sung biên lai ngay từ khoản đã lưu hoặc danh sách nợ chứng từ, không phải tạo lại khoản chi. Ảnh phải đọc được và mở xem đầy đủ. Một ảnh lỗi không làm mất ảnh đã lưu hoặc ảnh khác đang chọn. Khi xóa/thay ảnh trong lúc tải, kết quả cuối phải đúng lựa chọn mới nhất và đúng khoản chi, không xuất hiện ảnh ở khoản khác.
+
+### 5.4 Bảng kê và quyết toán
+
+1. Ops lập bảng kê các khoản thực chi chưa quyết toán của mình.
+2. Bảng kê nhóm theo lô và Bill/Booking, giữ người chi, phân nhóm có/không hóa đơn và tổng tiền tương ứng.
+3. Người có quyền ghi nhận quyết toán trực tiếp khi đủ dữ liệu và trong kỳ được phép. Khoản thiếu giấy tờ, đã nằm trong phiếu khác, bị hủy hoặc thuộc kỳ khóa phải có lý do rõ và hướng xử lý.
+4. Quyết toán không tự tạo thanh toán hay hoàn ứng. Nếu thực tế có tiền bổ sung, ghi riêng và liên kết để đối chiếu.
+
+Khoản mới phát sinh không tự chen vào bảng kê đã chốt. Hồ sơ đã khóa không được sửa đè hoặc mất lịch sử; sai sót được xử lý theo quyền điều chỉnh và quy tắc kỳ kế toán. Không có gửi duyệt, duyệt cả phiếu hay từ chối của người thứ hai.
+
+Xuất Excel và in A4 giữ mã phiếu, người lập, ngày, lô, nhóm hóa đơn, khoản chi và tổng đúng như màn hình. Một lô có nhiều người chi không tạo khoản trùng. Chữ ký trên bản giấy nếu cần không trở thành cấp duyệt trong ứng dụng.
+
+### 5.5 Những trạng thái cần phân biệt
+
+| Nội dung | Người dùng cần biết |
+|---|---|
+| Nhập liệu | Đang nhập, đang lưu, đã lưu, chưa lưu được hoặc chưa rõ kết quả. |
+| Khoản chi | Đã ghi nhận, đã điều chỉnh hoặc đã hủy có lý do. |
+| Chứng từ | Còn thiếu, đang bổ sung, đã đủ hoặc chưa đọc được. |
+| Quyết toán | Chưa quyết toán, đã quyết toán hoặc có điều chỉnh. |
+| Kỳ kế toán | Đang mở hay đã khóa, những thao tác nào còn được phép. |
 
 ```mermaid
 sequenceDiagram
-    participant OPS as 🧰 Ops
-    participant V as 📱 Ví (/ops/wallet)
-    participant KT as 🧾 Kế toán
-    participant LS as 📋 Lô (/ops/orders)
-
-    OPS->>V: + Xin Tạm Ứng (số tiền, lý do)
-    KT-->>V: Duyệt → Tổng đã ứng ⬆ (Số dư ⬆)
-    OPS->>LS: Bấm lô → Khai chi phí (bill/cont tự điền)
-    LS->>V: Khoản chi PENDING (Số dư ⬇, Chờ duyệt ⬆ — nhảy ngay)
-    alt đủ ảnh hợp lệ
-        KT->>V: Duyệt → Chờ duyệt ⬇, Đã duyệt ⬆ (Số dư không đổi)
-    else ảnh mờ / thiếu
-        KT->>V: Từ chối (lý do) → Chờ duyệt ⬇, Số dư ⬆, nhãn đỏ
-        OPS->>V: Chụp lại/Gửi lại → PENDING
+    participant TC as Người có quyền tài chính
+    participant OPS as Ops
+    participant HT as Ứng dụng
+    TC->>HT: Ghi tiền ứng đã thực giao
+    HT-->>OPS: Tiền nhận và số dư
+    OPS->>HT: Ghi thực chi theo lô
+    HT-->>OPS: Khoản đã ghi, số dư mới, giấy tờ còn thiếu
+    OPS->>HT: Bổ sung biên lai
+    HT-->>OPS: Chứng từ cập nhật, số tiền không đổi
+    OPS->>HT: Lập bảng kê theo lô
+    TC->>HT: Ghi nhận quyết toán
+    HT-->>TC: Phiếu quyết toán, không tự phát sinh tiền
+    opt Có hoàn trả tiền thực tế
+        TC->>HT: Ghi hoàn trả
+        HT-->>OPS: Số dư sau hoàn trả
     end
-    OPS->>V: Tạo Đề Nghị Thanh Toán (gom theo lô, 2 rổ hóa đơn)
-    V-->>KT: Push danh sách chờ rà soát + Excel/In
-    KT->>V: Duyệt phiếu (mọi khoản đã duyệt) → Đã quyết toán
 ```
 
-### 5.5 Trạng thái khoản chi (vòng đời)
+## 6. Độ tin cậy và trải nghiệm sử dụng
 
-```mermaid
-stateDiagram-v2
-    [*] --> PENDING: Ops lưu khoản chi
-    PENDING --> APPROVED: Kế toán/Admin duyệt
-    PENDING --> REJECTED: Từ chối (kèm lý do)
-    REJECTED --> PENDING: Ops bổ sung ảnh → Gửi lại
-    APPROVED --> [*]: Khóa khi phiếu quyết toán được duyệt
-```
+- Hai người sửa cùng một khoản không được âm thầm ghi đè nhau. Người đang sửa được biết thông tin nào đã đổi, giữ nội dung mình đang nhập và lựa chọn cách tiếp tục.
+- Bấm lưu nhiều lần hoặc thử lại sau lỗi không tạo thêm khoản tiền, phiếu hoặc ảnh trùng. Thông báo thành công phải khớp dữ liệu khi mở lại.
+- Nếu khoản chi đã lưu nhưng ảnh chưa lưu, nói rõ phần nào đã xong; người dùng tiếp tục trên đúng khoản cũ.
+- Cần Internet để thao tác. Khi mất mạng, không báo đã lưu hay nhận thêm nghiệp vụ để gửi sau. Nếu còn giữ nội dung đang nhập trên màn hình, phải nói rõ nội dung chưa được lưu và giới hạn khi rời trang.
+- Khi có mạng lại, người dùng chủ động tiếp tục. Ứng dụng không tự gửi các thao tác cũ khi nối mạng, mở lại trang hoặc đổi tài khoản. Dữ liệu đã ghi vẫn được giữ.
+- Sự cố dịch vụ tạm thời không bị mô tả thành hết phiên đăng nhập nếu tài khoản vẫn hợp lệ.
+- Điện thoại, máy tính bảng và máy tính đều đọc được mã, tiền và tên dài. Tránh thẻ quá lớn, nhiều thẻ lồng nhau hoặc lề cộng dồn làm vùng dữ liệu hẹp.
+- Lỗi nằm cạnh trường cần sửa. Nút lưu/đóng tới được khi dùng bàn phím ảo; các hộp thoại dùng được bằng bàn phím và không làm người dùng mất vị trí đang thao tác. Chuyển động nhẹ, không đẩy nội dung đang đọc hoặc sửa.
 
-> Khoản PENDING/REJECTED của Ops được sửa/xóa (chỉ người nhập); APPROVED khóa vĩnh viễn.
+## 7. Tiêu chí chấp nhận
 
-## 6. Mô hình dữ liệu
+| Tình huống | Kết quả người dùng quan sát được |
+|---|---|
+| Xem kế hoạch ngày | Thấy mọi lô công ty có ngày giao dự kiến phù hợp; không bị lọc theo người. Tìm lại được lô chưa lịch và lô đã hoàn thành. |
+| Ghim và mở lại | Chỉ danh sách cá nhân thay đổi; mở lại giữ đúng lô ghim, bấm lặp không đổi ngược ý định. |
+| Ghi chi | Lô/Bill/container đúng; khoản hàng lẻ hoặc phí chung không cần vỏ giả. Số sai có lỗi rõ, khoản hợp lệ lưu trực tiếp. |
+| Đối chiếu quỹ | Số đầu 100.000 + nhận 500.000 − chi 120.000 − hoàn 50.000 cho số dư 430.000. Thêm biên lai hoặc quyết toán không làm số này đổi. |
+| Tiền và giấy tờ khác nhau | Thiếu ảnh không hoàn tiền; phiếu chưa có chứng cứ giao tiền không tăng quỹ. Mỗi tổng truy ra đúng giao dịch. |
+| Bổ sung ảnh | Thêm, mở xem, thay hoặc xóa đúng khoản đã có. Lỗi một phần và thử lại không bắt tạo lại chi phí hoặc làm ảnh xuất hiện nhầm. |
+| Quyết toán | Bảng kê theo lô/nhóm hóa đơn đúng, không trùng người chi; ghi trực tiếp đủ điều kiện, Excel và bản in khớp số liệu. |
+| Phân công xe | Ops thấy đúng xe, lệnh và tiến độ; đổi người phụ trách có hiệu lực. Người ngừng hoạt động không được phân công mới. |
+| Thay đổi đồng thời | Thông tin mới của người khác không bị mất; khoản tiền không nhân đôi; lịch sử và số dư khớp sau mở lại. |
+| Mất kết nối | Biết việc đã lưu, chưa lưu hoặc chưa rõ kết quả; nối mạng/mở lại/đổi tài khoản không tự gửi việc cũ. |
+| Dùng trên ba loại thiết bị | Mã và tiền không đè nhau; dữ liệu và hành động chính dễ tìm; nút không bị bàn phím che; không có nhiều lớp thẻ/lề gây chật. |
 
-**Bảng mới** (FK mức ứng dụng — quy ước dự án; tiền `numeric(15,0)` VND):
+## 8. Ngoài phạm vi và vấn đề cần làm rõ
 
-| Bảng | Trường chính | Ý nghĩa |
-|------|--------------|---------|
-| `user_shipment_pins` | user_id, shipment_id (unique cặp), pinned_at | Ghim lô theo người |
-| `truck_ops_assignments` | truck_id, ops_user_id, is_active (unique truck khi active) | Gán Ops phụ trách xe |
-| `ops_expense_entries` | shipment_id, shipment_container_id?, expense_type_code, amount, paid_by_id, approval_status, approved_by_id?, rejection_reason?, ops_settlement_id?, paid_at | Khoản chi theo lô của Ops |
-| `ops_expense_photos` | ops_expense_id, storage_key, uploaded_by_id, uploaded_at | Ảnh biên lai (serve `/api/photos/…`) |
-| `ops_settlements` | code (unique), ops_user_id, status, total_amount, note?, approved_by_id?/at?, rejection_reason? | Đề nghị thanh toán |
+Không mở rộng sang ứng dụng native, làm việc ngoại tuyến, bản đồ GPS mới hoặc thiết kế lại toàn bộ kế toán. Phê duyệt chỉ được xem xét như một yêu cầu mới nếu khách hàng định nghĩa lại trong tương lai.
 
-> **Ghi chú triển khai (2026-09-07):** bảng nối `ops_settlement_expense_links`
-> của bản nháp đã được **bỏ** — cột `ops_settlement_id` ngay trên
-> `ops_expense_entries` mô tả cùng quan hệ 1-N mà không cần ghi kép; khi từ
-> chối phiếu, hệ thống gỡ liên kết các khoản để chúng rơi vào phiếu kế tiếp.
+Loại chứng từ bắt buộc cho từng loại phí phải có căn cứ nghiệp vụ. Nơi chưa rõ, cần làm rõ nội dung đó; không tự đặt giấy tờ mới hoặc dùng một bước phê duyệt để thay thế.
 
-**Bảng tái sử dụng (nguyên trạng):** `shipments` + `shipment_containers` (dữ liệu lô),
-`trucks`/`trailers`/`trips` + `driver_progress_events` (theo dõi xe), `advance_requests`
-(tạm ứng — duyệt sẵn có), `forwarder_expense_types` (danh mục loại phí), pipeline upload
-ảnh sẵn có (`storage_key` + `/api/photos`).
+## 9. Tài liệu liên quan
 
-**Không dựng lại (đã nghỉ hưu 2026-09-05):** trạng thái lô `PENDING_EXPENSE_APPROVAL`,
-maker-checker, tự cấn trừ tạm ứng, áp giá nâng/hạ tự động theo bảng giá master.
-
-## 7. Non-goals
-
-- App native / PWA / offline cho Ops (chỉ responsive web).
-- Bản đồ GPS lộ trình trên /ops/fleet-tracking (dạng danh sách; telemetry là luồng riêng).
-- Gộp/xóa cổng `/my-orders`, `/my-advances`, `/my-settlements` hiện có (quyết định
-  gộp là việc riêng của ban sản phẩm sau khi module ổn định).
-- Sổ sách kế toán tổng thể (chỉ phạm vi duyệt chi phí Ops + phiếu thanh toán).
-- Áp giá tự động nâng/hạ theo bảng giá master (đã thuộc luồng cũ bị dừng).
-
-## 8. Lịch sử phạm vi
-
-- Luồng "Chi phí phát sinh Ops" cũ (`testplan/flows/05-ops-chi-phi.md`, xoá commit
-  `58a330af`, 2026-09-05) từng gắn với trạng thái lô PENDING_EXPENSE_APPROVAL + tự cấn
-  trừ — toàn bộ đã dừng theo quyết định 2026-09-05.
-- Tài liệu này **tái đưa** phạm vi chi phí Ops theo đặc tả mới 2026-09-06: đơn giản hơn
-  (số tiền nhập tay + ảnh biên lai + duyệt/từ chối), tổ chức quanh ví tiền mặt cá nhân,
-  tách khỏi trạng thái lô, không dùng lại bất kỳ cơ chế nào đã dừng.
-
-## 9. Tiêu chí nghiệm thu (tóm tắt)
-
-Chi tiết regression: [`testplan/flows/05-ops-quy-chi-phi.md`](../../testplan/flows/05-ops-quy-chi-phi.md)
-(`TC-OPS-KH-*`, `TC-OPS-XE-*`, `TC-OPS-VI-*`, `TC-OPS-RBAC-*`) và
-[`testplan/roles/06-vanhanh.md`](../../testplan/roles/06-vanhanh.md) Flow 7–9. Điểm P0:
-
-1. RBAC: chỉ OPS vào được 3 route; vai trò khác bị chuyển hướng.
-2. Ghim per-user, đứng đầu danh sách, sống sót qua reload.
-3. Khai chi phí: bill/cont tự điền đúng chiều; lưu → PENDING + paid_by đúng người;
-   ảnh tải/xem được; số tiền nguyên dương.
-4. Ví: công thức đúng tuyệt đối (test đơn vị); optimistic nhảy đúng chiều; từ chối cộng
-   ngược số dư; nhãn đỏ khi thiếu ảnh.
-5. Đề nghị thanh toán: gom đúng theo lô, chia đúng 2 rổ `requires_invoice`, Excel tải
-   được, bản in A4 hiển thị đủ; Kế toán duyệt/từ chối từng khoản và duyệt phiếu.
-6. Fleet: chỉ xe được gán; lệnh xuất hiện khi Điều vận phát lệnh cho xe đó; màn hình
-   không có thao tác ghi.
-7. Không hồi quy: `/my-advances`, `/my-settlements`, `/my-orders`, duyệt tạm ứng
-   hiện có giữ nguyên hành vi.
+- [Quy trình O2C](QuyTrinhO2C.md).
+- [Màn hình lái xe](ManHinhLaiXe.md).

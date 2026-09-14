@@ -1,13 +1,8 @@
-// OfflineBanner — M8.1 global offline indicator (PRD M08-01-05 slow-network).
+// OfflineBanner — connection gate that warns when the device cannot reach the
+// server.  Business actions (milestones, e-POD, paper handoff, etc.) now
+// require a live connection — there is no offline queue to buffer writes.
 //
-// A slim banner pinned to the top of the app shell that appears whenever the
-// browser reports no connection (`navigator.onLine === false`). It tells the
-// driver/clerk their writes are being queued and will sync when reconnected.
-// When online, it renders nothing (zero layout impact).
-//
-// The banner is purely informational — it does NOT block any interaction.
-// The offline-queue lib (already wired in DriverProgressCard) handles the
-// actual write buffering; this banner is the global visibility layer.
+// When online, renders nothing (zero layout impact).
 
 import { WifiOff } from 'lucide-react';
 import { useOnline } from '../../hooks/useOnline';
@@ -27,18 +22,17 @@ export function OfflineBanner() {
         justifyContent: 'center',
         gap: 8,
         padding: '8px 16px',
-        background: 'var(--warn, #d97706)',
+        background: 'var(--danger, #dc2626)',
         color: '#fff',
         fontSize: 14,
         fontWeight: 600,
         textAlign: 'center',
-        // Safe-area-aware so the banner clears the notch on iPhones.
         paddingTop: 'calc(8px + env(safe-area-inset-top, 0px))',
         zIndex: 50,
       }}
     >
       <WifiOff size={16} />
-      <span>Mất kết nối — thay đổi sẽ được lưu tạm và đồng bộ khi có mạng.</span>
+      <span>Mất kết nối — vui lòng kiểm tra mạng để tiếp tục thao tác.</span>
     </div>
   );
 }

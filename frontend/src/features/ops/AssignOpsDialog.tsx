@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { X } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import { opsClient } from '../../api/opsClient';
@@ -11,6 +12,7 @@ interface UserOption {
   id: number;
   fullName: string | null;
   username: string | null;
+  status?: string;
 }
 
 /**
@@ -60,7 +62,8 @@ export function AssignOpsDialog({
     }
   }
 
-  const options = usersData?.items ?? [];
+  // KP-090: only show active, non-deleted staff in the picker
+  const options = (usersData?.items ?? []).filter((u) => u.status === 'ACTIVE' || u.status == null);
   const noOpsStaff = usersData && options.length === 0;
 
   return (
@@ -68,7 +71,7 @@ export function AssignOpsDialog({
       <form className="ops-modal" onSubmit={handleSave}>
         <header className="ops-modal__head">
           <h2>Ops phụ trách — {truck.licensePlate}</h2>
-          <button type="button" aria-label="Đóng" onClick={onClose}>✕</button>
+          <button type="button" aria-label="Đóng" onClick={onClose}><X size={18} /></button>
         </header>
         <div className="ops-modal__body">
           <p className="ops-form-photos__hint">

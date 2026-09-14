@@ -1,8 +1,7 @@
 // Self-heal stale-chunk load failures.
 //
 // After a deploy, an open tab may still hold an old app shell whose hashed JS
-// chunks no longer exist on the server — or the service worker may serve a
-// stale shell whose chunks fail to load. Two paths recover:
+// chunks no longer exist on the server. Two paths recover:
 //
 // 1. ErrorBoundary: React.lazy route chunks reject inside React's tree, so the
 //    boundary is the FIRST to see them. It calls recoverFromChunkFailure()
@@ -10,7 +9,12 @@
 //    instead of the dead-end "Đã xảy ra lỗi" screen.
 // 2. Global listeners (this module): the safety net for eager imports, leaked
 //    rejections, vite:preloadError, and any chunk failure outside React's
-//    tree — purge service-worker caches and reload.
+//    tree.
+//
+// Key distinction: a network error (offline, DNS failure, timeout) is NOT a
+// stale build. Purging caches and reloading during a network outage loops
+// forever. Only errors whose message matches a known chunk-asset pattern
+// trigger the self-heal. Generic fetch failures are reported but left alone.
 //
 // Loop safety: at most one self-heal reload per cooldown window. A genuinely
 // broken deploy still fails after the reload, the window blocks a second
@@ -22,11 +26,35 @@ const RELOAD_AT_KEY = 'tt-chunk-reload-at';
 // Long enough to cover a broken-deploy retry loop, short enough that a tab
 // open across the next deploy still self-heals.
 const RELOAD_COOLDOWN_MS = 4 * 60 * 60 * 1000;
-const CHUNK_FAIL_RE =
+
+// Matches only errors that name a hashed chunk asset or dynamic import — these
+// are the signature of a stale build where the old chunk URL 404s on the CDN.
+const STALE_CHUNK_RE =
+  /(Loading chunk \S+ failed|ChunkLoadError|error loading dynamically imported module)/i;
+
+// Broader pattern that also matches generic network-level fetch failures.
+// Used ONLY to detect whether an error is chunk-related at all; the narrower
+// STALE_CHUNK_RE decides whether to self-heal.
+const ANY_CHUNK_RE =
   /(Loading chunk|Failed to fetch dynamically imported module|Importing a module script failed|ChunkLoadError|error loading dynamically imported module)/i;
 
+/**
+ * `true` when the message looks like any chunk/dynamic-import failure (stale
+ * build OR network).  Used by ErrorBoundary to decide whether to show the
+ * chunk-recovery panel at all.
+ */
 export function isChunkFailureMessage(message: string): boolean {
-  return message.length > 0 && CHUNK_FAIL_RE.test(message);
+  return message.length > 0 && ANY_CHUNK_RE.test(message);
+}
+
+/**
+ * `true` only when the message names a specific chunk asset — the hallmark of
+ * a stale frontend build after deploy.  Generic "Failed to fetch" or network
+ * errors return `false` because purging caches won't help when the device is
+ * simply offline.
+ */
+function isStaleBuildChunkError(message: string): boolean {
+  return message.length > 0 && STALE_CHUNK_RE.test(message);
 }
 
 function messageFromErrorEvent(event: ErrorEvent): string {
@@ -73,7 +101,11 @@ export function recoverFromChunkFailure(): 'reloading' | 'exhausted' {
   return 'reloading';
 }
 
-function handleChunkFailure(): void {
+function handleChunkError(message: string): void {
+  // Only self-heal when the error names a specific chunk asset (stale build).
+  // Generic network failures during offline should NOT purge caches — that
+  // would loop the reload and never recover until the network returns.
+  if (!isStaleBuildChunkError(message)) return;
   if (recoverFromChunkFailure() === 'exhausted') renderFallback();
 }
 
@@ -84,19 +116,13 @@ function handleChunkFailure(): void {
  */
 export function installChunkErrorHandler(): void {
   window.addEventListener('vite:preloadError', (event) => {
-    handleChunkFailure();
+    handleChunkError('Loading chunk failed');
     event.preventDefault();
   });
   window.addEventListener('error', (event) => {
-    if (isChunkFailureMessage(messageFromErrorEvent(event))) {
-      handleChunkFailure();
-      event.preventDefault();
-    }
+    handleChunkError(messageFromErrorEvent(event));
   });
   window.addEventListener('unhandledrejection', (event) => {
-    if (isChunkFailureMessage(messageFromRejectionEvent(event))) {
-      handleChunkFailure();
-      event.preventDefault();
-    }
+    handleChunkError(messageFromRejectionEvent(event));
   });
 }

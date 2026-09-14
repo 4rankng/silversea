@@ -373,6 +373,7 @@ export type {
 export {
   composeDriverTaskNote,
   parseDriverTaskNote,
+  normalizeDriverTaskNote,
 } from './driverTaskNote';
 
 export {

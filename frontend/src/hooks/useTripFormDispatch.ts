@@ -155,7 +155,7 @@ export function useTripFormDispatch(params: UseTripFormDispatchParams): UseTripF
     s.setCargoTypeId(existingTrip.cargoTypeId != null ? String(existingTrip.cargoTypeId) : '');
     s.setCustomerReference(existingTrip.customerReference ?? '');
     s.setContainerCount(existingTrip.containerCount != null ? String(existingTrip.containerCount) : '1');
-    s.setCompletedAt(existingTrip.completedAt ? existingTrip.completedAt.slice(0, 10) : '');
+    s.setCompletedAt(existingTrip.completedAt ? businessDateISO(new Date(existingTrip.completedAt)) : '');
 
     s.setRouteId(String(existingTrip.routeId));
     s.setFuelMode(existingTrip.fuelMode);

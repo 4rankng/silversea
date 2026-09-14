@@ -11,7 +11,6 @@ import { ApiError } from '../../errors';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { runIdempotent } from '../../services/idempotency.service';
 import {
-  approveFuelInvoice,
   createFuelInvoice,
   getFuelInvoice,
   listFuelInvoices,
@@ -222,47 +221,6 @@ router.post(
   }),
 );
 
-router.post(
-  '/finance/fuel-invoices/:id/approve',
-  requireRoles(Role.ADMIN, Role.MANAGER),
-  asyncHandler(async (req, res) => {
-    const actor = getUser(req);
-    const invoiceId = parseId(req.params.id);
-    const payload = fuelInvoiceDecisionSchema.parse(req.body);
-    const { result, replayed } = await runIdempotent({
-      endpoint: FUEL_INVOICE_APPROVE_ENDPOINT,
-      idempotencyKey: requireIdempotencyKey(req),
-      payload: {
-        actorId: actor.userId,
-        actorRole: actor.role,
-        expectedVersion: payload.expectedVersion,
-        reason: payload.reason,
-        id: invoiceId,
-      },
-      createdBy: actor.userId,
-      entityType: 'fuel_invoice',
-      // 2026-09-11 (maker-checker removal): the approval applies directly
-      // in-request via the transient governed action.
-      create: (tx) => autoApplyGovernanceAction({
-        make: (tx) => approveFuelInvoice(
-          invoiceId,
-          actor.userId,
-          actor.role,
-          payload.expectedVersion,
-          payload.reason,
-          tx,
-        ),
-        actorId: actor.userId,
-        actorRole: actor.role,
-        transaction: tx,
-      }),
-      getEntityId: () => invoiceId,
-    });
-    const approved = replayed ? { ...result, replayed } : result;
-    res.locals.auditEntityId = approved.id;
-    res.locals.auditEntityKey = `fuel-invoice-${approved.id}`;
-    res.status(replayed ? 200 : 201).json(approved);
-  }),
-);
+// KP-152: approve endpoint removed — fuel invoices are APPROVED at creation.
 
 export default router;

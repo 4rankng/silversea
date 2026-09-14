@@ -9,6 +9,7 @@ import { AuditEvent } from '../../services/audit-types';
 
 import { autoApplyGovernanceAction, requestTripFinancialChange } from '../../services/adjustment-governance.service';
 import { loadTripStatusVersion } from '../../services/trip-queries.service';
+import { getTripCompositeInTx } from '../../services/trip-composite.service';
 import { asyncHandler } from '../../middleware/asyncHandler';
 
 import { getUser } from '../../middleware/auth';
@@ -39,7 +40,7 @@ router.put('/:id/pre-departure', asyncHandler(async (req: Request, res: Response
       if (current?.status === TripStatus.COMPLETED) {
         // 2026-09-11 maker-checker removal: completed-trip figure changes
         // apply directly in-request.
-        return autoApplyGovernanceAction({
+        await autoApplyGovernanceAction({
           make: (inner) => requestTripFinancialChange({
             tripId: id,
             reason: governanceReason,
@@ -58,6 +59,11 @@ router.put('/:id/pre-departure', asyncHandler(async (req: Request, res: Response
           actorRole: user.role,
           transaction: tx,
         });
+        // Governance action applied the figure changes in-request.
+        // Reload and return the updated trip (not the governance action).
+        const updatedTrip = await getTripCompositeInTx(tx, id);
+        if (!updatedTrip) throw new Error(`trip ${id} missing after governance apply`);
+        return updatedTrip;
       }
       return tripService.updateTripFigures(id, {
         ...data,
@@ -68,10 +74,10 @@ router.put('/:id/pre-departure', asyncHandler(async (req: Request, res: Response
     },
     getEntityId: (value) => value.id,
   });
-  if ('actionKind' in result && result.actionKind === 'TRIP_FINANCIAL_CHANGE') {
+  if (result.status === TripStatus.COMPLETED) {
     res.locals.auditEvent = AuditEvent.TRIP_UPDATED_ACTUALS;
     res.locals.auditEntityId = id;
-    res.locals.auditEntityKey = result.subjectKey;
+    res.locals.auditEntityKey = result.tripCode;
   }
   if (!replayed) await invalidateReportCaches();
   res.status(200)
@@ -98,7 +104,7 @@ router.put('/:id/actuals', asyncHandler(async (req: Request, res: Response) => {
       if (current?.status === TripStatus.COMPLETED) {
         // 2026-09-11 maker-checker removal: completed-trip figure changes
         // apply directly in-request.
-        return autoApplyGovernanceAction({
+        await autoApplyGovernanceAction({
           make: (inner) => requestTripFinancialChange({
             tripId: id,
             reason: governanceReason,
@@ -117,6 +123,11 @@ router.put('/:id/actuals', asyncHandler(async (req: Request, res: Response) => {
           actorRole: user.role,
           transaction: tx,
         });
+        // Governance action applied the figure changes in-request.
+        // Reload and return the updated trip (not the governance action).
+        const updatedTrip = await getTripCompositeInTx(tx, id);
+        if (!updatedTrip) throw new Error(`trip ${id} missing after governance apply`);
+        return updatedTrip;
       }
       return tripService.updateTripFigures(id, {
         ...data,
@@ -127,10 +138,10 @@ router.put('/:id/actuals', asyncHandler(async (req: Request, res: Response) => {
     },
     getEntityId: (value) => value.id,
   });
-  if ('actionKind' in result && result.actionKind === 'TRIP_FINANCIAL_CHANGE') {
+  if (result.status === TripStatus.COMPLETED) {
     res.locals.auditEvent = AuditEvent.TRIP_UPDATED_ACTUALS;
     res.locals.auditEntityId = id;
-    res.locals.auditEntityKey = result.subjectKey;
+    res.locals.auditEntityKey = result.tripCode;
   }
   if (!replayed) await invalidateReportCaches();
   res.status(200)

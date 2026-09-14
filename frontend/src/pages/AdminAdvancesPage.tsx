@@ -94,7 +94,7 @@ function GridSortHeader({
 
 const TABS: { key: StatusFilter; label: string }[] = [
   { key: '', label: 'Tất cả' },
-  { key: AdvanceRequestStatus.PENDING, label: 'Chờ duyệt' },
+  { key: AdvanceRequestStatus.PENDING, label: 'Chờ xử lý' },
   { key: AdvanceRequestStatus.APPROVED, label: 'Đã duyệt' },
   { key: AdvanceRequestStatus.REJECTED, label: 'Từ chối' },
 ];
@@ -424,7 +424,7 @@ export default function AdminAdvancesPage({ embedded = false }: { embedded?: boo
           <PageHeader
             title="Tạm ứng & hoàn ứng"
             iconName="advances"
-            description="Xem yêu cầu tạm ứng và gửi đề nghị vào Trung tâm phê duyệt."
+            description="Xem và quản lý yêu cầu tạm ứng."
           />
         </>
       )}
@@ -432,7 +432,7 @@ export default function AdminAdvancesPage({ embedded = false }: { embedded?: boo
       {/* ── KPI strip ─────────────────────────────────────────────────── */}
       <div className="adv-kpi-row">
         <AdvKPI
-          label="Chờ duyệt"
+          label="Chờ xử lý"
           value={countOf(AdvanceRequestStatus.PENDING)}
           meta={`${formatNumber(amountOf(AdvanceRequestStatus.PENDING))} ₫`}
           variant="warn"

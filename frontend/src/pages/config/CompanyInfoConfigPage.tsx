@@ -87,12 +87,23 @@ export default function CompanyInfoConfigPage() {
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<TextCompanyInfoField, string>>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const canSave = isCompanyInfoConfigured(form) && Boolean(form.shortName.trim());
 
   const updateField = (key: keyof CompanyInfoForm, value: string) => {
     setForm(current => ({ ...current, [key]: value }));
+    if (key !== 'logoStorageKey' && fieldErrors[key as TextCompanyInfoField]) {
+      setFieldErrors(current => { const next = { ...current }; delete next[key as TextCompanyInfoField]; return next; });
+    }
+  };
+
+  const validateEmail = (email: string): string | null => {
+    const trimmed = email.trim();
+    if (!trimmed) return null;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) return 'Địa chỉ email không hợp lệ — nhập đúng định dạng, ví dụ: ten@congty.vn';
+    return null;
   };
 
   const handleLogoSelect = async (files: FileList | null) => {
@@ -122,14 +133,15 @@ export default function CompanyInfoConfigPage() {
   };
 
   const handleSave = async () => {
-    const trimmedEmail = form.email.trim();
-    if (trimmedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
-      setError('Email không hợp lệ');
+    const emailErr = validateEmail(form.email);
+    if (emailErr) {
+      setFieldErrors(current => ({ ...current, email: emailErr }));
       return;
     }
     setSaving(true);
     setError(null);
     setMessage(null);
+    setFieldErrors({});
     try {
       await saveCompanyInfo.mutateAsync({
         name: form.name.trim(),
@@ -328,7 +340,15 @@ export default function CompanyInfoConfigPage() {
                       className="input"
                       value={form.email}
                       onChange={e => updateField('email', e.target.value)}
+                      onBlur={e => { const err = validateEmail(e.target.value); setFieldErrors(current => { if (err) return { ...current, email: err }; const next = { ...current }; delete next.email; return next; }); }}
+                      aria-invalid={fieldErrors.email ? true : undefined}
+                      aria-describedby={fieldErrors.email ? 'company-email-error' : undefined}
                     />
+                    {fieldErrors.email && (
+                      <p id="company-email-error" role="alert" className="cfg-field-error" style={{ color: 'var(--err, #dc2626)', margin: '4px 0 0', fontSize: 12 }}>
+                        {fieldErrors.email}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -352,9 +372,13 @@ export default function CompanyInfoConfigPage() {
                 {saving ? <Loader2 size={14} className="spin" /> : <Save size={14} />}
                 Lưu thông tin
               </button>
-              {message && <span style={{ color: 'var(--success)', fontSize: 13 }}>{message}</span>}
-              {error && <span style={{ color: 'var(--danger)', fontSize: 13 }}>{error}</span>}
+              {message && <span role="status" style={{ color: 'var(--success)', fontSize: 13 }}>{message}</span>}
             </div>
+            {error && (
+              <div role="alert" className="cfg-form-error" style={{ marginTop: 8 }}>
+                {error}
+              </div>
+            )}
           </>
         )}
       </Panel>

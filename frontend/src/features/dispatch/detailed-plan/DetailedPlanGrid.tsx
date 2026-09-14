@@ -246,7 +246,7 @@ export function DetailedPlanGrid({
                 <tr key={detailRowKey(row)} className={`detailed-plan-grid__row${row.lotFullyPlated ? ' detailed-plan-grid__row--plated' : ''}`}>
                   <td className="detailed-plan-grid__cell detailed-plan-grid__cell--schedule" data-label="Thời gian & lịch trình">
                     <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">
-                      {row.docs.tradeDirection === 'IMPORT' ? 'Nhận:' : 'Giao:'} {formatISODate(row.time.deliveryDate)}
+                      {row.docs.tradeDirection === 'IMPORT' ? 'Nhận:' : 'Giao:'} {formatISODate(row.time.deliveryDate ?? row.time.runAt ?? null)}
                     </div>
                     <div className="detailed-plan-grid__line detailed-plan-grid__line--muted">
                       {/* Full "HH:mm d/m/yyyy" (+07) from the appointment

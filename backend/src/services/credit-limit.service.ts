@@ -780,9 +780,7 @@ async function loadApprovedOverrideForUse(
   if (request.customerId !== customerId) {
     throw new ApiError(400, 'Phê duyệt vượt hạn mức không thuộc khách hàng của chuyến đi');
   }
-  if (request.status !== 'APPROVED') {
-    throw new ApiError(409, 'Phê duyệt vượt hạn mức chưa được duyệt');
-  }
+  // KP-163: APPROVED status check removed — overrides apply immediately at creation.
   if (request.scopeType === 'SHIPMENT') {
     if (shipmentId == null || request.shipmentId !== shipmentId) {
       throw new ApiError(409, 'Phê duyệt vượt hạn mức không áp dụng cho lô hàng này');

@@ -32,7 +32,6 @@ describe('TripPodSubmission', () => {
         tripVersion={3}
         currentSubmission={draftSubmission()}
         history={[]}
-        pendingCommands={[]}
         creatingDraft={false}
         uploading={false}
         onEnsureDraft={vi.fn()}
@@ -54,7 +53,6 @@ describe('TripPodSubmission', () => {
         tripVersion={3}
         currentSubmission={null}
         history={[]}
-        pendingCommands={[]}
         creatingDraft={false}
         uploading={false}
         onEnsureDraft={ensureDraft}
@@ -99,7 +97,6 @@ describe('TripPodSubmission', () => {
           ],
         })}
         history={[]}
-        pendingCommands={[]}
         creatingDraft={false}
         uploading={false}
         onEnsureDraft={vi.fn()}
@@ -119,7 +116,6 @@ describe('TripPodSubmission', () => {
         tripVersion={3}
         currentSubmission={draftSubmission()}
         history={[]}
-        pendingCommands={[]}
         creatingDraft={false}
         uploading={false}
         onEnsureDraft={vi.fn()}
@@ -147,7 +143,6 @@ describe('TripPodSubmission', () => {
         tripVersion={3}
         currentSubmission={draftSubmission({ status: TripPodStatus.SUBMITTED })}
         history={[]}
-        pendingCommands={[]}
         creatingDraft={false}
         uploading={false}
         onEnsureDraft={vi.fn()}
@@ -171,7 +166,6 @@ describe('TripPodSubmission', () => {
           rejectionReason: 'Ảnh mờ, không đọc được số phiếu.',
         })}
         history={[]}
-        pendingCommands={[]}
         creatingDraft={false}
         uploading={false}
         onEnsureDraft={vi.fn()}

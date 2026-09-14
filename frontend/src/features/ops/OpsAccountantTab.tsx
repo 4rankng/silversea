@@ -16,8 +16,8 @@ import { formatVnd } from './opsStatus';
 import './ops-modal.css';
 import { OpsModalBackdrop } from './OpsModalBackdrop';
 const STATUS_FILTERS: Array<{ value: OpsExpenseStatus | undefined; label: string }> = [
-  { value: 'PENDING', label: 'Chờ duyệt' },
-  { value: 'APPROVED', label: 'Đã duyệt' },
+  { value: 'PENDING', label: 'Chờ xử lý' },
+  { value: 'APPROVED', label: 'Đã xử lý' },
   { value: 'REJECTED', label: 'Bị từ chối' },
   { value: undefined, label: 'Tất cả' },
 ];
@@ -50,7 +50,7 @@ export function OpsAccountantTab() {
       await decideExpense.mutateAsync({ id, decision, reason, inPerson });
       toast({
         kind: 'success',
-        message: decision === 'approve' ? 'Đã duyệt khoản chi.' : 'Đã từ chối khoản chi.',
+        message: decision === 'approve' ? 'Đã xác nhận khoản chi.' : 'Đã từ chối khoản chi.',
       });
     } catch (error) {
       toast({ kind: 'error', message: error instanceof Error ? error.message : 'Thao tác thất bại.' });
@@ -111,9 +111,9 @@ export function OpsAccountantTab() {
                     </button>
                   </td>
                   <td>{row.approvalStatus === 'PENDING' ? (
-                    <span style={{ color: 'var(--warn, #d97706)' }}>Chờ duyệt</span>
+                    <span style={{ color: 'var(--warn, #d97706)' }}>Chờ xử lý</span>
                   ) : row.approvalStatus === 'APPROVED' ? (
-                    <span style={{ color: 'var(--ok, #16a34a)' }}>Đã duyệt</span>
+                    <span style={{ color: 'var(--ok, #16a34a)' }}>Đã xử lý</span>
                   ) : (
                     <span style={{ color: 'var(--err, #dc2626)' }} title={row.rejectionReason ?? ''}>Bị từ chối</span>
                   )}</td>
@@ -129,7 +129,7 @@ export function OpsAccountantTab() {
                             else setApprovingInPerson(row);
                           }}
                         >
-                          <Check size={13} /> Duyệt
+                          <Check size={13} /> Xác nhận
                         </button>
                         <button
                           type="button"
@@ -189,7 +189,7 @@ export function OpsAccountantTab() {
                           message: error instanceof Error ? error.message : 'Duyệt phiếu thất bại.',
                         }))}
                     >
-                      <Check size={13} /> Duyệt phiếu
+                      <Check size={13} /> Chốt phiếu
                     </button>
                     <button
                       type="button"
@@ -256,7 +256,7 @@ export function OpsAccountantTab() {
       )}
 
       {approvingInPerson && (
-        <OpsModalBackdrop onClose={() => setApprovingInPerson(null)} ariaLabel="Duyệt không ảnh biên lai">
+        <OpsModalBackdrop onClose={() => setApprovingInPerson(null)} ariaLabel="Xác nhận không ảnh biên lai">
           <form
             className="ops-modal"
             onSubmit={(event) => {
@@ -272,12 +272,12 @@ export function OpsAccountantTab() {
             }}
           >
             <header className="ops-modal__head">
-              <h2>Duyệt không ảnh biên lai · {approvingInPerson.shipmentCode ?? approvingInPerson.id}</h2>
+              <h2>Xác nhận không ảnh biên lai · {approvingInPerson.shipmentCode ?? approvingInPerson.id}</h2>
               <button type="button" aria-label="Đóng" onClick={() => setApprovingInPerson(null)}>✕</button>
             </header>
             <div className="ops-modal__body">
               <p className="ops-inperson-note">
-                Khoản chi này chưa có ảnh biên lai. Chỉ duyệt được sau khi kế toán kiểm chứng
+                Khoản chi này chưa có ảnh biên lai. Chỉ xác nhận được sau khi kế toán kiểm chứng
                 chứng từ giấy tận tay — ghi chú kiểm chứng là bắt buộc và được lưu vào nhật ký.
               </p>
               <label className="ops-form-note">
@@ -295,7 +295,7 @@ export function OpsAccountantTab() {
               <div />
               <div className="ops-modal__actions">
                 <button type="button" className="btn-secondary" onClick={() => setApprovingInPerson(null)}>Đóng</button>
-                <button type="submit" className="btn-primary" disabled={!inPersonNote.trim()}>Duyệt</button>
+                <button type="submit" className="btn-primary" disabled={!inPersonNote.trim()}>Xác nhận</button>
               </div>
             </footer>
           </form>

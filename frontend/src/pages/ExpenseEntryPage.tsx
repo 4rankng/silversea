@@ -353,7 +353,7 @@ export default function ExpenseEntryPage() {
       return;
     }
     if (!governanceReason.trim()) {
-      setErrors(prev => ({ ...prev, governanceReason: 'Vui lòng nhập lý do để gửi kiểm tra và phê duyệt' }));
+      setErrors(prev => ({ ...prev, governanceReason: 'Vui lòng nhập lý do chi phí' }));
       setTimeout(() => document.getElementById('governanceReason')?.focus(), 0);
       return;
     }
@@ -685,8 +685,8 @@ export default function ExpenseEntryPage() {
                 )}
                 <p className="expense-hint">
                   {existingExpense?.paymentStatus === 'PAID'
-                    ? 'Đây là phiếu đã quyết toán. Thay đổi tài chính sẽ tạo bản thay thế sau phê duyệt; phiếu gốc và chứng từ lịch sử được giữ nguyên.'
-                    : 'Khoản chi và công nợ chỉ được ghi nhận sau khi một người kiểm tra và một người khác phê duyệt.'}
+                    ? 'Đây là phiếu đã quyết toán. Thay đổi sẽ cập nhật trực tiếp; phiếu gốc và chứng từ lịch sử được giữ nguyên.'
+                    : 'Khoản chi và công nợ được ghi nhận trực tiếp vào sổ kế toán.'}
                 </p>
               </div>
                 </div>

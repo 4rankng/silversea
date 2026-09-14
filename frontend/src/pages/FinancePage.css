@@ -470,7 +470,7 @@
 
 /* Chart panel header */
 .finance-chart-title {
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--ink-2);
   margin-bottom: 12px;

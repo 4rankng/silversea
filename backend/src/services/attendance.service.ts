@@ -9,6 +9,21 @@ import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.s
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type DbLike = Tx | typeof db;
 
+/** Convert a Date to a YYYY-MM-DD string in the Asia/Ho_Chi_Minh business timezone. */
+function toBusinessDate(value: Date | null | undefined): string | null {
+  if (!value) return null;
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(value);
+  const year = parts.find((part) => part.type === 'year')?.value;
+  const month = parts.find((part) => part.type === 'month')?.value;
+  const day = parts.find((part) => part.type === 'day')?.value;
+  return year && month && day ? `${year}-${month}-${day}` : null;
+}
+
 async function lockDriverWorkDay(tx: Tx, driverId: number, date: string): Promise<void> {
   await lockApplicationOwnedUniqueness(tx, 'driver-work-day', [driverId, date]);
 }
@@ -221,7 +236,7 @@ export async function syncTripWorkDays(
   const execute = async (tx: Tx) => {
     for (const date of dates) {
       await lockDriverWorkDay(tx, driverId, date);
-      const [existing] = await tx.select({ id: s.driverWorkDays.id })
+      const [existing] = await tx.select({ id: s.driverWorkDays.id, existingTripId: s.driverWorkDays.tripId })
         .from(s.driverWorkDays)
         .where(and(
           eq(s.driverWorkDays.driverId, driverId),
@@ -230,6 +245,12 @@ export async function syncTripWorkDays(
         .limit(1);
 
       if (existing) {
+        // Contribution-aware: preserve existing trip attribution if another
+        // trip already owns this day.  Only overwrite when the record has no
+        // trip link (manual entry) or already points to the same trip.
+        if (existing.existingTripId != null && existing.existingTripId !== tripId) {
+          continue;
+        }
         await tx.update(s.driverWorkDays)
           .set({
             status: 'TRIP_DAY',
@@ -254,18 +275,71 @@ export async function syncTripWorkDays(
 
 /**
  * Remove TRIP_DAY records for a canceled trip.
+ * Contribution-aware: if another active trip also covers the same day,
+ * reassign the tripId instead of deleting.  Only deletes when no other
+ * trip contributes.
  */
 export async function removeTripWorkDays(
   driverId: number,
   tripId: number,
   executor: DbLike = db,
 ) {
-  await executor.delete(s.driverWorkDays)
-    .where(and(
-      eq(s.driverWorkDays.driverId, driverId),
-      eq(s.driverWorkDays.tripId, tripId),
-      eq(s.driverWorkDays.status, 'TRIP_DAY'),
-    ));
+  const execute = async (tx: Tx) => {
+    // Find all work day records currently attributed to this trip
+    const affectedDays = await tx.select({
+      id: s.driverWorkDays.id,
+      date: s.driverWorkDays.date,
+    })
+      .from(s.driverWorkDays)
+      .where(and(
+        eq(s.driverWorkDays.driverId, driverId),
+        eq(s.driverWorkDays.tripId, tripId),
+        eq(s.driverWorkDays.status, 'TRIP_DAY'),
+      ));
+
+    if (affectedDays.length === 0) return;
+
+    // Find other active trips for this driver whose date range may overlap
+    const otherTrips = await tx.select({
+      id: s.trips.id,
+      departureDate: s.trips.departureDate,
+      completedAt: s.trips.completedAt,
+    })
+      .from(s.trips)
+      .where(and(
+        eq(s.trips.driverId, driverId),
+        ne(s.trips.id, tripId),
+        ne(s.trips.status, 'CANCELED'),
+        isNull(s.trips.deletedAt),
+      ));
+
+    for (const day of affectedDays) {
+      // Check if another trip's date range covers this day.
+      // A trip covers a date when departureDate <= date <= end, where end is
+      // the completedAt business-date (if completed) or departureDate itself
+      // (single-day trip / still in transit with unknown end).
+      const coveringTrip = otherTrips.find((other) => {
+        const otherStart = other.departureDate;
+        const otherEnd = toBusinessDate(other.completedAt) ?? other.departureDate;
+        return day.date >= otherStart && day.date <= otherEnd;
+      });
+
+      if (coveringTrip) {
+        await tx.update(s.driverWorkDays)
+          .set({ tripId: coveringTrip.id, updatedAt: new Date() })
+          .where(eq(s.driverWorkDays.id, day.id));
+      } else {
+        await tx.delete(s.driverWorkDays)
+          .where(eq(s.driverWorkDays.id, day.id));
+      }
+    }
+  };
+
+  if (executor === db) {
+    await db.transaction(execute);
+    return;
+  }
+  await execute(executor as Tx);
 }
 
 /**

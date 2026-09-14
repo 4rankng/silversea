@@ -1,7 +1,9 @@
-import { useMemo, useState } from 'react';
-import { Loader2, X } from 'lucide-react';
-import { useOpsExpenseTypes, useUpdateOpsExpense } from '../../hooks/useOpsQueries';
-import type { OpsExpenseRow } from '../../api/opsClient';
+import { useMemo, useRef, useState } from 'react';
+import { Camera, Loader2, X } from 'lucide-react';
+import { useOpsExpenseTypes, useUpdateOpsExpense, useAttachOpsExpensePhoto, useOpsExpensePhotos } from '../../hooks/useOpsQueries';
+import { opsClient, type OpsExpenseRow } from '../../api/opsClient';
+import { compressImageFile } from '../../lib/imageCompression';
+import { getAuthenticatedPhotoUrl } from '../../lib/api';
 import { useToast } from '../../components/shared/Toast';
 import { formatVnd } from './opsStatus';
 import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
@@ -18,10 +20,16 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
   const updateExpense = useUpdateOpsExpense();
   const { toast } = useToast();
 
+  const attachPhoto = useAttachOpsExpensePhoto();
+  const { data: existingPhotosData } = useOpsExpensePhotos(entry.id);
+
   const [typeCode, setTypeCode] = useState(entry.expenseTypeCode);
   const [amount, setAmount] = useState(entry.amount);
   const [paidAt, setPaidAt] = useState(entry.paidAt);
   const [note, setNote] = useState(entry.note ?? '');
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [newPhotos, setNewPhotos] = useState<Array<{ storageKey: string; name: string }>>([]);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const groupedTypes = useMemo(() => {
     const items = typesData?.items ?? [];
@@ -53,6 +61,29 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
   const amountDigits = amountClean.replace(/-/g, '');
   const amountError = isNegative ? 'Số tiền phải là số dương' : null;
   const canSubmit = Boolean(typeCode) && /^\d+$/.test(amountDigits) && Number(amountDigits) > 0 && !isNegative && !updateExpense.isPending;
+
+  // Server-side photo count via readback (reactively updates through cache
+  // invalidation from useAttachOpsExpensePhoto → useOpsExpensePhotos).
+  const serverPhotoCount = existingPhotosData?.items.length ?? 0;
+  const missingReceipt = !entry.hasPhoto && serverPhotoCount === 0;
+
+  async function handlePhotoUpload(fileList: FileList | null) {
+    if (!fileList || fileList.length === 0) return;
+    setUploadingPhoto(true);
+    try {
+      for (const file of Array.from(fileList)) {
+        const compressed = await compressImageFile(file, { maxDimension: 2048 });
+        const uploaded = await opsClient.uploadExpensePhoto(compressed);
+        await attachPhoto.mutateAsync({ expenseId: entry.id, storageKey: uploaded.storageKey });
+        setNewPhotos((current) => [...current, { storageKey: uploaded.storageKey, name: file.name }]);
+      }
+    } catch (error) {
+      toast({ kind: 'error', message: error instanceof Error ? error.message : 'Tải ảnh thất bại.' });
+    } finally {
+      setUploadingPhoto(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  }
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -108,6 +139,42 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
             Ghi chú
             <textarea value={note} onChange={(event) => setNote(event.target.value)} rows={2} />
           </label>
+
+          <div className="ops-form-photos">
+            <div className="ops-form-photos__head">
+              <span>
+                Ảnh biên lai ({serverPhotoCount + newPhotos.length})
+                {missingReceipt && <span className="ops-doc-state is-debt" style={{ marginLeft: 8 }}>Nợ chứng từ</span>}
+              </span>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => fileRef.current?.click()}
+                disabled={uploadingPhoto || attachPhoto.isPending}
+              >
+                {uploadingPhoto ? <Loader2 size={14} className="spin" /> : <Camera size={14} />}
+                {uploadingPhoto ? 'Đang tải…' : 'Thêm ảnh'}
+              </button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                multiple
+                hidden
+                onChange={(event) => void handlePhotoUpload(event.target.files)}
+              />
+            </div>
+            {newPhotos.length > 0 && (
+              <ul className="ops-form-photos__list">
+                {newPhotos.map((photo) => (
+                  <li key={photo.storageKey}>
+                    <img src={getAuthenticatedPhotoUrl(`/api/photos/${encodeURIComponent(photo.storageKey)}`)} alt={photo.name} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
         <footer className="ops-modal__foot">
           <div>{entry.rejectionReason ? `Lý do bị từ chối: ${entry.rejectionReason}` : ''}</div>

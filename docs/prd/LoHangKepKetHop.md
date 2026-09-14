@@ -1,184 +1,131 @@
 # Lô Hàng Kẹp & Lô Hàng Kết Hợp
 
 **Dự án:** TTransport — Silver Sea
-**Nguồn:** `2026.9.6_Logic_nghiep_vu.docx` — Phần 2
-**Liên quan:** [`QuyTrinhO2C.md`](QuyTrinhO2C.md) §2b (phân loại chuyến), [`ManHinhLaiXe.md`](ManHinhLaiXe.md)
 
----
+**Nguồn nghiệp vụ:** `2026.9.6_Logic_nghiep_vu.docx` — Phần 2 và yêu cầu ghép hai container 20FT.
 
-> ## ⚠️ Thay đổi định nghĩa — 2026-09-06
->
-> Tài liệu `2026.9.6_Logic_nghiep_vu.docx` **định nghĩa lại** hai khái niệm Kẹp
-> và Kết hợp so với bản PRD trước đó. Định nghĩa mới là **bản có hiệu lực**.
->
-> | Khái niệm | Định nghĩa CŨ (đã thay thế) | Định nghĩa MỚI (hiệu lực) |
-> |-----------|------------------------------|---------------------------|
-> | **Kẹp** | 2 chuyến khép kín, cùng xe + cùng tài xế, **nối tiếp** nhau | **2 container 20ft trên cùng 1 mooc, chạy đồng thời** |
-> | **Kết hợp** | Nhiều cont gộp 1 xe, chạy **đồng thời** | **Tái sử dụng vỏ cont: trả hàng xong giữ vỏ đi đóng lô kế tiếp — nối tiếp** |
->
-> Hai định nghĩa đã **hoán đổi bản chất thời gian** (đồng thời ↔ nối tiếp).
-> Mọi acceptance criteria viết theo bản cũ phải được rà lại — xem danh sách AC
-> bị ảnh hưởng ở cuối tài liệu này.
+**Liên quan:** [Tổng quan PRD](README.md), [Quy trình O2C](QuyTrinhO2C.md), [Màn hình lái xe](ManHinhLaiXe.md).
 
----
+Điều vận cần ghép các công việc phù hợp để tận dụng xe, moóc và hành trình. Lái xe cần hiểu hai công việc chạy đồng thời hay nối tiếp. CUS và Kế toán cần giữ đúng lô hàng, chứng từ, doanh thu và chi phí của từng công việc khi ghép.
 
 ## 1. Định Nghĩa Nghiệp Vụ
 
-### 1.1 Hàng Kẹp (Cont kẹp) — đồng thời
+### 1.1 KẸP — Hai Container 20FT Chạy Đồng Thời
 
-Ghép **2 container 20ft** lên **cùng 1 xe mooc** để chạy **cùng một lúc**.
-Thường là 1 cont có hàng + 1 cont rỗng kéo đi/về.
+Ghép **hai container 20FT** lên cùng một moóc có khả năng chở hai vị trí 20FT, dùng chung đầu kéo và tài xế, vận chuyển đồng thời. Trường hợp thường gặp là một container có hàng và một container rỗng.
 
-```mermaid
-flowchart LR
-  A[Cảng nâng] -- "1 xe · 1 mooc<br/>20ft có hàng + 20ft rỗng<br/>chạy CÙNG LÚC" --> B[Nhà máy / Cảng hạ]
-```
+- Moóc 40FT phù hợp có thể chở hai container 20FT; loại moóc 40FT không phải lý do từ chối cặp.
+- Container 40FT không được làm thành viên của cặp hai container 20FT này.
+- **Tổng trọng lượng hàng của cả hai container** phải phù hợp với năng lực của tổ hợp đầu kéo/moóc. Từng container đủ tải riêng chưa có nghĩa cả cặp đủ tải.
+- Thông tin hàng, tiến độ và bằng chứng của từng container vẫn được theo dõi riêng.
 
-- Hai container **cùng lên đường tại cùng một thời điểm**.
-- Ràng buộc vật lý: 2 × 20ft trên một mooc (không áp dụng cho 40ft).
+### 1.2 KẾT HỢP — Tái Dùng Vỏ, Thực Hiện Nối Tiếp
 
-### 1.2 Hàng Kết Hợp — nối tiếp
+Xe đưa container đến trả hàng Lệnh 1, giữ lại vỏ để đi đóng hàng Lệnh 2 thay vì chạy rỗng về bãi. Hai lệnh dùng chung đầu kéo, moóc và tài xế nhưng thực hiện nối tiếp.
 
-**Tái sử dụng vỏ container.** Xe chở cont đến trả hàng xong, **không** kéo vỏ rỗng
-về bãi mà giữ lại vỏ đó để tiếp tục đi đóng hàng cho một lô khác — tiết kiệm được
-1 cuốc xe chở rỗng.
+**Cảng nâng → trả hàng tại Nhà máy 1 → giữ vỏ → đóng hàng tại Nhà máy 2 → Cảng hạ.**
 
-```mermaid
-flowchart LR
-  A[Cảng nâng] -- "Lệnh 1 · cont có hàng" --> B[Nhà máy KH 1]
-  B -- "GIỮ VỎ · không về bãi" --> C[Nhà máy KH 2]
-  C -- "Lệnh 2 · đóng hàng bằng vỏ cũ" --> D[Cảng hạ]
-```
+Chỉ được bắt đầu đóng hàng Lệnh 2 sau khi hoàn thành phần trả hàng Lệnh 1. Tiết kiệm hành trình rỗng không làm gộp chứng từ hoặc doanh thu của hai công việc.
 
-- Hai lệnh **nối tiếp nhau về thời gian**: hoàn thành trả hàng Lệnh 1 rồi mới bắt đầu đóng hàng Lệnh 2.
-- Điểm tiết kiệm: bỏ được cuốc chạy rỗng về bãi.
+## 2. Lô Hàng Và Quan Hệ Ghép
 
----
+Một **lô hàng nguồn có thể gồm nhiều container**. Mỗi công việc vận chuyển có phân công, lịch, tiến độ và bằng chứng riêng, đồng thời vẫn thuộc đúng lô hàng nguồn.
 
-## 2. Nguyên Tắc Cốt Lõi: "1 Cont = 1 Lệnh (Shipment)"
+| Nội dung | Yêu cầu nghiệp vụ |
+|----------|------------------|
+| Lô hàng nguồn | Giữ đúng khách hàng, chứng từ và các container/công việc thuộc lô |
+| Công việc vận chuyển | Nhận diện rõ container, lịch, phân công và kết quả thực hiện riêng |
+| Cặp ghép | Nhận diện thống nhất hai công việc được ghép, loại ghép và xe/moóc/tài xế dùng chung |
 
-Dù Kẹp hay Kết hợp, cả hai đều chung một bản chất quản lý:
+Mỗi cặp chỉ có **một quan hệ ghép thống nhất** trên các màn hình. Điều vận, CUS, lái xe và Ops phải cùng thấy đúng hai công việc, loại ghép và phân công đang có hiệu lực. Cùng biển số, cùng ngày hoặc ghi chú “KẸP” không tự làm hai công việc trở thành một cặp.
 
-| Chiều dữ liệu | Quy tắc |
-|---------------|---------|
-| **Chứng từ / Doanh thu / Công nợ** | Mỗi container vẫn là **một lệnh riêng biệt** với khách hàng |
-| **Chuyến đi vật lý** | Cả hai lệnh **dùng chung 1 xe vật lý** — cùng 1 tài xế, cùng 1 đầu kéo |
+Không ép tách một lô nhiều container thành nhiều lô chỉ để ghép, cũng không gộp hai lô vì chạy cùng xe. Doanh thu và chứng từ tiếp tục thuộc đúng lô/container ban đầu.
 
-**Yêu cầu Database:** giữ bảng `Shipment` (lệnh cont) **độc lập**, bổ sung **mã ghép
-chuyến** (`Group_Tag`) để móc nối các cont này lại với nhau.
+Công việc LCL được nhận diện và theo dõi riêng mà không cần container. Không tạo container giả để đưa LCL vào quy tắc ghép hai container 20FT.
 
-**Mô hình triển khai (khớp hệ thống hiện tại):** 2 trips được liên kết thành **1 cặp
-ghép** mang `pair_kind = KEP | KET_HOP` — xem [`QuyTrinhO2C.md`](QuyTrinhO2C.md) §2b.
-Cặp ghép chính là hiện thực của `Group_Tag`: nó đóng đúng vai trò "móc nối" mà đặc tả
-yêu cầu, đồng thời giữ được mốc tiến độ riêng cho từng lệnh (bắt buộc với hàng Kết hợp,
-nơi Lệnh 2 phải khoá đến khi Lệnh 1 xong).
+## 3. Phân Xe Và Quản Lý Cặp
 
-Không gộp 2 cont thành 1 shipment. Không để 2 trip chạy chung xe mà **không** liên kết cặp.
+### 3.1 Tạo Cặp
 
----
+Người làm Điều vận có quyền phân xe chọn hai công việc phù hợp, chọn loại ghép và đầu kéo, moóc, tài xế dùng chung. Hai công việc phải cùng ngày vận hành; tuyến, giờ và điểm làm hàng phải phù hợp với cách ghép.
 
-## 3. Tác Động Luồng Điều Vận & Giao Diện
+- Với **KẸP**, đúng hai công việc trong cặp được vận chuyển đồng thời trên cùng tổ hợp xe.
+- Với **KẾT HỢP**, lịch phải đáp ứng thứ tự trả hàng rồi đóng hàng.
+- Mỗi công việc chỉ thuộc một cặp đang có hiệu lực. Không thêm container thứ ba vào ngoại lệ dùng chung của cặp hai container.
+- Chỉ ghép công việc còn cho phép thay đổi phân công; không bỏ qua quyền thao tác hoặc ràng buộc xe, moóc và tài xế đang bận.
 
-### 3.1 Tính năng Ghép chuyến (màn Điều vận)
+Sau khi lưu thành công, cả hai công việc cùng có phân công và quan hệ ghép đúng. Nếu không thể lưu đủ cả cặp, thông báo rõ lý do và không để lại một nửa phân công khiến người dùng hiểu nhầm đã ghép xong.
 
-- Cho phép Điều vận chọn **2 lệnh cont riêng biệt** và gán chung cho **1 biển số xe / 1 tài xế** trong **cùng 1 ngày**.
-- Kết quả: 2 shipment cùng `Trip_ID` / `Group_Tag`.
+### 3.2 Dùng Chung Xe, Moóc Và Tài Xế
 
-### 3.2 Gắn Tag trên UI
+Cặp KẸP hợp lệ không được tự chặn công việc thứ hai vì xe đang phục vụ công việc thứ nhất trong chính cặp đó. Công việc khác ngoài cặp vẫn phải bị chặn nếu gây trùng lịch hoặc vượt năng lực.
 
-- Khi hệ thống phát hiện 2 lệnh cont có chung `Trip_ID`, Frontend **tự động render** Tag `[KẸP]` hoặc `[KẾT HỢP]` nổi bật cạnh số container.
-- Tag là dữ liệu **suy ra từ nhóm chuyến**, không phải trường nhập tay.
+Khi hai người cùng phân xe, hệ thống không được xác nhận thành công cho các phân công mâu thuẫn. Người không thể hoàn tất phải thấy xe/moóc/tài xế nào đã được sử dụng và có thể chọn lại phương án phù hợp.
 
-**Hiện trạng (2026-09-09):** tag đã render trên: bảng điều vận chi tiết
-(`DetailedPlanGrid`), **mới:** Chi tiết lô (CUS) cạnh số container trong mục
-Containers — dữ liệu từ `trip_pairs` qua detail API (`decorateContainersWithPairKind`,
-commit `90a17e65`, test: `pair-ket-hop-gating.test.ts` + `ShipmentDetailPage.test.tsx`).
-Tag suy ra từ cặp ACTIVE — hủy cặp ⇒ tag biến mất (TC-GHEP-012). App lái xe:
-xem [`ManHinhLaiXe.md`](ManHinhLaiXe.md) §2.
+### 3.3 Sửa, Hủy Và Phân Lại
 
-### 3.3 App Lái xe
+- Người có quyền được sửa hoặc bỏ ghép trực tiếp trong phạm vi trạng thái công việc cho phép; không có bước phê duyệt nội bộ.
+- Khi đổi hoặc bỏ một thành viên, cập nhật quan hệ ghép, lịch sử dụng xe/moóc/tài xế, chi phí và lương của phần còn lại. Cặp đã bỏ không còn cho phép chồng lịch.
+- Nếu người khác đã đổi phân công trong lúc màn hình đang mở, giữ nội dung đang nhập để đối chiếu và giải thích thay đổi trước khi người dùng tiếp tục. Không âm thầm ghi đè lựa chọn mới của người khác.
+- Sau khi lưu, mở lại công việc hoặc xem từ vai trò liên quan phải thấy phân công mới mà không cần tải lại toàn bộ ứng dụng.
+- Bấm lưu nhiều lần hoặc thử lại sau gián đoạn không tạo thêm cặp, phân công, chi phí hay lương trùng lặp.
+- Có thể xem lại cặp trước đây, người thay đổi và thời điểm thay đổi để giải thích lịch sử vận hành.
 
-- Hiển thị **song song 2 lệnh** nhưng **dính liền kề nhau**, để tài xế hiểu đây là một "combo" phải chạy cùng nhau.
-- Riêng **hàng Kết hợp**: luồng trạng thái phải **nối tiếp** — *hoàn thành trả hàng Lệnh 1* ⇒ mới mở được *bắt đầu đóng hàng Lệnh 2*.
-- Chi tiết UI: xem [`ManHinhLaiXe.md`](ManHinhLaiXe.md) §2.
+Mọi thao tác cần Internet. Khi chưa thể xác định đã lưu hay chưa, trạng thái phải nói rõ và làm rõ kết quả trước khi người dùng thử lại. Không cho làm việc ngoại tuyến hoặc tự gửi lại khi có mạng.
 
----
+## 4. Hiển Thị Cho Điều Vận, CUS Và Lái Xe
 
-## 4. Thuật Toán Chi Phí & Kế Toán (Backend)
+Nhãn **KẸP/KẾT HỢP** nằm cạnh đúng công việc/container và phản ánh cặp đang có hiệu lực. Khi bỏ ghép, bỏ nhãn hoạt động nhưng vẫn xem được lịch sử.
 
-Khi xử lý chuyến có mã ghép Kẹp/Kết hợp, backend **bắt buộc** chạy thuật toán
-**chống nhân đôi chi phí ảo**.
+Trên app lái xe, hai thẻ đứng liền kề, có dấu hiệu cùng cặp. Mỗi thẻ vẫn thể hiện container, loại, lịch và thao tác riêng. KẸP thể hiện chạy đồng thời; KẾT HỢP thể hiện phần trước/phần sau cùng lý do chưa thể bắt đầu phần sau. Xem [Màn hình lái xe](ManHinhLaiXe.md).
 
-### 4.1 Chi phí đường bộ (Tolls / VETC)
+Ở Điều vận, từng công việc giữ thông tin cảng nâng/hạ đúng chiều nhập/xuất. Dấu hiệu dùng chung xe không che số container, loại hoặc trạng thái của từng công việc.
 
-Xe chạy khép kín trên **cùng 1 hành trình** ⇒ tiền trạm thu phí chỉ được ghi nhận
-**1 lần duy nhất cho toàn bộ Trip**.
+Trên điện thoại, máy tính bảng và máy tính, người dùng phải đọc nhanh được cặp và hành động cần làm. Trình bày xe/moóc/tài xế dùng chung gọn một lần khi phù hợp; tránh thẻ lồng nhau, khoảng trống lớn hoặc nhân đôi khối thông tin. Số container, biển số và loại container phải đọc nguyên cụm. Nút dễ chạm, có nhãn rõ và dùng được bằng bàn phím.
 
-> ❌ Sai: `định mức VETC × 2 cont`
-> ✅ Đúng: `định mức VETC × 1 Trip`
+## 5. Chi Phí, Lương Và Doanh Thu
 
-**Hiện trạng (2026-09-09):** ĐÃ SHIP — trip 2 của cặp mang `toll_deduction` = định mức
-(khử về 0), tổng cặp = định mức × 1 (`trip-pairs.service.ts` `backhaulTollDeductionForSecond`,
-áp dụng lại khi recalc ở `trip-figure-updates.service.ts`; test `o01-trip-pairs.routes.test.ts`
-"pairing nets the second trip VETC toll out"). Hủy cặp ⇒ khôi phục phí chuẩn cho trip còn sống.
+### 5.1 Phí Của Hành Trình Dùng Chung
 
-### 4.2 Lương tài xế (Payroll)
+Phí đường bộ/VETC của **cùng một hành trình thực tế dùng chung** chỉ ghi nhận một lần cho cặp. Không lấy phí một hành trình nhân với số container.
 
-Hệ thống **không** trả lương bằng tổng của 2 cuốc chạy đơn. Phải gọi công thức lương riêng:
+Các khoản phí thật sự khác nhau của hai chặng vẫn được ghi nhận riêng. Kế toán phải đối chiếu được tổng phí, khoản nào dùng chung và khoản nào thuộc từng công việc. Khi bỏ ghép hoặc tính lại, áp dụng cách tính phù hợp với hành trình còn lại mà không ghi thêm cùng một khoản phí.
 
-```
-Lương chuyến ghép = Lương cuốc cơ bản + Phụ phí kẹp / kết hợp
-```
+### 5.2 Lương Tài Xế
 
-Biến `Phụ phí kẹp / kết hợp` lấy từ **module cài đặt cấu hình lương**, không hard-code.
+**Lương chuyến ghép = Lương cuốc cơ bản + Phụ phí KẸP hoặc KẾT HỢP.**
 
-**Hiện trạng (2026-09-09):** ĐÃ SHIP — `app_settings` keys `salary.pair_surcharge_kep` /
-`salary.pair_surcharge_ket_hop`, đọc LIVE khi ghép + khi recalc (test o01 "second trip
-carries the configured surcharge; breaking the pair restores the standard wage"); UI
-Cài đặt → Lương (PairSalarySection). Lương cặp = trip 1 giữ cuốc cơ bản, trip 2 = phụ
-phí (stash `second_salary_stash` khôi phục giá trị chuẩn khi hủy cặp).
+Phụ phí lấy theo mức lương đã cấu hình cho loại ghép. Không trả tổng hai cuốc đơn cho một cặp được tính theo công thức ghép. Khi thay đổi hoặc bỏ ghép, tính lại theo quy tắc phù hợp và cho đối chiếu được thay đổi; không ghi lương hai lần khi người dùng thử lại.
 
-### 4.3 Các khoản giữ nguyên độc lập
+Kỳ lương đã chốt và việc điều chỉnh tiếp tục theo quy tắc lương chung. Không âm thầm thay đổi lịch sử lương hoặc tạo thêm bước phê duyệt cho chuyến ghép.
 
-Doanh thu, công nợ khách hàng, và các chi phí gắn với từng lô (nâng/hạ, vệ sinh cont,
-lưu bãi) vẫn tính **riêng cho từng shipment**.
+### 5.3 Khoản Riêng Của Từng Lô/Container
 
----
+Doanh thu, công nợ khách hàng, phí nâng/hạ, vệ sinh và lưu bãi vẫn thuộc đúng lô/container phát sinh. Cùng xe không đồng nghĩa cùng khách hàng hoặc cùng bên xuất hóa đơn. Tổng hợp không được vừa cộng tổng lô vừa cộng lại các khoản của từng container.
 
-## 5. Bảng So Sánh
+## 6. Bảng So Sánh
 
-| Tiêu chí | Đơn | **Kẹp** | **Kết hợp** |
-|----------|-----|---------|-------------|
-| Quan hệ thời gian | — | **Đồng thời** | **Nối tiếp** |
-| Loại cont điển hình | bất kỳ | 2 × 20ft trên 1 mooc | bất kỳ (tái dùng vỏ) |
-| Số shipment | 1 | 2 | 2 |
-| Số trip | 1 | 2 (cặp `pair_kind = KEP`) | 2 (cặp `pair_kind = KET_HOP`) |
-| Xe vật lý | 1 | **1 chung** | **1 chung** |
-| Vỏ container | 1 | 2 vỏ | **1 vỏ dùng lại** |
-| Cùng biển số + tài xế | — | Bắt buộc | Bắt buộc |
-| Cùng ngày | — | Bắt buộc | Bắt buộc |
-| Phí VETC / cầu đường | 1 lần | **1 lần cho cả Trip** | **1 lần cho cả Trip** |
-| Lương tài xế | lương cuốc đơn | cơ bản + phụ phí ghép | cơ bản + phụ phí ghép |
-| Doanh thu | riêng | **riêng từng shipment** | **riêng từng shipment** |
-| Ràng buộc trạng thái app | — | 2 thẻ chạy song song | **Lệnh 1 xong ⇒ mới mở Lệnh 2** |
+| Tiêu chí | Đơn | KẸP | KẾT HỢP |
+|----------|-----|-----|---------|
+| Thời gian | Một công việc | Đồng thời | Nối tiếp |
+| Container | Theo công việc | Hai container 20FT | Một vỏ tái sử dụng qua hai công việc |
+| Công việc | Theo phân công | Hai công việc trong một cặp | Hai công việc trong một cặp |
+| Lô hàng nguồn | Giữ lô ban đầu | Giữ lô ban đầu của từng công việc | Giữ lô ban đầu của từng công việc |
+| Xe/moóc/tài xế | Theo phân công | Dùng chung, đủ năng lực chở cả cặp | Dùng chung theo trình tự |
+| Lịch | Theo công việc | Cùng ngày, phù hợp vận chuyển đồng thời | Cùng ngày, trả xong rồi đóng |
+| Phí hành trình dùng chung | Một lần | Một lần | Một lần |
+| Lương | Cuốc đơn | Cơ bản + phụ phí KẸP | Cơ bản + phụ phí KẾT HỢP |
+| Bằng chứng/tiến độ | Theo công việc | Riêng từng công việc | Riêng từng công việc và đúng thứ tự |
 
----
+## 7. Tiêu Chí Nghiệm Thu
 
-## 6. Acceptance Criteria bị ảnh hưởng bởi thay đổi định nghĩa
-
-Các AC sau viết theo định nghĩa cũ và **phải được rà lại / viết lại**:
-
-| Vị trí | AC / Test case | Trạng thái |
-|--------|----------------|-----------|
-| `docs/prd/QuyTrinhO2C.md` §2b | mục (b), (c) và bảng so sánh | ✅ **Đã cập nhật** theo định nghĩa mới |
-| `testplan/roles/02-dieuvan.md` | `DISP-DP-12` | ✅ **Đã viết lại** — xem AC hiện hành |
-| `testplan/flows/02-dieuvan-dispatch.md` §2.6 | `TC-DV-DISPATCH-007`, `-008` | ⚠️ Điều kiện kẹp "thời gian không chồng lấn" — **ngược** với "đồng thời"; các case này nay mô tả **Kết hợp** |
-| `testplan/flows/02-dieuvan-dispatch.md` §2.10 | `TC-DV-DISPATCH-029`, `-030` | ⚠️ Mô tả "ghép kết hợp = đồng thời" — nay thuộc về **Kẹp** |
-| `testplan/flows/02-dieuvan-dispatch.md` §2.10 | `TC-DV-DISPATCH-031` | ⚠️ Điều kiện (khác tài xế → chặn) vẫn đúng; chỉ tên gọi bản chất phải sửa |
-
-Bộ test case viết theo **định nghĩa mới** nằm ở
-[`testplan/flows/09-kep-kethop-ghep-chuyen.md`](../../testplan/flows/09-kep-kethop-ghep-chuyen.md).
-Các case cũ trong `02-dieuvan-dispatch.md` §2.6 / §2.10 giữ nguyên làm hồ sơ lịch sử
-và được đánh dấu ⚠️ tại chỗ; khi chạy regression, dùng bộ 09 làm chuẩn.
-
-Bộ test case mới cho định nghĩa mới: [`testplan/flows/09-kep-kethop-ghep-chuyen.md`](../../testplan/flows/09-kep-kethop-ghep-chuyen.md).
+1. Ghép được hai container 20FT trên moóc 40FT phù hợp, cùng đầu kéo và tài xế. Cả hai công việc đều thể hiện đúng cặp và phân công sau khi lưu.
+2. Từ chối container 40FT trong cặp hai 20FT, container thứ ba, công việc đã thuộc cặp khác và tổng trọng lượng vượt năng lực; mỗi trường hợp có lý do dễ hiểu.
+3. KẸP hợp lệ không tự chặn công việc thứ hai vì xe bận trong chính cặp. Công việc ngoài cặp vẫn bị chặn khi trùng xe/moóc/tài xế.
+4. Hai Điều vận cùng phân xe không tạo phân công mâu thuẫn. Lưu không thành công hoặc thử lại không để lại nửa cặp hay bản ghi trùng.
+5. Sửa, bỏ ghép hoặc phân lại cập nhật đúng cả hai công việc, lịch dùng xe, nhãn, chi phí và lương; mở lại thấy kết quả mới và xem được lịch sử thay đổi.
+6. Với KẾT HỢP, chưa trả xong Lệnh 1 thì không bắt đầu đóng Lệnh 2. Quy tắc chạy đồng thời của KẸP không làm mất điều kiện này.
+7. Ghép công việc từ lô nhiều container vẫn giữ đúng nguồn, khách hàng, chứng từ, doanh thu, bằng chứng và tiến độ riêng.
+8. Một hành trình dùng chung chỉ có một khoản phí tương ứng và một lần tính lương ghép. Phí độc lập của từng chặng vẫn được giữ; bỏ ghép hoặc thử lại không làm tăng tổng sai.
+9. Điều vận, CUS, lái xe và Ops đọc được cùng quan hệ ghép trên điện thoại, máy tính bảng và máy tính; rõ số–loại container, cảng, lịch, thứ tự và xe dùng chung.
+10. Người có quyền thao tác trực tiếp khi có Internet. Mất mạng không báo thành công giả, không tự gửi lại và không tạo bước chờ phê duyệt nội bộ.

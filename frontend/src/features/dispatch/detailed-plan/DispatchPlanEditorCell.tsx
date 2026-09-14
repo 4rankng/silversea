@@ -725,19 +725,40 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
                       : { ...current, vehicleValue: value, carrierValue: OWN_CARRIER_VALUE };
                   });
                   setError(null);
-                  // Reverse lookup: when a free-text plate is entered and no
-                  // carrier is selected, resolve the carrier from the plate
-                  // (inline — dispatchPlanningClient is at its LOC ceiling).
-                  if (value.startsWith(FREE_TEXT_PREFIX) && !draft.carrierValue) {
-                    const plate = value.slice(FREE_TEXT_PREFIX.length);
-                    api.get<{ carrierId: number | null }>(`/shipments/carrier-fleet-vehicles/resolve-carrier?plate=${encodeURIComponent(plate)}`).then(({ carrierId }) => {
-                      if (carrierId) {
-                        setDraft((current) => ({
-                          ...current,
-                          carrierValue: current.carrierValue || `${EXTERNAL_CARRIER_PREFIX}${carrierId}`,
-                        }));
-                      }
-                    }).catch(() => { /* best-effort */ });
+                  // KP-047: When a free-text plate is entered, resolve the
+                  // carrier consistently — same result whether the user picks
+                  // the truck from the dropdown or types its plate. First
+                  // check the loaded vehicle options for a matching truck;
+                  // only fall back to the API call when no local match exists.
+                  if (value.startsWith(FREE_TEXT_PREFIX)) {
+                    const typedPlate = value.slice(FREE_TEXT_PREFIX.length);
+                    const typedKey = plateCompareKey(typedPlate);
+                    const matchedOption = vehicleOptions.find((option) => {
+                      if (!option.value.startsWith(OWN_TRUCK_PREFIX)) return false;
+                      return plateCompareKey(option.label.split(' — ')[0]) === typedKey;
+                    });
+                    if (matchedOption) {
+                      // Local match: promote to the truck option and set
+                      // carrier (same path as picking from the dropdown).
+                      const matchedTruckId = Number(matchedOption.value.slice(OWN_TRUCK_PREFIX.length));
+                      const matchedLink = truckCarrierLinksRef.current.get(matchedTruckId);
+                      setDraft((current) => {
+                        if (current.carrierValue) return { ...current, vehicleValue: matchedOption.value };
+                        return matchedLink
+                          ? { ...current, vehicleValue: matchedOption.value, carrierValue: `${EXTERNAL_CARRIER_PREFIX}${matchedLink.carrierId}` }
+                          : { ...current, vehicleValue: matchedOption.value, carrierValue: OWN_CARRIER_VALUE };
+                      });
+                    } else if (!draft.carrierValue) {
+                      // No local match and no carrier selected: resolve via API.
+                      api.get<{ carrierId: number | null }>(`/shipments/carrier-fleet-vehicles/resolve-carrier?plate=${encodeURIComponent(typedPlate)}`).then(({ carrierId }) => {
+                        if (carrierId) {
+                          setDraft((current) => ({
+                            ...current,
+                            carrierValue: current.carrierValue || `${EXTERNAL_CARRIER_PREFIX}${carrierId}`,
+                          }));
+                        }
+                      }).catch(() => { /* best-effort */ });
+                    }
                   }
                 }}
                 onSearchChange={setVehicleSearch}

@@ -68,13 +68,8 @@ vi.mock('../components/shared/Toast', () => ({
   useToast: () => ({ toast: vi.fn() }),
 }));
 
-vi.mock('../features/driver/useOfflineCommandQueue', () => ({
-  useOfflineCommandQueue: () => ({
-    commands: [],
-    enqueue: vi.fn(),
-    drain: vi.fn().mockResolvedValue({ done: 0, failed: 0, conflicts: 0, rejected: 0, statusById: {}, messageById: {} }),
-  }),
-  buildOfflineCommandKey: (...parts: (string | number)[]) => parts.join(':'),
+vi.mock('../lib/idempotency', () => ({
+  buildIdempotencyKey: (...parts: (string | number)[]) => parts.join(':'),
 }));
 
 vi.mock('../api/driverClient', () => ({

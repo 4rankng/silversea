@@ -146,6 +146,10 @@ export const opsClient = {
     api.get<{ items: OpsExpenseRow[] }>(`/ops/wallet/expenses${qs({ status })}`),
   createAdvanceRequest: (body: { amount: number; reason: string }) =>
     api.post<unknown>('/ops/wallet/advance-requests', body),
+  getWalletAdvanceRequests: (params?: { status?: string; page?: number; limit?: number }) =>
+    api.get<{ items: Array<{ id: number; amount: string; reason: string; status: string; createdAt: string; approverName?: string | null; approvedAt?: string | null }>; total: number; page: number; limit: number }>(
+      `/ops/wallet/advance-requests${qs({ status: params?.status, page: params?.page, limit: params?.limit })}`,
+    ),
 
   // ── Khoản chi ──
   getExpenseTypes: () =>

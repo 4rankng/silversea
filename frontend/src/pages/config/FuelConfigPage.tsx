@@ -67,10 +67,10 @@ export default function FuelConfigPage() {
     setError(null);
     setMessage(null);
     try {
-      await saveFuel.mutateAsync({
-        // Optimistic-lock token: present once a config exists (the form seeds
-        // from the same row); omitted on a genuine first configuration.
-        expectedUpdatedAt: fuelConfig?.updatedAt ?? null,
+      // Optimistic-lock token: only include when an existing config row was
+      // loaded — a genuine first configuration must not require a version
+      // token, which avoids the "missing version loop" on first save.
+      const payload: Parameters<typeof configClient.saveFuelConfig>[0] = {
         loadedNorm: Number(form.loadedNorm),
         emptyNorm: Number(form.emptyNorm),
         supplement: Number(form.supplement) || 0,
@@ -78,7 +78,11 @@ export default function FuelConfigPage() {
         baseUnitPrice: form.baseUnitPrice ? Number(form.baseUnitPrice) : null,
         warningThreshold: form.warningThreshold ? Number(form.warningThreshold) : 37,
         criticalThreshold: form.criticalThreshold ? Number(form.criticalThreshold) : 40,
-      });
+      };
+      if (fuelConfig?.updatedAt) {
+        payload.expectedUpdatedAt = fuelConfig.updatedAt;
+      }
+      await saveFuel.mutateAsync(payload);
       navigate('/config');
     } catch (e) {
       const status = (e as { status?: number }).status;
@@ -160,13 +164,17 @@ export default function FuelConfigPage() {
           </div>
         </div>
 
+        {error && (
+          <div role="alert" className="cfg-form-error" style={{ marginBottom: 8 }}>
+            {error}
+          </div>
+        )}
         <div className="cfg-form-actions">
           <button id="fuel-save-config-button" className="btn btn--primary" disabled={saving || !(Number(form.loadedNorm) > 0) || !(Number(form.emptyNorm) > 0) || !(Number(form.unitPrice) > 0)} onClick={handleSave}>
             {saving ? <Loader2 size={14} className="spin" /> : <Save size={14} />}
             Lưu cấu hình
           </button>
-          {message && <span style={{ color: 'var(--success)', fontSize: 13 }}>{message}</span>}
-          {error && <span style={{ color: 'var(--danger)', fontSize: 13 }}>{error}</span>}
+          {message && <span role="status" style={{ color: 'var(--success)', fontSize: 13 }}>{message}</span>}
         </div>
       </Panel>
       <Panel title="Lịch sử giá nhiên liệu" subtitle="Theo dõi các lần thay đổi đơn giá nhiên liệu" style={{ marginTop: 20 }}>

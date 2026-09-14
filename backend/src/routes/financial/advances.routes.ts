@@ -20,8 +20,6 @@ import {
   getOutstandingAdvanceBalances,
   adjustSettlementExpense,
   updateAdvanceSettlement,
-  requestAdvanceRequestApprovalGovernance,
-  requestAdvanceRequestRejectionGovernance,
   requestAdvanceSettlementReversal,
 } from '../../services/advance.service';
 import { ADVANCE_REQUEST_SORT_KEYS } from '../../services/advance-request.service';
@@ -54,70 +52,7 @@ router.get('/advance-requests', asyncHandler(async (req: Request, res: Response)
   res.json(await listAdvanceRequestsPaginated({ status, search, page, limit, sortBy, sortDir }));
 }));
 
-router.post('/advance-requests/:id/approve', requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
-  const id = parseInt(req.params.id as string);
-  const parsed = governanceActionDecisionSchema.safeParse(req.body);
-  if (!parsed.success) throwValidation(parsed.error);
-  const actor = getUser(req);
-  const idempotencyKey = getRequestIdempotencyKey(req);
-  const { result, replayed } = await runIdempotent({
-    endpoint: IDEMPOTENCY_ENDPOINTS.ADVANCE_REQUEST_APPROVE,
-    idempotencyKey,
-    payload: { actorId: actor.userId, id, ...parsed.data },
-    createdBy: actor.userId,
-    entityType: 'governance_action',
-    create: (tx) => autoApplyGovernanceAction({
-      make: (tx) => requestAdvanceRequestApprovalGovernance({
-      advanceRequestId: id,
-      expectedVersion: parsed.data.expectedVersion,
-      reason: parsed.data.reason,
-      makerId: actor.userId,
-      makerRole: actor.role,
-      transaction: tx,
-    }),
-      // No approve override: the default adapter routes ADVANCE_REQUEST_* kinds
-      // through applyAdvanceRequestGovernanceAction; the direct-money adapter
-      // would reject them with 409 (not in DIRECT_MONEY_ACTION_KINDS).
-      actorId: actor.userId,
-      actorRole: actor.role,
-      transaction: tx,
-    }),
-    getEntityId: () => id,
-  });
-  res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
-}));
-
-router.post('/advance-requests/:id/reject', requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
-  const id = parseInt(req.params.id as string);
-  const parsed = governanceActionDecisionSchema.safeParse(req.body);
-  if (!parsed.success) throwValidation(parsed.error);
-  const actor = getUser(req);
-  const idempotencyKey = getRequestIdempotencyKey(req);
-  const { result, replayed } = await runIdempotent({
-    endpoint: IDEMPOTENCY_ENDPOINTS.ADVANCE_REQUEST_REJECT,
-    idempotencyKey,
-    payload: { actorId: actor.userId, id, ...parsed.data },
-    createdBy: actor.userId,
-    entityType: 'governance_action',
-    create: (tx) => autoApplyGovernanceAction({
-      make: (tx) => requestAdvanceRequestRejectionGovernance({
-      advanceRequestId: id,
-      expectedVersion: parsed.data.expectedVersion,
-      reason: parsed.data.reason,
-      makerId: actor.userId,
-      makerRole: actor.role,
-      transaction: tx,
-    }),
-      // Default adapter (see approve endpoint comment) — ADVANCE_REQUEST_* is
-      // not a direct-money kind.
-      actorId: actor.userId,
-      actorRole: actor.role,
-      transaction: tx,
-    }),
-    getEntityId: () => id,
-  });
-  res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
-}));
+// KP-148: advance request approve/reject endpoints removed — requests apply immediately.
 
 // ─── Advance Balances (admin) — F1 outstanding per forwarder ──────────────────
 

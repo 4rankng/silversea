@@ -12,7 +12,9 @@
  * byte-identical and never bumps the shipment version.
  */
 
-/** Tags first as line 1, trimmed manual text after the first newline. */
+/** Tags first as line 1, manual text after the first newline. Preserves
+ *  whitespace during editing; callers should use {@link normalizeDriverTaskNote}
+ *  at explicit save time to trim. */
 export function composeDriverTaskNote(
   selectedLabels: ReadonlyArray<string>,
   manualText: string,
@@ -21,8 +23,18 @@ export function composeDriverTaskNote(
     .map((label) => label.trim())
     .filter(Boolean)
     .join('; ');
-  const text = manualText.trim();
-  return [tagLine, text].filter(Boolean).join('\n');
+  return [tagLine, manualText].filter(Boolean).join('\n');
+}
+
+/** Normalize a composed driver task note at save time: trim the manual-text
+ *  portion (line 2+) while preserving the tag line exactly. */
+export function normalizeDriverTaskNote(note: string | null | undefined): string {
+  if (!note) return '';
+  const newlineIndex = note.indexOf('\n');
+  if (newlineIndex === -1) return note.trim();
+  const head = note.slice(0, newlineIndex);
+  const tail = note.slice(newlineIndex + 1).trim();
+  return [head, tail].filter(Boolean).join('\n');
 }
 
 /**

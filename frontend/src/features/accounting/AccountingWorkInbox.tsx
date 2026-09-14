@@ -30,8 +30,8 @@ function formatTime(value: string): string {
 
 function ReadinessFacts({ item }: { item: AccountantWorkInboxItem }) {
   const facts = [
-    ['POD', item.acceptedPod ? 'Đã duyệt' : 'Còn thiếu'],
-    ['Chi phí', item.expenseApprovalPending ? 'Chờ duyệt' : 'Đã duyệt'],
+    ['POD', item.acceptedPod ? 'Đã nộp' : 'Còn thiếu'],
+    ['Chi phí', item.expenseApprovalPending ? 'Chờ xử lý' : 'Đã xử lý'],
     ['Quyết toán', item.settlementComplete ? 'Hoàn tất' : 'Chưa hoàn tất'],
     ['Lợi nhuận', item.profitabilitySnapshotReady ? 'Đã chụp' : 'Còn thiếu'],
   ];

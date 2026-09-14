@@ -1,6 +1,6 @@
 import { qk } from '../../api/keys';
 import { useQueryClient } from '@tanstack/react-query';
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle,
@@ -20,8 +20,9 @@ import {
 } from '@tingting/shared';
 import { api, ApiError } from '../../lib/api';
 import { useAuth } from '../../hooks/useAuth';
-import { buildOfflineCommandKey, useOfflineCommandQueue } from '../../features/driver/useOfflineCommandQueue';
-import { sendRoleOfflineCommand } from '../../features/offline/roleCommandSender';
+import { buildIdempotencyKey } from '../../lib/idempotency';
+import { forwarderClient } from '../../api/forwarderClient';
+
 import { withCustomerScope } from '../../pages/portal/CustomerPortalScope';
 import { RoleWorkInboxGateCell } from './RoleWorkInboxGateCell';
 import './RoleWorkInbox.css';
@@ -132,11 +133,6 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
   const responseKeys = useRef(new Map<string, string>());
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const latestLoadRequest = useRef(0);
-  const replayAttemptedIds = useRef('');
-  const { commands, enqueue, drain } = useOfflineCommandQueue({
-    maxPending: 12,
-    storageScope: role !== 'customer' && user ? `${user.role}:${user.userId}` : null,
-  });
   const endpoint = endpointFor(role, customerId, states[active], page);
 
   const queryClient = useQueryClient();
@@ -213,28 +209,6 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
   const items = data?.items ?? [];
   const stale = data ? Date.now() - new Date(data.asOf).getTime() > STALE_AFTER_MS : false;
   const panelId = `role-inbox-panel-${role}`;
-  const replayableCommandIds = useMemo(() => commands
-    .filter((command) => (command.status === 'QUEUED' || command.status === 'FAILED') && (role === 'driver' ? command.endpoint.startsWith('driver.') : role === 'operations' ? command.endpoint.startsWith('forwarder.') : false))
-    .map((command) => command.id)
-    .sort()
-    .join('|'), [commands, role]);
-
-  useEffect(() => {
-    if (!online) {
-      replayAttemptedIds.current = '';
-      return;
-    }
-    if (role === 'customer' || !replayableCommandIds || replayAttemptedIds.current === replayableCommandIds) return;
-    replayAttemptedIds.current = replayableCommandIds;
-    void drain(sendRoleOfflineCommand).then((result) => {
-      replayAttemptedIds.current = Object.entries(result.statusById)
-        .filter(([, status]) => status === 'QUEUED' || status === 'FAILED')
-        .map(([id]) => id)
-        .sort()
-        .join('|');
-      if (result.done > 0) void load();
-    });
-  }, [drain, load, online, replayableCommandIds, role]);
 
   const selectTab = (index: number) => {
     setActive(index);
@@ -254,42 +228,34 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
   };
 
   const sendOrderExchange = async (item: OperationsWorkInboxItem) => {
-    if (item.orderExchangeState === 'COMPLETED') return;
+    if (item.orderExchangeState === 'COMPLETED' || !online) return;
     const action = item.orderExchangeState === 'PENDING' ? 'start' : 'complete';
-    const idempotencyKey = buildOfflineCommandKey('forwarder', 'order-exchange', item.shipmentId, action, 'version', item.shipmentVersion);
+    const idempotencyKey = buildIdempotencyKey('forwarder', 'order-exchange', item.shipmentId, action, 'version', item.shipmentVersion);
     setRespondingItemId(item.id);
     setResponseMessage(null);
-    enqueue({
-      id: idempotencyKey,
-      endpoint: `forwarder.order-exchange.${action}`,
-      method: 'POST',
-      path: `/forwarder/me/shipments/${item.shipmentId}/order-exchange/${action}`,
-      fulfillmentScopeKey: `shipment:${item.shipmentId}`,
-      expectedVersion: item.shipmentVersion,
-      actionKind: action === 'start' ? 'ORDER_EXCHANGE_START' : 'ORDER_EXCHANGE_COMPLETE',
-      payload: { kind: `order-exchange-${action}`, shipmentId: item.shipmentId, expectedVersion: item.shipmentVersion },
-    });
-    replayAttemptedIds.current = [...new Set([...replayableCommandIds.split('|').filter(Boolean), idempotencyKey])].sort().join('|');
-    const result = await drain(sendRoleOfflineCommand);
-    const status = result.statusById[idempotencyKey];
-    if (status === 'DONE') {
+    try {
+      if (action === 'start') {
+        await forwarderClient.startOrderExchange(item.shipmentId, item.shipmentVersion, idempotencyKey);
+      } else {
+        await forwarderClient.completeOrderExchange(item.shipmentId, item.shipmentVersion, idempotencyKey);
+      }
       setResponseMessage({ kind: 'success', text: action === 'start' ? 'Máy chủ đã xác nhận bắt đầu đổi lệnh.' : 'Máy chủ đã xác nhận hoàn tất đổi lệnh.' });
-      // The exchange flips the trip detail's orderExchangeStatus — a
-      // previously visited detail page would otherwise serve its 5-minute
-      // cached pre-exchange snapshot (stale Chờ đổi lệnh + disabled handoff).
       if (action === 'complete' && item.tripId != null) {
         await queryClient.invalidateQueries({ queryKey: qk.forwarder.tripDetail(item.tripId) });
         await queryClient.invalidateQueries({ queryKey: qk.forwarder.tripsAll });
       }
       await load();
-    } else if (status === 'CONFLICT') {
-      setResponseMessage({ kind: 'conflict', text: result.messageById[idempotencyKey] ?? 'Lô hàng đã thay đổi. Bản lệnh vẫn được giữ để kiểm tra.' });
-    } else if (status === 'REJECTED') {
-      setResponseMessage({ kind: 'error', text: result.messageById[idempotencyKey] ?? 'Máy chủ từ chối lệnh. Bản lệnh vẫn được giữ để kiểm tra.' });
-    } else {
-      setResponseMessage({ kind: 'error', text: 'Đã lưu lệnh ngoại tuyến; chưa được xem là hoàn tất.' });
+    } catch (error) {
+      if (error instanceof ApiError && (error.status === 409 || error.status === 428)) {
+        setResponseMessage({ kind: 'conflict', text: error.message ?? 'Lô hàng đã thay đổi. Vui lòng tải lại.' });
+      } else if (error instanceof ApiError) {
+        setResponseMessage({ kind: 'error', text: error.message ?? 'Máy chủ từ chối lệnh.' });
+      } else {
+        setResponseMessage({ kind: 'error', text: 'Mất kết nối. Vui lòng thử lại.' });
+      }
+    } finally {
+      setRespondingItemId(null);
     }
-    setRespondingItemId(null);
   };
 
   const sendCustomerResponse = async (item: CustomerWorkInboxItem, decision: 'CONFIRMED' | 'DISPUTED') => {

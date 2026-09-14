@@ -8,12 +8,14 @@ import type { DriverTaskDetail } from '../../api/driverClient';
  * THÔNG TIN XUẤT HÓA ĐƠN block, extracted from DriverTripDetailPage.
  *
  * Field order (mobile target sketch, card _4): NGÀY GIỜ KẾ HOẠCH | NHÀ MÁY
- * (short) → TÊN NHÀ MÁY (full) → ĐỊA CHỈ NHÀ MÁY (full) → SĐT kho (always
- * visible, "—" when the site has no phone) → Container / lô hàng (booking
- * quantity idiom "1 x 20 DC") → CẢNG NÂNG | CẢNG HẠ → Trả cont rỗng (when
- * distinct) → TUYẾN (route text only) → Người liên hệ | Số điện thoại.
- * ĐẦU KÉO and RƠ MOÓC are both OFF this surface: the wire fields stay, only
- * the rows are dropped.
+ * (short) → TÊN NHÀ MÁY (full) → ĐỊA CHỈ NHÀ MÁY (full) → Số điện thoại
+ * liên hệ (contact name + phone, grouped beneath factory address) → SĐT kho
+ * (always visible, "—" when the site has no phone) → Container / lô hàng
+ * (each container number paired with its type code) → CẢNG NÂNG | CẢNG HẠ
+ * (direction-aware: IMPORT swaps Cảng hạ to the empty-container return depot)
+ * → Trả cont rỗng / Địa chỉ giao hàng (when distinct) → TUYẾN (route text
+ * only). ĐẦU KÉO and RƠ MOÓC are both OFF this surface: the wire fields
+ * stay, only the rows are dropped.
  */
 function TaskFact({ icon, label, value, fullWidth }: { icon: React.ReactNode; label: string; value: React.ReactNode; fullWidth?: boolean }) {
   return (
@@ -73,25 +75,45 @@ export function DriverTaskInfoSections({ trip }: { trip: DriverTaskDetail }) {
   const [invoiceOpen, setInvoiceOpen] = useState(true);
   const fulfillment = trip.fulfillment ?? null;
   const pickupPoint = fulfillment?.pickupPortName ?? fulfillment?.pickupWarehouseName ?? fulfillment?.lclWarehouseName ?? '—';
-  // The delivery point mirrors the pickup coalesce: prefer the port name,
-  // fall back to warehouse, then dash — matching the pickup-side idiom.
-  const dropPoint = fulfillment?.dropPortName ?? fulfillment?.dropWarehouseName ?? '—';
-  // Spec A4: container number, type and seal share one line (same idiom as
-  // the journey-board card). Quantity format follows the booking idiom
-  // ("1 x 20 DC"): counts per container type, joined with "+".
+
+  // KP-063: direction-aware destination mapping. For IMPORT the required
+  // Cảng hạ is the empty-container return depot (where the driver returns
+  // the empty container); for EXPORT it is the conventional drop port.
+  const rawDropPoint = fulfillment?.dropPortName ?? fulfillment?.dropWarehouseName ?? '—';
+  const isImport = trip.tradeDirection === 'IMPORT';
+  const cangHa = isImport
+    ? (fulfillment?.returnDepotName ?? rawDropPoint)
+    : rawDropPoint;
+
+  // For IMPORT: when the actual delivery location differs from the return
+  // depot, render it as its own "Địa chỉ giao hàng" row so the driver can
+  // see both the delivery site and the return depot.
+  // For EXPORT: show the empty-container return depot when it differs from
+  // the drop point (existing behaviour).
+  const showDeliveryLocationRow = isImport && fulfillment?.returnDepotName && rawDropPoint !== '—' && rawDropPoint !== fulfillment.returnDepotName;
+  const showReturnDepotRow = !isImport && fulfillment?.returnDepotName && fulfillment.returnDepotName !== cangHa;
+
+  // KP-191: each container number paired with its own type code
+  // (e.g. "MNBU12345543 · 40DC"). Seals render on their own row below.
   const containerLine = trip.containers.length > 0
-    ? [
-        trip.containers.map((container) => container.containerNumber).filter(Boolean).join(' · '),
-        Array.from(trip.containers.reduce((counts, container) => {
-          const code = container.containerTypeCode || container.containerTypeName;
-          if (code) counts.set(code, (counts.get(code) ?? 0) + 1);
-          return counts;
-        }, new Map<string, number>())).map(([code, count]) => `${count} x ${code}`).join(' + '),
-        trip.containers.map((container) => container.sealNumber ? `Seal ${container.sealNumber}` : null).filter(Boolean).join(' · ') || null,
-      ].filter(Boolean).join(' · ') || '—'
+    ? trip.containers
+        .map((c) => [c.containerNumber, c.containerTypeCode || c.containerTypeName].filter(Boolean).join(' · '))
+        .filter(Boolean)
+        .join(' · ') || '—'
     : valueOrDash(fulfillment?.modeLabel ?? trip.cargoTypeName);
+  const sealLine = trip.containers.length > 0
+    ? trip.containers.map((c) => c.sealNumber ? `Seal ${c.sealNumber}` : null).filter(Boolean).join(' · ') || null
+    : null;
+
+  // KP-010: contact name and callable phone grouped together beneath the
+  // factory address, labeled "Số điện thoại liên hệ".
   const contactName = fulfillment?.contactName ?? trip.instructions?.contactName ?? null;
   const contactPhone = fulfillment?.contactPhone ?? trip.instructions?.contactPhone ?? null;
+  const contactFieldValue = contactName && contactPhone
+    ? <>{contactName} · <a href={`tel:${contactPhone}`} className="driver-task-link">{contactPhone}</a></>
+    : contactPhone
+      ? <a href={`tel:${contactPhone}`} className="driver-task-link">{contactPhone}</a>
+      : contactName || '—';
 
   const invoiceInfo = fulfillment?.invoiceInfo ?? null;
 
@@ -128,7 +150,16 @@ export function DriverTaskInfoSections({ trip }: { trip: DriverTaskDetail }) {
           {/* Factory site street address in its own row — the Tuyến row
               below stays route text only. */}
           <TaskFact icon={<MapPinned size={16} />} label="Địa chỉ nhà máy" value={valueOrDash(fulfillment?.factoryAddress)} fullWidth />
-          {/* SĐT liên hệ sits directly under the factory address (sketch row 4). */}
+          {/* KP-010: contact name + callable phone grouped together
+              beneath the factory address. */}
+          <TaskFact
+            icon={<Phone size={16} />}
+            label="Số điện thoại liên hệ"
+            value={contactFieldValue}
+            fullWidth
+          />
+          {/* Warehouse direct phone — always visible, "—" when the site
+              has no phone. */}
           <TaskFact
             icon={<Phone size={16} />}
             label="SĐT liên hệ"
@@ -136,14 +167,23 @@ export function DriverTaskInfoSections({ trip }: { trip: DriverTaskDetail }) {
               ? <a href={`tel:${fulfillment.khoPhone}`} className="driver-task-link">{fulfillment.khoPhone}</a>
               : '—'}
           />
+          {/* KP-191: each container number paired with its own type code. */}
           <TaskFact icon={<Package2 size={16} />} label="Container / lô hàng" value={containerLine} fullWidth />
+          {sealLine ? (
+            <TaskFact icon={<Package2 size={16} />} label="Seal" value={sealLine} fullWidth />
+          ) : null}
           <TaskFact icon={<MapPinned size={16} />} label="Cảng nâng" value={pickupPoint} />
-          <TaskFact icon={<MapPinned size={16} />} label="Cảng hạ" value={dropPoint} />
-          {/* Stage-2 empty-container return depot — its own labeled row only
-              when the dropoff port names a DIFFERENT place than the delivery
-              point above; hidden when they agree or the port is absent. */}
-          {fulfillment?.returnDepotName && fulfillment.returnDepotName !== dropPoint ? (
-            <TaskFact icon={<MapPinned size={16} />} label="Trả cont rỗng" value={fulfillment.returnDepotName} />
+          {/* KP-063: direction-aware Cảng hạ. For IMPORT this is the
+              empty-container return depot; for EXPORT the drop port. */}
+          <TaskFact icon={<MapPinned size={16} />} label="Cảng hạ" value={cangHa} />
+          {/* For IMPORT: actual delivery location when it differs from
+              the return depot. For EXPORT: empty-container return depot
+              when it differs from the drop point. */}
+          {showDeliveryLocationRow ? (
+            <TaskFact icon={<MapPinned size={16} />} label="Địa chỉ giao hàng" value={rawDropPoint} />
+          ) : null}
+          {showReturnDepotRow ? (
+            <TaskFact icon={<MapPinned size={16} />} label="Trả cont rỗng" value={fulfillment!.returnDepotName!} />
           ) : null}
           {/* Route text only — the factory address renders in its own row
               above; falls back through route summary → route name. */}
@@ -152,12 +192,6 @@ export function DriverTaskInfoSections({ trip }: { trip: DriverTaskDetail }) {
             label="Tuyến"
             value={valueOrDash(fulfillment?.routeSummary ?? trip.routeName)}
             fullWidth
-          />
-          <TaskFact icon={<Phone size={16} />} label="Người liên hệ" value={valueOrDash(contactName)} />
-          <TaskFact
-            icon={<Phone size={16} />}
-            label="Số điện thoại"
-            value={contactPhone ? <a href={`tel:${contactPhone}`} className="driver-task-link">{contactPhone}</a> : '—'}
           />
         </div>
       </section>
@@ -174,10 +208,9 @@ export function DriverTaskInfoSections({ trip }: { trip: DriverTaskDetail }) {
             onToggle={() => setInvoiceOpen((v) => !v)}
           />
           <div className="driver-task-grid" id="driver-task-invoice-grid" hidden={!invoiceOpen}>
-            {/* Party attribution: the factory's own invoice profile leads —
-                the site billing the lift/drop/cleaning fees — under an
-                explicit party label. An unconfigured factory renders the
-                honest empty note; the customer block is never a fallback. */}
+            {/* KP-191: each party heading precedes that party's data. */}
+            {/* Factory invoice profile — the site billing the
+                lift/drop/cleaning fees. */}
             <p className="driver-task-invoice-party">Nhà máy</p>
             {trip.invoiceFactory?.name ? (
               <TaskFact icon={<Building2 size={16} />} label="Tên công ty" value={trip.invoiceFactory.name} fullWidth />
@@ -190,23 +223,22 @@ export function DriverTaskInfoSections({ trip }: { trip: DriverTaskDetail }) {
             {trip.invoiceFactory?.taxCode ? (
               <TaskFact icon={<FileText size={16} />} label="MST" value={trip.invoiceFactory.taxCode} fullWidth />
             ) : null}
-            {/* TC-DA-005: customer master-data invoice rows. Row order:
-                company name → address → MST (mockup). Source: customers via
-                shipments.customerId. Per-row graceful hide on sparse data. */}
-            {trip.invoiceMaster?.companyName ? (
-              <TaskFact icon={<Building2 size={16} />} label="Tên công ty" value={trip.invoiceMaster.companyName} fullWidth />
-            ) : null}
-            {trip.invoiceMaster?.address ? (
-              <TaskFact icon={<MapPinned size={16} />} label="Địa chỉ" value={trip.invoiceMaster.address} fullWidth />
-            ) : null}
-            {trip.invoiceMaster?.taxCode ? (
-              <TaskFact icon={<FileText size={16} />} label="MST" value={trip.invoiceMaster.taxCode} fullWidth />
-            ) : null}
-            {/* Party labels only render when customer rows exist — the fee
-                rows below carry their own explicit per-fee labels. */}
+            {/* Customer master-data invoice block — heading precedes data. */}
             {trip.invoiceMaster && (trip.invoiceMaster.companyName || trip.invoiceMaster.address || trip.invoiceMaster.taxCode) ? (
-              <p className="driver-task-invoice-party">Khách hàng</p>
+              <>
+                <p className="driver-task-invoice-party">Khách hàng</p>
+                {trip.invoiceMaster.companyName ? (
+                  <TaskFact icon={<Building2 size={16} />} label="Tên công ty" value={trip.invoiceMaster.companyName} fullWidth />
+                ) : null}
+                {trip.invoiceMaster.address ? (
+                  <TaskFact icon={<MapPinned size={16} />} label="Địa chỉ" value={trip.invoiceMaster.address} fullWidth />
+                ) : null}
+                {trip.invoiceMaster.taxCode ? (
+                  <TaskFact icon={<FileText size={16} />} label="MST" value={trip.invoiceMaster.taxCode} fullWidth />
+                ) : null}
+              </>
             ) : null}
+            {/* Fee-invoice rows carry their own explicit per-fee labels. */}
             {invoiceInfo?.liftFeeInvoiceName && (
               <TaskFact icon={<FileCheck2 size={16} />} label="Hóa đơn phí nâng" value={feeInvoiceValue(invoiceInfo.liftFeeInvoiceName, invoiceInfo.liftFeeInvoiceAddress, invoiceInfo.liftFeeTaxCode)} fullWidth />
             )}

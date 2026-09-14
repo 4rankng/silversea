@@ -11,7 +11,7 @@ import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { createExpense } from '../services/expense.service';
-import { createFuelInvoice, approveFuelInvoice } from '../services/fuel-invoice.service';
+import { createFuelInvoice } from '../services/fuel-invoice.service';
 
 export async function seedVendorFinancials(actorId: number, approverId: number): Promise<void> {
   // Maker-checker: the creator (manager) cannot approve their own invoices.
@@ -151,12 +151,7 @@ async function seedFuelInvoices(actorId: number, approverId: number) {
       allocations,
     }, actorId);
 
-    if (plan.approve) {
-      // Approval is maker-checker governed: ADMIN makes, ACCOUNTANT checks.
-      // The optimistic version is derived from updatedAt (see fuel-invoice service).
-      const version = Math.max(1, new Date(view.updatedAt).getTime());
-      await approveFuelInvoice(view.id, approverId, 'ADMIN', version);
-    }
+    // KP-152: fuel invoices are APPROVED at creation — no separate approval step.
     created++;
   }
   console.log(`✅ Fuel invoices seeded! (${created} new)`);

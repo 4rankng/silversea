@@ -586,7 +586,7 @@ function FuelInvoiceEditor({
                   />
                 </div>
                 <div className="field">
-                  <label>Chi phí nhiên liệu đã duyệt</label>
+                  <label>Chi phí nhiên liệu liên kết</label>
                   <TripExpenseReferenceSelect
                     tripId={row.tripId ? Number(row.tripId) : null}
                     supplierId={form.supplierId ? Number(form.supplierId) : null}
@@ -823,9 +823,9 @@ export function FuelInvoicesPanel() {
         reason,
       });
       setApprovalReason('');
-      setActionNotice('Đã gửi yêu cầu vào hàng chờ kiểm tra. Hóa đơn chưa phát sinh công nợ phải trả.');
+      setActionNotice('Đã lưu hóa đơn. Hóa đơn chưa phát sinh công nợ phải trả.');
     } catch (error) {
-      setActionError((error as Error).message || 'Không thể duyệt hóa đơn nhiên liệu.');
+      setActionError((error as Error).message || 'Không thể lưu hóa đơn nhiên liệu.');
     }
   };
 
@@ -1020,7 +1020,7 @@ export function FuelInvoicesPanel() {
                   onClick={submitApprove}
                   disabled={approveMutation.isPending || !approvalReason.trim() || !detailQuery.data || !computeCompletion(detailQuery.data.totalLiters, detailQuery.data.unitPrice, detailQuery.data.allocations ?? []).isComplete}
                 >
-                  {approveMutation.isPending ? 'Đang gửi…' : 'Gửi yêu cầu duyệt'}
+                  {approveMutation.isPending ? 'Đang lưu…' : 'Lưu hóa đơn'}
                 </button>
               </>
             )}
@@ -1059,7 +1059,7 @@ export function FuelInvoicesPanel() {
               onClick={submitEditor}
               disabled={createMutation.isPending || updateMutation.isPending}
             >
-              {createMutation.isPending || updateMutation.isPending ? 'Đang lưu…' : editorState?.mode === 'edit' ? 'Lưu thay đổi' : 'Lưu bản nháp'}
+              {createMutation.isPending || updateMutation.isPending ? 'Đang lưu…' : 'Lưu'}
             </button>
           </div>
         }

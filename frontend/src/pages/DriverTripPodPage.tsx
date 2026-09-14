@@ -13,7 +13,7 @@
  * here while the trip is IN_TRANSIT. The `Hoàn thành chuyến` action that used
  * to live on the trip detail is the footer button of THIS page.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   AlertTriangle,
@@ -34,11 +34,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useDriverTaskDetail } from '../hooks/useDriverQueries';
 import { driverClient, type DriverTaskDetail, type DriverTaskPodSubmission } from '../api/driverClient';
 import { useOnline } from '../hooks/useOnline';
-import {
-  buildOfflineCommandKey,
-  useOfflineCommandQueue,
-} from '../features/driver/useOfflineCommandQueue';
-import { sendRoleOfflineCommand } from '../features/offline/roleCommandSender';
+import { buildIdempotencyKey } from '../lib/idempotency';
 import { useToast } from '../components/shared/Toast';
 import { AccountingLockBanner } from '../components/shipment/AccountingLockBanner';
 import './DriverTripDetailPage.css';
@@ -73,100 +69,16 @@ export function DriverTripPodPage() {
   const [submitting, setSubmitting] = useState(false);
   const [completing, setCompleting] = useState(false);
 
-  const { commands, enqueue, drain, remove } = useOfflineCommandQueue({
-    maxPending: 12,
-    storageScope: user ? `${user.role}:${user.userId}` : null,
-  });
-  const tripCommands = useMemo(
-    () => commands.filter((command) => {
-      const p = command.payload as { fulfillmentId?: number } | null;
-      return p?.fulfillmentId === validFulfillmentId;
-    }),
-    [commands, validFulfillmentId],
-  );
-  // A terminal CONFLICT anywhere in this fulfillment's scope (mirrors the D1
-  // fix on the trip-detail accept bar) — drain() refuses to retry any
-  // queued command while a CONFLICT sits in the same scope, so without an
-  // explicit recovery path the driver can never re-attempt "HOÀN THÀNH
-  // CHUYẾN" once the server has rejected it (e.g. expectedVersion drift,
-  // hidden milestone gap). The footer must offer a "Tải lại" that drops
-  // the stuck command and refetches; otherwise the ready hint is a lie and
-  // the button does nothing. We surface the FIRST stuck command in scope —
-  // its `lastError` is the server's human-readable reason.
-  const stuckConflict = useMemo(
-    () => tripCommands.find((command) => command.status === 'CONFLICT') ?? null,
-    [tripCommands],
-  );
-
-  // Deps are the refetch function (referentially stable in TanStack v5), not
-  // the query result object — a whole-result dep re-creates this callback on
-  // every render and re-fires the auto-drain effect below in a loop.
   const refreshAll = useCallback(async () => {
     await taskDetail.refetch();
   }, [taskDetail.refetch]);
 
-  // Discard the stuck CONFLICT command and pull fresh server state. The
-  // server is the source of truth — if the underlying blocker (e.g. the
-  // trip was bumped by an out-of-band action, the POD rejection cleared)
-  // has gone away, the next "HOÀN THÀNH CHUYẾN" tap can succeed.
-  const handleConflictReload = useCallback(async () => {
-    const stuck = tripCommands.filter(
-      (command) => command.status === 'CONFLICT' && command.fulfillmentScopeKey,
-    );
-    stuck.forEach((command) => remove(command.id));
-    await refreshAll();
-    toast({
-      kind: stuck.length > 0 ? 'success' : 'info',
-      message: stuck.length > 0
-        ? 'Đã tải lại chuyến và bỏ lệnh xung đột. Bấm "HOÀN THÀNH CHUYẾN" để thử lại.'
-        : 'Đã tải lại dữ liệu chuyến.',
-    });
-  }, [tripCommands, remove, refreshAll, toast]);
-
-  const runDrain = useCallback(
-    async (successMessage?: string, currentCommandId?: string) => {
-      const result = await drain(sendRoleOfflineCommand);
-      const currentStatus = currentCommandId ? result.statusById?.[currentCommandId] : undefined;
-      if (currentStatus === 'DONE' || (!currentCommandId && result.done > 0)) {
-        await refreshAll();
-        if (successMessage && currentStatus === 'DONE') {
-          toast({ kind: 'success', message: successMessage });
-        }
-      } else if (currentStatus === 'FAILED') {
-        toast({ kind: 'info', message: 'Đã lưu ngoại tuyến. Hệ thống sẽ tự gửi lại khi có mạng.' });
-      } else if (currentStatus === 'CONFLICT' || currentStatus === 'REJECTED') {
-        toast({
-          kind: 'error',
-          message: result.messageById?.[currentCommandId!]
-            ?? (currentStatus === 'CONFLICT'
-              ? 'Dữ liệu đã đổi trên hệ thống. Vui lòng tải lại chuyến.'
-              : 'Máy chủ từ chối lệnh. Bản nháp vẫn được giữ để kiểm tra.'),
-        });
-      } else if (currentCommandId) {
-        toast({ kind: 'info', message: 'Lệnh đang chờ đồng bộ; chưa được xem là hoàn tất.' });
-      }
-      return result;
-    },
-    [drain, refreshAll, toast],
-  );
-
-  useEffect(() => {
-    if (!online || tripCommands.length === 0) return;
-    void runDrain();
-  }, [online, runDrain, tripCommands.length]);
-
   const trip = taskDetail.data as DriverTaskDetail | undefined;
   const currentSubmission = (trip?.currentPod ?? null) as DriverTaskPodSubmission | null;
   const podHistory = trip?.podHistory ?? [];
-  // Operational note from CUS / điều vận (spec A3) — same authority chain as
-  // the trip detail page (fulfillment.driverNotes first, trip.notes fallback).
   const operationalNote = trip?.fulfillment?.driverNotes ?? trip?.notes ?? null;
 
-  // The two mandatory e-POD categories per 27.8 spec. The driver must upload
-  // both before they can hit "Hoàn thành chuyến".
   const { hasYardReceipt, hasSignedNote, podReady } = podRequiredFilesReady(currentSubmission);
-  // Same gate the trip-detail footer enforced before the split: an accounting
-  // lock freezes the trip — e-POD photos stay visible, completion does not.
   const completionBlocked = !validFulfillmentId
     || Boolean(trip?.accountingLock)
     || trip?.status !== 'IN_TRANSIT'
@@ -185,15 +97,10 @@ export function DriverTripPodPage() {
         currentSubmission?.submissionVersion ?? 0,
         ...podHistory.map((submission) => submission.submissionVersion),
       ) + 1;
-      const idempotencyKey = buildOfflineCommandKey(
-        'driver',
-        'task',
-        validFulfillmentId,
-        'pod-draft',
-        'trip-version',
-        trip.version,
-        'submission-version',
-        nextSubmissionVersion,
+      const idempotencyKey = buildIdempotencyKey(
+        'driver', 'task', validFulfillmentId,
+        'pod-draft', 'trip-version', trip.version,
+        'submission-version', nextSubmissionVersion,
       );
       const created = await driverClient.createPodSubmission(
         validFulfillmentId,
@@ -218,8 +125,6 @@ export function DriverTripPodPage() {
     }
     setUploadingPod(true);
     try {
-      // TripPodSubmission already compressed this file with the burn-in
-      // timestamp before calling — pass it through untouched.
       const uploaded = await driverClient.attachPodFile({
         tripId: validFulfillmentId,
         submissionId: submission.id,
@@ -228,8 +133,6 @@ export function DriverTripPodPage() {
         file,
       });
       await refreshAll();
-      // Same confirmation the inline e-POD widget gave before the split: the
-      // child only surfaces failures, so the page owns the success feedback.
       const label = uploaded.files.find((item) => item.fileType === fileType)?.originalFileName ?? file.name;
       toast({ kind: 'success', message: `Đã lưu tệp ${label}.` });
     } finally {
@@ -238,54 +141,30 @@ export function DriverTripPodPage() {
   }
 
   async function handleSubmitPod(submission: DriverTaskPodSubmission): Promise<boolean> {
-    if (!trip || !validFulfillmentId) return false;
+    if (!trip || !validFulfillmentId || !online) return false;
     setSubmitting(true);
     try {
-      // Same key shape the trip-detail page used before the split, so a
-      // command queued by the old build still dedupes against this one.
-      const idempotencyKey = buildOfflineCommandKey(
-        'driver',
-        'task',
-        validFulfillmentId,
-        'pod-submit',
-        submission.id,
-        'version',
-        submission.version,
+      const idempotencyKey = buildIdempotencyKey(
+        'driver', 'task', validFulfillmentId,
+        'pod-submit', submission.id, 'version', submission.version,
       );
-      enqueue({
-        id: idempotencyKey,
-        endpoint: 'driver.task.pod.submit',
-        method: 'POST',
-        path: `/driver/me/fulfillments/${validFulfillmentId}/pod/${submission.id}/submit`,
-        fulfillmentScopeKey: `fulfillment:${validFulfillmentId}`,
-        expectedVersion: submission.version,
-        actionKind: 'POD_SUBMIT',
-        payload: {
-          kind: 'pod-submit',
-          fulfillmentId: validFulfillmentId,
-          submissionId: submission.id,
-          expectedVersion: submission.version,
-        },
+      await driverClient.submitPod(validFulfillmentId, submission.id, { expectedVersion: submission.version }, idempotencyKey);
+      await refreshAll();
+      toast({ kind: 'success', message: 'Đã gửi e-POD để duyệt.' });
+      return true;
+    } catch (error) {
+      toast({
+        kind: 'error',
+        message: error instanceof Error ? error.message : 'Không thể gửi e-POD. Vui lòng thử lại.',
       });
-      const result = await runDrain('Đã gửi e-POD để duyệt.', idempotencyKey);
-      return result.statusById?.[idempotencyKey] === 'DONE';
+      return false;
     } finally {
       setSubmitting(false);
     }
   }
 
-  // The single "Hoàn thành và gửi" action on this page: submit e-POD (if a
-  // DRAFT is open) then complete the trip, then jump back to /my-trips.
-  // When a CONFLICT is already parked in this fulfillment's scope, the
-  // main button is disabled and a "Tải lại" banner takes over — see
-  // handleConflictReload. The defensive check below keeps a future call
-  // site honest.
   async function handleCompleteTrip() {
-    if (!trip || !validFulfillmentId) return;
-    if (stuckConflict) {
-      await handleConflictReload();
-      return;
-    }
+    if (!trip || !validFulfillmentId || !online) return;
     if (trip.status !== 'IN_TRANSIT') {
       toast({ kind: 'warning', message: 'Chuyến không ở trạng thái đang chạy để hoàn thành.' });
       return;
@@ -297,42 +176,20 @@ export function DriverTripPodPage() {
     setCompleting(true);
     try {
       if (currentSubmission?.status === 'DRAFT') {
-        // handleSubmitPod's runDrain already refetches on DONE; an extra
-        // serial GET here only delays the complete command on slow links.
         const podSubmitted = await handleSubmitPod(currentSubmission);
-        if (!podSubmitted) {
-          // POD submission failed (offline, conflict, or rejected) —
-          // do not attempt to complete the trip; the server would reject
-          // it because the evidence gate (e-POD SUBMITTED) is not met.
-          return;
-        }
+        if (!podSubmitted) return;
       }
-      const idempotencyKey = buildOfflineCommandKey(
-        'driver',
-        'task',
-        validFulfillmentId,
-        'complete',
-        'version',
-        trip.version,
+      const idempotencyKey = buildIdempotencyKey(
+        'driver', 'task', validFulfillmentId, 'complete', 'version', trip.version,
       );
-      enqueue({
-        id: idempotencyKey,
-        endpoint: 'driver.task.complete',
-        method: 'POST',
-        path: `/driver/me/fulfillments/${validFulfillmentId}/complete`,
-        fulfillmentScopeKey: `fulfillment:${validFulfillmentId}`,
-        expectedVersion: trip.version,
-        actionKind: 'COMPLETE',
-        payload: {
-          kind: 'complete',
-          fulfillmentId: validFulfillmentId,
-          expectedVersion: trip.version,
-        },
+      await driverClient.completeTrip(validFulfillmentId, { expectedVersion: trip.version }, idempotencyKey);
+      toast({ kind: 'success', message: 'Hoàn tất chuyến hàng thành công!' });
+      navigate('/my-trips', { replace: true });
+    } catch (error) {
+      toast({
+        kind: 'error',
+        message: error instanceof Error ? error.message : 'Không thể hoàn thành chuyến. Vui lòng thử lại.',
       });
-      const result = await runDrain('Hoàn tất chuyến hàng thành công!', idempotencyKey);
-      if (result.statusById?.[idempotencyKey] === 'DONE') {
-        navigate('/my-trips', { replace: true });
-      }
     } finally {
       setCompleting(false);
     }
@@ -447,7 +304,6 @@ export function DriverTripPodPage() {
             tripVersion={trip.version}
             currentSubmission={currentSubmission}
             history={podHistory}
-            pendingCommands={tripCommands}
             creatingDraft={creatingDraft}
             uploading={uploadingPod}
             onEnsureDraft={handleEnsureDraft}
@@ -457,29 +313,6 @@ export function DriverTripPodPage() {
       </main>
 
       <footer className="driver-task-footer">
-        {stuckConflict && (
-          <div
-            className="driver-task-footer__conflict"
-            role="alert"
-            data-testid="epod-complete-conflict"
-          >
-            <AlertTriangle size={18} />
-            <div className="driver-task-footer__conflict-body">
-              <strong>Không thể hoàn thành chuyến</strong>
-              <p>
-                {stuckConflict.lastError
-                  ?? 'Hệ thống ghi nhận xung đột dữ liệu trên lệnh hoàn thành. Bấm "Tải lại" để bỏ lệnh cũ và đồng bộ lại.'}
-              </p>
-            </div>
-            <button
-              type="button"
-              className="driver-task-footer__conflict-reload"
-              onClick={() => void handleConflictReload()}
-            >
-              Tải lại
-            </button>
-          </div>
-        )}
         <div className="driver-task-footer__body">
           <div className="driver-task-footer__summary">
             <strong>HOÀN THÀNH CHUYẾN</strong>
@@ -493,7 +326,7 @@ export function DriverTripPodPage() {
                 {!hasSignedNote && <li>Thiếu Biên bản giao nhận</li>}
               </ul>
             )}
-            {podReady && trip.status === 'IN_TRANSIT' && !stuckConflict && (
+            {podReady && trip.status === 'IN_TRANSIT' && (
               <div className="driver-task-footer__ready">
                 <CheckCircle2 size={16} />
                 <span>Đủ điều kiện hoàn thành chuyến.</span>
@@ -503,7 +336,7 @@ export function DriverTripPodPage() {
           <button
             type="button"
             className="driver-task-complete"
-            disabled={completionBlocked || submitting || completing || Boolean(stuckConflict)}
+            disabled={completionBlocked || submitting || completing || !online}
             onClick={() => void handleCompleteTrip()}
           >
             <FileCheck2 size={18} />

@@ -32,235 +32,69 @@ const mockRow: DispatchDetailPlanRow = {
   isCombined: false,
 };
 
-describe('IssueOrderFields — New Calendar Design', () => {
-  it('renders quick days, 24h time inputs, start/end DateInputs, and common hours presets', () => {
-    const draft: IssueOrderDraft = {
-      plannedStartAt: '2026-09-10T14:00',
-      plannedEndAt: '2026-09-10T16:00',
-      externalDriverName: '',
-      externalDriverPhone: '',
-    };
-    const setIssueDraft = vi.fn();
-    const onFieldTouched = vi.fn();
+describe('IssueOrderFields — no date/time picker (customer ruling)', () => {
+  const baseDraft: IssueOrderDraft = {
+    externalDriverName: '',
+    externalDriverPhone: '',
+  };
 
+  it('renders no schedule UI for own-truck rows — driver line only', () => {
     render(
       <IssueOrderFields
         row={mockRow}
         ownTruck={{ id: 1, driverId: 1, driverName: 'Lương Văn Long' }}
         loadingOwnTruck={false}
-        issueDraft={draft}
-        setIssueDraft={setIssueDraft}
-        onFieldTouched={onFieldTouched}
+        issueDraft={baseDraft}
+        setIssueDraft={vi.fn()}
+        onFieldTouched={vi.fn()}
         idPrefix="test-issue"
       />,
     );
 
-    // Section headers
-    expect(screen.getByText('Chọn nhanh ngày')).toBeTruthy();
-    expect(screen.getByText('Khung giờ phổ biến')).toBeTruthy();
-
-    // Quick day shortcuts
-    expect(screen.getByRole('button', { name: 'Hôm nay' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Ngày mai' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Ngày kia' })).toBeTruthy();
-
-    // Inputs: Giờ chạy, Giờ kết thúc, Ngày chạy, Ngày kết thúc
-    const startTimeInput = document.getElementById('test-issue-start-101') as HTMLInputElement;
-    const endTimeInput = document.getElementById('test-issue-end-101') as HTMLInputElement;
-    const startDateInput = document.getElementById('test-issue-date-101') as HTMLInputElement;
-    const endDateInput = document.getElementById('test-issue-end-date-101') as HTMLInputElement;
-
-    expect(startTimeInput).toBeTruthy();
-    expect(endTimeInput).toBeTruthy();
-    expect(startDateInput).toBeTruthy();
-    expect(endDateInput).toBeTruthy();
-
-    expect(startTimeInput.type).toBe('time');
-    expect(endTimeInput.type).toBe('time');
-    expect(startDateInput.type).toBe('date');
-    expect(endDateInput.type).toBe('date');
-
-    // Pinned to 24h format and dd/mm/yyyy
-    expect(startTimeInput.getAttribute('lang')).toBe('en-GB');
-    expect(endTimeInput.getAttribute('lang')).toBe('en-GB');
-    expect(startDateInput.getAttribute('lang')).toBe('en-GB');
-    expect(endDateInput.getAttribute('lang')).toBe('en-GB');
-
-    expect(startTimeInput.value).toBe('14:00');
-    expect(endTimeInput.value).toBe('16:00');
-    expect(startDateInput.value).toBe('2026-09-10');
-    expect(endDateInput.value).toBe('2026-09-10');
-
-    // Preset pills
-    expect(screen.getByRole('button', { name: '08:00' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: '10:00' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: '13:30' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: '16:00' })).toBeTruthy();
+    expect(document.querySelector('input[type="date"]')).toBeNull();
+    expect(document.querySelector('input[type="time"]')).toBeNull();
+    expect(screen.queryByText('Chọn nhanh ngày')).toBeNull();
+    expect(screen.queryByText('Khung giờ phổ biến')).toBeNull();
+    expect(screen.getByText(/Tài xế:/)).toBeTruthy();
+    expect(screen.getByText(/Lương Văn Long/)).toBeTruthy();
   });
 
-  it('clicking a quick-day pill updates start date and auto-adjusts end date when needed', () => {
-    let draft: IssueOrderDraft = {
-      plannedStartAt: '2026-09-10T14:00',
-      plannedEndAt: '2026-09-10T16:00',
-      externalDriverName: '',
-      externalDriverPhone: '',
-    };
-    const setIssueDraft = vi.fn((updater) => {
-      draft = updater(draft);
-    });
-    const onFieldTouched = vi.fn();
-
+  it('renders external-carrier driver fields only — no schedule inputs', () => {
+    const externalRow = { ...mockRow, dispatch: { ...mockRow.dispatch, carrierType: 'EXTERNAL' as const, assignedPlate: '51X-999.99' } };
     render(
       <IssueOrderFields
-        row={mockRow}
-        ownTruck={{ id: 1, driverId: 1, driverName: 'Lương Văn Long' }}
+        row={externalRow}
+        ownTruck={null}
         loadingOwnTruck={false}
-        issueDraft={draft}
-        setIssueDraft={setIssueDraft}
+        issueDraft={baseDraft}
+        setIssueDraft={vi.fn()}
+        onFieldTouched={vi.fn()}
+        idPrefix="test-issue"
+      />,
+    );
+
+    expect(document.querySelector('input[type="date"]')).toBeNull();
+    expect(document.querySelector('input[type="time"]')).toBeNull();
+    expect(screen.getByLabelText(/Tên tài xế/)).toBeTruthy();
+    expect(screen.getByLabelText(/SĐT tài xế/)).toBeTruthy();
+  });
+
+  it('fires onFieldTouched when an external driver field changes', () => {
+    const externalRow = { ...mockRow, dispatch: { ...mockRow.dispatch, carrierType: 'EXTERNAL' as const } };
+    const onFieldTouched = vi.fn();
+    render(
+      <IssueOrderFields
+        row={externalRow}
+        ownTruck={null}
+        loadingOwnTruck={false}
+        issueDraft={baseDraft}
+        setIssueDraft={vi.fn()}
         onFieldTouched={onFieldTouched}
         idPrefix="test-issue"
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Ngày mai' }));
-    expect(setIssueDraft).toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText(/Tên tài xế/), { target: { value: 'Trần Bình' } });
     expect(onFieldTouched).toHaveBeenCalled();
-
-    const expectedDate = new Date();
-    expectedDate.setDate(expectedDate.getDate() + 1);
-    const y = expectedDate.getFullYear();
-    const m = String(expectedDate.getMonth() + 1).padStart(2, '0');
-    const d = String(expectedDate.getDate()).padStart(2, '0');
-    const dateStr = `${y}-${m}-${d}`;
-
-    // Start date moves to tomorrow, end date auto-adjusts because it was before the new start date
-    expect(draft.plannedStartAt).toBe(`${dateStr}T14:00`);
-    expect(draft.plannedEndAt).toBe(`${dateStr}T16:00`);
-  });
-
-  it('clicking a common-hours preset updates start time and sets end time to +2 hours on the end date', () => {
-    let draft: IssueOrderDraft = {
-      plannedStartAt: '2026-09-10T14:00',
-      plannedEndAt: '2026-09-10T16:00',
-      externalDriverName: '',
-      externalDriverPhone: '',
-    };
-    const setIssueDraft = vi.fn((updater) => {
-      draft = updater(draft);
-    });
-    const onFieldTouched = vi.fn();
-
-    render(
-      <IssueOrderFields
-        row={mockRow}
-        ownTruck={{ id: 1, driverId: 1, driverName: 'Lương Văn Long' }}
-        loadingOwnTruck={false}
-        issueDraft={draft}
-        setIssueDraft={setIssueDraft}
-        onFieldTouched={onFieldTouched}
-        idPrefix="test-issue"
-      />,
-    );
-
-    fireEvent.click(screen.getByRole('button', { name: '08:00' }));
-    expect(setIssueDraft).toHaveBeenCalled();
-    expect(onFieldTouched).toHaveBeenCalled();
-    expect(draft.plannedStartAt).toBe('2026-09-10T08:00');
-    expect(draft.plannedEndAt).toBe('2026-09-10T10:00');
-  });
-
-  it('supports cross-day trips: start on day 1, end on day 2', () => {
-    let draft: IssueOrderDraft = {
-      plannedStartAt: '2026-09-10T22:00',
-      plannedEndAt: '2026-09-11T02:00',
-      externalDriverName: '',
-      externalDriverPhone: '',
-    };
-    const setIssueDraft = vi.fn((updater) => {
-      draft = updater(draft);
-    });
-    const onFieldTouched = vi.fn();
-
-    render(
-      <IssueOrderFields
-        row={mockRow}
-        ownTruck={{ id: 1, driverId: 1, driverName: 'Lương Văn Long' }}
-        loadingOwnTruck={false}
-        issueDraft={draft}
-        setIssueDraft={setIssueDraft}
-        onFieldTouched={onFieldTouched}
-        idPrefix="test-issue"
-      />,
-    );
-
-    // Both dates should render independently
-    const startDateInput = document.getElementById('test-issue-date-101') as HTMLInputElement;
-    const endDateInput = document.getElementById('test-issue-end-date-101') as HTMLInputElement;
-
-    expect(startDateInput.value).toBe('2026-09-10');
-    expect(endDateInput.value).toBe('2026-09-11');
-  });
-
-  it('changing start time does not overwrite end date', () => {
-    let draft: IssueOrderDraft = {
-      plannedStartAt: '2026-09-10T22:00',
-      plannedEndAt: '2026-09-11T02:00',
-      externalDriverName: '',
-      externalDriverPhone: '',
-    };
-    const setIssueDraft = vi.fn((updater) => {
-      draft = updater(draft);
-    });
-    const onFieldTouched = vi.fn();
-
-    render(
-      <IssueOrderFields
-        row={mockRow}
-        ownTruck={{ id: 1, driverId: 1, driverName: 'Lương Văn Long' }}
-        loadingOwnTruck={false}
-        issueDraft={draft}
-        setIssueDraft={setIssueDraft}
-        onFieldTouched={onFieldTouched}
-        idPrefix="test-issue"
-      />,
-    );
-
-    const startTimeInput = document.getElementById('test-issue-start-101') as HTMLInputElement;
-    fireEvent.change(startTimeInput, { target: { value: '23:00' } });
-
-    expect(draft.plannedStartAt).toBe('2026-09-10T23:00');
-    // End date must stay on 2026-09-11, not be dragged to 2026-09-10
-    expect(draft.plannedEndAt).toBe('2026-09-11T02:00');
-  });
-
-  it('changing end date independently updates only plannedEndAt', () => {
-    let draft: IssueOrderDraft = {
-      plannedStartAt: '2026-09-10T22:00',
-      plannedEndAt: '2026-09-10T23:00',
-      externalDriverName: '',
-      externalDriverPhone: '',
-    };
-    const setIssueDraft = vi.fn((updater) => {
-      draft = updater(draft);
-    });
-    const onFieldTouched = vi.fn();
-
-    render(
-      <IssueOrderFields
-        row={mockRow}
-        ownTruck={{ id: 1, driverId: 1, driverName: 'Lương Văn Long' }}
-        loadingOwnTruck={false}
-        issueDraft={draft}
-        setIssueDraft={setIssueDraft}
-        onFieldTouched={onFieldTouched}
-        idPrefix="test-issue"
-      />,
-    );
-
-    const endDateInput = document.getElementById('test-issue-end-date-101') as HTMLInputElement;
-    fireEvent.change(endDateInput, { target: { value: '2026-09-11' } });
-
-    expect(draft.plannedStartAt).toBe('2026-09-10T22:00');
-    expect(draft.plannedEndAt).toBe('2026-09-11T23:00');
   });
 });

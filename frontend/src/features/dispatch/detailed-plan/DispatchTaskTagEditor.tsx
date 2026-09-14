@@ -1,6 +1,6 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Pencil } from 'lucide-react';
-import { composeNote, parseNote } from '../../../lib/dispatchTaskTags';
+import { composeNote, parseNote, normalizeNote } from '../../../lib/dispatchTaskTags';
 import { useCreateDispatchTaskTag, useDispatchTaskTags } from './useDispatchTaskTags';
 import { DispatchTaskTagManagerPopover } from './DispatchTaskTagManagerPopover';
 
@@ -23,11 +23,23 @@ export function DispatchTaskTagEditor({ value, onChange, disabled = false }: {
 }) {
   const { tags, error } = useDispatchTaskTags();
   const { createTag, invalidateTags, isCreating } = useCreateDispatchTaskTag();
+  // Raw text while typing: the shared composer trims the manual text on
+  // every keystroke, which made spaces impossible to type (words fused).
+  // The field renders this raw draft; the composed/trimmed note is still
+  // what the parent stores.
+  const [manualDraft, setManualDraft] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [newLabel, setNewLabel] = useState('');
   const [addNotice, setAddNotice] = useState<string | null>(null);
   const [isManaging, setIsManaging] = useState(false);
   const manageButtonRef = useRef<HTMLButtonElement>(null);
+  const lastValueRef = useRef(value);
+  // A dialog reopen clears the stored note (null/'') — drop the raw draft
+  // then, but never while the parent value is merely still empty.
+  useEffect(() => {
+    if ((value ?? '') === '' && (lastValueRef.current ?? '') !== '') setManualDraft(null);
+    lastValueRef.current = value;
+  }, [value]);
 
   /** A pool rename keeps the current draft intact: re-parse with the OLD
    *  label set, swap the chip's label, re-compose. Manual text untouched. */
@@ -159,8 +171,15 @@ export function DispatchTaskTagEditor({ value, onChange, disabled = false }: {
                 id="dispatch-task-note-text"
                 className="dispatch-assignment-dialog__notes-text"
                 placeholder="Nhập ghi chú cho lái xe…"
-                value={manualText}
-                onChange={(event) => setManual(event.target.value)}
+                value={manualDraft ?? manualText}
+                onChange={(event) => { setManualDraft(event.target.value); setManual(event.target.value); }}
+                onBlur={() => {
+                  setManualDraft(null);
+                  if (value) {
+                    const normalized = normalizeNote(value);
+                    if (normalized !== value) onChange(normalized);
+                  }
+                }}
                 disabled={disabled}
               />
             </div>

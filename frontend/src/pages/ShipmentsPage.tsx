@@ -587,7 +587,7 @@ export default function ShipmentsPage() {
 
       <Modal
         isOpen={Boolean(actions.actionItem && actions.actionMode)}
-        title={actions.actionMode === 'confirm' ? 'Xác nhận nguồn chi phí' : actions.actionMode === 'lock' ? 'Xác nhận khóa lô' : actions.actionMode === 'delete' ? 'Yêu cầu xóa lô hàng' : 'Đề nghị điều chỉnh'}
+        title={actions.actionMode === 'confirm' ? 'Xác nhận nguồn chi phí' : actions.actionMode === 'lock' ? 'Xác nhận khóa lô' : actions.actionMode === 'delete' ? 'Xóa lô hàng' : 'Điều chỉnh lô hàng'}
         onClose={actions.closeAction}
         onConfirm={() => void actions.submitAction()}
         footer={(
@@ -595,7 +595,7 @@ export default function ShipmentsPage() {
             <button type="button" className="btn btn--ghost" onClick={actions.closeAction} disabled={actions.submitting}>Hủy</button>
             <button type="button" className="btn btn--primary" onClick={() => void actions.submitAction()} disabled={actions.submitting || !actions.reason.trim()}>
               {actions.submitting ? <Loader2 className="spin" size={17} aria-hidden="true" /> : null}
-              {actions.actionMode === 'confirm' ? 'Xác nhận chi phí' : actions.actionMode === 'lock' ? 'Khóa lô' : actions.actionMode === 'delete' ? 'Gửi yêu cầu xóa' : 'Gửi đề nghị'}
+              {actions.actionMode === 'confirm' ? 'Xác nhận chi phí' : actions.actionMode === 'lock' ? 'Khóa lô' : actions.actionMode === 'delete' ? 'Xóa lô hàng' : 'Gửi điều chỉnh'}
             </button>
           </>
         )}
@@ -605,9 +605,9 @@ export default function ShipmentsPage() {
         ) : actions.actionMode === 'lock' ? (
           <p>Khóa lô sẽ chuyển toàn bộ trường nhập và tệp tải lên sang chế độ chỉ đọc. Dữ liệu chỉ được mở lại qua yêu cầu được Quản trị viên duyệt.</p>
         ) : actions.actionMode === 'delete' ? (
-          <p>Yêu cầu xóa lô hàng sẽ gửi đến Quản trị viên để phê duyệt. Nếu lô hàng chưa phát sinh nghiệp vụ, có thể xóa ngay lập tức.</p>
+          <p>Xóa lô hàng sẽ loại bỏ hoàn toàn dữ liệu. Thao tác không thể hoàn tác.</p>
         ) : (
-          <p>Ghi rõ nội dung cần sửa để Quản trị viên có đủ căn cứ xem xét mở lại lô hàng.</p>
+          <p>Ghi rõ lý do điều chỉnh.</p>
         )}
         <label className="cus-action-reason">
           <span>{actions.actionMode === 'confirm' ? 'Lý do xác nhận' : actions.actionMode === 'lock' ? 'Lý do khóa' : actions.actionMode === 'delete' ? 'Lý do xóa' : 'Lý do điều chỉnh'}</span>

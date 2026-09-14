@@ -19,13 +19,12 @@ import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../services/idempotency.se
 import { getRequestIdempotencyKey } from './utils/idempotency';
 import { formatLocalDate, sniffImageType } from '../lib/format';
 import { storageService } from '../services/storage.service';
-import { createAdvanceRequest } from '../services/advance-request.service';
+import { createAdvanceRequest, listAdvanceRequestsPaginated } from '../services/advance-request.service';
 import { listOpsOrders, setShipmentPin } from '../services/ops-orders.service';
 import { getOpsWalletSummary } from '../services/ops-wallet.service';
 import {
   attachOpsExpensePhoto,
   createOpsExpense,
-  decideOpsExpense,
   deleteOpsExpense,
   deleteOpsExpensePhoto,
   listActiveOpsExpenseTypes,
@@ -36,7 +35,6 @@ import {
 } from '../services/ops-expenses.service';
 import {
   createOpsSettlement,
-  decideOpsSettlement,
   getOpsSettlementDetail,
   listOpsSettlements,
 } from '../services/ops-settlements.service';
@@ -99,6 +97,14 @@ router.get('/wallet/expenses', OPS_ONLY, asyncHandler(async (req: Request, res: 
   res.json({
     items: await listOpsExpenses({ paidById: user.userId, status, limit, offset }),
   });
+}));
+
+router.get('/wallet/advance-requests', OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
+  const user = getUser(req);
+  const status = typeof req.query.status === 'string' ? req.query.status : undefined;
+  const limit = Math.min(Math.max(Number.parseInt(String(req.query.limit ?? '50'), 10) || 50, 1), 200);
+  const page = Math.max(Number.parseInt(String(req.query.page ?? '1'), 10) || 1, 1);
+  res.json(await listAdvanceRequestsPaginated({ requesterId: user.userId, status, page, limit }));
 }));
 
 router.post('/wallet/advance-requests', OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
@@ -357,38 +363,8 @@ router.get('/admin/expenses', OPS_APPROVERS, asyncHandler(async (req: Request, r
   res.json({ items });
 }));
 
-const approveBodySchema = z.object({
-  inPersonCheck: z.boolean().optional(),
-  note: z.string().min(1).max(500).optional(),
-});
-
-router.post('/admin/expenses/:id/approve', OPS_APPROVERS, asyncHandler(async (req: Request, res: Response) => {
-  const user = getUser(req);
-  const expenseId = parseId(req.params.id);
-  const approved = approveBodySchema.parse(req.body ?? {});
-  const outcome = await runIdempotent({
-    endpoint: IDEMPOTENCY_ENDPOINTS.OPS_EXPENSE_APPROVE,
-    idempotencyKey: requireOpsIdempotencyKey(req),
-    payload: { expenseId, decision: 'APPROVED', ...approved },
-    createdBy: user.userId,
-    create: (tx) => decideOpsExpense(user.userId, expenseId, 'APPROVED', undefined, tx, approved),
-  });
-  res.status(outcome.statusCode).json(outcome.result);
-}));
-
-router.post('/admin/expenses/:id/reject', OPS_APPROVERS, asyncHandler(async (req: Request, res: Response) => {
-  const user = getUser(req);
-  const expenseId = parseId(req.params.id);
-  const { reason } = reasonSchema.parse(req.body);
-  const outcome = await runIdempotent({
-    endpoint: IDEMPOTENCY_ENDPOINTS.OPS_EXPENSE_REJECT,
-    idempotencyKey: requireOpsIdempotencyKey(req),
-    payload: { expenseId, decision: 'REJECTED', reason },
-    createdBy: user.userId,
-    create: (tx) => decideOpsExpense(user.userId, expenseId, 'REJECTED', reason, tx),
-  });
-  res.status(outcome.statusCode).json(outcome.result);
-}));
+// KP-149: approve/reject endpoints removed — OPS expenses and settlements
+// are saved directly as APPROVED at creation time.
 
 router.get('/admin/settlements', OPS_APPROVERS, asyncHandler(async (req: Request, res: Response) => {
   const status = z.enum(['PENDING', 'APPROVED', 'REJECTED']).optional().parse(req.query.status);
@@ -397,33 +373,6 @@ router.get('/admin/settlements', OPS_APPROVERS, asyncHandler(async (req: Request
 
 router.get('/admin/settlements/:id', OPS_APPROVERS, asyncHandler(async (req: Request, res: Response) => {
   res.json(await getOpsSettlementDetail(parseId(req.params.id)));
-}));
-
-router.post('/admin/settlements/:id/approve', OPS_APPROVERS, asyncHandler(async (req: Request, res: Response) => {
-  const user = getUser(req);
-  const settlementId = parseId(req.params.id);
-  const outcome = await runIdempotent({
-    endpoint: IDEMPOTENCY_ENDPOINTS.OPS_SETTLEMENT_APPROVE,
-    idempotencyKey: requireOpsIdempotencyKey(req),
-    payload: { settlementId, decision: 'APPROVED' },
-    createdBy: user.userId,
-    create: (tx) => decideOpsSettlement(user.userId, settlementId, 'APPROVED', undefined, tx),
-  });
-  res.status(outcome.statusCode).json(outcome.result);
-}));
-
-router.post('/admin/settlements/:id/reject', OPS_APPROVERS, asyncHandler(async (req: Request, res: Response) => {
-  const user = getUser(req);
-  const settlementId = parseId(req.params.id);
-  const { reason } = reasonSchema.parse(req.body);
-  const outcome = await runIdempotent({
-    endpoint: IDEMPOTENCY_ENDPOINTS.OPS_SETTLEMENT_REJECT,
-    idempotencyKey: requireOpsIdempotencyKey(req),
-    payload: { settlementId, decision: 'REJECTED', reason },
-    createdBy: user.userId,
-    create: (tx) => decideOpsSettlement(user.userId, settlementId, 'REJECTED', reason, tx),
-  });
-  res.status(outcome.statusCode).json(outcome.result);
 }));
 
 export default router;

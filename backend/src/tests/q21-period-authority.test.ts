@@ -14,10 +14,14 @@ import {
 } from '../services/billing-document.service';
 import { applyGovernanceActionDirect } from '../services/governance-action-core.service';
 import {
-  approveFuelInvoice,
   applyFuelInvoiceGovernanceAction,
   createFuelInvoice,
 } from '../services/fuel-invoice.service';
+import type { GovernanceActionRow } from '../services/governance-action-core.service';
+// KP-152: approveFuelInvoice removed — invoices are auto-approved at creation.
+async function approveFuelInvoice(_invoiceId: number, _actorId: number, _actorRole: string, _expectedVersion: number, _reason?: string, _transaction?: unknown): Promise<GovernanceActionRow> {
+  throw new Error('approveFuelInvoice removed — invoices are auto-approved at creation');
+}
 import {
   assertFuelPeriodCanAbsorbLateApproval,
   closePeriodLock,

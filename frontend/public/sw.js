@@ -1,29 +1,21 @@
-// TransTing service worker — powers Android installability + an offline app shell.
+// TransTing service worker — minimal push/click worker for PWA installability.
 //
-// Strategy (keeps live data live, ships fresh UI fast):
-//   • HTML navigations        → network-first   (every deploy = newest shell; offline fallback)
-//   • hashed static assets     → cache-first     (immutable: JS/CSS/fonts/images with content hashes)
-//   • /api/* + cross-origin    → never cached     (trip/ledger/financial data always hits network)
-//
-// To force every client onto a new SW after a breaking change, bump `CACHE`
-// (e.g. tingting-shell-v2); the activate step purges any older cache version.
+// Previous versions cached static assets and handled offline fetch fallbacks.
+// Those strategies have been retired: the app now requires a live server
+// connection for all business actions and loads assets directly from the
+// network (Vite-hashed filenames are immutable at the CDN layer).
 
-const CACHE = 'tingting-shell-v2';
-
-// Same-origin static asset extensions worth caching long-term.
-const ASSET_RE = /\.(?:js|mjs|css|woff2?|ttf|otf|png|jpe?g|gif|svg|avif|webp|ico)$/i;
+const CACHE = 'tingting-shell-v3';
 
 self.addEventListener('install', () => {
-  // Skip waiting so a newly deployed SW activates immediately (no stale-shell limbo).
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
-    // Drop caches left over from any previous SW version.
+    // Drop caches left over from previous SW versions (v2 cached assets).
     const keys = await caches.keys();
     await Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)));
-    // Take control of all open tabs right away.
     await self.clients.claim();
   })());
 });
@@ -94,112 +86,4 @@ self.addEventListener('notificationclick', (event) => {
       return self.clients.openWindow(urlToOpen);
     }),
   );
-});
-
-// ─── Periodic Background Sync ──────────────────────────────────────────────
-// Keeps the journey board fresh even when the driver hasn't opened the app.
-// The browser fires this every ~15 min (Chrome); we poll the API and surface
-// any new dispatch orders as OS notifications.
-
-const JOURNEY_BOARD_URL = '/api/driver/me/journey-board';
-
-self.addEventListener('periodicsync', (event) => {
-  if (event.tag !== 'refresh-journey-board') return;
-  event.waitUntil((async () => {
-    try {
-      // The API authenticates via Authorization: Bearer, not cookies. The page
-      // mirrors the JWT into the SW cache (see lib/token.ts setToken), which —
-      // unlike localStorage — IS readable from the service worker.
-      const tokenResponse = await caches.match('/__auth-token');
-      const token = tokenResponse ? await tokenResponse.text() : '';
-      const res = await fetch(JOURNEY_BOARD_URL, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (res.status === 403) {
-        // Registered on install for every signed-in PWA user, but the
-        // journey board is driver-only: an office device would poll a
-        // permanent 403 forever. The periodic-sync permission never names
-        // the role, so self-unregister here.
-        await self.registration.periodicSync?.unregister('refresh-journey-board');
-        return;
-      }
-      if (!res.ok) return;
-      // The endpoint wraps the cards in { items: [...] }.
-      const wire = await res.json();
-      const cards = Array.isArray(wire) ? wire : wire?.items ?? [];
-      const newOrders = cards.filter((c) => c && c.bucket === 'NEW');
-      // Track the NEW-bucket size even when it drains to zero. An early
-      // return at zero would freeze the high-water mark at the last peak:
-      // every later count that does not exceed the stale peak (e.g.
-      // 3 → 0 → 1) would silently never notify.
-      const countResponse = await caches.match('/__journey-new-count');
-      const lastCount = parseInt(countResponse ? await countResponse.text() : '0', 10) || 0;
-      const cache = await caches.open(CACHE);
-      cache.put('/__journey-new-count', new Response(String(newOrders.length)));
-      // Notify when the NEW count rose since the previous sync (queue grew).
-      if (newOrders.length > lastCount) {
-        const latest = newOrders[0];
-        await self.registration.showNotification('Lệnh vận chuyển mới', {
-          body: `Bạn có ${newOrders.length} lệnh mới. ${latest.routeName || ''}`.trim(),
-          icon: '/assets/transting-logo-192.png?v=4',
-          tag: 'tingting-new-order',
-          // A still-displayed first alert must be audibly replaced, not
-          // silently swapped (the push handler above sets this for the
-          // same reason).
-          renotify: true,
-          data: { url: '/my-trips' },
-          vibrate: [120, 60, 120],
-        });
-      }
-    } catch {
-      /* best-effort — network may be unavailable */
-    }
-  })());
-});
-
-self.addEventListener('fetch', (event) => {
-  const { request } = event;
-
-  // Only intercept safe GETs; let POST/PUT/DELETE pass through untouched.
-  if (request.method !== 'GET') return;
-
-  const url = new URL(request.url);
-
-  // API responses and cross-origin requests are never cached — straight to network.
-  if (url.origin !== self.location.origin || url.pathname.startsWith('/api/')) return;
-
-  // 1) HTML navigations → network-first (always serve the newest app shell).
-  if (request.mode === 'navigate') {
-    event.respondWith((async () => {
-      try {
-        const fresh = await fetch(request);
-        const cache = await caches.open(CACHE);
-        cache.put(request, fresh.clone());
-        return fresh;
-      } catch {
-        // Offline (or server down) → fall back to the cached shell or app entry.
-        return (await caches.match(request)) || (await caches.match('/')) || Response.error();
-      }
-    })());
-    return;
-  }
-
-  // 2) Hashed static assets → cache-first (immutable, so never stale).
-  if (ASSET_RE.test(url.pathname)) {
-    event.respondWith((async () => {
-      const cache = await caches.open(CACHE);
-      const cached = await cache.match(request);
-      if (cached) return cached;
-      try {
-        const fresh = await fetch(request);
-        if (fresh.ok) cache.put(request, fresh.clone());
-        return fresh;
-      } catch {
-        return cached || Response.error();
-      }
-    })());
-    return;
-  }
-
-  // 3) Everything else (manifest.json, etc.) falls through to the browser default.
 });

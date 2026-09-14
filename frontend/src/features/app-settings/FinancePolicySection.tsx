@@ -84,7 +84,7 @@ export function FinancePolicySection({
   return (
     <Panel
       title="Thiết lập chính sách tài chính"
-      subtitle="Tạo phiên bản mới theo tháng hiệu lực, không sửa trực tiếp bản đã duyệt"
+      subtitle="Tạo phiên bản mới theo tháng hiệu lực, không sửa trực tiếp bản hiện hành"
       action={<ShieldCheck size={18} className="cfg-panel-action-icon" />}
     >
       <div className="cfg-finance-tabs" role="tablist" aria-label="Nhóm chính sách tài chính">
@@ -124,7 +124,7 @@ export function FinancePolicySection({
                 <h3 className="cfg-section__heading">Trạng thái hiện tại</h3>
                 {financialPolicy.data?.status === 'UNCONFIGURED' ? (
                   <div className="cfg-finance-note cfg-finance-note--warning">
-                    <strong>Chưa có chính sách được phê duyệt</strong>
+                    <strong>Chưa có chính sách</strong>
                     <p>Báo cáo hiện giữ nguyên số liệu đã ghi sổ và hiển thị trạng thái chưa cấu hình.</p>
                   </div>
                 ) : (
@@ -158,7 +158,7 @@ export function FinancePolicySection({
               </div>
 
               <FinanceVersionList
-                title="Lịch sử đã duyệt"
+                title="Lịch sử phiên bản"
                 emptyMessage="Chưa có lịch sử phiên bản."
                 rows={financialPolicy.data?.history ?? []}
                 renderMeta={(row) => {
@@ -191,6 +191,8 @@ export function FinancePolicySection({
                   onChange={setPolicyEffectiveFrom}
                   min={financialPolicy.data?.currentVietnamMonthStart}
                   disabled={requestFinancialPolicy.isPending}
+                  aria-invalid={policyError?.includes('tháng') ? true : undefined}
+                  aria-describedby={policyError?.includes('tháng') ? 'policy-effective-error' : undefined}
                 />
                 {/* One version per month by design: months already carrying a
                     version must be visible as taken BEFORE the user submits —
@@ -201,7 +203,7 @@ export function FinancePolicySection({
                   if (!taken) return null;
                   return (
                     <p role="alert" className="cfg-field-hint" style={{ color: 'var(--err, #dc2626)' }}>
-                      Tháng này đã có phiên bản (đã duyệt)— xem "Lịch sử đã duyệt" hoặc chọn tháng khác.
+                      Tháng này đã có phiên bản — xem "Lịch sử phiên bản" hoặc chọn tháng khác.
                     </p>
                   );
                 })()}
@@ -222,6 +224,8 @@ export function FinancePolicySection({
                   value={policyThresholdPercent}
                   onChange={(event) => setPolicyThresholdPercent(event.target.value)}
                   disabled={requestFinancialPolicy.isPending}
+                  aria-invalid={policyError?.includes('Ngưỡng') ? true : undefined}
+                  aria-describedby={policyError?.includes('Ngưỡng') ? 'policy-threshold-error' : undefined}
                 />
                 <p className="cfg-field-hint">
                   Để trống nếu chưa cấu hình cảnh báo biên lợi nhuận.
@@ -237,6 +241,22 @@ export function FinancePolicySection({
                   <strong>Tỷ trọng doanh thu chuyến hoàn thành</strong>
                 </div>
               </div>
+              {policyError && (
+                <p
+                  id={policyError?.includes('tháng') ? 'policy-effective-error' : policyError?.includes('Ngưỡng') ? 'policy-threshold-error' : undefined}
+                  role="alert"
+                  className="cfg-form-error"
+                >
+                  {policyError}
+                </p>
+              )}
+              {requestFinancialPolicy.error && !policyError && (
+                <p role="alert" className="cfg-form-error">
+                  {requestFinancialPolicy.error instanceof Error
+                    ? requestFinancialPolicy.error.message
+                    : 'Không thể gửi yêu cầu chính sách.'}
+                </p>
+              )}
               <div className="cfg-form-actions">
                 <button
                   className="btn btn--primary"
@@ -247,14 +267,6 @@ export function FinancePolicySection({
                   {requestFinancialPolicy.isPending ? 'Đang gửi…' : policySubmitLabel}
                 </button>
                 {policyMessage && <span className="cfg-form-success" role="status">{policyMessage}</span>}
-                {policyError && <span className="cfg-form-error" role="alert">{policyError}</span>}
-                {requestFinancialPolicy.error && !policyError && (
-                  <span className="cfg-form-error" role="alert">
-                    {requestFinancialPolicy.error instanceof Error
-                      ? requestFinancialPolicy.error.message
-                      : 'Không thể gửi yêu cầu chính sách.'}
-                  </span>
-                )}
               </div>
             </div>
           </div>
@@ -289,7 +301,7 @@ export function FinancePolicySection({
               />
               {truckProfiles.data?.status === 'UNCONFIGURED' ? (
                 <div className="cfg-finance-note cfg-finance-note--warning">
-                  <strong>Xe này chưa có hồ sơ tài chính được phê duyệt</strong>
+                  <strong>Xe này chưa có hồ sơ tài chính</strong>
                   <p>Khấu hao và chi phí cố định theo tháng sẽ tiếp tục hiển thị chưa phân bổ.</p>
                 </div>
               ) : (
@@ -357,6 +369,8 @@ export function FinancePolicySection({
                   min={truckProfiles.data?.currentVietnamMonthStart}
                   onChange={setTruckEffectiveFrom}
                   disabled={requestTruckProfile.isPending}
+                  aria-invalid={truckError?.includes('Tháng hiệu lực') ? true : undefined}
+                  aria-describedby={truckError?.includes('Tháng hiệu lực') ? 'truck-effective-error' : undefined}
                 />
               </div>
               <div className="field">
@@ -367,6 +381,8 @@ export function FinancePolicySection({
                   value={truckInServiceDate}
                   onChange={setTruckInServiceDate}
                   disabled={requestTruckProfile.isPending}
+                  aria-invalid={truckError?.includes('ngày đưa vào sử dụng') ? true : undefined}
+                  aria-describedby={truckError?.includes('ngày đưa vào sử dụng') ? 'truck-effective-error' : undefined}
                 />
               </div>
               <div className="field">
@@ -402,7 +418,14 @@ export function FinancePolicySection({
                   value={truckUsefulLifeMonths}
                   onChange={(event) => setTruckUsefulLifeMonths(event.target.value)}
                   disabled={requestTruckProfile.isPending}
+                  aria-invalid={truckError?.includes('Thời gian sử dụng') ? true : undefined}
+                  aria-describedby={truckError?.includes('Thời gian sử dụng') ? 'truck-life-error' : undefined}
                 />
+                {truckError?.includes('Thời gian sử dụng') && (
+                  <p id="truck-life-error" role="alert" className="cfg-field-error" style={{ color: 'var(--err, #dc2626)', margin: '4px 0 0', fontSize: 12 }}>
+                    {truckError}
+                  </p>
+                )}
               </div>
               <div className="field">
                 <label htmlFor="truck-monthly-fixed-cost">Chi phí cố định mỗi tháng (VND)</label>
@@ -417,6 +440,22 @@ export function FinancePolicySection({
                 <p className="cfg-field-hint">{truckMonthlyFixedCost ? `${formatFullVnd(truckMonthlyFixedCost)} VND` : 'Nhập đầy đủ số tiền VND'}</p>
               </div>
             </div>
+            {truckError && !truckError?.includes('Thời gian sử dụng') && (
+              <p
+                id={truckError?.includes('Tháng hiệu lực') || truckError?.includes('ngày đưa vào sử dụng') ? 'truck-effective-error' : undefined}
+                role="alert"
+                className="cfg-form-error"
+              >
+                {truckError}
+              </p>
+            )}
+            {requestTruckProfile.error && !truckError && (
+              <p role="alert" className="cfg-form-error">
+                {requestTruckProfile.error instanceof Error
+                  ? requestTruckProfile.error.message
+                  : 'Không thể gửi hồ sơ tài chính xe.'}
+              </p>
+            )}
             <div className="cfg-form-actions">
               <button
                 className="btn btn--primary"
@@ -427,14 +466,6 @@ export function FinancePolicySection({
                 {requestTruckProfile.isPending ? 'Đang gửi…' : truckSubmitLabel}
               </button>
               {truckMessage && <span className="cfg-form-success" role="status">{truckMessage}</span>}
-              {truckError && <span className="cfg-form-error" role="alert">{truckError}</span>}
-              {requestTruckProfile.error && !truckError && (
-                <span className="cfg-form-error" role="alert">
-                  {requestTruckProfile.error instanceof Error
-                    ? requestTruckProfile.error.message
-                    : 'Không thể gửi hồ sơ tài chính xe.'}
-                </span>
-              )}
             </div>
           </div>
         </div>

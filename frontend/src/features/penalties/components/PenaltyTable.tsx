@@ -169,139 +169,6 @@ export function PenaltyTable({
       />
       )}
 
-      {/* ── Driver scoreboard ────────────────────────────────────────────── */}
-      <Panel flush className="penalty-transparent-panel">
-        <div className="penalty-card-head">
-          <div className="penalty-card-lead">
-            <div className="penalty-card-icon">
-              <Trophy size={18} />
-            </div>
-            <div style={{ minWidth: 0 }}>
-              <div className="penalty-card-title">
-                Bảng xếp hạng lái xe
-                <span className="count-pill">{scoreboardRows.length}</span>
-              </div>
-              <div className="penalty-card-sub">Sắp xếp theo chuỗi ngày an toàn và mức vi phạm nghiệp vụ</div>
-            </div>
-          </div>
-          <div className="penalty-head-tools">
-            <div className="penalty-seg">
-              {SCORE_WINDOWS.map(f => (
-                <button
-                  key={f.key}
-                  className={scoreFilter === f.key ? 'active' : ''}
-                  onClick={() => setScoreFilter(f.key)}
-                >
-                  {f.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-        {/* Phone: the ranking collapses by default so the violation ledger
-            and its status chips stay in the first viewport. */}
-        <button
-          type="button"
-          className="penalty-m-toggle mobile-only"
-          aria-expanded={mobileScoreOpen}
-          onClick={() => setMobileScoreOpen((o) => !o)}
-        >
-          <span className="penalty-m-toggle__label">Bảng xếp hạng lái xe</span>
-          <span className="penalty-m-toggle__meta">{scoreboardRows.length} lái xe</span>
-          <ChevronDown size={15} className={mobileScoreOpen ? 'is-open' : undefined} aria-hidden="true" />
-        </button>
-        {mobileScoreOpen && (
-          <PenaltyScoreboardCards
-            rows={scoreboardRows}
-            avgStreak={avgStreak}
-            driversOver90={driversOver90}
-            onOpenDrawer={onOpenDrawer}
-          />
-        )}
-        <div className="desktop-only">
-          <div className="record-table-wrap penalty-scoreboard-wrap">
-            <table className="record-table ops-table penalty-scoreboard-table">
-              <thead>
-                <tr>
-                  <th className="penalty-scoreboard-col-rank">STT</th>
-                  <th>Lái xe</th>
-                  <th>Chuỗi an toàn</th>
-                  <th>Vi phạm {scoreFilter === '90d' ? '90N' : scoreFilter.toUpperCase()}</th>
-                  <th>Phạt YTD</th>
-                  <th className="penalty-scoreboard-col-center">Mức</th>
-                </tr>
-              </thead>
-              <tbody>
-                {scoreboardRows.map((d, idx) => {
-                  const rankClass = idx === 0 ? 'gold' : idx === 1 ? 'silver' : idx === 2 ? 'bronze' : '';
-                  const streakPct = Math.min(100, (d.streakDays / 180) * 100);
-                  const vClass = d.violations === 0 ? 'zero' : d.violations <= 2 ? 'warn' : 'bad';
-                  const moneyClass = d.fineYtd === 0 ? 'zero' : '';
-                  const gc = getGradeClass(d.grade);
-                  return (
-                    <tr key={d.driverId} onClick={() => onOpenDrawer(d.driverId)} className="penalty-scoreboard-row">
-                      <td data-label="" className="penalty-scoreboard-col-center">
-                        <span className={`penalty-rank ${rankClass}`}>{idx + 1}</span>
-                      </td>
-                      <td data-label="Lái xe">
-                        <span className="penalty-driver-cell">
-                          <span className="penalty-driver-mini">
-                            <UserRound size={14} aria-hidden="true" />
-                          </span>
-                          <span className="penalty-driver-info">
-                            <div className="name">{d.name}</div>
-                            <div className="role">
-                              {[d.truckPlate || 'Chưa phân xe', d.tenure].filter(Boolean).join(' · ')}
-                            </div>
-                          </span>
-                        </span>
-                      </td>
-                      <td data-label="Chuỗi an toàn">
-                        <span className="penalty-streak">
-                          <span className="penalty-streak-num">
-                            {d.streakDays}<span className="unit">ngày</span>
-                          </span>
-                          <span className="penalty-streak-bar">
-                            <span
-                              className={`fill ${idx === 0 ? 'gold' : ''}`}
-                              style={{ width: `${streakPct}%` }}
-                            />
-                          </span>
-                        </span>
-                      </td>
-                      <td data-label="Vi phạm">
-                        <span className={`penalty-violation-count ${vClass}`}>
-                          <span className="dot" />
-                          {d.violations} vụ
-                        </span>
-                      </td>
-                      <td data-label="Phạt YTD" className="num">
-                        <span className={`penalty-money ${moneyClass}`}>
-                          {d.fineYtd > 0 ? formatNumber(d.fineYtd) : `0`}<span className="unit">đ</span>
-                        </span>
-                      </td>
-                      <td data-label="Mức" className="penalty-scoreboard-col-center">
-                        <span className={`penalty-grade ${gc}`}>{d.grade}</span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          <div className="penalty-table-foot">
-            <div className="legend">
-              <span>TB chuỗi an toàn: <span className="penalty-foot-value">{avgStreak} ngày</span></span>
-              <span className="penalty-foot-sep">·</span>
-              <span>{driversOver90} lái xe đạt mốc 90 ngày</span>
-              <span className="penalty-foot-sep">·</span>
-              <span>{driversOver6m} lái xe vượt 6 tháng</span>
-            </div>
-            <span>Hiển thị {scoreboardRows.length}/{scoreboardRows.length}</span>
-          </div>
-        </div>
-      </Panel>
-
       {/* ── Violation log (full width so the record table keeps table mode) ── */}
       <Panel flush className="penalty-transparent-panel penalty-log-panel">
           <div className="penalty-card-head">
@@ -450,7 +317,13 @@ export function PenaltyTable({
                             ) : '—'}
                           </td>
                           <td data-label="Số tiền" className="num">
-                            <Money value={Number(p.amount)} sign="-" className="penalty-log-money" />
+                            {canceled ? (
+                              <span className="penalty-log-money penalty-log-money--canceled">
+                                <Money value={Math.abs(Number(p.amount))} /> <span style={{ fontSize: 11, color: 'var(--fg-3)' }}>(đã hủy)</span>
+                              </span>
+                            ) : (
+                              <Money value={Number(p.amount)} sign="-" className="penalty-log-money" />
+                            )}
                           </td>
                           {canCancel && (
                             <td data-label="" className="record-table__action">
@@ -484,6 +357,139 @@ export function PenaltyTable({
             </>
           )}
         </Panel>
+
+      {/* ── Driver scoreboard ────────────────────────────────────────────── */}
+      <Panel flush className="penalty-transparent-panel">
+        <div className="penalty-card-head">
+          <div className="penalty-card-lead">
+            <div className="penalty-card-icon">
+              <Trophy size={18} />
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div className="penalty-card-title">
+                Bảng xếp hạng lái xe
+                <span className="count-pill">{scoreboardRows.length}</span>
+              </div>
+              <div className="penalty-card-sub">Sắp xếp theo chuỗi ngày an toàn và mức vi phạm nghiệp vụ</div>
+            </div>
+          </div>
+          <div className="penalty-head-tools">
+            <div className="penalty-seg">
+              {SCORE_WINDOWS.map(f => (
+                <button
+                  key={f.key}
+                  className={scoreFilter === f.key ? 'active' : ''}
+                  onClick={() => setScoreFilter(f.key)}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        {/* Phone: the ranking collapses by default so the violation ledger
+            and its status chips stay in the first viewport. */}
+        <button
+          type="button"
+          className="penalty-m-toggle mobile-only"
+          aria-expanded={mobileScoreOpen}
+          onClick={() => setMobileScoreOpen((o) => !o)}
+        >
+          <span className="penalty-m-toggle__label">Bảng xếp hạng lái xe</span>
+          <span className="penalty-m-toggle__meta">{scoreboardRows.length} lái xe</span>
+          <ChevronDown size={15} className={mobileScoreOpen ? 'is-open' : undefined} aria-hidden="true" />
+        </button>
+        {mobileScoreOpen && (
+          <PenaltyScoreboardCards
+            rows={scoreboardRows}
+            avgStreak={avgStreak}
+            driversOver90={driversOver90}
+            onOpenDrawer={onOpenDrawer}
+          />
+        )}
+        <div className="desktop-only">
+          <div className="record-table-wrap penalty-scoreboard-wrap">
+            <table className="record-table ops-table penalty-scoreboard-table">
+              <thead>
+                <tr>
+                  <th className="penalty-scoreboard-col-rank">STT</th>
+                  <th>Lái xe</th>
+                  <th>Chuỗi an toàn</th>
+                  <th>Vi phạm {scoreFilter === '90d' ? '90N' : scoreFilter.toUpperCase()}</th>
+                  <th>Phạt YTD</th>
+                  <th className="penalty-scoreboard-col-center">Mức</th>
+                </tr>
+              </thead>
+              <tbody>
+                {scoreboardRows.map((d, idx) => {
+                  const rankClass = idx === 0 ? 'gold' : idx === 1 ? 'silver' : idx === 2 ? 'bronze' : '';
+                  const streakPct = Math.min(100, (d.streakDays / 180) * 100);
+                  const vClass = d.violations === 0 ? 'zero' : d.violations <= 2 ? 'warn' : 'bad';
+                  const moneyClass = d.fineYtd === 0 ? 'zero' : '';
+                  const gc = getGradeClass(d.grade);
+                  return (
+                    <tr key={d.driverId} onClick={() => onOpenDrawer(d.driverId)} className="penalty-scoreboard-row">
+                      <td data-label="" className="penalty-scoreboard-col-center">
+                        <span className={`penalty-rank ${rankClass}`}>{idx + 1}</span>
+                      </td>
+                      <td data-label="Lái xe">
+                        <span className="penalty-driver-cell">
+                          <span className="penalty-driver-mini">
+                            <UserRound size={14} aria-hidden="true" />
+                          </span>
+                          <span className="penalty-driver-info">
+                            <div className="name">{d.name}</div>
+                            <div className="role">
+                              {[d.truckPlate || 'Chưa phân xe', d.tenure].filter(Boolean).join(' · ')}
+                            </div>
+                          </span>
+                        </span>
+                      </td>
+                      <td data-label="Chuỗi an toàn">
+                        <span className="penalty-streak">
+                          <span className="penalty-streak-num">
+                            {d.streakDays}<span className="unit">ngày</span>
+                          </span>
+                          <span className="penalty-streak-bar">
+                            <span
+                              className={`fill ${idx === 0 ? 'gold' : ''}`}
+                              style={{ width: `${streakPct}%` }}
+                            />
+                          </span>
+                        </span>
+                      </td>
+                      <td data-label="Vi phạm">
+                        <span className={`penalty-violation-count ${vClass}`}>
+                          <span className="dot" />
+                          {d.violations} vụ
+                        </span>
+                      </td>
+                      <td data-label="Phạt YTD" className="num">
+                        <span className={`penalty-money ${moneyClass}`}>
+                          {d.fineYtd > 0 ? formatNumber(d.fineYtd) : `0`}<span className="unit">đ</span>
+                        </span>
+                      </td>
+                      <td data-label="Mức" className="penalty-scoreboard-col-center">
+                        <span className={`penalty-grade ${gc}`}>{d.grade}</span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div className="penalty-table-foot">
+            <div className="legend">
+              <span>TB chuỗi an toàn: <span className="penalty-foot-value">{avgStreak} ngày</span></span>
+              <span className="penalty-foot-sep">·</span>
+              <span>{driversOver90} lái xe đạt mốc 90 ngày</span>
+              <span className="penalty-foot-sep">·</span>
+              <span>{driversOver6m} lái xe vượt 6 tháng</span>
+            </div>
+            <span>Hiển thị {scoreboardRows.length}/{scoreboardRows.length}</span>
+          </div>
+        </div>
+      </Panel>
 
       {/* ── Violation type reference ─────────────────────────────────────── */}
       <Panel flush className="penalty-transparent-panel">

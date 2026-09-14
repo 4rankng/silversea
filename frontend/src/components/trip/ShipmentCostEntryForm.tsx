@@ -15,7 +15,7 @@ import {
   DriverIncidentalCostType,
 } from '@tingting/shared';
 import { driverClient } from '../../api/driverClient';
-import { buildOfflineCommandKey } from '../../features/driver/useOfflineCommandQueue';
+import { buildIdempotencyKey } from '../../lib/idempotency';
 import { SelectField, NumberField, DateField } from '../../design-system';
 import { formatCurrency, formatISODate, businessDateISO } from '../../lib/format';
 import { photoSrc } from '../../lib/api/photo';
@@ -235,7 +235,7 @@ export function ShipmentCostEntryForm({
     setSubmitting(true);
     setFormError(null);
     try {
-      const idempotencyKey = buildOfflineCommandKey(
+      const idempotencyKey = buildIdempotencyKey(
         'incidental-cost',
         tripId,
         costType,
