@@ -172,6 +172,30 @@ describe('driver container routes — ISO 6346 gate wiring', () => {
       .from(s.tripContainers).where(eq(s.tripContainers.id, containerId));
     assert.equal(row.containerNumber, null);
   });
+
+  test("PATCH malformed container number 'INVALID' is rejected", async () => {
+    const created = await db.select({ id: s.tripContainers.id, updatedAt: s.tripContainers.updatedAt }).from(s.tripContainers)
+      .where(eq(s.tripContainers.tripId, tripId)).limit(1);
+    const containerId = created[0].id;
+    const bad = await api(`/trips/${tripId}/containers/${containerId}`, {
+      method: 'PATCH',
+      body: { containerNumber: 'INVALID' },
+      ifUnmodifiedSince: created[0].updatedAt.toISOString(),
+    });
+    assert.ok(bad.status === 400 || bad.status === 422, `expected 400 or 422, got ${bad.status}`);
+  });
+
+  test('PATCH with wrong check digit is rejected', async () => {
+    const created = await db.select({ id: s.tripContainers.id, updatedAt: s.tripContainers.updatedAt }).from(s.tripContainers)
+      .where(eq(s.tripContainers.tripId, tripId)).limit(1);
+    const containerId = created[0].id;
+    const bad = await api(`/trips/${tripId}/containers/${containerId}`, {
+      method: 'PATCH',
+      body: { containerNumber: 'TCKU1234567' },
+      ifUnmodifiedSince: created[0].updatedAt.toISOString(),
+    });
+    assert.ok(bad.status === 400 || bad.status === 422, `expected 400 or 422, got ${bad.status}`);
+  });
 });
 
 after(async () => {

@@ -422,6 +422,10 @@ describe('Q23 generated configuration CRUD replay', () => {
       `q23-route-version-missing-${suffix}`,
     );
     assert.equal(missingVersion.status, 428);
+    // The missing-token 428 is machine-identifiable (the FE transport
+    // self-heals exactly this case); a genuine stale-token conflict below
+    // stays a plain 409 with no code.
+    assert.equal(missingVersion.body.code, 'VERSION_TOKEN_REQUIRED');
 
     const [left, right] = await Promise.all([
       api(
@@ -454,6 +458,7 @@ describe('Q23 generated configuration CRUD replay', () => {
       originalVersion,
     );
     assert.equal(staleDelete.status, 409);
+    assert.equal(staleDelete.body.code, undefined);
 
     const [row] = await db.select()
       .from(s.routes)

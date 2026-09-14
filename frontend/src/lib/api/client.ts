@@ -61,11 +61,17 @@ function ensureMutationTransactionKey(
  * Token storage is delegated to `lib/token` so all auth
  * state flows through a single source of truth.
  */
+/** Marker that prevents the self-heal from looping on a single request. */
+const HEALED_VERSION_TOKEN = Symbol('healedVersionToken');
+
+/** The backend's machine-readable marker for "no If-Unmodified-Since at all"
+ *  — distinct from a genuine stale-token 409. See crud-factory.ts. */
+const VERSION_TOKEN_REQUIRED = 'VERSION_TOKEN_REQUIRED';
+
 class ApiClient {
   private readonly updatedAtByPath = new Map<string, string>();
   private readonly retryableCommandKeys = new Map<string, {
     activeRequests: number;
-    key: string;
     expiresAt: number;
   }>();
 
@@ -93,6 +99,47 @@ class ApiClient {
   }
 
   private async request<T>(
+    path: string,
+    options?: RequestInitWithSkip,
+    skipContentType = false,
+  ): Promise<T> {
+    try {
+      return await this.requestOnce<T>(path, options, skipContentType);
+    } catch (error) {
+      // Self-heal the crud-factory token omission class: a 428 whose body
+      // carries VERSION_TOKEN_REQUIRED means NO version token was sent at
+      // all. Refetch the row once and retry with its fresh token — clients
+      // that already send explicit tokens (units, base-salary modal) never
+      // enter this path (AC: no double-send), and genuine stale-token 409s
+      // are untouched. The marker prevents any loop.
+      const healable = error instanceof ApiError
+        && error.status === 428
+        && (error.raw as { code?: string } | null)?.code === VERSION_TOKEN_REQUIRED
+        && options?.method
+        && ['PUT', 'PATCH', 'DELETE'].includes(options.method.toUpperCase())
+        && !options?.expectedUpdatedAt
+        && !(options as RequestInitWithSkip & { [HEALED_VERSION_TOKEN]?: boolean })[HEALED_VERSION_TOKEN];
+      if (!healable) throw error;
+      if (import.meta.env.DEV) {
+        console.warn(
+          `[api] ${options?.method} ${path} omitted expectedUpdatedAt — self-healed from a fresh row fetch.`
+          + ' Pass expectedUpdatedAt explicitly (see version-token.guard.test).',
+        );
+      }
+      const fresh = await this.get<{ updatedAt?: string }>(path);
+      if (!fresh?.updatedAt) throw error;
+      return this.requestOnce<T>(path, {
+        ...options,
+        headers: {
+          ...(options?.headers as Record<string, string> | undefined),
+          'If-Unmodified-Since': fresh.updatedAt,
+        },
+        [HEALED_VERSION_TOKEN]: true,
+      } as RequestInitWithSkip, skipContentType);
+    }
+  }
+
+  private async requestOnce<T>(
     path: string,
     options?: RequestInitWithSkip,
     skipContentType = false,
