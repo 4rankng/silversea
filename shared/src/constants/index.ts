@@ -439,7 +439,7 @@ export const ROLE_LABELS: Record<Role, string> = {
   [Role.OPS]: 'Nhân viên vận hành', // formerly 'Giao nhận'
   [Role.CUSTOMER]: 'Khách hàng',
   [Role.DISPATCHER]: 'Điều vận',
-  [Role.CUS]: 'Nhân viên Chứng từ',
+  [Role.CUS]: 'CUS',
 };
 
 export const FUEL_MODE_LABELS: Record<FuelMode, string> = {

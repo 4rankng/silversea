@@ -269,7 +269,7 @@ describe('customer account scope', () => {
 
     const roleTrigger = screen.getByRole('combobox', { name: /Vai trò/i });
     fireEvent.click(roleTrigger);
-    fireEvent.click(screen.getByRole('option', { name: /Nhân viên Chứng từ/i }));
+    fireEvent.click(screen.getByRole('option', { name: /^CUS$/i }));
 
     // No assignment pickers are rendered for CUS anymore — the form only
     // needs identity fields, and submit is enabled immediately.

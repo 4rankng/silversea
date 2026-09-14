@@ -11,17 +11,17 @@ import { Role } from '@tingting/shared';
 
 /**
  * Get display label for a role during transition period
- * Shows transitional labels like "CUS (Nhân viên Chứng từ)" for legacy roles
+ * Shows transitional labels like "CUS" for legacy roles
  *
  * @example
- * getDisplayRole('CLERK') // returns 'CUS (Nhân viên Chứng từ)'
+ * getDisplayRole('CLERK') // returns 'CUS'
  * getDisplayRole('CUS') // returns 'CUS'
  * getDisplayRole('ADMIN') // returns 'ADMIN'
  */
 export function getDisplayRole(role: string): string {
   switch (role) {
     case 'CLERK':
-      return 'CUS (Nhân viên Chứng từ)';
+      return 'CUS';
     case 'FORWARDER':
       return 'OPS (Nhân viên vận hành)';
     default:
