@@ -266,11 +266,11 @@ export function DetailedPlanGrid({
                   </td>
                   <td className="detailed-plan-grid__cell detailed-plan-grid__cell--documents" data-label="Tuyến đường">
                     {row.customerRoute.routeName ? (
-                      <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">
-                        {row.customerRoute.routeName}
-                      </div>
+                      <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">{row.customerRoute.routeName}</div>
+                    ) : row.customerRoute.deliveryPoint ? (
+                      <div className="detailed-plan-grid__line detailed-plan-grid__line--muted">{row.customerRoute.deliveryPoint}</div>
                     ) : (
-                      <div className="detailed-plan-grid__line detailed-plan-grid__line--muted">—</div>
+                      <div className="detailed-plan-grid__line detailed-plan-grid__line--muted">Chưa có tuyến đường</div>
                     )}
                     <div className="detailed-plan-grid__line detailed-plan-grid__documents-direction">
                       {row.docs.tradeDirection === 'IMPORT' ? (

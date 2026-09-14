@@ -688,6 +688,31 @@ describe('DetailedPlanGrid — secondary text contrast pins', () => {
     expect(muted.match(/color:\s*([^;]+);/)?.[1]).toBe('var(--text-secondary, #64748b)');
   });
 
+  it('Tuyến cell shows the route, then the destination, then an explicit missing label — never a silent dash', () => {
+    // Route present: strong line.
+    const withRoute = renderGrid([row()]);
+    const routeCell = withRoute.container.querySelector<HTMLElement>('td[data-label="Tuyến đường"]')!;
+    expect(routeCell.textContent).toContain('LH — Biên Hòa');
+
+    // No route but a known destination: the destination orients the row,
+    // muted — the same context CUS shows for this lot.
+    const withDestination = renderGrid([row({
+      customerRoute: { customerName: 'Công ty ABC', factoryName: 'Nhà máy XYZ', deliveryPoint: 'Kho Bình Dương', routeName: null },
+    })]);
+    const destinationCell = withDestination.container.querySelector<HTMLElement>('td[data-label="Tuyến đường"]')!;
+    expect(destinationCell.textContent).toContain('Kho Bình Dương');
+    expect(destinationCell.textContent).not.toContain('LH — Biên Hòa');
+
+    // Genuinely unknown: an explicit data label, never a bare dash.
+    const unknown = renderGrid([row({
+      customerRoute: { customerName: 'Công ty ABC', factoryName: null, deliveryPoint: null, routeName: null },
+    })]);
+    const unknownCell = unknown.container.querySelector<HTMLElement>('td[data-label="Tuyến đường"]')!;
+    expect(unknownCell.textContent).toContain('Chưa có tuyến đường');
+    expect(unknownCell.textContent).not.toContain('—');
+    expect(unknownCell.textContent).not.toContain('Kho Bình Dương');
+  });
+
   it('resolves the editor placeholder copy to the contrast-passing fallback', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DispatchPlanEditorCell.css'), 'utf8');
     const placeholder = css.match(/\.dispatch-assignment-cell__plate\.is-placeholder,[\s\S]*?\{([\s\S]*?)\n\}/)?.[1] ?? '';

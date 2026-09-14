@@ -242,7 +242,7 @@ type DetailPlanRow = {
   cargoMode: 'FCL' | 'LCL';
   taskStatus: 'READY' | 'DISPATCHED' | 'COMPLETED';
   time: { deliveryDate: string | null; runAt: string | null; runHour: number | null };
-  customerRoute: { customerName: string; factoryName: string | null; deliveryPoint: string | null };
+  customerRoute: { customerName: string; factoryName: string | null; deliveryPoint: string | null; routeName: string | null };
   docs: { billNumber: string | null; tradeDirection: string | null; declarationNumbers: string[] };
   container: { containerNumber: string | null; containerTypeLabel: string | null; cargoWeightKg: string | null };
   notes: { vehicleNote: string | null; customerNote: string | null };
@@ -418,12 +418,62 @@ after(async () => {
 });
 
 describe('dispatch detail plan rows', () => {
+  // A container not yet routed individually still shows the LOT's route —
+  // the same container → shipment fallback the CUS workspace applies, so the
+  // plan's Tuyến cell never silently dashes a route CUS displays.
+  test('FCL row falls back to the shipment route when the container has none', async () => {
+    const customer = await createCustomer(`Detail fallback ${suffix}-${createdCustomerIds.length}`);
+    const shipmentRoute = await createRoute();
+    const site = await createOperationalSite(customer.id);
+    const [shipment] = await db.insert(s.shipments).values({
+      customerId: customer.id,
+      routeId: shipmentRoute.id,
+      cargoMode: 'FCL',
+      shipmentCode: `DTL-FALLBACK-${suffix}`,
+      bookingRef: `BOOK-FALLBACK-${suffix}`,
+      status: 'READY_FOR_DISPATCH',
+      closingAt: new Date('2026-08-20T08:00:00.000Z'),
+      tradeDirection: 'EXPORT',
+      operationalSiteId: site.id,
+      createdBy: adminUserId,
+    }).returning();
+    createdShipmentIds.push(shipment.id);
+    const containerType = await createContainerType(`20G${createdContainerTypeIds.length}`);
+    const [container] = await db.insert(s.shipmentContainers).values({
+      shipmentId: shipment.id,
+      containerTypeId: containerType.id,
+      containerNumber: `MSCU${String(310000 + shipment.id).slice(-6)}`,
+      // Deliberately NO container routeId — the lot-level route must surface.
+      customerAppointmentAt: new Date('2026-08-20T08:00:00.000Z'),
+      createdBy: adminUserId,
+    }).returning();
+    const [fulfillment] = await db.insert(s.shipmentFulfillments).values({
+      shipmentId: shipment.id,
+      fulfillmentType: 'FCL_CONTAINER',
+      cargoMode: 'FCL',
+      shipmentContainerId: container.id,
+      sourceShipmentVersion: shipment.version,
+      siteSnapshot: { deliverySite: { id: site.id, name: site.name, address: site.address } },
+      plannedCarrierType: 'OWN',
+      createdBy: adminUserId,
+    }).returning();
+
+    const response = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}`);
+    assert.equal(response.status, 200, JSON.stringify(response.data));
+    const row = response.data.items.find((item) => item.fulfillmentId === fulfillment.id)!;
+    assert.ok(row, 'fallback lot row renders');
+    assert.equal(row.customerRoute.routeName, shipmentRoute.name);
+  });
+
   test('returns one row per container with spec payload before any handoff', async () => {
-    const { shipment, fulfillmentIds } = await createAllocatedLot({ carrierType: 'OWN', containerCount: 2, isCombined: true });
+    const { shipment, fulfillmentIds, route } = await createAllocatedLot({ carrierType: 'OWN', containerCount: 2, isCombined: true });
     const response = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}`);
     assert.equal(response.status, 200, JSON.stringify(response.data));
     assert.equal(response.data.items.length, 2);
     const row = response.data.items.find((item) => item.fulfillmentId === fulfillmentIds[0])!;
+    // Container-routed + shipment-null lot: the CONTAINER's own route must
+    // win (picks up a flipped coalesce that would shadow it with the lot's).
+    assert.equal(row.customerRoute.routeName, route.name);
     assert.equal(row.shipmentId, shipment.id);
     assert.equal(row.isCombined, true);
     assert.equal(row.taskStatus, 'READY');

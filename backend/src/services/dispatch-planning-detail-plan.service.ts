@@ -3,7 +3,7 @@
  * Extracted from dispatch-planning.service.ts (structure-only split, no behavior change).
  * Layering: utils <- queries <- detail; utils <- commands <- detail (keep acyclic).
  */
-import { CUSTOMER_OPERATIONAL_NAME, PORT_OPERATIONAL_NAME, ROUTE_OPERATIONAL_NAME, SITE_OPERATIONAL_NAME, DISPATCH_BUSINESS_TIME_ZONE, DispatchActor, INTERNAL_FLEET_CARRIER_NAME, Tx, addCalendarDays, assertDispatchActor, assertDispatchReadActor, buildPattern, dispatchDetailTransportDateSql, dispatchEffectiveRouteIdSql, loadDeclarationNumbers, normalizeDate, normalizeLimit, redactDispatchSiteForAccountant, requireAccountantDispatchScope, toFrozenSiteSummary, shipmentQSearchPredicate } from './dispatch-planning-utils.service';
+import { CUSTOMER_OPERATIONAL_NAME, PORT_OPERATIONAL_NAME, ROUTE_OPERATIONAL_NAME, SITE_OPERATIONAL_NAME, DISPATCH_BUSINESS_TIME_ZONE, DispatchActor, INTERNAL_FLEET_CARRIER_NAME, Tx, addCalendarDays, assertDispatchActor, assertDispatchReadActor, buildPattern, dispatchDetailTransportDateSql, loadDeclarationNumbers, normalizeDate, normalizeLimit, redactDispatchSiteForAccountant, requireAccountantDispatchScope, toFrozenSiteSummary, shipmentQSearchPredicate } from './dispatch-planning-utils.service';
 import { DISPATCH_DETAIL_PLAN_CARRIER_TYPES, loadLiveTripForFulfillment } from './dispatch-planning-commands.service';
 import { compareDetailPlanRows, countFulfillmentLessReadyRows, listFulfillmentLessReadyRows } from './dispatch-detail-plan-fulfillment-less';
 import { db } from '../db';
@@ -338,7 +338,14 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       .leftJoin(s.shipmentContainers, eq(s.shipmentFulfillments.shipmentContainerId, s.shipmentContainers.id))
       .leftJoin(s.containerTypes, eq(s.shipmentContainers.containerTypeId, s.containerTypes.id))
       .leftJoin(s.operationalSites, eq(s.shipments.operationalSiteId, s.operationalSites.id))
-      .leftJoin(s.routes, eq(s.routes.id, dispatchEffectiveRouteIdSql()))
+      // The plan's FCL route falls back container → shipment, mirroring the
+      // CUS workspace's effectiveRouteNames: a container not yet routed
+      // individually still shows the lot's route instead of a silent dash.
+      // Local on purpose — the shared dispatchEffectiveRouteIdSql feeds the
+      // master plan's INNER join, whose row-set semantics must not change.
+      .leftJoin(s.routes, eq(s.routes.id, sql<number>`case when ${s.shipments.cargoMode} = 'FCL'
+        then coalesce(${s.shipmentContainers.routeId}, ${s.shipments.routeId})
+        else ${s.shipments.routeId} end`))
       .leftJoin(s.trips, and(
         eq(s.trips.fulfillmentId, s.shipmentFulfillments.id),
         ne(s.trips.status, TripStatus.CANCELED),
