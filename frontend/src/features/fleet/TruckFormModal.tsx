@@ -93,14 +93,14 @@ export function TruckFormModal({
       licensePlate: plate.trim(),
       carrierId: carrierId === "" ? null : Number(carrierId),
       ...(trailerTouched ? { currentTrailerId: currentTrailerId === "" ? null : Number(currentTrailerId) } : {}),
-      vehicleClass: vehicleClass.trim() || undefined,
-      brand: brand.trim() || undefined,
+      vehicleClass: vehicleClass.trim() || null,
+      brand: brand.trim() || null,
       towCapacityTons: towCapacityTons !== "" ? Number(towCapacityTons) : null,
       fuelLPer100kmLoaded: fuelLPer100kmLoaded !== "" ? Number(fuelLPer100kmLoaded) : null,
       fuelLPer100kmEmpty: fuelLPer100kmEmpty !== "" ? Number(fuelLPer100kmEmpty) : null,
       nextInspectionDate: nextInspectionDate || null,
       insuranceExpiryDate: insuranceExpiryDate || null,
-      note: note.trim() || undefined,
+      note: note.trim() || null,
     });
   };
   return (
