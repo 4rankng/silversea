@@ -100,7 +100,10 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   'src/components/UI.tsx': 665,
   'src/components/untitled-ui/base/badges/badges.tsx': 416,
   'src/components/untitled-ui/base/select/tag-select.tsx': 401,
-  'src/components/work-inbox/RoleWorkInbox.tsx': 485,
+  // Bumped 485 → 493: 2026-09-14 order-exchange refresh — the trip detail
+  // refetch after a confirmed exchange adds the confirmed-state fact rows.
+  // Reviewed as a contract change.
+  'src/components/work-inbox/RoleWorkInbox.tsx': 493,
   // Bumped 431 → 444: 2026-09-14 duplicate-month picker guard —
   // taken months warn before submit (rework of the staging round-5 loop).
   // Reviewed as a contract change.
@@ -156,7 +159,13 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // should restore a smaller ceiling.
   // Bumped 520 → 585: 2026-09-09 note truncation and inline modal detail trigger.
   'src/features/dispatch/master-plan/MasterPlanGrid.tsx': 585,
-  'src/features/fleet/truck-card.tsx': 441,
+  // First baseline 418 (was new-file capped): the trailer fleet totals
+  // reconcile through an explicit unknown-type bucket (legend twins + KPI
+  // meta), landing 2026-09-14.
+  'src/features/fleet/trailer-card.tsx': 418,
+  // Bumped 441 → 450: 2026-09-14 trailer selector wiring — the card builds
+  // trailerOptions (ACTIVE-only + coupledToPlate hint) for the picker.
+  'src/features/fleet/truck-card.tsx': 450,
   'src/features/penalties/components/PenaltyTable.tsx': 593,
   'src/features/recoverable-costs/RecoverableCostsWorkspace.tsx': 456,
   'src/features/salary-attendance/salary-attendance-components.tsx': 756,
@@ -244,7 +253,9 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   'src/pages/PayableDetailPage.tsx': 608,
   'src/pages/PayableListPage.tsx': 664,
   'src/pages/payables-fuel-invoices.tsx': 1078,
-  'src/pages/ProfitPage.tsx': 567,
+  // Bumped 567 → 591: 2026-09-14 ownership-blocked warning — the affected
+  // trucks list renders as links inside the warning block.
+  'src/pages/ProfitPage.tsx': 591,
   'src/pages/SalaryAttendancePage.tsx': 780,
   'src/pages/SettlementPrintPage.tsx': 646,
   // Bumped 609 → 625: 2026-09-09 useClickOutside dismissal for quick edit draft.
