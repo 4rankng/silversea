@@ -3,7 +3,7 @@
         demo deploy deploy-advance deploy-db-backup deploy-seed deploy-server-setup
 
 # ─── Ports ─────────────────────────────────────────────────────────────────────
-# PostgreSQL: 5441  |  Redis: 6391  |  Backend: 3001  |  Frontend: 7174  |  Adminer: 8083
+# PostgreSQL: 5442  |  Redis: 6392  |  Backend: 3001  |  Frontend: 7174  |  Adminer: 8084
 # Deliberately off the common defaults so this stack can run alongside other
 # projects on this machine without port or container-name collisions.
 
@@ -12,9 +12,9 @@ dev: ## Start everything (db, redis, backend, frontend)
 	@echo "Starting silversea dev environment..."
 	@docker compose -f docker-compose.dev.yml up -d --wait 2>/dev/null || \
 		docker-compose -f docker-compose.dev.yml up -d
-	@echo "Waiting for database (port 5441)..."
-	@until pg_isready -h localhost -p 5441 -U postgres >/dev/null 2>&1 || \
-		nc -z localhost 5441 >/dev/null 2>&1; do sleep 1; done
+	@echo "Waiting for database (port 5442)..."
+	@until pg_isready -h localhost -p 5442 -U postgres >/dev/null 2>&1 || \
+		nc -z localhost 5442 >/dev/null 2>&1; do sleep 1; done
 	@sleep 1
 	@echo "Running migrations (backup first)..."
 	@$(MAKE) --no-print-directory db-backup || echo "⚠️  db-backup failed — continuing dev startup WITHOUT a pre-migrate backup" >&2
@@ -27,7 +27,7 @@ dev: ## Start everything (db, redis, backend, frontend)
 	@echo "Starting backend (port 3001) and frontend (port 7174)..."
 	@echo "  Frontend: http://localhost:7174"
 	@echo "  Backend:  http://localhost:3001/api/health"
-	@echo "  Adminer:  http://localhost:8083  (DB: silversea · user/pass: postgres/postgres)"
+	@echo "  Adminer:  http://localhost:8084  (DB: silversea · user/pass: postgres/postgres)"
 	@echo "  (Ctrl-C stops backend + frontend; db/redis keep running)"
 	@pid=$$(lsof -ti tcp:7174 -sTCP:LISTEN 2>/dev/null); \
 	if [ -n "$$pid" ]; then \
@@ -43,7 +43,7 @@ dev: ## Start everything (db, redis, backend, frontend)
 		wait'
 
 # ─── Database ──────────────────────────────────────────────────────────────────
-DB_CONTAINER := silversea-db
+DB_CONTAINER := ss-main-db
 DB_NAME      := silversea
 DB_USER      := postgres
 
@@ -116,7 +116,7 @@ devdb-prod: ## Sync prod DB (silversea.tingting.vip) → local dev DB — REPLAC
 
 # Internal worker for devdb / devdb-prod (params via DEVDB_* variable overrides).
 devdb-sync:
-	@test -n "$$(docker ps -q -f name=^silversea-db$$)" || { echo "❌ Local DB container 'silversea-db' is not running — run 'make dev' first (db only: docker compose -f docker-compose.dev.yml up -d db)." >&2; exit 1; }
+	@test -n "$$(docker ps -q -f name=^ss-main-db$$)" || { echo "❌ Local DB container 'ss-main-db' is not running — run 'make dev' first (db only: docker compose -f docker-compose.dev.yml up -d db)." >&2; exit 1; }
 	@mkdir -p backups
 	@dump="backups/$(DEVDB_LABEL)-devdb-$$(date +%Y%m%d-%H%M%S).dump"; \
 	echo "1/3  Dumping $(DEVDB_LABEL) DB on $(DEVDB_SERVER)..."; \
