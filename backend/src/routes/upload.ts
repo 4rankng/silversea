@@ -595,6 +595,17 @@ uploadRouter.post('/trips/:tripId/photos/:type/delete', asyncHandler(async (req:
     if (isNaN(containerId)) return res.status(400).json({ error: 'container_id không hợp lệ' });
   }
   const user = getUser(req);
+  // QA-126: require current driver ownership before deleting trip photos.
+  // Office roles (ADMIN, MANAGER, etc.) pass through — only DRIVER is gated.
+  if (user.role === Role.DRIVER) {
+    const access = await checkDriverTripPhotoAccess(user.userId, tripId);
+    if (access === 'no_profile') {
+      return res.status(403).json({ error: 'Không có quyền truy cập ảnh này' });
+    }
+    if (access === 'not_owned') {
+      return res.status(403).json({ error: 'Không có quyền xóa ảnh cho chuyến đi này' });
+    }
+  }
   const idempotencyKey = requireUploadIdempotencyKey(req);
   const { result } = await runIdempotent({
     endpoint: IDEMPOTENCY_ENDPOINTS.UPLOAD_TRIP_PHOTO_DELETE,
