@@ -357,8 +357,9 @@
   .role-work-inbox__tabs button { min-height: 44px; flex: 1 0 auto; white-space: nowrap; }
   /* Card-mode noise cut (customer scan-ability): an empty "Trở ngại: Không
      có" row carries no signal on a phone card, so it drops out entirely —
-     real blockers keep rendering. */
-  .role-work-inbox__cell--empty { display: none; }
+     real blockers keep rendering. Specificity must beat the td card-grid
+     rules above (0,1,1), hence the table-qualified selector. */
+  .role-work-inbox__table td.role-work-inbox__cell--empty { display: none; }
   .role-work-inbox__subtitle {
     display: -webkit-box;
     -webkit-box-orient: vertical;
