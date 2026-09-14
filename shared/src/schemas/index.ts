@@ -977,7 +977,9 @@ export const companyInfoSchema = z.object({
   bankAccount: z.string().trim().min(1, 'Số tài khoản là bắt buộc'),
   bankName: z.string().trim().min(1, 'Ngân hàng là bắt buộc'),
   phone: z.string().trim().default(''),
-  email: z.string().trim().email('Email không hợp lệ').default(''),
+  // Empty string stays legal — company info is optional-per-field and a
+  // blank email must not disable company setup (z.email() alone rejects '').
+  email: z.string().trim().email('Email không hợp lệ').or(z.literal('')).default(''),
   logoStorageKey: z.string().nullable().optional(),
 });
 

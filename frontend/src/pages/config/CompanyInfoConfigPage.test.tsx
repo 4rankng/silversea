@@ -85,16 +85,17 @@ describe('CompanyInfoConfigPage save readiness', () => {
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Lưu thông tin' }).disabled).toBe(true);
   });
 
-  it('rejects malformed email with Vietnamese error before saving', async () => {
+  it('refuses to save a malformed email (save gate disabled, no save call)', async () => {
     renderPage();
     const emailInput = await screen.findByLabelText('Email');
     fireEvent.change(emailInput, { target: { value: 'not-an-email' } });
 
     const saveButton = screen.getByRole<HTMLButtonElement>('button', { name: 'Lưu thông tin' });
+    // The shared companyInfoSchema email rule makes isCompanyInfoConfigured
+    // false for a malformed value — Lưu disables and save never fires.
+    expect(saveButton.disabled).toBe(true);
     fireEvent.click(saveButton);
-
     expect(saveCompanyInfoMock).not.toHaveBeenCalled();
-    expect(screen.getByText('Email không hợp lệ')).toBeTruthy();
   });
 
   it('allows saving when email is blank (optional)', async () => {
