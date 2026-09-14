@@ -1,3 +1,5 @@
+import { qk } from '../../api/keys';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
@@ -137,6 +139,8 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
   });
   const endpoint = endpointFor(role, customerId, states[active], page);
 
+  const queryClient = useQueryClient();
+
   const load = useCallback(async (mode: 'initial' | 'refresh' = 'refresh') => {
     if (role === 'customer' && !scopeReady) return;
     const requestId = latestLoadRequest.current + 1;
@@ -270,6 +274,13 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
     const status = result.statusById[idempotencyKey];
     if (status === 'DONE') {
       setResponseMessage({ kind: 'success', text: action === 'start' ? 'Máy chủ đã xác nhận bắt đầu đổi lệnh.' : 'Máy chủ đã xác nhận hoàn tất đổi lệnh.' });
+      // The exchange flips the trip detail's orderExchangeStatus — a
+      // previously visited detail page would otherwise serve its 5-minute
+      // cached pre-exchange snapshot (stale Chờ đổi lệnh + disabled handoff).
+      if (action === 'complete' && item.tripId != null) {
+        await queryClient.invalidateQueries({ queryKey: qk.forwarder.tripDetail(item.tripId) });
+        await queryClient.invalidateQueries({ queryKey: qk.forwarder.tripsAll });
+      }
       await load();
     } else if (status === 'CONFLICT') {
       setResponseMessage({ kind: 'conflict', text: result.messageById[idempotencyKey] ?? 'Lô hàng đã thay đổi. Bản lệnh vẫn được giữ để kiểm tra.' });
