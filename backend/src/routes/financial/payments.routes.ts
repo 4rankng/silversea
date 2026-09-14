@@ -230,19 +230,16 @@ router.post('/adjustments', asyncHandler(async (req: Request, res: Response) => 
     entityType: 'governance_action',
     responseStatusCode: 201,
     // 2026-09-11 maker-checker removal: apply directly in-request.
-    create: (tx) => autoApplyGovernanceAction({
-      make: (inner) => financialService.createAdjustment({
-        tripId: data.tripId,
-        amount: data.amount,
-        note: data.note,
-        signedAgreementRef: data.signedAgreementRef,
-        makerId: actor.userId,
-        makerRole: actor.role,
-        expectedTripVersion: data.expectedVersion,
-        transaction: inner,
-      }),
-      actorId: actor.userId,
-      actorRole: actor.role,
+    // createAdjustment already calls autoApplyGovernanceAction internally —
+    // wrapping again causes double-apply (version 7→8 then 8→9 mismatch).
+    create: (tx) => financialService.createAdjustment({
+      tripId: data.tripId,
+      amount: data.amount,
+      note: data.note,
+      signedAgreementRef: data.signedAgreementRef,
+      makerId: actor.userId,
+      makerRole: actor.role,
+      expectedTripVersion: data.expectedVersion,
       transaction: tx,
     }),
     getEntityId: (action) => action.id,
