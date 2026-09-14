@@ -522,9 +522,8 @@ describe('Q15 trip financial governance', () => {
       governanceReason: 'Điều chỉnh doanh thu theo biên bản đối soát',
     }, 2, `q15-change-${suffix}`);
     assert.equal(change.status, 200, JSON.stringify(change.body));
-    assert.equal(change.body.actionKind, 'TRIP_FINANCIAL_CHANGE');
-    assert.equal(change.body.status, 'APPROVED');
-    assert.ok(change.body.applicationResult);
+    // Status-removal tail: the actuals write applies directly — no governance
+    // envelope on the response; the readback + audit trail carry the proof.
     assert.ok(await waitForAuditEvent(
       actors[2]!.id,
       ['TRIP_FINANCIAL_CHANGE_REQUESTED', 'TRIP_UPDATED_ACTUALS'],
