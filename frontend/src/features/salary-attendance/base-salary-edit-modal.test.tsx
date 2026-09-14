@@ -62,7 +62,7 @@ describe('BaseSalaryEditModal', () => {
     fireEvent.click(screen.getByRole('button', { name: /Lưu/ }));
 
     await waitFor(() => expect(apiPut).toHaveBeenCalledTimes(1));
-    expect(apiPut).toHaveBeenCalledWith('/config/drivers/39', { baseSalary: 9_500_000 });
+    expect(apiPut).toHaveBeenCalledWith('/drivers/39', { baseSalary: 9_500_000 });
     await waitFor(() => expect(onClose).toHaveBeenCalled());
   });
 

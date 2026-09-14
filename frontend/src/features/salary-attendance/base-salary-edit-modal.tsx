@@ -4,6 +4,7 @@ import { Loader2, Save, X } from 'lucide-react';
 import { Modal } from '../../components/UI';
 import { Input } from '../../components/untitled-ui/base/input/input';
 import { api } from '../../lib/api';
+import { CONFIG } from '@tingting/shared';
 import { qk } from '../../api/keys';
 
 /**
@@ -51,7 +52,9 @@ export function BaseSalaryEditModal({
     setSaving(true);
     setError('');
     try {
-      await api.put(`/config/drivers/${driverId}`, { baseSalary: parsed });
+      // CONFIG.DRIVER — the shared path constant; drivers mount at the bare
+      // /api/drivers (config router), never under /config/.
+      await api.put(CONFIG.DRIVER(driverId), { baseSalary: parsed });
       // Invalidate the salary query so the summary recomputes on next render.
       void queryClient.invalidateQueries({ queryKey: qk.salary.driverSalary(driverId, year, month) });
       onClose();
