@@ -153,7 +153,6 @@ export const FINANCIAL = {
   ADJUSTMENTS: '/adjustments',
   PENALTIES: '/penalties',
   PENALTY_CANCEL: (id: number) => `/penalties/${id}/cancel`,
-  PENALTY_APPROVE: (id: number) => `/penalties/${id}/approve`,
   EXPENSES: '/expenses',
   EXPENSE: (id: number) => `/expenses/${id}`,
   ADVANCE_REQUESTS: '/advance-requests',

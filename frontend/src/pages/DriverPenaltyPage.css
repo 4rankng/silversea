@@ -234,15 +234,6 @@
   color: var(--ink);
   line-height: var(--lh-snug);
 }
-/* A pending record shows its state instead of a deduction amount. */
-.penalty-violation-row__amount--pending {
-  font-size: 11.5px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  opacity: 0.65;
-  white-space: nowrap;
-}
-
 .penalty-violation-row__amount {
   font-size: var(--driver-penalty-body);
   font-weight: 700;

@@ -42,12 +42,6 @@ export interface PenaltyTableProps {
   monthLabel: string;
   // ── Permissions / callbacks ───────────────────────────────────────────
   canCancel: boolean;
-  /** Signed-in user id/role — pending-record authority is per-row: the
-   *  submitter may cancel their own pending record, only someone else may
-   *  approve it. */
-  currentUserId?: number;
-  currentUserRole?: string;
   onOpenDrawer: (driverId?: number) => void;
   onCancelPenalty: (penalty: PenaltyRow) => void;
-  onApprovePenalty: (penalty: PenaltyRow) => void;
 }

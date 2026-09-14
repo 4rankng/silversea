@@ -10,8 +10,7 @@ import {
 import { useAuth } from '../hooks/useAuth';
 import { useMonth } from '../hooks/useMonth';
 import { useSalaryPeriod, useTableQueryState } from '../design-system';
-import { useCreatePenalty, useCancelPenalty, useApprovePenalty } from '../features/penalties/hooks/usePenaltyMutations';
-import { useConfirm } from '../components/UI';
+import { useCreatePenalty, useCancelPenalty } from '../features/penalties/hooks/usePenaltyMutations';
 import { PenaltyTable } from '../features/penalties/components/PenaltyTable';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { PenaltyFormDrawer } from '../features/penalties/components/PenaltyFormDrawer';
@@ -39,8 +38,6 @@ export default function PenaltyPage() {
 
   const createMutation = useCreatePenalty();
   const cancelMutation = useCancelPenalty();
-  const approveMutation = useApprovePenalty();
-  const { confirm, dialog: confirmDialog } = useConfirm();
 
   // The violation log is always scoped to the selected salary period. The
   // bounds arrive async (period resolve), so the list stays disabled until
@@ -126,16 +123,6 @@ export default function PenaltyPage() {
 
   const monthLabel = `${String(selMonth).padStart(2, '0')}/${String(selYear).slice(-2)}`;
 
-  const handleApprove = useCallback(async (penalty: import('../hooks/usePenalties').PenaltyRow) => {
-    const ok = await confirm('Duyệt biên bản này? Khoản phạt sẽ được khấu trừ vào lương kỳ hiện tại.', { variant: 'warning', confirmLabel: 'Duyệt' });
-    if (!ok) return;
-    try {
-      await approveMutation.mutateAsync({ id: penalty.id });
-    } catch (e: unknown) {
-      alert((e as Error).message || 'Lỗi khi duyệt kỷ luật');
-    }
-  }, [confirm, approveMutation]);
-
   // Column sort rides the same filters bag as every other list param —
   // setFilter resets the page to 1 and keys the query cache on primitives.
   const sort: TableSortState | null = filters.sortBy
@@ -185,9 +172,6 @@ export default function PenaltyPage() {
         insightsLoading={insightsQuery.isLoading}
         monthLabel={monthLabel}
         canCancel={canCancel}
-        currentUserId={user?.userId}
-        currentUserRole={user?.role}
-        onApprovePenalty={handleApprove}
         onOpenDrawer={openDrawer}
         onCancelPenalty={openCancelDialog}
       />
@@ -206,7 +190,6 @@ export default function PenaltyPage() {
         preselectedDriverId={preselectedDriver}
       />
 
-      {confirmDialog}
       <CancelPenaltyDialog
         isOpen={!!cancelTarget}
         onClose={closeCancelDialog}

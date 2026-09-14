@@ -54,7 +54,6 @@ const AUTH_EVENTS = [
 const PENALTY_EVENTS = [
   'PENALTY_CREATED',
   'PENALTY_CANCELED',
-  'PENALTY_APPROVED',
 ];
 
 const FINANCE_ENTITY_TYPES = [
@@ -271,7 +270,7 @@ function matchesKnownCategory(category: string): SQL {
     return financeDomainCondition();
   }
   if (category === 'penalty') {
-    return sql`${s.auditLogs.payload}->>'event' IN ('PENALTY_CREATED', 'PENALTY_CANCELED', 'PENALTY_APPROVED')`;
+    return sql`${s.auditLogs.payload}->>'event' IN ('PENALTY_CREATED', 'PENALTY_CANCELED')`;
   }
   if (category === 'auth') {
     return sql`${s.auditLogs.payload}->>'event' IN ('USER_LOGIN', 'USER_LOGOUT', 'LOGIN_FAILED', 'ACCESS_DENIED')`;

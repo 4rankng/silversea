@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShieldCheck, Download, Plus, FileText, Trophy, XCircle, Loader2, UserRound, Search, X, ChevronDown, Check } from 'lucide-react';
+import { ShieldCheck, Download, Plus, FileText, Trophy, XCircle, Loader2, UserRound, Search, X, ChevronDown } from 'lucide-react';
 import { Panel, Btn, PageHeader } from '../../../components/UI';
 import { Pagination, SummaryRail, UuiSelectField } from '../../../design-system';
 import { Money } from '../../../components/shared/Money';
@@ -16,12 +16,11 @@ import { PenaltyScoreboardCards, type PenaltyScoreboardCardRow } from './Penalty
 import { SortHeader } from '../../../components/shared/SortHeader';
 import '../../../styles/table-sort.css';
 
-// Chip labels mirror PENALTY_STATUS_LABELS: a new record waits in
-// 'Chờ duyệt' and deducts nothing until someone else approves it ('Hiệu lực');
-// 'Đã hủy' keeps audit history.
 const STATUS_CHIPS: Array<{ key: PenaltyStatusFilter; label: string }> = [
   { key: 'all', label: 'Tất cả' },
-  { key: PenaltyStatus.PENDING, label: 'Chờ duyệt' },
+  // ACTIVE records are final on creation — payroll deducts them in the current
+  // period with no approval step (attendance.service sums every non-CANCELED
+  // row). The chip must not promise a gate that doesn't exist.
   { key: PenaltyStatus.ACTIVE, label: 'Hiệu lực' },
   { key: PenaltyStatus.CANCELED, label: 'Đã hủy' },
 ];
@@ -66,11 +65,8 @@ export function PenaltyTable({
   insightsLoading,
   monthLabel,
   canCancel,
-  currentUserId,
-  currentUserRole,
   onOpenDrawer,
   onCancelPenalty,
-  onApprovePenalty,
 }: PenaltyTableProps) {
   const navigate = useNavigate();
   // Window toggle is client-side — every window rides the insights payload.
@@ -89,7 +85,6 @@ export function PenaltyTable({
   // ── Status chips (full-set counts from the list envelope) ──────────────
   const chipCounts: Record<PenaltyStatusFilter, number> = {
     all: statusCounts?.all ?? total,
-    [PenaltyStatus.PENDING]: statusCounts?.PENDING ?? 0,
     [PenaltyStatus.ACTIVE]: statusCounts?.ACTIVE ?? 0,
     [PenaltyStatus.CANCELED]: statusCounts?.CANCELED ?? 0,
   };
@@ -459,20 +454,7 @@ export function PenaltyTable({
                           </td>
                           {canCancel && (
                             <td data-label="" className="record-table__action">
-                              {p.status === 'PENDING' && p.createdBy !== currentUserId && (
-                                <button
-                                  className="penalty-row-act penalty-row-act--approve"
-                                  aria-label="Duyệt kỷ luật"
-                                  title="Duyệt kỷ luật"
-                                  onClick={() => onApprovePenalty(p)}
-                                  type="button"
-                                >
-                                  <Check size={14} />
-                                </button>
-                              )}
-                              {(p.status === 'PENDING'
-                                ? (currentUserRole === 'ADMIN' || p.createdBy === currentUserId)
-                                : !canceled) && (
+                              {!canceled && (
                                 <button
                                   className="penalty-row-act penalty-row-act--danger"
                                   aria-label="Hủy kỷ luật"

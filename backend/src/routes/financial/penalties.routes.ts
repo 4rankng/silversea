@@ -156,29 +156,4 @@ router.post('/penalties/:id/cancel', requireRoles(Role.ADMIN, Role.MANAGER), asy
   res.status(200).json(idempotencyKey ? { ...result, replayed } : result);
 }));
 
-router.post('/penalties/:id/approve', requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
-  const actor = getUser(req);
-  const penaltyId = parseInt(req.params.id as string, 10);
-  const idempotencyKey = getRequestIdempotencyKey(req);
-  const { result, replayed } = await financialService.approvePenaltyIdempotent({
-    penaltyId,
-    idempotencyKey,
-    actor: { userId: actor.userId, role: actor.role },
-  });
-  if (!replayed) {
-    await invalidateReportCaches();
-    emitNotification({
-      type: NotificationType.PENALTY_APPROVED,
-      title: 'Duyệt phạt',
-      message: 'Quyết định kỷ luật đã được duyệt và khấu trừ vào lương',
-      relatedEntityType: 'penalties',
-      relatedEntityId: result.id,
-      targetDriverId: result.driverId,
-    });
-  }
-  res.locals.auditEntityId = result.id;
-  res.locals.auditEntityKey = `Kỷ luật #${result.id}`;
-  res.status(replayed ? 200 : 200).json({ ...result, replayed });
-}));
-
 export default router;

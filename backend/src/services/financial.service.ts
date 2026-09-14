@@ -393,12 +393,10 @@ export interface PenaltyInput {
   customReason?: string;
   amount: number;
   date: string;
-  /** Submitter (users.id) recorded so approval can never be self-approval. */
-  createdBy?: number | null;
 }
 
 /**
- * Create a driver penalty: the row lands PENDING with no deduction until an authorized approver promotes it.
+ * Create a driver penalty and post the corresponding ledger entry.
  */
 async function loadPenaltyTx(tx: Tx, penaltyId: number): Promise<PenaltyRow> {
   const [row] = await tx.select().from(s.penalties)
@@ -413,7 +411,7 @@ async function loadPenaltyTx(tx: Tx, penaltyId: number): Promise<PenaltyRow> {
 function toPenaltyCreateSnapshot(row: PenaltyRow): PenaltyRow {
   return {
     ...row,
-    status: 'PENDING',
+    status: 'ACTIVE',
     updatedAt: row.createdAt,
   };
 }
@@ -429,9 +427,26 @@ async function createPenaltyTx(tx: Tx, input: PenaltyInput): Promise<PenaltyRow>
     customReason: input.customReason ?? null,
     amount: String(input.amount),
     date: input.date,
-    status: 'PENDING',
-    createdBy: input.createdBy ?? null,
   }).returning();
+
+  // Resolve trip code so the driver's ledger note reads naturally.
+  let tripLabel = '';
+  if (input.tripId) {
+    const [trip] = await tx.select({ tripCode: s.trips.tripCode })
+      .from(s.trips).where(eq(s.trips.id, input.tripId)).limit(1);
+    tripLabel = trip?.tripCode || '';
+  }
+
+  await LedgerService.postEntry(tx, {
+    txnType: TxnType.PENALTY,
+    txnId: penalty.id,
+    entityType: 'DRIVER',
+    entityId: input.driverId,
+    debit: input.amount,
+    credit: 0,
+    note: input.customReason
+      || (tripLabel ? `Kỷ luật chuyến ${tripLabel}` : 'Kỷ luật vi phạm'),
+  });
 
   return penalty;
 }
@@ -552,20 +567,13 @@ export async function applyPenaltyCreateGovernanceAction(tx: Tx, action: Governa
 /**
  * Cancel (void) a penalty — reverses the driver ledger entry.
  */
-async function cancelPenaltyTx(tx: Tx, penaltyId: number, reason?: string, actor?: { userId: number; role: string }): Promise<PenaltyRow> {
+async function cancelPenaltyTx(tx: Tx, penaltyId: number, reason?: string): Promise<PenaltyRow> {
   const [penalty] = await tx.select().from(s.penalties)
     .where(eq(s.penalties.id, penaltyId))
     .limit(1)
     .for('update');
   if (!penalty) throw new ApiError(404, 'Không tìm thấy kỷ luật');
   if (penalty.status === 'CANCELED') throw new ApiError(409, 'Kỷ luật đã được hủy trước đó');
-  // A pending record never posted a deduction, so cancelling it needs no
-  // ledger reversal; submitter-or-ADMIN authority is enforced here to stay
-  // race-safe with the row lock.
-  if (penalty.status === 'PENDING' && actor && actor.role !== 'ADMIN' && penalty.createdBy !== actor.userId) {
-    throw new ApiError(403, 'Chỉ người lập hoặc quản trị viên mới được hủy biên bản chờ duyệt');
-  }
-  const isActive = penalty.status === 'ACTIVE';
 
   // Lock order: controlling penalty row first, then shared driver ledger lock.
   // That matches the Q23 first-winner pattern and avoids duplicate reversals.
@@ -575,12 +583,11 @@ async function cancelPenaltyTx(tx: Tx, penaltyId: number, reason?: string, actor
     .set({ status: 'CANCELED', updatedAt: new Date() })
     .where(and(
       eq(s.penalties.id, penaltyId),
-      eq(s.penalties.status, isActive ? 'ACTIVE' : 'PENDING'),
+      eq(s.penalties.status, 'ACTIVE'),
     ))
     .returning();
   if (!claimed) throw new ApiError(409, 'Kỷ luật đã bị hủy bởi người khác. Vui lòng tải lại.');
 
-  if (isActive) {
   await LedgerService.postEntry(tx, {
     txnType: TxnType.ADJUSTMENT,
     txnId: penalty.id,
@@ -590,7 +597,6 @@ async function cancelPenaltyTx(tx: Tx, penaltyId: number, reason?: string, actor
     credit: Number(penalty.amount),
     note: reason || 'Hủy quyết định kỷ luật lái xe',
   });
-  }
 
   return claimed;
 }
@@ -604,7 +610,6 @@ export async function cancelPenaltyIdempotent(args: {
   reason?: string;
   idempotencyKey: string | undefined;
   createdBy?: number | null;
-  actor?: { userId: number; role: string };
 }) {
   return runIdempotent<PenaltyRow>({
     endpoint: IDEMPOTENCY_ENDPOINTS.PENALTIES_CANCEL,
@@ -615,81 +620,10 @@ export async function cancelPenaltyIdempotent(args: {
     },
     createdBy: args.createdBy ?? null,
     entityType: 'penalty',
-    create: async (tx) => cancelPenaltyTx(tx, args.penaltyId, args.reason, args.actor),
+    create: async (tx) => cancelPenaltyTx(tx, args.penaltyId, args.reason),
     load: async (entityId, tx) => loadPenaltyTx(tx, entityId),
   });
 }
-
-/**
- * Approve a pending penalty — the exactly-once point where the deduction
- * becomes real: the driver ledger entry posts here, not at creation. The
- * PENDING→ACTIVE transition is claimed under a row lock, so replays and
- * races get 409 instead of a second ledger entry.
- */
-async function approvePenaltyTx(tx: Tx, penaltyId: number, actor: { userId: number; role: string }): Promise<PenaltyRow> {
-  const [penalty] = await tx.select().from(s.penalties)
-    .where(eq(s.penalties.id, penaltyId))
-    .limit(1)
-    .for('update');
-  if (!penalty) throw new ApiError(404, 'Không tìm thấy kỷ luật');
-  // Anti-self-approval: the submitter may never approve their own record.
-  // Grandfathered rows have no submitter recorded, so any ADMIN/MANAGER may
-  // approve them.
-  if (penalty.createdBy != null && penalty.createdBy === actor.userId) {
-    throw new ApiError(403, 'Không thể tự duyệt biên bản do chính mình lập');
-  }
-  if (penalty.status !== 'PENDING') {
-    throw new ApiError(409, 'Biên bản không còn ở trạng thái chờ duyệt');
-  }
-
-  await LedgerService.lockEntity(tx, 'DRIVER', penalty.driverId);
-  const [claimed] = await tx.update(s.penalties)
-    .set({
-      status: 'ACTIVE',
-      approvedBy: actor.userId,
-      approvedAt: new Date(),
-      updatedAt: new Date(),
-    })
-    .where(and(
-      eq(s.penalties.id, penaltyId),
-      eq(s.penalties.status, 'PENDING'),
-    ))
-    .returning();
-  if (!claimed) throw new ApiError(409, 'Biên bản đã được người khác xử lý. Vui lòng tải lại.');
-
-  await LedgerService.postEntry(tx, {
-    txnType: TxnType.PENALTY,
-    txnId: penalty.id,
-    entityType: 'DRIVER',
-    entityId: penalty.driverId,
-    debit: Number(penalty.amount),
-    credit: 0,
-    note: penalty.customReason || 'Kỷ luật vi phạm',
-  });
-
-  return claimed;
-}
-
-export async function approvePenalty(penaltyId: number, actor: { userId: number; role: string }) {
-  return db.transaction((tx) => approvePenaltyTx(tx, penaltyId, actor));
-}
-
-export async function approvePenaltyIdempotent(args: {
-  penaltyId: number;
-  idempotencyKey: string | undefined;
-  actor: { userId: number; role: string };
-}) {
-  return runIdempotent<PenaltyRow>({
-    endpoint: IDEMPOTENCY_ENDPOINTS.PENALTIES_APPROVE,
-    idempotencyKey: args.idempotencyKey,
-    payload: { penaltyId: args.penaltyId },
-    createdBy: args.actor.userId,
-    entityType: 'penalty',
-    create: async (tx) => approvePenaltyTx(tx, args.penaltyId, args.actor),
-    load: async (entityId, tx) => loadPenaltyTx(tx, entityId),
-  });
-}
-
 
 export async function requestPenaltyCancelGovernance(input: {
   penaltyId: number;
@@ -766,7 +700,6 @@ export async function applyPenaltyCancelGovernanceAction(tx: Tx, action: Governa
     tx,
     penalty.id,
     typeof afterSnapshot?.reason === 'string' && afterSnapshot.reason ? afterSnapshot.reason : undefined,
-    { userId: Number(action.makerId ?? 0), role: String(action.makerRole ?? '') },
   );
 
   return {

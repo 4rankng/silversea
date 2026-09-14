@@ -145,7 +145,6 @@ const templates: Record<string, (c: TemplateContext) => string> = {
   [AuditEvent.ADJUSTMENT_CREATED]: (c) => `${subj(c)} đã tạo bút toán điều chỉnh công nợ${c.entityKey ? ` ${c.entityKey}` : ''}`,
   [AuditEvent.PENALTY_CREATED]: (c) => `${subj(c)} đã ghi nhận quyết định kỷ luật${c.entityKey ? `: ${c.entityKey}` : ''}`,
   [AuditEvent.PENALTY_CANCELED]: (c) => `${subj(c)} đã hủy bỏ quyết định kỷ luật${c.entityKey ? `: ${c.entityKey}` : ''}`,
-  [AuditEvent.PENALTY_APPROVED]: (c) => `${subj(c)} đã duyệt quyết định kỷ luật${c.entityKey ? `: ${c.entityKey}` : ''}`,
   [AuditEvent.DRIVER_SALARY_RECORDED]: (c) => `${subj(c)} đã ghi nhận bảng tính lương cho lái xe${c.entityKey ? `: ${c.entityKey}` : ''}`,
   [AuditEvent.PROFIT_DISTRIBUTION_REQUESTED]: (c) => `${subj(c)} đã gửi yêu cầu phân chia lợi nhuận của ${c.entityKey || 'hệ thống'} để kiểm tra và phê duyệt`,
 

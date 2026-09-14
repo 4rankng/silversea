@@ -17,7 +17,6 @@ interface DriverPenaltyRow {
   customReason: string | null;
   amount: string;
   date: string;
-  status?: 'PENDING' | 'ACTIVE' | 'CANCELED';
   reasonText?: string;
 }
 
@@ -54,13 +53,11 @@ export default function DriverPenaltyPage() {
 
   const { data: currentPeriod, isLoading: periodLoading } = useSalaryPeriod(currentMonth, currentYear);
 
-  // Only approved (ACTIVE) records deduct — pending records are visible in
-  // the list below but never count into the deduction figures.
   const monthPenalties = useMemo(() => {
     if (!currentPeriod) return [] as DriverPenaltyRow[];
     return allPenalties.filter(p => {
       const d = p.date || '';
-      return d >= currentPeriod.start && d <= currentPeriod.end && p.status !== 'PENDING';
+      return d >= currentPeriod.start && d <= currentPeriod.end;
     });
   }, [allPenalties, currentPeriod]);
   const totalMonthAmount = monthPenalties.reduce((s, p) => s + parseFloat(p.amount), 0);
@@ -208,15 +205,9 @@ export default function DriverPenaltyPage() {
                     <div className="penalty-violation-row__reason">
                       {p.reasonText || p.customReason || 'Vi phạm nội quy'}
                     </div>
-                    {p.status === 'PENDING' ? (
-                      <span className="penalty-violation-row__amount penalty-violation-row__amount--pending">
-                        Chờ duyệt
-                      </span>
-                    ) : (
-                      <div className="penalty-violation-row__amount">
-                        -{formatCurrency(Number(p.amount))}
-                      </div>
-                    )}
+                    <div className="penalty-violation-row__amount">
+                      -{formatCurrency(Number(p.amount))}
+                    </div>
                   </div>
                   <div className="penalty-violation-row__meta">
                     <span><Calendar size={12} /> {formatDate(p.date)}</span>

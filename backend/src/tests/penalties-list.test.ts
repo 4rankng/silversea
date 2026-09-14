@@ -252,18 +252,12 @@ describe('GET /api/penalties/insights', () => {
     const { status, body } = await request('/penalties/insights?month=8&year=2026');
     assert.equal(status, 200);
 
-    // A pending record exercises the exclusion: it must change nothing.
-    const [pendingRow] = await db.insert(s.penalties).values({
-      driverId: driverA.id, amount: '99000', date: '2026-08-20', status: 'PENDING',
-      customReason: `penalty-list pending ${suffix}` }).returning();
-    createdPenaltyIds.push(pendingRow.id);
-
     // Snapshot the exact inputs insights uses: non-deleted, non-canceled rows.
     // The list endpoint keeps CANCELED for audit; insights must not count a
     // canceled record anywhere — violations, fines, streaks, or totals.
     const [allPenalties, allDrivers, allTrucks] = await Promise.all([
       db.select({ driverId: s.penalties.driverId, date: s.penalties.date, amount: s.penalties.amount })
-        .from(s.penalties).where(and(isNull(s.penalties.deletedAt), eq(s.penalties.status, 'ACTIVE'))),
+        .from(s.penalties).where(and(isNull(s.penalties.deletedAt), ne(s.penalties.status, 'CANCELED'))),
       db.select({ id: s.drivers.id, name: s.drivers.name, createdAt: s.drivers.createdAt, assignedTruckId: s.truckDriverAssignments.truckId })
         .from(s.drivers)
         .leftJoin(s.truckDriverAssignments, and(
@@ -348,9 +342,6 @@ describe('GET /api/penalties/insights', () => {
     const driverASeedYtd = seedPenalties.filter((p) => p.driver === 'A' && p.date >= yearStart && p.status === 'ACTIVE');
     assert.equal(driverARow.violationsYtd, driverASeedYtd.length);
     assert.equal(driverARow.fineYtd, driverASeedYtd.reduce((acc, p) => acc + p.amount, 0));
-    // pending row adds nothing: no violation, no fine, no streak reset
-    assert.ok(!body.scoreboard.some((r: { driverId: number; fineYtd: number }) =>
-      r.driverId === pendingRow.driverId && r.fineYtd >= 150_000));
   });
 
   test('defaults to the current period without params', async () => {

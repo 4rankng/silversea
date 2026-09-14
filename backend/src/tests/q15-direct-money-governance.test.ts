@@ -171,10 +171,6 @@ async function createFixture(label: string) {
     date: '2026-07-27',
   });
   penaltyIds.push(seededPenalty.id);
-  // Grandfather this fixture to ACTIVE: the cancel below must keep exercising
-  // the reversal path, which only applies to records that already deducted.
-  await db.update(s.penalties).set({ status: 'ACTIVE' })
-    .where(eq(s.penalties.id, seededPenalty.id));
 
   return {
     customer,
@@ -409,21 +405,8 @@ describe('Q15 direct-money governance slice', () => {
     assert.equal(penaltyCancelRequest.status, 200);
     assert.equal(penaltyCancelRequest.body.status, 'APPROVED');
 
-    // Penalties are the exception since the approval workflow returned:
-    // create parks the record PENDING (no deduction), and a different
-    // approver's approve call is what posts the ledger entry.
-    const createdPending = await fetchPenaltyByReason(penaltyReason);
-    assert.ok(createdPending);
-    assert.equal(createdPending.status, 'PENDING');
-    assert.equal(await fetchLedgerCount({
-      entityType: 'DRIVER',
-      entityId: fixture.penaltyCreateDriver.id,
-      txnType: TxnType.PENALTY,
-      txnId: createdPending.id,
-    }), 0);
-
-    const penaltyApproveRequest = await api('POST', `/api/penalties/${createdPending.id}/approve`, {}, 2);
-    assert.equal(penaltyApproveRequest.status, 200);
+    // 2026-09-10: phê duyệt removed — the requests above already applied;
+    // no pending window, no separate check/approve calls.
 
     const paymentReceipt = await trackPaymentReceipt(paymentReceiptId);
     assert.ok(paymentReceipt);

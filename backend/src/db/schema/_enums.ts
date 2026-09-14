@@ -33,7 +33,7 @@ export const customerStatusEnum = applicationEnum(['ACTIVE', 'LOCKED']);
 // value, no migration).
 export const tripPhotoTypeEnum = applicationEnum(['CONTAINER', 'SEAL', 'OTHER', 'DELIVERY_NOTE']);
 
-export const penaltyStatusEnum = applicationEnum(['ACTIVE', 'PENDING', 'CANCELED']);
+export const penaltyStatusEnum = applicationEnum(['ACTIVE', 'CANCELED']);
 
 export const vehicleComponentEnum = applicationEnum(['TRUCK', 'TRAILER']);
 
@@ -63,7 +63,7 @@ export const creditOverrideTierEnum = applicationEnum(['FINANCE_TIER_1', 'DIRECT
 export const notificationTypeEnum = applicationEnum([
   'TRIP_CREATED', 'TRIP_DISPATCHED', 'TRIP_IN_TRANSIT', 'TRIP_COMPLETED',
   'TRIP_CANCELED', 'PAYMENT_RECEIVED', 'PENALTY_CREATED',
-  'PENALTY_CANCELED', 'PENALTY_APPROVED', 'OVERDUE_PAYMENT', 'SALARY_PERIOD_CLOSING', 'SYSTEM_ANNOUNCEMENT',
+  'PENALTY_CANCELED', 'OVERDUE_PAYMENT', 'SALARY_PERIOD_CLOSING', 'SYSTEM_ANNOUNCEMENT',
   'ADVANCE_SETTLEMENT_APPROVED', 'SHIPMENT_HANDOFF',
 ]);
 
