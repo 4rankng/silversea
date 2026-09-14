@@ -328,6 +328,8 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
         setForm={containerFormCtrl.setForm}
         onAdd={containerFormCtrl.add}
         pending={containerFormCtrl.pending}
+        error={containerFormCtrl.error}
+        onApplySuggestion={containerFormCtrl.applySuggestion}
         selectedContainerId={expenseFormCtrl.form.tripContainerId}
         onSelectContainer={(tripContainerId) => expenseFormCtrl.patch({ tripContainerId })}
       />

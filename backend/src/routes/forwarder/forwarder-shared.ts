@@ -9,7 +9,7 @@
  */
 import type { Request, Response } from 'express';
 import { z } from 'zod';
-import { tripContainerSchema } from '@tingting/shared';
+import { normalizeContainerNumber, tripContainerSchema, validateCheckDigit, validateContainerFormat } from '@tingting/shared';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { runWithAuditRequestContext } from '../../services/audit.service';
 import { ApiError } from '../../errors';
@@ -75,13 +75,38 @@ export function requireExpectedUpdatedAt(req: Request, message: string): Date {
   return expected;
 }
 
-export const forwarderTripContainerSchema = tripContainerSchema.refine(
-  (container) => Boolean(container.containerNumber?.trim()),
-  {
-    path: ['containerNumber'],
-    message: 'Số container không được để trống',
-  },
-);
+// The add-to-trip path enforces the shared ISO 6346 validator (format + check
+// digit) at the persistence boundary — previously it accepted any non-empty
+// string ('ABC' persisted and became a cost group); the batch path's check
+// is FE-advisory only, so this is now the stronger of the two.
+// Validation runs on the NORMALIZED number (trim/strip separators/uppercase)
+// so FE and API callers converge on one canonical form; a bad check digit
+// rejects outright — correction is an explicit user action, never silent.
+export const forwarderTripContainerSchema = tripContainerSchema
+  .refine(
+    (container) => Boolean(container.containerNumber?.trim()),
+    {
+      path: ['containerNumber'],
+      message: 'Số container không được để trống',
+    },
+  )
+  .refine(
+    (container) => validateContainerFormat(container.containerNumber ?? ''),
+    {
+      path: ['containerNumber'],
+      message: 'Số container sai định dạng (4 chữ cái + 7 số).',
+    },
+  )
+  .refine(
+    (container) => {
+      const normalized = normalizeContainerNumber(container.containerNumber ?? '');
+      return !normalized || validateCheckDigit(normalized);
+    },
+    {
+      path: ['containerNumber'],
+      message: 'Số container sai chữ số kiểm tra — kiểm tra lại.',
+    },
+  );
 
 export const paperOrderCollectionSchema = z.object({
   expectedVersion: z.number().int().positive().optional(),
