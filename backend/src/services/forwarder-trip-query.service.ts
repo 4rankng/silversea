@@ -30,16 +30,7 @@ const hasPendingExpenseOrSettlement = (forwarderId: number) => sql<boolean>`EXIS
   SELECT 1 FROM trip_expenses te
   WHERE te.trip_id = ${s.trips.id}
     AND te.forwarder_id = ${forwarderId}
-    AND (
-      te.approval_status = 'PENDING'
-      OR EXISTS (
-        SELECT 1
-        FROM settlement_expenses se2
-        INNER JOIN advance_settlements a2 ON a2.id = se2.settlement_id
-        WHERE se2.trip_expense_id = te.id
-          AND a2.status IN ('PENDING', 'CHECKED_BY_ACCOUNTANT')
-      )
-  )
+    AND te.approval_status = 'PENDING'
 )`;
 
 function withinForwarderScope(forwarderId: number) {

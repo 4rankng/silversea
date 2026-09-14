@@ -109,21 +109,21 @@ describe('AdminAdvancesPage server-driven listing', () => {
     const { container } = renderPage();
     expect((await screen.findAllByText('An Nguyễn')).length).toBeGreaterThan(0);
 
-    // KPI values 5/2/0 (direct-effect vocabulary — no pending bucket) — the
+    // KPI values 7/5/0 (APPROVED/REJECTED/balances) — the
     // loaded page only holds 2 rows, so these can only come from the
     // full-set envelope aggregates.
     const kpiValues = Array.from(container.querySelectorAll('.adv-kpi__value')).map(
       (el) => el.textContent,
     );
-    expect(kpiValues).toEqual(['5', '2', '0']);
+    expect(kpiValues).toEqual(['7', '5', '0']);
 
     // KPI meta amounts come from statusAmounts (vi-VN grouping).
-    expect(screen.getAllByText('5.000.000 ₫').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('7.000.000 ₫').length).toBeGreaterThan(0);
 
-    // Filter pills carry full-set counts, including the "all" total (7+5+2).
+    // Filter pills carry full-set counts, including the "all" total (7+5).
     // (Pill label + count spans concatenate without a space in the accname.)
-    expect(screen.getByRole('button', { name: 'Đã ghi nhận5' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Tất cả14' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Đã ghi nhận7' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Tất cả12' })).toBeTruthy();
   });
 
   it('renders Pagination with the server total and navigates pages', async () => {
@@ -149,7 +149,7 @@ describe('AdminAdvancesPage server-driven listing', () => {
     await waitFor(() => expect(lastCallParams()).toMatchObject({ page: 2 }));
 
     // Switching the status filter must send the filter and reset the page.
-    screen.getByRole('button', { name: 'Đã ghi nhận5' }).click();
+    screen.getByRole('button', { name: 'Đã ghi nhận7' }).click();
     await waitFor(() =>
       expect(lastCallParams()).toMatchObject({ status: 'APPROVED', page: 1 }),
     );
@@ -158,7 +158,7 @@ describe('AdminAdvancesPage server-driven listing', () => {
     // is already cached (staleTime), so no new call fires — assert the filter
     // state reset (the "all" pill is active again) and that every status
     // call the endpoint saw stayed on page 1.
-    const allPill = screen.getByRole('button', { name: 'Tất cả14' });
+    const allPill = screen.getByRole('button', { name: 'Tất cả12' });
     allPill.click();
     await waitFor(() => expect(allPill.className).toContain('is-active'));
     for (const call of listAllAdvanceRequests.mock.calls) {
