@@ -316,18 +316,15 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
     assert.equal(badContainer.status, 404);
   });
 
-  test('lifecycle: create → approve blocked without photo → attach → approve', async () => {
+  test('lifecycle: create lands APPROVED; photo mechanics and the approval lock remain (KP-149 direct-save)', async () => {
     const created = await api('/expenses', {
       method: 'POST', token: opsToken,
       body: { shipmentId, shipmentContainerId: containerId, expenseTypeCode: withInvoiceCode, amount: '350000', paidAt: isoDate },
     });
     assert.equal(created.status, 201);
-    assert.equal(created.body.approvalStatus, 'PENDING');
+    assert.equal(created.body.approvalStatus, 'APPROVED');
     assert.equal(created.body.paidById, opsUser.id);
     createdExpenseIds.push(created.body.id);
-
-    const noPhoto = await api(`/admin/expenses/${created.body.id}/approve`, { method: 'POST', token: accountantToken });
-    assert.equal(noPhoto.status, 400);
 
     // Attach validates the key shape and owner segment.
     const foreignKey = await api(`/expenses/${created.body.id}/photos`, {
@@ -347,7 +344,7 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
     });
     assert.equal(attached.status, 201);
 
-    // Receipt review: the approver can list the photos; another Ops cannot.
+    // Receipt review: an approver can list the photos; another Ops cannot.
     const photosForAccountant = await api(`/expenses/${created.body.id}/photos`, { token: accountantToken });
     assert.equal(photosForAccountant.status, 200);
     assert.equal(photosForAccountant.body.items.length, 1);
@@ -367,10 +364,6 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
     assert.notEqual(served.status, 400);
     assert.equal(served.status, 404);
 
-    const approved = await api(`/admin/expenses/${created.body.id}/approve`, { method: 'POST', token: accountantToken });
-    assert.equal(approved.status, 200);
-    assert.equal(approved.body.approvalStatus, 'APPROVED');
-
     // APPROVED is locked: author edit refused.
     const edit = await api(`/expenses/${created.body.id}`, {
       method: 'PATCH', token: opsToken, body: { amount: '1' },
@@ -378,81 +371,37 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
     assert.equal(edit.status, 400);
   });
 
-  test('reject requires reason; author must re-attach a photo before resend', async () => {
+  test('KP-149: the approve/reject endpoints are gone and approval is immediate', async () => {
     const created = await api('/expenses', {
       method: 'POST', token: opsToken,
-      body: { shipmentId, expenseTypeCode: noInvoiceCode, amount: '80000', paidAt: isoDate, note: 'Cân xe' },
+      body: { shipmentId, expenseTypeCode: noInvoiceCode, amount: '90000', paidAt: isoDate, note: 'Cân xe' },
     });
     assert.equal(created.status, 201);
+    assert.equal(created.body.approvalStatus, 'APPROVED');
     createdExpenseIds.push(created.body.id);
 
-    const noReason = await api(`/admin/expenses/${created.body.id}/reject`, { method: 'POST', token: adminToken, body: {} });
-    assert.equal(noReason.status, 400);
+    // Both decision endpoints no longer exist (removed with the arc).
+    const approveAttempt = await api(`/admin/expenses/${created.body.id}/approve`, { method: 'POST', token: adminToken, body: {} });
+    assert.equal(approveAttempt.status, 404);
+    const rejectAttempt = await api(`/admin/expenses/${created.body.id}/reject`, { method: 'POST', token: adminToken, body: { reason: 'Ảnh mờ' } });
+    assert.equal(rejectAttempt.status, 404);
 
-    const rejected = await api(`/admin/expenses/${created.body.id}/reject`, {
-      method: 'POST', token: adminToken, body: { reason: 'Ảnh mờ' },
-    });
-    assert.equal(rejected.status, 200);
-    assert.equal(rejected.body.approvalStatus, 'REJECTED');
-
+    // Author edit is refused by the approval lock.
     const edited = await api(`/expenses/${created.body.id}`, {
       method: 'PATCH', token: opsToken, body: { amount: '90000' },
     });
-    assert.equal(edited.status, 200);
-    assert.equal(edited.body.amount, '90000');
+    assert.equal(edited.status, 400);
 
-    // Resend without any receipt photo is refused (PRD §5.3).
-    const noPhotoResend = await api(`/expenses/${created.body.id}/resend`, { method: 'POST', token: opsToken });
-    assert.equal(noPhotoResend.status, 400);
-
-    await api(`/expenses/${created.body.id}/photos`, {
+    // A receipt photo still attaches after creation.
+    const attached = await api(`/expenses/${created.body.id}/photos`, {
       method: 'POST', token: opsToken,
       body: { storageKey: `ops-expense-photos/${opsUser.id}/${'b'.repeat(32)}.png` },
     });
-    const resent = await api(`/expenses/${created.body.id}/resend`, { method: 'POST', token: opsToken });
-    assert.equal(resent.status, 200);
-    assert.equal(resent.body.approvalStatus, 'PENDING');
+    assert.equal(attached.status, 201);
   });
 
-  test('receipt-less approve needs the in-person paper-check flag + note (two-path rule)', async () => {
-    // ops2 creates the receipt-less entry so opsUser's settlement-freeze
-    // totals asserted later in this describe stay untouched.
-    const created = await api('/expenses', {
-      method: 'POST', token: ops2Token,
-      body: { shipmentId, expenseTypeCode: noInvoiceCode, amount: '60000', paidAt: isoDate },
-    });
-    assert.equal(created.status, 201);
-    createdExpenseIds.push(created.body.id);
-
-    const blind = await api(`/admin/expenses/${created.body.id}/approve`, { method: 'POST', token: accountantToken });
-    assert.equal(blind.status, 400);
-
-    const noNote = await api(`/admin/expenses/${created.body.id}/approve`, {
-      method: 'POST', token: accountantToken,
-      body: { inPersonCheck: true },
-    });
-    assert.equal(noNote.status, 400);
-
-    const inPerson = await api(`/admin/expenses/${created.body.id}/approve`, {
-      method: 'POST', token: accountantToken,
-      body: { inPersonCheck: true, note: 'Đã đối chiếu hóa đơn giấy tại quầy' },
-    });
-    assert.equal(inPerson.status, 200);
-    assert.equal(inPerson.body.approvalStatus, 'APPROVED');
-
-    const [auditRow] = await db.select().from(s.auditLogs)
-      .where(and(
-        eq(s.auditLogs.entityType, 'ops-expense-entries'),
-        eq(s.auditLogs.entityId, created.body.id),
-      ))
-      .limit(1);
-    assert.ok(auditRow, 'in-person check note is persisted for audit');
-    assert.equal((auditRow.payload as any)?.event, 'OPS_EXPENSE_APPROVE_IN_PERSON');
-    assert.equal((auditRow.payload as any)?.note, 'Đã đối chiếu hóa đơn giấy tại quầy');
-  });
-
-  test('wallet summary matches the PRD formula', async () => {
-    // 2,000,000 approved advance − (350,000 approved + 90,000 pending) = 1,560,000
+  test('wallet summary matches the PRD formula (direct-save: everything lands APPROVED)', async () => {
+    // 2,000,000 approved advance − (350,000 + 90,000 approved expenses) = 1,560,000
     const [advance] = await db.insert(s.advanceRequests).values({
       requesterId: opsUser.id,
       amount: '2000000',
@@ -464,8 +413,8 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
     const summary = await api('/wallet/summary', { token: opsToken });
     assert.equal(summary.status, 200);
     assert.equal(summary.body.totalAdvance, '2000000');
-    assert.equal(summary.body.approved, '350000');
-    assert.equal(summary.body.pending, '90000');
+    assert.equal(summary.body.approved, '440000');
+    assert.equal(summary.body.pending, '0');
     assert.equal(summary.body.balance, '1560000');
   });
 
@@ -473,8 +422,8 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
     const res = await api('/wallet/expenses', { token: opsToken });
     const withPhoto = res.body.items.find((item: any) => item.amount === '350000');
     assert.equal(withPhoto.hasPhoto, true);
-    const resentWithPhoto = res.body.items.find((item: any) => item.amount === '90000');
-    assert.equal(resentWithPhoto.hasPhoto, true, 'resend flow re-attached a receipt');
+    const withPhotoLater = res.body.items.find((item: any) => item.amount === '90000');
+    assert.equal(withPhotoLater.hasPhoto, true, 'photo attached after creation shows in history');
   });
 
   test('advance request creation lands PENDING in the shared table', async () => {
@@ -515,7 +464,7 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
     assert.equal(payers.size, 2, 'both payers present under the one mã lô');
   });
 
-  test('settlement freeze → approve path; later entries stay open', async () => {
+  test('settlement freeze; later entries stay open (KP-149: batch decisions removed)', async () => {
     const created = await api('/expenses', {
       method: 'POST', token: opsToken,
       body: { shipmentId, expenseTypeCode: noInvoiceCode, amount: '150000', paidAt: isoDate },
@@ -536,9 +485,9 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
     const edit = await api(`/expenses/${created.body.id}`, { method: 'PATCH', token: opsToken, body: { amount: '1' } });
     assert.equal(edit.status, 400);
 
-    // Batch approval blocked while the 90k + 150k entries are still PENDING.
-    const blocked = await api(`/admin/settlements/${settlement.body.id}/approve`, { method: 'POST', token: accountantToken });
-    assert.equal(blocked.status, 400);
+    // Batch decision endpoints no longer exist (removed with the arc).
+    const approveAttempt = await api(`/admin/settlements/${settlement.body.id}/approve`, { method: 'POST', token: accountantToken });
+    assert.equal(approveAttempt.status, 404);
 
     const detail = await api(`/settlements/${settlement.body.id}`, { token: opsToken });
     assert.equal(detail.status, 200);
@@ -564,33 +513,6 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
     assert.match(exported.headers.get('content-type') ?? '', /spreadsheetml/);
     const bytes = await exported.arrayBuffer();
     assert.ok(bytes.byteLength > 1000, 'xlsx workbook is non-trivial');
-
-    // Batch reject: the frozen 10k entry returns to the open pool.
-    const second = await api('/settlements', { method: 'POST', token: opsToken });
-    assert.equal(second.status, 201);
-    createdSettlementIds.push(second.body.id);
-    assert.equal(second.body.totalAmount, '10000');
-
-    const rejectNoReason = await api(`/admin/settlements/${second.body.id}/reject`, {
-      method: 'POST', token: accountantToken, body: {},
-    });
-    assert.equal(rejectNoReason.status, 400);
-
-    const rejectedBatch = await api(`/admin/settlements/${second.body.id}/reject`, {
-      method: 'POST', token: accountantToken, body: { reason: 'Thiếu chứng từ gốc' },
-    });
-    assert.equal(rejectedBatch.status, 200);
-    assert.equal(rejectedBatch.body.status, 'REJECTED');
-
-    const reopened = await api('/wallet/expenses', { token: opsToken });
-    const reopenedEntry = reopened.body.items.find((item: any) => item.amount === '10000');
-    assert.equal(reopenedEntry.opsSettlementId, null);
-
-    // A new batch can pick the reopened entry up again.
-    const third = await api('/settlements', { method: 'POST', token: opsToken });
-    assert.equal(third.status, 201);
-    createdSettlementIds.push(third.body.id);
-    assert.equal(third.body.totalAmount, '10000');
   });
 });
 

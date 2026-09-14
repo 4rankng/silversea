@@ -87,6 +87,16 @@ async function getEditableExpense(userId: number, expenseId: number) {
   return entry;
 }
 
+/** Owner-only existence check for evidence operations on approved rows. */
+async function entryOwnerMatches(userId: number, expenseId: number): Promise<boolean> {
+  const [row] = await db
+    .select({ paidById: s.opsExpenseEntries.paidById })
+    .from(s.opsExpenseEntries)
+    .where(eq(s.opsExpenseEntries.id, expenseId))
+    .limit(1);
+  return row != null && row.paidById === userId;
+}
+
 async function attachPhotoRows(
   executor: Executor,
   expenseId: number,
@@ -262,7 +272,20 @@ export async function attachOpsExpensePhoto(
   expenseId: number,
   storageKey: string,
 ) {
-  await getEditableExpense(userId, expenseId);
+  // KP-149 (direct-save): entries are APPROVED at creation, so the edit gate
+  // (which refuses APPROVED rows) must not guard evidence. Attaching a
+  // receipt CURES a "Nợ chứng từ" gap and never changes the expense's
+  // figures — only ownership matters. Removal stays locked on APPROVED rows
+  // (see deleteOpsExpensePhoto), so evidence protection keeps its asymmetry:
+  // add to cure, never remove after approval.
+  const [entry] = await db
+    .select({ id: s.opsExpenseEntries.id })
+    .from(s.opsExpenseEntries)
+    .where(eq(s.opsExpenseEntries.id, expenseId))
+    .limit(1);
+  if (!entry || (await entryOwnerMatches(userId, expenseId)) !== true) {
+    throw new ApiError(404, 'Không tìm thấy khoản chi.');
+  }
   assertOwnStorageKey(userId, storageKey);
   const [photo] = await db
     .insert(s.opsExpensePhotos)
