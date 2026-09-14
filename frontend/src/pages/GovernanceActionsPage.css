@@ -126,7 +126,7 @@
   background: var(--surface-3);
   color: var(--ink-3);
   font-family: var(--font-data);
-  font-size: 10px;
+  font-size: var(--text-caption-size);
 }
 
 .governance-actions__filter button.is-active {

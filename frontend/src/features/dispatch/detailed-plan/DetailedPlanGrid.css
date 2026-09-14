@@ -52,7 +52,7 @@
   border-radius: 999px;
   background: var(--background-color-brand-primary, #e6f6ec);
   color: var(--color-fg-brand-primary, #005a2d);
-  font-size: 11px;
+  font-size: var(--text-caption-size);
   font-weight: 700;
   line-height: 1;
 }
@@ -74,7 +74,7 @@
 
 .detailed-plan-filters__label {
   color: var(--color-fg-secondary, var(--text-secondary, #64748b));
-  font-size: 12px;
+  font-size: var(--text-label-size);
   font-weight: 600;
 }
 
@@ -186,7 +186,7 @@
   border: 1px solid var(--border-color-secondary, var(--border-color, #e2e8f0));
   border-radius: 8px;
   color: var(--color-fg-primary, var(--text-primary, #101828));
-  font-size: var(--fs-xs, 12px);
+  font-size: var(--text-control-compact-size);
   line-height: 1.4;
   text-align: left;
   cursor: pointer;
@@ -267,7 +267,7 @@
   outline: 0;
   background: transparent;
   color: var(--color-fg-primary, var(--text-primary, #101828));
-  font-size: 13px;
+  font-size: var(--control-field-font-size);
   line-height: 1.4;
   padding: 0;
 }
@@ -310,7 +310,7 @@
   gap: 8px;
   padding: 8px 12px;
   color: var(--color-fg-primary, var(--text-primary, #101828));
-  font-size: 13px;
+  font-size: var(--text-data-size);
   line-height: 1.35;
   cursor: pointer;
   user-select: none;
@@ -354,7 +354,7 @@
 .detailed-plan-filters__point-feedback {
   padding: 16px 12px;
   color: var(--color-fg-secondary, var(--text-secondary, #64748b));
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   line-height: 1.4;
   text-align: center;
 }
@@ -370,7 +370,7 @@
 }
 
 .detailed-plan-filters__point-footer-text {
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   font-weight: 500;
   color: var(--color-fg-secondary, var(--text-secondary, #64748b));
 }
@@ -380,7 +380,7 @@
   border: 0;
   background: transparent;
   color: var(--color-fg-brand-primary, #005a2d);
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   font-weight: 500;
   border-radius: 4px;
   cursor: pointer;
@@ -400,7 +400,7 @@
   align-items: center;
   gap: 6px;
   color: var(--color-fg-secondary, var(--text-secondary, #64748b));
-  font-size: 13px;
+  font-size: var(--text-control-compact-size);
 }
 
 .detailed-plan-filters__hour-control {
@@ -424,7 +424,7 @@
 .detailed-plan-filter-panel__title {
   margin: 0;
   color: var(--color-fg-primary, var(--text-primary, #101828));
-  font-size: 14px;
+  font-size: var(--text-section-size);
   font-weight: 700;
   line-height: 1.4;
 }
@@ -445,7 +445,7 @@
   border-radius: 8px;
   background: var(--background-color-success-primary, #ecfdf5);
   color: var(--color-fg-success-primary, #065f46);
-  font-size: 13px;
+  font-size: var(--text-data-size);
 }
 
 .detailed-plan-grid__lot-banner button {
@@ -633,7 +633,7 @@
 }
 
 .detailed-plan-grid__note-full {
-  font-size: 14px;
+  font-size: var(--text-body-size);
   line-height: 1.55;
   color: var(--text-primary, #101828);
   white-space: pre-wrap;
@@ -655,7 +655,7 @@
   background: #4A9E7D;
   border: 1px solid transparent;
   border-radius: 8px;
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   font-weight: 600;
   line-height: 1;
   white-space: nowrap;
@@ -771,7 +771,7 @@
   .detailed-plan-filters__select,
   .detailed-plan-filters__multi-trigger {
     min-height: 44px;
-    font-size: 14px;
+    font-size: var(--text-control-compact-size);
   }
 }
 
@@ -836,7 +836,7 @@
     margin: 0 6px 0 0;
     color: var(--text-secondary, #64748b);
     content: attr(data-label);
-    font-size: 10px;
+    font-size: var(--text-label-size);
     font-weight: 700;
     letter-spacing: 0.04em;
     line-height: 1.6;
@@ -931,7 +931,7 @@
   .detailed-plan-grid__cell::before {
     display: inline;
     margin: 0 6px 0 0;
-    font-size: 10px;
+    font-size: var(--text-label-size);
   }
 
   /* Each field is an atomic unit: lines break BETWEEN fields, never inside
@@ -994,7 +994,7 @@
   .detailed-plan-filter-drawer .detailed-plan-filters__today,
   .detailed-plan-filter-drawer .detailed-plan-filters__multi-trigger { min-height: 44px; }
 
-  .detailed-plan-filter-drawer .detailed-plan-filters__multi-trigger { font-size: 14px; }
+  .detailed-plan-filter-drawer .detailed-plan-filters__multi-trigger { font-size: var(--text-control-compact-size); }
 }
 
 /* Classification column (Phân loại): every saved value uses one neutral,
@@ -1032,7 +1032,7 @@
   width: 100%;
   min-height: 38px;
   padding: 8px 12px;
-  font-size: 14px;
+  font-size: var(--text-body-size);
   color: var(--text-secondary, #475467);
   background: var(--surface-white, #fff);
   border: 1px solid var(--border-medium, #d0d5dd);

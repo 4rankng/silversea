@@ -28,8 +28,8 @@
   background: var(--accent-soft);
   color: var(--accent-2);
   font-family: var(--font-data);
-  font-weight: 700;
-  font-size: var(--fs-2xs);
+  font-weight: var(--fw-bold);
+  font-size: var(--text-caption-size);
   letter-spacing: 0.06em;
   border-radius: 5px;
   padding: 3px 0;
@@ -39,8 +39,8 @@
 .cfg-row__name {
   width: 100px;
   flex-shrink: 0;
-  font-weight: 600;
-  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  font-size: var(--text-data-size);
   color: var(--ink);
   overflow: visible;
   overflow-wrap: anywhere;
@@ -51,7 +51,7 @@
 .cfg-row__city {
   width: 100px;
   flex-shrink: 0;
-  font-size: var(--fs-sm);
+  font-size: var(--text-data-size);
   color: var(--ink-2);
   overflow: visible;
   overflow-wrap: anywhere;
@@ -61,7 +61,7 @@
 .cfg-row__notes {
   flex: 1;
   min-width: 0;
-  font-size: var(--fs-sm);
+  font-size: var(--text-data-size);
   color: var(--ink-3);
   overflow: visible;
   overflow-wrap: anywhere;
@@ -99,8 +99,8 @@
 }
 .cfg-list-header__col {
   font-family: var(--font-data);
-  font-size: var(--fs-2xs);
-  font-weight: 700;
+  font-size: var(--text-label-size);
+  font-weight: var(--fw-bold);
   color: var(--ink-3);
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -122,7 +122,7 @@
 }
 .cfg-list-footer__add {
   color: var(--ink-3);
-  font-size: var(--fs-xs);
+  font-size: var(--text-control-size);
 }
 .cfg-list-footer__add:hover { color: var(--accent); }
 

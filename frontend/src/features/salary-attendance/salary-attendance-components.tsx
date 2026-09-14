@@ -283,8 +283,8 @@ export function PostCloseAdjustmentList({
                 <Money value={Math.abs(item.amount)} sign={incoming ? '+' : '-'} />
               </span>
             </div>
-            <div style={{ marginTop: 6, fontSize: 13, color: 'var(--fg-2)' }}>{item.reason}</div>
-            <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 8, fontSize: 12, color: 'var(--fg-3)' }}>
+            <div style={{ marginTop: 6, fontSize: 'var(--text-data-size)', color: 'var(--fg-2)' }}>{item.reason}</div>
+            <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 8, fontSize: 'var(--text-caption-size)', color: 'var(--fg-3)' }}>
               <span>Duyệt bởi {item.approvedByName || 'Người dùng không xác định'}</span>
               <span>{new Date(item.approvedAt).toLocaleDateString('vi-VN')}</span>
             </div>
@@ -351,7 +351,7 @@ export function PostCloseAdjustmentModal({
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Tạo khoản điều chỉnh liên kỳ">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <div style={{ fontSize: 13, color: 'var(--fg-2)' }}>
+        <div style={{ fontSize: 'var(--text-data-size)', color: 'var(--fg-2)' }}>
           Kỳ nguồn: <strong>{sourcePeriod}</strong>. Kỳ cũ giữ nguyên snapshot, khoản điều chỉnh sẽ đi vào kỳ đích đang mở.
         </div>
         <label className="input-group">
@@ -366,7 +366,7 @@ export function PostCloseAdjustmentModal({
           <span>Lý do điều chỉnh</span>
           <textarea className="input" value={reason} onChange={(event) => setReason(event.target.value)} rows={3} placeholder="Ví dụ: bổ sung công chuyến hoàn tất sau khi đã phát hành phiếu lương" />
         </label>
-        {error && <div style={{ fontSize: 12, color: 'var(--danger)' }}>{error}</div>}
+        {error && <div style={{ fontSize: 'var(--text-body-size)', color: 'var(--danger)' }}>{error}</div>}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
           <button className="btn btn--secondary" onClick={onClose} disabled={submitting}>Hủy</button>
           <button className="btn btn--primary" onClick={() => { void handleSubmit(); }} disabled={submitting}>

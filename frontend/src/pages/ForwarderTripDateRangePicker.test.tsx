@@ -3,6 +3,16 @@ import { describe, expect, it, vi } from 'vitest';
 import { ForwarderTripDateRangePicker } from './ForwarderTripDateRangePicker';
 
 describe('ForwarderTripDateRangePicker', () => {
+  it('portals outside clipping parents and restores the start trigger after advancing to the end date', async () => {
+    render(<div style={{ overflow: 'hidden' }} data-testid="clipping-parent"><ForwarderTripDateRangePicker dateFrom="2026-08-05" dateTo="2026-08-09" onChange={vi.fn()} /></div>);
+    const fromTrigger = screen.getByRole('button', { name: /Từ ngày/ });
+    fireEvent.click(fromTrigger);
+    expect(screen.getByTestId('clipping-parent')).not.toContainElement(screen.getByRole('dialog'));
+    fireEvent.click(screen.getByRole('button', { name: '7' }));
+    expect(screen.getByText('Chọn ngày kết thúc')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Áp dụng khoảng ngày' }));
+    await waitFor(() => expect(fromTrigger).toHaveFocus());
+  });
   it('orders a reversed range and returns focus when the picker is applied', async () => {
     const onChange = vi.fn();
     render(<ForwarderTripDateRangePicker dateFrom="2026-08-20" dateTo="" onChange={onChange} />);

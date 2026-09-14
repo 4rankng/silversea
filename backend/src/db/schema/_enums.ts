@@ -41,9 +41,9 @@ export const trailerStatusEnum = applicationEnum(['ACTIVE', 'MAINTENANCE', 'INAC
 
 // NOTE: forwarder_expense_type pgEnum removed — replaced by forwarder_expense_types config table.
 // trip_expenses.expense_type is now varchar(50) referencing config codes.
-export const advanceRequestStatusEnum = applicationEnum(['PENDING', 'APPROVED', 'REJECTED']);
+export const advanceRequestStatusEnum = applicationEnum(['APPROVED', 'REJECTED']);
 
-export const advanceSettlementStatusEnum = applicationEnum(['PENDING', 'CHECKED_BY_ACCOUNTANT', 'APPROVED', 'REJECTED', 'REVERSED']);
+export const advanceSettlementStatusEnum = applicationEnum(['APPROVED', 'REJECTED', 'REVERSED']);
 
 // Ops cash-expense approval lifecycle (docs/prd/OpsVanHanh.md §5.5): PENDING →
 // APPROVED (locked) | REJECTED (author fixes evidence and resends → PENDING).

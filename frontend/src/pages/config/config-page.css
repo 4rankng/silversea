@@ -28,16 +28,15 @@
 /* ── Table density: sparse config rows don't need 24px vertical td padding ── */
 .cfg-page .tt-table thead th {
   padding: 13px 18px;
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   letter-spacing: 0.06em;
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
   color: var(--ink-3);
 }
 .cfg-page .tt-table tbody td {
   padding: 14px 18px;
   vertical-align: middle;
 }
-.cfg-page .tt-table tbody td.num { }
 
 /* Subtle row hover — keep readable density */
 .cfg-page .tt-table tbody tr:hover { background: rgba(0, 177, 79, 0.035); }
@@ -66,7 +65,7 @@
 
 /* Inline meta summary that lives in the toolbar (replaces ad-hoc inline styles) */
 .cfg-page__summary {
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   color: var(--ink-3);
   display: inline-flex;
   align-items: center;
@@ -75,7 +74,7 @@
 }
 .cfg-page__summary strong {
   color: var(--ink);
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
 }
 .cfg-page__summary-sep {
   color: var(--line-2);
@@ -92,8 +91,8 @@
   margin-left: 8px;
   border-radius: 999px;
   font-family: var(--font-data);
-  font-size: var(--fs-xs);
-  font-weight: 700;
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-bold);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   line-height: 1.4;
@@ -149,8 +148,8 @@
 .cfg-page .field > label,
 .cfg-page label.cfg-field__label {
   display: block;
-  font-size: var(--fs-xs);
-  font-weight: 600;
+  font-size: var(--text-label-size);
+  font-weight: var(--fw-semibold);
   color: var(--ink-2);
   margin-bottom: 6px;
   letter-spacing: 0;
@@ -164,14 +163,14 @@
   margin-bottom: 8px;
 }
 .cfg-page .cfg-field-hint {
-  font-size: var(--fs-2xs);
+  font-size: var(--text-caption-size);
   color: var(--ink-3);
   margin-top: 5px;
   line-height: 1.45;
 }
 .cfg-page .cfg-field-hint--warn { color: var(--warning-text); }
 .cfg-page .cfg-field-hint--danger { color: var(--danger); }
-.cfg-page .cfg-field-hint strong { color: var(--ink); font-weight: 600; }
+.cfg-page .cfg-field-hint strong { color: var(--ink); font-weight: var(--fw-semibold); }
 
 .cfg-page .cfg-section {
   padding-top: 20px;
@@ -179,8 +178,8 @@
   border-top: 1px solid var(--line);
 }
 .cfg-page .cfg-section__heading {
-  font-size: var(--fs-sm);
-  font-weight: 700;
+  font-size: var(--text-section-size);
+  font-weight: var(--fw-semibold);
   color: var(--ink);
   margin: 0 0 14px;
   letter-spacing: 0;
@@ -190,8 +189,8 @@
 }
 .cfg-page .cfg-section__heading-pill {
   font-family: var(--font-data);
-  font-size: var(--fs-2xs);
-  font-weight: 700;
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-bold);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   padding: 2px 7px;
@@ -213,8 +212,28 @@
 .cfg-page .cfg-form-actions {
   margin-top: 18px;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 12px;
+}
+
+/* Dialogs are portalled outside .cfg-page, so form geometry owns a class
+   instead of depending on a page ancestor or inflexible inline columns. */
+.cfg-form-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  min-width: 0;
+}
+.cfg-form-columns > * { min-width: 0; }
+.cfg-form-columns--code-name { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); }
+.cfg-form-columns__full { grid-column: 1 / -1; }
+.cfg-form-policy-section { padding-top: 14px; border-top: 1px solid var(--line); }
+.cfg-form-footer { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; width: 100%; padding-top: 4px; }
+.cfg-form-footer__primary { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-left: auto; }
+
+@media (max-width: 640px) {
+  .cfg-form-columns { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* ── Company info singleton ─────────────────────────────────────────────── */
@@ -247,8 +266,8 @@
 }
 
 .cfg-page--company-info .company-info-preview-row__label {
-  font-size: var(--fs-2xs);
-  font-weight: 700;
+  font-size: var(--text-label-size);
+  font-weight: var(--fw-bold);
   color: var(--ink-3);
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -257,7 +276,7 @@
 
 .cfg-page--company-info .company-info-preview-row__value {
   min-width: 0;
-  font-size: var(--fs-xs);
+  font-size: var(--text-data-size);
   color: var(--ink);
   overflow-wrap: anywhere;
   word-break: normal;
@@ -353,7 +372,7 @@
 .debit-template-card__title strong {
   min-width: 0;
   color: var(--ink);
-  font-size: var(--fs-sm);
+  font-size: var(--text-data-size);
   overflow: visible;
   text-overflow: clip;
   white-space: normal;
@@ -366,8 +385,8 @@
   flex-wrap: wrap;
   gap: 8px;
   color: var(--ink-3);
-  font-size: 12px;
-  font-weight: 650;
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-semibold);
 }
 
 .debit-template-card__meta span + span::before {
@@ -421,13 +440,13 @@
 
 .debit-template-list-empty__copy strong,
 .debit-template-list-empty > strong {
-  font-size: var(--fs-lg);
+  font-size: var(--text-section-size);
   line-height: 1.35;
   color: var(--ink);
 }
 
 .debit-template-list-empty__copy span {
-  font-size: 13px;
+  font-size: var(--text-data-size);
   line-height: 1.5;
   color: var(--ink-3);
 }
@@ -471,7 +490,7 @@
   .cfg-page .tt-table thead th { padding: 11px 12px; }
   .cfg-page .tt-table tbody td { padding: 12px 12px; }
   .cfg-page .toolbar { padding: 12px 14px 4px; gap: 8px; }
-  .cfg-page__summary { font-size: var(--fs-xs); }
+  .cfg-page__summary { font-size: var(--text-caption-size); }
   .cfg-page .table-scroll { overflow: visible; }
 
   .cfg-page:not(.routes-config-page) .table-wrap {
@@ -525,8 +544,8 @@
   .cfg-page:not(.routes-config-page) .tt-table tbody td[data-label]::before {
     content: attr(data-label);
     color: var(--ink-3);
-    font-size: var(--fs-xs);
-    font-weight: 700;
+    font-size: var(--text-caption-size);
+    font-weight: var(--fw-bold);
     letter-spacing: 0.06em;
     line-height: 1.45;
     text-transform: uppercase;
@@ -619,30 +638,19 @@
   }
 }
 
-/* ── Tabular below the shared card fold ──────────────────────────────
-   Product call (2026-09-06): master-data catalogs stay tabular whenever
-   the columns fit without corruption — the labelled-card fold is the
-   LAST resort, not the laptop default. The shared base (record-table.css)
-   folds every record-table at container ≤1100px, a threshold tuned for
-   8-column ledgers; the 6-7 column customers/routes catalogs stay
-   readable as tables well below that. Re-arm tabular display for exactly
-   these two tables across 680-1100px; the shared base keeps full
-   ownership below 680px (cards, then phone pair-ups) and of every other
-   record-table on the platform (dispatch grids, expense ledger). */
+/* The routes catalog remains readable as a table in the tablet band.
+   The customer catalog now has 13 columns; it uses the shared two-column
+   labelled records below 1100px so payment terms and actions stay visible. */
 @container (min-width: 680px) and (max-width: 1100px) {
-  .cfg-page .cfg-customer-table,
   .cfg-page .routes-table {
     display: table;
   }
-  .cfg-page .cfg-customer-table thead,
   .cfg-page .routes-table thead {
     display: table-header-group;
   }
-  .cfg-page .cfg-customer-table tbody,
   .cfg-page .routes-table tbody {
     display: table-row-group;
   }
-  .cfg-page .cfg-customer-table tbody tr,
   .cfg-page .routes-table tbody tr {
     display: table-row;
     border: 0;
@@ -652,7 +660,6 @@
        if selection ever lands on these tables. */
     background: transparent;
   }
-  .cfg-page .cfg-customer-table tbody td,
   .cfg-page .routes-table tbody td {
     display: table-cell;
     padding: 10px 12px;
@@ -665,7 +672,6 @@
   .cfg-page .routes-table tbody td.record-table__action {
     padding: 10px 12px;
   }
-  .cfg-page .cfg-customer-table tbody td::before,
   .cfg-page .routes-table tbody td::before {
     content: none;
   }
@@ -727,7 +733,7 @@
   .routes-config-page .kpi__value { word-break: keep-all; overflow-wrap: anywhere; }
 
   /* Table footer — compact */
-  .routes-config-page .table-foot { padding: 8px 4px; font-size: var(--fs-xs); }
+  .routes-config-page .table-foot { padding: 8px 4px; font-size: var(--text-caption-size); }
 } /* end 640px */
 
 /* ── Application settings feature switches ───────────────────────────────── */
@@ -818,21 +824,21 @@
 
 .cfg-feature__label {
   color: var(--ink);
-  font-size: var(--fs-sm);
-  font-weight: 700;
+  font-size: var(--text-label-size);
+  font-weight: var(--fw-bold);
 }
 
 .cfg-feature__description {
   color: var(--ink-2);
-  font-size: var(--fs-xs);
+  font-size: var(--text-body-size);
   line-height: 1.45;
 }
 
 .cfg-feature__state {
   color: var(--ink-3);
   font-family: var(--font-data);
-  font-size: var(--fs-2xs);
-  font-weight: 600;
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-semibold);
 }
 
 @media (max-width: 640px) {
@@ -874,35 +880,16 @@
   flex-wrap: wrap;
   gap: 12px;
   color: var(--ink-3);
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
 }
 
 .cfg-finance-strip__meta a {
   color: var(--accent);
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
 }
 
 .cfg-finance-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
   margin-bottom: 16px;
-}
-
-.cfg-finance-tab {
-  min-height: 44px;
-  padding: 10px 14px;
-  color: var(--ink-3);
-  background: var(--surface-2);
-  border: 1px solid var(--line);
-  border-radius: 999px;
-}
-
-.cfg-finance-tab.is-active {
-  color: var(--ink);
-  border-color: var(--ink);
-  background: var(--surface);
-  box-shadow: inset 0 -2px 0 var(--ink);
 }
 
 .cfg-finance-workspace {
@@ -936,7 +923,7 @@
 .cfg-finance-summary__grid dt {
   margin-bottom: 4px;
   color: var(--ink-3);
-  font-size: var(--fs-2xs);
+  font-size: var(--text-label-size);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -944,8 +931,8 @@
 .cfg-finance-summary__grid dd {
   margin: 0;
   color: var(--ink);
-  font-size: var(--fs-sm);
-  font-weight: 600;
+  font-size: var(--text-data-size);
+  font-weight: var(--fw-semibold);
 }
 
 .cfg-finance-note {
@@ -1019,12 +1006,12 @@
   flex-wrap: wrap;
   gap: 10px 14px;
   color: var(--ink-2);
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
 }
 
 .cfg-finance-history__foot {
   color: var(--ink-3);
-  font-size: var(--fs-2xs);
+  font-size: var(--text-caption-size);
 }
 
 .cfg-finance-skeleton {
@@ -1044,7 +1031,7 @@
   align-items: flex-start;
   gap: 8px;
   color: var(--ink-3);
-  font-size: var(--fs-2xs);
+  font-size: var(--text-caption-size);
   line-height: 1.5;
 }
 
@@ -1109,12 +1096,12 @@
 
 .cfg-provider-option strong {
   color: var(--ink);
-  font-size: var(--fs-sm);
+  font-size: var(--text-data-size);
 }
 
 .cfg-provider-option small {
   color: var(--ink-3);
-  font-size: var(--fs-2xs);
+  font-size: var(--text-caption-size);
   overflow-wrap: anywhere;
 }
 
@@ -1185,7 +1172,7 @@
 
 .cfg-form-success,
 .cfg-form-error {
-  font-size: var(--fs-2xs);
+  font-size: var(--text-caption-size);
 }
 
 .cfg-form-success { color: var(--success); }
@@ -1198,7 +1185,7 @@
     grid-template-columns: 1fr;
   }
 
-  .cfg-finance-tab {
+  .cfg-finance-tabs .ds-tabs__btn {
     flex: 1 1 0;
     justify-content: center;
   }

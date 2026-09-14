@@ -99,7 +99,7 @@ export function BufferedUuiDateTimeInput({
         {...(inputProps as Partial<InputBaseProps>)}
       />
       {hint && (
-        <p className="text-sm text-tertiary group-invalid/input:text-error-primary">
+        <p className="text-xs leading-[1.5] text-tertiary group-invalid/input:text-error-primary">
           {hint}
         </p>
       )}

@@ -56,13 +56,13 @@ export function ForwarderContainersSection({ containers, show: showContainerForm
  return <>
         <div className="panel panel--solid" style={{ marginBottom: 16 }}>
           <div style={{ padding: '8px 20px', borderBottom: '1px solid var(--border-1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: 12, lineHeight: 1.35, fontWeight: 600, color: 'var(--fg-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            <span style={{ fontSize: 'var(--text-caption-size)', lineHeight: 1.35, fontWeight: 600, color: 'var(--fg-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
               Số Container / Seal ({visibleContainers.length})
             </span>
             <button
               className="btn btn--secondary btn--sm"
               onClick={() => setShowContainerForm(!showContainerForm)}
-              style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}
+              style={{ fontSize: 'var(--text-control-size)', display: 'flex', alignItems: 'center', gap: 4 }}
             >
               <Plus size={12} /> Thêm
             </button>
@@ -82,9 +82,9 @@ export function ForwarderContainersSection({ containers, show: showContainerForm
                 </FormGroup>
                 {containerError != null && (
                   <div role="alert" style={{ flexBasis: '100%', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 12, color: 'var(--danger)' }}>{containerError.message}</span>
+                    <span style={{ fontSize: 'var(--text-body-size)', color: 'var(--danger)' }}>{containerError.message}</span>
                     {containerError.suggestion != null && (
-                      <button type="button" className="btn btn--secondary btn--sm" style={{ fontSize: 12 }} onClick={onApplySuggestion}>
+                      <button type="button" className="btn btn--secondary btn--sm" style={{ fontSize: 'var(--text-control-size)' }} onClick={onApplySuggestion}>
                         Dùng "{containerError.suggestion}"
                       </button>
                     )}
@@ -119,7 +119,7 @@ export function ForwarderContainersSection({ containers, show: showContainerForm
           )}
 
           {visibleContainers.length === 0 ? (
-            <div style={{ padding: '16px 20px', color: 'var(--fg-3)', fontSize: 13, textAlign: 'center' }}>
+            <div style={{ padding: '16px 20px', color: 'var(--fg-3)', fontSize: 'var(--text-caption-size)', textAlign: 'center' }}>
               Chưa có số container/seal nào
             </div>
           ) : (
@@ -148,15 +148,15 @@ export function ForwarderContainersSection({ containers, show: showContainerForm
                 >
                   <Package size={14} style={{ color: 'var(--brand)', flexShrink: 0 }} />
                   <div style={{ flex: 1 }}>
-                    <span style={{ fontWeight: 600, fontSize: 13, fontFamily: 'var(--font-data)' }}>{getForwarderContainerDisplayLabel(c)}</span>
+                    <span style={{ fontWeight: 600, fontSize: 'var(--text-data-size)', fontFamily: 'var(--font-data)' }}>{getForwarderContainerDisplayLabel(c)}</span>
                     {c.sealNumber && (
-                      <span style={{ color: 'var(--fg-3)', fontSize: 12, marginLeft: 12 }}>
+                      <span style={{ color: 'var(--fg-3)', fontSize: 'var(--text-caption-size)', marginLeft: 12 }}>
                         Seal: <span style={{ fontFamily: 'var(--font-data)' }}>{c.sealNumber}</span>
                       </span>
                     )}
                   </div>
                   {c.notes && !c.notes.startsWith('__') && (
-                    <span style={{ fontSize: 12, color: 'var(--fg-3)' }}>{c.notes}</span>
+                    <span style={{ fontSize: 'var(--text-caption-size)', color: 'var(--fg-3)' }}>{c.notes}</span>
                   )}
                 </button>
                 );
@@ -181,26 +181,26 @@ export function ForwarderExpenseRow({ exp, expenseTypeOptions: forwarderExpenseT
                   <div className="fwd-expense-record__layout">
                     <DollarSign size={14} style={{ color: 'var(--brand)', flexShrink: 0 }} />
                     <div className="fwd-expense-record__main">
-                      <span style={{ fontWeight: 600, fontSize: 13 }}>
+                      <span style={{ fontWeight: 600, fontSize: 'var(--text-data-size)' }}>
                         {OPS_EXPENSE_TYPE_DEFAULTS[exp.expenseType]?.name || forwarderExpenseTypeOptions.find(t => t.code === exp.expenseType)?.name || exp.expenseType}
                       </span>
                       {exp.activeSettlementId && (
                         <span style={{
-                          fontSize: 12, lineHeight: 1.35, fontWeight: 600,
+                          fontSize: 'var(--text-body-size)', lineHeight: 1.35, fontWeight: 600,
                           color: '#92400e', background: '#fef3c7',
                           borderRadius: 4, padding: '3px 7px', marginLeft: 6,
                         }}>Đã gửi kế toán</span>
                       )}
                       {exp.note && (
-                        <span style={{ color: 'var(--fg-3)', fontSize: 12, marginLeft: 8 }}>{exp.note}</span>
+                        <span style={{ color: 'var(--fg-3)', fontSize: 'var(--text-caption-size)', marginLeft: 8 }}>{exp.note}</span>
                       )}
                       {exp.returnForEvidenceReason && (
-                        <div style={{ marginTop: 6, fontSize: 12, color: '#92400e', background: '#fef3c7', borderRadius: 6, padding: '6px 8px', maxWidth: 420 }}>
+                        <div style={{ marginTop: 6, fontSize: 'var(--text-body-size)', color: '#92400e', background: '#fef3c7', borderRadius: 6, padding: '6px 8px', maxWidth: 420 }}>
                           Cần bổ sung: {exp.returnForEvidenceReason}
                         </div>
                       )}
                       {(exp.expenseDate || exp.payeeName) && (
-                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6, fontSize: 12, color: 'var(--fg-3)' }}>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6, fontSize: 'var(--text-caption-size)', color: 'var(--fg-3)' }}>
                           {exp.expenseDate && <span>Ngày chi {exp.expenseDate}</span>}
                           {exp.payeeName && <span>Người nhận {exp.payeeName}</span>}
                         </div>
@@ -213,7 +213,7 @@ export function ForwarderExpenseRow({ exp, expenseTypeOptions: forwarderExpenseT
                       </dl>
                     </div>
                     <div className="fwd-expense-record__amount">
-                      <div style={{ fontWeight: 600, fontSize: 13 }}>
+                      <div style={{ fontWeight: 600, fontSize: 'var(--text-data-size)' }}>
                         {formatCurrency(exp.buyAmount)}
                       </div>
                     </div>
@@ -273,7 +273,7 @@ export function ForwarderExpenseRow({ exp, expenseTypeOptions: forwarderExpenseT
                   )}
                   {/* Load photos on first render */}
                   {!expensePhotos[exp.id] && (
-                    <span style={{ fontSize: 12, lineHeight: 1.35, color: 'var(--fg-3)', paddingLeft: 26, marginTop: 4, display: 'inline-block', cursor: 'pointer' }} onClick={() => loadExpensePhotos(exp.id)}>
+                    <span style={{ fontSize: 'var(--text-caption-size)', lineHeight: 1.35, color: 'var(--fg-3)', paddingLeft: 26, marginTop: 4, display: 'inline-block', cursor: 'pointer' }} onClick={() => loadExpensePhotos(exp.id)}>
                       Xem ảnh chứng từ
                     </span>
                   )}

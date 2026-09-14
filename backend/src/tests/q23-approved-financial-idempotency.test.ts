@@ -225,26 +225,26 @@ async function createApprovedAdvanceRequest(requesterId: number, amount: number)
   return request;
 }
 
-async function createPendingAdvanceRequest(requesterId: number, amount: number) {
+async function createAdvanceRequest(requesterId: number, amount: number) {
   const [request] = await db.insert(s.advanceRequests).values({
     requesterId,
     amount: String(amount),
     reason: `Q23 pending request ${suffix}-${advanceRequestIds.length}`,
-    status: 'PENDING',
+    status: 'APPROVED',
   }).returning();
   advanceRequestIds.push(request.id);
   return request;
 }
 
-async function createSettlement(forwarderId: number, requestIds: number[], note: string, status: 'PENDING' | 'CHECKED_BY_ACCOUNTANT' = 'PENDING') {
+async function createSettlement(forwarderId: number, requestIds: number[], note: string) {
   const [settlement] = await db.insert(s.advanceSettlements).values({
     code: `Q23-STL-${suffix}-${advanceSettlementIds.length}`.slice(0, 20),
     forwarderId,
     totalExpenseAmount: '0',
     refundAmount: '500000',
-    status,
-    checkedBy: status === 'CHECKED_BY_ACCOUNTANT' ? actor.id : null,
-    checkedAt: status === 'CHECKED_BY_ACCOUNTANT' ? new Date('2026-07-27T09:00:00.000Z') : null,
+    status: 'APPROVED',
+    checkedBy: null,
+    checkedAt: null,
     note,
   }).returning();
   advanceSettlementIds.push(settlement.id);
@@ -519,7 +519,7 @@ describe('Q23 approved financial route idempotency', () => {
 
   test('advance request approval is first-winner under concurrent distinct keys', async () => {
     const requester = await createUser(Role.OPS, 'q23-approve-forwarder');
-    const request = await createPendingAdvanceRequest(requester.id, 275000);
+    const request = await createAdvanceRequest(requester.id, 275000);
 
     // 2026-09-10 (phê duyệt removed): the approve route applies immediately —
     // two concurrent distinct-key approvals: the first applies (201), the
@@ -576,7 +576,7 @@ describe('Q23 approved financial route idempotency', () => {
 
   test('advance request rejection applies immediately with no ledger effect (phê duyệt removed)', async () => {
     const requester = await createUser(Role.OPS, 'q15-reject-forwarder');
-    const request = await createPendingAdvanceRequest(requester.id, 315000);
+    const request = await createAdvanceRequest(requester.id, 275000);
     const rejected = await requestJson(`/advance-requests/${request.id}/reject`, {
       body: { expectedVersion: request.version, reason: 'Chứng từ tạm ứng không hợp lệ' },
       idempotencyKey: `q15-advance-reject-${request.id}`,

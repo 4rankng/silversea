@@ -184,7 +184,7 @@ export default function CompanyInfoConfigPage() {
         ) : (
           <>
             {!isCompanyInfoConfigured(data) && (
-              <div style={{ padding: '10px 14px', marginBottom: 12, borderRadius: 6, background: '#fff7ed', borderLeft: '3px solid #f59e0b', color: '#92400e', fontSize: 13, lineHeight: 1.5 }}>
+              <div style={{ padding: '10px 14px', marginBottom: 12, borderRadius: 6, background: '#fff7ed', borderLeft: '3px solid #f59e0b', color: '#92400e', fontSize: 'var(--text-data-size)', lineHeight: 1.5 }}>
                 Chưa cấu hình thông tin công ty — hãy điền các trường bên dưới. Tiêu đề công ty (tên, địa chỉ, MST, logo) sẽ hiển thị trên mọi chứng từ xuất ra (PDF/Excel).
               </div>
             )}
@@ -207,7 +207,7 @@ export default function CompanyInfoConfigPage() {
                         style={{ maxHeight: 80, maxWidth: 200, objectFit: 'contain', borderRadius: 6, border: '1px solid #dde3ea' }}
                       />
                     ) : (
-                      <div style={{ height: 80, width: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 6, border: '1px dashed #dde3ea', color: 'var(--ink-3)', fontSize: 13 }}>
+                      <div style={{ height: 80, width: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 6, border: '1px dashed #dde3ea', color: 'var(--ink-3)', fontSize: 'var(--text-data-size)' }}>
                         Chưa có logo
                       </div>
                     )}
@@ -345,7 +345,7 @@ export default function CompanyInfoConfigPage() {
                       aria-describedby={fieldErrors.email ? 'company-email-error' : undefined}
                     />
                     {fieldErrors.email && (
-                      <p id="company-email-error" role="alert" className="cfg-field-error" style={{ color: 'var(--err, #dc2626)', margin: '4px 0 0', fontSize: 12 }}>
+                      <p id="company-email-error" role="alert" className="cfg-field-error" style={{ color: 'var(--err, #dc2626)', margin: '4px 0 0', fontSize: 'var(--text-caption-size)' }}>
                         {fieldErrors.email}
                       </p>
                     )}
@@ -372,7 +372,7 @@ export default function CompanyInfoConfigPage() {
                 {saving ? <Loader2 size={14} className="spin" /> : <Save size={14} />}
                 Lưu thông tin
               </button>
-              {message && <span role="status" style={{ color: 'var(--success)', fontSize: 13 }}>{message}</span>}
+              {message && <span role="status" style={{ color: 'var(--success)', fontSize: 'var(--text-data-size)' }}>{message}</span>}
             </div>
             {error && (
               <div role="alert" className="cfg-form-error" style={{ marginTop: 8 }}>

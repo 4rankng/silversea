@@ -402,7 +402,7 @@ export default function SupplierListPage() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                     <span className="m-card__title">{s.shortName || s.name}</span>
                     {s.isFuelSupplier && (
-                      <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--brand, #10B981)', background: 'var(--brand-soft, #E6FBF3)', border: '1px solid var(--brand-border, #A7F3D0)', borderRadius: 4, padding: '1px 5px' }}>
+                      <span style={{ fontSize: 'var(--text-body-size)', fontWeight: 700, color: 'var(--brand, #10B981)', background: 'var(--brand-soft, #E6FBF3)', border: '1px solid var(--brand-border, #A7F3D0)', borderRadius: 4, padding: '1px 5px' }}>
                         Nhiên liệu
                       </span>
                     )}
@@ -469,7 +469,7 @@ export default function SupplierListPage() {
               {loading && (
                 <tr><td colSpan={8} data-label="" style={{ textAlign: 'center', padding: 32, color: 'var(--ink-3)' }}>
                   <Loader2 size={22} className="spin" style={{ display: 'inline-block', marginBottom: 8 }} />
-                  <p style={{ fontSize: 13 }}>Đang tải…</p>
+                  <p style={{ fontSize: 'var(--text-data-size)' }}>Đang tải…</p>
                 </td></tr>
               )}
               {error && (
@@ -529,11 +529,11 @@ export default function SupplierListPage() {
                             ? { bottom: '100%', marginBottom: 4 }
                             : { top: '100%' }),
                         }} onClick={(e) => e.stopPropagation()}>
-                          <button style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', fontSize: 12.5, border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', color: 'var(--ink)' }}
+                          <button style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', fontSize: 'var(--text-data-size)', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', color: 'var(--ink)' }}
                             onClick={() => { setEditingId(s.id); setShowAddForm(false); }}>
                             <Pencil size={13} /> Sửa
                           </button>
-                          <button style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', fontSize: 12.5, border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', color: 'var(--danger)' }}
+                          <button style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', fontSize: 'var(--text-data-size)', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', color: 'var(--danger)' }}
                             disabled={deleting === s.id}
                             onClick={() => doDelete(s.id)}>
                             {deleting === s.id ? <Loader2 size={13} className="spin" /> : <Trash2 size={13} />} Xoá

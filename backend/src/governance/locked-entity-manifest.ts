@@ -417,46 +417,6 @@ const creditOverrideApproval = action(
   ),
 );
 
-const advanceRequestApproval = action(
-  'ADVANCE_REQUEST_APPROVAL',
-  source(
-    'services/advance-request.service.ts',
-    'requestAdvanceRequestApprovalGovernance',
-    "actionKind: 'ADVANCE_REQUEST_APPROVAL'",
-    'reason',
-    'beforeSnapshot',
-    'afterSnapshot',
-    'makerId',
-  ),
-  proof(
-    'tests/q23-approved-financial-idempotency.test.ts',
-    'advance request approval is first-winner under concurrent distinct keys',
-    'Promise.all',
-    "status, 'APPROVED'",
-    'ledger',
-  ),
-);
-
-const advanceRequestRejection = action(
-  'ADVANCE_REQUEST_REJECTION',
-  source(
-    'services/advance-request.service.ts',
-    'requestAdvanceRequestRejectionGovernance',
-    "actionKind: 'ADVANCE_REQUEST_REJECTION'",
-    'reason',
-    'beforeSnapshot',
-    'afterSnapshot',
-    'makerId',
-  ),
-  proof(
-    'tests/q23-approved-financial-idempotency.test.ts',
-    'advance request rejection applies immediately with no ledger effect (phê duyệt removed)',
-    '/advance-requests/',
-    'rejected.data.actionKind',
-    "row.status, 'REJECTED'",
-    'ledgerAfter',
-  ),
-);
 
 /**
  * Q18's versioned inventory. Every row names:
@@ -871,33 +831,6 @@ export const LOCKED_ENTITY_BOUNDARIES: readonly LockedEntityBoundary[] = [
       'module.applyProfitDistributionGovernanceAction',
     ),
     governedActions: [profitDistribution],
-    reopenPolicy: 'NEVER',
-  },
-  {
-    entity: 'ADVANCE_REQUEST',
-    terminalStates: ['APPROVED', 'REJECTED'],
-    stateAuthority: source(
-      'db/schema/_enums.ts',
-      'advanceRequestStatusEnum',
-      "'APPROVED'",
-      "'REJECTED'",
-    ),
-    directMutationBoundary: source(
-      'services/advance-request.service.ts',
-      'approveAdvanceRequest',
-      "request.status !== 'PENDING'",
-      'throw new AdvanceError',
-      'Cannot approve request',
-    ),
-    directMutationProof: proof(
-      'tests/q23-approved-financial-idempotency.test.ts',
-      'advance request approval is first-winner under concurrent distinct keys',
-      'Promise.all',
-      "status, 'APPROVED'",
-      'assert.equal',
-      'ledger',
-    ),
-    governedActions: [advanceRequestApproval, advanceRequestRejection],
     reopenPolicy: 'NEVER',
   },
 ] as const;

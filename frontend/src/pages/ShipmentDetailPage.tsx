@@ -194,12 +194,12 @@ export default function ShipmentDetailPage() {
             <div className="shipment-detail__field--wide"><dt>Ghi chú cho lái xe</dt><dd>{shipment.operationalNotes ?? '—'}</dd></div>
           </dl>
           <div style={{ marginTop: 16, borderTop: '1px solid var(--border-2)', paddingTop: 16, display: 'grid', gap: 8 }}>
-            <strong style={{ fontSize: 14 }}>Ghi nhận giá theo cấu hình hiện hành</strong>
+            <strong style={{ fontSize: 'var(--text-body-size)' }}>Ghi nhận giá theo cấu hình hiện hành</strong>
             <p style={{ margin: 0, color: shipment.pricingProjection?.readiness === 'READY' ? 'var(--fg-2)' : 'var(--warn, #b45309)' }}>
               {shipment.pricingProjection?.message ?? 'Chưa có dữ liệu giá dự kiến.'}
             </p>
             {shipment.pricingProjection?.freightFormula && (
-              <p style={{ margin: 0, color: 'var(--fg-3)', fontSize: 13 }}>
+              <p style={{ margin: 0, color: 'var(--fg-3)', fontSize: 'var(--text-caption-size)' }}>
                 Công thức cước: {shipment.pricingProjection.freightFormula}
               </p>
             )}

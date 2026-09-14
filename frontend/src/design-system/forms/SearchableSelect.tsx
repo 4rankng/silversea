@@ -274,7 +274,7 @@ export function SearchableSelect({
         }}
         onClick={close}
       />
-      <div ref={popoverRef} className="searchable-select__popover" role="dialog" aria-modal="true" aria-label={`Chọn ${placeholder}`} onKeyDown={trapDialogFocus}>
+      <div ref={popoverRef} className="searchable-select__popover" data-size={size} role="dialog" aria-modal="true" aria-label={`Chọn ${placeholder}`} onKeyDown={trapDialogFocus}>
         <div className="searchable-select__search">
           <Search size={16} aria-hidden="true" />
           <input

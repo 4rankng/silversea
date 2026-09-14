@@ -6,6 +6,7 @@ import { SelectField, TextField } from '../../design-system';
 import { EntityFormSection } from '../../components/shared/EntityFormParts';
 import { createOperationalSite, type OperationalSite } from '../../api/shipmentClient';
 import { RouteCreateDialog } from '../../features/shipments/create/RouteCreateDialog';
+import './OperationalSiteCreateDialog.css';
 
 interface OperationalSiteCreateDialogProps {
   isOpen: boolean;
@@ -230,9 +231,9 @@ export function OperationalSiteCreateDialog({
       maxWidth={620}
       footer={footer}
     >
-      <div className="flex flex-col gap-6">
+      <div className="operational-site-create">
         {error && (
-          <div role="alert" style={{ color: 'var(--danger)', background: 'var(--danger-bg, rgba(220,38,38,.08))', padding: '10px 14px', borderRadius: 8, fontSize: 14 }}>
+          <div role="alert" className="operational-site-create__error">
             {error}
           </div>
         )}
@@ -271,7 +272,7 @@ export function OperationalSiteCreateDialog({
           </SelectField>
           {form.siteType === 'FACTORY' && (
             <div className="col-span-full">
-              <div className="csc-route-picker">
+              <div className="operational-site-create__route-picker">
                 <SelectField
                   label="Tuyến đường"
                   value={form.routeId}
@@ -284,7 +285,7 @@ export function OperationalSiteCreateDialog({
                 <button
                   ref={addRouteButtonRef}
                   type="button"
-                  className="csc-utility-button csc-utility-button--dashed csc-route-picker__add"
+                  className="operational-site-create__add-route"
                   onClick={openRouteDialog}
                   disabled={saving}
                 >

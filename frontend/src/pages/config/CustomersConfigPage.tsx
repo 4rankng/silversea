@@ -19,6 +19,7 @@ import { CustomerForm } from './CustomerForm';
 import '../../styles/record-table.css';
 import '../../styles/operational-table-typography.css';
 import './config-page.css';
+import './customer-config-density.css';
 
 export default function CustomersConfigPage() {
   const { rootRef: pageRef } = usePageAnimations({ ready: true, selectors: ['.cfg-row'] });
@@ -164,7 +165,7 @@ export default function CustomersConfigPage() {
         }
       />
 
-      <div className="kpi-grid" style={{ marginBottom: 20 }}>
+      <div className="kpi-grid cfg-customer-summary" role="group" aria-label="Tổng quan khách hàng">
         <div className="kpi">
           <div className="kpi__top"><span className="kpi__label">Tổng khách hàng</span></div>
           <div className="kpi__value">{totalCount}</div>
@@ -270,11 +271,11 @@ export default function CustomersConfigPage() {
                           ? { bottom: '100%', marginBottom: 4 }
                           : { top: '100%', marginTop: 4 }),
                       }} onClick={(e) => e.stopPropagation()}>
-                        <button style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', fontSize: 12.5, border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', color: 'var(--ink)' }}
+                        <button style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px',  border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', color: 'var(--ink)' }}
                           onClick={() => { setMenuOpenId(null); crud.setEditingId(c.id); }}>
                           <Pencil size={13} /> Sửa
                         </button>
-                        <button style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', fontSize: 12.5, border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', color: 'var(--danger)' }}
+                        <button style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px',  border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', color: 'var(--danger)' }}
                           disabled={crud.deleting === c.id}
                           onClick={async () => {
                             const ok = await confirm(`Xóa khách hàng "${c.name}"?`, { confirmLabel: 'Xóa', variant: 'danger' });

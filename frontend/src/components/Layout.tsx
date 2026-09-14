@@ -19,12 +19,6 @@ import {
   Package,
   CalendarDays,
   User,
-  LogOut,
-  UserCog,
-  KeyRound,
-  ChevronRight,
-  Shield,
-  Phone,
   SlidersHorizontal,
   Landmark,
   Calculator,
@@ -44,6 +38,7 @@ import { Sidebar } from './layout/Sidebar';
 import { Topbar } from './layout/Topbar';
 import { ProfileModal } from './layout/ProfileModal';
 import { PasswordModal } from './layout/PasswordModal';
+import { MobileAccountSheet } from './layout/MobileAccountSheet';
 import type { NavItem, NavSection, SectionName } from './layout/types';
 import { useBottomNavAnimations } from '../hooks/useBottomNavAnimations';
 import { usePushNotifications } from '../hooks/usePushNotifications';
@@ -106,7 +101,7 @@ export function getNavItems(
         { key: 'trips', label: 'Sổ chuyến đi', path: routes.trips, icon: Truck, section: 'operations' as SectionName },
         { key: 'fleet', label: 'Đội xe', path: routes.fleet, icon: Layers, section: 'operations' as SectionName },
 
-        // Báo cáo & Phê duyệt (Reports & Approvals) per spec
+        // Báo cáo (Reports)
         { key: 'finance', label: 'Báo cáo Lãi lỗ', path: routes.finance, icon: Wallet, section: 'reports' as SectionName },
         { key: 'profit', label: 'Báo cáo Lợi nhuận', path: routes.profit, icon: DollarSign, section: 'reports' as SectionName },
 
@@ -155,7 +150,7 @@ export function getNavItems(
         { key: 'trips', label: 'Sổ chuyến đi', path: routes.trips, icon: Truck, section: 'operations' as SectionName },
         { key: 'fleet', label: 'Đội xe', path: routes.fleet, icon: Layers, section: 'operations' as SectionName },
 
-        // Báo cáo & Phê duyệt (Reports & Approvals) per spec
+        // Báo cáo (Reports)
         { key: 'finance', label: 'Báo cáo Lãi lỗ', path: routes.finance, icon: Wallet, section: 'reports' as SectionName },
         { key: 'profit', label: 'Báo cáo Lợi nhuận', path: routes.profit, icon: DollarSign, section: 'reports' as SectionName },
 
@@ -215,7 +210,7 @@ export function getNavItems(
         { key: 'config-fuel-price-periods', label: 'Giá dầu DO theo kỳ', path: routes.configFuelPricePeriods, icon: Fuel, section: 'financials' as SectionName },
         { key: 'config-freight-rate-terms', label: 'Điều khoản cước theo tuyến', path: routes.configFreightRateTerms, icon: DollarSign, section: 'financials' as SectionName },
 
-        // Báo cáo & Phê duyệt (Reports & Approvals) per spec
+        // Báo cáo (Reports)
         { key: 'finance', label: 'Báo cáo Lãi lỗ', path: routes.finance, icon: Wallet, section: 'reports' as SectionName },
         { key: 'profit', label: 'Báo cáo Lợi nhuận', path: routes.profit, icon: DollarSign, section: 'reports' as SectionName },
 
@@ -330,7 +325,7 @@ export function getNavSections(role: Role | string): NavSection[] {
     case Role.ADMIN:
       return [
         { key: 'operations', label: 'Vận hành' },
-        { key: 'reports', label: 'Báo cáo & Phê duyệt' },
+        { key: 'reports', label: 'Báo cáo' },
         { key: 'financials', label: 'Công nợ & Dòng tiền' },
         { key: 'hr', label: 'Nhân sự' },
         { key: 'master-data', label: 'Danh mục' },
@@ -339,7 +334,7 @@ export function getNavSections(role: Role | string): NavSection[] {
     case Role.MANAGER:
       return [
         { key: 'operations', label: 'Vận hành' },
-        { key: 'reports', label: 'Báo cáo & Phê duyệt' },
+        { key: 'reports', label: 'Báo cáo' },
         { key: 'financials', label: 'Công nợ & Dòng tiền' },
         { key: 'hr', label: 'Nhân sự' },
         { key: 'master-data', label: 'Danh mục' },
@@ -348,7 +343,7 @@ export function getNavSections(role: Role | string): NavSection[] {
     case Role.ACCOUNTANT:
       return [
         { key: 'financials', label: 'Công nợ & Dòng tiền' },
-        { key: 'reports', label: 'Báo cáo & Phê duyệt' },
+        { key: 'reports', label: 'Báo cáo' },
         { key: 'operations', label: 'Vận hành liên quan' },
         { key: 'system', label: 'Hệ thống' },
       ];
@@ -417,6 +412,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [isMobileViewport, setIsMobileViewport] = useState(() => window.matchMedia('(max-width: 1023px)').matches);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const accountButtonRef = useRef<HTMLButtonElement>(null);
+  const accountDialogOpenedFromSheetRef = useRef(false);
 
   // Profile modal state
   const [profileModalOpen, setProfileModalOpen] = useState(false);
@@ -430,8 +427,24 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const currentPasswordFieldRef = useRef<HTMLInputElement | null>(null);
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
+  // The sheet action unmounts when it opens a dialog. Restore to the stable
+  // account trigger after the dialog closes, including after a profile save.
+  // Desktop dialogs retain the shared modal's ordinary opener restoration.
+  useEffect(() => {
+    if (profileModalOpen || passwordModalOpen || !accountDialogOpenedFromSheetRef.current) return;
+    accountDialogOpenedFromSheetRef.current = false;
+    const frame = requestAnimationFrame(() => {
+      if (window.matchMedia('(max-width: 1023px)').matches) accountButtonRef.current?.focus();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [profileModalOpen, passwordModalOpen]);
   const toggleUserMenu = useCallback(() => setUserMenuOpen(v => !v), []);
-  const closeUserMenu = useCallback(() => setUserMenuOpen(false), []);
+  const closeUserMenu = useCallback(() => {
+    setUserMenuOpen(false);
+    if (window.matchMedia('(max-width: 1023px)').matches) {
+      requestAnimationFrame(() => accountButtonRef.current?.focus());
+    }
+  }, []);
   const closeSidebar = useCallback(() => {
     setSidebarOpen(false);
     if (window.matchMedia('(max-width: 1023px)').matches) {
@@ -443,6 +456,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     const media = window.matchMedia('(max-width: 1023px)');
     const handleViewportChange = (event: MediaQueryListEvent) => {
       setIsMobileViewport(event.matches);
+      setUserMenuOpen(false);
       // Entering desktop from mobile may land in the compact-desktop range,
       // where the sidebar must stay collapsed for full-width tables.
       setSidebarOpen(resolveInitialSidebarOpen(window.innerWidth));
@@ -482,6 +496,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   const openProfileModal = () => {
     if (!user) return;
+    accountDialogOpenedFromSheetRef.current = user.role === 'DRIVER' && isMobileViewport && userMenuOpen;
     setProfileForm({ email: user.email || '', phone: user.phone || '', username: user.username || '', fullName: user.fullName || '' });
     setProfileError(null);
     setProfileModalOpen(true);
@@ -489,6 +504,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   };
 
   const openPasswordModal = () => {
+    accountDialogOpenedFromSheetRef.current = user?.role === 'DRIVER' && isMobileViewport && userMenuOpen;
     setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
     setPasswordError(null);
     setPasswordModalOpen(true);
@@ -689,7 +705,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     activeKey,
     sidebarOpen,
     isMobileViewport,
-    userMenuOpen,
+    userMenuOpen: userMenuOpen && !(isDriver && isMobileViewport),
     collapsed,
     onNavigate: handleNavigate,
     onToggleSidebar: closeSidebar,
@@ -744,16 +760,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         onSave={handleChangePassword}
       />
 
-      <div className={`app-main ${isDriver ? 'driver-mode' : ''}`}>
+      <div className={`app-main ${isDriver ? 'driver-mode' : ''}`} inert={isDriver && isMobileViewport && userMenuOpen}>
         <Topbar {...topbarProps} />
 
-        <main className="app-body" id="main-content">
+        <main className="app-body" id="main-content" tabIndex={-1}>
           {children}
         </main>
 
         {/* Bottom Navigation for Drivers on Mobile */}
         {isDriver && (
-          <nav className="bottom-nav" ref={bottomNavRef as React.RefObject<HTMLElement>}>
+          <nav className="bottom-nav" aria-label="Điều hướng chính" ref={bottomNavRef as React.RefObject<HTMLElement>}>
             {navItems.map(item => {
               const IconC = item.icon;
               const isActive = item.key === activeKey;
@@ -761,12 +777,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               return (
                 <button
                   key={item.key}
+                  type="button"
+                  aria-current={isActive ? 'page' : undefined}
                   className={`bottom-nav-item ${isActive ? 'active' : ''}`}
                   onClick={() => handleNavigate(item.path)}
                 >
                   <div className="bottom-nav-indicator" />
                   <div className="bottom-nav-icon-wrap">
-                    <IconC size={20} strokeWidth={isActive ? 2.5 : 2} />
+                    <IconC size={20} strokeWidth={isActive ? 2.5 : 2} aria-hidden="true" />
                   </div>
                   <span className="bottom-nav-label">{displayLabel}</span>
                 </button>
@@ -775,12 +793,17 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
             {/* Account button for mobile bottom nav */}
             <button
+              ref={accountButtonRef}
+              type="button"
+              aria-haspopup="dialog"
+              aria-expanded={userMenuOpen && isMobileViewport}
+              aria-controls={userMenuOpen && isMobileViewport ? 'mobile-account-sheet' : undefined}
               className={`bottom-nav-item ${userMenuOpen ? 'active' : ''}`}
               onClick={toggleUserMenu}
             >
               <div className="bottom-nav-indicator" />
               <div className="bottom-nav-icon-wrap">
-                <User size={20} strokeWidth={userMenuOpen ? 2.5 : 2} />
+                <User size={20} strokeWidth={userMenuOpen ? 2.5 : 2} aria-hidden="true" />
               </div>
               <span className="bottom-nav-label">Tài khoản</span>
             </button>
@@ -788,91 +811,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         )}
       </div>
 
-      {/* Mobile User Menu Sheet for Drivers — Vantai Design System */}
-      {isDriver && userMenuOpen && (
-        // data-dropdown-root tells useDropdownDismiss this sheet is an open
-        // menu: without the marker the dismiss layer closes it mid-press, the
-        // button unmounts before mouseup, and no click/logout fires on touch.
-        <div className="mobile-user-sheet-overlay" data-dropdown-root="" onClick={closeUserMenu}>
-          <div className="mobile-user-sheet" onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
-            {/* Drag handle */}
-            <div className="mobile-user-sheet-handle" />
-
-            {/* Profile Bento Grid Layout */}
-            <div className="profile-bento-grid">
-              {/* Avatar & Role Card (Vertical Span) */}
-              <div className="profile-bento-card profile-bento-card--avatar">
-                <div className="bento-avatar">
-                  <img
-                    src="/assets/avatars/driver-cartoon-v1.png"
-                    alt=""
-                    aria-hidden="true"
-                  />
-                </div>
-                <div className="bento-role-badge">
-                  <Shield size={10} />
-                  <span>{getRoleLabel(user.role)}</span>
-                </div>
-              </div>
-
-              {/* Full Name Card */}
-              <div className="profile-bento-card profile-bento-card--name">
-                <span className="bento-label">Họ và tên</span>
-                <div className="bento-value">{user.fullName || getRoleLabel(user.role)}</div>
-              </div>
-
-              {/* Contact Info Row */}
-              <div className="profile-bento-row">
-                {/* Username Card */}
-                <div className="profile-bento-card profile-bento-card--username">
-                  <span className="bento-label">Tài khoản</span>
-                  <div className="bento-value">
-                    <User size={12} />
-                    <span>{user.username || '—'}</span>
-                  </div>
-                </div>
-
-                {/* Phone Card */}
-                <div className="profile-bento-card profile-bento-card--phone">
-                  <span className="bento-label">Điện thoại</span>
-                  <div className="bento-value">
-                    <Phone size={12} />
-                    <span>{user.phone || '—'}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Menu items with card tiles + trailing chevrons */}
-            <div className="mobile-user-sheet-body">
-              <div className="mobile-user-sheet-section-title">Tài khoản & Thiết lập</div>
-              
-              <button className="mobile-user-sheet-btn profile" onClick={openProfileModal}>
-                <span className="icon-tile"><UserCog size={18} /></span>
-                <span className="btn-label">Thông tin cá nhân</span>
-                <ChevronRight size={16} className="btn-chevron" />
-              </button>
-              
-              <button className="mobile-user-sheet-btn password" onClick={openPasswordModal}>
-                <span className="icon-tile"><KeyRound size={18} /></span>
-                <span className="btn-label">Đổi mật khẩu</span>
-                <ChevronRight size={16} className="btn-chevron" />
-              </button>
-
-              <div className="mobile-user-sheet-section-title">Hệ thống</div>
-
-              <button className="mobile-user-sheet-btn danger" onClick={() => { closeUserMenu(); logout(); }}>
-                <span className="icon-tile"><LogOut size={18} /></span>
-                <span className="btn-label">Đăng xuất</span>
-                <ChevronRight size={16} className="btn-chevron" />
-              </button>
-            </div>
-
-            <div className="mobile-user-sheet-footer">
-              <span className="app-version">{BRAND.productName} v1.2.0</span>
-            </div>
-          </div>
-        </div>
+      {isDriver && isMobileViewport && userMenuOpen && (
+        <MobileAccountSheet
+          user={user}
+          roleLabel={getRoleLabel(user.role)}
+          onClose={closeUserMenu}
+          onOpenProfile={openProfileModal}
+          onOpenPassword={openPasswordModal}
+          onLogout={() => { setUserMenuOpen(false); logout(); }}
+        />
       )}
     </div>
   );

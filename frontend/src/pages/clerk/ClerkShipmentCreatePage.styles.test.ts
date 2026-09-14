@@ -45,8 +45,8 @@ describe('shipment create responsive layout', () => {
     // it must stay retired.
     expect(css).not.toMatch(/\.csc-form :where\(input, select, textarea\)/);
     // Field-label parity across families (combobox + text/date join the
-    // select's dense 12px/18px label).
-    expect(css).toMatch(/\.csc-searchable-field label,\s*\n\s*\.csc-uui-field label\s*\{[^}]*font-size:\s*12px;/);
+    // select's shared compact label role).
+    expect(css).toMatch(/\.csc-searchable-field label,\s*\n\s*\.csc-uui-field label\s*\{[^}]*font-size:\s*var\(--text-label-size\);/);
   });
 
   it('fills the desktop workspace while keeping short-value columns compact', () => {

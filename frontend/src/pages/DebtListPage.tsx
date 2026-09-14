@@ -434,7 +434,7 @@ export default function DebtListPage() {
                                   <Clock size={12} aria-hidden="true" style={{ marginRight: 5, verticalAlign: '-1px' }} />
                                   Quá hạn
                                 </span>
-                                <span style={{ fontSize: 12, fontWeight: 600, color: d.maxOverdueDays > 60 ? 'var(--danger)' : 'var(--warning)' }}>
+                                <span style={{ fontSize: 'var(--text-body-size)', fontWeight: 600, color: d.maxOverdueDays > 60 ? 'var(--danger)' : 'var(--warning)' }}>
                                   {d.maxOverdueDays} ngày
                                 </span>
                               </div>
@@ -486,7 +486,7 @@ export default function DebtListPage() {
                                 <Badge variant="success">2 chiều</Badge>
                               )}
                             </div>
-                            <div style={{ fontSize: 12, lineHeight: 1.35, color: 'var(--fg-3)', marginLeft: 16 }}>
+                            <div style={{ fontSize: 'var(--text-caption-size)', lineHeight: 1.35, color: 'var(--fg-3)', marginLeft: 16 }}>
                               {d.totalOutstanding > 0
                                 ? (d.maxOverdueDays > 30 ? "Nợ quá hạn" : "Trong hạn")
                                 : (d.totalOutstanding < 0 ? "Trả trước" : "Cân bằng")}

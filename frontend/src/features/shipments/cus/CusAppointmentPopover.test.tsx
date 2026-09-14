@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { CusAppointmentPopover } from './CusAppointmentPopover';
 
@@ -387,4 +387,47 @@ describe('CusAppointmentPopover', () => {
     const datetimeInput = container.querySelector('.cus-appointment-input') as HTMLInputElement;
     expect(datetimeInput.value).toBe('09:00 11/09/2026');
   });
+  it('confirms once from the visible button and keeps a rejected save open for retry', async () => {
+    const onClose = vi.fn();
+    let reject!: (reason: Error) => void;
+    const onCommit = vi.fn(() => new Promise<boolean>((_resolve, fail) => { reject = fail; }));
+    render(<CusAppointmentPopover isOpen value="2026-09-08T08:00" containerLabel="Cont 1" onClose={onClose} onChange={vi.fn()} onCommit={onCommit} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận' }));
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Enter' });
+    expect(onCommit).toHaveBeenCalledTimes(1);
+    expect(onCommit).toHaveBeenCalledWith('2026-09-08T08:00');
+    expect(screen.getByLabelText('Ngày giờ')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Ngày mai' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Xóa hẹn' })).toBeDisabled();
+    reject(new Error('network unavailable'));
+    await screen.findByRole('alert');
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Xác nhận' })).toBeEnabled();
+  });
+
+  it('does not confirm an incomplete typed date using Enter', () => {
+    const onCommit = vi.fn();
+    render(<CusAppointmentPopover isOpen value="2026-09-08T08:00" containerLabel="Cont 1" onClose={vi.fn()} onChange={vi.fn()} onCommit={onCommit} />);
+    fireEvent.change(screen.getByLabelText('Ngày giờ'), { target: { value: '12:3' } });
+    fireEvent.keyDown(screen.getByLabelText('Ngày giờ'), { key: 'Enter' });
+    expect(onCommit).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent('Nhập ngày giờ đầy đủ');
+  });
+
+  it('ignores an earlier save result after closing and reopening the editor', async () => {
+    let resolveFirst!: (ok: boolean) => void;
+    const onClose = vi.fn();
+    const onCommit = vi.fn(() => new Promise<boolean>((resolve) => { resolveFirst = resolve; }));
+    const props = { value: '2026-09-08T08:00', containerLabel: 'Cont 1', onClose, onChange: vi.fn(), onCommit };
+    const { rerender } = render(<CusAppointmentPopover {...props} isOpen />);
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận' }));
+    rerender(<CusAppointmentPopover {...props} isOpen={false} />);
+    rerender(<CusAppointmentPopover {...props} isOpen />);
+    expect(screen.getByLabelText('Ngày giờ')).toBeEnabled();
+    await act(async () => { resolveFirst(true); });
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
+
 });

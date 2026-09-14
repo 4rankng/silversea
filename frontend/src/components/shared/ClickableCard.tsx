@@ -54,6 +54,11 @@ export function ClickableCard({
 
   const handleClick = useCallback(
     (e: React.MouseEvent<HTMLElement>) => {
+      const target = e.target;
+      if (target instanceof Element) {
+        const control = target.closest('button, a, input, select, textarea, label, summary, [role="button"], [role="link"], [contenteditable="true"]');
+        if (control && control !== e.currentTarget) return;
+      }
       if (stopPropagation) e.stopPropagation();
       onClick?.(e);
       if (to && !e.defaultPrevented) navigate(to);
@@ -63,14 +68,14 @@ export function ClickableCard({
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLElement>) => {
+      if (e.target !== e.currentTarget) return;
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
         if (stopPropagation) e.stopPropagation();
-        onClick?.(e as unknown as React.MouseEvent<HTMLElement>);
-        if (to && !e.defaultPrevented) navigate(to);
+        e.currentTarget.click();
       }
     },
-    [navigate, to, onClick, stopPropagation],
+    [stopPropagation],
   );
 
   return (

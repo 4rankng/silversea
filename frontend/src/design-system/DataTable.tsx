@@ -1,4 +1,4 @@
-import type { ReactNode, CSSProperties } from 'react';
+import type { ReactNode, CSSProperties, MouseEvent } from 'react';
 import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 import { Pagination, type PaginationProps } from './Pagination';
 import { EmptyState } from './EmptyState';
@@ -47,6 +47,13 @@ function defaultRowKey<T extends { id?: number | string }>(row: T, idx: number):
 function cssVars(vars?: Record<string, string | number>): CSSProperties | undefined {
   if (!vars) return undefined;
   return vars as unknown as CSSProperties;
+}
+
+function isRowAction(event: MouseEvent<HTMLElement>): boolean {
+  const target = event.target;
+  if (!(target instanceof Element)) return true;
+  const control = target.closest('a, button, input, select, textarea, label, summary, [role="button"], [role="link"], [role="checkbox"], [role="switch"], [contenteditable="true"]');
+  return !control || control === event.currentTarget;
 }
 
 export function DataTable<T extends { id?: number | string }>({
@@ -121,7 +128,7 @@ export function DataTable<T extends { id?: number | string }>({
 
   return (
     <>
-      <div className="ds-table-wrap ds-table-wrap--desktop">
+      <div className={`ds-table-wrap${mobileRender ? ' ds-table-wrap--desktop' : ''}`} aria-busy={loading || undefined}>
         <div className="ds-table-scroll">
           <table className={`ds-table${densityClass}`}>
             <thead>
@@ -140,7 +147,7 @@ export function DataTable<T extends { id?: number | string }>({
                   <tr
                     key={k}
                     className={cls}
-                    onClick={onRowClick ? () => onRowClick(row) : undefined}
+                    onClick={onRowClick ? (event) => { if (isRowAction(event)) onRowClick(row); } : undefined}
                     onKeyDown={onRowClick ? (event) => {
                       if (event.target !== event.currentTarget) return;
                       if (event.key === 'Enter' || event.key === ' ') {
@@ -168,7 +175,7 @@ export function DataTable<T extends { id?: number | string }>({
       </div>
 
       {mobileRender && (
-        <div className="ds-table-wrap ds-table-wrap--mobile">
+        <div className="ds-table-wrap ds-table-wrap--mobile" aria-busy={loading || undefined}>
           <div className="ds-mobile-list">
             {rows.map((row, idx) => {
               const k = rowKey(row, idx);
@@ -181,7 +188,7 @@ export function DataTable<T extends { id?: number | string }>({
                 <div
                   key={k}
                   className={cls}
-                  onClick={onRowClick ? () => onRowClick(row) : undefined}
+                  onClick={onRowClick ? (event) => { if (isRowAction(event)) onRowClick(row); } : undefined}
                   onKeyDown={onRowClick ? (event) => {
                     if (event.target !== event.currentTarget) return;
                     if (event.key === 'Enter' || event.key === ' ') {

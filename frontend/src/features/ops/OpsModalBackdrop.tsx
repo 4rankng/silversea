@@ -1,6 +1,7 @@
 import { createPortal } from 'react-dom';
 import type { ReactNode } from 'react';
 import { useOpsModalDismiss } from './useOpsModalDismiss';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 
 /**
  * Portaled ops modal backdrop — renders into document.body so the dialog
@@ -20,6 +21,7 @@ export function OpsModalBackdrop({
   children: ReactNode;
 }) {
   const backdropRef = useOpsModalDismiss<HTMLDivElement>(onClose);
+  useFocusTrap(backdropRef, true);
 
   return createPortal(
     <div ref={backdropRef} tabIndex={-1} className="ops-modal-backdrop" role="dialog" aria-modal="true" aria-label={ariaLabel}>

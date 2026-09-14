@@ -1,0 +1,129 @@
+/* Customer catalogs contain twelve facts per record. Keep their summary and
+   labelled layout compact without changing the shared config-page patterns. */
+.cfg-page--customers .cfg-customer-summary {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  margin-bottom: 12px;
+  padding-block: 8px;
+  border-block: 1px solid var(--line);
+}
+
+.cfg-page--customers .cfg-customer-summary > .kpi {
+  min-height: 0;
+  padding: 2px 12px;
+  gap: 2px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.cfg-page--customers .cfg-customer-summary > .kpi + .kpi {
+  border-inline-start: 1px solid var(--line);
+}
+
+.cfg-page--customers .cfg-customer-summary > .kpi::before {
+  display: none;
+}
+
+.cfg-page--customers .cfg-customer-summary .kpi__top,
+.cfg-page--customers .cfg-customer-summary .kpi__value,
+.cfg-page--customers .cfg-customer-summary .kpi__meta {
+  margin: 0;
+}
+
+.cfg-page--customers .cfg-customer-summary .kpi__value {
+  font-size: var(--text-metric-size);
+  line-height: 1.3;
+}
+
+.cfg-page--customers .cfg-customer-summary .kpi__label,
+.cfg-page--customers .cfg-customer-summary .kpi__meta,
+.cfg-page--customers .cfg-customer-summary .kpi__value-unit {
+  font-size: var(--text-caption-size);
+  line-height: 1.35;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.cfg-page--customers .cfg-customer-summary .kpi__watermark,
+.cfg-page--customers .cfg-customer-summary .kpi__watermark svg {
+  width: 36px;
+  height: 36px;
+}
+
+@media (max-width: 1100px) {
+  .cfg-page--customers .cfg-customer-summary .kpi__watermark {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .cfg-page--customers .cfg-customer-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    row-gap: 8px;
+  }
+
+  .cfg-page--customers .cfg-customer-summary > .kpi {
+    padding-inline: 8px;
+  }
+
+  .cfg-page--customers .cfg-customer-summary > .kpi:nth-child(odd) {
+    border-inline-start: 0;
+  }
+}
+
+@container (max-width: 1100px) {
+  .cfg-page--customers .cfg-customer-table tbody {
+    gap: 0;
+  }
+
+  .cfg-page--customers .cfg-customer-table tbody tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding-block: 6px;
+    border: 0;
+    border-bottom: 1px solid var(--line-strong);
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .cfg-page--customers .cfg-customer-table tbody tr td {
+    padding: 4px 8px;
+    border: 0;
+    text-align: start;
+  }
+
+  /* The shared two-column orphan guard cannot choose tracks in this page's
+     three-column tablet layout. Identity and actions keep their full row. */
+  .cfg-page--customers .cfg-customer-table tbody tr td:nth-last-child(2):nth-child(even):not(.record-table__action) {
+    grid-column: auto;
+  }
+
+  .cfg-page--customers .cfg-customer-table tbody tr td:first-child,
+  .cfg-page--customers .cfg-customer-table tbody tr td.record-table__action {
+    grid-column: 1 / -1;
+  }
+
+  .cfg-page--customers .cfg-customer-table tbody td::before {
+    margin-bottom: 2px;
+    font-size: var(--text-label-size);
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  .cfg-page--customers .cfg-customer-table tbody tr td.record-table__action {
+    padding-block: 0;
+  }
+
+  .cfg-page--customers .cfg-customer-table .row-action {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+@container (min-width: 640px) and (max-width: 1100px) {
+  .cfg-page--customers .cfg-customer-table tbody tr {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

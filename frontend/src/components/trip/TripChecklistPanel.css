@@ -81,7 +81,7 @@
   .tc-check-item {
     min-height: 45px;
     gap: 9px;
-    font-size: 14px;
+    font-size: var(--text-control-size);
   }
   .tc-check-item__badge {
     min-width: 54px;

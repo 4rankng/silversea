@@ -62,7 +62,7 @@ export function OperationalPolicySection({
             aria-describedby={!creditThresholdValid ? 'credit-threshold-error' : undefined}
           />
           {!creditThresholdValid && (
-            <p id="credit-threshold-error" role="alert" className="cfg-field-error" style={{ color: 'var(--err, #dc2626)', margin: '4px 0 0', fontSize: 12 }}>
+            <p id="credit-threshold-error" role="alert" className="cfg-field-error" style={{ color: 'var(--err, #dc2626)', margin: '4px 0 0', fontSize: 'var(--text-body-size)' }}>
               Ngưỡng cảnh báo phải từ 1% đến 99%.
             </p>
           )}
@@ -116,7 +116,7 @@ export function OperationalPolicySection({
             aria-describedby={!creditTierCapValid ? 'credit-tier-cap-error' : undefined}
           />
           {!creditTierCapValid && (
-            <p id="credit-tier-cap-error" role="alert" className="cfg-field-error" style={{ color: 'var(--err, #dc2626)', margin: '4px 0 0', fontSize: 12 }}>
+            <p id="credit-tier-cap-error" role="alert" className="cfg-field-error" style={{ color: 'var(--err, #dc2626)', margin: '4px 0 0', fontSize: 'var(--text-body-size)' }}>
               Ngưỡng tiền duyệt cấp 1 phải là số nguyên VND không âm.
             </p>
           )}

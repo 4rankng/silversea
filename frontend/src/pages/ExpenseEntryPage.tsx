@@ -462,7 +462,7 @@ export default function ExpenseEntryPage() {
                     value={form.supplierId === null || form.supplierId === undefined ? '' : String(form.supplierId)}
                     disabled={loadingExpenseCatalogs}
                     onChange={e => set('supplierId', e.target.value ? Number(e.target.value) : '')}
-                    controlClassName="expense-input"
+                    controlClassName="expense-select"
                     options={[
                       { value: '', label: loadingExpenseCatalogs ? 'Đang tải nhà cung cấp…' : 'Chọn nhà cung cấp…' },
                       ...suppliers.map(s => ({ value: String(s.id), label: s.name })),
@@ -509,7 +509,7 @@ export default function ExpenseEntryPage() {
                     value={form.categoryId === null || form.categoryId === undefined ? '' : String(form.categoryId)}
                     disabled={loadingExpenseCatalogs}
                     onChange={e => set('categoryId', e.target.value ? Number(e.target.value) : '')}
-                    controlClassName="expense-input"
+                    controlClassName="expense-select"
                     options={[
                       { value: '', label: loadingExpenseCatalogs ? 'Đang tải hạng mục…' : 'Chọn hạng mục…' },
                       ...categories.map(c => ({ value: String(c.id), label: c.name })),
@@ -536,7 +536,7 @@ export default function ExpenseEntryPage() {
                       set('truckId', '');
                     }
                   }}
-                  controlClassName="expense-input"
+                  controlClassName="expense-select"
                   options={[
                     { value: 'COMPANY', label: 'Chi phí công ty' },
                     { value: 'TRUCK', label: 'Xe (Đầu kéo)' },
@@ -554,7 +554,7 @@ export default function ExpenseEntryPage() {
                     hideLabel
                     value={form.truckId === null || form.truckId === undefined ? '' : String(form.truckId)}
                     onChange={e => set('truckId', e.target.value ? Number(e.target.value) : '')}
-                    controlClassName="expense-input"
+                    controlClassName="expense-select"
                     options={[
                       { value: '', label: 'Chọn xe…' },
                       ...trucks.map(t => ({ value: String(t.id), label: t.licensePlate })),
@@ -573,7 +573,7 @@ export default function ExpenseEntryPage() {
                     hideLabel
                     value={form.truckId === null || form.truckId === undefined ? '' : String(form.truckId)}
                     onChange={e => set('truckId', e.target.value ? Number(e.target.value) : '')}
-                    controlClassName="expense-input"
+                    controlClassName="expense-select"
                     options={[
                       { value: '', label: 'Chọn rơ-moóc…' },
                       ...trailers.map(t => ({ value: String(t.id), label: t.licensePlate })),

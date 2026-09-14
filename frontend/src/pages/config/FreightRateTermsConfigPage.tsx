@@ -142,17 +142,17 @@ function FreightRateTermsForm({ saving, item, onsave, oncancel, onDelete, deleti
       <div style={{ flex: 1, minWidth: 260 }}>
         <Field label="Ngưỡng kích hoạt điều chỉnh">
           <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center' }} role="radiogroup" aria-label="Chọn dạng ngưỡng">
-            <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 'var(--text-label-size)' }}>
               <input type="radio" name={radioName} aria-label="Ngưỡng theo tỷ lệ phần trăm" checked={modePct} onChange={() => setThresholdMode('pct')} />
               Tỷ lệ %
               <input type="number" aria-label="Giá trị ngưỡng phần trăm" min="0" step="0.5" value={thresholdPct} onChange={e => setThresholdPct(e.target.value)} disabled={!modePct} style={{ width: 90 }} />
             </label>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 'var(--text-label-size)' }}>
               <input type="radio" name={radioName} aria-label="Ngưỡng theo số tiền" checked={modeAbs} onChange={() => setThresholdMode('abs')} />
               VNĐ/lít
               <input type="number" aria-label="Giá trị ngưỡng VNĐ trên lít" min="0" step="100" value={thresholdAbs} onChange={e => setThresholdAbs(e.target.value)} disabled={!modeAbs} style={{ width: 120 }} />
             </label>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 'var(--text-label-size)' }}>
               <input type="radio" name={radioName} aria-label="Không áp dụng ngưỡng" checked={!modePct && !modeAbs} onChange={() => setThresholdMode('none')} />
               Không áp dụng
             </label>

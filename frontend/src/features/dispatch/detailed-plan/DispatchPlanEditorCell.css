@@ -127,7 +127,7 @@
   min-width: 0;
   gap: 6px;
   color: var(--text-secondary, #475467);
-  font-size: 12px;
+  font-size: var(--text-label-size);
   font-weight: 600;
 }
 
@@ -147,20 +147,18 @@
 .dispatch-assignment-dialog__classification > label,
 .dispatch-assignment-dialog__money .ds-field__label {
   color: var(--text-secondary, #475467);
-  font-size: 12px;
+  font-size: var(--text-label-size);
   font-weight: 600;
 }
 
 .dispatch-assignment-dialog :is(.searchable-select__value, .searchable-select__placeholder),
 .dispatch-assignment-dialog__classification p {
-  font-size: 12px;
   font-weight: 400;
 }
 
 .dispatch-assignment-dialog__money .ds-field__input,
 .dispatch-assignment-dialog__money .ds-field__affix {
   min-height: var(--control-compact-h, 34px);
-  font-size: 12px;
 }
 
 .dispatch-assignment-dialog__money .ds-field__input {
@@ -184,7 +182,7 @@
 .dispatch-assignment-dialog__error {
   margin: 0;
   color: var(--color-fg-error-primary, #b42318);
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   line-height: 1.45;
 }
 
@@ -218,14 +216,14 @@
 .dispatch-assignment-dialog__issue legend {
   padding: 0 4px;
   color: var(--text-secondary, #475467);
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   font-weight: 600;
 }
 
 .dispatch-assignment-dialog__issue-hint {
   margin: 0;
   color: var(--text-secondary, #475467);
-  font-size: 12px;
+  font-size: var(--text-caption-size);
 }
 
 .dispatch-assignment-dialog__issue-driver {
@@ -241,7 +239,7 @@
   display: grid;
   gap: 6px;
   color: var(--text-secondary, #475467);
-  font-size: 12px;
+  font-size: var(--text-label-size);
   font-weight: 600;
 }
 
@@ -250,7 +248,7 @@
   align-items: center;
   gap: 4px;
   color: var(--ink-3, #667085);
-  font-size: 10px;
+  font-size: var(--text-caption-size);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.03em;
@@ -278,7 +276,7 @@
   background: var(--surface-2, #f8f9fa);
   color: var(--ink-2, #344054);
   font-family: inherit;
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   font-weight: 500;
   text-align: center;
   cursor: pointer;
@@ -321,7 +319,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 10px;
+  font-size: var(--text-label-size);
   text-transform: uppercase;
   letter-spacing: 0.03em;
   color: var(--ink-3, #667085);
@@ -331,7 +329,7 @@
 
 .dispatch-assignment-dialog__next-day-badge {
   display: inline-block;
-  font-size: 9px;
+  font-size: var(--text-caption-size);
   font-weight: 600;
   color: var(--brand, #047857);
   background: rgba(4, 120, 87, 0.1);
@@ -348,7 +346,7 @@
   background: transparent;
   color: var(--ink-2, #344054);
   font-family: inherit;
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   text-align: center;
   cursor: pointer;
   transition: all 120ms ease;
@@ -381,7 +379,7 @@
   min-width: 0;
   gap: 6px;
   color: var(--text-secondary, #475467);
-  font-size: 12px;
+  font-size: var(--text-label-size);
   font-weight: 600;
 }
 
@@ -392,7 +390,7 @@
   min-width: 0;
   min-height: var(--control-compact-h, 34px);
   padding: 0 8px;
-  font-size: 12px;
+  font-size: var(--text-caption-size);
 }
 
 @media (max-width: 520px) {
@@ -446,7 +444,7 @@
     margin-bottom: 3px;
     color: var(--text-secondary, #64748b);
     content: attr(data-cell-label);
-    font-size: 11px;
+    font-size: var(--text-label-size);
     font-weight: 700;
     letter-spacing: 0.04em;
     line-height: 1.3;
@@ -470,7 +468,6 @@
   .dispatch-assignment-dialog__money .ds-field__affix,
   .dispatch-assignment-dialog .searchable-select__trigger {
     min-height: var(--control-mobile-h);
-    font-size: var(--fs-3xs);
   }
 
   .dispatch-assignment-dialog__classification {
@@ -694,7 +691,7 @@
 }
 
 .dispatch-tag-manager__header strong {
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   color: var(--text-primary, #101828);
 }
 
@@ -704,7 +701,7 @@
   border-radius: 999px;
   background: var(--surface-muted, #f2f4f7);
   color: var(--text-secondary, #475467);
-  font-size: 11px;
+  font-size: var(--text-caption-size);
   text-align: center;
 }
 
@@ -866,4 +863,10 @@
   .dispatch-tag-manager {
     width: calc(100vw - 24px);
   }
+}
+
+.dispatch-tag-manager { max-height: calc(100dvh - 24px); overflow-y: auto; overscroll-behavior: contain; }
+.dispatch-tag-manager__list { border-inline: 0; border-radius: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .dispatch-tag-manager { animation: none; }
 }

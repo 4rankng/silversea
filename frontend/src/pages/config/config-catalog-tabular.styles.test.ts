@@ -6,16 +6,16 @@ function read(relativePath: string) {
   return readFileSync(resolve(process.cwd(), relativePath), 'utf8');
 }
 
-// Product call (2026-09-06): the customers/routes master-data catalogs must
-// stay tabular down to a 680px container — the shared record-table card fold
-// (≤1100px) is the LAST resort, not the laptop default. These pins keep the
-// re-arm block in config-page.css from silently disappearing.
+// Routes keep their tabular tablet layout. The 13-column customer catalog
+// uses the shared labelled records once the complete table no longer fits.
 describe('config catalog tables stay tabular below the shared card fold', () => {
   const css = read('src/pages/config/config-page.css');
 
-  it('re-arms tabular display for the two catalogs across 680-1100px', () => {
+  it('keeps routes tabular across 680-1100px without forcing the wider customer catalog', () => {
     expect(css).toContain('@container (min-width: 680px) and (max-width: 1100px)');
-    expect(css).toContain('.cfg-page .cfg-customer-table,\n  .cfg-page .routes-table {\n    display: table;\n  }');
+    expect(css).toContain('.cfg-page .routes-table {\n    display: table;\n  }');
+    const tabletBlock = css.slice(css.indexOf('@container (min-width: 680px)'), css.indexOf('/* Hover re-arm:'));
+    expect(tabletBlock).not.toContain('.cfg-customer-table');
     // The full display-chain restoration — dropping any one of these re-folds
     // the table while leaving the rest of the block looking correct.
     expect(css).toContain('display: table-header-group;');
@@ -23,7 +23,7 @@ describe('config catalog tables stay tabular below the shared card fold', () => 
     expect(css).toContain('display: table-row;');
     expect(css).toContain('display: table-cell;');
     // The card fold's data-label eyebrows must be off in the tabular window.
-    expect(css).toContain('.cfg-page .cfg-customer-table tbody td::before,\n  .cfg-page .routes-table tbody td::before {\n    content: none;\n  }');
+    expect(css).toContain('.cfg-page .routes-table tbody td::before {\n    content: none;\n  }');
   });
 
   it('re-arms the row hover wash the counter-block would otherwise outrank', () => {
@@ -55,5 +55,29 @@ describe('config catalog tables stay tabular below the shared card fold', () => 
     // Sub-360px keeps the single-column fallback — the base still owns the
     // narrowest band outright.
     expect(base).toContain('@container (max-width: 360px)');
+  });
+});
+
+describe('customer catalog uses compact scoped summary and record layouts', () => {
+  const css = read('src/pages/config/customer-config-density.css');
+
+  it('keeps four tablet metrics in one flat strip and two phone columns', () => {
+    expect(css).toMatch(/\.cfg-page--customers \.cfg-customer-summary\s*\{[^}]*grid-template-columns: repeat\(4, minmax\(0, 1fr\)\);/);
+    expect(css).toMatch(/\.cfg-page--customers \.cfg-customer-summary > \.kpi\s*\{[^}]*min-height: 0;[^}]*border: 0;[^}]*border-radius: 0;/);
+    expect(css).toMatch(/@media \(max-width: 640px\)\s*\{\s*\.cfg-page--customers \.cfg-customer-summary\s*\{[^}]*repeat\(2, minmax\(0, 1fr\)\)/);
+    expect(css).toMatch(/@media \(max-width: 1100px\)\s*\{\s*\.cfg-page--customers \.cfg-customer-summary \.kpi__watermark\s*\{\s*display: none;/);
+    expect(css).toContain('font-size: var(--text-metric-size);');
+    expect(css).toContain('font-size: var(--text-caption-size);');
+  });
+
+  it('uses three tablet fact columns and preserves two columns on narrow phones', () => {
+    const responsiveRecords = css.slice(css.indexOf('@container (max-width: 1100px)'));
+    expect(responsiveRecords).toMatch(/\.cfg-page--customers \.cfg-customer-table tbody tr\s*\{\s*display: grid;\s*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
+    expect(css).toMatch(/@container \(min-width: 640px\) and \(max-width: 1100px\)\s*\{\s*\.cfg-page--customers \.cfg-customer-table tbody tr\s*\{\s*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\);/);
+    expect(responsiveRecords).toContain('td:nth-last-child(2):nth-child(even):not(.record-table__action) {\n    grid-column: auto;');
+    expect(responsiveRecords).toContain('td.record-table__action {\n    grid-column: 1 / -1;');
+    expect(responsiveRecords).toContain('padding: 4px 8px;');
+    expect(responsiveRecords).toContain('min-height: 44px;');
+    expect(responsiveRecords).not.toMatch(/overflow:\s*(hidden|clip)|text-overflow:\s*ellipsis/);
   });
 });

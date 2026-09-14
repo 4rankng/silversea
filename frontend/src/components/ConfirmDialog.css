@@ -77,7 +77,7 @@
 .confirm-icon--primary { background: var(--accent-soft, #E6F7EE); }
 .confirm-message {
   margin: 0;
-  font-size: var(--fs-sm);
+  font-size: var(--text-body-size);
   line-height: 1.6;
   color: var(--ink);
   font-weight: 500;

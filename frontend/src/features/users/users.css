@@ -13,10 +13,10 @@
 }
 
 .users-admin-page .page-title {
-  font-size: var(--fs-2xl);
+  font-size: var(--text-title-size);
   line-height: 1.35;
   letter-spacing: 0;
-  font-weight: 700;
+  font-weight: var(--fw-bold);
 }
 
 .users-admin-page .page-title em {
@@ -27,7 +27,7 @@
 .users-admin-page .page-subtitle {
   margin-top: 6px;
   color: var(--ink-2);
-  font-size: var(--fs-sm);
+  font-size: var(--text-body-size);
   line-height: 1.45;
 }
 
@@ -78,22 +78,22 @@
 /* ── User name column ───────────────────────────────────────────────────── */
 
 .user-name {
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   color: var(--ink);
-  font-size: 14px;
+  font-size: var(--text-data-size);
   line-height: 1.35;
 }
 
 .user-name__you {
   margin-left: 6px;
-  font-size: var(--fs-2xs);
+  font-size: var(--text-caption-size);
   color: var(--accent);
-  font-weight: 500;
+  font-weight: var(--fw-medium);
 }
 
 .user-handle {
   font-family: var(--font-data);
-  font-size: 12px;
+  font-size: var(--text-data-size);
   color: var(--ink-3);
   margin-top: 2px;
 }
@@ -110,7 +110,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: var(--text-data-size);
   color: var(--ink-2);
 }
 
@@ -195,7 +195,7 @@
   flex-wrap: wrap;
   padding: 10px 18px;
   color: var(--ink-3);
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   border-bottom: 1px solid var(--line-2);
 }
 
@@ -205,6 +205,15 @@
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 12px;
+}
+
+/* The shared paginator is an inline-size container, so flex sizing must
+   reserve a real row width instead of its otherwise zero intrinsic width. */
+.users-table-foot > .ds-pagination {
+  flex: 1 1 100%;
+  width: 100%;
+  max-width: 100%;
+  padding: 0;
 }
 
 .users-pagination {
@@ -274,14 +283,14 @@
 
 .users-empty__title {
   font-family: var(--font-display);
-  font-size: var(--fs-sm);
-  font-weight: 600;
+  font-size: var(--text-section-size);
+  font-weight: var(--fw-semibold);
   color: var(--ink);
   margin: 0 0 6px;
 }
 
 .users-empty__desc {
-  font-size: var(--fs-sm);
+  font-size: var(--text-body-size);
   color: var(--ink-3);
   margin: 0;
 }
@@ -289,8 +298,8 @@
 /* ── Form sections inside drawer ──────────────────────────────────────────── */
 
 .users-form-section__title {
-  font-size: var(--fs-2xs);
-  font-weight: 700;
+  font-size: var(--text-section-size);
+  font-weight: var(--fw-semibold);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ink-3);
@@ -309,7 +318,7 @@
 /* ── KPI value emphasis ───────────────────────────────────────────────────── */
 
 .users-admin-page .kpi-grid .kpi__value {
-  font-size: var(--fs-xl);
+  font-size: var(--text-metric-size);
   line-height: 1.25;
 }
 
@@ -345,14 +354,15 @@
 
 .icon-input__field {
   flex: 1;
+  min-width: 0;
   border: none;
   background: transparent;
   padding: 0 12px;
   height: 100%;
-  font-size: 13px;
   color: var(--ink);
   outline: none;
   font-family: inherit;
+  font-size: var(--control-field-font-size);
 }
 
 .icon-input__field::placeholder {
@@ -406,21 +416,22 @@
 }
 
 .drawer:has(.users-form-cards) .drawer__title {
-  font-size: 20px;
+  font-size: var(--text-dialog-title-size);
 }
 
 /* Desktop: cards side by side */
 .users-form-cards {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
 }
 
 .users-form-card {
-  background: color-mix(in srgb, var(--surface-2) 72%, transparent);
-  border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
-  border-radius: 10px;
-  padding: 12px;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -432,7 +443,7 @@
 }
 
 .users-form-cards--driver {
-  grid-template-columns: 2fr 1fr;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
 }
 
 /* ── Password Toggle ──────────────────────────────────────────────────────── */
@@ -466,8 +477,150 @@
   background: var(--danger-soft);
   color: var(--danger);
   border-radius: 8px;
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
 }
+
+/* Compact user rows are also rendered on tablets. Keep their layout with
+   the component; visibility belongs to the shared mobile/desktop helpers. */
+.users-mobile-card {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  padding: 14px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.users-mobile-card:last-child {
+  border-bottom: none;
+}
+
+.users-mobile-card__header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.users-mobile-card__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.users-mobile-card__name {
+  font-weight: var(--fw-bold);
+  font-size: var(--text-data-size);
+  color: var(--ink);
+  overflow: visible;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.users-mobile-card__handle {
+  font-family: var(--font-data);
+  font-size: var(--text-data-size);
+  color: var(--ink-3);
+  margin-top: 1px;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.users-mobile-card__identity-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  min-width: 0;
+  margin-top: 3px;
+}
+
+.users-mobile-card__role {
+  max-width: 100%;
+  flex-shrink: 0;
+}
+
+.users-mobile-card__menu {
+  position: relative;
+  align-self: center;
+}
+
+.users-mobile-card__details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  padding-left: 52px;
+  min-width: 0;
+}
+
+.users-mobile-card__detail-list {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px 12px;
+  width: 100%;
+  min-width: 0;
+}
+
+.users-mobile-card__detail {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--text-data-size);
+  color: var(--ink-3);
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.users-mobile-card__detail svg {
+  width: 12px;
+  height: 12px;
+  color: var(--ink-4);
+}
+
+.users-mobile-card__actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.users-mobile-card__action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  min-height: 44px;
+  border-radius: 8px;
+  font-size: var(--text-control-size);
+  font-weight: var(--fw-semibold);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  border: 1px solid var(--line);
+  cursor: pointer;
+  transition: background 0.12s var(--ease), color 0.12s var(--ease), border-color 0.12s var(--ease);
+}
+
+.users-mobile-card__action-btn:hover {
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--line-2);
+}
+
+.users-mobile-card__action-btn--danger {
+  color: var(--danger);
+  border-color: var(--danger-soft);
+}
+
+.users-mobile-card__action-btn--danger:hover {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border-color: var(--danger-soft);
+}
+
 
 /* ── Mobile card enhancements ───────────────────────────────────────────── */
 
@@ -477,13 +630,13 @@
   }
 
   .users-admin-page .page-title {
-    font-size: 24px;
+    font-size: var(--text-title-size);
     line-height: 1.35;
     letter-spacing: 0;
   }
 
   .users-admin-page .page-subtitle {
-    font-size: 13px;
+    font-size: var(--text-body-size);
   }
 
   .users-admin-page .page-header-main {
@@ -539,23 +692,23 @@
   }
 
   .drawer:has(.users-form-cards) .drawer__head {
-    padding: calc(16px + env(safe-area-inset-top, 0px)) 18px 12px;
+    padding: max(12px, env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-right, 0px)) 10px max(12px, env(safe-area-inset-left, 0px));
   }
 
   .drawer:has(.users-form-cards) .drawer__body {
-    padding: 14px 18px 76px;
+    padding: 12px max(12px, env(safe-area-inset-right, 0px)) 16px max(12px, env(safe-area-inset-left, 0px));
   }
 
   .drawer:has(.users-form-cards) .drawer__foot {
-    padding: 10px 18px calc(10px + env(safe-area-inset-bottom, 0px));
+    padding: 10px max(12px, env(safe-area-inset-right, 0px)) max(10px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px));
   }
 
   .drawer:has(.users-form-cards) .drawer__title {
-    font-size: 18px;
+    font-size: var(--text-dialog-title-size);
   }
 
   .drawer:has(.users-form-cards) .drawer__subtitle {
-    font-size: 12px;
+    font-size: var(--text-body-size);
   }
 
   .users-form-section__title {
@@ -586,7 +739,7 @@
   .users-form-card .form-group > label,
   .drawer:has(.users-form-cards) .form-group > label {
     margin-bottom: 5px;
-    font-size: 12px;
+    font-size: var(--text-label-size);
   }
 
   .drawer:has(.users-form-cards) .field {
@@ -605,7 +758,6 @@
     height: 44px;
     padding-top: 8px;
     padding-bottom: 8px;
-    font-size: 16px;
   }
 
   .icon-input {
@@ -621,11 +773,6 @@
     padding-inline: 10px;
   }
 
-  .drawer:has(.users-form-cards) .input,
-  .drawer:has(.users-form-cards) .icon-input__field {
-    font-size: 16px;
-  }
-
   .drawer:has(.users-form-cards) select.input {
     padding-inline: 10px 30px;
   }
@@ -633,147 +780,8 @@
   .user-avatar {
     width: 40px;
     height: 40px;
-    font-size: var(--fs-sm);
+    font-size: var(--text-data-size);
     border-width: 2.5px;
-  }
-
-  .users-mobile-card {
-    width: 100%;
-    max-width: 100%;
-    min-width: 0;
-    padding: 14px 12px;
-    border-bottom: 1px solid var(--line);
-  }
-
-  .users-mobile-card:last-child {
-    border-bottom: none;
-  }
-
-  .users-mobile-card__header {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 10px;
-  }
-
-  .users-mobile-card__info {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .users-mobile-card__name {
-    font-weight: 700;
-    font-size: 15px;
-    color: var(--ink);
-    overflow: visible;
-    overflow-wrap: anywhere;
-    white-space: normal;
-  }
-
-  .users-mobile-card__handle {
-    font-family: var(--font-data);
-    font-size: 12px;
-    color: var(--ink-3);
-    margin-top: 1px;
-    min-width: 0;
-    max-width: 100%;
-    overflow-wrap: anywhere;
-  }
-
-  .users-mobile-card__identity-meta {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 6px 8px;
-    min-width: 0;
-    margin-top: 3px;
-  }
-
-  .users-mobile-card__role {
-    max-width: 100%;
-    flex-shrink: 0;
-  }
-
-  .users-mobile-card__menu {
-    position: relative;
-    align-self: center;
-  }
-
-  .users-mobile-card__details {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px 16px;
-    padding-left: 52px;
-    min-width: 0;
-  }
-
-  .users-mobile-card__detail-list {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 7px 12px;
-    width: 100%;
-    min-width: 0;
-  }
-
-  .users-mobile-card__detail {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 12px;
-    color: var(--ink-3);
-    min-width: 0;
-    max-width: 100%;
-    overflow-wrap: anywhere;
-  }
-
-  .users-mobile-card__detail svg {
-    width: 12px;
-    height: 12px;
-    color: var(--ink-4);
-  }
-
-  .users-mobile-card__actions {
-    display: flex;
-    gap: 8px;
-    justify-content: flex-end;
-    margin-top: 10px;
-    padding-top: 10px;
-    border-top: 1px solid var(--line);
-  }
-
-  .users-mobile-card__action-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 6px 12px;
-    min-height: 44px;
-    border-radius: 8px;
-    font-size: 12px;
-    font-weight: 600;
-    background: var(--surface-2);
-    color: var(--ink-2);
-    border: 1px solid var(--line);
-    cursor: pointer;
-    transition: background 0.12s var(--ease), color 0.12s var(--ease), border-color 0.12s var(--ease);
-  }
-
-  .users-mobile-card__action-btn:hover {
-    background: var(--surface);
-    color: var(--ink);
-    border-color: var(--line-2);
-  }
-
-  .users-mobile-card__action-btn--danger {
-    color: var(--danger);
-    border-color: var(--danger-soft);
-  }
-
-  .users-mobile-card__action-btn--danger:hover {
-    background: var(--danger-soft);
-    color: var(--danger);
-    border-color: var(--danger-soft);
   }
 
   .users-table-foot {
@@ -842,7 +850,7 @@
   width: 100%;
   min-height: 44px;
   padding: 10px 12px;
-  font-size: var(--fs-sm);
+  font-size: var(--text-control-size);
   line-height: 1.35;
   border: none;
   background: none;
@@ -932,8 +940,8 @@
 }
 
 .users-admin-page .kpi-grid .kpi .kpi__value {
-  font-size: var(--fs-xl);
-  font-weight: 700;
+  font-size: var(--text-metric-size);
+  font-weight: var(--fw-semibold);
   color: var(--ink);
   letter-spacing: 0;
   margin: 4px 0 6px 0;
@@ -942,14 +950,14 @@
 
 .users-admin-page .kpi-grid .kpi .kpi__label {
   color: var(--ink-3);
-  font-size: var(--fs-xs);
-  font-weight: 800;
+  font-size: var(--text-label-size);
+  font-weight: var(--fw-bold);
   letter-spacing: 0.085em;
   line-height: 1.35;
 }
 
 .users-admin-page .kpi-grid .kpi .kpi__meta {
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   line-height: 1.35;
 }
 
@@ -959,8 +967,8 @@
   border-radius: 6px;
   color: var(--brand);
   display: inline-flex;
-  font-size: var(--fs-xs);
-  font-weight: 700;
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-bold);
   gap: 4px;
   line-height: 1.35;
   padding: 3px 8px;
@@ -988,7 +996,7 @@
 
 .users-admin-page .kpi__meta-note {
   color: var(--ink-3);
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   line-height: 1.35;
 }
 
@@ -1022,8 +1030,8 @@
    Vantai plate pattern — light variant: mono, hairline border, no truncation. */
 .users-admin-page .user-truck-plate {
   font-family: var(--font-data);
-  font-weight: 600;
-  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  font-size: var(--text-data-size);
   color: var(--ink);
   background: var(--surface-2);
   padding: 3px 9px;
@@ -1043,7 +1051,7 @@
 .users-customer-scope__help {
   margin: 0;
   color: var(--ink-3);
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   line-height: 1.5;
 }
 
@@ -1120,12 +1128,12 @@
 }
 
 .users-customer-scope__option strong {
-  font-size: var(--fs-sm);
+  font-size: var(--text-data-size);
   color: var(--ink);
 }
 
 .users-customer-scope__option small {
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   color: var(--ink-3);
 }
 
@@ -1134,7 +1142,7 @@
   margin: 0;
   padding: 10px 12px;
   color: var(--ink-3);
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   line-height: 1.45;
 }
 
@@ -1145,7 +1153,7 @@
 
 .users-customer-scope__summary.is-error {
   color: var(--danger);
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
 }
 
 .user-customer-scope-label {
@@ -1155,7 +1163,7 @@
   align-items: flex-start;
   gap: 5px;
   color: var(--ink-3);
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   line-height: 1.35;
 }
 
@@ -1192,14 +1200,14 @@
 
 .business-units__title {
   margin: 0;
-  font-size: 18px;
-  font-weight: 700;
+  font-size: var(--text-section-size);
+  font-weight: var(--fw-semibold);
 }
 
 .business-units__subtitle {
   margin: 4px 0 0;
   color: var(--fg-3);
-  font-size: 14px;
+  font-size: var(--text-body-size);
 }
 
 .business-units__form-grid {
@@ -1223,23 +1231,24 @@
 
 .business-units__list {
   display: grid;
-  gap: 10px;
+  border-top: 1px solid var(--line-2);
 }
 
 .business-units__card {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px;
-  border-radius: 10px;
-  border: 1px solid var(--line-2);
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line-2);
   align-items: center;
   flex-wrap: wrap;
 }
+.business-units__card:last-child { border-bottom: 0; }
+.business-units__card > div { min-width: 0; overflow-wrap: anywhere; }
 
 .business-units__card-meta {
   color: var(--fg-3);
-  font-size: 13px;
+  font-size: var(--text-data-size);
 }
 
 .business-units__card-actions {
@@ -1267,17 +1276,17 @@
     gap: 4px;
   }
   .users-admin-page .kpi__label {
-    font-size: var(--fs-xs);
+    font-size: var(--text-label-size);
     line-height: 1.35;
     flex: 1 1 100%;
   }
-  .users-admin-page .kpi__value { font-size: var(--fs-2xl); line-height: 1.35; }
-  .users-admin-page .kpi__meta { font-size: var(--fs-xs); line-height: 1.35; margin-top: 6px; }
+  .users-admin-page .kpi__value { font-size: var(--text-metric-size); line-height: 1.35; }
+  .users-admin-page .kpi__meta { font-size: var(--text-caption-size); line-height: 1.35; margin-top: 6px; }
 } /* end 640px */
 
 @media (max-width: 360px) {
   .users-admin-page .page-title {
-    font-size: 22px;
+    font-size: var(--text-title-size);
   }
 
   .users-admin-page .kpi-grid .kpi {
@@ -1286,7 +1295,7 @@
   }
 
   .users-admin-page .kpi-grid .kpi .kpi__label {
-    font-size: 10px;
+    font-size: var(--text-label-size);
     letter-spacing: 0.04em;
   }
 

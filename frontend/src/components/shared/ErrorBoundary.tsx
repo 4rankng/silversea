@@ -56,7 +56,7 @@ export class ErrorBoundary extends Component<Props, State> {
             padding: 'var(--space-3xl, 48px)', gap: 'var(--space-lg, 16px)', textAlign: 'center',
           }}>
             <RotateCw size={18} className="animate-spin" />
-            <p style={{ fontSize: 13, color: 'var(--ink-3)', margin: 0 }}>
+            <p style={{ fontSize: 'var(--text-body-size)', color: 'var(--ink-3)', margin: 0 }}>
               Ứng dụng vừa được cập nhật — đang tải phiên bản mới…
             </p>
           </div>
@@ -70,10 +70,10 @@ export class ErrorBoundary extends Component<Props, State> {
           }}>
             <WifiOff size={24} style={{ color: 'var(--ink-3)' }} />
             <div>
-              <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 4, color: 'var(--ink)' }}>
+              <h3 style={{ fontSize: 'var(--text-section-size)', fontWeight: 600, marginBottom: 4, color: 'var(--ink)' }}>
                 Không thể tải trang
               </h3>
-              <p style={{ fontSize: 13, color: 'var(--ink-3)', margin: 0 }}>
+              <p style={{ fontSize: 'var(--text-body-size)', color: 'var(--ink-3)', margin: 0 }}>
                 Thiết bị đang mất kết nối hoặc máy chủ không phản hồi.
                 Vui lòng kiểm tra mạng và tải lại trang.
               </p>
@@ -83,7 +83,7 @@ export class ErrorBoundary extends Component<Props, State> {
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 6,
                 padding: '8px 16px', borderRadius: 'var(--r-sm, 8px)', border: '1px solid var(--line)',
-                background: 'var(--surface)', cursor: 'pointer', fontSize: 13, fontWeight: 500,
+                background: 'var(--surface)', cursor: 'pointer', fontSize: 'var(--text-body-size)', fontWeight: 500,
               }}
             >
               <RotateCw size={14} /> Tải lại trang
@@ -99,8 +99,8 @@ export class ErrorBoundary extends Component<Props, State> {
         }}>
           <EmptyIllustration name="empty-error" width={156} height={124} />
           <div>
-            <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 4, color: 'var(--ink)' }}>Đã xảy ra lỗi</h3>
-            <p style={{ fontSize: 13, color: 'var(--ink-3)' }}>
+            <h3 style={{ fontSize: 'var(--text-section-size)', fontWeight: 600, marginBottom: 4, color: 'var(--ink)' }}>Đã xảy ra lỗi</h3>
+            <p style={{ fontSize: 'var(--text-body-size)', color: 'var(--ink-3)' }}>
               {this.state.error?.message || 'Không thể hiển thị nội dung này.'}
             </p>
           </div>
@@ -109,7 +109,7 @@ export class ErrorBoundary extends Component<Props, State> {
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 6,
               padding: '8px 16px', borderRadius: 'var(--r-sm, 8px)', border: '1px solid var(--line)',
-              background: 'var(--surface)', cursor: 'pointer', fontSize: 13, fontWeight: 500,
+              background: 'var(--surface)', cursor: 'pointer', fontSize: 'var(--text-body-size)', fontWeight: 500,
             }}
           >
             <RotateCw size={14} /> Thử lại

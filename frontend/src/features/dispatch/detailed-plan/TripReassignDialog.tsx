@@ -165,7 +165,7 @@ export function TripReassignDialog({ tripId, onClose, onReassigned }: TripReassi
           </p>
           {/* Read-only current assignment so the dispatcher still sees what
               the trip runs with, without any editable controls. */}
-          <div style={{ display: 'grid', gap: 4, fontSize: 13, color: 'var(--ink)' }}>
+          <div style={{ display: 'grid', gap: 4, fontSize: 'var(--text-data-size)', color: 'var(--ink)' }}>
             <span>
               Loại xe: <strong>{trip.carrierType === 'EXTERNAL' ? 'Xe ngoài' : 'Xe nhà'}</strong>
             </span>

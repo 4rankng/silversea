@@ -269,18 +269,17 @@ async function mkTripArAdjustment(
     .where(and(eq(s.trips.id, tripId), eq(s.trips.customerId, customerId)))
     .limit(1);
   assert.ok(trip);
-  const approved = await autoApplyGovernanceAction({
-    make: () => createAdjustment({
-      tripId,
-      amount,
-      note: `M57 trip AR adjustment ${tripId}`,
-      signedAgreementRef: `M57-${suffix}-${tripId}`,
-      makerId: maker.id,
-      makerRole: Role.ACCOUNTANT,
-      expectedTripVersion: trip.version,
-    }),
-    actorId: approver.id,
-    actorRole: Role.ADMIN,
+  // KP-149/MC-4: createAdjustment self-applies in-request — wrapping it in
+  // another autoApplyGovernanceAction double-applies the version bump and
+  // trips the outer apply's stale guard.
+  const approved = await createAdjustment({
+    tripId,
+    amount,
+    note: `M57 trip AR adjustment ${tripId}`,
+    signedAgreementRef: `M57-${suffix}-${tripId}`,
+    makerId: maker.id,
+    makerRole: Role.ACCOUNTANT,
+    expectedTripVersion: trip.version,
   });
   assert.ok(approved.ledgerEntryId != null);
   const [entry] = await db.select().from(s.ledger)

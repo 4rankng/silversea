@@ -494,6 +494,6 @@
     color: var(--ink);
     padding: 0 12px;
     font: inherit;
-    font-size: 16px;
+    font-size: var(--control-field-font-size);
   }
 }

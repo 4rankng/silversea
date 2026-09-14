@@ -1,3 +1,4 @@
+import { fieldTextSizes } from "../control-typography";
 
 import type { FocusEventHandler, KeyboardEvent, PointerEventHandler, RefAttributes, RefObject } from "react";
 import React, { createContext, useCallback, useContext, useRef, useState } from "react";
@@ -288,7 +289,8 @@ const InnerTagSelect = ({ isDisabled, shortcut, shortcutClassName, placeholder, 
                         <p
                             className={cx(
                                 "truncate font-medium whitespace-nowrap text-secondary select-none",
-                                size === "sm" ? "ml-1 text-xs" : "ml-1.25 text-sm",
+                                size === "sm" ? "ml-1" : "ml-1.25",
+                                fieldTextSizes[size],
                             )}
                         >
                             {tagSelectContext.valueFormatter ? tagSelectContext.valueFormatter(value) : value?.label}

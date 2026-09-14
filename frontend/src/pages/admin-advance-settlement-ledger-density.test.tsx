@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
   AdvanceSettlementStatus,
   ExpenseEntryStatus,
@@ -27,7 +27,7 @@ describe('admin advance settlement ledger density', () => {
     id: 7,
     code: 'PT-2607-0004',
     forwarderName: 'Nguyễn Sĩ Quân',
-    status: AdvanceSettlementStatus.PENDING,
+    status: AdvanceSettlementStatus.APPROVED,
     totalExpenseAmount: 49_952_400,
     refundAmount: 1_000_000,
     createdAt: '2026-07-21T00:00:00.000Z',
@@ -85,20 +85,12 @@ describe('admin advance settlement ledger density', () => {
     },
   } as unknown as AdvanceSettlementWithRefs;
 
-  const rejectMutation = {
-    isPending: false,
-    variables: undefined,
-    mutate: vi.fn(),
-  } as never;
-
   it.each([
     {
       layout: 'desktop row',
       component: (
         <SettlementGridRow
           s={settlement}
-          rejectMutation={rejectMutation}
-          canApproveReject
         />
       ),
     },
@@ -107,8 +99,6 @@ describe('admin advance settlement ledger density', () => {
       component: (
         <SettlementMobileCard
           s={settlement}
-          rejectMutation={rejectMutation}
-          canApproveReject
         />
       ),
     },

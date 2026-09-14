@@ -224,7 +224,7 @@ export function EditPanel({
             />
           </FormGroup>
           {emailMsg && (
-            <p id="user-email-error" role="alert" style={{ color: 'var(--err, #dc2626)', margin: '4px 0 0', fontSize: 12 }}>
+            <p id="user-email-error" role="alert" style={{ color: 'var(--err, #dc2626)', margin: '4px 0 0', fontSize: 'var(--text-caption-size)' }}>
               {emailMsg}
             </p>
           )}
@@ -376,7 +376,7 @@ export function EditPanel({
             />
           </FormGroup>
           {pwMsg && (
-            <p id="user-pw-error" role="alert" style={{ color: 'var(--err, #dc2626)', margin: '4px 0 0', fontSize: 12 }}>
+            <p id="user-pw-error" role="alert" style={{ color: 'var(--err, #dc2626)', margin: '4px 0 0', fontSize: 'var(--text-caption-size)' }}>
               {pwMsg}
             </p>
           )}

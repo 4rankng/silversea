@@ -85,7 +85,7 @@ export default function OpsWalletPage() {
                     <td className="ops-money">{formatVnd(row.amount)} ₫</td>
                     <td>{row.reason}</td>
                     <td>
-                      <span style={{ color: ADVANCE_STATUS_COLORS[row.status] ?? 'inherit', fontWeight: 600, fontSize: 12 }}>
+                      <span style={{ color: ADVANCE_STATUS_COLORS[row.status] ?? 'inherit', fontWeight: 600, fontSize: 'var(--text-body-size)' }}>
                         {ADVANCE_STATUS_LABELS[row.status] ?? row.status}
                       </span>
                     </td>

@@ -346,12 +346,12 @@ export default function DashboardPage() {
         <div className="wf-head__copy">
           <h1 className="sr-only">Tổng quan vận hành</h1>
           <div className="wf-sum">
-            {greeting()}, {user?.fullName || (user?.role && ROLE_LABELS[user.role as Role]) || user?.username || 'bạn'}. Tháng {currentMonth}/{currentYear} có doanh thu{' '}
+            {greeting()}, {user?.fullName || (user?.role && ROLE_LABELS[user.role as Role]) || user?.username || 'bạn'}. Doanh thu tháng {currentMonth}/{currentYear}: <b>{formatNumber(revenue)} ₫</b>.{' '}
             {prevPnlReport ? (
               revenue >= prevRevenue
-                ? <span className="pos">{revenueMoM} so với tháng trước</span>
-                : <span className="neg">{revenueMoM} so với tháng trước</span>
-            ) : <b>chưa đủ dữ liệu so sánh</b>}
+                ? <span className="wf-sum__change wf-sum__change--positive">{revenueMoM === 'Mới' ? 'Tháng trước chưa có doanh thu' : `Biến động ${revenueMoM} so với tháng trước`}</span>
+                : <span className="wf-sum__change wf-sum__change--negative">Biến động {revenueMoM} so với tháng trước</span>
+            ) : <b>Chưa đủ dữ liệu so sánh</b>}
             . Lợi nhuận ròng dự kiến <b>{formattedNet} ₫</b> sau phí quản lý.
           </div>
         </div>

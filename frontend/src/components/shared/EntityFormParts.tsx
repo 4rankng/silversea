@@ -15,7 +15,7 @@ export function EntityFormSection({ icon: Icon, label, children }: { icon: Lucid
         <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-brand-50 text-fg-brand-secondary">
           <Icon className="size-3.5" strokeWidth={2.25} />
         </span>
-        <h4 className="whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-tertiary">{label}</h4>
+        <h4 className="whitespace-normal text-xs leading-[1.5] font-semibold uppercase tracking-wider text-tertiary">{label}</h4>
         <div className="h-px flex-1 bg-border-secondary" />
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -76,7 +76,7 @@ export function DateField({ id, label, value, onChange, isRequired, labelSuffix 
         {label}
         {labelSuffix}
       </Label>
-      <DateInput id={id} className="input" value={value} onChange={onChange} />
+      <DateInput id={id} className="input" value={value} onChange={onChange} required={isRequired} />
     </div>
   );
 }

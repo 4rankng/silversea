@@ -33,8 +33,6 @@ const EXPENSE_TYPE_LABELS: Record<string, string> = {
 
 function settlementStatusVariant(status: AdvanceSettlementStatus): 'neutral' | 'info' | 'warn' | 'success' | 'danger' {
   switch (status) {
-    case 'PENDING': return 'warn';
-    case 'CHECKED_BY_ACCOUNTANT': return 'info';
     case 'APPROVED': return 'success';
     case 'REJECTED': return 'danger';
     default: return 'neutral';
@@ -76,9 +74,9 @@ export function settlementReviewPermissions(input: {
   const isFinancialReviewer = !input.isPortal
     && (input.role === 'ACCOUNTANT' || input.role === 'ADMIN');
   return {
-    canEditAndCheck: isFinancialReviewer && input.settlement.status === 'PENDING',
+    canEditAndCheck: isFinancialReviewer && false,
     canApprove: isFinancialReviewer
-      && input.settlement.status === 'CHECKED_BY_ACCOUNTANT'
+      && false
       && input.settlement.checkedBy != null
       && input.userId !== input.settlement.checkedBy
       && input.userId !== input.settlement.forwarderId,
@@ -553,7 +551,7 @@ export default function SettlementPrintPage() {
           </div>
         )}
 
-        {(canEditExpenses || s.status === 'CHECKED_BY_ACCOUNTANT') && (
+        {(canEditExpenses || false) && (
           <div className="settlement-finalize no-print">
             {canEditExpenses ? (
               <div className="settlement-finalize__fields">

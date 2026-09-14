@@ -1,0 +1,53 @@
+/* This dialog is shared by shipment intake and the factory catalog. Its
+   layout must be available when either route is loaded first. */
+.operational-site-create {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.operational-site-create__route-picker {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  min-width: 0;
+}
+
+.operational-site-create__add-route {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  width: fit-content;
+  max-width: 100%;
+  min-height: var(--control-compact-h);
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: var(--text-control-compact-size);
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.operational-site-create__add-route svg { flex: none; }
+.operational-site-create__add-route:hover { background: var(--accent-soft); }
+.operational-site-create__add-route:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.operational-site-create__add-route:disabled { opacity: .6; cursor: not-allowed; }
+
+.operational-site-create__error {
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: var(--danger);
+  background: var(--danger-soft);
+  font-size: var(--text-caption-size);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px), (pointer: coarse) {
+  .operational-site-create__add-route { min-height: var(--control-touch-h); font-size: var(--text-control-size); }
+}

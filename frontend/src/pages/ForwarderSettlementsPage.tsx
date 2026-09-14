@@ -23,8 +23,6 @@ function advanceRequestCode(id: number): string {
 
 /** Status strip colors matching ForwarderTripsPage pattern */
 const STATUS_STRIP: Record<AdvanceSettlementStatus, string> = {
-  PENDING: 'var(--warning, #D97706)',
-  CHECKED_BY_ACCOUNTANT: '#2563EB',
   APPROVED: 'var(--success, #059669)',
   REJECTED: '#DC2626',
   REVERSED: '#64748B',
@@ -251,8 +249,8 @@ export default function ForwarderSettlementsPage() {
                         {containerGroups.map(g => (
                           <div key={g.containerNumber} className="fset-container-group" style={{ marginTop: 6, paddingLeft: 8, borderLeft: '2px solid var(--accent)' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-2)' }}>{g.containerNumber}</span>
-                              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent-2)' }}>{formatCurrency(g.total)}</span>
+                              <span style={{ fontSize: 'var(--text-body-size)', fontWeight: 600, color: 'var(--ink-2)' }}>{g.containerNumber}</span>
+                              <span style={{ fontSize: 'var(--text-body-size)', fontWeight: 700, color: 'var(--accent-2)' }}>{formatCurrency(g.total)}</span>
                             </div>
                             <div className="fset-card__chips">
                               {[...g.byType.entries()].map(([label, amount]) => (

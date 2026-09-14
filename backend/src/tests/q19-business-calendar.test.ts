@@ -190,22 +190,19 @@ describe('Q19 business calendar', () => {
       assert.equal(historicalDocument.processingDueDate, nextDay);
       const [adjustmentSource] = await db.select({ version: s.trips.version })
         .from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
-      // 2026-09-11 (maker-checker removal): the AR adjustment applies directly
-      // in-request via the transient governed action.
+      // KP-149/MC-4: createAdjustment self-applies in-request — wrapping it
+      // in another autoApplyGovernanceAction double-applies the version bump
+      // and trips the outer apply's stale guard.
       assert.ok(tripId != null);
       const adjustedTripId = tripId!;
-      await autoApplyGovernanceAction({
-        make: () => createAdjustment({
-          tripId: adjustedTripId,
-          amount: 25,
-          note: 'Q19 tăng công nợ',
-          signedAgreementRef: `Q19-${suffix}`,
-          makerId: actorIds[0]!,
-          makerRole: Role.ACCOUNTANT,
-          expectedTripVersion: adjustmentSource.version,
-        }),
-        actorId: actorIds[2]!,
-        actorRole: Role.ADMIN,
+      await createAdjustment({
+        tripId: adjustedTripId,
+        amount: 25,
+        note: 'Q19 tăng công nợ',
+        signedAgreementRef: `Q19-${suffix}`,
+        makerId: actorIds[0]!,
+        makerRole: Role.ACCOUNTANT,
+        expectedTripVersion: adjustmentSource.version,
       });
       const [adjustment] = await db.select().from(s.ledger).where(and(
         eq(s.ledger.txnType, 'ADJUSTMENT'),

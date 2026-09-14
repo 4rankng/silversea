@@ -225,8 +225,8 @@ export default function FactoriesConfigPage() {
                   <td data-label="Tên"><div className="row-strong">{site.name}</div></td>
                   <td data-label="Loại">{site.siteType === 'FACTORY' ? 'Nhà máy' : 'Kho'}</td>
                   <td data-label="Tuyến" style={{ color: 'var(--fg-2)' }}>{site.siteType === 'FACTORY' ? (site.routeName ?? '—') : '—'}</td>
-                  <td data-label="Địa chỉ" style={{ color: 'var(--fg-2)', fontSize: 13 }}>{site.address || '—'}</td>
-                  <td data-label="Liên hệ" style={{ color: 'var(--fg-2)', fontSize: 13 }}>
+                  <td data-label="Địa chỉ" style={{ color: 'var(--fg-2)', fontSize: 'var(--text-data-size)' }}>{site.address || '—'}</td>
+                  <td data-label="Liên hệ" style={{ color: 'var(--fg-2)', fontSize: 'var(--text-data-size)' }}>
                     {site.contactName || site.contactPhone
                       ? [site.contactName, site.contactPhone].filter(Boolean).join(' · ')
                       : '—'}
@@ -266,8 +266,8 @@ export default function FactoriesConfigPage() {
         {editing && draft && (
           <form onSubmit={(e) => e.preventDefault()}>
             {error && <Alert variant="error" style="soft">{error}</Alert>}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <div style={{ gridColumn: 'span 2' }}>
+            <div className="cfg-form-columns">
+              <div className="cfg-form-columns__full">
                 <Field label="Tên điểm vận hành">
                   <input className="input" value={draft.name} required maxLength={255}
                     onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
@@ -292,7 +292,7 @@ export default function FactoriesConfigPage() {
                   <input className="input" value="Kho lấy hàng (không dùng tuyến)" disabled />
                 </Field>
               )}
-              <div style={{ gridColumn: 'span 2' }}>
+              <div className="cfg-form-columns__full">
                 <Field label="Địa chỉ">
                   <input className="input" value={draft.address} required maxLength={2000}
                     onChange={(e) => setDraft({ ...draft, address: e.target.value })} />
@@ -306,39 +306,39 @@ export default function FactoriesConfigPage() {
                 <input className="input" value={draft.contactPhone} maxLength={30}
                   onChange={(e) => setDraft({ ...draft, contactPhone: e.target.value })} />
               </Field>
-              <div style={{ gridColumn: 'span 2' }}>
+              <div className="cfg-form-columns__full">
                 <Field label="Liên kết Google Maps">
                   <input className="input" value={draft.googleMapsUrl} maxLength={2000}
                     placeholder="https://maps.google.com/…"
                     onChange={(e) => setDraft({ ...draft, googleMapsUrl: e.target.value })} />
                 </Field>
               </div>
-              <div style={{ gridColumn: 'span 2' }}>
+              <div className="cfg-form-columns__full">
                 <Field label="Thông tin liên hệ kho">
                   <textarea className="input" rows={2} value={draft.warehouseContactInfo} maxLength={2000}
                     placeholder="Nhiều liên hệ, SĐT trong một ô..."
                     onChange={(e) => setDraft({ ...draft, warehouseContactInfo: e.target.value })} />
                 </Field>
               </div>
-              <div style={{ gridColumn: 'span 2' }}>
+              <div className="cfg-form-columns__full">
                 <Field label="Thông tin nâng/hạ">
                   <textarea className="input" rows={2} value={draft.liftInfo} maxLength={2000}
                     onChange={(e) => setDraft({ ...draft, liftInfo: e.target.value })} />
                 </Field>
               </div>
-              <div style={{ gridColumn: 'span 2' }}>
+              <div className="cfg-form-columns__full">
                 <Field label="Thông tin hạ">
                   <textarea className="input" rows={2} value={draft.dropInfo} maxLength={2000}
                     onChange={(e) => setDraft({ ...draft, dropInfo: e.target.value })} />
                 </Field>
               </div>
-              <div style={{ gridColumn: 'span 2' }}>
+              <div className="cfg-form-columns__full">
                 <Field label="Thông tin vệ sinh">
                   <textarea className="input" rows={2} value={draft.cleaningInfo} maxLength={2000}
                     onChange={(e) => setDraft({ ...draft, cleaningInfo: e.target.value })} />
                 </Field>
               </div>
-              <div style={{ gridColumn: 'span 2' }}>
+              <div className="cfg-form-columns__full">
                 <Field label="Quy định tại điểm làm hàng">
                   <textarea className="input" rows={3} value={draft.strictRules} maxLength={8000}
                     onChange={(e) => setDraft({ ...draft, strictRules: e.target.value })} />

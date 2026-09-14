@@ -1,6 +1,17 @@
 # Current Development Handoff
 
-## Current task — staging deploy of the kanban wave + build/deploy fixes — DONE, PUSHED + DEPLOYED (2026-09-12/13)
+## Current task — Responsive UI polish, uncommitted patch (2026-09-14)
+
+- Implemented shared responsive layout/control/overlay improvements and broad page-level polish for mobile, tablet and desktop. User requested no commit. Base revision: `bea8c63a479e29d3d1f4bd4708053835726542ef`; actual Git index is unchanged. No push or deployment.
+- Final typography: 12px body, data, values, options and actions; 11px labels/captions; 14px section, 16px overlay, 18px page title, 20px principal metrics. Shared semantic tokens and a field typography module replace scattered font sizes. Browser zoom remains available.
+- Final spacing corrections: operational phone fields share a 32px boundary, small direct-use touch comboboxes use 44px without double input padding; tablet customer summaries and records use compact flat layouts.
+- Portable patch and ZIP are in `~/Downloads/UI_UX_POLISH_20260914.{patch,zip}`. The ZIP contains only the patch and application instructions; no screenshots. The source patch includes new files and modifications, with clean-base apply plus exact-file comparison performed at export. A companion copy remains in the parent `silversea/` folder.
+- Local production build is served on port 4174 against the staging API. Chrome plugin and browser runs exercised all eight available roles across representative 390/768/1440 views, with earlier wider route and overlay sweeps. This is broad coverage, not an exhaustive every-state release sign-off. Source is not deployed.
+- Final build and TypeScript check pass. Full frontend run: 1,888 passed / 43 failed; 41 match the original baseline, while two additional 5-second timeouts passed on a separate unchanged-timeout run of both complete files (55/55). Final shared geometry checks pass (26 tests). Full lint remains 16 errors / 122 warnings, matching the original baseline.
+- UI contract has seven remaining baseline failures. Context check still lacks `plans/silversea-prd-roadmap/plan.md` and `qa/README.md`; brand image checking lacks ImageMagick. See `qa/2026-09-14_ui-polish_*` and `plans/260914-responsive-polish/reports/` for evidence and chronology.
+- Legacy approval business flows remain: the user's no-approval target is not completed by this presentation patch. No approval or offline-sync feature was added. Physical iOS keyboards/camera and populated states unavailable in staging remain verification gaps.
+
+## Previous task — staging deploy of the kanban wave + build/deploy fixes — DONE, PUSHED + DEPLOYED (2026-09-12/13)
 
 - User authorized: "commit push and deploy to staging". Delivered: `2843b9d8` (kanban wave incl. recovery of the damaged tree), `f8b186b1`, `5e2b7359` — all pushed to `origin/prod`; staging https://vantai.tingting.vip cut over and verified.
 - **Deploy blocker fixed (`f8b186b1`)**: the amd64 frontend image build emulated on this arm64 Mac crashed in Go-based esbuild (`fatal error: lfstack.push`, twice, ~6s into vite — logs `qa/2026-09-12_deploy-emulation-crash/`). Rosetta toggle off in Docker settings at 12:48 = same timeline. Fix: frontend Dockerfile builder stage pinned to `--platform=$BUILDPLATFORM` (native toolchain; dist is arch-independent; nginx runtime stage stays amd64). Backend builder deliberately NOT switched — `sharp` native binaries must stay amd64.

@@ -209,16 +209,17 @@
   --control-compact-h: 30px;
   --control-default-h: 34px;
   --control-touch-h: 44px;
-  /* Phone compact contract (ticket 6770b9cb): controls proportional to the
-     11px text scale; touch floor stays ≥28px. */
+  /* Compact geometry is independent from readable typography. Phone text
+     uses the same role scale; field text follows the same compact scale on every device. */
   --control-mobile-h: 32px;
-  --control-mobile-font-size: var(--fs-3xs);
-  --control-mobile-line-height: 14px;
-  --control-compact-font-size: var(--fs-xs);
+  --control-mobile-font-size: var(--text-input-touch-size);
+  --control-mobile-line-height: 20px;
+  --control-compact-font-size: var(--text-control-compact-size);
   --control-compact-line-height: 18px;
-  /* 16px on touch so iOS Safari never focus-zooms compact controls. */
-  --control-compact-touch-font-size: var(--fs-md);
+  /* Touch value text uses the same PM-selected compact scale as desktop. */
+  --control-compact-touch-font-size: var(--text-input-touch-size);
   --control-compact-touch-line-height: 20px;
+  --control-field-font-size: var(--text-control-size);
   --control-h: 44px;
 
   /* Filter density is intentionally independent from general form controls.
@@ -261,20 +262,33 @@
   /* legacy aliases */
   --ff-sans: var(--font-display);
 
-  /* --- Type scale --- */
-  --fs-2xs: 12px;
-  --fs-xs:  12px;
-  --fs-status-pill: 11px;
-  /* 11px compact scale (ticket 6770b9cb): phone controls/labels/sidebar. */
-  --fs-3xs: 11px;
-  --fs-sm:  14px;
-  --fs-md:  16px;
-  --fs-lg:  18px;
-  --fs-xl:  20px;
-  --fs-2xl: 24px;
-  --fs-3xl: 30px;
-  --fs-4xl: 36px;
-  --fs-5xl: 48px;
+  /* Semantic type roles stay stable across screen sizes. Fit layouts with
+     wrapping and spacing, not a second miniature phone font scale. */
+  --text-caption-size: 11px;
+  --text-label-size: 11px;
+  --text-data-size: 12px;
+  --text-body-size: 12px;
+  --text-control-size: 12px;
+  --text-control-compact-size: 12px;
+  --text-input-touch-size: 12px;
+  --text-section-size: 14px;
+  --text-dialog-title-size: 16px;
+  --text-title-size: 18px;
+  --text-metric-size: 20px;
+
+  /* Legacy aliases share the same scale while callers adopt semantic roles. */
+  --fs-3xs: var(--text-caption-size);
+  --fs-2xs: var(--text-caption-size);
+  --fs-xs: var(--text-caption-size);
+  --fs-status-pill: var(--text-caption-size);
+  --fs-sm: var(--text-body-size);
+  --fs-md: var(--text-section-size);
+  --fs-lg: var(--text-section-size);
+  --fs-xl: var(--text-dialog-title-size);
+  --fs-2xl: var(--text-title-size);
+  --fs-3xl: var(--text-metric-size);
+  --fs-4xl: var(--text-metric-size);
+  --fs-5xl: var(--text-metric-size);
 
   --fw-light:    300;
   --fw-regular:  400;
@@ -294,9 +308,9 @@
   --tracking-wider:  0.08em;
   --tracking-eyebrow: 0.08em;
 
-  /* Hero display numbers (24-28px, used for revenue / profit metrics) */
-  --fs-display: 24px;
-  --fs-display-lg: 28px;
+  /* Financial metrics share one compact display size. */
+  --fs-display: var(--text-metric-size);
+  --fs-display-lg: var(--text-metric-size);
 
   /* --- Z-index scale --- */
   --z-base: 0;
@@ -353,5 +367,13 @@
     --filter-control-h: var(--control-mobile-h);
     --filter-control-font-size: var(--control-mobile-font-size);
     --filter-control-line-height: var(--control-mobile-line-height);
+  }
+}
+
+/* Native and custom fields share one text scale on touch devices too.
+   Browser zoom remains available; do not disable it to enforce density. */
+@media (max-width: 640px), (pointer: coarse) {
+  :root {
+    --control-field-font-size: var(--text-input-touch-size);
   }
 }

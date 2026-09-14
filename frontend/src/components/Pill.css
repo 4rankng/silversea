@@ -8,7 +8,7 @@
   gap: 5px;
   padding: 3px 8px;
   border-radius: 999px;
-  font-size: var(--fs-status-pill);
+  font-size: var(--text-caption-size);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -37,7 +37,7 @@
 .pill--neutral .dot { background: var(--ink-3); }
 
 /* Pill size + solid variants — for header-level status emphasis */
-.pill--md { font-size: var(--fs-xs); padding: 5px 12px; letter-spacing: 0.04em; }
+.pill--md { font-size: var(--text-caption-size); padding: 5px 12px; letter-spacing: 0.04em; }
 .pill--md .dot { width: 6px; height: 6px; }
 .pill--solid { text-transform: none; letter-spacing: 0.01em; font-weight: 600; }
 .pill--solid.pill--success { background: transparent; color: var(--accent-ink); }
@@ -55,7 +55,7 @@
 .badge {
   display: inline-flex; align-items: center; gap: 6px;
   min-height: 26px; padding: 4px 10px;
-  font-size: var(--fs-xs); font-weight: 700;
+  font-size: var(--text-caption-size); font-weight: 700;
   line-height: 1.35;
   border-radius: 999px;
   border: 1px solid transparent;
@@ -76,7 +76,7 @@
 .plate {
   font-family: var(--font-data);
   font-weight: 600;
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   padding: 2px 6px;
   background: var(--ink);
   color: var(--fg-on-brand);

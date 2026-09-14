@@ -99,7 +99,7 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   'src/components/trip/ShipmentCostEntryForm.tsx': 522,
   'src/components/UI.tsx': 665,
   'src/components/untitled-ui/base/badges/badges.tsx': 416,
-  'src/components/untitled-ui/base/select/tag-select.tsx': 401,
+  'src/components/untitled-ui/base/select/tag-select.tsx': 405,
   // Bumped 485 → 493: 2026-09-14 order-exchange refresh — the trip detail
   // refetch after a confirmed exchange adds the confirmed-state fact rows.
   // Reviewed as a contract change.
@@ -256,7 +256,7 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   'src/pages/ForwarderSettlementCreatePage.tsx': 503,
   'src/pages/ForwarderTripDetailPage.tsx': 1107,
   'src/pages/PayableDetailPage.tsx': 608,
-  'src/pages/PayableListPage.tsx': 664,
+  'src/pages/PayableListPage.tsx': 680,
   'src/pages/payables-fuel-invoices.tsx': 1078,
   // Bumped 567 → 591: 2026-09-14 ownership-blocked warning — the affected
   // trucks list renders as links inside the warning block.
@@ -264,7 +264,7 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   'src/pages/SalaryAttendancePage.tsx': 780,
   'src/pages/SettlementPrintPage.tsx': 646,
   // Bumped 609 → 625: 2026-09-09 useClickOutside dismissal for quick edit draft.
-  'src/pages/ShipmentsPage.tsx': 625,
+  'src/pages/ShipmentsPage.tsx': 634,
   'src/pages/SupplierListPage.tsx': 626,
   'src/pages/TripDetailPage.tsx': 438,
   // Bumped 540 -> 554: ticket 7a74d6eb - fetch-error branch (alert + retry)

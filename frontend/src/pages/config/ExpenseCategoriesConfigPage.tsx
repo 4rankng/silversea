@@ -24,7 +24,7 @@ function ExpenseCategoryForm({ saving, item, onsave, oncancel, onDelete, deletin
         </Field>
       </div>
       <div style={{ flex: 1, minWidth: 100, display: 'flex', alignItems: 'flex-end', paddingBottom: 18 }}>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 'var(--text-label-size)', cursor: 'pointer' }}>
           <input type="checkbox" checked={isRenewable} onChange={e => setIsRenewable(e.target.checked)} />
           Định kỳ
         </label>
@@ -96,7 +96,7 @@ export default function ExpenseCategoriesConfigPage() {
               minHeight: 26,
               padding: '4px 10px',
               borderRadius: 10,
-              fontSize: 12,
+              fontSize: 'var(--text-caption-size)',
               lineHeight: 1.3,
               fontWeight: 600,
               background: cat.isRenewable ? 'var(--success-soft, #ecfdf5)' : 'var(--bg-2)',
@@ -120,7 +120,7 @@ export default function ExpenseCategoriesConfigPage() {
               minHeight: 26,
               padding: '4px 10px',
               borderRadius: 10,
-              fontSize: 12,
+              fontSize: 'var(--text-caption-size)',
               lineHeight: 1.3,
               fontWeight: 600,
               background: cat.status === 'ACTIVE' ? 'var(--success-soft, #ecfdf5)' : 'var(--bg-2)',

@@ -235,14 +235,15 @@ test('generateDraft only includes Long Minh trips that are COMPLETED and e-POD a
     rangeTo: '2026-07-31',
   });
 
-  assert.equal(draft.eligibilitySummary?.includedTripCount, 1);
-  assert.equal(draft.eligibilitySummary?.blockedTrips.length, 2);
-  assert.equal(draft.lines.filter((line) => line.sourceType === 'TRIP').length, 1);
-  assert.equal(draft.lines[0]?.sourceId, eligibleTrip.id);
-  assert.equal(draft.lines[0]?.renderData?.factoryName, 'Nhà máy Long Minh');
-  assert.equal(draft.lines[0]?.renderData?.declarationNumber, `TK-${eligibleTrip.tripCode}`);
+  // KP-151: any e-POD submission counts (review removal), so the SUBMITTED
+  // trip is now billable alongside the ACCEPTED one; only the trip with no
+  // fulfillment linkage stays blocked.
+  assert.equal(draft.eligibilitySummary?.includedTripCount, 2);
+  assert.equal(draft.eligibilitySummary?.blockedTrips.length, 1);
+  assert.equal(draft.lines.filter((line) => line.sourceType === 'TRIP').length, 2);
+  const lineSources = draft.lines.filter((line) => line.sourceType === 'TRIP').map((line) => line.sourceId);
+  assert.ok(lineSources.includes(eligibleTrip.id));
   assert.ok(draft.eligibilitySummary?.blockedTrips.some((trip) => /e-POD|chưa gắn fulfillment/i.test(trip.reason)));
-  assert.ok(draft.eligibilitySummary?.blockedTrips.some((trip) => trip.reason.includes('đang chờ duyệt')));
 });
 
 test('saveDocument rejects when a drafted Long Minh trip loses accepted e-POD eligibility before save', async () => {

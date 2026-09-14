@@ -14,14 +14,14 @@
 }
 
 .ttp-header h1 {
-  font-size: var(--fs-xl);
+  font-size: var(--text-title-size);
   font-weight: 700;
   color: var(--fg-1);
   margin: 0 0 4px;
 }
 
 .ttp-header .ttp-sub {
-  font-size: 13px;
+  font-size: var(--text-data-size);
   color: var(--fg-3);
 }
 
@@ -29,7 +29,7 @@
    previously sr-only, leaving the tire page unidentified). */
 .ttp-header .ttp-title {
   margin: 0;
-  font-size: 15px;
+  font-size: var(--text-section-size);
   font-weight: 700;
   color: var(--ink);
   line-height: 1.35;
@@ -39,7 +39,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: var(--text-control-compact-size);
   color: var(--fg-3);
   text-decoration: none;
   min-height: 44px;
@@ -100,7 +100,7 @@
   align-items: center;
   gap: 6px;
   color: var(--fg-3);
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   font-weight: 600;
   white-space: nowrap;
 }
@@ -108,7 +108,7 @@
 .ttp-section-head h2 {
   margin: 0;
   color: var(--fg-1);
-  font-size: var(--fs-sm);
+  font-size: var(--text-body-size);
   font-weight: 700;
   line-height: 1.35;
 }
@@ -116,7 +116,7 @@
 .ttp-section-head p {
   margin: 3px 0 0;
   color: var(--fg-3);
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   line-height: 1.35;
 }
 
@@ -130,7 +130,7 @@
   border-radius: 8px;
   background: var(--surface, #fff);
   color: var(--fg-2);
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   font-weight: 650;
   cursor: pointer;
   white-space: nowrap;
@@ -191,7 +191,7 @@
   padding: 24px 16px;
   text-align: center;
   color: var(--fg-3);
-  font-size: 14px;
+  font-size: var(--text-body-size);
 }
 
 /* Inline add form (mirrors config InlineForm layout). */
@@ -211,7 +211,7 @@
 
 .ttp-add .ttp-field label,
 .ttp-add .ttp-field__label {
-  font-size: 12px;
+  font-size: var(--text-label-size);
   color: var(--ink-2, var(--fg-2));
   font-weight: 650;
 }
@@ -223,7 +223,7 @@
   padding: 0 12px;
   border: 1px solid var(--line-2, var(--border-2));
   border-radius: 10px;
-  font-size: 13px;
+  font-size: var(--text-data-size);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(250, 252, 251, 0.96));
   color: var(--ink, var(--fg-1));
@@ -338,7 +338,7 @@
   border: 0;
   background: transparent;
   color: var(--ink, var(--fg-1));
-  font-size: 13px;
+  font-size: var(--text-data-size);
   font-weight: 650;
   text-align: left;
   cursor: pointer;
@@ -365,7 +365,7 @@
   align-items: center;
   padding: 0 14px;
   color: var(--ink-3, var(--fg-3));
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
 }
 
 .ttp-position-picker-manage {
@@ -525,7 +525,7 @@
   border-radius: 7px;
   background: transparent;
   color: var(--ink, var(--fg-1));
-  font-size: 14px;
+  font-size: var(--text-body-size);
   line-height: 1.3;
   font-weight: 600;
   text-align: left;
@@ -569,7 +569,10 @@
 .ttp-dialog {
   width: min(720px, 100%);
   max-height: min(760px, calc(100vh - 48px));
+  max-height: min(760px, calc(100dvh - 48px));
+  min-width: 0;
   overflow: auto;
+  overscroll-behavior: contain;
   background: var(--surface, #fff);
   border: 1px solid var(--line, var(--border-2));
   border-radius: 18px;
@@ -595,7 +598,7 @@
 .ttp-dialog-head h2 {
   margin: 0;
   color: var(--ink, var(--fg-1));
-  font-size: 18px;
+  font-size: var(--text-dialog-title-size);
   line-height: 1.25;
 }
 
@@ -603,13 +606,14 @@
   margin: 4px 0 0;
   color: var(--fg-3);
   font-family: var(--font-data);
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   font-weight: 600;
 }
 
 .ttp-dialog-close {
   width: 34px;
   height: 34px;
+  flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -618,6 +622,11 @@
   background: var(--surface, #fff);
   color: var(--fg-2);
   cursor: pointer;
+}
+
+.ttp-dialog-close:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
 }
 
 .ttp-dialog-close:hover {
@@ -640,7 +649,7 @@
 
 .ttp-edit-form .ttp-field label {
   color: var(--ink-2, var(--fg-2));
-  font-size: 12px;
+  font-size: var(--text-label-size);
   font-weight: 650;
 }
 
@@ -650,6 +659,7 @@
 
 .ttp-dialog-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 10px;
   padding: 16px 20px 20px;
@@ -674,7 +684,7 @@
   display: inline-flex;
   margin-bottom: 5px;
   color: var(--accent, #00B14F);
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   font-weight: 800;
   letter-spacing: 0.08em;
   line-height: 1.35;
@@ -682,7 +692,7 @@
 }
 
 .ttp-position-head h2 {
-  font-size: 20px;
+  font-size: var(--text-dialog-title-size);
   font-weight: 800;
   letter-spacing: 0;
 }
@@ -690,7 +700,7 @@
 .ttp-position-head p {
   max-width: 420px;
   font-family: var(--font-sans, inherit);
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   font-weight: 500;
   line-height: 1.45;
 }
@@ -723,14 +733,14 @@
 
 .ttp-position-create-copy strong {
   color: var(--ink, var(--fg-1));
-  font-size: 14px;
+  font-size: var(--text-body-size);
   font-weight: 750;
   line-height: 1.25;
 }
 
 .ttp-position-create-copy span {
   color: var(--ink-3, var(--fg-3));
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   line-height: 1.45;
 }
 
@@ -746,7 +756,7 @@
 
 .ttp-position-control span {
   color: var(--ink-2, var(--fg-2));
-  font-size: var(--fs-xs);
+  font-size: var(--text-label-size);
   font-weight: 750;
   letter-spacing: 0.04em;
   line-height: 1.35;
@@ -758,7 +768,7 @@
   border-color: var(--line-2, var(--border-2));
   border-radius: 9px;
   background: var(--surface, #fff);
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
 }
 
 .ttp-position-add-btn {
@@ -768,7 +778,7 @@
   gap: 6px;
   padding: 0 14px;
   border-radius: 9px;
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   white-space: nowrap;
 }
 
@@ -779,7 +789,7 @@
   border-radius: 9px;
   background: var(--danger-soft, #FEF2F2);
   color: var(--danger-text, #991B1B);
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   font-weight: 650;
   line-height: 1.35;
 }
@@ -859,7 +869,7 @@
 
 .ttp-position-name span {
   color: var(--ink, var(--fg-1));
-  font-size: var(--ops-table-primary-size);
+  font-size: var(--text-data-size);
   font-weight: 750;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -868,7 +878,7 @@
 
 .ttp-position-name small {
   color: var(--ink-2, var(--fg-2));
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   font-weight: 550;
   line-height: 1.35;
 }
@@ -904,7 +914,7 @@
 .ttp-position-empty strong {
   display: block;
   color: var(--ink, var(--fg-1));
-  font-size: 14px;
+  font-size: var(--text-body-size);
   font-weight: 750;
   line-height: 1.35;
 }
@@ -912,7 +922,7 @@
 .ttp-position-empty span {
   display: block;
   color: var(--ink-3, var(--fg-3));
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   line-height: 1.45;
 }
 
@@ -943,7 +953,7 @@
   }
 
   .ttp-header h1 {
-    font-size: 20px;
+    font-size: var(--text-title-size);
   }
 
   .ttp-section-head {
@@ -991,12 +1001,31 @@
 
   .ttp-dialog-overlay {
     align-items: flex-end;
-    padding: 12px;
+    padding: 8px;
   }
 
   .ttp-dialog {
-    max-height: min(720px, calc(100dvh - 24px));
-    border-radius: 16px;
+    max-height: min(720px, calc(100vh - 16px));
+    max-height: min(720px, calc(100dvh - 16px));
+    border-radius: 12px;
+  }
+
+  .ttp-dialog-head,
+  .ttp-position-head {
+    padding: 12px;
+  }
+
+  .ttp-dialog-head > div {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .ttp-dialog-actions {
+    position: sticky;
+    bottom: 0;
+    padding: 12px;
+    border-top: 1px solid var(--line);
+    background: var(--surface);
   }
 
   .ttp-dialog--positions {
@@ -1005,10 +1034,11 @@
 
   .ttp-edit-form {
     grid-template-columns: 1fr;
+    padding: 12px 12px 4px;
   }
 
   .ttp-position-manager {
-    padding: 14px;
+    padding: 12px;
   }
 
   .ttp-position-create {
@@ -1104,13 +1134,13 @@
 
 .ttp-unmount-choice__main strong {
   color: var(--ink, var(--fg-1));
-  font-size: 14px;
+  font-size: var(--text-body-size);
   font-weight: 650;
 }
 
 .ttp-unmount-choice__main small {
   color: var(--fg-3);
-  font-size: 12px;
+  font-size: var(--text-caption-size);
 }
 
 .ttp-unmount-reason {
@@ -1119,4 +1149,11 @@
 
 .ttp-unmount-reason-custom {
   margin-top: 8px;
+}
+
+@media (pointer: coarse) {
+  .ttp-dialog-close {
+    width: 44px;
+    height: 44px;
+  }
 }

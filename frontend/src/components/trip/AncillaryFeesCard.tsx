@@ -177,7 +177,7 @@ export function AncillaryFeesCard({ tripId, readOnly = false, hideAddButton = fa
   return (
     <div>
       {isLoading ? (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--fg-3)', fontSize: 13 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--fg-3)', fontSize: 'var(--text-caption-size)' }}>
           <Loader2 size={14} className="spin" /> Đang tải dịch vụ…
         </div>
       ) : (
@@ -235,7 +235,7 @@ export function AncillaryFeesCard({ tripId, readOnly = false, hideAddButton = fa
                             {sell > 0 ? formatCurrency(sell) : ''}
                           </td>
                           <td
-                            style={{ fontSize: 12, color: 'var(--ink-3)', whiteSpace: 'nowrap', maxWidth: 110, overflow: 'hidden', textOverflow: 'ellipsis' }}
+                            style={{ fontSize: 'var(--text-data-size)', color: 'var(--ink-3)', whiteSpace: 'nowrap', maxWidth: 110, overflow: 'hidden', textOverflow: 'ellipsis' }}
                             title={[fee.invoiceNumber && `HĐ ${fee.invoiceNumber}`, fee.invoiceDate && `Ngày ${fee.invoiceDate}`, fee.declarationNumber && `TK ${fee.declarationNumber}`].filter(Boolean).join(' · ') || undefined}
                           >
                             {fee.invoiceNumber || fee.declarationNumber ? (
@@ -478,7 +478,7 @@ export function AncillaryFeesCard({ tripId, readOnly = false, hideAddButton = fa
             >
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {formError && (
-                  <div style={{ padding: '6px 10px', background: 'var(--danger-soft)', color: 'var(--danger-text)', borderRadius: 6, fontSize: 12 }}>
+                  <div style={{ padding: '6px 10px', background: 'var(--danger-soft)', color: 'var(--danger-text)', borderRadius: 6, fontSize: 'var(--text-body-size)' }}>
                     {formError}
                   </div>
                 )}
@@ -496,7 +496,7 @@ export function AncillaryFeesCard({ tripId, readOnly = false, hideAddButton = fa
                   />
 
                   <div className="field">
-                    <label style={{ fontSize: 12 }}>Số tiền gốc *</label>
+                    <label style={{ fontSize: 'var(--text-label-size)' }}>Số tiền gốc *</label>
                     <InputWithPrefix
                       value={form.buyAmount}
                       onChange={handleBuyAmountChange}
@@ -508,7 +508,7 @@ export function AncillaryFeesCard({ tripId, readOnly = false, hideAddButton = fa
                   </div>
 
                   <div className="field">
-                    <label style={{ fontSize: 12 }}>
+                    <label style={{ fontSize: 'var(--text-label-size)' }}>
                       Báo khách {hasMarkup ? '' : '(= số tiền gốc)'}
                     </label>
                     {hasMarkup ? (
@@ -530,19 +530,19 @@ export function AncillaryFeesCard({ tripId, readOnly = false, hideAddButton = fa
                           disabled
                           style={{ background: 'var(--bg-2)', color: 'var(--fg-3)', cursor: 'not-allowed', paddingRight: 32 }}
                         />
-                        <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--fg-3)' }}>đ</span>
+                        <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 'var(--text-caption-size)', color: 'var(--fg-3)' }}>đ</span>
                       </div>
                     )}
                   </div>
 
                   <div className="field" style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', minHeight: 24 }}>
-                    <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--success)' }}>
+                    <div style={{ fontSize: 'var(--text-data-size)', fontWeight: 600, color: 'var(--success)' }}>
                       Báo nợ: <span className="mono">{formatCurrency(Number(form.sellAmount) || 0)}</span>
                     </div>
                   </div>
 
                   <div className="field">
-                    <label style={{ fontSize: 12 }}>Số hóa đơn</label>
+                    <label style={{ fontSize: 'var(--text-label-size)' }}>Số hóa đơn</label>
                     <input
                       className="input mono"
                       type="text"
@@ -553,7 +553,7 @@ export function AncillaryFeesCard({ tripId, readOnly = false, hideAddButton = fa
                   </div>
 
                   <div className="field">
-                    <label style={{ fontSize: 12 }}>Ngày hóa đơn</label>
+                    <label style={{ fontSize: 'var(--text-label-size)' }}>Ngày hóa đơn</label>
                     <DateInput
                       className="input mono"
                       value={form.invoiceDate}
@@ -562,7 +562,7 @@ export function AncillaryFeesCard({ tripId, readOnly = false, hideAddButton = fa
                   </div>
 
                   <div className="field">
-                    <label style={{ fontSize: 12 }}>Số công-te-nơ</label>
+                    <label style={{ fontSize: 'var(--text-label-size)' }}>Số công-te-nơ</label>
                     <input
                       className="input mono"
                       type="text"
@@ -574,7 +574,7 @@ export function AncillaryFeesCard({ tripId, readOnly = false, hideAddButton = fa
 
                   {form.expenseType === 'CUSTOMS' && (
                     <div className="field">
-                      <label style={{ fontSize: 12 }}>Số tờ khai hải quan *</label>
+                      <label style={{ fontSize: 'var(--text-label-size)' }}>Số tờ khai hải quan *</label>
                       <input
                         className="input mono"
                         type="text"
@@ -586,7 +586,7 @@ export function AncillaryFeesCard({ tripId, readOnly = false, hideAddButton = fa
                   )}
 
                   <div className="field" style={{ gridColumn: '1 / -1' }}>
-                    <label style={{ fontSize: 12 }}>Ghi chú</label>
+                    <label style={{ fontSize: 'var(--text-label-size)' }}>Ghi chú</label>
                     <input
                       className="input"
                       type="text"

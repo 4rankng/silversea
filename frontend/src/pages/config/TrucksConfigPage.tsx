@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { usePageAnimations } from '../../hooks/animations';
 import { StatusPill, ModalChip, ModalChipLive } from '../../components/UI';
 import { UuiSelectField } from '../../design-system';
@@ -54,7 +55,7 @@ export default function TrucksConfigPage() {
         { header: 'Sở hữu', render: (t) => (
           // The quarterly profit split distributes per this truck's owner rows
           // (effective-dated, Σ%=100) — the editor lives one click away.
-          <a href={`/config/trucks/${t.id}/owners`} style={{ fontSize: 13 }}>Đối tác sở hữu</a>
+          <Link to={`/config/trucks/${t.id}/owners`} style={{ fontSize: 'var(--text-data-size)' }}>Đối tác sở hữu</Link>
         ) },
       ]}
       renderForm={(p) => <TruckForm saving={p.saving} item={p.item} onsave={p.onSave} oncancel={p.onCancel} onDelete={p.onDelete} deleting={p.deleting} />}

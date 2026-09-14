@@ -44,7 +44,7 @@ function PolicyCheckbox({
   disabled?: boolean;
 }) {
   return (
-    <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: disabled ? 'not-allowed' : 'pointer', fontWeight: 600, color: 'var(--ink-2)', fontSize: 13, opacity: disabled ? 0.6 : 1 }}>
+    <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: disabled ? 'not-allowed' : 'pointer', fontWeight: 600, color: 'var(--ink-2)', fontSize: 'var(--text-label-size)', opacity: disabled ? 0.6 : 1 }}>
       <input
         type="checkbox"
         checked={checked}
@@ -103,8 +103,8 @@ function ExpenseTypeForm({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, width: '100%' }}>
-      <div style={{ display: 'flex', gap: 16 }}>
-        <div style={{ width: '30%', minWidth: 120 }}>
+      <div className="cfg-form-columns cfg-form-columns--code-name">
+        <div>
           <Field label="Mã (code)">
             <input
               className="input"
@@ -113,7 +113,7 @@ function ExpenseTypeForm({
               placeholder="Ví dụ: LIFTING"
               style={{
                 fontFamily: 'var(--font-data)',
-                fontSize: 13,
+
                 ...(isDuplicate ? { borderColor: 'var(--danger)' } : {}),
                 ...(item ? { background: 'var(--bg-2)', color: 'var(--fg-3)', cursor: 'not-allowed' } : {}),
               }}
@@ -121,14 +121,13 @@ function ExpenseTypeForm({
             />
           </Field>
         </div>
-        <div style={{ width: '70%', minWidth: 180 }}>
+        <div>
           <Field label="Tên tiếng Việt">
             <input
               className="input"
               value={name}
               onChange={(event) => setName(event.target.value)}
               placeholder="Nâng hạ"
-              style={{ fontSize: 13 }}
             />
           </Field>
         </div>
@@ -140,11 +139,10 @@ function ExpenseTypeForm({
           value={billingLabel}
           onChange={(event) => setBillingLabel(event.target.value)}
           placeholder="(mặc định: dùng Tên)"
-          style={{ fontSize: 13 }}
         />
       </Field>
 
-      <div style={{ display: 'grid', gap: 16, gridTemplateColumns: '1fr 1fr' }}>
+      <div className="cfg-form-columns">
         <div>
           <Field label="VAT (%)">
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
@@ -156,9 +154,9 @@ function ExpenseTypeForm({
                 min="0"
                 max="100"
                 step="0.1"
-                style={{ paddingRight: 32, fontSize: 13 }}
+                style={{ paddingRight: 32,  }}
               />
-              <span style={{ position: 'absolute', right: 12, color: 'var(--ink-3)', fontSize: 13, fontWeight: 500, pointerEvents: 'none' }}>%</span>
+              <span style={{ position: 'absolute', right: 12, color: 'var(--ink-3)', fontSize: 'var(--text-data-size)', fontWeight: 500, pointerEvents: 'none' }}>%</span>
             </div>
           </Field>
         </div>
@@ -168,15 +166,15 @@ function ExpenseTypeForm({
             label="Cho phép báo khách khác số gốc"
             onChange={setDefaultMarkup}
           />
-          <div style={{ fontSize: 12, color: 'var(--ink-3)', paddingLeft: 24 }}>(Báo khách ≠ số gốc)</div>
+          <div style={{ fontSize: 'var(--text-caption-size)', color: 'var(--ink-3)', paddingLeft: 24 }}>(Báo khách ≠ số gốc)</div>
         </div>
       </div>
 
-      <div style={{ border: '1px solid var(--line)', borderRadius: 12, padding: 16, background: 'var(--bg-2)' }}>
+      <section className="cfg-form-policy-section">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>Chính sách chi không hóa đơn</div>
-            <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 4 }}>
+            <div style={{ fontSize: 'var(--text-body-size)', fontWeight: 700, color: 'var(--ink)' }}>Chính sách chi không hóa đơn</div>
+            <div style={{ fontSize: 'var(--text-caption-size)', color: 'var(--ink-3)', marginTop: 4 }}>
               Chỉ áp dụng cho các hạng mục được phép chi không hóa đơn. Phiên bản chính sách: <strong>{item?.noInvoicePolicyVersion ?? 1}</strong>
             </div>
           </div>
@@ -197,7 +195,7 @@ function ExpenseTypeForm({
             onChange={setSubstituteEvidenceAllowed}
           />
 
-          <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', opacity: noInvoiceEnabled ? 1 : 0.55 }}>
+          <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit, minmax(min(180px, 100%), 1fr))', opacity: noInvoiceEnabled ? 1 : 0.55 }}>
             <Field label="Ngưỡng mỗi khoản">
               <input className="input mono" type="number" min="0" step="1000" value={perItemLimit} disabled={!noInvoiceEnabled} onChange={(event) => setPerItemLimit(event.target.value)} />
             </Field>
@@ -213,8 +211,8 @@ function ExpenseTypeForm({
           </div>
 
           <div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink-2)', marginBottom: 8 }}>Chứng cứ thay thế được chấp nhận</div>
-            <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', opacity: noInvoiceEnabled ? 1 : 0.55 }}>
+            <div style={{ fontSize: 'var(--text-data-size)', fontWeight: 600, color: 'var(--ink-2)', marginBottom: 8 }}>Chứng cứ thay thế được chấp nhận</div>
+            <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))', opacity: noInvoiceEnabled ? 1 : 0.55 }}>
               {Object.entries(NO_INVOICE_EVIDENCE_TYPE_LABELS).map(([value, label]) => (
                 <PolicyCheckbox
                   key={value}
@@ -229,16 +227,16 @@ function ExpenseTypeForm({
                 />
               ))}
             </div>
-            <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 8 }}>
+            <div style={{ fontSize: 'var(--text-caption-size)', color: 'var(--ink-3)', marginTop: 8 }}>
               Maker bắt buộc nhập số tiền, ngày chi, người nhận, chuyến/container, lý do và ít nhất một chứng cứ trong danh sách này.
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
       <hr style={{ border: 'none', borderTop: '1px solid var(--line)', margin: '12px 0 4px' }} />
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', paddingTop: 4 }}>
+      <div className="cfg-form-footer">
         <div>
           {item && onDelete && (
             <button
@@ -249,14 +247,14 @@ function ExpenseTypeForm({
                 event.stopPropagation();
                 await onDelete();
               }}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 500 }}
+              style={{ display: 'flex', alignItems: 'center', gap: 6,  fontWeight: 500 }}
             >
               {deleting ? <><Loader2 size={14} className="spin" /> Đang xóa...</> : <><Trash2 size={14} /> Xóa cấu hình này</>}
             </button>
           )}
         </div>
 
-        <div style={{ display: 'flex', gap: 12 }}>
+        <div className="cfg-form-footer__primary">
           <button type="button" className="btn btn--secondary" disabled={saving} onClick={oncancel}>Hủy</button>
           <button
             type="button"
@@ -279,7 +277,7 @@ function ExpenseTypeForm({
                 noInvoiceDirectorDayApprovalLimit: noInvoiceEnabled ? Number(directorDayLimit || 0) : NO_INVOICE_POLICY_DEFAULTS.directorDayApprovalLimit,
               });
             }}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600 }}
+            style={{ display: 'flex', alignItems: 'center', gap: 6,  fontWeight: 600 }}
           >
             {saving ? <Loader2 size={14} className="spin" /> : <Save size={14} />}
             {item ? 'Cập nhật' : 'Thêm'}
@@ -326,7 +324,7 @@ export default function ForwarderExpenseTypesConfigPage() {
             header: 'Không HĐ',
             render: (item) => (
               <span style={{
-                fontSize: 12,
+                fontSize: 'var(--text-caption-size)',
                 fontWeight: 600,
                 padding: '2px 8px',
                 borderRadius: 999,
@@ -340,7 +338,7 @@ export default function ForwarderExpenseTypesConfigPage() {
           {
             header: 'Ngưỡng',
             render: (item) => (
-              <div style={{ fontSize: 12, color: 'var(--fg-2)', lineHeight: 1.45 }}>
+              <div style={{ fontSize: 'var(--text-caption-size)', color: 'var(--fg-2)', lineHeight: 1.45 }}>
                 <div>{formatVnd(item.noInvoicePerItemLimit)} / khoản</div>
                 <div>{formatVnd(item.noInvoicePerDayLimit)} / ngày</div>
               </div>
@@ -349,7 +347,7 @@ export default function ForwarderExpenseTypesConfigPage() {
           {
             header: 'Giới hạn',
             render: (item) => (
-              <div style={{ fontSize: 12, color: 'var(--fg-2)', lineHeight: 1.45 }}>
+              <div style={{ fontSize: 'var(--text-caption-size)', color: 'var(--fg-2)', lineHeight: 1.45 }}>
                 <div>{formatVnd(item.noInvoiceFinanceLeadItemApprovalLimit)} / khoản</div>
                 <div>{formatVnd(item.noInvoiceDirectorDayApprovalLimit)} / ngày</div>
               </div>
@@ -363,7 +361,7 @@ export default function ForwarderExpenseTypesConfigPage() {
             header: 'Cộng lãi',
             render: (item) => (
               <span style={{
-                fontSize: 12,
+                fontSize: 'var(--text-caption-size)',
                 fontWeight: 600,
                 padding: '2px 8px',
                 borderRadius: 4,

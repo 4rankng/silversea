@@ -60,8 +60,8 @@ export function SuppliersView() {
       <Breadcrumbs items={[{ label: 'Điều độ' }, { label: 'Nhà thầu' }]} />
       <div className="page-header-block dispatch-catalogs__page-header" style={{ marginBottom: 16 }}>
         <div className="dispatch-catalogs__page-heading">
-          <h1 style={{ fontSize: 22, fontWeight: 700 }}>Nhà thầu</h1>
-          <p style={{ color: 'var(--fg-3)', fontSize: 14, marginTop: 4 }}>
+          <h1 style={{ fontSize: 'var(--text-title-size)', fontWeight: 700 }}>Nhà thầu</h1>
+          <p style={{ color: 'var(--fg-3)', fontSize: 'var(--text-caption-size)', marginTop: 4 }}>
             Tra cứu nhà thầu phụ để phân bổ năng lực vận chuyển ngoài
           </p>
         </div>

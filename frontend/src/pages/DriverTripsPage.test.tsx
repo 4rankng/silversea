@@ -76,6 +76,26 @@ describe('DriverTripsPage', () => {
     navigateMock.mockReset();
   });
 
+  it('POLISH-DRV-02 keeps journey tabs keyboard reachable and labels the visible panel', () => {
+    useDriverJourneyBoardMock.mockReturnValue(board([
+      card({ fulfillmentId: 1, bucket: 'NEW' }),
+      card({ fulfillmentId: 2, bucket: 'RUNNING' }),
+      card({ fulfillmentId: 3, bucket: 'HISTORY' }),
+    ]));
+    renderPage();
+    const first = screen.getByRole('tab', { name: /Lệnh mới/ });
+    const running = screen.getByRole('tab', { name: /Đã nhận/ });
+    first.focus();
+    fireEvent.keyDown(first, { key: 'ArrowRight' });
+    expect(running).toHaveFocus();
+    expect(running).toHaveAttribute('aria-selected', 'true');
+    expect(first).toHaveAttribute('tabindex', '-1');
+    expect(screen.getByRole('tabpanel', { name: 'Đã nhận' })).toBeVisible();
+    fireEvent.keyDown(running, { key: 'End' });
+    expect(screen.getByRole('tab', { name: /Lịch sử/ })).toHaveFocus();
+    expect(screen.getByRole('tabpanel', { name: 'Lịch sử' })).toBeVisible();
+  });
+
   it('renders the card time VN-pinned — a 17:30Z trip reads 00:30 on the NEXT day', async () => {
     useDriverJourneyBoardMock.mockReturnValue(board([card({ scheduledAt: '2026-09-06T17:30:00.000Z' })]));
     renderPage();

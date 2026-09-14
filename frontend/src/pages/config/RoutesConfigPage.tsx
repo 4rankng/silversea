@@ -125,7 +125,7 @@ export default function RoutesConfigPage() {
                   <td data-label="Điểm đóng trả">{r.loadPoint || '—'}</td>
                   <td className="num" data-label="Khoảng cách">{r.distanceKm != null ? `${r.distanceKm}` : '—'}</td>
                   <td className="num" data-label="Vé cầu đường">{r.tollsStations ?? '—'}</td>
-                  <td data-label="Ghi chú" style={{ color: 'var(--fg-2)', fontSize: 13, overflowWrap: 'anywhere' }}>{r.note || '—'}</td>
+                  <td data-label="Ghi chú" style={{ color: 'var(--fg-2)', fontSize: 'var(--text-data-size)', overflowWrap: 'anywhere' }}>{r.note || '—'}</td>
                   <td
                     data-label=""
                     className="record-table__action"
@@ -150,11 +150,11 @@ export default function RoutesConfigPage() {
                           ? { bottom: '100%', marginBottom: 4 }
                           : { top: '100%', marginTop: 4 }),
                       }} onClick={(e) => e.stopPropagation()}>
-                        <button style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', fontSize: 12.5, border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', color: 'var(--ink)' }}
+                        <button style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px',  border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', color: 'var(--ink)' }}
                           onClick={() => { setMenuOpenId(null); crud.setEditingId(r.id); }}>
                           <Pencil size={13} /> Sửa
                         </button>
-                        <button style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', fontSize: 12.5, border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', color: 'var(--danger)' }}
+                        <button style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px',  border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', color: 'var(--danger)' }}
                           disabled={crud.deleting === r.id}
                           onClick={async () => {
                             const ok = await confirm(`Xóa tuyến "${r.name}"?`, { confirmLabel: 'Xóa', variant: 'danger' });

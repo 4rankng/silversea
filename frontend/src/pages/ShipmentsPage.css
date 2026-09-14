@@ -221,7 +221,7 @@
   padding: 10px 0 0;
   border-bottom: 0;
   color: var(--ink-2, #53615a);
-  font-size: 12px;
+  font-size: var(--text-caption-size);
 }
 
 /* The summary is a decision rail, not another card: it gives the dispatcher a
@@ -256,7 +256,7 @@
 .cus-workspace-summary dt {
   min-width: 0;
   color: var(--ink-2);
-  font-size: 12px;
+  font-size: var(--text-label-size);
   font-weight: var(--fw-semibold);
   line-height: 1.35;
 }
@@ -266,7 +266,7 @@
   margin: 0;
   color: var(--ink);
   font-family: var(--font-data);
-  font-size: 20px;
+  font-size: var(--text-title-size);
   font-weight: var(--fw-bold);
   letter-spacing: var(--tracking-tight);
   line-height: 1;
@@ -298,14 +298,14 @@
 .cus-drawer-workflow__heading h3 {
   color: var(--ink);
   font-family: var(--font-display);
-  font-size: 16px;
+  font-size: var(--text-section-size);
   font-weight: var(--fw-semibold);
   line-height: 1.25;
 }
 
 .cus-drawer-workflow__action p {
   color: var(--ink-2, #53615a);
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   line-height: 1.4;
 }
 
@@ -334,7 +334,7 @@
 .cus-drawer-decision__label,
 .cus-drawer-decision--custody [data-label] {
   color: var(--ink-2);
-  font-size: 12px;
+  font-size: var(--text-label-size);
   font-weight: var(--fw-semibold);
   line-height: 1.3;
 }
@@ -342,7 +342,7 @@
 .cus-drawer-decision > strong,
 .cus-drawer-decision__appointments {
   color: var(--ink);
-  font-size: 14px;
+  font-size: var(--text-body-size);
   font-weight: var(--fw-medium);
   line-height: 1.4;
 }
@@ -421,7 +421,7 @@
 
 .cus-drawer-workflow__action > div > strong {
   color: var(--ink);
-  font-size: 14px;
+  font-size: var(--text-body-size);
   font-weight: var(--fw-semibold);
   line-height: 1.35;
 }
@@ -797,7 +797,7 @@
   max-width: 100%;
   padding: 2px 7px;
   border-radius: 999px;
-  font-size: 10px !important;
+  font-size: var(--text-caption-size)!important;
   font-weight: var(--fw-bold);
   line-height: 1.35;
 }
@@ -822,7 +822,7 @@
   background: transparent;
   color: var(--ink-3);
   font: inherit;
-  font-size: 11px;
+  font-size: var(--text-caption-size);
   line-height: 1.35;
   text-align: left;
   cursor: cell;
@@ -851,9 +851,9 @@
 .cus-schedule-missing { color: var(--warn, #a15c00) !important; }
 
 .cus-quick-edit-modal { display: grid; gap: 14px; }
-.cus-quick-edit-modal__context { margin: 0; color: var(--ink-3); font-family: var(--font-data); font-size: 11px; line-height: 1.35; }
+.cus-quick-edit-modal__context { margin: 0; color: var(--ink-3); font-family: var(--font-data); font-size: var(--text-caption-size); line-height: 1.35; }
 .cus-quick-edit-modal__fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-.cus-quick-edit-modal__fields > label { display: grid; gap: 5px; min-width: 0; color: var(--ink-2); font-size: 12px; font-weight: var(--fw-semibold); }
+.cus-quick-edit-modal__fields > label { display: grid; gap: 5px; min-width: 0; color: var(--ink-2); font-size: var(--text-label-size); font-weight: var(--fw-semibold); }
 .cus-quick-edit-modal__field--full { grid-column: 1 / -1; }
 .cus-quick-edit-modal__readonly {
   box-sizing: border-box;
@@ -865,7 +865,7 @@
   border-radius: 7px;
   background: var(--surface-2, #f7f9f8);
   color: var(--ink);
-  font-size: 13px;
+  font-size: var(--text-data-size);
   line-height: 1.45;
   word-break: break-word;
   white-space: normal;
@@ -884,7 +884,7 @@
   background: var(--surface);
   color: var(--ink);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--control-field-font-size);
   line-height: 1.35;
 }
 .cus-quick-edit-modal__fields textarea { min-height: 84px; resize: vertical; }
@@ -893,7 +893,7 @@
 .cus-quick-edit-modal__fields textarea:focus-visible { border-color: var(--brand); outline: 2px solid var(--brand-subtle); outline-offset: 1px; }
 .cus-quick-edit-modal__help,
 .cus-quick-edit-modal__fields > .cus-inline-edit-error { grid-column: 1 / -1; margin: 0; }
-.cus-quick-edit-modal__help { color: var(--ink-3); font-size: 11px; line-height: 1.4; }
+.cus-quick-edit-modal__help { color: var(--ink-3); font-size: var(--text-caption-size); line-height: 1.4; }
 
 /* Classification is the modal's only shared-adapter control. The vendored UUI
    trigger keeps its own Tailwind skin (`rounded-lg`, `border-primary`,
@@ -905,7 +905,7 @@
 .cus-quick-edit-modal__fields .ds-uui-select__control { gap: 5px; }
 .cus-quick-edit-modal__fields .ds-uui-select label {
   color: var(--ink-2);
-  font-size: 12px;
+  font-size: var(--text-label-size);
   font-weight: var(--fw-semibold);
 }
 .cus-quick-edit-modal__fields .ds-uui-select button {
@@ -914,11 +914,11 @@
   border-radius: 7px;
   background: var(--surface);
   color: var(--ink);
-  font-size: 13px;
+  font-size: var(--control-field-font-size);
 }
 .cus-quick-edit-modal__fields .ds-uui-select button p {
   color: var(--ink);
-  font-size: 13px;
+  font-size: var(--control-field-font-size);
   font-weight: var(--fw-regular);
 }
 .cus-quick-edit-modal__fields .ds-uui-select button:focus-visible {
@@ -963,19 +963,19 @@
   color: var(--ink-3);
   font-weight: var(--fw-regular);
 }
-.cus-inline-edit-error { grid-column: 1 / -1; color: var(--danger); font-size: 11px; font-weight: var(--fw-semibold); line-height: 1.35; }
+.cus-inline-edit-error { grid-column: 1 / -1; color: var(--danger); font-size: var(--text-caption-size); font-weight: var(--fw-semibold); line-height: 1.35; }
 
 .cus-row-actions { display: grid; gap: 7px; min-width: 0; justify-items: stretch; }
 .cus-row-actions__summary { display: grid; gap: 6px; min-width: 0; justify-items: start; }
 .cus-row-actions .cus-workflow-badge { max-width: 100%; }
 .cus-row-actions__edit { display: flex; flex-wrap: wrap; gap: 5px; }
-.cus-attention-label { display: inline-flex; align-items: center; gap: 4px; color: var(--warn, #a15c00); font-size: 11px; font-weight: var(--fw-semibold); }
+.cus-attention-label { display: inline-flex; align-items: center; gap: 4px; color: var(--warn, #a15c00); font-size: var(--text-label-size); font-weight: var(--fw-semibold); }
 .cus-attention-label--danger { color: var(--danger); }
 .cus-attention-label--info { color: var(--info, #2563eb); }
 .cus-dashboard-detail {
   min-height: 34px;
   color: var(--accent-ink) !important;
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   font-weight: var(--fw-semibold);
   white-space: nowrap;
 }
@@ -1019,7 +1019,7 @@
     min-width: 0;
     color: var(--ink-3);
     content: attr(data-label);
-    font-size: 11px;
+    font-size: var(--text-label-size);
     font-weight: var(--fw-bold);
     line-height: 1.35;
     text-transform: uppercase;
@@ -1043,7 +1043,7 @@
     min-width: 0;
     color: var(--ink-3);
     content: attr(data-cell-label);
-    font-size: 11px;
+    font-size: var(--text-label-size);
     font-weight: var(--fw-bold);
     line-height: 1.35;
     text-transform: uppercase;
@@ -1282,14 +1282,14 @@
 
 .cus-finance-evidence small {
   color: var(--ink-3);
-  font-size: 10px;
+  font-size: var(--text-caption-size);
   font-weight: var(--fw-semibold);
   line-height: 1.3;
 }
 
 .cus-finance-evidence strong {
   color: currentColor;
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   font-weight: var(--fw-semibold);
   line-height: 1.35;
   overflow-wrap: anywhere;
@@ -1319,7 +1319,7 @@
      border-color would otherwise override their border-color by order. */
   border: 1px solid transparent;
   border-radius: 999px;
-  font-size: 11px;
+  font-size: var(--text-caption-size);
   font-weight: var(--fw-semibold);
 }
 
@@ -1362,7 +1362,7 @@
 .cus-dashboard-delete {
   min-height: 34px;
   padding-inline: 8px;
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   font-weight: var(--fw-semibold);
   white-space: nowrap;
   flex-shrink: 0;
@@ -1393,7 +1393,7 @@
   width: max-content;
   padding: 3px 7px;
   border-radius: 999px;
-  font-size: 11px;
+  font-size: var(--text-caption-size);
   font-style: normal;
   font-weight: var(--fw-semibold);
   line-height: 1.3;
@@ -1450,13 +1450,13 @@
 
 .cus-shipment-drawer .drawer__title {
   margin-bottom: 2px;
-  font-size: 20px;
+  font-size: var(--text-dialog-title-size);
   line-height: 1.2;
 }
 
 .cus-shipment-drawer .drawer__subtitle {
   font-family: var(--font-data);
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   line-height: 1.35;
 }
 
@@ -1503,7 +1503,7 @@
 .cus-container-ledger__head strong {
   color: var(--ink);
   font-family: var(--font-display);
-  font-size: 15px;
+  font-size: var(--text-body-size);
 }
 
 .cus-container-ledger__head span {
@@ -1557,7 +1557,7 @@
   padding: 8px 6px;
   background: var(--surface-2);
   color: var(--ink-2);
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   font-weight: 700;
   letter-spacing: 0.04em;
   line-height: 1.3;
@@ -1570,7 +1570,7 @@
   padding: 8px 6px;
   background: var(--surface);
   color: var(--ink);
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   font-weight: var(--fw-medium);
   line-height: 1.35;
   vertical-align: middle;
@@ -1615,7 +1615,7 @@
 
 .cus-container-row__ordinal {
   color: var(--ink-3);
-  font-size: 11px;
+  font-size: var(--text-caption-size);
   line-height: 1;
   text-align: right;
   min-width: 14px;
@@ -1630,7 +1630,7 @@
   border-radius: 999px;
   color: var(--ink-2);
   background: var(--surface-2);
-  font-size: 11px;
+  font-size: var(--text-caption-size);
   font-weight: var(--fw-semibold);
   line-height: 1.3;
   overflow-wrap: anywhere;
@@ -1655,7 +1655,7 @@
   min-height: 28px;
   padding-inline: 6px;
   border-radius: var(--app-radius-sm);
-  font-size: 11px;
+  font-size: var(--text-caption-size);
   line-height: 1.35;
 }
 
@@ -1723,7 +1723,7 @@
   background: transparent;
   color: var(--accent-2);
   font: inherit;
-  font-size: 10px;
+  font-size: var(--text-caption-size);
   font-weight: var(--fw-semibold);
   text-align: left;
   cursor: pointer;
@@ -1733,7 +1733,7 @@
   display: block;
   margin-top: 4px;
   color: var(--danger-text);
-  font-size: 10px;
+  font-size: var(--text-caption-size);
   line-height: 1.3;
 }
 
@@ -1842,7 +1842,7 @@
     margin-bottom: 4px;
     color: var(--ink-3);
     content: attr(data-label);
-    font-size: 10px;
+    font-size: var(--text-label-size);
     font-weight: var(--fw-semibold);
     line-height: 1.3;
     text-transform: uppercase;
@@ -1912,7 +1912,7 @@
   }
 
   .cus-shipment-drawer .drawer__title {
-    font-size: 18px;
+    font-size: var(--text-dialog-title-size);
     line-height: 1.2;
   }
 
@@ -1967,7 +1967,7 @@
   .cus-container-table .cus-container-cell input,
   .cus-container-table .cus-container-cell .searchable-select__trigger {
     min-height: 44px;
-    font-size: 16px;
+    font-size: var(--control-field-font-size);
   }
 
   .cus-container-edit-action {
@@ -2019,7 +2019,7 @@
   background: var(--surface, #ffffff);
   color: var(--ink-1, #0f172a);
   font-family: inherit;
-  font-size: 11px;
+  font-size: var(--text-caption-size);
   line-height: 1.3;
   text-align: left;
   cursor: pointer;
@@ -2110,7 +2110,7 @@
   align-items: center;
   gap: 5px;
   color: var(--ink-1, #0f172a);
-  font-size: 12px;
+  font-size: var(--text-section-size);
   font-weight: 600;
 }
 
@@ -2119,7 +2119,7 @@
 }
 
 .cus-appointment-popover__badge {
-  font-size: 11px;
+  font-size: var(--text-caption-size);
   font-weight: 500;
   color: var(--ink-3, #64748b);
   background: var(--surface-2, #f1f5f9);
@@ -2148,7 +2148,7 @@
 .cus-appointment-popover__section-label {
   margin-bottom: 4px;
   color: var(--ink-3, #64748b);
-  font-size: 10px;
+  font-size: var(--text-label-size);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.03em;
@@ -2168,7 +2168,7 @@
   background: var(--surface-2, #f8fafc);
   color: var(--ink-2, #334155);
   font-family: inherit;
-  font-size: 11px;
+  font-size: var(--text-control-compact-size);
   font-weight: 500;
   text-align: center;
   cursor: pointer;
@@ -2205,7 +2205,7 @@
 
 .cus-appointment-input-wrap label {
   color: var(--ink-3, #64748b);
-  font-size: 10px;
+  font-size: var(--text-label-size);
   font-weight: 600;
   text-transform: uppercase;
 }
@@ -2219,7 +2219,7 @@
   background: var(--surface, #ffffff);
   color: var(--ink-1, #0f172a);
   font-family: inherit;
-  font-size: 11px;
+  font-size: var(--control-field-font-size);
   box-sizing: border-box;
 }
 
@@ -2282,7 +2282,7 @@
   background: transparent;
   color: var(--ink-2, #475569);
   font-family: inherit;
-  font-size: 11px;
+  font-size: var(--text-control-compact-size);
   text-align: center;
   cursor: pointer;
   transition: all 100ms;
@@ -2315,7 +2315,7 @@
   background: transparent;
   color: var(--danger, #dc2626);
   font-family: inherit;
-  font-size: 11px;
+  font-size: var(--text-control-compact-size);
   cursor: pointer;
   text-decoration: underline;
   text-underline-offset: 2px;
@@ -2326,7 +2326,7 @@
 }
 
 .cus-appointment-popover__hint {
-  font-size: 10px;
+  font-size: var(--text-caption-size);
   color: var(--ink-3, #94a3b8);
 }
 
@@ -2344,7 +2344,7 @@
 }
 
 .cus-drawer-footer__status {
-  font-size: 13px;
+  font-size: var(--text-data-size);
   color: var(--ink-2, #475569);
 }
 
@@ -2366,7 +2366,7 @@
 .cus-drawer-footer__actions .btn {
   min-height: 34px;
   padding: 4px 16px;
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   font-weight: 600;
   border-radius: var(--app-radius-sm, 6px);
 }
@@ -2383,7 +2383,7 @@
 }
 
 .cus-container-ledger__sticky-note {
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   color: var(--brand-700, #005a2d);
   font-weight: 500;
 }
@@ -2400,7 +2400,7 @@
 .cus-container-confirm-group--floating .btn {
   min-height: 26px;
   padding: 2px 10px;
-  font-size: 11px;
+  font-size: var(--text-caption-size);
   white-space: nowrap;
 }
 .cus-container-confirm--floating {
@@ -2426,7 +2426,7 @@
   background: var(--danger-soft, #fef2f2);
   border: 1px solid var(--danger-line, #fecaca);
   color: var(--danger-text, #991b1b);
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   line-height: 1.4;
   position: sticky;
   left: 0;
@@ -2489,4 +2489,20 @@
   .cus-worksheet-advanced[data-open] {
     display: flex;
   }
+}
+/* Anchored editors must remain reachable with the keyboard open or in landscape. */
+.cus-appointment-popover {
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.cus-appointment-popover__error {
+  margin: 8px 0;
+  color: var(--danger-text);
+  font-size: var(--text-caption-size);
+  line-height: 1.4;
+}
+.cus-appointment-popover__footer { gap: 8px; flex-wrap: wrap; }
+@media (prefers-reduced-motion: reduce) {
+  .cus-appointment-popover { animation: none; }
 }

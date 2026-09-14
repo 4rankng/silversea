@@ -23,14 +23,14 @@
   flex-direction: column;
 }
 .fuel-alloc-card__label {
-  font-size: var(--fs-2xs);
+  font-size: var(--text-label-size);
   font-weight: 600;
   color: var(--brand);
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
 .fuel-alloc-card__value {
-  font-size: 26px;
+  font-size: var(--text-metric-size);
   font-weight: 800;
   color: var(--brand);
   font-family: var(--font-data);
@@ -38,7 +38,7 @@
 }
 .fuel-alloc-card__body {
   padding: 12px 20px;
-  font-size: var(--fs-xs);
+  font-size: var(--text-body-size);
   color: var(--fg-3);
   display: flex;
   flex-direction: column;
@@ -48,6 +48,6 @@
 @media (max-width: 640px) {
   .fuel-alloc-card { padding: 0 !important; }
   .fuel-alloc-card__header { padding: 10px 14px; gap: 10px; }
-  .fuel-alloc-card__value { font-size: var(--fs-2xl); }
+  .fuel-alloc-card__value { font-size: var(--text-metric-size); }
   .fuel-alloc-card__body { padding: 10px 14px; gap: 4px; }
 }

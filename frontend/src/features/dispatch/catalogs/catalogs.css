@@ -59,7 +59,7 @@
 
 .dispatch-catalogs__count {
   margin-left: auto;
-  font-size: 13px;
+  font-size: var(--text-data-size);
   color: var(--fg-3);
 }
 
@@ -73,7 +73,7 @@
      border-bottom rendering with the pinned cells. */
   border-collapse: separate;
   border-spacing: 0;
-  font-size: 14px;
+  font-size: var(--text-body-size);
 }
 
 .dispatch-catalogs__table th {
@@ -124,7 +124,7 @@
   border-radius: 10px;
   background: var(--danger-bg, rgba(220, 38, 38, 0.08));
   color: var(--danger, #dc2626);
-  font-size: 13px;
+  font-size: var(--text-caption-size);
 }
 
 /* Suppliers catalog pages via the design-system Pagination component; pin

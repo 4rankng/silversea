@@ -12,7 +12,7 @@ function DetailRow({ label, value }: { label: string; value: string | null }) {
   if (!value) return null;
   return (
     <div style={{ display: 'grid', gap: 4 }}>
-      <span style={{ color: 'var(--fg-3)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase' }}>
+      <span style={{ color: 'var(--fg-3)', fontSize: 'var(--text-caption-size)', fontWeight: 700, textTransform: 'uppercase' }}>
         {label}
       </span>
       <span style={{ color: 'var(--fg-1)', lineHeight: 1.55, overflowWrap: 'anywhere' }}>{value}</span>

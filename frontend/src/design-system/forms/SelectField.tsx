@@ -38,20 +38,24 @@ export function SelectField({
   value,
   onChange,
   disabled,
+  className,
+  'aria-describedby': ariaDescribedBy,
+  'aria-invalid': ariaInvalid,
 }: SelectFieldProps) {
-  const options: Array<{ value: string; label: string }> = [];
+  const options: Array<{ value: string; label: string; disabled?: boolean }> = [];
   React.Children.forEach(children, (child) => {
     if (React.isValidElement(child) && child.type === 'option') {
-      const { value: optionValue, children: optionChildren } = child.props as {
+      const { value: optionValue, children: optionChildren, disabled: optionDisabled } = child.props as {
         value?: string | number;
         children?: ReactNode;
+        disabled?: boolean;
       };
       const optionLabel = childrenToText(optionChildren);
       const optionText = String(optionValue ?? '');
       // A first option with empty value is the historic "— Chọn —" placeholder
       // entry; keep it as a real selectable empty option (UUI has no separate
       // placeholder slot when selectedKey maps over the option set).
-      options.push({ value: optionText, label: optionLabel });
+      options.push({ value: optionText, label: optionLabel, disabled: optionDisabled });
     }
   });
 
@@ -71,6 +75,9 @@ export function SelectField({
       error={error}
       hint={helpText}
       placeholder={placeholder}
+      wrapperClassName={className}
+      ariaDescribedBy={ariaDescribedBy}
+      invalid={ariaInvalid}
     />
   );
 }

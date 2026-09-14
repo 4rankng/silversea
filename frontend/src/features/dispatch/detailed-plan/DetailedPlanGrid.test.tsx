@@ -490,8 +490,8 @@ describe('DetailedPlanGrid', () => {
     const multiTrigger = css.match(/\.detailed-plan-filters__multi-trigger \{([\s\S]*?)\n\}/)?.[1] ?? '';
 
     expect(css).not.toContain('.detailed-plan-filters__select button p');
-    expect(multiTrigger).toContain('font-size: var(--fs-xs, 12px)');
-    expect(css).toContain('detailed-plan-filter-drawer .detailed-plan-filters__multi-trigger { font-size: 14px; }');
+    expect(multiTrigger).toContain('font-size: var(--text-control-compact-size)');
+    expect(css).toContain('detailed-plan-filter-drawer .detailed-plan-filters__multi-trigger { font-size: var(--text-control-compact-size); }');
   });
 
   it('keeps filter actions beside search without creating another toolbar band', () => {

@@ -14,8 +14,8 @@ const SelectTrigger = React.forwardRef<
   <SelectPrimitive.Trigger
     ref={ref}
     className={cn(
-      "flex h-9 w-full items-center justify-between gap-2 rounded-lg border px-3",
-      "text-sm tracking-normal leading-snug",
+      "flex min-h-9 [@media(pointer:coarse)]:min-h-11 w-full min-w-0 items-center justify-between gap-2 rounded-lg border px-3 py-1.5",
+      "text-[length:var(--text-control-size)] max-md:text-[length:var(--text-input-touch-size)] [@media(pointer:coarse)]:text-[length:var(--text-input-touch-size)] tracking-normal leading-[1.35]",
       "border-[var(--line)] bg-[var(--surface)] text-[var(--ink)]",
       "ring-offset-[var(--bg)]",
       "hover:border-[var(--line-2)]",
@@ -38,20 +38,21 @@ SelectTrigger.displayName = SelectPrimitive.Trigger.displayName
 const SelectContent = React.forwardRef<
   React.ComponentRef<typeof SelectPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
->(({ className, children, position = "popper", collisionPadding = 80, ...props }, ref) => (
+>(({ className, children, position = "popper", collisionPadding = 8, ...props }, ref) => (
   <SelectPrimitive.Portal>
     <SelectPrimitive.Content
       ref={ref}
       collisionPadding={collisionPadding}
       className={cn(
-        // z-[400] = var(--z-popover): above sticky/bottom-nav (100) and below modals (300+)
-        "relative z-[400] max-h-72 min-w-[8rem] overflow-hidden",
+        // Popovers opened from a modal stay above its surface.
+        "relative z-[var(--z-popover)] max-h-[min(18rem,var(--radix-select-content-available-height,18rem))] max-w-[calc(100vw-16px)] min-w-[8rem] overflow-hidden",
         "rounded-xl border border-[var(--line)] bg-[var(--surface)] text-[var(--ink)]",
         // Refined shadow — deeper than --sh-sm but softer than --sh-lg
         "shadow-[0_8px_24px_-4px_rgba(10,10,10,0.12),0_2px_6px_-1px_rgba(10,10,10,0.06)]",
         "data-[state=open]:animate-in data-[state=closed]:animate-out",
         "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
         "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
+        "motion-reduce:animate-none",
         position === "popper" && "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
         className
       )}
@@ -76,8 +77,8 @@ const SelectItem = React.forwardRef<
     ref={ref}
     className={cn(
       "relative flex w-full cursor-default select-none items-center rounded-md",
-      "min-h-9 py-2 pl-8 pr-3",
-      "text-sm leading-snug tracking-normal text-[var(--ink-2)]",
+      "min-h-9 [@media(pointer:coarse)]:min-h-11 py-2 pl-8 pr-3 break-words",
+      "text-[length:var(--text-control-size)] max-md:text-[length:var(--text-input-touch-size)] [@media(pointer:coarse)]:text-[length:var(--text-input-touch-size)] leading-[1.35] tracking-normal text-[var(--ink-2)]",
       "outline-none transition-colors duration-100",
       "focus:bg-[var(--surface-2)] focus:text-[var(--ink)]",
       "data-[state=checked]:text-[var(--ink)] data-[state=checked]:font-medium",

@@ -13,8 +13,8 @@
   background: var(--accent-2);
   color: var(--fg-on-brand);
   border-radius: var(--r-sm);
-  font-size: var(--fs-sm);
-  font-weight: 600;
+  font-size: var(--text-control-size);
+  font-weight: var(--fw-semibold);
   text-decoration: none;
   display: inline-flex;
   align-items: center;
@@ -26,7 +26,7 @@
 
 .app {
   display: grid;
-  grid-template-columns: var(--sidebar-w) 1fr;
+  grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
   grid-template-rows: 100vh;
   grid-template-rows: 100dvh;
   height: 100vh;
@@ -37,7 +37,7 @@
 /* Desktop sidebar toggle (1024px and above) */
 @media (min-width: 1024px) {
   .app.sidebar-closed {
-    grid-template-columns: 48px 1fr;
+    grid-template-columns: 48px minmax(0, 1fr);
   }
 
   .app.sidebar-closed .sidebar {
@@ -156,7 +156,7 @@
   overflow-x: hidden;
   padding: var(--app-body-pad-t, 24px) var(--app-body-pad-x) 32px;
   padding-inline: max(var(--app-body-pad-x), env(safe-area-inset-left, 0px)) max(var(--app-body-pad-x), env(safe-area-inset-right, 0px));
-  scrollbar-gutter: stable both-edges;
+  scrollbar-gutter: stable;
   scroll-behavior: smooth;
 }
 
@@ -173,4 +173,19 @@
     padding: var(--app-body-pad-t, 24px) var(--app-body-pad-x) 32px;
     padding-inline: max(var(--app-body-pad-x), env(safe-area-inset-left, 0px)) max(var(--app-body-pad-x), env(safe-area-inset-right, 0px));
   }
+}
+
+/* Overlay scrollbars on touch screens must not reserve unused edge space. */
+@media (pointer: coarse) {
+  .app-body,
+  .content { scrollbar-gutter: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-body,
+  .content { scroll-behavior: auto; }
+
+  .skip-link,
+  .app .sidebar,
+  .app .topbar { transition: none; }
 }

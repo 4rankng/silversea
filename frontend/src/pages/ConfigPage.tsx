@@ -164,7 +164,7 @@ export default function ConfigPage() {
       />
 
       {searchQuery.trim() && (
-        <div style={{ marginBottom: 16, fontSize: 13, color: 'var(--fg-3)', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ marginBottom: 16, fontSize: 'var(--text-caption-size)', color: 'var(--fg-3)', display: 'flex', alignItems: 'center', gap: 6 }}>
           <Search size={14} />
           Tìm thấy <strong>{filteredCards.length}</strong> kết quả phù hợp cho từ khóa "{searchQuery}"
         </div>
@@ -173,8 +173,8 @@ export default function ConfigPage() {
       {filteredCards.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '64px 32px', border: '1px dashed var(--line)', borderRadius: 12, background: 'var(--bg-2)', color: 'var(--fg-3)' }}>
           <Search size={32} style={{ margin: '0 auto 12px', display: 'block', opacity: 0.5 }} />
-          <h3 style={{ fontSize: 15, fontWeight: 600, color: 'var(--fg-2)', marginBottom: 4 }}>Không tìm thấy cấu hình</h3>
-          <p style={{ fontSize: 13 }}>Hãy thử tìm kiếm với từ khóa khác.</p>
+          <h3 style={{ fontSize: 'var(--text-section-size)', fontWeight: 600, color: 'var(--fg-2)', marginBottom: 4 }}>Không tìm thấy cấu hình</h3>
+          <p style={{ fontSize: 'var(--text-data-size)' }}>Hãy thử tìm kiếm với từ khóa khác.</p>
         </div>
       ) : (
         <div className="settings-grid asset-route-grid" data-tour-id="config-grid">

@@ -24,7 +24,7 @@ export function OfflineBanner() {
         padding: '8px 16px',
         background: 'var(--danger, #dc2626)',
         color: '#fff',
-        fontSize: 14,
+        fontSize: 'var(--text-body-size)',
         fontWeight: 600,
         textAlign: 'center',
         paddingTop: 'calc(8px + env(safe-area-inset-top, 0px))',

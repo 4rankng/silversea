@@ -8,8 +8,8 @@
 
 .app--operational-density {
   --ops-form-column-gap: 12px;
-  --ops-form-row-gap: 24px;
-  --ops-form-section-gap: 32px;
+  --ops-form-row-gap: 16px;
+  --ops-form-section-gap: 24px;
   --ops-dialog-padding: 20px;
 }
 
@@ -61,15 +61,21 @@
   min-height: calc(var(--control-compact-h) - 2px);
 }
 
-/* Coarse pointers (phones, tablets) keep the 44px touch floor on the select
-   trigger: the compact 30px contract above is a pointer-density decision,
-   and page-level min-heights cannot out-specify this rule (QA final-gate
-   blocker 2026-09-09: /payables fuel-invoice triggers computed 36px at
-   744px coarse pointer). Desktop pointer density untouched. */
+/* Coarse-pointer tablets keep a 44px boundary; the phone rule below uses
+   the compact 32px field contract. The inner value fits within that boundary
+   rather than adding a second height floor. */
 @media (pointer: coarse) {
   .ds-uui-select--operational .ds-uui-select__control > button,
   .ds-uui-select--operational .ds-uui-select__control > [role='group'] {
     min-height: var(--control-touch-h);
+    font-size: var(--text-input-touch-size);
+    line-height: var(--control-compact-touch-line-height);
+  }
+
+  .ds-uui-select--operational .ds-uui-select__control > button > span,
+  .ds-uui-select--operational .ds-uui-select__control > [role='group'] [data-combobox-value] {
+    min-height: calc(var(--control-touch-h) - 2px);
+    padding-block: 4px;
   }
 }
 
@@ -99,7 +105,7 @@
 }
 
 .modal--operational-density .modal__title {
-  font-size: var(--fs-md);
+  font-size: var(--text-dialog-title-size);
   line-height: var(--lh-snug);
 }
 
@@ -112,13 +118,7 @@
   padding: 12px var(--ops-dialog-padding, 20px);
 }
 
-.drawer--operational-density .drawer__head,
-.drawer--operational-density .drawer__foot {
-  padding-inline: 20px;
-}
-
 .drawer--operational-density .drawer__body {
-  padding: 20px;
   scrollbar-gutter: stable;
 }
 
@@ -144,6 +144,21 @@
 }
 
 @media (max-width: 640px) {
+  .modal.modal--operational-density {
+    padding: max(8px, env(safe-area-inset-top, 0px)) max(8px, env(safe-area-inset-right, 0px)) max(8px, env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px));
+  }
+
+  /* The desktop viewport cap must not leave 24px margins on phone sheets. */
+  .modal--operational-density .modal__content {
+    max-width: calc(100vw - 16px);
+    max-height: calc(100dvh - max(8px, env(safe-area-inset-top, 0px)) - max(8px, env(safe-area-inset-bottom, 0px)));
+    border-radius: 12px;
+  }
+
+  .modal--operational-density .modal__body { padding: 12px; }
+  .modal--operational-density .modal__foot { padding: 8px 12px; }
+  .modal--operational-density.modal--polished .modal__head { padding-right: 64px; }
+
   .app--operational-density .ops-form-grid,
   .modal--operational-density .commission-form {
     grid-template-columns: 1fr;
@@ -157,16 +172,13 @@
 
   .modal--operational-density .modal__head,
   .modal--operational-density .modal__body,
-  .modal--operational-density .modal__foot,
-  .drawer--operational-density .drawer__head,
-  .drawer--operational-density .drawer__foot,
-  .drawer--operational-density .drawer__body {
-    padding-inline: 16px;
+  .modal--operational-density .modal__foot {
+    padding-inline: 12px;
   }
 
   .ds-uui-select--operational .ds-uui-select__control > button,
   .ds-uui-select--operational .ds-uui-select__control > [role='group'] {
-    min-height: var(--control-touch-h);
+    min-height: var(--control-mobile-h);
     font-size: var(--control-mobile-font-size);
     line-height: var(--control-mobile-line-height);
   }
@@ -174,11 +186,22 @@
   .ds-uui-select--operational .ds-uui-select__control > button > span,
   .ds-uui-select--operational .ds-uui-select__control > [role='group'] [data-combobox-value] {
     min-height: calc(var(--control-mobile-h) - 2px);
+    padding-block: 4px;
   }
 
   .ds-uui-select--operational .ds-uui-select__control > button > span p,
   .ds-uui-select--operational .ds-uui-select__control > [role='group'] span p {
     font-size: var(--control-mobile-font-size);
     line-height: var(--control-mobile-line-height);
+  }
+}
+
+/* Selected text has its own utility class, so it must share the touch field
+   size as well as the trigger. Options use the shared select menu contract. */
+@media (pointer: coarse) {
+  .ds-uui-select--operational .ds-uui-select__control > button > span p,
+  .ds-uui-select--operational .ds-uui-select__control > [role='group'] span p {
+    font-size: var(--text-input-touch-size);
+    line-height: var(--control-compact-touch-line-height);
   }
 }

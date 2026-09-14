@@ -11,7 +11,7 @@
   padding: 5px 12px;
   border-radius: 8px;
   font-family: var(--font-body);
-  font-size: var(--fs-sm);
+  font-size: var(--text-control-size);
   font-weight: 600;
   line-height: 1.4;
   border: 1px solid transparent;
@@ -69,8 +69,8 @@
   background: var(--danger-text);
   border-color: var(--danger-text);
 }
-.btn--sm { min-height: var(--control-compact-h); padding: 4px 8px; font-size: var(--fs-xs); line-height: 1.35; }
-.btn--lg { padding: 8px 16px; font-size: 15px; border-radius: 10px; min-height: 40px; }
+.btn--sm { min-height: var(--control-compact-h); padding: 4px 8px; font-size: var(--text-control-compact-size); line-height: 1.35; }
+.btn--lg { padding: 8px 16px; font-size: var(--text-control-size); border-radius: 10px; min-height: 40px; }
 .btn--icon { width: var(--control-default-h); min-width: var(--control-default-h); height: var(--control-default-h); min-height: var(--control-default-h); padding: 0; border-radius: 8px; }
 .btn--icon.btn--sm { width: var(--control-compact-h); min-width: var(--control-compact-h); height: var(--control-compact-h); min-height: var(--control-compact-h); padding: 0; }
 
@@ -80,17 +80,16 @@
 .btn[disabled] { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
 
 @media (max-width: 640px) {
-  /* Compact phone contract (ticket 6770b9cb): buttons match the 11px scale
-     instead of the old 44px touch heights; floor stays ≥28px. */
+  /* Labels keep the shared control scale while phone actions wrap naturally. */
   .btn {
-    min-height: var(--control-mobile-h);
+    min-height: var(--control-touch-h);
     padding: 4px 8px;
-    font-size: var(--fs-3xs);
+    font-size: var(--text-control-size);
     white-space: normal;
   }
 
   .btn--sm {
-    min-height: var(--control-mobile-h);
+    min-height: var(--control-touch-h);
     padding: 4px 8px;
   }
 
@@ -98,7 +97,7 @@
     width: var(--control-mobile-h);
     min-width: var(--control-mobile-h);
     height: var(--control-mobile-h);
-    min-height: var(--control-mobile-h);
+    min-height: var(--control-touch-h);
   }
 
   .btn--icon.btn--sm {
@@ -119,6 +118,7 @@
   .btn,
   .btn--sm {
     min-height: var(--control-touch-h);
+    font-size: var(--text-control-size);
   }
 
   .btn--icon,

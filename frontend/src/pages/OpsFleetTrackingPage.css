@@ -15,13 +15,13 @@
 }
 
 .ops-fleet__bar h1 {
-  font-size: 20px;
+  font-size: var(--text-title-size);
   margin: 0;
 }
 
 .ops-fleet__meta {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--text-caption-size);
   color: var(--fg-3, #6b7280);
 }
 
@@ -40,7 +40,7 @@
 .ops-fleet__table th,
 .ops-fleet__table td {
   padding: 10px 12px;
-  font-size: 13px;
+  font-size: var(--text-data-size);
   text-align: left;
   vertical-align: middle;
 }

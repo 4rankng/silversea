@@ -20,6 +20,12 @@ interface CrudColumn<T> {
   render: (item: T, index: number, isActive: boolean, allItems: T[]) => React.ReactNode;
 }
 
+function isInteractiveChild(target: EventTarget | null, row: HTMLTableRowElement) {
+  if (!(target instanceof Element)) return false;
+  const control = target.closest('a, button, input, select, textarea, [role="button"], [role="link"], [contenteditable="true"]');
+  return control !== null && control !== row;
+}
+
 interface CrudTableProps<T extends { id: number; updatedAt?: string }> {
   title: string;
   description: string;
@@ -155,8 +161,11 @@ export function CrudTable<T extends { id: number; updatedAt?: string }>({
                   <tr
                     key={item.id}
                     style={{ cursor: 'pointer', ...rowStyle?.(item, isActive) }}
-                    onClick={() => crud.setEditingId(item.id)}
+                    onClick={(event) => {
+                      if (!isInteractiveChild(event.target, event.currentTarget)) crud.setEditingId(item.id);
+                    }}
                     onKeyDown={(event) => {
+                      if (isInteractiveChild(event.target, event.currentTarget)) return;
                       if (event.key === 'Enter' || event.key === ' ') {
                         event.preventDefault();
                         crud.setEditingId(item.id);

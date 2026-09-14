@@ -71,8 +71,8 @@ export function FleetDriversView() {
       <Breadcrumbs items={[{ label: 'Điều độ' }, { label: 'Danh mục Tài xế' }]} />
       <div className="page-header-block dispatch-catalogs__page-header" style={{ marginBottom: 16 }}>
         <div className="dispatch-catalogs__page-heading">
-          <h1 style={{ fontSize: 22, fontWeight: 700 }}>Danh mục Tài xế</h1>
-          <p style={{ color: 'var(--fg-3)', fontSize: 14, marginTop: 4 }}>
+          <h1 style={{ fontSize: 'var(--text-title-size)', fontWeight: 700 }}>Danh mục Tài xế</h1>
+          <p style={{ color: 'var(--fg-3)', fontSize: 'var(--text-caption-size)', marginTop: 4 }}>
             Tra cứu tài xế nội bộ để gán chuyến trong kế hoạch điều độ
           </p>
         </div>

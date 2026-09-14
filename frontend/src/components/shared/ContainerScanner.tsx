@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Image as ImageIcon, Zap, CameraOff } from 'lucide-react';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { registerOverlay, unregisterOverlay } from '../../lib/overlayState';
 
 /**
  * ContainerScanner — fullscreen camera + gallery overlay for container/seal photos.
@@ -72,6 +74,24 @@ export function dataUrlToFile(dataUrl: string, filename = 'capture.jpg'): File {
 export function ContainerScanner({ onCapture, onClose }: ContainerScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const trackRef = useRef<MediaStreamTrack | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const galleryRef = useRef<HTMLInputElement>(null);
+  useLayoutEffect(() => {
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    return () => { if (opener?.isConnected) opener.focus({ preventScroll: true }); };
+  }, []);
+  useFocusTrap(dialogRef, true);
+  useEffect(() => {
+    registerOverlay();
+    const dismiss = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      event.stopPropagation();
+      onClose();
+    };
+    window.addEventListener('keydown', dismiss, true);
+    return () => { window.removeEventListener('keydown', dismiss, true); unregisterOverlay(); };
+  }, [onClose]);
 
   const [status, setStatus] = useState<CameraStatus>('loading');
   const [flashSupported, setFlashSupported] = useState(false);
@@ -82,6 +102,7 @@ export function ContainerScanner({ onCapture, onClose }: ContainerScannerProps) 
   // Acquire the rear camera on mount; release it on unmount.
   useEffect(() => {
     let stream: MediaStream | null = null;
+    let cancelled = false;
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
 
@@ -95,6 +116,10 @@ export function ContainerScanner({ onCapture, onClose }: ContainerScannerProps) 
           video: { facingMode: { ideal: 'environment' } },
           audio: false,
         });
+        if (cancelled) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
         const track = stream.getVideoTracks()[0] ?? null;
         trackRef.current = track;
         // Torch is a non-standard capability (mostly Android Chrome); hide the
@@ -107,12 +132,13 @@ export function ContainerScanner({ onCapture, onClose }: ContainerScannerProps) 
         }
         setStatus('ready');
       } catch {
-        setStatus('error');
+        if (!cancelled) setStatus('error');
       }
     };
     void start();
 
     return () => {
+      cancelled = true;
       document.body.style.overflow = prevOverflow;
       stream?.getTracks().forEach(t => t.stop());
       trackRef.current = null;
@@ -168,13 +194,13 @@ export function ContainerScanner({ onCapture, onClose }: ContainerScannerProps) 
     setDecodeFailed(false);
     const reader = new FileReader();
     reader.onload = () => { void finishWith(reader.result as string, false); };
-    reader.onerror = () => { /* ignore — user can retry */ };
+    reader.onerror = () => { setDecodeFailed(true); };
     reader.readAsDataURL(file);
     e.target.value = '';
   }, [finishWith]);
 
   return createPortal(
-    <div style={{
+    <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Chụp ảnh container hoặc seal" style={{
       position: 'fixed', inset: 0, zIndex: 9999,
       background: '#000', display: 'flex', flexDirection: 'column',
     }}>
@@ -192,17 +218,17 @@ export function ContainerScanner({ onCapture, onClose }: ContainerScannerProps) 
 
       {/* Camera error / loading state — gallery still works */}
       {status !== 'ready' && (
-        <div style={{
+        <div role="status" style={{
           position: 'absolute', inset: 0, display: 'flex',
           flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
           gap: 10, padding: 24, textAlign: 'center', color: '#fff',
         }}>
           {status === 'loading' ? (
-            <span style={{ fontSize: 14, opacity: 0.8 }}>Đang mở camera…</span>
+            <span style={{ fontSize: 'var(--text-body-size)', opacity: 0.8 }}>Đang mở camera…</span>
           ) : (
             <>
               <CameraOff size={32} style={{ opacity: 0.6 }} />
-              <span style={{ fontSize: 13, opacity: 0.85, lineHeight: 1.5, maxWidth: 280 }}>
+              <span style={{ fontSize: 'var(--text-body-size)', opacity: 0.85, lineHeight: 1.5, maxWidth: 280 }}>
                 Không truy cập được camera. Hãy cấp quyền hoặc dùng nút chọn ảnh từ thư viện bên dưới.
               </span>
             </>
@@ -213,12 +239,12 @@ export function ContainerScanner({ onCapture, onClose }: ContainerScannerProps) 
       {/* Gallery decode failure — the file cannot be shown as a photo, so it
           must not be uploaded as broken bytes under a .jpg name. */}
       {decodeFailed && (
-        <div style={{
+        <div role="alert" style={{
           position: 'absolute', left: 0, right: 0, bottom: 96, zIndex: 2,
           display: 'flex', justifyContent: 'center', padding: '0 24px',
         }}>
           <span style={{
-            fontSize: 13, lineHeight: 1.5, maxWidth: 280, textAlign: 'center',
+            fontSize: 'var(--text-body-size)', lineHeight: 1.5, maxWidth: 280, textAlign: 'center',
             color: '#fff', background: 'rgba(0,0,0,0.6)', borderRadius: 8, padding: '8px 12px',
           }}>
             Không đọc được ảnh vừa chọn. Hãy dùng ảnh chụp từ máy ảnh hoặc chọn tệp khác.
@@ -233,17 +259,19 @@ export function ContainerScanner({ onCapture, onClose }: ContainerScannerProps) 
         padding: '4px 16px', paddingTop: 'max(16px, env(safe-area-inset-top))',
       }}>
         <button
+          type="button"
           onClick={onClose}
           aria-label="Đóng"
-          style={roundBtn(40, 'rgba(0,0,0,0.5)')}
+          style={roundBtn(44, 'rgba(0,0,0,0.5)')}
         >
           <X size={20} color="#fff" />
         </button>
         {flashSupported && (
           <button
+            type="button"
             onClick={handleFlashToggle}
             aria-label={flashOn ? 'Tắt đèn flash' : 'Bật đèn flash'}
-            style={roundBtn(40, flashOn ? 'var(--brand)' : 'rgba(0,0,0,0.5)')}
+            style={roundBtn(44, flashOn ? 'var(--brand)' : 'rgba(0,0,0,0.5)')}
           >
             <Zap size={20} color="#fff" fill={flashOn ? '#fff' : 'none'} />
           </button>
@@ -257,9 +285,10 @@ export function ContainerScanner({ onCapture, onClose }: ContainerScannerProps) 
         background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)',
       }}>
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          {/* Gallery picker — the hidden input lives inside the label so tapping
-              anywhere on it opens the OS photo picker. */}
-          <label
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => galleryRef.current?.click()}
             style={{
               ...roundBtn(44, 'rgba(0,0,0,0.5)'),
               position: 'absolute', left: 0, bottom: 4, cursor: 'pointer',
@@ -268,12 +297,13 @@ export function ContainerScanner({ onCapture, onClose }: ContainerScannerProps) 
             title="Chọn ảnh từ thư viện"
           >
             <ImageIcon size={20} color="#fff" />
-            <input type="file" accept="image/*" hidden onChange={handleFileChange} />
-          </label>
+          </button>
+          <input ref={galleryRef} type="file" accept="image/*" hidden disabled={busy} onChange={handleFileChange} />
 
           {/* Shutter — dead-center, iOS-style ring. Disabled while busy so a
               double-tap can't fire two captures. */}
           <button
+            type="button"
             onClick={handleCapture}
             disabled={busy || status !== 'ready'}
             aria-label="Chụp ảnh"

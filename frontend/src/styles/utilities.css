@@ -15,7 +15,7 @@
 [class$="__crumbs"] {
   margin: 2px 0 10px;
   color: var(--ink-3);
-  font-size: 12px;
+  font-size: var(--text-caption-size);
 }
 [class$="__crumbs"] ul { gap: 4px; }
 
@@ -54,7 +54,7 @@
   .topbar__breadcrumb > span:first-child,
   .topbar__breadcrumb > svg { display: none; }
   /* Page title slightly smaller on phones */
-  .page-title { font-size: 22px; }
+  .page-title { font-size: var(--text-title-size); }
   .page-subtitle { font-size: var(--fs-xs); }
   .app-body, .content { padding: var(--app-body-pad-t, 16px) 12px 32px; }
 
@@ -235,7 +235,7 @@
 .focus-highlight-popover .driver-popover-title {
   color: var(--ink);
   font-family: var(--font-display);
-  font-size: 15px;
+  font-size: var(--text-body-size);
   line-height: 1.35;
   letter-spacing: 0;
 }
@@ -243,7 +243,7 @@
 .focus-highlight-popover .driver-popover-description {
   color: var(--ink-2);
   font-family: var(--font-sans);
-  font-size: 13px;
+  font-size: var(--text-data-size);
   line-height: 1.55;
 }
 
@@ -267,7 +267,7 @@
   align-items: center;
   margin-left: 6px;
   color: var(--warning);
-  font-size: 11px;
+  font-size: var(--text-label-size);
   font-weight: var(--fw-semibold);
   white-space: nowrap;
 }
@@ -276,7 +276,7 @@
    only visible header was the topbar's generic context. */
 .page-header__title-visible {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--text-body-size);
   font-weight: 700;
   line-height: 1.35;
   color: var(--ink);

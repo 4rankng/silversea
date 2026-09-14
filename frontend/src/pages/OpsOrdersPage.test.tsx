@@ -5,6 +5,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '../components/shared/Toast';
 import type { OpsOrderItem } from '../api/opsClient';
 import OpsOrdersPage from './OpsOrdersPage';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
+const pageStyles = readFileSync(resolve(process.cwd(), 'src/pages/OpsOrdersPage.css'), 'utf8');
 
 const { apiGet, apiPost, apiPut } = vi.hoisted(() => ({ apiGet: vi.fn(), apiPost: vi.fn(), apiPut: vi.fn() }));
 vi.mock('../lib/api', async (importOriginal) => ({
@@ -95,6 +99,41 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     expect(screen.getByText(/TSTU1111111/)).toBeInTheDocument();
     expect(screen.getByText('Sẵn sàng phát lệnh')).toBeInTheDocument();
     expect(screen.getByText('Đang vận chuyển')).toBeInTheDocument();
+  });
+
+  it('retains all shipment fields and both actions in the labelled narrow-screen record', async () => {
+    renderPage();
+    const row = (await screen.findByText('SS-A')).closest('tr')!;
+    const fields = Array.from(row.querySelectorAll('td[data-label]')).map((cell) => [cell.getAttribute('data-label'), cell.textContent]);
+    expect(fields).toEqual([
+      ['Mã lô', 'SS-A'],
+      ['Khách hàng', 'Khách A'],
+      ['Tuyến', 'HP-BN'],
+      ['Container', '1 · TSTU1111111'],
+      ['Bill / Booking', 'BL-001'],
+      ['Trạng thái', 'Sẵn sàng phát lệnh'],
+    ]);
+    expect(row.querySelector('.ops-pin')).toHaveAttribute('aria-label', 'Ghim SS-A');
+    expect(row.querySelector('.ops-orders__expense')).toHaveTextContent('Khai chi phí');
+  });
+
+  it('keeps the narrow records flat and removes the forced horizontal table floor', () => {
+    expect(pageStyles).not.toMatch(/min-width:\s*960px/);
+    expect(pageStyles).toContain('@container (max-width: 900px)');
+    expect(pageStyles).toMatch(/\.ops-orders__table \.ops-orders__row\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
+    expect(pageStyles).toMatch(/\.ops-orders__table \.ops-orders__row\s*\{[^}]*border-bottom:\s*1px solid var\(--line\);/);
+    expect(pageStyles).toMatch(/\.ops-orders__controls\s*\{[^}]*grid-template-columns:\s*minmax\(0, 148px\) minmax\(0, 1fr\);/);
+    expect(pageStyles).toContain('.ops-orders__search:focus-within');
+    expect(pageStyles).toContain('@media (pointer: coarse)');
+  });
+
+  it('preserves debounced search and selected-date filtering', async () => {
+    renderPage();
+    await screen.findByText('SS-A');
+    fireEvent.change(screen.getByRole('textbox', { name: 'Tìm kiếm' }), { target: { value: '  TSTU1111111  ' } });
+    await waitFor(() => expect(apiGet).toHaveBeenCalledWith(`/ops/orders?date=${dateStr}&q=TSTU1111111`));
+    fireEvent.change(screen.getByLabelText('Ngày giao dự kiến'), { target: { value: '2026-09-20' } });
+    await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/ops/orders?date=2026-09-20&q=TSTU1111111'));
   });
 
   it('optimistically pins a row to the top and puts the new state', async () => {

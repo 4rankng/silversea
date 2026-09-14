@@ -50,7 +50,7 @@
   background: transparent;
   border: none;
   outline: none;
-  font-size: var(--filter-control-font-size);
+  font-size: var(--control-field-font-size);
   line-height: 1.35;
   min-height: var(--filter-control-h);
   color: var(--ink);
@@ -70,7 +70,7 @@
   }
 
   .toolbar__search input {
-    font-size: var(--fs-3xs);
+    font-size: var(--text-input-touch-size);
     min-height: var(--control-mobile-h);
   }
 }

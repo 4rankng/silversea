@@ -11,7 +11,8 @@ describe('selection-state contract', () => {
     expect(read('src/pages/salary-attendance/calendar.css')).toContain('box-shadow: inset 3px 0 0 var(--ink);');
     expect(read('src/features/dispatch/detailed-plan/DetailedPlanGrid.css')).toContain('box-shadow: inset 3px 0 0 var(--color-fg-primary, var(--text-primary, #101828));');
     expect(read('src/features/users/users.css')).toContain('.users-customer-scope__option.is-selected {\n  background: var(--surface);\n  box-shadow: inset 3px 0 0 var(--ink);');
-    expect(read('src/pages/config/config-page.css')).toContain('.cfg-finance-tab.is-active {\n  color: var(--ink);\n  border-color: var(--ink);\n  background: var(--surface);\n  box-shadow: inset 0 -2px 0 var(--ink);');
+    expect(read('src/features/app-settings/FinancePolicySection.tsx')).toContain('variant="bordered"');
+    expect(read('src/design-system/Tabs.css')).toContain('.ds-tabs--bordered .ds-tabs__btn--active {\n  color: var(--ink);\n  border-bottom-color: var(--ink);\n  background: transparent;');
     expect(read('src/pages/config/config-page.css')).toContain('.cfg-provider-option.is-selected {\n  border-color: var(--ink);\n  background: var(--surface);\n  box-shadow: inset 3px 0 0 var(--ink);');
     expect(read('src/pages/TruckTiresPage.css')).toContain('.ttp-unmount-choice.is-active {\n  border-color: var(--fg-1, #101828);\n  background: var(--bg-1, #fff);\n  box-shadow: inset 3px 0 0 var(--fg-1, #101828);');
     expect(read('src/pages/TruckTiresPage.css')).toContain(".ttp-position-picker-option[aria-selected='true'] {\n  background: var(--surface, #fff);\n  color: var(--fg-1, #101828);\n  box-shadow: inset 3px 0 0 var(--fg-1, #101828);");

@@ -1,3 +1,4 @@
+import { fieldTextSizes } from "../control-typography";
 import { type ComponentType, type HTMLAttributes, type ReactNode, type Ref, createContext, useContext, useState } from "react";
 import { Eye, EyeOff, HelpCircle, InfoCircle } from "@untitledui/icons";
 import type { InputProps as AriaInputProps, TextFieldProps as AriaTextFieldProps } from "react-aria-components";
@@ -71,19 +72,19 @@ export const InputBase = ({
 
     const sizes = sortCx({
         sm: {
-            root: cx("min-h-[32px] px-2.5 py-1 text-xs max-md:min-h-[42px] max-md:px-3 max-md:py-2 max-md:text-sm", hasLeadingIcon && "pl-8 max-md:pl-9", hasTrailingIcon && "!pr-8 max-md:!pr-9"),
+            root: cx("min-h-[32px] px-2.5 py-1 max-md:min-h-[42px] max-md:px-3 max-md:py-2", fieldTextSizes.sm, hasLeadingIcon && "pl-8 max-md:pl-9", hasTrailingIcon && "!pr-8 max-md:!pr-9"),
             iconLeading: "left-2.5 size-4 stroke-[2.25px] max-md:left-3",
             iconTrailing: "right-2.5 max-md:right-3",
             shortcut: "pr-1.5",
         },
         md: {
-            root: cx("px-3 py-2 text-md", hasLeadingIcon && "pl-10", hasTrailingIcon && "!pr-9"),
+            root: cx("px-3 py-2", fieldTextSizes.md, hasLeadingIcon && "pl-10", hasTrailingIcon && "!pr-9"),
             iconLeading: "left-3 size-5",
             iconTrailing: "right-3",
             shortcut: "pr-2",
         },
         lg: {
-            root: cx("px-3.5 py-2.5 text-md", hasLeadingIcon && "pl-10.5", hasTrailingIcon && "!pr-9.5"),
+            root: cx("px-3.5 py-2.5", fieldTextSizes.lg, hasLeadingIcon && "pl-10.5", hasTrailingIcon && "!pr-9.5"),
             iconLeading: "left-3.5 size-5",
             iconTrailing: "right-3.5",
             shortcut: "pr-2.5",

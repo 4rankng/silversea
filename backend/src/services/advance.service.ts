@@ -24,11 +24,6 @@ export {
   listAdvanceRequestsPaginated,
   getAdvanceRequestCounts,
   getAdvanceRequest,
-  requestAdvanceRequestApprovalGovernance,
-  requestAdvanceRequestRejectionGovernance,
-  approveAdvanceRequest,
-  rejectAdvanceRequest,
-  applyAdvanceRequestGovernanceAction,
 } from './advance-request.service';
 export type { PaginatedAdvanceRequests } from './advance-request.service';
 export {
@@ -37,8 +32,6 @@ export {
   listAdvanceSettlementsPaginated,
   getAdvanceSettlement,
   updateAdvanceSettlement,
-  checkAdvanceSettlement,
-  approveAdvanceSettlement,
 } from './advance-settlement.service';
 export type {
   AdvanceSettlementRow,
@@ -48,5 +41,4 @@ export {
   adjustSettlementExpense,
   requestAdvanceSettlementReversal,
   applyAdvanceSettlementGovernanceAction,
-  rejectAdvanceSettlement,
 } from './advance-settlement-reversal.service';

@@ -14,8 +14,8 @@
 .page-header-main { min-width: 0; flex: 1; }
 .page-title {
   font-family: var(--font-display);
-  font-size: clamp(26px, 2.2vw, 32px);
-  font-weight: 700;
+  font-size: var(--text-title-size);
+  font-weight: var(--fw-bold);
   letter-spacing: 0;
   line-height: 1.25;
   margin: 0 0 6px;
@@ -27,11 +27,11 @@
 }
 .page-title em {
   font-style: italic;
-  font-weight: 400;
+  font-weight: var(--fw-regular);
   color: var(--accent);
 }
 .page-subtitle {
-  font-size: var(--fs-sm);
+  font-size: var(--text-body-size);
   color: var(--ink-2);
   margin: 0;
   max-width: 72ch;
@@ -96,7 +96,7 @@
 
 @media (min-width: 1024px) {
   .page-subtitle {
-    font-size: var(--fs-sm);
+    font-size: var(--text-body-size);
   }
 }
 
@@ -107,8 +107,8 @@
   gap: 4px;
   padding: 2px 8px;
   border-radius: 999px;
-  font-size: var(--fs-2xs);
-  font-weight: 600;
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-semibold);
   font-family: var(--font-body);
   margin-left: 8px;
   white-space: nowrap;
@@ -123,8 +123,8 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: var(--fs-2xl);
-  font-weight: 700;
+  font-size: var(--text-title-size);
+  font-weight: var(--fw-bold);
   letter-spacing: 0;
   line-height: 1.22;
   color: var(--fg-1, var(--ink));
@@ -133,7 +133,7 @@
 }
 .trip-detail-subtitle {
   margin-top: 4px;
-  font-size: var(--fs-sm);
+  font-size: var(--text-body-size);
   color: var(--fg-3, var(--ink-3));
   margin-left: 46px;
 }

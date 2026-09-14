@@ -17,10 +17,10 @@ describe('shared control density', () => {
     expect(tokens).toMatch(/--control-compact-h:\s*30px;/);
     expect(tokens).toMatch(/--control-default-h:\s*34px;/);
     expect(tokens).toMatch(/--control-touch-h:\s*44px;/);
-    expect(tokens).toMatch(/--control-compact-font-size:\s*var\(--fs-xs\);/);
+    expect(tokens).toMatch(/--control-compact-font-size:\s*var\(--text-control-compact-size\);/);
     expect(tokens).toMatch(/--control-compact-line-height:\s*18px;/);
-    // Touch font is 16px so iOS Safari never focus-zooms compact controls.
-    expect(tokens).toMatch(/--control-compact-touch-font-size:\s*var\(--fs-md\);/);
+    // Touch values resolve through the chosen product typography scale.
+    expect(tokens).toMatch(/--control-compact-touch-font-size:\s*var\(--text-input-touch-size\);/);
     expect(tokens).toMatch(/--control-compact-touch-line-height:\s*20px;/);
   });
 
@@ -62,8 +62,8 @@ describe('shared control density', () => {
     const shipmentCreate = read('src/pages/clerk/ClerkShipmentCreatePage.css');
 
     for (const source of [input, nativeSelect, select, textarea]) {
-      expect(source).toContain('max-md:text-sm');
-      expect(source).not.toContain('max-md:text-md');
+      expect(source).toContain('fieldTextSizes');
+      expect(source).not.toContain('max-md:text-sm');
     }
     expect(overview).not.toMatch(/\.shipment-uui-control__input\s*\{[^}]*font\s*:/);
     expect(detail).not.toMatch(/\.shipments-detail-filter input::placeholder\s*\{[^}]*font-size\s*:/);

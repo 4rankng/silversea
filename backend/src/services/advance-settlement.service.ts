@@ -95,7 +95,9 @@ export async function createAdvanceSettlement(
       forwarderId,
       totalExpenseAmount: String(totalExpenseAmount),
       refundAmount: String(data.refundAmount ?? 0),
-      status: 'PENDING',
+      status: 'APPROVED',
+      approvedBy: forwarderId,
+      approvedAt: new Date(),
       note: data.note ?? null,
     }).returning();
 
@@ -266,7 +268,7 @@ export interface PaginatedAdvanceSettlements {
   /** Full-set totalExpenseAmount per status for the page's KPI strip. */
   statusAmounts: Record<string, number>;
   /** Full-set totals for the page's KPI strip. */
-  totals: { totalExpenseAmount: number; pendingCount: number };
+  totals: { totalExpenseAmount: number };
 }
 
 /**
@@ -318,7 +320,6 @@ export async function listAdvanceSettlementsPaginated(filters: {
     statusAmounts,
     totals: {
       totalExpenseAmount: Number(aggRows[0]?.totalExpenseAmount ?? 0),
-      pendingCount: statusCounts['PENDING'] ?? 0,
     },
   };
 }
@@ -417,8 +418,8 @@ export async function updateAdvanceSettlement(
     if (!settlement) throw new AdvanceError(404, 'Không tìm thấy phiếu hoàn ứng');
     const version = data.expectedVersion ?? settlement.version;
     assertExpectedVersion(settlement.version, version, 'Phiếu hoàn ứng');
-    if (settlement.status !== 'PENDING' && settlement.status !== 'CHECKED_BY_ACCOUNTANT') {
-      throw new AdvanceError(409, 'Chỉ được sửa phiếu đang chờ kế toán');
+    if (settlement.status !== 'APPROVED') {
+      throw new AdvanceError(409, 'Chỉ được sửa phiếu đã ghi nhận');
     }
     for (const requestId of [...data.advanceRequestIds].sort((a, b) => a - b)) {
       await tx.execute(sql`SELECT pg_advisory_xact_lock(6101, ${requestId})`);
@@ -502,9 +503,6 @@ export async function updateAdvanceSettlement(
       })));
     }
     await tx.update(s.advanceSettlements).set({
-      status: 'PENDING',
-      checkedBy: null,
-      checkedAt: null,
       totalExpenseAmount: String(expenseTotal),
       refundAmount: String(data.refundAmount),
       note: data.note ?? null,
@@ -537,95 +535,13 @@ export async function updateAdvanceSettlement(
   return detail;
 }
 
-export async function checkAdvanceSettlement(
-  id: number,
-  checkedBy: number,
-  expectedVersion?: number,
-  transaction?: Tx,
+/** Internal: ledger and reconciliation effects for a just-created settlement
+ *  (direct-effect save — the creation transaction applies everything). */
+async function applyNewSettlementEffects(
+  tx: Tx,
+  settlement: typeof s.advanceSettlements.$inferSelect,
 ) {
-  // Deprecated compatibility transition for stale clients. New clients call
-  // approve directly; an old "check" action must not unexpectedly post ledger.
-  const execute = async (tx: Tx) => {
-    const [settlement] = await tx.select().from(s.advanceSettlements)
-      .where(eq(s.advanceSettlements.id, id)).for('update');
-    if (!settlement) throw new AdvanceError(404, 'Advance settlement not found');
-    const version = expectedVersion ?? settlement.version;
-    assertExpectedVersion(settlement.version, version, 'Phiếu hoàn ứng');
-    if (settlement.status !== 'PENDING') {
-      throw new AdvanceError(409, `Cannot check settlement with status ${settlement.status}`);
-    }
-    if (settlement.forwarderId === checkedBy) {
-      throw new AdvanceError(403, 'Người lập phiếu không được tự kiểm tra phiếu hoàn ứng của mình');
-    }
-    const [correctionMakerConflict] = await tx.select({
-      adjustedBy: s.settlementExpenseAdjustments.adjustedBy,
-    }).from(s.settlementExpenseAdjustments).where(and(
-      eq(s.settlementExpenseAdjustments.settlementId, id),
-      eq(s.settlementExpenseAdjustments.adjustedBy, checkedBy),
-      isNull(s.settlementExpenseAdjustments.approvedAt),
-    )).limit(1);
-    if (correctionMakerConflict) {
-      throw new AdvanceError(
-        403,
-        'Người điều chỉnh không được tự kiểm tra điều chỉnh của mình',
-      );
-    }
-    const now = new Date();
-    const [updated] = await tx.update(s.advanceSettlements).set({
-      status: 'CHECKED_BY_ACCOUNTANT',
-      checkedBy,
-      checkedAt: now,
-      updatedAt: now,
-      version: sql`${s.advanceSettlements.version} + 1`,
-    }).where(and(
-      eq(s.advanceSettlements.id, id),
-      eq(s.advanceSettlements.status, 'PENDING'),
-      eq(s.advanceSettlements.version, version),
-    )).returning();
-    if (!updated) throw new AdvanceError(409, 'Request was modified by another operation');
-    const [enriched] = await enrichWithNames([updated], tx);
-    return enrichSettlementWithRequests(enriched, tx);
-  };
-
-  return runInTx(transaction, execute);
-}
-
-export async function approveAdvanceSettlement(
-  id: number,
-  approvedBy: number,
-  expectedVersion?: number,
-  options: { transaction?: Tx; emitNotification?: boolean } = {},
-) {
-  const execute = async (tx: Tx) => {
-    const [settlement] = await tx.select()
-      .from(s.advanceSettlements)
-      .where(eq(s.advanceSettlements.id, id))
-      .for('update');
-    if (!settlement) throw new AdvanceError(404, 'Advance settlement not found');
-    const version = expectedVersion ?? settlement.version;
-    assertExpectedVersion(settlement.version, version, 'Phiếu hoàn ứng');
-    // 2026-09-10 (phê duyệt removed): settlements apply at creation — the
-    // creator self-approves (approvedBy = forwarder), so the segregation
-    // guards (forwarder-self, expense-maker, checker≠approver) are gone.
-    // PENDING is the live path; CHECKED_BY_ACCOUNTANT remains accepted for
-    // legacy rows approved through internal callers.
-    if (settlement.status !== 'CHECKED_BY_ACCOUNTANT' && settlement.status !== 'PENDING') {
-      throw new AdvanceError(409, `Cannot approve settlement with status ${settlement.status}`);
-    }
-    const [correctionConflict] = await tx.select({
-      adjustedBy: s.settlementExpenseAdjustments.adjustedBy,
-    }).from(s.settlementExpenseAdjustments).where(and(
-      eq(s.settlementExpenseAdjustments.settlementId, id),
-      eq(s.settlementExpenseAdjustments.adjustedBy, approvedBy),
-      isNull(s.settlementExpenseAdjustments.approvedAt),
-    )).limit(1);
-    if (correctionConflict) {
-      throw new AdvanceError(
-        403,
-        'Người điều chỉnh không được tự phê duyệt điều chỉnh của mình',
-      );
-    }
-
+  const id = settlement.id;
     const requestLinks = await tx.select({ id: s.advanceSettlementRequests.advanceRequestId })
       .from(s.advanceSettlementRequests)
       .where(eq(s.advanceSettlementRequests.settlementId, id));
@@ -698,27 +614,18 @@ export async function approveAdvanceSettlement(
     // expenses are in it) as the approver.
 
     const totalExpenseAmount = round2dp(links.reduce((sum, link) => sum + Number(link.buyAmount), 0));
-    const now = new Date();
     const [updated] = await tx.update(s.advanceSettlements)
       .set({
-        status: 'APPROVED',
         totalExpenseAmount: String(totalExpenseAmount),
-        approvedBy,
-        approvedAt: now,
-        updatedAt: now,
-        version: sql`${s.advanceSettlements.version} + 1`,
+        updatedAt: new Date(),
       })
-      .where(and(
-        eq(s.advanceSettlements.id, id),
-        inArray(s.advanceSettlements.status, ['PENDING', 'CHECKED_BY_ACCOUNTANT']),
-        eq(s.advanceSettlements.version, version),
-      ))
+      .where(eq(s.advanceSettlements.id, id))
       .returning();
-    if (!updated) throw new AdvanceError(409, 'Request was modified by another operation');
+    if (!updated) throw new AdvanceError(404, 'Không tìm thấy phiếu hoàn ứng');
 
     await tx.update(s.settlementExpenseAdjustments).set({
-      approvedBy,
-      approvedAt: now,
+      approvedBy: settlement.approvedBy,
+      approvedAt: new Date(),
     }).where(and(
       eq(s.settlementExpenseAdjustments.settlementId, id),
       isNull(s.settlementExpenseAdjustments.approvedAt),
@@ -726,7 +633,7 @@ export async function approveAdvanceSettlement(
 
     const pendingExpenseIds = links.filter(link => link.approvalStatus === 'PENDING').map(link => link.expenseId);
     if (pendingExpenseIds.length > 0) {
-      await tx.update(s.tripExpenses).set({ approvalStatus: 'APPROVED', updatedAt: now })
+      await tx.update(s.tripExpenses).set({ approvalStatus: 'APPROVED', updatedAt: new Date() })
         .where(inArray(s.tripExpenses.id, pendingExpenseIds));
     }
 
@@ -805,25 +712,5 @@ export async function approveAdvanceSettlement(
       updated,
       adjustmentCount: links.filter(link => Boolean(link.adjustmentReason)).length,
     };
-  };
-
-  const approved = options.transaction
-    ? await execute(options.transaction)
-    : await db.transaction(execute);
-
-  if (options.emitNotification !== false) {
-    emitNotification({
-      type: NotificationType.ADVANCE_SETTLEMENT_APPROVED,
-      title: 'Phiếu hoàn ứng đã duyệt',
-      message: `Phiếu ${approved.updated.code} được duyệt ${Number(approved.updated.totalExpenseAmount).toLocaleString('vi-VN')} ₫${approved.adjustmentCount > 0 ? `, có ${approved.adjustmentCount} khoản kế toán điều chỉnh` : ''}.`,
-      relatedEntityType: 'advance_settlements',
-      relatedEntityId: approved.updated.id,
-      targetUserId: approved.updated.forwarderId,
-      targetRoles: [],
-    });
   }
 
-  const executor = options.transaction ?? db;
-  const [enriched] = await enrichWithNames([approved.updated], executor);
-  return enrichSettlementWithRequests(enriched, executor);
-}

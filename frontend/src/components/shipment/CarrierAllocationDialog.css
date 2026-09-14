@@ -15,7 +15,7 @@
   flex-wrap: wrap;
   gap: 8px 16px;
   color: var(--fg-3);
-  font-size: 13px;
+  font-size: var(--text-data-size);
 }
 
 .carrier-allocation-dialog__rows {
@@ -59,7 +59,7 @@
   display: grid;
   gap: 8px;
   align-content: start;
-  font-size: 14px;
+  font-size: var(--text-body-size);
   font-weight: 600;
 }
 
@@ -83,7 +83,7 @@
   color: var(--danger, #b91c1c);
   display: grid;
   gap: 6px;
-  font-size: 13px;
+  font-size: var(--text-data-size);
 }
 
 .carrier-allocation-dialog__footer {

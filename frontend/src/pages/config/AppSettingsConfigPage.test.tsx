@@ -180,6 +180,20 @@ describe('AppSettingsConfigPage', () => {
     }));
   });
 
+  it('navigates finance tabs with the keyboard and names the active panel', () => {
+    renderPage();
+    const policy = screen.getByRole('tab', { name: 'Chính sách báo cáo' });
+    const truck = screen.getByRole('tab', { name: 'Hồ sơ tài chính xe' });
+    policy.focus();
+    fireEvent.keyDown(policy, { key: 'ArrowRight' });
+    expect(truck).toHaveFocus();
+    expect(truck).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tabpanel', { name: 'Hồ sơ tài chính xe' })).toBeInTheDocument();
+    fireEvent.keyDown(truck, { key: 'Home' });
+    expect(policy).toHaveFocus();
+    expect(screen.getByRole('tabpanel', { name: 'Chính sách báo cáo' })).toBeInTheDocument();
+  });
+
   it('saves a newly entered write-only key and clears the local field', async () => {
     renderPage();
 

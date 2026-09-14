@@ -16,9 +16,9 @@ describe('NativeSelect', () => {
     expect(container.firstElementChild).toHaveAttribute('data-input-size', 'sm');
     expect(screen.getByLabelText('Kế hoạch')).toHaveClass(
       'min-h-[34px]',
-      'text-xs',
+      'text-[length:var(--text-control-compact-size)]',
       'max-md:min-h-11',
-      'max-md:text-sm',
+      'max-md:text-[length:var(--text-input-touch-size)]', '[@media(pointer:coarse)]:text-[length:var(--text-input-touch-size)]',
     );
   });
 });

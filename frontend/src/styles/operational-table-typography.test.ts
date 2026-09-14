@@ -7,11 +7,11 @@ const typography = read('src/styles/operational-table-typography.css');
 
 describe('operational table typography contract', () => {
   it('uses one compact primary, supporting, metadata, and note scale', () => {
-    expect(typography).toContain('--ops-table-header-size: 11px;');
-    expect(typography).toContain('--ops-table-primary-size: 13px;');
-    expect(typography).toContain('--ops-table-supporting-size: 12px;');
-    expect(typography).toContain('--ops-table-meta-size: 11px;');
-    expect(typography).toContain('--ops-table-note-size: 12px;');
+    expect(typography).toContain('--ops-table-header-size: var(--text-label-size);');
+    expect(typography).toContain('--ops-table-primary-size: var(--text-data-size);');
+    expect(typography).toContain('--ops-table-supporting-size: var(--text-data-size);');
+    expect(typography).toContain('--ops-table-meta-size: var(--text-label-size);');
+    expect(typography).toContain('--ops-table-note-size: var(--text-data-size);');
   });
 
   it('is adopted by the shipment, dispatch, and detailed-dispatch grids', () => {

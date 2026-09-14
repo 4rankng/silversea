@@ -139,17 +139,17 @@ export function BaseSalaryEditModal({
           inputClassName="tabular-nums"
         />
         {!valid && amount.trim() !== '' && (
-          <p role="alert" style={{ color: 'var(--danger)', fontSize: 12, margin: 0 }}>
+          <p role="alert" style={{ color: 'var(--danger)', fontSize: 'var(--text-body-size)', margin: 0 }}>
             Lương cứng phải là số không âm.
           </p>
         )}
-        {error && <p role="alert" style={{ color: 'var(--danger)', fontSize: 12, margin: 0 }}>{error}</p>}
+        {error && <p role="alert" style={{ color: 'var(--danger)', fontSize: 'var(--text-body-size)', margin: 0 }}>{error}</p>}
         {tokenError && !error && (
-          <p role="alert" style={{ color: 'var(--danger)', fontSize: 12, margin: 0 }}>
+          <p role="alert" style={{ color: 'var(--danger)', fontSize: 'var(--text-body-size)', margin: 0 }}>
             Không tải được thông tin lái xe — đóng và mở lại hộp thoại để lưu.
           </p>
         )}
-        <p style={{ fontSize: 12, color: 'var(--fg-3)', margin: 0 }}>
+        <p style={{ fontSize: 'var(--text-caption-size)', color: 'var(--fg-3)', margin: 0 }}>
           Thay đổi áp dụng từ lần tính lương kế tiếp. Kỳ đã khóa hoặc đã xác nhận
           giữ nguyên giá trị đã tính.
         </p>

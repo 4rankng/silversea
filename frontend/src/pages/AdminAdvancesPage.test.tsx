@@ -55,22 +55,20 @@ function makeRequest(id: number, status: AdvanceRequestStatus, requesterName: st
 // loaded page.
 const envelope = {
   items: [
-    makeRequest(1, AdvanceRequestStatus.PENDING, 'An Nguyễn'),
-    makeRequest(2, AdvanceRequestStatus.APPROVED, 'Bình Trần'),
+    makeRequest(1, AdvanceRequestStatus.APPROVED, 'An Nguyễn'),
+    makeRequest(2, AdvanceRequestStatus.REJECTED, 'Bình Trần'),
   ],
   page: 1,
   limit: 50,
   total: 120,
   totalPages: 3,
   statusCounts: {
-    [AdvanceRequestStatus.PENDING]: 7,
-    [AdvanceRequestStatus.APPROVED]: 5,
-    [AdvanceRequestStatus.REJECTED]: 2,
+    [AdvanceRequestStatus.APPROVED]: 7,
+    [AdvanceRequestStatus.REJECTED]: 5,
   },
   statusAmounts: {
-    [AdvanceRequestStatus.PENDING]: 7_000_000,
-    [AdvanceRequestStatus.APPROVED]: 5_000_000,
-    [AdvanceRequestStatus.REJECTED]: 2_000_000,
+    [AdvanceRequestStatus.APPROVED]: 7_000_000,
+    [AdvanceRequestStatus.REJECTED]: 5_000_000,
   },
 };
 

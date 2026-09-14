@@ -319,7 +319,7 @@ export function PenaltyTable({
                           <td data-label="Số tiền" className="num">
                             {canceled ? (
                               <span className="penalty-log-money penalty-log-money--canceled">
-                                <Money value={Math.abs(Number(p.amount))} /> <span style={{ fontSize: 11, color: 'var(--fg-3)' }}>(đã hủy)</span>
+                                <Money value={Math.abs(Number(p.amount))} /> <span style={{ fontSize: 'var(--text-caption-size)', color: 'var(--fg-3)' }}>(đã hủy)</span>
                               </span>
                             ) : (
                               <Money value={Number(p.amount)} sign="-" className="penalty-log-money" />

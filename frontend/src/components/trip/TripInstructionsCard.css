@@ -22,7 +22,7 @@
 }
 
 .ti-label {
-  font-size: 13px;
+  font-size: var(--text-label-size);
   font-weight: 600;
   color: var(--fg-2, #444);
 }
@@ -33,7 +33,7 @@
 }
 
 .ti-hint {
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   color: var(--fg-3, #888);
 }
 
@@ -52,14 +52,14 @@
 }
 
 .ti-reminders__label {
-  font-size: 12px;
+  font-size: var(--text-caption-size);
   font-weight: 600;
   color: var(--fg-3, #888);
   margin-right: 2px;
 }
 
 .ti-chip {
-  font-size: 12px;
+  font-size: var(--text-control-size);
   font-weight: 500;
   color: var(--accent-ink, #065f46);
   background: var(--accent-soft, rgba(0, 177, 79, 0.08));

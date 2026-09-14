@@ -118,16 +118,16 @@ export default function FleetPage() {
           variant="success"
           meta={
             <span className="fleet-kpi-meta">
-              <span className="fleet-kpi-dot fleet-kpi-dot--success" />
-              <span className="fleet-kpi-meta__good">
-                {activeTrucks} hoạt động
+              <span className="fleet-kpi-meta__item">
+                <span className="fleet-kpi-dot fleet-kpi-dot--success" />
+                <span className="fleet-kpi-meta__good">{activeTrucks} hoạt động</span>
               </span>
               <span className="fleet-kpi-meta__sep">
                 ·
               </span>
-              <span className="fleet-kpi-dot fleet-kpi-dot--warn" />
-              <span className="fleet-kpi-meta__warn">
-                {maintTrucks} bảo trì
+              <span className="fleet-kpi-meta__item">
+                <span className="fleet-kpi-dot fleet-kpi-dot--warn" />
+                <span className="fleet-kpi-meta__warn">{maintTrucks} bảo trì</span>
               </span>
             </span>
           }
@@ -172,9 +172,9 @@ export default function FleetPage() {
           variant="warn"
           meta={
             <span className="fleet-kpi-meta">
-              <span className="fleet-kpi-dot fleet-kpi-dot--success" />
-              <span className="fleet-kpi-meta__good">
-                {activeDrivers} đang làm
+              <span className="fleet-kpi-meta__item">
+                <span className="fleet-kpi-dot fleet-kpi-dot--success" />
+                <span className="fleet-kpi-meta__good">{activeDrivers} đang làm</span>
               </span>
               <span className="fleet-kpi-meta__sep">
                 ·

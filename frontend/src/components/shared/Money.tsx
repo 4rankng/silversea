@@ -18,8 +18,8 @@ interface MoneyProps {
  * Money value with a subtitle-sized currency unit.
  *
  * The digits inherit the surrounding font-size/weight/color; the unit ("₫", or
- * "tr ₫" / "tỷ ₫" when compact) renders at 0.6em so it always scales correctly
- * whether it sits in a 34px hero or a 14px table cell. Replaces inline
+ * "tr ₫" / "tỷ ₫" when compact) uses the shared readable caption scale.
+ * The numeric value retains its table or metric context. Replaces inline
  * `{formatCurrency(x)}` wherever the unit was rendering at full size.
  *
  * Note: for counter-animated hero values, keep the manual number + unit split

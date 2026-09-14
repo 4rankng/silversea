@@ -9,6 +9,8 @@
   align-items: center;
   gap: 4px;
   flex-wrap: wrap;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .ds-tabs--boxed {
@@ -39,14 +41,17 @@
   background: transparent;
   color: var(--ink-2);
   font-family: inherit;
-  font-size: var(--fs-sm);
+  font-size: var(--text-control-size);
   font-weight: var(--fw-medium);
-  line-height: 1;
+  line-height: 1.35;
   padding: 8px 14px;
   border-radius: var(--r-sm);
   cursor: pointer;
   transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast);
-  white-space: nowrap;
+  min-width: 0;
+  max-width: 100%;
+  min-height: var(--control-compact-h);
+  white-space: normal;
 }
 
 .ds-tabs__btn:hover:not(:disabled):not(.ds-tabs__btn--active) {
@@ -98,6 +103,8 @@
 
 .ds-tabs__label {
   display: inline-block;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
 }
 
 /* Count badge — small, low-contrast by default; inverted on active for plain/boxed. */
@@ -111,10 +118,11 @@
   border-radius: var(--app-radius-full);
   background: var(--surface-3);
   color: var(--ink-3);
-  font-size: var(--fs-2xs);
+  font-size: var(--text-caption-size);
   font-weight: var(--fw-semibold);
 
-  line-height: 1;
+  line-height: 1.35;
+  flex-shrink: 0;
 }
 
 .ds-tabs__count--active {
@@ -126,4 +134,10 @@
 .ds-tabs--bordered .ds-tabs__btn--active .ds-tabs__count {
   background: var(--surface-3);
   color: var(--ink-2);
+}
+
+@media (pointer: coarse) {
+  .ds-tabs__btn {
+    min-height: var(--control-touch-h);
+  }
 }

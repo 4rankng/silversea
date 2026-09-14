@@ -12,8 +12,6 @@ import './ForwarderAdvancesPage.css';
 import '../components/shared/HeroKpiRow.css';
 
 const STATUS_COLORS: Record<string, string> = {
-  PENDING: 'var(--warning, #D97706)',
-  CHECKED_BY_ACCOUNTANT: '#2563EB',
   APPROVED: 'var(--success, #059669)',
   REJECTED: '#DC2626',
 };
@@ -32,7 +30,7 @@ export default function ForwarderAdvancesPage() {
   const { data: settlementsData } = useForwarderSettlements();
   const settlements = (settlementsData?.items ?? []) as AdvanceSettlementWithRefs[];
   const pendingSettlements = settlements.filter(
-    s => s.status === AdvanceSettlementStatus.PENDING || s.status === AdvanceSettlementStatus.CHECKED_BY_ACCOUNTANT,
+    s => s.status !== AdvanceSettlementStatus.APPROVED && s.status !== AdvanceSettlementStatus.REJECTED && s.status !== AdvanceSettlementStatus.REVERSED,
   );
   const approvedSettlements = settlements.filter(s => s.status === AdvanceSettlementStatus.APPROVED);
   const requestedReimbursement = pendingSettlements.reduce((sum, s) => sum + Number(s.totalExpenseAmount), 0);
@@ -58,7 +56,7 @@ export default function ForwarderAdvancesPage() {
   const error = queryError ? 'Không thể tải danh sách yêu cầu tạm ứng' : null;
   const totalRequests = Object.values(counts).reduce((sum: number, c) => sum + c, 0);
   const totalAmount = Object.values(statusAmounts).reduce((sum: number, a) => sum + a, 0);
-  const pendingCount = counts.PENDING ?? 0;
+  const pendingCount = counts.APPROVED ?? 0;
   const outstanding = balanceData ? Number(balanceData.outstanding) : 0;
 
   const prefersReduced = usePrefersReducedMotion();

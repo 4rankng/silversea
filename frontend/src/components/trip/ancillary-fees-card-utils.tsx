@@ -34,8 +34,8 @@ export function AncillaryEmptyState() {
           <line x1="19" y1="23" x2="25" y2="23" stroke="#16a34a" strokeWidth="1.5" strokeLinecap="round"/>
         </svg>
       </div>
-      <div style={{ fontSize: 15, fontWeight: 600, color: '#14532d' }}>Chưa có dịch vụ đi kèm</div>
-      <div style={{ fontSize: 13, color: '#4b7a5a', maxWidth: 320, lineHeight: 1.5 }}>
+      <div style={{ fontSize: 'var(--text-body-size)', fontWeight: 600, color: '#14532d' }}>Chưa có dịch vụ đi kèm</div>
+      <div style={{ fontSize: 'var(--text-data-size)', color: '#4b7a5a', maxWidth: 320, lineHeight: 1.5 }}>
         Thêm phí nâng/hạ, hải quan, cân hàng… để lên giấy báo nợ và theo dõi công nợ phải thu.
       </div>
     </div>

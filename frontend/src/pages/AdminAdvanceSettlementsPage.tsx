@@ -39,15 +39,11 @@ export function summarizeSettlementStats(
 ) {
   const counts: Record<string, number> = {
     total: 0,
-    [AdvanceSettlementStatus.PENDING]: 0,
-    [AdvanceSettlementStatus.CHECKED_BY_ACCOUNTANT]: 0,
     [AdvanceSettlementStatus.APPROVED]: 0,
     [AdvanceSettlementStatus.REVERSED]: 0,
     [AdvanceSettlementStatus.REJECTED]: 0,
   };
   const totals: Record<string, number> = {
-    [AdvanceSettlementStatus.PENDING]: 0,
-    [AdvanceSettlementStatus.CHECKED_BY_ACCOUNTANT]: 0,
     [AdvanceSettlementStatus.APPROVED]: 0,
     [AdvanceSettlementStatus.REVERSED]: 0,
   };
@@ -64,7 +60,6 @@ export function summarizeSettlementStats(
 
 const TABS: { key: StatusFilter; label: string }[] = [
   { key: '', label: 'Tất cả' },
-  { key: AdvanceSettlementStatus.PENDING, label: 'Chờ xử lý' },
   { key: AdvanceSettlementStatus.APPROVED, label: 'Đã duyệt' },
   { key: AdvanceSettlementStatus.REVERSED, label: 'Đã hoàn tác' },
   { key: AdvanceSettlementStatus.REJECTED, label: 'Từ chối' },
@@ -75,24 +70,17 @@ const AS_PAGE_SIZE = 50;
 /** The composite "Chờ xử lý" tab selects both in-review statuses server-side. */
 function statusFilterParam(filter: StatusFilter): string | undefined {
   if (!filter) return undefined;
-  if (filter === AdvanceSettlementStatus.PENDING) {
-    return `${AdvanceSettlementStatus.PENDING},${AdvanceSettlementStatus.CHECKED_BY_ACCOUNTANT}`;
-  }
   return filter;
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  PENDING: 'var(--warning, #D97706)',
-  CHECKED_BY_ACCOUNTANT: '#2563EB',
   APPROVED: 'var(--success, #059669)',
   REVERSED: '#64748B',
   REJECTED: '#DC2626',
 };
 
 function settlementStatusLabel(status: AdvanceSettlementStatus): string {
-  return status === AdvanceSettlementStatus.CHECKED_BY_ACCOUNTANT
-    ? 'KT đã kiểm tra (dữ liệu cũ)'
-    : ADVANCE_SETTLEMENT_STATUS_LABELS[status];
+  return ADVANCE_SETTLEMENT_STATUS_LABELS[status];
 }
 
 /* ── Compact KPI card — mirrors AdminAdvancesPage .adv-kpi proportions ── */
@@ -376,10 +364,6 @@ export default function AdminAdvanceSettlementsPage({ embedded = false }: { embe
   const statusAmounts = data?.statusAmounts ?? {};
   const totalPages = data?.totalPages ?? 1;
   const effectivePage = Math.min(page, totalPages);
-  const pendingReviewCount = (statusCounts[AdvanceSettlementStatus.PENDING] ?? 0)
-    + (statusCounts[AdvanceSettlementStatus.CHECKED_BY_ACCOUNTANT] ?? 0);
-  const pendingReviewAmount = (statusAmounts[AdvanceSettlementStatus.PENDING] ?? 0)
-    + (statusAmounts[AdvanceSettlementStatus.CHECKED_BY_ACCOUNTANT] ?? 0);
 
   const applyFilter = (next: StatusFilter) => {
     setStatusFilter(next);
@@ -391,7 +375,6 @@ export default function AdminAdvanceSettlementsPage({ embedded = false }: { embe
     const fullTotal = Object.values(statusCounts).reduce((sum, n) => sum + n, 0);
     return {
       '': fullTotal,
-      [AdvanceSettlementStatus.PENDING]: pendingReviewCount,
       [AdvanceSettlementStatus.APPROVED]: statusCounts[AdvanceSettlementStatus.APPROVED] ?? 0,
       [AdvanceSettlementStatus.REVERSED]: statusCounts[AdvanceSettlementStatus.REVERSED] ?? 0,
       [AdvanceSettlementStatus.REJECTED]: statusCounts[AdvanceSettlementStatus.REJECTED] ?? 0,
@@ -412,16 +395,6 @@ export default function AdminAdvanceSettlementsPage({ embedded = false }: { embe
 
       {/* ── KPI strip ─────────────────────────────────────────────────── */}
       <div className="as-kpi-row">
-        <AsKPI
-          label="Chờ xử lý"
-          value={pendingReviewCount}
-          meta={`${formatNumber(pendingReviewAmount)} ₫`}
-          variant="warn"
-          iconName="settlement"
-          active={statusFilter === AdvanceSettlementStatus.PENDING}
-          hasItems={pendingReviewCount > 0}
-          onClick={() => applyFilter(statusFilter === AdvanceSettlementStatus.PENDING ? '' : AdvanceSettlementStatus.PENDING)}
-        />
         <AsKPI
           label="Đã duyệt"
           value={statusCounts[AdvanceSettlementStatus.APPROVED] ?? 0}

@@ -182,7 +182,7 @@ export function DriverProgressCard({ tripId }: { tripId: number }) {
             style={{
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
               minHeight: 44, padding: '0 20px', background: submitting ? 'var(--fg-3)' : 'var(--accent, #2563eb)',
-              color: '#fff', border: 'none', borderRadius: 8, fontSize: 15, fontWeight: 600,
+              color: '#fff', border: 'none', borderRadius: 8, fontSize: 'var(--text-control-size)', fontWeight: 600,
               cursor: submitting ? 'not-allowed' : 'pointer', width: '100%',
             }}
           >
@@ -193,7 +193,7 @@ export function DriverProgressCard({ tripId }: { tripId: number }) {
         {/* Submission status (offline-queue state) */}
         {submitMsg && (
           <div role={submitMsg.kind === 'err' ? 'alert' : 'status'} data-testid="progress-submit-msg" style={{
-            display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12', fontSize: 14,
+            display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12', fontSize: 'var(--text-body-size)',
             color: submitMsg.kind === 'err' ? 'var(--danger)' : 'var(--ok, #16a34a)',
           }}>
             {submitMsg.kind === 'ok' ? <CheckCircle2 size={16} /> : <AlertTriangle size={16} />}
@@ -202,7 +202,7 @@ export function DriverProgressCard({ tripId }: { tripId: number }) {
         )}
         {pending && pending.status !== 'DONE' && (
           <div data-testid="progress-pending" style={{
-            display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12', fontSize: 13,
+            display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12', fontSize: 'var(--text-data-size)',
             color: 'var(--warn, #d97706)', background: 'rgba(217,119,6,0.08)', borderRadius: 8,
           }}>
             <Clock size={14} />
@@ -213,19 +213,19 @@ export function DriverProgressCard({ tripId }: { tripId: number }) {
         {/* Timeline */}
         <div>
           {loading ? (
-            <div style={{ color: 'var(--ink-3)', fontSize: 14, padding: '8px 0' }}>Đang tải tiến độ…</div>
+            <div style={{ color: 'var(--ink-3)', fontSize: 'var(--text-caption-size)', padding: '8px 0' }}>Đang tải tiến độ…</div>
           ) : loadError ? (
-            <div style={{ color: 'var(--danger)', fontSize: 14, padding: '8px 0' }}>{loadError}</div>
+            <div style={{ color: 'var(--danger)', fontSize: 'var(--text-body-size)', padding: '8px 0' }}>{loadError}</div>
           ) : events.length === 0 ? (
-            <div style={{ color: 'var(--ink-3)', fontSize: 14, padding: '8px 0' }}>Chưa có sự kiện tiến độ.</div>
+            <div style={{ color: 'var(--ink-3)', fontSize: 'var(--text-caption-size)', padding: '8px 0' }}>Chưa có sự kiện tiến độ.</div>
           ) : (
             <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
               {events.map((ev) => (
                 <li key={ev.id} style={{ display: 'flex', gap: 8, padding: '8px 12', border: '1px solid var(--border, #e5e7eb)', borderRadius: 8 }}>
-                  <div style={{ fontWeight: 600, fontSize: 14, minWidth: 110 }}>
+                  <div style={{ fontWeight: 600, fontSize: 'var(--text-body-size)', minWidth: 110 }}>
                     {DRIVER_PROGRESS_EVENT_LABELS[ev.eventType as DriverProgressEventType] ?? ev.eventType}
                   </div>
-                  <div style={{ flex: 1, fontSize: 14 }}>
+                  <div style={{ flex: 1, fontSize: 'var(--text-body-size)' }}>
                     <div style={{ color: 'var(--ink-3)', display: 'flex', alignItems: 'center', gap: 4 }}>
                       <Clock size={12} /> {formatEventTime(ev.occurredAt)}
                     </div>

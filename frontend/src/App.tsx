@@ -125,7 +125,7 @@ function PageLoader() {
   return (
     <div data-page-loader="true" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 80, gap: 10, color: 'var(--fg-3)' }}>
       <div className="spin" style={{ width: 24, height: 24, border: '3px solid var(--border-2)', borderTopColor: 'var(--brand)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-      <span style={{ fontSize: 14 }}>Đang tải…</span>
+      <span style={{ fontSize: 'var(--text-body-size)' }}>Đang tải…</span>
     </div>
   );
 }

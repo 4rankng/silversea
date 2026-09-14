@@ -6,7 +6,7 @@
 }
 
 .ds-field__label {
-  font-size: var(--fs-xs);
+  font-size: var(--text-label-size);
   line-height: 1.35;
   font-weight: 600;
   color: var(--ink-2, var(--fg-2));
@@ -21,9 +21,11 @@
 .ds-field select.ds-field__input,
 .ds-field textarea.ds-field__input {
   width: 100%;
+  min-width: 0;
   min-height: 44px;
   padding: 9px 12px;
-  font-size: var(--fs-md);
+  font-size: var(--control-field-font-size);
+  line-height: 1.35;
   font-family: inherit;
   color: var(--ink, var(--fg));
   background:
@@ -50,6 +52,7 @@
 .ds-field__input-group {
   display: flex;
   align-items: stretch;
+  min-width: 0;
   border: 1px solid var(--line-2);
   border-radius: 10px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 249, 0.94));
@@ -79,13 +82,13 @@
   padding: 0 10px;
   background: var(--surface-3);
   color: var(--fg-3, var(--ink-3));
-  font-size: var(--fs-sm);
+  font-size: var(--text-control-compact-size);
   font-weight: 500;
   white-space: nowrap;
 }
 
 .ds-field__msg {
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   line-height: 1.35;
   color: var(--fg-3, var(--ink-3));
   margin-top: 2px;
@@ -103,14 +106,6 @@
 .ds-field--error .ds-field__input:focus,
 .ds-field--error .ds-field__input-group:focus-within {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 20%, transparent);
-}
-
-@media (min-width: 641px) {
-  .ds-field__input,
-  .ds-field select.ds-field__input,
-  .ds-field textarea.ds-field__input {
-    font-size: var(--fs-sm);
-  }
 }
 
 @media (max-width: 640px) {

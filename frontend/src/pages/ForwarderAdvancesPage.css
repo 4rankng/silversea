@@ -308,7 +308,7 @@
   }
 
   .fadv-form-panel__hint {
-    font-size: 13px;
+    font-size: var(--text-caption-size);
   }
 
   .fadv-form-panel__fields {
@@ -384,7 +384,7 @@
 
 .fadv-settlement-summary__value {
   font-family: var(--font-data);
-  font-size: 20px;
+  font-size: var(--text-title-size);
   font-weight: 700;
   letter-spacing: 0;
   line-height: 1.35;

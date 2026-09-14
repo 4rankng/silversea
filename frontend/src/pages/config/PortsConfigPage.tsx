@@ -109,7 +109,7 @@ function PortForm({ saving, item, zoneOptions, onsave, oncancel, onDelete, delet
               onChange={e => setIsLachHuyen(e.target.checked)}
               style={{ width: 16, height: 16, cursor: 'pointer' }}
             />
-            <span style={{ fontSize: 13 }}>Lạch Huyện</span>
+            <span style={{ fontSize: 'var(--text-data-size)' }}>Lạch Huyện</span>
           </label>
         </Field>
       </div>
@@ -283,11 +283,11 @@ export default function PortsConfigPage() {
         },
         {
           header: 'Pháp nhân',
-          render: (p) => <span style={{ color: 'var(--fg-2)', fontSize: 13 }}>{p.legalEntity || '—'}</span>,
+          render: (p) => <span style={{ color: 'var(--fg-2)', fontSize: 'var(--text-data-size)' }}>{p.legalEntity || '—'}</span>,
         },
         {
           header: 'Địa chỉ',
-          render: (p) => <span style={{ color: 'var(--fg-2)', fontSize: 13 }}>{p.address || '—'}</span>,
+          render: (p) => <span style={{ color: 'var(--fg-2)', fontSize: 'var(--text-data-size)' }}>{p.address || '—'}</span>,
         },
         {
           header: 'Thuộc Lạch Huyện',
@@ -298,12 +298,12 @@ export default function PortsConfigPage() {
         {
           header: 'Web tác nghiệp',
           render: (p) => p.opsPortalUrl
-            ? <a href={p.opsPortalUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', fontSize: 13 }}>{p.opsPortalUrl}</a>
+            ? <a href={p.opsPortalUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', fontSize: 'var(--text-data-size)' }}>{p.opsPortalUrl}</a>
             : <span style={{ color: 'var(--fg-3)' }}>—</span>,
         },
         {
           header: 'Vị trí',
-          render: (p) => <span style={{ color: 'var(--fg-2)', fontSize: 13 }}>{p.position || '—'}</span>,
+          render: (p) => <span style={{ color: 'var(--fg-2)', fontSize: 'var(--text-data-size)' }}>{p.position || '—'}</span>,
         },
         {
           header: 'Khu vực điều phối',

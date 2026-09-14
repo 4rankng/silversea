@@ -158,7 +158,7 @@ export default function TripEditPage() {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 80, gap: 10, color: 'var(--fg-3)' }}>
         <Spinner size={20} />
-        <span style={{ fontSize: 14 }}>Đang tải dữ liệu…</span>
+        <span style={{ fontSize: 'var(--text-body-size)' }}>Đang tải dữ liệu…</span>
       </div>
     );
   }
@@ -169,7 +169,7 @@ export default function TripEditPage() {
   if (tripError && !trip) {
     return (
       <div role="alert" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: 80 }}>
-        <p style={{ margin: 0, fontSize: 14, color: 'var(--danger, #b3261e)' }}>Không tải được dữ liệu chuyến đi. Vui lòng thử lại.</p>
+        <p style={{ margin: 0, fontSize: 'var(--text-body-size)', color: 'var(--danger, #b3261e)' }}>Không tải được dữ liệu chuyến đi. Vui lòng thử lại.</p>
         <button type="button" className="btn btn--secondary btn--sm" onClick={() => void refetchTrip()}>
           Thử lại
         </button>
@@ -193,7 +193,7 @@ export default function TripEditPage() {
           <div className="tc-title-wrap">
             <h1 className="sr-only">{trip.tripCode || 'Cập nhật số liệu'}</h1>
             <p className="tc-page-sub" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              <strong style={{ fontSize: 14 }}>{trip.tripCode || 'Cập nhật số liệu'}</strong>
+              <strong style={{ fontSize: 'var(--text-body-size)' }}>{trip.tripCode || 'Cập nhật số liệu'}</strong>
               <span
                 className={`tc-status-pill tc-status-pill--${trip.status === TripStatus.IN_TRANSIT ? 'in-transit' : trip.status === TripStatus.COMPLETED ? 'completed' : 'draft'}`}
                 aria-label={`Trạng thái: ${trip.status}`}

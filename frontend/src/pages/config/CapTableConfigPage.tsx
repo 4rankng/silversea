@@ -80,7 +80,7 @@ export default function CapTableConfigPage() {
       }}
       rowStyle={(_item, isActive) => isActive ? undefined : { opacity: 0.55 }}
       toolbarLeft={({ totalItems, activeCount }) => activeCount > 0 ? (
-        <span style={{ fontSize: 12, color: 'var(--fg-3)' }}>
+        <span style={{ fontSize: 'var(--text-caption-size)', color: 'var(--fg-3)' }}>
           Hiện tại: <strong style={{ color: 'var(--fg-1)' }}>{activeCount}</strong> cổ đông đang chia · {totalItems - activeCount} bản ghi lịch sử
         </span>
       ) : null}
@@ -91,7 +91,7 @@ export default function CapTableConfigPage() {
             <span style={{ fontWeight: 600, color: 'var(--fg-1)' }}>
               {ct.partnerName}
               {isActive && (
-                <span style={{ marginLeft: 8, padding: '1px 7px', borderRadius: 999, background: 'var(--accent-soft)', color: 'var(--accent)', fontSize: 12, fontWeight: 700, letterSpacing: '0.04em' }}>HIỆN TẠI</span>
+                <span style={{ marginLeft: 8, padding: '1px 7px', borderRadius: 999, background: 'var(--accent-soft)', color: 'var(--accent)', fontSize: 'var(--text-caption-size)', fontWeight: 700, letterSpacing: '0.04em' }}>HIỆN TẠI</span>
               )}
             </span>
           ),

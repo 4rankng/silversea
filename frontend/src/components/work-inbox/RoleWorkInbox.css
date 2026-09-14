@@ -1,18 +1,18 @@
 .role-work-inbox {
-  padding: 20px 0 40px;
+  padding: 12px 0 28px;
 }
 
 .role-work-inbox__header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 24px;
-  margin-bottom: 16px;
+  gap: 12px;
+  margin-bottom: 12px;
 }
 
 .role-work-inbox__eyebrow {
   color: var(--fg-3);
-  font-size: 11px;
+  font-size: var(--text-caption-size);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -20,7 +20,7 @@
 
 .role-work-inbox h1 {
   margin: 3px 0 5px;
-  font-size: clamp(24px, 2vw, 30px);
+  font-size: var(--text-title-size);
   line-height: 1.15;
 }
 
@@ -28,7 +28,7 @@
   max-width: 760px;
   margin: 0;
   color: var(--fg-2);
-  font-size: 13px;
+  font-size: var(--text-body-size);
 }
 
 .role-work-inbox__refresh,
@@ -45,7 +45,7 @@
   color: var(--fg-1);
   padding: 6px 11px;
   font: inherit;
-  font-size: 12px;
+  font-size: var(--text-control-compact-size);
   font-weight: 650;
   line-height: 1.2;
   text-decoration: none;
@@ -84,7 +84,7 @@
   background: var(--bg-2);
   padding: 9px 12px;
   color: var(--fg-2);
-  font-size: 12px;
+  font-size: var(--text-body-size);
 }
 
 .role-work-inbox__notice.is-warning,
@@ -118,9 +118,14 @@
   padding: 6px 12px;
   color: var(--fg-2);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--text-control-compact-size);
   font-weight: 650;
   cursor: pointer;
+}
+
+.role-work-inbox__tabs button:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: -2px;
 }
 
 .role-work-inbox__tabs button.is-active {
@@ -134,7 +139,7 @@
   background: var(--bg-3);
   padding: 1px 6px;
   color: var(--fg-3);
-  font-size: 11px;
+  font-size: var(--text-caption-size);
 }
 
 .role-work-inbox__table-wrap {
@@ -157,7 +162,7 @@
   background: var(--bg-2);
   padding: 6px 10px;
   color: var(--fg-3);
-  font-size: 11px;
+  font-size: var(--text-label-size);
   font-weight: 700;
   text-align: left;
   text-transform: uppercase;
@@ -182,7 +187,7 @@
   padding: 9px 10px;
   vertical-align: top;
   color: var(--fg-1);
-  font-size: 12px;
+  font-size: var(--text-data-size);
   min-width: 0;
 }
 .role-work-inbox__table td:nth-child(3) { overflow: hidden; }
@@ -195,7 +200,7 @@
   display: block;
 }
 
-.role-work-inbox__identity { font-size: 13px; }
+.role-work-inbox__identity { font-size: var(--text-data-size); }
 .role-work-inbox__subtitle {
   overflow: hidden;
   margin-top: 3px;
@@ -213,7 +218,7 @@
 }
 
 .role-work-inbox__facts div { min-width: 0; }
-.role-work-inbox__facts dt { color: var(--fg-3); font-size: 10px; }
+.role-work-inbox__facts dt { color: var(--fg-3); font-size: var(--text-label-size); }
 .role-work-inbox__facts dd { overflow: hidden; margin: 1px 0 0; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 
 .role-work-inbox__badge {
@@ -221,7 +226,7 @@
   border-radius: 999px;
   background: var(--bg-3);
   padding: 3px 7px;
-  font-size: 11px;
+  font-size: var(--text-caption-size);
   font-weight: 700;
   white-space: nowrap;
 }
@@ -247,7 +252,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
+  font-size: var(--text-caption-size);
   line-height: 1.3;
 }
 .role-work-inbox__gate-label { font-weight: 600; }
@@ -258,12 +263,12 @@
   min-width: 16px;
   height: 16px;
   border-radius: 999px;
-  font-size: 11px;
+  font-size: var(--text-caption-size);
   font-weight: 700;
 }
 .role-work-inbox__gate li.is-ok .role-work-inbox__gate-mark { background: var(--success-bg, #e6f4ea); color: var(--success); }
 .role-work-inbox__gate li.is-pending .role-work-inbox__gate-mark { background: var(--warning-bg, #fff4e0); color: var(--warning-text, #8a4b00); }
-.role-work-inbox__gate-pending { color: var(--fg-3); font-size: 10px; flex-basis: 100%; }
+.role-work-inbox__gate-pending { color: var(--fg-3); font-size: var(--text-caption-size); flex-basis: 100%; }
 
 .role-work-inbox__blocker,
 .role-work-inbox__advisory,
@@ -299,7 +304,7 @@
   text-align: left;
 }
 
-.role-work-inbox__dispute label { color: var(--fg-2); font-size: 11px; font-weight: 650; }
+.role-work-inbox__dispute label { color: var(--fg-2); font-size: var(--text-label-size); font-weight: 650; }
 .role-work-inbox__dispute textarea { min-height: 70px; resize: vertical; border: 1px solid var(--border-2); border-radius: 6px; background: var(--bg-1); color: var(--fg-1); padding: 7px; font: inherit; }
 .role-work-inbox__dispute > div { display: flex; gap: 5px; }
 
@@ -321,7 +326,7 @@
   gap: 10px;
   padding: 10px 0;
   color: var(--fg-3);
-  font-size: 12px;
+  font-size: var(--text-caption-size);
 }
 
 .role-work-inbox__pagination button {
@@ -352,20 +357,23 @@
   .role-work-inbox__table tr.is-priority::before { content: ''; position: absolute; top: 50%; left: 0; z-index: 1; width: var(--status-strip-width); height: var(--status-strip-height); border-radius: var(--status-strip-radius); background: var(--warning); transform: translateY(-50%); }
   .role-work-inbox__table tr.is-priority td:first-child { box-shadow: none; }
   .role-work-inbox__table td { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 8px; border-bottom: 1px solid var(--border-1); padding: 9px 12px; }
-  .role-work-inbox__table td::before { content: attr(data-label); color: var(--fg-3); font-size: 10px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; }
+  .role-work-inbox__table td::before { content: attr(data-label); color: var(--fg-3); font-size: var(--text-label-size); font-weight: 700; letter-spacing: .03em; text-transform: uppercase; }
   .role-work-inbox__table td:first-child { display: block; padding: 12px; }
   .role-work-inbox__table td:first-child::before { display: none; }
 }
 
 @media (max-width: 767px) {
-  .role-work-inbox { padding: 14px 0 28px; }
-  .role-work-inbox__header { display: grid; gap: 12px; }
+  .role-work-inbox { padding: 8px 0 24px; }
+  .role-work-inbox__header { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+  .role-work-inbox__header > div { min-width: 0; }
+  .role-work-inbox h1 { font-size: var(--text-title-size); }
   .role-work-inbox__refresh,
   .role-work-inbox__button,
   .role-work-inbox__state button { min-height: 44px; }
-  .role-work-inbox__refresh { width: 100%; }
-  .role-work-inbox__tabs { flex-wrap: wrap; gap: 6px; }
-  .role-work-inbox__tabs button { min-height: 44px; flex: 1 0 auto; white-space: nowrap; }
+  .role-work-inbox__refresh { align-self: start; white-space: nowrap; }
+  .role-work-inbox__tabs { flex-wrap: nowrap; gap: 2px; overflow-x: auto; overscroll-behavior-x: contain; }
+  .role-work-inbox__tabs button { min-height: 44px; flex: 1 0 0; min-width: max-content; padding: 6px; white-space: nowrap; }
+  .role-work-inbox__tabs span { margin-left: 4px; padding-inline: 5px; }
   /* Card-mode noise cut (customer scan-ability): an empty "Trở ngại: Không
      có" row carries no signal on a phone card, so it drops out entirely —
      real blockers keep rendering. Specificity must beat the td card-grid

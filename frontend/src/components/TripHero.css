@@ -32,7 +32,7 @@
 }
 .trip-hero__back:hover { background: var(--surface-3); color: var(--ink); border-color: var(--line-2); }
 .trip-hero__crumb {
-  font-size: var(--fs-2xs);
+  font-size: var(--text-caption-size);
   font-weight: 600;
   color: var(--ink-3);
   text-transform: uppercase;
@@ -47,7 +47,7 @@
 }
 .trip-hero__title {
   font-family: var(--font-display);
-  font-size: var(--fs-2xl);
+  font-size: var(--text-title-size);
   font-weight: var(--fw-bold);
   letter-spacing: 0;
   line-height: 1.25;
@@ -68,7 +68,7 @@
   background: var(--surface-2);
   border: 1px solid var(--line);
   border-radius: 999px;
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   color: var(--ink-2);
   font-weight: 500;
   white-space: nowrap;
@@ -105,7 +105,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   color: var(--warning-text);
   font-weight: 500;
   padding: 4px 8px;

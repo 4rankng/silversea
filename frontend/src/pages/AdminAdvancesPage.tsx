@@ -153,7 +153,7 @@ function AdvanceGridRow({
   req: AdvanceRequest;
   focusId?: string;
 }) {
-  const isPending = req.status === AdvanceRequestStatus.PENDING;
+  const isPending = req.status === 'APPROVED';
 
   return (
     <div className="adv-grid-row" id={focusId}>
@@ -211,7 +211,7 @@ function AdvanceMobileCard({
   req: AdvanceRequest;
   focusId?: string;
 }) {
-  const isPending = req.status === AdvanceRequestStatus.PENDING;
+  const isPending = req.status === 'APPROVED';
 
   return (
     <div className="adv-mcard" id={focusId}>
@@ -311,13 +311,11 @@ export default function AdminAdvancesPage({ embedded = false }: { embedded?: boo
   const countOf = (status: AdvanceRequestStatus) => statusCounts[status] ?? 0;
   const amountOf = (status: AdvanceRequestStatus) => statusAmounts[status] ?? 0;
   const totalCount =
-    countOf(AdvanceRequestStatus.PENDING) +
     countOf(AdvanceRequestStatus.APPROVED) +
     countOf(AdvanceRequestStatus.REJECTED);
 
   const tabCounts: Record<StatusFilter, number> = {
     '': totalCount,
-    [AdvanceRequestStatus.PENDING]: countOf(AdvanceRequestStatus.PENDING),
     [AdvanceRequestStatus.APPROVED]: countOf(AdvanceRequestStatus.APPROVED),
     [AdvanceRequestStatus.REJECTED]: countOf(AdvanceRequestStatus.REJECTED),
   };

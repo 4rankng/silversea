@@ -39,11 +39,11 @@ export function DebitNoteFreightOverride({
   return (
     <div data-debit-override style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-start' }}>
       <div>
-        <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>Giá cước hệ thống</div>
+        <div style={{ fontSize: 'var(--text-caption-size)', color: 'var(--ink-3)' }}>Giá cước hệ thống</div>
         <div style={{ fontFamily: 'var(--font-data)', fontWeight: 600 }}>{vnd(systemFreight)} đ</div>
       </div>
       <div>
-        <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>Giá cước đàm phán</div>
+        <div style={{ fontSize: 'var(--text-caption-size)', color: 'var(--ink-3)' }}>Giá cước đàm phán</div>
         <input
           className="input"
           type="number"
@@ -55,7 +55,7 @@ export function DebitNoteFreightOverride({
         />
       </div>
       <div style={{ flex: 1, minWidth: 220 }}>
-        <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>Lý do (bắt buộc khi giá thay đổi)</div>
+        <div style={{ fontSize: 'var(--text-caption-size)', color: 'var(--ink-3)' }}>Lý do (bắt buộc khi giá thay đổi)</div>
         <textarea
           className="input"
           aria-label="Lý do điều chỉnh"
@@ -65,7 +65,7 @@ export function DebitNoteFreightOverride({
           style={{ width: '100%', resize: 'vertical' }}
         />
         {touched && invalid && (
-          <div style={{ color: 'var(--danger)', fontSize: 12, marginTop: 4 }} role="alert">
+          <div style={{ color: 'var(--danger)', fontSize: 'var(--text-body-size)', marginTop: 4 }} role="alert">
             Bắt buộc nhập lý do khi giá cước thay đổi so với hệ thống
           </div>
         )}

@@ -8,7 +8,7 @@
 .tc-create-wrap {
   max-width: 1600px;
   margin: 0 auto;
-  padding: 12px 28px 0;
+  padding: 0;
   width: 100%;
 }
 
@@ -18,8 +18,8 @@
   color: var(--ink);
   border: 1px solid var(--line);
   border-radius: var(--r);
-  padding: 24px 28px;
-  margin-bottom: 22px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
   display: flex;
   flex-direction: column;
   position: relative;
@@ -34,7 +34,7 @@
 .tc-hero-content {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 12px;
   position: relative;
   z-index: 1;
 }
@@ -82,7 +82,7 @@
 
 /* ── Hero widgets container ── side-by-side estimate + checklist */
 .tc-hero-widgets {
-  margin-top: 22px;
+  margin-top: 12px;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
@@ -94,10 +94,11 @@
 }
 .tc-hero-widgets .tc-summary-card,
 .tc-hero-widgets .tc-checklist {
-  background: var(--surface-2);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 16px 20px;
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  padding: 12px 0 0;
   margin-bottom: 0;
 }
 
@@ -179,7 +180,7 @@
   grid-template-columns: repeat(12, minmax(0, 1fr));
   gap: 24px;
   align-items: start;
-  padding: 28px;
+  padding: 16px;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--r);
@@ -195,17 +196,17 @@
 /* ── Responsive ── */
 @media (max-width: 1200px) {
   .tc-create-hero {
-    padding: 20px;
+    padding: 14px 16px;
   }
   .tc-create-bento { grid-template-columns: 1fr; }
   .tc-create-bento > * { grid-column: span 1; }
 }
 @media (max-width: 640px) {
-  .tc-create-wrap { padding: 8px 12px 0; }
-  .tc-create-hero { padding: 16px; margin-bottom: 14px; }
+  .tc-create-wrap { padding: 0; }
+  .tc-create-hero { padding: 10px; margin-bottom: 10px; }
   .tc-hero-top { gap: 12px; flex-wrap: wrap; }
   .tc-hero-widgets {
     display: none;
   }
-  .tc-create-bento { padding: 16px; margin-bottom: 100px; gap: 16px; }
+  .tc-create-bento { padding: 10px; margin-bottom: 100px; gap: 16px; }
 }

@@ -2,7 +2,7 @@ import type { Dispatch, SetStateAction } from 'react';
 import { Loader2, Save, ShieldCheck } from 'lucide-react';
 import { Panel } from '../../components/UI';
 import { DateInput } from '../../design-system/forms/DateInput';
-import { UuiSelectField } from '../../design-system';
+import { Tabs, UuiSelectField } from '../../design-system';
 import type {
   useFinancialReportingPolicy,
   useRequestFinancialReportingPolicy,
@@ -88,27 +88,15 @@ export function FinancePolicySection({
       subtitle="Tạo phiên bản mới theo tháng hiệu lực, không sửa trực tiếp bản hiện hành"
       action={<ShieldCheck size={18} className="cfg-panel-action-icon" />}
     >
-      <div className="cfg-finance-tabs" role="tablist" aria-label="Nhóm chính sách tài chính">
-        <button
-          type="button"
-          className={`cfg-finance-tab ${activeFinanceTab === 'policy' ? 'is-active' : ''}`}
-          onClick={() => setActiveFinanceTab('policy')}
-          role="tab"
-          aria-selected={activeFinanceTab === 'policy'}
-        >
-          Chính sách báo cáo
-        </button>
-        <button
-          type="button"
-          className={`cfg-finance-tab ${activeFinanceTab === 'truck' ? 'is-active' : ''}`}
-          onClick={() => setActiveFinanceTab('truck')}
-          role="tab"
-          aria-selected={activeFinanceTab === 'truck'}
-        >
-          Hồ sơ tài chính xe
-        </button>
-      </div>
-
+      <Tabs
+        className="cfg-finance-tabs"
+        ariaLabel="Nhóm chính sách tài chính"
+        variant="bordered"
+        tabs={[{ id: 'policy', label: 'Chính sách báo cáo' }, { id: 'truck', label: 'Hồ sơ tài chính xe' }]}
+        value={activeFinanceTab}
+        onChange={(value) => setActiveFinanceTab(value as FinanceTab)}
+      />
+      <div role="tabpanel" aria-label={activeFinanceTab === 'policy' ? 'Chính sách báo cáo' : 'Hồ sơ tài chính xe'}>
       {activeFinanceTab === 'policy' ? (
         financialPolicy.isLoading ? (
           <FinanceLoadingBlock />
@@ -388,7 +376,7 @@ export function FinancePolicySection({
                   aria-describedby={truckError?.includes('Thời gian sử dụng') ? 'truck-life-error' : undefined}
                 />
                 {truckError?.includes('Thời gian sử dụng') && (
-                  <p id="truck-life-error" role="alert" className="cfg-field-error" style={{ color: 'var(--err, #dc2626)', margin: '4px 0 0', fontSize: 12 }}>
+                  <p id="truck-life-error" role="alert" className="cfg-field-error" style={{ color: 'var(--err, #dc2626)', margin: '4px 0 0', fontSize: 'var(--text-body-size)' }}>
                     {truckError}
                   </p>
                 )}
@@ -436,6 +424,7 @@ export function FinancePolicySection({
           </div>
         </div>
       )}
+      </div>
     </Panel>
   );
 }

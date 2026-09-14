@@ -124,12 +124,12 @@ export default function MasterDataImportPage() {
           <input id="master-data-file-role" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" disabled={Boolean(busy)} onChange={(event) => { setUserRoleFile(event.target.files?.[0] ?? null); setBatch(null); setError(null); }} style={{ minHeight: 44, width: '100%', border: '1px solid var(--border-2)', borderRadius: 8, padding: 8 }} />
         </div>
         <details>
-          <summary style={{ cursor: 'pointer', color: 'var(--fg-3)', fontSize: 14 }}>Tệp Master Data cũ (một tệp duy nhất)</summary>
+          <summary style={{ cursor: 'pointer', color: 'var(--fg-3)', fontSize: 'var(--text-body-size)', minHeight: 44, paddingBlock: 10 }}>Tệp Master Data cũ (một tệp duy nhất)</summary>
           <input id="master-data-file-legacy" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" disabled={Boolean(busy)} onChange={(event) => { setLegacyFile(event.target.files?.[0] ?? null); setBatch(null); setError(null); }} style={{ minHeight: 44, width: '100%', border: '1px solid var(--border-2)', borderRadius: 8, padding: 8, marginTop: 8 }} />
         </details>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <button type="button" onClick={() => void analyze()} disabled={!hasAnyFile || Boolean(busy)} className="btn btn--primary"><Upload size={14} />{busy === 'ANALYZE' ? 'Đang kiểm tra…' : 'Kiểm tra dữ liệu'}</button>
-          {batch && <span style={{ alignSelf: 'center', color: 'var(--fg-3)', fontSize: 14 }}><FileSpreadsheet size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} />{batch.sourceFileName}</span>}
+          {batch && <span style={{ alignSelf: 'center', minWidth: 0, overflowWrap: 'anywhere', color: 'var(--fg-3)', fontSize: 'var(--text-body-size)' }}><FileSpreadsheet size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} />{batch.sourceFileName}</span>}
         </div>
       </section>
 
@@ -140,7 +140,7 @@ export default function MasterDataImportPage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(150px, 100%), 1fr))', gap: 10 }}>
             {(['ACCEPTED', 'BLOCKED', 'TEMPLATE', 'EXAMPLE'] as const).map((classification) => {
               const count = batch.summary[classification] ?? batch.rows.filter((row) => row.classification === classification).length;
-              return <div key={classification} style={{ border: '1px solid var(--border-2)', borderRadius: 8, padding: 14, background: 'var(--surface-1)' }}><div style={{ color: 'var(--fg-3)', fontSize: 13 }}>{classificationLabels[classification]}</div><strong style={{ color: classificationColors[classification], fontSize: 24 }}>{count}</strong></div>;
+              return <div key={classification} style={{ border: '1px solid var(--border-2)', borderRadius: 8, padding: 14, background: 'var(--surface-1)' }}><div style={{ color: 'var(--fg-3)', fontSize: 'var(--text-data-size)' }}>{classificationLabels[classification]}</div><strong style={{ color: classificationColors[classification], fontSize: 'var(--text-metric-size)' }}>{count}</strong></div>;
             })}
           </div>
 

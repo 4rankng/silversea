@@ -538,7 +538,7 @@ export default function PayableListPage() {
                       <ClickableCard key={`${d.kind ?? 'vendor'}-${d.supplier.id}`} to={rowHref(d)} className="m-card">
                         <div className="m-card__top">
                           <span className="m-card__title">{d.supplier.name}</span>
-                          <span className={`m-card__row-value${d.totalOutstanding > 0 ? '--danger' : '--success'} m-card__row-value`} style={{ fontSize: 13.5 }}>
+                          <span className={`m-card__row-value${d.totalOutstanding > 0 ? '--danger' : '--success'} m-card__row-value`} style={{ fontSize: 'var(--text-body-size)' }}>
                             {formatCurrency(d.totalOutstanding)}
                           </span>
                         </div>
@@ -556,7 +556,7 @@ export default function PayableListPage() {
                             {d.maxOverdueDays > 0 && (
                               <div className="m-card__row">
                                 <span className="m-card__row-label">Quá hạn lớn nhất</span>
-                                <span style={{ fontSize: 12, fontWeight: 600, color: d.maxOverdueDays > 60 ? 'var(--danger)' : 'var(--warning)' }}>
+                                <span style={{ fontSize: 'var(--text-body-size)', fontWeight: 600, color: d.maxOverdueDays > 60 ? 'var(--danger)' : 'var(--warning)' }}>
                                   {d.maxOverdueDays} ngày
                                 </span>
                               </div>
@@ -598,7 +598,7 @@ export default function PayableListPage() {
                           <div style={{ display: 'flex', alignItems: 'center', fontWeight: 600, color: 'var(--fg-1)' }}>
                             {d.supplier.name}
                           </div>
-                          <div style={{ fontSize: 12, lineHeight: 1.35, color: 'var(--fg-3)' }}>
+                          <div style={{ fontSize: 'var(--text-caption-size)', lineHeight: 1.35, color: 'var(--fg-3)' }}>
                             {d.supplier.phone || '—'}
                           </div>
                         </td>
@@ -608,16 +608,16 @@ export default function PayableListPage() {
                         }}>
                           {formatCurrency(d.totalOutstanding)}
                         </td>
-                        <td data-label="0-30 ngày" className="num" style={{ fontSize: 13, color: d.aging.current > 0 ? 'var(--fg-1)' : 'var(--fg-3)' }}>
+                        <td data-label="0-30 ngày" className="num" style={{ fontSize: 'var(--text-data-size)', color: d.aging.current > 0 ? 'var(--fg-1)' : 'var(--fg-3)' }}>
                           {d.aging.current > 0 ? formatCurrency(d.aging.current) : '—'}
                         </td>
-                        <td data-label="31-60 ngày" className="num" style={{ fontSize: 13, color: d.aging.d30 > 0 ? 'var(--warning)' : 'var(--fg-3)' }}>
+                        <td data-label="31-60 ngày" className="num" style={{ fontSize: 'var(--text-data-size)', color: d.aging.d30 > 0 ? 'var(--warning)' : 'var(--fg-3)' }}>
                           {d.aging.d30 > 0 ? formatCurrency(d.aging.d30) : '—'}
                         </td>
-                        <td data-label="61-90 ngày" className="num" style={{ fontSize: 13, color: d.aging.d60 > 0 ? 'var(--warning, #D97706)' : 'var(--fg-3)' }}>
+                        <td data-label="61-90 ngày" className="num" style={{ fontSize: 'var(--text-data-size)', color: d.aging.d60 > 0 ? 'var(--warning, #D97706)' : 'var(--fg-3)' }}>
                           {d.aging.d60 > 0 ? formatCurrency(d.aging.d60) : '—'}
                         </td>
-                        <td data-label=">90 ngày" className="num" style={{ fontSize: 13, color: d.aging.over90 > 0 ? 'var(--danger)' : 'var(--fg-3)' }}>
+                        <td data-label=">90 ngày" className="num" style={{ fontSize: 'var(--text-data-size)', color: d.aging.over90 > 0 ? 'var(--danger)' : 'var(--fg-3)' }}>
                           {d.aging.over90 > 0 ? formatCurrency(d.aging.over90) : '—'}
                         </td>
                         <td data-label="" className="record-table__action" style={{ textAlign: 'right' }}>

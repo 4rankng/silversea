@@ -68,9 +68,9 @@
 }
 
 .topbar__welcome .name {
-  font-size: 15px;
+  font-size: var(--text-body-size);
   line-height: 1.35;
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   color: var(--ink);
   white-space: nowrap;
   overflow: visible;
@@ -95,8 +95,8 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: var(--fs-xs);
-  font-weight: 500;
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-medium);
   color: var(--ink-3);
   letter-spacing: 0.02em;
   line-height: 1.4;
@@ -146,8 +146,8 @@
   border: 1px solid var(--line);
   border-radius: 10px;
   color: var(--ink);
-  font-size: var(--fs-sm);
-  font-weight: 600;
+  font-size: var(--text-data-size);
+  font-weight: var(--fw-semibold);
   font-family: inherit;
   cursor: pointer;
   white-space: nowrap;
@@ -181,10 +181,10 @@
   line-height: 1.35;
 }
 .topbar-date__period {
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   font-family: var(--font-data);
   color: var(--ink-3);
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
   line-height: 1.35;
 }
 .topbar-date__caret {
@@ -222,15 +222,15 @@
 }
 .month-picker__title span {
   color: var(--ink);
-  font-size: 13px;
-  font-weight: 800;
+  font-size: var(--text-section-size);
+  font-weight: var(--fw-semibold);
   letter-spacing: 0;
 }
 .month-picker__title small {
   color: var(--ink-3);
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   line-height: 1.35;
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
 }
 .month-picker__header {
   display: flex;
@@ -243,8 +243,8 @@
   margin-bottom: 10px;
 }
 .month-picker__year {
-  font-size: 13px;
-  font-weight: 800;
+  font-size: var(--text-section-size);
+  font-weight: var(--fw-semibold);
   color: var(--ink);
 
   letter-spacing: 0;
@@ -291,14 +291,14 @@
 }
 .month-picker__cell-code {
   color: var(--ink);
-  font-size: 14px;
-  font-weight: 850;
+  font-size: var(--text-control-size);
+  font-weight: var(--fw-bold);
   line-height: 1.25;
 }
 .month-picker__cell-name {
   color: var(--ink-3);
-  font-size: var(--fs-xs);
-  font-weight: 700;
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-bold);
   line-height: 1.3;
 }
 .month-picker__cell:hover {
@@ -341,8 +341,8 @@
   background: rgba(0, 90, 45, 0.08);
   border: 1px solid rgba(0, 90, 45, 0.14);
   color: var(--accent);
-  font-size: 12px;
-  font-weight: 800;
+  font-size: var(--text-control-size);
+  font-weight: var(--fw-bold);
   cursor: pointer;
   padding: 7px 10px;
   border-radius: 999px;
@@ -356,8 +356,8 @@
 .month-picker__hint {
   min-width: 0;
   color: var(--ink-3);
-  font-size: var(--fs-xs);
-  font-weight: 650;
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-semibold);
   text-align: right;
   line-height: 1.35;
 }
@@ -383,11 +383,11 @@
   }
 
   .month-picker__cell-code {
-    font-size: 13px;
+    font-size: var(--text-control-size);
   }
 
   .month-picker__cell-name {
-    font-size: var(--fs-xs);
+    font-size: var(--text-caption-size);
   }
 }
 
@@ -440,14 +440,14 @@
 }
 .topbar__context-kicker {
   color: var(--ink-3);
-  font-size: var(--fs-xs);
-  font-weight: 600;
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-semibold);
 }
 .topbar__context strong {
   overflow: hidden;
   color: var(--ink);
-  font-size: var(--fs-sm);
-  font-weight: 800;
+  font-size: var(--text-body-size);
+  font-weight: var(--fw-bold);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -456,12 +456,12 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: var(--text-data-size);
   color: var(--ink-3);
   white-space: nowrap;
   flex-shrink: 0;
 }
-.topbar__breadcrumb strong { color: var(--ink); font-weight: 600; font-size: var(--fs-sm); }
+.topbar__breadcrumb strong { color: var(--ink); font-weight: var(--fw-semibold); font-size: var(--text-body-size); }
 
 .topbar__search {
   flex: 1;
@@ -484,7 +484,6 @@
   background: var(--surface-2);
   border: 1px solid var(--line);
   border-radius: 10px;
-  font-size: var(--fs-sm);
   color: var(--ink);
   outline: none;
   transition: border-color 0.15s ease, background 0.15s ease;
@@ -502,8 +501,8 @@
   top: 50%;
   transform: translateY(-50%);
   font-family: var(--font-data);
-  font-size: var(--fs-xs);
-  font-weight: 600;
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-semibold);
   padding: 2px 6px;
   border-radius: 4px;
   background: var(--surface-3);
@@ -527,8 +526,8 @@
   background: var(--accent-2);
   color: var(--fg-on-brand);
   font-family: var(--font-data);
-  font-size: var(--fs-xs);
-  font-weight: 700;
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-bold);
   display: grid; place-items: center;
   border: 2px solid rgba(255, 255, 255, 0.8);
   /* override generic .badge */
@@ -574,7 +573,7 @@
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
-.user-btn .role { font-size: var(--fs-xs); line-height: 1.35; font-weight: 500; }
+.user-btn .role { font-size: var(--text-caption-size); line-height: 1.35; font-weight: var(--fw-medium); }
 
 /* ─── Notification bell ─────────────────────────────────────────────────── */
 .notif-bell { position: relative; }
@@ -595,17 +594,17 @@
 .notif-panel__head {
   display: flex; align-items: center; justify-content: space-between;
   padding: 12px 14px;
-  font-size: 13px; font-weight: 700; color: var(--ink);
+  font-size: var(--text-section-size); font-weight: var(--fw-semibold); color: var(--ink);
   border-bottom: 1px solid var(--line);
 }
 .notif-panel__markall {
   background: none; border: none; cursor: pointer;
   min-height: var(--control-h);
-  font-size: 12px; color: var(--accent-2); padding: 8px;
+  font-size: var(--text-control-size); color: var(--accent-2); padding: 8px;
 }
 .notif-panel__markall:disabled { opacity: 0.5; cursor: default; }
 .notif-panel__list { max-height: 360px; overflow-y: auto; }
-.notif-panel__empty { padding: 28px 14px; text-align: center; font-size: 13px; color: var(--ink-3); }
+.notif-panel__empty { padding: 28px 14px; text-align: center; font-size: var(--text-body-size); color: var(--ink-3); }
 .notif-item {
   display: flex; gap: 8px; padding: 10px 14px;
   width: 100%; border: 0; border-bottom: 1px solid var(--surface-2);
@@ -622,14 +621,14 @@
 }
 .notif-item.is-unread .notif-item__dot { background: var(--accent); }
 .notif-item__body { min-width: 0; flex: 1; }
-.notif-item__title { font-size: 13px; font-weight: 600; color: var(--ink); }
-.notif-item__msg { font-size: 12px; color: var(--ink-2); margin-top: 2px; word-break: break-word; }
-.notif-item__time { font-size: var(--fs-xs); line-height: 1.35; color: var(--ink-3); margin-top: 4px; }
+.notif-item__title { font-size: var(--text-body-size); font-weight: var(--fw-semibold); color: var(--ink); }
+.notif-item__msg { font-size: var(--text-body-size); color: var(--ink-2); margin-top: 2px; word-break: break-word; }
+.notif-item__time { font-size: var(--text-caption-size); line-height: 1.35; color: var(--ink-3); margin-top: 4px; }
 .notif-panel__foot { padding: 10px 14px; border-top: 1px solid var(--line); }
 .notif-panel__push {
   width: 100%; background: var(--surface-3); border: 1px solid var(--line);
   min-height: var(--control-h);
-  border-radius: 8px; padding: 8px; font-size: 12px; color: var(--ink); cursor: pointer;
+  border-radius: 8px; padding: 8px; font-size: var(--text-control-size); color: var(--ink); cursor: pointer;
 }
 .notif-panel__push:disabled { opacity: 0.5; cursor: default; }
-.notif-panel__push-err { font-size: var(--fs-xs); line-height: 1.35; color: var(--danger); margin-top: 6px; }
+.notif-panel__push-err { font-size: var(--text-caption-size); line-height: 1.35; color: var(--danger); margin-top: 6px; }

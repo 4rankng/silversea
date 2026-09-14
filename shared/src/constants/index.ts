@@ -529,14 +529,11 @@ export const NO_INVOICE_POLICY_DEFAULTS = {
 };
 
 export enum AdvanceRequestStatus {
-  PENDING = 'PENDING',
   APPROVED = 'APPROVED',
   REJECTED = 'REJECTED',
 }
 
 export enum AdvanceSettlementStatus {
-  PENDING = 'PENDING',
-  CHECKED_BY_ACCOUNTANT = 'CHECKED_BY_ACCOUNTANT',
   APPROVED = 'APPROVED',
   REJECTED = 'REJECTED',
   REVERSED = 'REVERSED',
@@ -571,15 +568,12 @@ export const TRUCK_CAP_ROLE_LABELS: Record<TruckCapRole, string> = {
 };
 
 export const ADVANCE_REQUEST_STATUS_LABELS: Record<AdvanceRequestStatus, string> = {
-  [AdvanceRequestStatus.PENDING]: 'Chờ duyệt',
-  [AdvanceRequestStatus.APPROVED]: 'Đã duyệt',
+  [AdvanceRequestStatus.APPROVED]: 'Đã ghi nhận',
   [AdvanceRequestStatus.REJECTED]: 'Từ chối',
 };
 
 export const ADVANCE_SETTLEMENT_STATUS_LABELS: Record<AdvanceSettlementStatus, string> = {
-  [AdvanceSettlementStatus.PENDING]: 'Chờ xử lý',
-  [AdvanceSettlementStatus.CHECKED_BY_ACCOUNTANT]: 'KT đã kiểm tra',
-  [AdvanceSettlementStatus.APPROVED]: 'Đã duyệt',
+  [AdvanceSettlementStatus.APPROVED]: 'Đã ghi nhận',
   [AdvanceSettlementStatus.REJECTED]: 'Từ chối',
   [AdvanceSettlementStatus.REVERSED]: 'Đã hoàn tác',
 };

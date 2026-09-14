@@ -686,7 +686,7 @@ export function ShipmentCreateWorkspace() {
                 error={issueByField.get('shipment-operational-site')}
                 {...(form.isAdHoc ? { onCustomValue: factoryCustomText } : {})}
                 hint={form.customerId && !sitesLoading && operationalSites.length === 0
-                    ? <>Chưa có nhà máy.{' '}<button type="button" onClick={(e) => { e.preventDefault(); openCreateSiteDialog('FACTORY'); }} disabled={Boolean(saving)} style={{ border: 0, background: 'none', padding: 0, color: 'var(--accent, #2563eb)', fontWeight: 700, cursor: 'pointer', fontSize: 12 }}>Thêm mới</button></>
+                    ? <>Chưa có nhà máy.{' '}<button type="button" onClick={(e) => { e.preventDefault(); openCreateSiteDialog('FACTORY'); }} disabled={Boolean(saving)} style={{ border: 0, background: 'none', padding: 0, color: 'var(--accent, #2563eb)', fontWeight: 700, cursor: 'pointer', fontSize: 'var(--text-control-size)' }}>Thêm mới</button></>
                     : undefined}
                 searchable
                 popoverPlacement="top"
@@ -946,7 +946,7 @@ export function ShipmentCreateWorkspace() {
                   disabled={!form.customerId || sitesLoading || Boolean(saving)}
                   error={issueByField.get('shipment-pickup-warehouse')}
                   hint={form.customerId && !sitesLoading && warehouseSites.length === 0
-                      ? <>Chưa có kho cho khách hàng này.{' '}<button type="button" onClick={() => openCreateSiteDialog('WAREHOUSE')} disabled={Boolean(saving)} style={{ border: 0, background: 'none', padding: 0, color: 'var(--accent, #2563eb)', fontWeight: 700, cursor: 'pointer', fontSize: 12 }}>Thêm kho</button></>
+                      ? <>Chưa có kho cho khách hàng này.{' '}<button type="button" onClick={() => openCreateSiteDialog('WAREHOUSE')} disabled={Boolean(saving)} style={{ border: 0, background: 'none', padding: 0, color: 'var(--accent, #2563eb)', fontWeight: 700, cursor: 'pointer', fontSize: 'var(--text-control-size)' }}>Thêm kho</button></>
                       : undefined}
                   searchable
                   popoverPlacement="top"

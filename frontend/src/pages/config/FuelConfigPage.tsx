@@ -174,7 +174,7 @@ export default function FuelConfigPage() {
             {saving ? <Loader2 size={14} className="spin" /> : <Save size={14} />}
             Lưu cấu hình
           </button>
-          {message && <span role="status" style={{ color: 'var(--success)', fontSize: 13 }}>{message}</span>}
+          {message && <span role="status" style={{ color: 'var(--success)', fontSize: 'var(--text-data-size)' }}>{message}</span>}
         </div>
       </Panel>
       <Panel title="Lịch sử giá nhiên liệu" subtitle="Theo dõi các lần thay đổi đơn giá nhiên liệu" style={{ marginTop: 20 }}>

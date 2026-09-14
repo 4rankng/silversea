@@ -528,3 +528,16 @@
   .shipment-container-ledger__route { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); }
   .shipment-container-ledger__route i { justify-self: center; transform: none; }
 }
+
+@media (max-width: 1023px) {
+  .shipments-detail-filters__advanced {
+    display: none;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .shipments-detail-filters__advanced[data-open] {
+    display: flex;
+    flex-basis: 100%;
+  }
+}

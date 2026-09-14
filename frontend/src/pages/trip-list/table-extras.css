@@ -14,7 +14,7 @@
   min-width: 280px;
 }
 .trip-list-page .quick-governance-label > span {
-  font-size: 12px;
+  font-size: var(--text-label-size);
   font-weight: 600;
 }
 

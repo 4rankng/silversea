@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ComponentType } from 'react';
 import { createPortal } from 'react-dom';
-import { Search } from 'lucide-react';
+import { Search, X } from 'lucide-react';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 import './CommandPalette.css';
 
 /**
@@ -57,6 +58,14 @@ export function CommandPalette({ open, commands, onClose, placeholder = 'Tìm l�
   const [activeIdx, setActiveIdx] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
+  const paletteRef = useRef<HTMLDivElement>(null);
+  const listId = useId();
+  useLayoutEffect(() => {
+    if (!open) return;
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    return () => { if (opener?.isConnected) opener.focus({ preventScroll: true }); };
+  }, [open]);
+  useFocusTrap(paletteRef, open);
 
   // Reset state every time the palette opens.
   useEffect(() => {
@@ -98,9 +107,11 @@ export function CommandPalette({ open, commands, onClose, placeholder = 'Tìm l�
         onClose();
         return;
       }
+      // Buttons retain native Enter behavior after tabbing away from search.
+      if (e.target !== inputRef.current) return;
       if (e.key === 'ArrowDown') {
         e.preventDefault();
-        setActiveIdx((i) => Math.min(i + 1, filtered.length - 1));
+        setActiveIdx((i) => Math.max(0, Math.min(i + 1, filtered.length - 1)));
         return;
       }
       if (e.key === 'ArrowUp') {
@@ -127,7 +138,7 @@ export function CommandPalette({ open, commands, onClose, placeholder = 'Tìm l�
       aria-label="Bảng lệnh"
       onClick={onClose}
     >
-      <div className="cmd-palette" role="document" onClick={(e) => e.stopPropagation()}>
+      <div ref={paletteRef} className="cmd-palette" role="document" onClick={(e) => e.stopPropagation()}>
         <div className="cmd-palette__search">
           <Search size={18} className="cmd-palette__search-icon" aria-hidden="true" />
           <input
@@ -143,26 +154,29 @@ export function CommandPalette({ open, commands, onClose, placeholder = 'Tìm l�
             role="combobox"
             aria-expanded="true"
             aria-autocomplete="list"
-            aria-controls="cmd-palette-list"
+            aria-controls={listId}
+            aria-label="Tìm lệnh hoặc trang"
+            aria-activedescendant={filtered[activeIdx] ? `${listId}-${activeIdx}` : undefined}
             autoComplete="off"
             spellCheck={false}
           />
+          <button type="button" className="cmd-palette__close" aria-label="Đóng bảng lệnh" onClick={onClose}><X size={18} aria-hidden="true" /></button>
         </div>
 
         {filtered.length === 0 ? (
           <div className="cmd-palette__empty">Không tìm thấy lệnh phù hợp.</div>
         ) : (
-          <ul ref={listRef} id="cmd-palette-list" className="cmd-palette__list" role="listbox">
+          <ul ref={listRef} id={listId} className="cmd-palette__list" role="listbox" aria-label="Kết quả tìm lệnh">
             {filtered.map((cmd, idx) => {
               const Icon = cmd.icon;
               const isActive = idx === activeIdx;
               return (
-                <li key={cmd.id} role="option" aria-selected={isActive} data-idx={idx}>
+                <li key={cmd.id} id={`${listId}-${idx}`} role="option" aria-selected={isActive} data-idx={idx}>
                   <button
                     type="button"
                     className={`cmd-palette__item${isActive ? ' cmd-palette__item--active' : ''}`}
                     onMouseEnter={() => setActiveIdx(idx)}
-                    onClick={runActive}
+                    onClick={() => { cmd.run(); onClose(); }}
                   >
                     <span className="cmd-palette__item-main">
                       {Icon && (

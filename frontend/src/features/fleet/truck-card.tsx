@@ -326,7 +326,7 @@ export function TruckCard({ trucks, driverByTruck, trailers, crud }: { trucks: T
                 <StatusStrip color={fleetStatusColor(t.status)} />
                 <div className="m-card__top">
                   <span className="m-card__title">
-                    <span className="fleet-plate-tag" style={{ marginRight: 6, background: "var(--ink)", color: "#fff", padding: "3px 6px", borderRadius: 4, fontSize: 12, lineHeight: 1.35, letterSpacing: "0.5px" }}>
+                    <span className="fleet-plate-tag" style={{ marginRight: 6, background: "var(--ink)", color: "#fff", padding: "3px 6px", borderRadius: 4, fontSize: 'var(--text-body-size)', lineHeight: 1.35, letterSpacing: "0.5px" }}>
                       VN
                     </span>
                     {t.licensePlate}

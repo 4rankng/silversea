@@ -201,7 +201,7 @@ export function LocationAutocomplete({
                 style={{
                   padding: '8px 12px',
                   cursor: 'pointer',
-                  fontSize: 13,
+                  fontSize: 'var(--text-data-size)',
                   borderBottom: '1px solid var(--border-1, var(--line))',
                   color: 'var(--fg-1, var(--ink))',
                   display: 'flex',
@@ -215,7 +215,7 @@ export function LocationAutocomplete({
                     {s.description}
                   </div>
                   {s.hint && (
-                    <div style={{ fontSize: 12, lineHeight: 1.35, color: 'var(--fg-3, var(--ink-3))', marginTop: 1 }}>
+                    <div style={{ fontSize: 'var(--text-caption-size)', lineHeight: 1.35, color: 'var(--fg-3, var(--ink-3))', marginTop: 1 }}>
                       {s.hint}
                     </div>
                   )}
@@ -223,7 +223,7 @@ export function LocationAutocomplete({
                 {s.source === 'port' && (
                   <span
                     style={{
-                      fontSize: 12,
+                      fontSize: 'var(--text-body-size)',
                       padding: '2px 6px',
                       borderRadius: 999,
                       background: 'rgba(16,185,129,0.15)',

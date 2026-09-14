@@ -22,22 +22,40 @@ export async function createAdvanceRequest(
   data: { amount: number; reason: string },
   transaction?: Tx,
 ) {
-  const executor = transaction ?? db;
-  // Snapshot the requester's name up front so the approval trail survives
-  // later account removal (enrichWithNames falls back to this snapshot).
-  const [requester] = await executor.select({ fullName: s.users.fullName })
-    .from(s.users)
-    .where(eq(s.users.id, requesterId))
-    .limit(1);
-  const [inserted] = await executor.insert(s.advanceRequests).values({
-    requesterId,
-    requesterNameSnapshot: requester?.fullName?.trim() || null,
-    amount: String(data.amount),
-    reason: data.reason,
-    status: 'PENDING',
-  }).returning();
-  const [enriched] = await enrichWithNames([inserted], executor);
-  return enriched;
+  // Direct-effect save (phê duyệt removed): the advance records as APPLIED in
+  // the creating transaction — status, actor, and the OPS_ADVANCE ledger
+  // entry post together. No pending window, no second approver.
+  const execute = async (tx: Tx) => {
+    const [requester] = await tx.select({ fullName: s.users.fullName })
+      .from(s.users)
+      .where(eq(s.users.id, requesterId))
+      .limit(1);
+    const requesterName = requester?.fullName?.trim() || 'Nhân viên giao nhận';
+    const [inserted] = await tx.insert(s.advanceRequests).values({
+      requesterId,
+      requesterNameSnapshot: requester?.fullName?.trim() || null,
+      amount: String(data.amount),
+      reason: data.reason,
+      status: 'APPROVED',
+      approvedBy: requesterId,
+      approvedAt: new Date(),
+    }).returning();
+
+    await LedgerService.postEntry(tx, {
+      txnType: TxnType.OPS_ADVANCE,
+      txnId: inserted.id,
+      entityType: 'FORWARDER',
+      entityId: requesterId,
+      debit: 0,
+      credit: Number(inserted.amount),
+      note: `Tạm ứng cho ${requesterName}`,
+    });
+
+    const [enriched] = await enrichWithNames([inserted], tx);
+    return enriched;
+  };
+
+  return runInTx(transaction, execute);
 }
 
 function buildAdvanceRequestConditions(filters?: {
@@ -81,9 +99,7 @@ export type AdvanceRequestSortKey = typeof ADVANCE_REQUEST_SORT_KEYS[number];
 
 // Column-sort whitelist. Requester names are attached post-query by
 // enrichWithNames, so requesterName sorts via a correlated scalar subquery
-// over users.fullName — one value per row, no row-multiplying join. status
-// ranks attention-first (PENDING before decided) instead of by the enum's
-// alphabetical order.
+// over users.fullName — one value per row, no row-multiplying join.
 const ADVANCE_REQUEST_SORT_SQL: Record<AdvanceRequestSortKey, SQL> = {
   requesterName: sql`(
     select ${s.users.fullName}
@@ -92,11 +108,7 @@ const ADVANCE_REQUEST_SORT_SQL: Record<AdvanceRequestSortKey, SQL> = {
   )`,
   amount: sql`${s.advanceRequests.amount}`,
   createdAt: sql`${s.advanceRequests.createdAt}`,
-  status: sql`case
-    when ${s.advanceRequests.status} = 'PENDING' then 0
-    when ${s.advanceRequests.status} = 'APPROVED' then 1
-    else 2
-  end`,
+  status: sql`${s.advanceRequests.status}`,
   reason: sql`${s.advanceRequests.reason}`,
 };
 
@@ -227,230 +239,3 @@ export async function getAdvanceRequest(id: number) {
   return enriched;
 }
 
-export async function requestAdvanceRequestApprovalGovernance(input: {
-  advanceRequestId: number;
-  expectedVersion: number;
-  reason: string;
-  makerId: number;
-  makerRole: string;
-  transaction?: Tx;
-}): Promise<GovernanceActionRow> {
-  assertCanMakeGovernanceAction('ADVANCE_REQUEST_APPROVAL', input.makerRole);
-  const reason = input.reason.trim();
-  if (!reason) {
-    throw new AdvanceError(400, 'Lý do là bắt buộc');
-  }
-
-  const execute = async (tx: Tx) => {
-    const [request] = await tx.select()
-      .from(s.advanceRequests)
-      .where(eq(s.advanceRequests.id, input.advanceRequestId))
-      .limit(1)
-      .for('update');
-    if (!request) throw new AdvanceError(404, 'Advance request not found');
-    assertExpectedVersion(request.version, input.expectedVersion, 'Yêu cầu tạm ứng');
-    if (request.status !== 'PENDING') {
-      throw new AdvanceError(409, `Cannot submit approval for request with status ${request.status}`);
-    }
-
-    return buildGovernanceAction({
-      subjectType: 'ADVANCE_REQUEST',
-      subjectId: request.id,
-      subjectKey: `advance-request:${request.id}:approve`,
-      actionKind: 'ADVANCE_REQUEST_APPROVAL',
-      reason,
-      originalVersion: request.version,
-      beforeSnapshot: {
-        requesterId: request.requesterId,
-        amount: request.amount,
-        reason: request.reason,
-        status: request.status,
-        version: request.version,
-      },
-      afterSnapshot: {
-        status: 'APPROVED',
-      },
-      deltaSnapshot: {
-        amount: request.amount,
-      },
-      makerId: input.makerId,
-      makerRole: input.makerRole,
-    });
-  };
-
-  return runInTx(input.transaction, execute);
-}
-
-export async function requestAdvanceRequestRejectionGovernance(input: {
-  advanceRequestId: number;
-  expectedVersion: number;
-  reason: string;
-  makerId: number;
-  makerRole: string;
-  transaction?: Tx;
-}): Promise<GovernanceActionRow> {
-  assertCanMakeGovernanceAction('ADVANCE_REQUEST_REJECTION', input.makerRole);
-  const reason = input.reason.trim();
-  if (!reason) throw new AdvanceError(400, 'Lý do từ chối là bắt buộc');
-
-  const execute = async (tx: Tx) => {
-    const [request] = await tx.select()
-      .from(s.advanceRequests)
-      .where(eq(s.advanceRequests.id, input.advanceRequestId))
-      .limit(1)
-      .for('update');
-    if (!request) throw new AdvanceError(404, 'Advance request not found');
-    assertExpectedVersion(request.version, input.expectedVersion, 'Yêu cầu tạm ứng');
-    if (request.status !== 'PENDING') {
-      throw new AdvanceError(409, `Cannot submit rejection for request with status ${request.status}`);
-    }
-
-    return buildGovernanceAction({
-      subjectType: 'ADVANCE_REQUEST',
-      subjectId: request.id,
-      subjectKey: `advance-request:${request.id}:reject`,
-      actionKind: 'ADVANCE_REQUEST_REJECTION',
-      reason,
-      originalVersion: request.version,
-      beforeSnapshot: {
-        requesterId: request.requesterId,
-        amount: request.amount,
-        reason: request.reason,
-        status: request.status,
-        version: request.version,
-      },
-      afterSnapshot: { status: 'REJECTED' },
-      deltaSnapshot: { amount: request.amount },
-      makerId: input.makerId,
-      makerRole: input.makerRole,
-    });
-  };
-
-  return runInTx(input.transaction, execute);
-}
-
-export async function approveAdvanceRequest(
-  id: number,
-  approvedBy: number,
-  expectedVersion?: number,
-  transaction?: Tx,
-) {
-  const execute = async (tx: Tx) => {
-    const [request] = await tx.select()
-      .from(s.advanceRequests)
-      .where(eq(s.advanceRequests.id, id))
-      .for('update');
-    if (!request) throw new AdvanceError(404, 'Advance request not found');
-    const version = expectedVersion ?? request.version;
-    assertExpectedVersion(request.version, version, 'Yêu cầu tạm ứng');
-    if (request.status !== 'PENDING') {
-      throw new AdvanceError(409, `Cannot approve request with status ${request.status}`);
-    }
-    // 2026-09-10 (phê duyệt removed): self-approval is the contract — the
-    // requester's own create applies immediately, so the old segregation
-    // guard (requester cannot approve their own request) is gone.
-
-    const [user] = await tx.select({ fullName: s.users.fullName })
-      .from(s.users)
-      .where(eq(s.users.id, request.requesterId));
-    const requesterName = user?.fullName?.trim() || 'Nhân viên giao nhận';
-
-    const now = new Date();
-    const [updated] = await tx.update(s.advanceRequests)
-      .set({
-        status: 'APPROVED',
-        approvedBy,
-        approvedAt: now,
-        updatedAt: now,
-        version: sql`${s.advanceRequests.version} + 1`,
-      })
-      .where(and(
-        eq(s.advanceRequests.id, id),
-        eq(s.advanceRequests.status, 'PENDING'),
-        eq(s.advanceRequests.version, version),
-      ))
-      .returning();
-    if (!updated) throw new AdvanceError(409, 'Request was modified by another operation');
-
-    await LedgerService.postEntry(tx, {
-      txnType: TxnType.OPS_ADVANCE,
-      txnId: request.id,
-      entityType: 'FORWARDER',
-      entityId: request.requesterId,
-      debit: 0,
-      credit: Number(request.amount),
-      note: `Tạm ứng cho ${requesterName}`,
-    });
-
-    const [enriched] = await enrichWithNames([updated]);
-    return enriched;
-  };
-
-  return runInTx(transaction, execute);
-}
-
-export async function rejectAdvanceRequest(
-  id: number,
-  rejectedBy: number,
-  expectedVersion?: number,
-  transaction?: Tx,
-) {
-  const execute = async (tx: Tx) => {
-    const [request] = await tx.select()
-      .from(s.advanceRequests)
-      .where(eq(s.advanceRequests.id, id))
-      .for('update');
-    if (!request) throw new AdvanceError(404, 'Advance request not found');
-    const version = expectedVersion ?? request.version;
-    assertExpectedVersion(request.version, version, 'Yêu cầu tạm ứng');
-    if (request.status !== 'PENDING') {
-      throw new AdvanceError(409, `Cannot reject request with status ${request.status}`);
-    }
-
-    const now = new Date();
-    const [updated] = await tx.update(s.advanceRequests)
-      .set({
-        status: 'REJECTED',
-        approvedBy: rejectedBy,
-        approvedAt: now,
-        updatedAt: now,
-        version: sql`${s.advanceRequests.version} + 1`,
-      })
-      .where(and(
-        eq(s.advanceRequests.id, id),
-        eq(s.advanceRequests.status, 'PENDING'),
-        eq(s.advanceRequests.version, version),
-      ))
-      .returning();
-    if (!updated) throw new AdvanceError(409, 'Request was modified by another operation');
-
-    const [enriched] = await enrichWithNames([updated]);
-    return enriched;
-  };
-
-  return runInTx(transaction, execute);
-}
-
-export async function applyAdvanceRequestGovernanceAction(
-  tx: Tx,
-  action: GovernanceActionRow,
-): Promise<GovernanceApplyResult> {
-  if (!['ADVANCE_REQUEST_APPROVAL', 'ADVANCE_REQUEST_REJECTION'].includes(action.actionKind)
-    || action.subjectType !== 'ADVANCE_REQUEST'
-    || action.subjectId == null) {
-    throw new AdvanceError(409, 'Loại yêu cầu không thuộc quyết định tạm ứng');
-  }
-
-  const decided = action.actionKind === 'ADVANCE_REQUEST_REJECTION'
-    ? await rejectAdvanceRequest(action.subjectId, action.approverId!, action.originalVersion!, tx)
-    : await approveAdvanceRequest(action.subjectId, action.approverId!, action.originalVersion!, tx);
-
-  return {
-    applicationResult: {
-      subjectType: 'ADVANCE_REQUEST',
-      subjectId: decided.id,
-      status: decided.status,
-      resultingVersion: decided.version,
-    },
-  };
-}

@@ -7,7 +7,7 @@
 .debt-list-page__crumbs {
   margin: 2px 0 10px;
   color: var(--ink-3);
-  font-size: 12px;
+  font-size: var(--text-caption-size);
 }
 .debt-list-page__crumbs ul { gap: 4px; }
 
@@ -93,14 +93,14 @@
 }
 .debt-aging-card__label strong {
   font-family: var(--font-data);
-  font-size: var(--fs-sm, 13px);
+  font-size: var(--text-body-size);
   font-weight: 700;
   letter-spacing: 0.01em;
   color: var(--ink-1);
   text-transform: none;
 }
 .debt-aging-card__label small {
-  font-size: 10px;
+  font-size: var(--text-label-size);
   font-weight: 500;
   color: var(--ink-3);
   text-transform: uppercase;
@@ -121,7 +121,7 @@
 }
 
 .debt-aging-card__unit {
-  font-size: 14px;
+  font-size: var(--text-body-size);
   line-height: 1.35;
   font-weight: 500;
   color: var(--ink-3);
@@ -312,7 +312,7 @@
   .debt-list-page .desktop-only { display: none !important; }
   .debt-list-page .mobile-only { display: block; }
   .debt-list-page .m-card { padding: 12px 14px; }
-  .debt-list-page .m-card__title { font-size: 14px; }
+  .debt-list-page .m-card__title { font-size: var(--text-body-size); }
   .debt-list-page .m-card-list { gap: 8px; }
 }
 
@@ -408,4 +408,42 @@
   .debt-loading__spin {
     animation: none;
   }
+}
+
+/* One comparison rail above a flat record surface; keep data visible without
+   repeated decorative cards around cards. */
+.debt-aging-grid {
+  gap: 0;
+  border-block: 1px solid var(--line);
+  background: var(--surface);
+}
+.debt-aging-grid > .debt-aging-card {
+  min-width: 0;
+  padding: 10px 12px;
+  border: 0;
+  border-inline-end: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  backdrop-filter: none;
+  box-shadow: none;
+  transform: none;
+  gap: 4px;
+}
+.debt-aging-grid > .debt-aging-card:last-child { border-inline-end: 0; }
+.debt-aging-grid > .debt-aging-card:hover { background: var(--surface-2); box-shadow: none; transform: none; }
+.debt-aging-grid .debt-aging-card__amount { font-size: var(--text-metric-size); flex-wrap: wrap; overflow-wrap: anywhere; }
+.debt-aging-grid .debt-aging-card:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.debt-data-card { border: 0; border-radius: 0; background: transparent; backdrop-filter: none; box-shadow: none; padding: 0; }
+@media (max-width: 1023px) {
+  .debt-aging-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .debt-aging-grid > .debt-aging-card:nth-child(2) { border-inline-end: 0; }
+  .debt-aging-grid > .debt-aging-card:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+}
+@media (max-width: 640px) {
+  .debt-aging-grid > .debt-aging-card { padding: 8px; }
+  .debt-aging-grid .debt-aging-card__amount { font-size: var(--text-metric-size); }
+  .debt-data-card { padding: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .debt-aging-grid *, .debt-aging-grid > .debt-aging-card { transition: none; }
 }

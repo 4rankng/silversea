@@ -17,7 +17,7 @@
   overflow-wrap: anywhere;
   white-space: normal;
   color: var(--fg-2);
-  font-size: var(--ops-table-meta-size, 13px);
+  font-size: var(--ops-table-meta-size);
   font-weight: var(--fw-medium, 500);
   line-height: var(--ops-table-meta-line-height, 1.4);
 }
@@ -34,7 +34,7 @@
 .carrier-allocation-summary__progress,
 .carrier-allocation-summary__warning {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--text-data-size);
 }
 
 .carrier-allocation-summary__empty,

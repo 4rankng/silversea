@@ -153,7 +153,7 @@ export default function TripCreatePage() {
               <AlertTriangle size={18} style={{ color: 'var(--warning)' }} />
               <div style={{ display: 'grid', gap: 6 }}>
                 <strong>Vượt hạn mức công nợ</strong>
-                <span style={{ color: 'var(--fg-2)', fontSize: 14 }}>{creditBlock.message}</span>
+                <span style={{ color: 'var(--fg-2)', fontSize: 'var(--text-body-size)' }}>{creditBlock.message}</span>
               </div>
             </div>
 

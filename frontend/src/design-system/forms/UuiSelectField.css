@@ -28,14 +28,14 @@
  */
 .ds-uui-select [data-label] {
   color: var(--fg-1);
-  font-size: 12px;
-  line-height: 18px;
+  font-size: var(--text-label-size);
+  line-height: 1.5;
   font-weight: 600;
 }
 
 .ds-uui-select__hint,
 .ds-uui-select__error {
-  font-size: 12px;
+  font-size: var(--text-label-size);
   font-weight: 400;
   line-height: 1.45;
 }

@@ -62,7 +62,7 @@
   letter-spacing: 0;
 }
 .empty-state-desc {
-  font-size: 13px;
+  font-size: var(--text-body-size);
   color: var(--ink-3);
   max-width: 340px;
   margin: 0 0 20px;

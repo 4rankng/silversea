@@ -337,13 +337,13 @@
   }
 
   .expense-list-page .page-title {
-    font-size: var(--fs-xl);
+    font-size: var(--text-title-size);
     line-height: 1.35;
     letter-spacing: 0;
   }
 
   .expense-list-page .page-subtitle {
-    font-size: 14px;
+    font-size: var(--text-caption-size);
   }
 
   .expense-list-page .page-actions,
@@ -427,7 +427,7 @@
 
   .expense-list-page .m-card__meta {
     margin-bottom: 8px;
-    font-size: 12px;
+    font-size: var(--text-caption-size);
     line-height: 1.35;
   }
 
@@ -446,7 +446,7 @@
     gap: 5px;
     min-width: 0;
     color: var(--ink-2);
-    font-size: 12px;
+    font-size: var(--text-caption-size);
     font-weight: 650;
     text-align: right;
   }
@@ -454,13 +454,13 @@
   .expense-list-page .expense-mobile-card__component {
     color: var(--ink);
     font-family: var(--font-data);
-    font-size: 12px;
+    font-size: var(--text-caption-size);
     line-height: 1.35;
   }
 
   .expense-list-page .expense-mobile-card__muted {
     color: var(--ink-3);
-    font-size: 12px;
+    font-size: var(--text-caption-size);
     font-weight: 600;
   }
 
@@ -473,22 +473,22 @@
   }
 
   .expense-list-page .m-card__row-label {
-    font-size: 12px;
+    font-size: var(--text-label-size);
   }
 
   .expense-list-page .m-card__row-value {
     justify-self: end;
     text-align: right;
-    font-size: 13px;
+    font-size: var(--text-data-size);
   }
 
   .expense-list-page .m-card__row-value.expense-amount {
-    font-size: 16px;
+    font-size: var(--text-section-size);
     line-height: 1.35;
   }
 
   .expense-list-page .expense-mobile-card__summary .expense-amount {
-    font-size: 18px;
+    font-size: var(--text-dialog-title-size);
     line-height: 1.35;
   }
 
@@ -500,7 +500,7 @@
   }
 
   .expense-list-page .expense-plate {
-    font-size: 12px;
+    font-size: var(--text-caption-size);
     padding: 3px 8px;
   }
 }

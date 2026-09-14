@@ -118,7 +118,7 @@ export function PairTripsDialog({ row, candidates, onClose, onPaired }: PairTrip
       maxWidth={560}
     >
       <div style={{ display: 'grid', gap: 14 }}>
-        <div style={{ fontSize: 13, color: 'var(--fg-3)' }}>
+        <div style={{ fontSize: 'var(--text-caption-size)', color: 'var(--fg-3)' }}>
           Ghép 2 lệnh cont chạy chung 1 xe — Kẹp (2×20' cùng lúc) hoặc Kết hợp (tái dùng vỏ, nối tiếp).
           Hệ thống tự kiểm tra điều kiện và tính phí đường/lương theo cặp.
         </div>
@@ -154,7 +154,7 @@ export function PairTripsDialog({ row, candidates, onClose, onPaired }: PairTrip
           </p>
         )}
         {warnings.map((warning) => (
-          <p key={warning} role="status" style={{ color: 'var(--warning, #b45309)', margin: 0, fontSize: 13 }}>
+          <p key={warning} role="status" style={{ color: 'var(--warning, #b45309)', margin: 0, fontSize: 'var(--text-data-size)' }}>
             {warning}
           </p>
         ))}

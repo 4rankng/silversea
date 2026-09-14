@@ -35,7 +35,6 @@ import { applyBillingDocumentGovernanceAction } from './billing-document-governa
 import { applyPriceConfigGovernanceAction } from './price-config-governance.service';
 import { applyDebtOffsetGovernanceAction } from './debtOffset.service';
 import {
-  applyAdvanceRequestGovernanceAction,
   applyAdvanceSettlementGovernanceAction,
 } from './advance.service';
 import { applyCompanyExpenseGovernanceAction } from './expense.service';
@@ -447,9 +446,6 @@ async function applyGovernanceAction(
   }
   if (action.subjectType === 'DEBT_OFFSET') {
     return applyDebtOffsetGovernanceAction(tx, action);
-  }
-  if (action.subjectType === 'ADVANCE_REQUEST') {
-    return applyAdvanceRequestGovernanceAction(tx, action);
   }
   if (action.subjectType === 'ADVANCE_SETTLEMENT') {
     return applyAdvanceSettlementGovernanceAction(tx, action);

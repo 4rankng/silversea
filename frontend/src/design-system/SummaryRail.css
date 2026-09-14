@@ -45,7 +45,7 @@
 .summary-rail dt {
   min-width: 0;
   color: var(--ink-2);
-  font-size: 12px;
+  font-size: var(--text-label-size);
   font-weight: var(--fw-semibold);
   line-height: 1.35;
 }
@@ -55,10 +55,10 @@
   margin: 0;
   color: var(--ink);
   font-family: var(--font-data);
-  font-size: 20px;
+  font-size: var(--text-metric-size);
   font-weight: var(--fw-bold);
   letter-spacing: var(--tracking-tight);
-  line-height: 1;
+  line-height: 1.25;
 }
 
 /* Tones color the number only — never a filled container (amber means
@@ -107,7 +107,7 @@
   }
 
   .summary-rail dd {
-    font-size: 16px;
+    font-size: var(--text-metric-size);
   }
 
   .summary-rail__item:nth-child(n + 2) { border-top: 1px solid var(--line); }

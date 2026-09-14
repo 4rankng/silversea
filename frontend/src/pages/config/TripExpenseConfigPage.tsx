@@ -103,7 +103,7 @@ export default function TripExpenseConfigPage() {
             <label htmlFor="default-driver-salary">Tiền kết hợp mặc định (đ)</label>
             <input id="default-driver-salary" name="defaultDriverSalary" className="input mono" type="text" value={form.defaultDriverSalary} onChange={set('defaultDriverSalary')} placeholder="400.000" />
             {fieldErrors.defaultDriverSalary && (
-              <p role="alert" className="cfg-field-error" style={{ color: 'var(--err, #dc2626)', margin: '4px 0 0', fontSize: 12 }}>
+              <p role="alert" className="cfg-field-error" style={{ color: 'var(--err, #dc2626)', margin: '4px 0 0', fontSize: 'var(--text-caption-size)' }}>
                 {fieldErrors.defaultDriverSalary}
               </p>
             )}
@@ -113,7 +113,7 @@ export default function TripExpenseConfigPage() {
             <label htmlFor="two-point-delivery-bonus">Trả hàng 2 điểm mặc định (đ)</label>
             <input id="two-point-delivery-bonus" name="twoPointDeliveryBonus" className="input mono" type="text" value={form.twoPointDeliveryBonus} onChange={set('twoPointDeliveryBonus')} placeholder="200.000" />
             {fieldErrors.twoPointDeliveryBonus && (
-              <p role="alert" className="cfg-field-error" style={{ color: 'var(--err, #dc2626)', margin: '4px 0 0', fontSize: 12 }}>
+              <p role="alert" className="cfg-field-error" style={{ color: 'var(--err, #dc2626)', margin: '4px 0 0', fontSize: 'var(--text-caption-size)' }}>
                 {fieldErrors.twoPointDeliveryBonus}
               </p>
             )}
@@ -126,7 +126,7 @@ export default function TripExpenseConfigPage() {
             <label htmlFor="vehicle-shift-default">Lưu ca xe mặc định (đ)</label>
             <input id="vehicle-shift-default" name="vehicleShiftDefault" className="input mono" type="text" value={form.vehicleShiftDefault} onChange={set('vehicleShiftDefault')} placeholder="200.000" />
             {fieldErrors.vehicleShiftDefault && (
-              <p role="alert" className="cfg-field-error" style={{ color: 'var(--err, #dc2626)', margin: '4px 0 0', fontSize: 12 }}>
+              <p role="alert" className="cfg-field-error" style={{ color: 'var(--err, #dc2626)', margin: '4px 0 0', fontSize: 'var(--text-caption-size)' }}>
                 {fieldErrors.vehicleShiftDefault}
               </p>
             )}
@@ -136,7 +136,7 @@ export default function TripExpenseConfigPage() {
             <label htmlFor="toll-per-station">Tiền trạm thu phí (đ/trạm)</label>
             <input id="toll-per-station" name="tollPerStation" className="input mono" type="text" value={form.tollPerStation} onChange={set('tollPerStation')} placeholder="55.000" />
             {fieldErrors.tollPerStation && (
-              <p role="alert" className="cfg-field-error" style={{ color: 'var(--err, #dc2626)', margin: '4px 0 0', fontSize: 12 }}>
+              <p role="alert" className="cfg-field-error" style={{ color: 'var(--err, #dc2626)', margin: '4px 0 0', fontSize: 'var(--text-caption-size)' }}>
                 {fieldErrors.tollPerStation}
               </p>
             )}
@@ -149,7 +149,7 @@ export default function TripExpenseConfigPage() {
             <label htmlFor="return-cargo-bonus">Thưởng chuyến về có hàng (đ)</label>
             <input id="return-cargo-bonus" name="returnCargoBonus" className="input mono" type="text" value={form.returnCargoBonus} onChange={set('returnCargoBonus')} placeholder="300.000" style={{ maxWidth: 320 }} />
             {fieldErrors.returnCargoBonus && (
-              <p role="alert" className="cfg-field-error" style={{ color: 'var(--err, #dc2626)', margin: '4px 0 0', fontSize: 12 }}>
+              <p role="alert" className="cfg-field-error" style={{ color: 'var(--err, #dc2626)', margin: '4px 0 0', fontSize: 'var(--text-caption-size)' }}>
                 {fieldErrors.returnCargoBonus}
               </p>
             )}
@@ -162,8 +162,8 @@ export default function TripExpenseConfigPage() {
             {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
             Lưu cấu hình
           </button>
-          {message && <span style={{ color: 'var(--success)', fontSize: 13 }}>{message}</span>}
-          {error && <span style={{ color: 'var(--danger)', fontSize: 13 }}>{error}</span>}
+          {message && <span style={{ color: 'var(--success)', fontSize: 'var(--text-data-size)' }}>{message}</span>}
+          {error && <span style={{ color: 'var(--danger)', fontSize: 'var(--text-data-size)' }}>{error}</span>}
         </div>
       </Panel>
     </div>

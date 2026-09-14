@@ -209,14 +209,14 @@ export default function TruckOwnersConfigPage() {
       </div>
 
       {!pctBalanced && activeOwners.length > 0 && (
-        <div style={{ padding: 12, background: 'var(--warn-soft)', color: 'var(--warn)', borderRadius: 8, marginBottom: 16, fontSize: 13 }}>
+        <div style={{ padding: 12, background: 'var(--warn-soft)', color: 'var(--warn)', borderRadius: 8, marginBottom: 16, fontSize: 'var(--text-data-size)' }}>
           ⚠️ Tổng tỷ lệ đang là <strong>{totalPct.toFixed(2)}%</strong> — nên bằng 100% để lợi nhuận xe được phân phối đầy đủ.
         </div>
       )}
 
       <Panel>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--border)' }}>
-          <div style={{ fontSize: 13, color: 'var(--fg-3)' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--border)' }}>
+          <div style={{ fontSize: 'var(--text-data-size)', color: 'var(--fg-3)' }}>
             Hiện tại: <strong style={{ color: 'var(--fg-1)' }}>{activeOwners.length}</strong> đối tác · {items.length - activeOwners.length} bản ghi lịch sử
           </div>
           {!showAddForm && (

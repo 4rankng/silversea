@@ -13,8 +13,6 @@ import { db } from '../db';
 import * as s from '../db/schema';
 import {
   createAdvanceRequest,
-  approveAdvanceRequest,
-  rejectAdvanceRequest,
   createAdvanceSettlement,
 } from '../services/advance.service';
 
@@ -44,11 +42,6 @@ async function seedAdvances(actors: { ops: number; approver: number }) {
       amount: plan.amount,
       reason: plan.reason,
     });
-    if (plan.decision === 'APPROVE') {
-      await approveAdvanceRequest(request.id, actors.approver, request.version);
-    } else if (plan.decision === 'REJECT') {
-      await rejectAdvanceRequest(request.id, actors.approver, request.version);
-    }
     created++;
   }
   console.log(`✅ Advance requests seeded! (${created} new)`);

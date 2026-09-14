@@ -21,7 +21,7 @@
   margin: 0 auto;
   padding: 12px 28px 0;
   color: var(--ink-3);
-  font-size: 12px;
+  font-size: var(--text-caption-size);
 }
 .trip-detail__crumbs ul { gap: 4px; }
 @media (max-width: 640px) {
@@ -87,7 +87,7 @@
 
 .tc-page-title {
   margin: 0;
-  font-size: var(--fs-xl);
+  font-size: var(--text-title-size);
   font-weight: 700;
   letter-spacing: 0;
   color: var(--fg-1);
@@ -99,7 +99,7 @@
 
 .tc-page-sub {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--text-data-size);
   color: var(--fg-3);
   white-space: normal;
   overflow: visible;

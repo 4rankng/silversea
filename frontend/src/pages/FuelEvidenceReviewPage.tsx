@@ -188,9 +188,9 @@ export default function FuelEvidenceReviewPage() {
               <div style={{ display: 'grid', gap: 12 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
                   <div>
-                    <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--fg-3)', fontWeight: 600 }}>Chuyến / chủ ảnh</div>
-                    <div style={{ fontSize: 18, fontWeight: 700 }}>{row.tripCode || `Chuyến #${row.tripId}`}</div>
-                    <div style={{ fontSize: 13, color: 'var(--fg-3)' }}>{row.ownerName || `User #${row.ownerUserId}`}</div>
+                    <div style={{ fontSize: 'var(--text-caption-size)', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--fg-3)', fontWeight: 600 }}>Chuyến / chủ ảnh</div>
+                    <div style={{ fontSize: 'var(--text-section-size)', fontWeight: 700 }}>{row.tripCode || `Chuyến #${row.tripId}`}</div>
+                    <div style={{ fontSize: 'var(--text-caption-size)', color: 'var(--fg-3)' }}>{row.ownerName || `User #${row.ownerUserId}`}</div>
                   </div>
                   <StatusPill variant={STATUS_VARIANT[row.reviewStatus]}>
                     {reviewDecisionLabel(row)}
@@ -207,7 +207,7 @@ export default function FuelEvidenceReviewPage() {
                 </div>
 
                 {(row.anomalyReason || row.ocrError || row.reviewNote) && (
-                  <div style={{ padding: 12, borderRadius: 12, background: 'var(--bg-2)', fontSize: 13, color: 'var(--fg-2)' }}>
+                  <div style={{ padding: 12, borderRadius: 12, background: 'var(--bg-2)', fontSize: 'var(--text-data-size)', color: 'var(--fg-2)' }}>
                     {row.anomalyReason && <div><strong>Cảnh báo:</strong> {row.anomalyReason}</div>}
                     {row.ocrError && <div><strong>Lỗi OCR:</strong> {row.ocrError}</div>}
                     {row.reviewNote && <div><strong>Ghi chú duyệt:</strong> {row.reviewNote}</div>}

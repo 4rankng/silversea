@@ -5,6 +5,7 @@ import { useDriverJourneyBoard } from '../hooks/useDriverQueries';
 import type { DriverJourneyCard } from '../api/driverJourneyBoard';
 import { parseDriverTaskNote } from '@tingting/shared';
 import { formatCardTimeShort } from '../lib/format';
+import { Tabs } from '../design-system/Tabs';
 import './DriverTripsPage.css';
 
 type JourneyTabKey = 'NEW' | 'RUNNING' | 'HISTORY';
@@ -203,7 +204,7 @@ function JourneyCard({ card, tagLabels }: { card: DriverJourneyCard; tagLabels: 
 
       <button
         type="button"
-        className="driver-journey-card__footer"
+        className={`driver-journey-card__footer${isNew ? '' : ' driver-journey-card__footer--quiet'}`}
         onClick={() => navigate(`/my-trips/${card.fulfillmentId}`)}
       >
         <span>{footerLabel}</span>
@@ -234,22 +235,16 @@ export default function DriverTripsPage() {
 
   return (
     <div className="driver-journey">
-      <div className="driver-journey__tabs" role="tablist" aria-label="Trạng thái hành trình">
-        {TABS.map((tab) => (
-          <button
-            key={tab.key}
-            type="button"
-            role="tab"
-            aria-selected={activeTab === tab.key}
-            className={activeTab === tab.key ? 'is-active' : ''}
-            onClick={() => setActiveTab(tab.key)}
-          >
-            {tab.label}<span>{countsByBucket[tab.key]}</span>
-          </button>
-        ))}
-      </div>
+      <Tabs
+        className="driver-journey__tabs"
+        ariaLabel="Trạng thái hành trình"
+        variant="bordered"
+        tabs={TABS.map((tab) => ({ id: tab.key, label: tab.label, count: countsByBucket[tab.key] }))}
+        value={activeTab}
+        onChange={(key) => setActiveTab(key as JourneyTabKey)}
+      />
 
-      <div className="driver-journey__panel" role="tabpanel">
+      <div className="driver-journey__panel" role="tabpanel" aria-label={TABS.find((tab) => tab.key === activeTab)?.label} tabIndex={0}>
         {isLoading ? (
           <p className="driver-journey__loading">
             <Loader2 size={16} className="spin" /> Đang tải hành trình…

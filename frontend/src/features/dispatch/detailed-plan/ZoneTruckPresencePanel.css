@@ -17,7 +17,7 @@
 }
 
 .zone-presence-panel__title {
-  font-size: 13px;
+  font-size: var(--text-section-size);
   font-weight: 600;
   color: var(--text-primary, #101828);
 }
@@ -38,7 +38,7 @@
   align-items: center;
   gap: 6px;
   padding: 4px 10px;
-  font-size: 13px;
+  font-size: var(--text-data-size);
   color: var(--text-primary, #101828);
   background: var(--surface-white, #fff);
   border: 1px solid var(--border-medium, #d0d5dd);

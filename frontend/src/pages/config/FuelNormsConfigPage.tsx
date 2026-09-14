@@ -115,7 +115,7 @@ function FuelNormForm({ saving, item, onsave, oncancel, routes, onDelete, deleti
           />
         </Field>
         {fieldError('loaded') && (
-          <div className="field-error" style={{ color: 'var(--danger, #c0392b)', fontSize: 12, marginTop: 4 }}>{fieldError('loaded')}</div>
+          <div className="field-error" style={{ color: 'var(--danger, #c0392b)', fontSize: 'var(--text-caption-size)', marginTop: 4 }}>{fieldError('loaded')}</div>
         )}
       </div>
       <div style={{ flex: 1, minWidth: 110 }}>
@@ -131,7 +131,7 @@ function FuelNormForm({ saving, item, onsave, oncancel, routes, onDelete, deleti
           />
         </Field>
         {fieldError('empty') && (
-          <div className="field-error" style={{ color: 'var(--danger, #c0392b)', fontSize: 12, marginTop: 4 }}>{fieldError('empty')}</div>
+          <div className="field-error" style={{ color: 'var(--danger, #c0392b)', fontSize: 'var(--text-caption-size)', marginTop: 4 }}>{fieldError('empty')}</div>
         )}
       </div>
       <div style={{ flex: 1, minWidth: 110 }}>
@@ -156,7 +156,7 @@ function FuelNormForm({ saving, item, onsave, oncancel, routes, onDelete, deleti
           />
         </Field>
         {fieldError('effectiveDate') && (
-          <div className="field-error" style={{ color: 'var(--danger, #c0392b)', fontSize: 12, marginTop: 4 }}>{fieldError('effectiveDate')}</div>
+          <div className="field-error" style={{ color: 'var(--danger, #c0392b)', fontSize: 'var(--text-caption-size)', marginTop: 4 }}>{fieldError('effectiveDate')}</div>
         )}
       </div>
       <FormActions saving={saving} isedit={!!item} oncancel={oncancel} ondelete={onDelete} deleting={deleting} onsave={handleSave} />

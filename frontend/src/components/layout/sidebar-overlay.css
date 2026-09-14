@@ -43,9 +43,9 @@
 
 /* ─── Notification drawer items ─────────────────────────────────────────── */
 .notif-section-label {
-  font-size: var(--fs-xs);
+  font-size: var(--text-label-size);
   line-height: 1.35;
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--ink-3);
@@ -96,25 +96,25 @@
 }
 
 .notif-title {
-  font-size: var(--fs-sm);
-  font-weight: 600;
+  font-size: var(--text-body-size);
+  font-weight: var(--fw-semibold);
   color: var(--ink);
   line-height: 1.3;
 }
 
 .notif-item--read .notif-title {
-  font-weight: 500;
+  font-weight: var(--fw-medium);
 }
 
 .notif-message {
-  font-size: var(--fs-xs);
+  font-size: var(--text-body-size);
   color: var(--ink-2);
   line-height: 1.4;
   margin-top: 2px;
 }
 
 .notif-time {
-  font-size: var(--fs-xs);
+  font-size: var(--text-caption-size);
   line-height: 1.35;
   color: var(--ink-3);
   margin-top: 3px;

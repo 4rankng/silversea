@@ -1,3 +1,4 @@
+import { compactActionText } from "../control-typography";
 import type { FC, ReactElement, ReactNode } from "react";
 import React, { cloneElement, isValidElement } from "react";
 import type { ButtonProps as AriaButtonProps, LinkProps as AriaLinkProps } from "react-aria-components";
@@ -21,7 +22,8 @@ export const styles = sortCx({
     sizes: {
         xs: {
             root: [
-                "min-h-7 gap-1 rounded-lg px-2 py-1 text-xs font-semibold before:rounded-[7px] data-icon-only:p-1.5 max-md:min-h-11 max-md:px-3 max-md:py-2 max-md:text-sm max-md:data-icon-only:p-2.5",
+                "min-h-7 gap-1 rounded-lg px-2 py-1 font-semibold before:rounded-[7px] data-icon-only:p-1.5 max-md:min-h-11 max-md:px-3 max-md:py-2 max-md:data-icon-only:p-2.5",
+                compactActionText,
                 "in-data-input-wrapper:px-3.5 in-data-input-wrapper:py-2.5 in-data-input-wrapper:data-icon-only:p-2.5",
                 "*:data-icon:size-4 *:data-icon:stroke-[2.25px]",
             ].join(" "),
@@ -29,7 +31,8 @@ export const styles = sortCx({
         },
         sm: {
             root: [
-                "min-h-[34px] gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold before:rounded-[7px] data-icon-only:p-2 max-md:min-h-11 max-md:px-3 max-md:py-2 max-md:text-sm max-md:data-icon-only:p-2.5",
+                "min-h-[34px] gap-1 rounded-lg px-2.5 py-1.5 font-semibold before:rounded-[7px] data-icon-only:p-2 max-md:min-h-11 max-md:px-3 max-md:py-2 max-md:data-icon-only:p-2.5",
+                compactActionText,
                 "in-data-input-wrapper:px-3.5 in-data-input-wrapper:py-2.5 in-data-input-wrapper:data-icon-only:p-2.5",
                 "*:data-icon:size-4 *:data-icon:stroke-[2.25px]",
             ].join(" "),
@@ -38,16 +41,16 @@ export const styles = sortCx({
         md: {
             root: [
                 "min-h-10 gap-1 rounded-lg px-3.5 py-2 text-sm font-semibold before:rounded-[7px] data-icon-only:p-2.5 max-md:min-h-11",
-                "in-data-input-wrapper:gap-1.5 in-data-input-wrapper:px-4 in-data-input-wrapper:text-md in-data-input-wrapper:data-icon-only:p-3",
+                "in-data-input-wrapper:gap-1.5 in-data-input-wrapper:px-4 in-data-input-wrapper:text-sm in-data-input-wrapper:data-icon-only:p-3",
             ].join(" "),
             linkRoot: "gap-1 *:data-text:underline-offset-4",
         },
         lg: {
-            root: "gap-1.5 rounded-lg px-4 py-2.5 text-md font-semibold before:rounded-[7px] data-icon-only:p-3",
+            root: "gap-1.5 rounded-lg px-4 py-2.5 text-sm font-semibold before:rounded-[7px] data-icon-only:p-3",
             linkRoot: "gap-1.5 *:data-text:underline-offset-4",
         },
         xl: {
-            root: "gap-1.5 rounded-lg px-4.5 py-3 text-md font-semibold before:rounded-[7px] data-icon-only:p-3.5",
+            root: "gap-1.5 rounded-lg px-4.5 py-3 text-sm font-semibold before:rounded-[7px] data-icon-only:p-3.5",
             linkRoot: "gap-1.5 *:data-text:underline-offset-4",
         },
     },

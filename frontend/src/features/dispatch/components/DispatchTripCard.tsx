@@ -123,26 +123,26 @@ export function DispatchTripCard({
             <Link2 size={15} />
             Cặp ghép {trip.pairing.pairKind === 'KEP' ? 'Kẹp' : 'Kết hợp'}
           </div>
-          <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>
+          <div style={{ fontSize: 'var(--text-caption-size)', color: 'var(--ink-3)' }}>
             Chặng {trip.pairing.order}/2 · Ghép với {trip.pairing.partnerTripCode ?? 'chuyến chưa có mã'}
           </div>
         </div>
         <div style={{ marginTop: 10, display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}>
           <div style={{ padding: '10px 12px', borderRadius: 10, background: '#fff', border: '1px solid var(--border-1)' }}>
-            <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--ink-3)' }}>Chuyến ghép</div>
+            <div style={{ fontSize: 'var(--text-caption-size)', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--ink-3)' }}>Chuyến ghép</div>
             <div style={{ marginTop: 4, fontWeight: 700 }}>{trip.pairing.partnerRouteName ?? 'Tuyến chưa rõ'}</div>
-            <div style={{ marginTop: 4, fontSize: 12, color: 'var(--ink-3)' }}>{formatDayMonth(trip.pairing.partnerDepartureDate)}</div>
+            <div style={{ marginTop: 4, fontSize: 'var(--text-caption-size)', color: 'var(--ink-3)' }}>{formatDayMonth(trip.pairing.partnerDepartureDate)}</div>
           </div>
           <div style={{ padding: '10px 12px', borderRadius: 10, background: '#fff', border: '1px solid var(--border-1)' }}>
-            <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--ink-3)' }}>Xe rỗng</div>
+            <div style={{ fontSize: 'var(--text-caption-size)', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--ink-3)' }}>Xe rỗng</div>
             <div style={{ marginTop: 4, fontWeight: 700 }}>{trip.pairing.emptyDistanceKm ? `${trip.pairing.emptyDistanceKm} km` : '—'}</div>
           </div>
           <div style={{ padding: '10px 12px', borderRadius: 10, background: '#fff', border: '1px solid var(--border-1)' }}>
-            <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--ink-3)' }}>Hiệu suất</div>
+            <div style={{ fontSize: 'var(--text-caption-size)', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--ink-3)' }}>Hiệu suất</div>
             <div style={{ marginTop: 4, fontWeight: 700 }}>{trip.pairing.combinedEfficiencyPercent ? `${trip.pairing.combinedEfficiencyPercent}%` : '—'}</div>
           </div>
           <div style={{ padding: '10px 12px', borderRadius: 10, background: '#fff', border: '1px solid var(--border-1)' }}>
-            <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--ink-3)' }}>Đệm thời gian</div>
+            <div style={{ fontSize: 'var(--text-caption-size)', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--ink-3)' }}>Đệm thời gian</div>
             <div style={{ marginTop: 4, fontWeight: 700 }}>
               {trip.pairing.actualGapMinutes != null && trip.pairing.requiredGapMinutes != null
                 ? `${trip.pairing.actualGapMinutes}/${trip.pairing.requiredGapMinutes} phút`
@@ -176,7 +176,7 @@ export function DispatchTripCard({
               <Link2 size={15} />
               Ghép chuyến điều vận
             </div>
-            <div style={{ marginTop: 4, fontSize: 12, color: 'var(--ink-3)' }}>
+            <div style={{ marginTop: 4, fontSize: 'var(--text-caption-size)', color: 'var(--ink-3)' }}>
               Chọn loại ghép và chuyến kế tiếp cùng xe + lái xe. Kết hợp kiểm tra nối tiếp (không chồng giờ, cùng vỏ); Kẹp cho phép 2 cont 20' chạy cùng lúc.
             </div>
           </div>
@@ -184,7 +184,7 @@ export function DispatchTripCard({
         </div>
 
         <label style={{ display: 'grid', gap: 6 }}>
-          <span style={{ fontSize: 12, fontWeight: 600 }}>Loại ghép</span>
+          <span style={{ fontSize: 'var(--text-body-size)', fontWeight: 600 }}>Loại ghép</span>
           <UuiSelectField
             label="Loại ghép"
             hideLabel
@@ -203,7 +203,7 @@ export function DispatchTripCard({
         </label>
 
         <label style={{ display: 'grid', gap: 6 }}>
-          <span style={{ fontSize: 12, fontWeight: 600 }}>Chuyến chiều về</span>
+          <span style={{ fontSize: 'var(--text-body-size)', fontWeight: 600 }}>Chuyến chiều về</span>
           <UuiSelectField
             label="Chuyến chiều về"
             hideLabel
@@ -228,28 +228,28 @@ export function DispatchTripCard({
             <div key={section.title} style={{ padding: 14, borderRadius: 12, background: '#fff', border: '1px solid var(--border-1)', display: 'grid', gap: 10 }}>
               <div style={{ fontWeight: 700 }}>{section.title}</div>
               <label style={{ display: 'grid', gap: 6 }}>
-                <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>Giờ bắt đầu</span>
+                <span style={{ fontSize: 'var(--text-caption-size)', color: 'var(--ink-3)' }}>Giờ bắt đầu</span>
                 <PairDateTimeInput value={section.value.plannedStartAt} onChange={(next) => updatePairField(section.target, 'plannedStartAt', next)} />
               </label>
               <label style={{ display: 'grid', gap: 6 }}>
-                <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>Giờ kết thúc</span>
+                <span style={{ fontSize: 'var(--text-caption-size)', color: 'var(--ink-3)' }}>Giờ kết thúc</span>
                 <PairDateTimeInput value={section.value.plannedEndAt} onChange={(next) => updatePairField(section.target, 'plannedEndAt', next)} />
               </label>
               <label style={{ display: 'grid', gap: 6 }}>
-                <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>Điểm đi</span>
+                <span style={{ fontSize: 'var(--text-caption-size)', color: 'var(--ink-3)' }}>Điểm đi</span>
                 <input type="text" className="input" value={section.value.canonicalOrigin} onChange={(event) => updatePairField(section.target, 'canonicalOrigin', event.target.value)} />
               </label>
               <label style={{ display: 'grid', gap: 6 }}>
-                <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>Điểm đến</span>
+                <span style={{ fontSize: 'var(--text-caption-size)', color: 'var(--ink-3)' }}>Điểm đến</span>
                 <input type="text" className="input" value={section.value.canonicalDestination} onChange={(event) => updatePairField(section.target, 'canonicalDestination', event.target.value)} />
               </label>
               <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
                 <label style={{ display: 'grid', gap: 6 }}>
-                  <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>Hàng (kg)</span>
+                  <span style={{ fontSize: 'var(--text-caption-size)', color: 'var(--ink-3)' }}>Hàng (kg)</span>
                   <input type="number" min="0" className="input" value={section.value.cargoWeightKg} onChange={(event) => updatePairField(section.target, 'cargoWeightKg', event.target.value)} />
                 </label>
                 <label style={{ display: 'grid', gap: 6 }}>
-                  <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>Tải trọng xe (kg)</span>
+                  <span style={{ fontSize: 'var(--text-caption-size)', color: 'var(--ink-3)' }}>Tải trọng xe (kg)</span>
                   <input type="number" min="0" className="input" value={section.value.vehicleCapacityKg} onChange={(event) => updatePairField(section.target, 'vehicleCapacityKg', event.target.value)} />
                 </label>
               </div>
@@ -258,7 +258,7 @@ export function DispatchTripCard({
         </div>
 
         {pairingState.error && (
-          <div style={{ padding: '10px 12px', borderRadius: 10, background: 'rgba(220, 38, 38, 0.08)', color: '#b91c1c', fontSize: 13 }}>
+          <div style={{ padding: '10px 12px', borderRadius: 10, background: 'rgba(220, 38, 38, 0.08)', color: '#b91c1c', fontSize: 'var(--text-data-size)' }}>
             {pairingState.error}
           </div>
         )}

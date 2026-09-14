@@ -25,14 +25,24 @@ describe('mobile user-sheet entrance keeps tap targets static', () => {
     expect(body).not.toMatch(/transform/i);
   });
 
-  it('sheetItemIn animates opacity only — items do not drift under a finger', () => {
-    const body = keyframeBody('sheetItemIn');
-    expect(body).toContain('opacity');
-    expect(body).not.toMatch(/transform/i);
+  it('actions are visible immediately without a staggered entrance', () => {
+    const buttonBlock = css.match(/\.mobile-user-sheet-btn\s*\{[\s\S]*?\}/)?.[0] ?? '';
+    expect(buttonBlock).toContain('opacity: 1;');
+    expect(buttonBlock).not.toMatch(/animation(?:-delay)?:/);
+    expect(css).not.toContain('sheetItemIn');
   });
 
   it('the sheet element itself declares no entrance transform', () => {
     const sheetBlock = css.match(/\.mobile-user-sheet\s*\{[\s\S]*?\}/)?.[0] ?? '';
     expect(sheetBlock).not.toMatch(/translate/);
+  });
+
+  it('keeps account controls reachable in a short viewport and honors reduced motion', () => {
+    expect(css).toMatch(/\.mobile-user-sheet\s*\{[^}]*max-height:\s*calc\(100dvh/);
+    expect(css).toMatch(/\.mobile-user-sheet-scroll\s*\{[^}]*overflow-y:\s*auto;[^}]*overscroll-behavior:\s*contain;/);
+    expect(css).toMatch(/\.mobile-user-sheet-close\s*\{[^}]*min-height:\s*44px;/);
+    expect(css).toMatch(/\.mobile-user-sheet-btn\s*\{[^}]*min-height:\s*48px;/);
+    expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)[\s\S]*animation:\s*none;/);
+    expect(css).not.toContain('profile-bento');
   });
 });

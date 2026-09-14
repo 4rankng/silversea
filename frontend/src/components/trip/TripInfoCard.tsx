@@ -241,7 +241,7 @@ export function TripInfoCard(props: TripInfoCardProps) {
                   padding: '8px 12px',
                   background: 'var(--bg-3)',
                   borderRadius: 'var(--app-radius-md)',
-                  fontSize: 12,
+                  fontSize: 'var(--text-body-size)',
                   color: marginPreview >= 0 ? 'var(--success)' : 'var(--danger)',
                   fontWeight: 600,
                 }}>
