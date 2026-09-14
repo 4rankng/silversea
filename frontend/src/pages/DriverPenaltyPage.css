@@ -383,4 +383,14 @@
   .penalty-kpi-grid .kpi__label {
     white-space: normal;
   }
+
+  /* The deduction reads as one token: digits and ₫ never split lines in the
+     squeezed 2-up cards, and the value shrinks to fit the ~117px card. */
+  .penalty-kpi-grid .kpi__value {
+    font-size: 18px !important;
+  }
+
+  .penalty-kpi-grid .money {
+    flex-wrap: nowrap;
+  }
 }

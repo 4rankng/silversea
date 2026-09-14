@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShieldCheck, Download, Plus, FileText, Trophy, XCircle, Loader2, UserRound, Search, X } from 'lucide-react';
+import { ShieldCheck, Download, Plus, FileText, Trophy, XCircle, Loader2, UserRound, Search, X, ChevronDown } from 'lucide-react';
 import { Panel, Btn, PageHeader } from '../../../components/UI';
 import { Pagination, SummaryRail, UuiSelectField } from '../../../design-system';
 import { Money } from '../../../components/shared/Money';
@@ -12,12 +12,16 @@ import { resolveEmptyIllustration } from '../../../lib/emptyIllustrations';
 import { PenaltySeverityIcon } from './penalty-severity-icon';
 import type { PenaltyInsightsScoreboardRow } from '../../../hooks/usePenalties';
 import type { PenaltyStatusFilter, PenaltyScoreWindow, PenaltyTableProps } from './penalty-table-types';
+import { PenaltyScoreboardCards, type PenaltyScoreboardCardRow } from './PenaltyScoreboardCards';
 import { SortHeader } from '../../../components/shared/SortHeader';
 import '../../../styles/table-sort.css';
 
 const STATUS_CHIPS: Array<{ key: PenaltyStatusFilter; label: string }> = [
   { key: 'all', label: 'Tất cả' },
-  { key: PenaltyStatus.ACTIVE, label: 'Chờ duyệt' },
+  // ACTIVE records are final on creation — payroll deducts them in the current
+  // period with no approval step (attendance.service sums every non-CANCELED
+  // row). The chip must not promise a gate that doesn't exist.
+  { key: PenaltyStatus.ACTIVE, label: 'Hiệu lực' },
   { key: PenaltyStatus.CANCELED, label: 'Đã hủy' },
 ];
 
@@ -67,6 +71,9 @@ export function PenaltyTable({
   const navigate = useNavigate();
   // Window toggle is client-side — every window rides the insights payload.
   const [scoreFilter, setScoreFilter] = useState<PenaltyScoreWindow>('90d');
+  // Phone: the ranking collapses by default so the violation ledger and its
+  // status chips stay in the first viewport.
+  const [mobileScoreOpen, setMobileScoreOpen] = useState(false);
 
   // ── KPI strip (server-computed, selected salary period) ────────────────
   const incidentCount = insights?.month.incidentCount ?? 0;
@@ -87,7 +94,7 @@ export function PenaltyTable({
 
   // ── Scoreboard (insights rows + catalog tenure) ────────────────────────
   const tenureByDriver = new Map(drivers.map(d => [d.id, d.createdAt] as const));
-  const scoreboardRows = (insights?.scoreboard ?? []).map(row => {
+  const scoreboardRows = (insights?.scoreboard ?? []).map<PenaltyScoreboardCardRow>(row => {
     const tenureCreatedAt = tenureByDriver.get(row.driverId);
     return {
       ...row,
@@ -191,62 +198,26 @@ export function PenaltyTable({
             </div>
           </div>
         </div>
-        <div className="mobile-only">
-          <div className="penalty-m-cards">
-            {scoreboardRows.map((d) => {
-              const gc = getGradeClass(d.grade);
-              const vClass = d.violations === 0 ? 'zero' : d.violations <= 2 ? 'warn' : 'danger';
-              return (
-                <div key={d.driverId} className="penalty-m-card" onClick={() => onOpenDrawer(d.driverId)}>
-                  <div className="penalty-m-card__top">
-                    <div className="left">
-                      <div className="penalty-driver-avatar">
-                        <UserRound size={18} aria-hidden="true" />
-                      </div>
-                      <div className="penalty-m-card__info">
-                        <div className="penalty-m-card__name">{d.name}</div>
-                        <div className="penalty-m-card__id">
-                          {d.truckPlate || 'Chưa phân xe'}
-                        </div>
-                      </div>
-                    </div>
-                    <span className={`penalty-grade-badge ${gc}`}>
-                      Hạng {d.grade}
-                    </span>
-                  </div>
-
-                  <div className="penalty-m-card__meta">
-                    <div className="mm">
-                      <span className="lab">Chuỗi an toàn</span>
-                      <span className={d.streakDays >= 90 ? 'val' : 'val empty'} style={d.streakDays >= 90 ? { color: 'var(--accent)' } : undefined}>
-                        {d.streakDays} ngày
-                      </span>
-                    </div>
-                    <div className="mm">
-                      <span className="lab">Vi phạm (kỳ lọc)</span>
-                      <span className={vClass === 'zero' ? 'val empty' : `val ${vClass}`}>
-                        {d.violations} vụ
-                      </span>
-                    </div>
-                    <div className="mm">
-                      <span className="lab">Phạt YTD</span>
-                      <span className={d.fineYtd > 0 ? 'val danger' : 'val empty'}>
-                        {d.fineYtd > 0 ? `${formatCurrency(d.fineYtd)} ₫` : '—'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          <div className="penalty-table-foot">
-            <div className="legend">
-              <span>TB: <span className="penalty-foot-value">{avgStreak} ngày</span></span>
-              <span className="penalty-foot-sep">·</span>
-              <span>{driversOver90} đạt 90 ngày</span>
-            </div>
-          </div>
-        </div>
+        {/* Phone: the ranking collapses by default so the violation ledger
+            and its status chips stay in the first viewport. */}
+        <button
+          type="button"
+          className="penalty-m-toggle mobile-only"
+          aria-expanded={mobileScoreOpen}
+          onClick={() => setMobileScoreOpen((o) => !o)}
+        >
+          <span className="penalty-m-toggle__label">Bảng xếp hạng lái xe</span>
+          <span className="penalty-m-toggle__meta">{scoreboardRows.length} lái xe</span>
+          <ChevronDown size={15} className={mobileScoreOpen ? 'is-open' : undefined} aria-hidden="true" />
+        </button>
+        {mobileScoreOpen && (
+          <PenaltyScoreboardCards
+            rows={scoreboardRows}
+            avgStreak={avgStreak}
+            driversOver90={driversOver90}
+            onOpenDrawer={onOpenDrawer}
+          />
+        )}
         <div className="desktop-only">
           <div className="record-table-wrap penalty-scoreboard-wrap">
             <table className="record-table ops-table penalty-scoreboard-table">
@@ -415,7 +386,7 @@ export function PenaltyTable({
               </div>
               <div className="penalty-empty-title">Toàn đội đang giữ chuẩn nghiệp vụ</div>
               <div className="penalty-empty-desc">
-                Chưa có biên bản vi phạm nào khớp bộ lọc trong kỳ này. Hệ thống sẽ tự động khấu trừ vào bảng lương khi biên bản được duyệt.
+                Chưa có biên bản vi phạm nào khớp bộ lọc trong kỳ này. Hệ thống sẽ tự động khấu trừ vào bảng lương ngay khi biên bản có hiệu lực.
               </div>
               <div className="penalty-empty-stats">
                 <div className="penalty-empty-stat">
