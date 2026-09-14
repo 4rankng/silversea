@@ -40,7 +40,7 @@ async function baseInput() {
   createdSupplierIds.push(supplier.id);
   return {
     expenseDate: '2026-09-14',
-    supplierId: f.supplier.id,
+    supplierId: supplier.id,
     categoryId: f.category.id,
     amount: '123000',
     paymentStatus: 'UNPAID',
@@ -49,7 +49,7 @@ async function baseInput() {
   } as Parameters<typeof submitExpense>[1];
 }
 
-const fixture = () => (globalThis as unknown as { __expFixture: { submitter: { userId: number; role: string }; checker: { userId: number; role: string }; approver: { userId: number; role: string } } }).__expFixture;
+const fixture = () => (globalThis as unknown as { __expFixture: { submitter: { id: number; role: string }; checker: { id: number; role: string }; approver: { id: number; role: string } } }).__expFixture;
 
 async function ledgerCount(supplierId: number): Promise<number> {
   const rows = await db.select({ id: s.ledger.id }).from(s.ledger)

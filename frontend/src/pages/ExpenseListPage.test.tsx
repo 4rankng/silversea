@@ -11,7 +11,7 @@ vi.mock('../lib/api', () => ({
   api: { get: (...args: unknown[]) => apiGet(...args), post: (...args: unknown[]) => apiPost(...args) },
 }));
 
-const useAuthMock = vi.fn(() => ({ user: null }));
+const useAuthMock = vi.fn<() => { user: { role: string; userId: number; username: string } | null }>(() => ({ user: null }));
 vi.mock('../hooks/useAuth', () => ({ useAuth: () => useAuthMock() }));
 
 vi.mock('../api/configClient', () => ({
@@ -214,12 +214,14 @@ describe('ExpenseListPage approval states', () => {
 
   it('offers role-gated review actions and posts to the approval endpoint', async () => {
     useAuthMock.mockReturnValue({ user: { role: 'ADMIN', userId: 1, username: 'admin' } });
-    apiGet.mockResolvedValueOnce(envelope([{ ...rows[0]!, id: 102, approvalStatus: 'CHECKED' }]));
+    apiGet.mockResolvedValue(envelope([{ ...rows[0]!, id: 102, approvalStatus: 'CHECKED' }]));
     renderPage();
     const approve = await screen.findByRole('button', { name: 'Duyệt' });
     expect(screen.getByText('Chờ duyệt')).toBeTruthy();
     fireEvent.click(approve);
     await waitFor(() => expect(apiPost).toHaveBeenCalledWith(expect.stringContaining('/approve'), expect.anything()));
+    // Review clicks must not bubble into the row's navigate-to-edit onClick.
+    expect(screen.getByText('Chờ duyệt')).toBeTruthy();
   });
 
   it('keeps posted payment badges for approved legacy rows', async () => {

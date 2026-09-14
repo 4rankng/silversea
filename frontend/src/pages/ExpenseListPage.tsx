@@ -1,7 +1,6 @@
-import { useMemo } from 'react';
+import { useMemo, useState, type MouseEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, ChevronRight, AlertTriangle, X, Loader2 } from 'lucide-react';
-import { useState } from 'react';
 import { api } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 import { configClient } from '../api/configClient';
@@ -86,7 +85,10 @@ export default function ExpenseListPage() {
   // Dual-control review actions (server enforces the actor-distinct rules;
   // the buttons are convenience-gated by role only).
   const [reviewingId, setReviewingId] = useState<number | null>(null);
-  const reviewExpense = async (id: number, action: 'check' | 'approve' | 'reject') => {
+  const reviewExpense = async (event: MouseEvent, id: number, action: 'check' | 'approve' | 'reject') => {
+    // The row's onClick routes to the edit page — a review click must not
+    // also navigate away mid-request.
+    event.stopPropagation();
     setReviewingId(id);
     try {
       await api.post(`${FINANCIAL.EXPENSES}/${id}/${action}`, action === 'reject' ? { reason: 'Từ chối từ danh sách' } : {});
@@ -368,12 +370,12 @@ export default function ExpenseListPage() {
                   </td>
                   <td data-label="" className="record-table__action expense-record-table__action">
                     {e.approvalStatus === 'PENDING' && canCheck && (
-                      <button type="button" className="btn btn--secondary btn--sm" disabled={reviewingId === e.id} onClick={() => reviewExpense(e.id, 'check')}>Kiểm tra</button>
+                      <button type="button" className="btn btn--secondary btn--sm" disabled={reviewingId === e.id} onClick={(event) => reviewExpense(event, e.id, 'check')}>Kiểm tra</button>
                     )}
                     {e.approvalStatus === 'CHECKED' && canApprove && (
                       <>
-                        <button type="button" className="btn btn--primary btn--sm" disabled={reviewingId === e.id} onClick={() => reviewExpense(e.id, 'approve')}>Duyệt</button>
-                        <button type="button" className="btn btn--secondary btn--sm" disabled={reviewingId === e.id} onClick={() => reviewExpense(e.id, 'reject')}>Từ chối</button>
+                        <button type="button" className="btn btn--primary btn--sm" disabled={reviewingId === e.id} onClick={(event) => reviewExpense(event, e.id, 'approve')}>Duyệt</button>
+                        <button type="button" className="btn btn--secondary btn--sm" disabled={reviewingId === e.id} onClick={(event) => reviewExpense(event, e.id, 'reject')}>Từ chối</button>
                       </>
                     )}
                     <ChevronRight size={14} className="expense-record-table__chevron" />
