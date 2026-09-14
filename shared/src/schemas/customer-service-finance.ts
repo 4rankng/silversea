@@ -116,6 +116,7 @@ export const ACCOUNTING_TRANSPORT_OWNERSHIP = ['OWN', 'EXTERNAL'] as const;
 export const ACCOUNTING_TRANSPORT_READINESS = [
   'READY',
   'MISSING_PROFITABILITY_SNAPSHOT',
+  'MISSING_ACCEPTED_POD',
 ] as const;
 // Server-side sort keys for the transport register (one per data column; the
 // action column is decorative). Mirrors TRANSPORT_SORT_SQL in the backend
@@ -175,9 +176,10 @@ export const accountingTransportRegisterRowSchema = z.object({
   profit: moneyStringSchema.nullable(),
   readiness: z.object({
     status: z.enum(ACCOUNTING_TRANSPORT_READINESS),
-    acceptedPodSubmissionId: z.number().int().positive(),
-    acceptedPodVersion: z.number().int().positive(),
-    acceptedPodAt: z.string().datetime(),
+    // Null on MISSING_ACCEPTED_POD rows — no accepted e-POD exists yet.
+    acceptedPodSubmissionId: z.number().int().positive().nullable(),
+    acceptedPodVersion: z.number().int().positive().nullable(),
+    acceptedPodAt: z.string().datetime().nullable(),
     profitabilitySnapshotId: z.number().int().positive().nullable(),
     evidence: z.array(z.string()),
   }).strict(),

@@ -220,6 +220,25 @@
     text-transform: uppercase;
   }
 
+  /* Vehicle card actions (QA-056): the Thao tác group previously inherited
+     one narrow grid column, squeezing three buttons to 3-line wraps
+     ("Xóa" broke per character). The action row spans the full card width
+     and the buttons keep their labels on one line. */
+  .dispatch-catalogs__table td[data-label="Thao tác"] {
+    grid-column: 1 / -1;
+    border-top: 1px solid var(--border-1);
+    padding-top: 10px;
+  }
+
+  .dispatch-catalogs__table td[data-label="Thao tác"] > div {
+    flex-wrap: wrap;
+  }
+
+  .dispatch-catalogs__table td[data-label="Thao tác"] .btn {
+    white-space: nowrap;
+    flex: 0 0 auto;
+  }
+
   .dispatch-catalogs .ds-pagination {
     position: static;
     padding-inline: 0;

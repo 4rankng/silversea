@@ -427,6 +427,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   // Password modal state
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const currentPasswordFieldRef = useRef<HTMLInputElement | null>(null);
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const toggleUserMenu = useCallback(() => setUserMenuOpen(v => !v), []);
@@ -540,7 +541,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       // the new password — staying signed in would 401 every later request.
       logout({ revoke: false });
     } catch (err: unknown) {
-      setPasswordError((err as Error)?.message || 'Không thể đổi mật khẩu.');
+      const message = (err as Error)?.message || 'Không thể đổi mật khẩu.';
+      setPasswordError(message);
+      // A wrong current password is a field error: clear it and refocus so
+      // the user corrects just that field — the session stays signed in.
+      if (message.includes('Mật khẩu hiện tại không đúng')) {
+        setPasswordForm((form) => ({ ...form, currentPassword: '' }));
+        currentPasswordFieldRef.current?.focus();
+      }
     } finally {
       setPasswordSaving(false);
     }
@@ -729,6 +737,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         onClose={() => { if (!passwordSaving) setPasswordModalOpen(false); }}
         saving={passwordSaving}
         error={passwordError}
+        currentPasswordFieldRef={currentPasswordFieldRef}
+        isCurrentPasswordError={(passwordError ?? '').includes('Mật khẩu hiện tại không đúng')}
         form={passwordForm}
         onFormChange={setPasswordForm}
         onSave={handleChangePassword}

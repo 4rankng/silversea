@@ -9,7 +9,7 @@
  */
 import type { Request, Response } from 'express';
 import { z } from 'zod';
-import { tripContainerSchema } from '@tingting/shared';
+import { validatedTripContainerSchema } from '@tingting/shared';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { runWithAuditRequestContext } from '../../services/audit.service';
 import { ApiError } from '../../errors';
@@ -75,13 +75,12 @@ export function requireExpectedUpdatedAt(req: Request, message: string): Date {
   return expected;
 }
 
-export const forwarderTripContainerSchema = tripContainerSchema.refine(
-  (container) => Boolean(container.containerNumber?.trim()),
-  {
-    path: ['containerNumber'],
-    message: 'Số container không được để trống',
-  },
-);
+// The add-to-trip path enforces the shared ISO 6346 validator (format + check
+// digit) at the persistence boundary — previously it accepted any non-empty
+// string ('ABC' persisted and became a cost group); the batch path's check
+// is FE-advisory only, so this is now the stronger of the two. The chain
+// lives in @tingting/shared so the driver add path validates identically.
+export const forwarderTripContainerSchema = validatedTripContainerSchema;
 
 export const paperOrderCollectionSchema = z.object({
   expectedVersion: z.number().int().positive().optional(),

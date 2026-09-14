@@ -351,7 +351,9 @@ export async function requestFinancialReportingPolicyVersion(input: {
     if ((payload.expectedPublicVersion ?? null) !== state.publicVersion) {
       throw new ApiError(
         409,
-        'Dữ liệu đã thay đổi hoặc tháng hiệu lực đã có phiên bản. Tải lại để kiểm tra.',
+        // Distinct from the duplicate-month guard below so the FE can route
+        // recovery: this one means a reload refreshes the version token.
+        'Dữ liệu đã thay đổi. Tải lại để kiểm tra rồi thử lại.',
       );
     }
     const subjectKey = policySubjectKey(payload.effectiveFrom);
@@ -362,7 +364,7 @@ export async function requestFinancialReportingPolicyVersion(input: {
     if (existing) {
       throw new ApiError(
         409,
-        'Dữ liệu đã thay đổi hoặc tháng hiệu lực đã có phiên bản. Tải lại để kiểm tra.',
+        'Tháng hiệu lực này đã có phiên bản chính sách — xem Lịch sử đã duyệt hoặc chọn tháng khác.',
       );
     }
     return (await requestOrApplyGovernedConfigAction({
@@ -406,7 +408,7 @@ export async function requestTruckFinancialProfileVersion(input: {
     if ((payload.expectedPublicVersion ?? null) !== state.publicVersion) {
       throw new ApiError(
         409,
-        'Dữ liệu đã thay đổi hoặc tháng hiệu lực đã có phiên bản. Tải lại để kiểm tra.',
+        'Dữ liệu đã thay đổi. Tải lại để kiểm tra rồi thử lại.',
       );
     }
     const subjectKey = truckSubjectKey(payload.truckId, payload.effectiveFrom);
@@ -420,7 +422,7 @@ export async function requestTruckFinancialProfileVersion(input: {
     if (existing) {
       throw new ApiError(
         409,
-        'Dữ liệu đã thay đổi hoặc tháng hiệu lực đã có phiên bản. Tải lại để kiểm tra.',
+        'Tháng hiệu lực này đã có phiên bản hồ sơ cho xe — xem lịch sử hoặc chọn tháng khác.',
       );
     }
     return (await requestOrApplyGovernedConfigAction({
@@ -457,7 +459,7 @@ async function applyFinancialReportingPolicyVersion(
   if (existing) {
     throw new ApiError(
       409,
-      'Dữ liệu đã thay đổi hoặc tháng hiệu lực đã có phiên bản. Tải lại để kiểm tra.',
+      'Dữ liệu đã thay đổi. Tải lại để kiểm tra rồi thử lại.',
     );
   }
 
@@ -510,7 +512,7 @@ async function applyTruckFinancialProfileVersion(
   if (existing) {
     throw new ApiError(
       409,
-      'Dữ liệu đã thay đổi hoặc tháng hiệu lực đã có phiên bản. Tải lại để kiểm tra.',
+      'Dữ liệu đã thay đổi. Tải lại để kiểm tra rồi thử lại.',
     );
   }
 

@@ -5,6 +5,8 @@ import { Input } from "../../components/untitled-ui/base/input/input";
 import { TextArea } from "../../components/untitled-ui/base/textarea/textarea";
 import { EntityFormSection, UnitInput, DateField, RequiredHint } from "../../components/shared/EntityFormParts";
 import { UuiSelectField } from "../../design-system/forms/UuiSelectField";
+import { SearchableSelect } from "../../design-system";
+import { TrailerType } from "@tingting/shared";
 import {
   computeVehicleAlerts,
 } from "@tingting/shared";
@@ -22,6 +24,7 @@ export function TruckFormModal({
   oncancel,
   isOpen,
   carrierOptions = [],
+  trailerOptions = [],
 }: {
   saving: boolean;
   item?: TruckType;
@@ -30,11 +33,18 @@ export function TruckFormModal({
   isOpen: boolean;
   /** Nhà xe catalog (EXTERNAL_CARRIER fleet list) — the owning-carrier picker. */
   carrierOptions?: Array<{ id: number; name: string }>;
+  trailerOptions?: Array<{ id: number; licensePlate: string; type: string | null; coupledToPlate: string | null }>;
 }) {
   const [plate, setPlate] = useState(item?.licensePlate || "");
   // '' = chưa phân (saves explicit null = UNASSIGN per the carrier-link
   // contract); a numeric string saves that carrier id.
   const [carrierId, setCarrierId] = useState(item?.carrierId != null ? String(item.carrierId) : "");
+  // Only send the coupling when the operator touched the picker — an
+  // untouched edit must not resend a possibly-stale link (the coupled
+  // trailer may have been deleted or gone inactive since load, which would
+  // 400 an otherwise-unrelated save).
+  const [currentTrailerId, setCurrentTrailerId] = useState(item?.currentTrailerId != null ? String(item.currentTrailerId) : "");
+  const [trailerTouched, setTrailerTouched] = useState(false);
   const [vehicleClass, setVehicleClass] = useState(item?.vehicleClass || "");
   const [brand, setBrand] = useState(item?.brand || "");
   const [towCapacityTons, setTowCapacityTons] = useState<string | number>(item?.towCapacityTons ?? "");
@@ -52,6 +62,8 @@ export function TruckFormModal({
     if (isOpen) {
       setPlate(item?.licensePlate || "");
       setCarrierId(item?.carrierId != null ? String(item.carrierId) : "");
+      setCurrentTrailerId(item?.currentTrailerId != null ? String(item.currentTrailerId) : "");
+      setTrailerTouched(false);
       setVehicleClass(item?.vehicleClass || "");
       setBrand(item?.brand || "");
       setTowCapacityTons(item?.towCapacityTons ?? "");
@@ -80,6 +92,7 @@ export function TruckFormModal({
     onsave({
       licensePlate: plate.trim(),
       carrierId: carrierId === "" ? null : Number(carrierId),
+      ...(trailerTouched ? { currentTrailerId: currentTrailerId === "" ? null : Number(currentTrailerId) } : {}),
       vehicleClass: vehicleClass.trim() || undefined,
       brand: brand.trim() || undefined,
       towCapacityTons: towCapacityTons !== "" ? Number(towCapacityTons) : null,
@@ -149,6 +162,30 @@ export function TruckFormModal({
               ...carrierOptions.map((c) => ({ value: String(c.id), label: c.name })),
             ]}
           />
+          {/*
+            Rơ-moóc coupling — the assignment path the trailer form's guidance
+            promises. Searchable by plate; each option shows the type and the
+            trailer's CURRENT truck so a transfer is visible before it's made
+            (the service auto-clears the old truck's link on save).
+          */}
+          <div>
+            <label id="truck-trailer-label" className="text-xs font-medium text-foreground/70">Rơ-moóc đang ghép</label>
+            <SearchableSelect
+              id="truck-trailer-select"
+              value={currentTrailerId}
+              onChange={(v) => { setTrailerTouched(true); setCurrentTrailerId(v); }}
+              options={[
+                { value: '', label: '— Chưa ghép —', searchText: 'chưa ghép' },
+                ...(trailerOptions ?? []).map((t) => ({
+                  value: String(t.id),
+                  label: `${t.licensePlate} · ${t.type ? (t.type === TrailerType.FT40 ? '40FT' : t.type === TrailerType.FT20 ? '20FT' : t.type) : 'Chưa rõ loại'}${t.coupledToPlate ? ` · đang ghép ${t.coupledToPlate}` : ''}`,
+                  searchText: `${t.licensePlate} ${t.type ?? ''} ${t.coupledToPlate ?? ''}`,
+                })),
+              ]}
+              placeholder="Chọn rơ-moóc"
+              searchPlaceholder="Tìm biển số rơ-moóc"
+            />
+          </div>
           <Input
             label="Hãng xe"
             icon={Factory}

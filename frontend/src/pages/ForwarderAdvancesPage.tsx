@@ -298,6 +298,12 @@ export default function ForwarderAdvancesPage() {
                       {formatCurrency(Number(req.amount))}
                     </span>
                     <span className="fadv-card-trip__date">{formatDate(req.createdAt)}</span>
+                    {/* Per-record status (QA-041): every row names its own
+                        state with the shared vocabulary — no filter-switching
+                        or approver-metadata inference required. */}
+                    <span className={`fadv-card-trip__status is-${req.status.toLowerCase()}`}>
+                      {ADVANCE_REQUEST_STATUS_LABELS[req.status]}
+                    </span>
                   </div>
                   <div className="fadv-card-trip__reason">{req.reason}</div>
                 </div>

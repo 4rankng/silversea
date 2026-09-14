@@ -1,7 +1,7 @@
 import { db } from '../db';
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
-import { eq, and, sql, desc, isNull, gte, lte, count, sum, type SQL } from 'drizzle-orm';
+import { eq, and, sql, desc, isNull, gte, lte, count, sum, inArray, type SQL } from 'drizzle-orm';
 import { TxnType } from '@tingting/shared';
 import { LedgerService } from './ledger.service';
 import { ApiError } from '../errors';
@@ -212,6 +212,11 @@ export async function submitExpense(
   reason: string,
   userId?: number,
 ) {
+  // Paid-on-create would assert a settlement that never posted — expenses
+  // enter as debt and are settled through the payments surface only.
+  if (data.paymentStatus === 'PAID') {
+    throw new ApiError(400, 'Chi phí chỉ được ghi dưới dạng Ghi nợ — ghi trả qua màn Thanh toán NCC.');
+  }
   const category = await validateExpenseInput(tx, data);
   const trimmedReason = reason.trim();
   if (!trimmedReason) throw new ApiError(400, 'Lý do là bắt buộc');
@@ -349,6 +354,8 @@ export function isGovernedCompanyExpenseMutation(
     || (
       data.paymentStatus !== undefined
       && data.paymentStatus !== existing.paymentStatus
+      // QA-089: transitions are rejected outright in updateExpense — this
+      // predicate only routes through governance, which no longer sees them.
     )
   );
 }
@@ -514,6 +521,11 @@ export async function updateExpense(
 
   const originalAmount = Number(existing.amount);
   const wasUnpaid = existing.paymentStatus === 'UNPAID';
+  if (data.paymentStatus !== undefined && data.paymentStatus !== existing.paymentStatus) {
+    // Payment status is ledger-backed: flipping it here changes no ledger
+    // entry, so the row would claim a settlement that never happened.
+    throw new ApiError(409, 'Trạng thái thanh toán không sửa trực tiếp — ghi thanh toán qua màn Thanh toán NCC để cả công nợ và trạng thái cùng khớp.');
+  }
   const newAmount = Number(data.amount ?? existing.amount);
   const newSupplierId = data.supplierId ?? existing.supplierId;
   const financialFieldsChanged = wasUnpaid && (
@@ -952,6 +964,7 @@ export async function getExpense(dbOrTx: typeof db | Tx, id: number) {
     approvedBy: s.expenses.approvedBy,
     approvedAt: s.expenses.approvedAt,
     rejectionReason: s.expenses.rejectionReason,
+    settledByPaymentId: s.expenses.settledByPaymentId,
     createdBy: s.expenses.createdBy,
     createdAt: s.expenses.createdAt,
     updatedAt: s.expenses.updatedAt,
@@ -1051,4 +1064,65 @@ export async function getRenewalReminders(dbOrTx: typeof db | Tx) {
   }
 
   return reminders;
+}
+
+
+/**
+ * Settle expenses against a posted supplier payment (QA-089). Each listed
+ * expense must belong to the payment's supplier, be APPROVED and currently
+ * UNPAID — anything else 409s so the caller learns the linkage is wrong
+ * before any money moves. Rows flip to PAID recording settledByPaymentId,
+ * making paid-status ledger-backed. Expenses NOT listed stay UNPAID even if
+ * the payment more than covers them (partial-payment semantics).
+ */
+export async function settleExpensesForPayment(input: {
+  expenseIds: number[];
+  supplierId: number;
+  paymentLedgerId: number;
+  transaction: Tx;
+}) {
+  if (input.expenseIds.length === 0) return;
+  const rows = await input.transaction.select().from(s.expenses)
+    .where(and(inArray(s.expenses.id, input.expenseIds), isNull(s.expenses.deletedAt)))
+    .for('update');
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  for (const id of input.expenseIds) {
+    const row = byId.get(id);
+    if (!row) throw new ApiError(409, `Khoản chi ${id} không tồn tại — không thể ghi thanh toán.`);
+    if (row.supplierId !== input.supplierId) {
+      throw new ApiError(409, `Khoản chi ${id} không thuộc nhà cung cấp của phiếu thanh toán.`);
+    }
+    if (row.approvalStatus !== 'APPROVED') {
+      throw new ApiError(409, `Khoản chi ${id} chưa được phê duyệt — không thể ghi trả.`);
+    }
+    if (row.paymentStatus !== 'UNPAID') {
+      throw new ApiError(409, `Khoản chi ${id} đã được ghi trả.`);
+    }
+  }
+  await input.transaction.update(s.expenses).set({
+    paymentStatus: 'PAID',
+    settledByPaymentId: input.paymentLedgerId,
+    updatedAt: new Date(),
+  }).where(inArray(s.expenses.id, input.expenseIds));
+}
+
+/**
+ * Reversal counterpart (QA-089): restore UNPAID for the expenses THIS
+ * payment settled — but only those still pointing at it. If another payment
+ * has since re-settled a row (settledByPaymentId moved on), that row keeps
+ * its PAID state; restoring it would break the newer settlement's truth.
+ */
+export async function restoreExpensesForPaymentReversal(input: {
+  paymentLedgerId: number;
+  transaction: Tx;
+}) {
+  const restored = await input.transaction.update(s.expenses).set({
+    paymentStatus: 'UNPAID',
+    settledByPaymentId: null,
+    updatedAt: new Date(),
+  }).where(and(
+    eq(s.expenses.settledByPaymentId, input.paymentLedgerId),
+    eq(s.expenses.paymentStatus, 'PAID'),
+  )).returning({ id: s.expenses.id });
+  return restored.map((row) => row.id);
 }

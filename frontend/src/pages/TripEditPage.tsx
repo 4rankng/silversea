@@ -6,6 +6,7 @@ import { Role, TripStatus, TRIP_STATUS_LABELS } from '@tingting/shared';
 import { useConfirm } from '../components/UI';
 import { Spinner } from '../components/shared/Spinner';
 import { useTripDetail } from '../hooks/useQueries';
+import { formatCurrency } from '../lib/format';
 import { useAuth } from '../hooks/useAuth';
 import { useCatalogs } from '../hooks/useCatalogs';
 import { useTripForm } from '../hooks/useTripForm';
@@ -26,6 +27,7 @@ import { useBackShortcut } from '../hooks/useBackShortcut';
 import { useDirtyGuard } from '../hooks/useDirtyGuard';
 import type { TripOptions } from '../hooks/useTripOptions';
 import { SearchableSelect, DateInput, UuiSelectField } from '../design-system';
+import { CompletedTripReasonSection } from '../components/trip/CompletedTripReasonSection';
 import './TripForm.css';
 import './TripEditPage.css';
 
@@ -111,6 +113,17 @@ export default function TripEditPage() {
   });
 
   const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    // Completed-trip corrections apply immediately (there is no staged review
+    // flow behind the old wording) — so the commit is gated behind an
+    // explicit financial-impact confirmation.
+    if (trip?.status === TripStatus.COMPLETED) {
+      const ok = await confirm(
+        `Chuyến đã hoàn thành — cập nhật sẽ được áp dụng ngay. Doanh thu: ${formatCurrency(Number(trip.revenue ?? 0))} → ${formatCurrency(Number(form.revenue ?? 0))}. Lưu?`,
+        { variant: 'warning', confirmLabel: 'Áp dụng' },
+      );
+      if (!ok) return;
+    }
     try {
       const result = await handleSubmit(e);
       if (result !== undefined) {
@@ -196,22 +209,7 @@ export default function TripEditPage() {
           <div className="tc-content">
             <div className="tc-bento">
               {trip.status === TripStatus.COMPLETED && (
-                <CardSection number={0} span={2} title="Lý do đề nghị thay đổi" subtitle="Yêu cầu sẽ được gửi để kiểm tra và phê duyệt">
-                  <div className="tc-field">
-                    <label className="tc-field-label" htmlFor="governanceReason">
-                      Lý do <span style={{ color: 'var(--danger)', marginLeft: 3 }}>*</span>
-                    </label>
-                    <textarea
-                      id="governanceReason"
-                      className="input"
-                      rows={3}
-                      value={governanceReason}
-                      onChange={(event) => setGovernanceReason(event.target.value)}
-                      placeholder="Nêu căn cứ và nội dung cần thay đổi"
-                      required
-                    />
-                  </div>
-                </CardSection>
+                <CompletedTripReasonSection reason={governanceReason} onChange={setGovernanceReason} />
               )}
               <CardSection number={1} title="Tuyến đường & ngày" subtitle="Thời gian và tuyến vận chuyển">
                 <div className="tc-field-row tc-field-row--2">

@@ -20,13 +20,13 @@ import '../../pages/FleetPage.css';
  */
 export function TrailerFormModal({ saving, item, onsave, oncancel, isOpen }: {
   saving: boolean;
-  item?: { id: number; licensePlate: string; type: string; maxPayloadTons?: number | null; maxAxleLoadFrontTons?: number | null; maxAxleLoadRearTons?: number | null; inspectionDeadline?: string | null; note?: string | null };
+  item?: { id: number; licensePlate: string; type: string | null; maxPayloadTons?: number | null; maxAxleLoadFrontTons?: number | null; maxAxleLoadRearTons?: number | null; inspectionDeadline?: string | null; note?: string | null };
   onsave: (d: Record<string, unknown>) => void;
   oncancel: () => void;
   isOpen: boolean;
 }) {
   const [plate, setPlate] = useState(item?.licensePlate || '');
-  const [type, setType] = useState<string>(item?.type || TrailerType.FT40);
+  const [type, setType] = useState<string>(item?.type || '');
   const [maxPayloadTons, setMaxPayloadTons] = useState<string | number>(item?.maxPayloadTons ?? '');
   const [maxAxleLoadFrontTons, setMaxAxleLoadFrontTons] = useState<string | number>(item?.maxAxleLoadFrontTons ?? '');
   const [maxAxleLoadRearTons, setMaxAxleLoadRearTons] = useState<string | number>(item?.maxAxleLoadRearTons ?? '');
@@ -35,7 +35,9 @@ export function TrailerFormModal({ saving, item, onsave, oncancel, isOpen }: {
   useEffect(() => {
     if (isOpen) {
       setPlate(item?.licensePlate || '');
-      setType(item?.type || TrailerType.FT40);
+      // Editing preserves a blank (Chưa rõ loại) record as blank; only the
+      // ADD form defaults to a concrete type.
+      setType(item ? (item.type || '') : TrailerType.FT40);
       setMaxPayloadTons(item?.maxPayloadTons ?? '');
       setMaxAxleLoadFrontTons(item?.maxAxleLoadFrontTons ?? '');
       setMaxAxleLoadRearTons(item?.maxAxleLoadRearTons ?? '');
@@ -48,7 +50,9 @@ export function TrailerFormModal({ saving, item, onsave, oncancel, isOpen }: {
     if (!plate.trim()) return;
     onsave({
       licensePlate: plate.trim(),
-      type,
+      // '' is the explicit Chưa rõ loại choice — persist it as NULL (the
+      // column's designed blank), never as an empty enum value.
+      type: type || null,
       maxPayloadTons: maxPayloadTons !== '' ? Number(maxPayloadTons) : null,
       maxAxleLoadFrontTons: maxAxleLoadFrontTons !== '' ? Number(maxAxleLoadFrontTons) : null,
       maxAxleLoadRearTons: maxAxleLoadRearTons !== '' ? Number(maxAxleLoadRearTons) : null,
@@ -96,7 +100,10 @@ export function TrailerFormModal({ saving, item, onsave, oncancel, isOpen }: {
             label="Loại rơ-moóc"
             value={type}
             onChange={(e) => setType(e.target.value)}
-            options={Object.entries(TRAILER_TYPE_LABELS).map(([k, v]) => ({ value: k, label: v }))}
+            options={[
+              { value: '', label: 'Chưa rõ loại' },
+              ...Object.entries(TRAILER_TYPE_LABELS).map(([k, v]) => ({ value: k, label: v })),
+            ]}
           />
           <UnitInput
             label="Tải trọng tối đa"

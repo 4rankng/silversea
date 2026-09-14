@@ -412,3 +412,20 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Per-row status pill (QA-041): every advance card names its own state with
+   the shared status vocabulary, compact enough to keep amount + purpose the
+   scanning anchors. */
+.fadv-card-trip__status {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.fadv-card-trip__status.is-pending { color: var(--warning-text); background: var(--warning-soft); }
+.fadv-card-trip__status.is-approved { color: var(--success-text); background: var(--success-soft); }
+.fadv-card-trip__status.is-rejected { color: var(--danger-text); background: var(--danger-soft); }

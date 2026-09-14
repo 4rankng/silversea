@@ -24,6 +24,9 @@ export interface OpsWalletSummary {
   approved: string;
   pending: string;
   rejected: string;
+  /** Σ refundAmount các đề nghị thanh toán tạm ứng ĐÃ DUYỆT */
+  returned: string;
+  /** totalAdvance − (approved + pending) − returned; có thể âm */
   balance: string;
 }
 

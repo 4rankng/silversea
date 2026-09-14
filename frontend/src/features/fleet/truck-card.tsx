@@ -36,9 +36,11 @@ const Plate = memo(function Plate({ plate, tag }: { plate: string; tag: string }
   );
 });
 
-const TypeChip = memo(function TypeChip({ type }: { type: string }) {
-  const cls = type === TrailerType.FT40 ? "ft40" : "ft20";
-  return <span className={`fleet-type-chip ${cls}`}>{TRAILER_TYPE_LABELS[type as TrailerType] || type}</span>;
+const TypeChip = memo(function TypeChip({ type }: { type: string | null }) {
+  // Blank type renders the explicit unknown label on a neutral chip — never
+  // an empty pill borrowing the 20FT style.
+  const cls = type === TrailerType.FT40 ? "ft40" : type === TrailerType.FT20 ? "ft20" : "unknown";
+  return <span className={`fleet-type-chip ${cls}`}>{type ? (TRAILER_TYPE_LABELS[type as TrailerType] || type) : "Chưa rõ loại"}</span>;
 });
 
 const StatusDot = memo(function StatusDot({ status }: { status: string }) {
@@ -184,7 +186,7 @@ function DetailModal({ isOpen, title, onClose, details, onEdit, onDelete, deleti
 
 // ─── TrailerCard ────────────────────────────────────────────────────────────
 
-export function TruckCard({ trucks, driverByTruck, trailers, crud }: { trucks: TruckType[]; driverByTruck: Map<number, Driver>; trailers: Array<{ id: number; licensePlate: string; type: string }>; crud: ReturnType<typeof useCRUD> }) {
+export function TruckCard({ trucks, driverByTruck, trailers, crud }: { trucks: TruckType[]; driverByTruck: Map<number, Driver>; trailers: Array<{ id: number; licensePlate: string; type: string | null }>; crud: ReturnType<typeof useCRUD> }) {
   const [viewingId, setViewingId] = useState<number | null>(null);
   const { confirm, dialog: confirmDialog } = useConfirm();
   const { data: tires = [] } = useTires();
@@ -428,6 +430,14 @@ export function TruckCard({ trucks, driverByTruck, trailers, crud }: { trucks: T
         isOpen={crud.showAddForm || crud.editingId != null}
         saving={crud.saving}
         item={crud.editingId != null ? trucks.find((t) => t.id === crud.editingId) : undefined}
+        trailerOptions={trailers
+          .filter((t) => (t as { status?: string }).status === 'ACTIVE')
+          .map((t) => ({
+            id: t.id,
+            licensePlate: t.licensePlate,
+            type: t.type,
+            coupledToPlate: trucks.find((truck) => truck.currentTrailerId === t.id)?.licensePlate ?? null,
+          }))}
         onsave={(d) => {
           if (crud.editingId != null) crud.doUpdate(crud.editingId, d);
           else crud.doCreate(d);

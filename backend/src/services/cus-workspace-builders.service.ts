@@ -708,6 +708,15 @@ function containerFieldAccess(
     if (dateGatedFields.has(key) && actor.role === Role.CUS && !hasActiveLock) {
       return { mode: 'DIRECT', reason: 'Bạn có thể cập nhật trực tiếp.' };
     }
+    // Container number is identity, not an operational parameter — the write
+    // path has allowed number edits on tripped containers since the
+    // value-aware guard landed, and dispatch routinely fills numbers left
+    // blank at intake once the lot is already assigned. DISPATCHER gets the
+    // same direct-write flag CUS has (pre-lock, trip or not); route/ports
+    // stay on the generic split for dispatch.
+    if (key === 'containerNumber' && actor.role === Role.DISPATCHER && !hasActiveLock) {
+      return { mode: 'DIRECT', reason: 'Bạn có thể cập nhật trực tiếp.' };
+    }
     return { mode, reason };
   };
   return {

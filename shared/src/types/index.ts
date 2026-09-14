@@ -144,7 +144,9 @@ export interface VehicleAlert {
 export interface Trailer {
   id: number;
   licensePlate: string;
-  type: TrailerType;
+  // Nullable by design — fleet sheets ship blank Loại Moóc (rendered as the
+  // explicit Chưa rõ loại bucket); matches trailerSchema's nullable column.
+  type: TrailerType | null;
   maxPayloadTons: number | null;
   maxAxleLoadFrontTons: number | null;
   maxAxleLoadRearTons: number | null;

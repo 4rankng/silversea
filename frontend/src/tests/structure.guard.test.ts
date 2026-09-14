@@ -78,7 +78,10 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // Raised 843 → 856: the CUS + dispatcher sidebar catalog entries
   // (e69e67a7, effdf61f) shipped past the old ceiling. Reviewed as nav
   // additions; a future sidebar split should restore a smaller ceiling.
-  'src/components/Layout.tsx': 870,
+  // Bumped 870 → 879: 2026-09-14 wrong-current-password field
+  // handling — ref + field-error announce in the change-password dialog.
+  // Reviewed as a contract change.
+    'src/components/Layout.tsx': 879,
   'src/components/shipment/TripPodReviewPanel.tsx': 588,
   'src/components/trip/AncillaryFeesCard.tsx': 607,
   'src/components/trip/ContainerInstancesCard.tsx': 591,
@@ -98,7 +101,10 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   'src/components/untitled-ui/base/badges/badges.tsx': 416,
   'src/components/untitled-ui/base/select/tag-select.tsx': 401,
   'src/components/work-inbox/RoleWorkInbox.tsx': 485,
-  'src/features/app-settings/FinancePolicySection.tsx': 431,
+  // Bumped 431 → 444: 2026-09-14 duplicate-month picker guard —
+  // taken months warn before submit (rework of the staging round-5 loop).
+  // Reviewed as a contract change.
+    'src/features/app-settings/FinancePolicySection.tsx': 444,
   'src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx': 445,
   // Baseline 407 (was new-file capped 400): 2026-09-14 header sort direction —
   // both sortable headers gain aria-sort + flipping ▲/▼ glyphs, and rows key
@@ -229,7 +235,10 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   'src/pages/DriverTripDetailPage.tsx': 691,
   'src/pages/DriverTripPodPage.tsx': 520,
   'src/pages/ExpenseEntryPage.tsx': 702,
-  'src/pages/FinancePage.tsx': 987,
+  // Bumped 987 → 999: 2026-09-14 chart empty-state three-way
+  // branch — the no-trip message now keys on completed-trip presence with a
+  // distinct completed-but-zero explanation. Reviewed as a contract change.
+    'src/pages/FinancePage.tsx': 999,
   'src/pages/ForwarderSettlementCreatePage.tsx': 503,
   'src/pages/ForwarderTripDetailPage.tsx': 1107,
   'src/pages/PayableDetailPage.tsx': 608,

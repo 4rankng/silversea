@@ -56,7 +56,20 @@ export async function listOpsOrders(
       billRef: sql<string | null>`case when ${s.shipments.tradeDirection} = 'IMPORT'
         then ${s.shipments.blNumber} else ${s.shipments.bookingRef} end`,
       customerName: s.customers.name,
-      routeName: s.routes.name,
+      // CUS-semantics route display on a shipment-grained page: the lot's
+      // DISTINCT container routes (joined ' · ') when any container is routed
+      // — the common FCL case — falling back to the shipment route (LCL and
+      // legacy). Container NULL routes contribute no empty token. Scalar
+      // subquery: no join fan-out on the paginated ops list (same shape as
+      // the container-number search above).
+      routeName: sql<string | null>`coalesce(
+        (select string_agg(distinct r.name, ' · ' order by r.name)
+           from ${s.shipmentContainers} sc
+           join ${s.routes} r on r.id = sc.route_id
+          where sc.shipment_id = ${s.shipments.id}
+            and sc.route_id is not null),
+        ${s.routes.name}
+      )`,
       pinnedAt: s.userShipmentPins.pinnedAt,
     })
     .from(s.shipments)

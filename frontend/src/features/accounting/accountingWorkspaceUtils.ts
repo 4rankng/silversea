@@ -88,6 +88,7 @@ export function buildTransportDraftUrl(
 }
 
 export function transportReadinessLabel(row: AccountingTransportRegisterRow): string {
+  if (row.readiness.status === 'MISSING_ACCEPTED_POD') return 'Chờ POD';
   return row.readiness.status === 'READY'
     ? 'Sẵn sàng'
     : 'Thiếu dữ liệu lợi nhuận';

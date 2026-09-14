@@ -97,6 +97,11 @@ function JourneyCard({ card, tagLabels }: { card: DriverJourneyCard; tagLabels: 
   return (
     <article className={`driver-journey-card${isPaired ? ' driver-journey-card--clamp' : ''}`}>
       <div className="driver-journey-card__header">
+        {/* TRP chip: the blocker identity drivers are told to look for —
+            without it a busy-trip rejection names a trip no card shows. */}
+        {card.tripCode && (
+          <span className="driver-journey-card__trip-code">{card.tripCode}</span>
+        )}
         <span className={`driver-journey-card__tag${isPaired ? ' driver-journey-card__tag--clamp' : ''}`}>
           {tag}
         </span>

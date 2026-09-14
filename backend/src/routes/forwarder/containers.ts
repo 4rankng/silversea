@@ -5,6 +5,7 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { z } from 'zod';
+import { normalizeContainerNumber } from '@tingting/shared';
 import { asyncHandler } from '../../middleware/asyncHandler';
 
 
@@ -30,13 +31,17 @@ router.post('/trips/:tripId/containers', asyncHandler(async (req: Request, res: 
   const outcome = await runIdempotent({
     endpoint: FORWARDER_IDEMPOTENCY_ENDPOINTS.CONTAINER_CREATE,
     idempotencyKey,
-    payload: { forwarderId: forwarder.id, ...parsed.data },
+    // Canonical fingerprint: retries with equivalent formatting dedupe.
+    payload: { forwarderId: forwarder.id, ...parsed.data, containerNumber: normalizeContainerNumber(parsed.data.containerNumber ?? '') },
     createdBy: forwarder.id,
     responseStatusCode: 201,
     create: async (tx) => {
       await assertForwarderMutableTripScope(tripId, forwarder.id, tx);
       return createTripContainerInClient(tx, {
         ...parsed.data,
+        // Store the canonical form — the schema validated the normalized
+        // number, so lowercase/separated input must not persist as typed.
+        containerNumber: normalizeContainerNumber(parsed.data.containerNumber ?? ''),
         tripId,
         containerTypeId: parsed.data.containerTypeId ?? null,
         sealNumber: parsed.data.sealNumber ?? null,

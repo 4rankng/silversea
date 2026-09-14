@@ -345,6 +345,14 @@ router.use('/trucks', createCrudRouter(s.trucks, truckSchema, {
   beforeCreate: async (data, _req, tx) => {
     await H.assertUniqueCatalogString({ tx, scope: 'truck.license-plate', value: data.licensePlate, table: s.trucks, column: s.trucks.licensePlate, message: 'Biển số xe đầu kéo đã tồn tại' });
     await H.requireActiveCatalogRow(tx, 'trailer', s.trailers, data.currentTrailerId, 'Rơ-moóc liên kết không tồn tại hoặc đã ngưng dùng');
+    // Same transfer semantics as the update hook — a NEW truck claiming a
+    // held trailer clears the holder.
+    const createTrailerId = data.currentTrailerId;
+    if (createTrailerId != null) {
+      await tx.update(s.trucks)
+        .set({ currentTrailerId: null, updatedAt: new Date() })
+        .where(eq(s.trucks.currentTrailerId, Number(createTrailerId)));
+    }
     await assertActiveCarrier(tx, data.carrierId);
     return syncTrailerFields(data);
   },
@@ -354,6 +362,19 @@ router.use('/trucks', createCrudRouter(s.trucks, truckSchema, {
     }
     if (data.currentTrailerId !== undefined) {
       await H.requireActiveCatalogRow(tx, 'trailer', s.trailers, data.currentTrailerId, 'Rơ-moóc liên kết không tồn tại hoặc đã ngưng dùng');
+      // Transfer semantics: coupling T to THIS truck clears any OTHER truck's
+      // link to T in the same transaction — without it the old truck's card
+      // would keep displaying a trailer that moved. updatedAt bumps so a
+      // concurrent editor of the cleared truck sees the version change.
+      const trailerId = data.currentTrailerId;
+      if (trailerId != null) {
+        await tx.update(s.trucks)
+          .set({ currentTrailerId: null, updatedAt: new Date() })
+          .where(and(
+            eq(s.trucks.currentTrailerId, Number(trailerId)),
+            ne(s.trucks.id, id),
+          ));
+      }
     }
     await assertActiveCarrier(tx, data.carrierId);
     return data.currentTrailerId !== undefined ? syncTrailerFields(data) : data;

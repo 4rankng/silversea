@@ -12,6 +12,7 @@ import { api } from '../lib/api';
 import { FuelMode, LoadingType, FUEL_PRICE_PER_LITER_FALLBACK, FUEL_LOADED_NORM_FALLBACK, FUEL_EMPTY_NORM_FALLBACK, computeTripDriverSalary } from '@tingting/shared';
 import type { PricingTable, TripDetail, TripLeg, PaginatedResponse } from '@tingting/shared';
 import { tripClient } from '../api/tripClient';
+import { businessDateISO } from '../lib/format';
 import { configClient } from '../api/configClient';
 import { qk } from '../api/keys';
 
@@ -215,8 +216,7 @@ export function useTripFormDispatch(params: UseTripFormDispatchParams): UseTripF
     }
 
     lastPopulatedTripId.current = existingTrip.id;
-    // 's' and 'setLegs' omitted: this effect populates form fields once when
-    // existingTrip changes (guarded by lastPopulatedTripId ref); setters are stable.
+    // 's' and 'setLegs' omitted: populates once per existingTrip (ref-guarded).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEditMode, existingTrip, s.resetToggle]);
 

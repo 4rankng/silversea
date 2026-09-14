@@ -4,6 +4,9 @@ import type { ExpenseWithRefs } from '@tingting/shared';
 import type { FormState } from './expense-entry-utils';
 import { DateInput } from '../design-system/forms/DateInput';
 import { UuiSelectField } from '../design-system';
+import { useState } from 'react';
+import { getAuthenticatedPhotoUrl } from '../lib/api/photo';
+import { PhotoViewer } from '../components/PhotoViewer';
 
 interface BasicFieldsProps { form: FormState; errors: Record<string, string>; isEdit: boolean; existingExpense?: ExpenseWithRefs; set: <K extends keyof FormState>(key: K, value: FormState[K]) => void }
 export function ExpenseBasicFields({ form, errors, isEdit, existingExpense, set }: BasicFieldsProps) {
@@ -37,23 +40,54 @@ export function ExpenseBasicFields({ form, errors, isEdit, existingExpense, set 
                   </div>
 
                   <div className="expense-group">
-                    <UuiSelectField
-                      id="paymentStatus"
-                      label="Trạng thái thanh toán"
-                      required
-                      value={form.paymentStatus}
-                      onChange={e => set('paymentStatus', e.target.value as 'PAID' | 'UNPAID')}
-                      options={[{ value: 'UNPAID', label: 'Ghi nợ' }, { value: 'PAID', label: 'Trả ngay' }]}
-                      error={errors.paymentStatus}
-                      wrapperClassName="expense-group"
-                      controlClassName="expense-input"
-                    />
+                    {/* Payment status is ledger-backed (QA-089): create only
+                        offers Ghi nợ — a paid-on-create row would assert a
+                        settlement that never posted; edit shows the current
+                        ledger-backed state read-only, settled via the NCC
+                        payments screen. */}
+                    {isEdit ? (
+                      <>
+                        <label className="expense-label" htmlFor="paymentStatus-ro">Trạng thái thanh toán</label>
+                        <div id="paymentStatus-ro" className="expense-input" aria-readonly="true" style={{ display: 'flex', alignItems: 'center', minHeight: 38 }}>
+                          {existingExpense?.paymentStatus === 'PAID' ? 'Đã trả (theo phiếu thanh toán)' : 'Ghi nợ'}
+                        </div>
+                        <p className="expense-hint">
+                          Trạng thái tự cập nhật khi thanh toán NCC được ghi (màn Thanh toán NCC — chọn các khoản chi liên quan khi ghi thanh toán).
+                          Thanh toán một phần: chỉ các khoản chi được chọn chuyển Đã trả — phần còn dư giữ nguyên Ghi nợ.
+                        </p>
+                      </>
+                    ) : (
+                      <UuiSelectField
+                        id="paymentStatus"
+                        label="Trạng thái thanh toán"
+                        required
+                        value="UNPAID"
+                        onChange={() => { /* ledger-backed: stays Ghi nợ until settled */ }}
+                        options={[{ value: 'UNPAID', label: 'Ghi nợ' }]}
+                        error={errors.paymentStatus}
+                        wrapperClassName="expense-group"
+                        controlClassName="expense-input"
+                      />
+                    )}
                   </div>
   </>;
 }
 
 interface PhotoAsideProps { photos: { id: number; url: string }[]; uploading: boolean; isEdit: boolean; submitting: boolean; handleBack: () => void; removePhoto: (index: number) => void; handlePhotoUpload: (files: FileList) => void }
 export function ExpensePhotoAside({ photos, uploading, isEdit, submitting, handleBack, removePhoto, handlePhotoUpload }: PhotoAsideProps) {
+  // Receipt thumbnails sit behind the JWT: the raw URL 401s in an <img>, so
+  // every src goes through the token-append helper (fresh blob: previews
+  // pass through unchanged). A failed load gets a retryable hint — retry
+  // re-reads the current token and reloads the image, never re-uploads.
+  const [failedIds, setFailedIds] = useState<Set<number>>(new Set());
+  const [reloadKey, setReloadKey] = useState(0);
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
+  const clearFailure = (id: number) => setFailedIds((prev) => {
+    if (!prev.has(id)) return prev;
+    const next = new Set(prev);
+    next.delete(id);
+    return next;
+  });
   return <>
                 <div className="expense-layout__aside">
                   <div className="expense-panel expense-panel--photo">
@@ -66,11 +100,37 @@ export function ExpensePhotoAside({ photos, uploading, isEdit, submitting, handl
                         <div className="expense-photo-grid">
                           {photos.map((p, idx) => (
                             <div key={p.id} className="expense-photo-thumb">
-                              <img src={p.url} alt={`Ảnh ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              {failedIds.has(p.id) ? (
+                                <div className="expense-photo-thumb__error" role="alert">
+                                  <span>Không tải được ảnh</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => { clearFailure(p.id); setReloadKey((k) => k + 1); }}
+                                  >
+                                    Thử lại
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="expense-photo-thumb__open"
+                                  aria-label={`Xem ảnh hóa đơn ${idx + 1}`}
+                                  onClick={() => setViewerIndex(idx)}
+                                >
+                                  <img
+                                    key={`${p.id}-${reloadKey}`}
+                                    src={getAuthenticatedPhotoUrl(p.url)}
+                                    alt={`Ảnh ${idx + 1}`}
+                                    onLoad={() => clearFailure(p.id)}
+                                    onError={() => setFailedIds((prev) => new Set(prev).add(p.id))}
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                  />
+                                </button>
+                              )}
                               <button
                                 type="button"
                                 aria-label={`Xóa ảnh hóa đơn ${idx + 1}`}
-                                onClick={() => removePhoto(idx)}
+                                onClick={() => { removePhoto(idx); clearFailure(p.id); }}
                                 className="expense-photo-remove"
                               >
                                 <X size={16} />
@@ -132,6 +192,13 @@ export function ExpensePhotoAside({ photos, uploading, isEdit, submitting, handl
                     </button>
                   </div>
                 </div>
+      {viewerIndex != null && (
+        <PhotoViewer
+          urls={photos.map((p) => getAuthenticatedPhotoUrl(p.url))}
+          initialIndex={viewerIndex}
+          onClose={() => setViewerIndex(null)}
+        />
+      )}
   </>;
 }
 

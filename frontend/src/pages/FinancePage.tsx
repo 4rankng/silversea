@@ -89,7 +89,7 @@ export default function FinancePage() {
     totalRevenue, otherRevenue, transRevenue, totalCosts, grossProfit, netProfit,
     totalRevenueLY, otherRevenueLY, transRevenueLY, totalCostsLY, grossProfitLY,
     companyExpensesLY, netProfitLY, activeCapTable, costPieData,
-    topTrucks, categoryBreakdown, truckBreakdown, activeChartData, hasChartData,
+    topTrucks, categoryBreakdown, truckBreakdown, activeChartData, hasChartData, completedTripCount,
   } = useFinanceDerived({ allTrips, report, prevReport, capTableRaw, yearlyData, month, chartView });
 
   const allocatedFleetFixedCostTotal = report?.allocatedFleetFixedCostTotal ?? 0;
@@ -258,7 +258,7 @@ export default function FinancePage() {
                 <div style={{ padding: '40px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--wf-ink-3)', fontSize: 13, flex: 1 }}>
                   Đang tải dữ liệu...
                 </div>
-              ) : !hasChartData ? (
+              ) : completedTripCount === 0 ? (
                 <div style={{ padding: '40px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--wf-ink-3)', fontSize: 13, gap: 8, flex: 1 }}>
                   <EmptyIllustration name="empty-pricing" width={150} height={124} />
                   <div>
@@ -267,6 +267,18 @@ export default function FinancePage() {
                       : `Chưa có chuyến nào hoàn thành trong năm ${year}`}
                   </div>
                   <div style={{ fontSize: 12, lineHeight: 1.35, color: 'var(--wf-ink-3)' }}>Hoàn thành chuyến để xem xu hướng doanh thu</div>
+                </div>
+              ) : !hasChartData ? (
+                /* Completed trips exist but every series bucket is zero — an
+                   accurate zero-value explanation, never a no-trip claim. */
+                <div style={{ padding: '40px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--wf-ink-3)', fontSize: 13, gap: 8, flex: 1 }}>
+                  <EmptyIllustration name="empty-pricing" width={150} height={124} />
+                  <div>
+                    {chartView === 'day'
+                      ? `Có ${completedTripCount} chuyến hoàn thành trong tháng ${month}/${year} nhưng doanh thu và lợi nhuận ghi nhận bằng 0`
+                      : `Có ${completedTripCount} chuyến hoàn thành trong năm ${year} nhưng doanh thu và lợi nhuận ghi nhận bằng 0`}
+                  </div>
+                  <div style={{ fontSize: 12, lineHeight: 1.35, color: 'var(--wf-ink-3)' }}>Kiểm tra giá cước và các khoản thu đã nhập cho các chuyến này</div>
                 </div>
               ) : (
                 <RevenueTrendChart

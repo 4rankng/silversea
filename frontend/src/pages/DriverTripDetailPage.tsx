@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -23,7 +23,7 @@ import { podRequiredFilesReady } from '../lib/podReadiness';
 import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
 import { useAuth } from '../hooks/useAuth';
-import { useDriverTaskDetail, useDriverTaskProgress } from '../hooks/useDriverQueries';
+import { useDriverTaskDetail, useDriverTaskProgress, useDriverJourneyBoard } from '../hooks/useDriverQueries';
 import { driverClient, type DriverTaskDetail, type DriverTaskPodSubmission } from '../api/driverClient';
 import { getAuthenticatedPhotoUrl } from '../lib/api';
 import { compressImageFile } from '../lib/imageCompression';
@@ -64,6 +64,10 @@ export default function DriverTripDetailPage() {
   const validFulfillmentId = Number.isInteger(fulfillmentId) && fulfillmentId > 0 ? fulfillmentId : undefined;
 
   const taskDetail = useDriverTaskDetail(validFulfillmentId);
+  // The driver's own board — the ONLY authorization source for the blocker
+  // link (a blocking trip the driver cannot see is another driver's trip on
+  // the same truck; that renders a dispatcher handoff, never a link).
+  const board = useDriverJourneyBoard();
   const progress = useDriverTaskProgress(validFulfillmentId);
   const { commands, enqueue, drain, remove, pendingCount, failedCount, conflictCount } = useOfflineCommandQueue({
     maxPending: 12,
@@ -331,6 +335,28 @@ export default function DriverTripDetailPage() {
                 {failedCount > 0 && `${failedCount} lệnh sẽ thử lại. `}
                 {conflictCount > 0 && `${conflictCount} lệnh cần tải lại để xử lý xung đột.`}
               </p>
+              {/* The conflict reason PERSISTS here — the busy-trip toast
+                  expires, but the blocker identity ("Xe đang chạy chuyến
+                  TRP-…") must stay visible until the conflict is resolved. */}
+              {(() => {
+                const stuck = tripCommands.find((command) => command.status === 'CONFLICT' && command.lastError);
+                const stuckError = stuck?.lastError ?? null;
+                if (!stuckError) return null;
+                const match = stuckError.match(/TRP-\d{6}-\d+/);
+                const blockingCard = match
+                  ? (board.data?.items ?? []).find((card) => card.tripCode === match[0])
+                  : undefined;
+                return (
+                  <p role="alert" style={{ margin: '6px 0 0' }}>
+                    {stuckError}{' '}
+                    {blockingCard ? (
+                      <Link to={`/my-trips/${blockingCard.fulfillmentId}`}>Mở chuyến {blockingCard.tripCode}</Link>
+                    ) : match ? (
+                      <>Chuyến này không phải của bạn — liên hệ điều vận để xử lý.</>
+                    ) : null}
+                  </p>
+                );
+              })()}
             </div>
           </div>
         </section>

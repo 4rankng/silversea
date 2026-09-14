@@ -293,11 +293,20 @@ export function useFinanceDerived({ allTrips, report, prevReport, capTableRaw, y
     }, [chartView, dailyChartData, trimmedChartData, currentChartMonthIdx]);
 
     const hasChartData = chartView === 'day' ? dailyChartData.labels.length > 0 : trimmedChartData.length > 0;
+
+    // Completed-trip presence for the ACTIVE view — the no-trip empty state
+    // must key on THIS, never on the chart series (all-zero buckets are
+    // filtered out of the series, which used to make a completed-but-zero
+    // month claim "no completed trips"). Day view counts the month-scoped
+    // trips; month view sums the yearly reports' real tripCount field.
+    const completedTripCount = chartView === 'day'
+      ? allTrips.filter((t) => t.status === 'COMPLETED').length
+      : yearlyData.reduce((sum, r) => sum + (r?.tripCount ?? 0), 0);
   return {
     fuelCost, roadCost, driverCost, tollAndTicketsCost, maintenanceCost, fleetDepreciationCost, fleetFixedCost, otherTripCost, companyExpenses,
     totalRevenue, otherRevenue, transRevenue, totalCosts, grossProfit, netProfit,
     totalRevenueLY, otherRevenueLY, transRevenueLY, totalCostsLY, grossProfitLY,
     companyExpensesLY, netProfitLY, activeCapTable, revenueChartData, costPieData,
-    topTrucks, categoryBreakdown, truckBreakdown, trimmedChartData, activeChartData, hasChartData,
+    topTrucks, categoryBreakdown, truckBreakdown, trimmedChartData, activeChartData, hasChartData, completedTripCount,
   };
 }

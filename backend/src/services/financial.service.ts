@@ -11,8 +11,9 @@ import { eq, and, inArray, sql, desc, isNull } from 'drizzle-orm';
 import { TxnType } from '@tingting/shared';
 import { LedgerService } from './ledger.service';
 import { ApiError } from '../errors';
-import { requestTripArAdjustment } from './adjustment-governance.service';
+import { autoApplyGovernanceAction, requestTripArAdjustment } from './adjustment-governance.service';
 import { assertCanMakeGovernanceAction } from './governance-policy';
+import { settleExpensesForPayment } from './expense.service';
 import {
   buildGovernanceAction,
   type GovernanceActionRow,
@@ -352,14 +353,24 @@ export interface AdjustmentInput {
  * approval. No ledger effect is posted until the governance action is approved.
  */
 export async function createAdjustment(input: AdjustmentInput) {
-  return requestTripArAdjustment({
-    tripId: input.tripId,
-    amount: input.amount,
-    reason: input.note,
-    signedAgreementRef: input.signedAgreementRef,
-    makerId: input.makerId,
-    makerRole: input.makerRole,
-    expectedTripVersion: input.expectedTripVersion,
+  // The make stage only BUILDS the transient governance action — without
+  // this apply wrap the route 201'd with no ledger entry and no readback
+  // (staging round-5: POST 201 → GET adjustments [] → revenue unchanged).
+  // Applying in-request posts the ADJUSTMENT ledger entry atomically
+  // (applyTripGovernanceAction via the subjectType dispatch).
+  return autoApplyGovernanceAction({
+    make: (tx) => requestTripArAdjustment({
+      tripId: input.tripId,
+      amount: input.amount,
+      reason: input.note,
+      signedAgreementRef: input.signedAgreementRef,
+      makerId: input.makerId,
+      makerRole: input.makerRole,
+      expectedTripVersion: input.expectedTripVersion,
+      transaction: tx,
+    }),
+    actorId: input.makerId,
+    actorRole: input.makerRole,
     transaction: input.transaction,
   });
 }
@@ -731,6 +742,8 @@ export interface VendorPaymentInput extends TreasuryPaymentFields {
   date: string;
   note?: string;
   confirmOverpay?: boolean;
+  /** QA-089: linked expenses that flip PAID with this payment. */
+  expenseIds?: number[];
 }
 
 async function recordVendorPaymentTx(tx: Tx, input: VendorPaymentInput): Promise<VendorPaymentResult> {
@@ -863,6 +876,9 @@ export async function requestVendorPaymentGovernance(input: {
       },
       deltaSnapshot: {
         vendorBalanceDelta: -paymentAmount,
+        linkedExpenseIds: Array.isArray(input.payment?.expenseIds)
+          ? input.payment.expenseIds.map(Number)
+          : [],
       },
       makerId: input.makerId,
       makerRole: input.makerRole,
@@ -937,6 +953,24 @@ export async function applyVendorPaymentGovernanceAction(tx: Tx, action: Governa
     treasuryMovementId = movement.id;
   }
 
+  // QA-089: settle the linked expenses inside the same transaction — the
+  // payment posts its ledger entry above; the listed rows now flip PAID with
+  // settledByPaymentId so expense status and supplier debt agree.
+  const delta = (action.deltaSnapshot ?? {}) as Record<string, unknown>;
+  const expenseIds = Array.isArray(delta.linkedExpenseIds)
+    ? (delta.linkedExpenseIds as unknown[]).map(Number).filter(Number.isInteger)
+    : [];
+  let settledExpenseIds: number[] = [];
+  if (expenseIds.length > 0) {
+    await settleExpensesForPayment({
+      expenseIds,
+      supplierId,
+      paymentLedgerId: posted.id,
+      transaction: tx,
+    });
+    settledExpenseIds = expenseIds;
+  }
+
   return {
     ledgerEntryId: posted.id,
     applicationResult: {
@@ -946,6 +980,7 @@ export async function applyVendorPaymentGovernanceAction(tx: Tx, action: Governa
       overpayment: posted.overpayment ?? null,
       treasuryMovementId,
       paymentContractVersion: treasury.paymentContractVersion,
+      settledExpenseIds,
     },
   };
 }

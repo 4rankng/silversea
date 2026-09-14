@@ -12,7 +12,7 @@ import { api, ApiError } from '../lib/api';
 import { useToast } from '../components/shared/Toast';
 import { useConfirm, Modal } from '../components/UI';
 import BillingDocumentsPanel from '../components/billing/BillingDocumentsPanel';
-import { TXN_META, DEFAULT_META, LedgerRow, FuelLedgerRow, FuelLedgerCard, ExpenseLedgerCard, PayableLedgerCard } from '../features/accounting/ledger-rows';
+import { TXN_META, DEFAULT_META, LedgerRow, FuelLedgerRow, ExpenseLedgerRow, FuelLedgerCard, ExpenseLedgerCard, PayableLedgerCard } from '../features/accounting/ledger-rows';
 import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
 import { qk } from '../api/keys';
@@ -510,7 +510,7 @@ export default function PayableDetailPage() {
                   ledgerFilter === TxnType.FUEL_EXPENSE
                     ? <FuelLedgerRow key={row.id} row={row} />
                     : ledgerFilter === TxnType.VENDOR_EXPENSE
-                      ? <ExpenseLedgerCard key={row.id} row={row} />
+                      ? <ExpenseLedgerRow key={row.id} row={row} />
                       : <LedgerRow key={row.id} row={row} />
                 ))}
                 {filteredRows.length === 0 && (

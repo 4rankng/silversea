@@ -48,8 +48,8 @@ export function ForwarderTripError({ queryError, onBack }: { queryError: boolean
     </div></div>;
 }
 type ContainerForm = { containerNumber: string; sealNumber: string; notes: string };
-interface ContainerSectionProps { containers: ForwarderContainer[]; show: boolean; setShow: (show: boolean) => void; form: ContainerForm; setForm: React.Dispatch<React.SetStateAction<ContainerForm>>; onAdd: () => void; pending: boolean; selectedContainerId: string; onSelectContainer: (id: string) => void }
-export function ForwarderContainersSection({ containers, show: showContainerForm, setShow: setShowContainerForm, form: containerForm, setForm: setContainerForm, onAdd: handleAddContainer, pending, selectedContainerId, onSelectContainer }: ContainerSectionProps) {
+interface ContainerSectionProps { containers: ForwarderContainer[]; show: boolean; setShow: (show: boolean) => void; form: ContainerForm; setForm: React.Dispatch<React.SetStateAction<ContainerForm>>; onAdd: () => void; pending: boolean; selectedContainerId: string; onSelectContainer: (id: string) => void; error?: { message: string; suggestion: string | null } | null; onApplySuggestion?: () => void }
+export function ForwarderContainersSection({ containers, show: showContainerForm, setShow: setShowContainerForm, form: containerForm, setForm: setContainerForm, onAdd: handleAddContainer, pending, selectedContainerId, onSelectContainer, error: containerError = null, onApplySuggestion = () => {} }: ContainerSectionProps) {
  const visibleContainers = containers.filter((container) => !isSyntheticLclContainer(container));
  const hasSyntheticLclScope = containers.some(isSyntheticLclContainer);
  if (hasSyntheticLclScope && visibleContainers.length === 0) return null;
@@ -80,6 +80,16 @@ export function ForwarderContainersSection({ containers, show: showContainerForm
                     style={{ fontFamily: 'var(--font-data)' }}
                   />
                 </FormGroup>
+                {containerError != null && (
+                  <div role="alert" style={{ flexBasis: '100%', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 12, color: 'var(--danger)' }}>{containerError.message}</span>
+                    {containerError.suggestion != null && (
+                      <button type="button" className="btn btn--secondary btn--sm" style={{ fontSize: 12 }} onClick={onApplySuggestion}>
+                        Dùng "{containerError.suggestion}"
+                      </button>
+                    )}
+                  </div>
+                )}
                 <FormGroup label="Số seal" style={{ flex: 1, minWidth: 120 }}>
                   <input
                     className="input"

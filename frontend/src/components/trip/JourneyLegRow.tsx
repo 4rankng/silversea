@@ -13,6 +13,10 @@ interface JourneyLegRowProps {
 }
 
 export function JourneyLegRow({ leg, onRemove, onUpdate, canRemove }: JourneyLegRowProps) {
+  // Untouched blank suggestions validate to nothing: endpoints become
+  // required only once a leg carries content, so auto-generated placeholders
+  // from the route name can never block an unrelated save (QA-066 family).
+  const legTouched = leg.origin.trim() !== '' || leg.destination.trim() !== '';
   return (
     <div className="leg-card">
       <div className="leg-card__head">
@@ -32,7 +36,7 @@ export function JourneyLegRow({ leg, onRemove, onUpdate, canRemove }: JourneyLeg
           placeholder="Điểm đi"
           value={leg.origin}
           onChange={(val) => onUpdate('origin', val)}
-          required
+          required={legTouched}
         />
         <span className="leg-card__arrow">→</span>
         <LocationAutocomplete
@@ -40,7 +44,7 @@ export function JourneyLegRow({ leg, onRemove, onUpdate, canRemove }: JourneyLeg
           placeholder="Điểm đến"
           value={leg.destination}
           onChange={(val) => onUpdate('destination', val)}
-          required
+          required={legTouched}
         />
       </div>
       <div className="leg-card__fields">

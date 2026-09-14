@@ -103,14 +103,23 @@ export async function assertTireSerialAvailable(serial: string | undefined, excl
   }
 }
 
-/** Local date (YYYY-MM-DD) using system timezone — avoids the UTC drift of
- *  toISOString() (e.g. a 1am Vietnam install recording the previous day). */
-function todayISO(): string {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
+/**
+ * Today's date (YYYY-MM-DD) pinned to the Vietnam business timezone
+ * (Asia/Ho_Chi_Minh), NOT the host's system timezone. The system-local
+ * version drifted at the boundary: a server in UTC or Singapore resolves
+ * a different calendar date than Vietnam for the same instant, so a
+ * same-day reinstall at the boundary wrote the wrong date. Same
+ * Intl.DateTimeFormat pattern as the frontend's businessDateISO.
+ */
+export function todayISO(): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+  const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? '';
+  return `${get('year')}-${get('month')}-${get('day')}`;
 }
 
 /**

@@ -328,6 +328,8 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
         setForm={containerFormCtrl.setForm}
         onAdd={containerFormCtrl.add}
         pending={containerFormCtrl.pending}
+        error={containerFormCtrl.error}
+        onApplySuggestion={containerFormCtrl.applySuggestion}
         selectedContainerId={expenseFormCtrl.form.tripContainerId}
         onSelectContainer={(tripContainerId) => expenseFormCtrl.patch({ tripContainerId })}
       />
@@ -348,13 +350,17 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
                     : 'Đã đổi lệnh và phân xe; sẵn sàng bàn giao lệnh gốc'}
             </div>
             <p className="fwd-paper-order__desc">
-              Đổi lệnh: {trip.orderExchangeStatus === 'COMPLETED' ? 'Đã đổi lệnh' : trip.orderExchangeStatus === 'IN_PROGRESS' ? 'Đang đổi lệnh' : 'Chờ đổi lệnh'}. Tài xế chỉ được bấm “Đã nhận lệnh gốc” sau khi Ops xác nhận bàn giao.
+              {trip.status === 'COMPLETED' || trip.status === 'CANCELED' ? (
+                <>Chuyến đã kết thúc — bàn giao lệnh giấy cho chuyến này cần điều vận xử lý (không thực hiện được trên app).</>
+              ) : (
+                <>Đổi lệnh: {trip.orderExchangeStatus === 'COMPLETED' ? 'Đã đổi lệnh' : trip.orderExchangeStatus === 'IN_PROGRESS' ? 'Đang đổi lệnh' : 'Chờ đổi lệnh'}. Tài xế chỉ được bấm “Đã nhận lệnh gốc” sau khi Ops xác nhận bàn giao.</>
+              )}
             </p>
           </div>
           <button
             className="btn btn--primary btn--sm"
             onClick={() => void handleCollectPaperOrder()}
-            disabled={paperOrderSubmitting || Boolean(trip.paperOrderCollectedAt) || trip.orderExchangeStatus !== 'COMPLETED' || !trip.truckPlate}
+            disabled={paperOrderSubmitting || Boolean(trip.paperOrderCollectedAt) || trip.orderExchangeStatus !== 'COMPLETED' || !trip.truckPlate || trip.status === 'COMPLETED' || trip.status === 'CANCELED'}
           >
             {paperOrderSubmitting ? 'Đang lưu…' : trip.paperOrderCollectedAt ? 'Đã bàn giao' : 'Xác nhận giao lệnh gốc'}
           </button>

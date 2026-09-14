@@ -130,3 +130,7 @@
   color: var(--fg-3, #6b7280);
 }
 
+
+/* Genuinely-missing route — an explicit data label (CUS vocabulary), never a
+   bare dash that reads identical to "nothing here". */
+.ops-orders__route-missing { color: var(--text-secondary, #64748b); }

@@ -769,6 +769,104 @@ describe('CUS container-flat projection', () => {
     assert.equal(past.fieldAccess.cargoWeightKg.mode, 'DIRECT');
   });
 
+  test('DISPATCHER edits containerNumber directly (trip or not); route/ports keep the generic split', async () => {
+    const marker = Math.random().toString(16).slice(2, 8);
+    const dispatcherActor: AuthUser = {
+      userId: 0,
+      username: 'cus-ws-test-dispatcher',
+      email: null,
+      fullName: null,
+      role: Role.DISPATCHER,
+    };
+    // Tripped lot: fulfillment + CREATED trip so the line reports hasTrip.
+    const trippedShipment = await seedShipment({
+      blNumber: `DSP-TRIP-${marker}`,
+      cargoMode: 'FCL',
+      status: 'DISPATCHED',
+    });
+    const trippedContainer = await seedContainer(trippedShipment.id, { containerNumber: `DSP${marker}T` });
+    const fulfillment = await seedFulfillment(trippedShipment.id, trippedContainer.id);
+    const route = await seedRoute();
+    const [trip] = await db.insert(s.trips).values({
+      tripCode: `TRP-DSP-${marker}`,
+      customerId,
+      routeId: route.id,
+      departureDate: '2026-09-01',
+      fulfillmentId: fulfillment.id,
+      status: 'CREATED',
+    }).returning();
+    createdTripIds.push(trip.id);
+
+    const dispatcherView = await listCusShipmentContainers(
+      { page: 1, limit: 20, searchSuffix: marker },
+      dispatcherActor,
+    );
+    const trippedRow = dispatcherView.items.find((row) => row.containerNumber === `DSP${marker}T`);
+    assert.ok(trippedRow);
+    // Container number is identity, not an operational parameter: điều vận
+    // fills numbers left blank at intake even after the lot is assigned, so
+    // the field saves directly with no approval step — trip or not.
+    assert.equal(trippedRow.fieldAccess.containerNumber.mode, 'DIRECT');
+    // Route/ports stay on the generic trip split for dispatch — only the
+    // identity field opened.
+    assert.equal(trippedRow.fieldAccess.routeId.mode, 'READ_ONLY');
+    assert.equal(trippedRow.fieldAccess.liftSiteId.mode, 'READ_ONLY');
+    assert.equal(trippedRow.fieldAccess.dropoffSiteId.mode, 'READ_ONLY');
+
+    // Same line through CUS (unconditional plan-field override) and
+    // ACCOUNTANT (viewer) — the dispatcher branch changed neither.
+    const cusView = await listCusShipmentContainers(
+      { page: 1, limit: 20, searchSuffix: marker },
+      cusActor,
+    );
+    const cusRow = cusView.items.find((row) => row.containerNumber === `DSP${marker}T`);
+    assert.ok(cusRow);
+    assert.equal(cusRow.fieldAccess.containerNumber.mode, 'DIRECT');
+    assert.equal(cusRow.fieldAccess.routeId.mode, 'DIRECT');
+
+    const accountantView = await listCusShipmentContainers(
+      { page: 1, limit: 20, searchSuffix: marker },
+      accountantActor,
+    );
+    const accountantRow = accountantView.items.find((row) => row.containerNumber === `DSP${marker}T`);
+    assert.ok(accountantRow);
+    assert.equal(accountantRow.fieldAccess.containerNumber.mode, 'READ_ONLY');
+
+    // An active accounting lock still closes the field for điều vận — the
+    // direct branch is pre-lock only. Lock cleanup runs in finally: after()
+    // has no lock sweep and the FK would block the shipment delete.
+    const lockedShipment = await seedShipment({
+      blNumber: `DSP-LOCK-${marker}`,
+      cargoMode: 'FCL',
+    });
+    await seedContainer(lockedShipment.id, { containerNumber: `DSP${marker}L` });
+    await db.insert(s.shipmentAccountingLocks).values({
+      shipmentId: lockedShipment.id,
+      billingDocumentId: 900_000_000 + lockedShipment.id,
+      billingDocumentVersion: 1,
+      billingPeriodSnapshot: {
+        rangeFrom: '2026-08-01',
+        rangeTo: '2026-08-31',
+        issuedAt: '2026-09-01T00:00:00.000Z',
+      },
+      shipmentVersionAtLock: lockedShipment.version,
+      reason: 'Dispatcher container-number fieldAccess matrix test',
+      activatedBy: cusActor.userId,
+    });
+    try {
+      const lockedView = await listCusShipmentContainers(
+        { page: 1, limit: 20, searchSuffix: marker },
+        dispatcherActor,
+      );
+      const lockedRow = lockedView.items.find((row) => row.containerNumber === `DSP${marker}L`);
+      assert.ok(lockedRow);
+      assert.equal(lockedRow.fieldAccess.containerNumber.mode, 'READ_ONLY');
+    } finally {
+      await db.delete(s.shipmentAccountingLocks)
+        .where(eq(s.shipmentAccountingLocks.shipmentId, lockedShipment.id));
+    }
+  });
+
   test('searches a container suffix and returns only the matching container row', async () => {
     const shipment = await seedShipment({ blNumber: `NOSUFFIX${suffix}` });
     // Run-unique container numbers: a crashed earlier run left an active

@@ -78,6 +78,7 @@ interface ProfitDistributionRequest {
 
 export default function ProfitPage() {
   const user = useAuth()?.user;
+  const isAdmin = user?.role === 'ADMIN';
   const { confirm, dialog: confirmDialog } = useConfirm();
   const { toast: showToast } = useToast();
 
@@ -448,7 +449,30 @@ export default function ProfitPage() {
 
                   {(preview.undistributedProfit ?? 0) > 0 && (
                     <div className="profit-settlement__preview-warning">
-                      <strong>⚠️ {formatVND(preview.undistributedProfit ?? 0)}</strong> lợi nhuận từ xe chưa cấu hình đối tác sở hữu sẽ <strong>không được phân phối</strong>. Cài đặt tại <a href="/config/trucks">Cấu hình → Xe → Sở hữu</a>.
+                      <strong>⚠️ {formatVND(preview.undistributedProfit ?? 0)}</strong> lợi nhuận từ xe chưa cấu hình đối tác sở hữu sẽ <strong>không được phân phối</strong>.
+                      {' '}
+                      {((): Array<{ truckId: number; licensePlate?: string; profit: number }> => (preview.perTruck ?? []).filter((t) => t.partners.length === 0 && t.profit > 0))().length > 0 && (
+                        <>
+                          Xe bị chặn:{' '}
+                          {(preview.perTruck ?? [])
+                            .filter((t) => t.partners.length === 0 && t.profit > 0)
+                            .slice(0, 3)
+                            .map((t, idx, arr) => (
+                              <span key={t.truckId}>
+                                {isAdmin ? (
+                                  <a href={`/config/trucks/${t.truckId}/owners`}>{t.licensePlate ?? `xe #${t.truckId}`}</a>
+                                ) : (
+                                  <span>{t.licensePlate ?? `xe #${t.truckId}`}</span>
+                                )}
+                                {idx < arr.length - 1 ? ', ' : ''}
+                              </span>
+                            ))}
+                          {(preview.perTruck ?? []).filter((t) => t.partners.length === 0 && t.profit > 0).length > 3
+                            ? ` +${(preview.perTruck ?? []).filter((t) => t.partners.length === 0 && t.profit > 0).length - 3} xe khác`
+                            : ''}
+                          {' '}— {isAdmin ? 'bấm biển số để cấu hình đối tác sở hữu (tỷ lệ tổng 100%).' : 'yêu cầu Admin cấu hình đối tác sở hữu.'}
+                        </>
+                      )}
                     </div>
                   )}
 

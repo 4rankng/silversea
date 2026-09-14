@@ -28,14 +28,23 @@ export default function OpsWalletPage() {
         <div className="ops-wallet-card ops-wallet-card--balance">
           <span className="ops-wallet-card__label">SỐ DƯ HIỆN TẠI</span>
           <strong>{summary ? `${formatVnd(summary.balance)} ₫` : '…'}</strong>
+          {/* Honest debt: a negative balance is a fact, not an error state. */}
+          {summary && Number(summary.balance) < 0 && (
+            <small>Ứng quá mức — cần trả lại phần âm</small>
+          )}
           <small>Đã ứng {summary ? formatVnd(summary.totalAdvance) : '…'} ₫</small>
+        </div>
+        <div className="ops-wallet-card">
+          <span className="ops-wallet-card__label">Đã trả lại</span>
+          <strong>{summary ? `${formatVnd(summary.returned ?? '0')} ₫` : '…'}</strong>
+          <small>Tiền đã hoàn về công ty theo quyết toán</small>
         </div>
         <div className="ops-wallet-card">
           <span className="ops-wallet-card__label">Đã duyệt</span>
           <strong style={{ color: 'var(--ok, #16a34a)' }}>{summary ? formatVnd(summary.approved) : '…'}</strong>
         </div>
         <div className="ops-wallet-card">
-          <span className="ops-wallet-card__label">Chờ duyệt</span>
+          <span className="ops-wallet-card__label">Chờ duyệt (đang giữ chỗ)</span>
           <strong style={{ color: 'var(--warn, #d97706)' }}>{summary ? formatVnd(summary.pending) : '…'}</strong>
         </div>
         <div className="ops-wallet-card">

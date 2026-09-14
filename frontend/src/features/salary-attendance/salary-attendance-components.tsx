@@ -1,5 +1,4 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import { Truck, Coffee, XCircle, DollarSign, Info, Edit, ArrowRightLeft, Clock3 } from 'lucide-react';
 import { Money } from '../../components/shared/Money';
 import { Modal } from '../../components/UI';
@@ -74,7 +73,7 @@ export function CalCell({ dateStr, day: _day, isSunday, dayLabel, workDay, isUpd
 }
 
 // ── Salary Summary Card ───────────────────────────────────────────────────────
-export function SalarySummaryCard({ salary }: { salary: AttendanceSalary }) {
+export function SalarySummaryCard({ salary, onEditBaseSalary, driverName }: { salary: AttendanceSalary; onEditBaseSalary?: () => void; driverName?: string }) {
   return (
     <div className="salary-summary-dark">
       <div className="salary-summary-dark__topline">
@@ -95,9 +94,15 @@ export function SalarySummaryCard({ salary }: { salary: AttendanceSalary }) {
           </span>
           <span className="salary-summary-dark__row-val" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <Money value={salary.baseSalary} />
-            <Link to="/users" className="salary-edit-link" title="Sửa lương cứng">
+            <button
+              type="button"
+              className="salary-edit-link"
+              title="Sửa lương cứng"
+              onClick={() => onEditBaseSalary?.()}
+              aria-label={`Sửa lương cứng ${driverName ?? ''}`}
+            >
               <Edit size={10} />
-            </Link>
+            </button>
           </span>
         </div>
 

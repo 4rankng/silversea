@@ -35,6 +35,17 @@ import {
 import './config-page.css';
 
 /** ADMIN home for global switches and external-service credentials. */
+/** Policy submissions apply immediately (config governance direct-apply):
+ *  report the OUTCOME the server returned, never a hardcoded
+ *  "nothing changed" — a changed current version must never sit beside an
+ *  unchanged-configuration message. */
+function governedConfigOutcomeMessage(status: unknown, label: string): string {
+  if (status === 'PENDING' || status === 'PENDING_CHECK' || status === 'PENDING_APPROVAL') {
+    return `Đã gửi yêu cầu ${label} — đang chờ kiểm tra/phê duyệt. Cấu hình hiện tại chưa thay đổi; sau khi được duyệt hệ thống sẽ áp dụng.`;
+  }
+  return `Đã phê duyệt và áp dụng ${label} — có hiệu lực ngay.`;
+}
+
 export default function AppSettingsConfigPage() {
   const { rootRef: pageRef } = usePageAnimations({ ready: true, selectors: ['.panel'] });
   const navigate = useNavigate();
@@ -179,19 +190,26 @@ export default function AppSettingsConfigPage() {
       return;
     }
     const confirmed = await confirm(
-      `Gửi yêu cầu chính sách báo cáo hiệu lực từ ${formatViMonth(policyEffectiveFrom)}${lowMarginThresholdPercent == null ? ' và giữ trạng thái chưa cấu hình cảnh báo biên lợi nhuận?' : ` với ngưỡng cảnh báo biên lợi nhuận ${lowMarginThresholdPercent}%?`}`,
-      { confirmLabel: 'Gửi yêu cầu', variant: 'primary' },
+      `Áp dụng chính sách báo cáo hiệu lực từ ${formatViMonth(policyEffectiveFrom)}${lowMarginThresholdPercent == null ? ' ngay lập tức và giữ trạng thái chưa cấu hình cảnh báo biên lợi nhuận?' : ` với ngưỡng cảnh báo biên lợi nhuận ${lowMarginThresholdPercent}% ngay lập tức?`}`,
+      { confirmLabel: 'Áp dụng ngay', variant: 'primary' },
     );
     if (!confirmed) return;
     try {
-      await requestFinancialPolicy.mutateAsync({
+      const action = await requestFinancialPolicy.mutateAsync({
         expectedPublicVersion: financialPolicy.data.publicVersion,
         effectiveFrom: policyEffectiveFrom,
         lowMarginThresholdPercent,
       });
-      setPolicyMessage('Đã gửi yêu cầu. Cấu hình hiện tại chưa thay đổi.');
+      setPolicyMessage(governedConfigOutcomeMessage((action as { status?: string } | undefined)?.status, `chính sách báo cáo từ ${formatViMonth(policyEffectiveFrom)}`));
     } catch (error) {
-      setPolicyError(error instanceof Error ? error.message : 'Không thể gửi yêu cầu chính sách.');
+      const message = error instanceof Error ? error.message : 'Không thể gửi yêu cầu chính sách.';
+      // Split-409 recovery: duplicate-month points at history/another month;
+      // stale-data tells the user a reload actually helps.
+      setPolicyError(
+        message.includes('đã có phiên bản')
+          ? 'Tháng hiệu lực này đã có phiên bản chính sách — xem Lịch sử đã duyệt hoặc chọn tháng khác.'
+          : message,
+      );
     }
   };
 
@@ -222,15 +240,20 @@ export default function AppSettingsConfigPage() {
       monthlyFixedCost: truckMonthlyFixedCost,
     } as const;
     const confirmed = await confirm(
-      `Gửi hồ sơ tài chính cho xe ${truckProfiles.data.selectedTruckLabel} hiệu lực từ ${formatViMonth(truckEffectiveFrom)}?`,
-      { confirmLabel: 'Gửi yêu cầu', variant: 'primary' },
+      `Áp dụng hồ sơ tài chính cho xe ${truckProfiles.data.selectedTruckLabel} hiệu lực từ ${formatViMonth(truckEffectiveFrom)} ngay lập tức?`,
+      { confirmLabel: 'Áp dụng ngay', variant: 'primary' },
     );
     if (!confirmed) return;
     try {
-      await requestTruckProfile.mutateAsync(payload);
-      setTruckMessage('Đã gửi yêu cầu. Cấu hình hiện tại chưa thay đổi.');
+      const action = await requestTruckProfile.mutateAsync(payload);
+      setTruckMessage(governedConfigOutcomeMessage((action as { status?: string } | undefined)?.status, `hồ sơ tài chính xe ${truckProfiles.data.selectedTruckLabel} từ ${formatViMonth(truckEffectiveFrom)}`));
     } catch (error) {
-      setTruckError(error instanceof Error ? error.message : 'Không thể gửi hồ sơ tài chính xe.');
+      const message = error instanceof Error ? error.message : 'Không thể gửi hồ sơ tài chính xe.';
+      setTruckError(
+        message.includes('đã có phiên bản')
+          ? 'Tháng hiệu lực này đã có phiên bản hồ sơ cho xe — xem lịch sử hoặc chọn tháng khác.'
+          : message,
+      );
     }
   };
 

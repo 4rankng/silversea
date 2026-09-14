@@ -336,13 +336,10 @@ const handleSubmit = useCallback(
           routeId: s.routeId ? Number(s.routeId) : undefined,
           departureDate: s.departureDate || undefined,
           completedAt: s.completedAt || undefined,
-          legs: legs.map(l => ({
-            sequence: l.sequence,
-            origin: l.origin.trim(),
-            destination: l.destination.trim(),
-            km: Number(l.km),
-            loadingType: l.loadingType,
-          })),
+          // Untouched blank suggestions drop out — no invented empty endpoints.
+          legs: legs
+            .filter(l => l.origin.trim() || l.destination.trim() || String(l.km).trim())
+            .map(l => ({ sequence: l.sequence, origin: l.origin.trim(), destination: l.destination.trim(), km: Number(l.km), loadingType: l.loadingType })),
           version: existingTrip.version,
           fuelMode: s.fuelMode,
           fuelLitersOverride: s.fuelMode === FuelMode.FLAT_RATE ? (s.fuelLitersOverride ? Number(s.fuelLitersOverride) : 0) : undefined,

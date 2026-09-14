@@ -179,4 +179,34 @@ describe('auth session revocation', () => {
       redis.set = originalSet;
     }
   });
+
+// QA-063: a wrong current password is a FIELD error, not a session failure —
+// 400 (never 401, which the FE's global handler reads as expiry), and the
+// same token must keep authorizing requests afterward.
+test('wrong current password returns 400 and the session stays valid', async () => {
+  const user = await createUser(`password-wrong-${suffix}`);
+  const token = signToken(user, `password-wrong-jti-${suffix}`);
+  const idempotencyKey = `auth-password-wrong-${suffix}`;
+
+  const attempt = await requestJson('/api/auth/change-password', {
+    method: 'POST',
+    token,
+    idempotencyKey,
+    body: { currentPassword: 'definitely-wrong', newPassword: 'admin456' },
+  });
+  assert.equal(attempt.status, 400);
+  assert.match(String(attempt.body.error ?? ''), /Mật khẩu hiện tại không đúng/);
+
+  // Core claim: the session token still authorizes — no logout happened.
+  const stillValid = await requestJson('/api/protected', { token });
+  assert.equal(stillValid.status, 200);
+
+  // And the old password still authenticates (nothing changed).
+  const relogin = await requestJson('/api/auth/login', {
+    method: 'POST',
+    body: { identifier: user.username, password: 'admin123' },
+  });
+  assert.equal(relogin.status, 200);
+});
+
 });

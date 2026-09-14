@@ -183,6 +183,7 @@ export function AccountingTransportRegister({
             { value: '', label: 'Tất cả' },
             { value: 'READY', label: 'Sẵn sàng' },
             { value: 'MISSING_PROFITABILITY_SNAPSHOT', label: 'Thiếu dữ liệu lợi nhuận' },
+            { value: 'MISSING_ACCEPTED_POD', label: 'Chờ POD' },
           ]}
           inline
         />

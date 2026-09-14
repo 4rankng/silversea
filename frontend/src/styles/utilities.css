@@ -271,3 +271,13 @@
   font-weight: var(--fw-semibold);
   white-space: nowrap;
 }
+
+/* Compact VISIBLE page title (PageHeader showTitle) — module surfaces whose
+   only visible header was the topbar's generic context. */
+.page-header__title-visible {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--ink);
+}

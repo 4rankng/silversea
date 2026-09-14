@@ -189,11 +189,14 @@ export async function lockCustomerMutationKeys(
 }
 
 export const roadConfigGovernanceSchema = z.object({
-  tollPerStation: z.coerce.number().finite().min(0),
-  returnCargoBonus: z.coerce.number().finite().min(0),
-  defaultDriverSalary: z.coerce.number().finite().min(0).optional(),
-  twoPointDeliveryBonus: z.coerce.number().finite().min(0).optional(),
-  vehicleShiftDefault: z.coerce.number().finite().min(0).optional(),
+  // Message-only Vietnamese labels (predicates unchanged): the FE renders
+  // these beside the matching field; the visible label never leaks the raw
+  // zod path ("defaultDriverSalary: Number must be…").
+  tollPerStation: z.coerce.number({ invalid_type_error: 'Tiền trạm BOT phải là số' }).finite({ message: 'Tiền trạm BOT phải là số' }).min(0, { message: 'Tiền trạm BOT phải là số không âm' }),
+  returnCargoBonus: z.coerce.number({ invalid_type_error: 'Thưởng chuyến về có hàng phải là số' }).finite({ message: 'Thưởng chuyến về có hàng phải là số' }).min(0, { message: 'Thưởng chuyến về có hàng phải là số không âm' }),
+  defaultDriverSalary: z.coerce.number({ invalid_type_error: 'Tiền kết hợp mặc định phải là số' }).finite({ message: 'Tiền kết hợp mặc định phải là số' }).min(0, { message: 'Tiền kết hợp mặc định phải là số không âm' }).optional(),
+  twoPointDeliveryBonus: z.coerce.number({ invalid_type_error: 'Tiền trả hàng 2 điểm phải là số' }).finite({ message: 'Tiền trả hàng 2 điểm phải là số' }).min(0, { message: 'Tiền trả hàng 2 điểm phải là số không âm' }).optional(),
+  vehicleShiftDefault: z.coerce.number({ invalid_type_error: 'Tiền lưu ca xe phải là số' }).finite({ message: 'Tiền lưu ca xe phải là số' }).min(0, { message: 'Tiền lưu ca xe phải là số không âm' }).optional(),
 });
 
 export const ROAD_CONFIG_FALLBACKS = {

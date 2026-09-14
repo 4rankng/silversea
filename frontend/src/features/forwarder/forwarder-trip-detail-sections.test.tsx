@@ -1,6 +1,6 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { ForwarderExpenseRow } from './forwarder-trip-detail-sections';
+import { ForwarderContainersSection, ForwarderExpenseRow } from './forwarder-trip-detail-sections';
 
 function expense(overrides: Record<string, unknown> = {}) {
   return {
@@ -62,5 +62,45 @@ describe('ForwarderExpenseRow bill ledger metadata', () => {
     renderRow({ settlementMethod: 'COMPANY_DIRECT', invoiceNumber: null, invoiceDate: null });
     expect(screen.getByText('Công ty trả trực tiếp')).toBeTruthy();
     expect(screen.getByText('Không có hóa đơn')).toBeTruthy();
+  });
+});
+
+describe('ForwarderContainersSection — add-form validation feedback', () => {
+  const baseProps = {
+    containers: [],
+    show: true,
+    setShow: () => {},
+    form: { containerNumber: 'TCKU1234567', sealNumber: '', notes: '' },
+    setForm: () => {},
+    onAdd: vi.fn(),
+    pending: false,
+    selectedContainerId: '',
+    onSelectContainer: () => {},
+  };
+
+  it('renders the check-digit error with the one-tap suggestion and preserves the input', () => {
+    const onApplySuggestion = vi.fn();
+    const { container } = render(
+      <ForwarderContainersSection
+        {...baseProps}
+        error={{ message: 'Số cont sai chữ số kiểm tra — kiểm tra lại.', suggestion: 'TCKU1234560' }}
+        onApplySuggestion={onApplySuggestion}
+      />,
+    );
+
+    const alert = container.querySelector('[role="alert"]');
+    expect(alert?.textContent).toContain('chữ số kiểm tra');
+    // The typed number stays in the input for correction.
+    expect((container.querySelector('input.input') as HTMLInputElement).value).toBe('TCKU1234567');
+    const suggestion = Array.from(container.querySelectorAll('button'))
+      .find((button) => (button.textContent || '').includes('Dùng'));
+    expect(suggestion?.textContent).toContain('TCKU1234560');
+    fireEvent.click(suggestion!);
+    expect(onApplySuggestion).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders no alert when the controller reports no error', () => {
+    const { container } = render(<ForwarderContainersSection {...baseProps} />);
+    expect(container.querySelector('[role="alert"]')).toBeNull();
   });
 });

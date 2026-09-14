@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { ArrowLeft, ArrowDownRight, ArrowUpRight, X } from 'lucide-react';
 import { animate, utils, spring } from 'animejs';
 import { AssetIcon, type AssetIconName } from './AssetIcon';
+export { PageHeader } from './PageHeader';
 import { isTopOverlayToken, useAnimatedOverlay, type EntranceFn, type ExitFn } from '../hooks/useAnimatedOverlay';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import { Tooltip } from './shared/Tooltip';
@@ -185,39 +186,6 @@ export function KPI({ label, value, unit, icon: Icon, assetIconName, meta, varia
           ) : null}
         </div>
       )}
-    </div>
-  );
-}
-
-/* ─── Page Header ───────────────────────────────────────────────────────── */
-interface PageHeaderProps {
-  title: React.ReactNode;
-  /** Retained for call-site compatibility; route descriptions are no longer page chrome. */
-  description?: React.ReactNode;
-  action?: React.ReactNode;
-  onBack?: () => void;
-  /** Retained for call-site compatibility; page icons are no longer page chrome. */
-  iconName?: AssetIconName;
-}
-
-export function PageHeader({ title, action, onBack }: PageHeaderProps) {
-  if (!onBack && !action) {
-    return <h1 className="sr-only">{title}</h1>;
-  }
-
-  return (
-    <div className={`page-header page-header--actions-only${action ? ' page-header--has-action' : ''}`}>
-      <h1 className="sr-only">{title}</h1>
-      {onBack && (
-        <button
-          className="btn btn--ghost btn--icon btn--sm"
-          onClick={onBack}
-          aria-label="Quay lại"
-        >
-          <ArrowLeft size={16} />
-        </button>
-      )}
-      {action && <div className="page-actions">{action}</div>}
     </div>
   );
 }

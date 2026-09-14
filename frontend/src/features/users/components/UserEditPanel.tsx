@@ -1,6 +1,6 @@
 // Edit panel — update an existing user account.
 // Split from UserForm.tsx in the 2026-09-01 structural wave (move-only).
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   ShieldCheck, KeyRound, Loader2, Save, User, Eye, EyeOff,
   Mail, AtSign, Lock, Building2, Package, Hash,
@@ -36,6 +36,12 @@ export function EditPanel({
   const [fullName, setFullName] = useState(user.fullName ?? '');
   const [username, setUsername] = useState(user.username ?? '');
   const [email, setEmail]       = useState(user.email ?? '');
+  // Field-level Vietnamese validation messages — the raw server zod text
+  // ("email: Invalid email") never renders; first invalid field is focused.
+  const [emailMsg, setEmailMsg] = useState<string | null>(null);
+  const [pwMsg, setPwMsg] = useState<string | null>(null);
+  const emailInputRef = useRef<HTMLInputElement | null>(null);
+  const pwInputRef = useRef<HTMLInputElement | null>(null);
   const [phone, setPhone]       = useState(user.phone ?? '');
   const [employeeCode, setEmployeeCode] = useState(user.employeeCode ?? '');
   const [role, setRole]         = useState<Role>(user.role);
@@ -100,6 +106,16 @@ export function EditPanel({
   const roleSelectDisabled = canEditDriversOnly || (!canManageClerkScope && user.role === Role.CUS);
 
   const handleSubmit = async () => {
+    // Field validation with visible labels first — invalid email/password
+    // never reaches the server, so no English schema banner can appear.
+    const nextEmailMsg = email.trim().length > 0 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+      ? 'Email chưa đúng định dạng (ví dụ nva@cty.vn)' : null;
+    const nextPwMsg = password.length > 0 && password.length < 6
+      ? 'Mật khẩu mới phải có tối thiểu 6 ký tự' : null;
+    setEmailMsg(nextEmailMsg);
+    setPwMsg(nextPwMsg);
+    if (nextEmailMsg != null) { emailInputRef.current?.focus(); return; }
+    if (nextPwMsg != null) { pwInputRef.current?.focus(); return; }
     if (customerScopeInvalid) return;
     if (forwarderScopeInvalid) return;
     const payload: EditData = { fullName, username, email, phone, employeeCode, role, status, password };
@@ -190,12 +206,20 @@ export function EditPanel({
               icon={<Mail size={14} />}
               type="email"
               value={email}
-              onChange={e => setEmail(e.target.value)}
+              onChange={e => { setEmail(e.target.value); if (emailMsg) setEmailMsg(null); }}
               placeholder="nva@cty.vn"
-              error={emailError}
+              error={emailError || emailMsg != null}
               disabled={canEditDriversOnly}
+              inputRef={emailInputRef}
+              ariaInvalid={emailMsg != null}
+              ariaDescribedBy={emailMsg != null ? 'user-email-error' : undefined}
             />
           </FormGroup>
+          {emailMsg && (
+            <p id="user-email-error" role="alert" style={{ color: 'var(--err, #dc2626)', margin: '4px 0 0', fontSize: 12 }}>
+              {emailMsg}
+            </p>
+          )}
         </div>
       </div>
 
@@ -318,17 +342,19 @@ export function EditPanel({
           <div className="users-form-section__title"><KeyRound size={12} /> Đặt lại mật khẩu</div>
           <FormGroup
             label="Mật khẩu mới (để trống = không thay đổi)"
-            error={pwError ? 'Mật khẩu phải có tối thiểu 6 ký tự' : undefined}
           >
             <IconInput
               icon={<Lock size={14} />}
               type={showPw ? 'text' : 'password'}
               value={password}
-              onChange={e => setPassword(e.target.value)}
+              onChange={e => { setPassword(e.target.value); if (pwMsg) setPwMsg(null); }}
               placeholder="Tối thiểu 6 ký tự"
               autoComplete="new-password"
               valid={pwValid}
-              error={pwError}
+              error={pwError || pwMsg != null}
+              inputRef={pwInputRef}
+              ariaInvalid={pwMsg != null}
+              ariaDescribedBy={pwMsg != null ? 'user-pw-error' : undefined}
               rightElement={
                 <button
                   type="button"
@@ -341,6 +367,11 @@ export function EditPanel({
               }
             />
           </FormGroup>
+          {pwMsg && (
+            <p id="user-pw-error" role="alert" style={{ color: 'var(--err, #dc2626)', margin: '4px 0 0', fontSize: 12 }}>
+              {pwMsg}
+            </p>
+          )}
         </>
       )}
     </Drawer>

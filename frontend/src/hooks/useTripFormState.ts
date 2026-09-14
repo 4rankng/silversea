@@ -8,6 +8,7 @@
  */
 import { useState, useCallback, useRef } from 'react';
 import { FuelMode } from '@tingting/shared';
+import { businessDateISO } from '../lib/format';
 import type { TripDetail } from '@tingting/shared';
 
 // ─── Types ────────────────────────────────────────────────────────────────
@@ -195,7 +196,9 @@ export function useTripFormState(params: TripFormStateParams): UseTripFormStateR
   const [driverId, setDriverId] = useState(isEditMode && existingTrip ? String(existingTrip.driverId) : "");
   const [cargoTypeId, setCargoTypeId] = useState(isEditMode && existingTrip ? String(existingTrip.cargoTypeId) : "");
   const [departureDate, setDepartureDate] = useState(isEditMode && existingTrip ? existingTrip.departureDate : "");
-  const [completedAt, setCompletedAt] = useState(isEditMode && existingTrip?.completedAt ? existingTrip.completedAt.slice(0, 10) : "");
+  // VN business calendar date, never the UTC slice of the wire instant — a
+  // 20:30Z completion is already the next calendar day in Vietnam.
+  const [completedAt, setCompletedAt] = useState(isEditMode && existingTrip?.completedAt ? businessDateISO(new Date(existingTrip.completedAt)) : "");
   const [customerReference, setCustomerReference] = useState(isEditMode && existingTrip?.customerReference ? existingTrip.customerReference : "");
   const [containerCount, setContainerCount] = useState(isEditMode && existingTrip?.containerCount ? String(existingTrip.containerCount) : "1");
   const [plannedContainerTypeId, setPlannedContainerTypeId] = useState("");
