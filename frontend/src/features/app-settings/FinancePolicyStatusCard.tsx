@@ -4,7 +4,24 @@ import { formatViDate } from './formatters';
 /** The selected finance policy's current state: status note, current-version
  *  facts, and version history. Extracted from FinancePolicySection to keep
  *  the section under its ceiling; purely presentational. */
-export function FinancePolicyStatusCard({ data }: { data: Record<string, unknown> | null }) {
+interface FinancePolicyStatusData {
+  status?: string;
+  currentPolicy?: {
+    effectiveFrom?: string;
+    version?: number;
+    depreciationMethodLabel?: string;
+    allocationBasisLabel?: string;
+    lowMarginThresholdPercent?: number;
+  } | null;
+  history?: Array<{
+    id: number;
+    depreciationMethodLabel?: string;
+    allocationBasisLabel?: string;
+    lowMarginThresholdPercent?: number;
+  }>;
+}
+
+export function FinancePolicyStatusCard({ data }: { data: FinancePolicyStatusData | null }) {
   return (
               <div className="cfg-finance-summary__section">
                 <h3 className="cfg-section__heading">Trạng thái hiện tại</h3>
@@ -17,7 +34,7 @@ export function FinancePolicyStatusCard({ data }: { data: Record<string, unknown
                   <dl className="cfg-finance-summary__grid">
                     <div>
                       <dt>Hiệu lực từ</dt>
-                      <dd>{data?.currentPolicy ? formatViDate(data.currentPolicy.effectiveFrom) : 'Chưa cấu hình'}</dd>
+                      <dd>{data?.currentPolicy ? formatViDate(data.currentPolicy.effectiveFrom ?? '') : 'Chưa cấu hình'}</dd>
                     </div>
                     <div>
                       <dt>Phiên bản</dt>
