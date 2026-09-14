@@ -134,6 +134,7 @@ async function createShipmentFixture(args: {
   cargoTypeId?: number | null;
   cargoWeightKg?: string | null;
   containerCargoWeightKg?: string | null;
+  containerTypeCode?: string;
 }) {
   const [shipment] = await db.insert(s.shipments).values({
     customerId: args.customerId,
@@ -149,7 +150,7 @@ async function createShipmentFixture(args: {
   }).returning();
   createdShipmentIds.push(shipment.id);
 
-  const containerType = await createContainerType(`20G${createdContainerTypeIds.length}`);
+  const containerType = await createContainerType(args.containerTypeCode ?? `20G${createdContainerTypeIds.length}`);
   const [container] = await db.insert(s.shipmentContainers).values({
     shipmentId: shipment.id,
     routeId: args.routeId,
@@ -205,6 +206,7 @@ async function createAcceptedFulfillment(args: {
   routeId?: number;
   cargoWeightKg?: string | null;
   containerCargoWeightKg?: string | null;
+  containerTypeCode?: string;
 } = {}) {
   const customer = args.customerId == null
     ? await createCustomer(`Dispatch customer ${suffix}-${createdCustomerIds.length}`)
@@ -217,6 +219,7 @@ async function createAcceptedFulfillment(args: {
     cargoTypeId: null,
     cargoWeightKg: args.cargoWeightKg,
     containerCargoWeightKg: args.containerCargoWeightKg,
+    containerTypeCode: args.containerTypeCode,
   });
   await db.insert(s.shipmentFulfillments).values({
     shipmentId: shipment.id,
@@ -590,8 +593,11 @@ describe('dispatch fulfillment workflow routes', () => {
   });
 
   test('rejects overlapping truck, trailer, and driver assignments', async () => {
-    const resources = await createOwnedResources();
-    const first = await createAcceptedFulfillment();
+    // 40' shells on a 40' trailer: two of these on one truck are never a kẹp
+    // pair, so the overlap stays a hard conflict (the kẹp exemption must not
+    // apply).
+    const resources = await createOwnedResources({ trailerType: '40FT' });
+    const first = await createAcceptedFulfillment({ containerTypeCode: `45G${createdContainerTypeIds.length}` });
     const firstDispatch = await apiFetch<{ trip: { id: number } }>(`/${first.shipmentId}/dispatch`, {
       method: 'POST',
       token: managerToken,
@@ -610,7 +616,7 @@ describe('dispatch fulfillment workflow routes', () => {
     assert.equal(firstDispatch.status, 201);
     createdTripIds.push(firstDispatch.data.trip.id);
 
-    const second = await createAcceptedFulfillment();
+    const second = await createAcceptedFulfillment({ containerTypeCode: `45G${createdContainerTypeIds.length}` });
     const overlap = await apiFetch<{ error?: string }>(`/${second.shipmentId}/dispatch`, {
       method: 'POST',
       token: managerToken,
@@ -628,6 +634,77 @@ describe('dispatch fulfillment workflow routes', () => {
     });
     assert.equal(overlap.status, 409);
     assert.match(overlap.data.error ?? '', /trùng lịch/i);
+  });
+
+  test('kẹp: issuing two 20ft containers to one truck does not trip the duplicate-tractor guard', async () => {
+    const resources = await createOwnedResources({ trailerType: '20FT' });
+    const first = await createAcceptedFulfillment();
+    const firstDispatch = await apiFetch<{ trip: { id: number } }>(`/${first.shipmentId}/dispatch`, {
+      method: 'POST',
+      token: managerToken,
+      body: {
+        fulfillmentId: first.fulfillmentId,
+        expectedVersion: first.fulfillmentVersion,
+        plannedStartAt: '2026-08-03T08:00:00+07:00',
+        plannedEndAt: '2026-08-03T12:00:00+07:00',
+        endTimeConfirmed: true,
+        carrierType: 'OWN',
+        truckId: resources.truck.id,
+        driverId: resources.driver.id,
+        trailerId: resources.trailer.id,
+      },
+    });
+    assert.equal(firstDispatch.status, 201);
+    createdTripIds.push(firstDispatch.data.trip.id);
+
+    // The second 20' shell, same truck, overlapping window, same departure
+    // day — this is the kẹp pairing leg, not a double booking.
+    const second = await createAcceptedFulfillment();
+    const secondDispatch = await apiFetch<{ trip: { id: number } }>(`/${second.shipmentId}/dispatch`, {
+      method: 'POST',
+      token: managerToken,
+      body: {
+        fulfillmentId: second.fulfillmentId,
+        expectedVersion: second.fulfillmentVersion,
+        plannedStartAt: '2026-08-03T08:00:00+07:00',
+        plannedEndAt: '2026-08-03T12:00:00+07:00',
+        endTimeConfirmed: true,
+        carrierType: 'OWN',
+        truckId: resources.truck.id,
+        driverId: resources.driver.id,
+        trailerId: resources.trailer.id,
+      },
+    });
+    assert.equal(secondDispatch.status, 201);
+    createdTripIds.push(secondDispatch.data.trip.id);
+
+    // Both containers ride the same tractor.
+    const [firstTrip, secondTrip] = await db.select({ truckId: s.trips.truckId })
+      .from(s.trips).where(inArray(s.trips.id, [firstDispatch.data.trip.id, secondDispatch.data.trip.id]));
+    assert.equal(firstTrip.truckId, resources.truck.id);
+    assert.equal(secondTrip.truckId, resources.truck.id);
+
+    // Overnight-window pin: a 20' run starting 23:00+07 spans into the next
+    // local day but keeps the SAME departure-date slice (16:00 UTC), so the
+    // kẹp exemption still applies — same-day pairing legs may cross midnight.
+    const overnight = await createAcceptedFulfillment();
+    const overnightDispatch = await apiFetch<{ error?: string }>(`/${overnight.shipmentId}/dispatch`, {
+      method: 'POST',
+      token: managerToken,
+      body: {
+        fulfillmentId: overnight.fulfillmentId,
+        expectedVersion: overnight.fulfillmentVersion,
+        plannedStartAt: '2026-08-03T23:00:00+07:00',
+        plannedEndAt: '2026-08-04T03:00:00+07:00',
+        endTimeConfirmed: true,
+        carrierType: 'OWN',
+        truckId: resources.truck.id,
+        driverId: resources.driver.id,
+        trailerId: resources.trailer.id,
+      },
+    });
+    assert.equal(overnightDispatch.status, 201, 'overnight same-day-start kẹp window stays allowed');
+    createdTripIds.push((overnightDispatch.data as { trip: { id: number } }).trip.id);
   });
 
   test('unscoped accountant cannot read dispatch workspace and cannot mutate handoffs', async () => {

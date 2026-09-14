@@ -236,6 +236,21 @@ export async function assertResourceAvailability(
     driverId: number | null;
     plannedStartAt: Date;
     plannedEndAt: Date;
+    /**
+     * Kẹp context: when the trip being issued carries a 20' container, a
+     * conflicting row that ALSO carries a 20' container on the SAME departure
+     * day is the pairing partner (2×20' on one mooc), not a double booking.
+     * Without this exemption the second leg of a kẹp plan can never be
+     * issued — the pair (trip_pairs) is only created after both trips exist.
+     * Mirrors the KEP eligibility rules in createTripPair (same departure
+     * day + two 20' shells). Everything else (40' mixes, other days,
+     * non-pairable shapes) keeps the strict conflict.
+     */
+    kepContext?: {
+      issuingContainerIsTwentyFoot: boolean;
+      /** trips.departure_date basis (UTC slice of plannedStartAt) — the same value createTrip stores. */
+      departureDate: string;
+    } | null;
   },
 ) {
   const predicates = [];
@@ -250,6 +265,13 @@ export async function assertResourceAvailability(
     truckId: s.trips.truckId,
     trailerId: s.trips.trailerId,
     driverId: s.trips.driverId,
+    departureDate: s.trips.departureDate,
+    hasTwentyFootContainer: sql<boolean>`exists (
+      select 1 from trip_containers tc
+      left join container_types ct on ct.id = tc.container_type_id
+      where tc.trip_id = trips.id
+        and ct.code like '20%'
+    )`,
   }).from(s.trips)
     .where(and(
       or(...predicates)!,
@@ -261,13 +283,19 @@ export async function assertResourceAvailability(
       lt(s.trips.plannedStartAt, args.plannedEndAt),
       gt(s.trips.plannedEndAt, args.plannedStartAt),
     ));
-  if (conflicts.find((row) => args.truckId != null && row.truckId === args.truckId)) {
+  const blocking = args.kepContext?.issuingContainerIsTwentyFoot
+    ? conflicts.filter((row) =>
+      row.departureDate !== args.kepContext!.departureDate
+      || !row.hasTwentyFootContainer,
+    )
+    : conflicts;
+  if (blocking.find((row) => args.truckId != null && row.truckId === args.truckId)) {
     throw new ApiError(409, 'Xe đầu kéo đã bị trùng lịch kế hoạch.');
   }
-  if (conflicts.find((row) => args.trailerId != null && row.trailerId === args.trailerId)) {
+  if (blocking.find((row) => args.trailerId != null && row.trailerId === args.trailerId)) {
     throw new ApiError(409, 'Rơ-moóc đã bị trùng lịch kế hoạch.');
   }
-  if (conflicts.find((row) => args.driverId != null && row.driverId === args.driverId)) {
+  if (blocking.find((row) => args.driverId != null && row.driverId === args.driverId)) {
     throw new ApiError(409, 'Tài xế đã bị trùng lịch kế hoạch.');
   }
 }
@@ -307,8 +335,12 @@ export async function issueOrderCreateOrUpdate(
   }
   const [containerRoute] = fulfillment.shipmentContainerId == null
     ? []
-    : await tx.select({ routeId: s.shipmentContainers.routeId })
+    : await tx.select({
+      routeId: s.shipmentContainers.routeId,
+      containerTypeCode: s.containerTypes.code,
+    })
       .from(s.shipmentContainers)
+      .leftJoin(s.containerTypes, eq(s.containerTypes.id, s.shipmentContainers.containerTypeId))
       .where(eq(s.shipmentContainers.id, fulfillment.shipmentContainerId))
       .limit(1);
   const effectiveRouteId = fulfillment.cargoMode === CARGO_MODE.FCL
@@ -553,6 +585,13 @@ export async function issueOrderCreateOrUpdate(
     driverId,
     plannedStartAt,
     plannedEndAt,
+    // Kẹp eligibility rides the issuing container's shell size: only a 20'
+    // shell may share its truck/trailer/driver window with another 20' trip
+    // on the same departure day (the pairing partner).
+    kepContext: {
+      issuingContainerIsTwentyFoot: (containerRoute?.containerTypeCode ?? '').startsWith('20'),
+      departureDate: plannedStartAt.toISOString().slice(0, 10),
+    },
   });
 
   let trip = liveTrip;
