@@ -67,8 +67,11 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
     return options;
   }, [groupedTypes]);
 
-  const amountClean = amount.replace(/[^\d]/g, '');
-  const amountValid = /^\d+$/.test(amountClean) && Number(amountClean) > 0;
+  const amountClean = amount.replace(/[^\d-]/g, '');
+  const isNegative = amountClean.startsWith('-');
+  const amountDigits = amountClean.replace(/-/g, '');
+  const amountError = isNegative ? 'Số tiền phải là số dương' : null;
+  const amountValid = /^\d+$/.test(amountDigits) && Number(amountDigits) > 0 && !isNegative;
   const canSubmit = Boolean(typeCode) && amountValid && !createExpense.isPending;
 
   async function handleFiles(fileList: FileList | null) {
@@ -101,7 +104,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
         shipmentId: order.id,
         shipmentContainerId: containerId,
         expenseTypeCode: typeCode,
-        amount: amountClean,
+        amount: amountDigits,
         paidAt,
         note: note.trim() || null,
         photoStorageKeys: photos.map((photo) => photo.storageKey),
@@ -154,7 +157,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
             <label>
               Số tiền (VND) *
               <input
-                value={amountClean ? formatVnd(amountClean) : ''}
+                value={amountDigits ? formatVnd(amountDigits) : ''}
                 onChange={(event) => setAmount(event.target.value)}
                 inputMode="numeric"
                 placeholder="0"
@@ -215,7 +218,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
         </div>
 
         <footer className="ops-modal__foot">
-          <div>{attachPhoto.isPending ? 'Đang đính kèm ảnh…' : `Tổng: ${amountClean ? formatVnd(amountClean) : 0} ₫`}</div>
+          <div>{attachPhoto.isPending ? 'Đang đính kèm ảnh…' : `Tổng: ${amountDigits ? formatVnd(amountDigits) : 0} ₫`}</div>
           <div className="ops-modal__actions">
             <button type="button" className="btn-secondary" onClick={onClose} disabled={busy}>Đóng</button>
             <button type="submit" className="btn-primary" disabled={!canSubmit}>

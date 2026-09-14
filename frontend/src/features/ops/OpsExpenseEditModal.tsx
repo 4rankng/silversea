@@ -49,8 +49,11 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
     return options;
   }, [groupedTypes]);
 
-  const amountClean = amount.replace(/[^\d]/g, '');
-  const canSubmit = Boolean(typeCode) && /^\d+$/.test(amountClean) && Number(amountClean) > 0 && !updateExpense.isPending;
+  const amountClean = amount.replace(/[^\d-]/g, '');
+  const isNegative = amountClean.startsWith('-');
+  const amountDigits = amountClean.replace(/-/g, '');
+  const amountError = isNegative ? 'Số tiền phải là số dương' : null;
+  const canSubmit = Boolean(typeCode) && /^\d+$/.test(amountDigits) && Number(amountDigits) > 0 && !isNegative && !updateExpense.isPending;
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -60,7 +63,7 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
         id: entry.id,
         body: {
           expenseTypeCode: typeCode,
-          amount: amountClean,
+          amount: amountDigits,
           paidAt,
           note: note.trim() || null,
         },
@@ -91,7 +94,7 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
             <label>
               Số tiền (VND) *
               <input
-                value={amountClean ? formatVnd(amountClean) : ''}
+                value={amountDigits ? formatVnd(amountDigits) : ''}
                 onChange={(event) => setAmount(event.target.value)}
                 inputMode="numeric"
                 required
