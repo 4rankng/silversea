@@ -267,6 +267,8 @@ describe('AppSettingsConfigPage', () => {
   });
 
   it('submits a governed financial policy request with nullable threshold', async () => {
+    mocks.requestFinancialPolicy.mockReset();
+    mocks.requestFinancialPolicy.mockResolvedValueOnce({ status: 'APPROVED', replayed: false });
     renderPage();
 
     fireEvent.change(screen.getByLabelText('Tháng hiệu lực'), {
@@ -282,7 +284,36 @@ describe('AppSettingsConfigPage', () => {
         lowMarginThresholdPercent: null,
       });
     });
-    expect(screen.getByRole('status').textContent).toContain('Đã gửi yêu cầu. Cấu hình hiện tại chưa thay đổi.');
+    // Policy submissions apply immediately — the message must report the
+    // APPROVED outcome the server returned, never the old false
+    // "nothing changed" claim.
+    expect(screen.getByRole('status').textContent).not.toContain('Cấu hình hiện tại chưa thay đổi');
+  });
+
+  it('reports the approved outcome beside the refreshed version and history', async () => {
+    mocks.requestFinancialPolicy.mockResolvedValueOnce({ status: 'APPROVED', replayed: false });
+    renderPage();
+
+    fireEvent.change(screen.getByLabelText('Tháng hiệu lực'), {
+      target: { value: '2026-08-01' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo yêu cầu đầu tiên' }));
+    await waitFor(() => {
+      expect(screen.getByRole('status').textContent).toContain('Đã phê duyệt và áp dụng');
+    });
+  });
+
+  it('keeps a distinct pending copy with a next step if governance ever pends', async () => {
+    mocks.requestFinancialPolicy.mockResolvedValueOnce({ status: 'PENDING', replayed: false });
+    renderPage();
+
+    fireEvent.change(screen.getByLabelText('Tháng hiệu lực'), {
+      target: { value: '2026-08-01' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo yêu cầu đầu tiên' }));
+    await waitFor(() => {
+      expect(screen.getByRole('status').textContent).toContain('đang chờ kiểm tra/phê duyệt');
+    });
   });
 
   it('renders approved and future truck financial profile history with full VND digits', () => {
