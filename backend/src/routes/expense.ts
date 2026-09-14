@@ -13,6 +13,8 @@ import {
   getExpense,
   isGovernedCompanyExpenseMutation,
   requestCompanyExpenseGovernance,
+  submitExpense,
+  reviewExpense,
   getExpensePhotoList,
   EXPENSE_LIST_SORT_KEYS,
 } from '../services/expense.service';
@@ -26,6 +28,8 @@ import * as s from '../db/schema';
 import { storageService } from '../services/storage.service';
 import { sniffImageType } from '../lib/format';
 import { getUser } from '../middleware/auth';
+import { requireRoles } from '../middleware/casbin';
+import { Role } from '@tingting/shared';
 import { invalidateReportCaches } from '../lib/report-cache';
 import { ApiError } from '../errors';
 import { throwValidation } from '../lib/validation';
@@ -220,31 +224,52 @@ router.post('/', asyncHandler(async (req: Request, res: Response) => {
   const actor = getUser(req);
   const reason = governanceReasonSchema.parse(req.body).reason;
   const input = { ...validatedData, amount: String(validatedData.amount) };
-  const commandKey = createHash('sha256').update(idempotencyKey).digest('hex').slice(0, 32);
+  // Dual-control: submission parks the expense as PENDING with NO ledger
+  // entry — nothing posts until a checker and a different approver review.
   const { result, replayed } = await runIdempotent({
-    endpoint: 'expenses.governed-create',
+    endpoint: 'expenses.submit',
     idempotencyKey,
     payload: { reason, input },
     createdBy: actor.userId,
-    entityType: 'governance_action',
-    create: (tx) => autoApplyGovernanceAction({
-      make: (tx) => requestCompanyExpenseGovernance({
-      reason,
-      makerId: actor.userId,
-      makerRole: actor.role,
-      mutation: 'CREATE',
-      createInput: input,
-      commandKey,
-      transaction: tx,
-    }),
-      actorId: actor.userId,
-      actorRole: actor.role,
-      transaction: tx,
-    }),
+    create: async (tx) => {
+      const { expense } = await submitExpense(tx, input, reason, actor.userId);
+      return expense;
+    },
   });
   await invalidateExpenseCreateReports(replayed);
   res.locals.auditEntityId = result.id;
   res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
+}));
+
+// ─── Dual-control review: a checker first, then a DIFFERENT approver ────────
+
+router.post('/:id/check', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id) || id <= 0) return res.status(400).json({ error: 'ID không hợp lệ' });
+  const actor = getUser(req);
+  const expense = await reviewExpense({ expenseId: id, action: 'CHECK', actorId: actor.userId, actorRole: actor.role });
+  res.locals.auditEntityId = expense.id;
+  res.json(expense);
+}));
+
+router.post('/:id/approve', requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id) || id <= 0) return res.status(400).json({ error: 'ID không hợp lệ' });
+  const actor = getUser(req);
+  const expense = await reviewExpense({ expenseId: id, action: 'APPROVE', actorId: actor.userId, actorRole: actor.role });
+  await invalidateExpenseCreateReports(false);
+  res.locals.auditEntityId = expense.id;
+  res.json(expense);
+}));
+
+router.post('/:id/reject', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id) || id <= 0) return res.status(400).json({ error: 'ID không hợp lệ' });
+  const actor = getUser(req);
+  const reason = typeof req.body?.reason === 'string' ? req.body.reason : undefined;
+  const expense = await reviewExpense({ expenseId: id, action: 'REJECT', actorId: actor.userId, actorRole: actor.role, reason });
+  res.locals.auditEntityId = expense.id;
+  res.json(expense);
 }));
 
 router.put('/:id', asyncHandler(async (req: Request, res: Response) => {
@@ -262,6 +287,9 @@ router.put('/:id', asyncHandler(async (req: Request, res: Response) => {
   const existing = await getExpense(db, id);
   if (!existing) {
     return res.status(404).json({ error: 'Không tìm thấy khoản chi phí' });
+  }
+  if (existing.approvalStatus === 'PENDING' || existing.approvalStatus === 'CHECKED') {
+    return res.status(409).json({ error: 'Chi phí đang chờ duyệt — hoàn tất kiểm tra/phê duyệt trước khi chỉnh sửa.' });
   }
   if (isGovernedCompanyExpenseMutation(existing, serviceData)) {
     const reason = governanceReasonSchema.parse(req.body).reason;

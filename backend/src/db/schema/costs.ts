@@ -61,11 +61,21 @@ export const expenses = pgTable('expenses', {
   validTo: timestamp('valid_to'),
   receiptId: varchar('receipt_id', { length: 100 }),
   note: text('note'),
+  // Dual-control review (payable-side): submission parks the row as PENDING
+  // with NO ledger entry; a checker then a different approver complete
+  // review before the supplier debt posts. Legacy rows backfill APPROVED.
+  approvalStatus: varchar('approval_status', { length: 20 }).notNull().default('APPROVED'),
+  checkedBy: integer('checked_by'),
+  checkedAt: timestamp('checked_at'),
+  approvedBy: integer('approved_by'),
+  approvedAt: timestamp('approved_at'),
+  rejectionReason: text('rejection_reason'),
   createdBy: integer('created_by'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   deletedAt: timestamp('deleted_at'),
 }, (table) => [
+  index('expenses_approval_status_idx').on(table.approvalStatus),
   index('expenses_date_idx').on(table.expenseDate),
   index('expenses_supplier_idx').on(table.supplierId),
   index('expenses_category_idx').on(table.categoryId),

@@ -517,6 +517,13 @@
       "when": 1789269610894,
       "tag": "0077_trip_factory_site_snapshot",
       "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1789270000000,
+      "tag": "0078_expense_approval_columns",
+      "breakpoints": true
     }
   ]
 }

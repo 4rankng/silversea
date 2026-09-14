@@ -179,6 +179,11 @@ export async function createExpense(
     validTo: data.validTo ? new Date(data.validTo) : null,
     receiptId: data.receiptId ?? null,
     note: data.note ?? null,
+    // This path only runs after governance approval (auto-apply adapter or
+    // seed) — the row lands posted with its ledger entry below.
+    approvalStatus: 'APPROVED',
+    approvedBy: userId ?? null,
+    approvedAt: new Date(),
     createdBy: userId ?? null,
   }).returning();
 
@@ -195,6 +200,136 @@ export async function createExpense(
   }
 
   return expense;
+}
+
+/** Dual-control submission: insert the expense as PENDING with NO ledger
+ *  entry — the supplier debt only exists once a checker and a different
+ *  approver complete review. The reason the submitter typed rides the note
+ *  so the pending request explains itself. */
+export async function submitExpense(
+  tx: Tx,
+  data: ExpenseCreateInput,
+  reason: string,
+  userId?: number,
+) {
+  const category = await validateExpenseInput(tx, data);
+  const trimmedReason = reason.trim();
+  if (!trimmedReason) throw new ApiError(400, 'Lý do là bắt buộc');
+  const [expense] = await tx.insert(s.expenses).values({
+    expenseDate: data.expenseDate,
+    supplierId: data.supplierId,
+    categoryId: data.categoryId,
+    truckId: data.truckId ?? null,
+    vehicleComponent: data.truckId ? (data.vehicleComponent ?? 'TRUCK') : null,
+    amount: data.amount,
+    paymentStatus: data.paymentStatus,
+    validFrom: data.validFrom ? new Date(data.validFrom) : null,
+    validTo: data.validTo ? new Date(data.validTo) : null,
+    receiptId: data.receiptId ?? null,
+    note: data.note ? `${data.note}\nLý do: ${trimmedReason}` : `Lý do: ${trimmedReason}`,
+    approvalStatus: 'PENDING',
+    createdBy: userId ?? null,
+  }).returning();
+  return { expense, category };
+}
+
+const CHECKER_ROLES = new Set(['ADMIN', 'MANAGER', 'ACCOUNTANT']);
+const APPROVER_ROLES = new Set(['ADMIN', 'MANAGER']);
+
+/** Review lifecycle: CHECK (submitter excluded) moves PENDING → CHECKED;
+ *  APPROVE (actor ≠ checker, ADMIN/MANAGER) posts the supplier debt ledger
+ *  entry exactly once and finalizes; REJECT is terminal with no posting.
+ *  The row is locked FOR UPDATE so a double-click approve cannot race the
+ *  status transition into two ledger entries. */
+export async function reviewExpense(input: {
+  expenseId: number;
+  action: 'CHECK' | 'APPROVE' | 'REJECT';
+  actorId: number;
+  actorRole: string;
+  reason?: string;
+  transaction?: Tx;
+}) {
+  const execute = async (tx: Tx) => {
+    const [expense] = await tx.select().from(s.expenses)
+      .where(and(eq(s.expenses.id, input.expenseId), isNull(s.expenses.deletedAt)))
+      .limit(1)
+      .for('update');
+    if (!expense) throw new ApiError(404, 'Không tìm thấy khoản chi phí');
+
+    if (input.action === 'CHECK') {
+      if (!CHECKER_ROLES.has(input.actorRole)) {
+        throw new ApiError(403, 'Chỉ ADMIN/MANAGER/ACCOUNTANT được kiểm tra chi phí.');
+      }
+      if (expense.createdBy === input.actorId) {
+        throw new ApiError(403, 'Người gửi không được tự kiểm tra chi phí của mình.');
+      }
+      if (expense.approvalStatus !== 'PENDING') {
+        throw new ApiError(409, 'Chỉ chi phí đang chờ kiểm tra mới được kiểm tra.');
+      }
+      const [updated] = await tx.update(s.expenses).set({
+        approvalStatus: 'CHECKED',
+        checkedBy: input.actorId,
+        checkedAt: new Date(),
+        updatedAt: new Date(),
+      }).where(eq(s.expenses.id, expense.id)).returning();
+      return updated;
+    }
+
+    if (input.action === 'REJECT') {
+      const reviewer = CHECKER_ROLES.has(input.actorRole) || APPROVER_ROLES.has(input.actorRole);
+      if (!reviewer) throw new ApiError(403, 'Bạn không có quyền xem xét chi phí.');
+      if (expense.createdBy === input.actorId) {
+        throw new ApiError(403, 'Người gửi không được tự xử lý chi phí của mình.');
+      }
+      if (expense.approvalStatus !== 'PENDING' && expense.approvalStatus !== 'CHECKED') {
+        throw new ApiError(409, 'Chi phí đã được xử lý.');
+      }
+      const [updated] = await tx.update(s.expenses).set({
+        approvalStatus: 'REJECTED',
+        rejectionReason: input.reason?.trim() || null,
+        updatedAt: new Date(),
+      }).where(eq(s.expenses.id, expense.id)).returning();
+      return updated;
+    }
+
+    // APPROVE
+    if (!APPROVER_ROLES.has(input.actorRole)) {
+      throw new ApiError(403, 'Chỉ ADMIN/MANAGER được phê duyệt chi phí.');
+    }
+    if (expense.approvalStatus === 'PENDING') {
+      throw new ApiError(409, 'Chi phí cần một người kiểm tra trước khi phê duyệt.');
+    }
+    if (expense.approvalStatus !== 'CHECKED') {
+      throw new ApiError(409, 'Chi phí không ở trạng thái chờ phê duyệt.');
+    }
+    if (expense.checkedBy === input.actorId) {
+      throw new ApiError(403, 'Người kiểm tra và người phê duyệt phải là hai người khác nhau.');
+    }
+    // Post the supplier debt exactly once — the CHECKED guard above plus the
+    // row lock make a repeated click or concurrent approve a 409, never a
+    // second ledger entry.
+    if (expense.paymentStatus === 'UNPAID') {
+      const [category] = await tx.select({ name: s.expenseCategories.name })
+        .from(s.expenseCategories).where(eq(s.expenseCategories.id, expense.categoryId)).limit(1);
+      await LedgerService.postEntry(tx, {
+        txnType: TxnType.VENDOR_EXPENSE,
+        txnId: expense.id,
+        entityType: 'VENDOR',
+        entityId: expense.supplierId,
+        debit: 0,
+        credit: Number(expense.amount),
+        note: `Chi phí ${category?.name ?? expense.categoryId}`,
+      });
+    }
+    const [updated] = await tx.update(s.expenses).set({
+      approvalStatus: 'APPROVED',
+      approvedBy: input.actorId,
+      approvedAt: new Date(),
+      updatedAt: new Date(),
+    }).where(eq(s.expenses.id, expense.id)).returning();
+    return updated;
+  };
+  return runInTx(input.transaction, execute);
 }
 
 export function isGovernedCompanyExpenseMutation(
@@ -699,6 +834,7 @@ export async function listExpenses(dbOrTx: typeof db | Tx, filters: ExpenseListF
       expenseDate: s.expenses.expenseDate,
       supplierId: s.expenses.supplierId,
       categoryId: s.expenses.categoryId,
+      approvalStatus: s.expenses.approvalStatus,
       truckId: s.expenses.truckId,
       vehicleComponent: s.expenses.vehicleComponent,
       amount: s.expenses.amount,
@@ -810,6 +946,12 @@ export async function getExpense(dbOrTx: typeof db | Tx, id: number) {
     validTo: s.expenses.validTo,
     receiptId: s.expenses.receiptId,
     note: s.expenses.note,
+    approvalStatus: s.expenses.approvalStatus,
+    checkedBy: s.expenses.checkedBy,
+    checkedAt: s.expenses.checkedAt,
+    approvedBy: s.expenses.approvedBy,
+    approvedAt: s.expenses.approvedAt,
+    rejectionReason: s.expenses.rejectionReason,
     createdBy: s.expenses.createdBy,
     createdAt: s.expenses.createdAt,
     updatedAt: s.expenses.updatedAt,
