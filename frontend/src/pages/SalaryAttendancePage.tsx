@@ -16,6 +16,7 @@ import {
 import { DOW_LABELS, STATUS_CONFIG } from '../features/salary-attendance/salary-attendance-constants';
 import './SalaryAttendancePage.css';
 import { useSalaryAttendancePage } from '../features/salary-attendance/useSalaryAttendancePage';
+import { BaseSalaryEditModal } from '../features/salary-attendance/base-salary-edit-modal';
 
 export default function SalaryAttendancePage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -35,6 +36,7 @@ export default function SalaryAttendancePage() {
     confirmMutation, unconfirmMutation,
     requestAdjustmentMutation,
   } = useSalaryAttendancePage(searchTerm);
+  const [showBaseSalaryEdit, setShowBaseSalaryEdit] = useState(false);
 
   return (
     <div ref={rootRef} className="salary-page">
@@ -478,8 +480,17 @@ export default function SalaryAttendancePage() {
                 </div>
               ) : salary ? (
                 <>
-	                  <SalarySummaryCard salary={salary} />
-	                    {/* Confirm button & status badge */}
+	                  <SalarySummaryCard salary={salary} onEditBaseSalary={() => setShowBaseSalaryEdit(true)} driverName={drivers.find((d) => d.id === selectedDriverId)?.name} />
+	                    <BaseSalaryEditModal
+                    isOpen={showBaseSalaryEdit}
+                    onClose={() => setShowBaseSalaryEdit(false)}
+                    driverId={selectedDriverId ?? 0}
+                    driverName={drivers.find((d) => d.id === selectedDriverId)?.name ?? ''}
+                    currentBaseSalary={salary.baseSalary}
+                    year={year}
+                    month={month}
+                  />
+                    {/* Confirm button & status badge */}
 	                    <div className="salary-attendance__confirm-section">
 	                      {isConfirmed ? (
 	                        <>
