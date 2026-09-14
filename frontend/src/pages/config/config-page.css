@@ -1243,3 +1243,35 @@
     gap: 12px;
   }
 }
+
+/* ── QA-090 wave 2: compact data-heavy summaries ─────────────────────────
+ * Phone users should reach the first record sooner: the KPI strip trims its
+ * padding, value size, and watermark on small screens, and factory record
+ * cards tighten their vertical rhythm at tablet widths. */
+@media (max-width: 640px) {
+  .cfg-page .kpi {
+    min-height: 76px;
+    padding: 10px 12px;
+  }
+
+  .cfg-page .kpi__value {
+    font-size: 20px;
+  }
+
+  .cfg-page .kpi__watermark svg {
+    width: 40px;
+    height: 40px;
+  }
+
+  .factories-table td {
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 1023px) {
+  .factories-table td[data-label] {
+    padding-top: 7px;
+    padding-bottom: 7px;
+  }
+}
