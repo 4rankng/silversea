@@ -20,7 +20,7 @@ interface CrudColumn<T> {
   render: (item: T, index: number, isActive: boolean, allItems: T[]) => React.ReactNode;
 }
 
-interface CrudTableProps<T extends { id: number }> {
+interface CrudTableProps<T extends { id: number; updatedAt?: string }> {
   title: string;
   description: string;
   endpoint: string;
@@ -38,7 +38,7 @@ interface CrudTableProps<T extends { id: number }> {
   }) => React.ReactNode;
   colSpan: number;
   showDelete?: boolean;
-  onDelete?: (id: number) => void;
+  onDelete?: (id: number, expectedUpdatedAt?: string) => void;
   /** Optional status chip (or any node) shown at the right of the edit-modal header. */
   modalChip?: (item: T) => React.ReactNode;
   sortFn?: (a: T, b: T) => number;
@@ -53,7 +53,7 @@ interface CrudTableProps<T extends { id: number }> {
   iconName?: import('../../components/AssetIcon').AssetIconName;
 }
 
-export function CrudTable<T extends { id: number }>({
+export function CrudTable<T extends { id: number; updatedAt?: string }>({
   title, description, endpoint, listQuery = '', columns, renderForm, colSpan,
   showDelete = true, onDelete, modalChip, sortFn, computeActiveIds, rowStyle,
   toolbarLeft, backTo = '/config',
@@ -96,7 +96,7 @@ export function CrudTable<T extends { id: number }>({
     return arr;
   })();
 
-  const handleDelete = onDelete ?? ((id: number) => crud.doDelete(id));
+  const handleDelete = onDelete ?? ((id: number, expectedUpdatedAt?: string) => crud.doDelete(id, expectedUpdatedAt));
 
   const wrapperClass = ['fade-up', 'cfg-page', pageSlug ? `cfg-page--${pageSlug}` : ''].filter(Boolean).join(' ');
 
@@ -238,7 +238,8 @@ export function CrudTable<T extends { id: number }>({
               {renderForm({
                 item,
                 saving: crud.saving,
-                onSave: (d) => crud.doUpdate(item.id, d),
+                // KP-135: pass the caller-bound version from the loaded snapshot
+                onSave: (d) => crud.doUpdate(item.id, d, item.updatedAt),
                 onCancel: crud.cancelForm,
                 items,
                 onDelete: showDelete ? async () => {
@@ -247,7 +248,7 @@ export function CrudTable<T extends { id: number }>({
                     confirmLabel: 'Xóa'
                   });
                   if (ok) {
-                    await handleDelete(item.id);
+                    await handleDelete(item.id, item.updatedAt);
                     crud.cancelForm();
                   }
                 } : undefined,

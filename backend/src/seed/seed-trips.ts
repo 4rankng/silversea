@@ -15,7 +15,7 @@
  * Only dispatches shipments still in READY_FOR_DISPATCH with fully specified
  * containers. Idempotent: shipments that already have a live trip are skipped.
  */
-import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, isNull, notInArray, sql } from 'drizzle-orm';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { Role, TripStatus } from '@tingting/shared';
@@ -116,6 +116,32 @@ async function ensureDriverUserLinks() {
       )).returning({ id: s.drivers.id });
     linked += updated.length;
   }
+
+  // Fresh-wipe databases: the demo DRIVER users carry synthetic phones that
+  // never match the seeded drivers, so the phone pass above can link nothing
+  // and the dispatch-order stage then 409s on driver validity. Pair whatever
+  // remains deterministically (id order on both sides, one-to-one) so a
+  // from-scratch reseed completes.
+  const stillUnlinked = await db.select({ id: s.drivers.id })
+    .from(s.drivers)
+    .where(and(isNull(s.drivers.userId), isNull(s.drivers.deletedAt), eq(s.drivers.status, 'ACTIVE')))
+    .orderBy(s.drivers.id);
+  const freeUsers = await db.select({ id: s.users.id })
+    .from(s.users)
+    .where(and(
+      eq(s.users.role, Role.DRIVER),
+      isNull(s.users.deletedAt),
+      notInArray(s.users.id, db.select({ id: s.drivers.userId }).from(s.drivers).where(isNotNull(s.drivers.userId))),
+    ))
+    .orderBy(s.users.id);
+  const pairs = Math.min(stillUnlinked.length, freeUsers.length);
+  for (let i = 0; i < pairs; i += 1) {
+    await db.update(s.drivers)
+      .set({ userId: freeUsers[i].id })
+      .where(eq(s.drivers.id, stillUnlinked[i].id));
+    linked += 1;
+  }
+
   if (linked > 0) console.log(`✅ Driver↔user links backfilled! (${linked})`);
 }
 

@@ -74,7 +74,7 @@ describe('useCRUD success UX', () => {
       await result.current.doUpdate(71, { price: 2_100_000 });
     });
 
-    expect(apiPutMock).toHaveBeenCalledWith('/pricing-tables/71', { price: 2_100_000 });
+    expect(apiPutMock).toHaveBeenCalledWith('/pricing-tables/71', { price: 2_100_000 }, undefined);
     expect(onRefresh).toHaveBeenCalledTimes(1);
     expect(invalidateAllCatalogsMock).toHaveBeenCalledTimes(1);
     await waitFor(() => {
@@ -84,6 +84,22 @@ describe('useCRUD success UX', () => {
       kind: 'success',
       message: 'Đã cập nhật cấu hình.',
     });
+  });
+
+  it('KP-135: forwards caller-bound version token on update', async () => {
+    const onRefresh = vi.fn().mockResolvedValue(undefined);
+    apiPutMock.mockResolvedValue({ id: 71, updatedAt: '2026-09-14T10:00:00.000Z' });
+
+    const { result } = renderHook(
+      () => useCRUD('/pricing-tables', onRefresh),
+      { wrapper: createWrapper() },
+    );
+
+    await act(async () => {
+      await result.current.doUpdate(71, { price: 3_000_000 }, '2026-09-14T08:00:00.000Z');
+    });
+
+    expect(apiPutMock).toHaveBeenCalledWith('/pricing-tables/71', { price: 3_000_000 }, { expectedUpdatedAt: '2026-09-14T08:00:00.000Z' });
   });
 
   it('keeps the normal success toast for direct creates', async () => {

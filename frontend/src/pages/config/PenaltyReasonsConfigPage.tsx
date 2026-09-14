@@ -320,13 +320,13 @@ export default function PenaltyReasonsConfigPage() {
     [items, crud.editingId]
   );
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: number, expectedUpdatedAt?: string) => {
     const ok = await confirm('Bạn có chắc chắn muốn xóa lỗi vi phạm này?', {
       variant: 'danger',
       confirmLabel: 'Xóa',
     });
     if (ok) {
-      await crud.doDelete(id);
+      await crud.doDelete(id, expectedUpdatedAt);
       crud.cancelForm();
     }
   };
@@ -476,7 +476,7 @@ export default function PenaltyReasonsConfigPage() {
                     <span className={`pill pill--${sevPill[sev]}`} style={{ flexShrink: 0 }}>
                       <span className="dot" />{sevLabel[sev]}
                     </span>
-                    <PenaltyReasonActions name={d.reasonText} onEdit={() => crud.setEditingId(d.id)} onDelete={() => handleDelete(d.id)} />
+                    <PenaltyReasonActions name={d.reasonText} onEdit={() => crud.setEditingId(d.id)} onDelete={() => handleDelete(d.id, d.updatedAt)} />
                   </div>
                 </div>
 
