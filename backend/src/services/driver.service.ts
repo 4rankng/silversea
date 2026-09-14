@@ -954,7 +954,9 @@ export async function getDriverVehicleAlerts(driverId: number): Promise<VehicleA
  * List penalties for a driver, optionally scoped to a date range.
  */
 export async function getDriverPenalties(driverId: number, dateFrom?: string, dateTo?: string) {
-  const conditions = [eq(s.penalties.driverId, driverId), isNull(s.penalties.deletedAt)];
+  // Same policy as payroll (attendance.service): CANCELED records are audit
+  // history and must never read as deductions on the driver's own page.
+  const conditions = [eq(s.penalties.driverId, driverId), isNull(s.penalties.deletedAt), ne(s.penalties.status, 'CANCELED')];
   if (dateFrom) conditions.push(gte(s.penalties.date, dateFrom));
   if (dateTo) conditions.push(lte(s.penalties.date, dateTo));
 

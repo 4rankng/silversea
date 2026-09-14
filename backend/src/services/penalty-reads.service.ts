@@ -7,7 +7,7 @@
  */
 import { db } from '../db';
 import * as s from '../db/schema';
-import { eq, and, desc, isNull, gte, lte, ilike, or, count, sum, max, asc, sql, type Column, type SQL } from 'drizzle-orm';
+import { eq, and, desc, isNull, gte, lte, ilike, or, count, sum, max, asc, ne, sql, type Column, type SQL } from 'drizzle-orm';
 import { type PenaltyStatus, type PenaltyListSortKey } from '@tingting/shared';
 import { escapeLikeTerm } from '../lib/format';
 import { resolveSalaryPeriodDateRange } from './salary-period.service';
@@ -207,7 +207,11 @@ export async function getPenaltyInsights(input: { month?: number; year?: number 
     return d.toISOString().slice(0, 10);
   };
   const yearStart = `${now.getFullYear()}-01-01`;
-  const alive = isNull(s.penalties.deletedAt);
+  // CANCELED records are audit history, not active violations — payroll already
+  // excludes them (attendance.service sums ne(status,'CANCELED')), so every
+  // window, streak, and total here must agree: a canceled record neither adds
+  // a violation/fine nor resets a driver's safe streak.
+  const alive = and(isNull(s.penalties.deletedAt), ne(s.penalties.status, 'CANCELED'));
   const inRange = (start: string, end: string) => and(
     alive,
     gte(s.penalties.date, start),

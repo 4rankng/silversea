@@ -5,7 +5,7 @@ import type { AddressInfo } from 'node:net';
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { inArray, isNull, eq, and } from 'drizzle-orm';
+import { inArray, isNull, eq, and, ne } from 'drizzle-orm';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
@@ -252,10 +252,12 @@ describe('GET /api/penalties/insights', () => {
     const { status, body } = await request('/penalties/insights?month=8&year=2026');
     assert.equal(status, 200);
 
-    // Snapshot the exact inputs the frontend used to receive as props.
+    // Snapshot the exact inputs insights uses: non-deleted, non-canceled rows.
+    // The list endpoint keeps CANCELED for audit; insights must not count a
+    // canceled record anywhere — violations, fines, streaks, or totals.
     const [allPenalties, allDrivers, allTrucks] = await Promise.all([
       db.select({ driverId: s.penalties.driverId, date: s.penalties.date, amount: s.penalties.amount })
-        .from(s.penalties).where(isNull(s.penalties.deletedAt)),
+        .from(s.penalties).where(and(isNull(s.penalties.deletedAt), ne(s.penalties.status, 'CANCELED'))),
       db.select({ id: s.drivers.id, name: s.drivers.name, createdAt: s.drivers.createdAt, assignedTruckId: s.truckDriverAssignments.truckId })
         .from(s.drivers)
         .leftJoin(s.truckDriverAssignments, and(
@@ -333,9 +335,11 @@ describe('GET /api/penalties/insights', () => {
       assert.deepEqual(actual, row);
     }
 
-    // Seeded-driver sanity: the fresh seeds must actually exercise the paths.
+    // Seeded-driver sanity: the fresh seeds must actually exercise the paths,
+    // and the CANCELED 2026-08-05 seed must be invisible to insights — it adds
+    // no violation and no fine, and must not reset driver A's safe streak.
     const driverARow = body.scoreboard.find((r: { driverId: number }) => r.driverId === driverA.id);
-    const driverASeedYtd = seedPenalties.filter((p) => p.driver === 'A' && p.date >= yearStart);
+    const driverASeedYtd = seedPenalties.filter((p) => p.driver === 'A' && p.date >= yearStart && p.status === 'ACTIVE');
     assert.equal(driverARow.violationsYtd, driverASeedYtd.length);
     assert.equal(driverARow.fineYtd, driverASeedYtd.reduce((acc, p) => acc + p.amount, 0));
   });
