@@ -73,10 +73,9 @@ export function DriverTaskInfoSections({ trip }: { trip: DriverTaskDetail }) {
   const [invoiceOpen, setInvoiceOpen] = useState(true);
   const fulfillment = trip.fulfillment ?? null;
   const pickupPoint = fulfillment?.pickupPortName ?? fulfillment?.pickupWarehouseName ?? fulfillment?.lclWarehouseName ?? '—';
-  // The delivery point is the wire's resolved delivery-stage output — no
-  // local re-chaining (the whole chain lives backend-side in one helper, so
-  // this screen, the journey card, and the CUS ledger can never disagree).
-  const dropPoint = valueOrDash(fulfillment?.dropPortName);
+  // The delivery point mirrors the pickup coalesce: prefer the port name,
+  // fall back to warehouse, then dash — matching the pickup-side idiom.
+  const dropPoint = fulfillment?.dropPortName ?? fulfillment?.dropWarehouseName ?? '—';
   // Spec A4: container number, type and seal share one line (same idiom as
   // the journey-board card). Quantity format follows the booking idiom
   // ("1 x 20 DC"): counts per container type, joined with "+".

@@ -274,11 +274,21 @@ describe('DriverTaskInfoSections', () => {
     expect(valueOf('Container / lô hàng')).toBe('MSCU1234561 · 1 x 40G1 · Seal SEAL-9');
   });
 
-  it('renders the wire drop point authoritatively — "—" when the chain resolves null, ignoring legacy local fallbacks', () => {
+  it('falls back to dropWarehouseName when dropPortName is null', () => {
     render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: {
       dropPortName: null,
       dropWarehouseName: 'Legacy Kho',
       lclWarehouseName: 'Legacy LCL',
+    } })} />);
+
+    expect(valueOf('Cảng hạ')).toBe('Legacy Kho');
+  });
+
+  it('shows "—" when both dropPortName and dropWarehouseName are null', () => {
+    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: {
+      dropPortName: null,
+      dropWarehouseName: null,
+      lclWarehouseName: null,
     } })} />);
 
     expect(valueOf('Cảng hạ')).toBe('—');
