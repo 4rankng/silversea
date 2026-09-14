@@ -2228,6 +2228,46 @@
   outline-offset: -1px;
 }
 
+/* Calendar affordance: the visible button opens the browser picker through a
+   clipped (not display:none) native input — display:none pickers are refused
+   by some engines. The 24h text entry beside it stays the typed path. */
+.cus-appointment-input-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cus-appointment-picker-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.cus-appointment-picker-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 30px;
+  flex: 0 0 28px;
+  border: 1px solid var(--line-strong, #cbd5e1);
+  border-radius: 5px;
+  background: var(--surface, #ffffff);
+  color: var(--ink-2, #334155);
+  cursor: pointer;
+}
+
+.cus-appointment-picker-btn:hover {
+  background: var(--surface-2, #f1f5f9);
+  color: var(--brand-600, #005a2d);
+}
+
 .cus-appointment-popover__times {
   display: flex;
   gap: 4px;

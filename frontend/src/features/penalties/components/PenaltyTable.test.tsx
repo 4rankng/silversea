@@ -42,7 +42,7 @@ const insights = (): PenaltyInsights => ({
   driversOver6m: 1,
 });
 
-const statusCounts = (): PenaltyStatusCounts => ({ all: 7, ACTIVE: 5, CANCELED: 2 });
+const statusCounts = (): PenaltyStatusCounts => ({ all: 7, PENDING: 3, ACTIVE: 3, CANCELED: 1 });
 
 const catalogDriver = (overrides: Partial<Driver> = {}): Driver => ({
   id: 2,
@@ -80,6 +80,7 @@ const baseProps: PenaltyTableProps = {
   canCancel: true,
   onOpenDrawer: vi.fn(),
   onCancelPenalty: vi.fn(),
+  onApprovePenalty: vi.fn(),
 };
 
 function renderTable(props: Partial<PenaltyTableProps> = {}) {
@@ -143,8 +144,9 @@ describe('PenaltyTable', () => {
       Array.from(document.querySelectorAll<HTMLButtonElement>('button.penalty-chip'))
         .find(b => b.textContent?.startsWith(label));
     expect(chip('Tất cả')?.textContent).toContain('7');
-    expect(chip('Hiệu lực')?.textContent).toContain('5');
-    expect(chip('Đã hủy')?.textContent).toContain('2');
+    expect(chip('Chờ duyệt')?.textContent).toContain('3');
+    expect(chip('Hiệu lực')?.textContent).toContain('3');
+    expect(chip('Đã hủy')?.textContent).toContain('1');
   });
 
   it('collapses the phone scoreboard by default; the toggle expands the ranking cards', () => {
@@ -158,6 +160,25 @@ describe('PenaltyTable', () => {
     fireEvent.click(toggle);
     expect(document.querySelectorAll('.penalty-m-card')).toHaveLength(3);
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
+  });
+
+
+  it('gates pending-record actions by submitter: submitter cancels, others approve', () => {
+    const onApprovePenalty = vi.fn();
+    const pending = row({ id: 9, status: PenaltyStatus.PENDING, createdBy: 42 });
+    const first = renderTable({ rows: [pending], total: 1, currentUserId: 7, currentUserRole: 'MANAGER', onApprovePenalty });
+
+    // Not the submitter: approve is available, cancel is not.
+    expect(document.querySelector('button[aria-label="Duyệt kỷ luật"]')).not.toBeNull();
+    expect(document.querySelector('button[aria-label="Hủy kỷ luật"]')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Duyệt kỷ luật' }));
+    expect(onApprovePenalty).toHaveBeenCalledWith(pending);
+
+    // The submitter's own view: cancel available, approve hidden.
+    first.unmount();
+    renderTable({ rows: [pending], total: 1, currentUserId: 42, currentUserRole: 'MANAGER', onApprovePenalty });
+    expect(document.querySelector('button[aria-label="Duyệt kỷ luật"]')).toBeNull();
+    expect(document.querySelector('button[aria-label="Hủy kỷ luật"]')).not.toBeNull();
   });
 
   it('renders the scoreboard from insights with server streaks and plates', () => {

@@ -26,6 +26,19 @@ export function useCreatePenalty() {
   });
 }
 
+export function useApprovePenalty() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id }: { id: number }) => {
+      return api.post(FINANCIAL.PENALTY_APPROVE(id), {});
+    },
+    onSuccess: async () => {
+      await invalidatePenaltyReads(queryClient);
+    },
+  });
+}
+
 export function useCancelPenalty() {
   const queryClient = useQueryClient();
 

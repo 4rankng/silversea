@@ -454,11 +454,13 @@ export const LOADING_TYPE_LABELS: Record<LoadingType, string> = {
 
 export enum PenaltyStatus {
   ACTIVE = 'ACTIVE',
+  PENDING = 'PENDING',
   CANCELED = 'CANCELED',
 }
 
 export const PENALTY_STATUS_LABELS: Record<PenaltyStatus, string> = {
   [PenaltyStatus.ACTIVE]: 'Hiệu lực',
+  [PenaltyStatus.PENDING]: 'Chờ duyệt',
   [PenaltyStatus.CANCELED]: 'Đã hủy',
 };
 
@@ -626,6 +628,7 @@ export enum NotificationType {
   PAYMENT_RECEIVED = 'PAYMENT_RECEIVED',
   PENALTY_CREATED = 'PENALTY_CREATED',
   PENALTY_CANCELED = 'PENALTY_CANCELED',
+  PENALTY_APPROVED = 'PENALTY_APPROVED',
   OVERDUE_PAYMENT = 'OVERDUE_PAYMENT',
   SALARY_PERIOD_CLOSING = 'SALARY_PERIOD_CLOSING',
   SYSTEM_ANNOUNCEMENT = 'SYSTEM_ANNOUNCEMENT',
@@ -642,6 +645,7 @@ export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
   [NotificationType.PAYMENT_RECEIVED]: 'Thanh toán nhận được',
   [NotificationType.PENALTY_CREATED]: 'Phạt mới',
   [NotificationType.PENALTY_CANCELED]: 'Hủy phạt',
+  [NotificationType.PENALTY_APPROVED]: 'Đã duyệt phạt',
   [NotificationType.OVERDUE_PAYMENT]: 'Thanh toán quá hạn',
   [NotificationType.SALARY_PERIOD_CLOSING]: 'Sắp chốt kỳ lương',
   [NotificationType.SYSTEM_ANNOUNCEMENT]: 'Thông báo hệ thống',

@@ -20,6 +20,8 @@ interface PenaltyRow {
   driverName?: string;
   reasonText?: string;
   tripCode?: string | null;
+  /** Submitter (users.id) — gates who may approve/cancel a pending record. */
+  createdBy?: number | null;
 }
 
 /** Server-side filters the penalty list endpoint understands (page/limit/search ride along). */
@@ -36,6 +38,7 @@ export type PenaltyTableFilters = {
  *  so chip counts stay stable while a status chip is active). */
 export interface PenaltyStatusCounts {
   all?: number;
+  PENDING?: number;
   ACTIVE?: number;
   CANCELED?: number;
 }

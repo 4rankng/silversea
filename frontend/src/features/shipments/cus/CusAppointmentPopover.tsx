@@ -58,6 +58,7 @@ export function CusAppointmentPopover({
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
   const popoverRef = useRef<HTMLDivElement>(null);
+  const pickerInputRef = useRef<HTMLInputElement>(null);
   const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
 
   // Sync state whenever opened or value changes
@@ -244,24 +245,59 @@ export function CusAppointmentPopover({
 
         {/* Time and Date Inputs — giờ trước ngày, khớp định dạng "20:45 8/9/26" của cột bảng.
             Native time/date inputs render per browser UI locale (12h AM/PM) and element lang
-            cannot override it, so this types into the same buffered 24h text input as
-            /shipments/new ("HH:mm DD/MM/YYYY"); the pills below stay the fast path. */}
+            cannot override it, so the typed path stays on the buffered 24h text input
+            ("HH:mm DD/MM/YYYY"); the pills below stay the fast path. A clipped native
+            datetime-local is the picker vehicle — the calendar button opens its browser
+            picker (showPicker) without ever displaying a locale-formatted value. */}
         <div className="cus-appointment-popover__inputs">
           <div className="cus-appointment-input-wrap">
             <label htmlFor={`${idPrefix}-datetime`}>Ngày giờ</label>
-            <input
-              ref={buffered.ref}
-              id={`${idPrefix}-datetime`}
-              type="text"
-              inputMode="numeric"
-              className="cus-appointment-input"
-              placeholder={DATE_TIME_24_PLACEHOLDER}
-              maxLength={16}
-              autoComplete="off"
-              defaultValue={buffered.defaultValue}
-              onChange={buffered.onChange}
-              onBlur={buffered.onBlur}
-            />
+            <div className="cus-appointment-input-row">
+              <input
+                ref={buffered.ref}
+                id={`${idPrefix}-datetime`}
+                type="text"
+                inputMode="numeric"
+                className="cus-appointment-input"
+                placeholder={DATE_TIME_24_PLACEHOLDER}
+                maxLength={16}
+                autoComplete="off"
+                defaultValue={buffered.defaultValue}
+                onChange={buffered.onChange}
+                onBlur={buffered.onBlur}
+              />
+              <button
+                type="button"
+                className="cus-appointment-picker-btn"
+                aria-label="Chọn ngày giờ từ lịch"
+                title="Mở lịch chọn ngày giờ"
+                onClick={() => {
+                  const picker = pickerInputRef.current;
+                  if (!picker) return;
+                  if (typeof picker.showPicker === 'function') {
+                    try {
+                      picker.showPicker();
+                      return;
+                    } catch { /* invalid draft state — fall through to typing */ }
+                  }
+                  picker.focus();
+                }}
+              >
+                <Calendar size={14} aria-hidden="true" />
+              </button>
+              <input
+                ref={pickerInputRef}
+                type="datetime-local"
+                className="cus-appointment-picker-input"
+                aria-label="Lịch chọn ngày giờ hẹn"
+                tabIndex={-1}
+                value={date && time ? `${date}T${time}` : ''}
+                onChange={(event) => {
+                  const [pickerDate = '', pickerTime = ''] = event.target.value.split('T');
+                  if (pickerDate) updateDateTime(pickerDate, pickerTime);
+                }}
+              />
+            </div>
           </div>
         </div>
 

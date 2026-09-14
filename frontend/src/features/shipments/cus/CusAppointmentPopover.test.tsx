@@ -37,7 +37,7 @@ describe('CusAppointmentPopover', () => {
     expect(datetimeInput.placeholder).toBe('HH:mm DD/MM/YYYY');
   });
 
-  it('labels the single 24h input "Ngày giờ" with no native locale-driven inputs', () => {
+  it('labels the single 24h input "Ngày giờ" with no visible native locale-driven inputs', () => {
     const { container } = render(
       <CusAppointmentPopover
         isOpen={true}
@@ -49,11 +49,80 @@ describe('CusAppointmentPopover', () => {
     );
 
     // Thứ tự hiển thị khớp hợp đồng "giờ trước ngày" qua đúng MỘT trường văn
-    // bản 24h — không còn input native theo locale trình duyệt (AM/PM).
+    // bản 24h — không còn input native HIỂN THỊ theo locale trình duyệt
+    // (AM/PM). Lịch chọn (datetime-local) phải luôn ẩn.
     const labels = Array.from(container.querySelectorAll('.cus-appointment-input-wrap label'));
     expect(labels.map((label) => label.textContent)).toEqual(['Ngày giờ']);
     expect(container.querySelector('input[type="time"]')).toBeNull();
     expect(container.querySelector('input[type="date"]')).toBeNull();
+  });
+
+  it('offers a calendar affordance that opens the browser picker without showing native inputs', () => {
+    // jsdom has no showPicker — install a mock directly on the prototype.
+    const showPicker = vi.fn();
+    (HTMLInputElement.prototype as unknown as { showPicker?: () => void }).showPicker = showPicker;
+    const { container } = render(
+      <CusAppointmentPopover
+        isOpen={true}
+        value="2026-09-08T08:00"
+        containerLabel="MSKU1234567"
+        onClose={vi.fn()}
+        onChange={vi.fn()}
+      />,
+    );
+    try {
+      const pickerInput = container.querySelector('input[type="datetime-local"]') as HTMLInputElement;
+      expect(pickerInput).toBeDefined();
+      // The picker vehicle stays clipped — never a visible AM/PM field.
+      expect(pickerInput.className).toBe('cus-appointment-picker-input');
+
+      const calendarBtn = screen.getByRole('button', { name: 'Chọn ngày giờ từ lịch' });
+      expect(calendarBtn).toBeDefined();
+      fireEvent.click(calendarBtn);
+      expect(showPicker).toHaveBeenCalledTimes(1);
+    } finally {
+      delete (HTMLInputElement.prototype as unknown as { showPicker?: () => void }).showPicker;
+    }
+  });
+
+  it('applies a date chosen in the picker to the draft and the 24h text display', () => {
+    const handleChange = vi.fn();
+    const { container } = render(
+      <CusAppointmentPopover
+        isOpen={true}
+        value="2026-09-08T08:00"
+        containerLabel="MSKU1234567"
+        onClose={vi.fn()}
+        onChange={handleChange}
+      />,
+    );
+
+    const pickerInput = container.querySelector('input[type="datetime-local"]') as HTMLInputElement;
+    fireEvent.change(pickerInput, { target: { value: '2026-09-15T20:46' } });
+    expect(handleChange).toHaveBeenCalledWith('2026-09-15T20:46');
+
+    // The typed display rehydrates to the same 24h contract.
+    const datetimeInput = container.querySelector('.cus-appointment-input') as HTMLInputElement;
+    expect(datetimeInput.value).toBe('20:46 15/09/2026');
+  });
+
+  it('falls back to focusing the text input when the browser has no showPicker', () => {
+    const { container } = render(
+      <CusAppointmentPopover
+        isOpen={true}
+        value="2026-09-08T08:00"
+        containerLabel="MSKU1234567"
+        onClose={vi.fn()}
+        onChange={vi.fn()}
+      />,
+    );
+
+    // Older engines: no showPicker on the prototype — clicking the calendar
+    // button must not throw and must keep the typed path usable.
+    const calendarBtn = screen.getByRole('button', { name: 'Chọn ngày giờ từ lịch' });
+    expect(() => fireEvent.click(calendarBtn)).not.toThrow();
+    const datetimeInput = container.querySelector('.cus-appointment-input') as HTMLInputElement;
+    expect(datetimeInput).toBeDefined();
   });
 
   it('selects quick date pill and immediately calls onChange', () => {
