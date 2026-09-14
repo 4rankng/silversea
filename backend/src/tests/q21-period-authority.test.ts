@@ -1,6 +1,8 @@
-import { after, describe, test, type TestContext } from 'node:test';
+import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { and, eq, inArray, sql } from 'drizzle-orm';
+
+import { insertTripComposite } from '../services/trip-composite.service';
 
 import { client, db } from '../db';
 import * as s from '../db/schema';
