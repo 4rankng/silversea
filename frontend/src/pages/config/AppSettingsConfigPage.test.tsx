@@ -273,11 +273,12 @@ describe('AppSettingsConfigPage', () => {
   it('shows the unconfigured financial policy and truck states with explicit warnings', () => {
     renderPage();
 
-    expect(screen.getByText('Chưa có chính sách được phê duyệt')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Tạo yêu cầu đầu tiên' })).toBeTruthy();
+    // The approval flow is gone: unconfigured state shows the direct-create note.
+    expect(screen.getByText('Chưa có chính sách')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Tạo chính sách đầu tiên' })).toBeTruthy();
 
     fireEvent.click(screen.getByRole('tab', { name: 'Hồ sơ tài chính xe' }));
-    expect(screen.getByText('Xe này chưa có hồ sơ tài chính được phê duyệt')).toBeTruthy();
+    expect(screen.getByText('Xe này chưa có hồ sơ tài chính')).toBeTruthy();
   });
 
   it('submits a governed financial policy request with nullable threshold', async () => {
@@ -288,7 +289,7 @@ describe('AppSettingsConfigPage', () => {
     fireEvent.change(screen.getByLabelText('Tháng hiệu lực'), {
       target: { value: '2026-08-01' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Tạo yêu cầu đầu tiên' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo chính sách đầu tiên' }));
 
     await waitFor(() => {
       expect(mocks.confirm).toHaveBeenCalled();
@@ -311,24 +312,12 @@ describe('AppSettingsConfigPage', () => {
     fireEvent.change(screen.getByLabelText('Tháng hiệu lực'), {
       target: { value: '2026-08-01' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Tạo yêu cầu đầu tiên' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo chính sách đầu tiên' }));
     await waitFor(() => {
-      expect(screen.getByRole('status').textContent).toContain('Đã phê duyệt và áp dụng');
+      expect(screen.getByRole('status').textContent).toContain('có hiệu lực ngay');
     });
   });
 
-  it('keeps a distinct pending copy with a next step if governance ever pends', async () => {
-    mocks.requestFinancialPolicy.mockResolvedValueOnce({ status: 'PENDING', replayed: false });
-    renderPage();
-
-    fireEvent.change(screen.getByLabelText('Tháng hiệu lực'), {
-      target: { value: '2026-08-01' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Tạo yêu cầu đầu tiên' }));
-    await waitFor(() => {
-      expect(screen.getByRole('status').textContent).toContain('đang chờ kiểm tra/phê duyệt');
-    });
-  });
 
   it('renders approved and future truck financial profile history with full VND digits', () => {
     mocks.truckProfiles.data = {
