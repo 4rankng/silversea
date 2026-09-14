@@ -33,6 +33,7 @@ let truckId = 0;
 let actorId = 0;
 let readyTripId = 0;
 let missingSnapshotTripId = 0;
+let blockedTripId = 0;
 let carrierId = 0;
 let server: http.Server;
 let baseUrl = '';
@@ -43,6 +44,8 @@ async function createLockedTrip(input: {
   completedAt: Date;
   carrierType: 'OWN' | 'EXTERNAL';
   withSnapshot: boolean;
+  /** false seeds a REJECTED submission — the trip lists as MISSING_ACCEPTED_POD. */
+  acceptedPod?: boolean;
 }) {
   const [shipment] = await db.insert(s.shipments).values({
     shipmentCode: `ATR-SHP-${input.suffix}`.slice(0, 50),
@@ -122,7 +125,7 @@ async function createLockedTrip(input: {
     fulfillmentId: fulfillment.id,
     submissionVersion: 1,
     sourceTripVersion: trip.version,
-    status: 'ACCEPTED',
+    status: input.acceptedPod === false ? 'REJECTED' : 'ACCEPTED',
     submittedBy: actorId,
     submittedAt: new Date(input.completedAt.getTime() - 60_000),
     reviewedBy: actorId,
@@ -208,6 +211,15 @@ before(async () => {
     withSnapshot: false,
   });
   missingSnapshotTripId = missingSnapshotTrip.id;
+  const blockedTrip = await createLockedTrip({
+    suffix: `${Date.now()}18`,
+    customerId: customers[0].id,
+    completedAt: new Date('2042-01-18T08:00:00.000Z'),
+    carrierType: 'OWN',
+    withSnapshot: true, // snapshot present — the POD gate is the only blocker
+    acceptedPod: false,
+  });
+  blockedTripId = blockedTrip.id;
 
   const app = express();
   app.use('/api', (req, _res, next) => {
@@ -257,14 +269,16 @@ after(async () => {
 });
 
 describe('accounting transport register service', () => {
-  test('returns completed accepted trips in deterministic completion/id order with posting provenance', async () => {
+  test('returns completed trips in deterministic completion/id order with posting provenance', async () => {
     const result = await listAccountingTransportRows({
       from: '2042-01-01',
       to: '2042-01-31',
       page: 1,
       limit: 25,
     });
-    assert.deepEqual(result.items.map((item) => item.tripId), [readyTripId, missingSnapshotTripId]);
+    // Blocked trips (no accepted e-POD) belong in the reconciliation list —
+    // hiding them dead-ended the work-queue's own resolution links.
+    assert.deepEqual(result.items.map((item) => item.tripId), [readyTripId, missingSnapshotTripId, blockedTripId]);
     const ready = result.items[0];
     assert.equal(ready.financialPostingVersion, 3);
     assert.notEqual(ready.financialPostingVersion, 1, 'financial provenance must not be copied from trip.version');
@@ -281,6 +295,46 @@ describe('accounting transport register service', () => {
       'PROFITABILITY_SNAPSHOT',
     ]);
     assert.equal(result.items[1].readiness.status, 'MISSING_PROFITABILITY_SNAPSHOT');
+  });
+
+  test('a POD-blocked trip lists with MISSING_ACCEPTED_POD and null acceptance provenance', async () => {
+    const result = await listAccountingTransportRows({
+      from: '2042-01-01',
+      to: '2042-01-31',
+      page: 1,
+      limit: 25,
+    });
+    const blocked = result.items.find((item) => item.tripId === blockedTripId);
+    assert.ok(blocked, 'the POD-blocked trip must appear in the register');
+    assert.equal(blocked.readiness.status, 'MISSING_ACCEPTED_POD');
+    assert.equal(blocked.readiness.acceptedPodSubmissionId, null);
+    assert.equal(blocked.readiness.acceptedPodVersion, null);
+    assert.equal(blocked.readiness.acceptedPodAt, null);
+    assert.deepEqual(blocked.readiness.evidence, [
+      'ACTIVE_FINANCIAL_POSTING',
+      'COMPLETED_TRIP',
+    ]);
+  });
+
+  test('the MISSING_ACCEPTED_POD facet selects only blocked trips and counts agree', async () => {
+    const facet = await listAccountingTransportRows({
+      from: '2042-01-01',
+      to: '2042-01-31',
+      readiness: 'MISSING_ACCEPTED_POD',
+      page: 1,
+      limit: 100,
+    });
+    assert.deepEqual(facet.items.map((item) => item.tripId), [blockedTripId]);
+    assert.equal(facet.total, 1);
+    // READY keeps excluding the blocked trip.
+    const ready = await listAccountingTransportRows({
+      from: '2042-01-01',
+      to: '2042-01-31',
+      readiness: 'READY',
+      page: 1,
+      limit: 100,
+    });
+    assert.equal(ready.items.some((item) => item.tripId === blockedTripId), false);
   });
 
   test('supports readiness, carrier, ownership, and search filters without changing money', async () => {
@@ -336,22 +390,23 @@ describe('accounting transport register service', () => {
     const base = { from: '2042-01-01', to: '2042-01-31', page: 1, limit: 25 } as const;
 
     // Default order stays completionDate desc (no sort params) — the ready trip
-    // completed Jan 20, the missing-snapshot trip Jan 19.
+    // completed Jan 20, the missing-snapshot trip Jan 19, the POD-blocked trip Jan 18.
     const unsorted = await listAccountingTransportRows(base);
-    assert.deepEqual(unsorted.items.map((item) => item.tripId), [readyTripId, missingSnapshotTripId]);
+    assert.deepEqual(unsorted.items.map((item) => item.tripId), [readyTripId, missingSnapshotTripId, blockedTripId]);
 
-    // Revenue: the READY row carries a snapshot value; the other has none, so
-    // NULLs must land last in BOTH directions.
+    // Revenue: READY and POD-blocked rows carry snapshot values (the blocked
+    // fixture has a snapshot — POD is its only blocker); the missing-snapshot
+    // row has none, so NULLs land last in BOTH directions.
     const revenueAsc = await listAccountingTransportRows({ ...base, sortBy: 'revenue', sortDir: 'asc' });
-    assert.deepEqual(revenueAsc.items.map((item) => item.tripId), [readyTripId, missingSnapshotTripId]);
+    assert.deepEqual(revenueAsc.items.map((item) => item.tripId), [readyTripId, blockedTripId, missingSnapshotTripId]);
     const revenueDesc = await listAccountingTransportRows({ ...base, sortBy: 'revenue', sortDir: 'desc' });
-    assert.deepEqual(revenueDesc.items.map((item) => item.tripId), [readyTripId, missingSnapshotTripId]);
+    assert.deepEqual(revenueDesc.items.map((item) => item.tripId), [readyTripId, blockedTripId, missingSnapshotTripId]);
 
-    // Readiness ranks via case-rank (READY = 0 before MISSING = 1).
+    // Readiness ranks via case-rank (READY = 0, MISSING_SNAPSHOT = 1, MISSING_POD = 2).
     const readinessAsc = await listAccountingTransportRows({ ...base, sortBy: 'readiness', sortDir: 'asc' });
-    assert.deepEqual(readinessAsc.items.map((item) => item.tripId), [readyTripId, missingSnapshotTripId]);
+    assert.deepEqual(readinessAsc.items.map((item) => item.tripId), [readyTripId, missingSnapshotTripId, blockedTripId]);
     const readinessDesc = await listAccountingTransportRows({ ...base, sortBy: 'readiness', sortDir: 'desc' });
-    assert.deepEqual(readinessDesc.items.map((item) => item.tripId), [missingSnapshotTripId, readyTripId]);
+    assert.deepEqual(readinessDesc.items.map((item) => item.tripId), [blockedTripId, missingSnapshotTripId, readyTripId]);
 
     // tripCode asc/desc are exact mirrors of each other.
     const codeAsc = await listAccountingTransportRows({ ...base, sortBy: 'tripCode', sortDir: 'asc' });

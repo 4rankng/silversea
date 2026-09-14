@@ -60,6 +60,21 @@ const completionBusinessDate = sql<string>`to_char(
   'YYYY-MM-DD'
 )`;
 
+// Decision-ready e-POD state per trip: the accepted submission's id/version
+// and its acceptance timestamp, or nulls when no submission is ACCEPTED.
+// Aggregated (not a raw join) so multiple PENDING/REJECTED submissions never
+// multiply register rows, and so a blocked trip — no accepted e-POD — still
+// appears in the reconciliation list (QA-036 family: the old INNER accepted
+// condition hid the very rows the work-queue links to).
+const podDecisionProjection = db.select({
+  tripId: s.tripPodSubmissions.tripId,
+  acceptedSubmissionId: sql<number | null>`max(${s.tripPodSubmissions.id}) filter (where ${s.tripPodSubmissions.status} = 'ACCEPTED')`.as('accepted_submission_id'),
+  acceptedVersion: sql<number | null>`max(${s.tripPodSubmissions.submissionVersion}) filter (where ${s.tripPodSubmissions.status} = 'ACCEPTED')`.as('accepted_version'),
+  acceptedAt: sql<string | null>`max(coalesce(${s.tripPodSubmissions.reviewedAt}, ${s.tripPodSubmissions.submittedAt})) filter (where ${s.tripPodSubmissions.status} = 'ACCEPTED')`.as('accepted_at'),
+}).from(s.tripPodSubmissions)
+  .groupBy(s.tripPodSubmissions.tripId)
+  .as('accounting_transport_pod_decisions');
+
 // Sort whitelist — one key per register data column, mapped to a real SQL
 // expression over the joins the item query already applies (no row-multiplying
 // joins). OWN trips carry no carrier name, so the carrier column falls back to
@@ -74,7 +89,11 @@ const TRANSPORT_SORT_SQL: Record<TransportSortKey, SQL> = {
   revenue: sql`${s.profitabilitySnapshots.revenue}`,
   directCost: sql`${s.profitabilitySnapshots.directCost}`,
   profit: sql`${s.profitabilitySnapshots.profit}`,
-  readiness: sql`case when ${s.profitabilitySnapshots.id} is null then 1 else 0 end`,
+  readiness: sql`case
+    when ${podDecisionProjection.acceptedSubmissionId} is null then 2
+    when ${s.profitabilitySnapshots.id} is null then 1
+    else 0
+  end`,
 };
 
 function canonicalFilter(input: AccountingTransportRegisterQuery) {
@@ -103,7 +122,10 @@ function conditionsFor(input: AccountingTransportRegisterQuery): SQL[] {
     eq(s.tripFinancialPostings.status, 'ACTIVE'),
     // O2C: COMPLETED is the single posting state (formerly filtered on LOCKED).
     eq(s.trips.status, 'COMPLETED'),
-    eq(s.tripPodSubmissions.status, 'ACCEPTED'),
+    // The accepted-POD gate is deliberately NOT an inner condition anymore:
+    // it demoted blocked trips (no accepted e-POD) out of the register, so
+    // the work-queue's deep link landed on a list that could never contain
+    // its own row. Blocked trips now list with MISSING_ACCEPTED_POD.
     isNull(s.trips.deletedAt),
     gte(completionBusinessDate, input.from),
     lte(completionBusinessDate, input.to),
@@ -117,8 +139,15 @@ function conditionsFor(input: AccountingTransportRegisterQuery): SQL[] {
     conditions.push(eq(s.tripCarrierInfo.externalEntityType, 'CUSTOMER'));
   }
   if (input.ownership != null) conditions.push(eq(s.tripCarrierInfo.carrierType, input.ownership));
-  if (input.readiness === 'READY') conditions.push(isNotNull(s.profitabilitySnapshots.id));
-  if (input.readiness === 'MISSING_PROFITABILITY_SNAPSHOT') conditions.push(isNull(s.profitabilitySnapshots.id));
+  if (input.readiness === 'READY') conditions.push(and(
+    isNotNull(s.profitabilitySnapshots.id),
+    isNotNull(podDecisionProjection.acceptedSubmissionId),
+  )!);
+  if (input.readiness === 'MISSING_PROFITABILITY_SNAPSHOT') conditions.push(and(
+    isNotNull(podDecisionProjection.acceptedSubmissionId),
+    isNull(s.profitabilitySnapshots.id),
+  )!);
+  if (input.readiness === 'MISSING_ACCEPTED_POD') conditions.push(isNull(podDecisionProjection.acceptedSubmissionId));
   if (input.search != null) {
     const pattern = `%${input.search}%`;
     conditions.push(or(
@@ -148,7 +177,13 @@ function normalizeStringArray(value: unknown): string[] {
   return value.filter((item): item is string => typeof item === 'string' && item.length > 0);
 }
 
-function readinessFor(snapshotId: number | null): AccountingTransportReadiness {
+function readinessFor(
+  snapshotId: number | null,
+  acceptedSubmissionId: number | null,
+): AccountingTransportReadiness {
+  // Precedence: the POD acceptance gate blocks first; profitability snapshot
+  // is the second readiness requirement.
+  if (acceptedSubmissionId == null) return 'MISSING_ACCEPTED_POD';
   return snapshotId == null ? 'MISSING_PROFITABILITY_SNAPSHOT' : 'READY';
 }
 
@@ -196,14 +231,14 @@ export async function listAccountingTransportRows(
     carrierPayable: sql<string>`coalesce(${carrierPayableProjection.amount}, '0')`,
     profit: s.profitabilitySnapshots.profit,
     profitabilitySnapshotId: s.profitabilitySnapshots.id,
-    acceptedPodSubmissionId: s.tripPodSubmissions.id,
-    acceptedPodVersion: s.tripPodSubmissions.submissionVersion,
-    acceptedPodAt: sql<string>`coalesce(${s.tripPodSubmissions.reviewedAt}, ${s.tripPodSubmissions.submittedAt})`,
+    acceptedPodSubmissionId: podDecisionProjection.acceptedSubmissionId,
+    acceptedPodVersion: podDecisionProjection.acceptedVersion,
+    acceptedPodAt: podDecisionProjection.acceptedAt,
   }).from(s.trips)
     .innerJoin(s.tripFinancialPostings, eq(s.tripFinancialPostings.tripId, s.trips.id))
     .innerJoin(s.customers, eq(s.customers.id, s.trips.customerId))
     .innerJoin(s.routes, eq(s.routes.id, s.trips.routeId))
-    .innerJoin(s.tripPodSubmissions, eq(s.tripPodSubmissions.tripId, s.trips.id))
+    .leftJoin(podDecisionProjection, eq(podDecisionProjection.tripId, s.trips.id))
     .leftJoin(s.profitabilitySnapshots, eq(
       s.profitabilitySnapshots.financialPostingId,
       s.tripFinancialPostings.id,
@@ -237,7 +272,7 @@ export async function listAccountingTransportRows(
     .innerJoin(s.tripFinancialPostings, eq(s.tripFinancialPostings.tripId, s.trips.id))
     .innerJoin(s.customers, eq(s.customers.id, s.trips.customerId))
     .innerJoin(s.routes, eq(s.routes.id, s.trips.routeId))
-    .innerJoin(s.tripPodSubmissions, eq(s.tripPodSubmissions.tripId, s.trips.id))
+    .leftJoin(podDecisionProjection, eq(podDecisionProjection.tripId, s.trips.id))
     .leftJoin(s.profitabilitySnapshots, eq(
       s.profitabilitySnapshots.financialPostingId,
       s.tripFinancialPostings.id,
@@ -257,7 +292,7 @@ export async function listAccountingTransportRows(
   const [rawItems, countRows] = await Promise.all([itemQuery, countQuery]);
   const total = Number(countRows[0]?.total ?? 0);
   const items: AccountingTransportRegisterRow[] = rawItems.map((row) => {
-    const readiness = readinessFor(row.profitabilitySnapshotId ?? null);
+    const readiness = readinessFor(row.profitabilitySnapshotId ?? null, row.acceptedPodSubmissionId ?? null);
     return {
       financialPostingId: row.financialPostingId,
       financialPostingVersion: row.financialPostingVersion,
@@ -286,12 +321,12 @@ export async function listAccountingTransportRows(
         status: readiness,
         acceptedPodSubmissionId: row.acceptedPodSubmissionId,
         acceptedPodVersion: row.acceptedPodVersion,
-        acceptedPodAt: new Date(row.acceptedPodAt).toISOString(),
+        acceptedPodAt: row.acceptedPodAt ? new Date(row.acceptedPodAt).toISOString() : null,
         profitabilitySnapshotId: row.profitabilitySnapshotId ?? null,
         evidence: [
           'ACTIVE_FINANCIAL_POSTING',
           'COMPLETED_TRIP',
-          'ACCEPTED_EPOD',
+          ...(readiness !== 'MISSING_ACCEPTED_POD' ? ['ACCEPTED_EPOD'] : []),
           ...(readiness === 'READY' ? ['PROFITABILITY_SNAPSHOT'] : []),
         ],
       },
