@@ -31,7 +31,8 @@ router.post('/trips/:tripId/containers', asyncHandler(async (req: Request, res: 
   const outcome = await runIdempotent({
     endpoint: FORWARDER_IDEMPOTENCY_ENDPOINTS.CONTAINER_CREATE,
     idempotencyKey,
-    payload: { forwarderId: forwarder.id, ...parsed.data },
+    // Canonical fingerprint: retries with equivalent formatting dedupe.
+    payload: { forwarderId: forwarder.id, ...parsed.data, containerNumber: normalizeContainerNumber(parsed.data.containerNumber ?? '') },
     createdBy: forwarder.id,
     responseStatusCode: 201,
     create: async (tx) => {

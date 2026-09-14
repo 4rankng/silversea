@@ -54,9 +54,8 @@ import {
   driverProgressSchema,
   DriverProgressEventType,
   TripPodFileType,
-  tripContainerPatchSchema,
-  tripContainerSchema,
   tripContainerSealBatchSchema,
+  validatedTripContainerSchema, validatedTripContainerPatchSchema, normalizeContainerNumber,
 } from '@tingting/shared';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { ApiError } from '../errors';
@@ -813,21 +812,24 @@ router.post('/trips/:tripId/containers', asyncHandler(async (req: Request, res: 
   const trip = await getDriverTripDetail(driver.id, tripId);
   if (!trip) return res.status(404).json({ error: 'Không tìm thấy chuyến đi' });
 
-  const parsed = tripContainerSchema.safeParse({ ...req.body, tripId });
+  const parsed = validatedTripContainerSchema.safeParse({ ...req.body, tripId });
   if (!parsed.success) {
     return res.status(400).json({ error: 'Dữ liệu không hợp lệ', details: parsed.error.flatten() });
   }
+  // Canonical number everywhere: storage AND the idempotency fingerprint —
+  // equivalent-but-differently-formatted retries must dedupe.
+  const containerNumber = normalizeContainerNumber(parsed.data.containerNumber ?? '');
   const idempotencyKey = requireDriverIdempotencyKey(req);
   const outcome = await runIdempotent({
     endpoint: DRIVER_IDEMPOTENCY_ENDPOINTS.CONTAINER_CREATE,
     idempotencyKey,
-    payload: { driverId: driver.id, ...parsed.data },
+    payload: { driverId: driver.id, ...parsed.data, containerNumber },
     createdBy: getUser(req).userId,
     responseStatusCode: 201,
     create: (tx) => createTripContainerInClient(tx, {
       tripId,
       containerTypeId: parsed.data.containerTypeId ?? null,
-      containerNumber: parsed.data.containerNumber,
+      containerNumber,
       sealNumber: parsed.data.sealNumber ?? null,
       cargoWeightKg: parsed.data.cargoWeightKg ?? null,
       notes: parsed.data.notes ?? null,
@@ -854,7 +856,7 @@ router.patch('/trips/:tripId/containers/:containerId', asyncHandler(async (req: 
     return res.status(404).json({ error: 'Không tìm thấy số cont' });
   }
 
-  const parsed = tripContainerPatchSchema.safeParse(req.body);
+  const parsed = validatedTripContainerPatchSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: 'Dữ liệu không hợp lệ', details: parsed.error.flatten() });
   }
@@ -871,12 +873,18 @@ router.patch('/trips/:tripId/containers/:containerId', asyncHandler(async (req: 
       containerId,
       expectedUpdatedAt: expectedUpdatedAt.toISOString(),
       ...parsed.data,
+      // Canonical fingerprint: retries with equivalent formatting dedupe.
+      ...(parsed.data.containerNumber != null && parsed.data.containerNumber.trim()
+        ? { containerNumber: normalizeContainerNumber(parsed.data.containerNumber) }
+        : {}),
     },
     createdBy: getUser(req).userId,
     responseStatusCode: 200,
     create: (tx) => updateTripContainerInClient(tx, containerId, {
       containerTypeId: parsed.data.containerTypeId,
-      containerNumber: parsed.data.containerNumber,
+      containerNumber: parsed.data.containerNumber != null && parsed.data.containerNumber.trim()
+        ? normalizeContainerNumber(parsed.data.containerNumber)
+        : parsed.data.containerNumber,
       sealNumber: parsed.data.sealNumber,
       cargoWeightKg: parsed.data.cargoWeightKg,
       notes: parsed.data.notes,

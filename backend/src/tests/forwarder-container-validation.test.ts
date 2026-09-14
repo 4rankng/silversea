@@ -2,6 +2,7 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { forwarderTripContainerSchema } from '../routes/forwarder';
+import { validatedTripContainerPatchSchema } from '@tingting/shared';
 
 describe('forwarder container input', () => {
   test('requires a non-blank container number', () => {
@@ -46,5 +47,33 @@ describe('forwarder container input', () => {
     assert.equal(plain.success, true);
     assert.equal(spaced.success, true);
     assert.equal(hyphen.success, true);
+  });
+});
+
+describe('validated trip-container patch input (driver Sửa path)', () => {
+  test('rejects a present-but-malformed number; clearing to null stays legal', () => {
+    const malformed = validatedTripContainerPatchSchema.safeParse({ containerNumber: 'ABC' });
+    assert.equal(malformed.success, false);
+    if (!malformed.success) {
+      assert.equal(malformed.error.issues[0].message, 'Số container sai định dạng (4 chữ cái + 7 số).');
+    }
+
+    const wrongDigit = validatedTripContainerPatchSchema.safeParse({ containerNumber: 'TCKU1234567' });
+    assert.equal(wrongDigit.success, false);
+
+    // Omitted and explicit-null both pass — a patch may leave the number
+    // alone or clear it; only a PRESENT value must be valid.
+    const omitted = validatedTripContainerPatchSchema.safeParse({ sealNumber: 'S-1' });
+    const cleared = validatedTripContainerPatchSchema.safeParse({ containerNumber: null });
+    // The base '' → null transform runs BEFORE the refines, so an explicit
+    // empty string also reads as a clear (pin the ordering — reordering the
+    // transform would start rejecting clears with no other red test).
+    const clearedEmpty = validatedTripContainerPatchSchema.safeParse({ containerNumber: '' });
+    assert.equal(omitted.success, true);
+    assert.equal(cleared.success, true);
+    assert.equal(clearedEmpty.success, true);
+
+    const valid = validatedTripContainerPatchSchema.safeParse({ containerNumber: 'tcku 123456 0' });
+    assert.equal(valid.success, true);
   });
 });

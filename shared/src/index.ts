@@ -122,7 +122,7 @@ export {
   managementFeeSchema, capTableSchema, truckCapSchema,
   salaryPeriodSchema, salaryPeriodDefaultSchema,
   supplierSchema, expenseCategorySchema, expenseSchema, vendorPaymentSchema,
-  tripContainerSchema, tripContainerBatchSchema, tripContainerPatchSchema, tripContainerSealSchema, tripContainerSealBatchSchema, tripExpenseSchema, baseTripExpenseSchema, tripExpensePatchSchema, tripExpenseCompletionSchema, accountantSettlementExpensePatchSchema, forwarderExpenseTypeSchema,
+  tripContainerSchema, validatedTripContainerSchema, validatedTripContainerPatchSchema, tripContainerBatchSchema, tripContainerPatchSchema, tripContainerSealSchema, tripContainerSealBatchSchema, tripExpenseSchema, baseTripExpenseSchema, tripExpensePatchSchema, tripExpenseCompletionSchema, accountantSettlementExpensePatchSchema, forwarderExpenseTypeSchema,
   noInvoiceEvidenceTypeSchema, noInvoiceEvidenceTypesSchema,
   createAdvanceRequestSchema, createAdvanceSettlementSchema, advanceMutationVersionSchema, updateAdvanceSettlementSchema,
   upsertTripInstructionsSchema,
