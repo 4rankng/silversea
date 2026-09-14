@@ -398,8 +398,10 @@ export default function TripDetailPage() {
             <div className="tdp-adjustments-title">
               Đã phát hành
             </div>
-            {(adjustments as Array<{ note: string; amount: string | number }>).map((a, i) => {
-              const amount = Number(a.amount);
+            {(adjustments as Array<{ note: string; debit: string | number | null; credit: string | number | null }>).map((a, i) => {
+              // The API returns ledger columns only — derive the signed amount
+              // from debit − credit instead of a missing `amount` field.
+              const amount = Number(a.debit ?? 0) - Number(a.credit ?? 0);
               const isPos = amount >= 0;
               return (
                 <div key={i} className="tdp-adjustment-row">
