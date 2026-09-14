@@ -977,7 +977,7 @@ export const companyInfoSchema = z.object({
   bankAccount: z.string().trim().min(1, 'Số tài khoản là bắt buộc'),
   bankName: z.string().trim().min(1, 'Ngân hàng là bắt buộc'),
   phone: z.string().trim().default(''),
-  email: z.string().trim().default(''),
+  email: z.string().trim().email('Email không hợp lệ').default(''),
   logoStorageKey: z.string().nullable().optional(),
 });
 
