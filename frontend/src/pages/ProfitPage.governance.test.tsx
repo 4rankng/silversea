@@ -18,6 +18,8 @@ vi.mock('../lib/api', () => ({
   api: { post: apiPostMock },
 }));
 
+vi.mock('../hooks/useAuth', () => ({ useAuth: () => ({ user: { userId: 1, role: 'ADMIN' } }) }));
+
 vi.mock('../hooks/useQueries', () => ({
   usePnlReport: () => ({
     data: {
@@ -89,7 +91,9 @@ describe('ProfitPage governance request UX', () => {
           tripCount: 1,
           distributions: [],
           entity: [],
-          perTruck: [],
+          perTruck: [
+            { truckId: 41, licensePlate: '15H-021.39', profit: 2_000_000, partners: [] },
+          ],
           undistributedProfit: 1_000_000,
         };
       }
@@ -135,4 +139,19 @@ describe('ProfitPage governance request UX', () => {
     expect(screen.queryByText(/Đã phân chia lợi nhuận Quý/)).toBeNull();
     expect(refetchHistoryMock).not.toHaveBeenCalled();
   });
+
+  // Ownership-blocked warning (QA-069): the blocked truck's plate links
+  // directly to its ownership editor for admins.
+  it('links the blocked truck to its ownership editor', async () => {
+    render(
+      <MemoryRouter>
+        <ProfitPage />
+      </MemoryRouter>,
+    );
+    const previewBtn = await screen.findByRole('button', { name: /Xem trước|Đang tính/i });
+    fireEvent.click(previewBtn);
+    const link = await screen.findByRole('link', { name: '15H-021.39' });
+    expect(link.getAttribute('href')).toBe('/config/trucks/41/owners');
+  });
+
 });

@@ -19,7 +19,7 @@ function TruckForm({ saving, item, onsave, oncancel, onDelete, deleting }: {
   const [plate, setPlate] = useState(item?.licensePlate || '');
   const [status, setStatus] = useState(item?.status || 'ACTIVE');
   return (
-    <InlineForm colSpan={4}>
+    <InlineForm colSpan={5}>
       <div style={{ flex: 2, minWidth: 160 }}>
         <Field label="Biển số"><input className="input" value={plate} onChange={e => setPlate(e.target.value)} placeholder="Ví dụ: 51C-12345" /></Field>
       </div>
@@ -51,6 +51,11 @@ export default function TrucksConfigPage() {
       columns={[
         { header: 'Biển số', render: (t) => <span style={{ fontWeight: 600, color: 'var(--fg-1)', fontFamily: 'var(--font-data)' }}>{t.licensePlate}</span> },
         { header: 'Trạng thái', render: (t) => <StatusPill variant={t.status === 'ACTIVE' ? 'success' : t.status === 'MAINTENANCE' ? 'warn' : 'neutral'}>{TRUCK_STATUS_LABELS[t.status] || t.status}</StatusPill> },
+        { header: 'Sở hữu', render: (t) => (
+          // The quarterly profit split distributes per this truck's owner rows
+          // (effective-dated, Σ%=100) — the editor lives one click away.
+          <a href={`/config/trucks/${t.id}/owners`} style={{ fontSize: 13 }}>Đối tác sở hữu</a>
+        ) },
       ]}
       renderForm={(p) => <TruckForm saving={p.saving} item={p.item} onsave={p.onSave} oncancel={p.onCancel} onDelete={p.onDelete} deleting={p.deleting} />}
       modalChip={(t) => t.status === 'ACTIVE'
