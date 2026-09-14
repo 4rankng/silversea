@@ -351,8 +351,8 @@ export function AppRoutes() {
           />
           <Route path="/suppliers/:id" element={financeReaderOnly(page(<PayableDetailPage />))} />
           <Route path="/expenses" element={financeReaderOnly(page(<ExpenseListPage />))} />
-          <Route path="/expenses/new" element={adminOnly(page(<ExpenseEntryPage />))} />
-          <Route path="/expenses/:id/edit" element={adminOnly(page(<ExpenseEntryPage />))} />
+          <Route path="/expenses/new" element={financeReaderOnly(page(<ExpenseEntryPage />))} />
+          <Route path="/expenses/:id/edit" element={financeReaderOnly(page(<ExpenseEntryPage />))} />
           <Route path="/payables" element={financeReaderOnly(page(<PayableListPage />))} />
           <Route path="/payables/:id" element={financeReaderOnly(page(<PayableDetailPage />))} />
           <Route path="/salary" element={officeStaffOnly(page(<SalaryAttendancePage />))} />
