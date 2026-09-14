@@ -10,6 +10,7 @@ import type {
   useTruckFinancialProfiles,
 } from '../../hooks/useAppSettings';
 import { FinanceLoadingBlock, FinanceVersionList } from './FinanceVersionList';
+import { FinancePolicyStatusCard } from './FinancePolicyStatusCard';
 import { formatFullVnd, formatViDate } from './formatters';
 
 export type FinanceTab = 'policy' | 'truck';
@@ -120,42 +121,7 @@ export function FinancePolicySection({
         ) : (
           <div className="cfg-finance-workspace">
             <div className="cfg-finance-summary">
-              <div className="cfg-finance-summary__section">
-                <h3 className="cfg-section__heading">Trạng thái hiện tại</h3>
-                {financialPolicy.data?.status === 'UNCONFIGURED' ? (
-                  <div className="cfg-finance-note cfg-finance-note--warning">
-                    <strong>Chưa có chính sách</strong>
-                    <p>Báo cáo hiện giữ nguyên số liệu đã ghi sổ và hiển thị trạng thái chưa cấu hình.</p>
-                  </div>
-                ) : (
-                  <dl className="cfg-finance-summary__grid">
-                    <div>
-                      <dt>Hiệu lực từ</dt>
-                      <dd>{financialPolicy.data?.currentPolicy ? formatViDate(financialPolicy.data.currentPolicy.effectiveFrom) : 'Chưa cấu hình'}</dd>
-                    </div>
-                    <div>
-                      <dt>Phiên bản</dt>
-                      <dd>{financialPolicy.data?.currentPolicy?.version ?? 'Chưa cấu hình'}</dd>
-                    </div>
-                    <div>
-                      <dt>Khấu hao</dt>
-                      <dd>{financialPolicy.data?.currentPolicy?.depreciationMethodLabel ?? 'Đường thẳng'}</dd>
-                    </div>
-                    <div>
-                      <dt>Phân bổ</dt>
-                      <dd>{financialPolicy.data?.currentPolicy?.allocationBasisLabel ?? 'Tỷ trọng doanh thu chuyến hoàn thành'}</dd>
-                    </div>
-                    <div>
-                      <dt>Ngưỡng cảnh báo biên lợi nhuận</dt>
-                      <dd>
-                        {financialPolicy.data?.currentPolicy?.lowMarginThresholdPercent == null
-                          ? 'Chưa cấu hình cảnh báo biên lợi nhuận'
-                          : `${financialPolicy.data.currentPolicy.lowMarginThresholdPercent}%`}
-                      </dd>
-                    </div>
-                  </dl>
-                )}
-              </div>
+              <FinancePolicyStatusCard data={(financialPolicy.data ?? null) as Record<string, unknown> | null} />
 
               <FinanceVersionList
                 title="Lịch sử phiên bản"
