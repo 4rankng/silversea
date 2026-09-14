@@ -143,8 +143,21 @@ describe('PenaltyTable', () => {
       Array.from(document.querySelectorAll<HTMLButtonElement>('button.penalty-chip'))
         .find(b => b.textContent?.startsWith(label));
     expect(chip('Tất cả')?.textContent).toContain('7');
-    expect(chip('Chờ duyệt')?.textContent).toContain('5');
+    expect(chip('Hiệu lực')?.textContent).toContain('5');
     expect(chip('Đã hủy')?.textContent).toContain('2');
+  });
+
+  it('collapses the phone scoreboard by default; the toggle expands the ranking cards', () => {
+    renderTable({ rows: [row()], total: 1, insights: insights(), statusCounts: statusCounts() });
+
+    // Default-collapsed: no phone ranking cards until the toggle is pressed.
+    expect(document.querySelectorAll('.penalty-m-card')).toHaveLength(0);
+    const toggle = screen.getByRole('button', { name: /Bảng xếp hạng lái xe/ });
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+
+    fireEvent.click(toggle);
+    expect(document.querySelectorAll('.penalty-m-card')).toHaveLength(3);
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
   });
 
   it('renders the scoreboard from insights with server streaks and plates', () => {
@@ -199,7 +212,7 @@ describe('PenaltyTable', () => {
       onPageChange,
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /Chờ duyệt/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Hiệu lực/ }));
     expect(onStatusFilterChange).toHaveBeenCalledWith(PenaltyStatus.ACTIVE);
 
     // Pagination summary carries the server total, not the loaded row count.
