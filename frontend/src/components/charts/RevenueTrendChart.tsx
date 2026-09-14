@@ -91,10 +91,16 @@ export function RevenueTrendChart({
   const ay = activeIdx !== null ? Y(revenue[activeIdx] || 0) : 0;
   const ayGp = activeIdx !== null ? Y(gross[activeIdx] || 0) : 0;
 
-  // Default formatters (in millions)
+  // Default formatters (in millions). Precision scales with magnitude so two
+  // different grid lines can never share one rounded caption ("1tr₫" twice):
+  // quarter-ticks of a 2.2tr axis used to all collapse through Math.round.
+  const yDecimals = yMax < 1 ? 2 : yMax < 10 ? 1 : 0;
   const fmtY = formatY ?? ((v: number) => {
     if (v === 0) return '0';
-    return `${Math.round(v)}`;
+    const fixed = v.toFixed(yDecimals);
+    return fixed.endsWith(',00') || fixed.includes('.')
+      ? fixed.replace('.', ',').replace(/,?0+$/, '')
+      : fixed;
   });
   const fmtTip = formatTooltip ?? ((v: number) => `${v.toFixed(1).replace('.', ',')} Tr`);
   const chartTitle = title ?? 'Xu hướng doanh thu và lợi nhuận gộp';
