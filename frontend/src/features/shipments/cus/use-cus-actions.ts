@@ -10,7 +10,7 @@ import {
   confirmCusShipmentFinance,
   lockCusShipment,
   requestCusShipmentReopen,
-  requestShipmentDelete,
+  deleteCusShipment,
   updateCusShipmentDocumentCustody,
 } from '../../../api/shipmentClient';
 import { idempotencySignature, safeError } from './cusUtils';
@@ -116,7 +116,7 @@ export function useCusActions(deps: UseCusActionsDeps) {
         }, idempotencyKey);
         setNotice('Đã khóa lô hàng. Mọi trường nhập và tệp tải lên hiện ở chế độ chỉ đọc.');
       } else if (actionMode === 'delete') {
-        await requestShipmentDelete(actionItem.id, actionItem.version, reason.trim());
+        await deleteCusShipment(actionItem.id, actionItem.version, reason.trim());
         setNotice('Đã xóa lô hàng.');
       } else {
         if (!actionItem.activeLock?.id) {

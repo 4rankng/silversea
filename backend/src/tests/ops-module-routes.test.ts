@@ -426,13 +426,13 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
     assert.equal(withPhotoLater.hasPhoto, true, 'photo attached after creation shows in history');
   });
 
-  test('advance request creation lands PENDING in the shared table', async () => {
+  test('advance request creation applies immediately (status-removal: no approval handoff)', async () => {
     const created = await api('/wallet/advance-requests', {
       method: 'POST', token: opsToken,
       body: { amount: 500000, reason: `xin ứng ${suffix}` },
     });
     assert.equal(created.status, 201);
-    assert.equal(created.body.status, 'PENDING');
+    assert.equal(created.body.status, 'APPROVED', 'creation posts status + ledger in-tx');
     createdAdvanceIds.push(created.body.id);
   });
 

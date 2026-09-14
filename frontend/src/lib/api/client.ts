@@ -341,7 +341,7 @@ class ApiClient {
       ...opts,
     });
   }
-  delete<T>(path: string, opts?: MutationOptions) {
+  delete<T>(path: string, opts?: MutationOptions & { body?: BodyInit }) {
     return this.request<T>(path, { method: 'DELETE', ...opts });
   }
 

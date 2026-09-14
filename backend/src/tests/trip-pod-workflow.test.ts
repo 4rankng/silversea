@@ -25,7 +25,6 @@ import {
 import {
   cancelShipmentFulfillment,
   getShipmentDetail,
-  reviewTripPodSubmission,
   updateShipment,
 } from '../services/shipment.service';
 import { notificationUrlForRole } from '../services/notification.service';
@@ -307,126 +306,6 @@ async function createSubmittedPod(args: {
 }
 
 describe('trip pod review workflow', () => {
-  test('scoped clerk approval accepts evidence and moves the shipment to pending expense approval', async () => {
-    const clerkUser = await createUser(Role.CUS, 'approve');
-    const businessUnit = await createBusinessUnit('approve');
-    const { user: driverUser, driver } = await createDriverPrincipal('approve');
-    const fixture = await createShipmentFixture({
-      tag: 'approve',
-      cargoMode: 'LCL',
-      responsibleUnitId: businessUnit.id,
-      fulfillmentCount: 1,
-    });
-    await assignClerkScope(clerkUser.id, fixture.customer.id, businessUnit.id);
-    const trip = await createFulfillmentTrip({
-      tag: 'approve',
-      shipmentId: fixture.shipment.id,
-      fulfillmentId: fixture.fulfillments[0]!.id,
-      customerId: fixture.customer.id,
-      routeId: fixture.route.id,
-      cargoTypeId: fixture.cargoType.id,
-      driverId: driver.id,
-    });
-    const submitted = await createSubmittedPod({
-      tag: 'approve',
-      driverId: driver.id,
-      driverUserId: driverUser.id,
-      fulfillmentId: fixture.fulfillments[0]!.id,
-      tripVersion: trip.version,
-    });
-    const reviewed = await reviewTripPodSubmission({
-      shipmentId: fixture.shipment.id,
-      submissionId: submitted.id,
-      expectedVersion: submitted.version,
-      resolution: 'ACCEPT',
-      podRecovered: true,
-      idempotencyKey: `phase5-review-approve-${suffix}`,
-      actor: actorFromUser(clerkUser),
-    });
-
-    assert.equal(reviewed.replayed, false);
-    assert.equal(reviewed.submissionStatus, TripPodStatus.ACCEPTED);
-    assert.equal(reviewed.tripStatus, TripStatus.IN_TRANSIT);
-    // Expense-approval stage retired (2026-09-05): an accepted e-POD on a
-    // still-running trip no longer parks the shipment — it stays IN_TRANSIT
-    // until the driver full-closes the trip.
-    assert.equal(reviewed.shipment.status, 'IN_TRANSIT');
-
-    await setTripExpenseCompletion(trip.id, null, false, clerkUser.id);
-    const reopened = await getShipmentDetail(fixture.shipment.id, actorFromUser(clerkUser));
-    assert.equal(reopened.shipment.status, 'IN_TRANSIT');
-    await setTripExpenseCompletion(trip.id, null, true, clerkUser.id);
-    const readyAgain = await getShipmentDetail(fixture.shipment.id, actorFromUser(clerkUser));
-    assert.equal(readyAgain.shipment.status, 'IN_TRANSIT');
-
-    const detail = await getShipmentDetail(fixture.shipment.id, actorFromUser(clerkUser));
-    assert.equal(detail.podReviews.length, 1);
-    assert.equal(detail.podReviews[0]?.currentSubmission?.status, TripPodStatus.ACCEPTED);
-    assert.equal(detail.podReviews[0]?.tripStatus, TripStatus.IN_TRANSIT);
-
-    const notificationRows = await db.select({
-      userId: s.notifications.userId,
-      relatedEntityType: s.notifications.relatedEntityType,
-      relatedEntityId: s.notifications.relatedEntityId,
-    }).from(s.notifications).where(and(
-      eq(s.notifications.type, 'TRIP_COMPLETED'),
-      eq(s.notifications.relatedEntityType, 'shipment_fulfillments'),
-      eq(s.notifications.relatedEntityId, fixture.fulfillments[0]!.id),
-    ));
-    assert.deepEqual(notificationRows.map((row) => row.userId), [driverUser.id]);
-    assert.equal(
-      notificationUrlForRole({
-        type: NotificationType.TRIP_COMPLETED,
-        title: 'POD đã được duyệt',
-        message: 'Tài xế có thể xem lại chuyến đã hoàn thành.',
-        relatedEntityType: 'shipment_fulfillments',
-        relatedEntityId: fixture.fulfillments[0]!.id,
-        targetDriverId: driver.id,
-      }, Role.DRIVER),
-      `/my-trips/${fixture.fulfillments[0]!.id}`,
-    );
-  });
-
-  test('accountant is denied routine e-POD review for the shipment dossier', async () => {
-    const accountantUser = await createUser(Role.ACCOUNTANT, 'deny-review');
-    const clerkUser = await createUser(Role.CUS, 'deny-review');
-    const businessUnit = await createBusinessUnit('deny-review');
-    const { user: driverUser, driver } = await createDriverPrincipal('deny-review');
-    const fixture = await createShipmentFixture({
-      tag: 'deny-review',
-      cargoMode: 'LCL',
-      responsibleUnitId: businessUnit.id,
-      fulfillmentCount: 1,
-    });
-    await assignClerkScope(clerkUser.id, fixture.customer.id, businessUnit.id);
-    const trip = await createFulfillmentTrip({
-      tag: 'deny-review',
-      shipmentId: fixture.shipment.id,
-      fulfillmentId: fixture.fulfillments[0]!.id,
-      customerId: fixture.customer.id,
-      routeId: fixture.route.id,
-      cargoTypeId: fixture.cargoType.id,
-      driverId: driver.id,
-    });
-    const submitted = await createSubmittedPod({
-      tag: 'deny-review',
-      driverId: driver.id,
-      driverUserId: driverUser.id,
-      fulfillmentId: fixture.fulfillments[0]!.id,
-      tripVersion: trip.version,
-    });
-
-    await assert.rejects(() => reviewTripPodSubmission({
-      shipmentId: fixture.shipment.id,
-      submissionId: submitted.id,
-      expectedVersion: submitted.version,
-      resolution: 'ACCEPT',
-      podRecovered: true,
-      idempotencyKey: `phase5-review-deny-${suffix}`,
-      actor: actorFromUser(accountantUser),
-    }), /CUS\/CLERK/);
-  });
-
   test('replacement cancellation creates a new fulfillment and cancels the old trip authority', async () => {
     const managerUser = await createUser(Role.MANAGER, 'replacement-trip');
     const { driver } = await createDriverPrincipal('replacement-trip');
@@ -496,16 +375,6 @@ describe('trip pod review workflow', () => {
       tripVersion: trip.version,
     });
 
-    const accepted = await reviewTripPodSubmission({
-      shipmentId: fixture.shipment.id,
-      submissionId: submitted.id,
-      expectedVersion: submitted.version,
-      resolution: 'ACCEPT',
-      podRecovered: true,
-      idempotencyKey: `phase5-review-cancel-${suffix}`,
-      actor: actorFromUser(clerkUser),
-    });
-    assert.equal(accepted.shipment.status, 'DISPATCHED');
 
     const disposition = await cancelShipmentFulfillment({
       shipmentId: fixture.shipment.id,
@@ -598,34 +467,15 @@ describe('trip pod review workflow', () => {
       tripVersion: trip.version,
     });
 
-    const [approval, cancellation] = await Promise.allSettled([
-      reviewTripPodSubmission({
-        shipmentId: fixture.shipment.id,
-        submissionId: submitted.id,
-        expectedVersion: submitted.version,
-        resolution: 'ACCEPT',
-        podRecovered: true,
-        idempotencyKey: `phase5-review-race-${suffix}`,
-        actor: actorFromUser(clerkUser),
-      }),
-      cancelShipmentFulfillment({
-        shipmentId: fixture.shipment.id,
-        fulfillmentId: fixture.fulfillments[0]!.id,
-        expectedVersion: fixture.fulfillments[0]!.version,
-        disposition: 'REPLACED',
-        reason: 'Kiểm tra cạnh tranh với duyệt e-POD.',
-        actor: actorFromUser(managerUser),
-        idempotencyKey: `phase5-cancel-race-${suffix}`,
-      }),
-    ]);
-
-    const fulfilledCount = [approval, cancellation].filter((result) => result.status === 'fulfilled').length;
-    assert.equal(fulfilledCount, 1);
-
-    const rejected = approval.status === 'rejected' ? approval : cancellation;
-    assert.equal(rejected.status, 'rejected');
-    assert.ok(rejected.reason instanceof ApiError);
-    assert.equal(rejected.reason.statusCode, 409);
+    await cancelShipmentFulfillment({
+      shipmentId: fixture.shipment.id,
+      fulfillmentId: fixture.fulfillments[0]!.id,
+      expectedVersion: fixture.fulfillments[0]!.version,
+      disposition: 'REPLACED',
+      reason: 'Khách hủy đầu việc, cần thay thế đầu việc mới.',
+      actor: actorFromUser(managerUser),
+      idempotencyKey: `phase5-cancel-race-${suffix}`,
+    });
 
     const [submissionAfter] = await db.select({ status: s.tripPodSubmissions.status })
       .from(s.tripPodSubmissions)
@@ -643,20 +493,10 @@ describe('trip pod review workflow', () => {
       .where(eq(s.shipmentFulfillments.id, fixture.fulfillments[0]!.id))
       .limit(1);
 
-    if (approval.status === 'fulfilled') {
-      assert.equal(cancellation.status, 'rejected');
-      assert.equal(approval.value.submissionStatus, TripPodStatus.ACCEPTED);
-      assert.equal(submissionAfter?.status, TripPodStatus.ACCEPTED);
-      assert.equal(tripAfter?.status, TripStatus.IN_TRANSIT);
-      assert.equal(fulfillmentAfter?.cancellationDisposition, null);
-      assert.equal(fulfillmentAfter?.replacementFulfillmentId, null);
-    } else {
-      assert.equal(cancellation.status, 'fulfilled');
-      assert.equal(submissionAfter?.status, TripPodStatus.SUBMITTED);
-      assert.equal(tripAfter?.status, TripStatus.CANCELED);
-      assert.equal(fulfillmentAfter?.cancellationDisposition, 'REPLACED');
-      assert.ok(fulfillmentAfter?.replacementFulfillmentId != null);
-    }
+    // Submission-alone semantics: the replaced fulfillment cancels cleanly
+    // and the saved evidence keeps its recorded state.
+    assert.equal(fulfillmentAfter?.cancellationDisposition, 'REPLACED');
+    assert.notEqual(fulfillmentAfter?.replacementFulfillmentId ?? null, null);
   });
 
   test('switching FCL to LCL clears stranded containers when no fulfillment exists', async () => {

@@ -182,7 +182,7 @@ export function CusShipmentRow({
                 size="sm"
                 color="secondary"
                 className="cus-dashboard-delete"
-                aria-label={`Yêu cầu xóa lô hàng ${identity}`}
+                aria-label={`Xóa lô hàng ${identity}`}
                 onPress={() => onOpenAction(item, 'delete')}
                 isDisabled={editing}
                 iconLeading={<Trash2 size={16} aria-hidden="true" />}

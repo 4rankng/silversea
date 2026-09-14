@@ -267,8 +267,8 @@ cusWorkspaceRoutes.post(
   }),
 );
 
-cusWorkspaceRoutes.post(
-  '/cus-workspace/:id/delete-request',
+cusWorkspaceRoutes.delete(
+  '/cus-workspace/:id',
   requireRoles(Role.CUS),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
@@ -294,7 +294,7 @@ cusWorkspaceRoutes.post(
         });
         return {
           body: outcome,
-          status: outcome.pendingApproval ? 201 : 200,
+          status: 200,
           auditEntityId: shipmentId,
           auditEntityKey: `shipment-${shipmentId}`,
         };

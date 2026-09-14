@@ -875,14 +875,16 @@ export async function reviewShipmentChangeRequest(
   );
 }
 
-export async function requestShipmentDelete(
+export async function deleteCusShipment(
   shipmentId: number,
   version: number,
   reason: string,
-): Promise<{ pendingApproval: boolean }> {
-  return api.post<{ pendingApproval: boolean }>(
-    `/shipments/cus-workspace/${shipmentId}/delete-request`,
-    { version, reason },
+): Promise<void> {
+  await api.delete(
+    `/shipments/cus-workspace/${shipmentId}`,
+    {
+      body: JSON.stringify({ version, reason }),
+    },
   );
 }
 

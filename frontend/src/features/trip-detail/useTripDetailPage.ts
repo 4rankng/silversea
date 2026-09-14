@@ -218,20 +218,9 @@ export function useTripDetailPage(id: string | undefined): TripDetailPageData {
     setActionError('');
     try {
       const result = await method();
-      if (
-        result
-        && typeof result === 'object'
-        && 'actionKind' in result
-        && (
-          result.actionKind === 'TRIP_FINANCIAL_CLOSE'
-          || result.actionKind === 'TRIP_FINANCIAL_CHANGE'
-        )
-      ) {
-        toast({
-          kind: 'success',
-          message: 'Yêu cầu đã được gửi đến hàng chờ kiểm tra và phê duyệt.',
-        });
-      }
+      // Financial edits apply in the backend request — no approval queue
+      // exists, so the cache refetch alone reports the saved state.
+      void result;
       await refetchTrip();
     } catch (err) {
       if (err instanceof ApiError) {

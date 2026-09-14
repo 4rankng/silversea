@@ -568,7 +568,7 @@ export async function seedTrips(seedActors: SeedActors & {
         });
         // Internal review removed — the seed marks the demo submission
         // accepted directly (customer acknowledgement shape).
-        await tx.update(s.tripPodSubmissions).set({
+        await db.update(s.tripPodSubmissions).set({
           status: 'ACCEPTED',
           updatedAt: new Date(),
         }).where(eq(s.tripPodSubmissions.id, submitted.submission.id));

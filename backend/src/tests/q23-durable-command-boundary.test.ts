@@ -331,7 +331,7 @@ describe('Q23 durable command boundary', () => {
       ['POST', '/api/upload/trips/1/photos/container/delete', IDEMPOTENCY_ENDPOINTS.UPLOAD_TRIP_PHOTO_DELETE],
       ['POST', '/api/ocr', IDEMPOTENCY_ENDPOINTS.OCR_CAPTURE],
       ['POST', '/api/ocr/persist-only', IDEMPOTENCY_ENDPOINTS.OCR_PERSIST_ONLY],
-      ['POST', '/api/expenses', 'expenses.governed-create'],
+      ['POST', '/api/expenses', 'expenses.submit'],
       ['PUT', '/api/expenses/1', 'expenses.governed-update'],
       ['DELETE', '/api/expenses/1', 'expenses.governed-delete'],
       ['POST', '/api/expenses/1/photos', IDEMPOTENCY_ENDPOINTS.EXPENSE_PHOTO_CREATE],
