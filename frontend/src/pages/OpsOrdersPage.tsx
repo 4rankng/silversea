@@ -113,7 +113,7 @@ export default function OpsOrdersPage() {
                   </td>
                   <td className="col-code">{order.shipmentCode ?? '—'}</td>
                   <td>{order.customerName ?? '—'}</td>
-                  <td>{order.routeName ?? '—'}</td>
+                  <td>{order.routeName ?? <span className="ops-orders__route-missing">Chưa có tuyến đường</span>}</td>
                   <td>
                     {order.containerCount === 0
                       ? '—'

@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '../components/shared/Toast';
+import type { OpsOrderItem } from '../api/opsClient';
 import OpsOrdersPage from './OpsOrdersPage';
 
 const { apiGet, apiPost, apiPut } = vi.hoisted(() => ({ apiGet: vi.fn(), apiPost: vi.fn(), apiPut: vi.fn() }));
@@ -21,7 +22,7 @@ vi.mock('../lib/api', async (importOriginal) => ({
 const today = new Date();
 const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
-function makeItems() {
+function makeItems(): { date: string; items: OpsOrderItem[] } {
   return {
     date: dateStr,
     items: [
@@ -69,6 +70,23 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
       return Promise.resolve({ items: [] });
     });
     apiPost.mockResolvedValue({ pinned: true });
+  });
+
+  it('shows the explicit missing-route label, never a bare dash, when routeName is null', async () => {
+    const data = makeItems();
+    data.items[1].routeName = null;
+    apiGet.mockImplementation((url: string) => {
+      if (url.startsWith('/ops/orders')) return Promise.resolve(data);
+      if (url.startsWith('/ops/expense-types')) {
+        return Promise.resolve({ items: [] });
+      }
+      return Promise.resolve({ items: [] });
+    });
+    renderPage();
+
+    expect(await screen.findByText('HP-BN')).toBeInTheDocument();
+    // The null-route row renders the explicit label — never a bare dash.
+    expect(screen.getByText('Chưa có tuyến đường')).toBeInTheDocument();
   });
 
   it('renders the day list with containers and colored plain-text status', async () => {
