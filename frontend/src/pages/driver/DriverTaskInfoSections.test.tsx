@@ -92,7 +92,6 @@ describe('DriverTaskInfoSections', () => {
       'Tên nhà máy',
       'Địa chỉ nhà máy',
       'Số điện thoại liên hệ',
-      'SĐT liên hệ',
       'Container / lô hàng',
       'Seal',
       'Cảng nâng',
@@ -148,20 +147,11 @@ describe('DriverTaskInfoSections', () => {
     expect(valueOf('Tên nhà máy')).toBe('—');
   });
 
-  it('renders the warehouse-phone row as a tel link when the site has a phone', () => {
+  it('no longer renders a standalone warehouse-phone row (the combined contact row carries the number)', () => {
     render(<DriverTaskInfoSections trip={makeTrip()} />);
 
-    const khoLink = screen.getByText('0901234567');
-    expect(khoLink.getAttribute('href')).toBe('tel:0901234567');
+    expect(screen.queryByText('SĐT liên hệ')).toBeNull();
   });
-
-  it('keeps the warehouse-phone row visible with "—" when the site has no phone', () => {
-    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { khoPhone: null } })} />);
-
-    expect(labels()).toContain('SĐT liên hệ');
-    expect(valueOf('SĐT liên hệ')).toBe('—');
-  });
-
   it('renders contact name + phone grouped as Số điện thoại liên hệ beneath factory address', () => {
     render(<DriverTaskInfoSections trip={makeTrip()} />);
 
@@ -280,7 +270,6 @@ describe('DriverTaskInfoSections', () => {
       'Tên nhà máy',
       'Địa chỉ nhà máy',
       'Số điện thoại liên hệ',
-      'SĐT liên hệ',
       'Container / lô hàng',
       'Seal',
       'Cảng nâng',

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Building2, CalendarClock, ChevronDown, FileCheck2, FileText, MapPinned, Package2, Phone, Route } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, Building02, Pin02, RefreshCcw02 } from '@untitledui/icons';
 import { valueOrDash, formatDateTime } from '../../features/driver/driver-trip-model';
 import type { DriverTaskDetail } from '../../api/driverClient';
 
@@ -149,7 +150,7 @@ export function DriverTaskInfoSections({ trip }: { trip: DriverTaskDetail }) {
           <TaskFact icon={<Building2 size={16} />} label="Tên nhà máy" value={distinctFullFactoryName} fullWidth />
           {/* Factory site street address in its own row — the Tuyến row
               below stays route text only. */}
-          <TaskFact icon={<MapPinned size={16} />} label="Địa chỉ nhà máy" value={valueOrDash(fulfillment?.factoryAddress)} fullWidth />
+          <TaskFact icon={<Building02 size={16} />} label="Địa chỉ nhà máy" value={valueOrDash(fulfillment?.factoryAddress)} fullWidth />
           {/* KP-010: contact name + callable phone grouped together
               beneath the factory address. */}
           <TaskFact
@@ -158,32 +159,23 @@ export function DriverTaskInfoSections({ trip }: { trip: DriverTaskDetail }) {
             value={contactFieldValue}
             fullWidth
           />
-          {/* Warehouse direct phone — always visible, "—" when the site
-              has no phone. */}
-          <TaskFact
-            icon={<Phone size={16} />}
-            label="SĐT liên hệ"
-            value={fulfillment?.khoPhone
-              ? <a href={`tel:${fulfillment.khoPhone}`} className="driver-task-link">{fulfillment.khoPhone}</a>
-              : '—'}
-          />
           {/* KP-191: each container number paired with its own type code. */}
           <TaskFact icon={<Package2 size={16} />} label="Container / lô hàng" value={containerLine} fullWidth />
           {sealLine ? (
             <TaskFact icon={<Package2 size={16} />} label="Seal" value={sealLine} fullWidth />
           ) : null}
-          <TaskFact icon={<MapPinned size={16} />} label="Cảng nâng" value={pickupPoint} />
+          <TaskFact icon={<ArrowUpRight size={16} />} label="Cảng nâng" value={pickupPoint} />
           {/* KP-063: direction-aware Cảng hạ. For IMPORT this is the
               empty-container return depot; for EXPORT the drop port. */}
-          <TaskFact icon={<MapPinned size={16} />} label="Cảng hạ" value={cangHa} />
+          <TaskFact icon={<ArrowDownRight size={16} />} label="Cảng hạ" value={cangHa} />
           {/* For IMPORT: actual delivery location when it differs from
               the return depot. For EXPORT: empty-container return depot
               when it differs from the drop point. */}
           {showDeliveryLocationRow ? (
-            <TaskFact icon={<MapPinned size={16} />} label="Địa chỉ giao hàng" value={rawDropPoint} />
+            <TaskFact icon={<Pin02 size={16} />} label="Địa chỉ giao hàng" value={rawDropPoint} />
           ) : null}
           {showReturnDepotRow ? (
-            <TaskFact icon={<MapPinned size={16} />} label="Trả cont rỗng" value={fulfillment!.returnDepotName!} />
+            <TaskFact icon={<RefreshCcw02 size={16} />} label="Trả cont rỗng" value={fulfillment!.returnDepotName!} />
           ) : null}
           {/* Route text only — the factory address renders in its own row
               above; falls back through route summary → route name. */}
