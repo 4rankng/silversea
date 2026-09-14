@@ -12,7 +12,8 @@ vi.mock('../lib/api', async (importOriginal) => ({
 
 const summary: OpsWalletSummary = {
   totalAdvance: '2000000', approved: '350000', pending: '90000',
-  rejected: '0', balance: '1560000',
+  rejected: '0',
+      returned: '0', balance: '1560000',
 };
 
 function setup() {
