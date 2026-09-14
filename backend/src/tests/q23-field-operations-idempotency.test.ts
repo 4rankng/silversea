@@ -570,12 +570,12 @@ describe('Q23 field operations replay boundary', () => {
     const first = await jsonRequest(`/api/driver/me/trips/${tripId}/containers`, {
       method: 'POST',
       idempotencyKey: key,
-      body: { containerNumber: 'DRV0000001' },
+      body: { containerNumber: 'DRVA0000002' },
     });
     const replay = await jsonRequest(`/api/driver/me/trips/${tripId}/containers`, {
       method: 'POST',
       idempotencyKey: key,
-      body: { containerNumber: 'DRV0000001' },
+      body: { containerNumber: 'DRVA0000002' },
     });
     assert.equal(first.status, 201, JSON.stringify(first.body));
     assert.deepEqual(replay, first);
@@ -583,7 +583,7 @@ describe('Q23 field operations replay boundary', () => {
     const conflict = await jsonRequest(`/api/driver/me/trips/${tripId}/containers`, {
       method: 'POST',
       idempotencyKey: key,
-      body: { containerNumber: 'DRV0000002' },
+      body: { containerNumber: 'DRVA0000018' },
     });
     assert.equal(conflict.status, 409);
   });
