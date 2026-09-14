@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   fetchPenaltiesPage,
   usePenaltyInsights,
@@ -70,6 +70,17 @@ export default function PenaltyPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [preselectedDriver, setPreselectedDriver] = useState<number | undefined>();
   const [cancelTarget, setCancelTarget] = useState<PenaltyRow | null>(null);
+  // Focus restoration: the shared Modal releases focus when it closes, so the
+  // page remembers the opener and hands focus back on both close paths.
+  const cancelOpenerRef = useRef<HTMLElement | null>(null);
+  const openCancelDialog = useCallback((penalty: PenaltyRow) => {
+    cancelOpenerRef.current = document.activeElement as HTMLElement | null;
+    setCancelTarget(penalty);
+  }, []);
+  const closeCancelDialog = useCallback(() => {
+    setCancelTarget(null);
+    cancelOpenerRef.current?.focus?.();
+  }, []);
   const { rootRef } = usePageAnimations({ ready: !table.isLoading });
 
   useListAnimations({
@@ -87,11 +98,11 @@ export default function PenaltyPage() {
     if (!cancelTarget) return;
     try {
       await cancelMutation.mutateAsync({ id: cancelTarget.id, reason });
-      setCancelTarget(null);
+      closeCancelDialog();
     } catch (e: unknown) {
       alert((e as Error).message || 'Lỗi khi hủy kỷ luật');
     }
-  }, [cancelTarget, cancelMutation]);
+  }, [cancelTarget, cancelMutation, closeCancelDialog]);
 
   const statusFilter: PenaltyStatusFilter = filters.status ?? 'all';
   const handleStatusFilterChange = useCallback((next: PenaltyStatusFilter) => {
@@ -162,7 +173,7 @@ export default function PenaltyPage() {
         monthLabel={monthLabel}
         canCancel={canCancel}
         onOpenDrawer={openDrawer}
-        onCancelPenalty={setCancelTarget}
+        onCancelPenalty={openCancelDialog}
       />
 
       <PenaltyFormDrawer
@@ -181,7 +192,7 @@ export default function PenaltyPage() {
 
       <CancelPenaltyDialog
         isOpen={!!cancelTarget}
-        onClose={() => setCancelTarget(null)}
+        onClose={closeCancelDialog}
         onConfirm={handleCancelPenalty}
         penalty={cancelTarget}
         loading={cancelMutation.isPending}
