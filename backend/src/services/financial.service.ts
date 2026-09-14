@@ -11,7 +11,7 @@ import { eq, and, inArray, sql, desc, isNull } from 'drizzle-orm';
 import { TxnType } from '@tingting/shared';
 import { LedgerService } from './ledger.service';
 import { ApiError } from '../errors';
-import { requestTripArAdjustment } from './adjustment-governance.service';
+import { autoApplyGovernanceAction, requestTripArAdjustment } from './adjustment-governance.service';
 import { assertCanMakeGovernanceAction } from './governance-policy';
 import { settleExpensesForPayment } from './expense.service';
 import {
@@ -353,14 +353,24 @@ export interface AdjustmentInput {
  * approval. No ledger effect is posted until the governance action is approved.
  */
 export async function createAdjustment(input: AdjustmentInput) {
-  return requestTripArAdjustment({
-    tripId: input.tripId,
-    amount: input.amount,
-    reason: input.note,
-    signedAgreementRef: input.signedAgreementRef,
-    makerId: input.makerId,
-    makerRole: input.makerRole,
-    expectedTripVersion: input.expectedTripVersion,
+  // The make stage only BUILDS the transient governance action — without
+  // this apply wrap the route 201'd with no ledger entry and no readback
+  // (staging round-5: POST 201 → GET adjustments [] → revenue unchanged).
+  // Applying in-request posts the ADJUSTMENT ledger entry atomically
+  // (applyTripGovernanceAction via the subjectType dispatch).
+  return autoApplyGovernanceAction({
+    make: (tx) => requestTripArAdjustment({
+      tripId: input.tripId,
+      amount: input.amount,
+      reason: input.note,
+      signedAgreementRef: input.signedAgreementRef,
+      makerId: input.makerId,
+      makerRole: input.makerRole,
+      expectedTripVersion: input.expectedTripVersion,
+      transaction: tx,
+    }),
+    actorId: input.makerId,
+    actorRole: input.makerRole,
     transaction: input.transaction,
   });
 }

@@ -101,7 +101,10 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   'src/components/untitled-ui/base/badges/badges.tsx': 416,
   'src/components/untitled-ui/base/select/tag-select.tsx': 401,
   'src/components/work-inbox/RoleWorkInbox.tsx': 485,
-  'src/features/app-settings/FinancePolicySection.tsx': 431,
+  // Bumped 431 → 444: 2026-09-14 duplicate-month picker guard —
+  // taken months warn before submit (rework of the staging round-5 loop).
+  // Reviewed as a contract change.
+    'src/features/app-settings/FinancePolicySection.tsx': 444,
   'src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx': 445,
   // Baseline 407 (was new-file capped 400): 2026-09-14 header sort direction —
   // both sortable headers gain aria-sort + flipping ▲/▼ glyphs, and rows key

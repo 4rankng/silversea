@@ -202,7 +202,14 @@ export default function AppSettingsConfigPage() {
       });
       setPolicyMessage(governedConfigOutcomeMessage((action as { status?: string } | undefined)?.status, `chính sách báo cáo từ ${formatViMonth(policyEffectiveFrom)}`));
     } catch (error) {
-      setPolicyError(error instanceof Error ? error.message : 'Không thể gửi yêu cầu chính sách.');
+      const message = error instanceof Error ? error.message : 'Không thể gửi yêu cầu chính sách.';
+      // Split-409 recovery: duplicate-month points at history/another month;
+      // stale-data tells the user a reload actually helps.
+      setPolicyError(
+        message.includes('đã có phiên bản')
+          ? 'Tháng hiệu lực này đã có phiên bản chính sách — xem Lịch sử đã duyệt hoặc chọn tháng khác.'
+          : message,
+      );
     }
   };
 
@@ -241,7 +248,12 @@ export default function AppSettingsConfigPage() {
       const action = await requestTruckProfile.mutateAsync(payload);
       setTruckMessage(governedConfigOutcomeMessage((action as { status?: string } | undefined)?.status, `hồ sơ tài chính xe ${truckProfiles.data.selectedTruckLabel} từ ${formatViMonth(truckEffectiveFrom)}`));
     } catch (error) {
-      setTruckError(error instanceof Error ? error.message : 'Không thể gửi hồ sơ tài chính xe.');
+      const message = error instanceof Error ? error.message : 'Không thể gửi hồ sơ tài chính xe.';
+      setTruckError(
+        message.includes('đã có phiên bản')
+          ? 'Tháng hiệu lực này đã có phiên bản hồ sơ cho xe — xem lịch sử hoặc chọn tháng khác.'
+          : message,
+      );
     }
   };
 

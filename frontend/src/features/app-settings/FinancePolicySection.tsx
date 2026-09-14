@@ -192,6 +192,19 @@ export function FinancePolicySection({
                   min={financialPolicy.data?.currentVietnamMonthStart}
                   disabled={requestFinancialPolicy.isPending}
                 />
+                {/* One version per month by design: months already carrying a
+                    version must be visible as taken BEFORE the user submits —
+                    otherwise a correct 409 reads as a broken apply loop. */}
+                {(() => {
+                  const taken = (financialPolicy.data?.history ?? [])
+                    .find((h) => h.effectiveFrom === policyEffectiveFrom);
+                  if (!taken) return null;
+                  return (
+                    <p role="alert" className="cfg-field-hint" style={{ color: 'var(--err, #dc2626)' }}>
+                      Tháng này đã có phiên bản (đã duyệt)— xem "Lịch sử đã duyệt" hoặc chọn tháng khác.
+                    </p>
+                  );
+                })()}
                 <p className="cfg-field-hint">
                   Chọn tháng hiện tại hoặc một tháng trong tương lai. Không thể áp dụng ngược cho kỳ đã đóng.
                 </p>
