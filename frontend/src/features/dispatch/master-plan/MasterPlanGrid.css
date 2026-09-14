@@ -539,6 +539,9 @@
 .master-plan-grid__col--schedule { width: 15%; }
 /* Schedule lines carry time+date+factory+count; extra width avoids mid-value wraps. */
 .master-plan-grid__col--customer { width: 14%; }
+.master-plan-grid__cell[data-label="Khách hàng & nhà máy"] > .master-plan-grid__line--strong:first-child {
+  text-transform: uppercase;
+}
 .master-plan-grid__col--route-shipping { width: 16%; }
 .master-plan-grid__col--lift-port { width: 11%; }
 .master-plan-grid__col--drop-port { width: 11%; }
