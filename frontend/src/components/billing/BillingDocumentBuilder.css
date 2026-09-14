@@ -509,6 +509,30 @@
   background: #fff;
 }
 
+/* Tablet wrap — between the desktop grid and the 680px mobile layout, the
+   5-column grid runs out of room and the two rightmost buttons overlap.
+   Switch to flex-wrap so "Lọc lại" and "Thêm dòng trình bày" each stay
+   fully readable and independently tappable at ≥44px targets. */
+@media (max-width: 880px) {
+  .billing-builder__controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 10px;
+  }
+
+  .billing-builder__controls label,
+  .billing-builder__controls .ds-uui-select {
+    flex: 1 1 168px;
+    min-width: 168px;
+  }
+
+  .billing-builder__controls .billing-builder__action-cell,
+  .billing-builder__controls > .btn {
+    flex: 0 0 auto;
+  }
+}
+
 @media (max-width: 980px) {
   .billing-builder__table-wrap {
     min-height: 360px;
