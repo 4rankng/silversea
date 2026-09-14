@@ -152,7 +152,14 @@ PermitRootLogin prohibit-password
 SSHEOF
 sshd -t && systemctl reload ssh
 systemctl enable --now unattended-upgrades
-echo "server_tokens off;" > /etc/nginx/conf.d/99-hardening.conf
+# nginx.conf (or an earlier provisioning pass) may already declare
+# server_tokens — a second declaration anywhere in the http block is a
+# fatal duplicate, so only write the snippet when the base lacks it.
+# (2026-09-14: a blind write here failed every nginx reload since Sep 13
+# with a duplicate-directive error — the prod TLS edge was dark until the
+# duplicate was removed.)
+grep -q 'server_tokens' /etc/nginx/nginx.conf \
+  || echo "server_tokens off;" > /etc/nginx/conf.d/99-hardening.conf
 nginx -t && systemctl reload nginx
 echo "hardening applied"'
 
