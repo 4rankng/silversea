@@ -84,4 +84,29 @@ describe('CompanyInfoConfigPage save readiness', () => {
     fireEvent.change(shortName, { target: { value: '   ' } });
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Lưu thông tin' }).disabled).toBe(true);
   });
+
+  it('associates every company field with its visible Vietnamese label', async () => {
+    // A11y contract: each control's accessible name comes from its visible
+    // caption via label htmlFor + id — the pattern the two name fields
+    // already used. A control losing its label breaks screen-reader
+    // navigation and label-click focus, so all ten are pinned here.
+    renderPage();
+    await screen.findByLabelText('Tên đầy đủ');
+
+    const expectations: Array<[string, string]> = [
+      ['Tên đầy đủ', 'Công ty TNHH TingTing Logistics'],
+      ['Tên ngắn', 'TingTing Logistics'],
+      ['Mã số thuế', ''],
+      ['Địa chỉ', ''],
+      ['Đại diện bởi', ''],
+      ['Chức vụ', ''],
+      ['Số tài khoản', ''],
+      ['Ngân hàng', ''],
+      ['Điện thoại', ''],
+      ['Email', ''],
+    ];
+    for (const [label] of expectations) {
+      expect(screen.getByLabelText(label)).toBeTruthy();
+    }
+  });
 });

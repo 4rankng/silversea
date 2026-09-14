@@ -242,8 +242,9 @@ export default function CompanyInfoConfigPage() {
 
                 <div className="cfg-form-grid cfg-row">
                   <div className="field">
-                    <label>Mã số thuế</label>
+                    <label htmlFor="company-tax-code">Mã số thuế</label>
                     <input
+                      id="company-tax-code"
                       className="input"
                       value={form.taxCode}
                       onChange={e => updateField('taxCode', e.target.value)}
@@ -252,8 +253,9 @@ export default function CompanyInfoConfigPage() {
                 </div>
 
                 <div className="field cfg-row">
-                  <label>Địa chỉ</label>
+                  <label htmlFor="company-address">Địa chỉ</label>
                   <textarea
+                    id="company-address"
                     className="input"
                     rows={3}
                     value={form.address}
@@ -263,16 +265,18 @@ export default function CompanyInfoConfigPage() {
 
                 <div className="cfg-form-grid cfg-row" style={{ marginTop: 16 }}>
                   <div className="field">
-                    <label>Đại diện bởi</label>
+                    <label htmlFor="company-representative">Đại diện bởi</label>
                     <input
+                      id="company-representative"
                       className="input"
                       value={form.representative}
                       onChange={e => updateField('representative', e.target.value)}
                     />
                   </div>
                   <div className="field">
-                    <label>Chức vụ</label>
+                    <label htmlFor="company-representative-title">Chức vụ</label>
                     <input
+                      id="company-representative-title"
                       className="input"
                       value={form.representativeTitle}
                       onChange={e => updateField('representativeTitle', e.target.value)}
@@ -282,16 +286,18 @@ export default function CompanyInfoConfigPage() {
 
                 <div className="cfg-form-grid cfg-row">
                   <div className="field">
-                    <label>Số tài khoản</label>
+                    <label htmlFor="company-bank-account">Số tài khoản</label>
                     <input
+                      id="company-bank-account"
                       className="input"
                       value={form.bankAccount}
                       onChange={e => updateField('bankAccount', e.target.value)}
                     />
                   </div>
                   <div className="field">
-                    <label>Ngân hàng</label>
+                    <label htmlFor="company-bank-name">Ngân hàng</label>
                     <textarea
+                      id="company-bank-name"
                       className="input"
                       rows={2}
                       value={form.bankName}
@@ -302,16 +308,18 @@ export default function CompanyInfoConfigPage() {
 
                 <div className="cfg-form-grid cfg-row">
                   <div className="field">
-                    <label>Điện thoại</label>
+                    <label htmlFor="company-phone">Điện thoại</label>
                     <input
+                      id="company-phone"
                       className="input"
                       value={form.phone}
                       onChange={e => updateField('phone', e.target.value)}
                     />
                   </div>
                   <div className="field">
-                    <label>Email</label>
+                    <label htmlFor="company-email">Email</label>
                     <input
+                      id="company-email"
                       className="input"
                       value={form.email}
                       onChange={e => updateField('email', e.target.value)}
