@@ -2458,3 +2458,35 @@
   outline: 2px solid var(--accent, #2563eb);
   outline-offset: 2px;
 }
+
+/* ── QA-098: secondary shipment filters collapse on phone/tablet ── */
+.cus-advanced-toggle {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--fg-1);
+  cursor: pointer;
+}
+
+@media (max-width: 1023px) {
+  .cus-advanced-toggle {
+    display: inline-flex;
+  }
+
+  .cus-worksheet-advanced {
+    display: none;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .cus-worksheet-advanced[data-open] {
+    display: flex;
+  }
+}

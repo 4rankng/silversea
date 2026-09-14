@@ -181,6 +181,8 @@ export default function ShipmentsPage() {
   });
   const hasFilters = Boolean(suffixParam || dateFrom || dateTo || direction || bucket);
   const activeFilterCount = [dateFrom, dateTo, direction, bucket].filter(Boolean).length;
+  // Phone/tablet: secondary criteria collapse so records start higher.
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   const exportWorksheet = async () => {
     setExporting(true);
@@ -280,6 +282,15 @@ export default function ShipmentsPage() {
               {searchError && <span id="cus-search-error" className="cus-field-error" role="alert">{searchError}</span>}
             </div>
 
+            <button
+              type="button"
+              className="cus-advanced-toggle"
+              aria-expanded={advancedOpen}
+              onClick={() => setAdvancedOpen((o) => !o)}
+            >
+              Bộ lọc nâng cao{activeFilterCount > 0 ? ` · ${activeFilterCount} đang áp dụng` : ''}
+            </button>
+            <div className="cus-worksheet-advanced" data-open={advancedOpen ? '' : undefined}>
             <UuiSelectField
               label="Xuất / Nhập"
               value={direction}
@@ -321,6 +332,7 @@ export default function ShipmentsPage() {
               wrapperClassName="shipment-uui-field cus-plan-status-filter"
               controlClassName="shipment-uui-select"
             />
+            </div>
           </div>
 
           <div className="cus-worksheet-toolbar__actions" aria-label="Thao tác lô hàng">
