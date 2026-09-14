@@ -207,11 +207,13 @@ export async function createTrip(data: {
 
     const revenue = freightPrice.price;
 
-    // KP-163: creditApprovalRequestId removed — overrides apply immediately.
+    // KP-163: overrides apply immediately — the creation request carries the
+    // auto-approved override id and the credit gate validates against it
+    // (exposure excluded for shipment-scoped reservations, caps enforced).
     const creditCheck = await assertCreditLimit({
       customerId: data.customerId,
       proposedAmount: revenue,
-      approvalRequestId: null,
+      approvalRequestId: data.creditApprovalRequestId ?? null,
       shipmentId: data.shipmentId ?? null,
       transaction: tx,
     });
