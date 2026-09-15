@@ -141,6 +141,14 @@ export function ContainerLedger({
 
   const isDirty = dirtyLineIds.size > 0;
 
+  // Ref mirror for deferred callbacks: effects flush after timers, so a
+  // timeout-scheduled exit would otherwise read a stale dirty set and trip
+  // the host's discard-confirm instead of closing the drawer.
+  const dirtyLineIdsRef = useRef<Set<number>>(dirtyLineIds);
+  useEffect(() => {
+    dirtyLineIdsRef.current = new Set(dirtyLineIds);
+  }, [dirtyLineIds]);
+
   const onDirtyChangeRef = useRef(onDirtyChange);
   const onSavingChangeRef = useRef(onSavingChange);
   useEffect(() => { onDirtyChangeRef.current = onDirtyChange; }, [onDirtyChange]);
@@ -256,10 +264,22 @@ export function ContainerLedger({
     } finally {
       setSaving(false);
     }
-    // Fire the exit AFTER the save settles: the host's guarded close reads
-    // saving/dirty flags that flush via effects after this task — a call made
-    // synchronously inside the try would be swallowed by the while-saving guard.
-    if (saved) setTimeout(() => onAppointmentSavedAndExit?.(), 0);
+    // Fire the exit AFTER the save settles: the saved line's draft reset lands
+    // via the refetch + effect flush, which loses the race against a plain
+    // timeout. Poll the mirrored dirty set (bounded) so the host's guarded
+    // close sees only genuinely-unsaved drafts; fall through after 2s worst-case.
+    if (saved) {
+      let attempt = 0;
+      const tryExit = () => {
+        if (!dirtyLineIdsRef.current.has(lineId) || attempt >= 40) {
+          onAppointmentSavedAndExit?.();
+          return;
+        }
+        attempt += 1;
+        setTimeout(tryExit, 50);
+      };
+      setTimeout(tryExit, 0);
+    }
     return saved;
   }, [clearIdempotencyKey, detail, getIdempotencyKey, onLineSaved, onAppointmentSavedAndExit, toast]);
 

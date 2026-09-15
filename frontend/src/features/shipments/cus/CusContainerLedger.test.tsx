@@ -49,19 +49,25 @@ const detail = {
 } as unknown as ShipmentCusWorkspaceDetail;
 
 function renderLedger(opts: { onAppointmentSavedAndExit?: () => void } = {}) {
+  const props = {
+    detail,
+    onLineSaved: vi.fn(),
+    getIdempotencyKey: () => 'test-key',
+    clearIdempotencyKey: () => {},
+    idPrefix: 'test',
+    onAppointmentSavedAndExit: opts.onAppointmentSavedAndExit,
+  };
   const utils = render(
     <ToastProvider>
-      <ContainerLedger
-        detail={detail}
-        onLineSaved={vi.fn()}
-        getIdempotencyKey={() => 'test-key'}
-        clearIdempotencyKey={() => {}}
-        idPrefix="test"
-        onAppointmentSavedAndExit={opts.onAppointmentSavedAndExit}
-      />
+      <ContainerLedger {...props} />
     </ToastProvider>,
   );
-  return { ...utils, confirmButtons: () => utils.container.querySelectorAll('.cus-container-confirm, .cus-container-revert') };
+  const rerenderWithSavedLine = () => utils.rerender(
+    <ToastProvider>
+      <ContainerLedger {...props} detail={{ ...detail, containers: [{ ...detail.containers[0], customerAppointmentAt: '2026-09-16T02:00:00.000Z' }] }} />
+    </ToastProvider>,
+  );
+  return { ...utils, rerenderWithSavedLine, confirmButtons: () => utils.container.querySelectorAll('.cus-container-confirm, .cus-container-revert') };
 }
 
 describe('ContainerLedger confirm affordances', () => {
@@ -182,7 +188,7 @@ describe('ContainerLedger confirm affordances', () => {
 
   it('Enter-commit success exits the detail surface to the list (fires onAppointmentSavedAndExit once)', async () => {
     const onAppointmentSavedAndExit = vi.fn();
-    renderLedger({ onAppointmentSavedAndExit });
+    const view = renderLedger({ onAppointmentSavedAndExit });
     updateCusShipmentContainerLine.mockResolvedValue({ line: { id: 10, shipmentVersion: 5 } });
 
     fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ }));
@@ -191,9 +197,12 @@ describe('ContainerLedger confirm affordances', () => {
     fireEvent.keyDown(screen.getByRole('dialog', { name: /Chọn giờ hẹn đóng\/trả/ }), { key: 'Enter' });
 
     await waitFor(() => expect(updateCusShipmentContainerLine).toHaveBeenCalledTimes(1));
-    // Deferred past the effect flush so the host's while-saving guard no longer
-    // applies — then the host closes the drawer and the list shows.
-    await waitFor(() => expect(onAppointmentSavedAndExit).toHaveBeenCalledTimes(1));
+    // Production: the refetched line lands, drafts reset, the saved line stops
+    // being dirty, and only then does the exit fire. Mirror that by rerendering
+    // with the saved line; the exit must NOT fire while the line is still dirty.
+    await waitFor(() => expect(onAppointmentSavedAndExit).not.toHaveBeenCalled());
+    view.rerenderWithSavedLine();
+    await waitFor(() => expect(onAppointmentSavedAndExit).toHaveBeenCalledTimes(1), { timeout: 3000 });
     expect(document.querySelector('.cus-appointment-popover')).toBeNull();
   });
 
