@@ -301,6 +301,11 @@
   line-height: 1.5;
 }
 
+.driver-task-rules__note span {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .driver-task-empty {
   margin: 0;
   font-size: var(--text-body-size);
@@ -928,6 +933,7 @@
   color: var(--ink);
   font-size: var(--text-caption-size);
   font-weight: 500;
+  text-transform: uppercase;
 }
 
 .driver-task-ops-toggle {

@@ -291,26 +291,43 @@ export default function DriverTripDetailPage() {
 
       <DriverTaskInfoSections trip={trip} />
 
-      {/* TC-DA-001: operation-task chips (tác vụ) — resolved with the same
-          parseNote codepath as the /my-trips board cards (architect amendment:
-          one tag-resolution codepath app-wide). N ≥ 6 collapses to the first
-          4 chips behind a Mở rộng/Thu gọn toggle. */}
-      {operationTags.length > 0 && (
+      {/* Card _36 (P0_Mobile, user report 2026-09-15): Tác vụ and Ghi chú
+          render as TWO SEPARATE LINES from the saved dispatch note
+          (driverTaskNote v2): tags segment → Tác vụ (uppercase chips),
+          manual text → Ghi chú. Each line omits gracefully when its part
+          is absent; N ≥ 6 chips collapse behind Mở rộng/Thu gọn. Same
+          parseNote codepath as the /my-trips board cards. */}
+      {(operationTags.length > 0 || driverNotes) && (
         <section className="driver-task-section">
-          <div className="driver-task-section__head">
-            <span>Tác vụ</span>
-          </div>
-          <div className="driver-task-ops" data-testid="operation-chips">
-            {visibleOperationTags.map((tag) => (
-              <span key={tag} className="driver-task-ops-chip" data-testid="operation-chip">{tag}</span>
-            ))}
-            {shouldCollapseChips && (
-              <button type="button" className="driver-task-ops-toggle" onClick={() => setChipsExpanded((v) => !v)}>
-                {chipsExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                <span>{chipsExpanded ? 'Thu gọn' : 'Mở rộng'}</span>
-              </button>
-            )}
-          </div>
+          {operationTags.length > 0 && (
+            <>
+              <div className="driver-task-section__head">
+                <span>Tác vụ</span>
+              </div>
+              <div className="driver-task-ops" data-testid="operation-chips">
+                {visibleOperationTags.map((tag) => (
+                  <span key={tag} className="driver-task-ops-chip" data-testid="operation-chip">{tag}</span>
+                ))}
+                {shouldCollapseChips && (
+                  <button type="button" className="driver-task-ops-toggle" onClick={() => setChipsExpanded((v) => !v)}>
+                    {chipsExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                    <span>{chipsExpanded ? 'Thu gọn' : 'Mở rộng'}</span>
+                  </button>
+                )}
+              </div>
+            </>
+          )}
+          {driverNotes && (
+            <>
+              <div className="driver-task-section__head">
+                <span>Ghi chú</span>
+              </div>
+              <p className="driver-task-rules__note" data-testid="driver-task-driver-notes">
+                <StickyNote size={16} />
+                <span>{driverNotes}</span>
+              </p>
+            </>
+          )}
         </section>
       )}
 
@@ -328,17 +345,8 @@ export default function DriverTripDetailPage() {
 
       <section className="driver-task-section">
         <div className="driver-task-section__head">
-          {/* 27.8 spec — "Ô 'Quy định tại điểm làm hàng' → Ghi chú: Mục ghi
-              chú này nhận thông tin từ ghi chú cus/điều vận trên hệ thống
-              'ghi chú cho lái xe'". Renamed to surface the spec wording. */}
           <span>Quy định tại điểm làm hàng</span>
         </div>
-        {driverNotes ? (
-          <p className="driver-task-rules__note" data-testid="driver-task-driver-notes">
-            <StickyNote size={16} />
-            <span>{driverNotes}</span>
-          </p>
-        ) : null}
         {siteRules.length > 0 ? (
           <ul className="driver-task-rules">
             {siteRules.map((rule, index) => (

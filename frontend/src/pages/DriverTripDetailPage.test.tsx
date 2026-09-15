@@ -856,6 +856,28 @@ describe('DriverTripDetailPage', () => {
     expect(note.textContent).not.toContain('KIỂM HÓA');
   });
 
+  it('_36: Tác vụ and Ghi chú render as separate labeled lines', async () => {
+    const tags = ['KIỂM HÓA', 'QUAY ĐẦU'];
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        knownTagLabels: tags,
+        fulfillment: {
+          ...makeTaskDetail().fulfillment!,
+          driverNotes: 'KIỂM HÓA; QUAY ĐẦU\nghép cont với lô khác, cẩn thận seal',
+        },
+      }),
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+    renderPage();
+
+    expect(await screen.findByText('Tác vụ')).toBeTruthy();
+    expect(screen.getByText('Ghi chú')).toBeTruthy();
+    const note = screen.getByTestId('driver-task-driver-notes');
+    expect(note.textContent).toContain('ghép cont với lô khác, cẩn thận seal');
+  });
+
   // 2a618442: the TÁC VỤ TÀI XẾ header is DEFAULT EXPANDED — factory title +
   // subordinate route line + customer; collapsing only hides the customer
   // name. Status pill + Đóng/Trả chip stay visible in both states.
