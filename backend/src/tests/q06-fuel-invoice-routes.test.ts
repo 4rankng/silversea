@@ -24,6 +24,7 @@ const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const createdUserIds: number[] = [];
 const createdTripIds: number[] = [];
 const createdTruckIds: number[] = [];
+const createdPeriodLockIds: number[] = [];
 const createdSupplierIds: number[] = [];
 const createdRouteIds: number[] = [];
 const createdCargoTypeIds: number[] = [];
@@ -941,6 +942,62 @@ describe('Q06 fuel invoice routes', () => {
     });
     assert.equal(correctionReplay.status, 201);
     assert.equal(correctionReplay.body.replayed, true);
+
+    // Regression (2026-09-15): a fresh invoice carries updated_at with PG
+    // microsecond precision (defaultNow()). The reversal UPDATE used to guard
+    // on updatedAt equality, which truncated Date (ms) never matches — every
+    // correction 409'd with 'already handled by someone else' until some
+    // ordinary edit first rewrote updated_at at millisecond precision.
+    const reversalExpense = await mkExpense({
+      tripId: trip.id,
+      supplierId: supplier.id,
+      expenseType: 'FUEL_DIESEL',
+      expenseDate: '2026-07-25',
+      invoiceNumber: `PXD-Q18-REV-${suffix}`,
+      approvalStatus: 'APPROVED',
+    });
+    const freshInvoice = await request('/api/finance/fuel-invoices', {
+      method: 'POST',
+      token: accountantToken,
+      body: {
+        supplierId: supplier.id,
+        invoiceNumber: `HD-Q18-REV-${suffix}`,
+        invoiceDate: '2026-07-25',
+        totalLiters: 100,
+        unitPrice: 22000,
+        note: 'Hóa đơn tạo xong lập tức hoàn tác',
+        allocations: [{
+          tripId: trip.id,
+          truckId: truck.id,
+          tripExpenseId: reversalExpense.id,
+          voucherReference: `PXD-Q18-REV-${suffix}`,
+          voucherDate: '2026-07-25',
+          liters: 100,
+        }],
+      },
+    });
+    assert.equal(freshInvoice.status, 201, `create body: ${JSON.stringify(freshInvoice.body)}`);
+    const freshRead = await request(`/api/finance/fuel-invoices/${freshInvoice.body.id}`, {
+      token: accountantToken,
+    });
+    assert.equal(freshRead.status, 200);
+    const freshReversal = await request(`/api/finance/fuel-invoices/${freshInvoice.body.id}/corrections`, {
+      method: 'POST',
+      idempotencyKey: `q18-fuel-reverse-${freshInvoice.body.id}`,
+      token: accountantToken,
+      body: {
+        correctionType: 'REVERSAL',
+        expectedVersion: freshRead.body.version,
+        reason: 'Hoàn tác ngay sau tạo — pin milli/microsecond precision fix',
+      },
+    });
+    console.log('REVERSAL-BODY', JSON.stringify(freshReversal.body));
+    assert.equal(freshReversal.status, 201);
+    const freshAfter = await request(`/api/finance/fuel-invoices/${freshInvoice.body.id}`, {
+      token: accountantToken,
+    });
+    assert.equal(freshAfter.status, 200);
+    assert.equal(freshAfter.body.approvalStatus, 'REVERSED');
     assert.equal(correctionReplay.body.id, correction.body.id);
 
     // The staged check/approve calls are gone; the correction above already

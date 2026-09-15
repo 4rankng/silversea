@@ -712,6 +712,11 @@ export async function applyFuelInvoiceGovernanceAction(
   const snapshot = action.afterSnapshot as FuelInvoiceEffectiveSnapshot;
 
   if (snapshot.correctionType === 'REVERSAL') {
+    // Version exclusivity: the FOR UPDATE row lock plus the numeric version
+    // pre-check above enforce "no one else touched this". A timestamp
+    // equality predicate in the UPDATE below would never match rows whose
+    // stored updated_at carries PG microsecond precision (defaultNow()),
+    // so it 409'd every correction with 'already handled by someone else'.
     // Materialized reversal: the row flips to REVERSED and its allocations
     // are removed, so every reader (list filter, fuel-AP recon via the
     // effective 'APPROVED' filter) sees the reversal without the dropped
@@ -724,7 +729,6 @@ export async function applyFuelInvoiceGovernanceAction(
       .where(and(
         eq(s.fuelInvoices.id, invoice.id),
         inArray(s.fuelInvoices.approvalStatus, ['RECORDED', 'APPROVED']),
-        eq(s.fuelInvoices.updatedAt, invoice.updatedAt),
       ))
       .returning({ id: s.fuelInvoices.id });
     if (!reversed) {
@@ -762,7 +766,6 @@ export async function applyFuelInvoiceGovernanceAction(
     .where(and(
       eq(s.fuelInvoices.id, invoice.id),
       inArray(s.fuelInvoices.approvalStatus, ['RECORDED', 'APPROVED']),
-      eq(s.fuelInvoices.updatedAt, invoice.updatedAt),
     ))
     .returning({ id: s.fuelInvoices.id });
   if (!advanced) {
