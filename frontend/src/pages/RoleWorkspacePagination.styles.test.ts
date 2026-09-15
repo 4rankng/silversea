@@ -20,9 +20,14 @@ describe('role workspace pagination', () => {
     expect(css).toMatch(/@media \(max-width:\s*1100px\)[\s\S]*?\.dispatch-plan-page__workspace > \.ds-pagination\s*\{[^}]*position:\s*static;/);
   });
 
-  it('gives the CUS plan filter a full row on narrow screens', () => {
+  it('keeps the CUS worksheet toolbar on one two-column grid that reflows without breakpoint overrides', () => {
     const css = readPageCss('ShipmentsPage.css');
 
-    expect(css).toMatch(/@media \(max-width:\s*700px\)[\s\S]*?\.cus-worksheet-toolbar__filters \.cus-plan-status-filter\s*\{[^}]*grid-column:\s*1 \/ -1;/);
+    // The 2026-09-15 worksheet rework replaced the 5-column + 3-breakpoint
+    // toolbar with a single two-column grid; narrow screens reflow through
+    // the grid itself instead of media-query overrides, and the retired
+    // full-row plan-filter rule must stay retired.
+    expect(css).toMatch(/\.cus-worksheet-toolbar__filters\s*\{[^}]*grid-template-columns:\s*minmax\(240px,\s*1\.3fr\)\s*minmax\(0,\s*4fr\);/);
+    expect(css).not.toMatch(/\.cus-worksheet-toolbar__filters \.cus-plan-status-filter\s*\{[^}]*grid-column:\s*1 \/ -1;/);
   });
 });

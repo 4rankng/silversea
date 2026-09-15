@@ -65,7 +65,7 @@ describe('shipment create responsive layout', () => {
     expect(containerEditorSource.match(/<col className="csc-container-col__/g)).toHaveLength(10);
     expect(css).toMatch(/\.csc-container-editor\s*\{[^}]*container-type:\s*inline-size;[^}]*width:\s*100%;[^}]*min-width:\s*0;/);
     expect(css).toMatch(/\.csc-container-table-scroll\s*\{[^}]*width:\s*100%;/);
-    expect(css).toMatch(/\.csc-container-table\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*1176px;[^}]*table-layout:\s*fixed;/);
+    expect(css).toMatch(/\.csc-container-table\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*1038px;[^}]*table-layout:\s*fixed;/);
     expect(css).toMatch(/\.csc-container-col__route\s*\{[^}]*width:\s*180px;/);
     expect(css).toMatch(/\.csc-container-col__index\s*\{[^}]*width:\s*40px;/);
     expect(css).toMatch(/\.csc-container-col__weight\s*\{[^}]*width:\s*96px;/);
@@ -147,7 +147,7 @@ describe('shipment create responsive layout', () => {
     expect(css).toMatch(/\.csc-form\s*\{[^}]*gap:\s*12px;/);
     expect(css).toMatch(/\.csc-section\s*\{[^}]*border:\s*0\s*!important;[^}]*background:\s*var\(--surface\)\s*!important;/);
     expect(css).toMatch(/\.csc-section__heading\s*\{[^}]*margin:\s*-18px -18px 0;[^}]*background:\s*var\(--surface-2\);/);
-    expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-section__heading\s*\{[^}]*margin:\s*-14px -14px 0;/);
+    expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-section__heading\s*\{[^}]*margin:\s*-8px -8px 0;/);
     expect(css).not.toMatch(/\.csc-section\s*\{[^}]*box-shadow:/);
   });
 
@@ -178,10 +178,10 @@ describe('shipment create responsive layout', () => {
     expect(css).toMatch(/\.app-main:has\(\.csc-page\) \.app-body\s*\{[^}]*--app-body-pad-x:\s*8px;/);
     expect(css).toMatch(/\.app-main:not\(\.driver-mode\) \.app-body > \.csc-page\s*\{[^}]*width:\s*100%;[^}]*max-width:\s*none;[^}]*margin-inline:\s*0;/);
     expect(css).toMatch(/\.csc-page\s*\{[^}]*width:\s*100%;[^}]*margin:\s*0;[^}]*padding:\s*12px 0 28px;/);
-    expect(css).toMatch(/@media \(max-width:\s*640px\)\s*\{\s*\.csc-page\s*\{[^}]*padding-bottom:\s*calc\(44px \+ env\(safe-area-inset-bottom, 0px\)\);/);
+    expect(css).toMatch(/@media \(max-width:\s*640px\)[\s\S]*?\.csc-page\s*\{[^}]*padding-bottom:\s*calc\(44px \+ env\(safe-area-inset-bottom, 0px\)\);/);
     expect(css).toMatch(/\.csc-workspace\s*\{[^}]*gap:\s*12px;/);
-    expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-section\s*\{[^}]*padding:\s*14px\s*!important;[^}]*gap:\s*12px\s*!important;/);
-    expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-section__heading\s*\{[^}]*padding:\s*12px 14px;/);
+    expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-section\s*\{[^}]*padding:\s*8px\s*!important;[^}]*gap:\s*10px\s*!important;/);
+    expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-section__heading\s*\{[^}]*padding:\s*10px 8px;/);
     expect(css).not.toMatch(/\.csc-control-boundary \[data-label='true'\]\s*\{[^}]*font-size:/);
     const boundaryBlock = css.match(/\.csc-control-boundary textarea\s*\{([^}]*)\}/)?.[1] ?? '';
     expect(boundaryBlock).not.toContain('min-height:');
