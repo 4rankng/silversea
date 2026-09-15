@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { getUser } from '../middleware/auth';
+import { ApiError } from '../errors';
 import { parsePagination } from './utils/pagination';
 import * as notifService from '../services/notification.service';
 import * as pushService from '../services/push.service';
@@ -27,7 +28,9 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
 
 router.post('/:id/read', asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string);
+  if (!Number.isInteger(id) || id <= 0) throw new ApiError(400, 'ID thông báo không hợp lệ');
   const updated = await notifService.markAsRead(id, getUser(req).userId);
+  if (!updated) throw new ApiError(404, 'Không tìm thấy thông báo.');
   res.json(updated);
 }));
 

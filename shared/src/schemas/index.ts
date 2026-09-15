@@ -42,6 +42,13 @@ export const numericDecimal = z.union([z.number(), z.string()]).transform((val, 
 });
 
 const positiveNumeric = z.union([z.number(), z.string()]).transform((val, ctx) => {
+  // String inputs must be plain decimal literals — Number() alone would
+  // happily coerce "0x10" to 16 and other exotic literals into money and
+  // quantity fields.
+  if (typeof val === 'string' && !/^\d+(\.\d+)?$/.test(val.trim())) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Phải là số dương' });
+    return z.NEVER;
+  }
   const num = Number(val);
   if (!Number.isFinite(num) || num <= 0) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Phải là số dương' });
