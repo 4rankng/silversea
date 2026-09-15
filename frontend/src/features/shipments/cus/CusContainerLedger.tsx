@@ -258,7 +258,9 @@ export function ContainerLedger({
 
   const commitAppointment = useCallback(async (lineId: number, value: string): Promise<boolean> => {
     const line = detail.containers.find((c) => c.id === lineId);
-    if (!line || !line.permissions.customerAppointmentEditable) return false;
+    // _34: a non-saveable line is an error the popover must show — a silent
+    // false made the popover close as if saved, with zero POSTs.
+    if (!line || !line.permissions.customerAppointmentEditable) throw new Error('Không thể lưu giờ hẹn cho container này.');
     setSaving(true);
     let saved = false;
     try {
@@ -319,6 +321,9 @@ export function ContainerLedger({
           className="cus-container-table-scroll"
           onKeyDown={(event) => {
             if (event.nativeEvent.isComposing || saving || !isDirty) return;
+            // _34: the appointment popover owns its own Enter (commit path);
+            // table-level Enter only saves TABLE drafts.
+            if ((event.target as HTMLElement).closest('.cus-appointment-popover, .cus-appointment-backdrop')) return;
             if (event.key === 'Enter' && !(event.target instanceof HTMLButtonElement)) {
               event.preventDefault();
               void saveAll().then((saved) => { if (saved) scheduleExit(); });

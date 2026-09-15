@@ -219,7 +219,7 @@ describe('CusAppointmentPopover', () => {
     expect(handleClose).toHaveBeenCalledTimes(1);
   });
 
-  it('closes when pressing Escape or Enter', () => {
+  it('closes on Escape; Enter without a commit path shows an error and stays open', () => {
     const handleClose = vi.fn();
     render(
       <CusAppointmentPopover
@@ -235,8 +235,11 @@ describe('CusAppointmentPopover', () => {
     fireEvent.keyDown(dialog, { key: 'Escape' });
     expect(handleClose).toHaveBeenCalledTimes(1);
 
+    // _34: Enter without a wired commit path is a configuration error —
+    // never a silent close (that signature shipped the cut-#27 zero-POST bug).
     fireEvent.keyDown(dialog, { key: 'Enter' });
-    expect(handleClose).toHaveBeenCalledTimes(2);
+    expect(handleClose).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('Không thể lưu: phiên chỉnh sửa không còn đường lưu.')).toBeTruthy();
   });
 
   it('Enter fires the commit callback once; Escape never commits', async () => {

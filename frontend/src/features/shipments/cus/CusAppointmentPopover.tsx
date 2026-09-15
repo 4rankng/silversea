@@ -177,7 +177,9 @@ export function CusAppointmentPopover({
     }
     setSaveError('');
     onChange(composed);
-    if (!onCommit) { onClose(); return; }
+    // _34: a missing commit path is a configuration error — surface it in
+    // the popover instead of silently closing as if the save happened.
+    if (!onCommit) { setSaveError('Không thể lưu: phiên chỉnh sửa không còn đường lưu.'); return; }
     const saveSession = session.current;
     committing.current = true;
     setSaving(true);
