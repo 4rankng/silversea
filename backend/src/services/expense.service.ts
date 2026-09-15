@@ -5,6 +5,7 @@ import { eq, and, sql, desc, isNull, gte, lte, count, sum, inArray, type SQL } f
 import { TxnType } from '@tingting/shared';
 import { LedgerService } from './ledger.service';
 import { ApiError } from '../errors';
+import { todayIsoVn } from '../lib/vn-date';
 import type { Tx } from './trip-shared';
 import { assertCanMakeGovernanceAction } from './governance-policy';
 import { buildGovernanceAction } from './governance-action-core.service';
@@ -152,15 +153,12 @@ async function validateExpenseInput(tx: Tx, data: ExpenseCreateInput) {
 
   // Per PRODUCT-SPECS §4.15 + feedback202606 A10.2: expense_date <= today().
   // Back-dating in the past is allowed (NCC reports late); future is rejected.
-  if (data.expenseDate) {
-    const inputDate = new Date(data.expenseDate);
-    if (!isNaN(inputDate.getTime())) {
-      const today = new Date();
-      today.setHours(23, 59, 59, 999);  // allow entire today
-      if (inputDate.getTime() > today.getTime()) {
-        throw new ApiError(400, 'Ngày phát sinh chi phí không được trong tương lai');
-      }
-    }
+  // "Today" is the Vietnam calendar (Asia/Ho_Chi_Minh): comparing against the
+  // server's local end-of-day rejected VN-today on UTC servers after 17:00Z.
+  // The schema already guarantees a real YYYY-MM-DD, so an ISO string
+  // comparison is exact and timezone-independent.
+  if (data.expenseDate && data.expenseDate > todayIsoVn()) {
+    throw new ApiError(400, 'Ngày phát sinh chi phí không được trong tương lai');
   }
   return category;
 }
