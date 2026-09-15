@@ -1,6 +1,13 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import { useState } from 'react';
+import { BufferedUuiDateTimeInput } from './BufferedUuiDateTimeInput';
 import { DatePanel, TimePanel } from './DateTimePickerPanels';
+
+function Hooked() {
+  const [value, setValue] = useState('');
+  return <BufferedUuiDateTimeInput label="Hẹn" value={value} onChange={setValue} />;
+}
 
 describe('DateTimePickerPanels (_39 designed pickers)', () => {
   it('DatePanel: clicking a day fires the YYYY-MM-DD contract', () => {
@@ -37,5 +44,22 @@ describe('DateTimePickerPanels (_39 designed pickers)', () => {
     fireEvent.click(within(hours).getByRole('option', { name: '23' }));
     fireEvent.click(within(minutes).getByRole('option', { name: '05' }));
     expect(onPick).toHaveBeenCalledWith('23:05');
+  });
+
+  it('_39: the input popover portals to document.body so scroll containers cannot clip it', () => {
+    const onChange = vi.fn();
+    render(<BufferedUuiDateTimeInput label="Hẹn" value="" onChange={onChange} />);
+    // Clicking the input itself opens the designed panels (no button).
+    fireEvent.click(screen.getByLabelText('Hẹn'));
+    const dialog = screen.getByRole('dialog', { name: 'Chọn ngày giờ' });
+    expect(dialog.className).toContain('dtp-popover--portal');
+    expect(dialog.parentElement).toBe(document.body);
+    // Date pick keeps the panel open; the minute pick completes and closes.
+    fireEvent.click(within(dialog).getByRole('button', { name: '15 Tháng 9 2026' }));
+    expect(onChange).toHaveBeenCalledWith('2026-09-15T08:00');
+    fireEvent.click(within(dialog).getByRole('option', { name: '07' }));
+    fireEvent.click(within(dialog).getByRole('option', { name: '45' }));
+    expect(onChange).toHaveBeenLastCalledWith('2026-09-15T07:45');
+    expect(screen.queryByRole('dialog', { name: 'Chọn ngày giờ' })).toBeNull();
   });
 });

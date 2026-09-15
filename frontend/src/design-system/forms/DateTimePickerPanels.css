@@ -39,3 +39,10 @@
 .dtp-pill { display: grid; place-items: center; min-height: 24px; border: 0; border-radius: 5px; background: transparent; color: var(--ink, #1f2937); font-size: var(--text-caption-size, 12px); }
 .dtp-pill.is-active { background: var(--accent, #2563eb); color: var(--white, #fff); font-weight: 600; }
 .dtp-pill:hover { background: var(--surface-3, #eef2f7); }
+
+/* Portaled variant: fixed to the viewport (computed from the trigger rect),
+   so scroll containers can never clip the panel. */
+.dtp-popover--portal {
+  position: fixed;
+  width: max-content;
+}

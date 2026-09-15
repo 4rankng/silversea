@@ -1,8 +1,8 @@
 import { type ReactNode, useId, useRef, useState } from 'react';
-import { Calendar } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import { InputBase, type InputBaseProps } from '@/components/untitled-ui/base/input/input';
 import { Label } from '@/components/untitled-ui/base/input/label';
-import { DATE_TIME_24_PLACEHOLDER, useBufferedDateTimeValue } from '../hooks/useBufferedDateTimeValue';
+import { DATE_TIME_24_PLACEHOLDER, formatDateTime24, useBufferedDateTimeValue } from '../hooks/useBufferedDateTimeValue';
 import { DatePanel, TimePanel } from './DateTimePickerPanels';
 import { useClickOutside } from '../../hooks/useClickOutside';
 
@@ -72,12 +72,33 @@ export function BufferedUuiDateTimeInput({
   // 24h. Selection composes the buffered 'YYYY-MM-DDTHH:mm' contract exactly
   // like a complete typed entry; the raw browser picker is gone.
   const [pickerOpen, setPickerOpen] = useState(false);
-  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [pickerPos, setPickerPos] = useState<{ top: number; left: number } | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
-  useClickOutside(popoverRef, () => { setPickerOpen(false); triggerRef.current?.focus(); }, {
+  // Card _39 (spec pass 3): no calendar button — clicking the input itself
+  // opens the designed panels. The popover portals to document.body with
+  // position:fixed because the absolute panel was clipped by the create
+  // grid's scrollable table body. Position derives from the input's rect:
+  // below it, horizontally clamped, flipped above near the viewport bottom.
+  const openPicker = () => {
+    const inputEl = document.getElementById(id) as HTMLInputElement | null;
+    const rect = inputEl?.getBoundingClientRect?.() ?? null;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const width = Math.min(432, vw - 24);
+    let left = 8;
+    if (rect) left = Math.min(Math.max(8, rect.right - width), Math.max(8, vw - width - 8));
+    let top = rect ? rect.bottom + 4 : 8;
+    if (top + 380 > vh - 8 && rect) top = Math.max(8, rect.top - 384);
+    setPickerPos({ top, left });
+    setPickerOpen(true);
+  };
+  const closePicker = () => {
+    setPickerOpen(false);
+    document.getElementById(id)?.focus();
+  };
+  useClickOutside(popoverRef, closePicker, {
     escapeKey: true,
     enabled: pickerOpen,
-    additionalRefs: [triggerRef],
   });
 
   const currentDate = value ? value.split('T')[0] ?? '' : '';
@@ -85,13 +106,15 @@ export function BufferedUuiDateTimeInput({
 
   const applyComposed = (date: string, time: string) => {
     const composed = date && time ? `${date}T${time}` : '';
-    buffered.onChange({ target: { value: composed } } as unknown as Parameters<typeof buffered.onChange>[0]);
+    // The buffered hook parses the DISPLAY shape (HH:mm DD/MM/YYYY), so the
+    // ISO contract is formatted through formatDateTime24 before dispatch.
+    buffered.onChange({ target: { value: formatDateTime24(composed) } } as unknown as Parameters<typeof buffered.onChange>[0]);
   };
   const handleDatePick = (date: string) => applyComposed(date, currentTime || '08:00');
   const handleTimePick = (time: string) => {
     applyComposed(currentDate || new Date().toISOString().slice(0, 10), time);
     setPickerOpen(false);
-    triggerRef.current?.focus();
+    document.getElementById(id)?.focus();
   };
 
   // InputBase forwards its onChange/onBlur straight to the native input, so
@@ -107,50 +130,42 @@ export function BufferedUuiDateTimeInput({
           {label}
         </Label>
       )}
-      <div className="flex w-full items-start gap-1.5">
-        <div className="relative min-w-0 flex-1">
-          <InputBase
-            {...rest}
-            ref={buffered.ref}
-            groupRef={groupRef}
-            id={id}
-            type="text"
-            size={size}
-            defaultValue={buffered.defaultValue}
-            isInvalid={isInvalid}
-            isDisabled={isDisabled}
-            isRequired={isRequired}
-            placeholder={DATE_TIME_24_PLACEHOLDER}
-            maxLength={16}
-            autoComplete="off"
-            onChange={buffered.onChange}
-            onBlur={buffered.onBlur}
-            inputClassName={inputClassName}
-            wrapperClassName={wrapperClassName}
-            {...(inputProps as Partial<InputBaseProps>)}
-          />
-        </div>
-        <div className="relative shrink-0">
-          <button
-            ref={triggerRef}
-            type="button"
-            aria-label={label ? `Chọn ngày giờ: ${label}` : 'Chọn ngày giờ'}
-            aria-haspopup="dialog"
-            aria-expanded={pickerOpen}
-            disabled={isDisabled}
-            onClick={() => setPickerOpen((v) => !v)}
-            className="mt-px grid h-[34px] w-[34px] place-items-center rounded-md border border-[color:var(--line,#d1d5db)] bg-[color:var(--surface,#fff)] text-tertiary transition-colors hover:text-[color:var(--ink,#1f2937)] disabled:opacity-40"
-          >
-            <Calendar size={16} aria-hidden="true" />
-          </button>
-          {pickerOpen && (
-            <div ref={popoverRef} className="dtp-popover" role="dialog" aria-label="Chọn ngày giờ">
-              <DatePanel value={currentDate} onChange={handleDatePick} />
-              <TimePanel value={currentTime} onPick={handleTimePick} />
-            </div>
-          )}
-        </div>
-      </div>
+      <InputBase
+        {...rest}
+        ref={buffered.ref}
+        groupRef={groupRef}
+        id={id}
+        type="text"
+        size={size}
+        defaultValue={buffered.defaultValue}
+        isInvalid={isInvalid}
+        isDisabled={isDisabled}
+        isRequired={isRequired}
+        placeholder={DATE_TIME_24_PLACEHOLDER}
+        maxLength={16}
+        autoComplete="off"
+        onClick={openPicker}
+        aria-haspopup="dialog"
+        aria-expanded={pickerOpen}
+        onChange={buffered.onChange}
+        onBlur={buffered.onBlur}
+        inputClassName={inputClassName}
+        wrapperClassName={wrapperClassName}
+        {...(inputProps as Partial<InputBaseProps>)}
+      />
+      {pickerOpen && createPortal(
+        <div
+          ref={popoverRef}
+          className="dtp-popover dtp-popover--portal"
+          role="dialog"
+          aria-label="Chọn ngày giờ"
+          style={{ top: pickerPos?.top ?? 8, left: pickerPos?.left ?? 8 }}
+        >
+          <DatePanel value={currentDate} onChange={handleDatePick} />
+          <TimePanel value={currentTime} onPick={handleTimePick} />
+        </div>,
+        document.body,
+      )}
       {hint && (
         <p className="text-xs leading-[1.5] text-tertiary group-invalid/input:text-error-primary">
           {hint}
