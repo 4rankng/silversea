@@ -939,6 +939,31 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(await within(masterRow()).findByText('20:03 19/9/26')).toBeTruthy();
   });
 
+  it('keeps the schedule dialog open when the desktop time-picker panel is clicked (card 20260915_6)', async () => {
+    apiGet.mockImplementation((url: string) => (
+      url === '/shipments/cus-workspace/1'
+        ? Promise.resolve({ ...detail, summary: { ...detail.summary, cargoMode: 'LCL' } })
+        : Promise.resolve(listResponse([{ ...row, cargoMode: 'LCL' }]))
+    ));
+    renderPage();
+    await screen.findByRole('table');
+    const rowElement = masterRow();
+    fireEvent.click(await within(rowElement).findByRole('button', { name: 'Sửa ô lịch trình lô hàng BILL-12345' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Chỉnh sửa Lịch trình' });
+    fireEvent.click(within(dialog).getByLabelText('Giờ'));
+
+    const panel = await waitFor(() => {
+      const el = document.querySelector('.time-picker__popup');
+      if (!el) throw new Error('panel not mounted yet');
+      return el;
+    });
+    fireEvent.pointerDown(panel);
+    expect(screen.queryByRole('dialog', { name: 'Chỉnh sửa Lịch trình' })).not.toBeNull();
+    expect(within(dialog).getByLabelText('Giờ')).toBeTruthy();
+  });
+
+
+
   it('uses exactly one full-cell button to open the matching edit dialog', async () => {
     apiGet.mockResolvedValue(listResponse([{ ...row, cargoMode: 'LCL' }]));
     renderPage();

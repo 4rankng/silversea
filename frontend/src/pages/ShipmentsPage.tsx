@@ -177,7 +177,7 @@ export default function ShipmentsPage() {
   }, {
     escapeKey: true,
     enabled: quickEditDraft != null && quickEditItem != null,
-    ignoreSelector: '.modal__content, .searchable-select__popover, .searchable-select__backdrop, .react-aria-Popover',
+    ignoreSelector: '.modal__content, .searchable-select__popover, .searchable-select__backdrop, .react-aria-Popover, .time-picker__popup, .time-picker__overlay, .time-picker__sheet, .time-picker__inline', // Card 20260915_6: TimePickerSurface clicks (portaled picker) must not kill the draft
   });
   const hasFilters = Boolean(suffixParam || dateFrom || dateTo || direction || bucket);
   const activeFilterCount = [dateFrom, dateTo, direction, bucket].filter(Boolean).length;
