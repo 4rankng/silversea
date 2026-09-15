@@ -239,6 +239,23 @@ export function ContainerLedger({
   /** Persist a single container's appointment directly — bypasses the draft
    *  dirty-tracking so the Enter key in the popover saves immediately without
    *  waiting for a React re-render cycle. */
+
+  // Enter-save exits must wait for the saved line's draft reset (refetch +
+  // effect flush loses the race against a bare timeout), then take the
+  // host's guarded close. Bounded at 2s worst-case.
+  const scheduleExit = useCallback(() => {
+    let attempt = 0;
+    const tryExit = () => {
+      if (dirtyLineIdsRef.current.size === 0 || attempt >= 40) {
+        onAppointmentSavedAndExit?.();
+        return;
+      }
+      attempt += 1;
+      setTimeout(tryExit, 50);
+    };
+    setTimeout(tryExit, 0);
+  }, [onAppointmentSavedAndExit]);
+
   const commitAppointment = useCallback(async (lineId: number, value: string): Promise<boolean> => {
     const line = detail.containers.find((c) => c.id === lineId);
     if (!line || !line.permissions.customerAppointmentEditable) return false;
@@ -264,24 +281,10 @@ export function ContainerLedger({
     } finally {
       setSaving(false);
     }
-    // Fire the exit AFTER the save settles: the saved line's draft reset lands
-    // via the refetch + effect flush, which loses the race against a plain
-    // timeout. Poll the mirrored dirty set (bounded) so the host's guarded
-    // close sees only genuinely-unsaved drafts; fall through after 2s worst-case.
-    if (saved) {
-      let attempt = 0;
-      const tryExit = () => {
-        if (!dirtyLineIdsRef.current.has(lineId) || attempt >= 40) {
-          onAppointmentSavedAndExit?.();
-          return;
-        }
-        attempt += 1;
-        setTimeout(tryExit, 50);
-      };
-      setTimeout(tryExit, 0);
-    }
+    if (saved) scheduleExit();
     return saved;
-  }, [clearIdempotencyKey, detail, getIdempotencyKey, onLineSaved, onAppointmentSavedAndExit, toast]);
+  }, [clearIdempotencyKey, detail, getIdempotencyKey, onLineSaved, scheduleExit, toast]);
+
 
   useEffect(() => {
     if (actionsRef) actionsRef.current = { saveAll, discardAll };
@@ -318,7 +321,7 @@ export function ContainerLedger({
             if (event.nativeEvent.isComposing || saving || !isDirty) return;
             if (event.key === 'Enter' && !(event.target instanceof HTMLButtonElement)) {
               event.preventDefault();
-              void saveAll();
+              void saveAll().then((saved) => { if (saved) scheduleExit(); });
             } else if (event.key === 'Escape') {
               event.preventDefault();
               discardAll();
