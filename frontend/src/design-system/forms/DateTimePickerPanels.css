@@ -40,14 +40,19 @@
 .dtp-pill.is-active { background: var(--accent, #2563eb); color: var(--white, #fff); font-weight: 600; }
 .dtp-pill:hover { background: var(--surface-3, #eef2f7); }
 
-/* Portaled variant: fixed to the viewport (computed from the trigger rect),
-   so scroll containers can never clip the panel. */
+/* Portaled variant: the trigger rect is baked into the host's inline
+   `top`/`left` (position: fixed at the host). The dialog child anchors to
+   the host — no second fixed positioning layer, otherwise the dialog
+   detaches from the computed trigger rect and lands wherever the browser
+   feels like placing a fixed element with no top/left. */
 .dtp-popover--portal {
-  position: fixed;
+  position: relative;
   width: max-content;
 }
 
-/* Appointment-dialog design (card _43) */
+/* Appointment-dialog design (card _43). The host is the only fixed layer;
+   `top`/`left` come from the trigger rect computed in
+   BufferedUuiDateTimeInput.openPicker. */
 .dtp-dialog-host { position: fixed; z-index: 60; }
 .dtp-dialog { flex-direction: column; gap: 8px; width: min(340px, calc(100vw - 24px)); }
 .dtp-dialog__head { display: flex; align-items: center; gap: 7px; color: var(--ink, #1f2937); }

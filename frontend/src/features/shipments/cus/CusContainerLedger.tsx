@@ -301,7 +301,15 @@ export function ContainerLedger({
     } finally {
       setSaving(false);
     }
-    if (saved) scheduleExit();
+    if (saved) {
+      // _34: the popover-commit path bypasses the table's draft-tracking, so
+      // the parent's `dirtyDetailIds` set still flags this drawer as dirty.
+      // Clear it explicitly — otherwise the host's requestCloseMobileDetail
+      // guard trips the discard-confirm dialog ("Bỏ thay đổi container?")
+      // instead of closing cleanly.
+      onDirtyChangeRef.current?.(false);
+      scheduleExit();
+    }
     return saved;
   }, [clearIdempotencyKey, detail, getIdempotencyKey, onLineSaved, scheduleExit, toast]);
 

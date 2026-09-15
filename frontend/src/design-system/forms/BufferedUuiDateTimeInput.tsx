@@ -93,8 +93,26 @@ export function BufferedUuiDateTimeInput({
     const width = Math.min(432, vw - 24);
     let left = 8;
     if (rect) left = Math.min(Math.max(8, rect.right - width), Math.max(8, vw - width - 8));
+    // Dialog max-height = calc(100vh - 16px). Pick the side that fits:
+    //   below if there's room for the full viewport-capped dialog; otherwise
+    //   above the input, anchored to viewport top with 8px gutter. This used
+    //   to be a fixed-380 estimate which missed the date-grid case (~420px
+    //   tall) and parked the dialog off-screen at the bottom of the form.
     let top = rect ? rect.bottom + 4 : 8;
-    if (top + 380 > vh - 8 && rect) top = Math.max(8, rect.top - 384);
+    if (rect) {
+      const gapBelow = vh - rect.bottom - 4;
+      const gapAbove = rect.top - 8;
+      const target = vh - 16;
+      if (gapBelow < target && gapAbove >= target) {
+        top = Math.max(8, rect.top - Math.min(target, rect.top - 8));
+      } else if (gapBelow < target && gapAbove < target) {
+        // Neither side has a full viewport — anchor to the side with the
+        // most space and let the dialog scroll internally (max-height).
+        top = gapBelow > gapAbove
+          ? Math.max(8, vh - target)
+          : Math.max(8, rect.top - target);
+      }
+    }
     setPickerPos({ top, left });
     setPickerOpen(true);
   };
