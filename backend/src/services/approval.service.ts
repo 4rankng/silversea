@@ -7,7 +7,6 @@ import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
 import { assertFuelReconClear } from './fuel-recon-guard.service';
 import { assertInvoiceRequiredForExpense } from './invoice-required.service';
-import { reviewNoInvoiceDisbursementApproval, toNoInvoicePolicySnapshotValue } from './no-invoice-disbursement.service';
 import { propagateExpenseApproval } from './source-change.service';
 import { lockTripFinancialAuthority } from './trip-financial-authority-lock.service';
 import { assertCanMakeGovernanceAction } from './governance-policy';
@@ -59,10 +58,9 @@ export async function transitionApproval(
   // Pessimistic row lock so concurrent approvals serialize on this row.
   // Without `FOR UPDATE`, two parallel txns both read PENDING, both pass
   // the guard below, and both flip the row to APPROVED — letting guards
-  // (`assertFuelReconClear`, `assertInvoiceRequiredForExpense`,
-  // `assertNoInvoiceDisbursementAllowed`) fire twice and any future side
-  // effect double-post. For `debt_offsets` the entity locks in
-  // approveDebtOffset currently mask the race, but `trip_expenses`
+  // (`assertFuelReconClear`, `assertInvoiceRequiredForExpense`) fire twice
+  // and any future side effect double-post. For `debt_offsets` the entity
+  // locks in approveDebtOffset currently mask the race, but `trip_expenses`
   // (processExpenseApproval) has no such second lock. Locking here closes
   // the hole for both tables. See qa/2026-07-27_m12-02_session-report.md
   // defect D1 and qa/2026-07-27_m12-ht_session-report.md HT04-001.
@@ -134,29 +132,6 @@ export async function transitionApproval(
     // forwarderExpenseType has requiresInvoice=true, the expense must carry
     // both invoiceNumber and invoiceDate before approval. Rejections bypass.
     await assertInvoiceRequiredForExpense(opts.id, tx);
-    // M4.7: no-invoice disbursement enforcement. For the requiresInvoice=
-    // false branch, enforces substituteEvidenceAllowed + evidence note +
-    // tiered approval by amount. Rejections bypass.
-    const noInvoiceOutcome = await reviewNoInvoiceDisbursementApproval(opts.id, opts.actorRole, tx);
-    if (noInvoiceOutcome.outcome === 'RETURN_FOR_EVIDENCE') {
-      await tx.update(s.tripExpenses).set({
-        approvalStatus: 'RETURN_FOR_EVIDENCE',
-        noInvoicePolicySnapshot: toNoInvoicePolicySnapshotValue(noInvoiceOutcome.policySnapshot),
-        returnForEvidenceReason: noInvoiceOutcome.returnReason,
-        returnedForEvidenceAt: new Date(),
-        returnedForEvidenceBy: opts.actorId,
-        updatedAt: new Date(),
-        version: sql`${s.tripExpenses.version} + 1`,
-      }).where(eq(s.tripExpenses.id, opts.id));
-      return { outcome: 'RETURN_FOR_EVIDENCE' };
-    }
-    await tx.update(s.tripExpenses).set({
-      noInvoicePolicySnapshot: toNoInvoicePolicySnapshotValue(noInvoiceOutcome.policySnapshot),
-      returnForEvidenceReason: null,
-      returnedForEvidenceAt: null,
-      returnedForEvidenceBy: null,
-      updatedAt: new Date(),
-    }).where(eq(s.tripExpenses.id, opts.id));
   }
 
   // trip_expenses has updatedAt; debt_offsets does not

@@ -2,7 +2,7 @@ import type {
   CustomerAccountType, TripStatus, ShipmentStatus, FuelMode, LoadingType, Role, TxnType,
   TrailerType, TruckStatus, TrailerStatus, DriverStatus, CustomerStatus, PenaltyStatus,
   AdvanceRequestStatus, AdvanceSettlementStatus, ExpenseEntryStatus,
-  TireStatus, TruckCapRole, SupplierType, NoInvoiceEvidenceType, NoInvoiceApprovalTitle,
+  TireStatus, TruckCapRole, SupplierType, NoInvoiceEvidenceType,
   DispatchClassification,
 } from '../constants';
 
@@ -911,7 +911,6 @@ export interface TripExpense {
 }
 
 export interface NoInvoicePolicySnapshot {
-  version: number;
   expenseTypeCode: string;
   expenseTypeName: string;
   defaultCategoryAliases: string[];
@@ -919,10 +918,6 @@ export interface NoInvoicePolicySnapshot {
   allowedEvidenceTypes: NoInvoiceEvidenceType[];
   perItemLimit: string;
   perDayLimit: string;
-  financeLeadItemApprovalLimit: string;
-  directorDayApprovalLimit: string;
-  financeLeadApprovalTitle: NoInvoiceApprovalTitle;
-  directorApprovalTitle: NoInvoiceApprovalTitle;
   requiredScope: 'TRIP_OR_SHIPMENT';
   exceptionReasonRequiredWhenThresholdExceeded: boolean;
 }

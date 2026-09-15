@@ -1,15 +1,12 @@
 import {
   DEFAULT_NO_INVOICE_EVIDENCE_TYPES,
-  NO_INVOICE_APPROVAL_TITLE_LABELS,
   NO_INVOICE_DEFAULT_CATEGORY_ALIASES,
   NO_INVOICE_POLICY_DEFAULTS,
   NO_INVOICE_REQUIRED_SCOPE,
   type NoInvoiceEvidenceType,
-  type NoInvoiceApprovalTitle,
-  Role,
   type NoInvoicePolicySnapshot,
 } from '@tingting/shared';
-import { and, desc, eq, gte, inArray, lte, ne, or, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, lte, or, sql } from 'drizzle-orm';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
@@ -25,49 +22,9 @@ type ForwarderExpenseTypePolicy = {
   noInvoiceEvidenceTypes: string[] | null;
   noInvoicePerItemLimit: string;
   noInvoicePerDayLimit: string;
-  noInvoiceFinanceLeadItemApprovalLimit: string;
-  noInvoiceDirectorDayApprovalLimit: string;
-  noInvoiceFinanceLeadApprovalTitle: string | null;
-  noInvoiceDirectorApprovalTitle: string | null;
-  noInvoicePolicyVersion: number;
 };
-
-type TripExpenseNoInvoiceState = {
-  id: number;
-  tripId: number;
-  shipmentId: number | null;
-  expenseType: string;
-  buyAmount: string;
-  expenseDate: string | null;
-  payeeName: string | null;
-  invoiceNumber: string | null;
-  note: string | null;
-  approvalStatus: string;
-  noInvoiceEvidenceTypes: string[] | null;
-};
-
-export type NoInvoiceApprovalOutcome =
-  | {
-    outcome: 'ALLOW';
-    policySnapshot: NoInvoicePolicySnapshot | null;
-    aggregateAmount: number;
-    exceedsPerItemLimit: boolean;
-    exceedsPerDayLimit: boolean;
-    requiredApprovalTitle: NoInvoiceApprovalTitle | null;
-    requiresExceptionReason: boolean;
-  }
-  | {
-    outcome: 'RETURN_FOR_EVIDENCE';
-    policySnapshot: NoInvoicePolicySnapshot | null;
-    returnReason: string;
-    aggregateAmount: number;
-    requiredApprovalTitle: NoInvoiceApprovalTitle | null;
-    requiresExceptionReason: boolean;
-  };
 
 export const PER_ITEM_THRESHOLD = NO_INVOICE_POLICY_DEFAULTS.perItemLimit;
-export const DIRECTOR_THRESHOLD = NO_INVOICE_POLICY_DEFAULTS.financeLeadItemApprovalLimit;
-export const DAY_AGGREGATE_THRESHOLD = NO_INVOICE_POLICY_DEFAULTS.directorDayApprovalLimit;
 
 export function toNoInvoicePolicySnapshotValue(
   snapshot: NoInvoicePolicySnapshot | null,
@@ -79,49 +36,13 @@ function hasInvoice(invoiceNumber: string | null | undefined): boolean {
   return !!invoiceNumber?.trim();
 }
 
-function normalizePayeeName(value: string): string {
-  return value.trim().replace(/\s+/g, ' ').toLocaleLowerCase('vi-VN');
-}
-
-function buildNoInvoiceAggregateLockKey(
-  expense: TripExpenseNoInvoiceState,
-): string | null {
-  if (hasInvoice(expense.invoiceNumber)) return null;
-  if (!expense.expenseDate || !expense.payeeName?.trim()) return null;
-  return [
-    'no-invoice-aggregate',
-    expense.expenseType,
-    expense.expenseDate,
-    normalizePayeeName(expense.payeeName),
-  ].join('\u001f');
-}
-
-async function lockNoInvoiceAggregateScope(
-  tx: Tx,
-  expense: TripExpenseNoInvoiceState,
-): Promise<void> {
-  const lockKey = buildNoInvoiceAggregateLockKey(expense);
-  if (!lockKey) return;
-  await tx.execute(
-    sql`select pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`,
-  );
-}
-
 function normalizeEvidenceTypes(value: string[] | null | undefined): NoInvoiceEvidenceType[] {
   const allowed = new Set(DEFAULT_NO_INVOICE_EVIDENCE_TYPES);
   return Array.from(new Set((value ?? []).filter((item): item is NoInvoiceEvidenceType => allowed.has(item as NoInvoiceEvidenceType))));
 }
 
-function normalizeApprovalTitle(
-  value: string | null | undefined,
-  fallback: NoInvoiceApprovalTitle,
-): NoInvoiceApprovalTitle {
-  return value === 'FINANCE_LEAD' || value === 'DIRECTOR' ? value : fallback;
-}
-
 export function buildNoInvoicePolicySnapshot(policy: ForwarderExpenseTypePolicy): NoInvoicePolicySnapshot {
   return {
-    version: policy.noInvoicePolicyVersion,
     expenseTypeCode: policy.code,
     expenseTypeName: policy.name,
     defaultCategoryAliases: [...(NO_INVOICE_DEFAULT_CATEGORY_ALIASES[policy.code] ?? [policy.name])],
@@ -129,10 +50,6 @@ export function buildNoInvoicePolicySnapshot(policy: ForwarderExpenseTypePolicy)
     allowedEvidenceTypes: normalizeEvidenceTypes(policy.noInvoiceEvidenceTypes),
     perItemLimit: String(policy.noInvoicePerItemLimit),
     perDayLimit: String(policy.noInvoicePerDayLimit),
-    financeLeadItemApprovalLimit: String(policy.noInvoiceFinanceLeadItemApprovalLimit),
-    directorDayApprovalLimit: String(policy.noInvoiceDirectorDayApprovalLimit),
-    financeLeadApprovalTitle: normalizeApprovalTitle(policy.noInvoiceFinanceLeadApprovalTitle, 'FINANCE_LEAD'),
-    directorApprovalTitle: normalizeApprovalTitle(policy.noInvoiceDirectorApprovalTitle, 'DIRECTOR'),
     requiredScope: NO_INVOICE_REQUIRED_SCOPE,
     exceptionReasonRequiredWhenThresholdExceeded: true,
   };
@@ -150,165 +67,11 @@ async function getForwarderExpenseTypePolicy(
     noInvoiceEvidenceTypes: s.forwarderExpenseTypes.noInvoiceEvidenceTypes,
     noInvoicePerItemLimit: s.forwarderExpenseTypes.noInvoicePerItemLimit,
     noInvoicePerDayLimit: s.forwarderExpenseTypes.noInvoicePerDayLimit,
-    noInvoiceFinanceLeadItemApprovalLimit: s.forwarderExpenseTypes.noInvoiceFinanceLeadItemApprovalLimit,
-    noInvoiceDirectorDayApprovalLimit: s.forwarderExpenseTypes.noInvoiceDirectorDayApprovalLimit,
-    noInvoiceFinanceLeadApprovalTitle: s.forwarderExpenseTypes.noInvoiceFinanceLeadApprovalTitle,
-    noInvoiceDirectorApprovalTitle: s.forwarderExpenseTypes.noInvoiceDirectorApprovalTitle,
-    noInvoicePolicyVersion: s.forwarderExpenseTypes.noInvoicePolicyVersion,
   })
     .from(s.forwarderExpenseTypes)
     .where(eq(s.forwarderExpenseTypes.code, expenseTypeCode))
     .limit(1);
   return policy ?? null;
-}
-
-async function getTripExpenseNoInvoiceState(
-  txOrDb: DbLike,
-  expenseId: number,
-): Promise<TripExpenseNoInvoiceState | null> {
-  const [expense] = await txOrDb.select({
-    id: s.tripExpenses.id,
-    tripId: s.tripExpenses.tripId,
-    shipmentId: s.trips.shipmentId,
-    expenseType: s.tripExpenses.expenseType,
-    buyAmount: s.tripExpenses.buyAmount,
-    expenseDate: s.tripExpenses.expenseDate,
-    payeeName: s.tripExpenses.payeeName,
-    invoiceNumber: s.tripExpenses.invoiceNumber,
-    note: s.tripExpenses.note,
-    approvalStatus: s.tripExpenses.approvalStatus,
-    noInvoiceEvidenceTypes: s.tripExpenses.noInvoiceEvidenceTypes,
-  })
-    .from(s.tripExpenses)
-    .leftJoin(s.trips, eq(s.tripExpenses.tripId, s.trips.id))
-    .where(eq(s.tripExpenses.id, expenseId))
-    .limit(1);
-  return expense ?? null;
-}
-
-async function getExpensePhotoEvidence(txOrDb: DbLike, expenseId: number): Promise<{
-  photoCount: number;
-  geotaggedPhotoCount: number;
-}> {
-  const [row] = await txOrDb.select({
-    photoCount: sql<number>`count(${s.tripExpensePhotos.id})::int`,
-    geotaggedPhotoCount: sql<number>`count(*) filter (
-      where ${s.photoGeotags.id} is not null
-        and ${s.photoGeotags.gpsAt} is not null
-        and ${s.photoGeotags.lat} between -90 and 90
-        and ${s.photoGeotags.lng} between -180 and 180
-    )::int`,
-  })
-    .from(s.tripExpensePhotos)
-    .leftJoin(s.photoGeotags, and(
-      eq(s.photoGeotags.entityType, 'trip_expense_photo'),
-      eq(s.photoGeotags.entityId, s.tripExpensePhotos.id),
-    ))
-    .where(eq(s.tripExpensePhotos.tripExpenseId, expenseId));
-  return {
-    photoCount: row?.photoCount ?? 0,
-    geotaggedPhotoCount: row?.geotaggedPhotoCount ?? 0,
-  };
-}
-
-async function sumSameDaySamePayeeCategory(
-  txOrDb: DbLike,
-  expense: TripExpenseNoInvoiceState,
-): Promise<number> {
-  if (!expense.expenseDate || !expense.payeeName?.trim()) return Number(expense.buyAmount);
-  const normalizedPayee = normalizePayeeName(expense.payeeName);
-  const [row] = await txOrDb.select({
-    total: sql<string>`coalesce(sum(${s.tripExpenses.buyAmount}), 0)::text`,
-  })
-    .from(s.tripExpenses)
-    .where(and(
-      eq(s.tripExpenses.expenseType, expense.expenseType),
-      eq(s.tripExpenses.expenseDate, expense.expenseDate),
-      sql`lower(regexp_replace(btrim(${s.tripExpenses.payeeName}), '[[:space:]]+', ' ', 'g')) = ${normalizedPayee}`,
-      ne(s.tripExpenses.id, expense.id),
-      inArray(s.tripExpenses.approvalStatus, ['DRAFT', 'RECORDED', 'PENDING', 'APPROVED', 'RETURN_FOR_EVIDENCE']),
-      or(
-        sql`${s.tripExpenses.invoiceNumber} IS NULL`,
-        sql`btrim(${s.tripExpenses.invoiceNumber}) = ''`,
-      ),
-    ));
-  return Number(row?.total ?? '0') + Number(expense.buyAmount);
-}
-
-function missingEvidenceLabels(
-  expense: TripExpenseNoInvoiceState,
-  policy: ForwarderExpenseTypePolicy,
-  photoEvidence: { photoCount: number; geotaggedPhotoCount: number },
-): string[] {
-  const missing: string[] = [];
-  if (!expense.expenseDate) missing.push('ngày chi');
-  if (!expense.payeeName?.trim()) missing.push('người nhận');
-  if (!expense.note?.trim()) missing.push('lý do');
-
-  const evidenceTypes = normalizeEvidenceTypes(expense.noInvoiceEvidenceTypes);
-  if (evidenceTypes.length === 0) {
-    missing.push('bằng chứng');
-    return missing;
-  }
-
-  const allowedEvidence = new Set(normalizeEvidenceTypes(policy.noInvoiceEvidenceTypes));
-  if (allowedEvidence.size > 0) {
-    const invalid = evidenceTypes.filter((item) => !allowedEvidence.has(item));
-    if (invalid.length > 0) {
-      throw new ApiError(
-        400,
-        `Chi phí ${expense.expenseType}: bằng chứng ${invalid.join(', ')} không được phép cho hạng mục này`,
-      );
-    }
-  }
-
-  if (evidenceTypes.includes('ONSITE_PHOTO')) {
-    if (photoEvidence.photoCount === 0) {
-      missing.push('ảnh hiện trường');
-    } else if (photoEvidence.geotaggedPhotoCount === 0) {
-      missing.push('thời gian và vị trí GPS của ảnh hiện trường');
-    }
-  }
-  return missing;
-}
-
-function directorRequired(actorRole: string): boolean {
-  return actorRole === Role.ADMIN || actorRole === Role.MANAGER;
-}
-
-function financeLeadRequired(actorRole: string): boolean {
-  return actorRole === Role.ACCOUNTANT || directorRequired(actorRole);
-}
-
-function normalizeExceptionReason(note: string | null | undefined): string {
-  return note?.trim() ?? '';
-}
-
-function hasExplicitExceptionReason(note: string | null | undefined): boolean {
-  return normalizeExceptionReason(note).length >= 10;
-}
-
-function resolveRequiredApprovalTitle(args: {
-  amount: number;
-  aggregateAmount: number;
-  perItemLimit: number;
-  perDayLimit: number;
-  itemApprovalLimit: number;
-  directorDayLimit: number;
-  financeLeadApprovalTitle: NoInvoiceApprovalTitle;
-  directorApprovalTitle: NoInvoiceApprovalTitle;
-}): NoInvoiceApprovalTitle | null {
-  if (args.amount > args.itemApprovalLimit || args.aggregateAmount > args.directorDayLimit) {
-    return args.directorApprovalTitle;
-  }
-  if (args.amount > args.perItemLimit || args.aggregateAmount > args.perDayLimit) {
-    return args.financeLeadApprovalTitle;
-  }
-  return null;
-}
-
-function approvalTitleLabel(title: NoInvoiceApprovalTitle | null): string {
-  return title ? NO_INVOICE_APPROVAL_TITLE_LABELS[title] : '';
 }
 
 export async function buildNoInvoicePolicySnapshotForExpenseInput(
@@ -327,126 +90,6 @@ export async function buildNoInvoicePolicySnapshotForExpenseInput(
     throw new ApiError(400, `Hạng mục "${input.expenseType}" không cho phép chi hộ không hóa đơn`);
   }
   return buildNoInvoicePolicySnapshot(policy);
-}
-
-export async function reviewNoInvoiceDisbursementApproval(
-  expenseId: number,
-  actorRole: string,
-  tx?: Tx,
-): Promise<NoInvoiceApprovalOutcome> {
-  const q = tx ?? db;
-  const expense = await getTripExpenseNoInvoiceState(q, expenseId);
-  if (!expense) {
-    return {
-      outcome: 'ALLOW',
-      policySnapshot: null,
-      aggregateAmount: 0,
-      exceedsPerItemLimit: false,
-      exceedsPerDayLimit: false,
-      requiredApprovalTitle: null,
-      requiresExceptionReason: false,
-    };
-  }
-  if (hasInvoice(expense.invoiceNumber)) {
-    return {
-      outcome: 'ALLOW',
-      policySnapshot: null,
-      aggregateAmount: Number(expense.buyAmount),
-      exceedsPerItemLimit: false,
-      exceedsPerDayLimit: false,
-      requiredApprovalTitle: null,
-      requiresExceptionReason: false,
-    };
-  }
-  if (tx) {
-    await lockNoInvoiceAggregateScope(tx, expense);
-  }
-
-  const policy = await getForwarderExpenseTypePolicy(q, expense.expenseType);
-  if (!policy) {
-    throw new ApiError(400, `Hạng mục "${expense.expenseType}" chưa được cấu hình cho chi không hóa đơn`);
-  }
-  if (policy.requiresInvoice) {
-    throw new ApiError(400, `Hạng mục "${expense.expenseType}" bắt buộc phải có hóa đơn`);
-  }
-
-  const substituteAllowed = policy.substituteEvidenceAllowed ?? true;
-  if (!substituteAllowed) {
-    throw new ApiError(400, `Hạng mục "${expense.expenseType}" không cho phép chi hộ không hóa đơn`);
-  }
-
-  const policySnapshot = buildNoInvoicePolicySnapshot(policy);
-  const photoEvidence = await getExpensePhotoEvidence(q, expenseId);
-  const missing = missingEvidenceLabels(expense, policy, photoEvidence);
-  const aggregateAmount = await sumSameDaySamePayeeCategory(q, expense);
-
-  if (missing.length > 0) {
-    return {
-      outcome: 'RETURN_FOR_EVIDENCE',
-      policySnapshot,
-      returnReason: `Thiếu chứng từ tối thiểu: ${missing.join(', ')}`,
-      aggregateAmount,
-      requiredApprovalTitle: null,
-      requiresExceptionReason: false,
-    };
-  }
-
-  const amount = Number(expense.buyAmount);
-  const perItemLimit = Number(policy.noInvoicePerItemLimit);
-  const perDayLimit = Number(policy.noInvoicePerDayLimit);
-  const itemApprovalLimit = Number(policy.noInvoiceFinanceLeadItemApprovalLimit);
-  const directorDayLimit = Number(policy.noInvoiceDirectorDayApprovalLimit);
-  const financeLeadApprovalTitle = normalizeApprovalTitle(policy.noInvoiceFinanceLeadApprovalTitle, 'FINANCE_LEAD');
-  const directorApprovalTitle = normalizeApprovalTitle(policy.noInvoiceDirectorApprovalTitle, 'DIRECTOR');
-  const exceedsPerItemLimit = amount > perItemLimit;
-  const exceedsPerDayLimit = aggregateAmount > perDayLimit;
-  const requiredApprovalTitle = resolveRequiredApprovalTitle({
-    amount,
-    aggregateAmount,
-    perItemLimit,
-    perDayLimit,
-    itemApprovalLimit,
-    directorDayLimit,
-    financeLeadApprovalTitle,
-    directorApprovalTitle,
-  });
-  const requiresExceptionReason = requiredApprovalTitle != null;
-  const requiresDirector = requiredApprovalTitle === 'DIRECTOR';
-  const requiresFinanceLead = requiredApprovalTitle === 'FINANCE_LEAD';
-
-  if (requiresExceptionReason && !hasExplicitExceptionReason(expense.note)) {
-    return {
-      outcome: 'RETURN_FOR_EVIDENCE',
-      policySnapshot,
-      returnReason: `Khoản chi vượt ngưỡng nội bộ, cần ghi rõ lý do ngoại lệ trước khi trình ${approvalTitleLabel(requiredApprovalTitle)}`,
-      aggregateAmount,
-      requiredApprovalTitle,
-      requiresExceptionReason,
-    };
-  }
-
-  if (requiresDirector && !directorRequired(actorRole)) {
-    throw new ApiError(
-      403,
-      `Khoản ${amount.toLocaleString('vi-VN')} ₫ hoặc tổng ngày ${aggregateAmount.toLocaleString('vi-VN')} ₫ vượt thẩm quyền tài chính, cần giám đốc phê duyệt`,
-    );
-  }
-  if (requiresFinanceLead && !financeLeadRequired(actorRole)) {
-    throw new ApiError(
-      403,
-      `Khoản ${amount.toLocaleString('vi-VN')} ₫ hoặc tổng ngày ${aggregateAmount.toLocaleString('vi-VN')} ₫ vượt ngưỡng mặc định, cần ${approvalTitleLabel(requiredApprovalTitle)} phê duyệt`,
-    );
-  }
-
-  return {
-    outcome: 'ALLOW',
-    policySnapshot,
-    aggregateAmount,
-    exceedsPerItemLimit,
-    exceedsPerDayLimit,
-    requiredApprovalTitle,
-    requiresExceptionReason,
-  };
 }
 
 export interface NoInvoiceDisbursementItem {
@@ -557,8 +200,8 @@ export async function getNoInvoiceDisbursementReport(opts: {
     const audit = auditMap.get(row.id);
     if (opts.approverId != null && audit?.userId !== opts.approverId) return [];
     const snapshot = row.policySnapshot as NoInvoicePolicySnapshot | null;
-    const financeLeadLimit = Number(snapshot?.financeLeadItemApprovalLimit ?? DIRECTOR_THRESHOLD);
-    const overThreshold = Number(row.buyAmount) > financeLeadLimit;
+    const itemLimit = Number(snapshot?.perItemLimit ?? PER_ITEM_THRESHOLD);
+    const overThreshold = Number(row.buyAmount) > itemLimit;
     return [{
       expenseId: row.id,
       tripId: row.tripId,

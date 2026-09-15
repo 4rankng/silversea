@@ -601,6 +601,13 @@
       "when": 1789405248972,
       "tag": "0089_confirmed_salary_snapshots",
       "breakpoints": true
+    },
+    {
+      "idx": 86,
+      "version": "7",
+      "when": 1789444340666,
+      "tag": "0090_drop_no_invoice_approval_columns",
+      "breakpoints": true
     }
   ]
 }

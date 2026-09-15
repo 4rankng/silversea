@@ -25,11 +25,6 @@ router.get('/expense-types', asyncHandler(async (_req: Request, res: Response) =
         noInvoiceEvidenceTypes: row.noInvoiceEvidenceTypes,
         noInvoicePerItemLimit: String(row.noInvoicePerItemLimit),
         noInvoicePerDayLimit: String(row.noInvoicePerDayLimit),
-        noInvoiceFinanceLeadItemApprovalLimit: String(row.noInvoiceFinanceLeadItemApprovalLimit),
-        noInvoiceDirectorDayApprovalLimit: String(row.noInvoiceDirectorDayApprovalLimit),
-        noInvoiceFinanceLeadApprovalTitle: row.noInvoiceFinanceLeadApprovalTitle,
-        noInvoiceDirectorApprovalTitle: row.noInvoiceDirectorApprovalTitle,
-        noInvoicePolicyVersion: row.noInvoicePolicyVersion,
       }),
   })));
 }));

@@ -17,7 +17,6 @@ import {
   expenseCategorySchema,
   supplierSchema,
   DEFAULT_NO_INVOICE_EVIDENCE_TYPES,
-  NO_INVOICE_APPROVAL_TITLES,
   NO_INVOICE_POLICY_DEFAULTS,
   fuelConfigSchema,
   companyInfoSchema,
@@ -58,7 +57,6 @@ export type PenaltyReasonPayload = Partial<output<typeof penaltyReasonSchema>>;
 export type ForwarderExpenseTypePayload = output<typeof forwarderExpenseTypeSchema>;
 export type ExpenseCategoryPayload = Partial<output<typeof expenseCategorySchema>>;
 export type NoInvoiceEvidenceType = typeof DEFAULT_NO_INVOICE_EVIDENCE_TYPES[number];
-export type NoInvoiceApprovalTitle = typeof NO_INVOICE_APPROVAL_TITLES[number];
 export type CrudTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export type CustomerMutationPayload = Partial<output<typeof customerUpdateSchema>>;
 export type RoadConfigGovernedPayload = output<typeof roadConfigGovernanceSchema>;
@@ -382,11 +380,6 @@ export const MATERIAL_FORWARDER_POLICY_FIELDS = new Set<keyof ForwarderExpenseTy
   'noInvoiceEvidenceTypes',
   'noInvoicePerItemLimit',
   'noInvoicePerDayLimit',
-  'noInvoiceFinanceLeadItemApprovalLimit',
-  'noInvoiceDirectorDayApprovalLimit',
-  'noInvoiceFinanceLeadApprovalTitle',
-  'noInvoiceDirectorApprovalTitle',
-  'noInvoicePolicyVersion',
   'defaultMarkup',
   'billingLabel',
   'vatRate',
@@ -1065,13 +1058,6 @@ export async function normalizeSupplierPayload(
   };
 }
 
-export function normalizeNoInvoiceApprovalTitle(
-  value: NoInvoiceApprovalTitle | undefined,
-  fallback: NoInvoiceApprovalTitle,
-): NoInvoiceApprovalTitle {
-  return value ?? fallback;
-}
-
 export function normalizeForwarderExpenseTypePayload(
   data: Partial<ForwarderExpenseTypePayload>,
   options: { fillDefaults: boolean },
@@ -1112,37 +1098,16 @@ export function normalizeForwarderExpenseTypePayload(
   if (options.fillDefaults || 'noInvoicePerDayLimit' in data) {
     normalized.noInvoicePerDayLimit = data.noInvoicePerDayLimit ?? NO_INVOICE_POLICY_DEFAULTS.perDayLimit;
   }
-  if (options.fillDefaults || 'noInvoiceFinanceLeadItemApprovalLimit' in data) {
-    normalized.noInvoiceFinanceLeadItemApprovalLimit = data.noInvoiceFinanceLeadItemApprovalLimit ?? NO_INVOICE_POLICY_DEFAULTS.financeLeadItemApprovalLimit;
-  }
-  if (options.fillDefaults || 'noInvoiceDirectorDayApprovalLimit' in data) {
-    normalized.noInvoiceDirectorDayApprovalLimit = data.noInvoiceDirectorDayApprovalLimit ?? NO_INVOICE_POLICY_DEFAULTS.directorDayApprovalLimit;
-  }
-  if (options.fillDefaults || 'noInvoiceFinanceLeadApprovalTitle' in data) {
-    normalized.noInvoiceFinanceLeadApprovalTitle = normalizeNoInvoiceApprovalTitle(
-      data.noInvoiceFinanceLeadApprovalTitle,
-      'FINANCE_LEAD',
-    );
-  }
-  if (options.fillDefaults || 'noInvoiceDirectorApprovalTitle' in data) {
-    normalized.noInvoiceDirectorApprovalTitle = normalizeNoInvoiceApprovalTitle(
-      data.noInvoiceDirectorApprovalTitle,
-      'DIRECTOR',
-    );
-  }
   return normalized;
 }
 
-export async function withForwarderExpenseTypePolicyVersion(
+export async function withForwarderExpenseTypePolicyDefaults(
   id: number | null,
   data: Partial<ForwarderExpenseTypePayload>,
   tx: CrudTx | typeof db = db,
 ): Promise<Partial<ForwarderExpenseTypePayload>> {
   if (id == null) {
-    return {
-      ...normalizeForwarderExpenseTypePayload(data, { fillDefaults: true }),
-      noInvoicePolicyVersion: 1,
-    };
+    return normalizeForwarderExpenseTypePayload(data, { fillDefaults: true });
   }
   if (!hasMaterialForwarderExpenseTypeChange(data)) {
     return data;
@@ -1153,16 +1118,11 @@ export async function withForwarderExpenseTypePolicyVersion(
     noInvoiceEvidenceTypes: s.forwarderExpenseTypes.noInvoiceEvidenceTypes,
     noInvoicePerItemLimit: s.forwarderExpenseTypes.noInvoicePerItemLimit,
     noInvoicePerDayLimit: s.forwarderExpenseTypes.noInvoicePerDayLimit,
-    noInvoiceFinanceLeadItemApprovalLimit: s.forwarderExpenseTypes.noInvoiceFinanceLeadItemApprovalLimit,
-    noInvoiceDirectorDayApprovalLimit: s.forwarderExpenseTypes.noInvoiceDirectorDayApprovalLimit,
-    noInvoiceFinanceLeadApprovalTitle: s.forwarderExpenseTypes.noInvoiceFinanceLeadApprovalTitle,
-    noInvoiceDirectorApprovalTitle: s.forwarderExpenseTypes.noInvoiceDirectorApprovalTitle,
-    noInvoicePolicyVersion: s.forwarderExpenseTypes.noInvoicePolicyVersion,
   }).from(s.forwarderExpenseTypes)
     .where(eq(s.forwarderExpenseTypes.id, id))
     .limit(1);
   if (!existing) return data;
-  const existingPolicy: Partial<ForwarderExpenseTypePayload> = {
+  const normalized = normalizeForwarderExpenseTypePayload({
     requiresInvoice: existing.requiresInvoice ?? false,
     substituteEvidenceAllowed: existing.substituteEvidenceAllowed ?? true,
     noInvoiceEvidenceTypes: (existing.noInvoiceEvidenceTypes ?? []) as NoInvoiceEvidenceType[],
@@ -1172,48 +1132,7 @@ export async function withForwarderExpenseTypePolicyVersion(
     noInvoicePerDayLimit: existing.noInvoicePerDayLimit == null
       ? NO_INVOICE_POLICY_DEFAULTS.perDayLimit
       : Number(existing.noInvoicePerDayLimit),
-    noInvoiceFinanceLeadItemApprovalLimit: existing.noInvoiceFinanceLeadItemApprovalLimit == null
-      ? NO_INVOICE_POLICY_DEFAULTS.financeLeadItemApprovalLimit
-      : Number(existing.noInvoiceFinanceLeadItemApprovalLimit),
-    noInvoiceDirectorDayApprovalLimit: existing.noInvoiceDirectorDayApprovalLimit == null
-      ? NO_INVOICE_POLICY_DEFAULTS.directorDayApprovalLimit
-      : Number(existing.noInvoiceDirectorDayApprovalLimit),
-    noInvoiceFinanceLeadApprovalTitle: normalizeNoInvoiceApprovalTitle(
-      (existing.noInvoiceFinanceLeadApprovalTitle ?? undefined) as NoInvoiceApprovalTitle | undefined,
-      'FINANCE_LEAD',
-    ),
-    noInvoiceDirectorApprovalTitle: normalizeNoInvoiceApprovalTitle(
-      (existing.noInvoiceDirectorApprovalTitle ?? undefined) as NoInvoiceApprovalTitle | undefined,
-      'DIRECTOR',
-    ),
-    noInvoicePolicyVersion: existing.noInvoicePolicyVersion,
-  };
-  const normalized = normalizeForwarderExpenseTypePayload({
-    ...existingPolicy,
     ...data,
   }, { fillDefaults: true });
-  const policyChanged = JSON.stringify({
-    requiresInvoice: existingPolicy.requiresInvoice,
-    substituteEvidenceAllowed: existingPolicy.substituteEvidenceAllowed,
-    noInvoiceEvidenceTypes: existingPolicy.noInvoiceEvidenceTypes,
-    noInvoicePerItemLimit: String(existingPolicy.noInvoicePerItemLimit),
-    noInvoicePerDayLimit: String(existingPolicy.noInvoicePerDayLimit),
-    noInvoiceFinanceLeadItemApprovalLimit: String(existingPolicy.noInvoiceFinanceLeadItemApprovalLimit),
-    noInvoiceDirectorDayApprovalLimit: String(existingPolicy.noInvoiceDirectorDayApprovalLimit),
-    noInvoiceFinanceLeadApprovalTitle: existingPolicy.noInvoiceFinanceLeadApprovalTitle,
-    noInvoiceDirectorApprovalTitle: existingPolicy.noInvoiceDirectorApprovalTitle,
-  }) !== JSON.stringify({
-    requiresInvoice: normalized.requiresInvoice,
-    substituteEvidenceAllowed: normalized.substituteEvidenceAllowed,
-    noInvoiceEvidenceTypes: normalized.noInvoiceEvidenceTypes,
-    noInvoicePerItemLimit: String(normalized.noInvoicePerItemLimit),
-    noInvoicePerDayLimit: String(normalized.noInvoicePerDayLimit),
-    noInvoiceFinanceLeadItemApprovalLimit: String(normalized.noInvoiceFinanceLeadItemApprovalLimit),
-    noInvoiceDirectorDayApprovalLimit: String(normalized.noInvoiceDirectorDayApprovalLimit),
-    noInvoiceFinanceLeadApprovalTitle: normalized.noInvoiceFinanceLeadApprovalTitle,
-    noInvoiceDirectorApprovalTitle: normalized.noInvoiceDirectorApprovalTitle,
-  });
-  return policyChanged
-    ? { ...data, ...normalized, noInvoicePolicyVersion: existing.noInvoicePolicyVersion + 1 }
-    : { ...data, noInvoicePolicyVersion: existing.noInvoicePolicyVersion };
+  return { ...data, ...normalized };
 }

@@ -76,11 +76,6 @@ export async function getBootstrapData() {
             noInvoiceEvidenceTypes: t.noInvoiceEvidenceTypes,
             noInvoicePerItemLimit: String(t.noInvoicePerItemLimit),
             noInvoicePerDayLimit: String(t.noInvoicePerDayLimit),
-            noInvoiceFinanceLeadItemApprovalLimit: String(t.noInvoiceFinanceLeadItemApprovalLimit),
-            noInvoiceDirectorDayApprovalLimit: String(t.noInvoiceDirectorDayApprovalLimit),
-            noInvoiceFinanceLeadApprovalTitle: t.noInvoiceFinanceLeadApprovalTitle,
-            noInvoiceDirectorApprovalTitle: t.noInvoiceDirectorApprovalTitle,
-            noInvoicePolicyVersion: t.noInvoicePolicyVersion,
           }),
       }));
 

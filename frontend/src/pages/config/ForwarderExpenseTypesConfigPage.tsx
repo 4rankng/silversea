@@ -19,9 +19,6 @@ interface ForwarderExpenseType {
   noInvoiceEvidenceTypes?: string[];
   noInvoicePerItemLimit?: string | null;
   noInvoicePerDayLimit?: string | null;
-  noInvoiceFinanceLeadItemApprovalLimit?: string | null;
-  noInvoiceDirectorDayApprovalLimit?: string | null;
-  noInvoicePolicyVersion?: number;
   defaultMarkup?: boolean;
   billingLabel?: string | null;
   vatRate?: string | null;
@@ -88,12 +85,6 @@ function ExpenseTypeForm({
   );
   const [perItemLimit, setPerItemLimit] = useState(item?.noInvoicePerItemLimit ?? String(NO_INVOICE_POLICY_DEFAULTS.perItemLimit));
   const [perDayLimit, setPerDayLimit] = useState(item?.noInvoicePerDayLimit ?? String(NO_INVOICE_POLICY_DEFAULTS.perDayLimit));
-  const [financeLeadLimit, setFinanceLeadLimit] = useState(
-    item?.noInvoiceFinanceLeadItemApprovalLimit ?? String(NO_INVOICE_POLICY_DEFAULTS.financeLeadItemApprovalLimit),
-  );
-  const [directorDayLimit, setDirectorDayLimit] = useState(
-    item?.noInvoiceDirectorDayApprovalLimit ?? String(NO_INVOICE_POLICY_DEFAULTS.directorDayApprovalLimit),
-  );
 
   const isDuplicate = code.trim().length > 0 && existingItems.some((type) =>
     type.id !== item?.id && type.code.trim().toUpperCase() === code.trim().toUpperCase(),
@@ -175,7 +166,7 @@ function ExpenseTypeForm({
           <div>
             <div style={{ fontSize: 'var(--text-body-size)', fontWeight: 700, color: 'var(--ink)' }}>Chính sách chi không hóa đơn</div>
             <div style={{ fontSize: 'var(--text-caption-size)', color: 'var(--ink-3)', marginTop: 4 }}>
-              Chỉ áp dụng cho các hạng mục được phép chi không hóa đơn. Phiên bản chính sách: <strong>{item?.noInvoicePolicyVersion ?? 1}</strong>
+              Chỉ áp dụng cho các hạng mục được phép chi không hóa đơn.
             </div>
           </div>
 
@@ -201,12 +192,6 @@ function ExpenseTypeForm({
             </Field>
             <Field label="Ngưỡng/người/ngày">
               <input className="input mono" type="number" min="0" step="1000" value={perDayLimit} disabled={!noInvoiceEnabled} onChange={(event) => setPerDayLimit(event.target.value)} />
-            </Field>
-            <Field label="Giới hạn/khoản">
-              <input className="input mono" type="number" min="0" step="1000" value={financeLeadLimit} disabled={!noInvoiceEnabled} onChange={(event) => setFinanceLeadLimit(event.target.value)} />
-            </Field>
-            <Field label="Giới hạn/ngày (vượt ngưỡng)">
-              <input className="input mono" type="number" min="0" step="1000" value={directorDayLimit} disabled={!noInvoiceEnabled} onChange={(event) => setDirectorDayLimit(event.target.value)} />
             </Field>
           </div>
 
@@ -273,8 +258,6 @@ function ExpenseTypeForm({
                 noInvoiceEvidenceTypes: noInvoiceEnabled ? selectedEvidence : [],
                 noInvoicePerItemLimit: noInvoiceEnabled ? Number(perItemLimit || 0) : NO_INVOICE_POLICY_DEFAULTS.perItemLimit,
                 noInvoicePerDayLimit: noInvoiceEnabled ? Number(perDayLimit || 0) : NO_INVOICE_POLICY_DEFAULTS.perDayLimit,
-                noInvoiceFinanceLeadItemApprovalLimit: noInvoiceEnabled ? Number(financeLeadLimit || 0) : NO_INVOICE_POLICY_DEFAULTS.financeLeadItemApprovalLimit,
-                noInvoiceDirectorDayApprovalLimit: noInvoiceEnabled ? Number(directorDayLimit || 0) : NO_INVOICE_POLICY_DEFAULTS.directorDayApprovalLimit,
               });
             }}
             style={{ display: 'flex', alignItems: 'center', gap: 6,  fontWeight: 600 }}
@@ -304,7 +287,7 @@ export default function ForwarderExpenseTypesConfigPage() {
         title="Loại chi phí giao nhận"
         description="Các khoản phí phát sinh do giao nhận nhập — nâng hạ, hải quan, cân xe, kiểm tra…"
         endpoint="/forwarder-expense-types"
-        colSpan={7}
+        colSpan={6}
         iconName="forwarder-expense"
         showDelete={false}
         pageSlug="forwarder-expense-types"
@@ -341,15 +324,6 @@ export default function ForwarderExpenseTypesConfigPage() {
               <div style={{ fontSize: 'var(--text-caption-size)', color: 'var(--fg-2)', lineHeight: 1.45 }}>
                 <div>{formatVnd(item.noInvoicePerItemLimit)} / khoản</div>
                 <div>{formatVnd(item.noInvoicePerDayLimit)} / ngày</div>
-              </div>
-            ),
-          },
-          {
-            header: 'Giới hạn',
-            render: (item) => (
-              <div style={{ fontSize: 'var(--text-caption-size)', color: 'var(--fg-2)', lineHeight: 1.45 }}>
-                <div>{formatVnd(item.noInvoiceFinanceLeadItemApprovalLimit)} / khoản</div>
-                <div>{formatVnd(item.noInvoiceDirectorDayApprovalLimit)} / ngày</div>
               </div>
             ),
           },

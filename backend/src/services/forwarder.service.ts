@@ -1170,11 +1170,6 @@ export async function listForwarderExpenseTypeRows() {
     noInvoiceEvidenceTypes: s.forwarderExpenseTypes.noInvoiceEvidenceTypes,
     noInvoicePerItemLimit: s.forwarderExpenseTypes.noInvoicePerItemLimit,
     noInvoicePerDayLimit: s.forwarderExpenseTypes.noInvoicePerDayLimit,
-    noInvoiceFinanceLeadItemApprovalLimit: s.forwarderExpenseTypes.noInvoiceFinanceLeadItemApprovalLimit,
-    noInvoiceDirectorDayApprovalLimit: s.forwarderExpenseTypes.noInvoiceDirectorDayApprovalLimit,
-    noInvoiceFinanceLeadApprovalTitle: s.forwarderExpenseTypes.noInvoiceFinanceLeadApprovalTitle,
-    noInvoiceDirectorApprovalTitle: s.forwarderExpenseTypes.noInvoiceDirectorApprovalTitle,
-    noInvoicePolicyVersion: s.forwarderExpenseTypes.noInvoicePolicyVersion,
   }).from(s.forwarderExpenseTypes)
     .orderBy(s.forwarderExpenseTypes.name);
 }

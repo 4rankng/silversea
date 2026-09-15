@@ -7,7 +7,6 @@ import {
   OperationalSiteType, FulfillmentCancellationDisposition, TripPodFileType,
   DriverProgressEventType,
   DriverIncidentalCostType,
-  NO_INVOICE_APPROVAL_TITLES,
   NO_INVOICE_EVIDENCE_TYPES,
   TIRE_STATUSES,
   DISPATCH_CLASSIFICATIONS,
@@ -1474,19 +1473,6 @@ export const forwarderExpenseTypeSchema = z.object({
     .refine(v => v == null || (Number.isFinite(v) && v >= 0), {
       message: 'Ngưỡng mỗi ngày phải là số không âm',
     }),
-  noInvoiceFinanceLeadItemApprovalLimit: z.union([z.string(), z.number()]).optional()
-    .transform(v => v == null ? undefined : Number(v))
-    .refine(v => v == null || (Number.isFinite(v) && v >= 0), {
-      message: 'Ngưỡng duyệt của tài chính phải là số không âm',
-    }),
-  noInvoiceDirectorDayApprovalLimit: z.union([z.string(), z.number()]).optional()
-    .transform(v => v == null ? undefined : Number(v))
-    .refine(v => v == null || (Number.isFinite(v) && v >= 0), {
-      message: 'Ngưỡng ngày của giám đốc phải là số không âm',
-    }),
-  noInvoiceFinanceLeadApprovalTitle: z.enum(NO_INVOICE_APPROVAL_TITLES).optional(),
-  noInvoiceDirectorApprovalTitle: z.enum(NO_INVOICE_APPROVAL_TITLES).optional(),
-  noInvoicePolicyVersion: z.number().int().positive().optional(),
   defaultMarkup: z.boolean().optional(),
   billingLabel: z.string().max(120).nullable().optional(),
   vatRate: z.union([z.string(), z.number()]).optional()

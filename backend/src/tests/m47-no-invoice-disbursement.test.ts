@@ -1,13 +1,11 @@
 /**
- * Wave 3 M4.7 (slice 1) — no-invoice disbursement enforcement tests.
+ * Wave 3 M4.7 — no-invoice disbursement policy tests.
  *
- * Verifies the July 27, 2026 Q12-Q14 rules for no-invoice disbursements:
- *   - only allowed categories can proceed without invoice
- *   - date/payee/reason/evidence are mandatory minimum evidence
- *   - onsite-photo evidence requires an uploaded photo
- *   - per-item approvals escalate above 5,000,000 VND
- *   - same-payee same-day same-category totals escalate above 10,000,000 VND
- *   - incomplete evidence is returned for supplementation, not hard-rejected
+ * Covers the no-invoice policy boundary after the approval-workflow removal:
+ *   - only allowed categories can proceed without invoice (create boundary)
+ *   - the policy snapshot carries evidence and limit configuration
+ *   - trip-expense approvals apply directly (tiered escalation was removed)
+ *   - the disbursement report aggregates APPROVED no-invoice expenses
  */
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -19,10 +17,8 @@ import { insertTripComposite } from '../services/trip-composite.service';
 import { transitionApproval } from '../services/approval.service';
 import {
   buildNoInvoicePolicySnapshotForExpenseInput,
-  reviewNoInvoiceDisbursementApproval,
   getNoInvoiceDisbursementReport,
-  DIRECTOR_THRESHOLD,
-  DAY_AGGREGATE_THRESHOLD,
+  PER_ITEM_THRESHOLD,
 } from '../services/no-invoice-disbursement.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -54,8 +50,6 @@ async function mkFet(opts: {
   noInvoiceEvidenceTypes?: string[];
   noInvoicePerItemLimit?: string;
   noInvoicePerDayLimit?: string;
-  noInvoiceFinanceLeadApprovalTitle?: 'FINANCE_LEAD' | 'DIRECTOR';
-  noInvoiceDirectorApprovalTitle?: 'FINANCE_LEAD' | 'DIRECTOR';
   tag: string;
 }) {
   const code = `M47-${createdFetIds.length}-${opts.tag}-${suffix}`.slice(0, 50);
@@ -67,8 +61,6 @@ async function mkFet(opts: {
     noInvoiceEvidenceTypes: opts.noInvoiceEvidenceTypes ?? ['RECEIPT', 'BANK_TRANSFER', 'SIGNED_CONFIRMATION'],
     noInvoicePerItemLimit: opts.noInvoicePerItemLimit,
     noInvoicePerDayLimit: opts.noInvoicePerDayLimit,
-    noInvoiceFinanceLeadApprovalTitle: opts.noInvoiceFinanceLeadApprovalTitle,
-    noInvoiceDirectorApprovalTitle: opts.noInvoiceDirectorApprovalTitle,
   }).returning();
   createdFetIds.push(fet.id);
   return fet;
@@ -180,7 +172,7 @@ after(async () => {
   await client.end();
 });
 
-describe('M4.7 — reviewNoInvoiceDisbursementApproval', () => {
+describe('M4.7 — no-invoice policy snapshot (create boundary)', () => {
   test('requiresInvoice=true + missing invoice is rejected at create trust boundary', async () => {
     const fet = await mkFet({ requiresInvoice: true, tag: 'req-inv-create' });
     await assert.rejects(
@@ -202,339 +194,16 @@ describe('M4.7 — reviewNoInvoiceDisbursementApproval', () => {
     assert.deepEqual(snapshot.allowedEvidenceTypes, ['RECEIPT', 'BANK_TRANSFER', 'SIGNED_CONFIRMATION']);
     assert.deepEqual(snapshot.defaultCategoryAliases, [fet.name], 'custom categories fall back to the configured name');
     assert.equal(snapshot.requiredScope, 'TRIP_OR_SHIPMENT');
-    assert.equal(snapshot.financeLeadApprovalTitle, 'FINANCE_LEAD');
-    assert.equal(snapshot.directorApprovalTitle, 'DIRECTOR');
     assert.equal(snapshot.exceptionReasonRequiredWhenThresholdExceeded, true);
-  });
-
-  test('requiresInvoice=true + missing invoice is rejected again at approval trust boundary', async () => {
-    const fet = await mkFet({ requiresInvoice: true, tag: 'req-inv-approve' });
-    const trip = await mkTrip();
-    const e = await mkExpense({
-      tripId: trip.id,
-      expenseTypeCode: fet.code,
-      note: 'attempted API bypass',
-    });
-    await assert.rejects(
-      () => reviewNoInvoiceDisbursementApproval(e.id, 'ADMIN'),
-      (err: Error & { statusCode?: number }) => err.statusCode === 400 && /bắt buộc phải có hóa đơn/.test(err.message),
-    );
-  });
-
-  test('substituteEvidenceAllowed=false + no invoice → blocked', async () => {
-    const fet = await mkFet({ substituteEvidenceAllowed: false, tag: 'no-sub' });
-    const trip = await mkTrip();
-    const e = await mkExpense({ tripId: trip.id, expenseTypeCode: fet.code, note: 'has note' });
-    await assert.rejects(
-      () => reviewNoInvoiceDisbursementApproval(e.id, 'ADMIN'),
-      (err: Error & { statusCode?: number }) => err.statusCode === 400 && /không cho phép chi hộ không hóa đơn/.test(err.message),
-    );
-  });
-
-  test('missing minimum evidence returns for supplementation', async () => {
-    const fet = await mkFet({ substituteEvidenceAllowed: true, tag: 'no-note' });
-    const trip = await mkTrip();
-    const e = await mkExpense({
-      tripId: trip.id,
-      expenseTypeCode: fet.code,
-      expenseDate: null,
-      payeeName: '   ',
-      note: '   ',
-      noInvoiceEvidenceTypes: [],
-    });
-    const outcome = await reviewNoInvoiceDisbursementApproval(e.id, 'ADMIN');
-    assert.equal(outcome.outcome, 'RETURN_FOR_EVIDENCE');
-    assert.match(outcome.returnReason, /ngày chi/);
-    assert.match(outcome.returnReason, /người nhận/);
-    assert.match(outcome.returnReason, /lý do/);
-    assert.match(outcome.returnReason, /bằng chứng/);
-  });
-
-  test('onsite photo evidence requires an uploaded photo with capture time and valid GPS', async () => {
-    const fet = await mkFet({
-      substituteEvidenceAllowed: true,
-      noInvoiceEvidenceTypes: ['ONSITE_PHOTO'],
-      tag: 'needs-photo',
-    });
-    const trip = await mkTrip();
-    const e = await mkExpense({
-      tripId: trip.id,
-      expenseTypeCode: fet.code,
-      note: 'boc xep tai bai',
-      noInvoiceEvidenceTypes: ['ONSITE_PHOTO'],
-    });
-    const beforePhoto = await reviewNoInvoiceDisbursementApproval(e.id, 'ADMIN');
-    assert.equal(beforePhoto.outcome, 'RETURN_FOR_EVIDENCE');
-    assert.match(beforePhoto.returnReason, /ảnh hiện trường/);
-    const [photo] = await db.insert(s.tripExpensePhotos).values({
-      tripExpenseId: e.id,
-      storageKey: `m47/${suffix}/${e.id}-no-gps.jpg`,
-      uploadedBy: makerId,
-    }).returning();
-    createdPhotoIds.push(photo.id);
-    const withoutGps = await reviewNoInvoiceDisbursementApproval(e.id, 'ADMIN');
-    assert.equal(withoutGps.outcome, 'RETURN_FOR_EVIDENCE');
-    assert.match(withoutGps.returnReason, /thời gian và vị trí GPS/);
-
-    const [geotag] = await db.insert(s.photoGeotags).values({
-      entityType: 'trip_expense_photo',
-      entityId: photo.id,
-      lat: 999,
-      lng: 999,
-      accuracy: 15,
-      gpsAt: null,
-      source: 'phone',
-      recordedBy: makerId,
-    }).returning();
-    const invalidGps = await reviewNoInvoiceDisbursementApproval(e.id, 'ADMIN');
-    assert.equal(invalidGps.outcome, 'RETURN_FOR_EVIDENCE');
-    assert.match(invalidGps.returnReason, /thời gian và vị trí GPS/);
-
-    await db.update(s.photoGeotags).set({
-      lat: 10.8231,
-      lng: 106.6297,
-      gpsAt: new Date(),
-    }).where(eq(s.photoGeotags.id, geotag.id));
-    const geotaggedPhoto = await reviewNoInvoiceDisbursementApproval(e.id, 'ADMIN');
-    assert.equal(geotaggedPhoto.outcome, 'ALLOW');
-  });
-
-  test('allowed + minimum evidence + amount ≤ threshold → allow', async () => {
-    const fet = await mkFet({ substituteEvidenceAllowed: true, tag: 'ok' });
-    const trip = await mkTrip();
-    const e = await mkExpense({ tripId: trip.id, expenseTypeCode: fet.code, buyAmount: '500000', note: 'biên nhận bốc xếp' });
-    const outcome = await reviewNoInvoiceDisbursementApproval(e.id, 'ACCOUNTANT');
-    assert.equal(outcome.outcome, 'ALLOW');
-    assert.equal(outcome.aggregateAmount, 500000);
-    assert.equal(outcome.exceedsPerItemLimit, false);
-    assert.equal(outcome.exceedsPerDayLimit, false);
-    assert.equal(outcome.requiredApprovalTitle, null);
-    assert.equal(outcome.requiresExceptionReason, false);
-  });
-
-  test('configured Q13 per-item and per-day caps are reflected in approval decision and finance-lead title requirement', async () => {
-    const fet = await mkFet({
-      substituteEvidenceAllowed: true,
-      noInvoicePerItemLimit: '400000',
-      noInvoicePerDayLimit: '700000',
-      tag: 'configured-caps',
-    });
-    const trip = await mkTrip();
-    await mkExpense({
-      tripId: trip.id,
-      expenseTypeCode: fet.code,
-      buyAmount: '300000',
-      expenseDate: '2026-07-19',
-      payeeName: 'Nguyen Van C',
-      note: 'dot 1',
-      approvalStatus: 'APPROVED',
-    });
-    const e = await mkExpense({
-      tripId: trip.id,
-      expenseTypeCode: fet.code,
-      buyAmount: '500000',
-      expenseDate: '2026-07-19',
-      payeeName: '  NGUYEN   VAN C ',
-      note: 'Chi cùng ngày vượt ngưỡng chuẩn nhưng vẫn trong thẩm quyền tài chính',
-    });
-    const outcome = await reviewNoInvoiceDisbursementApproval(e.id, 'ACCOUNTANT');
-    assert.equal(outcome.outcome, 'ALLOW');
-    assert.equal(outcome.aggregateAmount, 800000);
-    assert.equal(outcome.exceedsPerItemLimit, true);
-    assert.equal(outcome.exceedsPerDayLimit, true);
-    assert.equal(outcome.requiredApprovalTitle, 'FINANCE_LEAD');
-    assert.equal(outcome.requiresExceptionReason, true);
-  });
-
-  test('configured approval titles are routed from category policy instead of hard-coded defaults', async () => {
-    const fet = await mkFet({
-      substituteEvidenceAllowed: true,
-      noInvoicePerItemLimit: '400000',
-      noInvoiceFinanceLeadApprovalTitle: 'DIRECTOR',
-      tag: 'configured-title-routing',
-    });
-    const trip = await mkTrip();
-    const e = await mkExpense({
-      tripId: trip.id,
-      expenseTypeCode: fet.code,
-      buyAmount: '500000',
-      note: 'Chi phát sinh vượt ngưỡng hạng mục nên phải trình đúng chức danh đã cấu hình',
-    });
-    const outcome = await reviewNoInvoiceDisbursementApproval(e.id, 'MANAGER');
-    assert.equal(outcome.outcome, 'ALLOW');
-    assert.equal(outcome.policySnapshot?.financeLeadApprovalTitle, 'DIRECTOR');
-    assert.equal(outcome.requiredApprovalTitle, 'DIRECTOR');
-  });
-
-  test('amount > DIRECTOR_THRESHOLD + ACCOUNTANT → blocked (needs director)', async () => {
-    const fet = await mkFet({ substituteEvidenceAllowed: true, tag: 'over-thr' });
-    const trip = await mkTrip();
-    const e = await mkExpense({
-      tripId: trip.id, expenseTypeCode: fet.code,
-      buyAmount: String(DIRECTOR_THRESHOLD + 1), note: 'big no-invoice',
-    });
-    await assert.rejects(
-      () => reviewNoInvoiceDisbursementApproval(e.id, 'ACCOUNTANT'),
-      (err: Error & { statusCode?: number }) => err.statusCode === 403 && /cần giám đốc/.test(err.message),
-    );
-  });
-
-  test('over-threshold expense without an explicit exception reason is returned for evidence', async () => {
-    const fet = await mkFet({ substituteEvidenceAllowed: true, tag: 'missing-exception-reason' });
-    const trip = await mkTrip();
-    const e = await mkExpense({
-      tripId: trip.id,
-      expenseTypeCode: fet.code,
-      buyAmount: '1500000',
-      note: 'gấp',
-    });
-    const outcome = await reviewNoInvoiceDisbursementApproval(e.id, 'ACCOUNTANT');
-    assert.equal(outcome.outcome, 'RETURN_FOR_EVIDENCE');
-    assert.equal(outcome.requiredApprovalTitle, 'FINANCE_LEAD');
-    assert.equal(outcome.requiresExceptionReason, true);
-    assert.match(outcome.returnReason, /lý do ngoại lệ/i);
-  });
-
-  test('same payee/date/category aggregate > 10,000,000 VND + ACCOUNTANT → blocked', async () => {
-    const fet = await mkFet({ substituteEvidenceAllowed: true, tag: 'daily-over' });
-    const trip = await mkTrip();
-    await mkExpense({
-      tripId: trip.id,
-      expenseTypeCode: fet.code,
-      buyAmount: '6000000',
-      expenseDate: '2026-07-18',
-      payeeName: 'Tran Thi B',
-      note: 'dot 1',
-      approvalStatus: 'APPROVED',
-    });
-    const e = await mkExpense({
-      tripId: trip.id,
-      expenseTypeCode: fet.code,
-      buyAmount: String(DAY_AGGREGATE_THRESHOLD - 6_000_000 + 1),
-      expenseDate: '2026-07-18',
-      payeeName: 'Tran Thi B',
-      note: 'Chi bổ sung cùng ngày do bốc xếp phát sinh ngoài kế hoạch đã duyệt',
-    });
-    await assert.rejects(
-      () => reviewNoInvoiceDisbursementApproval(e.id, 'ACCOUNTANT'),
-      (err: Error & { statusCode?: number }) => err.statusCode === 403 && /tổng ngày/.test(err.message),
-    );
-  });
-
-  test('amount > DIRECTOR_THRESHOLD + MANAGER → allow', async () => {
-    const fet = await mkFet({ substituteEvidenceAllowed: true, tag: 'mgr-ok' });
-    const trip = await mkTrip();
-    const e = await mkExpense({
-      tripId: trip.id, expenseTypeCode: fet.code,
-      buyAmount: String(DIRECTOR_THRESHOLD + 1_000_000),
-      note: 'Chi bốc xếp ca đêm phát sinh ngoài định mức do tàu đổi lịch cập bến',
-    });
-    const outcome = await reviewNoInvoiceDisbursementApproval(e.id, 'MANAGER');
-    assert.equal(outcome.outcome, 'ALLOW');
-    assert.equal(outcome.requiredApprovalTitle, 'DIRECTOR');
-    assert.equal(outcome.requiresExceptionReason, true);
-  });
-
-  test('has-invoice expense → bypass (M4.6 owns it)', async () => {
-    const fet = await mkFet({ requiresInvoice: true, substituteEvidenceAllowed: false, tag: 'has-inv' });
-    const trip = await mkTrip();
-    const e = await mkExpense({
-      tripId: trip.id, expenseTypeCode: fet.code,
-      invoiceNumber: 'INV-1', note: null,
-    });
-    const outcome = await reviewNoInvoiceDisbursementApproval(e.id, 'ACCOUNTANT');
-    assert.equal(outcome.outcome, 'ALLOW');
-  });
-
-  test('unknown expense code → blocked until category policy exists', async () => {
-    const trip = await mkTrip();
-    const e = await mkExpense({ tripId: trip.id, expenseTypeCode: `NOPE-${suffix}`, note: null });
-    await assert.rejects(
-      () => reviewNoInvoiceDisbursementApproval(e.id, 'ACCOUNTANT'),
-      (err: Error & { statusCode?: number }) => err.statusCode === 400 && /chưa được cấu hình/.test(err.message),
-    );
-  });
-
-  test('missing expense → no-op (let downstream 404 fire)', async () => {
-    const outcome = await reviewNoInvoiceDisbursementApproval(99_999_999, 'ADMIN');
-    assert.equal(outcome.outcome, 'ALLOW');
   });
 });
 
 describe('M4.7 — transitionApproval wiring', () => {
-  test('APPROVE no-invoice expense with substituteEvidenceAllowed=false → blocked', async () => {
-    const fet = await mkFet({ substituteEvidenceAllowed: false, tag: 'wire-block' });
-    const trip = await mkTrip();
-    const e = await mkExpense({ tripId: trip.id, expenseTypeCode: fet.code, note: 'note' });
-    await assert.rejects(
-      () => runApproveTx(e.id, 'ADMIN'),
-      (err: Error & { statusCode?: number }) => err.statusCode === 400,
-    );
-  });
-
-  test('APPROVE incomplete no-invoice expense → returned for evidence', async () => {
-    const fet = await mkFet({ substituteEvidenceAllowed: true, tag: 'wire-return' });
-    const trip = await mkTrip();
-    const e = await mkExpense({
-      tripId: trip.id,
-      expenseTypeCode: fet.code,
-      note: 'missing evidence list',
-      noInvoiceEvidenceTypes: [],
-    });
-    await db.transaction(async (tx) => {
-      const result = await transitionApproval(tx, {
-        table: 'trip_expenses',
-        id: e.id,
-        toStatus: 'APPROVED',
-        actorId: approverId,
-        actorRole: 'ADMIN',
-      });
-      assert.equal(result.outcome, 'RETURN_FOR_EVIDENCE');
-      const [updated] = await tx.select({
-        approvalStatus: s.tripExpenses.approvalStatus,
-        returnForEvidenceReason: s.tripExpenses.returnForEvidenceReason,
-        returnedForEvidenceAt: s.tripExpenses.returnedForEvidenceAt,
-      }).from(s.tripExpenses).where(sql`${s.tripExpenses.id} = ${e.id}`).limit(1);
-      assert.equal(updated?.approvalStatus, 'RETURN_FOR_EVIDENCE');
-      assert.match(updated?.returnForEvidenceReason ?? '', /bằng chứng/);
-      assert.ok(updated?.returnedForEvidenceAt);
-      throw new RollbackSentinel();
-    }).catch((err) => {
-      if (!(err instanceof RollbackSentinel)) throw err;
-    });
-  });
-
   test('APPROVE no-invoice expense with allowed + evidence + small amount → succeeds', async () => {
     const fet = await mkFet({ substituteEvidenceAllowed: true, tag: 'wire-ok' });
     const trip = await mkTrip();
     const e = await mkExpense({ tripId: trip.id, expenseTypeCode: fet.code, buyAmount: '300000', note: 'biên nhận' });
     const result = await runApproveTx(e.id, 'ACCOUNTANT');
-    assert.equal(result.outcome, 'APPROVED');
-  });
-
-  test('APPROVE over-threshold no-invoice by ACCOUNTANT → blocked', async () => {
-    const fet = await mkFet({ substituteEvidenceAllowed: true, tag: 'wire-over' });
-    const trip = await mkTrip();
-    const e = await mkExpense({
-      tripId: trip.id, expenseTypeCode: fet.code,
-      buyAmount: String(DIRECTOR_THRESHOLD + 500_000),
-      note: 'Chi phát sinh ngoài định mức nhưng chưa đủ thẩm quyền tài chính',
-    });
-    await assert.rejects(
-      () => runApproveTx(e.id, 'ACCOUNTANT'),
-      (err: Error & { statusCode?: number }) => err.statusCode === 403,
-    );
-  });
-
-  test('APPROVE over-threshold no-invoice by MANAGER → succeeds', async () => {
-    const fet = await mkFet({ substituteEvidenceAllowed: true, tag: 'wire-mgr' });
-    const trip = await mkTrip();
-    const e = await mkExpense({
-      tripId: trip.id, expenseTypeCode: fet.code,
-      buyAmount: String(DIRECTOR_THRESHOLD + 500_000),
-      note: 'Xử lý khẩn cấp tại cảng sau giờ làm, cần duy trì tiến độ giao hàng',
-    });
-    const result = await runApproveTx(e.id, 'MANAGER');
     assert.equal(result.outcome, 'APPROVED');
   });
 
@@ -672,12 +341,12 @@ describe('M4.7 slice 2 — getNoInvoiceDisbursementReport', () => {
     assert.equal(item!.approverName, null);
   });
 
-  test('overThreshold flag set when buyAmount > DIRECTOR_THRESHOLD', async () => {
+  test('overThreshold flag set when buyAmount > per-item limit', async () => {
     const fet = await mkFet({ substituteEvidenceAllowed: true, tag: 'rpt-over' });
     const trip = await mkTrip();
     const e = await mkExpense({
       tripId: trip.id, expenseTypeCode: fet.code,
-      buyAmount: String(DIRECTOR_THRESHOLD + 1_000_000), note: 'big',
+      buyAmount: String(PER_ITEM_THRESHOLD + 1_000_000), note: 'big',
       approvalStatus: 'APPROVED',
     });
     const today = new Date().toISOString().slice(0, 10);
@@ -687,7 +356,7 @@ describe('M4.7 slice 2 — getNoInvoiceDisbursementReport', () => {
     assert.equal(item!.overThreshold, true);
     const matchingItems = report.items.filter(i => i.expenseTypeCode === fet.code);
     assert.equal(matchingItems.length, 1);
-    assert.equal(matchingItems[0]!.buyAmount, DIRECTOR_THRESHOLD + 1_000_000);
+    assert.equal(matchingItems[0]!.buyAmount, PER_ITEM_THRESHOLD + 1_000_000);
   });
 
   test('approverId filter narrows to one approver', async () => {
