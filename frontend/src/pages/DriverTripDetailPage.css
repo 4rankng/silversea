@@ -15,9 +15,12 @@
 }
 
 /* Extra bottom clearance so the last sections don't sit under the fixed
-   accept bar (and, on mobile, the driver bottom-nav it's pinned above). */
+   accept bar (and, on mobile, the driver bottom-nav it's pinned above).
+   _44: desktop 1440 reported the Số cont & Seal / Hình ảnh sections cut
+   off behind the floating bar — clearance raised past the bar's real
+   height (button + padding + gradient fade) with margin to spare. */
 .driver-task-screen--has-accept-bar {
-  padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(140px + env(safe-area-inset-bottom, 0px));
 }
 
 @media (max-width: 1023px) {
