@@ -158,10 +158,13 @@ describe('SplitDateTimeField', () => {
     const time = screen.getByLabelText('Giờ — Hẹn');
     clickWithFocus(time);
     fireEvent.change(time, { target: { value: '13:30' } });
-    const dateLabel = screen.getByText('Ngày', { selector: 'label' });
-    fireEvent.pointerDown(dateLabel);
-    fireEvent.mouseDown(dateLabel);
-    fireEvent.click(dateLabel);
+    // The batch cabf2036 a11y rework replaced label elements with aria-labels
+    // on the controls; the group's own wrapper elements are the inside-the-
+    // group press targets now.
+    const dateWrapper = screen.getByLabelText('Ngày — Hẹn').closest('.split-datetime__field')!;
+    fireEvent.pointerDown(dateWrapper);
+    fireEvent.mouseDown(dateWrapper);
+    fireEvent.click(dateWrapper);
     const date = screen.getByLabelText('Ngày — Hẹn');
     fireEvent.pointerDown(date.parentElement!);
     fireEvent.mouseDown(date.parentElement!);
