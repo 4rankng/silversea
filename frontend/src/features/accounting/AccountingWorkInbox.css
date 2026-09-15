@@ -74,3 +74,13 @@
   .accounting-work-inbox__lane > header { padding: 10px 8px; }
   .accounting-work-inbox__lane > header button { min-width: 44px; min-height: 44px; }
 }
+
+/* QA-101: an empty lane is a compact status row (count + refresh live in
+   the lane header) so the first nonempty queue leads the page instead of
+   a tall centered empty panel pushing records below the fold. */
+.accounting-work-inbox__state.is-empty {
+  min-height: 0;
+  padding: 8px 14px;
+  justify-content: flex-start;
+  font-size: var(--text-caption-size);
+}

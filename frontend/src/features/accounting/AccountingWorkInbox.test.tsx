@@ -73,6 +73,16 @@ beforeEach(() => {
 });
 
 describe('AccountingWorkInbox server-side column sort', () => {
+  it('QA-101: an empty lane renders as a compact status row, not a tall empty panel', async () => {
+    renderInbox();
+    const emptyStates = await screen.findAllByText('Không có hồ sơ trong nhóm này.');
+    expect(emptyStates.length).toBeGreaterThanOrEqual(1);
+    for (const state of emptyStates) {
+      expect(state.className).toContain('is-empty');
+    }
+    // Count + refresh control stay visible in the lane header.
+    expect(screen.getByText('Sẵn sàng xử lý')).toBeTruthy();
+  });
   it('loads lanes without sort params by default', async () => {
     renderInbox();
     await waitFor(() => expect(screen.getByRole('button', { name: 'Hồ sơ' })).toBeTruthy());

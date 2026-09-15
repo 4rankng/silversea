@@ -78,7 +78,7 @@ function InboxLane({
       ) : query.isError ? (
         <div className="accounting-work-inbox__state is-error" role="alert"><AlertTriangle size={18} /> Không thể tải nhóm này.<button type="button" onClick={() => void query.refetch()}>Thử lại</button></div>
       ) : !data?.items.length ? (
-        <div className="accounting-work-inbox__state"><CheckCircle2 size={18} /> Không có hồ sơ trong nhóm này.</div>
+        <div className="accounting-work-inbox__state is-empty" role="status"><CheckCircle2 size={15} /> Không có hồ sơ trong nhóm này.</div>
       ) : (
         <div className="record-table-wrap accounting-work-inbox__table-wrap">
           <table className="record-table ops-table accounting-work-inbox__table">
