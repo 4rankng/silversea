@@ -2544,3 +2544,8 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+/* _35 specificity override: .cus-note-preview > span (0,1,1) was stomping
+   .cus-note-clamp (0,1,0). Scoped child selector wins. */
+.cus-note-preview > .cus-note-clamp {
+  white-space: pre-wrap;
+}
