@@ -23,7 +23,7 @@ import {
   Loader2,
   StickyNote,
 } from 'lucide-react';
-import { TRIP_STATUS_LABELS, TripPodFileType } from '@tingting/shared';
+import { parseDriverTaskNote, TRIP_STATUS_LABELS, TripPodFileType } from '@tingting/shared';
 import { StatusPill } from '../components/UI';
 import TripPodSubmission from '../components/trip/TripPodSubmission';
 import { tripStatusVariant } from '../lib/tripStatus';
@@ -75,7 +75,17 @@ export function DriverTripPodPage() {
   const trip = taskDetail.data as DriverTaskDetail | undefined;
   const currentSubmission = (trip?.currentPod ?? null) as DriverTaskPodSubmission | null;
   const podHistory = trip?.podHistory ?? [];
-  const operationalNote = trip?.fulfillment?.driverNotes ?? trip?.notes ?? null;
+  // The dispatch note is tag-composed (format v2): parse it like the detail
+  // page does — tags become chips, manual text the note — so the raw
+  // tag-line structure never leaks to the driver. The trip.memo fallback was
+  // never tag-composed and renders verbatim.
+  const parsedDriverNote = trip?.fulfillment?.driverNotes != null
+    ? parseDriverTaskNote(trip.fulfillment.driverNotes, trip?.knownTagLabels ?? [])
+    : null;
+  const noteChips = parsedDriverNote?.selectedLabels ?? [];
+  const operationalNote = parsedDriverNote
+    ? (parsedDriverNote.manualText || null)
+    : (trip?.notes ?? null);
 
   const { hasYardReceipt, hasSignedNote, podReady } = podRequiredFilesReady(currentSubmission);
   const completionBlocked = !validFulfillmentId
@@ -284,13 +294,21 @@ export function DriverTripPodPage() {
         {trip.accountingLock && <AccountingLockBanner lock={trip.accountingLock} />}
 
         {/* Ghi chú from cus/điều vận (spec A3): shown read-only above the e-POD
-            so the driver has the operational note in mind before uploading. */}
-        {operationalNote && (
+            so the driver has the operational note in mind before uploading.
+            Parsed like the detail page — tag chips + manual text. */}
+        {(operationalNote || noteChips.length > 0) && (
           <section className="driver-trip-pod-note">
             <StickyNote size={18} />
             <div>
               <strong>Ghi chú từ điều vận / CUS</strong>
-              <p>{operationalNote}</p>
+              {noteChips.length > 0 && (
+                <div className="driver-task-ops" data-testid="pod-operation-chips">
+                  {noteChips.map((tag) => (
+                    <span key={tag} className="driver-task-ops-chip">{tag.toLocaleUpperCase('vi-VN')}</span>
+                  ))}
+                </div>
+              )}
+              {operationalNote && <p>{operationalNote}</p>}
             </div>
           </section>
         )}

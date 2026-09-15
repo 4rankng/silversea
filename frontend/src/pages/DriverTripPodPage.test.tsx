@@ -262,5 +262,44 @@ describe('DriverTripPodPage', () => {
     expect(screen.getByRole('button', { name: /HOÀN THÀNH CHUYẾN/ }).hasAttribute('disabled')).toBe(true);
   });
 
+  it('parses the dispatch note — task tags render as chips, manual text as the note', () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        knownTagLabels: ['BỐC HÀNG'],
+        fulfillment: { id: 88, driverNotes: 'BỐC HÀNG\nGọi cổng 2' },
+      }),
+      isLoading: false,
+      error: null,
+      isError: false,
+      refetch: refetchMock,
+    });
+    renderPage();
+
+    expect(screen.getByTestId('pod-operation-chips')).toBeTruthy();
+    expect(screen.getByTestId('pod-operation-chips').textContent).toContain('BỐC HÀNG');
+    expect(screen.getByText('Gọi cổng 2')).toBeTruthy();
+    // The composed raw note must never leak as a literal blob.
+    expect(screen.queryByText('BỐC HÀNG\nGọi cổng 2')).toBeNull();
+  });
+
+  it('renders a tags-only dispatch note as chips without an empty note paragraph', () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        knownTagLabels: ['BỐC HÀNG'],
+        fulfillment: { id: 88, driverNotes: 'BỐC HÀNG' },
+      }),
+      isLoading: false,
+      error: null,
+      isError: false,
+      refetch: refetchMock,
+    });
+    renderPage();
+
+    expect(screen.getByTestId('pod-operation-chips')).toBeTruthy();
+    // Exactly one rendering of the tag (the chip) — no raw note paragraph.
+    expect(screen.getAllByText('BỐC HÀNG')).toHaveLength(1);
+    expect(document.querySelector('.driver-trip-pod-note p')).toBeNull();
+  });
+
   // Offline queue conflict/recovery tests removed — completion now uses direct API calls.
 });
