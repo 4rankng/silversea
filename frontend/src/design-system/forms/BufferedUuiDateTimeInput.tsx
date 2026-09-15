@@ -79,6 +79,12 @@ export function BufferedUuiDateTimeInput({
   // position:fixed because the absolute panel was clipped by the create
   // grid's scrollable table body. Position derives from the input's rect:
   // below it, horizontally clamped, flipped above near the viewport bottom.
+  //
+  // The click handler lives on the *wrapper* div (not forwarded through
+  // InputBase → AriaInput) because react-aria-components' Group wraps the
+  // native <input> with overflow-hidden, and clicks that land on the Group
+  // border/padding area never reach the <input>.  Placing onClick on the
+  // wrapper guarantees every click in the visual field area fires openPicker.
   const openPicker = () => {
     const inputEl = document.getElementById(id) as HTMLInputElement | null;
     const rect = inputEl?.getBoundingClientRect?.() ?? null;
@@ -91,6 +97,14 @@ export function BufferedUuiDateTimeInput({
     if (top + 380 > vh - 8 && rect) top = Math.max(8, rect.top - 384);
     setPickerPos({ top, left });
     setPickerOpen(true);
+  };
+  // Guard: if picker is already open, useClickOutside's pointerdown listener
+  // already closed it (same gesture).  React batches the setPickerOpen(false)
+  // so pickerOpen is still true in this closure — skip the reopen to avoid a
+  // close→reopen flash.
+  const handleWrapperClick = () => {
+    if (isDisabled || pickerOpen) return;
+    openPicker();
   };
   const closePicker = () => {
     setPickerOpen(false);
@@ -117,6 +131,7 @@ export function BufferedUuiDateTimeInput({
       data-input-wrapper
       data-input-size={size}
       className={['group flex h-max w-full flex-col items-start justify-start gap-1.5', className].filter(Boolean).join(' ')}
+      onClick={handleWrapperClick}
     >
       {label && (
         <Label isRequired={isRequired} isInvalid={isInvalid} htmlFor={id}>
@@ -137,7 +152,6 @@ export function BufferedUuiDateTimeInput({
         placeholder={DATE_TIME_24_PLACEHOLDER}
         maxLength={16}
         autoComplete="off"
-        onClick={openPicker}
         aria-haspopup="dialog"
         aria-expanded={pickerOpen}
         onChange={buffered.onChange}

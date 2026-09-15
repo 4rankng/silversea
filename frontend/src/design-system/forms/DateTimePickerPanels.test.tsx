@@ -76,3 +76,31 @@ function DialogHost({ onChange }: { onChange: (v: string) => void }) {
     />
   );
 }
+
+describe('BufferedUuiDateTimeInput — wrapper-level click handler (P0 regression)', () => {
+  it('clicking the wrapper div (not the native <input>) opens the picker', () => {
+    render(<DialogHost onChange={vi.fn()} />);
+    const wrapper = document.querySelector('[data-input-wrapper]')!;
+    fireEvent.click(wrapper);
+    expect(screen.getByRole('dialog', { name: 'Hẹn' })).toBeTruthy();
+  });
+
+  it('clicking the label also opens the picker (label inside wrapper)', () => {
+    render(<DialogHost onChange={vi.fn()} />);
+    fireEvent.click(screen.getByText('Hẹn'));
+    expect(screen.getByRole('dialog', { name: 'Hẹn' })).toBeTruthy();
+  });
+
+  it('disabled input does not open picker on click', () => {
+    render(
+      <BufferedUuiDateTimeInput
+        label="Hẹn"
+        value=""
+        onChange={vi.fn()}
+        isDisabled
+      />,
+    );
+    fireEvent.click(document.querySelector('[data-input-wrapper]')!);
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+});
