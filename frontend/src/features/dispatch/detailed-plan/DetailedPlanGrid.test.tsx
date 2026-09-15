@@ -406,9 +406,11 @@ describe('DetailedPlanGrid', () => {
     expect(editorCss).toContain('.dispatch-assignment-cell__trigger {');
     expect(editorCss).toContain('height: 100%;');
     expect(editorCss).toContain('cursor: pointer;');
-    expect(editorCss).toContain('grid-template-columns: repeat(2, minmax(0, 1fr));');
+    // Single-column trigger since the driver row joined the cell — every
+    // child (carrier, plate, driver) spans the full trigger width.
+    expect(editorCss).toMatch(/__trigger\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\);/);
     expect(editorCss).toMatch(/\.detailed-plan-grid td\.detailed-plan-grid__cell--editable::after\s*\{[^}]*min-height:\s*72px;/);
-    expect(editorCss).toMatch(/\.dispatch-assignment-cell__carrier,[\s\S]*?\.dispatch-assignment-cell__plate\s*\{[^}]*grid-column:\s*1\s*\/\s*-1;/);
+    expect(editorCss).toMatch(/\.dispatch-assignment-cell__carrier,[\s\S]*?\.dispatch-assignment-cell__driver\s*\{[^}]*grid-column:\s*1\s*\/\s*-1;/);
     expect(editorCss).toMatch(/@container \(max-width:\s*900px\)[\s\S]*?td\.detailed-plan-grid__cell--editable::after\s*\{[^}]*display:\s*none;/);
     expect(editorCss).toContain('.dispatch-assignment-dialog__fields {');
     expect(editorCss).toMatch(/\.dispatch-assignment-dialog__fields > \.dispatch-assignment-dialog__check\s*\{[^}]*display:\s*flex;/);
