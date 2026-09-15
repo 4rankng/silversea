@@ -281,6 +281,25 @@ describe('CUS shipment workspace projection — OQ1 split notes', () => {
     assert.equal(item!.operationalNotes, 'giao xong\nchụp ảnh biên bản');
   });
 
+  test('LCL lots read SCHEDULED from closingAt/plannedReturnAt alone (card 20260914_35 rework)', async () => {
+    const importLot = await seedShipment({ cargoMode: 'LCL', tradeDirection: 'IMPORT', plannedReturnAt: new Date('2026-09-22T01:15:00.000Z') });
+    const exportLot = await seedShipment({ cargoMode: 'LCL', tradeDirection: 'EXPORT', closingAt: new Date('2026-09-21T13:03:00.000Z') });
+
+    const importItem = await findItem(importLot.id);
+    const exportItem = await findItem(exportLot.id);
+    assert.ok(importItem && exportItem);
+    assert.equal(importItem!.operational.scheduleReadiness, 'SCHEDULED');
+    assert.equal(exportItem!.operational.scheduleReadiness, 'SCHEDULED');
+  });
+
+  test('LCL lots with no schedule fields at all stay WAITING_DATE (empty-case preserved)', async () => {
+    const bare = await seedShipment({ cargoMode: 'LCL', tradeDirection: 'IMPORT' });
+
+    const item = await findItem(bare.id);
+    assert.ok(item);
+    assert.equal(item!.operational.scheduleReadiness, 'WAITING_DATE');
+  });
+
   test('trims and nulls empty notes', async () => {
     const shipment = await seedShipment({
       customerNotes: '   ',

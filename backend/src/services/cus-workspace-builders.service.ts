@@ -134,7 +134,10 @@ function buildOperationalSummary(
   // ngày đóng/trả; any missing appointment keeps WAITING_DATE ("Chưa chốt
   // ngày"), the same per-cont rule containerMissingFields() already applies
   // to TRANSPORT_DATE. Lots without container rows keep the shipment-level
-  // expectedDeliveryDate fallback.
+  // expectedDeliveryDate fallback — and when that is unset, the lot-level
+  // closing/planned-return timestamp, which is exactly the field pair the
+  // "Chỉnh sửa Lịch trình" dialog writes (card 20260914_35, lead ruling:
+  // those timestamps ARE the lot's schedule for container-less lots).
   const fclAppointmentValues = row.shipment.cargoMode === 'FCL' && totalContainers > 0
     ? containers.map((container) => container.customerAppointmentAt)
     : null;
@@ -146,11 +149,13 @@ function buildOperationalSummary(
       .filter((value): value is Date => value != null)
       .sort((left, right) => left.getTime() - right.getTime())[0]
     : null;
+  const lotLevelTimestamp = row.shipment.closingAt ?? row.shipment.plannedReturnAt;
   const effectiveScheduleDate = fclAppointmentValues != null
     ? (undatedFclContainers === 0 && earliestFclAppointment != null
       ? localDateInBusinessZone(earliestFclAppointment)
       : null)
-    : row.shipment.expectedDeliveryDate;
+    : row.shipment.expectedDeliveryDate
+      ?? (lotLevelTimestamp != null ? localDateInBusinessZone(lotLevelTimestamp) : null);
   const scheduleReadiness = effectiveScheduleDate == null
     ? 'WAITING_DATE' as const
     : bucket === ShipmentCusBucket.NEW && effectiveScheduleDate < businessDateNow()
