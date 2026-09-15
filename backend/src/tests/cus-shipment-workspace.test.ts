@@ -2543,12 +2543,41 @@ describe('Linked-trip guard is value-aware (container number is identity, not an
       .from(s.trips).where(eq(s.trips.id, trip.id));
     assert.equal(tripAfter.status, 'CREATED');
 
+
+
     // Visible after reload through the CUS projection.
     const flat = await listCusShipmentContainers({ page: 1, limit: 100, searchSuffix: marker }, cusActor);
     const flatRow = flat.items.find((item) => item.id === container.id);
     assert.equal(flatRow?.containerNumber, nextNumber);
   });
 
+  test('a rejected CUS container-line correction writes nothing (partial-write rollback)', async () => {
+    const { shipment, container } = await seedAssignedLot();
+
+    const readRow = () => Promise.all([
+      db.select({
+        number: s.shipmentContainers.containerNumber,
+        type: s.shipmentContainers.containerTypeId,
+      }).from(s.shipmentContainers).where(eq(s.shipmentContainers.id, container.id)),
+      db.select({ version: s.shipments.version }).from(s.shipments).where(eq(s.shipments.id, shipment.id)),
+    ]);
+    const before = await readRow();
+
+    // 'ABC' trips the shared ISO 6346 gate before any write happens.
+    await assert.rejects(
+      () => updateCusShipmentContainerLine({
+        shipmentId: shipment.id,
+        containerId: container.id,
+        input: { expectedShipmentVersion: shipment.version, containerNumber: 'ABC' },
+        actor: adminActor,
+      }),
+      (error: { statusCode?: number }) => error.statusCode === 400,
+    );
+
+    // Row byte-identical: no version bump, no partial field writes.
+    const after = await readRow();
+    assert.deepEqual(after, before);
+  });
   test('the CUS dialog full-form echo (number + unchanged type/weight/volume) saves on a tripped row', async () => {
     const { marker, shipment, container, fulfillment } = await seedAssignedLot();
     await attachTrip(fulfillment.id, marker);
