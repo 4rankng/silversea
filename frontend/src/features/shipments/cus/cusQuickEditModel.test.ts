@@ -135,6 +135,15 @@ describe('quickEditSaveIdentity', () => {
 });
 
 describe('buildQuickEditPayload', () => {
+  it('notes field ships multiline text verbatim — no newline stripping on the save path', () => {
+    const item = makeItem();
+    const note = '- 123\n- ABC';
+    const draft = draftFrom(item, 'notes', { customerNote: note, operationalNote: 'L deterioro\ndòng hai' });
+    const payload = buildQuickEditPayload(draft, item);
+    expect(payload.customerNotes).toBe(note);
+    expect((payload.driverNotes as string).includes('\n')).toBe(true);
+  });
+
   it('identity: trims and nulls empty factory names', () => {
     const item = makeItem();
     expect(buildQuickEditPayload(draftFrom(item, 'identity'), item)).toEqual({ expectedVersion: 3, factoryName: 'Factory A' });

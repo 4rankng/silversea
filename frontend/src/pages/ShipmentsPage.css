@@ -2534,3 +2534,13 @@
     display: none;
   }
 }
+
+/* _35: multiline note previews keep their typed line breaks (user-ruled).
+   2-line clamp + ellipsis; the drawer/detail surfaces show the full note. */
+.cus-note-clamp {
+  white-space: pre-wrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
