@@ -564,6 +564,7 @@ coreRoutes.post(
         responsibleUnitId: parsed.data.responsibleUnitId,
         bookingRef: parsed.data.bookingRef,
         blNumber: parsed.data.blNumber,
+        declarationNumber: parsed.data.declarationNumber,
         tradeDirection: parsed.data.tradeDirection,
         cargoMode: parsed.data.cargoMode,
         operationalSiteId: parsed.data.operationalSiteId,

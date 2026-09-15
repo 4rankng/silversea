@@ -68,3 +68,12 @@ if (typeof window !== 'undefined') {
     });
   }
 }
+
+// jsdom has no media-query API. Default to its desktop viewport; responsive
+// interaction tests override this function with their explicit breakpoint.
+if (!window.matchMedia) {
+  Object.defineProperty(window, 'matchMedia', { configurable: true, writable: true, value: (query: string) => ({
+    matches: false, media: query, onchange: null,
+    addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {}, dispatchEvent() { return true; },
+  }) });
+}

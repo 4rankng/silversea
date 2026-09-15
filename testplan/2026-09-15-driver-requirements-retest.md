@@ -1,0 +1,19 @@
+# Driver requirements retest — 15 September 2026
+
+Base: 9b99b1aa568e9e06c899a6ca86f2915e41bc23fe. Read requirements from Kanban-PROD regardless of completion labels; new IMG_6377/6379 customer corrections supersede older conflicting layout descriptions. No commits, deployment, approval workflows or offline sync. Root owns actual Chrome interaction; this lane reports component/API execution separately from UI evidence.
+
+| Case | Reproduction | Expected result |
+|---|---|---|
+| DRV-R01 | Save dispatch task labels and a multi-line driver note, then open assigned driver's summary and detail; also use mixed-case catalog labels and empty segments. | Uppercase tasks appear in their own labelled row, driver note follows in its own row with line breaks preserved; no note text is uppercased or lost. |
+| DRV-R02 | IMPORT container has a delivery factory and a different configured dropoff/return port; compare card and detail. Repeat same-place, missing-port, and EXPORT examples. | IMPORT Hạ/Cảng hạ identifies the canonical empty-return port, with no duplicate return row. Known delivery stays clearly identified even when it equals the return port (upstream P1_5 retained on ec46b398). Missing return port never falls back to a factory. EXPORT behavior retains distinct stages. |
+| DRV-R03 | Open invoice details with full and partial factory invoice configuration, distinct customer billing, whitespace values and no configuration. | Legal name, invoice address and tax ID remain correctly attributed; partial known fields are retained and missing fields described; no other party's identity is substituted. |
+| DRV-R04 | Open driver details with named phone contact, blank explicit shipment contact and configured site contact; repeat contact without a phone. | One combined named contact/callable phone row, no separate warehouse-phone duplicate; blank overrides do not hide configured contact. |
+| DRV-R05 | Driver acceptance is blocked by another owned trip whose trip ID differs from fulfillment ID; follow recovery link. | Link uses the trip ID required by /my-trips/:id. No link is offered for another driver's trip. |
+| DRV-R06 | Run current driver suites covering board filters/identity, detail fetch ordering and ad-hoc fallback, containers/attachments/POD, ownership and completion. | Preserve existing validated domain behavior; report actual commands and uncovered physical-device/staging cases without accepting ticket labels as evidence. |
+| DRV-R07 | Open detail with driver notes present and no site rules, then repeat with neither. | Driver notes stay separate, and the site-rules section explicitly says no rules have been configured instead of showing a bare heading. |
+| DRV-R08 | Open the container editor on phone, tablet and desktop. | Cont, seal and delivery-note pickers share the available width in three equal columns; each camera action stays under its matching picker, without a tall single-column stack. |
+| DRV-R09 | Save blank, malformed and invalid-check-digit container numbers; correct to a valid ISO number and save. | Invalid values remain editable, focus returns to the container field and no request is sent. Valid normalized input saves with the original version token; an IMPORT declared-number mismatch remains advisory. |
+
+Implementation boundary: driver-only presentation helpers and driver API projection; shared source changes require coordination. Existing compact typography, independent disclosures, photo controls and role guards remain.
+
+Cross-channel check: CUS quick-edit sends `driverNotes`, core route maps that alias to the single stored `operationalNotes` field. Dispatch writes that same field. A service-write → board/detail regression checks two-line driver content and prevents customer-only notes leaking into the driver. Existing dispatcher atomic-save tests cover its writer.

@@ -9,6 +9,10 @@
   content: '';
 }
 
+.detailed-plan-grid td.detailed-plan-grid__cell--editable:has(.dispatch-assignment-cell__driver)::after {
+  min-height: 94px;
+}
+
 .dispatch-assignment-cell {
   position: absolute;
   inset: 0;
@@ -18,7 +22,7 @@
   position: absolute;
   inset: 0;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   align-content: center;
   width: 100%;
   height: 100%;
@@ -59,7 +63,8 @@
 }
 
 .dispatch-assignment-cell__carrier,
-.dispatch-assignment-cell__plate {
+.dispatch-assignment-cell__plate,
+.dispatch-assignment-cell__driver {
   grid-column: 1 / -1;
 }
 
@@ -76,6 +81,17 @@
   line-height: var(--ops-table-supporting-line-height);
 }
 
+.dispatch-assignment-cell__driver {
+  min-width: 0;
+  color: var(--text-secondary, #475467);
+  font-size: var(--ops-table-meta-size, 11px);
+  font-weight: 400;
+  line-height: var(--ops-table-meta-line-height, 1.4);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .dispatch-assignment-cell__estimate {
   color: var(--text-secondary, #64748b);
   font-family: var(--font-data, inherit);
@@ -84,6 +100,7 @@
 }
 
 .dispatch-assignment-cell__plate.is-placeholder,
+.dispatch-assignment-cell__driver.is-placeholder,
 .dispatch-assignment-cell__estimate.is-placeholder {
   /* Placeholder copy ("CUS sẽ bổ sung", "Chưa phân xe") is operational
      guidance, not disabled UI — the fallback must meet text contrast
@@ -547,7 +564,7 @@
   cursor: pointer;
 }
 
-.dispatch-assignment-dialog__notes-tag:hover:not(:disabled) {
+.dispatch-assignment-dialog__notes-tag:not(.is-selected):hover:not(:disabled) {
   border-color: var(--accent, #005a2d);
   color: var(--accent, #005a2d);
 }

@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ChangeEvent, type FocusEventHandler, type Ref } from 'react';
+import { useEffect, useRef, type ChangeEvent, type FocusEventHandler, type FormEventHandler, type Ref } from 'react';
 
 /**
  * Regex matching a complete ISO 8601 date (YYYY-MM-DD). The browser's
@@ -36,7 +36,9 @@ export interface BufferedDateInputBindings {
   defaultValue: string;
   /** Native change handler that only fires onChange for complete or cleared values. */
   onChange: (event: ChangeEvent<HTMLInputElement>) => void;
-  /** Native blur handler that reverts an abandoned partial draft. */
+  /** Native input events commit complete segments before a following Enter. */
+  onInput: FormEventHandler<HTMLInputElement>;
+  /** Commit a complete pending value or revert an abandoned partial draft. */
   onBlur: FocusEventHandler<HTMLInputElement>;
 }
 
@@ -55,9 +57,9 @@ export interface BufferedDateInputBindings {
  * Behavior:
  *  - The hook exposes a `ref` and a `defaultValue`. Spread them onto the
  *    <input type="date"> so it is uncontrolled.
- *  - `onChange` is only invoked when the new value is empty (cleared) or a
+ *  - `input` and `change` invoke onChange only when the new value is empty (cleared) or a
  *    complete YYYY-MM-DD value. Partial values stay in the DOM, untouched.
- *  - On blur, an abandoned partial draft is reverted to the last
+ *  - On blur, a complete pending date is committed once; an abandoned partial draft is reverted to the last
  *    `value` prop so a half-typed entry does not silently become the saved
  *    value.
  *  - When the parent's `value` changes externally (e.g. "Clear filters"
@@ -78,27 +80,38 @@ export function useBufferedDateValue({ value, onChange }: UseBufferedDateValueOp
   // re-write the input's value on every render — only when the parent
   // actually changes the controlled value.
   const lastSyncedValueRef = useRef(value);
+  const lastEmittedValueRef = useRef(value);
 
   useEffect(() => {
     if (lastSyncedValueRef.current !== value) {
       lastSyncedValueRef.current = value;
+      lastEmittedValueRef.current = value;
       if (inputRef.current) {
         inputRef.current.value = value;
       }
     }
   }, [value]);
 
-  const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const next = event.target.value;
-    if (isCompleteDateString(next)) {
+  const commitCompleteValue = (input: HTMLInputElement) => {
+    const next = input.value;
+    if (!input.validity?.badInput && isCompleteDateString(next) && next !== lastEmittedValueRef.current) {
+      lastEmittedValueRef.current = next;
       onChangeRef.current(next);
     }
   };
+  const handleChange = (event: ChangeEvent<HTMLInputElement>) => commitCompleteValue(event.target);
+  const handleInput: FormEventHandler<HTMLInputElement> = (event) => commitCompleteValue(event.currentTarget);
 
   const handleBlur: FocusEventHandler<HTMLInputElement> = (event) => {
     const current = event.target.value;
+    // Keep native incomplete segments visible and invalid; reverting here
+    // would let a following Save click reuse the previous valid parent date.
+    if (event.target.validity?.badInput) return;
     if (!isCompleteDateString(current)) {
       event.target.value = valueRef.current;
+    } else {
+      // Some native date controls defer change until focus leaves the field.
+      commitCompleteValue(event.target);
     }
   };
 
@@ -106,6 +119,7 @@ export function useBufferedDateValue({ value, onChange }: UseBufferedDateValueOp
     ref: inputRef,
     defaultValue: value,
     onChange: handleChange,
+    onInput: handleInput,
     onBlur: handleBlur,
   };
 }

@@ -2,7 +2,7 @@ import { MUTATION_METHODS, hasIdempotencyKey, ensureMutationTransactionKey } fro
 import { ApiError } from './errors';
 import { assertConnectionForMutation } from '../connection';
 import { notifySessionExpired } from './session';
-import { getToken, setToken as storeToken, clearToken as storeClearToken, invalidateTokenCache } from '../token';
+import { getToken, setToken as storeToken, clearToken as storeClearToken, clearTokenIfCurrent, isCurrentToken, invalidateTokenCache } from '../token';
 
 type MutationOptions = {
   expectedUpdatedAt?: string;
@@ -41,6 +41,7 @@ const HEALED_VERSION_TOKEN = Symbol('healedVersionToken');
 const VERSION_TOKEN_REQUIRED = 'VERSION_TOKEN_REQUIRED';
 
 class ApiClient {
+  private requestCacheToken: string | null | undefined;
   private readonly updatedAtByPath = new Map<string, string>();
   private readonly retryableCommandKeys = new Map<string, {
     activeRequests: number;
@@ -54,15 +55,20 @@ class ApiClient {
     getToken();
   }
 
-  setToken(token: string) {
+  /** Discard actor-specific request state without changing shared credentials. */
+  resetSessionCaches() {
+    this.requestCacheToken = undefined;
     this.updatedAtByPath.clear();
     this.retryableCommandKeys.clear();
+  }
+
+  setToken(token: string) {
+    this.resetSessionCaches();
     storeToken(token);
   }
 
   clearToken() {
-    this.updatedAtByPath.clear();
-    this.retryableCommandKeys.clear();
+    this.resetSessionCaches();
     storeClearToken();
   }
 
@@ -76,6 +82,7 @@ class ApiClient {
     options?: RequestInitWithSkip,
     skipContentType = false,
   ): Promise<T> {
+    const initiatingToken = getToken();
     try {
       return await this.requestOnce<T>(path, options, skipContentType);
     } catch (error) {
@@ -92,7 +99,7 @@ class ApiClient {
         && ['PUT', 'PATCH', 'DELETE'].includes(options.method.toUpperCase())
         && !options?.expectedUpdatedAt
         && !(options as RequestInitWithSkip & { [HEALED_VERSION_TOKEN]?: boolean })[HEALED_VERSION_TOKEN];
-      if (!healable) throw error;
+      if (!healable || !isCurrentToken(initiatingToken)) throw error;
       if (import.meta.env.DEV) {
         console.warn(
           `[api] ${options?.method} ${path} omitted expectedUpdatedAt — self-healed from a fresh row fetch.`
@@ -100,7 +107,7 @@ class ApiClient {
         );
       }
       const fresh = await this.get<{ updatedAt?: string }>(path);
-      if (!fresh?.updatedAt) throw error;
+      if (!fresh?.updatedAt || !isCurrentToken(initiatingToken)) throw error;
       return this.requestOnce<T>(path, {
         ...options,
         headers: {
@@ -121,6 +128,10 @@ class ApiClient {
       assertConnectionForMutation();
     }
     const token = getToken();
+    if (this.requestCacheToken !== token) {
+      this.resetSessionCaches();
+      this.requestCacheToken = token;
+    }
     const headers: Record<string, string> = {
       ...(skipContentType ? {} : { 'Content-Type': 'application/json' }),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -175,7 +186,7 @@ class ApiClient {
     if (generatedCommandKey) {
       this.releaseMutationTransactionKey(generatedCommandKey);
     }
-    this.rememberUpdatedAt(path, options?.method, result);
+    if (isCurrentToken(token)) this.rememberUpdatedAt(path, options?.method, result);
     return result;
   }
 
@@ -277,8 +288,7 @@ class ApiClient {
     if (res.status !== 401 || !requestToken) return;
     // Ignore a late 401 from an older request after the user has already
     // established a newer session.
-    if (getToken() !== requestToken) return;
-    storeClearToken();
+    if (!clearTokenIfCurrent(requestToken)) return;
     notifySessionExpired();
   }
 

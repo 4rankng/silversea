@@ -525,8 +525,7 @@
   .shipment-container-ledger__editable-cell > .shipment-container-ledger__cell-editor > .shipment-container-ledger__cell-trigger { grid-template-columns: 88px minmax(0, 1fr); }
   .shipment-container-ledger__editable-cell > .shipment-container-ledger__cell-editor > .shipment-container-ledger__cell-trigger::before { width: 80px; }
   .shipment-container-ledger__cell-trigger { grid-column: 2; }
-  .shipment-container-ledger__route { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); }
-  .shipment-container-ledger__route i { justify-self: center; transform: none; }
+  .shipment-container-ledger__route { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; column-gap: 8px; }
 }
 
 @media (max-width: 1023px) {

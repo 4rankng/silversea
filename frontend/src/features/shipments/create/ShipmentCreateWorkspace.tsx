@@ -34,6 +34,7 @@ import {
   type ShipmentCreateFormState,
   type ShipmentCreateIssue,
 } from './shipment-create-model';
+import { focusShipmentCreateIssue as focusIssue } from './shipment-create-focus';
 import { ShipmentCreateSummary } from './ShipmentCreateSummary';
 import { FreightPreviewCard } from './FreightPreviewCard';
 import { ShipmentCreateSection, shipmentCreateGridStyle } from './ShipmentCreateSections';
@@ -76,6 +77,7 @@ export function ShipmentCreateWorkspace() {
   // Customer-facing note — kept separate from `form.operationalNotes` per the
   // two-note model. `ShipmentCreateFormState` (owned by shipment-create-model)
   // has not been widened yet, so this lives as its own state slice here.
+  const workspaceFormRef = useRef<HTMLFormElement>(null);
   const [customerNotes, setCustomerNotes] = useState('');
   const [containers, setContainers] = useState<ContainerRow[]>([newContainer()]);
   const [loading, setLoading] = useState(true);
@@ -528,17 +530,6 @@ export function ShipmentCreateWorkspace() {
     if (row) discardContainer(row);
   }
 
-  function focusIssue(fieldId: string) {
-    const field = document.querySelector(`[data-field-id="${fieldId}"]`);
-    if (!(field instanceof HTMLElement)) return;
-    const reduceMotion = typeof window.matchMedia === 'function'
-      && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    field.scrollIntoView?.({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' });
-    const control = field.matches('button, input, select, textarea, [tabindex]')
-      ? field
-      : field.querySelector('button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])');
-    if (control instanceof HTMLElement) control.focus({ preventScroll: true });
-  }
 
   function goBack() {
     if (isDirty) {
@@ -554,6 +545,8 @@ export function ShipmentCreateWorkspace() {
   }
 
   async function save(intent: SaveIntent) {
+    const incomplete = workspaceFormRef.current?.querySelector<HTMLInputElement>('[data-split-datetime] input:invalid');
+    if (incomplete) { incomplete.focus(); incomplete.reportValidity(); return; }
     const result = await runSave(intent);
     if (result.issues.length > 0) {
       window.requestAnimationFrame(() => focusIssue(result.issues[0].fieldId));
@@ -574,7 +567,7 @@ export function ShipmentCreateWorkspace() {
        * inline in the breadcrumb area instead — keeps a11y (text is
        * reachable) and removes the layout-side effect. */}
       <h1 className="csc-page__title">Tạo lô hàng</h1>
-      <form onSubmit={(event) => { event.preventDefault(); void save('DRAFT'); }} className="csc-workspace">
+      <form ref={workspaceFormRef} onSubmit={(event) => { event.preventDefault(); void save('DRAFT'); }} className="csc-workspace">
         <div className="csc-form">
         {/* Lệnh chạy ngoài (MasterDataNhaMay §4.1) — fixed at the very top of
             the intake form, visible without scrolling. Toggling never clears
@@ -640,7 +633,7 @@ export function ShipmentCreateWorkspace() {
             )}
 
             {/* SỐ TỜ KHAI */}
-            <div className="csc-identity-grid__declaration"><TextField label="Số tờ khai" value={form.declarationNumber} onChange={(event) => update('declarationNumber', event.target.value)} maxLength={100} disabled={Boolean(saving)} warning={declarationConflict ? <ShipmentReferenceConflictWarning conflict={declarationConflict} fieldLabel="Số tờ khai" /> : undefined} /></div>
+            <div className="csc-identity-grid__declaration"><TextField label="Số tờ khai" value={form.declarationNumber} onChange={(event) => update('declarationNumber', event.target.value)} maxLength={50} disabled={Boolean(saving)} warning={declarationConflict ? <ShipmentReferenceConflictWarning conflict={declarationConflict} fieldLabel="Số tờ khai" /> : undefined} /></div>
 
           </div>
         </ShipmentCreateSection>
@@ -913,13 +906,15 @@ export function ShipmentCreateWorkspace() {
                     label="Trọng lượng (kg)"
                     value={formatContainerWeight(row.cargoWeightKg)}
                     placeholder="Nhập kg"
-                    className="csc-container-cell--numeric"
+                    className="csc-container-cell--numeric csc-container-cell--weight"
                     onRevert={(value) => updateContainer(row.key, 'cargoWeightKg', value)}
                   >
                     <TextField label="Trọng lượng (kg)" hideLabel type="number" min="0" step="0.01" value={row.cargoWeightKg} onChange={(event) => updateContainer(row.key, 'cargoWeightKg', event.target.value)} disabled={Boolean(saving)} />
                   </ShipmentContainerCell>
                   <ShipmentContainerCell
                     label="Ngày giờ đóng trả"
+                    alwaysVisible
+                    className="csc-container-cell--appointment"
                     value={formatContainerAppointment(row.customerAppointmentAt)}
                     placeholder="Chọn ngày giờ"
                     fieldId={`container-${row.key}-customer-appointment`}

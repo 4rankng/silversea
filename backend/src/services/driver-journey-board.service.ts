@@ -43,13 +43,13 @@ export interface DriverJourneyCard {
   scheduledAt: string | null;
   factoryName: string | null;
   factoryShortName: string | null;
-  // 3a0bd5af: factory site street address — the card's Tuyến line prefers it.
+  // 3a0bd5af: factory site street address, kept for detail; the card uses routeName.
   factoryAddress: string | null;
   loadingPortName: string | null;
   routeName: string | null;
   dropPortName: string | null;
-  /** Stage-2 empty-container return depot — distinct from the delivery point;
-   *  null when the dropoff port names the same place (delivery-stage.ts). */
+  /** Canonical container dropoff port for IMPORT, including same-place delivery;
+   *  for other directions only a distinct return stage is exposed. */
   returnDepotName: string | null;
   containerNumber: string | null;
   containerTypeName: string | null;
@@ -69,12 +69,9 @@ export interface DriverJourneyCard {
 }
 
 /**
- * The driver's own "Hoàn thành" action (completeOwnedFulfillmentTrip) never
- * flips trips.status to COMPLETED — that's Q15 governance's independently
- * approved close action, which can happen days later. From the driver's
- * point of view the job is done once evidence is submitted (all 4
- * milestones + required POD files, already-submitted), so History uses that
- * readiness signal, not trip.status, for anything still IN_TRANSIT.
+ * Completed trips appear in History. For an acknowledged IN_TRANSIT trip,
+ * complete submitted evidence also makes the card historical; finance
+ * readiness is independent from the driver's evidence workflow.
  */
 function bucketForStatus(
   status: typeof s.trips.$inferSelect.status,
@@ -162,7 +159,7 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
     containerPickupPortName: pickupPort.name,
     containerDropoffPortName: dropoffPort.name,
     containerFactoryName: containerFactory.name,
-    // 3a0bd5af: the card Tuyến line = factory site street address.
+    // Factory address is retained separately from the configured route name.
     containerFactoryAddress: containerFactory.address,
     // Blank-safe site label: operational_sites.short_name is notNull with ''
     // default, so a raw ?? fallback would never fire on unfilled rows.
@@ -280,7 +277,11 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
       loadingPortName: row.pickupLocation ?? row.containerPickupPortName,
       routeName: row.routeName,
       dropPortName: deliveryStage.deliveryName,
-      returnDepotName: deliveryStage.returnDepotName,
+      // IMPORT Hạ is the configured empty return port, including when it
+      // equals the delivery label. Never infer it from a delivery factory.
+      returnDepotName: row.tradeDirection === 'IMPORT'
+        ? (row.containerDropoffPortName?.trim() || null)
+        : deliveryStage.returnDepotName,
       containerNumber: row.containerNumber,
       containerTypeName: row.containerTypeName,
       sealNumber: row.sealNumber,

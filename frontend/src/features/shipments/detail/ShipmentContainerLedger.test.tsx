@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type {
   ShipmentCusContainerFlatRow,
@@ -162,10 +162,10 @@ const baseDetail = () => ({
   containers: [],
 }) as unknown as ShipmentCusWorkspaceDetail;
 
-function renderLedger(mode: ShipmentDetailEditMode) {
-  const row = baseRow();
+function renderLedger(mode: ShipmentDetailEditMode, row = baseRow()) {
   const onCancelEdit = vi.fn();
   const onSaveNotes = vi.fn(async () => {});
+  const onSaveSchedule = vi.fn(async () => {});
   const view = render(
     <ShipmentContainerLedger
       rows={[row]}
@@ -180,14 +180,14 @@ function renderLedger(mode: ShipmentDetailEditMode) {
       onCancelEdit={onCancelEdit}
       onSaveRoute={vi.fn(async () => {})}
       onSaveVehicle={vi.fn(async () => {})}
-      onSaveSchedule={vi.fn(async () => {})}
+      onSaveSchedule={onSaveSchedule}
       onSaveNotes={onSaveNotes}
       onSaveIdentity={vi.fn(async () => {})}
       onSaveDocuments={vi.fn(async () => {})}
       onSaveContainer={vi.fn(async () => {})}
     />,
   );
-  return { ...view, onCancelEdit, onSaveNotes };
+  return { ...view, onCancelEdit, onSaveNotes, onSaveSchedule };
 }
 
 describe('ShipmentContainerLedger inline editor dismissal', () => {
@@ -262,10 +262,63 @@ describe('ShipmentContainerLedger inline editor dismissal', () => {
     expect(onCancelEdit).toHaveBeenCalledTimes(1);
   });
 
+  it.each([false, true])('schedule editor retains its draft while picking a portaled time (mobile=%s)', async (mobile) => {
+    vi.stubGlobal('matchMedia', vi.fn().mockImplementation((query: string) => ({
+      matches: mobile && query === '(max-width: 640px)', media: query,
+      addEventListener: vi.fn(), removeEventListener: vi.fn(), addListener: vi.fn(), removeListener: vi.fn(),
+    })));
+    try {
+      const { onCancelEdit } = renderLedger('schedule');
+      const time = screen.getByLabelText('Giờ trả hàng');
+      fireEvent.pointerDown(time); fireEvent.mouseDown(time); act(() => time.focus()); fireEvent.click(time);
+      const dialog = await screen.findByRole('dialog', { name: 'Chọn giờ (24h) — Giờ trả hàng' });
+      const exact = within(dialog).getByLabelText('Giờ chính xác (HH:mm)');
+      fireEvent.pointerDown(exact); fireEvent.mouseDown(exact); act(() => exact.focus()); fireEvent.click(exact);
+      fireEvent.change(exact, { target: { value: '1417' } });
+      expect(onCancelEdit).not.toHaveBeenCalled();
+      fireEvent.keyDown(exact, { key: 'Enter' });
+      await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Chọn giờ (24h) — Giờ trả hàng' })).not.toBeInTheDocument());
+      expect(time).toHaveValue('14:17');
+      expect(onCancelEdit).not.toHaveBeenCalled();
+      expect(screen.getByRole('button', { name: /^Lưu lịch trình/ })).toBeInTheDocument();
+    } finally { vi.unstubAllGlobals(); }
+  });
+
   it('schedule editor closes on outside pointerdown', () => {
     const { onCancelEdit } = renderLedger('schedule');
     fireEvent.pointerDown(document.body);
     expect(onCancelEdit).toHaveBeenCalledTimes(1);
+  });
+
+  it('VID-CUS-14: native date input commits before Enter when no change event arrives', async () => {
+    const { onSaveSchedule } = renderLedger('schedule', baseRow({ customerAppointmentAt: null, transportDate: null }));
+    fireEvent.change(screen.getByLabelText('Giờ trả hàng'), { target: { value: '16:17' } });
+    const date = screen.getByLabelText('Ngày trả hàng') as HTMLInputElement;
+    // Native segmented input may publish input before its deferred change.
+    // Set the DOM draft directly so React's change tracker stays untouched.
+    date.value = '2026-09-23';
+    fireEvent.input(date);
+    expect(screen.getByRole('button', { name: /^Lưu lịch trình/ })).toBeEnabled();
+    fireEvent.keyDown(date, { key: 'Enter' });
+    await waitFor(() => expect(onSaveSchedule).toHaveBeenCalledTimes(1));
+    expect(onSaveSchedule).toHaveBeenCalledWith(expect.anything(), expect.anything(), {
+      transportDate: null, customerAppointmentAt: '2026-09-23T16:17',
+    });
+  });
+
+  it.each(['Enter', 'Save'])('VID-CUS-14: %s cannot reuse a previous date while native date segments are incomplete', async (action) => {
+    const { onSaveSchedule } = renderLedger('schedule');
+    fireEvent.change(screen.getByLabelText('Giờ trả hàng'), { target: { value: '16:17' } });
+    const date = screen.getByLabelText('Ngày trả hàng') as HTMLInputElement;
+    date.value = '';
+    Object.defineProperty(date, 'validity', { configurable: true, value: { badInput: true, valid: false } });
+    fireEvent.input(date);
+    fireEvent.blur(date);
+    if (action === 'Enter') fireEvent.keyDown(date, { key: 'Enter' });
+    else fireEvent.click(screen.getByRole('button', { name: /^Lưu lịch trình/ }));
+    expect(onSaveSchedule).not.toHaveBeenCalled();
+    expect(screen.getByText('Nhập ngày đầy đủ và hợp lệ trước khi lưu lịch trình.')).toBeInTheDocument();
+    expect(date).toHaveFocus();
   });
 
   it('identity editor closes on outside pointerdown', () => {
@@ -301,6 +354,23 @@ describe('ShipmentContainerLedger missing-fields summary', () => {
     );
     return { view, onStartEdit };
   }
+
+  it.each(['IMPORT', 'EXPORT'] as const)('SCHEDULE-LAYOUT-01 keeps time/date above the %s operation', (direction) => {
+    const { view } = renderLedgerWithRow(baseRow({ direction, customerAppointmentAt: '2026-09-15T08:00:00.000Z' }));
+    const schedule = view.container.querySelector('[data-label="Lịch trình"] .ops-schedule')!;
+    expect(schedule.firstElementChild).toHaveTextContent('15:00 15/09/2026');
+    expect(schedule.lastElementChild).toHaveTextContent(direction === 'IMPORT' ? /^trả hàng$/ : /^đóng hàng$/);
+    expect(schedule.lastElementChild?.textContent).not.toContain('15/09');
+  });
+
+  it('SCHEDULE-LAYOUT-02 keeps an unknown appointment and missing-date warning explicit', () => {
+    const { view } = renderLedgerWithRow(baseRow({ customerAppointmentAt: null, transportDate: null }));
+    const schedule = view.container.querySelector('[data-label="Lịch trình"] .ops-schedule')!;
+    expect(schedule).toHaveTextContent('Thiếu ngày vận chuyển');
+    expect(schedule).toHaveTextContent('Chưa có lịch hẹn');
+    expect(schedule).toHaveTextContent('Cập nhật theo từng container');
+    expect(schedule.querySelector('.ops-schedule__datetime')).toBeNull();
+  });
 
   it('collapses the missing list to a count control; key blockers stay visible outside it', () => {
     const row = baseRow({
@@ -391,6 +461,15 @@ describe('schedule editor lot transport date (non-FCL affordance)', () => {
     expect(draft.transportDate).toBe('2026-09-20');
     expect(draft.customerAppointmentAt).toBe('2026-09-10T15:00');
     view.unmount();
+  });
+
+  it('invalid typed 24h time stays in the editor without saving', async () => {
+    const { onSaveSchedule } = renderScheduleEditor('FCL');
+    fireEvent.change(screen.getByLabelText('Giờ trả hàng'), { target: { value: '25:99' } });
+    fireEvent.click(screen.getByRole('button', { name: /^Lưu lịch trình/ }));
+    expect(onSaveSchedule).not.toHaveBeenCalled();
+    expect(await screen.findByRole('alert')).toHaveTextContent('Nhập giờ từ 00:00 đến 23:59');
+    expect(screen.getByLabelText('Giờ trả hàng')).toHaveValue('25:99');
   });
 
   it('FCL rows keep the schedule editor appointment-only', () => {

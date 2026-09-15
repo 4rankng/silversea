@@ -201,7 +201,7 @@ function InlineEditor({
     if (!saving) onCancel();
   }, {
     escapeKey: true,
-    ignoreSelector: '.searchable-select__popover, .searchable-select__backdrop, .react-aria-Popover',
+    ignoreSelector: '.searchable-select__popover, .searchable-select__backdrop, .react-aria-Popover, [data-time-picker-overlay], .time-picker__popup',
   });
   const siteOptions = useMemo(() => detail.selectors.ports.map((port) => ({
     value: String(port.id), label: port.label, searchText: `${port.code ?? ''} ${port.name}`,
@@ -261,6 +261,13 @@ function InlineEditor({
   }, []);
 
   const save = async () => {
+    const invalidDate = Array.from(editorRef.current?.querySelectorAll<HTMLInputElement>('input[type="date"]') ?? [])
+      .find((input) => !input.validity.valid);
+    if (invalidDate) {
+      setSaveError('Nhập ngày đầy đủ và hợp lệ trước khi lưu lịch trình.');
+      invalidDate.focus();
+      return;
+    }
     setSaving(true);
     setSaveError(null);
     try {
@@ -315,6 +322,7 @@ function InlineEditor({
             : null,
         });
       } else if (mode === 'schedule') {
+        if (scheduleTime && !/^([01]\d|2[0-3]):[0-5]\d$/.test(scheduleTime)) throw new Error('Nhập giờ từ 00:00 đến 23:59 (HH:mm).');
         if (scheduleTime && !appointmentDate) throw new Error('Chọn ngày đóng/trả trước khi nhập giờ.');
         if (appointmentDate && !scheduleTime) throw new Error('Vui lòng nhập đầy đủ cả Ngày và Giờ giao hàng.');
         await onSaveSchedule(line, row, {
@@ -646,9 +654,9 @@ export function ShipmentContainerLedger({
                     {editError?.rowId === row.id && <span className="shipment-container-ledger__edit-error" role="alert">{editError.message}</span>}
                   </td>
                   <td data-label="Lịch trình" className={cellClassName(row.customerAppointmentEditable, 'schedule')}>
-                    {editableCell(row, 'schedule', row.customerAppointmentEditable, <div className="shipment-container-ledger__multiline shipment-container-ledger__schedule">
+                    {editableCell(row, 'schedule', row.customerAppointmentEditable, <div className="shipment-container-ledger__multiline shipment-container-ledger__schedule ops-schedule">
                       {missingDate && <Badge size="sm" color="warning" className="shipment-container-ledger__schedule-gap"><CalendarOff aria-hidden="true" />Thiếu ngày vận chuyển</Badge>}
-                      <strong>{appointmentInput ? (scheduleTime || formatDate(appointmentInput.slice(0, 10))) : 'Chưa có lịch hẹn'}</strong><span>{appointmentInput ? `${scheduleTime ? `${formatDate(appointmentInput.slice(0, 10))} · ` : ''}${row.direction === 'IMPORT' ? 'trả hàng' : 'đóng hàng'}` : 'Cập nhật theo từng container'}</span></div>)}
+                      <strong className={appointmentInput ? 'ops-schedule__datetime' : undefined}>{appointmentInput ? [scheduleTime, formatDate(appointmentInput.slice(0, 10))].filter(Boolean).join(' ') : 'Chưa có lịch hẹn'}</strong><span>{appointmentInput ? (row.direction === 'IMPORT' ? 'trả hàng' : 'đóng hàng') : 'Cập nhật theo từng container'}</span></div>)}
                   </td>
                   <td data-label="Phân xe" className={cellClassName(vehicleEditable, 'vehicle', missingVehicleToday ? 'shipment-container-ledger__vehicle-pending' : undefined)}>
                     {editableCell(row, 'vehicle', vehicleEditable, <div className="shipment-container-ledger__multiline shipment-container-ledger__vehicle">

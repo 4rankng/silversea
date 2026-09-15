@@ -220,12 +220,11 @@ export interface DispatchDetailPlanRow {
     externalCarrierId: number | null;
     externalCarrierVehicleId: number | null;
     assignedPlate: string | null;
+    /** Trip driver once issued, otherwise current OWN truck assignment. */
+    assignedDriverName?: string | null;
     pairKind?: 'KEP' | 'KET_HOP' | null;
   };
-  estimates: {
-    plannedRevenue: string | null;
-    plannedCarrierCost: string | null;
-  };
+  estimates: { plannedRevenue: string | null; plannedCarrierCost: string | null };
   // NOT NULL DEFAULT 'SINGLE' (mig 0028): every row carries a value — fresh
   // containers start as "Đơn" until dispatch reclassifies them.
   classification: DispatchClassification;
@@ -388,6 +387,7 @@ export function updateDispatchDetailPlan(fulfillmentId: number, body: {
       externalCarrierId: number | null;
       externalCarrierVehicleId: number | null;
       assignedPlate: string | null;
+      assignedDriverName?: string | null;
     };
     estimates: { plannedRevenue: string | null; plannedCarrierCost: string | null };
     lotFullyPlated: boolean;

@@ -2881,6 +2881,50 @@ describe('planning remaining containers after partial dispatch', () => {
   });
   // ─── BUG 5 secondary (9e ruling): fulfillment-less branch + decompose seam ──
 
+  test('DSP-PAGE-01: mixed fulfillment and branch rows paginate once globally without losing containers', async () => {
+    const group = `MERGED-${suffix}`;
+    const planned = await createAllocatedLot({ carrierType: 'OWN', containerCount: 2 });
+    const branch = await createAllocatedLot({ carrierType: null, containerCount: 3 });
+    await db.update(s.shipments).set({ bookingRef: `${group}-planned` }).where(eq(s.shipments.id, planned.shipment.id));
+    await db.update(s.shipments).set({ bookingRef: `${group}-branch` }).where(eq(s.shipments.id, branch.shipment.id));
+    await db.delete(s.shipmentFulfillments).where(inArray(s.shipmentFulfillments.id, branch.fulfillmentIds));
+    const branchContainers = await db.select({ id: s.shipmentContainers.id }).from(s.shipmentContainers)
+      .where(eq(s.shipmentContainers.shipmentId, branch.shipment.id)).orderBy(s.shipmentContainers.id);
+    const forty = await createContainerType('40HC');
+    await db.update(s.shipments).set({ tradeDirection: 'IMPORT', bookingRef: null, blNumber: `${group}-branch` }).where(eq(s.shipments.id, branch.shipment.id));
+    await db.update(s.shipmentContainers).set({ customerAppointmentAt: new Date('2026-09-30T08:00:00Z') })
+      .where(eq(s.shipmentContainers.id, branchContainers[0]!.id));
+    await db.update(s.shipmentContainers).set({ containerTypeId: forty.id, customerAppointmentAt: new Date('2026-09-01T08:00:00Z') })
+      .where(eq(s.shipmentContainers.id, branchContainers[1]!.id));
+    await db.update(s.shipmentContainers).set({ customerAppointmentAt: new Date('2026-09-02T08:00:00Z') })
+      .where(eq(s.shipmentContainers.id, branchContainers[2]!.id));
+    // 20ft IMPORT dates first, then 20ft EXPORT, then the earlier-dated 40ft.
+    const expected = [
+      `c-${branchContainers[2]!.id}`, `c-${branchContainers[0]!.id}`,
+      ...planned.fulfillmentIds.map((id) => `f-${id}`),
+      `c-${branchContainers[1]!.id}`,
+    ];
+    const seen: string[] = [];
+    for (let page = 1; page <= 3; page += 1) {
+      const response = await fetchRows(dispatcherToken, `?q=${group}&limit=2&page=${page}`);
+      assert.equal(response.status, 200);
+      assert.equal(response.data.total, 5);
+      assert.equal(response.data.items.length, page === 3 ? 1 : 2, 'every non-final page must be full');
+      seen.push(...response.data.items.map((row) => row.fulfillmentId == null ? `c-${row.shipmentContainerId}` : `f-${row.fulfillmentId}`));
+    }
+    assert.deepEqual(seen, expected, 'both sources share a single page boundary; no skipped or duplicated rows');
+    const pastEnd = await fetchRows(dispatcherToken, `?q=${group}&limit=2&page=4`);
+    assert.equal(pastEnd.data.total, 5);
+    assert.deepEqual(pastEnd.data.items, []);
+    const imports = await fetchRows(dispatcherToken, `?q=${group}&limit=2&page=2&direction=IMPORT`);
+    assert.equal(imports.data.total, 3);
+    assert.deepEqual(imports.data.items.map((row) => row.shipmentContainerId), [branchContainers[1]!.id]);
+    const assigned = await fetchRows(dispatcherToken, `?q=${group}&limit=2&page=1&assignmentStatus=ASSIGNED`);
+    assert.equal(assigned.data.total, 0);
+    assert.deepEqual(assigned.data.items, []);
+
+  });
+
   test('UNION-branch: a READY lot with NO fulfillments surfaces as an unassigned row (row + total)', async () => {
     const customer = await createCustomer(`Union customer ${suffix}-${createdCustomerIds.length}`);
     const site = await createOperationalSite(customer.id);

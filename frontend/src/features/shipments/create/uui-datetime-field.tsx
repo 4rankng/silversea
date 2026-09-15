@@ -1,4 +1,4 @@
-import { BufferedUuiDateTimeInput } from '../../../design-system/forms/BufferedUuiDateTimeInput';
+import { SplitDateTimeField } from '../../../design-system/forms/SplitDateTimeField';
 
 type HtmlInputEvent = { target: { value: string } };
 
@@ -17,40 +17,26 @@ interface UDateTimeFieldProps {
   hideLabel?: boolean;
 }
 
-/**
- * Untitled UI styled **24h datetime** field for the workspace grid.
- *
- * Hard requirement (2026-09-09 customer report): whenever a date and a time
- * display together the time comes first on a 24-hour clock
- * (`HH:mm DD/MM/YYYY`), which a native `datetime-local` input cannot
- * guarantee (browser locale controls it). This adapter renders the
- * design-system buffered text input in that fixed shape and keeps the legacy
- * event-shaped onChange + `getByLabelText` contracts used by the workspace
- * tests. Lives beside (not inside) uui-fields.tsx so that adapter file stays
- * under the structure-guard new-file ceiling.
- */
+/** Two independent 24h time/date controls share the existing complete ISO
+ * event contract used by every shipment-create datetime consumer. */
 export function UDateTimeField({
   id,
   label,
   value,
   onChange,
   disabled,
-  required,
   error,
   hideLabel,
 }: UDateTimeFieldProps) {
   return (
-    <BufferedUuiDateTimeInput
+    <SplitDateTimeField
       id={id}
-      label={hideLabel ? undefined : label}
-      aria-label={hideLabel ? label : undefined}
-      size="sm"
+      label={label}
+      hideLabel={hideLabel}
       value={value}
       onChange={(next) => onChange(asEvent(next))}
-      isDisabled={disabled}
-      isRequired={required}
-      isInvalid={Boolean(error)}
-      hint={error}
+      disabled={disabled}
+      error={error}
       className="csc-uui-field csc-control-boundary"
     />
   );

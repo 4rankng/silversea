@@ -55,8 +55,11 @@ export function CusAppointmentPopover({
   const [panelOpen, setPanelOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const pickerTriggerRef = useRef<HTMLButtonElement>(null);
-  useClickOutside(panelRef, () => setPanelOpen(false), { escapeKey: true, enabled: panelOpen, additionalRefs: [pickerTriggerRef] });
+  const closePanel = () => { setPanelOpen(false); pickerTriggerRef.current?.focus(); };
+  useClickOutside(panelRef, closePanel, { escapeKey: true, enabled: panelOpen, additionalRefs: [pickerTriggerRef], ignoreSelector: '[data-time-picker-overlay]' });
   useFocusTrap(popoverRef, isOpen);
+  useFocusTrap(panelRef, panelOpen);
+  const panelCoords = usePopoverPosition(panelRef, pickerTriggerRef, panelOpen, 396, 200);
   useLayoutEffect(() => {
     if (!isOpen) return;
     const trigger = triggerRef?.current ?? document.activeElement as HTMLElement | null;
@@ -102,6 +105,7 @@ export function CusAppointmentPopover({
     escapeKey: true,
     enabled: isOpen,
     additionalRefs: triggerRef ? [triggerRef] : [],
+    ignoreSelector: '[data-time-picker-overlay]',
   });
 
   const coords = usePopoverPosition(popoverRef, triggerRef, isOpen);
@@ -168,6 +172,7 @@ export function CusAppointmentPopover({
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.nativeEvent.isComposing) return;
     if (event.key === 'Escape') {
       event.preventDefault();
       event.stopPropagation();
@@ -301,7 +306,7 @@ export function CusAppointmentPopover({
                 <Calendar size={14} aria-hidden="true" />
               </button>
               {panelOpen && (
-                <div ref={panelRef} className="dtp-dialog-host cus-appointment-dtp">
+                <div ref={panelRef} className="dtp-dialog-host cus-appointment-dtp" style={{ top: panelCoords?.top ?? 12, left: panelCoords?.left ?? 12 }}>
                   <DateTimePickerDialog
                     title={`Giờ hẹn đóng/trả — ${containerLabel}`}
                     value={date && time ? `${date}T${time}` : ''}
@@ -310,7 +315,7 @@ export function CusAppointmentPopover({
                       updateDateTime(d, t);
                       setPanelOpen(false);
                     }}
-                    onClose={() => setPanelOpen(false)}
+                    onClose={closePanel}
                   />
                 </div>
               )}

@@ -67,7 +67,7 @@ export default function RoutesConfigPage() {
         onBack={handleBack}
         iconName="route-distance"
         action={
-          <button className="btn btn--primary" onClick={() => crud.setShowAddForm(true)}><Plus size={14} /> Thêm tuyến</button>
+          <button className="btn btn--primary" onClick={() => { crud.setError(null); crud.setShowAddForm(true); }}><Plus size={14} /> Thêm tuyến</button>
         }
       />
 
@@ -75,8 +75,10 @@ export default function RoutesConfigPage() {
         key={crud.editingId ?? (crud.showAddForm ? 'add' : 'closed')}
         isOpen={crud.showAddForm || crud.editingId != null}
         saving={crud.saving}
+        error={crud.error}
         item={crud.editingId != null ? routes.find(r => r.id === crud.editingId) : undefined}
         onsave={d => {
+          crud.setError(null);
           if (crud.editingId != null) crud.doUpdate(crud.editingId, d);
           else crud.doCreate(d);
         }}
@@ -151,7 +153,7 @@ export default function RoutesConfigPage() {
                           : { top: '100%', marginTop: 4 }),
                       }} onClick={(e) => e.stopPropagation()}>
                         <button style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px',  border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', color: 'var(--ink)' }}
-                          onClick={() => { setMenuOpenId(null); crud.setEditingId(r.id); }}>
+                          onClick={() => { setMenuOpenId(null); crud.setError(null); crud.setEditingId(r.id); }}>
                           <Pencil size={13} /> Sửa
                         </button>
                         <button style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px',  border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', color: 'var(--danger)' }}

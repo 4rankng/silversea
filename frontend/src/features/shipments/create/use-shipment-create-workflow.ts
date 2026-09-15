@@ -10,7 +10,7 @@ import {
   updateShipment,
   updateShipmentDeclaration,
 } from '../../../api/shipmentClient';
-import type { OperationalSite } from '../../../api/shipmentClient';
+import type { OperationalSite, QuickCreateShipmentRequest } from '../../../api/shipmentClient';
 import type { ShipmentReferenceConflict } from '../../../api/shipmentDuplicateClient';
 import {
   buildShipmentContainerPayload,
@@ -33,7 +33,7 @@ interface SaveAttempt {
   declarationSignature?: string;
   containerSignature?: string;
   submitSignature?: string;
-  pendingCreatePayload?: ReturnType<typeof buildShipmentRootPayload>;
+  pendingCreatePayload?: QuickCreateShipmentRequest;
   containerRecoveryNeeded?: boolean;
 }
 
@@ -115,7 +115,9 @@ export function useShipmentCreateWorkflow({
       const rootSignature = signature(createPayload);
 
       if (attempt.shipmentId == null || attempt.version == null) {
-        const recoveryPayload = attempt.pendingCreatePayload ?? createPayload;
+        const recoveryPayload = attempt.pendingCreatePayload ?? {
+          ...createPayload, declarationNumber: form.declarationNumber.trim() || null,
+        };
         attempt.pendingCreatePayload = recoveryPayload;
         let shipment: Awaited<ReturnType<typeof quickCreateShipment>>;
         try {
@@ -126,7 +128,12 @@ export function useShipmentCreateWorkflow({
         }
         attempt.shipmentId = shipment.id;
         attempt.version = shipment.version;
-        attempt.rootSignature = signature(recoveryPayload);
+        const { declarationNumber: initialDeclarationNumber, ...persistedRoot } = recoveryPayload;
+        attempt.rootSignature = signature(persistedRoot);
+        if (shipment.initialDeclarationId != null) {
+          attempt.declarationId = shipment.initialDeclarationId;
+          attempt.declarationSignature = initialDeclarationNumber?.trim() ?? '';
+        }
         attempt.pendingCreatePayload = undefined;
       }
       if (attempt.rootSignature !== rootSignature) {

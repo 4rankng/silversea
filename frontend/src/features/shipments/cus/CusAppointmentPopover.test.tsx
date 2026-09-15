@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, within, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { CusAppointmentPopover } from './CusAppointmentPopover';
 
@@ -86,7 +86,7 @@ describe('CusAppointmentPopover', () => {
     // Sep 2026 starts Tuesday → Monday-first lead 1 → day 15 sits at idx 15.
     fireEvent.click((pickerDialog.querySelector('button[data-idx="15"]')) as HTMLElement);
     fireEvent.click((pickerDialog.querySelector('.dtp-dialog__split button:nth-child(2)')) as HTMLElement);
-    fireEvent.click((pickerDialog.querySelector('[aria-label="Phút (bước 5 phút)"] button')) as HTMLElement);
+    fireEvent.click(within(within(pickerDialog).getByRole('listbox', { name: 'Phút 00–59' })).getByRole('option', { name: '00' }));
     fireEvent.click((pickerDialog.querySelector('.dtp-dialog__confirm')) as HTMLElement);
     expect(handleChange).toHaveBeenCalledWith('2026-09-15T08:00');
 

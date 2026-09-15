@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from './errors';
 
 // The transport self-heal: a 428 whose body carries VERSION_TOKEN_REQUIRED
@@ -7,10 +7,7 @@ import { ApiError } from './errors';
 // genuine conflicts never heal.
 
 const fetchMock = vi.hoisted(() => vi.fn());
-vi.mock('../token', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../token')>()),
-  getToken: vi.fn(() => 'test-token'),
-}));
+
 
 vi.stubGlobal('fetch', fetchMock);
 
@@ -26,8 +23,11 @@ function jsonResponse(status: number, body: unknown): Response {
 describe('api transport: version-token self-heal', () => {
   beforeEach(() => {
     fetchMock.mockReset();
+    api.setToken('test-token');
     vi.unstubAllEnvs();
   });
+
+  afterEach(() => { api.clearToken(); vi.restoreAllMocks(); });
 
   it('heals a token-less 428: refetches the row and retries with the fresh token', async () => {
     vi.stubEnv('DEV', true);
@@ -43,6 +43,8 @@ describe('api transport: version-token self-heal', () => {
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(fetchMock.mock.calls[0][1].method).toBe('PUT');
     expect(fetchMock.mock.calls[1][1].method).toBeUndefined();
+    expect(fetchMock.mock.calls.every(([, init]) => init.headers.Authorization === 'Bearer test-token')).toBe(true);
+    expect(fetchMock.mock.calls[0][1].headers['If-Unmodified-Since']).toBeUndefined();
     expect(String(fetchMock.mock.calls[2][1].headers['If-Unmodified-Since'])).toBe('2026-09-14T10:00:00.000Z');
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('expectedUpdatedAt'));
     warn.mockRestore();

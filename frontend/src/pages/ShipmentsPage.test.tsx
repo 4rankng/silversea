@@ -33,6 +33,9 @@ import ShipmentsPage from './ShipmentsPage';
 
 const css = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.css'), 'utf8');
 const source = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.tsx'), 'utf8');
+const responsiveCss = readFileSync(resolve(process.cwd(), 'src/styles/responsive.css'), 'utf8');
+const recordCss = css.slice(css.indexOf('@media (max-width: 999px)'), css.indexOf('@media (max-width: 620px)'));
+const filterCss = css.slice(css.indexOf('@media (max-width: 1023px)'));
 // Row markup + bucket colors moved into the feature leaves in the 2026-09-01
 // structural split; these guard assertions follow the markup, not the page file.
 const rowSource = readFileSync(resolve(process.cwd(), 'src/features/shipments/cus/CusShipmentRow.tsx'), 'utf8');
@@ -296,7 +299,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(within(summary).getByText('Lô phù hợp')).toBeTruthy();
     expect(within(summary).getByText('Chưa chốt lịch')).toBeTruthy();
     expect(within(summary).getByText('Chờ điều xe')).toBeTruthy();
-    expect(within(summary).getByText('Chờ Kế toán')).toBeTruthy();
+    expect(within(summary).getByText('Chờ đối soát')).toBeTruthy();
     expect(within(summary).getAllByText('1')).toHaveLength(4);
     expect(summary.compareDocumentPosition(screen.getByRole('table')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
@@ -417,8 +420,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(statusCell?.querySelector('.cus-row-actions__summary')).toBeTruthy();
     expect(within(statusCell!).getByRole('button', { name: /Mở chi tiết lô hàng BILL-12345/ }).textContent).toContain('Chi tiết');
     expect(css).toContain('.cus-dashboard-detail {');
-    expect(css).toContain('border-top: 1px solid var(--line) !important;');
-    expect(css).toContain('justify-content: space-between !important;');
+    expect(recordCss).toMatch(/\.cus-row-actions\s*\{[^}]*display:\s*flex;[^}]*flex-wrap:\s*wrap;[^}]*justify-content:\s*space-between;/);
   });
 
   it('uses the package authority instead of claiming zero containers and exports that same value', async () => {
@@ -574,13 +576,14 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(document.querySelector('.cus-mobile-list')).toBeNull();
     expect(css).toMatch(/\.cus-dashboard-viewport\s*\{[\s\S]*?overflow-x:\s*clip;/);
     expect(css).toMatch(/@media \(max-width: 999px\)[\s\S]*?\.cus-dashboard-table tbody > tr\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2,/);
-    expect(css).toMatch(/@media \(max-width: 999px\)[\s\S]*?\.cus-dashboard-table tbody > tr > td:last-child\s*\{[^}]*grid-column:\s*1 \/ -1;/);
-    expect(css).toMatch(/tbody > tr > td::before\s*\{[\s\S]*?white-space:\s*normal;[\s\S]*?overflow-wrap:\s*anywhere;/);
+    expect(recordCss).toMatch(/\.cus-dashboard-table tbody > tr > td\s*\{[^}]*grid-column:\s*1 \/ -1;/);
+    expect(recordCss).toMatch(/td\[data-label='Phân loại & hãng tàu'\],[\s\S]*?td\[data-label='Tổng quan hàng hóa'\]\s*\{[^}]*grid-column:\s*auto;/);
+    expect(recordCss).toMatch(/\.cus-inline-trigger::before\s*\{[^}]*white-space:\s*normal;/);
     expect(css).toMatch(/\.cus-quick-edit-modal__fields\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
     expect(source).toMatch(/<Modal[\s\S]*?maxWidth=\{480\}[\s\S]*?cus-quick-edit-modal/);
   });
 
-  it('highlights a shipment whose closing or return date is not yet confirmed', async () => {
+  it('CUS-OVERVIEW-03 shows the missing-date warning once and retains the lifecycle badge', async () => {
     apiGet.mockResolvedValue(listResponse([{
       ...row,
       transportDate: null,
@@ -592,11 +595,96 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     renderPage();
     expect(await screen.findByText('Chưa chốt ngày')).toBeTruthy();
     expect(masterRow().classList.contains('cus-dashboard-row--waiting')).toBe(true);
-    expect(screen.getByText('Chờ chốt lịch')).toBeTruthy();
+    expect(within(masterRow()).getAllByText('Chưa chốt ngày')).toHaveLength(1);
+    expect(within(masterRow()).queryByText('Chờ chốt lịch')).toBeNull();
+    expect(within(masterRow()).getByText('Sẵn sàng điều xe')).toBeTruthy();
     expect(screen.queryByText('Cần kiểm tra')).toBeNull();
     expect(css).toMatch(/\.cus-dashboard-table tbody > tr\.cus-dashboard-row--waiting > td\[data-label='Lịch trình & điều xe'\]\s*\{[^}]*background:/);
     expect(css).not.toMatch(/\.cus-dashboard-table tbody > tr\.cus-dashboard-row--waiting > th\s*\{/);
     expect(css).toMatch(/--waiting > td\[data-label='Lịch trình & điều xe'\] \.cus-inline-trigger:not\(:disabled\):hover\s*\{[^}]*background:\s*color-mix/);
+  });
+
+  it('CUS-OVERVIEW-03 retains a distinct recovery warning after deduplicating the missing-date signal', async () => {
+    apiGet.mockResolvedValue(listResponse([{
+      ...row,
+      appointmentGroups: [],
+      transportDate: null,
+      plannedReturnAt: null,
+      operational: { ...row.operational, scheduleReadiness: 'WAITING_DATE' as const },
+      finance: { ...row.finance, isLoss: false, hasPendingRecovery: true },
+    }]));
+    renderPage();
+    await screen.findByRole('table');
+    const record = within(masterRow());
+    expect(record.getAllByText('Chưa chốt ngày')).toHaveLength(1);
+    expect(record.queryByText('Chờ chốt lịch')).toBeNull();
+    expect(record.getByText('Chờ thu hồi')).toBeTruthy();
+    expect(record.getByText('Sẵn sàng điều xe')).toBeTruthy();
+  });
+
+  it('CUS-OVERVIEW-03 keeps overdue, assignment and partial issuance information distinct', async () => {
+    apiGet.mockResolvedValue(listResponse([{
+      ...row,
+      operational: { ...row.operational, scheduleReadiness: 'OVERDUE' as const, orderIssuedContainers: 1 },
+      finance: { ...row.finance, isLoss: false, hasPendingRecovery: false },
+    }]));
+    renderPage();
+    await screen.findByRole('table');
+    const record = within(masterRow());
+    expect(record.getByText('Lịch đã quá hạn')).toBeTruthy();
+    expect(record.getByText('Đã phân xe')).toBeTruthy();
+    expect(record.getByText('Đã phát lệnh 1/2 cont')).toBeTruthy();
+    expect(record.getByText('Sẵn sàng điều xe')).toBeTruthy();
+  });
+
+  it('CUS-OVERVIEW-04 keeps empty notes addable through the existing named edit action', async () => {
+    apiGet.mockResolvedValue(listResponse([{
+      ...row,
+      customerNotes: null,
+      operationalNotes: null,
+      raw: { ...row.raw, customerNotes: null, operationalNotes: null },
+    }]));
+    renderPage();
+    const trigger = await screen.findByRole('button', { name: 'Sửa ô ghi chú lô hàng BILL-12345' });
+    expect(trigger.textContent).toBe('Thêm ghi chú');
+    trigger.focus();
+    fireEvent.click(trigger);
+    const dialog = await screen.findByRole('dialog', { name: 'Chỉnh sửa Ghi chú' });
+    expect((within(dialog).getByLabelText('Ghi chú cho khách hàng') as HTMLTextAreaElement).value).toBe('');
+    expect((within(dialog).getByLabelText('Ghi chú cho lái xe') as HTMLTextAreaElement).value).toBe('');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Hủy' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Chỉnh sửa Ghi chú' })).toBeNull());
+    await waitFor(() => expect(document.activeElement).toBe(trigger));
+    expect(apiPut).not.toHaveBeenCalled();
+  });
+
+  it('CUS-OVERVIEW-02 links the compact filter toggle to its panel and preserves chosen criteria across collapse', async () => {
+    renderPage();
+    await screen.findByRole('table');
+    const toggle = screen.getByRole('button', { name: /^Bộ lọc nâng cao/ });
+    expect(toggle.textContent).toContain('Bộ lọc');
+    expect(toggle.textContent).not.toContain('nâng cao');
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    const controlledId = toggle.getAttribute('aria-controls');
+    expect(controlledId).toBeTruthy();
+    const panel = document.getElementById(controlledId!);
+    expect(panel).not.toBeNull();
+    expect(panel?.hasAttribute('data-open')).toBe(false);
+
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(panel?.hasAttribute('data-open')).toBe(true);
+    fireEvent.click(within(panel!).getByRole('button', { name: /Xuất \/ Nhập/ }));
+    fireEvent.click(screen.getByRole('option', { name: 'Xuất' }));
+    await waitFor(() => expect(apiGet).toHaveBeenCalledWith(expect.stringContaining('direction=EXPORT')));
+
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.getByLabelText('Điều kiện đang áp dụng').textContent).toContain('Xuất');
+    fireEvent.click(toggle);
+    expect(within(panel!).getByRole('button', { name: /Xuất \/ Nhập/ }).textContent).toContain('Xuất');
+    expect(panel?.hasAttribute('data-open')).toBe(true);
+    expect(String(apiGet.mock.calls.at(-1)?.[0])).toContain('direction=EXPORT');
   });
 
   it('edits schedule and notes from their cells with partial optimistic-version updates', async () => {
@@ -615,7 +703,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     await waitFor(() => expect(apiPut).toHaveBeenCalledWith('/shipments/1', expect.objectContaining({
       expectedVersion: 3,
       expectedDeliveryDate: '2026-08-20',
-      plannedReturnAt: expect.any(String),
+      plannedReturnAt: '2026-08-20T09:15:00+07:00',
     })));
     expect(apiPut.mock.calls.at(-1)?.[1]).not.toHaveProperty('customerNotes');
     expect(await screen.findByText('Đã cập nhật lịch đóng/trả.')).toBeTruthy();
@@ -893,8 +981,8 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     // the transparent background/border must be locked so neither the
     // trigger-hover rule nor the td:hover rule can repaint them.
     expect(css).toMatch(/\.cus-dashboard-cell--readonly > \.cus-inline-trigger\s*\{[^}]*cursor:\s*default;[^}]*background:\s*transparent !important;[^}]*border-color:\s*transparent !important;/);
-    expect(css).toMatch(/\.cus-dashboard-cell--editable::before\s*\{\s*display:\s*none;/);
-    expect(css).toMatch(/\.cus-dashboard-cell--editable > \.cus-inline-trigger::before\s*\{[^}]*content:\s*attr\(data-cell-label\);/);
+    expect(recordCss).toMatch(/tbody > tr > td::before\s*\{\s*display:\s*none;/);
+    expect(recordCss).toMatch(/\.cus-inline-trigger::before\s*\{[^}]*content:\s*attr\(data-cell-label\);/);
   });
 
   it('persists classification and cargo cells through one-field-authority shipment patches', async () => {
@@ -1003,6 +1091,26 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(screen.getByLabelText('Ghi chú cho lái xe')).toBeTruthy();
   });
 
+  it('VID-CUS-15: quick-edit footer respects native date validity before saving', async () => {
+    apiGet.mockResolvedValue(listResponse([{ ...row, cargoMode: 'LCL' }]));
+    renderPage();
+    await screen.findByRole('table');
+    fireEvent.click(screen.getByRole('button', { name: 'Sửa ô lịch trình lô hàng BILL-12345' }));
+    const date = screen.getByLabelText('Ngày đóng/trả') as HTMLInputElement;
+    fireEvent.change(screen.getByLabelText('Giờ'), { target: { value: '16:17' } });
+    // jsdom cannot type a segmented badInput date. Native custom validity
+    // exercises the same form constraint-validation boundary without mocking it.
+    date.setCustomValidity('Ngày chưa hoàn chỉnh');
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
+    expect(apiPut).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Ngày đóng/trả')).toBeInTheDocument();
+    date.setCustomValidity('');
+    fireEvent.input(date, { target: { value: '2026-09-23' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
+    await waitFor(() => expect(apiPut).toHaveBeenCalledTimes(1));
+    expect(apiPut).toHaveBeenCalledWith('/shipments/1', expect.objectContaining({ expectedDeliveryDate: '2026-09-23' }));
+  });
+
   it('deduplicates repeated keyboard saves while a cell update is in flight', async () => {
     let resolveUpdate: ((value: unknown) => void) | undefined;
     apiPut.mockImplementation(() => new Promise((resolve) => { resolveUpdate = resolve; }));
@@ -1061,7 +1169,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(within(dialog).getByRole('heading', { name: 'Trạng thái lô' })).toBeTruthy();
     expect(within(dialog).getByText('Đối soát chi phí')).toBeTruthy();
     expect(within(dialog).queryByText('Hành động tiếp theo')).toBeNull();
-    expect(within(dialog).getByText('Kế toán xác nhận')).toBeTruthy();
+    expect(within(dialog).getByText('Đối soát tài chính')).toBeTruthy();
     fireEvent.click(within(dialog).getByRole('button', { name: /Phơi phiếu/i }));
     expect(screen.getByRole('option', { name: 'Chưa xác định' })).toHaveAttribute('aria-disabled', 'true');
     fireEvent.keyDown(screen.getByRole('listbox'), { key: 'Escape' });
@@ -1088,7 +1196,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     renderPage();
     await screen.findByRole('table');
     fireEvent.click(masterRowDetailButton());
-    expect(within(await screen.findByRole('dialog')).getByText('Chưa đủ dữ liệu xác nhận')).toBeTruthy();
+    expect(within(await screen.findByRole('dialog')).getByText('Chưa đủ dữ liệu đối soát')).toBeTruthy();
     expect(screen.queryByText('Chờ xác nhận')).toBeNull();
   });
 
@@ -1262,6 +1370,36 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(apiPut).not.toHaveBeenCalled();
   });
 
+  it.each(['appointment', 'plate'] as const)('VID-CUS-DRAWER keeps the save lifecycle mounted when %s moves its row out of the list', async (field) => {
+    const waitingRow = { ...row, transportDate: null, appointmentGroups: [], customerAppointmentAts: [], operational: { ...row.operational, scheduleReadiness: 'WAITING_DATE' as const } };
+    const waitingDetail = { ...detail, summary: waitingRow, containers: [{ ...detail.containers[0], customerAppointmentAt: null }] };
+    let saved = false;
+    apiGet.mockImplementation((url: string) => Promise.resolve(url === '/shipments/cus-workspace/1' ? waitingDetail : listResponse(saved ? [] : [waitingRow])));
+    apiPost.mockImplementationOnce(async () => {
+      saved = true;
+      return { line: { ...waitingDetail.containers[0], shipmentVersion: 4, ...(field === 'appointment' ? { customerAppointmentAt: '2026-09-24T08:17:00.000Z' } : { plateNumber: '15C-666.66' }) } };
+    });
+    renderPage();
+    await screen.findByRole('table');
+    fireEvent.click(masterRowDetailButton());
+    await screen.findByLabelText('Chi tiết container');
+    if (field === 'appointment') {
+      fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ }));
+      fireEvent.change(screen.getByLabelText('Ngày giờ'), { target: { value: '15:17 24/09/2026' } });
+      fireEvent.keyDown(screen.getByLabelText('Ngày giờ'), { key: 'Enter' });
+    } else {
+      const plate = screen.getByLabelText(/Biển số xe của container MSKU1234567/);
+      fireEvent.change(plate, { target: { value: '15C-666.66' } });
+      fireEvent.keyDown(plate, { key: 'Enter' });
+      await waitFor(() => expect(apiGet.mock.calls.filter(([url]) => url === '/shipments/cus-workspace?page=1&limit=20')).toHaveLength(2));
+    }
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(apiPost).toHaveBeenCalledTimes(1);
+    expect(apiPost.mock.calls[0][1]).toEqual(expect.objectContaining(field === 'appointment' ? { customerAppointmentAt: '2026-09-24T15:17:00+07:00' } : { plateNumber: '15C-666.66' }));
+    expect(screen.queryByText('Đang lưu dữ liệu container. Vui lòng chờ hoàn tất.')).toBeNull();
+    expect(screen.queryByRole('dialog', { name: 'Bỏ thay đổi container?' })).toBeNull();
+  });
+
   it('saves only the server-permitted container fields with optimistic versions', async () => {
     apiPost.mockResolvedValueOnce({
       line: {
@@ -1298,6 +1436,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     const [, payload] = apiPost.mock.calls[0] ?? [];
     expect(payload.outboundCharges).toBeUndefined();
     expect(payload.inboundCharges).toBeUndefined();
+    expect(await screen.findByText('Đã lưu dữ liệu container. Kế toán cần đối soát dữ liệu mới nhất trước khi khóa lô.')).toBeTruthy();
     await waitFor(() => expect(apiGet.mock.calls.filter(([url]) => url === '/shipments/cus-workspace?page=1&limit=20').length).toBeGreaterThan(1));
   });
 
@@ -1490,7 +1629,8 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(css).not.toMatch(/\.cus-dashboard-viewport\s*\{[^}]*max-height/);
     expect(css).toMatch(/\.cus-dashboard-table\s*\{[\s\S]*?width:\s*100%;[\s\S]*?min-width:\s*0;[\s\S]*?table-layout:\s*fixed;/);
     expect(css).toMatch(/\.cus-dashboard-table thead th\s*\{[\s\S]*?position:\s*sticky;/);
-    expect(css).toMatch(/@media \(max-width: 620px\)[\s\S]*?\.cus-dashboard-table tbody > tr\s*\{\s*grid-template-columns:\s*1fr;/);
+    expect(recordCss).not.toMatch(/grid-template-columns:\s*(?:76px|98px|minmax\(112px)/);
+    expect(responsiveCss).not.toContain('#root .cus-dashboard-table');
     expect(css).toMatch(/\.cus-quick-edit-modal__fields input,[\s\S]*?min-height:\s*44px;/);
     expect(source).toContain('tabIndex={0}');
     expect(rowSource).toContain('aria-haspopup="dialog"');
@@ -1518,15 +1658,11 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(css).not.toMatch(/\.shipment-uui-control__input\s*\{[^}]*(?:height|min-height):/);
     expect(source).toContain('cus-worksheet-toolbar__action-group');
     expect(css).toMatch(/\.cus-worksheet-toolbar\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\);/);
-    expect(css).toMatch(/\.cus-worksheet-toolbar__filters\s*\{[\s\S]*?minmax\(260px, 1\.6fr\) repeat\(4, minmax\(148px, 1fr\)\);/);
-    // 2026-09-09 space-utilisation audit: the toolbar collapse was pinned to a
-    // bare @container rule that never matched (no container-type ancestor on
-    // this page), so tablets got the overflowing 5-column base grid. Pinned to
-    // the working viewport media queries instead.
-    expect(css).toMatch(/@media \(max-width: 900px\)[\s\S]*?\.cus-worksheet-toolbar__filters \.cus-search-field\s*\{\s*grid-column:\s*1 \/ -1;/);
-    expect(css).toMatch(/@media \(min-width: 901px\) and \(max-width: 1279px\)[\s\S]*?\.cus-worksheet-toolbar__filters\s*\{\s*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\);/);
-    expect(css).toMatch(/@media \(min-width: 901px\) and \(max-width: 1279px\)[\s\S]*?\.cus-worksheet-toolbar__filters \.cus-search-field\s*\{\s*grid-column:\s*span 2;/);
-    expect(css).toMatch(/\.cus-worksheet-toolbar__action-group > :only-child\s*\{\s*grid-column:\s*1 \/ -1;/);
+    // CUS-OVERVIEW-02: search and disclosure share a row, while the revealed
+    // criteria and their summary span the complete toolbar grid.
+    expect(filterCss).toMatch(/\.cus-worksheet-toolbar__filters\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) auto;/);
+    expect(filterCss).toMatch(/\.cus-worksheet-advanced\s*\{[^}]*grid-column:\s*1 \/ -1;[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
+    expect(filterCss).toMatch(/\.cus-active-filter-summary\s*\{[^}]*grid-column:\s*1 \/ -1;/);
     expect(css).toMatch(/\.cus-multiline-cell--mono strong\s*\{[^}]*font-size:\s*var\(--ops-table-primary-size\);/);
     expect(rowSource).toContain('cus-cargo-summary__containers');
     expect(rowSource).toContain('kg ·');
@@ -1672,18 +1808,22 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(css).toMatch(/\.cus-dashboard-cell--identity \.cus-multiline-cell span\s*\{[^}]*overflow:\s*visible;[^}]*text-overflow:\s*clip;[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*anywhere;/);
   });
 
-  it('keeps compact record labels inside their grid track so they cannot overlap values', () => {
-    expect(css).toMatch(/\.cus-dashboard-cell--editable > \.cus-inline-trigger::before\s*\{[^}]*position:\s*static;[^}]*grid-column:\s*1;[^}]*width:\s*auto;/);
+  it('CUS-OVERVIEW-01 gives labels their own line and wraps complete identifiers without inherited fixed columns', () => {
+    expect(recordCss).toMatch(/\.cus-inline-trigger\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/);
+    expect(recordCss).toMatch(/\.cus-inline-trigger::before\s*\{[^}]*position:\s*static;[^}]*white-space:\s*normal;/);
+    expect(recordCss).toMatch(/\.cus-multiline-cell span\s*\{[^}]*overflow:\s*visible;[^}]*text-overflow:\s*clip;[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*anywhere;/);
+    expect(recordCss).not.toMatch(/grid-template-columns:\s*(?:76px|98px|minmax\(112px)/);
+    expect(responsiveCss).not.toContain('#root .cus-dashboard-table');
   });
 
   it('renders giờ before ngày in schedule quick-edit fields with 24h format', () => {
     const quickEdit = readFileSync(resolve(process.cwd(), 'src/features/shipments/cus/CusQuickEdit.tsx'), 'utf8');
     const scheduleBlock = quickEdit.match(/draft\.field === 'schedule' && <>([\s\S]*?)<\/>/)?.[1] ?? '';
-    const timeIndex = scheduleBlock.indexOf('type="time"');
+    const timeIndex = scheduleBlock.indexOf('<ShipmentScheduleTimeField');
     const dateIndex = scheduleBlock.indexOf('<DateInput');
     expect(timeIndex).toBeGreaterThan(-1);
     expect(dateIndex).toBeGreaterThan(-1);
     expect(timeIndex).toBeLessThan(dateIndex);
-    expect(scheduleBlock).toContain('lang="en-GB"');
+    expect(scheduleBlock).not.toContain('type="time"');
   });
 });

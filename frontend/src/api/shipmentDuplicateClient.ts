@@ -8,7 +8,7 @@ import { api } from '../lib/api';
 export interface ShipmentReferenceConflict {
   shipmentId: number;
   shipmentCode: string | null;
-  field: 'blNumber' | 'bookingRef';
+  field: 'blNumber' | 'bookingRef' | 'declaration';
   reference: string;
   createdBy: {
     id: number | null;

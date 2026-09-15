@@ -50,7 +50,7 @@ export default function DriverTripDetailPage() {
   const [chipsExpanded, setChipsExpanded] = useState(false);
   const [accepting, setAccepting] = useState(false);
   const [blockingTripCode, setBlockingTripCode] = useState<string | null>(null);
-  const [blockingFulfillmentId, setBlockingFulfillmentId] = useState<number | null>(null);
+  const [blockingTripId, setBlockingTripId] = useState<number | null>(null);
 
   const tripId = Number(id);
   const validTripId = Number.isInteger(tripId) && tripId > 0 ? tripId : undefined;
@@ -120,7 +120,7 @@ export default function DriverTripDetailPage() {
       const msg = error instanceof Error ? error.message : 'Không thể gửi lệnh. Vui lòng thử lại.';
       // KP-087: detect blocking-trip rejection and surface the trip code
       const blockingMatch = msg.match(/Xe đang chạy chuyến\s+(.+?)\. Vui lòng/);
-      setBlockingFulfillmentId(null);
+      setBlockingTripId(null);
       if (blockingMatch) {
         const code = blockingMatch[1];
         setBlockingTripCode(code);
@@ -130,7 +130,7 @@ export default function DriverTripDetailPage() {
         try {
           const board = await driverClient.getJourneyBoard();
           const owned = board.items.find(item => item.tripCode === code && item.bucket !== 'HISTORY');
-          if (owned) setBlockingFulfillmentId(owned.fulfillmentId);
+          if (owned) setBlockingTripId(owned.tripId);
         } catch {
           // Keep the specific reason and an honest dispatch handoff below.
         }
@@ -355,7 +355,7 @@ export default function DriverTripDetailPage() {
 
       <fieldset disabled={Boolean(accountingLock)} className="driver-task-fieldset">
 
-      <DriverTaskInfoSections trip={trip} />
+      <DriverTaskInfoSections trip={trip}>
 
       {/* Card _36 (paper-form spec): Tác vụ and Ghi chú are STRUCTURAL rows —
           they always render, filled from the saved dispatch note
@@ -370,7 +370,7 @@ export default function DriverTripDetailPage() {
         {operationTags.length > 0 ? (
           <div className="driver-task-ops" data-testid="operation-chips">
             {visibleOperationTags.map((tag) => (
-              <span key={tag} className="driver-task-ops-chip" data-testid="operation-chip">{tag}</span>
+              <span key={tag} className="driver-task-ops-chip" data-testid="operation-chip">{tag.toLocaleUpperCase('vi-VN')}</span>
             ))}
             {shouldCollapseChips && (
               <button type="button" className="driver-task-ops-toggle" onClick={() => setChipsExpanded((v) => !v)}>
@@ -394,6 +394,7 @@ export default function DriverTripDetailPage() {
           <p className="driver-task-empty">Không có ghi chú.</p>
         )}
       </section>
+      </DriverTaskInfoSections>
 
       <section className="driver-task-section">
         <DriverContainerCard
@@ -420,8 +421,8 @@ export default function DriverTripDetailPage() {
               </li>
             ))}
           </ul>
-        ) : driverNotes ? null : (
-          <p className="driver-task-empty">Chưa có ghi chú cho chuyến này.</p>
+        ) : (
+          <p className="driver-task-empty">Chưa có quy định tại điểm làm hàng.</p>
         )}
       </section>
 
@@ -577,8 +578,8 @@ export default function DriverTripDetailPage() {
             <div>
               <span>Xe đang chạy chuyến <strong>{blockingTripCode}</strong> — hoàn thành chuyến đó trước khi nhận lệnh mới.</span>
               <div>
-                {blockingFulfillmentId != null
-                  ? <Link className="driver-task-link" to={`/my-trips/${blockingFulfillmentId}`}>Mở chuyến đang chạy</Link>
+                {blockingTripId != null
+                  ? <Link className="driver-task-link" to={`/my-trips/${blockingTripId}`}>Mở chuyến đang chạy</Link>
                   : <span>Liên hệ điều vận để xử lý chuyến đang chạy. Chỉ thử nhận lại khi xe đã sẵn sàng.</span>}
               </div>
             </div>

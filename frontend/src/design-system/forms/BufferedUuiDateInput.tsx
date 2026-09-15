@@ -89,6 +89,7 @@ export function BufferedUuiDateInput({
         isDisabled={isDisabled}
         isRequired={isRequired}
         onChange={buffered.onChange}
+        onInput={buffered.onInput}
         onBlur={buffered.onBlur}
         inputClassName={inputClassName}
         wrapperClassName={wrapperClassName}

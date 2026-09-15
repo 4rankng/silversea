@@ -77,21 +77,24 @@ Cả ba tab dùng bố cục gọn trên điện thoại, máy tính bảng và 
 
 ## 3. Chi Tiết Lệnh
 
-Mở thẻ vào màn hình chi tiết đầy đủ. Tiêu đề chi tiết có thể ưu tiên tuyến theo mẫu màn hình; quy tắc nhà máy trước, tuyến sau của thẻ tổng quát không buộc thay tiêu đề chi tiết thành tên nhà máy.
+Mở thẻ vào màn hình chi tiết đầy đủ. Tiêu đề tác vụ ưu tiên tên viết tắt nhà máy, tuyến đường nằm ngay dưới. Có thể thu gọn phần phụ để tiết kiệm diện tích, nhưng tên nhà máy, tuyến và trạng thái công việc vẫn dễ nhận biết. Tuyến đã xuất hiện ở tiêu đề không lặp thành một dòng trong phần thông tin lệnh; phần đó hiển thị địa chỉ nhà máy.
 
 ### 3.1 Thứ Tự Thông Tin
 
 | Nhóm | Yêu cầu |
 |------|---------|
 | Lịch và địa điểm làm hàng | Lịch đóng/trả, tên ngắn và tên đầy đủ nhà máy khi có, **Địa chỉ nhà máy**, rồi tên người liên hệ cùng **Số điện thoại liên hệ** ngay dưới địa chỉ |
-| Lộ trình | Cảng nâng, cảng hạ và điểm giao/điểm trả vỏ riêng khi có khác biệt nghiệp vụ |
 | Hàng hóa | Số container gắn với loại tương ứng, số chì và thao tác của chính công việc; số lượng tổng chỉ bổ sung, không thay cặp số–loại |
+| Lộ trình | Cảng nâng, cảng hạ và điểm giao/điểm trả vỏ riêng khi có khác biệt nghiệp vụ |
 | Nhiệm vụ và ghi chú | Nhiệm vụ viết hoa ở dòng riêng; ghi chú lái xe và quy định tại điểm làm hàng giữ nguyên nội dung có nghĩa |
 | Thông tin xuất hóa đơn | Tiêu đề từng bên/nhóm thông tin đặt **trước** tên, địa chỉ, mã số thuế của bên đó |
-| Xe thực hiện | Biển số đầu kéo và moóc, đọc được nguyên mã |
 | Bằng chứng và hành động | Ảnh container/chì/biên bản; thao tác phù hợp giai đoạn và luồng e-POD |
 
 Tên liên hệ và số điện thoại phải cùng nhóm với địa chỉ nhà máy, gọi được qua liên kết điện thoại. Không lặp lại cùng người/số trong các dòng kho bãi và liên hệ khác nhau. Nếu có người liên hệ khác với vai trò thật sự khác, giữ họ ở chi tiết kèm nhãn vai trò; không xóa thông tin hữu ích chỉ để rút ngắn màn hình.
+
+Tác vụ và ghi chú lái xe đặt ngay sau thông tin công việc, trước thông tin xuất hóa đơn, để hướng dẫn vận chuyển được đọc trước dữ liệu thanh toán. Hai dòng này vẫn hiển thị khi thu gọn thông tin lệnh hoặc hóa đơn. Không hiển thị thêm dòng đầu kéo và moóc trong khối chi tiết lệnh.
+
+Lịch kế hoạch trên thẻ và chi tiết phải thống nhất. Khi chưa có ngày giờ kế hoạch xác định, hiển thị **Chưa chốt lịch**; không suy ra giờ hẹn từ một ngày xuất phát không có giờ.
 
 Nhà máy, khách hàng và đơn vị xuất hóa đơn là các chủ thể riêng. Không lấy tên/mã số thuế khách hàng thay cho hồ sơ nhà máy đang thiếu. Các nhóm hóa đơn nâng, hạ, vệ sinh dùng hồ sơ tương ứng theo [Master data nhà máy](MasterDataNhaMay.md); không âm thầm gộp các hồ sơ khác nhau. Thiếu hồ sơ phải được thể hiện rõ, kể cả khi toàn bộ nhóm chưa có dữ liệu.
 

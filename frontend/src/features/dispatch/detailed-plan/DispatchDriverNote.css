@@ -1,0 +1,36 @@
+.dispatch-driver-note,
+.dispatch-driver-note__section {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+  text-align: left;
+}
+
+.dispatch-driver-note { gap: 4px; }
+
+.dispatch-driver-note__label {
+  color: var(--text-secondary, #475467);
+  font-size: var(--text-label-size, 11px);
+  font-weight: 500;
+}
+
+.dispatch-driver-note__tasks,
+.dispatch-driver-note__text {
+  color: var(--text-primary, #101828);
+  font-size: var(--text-body-size, 12px);
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.dispatch-driver-note__tasks { font-weight: 600; }
+
+/* Each part keeps its own preview, so long tasks cannot consume the note's
+   entire allowance. The enclosing button opens both parts without clamps. */
+.dispatch-driver-note--compact .dispatch-driver-note__tasks,
+.dispatch-driver-note--compact .dispatch-driver-note__text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}

@@ -48,13 +48,13 @@ function completeCtaLabel(status: DriverTaskDetail['status']): string {
 }
 
 export function DriverTripPodPage() {
-  const { id: tripIdParam } = useParams<{ id: string }>();
+  const { id: fulfillmentIdParam } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const online = useOnline();
   const { toast } = useToast();
 
-  const tripId = Number(tripIdParam);
-  const validFulfillmentId = Number.isInteger(tripId) && tripId > 0 ? tripId : undefined;
+  const fulfillmentId = Number(fulfillmentIdParam);
+  const validFulfillmentId = Number.isInteger(fulfillmentId) && fulfillmentId > 0 ? fulfillmentId : undefined;
 
   const taskDetail = useDriverTaskDetail(validFulfillmentId);
 
@@ -200,8 +200,9 @@ export function DriverTripPodPage() {
   }, [trip]);
 
   const handleBack = useCallback(
-    () => navigate(validFulfillmentId ? `/my-trips/${validFulfillmentId}` : '/my-trips', { replace: true }),
-    [navigate, validFulfillmentId],
+    // The POD route is fulfillment-scoped; the detail route is trip-scoped.
+    () => navigate(trip?.id ? `/my-trips/${trip.id}` : '/my-trips', { replace: true }),
+    [navigate, trip?.id],
   );
   // ESC/hardware back mirrors the header back button: both return to the trip
   // detail the driver came from, not straight to the journey board.

@@ -3,7 +3,7 @@ import { hashKey, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, ApiError } from '../lib/api';
 import { Role } from '@tingting/shared';
 import { qk } from '../api/keys';
-import { getToken } from '../lib/token';
+import { clearTokenIfCurrent, getToken, isCurrentToken, onStoredTokenChange } from '../lib/token';
 import { onSessionExpired } from '../lib/api/session';
 import { AuthRecoveryGate } from '../components/shared/AuthRecoveryGate';
 
@@ -96,7 +96,7 @@ export function isTokenExpired(token: string): boolean {
 async function fetchAuthUser(signal?: AbortSignal): Promise<AuthUser | null> {
   const token = getToken();
   if (!token || isTokenExpired(token)) {
-    api.clearToken();
+    if (token) clearTokenIfCurrent(token);
     return null;
   }
   try {
@@ -106,7 +106,7 @@ async function fetchAuthUser(signal?: AbortSignal): Promise<AuthUser | null> {
     // expired, or revoked). Transient server/network errors (502/503/429)
     // must NOT evict a valid session — the query will retry on next refetch.
     if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
-      if (getToken() === token) api.clearToken();
+      clearTokenIfCurrent(token);
       return null;
     }
     throw err;
@@ -116,6 +116,7 @@ async function fetchAuthUser(signal?: AbortSignal): Promise<AuthUser | null> {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
   const [sessionExpired, setSessionExpired] = useState(false);
+  const sessionTokenRef = useRef(getToken());
   /** Tracks the token currently being revoked so a second logout for the
    *  same token is idempotent, while a different account can still log out. */
   const revokingTokenRef = useRef<string | null>(null);
@@ -132,37 +133,63 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     retry: false,
   });
 
+  const syncStoredSession = useCallback((token: string | null) => {
+    if (token === sessionTokenRef.current) return;
+    sessionTokenRef.current = token;
+    api.resetSessionCaches();
+    // Cancel every old actor query before removing its private cached data.
+    void queryClient.cancelQueries();
+    clearUserScopedQueries(queryClient);
+    setSessionExpired(false);
+    if (token) void queryClient.resetQueries({ queryKey: qk.auth.me, exact: true });
+    else queryClient.setQueryData(qk.auth.me, null);
+  }, [queryClient]);
+
   const login = useCallback(
     async (identifier: string, password: string) => {
+      const initiatingToken = getToken();
       const res = await api.post<{ token: string; user: AuthUserWire }>('/auth/login', {
         identifier,
         password,
       });
       await queryClient.cancelQueries({ queryKey: qk.auth.me });
+      if (!isCurrentToken(initiatingToken)) {
+        syncStoredSession(getToken());
+        throw new ApiError(409, { code: 'SESSION_CHANGED' }, 'Tài khoản đã thay đổi ở thẻ khác. Vui lòng kiểm tra phiên đăng nhập hiện tại.');
+      }
       clearUserScopedQueries(queryClient);
       api.setToken(res.token);
+      sessionTokenRef.current = res.token;
       setSessionExpired(false);
       queryClient.setQueryData(qk.auth.me, normalizeAuthUser(res.user));
     },
-    [queryClient],
+    [queryClient, syncStoredSession],
   );
 
-  const finalizeLocalLogout = useCallback(() => {
+  const finalizeLocalLogout = useCallback((expectedToken: string | null) => {
+    if (!clearTokenIfCurrent(expectedToken)) {
+      syncStoredSession(getToken());
+      return false;
+    }
+    sessionTokenRef.current = null;
     void queryClient.cancelQueries({ queryKey: qk.auth.me });
-    api.clearToken();
+    api.resetSessionCaches();
     clearUserScopedQueries(queryClient);
     queryClient.setQueryData(qk.auth.me, null);
-  }, [queryClient]);
+    return true;
+  }, [queryClient, syncStoredSession]);
 
   const logout = useCallback((opts?: { revoke?: boolean }) => {
-    const token = getToken();
+    // Bind the button to the account rendered in this tab, not a newer
+    // storage value learned by an unrelated late response.
+    const token = sessionTokenRef.current;
     if (!token) {
-      finalizeLocalLogout();
+      finalizeLocalLogout(token);
       return;
     }
     // Local teardown happens IMMEDIATELY — a revocation request that hangs
     // must never keep the user signed in.
-    finalizeLocalLogout();
+    if (!finalizeLocalLogout(token)) return;
     // Skip revocation when the caller already revoked server-side (e.g.
     // change-password) or when the JWT is expired client-side.
     const shouldRevoke = opts?.revoke !== false && !isTokenExpired(token);
@@ -186,11 +213,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(
     () => onSessionExpired(() => {
-      setSessionExpired(true);
-      logout();
+      // The transport has already removed the rejected token. Only finish
+      // that teardown if another tab has not established a newer session.
+      if (finalizeLocalLogout(null)) setSessionExpired(true);
     }),
-    [logout],
+    [finalizeLocalLogout],
   );
+
+  useEffect(() => onStoredTokenChange(syncStoredSession), [syncStoredSession]);
 
   const updateUser = useCallback(
     (updates: Pick<AuthUser, 'email' | 'phone' | 'username' | 'fullName'>) => {

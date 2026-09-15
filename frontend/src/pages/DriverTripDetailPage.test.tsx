@@ -469,7 +469,7 @@ describe('DriverTripDetailPage', () => {
   // with the factory (short name), then the working facts (container, ports)
   // — the Tuyến address line is demoted below them — and container number +
   // type + seal still share one line.
-  it('renders the bug5 field order: factory, contact, container, seal, ports, then Tuyến (no standalone phone row)', async () => {
+  it('renders the customer field order: factory, contact, container, seal and ports (no duplicate route or phone row)', async () => {
     renderPage();
 
     await screen.findByText(/Số cont & seal/);
@@ -484,7 +484,6 @@ describe('DriverTripDetailPage', () => {
       'Seal',
       'Cảng nâng',
       'Cảng hạ',
-      'Tuyến',
     ]);
     // BUG 5: the fixture has no short name → the grid falls back to the
     // full factory name.
@@ -499,7 +498,7 @@ describe('DriverTripDetailPage', () => {
       ?.querySelector('.driver-task-fact__value')?.textContent;
     expect(valueOf('Tên nhà máy')).toBe('—');
     expect(valueOf('Địa chỉ nhà máy')).toBe('—');
-    expect(valueOf('Tuyến')).toBe('Cát Lái → Bình Dương');
+    expect(valueOf('Tuyến')).toBeUndefined();
     // KP-191: container number paired with type code; seal on own row.
     expect(screen.getByText('MSCU1234561 · 40G1')).toBeTruthy();
     expect(screen.getByText('Seal SEAL-9')).toBeTruthy();
@@ -534,12 +533,13 @@ describe('DriverTripDetailPage', () => {
     expect(screen.getByText('Nhà máy chưa cấu hình thông tin xuất hóa đơn.')).toBeTruthy();
   });
 
-  it('renders the CUS driver note in the site-rules section and keeps the empty state only when both are absent', async () => {
+  it('renders driver notes separately and identifies absent site rules even when notes exist', async () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
         fulfillment: {
           ...makeTaskDetail().fulfillment!,
           driverNotes: 'QA e2e: vào kho mang mũ bảo hộ, cân tại cầu 3',
+          siteRules: [],
         },
       }),
       isLoading: false,
@@ -550,7 +550,7 @@ describe('DriverTripDetailPage', () => {
 
     expect(await screen.findByTestId('driver-task-driver-notes')).toBeTruthy();
     expect(screen.getByText(/cân tại cầu 3/)).toBeTruthy();
-    expect(screen.getByText('Mang đầy đủ PPE')).toBeTruthy();
+    expect(screen.getByText('Chưa có quy định tại điểm làm hàng.')).toBeTruthy();
 
     // Note absent + rules absent → the empty state stays truthful.
     useDriverTaskDetailMock.mockReturnValue({
@@ -563,7 +563,7 @@ describe('DriverTripDetailPage', () => {
     });
     unmount();
     renderPage();
-    expect(await screen.findByText(/Chưa có ghi chú cho chuyến này/)).toBeTruthy();
+    expect(await screen.findByText('Chưa có quy định tại điểm làm hàng.')).toBeTruthy();
   });
 
   it('shows the accounting lock and disables field actions', async () => {
@@ -626,9 +626,7 @@ describe('DriverTripDetailPage', () => {
     expect(screen.queryByText('51R-55555')).toBeNull();
   });
 
-  // TC-DA-002 (superseded placement): the factory site street address now
-  // renders in its own "Địa chỉ nhà máy" row; Tuyến carries route text only.
-  it('Tuyến row carries route text only; the factory address renders in its own row', async () => {
+  it('VID-DRV-01 keeps the route once in the header and the factory address in order information', async () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
         fulfillment: {
@@ -647,7 +645,26 @@ describe('DriverTripDetailPage', () => {
       .find((el) => el.querySelector('.driver-task-fact__label')?.textContent === label)
       ?.querySelector('.driver-task-fact__value')?.textContent;
     expect(valueOf('Địa chỉ nhà máy')).toBe('123 Nguyễn Văn A, Bình Dương');
-    expect(valueOf('Tuyến')).toBe('Cát Lái → Bình Dương');
+    expect(valueOf('Tuyến')).toBeUndefined();
+    expect(screen.getAllByText('Cát Lái → Bình Dương')).toHaveLength(1);
+    expect(document.querySelector('.driver-task-header__route')?.textContent).toBe('Cát Lái → Bình Dương');
+  });
+
+  it('VID-DRV-02 places task and note instructions before invoice details and keeps them visible through disclosures', async () => {
+    renderPage();
+    await screen.findByText('Thông tin lệnh');
+
+    const info = document.getElementById('driver-task-info-grid')!;
+    const notes = screen.getByTestId('task-note-section');
+    const invoice = document.getElementById('driver-task-invoice-grid')!;
+    expect(info.compareDocumentPosition(notes) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(notes.compareDocumentPosition(invoice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    fireEvent.click(screen.getByTestId('task-section-toggle-driver-task-info-grid'));
+    fireEvent.click(screen.getByTestId('task-section-toggle-driver-task-invoice-grid'));
+    expect(info.hidden).toBe(true);
+    expect(invoice.hidden).toBe(true);
+    expect(notes).toBeVisible();
   });
 
   // _30: the standalone warehouse-phone row is removed at the source — the
@@ -892,14 +909,14 @@ describe('DriverTripDetailPage', () => {
     expect(note.textContent).not.toContain('KIỂM HÓA');
   });
 
-  it('_36: Tác vụ and Ghi chú render as separate labeled lines', async () => {
-    const tags = ['KIỂM HÓA', 'QUAY ĐẦU'];
+  it('DRV-R01: uppercase tasks and original multiline notes render as separate labeled lines', async () => {
+    const tags = ['Kiểm hóa', 'Quay đầu'];
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
         knownTagLabels: tags,
         fulfillment: {
           ...makeTaskDetail().fulfillment!,
-          driverNotes: 'KIỂM HÓA; QUAY ĐẦU\nghép cont với lô khác, cẩn thận seal',
+          driverNotes: 'Kiểm hóa; Quay đầu\nGọi chị An trước khi đến\nKiểm tra seal tại kho',
         },
       }),
       isLoading: false,
@@ -911,7 +928,8 @@ describe('DriverTripDetailPage', () => {
     expect(await screen.findByText('Tác vụ')).toBeTruthy();
     expect(screen.getByText('Ghi chú')).toBeTruthy();
     const note = screen.getByTestId('driver-task-driver-notes');
-    expect(note.textContent).toContain('ghép cont với lô khác, cẩn thận seal');
+    expect(note.textContent).toContain('Gọi chị An trước khi đến\nKiểm tra seal tại kho');
+    expect(screen.getAllByTestId('operation-chip').map((chip) => chip.textContent)).toEqual(['KIỂM HÓA', 'QUAY ĐẦU']);
   });
 
   // 2a618442: the TÁC VỤ TÀI XẾ header is DEFAULT EXPANDED — factory title +
@@ -1028,12 +1046,12 @@ describe('busy-trip recovery', () => {
     useDriverTaskDetailMock.mockReturnValue({ data: makeTaskDetail(), isLoading: false, error: null, refetch: vi.fn() });
     useDriverTaskProgressMock.mockReturnValue({ data: { items: [] }, isLoading: false, refetch: vi.fn() });
     const rejection = vi.spyOn(driverClient, 'recordProgress').mockRejectedValueOnce(new Error('Xe đang chạy chuyến TRP-TEST-1. Vui lòng hoàn thành chuyến đó trước.'));
-    const board = vi.spyOn(driverClient, 'getJourneyBoard').mockResolvedValueOnce({ items: owned ? [{ tripCode: 'TRP-TEST-1', fulfillmentId: 99, bucket: 'RUNNING' }] as never : [], knownTagLabels: [] });
+    const board = vi.spyOn(driverClient, 'getJourneyBoard').mockResolvedValueOnce({ items: owned ? [{ tripCode: 'TRP-TEST-1', tripId: 61, fulfillmentId: 99, bucket: 'RUNNING' }] as never : [], knownTagLabels: [] });
     renderPage();
     fireEvent.click(await screen.findByRole('button', { name: /Nhận lệnh vận chuyển/ }));
     await waitFor(() => expect(board).toHaveBeenCalledOnce());
     expect(screen.getByTestId('blocking-trip-banner').textContent).toContain('TRP-TEST-1');
-    if (owned) expect((await screen.findByRole('link', { name: 'Mở chuyến đang chạy' })).getAttribute('href')).toBe('/my-trips/99');
+    if (owned) expect((await screen.findByRole('link', { name: 'Mở chuyến đang chạy' })).getAttribute('href')).toBe('/my-trips/61');
     else {
       expect(screen.queryByRole('link', { name: 'Mở chuyến đang chạy' })).toBeNull();
       expect(screen.getByTestId('blocking-trip-banner').textContent).toContain('Liên hệ điều vận');

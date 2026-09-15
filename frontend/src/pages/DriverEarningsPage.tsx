@@ -3,7 +3,7 @@ import { TrendingUp, TrendingDown, DollarSign, AlertTriangle, Loader2, Calendar 
 import { formatCurrency, formatNumber, formatDate } from '../lib/format';
 import { PageHeader } from '../components/UI';
 import { useSalaryPeriod, useDriverEarnings, useDriverPenalties, useDriverVehicleAlerts } from '../hooks/useQueries';
-import { useMonth } from '../hooks/useMonth';
+import { useDriverEarningsPeriod } from '../hooks/useDriverEarningsPeriod';
 import { usePageAnimations, useCounterAnimation } from '../hooks/animations';
 import type { CounterTarget } from '../hooks/animations';
 import './DriverEarningsPage.css';
@@ -18,7 +18,7 @@ interface PenaltyEntry {
 }
 
 export default function DriverEarningsPage() {
-  const { month, year } = useMonth();
+  const { month, year } = useDriverEarningsPeriod();
   const { data: period } = useSalaryPeriod(month, year);
   const {
     data: earnings,
@@ -72,17 +72,17 @@ export default function DriverEarningsPage() {
     // still ticking up through 498.720). Render both as static so the
     // headline number and its summary tile are always in lockstep, and
     // keep the counter animation for the supporting breakdown KPIs only.
-    if (kpiRefs.current.baseSalary) targets.push({ el: kpiRefs.current.baseSalary, value: salaryNum });
+    if (kpiRefs.current.baseSalary) targets.push({ el: kpiRefs.current.baseSalary, value: salaryNum, suffix: ' đ' });
     // F2 / B2 — trip-income cards always animate (headline breakdown).
     const productionNum = parseFloat(earnings.productionSalary);
     const roadNum = parseFloat(earnings.roadAllowance);
     const paidOrAdvancedNum = parseFloat(earnings.paidOrAdvanced ?? '0');
-    if (kpiRefs.current.productionSalary) targets.push({ el: kpiRefs.current.productionSalary, value: productionNum });
-    if (kpiRefs.current.roadAllowance) targets.push({ el: kpiRefs.current.roadAllowance, value: roadNum });
-    if (kpiRefs.current.paidOrAdvanced) targets.push({ el: kpiRefs.current.paidOrAdvanced, value: paidOrAdvancedNum });
-    if (penaltyNum > 0 && kpiRefs.current.penalties) targets.push({ el: kpiRefs.current.penalties, value: penaltyNum });
+    if (kpiRefs.current.productionSalary) targets.push({ el: kpiRefs.current.productionSalary, value: productionNum, suffix: ' đ' });
+    if (kpiRefs.current.roadAllowance) targets.push({ el: kpiRefs.current.roadAllowance, value: roadNum, suffix: ' đ' });
+    if (kpiRefs.current.paidOrAdvanced) targets.push({ el: kpiRefs.current.paidOrAdvanced, value: paidOrAdvancedNum, suffix: ' đ' });
+    if (penaltyNum > 0 && kpiRefs.current.penalties) targets.push({ el: kpiRefs.current.penalties, value: penaltyNum, prefix: '-', suffix: ' đ' });
     if (earnings.adjustment !== undefined && earnings.adjustment !== 0 && kpiRefs.current.adjustment) {
-      targets.push({ el: kpiRefs.current.adjustment, value: Math.abs(earnings.adjustment), prefix: earnings.adjustment > 0 ? '+' : '-' });
+      targets.push({ el: kpiRefs.current.adjustment, value: Math.abs(earnings.adjustment), prefix: earnings.adjustment > 0 ? '+' : '-', suffix: ' đ' });
     }
     if (targets.length > 0) animateCounters(targets);
   }, [earnings, animateCounters]);

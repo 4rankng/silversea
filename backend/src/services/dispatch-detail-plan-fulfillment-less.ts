@@ -57,7 +57,7 @@ const RUN_MINUTES_SQL = sql<number>`(extract(hour from ${s.shipmentContainers.cu
  * Full-parity conditions shared by the rows select and the count query —
  * every filter the base list applies that can target this branch's tables.
  */
-function buildSharedConditions(filters: FulfillmentLessFilters, accountantCustomerIds: number[] | null): SQL[] {
+export function buildFulfillmentLessConditions(filters: FulfillmentLessFilters, accountantCustomerIds: number[] | null): SQL[] {
   return [
     isNull(s.shipments.deletedAt),
     eq(s.shipments.status, 'READY_FOR_DISPATCH'),
@@ -95,8 +95,9 @@ export async function listFulfillmentLessReadyRows(
   accountantCustomerIds: number[] | null,
   limit: number,
   offset: number,
+  containerIds?: number[],
 ) {
-  if (!branchActive(filters)) return [];
+  if (!branchActive(filters) || containerIds?.length === 0) return [];
   return tx
     .select({
       // Fulfillment-owned fields are structurally absent on this branch.
@@ -161,7 +162,8 @@ export async function listFulfillmentLessReadyRows(
     .leftJoin(s.routes, eq(s.routes.id, sql<number>`case when ${s.shipments.cargoMode} = 'FCL'
       then coalesce(${s.shipmentContainers.routeId}, ${s.shipments.routeId})
       else ${s.shipments.routeId} end`))
-    .where(and(...buildSharedConditions(filters, accountantCustomerIds)))
+    .where(and(...buildFulfillmentLessConditions(filters, accountantCustomerIds),
+      containerIds ? inArray(s.shipmentContainers.id, containerIds) : undefined))
     .orderBy(sql`coalesce(${TRANSPORT_DATE_SQL}, '9999-12-31') asc`, s.shipmentContainers.id)
     .limit(limit)
     .offset(offset);
@@ -178,7 +180,7 @@ export async function countFulfillmentLessReadyRows(
     .from(s.shipments)
     .innerJoin(s.shipmentContainers, eq(s.shipmentContainers.shipmentId, s.shipments.id))
     .innerJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
-    .where(and(...buildSharedConditions(filters, accountantCustomerIds)));
+    .where(and(...buildFulfillmentLessConditions(filters, accountantCustomerIds)));
   return Number(rows[0]?.total ?? 0);
 }
 
@@ -194,9 +196,9 @@ export interface DetailPlanSortRow {
 
 /**
  * Merge comparator mirroring dispatchDetailPriorityOrderSql: cargo rank,
- * direction rank, transport date (nulls last), then a stable id (the base
- * uses fulfillment id; this branch contributes its container id offset by
- * a large constant so the two id spaces cannot collide).
+ * direction rank, transport date (nulls last), then source and stable id.
+ * Keep the source rank explicit so large fulfillment ids cannot collide
+ * with the independent container-id space.
  */
 export function compareDetailPlanRows(a: DetailPlanSortRow, b: DetailPlanSortRow): number {
   const cargoRank = (row: DetailPlanSortRow) => (row.fulfillmentType === 'LCL_SHIPMENT' ? 3
@@ -207,11 +209,12 @@ export function compareDetailPlanRows(a: DetailPlanSortRow, b: DetailPlanSortRow
     : row.tradeDirection === 'EXPORT' ? 2
     : 3);
   const dateKey = (row: DetailPlanSortRow) => row.transportDate ?? '9999-12-31';
-  const idKey = (row: DetailPlanSortRow) => row.fulfillmentId
-    ?? (row.shipmentContainerId != null ? 1_000_000_000 + row.shipmentContainerId : 0);
+  const sourceRank = (row: DetailPlanSortRow) => row.fulfillmentId == null ? 1 : 0;
+  const idKey = (row: DetailPlanSortRow) => row.fulfillmentId ?? row.shipmentContainerId ?? 0;
   return cargoRank(a) - cargoRank(b)
     || directionRank(a) - directionRank(b)
     || dateKey(a).localeCompare(dateKey(b))
+    || sourceRank(a) - sourceRank(b)
     || idKey(a) - idKey(b);
 }
 

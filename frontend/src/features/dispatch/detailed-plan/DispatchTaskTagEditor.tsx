@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Pencil } from 'lucide-react';
 import { composeNote, parseNote, normalizeNote } from '../../../lib/dispatchTaskTags';
 import { useCreateDispatchTaskTag, useDispatchTaskTags } from './useDispatchTaskTags';
+import { DispatchDriverNote } from './DispatchDriverNote';
 import { DispatchTaskTagManagerPopover } from './DispatchTaskTagManagerPopover';
 
 /** Quick-select tag composer for the dispatch edit modal's driver note
@@ -183,7 +184,9 @@ export function DispatchTaskTagEditor({ value, onChange, disabled = false }: {
               />
             </div>
             {value !== null && value !== '' && (
-              <p className="dispatch-assignment-dialog__notes-preview">Hiển thị: {value}</p>
+              <div className="dispatch-assignment-dialog__notes-preview" aria-label="Xem trước ghi chú lái xe">
+                <DispatchDriverNote value={value} labels={labels} />
+              </div>
             )}
           </>
         )}

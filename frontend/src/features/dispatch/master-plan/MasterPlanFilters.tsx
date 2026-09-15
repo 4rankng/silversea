@@ -112,12 +112,12 @@ function QuickDateActions({ filters, onChange }: Pick<MasterPlanFiltersProps, 'f
 function FacetMultiSelect({
   label,
   selected,
-  onToggle,
+  onSelectionChange,
   loadFacets,
 }: {
   label: string;
   selected: number[];
-  onToggle: (id: number) => void;
+  onSelectionChange: (ids: number[]) => void;
   loadFacets: FacetLoader;
 }) {
   const [isPickerOpen, setIsPickerOpen] = useState(false);
@@ -147,18 +147,7 @@ function FacetMultiSelect({
       <SearchableMultiSelect
         id={pickerId}
         values={selected.map(String)}
-        onChange={(values) => {
-          // Bridge the design-system array contract onto the parent's
-          // per-id toggle: one onToggle per added/removed id.
-          const previous = new Set(selected.map(String));
-          const next = new Set(values);
-          for (const id of selected) {
-            if (!next.has(String(id))) onToggle(id);
-          }
-          for (const value of values) {
-            if (!previous.has(value)) onToggle(Number(value));
-          }
-        }}
+        onChange={(values) => onSelectionChange(values.map(Number))}
         options={facets.map((facet) => ({ value: String(facet.id), label: facet.name }))}
         placeholder={label}
         searchPlaceholder={`Tìm ${label.toLowerCase()}…`}
@@ -172,25 +161,17 @@ function FacetMultiSelect({
   );
 }
 
-function toggleId(list: number[], id: number): number[] {
-  return list.includes(id) ? list.filter((value) => value !== id) : [...list, id];
-}
-
-function toggleKey(list: string[], key: string): string[] {
-  return list.includes(key) ? list.filter((value) => value !== key) : [...list, key];
-}
-
 /**
  * Carrier multi-select (fixed OWN/UNASSIGNED options + async external
  * carriers), backed by `SearchableMultiSelect` like the port facets.
  */
 function CarrierFacetMultiSelect({
   selected,
-  onToggle,
+  onSelectionChange,
   loadExternalCarriers,
 }: {
   selected: string[];
-  onToggle: (key: string) => void;
+  onSelectionChange: (keys: string[]) => void;
   loadExternalCarriers: () => Promise<CarrierFacetItem[]>;
 }) {
   const FIXED_OPTIONS = [
@@ -225,16 +206,7 @@ function CarrierFacetMultiSelect({
       <SearchableMultiSelect
         id={pickerId}
         values={selected}
-        onChange={(values) => {
-          const previous = new Set(selected);
-          const next = new Set(values);
-          for (const key of selected) {
-            if (!next.has(key)) onToggle(key);
-          }
-          for (const value of values) {
-            if (!previous.has(value)) onToggle(value);
-          }
-        }}
+        onChange={onSelectionChange}
         options={options}
         placeholder="Nhà xe"
         searchPlaceholder="Tìm nhà xe…"
@@ -343,7 +315,7 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
               key={zone.code}
               label={portZoneFacetLabel(zone.label)}
               selected={filters.portIds}
-              onToggle={(id) => onChange({ portIds: toggleId(filters.portIds, id) })}
+              onSelectionChange={(ids) => onChange({ portIds: ids })}
               loadFacets={(q) => listZonePortFacets(zone.code, q).then((r) => r.items)}
             />
           ))}
@@ -354,7 +326,7 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
           )}
           <CarrierFacetMultiSelect
             selected={filters.carrierKeys}
-            onToggle={(key) => onChange({ carrierKeys: toggleKey(filters.carrierKeys, key) })}
+            onSelectionChange={(keys) => onChange({ carrierKeys: keys })}
             loadExternalCarriers={() => listDispatchFleetResources('EXTERNAL_CARRIER', { limit: 100 }).then((r) => r.items)}
           />
           <div className="master-plan-filters__date-range master-plan-filters__field" role="group" aria-label="Khoảng ngày giao">
@@ -439,9 +411,9 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
             <h3 id="master-plan-filter-location" className="master-plan-filters__drawer-title">Cảng và nhà xe</h3>
             <div className="master-plan-filters__drawer-fields">
               {visibleZones.map((zone) => (
-                <FacetMultiSelect key={zone.code} label={portZoneFacetLabel(zone.label)} selected={filters.portIds} onToggle={(id) => onChange({ portIds: toggleId(filters.portIds, id) })} loadFacets={(q) => listZonePortFacets(zone.code, q).then((r) => r.items)} />
+                <FacetMultiSelect key={zone.code} label={portZoneFacetLabel(zone.label)} selected={filters.portIds} onSelectionChange={(ids) => onChange({ portIds: ids })} loadFacets={(q) => listZonePortFacets(zone.code, q).then((r) => r.items)} />
               ))}
-              <CarrierFacetMultiSelect selected={filters.carrierKeys} onToggle={(key) => onChange({ carrierKeys: toggleKey(filters.carrierKeys, key) })} loadExternalCarriers={() => listDispatchFleetResources('EXTERNAL_CARRIER', { limit: 100 }).then((r) => r.items)} />
+              <CarrierFacetMultiSelect selected={filters.carrierKeys} onSelectionChange={(keys) => onChange({ carrierKeys: keys })} loadExternalCarriers={() => listDispatchFleetResources('EXTERNAL_CARRIER', { limit: 100 }).then((r) => r.items)} />
               {zonesError && <span className="master-plan-filters__zones-error" role="status">Không tải được khu vực cảng — thử lại sau.</span>}
             </div>
           </section>

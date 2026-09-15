@@ -304,7 +304,7 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
     expect(body.driverId).toBe(8);
     expect(body.endTimeConfirmed).toBe(true);
     // Planned times derive from the row's CUS-locked schedule (2026-08-20 08:00 +2h).
-    expect(body.plannedStartAt).toBe(new Date('2026-08-20T08:00').toISOString());
+    expect(body.plannedStartAt).toBe(new Date('2026-08-20T08:00+07:00').toISOString());
     expect(new Date(body.plannedEndAt).getTime()).toBeGreaterThan(new Date(body.plannedStartAt).getTime());
     await waitFor(() => expect(screen.queryByText(/Chỉnh sửa điều phối/)).toBeNull());
   });
@@ -718,6 +718,14 @@ describe('DispatchPlanEditorCell — vehicle picker trailer compatibility', () =
     expect(fitLabel).not.toContain('⚠');
     expect(mismatchLabel).toContain('⚠ rơ-moóc 40FT, cần 20FT');
     expect(options.indexOf(mismatchLabel)).toBe(options.length - 1);
+  });
+
+  it('VID-DSP-03 ranks a40FT moóc as compatible for two20ft Kẹp containers', async () => {
+    mockTruckPage([FIT_TRUCK, MISMATCH_TRUCK]);
+    renderCell(row({ classification: 'DOUBLE' }));
+    const options = await openVehicleDropdown();
+    expect(options.find((label) => label.includes('60C-123.45'))).not.toContain('⚠');
+    expect(options.find((label) => label.includes('15H-052.82'))).toContain('cần 40FT');
   });
 
   it('keeps an unknown trailer type unannotated but below a fitting truck', async () => {

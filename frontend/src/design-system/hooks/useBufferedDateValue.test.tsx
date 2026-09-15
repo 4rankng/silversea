@@ -87,7 +87,7 @@ describe('useBufferedDateValue', () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 
-  it('leaves the value alone on blur when the draft is complete', () => {
+  it('commits a complete pending value on blur without clearing its display', () => {
     const onChange = vi.fn();
     const { result } = renderHook(() => useBufferedDateValue({ value: '', onChange }));
 
@@ -95,7 +95,29 @@ describe('useBufferedDateValue', () => {
     act(() => result.current.onBlur(blurEvent));
 
     expect(blurEvent.target.value).toBe('2024-12-15');
+    expect(onChange).toHaveBeenCalledWith('2024-12-15');
+  });
+
+  it('commits input before change and deduplicates subsequent change and blur events', () => {
+    const onChange = vi.fn();
+    const { result } = renderHook(() => useBufferedDateValue({ value: '', onChange }));
+    const input = document.createElement('input');
+    input.type = 'date';
+    input.value = '2026-09-23';
+    act(() => result.current.onInput({ currentTarget: input } as unknown as React.FormEvent<HTMLInputElement>));
+    act(() => result.current.onChange(makeChangeEvent(input.value)));
+    act(() => result.current.onBlur(makeBlurEvent(input.value)));
+    expect(onChange).toHaveBeenCalledExactlyOnceWith('2026-09-23');
+  });
+
+  it('keeps incomplete native segments buffered instead of treating badInput as a clear', () => {
+    const onChange = vi.fn();
+    const { result } = renderHook(() => useBufferedDateValue({ value: '2026-09-15', onChange }));
+    const input = { value: '', validity: { badInput: true } } as HTMLInputElement;
+    act(() => result.current.onInput({ currentTarget: input } as unknown as React.FormEvent<HTMLInputElement>));
     expect(onChange).not.toHaveBeenCalled();
+    act(() => result.current.onBlur({ target: input } as unknown as React.FocusEvent<HTMLInputElement>));
+    expect(input.value).toBe('');
   });
 
   it('clears a partial draft on blur when the controlled value is empty', () => {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Download, FileLock2, Loader2, Plus, RotateCcw, Save, Search, X } from 'lucide-react';
+import { Download, FileLock2, Loader2, Plus, RotateCcw, Save, Search, SlidersHorizontal, X } from 'lucide-react';
 import {
   CUS_SEARCH_PATTERN,
   SHIPMENT_CUS_BUCKET_LABELS,
@@ -161,7 +161,7 @@ export default function ShipmentsPage() {
   const items = ws.data?.items ?? [];
   const total = ws.data?.total ?? 0;
   const totalPages = Math.max(1, ws.data?.totalPages ?? Math.ceil(total / CUS_PAGE_SIZE));
-  const drawerItem = items.find((item) => item.id === drawerId) ?? null;
+  const drawerItem = items.find((item) => item.id === drawerId) ?? (drawerId != null ? ws.details[drawerId]?.summary : null) ?? null;
   const quickEditItem = quickEditDraft
     ? items.find((item) => item.id === quickEditDraft.shipmentId) ?? null
     : null;
@@ -281,18 +281,18 @@ export default function ShipmentsPage() {
               {searchError && <span id="cus-search-error" className="cus-field-error" role="alert">{searchError}</span>}
             </div>
 
-            <button
-              type="button"
-              className="cus-advanced-toggle"
-              aria-expanded={advancedOpen}
-              onClick={() => setAdvancedOpen((o) => !o)}
-            >
-              Bộ lọc nâng cao{activeFilterCount > 0 ? ` · ${activeFilterCount} đang áp dụng` : ''}
-            </button>
+            <UUIButton
+              type="button" size="sm" color="secondary" className="cus-advanced-toggle"
+              aria-label="Bộ lọc nâng cao"
+              aria-expanded={advancedOpen} aria-controls="cus-advanced-filters"
+              onPress={() => setAdvancedOpen((o) => !o)}
+              iconLeading={SlidersHorizontal}>
+              Bộ lọc{activeFilterCount > 0 ? ` · ${activeFilterCount}` : ''}
+            </UUIButton>
             {activeFilterCount > 0 && !advancedOpen && (
               <CusFilterSummary direction={direction} dateFrom={dateFrom} dateTo={dateTo} bucket={bucket} />
             )}
-            <div className="cus-worksheet-advanced" data-open={advancedOpen ? '' : undefined}>
+            <div id="cus-advanced-filters" className="cus-worksheet-advanced" data-open={advancedOpen ? '' : undefined}>
             <UuiSelectField
               label="Xuất / Nhập"
               value={direction}
@@ -404,7 +404,7 @@ export default function ShipmentsPage() {
                 <dd>{ws.data.pageSummary.needsVehicle.toLocaleString('vi-VN')}</dd>
               </div>
               <div className="cus-workspace-summary__item cus-workspace-summary__item--info">
-                <dt>Chờ Kế toán</dt>
+                <dt>Chờ đối soát</dt>
                 <dd>{ws.data.pageSummary.waitingAccounting.toLocaleString('vi-VN')}</dd>
               </div>
             </dl>
@@ -492,7 +492,7 @@ export default function ShipmentsPage() {
             className="cus-quick-edit-modal__action"
             isLoading={savingQuickEdit}
             showTextWhileLoading
-            onPress={() => { if (quickEditItem) void saveQuickEdit(quickEditItem); }}
+            onPress={() => quickEditFormRef.current?.requestSubmit()}
             iconLeading={<Save size={16} aria-hidden="true" />}
           >
             Lưu thay đổi
@@ -500,11 +500,11 @@ export default function ShipmentsPage() {
         </>}
       >
         {quickEditDraft && quickEditItem && (
-          <form
-            className="cus-quick-edit-modal"
+          <form ref={quickEditFormRef} className="cus-quick-edit-modal"
             aria-busy={savingQuickEdit}
             onSubmit={(event) => {
               event.preventDefault();
+              if (!event.currentTarget.reportValidity()) return;
               void saveQuickEdit(quickEditItem);
             }}
           >

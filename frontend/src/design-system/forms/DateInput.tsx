@@ -40,6 +40,7 @@ export function DateInput({ value, onChange, id: providedId, ...rest }: DateInpu
       type="date"
       defaultValue={buffered.defaultValue}
       onChange={buffered.onChange}
+      onInput={buffered.onInput}
       onBlur={buffered.onBlur}
     />
   );

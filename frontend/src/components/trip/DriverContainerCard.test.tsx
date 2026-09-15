@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DriverContainerCard } from './DriverContainerCard';
 
 const toastSpy = vi.hoisted(() => vi.fn());
@@ -135,6 +135,41 @@ describe('DriverContainerCard — saved rows with null fields', () => {
 });
 
 describe('DriverContainerCard — 40f3ae15 biên bản giao hàng photo', () => {
+  it('VID-DRV-04 preserves typed identifiers after a failed delivery-note upload and allows retry', async () => {
+    vi.clearAllMocks();
+    const { onSaved } = renderCard();
+    const containerInput = screen.getByRole('textbox', { name: 'Số container' });
+    fireEvent.change(containerInput, { target: { value: 'CSQU3054383' } });
+    const input = screen.getByText('Chụp / chọn ảnh biên bản')
+      .closest('label')!.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(['note-bytes'], 'note.jpg', { type: 'image/jpeg' });
+    uploadMock.mockRejectedValueOnce(new Error('Mạng gián đoạn. Vui lòng thử lại.'));
+
+    fireEvent.change(input, { target: { files: [file] } });
+    await waitFor(() => expect(toastSpy).toHaveBeenCalledWith({ kind: 'error', message: 'Mạng gián đoạn. Vui lòng thử lại.' }));
+    expect(onSaved).not.toHaveBeenCalled();
+    expect(containerInput).toHaveValue('CSQU3054383');
+    expect(input).not.toBeDisabled();
+
+    uploadMock.mockResolvedValueOnce({ ok: true, storageKey: 'trips/55/note.jpg' });
+    fireEvent.change(input, { target: { files: [file] } });
+    await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
+    expect(containerInput).toHaveValue('CSQU3054383');
+  });
+
+  it('VID-DRV-04 deletes only the displayed delivery-note storage key and refreshes', async () => {
+    vi.clearAllMocks();
+    const { onSaved } = renderCard({ deliveryNotePhotoKey: 'trips/55/note.jpg' });
+    vi.mocked(api.post).mockResolvedValueOnce({ ok: true });
+    fireEvent.click(screen.getByRole('button', { name: 'Xóa ảnh biên bản' }));
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
+    expect(api.post).toHaveBeenCalledWith('/upload/trips/55/photos/delivery_note/delete',
+      { storage_key: 'trips/55/note.jpg' },
+      { idempotencyKey: 'driver-delivery-note-delete:55:trips/55/note.jpg' });
+    expect(api.delete).not.toHaveBeenCalled();
+  });
+
   it('uploads through /upload with type DELIVERY_NOTE and refreshes via onSaved', async () => {
     const { onSaved } = renderCard({ deliveryNotePhotoKey: null });
     uploadMock.mockResolvedValueOnce({ ok: true, storageKey: 'k', url: '/api/photos/k' } as never);
@@ -247,5 +282,61 @@ describe('DriverContainerCard — full-image viewer', () => {
     expect(screen.queryByRole('button', { name: 'Xem ảnh cont' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Xem ảnh seal' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Xem ảnh biên bản' })).toBeNull();
+  });
+});
+
+
+describe('DriverContainerCard — local container validation', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it.each(['', 'BAD', 'CSQU3054384'])('keeps invalid %s in the editor, focuses it and sends no write', (number) => {
+    renderCard({ containers: [declaredContainer('CSQU3054383')] });
+    fireEvent.click(screen.getByRole('button', { name: /Sửa/ }));
+    const input = screen.getByRole('textbox', { name: /Số container/ });
+    fireEvent.change(input, { target: { value: number } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
+    expect(api.patch).not.toHaveBeenCalled();
+    expect(api.post).not.toHaveBeenCalled();
+    expect(input).toHaveFocus();
+    expect(input).toHaveValue(number);
+    expect(input).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByRole('button', { name: 'Hủy' })).toBeTruthy();
+  });
+
+  it('saves a corrected normalized number with the loaded row version', async () => {
+    vi.mocked(api.patch).mockResolvedValueOnce({});
+    const { onSaved } = renderCard({ containers: [declaredContainer('CSQU3054383')] });
+    fireEvent.click(screen.getByRole('button', { name: /Sửa/ }));
+    const input = screen.getByRole('textbox', { name: /Số container/ });
+    fireEvent.change(input, { target: { value: 'BAD' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
+    fireEvent.change(input, { target: { value: 'csqu 3054383' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
+    await waitFor(() => expect(api.patch).toHaveBeenCalledExactlyOnceWith(
+      '/driver/me/trips/55/containers/11',
+      { containerNumber: 'CSQU3054383', sealNumber: 'SL0001', containerTypeId: 3 },
+      { expectedUpdatedAt: '2026-08-28T08:30:22.675Z' },
+    ));
+    expect(onSaved).toHaveBeenCalledOnce();
+  });
+
+  it('keeps a valid scanned IMPORT mismatch advisory and lets the driver save explicitly', async () => {
+    vi.mocked(api.patch).mockResolvedValueOnce({});
+    renderCard({ containers: [declaredContainer('MSCU6639870')] });
+    await scanContainer({ ok: true, containerNumbers: ['CSQU3054383'] });
+    expect(await screen.findByTestId('container-scan-mismatch')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
+    await waitFor(() => expect(api.patch).toHaveBeenCalledOnce());
+  });
+
+  it('pairs each photo picker with its own camera action in the capture grid', () => {
+    renderCard();
+    const groups = document.querySelectorAll('.dcc-capture-group');
+    expect(groups).toHaveLength(3);
+    for (const [index, name] of ['cont', 'seal', 'biên bản'].entries()) {
+      expect(groups[index]).toHaveTextContent(`Chụp / chọn ảnh ${name}`);
+      expect(groups[index]).toHaveTextContent(`Mở camera ${name}`);
+      expect(groups[index].querySelector('input[type="file"]')).toBeTruthy();
+    }
   });
 });

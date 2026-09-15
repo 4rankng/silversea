@@ -386,7 +386,14 @@ export function useDispatchDetailPlan() {
           ...item,
           version: result.version,
           taskStatus: 'DISPATCHED',
-          dispatch: { ...item.dispatch, tripId: result.trip.id, tripStatus: result.trip.status },
+          dispatch: {
+            ...item.dispatch,
+            tripId: result.trip.id,
+            tripStatus: result.trip.status,
+            assignedDriverName: result.trip.carrierType === 'EXTERNAL'
+              ? result.trip.externalDriverName ?? null
+              : item.dispatch.assignedDriverName,
+          },
         }
         : item)));
       return result;

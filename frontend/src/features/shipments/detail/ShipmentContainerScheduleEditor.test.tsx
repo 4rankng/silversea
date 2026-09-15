@@ -23,23 +23,24 @@ const baseProps = (overrides: Record<string, unknown> = {}) => ({
 });
 
 describe('ScheduleEditorBody', () => {
-  it('renders giờ before ngày with 24h locale pinned to en-GB', () => {
+  it('renders giờ before ngày with locale-independent 24h text entry', () => {
     const props = baseProps();
     const { container } = render(<ScheduleEditorBody {...props} />);
 
     // Thứ tự trường khớp định dạng cột bảng "20:45 8/9/26": giờ trước, ngày sau.
     const labels = Array.from(
-      container.querySelectorAll('.shipment-container-ledger__editor-grid--schedule label span'),
+      container.querySelectorAll('.shipment-container-ledger__editor-grid--schedule label > span:first-child'),
     );
     expect(labels.map((label) => label.textContent)).toEqual(['Giờ trả hàng', 'Ngày trả hàng']);
 
     const grid = container.querySelector('.shipment-container-ledger__editor-grid--schedule')!;
-    const timeInput = grid.querySelector('input[type="time"]')!;
+    const timeInput = grid.querySelector('input[type="text"]')!;
     const dateInput = grid.querySelector('input[type="date"]')!;
     // DOM order: time input precedes the date input.
     expect(timeInput.compareDocumentPosition(dateInput) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    // ép input hiển thị 24h + dd/mm/yyyy bất kể locale trình duyệt (AM/PM)
-    expect(timeInput.getAttribute('lang')).toBe('en-GB');
+    // Native time fields ignore lang on some browsers; explicit text avoids AM/PM.
+    expect(timeInput.getAttribute('placeholder')).toBe('HH:mm');
+    expect((timeInput as HTMLInputElement).value).toBe('08:00');
     expect(dateInput.getAttribute('lang')).toBe('en-GB');
   });
 
@@ -48,7 +49,7 @@ describe('ScheduleEditorBody', () => {
     const { container } = render(<ScheduleEditorBody {...props} />);
 
     const labels = Array.from(
-      container.querySelectorAll('.shipment-container-ledger__editor-grid--schedule label span'),
+      container.querySelectorAll('.shipment-container-ledger__editor-grid--schedule label > span:first-child'),
     );
     expect(labels.map((label) => label.textContent)).toEqual(['Giờ đóng hàng', 'Ngày đóng hàng']);
   });
@@ -108,4 +109,29 @@ describe('ScheduleEditorBody', () => {
     rerender(<ScheduleEditorBody {...baseProps({ cargoMode: 'LCL', canEditTransport: true, saving: true })} />);
     expect((container.querySelectorAll('input[type="date"]')[1] as HTMLInputElement).disabled).toBe(true);
   });
+  it('accepts arbitrary 24h minutes and selects from the shared time panel', () => {
+    const props = baseProps();
+    render(<ScheduleEditorBody {...props} />);
+    fireEvent.change(screen.getByLabelText('Giờ trả hàng'), { target: { value: '20:46' } });
+    expect(props.onScheduleTimeChange).toHaveBeenCalledWith('20:46');
+    fireEvent.click(screen.getByLabelText('Giờ trả hàng'));
+    const minutePanel = screen.getByRole('listbox', { name: 'Phút 00–59' });
+    fireEvent.click(minutePanel.querySelector('[role=option]')!);
+    expect(props.onScheduleTimeChange).toHaveBeenCalledWith('08:00');
+    expect(screen.getByLabelText('Giờ trả hàng')).toHaveFocus();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    fireEvent.keyDown(screen.getByLabelText('Giờ trả hàng'), { key: 'ArrowDown', altKey: true });
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Giờ trả hàng')).toHaveFocus();
+  });
+
+  it.each([{ saving: true }, { canEdit: false }])('disables every scheduling shortcut when input is unavailable: %o', (state) => {
+    render(<ScheduleEditorBody {...baseProps(state)} />);
+    expect(screen.getByRole('button', { name: 'Ngày mai' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: '13:30' })).toBeDisabled();
+    expect(screen.getByLabelText('Giờ trả hàng')).toBeDisabled();
+  });
+
 });

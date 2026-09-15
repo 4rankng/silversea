@@ -1646,6 +1646,7 @@ export const createShipmentSchema = createShipmentBaseSchema.superRefine((data, 
 // when headers are not convenient (e.g. multipart). The header wins when
 // both are present; see `routes/shipments.ts` POST /quick.
 export const quickCreateShipmentSchema = createShipmentBaseSchema.extend({
+  declarationNumber: z.string().trim().max(50).optional().nullable(),
   _requestId: z.string().min(1).max(100).optional(),
 }).superRefine((data, ctx) => {
   validateShipmentDocumentReferences(data, ctx);

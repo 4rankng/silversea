@@ -343,7 +343,7 @@ function mapFulfillmentDetail(wire: DriverFulfillmentDetailResponse): DriverTask
       pickupWarehouseName: wire.pickupLocation,
       dropWarehouseName: wire.deliveryLocation,
       lclWarehouseName: wire.cargoMode === 'LCL' ? wire.pickupLocation : null,
-      plannedAt: wire.trip.plannedStartAt ?? wire.trip.departureDate,
+      plannedAt: wire.trip.plannedStartAt ?? null,
       contactName: wire.contactName,
       contactPhone: wire.contactPhone,
       driverNotes: wire.driverNotes ?? null,

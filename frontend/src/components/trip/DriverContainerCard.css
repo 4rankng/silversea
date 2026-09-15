@@ -146,12 +146,18 @@
   text-align: center;
 }
 
-/* Capture zones — two symmetric dashed buttons that read as camera targets. */
+/* Three equal capture groups use the panel width; each camera follows its picker. */
 .dcc-capture {
   display: grid;
-  grid-template-columns: 96px;
-  justify-items: start;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
+}
+
+.dcc-capture-group {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  min-width: 0;
+  gap: 4px;
 }
 
 .dcc-capture-btn {
@@ -181,12 +187,11 @@
    <input type="file"> (no capture attribute — one tap opens the OS picker
    with camera AND gallery, so a denied camera is never a dead end). The
    secondary "Mở camera" button still opens the fullscreen scanner overlay. */
-/* The biên bản capture is a photo SLOT now (same 96×96 paradigm as the
-   cont/seal thumbs): the label keeps its accessible span text. */
+/* Capture targets stay compact while filling their equal grid columns. */
 .dcc-capture-btn--primary {
-  width: 96px;
-  height: 96px;
-  min-height: 0;
+  width: 100%;
+  min-width: 0;
+  min-height: 72px;
   padding: 6px;
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -348,8 +353,7 @@
   line-height: 1.5;
 }
 
-/* Narrow phones: capture zones keep 2-up (they are short labels), but the
-   photo strip and actions collapse tighter. */
+/* Narrow phones keep the three capture groups; read-only identity wraps. */
 @media (max-width: 420px) {
   .dcc-bento__hero {
     flex-direction: column;
@@ -386,5 +390,5 @@
 /* Ghost retake row under the saved tile strip — full cell width, one ghost
    style (design spec photo block). */
 .dcc-capture--note {
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }

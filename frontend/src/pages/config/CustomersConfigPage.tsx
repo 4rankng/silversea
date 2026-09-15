@@ -96,17 +96,21 @@ export default function CustomersConfigPage() {
       if (customerFilter === 'high-risk') return getRiskLevel(c) === 'high';
       return true;
     });
-    // Server-side search via fetchAllPaginated already filters by name.
-    // Client-side filter only adds taxCode matching (server only checks name).
-    let result = byStatus;
-    if (search) {
-      const q = search.toLowerCase();
-      result = result.filter(c =>
-        c.name.toLowerCase().includes(q) || (c.taxCode || '').toLowerCase().includes(q)
-      );
-    }
-    return sortClientSide(result, sort, {
+    // The API searches full/short name, tax code, phone and contact person.
+    // Filtering again by only name/MST would discard valid API matches.
+    return sortClientSide(byStatus, sort, {
       name: c => c.name,
+      shortName: c => c.shortName,
+      code: c => c.code,
+      taxCode: c => c.taxCode,
+      address: c => c.address,
+      contactPerson: c => c.contactPerson,
+      phone: c => c.phone,
+      accountantName: c => c.accountantName,
+      accountantPhone: c => c.accountantPhone,
+      contactInfo: c => c.contactInfo,
+      agencyFeePaymentTermDays: c => c.agencyFeePaymentTermDays,
+      paymentTermDays: c => c.paymentTermDays,
       contact: c => c.contactPerson || c.phone || c.contactInfo || null,
       monthTrips: c => customerTripStats.get(c.id)?.trips ?? null,
       monthRevenue: c => customerTripStats.get(c.id)?.revenue ?? null,
@@ -116,7 +120,7 @@ export default function CustomersConfigPage() {
       },
       status: c => c.status,
     }, (a, b) => b.id - a.id);
-  }, [customers, customerFilter, search, sort, customerTripStats]);
+  }, [customers, customerFilter, sort, customerTripStats]);
 
   return (
     <div ref={pageRef} className="cfg-page cfg-page--customers">
@@ -158,7 +162,7 @@ export default function CustomersConfigPage() {
             <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Xuất Excel
           </button>
-          <button className="btn btn--primary" onClick={() => crud.setShowAddForm(true)}>
+          <button className="btn btn--primary" onClick={() => { crud.setError(null); crud.setShowAddForm(true); }}>
             <Plus size={14} /> Thêm khách hàng
           </button>
           </div>
@@ -204,8 +208,8 @@ export default function CustomersConfigPage() {
             <input
               type="text"
               name="customerSearch"
-              aria-label="Tìm khách hàng theo tên hoặc mã số thuế"
-              placeholder="Tìm theo tên, MST…"
+              aria-label="Tìm khách hàng theo tên, tên ngắn, mã số thuế, điện thoại hoặc người liên hệ"
+              placeholder="Tên, MST, điện thoại…"
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
@@ -272,7 +276,7 @@ export default function CustomersConfigPage() {
                           : { top: '100%', marginTop: 4 }),
                       }} onClick={(e) => e.stopPropagation()}>
                         <button style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px',  border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', color: 'var(--ink)' }}
-                          onClick={() => { setMenuOpenId(null); crud.setEditingId(c.id); }}>
+                          onClick={() => { setMenuOpenId(null); crud.setError(null); crud.setEditingId(c.id); }}>
                           <Pencil size={13} /> Sửa
                         </button>
                         <button style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px',  border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', color: 'var(--danger)' }}
@@ -303,7 +307,9 @@ export default function CustomersConfigPage() {
         <div style={{ padding: '8px 4px' }}>
           <CustomerForm
             saving={crud.saving}
+            error={crud.error}
             onsave={(d) => {
+              crud.setError(null);
               crud.doCreate(d);
             }}
             oncancel={crud.cancelForm}
@@ -321,7 +327,9 @@ export default function CustomersConfigPage() {
               <CustomerForm
                 item={item}
                 saving={crud.saving}
+                error={crud.error}
                 onsave={(d) => {
+                  crud.setError(null);
                   crud.doUpdate(item.id, d);
                 }}
                 oncancel={crud.cancelForm}

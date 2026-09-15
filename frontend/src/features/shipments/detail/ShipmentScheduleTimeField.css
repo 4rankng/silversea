@@ -1,0 +1,5 @@
+.shipment-schedule-time-field { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.shipment-schedule-time-field > input { min-width: 0; flex: 1; }
+.shipment-schedule-time-panel { display: block; padding-block: 6px; }
+.shipment-schedule-time-panel .dtp-time { width: 100%; min-width: 0; }
+.shipment-schedule-time-error { color: var(--danger); }

@@ -207,6 +207,7 @@ async function createAcceptedFulfillment(args: {
   cargoWeightKg?: string | null;
   containerCargoWeightKg?: string | null;
   containerTypeCode?: string;
+  classification?: 'SINGLE' | 'DOUBLE';
 } = {}) {
   const customer = args.customerId == null
     ? await createCustomer(`Dispatch customer ${suffix}-${createdCustomerIds.length}`)
@@ -229,6 +230,7 @@ async function createAcceptedFulfillment(args: {
     sourceShipmentVersion: shipment.version,
     siteSnapshot: {},
     plannedCarrierType: 'OWN',
+    dispatchClassification: args.classification ?? 'SINGLE',
     createdBy: adminUserId,
   });
   const handoff = await createHandoff({
@@ -637,8 +639,8 @@ describe('dispatch fulfillment workflow routes', () => {
   });
 
   test('kẹp: issuing two 20ft containers to one truck does not trip the duplicate-tractor guard', async () => {
-    const resources = await createOwnedResources({ trailerType: '20FT' });
-    const first = await createAcceptedFulfillment();
+    const resources = await createOwnedResources({ trailerType: '40FT' });
+    const first = await createAcceptedFulfillment({ classification: 'DOUBLE' });
     const firstDispatch = await apiFetch<{ trip: { id: number } }>(`/${first.shipmentId}/dispatch`, {
       method: 'POST',
       token: managerToken,
@@ -659,7 +661,7 @@ describe('dispatch fulfillment workflow routes', () => {
 
     // The second 20' shell, same truck, overlapping window, same departure
     // day — this is the kẹp pairing leg, not a double booking.
-    const second = await createAcceptedFulfillment();
+    const second = await createAcceptedFulfillment({ classification: 'DOUBLE' });
     const secondDispatch = await apiFetch<{ trip: { id: number } }>(`/${second.shipmentId}/dispatch`, {
       method: 'POST',
       token: managerToken,
@@ -687,7 +689,7 @@ describe('dispatch fulfillment workflow routes', () => {
     // Overnight-window pin: a 20' run starting 23:00+07 spans into the next
     // local day but keeps the SAME departure-date slice (16:00 UTC), so the
     // kẹp exemption still applies — same-day pairing legs may cross midnight.
-    const overnight = await createAcceptedFulfillment();
+    const overnight = await createAcceptedFulfillment({ classification: 'DOUBLE' });
     const overnightDispatch = await apiFetch<{ error?: string }>(`/${overnight.shipmentId}/dispatch`, {
       method: 'POST',
       token: managerToken,
@@ -705,6 +707,93 @@ describe('dispatch fulfillment workflow routes', () => {
     });
     assert.equal(overnightDispatch.status, 201, 'overnight same-day-start kẹp window stays allowed');
     createdTripIds.push((overnightDispatch.data as { trip: { id: number } }).trip.id);
+  });
+
+  for (const departFirst of [false, true]) {
+    test(`VID-DSP-03 Kẹp second release crosses UTC midnight; first departed=${departFirst}`, async () => {
+      const resources = await createOwnedResources({ trailerType: '40FT' });
+      const first = await createAcceptedFulfillment({ classification: 'DOUBLE' });
+      const second = await createAcceptedFulfillment({ classification: 'DOUBLE' });
+      async function issue(item: typeof first, start: string) {
+        const response = await apiFetch<{ trip: { id: number; version: number }; error?: string }>(`/${item.shipmentId}/dispatch`, {
+          method: 'POST', token: dispatcherToken,
+          body: {
+            fulfillmentId: item.fulfillmentId, expectedVersion: item.fulfillmentVersion,
+            plannedStartAt: start, plannedEndAt: '2026-08-06T11:30:00+07:00', endTimeConfirmed: true,
+            carrierType: 'OWN', truckId: resources.truck.id, driverId: resources.driver.id, trailerId: resources.trailer.id,
+          },
+        });
+        if (response.status === 201) createdTripIds.push(response.data.trip.id);
+        return response;
+      }
+      const a = await issue(first, '2026-08-06T06:30:00+07:00');
+      assert.equal(a.status, 201, JSON.stringify(a.data));
+      if (departFirst) {
+        const departed = await fetch(`${baseUrl}/api/trips/${a.data.trip.id}/dispatch`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${dispatcherToken}`, 'Idempotency-Key': `video-depart-${suffix}-${a.data.trip.id}` },
+          body: JSON.stringify({ expectedVersion: a.data.trip.version }),
+        });
+        assert.equal(departed.status, 200, await departed.text());
+      }
+      const b = await issue(second, '2026-08-06T07:30:00+07:00');
+      assert.equal(b.status, 201, JSON.stringify(b.data));
+      assert.notEqual(a.data.trip.id, b.data.trip.id);
+      const persisted = await db.select({ tripId: s.tripContainers.tripId, source: s.tripContainers.sourceShipmentId })
+        .from(s.tripContainers).where(inArray(s.tripContainers.tripId, [a.data.trip.id, b.data.trip.id]));
+      assert.equal(persisted.length, 2);
+      assert.deepEqual(persisted.map((item) => item.source).sort(), [first.shipmentId, second.shipmentId].sort());
+      const third = await createAcceptedFulfillment({ classification: 'DOUBLE' });
+      const c = await issue(third, '2026-08-06T08:30:00+07:00');
+      assert.equal(c.status, 409, 'a third overlapping20ft load is not a pair');
+      assert.match(c.data.error ?? '', /trùng lịch/);
+    });
+  }
+
+  for (const mismatch of ['single-first', 'single-second', 'driver', 'trailer', 'truck', 'business-day'] as const) {
+    test(`VID-DSP-04 unrelated20ft overlap remains blocked: ${mismatch}`, async () => {
+      const resources = await createOwnedResources({ trailerType: null });
+      const other = await createOwnedResources({ trailerType: null });
+      const first = await createAcceptedFulfillment({ classification: mismatch === 'single-first' ? 'SINGLE' : 'DOUBLE' });
+      const second = await createAcceptedFulfillment({ classification: mismatch === 'single-second' ? 'SINGLE' : 'DOUBLE' });
+      const body = {
+        fulfillmentId: first.fulfillmentId, expectedVersion: first.fulfillmentVersion,
+        plannedStartAt: mismatch === 'business-day' ? '2026-08-06T23:00:00+07:00' : '2026-08-06T08:00:00+07:00',
+        plannedEndAt: mismatch === 'business-day' ? '2026-08-07T03:00:00+07:00' : '2026-08-06T12:00:00+07:00', endTimeConfirmed: true,
+        carrierType: 'OWN', truckId: resources.truck.id, driverId: resources.driver.id, trailerId: resources.trailer.id,
+      };
+      const a = await apiFetch<{ trip: { id: number }; error?: string }>(`/${first.shipmentId}/dispatch`, { method: 'POST', token: dispatcherToken, body });
+      assert.equal(a.status, 201, JSON.stringify(a.data)); createdTripIds.push(a.data.trip.id);
+      const b = await apiFetch<{ error?: string; trip?: { id: number } }>(`/${second.shipmentId}/dispatch`, {
+        method: 'POST', token: dispatcherToken, body: {
+          ...body, fulfillmentId: second.fulfillmentId, expectedVersion: second.fulfillmentVersion,
+          plannedStartAt: mismatch === 'business-day' ? '2026-08-07T01:00:00+07:00' : body.plannedStartAt,
+          truckId: mismatch === 'truck' ? other.truck.id : resources.truck.id,
+          driverId: mismatch === 'driver' ? other.driver.id : resources.driver.id,
+          trailerId: mismatch === 'trailer' ? other.trailer.id : resources.trailer.id,
+        },
+      });
+      if (b.status === 201 && b.data.trip) createdTripIds.push(b.data.trip.id);
+      assert.equal(b.status, 409, JSON.stringify(b.data));
+      assert.match(b.data.error ?? '', /trùng lịch/);
+    });
+  }
+
+  test('VID-DSP-04 blocks combined Kẹp load above vehicle capacity', async () => {
+    const resources = await createOwnedResources({ trailerType: '40FT' });
+    for (const index of [0, 1]) {
+      const item = await createAcceptedFulfillment({ classification: 'DOUBLE', containerCargoWeightKg: '20000' });
+      const result = await apiFetch<{ trip?: { id: number }; error?: string }>(`/${item.shipmentId}/dispatch`, {
+        method: 'POST', token: dispatcherToken, body: {
+          fulfillmentId: item.fulfillmentId, expectedVersion: item.fulfillmentVersion,
+          plannedStartAt: '2026-08-07T08:00:00+07:00', plannedEndAt: '2026-08-07T12:00:00+07:00', endTimeConfirmed: true,
+          carrierType: 'OWN', truckId: resources.truck.id, driverId: resources.driver.id, trailerId: resources.trailer.id,
+        },
+      });
+      if (result.status === 201 && result.data.trip) createdTripIds.push(result.data.trip.id);
+      assert.equal(result.status, index === 0 ? 201 : 409, JSON.stringify(result.data));
+      if (index === 1) assert.match(result.data.error ?? '', /Tổng trọng lượng hai container kẹp/);
+    }
   });
 
   test('unscoped accountant cannot read dispatch workspace and cannot mutate handoffs', async () => {

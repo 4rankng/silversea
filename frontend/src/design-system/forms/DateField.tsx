@@ -69,6 +69,7 @@ export function DateField({
         ref={buffered.ref}
         defaultValue={buffered.defaultValue}
         onChange={buffered.onChange}
+        onInput={buffered.onInput}
         onBlur={buffered.onBlur}
         id={id}
         type="date"

@@ -94,4 +94,25 @@ describe('USearchableField — Lệnh chạy ngoài §4.2', () => {
 
     expect(onChange).toHaveBeenCalledWith('2');
   });
+
+  it('VID-CUS-SELECT-01 clears the selected ID before searching for and choosing a replacement', async () => {
+    function CatalogHarness() {
+      const [value, setValue] = useState('1');
+      return <><USearchableField label="Nhà máy" value={value} onChange={setValue} options={CATALOG} searchable /><output aria-label="Selected catalog ID">{value}</output></>;
+    }
+    render(<CatalogHarness />);
+    const input = screen.getByRole('combobox', { name: /^Nhà máy/ });
+    expect(input).toHaveValue('Cảng Hải Phòng');
+    await openMenu(input);
+    fireEvent.change(input, { target: { value: '' } });
+    expect(screen.getByLabelText('Selected catalog ID').textContent).toBe('');
+    expect(input).toHaveValue('');
+    fireEvent.change(input, { target: { value: 'quang minh' } });
+    expect(input).toHaveValue('quang minh');
+    expect(screen.getByLabelText('Selected catalog ID').textContent).toBe('');
+    await openMenu(input);
+    fireEvent.click(screen.getByRole('option', { name: /Quang Minh/ }));
+    expect(screen.getByLabelText('Selected catalog ID')).toHaveTextContent('2');
+    expect(input).toHaveValue('KCN Quang Minh, Bắc Ninh');
+  });
 });

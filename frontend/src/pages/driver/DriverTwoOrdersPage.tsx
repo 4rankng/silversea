@@ -42,7 +42,7 @@ function TripCard({ trip, label, accent }: { trip: TripSummary; label: string; a
   const status = trip.status as TripStatus;
   return (
     <Link
-      to={trip.fulfillmentId ? `/my-trips/${trip.fulfillmentId}` : '/my-trips'}
+      to={`/my-trips/${trip.id}`}
       className="driver-trip-card"
       data-testid={`two-orders-card-${label}`}
       style={{ '--strip': TRIP_STATUS_COLORS[status], animationDelay: '0ms' } as React.CSSProperties}

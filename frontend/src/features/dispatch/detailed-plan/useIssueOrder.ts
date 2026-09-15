@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   listDispatchFleetResources,
   type DispatchDetailPlanRow,
@@ -10,8 +10,7 @@ function pad2(value: number): string {
   return String(value).padStart(2, '0');
 }
 
-/** `<input type="datetime-local">` value in the browser's local time — the
- *  business timezone for every dispatcher session (Asia/Ho_Chi_Minh). */
+/** Internal local draft representation; API payloads retain absolute instants. */
 function toDatetimeLocalValue(date: Date): string {
   return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}T${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
 }
@@ -42,7 +41,7 @@ function draftIssueTimesFor(row: DispatchDetailPlanRow): { plannedStartAt: strin
   const date = row.time?.deliveryDate;
   const hour = row.time?.runHour;
   if (!date || hour == null || hour < 0 || hour > 23) return defaultIssueTimes();
-  const startAt = new Date(`${date}T${pad2(hour)}:00`);
+  const startAt = new Date(`${date}T${pad2(hour)}:00+07:00`);
   if (Number.isNaN(startAt.getTime())) return defaultIssueTimes();
   const endAt = new Date(startAt.getTime() + 2 * 60 * 60_000);
   return { plannedStartAt: toDatetimeLocalValue(startAt), plannedEndAt: toDatetimeLocalValue(endAt) };
@@ -87,6 +86,7 @@ export function useIssueOrder({ row, open, canIssue, onIssueOrder, onIssued }: U
     externalDriverPhone: '',
   });
   const [issuing, setIssuing] = useState(false);
+  const issueInFlight = useRef(false);
   const [issueError, setIssueError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -116,7 +116,7 @@ export function useIssueOrder({ row, open, canIssue, onIssueOrder, onIssued }: U
   }, [open, row.fulfillmentId, row.version]);
 
   async function issue() {
-    if (issuing || !canIssue) return;
+    if (issueInFlight.current || !canIssue) return;
     // Planned times ride the row's CUS-locked schedule (deliveryDate + runHour)
     // with a wall-clock fallback — dispatchers never pick times.
     const { plannedStartAt, plannedEndAt } = draftIssueTimesFor(row);
@@ -131,26 +131,35 @@ export function useIssueOrder({ row, open, canIssue, onIssueOrder, onIssued }: U
       return;
     }
     const isOwn = row.dispatch.carrierType === 'OWN';
-    if (isOwn && (ownTruck == null || ownTruck.driverId == null)) {
-      setIssueError('Xe chưa gán tài xế. Vào Danh mục Xe nội bộ để gán tài xế cho xe trước khi phát lệnh.');
-      return;
-    }
     // Driver name/phone for external carriers are optional since 2026-09-08 —
     // external drivers never use the app, so the order can't depend on them;
     // the trip is completed by dispatch/CUS instead (trips complete-external).
     const externalDriverName = issueDraft.externalDriverName.trim();
     const externalDriverPhone = issueDraft.externalDriverPhone.trim();
 
+    issueInFlight.current = true;
     setIssuing(true);
     setIssueError(null);
     try {
+      // A row action issues directly without mounting the assignment dialog.
+      // Resolve its driver only on demand; never fetch once per visible row.
+      let resolvedTruck = ownTruck;
+      if (isOwn && resolvedTruck == null) {
+        const response = await listDispatchFleetResources('TRUCK', { limit: 5, q: row.dispatch.assignedPlate ?? '' });
+        const truck = (response.items as DispatchTruck[])
+          .find((item) => item.licensePlate === row.dispatch.assignedPlate);
+        resolvedTruck = truck ? { id: truck.id, driverId: truck.assignedDriverId, driverName: truck.assignedDriverName } : null;
+      }
+      if (isOwn && resolvedTruck?.driverId == null) {
+        throw new Error('Xe chưa gán tài xế. Vào Danh mục Xe nội bộ để gán tài xế cho xe trước khi phát lệnh.');
+      }
       await onIssueOrder(row, {
         plannedStartAt: startAt.toISOString(),
         plannedEndAt: endAt.toISOString(),
         endTimeConfirmed: true,
         carrierType: row.dispatch.carrierType as 'OWN' | 'EXTERNAL',
-        truckId: isOwn ? ownTruck!.id : undefined,
-        driverId: isOwn ? ownTruck!.driverId : undefined,
+        truckId: isOwn ? resolvedTruck!.id : undefined,
+        driverId: isOwn ? resolvedTruck!.driverId : undefined,
         externalCarrierId: isOwn ? undefined : row.dispatch.externalCarrierId,
         externalCarrierVehicleId: isOwn ? undefined : row.dispatch.externalCarrierVehicleId,
         externalPlateNumber: isOwn || row.dispatch.externalCarrierVehicleId != null
@@ -167,6 +176,7 @@ export function useIssueOrder({ row, open, canIssue, onIssueOrder, onIssued }: U
           : 'Không thể phát lệnh. Kiểm tra thông báo của bảng và thử lại.',
       );
     } finally {
+      issueInFlight.current = false;
       setIssuing(false);
     }
   }

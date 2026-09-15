@@ -37,11 +37,14 @@ export function usePopoverPosition(
       const gap = 4;
       const padding = 12;
 
-      const vh = window.innerHeight || 900;
-      const vw = window.innerWidth || 1440;
+      const viewport = window.visualViewport;
+      const vh = viewport?.height || window.innerHeight || 900;
+      const vw = viewport?.width || window.innerWidth || 1440;
+      const viewportTop = viewport?.offsetTop ?? 0;
+      const viewportLeft = viewport?.offsetLeft ?? 0;
 
-      const spaceBelow = vh - triggerRect.bottom - gap - padding;
-      const spaceAbove = triggerRect.top - gap - padding;
+      const spaceBelow = viewportTop + vh - triggerRect.bottom - gap - padding;
+      const spaceAbove = triggerRect.top - viewportTop - gap - padding;
 
       let top: number;
       if (popoverHeight <= spaceBelow || spaceBelow >= spaceAbove) {
@@ -49,18 +52,24 @@ export function usePopoverPosition(
       } else {
         top = triggerRect.top - gap - popoverHeight;
       }
-      top = Math.max(padding, Math.min(top, vh - padding - popoverHeight));
+      top = Math.max(viewportTop + padding, Math.min(top, viewportTop + vh - padding - popoverHeight));
 
       let left = triggerRect.right - popoverWidth;
-      left = Math.max(padding, Math.min(left, vw - padding - popoverWidth));
+      left = Math.max(viewportLeft + padding, Math.min(left, viewportLeft + vw - padding - popoverWidth));
 
       setCoords({ top: Math.round(top), left: Math.round(left) });
     };
 
     updatePosition();
+    // Calendar/time panels change height without a window resize.
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(updatePosition);
+    if (popoverRef.current) observer?.observe(popoverRef.current);
+    window.visualViewport?.addEventListener('resize', updatePosition);
     window.addEventListener('resize', updatePosition);
     window.addEventListener('scroll', updatePosition, true);
     return () => {
+      observer?.disconnect();
+      window.visualViewport?.removeEventListener('resize', updatePosition);
       window.removeEventListener('resize', updatePosition);
       window.removeEventListener('scroll', updatePosition, true);
     };

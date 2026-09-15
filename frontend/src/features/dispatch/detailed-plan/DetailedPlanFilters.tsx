@@ -49,12 +49,12 @@ const ASSIGNMENT_OPTIONS = [
 function FacetMultiSelect({
   label,
   selected,
-  onToggle,
+  onSelectionChange,
   loadFacets,
 }: {
   label: string;
   selected: number[];
-  onToggle: (id: number) => void;
+  onSelectionChange: (ids: number[]) => void;
   loadFacets: FacetLoader;
 }) {
   const [isPickerOpen, setIsPickerOpen] = useState(false);
@@ -89,18 +89,7 @@ function FacetMultiSelect({
         <SearchableMultiSelect
           id={pickerId}
           values={selected.map(String)}
-          onChange={(values) => {
-            // Bridge the design-system array contract onto the parent's
-            // per-id toggle: one onToggle per added/removed id.
-            const previous = new Set(selected.map(String));
-            const next = new Set(values);
-            for (const id of selected) {
-              if (!next.has(String(id))) onToggle(id);
-            }
-            for (const value of values) {
-              if (!previous.has(value)) onToggle(Number(value));
-            }
-          }}
+          onChange={(values) => onSelectionChange(values.map(Number))}
           options={facets.map((facet) => ({ value: String(facet.id), label: facet.name }))}
           placeholder={`Chọn ${label.toLowerCase()}…`}
           searchPlaceholder={`Tìm ${label.toLowerCase()}…`}
@@ -114,10 +103,6 @@ function FacetMultiSelect({
       </div>
     </div>
   );
-}
-
-function toggleId(list: number[], id: number): number[] {
-  return list.includes(id) ? list.filter((value) => value !== id) : [...list, id];
 }
 
 /** Filter bar for the dispatch detail plan grid (docx §4). */
@@ -316,9 +301,9 @@ export function DetailedPlanFilters({
           <section className="detailed-plan-filter-panel__group" aria-labelledby="detailed-plan-filter-points">
             <h3 id="detailed-plan-filter-points" className="detailed-plan-filter-panel__title">Điểm giao nhận</h3>
             <div className="detailed-plan-filter-panel__fields">
-              <FacetMultiSelect label="Điểm nâng" selected={filters.pickupIds} onToggle={(id) => onChange({ pickupIds: toggleId(filters.pickupIds, id) })} loadFacets={loadPickupPortFacets} />
-              <FacetMultiSelect label="Điểm hạ" selected={filters.dropoffIds} onToggle={(id) => onChange({ dropoffIds: toggleId(filters.dropoffIds, id) })} loadFacets={loadDropoffPortFacets} />
-              <FacetMultiSelect label="Điểm trả" selected={filters.deliveryPointIds} onToggle={(id) => onChange({ deliveryPointIds: toggleId(filters.deliveryPointIds, id) })} loadFacets={loadDeliveryPointFacets} />
+              <FacetMultiSelect label="Điểm nâng" selected={filters.pickupIds} onSelectionChange={(ids) => onChange({ pickupIds: ids })} loadFacets={loadPickupPortFacets} />
+              <FacetMultiSelect label="Điểm hạ" selected={filters.dropoffIds} onSelectionChange={(ids) => onChange({ dropoffIds: ids })} loadFacets={loadDropoffPortFacets} />
+              <FacetMultiSelect label="Điểm trả" selected={filters.deliveryPointIds} onSelectionChange={(ids) => onChange({ deliveryPointIds: ids })} loadFacets={loadDeliveryPointFacets} />
             </div>
           </section>
         </div>

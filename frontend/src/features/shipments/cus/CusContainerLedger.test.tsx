@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ShipmentCusWorkspaceDetail } from '@tingting/shared';
 import { ToastProvider } from '../../../components/shared/Toast';
@@ -262,6 +263,37 @@ describe('ContainerLedger confirm affordances', () => {
     view.rerenderWithSavedLine();
     await waitFor(() => expect(onAppointmentSavedAndExit).toHaveBeenCalledTimes(1), { timeout: 3000 });
     expect(document.querySelector('.cus-appointment-popover')).toBeNull();
+  });
+
+  it('typed Enter exits using the current clean host state, not its previous dirty closure', async () => {
+    const discarded = vi.fn();
+    const exited = vi.fn();
+    function Host() {
+      const [current, setCurrent] = useState(detail);
+      const [dirty, setDirty] = useState(false);
+      const [saving, setSaving] = useState(false);
+      return <ToastProvider><ContainerLedger
+        detail={current}
+        onLineSaved={async (line) => { setCurrent({ ...current, containers: [line] }); }}
+        getIdempotencyKey={() => 'typed-enter-current-state'}
+        clearIdempotencyKey={() => {}}
+        idPrefix="real-host"
+        onDirtyChange={setDirty}
+        onSavingChange={setSaving}
+        onAppointmentSavedAndExit={() => { if (dirty || saving) discarded(); else exited(); }}
+      /></ToastProvider>;
+    }
+    updateCusShipmentContainerLine.mockResolvedValueOnce({ line: {
+      ...detail.containers[0], shipmentVersion: 5, customerAppointmentAt: '2026-09-19T07:45:00.000Z',
+    } });
+    render(<Host />);
+    fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ }));
+    fireEvent.change(screen.getByLabelText('Ngày giờ'), { target: { value: '14:45 19/09/2026' } });
+    fireEvent.keyDown(screen.getByLabelText('Ngày giờ'), { key: 'Enter' });
+    await waitFor(() => expect(exited).toHaveBeenCalledTimes(1));
+    expect(discarded).not.toHaveBeenCalled();
+    expect(updateCusShipmentContainerLine).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('dialog', { name: /Chọn giờ hẹn đóng/ })).not.toBeInTheDocument();
   });
 
   it('failed commit does not exit the detail surface', async () => {

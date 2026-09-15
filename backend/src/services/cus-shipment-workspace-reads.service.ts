@@ -8,7 +8,7 @@
  * `cus-shipment-workspace.service.ts` remains the facade importers target.
  */
 import { Role, ShipmentCusBucket, ShipmentStatus, localDateInBusinessZone, type DispatchClassification, type ShipmentCusContainerQuery, type ShipmentCusWorkspaceDetail, type ShipmentCusWorkspaceListResponse, type ShipmentCusWorkspaceQuery, type ShipmentCusContainerFlatResponse, type ShipmentCusContainerFlatRow } from '@tingting/shared';
-import { and, asc, count, desc, eq, gte, ilike, inArray, isNull, lte, ne, or, sql, type SQL } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, inArray, isNull, lte, ne, or, sql, type SQL } from 'drizzle-orm';
 
 
 import { db } from '../db';
@@ -754,23 +754,23 @@ async function buildShipmentPageConditions(
     conditions.push(eq(s.shipments.tradeDirection, query.direction));
   }
   if (query.searchSuffix) {
-    const suffix = `%${query.searchSuffix}`;
+    const suffix = `%${query.searchSuffix.trim().replace(/[\\%_]/g, '\\$&')}`;
     conditions.push(or(
-      ilike(s.shipments.blNumber, suffix),
-      ilike(s.shipments.bookingRef, suffix),
+      sql`btrim(${s.shipments.blNumber}) ilike ${suffix}`,
+      sql`btrim(${s.shipments.bookingRef}) ilike ${suffix}`,
       searchMode === 'container'
-        ? ilike(s.shipmentContainers.containerNumber, suffix)
+        ? sql`btrim(${s.shipmentContainers.containerNumber}) ilike ${suffix}`
         : sql`exists (
             select 1
             from ${s.shipmentContainers}
             where ${s.shipmentContainers.shipmentId} = ${s.shipments.id}
-              and ${s.shipmentContainers.containerNumber} ilike ${suffix}
+              and btrim(${s.shipmentContainers.containerNumber}) ilike ${suffix}
           )`,
       sql`exists (
         select 1
         from ${s.shipmentDeclarations}
         where ${s.shipmentDeclarations.shipmentId} = ${s.shipments.id}
-          and ${s.shipmentDeclarations.declarationNumber} ilike ${suffix}
+          and btrim(${s.shipmentDeclarations.declarationNumber}) ilike ${suffix}
       )`,
     )!);
   }
@@ -1034,7 +1034,9 @@ export async function listCusShipmentContainers(
       // Container-level factory takes precedence over shipment-level (SILVER L1).
       factoryName: (container.operationalSiteId != null
         ? support.factoryNameBySiteId.get(container.operationalSiteId)?.shortName ?? null
-        : null) ?? trimOrNull(row.shipment.factoryName),
+        : null) ?? (row.shipment.operationalSiteId != null
+          ? support.factoryNameBySiteId.get(row.shipment.operationalSiteId)?.shortName ?? null
+          : null) ?? trimOrNull(row.shipment.factoryName),
       routeName: line.routeName,
       billOrBookNumber: billOrBookNumberFor(row.shipment.tradeDirection, row.shipment.blNumber, row.shipment.bookingRef),
       declarationNumber: support.declarationByShipment.get(row.shipment.id)?.declarationNumber ?? null,

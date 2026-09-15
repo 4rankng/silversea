@@ -54,6 +54,7 @@ export interface AtomicPlanSaveResult {
     externalCarrierId: number | null;
     externalCarrierVehicleId: number | null;
     assignedPlate: string | null;
+    assignedDriverName?: string | null;
   };
   estimates: { plannedRevenue: string | null; plannedCarrierCost: string | null };
   lotFullyPlated: boolean;
@@ -194,13 +195,22 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
     driverAccepted: row.dispatch.driverAccepted === true,
   });
   // Issuing acts on the saved plan, not unsaved draft edits — block it while
-  // the dialog has pending carrier/vehicle changes so it can't fire against
-  // stale assignment data the user hasn't saved yet.
+  // any plan field is edited, including costs and driver-facing notes.
+  // Otherwise releasing would close the dialog and silently discard edits.
   const carrierSwitched = draft.carrierValue !== carrierValueForRow(row);
   const vehicleChanged = carrierSwitched
     ? draft.vehicleValue !== ''
     : vehiclePlateKey(draft.vehicleValue, vehicleOptions) !== vehiclePlateKey(vehicleValueForRow(row), vehicleOptions);
-  const planDirty = carrierSwitched || vehicleChanged;
+  const revenue = parseVnd(draft.plannedRevenue);
+  const carrierCost = parseVnd(draft.plannedCarrierCost);
+  const storedRevenue = parseVnd(row.estimates.plannedRevenue ?? '');
+  const storedCarrierCost = parseVnd(row.estimates.plannedCarrierCost ?? '');
+  const planDirty = carrierSwitched || vehicleChanged
+    || draft.classification !== row.classification
+    || (draft.operationalNotes ?? '') !== (row.notes.vehicleNote ?? '')
+    || !revenue.valid || !carrierCost.valid
+    || revenue.value !== storedRevenue.value
+    || carrierCost.value !== storedCarrierCost.value;
   const canIssue = issueStatus === 'PLATED_NOT_ISSUED' && !planDirty;
 
   const {
@@ -290,7 +300,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
         truckCarrierLinksRef.current = new Map(trucks
           .filter((truck) => truck.carrierId != null)
           .map((truck) => [truck.id, { plate: truck.licensePlate, carrierId: truck.carrierId!, carrierName: truck.carrierName ?? '' }]));
-        const requiredTrailerType = requiredTrailerTypeForContainer(row.container.containerTypeLabel);
+        const requiredTrailerType = requiredTrailerTypeForContainer(row.container.containerTypeLabel, draft.classification);
         // Stable sort (ES2019+): fits first, unknowns keep page order, mismatches sink.
         const ranked = requiredTrailerType != null
           ? [...trucks].sort((a, b) => trailerFitRank(a.trailerType, requiredTrailerType) - trailerFitRank(b.trailerType, requiredTrailerType))
@@ -325,7 +335,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
     // `selectedCarrier` is a fresh object every render (parseCarrier of the
     // draft); the effect keys on the two primitives it actually consumes so
     // the vehicle list doesn't reload on every keystroke elsewhere.
-  }, [open, row.fulfillmentId, selectedCarrier?.carrierType, selectedCarrier?.externalCarrierId, vehicleSearch, rowIsCarrierLess, fleetRetryNonce]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, row.fulfillmentId, selectedCarrier?.carrierType, selectedCarrier?.externalCarrierId, vehicleSearch, rowIsCarrierLess, fleetRetryNonce, draft.classification]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const selectableCarrierOptions = useMemo(() => {
     const options = [{ value: OWN_CARRIER_VALUE, label: 'SilverSea — xe nội bộ' }, ...carrierOptions];
@@ -348,7 +358,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
   // value; reason tags travel in the label so screen readers get the same
   // signal as sighted users, and a trailer mismatch warns there too.
   const selectableVehicleOptions = useMemo(() => {
-    const requiredTrailerType = requiredTrailerTypeForContainer(row.container.containerTypeLabel);
+    const requiredTrailerType = requiredTrailerTypeForContainer(row.container.containerTypeLabel, draft.classification);
     const suggestionOptions: SearchableSelectOption[] = suggestions
       .filter((suggestion) => vehicleOptions.some((option) => option.value === `${OWN_TRUCK_PREFIX}${suggestion.truckId}`))
       .map((suggestion) => {
@@ -376,7 +386,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
         : row.dispatch.assignedPlate ?? 'Biển số hiện tại');
     const withoutDuplicate = matchIndex !== -1 ? merged.filter((_, index) => index !== matchIndex) : merged;
     return [{ value: draft.vehicleValue, label }, ...withoutDuplicate];
-  }, [draft.vehicleValue, row.dispatch.assignedPlate, row.container.containerTypeLabel, suggestions, vehicleOptions]);
+  }, [draft.vehicleValue, draft.classification, row.dispatch.assignedPlate, row.container.containerTypeLabel, suggestions, vehicleOptions]);
 
   async function openEditor() {
     if (disabled) return;
@@ -470,7 +480,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
             truckCarrierLinksRef.current.set(truck.id, { plate: truck.licensePlate, carrierId: truck.carrierId, carrierName: truck.carrierName ?? '' });
           }
         }
-        const requiredTrailerType = requiredTrailerTypeForContainer(row.container.containerTypeLabel);
+        const requiredTrailerType = requiredTrailerTypeForContainer(row.container.containerTypeLabel, draft.classification);
         const ranked = requiredTrailerType != null
           ? [...trucks].sort((a, b) => trailerFitRank(a.trailerType, requiredTrailerType) - trailerFitRank(b.trailerType, requiredTrailerType))
           : trucks;
@@ -560,6 +570,11 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
         <span className={`dispatch-assignment-cell__plate${currentPlate ? '' : ' is-placeholder'}`}>
           {currentPlate || (row.dispatch.carrierType === 'OWN' ? 'Chưa phân xe' : 'CUS sẽ bổ sung')}
         </span>
+        {currentPlate && (row.dispatch.assignedDriverName || row.dispatch.carrierType === 'OWN') && (
+          <span className={`dispatch-assignment-cell__driver${row.dispatch.assignedDriverName ? '' : ' is-placeholder'}`} title={row.dispatch.assignedDriverName || undefined}>
+            {row.dispatch.assignedDriverName || 'Chưa có tài xế'}
+          </span>
+        )}
         <DispatchIssueStatusChip status={issueStatus} />
         {/* Cước thu/trả temporarily hidden from the grid cell per customer
             request (docx T2.3); the editor dialog still shows and saves both. */}

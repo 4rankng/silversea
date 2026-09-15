@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { TimePickerSurface } from './TimePickerSurface';
+export { TimePanel } from './TimePanel';
 import { Calendar, CalendarDays, ChevronLeft, ChevronRight, Clock3, X } from 'lucide-react';
 import { formatDateTime24 } from '../../lib/format';
 import './DateTimePickerPanels.css';
@@ -97,6 +99,7 @@ export function DatePanel({ value, onChange }: DatePanelProps) {
       </div>
       <div className="dtp-grid" ref={gridRef} onKeyDown={handleGridKeyDown}>
         {cells.map((cell, idx) => {
+          const cellDate = parseIsoParts(cell.iso)!;
           const isSelected = cell.iso === value;
           const isToday = cell.iso === todayIso;
           return (
@@ -106,38 +109,13 @@ export function DatePanel({ value, onChange }: DatePanelProps) {
               data-idx={idx}
               className={`dtp-day${isSelected ? ' is-selected' : ''}${isToday ? ' is-today' : ''}${cell.inMonth ? '' : ' is-outside'}`}
               aria-pressed={isSelected}
-              aria-label={`${cell.day} ${`Tháng ${view.m0 + 1} ${view.y}`}`}
+              aria-label={`${cell.day} Tháng ${cellDate.m0 + 1} ${cellDate.y}`}
               onClick={() => onChange(cell.iso)}
             >
               {cell.day}
             </button>
           );
         })}
-      </div>
-    </div>
-  );
-}
-
-/** Compact 24h time panel: hour pills 00–23 + minute pills (5-min step). */
-export function TimePanel({ value, onPick }: { value: string; onPick: (time: string) => void }) {
-  const [currentHour] = value ? value.split(':') : [''];
-  const [draftHour, setDraftHour] = useState<number | null>(currentHour ? Number(currentHour) : null);
-  const hours = useMemo(() => Array.from({ length: 24 }, (_, i) => i), []);
-  const minutes = useMemo(() => Array.from({ length: 12 }, (_, i) => i * 5), []);
-
-  return (
-    <div className="dtp-time" role="group" aria-label="Chọn giờ (24h)">
-      <div className="dtp-dialog__section-label">Giờ</div>
-      <div className="dtp-dialog__pills" role="group" aria-label="Giờ 00–23">
-        {hours.map((h) => (
-          <button key={h} type="button" className={`dtp-pill${(draftHour ?? (currentHour ? Number(currentHour) : null)) === h ? ' is-active' : ''}`} onClick={() => setDraftHour(h)}>{pad2(h)}</button>
-        ))}
-      </div>
-      <div className="dtp-dialog__section-label">Phút</div>
-      <div className="dtp-dialog__pills" role="group" aria-label="Phút (bước 5 phút)">
-        {minutes.map((m) => (
-          <button key={m} type="button" className="dtp-pill" onClick={() => onPick(`${pad2(draftHour ?? (currentHour ? Number(currentHour) : 8))}:${pad2(m)}`)}>{pad2(m)}</button>
-        ))}
       </div>
     </div>
   );
@@ -162,6 +140,8 @@ export function DateTimePickerDialog({ title, value, onConfirm, onClose, commonS
   const [time, setTime] = useState(() => (value ? (value.split('T')[1] ?? '').slice(0, 5) : ''));
   const [panel, setPanel] = useState<'date' | 'time' | null>(null);
   const [error, setError] = useState('');
+  const timeTrigger = useRef<HTMLButtonElement>(null);
+  const timePanel = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setDate(value ? value.slice(0, 10) : '');
@@ -177,7 +157,22 @@ export function DateTimePickerDialog({ title, value, onConfirm, onClose, commonS
   };
 
   return (
-    <div className="dtp-popover dtp-popover--portal dtp-dialog" role="dialog" aria-label={title}>
+    <div className="dtp-popover dtp-dialog" role="dialog" aria-label={title}
+      data-escape-boundary="true"
+      onKeyDown={(event) => {
+        if (event.nativeEvent.isComposing) return;
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          event.stopPropagation();
+          onClose();
+        } else if (event.key === 'Enter') {
+          event.stopPropagation();
+          if (!(event.target as HTMLElement).closest('button')) {
+            event.preventDefault();
+            confirm();
+          }
+        }
+      }}>
       <header className="dtp-dialog__head">
         <CalendarDays size={14} aria-hidden="true" />
         <strong className="dtp-dialog__title">{title}</strong>
@@ -194,11 +189,12 @@ export function DateTimePickerDialog({ title, value, onConfirm, onClose, commonS
         >
           <Calendar size={13} aria-hidden="true" />
           <span className="dtp-dialog__field-label">NGÀY</span>
-          <span className="dtp-dialog__field-value">{date ? formatDateTime24(`${date}T00:00`).slice(7) : '—'}</span>
+          <span className="dtp-dialog__field-value">{date ? formatDateTime24(`${date}T00:00`).slice(6) : '—'}</span>
         </button>
         <button
           type="button"
           className={`dtp-dialog__field${panel === 'time' ? ' is-open' : ''}`}
+          ref={timeTrigger}
           aria-expanded={panel === 'time'}
           onClick={() => setPanel((p) => (p === 'time' ? null : 'time'))}
         >
@@ -209,7 +205,9 @@ export function DateTimePickerDialog({ title, value, onConfirm, onClose, commonS
       </div>
 
       {panel === 'date' && <DatePanel value={date} onChange={(iso) => { setDate(iso); setError(''); setPanel(null); }} />}
-      {panel === 'time' && <TimePanel value={time} onPick={(t) => { setTime(t); setError(''); setPanel(null); }} />}
+      {panel === 'time' && <TimePickerSurface label="Chọn giờ (24h)" value={time} panelRef={timePanel} anchorRef={timeTrigger} inline
+        onDismiss={() => { setPanel(null); timeTrigger.current?.focus(); }} onExit={() => setPanel(null)}
+        onPick={(t) => { setTime(t); setError(''); setPanel(null); timeTrigger.current?.focus(); }} />}
 
       <div className="dtp-dialog__strip">
         <span className="dtp-dialog__strip-label">Nhanh</span>

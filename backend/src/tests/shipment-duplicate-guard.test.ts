@@ -319,6 +319,110 @@ describe('duplicate Bill/Booking guard (2026-09-07 regression)', () => {
     assert.equal(body.code, 'SHIPMENT_REFERENCE_DUPLICATE');
   });
 
+  test('VID-CUS-02: reference punctuation is literal and declaration conflicts identify their field', async () => {
+    const original = await createIntakeShipment(`BL-LITERAL-A-${suffix}`, 'IMPORT');
+    const originalBody = await original.json() as { id: number };
+    createdShipmentIds.push(originalBody.id);
+    for (const punctuation of ['_', '%']) {
+      const response = await createIntakeShipment(`BL-LITERAL-${punctuation}-${suffix}`, 'IMPORT');
+      assert.equal(response.status, 201, 'SQL wildcard characters must be literal references');
+      createdShipmentIds.push((await response.json() as { id: number }).id);
+    }
+    const declarationNumber = `TK-LITERAL-A-${suffix}`;
+    const declaration = await authedFetch(`/${originalBody.id}/declarations`, {
+      method: 'POST', body: JSON.stringify({ declarationNumber, _requestId: crypto.randomUUID() }),
+    });
+    assert.equal(declaration.status, 201);
+    createdDeclarationIds.push((await declaration.json() as { id: number }).id);
+    const absent = await authedFetch(`/duplicate-check?declarationNumber=${encodeURIComponent(`TK-LITERAL-_-${suffix}`)}`);
+    assert.deepEqual((await absent.json() as { conflicts: unknown[] }).conflicts, []);
+    const exact = await authedFetch(`/duplicate-check?declarationNumber=${encodeURIComponent(declarationNumber.toLowerCase())}`);
+    const conflicts = (await exact.json() as { conflicts: Array<{ field: string }> }).conflicts;
+    assert.equal(conflicts[0]?.field, 'declaration');
+  });
+
+  test('VID-CUS-04: initial declaration is atomic and idempotent with quick intake', async () => {
+    const declarationNumber = `VID-ATOMIC-${suffix}`;
+    const payload = { customerId, blNumber: `VID-FIRST-${suffix}`, tradeDirection: 'IMPORT', cargoMode: 'FCL', declarationNumber, _requestId: crypto.randomUUID() };
+    const first = await authedFetch('/quick', { method: 'POST', body: JSON.stringify(payload) });
+    assert.equal(first.status, 201);
+    const original = await first.json() as { id: number; initialDeclarationId: number | null };
+    createdShipmentIds.push(original.id);
+    assert.ok(original.initialDeclarationId, 'initial declaration is included in the intake response');
+    createdDeclarationIds.push(original.initialDeclarationId);
+    const replay = await authedFetch('/quick', { method: 'POST', body: JSON.stringify(payload) });
+    assert.equal(replay.status, 200);
+    const repeated = await replay.json() as typeof original;
+    assert.equal(repeated.id, original.id);
+    assert.equal(repeated.initialDeclarationId, original.initialDeclarationId);
+
+    const duplicateBill = `VID-REJECTED-${suffix}`;
+    const duplicate = await authedFetch('/quick', { method: 'POST', body: JSON.stringify({ ...payload, blNumber: duplicateBill, declarationNumber: declarationNumber.toLowerCase(), _requestId: crypto.randomUUID() }) });
+    assert.equal(duplicate.status, 409);
+    const conflict = await duplicate.json() as { conflict?: { field: string; createdBy?: { id: number } } };
+    assert.equal(conflict.conflict?.field, 'declaration');
+    assert.equal(conflict.conflict?.createdBy?.id, clerkUserId);
+    const residue = await db.select({ id: s.shipments.id }).from(s.shipments).where(eq(s.shipments.blNumber, duplicateBill));
+    assert.deepEqual(residue, [], 'duplicate declaration must not leave a partial shipment');
+
+    await db.update(s.shipmentDeclarations).set({ declarationNumber: `EDITED-${declarationNumber}` }).where(eq(s.shipmentDeclarations.id, original.initialDeclarationId));
+    const afterEdit = await authedFetch('/quick', { method: 'POST', body: JSON.stringify(payload) });
+    assert.equal(afterEdit.status, 200);
+    const replayAfterEdit = await afterEdit.json() as typeof original;
+    assert.equal(replayAfterEdit.initialDeclarationId, original.initialDeclarationId, 'VID-CUS-13: replay preserves the original declaration identity after its text changes');
+  });
+
+  test('VID-CUS-12: concurrent duplicate references retain structured creator conflicts and atomic intake', async () => {
+    for (const kind of ['declaration', 'blNumber', 'bookingRef'] as const) {
+      const reference = `VID-RACE-${kind}-${suffix}`;
+      const bills = Array.from({ length: 6 }, (_, index) => `VID-RACE-${kind}-${index}-${suffix}`);
+      const responses = await Promise.all(bills.map((bill) => authedFetch('/quick', {
+        method: 'POST', body: JSON.stringify({
+          customerId, cargoMode: 'FCL', _requestId: crypto.randomUUID(),
+          ...(kind === 'bookingRef'
+            ? { tradeDirection: 'EXPORT', bookingRef: reference }
+            : { tradeDirection: 'IMPORT', blNumber: kind === 'blNumber' ? reference : bill }),
+          ...(kind === 'declaration' ? { declarationNumber: reference } : {}),
+        }),
+      })));
+      const outcomes = await Promise.all(responses.map(async (response) => ({ status: response.status, body: await response.json() as { id: number; version: number; initialDeclarationId?: number; code?: string; conflict?: { field: string; shipmentId: number; createdBy?: { id: number } } } })));
+      const accepted = outcomes.filter((outcome) => outcome.status === 201);
+      assert.equal(accepted.length, 1);
+      const original = accepted[0].body;
+      createdShipmentIds.push(original.id);
+      if (original.initialDeclarationId) createdDeclarationIds.push(original.initialDeclarationId);
+      assert.equal(original.version, 1);
+      for (const rejected of outcomes.filter((outcome) => outcome.status !== 201)) {
+        assert.equal(rejected.status, 409);
+        assert.equal(rejected.body.code, 'SHIPMENT_REFERENCE_DUPLICATE');
+        assert.equal(rejected.body.conflict?.field, kind);
+        assert.equal(rejected.body.conflict?.shipmentId, original.id);
+        assert.equal(rejected.body.conflict?.createdBy?.id, clerkUserId);
+      }
+      if (kind === 'declaration') {
+        const roots = await db.select({ id: s.shipments.id }).from(s.shipments).where(inArray(s.shipments.blNumber, bills));
+        const declarations = await db.select({ id: s.shipmentDeclarations.id }).from(s.shipmentDeclarations).where(eq(s.shipmentDeclarations.declarationNumber, reference));
+        assert.equal(roots.length, 1);
+        assert.equal(declarations.length, 1);
+      }
+    }
+  });
+
+  test('VID-CUS-05: historical duplicate Bill does not prevent editing another field by record ID', async () => {
+    const blNumber = `VID-HISTORICAL-${suffix}`;
+    const inserted = await db.insert(s.shipments).values([
+      { customerId, blNumber, tradeDirection: 'IMPORT', cargoMode: 'FCL', status: 'PENDING_DATE', createdBy: clerkUserId },
+      { customerId, blNumber: ` ${blNumber} `, tradeDirection: 'IMPORT', cargoMode: 'FCL', status: 'PENDING_DATE', createdBy: clerkUserId },
+    ]).returning();
+    createdShipmentIds.push(...inserted.map((row) => row.id));
+    const target = inserted[1];
+    const response = await authedFetch(`/${target.id}`, { method: 'PUT', body: JSON.stringify({ expectedVersion: target.version, blNumber, customerNotes: 'Only target changes', _requestId: crypto.randomUUID() }) });
+    assert.equal(response.status, 200);
+    const rows = await db.select({ id: s.shipments.id, notes: s.shipments.customerNotes }).from(s.shipments).where(inArray(s.shipments.id, inserted.map((row) => row.id)));
+    assert.equal(rows.find((row) => row.id === target.id)?.notes, 'Only target changes');
+    assert.equal(rows.find((row) => row.id === inserted[0].id)?.notes, null);
+  });
+
   // TC-EDGE-002 — duplicate guard is case-insensitive + whitespace-insensitive.
   test('Bill collision is case-insensitive (BL-X collides with bl-x)', async () => {
     const bl = `BL-CASE-${suffix}`;

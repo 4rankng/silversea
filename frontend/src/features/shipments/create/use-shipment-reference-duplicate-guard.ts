@@ -5,7 +5,7 @@
 // structure-guard ceiling — the workspace calls this hook with the
 // current BL/Booking/declaration values and renders the returned
 // `conflicts` next to the matching field.
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   checkShipmentReferenceDuplicate,
   type ShipmentReferenceConflict,
@@ -43,45 +43,31 @@ export function useShipmentReferenceDuplicateGuard({
   minChars = 3,
 }: UseShipmentReferenceDuplicateGuardArgs): ShipmentReferenceDuplicateGuardResult {
   const [conflicts, setConflicts] = useState<ShipmentReferenceConflict[]>([]);
-  // Latest-request token — when a fresh effect cycle runs, the previous
-  // pending request's resolution is dropped so it can't overwrite the
-  // newer state.
-  const tokenRef = useRef(0);
   const { toast } = useToast();
 
   useEffect(() => {
-    const trimmedBl = blNumber.trim();
-    const trimmedBooking = bookingRef.trim();
-    const trimmedDeclaration = declarationNumber.trim();
+    // Cleanup invalidates this request when the input changes or unmounts.
+    let active = true;
+    const eligible = (value: string) => value.trim().length >= minChars ? value.trim() : undefined;
+    const trimmedBl = eligible(blNumber);
+    const trimmedBooking = eligible(bookingRef);
+    const trimmedDeclaration = eligible(declarationNumber);
     if (!trimmedBl && !trimmedBooking && !trimmedDeclaration) {
       setConflicts([]);
       return;
     }
-    const lengths = [
-      trimmedBl.length || Number.POSITIVE_INFINITY,
-      trimmedBooking.length || Number.POSITIVE_INFINITY,
-      trimmedDeclaration.length || Number.POSITIVE_INFINITY,
-    ];
-    if (Math.min(...lengths) < minChars) {
-      setConflicts([]);
-      return;
-    }
-    const token = ++tokenRef.current;
     const handle = setTimeout(() => {
-      // Re-read the latest values from the closure, not the ones captured
-      // at effect-creation time, so the request always reflects the
-      // current input. We still rely on the token to drop stale results.
       checkShipmentReferenceDuplicate({
         blNumber: trimmedBl || undefined,
         bookingRef: trimmedBooking || undefined,
         declarationNumber: trimmedDeclaration || undefined,
       })
         .then((next) => {
-          if (token !== tokenRef.current) return;
+          if (!active) return;
           setConflicts(next);
         })
         .catch(() => {
-          if (token !== tokenRef.current) return;
+          if (!active) return;
           // The server still validates at submit time, so a network blip
           // shouldn't scare the user with an error toast. Silently clear
           // the inline warning instead.
@@ -90,6 +76,7 @@ export function useShipmentReferenceDuplicateGuard({
     }, debounceMs);
     return () => {
       clearTimeout(handle);
+      active = false;
     };
   }, [blNumber, bookingRef, declarationNumber, tradeDirection, debounceMs, minChars]);
 
@@ -107,12 +94,10 @@ export function useShipmentReferenceDuplicateGuard({
   }, [toast]);
 
   const getConflict = useCallback((field: 'blNumber' | 'bookingRef' | 'declaration', value: string) => {
-    const target = value.trim();
+    const target = value.trim().toLowerCase();
     if (!target) return undefined;
     return conflicts.find((conflict) => {
-      if (conflict.reference !== target) return false;
-      if (field === 'declaration') return true;
-      return conflict.field === field;
+      return conflict.reference.trim().toLowerCase() === target && conflict.field === field;
     });
   }, [conflicts]);
 

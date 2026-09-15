@@ -73,6 +73,7 @@ const ComboBoxValue = ({ size, shortcut, placeholder, shortcutClassName, icon: I
             {...otherProps}
             onClick={handleClick}
             data-size={size}
+            data-default-search-icon={IconProp == null || (!isReactComponent(IconProp) && !isValidElement(IconProp)) ? true : undefined}
             className={({ isFocusWithin, isDisabled }) =>
                 cx(
                     "uui-combobox relative flex w-full items-center rounded-lg border border-primary bg-primary outline-focus-ring transition duration-100 ease-linear",
@@ -107,10 +108,10 @@ const ComboBoxValue = ({ size, shortcut, placeholder, shortcutClassName, icon: I
                 ) : isValidElement(IconProp) ? (
                     IconProp
                 ) : (
-                    <SearchLg data-icon className="pointer-events-none" aria-hidden="true" />
+                    <SearchLg data-icon data-combobox-search className="pointer-events-none" aria-hidden="true" />
                 )}
 
-                <div className="relative flex w-full items-center">
+                <div className="uui-combobox__input relative flex min-w-0 w-full items-center">
                     {inputValue && (
                         <span className={cx("absolute top-1/2 z-0 inline-flex w-full -translate-y-1/2 truncate", sizes[size].textContainer)} aria-hidden="true">
                             <p className={cx("font-medium text-primary", sizes[size].text)}>{first}</p>

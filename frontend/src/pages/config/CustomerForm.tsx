@@ -33,8 +33,8 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   return <div className="field"><label>{label} {children}</label></div>;
 }
 
-export function CustomerForm({ saving, item, onsave, oncancel }: {
-  saving: boolean; item?: Customer; onsave: (d: Record<string, unknown>) => void; oncancel: () => void;
+export function CustomerForm({ saving, item, error, onsave, oncancel }: {
+  saving: boolean; item?: Customer; error?: string | null; onsave: (d: Record<string, unknown>) => void; oncancel: () => void;
 }) {
   const [name, setName] = useState(item?.name || '');
   const [shortName, setShortName] = useState(item?.shortName || '');
@@ -177,6 +177,7 @@ export function CustomerForm({ saving, item, onsave, oncancel }: {
         ]}
       />
 
+      {error && <p className="cfg-form-error" role="alert">{error}</p>}
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
         <button type="button" className="btn btn--secondary" onClick={oncancel} disabled={saving}>Hủy</button>
         <button type="button" className="btn btn--primary" onClick={() => {
@@ -185,15 +186,14 @@ export function CustomerForm({ saving, item, onsave, oncancel }: {
             // Sent even when blank: '' is the deliberate "clear" for the
             // operational label (displays fall back to the full name).
             shortName: shortName.trim(),
-            // Empty optionals are OMITTED, not nulled — customerSchema declares
-            // these .optional() (absent ok, null rejected), so a null payload
-            // fails create/update with "Expected string, received null".
-            taxCode: taxCode.trim() || undefined,
-            contactPerson: contactPerson.trim() || undefined,
-            phone: phone.trim() || undefined,
-            contactInfo: contactInfo.trim() || undefined,
-            accountantName: accountantName.trim() || undefined,
-            accountantPhone: accountantPhone.trim() || undefined,
+            // Empty strings deliberately clear existing identity fields.
+            // Omission means "unchanged" on update; null is not accepted.
+            taxCode: taxCode.trim(),
+            contactPerson: contactPerson.trim(),
+            phone: phone.trim(),
+            contactInfo: contactInfo.trim(),
+            accountantName: accountantName.trim(),
+            accountantPhone: accountantPhone.trim(),
             creditLimit: creditLimit ? String(creditLimit) : undefined,
             creditWarningThreshold: fromThresholdPercent(creditWarningThreshold),
             paymentTermDays: paymentTermDays.trim() === '' ? null : Number(paymentTermDays),

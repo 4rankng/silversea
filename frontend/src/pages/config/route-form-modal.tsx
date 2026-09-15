@@ -6,8 +6,8 @@ import { TextArea } from '../../components/untitled-ui/base/textarea/textarea';
 import { EntityFormSection, UnitInput, RequiredHint } from '../../components/shared/EntityFormParts';
 import type { Route as RouteType } from '@tingting/shared';
 
-export function RouteFormModal({ isOpen, saving, item, onsave, oncancel }: {
-  isOpen: boolean; saving: boolean; item?: RouteType; onsave: (d: Record<string, unknown>) => void; oncancel: () => void;
+export function RouteFormModal({ isOpen, saving, item, error, onsave, oncancel }: {
+  isOpen: boolean; saving: boolean; item?: RouteType; error?: string | null; onsave: (d: Record<string, unknown>) => void; oncancel: () => void;
 }) {
   const [name, setName] = useState('');
   const [shortName, setShortName] = useState('');
@@ -120,6 +120,7 @@ export function RouteFormModal({ isOpen, saving, item, onsave, oncancel }: {
           </div>
         </EntityFormSection>
       </div>
+      {error && <p className="cfg-form-error" role="alert">{error}</p>}
     </Modal>
   );
 }

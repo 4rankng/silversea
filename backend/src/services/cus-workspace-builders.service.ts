@@ -24,7 +24,6 @@ import {
   effectiveBillingLineAmount, billOrBookNumberFor,
 } from './cus-workspace-mapping.service';
 import { getShipmentFinanceConfirmationSummary } from './shipment-accounting-lock.service';
-import { readSnapshotDeliverySiteName, resolveDeliveryStage } from './delivery-stage';
 import { filterContainersByDateRange } from './container-date-filter';
 import type { AuthUser } from '../middleware/auth';
 import { ShipmentRow, ShipmentListRow, WorkspaceSupport, ContainerRow, AssignmentRow } from './cus-shipment-workspace-reads.service';
@@ -447,10 +446,8 @@ function buildListItem(
 // create form writes). The fulfillment site-snapshot remains the fallback
 // for legacy rows decomposed before ports existed. The missing-status bits
 // in containerMissingFields/containerMissingBitsSql resolve through these
-// same id-based helpers. The dropoffSite DISPLAY name, however, rides the
-// shared delivery-stage chain (free text ?? snapshot site ?? port), so a
-// row can show a delivery name while DROPOFF_SITE still flags the port
-// missing — the intended view/edit split, not an inconsistency.
+// same id-based helpers. Display names use the same authority as their
+// selector IDs, so creating a delivery snapshot cannot relabel a port.
 function resolveLiftSite(
   support: WorkspaceSupport,
   container: ContainerRow,
@@ -533,15 +530,7 @@ function buildContainerLine(
     liftSiteId: container.pickupPortId ?? liftSite?.id ?? null,
     liftSite: liftSite?.name ?? null,
     dropoffSiteId: container.dropoffPortId ?? dropoffSite?.id ?? null,
-    // Display name rides the ONE delivery-stage chain shared with the driver
-    // surfaces (free text ?? snapshot site ?? port); the id/selector machinery
-    // above stays port-first — editing and missing-status semantics are
-    // untouched.
-    dropoffSite: resolveDeliveryStage(
-      readSnapshotDeliverySiteName(assignment?.siteSnapshot ?? null),
-      row.shipment.deliveryLocation,
-      container.dropoffPortId != null ? dropoffSite?.name ?? null : null,
-    ).deliveryName,
+    dropoffSite: dropoffSite?.name ?? null,
     customerAppointmentAt: container.customerAppointmentAt?.toISOString() ?? null,
     raw: {
       containerNumber: container.containerNumber,
@@ -816,4 +805,3 @@ function readSiteSnapshotSite(
     siteType: typeof site.siteType === 'string' ? site.siteType : null,
   };
 }
-

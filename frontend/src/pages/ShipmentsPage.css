@@ -12,15 +12,15 @@
 .cus-worksheet-toolbar {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 14px;
-  padding: 16px 16px 0;
+  gap: 8px;
+  padding: 8px 0 0;
   border-bottom: 0;
   background: transparent;
 }
 
 .cus-worksheet-toolbar__filters {
   display: grid;
-  grid-template-columns: minmax(260px, 1.6fr) repeat(4, minmax(148px, 1fr));
+  grid-template-columns: minmax(240px, 1.3fr) minmax(0, 4fr);
   gap: 8px 12px;
   min-width: 0;
   align-items: end;
@@ -32,7 +32,7 @@
   align-items: center;
   justify-content: space-between;
   min-width: 0;
-  padding-top: 12px;
+  padding-top: 0;
 }
 
 .cus-worksheet-toolbar__action-group {
@@ -179,40 +179,6 @@
   outline-offset: 2px;
 }
 
-/* Give each date, direction, and status control enough room to retain its
-   selected value. The search field gets a dedicated full row before controls
-   become narrow enough to obscure operational data. Uses a viewport media
-   query: no container-type ancestor binds a bare @container rule here, so
-   the old container form never matched and tablets got the overflowing
-   5-column base grid. */
-@media (max-width: 900px) {
-  .cus-worksheet-toolbar__filters {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .cus-worksheet-toolbar__filters .cus-search-field {
-    grid-column: 1 / -1;
-  }
-
-  .cus-worksheet-toolbar__actions {
-    align-items: flex-start;
-  }
-}
-
-/* A desktop-width browser can still leave this workspace narrower than the
-   base 5-column measure after the application sidebar and page gutters are
-   accounted for. Keep the controls to two rows at those viewport widths:
-   search + direction, followed by the two dates + status. */
-@media (min-width: 901px) and (max-width: 1279px) {
-  .cus-worksheet-toolbar__filters {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .cus-worksheet-toolbar__filters .cus-search-field {
-    grid-column: span 2;
-  }
-}
-
 .cus-worksheet-meta {
   display: flex;
   justify-content: space-between;
@@ -227,7 +193,7 @@
 /* The summary is a decision rail, not another card: it gives the dispatcher a
    quiet count of the work that needs attention before scanning every row. */
 .cus-workspace-summary {
-  margin: 12px 16px 0;
+  margin: 8px 0 0;
   border-block: 1px solid var(--line);
 }
 
@@ -433,109 +399,24 @@
   box-shadow: none;
 }
 
-@media (max-width: 700px) {
-  .cus-workspace--worksheet {
-    border: 0;
-  }
-
-  .cus-worksheet-toolbar {
-    grid-template-columns: minmax(0, 1fr);
-    padding: 14px 12px 0;
-  }
-
-  .cus-worksheet-toolbar__filters {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  }
-
-  .cus-worksheet-toolbar__filters .cus-plan-status-filter {
-    grid-column: 1 / -1;
-  }
-
-  .cus-worksheet-toolbar__actions {
-    align-items: stretch;
-    flex-direction: column;
-    gap: 8px;
-    padding-top: 10px;
-  }
-
-  .cus-worksheet-toolbar__action-group {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    width: 100%;
-  }
-
-  .cus-worksheet-toolbar__action-group > :only-child {
-    grid-column: 1 / -1;
-  }
-
-  .cus-worksheet-toolbar__actions .shipment-uui-button {
-    min-width: var(--control-touch-h);
-    flex: 1;
-  }
-
-  .cus-worksheet-toolbar .shipment-uui-clear {
-    top: 21px;
-    width: 40px;
-    min-width: 40px;
-    height: 40px;
-    min-height: 40px;
-  }
-
-  .cus-worksheet-meta {
-    margin-inline: 12px;
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .cus-workspace-summary {
-    margin-inline: 12px;
-  }
-
-  .cus-workspace-summary dl {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
+@media (max-width: 480px) {
+  .cus-workspace-summary dl { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .cus-workspace-summary__item {
-    padding: 10px 12px;
-    border-bottom: 1px solid var(--line);
+    flex-direction: column-reverse;
+    align-items: flex-start;
+    justify-content: flex-end;
+    gap: 4px;
+    padding: 7px 8px;
   }
-
-  .cus-workspace-summary__item:nth-child(2) { border-right: 0; }
-  .cus-workspace-summary__item:nth-child(-n + 2) { padding-top: 10px; }
-  .cus-workspace-summary__item:nth-child(n + 3) {
-    padding-bottom: 10px;
-    border-bottom: 0;
-  }
-
-  .cus-workspace-summary__item:first-child { padding-left: 0; }
-  .cus-workspace-summary__item:nth-child(3) { padding-left: 0; }
-  .cus-workspace-summary__item:nth-child(2) { padding-right: 0; }
-  .cus-workspace-summary__item:last-child { padding-right: 0; }
-
 }
 
-@media (max-width: 380px) {
-  .cus-worksheet-toolbar__filters {
-    grid-template-columns: 1fr;
-  }
-
-  .cus-worksheet-toolbar__action-group {
-    grid-template-columns: 1fr;
-  }
-
-  .cus-workspace-summary dl { grid-template-columns: 1fr; }
-  .cus-workspace-summary__item,
-  .cus-workspace-summary__item:nth-child(2),
-  .cus-workspace-summary__item:nth-child(3) {
-    padding-inline: 0;
-    border-right: 0;
-    border-bottom: 1px solid var(--line);
-  }
-  .cus-workspace-summary__item:last-child { border-bottom: 0; }
+@media (max-width: 700px) {
+  .cus-worksheet-toolbar__actions { flex-wrap: wrap; gap: 6px; }
+  .cus-worksheet-toolbar__action-group--utility { margin-left: auto; }
+  .cus-worksheet-meta { margin-inline: 0; }
 }
 
-/* Approved CUS dashboard: seven grouped columns with a mobile stacked row.
-   The table grows with its rows and never owns a horizontal rail. */
+
 .cus-dashboard-viewport {
   overflow-x: clip;
   border-top: 0;
@@ -685,6 +566,7 @@
 
 .cus-multiline-cell {
   display: grid;
+  align-content: start;
   gap: 3px;
   min-width: 0;
   line-height: 1.35;
@@ -696,6 +578,15 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Document identifiers must remain readable at desktop column widths too. */
+.cus-multiline-cell--mono strong,
+.cus-multiline-cell--mono span {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  overflow: visible;
+  text-overflow: clip;
 }
 
 .cus-multiline-cell strong { color: var(--ink); font-size: var(--ops-table-primary-size); font-weight: var(--ops-table-primary-weight); line-height: var(--ops-table-primary-line-height); }
@@ -814,6 +705,7 @@
    corners distinguish mode (structural) from direction's full pill. */
 .cus-inline-trigger {
   display: grid;
+  align-content: start;
   gap: 3px;
   width: 100%;
   min-height: 44px;
@@ -988,8 +880,8 @@
 }
 .cus-create-shipment { white-space: nowrap; }
 
-/* Table versus record layout follows the browser viewport contract. The
-   workspace itself is narrower because of persistent application chrome. */
+/* Records share one reading order below the table breakpoint. Labels sit
+   above values instead of consuming a second grid inside each narrow cell. */
 @media (max-width: 999px) {
   .cus-dashboard-table,
   .cus-dashboard-table tbody { display: block; width: 100%; }
@@ -999,72 +891,90 @@
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     width: 100%;
-    border-bottom: 1px solid var(--line-strong);
+    margin-bottom: 10px;
+    border-block: 1px solid var(--line-strong);
+    background: var(--surface);
   }
-  /* Status combines workflow signals with the detail action. Keeping it in a
-     half-width record cell clips its chips and action at tablet widths. */
-  .cus-dashboard-table tbody > tr > td:last-child { grid-column: 1 / -1; }
   .cus-dashboard-table tbody > tr > th,
   .cus-dashboard-table tbody > tr > td {
-    display: grid;
-    grid-template-columns: minmax(112px, .42fr) minmax(0, 1fr);
-    gap: 10px;
+    display: block;
+    grid-column: 1 / -1;
+    min-width: 0;
     height: auto;
-    min-height: 76px;
-    border-right: 0;
-    align-items: start;
+    min-height: 0;
+    padding: 6px 8px;
+    border: 0;
+    border-bottom: 1px solid var(--line);
+    background: transparent;
+  }
+  .cus-dashboard-table tbody > tr > td[data-label='Phân loại & hãng tàu'],
+  .cus-dashboard-table tbody > tr > td[data-label='Tổng quan hàng hóa'] {
+    grid-column: auto;
   }
   .cus-dashboard-table tbody > tr > th::before,
-  .cus-dashboard-table tbody > tr > td::before {
-    min-width: 0;
-    color: var(--ink-3);
-    content: attr(data-label);
-    font-size: var(--text-label-size);
-    font-weight: var(--fw-bold);
-    line-height: 1.35;
-    text-transform: uppercase;
-    white-space: normal;
-    overflow-wrap: anywhere;
-  }
-  .cus-dashboard-cell--editable::before { display: none; }
-  .cus-dashboard-cell--editable > .cus-inline-trigger {
+  .cus-dashboard-table tbody > tr > td::before { display: none; }
+  .cus-dashboard-table .cus-inline-trigger {
     display: grid;
-    grid-column: 1 / -1;
-    grid-template-columns: minmax(112px, .42fr) minmax(0, 1fr);
-    gap: 10px;
-    align-items: start;
-    padding: 10px 12px;
-    position: relative;
+    grid-template-columns: minmax(0, 1fr);
+    align-content: start;
+    gap: 3px;
+    height: 100%;
+    min-height: 44px;
+    padding: 7px 8px;
   }
-  .cus-dashboard-cell--editable > .cus-inline-trigger::before {
+  .cus-dashboard-table .cus-inline-trigger::before {
     position: static;
-    grid-column: 1;
     width: auto;
-    min-width: 0;
     color: var(--ink-3);
     content: attr(data-cell-label);
     font-size: var(--text-label-size);
-    font-weight: var(--fw-bold);
-    line-height: 1.35;
-    text-transform: uppercase;
+    font-weight: var(--fw-medium);
+    line-height: 1.3;
+    white-space: normal;
+  }
+  .cus-dashboard-table .cus-multiline-cell strong,
+  .cus-dashboard-table .cus-multiline-cell span {
+    overflow: visible;
+    text-overflow: clip;
     white-space: normal;
     overflow-wrap: anywhere;
   }
-  .cus-dashboard-cell--editable > .cus-inline-trigger > * { grid-column: 2; }
-  .cus-row-actions { align-items: start; }
+  .cus-dashboard-table .cus-classification {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    align-content: start;
+    gap: 4px 6px;
+    min-height: 0;
+  }
+  .cus-dashboard-table .cus-classification__shipping-line { flex-basis: 100%; }
+  .cus-dashboard-table .cus-classification .cus-direction-badge { margin: 0; }
+  .cus-dashboard-table tbody > tr.cus-dashboard-row--waiting > td[data-label='Lịch trình & điều xe'] {
+    background: transparent;
+  }
+  .cus-dashboard-table .cus-dashboard-cell--empty-notes .cus-inline-trigger {
+    min-height: 32px;
+    align-content: center;
+  }
+  .cus-dashboard-cell--empty-notes .cus-inline-trigger::before { display: none; }
+  .cus-dashboard-table tbody > tr > td:last-child { border-bottom: 0; }
+  .cus-dashboard-table .cus-row-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+  }
+  .cus-dashboard-table .cus-row-actions__summary { display: flex; flex-wrap: wrap; gap: 4px 8px; }
+  .cus-dashboard-table .cus-row-actions__buttons { margin: 0 0 0 auto; padding: 0; border: 0; }
 }
 
 @media (max-width: 620px) {
-  .cus-dashboard-table tbody > tr { grid-template-columns: 1fr; }
-  .cus-dashboard-table tbody > tr > th,
-  .cus-dashboard-table tbody > tr > td { grid-template-columns: 98px minmax(0, 1fr); min-height: 72px; padding: 11px 12px; }
-  .cus-dashboard-cell--editable > .cus-inline-trigger { grid-template-columns: 98px minmax(0, 1fr); }
   .cus-quick-edit-modal__fields { grid-template-columns: 1fr; }
   .cus-quick-edit-modal__fields input,
   .cus-quick-edit-modal__fields select { min-height: 44px; }
   .cus-quick-edit-modal__fields .ds-uui-select button { min-height: 44px; }
   .cus-quick-edit-modal__action { min-height: 44px; }
-  .cus-row-actions { grid-template-columns: 1fr; }
 }
 
 /* This is an operational ledger, not a reading page. Keep the title close to
@@ -1353,10 +1263,10 @@
   flex-wrap: wrap;
   gap: 5px;
   align-items: center;
-  justify-content: space-between !important;
+  justify-content: space-between;
   margin-top: 1px;
   padding-top: 8px;
-  border-top: 1px solid var(--line) !important;
+  border-top: 1px solid var(--line);
 }
 
 .cus-dashboard-delete {
@@ -2459,46 +2369,37 @@
   outline-offset: 2px;
 }
 
-/* ── QA-098: secondary shipment filters collapse on phone/tablet ── */
-.cus-advanced-toggle {
-  display: none;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--surface);
-  font: inherit;
-  font-size: var(--fs-sm);
-  font-weight: 600;
-  color: var(--fg-1);
-  cursor: pointer;
-}
+/* Secondary filters use the shared button and a full-width disclosure. */
+.cus-advanced-toggle,
 .cus-active-filter-summary { display: none; }
-
+.cus-worksheet-advanced {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px 12px;
+  min-width: 0;
+  align-items: end;
+}
+@media (max-width: 1279px) and (min-width: 1024px) {
+  .cus-worksheet-toolbar__filters { grid-template-columns: minmax(0, 1fr); }
+}
 @media (max-width: 1023px) {
-  .cus-advanced-toggle {
-    display: inline-flex;
-    min-height: 44px;
-  }
+  .cus-worksheet-toolbar__filters { grid-template-columns: minmax(0, 1fr) auto; gap: 6px 8px; }
+  .cus-worksheet-toolbar__filters .cus-advanced-toggle { display: inline-flex; }
   .cus-active-filter-summary {
     display: block;
-    flex: 1 1 100%;
+    grid-column: 1 / -1;
     color: var(--ink-2);
     font-size: var(--text-caption-size);
     line-height: 1.4;
     overflow-wrap: anywhere;
   }
-
   .cus-worksheet-advanced {
     display: none;
-    flex-wrap: wrap;
-    gap: 10px;
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
   }
-
-  .cus-worksheet-advanced[data-open] {
-    display: flex;
-  }
+  .cus-worksheet-advanced[data-open] { display: grid; }
 }
 /* Anchored editors must remain reachable with the keyboard open or in landscape. */
 .cus-appointment-popover {
@@ -2515,24 +2416,6 @@
 .cus-appointment-popover__footer { gap: 8px; flex-wrap: wrap; }
 @media (prefers-reduced-motion: reduce) {
   .cus-appointment-popover { animation: none; }
-}
-
-/* Desktop: the advanced filter set renders as a proper row segment — the
-   collapse wrapper is a ≤1023px affordance, so above it the four secondary
-   fields fill the toolbar's remaining columns and the toggle/summary chrome
-   disappears (the filters are always visible where they fit). */
-@media (min-width: 1024px) {
-  .cus-worksheet-advanced {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(148px, 1fr));
-    gap: 8px 12px;
-    align-items: end;
-    grid-column: 2 / -1;
-  }
-  .cus-worksheet-toolbar__filters .cus-advanced-toggle,
-  .cus-worksheet-toolbar__filters .cus-active-filter-summary {
-    display: none;
-  }
 }
 
 /* _35: multiline note previews keep their typed line breaks (user-ruled).

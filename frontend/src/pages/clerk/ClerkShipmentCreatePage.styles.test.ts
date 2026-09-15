@@ -33,6 +33,15 @@ const summarySource = readFileSync(
 );
 
 describe('shipment create responsive layout', () => {
+  it('shows mobile record controls directly and keeps inline catalog actions beside selectors', () => {
+    const recordRules = css.slice(css.indexOf('/* Stacked records'));
+    expect(recordRules).toContain('@container (max-width: 1037px)');
+    expect(recordRules).toMatch(/\.csc-container-cell \.csc-container-cell__display\s*\{[^}]*display:\s*none;/);
+    expect(recordRules).toMatch(/\.csc-container-cell \.csc-container-cell__editor > \*\s*\{[^}]*opacity:\s*1;/);
+    expect(recordRules).toMatch(/\.csc-container-cell \.csc-route-picker\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) auto;/);
+    expect(recordRules).toMatch(/\.csc-container-cell \.csc-route-picker__add\s*\{[^}]*min-height:\s*44px;/);
+  });
+
   it('gives every form control a persistent visible boundary and focus state', () => {
     expect(fieldAdapters).toContain('csc-uui-field csc-control-boundary');
     expect(css).toMatch(/\.csc-control-boundary > \[role='presentation'\][\s\S]*?border:\s*1px solid/);

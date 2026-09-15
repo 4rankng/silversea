@@ -180,19 +180,26 @@ describe('buildQuickEditPayload', () => {
     expect(buildQuickEditPayload(draftFrom(locked, 'cargo'), locked)).not.toHaveProperty('cargoWeightKg');
   });
 
-  it('schedule: EXPORT writes closingAt, IMPORT writes plannedReturnAt, both as ISO', () => {
+  it('seeds the LCL schedule from Vietnam time and writes the same hour back', () => {
+    const item = makeItem({ closingAt: '2026-09-01T17:15:00.000Z', transportDate: '2026-09-02' });
+    const draft = draftFrom(item, 'schedule');
+    expect(draft.time).toBe('00:15');
+    expect(buildQuickEditPayload(draft, item)).toMatchObject({ closingAt: '2026-09-02T00:15:00+07:00' });
+  });
+
+  it('schedule: EXPORT writes closingAt, IMPORT writes plannedReturnAt, both as explicit Vietnam wall-clock ISO', () => {
     const item = makeItem();
     const draft = draftFrom(item, 'schedule', { date: '2026-09-02', time: '14:30' });
     expect(buildQuickEditPayload(draft, item)).toEqual({
       expectedVersion: 3,
       expectedDeliveryDate: '2026-09-02',
-      closingAt: new Date('2026-09-02T14:30:00').toISOString(),
+      closingAt: '2026-09-02T14:30:00+07:00',
     });
     const imported = makeItem({ direction: 'IMPORT' });
     expect(buildQuickEditPayload(draftFrom(imported, 'schedule', { date: '2026-09-02', time: '14:30' }), imported)).toEqual({
       expectedVersion: 3,
       expectedDeliveryDate: '2026-09-02',
-      plannedReturnAt: new Date('2026-09-02T14:30:00').toISOString(),
+      plannedReturnAt: '2026-09-02T14:30:00+07:00',
     });
   });
 

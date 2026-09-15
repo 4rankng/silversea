@@ -1,6 +1,7 @@
 import {
   type ShipmentCusWorkspaceListItem,
 } from '@tingting/shared';
+import { ShipmentScheduleTimeField } from '../detail/ShipmentScheduleTimeField';
 import { DateInput, UuiSelectField } from '../../../design-system';
 import { vehicleReadinessLabel, type ShipmentQuickEditDraft } from './cusUtils';
 
@@ -50,7 +51,7 @@ export function ShipmentQuickEditFields({
         <label><span>Thể tích (CBM)</span><input type="number" min="0" step="0.001" value={draft.cargoVolumeCbm} onChange={(event) => update({ cargoVolumeCbm: event.target.value })} disabled={saving || item.fieldAccess.cargoVolumeCbm.mode === 'READ_ONLY'} title={item.fieldAccess.cargoVolumeCbm.reason} /></label>
       </>}
       {draft.field === 'schedule' && <>
-        <label><span>Giờ</span><input autoFocus disabled={saving} type="time" lang="en-GB" value={draft.time} onChange={(event) => update({ time: event.target.value })} /></label>
+        <label><span>Giờ</span><ShipmentScheduleTimeField autoFocus label="Giờ" disabled={saving} value={draft.time} onChange={(time) => update({ time })} /></label>
         <label><span>Ngày đóng/trả</span><DateInput disabled={saving} value={draft.date} onChange={(value) => update({ date: value })} /></label>
         <p className="cus-quick-edit-modal__help">{vehicleReadinessLabel(item)}</p>
       </>}

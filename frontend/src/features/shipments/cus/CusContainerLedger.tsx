@@ -76,6 +76,7 @@ function buildContainerPatch(
 
 // ContainerLineRow lives in CusContainerLedgerRow.tsx (ceiling extraction).
 import { ContainerLineRow } from './CusContainerLedgerRow';
+import { useAppointmentSaveExit } from './use-appointment-save-exit';
 export function ContainerLedger({
   detail,
   onLineSaved,
@@ -140,22 +141,6 @@ export function ContainerLedger({
   }, [detail.containers, drafts]);
 
   const isDirty = dirtyLineIds.size > 0;
-
-  // Ref mirror for deferred callbacks: effects flush after timers, so a
-  // timeout-scheduled exit would otherwise read a stale dirty set and trip
-  // the host's discard-confirm instead of closing the drawer.
-  const dirtyLineIdsRef = useRef<Set<number>>(dirtyLineIds);
-  useEffect(() => {
-    dirtyLineIdsRef.current = new Set(dirtyLineIds);
-  }, [dirtyLineIds]);
-
-  // _42: the settle-poll exit must also wait for the saving flag to clear —
-  // an exit fired during the saving teardown hits the host's while-saving
-  // guard (stranded mid-exit) instead of closing the drawer cleanly.
-  const savingRef = useRef(saving);
-  useEffect(() => {
-    savingRef.current = saving;
-  }, [saving]);
 
   const onDirtyChangeRef = useRef(onDirtyChange);
   const onSavingChangeRef = useRef(onSavingChange);
@@ -244,27 +229,7 @@ export function ContainerLedger({
     }
   }, [clearIdempotencyKey, detail, dirtyLineIds, drafts, getIdempotencyKey, onLineSaved, saving, toast]);
 
-  /** Persist a single container's appointment directly — bypasses the draft
-   *  dirty-tracking so the Enter key in the popover saves immediately without
-   *  waiting for a React re-render cycle. */
-
-  // Enter-save exits must wait for the saved line's draft reset (refetch +
-  // effect flush loses the race against a bare timeout), then take the
-  // host's guarded close. Bounded at 2s worst-case.
-  const scheduleExit = useCallback(() => {
-    let attempt = 0;
-    const tryExit = () => {
-      // Settle on BOTH clean drafts and a cleared saving flag — closing
-      // mid-teardown is what occasionally left the rung on a broken surface.
-      if ((dirtyLineIdsRef.current.size === 0 && !savingRef.current) || attempt >= 60) {
-        onAppointmentSavedAndExit?.();
-        return;
-      }
-      attempt += 1;
-      setTimeout(tryExit, 50);
-    };
-    setTimeout(tryExit, 0);
-  }, [onAppointmentSavedAndExit]);
+  const scheduleExit = useAppointmentSaveExit(isDirty, saving, onAppointmentSavedAndExit);
 
   /** _34: dismissal without commit — revert the line's appointment draft to
    *  its base so Escape/outside never leak the abandoned value on reopen. */
@@ -301,15 +266,7 @@ export function ContainerLedger({
     } finally {
       setSaving(false);
     }
-    if (saved) {
-      // _34: the popover-commit path bypasses the table's draft-tracking, so
-      // the parent's `dirtyDetailIds` set still flags this drawer as dirty.
-      // Clear it explicitly — otherwise the host's requestCloseMobileDetail
-      // guard trips the discard-confirm dialog ("Bỏ thay đổi container?")
-      // instead of closing cleanly.
-      onDirtyChangeRef.current?.(false);
-      scheduleExit();
-    }
+    if (saved) scheduleExit();
     return saved;
   }, [clearIdempotencyKey, detail, getIdempotencyKey, onLineSaved, scheduleExit, toast]);
 

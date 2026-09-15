@@ -1,5 +1,8 @@
-import { type ReactNode, useId, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { Calendar } from '@untitledui/icons';
+import { usePopoverPosition } from '../../hooks/usePopoverPosition';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { InputBase, type InputBaseProps } from '@/components/untitled-ui/base/input/input';
 import { Label } from '@/components/untitled-ui/base/input/label';
 import { DATE_TIME_24_PLACEHOLDER, formatDateTime24, useBufferedDateTimeValue } from '../hooks/useBufferedDateTimeValue';
@@ -72,71 +75,31 @@ export function BufferedUuiDateTimeInput({
   // 24h. Selection composes the buffered 'YYYY-MM-DDTHH:mm' contract exactly
   // like a complete typed entry; the raw browser picker is gone.
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [pickerPos, setPickerPos] = useState<{ top: number; left: number } | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
-  // Card _39 (spec pass 3): no calendar button — clicking the input itself
-  // opens the designed panels. The popover portals to document.body with
-  // position:fixed because the absolute panel was clipped by the create
-  // grid's scrollable table body. Position derives from the input's rect:
-  // below it, horizontally clamped, flipped above near the viewport bottom.
-  //
-  // The click handler lives on the *wrapper* div (not forwarded through
-  // InputBase → AriaInput) because react-aria-components' Group wraps the
-  // native <input> with overflow-hidden, and clicks that land on the Group
-  // border/padding area never reach the <input>.  Placing onClick on the
-  // wrapper guarantees every click in the visual field area fires openPicker.
-  const openPicker = () => {
-    const inputEl = document.getElementById(id) as HTMLInputElement | null;
-    const rect = inputEl?.getBoundingClientRect?.() ?? null;
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    const width = Math.min(432, vw - 24);
-    let left = 8;
-    if (rect) left = Math.min(Math.max(8, rect.right - width), Math.max(8, vw - width - 8));
-    // Dialog max-height = calc(100vh - 16px). Pick the side that fits:
-    //   below if there's room for the full viewport-capped dialog; otherwise
-    //   above the input, anchored to viewport top with 8px gutter. This used
-    //   to be a fixed-380 estimate which missed the date-grid case (~420px
-    //   tall) and parked the dialog off-screen at the bottom of the form.
-    let top = rect ? rect.bottom + 4 : 8;
-    if (rect) {
-      const gapBelow = vh - rect.bottom - 4;
-      const gapAbove = rect.top - 8;
-      const target = vh - 16;
-      if (gapBelow < target && gapAbove >= target) {
-        top = Math.max(8, rect.top - Math.min(target, rect.top - 8));
-      } else if (gapBelow < target && gapAbove < target) {
-        // Neither side has a full viewport — anchor to the side with the
-        // most space and let the dialog scroll internally (max-height).
-        top = gapBelow > gapAbove
-          ? Math.max(8, vh - target)
-          : Math.max(8, rect.top - target);
-      }
-    }
-    setPickerPos({ top, left });
-    setPickerOpen(true);
-  };
-  // Guard: if picker is already open, useClickOutside's pointerdown listener
-  // already closed it (same gesture).  React batches the setPickerOpen(false)
-  // so pickerOpen is still true in this closure — skip the reopen to avoid a
-  // close→reopen flash.
-  const handleWrapperClick = () => {
-    if (isDisabled || pickerOpen) return;
-    openPicker();
-  };
+  const fieldRef = useRef<HTMLDivElement>(null);
+  const pickerActive = pickerOpen && !isDisabled;
+  useEffect(() => { if (isDisabled) setPickerOpen(false); }, [isDisabled]);
+  const pickerPos = usePopoverPosition(popoverRef, fieldRef, pickerActive, 396, 200);
+  useFocusTrap(popoverRef, pickerActive);
+  const openPicker = () => { if (!isDisabled) setPickerOpen(true); };
+  // Keep the entire visual field clickable, including its label and padding.
+  const handleWrapperClick = () => { if (!pickerOpen) openPicker(); };
   const closePicker = () => {
     setPickerOpen(false);
     document.getElementById(id)?.focus();
   };
   useClickOutside(popoverRef, closePicker, {
     escapeKey: true,
-    enabled: pickerOpen,
+    enabled: pickerActive,
+    additionalRefs: [fieldRef],
+    ignoreSelector: '[data-time-picker-overlay]',
   });
 
   // The dialog owns draft editing and confirms the composed value; the
   // buffered hook parses the DISPLAY shape, so commits format the ISO
   // contract through formatDateTime24 before dispatch.
   const confirmComposed = (composed: string) => {
+    if (isDisabled) return;
     buffered.onChange({ target: { value: formatDateTime24(composed) } } as unknown as Parameters<typeof buffered.onChange>[0]);
     setPickerOpen(false);
     document.getElementById(id)?.focus();
@@ -146,6 +109,7 @@ export function BufferedUuiDateTimeInput({
   // the hook's event-shaped handlers wire up directly without wrapping.
   return (
     <div
+      ref={fieldRef}
       data-input-wrapper
       data-input-size={size}
       className={['group flex h-max w-full flex-col items-start justify-start gap-1.5', className].filter(Boolean).join(' ')}
@@ -162,6 +126,7 @@ export function BufferedUuiDateTimeInput({
         groupRef={groupRef}
         id={id}
         type="text"
+        icon={Calendar}
         size={size}
         defaultValue={buffered.defaultValue}
         isInvalid={isInvalid}
@@ -170,22 +135,30 @@ export function BufferedUuiDateTimeInput({
         placeholder={DATE_TIME_24_PLACEHOLDER}
         maxLength={16}
         autoComplete="off"
+        onKeyDown={(event) => {
+          if (event.altKey && event.key === 'ArrowDown') {
+            event.preventDefault();
+            event.stopPropagation();
+            openPicker();
+          }
+          rest.onKeyDown?.(event);
+        }}
         aria-haspopup="dialog"
-        aria-expanded={pickerOpen}
+        aria-expanded={pickerActive}
         onChange={buffered.onChange}
         onBlur={buffered.onBlur}
         inputClassName={inputClassName}
         wrapperClassName={wrapperClassName}
         {...(inputProps as Partial<InputBaseProps>)}
       />
-      {pickerOpen && createPortal(
+      {pickerActive && createPortal(
         <div
           ref={popoverRef}
           className="dtp-dialog-host"
           style={{ top: pickerPos?.top ?? 8, left: pickerPos?.left ?? 8 }}
         >
           <DateTimePickerDialog
-            title={label ?? 'Chọn ngày giờ'}
+            title={label ?? rest['aria-label'] ?? 'Chọn ngày giờ'}
             value={value}
             onConfirm={confirmComposed}
             onClose={() => { setPickerOpen(false); document.getElementById(id)?.focus(); }}

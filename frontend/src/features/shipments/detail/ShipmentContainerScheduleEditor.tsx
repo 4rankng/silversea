@@ -7,6 +7,7 @@
 import { Calendar, Clock, X } from 'lucide-react';
 import type { ShipmentCusContainerFlatRow } from '@tingting/shared';
 import { DateInput } from '../../../design-system';
+import { ShipmentScheduleTimeField } from './ShipmentScheduleTimeField';
 
 /** Common appointment hours offered as one-tap shortcuts in the schedule editor. */
 const SCHEDULE_TIME_PRESETS = ['08:00', '10:00', '13:30', '16:00'];
@@ -87,6 +88,7 @@ export function ScheduleEditorBody({
               key={label}
               type="button"
               className={`shipment-container-ledger__schedule-pill${active ? ' is-active' : ''}`}
+              disabled={saving || !canEdit}
               onClick={() => {
                 onAppointmentDateChange(quickDate);
                 if (!scheduleTime) onScheduleTimeChange('08:00');
@@ -98,7 +100,7 @@ export function ScheduleEditorBody({
         })}
       </div>
       <div className="shipment-container-ledger__editor-grid shipment-container-ledger__editor-grid--schedule">
-        <label><span>{row.direction === 'IMPORT' ? 'Giờ trả hàng' : 'Giờ đóng hàng'}</span><input type="time" lang="en-GB" value={scheduleTime} onChange={(event) => onScheduleTimeChange(event.target.value)} disabled={saving || !canEdit} /></label>
+        <label><span>{row.direction === 'IMPORT' ? 'Giờ trả hàng' : 'Giờ đóng hàng'}</span><ShipmentScheduleTimeField label={row.direction === 'IMPORT' ? 'Giờ trả hàng' : 'Giờ đóng hàng'} value={scheduleTime} onChange={onScheduleTimeChange} disabled={saving || !canEdit} /></label>
         <label><span>{row.direction === 'IMPORT' ? 'Ngày trả hàng' : 'Ngày đóng hàng'}</span><DateInput lang="en-GB" value={appointmentDate} onChange={onAppointmentDateChange} disabled={saving || !canEdit} /></label>
       </div>
       {cargoMode != null && cargoMode !== 'FCL' && (
@@ -128,6 +130,7 @@ export function ScheduleEditorBody({
             key={presetTime}
             type="button"
             className={`shipment-container-ledger__schedule-time-pill${scheduleTime === presetTime ? ' is-active' : ''}`}
+            disabled={saving || !canEdit}
             onClick={() => {
               onScheduleTimeChange(presetTime);
               if (!appointmentDate) onAppointmentDateChange(getOffsetDateString(0));

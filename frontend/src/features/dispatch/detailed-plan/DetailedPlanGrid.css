@@ -691,6 +691,25 @@
   }
 }
 
+/* Direct release remains one icon target instead of a full-width empty pill. */
+.detailed-plan-grid__note-action--icon {
+  width: 28px;
+  min-height: 28px;
+  padding: 0;
+}
+
+.detailed-plan-grid__note-action--icon:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+@media (max-width: 767px), (pointer: coarse) {
+  .detailed-plan-grid__note-action--icon {
+    width: var(--control-touch-h, 44px);
+    min-height: var(--control-touch-h, 44px);
+  }
+}
+
 .detailed-plan-grid__lot-flag {
   margin-top: 4px;
   display: inline-block;
@@ -905,18 +924,14 @@
 
   /* An all-empty notes cell (no notes, no row action) collapses — it would
      otherwise reserve a labelled blank band at the card tail. */
-  .detailed-plan-grid__cell--blank {
+  td.detailed-plan-grid__cell--blank {
     display: none;
   }
 }
 
-/* Phone records: compact single-band cards. The 390px QA pass showed the
-   block-label treatment giving every section its own label line plus a
-   labelled-but-empty notes tail, and inline field runs splitting short
-   codes mid-token (40'D / C). Phone cards adopt the tablet band's inline
-   label, wrap each field as a whole unit (inline-block — codes never
-   split), collapse all-empty notes cells, and run tighter paddings. The
-   touch-sized allocation trigger remains intact. */
+/* Phone records keep labels above their values. Compact column pairing and
+   supporting cargo metadata preserve density without mixing labels into
+   names or leaving separators at the start of a wrapped field. */
 @container (max-width: 640px) {
   .detailed-plan-grid tbody {
     gap: 8px;
@@ -936,19 +951,30 @@
   }
 
   .detailed-plan-grid__cell::before {
-    display: inline;
-    margin: 0 6px 0 0;
+    display: block;
+    margin: 0 0 2px;
     font-size: var(--text-label-size);
   }
 
-  /* Each field is an atomic unit: lines break BETWEEN fields, never inside
-     a code; long names and notes still wrap inside their own box. */
   .detailed-plan-grid__cell .detailed-plan-grid__line {
-    display: inline-block;
+    display: block;
+    margin-right: 0;
     max-width: 100%;
     vertical-align: top;
     overflow-wrap: break-word;
   }
+
+  .detailed-plan-grid__cell .detailed-plan-grid__line + .detailed-plan-grid__line::before {
+    content: none;
+    margin-right: 0;
+  }
+
+  .detailed-plan-grid__cell--container .detailed-plan-grid__line:not(.detailed-plan-grid__line--strong) {
+    display: inline-block;
+    margin-right: 6px;
+  }
+
+  .detailed-plan-grid__documents-direction { align-self: start; justify-self: start; }
 
   .detailed-plan-grid__cell--schedule,
   .detailed-plan-grid__cell--route,

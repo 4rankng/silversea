@@ -454,6 +454,12 @@ describe('ClerkShipmentCreatePage', () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
     fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
+    const customer = screen.getByRole('combobox', { name: /^Khách hàng/ });
+    await waitFor(() => expect(customer).toHaveFocus());
+    expect(customer).toHaveAttribute('aria-invalid', 'true');
+    // Focusing the invalid customer opens its options and temporarily hides
+    // sibling regions from assistive technology. Dismiss it to read the summary.
+    fireEvent.keyDown(customer, { key: 'Escape' });
     expect((await screen.findByRole('alert')).textContent).toContain('Chọn khách hàng để tạo lô hàng');
     expect(mocks.quickCreate).not.toHaveBeenCalled();
   });
@@ -467,6 +473,19 @@ describe('ClerkShipmentCreatePage', () => {
     expect(await screen.findByTestId('shipment-list')).toBeTruthy();
   });
 
+  it('VID-CUS-04: creates the initial declaration atomically without a second declaration write', async () => {
+    mocks.quickCreate.mockResolvedValue({ id: 90, version: 1, initialDeclarationId: 77 });
+    renderPage();
+    await screen.findByRole('heading', { name: 'Nhận diện lô' });
+    await choose('Khách hàng', '7');
+    fireEvent.change(screen.getByRole('textbox', { name: 'Số tờ khai' }), { target: { value: 'TK-ATOMIC' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
+    await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledWith(expect.objectContaining({ declarationNumber: 'TK-ATOMIC' }), expect.any(String)));
+    expect(await screen.findByTestId('shipment-list')).toBeTruthy();
+    expect(mocks.createDeclaration).not.toHaveBeenCalled();
+    expect(mocks.updateDeclaration).not.toHaveBeenCalled();
+  });
+
   it('hides the FCL volume field and copies the previous container when adding a row', async () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Thông tin hàng' });
@@ -474,13 +493,15 @@ describe('ClerkShipmentCreatePage', () => {
     expect(screen.queryByLabelText('Thể tích (m³)')).toBeNull();
     fireEvent.change(screen.getByLabelText('Số container'), { target: { value: 'MSCU6639870' } });
     fireEvent.change(screen.getByLabelText('Trọng lượng (kg)'), { target: { value: '12000' } });
-    fireEvent.change(screen.getByLabelText('Ngày giờ đóng trả'), { target: { value: '09:30 20/08/2026' } });
+    fireEvent.change(screen.getByLabelText('Giờ — Ngày giờ đóng trả'), { target: { value: '09:30' } });
+    fireEvent.change(screen.getByLabelText('Ngày — Ngày giờ đóng trả'), { target: { value: '20/08/2026' } });
 
     fireEvent.click(screen.getByRole('button', { name: 'Thêm container' }));
 
     expect(screen.getAllByLabelText('Số container').map((field) => (field as HTMLInputElement).value)).toEqual(['MSCU6639870', '']);
     expect(screen.getAllByLabelText('Trọng lượng (kg)').map((field) => (field as HTMLInputElement).value)).toEqual(['12000', '12000']);
-    expect(screen.getAllByLabelText('Ngày giờ đóng trả').map((field) => (field as HTMLInputElement).value)).toEqual(['09:30 20/08/2026', '09:30 20/08/2026']);
+    expect(screen.getAllByLabelText('Giờ — Ngày giờ đóng trả').map((field) => (field as HTMLInputElement).value)).toEqual(['09:30', '09:30']);
+    expect(screen.getAllByLabelText('Ngày — Ngày giờ đóng trả').map((field) => (field as HTMLInputElement).value)).toEqual(['20/08/2026', '20/08/2026']);
   });
 
   it('removes the FCL shipment-level factory/route section and keeps each container route independent', async () => {
@@ -580,8 +601,9 @@ describe('ClerkShipmentCreatePage', () => {
     });
     fireEvent.click(factoryOption);
     fireEvent.change(screen.getByLabelText('Trọng lượng (kg)'), { target: { value: '12000.5' } });
-    fireEvent.change(screen.getByLabelText('Ngày giờ đóng trả'), { target: { value: '09:30 20/08/2026' } });
-    fireEvent.blur(screen.getByLabelText('Ngày giờ đóng trả'));
+    fireEvent.change(screen.getByLabelText('Giờ — Ngày giờ đóng trả'), { target: { value: '09:30' } });
+    fireEvent.change(screen.getByLabelText('Ngày — Ngày giờ đóng trả'), { target: { value: '20/08/2026' } });
+    fireEvent.blur(screen.getByLabelText('Ngày — Ngày giờ đóng trả'));
 
     const displayedValue = (text: string) => within(row).getByText(text, { selector: '.csc-container-cell__display' });
     expect(displayedValue('40HC')).toHaveAttribute('title', '40HC — Container 40 feet cao');
@@ -589,7 +611,9 @@ describe('ClerkShipmentCreatePage', () => {
     expect(displayedValue('Cảng ICD Sóng Thần')).toBeTruthy();
     expect(displayedValue('Nhà máy Long Minh')).toBeTruthy();
     expect(displayedValue('12.000,5')).toBeTruthy();
-    expect(displayedValue('09:30 20/08/2026')).toBeTruthy();
+    expect(screen.getByLabelText('Giờ — Ngày giờ đóng trả')).toHaveValue('09:30');
+    expect(screen.getByLabelText('Ngày — Ngày giờ đóng trả')).toHaveValue('20/08/2026');
+    expect(screen.getByLabelText('Giờ — Ngày giờ đóng trả').closest('td')).toHaveClass('csc-container-cell--persistent');
   });
 
   it('shows each container type code once in the selector', async () => {
@@ -617,7 +641,8 @@ describe('ClerkShipmentCreatePage', () => {
     await screen.findByRole('heading', { name: 'Thông tin hàng' });
 
     fireEvent.change(screen.getByLabelText('Trọng lượng (kg)'), { target: { value: '12000' } });
-    fireEvent.change(screen.getByLabelText('Ngày giờ đóng trả'), { target: { value: '09:30 20/08/2026' } });
+    fireEvent.change(screen.getByLabelText('Giờ — Ngày giờ đóng trả'), { target: { value: '09:30' } });
+    fireEvent.change(screen.getByLabelText('Ngày — Ngày giờ đóng trả'), { target: { value: '20/08/2026' } });
 
     const addCount = screen.getByRole('spinbutton', { name: 'Số container cần thêm' });
     expect((addCount as HTMLInputElement).value).toBe('1');
@@ -626,7 +651,8 @@ describe('ClerkShipmentCreatePage', () => {
 
     expect(screen.getAllByLabelText('Số container')).toHaveLength(4);
     expect(screen.getAllByLabelText('Trọng lượng (kg)').map((field) => (field as HTMLInputElement).value)).toEqual(['12000', '12000', '12000', '12000']);
-    expect(screen.getAllByLabelText('Ngày giờ đóng trả').map((field) => (field as HTMLInputElement).value)).toEqual(['09:30 20/08/2026', '09:30 20/08/2026', '09:30 20/08/2026', '09:30 20/08/2026']);
+    expect(screen.getAllByLabelText('Giờ — Ngày giờ đóng trả').map((field) => (field as HTMLInputElement).value)).toEqual(['09:30', '09:30', '09:30', '09:30']);
+    expect(screen.getAllByLabelText('Ngày — Ngày giờ đóng trả').map((field) => (field as HTMLInputElement).value)).toEqual(Array(4).fill('20/08/2026'));
 
     fireEvent.change(addCount, { target: { value: '0' } });
     expect(screen.getByRole('button', { name: 'Thêm container' })).toBeDisabled();
@@ -752,6 +778,17 @@ describe('ClerkShipmentCreatePage', () => {
     expect(screen.getAllByLabelText('Số container')).toHaveLength(1);
   });
 
+  it('refuses a partially typed appointment instead of submitting an undated or old value', async () => {
+    renderPage();
+    await screen.findByRole('heading', { name: 'Nhận diện lô' });
+    await choose('Khách hàng', '7');
+    fireEvent.change(screen.getByLabelText('Giờ — Ngày giờ đóng trả'), { target: { value: '13:3' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
+    expect(mocks.quickCreate).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Giờ — Ngày giờ đóng trả')).toHaveValue('13:3');
+    expect(screen.getByLabelText('Giờ — Ngày giờ đóng trả')).toBeInvalid();
+  });
+
   it('persists an FCL appointment as the shipment dispatch-date authority', async () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
@@ -762,7 +799,8 @@ describe('ClerkShipmentCreatePage', () => {
     await choose('Loại container', '31');
     await choose('Cảng nâng', '21');
     await choose('Cảng hạ', '22');
-    fireEvent.change(screen.getByLabelText('Ngày giờ đóng trả'), { target: { value: '09:30 15/08/2026' } });
+    fireEvent.change(screen.getByLabelText('Giờ — Ngày giờ đóng trả'), { target: { value: '09:30' } });
+    fireEvent.change(screen.getByLabelText('Ngày — Ngày giờ đóng trả'), { target: { value: '15/08/2026' } });
     fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
     await waitFor(() => expect(mocks.saveContainers).toHaveBeenCalledWith(90, expect.objectContaining({
       containers: [expect.objectContaining({
@@ -772,6 +810,40 @@ describe('ClerkShipmentCreatePage', () => {
     })));
     expect(mocks.quickCreate.mock.calls[0][0]).toMatchObject({ tradeDirection: 'IMPORT' });
     expect(mocks.quickCreate.mock.calls[0][0].expectedDeliveryDate).toBeUndefined();
+    expect(await screen.findByTestId('shipment-list')).toBeTruthy();
+  });
+
+  it.each([false, true])('VID-CUS-SELECT-02 saves cleared or replacement IDs without stale selections (replace=%s)', async (replace) => {
+    mocks.bootstrap.mockResolvedValue({ ...bootstrap, routes: [...bootstrap.routes, { id: 12, name: 'Tuyến thay thế' }], ports: [...bootstrap.ports, { id: 23, name: 'Cảng nâng thay thế' }, { id: 24, name: 'Cảng hạ thay thế' }] });
+    mocks.sites.mockResolvedValue([...sites, { ...sites[0], id: 43, name: 'Nhà máy thay thế', routeId: null }]);
+    renderPage();
+    await screen.findByRole('heading', { name: 'Nhận diện lô' });
+    await choose('Khách hàng', '7');
+    await choose('Hình thức xuất nhập khẩu', 'IMPORT');
+    fireEvent.change(screen.getByLabelText(/^Số Bill\/Booking/), { target: { value: 'BL-REPLACE-CATALOG' } });
+    await choose('Loại container', '31');
+    await choose('Nhà máy', '41');
+    expect(screen.getByRole('combobox', { name: 'Tuyến đường' })).toBeDisabled();
+    await choose('Cảng nâng', '21');
+    await choose('Cảng hạ', '22');
+    for (const label of ['Nhà máy', 'Tuyến đường', 'Cảng nâng', 'Cảng hạ']) {
+      const field = screen.getByRole('combobox', { name: label });
+      fireEvent.change(field, { target: { value: '' } });
+      fireEvent.blur(field);
+      expect(field).toHaveValue('');
+    }
+    expect(screen.getByRole('combobox', { name: 'Tuyến đường' })).not.toBeDisabled();
+    if (replace) {
+      for (const [label, id] of [['Nhà máy', '43'], ['Tuyến đường', '12'], ['Cảng nâng', '23'], ['Cảng hạ', '24']]) {
+        fireEvent.change(screen.getByRole('combobox', { name: label }), { target: { value: 'thay thế' } });
+        await choose(label, id);
+      }
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
+    const expected = replace
+      ? { operationalSiteId: 43, routeId: 12, pickupPortId: 23, dropoffPortId: 24 }
+      : { operationalSiteId: null, routeId: null, pickupPortId: null, dropoffPortId: null };
+    await waitFor(() => expect(mocks.saveContainers).toHaveBeenCalledWith(90, expect.objectContaining({ containers: [expect.objectContaining(expected)] })));
     expect(await screen.findByTestId('shipment-list')).toBeTruthy();
   });
 

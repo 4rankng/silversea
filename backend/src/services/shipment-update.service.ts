@@ -79,8 +79,8 @@ export async function updateShipment(
     // when the client resubmits its own current value (no-op).
     const nextBlNumber = normalizeDocumentReference(input.blNumber !== undefined ? input.blNumber : existing.blNumber);
     const nextBookingRef = normalizeDocumentReference(input.bookingRef !== undefined ? input.bookingRef : existing.bookingRef);
-    const blChanged = input.blNumber !== undefined && nextBlNumber !== existing.blNumber;
-    const bookingChanged = input.bookingRef !== undefined && nextBookingRef !== existing.bookingRef;
+    const blChanged = input.blNumber !== undefined && nextBlNumber?.toLowerCase() !== normalizeDocumentReference(existing.blNumber)?.toLowerCase();
+    const bookingChanged = input.bookingRef !== undefined && nextBookingRef?.toLowerCase() !== normalizeDocumentReference(existing.bookingRef)?.toLowerCase();
     if (blChanged || bookingChanged) {
       const conflict = await findShipmentReferenceConflict(
         tx,
@@ -160,8 +160,8 @@ export async function updateShipment(
       ...(input.routeId !== undefined ? { routeId: input.routeId } : {}),
       ...(input.cargoTypeId !== undefined ? { cargoTypeId: input.cargoTypeId } : {}),
       ...(input.responsibleUnitId !== undefined ? { responsibleUnitId: input.responsibleUnitId } : {}),
-      ...(input.bookingRef !== undefined ? { bookingRef: normalizeDocumentReference(input.bookingRef) } : {}),
-      ...(input.blNumber !== undefined ? { blNumber: normalizeDocumentReference(input.blNumber) } : {}),
+      ...(input.bookingRef !== undefined ? { bookingRef: bookingChanged ? nextBookingRef : existing.bookingRef } : {}),
+      ...(input.blNumber !== undefined ? { blNumber: blChanged ? nextBlNumber : existing.blNumber } : {}),
       ...(input.tradeDirection !== undefined ? { tradeDirection: input.tradeDirection } : {}),
       ...(input.cargoMode !== undefined ? { cargoMode: input.cargoMode } : {}),
       ...(input.operationalSiteId !== undefined ? { operationalSiteId: input.operationalSiteId } : {}),

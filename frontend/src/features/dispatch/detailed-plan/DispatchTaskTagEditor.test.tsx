@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { DispatchTaskTagEditor } from './DispatchTaskTagEditor';
 
@@ -50,5 +50,37 @@ describe('DispatchTaskTagEditor — typed note keeps spaces (QA ruling 2026-09-1
     fireEvent.click(screen.getByRole('button', { name: 'HẾT HẠN' }));
     fireEvent.change(noteBox(), { target: { value: 'Giao đối khớp' } });
     expect(changed.at(-1)).toBe('HẾT HẠN\nGiao đối khớp');
+  });
+});
+
+
+describe('DispatchTaskTagEditor — multiline round trip', () => {
+  it('DSP-NOTE-01 keeps spaces and Enter through task changes, blur and reopen', () => {
+    const view = renderEditor();
+    fireEvent.click(screen.getByRole('button', { name: 'HẾT HẠN' }));
+    const manual = 'Gọi cổng trước khi đến\nGặp anh Bình ở cổng 2';
+    let typed = '';
+    for (const character of manual) {
+      if (character === '\n') {
+        expect(fireEvent.keyDown(noteBox(), { key: 'Enter', code: 'Enter' })).toBe(true);
+      }
+      typed += character;
+      fireEvent.change(noteBox(), { target: { value: typed } });
+    }
+    expect(noteBox().value).toBe(manual);
+    expect(changed.at(-1)).toBe(`HẾT HẠN\n${manual}`);
+    const preview = screen.getByLabelText('Xem trước ghi chú lái xe');
+    expect(within(preview).getByText('HẾT HẠN')).toBeTruthy();
+    expect(preview.querySelector('.dispatch-driver-note__text')?.textContent).toBe(manual);
+    fireEvent.click(screen.getByRole('button', { name: 'HẾT HẠN' }));
+    expect(noteBox().value).toBe(manual);
+    expect(changed.at(-1)).toBe(manual);
+    fireEvent.click(screen.getByRole('button', { name: 'HẾT HẠN' }));
+    fireEvent.blur(noteBox());
+    const saved = changed.at(-1)!;
+    view.unmount();
+    renderEditor(saved);
+    expect(noteBox().value).toBe(manual);
+    expect(screen.getByRole('button', { name: 'HẾT HẠN' })).toHaveAttribute('aria-pressed', 'true');
   });
 });

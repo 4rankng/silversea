@@ -154,7 +154,7 @@ Trên máy tính, mỗi dòng thể hiện một container hoặc công việc: 
 
 ### 5.3 Phát lệnh trực tiếp
 
-Người có quyền bấm **Phát lệnh** khi phân bổ, lịch, xe, tài xế và moóc phù hợp. Xe/người phải đang hoạt động, đủ sức chở và không xung đột với công việc khác. Nếu chưa đủ, thông báo cụ thể công việc hoặc dữ liệu đang chặn và cách xử lý trong phạm vi người dùng được xem.
+Người có quyền bấm **Phát lệnh** khi phân bổ, lịch, xe, tài xế và moóc phù hợp. Nút ở dòng kế hoạch phát ngay theo thông tin đã lưu; không mở bước hẹn ngày/giờ phát lệnh hay hộp xác nhận lặp lại. Trong lúc đang gửi, nút thể hiện tiến độ và không nhận lần bấm thứ hai; lỗi nằm tại dòng để người dùng sửa hoặc thử lại. Xe/người phải đang hoạt động, đủ sức chở và không xung đột với công việc khác. Nếu chưa đủ, thông báo cụ thể công việc hoặc dữ liệu đang chặn và cách xử lý trong phạm vi người dùng được xem.
 
 Khi phát thành công, có đúng công việc cần thực hiện và đúng tài xế được thông báo. Bấm lại không tạo thêm chuyến hoặc thêm tiền. Việc nhập một biển số hay gửi thông báo không tự có nghĩa đã phát lệnh thành công.
 

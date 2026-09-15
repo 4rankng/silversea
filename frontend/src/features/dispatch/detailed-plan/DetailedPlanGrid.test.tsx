@@ -77,6 +77,48 @@ function renderGrid(items: DispatchDetailPlanRow[], extraProps: Record<string, u
 }
 
 describe('DetailedPlanGrid', () => {
+  it('DSP-6377 separates legacy task labels and multiline manual notes in the row and full view', () => {
+    const manual = '- Gọi trước khi đến\n- Gặp anh Bình ở cổng 2';
+    const { container } = renderGrid([row({
+      notes: { vehicleNote: `Đặt đầu; Đặt đuôi; ${manual}`, customerNote: 'Khách cần bản gốc' },
+    })]);
+    const note = container.querySelector('.detailed-plan-grid__note') as HTMLElement;
+    const tasks = within(note).getByText('ĐẶT ĐẦU; ĐẶT ĐUÔI');
+    const text = within(note).getByText((_, element) => element?.textContent === manual);
+    expect(tasks.closest('[data-note-section="tasks"]')).toBeTruthy();
+    expect(text.closest('[data-note-section="manual"]')).toBeTruthy();
+    expect(tasks.compareDocumentPosition(text) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    fireEvent.click(note);
+    const dialog = screen.getByRole('dialog', { name: 'Ghi chú xe' });
+    expect(within(dialog).getByText('ĐẶT ĐẦU; ĐẶT ĐUÔI')).toBeTruthy();
+    expect(within(dialog).getByText((_, element) => element?.textContent === manual)).toBeTruthy();
+    expect(within(dialog).queryByText('Khách cần bản gốc')).toBeNull();
+  });
+
+  it.each(['IMPORT', 'EXPORT', null] as const)('DSP-PORT-01 keeps the canonical lift/drop ports for %s', (direction) => {
+    const { container } = renderGrid([row({
+      docs: { billNumber: 'PORT-RETEST', tradeDirection: direction, declarationNumbers: [] },
+      ports: {
+        pickupPortId: 11, pickupPortName: 'Bãi lấy container A', pickupPortShortName: 'Bãi A',
+        dropoffPortId: 12, dropoffPortName: 'Cảng hạ container B', dropoffPortShortName: 'Cảng B',
+      },
+    })]);
+    const lift = container.querySelector('[data-label="Nâng hàng"]') as HTMLElement;
+    const drop = container.querySelector('[data-label="Trả hàng"]') as HTMLElement;
+    expect(within(lift).getByText('Bãi A')).toBeTruthy();
+    expect(within(lift).getByText('Bãi lấy container A')).toBeTruthy();
+    expect(within(drop).getByText('Cảng B')).toBeTruthy();
+    expect(within(drop).getByText('Cảng hạ container B')).toBeTruthy();
+  });
+
+  it('DSP-PORT-01 shows missing ports honestly without using the other port', () => {
+    const { container } = renderGrid([row({
+      ports: { pickupPortId: null, pickupPortName: null, pickupPortShortName: null, dropoffPortId: 12, dropoffPortName: 'Cảng B', dropoffPortShortName: null },
+    })]);
+    expect(container.querySelector('[data-label="Nâng hàng"]')?.textContent).toBe('—');
+    expect(container.querySelector('[data-label="Trả hàng"]')?.textContent).toBe('Cảng B');
+  });
+
   it('renders the 9 operational columns with multi-line typography', () => {
     const { container } = renderGrid([row()]);
 
@@ -93,9 +135,9 @@ describe('DetailedPlanGrid', () => {
       'Ghi chú',
     ]);
 
-    // Column 1: bold date line + muted hour line
-    expect(screen.getByText('Giao: 20/08/2026')).toBeTruthy();
-    expect(screen.getByText('Giờ: 8H')).toBeTruthy();
+    // Column 1: time and date together, operation below.
+    expect(screen.getByText('8H 20/08/2026')).toBeTruthy();
+    expect(screen.getByText('đóng hàng')).toBeTruthy();
     // Column 2: KH/factory/delivery point
     // T2.3 follows the master-plan order: customer, factory, then the
     // emphasized route without a redundant label.
@@ -194,8 +236,8 @@ describe('DetailedPlanGrid', () => {
   it('shows the NHẬP badge for import rows', () => {
     renderGrid([row({ docs: { billNumber: 'B-1', tradeDirection: 'IMPORT', declarationNumbers: [] } })]);
     expect(screen.getByText('Nhập')).toBeTruthy();
-    // Import rows label the date line "Nhận" instead of "Giao" (spec §3 col 1).
-    expect(screen.getByText('Nhận: 20/08/2026')).toBeTruthy();
+    expect(screen.getByText('8H 20/08/2026')).toBeTruthy();
+    expect(screen.getByText('trả hàng')).toBeTruthy();
   });
 
   it('shows the lot flag only when a fully plated lot has no visible plate in this row', () => {
@@ -460,11 +502,17 @@ describe('DetailedPlanGrid', () => {
     expect(css).toMatch(/\.detailed-plan-grid__row\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
     expect(css).toContain('.detailed-plan-grid__cell--schedule,\n  .detailed-plan-grid__cell--route,\n  .detailed-plan-grid__cell--ports,\n  .detailed-plan-grid__cell--notes,\n  .detailed-plan-grid__cell--editable {\n    grid-column: 1 / -1;');
     expect(css).toContain('.detailed-plan-grid__cell--classification {\n    position: absolute;');
-    // Compact phone band: labels ride inline, each field wraps as a whole
-    // unit so short codes (20'DC-style) never split mid-token, and all-empty
-    // notes cells collapse instead of reserving a labelled blank band.
-    expect(css).toMatch(/@container \(max-width: 640px\)[\s\S]*?\.detailed-plan-grid__cell \.detailed-plan-grid__line \{[\s\S]*?display: inline-block;[\s\S]*?overflow-wrap: break-word;/);
-    expect(css).toContain('.detailed-plan-grid__cell--blank {\n    display: none;\n  }');
+    // SCHEDULE-LAYOUT-08: labels and long identity fields stack without
+    // inherited inline separators; short cargo metadata still shares a line.
+    const phoneCss = css.slice(css.indexOf('@container (max-width: 640px)'));
+    expect(phoneCss).toMatch(/\.detailed-plan-grid__cell::before\s*\{[^}]*display:\s*block;[^}]*margin:\s*0 0 2px;/);
+    expect(phoneCss).toMatch(/\.detailed-plan-grid__cell \.detailed-plan-grid__line\s*\{[^}]*display:\s*block;[^}]*margin-right:\s*0;[^}]*overflow-wrap:\s*break-word;/);
+    expect(phoneCss).toMatch(/\.detailed-plan-grid__line \+ \.detailed-plan-grid__line::before\s*\{[^}]*content:\s*none;/);
+    expect(phoneCss).toMatch(/\.detailed-plan-grid__cell--container \.detailed-plan-grid__line:not\(\.detailed-plan-grid__line--strong\)\s*\{[^}]*display:\s*inline-block;/);
+    expect(phoneCss).toMatch(/\.detailed-plan-grid__documents-direction\s*\{[^}]*align-self:\s*start;[^}]*justify-self:\s*start;/);
+    // SCHEDULE-LAYOUT-09: match td.cell specificity so the empty notes tail
+    // actually beats the responsive display:block declaration.
+    expect(css).toContain('td.detailed-plan-grid__cell--blank {\n    display: none;\n  }');
   });
 
   it('keeps the detailed filters flat instead of nesting another card surface', () => {
@@ -538,13 +586,16 @@ describe('DetailedPlanGrid', () => {
     expect(action.compareDocumentPosition(note) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
   });
 
-  it('opens the quick-issue dialog from the Ghi chú action', async () => {
+  it('VID-DSP-02 releases directly from the Ghi chú action without a scheduling dialog', async () => {
+    const onIssueOrder = vi.fn().mockResolvedValue({});
     renderGrid([row({
       taskStatus: 'READY',
-      dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '51C-12345' },
-    })]);
+      dispatch: { carrierType: 'EXTERNAL', carrierName: 'Carrier QA', externalCarrierId: 9, externalCarrierVehicleId: null, assignedPlate: '51C-12345' },
+    })], { onIssueOrder });
     fireEvent.click(screen.getByRole('button', { name: /Phát lệnh/ }));
-    expect(await screen.findByText(/Phát lệnh · MSCU1234567/)).toBeTruthy();
+    await waitFor(() => expect(onIssueOrder).toHaveBeenCalledTimes(1));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.queryByText(/Chọn nhanh ngày|KHUNG GIỜ/)).toBeNull();
   });
 
   it('renders the Hoàn thành action inside the Ghi chú cell for in-flight external rows', () => {
@@ -574,22 +625,38 @@ describe('DetailedPlanGrid', () => {
 // and an explicit em-dash when no time source exists. Own describe block so
 // the QA-010 carrier-status lane can add coverage here without collisions.
 describe('DetailedPlanGrid — QA-001 appointment minutes', () => {
-  it('renders Giờ with minutes and date from runAt (20:45 11/09/2026)', () => {
-    renderGrid([row({ time: { deliveryDate: '2026-09-11', runAt: '2026-09-11T13:45:00.000Z', runHour: 20 } })]);
-
-    expect(screen.getByText('Giờ: 20:45 11/09/2026')).toBeTruthy();
+  it('SCHEDULE-LAYOUT-03 keeps exact Vietnam time/date together with the operation below', () => {
+    const { container } = renderGrid([row({ time: { deliveryDate: '2026-09-11', runAt: '2026-09-10T17:45:00.000Z', runHour: 0 } })]);
+    const schedule = container.querySelector('.ops-schedule')!;
+    expect(schedule.firstElementChild).toHaveTextContent('00:45 11/09/2026');
+    expect(schedule.lastElementChild).toHaveTextContent('đóng hàng');
+    expect(schedule.lastElementChild?.textContent).not.toContain('11/09/2026');
   });
 
   it('falls back to the hour-int render for rows without runAt', () => {
     renderGrid([row({ time: { deliveryDate: '2026-09-11', runHour: 20 } })]);
 
-    expect(screen.getByText('Giờ: 20H')).toBeTruthy();
+    expect(screen.getByText('20H 11/09/2026')).toBeTruthy();
   });
 
-  it('renders Giờ: — when the row carries no time source at all', () => {
+  it('SCHEDULE-LAYOUT-04 keeps a known date without inventing a time', () => {
     renderGrid([row({ time: { deliveryDate: '2026-09-11', runHour: null } })]);
 
-    expect(screen.getByText('Giờ: —')).toBeTruthy();
+    expect(screen.getByText('— 11/09/2026')).toBeTruthy();
+  });
+
+  it('SCHEDULE-LAYOUT-04 preserves a fully unknown schedule and direction', () => {
+    const { container } = renderGrid([row({ time: { deliveryDate: null, runHour: null }, docs: { billNumber: 'UNKNOWN', tradeDirection: null, declarationNumbers: [] } })]);
+    const schedule = container.querySelector('.ops-schedule')!;
+    expect(schedule.firstElementChild).toHaveTextContent(/^—$/);
+    expect(schedule.lastElementChild).toHaveTextContent(/^—$/);
+  });
+
+  it('SCHEDULE-LAYOUT-05 preserves a different transport date without splitting the appointment', () => {
+    const { container } = renderGrid([row({ time: { deliveryDate: '2026-09-12', runAt: '2026-09-11T13:45:00.000Z', runHour: 20 } })]);
+    const schedule = container.querySelector('.ops-schedule')!;
+    expect(schedule.firstElementChild).toHaveTextContent('20:45 11/09/2026');
+    expect(schedule.lastElementChild).toHaveTextContent('đóng hàng · Ngày vận chuyển: 12/09/2026');
   });
 });
 

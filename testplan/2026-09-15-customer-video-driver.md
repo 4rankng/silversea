@@ -1,0 +1,13 @@
+# Customer recording — driver requirements, 15 September 2026
+
+Source: `ScreenRecording_09-15-2026 19-32-38_1.MP4`, frames 16–26 seconds. The latest customer directions take precedence over older ticket completion labels. Parent controller owns real Chrome verification and cumulative patch export; this lane does not commit or deploy.
+
+| Case | Reproduction | Expected behavior |
+|---|---|---|
+| VID-DRV-01 | Sign in as the assigned driver. Open a trip with a factory address and route. Expand and collapse the task header and order-information section at phone, tablet and desktop widths. | Factory short name leads, route appears once in the task header, and the information section shows the factory address rather than repeating the route. Factory contact remains callable. No tractor/trailer rows return. |
+| VID-DRV-02 | Open a trip with multiple task tags, a multi-line driver note and invoice details. Scroll through the detail; independently collapse the order and invoice sections. | Reading order is order facts → uppercase tasks → driver notes with original line breaks → invoice information. Tasks/notes stay visible when invoice or order facts collapse. Company, billing address and tax ID remain attributed to their configured party. |
+| VID-DRV-03 | Open the journey board with EXPORT, IMPORT and blank-container orders. Open each detail and inspect the ports, invoice and attachment controls. | Board order stays factory short name → route → container/type/ĐÓNG or TRẢ → Nâng/Hạ → separate tasks/notes. IMPORT Hạ is the empty-return depot; no duplicate return row, and a known delivery address remains available. |
+| VID-DRV-04 | In a driver trip, choose a delivery-record image beside container and seal, wait for success, reopen the trip, preview and delete that image. Repeat an upload failure and retry. | Biên bản giao hàng uses the dedicated DELIVERY_NOTE type; refresh shows the saved image and deletion only removes the selected delivery record. Failures remain actionable without losing container/seal inputs. |
+| VID-DRV-05 | Open the board and detail for trip 4188: a departure day exists but plannedStartAt is null. Repeat with an explicit plannedStartAt. | Both screens explicitly show an unconfirmed schedule when no appointment timestamp exists. Never interpret a date-only departure day as midnight UTC and invent a 07:00 Vietnam appointment. A real timestamp retains its correct 24-hour Vietnam display. |
+
+Automated regressions exercise component ordering, presence, independent disclosures and the existing driver photo upload/delete contract. They are not a substitute for the controller's browser evidence or physical-device camera testing.

@@ -63,6 +63,61 @@ after(async () => {
 });
 
 describe('dispatch-task-tags service', () => {
+  describe('legacy GẮP normalized keys', () => {
+    async function legacyTag(isActive = true) {
+      const label = uniq('GẮP VỎ ICD QUẾ VÕ');
+      const [row] = await db.insert(s.dispatchTaskTags).values({
+        label,
+        normalizedLabel: normalizeDispatchTaskTagLabel(label).replace('gắp', 'gặp'),
+        isActive,
+        createdBy: actor.userId,
+      }).returning();
+      createdTagIds.push(row.id);
+      return row;
+    }
+
+    it('VID-TAG-01: rejects visible duplicates despite a legacy incorrect normalized key', async () => {
+      const legacy = await legacyTag();
+      for (const label of [legacy.label, legacy.label.toLowerCase(), legacy.label.normalize('NFD')]) {
+        await assert.rejects(
+          () => createDispatchTaskTag({ label, actor }),
+          (err) => (assertApiError(err, 409, 'Tag đã tồn tại.'), true),
+        );
+      }
+      const { items } = await listDispatchTaskTags();
+      assert.equal(items.filter(item => normalizeDispatchTaskTagLabel(item.label) === normalizeDispatchTaskTagLabel(legacy.label)).length, 1);
+    });
+
+    it('VID-TAG-02: revives the legacy row and repairs its normalized key', async () => {
+      const legacy = await legacyTag(false);
+      const revived = await createDispatchTaskTag({ label: legacy.label.toLowerCase(), actor });
+      createdTagIds.push(revived.id);
+      assert.equal(revived.id, legacy.id);
+      const row = await tagRow(legacy.id);
+      assert.equal(row.normalizedLabel, normalizeDispatchTaskTagLabel(legacy.label));
+      assert.equal(row.isActive, true);
+    });
+
+    it('VID-TAG-03: prevents rename onto active or inactive legacy visible labels', async () => {
+      const custom = await mkTag(uniq('TÁC VỤ RIÊNG'));
+      for (const active of [true, false]) {
+        const legacy = await legacyTag(active);
+        await assert.rejects(
+          () => updateDispatchTaskTag({ id: custom.id, label: legacy.label, actor }),
+          (err) => (assertApiError(err, 409, 'Tag đã tồn tại.'), true),
+        );
+        assert.equal((await tagRow(custom.id)).label, custom.label);
+      }
+    });
+
+    it('VID-TAG-04: retains the legacy row when repairing its own label', async () => {
+      const legacy = await legacyTag();
+      const updated = await updateDispatchTaskTag({ id: legacy.id, label: legacy.label, actor });
+      assert.equal(updated.id, legacy.id);
+      assert.equal((await tagRow(legacy.id)).normalizedLabel, normalizeDispatchTaskTagLabel(legacy.label));
+    });
+  });
+
   describe('listDispatchTaskTags (canonical operation-tag set, ticket a6cb2543)', () => {
     it('lists the 14 canonical tags verbatim, in display order, first', async () => {
       const { items } = await listDispatchTaskTags();
