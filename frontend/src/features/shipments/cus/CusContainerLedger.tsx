@@ -334,6 +334,10 @@ export function ContainerLedger({
             // _34: the appointment popover owns its own Enter (commit path);
             // table-level Enter only saves TABLE drafts.
             if ((event.target as HTMLElement).closest('.cus-appointment-popover, .cus-appointment-backdrop')) return;
+            // Bare Enter inside a multiline notes textarea must insert a
+            // newline, not submit the ledger — same contract as the inline
+            // editor (ShipmentContainerLedger). Ctrl/Cmd+Enter still saves.
+            if (event.target instanceof HTMLTextAreaElement && !event.ctrlKey && !event.metaKey) return;
             if (event.key === 'Enter' && !(event.target instanceof HTMLButtonElement)) {
               event.preventDefault();
               void saveAll().then((saved) => { if (saved) scheduleExit(); });
