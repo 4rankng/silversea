@@ -207,6 +207,25 @@ describe('ContainerLedger confirm affordances', () => {
     expect(reopened.value).not.toBe('11:00 19/09/2026');
   });
 
+  it('_34 invalid-entry: out-of-range typing blocks commit with a visible error', async () => {
+    const onAppointmentSavedAndExit = vi.fn();
+    renderLedger({ onAppointmentSavedAndExit });
+    updateCusShipmentContainerLine.mockResolvedValue({ line: { id: 10, shipmentVersion: 9 } });
+
+    fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ }));
+    const datetimeInput = document.querySelector('.cus-appointment-input') as HTMLInputElement;
+    // 24h out-of-range hour (24:45): unparseable — must never fall through to
+    // committing the silently-reverted default.
+    fireEvent.change(datetimeInput, { target: { value: '24:45 20/09/2026' } });
+    fireEvent.keyDown(screen.getByRole('dialog', { name: /Chọn giờ hẹn đóng\/trả/ }), { key: 'Enter' });
+
+    await new Promise((r) => setTimeout(r, 200));
+    expect(updateCusShipmentContainerLine).not.toHaveBeenCalled();
+    expect(onAppointmentSavedAndExit).not.toHaveBeenCalled();
+    const alert = document.querySelector('[role="alert"], .cus-inline-edit-error');
+    expect(alert?.textContent).toBeTruthy();
+  });
+
   it('_34 clobber pin: Enter in the appointment field commits the TYPED value, never the stale buffer', async () => {
     const onAppointmentSavedAndExit = vi.fn();
     renderLedger({ onAppointmentSavedAndExit });
