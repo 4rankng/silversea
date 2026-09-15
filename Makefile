@@ -43,7 +43,7 @@ dev: ## Start everything (db, redis, backend, frontend)
 		wait'
 
 # ─── Database ──────────────────────────────────────────────────────────────────
-DB_CONTAINER := silversea-db
+DB_CONTAINER := ss-prod-db
 DB_NAME      := silversea
 DB_USER      := postgres
 
@@ -116,7 +116,7 @@ devdb-prod: ## Sync prod DB (silversea.tingting.vip) → local dev DB — REPLAC
 
 # Internal worker for devdb / devdb-prod (params via DEVDB_* variable overrides).
 devdb-sync:
-	@test -n "$$(docker ps -q -f name=^silversea-db$$)" || { echo "❌ Local DB container 'silversea-db' is not running — run 'make dev' first (db only: docker compose -f docker-compose.dev.yml up -d db)." >&2; exit 1; }
+	@test -n "$$(docker ps -q -f name=^ss-prod-db$$)" || { echo "❌ Local DB container 'ss-prod-db' is not running — run 'make dev' first (db only: docker compose -f docker-compose.dev.yml up -d db)." >&2; exit 1; }
 	@mkdir -p backups
 	@dump="backups/$(DEVDB_LABEL)-devdb-$$(date +%Y%m%d-%H%M%S).dump"; \
 	echo "1/3  Dumping $(DEVDB_LABEL) DB on $(DEVDB_SERVER)..."; \

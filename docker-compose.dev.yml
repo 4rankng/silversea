@@ -4,9 +4,9 @@ services:
     # preinstalled. Required for the FAQ fast lane (vector(1536) cosine index).
     # Switched from postgres:16-alpine — the stock alpine image lacks the extension.
     image: pgvector/pgvector:pg16
-    # Namespaced silversea-* so this stack runs alongside other projects
-    # without Docker container-name collisions.
-    container_name: silversea-db
+    # Namespaced ss-prod-* so this stack runs alongside the silversea-main
+    # checkout (ss-main-*) and other projects without name collisions.
+    container_name: ss-prod-db
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -23,7 +23,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: silversea-redis
+    container_name: ss-prod-redis
     ports:
       - "6391:6379"
     healthcheck:
@@ -34,7 +34,7 @@ services:
 
   adminer:
     image: adminer
-    container_name: silversea-adminer
+    container_name: ss-prod-adminer
     ports:
       - "8083:8080"
     depends_on:
