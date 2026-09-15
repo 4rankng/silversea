@@ -1,13 +1,11 @@
 import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { and, eq, inArray } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 
 import {
   DriverProgressEventType,
-  NotificationType,
   Role,
   TripPodFileType,
-  TripPodStatus,
   TripStatus,
 } from '@tingting/shared';
 
@@ -27,9 +25,7 @@ import {
   getShipmentDetail,
   updateShipment,
 } from '../services/shipment.service';
-import { notificationUrlForRole } from '../services/notification.service';
 import { storageService } from '../services/storage.service';
-import { setTripExpenseCompletion } from '../services/forwarder.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -367,7 +363,7 @@ describe('trip pod review workflow', () => {
       cargoTypeId: fixture.cargoType.id,
       driverId: driver.id,
     });
-    const submitted = await createSubmittedPod({
+    await createSubmittedPod({
       tag: 'cancel',
       driverId: driver.id,
       driverUserId: driverUser.id,
@@ -459,7 +455,7 @@ describe('trip pod review workflow', () => {
       podRecoveredAt: new Date(),
       podRecoveredBy: managerUser.id,
     }).where(eq(s.trips.id, trip.id));
-    const submitted = await createSubmittedPod({
+    await createSubmittedPod({
       tag: 'approve-cancel-race',
       driverId: driver.id,
       driverUserId: driverUser.id,
@@ -477,14 +473,6 @@ describe('trip pod review workflow', () => {
       idempotencyKey: `phase5-cancel-race-${suffix}`,
     });
 
-    const [submissionAfter] = await db.select({ status: s.tripPodSubmissions.status })
-      .from(s.tripPodSubmissions)
-      .where(eq(s.tripPodSubmissions.id, submitted.id))
-      .limit(1);
-    const [tripAfter] = await db.select({ status: s.trips.status })
-      .from(s.trips)
-      .where(eq(s.trips.id, trip.id))
-      .limit(1);
     const [fulfillmentAfter] = await db.select({
       cancellationDisposition: s.shipmentFulfillments.cancellationDisposition,
       replacementFulfillmentId: s.shipmentFulfillments.replacementFulfillmentId,

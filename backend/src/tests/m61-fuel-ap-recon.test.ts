@@ -34,8 +34,6 @@ const createdFuelAllocationIds: number[] = [];
 const createdUserIds: number[] = [];
 
 let managerUserId: number;
-let accountantUserId: number;
-let adminUserId: number;
 
 async function mkSupplier(isFuel = true) {
   const [sup] = await db.insert(s.suppliers).values({
@@ -269,8 +267,8 @@ after(async () => {
 describe('M6.1 — getFuelApReconciliation', () => {
   test('setup finance approver', async () => {
     managerUserId = (await mkUser(Role.MANAGER)).id;
-    accountantUserId = (await mkUser(Role.ACCOUNTANT)).id;
-    adminUserId = (await mkUser(Role.ADMIN)).id;
+    await mkUser(Role.ACCOUNTANT);
+    await mkUser(Role.ADMIN);
     assert.ok(managerUserId > 0);
   });
 

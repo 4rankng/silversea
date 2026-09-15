@@ -250,7 +250,7 @@ describe('Q15 salary-period governed routes', () => {
     const accountant = await mkUser(Role.ACCOUNTANT, 'close-maker');
     const checker = await mkUser(Role.MANAGER, 'close-checker');
     const firstApprover = await mkUser(Role.ADMIN, 'close-approver-a');
-    const secondApprover = await mkUser(Role.ADMIN, 'close-approver-b');
+    await mkUser(Role.ADMIN, 'close-approver-b');
     const driver = await mkDriver('close-driver');
     const trip = await mkTrip({
       driverId: driver.id,
@@ -358,9 +358,9 @@ describe('Q15 salary-period governed routes', () => {
   });
 
   it('replays salary-period adjustment request/check/approve and rejects stale source versions', async () => {
-    const accountant = await mkUser(Role.ACCOUNTANT, 'adjust-maker');
+    await mkUser(Role.ACCOUNTANT, 'adjust-maker');
     const checker = await mkUser(Role.MANAGER, 'adjust-checker');
-    const approver = await mkUser(Role.ADMIN, 'adjust-approver');
+    await mkUser(Role.ADMIN, 'adjust-approver');
     const driver = await mkDriver('adjust-driver');
     const sourcePeriod = `7402-${String((Date.now() % 12) + 1).padStart(2, '0')}`;
     const targetPeriod = `7403-${String(((Date.now() + 1) % 12) + 1).padStart(2, '0')}`;
@@ -498,9 +498,9 @@ describe('Q15 salary-period governed routes', () => {
   });
 
   it('applies salary issue and official posting immediately with exact replay (phê duyệt removed)', async () => {
-    const accountant = await mkUser(Role.ACCOUNTANT, 'issue-maker');
+    await mkUser(Role.ACCOUNTANT, 'issue-maker');
     const checker = await mkUser(Role.MANAGER, 'issue-checker');
-    const approver = await mkUser(Role.ADMIN, 'issue-approver');
+    await mkUser(Role.ADMIN, 'issue-approver');
     const driver = await mkUser(Role.DRIVER, 'issue-driver');
     const issuePeriod = `7501-${String((Date.now() % 12) + 1).padStart(2, '0')}`;
     await insertClosedPeriod(issuePeriod, 1);

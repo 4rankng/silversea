@@ -17,7 +17,6 @@ import { LedgerService } from '../services/ledger.service';
 import { getDocument, saveDocument } from '../services/billing-document.service';
 import { Role } from '@tingting/shared';
 import { createAdjustment } from '../services/financial.service';
-import { autoApplyGovernanceAction } from '../services/adjustment-governance.service';
 
 after(async () => {
   await client.end();

@@ -19,7 +19,6 @@ import { globalErrorHandler } from '../middleware/errorHandler';
 import financialRoutes from '../routes/financial';
 import { getFuelApReconciliation } from '../services/fuel-ap-recon.service';
 import { disconnectRedis } from '../lib/redis';
-import { closePeriodLock, getClosedPeriodLock, resolveFuelPeriodAuthority } from '../services/period-lock.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const createdUserIds: number[] = [];
@@ -32,7 +31,6 @@ const createdCustomerIds: number[] = [];
 const createdExpenseIds: number[] = [];
 const createdExpensePhotoIds: number[] = [];
 const createdFuelInvoiceIds: number[] = [];
-const createdPeriodLockIds: number[] = [];
 const idempotencyKeys: string[] = [];
 let failpointCounter = 0;
 
@@ -40,7 +38,6 @@ let server: http.Server;
 let baseUrl: string;
 let managerToken: string;
 let accountantToken: string;
-let adminToken: string;
 let driverToken: string;
 let customerToken: string;
 
@@ -204,24 +201,6 @@ async function request(path: string, init: { method?: string; token: string; bod
   return { status: response.status, body };
 }
 
-async function withMockedNow<T>(isoDateTime: string, run: () => Promise<T>): Promise<T> {
-  const realNow = Date.now;
-  const fixedNow = new Date(isoDateTime).getTime();
-  Date.now = () => fixedNow;
-  try {
-    return await run();
-  } finally {
-    Date.now = realNow;
-  }
-}
-
-async function trackFuelLock(date: string, actorId: number) {
-  const lock = await db.transaction((tx) =>
-    closePeriodLock(tx, resolveFuelPeriodAuthority(date), actorId, 'Q06 fuel period test'));
-  createdPeriodLockIds.push(lock.id);
-  return lock;
-}
-
 async function withIdempotencyInsertFailure(endpoint: string, idempotencyKey: string, run: () => Promise<void>) {
   failpointCounter += 1;
   const identSuffix = suffix.replace(/[^a-z0-9]+/gi, '_');
@@ -255,13 +234,11 @@ before(async () => {
   await initEnforcer();
   const manager = await mkUser(Role.MANAGER);
   const accountant = await mkUser(Role.ACCOUNTANT);
-  const admin = await mkUser(Role.ADMIN);
   const driver = await mkUser(Role.DRIVER);
   const customer = await mkUser(Role.CUSTOMER);
 
   managerToken = sign(manager);
   accountantToken = sign(accountant);
-  adminToken = sign(admin);
   driverToken = sign(driver);
   customerToken = sign(customer);
 

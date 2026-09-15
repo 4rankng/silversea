@@ -39,7 +39,6 @@ const createdTruckIds: number[] = [];
 let server: http.Server;
 let baseUrl = '';
 let adminToken = '';
-let adminUserId = 0;
 
 function signToken(user: { id: number; username: string | null; role: Role }) {
   return jwt.sign({
@@ -94,12 +93,6 @@ async function mkTruck(n: number) {
   return row;
 }
 
-async function lockCustomerForUpdate(customerId: number) {
-  const [row] = await db.select({ updatedAt: s.customers.updatedAt })
-    .from(s.customers).where(eq(s.customers.id, customerId)).limit(1);
-  return row?.updatedAt?.toISOString();
-}
-
 before(async () => {
   await initEnforcer();
   const [user] = await db.insert(s.users).values({
@@ -109,7 +102,6 @@ before(async () => {
     status: 'ACTIVE',
   }).returning();
   createdUserIds.push(user.id);
-  adminUserId = user.id;
   adminToken = signToken({ id: user.id, username: user.username, role: Role.ADMIN });
 
   const app = express();

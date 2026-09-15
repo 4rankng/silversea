@@ -85,7 +85,7 @@ async function api(
     body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
   });
   const body = await response.json().catch(() => ({}));
-  return { status: response.status, body } as { status: number; body: any };
+  return { status: response.status, body };
 }
 
 before(async () => {
@@ -177,7 +177,6 @@ describe('ops module RBAC (PRD §2)', () => {
 });
 
 describe('ops orders + pins (PRD §3)', () => {
-  let shipmentId: number;
 
   before(async () => {
     const [customer] = await db.insert(s.customers).values({
@@ -195,7 +194,6 @@ describe('ops orders + pins (PRD §3)', () => {
       blNumber: `BL-${suffix}`,
     }).returning();
     createdShipmentIds.push(shipment.id);
-    shipmentId = shipment.id;
 
     const [canceled] = await db.insert(s.shipments).values({
       shipmentCode: `OPS-${suffix}-2`,
@@ -215,19 +213,19 @@ describe('ops orders + pins (PRD §3)', () => {
   test('lists today company-wide lots, skips canceled, exposes containers', async () => {
     const res = await api(`/orders?date=${isoDate}`, { token: opsToken });
     assert.equal(res.status, 200);
-    const codes = res.body.items.map((item: any) => item.shipmentCode);
+    const codes = res.body.items.map((item) => item.shipmentCode);
     assert.ok(codes.includes(`OPS-${suffix}-1`));
     assert.ok(!codes.includes(`OPS-${suffix}-2`));
-    const mine = res.body.items.find((item: any) => item.shipmentCode === `OPS-${suffix}-1`);
+    const mine = res.body.items.find((item) => item.shipmentCode === `OPS-${suffix}-1`);
     assert.equal(mine.containerCount, 1);
     assert.equal(mine.customerName, `OPS Test KH ${suffix}`);
   });
 
   test('search matches container numbers', async () => {
     const mine = (await api(`/orders?date=${isoDate}`, { token: opsToken })).body.items
-      .find((item: any) => item.shipmentCode === `OPS-${suffix}-1`);
+      .find((item) => item.shipmentCode === `OPS-${suffix}-1`);
     const res = await api(`/orders?date=${isoDate}&q=${mine.containerNumbers[0]}`, { token: opsToken });
-    const codes = res.body.items.map((item: any) => item.shipmentCode);
+    const codes = res.body.items.map((item) => item.shipmentCode);
     assert.ok(codes.includes(`OPS-${suffix}-1`));
   });
 
@@ -246,7 +244,7 @@ describe('ops orders + pins (PRD §3)', () => {
 
     // Other ops account does not see the pin.
     const other = (await api(`/orders?date=${isoDate}`, { token: ops2Token })).body.items;
-    const otherRow = other.find((item: any) => item.shipmentCode === `OPS-${suffix}-1`);
+    const otherRow = other.find((item) => item.shipmentCode === `OPS-${suffix}-1`);
     assert.equal(otherRow.pinned, false);
 
     const off = await api(`/orders/shipment-pins/${createdShipmentIds[0]}`, { method: 'PUT', token: opsToken, body: { pinned: false } });
@@ -423,9 +421,9 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
 
   test('expense history flags missing photos (nợ chứng từ)', async () => {
     const res = await api('/wallet/expenses', { token: opsToken });
-    const withPhoto = res.body.items.find((item: any) => item.amount === '350000');
+    const withPhoto = res.body.items.find((item) => item.amount === '350000');
     assert.equal(withPhoto.hasPhoto, true);
-    const withPhotoLater = res.body.items.find((item: any) => item.amount === '90000');
+    const withPhotoLater = res.body.items.find((item) => item.amount === '90000');
     assert.equal(withPhotoLater.hasPhoto, true, 'photo attached after creation shows in history');
   });
 
@@ -453,16 +451,16 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
 
     const res = await api('/admin/expenses', { token: accountantToken });
     assert.equal(res.status, 200);
-    const lotRows = res.body.items.filter((item: any) => item.shipmentCode === `OPS-CHI-${suffix}`);
-    const lotCodes = new Set(lotRows.map((item: any) => item.shipmentCode));
+    const lotRows = res.body.items.filter((item) => item.shipmentCode === `OPS-CHI-${suffix}`);
+    const lotCodes = new Set(lotRows.map((item) => item.shipmentCode));
     assert.equal(lotCodes.size, 1, 'all same-lot rows share exactly one mã lô');
 
     const indices = res.body.items
-      .map((item: any, index: number) => (item.shipmentCode === `OPS-CHI-${suffix}` ? index : -1))
+      .map((item, index: number) => (item.shipmentCode === `OPS-CHI-${suffix}` ? index : -1))
       .filter((index: number) => index >= 0);
     assert.equal(indices[indices.length - 1] - indices[0] + 1, indices.length,
       'same-lot rows are contiguous — clustered, not split by payer');
-    const payers = new Set(lotRows.map((item: any) => item.paidById));
+    const payers = new Set(lotRows.map((item) => item.paidById));
     assert.ok(payers.has(ops2.id), 'second Ops row kept its own paidById');
     assert.equal(payers.size, 2, 'both payers present under the one mã lô');
   });
@@ -476,7 +474,7 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
 
     // Freshly created without any receipt → "Nợ chứng từ" until a photo lands.
     const history = await api('/wallet/expenses', { token: opsToken });
-    const debtEntry = history.body.items.find((item: any) => item.amount === '150000');
+    const debtEntry = history.body.items.find((item) => item.amount === '150000');
     assert.equal(debtEntry.hasPhoto, false);
 
     const settlement = await api('/settlements', { method: 'POST', token: opsToken, body: { note: 'cuối ngày' } });
@@ -496,7 +494,7 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
 
     const detail = await api(`/settlements/${settlement.body.id}`, { token: opsToken });
     assert.equal(detail.status, 200);
-    const group = detail.body.grouping.groups.find((g: any) => g.shipmentCode === `OPS-CHI-${suffix}`);
+    const group = detail.body.grouping.groups.find((g) => g.shipmentCode === `OPS-CHI-${suffix}`);
     assert.ok(group, 'settlement groups by lô');
     assert.equal(group.withInvoice.total, '350000');
     assert.equal(group.withoutInvoice.total, '240000');
@@ -585,13 +583,13 @@ describe('ops fleet tracking (PRD §4)', () => {
     // opsB now owns the truck; opsUser sees nothing.
     const fleetB = await api('/fleet', { token: ops2Token });
     assert.equal(fleetB.status, 200);
-    const rowB = fleetB.body.items.find((item: any) => item.truckId === truck.id);
+    const rowB = fleetB.body.items.find((item) => item.truckId === truck.id);
     assert.ok(rowB);
     assert.equal(rowB.status, 'IN_TRANSIT');
     assert.equal(rowB.shipmentCode, `OPS-FL-${suffix}`);
 
     const fleetA = await api('/fleet', { token: opsToken });
-    assert.equal(fleetA.body.items.find((item: any) => item.truckId === truck.id), undefined);
+    assert.equal(fleetA.body.items.find((item) => item.truckId === truck.id), undefined);
 
     // Driver-app action sync: the row's milestone comes from the driver's
     // latest progress event (PRD §4 — trạng thái đồng bộ từ thao tác lái xe).
@@ -604,7 +602,7 @@ describe('ops fleet tracking (PRD §4)', () => {
 
     const fleetB2 = await api('/fleet', { token: ops2Token });
     assert.equal(fleetB2.status, 200);
-    const rowB2 = fleetB2.body.items.find((item: any) => item.truckId === truck.id);
+    const rowB2 = fleetB2.body.items.find((item) => item.truckId === truck.id);
     assert.ok(rowB2);
     assert.equal(rowB2.lastEventType, 'PICKED_UP');
   });

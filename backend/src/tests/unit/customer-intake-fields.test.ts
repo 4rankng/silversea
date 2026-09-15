@@ -17,6 +17,7 @@ import {
   restrictCustomerUpdateForIntake,
   intakeCreatedBy,
 } from '../../services/customer-intake.service';
+import type { CustomerCreateInput } from '../../services/customer-intake.service';
 
 const RESTRICTED_KEYS = [
   'creditLimit',
@@ -31,7 +32,7 @@ const RESTRICTED_KEYS = [
 ] as const;
 
 /** A full customer-create payload with every field populated. */
-const FULL_PAYLOAD: Record<string, unknown> = {
+const FULL_PAYLOAD: CustomerCreateInput = {
   name: 'Công ty ABC',
   shortName: 'ABC',
   taxCode: '0123456789',
@@ -51,16 +52,20 @@ const FULL_PAYLOAD: Record<string, unknown> = {
   isCarrier: false,
 };
 
+/** Read stripped financial keys off intake results — the Omit<> return type
+ * deliberately hides them; asserting on that stripping is the test's point. */
+const asRecord = (row: object): Record<string, unknown> => row as Record<string, unknown>;
+
 describe('restrictCustomerCreateForIntake', () => {
   for (const role of [Role.CUS, Role.DISPATCHER]) {
     test(`${role}: strips all 9 financial/material keys`, () => {
       const result = restrictCustomerCreateForIntake(
-        FULL_PAYLOAD as any,
+        FULL_PAYLOAD,
         role,
       );
       for (const key of RESTRICTED_KEYS) {
         assert.equal(
-          (result as any)[key],
+          asRecord(result)[key],
           undefined,
           `${role} must not see "${key}" in intake output`,
         );
@@ -69,27 +74,27 @@ describe('restrictCustomerCreateForIntake', () => {
 
     test(`${role}: preserves identity fields (name, taxCode, phone, etc.)`, () => {
       const result = restrictCustomerCreateForIntake(
-        FULL_PAYLOAD as any,
+        FULL_PAYLOAD,
         role,
       );
-      assert.equal((result as any).name, 'Công ty ABC');
-      assert.equal((result as any).taxCode, '0123456789');
-      assert.equal((result as any).phone, '0901234567');
-      assert.equal((result as any).email, 'a@abc.vn');
-      assert.equal((result as any).address, '123 Nguyễn Huệ');
+      assert.equal(asRecord(result).name, 'Công ty ABC');
+      assert.equal(asRecord(result).taxCode, '0123456789');
+      assert.equal(asRecord(result).phone, '0901234567');
+      assert.equal(asRecord(result).email, 'a@abc.vn');
+      assert.equal(asRecord(result).address, '123 Nguyễn Huệ');
     });
   }
 
   for (const role of [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT]) {
     test(`${role}: passes all fields through unchanged`, () => {
       const result = restrictCustomerCreateForIntake(
-        FULL_PAYLOAD as any,
+        FULL_PAYLOAD,
         role,
       );
       for (const key of RESTRICTED_KEYS) {
         assert.deepEqual(
-          (result as any)[key],
-          (FULL_PAYLOAD as any)[key],
+          asRecord(result)[key],
+          asRecord(FULL_PAYLOAD)[key],
           `${role} should retain "${key}"`,
         );
       }
@@ -100,32 +105,32 @@ describe('restrictCustomerCreateForIntake', () => {
 describe('restrictCustomerUpdateForIntake', () => {
   for (const role of [Role.CUS, Role.DISPATCHER]) {
     test(`${role}: strips financial keys from partial update`, () => {
-      const partial = {
+      const partial: Partial<CustomerCreateInput> = {
         name: 'Tên mới',
         creditLimit: 999_999_999,
         paymentTermDays: 60,
         debitNoteMode: 'PER_SHIPMENT',
       };
-      const result = restrictCustomerUpdateForIntake(partial as any, role);
-      assert.equal((result as any).name, 'Tên mới');
-      assert.equal((result as any).creditLimit, undefined);
-      assert.equal((result as any).paymentTermDays, undefined);
-      assert.equal((result as any).debitNoteMode, undefined);
+      const result = restrictCustomerUpdateForIntake(partial, role);
+      assert.equal(asRecord(result).name, 'Tên mới');
+      assert.equal(asRecord(result).creditLimit, undefined);
+      assert.equal(asRecord(result).paymentTermDays, undefined);
+      assert.equal(asRecord(result).debitNoteMode, undefined);
     });
 
     test(`${role}: preserves isCarrier on update for carrier intake`, () => {
-      const partial = { status: 'INACTIVE', isCarrier: true, shortName: 'NEW' };
-      const result = restrictCustomerUpdateForIntake(partial as any, role);
-      assert.equal((result as any).status, undefined);
-      assert.equal((result as any).isCarrier, true);
-      assert.equal((result as any).shortName, 'NEW');
+      const partial: Partial<CustomerCreateInput> = { status: 'INACTIVE', isCarrier: true, shortName: 'NEW' };
+      const result = restrictCustomerUpdateForIntake(partial, role);
+      assert.equal(asRecord(result).status, undefined);
+      assert.equal(asRecord(result).isCarrier, true);
+      assert.equal(asRecord(result).shortName, 'NEW');
     });
   }
 
   for (const role of [Role.ADMIN, Role.MANAGER]) {
     test(`${role}: passes all update fields through`, () => {
-      const partial = { creditLimit: 1_000_000, status: 'ACTIVE' };
-      const result = restrictCustomerUpdateForIntake(partial as any, role);
+      const partial: Partial<CustomerCreateInput> = { creditLimit: 1_000_000, status: 'ACTIVE' };
+      const result = restrictCustomerUpdateForIntake(partial, role);
       assert.deepEqual(result, partial);
     });
   }

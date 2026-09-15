@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 // One-shot backfill: a READY_FOR_DISPATCH shipment that has zero live
 // fulfillment rows is invisible to the dispatch detail plan (its rows
 // inner-join shipment_fulfillments). The BUG 5 fix prevents NEW shipments

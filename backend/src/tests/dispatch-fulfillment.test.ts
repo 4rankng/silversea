@@ -1952,7 +1952,7 @@ describe('dispatch fulfillment workflow routes', () => {
       const accepted = await createAcceptedFulfillment();
       const carrierA = await createCustomer(`Planned carrier ${suffix}-${createdCustomerIds.length}`);
       await db.update(s.customers).set({ isCarrier: true }).where(eq(s.customers.id, carrierA.id));
-      const [vehicleA] = await db.insert(s.carrierFleetVehicles).values({
+      await db.insert(s.carrierFleetVehicles).values({
         carrierId: carrierA.id,
         licensePlate: '51H-67894',
         normalizedPlate: '51H67894',

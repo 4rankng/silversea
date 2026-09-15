@@ -29,7 +29,6 @@ const expenseCategoryIds: number[] = [];
 let actorIds: number[] = [];
 let server: http.Server;
 let baseUrl = '';
-let makerId = 0;
 
 async function api(
   method: string,
@@ -70,7 +69,6 @@ before(async () => {
   const [maker] = await db.insert(s.users).values([
     { username: `material-gov-maker-${suffix}`, passwordHash: 'x', role: Role.MANAGER, status: 'ACTIVE' },
   ]).returning({ id: s.users.id }) as Array<{ id: number }>;
-  makerId = maker!.id;
   actorIds = [maker!.id];
 
   const app = express();

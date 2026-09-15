@@ -21,7 +21,6 @@ import { initAuditService } from '../services/audit.service';
 import driverRoutes from '../routes/driver';
 import { authMiddleware } from '../middleware/auth';
 import { casbinAuthz } from '../middleware/casbin';
-import { auditLogMiddleware } from '../middleware/audit';
 import { globalErrorHandler } from '../middleware/errorHandler';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;

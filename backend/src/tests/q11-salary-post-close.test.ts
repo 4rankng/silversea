@@ -211,9 +211,9 @@ after(async () => {
 
 test('Q15 salary period close and reopen require three distinct actors before the period state changes', async () => {
   const admin = await mkUser('ADMIN', 'gov-admin');
-  const admin2 = await mkUser('ADMIN', 'gov-admin2');
+  await mkUser('ADMIN', 'gov-admin2');
   const accountant = await mkUser('ACCOUNTANT', 'gov-acct');
-  const manager = await mkUser('MANAGER', 'gov-mgr');
+  await mkUser('MANAGER', 'gov-mgr');
   const manager2 = await mkUser('MANAGER', 'gov-mgr2');
   const driver = await mkDriver('governed');
 
@@ -266,7 +266,7 @@ test('Q15 salary period close and reopen require three distinct actors before th
     (err: Error & { statusCode?: number }) => err.statusCode === 409,
   );
 
-  const approvedClose = await closeSalaryPeriod({
+  await closeSalaryPeriod({
     period: GOVERNED_PERIOD,
     actorId: accountant.id,
     actorRole: 'ACCOUNTANT',
@@ -306,7 +306,7 @@ test('Q15 salary period close and reopen require three distinct actors before th
     (err: Error & { statusCode?: number }) => err.statusCode === 403,
   );
 
-  const approvedReopen = await reopenSalaryPeriod({
+  await reopenSalaryPeriod({
     period: GOVERNED_PERIOD,
     actorId: manager2.id,
     actorRole: 'MANAGER',

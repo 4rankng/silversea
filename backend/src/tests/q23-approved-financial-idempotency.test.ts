@@ -225,17 +225,6 @@ async function createApprovedAdvanceRequest(requesterId: number, amount: number)
   return request;
 }
 
-async function createAdvanceRequest(requesterId: number, amount: number) {
-  const [request] = await db.insert(s.advanceRequests).values({
-    requesterId,
-    amount: String(amount),
-    reason: `Q23 pending request ${suffix}-${advanceRequestIds.length}`,
-    status: 'RECORDED',
-  }).returning();
-  advanceRequestIds.push(request.id);
-  return request;
-}
-
 async function createSettlement(forwarderId: number, requestIds: number[], note: string) {
   const [settlement] = await db.insert(s.advanceSettlements).values({
     code: `Q23-STL-${suffix}-${advanceSettlementIds.length}`.slice(0, 20),

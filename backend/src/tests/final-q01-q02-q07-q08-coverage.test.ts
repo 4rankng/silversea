@@ -43,7 +43,6 @@ let originalSettings: Awaited<ReturnType<typeof getAppSettings>>;
 
 let adminToken: string;
 let managerToken: string;
-let accountantToken: string;
 let customerToken: string;
 let driverToken: string;
 let forwarderToken: string;
@@ -197,7 +196,6 @@ before(async () => {
 
   const admin = await mkUser(Role.ADMIN);
   const manager = await mkUser(Role.MANAGER);
-  const accountant = await mkUser(Role.ACCOUNTANT);
   const customer = await mkUser(Role.CUSTOMER, { customerId: scopedCustomer.id });
   const driver = await mkUser(Role.DRIVER);
   const forwarder = await mkUser(Role.OPS);
@@ -205,7 +203,6 @@ before(async () => {
 
   adminToken = sign(admin);
   managerToken = sign(manager);
-  accountantToken = sign(accountant);
   customerToken = sign(customer);
   driverToken = sign(driver);
   forwarderToken = sign(forwarder);

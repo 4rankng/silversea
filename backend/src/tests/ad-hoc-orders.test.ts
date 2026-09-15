@@ -49,7 +49,7 @@ async function api(
     body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
   });
   const body = await response.json().catch(() => ({}));
-  return { status: response.status, body } as { status: number; body: any };
+  return { status: response.status, body };
 }
 
 async function masterCounts() {

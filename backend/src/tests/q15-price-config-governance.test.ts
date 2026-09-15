@@ -1,10 +1,9 @@
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { after, before, describe, it } from 'node:test';
 import express from 'express';
-import { and, eq, gte, inArray, isNull, like } from 'drizzle-orm';
+import { and, eq, gte, inArray, like } from 'drizzle-orm';
 import { Role, TrailerType } from '@tingting/shared';
 import { client, db } from '../db';
 import * as s from '../db/schema';

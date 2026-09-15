@@ -454,7 +454,7 @@ test('M7.3 payroll close enforces readiness, approved exclusions, completion-per
 test('Q10 adjustment-mode exclusions stay completable after the approved adjustment exists', async () => {
   const admin = await mkUser('ADMIN', 'adj-admin');
   const accountant = await mkUser('ACCOUNTANT', 'adj-acct');
-  const manager = await mkUser('MANAGER', 'adj-mgr');
+  await mkUser('MANAGER', 'adj-mgr');
   const driver = await mkDriver('adj-driver');
   const sourcePeriod = `${periodYear + 2}-03`;
   const sourceDay = `${sourcePeriod}-15`;

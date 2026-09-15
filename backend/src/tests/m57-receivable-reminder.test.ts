@@ -31,7 +31,6 @@ import {
 import { addCalendarDays } from '../services/business-calendar.service';
 import { Role } from '@tingting/shared';
 import { createAdjustment } from '../services/financial.service';
-import { autoApplyGovernanceAction } from '../services/adjustment-governance.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const createdTripIds: number[] = [];
@@ -263,7 +262,7 @@ async function mkTripArAdjustment(
 ) {
   const maker = await mkUser('ACCOUNTANT');
   await mkUser('MANAGER');
-  const approver = await mkUser('ADMIN');
+  await mkUser('ADMIN');
   const [trip] = await db.select({ version: s.trips.version })
     .from(s.trips)
     .where(and(eq(s.trips.id, tripId), eq(s.trips.customerId, customerId)))
