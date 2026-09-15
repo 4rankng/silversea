@@ -22,7 +22,7 @@ const queryClient = new QueryClient({
 // Connection failures keep their manual recovery state without deleting caches.
 installChunkErrorHandler();
 
-void retireOfflineStorage().then((retirement) => {
+void retireOfflineStorage().then(() => {
   ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
       <QueryClientProvider client={queryClient}>
@@ -32,18 +32,8 @@ void retireOfflineStorage().then((retirement) => {
       </QueryClientProvider>
     </React.StrictMode>
   );
-  if (retirement.found || retirement.cleanupIncomplete) {
-    const notice = document.createElement('div');
-    notice.className = 'retired-offline-notice';
-    notice.setAttribute('role', 'status');
-    notice.textContent = 'Lệnh chờ cũ đã ngừng gửi tự động. Kiểm tra trạng thái trên máy chủ trước khi nhập lại thao tác chưa gửi hoặc chưa rõ kết quả.';
-    const close = document.createElement('button');
-    close.type = 'button';
-    close.textContent = 'Đã hiểu';
-    close.onclick = () => notice.remove();
-    notice.append(close);
-    document.body.append(notice);
-  }
+  // Legacy offline-queue cleanup stays silent: the user ruled the visible
+  // migration warning out of the product once the queues themselves retired.
 });
 
 // Register the service worker for PWA installability (Android) + push notifications.
