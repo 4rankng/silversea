@@ -1,4 +1,4 @@
-// cases/customer-regression/factory-display.mjs
+// cases/chungtu-regression/factory-display.mjs
 // Regression: /shipments/<id> with operational_site_id set on a container but
 // shipments.factory_name empty — detail page must resolve to factory short name.
 // Source: báo cáo khách hàng 2026-09-07, regression on Long Minh id=2 / id=5.

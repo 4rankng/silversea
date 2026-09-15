@@ -1,4 +1,4 @@
-// cases/customer-regression/TC-CUS-CREATE-022.mjs
+// cases/chungtu-regression/TC-CUS-CREATE-022.mjs
 // §1.10 / TC-CUS-CREATE-022 — Tuyến đường container X clear.
 
 export const caseId = 'TC-CUS-CREATE-022';

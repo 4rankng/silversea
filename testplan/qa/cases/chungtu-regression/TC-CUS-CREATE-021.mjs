@@ -1,4 +1,4 @@
-// cases/customer-regression/TC-CUS-CREATE-021.mjs
+// cases/chungtu-regression/TC-CUS-CREATE-021.mjs
 // §1.10 / TC-CUS-CREATE-021 — Nhà máy container X clear + re-pick.
 // Source: báo cáo khách hàng 2026-09-07 (§1.10).
 

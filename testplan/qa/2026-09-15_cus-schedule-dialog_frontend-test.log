@@ -1,0 +1,4596 @@
+
+ RUN  v4.1.11 /Volumes/LexarSSD/projects/silversea-prod/frontend
+
+ ❯ src/design-system/forms/SplitDateTimeField.test.tsx (13 tests | 1 failed) 1741ms
+     × treats date labels and field wrappers as inside the partially edited group 191ms
+ ❯ src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx (54 tests | 1 failed) 1754ms
+     × keeps the dispatcher column read-like until its one full-cell trigger is clicked 11ms
+ ❯ src/pages/driver/DriverTwoOrdersPage.test.tsx (9 tests | 2 failed) 215ms
+     × renders active + next as distinct cards linking to their detail 70ms
+     × prefers the persisted ordered pair view when a cross-day pair exists 45ms
+ ❯ src/pages/clerk/ClerkShipmentCreatePage.styles.test.ts (20 tests | 3 failed) 11ms
+     × fills the desktop workspace while keeping short-value columns compact 3ms
+     × separates form sections from the application canvas without decorative elevation 0ms
+     × uses compact desktop density while retaining mobile touch targets 1ms
+ ❯ src/pages/RoleWorkspacePagination.styles.test.ts (3 tests | 1 failed) 7ms
+     × gives the CUS plan filter a full row on narrow screens 2ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 8 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/design-system/forms/SplitDateTimeField.test.tsx > SplitDateTimeField > treats date labels and field wrappers as inside the partially edited group
+TestingLibraryElementError: Unable to find an element with the text: Ngày, which matches selector 'label'. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<form>[39m
+      [36m<div[39m
+        [33maria-label[39m=[32m"Hẹn"[39m
+        [33mclass[39m=[32m"split-datetime"[39m
+        [33mdata-split-datetime[39m=[32m"true"[39m
+        [33mrole[39m=[32m"group"[39m
+      [36m>[39m
+        [36m<span[39m
+          [33mclass[39m=[32m"split-datetime__label"[39m
+        [36m>[39m
+          [0mHẹn[0m
+        [36m</span>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"split-datetime__fields"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"split-datetime__field"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"split-datetime__control"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"group/input relative flex w-full flex-row place-content-center place-items-center overflow-hidden rounded-lg border bg-primary outline-focus-ring transition duration-100 ease-linear min-h-[34px] max-md:min-h-11 border-brand outline-2 outline-offset-1 group-disabled:cursor-not-allowed group-disabled:opacity-50 group-invalid:border-error group-invalid:outline-error"[39m
+                [33mdata-focus-within[39m=[32m"true"[39m
+                [33mdata-rac[39m=[32m""[39m
+                [33mrole[39m=[32m"group"[39m
+              [36m>[39m
+                [36m<input[39m
+                  [33maria-controls[39m=[32m"_r_mi_-picker"[39m
+                  [33maria-expanded[39m=[32m"true"[39m
+                  [33maria-haspopup[39m=[32m"dialog"[39m
+                  [33maria-invalid[39m=[32m"false"[39m
+                  [33maria-label[39m=[32m"Giờ — Hẹn"[39m
+                  [33mautocomplete[39m=[32m"off"[39m
+                  [33mclass[39m=[32m"m-0 w-full bg-transparent text-primary ring-0 outline-hidden placeholder:text-placeholder autofill:rounded-lg autofill:text-primary disabled:cursor-not-allowed min-h-[32px] px-2.5 py-1 max-md:min-h-[42px] max-md:px-3 max-md:py-2 text-[length:var(--text-control-compact-size)] leading-[1.35] max-md:text-[length:var(--text-input-touch-size)] [@media(pointer:coarse)]:text-[length:var(--text-input-touch-size)]"[39m
+                  [33mdata-focused[39m=[32m"true"[39m
+                  [33mdata-rac[39m=[32m""[39m
+                  [33mid[39m=[32m"_r_mi_-time"[39m
+                  [33mmaxlength[39m=[32m"5"[39m
+                  [33mplaceholder[39m=[32m"HH:mm"[39m
+                  [33mtype[39m=[32m"text"[39m
+                  [33mvalue[39m=[32m"13:30"[39m
+                [36m/>[39m
+                [36m<svg[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"pointer-events-none absolute hidden size-4 stroke-[2.25px] text-fg-error-secondary group-invalid/input:block right-2.5 max-md:right-3"[39m
+                  [33mfill[39m=[32m"none"[39m
+                  [33mheight[39m=[32m"24"[39m
+                  [33mstroke[39m=[32m"currentColor"[39m
+                  [33mstroke-linecap[39m=[32m"round"[39m
+                  [33mstroke-linejoin[39m=[32m"round"[39m
+                  [33mstroke-width[39m=[32m"2"[39m
+                  [33mviewBox[39m=[32m"0 0 24 24"[39m
+                  [33mwidth[39m=[32m"24"[39m
+                [36m>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"M12 16v-4m0-4h.01M22 12c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2s10 4.477 10 10Z"[39m
+                  [36m/>[39m
+                [36m</svg>[39m
+              [36m</div>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"split-datetime__field"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"split-datetime__control"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"group/input relative flex w-full flex-row place-content-center place-items-center overflow-hidden rounded-lg border border-primary bg-primary outline-focus-ring transition duration-100 ease-linear min-h-[34px] max-md:min-h-11 group-disabled:cursor-not-allowed group-disabled:opacity-50 group-invalid:border-error_subtle"[39m
+                [33mdata-rac[39m=[32m""[39m
+                [33mrole[39m=[32m"group"[39m
+              [36m>[39m
+                [36m<input[39m
+                  [33maria-expanded[39m=[32m"false"[39m
+                  [33maria-haspopup[39m=[32m"dialog"[39m
+                  [33maria-invalid[39m=[32m"false"[39m
+                  [33maria-label[39m=[32m"Ngày — Hẹn"[39m
+                  [33mautocomplete[39m=[32m"off"[39m
+                  [33mclass[39m=[32m"m-0 w-full bg-transparent text-primary ring-0 outline-hidden placeholder:text-placeholder autofill:rounded-lg autofill:text-primary disabled:cursor-not-allowed min-h-[32px] px-2.5 py-1 max-md:min-h-[42px] max-md:px-3 max-md:py-2 text-[length:var(--text-control-compact-size)] leading-[1.35] max-md:text-[length:var(--text-input-touch-size)] [@media(pointer:coarse)]:text-[length:var(--text-input-touch-size)]"[39m
+                  [33mdata-rac[39m=[32m""[39m
+                  [33mid[39m=[32m"_r_mi_-date"[39m
+                  [33mmaxlength[39m=[32m"10"[39m
+                  [33mplaceholder[39m=[32m"DD/MM/YYYY"[39m
+                  [33mtype[39m=[32m"text"[39m
+                  [33mvalue[39m=[32m""[39m
+                [36m/>[39m
+                [36m<svg[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"pointer-events-none absolute hidden size-4 stroke-[2.25px] text-fg-error-secondary group-invalid/input:block right-2.5 max-md:right-3"[39m
+                  [33mfill[39m=[32m"none"[39m
+                  [33mheight[39m=[32m"24"[39m
+                  [33mstroke[39m=[32m"currentColor"[39m
+                  [33mstroke-linecap[39m=[32m"round"[39m
+                  [33mstroke-linejoin[39m=[32m"round"[39m
+                  [33mstroke-width[39m=[32m"2"[39m
+                  [33mviewBox[39m=[32m"0 0 24 24"[39m
+                  [33mwidth[39m=[32m"24"[39m
+                [36m>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"M12 16v-4m0-4h.01M22 12c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2s10 4.477 10 10Z"[39m
+                  [36m/>[39m
+                [36m</svg>[39m
+              [36m</div>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</form>[39m
+  [36m</div>[39m
+  [36m<div[39m
+    [33maria-label[39m=[32m"Chọn giờ (24h) — Hẹn"[39m
+    [33mclass[39m=[32m"time-picker__popup"[39m
+    [33mdata-escape-boundary[39m=[32m"true"[39m
+    [33mid[39m=[32m"_r_mi_-picker"[39m
+    [33mrole[39m=[32m"dialog"[39m
+    [3...
+ ❯ Object.getElementError ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ src/design-system/forms/SplitDateTimeField.test.tsx:161:30
+    159|     clickWithFocus(time);
+    160|     fireEvent.change(time, { target: { value: '13:30' } });
+    161|     const dateLabel = screen.getByText('Ngày', { selector: 'label' });
+       |                              ^
+    162|     fireEvent.pointerDown(dateLabel);
+    163|     fireEvent.mouseDown(dateLabel);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/8]⎯
+
+ FAIL  src/pages/RoleWorkspacePagination.styles.test.ts > role workspace pagination > gives the CUS plan filter a full row on narrow screens
+AssertionError: expected '.shipments-page {\n  display: grid;\n…' to match /@media \(max-width:\s*700px\)[\s\…/ -1;
+
+- Expected:
+/@media \(max-width:\s*700px\)[\s\S]*?\.cus-worksheet-toolbar__filters \.cus-plan-status-filter\s*\{[^}]*grid-column:\s*1 \/ -1;/
+
++ Received:
+".shipments-page {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding-bottom: 40px;
+}
+
+.shipments-page--worksheet {
+  min-width: 0;
+}
+
+.cus-worksheet-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  padding: 8px 0 0;
+  border-bottom: 0;
+  background: transparent;
+}
+
+.cus-worksheet-toolbar__filters {
+  display: grid;
+  grid-template-columns: minmax(240px, 1.3fr) minmax(0, 4fr);
+  gap: 8px 12px;
+  min-width: 0;
+  align-items: end;
+}
+
+.cus-worksheet-toolbar__actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+  padding-top: 0;
+}
+
+.cus-worksheet-toolbar__action-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.cus-worksheet-toolbar__action-group--utility {
+  justify-content: flex-end;
+}
+
+/* Page rules arrange the toolbar; shared UUI size variants own control density. */
+.cus-worksheet-toolbar .shipment-uui-field {
+  gap: 4px;
+  min-width: 0;
+}
+
+.cus-worksheet-toolbar .shipment-uui-field [data-label] {
+  color: var(--ink-2);
+  font-weight: var(--fw-semibold);
+}
+
+.cus-worksheet-toolbar .shipment-uui-control,
+.cus-worksheet-toolbar .shipment-uui-select {
+  width: 100%;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--surface);
+  box-shadow: none;
+  color: var(--ink);
+}
+
+.cus-worksheet-toolbar .shipment-uui-control:focus-within,
+.cus-worksheet-toolbar .shipment-uui-select:focus-visible {
+  border-color: var(--accent);
+  outline: 2px solid color-mix(in srgb, var(--accent) 22%, transparent);
+  outline-offset: 1px;
+}
+
+.cus-worksheet-toolbar .shipment-uui-control__input {
+  box-sizing: border-box;
+  width: 100%;
+  border: 0;
+  border-radius: inherit;
+  outline: 0;
+  color: var(--ink);
+}
+
+.cus-worksheet-toolbar .shipment-uui-control__input:focus-visible {
+  outline: 0;
+}
+
+.cus-worksheet-toolbar .shipment-uui-control__input--search {
+  padding-left: 32px;
+}
+
+.cus-worksheet-toolbar .shipment-uui-control__input::placeholder {
+  color: var(--ink-4);
+}
+
+.cus-worksheet-toolbar .shipment-uui-control__icon {
+  color: var(--ink-3);
+}
+
+.cus-worksheet-toolbar .shipment-uui-select { font-weight: var(--fw-medium); }
+/* Conformance skin (design-guidelines.md, Dense dialogs & forms): the
+   vendored Select trigger's inner value span keeps its own min-h-[34px],
+   2px taller than the text-input/date min-h-[32px]. With the filter row's
+   align-items: end, that extra height pushes the whole select block (label
+   + control) upward relative to its neighbors instead of just growing the
+   control downward. Trim it to 32px so every field in the row shares one
+   box height and one label baseline. */
+.cus-worksheet-toolbar .ds-uui-select__control button > span,
+.cus-worksheet-toolbar .ds-uui-select__control [role='group'] [data-combobox-value] { min-height: 32px; }
+
+.cus-search-field {
+  position: relative;
+}
+
+.cus-search-field:has(.shipment-uui-clear) .shipment-uui-control__input {
+  padding-right: 38px;
+}
+
+.cus-worksheet-toolbar .shipment-uui-clear {
+  position: absolute;
+  top: 19px;
+  right: 2px;
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--ink-3);
+  box-shadow: none;
+}
+
+.cus-worksheet-toolbar .shipment-uui-clear:hover {
+  background: var(--surface-3);
+  color: var(--ink);
+}
+
+.cus-worksheet-toolbar__actions .shipment-uui-button {
+  border: 1px solid transparent;
+  border-radius: 6px;
+  box-shadow: none;
+  font-weight: var(--fw-semibold);
+}
+
+.cus-worksheet-toolbar__actions .shipment-uui-button--primary {
+  border-color: var(--accent-2);
+  background: var(--accent-2);
+  color: var(--fg-on-brand);
+}
+
+.cus-worksheet-toolbar__actions .shipment-uui-button--primary:hover {
+  border-color: var(--accent-ink);
+  background: var(--accent-ink);
+}
+
+.cus-worksheet-toolbar__actions .shipment-uui-button--secondary {
+  border-color: var(--line-2);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.cus-worksheet-toolbar__actions .shipment-uui-button--secondary:hover,
+.cus-worksheet-toolbar__actions .shipment-uui-button--tertiary:hover {
+  background: var(--surface-3);
+}
+
+.cus-worksheet-toolbar__actions .shipment-uui-button--tertiary {
+  background: transparent;
+  color: var(--ink-2);
+}
+
+.cus-worksheet-toolbar .shipment-uui-button:focus-visible,
+.cus-worksheet-toolbar .shipment-uui-clear:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.cus-worksheet-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 16px;
+  padding: 10px 0 0;
+  border-bottom: 0;
+  color: var(--ink-2, #53615a);
+  font-size: var(--text-caption-size);
+}
+
+/* The summary is a decision rail, not another card: it gives the dispatcher a
+   quiet count of the work that needs attention before scanning every row. */
+.cus-workspace-summary {
+  margin: 8px 0 0;
+  border-block: 1px solid var(--line);
+}
+
+.cus-workspace-summary dl {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) repeat(3, minmax(0, 1fr));
+  margin: 0;
+}
+
+.cus-workspace-summary__item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  padding: 10px 14px;
+  border-right: 1px solid var(--line);
+}
+
+.cus-workspace-summary__item:first-child { padding-left: 0; }
+.cus-workspace-summary__item:last-child {
+  padding-right: 0;
+  border-right: 0;
+}
+
+.cus-workspace-summary dt {
+  min-width: 0;
+  color: var(--ink-2);
+  font-size: var(--text-label-size);
+  font-weight: var(--fw-semibold);
+  line-height: 1.35;
+}
+
+.cus-workspace-summary dd {
+  flex: 0 0 auto;
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--font-data);
+  font-size: var(--text-title-size);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--tracking-tight);
+  line-height: 1;
+}
+
+.cus-workspace-summary__item--warning dd { color: var(--warning-text); }
+.cus-workspace-summary__item--info dd { color: var(--info-text); }
+
+.cus-drawer-workflow {
+  display: grid;
+  gap: 8px;
+  padding: 12px 20px 10px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.cus-drawer-workflow__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cus-drawer-workflow__heading h3,
+.cus-drawer-workflow__action p {
+  margin: 0;
+}
+
+.cus-drawer-workflow__heading h3 {
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: var(--text-section-size);
+  font-weight: var(--fw-semibold);
+  line-height: 1.25;
+}
+
+.cus-drawer-workflow__action p {
+  color: var(--ink-2, #53615a);
+  font-size: var(--text-caption-size);
+  line-height: 1.4;
+}
+
+.cus-drawer-decision-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.88fr) minmax(240px, 1.15fr);
+  border-block: 1px solid var(--line);
+  background: var(--surface-2);
+}
+
+.cus-drawer-decision {
+  display: grid;
+  align-content: start;
+  gap: 5px;
+  min-width: 0;
+  padding: 8px 12px;
+  border-right: 1px solid var(--line);
+}
+
+.cus-drawer-decision:first-child { padding-left: 14px; }
+.cus-drawer-decision:last-child {
+  padding-right: 14px;
+  border-right: 0;
+}
+
+.cus-drawer-decision__label,
+.cus-drawer-decision--custody [data-label] {
+  color: var(--ink-2);
+  font-size: var(--text-label-size);
+  font-weight: var(--fw-semibold);
+  line-height: 1.3;
+}
+
+.cus-drawer-decision > strong,
+.cus-drawer-decision__appointments {
+  color: var(--ink);
+  font-size: var(--text-body-size);
+  font-weight: var(--fw-medium);
+  line-height: 1.4;
+}
+
+.cus-drawer-decision__appointments {
+  display: grid;
+  gap: 2px;
+}
+
+.cus-drawer-inline-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.cus-drawer-uui-field {
+  min-width: 0;
+}
+
+.cus-drawer-uui-control,
+.cus-drawer-uui-select {
+  border-radius: var(--app-radius-md);
+  background: var(--surface);
+  box-shadow: none;
+}
+
+.cus-drawer-uui-input,
+.cus-drawer-uui-select {
+  min-width: 0;
+}
+
+.cus-drawer-save-date {
+  width: auto;
+  border-radius: var(--app-radius-md);
+  box-shadow: none;
+}
+
+.cus-drawer-workflow__action {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border-block: 1px solid var(--line);
+  background: var(--surface-2);
+}
+
+.cus-drawer-workflow__action::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: var(--status-strip-width);
+  height: var(--status-strip-height);
+  border-radius: var(--status-strip-radius);
+  background: var(--accent-2);
+  transform: translateY(-50%);
+  content: '';
+  pointer-events: none;
+}
+
+.cus-drawer-workflow__action--blocked::before {
+  background: var(--warning);
+}
+
+.cus-drawer-workflow__action--idle::before {
+  background: var(--ink-3);
+}
+
+.cus-drawer-workflow__action > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.cus-drawer-workflow__action > div > strong {
+  color: var(--ink);
+  font-size: var(--text-body-size);
+  font-weight: var(--fw-semibold);
+  line-height: 1.35;
+}
+
+.cus-drawer-primary-action {
+  min-width: max-content;
+  min-height: 34px;
+  border-radius: var(--app-radius-md);
+  box-shadow: none;
+}
+
+@media (max-width: 480px) {
+  .cus-workspace-summary dl { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .cus-workspace-summary__item {
+    flex-direction: column-reverse;
+    align-items: flex-start;
+    justify-content: flex-end;
+    gap: 4px;
+    padding: 7px 8px;
+  }
+}
+
+@media (max-width: 700px) {
+  .cus-worksheet-toolbar__actions { flex-wrap: wrap; gap: 6px; }
+  .cus-worksheet-toolbar__action-group--utility { margin-left: auto; }
+  .cus-worksheet-meta { margin-inline: 0; }
+}
+
+
+.cus-dashboard-viewport {
+  overflow-x: clip;
+  border-top: 0;
+  border-bottom: 0;
+  outline: none;
+}
+
+.cus-dashboard-viewport:focus-visible {
+  box-shadow: inset 0 0 0 3px var(--brand-subtle);
+}
+
+/* A bounded workboard owns both its records and its navigation. Keeping this
+   footer in the same scroll region prevents the app shell from hiding it below
+   the fold after an operator reaches the final row. */
+.cus-dashboard-viewport > .ds-pagination {
+  position: sticky;
+  bottom: 0;
+  z-index: 4;
+  margin: 0;
+  padding: 12px;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+
+@media (max-width: 1100px) {
+  .cus-dashboard-viewport > .ds-pagination {
+    position: static;
+  }
+}
+
+.cus-dashboard-table {
+  width: 100%;
+  min-width: 0;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+  color: var(--ink);
+  font-size: var(--ops-table-supporting-size);
+}
+
+/* All seven columns pin an explicit share (sums to 100%) sized from real
+   production-shaped data, not the flat/auto split this table shipped with:
+   `classification` and `cargo` were `width: auto`, which table-layout: fixed
+   only measures from the first rendered row, so real customer/carrier names
+   and cargo weights (e.g. \"38.000 kg\") clipped on later rows even though the
+   first row looked fine. `schedule` was pinned to 24% to compensate for a
+   separate bug — its appointment-group text had no wrap rule anywhere, so it
+   silently rendered as one clipped line (see the tbody th/td rule above);
+   now that it wraps, it needs less width than the workaround assumed.
+   `documents` is sized for 16-char mono Bill/Booking codes (e.g.
+   \"EGLV149607019409\") to render un-ellipsized at common desktop widths. */
+.cus-dashboard-table col.cus-dashboard-col--customer { width: 16%; }
+.cus-dashboard-table col.cus-dashboard-col--documents { width: 15%; }
+.cus-dashboard-table col.cus-dashboard-col--classification { width: 9%; }
+.cus-dashboard-table col.cus-dashboard-col--cargo { width: 11%; }
+.cus-dashboard-table col.cus-dashboard-col--schedule { width: 20%; }
+.cus-dashboard-table col.cus-dashboard-col--notes { width: 14%; }
+.cus-dashboard-table col.cus-dashboard-col--status { width: 15%; }
+
+.cus-dashboard-table thead th {
+  position: sticky;
+  /* Negating the scrollport's top padding keeps the header flush with the
+     app-body edge so scrolled rows never peek through the gap between the
+     topbar and this pinned header. */
+  top: var(--sticky-thead-top, -24px);
+  z-index: 3;
+  padding: 10px 12px;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line-strong);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-size: var(--ops-table-header-size);
+  font-weight: var(--ops-table-header-weight);
+  line-height: var(--ops-table-header-line-height);
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.cus-dashboard-table thead th:last-child,
+.cus-dashboard-table tbody > tr > :last-child { border-right: 0; }
+
+.cus-dashboard-table tbody > tr > th,
+.cus-dashboard-table tbody > tr > td {
+  position: relative;
+  /* Table-cell height is a floor, not a cap: rows grow with dense schedule
+     columns. 72px keeps sparse rows from reading as mostly empty space while
+     the 44px inline triggers preserve their touch targets. */
+  height: 72px;
+  padding: 10px;
+  overflow: hidden;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  vertical-align: top;
+  text-align: left;
+  /* The shared Table.css base sets an unscoped `tbody td { white-space:
+     nowrap }` that beats inheritance from this table's own cells — without
+     this override, columns that never re-declare wrapping on themselves
+     (the schedule column's appointment lines had no wrap rule anywhere)
+     silently render as one clipped line instead of the multi-line content
+     the row height and column width are sized for. */
+  white-space: normal;
+  transition: background 120ms ease;
+}
+
+.cus-dashboard-row:hover > th,
+.cus-dashboard-row:hover > td { background: var(--surface-2); }
+
+/* A full-row cream fill stops being a signal once waiting rows dominate a
+   page (the unfiltered view is often all-waiting). Tint only the schedule
+   cell — the one that needs the dispatcher's action — so the highlight lands
+   where \"Chưa chốt ngày\" already explains it. Identity keeps its per-bucket
+   status strip; the rest of the row stays neutral. */
+.cus-dashboard-table tbody > tr.cus-dashboard-row--waiting > td[data-label='Lịch trình & điều xe'] { background: var(--warning-bg, #fff8e8); }
+
+.cus-dashboard-table tbody > tr.cus-dashboard-row--waiting:hover > td[data-label='Lịch trình & điều xe'] { background: color-mix(in srgb, var(--warning-bg, #fff8e8) 78%, var(--warning) 8%); }
+
+/* The cell trigger's surface-2 hover would erase the tint from the only cell
+   that carries it; blend that hover toward the warning tone instead. The
+   trigger hover border still signals clickability. */
+.cus-dashboard-table tbody > tr.cus-dashboard-row--waiting > td[data-label='Lịch trình & điều xe'] .cus-inline-trigger:not(:disabled):hover {
+  background: color-mix(in srgb, var(--warning-bg, #fff8e8) 78%, var(--warning) 8%);
+}
+
+.cus-dashboard-row .status-strip { top: 0; bottom: 0; left: 0; pointer-events: none; }
+
+.cus-dashboard-cell--editable { padding: 0 !important; }
+.cus-dashboard-cell--readonly { padding: 0 !important; }
+.cus-dashboard-cell--readonly > .cus-inline-trigger {
+  cursor: default;
+  /* FCL schedules are display-only here. The trigger-hover and td:hover rules
+     below would still paint a chip on this div (a div never matches :disabled),
+     so lock the resting transparent state to keep the cell from advertising
+     clicks it does not have. */
+  background: transparent !important;
+  border-color: transparent !important;
+}
+.cus-dashboard-cell--editable > .cus-inline-trigger,
+.cus-dashboard-cell--readonly > .cus-inline-trigger {
+  height: 100%;
+  min-height: 100%;
+  padding: 10px;
+  border-radius: 0;
+}
+.cus-dashboard-cell--identity > .cus-inline-trigger { padding-left: 14px; }
+
+.cus-multiline-cell {
+  display: grid;
+  align-content: start;
+  gap: 3px;
+  min-width: 0;
+  line-height: 1.35;
+}
+
+.cus-multiline-cell strong,
+.cus-multiline-cell span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Document identifiers must remain readable at desktop column widths too. */
+.cus-multiline-cell--mono strong,
+.cus-multiline-cell--mono span {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.cus-multiline-cell strong { color: var(--ink); font-size: var(--ops-table-primary-size); font-weight: var(--ops-table-primary-weight); line-height: var(--ops-table-primary-line-height); }
+.cus-multiline-cell span { color: var(--ink-3); font-size: var(--ops-table-meta-size); line-height: var(--ops-table-meta-line-height); }
+/* Empty-value placeholders recede below populated metadata so \"no data yet\"
+   stays distinguishable from short data when scanning a dense grid. */
+.cus-multiline-cell .cus-empty { color: var(--ink-4); }
+.cus-multiline-cell .cus-customer-name {
+  font-size: var(--ops-table-supporting-size);
+  line-height: var(--ops-table-supporting-line-height);
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  /* Line 1 contract: bold + UPPERCASE, done visually so the DOM text (and
+     every text-based query/label) keeps the customer's real casing. */
+  text-transform: uppercase;
+}
+.cus-dashboard-cell--identity .cus-multiline-cell span {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.cus-multiline-cell--mono { font-family: var(--font-data); }
+.cus-multiline-cell--mono strong { font-size: var(--ops-table-primary-size); letter-spacing: .01em; }
+.cus-multiline-cell--numeric strong { }
+
+/* Cargo is compact supporting data: show every container type, then keep its
+   two measurements together on one quiet line instead of clipping either. */
+.cus-multiline-cell.cus-cargo-summary { gap: 2px; }
+.cus-multiline-cell .cus-cargo-summary__containers {
+  overflow: visible;
+  color: var(--ink-2);
+  font-size: var(--ops-table-supporting-size);
+  font-weight: var(--ops-table-primary-weight);
+  line-height: var(--ops-table-supporting-line-height);
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.cus-multiline-cell .cus-cargo-summary__metrics {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  overflow: visible;
+  font-size: var(--ops-table-meta-size);
+  line-height: var(--ops-table-meta-line-height);
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+/* white-space:normal on the flex row above does not inherit past the more
+   specific `.cus-multiline-cell span` rule, which still targets these two
+   children directly and forces nowrap+ellipsis on them — clipping \"38.000
+   kg\" and \"Cont\"/\"Lẻ\" even though the row exists specifically to avoid that
+   (see comment above). Override each child explicitly. */
+.cus-multiline-cell .cus-cargo-summary__weight,
+.cus-multiline-cell .cus-classification__shipping-line {
+  grid-area: shipping-line;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.cus-multiline-cell.cus-classification {
+  grid-template-areas:
+    \"shipping-line shipping-line\"
+    \"combined direction\";
+  grid-template-columns: minmax(0, 1fr) auto;
+  /* Content-sized rows keep the direction badge hugging the carrier line;
+     a stretched 1fr row stranded it at the bottom of tall cells. */
+  grid-template-rows: auto auto;
+  align-content: start;
+  min-height: 44px;
+}
+
+.cus-classification .cus-direction-badge {
+  grid-area: direction;
+  align-self: end;
+  justify-self: end;
+}
+
+.cus-classification .cus-combined-tag {
+  grid-area: combined;
+  align-self: end;
+}
+
+.cus-direction-badge,
+.cus-combined-tag {
+  display: inline-flex;
+  align-self: start;
+  align-items: center;
+  justify-self: start;
+  width: fit-content;
+  min-height: 22px;
+  max-width: 100%;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: var(--text-caption-size)!important;
+  font-weight: var(--fw-bold);
+  line-height: 1.35;
+}
+
+/* Direction badge modifiers emitted dynamically:
+   `cus-direction-badge--${item.direction?.toLowerCase() || 'unknown'}` */
+.cus-direction-badge--import,
+.cus-direction-badge--export { background: var(--surface-3); color: var(--ink-2) !important; }
+.cus-direction-badge--unknown { background: var(--surface-3); color: var(--ink-3) !important; }
+.cus-combined-tag { background: var(--warning-bg, #fff8e8); color: var(--warn, #a15c00) !important; }
+
+/* Cargo-mode category tag (`Cont`/`Lẻ`) in the cargo-summary cell. Neutral
+   structural edge like the direction badge — never an accent fill. Squared
+   corners distinguish mode (structural) from direction's full pill. */
+.cus-inline-trigger {
+  display: grid;
+  align-content: start;
+  gap: 3px;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ink-3);
+  font: inherit;
+  font-size: var(--text-caption-size);
+  line-height: 1.35;
+  text-align: left;
+  cursor: cell;
+  touch-action: manipulation;
+  border-radius: 6px;
+  transition: background-color 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.cus-inline-trigger strong { color: var(--ink); font-size: var(--ops-table-primary-size); line-height: var(--ops-table-primary-line-height); }
+.cus-inline-trigger:not(:disabled):hover {
+  background: var(--surface-2);
+  border-color: var(--line-strong);
+}
+.cus-dashboard-table td:has(> .cus-inline-trigger:not(:disabled)) { cursor: cell; }
+.cus-dashboard-table td:hover > .cus-inline-trigger:not(:disabled) {
+  background: var(--surface-2);
+  border-color: var(--line-strong);
+}
+.cus-inline-trigger:disabled { cursor: default; }
+.cus-inline-trigger:focus-visible {
+  outline: none;
+  border-color: var(--brand);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 2px var(--brand-subtle);
+}
+.cus-schedule-missing { color: var(--warn, #a15c00) !important; }
+
+.cus-quick-edit-modal { display: grid; gap: 14px; }
+.cus-quick-edit-modal__context { margin: 0; color: var(--ink-3); font-family: var(--font-data); font-size: var(--text-caption-size); line-height: 1.35; }
+.cus-quick-edit-modal__fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.cus-quick-edit-modal__fields > label { display: grid; gap: 5px; min-width: 0; color: var(--ink-2); font-size: var(--text-label-size); font-weight: var(--fw-semibold); }
+.cus-quick-edit-modal__field--full { grid-column: 1 / -1; }
+.cus-quick-edit-modal__readonly {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface-2, #f7f9f8);
+  color: var(--ink);
+  font-size: var(--text-data-size);
+  line-height: 1.45;
+  word-break: break-word;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.cus-quick-edit-modal__fields input,
+.cus-quick-edit-modal__fields select,
+.cus-quick-edit-modal__fields textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  padding: 7px 9px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--control-field-font-size);
+  line-height: 1.35;
+}
+.cus-quick-edit-modal__fields textarea { min-height: 84px; resize: vertical; }
+.cus-quick-edit-modal__fields input:focus-visible,
+.cus-quick-edit-modal__fields select:focus-visible,
+.cus-quick-edit-modal__fields textarea:focus-visible { border-color: var(--brand); outline: 2px solid var(--brand-subtle); outline-offset: 1px; }
+.cus-quick-edit-modal__help,
+.cus-quick-edit-modal__fields > .cus-inline-edit-error { grid-column: 1 / -1; margin: 0; }
+.cus-quick-edit-modal__help { color: var(--ink-3); font-size: var(--text-caption-size); line-height: 1.4; }
+
+/* Classification is the modal's only shared-adapter control. The vendored UUI
+   trigger keeps its own Tailwind skin (`rounded-lg`, `border-primary`,
+   `min-h-[34px]`, `text-xs`) because UuiSelectField.css's boundary selectors
+   target `[data-input-wrapper]`/`[role='presentation']` — markup this Select
+   version never renders — so the shared skin cannot be relied on here. Conform
+   the label and trigger to this modal's approved field metrics instead of
+   restyling the shared adapter. */
+.cus-quick-edit-modal__fields .ds-uui-select__control { gap: 5px; }
+.cus-quick-edit-modal__fields .ds-uui-select label {
+  color: var(--ink-2);
+  font-size: var(--text-label-size);
+  font-weight: var(--fw-semibold);
+}
+.cus-quick-edit-modal__fields .ds-uui-select button {
+  min-height: 38px;
+  border-color: var(--line-strong);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--control-field-font-size);
+}
+.cus-quick-edit-modal__fields .ds-uui-select button p {
+  color: var(--ink);
+  font-size: var(--control-field-font-size);
+  font-weight: var(--fw-regular);
+}
+.cus-quick-edit-modal__fields .ds-uui-select button:focus-visible {
+  border-color: var(--brand);
+  outline: 2px solid var(--brand-subtle);
+  outline-offset: 1px;
+}
+
+.cus-note-preview {
+  align-content: stretch;
+  gap: 4px;
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+
+.cus-note-preview > span {
+  display: -webkit-box;
+  min-width: 0;
+  overflow: hidden;
+  word-break: break-word;
+  -webkit-box-orient: vertical;
+  text-overflow: ellipsis;
+  white-space: normal;
+}
+
+.cus-note-preview__customer {
+  -webkit-line-clamp: 2;
+}
+
+.cus-note-internal {
+  color: var(--ink-3);
+  font-style: italic;
+  opacity: 0.85;
+  -webkit-line-clamp: 1;
+}
+.cus-note-preview > .cus-note-preview__customer {
+  color: var(--ink-2);
+  font-size: var(--ops-table-note-size);
+  font-weight: var(--ops-table-note-weight);
+  line-height: var(--ops-table-note-line-height);
+}
+.cus-note-preview > .cus-note-preview__customer--empty {
+  color: var(--ink-3);
+  font-weight: var(--fw-regular);
+}
+.cus-inline-edit-error { grid-column: 1 / -1; color: var(--danger); font-size: var(--text-caption-size); font-weight: var(--fw-semibold); line-height: 1.35; }
+
+.cus-row-actions { display: grid; gap: 7px; min-width: 0; justify-items: stretch; }
+.cus-row-actions__summary { display: grid; gap: 6px; min-width: 0; justify-items: start; }
+.cus-row-actions .cus-workflow-badge { max-width: 100%; }
+.cus-row-actions__edit { display: flex; flex-wrap: wrap; gap: 5px; }
+.cus-attention-label { display: inline-flex; align-items: center; gap: 4px; color: var(--warn, #a15c00); font-size: var(--text-label-size); font-weight: var(--fw-semibold); }
+.cus-attention-label--danger { color: var(--danger); }
+.cus-attention-label--info { color: var(--info, #2563eb); }
+.cus-dashboard-detail {
+  min-height: 34px;
+  color: var(--accent-ink) !important;
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-semibold);
+  white-space: nowrap;
+}
+.cus-dashboard-detail:hover {
+  background: transparent !important;
+  color: var(--accent-2) !important;
+}
+.cus-dashboard-detail:focus-visible {
+  outline-offset: 3px;
+}
+.cus-create-shipment { white-space: nowrap; }
+
+/* Records share one reading order below the table breakpoint. Labels sit
+   above values instead of consuming a second grid inside each narrow cell. */
+@media (max-width: 999px) {
+  .cus-dashboard-table,
+  .cus-dashboard-table tbody { display: block; width: 100%; }
+  .cus-dashboard-table colgroup,
+  .cus-dashboard-table thead { display: none; }
+  .cus-dashboard-table tbody > tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+    margin-bottom: 10px;
+    border-block: 1px solid var(--line-strong);
+    background: var(--surface);
+  }
+  .cus-dashboard-table tbody > tr > th,
+  .cus-dashboard-table tbody > tr > td {
+    display: block;
+    grid-column: 1 / -1;
+    min-width: 0;
+    height: auto;
+    min-height: 0;
+    padding: 6px 8px;
+    border: 0;
+    border-bottom: 1px solid var(--line);
+    background: transparent;
+  }
+  .cus-dashboard-table tbody > tr > td[data-label='Phân loại & hãng tàu'],
+  .cus-dashboard-table tbody > tr > td[data-label='Tổng quan hàng hóa'] {
+    grid-column: auto;
+  }
+  .cus-dashboard-table tbody > tr > th::before,
+  .cus-dashboard-table tbody > tr > td::before { display: none; }
+  .cus-dashboard-table .cus-inline-trigger {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-content: start;
+    gap: 3px;
+    height: 100%;
+    min-height: 44px;
+    padding: 7px 8px;
+  }
+  .cus-dashboard-table .cus-inline-trigger::before {
+    position: static;
+    width: auto;
+    color: var(--ink-3);
+    content: attr(data-cell-label);
+    font-size: var(--text-label-size);
+    font-weight: var(--fw-medium);
+    line-height: 1.3;
+    white-space: normal;
+  }
+  .cus-dashboard-table .cus-multiline-cell strong,
+  .cus-dashboard-table .cus-multiline-cell span {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .cus-dashboard-table .cus-classification {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    align-content: start;
+    gap: 4px 6px;
+    min-height: 0;
+  }
+  .cus-dashboard-table .cus-classification__shipping-line { flex-basis: 100%; }
+  .cus-dashboard-table .cus-classification .cus-direction-badge { margin: 0; }
+  .cus-dashboard-table tbody > tr.cus-dashboard-row--waiting > td[data-label='Lịch trình & điều xe'] {
+    background: transparent;
+  }
+  .cus-dashboard-table .cus-dashboard-cell--empty-notes .cus-inline-trigger {
+    min-height: 32px;
+    align-content: center;
+  }
+  .cus-dashboard-cell--empty-notes .cus-inline-trigger::before { display: none; }
+  .cus-dashboard-table tbody > tr > td:last-child { border-bottom: 0; }
+  .cus-dashboard-table .cus-row-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+  }
+  .cus-dashboard-table .cus-row-actions__summary { display: flex; flex-wrap: wrap; gap: 4px 8px; }
+  .cus-dashboard-table .cus-row-actions__buttons { margin: 0 0 0 auto; padding: 0; border: 0; }
+}
+
+@media (max-width: 620px) {
+  .cus-quick-edit-modal__fields { grid-template-columns: 1fr; }
+  .cus-quick-edit-modal__fields input,
+  .cus-quick-edit-modal__fields select { min-height: 44px; }
+  .cus-quick-edit-modal__fields .ds-uui-select button { min-height: 44px; }
+  .cus-quick-edit-modal__action { min-height: 44px; }
+}
+
+/* This is an operational ledger, not a reading page. Keep the title close to
+   the workspace so the first row stays useful on a normal desktop viewport. */
+.shipments-page > .page-header {
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+/* Operational ledgers need a broad canvas, but an unlimited canvas makes the
+   columns feel detached on ultrawide displays. Keep one shared measure with
+   the detail workboard while retaining the complete available width below it. */
+.app-main:not(.driver-mode) .app-body > .shipments-page {
+  width: min(100%, 1800px);
+  max-width: 1800px;
+  margin-inline: auto;
+}
+
+.cus-workspace {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--app-radius-md);
+  background: var(--surface);
+}
+
+/* This worksheet owns a data grid, not a card. Keep the modifier adjacent to
+   the base rule and more specific so later base declarations cannot recreate
+   the rounded container around filters, actions, and the table. */
+.cus-workspace.cus-workspace--worksheet {
+  min-width: 0;
+  container-type: inline-size;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  /* No card chrome to clip: undo the base overflow so the table's sticky
+     thead can pin against the app-body scrollport. */
+  overflow: visible;
+}
+
+.cus-search-field,
+.cus-action-reason {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.cus-search-field > label,
+.cus-action-reason > span {
+  color: var(--ink-2);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+}
+
+.cus-search-field__control {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--app-radius-sm);
+  background: var(--surface);
+  color: var(--ink-3);
+}
+
+.cus-search-field__control:focus-within {
+  border-color: var(--accent);
+  outline: 2px solid color-mix(in srgb, var(--accent) 20%, transparent);
+  outline-offset: 1px;
+}
+
+.cus-search-field__control input {
+  flex: 1;
+  min-width: 0;
+  height: 42px;
+  padding: 0 9px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+}
+
+.cus-action-reason textarea {
+  width: 100%;
+  min-height: 44px;
+  padding: 9px 11px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--app-radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+}
+
+.cus-action-reason textarea:focus-visible {
+  border-color: var(--accent);
+  outline: 2px solid color-mix(in srgb, var(--accent) 24%, transparent);
+  outline-offset: 1px;
+}
+
+.cus-icon-button {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  border: 0;
+  border-radius: var(--app-radius-sm);
+  background: transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.cus-icon-button:hover {
+  background: var(--surface-3);
+  color: var(--accent-2);
+}
+
+.cus-icon-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.cus-field-error {
+  color: var(--danger-text);
+  font-size: var(--fs-xs);
+}
+
+.cus-notice {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 6px 0 0;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: var(--fs-sm);
+}
+
+.cus-notice::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: var(--status-strip-width);
+  height: var(--status-strip-height);
+  border-radius: var(--status-strip-radius);
+  background: var(--line);
+  transform: translateY(-50%);
+  content: '';
+  pointer-events: none;
+}
+
+.cus-notice--success {
+  background: transparent;
+  color: var(--success-text);
+}
+
+.cus-notice--success::before {
+  background: var(--success);
+}
+
+.cus-notice--error {
+  background: transparent;
+  color: var(--danger-text);
+}
+
+.cus-notice--error::before {
+  background: var(--danger);
+}
+
+.cus-loading,
+.cus-detail-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 180px;
+  color: var(--ink-3);
+}
+
+.cus-finance-evidence {
+  display: grid;
+  gap: 10px;
+  color: var(--ink-2);
+
+}
+
+.cus-finance-loss,
+.cus-finance-quiet,
+.cus-finance-confirmation {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.cus-finance-loss {
+  color: var(--danger-text);
+}
+
+.cus-finance-quiet {
+  color: var(--ink-3);
+}
+
+.cus-finance-evidence span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cus-finance-evidence small {
+  color: var(--ink-3);
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-semibold);
+  line-height: 1.3;
+}
+
+.cus-finance-evidence strong {
+  color: currentColor;
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-semibold);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+/* Confirmation modifier emitted dynamically:
+   `cus-finance-confirmation--${confirmationIsCurrent ? 'confirmed' : 'attention'}` */
+.cus-finance-confirmation--confirmed {
+  color: var(--success-text);
+}
+
+.cus-finance-confirmation--attention {
+  color: var(--warning-deep);
+}
+
+.cus-finance-evidence strong { }
+
+.cus-workflow-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  width: max-content;
+  max-width: 100%;
+  padding: 3px 7px;
+  /* Transparent on all badges so a bordered variant keeps sibling metrics.
+     Must stay above the bucket modifiers: the border shorthand's
+     border-color would otherwise override their border-color by order. */
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-semibold);
+}
+
+/* Workflow badge modifiers emitted dynamically:
+   `cus-workflow-badge--${item.bucket.toLowerCase()}` */
+/* The neutral NEW fill is barely distinguishable as a pill on plain surface
+   cells; a hairline edge defines it without turning it into an alarm color. */
+.cus-workflow-badge--new {
+  border-color: var(--line-2);
+  background: var(--surface-3);
+  color: var(--ink-2);
+}
+
+.cus-workflow-badge--running {
+  background: var(--info-soft);
+  color: var(--info-text);
+}
+
+.cus-workflow-badge--pending_lock {
+  background: var(--warning-soft);
+  color: var(--warning-text);
+}
+
+.cus-workflow-badge--locked {
+  background: var(--slate-5);
+  color: var(--slate-4);
+}
+
+.cus-row-actions__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 1px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.cus-dashboard-delete {
+  min-height: 34px;
+  padding-inline: 8px;
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-semibold);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* The Trạng thái column (fixed table-layout, ~150-170px of usable width at
+   every breakpoint down to the mobile card view) never has room for \"Xóa\" +
+   \"Chi tiết\" as full-text buttons side by side. Drop the \"Xóa\" label and
+   keep the icon so the pair never wraps onto two lines — the aria-label
+   still names the action for assistive tech. */
+.cus-dashboard-delete[data-text],
+.cus-dashboard-delete [data-text] {
+  display: none !important;
+}
+
+.cus-signals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 5px;
+}
+
+/* Signal modifiers emitted dynamically: `cus-signal--${signal.tone}` */
+.cus-signal {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: max-content;
+  padding: 3px 7px;
+  border-radius: 999px;
+  font-size: var(--text-caption-size);
+  font-style: normal;
+  font-weight: var(--fw-semibold);
+  line-height: 1.3;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.cus-signal--danger {
+  background: var(--danger-soft);
+  color: var(--danger-text);
+}
+
+.cus-signal--warning {
+  background: var(--warning-soft);
+  color: var(--warning-text);
+}
+
+.cus-signal--info {
+  background: var(--info-soft);
+  color: var(--info-text);
+}
+
+.cus-action-reason {
+  margin-top: 16px;
+}
+
+.cus-action-reason textarea {
+  resize: vertical;
+}
+
+.cus-action-reason small {
+  color: var(--ink-3);
+  text-align: right;
+}
+
+.cus-shipment-drawer {
+  width: min(1180px, 100vw);
+  max-width: min(1180px, 100vw);
+  background: var(--surface);
+  container-name: shipment-drawer;
+  container-type: inline-size;
+}
+
+.cus-shipment-drawer .drawer__head {
+  min-height: 76px;
+  padding: 16px 28px;
+  background: var(--surface);
+}
+
+.cus-shipment-drawer .drawer__heading {
+  gap: 10px;
+}
+
+.cus-shipment-drawer .drawer__title {
+  margin-bottom: 2px;
+  font-size: var(--text-dialog-title-size);
+  line-height: 1.2;
+}
+
+.cus-shipment-drawer .drawer__subtitle {
+  font-family: var(--font-data);
+  font-size: var(--text-caption-size);
+  line-height: 1.35;
+}
+
+.cus-shipment-drawer .drawer__body {
+  padding: 0 0 72px;
+}
+
+.cus-container-ledger {
+  display: grid;
+  gap: 0;
+  padding: 12px 20px 20px;
+  background: var(--surface);
+}
+
+.cus-container-ledger__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 36px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.cus-container-ledger__head > div {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.cus-container-ledger__actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.cus-container-edit-action {
+  border-radius: var(--app-radius-md);
+  box-shadow: none;
+}
+
+.cus-container-ledger__head strong {
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: var(--text-body-size);
+}
+
+.cus-container-ledger__head span {
+  color: var(--ink-3);
+  font-family: var(--font-data);
+  font-size: var(--fs-xs);
+
+}
+
+.cus-container-table-scroll {
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface);
+  scrollbar-color: color-mix(in srgb, var(--accent-2) 28%, transparent) transparent;
+  scrollbar-width: thin;
+}
+
+.cus-container-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  background: var(--surface);
+}
+
+/* Percentage columns sum to 100% so the fixed-layout table always fits its
+ * container — no horizontal scroll at any drawer width. */
+.cus-container-col__identity { width: 11%; }
+.cus-container-col__type { width: 7%; }
+.cus-container-col__route { width: 17%; }
+.cus-container-col__dispatch { width: 9%; }
+.cus-container-col__carrier { width: 15%; }
+.cus-container-col__plate { width: 9%; }
+.cus-container-col__site { width: 10%; }
+.cus-container-col__appointment { width: 12%; }
+
+.cus-container-table th,
+.cus-container-table td {
+  min-width: 0;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.cus-container-table th:last-child,
+.cus-container-table td:last-child { border-right: 0; }
+.cus-container-table tbody tr:last-child > * { border-bottom: 0; }
+
+.cus-container-table thead th {
+  padding: 8px 6px;
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-size: var(--text-caption-size);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1.3;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.cus-container-table tbody th,
+.cus-container-table tbody td {
+  padding: 8px 6px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-medium);
+  line-height: 1.35;
+  vertical-align: middle;
+  overflow-wrap: anywhere;
+  /* The legacy global table rule makes body cells nowrap. Reset it here so
+     long site and carrier names stay within their own fixed columns. */
+  white-space: normal;
+}
+
+.cus-container-table tbody .csc-container-cell {
+  padding: 0;
+  vertical-align: middle;
+}
+
+.cus-container-cell > strong { font: inherit; }
+
+/* Drawer ledger cells must share one typography scale. The base
+ * `.csc-container-cell__display` rule hard-codes 13px for the create-form
+ * spreadsheet, which leaves the Biển số / Nâng / Hạ / Giờ hẹn rows in the
+ * read-only CuS container ledger visually offset from the same column on
+ * rows that are still editable. Inherit the parent td's 12px / medium so
+ * both branches render at the same size — only the placeholder tone (and
+ * any hover/focus ring) should differ. */
+.cus-container-cell .csc-container-cell__display {
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+}
+
+.cus-container-cell--identity {
+  font-family: var(--font-data);
+  font-weight: var(--fw-semibold) !important;
+  vertical-align: middle;
+}
+
+.cus-container-cell__identity-inner {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: baseline;
+  gap: 8px;
+}
+
+.cus-container-row__ordinal {
+  color: var(--ink-3);
+  font-size: var(--text-caption-size);
+  line-height: 1;
+  text-align: right;
+  min-width: 14px;
+}
+
+/* Dispatch modifier emitted dynamically:
+   `cus-container-dispatch--${line.dispatchStatus.toLowerCase()}` */
+.cus-container-dispatch {
+  display: inline-flex;
+  max-width: 100%;
+  padding: 2px 6px;
+  border-radius: 999px;
+  color: var(--ink-2);
+  background: var(--surface-2);
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-semibold);
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+/* Text-only dispatch chips (2026-09-08): the tinted blob backgrounds were
+ * visual noise in the ledger — tone now survives via text color alone.
+ * AWAITING_VEHICLE (\"Chờ phân xe\") keeps the warning tone: it is the state
+ * that needs dispatch action. PLANNED (\"Đã phân xe\") reads as info: the
+ * vehicle is on the line, dispatch is done until the trip runs. */
+.cus-container-dispatch--awaiting-vehicle { color: var(--warning-text); background: transparent; }
+.cus-container-dispatch--planned { color: var(--info-text); background: transparent; }
+.cus-container-dispatch--created { color: var(--accent-strong); background: transparent; }
+.cus-container-dispatch--in_transit { color: var(--info-text); background: transparent; }
+.cus-container-dispatch--completed { color: var(--success-text); background: transparent; }
+
+.cus-container-cell input,
+.cus-container-cell .searchable-select__trigger {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 28px;
+  padding-inline: 6px;
+  border-radius: var(--app-radius-sm);
+  font-size: var(--text-caption-size);
+  line-height: 1.35;
+}
+
+.cus-container-cell :is(.searchable-select__value, .searchable-select__placeholder) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cus-container-cell input:focus-visible {
+  border-color: var(--accent);
+  outline: 2px solid color-mix(in srgb, var(--accent) 24%, transparent);
+  outline-offset: 1px;
+}
+
+.cus-detail-collapse {
+  position: sticky;
+  right: 10px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 36px;
+  padding: 7px 9px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--app-radius-sm);
+  background: var(--surface);
+  color: var(--ink-2);
+  font: inherit;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+}
+
+.cus-detail-collapse:hover {
+  border-color: var(--accent-2);
+  color: var(--accent-2);
+}
+
+.cus-detail-collapse:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+.cus-detail-collapse:disabled:hover {
+  border-color: var(--line-strong);
+  color: var(--ink-2);
+}
+
+.cus-detail-collapse:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.cus-carrier-editor {
+  display: grid;
+  gap: 3px;
+}
+
+.cus-carrier-editor__switch {
+  width: fit-content;
+  min-height: 20px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent-2);
+  font: inherit;
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-semibold);
+  text-align: left;
+  cursor: pointer;
+}
+
+.cus-container-row__error {
+  display: block;
+  margin-top: 4px;
+  color: var(--danger-text);
+  font-size: var(--text-caption-size);
+  line-height: 1.3;
+}
+
+.cus-discard-confirmation {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--warning) 36%, var(--line));
+  border-radius: var(--app-radius-sm);
+  background: var(--warning-soft);
+  color: var(--warning-text);
+  font-size: var(--fs-xs);
+}
+
+.cus-discard-confirmation > span { margin-right: auto; }
+
+.cus-detail-empty {
+  margin: 0;
+  padding: 16px;
+  color: var(--ink-3);
+  text-align: center;
+}
+
+.cus-inline-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 120px;
+  padding: 20px;
+  color: var(--danger-text);
+}
+
+.cus-inline-error button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-weight: var(--fw-semibold);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.cus-detail-content {
+  overflow: visible;
+  border-top: 0;
+}
+
+@container shipment-drawer (max-width: 700px) {
+  .cus-drawer-decision-grid { grid-template-columns: 1fr 1fr; }
+  .cus-drawer-decision,
+  .cus-drawer-decision:first-child,
+  .cus-drawer-decision:last-child {
+    padding-inline: 14px;
+  }
+  .cus-drawer-decision:nth-child(2) { border-right: 0; }
+  .cus-drawer-decision--finance {
+    grid-column: 1 / -1;
+    border-top: 1px solid var(--line);
+  }
+  .cus-drawer-decision--finance .cus-finance-evidence {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@container shipment-drawer (max-width: 760px) {
+  .cus-container-table-scroll {
+    overflow: visible;
+    border: 0;
+    background: transparent;
+  }
+
+  .cus-container-table,
+  .cus-container-table tbody {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    background: transparent;
+  }
+
+  .cus-container-table colgroup,
+  .cus-container-table thead { display: none; }
+  .cus-container-table tbody { display: grid; gap: 8px; }
+
+  .cus-container-table .cus-container-row {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 10px;
+    padding: 10px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+  }
+
+  .cus-container-table .cus-container-row > * {
+    display: grid;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    text-align: left;
+  }
+
+  .cus-container-table .cus-container-cell::before {
+    margin-bottom: 4px;
+    color: var(--ink-3);
+    content: attr(data-label);
+    font-size: var(--text-label-size);
+    font-weight: var(--fw-semibold);
+    line-height: 1.3;
+    text-transform: uppercase;
+  }
+
+  .cus-container-table .cus-container-cell--identity {
+    grid-column: 1 / -1;
+    min-height: 28px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .cus-container-table .cus-container-cell--identity .cus-container-cell__identity-inner {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+
+  .cus-container-row-error {
+    display: block;
+    width: 100%;
+  }
+
+  .cus-container-row-error__cell {
+    display: block;
+    padding: 0 !important;
+    border: 0;
+  }
+
+  .cus-container-table .cus-container-row__ordinal {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+  }
+}
+
+@media (max-width: 1039px) {
+  .cus-shipment-drawer {
+    width: min(100vw, 620px);
+    max-width: min(100vw, 620px);
+  }
+}
+
+@media (max-width: 560px) {
+  .shipments-page {
+    gap: 14px;
+  }
+
+  .cus-workspace {
+    margin-inline: 0;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .cus-notice {
+    align-items: flex-start;
+    margin-inline: 0;
+  }
+
+  .shipments-page .ds-pagination__controls {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .cus-shipment-drawer .drawer__head {
+    gap: 10px;
+    padding: calc(16px + env(safe-area-inset-top, 0px)) 18px 12px;
+  }
+
+  .cus-shipment-drawer .drawer__title {
+    font-size: var(--text-dialog-title-size);
+    line-height: 1.2;
+  }
+
+  .cus-shipment-drawer .drawer__body {
+    padding: 0 0 56px;
+  }
+
+  .cus-drawer-workflow {
+    gap: 10px;
+    padding: 14px 18px;
+  }
+
+  .cus-drawer-workflow__heading {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .cus-drawer-decision-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .cus-drawer-decision,
+  .cus-drawer-decision:first-child,
+  .cus-drawer-decision:last-child {
+    grid-column: auto;
+    padding: 13px 0;
+    border-right: 0;
+    border-top: 1px solid var(--line);
+  }
+
+  .cus-drawer-decision:first-child { border-top: 0; }
+
+  .cus-drawer-decision--finance .cus-finance-evidence {
+    grid-template-columns: 1fr;
+  }
+
+  .cus-drawer-workflow__action {
+    align-items: stretch;
+    flex-direction: column;
+    padding: 13px 14px;
+  }
+
+  .cus-drawer-primary-action {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .cus-shipment-drawer .cus-container-ledger {
+    padding: 16px 18px 24px;
+  }
+
+  .cus-container-table .cus-container-cell input,
+  .cus-container-table .cus-container-cell .searchable-select__trigger {
+    min-height: 44px;
+    font-size: var(--control-field-font-size);
+  }
+
+  .cus-container-edit-action {
+    min-width: 96px;
+    min-height: 44px;
+    border-radius: var(--app-radius-md);
+    box-shadow: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shipments-page *,
+  .shipments-page *::before,
+  .shipments-page *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
+/* Dirty-row confirm pair floats over the rows below the Giờ hẹn đóng/trả
+ * input (customer feedback 2026-09-08: an in-flow pair stretched the row —
+ * the pair must overlay like the native calendar picker, not take part in
+ * the cell layout). Text-only compact buttons keep the popover unobtrusive. */
+.cus-container-table .cus-container-cell {
+  /* Anchor for the floating confirm popover; also lets the editing cell's
+   * stacking context rise above later rows while it owns focus. */
+  position: relative;
+}
+
+.cus-container-table .cus-container-cell:focus-within {
+  z-index: 6;
+}
+
+/* Appointment compact cell and bounded popover */
+.cus-appointment-cell {
+  position: relative;
+}
+
+.cus-appointment-trigger {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  min-height: 28px;
+  padding: 2px 6px;
+  border: 1px solid var(--line, #e2e8f0);
+  border-radius: var(--app-radius-sm, 6px);
+  background: var(--surface, #ffffff);
+  color: var(--ink-1, #0f172a);
+  font-family: inherit;
+  font-size: var(--text-caption-size);
+  line-height: 1.3;
+  text-align: left;
+  cursor: pointer;
+  transition: all 120ms ease;
+  box-sizing: border-box;
+}
+
+.cus-appointment-trigger:hover {
+  border-color: var(--brand-600, #005a2d);
+  background: var(--surface-2, #f8fafc);
+}
+
+.cus-appointment-trigger:focus-visible {
+  outline: 2px solid var(--brand-600, #005a2d);
+  outline-offset: 1px;
+}
+
+.cus-appointment-trigger--active {
+  border-color: var(--brand-600, #005a2d);
+  background: var(--surface-2, #f1f5f9);
+  box-shadow: 0 0 0 1px var(--brand-600, #005a2d);
+}
+
+.cus-appointment-trigger__icon {
+  flex-shrink: 0;
+  color: var(--brand-600, #005a2d);
+}
+
+.cus-appointment-trigger__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.cus-appointment-trigger__text--empty {
+  color: var(--ink-3, #94a3b8);
+  font-weight: 400;
+}
+
+/* Fixed backdrop to catch outside clicks and close popover cleanly */
+.cus-appointment-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1040;
+  background: transparent;
+}
+
+/* In-app Bounded Appointment Popover */
+.cus-appointment-popover {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 1050;
+  width: 275px;
+  max-width: calc(100vw - 32px);
+  padding: 12px;
+  border: 1px solid var(--line-strong, #cbd5e1);
+  border-radius: var(--app-radius-sm, 8px);
+  background: var(--surface, #ffffff);
+  box-shadow: 0 12px 28px -4px rgba(15, 23, 42, 0.16), 0 4px 10px -2px rgba(15, 23, 42, 0.08);
+  animation: cusAppointmentPopIn 130ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes cusAppointmentPopIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.cus-appointment-popover__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line, #e2e8f0);
+}
+
+.cus-appointment-popover__title {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--ink-1, #0f172a);
+  font-size: var(--text-section-size);
+  font-weight: 600;
+}
+
+.cus-appointment-popover__title svg {
+  color: var(--brand-600, #005a2d);
+}
+
+.cus-appointment-popover__badge {
+  font-size: var(--text-caption-size);
+  font-weight: 500;
+  color: var(--ink-3, #64748b);
+  background: var(--surface-2, #f1f5f9);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.cus-appointment-popover__close {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ink-3, #64748b);
+  cursor: pointer;
+}
+
+.cus-appointment-popover__close:hover {
+  background: var(--surface-2, #f1f5f9);
+  color: var(--ink-1, #0f172a);
+}
+
+.cus-appointment-popover__section-label {
+  margin-bottom: 4px;
+  color: var(--ink-3, #64748b);
+  font-size: var(--text-label-size);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.cus-appointment-popover__pills {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.cus-quick-pill {
+  flex: 1;
+  padding: 4px 6px;
+  border: 1px solid var(--line, #e2e8f0);
+  border-radius: 5px;
+  background: var(--surface-2, #f8fafc);
+  color: var(--ink-2, #334155);
+  font-family: inherit;
+  font-size: var(--text-control-compact-size);
+  font-weight: 500;
+  text-align: center;
+  cursor: pointer;
+  transition: all 100ms;
+}
+
+.cus-quick-pill:hover {
+  background: var(--surface, #ffffff);
+  border-color: var(--brand-600, #005a2d);
+  color: var(--brand-600, #005a2d);
+}
+
+.cus-quick-pill.is-active {
+  background: var(--brand-600, #005a2d);
+  border-color: var(--brand-600, #005a2d);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.cus-appointment-popover__inputs {
+  display: grid;
+  /* Một trường \"Ngày giờ\" 24h duy nhất (\"HH:mm DD/MM/YYYY\") — input văn bản
+     theo hợp đồng ngày+giờ kết hợp, pill nhanh bên dưới vẫn là đường tắt. */
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.cus-appointment-input-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cus-appointment-input-wrap label {
+  color: var(--ink-3, #64748b);
+  font-size: var(--text-label-size);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.cus-appointment-input {
+  width: 100%;
+  height: 30px;
+  padding: 2px 6px;
+  border: 1px solid var(--line-strong, #cbd5e1);
+  border-radius: 5px;
+  background: var(--surface, #ffffff);
+  color: var(--ink-1, #0f172a);
+  font-family: inherit;
+  font-size: var(--control-field-font-size);
+  box-sizing: border-box;
+}
+
+.cus-appointment-input:focus {
+  outline: 2px solid var(--brand-600, #005a2d);
+  outline-offset: -1px;
+}
+
+/* Calendar affordance: the visible button opens the browser picker through a
+   clipped (not display:none) native input — display:none pickers are refused
+   by some engines. The 24h text entry beside it stays the typed path. */
+.cus-appointment-input-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cus-appointment-picker-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.cus-appointment-picker-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 30px;
+  flex: 0 0 28px;
+  border: 1px solid var(--line-strong, #cbd5e1);
+  border-radius: 5px;
+  background: var(--surface, #ffffff);
+  color: var(--ink-2, #334155);
+  cursor: pointer;
+}
+
+.cus-appointment-picker-btn:hover {
+  background: var(--surface-2, #f1f5f9);
+  color: var(--brand-600, #005a2d);
+}
+
+.cus-appointment-popover__times {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.cus-time-pill {
+  flex: 1;
+  padding: 3px 2px;
+  border: 1px solid var(--line, #e2e8f0);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ink-2, #475569);
+  font-family: inherit;
+  font-size: var(--text-control-compact-size);
+  text-align: center;
+  cursor: pointer;
+  transition: all 100ms;
+}
+
+.cus-time-pill:hover {
+  background: var(--surface-2, #f1f5f9);
+  color: var(--brand-600, #005a2d);
+}
+
+.cus-time-pill.is-active {
+  background: var(--surface-2, #f1f5f9);
+  border-color: var(--brand-600, #005a2d);
+  color: var(--brand-600, #005a2d);
+  font-weight: 600;
+}
+
+.cus-appointment-popover__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line, #e2e8f0);
+}
+
+.cus-appointment-popover__clear {
+  padding: 2px 4px;
+  border: 0;
+  background: transparent;
+  color: var(--danger, #dc2626);
+  font-family: inherit;
+  font-size: var(--text-control-compact-size);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.cus-appointment-popover__clear:hover {
+  color: #b91c1c;
+}
+
+.cus-appointment-popover__hint {
+  font-size: var(--text-caption-size);
+  color: var(--ink-3, #94a3b8);
+}
+
+.cus-container-row--dirty {
+  background-color: rgba(0, 90, 45, 0.04) !important;
+}
+
+/* Consolidated Drawer Footer */
+.cus-drawer-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+}
+
+.cus-drawer-footer__status {
+  font-size: var(--text-data-size);
+  color: var(--ink-2, #475569);
+}
+
+.cus-drawer-footer__dirty-note {
+  color: var(--brand-700, #005a2d);
+  font-weight: 500;
+}
+
+.cus-drawer-footer__clean-note {
+  color: var(--ink-3, #94a3b8);
+}
+
+.cus-drawer-footer__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cus-drawer-footer__actions .btn {
+  min-height: 34px;
+  padding: 4px 16px;
+  font-size: var(--text-caption-size);
+  font-weight: 600;
+  border-radius: var(--app-radius-sm, 6px);
+}
+
+.cus-container-ledger__sticky-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  margin-top: 8px;
+  background: var(--surface-2, #f8fafc);
+  border: 1px solid var(--line, #e2e8f0);
+  border-radius: var(--app-radius-sm, 6px);
+}
+
+.cus-container-ledger__sticky-note {
+  font-size: var(--text-caption-size);
+  color: var(--brand-700, #005a2d);
+  font-weight: 500;
+}
+
+.cus-container-cell .cus-container-confirm-group--floating,
+.cus-container-ledger__sticky-bar .cus-container-confirm-group--floating {
+  display: flex;
+  gap: 6px;
+  width: max-content;
+}
+
+/* Text-only compact pair: matches the ledger's 11px cell scale instead of
+ * the default .btn--sm chrome. */
+.cus-container-confirm-group--floating .btn {
+  min-height: 26px;
+  padding: 2px 10px;
+  font-size: var(--text-caption-size);
+  white-space: nowrap;
+}
+.cus-container-confirm--floating {
+  background-color: var(--brand-600, #005a2d) !important;
+  color: #fff !important;
+}
+
+.cus-container-row-error {
+  background: var(--surface);
+}
+.cus-container-row-error__cell {
+  padding: 6px 12px !important;
+  background: var(--surface-2, #f8fafc);
+  border-bottom: 1px solid var(--line);
+}
+.cus-container-row-error__banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: var(--app-radius-sm, 6px);
+  background: var(--danger-soft, #fef2f2);
+  border: 1px solid var(--danger-line, #fecaca);
+  color: var(--danger-text, #991b1b);
+  font-size: var(--text-caption-size);
+  line-height: 1.4;
+  position: sticky;
+  left: 0;
+  max-width: calc(100vw - 48px);
+}
+.cus-container-row-error__text {
+  flex: 1;
+  word-break: break-word;
+}
+.cus-container-row-error__dismiss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  margin: -4px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  opacity: 0.7;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.cus-container-row-error__dismiss:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.05);
+}
+.cus-container-confirm:focus-visible,
+.cus-container-revert:focus-visible {
+  outline: 2px solid var(--accent, #2563eb);
+  outline-offset: 2px;
+}
+
+/* Secondary filters use the shared button and a full-width disclosure. */
+.cus-advanced-toggle,
+.cus-active-filter-summary { display: none; }
+.cus-worksheet-advanced {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px 12px;
+  min-width: 0;
+  align-items: end;
+}
+@media (max-width: 1279px) and (min-width: 1024px) {
+  .cus-worksheet-toolbar__filters { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 1023px) {
+  .cus-worksheet-toolbar__filters { grid-template-columns: minmax(0, 1fr) auto; gap: 6px 8px; }
+  .cus-worksheet-toolbar__filters .cus-advanced-toggle { display: inline-flex; }
+  .cus-active-filter-summary {
+    display: block;
+    grid-column: 1 / -1;
+    color: var(--ink-2);
+    font-size: var(--text-caption-size);
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+  }
+  .cus-worksheet-advanced {
+    display: none;
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+  .cus-worksheet-advanced[data-open] { display: grid; }
+}
+/* Anchored editors must remain reachable with the keyboard open or in landscape. */
+.cus-appointment-popover {
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.cus-appointment-popover__error {
+  margin: 8px 0;
+  color: var(--danger-text);
+  font-size: var(--text-caption-size);
+  line-height: 1.4;
+}
+.cus-appointment-popover__footer { gap: 8px; flex-wrap: wrap; }
+@media (prefers-reduced-motion: reduce) {
+  .cus-appointment-popover { animation: none; }
+}
+
+/* _35: multiline note previews keep their typed line breaks (user-ruled).
+   2-line clamp + ellipsis; the drawer/detail surfaces show the full note. */
+.cus-note-clamp {
+  white-space: pre-wrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+/* _35 specificity override: .cus-note-preview > span (0,1,1) was stomping
+   .cus-note-clamp (0,1,0). Scoped child selector wins. */
+.cus-note-preview > .cus-note-clamp {
+  white-space: pre-wrap;
+}
+"
+
+ ❯ src/pages/RoleWorkspacePagination.styles.test.ts:26:17
+     24|     const css = readPageCss('ShipmentsPage.css');
+     25|
+     26|     expect(css).toMatch(/@media \(max-width:\s*700px\)[\s\S]*?\.cus-wo…
+       |                 ^
+     27|   });
+     28| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/8]⎯
+
+ FAIL  src/pages/clerk/ClerkShipmentCreatePage.styles.test.ts > shipment create responsive layout > fills the desktop workspace while keeping short-value columns compact
+AssertionError: expected '.app-main:has(.csc-page) { background…' to match /\.csc-container-table\s*\{[^}]*width:…/
+
+- Expected:
+/\.csc-container-table\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*1176px;[^}]*table-layout:\s*fixed;/
+
++ Received:
+".app-main:has(.csc-page) { background: var(--surface-3); }
+/* This wide spreadsheet needs more usable columns than the standard page
+   canvas; retain only a minimal, safe-area-aware outer gutter. */
+.app-main:has(.csc-page) .app-body { --app-body-pad-x: 8px; }
+/* Shipment entry is an operational worksheet: let its cards use the full
+   shell canvas, while the app shell remains the single safe outer gutter. */
+.app-main:not(.driver-mode) .app-body > .csc-page { width: 100%; max-width: none; margin-inline: 0; }
+.csc-page { width: 100%; margin: 0; padding: 12px 0 28px; min-width: 0; }
+.csc-page__title { margin: 0 0 14px; font-size: var(--text-title-size); line-height: 1.2; color: var(--fg-1, #101510); font-weight: 700; }
+/* LCL split-lot extra delivery dates (Create Shipment doc Block 2B \"[+]\" repeater). */
+.csc-extra-dates { display: grid; gap: 8px; justify-items: start; min-width: 0; }
+.csc-extra-dates__row { display: flex; align-items: flex-end; gap: 8px; min-width: 0; }
+.csc-extra-dates__row > div:first-child { flex: 1 1 220px; min-width: 0; }
+.csc-back { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 8px 4px; border: 0; background: none; color: var(--fg-2); font: inherit; font-weight: 650; cursor: pointer; }
+.csc-workspace { display: grid; gap: 12px; min-width: 0; }
+.csc-form { display: grid; gap: 12px; min-width: 0; }
+.csc-section { padding: 18px !important; gap: 14px !important; border: 0 !important; border-radius: 14px !important; background: var(--surface) !important; scroll-margin-top: 16px; }
+.csc-section:focus { outline: none; }
+.csc-section:focus-visible { outline: 3px solid var(--brand-subtle); outline-offset: 2px; }
+.csc-section__heading { display: flex; gap: 10px; align-items: center; margin: -18px -18px 0; padding: 16px 18px; border-bottom: 1px solid var(--line); border-radius: 14px 14px 0 0; background: var(--surface-2); }
+.csc-section__heading h2 { margin: 0; color: var(--fg-1); font-size: var(--text-section-size); font-weight: 700; line-height: 1.3; }
+.csc-section__heading p { margin: 2px 0 0; color: var(--fg-3); font-size: var(--text-data-size); line-height: 1.4; }
+/* Single visible boundary per control: the `csc-control-boundary` class on
+   each field adapter owns the wrapper border/focus ring (and gives headless
+   QA a solid, screenshot-visible control edge). Inputs nested inside an
+   adapter — the ComboBox's transparent overlay input, the InputField inner
+   input — stay transparent and borderless so no control ever renders two
+   nested boxes. */
+.csc-searchable-field { display: grid; gap: 8px; align-content: start; min-width: 0; }
+/* Field-label parity: combobox and text/date labels join the select family's
+   dense 12px/18px semibold label (the UUI defaults differ per component). */
+.csc-searchable-field label,
+.csc-uui-field label { color: var(--fg-1); font-size: var(--text-label-size); line-height: 18px; font-weight: 600; }
+/* Selects migrated to the shared adapter: `ds-uui-*` classes
+ * (design-system/forms/UuiSelectField.css, global) own the visuals. The
+ * `csc-select-field` / `csc-select-popover` names survive as test markers. */
+.csc-identity-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 12px; min-width: 0; }
+.csc-identity-grid > * { min-width: 0; }
+.csc-identity-grid__customer { grid-column: span 6; }
+.csc-identity-grid__booking, .csc-identity-grid__trade-direction { grid-column: span 3; }
+.csc-identity-grid__shipping-line, .csc-identity-grid__declaration { grid-column: span 6; }
+.csc-shipping-line-picker { display: grid; gap: 8px; align-content: start; min-width: 0; }
+.csc-shipping-line-picker__add { width: fit-content; white-space: nowrap; }
+.csc-shipping-line-dialog { display: grid; gap: 12px; }
+.csc-shipping-line-dialog > p { margin: 0; color: var(--fg-3); font-size: var(--text-data-size); line-height: 1.5; }
+.csc-shipping-line-dialog__error { padding: 9px 11px; border-radius: 8px; background: var(--danger-bg, rgb(220 38 38 / 8%)); color: var(--danger); font-size: var(--text-caption-size); line-height: 1.4; }
+.csc-shipping-line-dialog__name-action { display: flex; align-items: end; justify-content: flex-end; gap: 12px; min-width: 0; }
+.csc-shipping-line-dialog__name-field { flex: 1 1 240px; min-width: 0; }
+.csc-shipping-line-dialog__submit { flex: 0 0 auto; min-height: 38px; }
+.csc-route-picker { display: grid; gap: 8px; align-content: start; min-width: 0; }
+.csc-route-picker__add { width: fit-content; }
+.csc-route-dialog { display: grid; gap: 12px; }
+.csc-route-dialog > p { margin: 0; color: var(--fg-3); font-size: var(--text-data-size); line-height: 1.5; }
+.csc-route-dialog__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; min-width: 0; }
+.csc-route-dialog__error { padding: 9px 11px; border-radius: 8px; background: var(--danger-bg, rgb(220 38 38 / 8%)); color: var(--danger); font-size: var(--text-caption-size); line-height: 1.4; }
+.csc-route-dialog__distance-action { display: flex; align-items: end; justify-content: flex-end; gap: 12px; min-width: 0; }
+.csc-route-dialog__distance-field { flex: 0 1 184px; width: min(100%, 184px); min-width: 0; }
+.csc-route-dialog__submit { flex: 0 0 auto; min-height: 38px; }
+.csc-customer-popover { z-index: 50; min-width: min(32rem, calc(100vw - 32px)); max-width: calc(100vw - 32px); border: 1px solid var(--border-1); background: var(--surface, #fff); box-shadow: 0 12px 28px rgb(15 23 42 / 14%); }
+.csc-customer-popover .csc-customer-option [slot='label'] { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; line-height: 1.35; }
+.csc-customer-picker { display: grid; gap: 8px; align-content: start; min-width: 0; }
+.csc-customer-picker__add { width: fit-content; white-space: nowrap; }
+.csc-customer-picker > .csc-searchable-field { min-width: 0; }
+.csc-customer-dialog { display: grid; gap: 12px; }
+.csc-customer-dialog > p { margin: 0; color: var(--fg-3); font-size: var(--text-data-size); line-height: 1.5; }
+.csc-customer-dialog__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; min-width: 0; }
+.csc-customer-dialog__error { padding: 9px 11px; border-radius: 8px; background: var(--danger-bg, rgb(220 38 38 / 8%)); color: var(--danger); font-size: var(--text-caption-size); line-height: 1.4; }
+.csc-customer-dialog__submit { justify-self: end; min-height: var(--control-default-h); }
+.csc-field-hint, .csc-field-error { font-size: var(--text-caption-size); font-weight: 400; line-height: 1.45; }
+.csc-field-hint { color: var(--fg-3); }.csc-field-error { color: var(--danger); }
+.csc-site-guidance { position: relative; display: grid; gap: 4px; margin: -4px 0 0; padding: 11px 13px; border-radius: 7px; background: var(--warning-bg, #fff7ed); color: var(--fg-1); }
+.csc-site-guidance::before { position: absolute; top: 50%; left: 0; width: var(--status-strip-width); height: var(--status-strip-height); border-radius: var(--status-strip-radius); background: var(--warning, #d97706); transform: translateY(-50%); content: ''; pointer-events: none; }
+.csc-site-guidance strong { font-size: var(--text-data-size); }.csc-site-guidance p { margin: 0; line-height: 1.5; }
+.csc-mode { margin: 0; padding: 0; border: 0; min-width: 0; }
+.csc-mode legend { margin-bottom: 6px; font-size: var(--control-compact-font-size); font-weight: 700; line-height: var(--control-compact-line-height); }
+.csc-mode > div { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.csc-mode label { cursor: pointer; }.csc-mode input { position: absolute; opacity: 0; pointer-events: none; }
+.csc-mode__option { display: flex; align-items: center; gap: 8px; min-height: 38px; padding: 7px 10px; border: 1px solid var(--line-2); border-radius: 8px; background: var(--surface); color: var(--fg-2); font-size: var(--control-compact-font-size); font-weight: 700; line-height: var(--control-compact-line-height); transition: border-color 120ms ease, background-color 120ms ease, box-shadow 120ms ease; }
+.csc-mode__option::before { width: 16px; height: 16px; flex: 0 0 auto; border: 1.5px solid var(--line-2); border-radius: 50%; background: var(--surface); content: ''; }
+.csc-mode label:hover .csc-mode__option { border-color: var(--line-2); background: var(--surface-2); }
+.csc-mode input:checked + span { border-color: var(--ink); background: var(--surface); color: var(--fg-1); box-shadow: inset 3px 0 0 var(--ink); }
+.csc-mode input:checked + span::before { border-color: var(--ink); background: var(--ink); box-shadow: inset 0 0 0 4px var(--surface); }
+.csc-mode input:focus-visible + span { outline: 3px solid color-mix(in srgb, var(--accent-2) 18%, transparent); outline-offset: 2px; }
+.csc-cargo-choice-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); align-items: end; gap: 12px; min-width: 0; }
+.csc-fcl-factory-action { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; color: var(--fg-2); font-size: var(--text-caption-size); line-height: 1.4; }
+.csc-container-editor { display: grid; container-type: inline-size; width: 100%; min-width: 0; gap: 12px; }
+.csc-container-table-scroll { width: 100%; min-width: 0; overflow-x: auto; border: 1px solid var(--line-2); border-radius: 9px; background: var(--surface); scrollbar-color: color-mix(in srgb, var(--accent-2) 28%, transparent) transparent; scrollbar-width: thin; }
+.csc-container-table { width: 100%; min-width: 1038px; border-collapse: collapse; table-layout: fixed; background: var(--surface); }
+.csc-container-col__index { width: 40px; }
+.csc-container-col__number { width: 128px; }
+.csc-container-col__type { width: 104px; }
+.csc-container-col__route { width: 180px; }
+.csc-container-col__pickup-port, .csc-container-col__dropoff-port, .csc-container-col__factory, .csc-container-col__appointment { width: auto; }
+.csc-container-col__weight { width: 96px; }
+.csc-container-col__actions { width: 44px; }
+.csc-container-table th, .csc-container-table td { min-width: 0; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.csc-container-table th:last-child, .csc-container-table td:last-child { border-right: 0; }
+.csc-container-table tbody tr:last-child > * { border-bottom: 0; }
+.csc-container-table thead th { padding: 8px 6px; background: var(--surface-2); color: var(--fg-2); font-size: var(--text-caption-size); font-weight: 700; line-height: 1.35; text-align: left; white-space: normal; }
+.csc-container-table thead th:first-child, .csc-container-table thead th:last-child { text-align: center; }
+.csc-container-table tbody th, .csc-container-table tbody td { padding: 8px 6px; background: var(--surface); vertical-align: top; }
+.csc-container-table tbody th { color: var(--fg-3); font-size: var(--text-caption-size); text-align: center; }
+.csc-container-table tbody .csc-container-cell { padding: 0; vertical-align: middle; }
+.csc-container-table td:not(.csc-container-row__actions) > * { min-width: 0; }
+.csc-container-table select { width: 100%; min-width: 0; max-width: 100%; }
+.csc-container-row__mobile-index { display: none; }
+.csc-container-row__actions { text-align: center; }
+.csc-combined-toggle { display: flex; align-items: center; gap: 10px; min-width: 0; min-height: 38px; padding: 7px 10px; border: 1px solid var(--line-2); border-radius: 8px; background: var(--surface-2); cursor: pointer; }
+.csc-combined-toggle input { width: 18px; height: 18px; margin: 1px 0 0; accent-color: var(--accent-2); }
+.csc-combined-toggle span { display: grid; gap: 2px; color: var(--fg-2); font-size: var(--control-compact-font-size); line-height: var(--control-compact-line-height); }
+.csc-combined-toggle strong { color: var(--fg-1); }
+.csc-container-editor__allocation { display: flex; width: 100%; min-width: 0; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.csc-allocation-summary { display: grid; gap: 8px; min-width: 0; flex: 1 1 320px; }
+.csc-container-actions { display: flex; width: 100%; align-items: center; justify-content: flex-end; }
+.csc-container-add-control { display: inline-flex; align-items: center; gap: 6px; }
+.csc-container-add-control input { width: 68px; min-height: 38px; padding: 7px 8px; border: 1px solid var(--line-2); border-radius: 8px; background: var(--surface); color: var(--fg-1); font: inherit; font-size: var(--control-field-font-size); text-align: center; }
+.csc-container-add-control input:focus-visible { border-color: var(--accent-2); outline: 3px solid color-mix(in srgb, var(--accent-2) 18%, transparent); outline-offset: 1px; }
+.csc-container-add-control input[aria-invalid='true'] { border-color: var(--danger); }
+.csc-add-container { display: inline-flex; width: fit-content; justify-self: end; align-items: center; justify-content: center; gap: 6px; min-height: 38px; padding: 7px 12px; border: 1px solid color-mix(in srgb, var(--accent-2) 36%, var(--line-2)); border-radius: 8px; background: color-mix(in srgb, var(--accent-soft) 52%, var(--surface)); color: var(--accent-2); font: inherit; font-size: var(--text-control-size); font-weight: 700; cursor: pointer; }
+.csc-add-container svg { flex: 0 0 auto; }
+.csc-add-container:not(:disabled):hover { border-color: color-mix(in srgb, var(--accent-2) 58%, var(--line-2)); background: color-mix(in srgb, var(--accent-soft) 78%, var(--surface)); }
+.csc-add-container:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent-2) 18%, transparent); outline-offset: 2px; }
+.csc-add-container:disabled { cursor: not-allowed; opacity: .65; }
+.csc-site-picker { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; min-width: 0; }
+.csc-site-picker__actions { display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 8px; }
+.csc-utility-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: var(--control-compact-h, 34px); padding: 5px 12px; border: 1px solid var(--border-2); border-radius: 8px; background: var(--surface); color: var(--fg-2); font: inherit; font-size: var(--text-control-size); font-weight: 650; cursor: pointer; }
+/* The `--dashed` name survives as the JSX/test marker, but the accent action
+   is borderless — plus icon + label only (user request 2026-08-30). */
+.csc-utility-button--dashed { border: 0; background: transparent; color: var(--accent, #2563eb); font-weight: 700; }
+.csc-utility-button:disabled { cursor: not-allowed; opacity: .65; }
+.csc-icon-button { display: inline-grid; place-items: center; min-width: 38px; min-height: 38px; border: 0; border-radius: 8px; background: transparent; cursor: pointer; }
+.csc-icon-button--danger { color: var(--danger); }
+.csc-section textarea { width: 100%; min-height: 76px; resize: vertical; border: 1px solid var(--border-2); border-radius: 9px; padding: 8px 10px; color: var(--fg-1); background: var(--surface-2); }
+/* Retired with the shared adapter promotion: control boundary + popover skin
+ * now live in design-system/forms/UuiSelectField.css (`ds-uui-boundary`). The
+ * csc-control-boundary rules below remain for the clerk page's input/textarea
+ * fields (UTextField/UDateField), which still use the marker. */
+
+.csc-control-boundary > [role='presentation'],
+.csc-control-boundary [data-input-wrapper='true'],
+.csc-control-boundary [role='group'],
+.csc-control-boundary select,
+.csc-control-boundary textarea {
+  border: 1px solid color-mix(in srgb, var(--fg-1) 22%, transparent);
+  border-radius: 8px;
+  background: var(--surface, #fff);
+  box-shadow: none;
+  transition: border-color 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
+}
+.csc-control-boundary :where(input, select, textarea):focus-visible {
+  outline: none;
+  outline-offset: 0;
+}
+.csc-control-boundary:not(:focus-within):hover > [role='presentation'],
+.csc-control-boundary:not(:focus-within):hover [data-input-wrapper='true'],
+.csc-control-boundary:not(:focus-within):hover [role='group'],
+.csc-control-boundary:not(:focus-within):hover select,
+.csc-control-boundary:not(:focus-within):hover textarea {
+  border-color: color-mix(in srgb, var(--fg-1) 38%, transparent);
+}
+.csc-control-boundary:focus-within > [role='presentation'],
+.csc-control-boundary:focus-within [data-input-wrapper='true'],
+.csc-control-boundary:focus-within [role='group'],
+.csc-control-boundary:focus-within select,
+.csc-control-boundary:focus-within textarea {
+  border-color: var(--accent, #2563eb);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, #2563eb) 18%, transparent);
+}
+.csc-control-boundary:has([aria-invalid='true']) > [role='presentation'],
+.csc-control-boundary:has([aria-invalid='true']) [data-input-wrapper='true'],
+.csc-control-boundary:has([aria-invalid='true']) [role='group'],
+.csc-control-boundary:has([aria-invalid='true']) select,
+.csc-control-boundary:has([aria-invalid='true']) textarea {
+  border-color: var(--danger, #dc2626);
+}
+.csc-control-boundary:has(:disabled) > [role='presentation'],
+.csc-control-boundary:has(:disabled) [data-input-wrapper='true'],
+.csc-control-boundary:has(:disabled) [role='group'],
+.csc-control-boundary:has(:disabled) select,
+.csc-control-boundary:has(:disabled) textarea {
+  border-color: color-mix(in srgb, var(--fg-1) 12%, transparent);
+  background: var(--surface-2, #f8fafc);
+}
+.csc-summary { display: grid; gap: 12px; min-width: 0; }
+.csc-validation-summary, .csc-submit-error { padding: 16px; border: 1px solid var(--line-2); border-radius: 12px; background: var(--surface); }
+.csc-pricing { display: grid; gap: 10px; min-width: 0; }.csc-pricing > p, .csc-summary__muted, .csc-summary__error { margin: 0; font-size: var(--text-caption-size); line-height: 1.5; }.csc-summary__muted { color: var(--fg-3); }.csc-summary__error { color: var(--danger); }.csc-summary__warning { color: var(--warn, #b45309); }
+.csc-pricing dl { display: grid; gap: 8px; margin: 0; }.csc-pricing dl > div { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }.csc-pricing dt { color: var(--fg-3); font-size: var(--text-label-size); }.csc-pricing dd { margin: 0; color: var(--fg-1); font-size: var(--text-body-size); font-weight: 800; text-align: right; }
+.csc-pricing__explain { padding-top: 8px; border-top: 1px solid var(--border-1); color: var(--fg-3); font-size: var(--text-caption-size); overflow-wrap: anywhere; }.csc-pricing__explain p { margin: 3px 0; }
+.csc-pricing__breakdown { display: grid; }.csc-pricing__breakdown > div { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-top: 1px solid var(--border-1); font-size: var(--text-caption-size); overflow-wrap: anywhere; }.csc-pricing__breakdown span, .csc-pricing__breakdown small { display: block; min-width: 0; }.csc-pricing__breakdown small { margin-top: 2px; color: var(--fg-3); }
+.csc-validation-summary { border-color: color-mix(in srgb, var(--danger) 32%, var(--border-1)); background: var(--danger-bg, #fff7f7); }.csc-validation-summary__title { display: flex; gap: 8px; align-items: center; color: var(--danger); }.csc-validation-summary p { margin: 7px 0; font-size: var(--text-caption-size); }.csc-validation-summary ol { display: grid; gap: 3px; margin: 0; padding-left: 20px; }.csc-validation-summary button { min-height: 44px; border: 0; padding: 8px 0; background: none; color: var(--danger); font: inherit; font-size: var(--text-caption-size); text-align: left; text-decoration: underline; cursor: pointer; }
+.csc-submit-error { color: var(--danger); background: var(--danger-bg, #fff7f7); font-size: var(--text-data-size); line-height: 1.5; }
+.csc-summary__actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; padding-top: 4px; }
+@media (min-width: 1101px) and (min-height: 721px) {
+  .csc-section__heading > div { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+  .csc-section__heading p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .csc-validation-summary ol {
+    max-height: min(24vh, 168px);
+    padding-right: 6px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+}
+@container (max-width: 1037px) {
+  .csc-container-table-scroll { width: 100%; overflow: visible; border: 0; border-radius: 0; background: transparent; }
+  .csc-container-table, .csc-container-table tbody { display: block; width: 100%; min-width: 0; background: transparent; }
+  .csc-container-table thead, .csc-container-table colgroup { display: none; }
+  .csc-container-table tbody { display: grid; gap: 10px; }
+  .csc-container-row { position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px 10px; padding: 10px; border: 1px solid var(--line-2); border-radius: 9px; background: var(--surface); }
+  .csc-container-table .csc-container-row > * { display: block; min-width: 0; padding: 0; border: 0; background: transparent; text-align: left; }
+  .csc-container-table .csc-container-row__index { grid-column: 1 / -1; min-height: 26px; padding: 0 44px 5px 0; border-bottom: 1px solid var(--line); color: var(--fg-1); font-size: var(--text-data-size); font-weight: 750; }
+  .csc-container-row__desktop-index { display: none; }
+  .csc-container-row__mobile-index { display: inline; }
+  .csc-container-row td[data-label]::before { display: block; margin-bottom: 3px; color: var(--fg-2); content: attr(data-label); font-size: var(--text-label-size); font-weight: 700; line-height: 1.35; }
+  .csc-container-table .csc-container-row__actions { position: absolute; top: 6px; right: 6px; }
+  .csc-container-row__actions .csc-icon-button { min-width: 44px; min-height: 44px; }
+}
+@media (max-width: 1100px) {
+  /* The app shell owns the tablet/phone canvas gutter. The continuous CUS
+     form should spend its own padding inside sections, not duplicate it. */
+  .csc-page { padding-inline: 0; }
+  .csc-identity-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .csc-identity-grid > * { grid-column: auto; }
+  .csc-identity-grid__customer { grid-column: 1 / -1; }
+}
+@media (max-width: 900px) { .csc-cargo-choice-grid { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 640px) { .csc-page { padding: 12px 0 26px; }.csc-section { padding: 8px !important; gap: 10px !important; border-radius: 8px !important; }.csc-section__heading { gap: 9px; margin: -8px -8px 0; padding: 10px 8px; border-radius: 7px 7px 0 0; }.csc-mode legend, .csc-mode__option, .csc-combined-toggle span { font-size: var(--control-compact-touch-font-size); line-height: var(--control-compact-touch-line-height); }.csc-mode__option, .csc-combined-toggle, .csc-add-container, .csc-container-add-control input, .csc-utility-button { min-height: 44px; }.csc-container-actions { align-items: stretch; }.csc-container-add-control { display: grid; width: 100%; grid-template-columns: 72px minmax(0, 1fr); }.csc-add-container { width: 100%; justify-self: stretch; }.csc-customer-picker, .csc-shipping-line-picker { grid-template-columns: minmax(0, 1fr); }.csc-shipping-line-picker__add { width: 100%; justify-self: stretch; }.csc-customer-picker__add { width: 100%; justify-self: stretch; }.csc-icon-button { min-width: 44px; min-height: 44px; }.csc-section textarea { min-height: 88px; }.csc-identity-grid { grid-template-columns: minmax(0, 1fr); }.csc-identity-grid__customer { grid-column: auto; }.csc-mode > div { grid-template-columns: 1fr; }.csc-site-picker { grid-template-columns: 1fr; }.csc-site-picker__actions { justify-content: stretch; }.csc-site-picker__actions .csc-utility-button { flex: 1 1 140px; }.csc-container-editor__allocation { align-items: stretch; flex-direction: column; }.csc-container-editor__allocation > .csc-utility-button { width: 100%; }.csc-container-row { grid-template-columns: minmax(0, 1fr); padding: 8px 0; border: 0; border-radius: 0; }.csc-pricing dl > div, .csc-pricing__breakdown > div { align-items: flex-start; flex-direction: column; }.csc-pricing dd { text-align: left; } }
+
+/* Keep the normal-flow action row above the iPhone home indicator at the end
+   of the long create form. It is deliberately not sticky. */
+@media (max-width: 640px) {
+  .csc-container-row { grid-template-columns: minmax(0, 112px) minmax(0, 1fr); }
+  .csc-container-row > * { grid-column: 1 / -1; }
+  .csc-container-row > .csc-container-cell--weight { grid-column: 1; }
+  .csc-container-row > .csc-container-cell--appointment { grid-column: 2; }
+  .csc-page {
+    padding-bottom: calc(44px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@media (max-width: 640px) { .csc-route-picker__add { width: 100%; justify-self: stretch; }.csc-route-dialog__grid { grid-template-columns: minmax(0, 1fr); }.csc-route-dialog__submit, .csc-shipping-line-dialog__submit { min-height: 44px; } }
+@media (max-width: 340px) { .csc-page { padding-inline: 0; }.csc-validation-summary, .csc-submit-error { padding: 8px !important; } }
+@media (prefers-reduced-motion: reduce) { .csc-page *, .csc-page *::before, .csc-page *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; } }
+
+/* The FCL cargo step owns an editable view of the lot route. It shares the
+   same routeId as section 02, so the choice is immediate and never forks
+   shipment route authority. */
+.csc-cargo-route-picker {
+  display: grid;
+  gap: 6px;
+  width: min(100%, 420px);
+  margin-bottom: 8px;
+}
+
+.csc-cargo-route-picker__label {
+  color: var(--fg-1);
+  font-size: var(--text-label-size);
+  font-weight: 600;
+}
+
+.csc-cargo-route-picker__label span {
+  color: var(--danger, #dc2626);
+}
+
+@media (max-width: 640px) {
+  .csc-cargo-route-picker {
+    width: 100%;
+  }
+}
+
+/* ── Lệnh chạy ngoài toggle (MasterDataNhaMay §4.1) ───────────────────────── */
+.csc-adhoc-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1px dashed var(--line, #d8d3cb);
+  border-radius: 10px;
+  background: var(--bg-2, #f7f4ee);
+  font-size: var(--text-body-size);
+  font-weight: 600;
+  color: var(--fg-1, #222);
+  margin-bottom: 4px;
+}
+
+.csc-adhoc-toggle input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--ink, #1c1c1c);
+}
+
+/* Duplicate-reference soft warning (customer feedback 2026-09-07 — Bill/Booking
+ * already entered). Renders BELOW the input hint so the field stays valid;
+ * orange tone to distinguish from a hard `error` (red). The link inside is
+ * focusable and the whole block is in the a11y tree via `role=\"status\"`. */
+.csc-text-field-with-warning { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.csc-field-warning {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-caption-size);
+  line-height: 1.4;
+  color: #b45309;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+.csc-field-warning__link {
+  color: #b45309;
+  font-weight: 600;
+  text-decoration: underline;
+}
+.csc-field-warning__link:hover { color: #92400e; }
+
+/* Separate time/date controls remain usable in the repeatable desktop grid. */
+.csc-container-col__appointment { width: 170px; }
+
+/* Stacked records are forms, not spreadsheet previews. Show their controls
+ * continuously and keep catalog creation beside its selector so invisible
+ * editor/add rows do not reserve a second line of phone screen space. */
+@container (max-width: 1037px) {
+  .csc-container-cell .csc-container-cell__display { display: none; }
+  .csc-container-cell .csc-container-cell__editor > * { opacity: 1; }
+  .csc-container-cell .csc-route-picker { grid-template-columns: minmax(0, 1fr) auto; gap: 6px; align-items: start; }
+  .csc-container-cell .csc-route-picker__add { width: auto; min-height: 44px; padding-inline: 8px; }
+}
+"
+
+ ❯ src/pages/clerk/ClerkShipmentCreatePage.styles.test.ts:68:17
+     66|     expect(css).toMatch(/\.csc-container-editor\s*\{[^}]*container-typ…
+     67|     expect(css).toMatch(/\.csc-container-table-scroll\s*\{[^}]*width:\…
+     68|     expect(css).toMatch(/\.csc-container-table\s*\{[^}]*width:\s*100%;…
+       |                 ^
+     69|     expect(css).toMatch(/\.csc-container-col__route\s*\{[^}]*width:\s*…
+     70|     expect(css).toMatch(/\.csc-container-col__index\s*\{[^}]*width:\s*…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/8]⎯
+
+ FAIL  src/pages/clerk/ClerkShipmentCreatePage.styles.test.ts > shipment create responsive layout > separates form sections from the application canvas without decorative elevation
+AssertionError: expected '.app-main:has(.csc-page) { background…' to match /@media\s*\(max-width:\s*640px\)[\s\S]…/
+
+- Expected:
+/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-section__heading\s*\{[^}]*margin:\s*-14px -14px 0;/
+
++ Received:
+".app-main:has(.csc-page) { background: var(--surface-3); }
+/* This wide spreadsheet needs more usable columns than the standard page
+   canvas; retain only a minimal, safe-area-aware outer gutter. */
+.app-main:has(.csc-page) .app-body { --app-body-pad-x: 8px; }
+/* Shipment entry is an operational worksheet: let its cards use the full
+   shell canvas, while the app shell remains the single safe outer gutter. */
+.app-main:not(.driver-mode) .app-body > .csc-page { width: 100%; max-width: none; margin-inline: 0; }
+.csc-page { width: 100%; margin: 0; padding: 12px 0 28px; min-width: 0; }
+.csc-page__title { margin: 0 0 14px; font-size: var(--text-title-size); line-height: 1.2; color: var(--fg-1, #101510); font-weight: 700; }
+/* LCL split-lot extra delivery dates (Create Shipment doc Block 2B \"[+]\" repeater). */
+.csc-extra-dates { display: grid; gap: 8px; justify-items: start; min-width: 0; }
+.csc-extra-dates__row { display: flex; align-items: flex-end; gap: 8px; min-width: 0; }
+.csc-extra-dates__row > div:first-child { flex: 1 1 220px; min-width: 0; }
+.csc-back { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 8px 4px; border: 0; background: none; color: var(--fg-2); font: inherit; font-weight: 650; cursor: pointer; }
+.csc-workspace { display: grid; gap: 12px; min-width: 0; }
+.csc-form { display: grid; gap: 12px; min-width: 0; }
+.csc-section { padding: 18px !important; gap: 14px !important; border: 0 !important; border-radius: 14px !important; background: var(--surface) !important; scroll-margin-top: 16px; }
+.csc-section:focus { outline: none; }
+.csc-section:focus-visible { outline: 3px solid var(--brand-subtle); outline-offset: 2px; }
+.csc-section__heading { display: flex; gap: 10px; align-items: center; margin: -18px -18px 0; padding: 16px 18px; border-bottom: 1px solid var(--line); border-radius: 14px 14px 0 0; background: var(--surface-2); }
+.csc-section__heading h2 { margin: 0; color: var(--fg-1); font-size: var(--text-section-size); font-weight: 700; line-height: 1.3; }
+.csc-section__heading p { margin: 2px 0 0; color: var(--fg-3); font-size: var(--text-data-size); line-height: 1.4; }
+/* Single visible boundary per control: the `csc-control-boundary` class on
+   each field adapter owns the wrapper border/focus ring (and gives headless
+   QA a solid, screenshot-visible control edge). Inputs nested inside an
+   adapter — the ComboBox's transparent overlay input, the InputField inner
+   input — stay transparent and borderless so no control ever renders two
+   nested boxes. */
+.csc-searchable-field { display: grid; gap: 8px; align-content: start; min-width: 0; }
+/* Field-label parity: combobox and text/date labels join the select family's
+   dense 12px/18px semibold label (the UUI defaults differ per component). */
+.csc-searchable-field label,
+.csc-uui-field label { color: var(--fg-1); font-size: var(--text-label-size); line-height: 18px; font-weight: 600; }
+/* Selects migrated to the shared adapter: `ds-uui-*` classes
+ * (design-system/forms/UuiSelectField.css, global) own the visuals. The
+ * `csc-select-field` / `csc-select-popover` names survive as test markers. */
+.csc-identity-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 12px; min-width: 0; }
+.csc-identity-grid > * { min-width: 0; }
+.csc-identity-grid__customer { grid-column: span 6; }
+.csc-identity-grid__booking, .csc-identity-grid__trade-direction { grid-column: span 3; }
+.csc-identity-grid__shipping-line, .csc-identity-grid__declaration { grid-column: span 6; }
+.csc-shipping-line-picker { display: grid; gap: 8px; align-content: start; min-width: 0; }
+.csc-shipping-line-picker__add { width: fit-content; white-space: nowrap; }
+.csc-shipping-line-dialog { display: grid; gap: 12px; }
+.csc-shipping-line-dialog > p { margin: 0; color: var(--fg-3); font-size: var(--text-data-size); line-height: 1.5; }
+.csc-shipping-line-dialog__error { padding: 9px 11px; border-radius: 8px; background: var(--danger-bg, rgb(220 38 38 / 8%)); color: var(--danger); font-size: var(--text-caption-size); line-height: 1.4; }
+.csc-shipping-line-dialog__name-action { display: flex; align-items: end; justify-content: flex-end; gap: 12px; min-width: 0; }
+.csc-shipping-line-dialog__name-field { flex: 1 1 240px; min-width: 0; }
+.csc-shipping-line-dialog__submit { flex: 0 0 auto; min-height: 38px; }
+.csc-route-picker { display: grid; gap: 8px; align-content: start; min-width: 0; }
+.csc-route-picker__add { width: fit-content; }
+.csc-route-dialog { display: grid; gap: 12px; }
+.csc-route-dialog > p { margin: 0; color: var(--fg-3); font-size: var(--text-data-size); line-height: 1.5; }
+.csc-route-dialog__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; min-width: 0; }
+.csc-route-dialog__error { padding: 9px 11px; border-radius: 8px; background: var(--danger-bg, rgb(220 38 38 / 8%)); color: var(--danger); font-size: var(--text-caption-size); line-height: 1.4; }
+.csc-route-dialog__distance-action { display: flex; align-items: end; justify-content: flex-end; gap: 12px; min-width: 0; }
+.csc-route-dialog__distance-field { flex: 0 1 184px; width: min(100%, 184px); min-width: 0; }
+.csc-route-dialog__submit { flex: 0 0 auto; min-height: 38px; }
+.csc-customer-popover { z-index: 50; min-width: min(32rem, calc(100vw - 32px)); max-width: calc(100vw - 32px); border: 1px solid var(--border-1); background: var(--surface, #fff); box-shadow: 0 12px 28px rgb(15 23 42 / 14%); }
+.csc-customer-popover .csc-customer-option [slot='label'] { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; line-height: 1.35; }
+.csc-customer-picker { display: grid; gap: 8px; align-content: start; min-width: 0; }
+.csc-customer-picker__add { width: fit-content; white-space: nowrap; }
+.csc-customer-picker > .csc-searchable-field { min-width: 0; }
+.csc-customer-dialog { display: grid; gap: 12px; }
+.csc-customer-dialog > p { margin: 0; color: var(--fg-3); font-size: var(--text-data-size); line-height: 1.5; }
+.csc-customer-dialog__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; min-width: 0; }
+.csc-customer-dialog__error { padding: 9px 11px; border-radius: 8px; background: var(--danger-bg, rgb(220 38 38 / 8%)); color: var(--danger); font-size: var(--text-caption-size); line-height: 1.4; }
+.csc-customer-dialog__submit { justify-self: end; min-height: var(--control-default-h); }
+.csc-field-hint, .csc-field-error { font-size: var(--text-caption-size); font-weight: 400; line-height: 1.45; }
+.csc-field-hint { color: var(--fg-3); }.csc-field-error { color: var(--danger); }
+.csc-site-guidance { position: relative; display: grid; gap: 4px; margin: -4px 0 0; padding: 11px 13px; border-radius: 7px; background: var(--warning-bg, #fff7ed); color: var(--fg-1); }
+.csc-site-guidance::before { position: absolute; top: 50%; left: 0; width: var(--status-strip-width); height: var(--status-strip-height); border-radius: var(--status-strip-radius); background: var(--warning, #d97706); transform: translateY(-50%); content: ''; pointer-events: none; }
+.csc-site-guidance strong { font-size: var(--text-data-size); }.csc-site-guidance p { margin: 0; line-height: 1.5; }
+.csc-mode { margin: 0; padding: 0; border: 0; min-width: 0; }
+.csc-mode legend { margin-bottom: 6px; font-size: var(--control-compact-font-size); font-weight: 700; line-height: var(--control-compact-line-height); }
+.csc-mode > div { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.csc-mode label { cursor: pointer; }.csc-mode input { position: absolute; opacity: 0; pointer-events: none; }
+.csc-mode__option { display: flex; align-items: center; gap: 8px; min-height: 38px; padding: 7px 10px; border: 1px solid var(--line-2); border-radius: 8px; background: var(--surface); color: var(--fg-2); font-size: var(--control-compact-font-size); font-weight: 700; line-height: var(--control-compact-line-height); transition: border-color 120ms ease, background-color 120ms ease, box-shadow 120ms ease; }
+.csc-mode__option::before { width: 16px; height: 16px; flex: 0 0 auto; border: 1.5px solid var(--line-2); border-radius: 50%; background: var(--surface); content: ''; }
+.csc-mode label:hover .csc-mode__option { border-color: var(--line-2); background: var(--surface-2); }
+.csc-mode input:checked + span { border-color: var(--ink); background: var(--surface); color: var(--fg-1); box-shadow: inset 3px 0 0 var(--ink); }
+.csc-mode input:checked + span::before { border-color: var(--ink); background: var(--ink); box-shadow: inset 0 0 0 4px var(--surface); }
+.csc-mode input:focus-visible + span { outline: 3px solid color-mix(in srgb, var(--accent-2) 18%, transparent); outline-offset: 2px; }
+.csc-cargo-choice-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); align-items: end; gap: 12px; min-width: 0; }
+.csc-fcl-factory-action { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; color: var(--fg-2); font-size: var(--text-caption-size); line-height: 1.4; }
+.csc-container-editor { display: grid; container-type: inline-size; width: 100%; min-width: 0; gap: 12px; }
+.csc-container-table-scroll { width: 100%; min-width: 0; overflow-x: auto; border: 1px solid var(--line-2); border-radius: 9px; background: var(--surface); scrollbar-color: color-mix(in srgb, var(--accent-2) 28%, transparent) transparent; scrollbar-width: thin; }
+.csc-container-table { width: 100%; min-width: 1038px; border-collapse: collapse; table-layout: fixed; background: var(--surface); }
+.csc-container-col__index { width: 40px; }
+.csc-container-col__number { width: 128px; }
+.csc-container-col__type { width: 104px; }
+.csc-container-col__route { width: 180px; }
+.csc-container-col__pickup-port, .csc-container-col__dropoff-port, .csc-container-col__factory, .csc-container-col__appointment { width: auto; }
+.csc-container-col__weight { width: 96px; }
+.csc-container-col__actions { width: 44px; }
+.csc-container-table th, .csc-container-table td { min-width: 0; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.csc-container-table th:last-child, .csc-container-table td:last-child { border-right: 0; }
+.csc-container-table tbody tr:last-child > * { border-bottom: 0; }
+.csc-container-table thead th { padding: 8px 6px; background: var(--surface-2); color: var(--fg-2); font-size: var(--text-caption-size); font-weight: 700; line-height: 1.35; text-align: left; white-space: normal; }
+.csc-container-table thead th:first-child, .csc-container-table thead th:last-child { text-align: center; }
+.csc-container-table tbody th, .csc-container-table tbody td { padding: 8px 6px; background: var(--surface); vertical-align: top; }
+.csc-container-table tbody th { color: var(--fg-3); font-size: var(--text-caption-size); text-align: center; }
+.csc-container-table tbody .csc-container-cell { padding: 0; vertical-align: middle; }
+.csc-container-table td:not(.csc-container-row__actions) > * { min-width: 0; }
+.csc-container-table select { width: 100%; min-width: 0; max-width: 100%; }
+.csc-container-row__mobile-index { display: none; }
+.csc-container-row__actions { text-align: center; }
+.csc-combined-toggle { display: flex; align-items: center; gap: 10px; min-width: 0; min-height: 38px; padding: 7px 10px; border: 1px solid var(--line-2); border-radius: 8px; background: var(--surface-2); cursor: pointer; }
+.csc-combined-toggle input { width: 18px; height: 18px; margin: 1px 0 0; accent-color: var(--accent-2); }
+.csc-combined-toggle span { display: grid; gap: 2px; color: var(--fg-2); font-size: var(--control-compact-font-size); line-height: var(--control-compact-line-height); }
+.csc-combined-toggle strong { color: var(--fg-1); }
+.csc-container-editor__allocation { display: flex; width: 100%; min-width: 0; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.csc-allocation-summary { display: grid; gap: 8px; min-width: 0; flex: 1 1 320px; }
+.csc-container-actions { display: flex; width: 100%; align-items: center; justify-content: flex-end; }
+.csc-container-add-control { display: inline-flex; align-items: center; gap: 6px; }
+.csc-container-add-control input { width: 68px; min-height: 38px; padding: 7px 8px; border: 1px solid var(--line-2); border-radius: 8px; background: var(--surface); color: var(--fg-1); font: inherit; font-size: var(--control-field-font-size); text-align: center; }
+.csc-container-add-control input:focus-visible { border-color: var(--accent-2); outline: 3px solid color-mix(in srgb, var(--accent-2) 18%, transparent); outline-offset: 1px; }
+.csc-container-add-control input[aria-invalid='true'] { border-color: var(--danger); }
+.csc-add-container { display: inline-flex; width: fit-content; justify-self: end; align-items: center; justify-content: center; gap: 6px; min-height: 38px; padding: 7px 12px; border: 1px solid color-mix(in srgb, var(--accent-2) 36%, var(--line-2)); border-radius: 8px; background: color-mix(in srgb, var(--accent-soft) 52%, var(--surface)); color: var(--accent-2); font: inherit; font-size: var(--text-control-size); font-weight: 700; cursor: pointer; }
+.csc-add-container svg { flex: 0 0 auto; }
+.csc-add-container:not(:disabled):hover { border-color: color-mix(in srgb, var(--accent-2) 58%, var(--line-2)); background: color-mix(in srgb, var(--accent-soft) 78%, var(--surface)); }
+.csc-add-container:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent-2) 18%, transparent); outline-offset: 2px; }
+.csc-add-container:disabled { cursor: not-allowed; opacity: .65; }
+.csc-site-picker { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; min-width: 0; }
+.csc-site-picker__actions { display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 8px; }
+.csc-utility-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: var(--control-compact-h, 34px); padding: 5px 12px; border: 1px solid var(--border-2); border-radius: 8px; background: var(--surface); color: var(--fg-2); font: inherit; font-size: var(--text-control-size); font-weight: 650; cursor: pointer; }
+/* The `--dashed` name survives as the JSX/test marker, but the accent action
+   is borderless — plus icon + label only (user request 2026-08-30). */
+.csc-utility-button--dashed { border: 0; background: transparent; color: var(--accent, #2563eb); font-weight: 700; }
+.csc-utility-button:disabled { cursor: not-allowed; opacity: .65; }
+.csc-icon-button { display: inline-grid; place-items: center; min-width: 38px; min-height: 38px; border: 0; border-radius: 8px; background: transparent; cursor: pointer; }
+.csc-icon-button--danger { color: var(--danger); }
+.csc-section textarea { width: 100%; min-height: 76px; resize: vertical; border: 1px solid var(--border-2); border-radius: 9px; padding: 8px 10px; color: var(--fg-1); background: var(--surface-2); }
+/* Retired with the shared adapter promotion: control boundary + popover skin
+ * now live in design-system/forms/UuiSelectField.css (`ds-uui-boundary`). The
+ * csc-control-boundary rules below remain for the clerk page's input/textarea
+ * fields (UTextField/UDateField), which still use the marker. */
+
+.csc-control-boundary > [role='presentation'],
+.csc-control-boundary [data-input-wrapper='true'],
+.csc-control-boundary [role='group'],
+.csc-control-boundary select,
+.csc-control-boundary textarea {
+  border: 1px solid color-mix(in srgb, var(--fg-1) 22%, transparent);
+  border-radius: 8px;
+  background: var(--surface, #fff);
+  box-shadow: none;
+  transition: border-color 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
+}
+.csc-control-boundary :where(input, select, textarea):focus-visible {
+  outline: none;
+  outline-offset: 0;
+}
+.csc-control-boundary:not(:focus-within):hover > [role='presentation'],
+.csc-control-boundary:not(:focus-within):hover [data-input-wrapper='true'],
+.csc-control-boundary:not(:focus-within):hover [role='group'],
+.csc-control-boundary:not(:focus-within):hover select,
+.csc-control-boundary:not(:focus-within):hover textarea {
+  border-color: color-mix(in srgb, var(--fg-1) 38%, transparent);
+}
+.csc-control-boundary:focus-within > [role='presentation'],
+.csc-control-boundary:focus-within [data-input-wrapper='true'],
+.csc-control-boundary:focus-within [role='group'],
+.csc-control-boundary:focus-within select,
+.csc-control-boundary:focus-within textarea {
+  border-color: var(--accent, #2563eb);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, #2563eb) 18%, transparent);
+}
+.csc-control-boundary:has([aria-invalid='true']) > [role='presentation'],
+.csc-control-boundary:has([aria-invalid='true']) [data-input-wrapper='true'],
+.csc-control-boundary:has([aria-invalid='true']) [role='group'],
+.csc-control-boundary:has([aria-invalid='true']) select,
+.csc-control-boundary:has([aria-invalid='true']) textarea {
+  border-color: var(--danger, #dc2626);
+}
+.csc-control-boundary:has(:disabled) > [role='presentation'],
+.csc-control-boundary:has(:disabled) [data-input-wrapper='true'],
+.csc-control-boundary:has(:disabled) [role='group'],
+.csc-control-boundary:has(:disabled) select,
+.csc-control-boundary:has(:disabled) textarea {
+  border-color: color-mix(in srgb, var(--fg-1) 12%, transparent);
+  background: var(--surface-2, #f8fafc);
+}
+.csc-summary { display: grid; gap: 12px; min-width: 0; }
+.csc-validation-summary, .csc-submit-error { padding: 16px; border: 1px solid var(--line-2); border-radius: 12px; background: var(--surface); }
+.csc-pricing { display: grid; gap: 10px; min-width: 0; }.csc-pricing > p, .csc-summary__muted, .csc-summary__error { margin: 0; font-size: var(--text-caption-size); line-height: 1.5; }.csc-summary__muted { color: var(--fg-3); }.csc-summary__error { color: var(--danger); }.csc-summary__warning { color: var(--warn, #b45309); }
+.csc-pricing dl { display: grid; gap: 8px; margin: 0; }.csc-pricing dl > div { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }.csc-pricing dt { color: var(--fg-3); font-size: var(--text-label-size); }.csc-pricing dd { margin: 0; color: var(--fg-1); font-size: var(--text-body-size); font-weight: 800; text-align: right; }
+.csc-pricing__explain { padding-top: 8px; border-top: 1px solid var(--border-1); color: var(--fg-3); font-size: var(--text-caption-size); overflow-wrap: anywhere; }.csc-pricing__explain p { margin: 3px 0; }
+.csc-pricing__breakdown { display: grid; }.csc-pricing__breakdown > div { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-top: 1px solid var(--border-1); font-size: var(--text-caption-size); overflow-wrap: anywhere; }.csc-pricing__breakdown span, .csc-pricing__breakdown small { display: block; min-width: 0; }.csc-pricing__breakdown small { margin-top: 2px; color: var(--fg-3); }
+.csc-validation-summary { border-color: color-mix(in srgb, var(--danger) 32%, var(--border-1)); background: var(--danger-bg, #fff7f7); }.csc-validation-summary__title { display: flex; gap: 8px; align-items: center; color: var(--danger); }.csc-validation-summary p { margin: 7px 0; font-size: var(--text-caption-size); }.csc-validation-summary ol { display: grid; gap: 3px; margin: 0; padding-left: 20px; }.csc-validation-summary button { min-height: 44px; border: 0; padding: 8px 0; background: none; color: var(--danger); font: inherit; font-size: var(--text-caption-size); text-align: left; text-decoration: underline; cursor: pointer; }
+.csc-submit-error { color: var(--danger); background: var(--danger-bg, #fff7f7); font-size: var(--text-data-size); line-height: 1.5; }
+.csc-summary__actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; padding-top: 4px; }
+@media (min-width: 1101px) and (min-height: 721px) {
+  .csc-section__heading > div { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+  .csc-section__heading p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .csc-validation-summary ol {
+    max-height: min(24vh, 168px);
+    padding-right: 6px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+}
+@container (max-width: 1037px) {
+  .csc-container-table-scroll { width: 100%; overflow: visible; border: 0; border-radius: 0; background: transparent; }
+  .csc-container-table, .csc-container-table tbody { display: block; width: 100%; min-width: 0; background: transparent; }
+  .csc-container-table thead, .csc-container-table colgroup { display: none; }
+  .csc-container-table tbody { display: grid; gap: 10px; }
+  .csc-container-row { position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px 10px; padding: 10px; border: 1px solid var(--line-2); border-radius: 9px; background: var(--surface); }
+  .csc-container-table .csc-container-row > * { display: block; min-width: 0; padding: 0; border: 0; background: transparent; text-align: left; }
+  .csc-container-table .csc-container-row__index { grid-column: 1 / -1; min-height: 26px; padding: 0 44px 5px 0; border-bottom: 1px solid var(--line); color: var(--fg-1); font-size: var(--text-data-size); font-weight: 750; }
+  .csc-container-row__desktop-index { display: none; }
+  .csc-container-row__mobile-index { display: inline; }
+  .csc-container-row td[data-label]::before { display: block; margin-bottom: 3px; color: var(--fg-2); content: attr(data-label); font-size: var(--text-label-size); font-weight: 700; line-height: 1.35; }
+  .csc-container-table .csc-container-row__actions { position: absolute; top: 6px; right: 6px; }
+  .csc-container-row__actions .csc-icon-button { min-width: 44px; min-height: 44px; }
+}
+@media (max-width: 1100px) {
+  /* The app shell owns the tablet/phone canvas gutter. The continuous CUS
+     form should spend its own padding inside sections, not duplicate it. */
+  .csc-page { padding-inline: 0; }
+  .csc-identity-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .csc-identity-grid > * { grid-column: auto; }
+  .csc-identity-grid__customer { grid-column: 1 / -1; }
+}
+@media (max-width: 900px) { .csc-cargo-choice-grid { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 640px) { .csc-page { padding: 12px 0 26px; }.csc-section { padding: 8px !important; gap: 10px !important; border-radius: 8px !important; }.csc-section__heading { gap: 9px; margin: -8px -8px 0; padding: 10px 8px; border-radius: 7px 7px 0 0; }.csc-mode legend, .csc-mode__option, .csc-combined-toggle span { font-size: var(--control-compact-touch-font-size); line-height: var(--control-compact-touch-line-height); }.csc-mode__option, .csc-combined-toggle, .csc-add-container, .csc-container-add-control input, .csc-utility-button { min-height: 44px; }.csc-container-actions { align-items: stretch; }.csc-container-add-control { display: grid; width: 100%; grid-template-columns: 72px minmax(0, 1fr); }.csc-add-container { width: 100%; justify-self: stretch; }.csc-customer-picker, .csc-shipping-line-picker { grid-template-columns: minmax(0, 1fr); }.csc-shipping-line-picker__add { width: 100%; justify-self: stretch; }.csc-customer-picker__add { width: 100%; justify-self: stretch; }.csc-icon-button { min-width: 44px; min-height: 44px; }.csc-section textarea { min-height: 88px; }.csc-identity-grid { grid-template-columns: minmax(0, 1fr); }.csc-identity-grid__customer { grid-column: auto; }.csc-mode > div { grid-template-columns: 1fr; }.csc-site-picker { grid-template-columns: 1fr; }.csc-site-picker__actions { justify-content: stretch; }.csc-site-picker__actions .csc-utility-button { flex: 1 1 140px; }.csc-container-editor__allocation { align-items: stretch; flex-direction: column; }.csc-container-editor__allocation > .csc-utility-button { width: 100%; }.csc-container-row { grid-template-columns: minmax(0, 1fr); padding: 8px 0; border: 0; border-radius: 0; }.csc-pricing dl > div, .csc-pricing__breakdown > div { align-items: flex-start; flex-direction: column; }.csc-pricing dd { text-align: left; } }
+
+/* Keep the normal-flow action row above the iPhone home indicator at the end
+   of the long create form. It is deliberately not sticky. */
+@media (max-width: 640px) {
+  .csc-container-row { grid-template-columns: minmax(0, 112px) minmax(0, 1fr); }
+  .csc-container-row > * { grid-column: 1 / -1; }
+  .csc-container-row > .csc-container-cell--weight { grid-column: 1; }
+  .csc-container-row > .csc-container-cell--appointment { grid-column: 2; }
+  .csc-page {
+    padding-bottom: calc(44px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@media (max-width: 640px) { .csc-route-picker__add { width: 100%; justify-self: stretch; }.csc-route-dialog__grid { grid-template-columns: minmax(0, 1fr); }.csc-route-dialog__submit, .csc-shipping-line-dialog__submit { min-height: 44px; } }
+@media (max-width: 340px) { .csc-page { padding-inline: 0; }.csc-validation-summary, .csc-submit-error { padding: 8px !important; } }
+@media (prefers-reduced-motion: reduce) { .csc-page *, .csc-page *::before, .csc-page *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; } }
+
+/* The FCL cargo step owns an editable view of the lot route. It shares the
+   same routeId as section 02, so the choice is immediate and never forks
+   shipment route authority. */
+.csc-cargo-route-picker {
+  display: grid;
+  gap: 6px;
+  width: min(100%, 420px);
+  margin-bottom: 8px;
+}
+
+.csc-cargo-route-picker__label {
+  color: var(--fg-1);
+  font-size: var(--text-label-size);
+  font-weight: 600;
+}
+
+.csc-cargo-route-picker__label span {
+  color: var(--danger, #dc2626);
+}
+
+@media (max-width: 640px) {
+  .csc-cargo-route-picker {
+    width: 100%;
+  }
+}
+
+/* ── Lệnh chạy ngoài toggle (MasterDataNhaMay §4.1) ───────────────────────── */
+.csc-adhoc-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1px dashed var(--line, #d8d3cb);
+  border-radius: 10px;
+  background: var(--bg-2, #f7f4ee);
+  font-size: var(--text-body-size);
+  font-weight: 600;
+  color: var(--fg-1, #222);
+  margin-bottom: 4px;
+}
+
+.csc-adhoc-toggle input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--ink, #1c1c1c);
+}
+
+/* Duplicate-reference soft warning (customer feedback 2026-09-07 — Bill/Booking
+ * already entered). Renders BELOW the input hint so the field stays valid;
+ * orange tone to distinguish from a hard `error` (red). The link inside is
+ * focusable and the whole block is in the a11y tree via `role=\"status\"`. */
+.csc-text-field-with-warning { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.csc-field-warning {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-caption-size);
+  line-height: 1.4;
+  color: #b45309;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+.csc-field-warning__link {
+  color: #b45309;
+  font-weight: 600;
+  text-decoration: underline;
+}
+.csc-field-warning__link:hover { color: #92400e; }
+
+/* Separate time/date controls remain usable in the repeatable desktop grid. */
+.csc-container-col__appointment { width: 170px; }
+
+/* Stacked records are forms, not spreadsheet previews. Show their controls
+ * continuously and keep catalog creation beside its selector so invisible
+ * editor/add rows do not reserve a second line of phone screen space. */
+@container (max-width: 1037px) {
+  .csc-container-cell .csc-container-cell__display { display: none; }
+  .csc-container-cell .csc-container-cell__editor > * { opacity: 1; }
+  .csc-container-cell .csc-route-picker { grid-template-columns: minmax(0, 1fr) auto; gap: 6px; align-items: start; }
+  .csc-container-cell .csc-route-picker__add { width: auto; min-height: 44px; padding-inline: 8px; }
+}
+"
+
+ ❯ src/pages/clerk/ClerkShipmentCreatePage.styles.test.ts:150:17
+    148|     expect(css).toMatch(/\.csc-section\s*\{[^}]*border:\s*0\s*!importa…
+    149|     expect(css).toMatch(/\.csc-section__heading\s*\{[^}]*margin:\s*-18…
+    150|     expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-…
+       |                 ^
+    151|     expect(css).not.toMatch(/\.csc-section\s*\{[^}]*box-shadow:/);
+    152|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/8]⎯
+
+ FAIL  src/pages/clerk/ClerkShipmentCreatePage.styles.test.ts > shipment create responsive layout > uses compact desktop density while retaining mobile touch targets
+AssertionError: expected '.app-main:has(.csc-page) { background…' to match /@media \(max-width:\s*640px\)\s*\{\s*…/
+
+- Expected:
+/@media \(max-width:\s*640px\)\s*\{\s*\.csc-page\s*\{[^}]*padding-bottom:\s*calc\(44px \+ env\(safe-area-inset-bottom, 0px\)\);/
+
++ Received:
+".app-main:has(.csc-page) { background: var(--surface-3); }
+/* This wide spreadsheet needs more usable columns than the standard page
+   canvas; retain only a minimal, safe-area-aware outer gutter. */
+.app-main:has(.csc-page) .app-body { --app-body-pad-x: 8px; }
+/* Shipment entry is an operational worksheet: let its cards use the full
+   shell canvas, while the app shell remains the single safe outer gutter. */
+.app-main:not(.driver-mode) .app-body > .csc-page { width: 100%; max-width: none; margin-inline: 0; }
+.csc-page { width: 100%; margin: 0; padding: 12px 0 28px; min-width: 0; }
+.csc-page__title { margin: 0 0 14px; font-size: var(--text-title-size); line-height: 1.2; color: var(--fg-1, #101510); font-weight: 700; }
+/* LCL split-lot extra delivery dates (Create Shipment doc Block 2B \"[+]\" repeater). */
+.csc-extra-dates { display: grid; gap: 8px; justify-items: start; min-width: 0; }
+.csc-extra-dates__row { display: flex; align-items: flex-end; gap: 8px; min-width: 0; }
+.csc-extra-dates__row > div:first-child { flex: 1 1 220px; min-width: 0; }
+.csc-back { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 8px 4px; border: 0; background: none; color: var(--fg-2); font: inherit; font-weight: 650; cursor: pointer; }
+.csc-workspace { display: grid; gap: 12px; min-width: 0; }
+.csc-form { display: grid; gap: 12px; min-width: 0; }
+.csc-section { padding: 18px !important; gap: 14px !important; border: 0 !important; border-radius: 14px !important; background: var(--surface) !important; scroll-margin-top: 16px; }
+.csc-section:focus { outline: none; }
+.csc-section:focus-visible { outline: 3px solid var(--brand-subtle); outline-offset: 2px; }
+.csc-section__heading { display: flex; gap: 10px; align-items: center; margin: -18px -18px 0; padding: 16px 18px; border-bottom: 1px solid var(--line); border-radius: 14px 14px 0 0; background: var(--surface-2); }
+.csc-section__heading h2 { margin: 0; color: var(--fg-1); font-size: var(--text-section-size); font-weight: 700; line-height: 1.3; }
+.csc-section__heading p { margin: 2px 0 0; color: var(--fg-3); font-size: var(--text-data-size); line-height: 1.4; }
+/* Single visible boundary per control: the `csc-control-boundary` class on
+   each field adapter owns the wrapper border/focus ring (and gives headless
+   QA a solid, screenshot-visible control edge). Inputs nested inside an
+   adapter — the ComboBox's transparent overlay input, the InputField inner
+   input — stay transparent and borderless so no control ever renders two
+   nested boxes. */
+.csc-searchable-field { display: grid; gap: 8px; align-content: start; min-width: 0; }
+/* Field-label parity: combobox and text/date labels join the select family's
+   dense 12px/18px semibold label (the UUI defaults differ per component). */
+.csc-searchable-field label,
+.csc-uui-field label { color: var(--fg-1); font-size: var(--text-label-size); line-height: 18px; font-weight: 600; }
+/* Selects migrated to the shared adapter: `ds-uui-*` classes
+ * (design-system/forms/UuiSelectField.css, global) own the visuals. The
+ * `csc-select-field` / `csc-select-popover` names survive as test markers. */
+.csc-identity-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 12px; min-width: 0; }
+.csc-identity-grid > * { min-width: 0; }
+.csc-identity-grid__customer { grid-column: span 6; }
+.csc-identity-grid__booking, .csc-identity-grid__trade-direction { grid-column: span 3; }
+.csc-identity-grid__shipping-line, .csc-identity-grid__declaration { grid-column: span 6; }
+.csc-shipping-line-picker { display: grid; gap: 8px; align-content: start; min-width: 0; }
+.csc-shipping-line-picker__add { width: fit-content; white-space: nowrap; }
+.csc-shipping-line-dialog { display: grid; gap: 12px; }
+.csc-shipping-line-dialog > p { margin: 0; color: var(--fg-3); font-size: var(--text-data-size); line-height: 1.5; }
+.csc-shipping-line-dialog__error { padding: 9px 11px; border-radius: 8px; background: var(--danger-bg, rgb(220 38 38 / 8%)); color: var(--danger); font-size: var(--text-caption-size); line-height: 1.4; }
+.csc-shipping-line-dialog__name-action { display: flex; align-items: end; justify-content: flex-end; gap: 12px; min-width: 0; }
+.csc-shipping-line-dialog__name-field { flex: 1 1 240px; min-width: 0; }
+.csc-shipping-line-dialog__submit { flex: 0 0 auto; min-height: 38px; }
+.csc-route-picker { display: grid; gap: 8px; align-content: start; min-width: 0; }
+.csc-route-picker__add { width: fit-content; }
+.csc-route-dialog { display: grid; gap: 12px; }
+.csc-route-dialog > p { margin: 0; color: var(--fg-3); font-size: var(--text-data-size); line-height: 1.5; }
+.csc-route-dialog__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; min-width: 0; }
+.csc-route-dialog__error { padding: 9px 11px; border-radius: 8px; background: var(--danger-bg, rgb(220 38 38 / 8%)); color: var(--danger); font-size: var(--text-caption-size); line-height: 1.4; }
+.csc-route-dialog__distance-action { display: flex; align-items: end; justify-content: flex-end; gap: 12px; min-width: 0; }
+.csc-route-dialog__distance-field { flex: 0 1 184px; width: min(100%, 184px); min-width: 0; }
+.csc-route-dialog__submit { flex: 0 0 auto; min-height: 38px; }
+.csc-customer-popover { z-index: 50; min-width: min(32rem, calc(100vw - 32px)); max-width: calc(100vw - 32px); border: 1px solid var(--border-1); background: var(--surface, #fff); box-shadow: 0 12px 28px rgb(15 23 42 / 14%); }
+.csc-customer-popover .csc-customer-option [slot='label'] { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; line-height: 1.35; }
+.csc-customer-picker { display: grid; gap: 8px; align-content: start; min-width: 0; }
+.csc-customer-picker__add { width: fit-content; white-space: nowrap; }
+.csc-customer-picker > .csc-searchable-field { min-width: 0; }
+.csc-customer-dialog { display: grid; gap: 12px; }
+.csc-customer-dialog > p { margin: 0; color: var(--fg-3); font-size: var(--text-data-size); line-height: 1.5; }
+.csc-customer-dialog__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; min-width: 0; }
+.csc-customer-dialog__error { padding: 9px 11px; border-radius: 8px; background: var(--danger-bg, rgb(220 38 38 / 8%)); color: var(--danger); font-size: var(--text-caption-size); line-height: 1.4; }
+.csc-customer-dialog__submit { justify-self: end; min-height: var(--control-default-h); }
+.csc-field-hint, .csc-field-error { font-size: var(--text-caption-size); font-weight: 400; line-height: 1.45; }
+.csc-field-hint { color: var(--fg-3); }.csc-field-error { color: var(--danger); }
+.csc-site-guidance { position: relative; display: grid; gap: 4px; margin: -4px 0 0; padding: 11px 13px; border-radius: 7px; background: var(--warning-bg, #fff7ed); color: var(--fg-1); }
+.csc-site-guidance::before { position: absolute; top: 50%; left: 0; width: var(--status-strip-width); height: var(--status-strip-height); border-radius: var(--status-strip-radius); background: var(--warning, #d97706); transform: translateY(-50%); content: ''; pointer-events: none; }
+.csc-site-guidance strong { font-size: var(--text-data-size); }.csc-site-guidance p { margin: 0; line-height: 1.5; }
+.csc-mode { margin: 0; padding: 0; border: 0; min-width: 0; }
+.csc-mode legend { margin-bottom: 6px; font-size: var(--control-compact-font-size); font-weight: 700; line-height: var(--control-compact-line-height); }
+.csc-mode > div { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.csc-mode label { cursor: pointer; }.csc-mode input { position: absolute; opacity: 0; pointer-events: none; }
+.csc-mode__option { display: flex; align-items: center; gap: 8px; min-height: 38px; padding: 7px 10px; border: 1px solid var(--line-2); border-radius: 8px; background: var(--surface); color: var(--fg-2); font-size: var(--control-compact-font-size); font-weight: 700; line-height: var(--control-compact-line-height); transition: border-color 120ms ease, background-color 120ms ease, box-shadow 120ms ease; }
+.csc-mode__option::before { width: 16px; height: 16px; flex: 0 0 auto; border: 1.5px solid var(--line-2); border-radius: 50%; background: var(--surface); content: ''; }
+.csc-mode label:hover .csc-mode__option { border-color: var(--line-2); background: var(--surface-2); }
+.csc-mode input:checked + span { border-color: var(--ink); background: var(--surface); color: var(--fg-1); box-shadow: inset 3px 0 0 var(--ink); }
+.csc-mode input:checked + span::before { border-color: var(--ink); background: var(--ink); box-shadow: inset 0 0 0 4px var(--surface); }
+.csc-mode input:focus-visible + span { outline: 3px solid color-mix(in srgb, var(--accent-2) 18%, transparent); outline-offset: 2px; }
+.csc-cargo-choice-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); align-items: end; gap: 12px; min-width: 0; }
+.csc-fcl-factory-action { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; color: var(--fg-2); font-size: var(--text-caption-size); line-height: 1.4; }
+.csc-container-editor { display: grid; container-type: inline-size; width: 100%; min-width: 0; gap: 12px; }
+.csc-container-table-scroll { width: 100%; min-width: 0; overflow-x: auto; border: 1px solid var(--line-2); border-radius: 9px; background: var(--surface); scrollbar-color: color-mix(in srgb, var(--accent-2) 28%, transparent) transparent; scrollbar-width: thin; }
+.csc-container-table { width: 100%; min-width: 1038px; border-collapse: collapse; table-layout: fixed; background: var(--surface); }
+.csc-container-col__index { width: 40px; }
+.csc-container-col__number { width: 128px; }
+.csc-container-col__type { width: 104px; }
+.csc-container-col__route { width: 180px; }
+.csc-container-col__pickup-port, .csc-container-col__dropoff-port, .csc-container-col__factory, .csc-container-col__appointment { width: auto; }
+.csc-container-col__weight { width: 96px; }
+.csc-container-col__actions { width: 44px; }
+.csc-container-table th, .csc-container-table td { min-width: 0; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.csc-container-table th:last-child, .csc-container-table td:last-child { border-right: 0; }
+.csc-container-table tbody tr:last-child > * { border-bottom: 0; }
+.csc-container-table thead th { padding: 8px 6px; background: var(--surface-2); color: var(--fg-2); font-size: var(--text-caption-size); font-weight: 700; line-height: 1.35; text-align: left; white-space: normal; }
+.csc-container-table thead th:first-child, .csc-container-table thead th:last-child { text-align: center; }
+.csc-container-table tbody th, .csc-container-table tbody td { padding: 8px 6px; background: var(--surface); vertical-align: top; }
+.csc-container-table tbody th { color: var(--fg-3); font-size: var(--text-caption-size); text-align: center; }
+.csc-container-table tbody .csc-container-cell { padding: 0; vertical-align: middle; }
+.csc-container-table td:not(.csc-container-row__actions) > * { min-width: 0; }
+.csc-container-table select { width: 100%; min-width: 0; max-width: 100%; }
+.csc-container-row__mobile-index { display: none; }
+.csc-container-row__actions { text-align: center; }
+.csc-combined-toggle { display: flex; align-items: center; gap: 10px; min-width: 0; min-height: 38px; padding: 7px 10px; border: 1px solid var(--line-2); border-radius: 8px; background: var(--surface-2); cursor: pointer; }
+.csc-combined-toggle input { width: 18px; height: 18px; margin: 1px 0 0; accent-color: var(--accent-2); }
+.csc-combined-toggle span { display: grid; gap: 2px; color: var(--fg-2); font-size: var(--control-compact-font-size); line-height: var(--control-compact-line-height); }
+.csc-combined-toggle strong { color: var(--fg-1); }
+.csc-container-editor__allocation { display: flex; width: 100%; min-width: 0; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.csc-allocation-summary { display: grid; gap: 8px; min-width: 0; flex: 1 1 320px; }
+.csc-container-actions { display: flex; width: 100%; align-items: center; justify-content: flex-end; }
+.csc-container-add-control { display: inline-flex; align-items: center; gap: 6px; }
+.csc-container-add-control input { width: 68px; min-height: 38px; padding: 7px 8px; border: 1px solid var(--line-2); border-radius: 8px; background: var(--surface); color: var(--fg-1); font: inherit; font-size: var(--control-field-font-size); text-align: center; }
+.csc-container-add-control input:focus-visible { border-color: var(--accent-2); outline: 3px solid color-mix(in srgb, var(--accent-2) 18%, transparent); outline-offset: 1px; }
+.csc-container-add-control input[aria-invalid='true'] { border-color: var(--danger); }
+.csc-add-container { display: inline-flex; width: fit-content; justify-self: end; align-items: center; justify-content: center; gap: 6px; min-height: 38px; padding: 7px 12px; border: 1px solid color-mix(in srgb, var(--accent-2) 36%, var(--line-2)); border-radius: 8px; background: color-mix(in srgb, var(--accent-soft) 52%, var(--surface)); color: var(--accent-2); font: inherit; font-size: var(--text-control-size); font-weight: 700; cursor: pointer; }
+.csc-add-container svg { flex: 0 0 auto; }
+.csc-add-container:not(:disabled):hover { border-color: color-mix(in srgb, var(--accent-2) 58%, var(--line-2)); background: color-mix(in srgb, var(--accent-soft) 78%, var(--surface)); }
+.csc-add-container:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent-2) 18%, transparent); outline-offset: 2px; }
+.csc-add-container:disabled { cursor: not-allowed; opacity: .65; }
+.csc-site-picker { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; min-width: 0; }
+.csc-site-picker__actions { display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 8px; }
+.csc-utility-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: var(--control-compact-h, 34px); padding: 5px 12px; border: 1px solid var(--border-2); border-radius: 8px; background: var(--surface); color: var(--fg-2); font: inherit; font-size: var(--text-control-size); font-weight: 650; cursor: pointer; }
+/* The `--dashed` name survives as the JSX/test marker, but the accent action
+   is borderless — plus icon + label only (user request 2026-08-30). */
+.csc-utility-button--dashed { border: 0; background: transparent; color: var(--accent, #2563eb); font-weight: 700; }
+.csc-utility-button:disabled { cursor: not-allowed; opacity: .65; }
+.csc-icon-button { display: inline-grid; place-items: center; min-width: 38px; min-height: 38px; border: 0; border-radius: 8px; background: transparent; cursor: pointer; }
+.csc-icon-button--danger { color: var(--danger); }
+.csc-section textarea { width: 100%; min-height: 76px; resize: vertical; border: 1px solid var(--border-2); border-radius: 9px; padding: 8px 10px; color: var(--fg-1); background: var(--surface-2); }
+/* Retired with the shared adapter promotion: control boundary + popover skin
+ * now live in design-system/forms/UuiSelectField.css (`ds-uui-boundary`). The
+ * csc-control-boundary rules below remain for the clerk page's input/textarea
+ * fields (UTextField/UDateField), which still use the marker. */
+
+.csc-control-boundary > [role='presentation'],
+.csc-control-boundary [data-input-wrapper='true'],
+.csc-control-boundary [role='group'],
+.csc-control-boundary select,
+.csc-control-boundary textarea {
+  border: 1px solid color-mix(in srgb, var(--fg-1) 22%, transparent);
+  border-radius: 8px;
+  background: var(--surface, #fff);
+  box-shadow: none;
+  transition: border-color 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
+}
+.csc-control-boundary :where(input, select, textarea):focus-visible {
+  outline: none;
+  outline-offset: 0;
+}
+.csc-control-boundary:not(:focus-within):hover > [role='presentation'],
+.csc-control-boundary:not(:focus-within):hover [data-input-wrapper='true'],
+.csc-control-boundary:not(:focus-within):hover [role='group'],
+.csc-control-boundary:not(:focus-within):hover select,
+.csc-control-boundary:not(:focus-within):hover textarea {
+  border-color: color-mix(in srgb, var(--fg-1) 38%, transparent);
+}
+.csc-control-boundary:focus-within > [role='presentation'],
+.csc-control-boundary:focus-within [data-input-wrapper='true'],
+.csc-control-boundary:focus-within [role='group'],
+.csc-control-boundary:focus-within select,
+.csc-control-boundary:focus-within textarea {
+  border-color: var(--accent, #2563eb);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, #2563eb) 18%, transparent);
+}
+.csc-control-boundary:has([aria-invalid='true']) > [role='presentation'],
+.csc-control-boundary:has([aria-invalid='true']) [data-input-wrapper='true'],
+.csc-control-boundary:has([aria-invalid='true']) [role='group'],
+.csc-control-boundary:has([aria-invalid='true']) select,
+.csc-control-boundary:has([aria-invalid='true']) textarea {
+  border-color: var(--danger, #dc2626);
+}
+.csc-control-boundary:has(:disabled) > [role='presentation'],
+.csc-control-boundary:has(:disabled) [data-input-wrapper='true'],
+.csc-control-boundary:has(:disabled) [role='group'],
+.csc-control-boundary:has(:disabled) select,
+.csc-control-boundary:has(:disabled) textarea {
+  border-color: color-mix(in srgb, var(--fg-1) 12%, transparent);
+  background: var(--surface-2, #f8fafc);
+}
+.csc-summary { display: grid; gap: 12px; min-width: 0; }
+.csc-validation-summary, .csc-submit-error { padding: 16px; border: 1px solid var(--line-2); border-radius: 12px; background: var(--surface); }
+.csc-pricing { display: grid; gap: 10px; min-width: 0; }.csc-pricing > p, .csc-summary__muted, .csc-summary__error { margin: 0; font-size: var(--text-caption-size); line-height: 1.5; }.csc-summary__muted { color: var(--fg-3); }.csc-summary__error { color: var(--danger); }.csc-summary__warning { color: var(--warn, #b45309); }
+.csc-pricing dl { display: grid; gap: 8px; margin: 0; }.csc-pricing dl > div { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }.csc-pricing dt { color: var(--fg-3); font-size: var(--text-label-size); }.csc-pricing dd { margin: 0; color: var(--fg-1); font-size: var(--text-body-size); font-weight: 800; text-align: right; }
+.csc-pricing__explain { padding-top: 8px; border-top: 1px solid var(--border-1); color: var(--fg-3); font-size: var(--text-caption-size); overflow-wrap: anywhere; }.csc-pricing__explain p { margin: 3px 0; }
+.csc-pricing__breakdown { display: grid; }.csc-pricing__breakdown > div { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-top: 1px solid var(--border-1); font-size: var(--text-caption-size); overflow-wrap: anywhere; }.csc-pricing__breakdown span, .csc-pricing__breakdown small { display: block; min-width: 0; }.csc-pricing__breakdown small { margin-top: 2px; color: var(--fg-3); }
+.csc-validation-summary { border-color: color-mix(in srgb, var(--danger) 32%, var(--border-1)); background: var(--danger-bg, #fff7f7); }.csc-validation-summary__title { display: flex; gap: 8px; align-items: center; color: var(--danger); }.csc-validation-summary p { margin: 7px 0; font-size: var(--text-caption-size); }.csc-validation-summary ol { display: grid; gap: 3px; margin: 0; padding-left: 20px; }.csc-validation-summary button { min-height: 44px; border: 0; padding: 8px 0; background: none; color: var(--danger); font: inherit; font-size: var(--text-caption-size); text-align: left; text-decoration: underline; cursor: pointer; }
+.csc-submit-error { color: var(--danger); background: var(--danger-bg, #fff7f7); font-size: var(--text-data-size); line-height: 1.5; }
+.csc-summary__actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; padding-top: 4px; }
+@media (min-width: 1101px) and (min-height: 721px) {
+  .csc-section__heading > div { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+  .csc-section__heading p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .csc-validation-summary ol {
+    max-height: min(24vh, 168px);
+    padding-right: 6px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+}
+@container (max-width: 1037px) {
+  .csc-container-table-scroll { width: 100%; overflow: visible; border: 0; border-radius: 0; background: transparent; }
+  .csc-container-table, .csc-container-table tbody { display: block; width: 100%; min-width: 0; background: transparent; }
+  .csc-container-table thead, .csc-container-table colgroup { display: none; }
+  .csc-container-table tbody { display: grid; gap: 10px; }
+  .csc-container-row { position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px 10px; padding: 10px; border: 1px solid var(--line-2); border-radius: 9px; background: var(--surface); }
+  .csc-container-table .csc-container-row > * { display: block; min-width: 0; padding: 0; border: 0; background: transparent; text-align: left; }
+  .csc-container-table .csc-container-row__index { grid-column: 1 / -1; min-height: 26px; padding: 0 44px 5px 0; border-bottom: 1px solid var(--line); color: var(--fg-1); font-size: var(--text-data-size); font-weight: 750; }
+  .csc-container-row__desktop-index { display: none; }
+  .csc-container-row__mobile-index { display: inline; }
+  .csc-container-row td[data-label]::before { display: block; margin-bottom: 3px; color: var(--fg-2); content: attr(data-label); font-size: var(--text-label-size); font-weight: 700; line-height: 1.35; }
+  .csc-container-table .csc-container-row__actions { position: absolute; top: 6px; right: 6px; }
+  .csc-container-row__actions .csc-icon-button { min-width: 44px; min-height: 44px; }
+}
+@media (max-width: 1100px) {
+  /* The app shell owns the tablet/phone canvas gutter. The continuous CUS
+     form should spend its own padding inside sections, not duplicate it. */
+  .csc-page { padding-inline: 0; }
+  .csc-identity-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .csc-identity-grid > * { grid-column: auto; }
+  .csc-identity-grid__customer { grid-column: 1 / -1; }
+}
+@media (max-width: 900px) { .csc-cargo-choice-grid { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 640px) { .csc-page { padding: 12px 0 26px; }.csc-section { padding: 8px !important; gap: 10px !important; border-radius: 8px !important; }.csc-section__heading { gap: 9px; margin: -8px -8px 0; padding: 10px 8px; border-radius: 7px 7px 0 0; }.csc-mode legend, .csc-mode__option, .csc-combined-toggle span { font-size: var(--control-compact-touch-font-size); line-height: var(--control-compact-touch-line-height); }.csc-mode__option, .csc-combined-toggle, .csc-add-container, .csc-container-add-control input, .csc-utility-button { min-height: 44px; }.csc-container-actions { align-items: stretch; }.csc-container-add-control { display: grid; width: 100%; grid-template-columns: 72px minmax(0, 1fr); }.csc-add-container { width: 100%; justify-self: stretch; }.csc-customer-picker, .csc-shipping-line-picker { grid-template-columns: minmax(0, 1fr); }.csc-shipping-line-picker__add { width: 100%; justify-self: stretch; }.csc-customer-picker__add { width: 100%; justify-self: stretch; }.csc-icon-button { min-width: 44px; min-height: 44px; }.csc-section textarea { min-height: 88px; }.csc-identity-grid { grid-template-columns: minmax(0, 1fr); }.csc-identity-grid__customer { grid-column: auto; }.csc-mode > div { grid-template-columns: 1fr; }.csc-site-picker { grid-template-columns: 1fr; }.csc-site-picker__actions { justify-content: stretch; }.csc-site-picker__actions .csc-utility-button { flex: 1 1 140px; }.csc-container-editor__allocation { align-items: stretch; flex-direction: column; }.csc-container-editor__allocation > .csc-utility-button { width: 100%; }.csc-container-row { grid-template-columns: minmax(0, 1fr); padding: 8px 0; border: 0; border-radius: 0; }.csc-pricing dl > div, .csc-pricing__breakdown > div { align-items: flex-start; flex-direction: column; }.csc-pricing dd { text-align: left; } }
+
+/* Keep the normal-flow action row above the iPhone home indicator at the end
+   of the long create form. It is deliberately not sticky. */
+@media (max-width: 640px) {
+  .csc-container-row { grid-template-columns: minmax(0, 112px) minmax(0, 1fr); }
+  .csc-container-row > * { grid-column: 1 / -1; }
+  .csc-container-row > .csc-container-cell--weight { grid-column: 1; }
+  .csc-container-row > .csc-container-cell--appointment { grid-column: 2; }
+  .csc-page {
+    padding-bottom: calc(44px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@media (max-width: 640px) { .csc-route-picker__add { width: 100%; justify-self: stretch; }.csc-route-dialog__grid { grid-template-columns: minmax(0, 1fr); }.csc-route-dialog__submit, .csc-shipping-line-dialog__submit { min-height: 44px; } }
+@media (max-width: 340px) { .csc-page { padding-inline: 0; }.csc-validation-summary, .csc-submit-error { padding: 8px !important; } }
+@media (prefers-reduced-motion: reduce) { .csc-page *, .csc-page *::before, .csc-page *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; } }
+
+/* The FCL cargo step owns an editable view of the lot route. It shares the
+   same routeId as section 02, so the choice is immediate and never forks
+   shipment route authority. */
+.csc-cargo-route-picker {
+  display: grid;
+  gap: 6px;
+  width: min(100%, 420px);
+  margin-bottom: 8px;
+}
+
+.csc-cargo-route-picker__label {
+  color: var(--fg-1);
+  font-size: var(--text-label-size);
+  font-weight: 600;
+}
+
+.csc-cargo-route-picker__label span {
+  color: var(--danger, #dc2626);
+}
+
+@media (max-width: 640px) {
+  .csc-cargo-route-picker {
+    width: 100%;
+  }
+}
+
+/* ── Lệnh chạy ngoài toggle (MasterDataNhaMay §4.1) ───────────────────────── */
+.csc-adhoc-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1px dashed var(--line, #d8d3cb);
+  border-radius: 10px;
+  background: var(--bg-2, #f7f4ee);
+  font-size: var(--text-body-size);
+  font-weight: 600;
+  color: var(--fg-1, #222);
+  margin-bottom: 4px;
+}
+
+.csc-adhoc-toggle input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--ink, #1c1c1c);
+}
+
+/* Duplicate-reference soft warning (customer feedback 2026-09-07 — Bill/Booking
+ * already entered). Renders BELOW the input hint so the field stays valid;
+ * orange tone to distinguish from a hard `error` (red). The link inside is
+ * focusable and the whole block is in the a11y tree via `role=\"status\"`. */
+.csc-text-field-with-warning { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.csc-field-warning {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-caption-size);
+  line-height: 1.4;
+  color: #b45309;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+.csc-field-warning__link {
+  color: #b45309;
+  font-weight: 600;
+  text-decoration: underline;
+}
+.csc-field-warning__link:hover { color: #92400e; }
+
+/* Separate time/date controls remain usable in the repeatable desktop grid. */
+.csc-container-col__appointment { width: 170px; }
+
+/* Stacked records are forms, not spreadsheet previews. Show their controls
+ * continuously and keep catalog creation beside its selector so invisible
+ * editor/add rows do not reserve a second line of phone screen space. */
+@container (max-width: 1037px) {
+  .csc-container-cell .csc-container-cell__display { display: none; }
+  .csc-container-cell .csc-container-cell__editor > * { opacity: 1; }
+  .csc-container-cell .csc-route-picker { grid-template-columns: minmax(0, 1fr) auto; gap: 6px; align-items: start; }
+  .csc-container-cell .csc-route-picker__add { width: auto; min-height: 44px; padding-inline: 8px; }
+}
+"
+
+ ❯ src/pages/clerk/ClerkShipmentCreatePage.styles.test.ts:181:17
+    179|     expect(css).toMatch(/\.app-main:not\(\.driver-mode\) \.app-body > …
+    180|     expect(css).toMatch(/\.csc-page\s*\{[^}]*width:\s*100%;[^}]*margin…
+    181|     expect(css).toMatch(/@media \(max-width:\s*640px\)\s*\{\s*\.csc-pa…
+       |                 ^
+    182|     expect(css).toMatch(/\.csc-workspace\s*\{[^}]*gap:\s*12px;/);
+    183|     expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/8]⎯
+
+ FAIL  src/pages/driver/DriverTwoOrdersPage.test.tsx > DriverTwoOrdersPage — M8.3 two-orders view > renders active + next as distinct cards linking to their detail
+AssertionError: expected '/my-trips/10' to be '/my-trips/110' // Object.is equality
+
+Expected: "/my-trips/110"
+Received: "/my-trips/10"
+
+ ❯ src/pages/driver/DriverTwoOrdersPage.test.tsx:80:45
+     78|     const activeCard = await screen.findByTestId('two-orders-card-Lệnh…
+     79|     const nextCard = screen.getByTestId('two-orders-card-Lệnh tiếp the…
+     80|     expect(activeCard.getAttribute('href')).toBe('/my-trips/110');
+       |                                             ^
+     81|     expect(nextCard.getAttribute('href')).toBe('/my-trips/120');
+     82|     expect(activeCard).not.toBe(nextCard);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/8]⎯
+
+ FAIL  src/pages/driver/DriverTwoOrdersPage.test.tsx > DriverTwoOrdersPage — M8.3 two-orders view > prefers the persisted ordered pair view when a cross-day pair exists
+AssertionError: expected '/my-trips/10' to be '/my-trips/110' // Object.is equality
+
+Expected: "/my-trips/110"
+Received: "/my-trips/10"
+
+ ❯ src/pages/driver/DriverTwoOrdersPage.test.tsx:110:81
+    108|     renderAt();
+    109|     expect(await screen.findByTestId('ordered-pair-summary')).toBeTrut…
+    110|     expect(screen.getByTestId('two-orders-card-Chuyến 1').getAttribute…
+       |                                                                                 ^
+    111|     expect(screen.getByTestId('two-orders-card-Chuyến 2').getAttribute…
+    112|     expect(screen.getByText(/22.5 km/)).toBeTruthy();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/8]⎯
+
+ FAIL  src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx > DetailedPlanGrid > keeps the dispatcher column read-like until its one full-cell trigger is clicked
+AssertionError: expected '.detailed-plan-grid td.detailed-plan-…' to match /\.dispatch-assignment-cell__car…/\s*-1;
+
+- Expected:
+/\.dispatch-assignment-cell__carrier,[\s\S]*?\.dispatch-assignment-cell__plate\s*\{[^}]*grid-column:\s*1\s*\/\s*-1;/
+
++ Received:
+".detailed-plan-grid td.detailed-plan-grid__cell--editable {
+  position: relative;
+  padding: 0;
+}
+
+.detailed-plan-grid td.detailed-plan-grid__cell--editable::after {
+  display: block;
+  min-height: 72px;
+  content: '';
+}
+
+.detailed-plan-grid td.detailed-plan-grid__cell--editable:has(.dispatch-assignment-cell__driver)::after {
+  min-height: 94px;
+}
+
+.dispatch-assignment-cell {
+  position: absolute;
+  inset: 0;
+}
+
+.dispatch-assignment-cell__trigger {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: center;
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  gap: 2px 8px;
+  padding: 8px 12px;
+  color: var(--text-primary, #101828);
+  font: inherit;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.dispatch-assignment-cell__trigger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+}
+
+/* Stay absolute so keyboard focus never shrinks the cell's hit area;
+   z-index alone lifts the ring above the td's stacking context. */
+.dispatch-assignment-cell__trigger:focus-visible {
+  z-index: 1;
+  outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  outline-offset: -2px;
+}
+
+.dispatch-assignment-cell__trigger:disabled {
+  cursor: default;
+}
+
+.dispatch-assignment-cell__carrier,
+.dispatch-assignment-cell__plate,
+.dispatch-assignment-cell__estimate {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dispatch-assignment-cell__carrier,
+.dispatch-assignment-cell__plate,
+.dispatch-assignment-cell__driver {
+  grid-column: 1 / -1;
+}
+
+.dispatch-assignment-cell__carrier {
+  font-size: var(--ops-table-supporting-size);
+  font-weight: 600;
+  line-height: var(--ops-table-supporting-line-height);
+}
+
+.dispatch-assignment-cell__plate {
+  font-family: var(--font-data, inherit);
+  font-size: var(--ops-table-supporting-size);
+  font-weight: 500;
+  line-height: var(--ops-table-supporting-line-height);
+}
+
+.dispatch-assignment-cell__driver {
+  min-width: 0;
+  color: var(--text-secondary, #475467);
+  font-size: var(--ops-table-meta-size, 11px);
+  font-weight: 400;
+  line-height: var(--ops-table-meta-line-height, 1.4);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dispatch-assignment-cell__estimate {
+  color: var(--text-secondary, #64748b);
+  font-family: var(--font-data, inherit);
+  font-size: var(--ops-table-meta-size);
+  line-height: var(--ops-table-meta-line-height);
+}
+
+.dispatch-assignment-cell__plate.is-placeholder,
+.dispatch-assignment-cell__driver.is-placeholder,
+.dispatch-assignment-cell__estimate.is-placeholder {
+  /* Placeholder copy (\"CUS sẽ bổ sung\", \"Chưa phân xe\") is operational
+     guidance, not disabled UI — the fallback must meet text contrast
+     (4.76:1 on white); italic + regular weight already mark the
+     placeholder semantic. */
+  color: var(--text-tertiary, #64748b);
+  font-family: inherit;
+  font-style: italic;
+}
+
+/* Row-level \"phát lệnh\" shortcut — layered above the full-cell trigger so a
+   dispatcher can issue an already-plated row without opening the editor. */
+
+/* Row action rendered as a labeled text button (\"Phát lệnh\" / \"Hoàn thành\")
+
+/* Row action rendered as a labeled text button (\"Phát lệnh\" / \"Hoàn thành\")
+   now lives inside the Ghi chú cell (`.detailed-plan-grid__note-action` in
+   DetailedPlanGrid.css) per the customer's placement ruling — nothing floats
+   over the assignment cell anymore. */
+
+
+
+.dispatch-assignment-dialog {
+  display: grid;
+  gap: 14px;
+}
+
+.dispatch-assignment-dialog__fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-areas:
+    'carrier vehicle'
+    'classification combined'
+    'revenue cost';
+  gap: 14px 12px;
+  align-items: end;
+}
+
+.dispatch-assignment-dialog__fields > label {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+  color: var(--text-secondary, #475467);
+  font-size: var(--text-label-size);
+  font-weight: 600;
+}
+
+.dispatch-assignment-dialog__carrier {
+  grid-area: carrier;
+}
+
+.dispatch-assignment-dialog__vehicle {
+  grid-area: vehicle;
+}
+
+.dispatch-assignment-dialog__classification {
+  grid-area: classification;
+  width: min(168px, 100%);
+}
+
+.dispatch-assignment-dialog__classification > label,
+.dispatch-assignment-dialog__money .ds-field__label {
+  color: var(--text-secondary, #475467);
+  font-size: var(--text-label-size);
+  font-weight: 600;
+}
+
+.dispatch-assignment-dialog :is(.searchable-select__value, .searchable-select__placeholder),
+.dispatch-assignment-dialog__classification p {
+  font-weight: 400;
+}
+
+.dispatch-assignment-dialog__money .ds-field__input,
+.dispatch-assignment-dialog__money .ds-field__affix {
+  min-height: var(--control-compact-h, 34px);
+}
+
+.dispatch-assignment-dialog__money .ds-field__input {
+  font-family: var(--font-data, inherit);
+}
+
+.dispatch-assignment-dialog__money .ds-field__affix {
+  padding-inline: 10px;
+  color: var(--text-secondary, #475467);
+  background: var(--surface-2, #f8fafc);
+}
+
+.dispatch-assignment-dialog__revenue {
+  grid-area: revenue;
+}
+
+.dispatch-assignment-dialog__cost {
+  grid-area: cost;
+}
+
+.dispatch-assignment-dialog__error {
+  margin: 0;
+  color: var(--color-fg-error-primary, #b42318);
+  font-size: var(--text-caption-size);
+  line-height: 1.45;
+}
+
+.dispatch-assignment-dialog__issue-btn {
+  background: #4A9E7D;
+  border-color: transparent;
+  transition: background 120ms ease;
+}
+
+.dispatch-assignment-dialog__issue-btn:hover:not(:disabled) {
+  background: #3D8B6E;
+}
+
+.dispatch-assignment-dialog__issue-btn:active:not(:disabled) {
+  background: #2D6B54;
+}
+
+.dispatch-assignment-dialog__issue-btn:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-bg-success-solid, #17b26a) 55%, transparent);
+  outline-offset: 2px;
+}
+
+.dispatch-assignment-dialog__issue {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border-subtle, #eaecf0);
+  border-radius: 8px;
+}
+
+.dispatch-assignment-dialog__issue legend {
+  padding: 0 4px;
+  color: var(--text-secondary, #475467);
+  font-size: var(--text-caption-size);
+  font-weight: 600;
+}
+
+.dispatch-assignment-dialog__issue-hint {
+  margin: 0;
+  color: var(--text-secondary, #475467);
+  font-size: var(--text-caption-size);
+}
+
+.dispatch-assignment-dialog__issue-driver {
+  margin: 0;
+  font-size: var(--fs-3xs);
+}
+
+.dispatch-assignment-dialog__issue-warning {
+  color: var(--color-fg-warning-primary, #b54708);
+}
+
+.dispatch-assignment-dialog__issue > label {
+  display: grid;
+  gap: 6px;
+  color: var(--text-secondary, #475467);
+  font-size: var(--text-label-size);
+  font-weight: 600;
+}
+
+.dispatch-assignment-dialog__schedule-section {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--ink-3, #667085);
+  font-size: var(--text-caption-size);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-top: 10px;
+  margin-bottom: 6px;
+}
+
+.dispatch-assignment-dialog__schedule-section > svg {
+  flex-shrink: 0;
+  color: var(--brand, #047857);
+}
+
+.dispatch-assignment-dialog__schedule-pills,
+.dispatch-assignment-dialog__schedule-times {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.dispatch-assignment-dialog__schedule-pill {
+  flex: 1;
+  padding: 6px 8px;
+  border: 1px solid var(--line, #e4e7ec);
+  border-radius: 6px;
+  background: var(--surface-2, #f8f9fa);
+  color: var(--ink-2, #344054);
+  font-family: inherit;
+  font-size: var(--text-caption-size);
+  font-weight: 500;
+  text-align: center;
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.dispatch-assignment-dialog__schedule-pill:hover {
+  background: var(--surface, #ffffff);
+  border-color: var(--brand, #047857);
+  color: var(--brand, #047857);
+}
+
+.dispatch-assignment-dialog__schedule-pill.is-active {
+  background: var(--brand, #047857);
+  border-color: var(--brand, #047857);
+  color: #fff;
+  font-weight: 600;
+}
+
+.dispatch-assignment-dialog__schedule-pill:focus-visible,
+.dispatch-assignment-dialog__schedule-time-pill:focus-visible {
+  outline: 2px solid var(--accent, #0284c7);
+  outline-offset: 1px;
+}
+
+.dispatch-assignment-dialog__issue-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 0.85fr) minmax(0, 1.3fr);
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.dispatch-assignment-dialog__issue-grid > label {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+
+.dispatch-assignment-dialog__issue-grid > label > span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-label-size);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--ink-3, #667085);
+  font-weight: var(--fw-bold, 700);
+  line-height: 1.3;
+}
+
+.dispatch-assignment-dialog__next-day-badge {
+  display: inline-block;
+  font-size: var(--text-caption-size);
+  font-weight: 600;
+  color: var(--brand, #047857);
+  background: rgba(4, 120, 87, 0.1);
+  padding: 1px 4px;
+  border-radius: 3px;
+  text-transform: none;
+}
+
+.dispatch-assignment-dialog__schedule-time-pill {
+  flex: 1;
+  padding: 5px 4px;
+  border: 1px solid var(--line, #e4e7ec);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--ink-2, #344054);
+  font-family: inherit;
+  font-size: var(--text-caption-size);
+  text-align: center;
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.dispatch-assignment-dialog__schedule-time-pill:hover {
+  background: var(--surface-2, #f8f9fa);
+  color: var(--brand, #047857);
+}
+
+.dispatch-assignment-dialog__schedule-time-pill.is-active {
+  background: var(--surface-2, #f8f9fa);
+  border-color: var(--brand, #047857);
+  color: var(--brand, #047857);
+  font-weight: 600;
+}
+
+.dispatch-assignment-dialog__issue-times {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 12px;
+}
+
+.dispatch-assignment-dialog__issue-times > label {
+  display: grid;
+  /* Explicit minmax(0,1fr) track: datetime-local inputs keep a hard intrinsic
+     width, so the default auto track would size to the input and overflow the
+     cell (inputs merging + spilling past the fieldset) on narrow viewports. */
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  gap: 6px;
+  color: var(--text-secondary, #475467);
+  font-size: var(--text-label-size);
+  font-weight: 600;
+}
+
+.dispatch-assignment-dialog__issue input[type='datetime-local'],
+.dispatch-assignment-dialog__issue input[type='date'],
+.dispatch-assignment-dialog__issue input[type='time'] {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--control-compact-h, 34px);
+  padding: 0 8px;
+  font-size: var(--text-caption-size);
+}
+
+@media (max-width: 520px) {
+  .dispatch-assignment-dialog__issue-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .dispatch-assignment-dialog__issue-grid > label:last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Phone/narrow widths render .input at the 16px touch font, which makes the
+   datetime control's intrinsic width exceed the two-column split — stack the
+   pair so each input gets the full row instead of clipping its value. */
+@media (max-width: 640px) {
+  .dispatch-assignment-dialog__issue-times {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@container (max-width: 900px) {
+  .detailed-plan-grid td.detailed-plan-grid__cell--editable {
+    position: static;
+  }
+
+  .detailed-plan-grid td.detailed-plan-grid__cell--editable::after {
+    display: none;
+  }
+
+  .dispatch-assignment-cell {
+    position: static;
+  }
+
+  .dispatch-assignment-cell__trigger {
+    position: relative;
+    inset: auto;
+    height: auto;
+    min-height: 0;
+  }
+
+  /* `td` keeps this above the grid's `.detailed-plan-grid__cell::before`
+     label rule (equal class specificity would lose on bundle order). */
+  td.detailed-plan-grid__cell--editable::before {
+    display: none;
+  }
+
+  .dispatch-assignment-cell__trigger::before {
+    display: block;
+    grid-column: 1 / -1;
+    margin-bottom: 3px;
+    color: var(--text-secondary, #64748b);
+    content: attr(data-cell-label);
+    font-size: var(--text-label-size);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    line-height: 1.3;
+    text-transform: uppercase;
+  }
+}
+
+@media (max-width: 640px) {
+  .dispatch-assignment-dialog__fields {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'carrier'
+      'vehicle'
+      'classification'
+      'combined'
+      'revenue'
+      'cost';
+  }
+
+  .dispatch-assignment-dialog__money .ds-field__input,
+  .dispatch-assignment-dialog__money .ds-field__affix,
+  .dispatch-assignment-dialog .searchable-select__trigger {
+    min-height: var(--control-mobile-h);
+  }
+
+  .dispatch-assignment-dialog__classification {
+    width: min(180px, 100%);
+  }
+}
+
+/* Atomic editor additions: classification select + Đóng kết hợp toggle. */
+.dispatch-assignment-dialog__fields > .dispatch-assignment-dialog__check {
+  grid-area: combined;
+  display: flex;
+  align-items: center;
+  align-self: end;
+  min-height: var(--control-compact-h, 34px);
+  gap: 8px;
+  padding-bottom: 1px;
+  color: var(--text-primary, #101828);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.dispatch-assignment-dialog__fields > .dispatch-assignment-dialog__check input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  margin: 0;
+  accent-color: var(--accent, #005a2d);
+}
+
+.dispatch-assignment-dialog__fields > .dispatch-assignment-dialog__check--disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.dispatch-assignment-dialog__fields > .dispatch-assignment-dialog__check input[type='checkbox']:disabled {
+  cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+  .dispatch-assignment-dialog__fields > .dispatch-assignment-dialog__check {
+    min-height: var(--control-mobile-h);
+    white-space: normal;
+  }
+}
+
+/* ─── Note composer (Ghi chú tác vụ) ─────────────────────────────────────── */
+
+.dispatch-assignment-dialog__notes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.dispatch-assignment-dialog__notes-label {
+  font-size: var(--ops-table-supporting-size, 12px);
+  font-weight: 500;
+  color: var(--text-secondary, #475467);
+}
+
+.dispatch-assignment-dialog__notes-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.dispatch-assignment-dialog__notes-tag {
+  appearance: none;
+  border: 1px solid var(--border, #d0d5dd);
+  background: var(--surface, #fff);
+  color: var(--text-primary, #101828);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: var(--ops-table-supporting-size, 12px);
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.dispatch-assignment-dialog__notes-tag:not(.is-selected):hover:not(:disabled) {
+  border-color: var(--accent, #005a2d);
+  color: var(--accent, #005a2d);
+}
+
+.dispatch-assignment-dialog__notes-tag.is-selected {
+  background: var(--accent, #005a2d);
+  border-color: var(--accent, #005a2d);
+  color: #fff;
+}
+
+.dispatch-assignment-dialog__notes-tag--add {
+  border-style: dashed;
+  color: var(--text-secondary, #475467);
+}
+
+.dispatch-assignment-dialog__notes-add-row {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.dispatch-assignment-dialog__notes-add-row input {
+  border: 1px solid var(--border, #d0d5dd);
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-size: var(--ops-table-supporting-size, 12px);
+  width: 160px;
+}
+
+.dispatch-assignment-dialog__notes-add-row button {
+  appearance: none;
+  border: 1px solid var(--accent, #005a2d);
+  background: var(--accent, #005a2d);
+  color: #fff;
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-size: var(--ops-table-supporting-size, 12px);
+  cursor: pointer;
+}
+
+/* The typed note (\"Ghi chú thêm\") gets its own labeled section below the tag
+   chips so operators never mistake typed text for a task tag. */
+.dispatch-assignment-dialog__notes-manual {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.dispatch-assignment-dialog__notes-text {
+  border: 1px solid var(--border, #d0d5dd);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: var(--ops-table-supporting-size, 12px);
+  min-height: 56px;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.dispatch-assignment-dialog__notes-text:focus,
+.dispatch-assignment-dialog__notes-add-row input:focus {
+  outline: 2px solid var(--accent, #005a2d);
+  outline-offset: 1px;
+}
+
+.dispatch-assignment-dialog__notes-preview {
+  margin: 0;
+  font-size: var(--ops-table-meta-size, 11px);
+  color: var(--text-secondary, #475467);
+  word-break: break-word;
+}
+
+/* ─── Tag manager popover (\"Quản lý tag\") ─────────────────────────────────
+   Body-portal + backdrop + fixed viewport-aware coords, mirroring the
+   cus-appointment popover pattern (ShipmentsPage.css) so the panel never
+   clips inside the assignment dialog. */
+
+.dispatch-assignment-dialog__notes-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dispatch-assignment-dialog__notes-manage-btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary, #475467);
+  cursor: pointer;
+}
+
+.dispatch-assignment-dialog__notes-manage-btn:hover:not(:disabled) {
+  border-color: var(--border, #d0d5dd);
+  color: var(--accent, #005a2d);
+  background: var(--surface-hover, #f8fafc);
+}
+
+.dispatch-tag-manager__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1040;
+  background: transparent;
+}
+
+.dispatch-tag-manager {
+  position: fixed;
+  z-index: 1050;
+  width: 280px;
+  max-width: calc(100vw - 24px);
+  padding: 12px;
+  border: 1px solid var(--line-strong, #cbd5e1);
+  border-radius: var(--app-radius-sm, 8px);
+  background: var(--surface, #ffffff);
+  box-shadow: 0 12px 28px -4px rgba(15, 23, 42, 0.16), 0 4px 10px -2px rgba(15, 23, 42, 0.08);
+  animation: dispatchTagManagerPopIn 130ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes dispatchTagManagerPopIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.dispatch-tag-manager__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.dispatch-tag-manager__header strong {
+  font-size: var(--text-caption-size);
+  color: var(--text-primary, #101828);
+}
+
+.dispatch-tag-manager__count {
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--surface-muted, #f2f4f7);
+  color: var(--text-secondary, #475467);
+  font-size: var(--text-caption-size);
+  text-align: center;
+}
+
+.dispatch-tag-manager__close {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-left: auto;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary, #475467);
+  cursor: pointer;
+}
+
+.dispatch-tag-manager__close:hover {
+  background: var(--surface-muted, #f2f4f7);
+  color: var(--text-primary, #101828);
+}
+
+.dispatch-tag-manager__list {
+  display: flex;
+  flex-direction: column;
+  max-height: 264px;
+  overflow-y: auto;
+  border: 1px solid var(--border, #d0d5dd);
+  border-radius: 8px;
+}
+
+.dispatch-tag-manager__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 3px 8px;
+}
+
+.dispatch-tag-manager__row + .dispatch-tag-manager__row {
+  border-top: 1px solid var(--border-light, #eaecf0);
+}
+
+.dispatch-tag-manager__label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--ops-table-supporting-size, 12px);
+  color: var(--text-primary, #101828);
+}
+
+.dispatch-tag-manager__row-actions {
+  display: inline-flex;
+  gap: 2px;
+  opacity: 1;
+}
+
+.dispatch-tag-manager__icon-btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary, #475467);
+  cursor: pointer;
+}
+
+.dispatch-tag-manager__icon-btn:hover {
+  background: var(--surface-muted, #f2f4f7);
+  color: var(--accent, #005a2d);
+}
+
+.dispatch-tag-manager__icon-btn--danger:hover {
+  background: var(--danger-soft, #fdf0f1);
+  color: var(--danger, #A0444E);
+}
+
+.dispatch-tag-manager__edit-row,
+.dispatch-tag-manager__confirm {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.dispatch-tag-manager__edit-row input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--border, #d0d5dd);
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-size: var(--ops-table-supporting-size, 12px);
+}
+
+.dispatch-tag-manager__edit-row input:focus {
+  outline: 2px solid var(--accent, #005a2d);
+  outline-offset: 1px;
+}
+
+.dispatch-tag-manager__edit-row button,
+.dispatch-tag-manager__confirm button {
+  appearance: none;
+  flex-shrink: 0;
+  border: 1px solid var(--border, #d0d5dd);
+  border-radius: 8px;
+  padding: 4px 10px;
+  background: var(--surface, #fff);
+  color: var(--text-primary, #101828);
+  font-size: var(--ops-table-supporting-size, 12px);
+  cursor: pointer;
+}
+
+.dispatch-tag-manager__edit-row button:first-of-type,
+.dispatch-tag-manager__confirm .dispatch-tag-manager__confirm-yes {
+  border-color: var(--accent, #005a2d);
+  background: var(--accent, #005a2d);
+  color: #fff;
+}
+
+.dispatch-tag-manager__confirm span {
+  flex: 1;
+  font-size: var(--ops-table-supporting-size, 12px);
+  color: var(--danger, #A0444E);
+  font-weight: 500;
+  min-width: 0;
+}
+
+.dispatch-tag-manager__notice {
+  margin: 8px 0 0;
+  font-size: var(--ops-table-meta-size, 11px);
+  color: var(--danger, #A0444E);
+}
+
+.dispatch-tag-manager__empty {
+  margin: 0;
+  font-size: var(--ops-table-supporting-size, 12px);
+  color: var(--text-secondary, #475467);
+}
+
+.dispatch-tag-manager__footer {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 8px;
+  font-size: var(--ops-table-meta-size, 11px);
+  color: var(--text-secondary, #475467);
+}
+
+@media (max-width: 480px) {
+  .dispatch-tag-manager {
+    width: calc(100vw - 24px);
+  }
+}
+
+.dispatch-tag-manager { max-height: calc(100dvh - 24px); overflow-y: auto; overscroll-behavior: contain; }
+.dispatch-tag-manager__list { border-inline: 0; border-radius: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .dispatch-tag-manager { animation: none; }
+}
+"
+
+ ❯ src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx:411:23
+    409|     expect(editorCss).toContain('grid-template-columns: repeat(2, minm…
+    410|     expect(editorCss).toMatch(/\.detailed-plan-grid td\.detailed-plan-…
+    411|     expect(editorCss).toMatch(/\.dispatch-assignment-cell__carrier,[\s…
+       |                       ^
+    412|     expect(editorCss).toMatch(/@container \(max-width:\s*900px\)[\s\S]…
+    413|     expect(editorCss).toContain('.dispatch-assignment-dialog__fields {…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/8]⎯
+
+
+ Test Files  5 failed | 336 passed (341)
+      Tests  8 failed | 2199 passed (2207)
+   Start at  23:12:27
+   Duration  66.02s (transform 16.35s, setup 16.82s, import 188.04s, tests 171.98s, environment 170.71s)
+

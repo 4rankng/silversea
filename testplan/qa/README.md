@@ -23,7 +23,7 @@ testplan/qa/
 │   ├── run-all.mjs            # run a topic set (cases/<topic>/index.mjs)
 │   └── _legacy/               # archived scripts (e.g. qa_automation/test_staging.py)
 ├── cases/                     # one .mjs file per TC; small + declarative
-│   └── customer-regression/
+│   └── chungtu-regression/
 │       ├── index.mjs          # list of cases for run-all
 │       ├── factory-display.mjs
 │       ├── TC-CUS-CREATE-021.mjs   # Nhà máy X clear
@@ -63,11 +63,11 @@ STAGING_URL=https://vantai.tingting.vip \
 # 2. One case (pass file path)
 STAGING_URL=https://vantai.tingting.vip \
   node testplan/qa/scripts/run-case.mjs \
-  testplan/qa/cases/customer-regression/TC-CUS-CREATE-021.mjs
+  testplan/qa/cases/chungtu-regression/TC-CUS-CREATE-021.mjs
 
 # 3. Whole topic set (uses cases/<topic>/index.mjs)
 STAGING_URL=https://vantai.tingting.vip \
-  node testplan/qa/scripts/run-all.mjs customer-regression
+  node testplan/qa/scripts/run-all.mjs chungtu-regression
 ```
 
 Each run writes to `testplan/qa/evidence/<date>_<topic>/`:

@@ -1,4 +1,4 @@
-// cases/customer-regression/TC-CUS-CREATE-028.mjs
+// cases/chungtu-regression/TC-CUS-CREATE-028.mjs
 // §1.13 / TC-CUS-CREATE-028 — overview doesn't show "Chưa chốt ngày"
 // when a FCL container already has customerAppointmentAt.
 // Source: báo cáo khách hàng 2026-09-07.

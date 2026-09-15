@@ -1,7 +1,7 @@
-// cases/customer-regression/index.mjs — topic set for the 2026-09-06/07 customer
+// cases/chungtu-regression/index.mjs — topic set for the 2026-09-06/07 customer
 // regression sweep. Re-run with:
 //   STAGING_URL=https://vantai.tingting.vip \
-//   node testplan/qa/scripts/run-all.mjs customer-regression
+//   node testplan/qa/scripts/run-all.mjs chungtu-regression
 
 export const cases = [
   { id: 'FACTORY-DISPLAY-REGRESSION-2026-09-07', role: 'CUS', file: 'factory-display.mjs' },

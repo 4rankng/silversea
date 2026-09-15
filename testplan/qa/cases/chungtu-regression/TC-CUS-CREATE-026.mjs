@@ -1,4 +1,4 @@
-// cases/customer-regression/TC-CUS-CREATE-026.mjs
+// cases/chungtu-regression/TC-CUS-CREATE-026.mjs
 // §1.11 / TC-CUS-CREATE-026 — Duplicate Bill/Booking/Declaration guard.
 // Source: báo cáo khách hàng 2026-09-07.
 

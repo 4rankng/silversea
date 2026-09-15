@@ -1,4 +1,4 @@
-// cases/customer-regression/TC-CUS-CREATE-023.mjs
+// cases/chungtu-regression/TC-CUS-CREATE-023.mjs
 // §1.10 / TC-CUS-CREATE-023 — Cảng nâng + Cảng hạ X clear.
 
 export const caseId = 'TC-CUS-CREATE-023';
