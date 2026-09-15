@@ -1125,16 +1125,24 @@ export const expenseCategorySchema = z.object({
 // blank optional dates without forcing the client to strip them.
 const optionalDate = z.string().optional().nullable().transform((v) => (v === '' ? null : v));
 
+// Same "" → null clearing semantics as optionalDate, but the value must be a
+// real calendar date (YYYY-MM-DD) — garbage must 400 at the schema instead of
+// reaching a Postgres date column and surfacing as a 500.
+const optionalIsoDate = z
+  .union([z.literal('').transform(() => null), isoDateOnlySchema])
+  .optional()
+  .nullable();
+
 export const expenseSchema = z.object({
-  expenseDate: z.string().min(1),
+  expenseDate: isoDateOnlySchema,
   supplierId: z.coerce.number().int().positive(),
   categoryId: z.coerce.number().int().positive(),
   truckId: z.coerce.number().int().positive().optional().nullable(),
   vehicleComponent: z.enum(['TRUCK', 'TRAILER']).optional().default('TRUCK'),
   amount: positiveNumeric,
   paymentStatus: z.enum(['PAID', 'UNPAID']),
-  validFrom: optionalDate,
-  validTo: optionalDate,
+  validFrom: optionalIsoDate,
+  validTo: optionalIsoDate,
   receiptId: z.string().optional(),
   note: z.string().optional(),
 });
