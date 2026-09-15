@@ -82,9 +82,12 @@ describe('CusAppointmentPopover', () => {
     // confirm — the popover's onChange fires with the composed contract.
     fireEvent.click(screen.getByRole('button', { name: 'Chọn ngày giờ từ lịch' }));
     const pickerDialog = screen.getByRole('dialog', { name: /Giờ hẹn đóng\/trả — MSKU1234567/ });
-    fireEvent.click(within(pickerDialog).getByRole('button', { name: 'Mở lịch' }));
-    fireEvent.click(within(pickerDialog).getByRole('button', { name: '15 Tháng 9 2026' }));
-    fireEvent.click(within(pickerDialog).getByRole('button', { name: 'Xác nhận' }));
+    fireEvent.click((pickerDialog.querySelector('.dtp-dialog__split button:first-child')) as HTMLElement);
+    // Sep 2026 starts Tuesday → Monday-first lead 1 → day 15 sits at idx 15.
+    fireEvent.click((pickerDialog.querySelector('button[data-idx="15"]')) as HTMLElement);
+    fireEvent.click((pickerDialog.querySelector('.dtp-dialog__split button:nth-child(2)')) as HTMLElement);
+    fireEvent.click((pickerDialog.querySelector('[aria-label="Phút (bước 5 phút)"] button')) as HTMLElement);
+    fireEvent.click((pickerDialog.querySelector('.dtp-dialog__confirm')) as HTMLElement);
     expect(handleChange).toHaveBeenCalledWith('2026-09-15T08:00');
 
     // The typed display rehydrates to the same 24h contract.

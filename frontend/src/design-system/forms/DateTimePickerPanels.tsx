@@ -1,15 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Calendar, CalendarDays, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Calendar, CalendarDays, ChevronLeft, ChevronRight, Clock3, X } from 'lucide-react';
 import { formatDateTime24, parseDateTime24 } from '../../lib/format';
 import './DateTimePickerPanels.css';
 
 /**
- * Shared datetime picker (card _43): the appointment-popover dialog design.
- * Per-field titled dialog — CHỌN NHANH NGÀY quick pills, a buffered
- * HH:mm DD/MM/YYYY text input with a calendar-grid toggle, KHUNG GIỜ PHỔ
- * BIẾN common-slot pills and an Xác nhận confirm — 24h only, design tokens
- * only, no native popup, never a bare calendar grid. One implementation for
- * every BufferedUuiDateTimeInput consumer.
+ * Shared datetime picker (card _43 + P0 rework): the appointment-popover
+ * dialog design with SPLIT NGÀY/GIỜ controls — NGÀY opens the date panel,
+ * GIỜ opens the compact 24h time panel; quick-day pills feed NGÀY,
+ * common-slot pills feed GIỜ; Xác nhận composes both into the buffered
+ * contract. Compact by contract: ≤420px tall, ≤400px wide, whole dialog
+ * visible with no page scroll at 390×844 / 1280×600 / 1440×900. 24h only,
+ * design tokens only, no native popup.
  */
 
 export interface DatePanelProps {
@@ -70,7 +71,6 @@ export function DatePanel({ value, onChange }: DatePanelProps) {
   }, [value]);
 
   const gridRef = useRef<HTMLDivElement>(null);
-
   const cells = monthMatrix(view.y, view.m0);
 
   const handleGridKeyDown = (event: React.KeyboardEvent) => {
@@ -85,14 +85,12 @@ export function DatePanel({ value, onChange }: DatePanelProps) {
     gridRef.current.querySelector<HTMLButtonElement>(`[data-idx="${next}"]`)?.focus();
   };
 
-  const monthLabel = `Tháng ${view.m0 + 1} ${view.y}`;
-
   return (
     <div className="dtp-date" role="group" aria-label="Chọn ngày">
       <div className="dtp-date__head">
-        <button type="button" className="dtp-nav" aria-label="Tháng trước" onClick={() => setView((v) => (v.m0 === 0 ? { y: v.y - 1, m0: 11 } : { y: v.y, m0: v.m0 - 1 }))}><ChevronLeft size={15} /></button>
-        <span className="dtp-date__month">{monthLabel}</span>
-        <button type="button" className="dtp-nav" aria-label="Tháng sau" onClick={() => setView((v) => (v.m0 === 11 ? { y: v.y + 1, m0: 0 } : { y: v.y, m0: v.m0 + 1 }))}><ChevronRight size={15} /></button>
+        <button type="button" className="dtp-nav" aria-label="Tháng trước" onClick={() => setView((v) => (v.m0 === 0 ? { y: v.y - 1, m0: 11 } : { y: v.y, m0: v.m0 - 1 }))}><ChevronLeft size={14} /></button>
+        <span className="dtp-date__month">{`Tháng ${view.m0 + 1} ${view.y}`}</span>
+        <button type="button" className="dtp-nav" aria-label="Tháng sau" onClick={() => setView((v) => (v.m0 === 11 ? { y: v.y + 1, m0: 0 } : { y: v.y, m0: v.m0 + 1 }))}><ChevronRight size={14} /></button>
       </div>
       <div className="dtp-weekdays" aria-hidden="true">
         {WEEKDAYS.map((label) => <span key={label}>{label}</span>)}
@@ -108,13 +106,38 @@ export function DatePanel({ value, onChange }: DatePanelProps) {
               data-idx={idx}
               className={`dtp-day${isSelected ? ' is-selected' : ''}${isToday ? ' is-today' : ''}${cell.inMonth ? '' : ' is-outside'}`}
               aria-pressed={isSelected}
-              aria-label={`${cell.day} ${monthLabel}`}
+              aria-label={`${cell.day} ${`Tháng ${view.m0 + 1} ${view.y}`}`}
               onClick={() => onChange(cell.iso)}
             >
               {cell.day}
             </button>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+/** Compact 24h time panel: hour pills 00–23 + minute pills (5-min step). */
+export function TimePanel({ value, onPick }: { value: string; onPick: (time: string) => void }) {
+  const [currentHour, currentMinute] = value ? value.split(':') : ['', ''];
+  const [draftHour, setDraftHour] = useState<number | null>(currentHour ? Number(currentHour) : null);
+  const hours = useMemo(() => Array.from({ length: 24 }, (_, i) => i), []);
+  const minutes = useMemo(() => Array.from({ length: 12 }, (_, i) => i * 5), []);
+
+  return (
+    <div className="dtp-time" role="group" aria-label="Chọn giờ (24h)">
+      <div className="dtp-dialog__section-label">Giờ</div>
+      <div className="dtp-dialog__pills" role="group" aria-label="Giờ 00–23">
+        {hours.map((h) => (
+          <button key={h} type="button" className={`dtp-pill${(draftHour ?? (currentHour ? Number(currentHour) : null)) === h ? ' is-active' : ''}`} onClick={() => setDraftHour(h)}>{pad2(h)}</button>
+        ))}
+      </div>
+      <div className="dtp-dialog__section-label">Phút</div>
+      <div className="dtp-dialog__pills" role="group" aria-label="Phút (bước 5 phút)">
+        {minutes.map((m) => (
+          <button key={m} type="button" className="dtp-pill" onClick={() => onPick(`${pad2(draftHour ?? (currentHour ? Number(currentHour) : 8))}:${pad2(m)}`)}>{pad2(m)}</button>
+        ))}
       </div>
     </div>
   );
@@ -135,43 +158,23 @@ export interface DateTimePickerDialogProps {
 const DEFAULT_SLOTS = ['08:00', '10:00', '13:30', '16:00'];
 
 export function DateTimePickerDialog({ title, value, onConfirm, onClose, commonSlots = DEFAULT_SLOTS }: DateTimePickerDialogProps) {
-  const [draft, setDraft] = useState<string>(() => (value ? formatDateTime24(value) : ''));
+  const [date, setDate] = useState(() => (value ? value.slice(0, 10) : ''));
+  const [time, setTime] = useState(() => (value ? (value.split('T')[1] ?? '').slice(0, 5) : ''));
+  const [panel, setPanel] = useState<'date' | 'time' | null>(null);
   const [error, setError] = useState('');
-  const [gridOpen, setGridOpen] = useState(false);
 
   useEffect(() => {
-    setDraft(value ? formatDateTime24(value) : '');
+    setDate(value ? value.slice(0, 10) : '');
+    setTime(value ? (value.split('T')[1] ?? '').slice(0, 5) : '');
   }, [value]);
 
-  const draftDate = useMemo(() => {
-    const parsed = draft.trim() ? parseDateTime24(draft.trim()) : null;
-    return parsed ? parsed.slice(0, 10) : '';
-  }, [draft]);
-
-  const draftTime = useMemo(() => {
-    const parsed = draft.trim() ? parseDateTime24(draft.trim()) : null;
-    return parsed ? parsed.slice(11, 16) : '';
-  }, [draft]);
-
-  const setDraftParts = (date: string, time: string) => {
-    setDraft(formatDateTime24(`${date}T${time}`));
-    setError('');
-  };
-
-  const commit = () => {
-    const parsed = draft.trim() ? parseDateTime24(draft.trim()) : null;
-    if (!parsed) {
-      setError('Nhập ngày giờ đầy đủ theo định dạng HH:mm DD/MM/YYYY.');
+  const confirm = () => {
+    if (!date || !time) {
+      setError('Chọn đủ ngày và giờ trước khi xác nhận.');
       return;
     }
-    onConfirm(parsed);
+    onConfirm(`${date}T${time}`);
   };
-
-  const quickDays = [
-    { label: 'Hôm nay', iso: offsetDate(0) },
-    { label: 'Ngày mai', iso: offsetDate(1) },
-    { label: 'Ngày kia', iso: offsetDate(2) },
-  ];
 
   return (
     <div className="dtp-popover dtp-popover--portal dtp-dialog" role="dialog" aria-label={title}>
@@ -180,33 +183,53 @@ export function DateTimePickerDialog({ title, value, onConfirm, onClose, commonS
         <strong className="dtp-dialog__title">{title}</strong>
         <button type="button" className="dtp-dialog__close" aria-label="Đóng" onClick={onClose}><X size={14} aria-hidden="true" /></button>
       </header>
-      <div className="dtp-dialog__section-label">Chọn nhanh ngày</div>
-      <div className="dtp-dialog__pills" role="group" aria-label="Chọn nhanh ngày">
-        {quickDays.map((day) => (
-          <button key={day.iso} type="button" className={`dtp-pill${draftDate === day.iso ? ' is-active' : ''}`} onClick={() => setDraftParts(day.iso, draftTime || '08:00')}>{day.label}</button>
-        ))}
+
+      {/* SPLIT NGÀY/GIỜ controls (P0 rework): each opens its own panel below. */}
+      <div className="dtp-dialog__split">
+        <button
+          type="button"
+          className={`dtp-dialog__field${panel === 'date' ? ' is-open' : ''}`}
+          aria-expanded={panel === 'date'}
+          onClick={() => setPanel((p) => (p === 'date' ? null : 'date'))}
+        >
+          <Calendar size={13} aria-hidden="true" />
+          <span className="dtp-dialog__field-label">NGÀY</span>
+          <span className="dtp-dialog__field-value">{date ? formatDateTime24(`${date}T00:00`).slice(7) : '—'}</span>
+        </button>
+        <button
+          type="button"
+          className={`dtp-dialog__field${panel === 'time' ? ' is-open' : ''}`}
+          aria-expanded={panel === 'time'}
+          onClick={() => setPanel((p) => (p === 'time' ? null : 'time'))}
+        >
+          <Clock3 size={13} aria-hidden="true" />
+          <span className="dtp-dialog__field-label">GIỜ</span>
+          <span className="dtp-dialog__field-value">{time || '—'}</span>
+        </button>
       </div>
-      <div className="dtp-dialog__input-row">
-        <input
-          className="dtp-dialog__input"
-          value={draft}
-          onChange={(e) => { setDraft(e.target.value); setError(''); }}
-          placeholder="HH:mm DD/MM/YYYY"
-          maxLength={16}
-          autoComplete="off"
-          aria-label={`Nhập ${title}`}
-        />
-        <button type="button" className="dtp-nav" aria-label="Mở lịch" aria-expanded={gridOpen} onClick={() => setGridOpen((v) => !v)}><Calendar size={14} aria-hidden="true" /></button>
+
+      {panel === 'date' && <DatePanel value={date} onChange={(iso) => { setDate(iso); setError(''); setPanel(null); }} />}
+      {panel === 'time' && <TimePanel value={time} onPick={(t) => { setTime(t); setError(''); setPanel(null); }} />}
+
+      <div className="dtp-dialog__strip">
+        <span className="dtp-dialog__strip-label">Nhanh</span>
+        <div className="dtp-dialog__pills" role="group" aria-label="Chọn nhanh ngày">
+          {[0, 1, 2].map((offset) => (
+            <button key={offset} type="button" className={`dtp-pill${date === offsetDate(offset) ? ' is-active' : ''}`} onClick={() => { setDate(offsetDate(offset)); setError(''); }}>{['Hôm nay', 'Ngày mai', 'Ngày kia'][offset]}</button>
+          ))}
+        </div>
       </div>
-      {gridOpen && <DatePanel value={draftDate} onChange={(iso) => setDraftParts(iso, draftTime || '08:00')} />}
-      <div className="dtp-dialog__section-label">Khung giờ phổ biến</div>
-      <div className="dtp-dialog__pills" role="group" aria-label="Khung giờ phổ biến">
-        {commonSlots.map((slot) => (
-          <button key={slot} type="button" className={`dtp-pill${draftTime === slot ? ' is-active' : ''}`} onClick={() => setDraftParts(draftDate || offsetDate(0), slot)}>{slot}</button>
-        ))}
+      <div className="dtp-dialog__strip">
+        <span className="dtp-dialog__strip-label">Khung giờ</span>
+        <div className="dtp-dialog__pills" role="group" aria-label="Khung giờ phổ biến">
+          {commonSlots.map((slot) => (
+            <button key={slot} type="button" className={`dtp-pill${time === slot ? ' is-active' : ''}`} onClick={() => { setTime(slot); setError(''); }}>{slot}</button>
+          ))}
+        </div>
       </div>
+
       {error && <p className="dtp-dialog__error" role="alert">{error}</p>}
-      <button type="button" className="dtp-dialog__confirm" onClick={commit}>Xác nhận</button>
+      <button type="button" className="dtp-dialog__confirm" onClick={confirm}>Xác nhận</button>
     </div>
   );
 }
