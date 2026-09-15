@@ -537,6 +537,11 @@ export default function ExpenseEntryPage() {
 
               {showValidityFields && (
                 <>
+                  {/* QA-088: the validity pair always occupies one grid row
+                      together — the conditional fuel-truck group above flips
+                      auto-placement parity, which used to push the two
+                      dates onto diagonal rows. */}
+                  <div className="expense-validity-pair">
                   <div className="expense-group">
                     <label htmlFor="validFrom" className="expense-label">Hiệu lực từ <span className="expense-required">*</span></label>
                     <DateInput
@@ -558,6 +563,7 @@ export default function ExpenseEntryPage() {
                       onChange={(value) => set('validTo', value)}
                     />
                     {errors.validTo && <p className="expense-field-error">{errors.validTo}</p>}
+                  </div>
                   </div>
                 </>
               )}

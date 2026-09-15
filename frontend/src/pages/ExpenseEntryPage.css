@@ -420,3 +420,21 @@
   .expense-btn-cancel { width: auto; flex: 0 0 30%; }
   .expense-btn-submit { flex: 1; }
 }
+
+/* QA-088: the two validity dates always share one grid row (full-width
+   wrapper with an internal 2-col grid), and the receipt/action aside
+   follows the viewport so the long form does not outgrow it. */
+.expense-validity-pair {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+@media (min-width: 900px) {
+  .expense-layout__aside {
+    position: sticky;
+    top: 16px;
+    align-self: start;
+  }
+}
