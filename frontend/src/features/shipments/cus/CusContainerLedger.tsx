@@ -87,6 +87,7 @@ export function ContainerLedger({
   onSavingChange,
   actionsRef,
   onExternalTripCompleted,
+  onAppointmentSavedAndExit,
 }: {
   detail: ShipmentCusWorkspaceDetail;
   onLineSaved: (line: ShipmentCusWorkspaceContainerLine) => Promise<void>;
@@ -99,6 +100,10 @@ export function ContainerLedger({
   actionsRef?: React.MutableRefObject<ContainerLedgerHandle | null>;
   /** Detail refetch after a staff close — completion advances the shipment. */
   onExternalTripCompleted?: () => void;
+  /** Fires once after an appointment commit settles successfully — the host
+   *  closes the detail surface so Enter returns the user to the list, matching
+   *  the drawer footer's save-then-close behavior. */
+  onAppointmentSavedAndExit?: () => void;
 }) {
   const [drafts, setDrafts] = useState<Record<number, ContainerLineDraft>>(() => (
     Object.fromEntries(detail.containers.map((c) => [c.id, lineDraft(c)]))
@@ -230,6 +235,7 @@ export function ContainerLedger({
     const line = detail.containers.find((c) => c.id === lineId);
     if (!line || !line.permissions.customerAppointmentEditable) return false;
     setSaving(true);
+    let saved = false;
     try {
       const expectedVersion = detail.summary.version ?? (line.shipmentVersion ?? 1);
       const patch = {
@@ -244,14 +250,18 @@ export function ContainerLedger({
         await onLineSaved(result.line);
       }
       toast({ kind: 'success', message: 'Đã lưu giờ hẹn.' });
-      return true;
+      saved = true;
     } catch (error) {
       toast({ kind: 'error', message: safeError(error, 'Không thể lưu giờ hẹn.') });
-      return false;
     } finally {
       setSaving(false);
     }
-  }, [clearIdempotencyKey, detail, getIdempotencyKey, onLineSaved, toast]);
+    // Fire the exit AFTER the save settles: the host's guarded close reads
+    // saving/dirty flags that flush via effects after this task — a call made
+    // synchronously inside the try would be swallowed by the while-saving guard.
+    if (saved) setTimeout(() => onAppointmentSavedAndExit?.(), 0);
+    return saved;
+  }, [clearIdempotencyKey, detail, getIdempotencyKey, onLineSaved, onAppointmentSavedAndExit, toast]);
 
   useEffect(() => {
     if (actionsRef) actionsRef.current = { saveAll, discardAll };

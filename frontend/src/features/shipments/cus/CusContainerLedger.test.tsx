@@ -48,7 +48,7 @@ const detail = {
   selectors: { externalCarriers: [], ports: [], containerTypes: [], routes: [], carrierVehicles: [] },
 } as unknown as ShipmentCusWorkspaceDetail;
 
-function renderLedger() {
+function renderLedger(opts: { onAppointmentSavedAndExit?: () => void } = {}) {
   const utils = render(
     <ToastProvider>
       <ContainerLedger
@@ -57,6 +57,7 @@ function renderLedger() {
         getIdempotencyKey={() => 'test-key'}
         clearIdempotencyKey={() => {}}
         idPrefix="test"
+        onAppointmentSavedAndExit={opts.onAppointmentSavedAndExit}
       />
     </ToastProvider>,
   );
@@ -177,6 +178,48 @@ describe('ContainerLedger confirm affordances', () => {
     expect(document.querySelector('.cus-appointment-popover')).toBeNull();
     await new Promise((r) => setTimeout(r, 50));
     expect(updateCusShipmentContainerLine).not.toHaveBeenCalled();
+  });
+
+  it('Enter-commit success exits the detail surface to the list (fires onAppointmentSavedAndExit once)', async () => {
+    const onAppointmentSavedAndExit = vi.fn();
+    renderLedger({ onAppointmentSavedAndExit });
+    updateCusShipmentContainerLine.mockResolvedValue({ line: { id: 10, shipmentVersion: 5 } });
+
+    fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ }));
+    const datetimeInput = document.querySelector('.cus-appointment-input') as HTMLInputElement;
+    fireEvent.change(datetimeInput, { target: { value: '09:00 11/09/2026' } });
+    fireEvent.keyDown(screen.getByRole('dialog', { name: /Chọn giờ hẹn đóng\/trả/ }), { key: 'Enter' });
+
+    await waitFor(() => expect(updateCusShipmentContainerLine).toHaveBeenCalledTimes(1));
+    // Deferred past the effect flush so the host's while-saving guard no longer
+    // applies — then the host closes the drawer and the list shows.
+    await waitFor(() => expect(onAppointmentSavedAndExit).toHaveBeenCalledTimes(1));
+    expect(document.querySelector('.cus-appointment-popover')).toBeNull();
+  });
+
+  it('failed commit does not exit the detail surface', async () => {
+    const onAppointmentSavedAndExit = vi.fn();
+    renderLedger({ onAppointmentSavedAndExit });
+    updateCusShipmentContainerLine.mockRejectedValue(new Error('boom'));
+
+    fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ }));
+    const datetimeInput = document.querySelector('.cus-appointment-input') as HTMLInputElement;
+    fireEvent.change(datetimeInput, { target: { value: '09:00 11/09/2026' } });
+    fireEvent.keyDown(screen.getByRole('dialog', { name: /Chọn giờ hẹn đóng\/trả/ }), { key: 'Enter' });
+
+    await waitFor(() => expect(updateCusShipmentContainerLine).toHaveBeenCalledTimes(1));
+    await new Promise((r) => setTimeout(r, 50));
+    expect(onAppointmentSavedAndExit).not.toHaveBeenCalled();
+    expect(document.querySelector('.cus-appointment-popover')).not.toBeNull();
+  });
+
+  it('Escape never fires the exit callback', async () => {
+    const onAppointmentSavedAndExit = vi.fn();
+    renderLedger({ onAppointmentSavedAndExit });
+    fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ }));
+    fireEvent.keyDown(screen.getByRole('dialog', { name: /Chọn giờ hẹn đóng\/trả/ }), { key: 'Escape' });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(onAppointmentSavedAndExit).not.toHaveBeenCalled();
   });
 });
 
