@@ -8,7 +8,6 @@ import { LedgerService } from './ledger.service';
 import {
   applyGovernanceActionDirect,
   buildGovernanceAction,
-  type GovernanceActionRow,
   type GovernanceApplyAdapter,
   type GovernanceApplyResult,
 } from './governance-action-core.service';

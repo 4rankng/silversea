@@ -6,7 +6,7 @@ import crypto from 'crypto';
 import sharp from 'sharp';
 import { db } from '../db';
 import * as s from '../db/schema';
-import { eq, and, inArray, isNull } from 'drizzle-orm';
+import { eq, and, inArray } from 'drizzle-orm';
 // auth + Casbin applied at mount point in index.ts
 import { Role } from '@tingting/shared';
 import { storageService } from '../services/storage.service';

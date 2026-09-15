@@ -25,7 +25,7 @@ import { completeExternalCarrierTrip } from './trip-external-close.service';
 
 
 import { and, count, eq, gt, inArray, isNotNull, isNull, lt, ne, or, sql } from 'drizzle-orm';
-import { canonicalShipmentStatus, DriverProgressEventType, localDateInBusinessZone, NotificationType, Role, TripStatus, type FuelMode } from '@tingting/shared';
+import { canonicalShipmentStatus, localDateInBusinessZone, NotificationType, Role, TripStatus, type FuelMode } from '@tingting/shared';
 
 import * as s from '../db/schema';
 import { CARGO_MODE } from '../db/schema';

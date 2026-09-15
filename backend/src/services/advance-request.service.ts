@@ -8,7 +8,6 @@ import * as s from '../db/schema';
 import { eq, and, desc, inArray, notInArray, ilike, sql, count, sum, type SQL } from 'drizzle-orm';
 import { TxnType } from '@tingting/shared';
 import { LedgerService } from './ledger.service';
-import { AdvanceError } from './settlement-validation';
 import type { Tx } from './trip-shared';
 import { escapeLikeTerm } from '../lib/format';
 import { clampPageLimit, enrichWithNames } from './advance-shared.service';

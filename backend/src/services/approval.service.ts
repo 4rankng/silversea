@@ -1,5 +1,5 @@
 import * as s from '../db/schema';
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { FINANCIAL_ROLES } from '@tingting/shared';
 
 import { runInTx } from '../lib/tx';

@@ -57,7 +57,9 @@ export default tseslint.config(
     },
     rules: {
       '@typescript-eslint/no-explicit-any': 'warn',
-      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+      // ignoreRestSiblings: `const { ref, ...rest } = obj` is the canonical
+      // omit idiom — the dropped key is consumed by the rest element, not dead.
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', ignoreRestSiblings: true }],
       // Permit ambient `declare global { namespace Express { ... } }` blocks —
       // the canonical way to augment Express's Request type. Still flags real
       // namespace usage in application code.

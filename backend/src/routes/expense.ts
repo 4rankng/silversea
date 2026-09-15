@@ -27,8 +27,6 @@ import * as s from '../db/schema';
 import { storageService } from '../services/storage.service';
 import { sniffImageType } from '../lib/format';
 import { getUser } from '../middleware/auth';
-import { requireRoles } from '../middleware/casbin';
-import { Role } from '@tingting/shared';
 import { invalidateReportCaches } from '../lib/report-cache';
 import { ApiError } from '../errors';
 import { throwValidation } from '../lib/validation';

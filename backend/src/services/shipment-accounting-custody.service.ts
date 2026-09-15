@@ -8,7 +8,6 @@ import type {
   ShipmentCusDocumentCustodyUpdateInput,
   ShipmentCusLockInput,
   ShipmentCusReopenRequestInput,
-  ShipmentCusReopenDecisionInput,
 } from '@tingting/shared';
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
@@ -18,7 +17,6 @@ import type { Tx } from './trip-shared';
 import { persistNotificationInTx } from './notification.service';
 import {
   SHIPMENT_ACCOUNTING_LOCKED_MESSAGE,
-  readNumber,
   lockShipment,
   loadActiveLockForUpdate,
   mapConfirmationSummary,

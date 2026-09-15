@@ -1,7 +1,7 @@
 import { db } from '../db';
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
-import { eq, and, gte, lte, sql, isNull, ne, inArray } from 'drizzle-orm';
+import { eq, and, gte, lte, isNull, ne, inArray } from 'drizzle-orm';
 import { resolveSalaryPeriodDateRange } from './salary-period.service';
 import { ApiError } from '../errors';
 import { computeLiveSalary } from './salary-calculation.service';

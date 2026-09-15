@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
 import { NotificationType, Role, TripStatus, TxnType } from '@tingting/shared';
 import { db } from '../db';
 import { runInTx } from '../lib/tx';
@@ -51,7 +51,6 @@ import { persistNotificationInTx } from './notification.service';
 import {
   createFinancialPosting,
   getActiveFinancialPosting,
-  getFinancialPostingForGovernanceAction,
 } from './financial-posting.service';
 import { captureProfitabilityAttributionSnapshot } from './profitability.service';
 

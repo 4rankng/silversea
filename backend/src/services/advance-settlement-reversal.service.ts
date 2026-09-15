@@ -7,7 +7,7 @@ import { tripExpenseServiceLedgerCondition, tripExpenseServiceReceiptId } from '
 import { db } from '../db';
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
-import { eq, and, desc, inArray, sql } from 'drizzle-orm';
+import { eq, and, desc, sql } from 'drizzle-orm';
 import { NotificationType, TxnType, round2dp } from '@tingting/shared';
 import { LedgerService } from './ledger.service';
 import { emitNotification } from './notification.service';
@@ -24,11 +24,7 @@ import {
   buildGovernanceAction,
 } from './governance-action-core.service';
 import type { GovernanceApplyResult, GovernanceActionRow } from './governance-action-core.service';
-import {
-  assertExpectedVersion,
-  enrichSettlementWithRequests,
-  enrichWithNames,
-} from './advance-shared.service';
+import { assertExpectedVersion } from './advance-shared.service';
 
 export async function adjustSettlementExpense(
   settlementId: number,
@@ -86,9 +82,6 @@ export async function adjustSettlementExpense(
         eq(s.settlementExpenses.tripExpenseId, expenseId),
       )).limit(1);
     if (!linked) throw new AdvanceError(404, 'Khoản chi không thuộc phiếu hoàn ứng này');
-
-    const [trip] = await tx.select({ status: s.trips.status }).from(s.trips)
-      .where(eq(s.trips.id, linked.tripId)).limit(1);
 
     const currentSnapshot: Record<string, unknown> = {
       expenseType: linked.expenseType,

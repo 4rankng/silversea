@@ -415,8 +415,6 @@ export async function getCustomerReceivableSnapshots(
     : [];
   const debtOffsetKeys = new Set(debtOffsetRows.map((row) => `${row.customerId}:${row.offsetId}`));
 
-  const adjustmentRows = ledgerRowsWithTxnId.filter((row) => row.txnType === 'ADJUSTMENT' && row.txnId > 0);
-
   const directGroups = new Map<string, DirectGroup>();
   for (const row of ledgerRowsWithTxnId) {
     if (row.txnId <= 0) continue;

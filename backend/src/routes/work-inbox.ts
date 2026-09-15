@@ -8,7 +8,6 @@ import { getDriverByUserId } from '../services/driver.service';
 import { canAccessCustomer, scopedByCustomer } from '../lib/scoped-by-customer';
 import { ApiError } from '../errors';
 import { adminHealth, customerWorkInbox, driverWorkInbox, financialWorkInbox, managerDecisionInbox, operationsWorkInbox, WORK_INBOX_SORT_KEYS, type InboxQuery, type WorkInboxSortKey } from '../services/work-inbox.service';
-import { z } from 'zod';
 
 function query(req: Request): InboxQuery {
   const page = Number(req.query.page ?? 1); const limit = Number(req.query.limit ?? 25);
