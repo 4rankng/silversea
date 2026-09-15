@@ -2,6 +2,7 @@ import { type ReactNode, useId } from 'react';
 import { InputBase, type InputBaseProps } from '@/components/untitled-ui/base/input/input';
 import { Label } from '@/components/untitled-ui/base/input/label';
 import { DATE_TIME_24_PLACEHOLDER, useBufferedDateTimeValue } from '../hooks/useBufferedDateTimeValue';
+import { NativePickerButton } from './NativePickerButton';
 
 export interface BufferedUuiDateTimeInputProps
   extends Omit<InputBaseProps, 'value' | 'onChange' | 'type' | 'onBlur' | 'defaultValue' | 'ref' | 'isRequired' | 'isInvalid' | 'placeholder' | 'inputClassName' | 'wrapperClassName' | 'hint'> {
@@ -78,26 +79,38 @@ export function BufferedUuiDateTimeInput({
           {label}
         </Label>
       )}
-      <InputBase
-        {...rest}
-        ref={buffered.ref}
-        groupRef={groupRef}
-        id={id}
-        type="text"
-        size={size}
-        defaultValue={buffered.defaultValue}
-        isInvalid={isInvalid}
-        isDisabled={isDisabled}
-        isRequired={isRequired}
-        placeholder={DATE_TIME_24_PLACEHOLDER}
-        maxLength={16}
-        autoComplete="off"
-        onChange={buffered.onChange}
-        onBlur={buffered.onBlur}
-        inputClassName={inputClassName}
-        wrapperClassName={wrapperClassName}
-        {...(inputProps as Partial<InputBaseProps>)}
-      />
+      <div className="flex w-full items-start gap-1.5">
+        <div className="relative min-w-0 flex-1">
+          <InputBase
+            {...rest}
+            ref={buffered.ref}
+            groupRef={groupRef}
+            id={id}
+            type="text"
+            size={size}
+            defaultValue={buffered.defaultValue}
+            isInvalid={isInvalid}
+            isDisabled={isDisabled}
+            isRequired={isRequired}
+            placeholder={DATE_TIME_24_PLACEHOLDER}
+            maxLength={16}
+            autoComplete="off"
+            onChange={buffered.onChange}
+            onBlur={buffered.onBlur}
+            inputClassName={inputClassName}
+            wrapperClassName={wrapperClassName}
+            {...(inputProps as Partial<InputBaseProps>)}
+          />
+        </div>
+        <NativePickerButton
+          kind="datetime-local"
+          label={label ? `Chọn ngày giờ: ${label}` : 'Chọn ngày giờ'}
+          isDisabled={isDisabled}
+          onPick={(native) =>
+            buffered.onChange({ target: { value: native } } as unknown as Parameters<typeof buffered.onChange>[0])
+          }
+        />
+      </div>
       {hint && (
         <p className="text-xs leading-[1.5] text-tertiary group-invalid/input:text-error-primary">
           {hint}
