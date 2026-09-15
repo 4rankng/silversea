@@ -15,6 +15,8 @@ interface LocationAutocompleteProps {
   className?: string;
   style?: React.CSSProperties;
   required?: boolean;
+  /** Accessible name — placeholders are not reliable accessible names. */
+  ariaLabel?: string;
 }
 
 interface MergedSuggestion {
@@ -31,6 +33,7 @@ export function LocationAutocomplete({
   className,
   style,
   required,
+  ariaLabel,
 }: LocationAutocompleteProps) {
   const [placeSuggestions, setPlaceSuggestions] = useState<PlaceSuggestion[]>([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -171,6 +174,7 @@ export function LocationAutocomplete({
         className={className}
         style={style}
         placeholder={placeholder}
+        aria-label={ariaLabel ?? placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onFocus={() => {

@@ -14,6 +14,7 @@ import type { PricingTable, TripDetail, TripLeg, PaginatedResponse } from '@ting
 import { tripClient } from '../api/tripClient';
 import { businessDateISO } from '../lib/format';
 import { configClient } from '../api/configClient';
+import { useTrailerAutoPin } from './useTrailerAutoPin';
 import { qk } from '../api/keys';
 
 import type { TripOptions, RouteOption } from './useTripOptions';
@@ -220,19 +221,9 @@ export function useTripFormDispatch(params: UseTripFormDispatchParams): UseTripF
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEditMode, existingTrip, s.resetToggle]);
 
-  useEffect(() => {
-    if (s.truckId && options?.trucks && options?.trailers) {
-      const selectedTruck = options.trucks.find(t => t.id === Number(s.truckId));
-      if (selectedTruck?.currentTrailerId) {
-        const trailer = options.trailers.find(t => t.id === selectedTruck.currentTrailerId);
-        if (trailer) {
-          s.setTrailerType(trailer.type === '20FT' ? '20FT' : '40FT');
-        }
-      }
-    }
-    // 's' omitted: individual s.* fields listed are the correct granularity.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [s.truckId, options?.trucks, options?.trailers]);
+  // Auto-suggest the trailer type from the truck's current trailer — at most
+  // once per selected truck (extracted hook; see useTrailerAutoPin).
+  useTrailerAutoPin({ truckId: s.truckId, setTrailerType: s.setTrailerType, trucks: options?.trucks, trailers: options?.trailers });
 
   const pricingQuery = useQuery({
     queryKey: qk.trips.suggestedPrice(Number(s.customerId) || 0, Number(s.routeId) || 0, s.departureDate),
