@@ -50,7 +50,13 @@ describe('chunk recovery evidence', () => {
     expect(await recoverFromChunkFailure()).toBe('unavailable');
     Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
     newBuild();
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('blocked'); });
+    // Simulate blocked storage on the global the module actually reads:
+    // sessionStorage is not guaranteed to sit on Storage.prototype in every
+    // vitest environment, so a prototype spy cannot reliably intercept it.
+    vi.stubGlobal('sessionStorage', {
+      getItem: () => null,
+      setItem: () => { throw new Error('blocked'); },
+    });
     expect(await recoverFromChunkFailure()).toBe('unavailable');
     expect(reload).not.toHaveBeenCalled();
   });
