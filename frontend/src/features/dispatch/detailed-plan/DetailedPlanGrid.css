@@ -1093,3 +1093,13 @@
   .detailed-plan-grid__cell--editable { grid-row: 5; }
   .detailed-plan-grid__cell--notes { grid-row: 6; }
 }
+
+/* The Ghi chú cell must wrap like every other notes surface (user report
+   2026-09-15): the table's nowrap inheritance and any clamp bypass left it
+   on one line. pre-wrap keeps the tags/text two-line note format. */
+.detailed-plan-grid [class*='__cell--notes'],
+.detailed-plan-grid [class*='__cell--notes'] .detailed-plan-grid__note,
+.detailed-plan-grid .detailed-plan-grid__note-clamp {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
