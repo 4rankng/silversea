@@ -143,11 +143,11 @@ export default function DriverTwoOrdersPage() {
           <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', fontSize: 'var(--text-data-size)' }}>
             <div>
               <div style={{ color: 'var(--ink-3)' }}>Xe rỗng</div>
-              <div style={{ fontWeight: 700 }}>{view.pair.emptyDistanceKm ? `${view.pair.emptyDistanceKm} km` : '—'}</div>
+              <div style={{ fontWeight: 700 }}>{view.pair.emptyDistanceKm != null ? `${view.pair.emptyDistanceKm} km` : '—'}</div>
             </div>
             <div>
               <div style={{ color: 'var(--ink-3)' }}>Hiệu suất</div>
-              <div style={{ fontWeight: 700 }}>{view.pair.combinedEfficiencyPercent ? `${view.pair.combinedEfficiencyPercent}%` : '—'}</div>
+              <div style={{ fontWeight: 700 }}>{view.pair.combinedEfficiencyPercent != null ? `${view.pair.combinedEfficiencyPercent}%` : '—'}</div>
             </div>
             <div>
               <div style={{ color: 'var(--ink-3)' }}>Đệm thời gian</div>
