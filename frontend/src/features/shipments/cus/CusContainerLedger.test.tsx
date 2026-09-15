@@ -207,6 +207,24 @@ describe('ContainerLedger confirm affordances', () => {
     expect(reopened.value).not.toBe('11:00 19/09/2026');
   });
 
+  it('_34 clobber pin: Enter in the appointment field commits the TYPED value, never the stale buffer', async () => {
+    const onAppointmentSavedAndExit = vi.fn();
+    renderLedger({ onAppointmentSavedAndExit });
+    updateCusShipmentContainerLine.mockResolvedValue({ line: { id: 10, shipmentVersion: 9 } });
+
+    fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ }));
+    const datetimeInput = document.querySelector('.cus-appointment-input') as HTMLInputElement;
+    fireEvent.change(datetimeInput, { target: { value: '12:00 19/09/2026' } });
+    fireEvent.keyDown(screen.getByRole('dialog', { name: /Chọn giờ hẹn đóng\/trả/ }), { key: 'Enter' });
+    await waitFor(() => expect(updateCusShipmentContainerLine).toHaveBeenCalledTimes(1));
+    const payload = updateCusShipmentContainerLine.mock.calls[0][2] as { customerAppointmentAt: string };
+    // _34 clobber pin: the TYPED value persists — never the stale base buffer.
+    expect(payload.customerAppointmentAt).toContain('12:00');
+    expect(payload.customerAppointmentAt).toContain('2026-09-19');
+    // Exit coverage lives in the Enter-commit-success test; here the settle
+    // poll correctly waits (no saved-line rerender was performed).
+  });
+
   it('Enter-commit success exits the detail surface to the list (fires onAppointmentSavedAndExit once)', async () => {
     const onAppointmentSavedAndExit = vi.fn();
     const view = renderLedger({ onAppointmentSavedAndExit });
