@@ -1,0 +1,7 @@
+.financial-aging-disclosure { border-block: 1px solid var(--line); margin-block: 8px; }
+.financial-aging-disclosure > summary { cursor: pointer; padding: 8px 0; font-size: var(--text-body-size); font-weight: 600; }
+.financial-aging-disclosure > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.financial-aging-disclosure[open] > summary { margin-bottom: 4px; }
+@media (max-width: 1023px) {
+  .financial-aging-disclosure > summary { min-height: 44px; align-content: center; }
+}

@@ -114,7 +114,7 @@ before(async () => {
     requesterId: forwarderUserId,
     amount: '1000',
     reason: `Q23 approved advance ${suffix}`,
-    status: 'APPROVED',
+    status: 'RECORDED',
   }).returning({ id: s.advanceRequests.id });
   approvedAdvanceRequestId = approvedAdvanceRequest.id;
 

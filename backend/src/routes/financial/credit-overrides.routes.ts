@@ -35,7 +35,7 @@ const createCreditOverrideSchema = z.object({
 
 const listSchema = z.object({
   customerId: z.coerce.number().int().positive().optional(),
-  status: z.enum(['PENDING', 'APPROVED', 'REJECTED', 'CANCELED']).optional(),
+  status: z.enum(['AUTHORIZED', 'PENDING', 'APPROVED', 'REJECTED', 'CANCELED']).optional(),
   limit: z.coerce.number().int().min(1).max(100).optional(),
   cursor: z.string().trim().min(1).max(500).optional(),
   sortBy: z.enum(CREDIT_OVERRIDE_SORT_KEYS).optional(),
@@ -96,9 +96,7 @@ router.post(
       createdBy: actor.userId,
       entityType: 'credit_override',
       responseStatusCode: 201,
-      // 2026-09-11 maker-checker removal: createCreditOverrideRequest applies
-      // the override in-request (transient governance record; tier role rules
-      // still enforced inside the apply adapter).
+      // Record the exception atomically; the service enforces financial authority.
       create: (tx) => createCreditOverrideRequest(payload, {
         userId: actor.userId,
         role: actor.role,

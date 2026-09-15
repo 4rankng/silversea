@@ -19,7 +19,7 @@ export class ErrorBoundary extends Component<Props, State> {
   state: State = { hasError: false, error: null, recovering: false, networkChunkError: false };
 
   static getDerivedStateFromError(error: unknown): State {
-    return { hasError: true, error: error instanceof Error ? error : new Error(String(error)), recovering: false, networkChunkError: false };
+    return { hasError: true, error: error instanceof Error ? error : new Error(String(error)), recovering: false, networkChunkError: isChunkFailureMessage(error instanceof Error ? error.message : String(error)) };
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
@@ -27,20 +27,9 @@ export class ErrorBoundary extends Component<Props, State> {
 
     if (!isChunkFailureMessage(error.message)) return;
 
-    // The error looks chunk-related.  Try the self-heal (which only fires
-    // when the message names a specific hashed chunk file — the hallmark of
-    // a stale build).  If the heal is exhausted or skipped (generic network
-    // error), tell the user what actually happened instead of showing a
-    // misleading "new version" panel.
-    const healResult = recoverFromChunkFailure();
-    if (healResult === 'reloading') {
-      this.setState({ recovering: true, networkChunkError: false });
-    } else {
-      // recoverFromChunkFailure returned 'exhausted' — either the cooldown
-      // is active (already tried) or the error didn't match the stale-build
-      // pattern.  Show a network-aware message.
-      this.setState({ networkChunkError: true });
-    }
+    void recoverFromChunkFailure().then((result) => {
+      this.setState({ recovering: result === 'reloading', networkChunkError: result !== 'reloading' });
+    });
   }
 
   handleRetry = () => {
@@ -51,9 +40,9 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       if (this.state.recovering) {
         return (
-          <div style={{
+          <div data-chunk-error-panel role="status" style={{
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            padding: 'var(--space-3xl, 48px)', gap: 'var(--space-lg, 16px)', textAlign: 'center',
+            padding: 'var(--space-lg, 16px)', gap: 'var(--space-lg, 16px)', textAlign: 'center',
           }}>
             <RotateCw size={18} className="animate-spin" />
             <p style={{ fontSize: 'var(--text-body-size)', color: 'var(--ink-3)', margin: 0 }}>
@@ -64,9 +53,9 @@ export class ErrorBoundary extends Component<Props, State> {
       }
       if (this.state.networkChunkError) {
         return (
-          <div style={{
+          <div data-chunk-error-panel role="status" style={{
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            padding: 'var(--space-3xl, 48px)', gap: 'var(--space-lg, 16px)', textAlign: 'center',
+            padding: 'var(--space-lg, 16px)', gap: 'var(--space-lg, 16px)', textAlign: 'center',
           }}>
             <WifiOff size={24} style={{ color: 'var(--ink-3)' }} />
             <div>
@@ -95,7 +84,7 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <div style={{
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          padding: 'var(--space-3xl, 48px)', gap: 'var(--space-lg, 16px)', textAlign: 'center',
+          padding: 'var(--space-lg, 16px)', gap: 'var(--space-lg, 16px)', textAlign: 'center',
         }}>
           <EmptyIllustration name="empty-error" width={156} height={124} />
           <div>

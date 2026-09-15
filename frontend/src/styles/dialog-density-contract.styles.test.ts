@@ -21,6 +21,13 @@ const FROZEN_WRAPPER_ALLOWLIST = [
 ];
 
 describe('dialog density contract', () => {
+  it('keeps phone text fields aligned with the shared phone select without collapsing notes', () => {
+    const modal = readFileSync(resolve(process.cwd(), 'src/components/Modal.css'), 'utf8');
+    expect(modal).toMatch(/\.modal__body \.field \.input:not\(textarea\)\s*\{[^}]*min-height:\s*var\(--control-mobile-h\)/);
+    const ui = readFileSync(resolve(process.cwd(), 'src/components/UI.css'), 'utf8');
+    expect(ui).toMatch(/\.field > \[data-label\]\s*\{[^}]*margin-bottom:\s*0/);
+  });
+
   it('renders every select as one labelled control — no .input double boundary outside frozen dispatch surfaces', () => {
     const offenders = collectTsxFiles(srcRoot)
       .map((file) => ({ rel: file.slice(srcRoot.length + 1), text: readFileSync(file, 'utf8') }))

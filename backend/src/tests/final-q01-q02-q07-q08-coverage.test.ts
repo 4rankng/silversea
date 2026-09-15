@@ -359,7 +359,7 @@ describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {
 
     const customerScopedOverride = await request<{ id: number; warningThreshold: string }>('/api/finance/credit-overrides', {
       method: 'POST',
-      token: accountantToken,
+      token: managerToken,
       idempotencyKey: addIdempotencyKey(`final-q01-customer-override-${suffix}`),
       body: {
         customerId: createdCustomer.id,

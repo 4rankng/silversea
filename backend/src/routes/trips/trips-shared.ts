@@ -23,19 +23,10 @@ export function getRequiredGovernanceReason(body: unknown): string {
       ?? (body as Record<string, unknown>).reason
     : undefined;
   if (typeof value !== 'string' || !value.trim()) {
-    throw new ApiError(400, 'Lý do đề nghị kiểm tra và phê duyệt là bắt buộc');
+    throw new ApiError(400, 'Lý do điều chỉnh là bắt buộc');
   }
   return value.trim();
 }
-
-export const tripExpenseDecisionRequestSchema = z.object({
-  reason: z.string().trim().min(1, 'Lý do xử lý chi phí là bắt buộc').max(1000),
-  expectedVersion: z.number().int().positive('Phiên bản chi phí không hợp lệ'),
-  evidence: z.object({
-    reviewNote: z.string().trim().min(1, 'Căn cứ kiểm tra chi phí là bắt buộc').max(1000),
-    attachmentRefs: z.array(z.string().trim().min(1).max(255)).max(20).default([]),
-  }),
-});
 
 // Sort params for the trips list — optional; absent params keep the default
 // departureDate-desc order. Keys must match TRIP_LIST_SORT_SQL in

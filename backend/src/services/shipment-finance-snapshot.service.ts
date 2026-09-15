@@ -273,9 +273,9 @@ export async function buildShipmentFinanceSnapshot(
       ne(s.tripExpenses.sellAmount, '0'),
     ))
     .orderBy(asc(s.tripExpenses.id));
-  const unapprovedRequiredExpense = sourceExpenses.find((expense) => expense.approvalStatus !== 'APPROVED');
+  const unapprovedRequiredExpense = sourceExpenses.find((expense) => !['RECORDED', 'APPROVED'].includes(expense.approvalStatus));
   if (unapprovedRequiredExpense) {
-    throw new ApiError(409, 'Mọi chi phí có số thu khách hàng phải được phê duyệt trước khi xác nhận tài chính.');
+    throw new ApiError(409, 'Mọi chi phí có số thu khách hàng phải được ghi nhận đầy đủ trước khi xác nhận tài chính.');
   }
   const recoverableExpenses = sourceExpenses;
   const uncoveredRecoverable = recoverableExpenses.find((expense) => (

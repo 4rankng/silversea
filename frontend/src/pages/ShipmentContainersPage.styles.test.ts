@@ -31,7 +31,7 @@ describe('shipment detail workboard styling', () => {
     expect(css).not.toContain('.shipments-detail-filters__meta');
     expect(ledgerSource).toMatch(/<SummaryRail\s/);
     expect(ledgerSource).not.toContain('shipment-container-summary');
-    expect(railCss).toMatch(/\.summary-rail dd\s*\{[^}]*font-size:\s*var\(--text-metric-size\);/);
+    expect(railCss).toMatch(/\.summary-rail dd\s*\{[^}]*font-size:\s*var\(--text-section-size\);/);
     expect(railCss).toMatch(/\.summary-rail__item--warning dd\s*\{\s*color:\s*var\(--warning-text\);/);
     expect(css).toMatch(/\.shipment-container-ledger thead th\s*\{[^}]*font-size:\s*var\(--ops-table-header-size\);/);
     expect(css).toMatch(/\.shipment-container-ledger tbody > tr > td\s*\{[^}]*font-size:\s*var\(--ops-table-supporting-size\);/);

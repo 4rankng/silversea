@@ -477,13 +477,13 @@
 /* ── Responsive overrides ── */
 @media (max-width: 640px) {
   /* ── Profit page ── */
-  .profit-hero { padding: var(--space-lg); border-radius: var(--r); margin-bottom: var(--space-lg); }
+  .profit-hero { padding: 12px 8px; border-radius: var(--r-sm); margin-bottom: 12px; }
   .profit-hero__label { font-size: var(--fs-2xs); margin-bottom: var(--space-xs); letter-spacing: var(--tracking-wide); }
   .profit-hero__value { font-size: var(--fs-2xl); letter-spacing: 0; word-break: break-word; }
   .profit-hero__currency { font-size: var(--fs-xs); margin-left: var(--space-xs); }
   .profit-hero__sub { font-size: var(--fs-xs); margin-top: var(--space-sm); line-height: 1.4; }
   .partner-grid { gap: var(--space-sm); }
-  .partner-card { padding: var(--space-md); border-radius: var(--r-sm); }
+  .partner-card { padding: 10px 8px; border-radius: 0; border-inline: 0; box-shadow: none; }
   .partner-card__head { gap: var(--space-sm); margin-bottom: var(--space-sm); }
   .partner-card__avatar { width: var(--avatar-md); height: var(--avatar-md); font-size: var(--fs-sm); }
   .partner-card__name { font-size: var(--fs-sm); }
@@ -496,8 +496,8 @@
   .calc-row__value { font-size: var(--fs-sm); }
   .calc-row--final .calc-row__value { font-size: var(--fs-lg); }
   .profit-settlement { flex-direction: column; align-items: stretch; }
-  .profit-settlement__fields { flex-direction: column; }
-  .profit-settlement__actions { flex-direction: column; }
+  .profit-settlement__fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .profit-settlement__actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .profit-settlement__actions .btn { width: 100%; }
   .profit-settlement__preview,
   .profit-settlement__request { padding: var(--space-md); }

@@ -28,6 +28,8 @@
 /* Shared field styles (used across 16+ pages) */
 .field { margin-bottom: 16px; }
 .field label { display: block; font-size: var(--fs-xs); font-weight: 600; color: var(--ink-2); margin-bottom: 7px; }
+/* FormGroup owns its spacing via gap; its label must not add a second inset. */
+.field > [data-label] { margin-bottom: 0; line-height: 1.5; }
 .field .input { font-size: var(--fs-sm); }
 .field-help { font-size: var(--fs-xs); line-height: 1.35; color: var(--ink-3); margin-top: 6px; }
 

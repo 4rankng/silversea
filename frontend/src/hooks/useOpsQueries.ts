@@ -21,6 +21,7 @@ export const opsKeys = {
   orders: (date: string, q?: string) => ['ops', 'orders', date, q ?? ''] as const,
   expenseTypes: () => ['ops', 'expense-types'] as const,
   walletSummary: () => ['ops', 'wallet-summary'] as const,
+  walletAdvanceRequests: (status?: string) => ['ops', 'wallet-advance-requests', status ?? 'all'] as const,
   walletExpenses: (status?: OpsExpenseStatus) => ['ops', 'wallet-expenses', status ?? 'all'] as const,
   expensePhotos: (id: number) => ['ops', 'expense-photos', id] as const,
   fleet: () => ['ops', 'fleet'] as const,
@@ -128,13 +129,6 @@ export function useDeleteOpsExpense() {
   });
 }
 
-export function useResendOpsExpense() {
-  const invalidate = useInvalidateOps();
-  return useMutation({
-    mutationFn: (id: number) => opsClient.resendExpense(id),
-    onSettled: () => invalidate(),
-  });
-}
 
 export function useOpsExpensePhotos(expenseId: number | null) {
   return useQuery<{ items: OpsExpensePhoto[] }>({
@@ -172,7 +166,7 @@ export function useCreateOpsAdvanceRequest() {
 
 export function useOpsAdvanceRequests(status?: string) {
   return useQuery({
-    queryKey: ['ops', 'wallet-advance-requests', status ?? 'all'],
+    queryKey: opsKeys.walletAdvanceRequests(status),
     queryFn: () => opsClient.getWalletAdvanceRequests({ status, limit: 50 }),
     staleTime: 30_000,
   });
@@ -223,21 +217,6 @@ export function useAdminOpsExpenses(status?: OpsExpenseStatus, opsUserId?: numbe
   });
 }
 
-export function useDecideOpsExpense() {
-  const invalidate = useInvalidateOps();
-  return useMutation({
-    mutationFn: ({ id, decision, reason, inPerson }: {
-      id: number;
-      decision: 'approve' | 'reject';
-      reason?: string;
-      inPerson?: { inPersonCheck: boolean; note: string };
-    }) =>
-      decision === 'approve'
-        ? opsClient.approveExpense(id, inPerson)
-        : opsClient.rejectExpense(id, reason ?? ''),
-    onSettled: () => invalidate(),
-  });
-}
 
 export function useAdminOpsSettlements(status?: string) {
   return useQuery<{ items: OpsSettlementListItem[] }>({
@@ -254,17 +233,13 @@ export function useAdminOpsSettlement(id: number | null) {
   });
 }
 
-export function useDecideOpsSettlement() {
+
+export function useFinalizeOpsSettlement() {
   const invalidate = useInvalidateOps();
-  return useMutation({
-    mutationFn: ({ id, decision, reason }: {
-      id: number;
-      decision: 'approve' | 'reject';
-      reason?: string;
-    }) =>
-      decision === 'approve'
-        ? opsClient.approveSettlement(id)
-        : opsClient.rejectSettlement(id, reason ?? ''),
-    onSettled: () => invalidate(),
-  });
+  return useMutation({ mutationFn: (id: number) => opsClient.finalizeSettlement(id), onSettled: () => invalidate() });
+}
+
+export function useReopenOpsSettlementDraft() {
+  const invalidate = useInvalidateOps();
+  return useMutation({ mutationFn: (id: number) => opsClient.reopenSettlementDraft(id), onSettled: () => invalidate() });
 }

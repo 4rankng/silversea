@@ -7,7 +7,8 @@ import {
 import type { Customer } from '@tingting/shared';
 // ── Icon Input ─────────────────────────────────────────────────────────────
 
-export function IconInput({ icon, value, onChange, placeholder, type = 'text', autoComplete, valid, error, rightElement, disabled, inputRef, ariaInvalid, ariaDescribedBy }: {
+export function IconInput({ id, icon, value, onChange, placeholder, type = 'text', autoComplete, valid, error, rightElement, disabled, inputRef, ariaInvalid, ariaDescribedBy, ...aria }: Pick<React.AriaAttributes, 'aria-invalid' | 'aria-describedby'> & {
+  id?: string;
   icon: React.ReactNode;
   value: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -23,10 +24,13 @@ export function IconInput({ icon, value, onChange, placeholder, type = 'text', a
   rightElement?: React.ReactNode;
   disabled?: boolean;
 }) {
+  const isInvalid = aria['aria-invalid'] ?? (ariaInvalid || error || undefined);
+  const descriptionIds = [...new Set([ariaDescribedBy, aria['aria-describedby']].filter(Boolean).join(' ').split(/\s+/).filter(Boolean))].join(' ') || undefined;
   return (
-    <div className={`icon-input${valid ? ' icon-input--valid' : ''}${error ? ' icon-input--error' : ''}`}>
+    <div className={`icon-input${valid ? ' icon-input--valid' : ''}${isInvalid && isInvalid !== 'false' ? ' icon-input--error' : ''}`}>
       <span className="icon-input__icon">{icon}</span>
       <input
+        id={id}
         className="icon-input__field"
         type={type}
         value={value}
@@ -35,8 +39,8 @@ export function IconInput({ icon, value, onChange, placeholder, type = 'text', a
         autoComplete={autoComplete}
         disabled={disabled}
         ref={inputRef}
-        aria-invalid={ariaInvalid || undefined}
-        aria-describedby={ariaDescribedBy}
+        aria-invalid={isInvalid}
+        aria-describedby={descriptionIds}
       />
       {valid && !rightElement && (
         <span className="icon-input__check"><Check size={14} /></span>
@@ -59,7 +63,7 @@ export function DriverFields({ baseSalary, socialInsurance }: {
       <div className="users-form-cards users-form-cards--driver">
         <div className="users-form-card">
           <div className="users-customer-scope__help">
-            Lương cơ bản và BHXH của lái xe được quản lý ở Cấu hình lái xe để đi qua quy trình kiểm tra và phê duyệt. Trang Người dùng chỉ đổi tài khoản. Phân công xe cho lái xe nằm ở Danh mục Xe nội bộ (Điều vận).
+            Lương cơ bản và BHXH của lái xe được quản lý ở Cấu hình lái xe với quyền quản trị tài chính và lịch sử thay đổi. Trang Người dùng chỉ đổi tài khoản. Phân công xe cho lái xe nằm ở Danh mục Xe nội bộ (Điều vận).
           </div>
           {(baseSalary || socialInsurance) && (
             <div className="users-customer-scope__summary">

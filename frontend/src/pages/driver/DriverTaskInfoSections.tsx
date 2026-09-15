@@ -10,8 +10,8 @@ import type { DriverTaskDetail } from '../../api/driverClient';
  *
  * Field order (mobile target sketch, card _4): NGÀY GIỜ KẾ HOẠCH | NHÀ MÁY
  * (short) → TÊN NHÀ MÁY (full) → ĐỊA CHỈ NHÀ MÁY (full) → Số điện thoại
- * liên hệ (contact name + phone, grouped beneath factory address) → SĐT kho
- * (always visible, "—" when the site has no phone) → Container / lô hàng
+ * liên hệ (one contact name + phone row beneath the factory address)
+ * → Container / lô hàng
  * (each container number paired with its type code) → CẢNG NÂNG | CẢNG HẠ
  * (direction-aware: IMPORT swaps Cảng hạ to the empty-container return depot)
  * → Trả cont rỗng / Địa chỉ giao hàng (when distinct) → TUYẾN (route text
@@ -75,6 +75,7 @@ export function DriverTaskInfoSections({ trip }: { trip: DriverTaskDetail }) {
   const [infoOpen, setInfoOpen] = useState(true);
   const [invoiceOpen, setInvoiceOpen] = useState(true);
   const fulfillment = trip.fulfillment ?? null;
+  const containers = trip.containers ?? [];
   const pickupPoint = fulfillment?.pickupPortName ?? fulfillment?.pickupWarehouseName ?? fulfillment?.lclWarehouseName ?? '—';
 
   // KP-063: direction-aware destination mapping. For IMPORT the required
@@ -96,14 +97,14 @@ export function DriverTaskInfoSections({ trip }: { trip: DriverTaskDetail }) {
 
   // KP-191: each container number paired with its own type code
   // (e.g. "MNBU12345543 · 40DC"). Seals render on their own row below.
-  const containerLine = trip.containers.length > 0
-    ? trip.containers
+  const containerLine = containers.length > 0
+    ? containers
         .map((c) => [c.containerNumber, c.containerTypeCode || c.containerTypeName].filter(Boolean).join(' · '))
         .filter(Boolean)
         .join(' · ') || '—'
     : valueOrDash(fulfillment?.modeLabel ?? trip.cargoTypeName);
-  const sealLine = trip.containers.length > 0
-    ? trip.containers.map((c) => c.sealNumber ? `Seal ${c.sealNumber}` : null).filter(Boolean).join(' · ') || null
+  const sealLine = containers.length > 0
+    ? containers.map((c) => c.sealNumber ? `Seal ${c.sealNumber}` : null).filter(Boolean).join(' · ') || null
     : null;
 
   // KP-010: contact name and callable phone grouped together beneath the
@@ -117,6 +118,11 @@ export function DriverTaskInfoSections({ trip }: { trip: DriverTaskDetail }) {
       : contactName || '—';
 
   const invoiceInfo = fulfillment?.invoiceInfo ?? null;
+  const missingFactoryInvoiceFields = trip.invoiceFactory ? [
+    !trip.invoiceFactory.name && 'tên pháp lý',
+    !trip.invoiceFactory.address && 'địa chỉ xuất hóa đơn',
+    !trip.invoiceFactory.taxCode && 'mã số thuế',
+  ].filter(Boolean) : [];
 
   // No adjacent duplicate rows in the factory block: the abbrev row keeps its
   // full-name fallback, so when the canonical full name resolves to the SAME
@@ -191,7 +197,7 @@ export function DriverTaskInfoSections({ trip }: { trip: DriverTaskDetail }) {
       {/* 2a618442: customer wording — "THÔNG TIN XUẤT HÓA ĐƠN". Block hides
           when there is nothing to show (per-row graceful hide; fee-invoice
           rows may still surface alone). */}
-      {(invoiceInfo || trip.invoiceMaster || trip.invoiceFactory) && (
+      {(invoiceInfo || trip.invoiceMaster || trip.invoiceFactory || fulfillment?.factoryName || fulfillment?.factoryShortName) && (
         <section className={`driver-task-section${invoiceOpen ? '' : ' driver-task-section--collapsed'}`}>
           <CollapsibleSectionHead
             id="driver-task-invoice-grid"
@@ -206,15 +212,16 @@ export function DriverTaskInfoSections({ trip }: { trip: DriverTaskDetail }) {
             <p className="driver-task-invoice-party">Nhà máy</p>
             {trip.invoiceFactory?.name ? (
               <TaskFact icon={<Building2 size={16} />} label="Tên công ty" value={trip.invoiceFactory.name} fullWidth />
-            ) : (
+            ) : !trip.invoiceFactory ? (
               <p className="driver-task-invoice-empty">Nhà máy chưa cấu hình thông tin xuất hóa đơn.</p>
-            )}
+            ) : null}
             {trip.invoiceFactory?.address ? (
               <TaskFact icon={<MapPinned size={16} />} label="Địa chỉ" value={trip.invoiceFactory.address} fullWidth />
             ) : null}
             {trip.invoiceFactory?.taxCode ? (
               <TaskFact icon={<FileText size={16} />} label="MST" value={trip.invoiceFactory.taxCode} fullWidth />
             ) : null}
+            {missingFactoryInvoiceFields.length > 0 ? <p className="driver-task-invoice-empty">Nhà máy chưa cấu hình: {missingFactoryInvoiceFields.join(', ')}.</p> : null}
             {/* Customer master-data invoice block — heading precedes data. */}
             {trip.invoiceMaster && (trip.invoiceMaster.companyName || trip.invoiceMaster.address || trip.invoiceMaster.taxCode) ? (
               <>

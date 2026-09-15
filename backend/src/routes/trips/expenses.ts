@@ -5,25 +5,20 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import {
-  Role, createAdjustmentSchema, tripExpenseSchema, tripExpensePatchSchema,
+  createAdjustmentSchema, tripExpenseSchema, tripExpensePatchSchema,
 } from '@tingting/shared';
 import { asyncHandler } from '../../middleware/asyncHandler';
-import { requireRoles } from '../../middleware/casbin';
 import { getUser } from '../../middleware/auth';
 import * as financialService from '../../services/financial.service';
-import { assertActiveExpenseTypeCode } from '../../services/forwarder-expense-commands.service';
+import { validateActiveExpenseTypeCode } from '../../services/forwarder-expense-commands.service';
 import {
   getTripExpensesForRoute, createTripExpense, updateTripExpense, deleteTripExpenseGuarded,
   getTripExpenseAuditInfo, latestTripPhotoKey, listTripPhotoKeys, listTripContainers,
 } from '../../services/forwarder.service';
 import { ApiError } from '../../errors';
-import { db } from '../../db';
-import { requestTripExpenseDecision } from '../../services/approval.service';
-import { autoApplyGovernanceAction } from '../../services/adjustment-governance.service';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency.service';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { throwValidation } from '../../lib/validation';
-import { tripExpenseDecisionRequestSchema } from './trips-shared';
 
 const router = Router();
 
@@ -98,13 +93,12 @@ router.get('/:id/expenses', asyncHandler(async (req: Request, res: Response) => 
   res.json({ items });
 }));
 
-// POST /api/trips/:id/expenses — office maker creates a pending expense;
-// another financial actor must approve it.
+// Authorized office entry records the validated expense immediately.
 router.post('/:id/expenses', asyncHandler(async (req: Request, res: Response) => {
   const tripId = parseInt(req.params.id as string, 10);
   const parsed = tripExpenseSchema.safeParse({ ...req.body, tripId });
   if (!parsed.success) throwValidation(parsed.error);
-  await assertActiveExpenseTypeCode(db, parsed.data.expenseType);
+  await validateActiveExpenseTypeCode(parsed.data.expenseType);
   const user = getUser(req);
   const idempotencyKey = getRequestIdempotencyKey(req);
   const { result: item, replayed } = await runIdempotent({
@@ -119,7 +113,6 @@ router.post('/:id/expenses', asyncHandler(async (req: Request, res: Response) =>
         ? (parsed.data.forwarderId ?? null)
         : null,
       createdBy: user.userId,
-      approvalStatus: 'PENDING',
       expenseType: parsed.data.expenseType,
       buyAmount: String(parsed.data.buyAmount),
       sellAmount: String(parsed.data.sellAmount ?? 0),
@@ -146,7 +139,7 @@ router.put('/:id/expenses/:eid', asyncHandler(async (req: Request, res: Response
   const parsed = tripExpensePatchSchema.safeParse(req.body);
   if (!parsed.success) throwValidation(parsed.error);
   if (parsed.data.expenseType !== undefined) {
-    await assertActiveExpenseTypeCode(db, parsed.data.expenseType);
+    await validateActiveExpenseTypeCode(parsed.data.expenseType);
   }
   const tripId = parseInt(req.params.id as string, 10);
   const user = getUser(req);
@@ -174,7 +167,7 @@ router.put('/:id/expenses/:eid', asyncHandler(async (req: Request, res: Response
         ...(parsed.data.tripContainerId !== undefined ? { tripContainerId: parsed.data.tripContainerId ?? null } : {}),
         ...(parsed.data.note !== undefined ? { note: parsed.data.note ?? null } : {}),
         ...(parsed.data.noInvoiceEvidenceTypes !== undefined ? { noInvoiceEvidenceTypes: parsed.data.noInvoiceEvidenceTypes ?? [] } : {}),
-      });
+      }, tripId);
       if (!updated) throw new ApiError(404, 'Không tìm thấy chi phí');
       return updated;
     },
@@ -217,100 +210,12 @@ router.delete('/:id/expenses/:eid', asyncHandler(async (req: Request, res: Respo
   res.json(idempotencyKey ? { ok: true, replayed } : { ok: true });
 }));
 
-// POST /api/trips/:id/expenses/:eid/approve — submit governed approval request
-router.post(
-  '/:id/expenses/:eid/approve',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT),
-  asyncHandler(async (req: Request, res: Response) => {
-    const tripId = parseInt(req.params.id as string, 10);
-    const eid = parseInt(req.params.eid as string, 10);
-    const user = getUser(req);
-    const idempotencyKey = getRequestIdempotencyKey(req);
-    const input = tripExpenseDecisionRequestSchema.parse(req.body);
-    const { result, replayed, statusCode } = await runIdempotent({
-      endpoint: IDEMPOTENCY_ENDPOINTS.TRIP_EXPENSE_APPROVE,
-      idempotencyKey,
-      payload: {
-        actorId: user.userId,
-        actorRole: user.role,
-        tripId,
-        expenseId: eid,
-        decision: 'APPROVED',
-        ...input,
-      },
-      createdBy: user.userId,
-      entityType: 'governance_action',
-      // 2026-09-11 maker-checker removal: apply directly in-request.
-      create: (tx) => autoApplyGovernanceAction({
-        make: (inner) => requestTripExpenseDecision({
-          tripId,
-          expenseId: eid,
-          decision: 'APPROVED',
-          reason: input.reason,
-          evidence: input.evidence,
-          expectedExpenseVersion: input.expectedVersion,
-          makerId: user.userId,
-          makerRole: user.role,
-          transaction: inner,
-        }),
-        actorId: user.userId,
-        actorRole: user.role,
-        transaction: tx,
-      }),
-      getEntityId: (action) => action.id,
-      responseStatusCode: 200,
-    });
-    res.locals.auditEntityId = eid;
-    res.status(statusCode).json(idempotencyKey ? { ...result, replayed } : result);
-  }),
-);
-
-// POST /api/trips/:id/expenses/:eid/reject — submit governed rejection request
-router.post(
-  '/:id/expenses/:eid/reject',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT),
-  asyncHandler(async (req: Request, res: Response) => {
-    const tripId = parseInt(req.params.id as string, 10);
-    const eid = parseInt(req.params.eid as string, 10);
-    const user = getUser(req);
-    const idempotencyKey = getRequestIdempotencyKey(req);
-    const input = tripExpenseDecisionRequestSchema.parse(req.body);
-    const { result, replayed, statusCode } = await runIdempotent({
-      endpoint: IDEMPOTENCY_ENDPOINTS.TRIP_EXPENSE_REJECT,
-      idempotencyKey,
-      payload: {
-        actorId: user.userId,
-        actorRole: user.role,
-        tripId,
-        expenseId: eid,
-        decision: 'REJECTED',
-        ...input,
-      },
-      createdBy: user.userId,
-      entityType: 'governance_action',
-      // 2026-09-11 maker-checker removal: apply directly in-request.
-      create: (tx) => autoApplyGovernanceAction({
-        make: (inner) => requestTripExpenseDecision({
-          tripId,
-          expenseId: eid,
-          decision: 'REJECTED',
-          reason: input.reason,
-          evidence: input.evidence,
-          expectedExpenseVersion: input.expectedVersion,
-          makerId: user.userId,
-          makerRole: user.role,
-          transaction: inner,
-        }),
-        actorId: user.userId,
-        actorRole: user.role,
-        transaction: tx,
-      }),
-      getEntityId: (action) => action.id,
-      responseStatusCode: 200,
-    });
-    res.locals.auditEntityId = eid;
-    res.status(statusCode).json(idempotencyKey ? { ...result, replayed } : result);
-  }),
-);
+// Approval endpoints are retired; editing the authorized source records directly.
+router.post('/:id/expenses/:eid/approve', (_req, res) => {
+  res.status(410).json({ error: 'Luồng phê duyệt đã được gỡ bỏ. Chỉnh sửa chi phí trực tiếp.' });
+});
+router.post('/:id/expenses/:eid/reject', (_req, res) => {
+  res.status(410).json({ error: 'Luồng phê duyệt đã được gỡ bỏ. Chỉnh sửa chi phí trực tiếp.' });
+});
 
 export default router;

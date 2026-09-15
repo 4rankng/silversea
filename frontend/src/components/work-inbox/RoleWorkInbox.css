@@ -396,3 +396,37 @@
   .role-work-inbox__pagination { justify-content: space-between; }
   .role-work-inbox__pagination button { min-height: 44px; }
 }
+
+/* Operations cards keep identity, blockers and next action visible, while
+   pairing status/time and the compact facts instead of stacking every field. */
+@media (max-width: 1145px) {
+  .role-work-inbox--operations .role-work-inbox__table tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    border-radius: 0;
+    border-inline: 0;
+  }
+  .role-work-inbox--operations .role-work-inbox__table td {
+    grid-column: 1 / -1;
+    padding: 6px 8px;
+    grid-template-columns: 80px minmax(0, 1fr);
+  }
+  .role-work-inbox--operations .role-work-inbox__table td[data-label='Thông tin'] {
+    display: block;
+  }
+  .role-work-inbox--operations .role-work-inbox__table td[data-label='Thông tin']::before { display: none; }
+  .role-work-inbox--operations .role-work-inbox__facts { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 12px; }
+  .role-work-inbox--operations .role-work-inbox__facts > div:first-child { grid-column: 1 / -1; }
+  .role-work-inbox--operations .role-work-inbox__facts dd { white-space: normal; overflow: visible; overflow-wrap: anywhere; }
+  .role-work-inbox--operations .role-work-inbox__table td[data-label='Trạng thái'],
+  .role-work-inbox--operations .role-work-inbox__table td[data-label='Cập nhật'] {
+    grid-column: auto;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+  }
+  .role-work-inbox--operations .role-work-inbox__table td.role-work-inbox__cell--empty { display: none; }
+  .role-work-inbox--operations .role-work-inbox__table td.role-work-inbox__action { padding: 6px 8px !important; }
+  .role-work-inbox--operations .role-work-inbox__subtitle { display: block; white-space: normal; overflow: visible; }
+}

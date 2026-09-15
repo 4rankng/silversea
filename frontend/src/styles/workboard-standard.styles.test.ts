@@ -79,7 +79,7 @@ describe('workboard table & summary rail (golden standard)', () => {
   it('the summary rail is a ruled decision rail, not cards', () => {
     expect(railCss).toMatch(/\.summary-rail\s*\{[^}]*border-block:\s*1px solid var\(--line\);/);
     expect(railCss).toMatch(/\.summary-rail__item\s*\{[^}]*border-right:\s*1px solid var\(--line\);/);
-    expect(railCss).toMatch(/\.summary-rail dd\s*\{[^}]*font-size:\s*var\(--text-metric-size\);/);
+    expect(railCss).toMatch(/\.summary-rail dd\s*\{[^}]*font-size:\s*var\(--text-section-size\);/);
     expect(railCss).toMatch(/\.summary-rail dd\s*\{[^}]*font-family:\s*var\(--font-data\);/);
     // Tones color the number only — never a filled container.
     expect(railCss).toMatch(/\.summary-rail__item--warning dd\s*\{\s*color:\s*var\(--warning-text\);/);

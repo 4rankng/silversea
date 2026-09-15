@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { OfflineBanner } from './shared/OfflineBanner';
 import {
   LayoutDashboard,
   Truck,
@@ -47,6 +46,7 @@ import { getModernRole } from '../lib/role-helpers';
 import { hasOperationalDensity } from '../lib/operational-density';
 import { useDispatchFullwidthSidebar } from '../lib/dispatch-sidebar-policy';
 import { BRAND } from '../brand';
+import { requestAppNavigation } from '../lib/app-navigation';
 
 // ─── Navigation config ────────────────────────────────────────────────────
 
@@ -614,9 +614,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   // Sidebar navigation handler
   const handleNavigate = useCallback((path: string) => {
-    if (window.innerWidth < 1024) setSidebarOpen(false);
-    setUserMenuOpen(false);
-    navigate(path);
+    requestAppNavigation(path, () => {
+      if (window.innerWidth < 1024) setSidebarOpen(false);
+      setUserMenuOpen(false);
+      navigate(path);
+    });
   }, [navigate]);
 
   // Sidebar collapse state
@@ -732,7 +734,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     <div className={`app ${!sidebarOpen ? 'sidebar-closed' : ''} ${isDriver ? 'is-driver' : ''} ${hasOperationalDensity(location.pathname) ? 'app--operational-density' : 'app--frozen-operational-surface'}`}>
       <a href="#main-content" className="skip-link">Bỏ qua đến nội dung chính</a>
       {/* M8.1 — global offline banner (slow-network state) */}
-      <OfflineBanner />
       {/* Screen reader live region for route changes */}
       <div aria-live="polite" aria-atomic="true" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>{ariaLiveMsg}</div>
 

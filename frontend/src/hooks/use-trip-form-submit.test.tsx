@@ -43,6 +43,8 @@ vi.mock('../components/shared/Toast', () => ({
 
 import { ApiError } from '../lib/api';
 import { findInvalidLeg, useTripFormSubmit } from './use-trip-form-submit';
+import { TripEditConflictError } from './tripSubmitReconcile';
+import { qk } from '../api/keys';
 
 function createWrapper() {
   const queryClient = new QueryClient({
@@ -335,7 +337,7 @@ describe('useTripFormSubmit create atomicity', () => {
     }));
   });
 
-  it('retries the same payload under the SAME key after a mid-chain failure — the server replays, no duplicate', async () => {
+  it('continues the existing trip after a mid-chain failure without another create', async () => {
     postMock.mockResolvedValue({ id: 88 });
     putMock.mockRejectedValueOnce(new Error('network down')).mockResolvedValue({});
     const result = renderSubmitHook();
@@ -345,25 +347,36 @@ describe('useTripFormSubmit create atomicity', () => {
 
     const second = await act(async () => result.current());
     expect(second).toBe(88);
-    expect(postMock).toHaveBeenCalledTimes(2);
-    const key1 = postMock.mock.calls[0]![2].headers['Idempotency-Key'];
-    const key2 = postMock.mock.calls[1]![2].headers['Idempotency-Key'];
-    expect(key2).toBe(key1);
+    expect(postMock).toHaveBeenCalledTimes(1);
+    expect(putMock).toHaveBeenLastCalledWith('/trips/88/containers', { containers: [] });
   });
 
-  it('regenerates the key once when an edited retry 409s on key/payload mismatch', async () => {
-    postMock
-      .mockRejectedValueOnce(new ApiError(409, undefined, 'Khóa giao dịch trùng nhưng nội dung khác — vui lòng dùng mã giao dịch mới.'))
-      .mockResolvedValueOnce({ id: 99 });
+  it('does not bypass an uncertain create by minting a fresh idempotency key', async () => {
+    postMock.mockRejectedValueOnce(new ApiError(409, undefined, 'Khóa giao dịch trùng nhưng nội dung khác — vui lòng dùng mã giao dịch mới.'));
     const result = renderSubmitHook();
-
     const outcome = await act(async () => result.current());
+    expect(outcome).toBeUndefined();
+    expect(postMock).toHaveBeenCalledTimes(1);
+  });
 
-    expect(outcome).toBe(99);
-    expect(postMock).toHaveBeenCalledTimes(2);
-    const key1 = postMock.mock.calls[0]![2].headers['Idempotency-Key'];
-    const key2 = postMock.mock.calls[1]![2].headers['Idempotency-Key'];
-    expect(key2).not.toBe(key1);
+  it('keeps a created trip open when photos fail and reuses its ID on retry', async () => {
+    postMock.mockResolvedValue({ id: 91 });
+    putMock.mockResolvedValue({ items: [] });
+    const flush = vi.fn().mockRejectedValueOnce(new Error('Còn 1 ảnh chưa tải lên.')).mockResolvedValue([]);
+    const state = makeState();
+    const result = renderSubmitHook({ state, flushPendingPhotos: flush });
+    expect(await act(async () => result.current())).toBeUndefined();
+    expect(state.setError).toHaveBeenLastCalledWith(expect.stringContaining('Đã tạo chuyến #91'));
+    expect(await act(async () => result.current())).toBe(91);
+    expect(postMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('allows an unrelated correction on a trip without optional legs', async () => {
+    putMock.mockResolvedValue({ items: [] });
+    upsertTripInstructionsMock.mockResolvedValue(undefined);
+    const result = renderSubmitHook({ isEditMode: true, existingTrip: makeExistingTrip(), legs: [], state: makeState({ notes: 'Updated note' }) });
+    expect(await act(async () => result.current())).toBe(6);
+    expect(putMock).toHaveBeenCalledWith('/trips/6/pre-departure', expect.objectContaining({ legs: [], notes: 'Updated note' }));
   });
 
   it('surfaces other 409s without a key retry', async () => {
@@ -384,5 +397,47 @@ describe('findInvalidLeg (shared submit/readiness rule)', () => {
     expect(findInvalidLeg([{ ...validLegs[0]!, origin: '', destination: '', km: '' }])).toBeNull();
     expect(findInvalidLeg([{ ...validLegs[0]!, km: '-5' }])?.sequence).toBe(1);
     expect(findInvalidLeg([{ ...validLegs[0]!, km: 'abc' }])?.sequence).toBe(1);
+  });
+});
+
+describe('KSHIP-004: actual edit retry requests', () => {
+  beforeEach(() => { vi.clearAllMocks(); upsertTripInstructionsMock.mockResolvedValue(undefined); });
+  function renderEdit(original: TripDetail, fresh: TripDetail, state = makeState({ revenueEmptyReturn: '1000000', notes: 'My note' })) {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    client.setQueryData(qk.trips.detail(original.id), fresh);
+    const refetch = vi.spyOn(client, 'refetchQueries').mockResolvedValue(undefined);
+    const hook = renderHook(({ trip }: { trip: TripDetail }) => useTripFormSubmit({
+      state, existingTrip: trip, isEditMode: true, legs: [], requiredFieldsFilled: 99, hasOptionalData: true,
+      photoUrls: [], flushPendingPhotos: vi.fn(async () => []), flushPendingContainerPhotos: vi.fn(async () => new Map()),
+    }), { initialProps: { trip: original }, wrapper: ({ children }: { children: ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider> });
+    return { ...hook, refetch };
+  }
+  it('preserves B revenue while sending A notes, even after the detail cache refreshes', async () => {
+    const original = makeExistingTrip({ revenueEmptyReturn: '1000000', notes: 'Original', legs: [] });
+    const fresh = makeExistingTrip({ version: 4, revenueEmptyReturn: '2000000', notes: 'Original', legs: [] });
+    const { result, rerender } = renderEdit(original, fresh);
+    rerender({ trip: fresh });
+    putMock.mockRejectedValueOnce(new ApiError(409, null, 'Dữ liệu đã bị thay đổi bởi người khác. Vui lòng tải lại trang.')).mockResolvedValue(fresh);
+    expect(await act(async () => result.current())).toBe(6);
+    expect(putMock.mock.calls[0][1]).toMatchObject({ version: 3, revenueEmptyReturn: 1000000, notes: 'My note' });
+    expect(putMock.mock.calls[1][1]).toMatchObject({ version: 4, revenueEmptyReturn: '2000000', notes: 'My note' });
+  });
+  it('keeps overlapping drafts until the user explicitly chooses a reviewed value', async () => {
+    const original = makeExistingTrip({ revenueEmptyReturn: '1000000', notes: 'Original', legs: [] });
+    const fresh = makeExistingTrip({ version: 4, revenueEmptyReturn: '2000000', notes: 'Their note', legs: [] });
+    const { result } = renderEdit(original, fresh);
+    putMock.mockRejectedValueOnce(new ApiError(409, null, 'Dữ liệu đã bị thay đổi bởi người khác. Vui lòng tải lại trang.')).mockResolvedValue(fresh);
+    await act(async () => { await expect(result.current()).rejects.toBeInstanceOf(TripEditConflictError); });
+    expect(putMock).toHaveBeenCalledTimes(1);
+    expect(await act(async () => result.current(undefined, { conflictResolution: { version: 4, choices: { notes: 'local' } } }))).toBe(6);
+    expect(putMock.mock.calls[1][1]).toMatchObject({ version: 4, revenueEmptyReturn: '2000000', notes: 'My note' });
+  });
+  it('does not retry or reload an unrelated business409', async () => {
+    const original = makeExistingTrip({ revenueEmptyReturn: '1000000', notes: 'Original', legs: [] });
+    const { result, refetch } = renderEdit(original, { ...original, version: 4 });
+    putMock.mockRejectedValue(new ApiError(409, null, 'Chuyến đã gắn lô hàng; hãy đổi khách hàng từ lô hàng nguồn.'));
+    await act(async () => { await expect(result.current()).rejects.toBeInstanceOf(ApiError); });
+    expect(putMock).toHaveBeenCalledTimes(1);
+    expect(refetch).not.toHaveBeenCalled();
   });
 });

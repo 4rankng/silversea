@@ -1266,6 +1266,29 @@ describe('Overview operational priority ordering', () => {
     assert.deepEqual(item.effectiveFactoryNames, [`Nhà máy C ${marker}`]);
   });
 
+  test('CUS container boundary rejects malformed identifiers and another shipment row without partial writes', async () => {
+    const shipment = await seedShipment({ cargoMode: 'FCL', status: 'PENDING_DATE' });
+    const other = await seedShipment({ cargoMode: 'FCL', status: 'PENDING_DATE' });
+    const container = await seedContainer(shipment.id);
+    const foreign = await seedContainer(other.id);
+    for (const containerNumber of ['ABC', 'MSKU1234567']) {
+      await assert.rejects(() => updateCusShipmentContainerLine({
+        shipmentId: shipment.id, containerId: container.id,
+        input: { expectedShipmentVersion: shipment.version, containerNumber }, actor: cusActor,
+      }), (error: unknown) => error instanceof ApiError && error.statusCode === 400);
+    }
+    await assert.rejects(() => updateCusShipmentContainerLine({
+      shipmentId: shipment.id, containerId: foreign.id,
+      input: { expectedShipmentVersion: shipment.version, containerNumber: 'MSKU1234565' }, actor: cusActor,
+    }), (error: unknown) => error instanceof ApiError && error.statusCode === 404);
+    const [row] = await db.select().from(s.shipmentContainers).where(eq(s.shipmentContainers.id, container.id));
+    const [foreignRow] = await db.select().from(s.shipmentContainers).where(eq(s.shipmentContainers.id, foreign.id));
+    const [parent] = await db.select().from(s.shipments).where(eq(s.shipments.id, shipment.id));
+    assert.equal(row.containerNumber, null);
+    assert.equal(foreignRow.containerNumber, null);
+    assert.equal(parent.version, shipment.version);
+  });
+
   test('post-handoff container edits apply directly — approval workflow is parked (customer undecided 2026-09-08)', async () => {
     // Build ISO-6346-valid numbers (owner code + serial + computed check
     // digit) so the edit reaches the governance check instead of tripping
@@ -2277,6 +2300,8 @@ describe('LCL delivery date — create persistence and workspace projection', ()
   test('an LCL lot created with a primary delivery date keeps and shows it without container rows', async () => {
     const marker = Math.random().toString(36).slice(2, 7).toUpperCase().padEnd(5, 'X');
 
+    const deliveryDate = new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10);
+
     // Same shape the Tạo lô hàng LCL flow submits (buildShipmentRootPayload):
     // LCL keeps a shipment-level delivery date; no container rows exist.
     const shipment = await createShipment({
@@ -2284,7 +2309,7 @@ describe('LCL delivery date — create persistence and workspace projection', ()
       cargoMode: 'LCL',
       tradeDirection: 'IMPORT',
       blNumber: `LCLDATE-${marker}`,
-      expectedDeliveryDate: '2026-09-14',
+      expectedDeliveryDate: deliveryDate,
       packageCount: 10,
       packageType: 'QA Carton',
       cargoWeightKg: '100',
@@ -2293,19 +2318,19 @@ describe('LCL delivery date — create persistence and workspace projection', ()
     createdShipmentIds.push(shipment.id);
 
     // Root row keeps the entered date and reads dispatch-ready by date.
-    assert.equal(shipment.expectedDeliveryDate, '2026-09-14');
+    assert.equal(shipment.expectedDeliveryDate, deliveryDate);
     assert.equal(shipment.status, 'READY_FOR_DISPATCH');
 
     // Overview shows the date — never "Chưa chốt ngày".
     const board = await listCusShipmentWorkspace({ page: 1, limit: 100, searchSuffix: marker }, cusActor);
     const item = board.items.find((row) => row.id === shipment.id);
     assert.ok(item, 'LCL lot appears in the overview');
-    assert.equal(item!.transportDate, '2026-09-14');
+    assert.equal(item!.transportDate, deliveryDate);
     assert.equal(item!.operational.scheduleReadiness, 'SCHEDULED');
 
     // Detail summary agrees with the overview.
     const detail = await getCusShipmentWorkspaceDetail(shipment.id, cusActor);
-    assert.equal(detail.summary.transportDate, '2026-09-14');
+    assert.equal(detail.summary.transportDate, deliveryDate);
     assert.equal(detail.summary.operational.scheduleReadiness, 'SCHEDULED');
 
     // The dated LCL lot opens the dispatch handoff — the master plan's rows

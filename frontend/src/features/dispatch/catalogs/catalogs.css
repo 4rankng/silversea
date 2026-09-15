@@ -21,6 +21,28 @@
   min-width: 0;
 }
 
+/* Three resource counts are one compact summary, not a second card grid. */
+.kpi-grid.dispatch-catalogs__vehicle-summary {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  border-block: 1px solid var(--line);
+}
+.dispatch-catalogs__vehicle-summary .kpi {
+  min-width: 0;
+  min-height: 0;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.dispatch-catalogs__vehicle-summary .kpi + .kpi { border-left: 1px solid var(--line); }
+.kpi-grid.dispatch-catalogs__vehicle-summary > .kpi:nth-child(3):last-child { grid-column: auto; }
+.dispatch-catalogs__vehicle-summary .kpi::before,
+.dispatch-catalogs__vehicle-summary .kpi__watermark { display: none; }
+.dispatch-catalogs__vehicle-summary .kpi__label { font-size: var(--text-label-size); }
+.dispatch-catalogs__vehicle-summary .kpi__value { font-size: var(--text-section-size); }
+
 .dispatch-catalogs__page-header > button {
   flex: 0 0 auto;
 }

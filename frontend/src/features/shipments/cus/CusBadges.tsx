@@ -51,9 +51,9 @@ const BUCKET_ICONS = {
 
 export function WorkflowBadge({ item }: { item: ShipmentCusWorkspaceListItem }) {
   const Icon = BUCKET_ICONS[item.bucket];
-  // PENDING_LOCK is the "Chờ duyệt phí" state (driver partial close or the
-  // disabled accountant flow's advance) — show the status label instead of
-  // the generic "Chờ khóa". Driver full-closed shipments are LOCKED (locked
+  // PENDING_LOCK groups completed operational work awaiting accounting
+  // finalization; show its actual state instead of the generic bucket label.
+  // Driver full-closed shipments are LOCKED (locked
   // tab) even before an accounting lock row exists; that tab keeps the
   // bucket label because it groups heterogeneous sub-states (an active
   // accounting lock and the unlocked full-closed aggregate).

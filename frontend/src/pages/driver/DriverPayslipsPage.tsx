@@ -15,6 +15,8 @@ import { resolveEmptyIllustration } from '../../lib/emptyIllustrations';
 import './DriverSecondaryPages.css';
 
 interface PayslipEarnings {
+  salarySnapshotState?: 'LIVE' | 'CONFIRMED' | 'UNAVAILABLE';
+  salaryReconciliationRequired?: boolean;
   netIncome: string;
   productionSalary: string;
   roadAllowance: string;
@@ -73,7 +75,7 @@ function PayslipCard({ p, idx }: { p: PayslipPeriod; idx: number }) {
         <span className="dt-card__label" style={{ fontWeight: 700, fontSize: 'var(--text-section-size)' }}>
           {String(month).padStart(2, '0')}/{year}
         </span>
-        <StatusBadge status={p.status} />
+        {e.salarySnapshotState === 'UNAVAILABLE' ? <span>Cần đối chiếu bản gốc</span> : <StatusBadge status={p.status} />}
       </div>
 
       <div className="dt-card__meta" style={{ marginTop: 8 }}>
@@ -85,6 +87,9 @@ function PayslipCard({ p, idx }: { p: PayslipPeriod; idx: number }) {
         </span>
       </div>
 
+      {e.salaryReconciliationRequired && <p role="status">{e.salarySnapshotState === 'UNAVAILABLE'
+        ? 'Số liệu tham khảo; chưa có bản lương đã chốt.'
+        : 'Có ngày công bổ sung sau chốt; bản lương giữ nguyên.'}</p>}
       <div className="driver-payslip__metrics">
         <span className="driver-payslip__metric">
           <span><TrendingUp size={12} /> Lương sản xuất</span>

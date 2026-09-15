@@ -44,11 +44,6 @@ const fuelInvoiceMutationSchema = fuelInvoiceSchema.extend({
   expectedVersion: z.coerce.number().int().positive('Phiên bản hóa đơn nhiên liệu không hợp lệ'),
 });
 
-const fuelInvoiceDecisionSchema = z.object({
-  expectedVersion: z.coerce.number().int().positive('Phiên bản hóa đơn nhiên liệu không hợp lệ'),
-  reason: z.string().trim().min(1, 'Lý do đề nghị duyệt là bắt buộc').max(1000),
-});
-
 const fuelInvoiceCorrectionSchema = z.discriminatedUnion('correctionType', [
   z.object({
     correctionType: z.literal('ADJUSTMENT'),
@@ -65,7 +60,7 @@ const fuelInvoiceCorrectionSchema = z.discriminatedUnion('correctionType', [
 
 const listSchema = z.object({
   supplierId: z.coerce.number().int().positive().optional(),
-  status: z.enum(['PENDING', 'APPROVED', 'REJECTED', 'REVERSED']).optional(),
+  status: z.enum(['DRAFT', 'RECORDED', 'VOIDED', 'REVERSED']).optional(),
   paginated: z.literal('true').optional(),
   limit: z.coerce.number().int().min(1).max(100).optional(),
   cursor: z.string().trim().min(1).optional(),
@@ -85,7 +80,6 @@ function parseId(raw: string | string[]): number {
 
 const FUEL_INVOICE_CREATE_ENDPOINT = 'fuel-invoices.create';
 const FUEL_INVOICE_UPDATE_ENDPOINT = 'fuel-invoices.update';
-const FUEL_INVOICE_APPROVE_ENDPOINT = 'fuel-invoices.approve';
 const FUEL_INVOICE_CORRECTION_ENDPOINT = 'fuel-invoices.correction.create';
 
 function requireIdempotencyKey(req: Request): string {

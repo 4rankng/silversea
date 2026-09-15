@@ -99,7 +99,7 @@ function collectApPayableExpenses(
   return expenses
     .filter((expense): expense is typeof expense & { supplierId: number } => (
       expense.supplierId != null
-      && expense.approvalStatus === 'APPROVED'
+      && ['RECORDED', 'APPROVED'].includes(expense.approvalStatus)
       && expense.settlementMethod === 'COMPANY_DIRECT'
       && Number(expense.buyAmount ?? 0) > 0
     ))

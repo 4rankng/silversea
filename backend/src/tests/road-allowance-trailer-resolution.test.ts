@@ -89,6 +89,7 @@ async function readBack(tripId: number) {
   const [row] = await db.select({
     trailerType: s.trips.trailerType,
     base: s.tripFinancialState.roadAllowanceBaseApplied,
+    override: s.tripFinancialState.roadAllowanceOverride,
     totalRoadAllowance: s.tripFinancialState.totalRoadAllowance,
     totalCost: s.tripFinancialState.totalCost,
     grossProfit: s.tripFinancialState.grossProfit,
@@ -171,6 +172,23 @@ describe('road allowance resolves from the final trailer type', () => {
     assert.equal(row.trailerType, '20FT');
     assert.equal(row.base, '200000');
     assert.equal(row.totalRoadAllowance, '200000');
+  });
+
+  test('explicit zero override persists and clearing it restores the configured allowance', async () => {
+    const customer = await mkCustomer();
+    const cat = await mkCatalogs();
+    await mkAllowance(cat.route.id, '40FT', '500000');
+    const trip = await mkTrip({ customerId: customer.id, routeId: cat.route.id, cargoTypeId: cat.cargoType.id, trailerType: '40FT' });
+    await updateTripFigures(trip.id, baseUpdate(trip.id, trip.version, { roadAllowanceOverride: 0 }));
+    const zero = await readBack(trip.id);
+    assert.equal(zero.override, '0');
+    assert.equal(zero.totalRoadAllowance, '0');
+    await updateTripFigures(trip.id, baseUpdate(trip.id, zero.version, { roadAllowanceOverride: null }));
+    const cleared = await readBack(trip.id);
+    assert.equal(cleared.override, null);
+    assert.equal(cleared.totalRoadAllowance, '500000');
+    assert.equal(Number(cleared.totalCost) - Number(zero.totalCost), 500000);
+    assert.equal(Number(zero.grossProfit) - Number(cleared.grossProfit), 500000);
   });
 
   test('totals follow the resolved allowance (totalCost and grossProfit shift with it)', async () => {

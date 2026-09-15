@@ -6,7 +6,7 @@ import { DURABLE_EFFECT_KIND } from '../services/durable-effect.service';
 import { isValidTransition } from '../services/debit-note-lifecycle.service';
 
 const eligible = {
-  approvalStatus: 'APPROVED',
+  approvalStatus: 'RECORDED',
   sellAmount: 1_200_000,
   recoverablePrincipalAmount: 1_000_000,
   serviceFeeAmount: 200_000,
@@ -32,6 +32,15 @@ describe('recoverable-cost and Debit Note policy', () => {
       evaluateRecoverableEligibility({ ...eligible, serviceFeeAmount: null }).state,
       'BLOCKED',
     );
+  });
+
+  test('requires completion of legacy drafts, never an approval decision', () => {
+    for (const approvalStatus of ['PENDING', 'DRAFT', 'VOIDED', 'REJECTED']) {
+      const result = evaluateRecoverableEligibility({ ...eligible, approvalStatus });
+      assert.equal(result.state, 'BLOCKED');
+      assert.doesNotMatch(result.blockedReason ?? '', /phê duyệt/);
+    }
+    assert.equal(evaluateRecoverableEligibility({ ...eligible, approvalStatus: 'APPROVED' }).state, 'ELIGIBLE');
   });
 
   test('detects a claimed source that changed after issue as adjustment-only', () => {

@@ -10,8 +10,6 @@ import {
   useAdminSettlementDetail,
   useUpdateAdvanceSettlement,
   useUpdateSettlementExpense,
-  useCheckSettlement,
-  useApproveSettlement,
   useReverseAdvanceSettlement,
 } from '../hooks/useForwarderQueries';
 import { useAuth } from '../hooks/useAuth';
@@ -33,8 +31,8 @@ const EXPENSE_TYPE_LABELS: Record<string, string> = {
 
 function settlementStatusVariant(status: AdvanceSettlementStatus): 'neutral' | 'info' | 'warn' | 'success' | 'danger' {
   switch (status) {
-    case 'APPROVED': return 'success';
-    case 'REJECTED': return 'danger';
+    case 'RECORDED': return 'success';
+    case 'VOIDED': return 'danger';
     default: return 'neutral';
   }
 }
@@ -74,14 +72,9 @@ export function settlementReviewPermissions(input: {
   const isFinancialReviewer = !input.isPortal
     && (input.role === 'ACCOUNTANT' || input.role === 'ADMIN');
   return {
-    canEditAndCheck: isFinancialReviewer && false,
-    canApprove: isFinancialReviewer
-      && false
-      && input.settlement.checkedBy != null
-      && input.userId !== input.settlement.checkedBy
-      && input.userId !== input.settlement.forwarderId,
-    canRequestApprovedGovernance: isFinancialReviewer
-      && input.settlement.status === 'APPROVED',
+    canEditAndCheck: isFinancialReviewer && input.settlement.status === 'DRAFT',
+    canApprove: false,
+    canRequestApprovedGovernance: isFinancialReviewer && input.settlement.status === 'RECORDED',
   };
 }
 
@@ -180,8 +173,6 @@ export default function SettlementPrintPage() {
   const [governanceNotice, setGovernanceNotice] = useState<string | null>(null);
   const updateExpense = useUpdateSettlementExpense();
   const updateSettlement = useUpdateAdvanceSettlement();
-  const checkSettlement = useCheckSettlement();
-  const approveSettlement = useApproveSettlement();
   const reverseSettlement = useReverseAdvanceSettlement();
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
@@ -245,7 +236,6 @@ export default function SettlementPrintPage() {
   const totalFromRows = rows.reduce((sum, r) => sum + Number(r.amount || 0), 0);
   const {
     canEditAndCheck: canEditExpenses,
-    canApprove: canApproveChecked,
     canRequestApprovedGovernance,
   } = settlementReviewPermissions({
     isPortal,
@@ -268,9 +258,9 @@ export default function SettlementPrintPage() {
     });
   };
 
-  const handleCheck = async () => {
+  const handleRecord = async () => {
     if (selectedRequestIds.size === 0) return;
-    const refreshed = await updateSettlement.mutateAsync({
+    await updateSettlement.mutateAsync({
       settlementId: s.id,
       expectedVersion: s.version,
       advanceRequestIds: [...selectedRequestIds],
@@ -278,14 +268,7 @@ export default function SettlementPrintPage() {
       refundAmount: Number(refundAmount) || 0,
       note: settlementNote.trim() || null,
     });
-    await checkSettlement.mutateAsync({
-      id: s.id,
-      expectedVersion: (refreshed as SettlementData | undefined)?.version ?? s.version + 1,
-    });
-  };
-
-  const handleApprove = async () => {
-    await approveSettlement.mutateAsync({ id: s.id, expectedVersion: s.version });
+    setGovernanceNotice('Đã ghi nhận phiếu hoàn ứng.');
   };
 
   const startEditingExpense = (expense: LinkedExpense) => {
@@ -306,8 +289,8 @@ export default function SettlementPrintPage() {
       adjustmentReason: adjustmentReason.trim(),
     });
     setEditingExpense(null);
-    if (s.status === 'APPROVED') {
-      setGovernanceNotice('Đã gửi điều chỉnh vào hàng chờ kiểm tra. Phiếu và sổ công nợ chưa thay đổi.');
+    if (s.status === 'RECORDED') {
+      setGovernanceNotice('Đã lưu điều chỉnh và cập nhật số liệu quyết toán.');
     }
   };
 
@@ -316,7 +299,7 @@ export default function SettlementPrintPage() {
     if (!reason) return;
     await reverseSettlement.mutateAsync({ id: s.id, expectedVersion: s.version, reason });
     setReversalReason('');
-    setGovernanceNotice('Đã gửi yêu cầu hoàn tác vào hàng chờ kiểm tra. Phiếu vẫn giữ trạng thái đã duyệt.');
+    setGovernanceNotice('Đã hoàn tác phiếu và ghi nhận bút toán đảo.');
   };
 
   return (
@@ -400,7 +383,7 @@ export default function SettlementPrintPage() {
         {canEditExpenses && (
           <div className="settlement-detail__section no-print">
             <h2 className="settlement-detail__section-title">Tạm ứng đưa vào phiếu</h2>
-            <p className="settlement-editor-hint">Chỉ các tạm ứng đã duyệt và còn đủ điều kiện mới có thể thêm vào phiếu.</p>
+            <p className="settlement-editor-hint">Chỉ các tạm ứng đã ghi nhận và còn đủ điều kiện mới có thể thêm vào phiếu.</p>
             <div className="settlement-link-list">
               {requestCandidates.map(request => (
                 <label key={request.id} className="settlement-link-option">
@@ -466,7 +449,7 @@ export default function SettlementPrintPage() {
           {canRequestApprovedGovernance && (
             <div className="settlement-expense-actions no-print">
               <p className="settlement-editor-hint">
-                Điều chỉnh và hoàn tác chỉ có hiệu lực sau khi đủ người lập, người kiểm tra và người phê duyệt.
+                Thay đổi có hiệu lực ngay khi lưu; hệ thống giữ lịch sử và bút toán đối ứng.
               </p>
               {expenses.map(expense => (
                 <button
@@ -483,7 +466,7 @@ export default function SettlementPrintPage() {
                   className="input"
                   value={reversalReason}
                   onChange={event => setReversalReason(event.target.value)}
-                  placeholder="Nhập lý do hoàn tác phiếu đã duyệt"
+                  placeholder="Nhập lý do hoàn tác phiếu"
                 />
               </label>
               <button
@@ -492,7 +475,7 @@ export default function SettlementPrintPage() {
                 onClick={requestReversal}
               >
                 {reverseSettlement.isPending ? <Loader2 size={14} className="spin" /> : <RotateCcw size={14} />}
-                Gửi yêu cầu hoàn tác
+                Hoàn tác phiếu
               </button>
               {governanceNotice && <p role="status">{governanceNotice}</p>}
               {reverseSettlement.error && <p className="settlement-finalize__error">{String(reverseSettlement.error)}</p>}
@@ -551,50 +534,16 @@ export default function SettlementPrintPage() {
           </div>
         )}
 
-        {(canEditExpenses || false) && (
+        {canEditExpenses && (
           <div className="settlement-finalize no-print">
-            {canEditExpenses ? (
-              <div className="settlement-finalize__fields">
-                <label>Tiền hoàn lại
-                  <input className="input" type="number" min="0" value={refundAmount} onChange={event => setRefundAmount(event.target.value)} />
-                </label>
-                <label>Ghi chú
-                  <textarea className="input" rows={2} value={settlementNote} onChange={event => setSettlementNote(event.target.value)} />
-                </label>
-              </div>
-            ) : (
-              <p className="settlement-editor-hint">
-                Kế toán {s.checkerName || 'đã phân công'} đã kiểm tra phiếu.
-                {canApproveChecked
-                  ? ' Vui lòng đối chiếu lần cuối trước khi phê duyệt.'
-                  : ' Phiếu đang chờ một người khác phê duyệt.'}
-              </p>
-            )}
-            {(updateSettlement.error || checkSettlement.error || approveSettlement.error) && (
-              <p className="settlement-finalize__error">
-                {String(updateSettlement.error || checkSettlement.error || approveSettlement.error)}
-              </p>
-            )}
-            {canEditExpenses && (
-              <button
-                className="btn btn--primary"
-                disabled={selectedRequestIds.size === 0 || updateSettlement.isPending || checkSettlement.isPending}
-                onClick={handleCheck}
-              >
-                {updateSettlement.isPending || checkSettlement.isPending ? <Loader2 size={16} className="spin" /> : <CheckCircle2 size={16} />}
-                Lưu và chuyển phê duyệt
-              </button>
-            )}
-            {canApproveChecked && (
-              <button
-                className="btn btn--primary"
-                disabled={approveSettlement.isPending}
-                onClick={handleApprove}
-              >
-                {approveSettlement.isPending ? <Loader2 size={16} className="spin" /> : <CheckCircle2 size={16} />}
-                Phê duyệt phiếu
-              </button>
-            )}
+            <div className="settlement-finalize__fields">
+              <label>Tiền hoàn lại<input className="input" type="number" min="0" value={refundAmount} onChange={event => setRefundAmount(event.target.value)} /></label>
+              <label>Ghi chú<textarea className="input" rows={2} value={settlementNote} onChange={event => setSettlementNote(event.target.value)} /></label>
+            </div>
+            {updateSettlement.error && <p className="settlement-finalize__error">{String(updateSettlement.error)}</p>}
+            <button className="btn btn--primary" disabled={selectedRequestIds.size === 0 || updateSettlement.isPending} onClick={handleRecord}>
+              {updateSettlement.isPending ? <Loader2 size={16} className="spin" /> : <CheckCircle2 size={16} />}Ghi nhận phiếu
+            </button>
           </div>
         )}
 

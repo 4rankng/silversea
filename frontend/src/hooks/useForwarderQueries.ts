@@ -200,28 +200,6 @@ export function useAdminAdvanceBalances() {
   });
 }
 
-export function useApproveAdvanceRequest() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, expectedVersion, reason }: { id: number; expectedVersion: number; reason: string }) =>
-      forwarderClient.approveAdvanceRequest(id, expectedVersion, reason),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.adminForwarder.advanceRequestsAll });
-    },
-  });
-}
-
-export function useRejectAdvanceRequest() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, expectedVersion, reason }: { id: number; expectedVersion: number; reason: string }) =>
-      forwarderClient.rejectAdvanceRequest(id, expectedVersion, reason),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.adminForwarder.advanceRequestsAll });
-    },
-  });
-}
-
 // ── Admin: Advance Settlements ──────────────────────────────────────────────
 
 export function useAdminSettlements(params?: { status?: string; page?: number; limit?: number }) {
@@ -236,28 +214,6 @@ export function useAdminSettlementOpsCompletion(settlementIds: number[]) {
     queryKey: qk.adminForwarder.settlementOpsCompletion(settlementIds),
     queryFn: () => forwarderClient.getSettlementOpsCompletion(settlementIds),
     enabled: settlementIds.length > 0,
-  });
-}
-
-export function useCheckSettlement() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, expectedVersion }: { id: number; expectedVersion: number }) =>
-      forwarderClient.checkAdvanceSettlement(id, expectedVersion),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.adminForwarder.settlementsAll });
-    },
-  });
-}
-
-export function useApproveSettlement() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, expectedVersion }: { id: number; expectedVersion: number }) =>
-      forwarderClient.approveAdvanceSettlement(id, expectedVersion),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.adminForwarder.settlementsAll });
-    },
   });
 }
 
@@ -290,17 +246,6 @@ export function useUpdateSettlementExpense() {
     }) => forwarderClient.updateSettlementExpense(settlementId, expenseId, data),
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: qk.adminForwarder.settlementDetail(variables.settlementId) });
-      qc.invalidateQueries({ queryKey: qk.adminForwarder.settlementsAll });
-    },
-  });
-}
-
-export function useRejectSettlement() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, expectedVersion }: { id: number; expectedVersion: number }) =>
-      forwarderClient.rejectAdvanceSettlement(id, expectedVersion),
-    onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.adminForwarder.settlementsAll });
     },
   });

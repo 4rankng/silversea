@@ -10,10 +10,12 @@ import { usePageAnimations, useListAnimations, useCounterAnimation } from '../ho
 import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion';
 import './ForwarderAdvancesPage.css';
 import '../components/shared/HeroKpiRow.css';
+import { AdvanceDraftActions } from '../components/shared/AdvanceDraftActions';
 
 const STATUS_COLORS: Record<string, string> = {
-  APPROVED: 'var(--success, #059669)',
-  REJECTED: '#DC2626',
+  RECORDED: 'var(--success, #059669)',
+  VOIDED: 'var(--danger)',
+  DRAFT: 'var(--ink-muted)',
 };
 
 type StatusFilter = '' | AdvanceRequestStatus;
@@ -25,16 +27,16 @@ export default function ForwarderAdvancesPage() {
   const activeFilter: StatusFilter = table.filters.status ?? '';
   const { data: balanceData } = useForwarderAdvanceBalance();
   // C2b/C2c — settlement (hoàn ứng) figures shown alongside advances. Buckets
-  // are disjoint: "Chờ quyết toán hoàn ứng" = requested, not yet reconciled;
-  // "Đã thanh toán" = approved. Rejected settlements count in neither.
+  // are disjoint: "Chưa quyết toán" = requested, not yet reconciled;
+  // "Đã quyết toán" = approved. Rejected settlements count in neither.
   const { data: settlementsData } = useForwarderSettlements();
   const settlements = (settlementsData?.items ?? []) as AdvanceSettlementWithRefs[];
   const pendingSettlements = settlements.filter(
-    s => s.status !== AdvanceSettlementStatus.APPROVED && s.status !== AdvanceSettlementStatus.REJECTED && s.status !== AdvanceSettlementStatus.REVERSED,
+    s => s.status === AdvanceSettlementStatus.DRAFT,
   );
-  const approvedSettlements = settlements.filter(s => s.status === AdvanceSettlementStatus.APPROVED);
+  const recordedSettlements = settlements.filter(s => s.status === AdvanceSettlementStatus.RECORDED);
   const requestedReimbursement = pendingSettlements.reduce((sum, s) => sum + Number(s.totalExpenseAmount), 0);
-  const settledPaid = approvedSettlements.reduce((sum, s) => sum + Number(s.totalExpenseAmount), 0);
+  const settledPaid = recordedSettlements.reduce((sum, s) => sum + Number(s.totalExpenseAmount), 0);
   const { rootRef } = usePageAnimations({
     ready: !loading,
     selectors: ['.page-header', '.hero-kpi-row', '.fadv-form-panel', '.fwd-filter-pills', '.fadv-card-trip'],
@@ -48,15 +50,16 @@ export default function ForwarderAdvancesPage() {
   const { rootRef: listRef } = useListAnimations({ itemSelector: '.fadv-card-trip', mode: 'cards', deps: [requests] });
 
   const [showForm, setShowForm] = useState(false);
+  const [retrying, setRetrying] = useState(false);
   const [form, setForm] = useState({ amount: '', reason: '' });
   const mutationError = createAdvanceRequest.error
-    ? (createAdvanceRequest.error instanceof Error ? createAdvanceRequest.error.message : 'Lỗi tạo yêu cầu')
+    ? (createAdvanceRequest.error instanceof Error ? createAdvanceRequest.error.message : 'Lỗi ghi nhận')
     : null;
 
-  const error = queryError ? 'Không thể tải danh sách yêu cầu tạm ứng' : null;
+  const error = queryError ? 'Không thể tải danh sách phiếu tạm ứng' : null;
   const totalRequests = Object.values(counts).reduce((sum: number, c) => sum + c, 0);
-  const totalAmount = Object.values(statusAmounts).reduce((sum: number, a) => sum + a, 0);
-  const pendingCount = counts.APPROVED ?? 0;
+  const totalAmount = statusAmounts.RECORDED ?? 0;
+  const recordedCount = counts.RECORDED ?? 0;
   const outstanding = balanceData ? Number(balanceData.outstanding) : 0;
 
   const prefersReduced = usePrefersReducedMotion();
@@ -70,15 +73,16 @@ export default function ForwarderAdvancesPage() {
     if (loading || totalRequests === 0 || prefersReduced) return;
     animateCounters([
       { el: heroAmountRef.current, value: totalAmount, format: (v: number) => Math.round(v).toLocaleString('vi-VN') },
-      { el: heroTotalRef.current, value: totalRequests, suffix: ' yêu cầu' },
-      { el: heroPendingRef.current, value: pendingCount, suffix: ' đang ghi nhận' },
+      { el: heroTotalRef.current, value: totalRequests, suffix: ' phiếu' },
+      { el: heroPendingRef.current, value: recordedCount },
       { el: heroOutstandingRef.current, value: outstanding, format: (v: number) => Math.round(v).toLocaleString('vi-VN') },
     ]);
-  }, [loading, totalRequests, totalAmount, pendingCount, outstanding, animateCounters, prefersReduced]);
+  }, [loading, totalRequests, totalAmount, recordedCount, outstanding, animateCounters, prefersReduced]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    createAdvanceRequest.mutateAsync(
+    if (createAdvanceRequest.isPending) return;
+    createAdvanceRequest.mutate(
       { amount: Number(form.amount), reason: form.reason },
       {
         onSuccess: () => {
@@ -89,9 +93,14 @@ export default function ForwarderAdvancesPage() {
     );
   }
 
-  if (loading) return (
+  async function retryList() {
+    setRetrying(true);
+    try { await table.query.refetch(); } finally { setRetrying(false); }
+  }
+
+  if (loading && !retrying) return (
     <div className="fadv-page">
-      <PageHeader title="Tạm ứng" description="Yêu cầu tạm ứng và theo dõi trạng thái" iconName="advances" />
+      <PageHeader title="Tạm ứng" description="Ghi nhận tạm ứng và theo dõi số dư" iconName="advances" />
       <div className="fadv-loading">
         <Loader2 size={20} className="spin" style={{ display: 'inline-block' }} />
         <p style={{ marginTop: 8 }}>Đang tải danh sách tạm ứng…</p>
@@ -99,15 +108,19 @@ export default function ForwarderAdvancesPage() {
     </div>
   );
 
-  if (error) return (
+  if (error || retrying) return (
     <div className="fadv-page">
-      <PageHeader title="Tạm ứng" description="Yêu cầu tạm ứng và theo dõi trạng thái" iconName="advances" />
+      <PageHeader title="Tạm ứng" description="Ghi nhận tạm ứng và theo dõi số dư" iconName="advances" />
       <div className="fadv-empty">
         <div className="fadv-empty__icon" style={{ width: 80, height: 80 }}>
           <AlertCircle size={48} />
         </div>
         <h3 className="fadv-empty__title">Không thể tải dữ liệu</h3>
-        <p className="fadv-empty__desc">{error}</p>
+        <p className="fadv-empty__desc" role="alert">{error ?? 'Đang tải lại danh sách phiếu tạm ứng…'}</p>
+        <button type="button" className="btn btn--secondary" disabled={retrying || table.query.isFetching} onClick={() => void retryList()}>
+          {retrying && <Loader2 size={14} className="spin" aria-hidden />}
+          {retrying ? 'Đang tải lại…' : 'Thử lại'}
+        </button>
       </div>
     </div>
   );
@@ -116,12 +129,12 @@ export default function ForwarderAdvancesPage() {
     <div ref={rootRef} className="fadv-page">
       <PageHeader
         title="Tạm ứng"
-        description="Yêu cầu tạm ứng và theo dõi trạng thái"
+        description="Ghi nhận tạm ứng và theo dõi số dư"
         iconName="advances"
         action={
           !showForm ? (
             <button className="btn btn--primary" onClick={() => setShowForm(true)}>
-              <Plus size={16} /> Tạo yêu cầu
+              <Plus size={16} /> Ghi nhận tạm ứng
             </button>
           ) : undefined
         }
@@ -133,7 +146,7 @@ export default function ForwarderAdvancesPage() {
           <div className="hero-kpi-card">
             <span className="hero-kpi-card__eyebrow">Tổng tạm ứng</span>
             <span className="hero-kpi-card__amount"><span ref={heroAmountRef}>{Math.round(totalAmount).toLocaleString('vi-VN')}</span><span className="hero-kpi-card__currency">₫</span></span>
-            <span className="hero-kpi-card__subtitle">{totalRequests} yêu cầu tạm ứng</span>
+            <span className="hero-kpi-card__subtitle">{totalRequests} phiếu tạm ứng</span>
             <Wallet size={72} className="hero-kpi-card__watermark" aria-hidden />
           </div>
           <div className="hero-kpi-stack">
@@ -146,8 +159,8 @@ export default function ForwarderAdvancesPage() {
             </div>
             <div className="hero-kpi-mini hero-kpi-mini--warn">
               <div className="hero-kpi-mini__body">
-                <span className="hero-kpi-mini__value" ref={heroPendingRef}>{pendingCount}</span>
-                <span className="hero-kpi-mini__label">đang ghi nhận</span>
+                <span className="hero-kpi-mini__value" ref={heroPendingRef}>{recordedCount}</span>
+                <span className="hero-kpi-mini__label">đã ghi nhận</span>
               </div>
               <Clock size={40} className="hero-kpi-mini__watermark" aria-hidden="true" />
             </div>
@@ -159,15 +172,15 @@ export default function ForwarderAdvancesPage() {
       {settlements.length > 0 && (
         <div className="fadv-settlement-summary fade-up">
           <div className="fadv-settlement-summary__card fadv-settlement-summary__card--info">
-            <span className="fadv-settlement-summary__label">Chờ quyết toán hoàn ứng</span>
+            <span className="fadv-settlement-summary__label">Chưa quyết toán</span>
             <span className="fadv-settlement-summary__value">{formatCurrency(requestedReimbursement)}</span>
             <span className="fadv-settlement-summary__meta">{pendingSettlements.length} phiếu chờ quyết toán</span>
             <FileText size={40} className="fadv-settlement-summary__watermark" aria-hidden="true" />
           </div>
           <div className="fadv-settlement-summary__card fadv-settlement-summary__card--success">
-            <span className="fadv-settlement-summary__label">Đã thanh toán</span>
+            <span className="fadv-settlement-summary__label">Đã quyết toán</span>
             <span className="fadv-settlement-summary__value">{formatCurrency(settledPaid)}</span>
-            <span className="fadv-settlement-summary__meta">{approvedSettlements.length} phiếu đã quyết toán</span>
+            <span className="fadv-settlement-summary__meta">{recordedSettlements.length} phiếu đã quyết toán</span>
             <CheckCircle2 size={40} className="fadv-settlement-summary__watermark" aria-hidden="true" />
           </div>
         </div>
@@ -178,17 +191,17 @@ export default function ForwarderAdvancesPage() {
         <div className="fadv-form-panel fade-up">
           <div className="fadv-form-panel__head">
             <div>
-              <span className="fadv-form-panel__eyebrow">Yêu cầu mới</span>
+              <span className="fadv-form-panel__eyebrow">Phiếu mới</span>
               <h2 className="fadv-form-panel__title">
                 <Wallet size={16} aria-hidden="true" />
-                Tạo yêu cầu tạm ứng
+                Ghi nhận tạm ứng
               </h2>
-              <p className="fadv-form-panel__hint">Điền số tiền và lý do để tạo yêu cầu tạm ứng.</p>
+              <p className="fadv-form-panel__hint">Điền số tiền và lý do để ghi nhận tạm ứng.</p>
             </div>
             <button
               className="btn btn--ghost btn--sm fadv-form-panel__close"
               onClick={() => { setShowForm(false); setForm({ amount: '', reason: '' }); }}
-              aria-label="Đóng biểu mẫu yêu cầu tạm ứng"
+              aria-label="Đóng biểu mẫu phiếu tạm ứng"
             >
               <X size={16} aria-hidden="true" />
             </button>
@@ -230,7 +243,7 @@ export default function ForwarderAdvancesPage() {
               </button>
               <button className="btn btn--primary btn--sm" type="submit" disabled={createAdvanceRequest.isPending}>
                 {createAdvanceRequest.isPending ? <Loader2 size={14} className="spin" /> : <Wallet size={14} />}
-                Tạo yêu cầu
+                Ghi nhận tạm ứng
               </button>
             </div>
           </form>
@@ -271,9 +284,9 @@ export default function ForwarderAdvancesPage() {
           <div className="fadv-empty__icon">
             <Wallet size={64} />
           </div>
-          <h3 className="fadv-empty__title">Chưa có yêu cầu tạm ứng</h3>
+          <h3 className="fadv-empty__title">Chưa có phiếu tạm ứng</h3>
           <p className="fadv-empty__desc">
-            Nhấn "Tạo yêu cầu" để gửi yêu cầu tạm ứng mới.
+            Nhấn "Ghi nhận tạm ứng" để gửi phiếu tạm ứng mới.
           </p>
         </div>
       ) : (
@@ -304,11 +317,12 @@ export default function ForwarderAdvancesPage() {
                     </span>
                   </div>
                   <div className="fadv-card-trip__reason">{req.reason}</div>
+                  <AdvanceDraftActions request={req} />
                 </div>
                 {req.approverName && req.approvedAt && (
                   <div className="fadv-card-trip__approver">
                     <User size={12} />
-                    <span>{req.status === 'APPROVED' ? 'Ghi nhận' : 'Từ chối'} bởi {req.approverName}</span>
+                    <span>Người ghi nhận: {req.approverName}</span>
                     <span className="fadv-card-trip__meta-sep">·</span>
                     <span>{formatDate(req.approvedAt)}</span>
                   </div>

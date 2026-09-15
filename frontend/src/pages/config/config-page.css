@@ -239,20 +239,25 @@
 /* ── Company info singleton ─────────────────────────────────────────────── */
 .cfg-page--company-info .company-info-layout {
   display: grid;
-  grid-template-columns: minmax(420px, 1fr) minmax(360px, 0.8fr);
-  gap: 20px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
   align-items: start;
 }
 
 .cfg-page--company-info .company-info-form {
   min-width: 0;
+  display: grid;
+  gap: 12px;
 }
 
+.cfg-page--company-info .company-info-form .cfg-row { margin: 0; }
+.cfg-page--company-info .company-info-form .field { margin-bottom: 0; }
+.cfg-page--company-info .cfg-form-actions { margin-top: 12px; }
+.company-info-comparison { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 8px; }
+.company-info-comparison > summary { cursor: pointer; min-height: 44px; display: list-item; align-content: center; font-size: var(--text-control-size); font-weight: 600; }
+.company-info-comparison > p { font-size: var(--text-caption-size); color: var(--ink-3); margin: 0 0 8px; }
+
 .cfg-page--company-info .company-info-preview {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--surface);
-  overflow: clip;
   min-width: 0;
 }
 
@@ -260,7 +265,7 @@
   display: grid;
   grid-template-columns: minmax(120px, 0.34fr) minmax(0, 1fr);
   gap: 16px;
-  padding: 12px 14px;
+  padding: 8px 0;
   border-bottom: 1px solid var(--line);
   line-height: 1.45;
 }
@@ -576,15 +581,20 @@
    wraps; nowrap keeps Vietnamese caps headers (STT/TUYẾN) un-chopped. */
 .factories-table { min-width: 1120px; table-layout: fixed; width: 100%; }
 .factories-table thead th { white-space: nowrap; }
-.factories-table thead th:nth-child(1) { width: 48px; }  /* STT */
-.factories-table thead th:nth-child(2) { width: 13%; }   /* Khách hàng */
-.factories-table thead th:nth-child(3) { width: 11%; }   /* Mã */
-.factories-table thead th:nth-child(4) { width: 17%; }   /* Tên */
-.factories-table thead th:nth-child(5) { width: 7%; }    /* Loại */
-.factories-table thead th:nth-child(6) { width: 7%; }    /* Tuyến */
-.factories-table thead th:nth-child(7) { width: 21%; }   /* Địa chỉ */
-.factories-table thead th:nth-child(8) { width: 13%; }   /* Liên hệ */
-.factories-table thead th:nth-child(9) { width: 9%; }    /* Trạng thái */
+ .factories-table thead th:nth-child(1) { width: 40px; }
+.factories-table thead th:nth-child(2) { width: 140px; }
+.factories-table thead th:nth-child(3) { width: 100px; }
+.factories-table thead th:nth-child(4) { width: 190px; }
+.factories-table thead th:nth-child(5) { width: 70px; }
+.factories-table thead th:nth-child(6) { width: 200px; }
+.factories-table thead th:nth-child(7) { width: 150px; }
+.factories-table thead th:nth-child(8) { width: 90px; }
+.factories-table thead th:nth-child(9) { width: 44px; }
+.factory-record-details summary { cursor: pointer; min-height: 44px; align-content: center; font-size: var(--text-control-size); }
+.factory-record-details dl { display: grid; gap: 6px; margin: 4px 0; }
+.factory-record-details dt { color: var(--ink-3); font-size: var(--text-label-size); }
+.factory-record-details dd { margin: 0; overflow-wrap: anywhere; }
+
 
 /* When the shared record-table base collapses rows to labelled cards
    (container ≤1100px), release the desktop-only fixed-layout geometry so the
@@ -1213,6 +1223,9 @@
   flex-direction: column;
   gap: 16px;
 }
+.customer-form .field { margin-bottom: 0; }
+.customer-form .field label { margin-bottom: 0; }
+.customer-form .cfg-form-columns { gap: 12px; }
 
 .customer-form__grid {
   display: grid;
@@ -1261,4 +1274,40 @@
     padding-top: 7px;
     padding-bottom: 7px;
   }
+}
+
+@container (max-width: 1100px) {
+  .factories-table tbody tr:not(.cfg-empty-row) {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    border: 0;
+    border-bottom: 1px solid var(--line-strong);
+    border-radius: 0;
+    padding-block: 6px;
+  }
+  .factories-table tbody tr td[data-label] { padding: 4px 8px; border: 0; }
+  .cfg-page.cfg-page--factories .factories-table tbody tr td[data-label='STT'] { position: absolute; top: 6px; left: 0; width: 24px; display: block; }
+  .cfg-page.cfg-page--factories .factories-table tbody tr td[data-label='STT']::before { display: none; }
+  .cfg-page.cfg-page--factories .factories-table tbody tr td[data-label='Tên'] { grid-row: 1; grid-column: 1 / -1; padding: 4px 48px 6px 32px; }
+  .cfg-page.cfg-page--factories .factories-table tbody tr td[data-label='Tên']::before { display: none; }
+  .cfg-page.cfg-page--factories .factories-table tbody tr td[data-label='Khách hàng'] { grid-row: 2; grid-column: 1; }
+  .cfg-page.cfg-page--factories .factories-table tbody tr td[data-label='Mã'] { grid-row: 2; grid-column: 2; }
+  .cfg-page.cfg-page--factories .factories-table tbody tr td[data-label='Loại'] { grid-row: 3; grid-column: 1; }
+  .cfg-page.cfg-page--factories .factories-table tbody tr td[data-label='Trạng thái'] { grid-row: 3; grid-column: 2; }
+  .cfg-page.cfg-page--factories .factories-table tbody tr td[data-label='Tuyến'] { grid-row: 4; grid-column: 1 / -1; }
+  .cfg-page.cfg-page--factories .factories-table tbody tr td[data-label='Chi tiết'] { grid-row: 5; grid-column: 1 / -1; }
+  .factories-table tbody tr td.record-table__action { position: absolute; top: 0; right: 0; width: 44px; padding: 0; }
+  .factories-table .row-action { min-height: 44px; min-width: 44px; }
+  .factories-table td[data-label='Chi tiết']::before { display: none; }
+  .factories-table tbody tr td::before { text-transform: none; letter-spacing: 0; font-size: var(--text-label-size); }
+}
+.cfg-page .cfg-catalogue-search { flex: 1 1 180px; min-width: 0; max-width: 360px; }
+.cfg-page .cfg-catalogue-search .input { width: 100%; }
+.cfg-page .cfg-catalogue-summary { flex: 1 1 auto; min-width: 0; }
+.cfg-page .cfg-catalogue-feedback { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 12px 8px; color: var(--ink-2); }
+@media (max-width: 640px) {
+  .cfg-page .toolbar:has(.cfg-catalogue-search) { flex-wrap: wrap; padding: 8px 0; gap: 8px; }
+  .cfg-page .cfg-catalogue-search { max-width: none; flex-basis: calc(100% - 96px); }
+  .cfg-page .cfg-catalogue-summary { order: 3; flex-basis: 100%; }
 }

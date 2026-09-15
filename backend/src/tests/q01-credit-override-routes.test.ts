@@ -15,6 +15,7 @@ import { authMiddleware } from '../middleware/auth';
 import { casbinAuthz } from '../middleware/casbin';
 import { globalErrorHandler } from '../middleware/errorHandler';
 import financialRoutes from '../routes/financial';
+import { recordTripCreditException } from '../services/credit-limit.service';
 import { getAppSettings, saveAppSettings } from '../services/app-settings.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -210,8 +211,8 @@ describe('Q01/Q02 credit override routes', () => {
     });
     assert.equal(created.status, 201);
     assert.equal(created.body.requiredTier, 'FINANCE_TIER_1');
-    assert.equal(created.body.workflowStatus, 'APPROVED');
-    assert.equal(created.body.status, 'APPROVED');
+    assert.equal(created.body.workflowStatus, 'RECORDED');
+    assert.equal(created.body.status, 'AUTHORIZED');
     assert.equal(created.body.replayed, undefined);
 
     const replayed = await request('/api/finance/credit-overrides', {
@@ -242,7 +243,16 @@ describe('Q01/Q02 credit override routes', () => {
     });
     assert.equal(drift.status, 409);
     assert.match(String(drift.body.error), /Khóa giao dịch trùng/i);
-
+    // Recorded authority cannot be rewritten by generic or retired review routes.
+    const [before] = await db.select().from(s.creditOverrideRequests).where(eq(s.creditOverrideRequests.id, created.body.id));
+    for (const [method, tail] of [['PUT', ''], ['PATCH', ''], ['DELETE', ''], ['POST', '/approve'], ['POST', '/reject']]) {
+      const rejected = await request(`/api/finance/credit-overrides/${created.body.id}${tail}`, {
+        method, token: managerToken, body: { status: 'PENDING', proposedAmount: 1 },
+      });
+      assert.equal(rejected.status, 404);
+    }
+    const [after] = await db.select().from(s.creditOverrideRequests).where(eq(s.creditOverrideRequests.id, created.body.id));
+    assert.deepEqual(after, before);
   });
 
   test('sorts the queue by whitelisted columns with sort-aware cursor pagination', async () => {
@@ -267,7 +277,7 @@ describe('Q01/Q02 credit override routes', () => {
     }
 
     const listUrl = (params: string) =>
-      `/api/finance/credit-overrides?customerId=${customer.id}&status=APPROVED&${params}`;
+      `/api/finance/credit-overrides?customerId=${customer.id}&status=AUTHORIZED&${params}`;
     const amountsOf = (body: { items: Array<{ proposedAmount: string }> }) =>
       body.items.map((item) => Number(item.proposedAmount));
 
@@ -338,7 +348,7 @@ describe('Q01/Q02 credit override routes', () => {
 
     const originalIds = [...createdCreditOverrideIds].slice(-3);
     const firstPage = await request(
-      `/api/finance/credit-overrides?customerId=${customer.id}&status=APPROVED&limit=2`,
+      `/api/finance/credit-overrides?customerId=${customer.id}&status=AUTHORIZED&limit=2`,
       { token: managerToken },
     );
 
@@ -359,7 +369,7 @@ describe('Q01/Q02 credit override routes', () => {
       .where(eq(s.creditOverrideRequests.id, firstPage.body.items[0].id));
 
     const secondPage = await request(
-      `/api/finance/credit-overrides?customerId=${customer.id}&status=APPROVED&limit=2&cursor=${encodeURIComponent(firstPage.body.nextCursor)}`,
+      `/api/finance/credit-overrides?customerId=${customer.id}&status=AUTHORIZED&limit=2&cursor=${encodeURIComponent(firstPage.body.nextCursor)}`,
       { token: managerToken },
     );
 
@@ -414,5 +424,30 @@ describe('Q01/Q02 credit override routes', () => {
       .from(s.idempotencyKeys)
       .where(eq(s.idempotencyKeys.idempotencyKey, createKey));
     assert.equal(storedKeys.length, 0);
+  });
+});
+
+describe('inline one-trip credit exception', () => {
+  test('checks role, expiry, scope and ceiling, and rolls back with the trip transaction', async () => {
+    const actor = await mkUser(Role.MANAGER);
+    const customer = await mkCustomer('100000');
+    await mkLedger(customer.id, 90000);
+    const base = { customerId: customer.id, proposedAmount: 50000, actorId: actor.id, actorRole: Role.MANAGER,
+      exception: { reason: 'Khách thanh toán theo hợp đồng', expiresAt: futureExpiry, scopeType: 'SHIPMENT' as const, exposureCeiling: 140000 } };
+    await assert.rejects(() => db.transaction(tx => recordTripCreditException({ ...base, actorRole: Role.CUS, transaction: tx })), /Chỉ Quản trị viên hoặc Quản lý/);
+    await assert.rejects(() => db.transaction(tx => recordTripCreditException({ ...base, exception: { ...base.exception, scopeType: 'EXPIRY' }, transaction: tx })), /một lần/);
+    await assert.rejects(() => db.transaction(tx => recordTripCreditException({ ...base, exception: { ...base.exception, expiresAt: '2020-01-01T00:00:00Z' }, transaction: tx })), /hết hạn|tương lai/);
+    await assert.rejects(() => db.transaction(tx => recordTripCreditException({ ...base, exception: { ...base.exception, exposureCeiling: 139999 }, transaction: tx })), /vượt mức ngoại lệ/);
+    await assert.rejects(() => db.transaction(async tx => {
+      const record = await recordTripCreditException({ ...base, transaction: tx });
+      assert.ok(record);
+      assert.equal(record.status, 'AUTHORIZED');
+      assert.equal(record.approvedBy, null);
+      assert.equal(record.approvedAt, null);
+      assert.equal(record.scopeType, 'SHIPMENT');
+      throw new Error('simulated trip failure');
+    }), /simulated trip failure/);
+    const leftovers = await db.select().from(s.creditOverrideRequests).where(eq(s.creditOverrideRequests.customerId, customer.id));
+    assert.equal(leftovers.length, 0, 'failed trip has neither an exception nor an exposure reservation');
   });
 });

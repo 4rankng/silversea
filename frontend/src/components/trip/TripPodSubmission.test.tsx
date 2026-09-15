@@ -154,7 +154,7 @@ describe('TripPodSubmission', () => {
     expect(screen.queryByRole('button', { name: 'Tải tệp' })).toBeNull();
     // One shared banner, not one per card — avoids repeating the identical
     // sentence twice on screen.
-    expect(screen.getAllByText(/e-POD đã gửi duyệt/).length).toBe(1);
+    expect(screen.getAllByText(/e-POD đã được gửi/).length).toBe(1);
   });
 
   it('keeps capture/upload open after a REJECTED submission so the driver can retry', () => {

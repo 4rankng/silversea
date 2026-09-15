@@ -23,8 +23,9 @@ function advanceRequestCode(id: number): string {
 
 /** Status strip colors matching ForwarderTripsPage pattern */
 const STATUS_STRIP: Record<AdvanceSettlementStatus, string> = {
-  APPROVED: 'var(--success, #059669)',
-  REJECTED: '#DC2626',
+  DRAFT: 'var(--warning)',
+  RECORDED: 'var(--success, #059669)',
+  VOIDED: '#DC2626',
   REVERSED: '#64748B',
 };
 
@@ -278,11 +279,11 @@ export default function ForwarderSettlementsPage() {
                       <div className="fset-card__note">{s.note}</div>
                     )}
 
-                    {/* Checker/approver */}
+                    {/* Retained reconciliation and recording actors */}
                     {(s.checkerName || s.approverName) && (
                       <div className="fset-card__footer">
-                        {s.checkerName && <span>Kiểm tra: {s.checkerName}</span>}
-                        {s.approverName && <span>Duyệt: {s.approverName}</span>}
+                        {s.checkerName && <span>Đối chiếu trước đây: {s.checkerName}</span>}
+                        {s.approverName && <span>Ghi nhận: {s.approverName}</span>}
                       </div>
                     )}
                   </div>

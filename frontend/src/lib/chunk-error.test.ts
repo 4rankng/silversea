@@ -1,123 +1,113 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { installChunkErrorHandler, isChunkFailureMessage, recoverFromChunkFailure } from './chunk-error';
-
-const RELOAD_AT_KEY = 'tt-chunk-reload-at';
-const STALE_CHUNK_ERR =
-  'TypeError: Failed to fetch dynamically imported module: http://vantai.tingting.vip/assets/DriverTripDetailPage-BspMDth9.js';
-
-function stubReload(): ReturnType<typeof vi.fn> {
-  const reload = vi.fn();
-  // jsdom marks location.reload as an own non-configurable property, so the
-  // whole location object has to be swapped out to observe reload calls.
-  Object.defineProperty(window, 'location', {
-    configurable: true,
-    value: { href: 'http://localhost/', reload },
-  });
-  return reload;
+const key = 'tt-chunk-reload-at';
+let reload: ReturnType<typeof vi.fn>;
+let uninstall: (() => void) | undefined;
+const html = (asset: string) => new Response(`<html><script type="module" src="/assets/${asset}.js"></script></html>`, { headers: { 'content-type': 'text/html' } });
+function newBuild() {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(html('new')).mockResolvedValueOnce(new Response(null, { headers: { 'content-type': 'text/javascript' } })));
 }
-
-function dispatchUnhandledRejection(reason: unknown): void {
-  const event = new Event('unhandledrejection') as PromiseRejectionEvent;
-  Object.defineProperty(event, 'reason', { value: reason });
-  window.dispatchEvent(event);
-}
-
-describe('isChunkFailureMessage', () => {
-  it('matches the stale-chunk failure shapes thrown after a deploy', () => {
-    expect(isChunkFailureMessage(STALE_CHUNK_ERR)).toBe(true);
-    expect(isChunkFailureMessage('Loading chunk 5 failed.\nerror: http://x/assets/index-abc.js')).toBe(true);
-    expect(isChunkFailureMessage('Importing a module script failed.')).toBe(true);
-    expect(isChunkFailureMessage('ChunkLoadError: Loading chunk 3 failed')).toBe(true);
-    expect(isChunkFailureMessage('error loading dynamically imported module')).toBe(true);
-  });
-
-  it('rejects unrelated runtime errors and empty messages', () => {
-    expect(isChunkFailureMessage('')).toBe(false);
-    expect(isChunkFailureMessage('Cannot read properties of undefined (reading map)')).toBe(false);
-    expect(isChunkFailureMessage('NetworkError when attempting to fetch resource.')).toBe(false);
-  });
+beforeEach(() => {
+  sessionStorage.clear();
+  document.body.innerHTML = '';
+  document.head.innerHTML = '<script type="module" src="/assets/old.js"></script>';
+  reload = vi.fn();
+  Object.defineProperty(window, 'location', { configurable: true, value: { href: 'http://localhost/', reload } });
+  Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
 });
+afterEach(() => { uninstall?.(); uninstall = undefined; document.querySelector('[data-chunk-error-panel]')?.remove(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
-describe('recoverFromChunkFailure', () => {
-  beforeEach(() => {
-    sessionStorage.clear();
-    stubReload();
+describe('chunk recovery evidence', () => {
+  it('recognizes browser asset failure variants without treating them as a deployment', () => {
+    for (const message of ['Loading chunk 5 failed', 'Failed to fetch dynamically imported module', 'Importing a module script failed', 'ChunkLoadError', 'error loading dynamically imported module']) expect(isChunkFailureMessage(message)).toBe(true);
+    expect(isChunkFailureMessage('Cannot read properties of null')).toBe(false);
   });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it('reloads exactly once, then blocks the second attempt inside the cooldown', async () => {
-    const reload = stubReload();
-
-    expect(recoverFromChunkFailure()).toBe('reloading');
-    expect(recoverFromChunkFailure()).toBe('exhausted');
-
-    await vi.waitFor(() => expect(reload).toHaveBeenCalledTimes(1));
-    expect(Number(sessionStorage.getItem(RELOAD_AT_KEY))).toBeGreaterThan(0);
-  });
-
-  it('self-heals again once the cooldown window has passed', () => {
-    sessionStorage.setItem(RELOAD_AT_KEY, String(Date.now() - 5 * 60 * 60 * 1000));
-    expect(recoverFromChunkFailure()).toBe('reloading');
-  });
-
-  it('stays exhausted while the cooldown window is running', () => {
-    sessionStorage.setItem(RELOAD_AT_KEY, String(Date.now()));
-    expect(recoverFromChunkFailure()).toBe('exhausted');
-  });
-});
-
-describe('installChunkErrorHandler', () => {
-  beforeEach(() => {
-    sessionStorage.clear();
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it('purges and reloads on a failed dynamic-import error event', async () => {
-    const reload = stubReload();
-    installChunkErrorHandler();
-
-    window.dispatchEvent(new ErrorEvent('error', { message: STALE_CHUNK_ERR }));
-
-    await vi.waitFor(() => expect(reload).toHaveBeenCalledTimes(1));
-  });
-
-  it('reloads on vite:preloadError without needing a message match', async () => {
-    const reload = stubReload();
-    installChunkErrorHandler();
-
-    const event = new Event('vite:preloadError', { cancelable: true });
-    window.dispatchEvent(event);
-
-    await vi.waitFor(() => expect(reload).toHaveBeenCalledTimes(1));
-    expect(event.defaultPrevented).toBe(true);
-  });
-
-  it('reloads on a leaked chunk-load rejection and suppresses its default', async () => {
-    const reload = stubReload();
-    installChunkErrorHandler();
-
-    const event = new Event('unhandledrejection', { cancelable: true }) as PromiseRejectionEvent;
-    Object.defineProperty(event, 'reason', { value: new TypeError(STALE_CHUNK_ERR) });
-    window.dispatchEvent(event);
-
-    await vi.waitFor(() => expect(reload).toHaveBeenCalledTimes(1));
-    expect(event.defaultPrevented).toBe(true);
-  });
-
-  it('ignores non-chunk errors and leaves the page alone', async () => {
-    const reload = stubReload();
-    installChunkErrorHandler();
-
-    window.dispatchEvent(new ErrorEvent('error', { message: 'boom: undefined is not a function' }));
-    dispatchUnhandledRejection(new Error('boom'));
-
-    await new Promise((resolve) => setTimeout(resolve, 20));
+  it('unchanged-build failures do not reload, purge caches or spend the allowance', async () => {
+    const remove = vi.fn();
+    vi.stubGlobal('caches', { keys: vi.fn().mockResolvedValue(['unrelated']), delete: remove });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(html('old')));
+    expect(await recoverFromChunkFailure()).toBe('unavailable');
     expect(reload).not.toHaveBeenCalled();
+    expect(remove).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem(key)).toBeNull();
+  });
+  it('a different entry and reachable new asset permit one refresh', async () => {
+    newBuild();
+    expect(await recoverFromChunkFailure()).toBe('reloading');
+    expect(reload).toHaveBeenCalledTimes(1);
+    newBuild();
+    expect(await recoverFromChunkFailure()).toBe('exhausted');
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+  it('a different entry with missing assets remains unavailable', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(html('new')).mockResolvedValueOnce(new Response(null, { status: 404 })));
+    expect(await recoverFromChunkFailure()).toBe('unavailable');
+    expect(reload).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem(key)).toBeNull();
+  });
+  it('offline and blocked storage do not cause a reload loop', async () => {
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: false });
+    expect(await recoverFromChunkFailure()).toBe('unavailable');
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
+    newBuild();
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('blocked'); });
+    expect(await recoverFromChunkFailure()).toBe('unavailable');
+    expect(reload).not.toHaveBeenCalled();
+  });
+  it.each(['vite:preloadError', 'error', 'unhandledrejection'])('global %s uses the same evidence checks and provides manual retry', async (type) => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(html('old')));
+    uninstall = installChunkErrorHandler();
+    const event = new Event(type, { cancelable: true });
+    Object.defineProperties(event, { message: { value: 'Loading chunk 5 failed' }, reason: { value: new Error('Loading chunk 5 failed') } });
+    window.dispatchEvent(event);
+    await vi.waitFor(() => expect(document.querySelector('[data-chunk-error-panel]')?.textContent).toContain('Không thể tải nội dung'));
+    expect(reload).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(true);
+  });
+  it('isolates background controls and late portals, traps focus, and restores state on cleanup', async () => {
+    document.body.innerHTML = '<main><button id="save">Save</button></main><aside inert="">Already inactive</aside>';
+    const save = document.querySelector<HTMLButtonElement>('#save')!;
+    save.focus();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(html('old')));
+    uninstall = installChunkErrorHandler();
+    window.dispatchEvent(new Event('vite:preloadError', { cancelable: true }));
+    await vi.waitFor(() => expect(document.querySelector('[data-chunk-error-panel] button')).not.toBeNull());
+    const retry = document.querySelector<HTMLButtonElement>('[data-chunk-error-panel] button')!;
+    expect(retry.parentElement?.className).toBe('connection-gate__actions');
+    expect(document.activeElement).toBe(retry);
+    expect(document.querySelector('main')?.hasAttribute('inert')).toBe(true);
+    const portal = document.createElement('div');
+    document.body.append(portal);
+    await vi.waitFor(() => expect(portal.hasAttribute('inert')).toBe(true));
+    for (const shiftKey of [false, true]) {
+      const tab = new KeyboardEvent('keydown', { key: 'Tab', shiftKey, cancelable: true, bubbles: true });
+      retry.dispatchEvent(tab);
+      expect(tab.defaultPrevented).toBe(true);
+      expect(document.activeElement).toBe(retry);
+    }
+    save.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+    expect(document.activeElement).toBe(retry);
+    uninstall();
+    uninstall = undefined;
+    expect(document.querySelector('[data-chunk-error-panel]')).toBeNull();
+    expect(document.querySelector('main')?.hasAttribute('inert')).toBe(false);
+    expect(portal.hasAttribute('inert')).toBe(false);
+    expect(document.querySelector('aside')?.hasAttribute('inert')).toBe(true);
+    expect(document.activeElement).toBe(save);
+    const tab = new KeyboardEvent('keydown', { key: 'Tab', cancelable: true, bubbles: true });
+    save.dispatchEvent(tab);
+    expect(tab.defaultPrevented).toBe(false);
+  });
+  it('does not insert a stale fallback after its handler was uninstalled', async () => {
+    let finish!: (response: Response) => void;
+    vi.stubGlobal('fetch', vi.fn().mockReturnValue(new Promise<Response>((resolve) => { finish = resolve; })));
+    uninstall = installChunkErrorHandler();
+    window.dispatchEvent(new Event('vite:preloadError', { cancelable: true }));
+    uninstall();
+    uninstall = undefined;
+    finish(html('old'));
+    await recoverFromChunkFailure();
+    expect(document.querySelector('[data-chunk-error-panel]')).toBeNull();
+    expect(document.querySelector('[inert]')).toBeNull();
   });
 });

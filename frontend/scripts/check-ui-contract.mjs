@@ -90,25 +90,27 @@ const responsiveCss = await readFile(
 const phoneBlockStart = responsiveCss.indexOf('@media (max-width: 640px)');
 const phoneCss = phoneBlockStart >= 0 ? responsiveCss.slice(phoneBlockStart) : '';
 const phoneControlSelectors = [
-  '#root button',
-  '#root [role="button"]',
-  '#root a[href]',
+  ':where(#root) button',
+  ':where(#root) [role="button"]',
+  ':where(#root) a[href]',
   '#root input:not([type="checkbox"]):not([type="radio"])',
   '#root select',
 ];
 const universalPhoneRule = phoneCss.match(
-  /#root button,[\s\S]*?#root select\s*\{[^}]*min-height:\s*44px\s*;/i,
+  /:where\(#root\) button,[\s\S]*?#root select\s*\{[^}]*min-height:\s*30px\s*;/i,
 )?.[0] ?? '';
 for (const selector of phoneControlSelectors) {
   if (!universalPhoneRule.includes(selector)) {
     failures.push(`styles/responsive.css: missing universal phone selector ${selector}`);
   }
 }
-for (const selector of ['.wf-link', '.wf-btn', '.stab-pill']) {
+// The PM selected compact phone controls. Preserve low specificity so larger
+// semantic controls (save/close/touch fields) keep their own sizing.
+for (const [selector, height] of [['.wf-link', 44], ['.wf-btn', 44], ['.stab-pill', 30]]) {
   const escapedSelector = selector.replace('.', '\\.');
-  const rule = new RegExp(`${escapedSelector}\\s*\\{[^}]*min-height:\\s*44px`, 'i');
+  const rule = new RegExp(`${escapedSelector}\\s*\\{[^}]*min-height:\\s*${height}px`, 'i');
   if (!rule.test(phoneCss)) {
-    failures.push(`styles/responsive.css: ${selector} must remain at least 44px on phones`);
+    failures.push(`styles/responsive.css: ${selector} must retain its ${height}px phone minimum`);
   }
 }
 

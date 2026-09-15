@@ -5,6 +5,7 @@ import {
   ShieldCheck, Plus, Loader2, User, Eye, EyeOff,
   Mail, AtSign, Lock, Building2, Package, Hash,
 } from 'lucide-react';
+import { isValidOptionalEmail } from '../../../lib/optional-email';
 import { Drawer, Btn, FormGroup } from '../../../components/UI';
 import { ROLE_LABELS } from '../utils';
 import { CustomerAccountType, Role } from '@tingting/shared';
@@ -60,7 +61,7 @@ export function AddPanel({
   // Validation
   const nameValid = fullName.trim().length > 0;
   const usernameValid = username.trim().length > 0;
-  const emailError = email.trim().length > 0 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const emailError = !isValidOptionalEmail(email);
   const pwValid = password.length >= 6;
   const pwError = password.length > 0 && !pwValid;
   const forwarderScopeInvalid = role === Role.OPS && shipmentIds.length === 0;
@@ -92,12 +93,12 @@ export function AddPanel({
     if (customerScopeInvalid) return;
     if (forwarderScopeInvalid) return;
     // Field-level Vietnamese validation — focus first invalid field
-    const nextEmailMsg = email.trim().length > 0 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+    const nextEmailMsg = !isValidOptionalEmail(email)
       ? 'Email không hợp lệ'
       : null;
     setEmailMsg(nextEmailMsg);
     if (nextEmailMsg != null) { emailInputRef.current?.focus(); return; }
-    const payload: CreateData = { fullName, username, email, phone, employeeCode, role, password };
+    const payload: CreateData = { fullName, username, email: email.trim(), phone, employeeCode, role, password };
     if (role === Role.DRIVER) {
       if (canManageClerkScope) payload.businessUnitIds = businessUnitIds;
     }

@@ -129,8 +129,8 @@
    section titles. */
 .driver-task-section--banner {
   padding: 12px 14px;
-  background: color-mix(in srgb, var(--brand, #005a2d) 8%, white);
-  border-left: 3px solid var(--brand, #005a2d);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
   border-radius: 10px;
 }
 
@@ -216,17 +216,15 @@
 .driver-task-fact {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
+  gap: 8px;
 }
 
 .driver-task-fact__icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--ink, #0f172a) 6%, transparent);
+  width: 20px;
+  height: 20px;
   color: var(--ink);
   flex-shrink: 0;
 }
@@ -240,8 +238,7 @@
 .driver-task-fact__label {
   font-size: var(--text-label-size);
   font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0;
   color: var(--ink-3);
 }
 
@@ -253,8 +250,7 @@
   margin: 4px 0 0;
   font-size: var(--text-caption-size);
   font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0;
   color: var(--ink-3);
 }
 

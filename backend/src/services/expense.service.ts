@@ -129,7 +129,21 @@ async function lockAndValidateExpenseReferences(tx: Tx, data: Pick<
   return category;
 }
 
+function validateExpenseAmount(value: string): void {
+  const amount = Number(value);
+  if (!Number.isSafeInteger(amount) || amount <= 0 || amount > 999_999_999_999_999) {
+    throw new ApiError(400, 'Số tiền chi phí phải là số nguyên dương VND hợp lệ.');
+  }
+}
+
+async function assertExpenseHasNoPaymentAllocations(tx: Tx, expenseId: number): Promise<void> {
+  const [allocation] = await tx.select({ id: s.expensePaymentAllocations.id })
+    .from(s.expensePaymentAllocations).where(eq(s.expensePaymentAllocations.expenseId, expenseId)).limit(1);
+  if (allocation) throw new ApiError(409, 'Chi phí đã được thanh toán một phần hoặc toàn bộ: hoàn tác thanh toán liên quan trước khi thay đổi dữ liệu tài chính.');
+}
+
 async function validateExpenseInput(tx: Tx, data: ExpenseCreateInput) {
+  validateExpenseAmount(data.amount);
   const category = await lockAndValidateExpenseReferences(tx, data);
 
   if (category.isRenewable && !data.validTo) {
@@ -158,7 +172,7 @@ export async function createExpense(
   governanceApproved = false,
 ) {
   if (!governanceApproved) {
-    throw new ApiError(403, 'Chi phí công ty chỉ được ghi nhận sau khi hoàn tất phê duyệt');
+    throw new ApiError(403, 'Chi phí công ty cần được ghi nhận qua thao tác có quyền tài chính');
   }
   const category = await validateExpenseInput(tx, data);
 
@@ -181,9 +195,7 @@ export async function createExpense(
     note: data.note ?? null,
     // This path only runs after governance approval (auto-apply adapter or
     // seed) — the row lands posted with its ledger entry below.
-    approvalStatus: 'APPROVED',
-    approvedBy: userId ?? null,
-    approvedAt: new Date(),
+    approvalStatus: 'RECORDED',
     createdBy: userId ?? null,
   }).returning();
 
@@ -218,7 +230,6 @@ export async function submitExpense(
   }
   const category = await validateExpenseInput(tx, data);
   const trimmedReason = reason.trim();
-  if (!trimmedReason) throw new ApiError(400, 'Lý do là bắt buộc');
   const [expense] = await tx.insert(s.expenses).values({
     expenseDate: data.expenseDate,
     supplierId: data.supplierId,
@@ -230,10 +241,8 @@ export async function submitExpense(
     validFrom: data.validFrom ? new Date(data.validFrom) : null,
     validTo: data.validTo ? new Date(data.validTo) : null,
     receiptId: data.receiptId ?? null,
-    note: data.note ? `${data.note}\nLý do: ${trimmedReason}` : `Lý do: ${trimmedReason}`,
-    approvalStatus: 'APPROVED',
-    approvedBy: userId ?? null,
-    approvedAt: new Date(),
+    note: [data.note, trimmedReason ? `Lý do: ${trimmedReason}` : null].filter(Boolean).join('\n') || null,
+    approvalStatus: 'RECORDED',
     createdBy: userId ?? null,
   }).returning();
   // Post supplier debt immediately (no approval gate).
@@ -348,6 +357,9 @@ export async function requestCompanyExpenseGovernance(input: {
     }
     const existing = await loadExpenseForGovernance(tx, input.expenseId);
     assertExpectedUpdatedAt(existing.updatedAt, input.expectedUpdatedAt);
+    if (existing.paymentStatus !== 'UNPAID' && (input.mutation === 'DELETE' || (input.patch && isGovernedCompanyExpenseMutation(existing, input.patch)))) {
+      throw new ApiError(409, 'Chi phí đã thanh toán: hoàn tác thanh toán liên quan trước khi thay đổi dữ liệu tài chính.');
+    }
     const beforeSnapshot = normalizeExpenseSnapshot(existing);
     const afterSnapshot = input.mutation === 'DELETE'
       ? { deletedAt: true }
@@ -416,9 +428,16 @@ export async function updateExpense(
   if (isGovernedCompanyExpenseMutation(existing, data) && !governanceApproved) {
     throw new ApiError(
       403,
-      'Thay đổi tài chính của chi phí công ty chỉ được áp dụng sau phê duyệt',
+      'Thay đổi tài chính cần thao tác ghi nhận có quyền tài chính',
     );
   }
+
+  if (existing.paymentStatus !== 'UNPAID' && isGovernedCompanyExpenseMutation(existing, data)) {
+    throw new ApiError(409, 'Chi phí đã thanh toán: hoàn tác thanh toán liên quan trước khi thay đổi dữ liệu tài chính.');
+  }
+
+  if (data.amount !== undefined) validateExpenseAmount(data.amount);
+  if (isGovernedCompanyExpenseMutation(existing, data)) await assertExpenseHasNoPaymentAllocations(tx, id);
 
   const relationshipChanged = data.supplierId !== undefined
     || data.categoryId !== undefined
@@ -435,6 +454,15 @@ export async function updateExpense(
     })
     : null;
 
+  const isUnposted = ['DRAFT', 'PENDING', 'CHECKED'].includes(existing.approvalStatus);
+  if (['VOIDED', 'REJECTED'].includes(existing.approvalStatus)) throw new ApiError(409, 'Khoản chi không ghi sổ chỉ được xem trong lịch sử.');
+  if (isUnposted) {
+    await validateExpenseInput(tx, { ...existing, ...data, amount: data.amount ?? existing.amount, validFrom: data.validFrom !== undefined ? data.validFrom : existing.validFrom?.toISOString(), validTo: data.validTo !== undefined ? data.validTo : existing.validTo?.toISOString() });
+    if (existing.paymentStatus !== 'UNPAID') throw new ApiError(409, 'Khoản chi chưa ghi sổ nhưng có trạng thái thanh toán không hợp lệ.');
+    const prior = await tx.select({ id: s.ledger.id }).from(s.ledger).where(and(eq(s.ledger.txnType, TxnType.VENDOR_EXPENSE), eq(s.ledger.txnId, id))).limit(1);
+    if (prior.length) throw new ApiError(409, 'Khoản chi có bút toán lịch sử không khớp trạng thái. Đối chiếu sổ trước khi ghi nhận.');
+    await LedgerService.postEntry(tx, { txnType: TxnType.VENDOR_EXPENSE, txnId: id, entityType: 'VENDOR', entityId: data.supplierId ?? existing.supplierId, debit: 0, credit: Number(data.amount ?? existing.amount), note: 'Ghi nhận khoản chi được hoàn thiện từ bản nháp' });
+  }
   const originalAmount = Number(existing.amount);
   const wasUnpaid = existing.paymentStatus === 'UNPAID';
   if (data.paymentStatus !== undefined && data.paymentStatus !== existing.paymentStatus) {
@@ -444,7 +472,7 @@ export async function updateExpense(
   }
   const newAmount = Number(data.amount ?? existing.amount);
   const newSupplierId = data.supplierId ?? existing.supplierId;
-  const financialFieldsChanged = wasUnpaid && (
+  const financialFieldsChanged = !isUnposted && wasUnpaid && (
     (data.amount !== undefined && Number(data.amount) !== originalAmount) ||
     (data.supplierId !== undefined && data.supplierId !== existing.supplierId)
   );
@@ -484,6 +512,7 @@ export async function updateExpense(
   }
 
   const updateValues: Record<string, unknown> = {
+    ...(isUnposted ? { approvalStatus: 'RECORDED' } : {}),
     updatedAt: new Date(Math.max(Date.now(), existing.updatedAt.getTime() + 1)),
   };
   if (data.expenseDate !== undefined) updateValues.expenseDate = data.expenseDate;
@@ -521,7 +550,7 @@ export async function deleteExpense(
   governanceApproved = false,
 ) {
   if (!governanceApproved) {
-    throw new ApiError(403, 'Chi phí công ty chỉ được xóa sau khi hoàn tất phê duyệt');
+    throw new ApiError(403, 'Xóa chi phí cần thao tác có quyền tài chính');
   }
   const [existing] = await tx.select()
     .from(s.expenses)
@@ -534,7 +563,12 @@ export async function deleteExpense(
   }
   assertExpectedUpdatedAt(existing.updatedAt, expectedUpdatedAt);
 
-  if (existing.paymentStatus === 'UNPAID') {
+  if (existing.paymentStatus !== 'UNPAID') {
+    throw new ApiError(409, 'Chi phí đã thanh toán phải được điều chỉnh hoặc hoàn tác giao dịch liên quan trước.');
+  }
+  await assertExpenseHasNoPaymentAllocations(tx, id);
+  const isRecorded = existing.approvalStatus === 'RECORDED' || existing.approvalStatus === 'APPROVED';
+  if (isRecorded) {
     await LedgerService.postEntry(tx, {
       txnType: TxnType.ADJUSTMENT,
       txnId: id,
@@ -639,44 +673,7 @@ export async function applyCompanyExpenseGovernanceAction(
   if (afterSnapshot.note !== undefined) patch.note = afterSnapshot.note == null ? null : String(afterSnapshot.note);
 
   if (deltaSnapshot.applicationMode === 'FINALIZED_REPLACEMENT') {
-    const original = await loadExpenseForGovernance(tx, action.subjectId);
-    assertExpectedUpdatedAt(original.updatedAt, expectedUpdatedAt);
-    if (original.paymentStatus === 'UNPAID') {
-      throw new ApiError(409, 'Chi phí nguồn không còn ở trạng thái đã quyết toán');
-    }
-    const replacement = await createExpense(tx, {
-      expenseDate: String(afterSnapshot.expenseDate),
-      supplierId: Number(afterSnapshot.supplierId),
-      categoryId: Number(afterSnapshot.categoryId),
-      truckId: afterSnapshot.truckId == null ? null : Number(afterSnapshot.truckId),
-      vehicleComponent: afterSnapshot.vehicleComponent == null
-        ? null
-        : afterSnapshot.vehicleComponent as ExpenseCreateInput['vehicleComponent'],
-      amount: String(afterSnapshot.amount),
-      paymentStatus: String(afterSnapshot.paymentStatus),
-      validFrom: afterSnapshot.validFrom == null ? null : String(afterSnapshot.validFrom),
-      validTo: afterSnapshot.validTo == null ? null : String(afterSnapshot.validTo),
-      receiptId: afterSnapshot.receiptId == null ? null : String(afterSnapshot.receiptId),
-      note: afterSnapshot.note == null ? null : String(afterSnapshot.note),
-    }, action.makerId, true);
-    await deleteExpense(
-      tx,
-      original.id,
-      expectedUpdatedAt,
-      action.approverId ?? undefined,
-      true,
-    );
-    return {
-      applicationResult: {
-        subjectType: 'COMPANY_EXPENSE',
-        subjectId: original.id,
-        mutation: 'UPDATE',
-        applicationMode: 'FINALIZED_REPLACEMENT',
-        replacementSubjectId: replacement.id,
-        originalPreserved: true,
-        sourceEvidenceRetained: true,
-      },
-    };
+    throw new ApiError(409, 'Chi phí đã thanh toán: hoàn tác thanh toán liên quan trước khi thay đổi dữ liệu tài chính.');
   }
 
   const updated = await updateExpense(
@@ -1038,7 +1035,7 @@ export async function settleExpensesForPayment(input: {
     if (row.supplierId !== input.supplierId) {
       throw new ApiError(409, `Khoản chi ${id} không thuộc nhà cung cấp của phiếu thanh toán.`);
     }
-    if (row.approvalStatus !== 'APPROVED') {
+    if (!['RECORDED', 'APPROVED'].includes(row.approvalStatus)) {
       throw new ApiError(409, `Khoản chi ${id} chưa được phê duyệt — không thể ghi trả.`);
     }
     const expenseAmount = Number(row.amount);

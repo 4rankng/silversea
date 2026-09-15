@@ -1,13 +1,17 @@
 import { useState } from 'react';
-import { Loader2, Plus, Wallet } from 'lucide-react';
+import { Btn } from '../components/UI';
+import { Plus, Wallet } from 'lucide-react';
 import { useOpsWalletSummary, useOpsAdvanceRequests } from '../hooks/useOpsQueries';
 import { OpsAdvanceRequestModal } from '../features/ops/OpsAdvanceRequestModal';
 import { OpsExpenseHistory } from '../features/ops/OpsExpenseHistory';
 import { OpsSettlementsPanel } from '../features/ops/OpsSettlementsPanel';
 import { formatVnd } from '../features/ops/opsStatus';
 import './OpsWalletPage.css';
+import { OpsQueryFeedback } from '../features/ops/OpsQueryFeedback';
+import { AdvanceDraftActions } from '../components/shared/AdvanceDraftActions';
 
 const ADVANCE_STATUS_COLORS: Record<string, string> = {
+  DRAFT: 'var(--ink-muted)', RECORDED: 'var(--ok, #16a34a)', VOIDED: 'var(--err, #dc2626)',
   PENDING: 'var(--warn, #d97706)',
   APPROVED: 'var(--ok, #16a34a)',
   REJECTED: 'var(--err, #dc2626)',
@@ -16,6 +20,7 @@ const ADVANCE_STATUS_COLORS: Record<string, string> = {
 // Direct-effect vocabulary (QA-113): an advance save applies immediately —
 // no approval handoff. PENDING survives only as a transient/legacy state.
 const ADVANCE_STATUS_LABELS: Record<string, string> = {
+  DRAFT: 'Chưa ghi sổ', RECORDED: 'Đã ghi nhận', VOIDED: 'Đã hủy',
   PENDING: 'Đang ghi nhận',
   APPROVED: 'Đã ghi nhận',
   REJECTED: 'Từ chối',
@@ -26,8 +31,10 @@ const ADVANCE_STATUS_LABELS: Record<string, string> = {
  * chi phí với nhắc nợ chứng từ, và đề nghị thanh toán theo lô.
  */
 export default function OpsWalletPage() {
-  const { data: summary } = useOpsWalletSummary();
-  const { data: advanceData, isLoading: advanceLoading } = useOpsAdvanceRequests();
+  const summaryQuery = useOpsWalletSummary();
+  const { data: summary } = summaryQuery;
+  const advancesQuery = useOpsAdvanceRequests();
+  const { data: advanceData, isLoading: advanceLoading } = advancesQuery;
   const [advanceOpen, setAdvanceOpen] = useState(false);
 
   const advanceItems = advanceData?.items ?? [];
@@ -36,18 +43,17 @@ export default function OpsWalletPage() {
     <div className="ops-wallet page-shell">
       <header className="ops-wallet__bar">
         <h1><Wallet size={20} aria-hidden /> Quỹ tạm ứng</h1>
-        <button type="button" className="btn-primary" onClick={() => setAdvanceOpen(true)}>
-          <Plus size={14} /> Xin Tạm Ứng
-        </button>
+        <Btn variant="primary" size="sm" icon={<Plus size={14} />} onClick={() => setAdvanceOpen(true)}>Xin Tạm Ứng</Btn>
       </header>
 
+      <OpsQueryFeedback loading={summaryQuery.isLoading} error={summaryQuery.isError} label="số dư" onRetry={summaryQuery.refetch} />
       <section className="ops-wallet__cards" aria-label="Số dư">
         <div className="ops-wallet-card ops-wallet-card--balance">
           <span className="ops-wallet-card__label">SỐ DƯ HIỆN TẠI</span>
           <strong>{summary ? `${formatVnd(summary.balance)} ₫` : '…'}</strong>
           {/* Honest debt: a negative balance is a fact, not an error state. */}
           {summary && Number(summary.balance) < 0 && (
-            <small>Ứng quá mức — cần trả lại phần âm</small>
+            <small>Khoản chi vượt số tiền đang có; đối chiếu tạm ứng, chi phí và tiền hoàn lại.</small>
           )}
           <small>Đã ứng {summary ? formatVnd(summary.totalAdvance) : '…'} ₫</small>
         </div>
@@ -57,13 +63,13 @@ export default function OpsWalletPage() {
           <small>Tiền đã hoàn về công ty theo quyết toán</small>
         </div>
         <div className="ops-wallet-card">
-          <span className="ops-wallet-card__label">Đã ghi nhận</span>
-          <strong style={{ color: 'var(--ok, #16a34a)' }}>{summary ? formatVnd(summary.approved) : '…'}</strong>
+          <span className="ops-wallet-card__label">Chi phí đã ghi nhận</span>
+          <strong style={{ color: 'var(--ok, #16a34a)' }}>{summary ? `${formatVnd(summary.approved)} ₫` : '…'}</strong>
         </div>
       </section>
 
       {/* KP-125: compact status on every advance request row */}
-      {advanceItems.length > 0 && (
+      {(advanceItems.length > 0 || advanceLoading || advancesQuery.isError) && (
         <section className="ops-wallet__section" aria-label="Yêu cầu tạm ứng">
           <header className="ops-wallet__section-head">
             <h2>Yêu cầu tạm ứng</h2>
@@ -80,20 +86,21 @@ export default function OpsWalletPage() {
               </thead>
               <tbody>
                 {advanceItems.map((row) => (
-                  <tr key={row.id}>
-                    <td>{new Date(row.createdAt).toLocaleDateString('vi-VN')}</td>
-                    <td className="ops-money">{formatVnd(row.amount)} ₫</td>
-                    <td>{row.reason}</td>
-                    <td>
+                  <tr key={row.id} className={`ops-wallet__row ops-wallet__row--advance${row.status === 'DRAFT' ? ' ops-wallet__row--draft' : ''}`}>
+                    <td data-label="Ngày">{new Date(row.createdAt).toLocaleDateString('vi-VN')}</td>
+                    <td className="ops-money" data-label="Số tiền">{formatVnd(row.amount)} ₫</td>
+                    <td className="ops-wallet__wide" data-label="Lý do">{row.reason}</td>
+                    <td className="ops-wallet__advance-status" data-label="Trạng thái">
                       <span style={{ color: ADVANCE_STATUS_COLORS[row.status] ?? 'inherit', fontWeight: 600, fontSize: 'var(--text-body-size)' }}>
                         {ADVANCE_STATUS_LABELS[row.status] ?? row.status}
                       </span>
+                      <AdvanceDraftActions request={row} />
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            {advanceLoading && <div className="ops-wallet__loading"><Loader2 className="spin" size={18} /></div>}
+            <OpsQueryFeedback loading={advanceLoading} error={advancesQuery.isError} label="yêu cầu tạm ứng" onRetry={advancesQuery.refetch} />
           </div>
         </section>
       )}

@@ -15,7 +15,7 @@ import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.s
 import { assertShipmentAccountingUnlocked, assertTripShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import { resolveTrailer } from './trip-shared';
 import type { Tx } from './trip-shared';
-import { assertCreditLimit, consumeShipmentCreditOverride } from './credit-limit.service';
+import { assertCreditLimit, consumeShipmentCreditOverride, recordTripCreditException, type DirectCreditException } from './credit-limit.service';
 import { buildCopiedTripValues, buildCopiedTripLegValues } from './trip-mutations-shared.service';
 import { getTripCompositeInTx, insertTripComposite } from './trip-composite.service';
 
@@ -97,6 +97,7 @@ export async function createTrip(data: {
   // absent, the trip is created without a shipment link (legacy behaviour).
   shipmentId?: number | null;
   creditApprovalRequestId?: number | null;
+  creditException?: DirectCreditException;
   createdByRole?: Role;
 }, transaction?: Tx) {
   const execute = async (tx: Tx) => {
@@ -207,16 +208,13 @@ export async function createTrip(data: {
 
     const revenue = freightPrice.price;
 
-    // KP-163: overrides apply immediately — the creation request carries the
-    // auto-approved override id and the credit gate validates against it
-    // (exposure excluded for shipment-scoped reservations, caps enforced).
-    const creditCheck = await assertCreditLimit({
-      customerId: data.customerId,
-      proposedAmount: revenue,
-      approvalRequestId: data.creditApprovalRequestId ?? null,
-      shipmentId: data.shipmentId ?? null,
-      transaction: tx,
-    });
+    // Serialize the customer's credit decision and trip reservation to prevent parallel over-limit saves.
+    await lockApplicationOwnedUniqueness(tx, 'credit-exposure:customer', [data.customerId]);
+    if (data.creditException && data.creditApprovalRequestId != null) throw new ApiError(400, 'Chỉ dùng một nguồn ngoại lệ tín dụng.');
+    const directException = data.creditException ? await recordTripCreditException({ customerId: data.customerId, shipmentId: data.shipmentId, proposedAmount: revenue, exception: data.creditException, actorId: data.createdBy, actorRole: data.createdByRole, transaction: tx }) : null;
+    const creditCheck = directException
+      ? { overrideRequest: directException }
+      : await assertCreditLimit({ customerId: data.customerId, proposedAmount: revenue, approvalRequestId: data.creditApprovalRequestId ?? null, shipmentId: data.shipmentId ?? null, transaction: tx });
 
     // 2. Fuel-norm resolution — replaced the inline fuel_config lookup with
     //    the Wave 1 resolveFuelNorm service. This resolves per-route/per-

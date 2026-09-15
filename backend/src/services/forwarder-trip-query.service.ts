@@ -30,7 +30,7 @@ const hasPendingExpenseOrSettlement = (forwarderId: number) => sql<boolean>`EXIS
   SELECT 1 FROM trip_expenses te
   WHERE te.trip_id = ${s.trips.id}
     AND te.forwarder_id = ${forwarderId}
-    AND te.approval_status = 'PENDING'
+    AND te.approval_status IN ('DRAFT', 'PENDING', 'RETURN_FOR_EVIDENCE')
 )`;
 
 function withinForwarderScope(forwarderId: number) {
@@ -428,7 +428,7 @@ export async function getForwarderTripDetail(tripId: number, forwarderId: number
       FROM settlement_expenses se
       JOIN advance_settlements aset ON aset.id = se.settlement_id
       WHERE se.trip_expense_id = ${s.tripExpenses.id}
-        AND aset.status <> 'REJECTED'
+        AND aset.status NOT IN ('VOIDED', 'REVERSED')
       ORDER BY se.id DESC
       LIMIT 1
     )`,

@@ -140,7 +140,7 @@ describe('RoleWorkInbox', () => {
       { expectedVersion: 3, decision: 'CONFIRMED', reason: undefined },
       { idempotencyKey: '11111111-1111-4111-8111-111111111111' },
     ));
-    expect(await screen.findByText('Đã đồng bộ xác nhận nhận hàng.')).toBeTruthy();
+    expect(await screen.findByText('Đã ghi nhận xác nhận nhận hàng.')).toBeTruthy();
   });
 
   it('requires a dispute reason and preserves the draft on a 409 conflict', async () => {
@@ -156,6 +156,24 @@ describe('RoleWorkInbox', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Gửi báo sai lệch' }));
     expect(await screen.findByText(/Dữ liệu nháp vẫn được giữ/)).toBeTruthy();
     expect((draft as HTMLTextAreaElement).value).toBe('Thiếu một kiện hàng');
+  });
+
+  it('keeps the full-row dispute draft locked until the save completes', async () => {
+    apiGet.mockResolvedValue(response([customerItem]));
+    let finish: (() => void) | undefined;
+    apiPost.mockImplementation(() => new Promise(resolve => { finish = () => resolve({}); }));
+    renderInbox(<RoleWorkInbox role="customer" title="Theo dõi lô hàng" description="Mô tả" customerId={7} />);
+    await screen.findByText('Tài xế báo đã giao');
+    fireEvent.click(screen.getByRole('button', { name: 'Báo sai lệch' }));
+    const reason = screen.getByLabelText('Lý do sai lệch');
+    expect(reason.closest('td')?.getAttribute('colspan')).toBe('6');
+    fireEvent.change(reason, { target: { value: 'Thiếu kiện' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Gửi báo sai lệch' }));
+    expect((reason as HTMLTextAreaElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Hủy' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(apiPost).toHaveBeenCalledTimes(1);
+    finish?.();
+    await waitFor(() => expect(screen.queryByLabelText('Lý do sai lệch')).toBeNull());
   });
 
   it('loads each tab from its server-scoped page and supports Arrow, Home, and End keyboard navigation', async () => {

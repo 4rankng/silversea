@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { api, ApiError } from '../../lib/api';
 import { useAuth } from '../../hooks/useAuth';
@@ -13,7 +13,6 @@ import { useCatalogs } from '../../hooks/useCatalogs';
 import { TripStatus, Role } from '@tingting/shared';
 import { useConfirm } from '../../components/UI';
 
-import { useToast } from '../../components/shared/Toast';
 import type { TripDetailPageData, TripDerivedData, TripPermissions, TripUIState } from './types';
 
 export function resolveExpectedFuelLiters(trip: {
@@ -45,7 +44,6 @@ export function useTripDetailPage(id: string | undefined): TripDetailPageData {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { confirm, dialog: confirmDialog } = useConfirm();
-  const { toast } = useToast();
 
   /* ── Data fetching ──────────────────────────────────────────────────── */
   const {
@@ -86,6 +84,7 @@ export function useTripDetailPage(id: string | undefined): TripDetailPageData {
   const [adjustRef, setAdjustRef] = useState('');
   const [adjustSubmitting, setAdjustSubmitting] = useState(false);
   const [adjustError, setAdjustError] = useState('');
+  const adjustInFlight = useRef(false);
 
   // No cancel action is wired in this hook yet; keep the slot in the return
   // shape as a stable `false` so consumers don't need to change.
@@ -301,12 +300,21 @@ export function useTripDetailPage(id: string | undefined): TripDetailPageData {
   };
 
   const handleAdjustSubmit = async () => {
-    if (!id || !adjustNote.trim() || !adjustRef.trim() || adjustAmount === '') return;
+    if (adjustInFlight.current || !id || !adjustNote.trim() || !adjustRef.trim() || adjustAmount.trim() === '') return;
+    const amount = Number(adjustAmount);
+    if (!Number.isFinite(amount) || !Number.isSafeInteger(amount) || amount === 0) {
+      setAdjustError('Nhập số tiền điều chỉnh nguyên đồng, khác 0.');
+      return;
+    }
     // Publish with the loaded trip's current version — the backend schema
     // requires it (undefined coerces to NaN and leaks a raw zod error) and
     // the 409 conflict guard keys off it.
     const expectedVersion = trip?.version;
-    if (typeof expectedVersion !== 'number' || !Number.isFinite(expectedVersion)) return;
+    if (typeof expectedVersion !== 'number' || !Number.isSafeInteger(expectedVersion)) {
+      setAdjustError('Chưa tải được phiên bản chuyến đi. Tải lại dữ liệu rồi thử lại.');
+      return;
+    }
+    adjustInFlight.current = true;
     setAdjustSubmitting(true);
     setAdjustError('');
     // One idempotency key per attempt: an in-flight retry replays safely,
@@ -315,7 +323,7 @@ export function useTripDetailPage(id: string | undefined): TripDetailPageData {
     const idempotencyKey = crypto.randomUUID();
     try {
       await api.post(`/trips/${id}/adjustment`, {
-        amount: Number(adjustAmount),
+        amount,
         note: adjustNote.trim(),
         signedAgreementRef: adjustRef.trim(),
         expectedVersion,
@@ -336,6 +344,7 @@ export function useTripDetailPage(id: string | undefined): TripDetailPageData {
         setAdjustError((e as Error).message || 'Lỗi khi tạo điều chỉnh');
       }
     } finally {
+      adjustInFlight.current = false;
       setAdjustSubmitting(false);
     }
   };

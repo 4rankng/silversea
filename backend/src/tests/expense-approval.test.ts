@@ -5,7 +5,9 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { db, client } from '../db';
 import * as s from '../db/schema';
 import { runInTx } from '../lib/tx';
-import { submitExpense, settleExpensesForPayment, restoreExpensesForPaymentReversal } from '../services/expense.service';
+import { submitExpense, deleteExpense, updateExpense, settleExpensesForPayment, restoreExpensesForPaymentReversal, requestCompanyExpenseGovernance, applyCompanyExpenseGovernanceAction } from '../services/expense.service';
+
+import { autoApplyGovernanceAction } from '../services/adjustment-governance.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const createdSupplierIds: number[] = [];
@@ -28,11 +30,12 @@ after(async () => {
   // go first — leftover rows from an interrupted run make the unallocated-
   // amount guard reject the next run's settlements.
   await db.delete(s.expensePaymentAllocations)
-    .where(inArray(s.expensePaymentAllocations.paymentLedgerId, [9001, 9002, 9101, 9202]));
+    .where(inArray(s.expensePaymentAllocations.paymentLedgerId, [9001, 9002, 9101, 9202, 9303]));
   await db.delete(s.ledger).where(and(eq(s.ledger.entityType, 'VENDOR'), inArray(s.ledger.entityId, createdSupplierIds)));
   if (createdExpenseIds.length) await db.delete(s.expenses).where(inArray(s.expenses.id, createdExpenseIds));
   await db.delete(s.suppliers).where(inArray(s.suppliers.id, createdSupplierIds));
   await db.delete(s.expenseCategories).where(inArray(s.expenseCategories.id, createdCategoryIds));
+  await db.delete(s.auditLogs).where(inArray(s.auditLogs.userId, createdUserIds));
   await db.delete(s.users).where(inArray(s.users.id, createdUserIds));
   await client.end();
 });
@@ -61,16 +64,30 @@ async function ledgerCount(supplierId: number): Promise<number> {
 }
 
 // KP-149/KP-150 (approval-removal arc): submission is DIRECT-SAVE — the row
-// lands APPROVED with the supplier debt posted immediately; there is no
+// lands RECORDED with the supplier debt posted immediately; there is no
 // PENDING→CHECKED→APPROVED lifecycle anymore.
 describe('expense direct-save submission', () => {
-  test('submission lands APPROVED and posts the supplier debt exactly once', async () => {
+  test('submission lands RECORDED and posts the supplier debt exactly once', async () => {
     const f = fixture();
     const { expense } = await runInTx(undefined, async (tx) => submitExpense(tx, await baseInput(), 'Chi phí QA ghi thẳng', f.submitter.id));
     createdExpenseIds.push(expense.id);
-    assert.equal(expense.approvalStatus, 'APPROVED');
-    assert.ok(expense.approvedAt, 'approvedAt stamps the direct save');
+    assert.equal(expense.approvalStatus, 'RECORDED');
+    assert.equal(expense.approvedAt, null, 'direct recording does not fabricate reviewer timestamps');
+    assert.equal(expense.approvedBy, null);
     assert.equal(await ledgerCount(expense.supplierId), 1, 'supplier debt posts at submission');
+  });
+});
+
+describe('draft expense deletion', () => {
+  test('deleting an unposted draft does not create a phantom supplier credit', async () => {
+    const input = await baseInput();
+    const [draft] = await db.insert(s.expenses).values({ ...input, validFrom: null, validTo: null, approvalStatus: 'DRAFT' }).returning();
+    createdExpenseIds.push(draft.id);
+    await runInTx(undefined, (tx) => deleteExpense(tx, draft.id, draft.updatedAt, fixture().submitter.id, true));
+    const entries = await db.select().from(s.ledger).where(and(eq(s.ledger.entityType, 'VENDOR'), eq(s.ledger.entityId, input.supplierId)));
+    assert.equal(entries.length, 0);
+    const [deleted] = await db.select().from(s.expenses).where(eq(s.expenses.id, draft.id));
+    assert.ok(deleted.deletedAt);
   });
 });
 
@@ -136,4 +153,71 @@ describe('expense payment-status ledger backing', () => {
     assert.equal(back.paymentStatus, 'UNPAID');
     assert.equal(back.settledByPaymentId, null);
   });
+});
+
+describe('company expense financial mutation integrity', () => {
+  test('paid expense rejects direct financial mutation and deletion without changing source or ledger', async () => {
+    const input = await baseInput();
+    const { expense } = await runInTx(undefined, tx => submitExpense(tx, input, '', fixture().submitter.id));
+    createdExpenseIds.push(expense.id);
+    await db.update(s.expenses).set({ paymentStatus: 'PAID' }).where(eq(s.expenses.id, expense.id));
+    await assert.rejects(() => runInTx(undefined, tx => updateExpense(tx, expense.id, { amount: '456000' }, expense.updatedAt, fixture().submitter.id, true)), /hoàn tác thanh toán/);
+    await assert.rejects(() => runInTx(undefined, tx => deleteExpense(tx, expense.id, expense.updatedAt, fixture().submitter.id, true)), /đã thanh toán/);
+    const [source] = await db.select().from(s.expenses).where(eq(s.expenses.id, expense.id));
+    assert.equal(source.amount, '123000');
+    assert.equal(source.deletedAt, null);
+    assert.equal(await ledgerCount(input.supplierId), 1);
+  });
+
+  test('unpaid correction records a reversing entry and replacement debt once with a new source version', async () => {
+    const input = await baseInput();
+    const { expense } = await runInTx(undefined, tx => submitExpense(tx, input, '', fixture().submitter.id));
+    createdExpenseIds.push(expense.id);
+    const changed = await runInTx(undefined, tx => updateExpense(tx, expense.id, { amount: '456000' }, expense.updatedAt, fixture().submitter.id, true));
+    assert.equal(changed.amount, '456000');
+    assert.ok(changed.updatedAt.getTime() > expense.updatedAt.getTime());
+    const entries = await db.select().from(s.ledger).where(and(eq(s.ledger.entityType, 'VENDOR'), eq(s.ledger.entityId, input.supplierId)));
+    assert.equal(entries.length, 3);
+    assert.equal(entries.reduce((total, row) => total + Number(row.credit) - Number(row.debit), 0), 456000);
+    await assert.rejects(() => runInTx(undefined, tx => updateExpense(tx, expense.id, { amount: '789000' }, expense.updatedAt, fixture().submitter.id, true)), /người khác cập nhật/);
+  });
+  test('partial payment prevents amount changes and deletion until its allocation is reversed', async () => {
+    const input = await baseInput();
+    const { expense } = await runInTx(undefined, tx => submitExpense(tx, input, '', fixture().submitter.id));
+    createdExpenseIds.push(expense.id);
+    await runInTx(undefined, tx => settleExpensesForPayment({ allocations: [{ expenseId: expense.id, amount: 50000 }], supplierId: expense.supplierId, paymentLedgerId: 9303, paymentAmount: 50000, transaction: tx }));
+    const [partial] = await db.select().from(s.expenses).where(eq(s.expenses.id, expense.id));
+    assert.equal(partial.paymentStatus, 'UNPAID');
+    await assert.rejects(() => runInTx(undefined, tx => updateExpense(tx, expense.id, { amount: '40000' }, partial.updatedAt, fixture().submitter.id, true)), /thanh toán một phần/);
+    await assert.rejects(() => runInTx(undefined, tx => deleteExpense(tx, expense.id, partial.updatedAt, fixture().submitter.id, true)), /thanh toán một phần/);
+    assert.equal(await ledgerCount(input.supplierId), 1);
+  });
+
+  test('direct financial action wrapper persists before after delta audit and rejects a stale expense correction', async () => {
+    const input = await baseInput();
+    const actor = fixture().submitter;
+    const { expense } = await runInTx(undefined, tx => submitExpense(tx, input, '', actor.id));
+    createdExpenseIds.push(expense.id);
+    const apply = () => autoApplyGovernanceAction({
+      make: tx => requestCompanyExpenseGovernance({ expenseId: expense.id, expectedUpdatedAt: expense.updatedAt, reason: 'Correct invoice amount', makerId: actor.id, makerRole: actor.role, mutation: 'UPDATE', patch: { amount: '456000' }, transaction: tx }),
+      apply: applyCompanyExpenseGovernanceAction, actorId: actor.id, actorRole: actor.role,
+    });
+    await apply();
+    const audits = await db.select().from(s.auditLogs).where(and(eq(s.auditLogs.userId, actor.id), eq(s.auditLogs.entityId, expense.id), eq(s.auditLogs.entityType, 'financial-action')));
+    assert.equal(audits.length, 1);
+    const payload = audits[0].payload!;
+    assert.equal(payload.event, 'FINANCIAL_ACTION_APPLIED');
+    assert.equal(payload.actionKind, 'COMPANY_EXPENSE');
+    assert.equal(payload.actorId, actor.id);
+    assert.equal((payload.beforeSnapshot as { amount: string }).amount, '123000');
+    assert.equal((payload.afterSnapshot as { amount: string }).amount, '456000');
+    assert.equal((payload.deltaSnapshot as { mutation: string }).mutation, 'UPDATE');
+    const entries = await db.select().from(s.ledger).where(and(eq(s.ledger.entityType, 'VENDOR'), eq(s.ledger.entityId, input.supplierId)));
+    assert.equal(entries.length, 3);
+    assert.equal(entries.reduce((total, row) => total + Number(row.credit) - Number(row.debit), 0), 456000);
+    await assert.rejects(apply, /người khác cập nhật/);
+    const finalAudits = await db.select().from(s.auditLogs).where(and(eq(s.auditLogs.userId, actor.id), eq(s.auditLogs.entityId, expense.id), eq(s.auditLogs.entityType, 'financial-action')));
+    assert.equal(finalAudits.length, 1, 'stale retry records neither an action nor another posting');
+  });
+
 });

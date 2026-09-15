@@ -566,7 +566,7 @@ test('E2E — Financial operations (P&L, profit sharing, ledger, statements, rec
 
   // 2. Fetch Dashboard metrics
   const dashboardRes = await testFetch('/api/reports/dashboard', { token: adminToken });
-  assert.strictEqual(dashboardRes.status, 200);
+  assert.strictEqual(dashboardRes.status, 200, JSON.stringify(dashboardRes.data));
   assert.ok(dashboardRes.data.revenue !== undefined);
   assert.ok(dashboardRes.data.executive !== undefined, 'authorized dashboard route must include executive aggregates');
 

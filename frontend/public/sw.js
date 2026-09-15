@@ -5,7 +5,7 @@
 // connection for all business actions and loads assets directly from the
 // network (Vite-hashed filenames are immutable at the CDN layer).
 
-const CACHE = 'tingting-shell-v3';
+const RETIRED_CACHE = /^tingting-shell-v\d+$/;
 
 self.addEventListener('install', () => {
   self.skipWaiting();
@@ -15,7 +15,10 @@ self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
     // Drop caches left over from previous SW versions (v2 cached assets).
     const keys = await caches.keys();
-    await Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)));
+    await Promise.all(keys.filter((k) => RETIRED_CACHE.test(k)).map((k) => caches.delete(k)));
+    if (self.registration.periodicSync) {
+      await self.registration.periodicSync.unregister('refresh-journey-board').catch(() => {});
+    }
     await self.clients.claim();
   })());
 });

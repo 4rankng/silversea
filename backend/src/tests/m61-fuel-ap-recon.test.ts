@@ -19,14 +19,6 @@ import {
   getFuelInvoice,
   updateFuelInvoice,
 } from '../services/fuel-invoice.service';
-import type { GovernanceActionRow } from '../services/governance-action-core.service';
-// KP-152: approveFuelInvoice removed — invoices are auto-approved at creation.
-// Stub for tests that still reference it.
-async function approveFuelInvoice(_invoiceId: number, _actorId: number, _actorRole: string, _expectedVersion: number, _reason?: string, _transaction?: unknown): Promise<GovernanceActionRow> {
-  throw new Error('approveFuelInvoice removed — invoices are auto-approved at creation');
-}
-import { autoApplyGovernanceAction } from '../services/adjustment-governance.service';
-
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const createdTripIds: number[] = [];
 const createdTruckIds: number[] = [];
@@ -163,7 +155,7 @@ async function mkApprovedSettlementCorrection(opts: {
     forwarderId: opts.forwarderId,
     totalExpenseAmount: opts.adjustedBuyAmount,
     refundAmount: '0',
-    status: 'APPROVED',
+    status: 'RECORDED',
     approvedBy: opts.forwarderId,
     approvedAt: now,
     updatedAt: now,
@@ -559,6 +551,8 @@ describe('M6.1 — getFuelApReconciliation', () => {
     const tripA = await mkTrip({ supplierId: sup.id, truckId: truckA.id, totalFuelCost: '1200000', departureDate: '2026-06-10' });
     const tripB = await mkTrip({ supplierId: sup.id, truckId: truckB.id, totalFuelCost: '800000', departureDate: '2026-06-11' });
 
+    const expenseA = await mkFuelExpense({ tripId: tripA.id, supplierId: sup.id, buyAmount: '1200000', invoiceNumber: `PX-${suffix}-CREATE-A`, expenseDate: '2026-06-10' });
+    const expenseB = await mkFuelExpense({ tripId: tripB.id, supplierId: sup.id, buyAmount: '800000', invoiceNumber: `PX-${suffix}-CREATE-B`, expenseDate: '2026-06-11' });
     const created = await createFuelInvoice({
       supplierId: sup.id,
       invoiceNumber: `INV-${suffix}-CREATE`,
@@ -568,12 +562,14 @@ describe('M6.1 — getFuelApReconciliation', () => {
       allocations: [
         {
           tripId: tripA.id,
+          tripExpenseId: expenseA.id,
           voucherReference: `PX-${suffix}-CREATE-A`,
           voucherDate: '2026-06-10',
           liters: 60,
         },
         {
           tripId: tripB.id,
+          tripExpenseId: expenseB.id,
           voucherReference: `PX-${suffix}-CREATE-B`,
           voucherDate: '2026-06-11',
           liters: 40,
@@ -589,7 +585,7 @@ describe('M6.1 — getFuelApReconciliation', () => {
     assert.equal(detail.allocations.find((row) => row.truckId === truckB.id)?.amount, '800000.00');
   });
 
-  test('supports replacing an incomplete invoice allocation with a fully linked one (KP-152: approved at creation)', async () => {
+  test('rejects incomplete direct allocations and saves a fully linked corrected invoice', async () => {
     const sup = await mkSupplier();
     const truck = await mkTruck();
     const trip = await mkTrip({ supplierId: sup.id, truckId: truck.id, totalFuelCost: '2000000', departureDate: '2026-06-10' });
@@ -603,7 +599,7 @@ describe('M6.1 — getFuelApReconciliation', () => {
     });
     const invoiceNumber = `INV-${suffix}-DRAFT`;
 
-    const created = await createFuelInvoice({
+    await assert.rejects(() => createFuelInvoice({
       supplierId: sup.id,
       invoiceNumber,
       invoiceDate: '2026-06-15',
@@ -614,6 +610,20 @@ describe('M6.1 — getFuelApReconciliation', () => {
         voucherReference: `PX-${suffix}-DRAFT`,
         voucherDate: '2026-06-10',
         liters: 90,
+      }],
+    }, managerUserId), /liên kết chi phí|khớp/);
+    const created = await createFuelInvoice({
+      supplierId: sup.id,
+      invoiceNumber,
+      invoiceDate: '2026-06-15',
+      totalLiters: 100,
+      unitPrice: 20_000,
+      allocations: [{
+        tripId: trip.id,
+        tripExpenseId: linkedExpense.id,
+        voucherReference: `PX-${suffix}-DRAFT`,
+        voucherDate: '2026-06-10',
+        liters: 100,
       }],
     }, managerUserId);
     createdFuelInvoiceIds.push(created.id);

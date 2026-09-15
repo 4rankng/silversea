@@ -59,3 +59,18 @@
   .accounting-work-inbox__lane > header button { width: 32px; height: 32px; }
   .accounting-work-inbox__action { width: 100%; }
 }
+
+/* A lane already groups its records; keep the inner table and record rows flat. */
+.accounting-work-inbox__lane .record-table-wrap { border: 0; border-radius: 0; box-shadow: none; }
+@container (max-width: 1100px) {
+  .accounting-work-inbox__lane .record-table tbody tr:not(:has(td[colspan])) {
+    border-inline: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+}
+@media (max-width: 640px) {
+  .accounting-work-inbox__lane { border-inline: 0; border-radius: 0; }
+  .accounting-work-inbox__lane > header { padding: 10px 8px; }
+  .accounting-work-inbox__lane > header button { min-width: 44px; min-height: 44px; }
+}

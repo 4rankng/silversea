@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
 import { installChunkErrorHandler } from './lib/chunk-error';
 import './index.css';
+import { retireOfflineStorage } from './lib/retire-offline-storage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -13,24 +14,37 @@ const queryClient = new QueryClient({
       retry: false,
       staleTime: 5 * 60 * 1000, // 5 minutes default staleTime
     },
+    mutations: { networkMode: 'always', retry: false },
   },
 });
 
-// Self-heal stale-chunk load failures before React mounts: if a dynamic
-// import fails (e.g. after a deploy, when the running tab references a JS
-// chunk the cached service worker no longer has), purge the SW cache and
-// reload once instead of hanging on a "Đang tải…" spinner or going blank.
+// Recover only after verifying that a newer entry asset is available.
+// Connection failures keep their manual recovery state without deleting caches.
 installChunkErrorHandler();
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
-    </QueryClientProvider>
-  </React.StrictMode>
-);
+void retireOfflineStorage().then((retirement) => {
+  ReactDOM.createRoot(document.getElementById('root')!).render(
+    <React.StrictMode>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </QueryClientProvider>
+    </React.StrictMode>
+  );
+  if (retirement.found || retirement.cleanupIncomplete) {
+    const notice = document.createElement('div');
+    notice.className = 'retired-offline-notice';
+    notice.setAttribute('role', 'status');
+    notice.textContent = 'Lệnh chờ cũ đã ngừng gửi tự động. Kiểm tra trạng thái trên máy chủ trước khi nhập lại thao tác chưa gửi hoặc chưa rõ kết quả.';
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.textContent = 'Đã hiểu';
+    close.onclick = () => notice.remove();
+    notice.append(close);
+    document.body.append(notice);
+  }
+});
 
 // Register the service worker for PWA installability (Android) + push notifications.
 // Production-only: a SW in Vite dev would break HMR.
@@ -39,15 +53,6 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch((err) => {
       console.warn('SW registration failed:', err);
     });
-    // sw.js calls skipWaiting() + clients.claim(), so a newly deployed SW takes
-    // control of this tab immediately. Reload once on controllerchange so the
-    // page picks up the fresh module graph instead of continuing to run the
-    // stale JS it booted with.
-    let reloading = false;
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (reloading) return;
-      reloading = true;
-      window.location.reload();
-    });
+
   });
 }

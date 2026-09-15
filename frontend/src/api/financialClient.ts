@@ -64,7 +64,7 @@ export interface GovernanceActionRecord {
   allowedActions: GovernanceAllowedAction[];
 }
 
-export type FuelInvoiceStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+export type FuelInvoiceStatus = 'DRAFT' | 'RECORDED' | 'VOIDED' | 'REVERSED' | 'PENDING' | 'APPROVED' | 'REJECTED';
 
 export interface FuelInvoiceAllocation {
   id?: number;
@@ -251,9 +251,6 @@ export const financialClient = {
       ...data,
       expectedVersion,
     }),
-
-  approveFuelInvoice: (id: number, expectedVersion: number, reason: string) =>
-    api.post<GovernanceActionRecord>(FINANCIAL.FUEL_INVOICE_APPROVE(id), { expectedVersion, reason }),
 
   postCommission: (data: { supplierId: number; amount: number; tripId?: number; note?: string }) =>
     api.post<{ ok: true }>(FINANCIAL.COMMISSIONS, data),

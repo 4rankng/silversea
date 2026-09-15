@@ -24,6 +24,9 @@
  */
 
 export const qk = {
+  support: {
+    serverBuild: ['support', 'server-build'] as const,
+  },
   auth: {
     me: ['auth', 'me'],
   },
@@ -386,9 +389,6 @@ export const qk = {
     tripSelector: (driverId: string | null, search: string) =>
       [...qk.trips.all, 'penalty-selector', driverId, search] as const,
   },
-
-  /* ── Governance actions (approval inbox) ───────────────────────────── */
-
 
   /* ── Fuel-evidence review queue ────────────────────────────────────── */
 

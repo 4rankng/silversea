@@ -1,3 +1,4 @@
+import { driverFinanceClient } from './driverFinanceClient';
 import { api } from '../lib/api';
 import { toQuery } from '../lib/http/query';
 import { DRIVER } from '@tingting/shared';
@@ -318,6 +319,8 @@ function mapFulfillmentDetail(wire: DriverFulfillmentDetailResponse): DriverTask
   const currentPod = podHistory[0] ?? null;
   return {
     ...wire.trip,
+    containers: wire.trip.containers ?? [],
+    legs: wire.trip.legs ?? [],
     version: wire.tripVersion,
     // Spec A6 cross-check: tradeDirection lives at the wire top level (next to
     // cargoMode/driverNotes), not inside wire.trip — spreading wire.trip alone
@@ -376,28 +379,6 @@ export const driverClient = {
     }>(DRIVER.TRIPS);
   },
 
-  getEarnings: async (month: number, year: number) => {
-    return api.get<{
-      baseSalary: string;
-      tripIncome: string;
-      penalties: string;
-      netIncome: string;
-      // F2 / B2 — trip-based income + outstanding payable.
-      productionSalary: string;
-      roadAllowance: string;
-      paidOrAdvanced: string;
-      payableBalance: string;
-      adjustment?: number;
-      supplementPay?: number;
-      leaveDeduction?: number;
-      standardWorkDays?: number;
-      paidDays?: number;
-      dailyRate?: number;
-      periodStart?: string;
-      periodEnd?: string;
-    }>(`${DRIVER.EARNINGS}${toQuery({ month, year })}`);
-  },
-
   getPenalties: async (params?: { dateFrom: string; dateTo: string }) => {
     return api.get<
       | Array<{
@@ -444,7 +425,7 @@ export const driverClient = {
 
   /**
    * M8.4 — record a progress event. The `idempotencyKey` is sent in the
-   * `Idempotency-Key` header so an offline-queue replay returns the original
+   * `Idempotency-Key` header so an explicit retry returns the original
    * event instead of duplicating (PRD M08-04-03, Q23). Returns the event +
    * a flag the caller can ignore (the HTTP status 201/200 distinction is
    * handled by the api wrapper resolving either as success).
@@ -659,24 +640,6 @@ export const driverClient = {
     });
   },
 
-  /** M8.6 — list the driver's issued payslip periods with earnings. */
-  getPayslips: async () => {
-    return api.get<{ items: Array<{
-      period: string;
-      status: string;
-      closedAt: string | null;
-      closedByName: string | null;
-      note: string | null;
-      earnings: {
-        netIncome: string;
-        productionSalary: string;
-        roadAllowance: string;
-        penalties: string;
-        paidOrAdvanced: string;
-        payableBalance: string;
-        periodStart: string;
-        periodEnd: string;
-      };
-    }> }>(DRIVER.PAYSLIPS);
-  },
+  ...driverFinanceClient,
+
 };

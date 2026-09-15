@@ -240,8 +240,8 @@ describe('listRecoverableCosts column sorting', () => {
     const eligibilityAsc = await listRecoverableCosts(adminActor, { ...base, sortBy: 'eligibility', sortDir: 'asc' });
     const states = seeded(eligibilityAsc.items).map(item => item.eligibility.state);
     assert.deepEqual(states, [
-      'READY_FOR_REVIEW',
       'ELIGIBLE',
+      'BLOCKED',
       'BLOCKED',
       'BLOCKED', // variance rows are APPROVED but unclassified → BLOCKED (parity below)
       'BLOCKED',

@@ -1,6 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Plus, Check, X, Edit2, MoreVertical } from 'lucide-react';
+import { Loader2, Plus, Edit2 } from 'lucide-react';
 import { ANCILLARY_EXPENSE_TYPES } from '@tingting/shared';
 import type { AncillaryExpenseType } from '@tingting/shared';
 import type { TripExpense } from '@tingting/shared';
@@ -8,8 +8,7 @@ import { tripClient } from '../../api/tripClient';
 import { formatCurrency } from '../../lib/format';
 import { useCatalogs } from '../../hooks/useCatalogs';
 import { InputWithPrefix } from './InputWithPrefix';
-import { StatusPill, useConfirm, Modal } from '../UI';
-import { useClickOutside } from '../../hooks/useClickOutside';
+import { StatusPill, Modal } from '../UI';
 import { qk } from '../../api/keys';
 import { AncillaryEmptyState, AncillaryMobileTotals, AncillaryTableTotals, EMPTY_FORM, feeTypeLabel, resolveMarkupConfig, suggestedSellFor, type AncillaryFeesCardProps } from './ancillary-fees-card-utils';
 import { DateInput } from '../../design-system/forms/DateInput';
@@ -18,18 +17,12 @@ import { UuiSelectField } from '../../design-system';
 export function AncillaryFeesCard({ tripId, readOnly = false, hideAddButton = false }: AncillaryFeesCardProps) {
   const queryClient = useQueryClient();
   const { data: catalogData } = useCatalogs();
-  const { confirm, dialog: confirmDialog } = useConfirm();
 
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
-  const [pendingId, setPendingId] = useState<number | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [activeActionId, setActiveActionId] = useState<number | null>(null);
-  const actionMenuRef = useRef<HTMLDivElement>(null);
-  useClickOutside(actionMenuRef, () => setActiveActionId(null), { escapeKey: true, enabled: activeActionId !== null });
-
   const { data, isLoading } = useQuery({
     queryKey: qk.tripForm.tripExpenses(tripId),
     queryFn: async () => {
@@ -97,7 +90,7 @@ export function AncillaryFeesCard({ tripId, readOnly = false, hideAddButton = fa
 
   const handleAdd = async () => {
     setFormError('');
-    if (!form.buyAmount || Number(form.buyAmount) <= 0) {
+    if (!form.buyAmount || !Number.isFinite(Number(form.buyAmount)) || Number(form.buyAmount) <= 0 || !Number.isFinite(Number(form.sellAmount)) || Number(form.sellAmount) < 0) {
       setFormError('Vui lòng nhập số tiền gốc hợp lệ.');
       return;
     }
@@ -126,7 +119,7 @@ export function AncillaryFeesCard({ tripId, readOnly = false, hideAddButton = fa
       } else {
         await tripClient.createTripExpense(tripId, payload);
       }
-      
+
       await queryClient.invalidateQueries({ queryKey: qk.tripForm.tripExpenses(tripId) });
       setForm(EMPTY_FORM);
       setEditingId(null);
@@ -135,38 +128,6 @@ export function AncillaryFeesCard({ tripId, readOnly = false, hideAddButton = fa
       setFormError((e as Error).message || 'Lỗi khi lưu phí.');
     } finally {
       setSubmitting(false);
-    }
-  };
-
-  // Wraps an approve/reject call with a confirm dialog. Returns true if the
-  // user confirmed AND the action succeeded; false otherwise. Single entry
-  // point so the message format stays consistent.
-  const confirmAndRun = async (fee: TripExpense, action: 'approve' | 'reject') => {
-    const label = feeTypeLabel(fee.expenseType);
-    const amount = formatCurrency(Number(fee.buyAmount));
-    const message = action === 'approve'
-      ? `Duyệt khoản phí "${label}" (${amount})?`
-      : `Từ chối khoản phí "${label}" (${amount})?`;
-    const options = action === 'reject'
-      ? { variant: 'danger' as const, confirmLabel: 'Từ chối' }
-      : { confirmLabel: 'Duyệt' };
-    const ok = await confirm(message, options);
-    if (!ok) return false;
-    setPendingId(fee.id);
-    try {
-      if (action === 'approve') {
-        await tripClient.approveTripExpense(tripId, fee.id);
-      } else {
-        await tripClient.rejectTripExpense(tripId, fee.id);
-      }
-      await queryClient.invalidateQueries({ queryKey: qk.tripForm.tripExpenses(tripId) });
-      await queryClient.invalidateQueries({ queryKey: qk.trips.tripDetail(tripId) });
-      return true;
-    } catch {
-      // silently ignore — toast wiring lives outside this card
-      return false;
-    } finally {
-      setPendingId(null);
     }
   };
 
@@ -203,8 +164,7 @@ export function AncillaryFeesCard({ tripId, readOnly = false, hideAddButton = fa
                       const sell = Number(fee.sellAmount);
                       // Forwarder-owned fees are accepted with the settlement,
                       // never as a separate per-line approval on this card.
-                      const canDecide = false;
-                      const isBusy = pendingId === fee.id;
+
                       return (
                         <tr key={fee.id ?? i}>
                           <td>
@@ -247,79 +207,15 @@ export function AncillaryFeesCard({ tripId, readOnly = false, hideAddButton = fa
                           </td>
                           <td>
                             <div className="fee-decision-cell">
-                              {fee.approvalStatus === 'APPROVED' ? (
-                                <span title="Đã duyệt"><StatusPill variant="success">Duyệt</StatusPill></span>
-                              ) : fee.approvalStatus === 'REJECTED' ? (
-                                <span title="Từ chối"><StatusPill variant="danger">Từ chối</StatusPill></span>
+                              {(fee.approvalStatus === 'RECORDED' || fee.approvalStatus === 'APPROVED') ? (
+                                <span title="Đã ghi nhận"><StatusPill variant="success">Đã ghi nhận</StatusPill></span>
+                              ) : (fee.approvalStatus === 'VOIDED' || fee.approvalStatus === 'REJECTED') ? (
+                                <span title="Không ghi sổ"><StatusPill variant="danger">Không ghi sổ</StatusPill></span>
                               ) : (
-                                <span title="Chờ hoàn ứng"><StatusPill variant="neutral">Chờ hoàn ứng</StatusPill></span>
+                                <span title="Cần hoàn thiện"><StatusPill variant="neutral">Cần hoàn thiện</StatusPill></span>
                               )}
-                              {canDecide && !readOnly && (
-                                <div
-                                  className="fee-action-container"
-                                  ref={activeActionId === fee.id ? actionMenuRef : null}
-                                  style={{ marginLeft: 6 }}
-                                >
-                                  <button
-                                    type="button"
-                                    className={`fee-action-trigger ${activeActionId === fee.id ? 'is-active' : ''}`}
-                                    onClick={() => setActiveActionId(activeActionId === fee.id ? null : fee.id)}
-                                    title="Thao tác"
-                                    aria-label={activeActionId === fee.id ? 'Đóng menu thao tác' : 'Thao tác'}
-                                    aria-haspopup="menu"
-                                    aria-expanded={activeActionId === fee.id}
-                                    disabled={isBusy}
-                                  >
-                                    <MoreVertical size={14} />
-                                  </button>
-                                  {activeActionId === fee.id && (
-                                    <div
-                                      className="fee-action-dropdown"
-                                      role="menu"
-                                      style={i >= expenses.length - 2 && expenses.length > 2
-                                        ? { top: 'auto', bottom: '100%', marginTop: 0, marginBottom: 4 }
-                                        : undefined
-                                      }
-                                    >
-                                      <button
-                                        type="button"
-                                        className="fee-action-dropdown__item"
-                                        role="menuitem"
-                                        onClick={() => {
-                                          setActiveActionId(null);
-                                          confirmAndRun(fee, 'approve');
-                                        }}
-                                      >
-                                        <Check size={13} strokeWidth={2.6} style={{ color: 'var(--accent)' }} />
-                                        Duyệt
-                                      </button>
-                                      <button
-                                        type="button"
-                                        className="fee-action-dropdown__item"
-                                        role="menuitem"
-                                        onClick={() => {
-                                          setActiveActionId(null);
-                                          handleEdit(fee);
-                                        }}
-                                      >
-                                        <Edit2 size={13} style={{ color: 'var(--ink-2)' }} />
-                                        Sửa
-                                      </button>
-                                      <button
-                                        type="button"
-                                        className="fee-action-dropdown__item"
-                                        role="menuitem"
-                                        onClick={() => {
-                                          setActiveActionId(null);
-                                          confirmAndRun(fee, 'reject');
-                                        }}
-                                      >
-                                        <X size={13} strokeWidth={2.6} style={{ color: 'var(--danger)' }} />
-                                        Từ chối
-                                      </button>
-                                    </div>
-                                  )}
-                                </div>
+                              {!readOnly && fee.approvalStatus !== 'VOIDED' && fee.approvalStatus !== 'REJECTED' && (
+                                <button type="button" className="btn btn--sm btn--ghost" onClick={() => handleEdit(fee)} aria-label={`Sửa ${feeTypeLabel(fee.expenseType)}`}><Edit2 size={13} /> Sửa</button>
                               )}
                             </div>
                           </td>
@@ -347,8 +243,7 @@ export function AncillaryFeesCard({ tripId, readOnly = false, hideAddButton = fa
                   {expenses.map((fee, i) => {
                     const buy = Number(fee.buyAmount);
                     const sell = Number(fee.sellAmount);
-                    const canDecide = false;
-                    const isBusy = pendingId === fee.id;
+
                     return (
                       <div className="ancillary-fee-card" key={fee.id ?? i}>
                         <div className="ancillary-fee-card__head">
@@ -356,12 +251,12 @@ export function AncillaryFeesCard({ tripId, readOnly = false, hideAddButton = fa
                             <span>{feeTypeLabel(fee.expenseType)}</span>
                           </div>
                           <div className="ancillary-fee-card__status">
-                            {fee.approvalStatus === 'APPROVED' ? (
-                              <StatusPill variant="success">Duyệt</StatusPill>
-                            ) : fee.approvalStatus === 'REJECTED' ? (
-                              <StatusPill variant="danger">Từ chối</StatusPill>
+                            {(fee.approvalStatus === 'RECORDED' || fee.approvalStatus === 'APPROVED') ? (
+                              <StatusPill variant="success">Đã ghi nhận</StatusPill>
+                            ) : (fee.approvalStatus === 'VOIDED' || fee.approvalStatus === 'REJECTED') ? (
+                              <StatusPill variant="danger">Không ghi sổ</StatusPill>
                             ) : (
-                              <StatusPill variant="neutral">Chờ hoàn ứng</StatusPill>
+                              <StatusPill variant="neutral">Cần hoàn thiện</StatusPill>
                             )}
                           </div>
                         </div>
@@ -394,36 +289,8 @@ export function AncillaryFeesCard({ tripId, readOnly = false, hideAddButton = fa
                           </div>
                         )}
 
-                        {canDecide && !readOnly && (
-                          <div className="ancillary-fee-card__actions">
-                            <button
-                              type="button"
-                              className="btn btn--sm ancillary-fee-card__btn ancillary-fee-card__btn--approve"
-                              onClick={() => confirmAndRun(fee, 'approve')}
-                              disabled={isBusy}
-                            >
-                              {isBusy ? <Loader2 size={13} className="spin" /> : <Check size={13} />}
-                              Duyệt
-                            </button>
-                            <button
-                              type="button"
-                              className="btn btn--sm btn--ghost ancillary-fee-card__btn"
-                              onClick={() => handleEdit(fee)}
-                              disabled={isBusy}
-                            >
-                              <Edit2 size={13} />
-                              Sửa
-                            </button>
-                            <button
-                              type="button"
-                              className="btn btn--sm btn--ghost ancillary-fee-card__btn ancillary-fee-card__btn--reject"
-                              onClick={() => confirmAndRun(fee, 'reject')}
-                              disabled={isBusy}
-                            >
-                              {isBusy ? <Loader2 size={13} className="spin" /> : <X size={13} />}
-                              Từ chối
-                            </button>
-                          </div>
+                        {!readOnly && fee.approvalStatus !== 'VOIDED' && fee.approvalStatus !== 'REJECTED' && (
+                          <button type="button" className="btn btn--sm btn--ghost" onClick={() => handleEdit(fee)}><Edit2 size={13} /> Sửa phí</button>
                         )}
                       </div>
                     );
@@ -601,7 +468,7 @@ export function AncillaryFeesCard({ tripId, readOnly = false, hideAddButton = fa
           )}
         </>
       )}
-      {confirmDialog}
+
     </div>
   );
 }

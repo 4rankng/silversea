@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Loader2, Save } from 'lucide-react';
-import { ApiError } from '../lib/api';
 import { Role, TripStatus, TRIP_STATUS_LABELS } from '@tingting/shared';
 import { useConfirm } from '../components/UI';
+import { TripEditConflictError } from '../hooks/tripSubmitReconcile';
 import { Spinner } from '../components/shared/Spinner';
 import { useTripDetail } from '../hooks/useQueries';
 import { formatCurrency } from '../lib/format';
@@ -27,10 +27,10 @@ import { useBackShortcut } from '../hooks/useBackShortcut';
 import { useDirtyGuard } from '../hooks/useDirtyGuard';
 import type { TripOptions } from '../hooks/useTripOptions';
 import { SearchableSelect, DateInput, UuiSelectField } from '../design-system';
+import { TripEditConflictDialog } from '../components/trip/TripEditConflictDialog';
 import { CompletedTripReasonSection } from '../components/trip/CompletedTripReasonSection';
 import './TripForm.css';
 import './TripEditPage.css';
-
 export default function TripEditPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -40,6 +40,7 @@ export default function TripEditPage() {
   const { data: catalogData } = useCatalogs();
   const { rootRef } = usePageAnimations({ ready: !loading });
   const [governanceReason, setGovernanceReason] = useState('');
+  const [editConflict, setEditConflict] = useState<TripEditConflictError | null>(null);
 
   const editOptions: TripOptions = useMemo(() => ({
     customers: catalogData?.customers.map((c) => ({ id: c.id, label: c.name })) ?? [],
@@ -132,22 +133,15 @@ export default function TripEditPage() {
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
     } catch (err: unknown) {
-      if (err instanceof ApiError && err.status === 409) {
-        if (await confirm("Có người khác đã cập nhật chuyến này. Tải lại?")) {
-          await refetchTrip();
-          form.resetForm?.();
-        }
+      if (err instanceof TripEditConflictError) {
+        setEditConflict(err);
       }
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
-  // Bounce the user off the edit page if the trip can't actually be edited
-  // (CANCELED). Note: in the new model COMPLETED is the terminal posting state
-  // but costs/figures stay editable via the actuals endpoint (with a dirty-flag
-  // governance reason), so completed trips are intentionally allowed through.
-  // Without this guard the form lets you fill in everything and only fails at
-  // submit time — confusing because the page looked editable.
+  // Cancelled trips are read-only. Completed trips permit direct financial
+  // corrections with a reason, subject to the server's accounting lock.
   useEffect(() => {
     if (trip && trip.status === TripStatus.CANCELED) {
       navigate(`/trips/${trip.id}`, { replace: true });
@@ -163,9 +157,7 @@ export default function TripEditPage() {
     );
   }
 
-  // A failed trip fetch must not fall through to the silent blank `null`
-  // below — mirror the reassign dialog's recoverable error state
-  // (ticket 7a74d6eb). Stale data on a transient error keeps the form.
+  // Keep a recoverable load error instead of a blank editor.
   if (tripError && !trip) {
     return (
       <div role="alert" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: 80 }}>
@@ -526,6 +518,16 @@ export default function TripEditPage() {
         </form>
 
         {confirmDialog}
+        <TripEditConflictDialog
+          conflict={editConflict}
+          submitting={submitting}
+          onClose={() => setEditConflict(null)}
+          onConflict={setEditConflict}
+          onSave={async (version, choices) => {
+            const result = await handleSubmit(undefined, { conflictResolution: { version, choices } });
+            if (result !== undefined) navigate(`/trips/${result}`);
+          }}
+        />
 
         <div className="tc-edit-mobile-bar">
           <button

@@ -249,7 +249,7 @@ export default function BillingDocumentBuilder({
             };
           }
           if (line.sourceType !== 'EXPENSE' || !line.sourceId || !line.renderData?.sourceVersion) {
-            throw new Error('Giấy báo nợ chỉ nhận nguồn chuyến hoặc chi phí đã được phê duyệt.');
+            throw new Error('Dòng chi phí thiếu nguồn hoặc phiên bản hạch toán. Vui lòng lọc lại dữ liệu.');
           }
           return {
             sourceType: 'EXPENSE' as const,

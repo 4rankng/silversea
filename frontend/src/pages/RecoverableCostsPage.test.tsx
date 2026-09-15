@@ -41,11 +41,11 @@ function makeCost(overrides: Partial<RecoverableCost> = {}): RecoverableCost {
     sellAmount: 2_200_000,
     recoverablePrincipalAmount: 1_500_000,
     serviceFeeAmount: 700_000,
-    approvalStatus: 'PENDING',
+    approvalStatus: 'RECORDED',
     invoiceNumber: '14578',
     invoiceDate: '2026-07-30',
     noInvoiceEvidenceTypes: [],
-    eligibility: { state: 'READY_FOR_REVIEW', blockedReason: null },
+    eligibility: { state: 'ELIGIBLE', blockedReason: null },
     claim: null,
     updatedAt: '2026-07-30T08:00:00.000Z',
     ...overrides,
@@ -117,7 +117,7 @@ describe('RecoverableCostsPage', () => {
     expect(screen.queryByText(/\b2,2\s*(tr|M)\b/i)).toBeNull();
   });
 
-  it('filters by approval status and resets the requested page to one', async () => {
+  it('filters by recorded status and resets the requested page to one', async () => {
     listRecoverableCostsMock.mockResolvedValue({ items: Array.from({ length: 25 }, (_, index) => makeCost({ id: index + 1 })), total: 30, page: 1, limit: 25 });
     renderPage();
     await screen.findAllByText('Công ty Long Minh');
@@ -128,9 +128,9 @@ describe('RecoverableCostsPage', () => {
     fireEvent.click(within(screen.getByTestId('recoverable-cost-ledger')).getByRole('button', { name: '2' }));
     await waitFor(() => expect(listRecoverableCostsMock).toHaveBeenCalledWith({ page: 2, limit: 25, approvalStatus: undefined }));
 
-    fireEvent.click(screen.getByRole('button', { name: /Trạng thái phê duyệt/i }));
-    fireEvent.click(screen.getByRole('option', { name: 'Đã duyệt' }));
-    await waitFor(() => expect(listRecoverableCostsMock).toHaveBeenCalledWith({ page: 1, limit: 25, approvalStatus: 'APPROVED' }));
+    fireEvent.click(screen.getByRole('button', { name: /Trạng thái khoản chi/i }));
+    fireEvent.click(screen.getByRole('option', { name: 'Đã ghi nhận' }));
+    await waitFor(() => expect(listRecoverableCostsMock).toHaveBeenCalledWith({ page: 1, limit: 25, approvalStatus: 'RECORDED' }));
   });
 
   it('keeps pagination with each responsive record owner', async () => {
@@ -153,7 +153,7 @@ describe('RecoverableCostsPage', () => {
     listRecoverableCostsMock.mockResolvedValue({
       items: [makeCost({
         approvalStatus: 'REJECTED',
-        eligibility: { state: 'BLOCKED', blockedReason: 'Chi phí chưa được phê duyệt.' },
+        eligibility: { state: 'BLOCKED', blockedReason: 'Khoản chi chưa được ghi nhận hợp lệ.' },
       })],
       total: 1,
       page: 1,
@@ -161,9 +161,9 @@ describe('RecoverableCostsPage', () => {
     });
     renderPage();
 
-    expect((await screen.findAllByText('Chi phí chưa được phê duyệt.')).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText('Khoản chi chưa được ghi nhận hợp lệ.')).length).toBeGreaterThan(0);
     expect(screen.queryByRole('button', { name: 'Kiểm tra' })).toBeNull();
-    expect(screen.getAllByText('Không cần thao tác').length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: 'Hoàn thiện khoản chi' })[0].getAttribute('href')).toBe('/trips/12');
   });
 
   it('uses a Vietnamese fallback instead of exposing an internal expense enum', async () => {
@@ -179,58 +179,13 @@ describe('RecoverableCostsPage', () => {
     expect(screen.queryByText('LIFT_ON')).toBeNull();
   });
 
-  it('submits the unchanged decision, evidence, version, and idempotency contract', async () => {
+  it('opens the original expense context without creating an internal review request', async () => {
     renderPage();
-    const reviewButtons = await screen.findAllByRole('button', { name: 'Kiểm tra' });
-    fireEvent.click(reviewButtons[0]);
-
-    const dialog = await screen.findByRole('dialog', { name: 'Gửi yêu cầu kiểm tra chi phí' });
-    fireEvent.click(within(dialog).getByRole('radio', { name: /Trả lại bổ sung/ }));
-    fireEvent.change(within(dialog).getByLabelText('Nội dung kiểm tra'), { target: { value: 'Bổ sung biên nhận nâng container.' } });
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Gửi yêu cầu' }));
-
-    await waitFor(() => expect(requestRecoverableCostMock).toHaveBeenCalledWith(
-      41,
-      {
-        decision: 'REJECTED',
-        reason: 'Bổ sung biên nhận nâng container.',
-        expectedVersion: 7,
-        evidence: { reviewNote: 'Bổ sung biên nhận nâng container.', attachmentRefs: [] },
-      },
-      expect.any(String),
-    ));
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-  });
-
-  it('locks duplicate submission while a review request is pending', async () => {
-    let resolveRequest: ((value: unknown) => void) | undefined;
-    requestRecoverableCostMock.mockImplementation(() => new Promise((resolve) => { resolveRequest = resolve; }));
-    renderPage();
-    fireEvent.click((await screen.findAllByRole('button', { name: 'Kiểm tra' }))[0]);
-
-    const dialog = await screen.findByRole('dialog');
-    fireEvent.change(within(dialog).getByLabelText('Nội dung kiểm tra'), { target: { value: 'Đã đối chiếu đủ chứng từ.' } });
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Gửi yêu cầu' }));
-
-    expect((within(dialog).getByRole('button', { name: 'Đang gửi…' }) as HTMLButtonElement).disabled).toBe(true);
-    expect((within(dialog).getByRole('button', { name: 'Hủy' }) as HTMLButtonElement).disabled).toBe(true);
-    expect(requestRecoverableCostMock).toHaveBeenCalledTimes(1);
-    resolveRequest?.({ id: 901 });
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-  });
-
-  it('keeps the dialog open and exposes a retryable mutation error', async () => {
-    requestRecoverableCostMock.mockRejectedValueOnce(new Error('Mất kết nối'));
-    renderPage();
-    fireEvent.click((await screen.findAllByRole('button', { name: 'Kiểm tra' }))[0]);
-
-    const dialog = await screen.findByRole('dialog');
-    fireEvent.change(within(dialog).getByLabelText('Nội dung kiểm tra'), { target: { value: 'Đã đối chiếu.' } });
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Gửi yêu cầu' }));
-
-    expect((await within(dialog).findByRole('alert')).textContent).toContain('Không thể gửi yêu cầu kiểm tra');
-    expect(screen.getByRole('dialog')).toBeTruthy();
-    expect(within(dialog).getByRole('button', { name: 'Gửi yêu cầu' })).toBeTruthy();
+    const links = await screen.findAllByRole('link', { name: 'Xem khoản chi' });
+    expect(links[0].getAttribute('href')).toBe('/trips/12');
+    expect(screen.queryByRole('button', { name: /duyệt|Kiểm tra|Gửi yêu cầu/i })).toBeNull();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(requestRecoverableCostMock).not.toHaveBeenCalled();
   });
 
   it('renders useful loading, error retry, and filtered-empty states', async () => {

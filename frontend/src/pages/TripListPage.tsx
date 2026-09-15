@@ -251,8 +251,8 @@ export default function TripListPage() {
       }
       setQuickErrors(errors);
       setQuickMessage(response.failed > 0
-        ? `Đã lưu ${response.updated} dòng, gửi duyệt ${response.pending}, ${response.failed} dòng cần kiểm tra lại.`
-        : `Đã lưu ${response.updated} dòng, gửi duyệt ${response.pending}.`);
+        ? `Đã lưu ${response.updated} dòng, ${response.failed} dòng cần kiểm tra lại.`
+        : `Đã lưu ${response.updated} dòng.`);
       if (response.updated > 0) {
         await table.query.refetch();
         setSelectedIds((prev) => {

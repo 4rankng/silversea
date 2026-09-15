@@ -1,13 +1,11 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Loader2, FileText, Pencil, XCircle } from 'lucide-react';
+import { Loader2, FileText } from 'lucide-react';
 import { usePageAnimations } from '../hooks/animations';
 import { formatNumber, formatDate } from '../lib/format';
-import { useAuth } from '../hooks/useAuth';
 import {
   ADVANCE_SETTLEMENT_STATUS_LABELS,
   AdvanceSettlementStatus,
-  Role,
 } from '@tingting/shared';
 import type { AdvanceSettlementWithRefs } from '@tingting/shared';
 import { PageHeader, StatusPill, Toolbar, FilterPill } from '../components/UI';
@@ -39,12 +37,13 @@ export function summarizeSettlementStats(
 ) {
   const counts: Record<string, number> = {
     total: 0,
-    [AdvanceSettlementStatus.APPROVED]: 0,
+    [AdvanceSettlementStatus.DRAFT]: 0,
+    [AdvanceSettlementStatus.RECORDED]: 0,
     [AdvanceSettlementStatus.REVERSED]: 0,
-    [AdvanceSettlementStatus.REJECTED]: 0,
+    [AdvanceSettlementStatus.VOIDED]: 0,
   };
   const totals: Record<string, number> = {
-    [AdvanceSettlementStatus.APPROVED]: 0,
+    [AdvanceSettlementStatus.RECORDED]: 0,
     [AdvanceSettlementStatus.REVERSED]: 0,
   };
 
@@ -60,9 +59,10 @@ export function summarizeSettlementStats(
 
 const TABS: { key: StatusFilter; label: string }[] = [
   { key: '', label: 'Tất cả' },
-  { key: AdvanceSettlementStatus.APPROVED, label: 'Đã duyệt' },
+  { key: AdvanceSettlementStatus.DRAFT, label: 'Chưa hoàn tất' },
+  { key: AdvanceSettlementStatus.RECORDED, label: 'Đã ghi nhận' },
   { key: AdvanceSettlementStatus.REVERSED, label: 'Đã hoàn tác' },
-  { key: AdvanceSettlementStatus.REJECTED, label: 'Từ chối' },
+  { key: AdvanceSettlementStatus.VOIDED, label: 'Đã hủy' },
 ];
 
 const AS_PAGE_SIZE = 50;
@@ -74,9 +74,10 @@ function statusFilterParam(filter: StatusFilter): string | undefined {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  APPROVED: 'var(--success, #059669)',
+  RECORDED: 'var(--success, #059669)',
   REVERSED: '#64748B',
-  REJECTED: '#DC2626',
+  VOIDED: '#DC2626',
+  DRAFT: 'var(--warning)',
 };
 
 function settlementStatusLabel(status: AdvanceSettlementStatus): string {
@@ -375,9 +376,10 @@ export default function AdminAdvanceSettlementsPage({ embedded = false }: { embe
     const fullTotal = Object.values(statusCounts).reduce((sum, n) => sum + n, 0);
     return {
       '': fullTotal,
-      [AdvanceSettlementStatus.APPROVED]: statusCounts[AdvanceSettlementStatus.APPROVED] ?? 0,
+      [AdvanceSettlementStatus.DRAFT]: statusCounts[AdvanceSettlementStatus.DRAFT] ?? 0,
+      [AdvanceSettlementStatus.RECORDED]: statusCounts[AdvanceSettlementStatus.RECORDED] ?? 0,
       [AdvanceSettlementStatus.REVERSED]: statusCounts[AdvanceSettlementStatus.REVERSED] ?? 0,
-      [AdvanceSettlementStatus.REJECTED]: statusCounts[AdvanceSettlementStatus.REJECTED] ?? 0,
+      [AdvanceSettlementStatus.VOIDED]: statusCounts[AdvanceSettlementStatus.VOIDED] ?? 0,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data]);
@@ -396,13 +398,13 @@ export default function AdminAdvanceSettlementsPage({ embedded = false }: { embe
       {/* ── KPI strip ─────────────────────────────────────────────────── */}
       <div className="as-kpi-row">
         <AsKPI
-          label="Đã duyệt"
-          value={statusCounts[AdvanceSettlementStatus.APPROVED] ?? 0}
-          meta={`${formatNumber(statusAmounts[AdvanceSettlementStatus.APPROVED] ?? 0)} ₫`}
+          label="Đã ghi nhận"
+          value={statusCounts[AdvanceSettlementStatus.RECORDED] ?? 0}
+          meta={`${formatNumber(statusAmounts[AdvanceSettlementStatus.RECORDED] ?? 0)} ₫`}
           variant="success"
           iconName="paid"
-          active={statusFilter === AdvanceSettlementStatus.APPROVED}
-          onClick={() => applyFilter(statusFilter === AdvanceSettlementStatus.APPROVED ? '' : AdvanceSettlementStatus.APPROVED)}
+          active={statusFilter === AdvanceSettlementStatus.RECORDED}
+          onClick={() => applyFilter(statusFilter === AdvanceSettlementStatus.RECORDED ? '' : AdvanceSettlementStatus.RECORDED)}
         />
         <AsKPI
           label="Tồn tạm ứng"
@@ -438,7 +440,7 @@ export default function AdminAdvanceSettlementsPage({ embedded = false }: { embe
             value={statusFilter}
             onChange={(event) => applyFilter(event.target.value === 'all' ? '' : event.target.value as StatusFilter)}
             options={TABS.map((tab) => ({
-              value: tab.key || 'all',
+              value: tab.key,
               label: `${tab.label} (${tabCounts[tab.key]})`,
             }))}
           />

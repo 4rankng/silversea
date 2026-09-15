@@ -13,6 +13,7 @@ import { Check, ChevronDown, Search, X } from 'lucide-react';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { useSearchableSelectPosition } from './useSearchableSelectPosition';
 import './SearchableSelect.css';
+import { scrollActiveOption } from './scrollActiveOption';
 
 export interface SearchableSelectOption {
   value: string;
@@ -190,11 +191,8 @@ export function SearchableSelect({
 
   useEffect(() => {
     if (!isOpen) return;
-    const el = optionRefs.current[activeIndex];
-    if (el && typeof el.scrollIntoView === 'function') {
-      el.scrollIntoView({ block: 'nearest' });
-    }
-  }, [activeIndex, isOpen]);
+    scrollActiveOption(optionRefs.current[activeIndex]);
+  }, [activeIndex, isOpen, filteredOptions]);
 
   const open = () => {
     if (disabled) return;

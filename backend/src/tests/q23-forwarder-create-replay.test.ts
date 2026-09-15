@@ -29,7 +29,7 @@ let cargoTypeId = 0;
 async function requestJson(
   path: string,
   init: {
-    method?: 'GET' | 'POST';
+    method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
     idempotencyKey?: string;
     body?: Record<string, unknown>;
   } = {},
@@ -45,7 +45,7 @@ async function requestJson(
   });
   return {
     status: response.status,
-    body: await response.json() as Record<string, unknown>,
+    body: await response.json().catch(() => ({})) as Record<string, unknown>,
   };
 }
 
@@ -182,9 +182,9 @@ describe('Q23 forwarder create-route replay', () => {
     assert.equal(stored.length, 1);
 
     // 2026-09-10 (phê duyệt removed): the create applies immediately —
-    // status APPROVED by the requester, OPS_ADVANCE ledger entry posted in
+    // status RECORDED by the requester, OPS_ADVANCE ledger entry posted in
     // the same transaction. No PENDING window.
-    assert.equal(first.body.status, 'APPROVED');
+    assert.equal(first.body.status, 'RECORDED');
     const advanceLedger = await db.select({ id: s.ledger.id })
       .from(s.ledger)
       .where(and(
@@ -196,6 +196,29 @@ describe('Q23 forwarder create-route replay', () => {
     assert.equal(advanceLedger.length, 1);
   });
 
+  it('recorded advance is immutable through removed review and generic mutation endpoints', async () => {
+    const result = await requestJson('/api/forwarder/me/advance-requests', {
+      idempotencyKey: `immutable-${suffix}`, body: { amount: 230000, reason: 'Recorded advance' },
+    });
+    assert.equal(result.status, 201);
+    const id = Number(result.body.id);
+    const [before] = await db.select().from(s.advanceRequests).where(eq(s.advanceRequests.id, id));
+    for (const method of ['PUT', 'PATCH', 'DELETE'] as const) {
+      const rejected = await requestJson(`/api/forwarder/me/advance-requests/${id}`, { method, body: { amount: 1 } });
+      assert.equal(rejected.status, 404);
+    }
+    for (const decision of ['approve', 'reject']) {
+      const rejected = await requestJson(`/api/forwarder/me/advance-requests/${id}/${decision}`, { body: { reason: 'obsolete' } });
+      assert.equal(rejected.status, 404);
+    }
+    const [after] = await db.select().from(s.advanceRequests).where(eq(s.advanceRequests.id, id));
+    assert.equal(after.status, 'RECORDED');
+    assert.deepEqual(after, before);
+    const entries = await db.select().from(s.ledger).where(and(eq(s.ledger.txnType, TxnType.OPS_ADVANCE), eq(s.ledger.txnId, id)));
+    assert.equal(entries.length, 1);
+    assert.equal(Number(entries[0].credit), 230000);
+  });
+
   it('replays advance-settlement create with the original 201 status/body and one stored effect', async () => {
     const [approvedRequest] = await db.insert(s.advanceRequests).values({
       requesterId: forwarderUserId,
@@ -203,7 +226,7 @@ describe('Q23 forwarder create-route replay', () => {
       // approve-time assertSettlementBalanced passes.
       amount: '1000',
       reason: `Q23 approved request ${suffix}`,
-      status: 'APPROVED',
+      status: 'RECORDED',
       approvedBy: adminUserId,
       approvedAt: new Date(),
     }).returning({ id: s.advanceRequests.id });
@@ -252,7 +275,7 @@ describe('Q23 forwarder create-route replay', () => {
     // 2026-09-10 (phê duyệt removed, TC-CHUNK4-009): the settlement applies
     // at creation — ONE call lands APPROVED (linked expenses approved, ledger
     // posted); the check/approve/reject endpoints are gone.
-    assert.equal(first.body.status, 'APPROVED');
+    assert.equal(first.body.status, 'RECORDED');
   });
 });
 

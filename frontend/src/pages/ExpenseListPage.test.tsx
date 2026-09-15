@@ -198,7 +198,7 @@ describe('ExpenseListPage', () => {
 // Dual-control review surface (QA-086 FE): pending rows badge as Chờ kiểm
 // tra, checked rows offer role-gated Duyệt/Từ chối, and the review actions
 // post to the approval endpoints then refetch.
-describe('ExpenseListPage approval states', () => {
+describe('ExpenseListPage direct records', () => {
   beforeEach(() => {
     apiPost.mockReset().mockResolvedValue({});
     useAuthMock.mockReturnValue({ user: null });
@@ -207,21 +207,19 @@ describe('ExpenseListPage approval states', () => {
   it('badges a pending row and hides review actions without a role', async () => {
     apiGet.mockResolvedValueOnce(envelope([{ ...rows[0]!, id: 101, approvalStatus: 'PENDING' }]));
     renderPage();
-    expect(await screen.findByText('Chờ kiểm tra')).toBeTruthy();
+    expect(await screen.findByText('Cần hoàn thiện')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Kiểm tra' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Duyệt' })).toBeNull();
   });
 
-  it('offers role-gated review actions and posts to the approval endpoint', async () => {
+  it('keeps legacy drafts editable without restoring review actions for admins', async () => {
     useAuthMock.mockReturnValue({ user: { role: 'ADMIN', userId: 1, username: 'admin' } });
     apiGet.mockResolvedValue(envelope([{ ...rows[0]!, id: 102, approvalStatus: 'CHECKED' }]));
     renderPage();
-    const approve = await screen.findByRole('button', { name: 'Duyệt' });
-    expect(screen.getByText('Chờ duyệt')).toBeTruthy();
-    fireEvent.click(approve);
-    await waitFor(() => expect(apiPost).toHaveBeenCalledWith(expect.stringContaining('/approve'), expect.anything()));
-    // Review clicks must not bubble into the row's navigate-to-edit onClick.
-    expect(screen.getByText('Chờ duyệt')).toBeTruthy();
+    expect(await screen.findByText('Cần hoàn thiện')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Duyệt' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Kiểm tra' })).toBeNull();
+    expect(apiPost).not.toHaveBeenCalled();
   });
 
   it('keeps posted payment badges for approved legacy rows', async () => {
@@ -229,4 +227,17 @@ describe('ExpenseListPage approval states', () => {
     renderPage();
     expect(await screen.findByText('Ghi nợ')).toBeTruthy();
   });
+});
+
+// FIN-POL-01a: empty date fields still have visible context and reversible filters.
+it('keeps visible date labels and clears the selected date range', async () => {
+  renderPage();
+  await screen.findByText('Garage Auto 123');
+  expect(screen.getByText('Từ ngày').closest('label')).toContainElement(screen.getByLabelText('Từ ngày'));
+  expect(screen.getByText('Đến ngày').closest('label')).toContainElement(screen.getByLabelText('Đến ngày'));
+  fireEvent.change(screen.getByLabelText('Từ ngày'), { target: { value: '2026-08-01' } });
+  fireEvent.change(screen.getByLabelText('Đến ngày'), { target: { value: '2026-08-31' } });
+  fireEvent.click(await screen.findByRole('button', { name: 'Xóa bộ lọc' }));
+  expect(screen.getByLabelText('Từ ngày')).toHaveValue('');
+  expect(screen.getByLabelText('Đến ngày')).toHaveValue('');
 });

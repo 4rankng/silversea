@@ -30,7 +30,6 @@ import { tripStatusVariant } from '../lib/tripStatus';
 import { podRequiredFilesReady } from '../lib/podReadiness';
 import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
-import { useAuth } from '../hooks/useAuth';
 import { useDriverTaskDetail } from '../hooks/useDriverQueries';
 import { driverClient, type DriverTaskDetail, type DriverTaskPodSubmission } from '../api/driverClient';
 import { useOnline } from '../hooks/useOnline';
@@ -51,7 +50,6 @@ function completeCtaLabel(status: DriverTaskDetail['status']): string {
 export function DriverTripPodPage() {
   const { id: tripIdParam } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
   const online = useOnline();
   const { toast } = useToast();
 
@@ -69,9 +67,10 @@ export function DriverTripPodPage() {
   const [submitting, setSubmitting] = useState(false);
   const [completing, setCompleting] = useState(false);
 
+  const refetchDetail = taskDetail.refetch;
   const refreshAll = useCallback(async () => {
-    await taskDetail.refetch();
-  }, [taskDetail.refetch]);
+    await refetchDetail();
+  }, [refetchDetail]);
 
   const trip = taskDetail.data as DriverTaskDetail | undefined;
   const currentSubmission = (trip?.currentPod ?? null) as DriverTaskPodSubmission | null;
@@ -150,7 +149,7 @@ export function DriverTripPodPage() {
       );
       await driverClient.submitPod(validFulfillmentId, submission.id, { expectedVersion: submission.version }, idempotencyKey);
       await refreshAll();
-      toast({ kind: 'success', message: 'Đã gửi e-POD để duyệt.' });
+      toast({ kind: 'success', message: 'Đã lưu chứng từ giao hàng.' });
       return true;
     } catch (error) {
       toast({

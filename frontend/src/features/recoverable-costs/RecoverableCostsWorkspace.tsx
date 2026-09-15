@@ -1,19 +1,16 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { OPS_EXPENSE_TYPE_DEFAULTS, Role } from '@tingting/shared';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { getModernRole } from '../../lib/role-helpers';
 import {
   AlertCircle,
-  CheckCircle2,
   FileCheck2,
   FileText,
   RefreshCw,
   Scale,
-  TriangleAlert,
 } from 'lucide-react';
-import { Btn, Modal, StatusPill, type PillVariant } from '../../components/UI';
-import { RadioButton, RadioGroup } from '../../components/untitled-ui/base/radio-buttons/radio-buttons';
-import { TextAreaBase } from '../../components/untitled-ui/base/textarea/textarea';
+import { Btn, StatusPill, type PillVariant } from '../../components/UI';
 import { EmptyState, Pagination, UuiSelectField } from '../../design-system';
 import { SortHeader } from '../../components/shared/SortHeader';
 import { nextTableSort, type TableSortState } from '../../lib/table-sort';
@@ -34,7 +31,7 @@ import '../../styles/table-sort.css';
 const PAGE_SIZE = 25;
 
 const ELIGIBILITY_LABELS: Record<RecoverableEligibilityState, string> = {
-  READY_FOR_REVIEW: 'Chờ kiểm tra',
+  READY_FOR_REVIEW: 'Cần hoàn thiện dữ liệu',
   ELIGIBLE: 'Đủ điều kiện lập Giấy báo nợ',
   BLOCKED: 'Chưa đủ điều kiện',
   ALREADY_CLAIMED: 'Đã ghi nhận vào Giấy báo nợ',
@@ -42,9 +39,13 @@ const ELIGIBILITY_LABELS: Record<RecoverableEligibilityState, string> = {
 };
 
 const APPROVAL_LABELS: Record<RecoverableCost['approvalStatus'], string> = {
-  PENDING: 'Chờ kiểm tra',
-  APPROVED: 'Đã duyệt',
-  REJECTED: 'Đã từ chối',
+  RECORDED: 'Đã ghi nhận',
+  DRAFT: 'Cần hoàn thiện',
+  VOIDED: 'Đã hủy',
+  PENDING: 'Cần hoàn thiện',
+  APPROVED: 'Đã ghi nhận',
+  REJECTED: 'Đã hủy',
+  RETURN_FOR_EVIDENCE: 'Cần bổ sung chứng từ',
 };
 
 function eligibilityTone(state: RecoverableEligibilityState): PillVariant {
@@ -96,21 +97,14 @@ function Evidence({ item }: { item: RecoverableCost }) {
   );
 }
 
-interface ReviewActionProps {
-  item: RecoverableCost;
-  onReview: (item: RecoverableCost) => void;
+function SourceAction({ item }: { item: RecoverableCost }) {
+  return <Link className="btn btn--secondary btn--sm" to={`/trips/${item.tripId}`}>
+    {item.eligibility.state === 'BLOCKED' || item.eligibility.state === 'READY_FOR_REVIEW' ? 'Hoàn thiện khoản chi' : 'Xem khoản chi'}
+  </Link>;
 }
 
-function ReviewAction({ item, onReview }: ReviewActionProps) {
-  if (item.eligibility.state !== 'READY_FOR_REVIEW') {
-    return <span className="recoverable-costs__no-action">Không cần thao tác</span>;
-  }
-  return <Btn variant="primary" size="sm" onClick={() => onReview(item)}>Kiểm tra</Btn>;
-}
-
-function DesktopLedger({ items, onReview, footer, sort, onSortChange }: {
+function DesktopLedger({ items, footer, sort, onSortChange }: {
   items: RecoverableCost[];
-  onReview: ReviewActionProps['onReview'];
   footer?: ReactNode;
   sort: TableSortState | null;
   onSortChange: (key: string) => void;
@@ -161,7 +155,7 @@ function DesktopLedger({ items, onReview, footer, sort, onSortChange }: {
                 <td className="num" data-label="Chênh lệch thu/chi"><Money value={difference} tone={difference < 0 ? 'negative' : 'positive'} /></td>
                 <td data-label="Hóa đơn / chứng từ"><Evidence item={item} /></td>
                 <td data-label="Trạng thái"><Eligibility item={item} /></td>
-                <td className="recoverable-costs__action record-table__action" data-label=""><ReviewAction item={item} onReview={onReview} /></td>
+                <td className="recoverable-costs__action record-table__action" data-label=""><SourceAction item={item} /></td>
               </tr>
             );
           })}
@@ -172,7 +166,7 @@ function DesktopLedger({ items, onReview, footer, sort, onSortChange }: {
   );
 }
 
-function MobileRecords({ items, onReview, footer }: { items: RecoverableCost[]; onReview: ReviewActionProps['onReview']; footer?: ReactNode }) {
+function MobileRecords({ items, footer }: { items: RecoverableCost[]; footer?: ReactNode }) {
   return (
     <div className="recoverable-costs__records" data-testid="recoverable-cost-records">
       {items.map((item) => {
@@ -199,7 +193,7 @@ function MobileRecords({ items, onReview, footer }: { items: RecoverableCost[]; 
               <div><dt>Thu khách</dt><dd><Money value={item.sellAmount} /></dd></div>
               <div className="recoverable-costs__record-variance"><dt>Chênh lệch thu/chi</dt><dd><Money value={difference} tone={difference < 0 ? 'negative' : 'positive'} /></dd></div>
             </dl>
-            <ReviewAction item={item} onReview={onReview} />
+            <SourceAction item={item} />
           </article>
         );
       })}
@@ -213,7 +207,7 @@ export function RecoverableCostsWorkspace() {
   // two audiences. CUS views it as the per-shipment collection list
   // ("chi phí thu hộ cần đối soát" — what the customer owes back to us).
   // Accountant / Admin / Manager view it as the per-record ledger
-  // ("chi phí cần kiểm tra" — the financial verification gate before approval).
+  // ("chi phí cần kiểm tra" — completeness before customer billing).
   // When the auth context is missing (unit tests) we fall back to the
   // accountant framing so existing tests stay green.
   const user = useAuth()?.user;
@@ -230,12 +224,6 @@ export function RecoverableCostsWorkspace() {
   const [data, setData] = useState<{ items: RecoverableCost[]; total: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selected, setSelected] = useState<RecoverableCost | null>(null);
-  const [decision, setDecision] = useState<'APPROVED' | 'REJECTED'>('APPROVED');
-  const [reason, setReason] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [reviewError, setReviewError] = useState<string | null>(null);
-
   const handleSortChange = (key: string) => {
     setSort(current => nextTableSort(current, key));
     setPage(1);
@@ -286,41 +274,6 @@ export function RecoverableCostsWorkspace() {
     />
   ) : null;
 
-  const openReview = (item: RecoverableCost) => {
-    setSelected(item);
-    setDecision('APPROVED');
-    setReason('');
-    setReviewError(null);
-  };
-
-  const closeReview = () => {
-    if (!saving) {
-      setSelected(null);
-      setReviewError(null);
-    }
-  };
-
-  const submit = async () => {
-    if (!selected || !reason.trim() || saving) return;
-    setSaving(true);
-    setReviewError(null);
-    try {
-      await customerServiceFinanceClient.requestRecoverableCost(selected.id, {
-        decision,
-        reason: reason.trim(),
-        expectedVersion: selected.version,
-        evidence: { reviewNote: reason.trim(), attachmentRefs: [] },
-      }, crypto.randomUUID());
-      setSelected(null);
-      setReason('');
-      await load();
-    } catch (submitError) {
-      setReviewError(submitError instanceof ApiError ? submitError.message : 'Không thể gửi yêu cầu kiểm tra. Vui lòng thử lại.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
   return (
     <main className="recoverable-costs" aria-labelledby="recoverable-costs-title">
       <header className="recoverable-costs__header">
@@ -351,13 +304,13 @@ export function RecoverableCostsWorkspace() {
 
       <section className="recoverable-costs__toolbar" aria-label="Bộ lọc chi phí">
         <UuiSelectField
-          label="Trạng thái phê duyệt"
+          label="Trạng thái khoản chi"
           value={status}
           options={[
             { value: '', label: 'Tất cả trạng thái' },
-            { value: 'PENDING', label: 'Chờ kiểm tra' },
-            { value: 'APPROVED', label: 'Đã duyệt' },
-            { value: 'REJECTED', label: 'Đã từ chối' },
+            { value: 'DRAFT', label: 'Cần hoàn thiện' },
+            { value: 'RECORDED', label: 'Đã ghi nhận' },
+            { value: 'VOIDED', label: 'Đã hủy' },
           ]}
           onChange={(event) => { setStatus(event.target.value); setPage(1); }}
         />
@@ -388,68 +341,11 @@ export function RecoverableCostsWorkspace() {
         />
       ) : data && data.items.length > 0 ? (
         <section className="recoverable-costs__workspace" aria-busy={loading}>
-          <MobileRecords items={data.items} onReview={openReview} footer={pagination} />
-          <DesktopLedger items={data.items} onReview={openReview} footer={pagination} sort={sort} onSortChange={handleSortChange} />
+          <MobileRecords items={data.items} footer={pagination} />
+          <DesktopLedger items={data.items} footer={pagination} sort={sort} onSortChange={handleSortChange} />
         </section>
       ) : null}
 
-      <Modal
-        isOpen={selected != null}
-        title="Gửi yêu cầu kiểm tra chi phí"
-        onClose={closeReview}
-        maxWidth={620}
-        footer={(
-          <>
-            <Btn variant="secondary" onClick={closeReview} disabled={saving}>Hủy</Btn>
-            <Btn variant="primary" onClick={() => void submit()} disabled={saving || !reason.trim()}>
-              {saving ? 'Đang gửi…' : 'Gửi yêu cầu'}
-            </Btn>
-          </>
-        )}
-      >
-        {selected && (
-          <div className="recoverable-costs__review-form">
-            <div className="recoverable-costs__review-record">
-              <div><span>Khách hàng</span><strong>{selected.customerName}</strong></div>
-              <div><span>Lô hàng</span><strong>{selected.shipmentCode ?? selected.tripCode ?? 'Chưa có mã'}</strong></div>
-              <div><span>Thu khách</span><strong>{formatCurrency(selected.sellAmount)}</strong></div>
-            </div>
-            <RadioGroup
-              aria-label="Kết quả đề nghị"
-              value={decision}
-              onChange={(value) => setDecision(value as 'APPROVED' | 'REJECTED')}
-              className="recoverable-costs__decision-group"
-            >
-              <RadioButton value="APPROVED" size="md" label="Đề nghị duyệt" hint="Khoản chi đủ căn cứ để tiếp tục xử lý." />
-              <RadioButton value="REJECTED" size="md" label="Trả lại bổ sung" hint="Cần bổ sung hoặc sửa thông tin trước khi duyệt." />
-            </RadioGroup>
-            <div className="recoverable-costs__reason-field">
-              <label htmlFor="recoverable-review-note">Nội dung kiểm tra <span aria-hidden="true">*</span></label>
-              <TextAreaBase
-                id="recoverable-review-note"
-                aria-label="Nội dung kiểm tra"
-                rows={4}
-                maxLength={1000}
-                value={reason}
-                onChange={(event) => setReason(event.target.value)}
-                disabled={saving}
-                required
-              />
-              <small>{reason.length.toLocaleString('vi-VN')}/1.000 ký tự</small>
-            </div>
-            <div className="recoverable-costs__review-note">
-              {decision === 'APPROVED' ? <CheckCircle2 size={17} aria-hidden="true" /> : <TriangleAlert size={17} aria-hidden="true" />}
-              <span>Yêu cầu sẽ được ghi nhận theo đúng luồng phê duyệt và phiên bản hiện tại của khoản chi.</span>
-            </div>
-            {reviewError && (
-              <div className="recoverable-costs__notice recoverable-costs__review-error" role="alert">
-                <AlertCircle size={17} aria-hidden="true" />
-                <span>{reviewError}</span>
-              </div>
-            )}
-          </div>
-        )}
-      </Modal>
     </main>
   );
 }

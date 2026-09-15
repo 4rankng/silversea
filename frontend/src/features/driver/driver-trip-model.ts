@@ -31,13 +31,13 @@ export const FUEL_EVIDENCE_OUTCOME_LABELS = {
   UNREADABLE: 'Ảnh mờ hoặc không đọc được',
   MULTI_SCREEN: 'Ảnh có nhiều màn hình',
   NON_PUMP: 'Ảnh không phải màn hình bơm',
-  ANOMALY: 'Số liệu cần kế toán soát',
+  ANOMALY: 'Số liệu OCR cần đối chiếu',
 } as const;
 
 export const FUEL_EVIDENCE_REVIEW_LABELS = {
-  PENDING: 'Chờ kế toán xác nhận',
-  CONFIRMED: 'Kế toán đã xác nhận',
-  REJECTED: 'Kế toán từ chối',
+  PENDING: 'OCR chưa xác minh',
+  CONFIRMED: 'Đã đối chiếu trước đây',
+  REJECTED: 'Không sử dụng (lịch sử)',
 } as const;
 
 export const formatDateTime = formatDateTimeShort;

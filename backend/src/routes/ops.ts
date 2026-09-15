@@ -30,11 +30,12 @@ import {
   listActiveOpsExpenseTypes,
   listOpsExpensePhotos,
   listOpsExpenses,
-  resendOpsExpense,
   updateOpsExpense,
 } from '../services/ops-expenses.service';
 import {
   createOpsSettlement,
+  finalizeOpsSettlement,
+  reopenOpsSettlementDraft,
   getOpsSettlementDetail,
   listOpsSettlements,
 } from '../services/ops-settlements.service';
@@ -48,7 +49,7 @@ const ADMIN_ONLY = requireRoles(Role.ADMIN);
 const router = Router();
 
 const dateQuerySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'date phải có dạng YYYY-MM-DD');
-const statusFilterSchema = z.enum(['PENDING', 'APPROVED', 'REJECTED']).optional();
+const statusFilterSchema = z.enum(['DRAFT', 'RECORDED', 'VOIDED']).optional();
 
 function parseId(value: string | string[] | undefined, label = 'ID'): number {
   const raw = Array.isArray(value) ? value[0] : value;
@@ -149,7 +150,6 @@ const expensePatchSchema = z.object({
   note: z.string().max(1000).nullable().optional(),
 });
 
-const reasonSchema = z.object({ reason: z.string().min(1).max(500) });
 
 router.post('/expenses', OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
@@ -195,18 +195,6 @@ router.delete('/expenses/:id', OPS_ONLY, asyncHandler(async (req: Request, res: 
   res.status(outcome.statusCode).json(outcome.result);
 }));
 
-router.post('/expenses/:id/resend', OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
-  const user = getUser(req);
-  const expenseId = parseId(req.params.id);
-  const outcome = await runIdempotent({
-    endpoint: IDEMPOTENCY_ENDPOINTS.OPS_EXPENSE_RESEND,
-    idempotencyKey: requireOpsIdempotencyKey(req),
-    payload: { expenseId, userId: user.userId },
-    createdBy: user.userId,
-    create: (tx) => resendOpsExpense(user.userId, expenseId, tx),
-  });
-  res.status(outcome.statusCode).json(outcome.result);
-}));
 
 const expensePhotoUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
@@ -270,7 +258,7 @@ router.get('/expenses/:id/photos', asyncHandler(async (req: Request, res: Respon
 
 router.get('/settlements', OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
-  const status = z.enum(['PENDING', 'APPROVED', 'REJECTED']).optional().parse(req.query.status);
+  const status = z.enum(['DRAFT', 'RECORDED', 'VOIDED']).optional().parse(req.query.status);
   res.json({ items: await listOpsSettlements({ opsUserId: user.userId, status }) });
 }));
 
@@ -284,6 +272,30 @@ router.post('/settlements', OPS_ONLY, asyncHandler(async (req: Request, res: Res
     createdBy: user.userId,
     responseStatusCode: 201,
     create: (tx) => createOpsSettlement(user.userId, note, tx),
+  });
+  res.status(outcome.statusCode).json(outcome.result);
+}));
+
+router.post('/settlements/:id/finalize', OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
+  const user = getUser(req);
+  const id = parseId(req.params.id);
+  const outcome = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.OPS_SETTLEMENT_FINALIZE,
+    idempotencyKey: requireOpsIdempotencyKey(req), payload: { id, userId: user.userId },
+    createdBy: user.userId, responseStatusCode: 200,
+    create: (tx) => finalizeOpsSettlement(user.userId, id, tx),
+  });
+  res.status(outcome.statusCode).json(outcome.result);
+}));
+
+router.post('/settlements/:id/reopen-draft', OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
+  const user = getUser(req);
+  const id = parseId(req.params.id);
+  const outcome = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.OPS_SETTLEMENT_REOPEN_DRAFT,
+    idempotencyKey: requireOpsIdempotencyKey(req), payload: { id, userId: user.userId },
+    createdBy: user.userId, responseStatusCode: 200,
+    create: (tx) => reopenOpsSettlementDraft(user.userId, id, tx),
   });
   res.status(outcome.statusCode).json(outcome.result);
 }));
@@ -369,7 +381,7 @@ router.get('/admin/expenses', OPS_APPROVERS, asyncHandler(async (req: Request, r
 // are saved directly as APPROVED at creation time.
 
 router.get('/admin/settlements', OPS_APPROVERS, asyncHandler(async (req: Request, res: Response) => {
-  const status = z.enum(['PENDING', 'APPROVED', 'REJECTED']).optional().parse(req.query.status);
+  const status = z.enum(['DRAFT', 'RECORDED', 'VOIDED']).optional().parse(req.query.status);
   res.json({ items: await listOpsSettlements({ status }) });
 }));
 

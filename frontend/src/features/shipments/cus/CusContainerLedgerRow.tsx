@@ -1,25 +1,15 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Calendar, X } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { Calendar } from 'lucide-react';
 import {
   type ShipmentCusWorkspaceContainerLine,
   type ShipmentCusWorkspaceDetail,
 } from '@tingting/shared';
 import { formatDateTimeShort } from '../../../lib/format';
-import { localDateTimeToIso } from '../../../lib/shipment-operations';
-import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 import { SearchableSelect } from '../../../design-system';
-import { updateCusShipmentContainerLine } from '../../../api/shipmentClient';
-import { completeDispatchExternalTrip } from '../../../api/dispatchPlanningClient';
-import { ConfirmDialog } from '../../../components/UI';
-import { useToast } from '../../../components/shared/Toast';
 import { ShipmentContainerCell } from '../create/ShipmentContainerCell';
 import { CusAppointmentPopover } from './CusAppointmentPopover';
 import {
   dispatchStatusLabel,
-  idempotencySignature,
-  lineDraft,
-  lineOperationalSignature,
-  safeError,
   type ContainerLineDraft,
 } from './cusUtils';
 

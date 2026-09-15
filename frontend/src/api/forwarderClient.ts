@@ -112,7 +112,7 @@ export const forwarderClient = {
   },
   getEligibleAdvanceRequests: async () => {
     return api.get<{ items: AdvanceRequestWithRefs[]; counts: Record<string, number> }>(
-      `${FORWARDER.ADVANCE_REQUESTS}${toQuery({ status: 'APPROVED', eligibleForSettlement: true })}`,
+      `${FORWARDER.ADVANCE_REQUESTS}${toQuery({ status: 'RECORDED', eligibleForSettlement: true })}`,
     );
   },
   createAdvanceRequest: async (data: { amount: number; reason: string }) => {
@@ -175,13 +175,6 @@ export const forwarderClient = {
       statusAmounts: Record<string, number>;
     }>(`${FINANCIAL.ADVANCE_REQUESTS}${toQuery(params)}`);
   },
-  approveAdvanceRequest: async (id: number, expectedVersion: number, reason: string) => {
-    return api.post(FINANCIAL.ADVANCE_REQUEST_APPROVE(id), { expectedVersion, reason });
-  },
-  rejectAdvanceRequest: async (id: number, expectedVersion: number, reason: string) => {
-    return api.post(FINANCIAL.ADVANCE_REQUEST_REJECT(id), { expectedVersion, reason });
-  },
-
   listAllAdvanceSettlements: async (params?: { status?: string; page?: number; limit?: number }) => {
     return api.get<{
       items: AdvanceSettlementWithRefs[];
@@ -207,12 +200,6 @@ export const forwarderClient = {
     ));
     return { items: responses.flatMap((response) => response.items) };
   },
-  checkAdvanceSettlement: async (id: number, expectedVersion: number) => {
-    return api.post(FINANCIAL.ADVANCE_SETTLEMENT_CHECK(id), { expectedVersion });
-  },
-  approveAdvanceSettlement: async (id: number, expectedVersion: number) => {
-    return api.post(FINANCIAL.ADVANCE_SETTLEMENT_APPROVE(id), { expectedVersion });
-  },
   updateAdvanceSettlement: async (id: number, data: {
     expectedVersion: number;
     advanceRequestIds: number[];
@@ -230,9 +217,6 @@ export const forwarderClient = {
     note?: string | null;
     adjustmentReason: string;
   }) => api.patch(`${FINANCIAL.ADVANCE_SETTLEMENTS}/${settlementId}/expenses/${expenseId}`, data),
-  rejectAdvanceSettlement: async (id: number, expectedVersion: number) => {
-    return api.post(FINANCIAL.ADVANCE_SETTLEMENT_REJECT(id), { expectedVersion });
-  },
   reverseAdvanceSettlement: async (id: number, data: { expectedVersion: number; reason: string }) => {
     return api.post(`${FINANCIAL.ADVANCE_SETTLEMENTS}/${id}/reversal`, data);
   },

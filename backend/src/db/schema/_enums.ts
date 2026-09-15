@@ -41,20 +41,20 @@ export const trailerStatusEnum = applicationEnum(['ACTIVE', 'MAINTENANCE', 'INAC
 
 // NOTE: forwarder_expense_type pgEnum removed — replaced by forwarder_expense_types config table.
 // trip_expenses.expense_type is now varchar(50) referencing config codes.
-export const advanceRequestStatusEnum = applicationEnum(['APPROVED', 'REJECTED']);
+export const advanceRequestStatusEnum = applicationEnum(['RECORDED', 'DRAFT', 'VOIDED']);
 
-export const advanceSettlementStatusEnum = applicationEnum(['APPROVED', 'REJECTED', 'REVERSED']);
+export const advanceSettlementStatusEnum = applicationEnum(['DRAFT', 'RECORDED', 'VOIDED', 'REVERSED']);
 
 // Ops cash-expense approval lifecycle (docs/prd/OpsVanHanh.md §5.5): PENDING →
 // APPROVED (locked) | REJECTED (author fixes evidence and resends → PENDING).
-export const opsExpenseStatusEnum = applicationEnum(['PENDING', 'APPROVED', 'REJECTED']);
+export const opsExpenseStatusEnum = applicationEnum(['DRAFT', 'RECORDED', 'VOIDED', 'PENDING', 'APPROVED', 'REJECTED']);
 
 // Ops settlement batch (đề nghị thanh toán): PENDING until accounting approves
 // the whole batch after every frozen entry is approved, or REJECTED (entries
 // return to the open pool for the next batch).
-export const opsSettlementStatusEnum = applicationEnum(['PENDING', 'APPROVED', 'REJECTED']);
+export const opsSettlementStatusEnum = applicationEnum(['DRAFT', 'RECORDED', 'VOIDED', 'PENDING', 'APPROVED', 'REJECTED']);
 
-export const creditOverrideStatusEnum = applicationEnum(['PENDING', 'APPROVED', 'REJECTED', 'CANCELED']);
+export const creditOverrideStatusEnum = applicationEnum(['AUTHORIZED', 'PENDING', 'APPROVED', 'REJECTED', 'CANCELED']);
 
 export const creditOverrideScopeEnum = applicationEnum(['SHIPMENT', 'EXPIRY']);
 

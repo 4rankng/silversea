@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -58,4 +58,14 @@ describe('OpsFleetTrackingPage (OpsVanHanh §4)', () => {
       expect(buttons).toHaveLength(1);
     });
   });
+  it('distinguishes failed fleet requests from an empty assignment and retries', async () => {
+    apiGet.mockRejectedValueOnce(new Error('Unavailable'));
+    renderPage();
+    expect(await screen.findByRole('alert')).toHaveTextContent('Không tải được phương tiện');
+    expect(screen.queryByText(/Chưa có xe nào được giao/)).not.toBeInTheDocument();
+    apiGet.mockResolvedValue({ items: [] });
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
+    expect(await screen.findByText(/Chưa có xe nào được giao/)).toBeInTheDocument();
+  });
+
 });

@@ -13,6 +13,8 @@ export interface WorkDayRecord {
 }
 
 export interface AttendanceSalary {
+  salarySnapshotState?: 'LIVE' | 'CONFIRMED' | 'UNAVAILABLE';
+  salaryReconciliationRequired?: boolean;
   driverId: number;
   year: number;
   month: number;

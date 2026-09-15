@@ -123,7 +123,10 @@ export function DataTable<T extends { id?: number | string }>({
   }
 
   if (rows.length === 0) {
-    return <div className="ds-table-empty">{emptyState ?? <EmptyState title="Không có dữ liệu" />}</div>;
+    return <div className="ds-table-wrap">
+      <div className="ds-table-empty">{emptyState ?? <EmptyState title="Không có dữ liệu" />}</div>
+      {pagination && <Pagination {...pagination} />}
+    </div>;
   }
 
   return (

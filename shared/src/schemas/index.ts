@@ -119,6 +119,13 @@ export const tripLegSchema = z.object({
   loadingType: z.nativeEnum(LoadingType),
 });
 
+const directCreditExceptionSchema = z.object({
+  reason: z.string().trim().min(1, 'Lý do ngoại lệ là bắt buộc').max(1000),
+  expiresAt: z.string().datetime(),
+  scopeType: z.literal('SHIPMENT'),
+  exposureCeiling: z.number().int().positive().max(999_999_999_999_999),
+});
+
 export const createTripSchema = z.object({
   customerId: z.coerce.number().int().positive(),
   routeId: z.coerce.number().int().positive(),
@@ -138,6 +145,7 @@ export const createTripSchema = z.object({
   // and snapshots the shipment's containers into the trip.
   shipmentId: z.coerce.number().int().positive().optional().nullable(),
   creditApprovalRequestId: z.coerce.number().int().positive().optional().nullable(),
+  creditException: directCreditExceptionSchema.optional(),
   fuelMode: z.nativeEnum(FuelMode).optional(),
   fuelSupplierId: z.coerce.number().int().positive().optional().nullable(),
   // Per-trip actual pump price (₫/lít). Optional — when blank the trip falls
@@ -217,7 +225,7 @@ export const createTripPairSchema = z.object({
 });
 
 export const updateTripFiguresSchema = z.object({
-  legs: z.array(tripLegSchema).min(1),
+  legs: z.array(tripLegSchema),
   customerId: z.coerce.number().int().positive().optional(),
   departureDate: z.string().optional(),
   completedAt: z.string().optional(),
@@ -1770,6 +1778,7 @@ export const dispatchShipmentSchema = z.object({
   customerReference: z.string().optional(),
   containerCount: z.coerce.number().int().min(1).max(10).optional(),
   creditApprovalRequestId: z.coerce.number().int().positive().optional().nullable(),
+  creditException: directCreditExceptionSchema.optional(),
   fuelMode: z.nativeEnum(FuelMode).optional(),
 });
 

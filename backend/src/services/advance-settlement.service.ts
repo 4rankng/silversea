@@ -17,10 +17,6 @@ import {
   validateSettlementInputs,
 } from './settlement-validation';
 import type { Tx } from './trip-shared';
-import {
-  resolveCustomerPaymentDueDate,
-  type PaymentDatePolicy,
-} from './business-calendar.service';
 import { propagateExpenseApprovals } from './source-change.service';
 import {
   assertExpectedVersion,
@@ -95,7 +91,7 @@ export async function createAdvanceSettlement(
       forwarderId,
       totalExpenseAmount: String(totalExpenseAmount),
       refundAmount: String(data.refundAmount ?? 0),
-      status: 'APPROVED',
+      status: 'RECORDED',
       approvedBy: forwarderId,
       approvedAt: new Date(),
       note: data.note ?? null,
@@ -124,6 +120,7 @@ export async function createAdvanceSettlement(
       );
     }
 
+    await applyNewSettlementEffects(tx, settlement);
     return enrichSettlementWithRequests(settlement, tx);
   };
 
@@ -134,7 +131,7 @@ function buildAdvanceSettlementConditions(filters?: { forwarderId?: number; stat
   const conditions = [];
   if (filters?.forwarderId) conditions.push(eq(s.advanceSettlements.forwarderId, filters.forwarderId));
   if (filters?.status) {
-    // Comma-separated status lists (e.g. "PENDING,CHECKED_BY_ACCOUNTANT")
+    // Comma-separated operational state filters
     // select a composite tab in one query. Vocabulary derives from the schema
     // enum so a new status only changes the enum, never these call sites.
     type SettlementStatus = typeof s.advanceSettlementStatusEnum.enumValues[number];
@@ -335,14 +332,14 @@ export async function getAdvanceSettlement(id: number, executor: DbLike = db) {
     executor.select({ id: s.advanceSettlementRequests.advanceRequestId })
       .from(s.advanceSettlementRequests)
       .innerJoin(s.advanceSettlements, eq(s.advanceSettlements.id, s.advanceSettlementRequests.settlementId))
-      .where(and(ne(s.advanceSettlements.id, id), notInArray(s.advanceSettlements.status, ['REJECTED', 'REVERSED']))),
+      .where(and(ne(s.advanceSettlements.id, id), notInArray(s.advanceSettlements.status, ['VOIDED', 'REVERSED']))),
     executor.select({ id: s.settlementExpenses.tripExpenseId })
       .from(s.settlementExpenses)
       .innerJoin(s.advanceSettlements, eq(s.advanceSettlements.id, s.settlementExpenses.settlementId))
-      .where(and(ne(s.advanceSettlements.id, id), notInArray(s.advanceSettlements.status, ['REJECTED', 'REVERSED']))),
+      .where(and(ne(s.advanceSettlements.id, id), notInArray(s.advanceSettlements.status, ['VOIDED', 'REVERSED']))),
     executor.select().from(s.advanceRequests).where(and(
       eq(s.advanceRequests.requesterId, row.forwarderId),
-      eq(s.advanceRequests.status, 'APPROVED'),
+      eq(s.advanceRequests.status, 'RECORDED'),
     )).orderBy(desc(s.advanceRequests.createdAt)),
     executor.select({
       id: s.tripExpenses.id,
@@ -379,7 +376,7 @@ export async function getAdvanceSettlement(id: number, executor: DbLike = db) {
       ))
       .where(and(
         eq(s.tripExpenses.forwarderId, row.forwarderId),
-        inArray(s.tripExpenses.approvalStatus, ['PENDING', 'APPROVED']),
+        inArray(s.tripExpenses.approvalStatus, ['RECORDED', 'APPROVED']),
       )).orderBy(desc(s.tripExpenses.createdAt)),
   ]);
   const blockedRequestIds = new Set(blockedRequests.map(item => item.id));
@@ -418,8 +415,8 @@ export async function updateAdvanceSettlement(
     if (!settlement) throw new AdvanceError(404, 'Không tìm thấy phiếu hoàn ứng');
     const version = data.expectedVersion ?? settlement.version;
     assertExpectedVersion(settlement.version, version, 'Phiếu hoàn ứng');
-    if (settlement.status !== 'APPROVED') {
-      throw new AdvanceError(409, 'Chỉ được sửa phiếu đã ghi nhận');
+    if (settlement.status !== 'DRAFT') {
+      throw new AdvanceError(409, 'Phiếu đã ghi nhận không thể sửa danh sách trực tiếp; dùng điều chỉnh khoản chi hoặc hoàn tác.');
     }
     for (const requestId of [...data.advanceRequestIds].sort((a, b) => a - b)) {
       await tx.execute(sql`SELECT pg_advisory_xact_lock(6101, ${requestId})`);
@@ -474,7 +471,7 @@ export async function updateAdvanceSettlement(
       if (correctedRemoval) {
         throw new AdvanceError(
           409,
-          'Không thể gỡ khoản chi đã có lịch sử điều chỉnh; hãy từ chối phiếu và lập phiếu mới',
+          'Không thể gỡ khoản chi đã có lịch sử điều chỉnh; hãy hoàn tác phiếu và lập phiếu mới',
         );
       }
     }
@@ -506,12 +503,15 @@ export async function updateAdvanceSettlement(
       totalExpenseAmount: String(expenseTotal),
       refundAmount: String(data.refundAmount),
       note: data.note ?? null,
+      status: 'RECORDED',
       updatedAt: new Date(),
       version: sql`${s.advanceSettlements.version} + 1`,
     }).where(and(
       eq(s.advanceSettlements.id, settlementId),
       eq(s.advanceSettlements.version, version),
     ));
+    const [recorded] = await tx.select().from(s.advanceSettlements).where(eq(s.advanceSettlements.id, settlementId));
+    await applyNewSettlementEffects(tx, recorded);
   };
 
   if (options.transaction) {
@@ -606,7 +606,7 @@ async function applyNewSettlementEffects(
     if (unknownMaker) {
       throw new AdvanceError(
         409,
-        'Không xác định được người tạo chi phí; cần đối soát thủ công trước khi duyệt phiếu hoàn ứng',
+        'Không xác định được người tạo chi phí; cần đối soát thủ công trước khi ghi nhận phiếu hoàn ứng',
       );
     }
     // 2026-09-10 (phê duyệt removed): the expense-maker self-approval guard is
@@ -631,71 +631,10 @@ async function applyNewSettlementEffects(
       isNull(s.settlementExpenseAdjustments.approvedAt),
     ));
 
-    const pendingExpenseIds = links.filter(link => link.approvalStatus === 'PENDING').map(link => link.expenseId);
-    if (pendingExpenseIds.length > 0) {
-      await tx.update(s.tripExpenses).set({ approvalStatus: 'APPROVED', updatedAt: new Date() })
-        .where(inArray(s.tripExpenses.id, pendingExpenseIds));
-    }
+    // Expense readiness was validated above; settlement never promotes an incomplete cost.
 
-    // If the trip was already completed, post the accepted service fee now.
-    // Existing rows are never mutated; corrections become ADJUSTMENT entries.
-    for (const link of links) {
-      if (link.tripStatus !== 'COMPLETED') continue;
-      const adjustedSnapshot = link.adjustedSnapshot as Record<string, unknown>;
-      const currentSell = Number(adjustedSnapshot.sellAmount ?? link.sellAmount);
-      const existingRows = await tx.select({
-        id: s.ledger.id,
-        debit: s.ledger.debit,
-        credit: s.ledger.credit,
-        originalDueDate: s.ledger.originalDueDate,
-        processingDueDate: s.ledger.processingDueDate,
-        paymentTermDaysApplied: s.ledger.paymentTermDaysApplied,
-        paymentDatePolicyApplied: s.ledger.paymentDatePolicyApplied,
-      })
-        .from(s.ledger)
-        .where(and(eq(s.ledger.txnType, TxnType.SERVICE_FEE), eq(s.ledger.txnId, link.expenseId)));
-      const posted = existingRows.reduce((sum, row) => sum + Number(row.debit) - Number(row.credit), 0);
-      const delta = round2dp(currentSell - posted);
-      if (delta === 0) continue;
-      const existingAuthority = [...existingRows]
-        .sort((left, right) => right.id - left.id)
-        .find((row) => row.originalDueDate && row.processingDueDate);
-      const resolvedAuthority = existingAuthority
-        ? null
-        : await resolveCustomerPaymentDueDate(
-            tx,
-            link.customerId,
-            String(link.departureDate).slice(0, 10),
-          );
-      const dueDateFields = existingAuthority
-        ? {
-            originalDueDate: existingAuthority.originalDueDate,
-            processingDueDate: existingAuthority.processingDueDate,
-            paymentTermDaysApplied: existingAuthority.paymentTermDaysApplied,
-            paymentDatePolicyApplied:
-              existingAuthority.paymentDatePolicyApplied as PaymentDatePolicy | null,
-          }
-        : {
-            originalDueDate: resolvedAuthority!.originalDate,
-            processingDueDate: resolvedAuthority!.processingDate,
-            paymentTermDaysApplied: resolvedAuthority!.paymentTermDays,
-            paymentDatePolicyApplied: resolvedAuthority!.policy,
-          };
-      await LedgerService.postEntry(tx, {
-        txnType: existingRows.length === 0 ? TxnType.SERVICE_FEE : TxnType.ADJUSTMENT,
-        txnId: link.expenseId,
-        entityType: 'CUSTOMER',
-        entityId: link.customerId,
-        debit: delta > 0 ? delta : 0,
-        credit: delta < 0 ? Math.abs(delta) : 0,
-        note: `Điều chỉnh phí chi hộ chuyến ${link.tripCode ?? ''}`.trim(),
-        ...dueDateFields,
-      });
-    }
-
-    if (pendingExpenseIds.length > 0) {
-      await propagateExpenseApprovals(tx, pendingExpenseIds);
-    }
+    // The shared source hook posts only any remaining fee delta.
+    await propagateExpenseApprovals(tx, linkedExpenseIds);
 
     const totalAmount = totalExpenseAmount + Number(settlement.refundAmount);
     await LedgerService.postEntry(tx, {

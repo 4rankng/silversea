@@ -5,6 +5,7 @@ import { Role } from '@tingting/shared';
 import { qk } from '../api/keys';
 import { getToken } from '../lib/token';
 import { onSessionExpired } from '../lib/api/session';
+import { AuthRecoveryGate } from '../components/shared/AuthRecoveryGate';
 
 export interface AuthUser {
   userId: number;
@@ -22,6 +23,17 @@ export interface AuthUser {
   /** Clerk scope: explicit shipment assignments. */
   shipmentIds?: number[];
   capabilities?: string[];
+}
+
+type AuthUserWire = Omit<AuthUser, 'userId'> & { id?: number; userId?: number };
+
+/** Login/profile endpoints use id; the application context uses userId. */
+function normalizeAuthUser(user: AuthUserWire): AuthUser {
+  const userId = user.id ?? user.userId;
+  if (typeof userId !== 'number' || !Number.isInteger(userId) || userId <= 0) {
+    throw new Error('Không thể xác định tài khoản. Vui lòng tải lại.');
+  }
+  return { ...user, userId };
 }
 
 interface AuthContextType {
@@ -81,22 +93,23 @@ export function isTokenExpired(token: string): boolean {
   }
 }
 
-async function fetchAuthUser(): Promise<AuthUser | null> {
+async function fetchAuthUser(signal?: AbortSignal): Promise<AuthUser | null> {
   const token = getToken();
   if (!token || isTokenExpired(token)) {
     api.clearToken();
     return null;
   }
   try {
-    return await api.get<AuthUser>('/auth/me');
+    return normalizeAuthUser(await api.get<AuthUserWire>('/auth/me', { signal }));
   } catch (err) {
     // Only clear credentials on genuine auth failures (401/403 = invalid,
     // expired, or revoked). Transient server/network errors (502/503/429)
     // must NOT evict a valid session — the query will retry on next refetch.
     if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
-      api.clearToken();
+      if (getToken() === token) api.clearToken();
+      return null;
     }
-    return null;
+    throw err;
   }
 }
 
@@ -110,9 +123,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Cached at the TanStack level: login/logout invalidates the key, not the
   // entire app. The previous useEffect+fetch approach bypassed the cache
   // entirely, so every page mount re-fetched /auth/me.
-  const { data: user = null, isLoading } = useQuery({
+  const { data: user = null, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: qk.auth.me,
-    queryFn: fetchAuthUser,
+    queryFn: ({ signal }) => fetchAuthUser(signal),
+    networkMode: 'always',
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
     retry: false,
@@ -120,19 +134,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(
     async (identifier: string, password: string) => {
-      const res = await api.post<{ token: string; user: AuthUser }>('/auth/login', {
+      const res = await api.post<{ token: string; user: AuthUserWire }>('/auth/login', {
         identifier,
         password,
       });
+      await queryClient.cancelQueries({ queryKey: qk.auth.me });
       clearUserScopedQueries(queryClient);
       api.setToken(res.token);
       setSessionExpired(false);
-      queryClient.setQueryData(qk.auth.me, res.user);
+      queryClient.setQueryData(qk.auth.me, normalizeAuthUser(res.user));
     },
     [queryClient],
   );
 
   const finalizeLocalLogout = useCallback(() => {
+    void queryClient.cancelQueries({ queryKey: qk.auth.me });
     api.clearToken();
     clearUserScopedQueries(queryClient);
     queryClient.setQueryData(qk.auth.me, null);
@@ -202,7 +218,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider value={value}>
-      {children}
+      {(!error || !getToken() || user) && children}
+      {error && getToken() && <AuthRecoveryGate pending={isFetching}
+        retry={() => void refetch()} logout={() => logout()} />}
     </AuthContext.Provider>
   );
 }

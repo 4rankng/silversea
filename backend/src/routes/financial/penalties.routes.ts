@@ -90,7 +90,7 @@ router.post('/penalties', asyncHandler(async (req: Request, res: Response) => {
       emitNotification({
         type: NotificationType.PENALTY_CREATED,
         title: 'Phạt mới',
-        message: 'Quyết định kỷ luật đã được phê duyệt',
+        message: 'Quyết định kỷ luật đã được ghi nhận',
         relatedEntityType: 'penalties',
         relatedEntityId: createdPenaltyId,
         targetDriverId: driverId,

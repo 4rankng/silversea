@@ -15,18 +15,9 @@ import {
 import { TextField } from '../../design-system';
 import './DriverContainerCard.css';
 
-/**
- * Container & seal section for the driver trip-detail page. Standalone (the
- * driver page is NOT wrapped in a TripFormProvider): OCR pre-fills an inline
- * form; numbers are NEVER auto-committed (locked design decision #1) — nothing
- * reaches the DB until the driver taps Lưu (POST/PATCH
- * /driver/me/trips/:id/containers). After save, a bento read-only view shows
- * plate hero + photo tiles; Sửa re-enters the form (PATCH). All three photo
- * types (cont / seal / biên bản giao hàng) live in this ONE card: equal
- * 96×96 slots, one capture row in the form, ghost retake affordances under
- * the saved tile strip — never a separate big-button section (design spec
- * docs/driver-trip-detail-design-spec.md, "Photo block").
- */
+/** Driver container/seal/evidence editor. OCR fills a draft; only explicit
+ * Save writes identifiers. Container, seal and delivery-note images share
+ * the same attachment area and authenticated viewer. */
 
 interface ExistingContainer {
   id: number;
@@ -82,7 +73,7 @@ function checkContainerNumber(cn: string): CheckStatus {
 
 // photoSrc + renderThumb/BentoThumb primitives live in ./DriverTripPhotos
 // (structure-guard split shared across the driver photo surfaces).
-export function DriverContainerCard({ tripId, containers, contPhotoKey, sealPhotoKey, deliveryNotePhotoKey, tradeDirection, onSaved }: Props) {
+export function DriverContainerCard({ tripId, containers: sourceContainers, contPhotoKey, sealPhotoKey, deliveryNotePhotoKey, tradeDirection, onSaved }: Props) {
   const { toast } = useToast();
   const [draft, setDraft] = useState({ containerNumber: '', sealNumber: '', containerTypeId: '' });
   const [lastPhotos, setLastPhotos] = useState<{ cont: string | null; seal: string | null }>({ cont: null, seal: null });
@@ -105,6 +96,7 @@ export function DriverContainerCard({ tripId, containers, contPhotoKey, sealPhot
   // so a post-save comparison is meaningless. Advisory only (non-blocking).
   const [scanCheck, setScanCheck] = useState<{ scanned: string; declared: string } | null>(null);
 
+  const containers = sourceContainers ?? [];
   const hasSaved = containers.length > 0;
   const showForm = !hasSaved || editing;
   const editingExisting = hasSaved && editing;
@@ -390,7 +382,7 @@ export function DriverContainerCard({ tripId, containers, contPhotoKey, sealPhot
             <div className="dcc-bento__hero">
               <div className="dcc-bento__hero-content">
                 <div className="dcc-bento__eyebrow">Số cont</div>
-                <div className="dcc-bento__plate">{containers[0].containerNumber}</div>
+                <div className="dcc-bento__plate">{containers[0].containerNumber || 'Chưa có số cont'}</div>
                 {containers[0].containerTypeName && (
                   <div className="dcc-bento__hero-meta">
                     {containers[0].containerTypeName}

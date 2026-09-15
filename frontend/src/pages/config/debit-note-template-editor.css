@@ -2044,3 +2044,26 @@
   }
 
 }
+
+/* The selected column and properties stay adjacent on every canvas. */
+.debit-editor-column-navigation {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.debit-editor-column-navigation > label {
+  font-size: var(--text-label-size);
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.debit-editor-inspector { padding: 12px; backdrop-filter: none; }
+@media (max-width: 640px) {
+  .debit-editor-side-nav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
+  .debit-editor-side-nav button { min-width: 0; min-height: 44px; padding: 4px; display: flex; justify-content: center; }
+  .debit-editor-side-nav button svg { display: none; }
+  .debit-editor-inspector { padding: 8px; border: 0; border-radius: 0; }
+}
+.debit-editor-column-order { display: flex; flex-wrap: wrap; gap: 4px; }
+.debit-editor-column-order .btn { flex: 1; min-height: 44px; padding: 4px 8px; }

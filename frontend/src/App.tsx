@@ -1,6 +1,7 @@
 import React, { lazy, Suspense, type ReactElement } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './hooks/useAuth';
+import { ConnectionGate } from './components/shared/ConnectionGate';
 import { SearchProvider } from './context/SearchContext';
 import { MonthProvider } from './hooks/useMonth';
 import { ReducedMotionProvider } from './hooks/usePrefersReducedMotion';
@@ -24,6 +25,7 @@ function LegacyAdvanceSettlementsRedirect() {
   return <Navigate to={legacyAdvanceSettlementsTarget(location.search)} replace />;
 }
 
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const TripListPage = lazy(() => import('./pages/TripListPage'));
@@ -248,6 +250,9 @@ export function AppRoutes() {
   return (
     <Shell>
       <Routes>
+          <Route path="/login" element={<Navigate to={defaultHome} replace />} />
+          <Route path="/clerk/shipments/new" element={<Navigate to={defaultHome} replace />} />
+          <Route path="/clerk/shipments/:id/docs" element={shipmentReaderOnly(<Navigate to={routes.shipments} replace />)} />
           <Route path="/" element={<Navigate to={defaultHome} replace />} />
           <Route
             path="/dashboard"
@@ -387,7 +392,7 @@ export function AppRoutes() {
           <Route path="/portal/shipments/:id" element={customerOnly(page(<PortalShipmentDetailPage />))} />
           <Route path="/portal/debit-notes" element={customerOnly(page(<PortalDebitNotesPage />))} />
           <Route path="/portal/statement" element={customerOnly(page(<PortalStatementPage />))} />
-          <Route path="*" element={<Navigate to={defaultHome} replace />} />
+          <Route path="*" element={page(<NotFoundPage />)} />
         </Routes>
       </Shell>
   );
@@ -400,7 +405,7 @@ export default function App() {
         <ToastProvider>
           <MonthProvider>
             <SearchProvider>
-              <AppRoutes />
+              <ConnectionGate><AppRoutes /></ConnectionGate>
             </SearchProvider>
           </MonthProvider>
         </ToastProvider>

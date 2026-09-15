@@ -59,8 +59,7 @@ function PasswordModal({
           </div>
         </FormGroup>
         {isCurrentPasswordError && (
-          // Sibling, not child: FormGroup force-ids its direct children
-          // (cloneElement), which would clobber this element's id.
+          // Keep the password error immediately after its field group.
           <p id="current-password-error" role="alert" className="mt-1 text-xs" style={{ color: 'var(--err, #dc2626)', margin: 0 }}>
             Mật khẩu hiện tại không đúng
           </p>

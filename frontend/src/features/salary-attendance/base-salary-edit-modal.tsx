@@ -29,8 +29,6 @@ export function BaseSalaryEditModal({
   driverId,
   driverName,
   currentBaseSalary,
-  year,
-  month,
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -74,10 +72,10 @@ export function BaseSalaryEditModal({
   }
 
   const parsed = Number(amount.replace(/[,.\s]/g, ''));
-  const valid = amount.trim() !== '' && Number.isFinite(parsed) && parsed >= 0;
+  const valid = amount.trim() !== '' && Number.isSafeInteger(parsed) && parsed >= 0 && parsed <= 999_999_999_999_999;
 
   const handleSave = async () => {
-    if (!valid || !versionToken) return;
+    if (saving || !valid || !versionToken) return;
     setSaving(true);
     setError('');
     try {
@@ -88,7 +86,9 @@ export function BaseSalaryEditModal({
       await api.put(CONFIG.DRIVER(driverId), { baseSalary: parsed }, { expectedUpdatedAt: versionToken });
       // Invalidate the salary query so the summary recomputes on next render,
       // and the drivers catalog cache so other surfaces see the new amount.
-      void queryClient.invalidateQueries({ queryKey: qk.salary.driverSalary(driverId, year, month) });
+      await queryClient.invalidateQueries({ queryKey: qk.salary.driverSalaryAll });
+      await queryClient.invalidateQueries({ queryKey: qk.salary.listAll });
+      await queryClient.invalidateQueries({ queryKey: qk.catalogs.all });
       void queryClient.invalidateQueries({ queryKey: qk.configCounts.drivers });
       onClose();
     } catch (e) {
@@ -113,7 +113,7 @@ export function BaseSalaryEditModal({
     <Modal
       isOpen={isOpen}
       title={`Sửa lương cứng — ${driverName}`}
-      onClose={onClose}
+      onClose={() => { if (!saving) onClose(); }}
       maxWidth={420}
       footer={
         <>
@@ -140,7 +140,7 @@ export function BaseSalaryEditModal({
         />
         {!valid && amount.trim() !== '' && (
           <p role="alert" style={{ color: 'var(--danger)', fontSize: 'var(--text-body-size)', margin: 0 }}>
-            Lương cứng phải là số không âm.
+            Lương cứng phải là số nguyên không âm, tối đa 999.999.999.999.999 ₫.
           </p>
         )}
         {error && <p role="alert" style={{ color: 'var(--danger)', fontSize: 'var(--text-body-size)', margin: 0 }}>{error}</p>}
@@ -150,8 +150,8 @@ export function BaseSalaryEditModal({
           </p>
         )}
         <p style={{ fontSize: 'var(--text-caption-size)', color: 'var(--fg-3)', margin: 0 }}>
-          Thay đổi áp dụng từ lần tính lương kế tiếp. Kỳ đã khóa hoặc đã xác nhận
-          giữ nguyên giá trị đã tính.
+          Thay đổi lương cấu hình hiện tại và các kỳ chưa chốt khi tính lại. Kỳ đã khóa hoặc đã xác nhận
+          giữ nguyên giá trị đã tính. Kiểm tra đúng lái xe trước khi lưu.
         </p>
       </div>
     </Modal>

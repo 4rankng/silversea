@@ -592,7 +592,7 @@ describe('chi hộ (service-fee) sell-side AR ledger posting', () => {
     });
     assert.ok(inserted.id, 'fee inserted without payable counterparty');
     assert.equal(inserted.forwarderId, null);
-    assert.equal(inserted.approvalStatus, 'APPROVED');
+    assert.equal(inserted.approvalStatus, 'RECORDED');
     createdExpenseIds.push(inserted.id);
   });
 
@@ -611,7 +611,7 @@ describe('chi hộ (service-fee) sell-side AR ledger posting', () => {
     });
     assert.ok(inserted.id, 'fee inserted without payable counterparty');
     assert.equal(inserted.supplierId, null);
-    assert.equal(inserted.approvalStatus, 'APPROVED');
+    assert.equal(inserted.approvalStatus, 'RECORDED');
     createdExpenseIds.push(inserted.id);
   });
 
@@ -637,11 +637,11 @@ describe('chi hộ (service-fee) sell-side AR ledger posting', () => {
     });
     assert.ok(inserted.id, 'fee inserted');
     assert.equal(inserted.forwarderId, forwarderId);
-    assert.equal(inserted.approvalStatus, 'PENDING'); // forwarder-created → pending approval
+    assert.equal(inserted.approvalStatus, 'RECORDED'); // complete direct entry has no approval queue
     createdExpenseIds.push(inserted.id);
   });
 
-  test('createTripExpense accepts an office-approved OPS_ADVANCE fee with a forwarder', async () => {
+  test('createTripExpense normalizes a legacy office status to a recorded OPS_ADVANCE fee with a forwarder', async () => {
     const { trip, forwarderId } = await createInTransitTripWithFees(
       { revenue: 1_000_000 },
       [{ buyAmount: 1, sellAmount: 1, settlementMethod: 'OPS_ADVANCE' }],
@@ -662,7 +662,7 @@ describe('chi hộ (service-fee) sell-side AR ledger posting', () => {
     });
     assert.ok(inserted.id, 'fee inserted');
     assert.equal(inserted.forwarderId, forwarderId);
-    assert.equal(inserted.approvalStatus, 'APPROVED');
+    assert.equal(inserted.approvalStatus, 'RECORDED');
     createdExpenseIds.push(inserted.id);
   });
 });

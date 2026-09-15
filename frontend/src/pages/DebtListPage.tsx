@@ -1,3 +1,4 @@
+import { AgingDisclosure } from '../components/finance/AgingDisclosure';
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { formatCurrency, moneyParts } from '../lib/format';
@@ -295,9 +296,7 @@ export default function DebtListPage() {
         ]}
       />
 
-      {/* ══════════════════════════════════════════════════════════════════════
-        *  ZONE 2 — Aging Distribution (4 equal glass cards)
-        * ══════════════════════════════════════════════════════════════════════ */}
+      <AgingDisclosure label="Nhóm tuổi nợ khách hàng · mở chi tiết">
       <div className="debt-aging-grid" data-tour-id="debt-aging">
         {AGING_BUCKETS.map((bucket) => {
           const amount = totals[bucket.amountKey];
@@ -346,6 +345,7 @@ export default function DebtListPage() {
           );
         })}
       </div>
+      </AgingDisclosure>
 
       {/* ══════════════════════════════════════════════════════════════════════
         *  ZONE 3 — Data Section (full-width card with filters + table/cards)

@@ -4,7 +4,6 @@ import { formatNumber, formatDate } from '../lib/format';
 import {
   ADVANCE_REQUEST_STATUS_LABELS,
   AdvanceRequestStatus,
-  Role,
   type AdvanceRequestWithRefs,
 } from '@tingting/shared';
 import { PageHeader, StatusPill, Toolbar, FilterPill } from '../components/UI';
@@ -23,6 +22,7 @@ import './AdminAdvancesPage.css';
 import '../styles/table-sort.css';
 import '../styles/operational-table-typography.css';
 import { resolveEmptyIllustration } from '../lib/emptyIllustrations';
+import { AdvanceDraftActions } from '../components/shared/AdvanceDraftActions';
 
 /* ── Types ─────────────────────────────────────────────────────────────── */
 
@@ -38,16 +38,6 @@ interface AdvanceListEnvelope {
   statusCounts: Record<string, number>;
   /** Full-set amount totals per status — KPI meta lines. */
   statusAmounts: Record<string, number>;
-}
-
-export function buildAdvanceDecision(
-  request: Pick<AdvanceRequest, 'id' | 'version'>,
-  reason: string,
-): { id: number; expectedVersion: number; reason: string } | null {
-  const normalizedReason = reason.trim();
-  return normalizedReason
-    ? { id: request.id, expectedVersion: request.version, reason: normalizedReason }
-    : null;
 }
 
 type StatusFilter = '' | AdvanceRequestStatus;
@@ -87,12 +77,12 @@ function GridSortHeader({
 }
 
 // Direct-effect vocabulary (QA-113): saves apply immediately, so the old
-// waiting-for-approval bucket is gone; PENDING survives only as a legacy
-// filter for pre-removal rows.
+// legacy unresolved records stay DRAFT and do not contribute to posted balances.
 const TABS: { key: StatusFilter; label: string }[] = [
   { key: '', label: 'Tất cả' },
-  { key: AdvanceRequestStatus.APPROVED, label: 'Đã ghi nhận' },
-  { key: AdvanceRequestStatus.REJECTED, label: 'Từ chối' },
+  { key: AdvanceRequestStatus.RECORDED, label: 'Đã ghi nhận' },
+  { key: AdvanceRequestStatus.DRAFT, label: 'Chưa ghi sổ' },
+  { key: AdvanceRequestStatus.VOIDED, label: 'Đã hủy' },
 ];
 
 /* ── Compact KPI card — matches dashboard .wf-kpi proportions ─────────── */
@@ -153,7 +143,7 @@ function AdvanceGridRow({
   req: AdvanceRequest;
   focusId?: string;
 }) {
-  const isPending = req.status === 'APPROVED';
+  const isDraft = req.status === 'DRAFT';
 
   return (
     <div className="adv-grid-row" id={focusId}>
@@ -190,8 +180,8 @@ function AdvanceGridRow({
       {/* Direct-effect save: no approve/reject handoff remains. Legacy
           PENDING rows (pre-removal data) render read-only. */}
       <div className="adv-actions">
-        {isPending ? (
-          <span className="adv-readonly-state">Chỉ có quyền xem</span>
+        {isDraft ? (
+          <AdvanceDraftActions request={req} />
         ) : req.approverName ? (
           <div className="adv-approver">
             bởi <strong>{req.approverName}</strong>
@@ -211,7 +201,7 @@ function AdvanceMobileCard({
   req: AdvanceRequest;
   focusId?: string;
 }) {
-  const isPending = req.status === 'APPROVED';
+  const isDraft = req.status === 'DRAFT';
 
   return (
     <div className="adv-mcard" id={focusId}>
@@ -250,13 +240,13 @@ function AdvanceMobileCard({
       </div>
 
       {/* Actions — direct-effect save: no approve/reject handoff remains. */}
-      {isPending ? (
+      {isDraft ? (
         <div className="adv-readonly-state adv-readonly-state--mobile">
-          Bạn chỉ có quyền xem yêu cầu này.
+          <AdvanceDraftActions request={req} />
         </div>
       ) : req.approverName ? (
         <div className="adv-mcard__meta-row" style={{ marginTop: 4 }}>
-          <span className="adv-mcard__meta-label">Duyệt bởi</span>
+          <span className="adv-mcard__meta-label">Người ghi nhận</span>
           <span className="adv-mcard__meta-value" style={{ fontWeight: 600, color: 'var(--ink)' }}>
             {req.approverName}
           </span>
@@ -311,13 +301,15 @@ export default function AdminAdvancesPage({ embedded = false }: { embedded?: boo
   const countOf = (status: AdvanceRequestStatus) => statusCounts[status] ?? 0;
   const amountOf = (status: AdvanceRequestStatus) => statusAmounts[status] ?? 0;
   const totalCount =
-    countOf(AdvanceRequestStatus.APPROVED) +
-    countOf(AdvanceRequestStatus.REJECTED);
+    countOf(AdvanceRequestStatus.RECORDED) +
+    countOf(AdvanceRequestStatus.DRAFT) +
+    countOf(AdvanceRequestStatus.VOIDED);
 
   const tabCounts: Record<StatusFilter, number> = {
     '': totalCount,
-    [AdvanceRequestStatus.APPROVED]: countOf(AdvanceRequestStatus.APPROVED),
-    [AdvanceRequestStatus.REJECTED]: countOf(AdvanceRequestStatus.REJECTED),
+    [AdvanceRequestStatus.DRAFT]: countOf(AdvanceRequestStatus.DRAFT),
+    [AdvanceRequestStatus.RECORDED]: countOf(AdvanceRequestStatus.RECORDED),
+    [AdvanceRequestStatus.VOIDED]: countOf(AdvanceRequestStatus.VOIDED),
   };
 
   /* ── Render ──────────────────────────────────────────────────────────── */
@@ -344,21 +336,21 @@ export default function AdminAdvancesPage({ embedded = false }: { embedded?: boo
       <div className="adv-kpi-row">
         <AdvKPI
           label="Đã ghi nhận"
-          value={countOf(AdvanceRequestStatus.APPROVED)}
-          meta={`${formatNumber(amountOf(AdvanceRequestStatus.APPROVED))} ₫`}
+          value={countOf(AdvanceRequestStatus.RECORDED)}
+          meta={`${formatNumber(amountOf(AdvanceRequestStatus.RECORDED))} ₫`}
           variant="success"
           iconName="paid"
-          active={statusFilter === AdvanceRequestStatus.APPROVED}
-          onClick={() => setStatusFilter(statusFilter === AdvanceRequestStatus.APPROVED ? '' : AdvanceRequestStatus.APPROVED)}
+          active={statusFilter === AdvanceRequestStatus.RECORDED}
+          onClick={() => setStatusFilter(statusFilter === AdvanceRequestStatus.RECORDED ? '' : AdvanceRequestStatus.RECORDED)}
         />
         <AdvKPI
-          label="Từ chối"
-          value={countOf(AdvanceRequestStatus.REJECTED)}
-          meta={`${formatNumber(amountOf(AdvanceRequestStatus.REJECTED))} ₫`}
+          label="Đã hủy"
+          value={countOf(AdvanceRequestStatus.VOIDED)}
+          meta={`${formatNumber(amountOf(AdvanceRequestStatus.VOIDED))} ₫`}
           variant="danger"
           iconName="unpaid"
-          active={statusFilter === AdvanceRequestStatus.REJECTED}
-          onClick={() => setStatusFilter(statusFilter === AdvanceRequestStatus.REJECTED ? '' : AdvanceRequestStatus.REJECTED)}
+          active={statusFilter === AdvanceRequestStatus.VOIDED}
+          onClick={() => setStatusFilter(statusFilter === AdvanceRequestStatus.VOIDED ? '' : AdvanceRequestStatus.VOIDED)}
         />
         <AdvKPI
           label="Tồn tạm ứng"
@@ -394,7 +386,7 @@ export default function AdminAdvancesPage({ embedded = false }: { embedded?: boo
             value={statusFilter}
             onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
             options={TABS.map((tab) => ({
-              value: tab.key || 'all',
+              value: tab.key,
               label: `${tab.label} (${tabCounts[tab.key]})`,
             }))}
           />

@@ -222,10 +222,17 @@ describe('DriverTaskInfoSections', () => {
     expect(screen.getByText('CTY Vệ Sinh Container · 9 Phạm Ngũ Lão')).toBeTruthy();
   });
 
-  it('hides the invoice section when neither invoice info nor master data rides the wire', () => {
+  it('explains missing invoice configuration for the displayed factory instead of silently hiding it', () => {
     render(<DriverTaskInfoSections trip={makeTrip()} />);
 
-    expect(screen.queryByText('Thông tin xuất hóa đơn')).toBeNull();
+    expect(screen.getByText('Thông tin xuất hóa đơn')).toBeTruthy();
+    expect(screen.getByText('Nhà máy chưa cấu hình thông tin xuất hóa đơn.')).toBeTruthy();
+  });
+
+  it('identifies missing factory invoice fields without borrowing customer values', () => {
+    render(<DriverTaskInfoSections trip={makeTrip({ invoiceFactory: { name: 'Factory Legal Name', address: null, taxCode: null }, invoiceMaster: { companyName: 'Customer', address: 'Customer billing address', taxCode: '123' } })} />);
+    expect(screen.getByText('Nhà máy chưa cấu hình: địa chỉ xuất hóa đơn, mã số thuế.')).toBeTruthy();
+    expect(screen.getByText('Customer billing address')).toBeTruthy();
   });
 
   it('labels the factory invoice profile under its own party heading — never the customer fallback', () => {
@@ -362,4 +369,13 @@ describe('DriverTaskInfoSections', () => {
 
     expect(valueOf('Cảng hạ')).toBe('—');
   });
+});
+
+
+it('renders a legacy task without a container array without crashing', () => {
+  const trip = makeTrip();
+  trip.containers = null as unknown as DriverTaskDetail['containers'];
+  render(<DriverTaskInfoSections trip={trip} />);
+  expect(screen.getByText('Container / lô hàng')).toBeTruthy();
+  expect(screen.getByText('FCL')).toBeTruthy();
 });

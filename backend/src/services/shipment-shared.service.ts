@@ -108,8 +108,8 @@ export async function assertShipmentDirectCloseTripReadiness(
     .orderBy(desc(s.tripPodSubmissions.submissionVersion), desc(s.tripPodSubmissions.id))
     .limit(1)
     .for('update');
-  if (!currentPod || currentPod.status !== TripPodStatus.ACCEPTED) {
-    throw new ApiError(409, 'e-POD hiện tại chưa được duyệt. Không thể chốt tài chính chuyến đi.');
+  if (!currentPod || (currentPod.status !== TripPodStatus.SUBMITTED && currentPod.status !== TripPodStatus.ACCEPTED)) {
+    throw new ApiError(409, 'Chưa có e-POD hợp lệ. Không thể chốt tài chính chuyến đi.');
   }
   const resolvedScopeState = scopeState ?? await loadTripExpenseScopeState(tx, [tripId]);
   if (

@@ -5,9 +5,11 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+  min-width: 0;
 }
 
 .ops-fleet__bar {
+  flex-wrap: wrap;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -26,6 +28,8 @@
 }
 
 .ops-fleet__scroll {
+  container-type: inline-size;
+  min-width: 0;
   overflow-x: auto;
   border: 1px solid var(--line, #e3ded5);
   border-radius: 12px;
@@ -34,7 +38,8 @@
 
 .ops-fleet__table {
   width: 100%;
-  min-width: 820px;
+  min-width: 0;
+  table-layout: fixed;
 }
 
 .ops-fleet__table th,
@@ -43,6 +48,7 @@
   font-size: var(--text-data-size);
   text-align: left;
   vertical-align: middle;
+  overflow-wrap: anywhere;
 }
 
 .ops-fleet__plate {
@@ -68,4 +74,15 @@
   justify-content: center;
   padding: 16px;
   color: var(--fg-3, #6b7280);
+}
+
+@container (max-width: 700px) {
+  .ops-fleet__table, .ops-fleet__table tbody { display: block; width: 100%; }
+  .ops-fleet__table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .ops-fleet__row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; padding: 10px; border-bottom: 1px solid var(--line); }
+  .ops-fleet__row:last-child { border-bottom: 0; }
+  .ops-fleet__table .ops-fleet__row > td { display: block; min-width: 0; padding: 0; border: 0; }
+  .ops-fleet__row > td[data-label]::before { content: attr(data-label); display: block; margin-bottom: 2px; color: var(--ink-3); font-size: var(--text-label-size); font-weight: 500; }
+  .ops-fleet__row > .ops-fleet__wide { grid-column: 1 / -1; }
+  .ops-fleet__empty { display: block; width: 100%; }
 }

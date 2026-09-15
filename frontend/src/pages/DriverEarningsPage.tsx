@@ -133,7 +133,7 @@ export default function DriverEarningsPage() {
   const payableLabel = payableNum >= 0
     ? 'Lương chưa thanh toán'
     : (incomeBeforePenalties < paidOrAdvancedNum2
-        ? 'Đã tạm ứng vượt'
+        ? 'Số dư sổ lương'
         : 'Khấu trừ vượt thu nhập');
 
   return (
@@ -192,6 +192,13 @@ export default function DriverEarningsPage() {
         </div>
       </div>
 
+      {earnings.salaryReconciliationRequired && (
+        <p className="earnings-empty-note" role="status">
+          {earnings.salarySnapshotState === 'UNAVAILABLE'
+            ? 'Kỳ cũ chưa có bản lương đã chốt. Số liệu chỉ tham khảo; liên hệ kế toán để đối chiếu chứng từ gốc.'
+            : 'Ngày công được bổ sung sau khi chốt. Bản lương giữ nguyên; kế toán sẽ ghi điều chỉnh ở kỳ đang mở nếu có chênh lệch.'}
+        </p>
+      )}
       {/* ═══ Zone 2 — Payslip summary ═══ */}
       <div className="earnings-equation-card fade-up-2" aria-label="Tóm tắt thu nhập">
         <div className="earnings-equation-card__head">

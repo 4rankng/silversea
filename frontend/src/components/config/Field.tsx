@@ -1,3 +1,5 @@
+import { FormGroup } from '../UI';
+
 export function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div className="field"><label>{label}</label>{children}</div>;
+  return <FormGroup label={label}>{children}</FormGroup>;
 }

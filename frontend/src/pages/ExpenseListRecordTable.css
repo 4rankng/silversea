@@ -47,3 +47,14 @@
 .expense-record-table__chevron {
   color: var(--ink-4);
 }
+
+/* A record is one compact row surface; a decorative chevron must not reserve
+   an otherwise empty full-width card band. The entire row remains the action. */
+@container (max-width: 1100px) {
+  .expense-record-table tbody tr:not(:has(td[colspan])) {
+    border-radius: 0;
+    box-shadow: none;
+    border-inline: 0;
+  }
+  .expense-record-table td.expense-record-table__action { display: none; }
+}

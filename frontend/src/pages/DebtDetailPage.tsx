@@ -449,7 +449,7 @@ export default function DebtDetailPage() {
               <strong>{money(totalExposure)}</strong>
             </div>
             <div className="dd-credit__info">
-              <span className="dd-credit__label">Đã duyệt chưa thu</span>
+              <span className="dd-credit__label">Đã ghi nhận, chưa thu</span>
               <strong>{money(approvedUncollected)}</strong>
             </div>
             <div className="dd-credit__info">
@@ -470,6 +470,8 @@ export default function DebtDetailPage() {
       })()}
 
       {/* ── Aging Summary ───────────────────────────────────────────────── */}
+      <details className="dd-aging-disclosure">
+        <summary>Phân bổ tuổi nợ <span>{activeAgingRange ? `${activeAgingRange.label} · ${money(activeAgingAmount)}` : 'Không còn nợ'}</span></summary>
       <section className="dd-summary dd-summary--aging">
         <div className="dd-sum-top">
           <div>
@@ -529,6 +531,8 @@ export default function DebtDetailPage() {
           })}
         </div>
       </section>
+
+      </details>
 
       {isDualEntityLookupError && (
         <DualEntityLookupError onRetry={() => { void refetchDualEntities(); }} />

@@ -135,24 +135,23 @@
 .earnings-equation {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
+  gap: 0;
 }
 
 /* KP-116: At tablet widths the4-column grid crushes labels against amounts.
    Collapse to 2 columns so each pair keeps breathing room. */
 @media (max-width: 768px) {
-  .earnings-equation {
-    grid-template-columns: repeat(2, 1fr);
-  }
+  .earnings-equation { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .earnings-equation__item:nth-child(odd) { border-inline-start: 0; }
+  .earnings-equation__item:nth-child(n+3) { border-top: 1px solid var(--line); }
 }
 
 .earnings-equation__item {
   min-width: 0;
-  padding: 12px;
-  border-radius: 12px;
-  background: var(--surface-2);
-  border: 1px solid var(--line);
+  padding: 8px 12px;
+  border-inline-start: 1px solid var(--line);
 }
+.earnings-equation__item:first-child { border-inline-start: 0; }
 
 .earnings-equation__item span {
   display: block;
@@ -160,8 +159,7 @@
   color: var(--ink-3);
   font-size: var(--text-label-size);
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0;
 }
 
 .earnings-equation__item strong {
@@ -171,7 +169,7 @@
   font-size: var(--text-data-size);
 
   letter-spacing: 0;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .earnings-equation__item--success strong {
@@ -189,6 +187,7 @@
 
 .earnings-ledger-grid {
   display: grid;
+  align-items: start;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 12px;
   margin-bottom: 12px;
@@ -265,12 +264,11 @@
   color: var(--danger);
 }
 
-.earnings-ledger-list__note {
-  align-items: flex-start;
-}
+.earnings-ledger-list .earnings-ledger-list__note { display: block; }
 
 .earnings-ledger-list__note dd {
-  max-width: 280px;
+  margin-top: 4px;
+  text-align: left;
   color: var(--ink-3);
   font-family: inherit;
   font-size: var(--text-caption-size);
@@ -408,42 +406,12 @@
     height: 42px;
   }
 
-  .earnings-equation {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0;
-  }
-
-  .earnings-equation-card {
-    padding: 12px;
-  }
-
-  .earnings-equation__item {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 4px 12px;
-    padding: 10px 0;
-    border: 0;
-    border-bottom: 1px solid var(--line);
-    border-radius: 0;
-    background: transparent;
-  }
-
-  .earnings-equation__item:last-child {
-    border-bottom: 0;
-  }
-
-  .earnings-equation__item span {
-    margin-bottom: 0;
-    font-size: var(--text-label-size);
-  }
-
-  .earnings-equation__item strong {
-    margin-left: auto;
-    font-size: var(--text-data-size);
-    text-align: right;
-  }
+  .earnings-equation-card { padding: 8px; }
+  .earnings-equation-card__head { margin-bottom: 6px; }
+  .earnings-equation__item { padding: 8px; }
+  .earnings-hero-bento__icon, .earnings-hero-bento__watermark { display: none; }
+  .earnings-hero-bento__eyebrow { margin-bottom: 4px; }
+  .earnings-hero-bento__note { margin-top: 6px; }
 
   .earnings-ledger-grid {
     grid-template-columns: 1fr;

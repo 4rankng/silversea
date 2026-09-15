@@ -48,6 +48,13 @@ describe('DataTable sort headers', () => {
 });
 
 describe('DataTable responsive row interactions', () => {
+  it('keeps pagination reachable when a later page becomes empty', () => {
+    const onChange = vi.fn();
+    render(<DataTable data={[]} columns={columns} pagination={{ page: 2, totalPages: 2, onChange }} />);
+    expect(screen.getByText('Không có dữ liệu')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Trang trước' }));
+    expect(onChange).toHaveBeenCalledWith(1);
+  });
   it('keeps the table available at narrow widths when no mobile view was supplied', () => {
     const { container } = render(
       <DataTable data={rows} columns={[{ key: 'name', label: 'Tên', accessor: (row) => row.name }]} />,

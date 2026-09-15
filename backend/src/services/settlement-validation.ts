@@ -104,8 +104,8 @@ export async function validateSettlementInputs(opts: {
     if (req.requesterId !== forwarderId) {
       throw new AdvanceError(400, 'Yêu cầu tạm ứng đã chọn không thuộc về bạn');
     }
-    if (req.status !== 'APPROVED') {
-      throw new AdvanceError(400, 'Yêu cầu tạm ứng đã chọn chưa được duyệt');
+    if (req.status !== 'RECORDED') {
+      throw new AdvanceError(400, 'Tạm ứng đã chọn chưa được ghi nhận');
     }
   }
 
@@ -113,7 +113,7 @@ export async function validateSettlementInputs(opts: {
   if (checkAlreadyLinked) {
     const activeLinkConditions = [
       inArray(s.advanceSettlementRequests.advanceRequestId, advanceRequestIds),
-      notInArray(s.advanceSettlements.status, ['REJECTED']),
+      notInArray(s.advanceSettlements.status, ['VOIDED', 'REVERSED']),
     ];
     if (excludeSettlementId !== undefined) activeLinkConditions.push(ne(s.advanceSettlements.id, excludeSettlementId));
     const existingLinks = await dbOrTx.select({ advanceRequestId: s.advanceSettlementRequests.advanceRequestId })
@@ -150,8 +150,8 @@ export async function validateSettlementInputs(opts: {
       if (exp.forwarderId !== forwarderId) {
         throw new AdvanceError(400, 'Chi phí đã chọn không thuộc về bạn');
       }
-      if (exp.approvalStatus === 'REJECTED') {
-        throw new AdvanceError(400, 'Chi phí đã chọn đã bị từ chối');
+      if (!['RECORDED', 'APPROVED'].includes(exp.approvalStatus)) {
+        throw new AdvanceError(400, 'Chi phí đã chọn chưa được ghi nhận đầy đủ hoặc đã hủy');
       }
       const scopeWhere = exp.tripContainerId == null
         ? and(eq(s.tripExpenseCompletionScopes.tripId, exp.tripId), isNull(s.tripExpenseCompletionScopes.tripContainerId))
@@ -167,7 +167,7 @@ export async function validateSettlementInputs(opts: {
     if (checkAlreadyLinked) {
       const activeExpenseConditions = [
         inArray(s.settlementExpenses.tripExpenseId, tripExpenseIds),
-        notInArray(s.advanceSettlements.status, ['REJECTED']),
+        notInArray(s.advanceSettlements.status, ['VOIDED', 'REVERSED']),
       ];
       if (excludeSettlementId !== undefined) activeExpenseConditions.push(ne(s.advanceSettlements.id, excludeSettlementId));
       const alreadyLinked = await dbOrTx.select({ tripExpenseId: s.settlementExpenses.tripExpenseId })

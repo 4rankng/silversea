@@ -3,6 +3,7 @@ import { ChevronRight, KeyRound, LogOut, UserCog, X } from 'lucide-react';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { useDropdownDismiss } from '../../hooks/useDropdownDismiss';
 import type { SidebarProps } from './types';
+import { BuildVersion } from '../shared/BuildVersion';
 
 type MobileAccountSheetProps = {
   user: SidebarProps['user'] & { phone?: string | null };
@@ -72,6 +73,7 @@ export function MobileAccountSheet({
               <ChevronRight size={16} className="btn-chevron" aria-hidden="true" />
             </button>
           </div>
+          <BuildVersion />
         </div>
       </div>
     </div>

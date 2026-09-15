@@ -115,6 +115,28 @@ describe('QA-060 — batch write canonicalizes stored numbers', () => {
         .from(s.tripContainers)
         .where(eq(s.tripContainers.id, items[0].id));
       assert.equal(row?.number, 'TCKU1234560');
+
+      const before = await db.select().from(s.tripContainers).where(eq(s.tripContainers.tripId, trip.id));
+      const [beforeTrip] = await db.select().from(s.trips).where(eq(s.trips.id, trip.id));
+      await assert.rejects(() => batchUpsertTripContainers(trip.id, null, [
+        { id: items[0].id, containerNumber: 'MSKU1234565' },
+        { containerNumber: 'TCLU1234568', cargoWeightKg: '999999999999999999999999999' },
+      ]), /insert into/);
+      assert.deepEqual(await db.select().from(s.tripContainers).where(eq(s.tripContainers.tripId, trip.id)), before,
+        'a later numeric write failure rolls back the earlier container write');
+      const [afterTrip] = await db.select().from(s.trips).where(eq(s.trips.id, trip.id));
+      assert.equal(afterTrip.version, beforeTrip.version, 'failed batch cannot advance the parent version');
+
+      await assert.rejects(() => batchUpsertTripContainers(trip.id, null, [
+        { id: items[0].id, containerTypeId: 2147483647 },
+      ]), /Loại container không tồn tại/);
+
+      await assert.rejects(() => batchUpsertTripContainers(trip.id, null, [
+        { id: 2147483647, containerNumber: 'MSKU1234565' },
+      ]), /không thuộc chuyến/);
+      assert.deepEqual(await db.select().from(s.tripContainers).where(eq(s.tripContainers.tripId, trip.id)), before,
+        'an unknown or foreign container ID cannot delete the current batch or become a new row');
+
     } finally {
       await db.delete(s.tripContainers).where(eq(s.tripContainers.tripId, trip.id));
       await db.delete(s.trips).where(eq(s.trips.id, trip.id));

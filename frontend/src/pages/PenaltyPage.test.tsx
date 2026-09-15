@@ -126,7 +126,7 @@ describe('PenaltyPage', () => {
     expect(screen.getByText('9 vụ')).toBeTruthy(); // insights.month.incidentCount in the rail
     // Status chips come from the list envelope's full-set statusCounts.
     expect(chip('Tất cả')?.textContent).toContain('7');
-    expect(chip('Chờ duyệt')?.textContent).toContain('5');
+    expect(chip('Hiệu lực')?.textContent).toContain('5');
     expect(chip('Đã hủy')?.textContent).toContain('2');
 
     // Pagination summary carries the server total (120), not the loaded row count.
@@ -142,7 +142,7 @@ describe('PenaltyPage', () => {
       expect(apiGet).toHaveBeenCalledWith('/penalties?page=2&limit=50&dateFrom=2026-08-01&dateTo=2026-08-31');
     });
 
-    const pendingChip = chip('Chờ duyệt');
+    const pendingChip = chip('Hiệu lực');
     expect(pendingChip).toBeDefined();
     fireEvent.click(pendingChip!);
     await waitFor(() => {

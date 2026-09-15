@@ -16,7 +16,10 @@
 
 .portal-page__title {
   min-width: 0;
+  overflow-wrap: anywhere;
 }
+
+.portal-page__header--detail { grid-template-columns: minmax(0, 1fr); }
 
 .portal-page__eyebrow,
 .portal-panel__heading span,
@@ -415,9 +418,9 @@ a.portal-list__row:focus-visible {
 
 .portal-state {
   display: grid;
-  min-height: 220px;
+  min-height: 128px;
   place-items: center;
-  padding: 32px;
+  padding: 16px 8px;
   color: var(--ink-3);
   text-align: center;
 }
@@ -701,9 +704,9 @@ a.portal-list__row:focus-visible {
   .portal-page__header {
     grid-template-columns: minmax(0, 1fr);
     align-items: start;
-    gap: 14px;
-    margin-bottom: 14px;
-    padding-bottom: 14px;
+    gap: 8px;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
   }
 
   .portal-page h1 {
@@ -720,10 +723,8 @@ a.portal-list__row:focus-visible {
     align-items: end;
     justify-items: start;
     gap: 2px 12px;
-    padding: 11px 12px;
-    border: 1px solid var(--line);
-    border-radius: var(--app-radius-sm);
-    background: var(--surface);
+    padding: 8px 0;
+    border-top: 1px solid var(--line);
     text-align: left;
   }
 
@@ -819,9 +820,8 @@ a.portal-list__row:focus-visible {
     flex: 1 1 calc(50% - 4px);
   }
 
-  .portal-detail-grid {
-    grid-template-columns: 1fr;
-  }
+  .portal-detail-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px; }
+  .portal-detail-grid__wide { grid-column: 1 / -1; }
 
   .portal-section {
     padding: 10px;

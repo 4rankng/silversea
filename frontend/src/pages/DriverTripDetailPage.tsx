@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -21,7 +21,6 @@ import { DriverTaskInfoSections } from './driver/DriverTaskInfoSections';
 import { podRequiredFilesReady } from '../lib/podReadiness';
 import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
-import { useAuth } from '../hooks/useAuth';
 import { useDriverTaskDetail, useDriverTaskProgress } from '../hooks/useDriverQueries';
 import { driverClient, type DriverTaskDetail, type DriverTaskPodSubmission } from '../api/driverClient';
 import { getAuthenticatedPhotoUrl } from '../lib/api';
@@ -42,7 +41,6 @@ export default function DriverTripDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user } = useAuth();
   const online = useOnline();
   const geolocation = useGeolocation();
   const [uploadingFuelEvidence, setUploadingFuelEvidence] = useState(false);
@@ -50,6 +48,7 @@ export default function DriverTripDetailPage() {
   const [chipsExpanded, setChipsExpanded] = useState(false);
   const [accepting, setAccepting] = useState(false);
   const [blockingTripCode, setBlockingTripCode] = useState<string | null>(null);
+  const [blockingFulfillmentId, setBlockingFulfillmentId] = useState<number | null>(null);
 
   const fulfillmentId = Number(id);
   const validFulfillmentId = Number.isInteger(fulfillmentId) && fulfillmentId > 0 ? fulfillmentId : undefined;
@@ -63,12 +62,11 @@ export default function DriverTripDetailPage() {
   const handleBack = useCallback(() => navigate('/my-trips'), [navigate]);
   useBackShortcut(handleBack);
 
+  const refetchDetail = taskDetail.refetch;
+  const refetchProgress = progress.refetch;
   const refreshAll = useCallback(async () => {
-    await Promise.all([
-      taskDetail.refetch(),
-      progress.refetch(),
-    ]);
-  }, [progress.refetch, taskDetail.refetch]);
+    await Promise.all([refetchDetail(), refetchProgress()]);
+  }, [refetchDetail, refetchProgress]);
 
   const trip = taskDetail.data as DriverTaskDetail | undefined;
   const currentSubmission = (trip?.currentPod ?? null) as DriverTaskPodSubmission | null;
@@ -92,7 +90,7 @@ export default function DriverTripDetailPage() {
   const operationTags = operationNote.selectedLabels;
 
   async function handleMilestone(eventType: MilestoneType) {
-    if (!trip || !validFulfillmentId || !online) return;
+    if (!trip || !validFulfillmentId || !online || ['COMPLETED', 'CANCELLED'].includes(trip.status)) return;
     const milestoneIndex = MILESTONES.findIndex((milestone) => milestone.eventType === eventType);
     if (milestoneIndex !== nextMilestoneIndex) return;
     const idempotencyKey = buildIdempotencyKey('driver', 'task', validFulfillmentId, 'milestone', eventType, 'version', trip.version);
@@ -109,9 +107,21 @@ export default function DriverTripDetailPage() {
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Không thể gửi lệnh. Vui lòng thử lại.';
       // KP-087: detect blocking-trip rejection and surface the trip code
-      const blockingMatch = msg.match(/Xe đang chạy chuyến\s+(\S+)/);
+      const blockingMatch = msg.match(/Xe đang chạy chuyến\s+(.+?)\. Vui lòng/);
+      setBlockingFulfillmentId(null);
       if (blockingMatch) {
-        setBlockingTripCode(blockingMatch[1]);
+        const code = blockingMatch[1];
+        setBlockingTripCode(code);
+        // Only the authenticated driver's board may supply a navigable ID.
+        // A busy truck can belong to someone else's order; never guess a URL
+        // from a trip code or expose an unrestricted trip lookup.
+        try {
+          const board = await driverClient.getJourneyBoard();
+          const owned = board.items.find(item => item.tripCode === code && item.bucket !== 'HISTORY');
+          if (owned) setBlockingFulfillmentId(owned.fulfillmentId);
+        } catch {
+          // Keep the specific reason and an honest dispatch handoff below.
+        }
       } else {
         setBlockingTripCode(null);
       }
@@ -143,7 +153,7 @@ export default function DriverTripDetailPage() {
         },
       });
       await refreshAll();
-      toast({ kind: 'success', message: 'Đã lưu ảnh nhiên liệu và chuyển kế toán soát OCR.' });
+      toast({ kind: 'success', message: 'Đã lưu ảnh nhiên liệu. Số liệu OCR chỉ dùng để tham khảo.' });
     } catch (error) {
       toast({ kind: 'error', message: fuelEvidenceUploadErrorMessage(error) });
     } finally {
@@ -239,7 +249,7 @@ export default function DriverTripDetailPage() {
 
   const acceptEvent = getLatestMilestoneEvent(progress.data, DriverProgressEventType.ORDER_RECEIVED);
   const acceptState = milestoneActionState(Boolean(acceptEvent), nextMilestoneIndex, 0);
-  const showAcceptStickyBar = acceptState !== 'done';
+  const showAcceptStickyBar = !['COMPLETED', 'CANCELLED'].includes(trip.status) && acceptState !== 'done';
   const acceptClickable = acceptState === 'available' && !accepting;
   const acceptButtonLabel = accepting ? 'Đang gửi…' : 'Nhận lệnh vận chuyển';
 
@@ -263,7 +273,7 @@ export default function DriverTripDetailPage() {
           field-confirmation module is unfinished — guide the driver to check
           the order, then accept; keep the banner short and secondary to the
           accept action itself. */}
-      {acceptState === 'available' && (
+      {showAcceptStickyBar && acceptState === 'available' && (
         <section className="driver-task-section driver-task-section--banner" data-testid="bypass-ops-banner">
           <div className="driver-task-bypass">
             <Zap size={16} />
@@ -492,7 +502,14 @@ export default function DriverTripDetailPage() {
         <div className="driver-task-section driver-task-section--banner" role="alert" data-testid="blocking-trip-banner">
           <div className="driver-task-bypass" style={{ background: 'var(--err-bg, #fef2f2)', color: 'var(--err, #dc2626)' }}>
             <ShieldAlert size={16} />
-            <span>Xe đang chạy chuyến <strong>{blockingTripCode}</strong> — hoàn thành chuyến đó trước khi nhận lệnh mới.</span>
+            <div>
+              <span>Xe đang chạy chuyến <strong>{blockingTripCode}</strong> — hoàn thành chuyến đó trước khi nhận lệnh mới.</span>
+              <div>
+                {blockingFulfillmentId != null
+                  ? <Link className="driver-task-link" to={`/my-trips/${blockingFulfillmentId}`}>Mở chuyến đang chạy</Link>
+                  : <span>Liên hệ điều vận để xử lý chuyến đang chạy. Chỉ thử nhận lại khi xe đã sẵn sàng.</span>}
+              </div>
+            </div>
           </div>
         </div>
       )}

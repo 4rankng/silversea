@@ -1,6 +1,8 @@
 import { Loader2, RefreshCw, Truck } from 'lucide-react';
 import { useOpsFleet } from '../hooks/useOpsQueries';
 import './OpsFleetTrackingPage.css';
+import { Btn } from '../components/UI';
+import { OpsQueryFeedback } from '../features/ops/OpsQueryFeedback';
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   CREATED: { label: 'Chờ nhận lệnh', color: 'var(--info, #2563eb)' },
@@ -34,22 +36,22 @@ function timeLabel(iso: string | null): string {
  * không có mặt trên màn này. Tự làm mới mỗi 30 giây (hook polling).
  */
 export default function OpsFleetTrackingPage() {
-  const { data, isLoading, isFetching, refetch } = useOpsFleet();
+  const { data, isLoading, isFetching, isError, refetch } = useOpsFleet();
   const items = data?.items ?? [];
 
   return (
     <div className="ops-fleet page-shell">
       <header className="ops-fleet__bar">
         <h1>Theo dõi phương tiện</h1>
-        <button
-          type="button"
-          className="btn-secondary"
+        <Btn
+          size="sm"
+          icon={isFetching ? <Loader2 size={14} className="spin" /> : <RefreshCw size={14} />}
           onClick={() => void refetch()}
           aria-label="Làm mới"
+          disabled={isFetching}
         >
-          {isFetching ? <Loader2 size={14} className="spin" /> : <RefreshCw size={14} />}
           Làm mới
-        </button>
+        </Btn>
       </header>
       <p className="ops-fleet__meta">Chỉ xem · cập nhật tự động mỗi 30 giây · {items.length} xe</p>
 
@@ -70,27 +72,27 @@ export default function OpsFleetTrackingPage() {
               const status = truck.status ? STATUS_LABELS[truck.status] : null;
               const progress = truck.lastEventType ? PROGRESS_LABELS[truck.lastEventType] ?? truck.lastEventType : null;
               return (
-                <tr key={truck.truckId}>
-                  <td className="ops-fleet__plate">
+                <tr key={truck.truckId} className="ops-fleet__row">
+                  <td className="ops-fleet__plate" data-label="Biển số xe">
                     <Truck size={14} aria-hidden /> {truck.licensePlate}
                   </td>
-                  <td>{truck.trailerPlate ?? '—'}</td>
-                  <td>
+                  <td data-label="Rơ-moóc">{truck.trailerPlate ?? '—'}</td>
+                  <td className="ops-fleet__wide" data-label="Lệnh đang gán">
                     {truck.tripCode
                       ? `${truck.tripCode}${truck.shipmentCode ? ` · ${truck.shipmentCode}` : ''}`
                       : '—'}
                   </td>
-                  <td>{truck.driverName ?? '—'}</td>
-                  <td>
+                  <td data-label="Tài xế">{truck.driverName ?? '—'}</td>
+                  <td data-label="Trạng thái">
                     {status
                       ? <span style={{ color: status.color }}>{status.label}{progress ? ` (${progress})` : ''}</span>
                       : <span className="ops-fleet__idle">Đang rảnh</span>}
                   </td>
-                  <td>{timeLabel(truck.updatedAt)}</td>
+                  <td data-label="Cập nhật">{timeLabel(truck.updatedAt)}</td>
                 </tr>
               );
             })}
-            {!isLoading && items.length === 0 && (
+            {!isLoading && !isError && items.length === 0 && (
               <tr>
                 <td colSpan={6} className="ops-fleet__empty">
                   Chưa có xe nào được giao cho bạn quản lý. Liên hệ Admin để cấu hình “Ops phụ trách” trên trang Đội xe.
@@ -99,7 +101,7 @@ export default function OpsFleetTrackingPage() {
             )}
           </tbody>
         </table>
-        {isLoading && <div className="ops-fleet__loading"><Loader2 className="spin" size={18} /></div>}
+        <OpsQueryFeedback loading={isLoading} error={isError} label="phương tiện" onRetry={refetch} />
       </div>
     </div>
   );

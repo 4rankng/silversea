@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TripPodStatus } from '@tingting/shared';
@@ -15,10 +15,18 @@ const {
   useDriverTaskDetailMock,
   refetchMock,
   toastMock,
+  submitPodMock,
+  completeTripMock,
 } = vi.hoisted(() => ({
   useDriverTaskDetailMock: vi.fn(),
   refetchMock: vi.fn(),
   toastMock: vi.fn(),
+  submitPodMock: vi.fn(),
+  completeTripMock: vi.fn(),
+}));
+
+vi.mock('../api/driverClient', () => ({
+  driverClient: { submitPod: submitPodMock, completeTrip: completeTripMock },
 }));
 
 vi.mock('../hooks/useDriverQueries', () => ({
@@ -119,6 +127,8 @@ describe('DriverTripPodPage', () => {
     refetchMock.mockReset();
     refetchMock.mockResolvedValue(undefined);
     toastMock.mockReset();
+    submitPodMock.mockReset().mockResolvedValue({});
+    completeTripMock.mockReset().mockResolvedValue({});
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail(),
       isLoading: false,
@@ -204,6 +214,25 @@ describe('DriverTripPodPage', () => {
     fireEvent.click(complete);
 
     expect(await screen.findByTestId('driver-journey-board')).toBeTruthy();
+    expect(submitPodMock).toHaveBeenCalledWith(88, 22, { expectedVersion: 2 }, expect.any(String));
+    expect(completeTripMock).toHaveBeenCalledWith(88, { expectedVersion: 3 }, expect.any(String));
+    expect(submitPodMock.mock.invocationCallOrder[0]).toBeLessThan(completeTripMock.mock.invocationCallOrder[0]);
+    expect(toastMock).toHaveBeenCalledWith({ kind: 'success', message: 'Đã lưu chứng từ giao hàng.' });
+  });
+
+  it.each(['submit', 'complete'])('keeps the driver on the POD screen when %s fails', async (stage) => {
+    const error = new Error('Không thể lưu, vui lòng thử lại.');
+    (stage === 'submit' ? submitPodMock : completeTripMock).mockRejectedValue(error);
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({ currentPod: makePod([{ fileType: 'YARD_OR_DROP_RECEIPT' }, { fileType: 'SIGNED_DELIVERY_NOTE' }]) }),
+      isLoading: false, error: null, isError: false, refetch: refetchMock,
+    });
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: /HOÀN THÀNH CHUYẾN/ }));
+    await waitFor(() => expect(toastMock).toHaveBeenCalledWith({ kind: 'error', message: error.message }));
+    expect(screen.queryByTestId('driver-journey-board')).toBeNull();
+    expect(screen.getByTestId('trip-pod-submission')).toBeTruthy();
+    if (stage === 'submit') expect(completeTripMock).not.toHaveBeenCalled();
   });
 
   it('shows the accounting-lock banner and disables completion while locked', async () => {

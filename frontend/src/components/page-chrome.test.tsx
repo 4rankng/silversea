@@ -20,10 +20,15 @@ describe('minimal page chrome', () => {
     );
 
     expect(container.querySelector('[aria-label="Breadcrumb"]')).toBeNull();
-    expect(screen.getByRole('heading', { name: 'Chi tiết lô hàng' }).className).toContain('sr-only');
+    expect(screen.getByRole('heading', { name: 'Chi tiết lô hàng' })).toHaveClass('page-header__title-visible');
     fireEvent.click(screen.getByRole('button', { name: 'Quay lại' }));
     expect(onBack).toHaveBeenCalledOnce();
     expect(screen.getByRole('button', { name: 'Lưu thay đổi' })).toBeTruthy();
+  });
+
+  it('shows a compact title even without actions or a back button', () => {
+    render(<PageHeader title="Thông tin công ty" />);
+    expect(screen.getByRole('heading', { name: 'Thông tin công ty' })).toHaveClass('page-header__title-visible');
   });
 
   it('shows the canonical route title in the application top bar', () => {

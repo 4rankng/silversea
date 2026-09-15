@@ -544,15 +544,6 @@ export interface CancelShipmentFulfillmentResponse {
   replayed: boolean;
 }
 
-export interface ShipmentChangeRequestReviewResponse {
-  shipment: Shipment;
-  resolution: 'APPLIED' | 'REJECTED';
-  changeRequestId: number;
-  shipmentVersion: number;
-  notificationDelivered: boolean;
-  message: string;
-}
-
 /** Dispatch master-plan: how much of the container demand has a planned carrier. */
 export type ShipmentAllocationStatus = 'NOT_ALLOCATED' | 'PARTIALLY_ALLOCATED' | 'FULLY_ALLOCATED';
 
@@ -864,26 +855,17 @@ export async function updateShipmentDeclaration(
   return api.put<ShipmentDeclaration>(`/shipments/${shipmentId}/declarations/${declarationId}`, body);
 }
 
-export async function reviewShipmentChangeRequest(
-  shipmentId: number,
-  requestId: number,
-  resolution: 'APPLIED' | 'REJECTED',
-): Promise<ShipmentChangeRequestReviewResponse> {
-  return api.post<ShipmentChangeRequestReviewResponse>(
-    `/shipments/${shipmentId}/change-requests/${requestId}/review`,
-    { resolution },
-  );
-}
-
 export async function deleteCusShipment(
   shipmentId: number,
   version: number,
   reason: string,
+  idempotencyKey?: string,
 ): Promise<void> {
   await api.delete(
     `/shipments/cus-workspace/${shipmentId}`,
     {
       body: JSON.stringify({ version, reason }),
+      headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
     },
   );
 }

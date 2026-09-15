@@ -43,7 +43,7 @@ interface BadgeProps {
  *
  * @example
  * <Badge variant="success">2 chiều</Badge>
- * <Badge variant="warning">Chờ duyệt</Badge>
+ * <Badge variant="warning">Chưa hoàn tất</Badge>
  */
 export function Badge({ variant = 'neutral', children, style, className }: BadgeProps) {
   return (

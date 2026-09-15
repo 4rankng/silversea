@@ -386,8 +386,8 @@ export function ShipmentCostEntryForm({
       {/* 27.8 cost-section Ghi chú — driver-written note for accounting to
           re-check the auto-recorded costs. Sits below the cost list (just
           above the "Thêm chi phí" button) per spec line 107, and the trip
-          completion "HOÀN THÀNH VÀ GỬI DUYỆT CHI PHÍ" action lives on the
-          trip-completion footer that already moves the trip to Chờ duyệt phí. */}
+          completion action lives in the trip footer and records the operation
+          directly once the required evidence and inputs are present. */}
       <div className="shipment-cost-entry__section-note" data-testid="shipment-cost-section-note">
         <label
           htmlFor="shipment-cost-entry-section-note"
@@ -401,7 +401,7 @@ export function ShipmentCostEntryForm({
           value={costSubmissionNote}
           onChange={(event) => setCostSubmissionNote(event.target.value)}
           rows={3}
-          placeholder="Nếu Tiền đường / Phí Lạch Huyện chưa đúng, ghi chú tại đây để kế toán soát lại trước khi duyệt chi phí."
+          placeholder="Nếu Tiền đường / Phí Lạch Huyện chưa đúng, ghi chú tại đây để kế toán đối chiếu số liệu."
         />
         <div className="shipment-cost-entry__section-note-meta">
           {costSubmissionNoteSaving ? (

@@ -485,7 +485,7 @@
 .detailed-plan-grid__col--container { width: 12%; }
 .detailed-plan-grid__col--assignment { width: 12%; }
 .detailed-plan-grid__col--classification { width: 8%; }
-.detailed-plan-grid__col--notes { width: 23%; }
+.detailed-plan-grid__col--notes { width: 16%; }
 
 .detailed-plan-grid thead th {
   position: sticky;
@@ -511,6 +511,7 @@
 /* This two-word decision header is intentionally kept intact at desktop
    canvases. The 900px container query below changes the table to labelled
    records before this column needs a mobile wrapping fallback. */
+.detailed-plan-grid thead th:nth-child(8),
 .detailed-plan-grid thead th:last-child {
   white-space: nowrap;
   overflow-wrap: normal;
@@ -951,7 +952,7 @@
     grid-column: 1 / -1;
   }
 
-  .detailed-plan-grid__cell--schedule {
+  .detailed-plan-grid__row td.detailed-plan-grid__cell--schedule {
     padding-right: 76px;
     border-bottom: 1px solid var(--border-color, #eef2f7);
   }
@@ -976,7 +977,7 @@
     border-top: 1px solid var(--border-color, #eef2f7);
   }
 
-  .detailed-plan-grid__cell--classification {
+  .detailed-plan-grid__row td.detailed-plan-grid__cell--classification {
     position: absolute;
     top: 6px;
     right: 10px;
@@ -987,6 +988,7 @@
     display: none;
   }
 }
+
 
 @media (max-width: 767px) {
   .drawer.detailed-plan-filter-drawer { max-width: 100%; }
@@ -1076,4 +1078,18 @@
 .detailed-plan-grid__pair-btn {
   margin-top: 6px;
   white-space: nowrap;
+}
+
+/* Keep the two port cells and two cargo cells paired after the schedule and
+   customer identity; explicit rows prevent auto-placement leaving a blank
+   left half beside both the documents and container. */
+@container (max-width: 640px) {
+  .detailed-plan-grid__cell--schedule { grid-row: 1; }
+  .detailed-plan-grid__cell--route { grid-row: 2; }
+  .detailed-plan-grid__row td:nth-child(3) { grid-row: 3; grid-column: 1; }
+  .detailed-plan-grid__row td:nth-child(4) { grid-row: 3; grid-column: 2; padding-left: 10px; }
+  .detailed-plan-grid__cell--documents { grid-row: 4; grid-column: 1; }
+  .detailed-plan-grid__cell--container { grid-row: 4; grid-column: 2; }
+  .detailed-plan-grid__cell--editable { grid-row: 5; }
+  .detailed-plan-grid__cell--notes { grid-row: 6; }
 }

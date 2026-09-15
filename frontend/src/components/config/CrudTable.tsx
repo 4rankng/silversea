@@ -1,14 +1,14 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, AlertCircle } from 'lucide-react';
 import { EmptyState } from '../../design-system';
 import { useQuery } from '@tanstack/react-query';
-import { api } from '../../lib/api';
+import { fetchAllPaginated } from '../../lib/http/paginate';
 import { PageHeader, Panel, Modal, useConfirm } from '../UI';
 import { Alert } from '../shared/Alert';
 import { useCRUD } from '../../hooks/useCRUD';
-import type { PaginatedResponse } from '@tingting/shared';
 import { qk } from '../../api/keys';
+import { configurationText, normalizeConfigurationText } from './config-search';
 import '../../styles/record-table.css';
 import '../../styles/operational-table-typography.css';
 import '../../pages/config/config-page.css';
@@ -71,13 +71,11 @@ export function CrudTable<T extends { id: number; updatedAt?: string }>({
 }: CrudTableProps<T>) {
   const navigate = useNavigate();
   const { confirm, dialog } = useConfirm();
+  const [search, setSearch] = useState('');
 
-  const { data, refetch } = useQuery({
+  const { data, refetch, isLoading, isError, isFetching } = useQuery({
     queryKey: qk.crud.entityList(endpoint, listQuery),
-    queryFn: async () => {
-      const r = await api.get<PaginatedResponse<T>>(`${endpoint}${listQuery}`);
-      return r.items;
-    },
+    queryFn: () => fetchAllPaginated<T>(endpoint, Object.fromEntries(new URLSearchParams(listQuery)), 5, { requireComplete: true }),
   });
 
   const refresh = useCallback(async () => { await refetch(); }, [refetch]);
@@ -102,6 +100,11 @@ export function CrudTable<T extends { id: number; updatedAt?: string }>({
     return arr;
   })();
 
+  const normalizedSearch = normalizeConfigurationText(search);
+  const visibleItems = normalizedSearch ? items.filter((item, index) =>
+    columns.some(column => normalizeConfigurationText(configurationText(column.render(item, index, activeIds.has(item.id), items))).includes(normalizedSearch)),
+  ) : items;
+
   const handleDelete = onDelete ?? ((id: number, expectedUpdatedAt?: string) => crud.doDelete(id, expectedUpdatedAt));
 
   const wrapperClass = ['fade-up', 'cfg-page', pageSlug ? `cfg-page--${pageSlug}` : ''].filter(Boolean).join(' ');
@@ -111,12 +114,15 @@ export function CrudTable<T extends { id: number; updatedAt?: string }>({
       <PageHeader title={title} description={description} onBack={() => navigate(backTo)} iconName={iconName} showTitle />
       <Panel flush>
         <div className="toolbar">
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="cfg-catalogue-search">
+            <input className="input" type="search" aria-label={`Tìm trong ${title.toLowerCase()}`} placeholder="Tìm trong danh mục…" value={search} onChange={event => setSearch(event.target.value)} />
+          </div>
+          <div className="cfg-catalogue-summary" aria-live="polite">
             {toolbarLeft
               ? toolbarLeft({ totalItems: items.length, activeCount: activeIds.size })
               : items.length > 0 && (
                   <span className="cfg-page__summary">
-                    <strong>{items.length}</strong> mục
+                    <strong>{visibleItems.length}{normalizedSearch ? ` / ${items.length}` : ''}</strong> mục
                   </span>
                 )}
           </div>
@@ -124,6 +130,10 @@ export function CrudTable<T extends { id: number; updatedAt?: string }>({
             <Plus size={14} /> Thêm mới
           </button>
         </div>
+        {isError && <div role="alert" className="cfg-catalogue-feedback">
+          <span>Không tải được danh mục.{items.length > 0 ? ' Dữ liệu đang hiển thị có thể chưa cập nhật.' : ' Hãy thử lại để kiểm tra dữ liệu hiện có.'}</span>
+          <button type="button" className="btn btn--secondary btn--sm" disabled={isFetching} onClick={() => { void refetch(); }}>{isFetching ? 'Đang thử lại…' : 'Thử lại'}</button>
+        </div>}
         <div className="table-scroll">
           <div className="record-table-wrap">
           <table className="record-table ops-table">
@@ -139,7 +149,8 @@ export function CrudTable<T extends { id: number; updatedAt?: string }>({
               </tr>
             </thead>
             <tbody>
-              {items.length === 0 && !crud.showAddForm && (
+              {isLoading && <tr className="cfg-empty-row"><td colSpan={columns.length + 1} data-label=""><div className="cfg-catalogue-feedback" role="status">Đang tải danh mục…</div></td></tr>}
+              {!isLoading && !isError && items.length === 0 && !crud.showAddForm && (
                 <tr className="cfg-empty-row">
                   <td colSpan={colSpan + 1} data-label="" style={{ textAlign: 'center' }}>
                     <EmptyState
@@ -155,7 +166,8 @@ export function CrudTable<T extends { id: number; updatedAt?: string }>({
                   </td>
                 </tr>
               )}
-              {items.map((item, i) => {
+              {!isLoading && items.length > 0 && visibleItems.length === 0 && <tr className="cfg-empty-row"><td colSpan={columns.length + 1} data-label=""><div className="cfg-catalogue-feedback" role="status"><span>Không có mục phù hợp.</span><button type="button" className="btn btn--secondary btn--sm" onClick={() => setSearch('')}>Xóa tìm kiếm</button></div></td></tr>}
+              {visibleItems.map((item, i) => {
                 const isActive = activeIds.has(item.id);
                 return (
                   <tr

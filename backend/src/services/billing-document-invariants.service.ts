@@ -387,7 +387,7 @@ export async function assertRecoverableSourcesClaimable(
     const fee = expense.serviceFeeAmount == null ? null : Number(expense.serviceFeeAmount);
     const sourceVersion = buildExpenseSourceVersionToken(expense);
     if (
-      expense.approvalStatus !== 'APPROVED'
+      !['RECORDED', 'APPROVED'].includes(expense.approvalStatus)
       || sellAmount <= 0
       || principal == null
       || fee == null
@@ -682,10 +682,10 @@ export async function loadLineProvenance(
     };
   }
 
-  const currentVersion = expense.approvalStatus === 'APPROVED'
+  const currentVersion = ['RECORDED', 'APPROVED'].includes(expense.approvalStatus)
     ? buildExpenseSourceVersionToken(expense)
     : null;
-  const removedReason = expense.approvalStatus === 'APPROVED'
+  const removedReason = ['RECORDED', 'APPROVED'].includes(expense.approvalStatus)
     ? null
     : 'Chi phí không còn ở trạng thái APPROVED';
   return {

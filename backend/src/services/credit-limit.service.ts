@@ -8,8 +8,6 @@ import type { Tx } from './trip-shared';
 import { getAppSettings } from './app-settings.service';
 import { assertCanMakeGovernanceAction } from './governance-policy';
 import {
-  applyGovernanceActionDirect,
-  buildGovernanceAction,
   type GovernanceActionRow,
   type GovernanceApplyResult,
 } from './governance-action-core.service';
@@ -21,6 +19,7 @@ const CREDIT_REQUESTABLE_ROLES = new Set<Role>([Role.ADMIN, Role.MANAGER, Role.A
 type DbLike = Tx | typeof db;
 type CreditOverrideRow = typeof s.creditOverrideRequests.$inferSelect;
 export type CreditOverrideWorkflowStatus =
+  | 'RECORDED'
   | 'PENDING_CHECK'
   | 'PENDING_APPROVAL'
   | 'APPROVED'
@@ -173,7 +172,7 @@ function assertCanRequestOverride(role: Role): void {
 }
 
 function toCreditOverrideView(request: CreditOverrideRow): CreditOverrideView {
-  const workflowStatus: CreditOverrideWorkflowStatus = request.status === 'APPROVED'
+  const workflowStatus: CreditOverrideWorkflowStatus = request.status === 'AUTHORIZED' ? 'RECORDED' : request.status === 'APPROVED'
     ? 'APPROVED'
     : request.status === 'REJECTED'
       ? 'REJECTED'
@@ -254,7 +253,7 @@ async function getApprovedUncollectedAmount(
   }).from(s.creditOverrideRequests)
     .where(and(
       eq(s.creditOverrideRequests.customerId, customerId),
-      eq(s.creditOverrideRequests.status, 'APPROVED'),
+      inArray(s.creditOverrideRequests.status, ['AUTHORIZED', 'APPROVED']),
       eq(s.creditOverrideRequests.scopeType, 'SHIPMENT'),
       isNull(s.creditOverrideRequests.consumedAt),
       options.excludeCreditOverrideRequestId != null
@@ -320,7 +319,7 @@ async function hasPriorApprovedOverride(customerId: number, executor: DbLike): P
     .from(s.creditOverrideRequests)
     .where(and(
       eq(s.creditOverrideRequests.customerId, customerId),
-      eq(s.creditOverrideRequests.status, 'APPROVED'),
+      inArray(s.creditOverrideRequests.status, ['AUTHORIZED', 'APPROVED']),
     ));
   return Number(row?.total ?? 0) > 0;
 }
@@ -329,7 +328,7 @@ function buildOverLimitMessage(result: CreditCheckResult): string {
   const limit = result.creditLimit?.toLocaleString('vi-VN') ?? '0';
   const exposure = result.totalExposure.toLocaleString('vi-VN');
   const excess = result.overLimitAmount.toLocaleString('vi-VN');
-  return `Khách hàng đã vượt hạn mức tín dụng (hạn mức: ${limit} ₫, phơi nhiễm: ${exposure} ₫, phần vượt: ${excess} ₫). Cần phê duyệt để tiếp tục.`;
+  return `Khách hàng đã vượt hạn mức tín dụng (hạn mức: ${limit} ₫, phơi nhiễm: ${exposure} ₫, phần vượt: ${excess} ₫). Chỉ người có quyền ghi nhận ngoại lệ tín dụng mới có thể tiếp tục.`;
 }
 
 export async function checkCreditLimit(
@@ -428,11 +427,14 @@ export async function createCreditOverrideRequest(
       Math.max(0, Math.trunc(settings.creditTierOneAmountCap ?? 0)),
       repeatException,
     );
+    if (actor.role !== Role.ADMIN && actor.role !== Role.MANAGER && !(actor.role === Role.ACCOUNTANT && requiredTier === 'FINANCE_TIER_1')) {
+      throw new ApiError(403, 'Ngoại lệ vượt quyền tài chính hiện tại; cần Quản lý ghi nhận trực tiếp.');
+    }
     const [request] = await tx.insert(s.creditOverrideRequests).values({
       customerId: input.customerId,
       shipmentId: input.shipmentId ?? null,
       scopeType,
-      status: 'PENDING',
+      status: 'AUTHORIZED',
       requiredTier,
       reason,
       requestedBy: actor.userId,
@@ -449,51 +451,8 @@ export async function createCreditOverrideRequest(
       expiresAt,
     }).returning();
 
-    // 2026-09-11 maker-checker removal: the override applies in-request via a
-    // transient governance record — the requesting actor runs every stage, so
-    // a proposal whose tier their role cannot decide is rejected here.
-    const action = buildGovernanceAction({
-      subjectType: 'CREDIT_OVERRIDE',
-      subjectId: request.id,
-      subjectKey: `credit-override:${request.id}`,
-      actionKind: 'CREDIT_OVERRIDE_APPROVAL',
-      reason,
-      originalVersion: request.version,
-      beforeSnapshot: {
-        status: 'PENDING',
-        customerId: request.customerId,
-        creditLimit: request.creditLimit,
-        totalExposure: request.totalExposure,
-        overLimitAmount: request.overLimitAmount,
-        requiredTier: request.requiredTier,
-      },
-      afterSnapshot: {
-        status: 'APPROVED',
-        proposedAmount: request.proposedAmount,
-        scopeType: request.scopeType,
-        shipmentId: request.shipmentId,
-        expiresAt: request.expiresAt?.toISOString() ?? null,
-      },
-      deltaSnapshot: {
-        proposedAmount: request.proposedAmount,
-        overLimitAmount: request.overLimitAmount,
-        overLimitRatio: request.overLimitRatio,
-      },
-      makerId: actor.userId,
-      makerRole: actor.role,
-    });
-    await applyGovernanceActionDirect({
-      action,
-      actorId: actor.userId,
-      actorRole: actor.role,
-      apply: applyCreditOverrideGovernanceAction,
-      transaction: tx,
-    });
-    const [approved] = await tx.select().from(s.creditOverrideRequests)
-      .where(eq(s.creditOverrideRequests.id, request.id))
-      .limit(1);
-    if (!approved) throw new ApiError(404, 'Không tìm thấy đề nghị vượt hạn mức');
-    return toCreditOverrideView(approved);
+    await tx.insert(s.auditLogs).values({ userId: actor.userId, entityType: 'credit-exception', entityId: request.id, message: 'Ghi nhận ngoại lệ tín dụng trực tiếp', payload: { customerId: input.customerId, reason, scopeType, expiresAt: expiresAt?.toISOString() ?? null, totalExposure: result.totalExposure, actorRole: actor.role } });
+    return toCreditOverrideView(request);
   };
   return runInTx(transaction, execute);
 }
@@ -509,7 +468,7 @@ export async function applyCreditOverrideGovernanceAction(
     || action.approverId == null
     || !action.approverRole
   ) {
-    throw new ApiError(409, 'Yêu cầu không thuộc phê duyệt vượt hạn mức tín dụng');
+    throw new ApiError(409, 'Yêu cầu không thuộc ngoại lệ tín dụng tín dụng');
   }
   const [request] = await tx.select().from(s.creditOverrideRequests)
     .where(eq(s.creditOverrideRequests.id, action.subjectId))
@@ -775,26 +734,61 @@ async function loadApprovedOverrideForUse(
     .limit(1)
     .for('update');
   if (!request) {
-    throw new ApiError(404, 'Không tìm thấy phê duyệt vượt hạn mức');
+    throw new ApiError(404, 'Không tìm thấy ngoại lệ tín dụng');
   }
   if (request.customerId !== customerId) {
-    throw new ApiError(400, 'Phê duyệt vượt hạn mức không thuộc khách hàng của chuyến đi');
+    throw new ApiError(400, 'Ngoại lệ tín dụng không thuộc khách hàng của chuyến đi');
   }
-  // KP-163: APPROVED status check removed — overrides apply immediately at creation.
+  if (!['AUTHORIZED', 'APPROVED'].includes(request.status)) throw new ApiError(409, 'Ngoại lệ tín dụng không còn hiệu lực.');
   if (request.scopeType === 'SHIPMENT') {
     if (shipmentId == null || request.shipmentId !== shipmentId) {
-      throw new ApiError(409, 'Phê duyệt vượt hạn mức không áp dụng cho lô hàng này');
+      throw new ApiError(409, 'Ngoại lệ tín dụng không áp dụng cho lô hàng này');
     }
     if (request.consumedAt != null) {
-      throw new ApiError(409, 'Phê duyệt vượt hạn mức này đã được sử dụng');
+      throw new ApiError(409, 'Ngoại lệ tín dụng này đã được sử dụng');
     }
   }
   if (request.scopeType === 'EXPIRY') {
     if (!request.expiresAt || request.expiresAt.getTime() <= Date.now()) {
-      throw new ApiError(409, 'Phê duyệt vượt hạn mức đã hết hạn');
+      throw new ApiError(409, 'Ngoại lệ tín dụng đã hết hạn');
     }
   }
   return request;
+}
+
+export interface DirectCreditException {
+  reason: string;
+  expiresAt: string;
+  scopeType: 'SHIPMENT' | 'EXPIRY';
+  exposureCeiling: number;
+}
+
+/** Saved in the same transaction as its trip: failed trips leave no exception or reservation. */
+export async function recordTripCreditException(input: {
+  customerId: number; shipmentId?: number | null; proposedAmount: number;
+  exception: DirectCreditException; actorId?: number; actorRole?: Role; transaction: Tx;
+}): Promise<CreditOverrideRow | null> {
+  if (!input.actorId || (input.actorRole !== Role.ADMIN && input.actorRole !== Role.MANAGER)) throw new ApiError(403, 'Chỉ Quản trị viên hoặc Quản lý có quyền ghi nhận ngoại lệ khi tạo chuyến.');
+  if (input.exception.scopeType !== 'SHIPMENT') throw new ApiError(400, 'Ngoại lệ khi tạo chuyến chỉ áp dụng một lần cho chuyến này.');
+  const reason = normalizeReason(input.exception.reason);
+  if (!reason) throw new ApiError(400, 'Nhập lý do ngoại lệ tín dụng.');
+  const expiresAt = normalizeFutureDate(input.exception.expiresAt);
+  if (!expiresAt || expiresAt.getTime() <= Date.now()) throw new ApiError(409, 'Ngoại lệ tín dụng đã hết hạn.');
+  if (input.shipmentId != null) await loadShipmentForOverride(input.shipmentId, input.customerId, input.transaction);
+  const result = await checkCreditLimit(input.customerId, { proposedAmount: input.proposedAmount, transaction: input.transaction });
+  if (!Number.isSafeInteger(input.exception.exposureCeiling) || input.exception.exposureCeiling <= 0 || input.exception.exposureCeiling > 999_999_999_999_999 || result.totalExposure > input.exception.exposureCeiling) throw new ApiError(409, 'Tổng dư nợ và cam kết hiện tại vượt mức ngoại lệ đã nhập. Kiểm tra lại hạn mức trước khi lưu.');
+  if (!result.exceedsLimit) return null;
+  const [record] = await input.transaction.insert(s.creditOverrideRequests).values({
+    customerId: input.customerId, shipmentId: input.shipmentId ?? null,
+    scopeType: 'SHIPMENT', status: 'AUTHORIZED', requiredTier: 'DIRECTOR', reason,
+    requestedBy: input.actorId, requestedRole: input.actorRole,
+    proposedAmount: String(result.proposedAmount), outstandingAmount: String(result.outstanding),
+    approvedCommitmentAmount: String(result.approvedUncollected), totalExposure: String(input.exception.exposureCeiling),
+    creditLimit: String(result.creditLimit), warningThreshold: String(result.warningThreshold),
+    overLimitAmount: String(result.overLimitAmount), overLimitRatio: String(result.overLimitRatio), expiresAt,
+  }).returning();
+  await input.transaction.insert(s.auditLogs).values({ userId: input.actorId, entityType: 'credit-exception', entityId: record.id, message: 'Ngoại lệ tín dụng cho chuyến được ghi nhận trực tiếp', payload: { reason, customerId: input.customerId, exposure: result.totalExposure, exposureCeiling: input.exception.exposureCeiling, expiresAt: expiresAt.toISOString(), singleUse: true } });
+  return record;
 }
 
 export async function assertCreditLimit(input: {
@@ -820,10 +814,10 @@ export async function assertCreditLimit(input: {
   });
   if (overrideRequest) {
     if (result.totalExposure > toMoney(overrideRequest.totalExposure)) {
-      throw new ApiError(409, 'Phơi nhiễm hiện tại đã vượt mức được duyệt');
+      throw new ApiError(409, 'Phơi nhiễm hiện tại đã vượt mức đã ghi nhận');
     }
     if (result.proposedAmount > toMoney(overrideRequest.proposedAmount)) {
-      throw new ApiError(409, 'Giá trị chuyến đi vượt quá giá trị đã được duyệt');
+      throw new ApiError(409, 'Giá trị chuyến đi vượt quá giá trị đã đã ghi nhận');
     }
   }
   if (result.exceedsLimit && !overrideRequest) {
@@ -854,6 +848,6 @@ export async function consumeShipmentCreditOverride(
     ))
     .returning();
   if (!consumed) {
-    throw new ApiError(409, 'Phê duyệt vượt hạn mức đã được sử dụng bởi tác vụ khác');
+    throw new ApiError(409, 'Ngoại lệ tín dụng đã được sử dụng bởi tác vụ khác');
   }
 }

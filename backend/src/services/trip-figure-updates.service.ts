@@ -1,3 +1,4 @@
+import { inArray } from 'drizzle-orm';
 // Trip figures update (the 550-line recost + governance path). Extracted from
 // trip-mutations.service.ts VERBATIM — the body is moved as one unit, not
 // decomposed. The locked-entity manifest pins updateTripFigures to THIS file.
@@ -422,7 +423,7 @@ export async function updateTripFigures(
       .where(
         and(
           eq(s.tripExpenses.tripId, tripId),
-          eq(s.tripExpenses.approvalStatus, 'APPROVED'),
+          inArray(s.tripExpenses.approvalStatus, ['RECORDED', 'APPROVED']),
         )
       );
     const ledgerFees = tripStatus === TripStatus.COMPLETED

@@ -7,20 +7,19 @@
 
 .expense-filter-bar {
   background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  padding: 16px;
-  margin-bottom: 20px;
+  border-block: 1px solid var(--line);
+  padding: 12px 0;
+  margin-bottom: 12px;
   display: grid;
-  grid-template-columns: minmax(220px, 1.2fr) minmax(180px, 0.9fr) minmax(160px, 0.8fr) auto minmax(150px, 0.7fr) minmax(150px, 0.7fr) auto;
-  align-items: center;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: end;
   gap: 12px;
   transition: box-shadow 0.2s ease;
 }
 
-.expense-filter-bar:focus-within {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
-}
+.expense-filter-bar__field { display: grid; gap: 4px; min-width: 0; }
+.expense-filter-bar__field > span { color: var(--ink-2); font-size: var(--text-label-size); font-weight: 600; }
+.expense-filter-bar__reset { justify-self: start; }
 
 .expense-filter-bar__select,
 .expense-filter-bar__date {
@@ -289,7 +288,7 @@
 
 @media (max-width: 1023px) {
   .expense-filter-bar {
-    padding: 12px;
+    padding: 10px 0;
     gap: 10px;
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -303,13 +302,7 @@
     display: none;
   }
 
-  /* The trailing date lands alone at half-width — the divider before it is
-     display:none (which still counts for :nth-child) and the reset button is
-     conditional. Span the last date across both columns so the bar never
-     shows a half-filled row. */
-  .expense-filter-bar > input[type='date']:last-of-type {
-    grid-column: 1 / -1;
-  }
+  .expense-filter-bar > .ds-uui-select:first-child { grid-column: 1 / -1; }
 
   .expense-filter-bar__reset {
     justify-content: center;
@@ -364,9 +357,9 @@
   }
 
   .expense-list-page .expense-filter-bar {
-    padding: 10px;
+    padding: 8px 0;
     gap: 8px;
-    border-radius: 14px;
+    border-radius: 0;
     margin-bottom: 12px;
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

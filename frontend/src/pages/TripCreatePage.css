@@ -40,9 +40,11 @@
 }
 .tc-hero-top {
   display: flex;
-  align-items: flex-start;
-  gap: 16px;
+  align-items: center;
+  gap: 12px;
 }
+.tc-hero-title-block { flex: 1; min-width: 0; }
+.tc-create-hero .tc-back-btn { flex: 0 0 auto; }
 /* Re-skin the shared header primitives for the light hero surface */
 .tc-create-hero .tc-back-btn {
   background: var(--surface-2);
@@ -204,9 +206,14 @@
 @media (max-width: 640px) {
   .tc-create-wrap { padding: 0; }
   .tc-create-hero { padding: 10px; margin-bottom: 10px; }
-  .tc-hero-top { gap: 12px; flex-wrap: wrap; }
+  .tc-hero-top { gap: 10px; flex-wrap: nowrap; }
   .tc-hero-widgets {
     display: none;
   }
   .tc-create-bento { padding: 10px; margin-bottom: 100px; gap: 16px; }
 }
+.tc-create-summary { min-width: 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.tc-create-summary > summary { padding: 10px 0; cursor: pointer; font-size: var(--text-body-size); font-weight: 600; }
+.tc-create-summary > summary span { display: inline; margin-left: 8px; color: var(--fg-2); font-weight: 400; }
+.tc-create-summary > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tc-create-summary[open] .tc-hero-widgets { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 12px; margin: 0 0 10px; }

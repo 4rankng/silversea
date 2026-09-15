@@ -71,7 +71,7 @@ export function useCusActions(deps: UseCusActionsDeps) {
       mode === 'confirm'
         ? 'Kế toán xác nhận nguồn chi phí hiện hành của lô.'
         : mode === 'lock'
-          ? 'CUS xác nhận khóa lô sau khi Kế toán duyệt.'
+          ? 'CUS khóa dữ liệu đã đối soát của lô.'
           : mode === 'delete'
             ? ''
             : '',
@@ -116,7 +116,7 @@ export function useCusActions(deps: UseCusActionsDeps) {
         }, idempotencyKey);
         setNotice('Đã khóa lô hàng. Mọi trường nhập và tệp tải lên hiện ở chế độ chỉ đọc.');
       } else if (actionMode === 'delete') {
-        await deleteCusShipment(actionItem.id, actionItem.version, reason.trim());
+        await deleteCusShipment(actionItem.id, actionItem.version, reason.trim(), idempotencyKey);
         setNotice('Đã xóa lô hàng.');
       } else {
         if (!actionItem.activeLock?.id) {
@@ -127,7 +127,7 @@ export function useCusActions(deps: UseCusActionsDeps) {
           activeLockId: actionItem.activeLock.id,
           reason: reason.trim(),
         }, idempotencyKey);
-        setNotice('Đã gửi đề nghị điều chỉnh tới Quản trị viên.');
+        setNotice('Đã mở lại lô hàng. Debit Note cần đối soát lại trước lần chốt tiếp theo.');
       }
       clearIdempotencyKey(signature);
       setActionItem(null);

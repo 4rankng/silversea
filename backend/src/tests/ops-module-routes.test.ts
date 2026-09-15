@@ -168,7 +168,7 @@ describe('ops module RBAC (PRD §2)', () => {
     assert.equal(forOps.status, 200);
   });
 
-  test('expense approvals require ADMIN/MANAGER/ACCOUNTANT; OPS cannot', async () => {
+  test('accounting records are readable by financial roles, not OPS', async () => {
     const res = await api('/admin/expenses', { token: opsToken });
     assert.equal(res.status, 403);
     const ok = await api('/admin/expenses', { token: accountantToken });
@@ -316,13 +316,13 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
     assert.equal(badContainer.status, 404);
   });
 
-  test('lifecycle: create lands APPROVED; photo mechanics and the approval lock remain (KP-149 direct-save)', async () => {
+  test('recorded expenses retain receipt visibility and are editable by the owner until settled', async () => {
     const created = await api('/expenses', {
       method: 'POST', token: opsToken,
       body: { shipmentId, shipmentContainerId: containerId, expenseTypeCode: withInvoiceCode, amount: '350000', paidAt: isoDate },
     });
     assert.equal(created.status, 201);
-    assert.equal(created.body.approvalStatus, 'APPROVED');
+    assert.equal(created.body.approvalStatus, 'RECORDED');
     assert.equal(created.body.paidById, opsUser.id);
     createdExpenseIds.push(created.body.id);
 
@@ -364,20 +364,23 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
     assert.notEqual(served.status, 400);
     assert.equal(served.status, 404);
 
-    // APPROVED is locked: author edit refused.
+    // Direct records stay editable until included in a settlement.
     const edit = await api(`/expenses/${created.body.id}`, {
-      method: 'PATCH', token: opsToken, body: { amount: '1' },
+      method: 'PATCH', token: opsToken, body: { amount: '350000' },
     });
-    assert.equal(edit.status, 400);
+    assert.equal(edit.status, 200);
+    assert.equal(edit.body.amount, '350000');
+    const forbiddenEdit = await api(`/expenses/${created.body.id}`, { method: 'PATCH', token: ops2Token, body: { amount: '1' } });
+    assert.equal(forbiddenEdit.status, 404);
   });
 
-  test('KP-149: the approve/reject endpoints are gone and approval is immediate', async () => {
+  test('removed approval endpoints return 404; owner corrections record directly', async () => {
     const created = await api('/expenses', {
       method: 'POST', token: opsToken,
       body: { shipmentId, expenseTypeCode: noInvoiceCode, amount: '90000', paidAt: isoDate, note: 'Cân xe' },
     });
     assert.equal(created.status, 201);
-    assert.equal(created.body.approvalStatus, 'APPROVED');
+    assert.equal(created.body.approvalStatus, 'RECORDED');
     createdExpenseIds.push(created.body.id);
 
     // Both decision endpoints no longer exist (removed with the arc).
@@ -386,11 +389,11 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
     const rejectAttempt = await api(`/admin/expenses/${created.body.id}/reject`, { method: 'POST', token: adminToken, body: { reason: 'Ảnh mờ' } });
     assert.equal(rejectAttempt.status, 404);
 
-    // Author edit is refused by the approval lock.
+    // Author correction does not require an approver.
     const edited = await api(`/expenses/${created.body.id}`, {
       method: 'PATCH', token: opsToken, body: { amount: '90000' },
     });
-    assert.equal(edited.status, 400);
+    assert.equal(edited.status, 200);
 
     // A receipt photo still attaches after creation.
     const attached = await api(`/expenses/${created.body.id}/photos`, {
@@ -400,13 +403,13 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
     assert.equal(attached.status, 201);
   });
 
-  test('wallet summary matches the PRD formula (direct-save: everything lands APPROVED)', async () => {
-    // 2,000,000 approved advance − (350,000 + 90,000 approved expenses) = 1,560,000
+  test('wallet summary counts recorded advances and recorded expenses', async () => {
+    // 2,000,000 recorded advance − (350,000 + 90,000 recorded expenses) = 1,560,000
     const [advance] = await db.insert(s.advanceRequests).values({
       requesterId: opsUser.id,
       amount: '2000000',
       reason: `test ${suffix}`,
-      status: 'APPROVED',
+      status: 'RECORDED',
     }).returning();
     createdAdvanceIds.push(advance.id);
 
@@ -432,7 +435,7 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
       body: { amount: 500000, reason: `xin ứng ${suffix}` },
     });
     assert.equal(created.status, 201);
-    assert.equal(created.body.status, 'APPROVED', 'creation posts status + ledger in-tx');
+    assert.equal(created.body.status, 'RECORDED', 'creation posts status + ledger in-tx');
     createdAdvanceIds.push(created.body.id);
   });
 
@@ -478,6 +481,8 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
 
     const settlement = await api('/settlements', { method: 'POST', token: opsToken, body: { note: 'cuối ngày' } });
     assert.equal(settlement.status, 201);
+    assert.equal(settlement.body.status, 'RECORDED');
+    assert.equal(settlement.body.approvedById, null);
     createdSettlementIds.push(settlement.body.id);
     assert.equal(settlement.body.totalAmount, '590000'); // 350k + 90k + 150k
 
@@ -608,4 +613,22 @@ describe('ops fleet tracking (PRD §4)', () => {
 test('unauthenticated requests are rejected', async () => {
   const res = await api('/orders');
   assert.equal(res.status, 401);
+});
+
+describe('legacy incomplete Ops settlement recovery', () => {
+  test('owner can release a draft batch for correction; strangers and recorded batches cannot', async () => {
+    const [batch] = await db.insert(s.opsSettlements).values({ code: `DR-${Date.now().toString(36)}`, opsUserId: opsUser.id, status: 'DRAFT', totalAmount: '1000' }).returning();
+    createdSettlementIds.push(batch.id);
+    const [expense] = await db.insert(s.opsExpenseEntries).values({ shipmentId: createdShipmentIds[0], paidById: opsUser.id, expenseTypeCode: createdExpenseTypeCodes[0], amount: '1000', paidAt: isoDate, approvalStatus: 'DRAFT', opsSettlementId: batch.id }).returning();
+    createdExpenseIds.push(expense.id);
+    assert.equal((await api(`/settlements/${batch.id}/reopen-draft`, { method: 'POST', token: ops2Token })).status, 404);
+    assert.equal((await api(`/settlements/${batch.id}/finalize`, { method: 'POST', token: opsToken })).status, 400);
+    const result = await api(`/settlements/${batch.id}/reopen-draft`, { method: 'POST', token: opsToken });
+    assert.equal(result.status, 200);
+    assert.equal(result.body.status, 'VOIDED');
+    const [released] = await db.select().from(s.opsExpenseEntries).where(eq(s.opsExpenseEntries.id, expense.id));
+    assert.equal(released.opsSettlementId, null);
+    assert.equal(released.approvalStatus, 'DRAFT', 'release must not silently post incomplete expense');
+    assert.equal((await api(`/settlements/${batch.id}/reopen-draft`, { method: 'POST', token: opsToken })).status, 409);
+  });
 });

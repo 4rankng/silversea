@@ -20,7 +20,6 @@ import {
 } from './governance-action-core.service';
 
 type FuelInvoiceRow = typeof s.fuelInvoices.$inferSelect;
-type FuelPeriodAdjustmentRow = typeof s.fuelPeriodAdjustments.$inferSelect;
 
 function amountsMatch(left: number, right: number): boolean {
   return round2dp(left) === round2dp(right);
@@ -116,56 +115,6 @@ type FuelInvoiceEffectiveSnapshot = {
   allocations: Array<FuelInvoiceAllocationInput & { amount: string }>;
 };
 
-type FuelLateApprovalDelta = {
-  sourceVersion: number;
-  payableAmount: string;
-  lateApprovalLinks: Array<{
-    sourcePeriodLockId: number;
-    sourcePeriod: string;
-    targetPeriod: string;
-  }>;
-};
-
-function parseFuelLateApprovalDelta(
-  value: Record<string, unknown> | null | undefined,
-): FuelLateApprovalDelta {
-  const sourceVersion = Number(value?.sourceVersion);
-  const payableAmount = typeof value?.payableAmount === 'string'
-    ? value.payableAmount
-    : String(value?.payableAmount ?? '');
-  const rawLinks = Array.isArray(value?.lateApprovalLinks) ? value.lateApprovalLinks : [];
-  const lateApprovalLinks = rawLinks.map((raw) => {
-    if (!raw || typeof raw !== 'object') {
-      throw new ApiError(409, 'Yêu cầu duyệt hóa đơn nhiên liệu thiếu liên kết kỳ khóa hợp lệ');
-    }
-    const sourcePeriodLockId = Number(raw.sourcePeriodLockId);
-    const sourcePeriod = typeof raw.sourcePeriod === 'string' ? raw.sourcePeriod : '';
-    const targetPeriod = typeof raw.targetPeriod === 'string' ? raw.targetPeriod : '';
-    if (
-      !Number.isInteger(sourcePeriodLockId)
-      || sourcePeriodLockId <= 0
-      || !sourcePeriod
-      || !targetPeriod
-      || sourcePeriod === targetPeriod
-    ) {
-      throw new ApiError(409, 'Yêu cầu duyệt hóa đơn nhiên liệu thiếu liên kết kỳ khóa hợp lệ');
-    }
-    return {
-      sourcePeriodLockId,
-      sourcePeriod,
-      targetPeriod,
-    };
-  });
-  if (!Number.isInteger(sourceVersion) || sourceVersion < 1 || !payableAmount) {
-    throw new ApiError(409, 'Yêu cầu duyệt thiếu dữ liệu kỳ khóa nguồn hợp lệ');
-  }
-  return {
-    sourceVersion,
-    payableAmount,
-    lateApprovalLinks,
-  };
-}
-
 function toFuelInvoiceSnapshot(
   invoice: FuelInvoiceRow,
   allocations: Array<FuelInvoiceAllocationInput & { amount: string }>,
@@ -249,7 +198,7 @@ function assertLinkedFuelExpenseAuthority(params: {
   if (expense.supplierId !== invoiceSupplierId) {
     throw new ApiError(400, 'Chi phí nhiên liệu không khớp nhà cung cấp trên hóa đơn');
   }
-  // KP-152: approval prerequisite removed — fuel invoices link to any expense.
+  if (['REJECTED', 'VOIDED', 'RETURN_FOR_EVIDENCE'].includes(expense.approvalStatus)) throw new ApiError(400, 'Chi phí nhiên liệu đã hủy hoặc thiếu chứng từ, chưa thể phân bổ.');
   if (!expense.expenseDate) {
     throw new ApiError(400, 'Chi phí nhiên liệu chưa có ngày chi thực tế để đối chiếu');
   }
@@ -260,7 +209,7 @@ function assertLinkedFuelExpenseAuthority(params: {
   if (!amountsMatch(computedAmount, approvedAmount)) {
     throw new ApiError(
       400,
-      `${allocationLabel} không khớp chi phí nhiên liệu đã duyệt: ${computedAmount} != ${approvedAmount}`,
+      `${allocationLabel} không khớp chi phí nhiên liệu đã ghi nhận: ${computedAmount} != ${approvedAmount}`,
     );
   }
 
@@ -270,7 +219,7 @@ function assertLinkedFuelExpenseAuthority(params: {
     if (!normalizedVoucherReference || !authoritativeReferences.includes(normalizedVoucherReference)) {
       throw new ApiError(
         400,
-        `${allocationLabel} phải khớp chứng từ đã duyệt của chi phí nhiên liệu: ${authoritativeReferences.join(' / ')}`,
+        `${allocationLabel} phải khớp chứng từ đã lưu của chi phí nhiên liệu: ${authoritativeReferences.join(' / ')}`,
       );
     }
     return;
@@ -396,6 +345,7 @@ async function buildAllocationRows(
     if (!Number.isFinite(allocation.liters) || allocation.liters <= 0) {
       throw new ApiError(400, 'Số lít trên mỗi dòng phân bổ phải lớn hơn 0');
     }
+    if (allocation.tripExpenseId == null) throw new ApiError(400, 'Mỗi dòng phân bổ phải liên kết chi phí nhiên liệu đã ghi nhận.');
     if (allocation.tripExpenseId != null) {
       assertLinkedFuelExpenseAuthority({
         allocationLabel: `Dòng phân bổ chuyến ${trip.tripCode ?? 'chưa có mã'}`,
@@ -428,10 +378,10 @@ async function buildAllocationRows(
       note: allocation.note ?? null,
     };
   });
-  if (allocatedLiters > input.totalLiters) {
+  if (!amountsMatch(allocatedLiters, input.totalLiters)) {
     throw new ApiError(
       400,
-      `Tổng số lít phân bổ ${allocatedLiters} vượt số lít hóa đơn ${input.totalLiters}`,
+      `Tổng số lít phân bổ ${allocatedLiters} phải khớp số lít hóa đơn ${input.totalLiters}`,
     );
   }
   return rows;
@@ -454,12 +404,13 @@ export async function createFuelInvoice(
       totalAmount: String(round2dp(input.totalLiters * input.unitPrice)),
       note: input.note ?? null,
       createdBy: actorId,
-      approvalStatus: 'APPROVED' as const,
-      approvedBy: actorId,
-      approvedAt: new Date(),
+      approvalStatus: 'RECORDED',
     }).returning();
     const rows = await buildAllocationRows(tx, invoice.id, input);
     if (rows.length > 0) await tx.insert(s.fuelInvoiceAllocations).values(rows);
+    const periodLinks = await resolveFinalFuelLateApprovalLinks(tx, rows.map((row) => row.voucherDate), currentApprovalDate());
+    if (periodLinks.length) await tx.insert(s.fuelPeriodAdjustments).values(periodLinks.map((link) => ({ fuelInvoiceId: invoice.id, sourcePeriodLockId: link.sourcePeriodLockId, sourcePeriod: link.sourcePeriod, targetPeriod: link.targetPeriod })));
+
     return {
       ...toFuelInvoiceView(invoice),
       allocations: rows,
@@ -488,6 +439,7 @@ export async function updateFuelInvoice(
     if (fuelInvoiceVersion(existing.updatedAt) !== expectedVersion) {
       throw new ApiError(409, 'Hóa đơn nhiên liệu đã được cập nhật. Vui lòng tải lại trước khi lưu');
     }
+    if (['REVERSED', 'VOIDED', 'REJECTED'].includes(existing.approvalStatus)) throw new ApiError(409, 'Hóa đơn đã hủy hoặc hoàn tác chỉ được xem trong lịch sử.');
     // KP-152 (approval removal): invoices are APPROVED at creation, so a
     // PENDING-only edit gate would make every correction impossible. The
     // version guard above + the idempotency envelope already protect
@@ -506,6 +458,7 @@ export async function updateFuelInvoice(
       unitPrice: String(input.unitPrice),
       totalAmount: String(round2dp(input.totalLiters * input.unitPrice)),
       note: input.note ?? null,
+      approvalStatus: 'RECORDED',
       updatedAt: nextUpdatedAt,
     }).where(eq(s.fuelInvoices.id, invoiceId)).returning();
     return { ...toFuelInvoiceView(updated!), allocations: rows };
@@ -595,7 +548,7 @@ export async function listFuelInvoices(filters: {
     for (let index = 0; index < rows.length; index += 1) {
       const row = rows[index]!;
       const effectiveRow = effectiveRows[index]!;
-      if (filters.status == null || effectiveRow.approvalStatus === filters.status) {
+      if (filters.status == null || effectiveRow.approvalStatus === filters.status || (filters.status === 'RECORDED' && effectiveRow.approvalStatus === 'APPROVED')) {
         items.push(effectiveRow);
       }
       if (items.length === limit) {
@@ -652,8 +605,8 @@ export async function requestFuelInvoiceCorrection(input: {
       .limit(1)
       .for('update');
     if (!invoice) throw new ApiError(404, 'Không tìm thấy hóa đơn nhiên liệu');
-    if (invoice.approvalStatus !== 'APPROVED') {
-      throw new ApiError(409, 'Chỉ hóa đơn nhiên liệu đã duyệt mới được lập điều chỉnh hoặc hoàn tác');
+    if (!['RECORDED', 'APPROVED'].includes(invoice.approvalStatus)) {
+      throw new ApiError(409, 'Chỉ hóa đơn nhiên liệu đã ghi nhận mới được lập điều chỉnh hoặc hoàn tác');
     }
     if (fuelInvoiceVersion(invoice.updatedAt) !== input.expectedVersion) {
       throw new ApiError(409, 'Hóa đơn nhiên liệu đã được cập nhật. Vui lòng tải lại trước khi điều chỉnh');
@@ -731,76 +684,6 @@ export async function applyFuelInvoiceGovernanceAction(
   action: GovernanceActionRow,
 ): Promise<GovernanceApplyResult> {
   if (
-    action.subjectType === 'FUEL_INVOICE'
-    && action.actionKind === 'FUEL_INVOICE_APPROVAL'
-    && action.subjectId != null
-    && action.approverId != null
-  ) {
-    const [invoice] = await tx.select().from(s.fuelInvoices)
-      .where(eq(s.fuelInvoices.id, action.subjectId))
-      .limit(1)
-      .for('update');
-    if (!invoice) throw new ApiError(404, 'Không tìm thấy hóa đơn nhiên liệu');
-    if (invoice.approvalStatus !== 'PENDING') {
-      throw new ApiError(409, `Không thể duyệt hóa đơn đang ở ${invoice.approvalStatus}`);
-    }
-    const delta = parseFuelLateApprovalDelta(action.deltaSnapshot as Record<string, unknown> | null);
-    if (fuelInvoiceVersion(invoice.updatedAt) !== delta.sourceVersion) {
-      throw new ApiError(409, 'Hóa đơn nhiên liệu đã thay đổi; yêu cầu duyệt không thể áp dụng');
-    }
-    const allocations = await tx.select({
-      voucherDate: s.fuelInvoiceAllocations.voucherDate,
-    }).from(s.fuelInvoiceAllocations)
-      .where(eq(s.fuelInvoiceAllocations.fuelInvoiceId, invoice.id))
-      .orderBy(s.fuelInvoiceAllocations.id);
-    if (allocations.length === 0) {
-      throw new ApiError(409, 'Hóa đơn nhiên liệu không còn dòng phân bổ để xác định kỳ nguồn');
-    }
-    const finalLateApprovalLinks = await resolveFinalFuelLateApprovalLinks(
-      tx,
-      allocations.map((allocation) => allocation.voucherDate),
-      currentApprovalDate(),
-    );
-    const nextUpdatedAt = new Date(Math.max(Date.now(), invoice.updatedAt.getTime() + 1));
-    const [approved] = await tx.update(s.fuelInvoices)
-      .set({
-        approvalStatus: 'APPROVED',
-        approvedBy: action.approverId,
-        approvedAt: new Date(),
-        updatedAt: nextUpdatedAt,
-      })
-      .where(and(
-        eq(s.fuelInvoices.id, invoice.id),
-        eq(s.fuelInvoices.approvalStatus, 'PENDING'),
-      ))
-      .returning({ id: s.fuelInvoices.id });
-    if (!approved) {
-      throw new ApiError(409, 'Hóa đơn đã được người khác xử lý. Vui lòng tải lại.');
-    }
-    let lateAdjustments: FuelPeriodAdjustmentRow[] = [];
-    if (finalLateApprovalLinks.length > 0) {
-      if (action.approvedAt == null || action.approverId == null) {
-        throw new ApiError(409, 'Yêu cầu duyệt nhiên liệu thiếu thông tin phê duyệt để ghi nhận kỳ điều chỉnh');
-      }
-      lateAdjustments = await tx.insert(s.fuelPeriodAdjustments).values(
-        finalLateApprovalLinks.map((link) => ({
-          fuelInvoiceId: invoice.id,
-          sourcePeriodLockId: link.sourcePeriodLockId,
-          sourcePeriod: link.sourcePeriod,
-          targetPeriod: link.targetPeriod,
-        })),
-      ).returning();
-    }
-    return {
-      applicationResult: {
-        fuelInvoiceId: invoice.id,
-        approvalStatus: 'APPROVED',
-        payableAmount: delta.payableAmount,
-        lateFuelAdjustmentIds: lateAdjustments.map((row) => row.id),
-      },
-    };
-  }
-  if (
     action.subjectType !== 'FUEL_INVOICE'
     || action.actionKind !== 'FUEL_INVOICE_CORRECTION'
     || action.subjectId == null
@@ -818,8 +701,8 @@ export async function applyFuelInvoiceGovernanceAction(
     .limit(1)
     .for('update');
   if (!invoice) throw new ApiError(404, 'Không tìm thấy hóa đơn nhiên liệu gốc');
-  if (invoice.approvalStatus !== 'APPROVED') {
-    throw new ApiError(409, 'Hóa đơn nhiên liệu gốc không còn ở trạng thái đã duyệt');
+  if (!['RECORDED', 'APPROVED'].includes(invoice.approvalStatus)) {
+    throw new ApiError(409, 'Hóa đơn nhiên liệu gốc không còn ở trạng thái đã ghi nhận');
   }
   if (fuelInvoiceVersion(invoice.updatedAt) !== sourceVersion) {
     throw new ApiError(409, 'Dữ liệu gốc đã thay đổi; yêu cầu điều chỉnh không thể áp dụng');
@@ -840,7 +723,7 @@ export async function applyFuelInvoiceGovernanceAction(
       })
       .where(and(
         eq(s.fuelInvoices.id, invoice.id),
-        eq(s.fuelInvoices.approvalStatus, 'APPROVED'),
+        inArray(s.fuelInvoices.approvalStatus, ['RECORDED', 'APPROVED']),
         eq(s.fuelInvoices.updatedAt, invoice.updatedAt),
       ))
       .returning({ id: s.fuelInvoices.id });
@@ -878,7 +761,7 @@ export async function applyFuelInvoiceGovernanceAction(
     })
     .where(and(
       eq(s.fuelInvoices.id, invoice.id),
-      eq(s.fuelInvoices.approvalStatus, 'APPROVED'),
+      inArray(s.fuelInvoices.approvalStatus, ['RECORDED', 'APPROVED']),
       eq(s.fuelInvoices.updatedAt, invoice.updatedAt),
     ))
     .returning({ id: s.fuelInvoices.id });

@@ -76,6 +76,12 @@ describe('driverClient fulfillment contract', () => {
     expect(result.fulfillment?.id).toBe(88);
     expect(result.fulfillment?.siteRules).toEqual(['Gọi trước khi vào kho']);
     expect(result.currentPod).toMatchObject({ id: 22, tripId: 55, fulfillmentId: 88 });
+    // Legacy nullable child arrays are normalized before any driver screen reads them.
+    const legacyWire = await getMock.mock.results[0]!.value;
+    getMock.mockResolvedValueOnce({ ...legacyWire, trip: { ...legacyWire.trip, containers: null, legs: null } });
+    const legacyResult = await driverClient.getTaskDetail(88);
+    expect(legacyResult.containers).toEqual([]);
+    expect(legacyResult.legs).toEqual([]);
   });
 
   it('maps the wire-level tradeDirection onto the task detail (A6 IMPORT cross-check input)', async () => {

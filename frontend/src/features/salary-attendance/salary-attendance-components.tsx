@@ -79,9 +79,16 @@ export function SalarySummaryCard({ salary, onEditBaseSalary, driverName }: { sa
       <div className="salary-summary-dark__topline">
         <h3 className="salary-summary-dark__label">Tổng kết lương tháng</h3>
         <span className={`salary-summary-dark__status ${salary.confirmationStatus === 'CONFIRMED' ? 'is-confirmed' : ''}`}>
-          {salary.confirmationStatus === 'CONFIRMED' ? 'Đã chốt' : 'Bản nháp'}
+          {salary.salarySnapshotState === 'UNAVAILABLE' ? 'Cần đối chiếu' : salary.confirmationStatus === 'CONFIRMED' ? 'Đã chốt' : 'Bản nháp'}
         </span>
       </div>
+      {salary.salaryReconciliationRequired && (
+        <p role="status" className="salary-summary-dark__mini">
+          {salary.salarySnapshotState === 'UNAVAILABLE'
+            ? 'Kỳ cũ chưa lưu bản lương đã chốt. Số liệu dưới đây chỉ tham khảo; cần đối chiếu chứng từ gốc trước khi thanh toán.'
+            : 'Ngày công vận hành đã thay đổi sau khi chốt. Bản lương giữ nguyên; ghi điều chỉnh vào kỳ đang mở nếu có chênh lệch.'}
+        </p>
+      )}
       <div className="salary-summary-dark__big mono">
         <Money value={salary.netSalary} />
       </div>
@@ -94,7 +101,7 @@ export function SalarySummaryCard({ salary, onEditBaseSalary, driverName }: { sa
           </span>
           <span className="salary-summary-dark__row-val" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <Money value={salary.baseSalary} />
-            <button
+            {onEditBaseSalary && <button
               type="button"
               className="salary-edit-link"
               title="Sửa lương cứng"
@@ -102,7 +109,7 @@ export function SalarySummaryCard({ salary, onEditBaseSalary, driverName }: { sa
               aria-label={`Sửa lương cứng ${driverName ?? ''}`}
             >
               <Edit size={10} />
-            </button>
+            </button>}
           </span>
         </div>
 
@@ -285,7 +292,7 @@ export function PostCloseAdjustmentList({
             </div>
             <div style={{ marginTop: 6, fontSize: 'var(--text-data-size)', color: 'var(--fg-2)' }}>{item.reason}</div>
             <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 8, fontSize: 'var(--text-caption-size)', color: 'var(--fg-3)' }}>
-              <span>Duyệt bởi {item.approvedByName || 'Người dùng không xác định'}</span>
+              <span>Ghi nhận bởi {item.approvedByName || 'Người dùng không xác định'}</span>
               <span>{new Date(item.approvedAt).toLocaleDateString('vi-VN')}</span>
             </div>
           </div>

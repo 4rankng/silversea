@@ -226,7 +226,7 @@ async function sumSameDaySamePayeeCategory(
       eq(s.tripExpenses.expenseDate, expense.expenseDate),
       sql`lower(regexp_replace(btrim(${s.tripExpenses.payeeName}), '[[:space:]]+', ' ', 'g')) = ${normalizedPayee}`,
       ne(s.tripExpenses.id, expense.id),
-      inArray(s.tripExpenses.approvalStatus, ['PENDING', 'APPROVED']),
+      inArray(s.tripExpenses.approvalStatus, ['DRAFT', 'RECORDED', 'PENDING', 'APPROVED', 'RETURN_FOR_EVIDENCE']),
       or(
         sql`${s.tripExpenses.invoiceNumber} IS NULL`,
         sql`btrim(${s.tripExpenses.invoiceNumber}) = ''`,
@@ -497,7 +497,7 @@ export async function getNoInvoiceDisbursementReport(opts: {
   })
     .from(s.tripExpenses)
     .where(and(
-      eq(s.tripExpenses.approvalStatus, 'APPROVED'),
+      inArray(s.tripExpenses.approvalStatus, ['RECORDED', 'APPROVED']),
       or(
         sql`${s.tripExpenses.invoiceNumber} IS NULL`,
         sql`btrim(${s.tripExpenses.invoiceNumber}) = ''`,

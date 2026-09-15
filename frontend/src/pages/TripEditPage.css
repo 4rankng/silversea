@@ -436,3 +436,13 @@
   .trip-edit-page .tc-back-btn { transition: none; }
   .trip-edit-page .tc-back-btn:hover { transform: none; }
 }
+.tc-edit-conflict-field {
+  min-width: 0;
+  margin: 12px 0;
+  padding: 8px 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+.tc-edit-conflict-field legend { font-size: var(--text-body-size); font-weight: 600; }
+.tc-edit-conflict-choice { display: flex; align-items: start; gap: 8px; padding: 8px 0; overflow-wrap: anywhere; font-size: var(--text-body-size); }
+.tc-edit-conflict-choice input { flex: 0 0 auto; margin-top: 2px; }

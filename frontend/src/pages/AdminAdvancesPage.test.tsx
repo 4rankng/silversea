@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -9,8 +9,6 @@ const listAllAdvanceRequests = vi.fn();
 vi.mock('../api/forwarderClient', () => ({
   forwarderClient: {
     listAllAdvanceRequests: (...args: unknown[]) => listAllAdvanceRequests(...args),
-    approveAdvanceRequest: vi.fn(),
-    rejectAdvanceRequest: vi.fn(),
   },
 }));
 
@@ -55,20 +53,20 @@ function makeRequest(id: number, status: AdvanceRequestStatus, requesterName: st
 // loaded page.
 const envelope = {
   items: [
-    makeRequest(1, AdvanceRequestStatus.APPROVED, 'An Nguyễn'),
-    makeRequest(2, AdvanceRequestStatus.REJECTED, 'Bình Trần'),
+    makeRequest(1, AdvanceRequestStatus.RECORDED, 'An Nguyễn'),
+    makeRequest(2, AdvanceRequestStatus.VOIDED, 'Bình Trần'),
   ],
   page: 1,
   limit: 50,
   total: 120,
   totalPages: 3,
   statusCounts: {
-    [AdvanceRequestStatus.APPROVED]: 7,
-    [AdvanceRequestStatus.REJECTED]: 5,
+    [AdvanceRequestStatus.RECORDED]: 7,
+    [AdvanceRequestStatus.VOIDED]: 5,
   },
   statusAmounts: {
-    [AdvanceRequestStatus.APPROVED]: 7_000_000,
-    [AdvanceRequestStatus.REJECTED]: 5_000_000,
+    [AdvanceRequestStatus.RECORDED]: 7_000_000,
+    [AdvanceRequestStatus.VOIDED]: 5_000_000,
   },
 };
 
@@ -109,7 +107,7 @@ describe('AdminAdvancesPage server-driven listing', () => {
     const { container } = renderPage();
     expect((await screen.findAllByText('An Nguyễn')).length).toBeGreaterThan(0);
 
-    // KPI values 7/5/0 (APPROVED/REJECTED/balances) — the
+    // KPI values 7/5/0 (RECORDED/VOIDED/balances) — the
     // loaded page only holds 2 rows, so these can only come from the
     // full-set envelope aggregates.
     const kpiValues = Array.from(container.querySelectorAll('.adv-kpi__value')).map(
@@ -151,7 +149,7 @@ describe('AdminAdvancesPage server-driven listing', () => {
     // Switching the status filter must send the filter and reset the page.
     screen.getByRole('button', { name: 'Đã ghi nhận7' }).click();
     await waitFor(() =>
-      expect(lastCallParams()).toMatchObject({ status: 'APPROVED', page: 1 }),
+      expect(lastCallParams()).toMatchObject({ status: 'RECORDED', page: 1 }),
     );
 
     // Going back to "all" drops the status param: the unfiltered page-1 query
@@ -188,4 +186,20 @@ describe('AdminAdvancesPage server-driven listing', () => {
       expect(lastCallParams()).toMatchObject({ sortBy: 'amount', sortDir: 'desc', page: 1 }),
     );
   });
+});
+
+// FIN-POL-03a: the phone control must use the same empty/all value as desktop.
+it('labels the mobile all-status selection and never submits a literal all filter', async () => {
+  const { container } = renderPage();
+  await screen.findAllByText('An Nguyễn');
+  const mobile = container.querySelector('.adv-mobile-filter') as HTMLElement;
+  const trigger = within(mobile).getByRole('button');
+  expect(trigger).toHaveTextContent('Tất cả (12)');
+  fireEvent.click(trigger);
+  fireEvent.click(await screen.findByRole('option', { name: 'Đã ghi nhận (7)' }));
+  await waitFor(() => expect(lastCallParams().status).toBe('RECORDED'));
+  fireEvent.click(trigger);
+  fireEvent.click(await screen.findByRole('option', { name: 'Tất cả (12)' }));
+  await waitFor(() => expect(trigger).toHaveTextContent('Tất cả (12)'));
+  expect(listAllAdvanceRequests.mock.calls.every(([params]) => params.status !== 'all')).toBe(true);
 });

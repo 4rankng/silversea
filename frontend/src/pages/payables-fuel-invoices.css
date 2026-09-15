@@ -466,3 +466,45 @@
     justify-content: center;
   }
 }
+
+/* On phones, one divided metric band leaves room for invoice records. */
+@media (max-width: 640px) {
+  .fuel-invoices-panel__summary,
+  .fuel-invoice-detail__metrics,
+  .fuel-invoice-editor__summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0;
+    border-block: 1px solid var(--line);
+    margin-block: 10px;
+  }
+  .fuel-invoice-metric {
+    min-width: 0;
+    padding: 8px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+  .fuel-invoice-metric > div { min-width: 0; }
+  .fuel-invoice-metric:nth-child(even) { border-inline-start: 1px solid var(--line); }
+  .fuel-invoice-metric:nth-child(n+3) { border-top: 1px solid var(--line); }
+  .fuel-invoice-metric:last-child:nth-child(odd) { grid-column: 1 / -1; }
+  .fuel-invoice-metric__icon { display: none; }
+  .fuel-invoice-metric__label { font-size: var(--text-label-size); letter-spacing: 0; text-transform: none; margin-bottom: 3px; }
+  .fuel-invoice-metric__value { font-size: var(--fs-md); overflow-wrap: anywhere; }
+  .fuel-invoice-metric--warn .fuel-invoice-metric__value { color: var(--warning-text); }
+  .fuel-invoice-metric--danger .fuel-invoice-metric__value { color: var(--danger-text); }
+  .fuel-invoice-metric--success .fuel-invoice-metric__value { color: var(--success-text); }
+  .fuel-invoice-allocation-card,
+  .fuel-invoice-editor__row {
+    padding: 10px 0;
+    border: 0;
+    border-top: 1px solid var(--line);
+    border-radius: 0;
+    background: transparent;
+  }
+  .fuel-invoice-allocation-list { gap: 0; }
+  .fuel-invoice-editor__row + .fuel-invoice-editor__row { margin-top: 0; }
+  .fuel-invoice-allocation-card__head,
+  .fuel-invoice-editor__row-head { margin-bottom: 8px; gap: 6px; }
+  .fuel-invoice-editor__row-meta { padding: 8px 0; border-radius: 0; background: transparent; }
+}

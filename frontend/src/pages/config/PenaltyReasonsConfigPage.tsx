@@ -8,6 +8,7 @@ import { configClient } from '../../api/configClient';
 import { qk } from '../../api/keys';
 import { useCRUD } from '../../hooks/useCRUD';
 import { Modal, useConfirm, Btn, FormGroup, PageHeader } from '../../components/UI';
+import { SEV_OPTIONS, sevLabel, sevPill, type Severity } from '../../features/penalties/penalty-reason-severity';
 import { PenaltyReasonActions } from '../../features/penalties/components/PenaltyReasonActions';
 import type { PenaltyReason } from '@tingting/shared';
 import { resolveEmptyIllustration } from '../../lib/emptyIllustrations';
@@ -166,16 +167,6 @@ const pageStyles = `
   }
 `;
 
-/* ─── Severity helpers ─── */
-type Severity = 'low' | 'mid' | 'high';
-const SEV_OPTIONS: { value: Severity; label: string; color: string }[] = [
-  { value: 'low', label: 'Nhẹ', color: 'var(--ink-3)' },
-  { value: 'mid', label: 'Trung bình', color: 'var(--warning)' },
-  { value: 'high', label: 'Nghiêm trọng', color: 'var(--danger)' },
-];
-const sevLabel: Record<string, string> = { high: 'Nghiêm trọng', mid: 'Trung bình', low: 'Nhẹ' };
-const sevPill: Record<string, string> = { high: 'danger', mid: 'warn', low: 'neutral' };
-
 function PenaltyReasonForm({
   saving, item, onSave, onCancel, existingReasons,
 }: {
@@ -224,7 +215,7 @@ function PenaltyReasonForm({
           aria-describedby={amountInvalid ? 'pr-amount-error' : undefined}
         />
         {amountInvalid && (
-          <p id="pr-amount-error" role="alert" style={{ margin: '6px 0 0', fontSize: 13, color: 'var(--danger)' }}>
+          <p id="pr-amount-error" role="alert" style={{ margin: '6px 0 0', fontSize: 'var(--text-caption-size)', color: 'var(--danger)' }}>
             Mức phạt phải là số không âm (VNĐ). Hãy nhập lại để bật nút lưu.
           </p>
         )}

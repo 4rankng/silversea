@@ -77,13 +77,15 @@ function renderGrid(items: DispatchDetailPlanRow[], extraProps: Record<string, u
 }
 
 describe('DetailedPlanGrid', () => {
-  it('renders the 8 spec columns with multi-line typography', () => {
+  it('renders the 9 operational columns with multi-line typography', () => {
     const { container } = renderGrid([row()]);
 
     const headers = screen.getAllByRole('columnheader').map((th) => th.textContent);
     expect(headers).toEqual([
       'Thời gian & lịch trình ↕',
       'Khách hàng & lộ trình ↕',
+      'Nâng hàng',
+      'Trả hàng',
       'Tuyến đường',
       'Container',
       'Điều phối',
@@ -119,6 +121,8 @@ describe('DetailedPlanGrid', () => {
     expect(Array.from(container.querySelectorAll('td')).map((cell) => cell.getAttribute('data-label'))).toEqual([
       'Thời gian & lịch trình',
       'Khách hàng & lộ trình',
+      'Nâng hàng',
+      'Trả hàng',
       'Tuyến đường',
       'Container',
       'Điều phối',
@@ -141,6 +145,8 @@ describe('DetailedPlanGrid', () => {
     const columnNames = [
       'schedule',
       'route',
+      'ports',
+      'ports',
       'documents',
       'container',
       'assignment',
@@ -452,7 +458,7 @@ describe('DetailedPlanGrid', () => {
 
     expect(css).toContain('@container (max-width: 640px)');
     expect(css).toMatch(/\.detailed-plan-grid__row\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
-    expect(css).toContain('.detailed-plan-grid__cell--schedule,\n  .detailed-plan-grid__cell--route,\n  .detailed-plan-grid__cell--notes,\n  .detailed-plan-grid__cell--editable {\n    grid-column: 1 / -1;');
+    expect(css).toContain('.detailed-plan-grid__cell--schedule,\n  .detailed-plan-grid__cell--route,\n  .detailed-plan-grid__cell--ports,\n  .detailed-plan-grid__cell--notes,\n  .detailed-plan-grid__cell--editable {\n    grid-column: 1 / -1;');
     expect(css).toContain('.detailed-plan-grid__cell--classification {\n    position: absolute;');
     // Compact phone band: labels ride inline, each field wraps as a whole
     // unit so short codes (20'DC-style) never split mid-token, and all-empty

@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { isCompanyInfoConfigured, type CompanyInfo } from '@tingting/shared';
+import { isValidOptionalEmail } from '../../lib/optional-email';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, Save, Trash2, Upload } from 'lucide-react';
 import { PageHeader, Panel } from '../../components/UI';
@@ -62,10 +63,11 @@ export default function CompanyInfoConfigPage() {
   // rather than via useEffect, so inputs never flash EMPTY_FORM for a frame
   // between data arriving and the effect running. React supports a guarded
   // setState during render to "store info from the previous render".
+  const [dirty, setDirty] = useState(false);
   const [syncedData, setSyncedData] = useState<CompanyInfo | undefined>(undefined);
   if (data !== syncedData) {
     setSyncedData(data);
-    setForm(
+    if (!dirty) setForm(
       data
         ? {
             name: data.name ?? '',
@@ -86,13 +88,13 @@ export default function CompanyInfoConfigPage() {
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<TextCompanyInfoField, string>>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const canSave = isCompanyInfoConfigured(form) && Boolean(form.shortName.trim());
 
   const updateField = (key: keyof CompanyInfoForm, value: string) => {
+    setDirty(true);
     setForm(current => ({ ...current, [key]: value }));
     if (key !== 'logoStorageKey' && fieldErrors[key as TextCompanyInfoField]) {
       setFieldErrors(current => { const next = { ...current }; delete next[key as TextCompanyInfoField]; return next; });
@@ -102,7 +104,7 @@ export default function CompanyInfoConfigPage() {
   const validateEmail = (email: string): string | null => {
     const trimmed = email.trim();
     if (!trimmed) return null;
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) return 'Địa chỉ email không hợp lệ — nhập đúng định dạng, ví dụ: ten@congty.vn';
+    if (!isValidOptionalEmail(trimmed)) return 'Địa chỉ email không hợp lệ — nhập đúng định dạng, ví dụ: ten@congty.vn';
     return null;
   };
 
@@ -113,6 +115,7 @@ export default function CompanyInfoConfigPage() {
     setError(null);
     try {
       const result = await configClient.uploadCompanyLogo(file);
+      setDirty(true);
       setForm(current => ({ ...current, logoStorageKey: result.storageKey }));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Lỗi tải logo');
@@ -128,6 +131,7 @@ export default function CompanyInfoConfigPage() {
   };
 
   const handleRemoveLogo = () => {
+    setDirty(true);
     setForm(current => ({ ...current, logoStorageKey: null }));
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
@@ -136,11 +140,11 @@ export default function CompanyInfoConfigPage() {
     const emailErr = validateEmail(form.email);
     if (emailErr) {
       setFieldErrors(current => ({ ...current, email: emailErr }));
+      document.getElementById('company-email')?.focus();
       return;
     }
     setSaving(true);
     setError(null);
-    setMessage(null);
     setFieldErrors({});
     try {
       await saveCompanyInfo.mutateAsync({
@@ -280,7 +284,7 @@ export default function CompanyInfoConfigPage() {
                   />
                 </div>
 
-                <div className="cfg-form-grid cfg-row" style={{ marginTop: 16 }}>
+                <div className="cfg-form-grid cfg-row">
                   <div className="field">
                     <label htmlFor="company-representative">Đại diện bởi</label>
                     <input
@@ -353,27 +357,30 @@ export default function CompanyInfoConfigPage() {
                 </div>
               </div>
 
-              <div className="company-info-preview" aria-label="Bảng thông tin công ty">
-                {FIELD_LABELS.map(({ key, label }) => (
-                  <div key={key} className="company-info-preview-row">
-                    <span className="company-info-preview-row__label">{label}</span>
-                    <span className="company-info-preview-row__value">{form[key] || '—'}</span>
-                  </div>
-                ))}
-              </div>
             </div>
 
             <div className="cfg-form-actions">
               <button
                 className="btn btn--primary"
-                disabled={saving || !canSave}
+                disabled={saving || uploadingLogo || !canSave}
                 onClick={handleSave}
               >
                 {saving ? <Loader2 size={14} className="spin" /> : <Save size={14} />}
                 Lưu thông tin
               </button>
-              {message && <span role="status" style={{ color: 'var(--success)', fontSize: 'var(--text-data-size)' }}>{message}</span>}
             </div>
+            <details className="company-info-comparison">
+              <summary>Thông tin đã lưu</summary>
+              <p>Giá trị đang lưu trong hồ sơ. Các thay đổi trong biểu mẫu chỉ được áp dụng khi bấm Lưu thông tin.</p>
+              <div className="company-info-preview" aria-label="Thông tin công ty đã lưu">
+                {FIELD_LABELS.map(({ key, label }) => (
+                  <div key={key} className="company-info-preview-row">
+                    <span className="company-info-preview-row__label">{label}</span>
+                    <span className="company-info-preview-row__value">{data?.[key] || '—'}</span>
+                  </div>
+                ))}
+              </div>
+            </details>
             {error && (
               <div role="alert" className="cfg-form-error" style={{ marginTop: 8 }}>
                 {error}

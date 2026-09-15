@@ -354,12 +354,11 @@
     -webkit-overflow-scrolling: touch;
   }
 
-  .modal__body .field .input {
-    min-height: var(--control-touch-h);
-    height: var(--control-touch-h);
+  .modal__body .field .input:not(textarea) {
+    min-height: var(--control-mobile-h);
+    height: var(--control-mobile-h);
     border-radius: var(--r-sm);
     font-size: var(--text-input-touch-size);
-    border-color: var(--line-2);
   }
 
   .modal__body .input-icon > svg {
@@ -377,7 +376,6 @@
     font-size: var(--text-label-size);
     font-weight: 600;
     color: var(--ink);
-    margin-bottom: 2px;
   }
 
   .modal__foot {
@@ -434,4 +432,9 @@
   .modal__chip--live .modal__chip-dot {
     animation: none;
   }
+}
+
+@media (max-width: 640px) {
+  .modal__foot > .modal__hint { flex: 0 0 100%; }
+  .modal__foot:has(> .modal__hint) > .btn { flex: 1 1 0; }
 }

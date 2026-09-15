@@ -1,16 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { AdvanceSettlementStatus, Role } from '@tingting/shared';
-import { buildAdvanceDecision } from './AdminAdvancesPage';
+import { AdvanceSettlementStatus, AdvanceRequestStatus, ADVANCE_REQUEST_STATUS_LABELS, Role } from '@tingting/shared';
 import { settlementReviewPermissions } from './SettlementPrintPage';
 
 describe('financial governance UI policy', () => {
-  it('requires and trims a typed reason for advance decisions', () => {
-    expect(buildAdvanceDecision({ id: 12, version: 4 }, '   ')).toBeNull();
-    expect(buildAdvanceDecision({ id: 12, version: 4 }, '  Sai chứng từ  ')).toEqual({
-      id: 12,
-      expectedVersion: 4,
-      reason: 'Sai chứng từ',
-    });
+  it('exposes direct advance records and unresolved historical drafts without review states', () => {
+    expect(Object.values(AdvanceRequestStatus)).toEqual(['RECORDED', 'DRAFT', 'VOIDED']);
+    expect(ADVANCE_REQUEST_STATUS_LABELS.DRAFT).toBe('Chưa ghi sổ');
+    expect(Object.values(ADVANCE_REQUEST_STATUS_LABELS).join(' ')).not.toMatch(/duyệt|Từ chối/);
   });
 
   it('offers correction and reversal initiation only for approved settlements to finance reviewers', () => {
@@ -18,13 +14,13 @@ describe('financial governance UI policy', () => {
       isPortal: false,
       userId: 2,
       role: Role.ACCOUNTANT,
-      settlement: { status: AdvanceSettlementStatus.APPROVED, checkedBy: 3, forwarderId: 1 },
+      settlement: { status: AdvanceSettlementStatus.RECORDED, checkedBy: 3, forwarderId: 1 },
     }).canRequestApprovedGovernance).toBe(true);
     expect(settlementReviewPermissions({
       isPortal: true,
       userId: 2,
       role: Role.ACCOUNTANT,
-      settlement: { status: AdvanceSettlementStatus.APPROVED, checkedBy: 3, forwarderId: 1 },
+      settlement: { status: AdvanceSettlementStatus.RECORDED, checkedBy: 3, forwarderId: 1 },
     }).canRequestApprovedGovernance).toBe(false);
   });
 });

@@ -467,3 +467,12 @@ Reference incident: `qa/2026-09-09_master-plan-600-900-notes-fix.log`
 (post-commit verification section). Pinned by future contract: any agent
 who commits a frontend fix while a wave is in flight MUST run the served-
 bundle check before responding "done" to the team.
+
+
+### Operational polish refinements (15 September 2026)
+
+- SummaryRail uses two columns through tablet widths and one horizontal strip on desktop. Values use the 14px section scale; long amounts wrap instead of clipping.
+- FormGroup owns a single 6px label/control gap. Do not add label margins inside it. Help and validation feedback must be linked to the actual control; custom field adapters forward standard aria-invalid and aria-describedby attributes.
+- Phone dialog fields share the 32px phone token across native input and select adapters. Multiline notes retain their own height; primary save/cancel actions retain their separate action sizing.
+- Operational page/list entrances are short fades for new, visible, independent surfaces: 160–180ms duration and at most 80ms delay. A poll or filter update must not hide records that are already being read. Respect reduced motion and avoid nested animation targets.
+- Empty states use a neutral, compact surface without a decorative inner card. Omit decorative record previews on phones; retain the message and recovery action.

@@ -131,7 +131,7 @@ async function mkTierBoundaryRequest(input: {
     reason: 'Kiểm tra ranh giới phân cấp phê duyệt',
   }, { userId: requester.id, role: requester.role });
   createdCreditOverrideIds.push(request.id);
-  assert.equal(request.workflowStatus, 'APPROVED', 'override applies in-request');
+  assert.equal(request.workflowStatus, 'RECORDED', 'override applies in-request');
   return request;
 }
 
@@ -220,8 +220,8 @@ describe('M5.3/Q01 exposure authority', () => {
       reason: 'Giữ chỗ tín dụng cho lô đang chờ điều vận',
     }, { userId: requester.id, role: requester.role });
     createdCreditOverrideIds.push(pending.id);
-    assert.equal(pending.workflowStatus, 'APPROVED', 'override applies in-request');
-    assert.equal(pending.status, 'APPROVED');
+    assert.equal(pending.workflowStatus, 'RECORDED', 'override applies in-request');
+    assert.equal(pending.status, 'AUTHORIZED');
 
     const result = await checkCreditLimit(customer.id, { proposedAmount: 1_000_000 });
     assert.equal(result.outstanding, 3_000_000);
@@ -311,7 +311,7 @@ describe('M5.3/Q02 overrides + canonical createTrip enforcement', () => {
       reason: 'Ngoại lệ đầu tiên',
     }, { userId: requester.id, role: requester.role });
     createdCreditOverrideIds.push(first.id);
-    assert.equal(first.workflowStatus, 'APPROVED', 'override applies in-request');
+    assert.equal(first.workflowStatus, 'RECORDED', 'override applies in-request');
 
     const second = await createCreditOverrideRequest({
       customerId: customer.id,
@@ -346,7 +346,7 @@ describe('M5.3/Q02 overrides + canonical createTrip enforcement', () => {
         departureDate: '2026-07-27',
         createdBy: requester.id,
       }),
-      (error: unknown) => error instanceof Error && /Cần phê duyệt để tiếp tục/i.test(error.message),
+      (error: unknown) => error instanceof Error && /quyền ghi nhận ngoại lệ tín dụng/i.test(error.message),
     );
 
     const pending = await createCreditOverrideRequest({
@@ -356,7 +356,7 @@ describe('M5.3/Q02 overrides + canonical createTrip enforcement', () => {
       reason: 'Cho phép phục vụ đơn hàng gấp trong 48 giờ',
     }, { userId: requester.id, role: requester.role });
     createdCreditOverrideIds.push(pending.id);
-    assert.equal(pending.workflowStatus, 'APPROVED', 'override applies in-request');
+    assert.equal(pending.workflowStatus, 'RECORDED', 'override applies in-request');
 
     const trip = await createTrip({
       customerId: customer.id,
@@ -375,7 +375,7 @@ describe('M5.3/Q02 overrides + canonical createTrip enforcement', () => {
       .limit(1);
 
     assert.equal(trip.status, 'CREATED');
-    assert.equal(storedRequest?.status, 'APPROVED');
+    assert.equal(storedRequest?.status, 'AUTHORIZED');
     assert.equal(storedRequest?.consumedAt, null);
   });
 
@@ -400,7 +400,7 @@ describe('M5.3/Q02 overrides + canonical createTrip enforcement', () => {
       reason: 'Chỉ áp dụng cho lô hàng này',
     }, { userId: requester.id, role: requester.role });
     createdCreditOverrideIds.push(pending.id);
-    assert.equal(pending.workflowStatus, 'APPROVED', 'override applies in-request');
+    assert.equal(pending.workflowStatus, 'RECORDED', 'override applies in-request');
 
     const trip = await createTrip({
       customerId: customer.id,

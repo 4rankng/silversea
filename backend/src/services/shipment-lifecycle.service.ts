@@ -11,7 +11,7 @@
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { CARGO_MODE } from '../db/schema';
-import { and, asc, desc, eq, inArray, isNull, ne, or, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
 import { canonicalShipmentStatus, Role, TripStatus, TripPodStatus } from '@tingting/shared';
@@ -59,54 +59,6 @@ type ShipmentDirectCloseResult = {
   completedTripIds: number[];
   vatRate: number;
 };
-
-async function assertRoutineShipmentCloseCheckerSeparation(
-  tx: Tx,
-  tripIds: number[],
-  completerUserId: number,
-): Promise<void> {
-  const acceptedRows = await tx.select({
-    tripId: s.tripPodSubmissions.tripId,
-    reviewedBy: s.tripPodSubmissions.reviewedBy,
-  }).from(s.tripPodSubmissions)
-    .where(and(
-      inArray(s.tripPodSubmissions.tripId, tripIds),
-      eq(s.tripPodSubmissions.status, TripPodStatus.ACCEPTED),
-    ))
-    .orderBy(desc(s.tripPodSubmissions.tripId), desc(s.tripPodSubmissions.submissionVersion), desc(s.tripPodSubmissions.id))
-    .for('update');
-
-  const reviewerIds = [...new Set(acceptedRows.flatMap((row) => row.reviewedBy == null ? [] : [row.reviewedBy]))];
-  const reviewerRoles = reviewerIds.length === 0
-    ? new Map<number, string>()
-    : new Map((await tx.select({ id: s.users.id, role: s.users.role })
-      .from(s.users)
-      .where(inArray(s.users.id, reviewerIds)))
-      .map((row) => [row.id, row.role]));
-
-  const latestAcceptedByTrip = new Map<number, { reviewedBy: number | null; reviewerRole: string | null }>();
-  for (const row of acceptedRows) {
-    if (!latestAcceptedByTrip.has(row.tripId)) {
-      latestAcceptedByTrip.set(row.tripId, {
-        reviewedBy: row.reviewedBy,
-        reviewerRole: row.reviewedBy == null ? null : reviewerRoles.get(row.reviewedBy) ?? null,
-      });
-    }
-  }
-
-  for (const tripId of tripIds) {
-    const checker = latestAcceptedByTrip.get(tripId);
-    if (checker?.reviewedBy == null) {
-      throw new ApiError(409, 'Chuyến chưa có người CUS/CLERK kiểm tra POD và hồ sơ chi phí.');
-    }
-    if (checker.reviewerRole !== Role.CUS) {
-      throw new ApiError(409, 'Người kiểm tra POD và hồ sơ chi phí phải là CUS/CLERK.');
-    }
-    if (checker.reviewedBy === completerUserId) {
-      throw new ApiError(409, 'Tài khoản Kế toán hoàn thành phải khác tài khoản CUS/CLERK đã kiểm tra hồ sơ.');
-    }
-  }
-}
 
 async function loadShipmentDirectCloseResult(
   tx: Tx,
@@ -265,11 +217,6 @@ export async function completeShipmentDirect(args: {
       const scopeState = await loadTripExpenseScopeState(
         tx,
         requiredTrips.map((trip) => trip.id),
-      );
-      await assertRoutineShipmentCloseCheckerSeparation(
-        tx,
-        requiredTrips.map((trip) => trip.id),
-        args.actor.userId,
       );
 
       for (const trip of [...requiredTrips].sort((left, right) => left.id - right.id)) {

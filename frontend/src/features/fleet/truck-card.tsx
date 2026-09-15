@@ -272,11 +272,11 @@ export function TruckCard({ trucks, driverByTruck, trailers, crud }: { trucks: T
                       const tr = t.currentTrailerId ? trailers.find((x) => x.id === t.currentTrailerId) : null;
                       return tr ? (
                         <span className="fleet-pair">
-                          <Plate plate={tr.licensePlate} tag="RM" /> <TypeChip type={(tr.type as TrailerType) ?? TrailerType.FT40} />
+                          <Plate plate={tr.licensePlate} tag="RM" /> <TypeChip type={tr.type} />
                         </span>
                       ) : t.trailerPlateNumber ? (
                         <span className="fleet-pair">
-                          <Plate plate={t.trailerPlateNumber} tag="RM" /> <TypeChip type={t.trailerType ?? TrailerType.FT40} />
+                          <Plate plate={t.trailerPlateNumber} tag="RM" /> <TypeChip type={t.trailerType ?? null} />
                         </span>
                       ) : (
                         <span className="fleet-unassigned">—</span>
@@ -403,7 +403,7 @@ export function TruckCard({ trucks, driverByTruck, trailers, crud }: { trucks: T
               label: "Rơ-moóc",
               value: tr ? (
                 <span className="fleet-pair">
-                  <Plate plate={tr.licensePlate} tag="RM" /> <TypeChip type={(tr.type as TrailerType) ?? TrailerType.FT40} />
+                  <Plate plate={tr.licensePlate} tag="RM" /> <TypeChip type={tr.type} />
                 </span>
               ) : (
                 <span className="fleet-unassigned">—</span>

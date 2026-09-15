@@ -1,3 +1,4 @@
+import { AgingDisclosure } from '../components/finance/AgingDisclosure';
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { formatCurrency, moneyParts } from '../lib/format';
 import { downloadCSV } from '../lib/csv';
@@ -147,7 +148,7 @@ export function CommissionModal({
         )}
         <UuiSelectField
           id="commission-supplier"
-          label="Nhà cung cấp *"
+          label="Nhà cung cấp"
           required
           value={form.supplierId === null || form.supplierId === undefined ? '' : String(form.supplierId)}
           onChange={e => setForm(f => ({ ...f, supplierId: e.target.value === '' ? '' : Number(e.target.value) }))}
@@ -395,7 +396,7 @@ export default function PayableListPage() {
         ]}
       />
 
-      {/* ── Zone 2: Aging Distribution (semantic O2C state lanes per P0-W6) ── */}
+      <AgingDisclosure label="Tuổi nợ nhà cung cấp · mở chi tiết">
       <div className="payables-aging-grid">
         {/* Trong hạn (0–30) */}
         <div className="aging-card aging-card--ok">
@@ -469,6 +470,7 @@ export default function PayableListPage() {
           </div>
         </div>
       </div>
+      </AgingDisclosure>
 
       {/* ── Zone 3: Data Card ───────────────────────────────────────────── */}
       <div className="payables-data-card">

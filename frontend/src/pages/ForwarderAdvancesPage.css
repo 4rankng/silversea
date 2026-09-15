@@ -427,5 +427,5 @@
 }
 
 .fadv-card-trip__status.is-pending { color: var(--warning-text); background: var(--warning-soft); }
-.fadv-card-trip__status.is-approved { color: var(--success-text); background: var(--success-soft); }
-.fadv-card-trip__status.is-rejected { color: var(--danger-text); background: var(--danger-soft); }
+.fadv-card-trip__status.is-recorded { color: var(--success-text); background: var(--success-soft); }
+.fadv-card-trip__status.is-voided { color: var(--danger-text); background: var(--danger-soft); }

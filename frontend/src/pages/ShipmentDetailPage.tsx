@@ -43,8 +43,6 @@ export default function ShipmentDetailPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const shipmentId = Number(id);
-  const canCompleteShipment = user?.role === Role.ACCOUNTANT;
-  const canResolveCancellation = user?.role === Role.ADMIN || user?.role === Role.MANAGER;
   const coordinationActive = Boolean(user?.capabilities?.includes('shipments.read'));
   const canWriteCoordination = coordinationActive
     && Boolean(user?.capabilities?.includes('shipments.write'));
@@ -125,7 +123,7 @@ export default function ShipmentDetailPage() {
     );
   }
 
-  const { shipment, containers, documents, declarations, statusHistory, podReviews } = data;
+  const { shipment, containers, documents, declarations, statusHistory } = data;
   const shipmentLabel = shipment.shipmentCode?.trim() || 'Chưa có mã lô hàng';
   const customerLabel = shipment.customerName?.trim() || 'Chưa có tên khách hàng';
   const accountingLock = data.accountingLock ?? null;

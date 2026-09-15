@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueries } from '@tanstack/react-query';
 import { Search } from 'lucide-react';
@@ -5,7 +6,6 @@ import { PageHeader } from '../components/UI';
 import { AssetIcon } from '../components/AssetIcon';
 import { api } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
-import { useSearch } from '../context/SearchContext';
 import { CONFIG_ITEMS } from '../data/searchRegistry';
 import { usePageAnimations } from '../hooks/animations';
 import { qk } from '../api/keys';
@@ -32,32 +32,12 @@ function removeVietnameseTones(str: string): string {
 
 export default function ConfigPage() {
   const navigate = useNavigate();
-  const { searchQuery } = useSearch();
+  const [searchQuery, setSearchQuery] = useState('');
   const { rootRef } = usePageAnimations({ ready: true });
   const { user } = useAuth();
   const isAdmin = user?.role === Role.ADMIN;
 
-  const [
-    penaltyReasons,
-    roadAllowances,
-    drivers,
-    capTable,
-    customers,
-    routes,
-    trucks,
-    tirePositions,
-    trailers,
-    cargoTypes,
-    pricingTables,
-    salaryDefault,
-    expenseCategories,
-    fuelConfig,
-    companyInfo,
-    forwarderExpenseTypes,
-    debitNoteTemplates,
-    fuelPricePeriods,
-    freightRateTerms,
-  ] = useQueries({
+  const summaryQueries = useQueries({
     queries: [
       { queryKey: qk.configCounts.penaltyReasons,        queryFn: () => api.get<ListResponse>('/penalty-reasons?limit=1'),    staleTime: 60_000 },
       { queryKey: qk.configCounts.roadAllowances,        queryFn: () => api.get<ListResponse>('/road-allowances?limit=1'),    staleTime: 60_000 },
@@ -80,6 +60,28 @@ export default function ConfigPage() {
       { queryKey: qk.configCounts.freightRateTerms,     queryFn: () => api.get<ListResponse>('/freight-rate-terms?limit=1'),     staleTime: 60_000 },
     ],
   });
+
+  const [
+    penaltyReasons,
+    roadAllowances,
+    drivers,
+    capTable,
+    customers,
+    routes,
+    trucks,
+    tirePositions,
+    trailers,
+    cargoTypes,
+    pricingTables,
+    salaryDefault,
+    expenseCategories,
+    fuelConfig,
+    companyInfo,
+    forwarderExpenseTypes,
+    debitNoteTemplates,
+    fuelPricePeriods,
+    freightRateTerms,
+  ] = summaryQueries;
 
   function salaryStatus(): string {
     if (salaryDefault.isLoading) return '—';
@@ -128,9 +130,24 @@ export default function ConfigPage() {
     'debit-note-templates':     { status: countLabel(debitNoteTemplates.data?.total, 'mẫu') },
   };
 
-  const cards = CONFIG_ITEMS
-    .filter(item => !item.adminOnly || isAdmin)
+  const cardQueries = {
+    'fuel': fuelConfig, 'company-info': companyInfo, 'road-allowances': roadAllowances,
+    'penalty-reasons': penaltyReasons, 'drivers': drivers, 'cap-table': capTable,
+    'customers': customers, 'routes': routes, 'trucks': trucks, 'tire-positions': tirePositions,
+    'trailers': trailers, 'cargo-types': cargoTypes, 'pricing-tables': pricingTables,
+    'fuel-price-periods': fuelPricePeriods, 'freight-rate-terms': freightRateTerms,
+    'salary-periods': salaryDefault, 'expense-categories': expenseCategories,
+    'forwarder-expense-types': forwarderExpenseTypes, 'debit-note-templates': debitNoteTemplates,
+  };
+  const visibleItems = CONFIG_ITEMS.filter(item => !item.adminOnly || isAdmin);
+  const failedQueries = visibleItems
+    .map(item => cardQueries[item.id as keyof typeof cardQueries])
+    .filter(query => query?.isError);
+  const retrying = failedQueries.some(query => query.isFetching);
+
+  const cards = visibleItems
     .map(item => {
+    const query = cardQueries[item.id as keyof typeof cardQueries];
     return {
       title: item.label,
       desc: item.description ?? '',
@@ -138,6 +155,7 @@ export default function ConfigPage() {
       path: item.path,
       action: item.action ?? 'Sửa',
       ...(statusInfo[item.id] ?? { status: '—' }),
+      ...(query?.isError ? { status: 'Không tải được', statusColor: 'var(--danger)' } : query?.isLoading ? { status: 'Đang tải…' } : {}),
     };
   });
 
@@ -163,18 +181,26 @@ export default function ConfigPage() {
         description="Quản lý định mức, quy tắc tính toán, người dùng & tích hợp hệ thống"
       />
 
-      {searchQuery.trim() && (
-        <div style={{ marginBottom: 16, fontSize: 'var(--text-caption-size)', color: 'var(--fg-3)', display: 'flex', alignItems: 'center', gap: 6 }}>
-          <Search size={14} />
-          Tìm thấy <strong>{filteredCards.length}</strong> kết quả phù hợp cho từ khóa "{searchQuery}"
+      <div className="config-search-toolbar">
+        <div className="config-search-field">
+          <label htmlFor="config-search" className="sr-only">Tìm cấu hình</label>
+          <Search size={15} aria-hidden="true" />
+          <input id="config-search" type="search" className="input" value={searchQuery} onChange={event => setSearchQuery(event.target.value)} placeholder="Tìm cấu hình theo tên hoặc chức năng" />
         </div>
-      )}
+        <span className="config-search-count" aria-live="polite">{filteredCards.length} mục</span>
+        {searchQuery && <button type="button" className="btn btn--secondary btn--sm" onClick={() => setSearchQuery('')}>Xóa tìm kiếm</button>}
+      </div>
+      {failedQueries.length > 0 && <div className="config-read-error" role="alert">
+        <span>Một số thông tin tổng hợp chưa tải được. Bạn vẫn có thể mở các mục bên dưới.</span>
+        <button type="button" className="btn btn--secondary btn--sm" disabled={retrying} onClick={() => { void Promise.all(failedQueries.map(query => query.refetch())); }}>{retrying ? 'Đang thử lại…' : 'Thử lại'}</button>
+      </div>}
 
       {filteredCards.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '64px 32px', border: '1px dashed var(--line)', borderRadius: 12, background: 'var(--bg-2)', color: 'var(--fg-3)' }}>
+        <div className="config-search-empty">
           <Search size={32} style={{ margin: '0 auto 12px', display: 'block', opacity: 0.5 }} />
           <h3 style={{ fontSize: 'var(--text-section-size)', fontWeight: 600, color: 'var(--fg-2)', marginBottom: 4 }}>Không tìm thấy cấu hình</h3>
           <p style={{ fontSize: 'var(--text-data-size)' }}>Hãy thử tìm kiếm với từ khóa khác.</p>
+          <button type="button" className="btn btn--secondary" onClick={() => setSearchQuery('')}>Hiện tất cả cấu hình</button>
         </div>
       ) : (
         <div className="settings-grid asset-route-grid" data-tour-id="config-grid">

@@ -120,7 +120,7 @@ export default function SalaryAttendancePage() {
                     // the pick instead of leaving it below the roster.
                     if (window.matchMedia('(max-width: 1023px)').matches) {
                       requestAnimationFrame(() => {
-                        document.querySelector('.salary-page-layout__sidebar')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        document.querySelector('.salary-page-layout__sidebar')?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
                       });
                     }
                   }}
@@ -375,7 +375,7 @@ export default function SalaryAttendancePage() {
                 </div>
               ) : salary ? (
                 <>
-	                  <SalarySummaryCard salary={salary} onEditBaseSalary={() => setShowBaseSalaryEdit(true)} driverName={drivers.find((d) => d.id === selectedDriverId)?.name} />
+	                  <SalarySummaryCard salary={salary} onEditBaseSalary={canReopenCompanyPeriod ? () => setShowBaseSalaryEdit(true) : undefined} driverName={drivers.find((d) => d.id === selectedDriverId)?.name} />
 	                    <BaseSalaryEditModal
                     isOpen={showBaseSalaryEdit}
                     onClose={() => setShowBaseSalaryEdit(false)}

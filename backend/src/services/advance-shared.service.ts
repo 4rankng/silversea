@@ -213,7 +213,7 @@ export async function autoOffsetExpenseApproval(tx: Tx, expenseId: number): Prom
     .from(s.tripExpenses).where(eq(s.tripExpenses.id, expenseId)).limit(1);
 
   if (!initialExpense) return;
-  if (initialExpense.approvalStatus !== 'APPROVED') return;
+  if (!['RECORDED', 'APPROVED'].includes(initialExpense.approvalStatus)) return;
   if (initialExpense.settlementMethod !== 'OPS_ADVANCE') return;
   const initialForwarderId = initialExpense.forwarderId ?? initialExpense.createdBy;
   if (!initialForwarderId) return;
@@ -229,7 +229,7 @@ export async function autoOffsetExpenseApproval(tx: Tx, expenseId: number): Prom
     .from(s.advanceRequests)
     .where(and(
       eq(s.advanceRequests.requesterId, initialForwarderId),
-      eq(s.advanceRequests.status, 'APPROVED'),
+      eq(s.advanceRequests.status, 'RECORDED'),
     ));
   for (const requestId of candidateRequestIds.map((row) => row.id).sort((a, b) => a - b)) {
     await tx.execute(sql`SELECT pg_advisory_xact_lock(6101, ${requestId})`);
@@ -241,7 +241,7 @@ export async function autoOffsetExpenseApproval(tx: Tx, expenseId: number): Prom
   const [expense] = await tx.select()
     .from(s.tripExpenses).where(eq(s.tripExpenses.id, expenseId)).limit(1);
   if (!expense) return;
-  if (expense.approvalStatus !== 'APPROVED') return;
+  if (!['RECORDED', 'APPROVED'].includes(expense.approvalStatus)) return;
   if (expense.settlementMethod !== 'OPS_ADVANCE') return;
   const forwarderId = expense.forwarderId ?? expense.createdBy;
   if (!forwarderId || forwarderId !== initialForwarderId) return;
@@ -255,7 +255,7 @@ export async function autoOffsetExpenseApproval(tx: Tx, expenseId: number): Prom
     .innerJoin(s.advanceSettlements, eq(s.advanceSettlements.id, s.settlementExpenses.settlementId))
     .where(and(
       eq(s.settlementExpenses.tripExpenseId, expenseId),
-      notInArray(s.advanceSettlements.status, ['REJECTED', 'REVERSED']),
+      notInArray(s.advanceSettlements.status, ['VOIDED', 'REVERSED']),
     ))
     .limit(1);
   if (existingLink) return;
@@ -268,7 +268,7 @@ export async function autoOffsetExpenseApproval(tx: Tx, expenseId: number): Prom
   }).from(s.advanceRequests)
     .where(and(
       eq(s.advanceRequests.requesterId, forwarderId),
-      eq(s.advanceRequests.status, 'APPROVED'),
+      eq(s.advanceRequests.status, 'RECORDED'),
     ))
     .orderBy(desc(s.advanceRequests.approvedAt), s.advanceRequests.id)
     .for('update');
@@ -286,7 +286,7 @@ export async function autoOffsetExpenseApproval(tx: Tx, expenseId: number): Prom
         )
         .where(and(
           inArray(s.advanceSettlementRequests.advanceRequestId, candidates.map((candidate) => candidate.id)),
-          notInArray(s.advanceSettlements.status, ['REJECTED', 'REVERSED']),
+          notInArray(s.advanceSettlements.status, ['VOIDED', 'REVERSED']),
         ))
         .groupBy(s.advanceSettlementRequests.advanceRequestId);
   const allocatedByRequest = new Map(
@@ -333,7 +333,7 @@ export async function autoOffsetExpenseApproval(tx: Tx, expenseId: number): Prom
     forwarderId,
     totalExpenseAmount: String(amount),
     refundAmount: '0',
-    status: 'APPROVED',
+    status: 'RECORDED',
     autoOffsetExpenseId: expense.id,
     note: `Tự quyết toán khi duyệt chi hộ chuyến ${trip?.tripCode ?? expense.tripId} (O2C Bước 4)`,
     approvedAt: new Date(),
@@ -385,7 +385,7 @@ const approvedAllocatedAmount = sql<string>`coalesce((
   inner join advance_settlements settlement
     on settlement.id = allocation.settlement_id
   where allocation.advance_request_id = ${s.advanceRequests.id}
-    and settlement.status = 'APPROVED'
+    and settlement.status = 'RECORDED'
 ), 0)`;
 
 /**
@@ -394,7 +394,7 @@ const approvedAllocatedAmount = sql<string>`coalesce((
  */
 export async function getOutstandingAdvanceBalance(forwarderUserId?: number): Promise<number> {
   const conditions = [
-    eq(s.advanceRequests.status, 'APPROVED'),
+    eq(s.advanceRequests.status, 'RECORDED'),
   ];
   if (forwarderUserId) {
     conditions.push(eq(s.advanceRequests.requesterId, forwarderUserId));
@@ -423,7 +423,7 @@ export async function getOutstandingAdvanceBalances(): Promise<{
   }).from(s.advanceRequests)
     .innerJoin(s.users, eq(s.advanceRequests.requesterId, s.users.id))
     .where(and(
-      eq(s.advanceRequests.status, 'APPROVED'),
+      eq(s.advanceRequests.status, 'RECORDED'),
     ))
     .groupBy(s.advanceRequests.requesterId, s.users.fullName);
 

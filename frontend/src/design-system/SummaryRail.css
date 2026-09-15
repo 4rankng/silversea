@@ -4,11 +4,8 @@
  * §"Workboard table & summary rail"). A decision rail, not cards: it gives the
  * operator a quiet count of the work that needs attention before scanning rows.
  *
- * Visual source of truth: ShipmentsPage.css `.cus-workspace-summary` (frozen
- * customer-approved surface — never edit that page to restyle the rail; change
- * it here and keep the two visually identical). Lays out as one ruled row via
- * flex so any item count works; the leading total column reads slightly wider
- * (1.35 grow ≈ the source grid's 1.35fr first track).
+ * Desktop retains a horizontal ruled strip. Phones and tablets pair metrics
+ * in columns so operational records stay close to the top of the screen.
  */
 
 .summary-rail {
@@ -51,11 +48,13 @@
 }
 
 .summary-rail dd {
-  flex: 0 0 auto;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
   margin: 0;
   color: var(--ink);
   font-family: var(--font-data);
-  font-size: var(--text-metric-size);
+  font-size: var(--text-section-size);
   font-weight: var(--fw-bold);
   letter-spacing: var(--tracking-tight);
   line-height: 1.25;
@@ -66,22 +65,24 @@
 .summary-rail__item--warning dd { color: var(--warning-text); }
 .summary-rail__item--info dd { color: var(--info-text); }
 
-/* Narrow canvases: wrap two-up, then stack — the workboard rail's 700px/380px
-   collapse expressed without its 4-item nth-child ladder. */
-@media (max-width: 700px) {
+/* Pair compact metrics on constrained canvases instead of consuming an entire
+   phone screen before the first record. Each value retains its own column. */
+@media (max-width: 1023px) {
   .summary-rail {
-    margin: 12px 12px 0;
-    border-bottom: 0;
+    margin: 8px 12px 0;
   }
 
   .summary-rail dl {
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .summary-rail__item {
-    flex-basis: 50%;
-    padding: 10px 12px;
-    border-bottom: 1px solid var(--line);
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 4px;
+    padding: 8px 12px;
   }
 
   .summary-rail__item:nth-child(even) {
@@ -91,25 +92,8 @@
 
   .summary-rail__item:nth-child(odd) { padding-left: 0; }
   .summary-rail__item:nth-child(n + 3) { border-top: 1px solid var(--line); }
-}
-
-@media (max-width: 480px) {
-  /* Phone sheet: every item spans the full row, label stacked above value
-     so Vietnamese labels and formatted ₫ amounts never overlap. Matches the
-     workboard rail's collapse convention (flush gutters, hairline dividers). */
-  .summary-rail__item {
-    flex-basis: 100%;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
-    padding-inline: 0;
+  .summary-rail__item:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
     border-right: 0;
   }
-
-  .summary-rail dd {
-    font-size: var(--text-metric-size);
-  }
-
-  .summary-rail__item:nth-child(n + 2) { border-top: 1px solid var(--line); }
-  .summary-rail__item:last-child { border-bottom: 0; }
 }

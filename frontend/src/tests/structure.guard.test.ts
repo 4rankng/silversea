@@ -82,7 +82,6 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // handling — ref + field-error announce in the change-password dialog.
   // Reviewed as a contract change.
     'src/components/Layout.tsx': 879,
-  'src/components/shipment/TripPodReviewPanel.tsx': 588,
   'src/components/trip/AncillaryFeesCard.tsx': 607,
   'src/components/trip/ContainerInstancesCard.tsx': 591,
   // Bumped 585 → 720: 2026-09-13 driver attachments unification — the card
@@ -149,11 +148,8 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // Bumped 515 → 540 on 2026-09-12 (ensureFulfillment decompose-then-edit),
   // returned to 515 the same day: the ensure logic extracted to
   // ensureFulfillment.ts — ticket 2026.9 (1)._4 item 7 DEBT CLEARED.
-  // Bumped 515 → 533: 2026-09-14 QA-001 AC4 — three-state header sort
-  // (unsorted → asc → desc → unsorted) with a direction-aware comparator;
-  // time-less rows sort last in both directions. Reviewed as a contract
-  // change.
-  'src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts': 533,
+  // 2026-09-15 KP-018: filter/query contract extracted to detailPlanFilters.ts.
+  'src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts': 515,
   'src/features/dispatch/master-plan/DispatchAllocationPopover.tsx': 454,
   'src/features/dispatch/master-plan/MasterPlanFilters.tsx': 735,
   // Bumped 508 → 520: 282fe386 (2026-09-05, "fix(dispatch): keep dispatched

@@ -1,11 +1,12 @@
 import React, { createContext, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowLeft, ArrowDownRight, ArrowUpRight, X } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, X } from 'lucide-react';
 import { animate, utils, spring } from 'animejs';
 import { AssetIcon, type AssetIconName } from './AssetIcon';
 export { PageHeader } from './PageHeader';
 import { isTopOverlayToken, useAnimatedOverlay, type EntranceFn, type ExitFn } from '../hooks/useAnimatedOverlay';
 import { useFocusTrap } from '../hooks/useFocusTrap';
+import { bindFormGroupControl } from './form-group-control';
 import { Tooltip } from './shared/Tooltip';
 import { currentPathname, hasOperationalDensity } from '../lib/operational-density';
 import { Sparkline } from '../design-system/Sparkline';
@@ -388,28 +389,28 @@ const BADGE_COLOR_MAP: Record<NonNullable<BadgeProps['variant']>, 'success' | 'w
 
 interface FormGroupProps {
   label: string;
+  htmlFor?: string;
   helpText?: string;
   error?: string;
   children: React.ReactNode;
   style?: React.CSSProperties;
 }
 
-export function FormGroup({ label, helpText, error, children, style }: FormGroupProps) {
-  const fieldId = useId();
+export function FormGroup({ label, htmlFor, helpText, error, children, style }: FormGroupProps) {
+  const generatedId = useId();
+  const feedbackId = error ? `${generatedId}-error` : helpText ? `${generatedId}-help` : undefined;
+  const { fieldId, children: boundChildren } = bindFormGroupControl(children, generatedId, htmlFor, {
+    descriptionId: feedbackId, invalid: Boolean(error),
+  });
   return (
     <div className="field" style={{ display: 'flex', flexDirection: 'column', gap: 6, ...style }}>
       <UILabel htmlFor={fieldId} className="text-xs font-semibold text-secondary">{label}</UILabel>
-      {React.Children.map(children, (child) => {
-        if (React.isValidElement(child)) {
-          return React.cloneElement(child as React.ReactElement<Record<string, unknown>>, { id: fieldId });
-        }
-        return child;
-      })}
+      {boundChildren}
       {error && (
-        <UIHintText isInvalid size="sm" style={{ marginTop: 4 }}>{error}</UIHintText>
+        <UIHintText id={feedbackId} role="alert" isInvalid size="sm" style={{ marginTop: 4 }}>{error}</UIHintText>
       )}
       {helpText && !error && (
-        <UIHintText size="sm" style={{ marginTop: 2 }}>{helpText}</UIHintText>
+        <UIHintText id={feedbackId} size="sm" style={{ marginTop: 2 }}>{helpText}</UIHintText>
       )}
     </div>
   );

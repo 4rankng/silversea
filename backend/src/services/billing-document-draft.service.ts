@@ -619,7 +619,7 @@ async function loadApprovedFeesByTrip(tripIds: number[]): Promise<Map<number, Ap
   }).from(s.tripExpenses)
     .leftJoin(s.forwarderExpenseTypes, eq(s.tripExpenses.expenseType, s.forwarderExpenseTypes.code))
     .leftJoin(s.suppliers, eq(s.tripExpenses.supplierId, s.suppliers.id))
-    .where(and(inArray(s.tripExpenses.tripId, tripIds), eq(s.tripExpenses.approvalStatus, 'APPROVED')));
+    .where(and(inArray(s.tripExpenses.tripId, tripIds), inArray(s.tripExpenses.approvalStatus, ['RECORDED', 'APPROVED'])));
   for (const f of rows) {
     if (!map.has(f.tripId)) map.set(f.tripId, []);
     map.get(f.tripId)!.push(f);

@@ -7,6 +7,7 @@ const pageSource = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.
 // Row markup moved into the feature leaf in the 2026-09-01 structural split.
 const rowSource = readFileSync(resolve(process.cwd(), 'src/features/shipments/cus/CusShipmentRow.tsx'), 'utf8');
 const ledgerSource = readFileSync(resolve(process.cwd(), 'src/features/shipments/cus/CusContainerLedger.tsx'), 'utf8');
+const ledgerRowSource = readFileSync(resolve(process.cwd(), 'src/features/shipments/cus/CusContainerLedgerRow.tsx'), 'utf8');
 
 describe('shipment container editor density', () => {
   it('keeps Untitled toolbar inputs inside a single outlined control shell', () => {
@@ -37,8 +38,8 @@ describe('shipment container editor density', () => {
 
   it('uses the create-form spreadsheet pattern instead of two tall operational bands', () => {
     expect(ledgerSource).toContain('<table className="cus-container-table">');
-    expect(ledgerSource).toContain('<ShipmentContainerCell');
-    expect(ledgerSource).toContain("import { ShipmentContainerCell } from '../create/ShipmentContainerCell';");
+    expect(ledgerRowSource).toContain('<ShipmentContainerCell');
+    expect(ledgerRowSource).toContain("import { ShipmentContainerCell } from '../create/ShipmentContainerCell';");
     expect(ledgerSource).toContain('<th scope="col">Container</th>');
     expect(ledgerSource).toContain('<th scope="col">Giờ hẹn đóng/trả</th>');
     // 2026-09-08: percentage columns (sum 100%) replaced the 1186px min-width
@@ -50,7 +51,7 @@ describe('shipment container editor density', () => {
     expect(css).toMatch(
       /\.cus-container-cell :is\(\.searchable-select__value, \.searchable-select__placeholder\)\s*\{[^}]*overflow:\s*hidden;[^}]*text-overflow:\s*ellipsis;[^}]*white-space:\s*nowrap;/,
     );
-    expect(ledgerSource).toContain('label: option.code');
+    expect(ledgerRowSource).toContain('label: option.code');
     expect(css).toMatch(/\.cus-container-table-scroll\s*\{[^}]*overflow-x:\s*auto;/);
     expect(css).toMatch(/\.cus-container-cell input,[\s\S]*?box-sizing:\s*border-box;[\s\S]*?width:\s*100%;[\s\S]*?min-width:\s*0;[\s\S]*?min-height:\s*28px;/);
     expect(css).toMatch(/\.cus-container-ledger__head\s*\{/);
@@ -63,7 +64,7 @@ describe('shipment container editor density', () => {
     expect(css).toMatch(/@container shipment-drawer \(max-width: 760px\)[\s\S]*?\.cus-container-table \.cus-container-row\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
     expect(css).toMatch(/@container shipment-drawer \(max-width: 760px\)[\s\S]*?\.cus-container-table \.cus-container-cell--identity\s*\{[\s\S]*?grid-column:\s*1 \/ -1;/);
     expect(css).toMatch(/@container shipment-drawer \(max-width: 760px\)[\s\S]*?\.cus-container-table \.cus-container-cell--identity\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\);/);
-    expect(ledgerSource).toMatch(/<SearchableSelect[\s\S]*?size="sm"/);
+    expect(ledgerRowSource).toMatch(/<SearchableSelect[\s\S]*?size="sm"/);
     expect(css).toMatch(/@media \(max-width: 560px\)[\s\S]*?\.cus-container-table \.cus-container-cell input,[\s\S]*?\.cus-container-table \.cus-container-cell \.searchable-select__trigger\s*\{[^}]*min-height:\s*44px;[^}]*font-size:\s*var\(--control-field-font-size\);/);
     expect(css).toMatch(/\.shipments-page \.ds-pagination__controls\s*\{[\s\S]*?flex-wrap:\s*wrap;/);
   });

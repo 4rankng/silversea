@@ -37,11 +37,7 @@ export type {
 } from './shipment-lifecycle.service';
 
 export {
-  reviewShipmentChangeRequest,
   downloadShipmentPodFile,
-} from './shipment-review.service';
-export type {
-  ShipmentChangeRequestReviewResult,
 } from './shipment-review.service';
 
 export {

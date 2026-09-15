@@ -14,33 +14,9 @@
 
 /* ── Hero (light operational summary) ────────────────────────────────── */
 .salary-page .hero {
-  background:
-    linear-gradient(135deg, rgba(0, 90, 45, 0.08), rgba(255, 255, 255, 0) 42%),
-    var(--surface);
   color: var(--ink);
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 10px 28px -22px rgba(0, 90, 45, 0.45);
-  padding: 22px 24px;
-  margin-bottom: 18px;
-  position: relative;
-  overflow: hidden;
-}
-.salary-page .hero::before {
-  content: '';
-  position: absolute;
-  right: -110px; top: -120px;
-  width: 300px; height: 300px;
-  background: radial-gradient(circle, rgba(0, 177, 79, 0.10), transparent 68%);
-  pointer-events: none;
-}
-.salary-page .hero::after {
-  content: '';
-  position: absolute;
-  left: 24px; right: 24px; bottom: 0;
-  height: 1px;
-  background: linear-gradient(90deg, rgba(0, 90, 45, 0.18), transparent 72%);
-  pointer-events: none;
+  padding: 0;
+  margin-bottom: 12px;
 }
 .salary-page .hero-top {
   display: flex; align-items: flex-start; justify-content: space-between;
@@ -138,13 +114,8 @@
   margin-bottom: 12px;
 }
 .salary-page .driver-select-row {
-  padding: 12px;
-  border: 1px solid rgba(203, 211, 206, 0.72);
-  border-radius: 16px;
-  background:
-    linear-gradient(90deg, rgba(0, 177, 79, 0.045), rgba(255, 255, 255, 0) 42%),
-    rgba(255, 255, 255, 0.72);
-  box-shadow: 0 1px 2px rgba(16, 24, 20, 0.035);
+  padding: 10px 0;
+  border-block: 1px solid var(--line);
 }
 .salary-page .driver-select-row__list {
   display: grid;
@@ -158,7 +129,7 @@
   .salary-page .metric.featured { grid-column: 1 / -1; grid-row: auto; }
 }
 @media (max-width: 1023px) {
-  .salary-page .hero { padding: 20px; }
+  .salary-page .hero { padding: 0; }
   .salary-page .hero-top { flex-direction: column; gap: 14px; }
   .salary-page .hero-actions { width: 100%; justify-content: center; }
   .salary-page .driver-select-row__list {
@@ -168,12 +139,10 @@
     gap: 8px;
     padding: 2px 0 6px;
   }
-  .salary-page .driver-select-row__list::-webkit-scrollbar { display: none; }
 }
 @media (max-width: 640px) {
   .salary-page .hero {
-    padding: 12px;
-    border-radius: 14px;
+    padding: 0;
     margin-bottom: 12px;
   }
   .salary-page .hero-top { flex-direction: column; gap: 10px; align-items: stretch; }
@@ -232,8 +201,7 @@
   .salary-page .metric.featured .metric-delta.delta-flat { display: none; }
   .salary-page .utilization-bar { margin-top: 8px; height: 4px; }
   .salary-page .driver-select-row {
-    padding: 8px;
-    border-radius: 14px;
+    padding: 8px 0;
     margin-bottom: 10px;
   }
   .salary-page .driver-select-row__search { margin-bottom: 8px; }

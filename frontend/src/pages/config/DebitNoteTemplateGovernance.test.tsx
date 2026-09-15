@@ -189,4 +189,16 @@ describe('Debit note template save/delete UX', () => {
     });
     expect(mocks.refetch).toHaveBeenCalledTimes(1);
   });
+  it('asks before discarding an edited template and preserves the draft on cancel', async () => {
+    mocks.useQuery.mockReturnValue({ data: undefined, isLoading: false });
+    mocks.confirm.mockResolvedValue(false);
+    render(<DebitNoteTemplateEditorPage />);
+    fireEvent.change(screen.getByRole('textbox', { name: 'Tên mẫu' }), { target: { value: 'Bản chỉnh chưa lưu' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Quay lại' }));
+    await waitFor(() => expect(mocks.confirm).toHaveBeenCalled());
+    expect(mocks.navigate).not.toHaveBeenCalled();
+    expect(screen.getByRole('textbox', { name: 'Tên mẫu' })).toHaveValue('Bản chỉnh chưa lưu');
+    expect(mocks.saveDebitNoteTemplate).not.toHaveBeenCalled();
+  });
+
 });

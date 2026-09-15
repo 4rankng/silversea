@@ -1,3 +1,4 @@
+import { createDefaultDetailedPlanFilters, detailPlanQuery, type DetailedPlanFilterState, type DetailPlanSortKey, type DetailPlanSortDirection } from './detailPlanFilters';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAutoRefresh } from '../../../hooks/useAutoRefresh';
 import { ensureFulfillmentFor } from './ensureFulfillment';
@@ -13,7 +14,6 @@ import {
   listZoneTruckPresence,
   updateDispatchDetailEstimates,
   updateDispatchDetailPlan,
-  type DispatchDetailPlanFilters,
   type DispatchDetailPlanRow,
   type ZoneTruckPresenceItem,
 } from '../../../api/dispatchPlanningClient';
@@ -22,57 +22,8 @@ import { dispatchShipment, type DispatchShipmentRequest } from '../../../api/shi
 
 const PAGE_SIZE = 50;
 
-export interface DetailedPlanFilterState extends DispatchDetailPlanFilters {
-  q: string;
-  date: string;
-  direction: 'IMPORT' | 'EXPORT' | '';
-  assignmentStatus: 'UNASSIGNED' | 'ASSIGNED' | '';
-  pickupIds: number[];
-  dropoffIds: number[];
-  deliveryPointIds: number[];
-  hourFrom: string;
-  hourTo: string;
-  /** Zone code from the DB taxonomy; '' = no zone filter. */
-  zone: string;
-}
-
-export const EMPTY_DETAILED_PLAN_FILTERS: DetailedPlanFilterState = {
-  q: '',
-  date: '',
-  direction: '',
-  assignmentStatus: '',
-  pickupIds: [],
-  dropoffIds: [],
-  deliveryPointIds: [],
-  hourFrom: '',
-  hourTo: '',
-  zone: '',
-};
-
-export function createDefaultDetailedPlanFilters(): DetailedPlanFilterState {
-  // No default transport date — /dispatch parity: the grid lists all allocated
-  // fulfillments until the dispatcher filters by an explicit day.
-  return { ...EMPTY_DETAILED_PLAN_FILTERS };
-}
-
-export type DetailPlanSortKey = 'runHour' | 'deliveryPoint' | null;
-export type DetailPlanSortDirection = 'asc' | 'desc';
-
-/** Query params shared by the list, load-more, and refresh requests. */
-function detailPlanQuery(filters: DetailedPlanFilterState, q: string) {
-  return {
-    ...(q ? { q } : {}),
-    ...(filters.date ? { date: filters.date } : {}),
-    ...(filters.direction ? { direction: filters.direction } : {}),
-    ...(filters.assignmentStatus ? { assignmentStatus: filters.assignmentStatus } : {}),
-    ...(filters.pickupIds.length > 0 ? { pickupIds: filters.pickupIds } : {}),
-    ...(filters.dropoffIds.length > 0 ? { dropoffIds: filters.dropoffIds } : {}),
-    ...(filters.deliveryPointIds.length > 0 ? { deliveryPointIds: filters.deliveryPointIds } : {}),
-    ...(filters.hourFrom ? { hourFrom: filters.hourFrom } : {}),
-    ...(filters.hourTo ? { hourTo: filters.hourTo } : {}),
-    ...(filters.zone ? { zone: filters.zone } : {}),
-  };
-}
+export { EMPTY_DETAILED_PLAN_FILTERS, createDefaultDetailedPlanFilters } from './detailPlanFilters';
+export type { DetailedPlanFilterState, DetailPlanSortKey, DetailPlanSortDirection } from './detailPlanFilters';
 
 /**
  * Data hook for the dispatch detail plan grid ("Kế hoạch Chi tiết Xe"):

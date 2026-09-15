@@ -66,6 +66,7 @@ vi.mock('../lib/idempotency', () => ({
 }));
 
 import DriverTripDetailPage from './DriverTripDetailPage';
+import { driverClient } from '../api/driverClient';
 
 /** Board cards the journey-board mock returns (default: none). */
 let boardItems: Array<Record<string, unknown>> = [];
@@ -208,6 +209,17 @@ describe('DriverTripDetailPage', () => {
     });
   });
 
+  it.each(['COMPLETED', 'CANCELLED'])('does not offer acceptance for a %s legacy order without milestone history', async (status) => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({ status }), isLoading: false, error: null, refetch: vi.fn(),
+    });
+    renderPage();
+    await screen.findByText('Tác vụ tài xế');
+    expect(screen.queryByTestId('accept-sticky-bar')).toBeNull();
+    expect(screen.queryByTestId('bypass-ops-banner')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Nhận lệnh vận chuyển/ })).toBeNull();
+  });
+
   // Phần 4 ticket 2026-08-28: Bốn mốc + Thu nhập tham chiếu stay removed.
   // BOTH cost forms are hidden (kế toán từ từ): "Nhập chi phí lô hàng" and
   // the fuel-refill "Báo cáo đổ dầu". 27.8's "GIỮ NGUYÊN" covers the fuel
@@ -279,6 +291,8 @@ describe('DriverTripDetailPage', () => {
 
     const img = await screen.findByAltText('Ảnh nhiên liệu TRIP-55');
     expect(img.getAttribute('src')).toContain('token=jwt-for-img-test');
+    expect(screen.getByText(/OCR chưa xác minh/)).toBeTruthy();
+    expect(screen.queryByText(/Chờ kế toán xác nhận/)).toBeNull();
   });
 
   it('renders the sticky accept bar and the Hoàn tất lệnh vận chuyển footer button (e-POD lives on its own page now)', async () => {
@@ -476,11 +490,12 @@ describe('DriverTripDetailPage', () => {
     expect(screen.getByText('Seal SEAL-9 · Seal SEAL-8')).toBeTruthy();
   });
 
-  it('renders the container card and hides the invoice block when there is no invoice info', async () => {
+  it('renders the container card and identifies missing factory invoice configuration', async () => {
     renderPage();
 
     expect(await screen.findByText(/Số cont & seal/)).toBeTruthy();
-    expect(screen.queryByText(/Thông tin xuất hóa đơn/)).toBeNull();
+    expect(screen.getByText(/Thông tin xuất hóa đơn/)).toBeTruthy();
+    expect(screen.getByText('Nhà máy chưa cấu hình thông tin xuất hóa đơn.')).toBeTruthy();
   });
 
   it('renders the CUS driver note in the site-rules section and keeps the empty state only when both are absent', async () => {
@@ -946,5 +961,26 @@ describe('DriverTripDetailPage', () => {
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+});
+
+
+describe('busy-trip recovery', () => {
+  it.each([true, false])('offers only an owned blocking-trip link (owned=%s)', async (owned) => {
+    useDriverTaskDetailMock.mockReturnValue({ data: makeTaskDetail(), isLoading: false, error: null, refetch: vi.fn() });
+    useDriverTaskProgressMock.mockReturnValue({ data: { items: [] }, isLoading: false, refetch: vi.fn() });
+    const rejection = vi.spyOn(driverClient, 'recordProgress').mockRejectedValueOnce(new Error('Xe đang chạy chuyến TRP-TEST-1. Vui lòng hoàn thành chuyến đó trước.'));
+    const board = vi.spyOn(driverClient, 'getJourneyBoard').mockResolvedValueOnce({ items: owned ? [{ tripCode: 'TRP-TEST-1', fulfillmentId: 99, bucket: 'RUNNING' }] as never : [], knownTagLabels: [] });
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: /Nhận lệnh vận chuyển/ }));
+    await waitFor(() => expect(board).toHaveBeenCalledOnce());
+    expect(screen.getByTestId('blocking-trip-banner').textContent).toContain('TRP-TEST-1');
+    if (owned) expect((await screen.findByRole('link', { name: 'Mở chuyến đang chạy' })).getAttribute('href')).toBe('/my-trips/99');
+    else {
+      expect(screen.queryByRole('link', { name: 'Mở chuyến đang chạy' })).toBeNull();
+      expect(screen.getByTestId('blocking-trip-banner').textContent).toContain('Liên hệ điều vận');
+    }
+    rejection.mockRestore();
+    board.mockRestore();
   });
 });

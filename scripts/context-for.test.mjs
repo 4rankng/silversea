@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
-import { existsSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, copyFileSync, rmSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
 import { describe, test } from 'node:test';
 import {
   defaultRepoRoot,
@@ -110,6 +113,22 @@ describe('development context resolver', () => {
 });
 
 describe('development context manifest', () => {
+  test('resolves using only tracked context files, without local plans or handoff', () => {
+    const fixture = mkdtempSync(join(tmpdir(), 'silversea-context-'));
+    try {
+      const tracked = new Set(execFileSync('git', ['ls-files', '-z'], { cwd: defaultRepoRoot, encoding: 'utf8' }).split('\0'));
+      const required = [...manifest.base, ...manifest.profiles.flatMap((profile) => profile.context)];
+      for (const path of new Set(required)) {
+        assert.ok(tracked.has(path), `required context must be tracked: ${path}`);
+        mkdirSync(dirname(join(fixture, path)), { recursive: true });
+        copyFileSync(join(defaultRepoRoot, path), join(fixture, path));
+      }
+      assert.deepEqual(validateManifest(manifest, fixture), []);
+      const result = resolveContext(manifest, { inputs: ['frontend/src/App.tsx'], repoRoot: fixture });
+      assert.ok(result.profiles.includes('frontend'));
+      assert.ok(!result.context.includes('HANDOFF.md'));
+    } finally { rmSync(fixture, { recursive: true, force: true }); }
+  });
   test('the checked-in manifest is structurally valid and all context files exist', () => {
     assert.deepEqual(validateManifest(manifest), []);
   });

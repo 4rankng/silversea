@@ -10,7 +10,8 @@ import { resolve } from 'node:path';
 
 const pageStyles = readFileSync(resolve(process.cwd(), 'src/pages/OpsOrdersPage.css'), 'utf8');
 
-const { apiGet, apiPost, apiPut } = vi.hoisted(() => ({ apiGet: vi.fn(), apiPost: vi.fn(), apiPut: vi.fn() }));
+const { apiGet, apiPost, apiPut, apiUpload } = vi.hoisted(() => ({ apiGet: vi.fn(), apiPost: vi.fn(), apiPut: vi.fn(), apiUpload: vi.fn() }));
+vi.mock('../lib/imageCompression', () => ({ compressImageFile: vi.fn(async (file: File) => file) }));
 vi.mock('../lib/api', async (importOriginal) => ({
   ...await importOriginal<typeof import('../lib/api')>(),
   api: {
@@ -19,7 +20,7 @@ vi.mock('../lib/api', async (importOriginal) => ({
     put: apiPut,
     patch: vi.fn(),
     delete: vi.fn(),
-    upload: vi.fn(),
+    upload: apiUpload,
   },
 }));
 
@@ -61,6 +62,7 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
   beforeEach(() => {
     apiGet.mockReset();
     apiPost.mockReset();
+    apiUpload.mockReset();
     apiGet.mockImplementation((url: string) => {
       if (url.startsWith('/ops/orders')) return Promise.resolve(makeItems());
       if (url.startsWith('/ops/expense-types')) {
@@ -188,4 +190,51 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     const submit = screen.getByRole('dialog', { name: 'Khai báo chi phí' }).querySelector<HTMLButtonElement>('button[type="submit"]')!;
     expect(submit).toBeDisabled();
   });
+  it('shows the rejected negative amount and explains how to recover before saving', async () => {
+    renderPage();
+    await screen.findByText('SS-A');
+    fireEvent.click(screen.getAllByRole('button', { name: /Khai chi phí/ })[0]);
+    fireEvent.click(await screen.findByText('— Chọn loại phí —'));
+    fireEvent.click(await screen.findByRole('option', { name: 'Cân xe' }));
+    const amount = screen.getByLabelText(/Số tiền \(VND\)/);
+    fireEvent.change(amount, { target: { value: '-123000' } });
+    expect(amount).toHaveValue('-123.000');
+    expect(amount).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByRole('alert')).toHaveTextContent('Số tiền phải là số dương');
+    const submit = screen.getByRole('dialog', { name: 'Khai báo chi phí' }).querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    expect(submit).toBeDisabled();
+    expect(apiPost).not.toHaveBeenCalled();
+    fireEvent.change(amount, { target: { value: '123000' } });
+    expect(submit).toBeEnabled();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('waits for the receipt upload before creating the expense with its storage key', async () => {
+    let finishUpload!: (value: { storageKey: string; url: string }) => void;
+    apiUpload.mockReturnValue(new Promise((resolve) => { finishUpload = resolve; }));
+    renderPage();
+    await screen.findByText('SS-A');
+    fireEvent.click(screen.getAllByRole('button', { name: /Khai chi phí/ })[0]);
+    fireEvent.click(await screen.findByText('— Chọn loại phí —'));
+    fireEvent.click(await screen.findByRole('option', { name: 'Cân xe' }));
+    fireEvent.change(screen.getByLabelText(/Số tiền \(VND\)/), { target: { value: '123000' } });
+    const dialog = screen.getByRole('dialog', { name: 'Khai báo chi phí' });
+    const form = dialog.querySelector('form')!;
+    const submit = form.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    fireEvent.change(form.querySelector('input[type="file"]')!, {
+      target: { files: [new File(['receipt'], 'receipt.png', { type: 'image/png' })] },
+    });
+    await waitFor(() => expect(apiUpload).toHaveBeenCalledTimes(1));
+    expect(submit).toBeDisabled();
+    fireEvent.submit(form);
+    expect(apiPost).not.toHaveBeenCalled();
+    finishUpload({ storageKey: 'ops/receipt.png', url: '/api/photos/ops%2Freceipt.png' });
+    await waitFor(() => expect(submit).toBeEnabled());
+    fireEvent.submit(form);
+    await waitFor(() => expect(apiPost).toHaveBeenCalledWith('/ops/expenses', expect.objectContaining({
+      amount: '123000', photoStorageKeys: ['ops/receipt.png'],
+    })));
+    expect(apiPost).toHaveBeenCalledTimes(1);
+  });
+
 });

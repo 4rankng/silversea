@@ -139,7 +139,6 @@ export function ExpensePhotoAside({ photos, uploading, isEdit, submitting, handl
                         </div>
                       )}
 
-                      {isEdit ? (
                         <label className="expense-upload-zone" style={{ pointerEvents: uploading ? 'none' : 'auto', opacity: uploading ? 0.7 : 1 }}>
                           {uploading ? (
                             <><Loader2 size={28} className="spin" style={{ color: 'var(--accent)' }} /> <span style={{ fontSize: 'var(--text-body-size)', marginTop: 8 }}>Đang tải ảnh lên…</span></>
@@ -147,24 +146,17 @@ export function ExpensePhotoAside({ photos, uploading, isEdit, submitting, handl
                             <>
                               <Upload size={28} style={{ color: 'var(--accent)', marginBottom: 6 }} />
                               <span style={{ fontSize: 'var(--text-body-size)', color: 'var(--ink)', fontWeight: 500 }}>Nhấn để tải lên ảnh hóa đơn</span>
-                              <span style={{ fontSize: 'var(--text-caption-size)', color: 'var(--ink-3)', fontWeight: 400 }}>JPG, PNG · tối đa 5MB</span>
+                              <span style={{ fontSize: 'var(--text-caption-size)', color: 'var(--ink-3)', fontWeight: 400 }}>JPG, PNG, HEIC · tối đa 15 MB</span>
                             </>
                           )}
                           <input
                             type="file"
                             accept="image/*"
-                            style={{ display: 'none' }}
+                            className="sr-only" aria-label="Chọn ảnh hóa đơn"
                             onChange={e => e.target.files && handlePhotoUpload(e.target.files)}
                             disabled={uploading}
                           />
                         </label>
-                      ) : (
-                        <div className="expense-upload-zone" style={{ cursor: 'default', opacity: 0.7 }}>
-                          <Upload size={28} style={{ color: 'var(--ink-3)', marginBottom: 6 }} />
-                          <span style={{ fontSize: 'var(--text-caption-size)', color: 'var(--ink-3)', fontWeight: 500 }}>Gửi duyệt trước khi đính kèm ảnh hóa đơn</span>
-                          <span style={{ fontSize: 'var(--text-caption-size)', color: 'var(--ink-4)', fontWeight: 400 }}>Ảnh được thêm sau khi khoản chi được phê duyệt</span>
-                        </div>
-                      )}
                     </div>
                   </div>
 
@@ -186,7 +178,7 @@ export function ExpensePhotoAside({ photos, uploading, isEdit, submitting, handl
                       ) : isEdit ? (
                         <><Check size={18} /> Cập nhật</>
                       ) : (
-                        <><Plus size={18} /> Gửi duyệt chi phí</>
+                        <><Plus size={18} /> Lưu chi phí</>
                       )}
                     </button>
                   </div>

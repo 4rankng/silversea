@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Loader2, X, Plus, Check } from 'lucide-react';
-import { api, fileCommandFingerprint } from '../lib/api';
+import { api } from '../lib/api';
 import { configClient } from '../api/configClient';
 import { PageHeader, useConfirm } from '../components/UI';
 import { useCatalogs } from '../hooks/useCatalogs';
@@ -17,13 +17,12 @@ import { qk } from '../api/keys';
 import { resolveExpenseCatalogs } from '../features/expenses/expenseCatalogs';
 import type { ExpenseCatalogs } from '../features/expenses/expenseCatalogs';
 import {
-  EXPENSE_PHOTO_MAX_BYTES,
-  convertHeicToJpeg,
   expenseSubmissionMessage,
   initialForm,
   type FormState,
 } from './expense-entry-utils';
 import { ExpenseBasicFields, ExpenseLoading, ExpensePhotoAside } from './expense-entry-sections';
+import { useExpenseReceiptPhotos } from '../features/expenses/useExpenseReceiptPhotos';
 import { DateInput } from '../design-system/forms/DateInput';
 import { UuiSelectField } from '../design-system';
 import './ExpenseEntryPage.css';
@@ -41,8 +40,8 @@ export default function ExpenseEntryPage() {
   const [submitting, setSubmitting] = useState(false);
   const [pageError, setPageError] = useState('');
   const [governanceReason, setGovernanceReason] = useState('');
-  const [photos, setPhotos] = useState<{ id: number; url: string }[]>([]);
-  const [uploading, setUploading] = useState(false);
+  const [savedExpenseId, setSavedExpenseId] = useState<number | null>(null);
+  const { photos, uploading, photoError, handlePhotoUpload, removePhoto, savePendingPhotos } = useExpenseReceiptPhotos(id, savedExpenseId);
   // True once an edit-mode expense has been hydrated into the form (see effect
   // below) — the "ready" baseline for the discard-dirty guard so the
   // server-populate pass isn't mistaken for a user edit.
@@ -84,7 +83,7 @@ export default function ExpenseEntryPage() {
   const { rootRef } = usePageAnimations({ ready: !loadingExpense });
 
   const { confirm, dialog } = useConfirm();
-  const guard = useDirtyGuard([form, governanceReason], hydrated);
+  const guard = useDirtyGuard([form, governanceReason, photos.filter(photo => photo.file).map(photo => photo.id)], hydrated);
   const handleBack = () => navigate('/expenses');
   useBackShortcut(handleBack, {
     isDirty: guard.isDirty,
@@ -111,19 +110,6 @@ export default function ExpenseEntryPage() {
     }
   }, [existingExpense]);
 
-  // B1: load persisted receipt photos when editing (photos attach to the saved row).
-  useEffect(() => {
-    if (!isEdit || !id) return;
-    let cancelled = false;
-    api.get<{ items: Array<{ id: number; storageKey: string }> }>(`/expenses/${id}/photos`)
-      .then(res => {
-        if (cancelled) return;
-        setPhotos(res.items.map(p => ({ id: p.id, url: `/api/photos/${encodeURIComponent(p.storageKey)}` })));
-      })
-      .catch(() => { /* leave photos empty on error */ });
-    return () => { cancelled = true; };
-  }, [isEdit, id]);
-
   const selectedCategory = useMemo(
     () => categories.find(c => c.id === form.categoryId),
     [categories, form.categoryId],
@@ -142,62 +128,6 @@ export default function ExpenseEntryPage() {
     }
   };
 
-  const handlePhotoUpload = async (files: FileList) => {
-    if (!files || files.length === 0) return;
-    if (!id) return; // edit-mode only — photos attach to a saved expense (B1)
-    let file = files[0];
-
-    // D1b: client-side size guard — matches the raised 15 MB backend limit so
-    // the user gets a clear message instead of a opaque multer failure.
-    if (file.size > EXPENSE_PHOTO_MAX_BYTES) {
-      toast({ kind: 'error', message: 'Ảnh quá lớn (>15 MB). Vui lòng giảm dung lượng rồi tải lại.' });
-      return;
-    }
-
-    // D1b: convert HEIC (iPhone) → JPEG on the client; the server has no HEIC codec.
-    const isHeic = file.type === 'image/heic' || file.type === 'image/heif' || /\.(heic|heif)$/i.test(file.name);
-    if (isHeic) {
-      try {
-        file = await convertHeicToJpeg(file);
-      } catch (err) {
-        console.warn('HEIC→JPEG conversion failed:', err instanceof Error ? err.message : err);
-        toast({ kind: 'error', message: 'Không hỗ trợ ảnh HEIC trên trình duyệt này. Vui lòng đổi sang JPG/PNG.' });
-        return;
-      }
-    }
-
-    const formData = new FormData();
-    formData.append('file', file);
-    const retryFingerprint = [
-      'expense-entry-photo',
-      fileCommandFingerprint(file),
-      id,
-    ].join(':');
-
-    setUploading(true);
-    try {
-      const result = await api.upload(`/expenses/${id}/photos`, formData, { retryFingerprint }) as { id: number; url: string };
-      setPhotos(prev => [...prev, result]);
-    } catch {
-      toast({ kind: 'error', message: 'Lỗi khi tải ảnh. Vui lòng thử lại.' });
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const removePhoto = async (index: number) => {
-    const photo = photos[index];
-    if (!photo || !id) return;
-    try {
-      await api.delete(`/expenses/${id}/photos/${photo.id}`);
-      // Filter by id, not the captured index: if two deletes are in flight the
-      // second's stale index would otherwise drop the wrong thumbnail.
-      setPhotos(prev => prev.filter(p => p.id !== photo.id));
-    } catch {
-      toast({ kind: 'error', message: 'Không xóa được ảnh.' });
-    }
-  };
-
   const formatAmountDisplay = (val: string) => {
     if (!val) return '';
     const num = parseFloat(val.replace(/,/g, ''));
@@ -206,7 +136,7 @@ export default function ExpenseEntryPage() {
   };
 
   const parseAmountInput = (displayVal: string) => {
-    return displayVal.replace(/[^\d]/g, '');
+    return `${displayVal.trim().startsWith('-') ? '-' : ''}${displayVal.replace(/[^\d]/g, '')}`;
   };
 
   const handleCreateSupplier = async () => {
@@ -267,6 +197,7 @@ export default function ExpenseEntryPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting || uploading) return;
     setErrors({});
     setPageError('');
 
@@ -352,7 +283,7 @@ export default function ExpenseEntryPage() {
       setTimeout(() => document.getElementById('validTo')?.focus(), 0);
       return;
     }
-    if (!governanceReason.trim()) {
+    if (isEdit && !governanceReason.trim()) {
       setErrors(prev => ({ ...prev, governanceReason: 'Vui lòng nhập lý do chi phí' }));
       setTimeout(() => document.getElementById('governanceReason')?.focus(), 0);
       return;
@@ -370,14 +301,15 @@ export default function ExpenseEntryPage() {
           message: expenseSubmissionMessage(true, response),
         });
       } else {
-        const response = await api.post<Record<string, unknown>>(FINANCIAL.EXPENSES, {
+        const response = savedExpenseId ? { id: savedExpenseId } : await api.post<Record<string, unknown>>(FINANCIAL.EXPENSES, {
           ...result.data,
           reason: governanceReason.trim(),
         });
-        toast({
-          kind: 'success',
-          message: expenseSubmissionMessage(false, response),
-        });
+        const expenseId = Number(response.id);
+        if (!Number.isInteger(expenseId) || expenseId <= 0) throw new Error('Không xác định được phiếu đã lưu. Kiểm tra danh sách trước khi tạo lại.');
+        setSavedExpenseId(expenseId);
+        await savePendingPhotos(expenseId);
+        toast({ kind: 'success', message: expenseSubmissionMessage(false, response) });
       }
       // Invalidate every cached expenses page so the list refetches with the new row.
       // Broad registered prefix — matches every ['expenses', params] query.
@@ -408,14 +340,14 @@ export default function ExpenseEntryPage() {
         />
 
         <form onSubmit={handleSubmit} className="expense-page-form">
-          {pageError && (
+          {(pageError || photoError) && (
             <div className="animate-shake expense-page-error">
-              <strong>Lỗi:</strong> {pageError}
+              <strong>Lỗi:</strong> {pageError || photoError}
             </div>
           )}
 
           <div className="expense-page-layout">
-            <div className="expense-layout__main">
+            <fieldset disabled={savedExpenseId != null} className="expense-layout__main" style={{ minWidth: 0, border: 0, padding: 0, margin: 0 }}>
               <div className="expense-panel">
                 <div className="expense-panel__header">
                   <h2 className="expense-panel__title">Thông tin chung</h2>
@@ -425,7 +357,7 @@ export default function ExpenseEntryPage() {
                 <div className="expense-panel__body expense-grid">
               <ExpenseBasicFields form={form} errors={errors} isEdit={isEdit} existingExpense={existingExpense} set={set} />
 
-              <div className="expense-group">
+              <div className="expense-group expense-group--catalog">
                 <div className="expense-label-row">
                   <label htmlFor={showNewSupplier ? 'newSupplierName' : 'supplierId'} className="expense-label">Nhà cung cấp <span className="expense-required">*</span></label>
                   {!showNewSupplier && (
@@ -472,7 +404,7 @@ export default function ExpenseEntryPage() {
                 {errors.supplierId && <p className="expense-field-error">{errors.supplierId}</p>}
               </div>
 
-              <div className="expense-group">
+              <div className="expense-group expense-group--catalog">
                 <div className="expense-label-row">
                   <label htmlFor={showNewCategory ? 'newCategoryName' : 'categoryId'} className="expense-label">Hạng mục <span className="expense-required">*</span></label>
                   {!showNewCategory && (
@@ -656,9 +588,9 @@ export default function ExpenseEntryPage() {
                 />
               </div>
 
-              <div className="expense-group expense-group--full">
+              {isEdit && <div className="expense-group expense-group--full">
                 <label htmlFor="governanceReason" className="expense-label">
-                  Lý do gửi duyệt <span className="expense-required">*</span>
+                  Lý do điều chỉnh <span className="expense-required">*</span>
                 </label>
                 <textarea
                   name="governanceReason"
@@ -688,10 +620,10 @@ export default function ExpenseEntryPage() {
                     ? 'Đây là phiếu đã quyết toán. Thay đổi sẽ cập nhật trực tiếp; phiếu gốc và chứng từ lịch sử được giữ nguyên.'
                     : 'Khoản chi và công nợ được ghi nhận trực tiếp vào sổ kế toán.'}
                 </p>
-              </div>
+              </div>}
                 </div>
               </div>
-            </div>
+            </fieldset>
 
             <ExpensePhotoAside photos={photos} uploading={uploading} isEdit={isEdit} submitting={submitting} handleBack={handleBack} removePhoto={removePhoto} handlePhotoUpload={handlePhotoUpload} />
           </div>

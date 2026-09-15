@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { DispatchTaskTagEditor } from './DispatchTaskTagEditor';
@@ -12,9 +13,11 @@ const onChange = (next: string) => { changed.push(next); };
 
 function renderEditor(value: string | null = null) {
   changed.length = 0;
-  return render(
-    <DispatchTaskTagEditor value={value} onChange={onChange} />,
-  );
+  function ControlledEditor() {
+    const [draft, setDraft] = useState(value);
+    return <DispatchTaskTagEditor value={draft} onChange={(next) => { setDraft(next); onChange(next); }} />;
+  }
+  return render(<ControlledEditor />);
 }
 
 /** The note textarea is the "Ghi chú thêm" free-text box. */
@@ -46,6 +49,6 @@ describe('DispatchTaskTagEditor — typed note keeps spaces (QA ruling 2026-09-1
     renderEditor();
     fireEvent.click(screen.getByRole('button', { name: 'HẾT HẠN' }));
     fireEvent.change(noteBox(), { target: { value: 'Giao đối khớp' } });
-    expect(changed.at(-1)).toBe('HẾT HẠN; \nGiao đối khớp'.replace('\\', ''));
+    expect(changed.at(-1)).toBe('HẾT HẠN\nGiao đối khớp');
   });
 });

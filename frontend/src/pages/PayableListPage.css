@@ -470,3 +470,10 @@
 @media (prefers-reduced-motion: reduce) {
   .payables-aging-grid *, .payables-aging-grid > .aging-card { transition: none; }
 }
+
+@media (max-width: 640px) {
+  .payables-page .page-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .payables-page .page-actions > :only-child { grid-column: 1 / -1; }
+  .payables-page .m-card { padding: 10px 8px; }
+  .payables-page .m-card__meta { margin-bottom: 0; }
+}

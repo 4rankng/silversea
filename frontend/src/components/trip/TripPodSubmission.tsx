@@ -41,7 +41,7 @@ const FILE_TYPE_HELP: Record<string, string> = {
   [TripPodFileType.SIGNED_DELIVERY_NOTE]: 'Bắt buộc. Phải có chữ ký giao nhận đầy đủ.',
 };
 
-// Canonical labels live in shared (unified 2026-09-01): 'Chờ duyệt' / 'Đã duyệt'.
+// Canonical labels describe delivery evidence and customer acknowledgement.
 const STATUS_LABELS = TRIP_POD_STATUS_LABELS;
 
 function statusClass(status: TripPodStatus): string {
@@ -204,7 +204,7 @@ export function TripPodSubmission({
       {isLocked && (
         <div className="trip-pod__banner trip-pod__banner--info" role="status">
           <Lock size={16} />
-          <span>e-POD đã gửi duyệt — không thể chụp hoặc tải lại tệp cho phiên bản này.</span>
+          <span>e-POD đã được gửi — không thể chụp hoặc tải lại tệp cho phiên bản này.</span>
         </div>
       )}
 

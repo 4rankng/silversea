@@ -63,7 +63,7 @@ export function CustomerForm({ saving, item, onsave, oncancel }: {
   const debitNoteModeDescription = describeCustomerDebitNoteMode(debitNoteMode);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div className="customer-form">
       <div className="cfg-form-columns">
         <Field label="Tên khách hàng *">
           <input className="input" value={name} onChange={e => setName(e.target.value)} placeholder="Nhập tên…" required />

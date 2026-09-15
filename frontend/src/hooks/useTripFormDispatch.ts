@@ -24,12 +24,12 @@ import { useTripFormPhotos } from './useTripFormPhotos';
 import type { OcrResultHandler, UploadingState, ContainerPhotoUploadResult } from './useTripFormPhotos';
 import type { UseTripFormStateReturn, CompletionStatus } from './useTripFormState';
 import {
-  createFallbackLegsFromRouteName,
   resolveContainerCount,
 } from './tripFormDispatchUtils';
 import { usePersistedContainerType } from './usePersistedContainerType';
 import { moneyInputToNumber } from '../lib/moneyInput';
 import { useTripFormSubmit } from './use-trip-form-submit';
+import type { SubmitOptions } from './use-trip-form-submit';
 
 const FUEL_PRICE_PER_LITER = FUEL_PRICE_PER_LITER_FALLBACK;
 const LOADED_RATE = FUEL_LOADED_NORM_FALLBACK;
@@ -80,7 +80,7 @@ export interface UseTripFormDispatchReturn {
   legsValid: boolean;
   uploading: UploadingState;
   ocrResult: OcrSignal | null;
-  handleSubmit: (e?: React.FormEvent, options?: { creditApprovalRequestId?: number | null }) => Promise<number | undefined>;
+  handleSubmit: (e?: React.FormEvent, options?: SubmitOptions) => Promise<number | undefined>;
   selectedRouteData: RouteOption | null;
   driverBaseSalary: number;
   roadAllowanceBaseApplied?: number;
@@ -212,7 +212,7 @@ export function useTripFormDispatch(params: UseTripFormDispatchParams): UseTripF
         loadingType: leg.loadingType as LoadingType,
       })));
     } else {
-      setLegs(createFallbackLegsFromRouteName(existingTrip.route?.name));
+      setLegs([]);
     }
 
     lastPopulatedTripId.current = existingTrip.id;

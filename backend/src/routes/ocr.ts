@@ -4,7 +4,6 @@ import multer from 'multer';
 import type { Request, Response } from 'express';
 import { eq, and } from 'drizzle-orm';
 import { Role } from '@tingting/shared';
-import { z } from 'zod';
 import type { Tx } from '../services/trip-shared';
 import * as s from '../db/schema';
 import { asyncHandler } from '../middleware/asyncHandler';
@@ -39,13 +38,17 @@ import { getOcrSettings, ocrHasAvailableKey } from '../services/ocr-settings.ser
 import { OCR_DISABLED_ERROR } from '../services/ocr.service';
 import { checkOcrRateLimit } from '../services/ocr-rate-limiter';
 import {
-  decideFuelEvidenceReview,
   listFuelEvidenceReviewsForOffice,
 } from '../services/fuel-evidence-review.service';
 
 // auth + Casbin ('ocr') applied at mount point in index.ts. Both routes below
 // inherit casbinAuthz('ocr') from that single mount — no per-route policy.
 const router = Router();
+
+// Historical OCR decisions are retired and must not consume recognition quota.
+router.post('/fuel-evidence-reviews/:id/decision', requireRoles(Role.ACCOUNTANT), (_req, res) => {
+  res.status(410).json({ error: 'Luồng phê duyệt OCR đã được gỡ bỏ. Ảnh và số liệu OCR chỉ dùng để tham khảo.' });
+});
 
 // OCR rate limit: 2 requests/second globally to protect upstream API quotas.
 router.use(asyncHandler(async (_req: Request, res: Response, next) => {
@@ -57,13 +60,7 @@ router.use(asyncHandler(async (_req: Request, res: Response, next) => {
   next();
 }));
 const OCR_PUMP_ENDPOINT = 'ocr.pump';
-const FUEL_EVIDENCE_DECISION_ENDPOINT = 'ocr.fuel-evidence-reviews.decision';
 let extractPumpReadingHandler = extractPumpReading;
-const fuelEvidenceDecisionSchema = z.object({
-  expectedVersion: z.number().int().positive(),
-  decision: z.enum(['CONFIRMED', 'REJECTED']),
-  reviewNote: z.string().trim().max(1000).optional().nullable(),
-});
 
 async function assertOcrRecognitionEnabled(): Promise<void> {
   const settings = await getOcrSettings();
@@ -471,36 +468,6 @@ router.get('/fuel-evidence-reviews', requireRoles(Role.ACCOUNTANT), asyncHandler
   res.json(result);
 }));
 
-router.post('/fuel-evidence-reviews/:id/decision', requireRoles(Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
-  const reviewId = parseInt(req.params.id as string, 10);
-  if (!Number.isInteger(reviewId) || reviewId <= 0) {
-    throw new ApiError(400, 'ID kết quả OCR không hợp lệ.');
-  }
-  const parsed = fuelEvidenceDecisionSchema.safeParse(req.body ?? {});
-  if (!parsed.success) {
-    throw new ApiError(400, parsed.error.issues.map((issue) => issue.message).join('; '));
-  }
-  const idempotencyKey = getRequestIdempotencyKey(req);
-  const outcome = await withMaterialWriteAuditContext(
-    req,
-    res,
-    FUEL_EVIDENCE_DECISION_ENDPOINT,
-    () => runIdempotent({
-      endpoint: FUEL_EVIDENCE_DECISION_ENDPOINT,
-      idempotencyKey,
-      payload: { reviewId, ...parsed.data },
-      createdBy: getUser(req).userId,
-      create: (tx) => decideFuelEvidenceReview({
-        reviewId,
-        reviewerId: getUser(req).userId,
-        expectedVersion: parsed.data.expectedVersion,
-        decision: parsed.data.decision,
-        reviewNote: parsed.data.reviewNote,
-      }, tx),
-    }),
-  );
-  res.status(outcome.statusCode).json(outcome.result);
-}));
 
 /**
  * POST /api/ocr/persist-only — persist + link a container/seal photo WITHOUT

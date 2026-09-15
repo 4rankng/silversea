@@ -41,7 +41,7 @@ export function AccountingWorkspaceRoot() {
       };
 
   return (
-    <main className="accounting-page" data-testid="accounting-workspace">
+    <div className="accounting-page" data-testid="accounting-workspace">
       <PageHeader title={viewMeta.title} description={viewMeta.description} />
 
       {state.activeView !== 'work' && <section className="accounting-period" aria-labelledby="accounting-period-title">
@@ -129,6 +129,6 @@ export function AccountingWorkspaceRoot() {
           onReset={resetTransportSearch}
         />
       )}
-    </main>
+    </div>
   );
 }

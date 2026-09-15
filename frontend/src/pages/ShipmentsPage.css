@@ -2474,10 +2474,20 @@
   color: var(--fg-1);
   cursor: pointer;
 }
+.cus-active-filter-summary { display: none; }
 
 @media (max-width: 1023px) {
   .cus-advanced-toggle {
     display: inline-flex;
+    min-height: 44px;
+  }
+  .cus-active-filter-summary {
+    display: block;
+    flex: 1 1 100%;
+    color: var(--ink-2);
+    font-size: var(--text-caption-size);
+    line-height: 1.4;
+    overflow-wrap: anywhere;
   }
 
   .cus-worksheet-advanced {

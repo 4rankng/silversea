@@ -324,7 +324,7 @@ describe('DebtDetailPage payment flow', () => {
 
     const creditStrip = screen.getByLabelText('Hạn mức công nợ');
     expect(within(creditStrip).getByText('Tổng dư nợ kiểm hạn')).toBeTruthy();
-    expect(within(creditStrip).getByText('Đã duyệt chưa thu')).toBeTruthy();
+    expect(within(creditStrip).getByText('Đã ghi nhận, chưa thu')).toBeTruthy();
     expect(within(creditStrip).getByText('Tỷ lệ sử dụng')).toBeTruthy();
     expect(within(creditStrip).getByText('Hạn mức còn lại')).toBeTruthy();
     expect(within(creditStrip).getByText('100.000.000đ')).toBeTruthy();

@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { CalendarDays, Loader2, Pin, PinOff, Plus, Search } from 'lucide-react';
+import { CalendarDays, Pin, PinOff, Plus, Search } from 'lucide-react';
 import { useOpsOrders, useToggleShipmentPin, opsKeys } from '../hooks/useOpsQueries';
 import type { OpsOrderItem } from '../api/opsClient';
 import { OpsExpenseFormModal } from '../features/ops/OpsExpenseFormModal';
 import { localDateInputValue, shipmentStatusText } from '../features/ops/opsStatus';
 import './OpsOrdersPage.css';
+import { OpsQueryFeedback } from '../features/ops/OpsQueryFeedback';
 
 /**
  * Kế hoạch làm hàng (OpsVanHanh §3): toàn bộ lô của công ty theo ngày giao
@@ -22,7 +23,7 @@ export default function OpsOrdersPage() {
     return () => clearTimeout(timer);
   }, [searchInput]);
 
-  const { data, isLoading, isError } = useOpsOrders(date, search || undefined);
+  const { data, isLoading, isError, refetch } = useOpsOrders(date, search || undefined);
   const togglePin = useToggleShipmentPin();
   const queryClient = useQueryClient();
 
@@ -78,7 +79,7 @@ export default function OpsOrdersPage() {
 
       <p className="ops-orders__meta">
         {isLoading ? 'Đang tải…' : `${items.length} lô · ngày ${date}`}
-        {isError && ' — không tải được danh sách, thử lại.'}
+
       </p>
 
       <div className="ops-orders__scroll">
@@ -129,14 +130,12 @@ export default function OpsOrdersPage() {
                 </tr>
               );
             })}
-            {!isLoading && items.length === 0 && (
+            {!isLoading && !isError && items.length === 0 && (
               <tr><td colSpan={8} className="ops-orders__empty">Không có lô hàng trong ngày này.</td></tr>
             )}
           </tbody>
         </table>
-        {isLoading && (
-          <div className="ops-orders__loading"><Loader2 className="spin" size={18} /></div>
-        )}
+        <OpsQueryFeedback loading={isLoading} error={isError} label="kế hoạch làm hàng" onRetry={refetch} />
       </div>
 
       {expenseFor && <OpsExpenseFormModal order={expenseFor} onClose={() => setExpenseFor(null)} />}

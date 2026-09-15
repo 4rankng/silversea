@@ -566,6 +566,41 @@
       "when": 1789400000001,
       "tag": "0084_advance_direct_effect_statuses",
       "breakpoints": true
+    },
+    {
+      "idx": 81,
+      "version": "7",
+      "when": 1789402879842,
+      "tag": "0085_direct_operational_records",
+      "breakpoints": true
+    },
+    {
+      "idx": 82,
+      "version": "7",
+      "when": 1789402879843,
+      "tag": "0086_restore_missing_pricing_schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 83,
+      "version": "7",
+      "when": 1789403679317,
+      "tag": "0087_recorded_company_expenses",
+      "breakpoints": true
+    },
+    {
+      "idx": 84,
+      "version": "7",
+      "when": 1789404854395,
+      "tag": "0088_recorded_transport_expenses",
+      "breakpoints": true
+    },
+    {
+      "idx": 85,
+      "version": "7",
+      "when": 1789405248972,
+      "tag": "0089_confirmed_salary_snapshots",
+      "breakpoints": true
     }
   ]
 }

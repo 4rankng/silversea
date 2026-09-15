@@ -45,7 +45,7 @@
   }
 
   /* --- Page header search: full width --- */
-  .input-icon {
+  .salary-page .input-icon {
     width: 100% !important;
   }
 
@@ -54,7 +54,7 @@
     margin-bottom: 12px;
   }
 
-  .driver-select-row__list {
+  .salary-page .driver-select-row__list {
     /* Bounded roster: 39 permanent cards must not push the selected
        driver's detail below the viewport — scroll inside the strip. */
     display: grid;
@@ -66,15 +66,16 @@
     align-content: start;
   }
 
-  .driver-select-card {
+  .salary-page .driver-select-card {
     min-width: 0;
   }
 
-  .driver-select-row__list::-webkit-scrollbar {
-    display: none;
+  .salary-page .driver-select-row__list {
+    scrollbar-width: thin;
+    scrollbar-gutter: stable;
   }
 
-  .driver-select-card {
+  .salary-page .driver-select-card {
     flex: 1 1 150px;
     min-width: auto;
     padding: 8px 14px;
@@ -350,7 +351,7 @@
   }
 
 
-  .driver-select-card {
+  .salary-page .driver-select-card {
     padding: 6px 10px;
   }
 
@@ -397,7 +398,7 @@
   .salary-summary-dark__mini { font-size: var(--fs-2xs); }
   .salary-summary-dark__row { font-size: var(--fs-xs); }
   .salary-summary-dark__row-val { font-size: var(--fs-xs); }
-  .driver-select-card {
+  .salary-page .driver-select-card {
     min-width: 88px;
     padding: 6px 10px;
   }

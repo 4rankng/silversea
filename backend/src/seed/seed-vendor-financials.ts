@@ -12,11 +12,11 @@ import { db } from '../db';
 import * as s from '../db/schema';
 import { createExpense } from '../services/expense.service';
 import { createFuelInvoice } from '../services/fuel-invoice.service';
+import { createTripExpense } from '../services/forwarder.service';
 
-export async function seedVendorFinancials(actorId: number, approverId: number): Promise<void> {
-  // Maker-checker: the creator (manager) cannot approve their own invoices.
+export async function seedVendorFinancials(actorId: number, _legacyApproverId: number): Promise<void> {
   await seedCompanyExpenses(actorId);
-  await seedFuelInvoices(actorId, approverId);
+  await seedFuelInvoices(actorId);
 }
 
 async function seedCompanyExpenses(actorId: number) {
@@ -70,7 +70,7 @@ async function seedCompanyExpenses(actorId: number) {
   console.log(`✅ Company expenses seeded! (${created} new)`);
 }
 
-async function seedFuelInvoices(actorId: number, approverId: number) {
+async function seedFuelInvoices(actorId: number) {
   const fuelSuppliers = await db.select({ id: s.suppliers.id, name: s.suppliers.name })
     .from(s.suppliers)
     .where(and(eq(s.suppliers.isFuelSupplier, true), isNull(s.suppliers.deletedAt)));
@@ -100,9 +100,6 @@ async function seedFuelInvoices(actorId: number, approverId: number) {
       totalLiters: 380,
       unitPrice: 23000,
       note: 'Hóa đơn xăng dầu tổng hợp 16/08',
-      // Approval requires allocations linked to APPROVED fuel trip expenses
-      // with photo evidence — a maker-checker flow better exercised in QA.
-      approve: false,
     },
     {
       invoiceNumber: 'PL-2026-0007945',
@@ -110,7 +107,6 @@ async function seedFuelInvoices(actorId: number, approverId: number) {
       totalLiters: 290,
       unitPrice: 22800,
       note: 'Hóa đơn xăng dầu 10/08',
-      approve: false,
     },
   ];
 
@@ -132,7 +128,7 @@ async function seedFuelInvoices(actorId: number, approverId: number) {
     // (fuel-invoice validation rejects any allocation total above it), so
     // the last trip absorbs the exact remainder instead of a fourth rounded
     // share.
-    const allocations = truckTrips.map((t, i) => ({
+    const allocationDrafts = truckTrips.map((t, i) => ({
       tripId: t.id,
       voucherReference: `${plan.invoiceNumber}/${String(i + 1).padStart(2, '0')}`,
       voucherDate: plan.invoiceDate,
@@ -141,7 +137,20 @@ async function seedFuelInvoices(actorId: number, approverId: number) {
         : litersEach,
     }));
 
-    const view = await createFuelInvoice({
+    const allocations = [];
+    for (const allocation of allocationDrafts) {
+      const [existingExpense] = await db.select().from(s.tripExpenses).where(and(eq(s.tripExpenses.tripId, allocation.tripId), eq(s.tripExpenses.invoiceNumber, allocation.voucherReference))).limit(1);
+      const expense = existingExpense ?? await createTripExpense(db, {
+        tripId: allocation.tripId, forwarderId: null, createdBy: actorId, expenseType: 'FUEL',
+        expenseDate: allocation.voucherDate, invoiceNumber: allocation.voucherReference,
+        supplierId: petrolimex.id, buyAmount: String(Math.round(allocation.liters * plan.unitPrice)),
+        sellAmount: '0', settlementMethod: 'COMPANY_DIRECT', approvalStatus: 'RECORDED',
+        note: `Dữ liệu mẫu — nhiên liệu ${allocation.voucherReference}`,
+      });
+      allocations.push({ ...allocation, tripExpenseId: expense.id });
+    }
+
+    await createFuelInvoice({
       supplierId: petrolimex.id,
       invoiceNumber: plan.invoiceNumber,
       invoiceDate: plan.invoiceDate,
@@ -151,7 +160,7 @@ async function seedFuelInvoices(actorId: number, approverId: number) {
       allocations,
     }, actorId);
 
-    // KP-152: fuel invoices are APPROVED at creation — no separate approval step.
+    // Record complete invoice and allocations through the direct service.
     created++;
   }
   console.log(`✅ Fuel invoices seeded! (${created} new)`);

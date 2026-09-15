@@ -24,7 +24,11 @@ import './TripCreatePage.css';
 
 export default function TripCreatePage() {
   const navigate = useNavigate();
-  useAuth();
+  const { user } = useAuth();
+  const [exceptionReason, setExceptionReason] = React.useState('');
+  const [exceptionCeiling, setExceptionCeiling] = React.useState('');
+  const [exceptionError, setExceptionError] = React.useState('');
+  const canRecordException = user?.role === 'ADMIN' || user?.role === 'MANAGER';
   const options = useTripOptions();
   const [creditBlock, setCreditBlock] = React.useState<{
     message: string;
@@ -84,10 +88,6 @@ export default function TripCreatePage() {
             </div>
           </div>
 
-          <div className="tc-hero-widgets">
-            <TripSummaryCard />
-            <TripChecklistPanel />
-          </div>
         </section>
 
         <div className="tc-create-bento" id="trip-new-form">
@@ -104,6 +104,14 @@ export default function TripCreatePage() {
               loading={options.loading}
             />
           </div>
+
+          <details className="tc-create-summary">
+            <summary>Ước tính & tiến độ <span>{form.requiredFieldsFilled}/{form.totalRequiredFields} trường bắt buộc · Lợi nhuận {formatCurrency(form.estimatedProfit)}</span></summary>
+            <div className="tc-hero-widgets">
+              <TripSummaryCard />
+              <TripChecklistPanel />
+            </div>
+          </details>
 
           <div className="tc-bento-legs">
             <JourneyLegsCard collapsible defaultCollapsed />
@@ -140,11 +148,11 @@ export default function TripCreatePage() {
         {creditBlock && (
           <section
             style={{
-              marginTop: 20,
+              marginTop: 12,
               border: '1px solid rgba(217, 119, 6, 0.35)',
               background: 'rgba(245, 158, 11, 0.08)',
-              borderRadius: 16,
-              padding: 20,
+              borderRadius: 8,
+              padding: 12,
               display: 'grid',
               gap: 14,
             }}
@@ -163,6 +171,21 @@ export default function TripCreatePage() {
                 <strong>{estimatedProposedAmount > 0 ? formatCurrency(estimatedProposedAmount) : 'Chưa xác định'}</strong>
               </div>
             </div>
+            {canRecordException ? <div style={{ display: 'grid', gap: 8 }}>
+              <p>Ghi nhận ngoại lệ một lần cho chuyến này. Hạn mức áp dụng đến lúc lưu; nếu lưu thất bại, ngoại lệ không được tạo.</p>
+              <label htmlFor="credit-exception-reason">Lý do ngoại lệ</label>
+              <input id="credit-exception-reason" className="form-input" value={exceptionReason} onChange={event => setExceptionReason(event.target.value)} maxLength={1000} />
+              <label htmlFor="credit-exception-ceiling">Tổng dư nợ và cam kết tối đa cho phép (₫)</label>
+              <input id="credit-exception-ceiling" className="form-input" inputMode="numeric" value={exceptionCeiling} onChange={event => setExceptionCeiling(event.target.value)} />
+              {exceptionError && <p role="alert" style={{ color: 'var(--danger)' }}>{exceptionError}</p>}
+              <button type="button" className="btn btn--primary" disabled={form.submitting} onClick={async () => {
+                const ceiling = Number(exceptionCeiling.replace(/[.,\s]/g, ''));
+                if (!exceptionReason.trim() || !Number.isSafeInteger(ceiling) || ceiling <= 0) { setExceptionError('Nhập lý do và tổng hạn mức ngoại lệ hợp lệ.'); return; }
+                setExceptionError('');
+                const tripId = await form.handleSubmit(undefined, { creditException: { reason: exceptionReason.trim(), exposureCeiling: ceiling, scopeType: 'SHIPMENT', expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString() } });
+                if (tripId) navigate(`/trips/${tripId}`);
+              }}>Ghi ngoại lệ và tạo chuyến</button>
+            </div> : <p>Vai trò hiện tại không có quyền ghi ngoại lệ. Điều chỉnh dư nợ hoặc liên hệ Quản lý để xử lý tín dụng.</p>}
           </section>
         )}
 
@@ -184,5 +207,4 @@ const creditMetricLabelStyle: React.CSSProperties = {
   fontSize: 12,
   color: 'var(--fg-3)',
 };
-
 

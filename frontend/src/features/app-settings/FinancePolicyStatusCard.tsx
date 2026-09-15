@@ -1,4 +1,3 @@
-import { FinanceVersionList } from './FinanceVersionList';
 import { formatViDate } from './formatters';
 
 /** The selected finance policy's current state: status note, current-version

@@ -71,7 +71,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
   const amountDigits = amountClean.replace(/-/g, '');
   const amountError = isNegative ? 'Số tiền phải là số dương' : null;
   const amountValid = /^\d+$/.test(amountDigits) && Number(amountDigits) > 0 && !isNegative;
-  const canSubmit = Boolean(typeCode) && amountValid && !createExpense.isPending;
+  const canSubmit = Boolean(typeCode) && amountValid && !createExpense.isPending && !uploading;
 
   async function handleFiles(fileList: FileList | null) {
     if (!fileList || fileList.length === 0) return;
@@ -108,7 +108,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
         note: note.trim() || null,
         photoStorageKeys: photos.map((photo) => photo.storageKey),
       });
-      toast({ kind: 'success', message: 'Đã lưu khoản chi — chờ kế toán duyệt.' });
+      toast({ kind: 'success', message: 'Đã ghi nhận khoản chi.' });
       onClose();
     } catch (error) {
       toast({ kind: 'error', message: error instanceof Error ? error.message : 'Lưu khoản chi thất bại.' });
@@ -156,12 +156,15 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
             <label>
               Số tiền (VND) *
               <input
-                value={amountDigits ? formatVnd(amountDigits) : ''}
+                value={amountDigits ? `${isNegative ? '-' : ''}${formatVnd(amountDigits)}` : (isNegative ? '-' : '')}
+                aria-invalid={Boolean(amountError)}
+                aria-describedby={amountError ? 'ops-create-amount-error' : undefined}
                 onChange={(event) => setAmount(event.target.value)}
                 inputMode="numeric"
                 placeholder="0"
                 required
               />
+              {amountError && <span id="ops-create-amount-error" role="alert" className="ops-field-error">{amountError}</span>}
             </label>
             <label>
               Ngày chi *
@@ -181,7 +184,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
                 type="button"
                 className="btn-secondary"
                 onClick={() => fileRef.current?.click()}
-                disabled={uploading}
+                disabled={uploading || busy}
               >
                 {uploading ? <Loader2 size={14} className="spin" /> : <Camera size={14} />}
                 {uploading ? 'Đang tải…' : 'Chụp / chọn ảnh'}

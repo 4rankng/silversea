@@ -221,10 +221,9 @@ router.post('/', asyncHandler(async (req: Request, res: Response) => {
   const idempotencyKey = requireIdempotencyKey(req);
   const validatedData = expenseSchema.parse(req.body);
   const actor = getUser(req);
-  const reason = governanceReasonSchema.parse(req.body).reason;
+  const reason = z.string().trim().max(1000).optional().parse(req.body.reason) ?? '';
   const input = { ...validatedData, amount: String(validatedData.amount) };
-  // Dual-control: submission parks the expense as PENDING with NO ledger
-  // entry — nothing posts until a checker and a different approver review.
+  // Record expense and supplier debt atomically with the authenticated actor.
   const { result, replayed } = await runIdempotent({
     endpoint: 'expenses.submit',
     idempotencyKey,
@@ -258,10 +257,8 @@ router.put('/:id', asyncHandler(async (req: Request, res: Response) => {
   if (!existing) {
     return res.status(404).json({ error: 'Không tìm thấy khoản chi phí' });
   }
-  if (existing.approvalStatus === 'PENDING' || existing.approvalStatus === 'CHECKED') {
-    return res.status(409).json({ error: 'Chi phí đang chờ duyệt — hoàn tất kiểm tra/phê duyệt trước khi chỉnh sửa.' });
-  }
-  if (isGovernedCompanyExpenseMutation(existing, serviceData)) {
+
+  if (isGovernedCompanyExpenseMutation(existing, serviceData) || ['DRAFT', 'PENDING', 'CHECKED'].includes(existing.approvalStatus)) {
     const reason = governanceReasonSchema.parse(req.body).reason;
     const { result, replayed } = await runIdempotent({
       endpoint: 'expenses.governed-update',

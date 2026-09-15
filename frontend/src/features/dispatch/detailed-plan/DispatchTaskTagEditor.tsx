@@ -23,10 +23,9 @@ export function DispatchTaskTagEditor({ value, onChange, disabled = false }: {
 }) {
   const { tags, error } = useDispatchTaskTags();
   const { createTag, invalidateTags, isCreating } = useCreateDispatchTaskTag();
-  // Raw text while typing: the shared composer trims the manual text on
-  // every keystroke, which made spaces impossible to type (words fused).
-  // The field renders this raw draft; the composed/trimmed note is still
-  // what the parent stores.
+  // Preserve the active input draft through parent renders. The composer
+  // keeps whitespace while typing; normalization is an explicit blur/save
+  // boundary so drivers' multiword instructions never fuse together.
   const [manualDraft, setManualDraft] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [newLabel, setNewLabel] = useState('');

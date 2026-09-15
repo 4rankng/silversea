@@ -692,7 +692,7 @@ describe('Q18 bounded adjustment governance', () => {
     }
   });
 
-  it('captures the trip-expense maker and prevents self-approval or approved rewrites', async () => {
+  it('captures the direct expense actor, permits correction and protects completed-trip deletion', async () => {
     const { trip } = await createTrip();
     const expense = await db.transaction((tx) => createTripExpense(tx, {
       tripId: trip.id,
@@ -708,32 +708,18 @@ describe('Q18 bounded adjustment governance', () => {
     }));
     expenseIds.push(expense.id);
     assert.equal(expense.createdBy, actors[0]!.id);
-    assert.equal(expense.approvalStatus, 'PENDING');
+    assert.equal(expense.approvalStatus, 'RECORDED');
 
-    // 2026-09-11 (maker-checker removed): the self-approval ban is gone — the
-    // creator may approve their own expense; the guards that remain are the
-    // approved-rewrite and approved-delete locks asserted below.
-    await db.transaction((tx) => transitionApproval(tx, {
-      table: 'trip_expenses',
-      id: expense.id,
-      toStatus: 'APPROVED',
-      actorId: actors[0]!.id,
-      actorRole: Role.ACCOUNTANT,
-    }));
-    await expectApiError(
-      db.transaction((tx) => updateTripExpense(tx, expense.id, { buyAmount: '70000' })),
-      409,
-      /không được sửa trực tiếp/,
-    );
+    const updated = await db.transaction((tx) => updateTripExpense(tx, expense.id, { buyAmount: '70000' }));
+    assert.equal(updated?.approvalStatus, 'RECORDED');
+    assert.equal(updated?.buyAmount, '70000');
+    assert.equal(updated?.createdBy, actors[0]!.id);
+    assert.equal(updated?.version, expense.version + 1);
     const deletion = await deleteTripExpenseGuarded(trip.id, expense.id);
-    assert.deepEqual(deletion, {
-      error: 'Chi phí đã duyệt không được xóa trực tiếp; hãy lập yêu cầu điều chỉnh',
-      status: 409,
-    });
-    const [persisted] = await db.select().from(s.tripExpenses)
-      .where(eq(s.tripExpenses.id, expense.id));
-    assert.equal(persisted.buyAmount, '50000');
-    assert.equal(persisted.approvalStatus, 'APPROVED');
+    assert.deepEqual(deletion, { error: 'Không thể xóa chi phí trên chuyến đã hoàn thành', status: 400 });
+    const [persisted] = await db.select().from(s.tripExpenses).where(eq(s.tripExpenses.id, expense.id));
+    assert.equal(persisted.buyAmount, '70000');
+    assert.equal(persisted.approvalStatus, 'RECORDED');
   });
 
   it('fails closed when a legacy trip expense has no attributable maker', async () => {

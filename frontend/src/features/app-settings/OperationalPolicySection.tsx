@@ -102,7 +102,7 @@ export function OperationalPolicySection({
           hint="Khi chọn đơn vị, kiểm tra sẵn sàng và tổng lương chỉ gồm lái xe đang được gán vào đơn vị đó."
         />
         <div className="field">
-          <label htmlFor="credit-tier-one-amount-cap">Ngưỡng tiền duyệt cấp 1 (VND)</label>
+          <label htmlFor="credit-tier-one-amount-cap">Ngưỡng vượt hạn mức cấp 1 (VND)</label>
           <input
             id="credit-tier-one-amount-cap"
             className="input"
@@ -117,11 +117,11 @@ export function OperationalPolicySection({
           />
           {!creditTierCapValid && (
             <p id="credit-tier-cap-error" role="alert" className="cfg-field-error" style={{ color: 'var(--err, #dc2626)', margin: '4px 0 0', fontSize: 'var(--text-body-size)' }}>
-              Ngưỡng tiền duyệt cấp 1 phải là số nguyên VND không âm.
+              Ngưỡng vượt hạn mức cấp 1 phải là số nguyên VND không âm.
             </p>
           )}
           <p className="cfg-field-hint">
-            Cấp 1 chỉ được duyệt phần vượt không quá {creditTierCapValid
+            Quyền cấp 1 chỉ được ghi nhận phần vượt không quá {creditTierCapValid
               ? formatCurrency(Number(creditTierOneCap))
               : 'một số nguyên không âm'}.
           </p>

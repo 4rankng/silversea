@@ -107,16 +107,30 @@ async function mkVehicleClass() {
   return vc;
 }
 
-const FUEL_DATE = (() => {
-  // Unique per-run window so the global fuel_price_periods.effective_from
-  // unique key never collides across parallel suites.
-  const n = Number(suffix.replace(/\D/g, '').slice(-6)) % 3000;
-  const d = new Date('2029-06-01');
-  d.setDate(d.getDate() + n);
-  return d.toISOString().slice(0, 10);
-})();
+let fuelDates: string[] = [];
+let dateReservation: Awaited<ReturnType<typeof client.reserve>> | undefined;
+
+async function reserveFuelDates() {
+  // Serialize this suite's allocation across simultaneous local runs without
+  // deleting another suite's fixtures or weakening the production unique key.
+  dateReservation = await client.reserve();
+  await dateReservation`SELECT pg_advisory_lock(906415, 1)`;
+  const occupied = new Set((await db.select({ date: s.fuelPricePeriods.effectiveFrom })
+    .from(s.fuelPricePeriods)).map(row => row.date));
+  const day = new Date('2100-01-01T00:00:00.000Z');
+  while (true) {
+    const dates = Array.from({ length: 4 }, (_, offset) => {
+      const candidate = new Date(day);
+      candidate.setUTCDate(candidate.getUTCDate() + offset);
+      return candidate.toISOString().slice(0, 10);
+    });
+    if (dates.every(date => !occupied.has(date))) { fuelDates = dates; return; }
+    day.setUTCDate(day.getUTCDate() + 4);
+  }
+}
 
 before(async () => {
+  await reserveFuelDates();
   await initEnforcer();
   adminId = (await createUser(Role.ADMIN)).id;
   accountantId = (await createUser(Role.ACCOUNTANT)).id;
@@ -172,6 +186,10 @@ after(async () => {
   for (const id of userIds) {
     await db.delete(s.users).where(eq(s.users.id, id)).catch(() => {});
   }
+  if (dateReservation) {
+    await dateReservation`SELECT pg_advisory_unlock(906415, 1)`;
+    dateReservation.release();
+  }
   await client.end();
   await disconnectRedis();
 });
@@ -180,7 +198,7 @@ describe('fuel price periods config CRUD', () => {
   test('accountant enters a period; duplicate effectiveFrom conflicts 409', async () => {
     const created = await api('POST', '/fuel-price-periods', accountantId, {
       unitPrice: 21740,
-      effectiveFrom: FUEL_DATE,
+      effectiveFrom: fuelDates[0],
       sourceNote: 'Điều chỉnh giá dầu DO',
     });
     assert.equal(created.status, 201, JSON.stringify(created.body));
@@ -189,14 +207,14 @@ describe('fuel price periods config CRUD', () => {
 
     const duplicate = await api('POST', '/fuel-price-periods', accountantId, {
       unitPrice: 22000,
-      effectiveFrom: FUEL_DATE,
+      effectiveFrom: fuelDates[0],
     });
     assert.equal(duplicate.status, 409, JSON.stringify(duplicate.body));
 
     // A later period is a new row, not an edit — audit keeps the old one.
     const next = await api('POST', '/fuel-price-periods', accountantId, {
       unitPrice: 27620,
-      effectiveFrom: `${FUEL_DATE.slice(0, 8)}28`,
+      effectiveFrom: fuelDates[1],
     });
     assert.equal(next.status, 201, JSON.stringify(next.body));
     createdFuelPeriodIds.push((next.body as { id: number }).id);
@@ -205,13 +223,13 @@ describe('fuel price periods config CRUD', () => {
     assert.equal(list.status, 200);
     const dates = ((list.body as { items: Array<{ effectiveFrom: string }> }).items)
       .map((item) => item.effectiveFrom);
-    assert.ok(dates.includes(FUEL_DATE), 'chronological list includes the entry');
+    assert.ok(dates.includes(fuelDates[0]), 'chronological list includes the entry');
   });
 
   test('CUS may enter fuel prices (docx §5-1 route-scoped); DISPATCHER may not', async () => {
     const cusEntry = await api('POST', '/fuel-price-periods', cusId, {
       unitPrice: 21900,
-      effectiveFrom: `${FUEL_DATE.slice(0, 8)}15`,
+      effectiveFrom: fuelDates[2],
     });
     assert.equal(cusEntry.status, 201, JSON.stringify(cusEntry.body));
     createdFuelPeriodIds.push((cusEntry.body as { id: number }).id);
@@ -231,7 +249,7 @@ describe('fuel price periods config CRUD', () => {
 
     const dispatcherDenied = await api('POST', '/fuel-price-periods', dispatcherId, {
       unitPrice: 21900,
-      effectiveFrom: `${FUEL_DATE.slice(0, 8)}16`,
+      effectiveFrom: fuelDates[3],
     });
     assert.ok([401, 403].includes(dispatcherDenied.status), `expected denial, got ${dispatcherDenied.status}`);
   });

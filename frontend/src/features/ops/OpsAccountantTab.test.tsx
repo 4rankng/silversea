@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '../../components/shared/Toast';
@@ -24,7 +24,7 @@ function renderTab() {
 const expense = (overrides: Record<string, unknown> = {}) => ({
   id: 5, shipmentId: 10, shipmentCode: 'SS-9', containerNumber: null,
   expenseTypeCode: 'NANGHA', expenseTypeName: 'Nâng/hạ', requiresInvoice: true,
-  amount: '350000', paidAt: '2026-09-07', note: null, approvalStatus: 'PENDING',
+  amount: '350000', paidAt: '2026-09-07', note: null, approvalStatus: 'RECORDED',
   rejectionReason: null, opsSettlementId: null, hasPhoto: true, paidById: 7,
   paidByName: 'Ops A', createdAt: '2026-09-07T00:00:00.000Z',
   ...overrides,
@@ -41,7 +41,7 @@ describe('OpsAccountantTab (OpsVanHanh §5.4)', () => {
       if (url.startsWith('/ops/admin/settlements')) {
         return Promise.resolve({
           items: [{
-            id: 3, code: 'OS-2609-0001', status: 'PENDING', totalAmount: '350000',
+            id: 3, code: 'OS-2609-0001', status: 'RECORDED', totalAmount: '350000',
             note: null, createdAt: '2026-09-07T00:00:00.000Z', approvedAt: null,
             opsUserId: 7, opsUserName: 'Ops A',
           }],
@@ -58,79 +58,28 @@ describe('OpsAccountantTab (OpsVanHanh §5.4)', () => {
     expect(screen.getByText('Ảnh')).toBeInTheDocument();
   });
 
-  it('approves and rejects via the admin endpoints (reject requires reason)', async () => {
-    apiPost.mockResolvedValue(expense());
+  it('exposes receipt inspection without any internal approval mutation', async () => {
     renderTab();
     await screen.findByText('SS-9');
-
-    // Exact 'Duyệt' so the settlement batch's 'Duyệt phiếu' button is excluded.
-    fireEvent.click(screen.getByRole('button', { name: 'Duyệt' }));
-    await waitFor(() => {
-      expect(apiPost).toHaveBeenCalledWith('/ops/admin/expenses/5/approve', {});
-    });
-
-    // Reject flow: open the reason dialog, require text.
-    fireEvent.click(screen.getByRole('button', { name: /Từ chối khoản chi/ }));
-    const dialog = await screen.findByRole('dialog', { name: /Từ chối khoản chi/ });
-    expect(dialog).toBeInTheDocument();
-    const submit = screen.getByRole('button', { name: 'Từ chối' });
-    expect(submit).toBeDisabled();
-    fireEvent.change(screen.getByLabelText(/Lý do từ chối/), { target: { value: 'Ảnh mờ' } });
-    fireEvent.click(submit);
-    await waitFor(() => {
-      expect(apiPost).toHaveBeenCalledWith('/ops/admin/expenses/5/reject', { reason: 'Ảnh mờ' });
-    });
+    expect(screen.queryByRole('button', { name: /duyệt|từ chối/i })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Ảnh' }));
+    await waitFor(() => expect(apiGet.mock.calls.some(([url]) => String(url).includes('/expenses/5/photos'))).toBe(true));
+    expect(apiPost).not.toHaveBeenCalled();
   });
 
-  it('shows pending settlement batches with the approve control', async () => {
-    apiPost.mockResolvedValue({});
+  it('keeps settlement detail available without a reviewer action', async () => {
     renderTab();
     expect(await screen.findByText('OS-2609-0001')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Duyệt phiếu/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Xem' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /duyệt/i })).toBeNull();
   });
 
-  it('routes receipt-less rows through the in-person check dialog (two-path rule)', async () => {
-    apiPost.mockResolvedValue(expense());
-    apiGet.mockImplementation((url: string) => {
-      if (url.startsWith('/ops/admin/expenses')) {
-        return Promise.resolve({
-          items: [
-            expense(), // hasPhoto: true
-            expense({ id: 6, amount: '80000', hasPhoto: false }),
-          ],
-        });
-      }
-      if (url.startsWith('/ops/admin/settlements')) {
-        return Promise.resolve({ items: [] });
-      }
-      return Promise.resolve({ items: [] });
-    });
+  it('shows missing receipt as outstanding evidence without approving it implicitly', async () => {
+    apiGet.mockImplementation((url: string) => Promise.resolve({ items: url.startsWith('/ops/admin/expenses') ? [expense({ hasPhoto: false })] : [] }));
     renderTab();
-    await screen.findAllByText('SS-9');
-
-    // Photo'd row approves directly — no dialog.
-    const photoRow = screen.getByText('350.000').closest('tr') as HTMLElement;
-    fireEvent.click(within(photoRow).getByRole('button', { name: 'Duyệt' }));
-    await waitFor(() => {
-      expect(apiPost).toHaveBeenCalledWith('/ops/admin/expenses/5/approve', {});
-    });
-
-    // Receipt-less row: Duyệt opens the in-person check dialog, note required.
-    const debtRow = screen.getByText('80.000').closest('tr') as HTMLElement;
-    fireEvent.click(within(debtRow).getByRole('button', { name: 'Duyệt' }));
-    const dialog = await screen.findByRole('dialog', { name: /Duyệt không ảnh biên lai/ });
-    expect(dialog).toBeInTheDocument();
-    const submit = within(dialog).getByRole('button', { name: 'Duyệt' });
-    expect(submit).toBeDisabled();
-    fireEvent.change(within(dialog).getByLabelText(/Ghi chú kiểm chứng tận tay/), {
-      target: { value: 'Đã đối chiếu hóa đơn giấy tại quầy' },
-    });
-    fireEvent.click(submit);
-    await waitFor(() => {
-      expect(apiPost).toHaveBeenCalledWith('/ops/admin/expenses/6/approve', {
-        inPersonCheck: true,
-        note: 'Đã đối chiếu hóa đơn giấy tại quầy',
-      });
-    });
+    await screen.findByText('SS-9');
+    expect(screen.getByRole('button', { name: 'Nợ chứng từ' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /duyệt/i })).toBeNull();
+    expect(apiPost).not.toHaveBeenCalled();
   });
 });

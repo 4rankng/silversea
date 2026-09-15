@@ -1,5 +1,4 @@
 import { CardSection } from './CardSection';
-import { TripStatus } from '@tingting/shared';
 
 /**
  * Governance reason for completed-trip corrections (COMPLETED lots only).

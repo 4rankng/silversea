@@ -390,7 +390,7 @@
   border: 1px solid var(--line);
   border-radius: 7px;
   font-family: inherit;
-  font-size: var(--text-caption-size);
+  font-size: var(--text-control-size);
   line-height: 1.35;
   color: var(--ink);
 }
@@ -1316,4 +1316,33 @@
     flex: 1 1 0;
     justify-content: center;
   }
+}
+
+/* Keep operational identifiers intact: wrap between plate/type units only. */
+.fleet-page .fleet-plate,
+.fleet-page .fleet-plate-tag,
+.fleet-page .fleet-type-chip,
+.fleet-detail .fleet-plate,
+.fleet-detail .fleet-plate-tag,
+.fleet-detail .fleet-type-chip {
+  flex-shrink: 0;
+  white-space: nowrap;
+  word-break: normal;
+  overflow-wrap: normal;
+}
+.fleet-page .fleet-pair {
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  min-width: 0;
+}
+.fleet-page .kpi__meta { overflow: visible; }
+.fleet-page .fleet-kpi-meta { gap: 4px 10px; line-height: 1.45; }
+.fleet-page .fleet-kpi-meta > span:not(.fleet-kpi-meta__sep) {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+@media (max-width: 640px) {
+  .fleet-page .kpi { min-width: 0; height: auto; }
+  .fleet-page .kpi__watermark { display: none; }
+  .fleet-page .fleet-kpi-meta { gap: 4px 8px; }
 }

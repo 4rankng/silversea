@@ -32,7 +32,7 @@ export const expenseCategories = pgTable('expense_categories', {
   reminderLeadDays: integer('reminder_lead_days').default(30),
   // Wave 2 M3.7: per-type invoice-required rule. When true, expenses in this
   // category MUST have a supplier invoice (invoiceNumber + invoiceDate) before
-  // approval. When false, substitute evidence is accepted. Defaults false
+  // direct recording. When false, substitute evidence is accepted. Defaults false
   // (back-compat — existing categories accept any evidence).
   requiresInvoice: boolean('requires_invoice').default(false),
   // Wave 3 M4.7: when requiresInvoice is false, this flag indicates whether
@@ -61,10 +61,10 @@ export const expenses = pgTable('expenses', {
   validTo: timestamp('valid_to'),
   receiptId: varchar('receipt_id', { length: 100 }),
   note: text('note'),
-  // Dual-control review (payable-side): submission parks the row as PENDING
-  // with NO ledger entry; a checker then a different approver complete
-  // review before the supplier debt posts. Legacy rows backfill APPROVED.
-  approvalStatus: varchar('approval_status', { length: 20 }).notNull().default('APPROVED'),
+  // Valid authorized saves become RECORDED and post supplier debt directly.
+  // Incomplete legacy rows remain DRAFT; VOIDED rows cannot post. Review
+  // metadata below preserves historical facts and is not an active workflow.
+  approvalStatus: varchar('approval_status', { length: 20 }).notNull().default('RECORDED'),
   checkedBy: integer('checked_by'),
   checkedAt: timestamp('checked_at'),
   approvedBy: integer('approved_by'),
@@ -157,11 +157,10 @@ export const tripExpenses = pgTable('trip_expenses', {
     effectiveDate: string;
     unitPrice: number;
   }>(),
-  approvalStatus: varchar('approval_status', { length: 20 }).notNull().default('APPROVED'),
-  // O2C: real approval timestamp. Unlike approvalStatus (which defaults to
-  // 'APPROVED' for legacy rows), this is NULL until a real accountant approval
-  // action — the signal the delete-authorization matrix keys off. Added
-  // (260801-2200) so the accountant-approved undeletable exception is accurate.
+  approvalStatus: varchar('approval_status', { length: 20 }).notNull().default('RECORDED'),
+  // Historical O2C approval metadata, retained to preserve the deletion
+  // protection of rows genuinely approved under the retired workflow. New
+  // direct RECORDED expenses do not fabricate an approver or approval time.
   approvedAt: timestamp('approved_at', { withTimezone: true }),
   approvedBy: integer('approved_by'),
   note: text('note'),
@@ -189,7 +188,7 @@ export const fuelInvoices = pgTable('fuel_invoices', {
   totalLiters: numeric('total_liters', { precision: 15, scale: 2 }).notNull(),
   unitPrice: numeric('unit_price', { precision: 15, scale: 2 }).notNull(),
   totalAmount: numeric('total_amount', { precision: 15, scale: 2 }).notNull(),
-  approvalStatus: varchar('approval_status', { length: 20 }).notNull().default('PENDING'),
+  approvalStatus: varchar('approval_status', { length: 20 }).notNull().default('RECORDED'),
   note: text('note'),
   createdBy: integer('created_by'),
   approvedBy: integer('approved_by'),

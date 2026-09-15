@@ -1,59 +1,48 @@
 import { useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { FuelMode, TripStatus } from '@tingting/shared';
+import { FuelMode, TripStatus, tripContainerBatchSchema } from '@tingting/shared';
 import type { TripDetail } from '@tingting/shared';
 import { api, ApiError } from '../lib/api';
 import { tripClient } from '../api/tripClient';
 import { qk } from '../api/keys';
 import { useToast } from '../components/shared/Toast';
-import type { FormLeg } from './useTripFormLegs';
-import type { UseTripFormStateReturn, ContainerFormRow, SealFormRow } from './useTripFormState';
+import type { ContainerFormRow, SealFormRow } from './useTripFormState';
 import { resolveContainerCount } from './tripFormDispatchUtils';
-import { moneyInputToNumber } from '../lib/moneyInput';
+import type { PhotoUploadedHandler } from './useTripFormPhotos';
 import {
   FIELD_LABELS,
   moneyOrNull,
   moneyOrUndefined,
   moneyOrZero,
-  normalizeLegsKey,
   reconcilePayload,
+  TripEditConflictError,
   type ServerContainerAfterSave,
 } from './tripSubmitReconcile';
 import { findInvalidLeg } from './tripSubmitReconcile';
 export { findInvalidLeg };
 
 
-interface SubmitOptions {
-  creditApprovalRequestId?: number | null;
-}
+import type { SubmitOptions, TripFormSubmitParams as Params } from './tripSubmitTypes';
+export type { SubmitOptions } from './tripSubmitTypes';
 
-interface Params {
-  state: UseTripFormStateReturn;
-  isEditMode: boolean;
-  existingTrip: TripDetail | undefined;
-  legs: FormLeg[];
-  requiredFieldsFilled: number;
-  hasOptionalData: boolean;
-  photoUrls: string[];
-  flushPendingPhotos: (tripId: number) => Promise<string[]>;
-  flushPendingContainerPhotos: (tripId: number, rowKeyToContainerId: Map<string, number>) => Promise<Map<string, string>>;
-  governanceReason?: string;
-  onCreditLimitBlocked?: (details: { message: string; customerId: number; proposedAmount: number }) => void;
-}
 export function useTripFormSubmit({ state: s, isEditMode, existingTrip, legs, requiredFieldsFilled, hasOptionalData, photoUrls, flushPendingPhotos, flushPendingContainerPhotos, governanceReason, onCreditLimitBlocked }: Params): (e?: React.FormEvent, options?: SubmitOptions) => Promise<number | undefined> {
 const queryClient = useQueryClient();
 const { toast: showToast } = useToast();
-// One create idempotency key per form session: a retry of the SAME payload
-// replays the same trip server-side instead of duplicating it (the create
-// endpoint already persists an Idempotency-Key ledger). If the user edits
-// the form after a stranded create and retries, the old key 409s ("nội dung
-// khác"); that conflict mints a fresh key once so the corrected submission
-// is never stuck. Cleared on success — an intentional second create must
-// never replay the first.
+// One key and, once confirmed, one trip ID per form session. Retrying failed
+// child writes resumes that trip; an idempotency conflict never rotates the
+// key and silently creates a duplicate. Clear only after all data is saved.
 const createIdempotencyKeyRef = useRef<string | null>(null);
+const createdTripRef = useRef<{ id: number } | null>(null);
+const submittingRef = useRef(false);
+const editBaselineRef = useRef({ trip: existingTrip, reset: s.resetToggle });
+if (existingTrip && (editBaselineRef.current.trip?.id !== existingTrip.id || editBaselineRef.current.reset !== s.resetToggle)) {
+  editBaselineRef.current = { trip: existingTrip, reset: s.resetToggle };
+}
+const conflictRef = useRef<{ latest: TripDetail; merged: Record<string, unknown>; fields: string[] } | null>(null);
 const handleSubmit = useCallback(
   async (e?: React.FormEvent, options?: SubmitOptions): Promise<number | undefined> => {
     e?.preventDefault();
+    if (submittingRef.current) return;
     s.setError("");
 
     const focusAndScroll = (id: string) => {
@@ -129,19 +118,14 @@ const handleSubmit = useCallback(
 
     if (isEditMode) {
       if (existingTrip?.status === TripStatus.COMPLETED && !governanceReason?.trim()) {
-        const msg = 'Vui lòng nhập lý do đề nghị thay đổi chuyến đã hoàn thành.';
+        const msg = 'Vui lòng nhập lý do điều chỉnh chuyến đã hoàn thành.';
         s.setError(msg);
         showToast({ kind: 'error', message: msg });
         focusAndScroll('governanceReason');
         return;
       }
-      if (legs.length === 0) {
-        const msg = 'At least one journey leg is required.';
-        s.setError(msg);
-        showToast({ kind: 'error', message: msg });
-        return;
-      }
       for (const leg of legs) {
+        if (!leg.origin.trim() && !leg.destination.trim() && !leg.km.trim()) continue;
         if (!leg.origin.trim() || !leg.destination.trim()) {
           const msg = `Leg ${leg.sequence}: Both origin and destination are required.`;
           s.setError(msg);
@@ -166,6 +150,7 @@ const handleSubmit = useCallback(
       }
     }
 
+    submittingRef.current = true;
     s.setSubmitting(true);
     try {
       // Container type is planning data and must be preserved even when the
@@ -180,6 +165,15 @@ const handleSubmit = useCallback(
         r.photoKeys.seal.length > 0,
       );
       const rowsToPersist = s.containerRows.filter(rowShouldPersist);
+      const containerValidation = tripContainerBatchSchema.safeParse({
+        containers: rowsToPersist.map(row => ({
+          containerTypeId: row.containerTypeId || null,
+          containerNumber: row.containerNumber.trim() || null,
+          cargoWeightKg: row.cargoWeightKg === '' ? null : Number(row.cargoWeightKg),
+          seals: row.seals.filter(seal => seal.sealNumber.trim()).map(seal => ({ sealNumber: seal.sealNumber.trim() })),
+        })),
+      });
+      if (!containerValidation.success) throw new Error(containerValidation.error.issues[0]?.message ?? 'Thông tin container không hợp lệ.');
       for (const r of rowsToPersist) {
         // No half-filled seal rows: if any seal field is present, the number is required.
         for (const sl of r.seals) {
@@ -219,6 +213,11 @@ const handleSubmit = useCallback(
         await queryClient.invalidateQueries({ queryKey: qk.tripForm.tripContainers(id) });
 
         const items = Array.isArray(result?.items) ? result.items : [];
+        if (items.length !== containers.length) {
+          // A missing row in a successful response must not erase the draft
+          // or its only pending image. Retain it and report incomplete save.
+          throw new Error('Máy chủ chưa trả đủ container đã lưu. Bản nháp và ảnh vẫn được giữ; vui lòng thử lại.');
+        }
         const usedKeys = new Set<string>();
         const usedSealKeys = new Set<string>();
         // Track `_key` per post-save item so the flush below can build a
@@ -308,8 +307,17 @@ const handleSubmit = useCallback(
         for (const { key, containerId } of itemToKey) {
           rowKeyToContainerId.set(key, containerId);
         }
-        if (rowKeyToContainerId.size > 0) {
-          const swaps = await flushPendingContainerPhotos(id, rowKeyToContainerId);
+        {
+          const replacePreview: PhotoUploadedHandler = (preview, persisted) => {
+            s.setContainerRows(previous => previous.map(row => ({
+              ...row,
+              photoKeys: {
+                cont: row.photoKeys.cont.map(url => url === preview ? persisted : url),
+                seal: row.photoKeys.seal.map(url => url === preview ? persisted : url),
+              },
+            })));
+          };
+          const swaps = await flushPendingContainerPhotos(id, rowKeyToContainerId, replacePreview);
           if (swaps.size > 0) {
             s.setContainerRows(prev => prev.map(r => ({
               ...r,
@@ -323,6 +331,7 @@ const handleSubmit = useCallback(
       };
 
       if (isEditMode && existingTrip) {
+        const original = editBaselineRef.current.trip ?? existingTrip;
         const payload = {
           customerId: Number(s.customerId),
           routeId: s.routeId ? Number(s.routeId) : undefined,
@@ -332,7 +341,7 @@ const handleSubmit = useCallback(
           legs: legs
             .filter(l => l.origin.trim() || l.destination.trim() || String(l.km).trim())
             .map(l => ({ sequence: l.sequence, origin: l.origin.trim(), destination: l.destination.trim(), km: Number(l.km), loadingType: l.loadingType })),
-          version: existingTrip.version,
+          version: original.version,
           fuelMode: s.fuelMode,
           fuelLitersOverride: s.fuelMode === FuelMode.FLAT_RATE ? (s.fuelLitersOverride ? Number(s.fuelLitersOverride) : 0) : undefined,
           fuelSupplementLiters: s.fuelSupplementLiters ? Number(s.fuelSupplementLiters) : 0,
@@ -351,7 +360,7 @@ const handleSubmit = useCallback(
           // revenue whenever both splits are blank. feedback202606 A3 §9.
           revenueEmptyReturn: moneyOrUndefined(s.revenueEmptyReturn),
           revenueCombine: moneyOrUndefined(s.revenueCombine),
-          notes: s.notes.trim() || undefined,
+          notes: s.notes.trim(),
           roadAllowanceOverride: moneyOrNull(s.roadAllowanceOverride),
           fuelActualUnitPrice: moneyOrNull(s.fuelActualUnitPrice),
           fuelSupplierId: s.fuelSupplierId !== null ? s.fuelSupplierId : null,
@@ -372,25 +381,40 @@ const handleSubmit = useCallback(
         };
 
         const endpoint = existingTrip.status === TripStatus.CREATED ? `/trips/${existingTrip.id}/pre-departure` : `/trips/${existingTrip.id}/actuals`;
-        const putFigures = (version: number) =>
-          api.put<Record<string, unknown>>(endpoint, { ...payload, version });
+        let submission: Record<string, unknown> = payload;
+        let baseline = original;
+        const reviewed = options?.conflictResolution;
+        if (reviewed) {
+          const pending = conflictRef.current;
+          if (!pending || reviewed.version !== pending.latest.version || pending.fields.some(key => !reviewed.choices[key])) {
+            throw new Error('Chọn giá trị cho từng trường xung đột trước khi lưu.');
+          }
+          baseline = pending.latest;
+          submission = { ...pending.merged, version: reviewed.version };
+          for (const key of pending.fields) {
+            if (reviewed.choices[key] === 'server') submission[key] = pending.latest[key as keyof TripDetail];
+          }
+        }
         let updatedTrip: Record<string, unknown>;
         try {
-          updatedTrip = await putFigures(existingTrip.version);
+          updatedTrip = await api.put<Record<string, unknown>>(endpoint, submission);
         } catch (err) {
-          if (!(err instanceof ApiError && err.status === 409)) throw err;
+          if (!(err instanceof ApiError && err.status === 409 && err.message.includes('Dữ liệu đã bị thay đổi bởi người khác'))) throw err;
           // KP-141: Instead of a blind full-payload retry with just a fresh
           // version, reconcile local edits against the latest server state.
           await queryClient.refetchQueries({ queryKey: qk.trips.detail(existingTrip.id) });
           const fresh = queryClient.getQueryData<TripDetail>(qk.trips.detail(existingTrip.id));
-          if (!fresh) throw err;
-          const { merged, conflicts } = reconcilePayload(payload, existingTrip, fresh);
+          if (!fresh || fresh.version === baseline.version) throw err;
+          const { merged, conflicts } = reconcilePayload(submission, baseline, fresh);
           if (conflicts.length > 0) {
-            const labels = conflicts.map(c => FIELD_LABELS[c] ?? c);
-            throw new ApiError(409, null, `Xung đột thay đổi trên: ${labels.join(', ')}. Vui lòng tải lại trang.`);
+            conflictRef.current = { latest: fresh, merged, fields: conflicts };
+            throw new TripEditConflictError(fresh.version, conflicts.map(key => ({
+              key, label: FIELD_LABELS[key] ?? key, local: merged[key], latest: fresh[key as keyof TripDetail],
+            })));
           }
           updatedTrip = await api.put<Record<string, unknown>>(endpoint, merged);
         }
+        conflictRef.current = null;
         queryClient.invalidateQueries({ queryKey: qk.trips.all });
         queryClient.setQueryData(qk.trips.detail(existingTrip.id), updatedTrip);
         queryClient.invalidateQueries({ queryKey: qk.trips.detail(existingTrip.id) });
@@ -472,9 +496,8 @@ const handleSubmit = useCallback(
       const count = resolveContainerCount(s.containerCount);
       createPayload.containerCount = count;
       createPayload.containerTypeId = Number(s.plannedContainerTypeId || s.containerRows.find(r => r.containerTypeId)?.containerTypeId);
-      const effectiveCreditApprovalRequestId = options?.creditApprovalRequestId ?? null;
-      if (effectiveCreditApprovalRequestId != null) {
-        createPayload.creditApprovalRequestId = effectiveCreditApprovalRequestId;
+      if (options?.creditException) {
+        createPayload.creditException = options.creditException;
       }
       const postCreate = () => {
         createIdempotencyKeyRef.current ??= crypto.randomUUID();
@@ -482,42 +505,23 @@ const handleSubmit = useCallback(
           headers: { 'Idempotency-Key': createIdempotencyKeyRef.current },
         });
       };
-      let trip: { id: number };
-      try {
-        trip = await postCreate();
-      } catch (keyError) {
-        const keyConflict = keyError instanceof ApiError
-          && keyError.status === 409
-          && keyError.message.includes('mã giao dịch');
-        if (!keyConflict) throw keyError;
-        // Same form-session key, different payload (the form was edited
-        // after a stranded create): the server refuses the replay — mint a
-        // fresh key and retry once so the corrected submission proceeds.
-        console.warn('Trip create idempotency key conflict — regenerating key and retrying once.', keyError.message);
-        createIdempotencyKeyRef.current = crypto.randomUUID();
-        trip = await postCreate();
-      }
+      const continuingCreatedTrip = createdTripRef.current != null;
+      const trip = createdTripRef.current ?? await postCreate();
+      createdTripRef.current = trip;
 
       // Upload any create-mode OCR photos now that we have a trip id,
       // replacing their local previews with real server URLs.
-      let finalPhotoUrls = photoUrls;
-      try {
-        finalPhotoUrls = await flushPendingPhotos(trip.id);
-      } catch {
-        // Photos are optional — don't abort the freshly-created trip.
-      }
+      const finalPhotoUrls = await flushPendingPhotos(trip.id);
 
-      if (hasOptionalData) {
+      if (hasOptionalData || continuingCreatedTrip) {
         const legsToSubmit = legs.filter(
           (leg) => leg.origin.trim() !== '' || leg.destination.trim() !== '' || leg.km.trim() !== '',
         );
 
-        if (legsToSubmit.length === 0) {
-          createIdempotencyKeyRef.current = null;
-          return trip.id;
-        }
-
         const preDeparturePayload = {
+          // A child-write retry continues the already-created trip. Keep any
+          // corrections made in the open form without another POST.
+          ...(continuingCreatedTrip ? createPayload : {}),
           legs: legsToSubmit.map((l) => ({
             sequence: l.sequence,
             origin: l.origin.trim(),
@@ -566,6 +570,7 @@ const handleSubmit = useCallback(
       // audit entry. The user fills the instructions later on the edit
       // page, where the upsert runs.
       createIdempotencyKeyRef.current = null;
+      createdTripRef.current = null;
       await queryClient.invalidateQueries({ queryKey: qk.trips.all });
       return trip.id;
     } catch (err) {
@@ -593,10 +598,14 @@ const handleSubmit = useCallback(
       } else if (err instanceof Error) {
         msg = err.message;
       }
+      if (!isEditMode && createdTripRef.current) {
+        msg = `Đã tạo chuyến #${createdTripRef.current.id}, nhưng chưa lưu xong dữ liệu kèm theo. ${msg} Bấm Lưu để tiếp tục trên chuyến này.`;
+      }
       s.setError(msg);
       showToast({ kind: 'error', message: msg });
       return undefined;
     } finally {
+      submittingRef.current = false;
       s.setSubmitting(false);
     }
   },

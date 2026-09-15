@@ -16,7 +16,7 @@ const STALE_AFTER_MS = 5 * 60 * 1000;
 
 function blockerRoute(item: AccountantWorkInboxItem, code: string): string {
   const trip = encodeURIComponent(String(item.tripId));
-  if (code === 'EXPENSE_APPROVAL') return `/expenses?tripId=${trip}`;
+  if (code === 'EXPENSE_APPROVAL') return `/trips/${trip}`;
   if (code === 'SETTLEMENT') return `/advances?view=settlements&tripId=${trip}`;
   if (code === 'PROFITABILITY') return `/profit?tripId=${trip}`;
   return `${item.targetRoute}`;
@@ -118,7 +118,7 @@ export function AccountingWorkInbox({ transportViewHref }: { transportViewHref: 
         <Link to={transportViewHref}>Đối chiếu vận tải</Link>
         <Link to="/debt">Giấy báo nợ</Link>
         <Link to="/payables">Phải trả</Link>
-        <Link to="/accounting/fuel-evidence">Duyệt bằng chứng</Link>
+        <Link to="/accounting/fuel-evidence">Chứng từ nhiên liệu</Link>
       </nav>
       <p className="accounting-work-inbox__batch-note">Tạo hàng loạt chỉ thực hiện trong Đối chiếu vận tải sau khi máy chủ xác nhận các dòng sẵn sàng và cùng một khách hàng.</p>
       <InboxLane view="ACTION" title="Sẵn sàng xử lý" description="Đã đủ POD, chi phí, quyết toán và ảnh chụp lợi nhuận." />

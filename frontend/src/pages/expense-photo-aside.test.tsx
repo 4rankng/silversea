@@ -36,6 +36,16 @@ describe('ExpensePhotoAside receipt thumbnails', () => {
     getTokenMock.mockReturnValue('jwt-for-test');
   });
 
+  it('allows selecting receipt photos before the expense is saved', () => {
+    const onUpload = vi.fn();
+    render(<ExpensePhotoAside photos={[]} uploading={false} isEdit={false} submitting={false} handleBack={vi.fn()} removePhoto={vi.fn()} handlePhotoUpload={onUpload} />);
+    const input = screen.getByLabelText('Chọn ảnh hóa đơn');
+    fireEvent.change(input, { target: { files: [new File(['receipt'], 'receipt.jpg', { type: 'image/jpeg' })] } });
+    expect(onUpload).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: 'Lưu chi phí' })).toBeEnabled();
+    expect(screen.queryByText(/duyệt/i)).toBeNull();
+  });
+
   it('wraps the img src with the auth token query param', () => {
     renderAside();
     const img = screen.getByAltText('Ảnh 1') as HTMLImageElement;
@@ -44,7 +54,7 @@ describe('ExpensePhotoAside receipt thumbnails', () => {
   });
 
   it('swaps a failed load for a retryable hint and reloads on retry', () => {
-    const { container } = renderAside();
+    renderAside();
     const img = screen.getByAltText('Ảnh 1') as HTMLImageElement;
     fireEvent.error(img);
     expect(screen.getByRole('alert')).toHaveTextContent('Không tải được ảnh');

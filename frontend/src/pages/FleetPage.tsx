@@ -24,12 +24,14 @@ import { DriverCard } from '../features/fleet/driver-card';
 export default function FleetPage() {
   const queryClient = useQueryClient();
   const { rootRef } = usePageAnimations({ ready: true });
-  const { data: fleetData } = useTrucksAndDrivers();
-  const { data: trailers = [] } = useQuery({
+  const fleetQuery = useTrucksAndDrivers();
+  const { data: fleetData } = fleetQuery;
+  const trailersQuery = useQuery({
     queryKey: qk.catalogs.trailers,
     queryFn: () => configClient.getTrailers(),
     staleTime: 60_000,
   });
+  const trailers = trailersQuery.data ?? [];
   const trucks = useMemo(() => fleetData?.trucks ?? [], [fleetData?.trucks]);
   const drivers = useMemo(() => fleetData?.drivers ?? [], [fleetData?.drivers]);
 
@@ -70,6 +72,17 @@ export default function FleetPage() {
   // Nullable by design (fleet sheets ship blank): the KPI must count EVERY
   // trailer, not just typed ones — reconcile with the trailer card's legend.
   const unknownType = trailers.length - ft40 - ft20;
+
+  if (!fleetData || !trailersQuery.data) {
+    const failed = fleetQuery.isError || trailersQuery.isError;
+    return <div className="fleet-page" ref={rootRef}>
+      <PageHeader title="Đội xe" />
+      <div role={failed ? 'alert' : 'status'}>
+        {failed ? 'Không tải được đầy đủ đội xe. Tổng số chưa khả dụng.' : 'Đang tải đội xe…'}
+        {failed && <button className="btn" onClick={() => { void fleetQuery.refetch(); void trailersQuery.refetch(); }}>Thử lại</button>}
+      </div>
+    </div>;
+  }
 
   return (
     <div className="fleet-page" ref={rootRef}>

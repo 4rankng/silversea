@@ -168,7 +168,7 @@ export function FleetVehiclesView() {
         </Button>
       </div>
       {crud.error && <div className="dispatch-catalogs__error">{crud.error}</div>}
-      <div className="kpi-grid" style={{ marginBottom: 16 }}>
+      <div className="kpi-grid dispatch-catalogs__vehicle-summary" style={{ marginBottom: 16 }}>
         <KPI label="Tổng xe đầu kéo" value={trucks.length} unit="xe" icon={Truck} />
         <KPI label="Hoạt động" value={active} unit="xe" icon={Truck} variant="success" />
         <KPI label="Bảo trì / Ngưng" value={maintenance} unit="xe" icon={Truck} variant="warn" />
@@ -220,7 +220,7 @@ export function FleetVehiclesView() {
                     key={t.id}
                     style={{ cursor: 'pointer' }}
                     onClick={() => crud.showEdit(t.id)}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); crud.showEdit(t.id); } }}
+                    onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); crud.showEdit(t.id); } }}
                     tabIndex={0}
                     role="button"
                     aria-label={`Chỉnh sửa xe ${t.licensePlate}`}

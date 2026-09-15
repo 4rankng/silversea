@@ -142,4 +142,18 @@ describe('CompanyInfoConfigPage save readiness', () => {
       expect(screen.getByLabelText(label)).toBeTruthy();
     }
   });
+  it('keeps saved comparison collapsed and separate from an edited draft, after the save action', () => {
+    const { container, rerender } = renderPage();
+    fireEvent.change(screen.getByLabelText('Tên đầy đủ'), { target: { value: 'Tên đang chỉnh' } });
+    const comparison = container.querySelector('details')!;
+    expect(comparison.open).toBe(false);
+    expect(comparison.textContent).toContain(validCompanyInfo.name);
+    expect(comparison.textContent).not.toContain('Tên đang chỉnh');
+    const save = screen.getByRole('button', { name: 'Lưu thông tin' });
+    expect(save.compareDocumentPosition(comparison) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    companyInfoState.data = { ...validCompanyInfo, shortName: 'Dữ liệu mới từ máy khác' };
+    rerender(<MemoryRouter><CompanyInfoConfigPage /></MemoryRouter>);
+    expect(screen.getByLabelText('Tên đầy đủ')).toHaveValue('Tên đang chỉnh');
+  });
+
 });

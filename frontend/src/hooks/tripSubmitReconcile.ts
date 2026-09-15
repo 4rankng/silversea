@@ -1,6 +1,18 @@
 import type { TripDetail } from '@tingting/shared';
 import type { FormLeg } from './useTripFormLegs';
 import { moneyInputToNumber } from '../lib/moneyInput';
+import { businessDateISO } from '../lib/format';
+import { ApiError } from '../lib/api';
+
+const calendarDate = (value: unknown) => value ? businessDateISO(new Date(String(value))) : null;
+const optionalText = (value: unknown) => value == null || value === '' ? null : String(value);
+
+export interface TripEditConflictField { key: string; label: string; local: unknown; latest: unknown; }
+export class TripEditConflictError extends ApiError {
+  constructor(readonly latestVersion: number, readonly fields: TripEditConflictField[]) {
+    super(409, null, 'Chuyến đã được cập nhật. Chọn giá trị cần giữ trước khi lưu lại; bản nháp của bạn vẫn còn.');
+  }
+}
 
 export function moneyOrZero(value: string): number { return moneyInputToNumber(value) ?? 0; }
 export function moneyOrUndefined(value: string): number | undefined { return moneyInputToNumber(value); }
@@ -16,7 +28,7 @@ export function findInvalidLeg(legs: FormLeg[]): FormLeg | null {
     const filled = leg.origin.trim() !== '' || leg.destination.trim() !== '' || leg.km.trim() !== '';
     if (!filled) continue;
     const kmNum = leg.km.trim() === '' ? 0 : Number(leg.km);
-    if (!leg.origin.trim() || !leg.destination.trim() || Number.isNaN(kmNum) || kmNum < 0) return leg;
+    if (!leg.origin.trim() || !leg.destination.trim() || !Number.isFinite(kmNum) || kmNum < 0) return leg;
   }
   return null;
 }
@@ -37,8 +49,8 @@ export const RECONCILABLE_FIELDS: ReadonlyArray<{
 }> = [
   { payloadKey: 'customerId', tripKey: 'customerId', normalize: Number },
   { payloadKey: 'routeId', tripKey: 'routeId', normalize: Number },
-  { payloadKey: 'departureDate', tripKey: 'departureDate', normalize: v => v ?? null },
-  { payloadKey: 'completedAt', tripKey: 'completedAt', normalize: v => v ?? null },
+  { payloadKey: 'departureDate', tripKey: 'departureDate', normalize: calendarDate },
+  { payloadKey: 'completedAt', tripKey: 'completedAt', normalize: calendarDate },
   { payloadKey: 'fuelMode', tripKey: 'fuelMode', normalize: v => v ?? null },
   { payloadKey: 'fuelLitersOverride', tripKey: 'fuelLitersOverride', normalize: v => v == null ? null : Number(v) },
   { payloadKey: 'fuelSupplementLiters', tripKey: 'fuelSupplementLiters', normalize: v => v == null ? 0 : Number(v) },
@@ -52,7 +64,7 @@ export const RECONCILABLE_FIELDS: ReadonlyArray<{
   { payloadKey: 'vehicleShiftAllowance', tripKey: 'vehicleShiftAllowance', normalize: v => Number(v ?? 0) },
   { payloadKey: 'revenueEmptyReturn', tripKey: 'revenueEmptyReturn', normalize: v => v == null ? null : Number(v) },
   { payloadKey: 'revenueCombine', tripKey: 'revenueCombine', normalize: v => v == null ? null : Number(v) },
-  { payloadKey: 'notes', tripKey: 'notes', normalize: v => v ?? null },
+  { payloadKey: 'notes', tripKey: 'notes', normalize: optionalText },
   { payloadKey: 'roadAllowanceOverride', tripKey: 'roadAllowanceOverride', normalize: v => v == null ? null : Number(v) },
   { payloadKey: 'fuelActualUnitPrice', tripKey: 'fuelActualUnitPrice', normalize: v => v == null ? null : Number(v) },
   { payloadKey: 'fuelSupplierId', tripKey: 'fuelSupplierId', normalize: v => v ?? null },
@@ -115,14 +127,19 @@ export function reconcilePayload(
   const conflicts: string[] = [];
 
   for (const f of RECONCILABLE_FIELDS) {
+    if (payload[f.payloadKey] === undefined) continue;
     const localNorm = f.normalize(payload[f.payloadKey]);
-    const originalNorm = f.normalize(original[f.tripKey]);
+    // The editor seeds the first split from legacy unsplit revenue.
+    const originalValue = f.payloadKey === 'revenueEmptyReturn' && original.revenueEmptyReturn == null && !Number(original.revenueCombine)
+      ? original.revenue
+      : original[f.tripKey];
+    const originalNorm = f.normalize(originalValue);
     const latestNorm = f.normalize(latest[f.tripKey]);
 
     const userChanged = !Object.is(localNorm, originalNorm);
     const serverChanged = !Object.is(latestNorm, originalNorm);
 
-    if (userChanged && serverChanged) {
+    if (userChanged && serverChanged && !Object.is(localNorm, latestNorm)) {
       conflicts.push(f.payloadKey);
     } else if (serverChanged) {
       // Only the server changed this field — accept its value.
@@ -136,7 +153,7 @@ export function reconcilePayload(
   const originalLegsKey = normalizeLegsKey(original.legs);
   const latestLegsKey = normalizeLegsKey(latest.legs);
 
-  if (localLegsKey !== originalLegsKey && latestLegsKey !== originalLegsKey) {
+  if (localLegsKey !== originalLegsKey && latestLegsKey !== originalLegsKey && localLegsKey !== latestLegsKey) {
     conflicts.push('legs');
   } else if (latestLegsKey !== originalLegsKey) {
     merged.legs = latest.legs.map(l => ({

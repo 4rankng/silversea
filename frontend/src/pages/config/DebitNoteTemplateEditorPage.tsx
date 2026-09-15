@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Loader2, PenLine, Save, Star, Trash2 } from 'lucide-react';
@@ -8,7 +8,7 @@ import { UuiSelectField } from '../../design-system';
 import { useToast } from '../../components/shared/Toast';
 import { configClient } from '../../api/configClient';
 import { qk } from '../../api/keys';
-import { useBackShortcut } from '../../hooks/useBackShortcut';
+import { useTemplateLeaveGuard } from './use-template-leave-guard';
 import { type DebitNoteTemplate, type DebitNoteTemplateColumn, type DebitNoteTemplateInput } from '@tingting/shared';
 import { blankTemplate, buildAccountTerms, cloneStarterColumns, EDITOR_SECTIONS, getAccountTerms, normalizeTemplateColumns, sectionFromTarget, templateDefaultsForType, toForm, type EditorSection, type SelectedTarget } from './debit-note-template-editor-utils';
 import { Field, TemplatePreview } from './debit-note-template-preview';
@@ -30,8 +30,10 @@ export default function DebitNoteTemplateEditorPage() {
   const [activeSection, setActiveSection] = useState<EditorSection>('columns');
   const [selectedTarget, setSelectedTarget] = useState<SelectedTarget>(() => ({ type: 'column', columnId: cloneStarterColumns()[0]?.id ?? '' }));
 
+  const baselineRef = useRef(JSON.stringify(form));
+  const isDirty = !viewOnly && JSON.stringify(form) !== baselineRef.current;
   const backToList = () => navigate('/config/debit-note-templates');
-  useBackShortcut(backToList);
+  const requestBack = useTemplateLeaveGuard({ dirty: isDirty, saving, confirm, onBack: backToList });
 
   const { data: template, isLoading } = useQuery<DebitNoteTemplate>({
     queryKey: qk.catalogs.debitNoteTemplate(id),
@@ -42,7 +44,13 @@ export default function DebitNoteTemplateEditorPage() {
   });
 
   useEffect(() => {
-    if (template) setForm(toForm(template));
+    if (!template) return;
+    setForm(current => {
+      if (JSON.stringify(current) !== baselineRef.current) return current;
+      const loaded = toForm(template);
+      baselineRef.current = JSON.stringify(loaded);
+      return loaded;
+    });
   }, [template]);
 
   const visibleColumns = useMemo(() => (form.columns ?? []).filter(column => column.width > 0), [form.columns]);
@@ -171,6 +179,7 @@ export default function DebitNoteTemplateEditorPage() {
           onChange={patch => updateColumn(selectedColumn.id, patch)}
           onSelectColumn={columnId => selectTarget({ type: 'column', columnId })}
           onToggleColumnVisibility={item => updateColumn(item.id, { width: item.width > 0 ? 0 : 14 })}
+          onReorder={columns => set('columns', normalizeTemplateColumns(columns))}
         />
       );
     }
@@ -300,7 +309,7 @@ export default function DebitNoteTemplateEditorPage() {
           {viewOnly ? 'Xem mẫu giấy báo nợ' : isNew ? 'Tạo mẫu giấy báo nợ' : 'Chỉnh sửa mẫu giấy báo nợ'}
         </h1>
         <div className="debit-editor-title">
-          <button type="button" className="billing-builder__close" onClick={backToList} aria-label="Quay lại" disabled={busy}>
+          <button type="button" className="billing-builder__close" onClick={() => void requestBack()} aria-label="Quay lại" disabled={busy}>
             <ArrowLeft size={21} />
           </button>
           <div className="billing-builder__icon">

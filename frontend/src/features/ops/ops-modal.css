@@ -268,3 +268,5 @@
 @media (prefers-reduced-motion: reduce) {
   .ops-modal .spin { animation: none; }
 }
+
+.ops-field-error { color: var(--danger-text); font-size: var(--text-label-size); font-weight: 500; }

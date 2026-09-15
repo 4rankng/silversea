@@ -36,8 +36,9 @@ export const truckOpsAssignments = pgTable('truck_ops_assignments', {
 ]);
 
 // One cash expense declared by an Ops against a shipment (lô), optionally
-// scoped to one container of that lô (null = phí chung lô). APPROVED rows are
-// locked forever; PENDING/REJECTED stay editable by their author only.
+// scoped to one container of that lô (null = phí chung lô). Valid saves are
+// RECORDED directly; the author may correct an unlinked entry. A recorded
+// settlement freezes its entries. Legacy review fields are historical only.
 export const opsExpenseEntries = pgTable('ops_expense_entries', {
   id: serial('id').primaryKey(),
   shipmentId: integer('shipment_id').notNull(),
@@ -48,12 +49,13 @@ export const opsExpenseEntries = pgTable('ops_expense_entries', {
   paidById: integer('paid_by_id').notNull(),
   paidAt: date('paid_at').notNull(),
   note: text('note'),
-  approvalStatus: opsExpenseStatusEnum('approval_status').default('PENDING').notNull(),
+  approvalStatus: opsExpenseStatusEnum('approval_status').default('RECORDED').notNull(),
   approvedById: integer('approved_by_id'),
   approvedAt: timestamp('approved_at'),
   rejectionReason: text('rejection_reason'),
-  // Set when the entry is frozen into a settlement batch (đề nghị thanh
-  // toán); immutable afterwards — entries added later fall into the next one.
+  // Set when the entry is frozen into a recorded settlement batch; later
+  // expenses fall into the next batch. Incomplete legacy drafts may release
+  // their entries through the audited owner-only correction action.
   opsSettlementId: integer('ops_settlement_id'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -75,14 +77,15 @@ export const opsExpensePhotos = pgTable('ops_expense_photos', {
   uniqueIndex('ops_expense_photos_pair_uniq').on(table.opsExpenseId, table.storageKey),
 ]);
 
-// Settlement batch: freezes the creating Ops' open PENDING+APPROVED entries at
-// creation time. total_amount = sum of the frozen entries; accounting approves
-// the batch once every frozen entry is approved.
+// Settlement batch: directly records the owner's eligible open expenses after
+// validating evidence and exact totals. RECORDED is final; incomplete legacy
+// batches remain DRAFT and can be voided with audited release for correction.
+// Approval metadata below is retained solely for historical compatibility.
 export const opsSettlements = pgTable('ops_settlements', {
   id: serial('id').primaryKey(),
   code: varchar('code', { length: 20 }).notNull(),
   opsUserId: integer('ops_user_id').notNull(),
-  status: opsSettlementStatusEnum('status').default('PENDING').notNull(),
+  status: opsSettlementStatusEnum('status').default('RECORDED').notNull(),
   totalAmount: numeric('total_amount', { precision: 15, scale: 0 }).notNull(),
   note: text('note'),
   approvedById: integer('approved_by_id'),

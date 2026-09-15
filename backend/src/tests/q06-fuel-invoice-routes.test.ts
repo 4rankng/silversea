@@ -504,7 +504,7 @@ describe('Q06 fuel invoice routes', () => {
     createdFuelInvoiceIds.push(...inserted.map((row) => row.id));
 
     const page = await request(
-      `/api/finance/fuel-invoices?supplierId=${supplier.id}&status=APPROVED&paginated=true&limit=2`,
+      `/api/finance/fuel-invoices?supplierId=${supplier.id}&status=RECORDED&paginated=true&limit=2`,
       { token: managerToken },
     );
     assert.equal(page.status, 200, JSON.stringify(page.body));
@@ -698,7 +698,7 @@ describe('Q06 fuel invoice routes', () => {
       },
     });
     assert.equal(wrongLiters.status, 400);
-    assert.match(String(wrongLiters.body.error), /không khớp chi phí nhiên liệu đã duyệt/i);
+    assert.match(String(wrongLiters.body.error), /không khớp chi phí nhiên liệu đã ghi nhận/i);
 
     const wrongReference = await request(`/api/finance/fuel-invoices/${created.body.id}`, {
       method: 'PUT',
@@ -721,7 +721,7 @@ describe('Q06 fuel invoice routes', () => {
       },
     });
     assert.equal(wrongReference.status, 400);
-    assert.match(String(wrongReference.body.error), /phải khớp chứng từ đã duyệt/i);
+    assert.match(String(wrongReference.body.error), /phải khớp chứng từ đã lưu/i);
   });
 
   // KP-152 (approval removal): the two approve-gate scenarios that lived
@@ -873,7 +873,7 @@ describe('Q06 fuel invoice routes', () => {
     assert.equal(approveAttempt.status, 404);
 
     const stored = await request(`/api/finance/fuel-invoices/${created.body.id}`, { token: managerToken });
-    assert.equal(stored.body.approvalStatus, 'APPROVED');
+    assert.equal(stored.body.approvalStatus, 'RECORDED');
   });
 
   test('adjustment and reversal materialize onto the approved invoice and apply immediately', async () => {
@@ -915,7 +915,7 @@ describe('Q06 fuel invoice routes', () => {
       token: managerToken,
     });
     assert.equal(approvedInvoice.status, 200);
-    assert.equal(approvedInvoice.body.approvalStatus, 'APPROVED');
+    assert.equal(approvedInvoice.body.approvalStatus, 'RECORDED');
 
     const directUpdate = await request(`/api/finance/fuel-invoices/${created.body.id}`, {
       method: 'PUT',
@@ -938,6 +938,8 @@ describe('Q06 fuel invoice routes', () => {
       correctedInvoice: {
         ...invoiceBody,
         totalLiters: 110,
+        unitPrice: 20000,
+        allocations: invoiceBody.allocations.map(row => ({ ...row, liters: 110 })),
         note: 'Điều chỉnh theo biên bản đối soát',
       },
     };
@@ -986,7 +988,7 @@ describe('Q06 fuel invoice routes', () => {
       .where(eq(s.fuelInvoices.id, created.body.id));
     assert.equal(Number(materializedRow.totalLiters), 110);
     assert.equal(materializedRow.note, 'Điều chỉnh theo biên bản đối soát');
-    assert.equal(materializedRow.approvalStatus, 'APPROVED');
+    assert.equal(materializedRow.approvalStatus, 'RECORDED');
 
     const staleCorrection = await request(`/api/finance/fuel-invoices/${created.body.id}/corrections`, {
       method: 'POST',

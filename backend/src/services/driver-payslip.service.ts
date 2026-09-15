@@ -23,6 +23,8 @@ export interface DriverPayslipPeriod {
   closedByName: string | null;
   note: string | null;
   earnings: {
+    salarySnapshotState: 'LIVE' | 'CONFIRMED' | 'UNAVAILABLE';
+    salaryReconciliationRequired: boolean;
     netIncome: string;
     productionSalary: string;
     roadAllowance: string;
@@ -78,6 +80,8 @@ export async function getDriverPayslipPeriods(driverId: number): Promise<DriverP
       closedByName: c.closedBy ? closerMap.get(c.closedBy) ?? null : null,
       note: c.note,
       earnings: {
+        salarySnapshotState: earnings.salarySnapshotState,
+        salaryReconciliationRequired: earnings.salaryReconciliationRequired,
         netIncome: earnings.netIncome,
         productionSalary: earnings.productionSalary,
         roadAllowance: earnings.roadAllowance,

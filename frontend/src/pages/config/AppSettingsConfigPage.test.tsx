@@ -236,7 +236,7 @@ describe('AppSettingsConfigPage', () => {
     fireEvent.change(screen.getByLabelText('Ngưỡng cảnh báo công nợ mặc định (%)'), {
       target: { value: '75' },
     });
-    fireEvent.change(screen.getByLabelText('Ngưỡng tiền duyệt cấp 1 (VND)'), {
+    fireEvent.change(screen.getByLabelText('Ngưỡng vượt hạn mức cấp 1 (VND)'), {
       target: { value: '1500000' },
     });
     fireEvent.click(screen.getAllByRole('button', { name: 'Lưu cài đặt' })[0]);

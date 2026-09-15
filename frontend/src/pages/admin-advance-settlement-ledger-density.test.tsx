@@ -16,7 +16,7 @@ describe('admin advance settlement ledger density', () => {
   it('counts reversed settlements for the history filter', () => {
     const stats = summarizeSettlementStats([
       { status: AdvanceSettlementStatus.REVERSED, totalExpenseAmount: '1250000' },
-      { status: AdvanceSettlementStatus.APPROVED, totalExpenseAmount: '900000' },
+      { status: AdvanceSettlementStatus.RECORDED, totalExpenseAmount: '900000' },
     ]);
 
     expect(stats.counts.REVERSED).toBe(1);
@@ -27,7 +27,7 @@ describe('admin advance settlement ledger density', () => {
     id: 7,
     code: 'PT-2607-0004',
     forwarderName: 'Nguyễn Sĩ Quân',
-    status: AdvanceSettlementStatus.APPROVED,
+    status: AdvanceSettlementStatus.RECORDED,
     totalExpenseAmount: 49_952_400,
     refundAmount: 1_000_000,
     createdAt: '2026-07-21T00:00:00.000Z',

@@ -1,3 +1,4 @@
+import { tripExpenseServiceLedgerCondition, tripExpenseServiceReceiptId } from './trip-expense-ledger-source';
 /**
  * Advance settlement corrections — accountant expense adjustment, reversal
  * governance, and rejection. Split from advance.service.ts; re-exported
@@ -59,7 +60,7 @@ export async function adjustSettlementExpense(
     if (!settlement) throw new AdvanceError(404, 'Không tìm thấy phiếu hoàn ứng');
     const version = patch.expectedVersion ?? settlement.version;
     assertExpectedVersion(settlement.version, version, 'Phiếu hoàn ứng');
-    if (settlement.status !== 'APPROVED') {
+    if (settlement.status !== 'RECORDED') {
       throw new AdvanceError(409, 'Chỉ được điều chỉnh phiếu đã ghi nhận');
     }
     await tx.execute(sql`SELECT pg_advisory_xact_lock(6102, ${expenseId})`);
@@ -247,8 +248,8 @@ export async function requestAdvanceSettlementReversal(input: {
       .for('update');
     if (!settlement) throw new AdvanceError(404, 'Không tìm thấy phiếu hoàn ứng');
     assertExpectedVersion(settlement.version, input.expectedVersion, 'Phiếu hoàn ứng');
-    if (settlement.status !== 'APPROVED') {
-      throw new AdvanceError(409, 'Chỉ phiếu đã duyệt mới được hoàn tác');
+    if (settlement.status !== 'RECORDED') {
+      throw new AdvanceError(409, 'Chỉ phiếu đã ghi nhận mới được hoàn tác');
     }
     return buildGovernanceAction({
       subjectType: 'ADVANCE_SETTLEMENT',
@@ -296,8 +297,8 @@ async function applyApprovedSettlementCorrection(
     .for('update');
   if (!settlement) throw new AdvanceError(404, 'Không tìm thấy phiếu hoàn ứng');
   assertExpectedVersion(settlement.version, action.originalVersion!, 'Phiếu hoàn ứng');
-  if (settlement.status !== 'APPROVED') {
-    throw new AdvanceError(409, 'Phiếu hoàn ứng không còn ở trạng thái đã duyệt');
+  if (settlement.status !== 'RECORDED') {
+    throw new AdvanceError(409, 'Phiếu hoàn ứng không còn ở trạng thái đã ghi nhận');
   }
 
   const [linked] = await tx.select({
@@ -369,7 +370,7 @@ async function applyApprovedSettlementCorrection(
     version: sql`${s.advanceSettlements.version} + 1`,
   }).where(and(
     eq(s.advanceSettlements.id, settlement.id),
-    eq(s.advanceSettlements.status, 'APPROVED'),
+    eq(s.advanceSettlements.status, 'RECORDED'),
     eq(s.advanceSettlements.version, action.originalVersion!),
   )).returning({ id: s.advanceSettlements.id, version: s.advanceSettlements.version });
   if (!updated) throw new AdvanceError(409, 'Phiếu hoàn ứng đã được tác vụ khác cập nhật');
@@ -395,12 +396,7 @@ async function applyApprovedSettlementCorrection(
       paymentTermDaysApplied: s.ledger.paymentTermDaysApplied,
       paymentDatePolicyApplied: s.ledger.paymentDatePolicyApplied,
     }).from(s.ledger)
-      .where(and(
-        eq(s.ledger.entityType, 'CUSTOMER'),
-        eq(s.ledger.entityId, linked.customerId),
-        eq(s.ledger.txnId, tripExpenseId),
-        inArray(s.ledger.txnType, [TxnType.SERVICE_FEE, TxnType.ADJUSTMENT]),
-      ));
+      .where(tripExpenseServiceLedgerCondition(tripExpenseId, linked.customerId));
     const posted = existingRows.reduce(
       (sum, row) => sum + Number(row.debit) - Number(row.credit),
       0,
@@ -420,6 +416,7 @@ async function applyApprovedSettlementCorrection(
       await LedgerService.postEntry(tx, {
         txnType: existingRows.length === 0 ? TxnType.SERVICE_FEE : TxnType.ADJUSTMENT,
         txnId: tripExpenseId,
+        receiptId: tripExpenseServiceReceiptId(tripExpenseId),
         entityType: 'CUSTOMER',
         entityId: linked.customerId,
         debit: sellDelta > 0 ? sellDelta : 0,
@@ -457,8 +454,8 @@ async function applyApprovedSettlementReversal(
     .for('update');
   if (!settlement) throw new AdvanceError(404, 'Không tìm thấy phiếu hoàn ứng');
   assertExpectedVersion(settlement.version, action.originalVersion!, 'Phiếu hoàn ứng');
-  if (settlement.status !== 'APPROVED') {
-    throw new AdvanceError(409, 'Phiếu hoàn ứng không còn ở trạng thái đã duyệt');
+  if (settlement.status !== 'RECORDED') {
+    throw new AdvanceError(409, 'Phiếu hoàn ứng không còn ở trạng thái đã ghi nhận');
   }
   const now = action.approvedAt ?? new Date();
   const reversalAmount = round2dp(
@@ -479,7 +476,7 @@ async function applyApprovedSettlementReversal(
     version: sql`${s.advanceSettlements.version} + 1`,
   }).where(and(
     eq(s.advanceSettlements.id, settlement.id),
-    eq(s.advanceSettlements.status, 'APPROVED'),
+    eq(s.advanceSettlements.status, 'RECORDED'),
     eq(s.advanceSettlements.version, action.originalVersion!),
   )).returning({ version: s.advanceSettlements.version });
   if (!updated) throw new AdvanceError(409, 'Phiếu hoàn ứng đã được tác vụ khác cập nhật');

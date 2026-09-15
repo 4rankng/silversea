@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, CheckCircle2, XCircle } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { qk } from '../api/keys';
 
@@ -17,9 +17,9 @@ const STATUS_VARIANT: Record<FuelEvidenceReviewStatus, 'warn' | 'success' | 'dan
 };
 
 const STATUS_LABEL: Record<FuelEvidenceReviewStatus, string> = {
-  PENDING: 'Chờ xác nhận',
-  CONFIRMED: 'Đã xác nhận',
-  REJECTED: 'Đã từ chối',
+  PENDING: 'Chưa xác minh',
+  CONFIRMED: 'Đã đối chiếu trước đây',
+  REJECTED: 'Không sử dụng (lịch sử)',
 };
 
 const OUTCOME_LABEL: Record<FuelEvidenceReviewRecord['ocrOutcome'], string> = {
@@ -34,33 +34,14 @@ function reviewDecisionLabel(row: FuelEvidenceReviewRecord): string {
   return `${OUTCOME_LABEL[row.ocrOutcome]} · ${STATUS_LABEL[row.reviewStatus]}`;
 }
 
-function decisionPayload(decision: 'CONFIRMED' | 'REJECTED', row: FuelEvidenceReviewRecord) {
-  return {
-    expectedVersion: row.version,
-    decision,
-    reviewNote: decision === 'REJECTED'
-      ? row.anomalyReason ?? 'Kế toán từ chối kết quả OCR này.'
-      : row.reviewNote ?? null,
-  };
-}
-
 export default function FuelEvidenceReviewPage() {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const [status, setStatus] = useState<FuelEvidenceReviewStatus | 'ALL'>('PENDING');
+  const [status, setStatus] = useState<FuelEvidenceReviewStatus | 'ALL'>('ALL');
   const [page, setPage] = useState(1);
 
   const query = useQuery({
     queryKey: qk.fuelEvidence.reviews(status, page),
     queryFn: () => fuelEvidenceClient.list({ status: status === 'ALL' ? undefined : status, page, limit: 20 }),
-  });
-
-  const decideMutation = useMutation({
-    mutationFn: ({ row, decision }: { row: FuelEvidenceReviewRecord; decision: 'CONFIRMED' | 'REJECTED' }) =>
-      fuelEvidenceClient.decide(row.id, decisionPayload(decision, row)),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: qk.fuelEvidence.reviewsAll });
-    },
   });
 
   const items = useMemo(() => query.data?.items ?? [], [query.data]);
@@ -114,11 +95,6 @@ export default function FuelEvidenceReviewPage() {
           overflow: auto;
           padding-right: 4px;
         }
-        .fuel-evidence-review__actions {
-          display: flex;
-          gap: 10px;
-          flex-wrap: wrap;
-        }
         @media (max-width: 900px) {
           .fuel-evidence-review__card {
             grid-template-columns: minmax(0, 1fr);
@@ -132,10 +108,6 @@ export default function FuelEvidenceReviewPage() {
           .fuel-evidence-review__select {
             width: 100%;
           }
-          .fuel-evidence-review__actions > button {
-            width: 100%;
-            justify-content: center;
-          }
         }
       `}</style>
       <div className="fuel-evidence-review__toolbar">
@@ -143,9 +115,9 @@ export default function FuelEvidenceReviewPage() {
           <ArrowLeft size={18} />
         </button>
         <div className="fuel-evidence-review__toolbar-main">
-          <h1 className="sr-only">Soát OCR màn hình bơm</h1>
+          <h1 className="sr-only">Ảnh và số liệu OCR nhiên liệu</h1>
           <p style={{ margin: '4px 0 0', color: 'var(--fg-3)' }}>
-            OCR chỉ là gợi ý. Kế toán phải xác nhận hoặc từ chối từng ảnh nhiên liệu.
+            Ảnh đã được lưu. Số liệu OCR chưa xác minh; đối chiếu ảnh gốc khi nhập liệu.
           </p>
         </div>
         <UuiSelectField
@@ -160,9 +132,9 @@ export default function FuelEvidenceReviewPage() {
           controlClassName="fuel-evidence-review__select"
           options={[
             { value: 'ALL', label: 'Tất cả trạng thái' },
-            { value: 'PENDING', label: 'Chờ xác nhận' },
-            { value: 'CONFIRMED', label: 'Đã xác nhận' },
-            { value: 'REJECTED', label: 'Đã từ chối' },
+            { value: 'PENDING', label: 'Chưa xác minh' },
+            { value: 'CONFIRMED', label: 'Đã đối chiếu trước đây' },
+            { value: 'REJECTED', label: 'Không sử dụng (lịch sử)' },
           ]}
         />
       </div>
@@ -210,28 +182,11 @@ export default function FuelEvidenceReviewPage() {
                   <div style={{ padding: 12, borderRadius: 12, background: 'var(--bg-2)', fontSize: 'var(--text-data-size)', color: 'var(--fg-2)' }}>
                     {row.anomalyReason && <div><strong>Cảnh báo:</strong> {row.anomalyReason}</div>}
                     {row.ocrError && <div><strong>Lỗi OCR:</strong> {row.ocrError}</div>}
-                    {row.reviewNote && <div><strong>Ghi chú duyệt:</strong> {row.reviewNote}</div>}
+                    {row.reviewNote && <div><strong>Ghi chú đối chiếu trước đây:</strong> {row.reviewNote}</div>}
                   </div>
                 )}
 
-                {row.reviewStatus === 'PENDING' && (
-                  <div className="fuel-evidence-review__actions">
-                    <button
-                      className="btn btn--primary btn--sm"
-                      onClick={() => decideMutation.mutate({ row, decision: 'CONFIRMED' })}
-                      disabled={decideMutation.isPending}
-                    >
-                      <CheckCircle2 size={16} /> Xác nhận
-                    </button>
-                    <button
-                      className="btn btn--secondary btn--sm"
-                      onClick={() => decideMutation.mutate({ row, decision: 'REJECTED' })}
-                      disabled={decideMutation.isPending}
-                    >
-                      <XCircle size={16} /> Từ chối
-                    </button>
-                  </div>
-                )}
+
               </div>
             </div>
           </section>

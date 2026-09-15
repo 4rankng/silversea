@@ -1,4 +1,6 @@
+import { MUTATION_METHODS, hasIdempotencyKey, ensureMutationTransactionKey } from './mutation-identity';
 import { ApiError } from './errors';
+import { assertConnectionForMutation } from '../connection';
 import { notifySessionExpired } from './session';
 import { getToken, setToken as storeToken, clearToken as storeClearToken, invalidateTokenCache } from '../token';
 
@@ -13,7 +15,6 @@ const API_BASE = import.meta.env.VITE_API_BASE || '/api';
 type RequestInitWithSkip = RequestInit & MutationOptions;
 type UploadOptions = MutationOptions;
 
-const MUTATION_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 const RETRYABLE_COMMAND_KEY_TTL_MS = 5 * 60 * 1000;
 
 type GeneratedCommandKey = {
@@ -21,36 +22,7 @@ type GeneratedCommandKey = {
   key: string;
 };
 
-export function fileCommandFingerprint(file: File): string {
-  return [
-    file.name,
-    file.size,
-    file.type,
-    file.lastModified,
-  ].join(':');
-}
-
-/**
- * Every client mutation carries a transaction identifier. Domain clients that
- * need retry/replay semantics may supply their own stable Idempotency-Key; the
- * transport only generates one when the caller did not provide it.
- */
-function hasIdempotencyKey(headers: Record<string, string>): boolean {
-  return Object.keys(headers).some(
-    (name) => name.toLowerCase() === 'idempotency-key',
-  );
-}
-
-function ensureMutationTransactionKey(
-  method: string | undefined,
-  headers: Record<string, string>,
-  generatedKey?: string,
-): void {
-  if (!method || !MUTATION_METHODS.has(method.toUpperCase())) return;
-  if (!hasIdempotencyKey(headers)) {
-    headers['Idempotency-Key'] = generatedKey ?? crypto.randomUUID();
-  }
-}
+export { fileCommandFingerprint } from './mutation-identity';
 
 /**
  * Thin wrapper around `fetch` for the project's REST API. Knows nothing
@@ -145,6 +117,9 @@ class ApiClient {
     options?: RequestInitWithSkip,
     skipContentType = false,
   ): Promise<T> {
+    if (options?.method && MUTATION_METHODS.has(options.method.toUpperCase())) {
+      assertConnectionForMutation();
+    }
     const token = getToken();
     const headers: Record<string, string> = {
       ...(skipContentType ? {} : { 'Content-Type': 'application/json' }),
@@ -180,7 +155,8 @@ class ApiClient {
       // Non-server HTTP errors still mean the server processed the request;
       // release the key so it doesn't block future mutations.
       if (generatedCommandKey) {
-        this.releaseMutationTransactionKey(generatedCommandKey);
+        if (res.status >= 500) this.retainMutationTransactionKeyForRetry(generatedCommandKey);
+        else this.releaseMutationTransactionKey(generatedCommandKey);
       }
       throw await ApiError.fromResponse(res);
     }
@@ -306,8 +282,8 @@ class ApiClient {
     notifySessionExpired();
   }
 
-  get<T>(path: string) {
-    return this.request<T>(path);
+  get<T>(path: string, options?: Pick<RequestInit, 'signal'>) {
+    return this.request<T>(path, options);
   }
   post<T>(
     path: string,
@@ -377,6 +353,7 @@ class ApiClient {
 
   /** POST JSON body and receive a binary blob response. */
   async postForBlob(url: string, body: unknown): Promise<Blob> {
+    assertConnectionForMutation();
     const token = getToken();
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -398,6 +375,7 @@ class ApiClient {
 
   /** POST JSON body and receive a text response (e.g. HTML). */
   async postForText(url: string, body: unknown): Promise<string> {
+    assertConnectionForMutation();
     const token = getToken();
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',

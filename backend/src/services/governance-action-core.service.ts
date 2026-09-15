@@ -14,6 +14,7 @@
  * imports — never another governance domain service.
  */
 import { db } from '../db';
+import { auditLogs } from '../db/schema';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
 import {
@@ -92,7 +93,7 @@ export function assertActiveApprovalApplication(
   ) {
     throw new ApiError(
       409,
-      'Thao tác tài chính chỉ được áp dụng bởi tiến trình phê duyệt quản trị',
+      'Thao tác tài chính phải được thực hiện trong giao dịch có kiểm tra quyền và dữ liệu',
     );
   }
 }
@@ -244,6 +245,34 @@ export async function applyGovernanceActionDirect(input: {
       version: checked.version + 1,
       updatedAt: now,
     };
+    // Persist the evidence with the domain write. The former approval table
+    // no longer exists; returning a transient object is not an audit trail.
+    await tx.insert(auditLogs).values({
+      userId: input.actorId,
+      entityType: 'financial-action',
+      entityId: applied.subjectId,
+      message: `Đã ghi nhận ${applied.actionKind} · ${applied.subjectKey ?? applied.subjectId ?? applied.subjectType}`,
+      payload: {
+        event: 'FINANCIAL_ACTION_APPLIED',
+        actionKind: applied.actionKind,
+        subjectType: applied.subjectType,
+        subjectId: applied.subjectId,
+        subjectKey: applied.subjectKey,
+        reason: applied.reason,
+        originalVersion: applied.originalVersion,
+        originalPeriodLockId: applied.originalPeriodLockId,
+        beforeSnapshot: applied.beforeSnapshot,
+        afterSnapshot: applied.afterSnapshot,
+        deltaSnapshot: applied.deltaSnapshot,
+        makerId: applied.makerId,
+        makerRole: applied.makerRole,
+        actorId: input.actorId,
+        actorRole: input.actorRole,
+        appliedAt: applied.appliedAt?.toISOString(),
+        ledgerEntryId: applied.ledgerEntryId,
+        applicationResult: applied.applicationResult,
+      },
+    });
     return { action: applied, result };
   };
   if (input.transaction) {

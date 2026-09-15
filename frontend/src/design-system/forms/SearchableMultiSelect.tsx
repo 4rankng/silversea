@@ -24,6 +24,7 @@ import { Check, ChevronDown, Search, X } from 'lucide-react';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { useSearchableSelectPosition } from './useSearchableSelectPosition';
 import './SearchableSelect.css';
+import { scrollActiveOption } from './scrollActiveOption';
 
 export interface SearchableMultiSelectOption {
   value: string;
@@ -190,11 +191,8 @@ export function SearchableMultiSelect({
 
   useEffect(() => {
     if (!isOpen) return;
-    const el = optionRefs.current[activeIndex];
-    if (el && typeof el.scrollIntoView === 'function') {
-      el.scrollIntoView({ block: 'nearest' });
-    }
-  }, [activeIndex, isOpen]);
+    scrollActiveOption(optionRefs.current[activeIndex]);
+  }, [activeIndex, isOpen, filteredOptions]);
 
   // Debounced server-search hook, mirroring SearchableSelect's contract:
   // fires only while open, `searchDebounceMs` after the query settles.

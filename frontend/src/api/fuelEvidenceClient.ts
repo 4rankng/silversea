@@ -57,11 +57,4 @@ export const fuelEvidenceClient = {
     return api.get<{ items: FuelEvidenceReviewRecord[]; total: number; page: number; limit: number }>(`/ocr/fuel-evidence-reviews${query ? `?${query}` : ''}`);
   },
 
-  decide: async (reviewId: number, body: {
-    expectedVersion: number;
-    decision: 'CONFIRMED' | 'REJECTED';
-    reviewNote?: string | null;
-  }) => {
-    return api.post<FuelEvidenceReviewRecord>(`/ocr/fuel-evidence-reviews/${reviewId}/decision`, body);
-  },
 };

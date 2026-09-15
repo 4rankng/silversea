@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
-import { Camera, Loader2, X } from 'lucide-react';
-import { useOpsExpenseTypes, useUpdateOpsExpense, useAttachOpsExpensePhoto, useOpsExpensePhotos } from '../../hooks/useOpsQueries';
+import { Camera, Loader2, X, Trash2 } from 'lucide-react';
+import { useOpsExpenseTypes, useUpdateOpsExpense, useAttachOpsExpensePhoto, useOpsExpensePhotos, useDeleteOpsExpensePhoto } from '../../hooks/useOpsQueries';
 import { opsClient, type OpsExpenseRow } from '../../api/opsClient';
 import { compressImageFile } from '../../lib/imageCompression';
 import { getAuthenticatedPhotoUrl } from '../../lib/api';
@@ -21,6 +21,7 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
   const { toast } = useToast();
 
   const attachPhoto = useAttachOpsExpensePhoto();
+  const deletePhoto = useDeleteOpsExpensePhoto();
   const { data: existingPhotosData } = useOpsExpensePhotos(entry.id);
 
   const [typeCode, setTypeCode] = useState(entry.expenseTypeCode);
@@ -28,7 +29,6 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
   const [paidAt, setPaidAt] = useState(entry.paidAt);
   const [note, setNote] = useState(entry.note ?? '');
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const [newPhotos, setNewPhotos] = useState<Array<{ storageKey: string; name: string }>>([]);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const groupedTypes = useMemo(() => {
@@ -60,12 +60,12 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
   const isNegative = amountClean.startsWith('-');
   const amountDigits = amountClean.replace(/-/g, '');
   const amountError = isNegative ? 'Số tiền phải là số dương' : null;
-  const canSubmit = Boolean(typeCode) && /^\d+$/.test(amountDigits) && Number(amountDigits) > 0 && !isNegative && !updateExpense.isPending;
+  const canSubmit = Boolean(typeCode) && /^\d+$/.test(amountDigits) && Number(amountDigits) > 0 && !isNegative && !updateExpense.isPending && !uploadingPhoto;
 
   // Server-side photo count via readback (reactively updates through cache
   // invalidation from useAttachOpsExpensePhoto → useOpsExpensePhotos).
   const serverPhotoCount = existingPhotosData?.items.length ?? 0;
-  const missingReceipt = !entry.hasPhoto && serverPhotoCount === 0;
+  const missingReceipt = serverPhotoCount === 0 && entry.requiresInvoice === true;
 
   async function handlePhotoUpload(fileList: FileList | null) {
     if (!fileList || fileList.length === 0) return;
@@ -75,7 +75,6 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
         const compressed = await compressImageFile(file, { maxDimension: 2048 });
         const uploaded = await opsClient.uploadExpensePhoto(compressed);
         await attachPhoto.mutateAsync({ expenseId: entry.id, storageKey: uploaded.storageKey });
-        setNewPhotos((current) => [...current, { storageKey: uploaded.storageKey, name: file.name }]);
       }
     } catch (error) {
       toast({ kind: 'error', message: error instanceof Error ? error.message : 'Tải ảnh thất bại.' });
@@ -124,11 +123,13 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
             <label>
               Số tiền (VND) *
               <input
-                value={amountDigits ? formatVnd(amountDigits) : ''}
+                value={amountDigits ? `${isNegative ? '-' : ''}${formatVnd(amountDigits)}` : (isNegative ? '-' : '')}
+                aria-invalid={Boolean(amountError)} aria-describedby={amountError ? 'ops-edit-amount-error' : undefined}
                 onChange={(event) => setAmount(event.target.value)}
                 inputMode="numeric"
                 required
               />
+              {amountError && <span id="ops-edit-amount-error" role="alert" className="ops-field-error">{amountError}</span>}
             </label>
             <label>
               Ngày chi *
@@ -143,7 +144,7 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
           <div className="ops-form-photos">
             <div className="ops-form-photos__head">
               <span>
-                Ảnh biên lai ({serverPhotoCount + newPhotos.length})
+                Ảnh biên lai ({serverPhotoCount})
                 {missingReceipt && <span className="ops-doc-state is-debt" style={{ marginLeft: 8 }}>Nợ chứng từ</span>}
               </span>
               <button
@@ -165,11 +166,12 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
                 onChange={(event) => void handlePhotoUpload(event.target.files)}
               />
             </div>
-            {newPhotos.length > 0 && (
+            {serverPhotoCount > 0 && (
               <ul className="ops-form-photos__list">
-                {newPhotos.map((photo) => (
+                {(existingPhotosData?.items ?? []).map((photo) => (
                   <li key={photo.storageKey}>
-                    <img src={getAuthenticatedPhotoUrl(`/api/photos/${encodeURIComponent(photo.storageKey)}`)} alt={photo.name} />
+                    <img src={getAuthenticatedPhotoUrl(`/api/photos/${encodeURIComponent(photo.storageKey)}`)} alt="Biên lai khoản chi" />
+                    <button type="button" aria-label={`Xóa ảnh biên lai ${photo.id}`} disabled={deletePhoto.isPending} onClick={() => void deletePhoto.mutateAsync(photo.id).catch((error: unknown) => toast({ kind: 'error', message: error instanceof Error ? error.message : 'Không xóa được ảnh.' }))}><Trash2 size={14} /></button>
                   </li>
                 ))}
               </ul>

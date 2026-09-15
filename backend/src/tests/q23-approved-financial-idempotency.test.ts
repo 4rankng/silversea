@@ -219,7 +219,7 @@ async function createApprovedAdvanceRequest(requesterId: number, amount: number)
     requesterId,
     amount: String(amount),
     reason: `Q23 approved request ${suffix}-${advanceRequestIds.length}`,
-    status: 'APPROVED',
+    status: 'RECORDED',
   }).returning();
   advanceRequestIds.push(request.id);
   return request;
@@ -230,7 +230,7 @@ async function createAdvanceRequest(requesterId: number, amount: number) {
     requesterId,
     amount: String(amount),
     reason: `Q23 pending request ${suffix}-${advanceRequestIds.length}`,
-    status: 'APPROVED',
+    status: 'RECORDED',
   }).returning();
   advanceRequestIds.push(request.id);
   return request;
@@ -242,7 +242,7 @@ async function createSettlement(forwarderId: number, requestIds: number[], note:
     forwarderId,
     totalExpenseAmount: '0',
     refundAmount: '500000',
-    status: 'APPROVED',
+    status: 'DRAFT',
     checkedBy: null,
     checkedAt: null,
     note,
@@ -492,8 +492,10 @@ describe('Q23 approved financial route idempotency', () => {
       body: { ...changedBody, expectedVersion: settlement.version + 1 },
       idempotencyKey: secondKey,
     });
-    assert.equal(second.status, 200);
-    assert.equal(second.data.note, 'ghi chu thay doi');
+    assert.equal(second.status, 409, 'a recorded settlement cannot replace its source list');
+    const [recorded] = await db.select().from(s.advanceSettlements).where(eq(s.advanceSettlements.id, settlement.id));
+    assert.equal(recorded.status, 'RECORDED');
+    assert.equal(recorded.note, 'ghi chu lan 1');
 
     const replay = await requestJson(`/advance-settlements/${settlement.id}`, {
       method: 'PUT',
@@ -554,13 +556,13 @@ describe('Q23 approved financial route idempotency', () => {
     ledgerIds.push(...approveEntries.map((row) => row.id));
     assert.equal(approveEntries.length, 2);
 
-    // The approve endpoint is now a dead path on an applied offset: 409.
+    // The retired approve endpoint always returns410 and never reposts the offset.
     const approveAfter = await requestJson(`/finance/debt-offsets/${offsetId}/approve`, {
       body: { expectedVersion: 2, reason: 'Trình duyệt đối trừ' },
       idempotencyKey: `q23-offset-approve-after-${offsetId}`,
       userId: managerActor.id,
     });
-    assert.equal(approveAfter.status, 409);
+    assert.equal(approveAfter.status, 410);
 
     // Cancel applies immediately: CANCELED with the reversing pair (4 total).
     const cancelApplied = await requestJson(`/finance/debt-offsets/${offsetId}/cancel`, {

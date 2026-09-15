@@ -35,7 +35,7 @@ export function NotificationBell() {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const { data: unreadData } = useUnreadCount();
-  const { data, isLoading } = useNotifications(1, 20);
+  const { data, isLoading, isError, isFetching, refetch } = useNotifications(1, 20);
   const markAll = useMarkAllAsRead();
   const markAsRead = useMarkAsRead();
   const push = usePushNotifications();
@@ -84,10 +84,14 @@ export function NotificationBell() {
           </div>
 
           <div className="notif-panel__list">
+            {isError && <div className="notif-panel__empty" role="alert">
+              <p>Không tải được thông báo. Vui lòng thử lại.</p>
+              <button type="button" className="btn btn--secondary btn--sm" disabled={isFetching} onClick={() => { void refetch(); }}>{isFetching ? 'Đang thử lại…' : 'Thử lại'}</button>
+            </div>}
             {isLoading ? (
               <div className="notif-panel__empty">Đang tải…</div>
             ) : items.length === 0 ? (
-              <div className="notif-panel__empty">Không có thông báo</div>
+              !isError && <div className="notif-panel__empty">Không có thông báo</div>
             ) : (
               items.map(n => (
                 <button

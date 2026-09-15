@@ -1,4 +1,5 @@
 /**
+/**
  * API client for the Ops field-operations portal (docs/prd/OpsVanHanh.md),
  * backed by backend/src/routes/ops.ts.
  */
@@ -24,13 +25,15 @@ export interface OpsWalletSummary {
   approved: string;
   pending: string;
   rejected: string;
-  /** Σ refundAmount các đề nghị thanh toán tạm ứng ĐÃ DUYỆT */
+  /**
+/** Σ refundAmount các đề nghị thanh toán tạm ứng ĐÃ DUYỆT */
   returned: string;
-  /** totalAdvance − (approved + pending) − returned; có thể âm */
+  /**
+/** totalAdvance − (approved + pending) − returned; có thể âm */
   balance: string;
 }
 
-export type OpsExpenseStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+export type OpsExpenseStatus = 'DRAFT' | 'RECORDED' | 'VOIDED' | 'PENDING' | 'APPROVED' | 'REJECTED';
 
 export interface OpsExpenseRow {
   id: number;
@@ -75,7 +78,7 @@ export interface OpsFleetTruck {
 export interface OpsSettlementListItem {
   id: number;
   code: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  status: 'DRAFT' | 'RECORDED' | 'VOIDED' | 'PENDING' | 'APPROVED' | 'REJECTED';
   totalAmount: string;
   note: string | null;
   createdAt: string;
@@ -136,7 +139,8 @@ export const opsClient = {
   // ── Kế hoạch làm hàng ──
   getOrders: (date: string, q?: string) =>
     api.get<{ date: string; items: OpsOrderItem[] }>(`/ops/orders${qs({ date, q })}`),
-  /** PUT set-semantics: a replayed request converges instead of toggling. */
+  /**
+/** PUT set-semantics: a replayed request converges instead of toggling. */
   setPin: (shipmentId: number, pinned: boolean) =>
     api.put<{ pinned: boolean }>(`/ops/orders/shipment-pins/${shipmentId}`, { pinned }),
 
@@ -147,7 +151,7 @@ export const opsClient = {
   createAdvanceRequest: (body: { amount: number; reason: string }) =>
     api.post<unknown>('/ops/wallet/advance-requests', body),
   getWalletAdvanceRequests: (params?: { status?: string; page?: number; limit?: number }) =>
-    api.get<{ items: Array<{ id: number; amount: string; reason: string; status: string; createdAt: string; approverName?: string | null; approvedAt?: string | null }>; total: number; page: number; limit: number }>(
+    api.get<{ items: Array<{ id: number; version: number; requesterId: number; amount: string; reason: string; status: string; createdAt: string; approverName?: string | null; approvedAt?: string | null }>; total: number; page: number; limit: number }>(
       `/ops/wallet/advance-requests${qs({ status: params?.status, page: params?.page, limit: params?.limit })}`,
     ),
 
@@ -166,8 +170,6 @@ export const opsClient = {
   updateExpense: (id: number, body: Record<string, unknown>) =>
     api.patch<OpsExpenseRow>(`/ops/expenses/${id}`, body),
   deleteExpense: (id: number) => api.delete<{ success: boolean }>(`/ops/expenses/${id}`),
-  resendExpense: (id: number) =>
-    api.post<OpsExpenseRow>(`/ops/expenses/${id}/resend`, {}),
   uploadExpensePhoto: async (file: File) => {
     const formData = new FormData();
     formData.append('file', file);
@@ -183,7 +185,7 @@ export const opsClient = {
   getExpensePhotos: (expenseId: number) =>
     api.get<{ items: OpsExpensePhoto[] }>(`/ops/expenses/${expenseId}/photos`),
 
-  // ── Đề nghị thanh toán ──
+  // ── Đối soát khoản chi ──
   getSettlements: (status?: string) =>
     api.get<{ items: OpsSettlementListItem[] }>(`/ops/settlements${qs({ status })}`),
   createSettlement: (note?: string) =>
@@ -212,19 +214,13 @@ export const opsClient = {
   setTruckOpsAssignment: (truckId: number, opsUserId: number | null) =>
     api.put<{ opsUserId: number | null }>(`/ops/trucks/${truckId}/ops-assignment`, { opsUserId }),
 
-  // ── Duyệt (kế toán/quản lý) ──
+  // ── Sổ khoản chi (kế toán/quản lý) ──
   getAdminExpenses: (filters: { status?: OpsExpenseStatus; opsUserId?: number } = {}) =>
     api.get<{ items: OpsExpenseRow[] }>(`/ops/admin/expenses${qs(filters)}`),
-  approveExpense: (id: number, body: { inPersonCheck?: boolean; note?: string } = {}) =>
-    api.post<OpsExpenseRow>(`/ops/admin/expenses/${id}/approve`, body),
-  rejectExpense: (id: number, reason: string) =>
-    api.post<OpsExpenseRow>(`/ops/admin/expenses/${id}/reject`, { reason }),
   getAdminSettlements: (status?: string) =>
     api.get<{ items: OpsSettlementListItem[] }>(`/ops/admin/settlements${qs({ status })}`),
   getAdminSettlement: (id: number) =>
     api.get<OpsSettlementDetail>(`/ops/admin/settlements/${id}`),
-  approveSettlement: (id: number) =>
-    api.post<OpsSettlementListItem>(`/ops/admin/settlements/${id}/approve`, {}),
-  rejectSettlement: (id: number, reason: string) =>
-    api.post<OpsSettlementListItem>(`/ops/admin/settlements/${id}/reject`, { reason }),
+  reopenSettlementDraft: (id: number) => api.post<OpsSettlementListItem>(`/ops/settlements/${id}/reopen-draft`, {}),
+  finalizeSettlement: (id: number) => api.post<OpsSettlementListItem>(`/ops/settlements/${id}/finalize`, {}),
 };

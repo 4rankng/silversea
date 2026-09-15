@@ -21,6 +21,7 @@ import { EmptyState, Pagination, BufferedUuiDateInput, UuiSelectField } from '..
 import { nextTableSort, type TableSortState } from '../lib/table-sort';
 import { SortHeader } from '../components/shared/SortHeader';
 import { routes } from '../lib/routes';
+import { CusFilterSummary } from '../features/shipments/cus/CusFilterSummary';
 import { useAuth } from '../hooks/useAuth';
 import { useClickOutside } from '../hooks/useClickOutside';
 import { FinanceEvidence, ShipmentSignals, WorkflowBadge } from '../features/shipments/cus/CusBadges';
@@ -39,7 +40,6 @@ import '../styles/table-sort.css';
 import './ShipmentsPage.css';
 
 const BUCKETS = Object.values(ShipmentCusBucket);
-
 export default function ShipmentsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -183,7 +183,6 @@ export default function ShipmentsPage() {
   const activeFilterCount = [dateFrom, dateTo, direction, bucket].filter(Boolean).length;
   // Phone/tablet: secondary criteria collapse so records start higher.
   const [advancedOpen, setAdvancedOpen] = useState(false);
-
   const exportWorksheet = async () => {
     setExporting(true);
     ws.setError(null);
@@ -290,6 +289,9 @@ export default function ShipmentsPage() {
             >
               Bộ lọc nâng cao{activeFilterCount > 0 ? ` · ${activeFilterCount} đang áp dụng` : ''}
             </button>
+            {activeFilterCount > 0 && !advancedOpen && (
+              <CusFilterSummary direction={direction} dateFrom={dateFrom} dateTo={dateTo} bucket={bucket} />
+            )}
             <div className="cus-worksheet-advanced" data-open={advancedOpen ? '' : undefined}>
             <UuiSelectField
               label="Xuất / Nhập"
@@ -615,7 +617,7 @@ export default function ShipmentsPage() {
         {actions.actionMode === 'confirm' ? (
           <p>Xác nhận này chụp lại phiên bản Debit Note, chuyến xe và chi phí hiện hành. Nếu nguồn thay đổi, xác nhận sẽ hết hiệu lực.</p>
         ) : actions.actionMode === 'lock' ? (
-          <p>Khóa lô sẽ chuyển toàn bộ trường nhập và tệp tải lên sang chế độ chỉ đọc. Dữ liệu chỉ được mở lại qua yêu cầu được Quản trị viên duyệt.</p>
+          <p>Khóa lô sẽ chuyển toàn bộ trường nhập và tệp tải lên sang chế độ chỉ đọc. Chỉ người có quyền mở khóa mới có thể mở lại dữ liệu.</p>
         ) : actions.actionMode === 'delete' ? (
           <p>Xóa lô hàng sẽ loại bỏ hoàn toàn dữ liệu. Thao tác không thể hoàn tác.</p>
         ) : (

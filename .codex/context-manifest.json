@@ -18,7 +18,7 @@
       },
       "context": [
         "ROADMAP.md",
-        "plans/silversea-prd-roadmap/plan.md"
+        "docs/prd/README.md"
       ],
       "qa": [
         "pnpm context:check"
@@ -177,8 +177,7 @@
       "context": [
         "AGENTS.md",
         "CONTEXT.md",
-        "HANDOFF.example.md",
-        "qa/README.md"
+        "HANDOFF.example.md"
       ],
       "qa": [
         "pnpm context:test",

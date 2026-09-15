@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { act, renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -100,5 +100,39 @@ describe('handleAdjustSubmit publish wiring', () => {
     act(() => result.current.setAdjustRef('y'));
     await act(async () => { await result.current.handleAdjustSubmit(); });
     expect(postMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('adjustment input safety', () => {
+  it.each(['NaN', 'Infinity', '1.5', '0', '9007199254740992'])('preserves invalid amount %s without writing', async (amount) => {
+    const result = renderPage();
+    act(() => {
+      result.current.setAdjustAmount(amount);
+      result.current.setAdjustNote('Reason');
+      result.current.setAdjustRef('AGREEMENT-1');
+    });
+    await act(async () => { await result.current.handleAdjustSubmit(); });
+    expect(postMock).not.toHaveBeenCalled();
+    expect(result.current.ui.adjustAmount).toBe(amount);
+    expect(result.current.ui.adjustError).toContain('nguyên đồng');
+  });
+
+  it('prevents two rapid clicks from publishing the same adjustment twice', async () => {
+    let finish!: () => void;
+    postMock.mockReturnValueOnce(new Promise<void>((resolve) => { finish = resolve; }));
+    const result = renderPage();
+    act(() => {
+      result.current.setAdjustAmount('-100000');
+      result.current.setAdjustNote('Reduction');
+      result.current.setAdjustRef('AGREEMENT-2');
+    });
+    await act(async () => {
+      const first = result.current.handleAdjustSubmit();
+      await result.current.handleAdjustSubmit();
+      expect(postMock).toHaveBeenCalledTimes(1);
+      finish();
+      await first;
+    });
+    expect(postMock.mock.calls[0][1].amount).toBe(-100000);
   });
 });

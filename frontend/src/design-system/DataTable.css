@@ -115,7 +115,7 @@
 }
 
 .ds-table-empty {
-  padding: 32px;
+  padding: 0;
   text-align: center;
   color: var(--fg-3, var(--ink-3));
   border: 1px solid var(--line);

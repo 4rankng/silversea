@@ -32,7 +32,6 @@ import { UuiSelectField } from '../../../design-system/forms/UuiSelectField';
 import { DispatchTaskTagEditor } from './DispatchTaskTagEditor';
 import { formatMoneyInput, normalizeMoneyInput } from '../../../lib/moneyInput';
 import { IssueOrderFields } from './IssueOrderFields';
-import { QuickIssueOrderDialog } from './QuickIssueOrderDialog';
 import { useIssueOrder } from './useIssueOrder';
 import { ownTruckLabel, requiredTrailerTypeForContainer, trailerFitRank, trailerMismatchSuffix } from './trailerFit';
 import './DispatchPlanEditorCell.css';

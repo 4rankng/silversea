@@ -11,21 +11,13 @@ describe('customerServiceFinanceClient', () => {
 
   it('keeps the recoverable-cost list bounded and forwards server filters', async () => {
     getMock.mockResolvedValue({ items: [], total: 0, page: 2, limit: 25 });
-    await customerServiceFinanceClient.listRecoverableCosts({ page: 2, limit: 25, approvalStatus: 'PENDING' });
-    expect(getMock).toHaveBeenCalledWith('/recoverable-costs?page=2&limit=25&approvalStatus=PENDING');
+    await customerServiceFinanceClient.listRecoverableCosts({ page: 2, limit: 25, approvalStatus: 'RECORDED' });
+    expect(getMock).toHaveBeenCalledWith('/recoverable-costs?page=2&limit=25&approvalStatus=RECORDED');
   });
 
-  it('uses the required idempotency header for a recoverable-cost request', async () => {
-    postMock.mockResolvedValue({ id: 7 });
-    await customerServiceFinanceClient.requestRecoverableCost(12, {
-      decision: 'APPROVED', reason: 'Đủ chứng từ', expectedVersion: 3,
-      evidence: { reviewNote: 'Đủ chứng từ', attachmentRefs: [] },
-    }, 'request-key-12');
-    expect(postMock).toHaveBeenCalledWith(
-      '/recoverable-costs/12/request',
-      expect.objectContaining({ expectedVersion: 3 }),
-      { headers: { 'Idempotency-Key': 'request-key-12' } },
-    );
+  it('does not expose an internal recoverable-cost approval command', () => {
+    expect(customerServiceFinanceClient).not.toHaveProperty('requestRecoverableCost');
+    expect(postMock).not.toHaveBeenCalled();
   });
 
   it('queries the canonical treasury and profitability reports', async () => {

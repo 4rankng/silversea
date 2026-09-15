@@ -1,6 +1,5 @@
 /**
- * Advance requests (tạm ứng) — creation, listings, and maker/checker/approver
- * governance. Split from advance.service.ts; re-exported through the
+ * Advance requests (tạm ứng) — direct recording and scoped listings. Split from advance.service.ts; re-exported through the
  * advance.service facade.
  */
 import { db } from '../db';
@@ -12,17 +11,14 @@ import { LedgerService } from './ledger.service';
 import { AdvanceError } from './settlement-validation';
 import type { Tx } from './trip-shared';
 import { escapeLikeTerm } from '../lib/format';
-import { assertCanMakeGovernanceAction } from './governance-policy';
-import { buildGovernanceAction } from './governance-action-core.service';
-import type { GovernanceApplyResult, GovernanceActionRow } from './governance-action-core.service';
-import { assertExpectedVersion, clampPageLimit, enrichWithNames } from './advance-shared.service';
+import { clampPageLimit, enrichWithNames } from './advance-shared.service';
 
 export async function createAdvanceRequest(
   requesterId: number,
   data: { amount: number; reason: string },
   transaction?: Tx,
 ) {
-  // Direct-effect save (phê duyệt removed): the advance records as APPLIED in
+  // Direct-effect save (phê duyệt removed): the advance records as RECORDED in
   // the creating transaction — status, actor, and the OPS_ADVANCE ledger
   // entry post together. No pending window, no second approver.
   const execute = async (tx: Tx) => {
@@ -36,7 +32,7 @@ export async function createAdvanceRequest(
       requesterNameSnapshot: requester?.fullName?.trim() || null,
       amount: String(data.amount),
       reason: data.reason,
-      status: 'APPROVED',
+      status: 'RECORDED',
       approvedBy: requesterId,
       approvedAt: new Date(),
     }).returning();
@@ -81,7 +77,7 @@ function buildAdvanceRequestConditions(filters?: {
     const claimedRequestIds = db.select({ id: s.advanceSettlementRequests.advanceRequestId })
       .from(s.advanceSettlementRequests)
       .innerJoin(s.advanceSettlements, eq(s.advanceSettlements.id, s.advanceSettlementRequests.settlementId))
-      .where(notInArray(s.advanceSettlements.status, ['REJECTED', 'REVERSED']));
+      .where(notInArray(s.advanceSettlements.status, ['VOIDED', 'REVERSED']));
     conditions.push(notInArray(s.advanceRequests.id, claimedRequestIds));
   }
   return conditions.length > 0 ? and(...conditions) : undefined;
