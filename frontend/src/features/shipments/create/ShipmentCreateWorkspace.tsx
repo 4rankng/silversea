@@ -225,6 +225,7 @@ export function ShipmentCreateWorkspace() {
     const hasFormData = Object.entries(form).some(([key, value]) => (
       key === 'cargoMode' ? value !== EMPTY_FORM.cargoMode
         : key === 'isCombined' ? value !== EMPTY_FORM.isCombined
+        : key === 'isAdHoc' ? value !== EMPTY_FORM.isAdHoc
         : Array.isArray(value) ? value.length > 0
         : value !== ''
     ));

@@ -87,4 +87,16 @@ describe('shipment create cargo-mode toggle data scope', () => {
       expect((document.getElementById('shipment-trade-direction') as HTMLSelectElement).value).toBe('');
     });
   });
+
+  it('pristine back navigation does not ask for a discard confirmation', async () => {
+    renderWorkspace();
+    await screen.findByRole('button', { name: 'Tạo lô hàng' });
+
+    // Nothing has been typed: the Huỷ path (goBack) must navigate directly.
+    // The isDirty memo treats `isAdHoc: false !== ''` as changed data, so a
+    // pristine form currently reports dirty and blocks back with the modal.
+    fireEvent.click(screen.getByRole('button', { name: 'Huỷ' }));
+
+    expect(screen.queryByText('Bỏ tạo lô hàng?')).toBeNull();
+  });
 });
