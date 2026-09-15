@@ -263,6 +263,24 @@ describe('CUS shipment workspace projection — OQ1 split notes', () => {
     assert.equal(item!.operationalNotes, 'Cần điều xe nội bộ sớm');
   });
 
+  test('preserves typed line breaks in note fields through update + readback (card 20260914_35)', async () => {
+    const shipment = await seedShipment({ customerNotes: 'đầu' });
+
+    // The Ghi chú dialog saves through updateShipment — the write path must
+    // carry the typed breaks verbatim (no whitespace-collapse on note fields).
+    const twoLineCustomer = '- 123\n- ABC';
+    await updateShipment(shipment.id, {
+      expectedVersion: shipment.version,
+      customerNotes: twoLineCustomer,
+      operationalNotes: 'giao xong\nchụp ảnh biên bản',
+    });
+
+    const item = await findItem(shipment.id);
+    assert.ok(item);
+    assert.equal(item!.customerNotes, twoLineCustomer);
+    assert.equal(item!.operationalNotes, 'giao xong\nchụp ảnh biên bản');
+  });
+
   test('trims and nulls empty notes', async () => {
     const shipment = await seedShipment({
       customerNotes: '   ',
