@@ -48,7 +48,7 @@ const detail = {
   selectors: { externalCarriers: [], ports: [], containerTypes: [], routes: [], carrierVehicles: [] },
 } as unknown as ShipmentCusWorkspaceDetail;
 
-function renderLedger(opts: { onAppointmentSavedAndExit?: () => void } = {}) {
+function renderLedger(opts: { onAppointmentSavedAndExit?: () => void; onDirtyChange?: (dirty: boolean) => void } = {}) {
   const props = {
     detail,
     onLineSaved: vi.fn(),
@@ -56,6 +56,7 @@ function renderLedger(opts: { onAppointmentSavedAndExit?: () => void } = {}) {
     clearIdempotencyKey: () => {},
     idPrefix: 'test',
     onAppointmentSavedAndExit: opts.onAppointmentSavedAndExit,
+    onDirtyChange: opts.onDirtyChange,
   };
   const utils = render(
     <ToastProvider>
@@ -184,6 +185,26 @@ describe('ContainerLedger confirm affordances', () => {
     expect(document.querySelector('.cus-appointment-popover')).toBeNull();
     await new Promise((r) => setTimeout(r, 50));
     expect(updateCusShipmentContainerLine).not.toHaveBeenCalled();
+  });
+
+  it('_34: Escape reverts the appointment draft part and never exits the drawer', async () => {
+    const onAppointmentSavedAndExit = vi.fn();
+    const onDirtyChange = vi.fn();
+    renderLedger({ onAppointmentSavedAndExit, onDirtyChange });
+    fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ }));
+    const datetimeInput = document.querySelector('.cus-appointment-input') as HTMLInputElement;
+    // Typing in the popover dirties the ledger draft (onChange → onDraftChange).
+    fireEvent.change(datetimeInput, { target: { value: '11:00 19/09/2026' } });
+    await waitFor(() => expect(onDirtyChange).toHaveBeenCalledWith(true));
+    fireEvent.keyDown(screen.getByRole('dialog', { name: /Chọn giờ hẹn đóng\/trả/ }), { key: 'Escape' });
+    // Dismiss-without-commit: popover closes, the abandoned value is reverted.
+    expect(document.querySelector('.cus-appointment-popover')).toBeNull();
+    await waitFor(() => expect(onDirtyChange).toHaveBeenCalledWith(false));
+    expect(onAppointmentSavedAndExit).not.toHaveBeenCalled();
+    // Reopen shows the base value, not the abandoned draft.
+    fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ }));
+    const reopened = document.querySelector('.cus-appointment-input') as HTMLInputElement;
+    expect(reopened.value).not.toBe('11:00 19/09/2026');
   });
 
   it('Enter-commit success exits the detail surface to the list (fires onAppointmentSavedAndExit once)', async () => {

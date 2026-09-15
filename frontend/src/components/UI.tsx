@@ -87,6 +87,10 @@ export function useConfirmShortcuts(opts: {
     const handler = (e: KeyboardEvent) => {
       if (overlayToken != null && !isTopOverlayToken(overlayToken)) return;
       if (e.key === 'Escape' && onCancel) {
+        // _34: inner surfaces (appointment popover) own their own Escape —
+        // the window-level shortcut must not close the whole drawer too.
+        const target = e.target as HTMLElement | null;
+        if (target?.closest?.('[data-escape-boundary]')) return;
         e.preventDefault();
         onCancel();
         return;

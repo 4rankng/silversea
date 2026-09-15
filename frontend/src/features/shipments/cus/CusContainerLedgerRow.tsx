@@ -24,6 +24,7 @@ export function ContainerLineRow({
   onCompleteExternalTrip,
   completing,
   onAppointmentCommit,
+  onAppointmentCancel,
 }: {
   detail: ShipmentCusWorkspaceDetail;
   line: ShipmentCusWorkspaceContainerLine;
@@ -39,6 +40,7 @@ export function ContainerLineRow({
   /** Enter inside the appointment popover: validate and persist the value.
    *  Return false to keep the popover open on failure. */
   onAppointmentCommit?: (val: string) => Promise<boolean> | boolean | void;
+  onAppointmentCancel?: () => void;
 }) {
   const [, setSelectOpen] = useState(false);
   const [appointmentOpen, setAppointmentOpen] = useState(false);
@@ -183,6 +185,7 @@ export function ContainerLineRow({
             onClose={() => setAppointmentOpen(false)}
             onChange={(val) => onDraftChange({ customerAppointmentAt: val })}
             onCommit={onAppointmentCommit}
+            onCancel={onAppointmentCancel}
             idPrefix={`${idPrefix}-apt-${line.id}`}
             triggerRef={appointmentTriggerRef}
           />

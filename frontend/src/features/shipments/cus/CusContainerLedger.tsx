@@ -266,6 +266,14 @@ export function ContainerLedger({
     setTimeout(tryExit, 0);
   }, [onAppointmentSavedAndExit]);
 
+  /** _34: dismissal without commit — revert the line's appointment draft to
+   *  its base so Escape/outside never leak the abandoned value on reopen. */
+  const revertAppointmentDraft = useCallback((lineId: number) => {
+    const line = detail.containers.find((c) => c.id === lineId);
+    if (!line) return;
+    updateLineDraft(lineId, { customerAppointmentAt: lineDraft(line).customerAppointmentAt });
+  }, [detail.containers, updateLineDraft]);
+
   const commitAppointment = useCallback(async (lineId: number, value: string): Promise<boolean> => {
     const line = detail.containers.find((c) => c.id === lineId);
     // _34: a non-saveable line is an error the popover must show — a silent
@@ -385,6 +393,7 @@ export function ContainerLedger({
                   onCompleteExternalTrip={externalCloseForLine(line)}
                   completing={completing}
                   onAppointmentCommit={(val) => commitAppointment(line.id, val)}
+                  onAppointmentCancel={() => revertAppointmentDraft(line.id)}
                 />
               ))}
             </tbody>

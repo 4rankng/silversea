@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Calendar, CalendarDays, ChevronLeft, ChevronRight, Clock3, X } from 'lucide-react';
-import { formatDateTime24, parseDateTime24 } from '../../lib/format';
+import { formatDateTime24 } from '../../lib/format';
 import './DateTimePickerPanels.css';
 
 /**
@@ -120,7 +120,7 @@ export function DatePanel({ value, onChange }: DatePanelProps) {
 
 /** Compact 24h time panel: hour pills 00–23 + minute pills (5-min step). */
 export function TimePanel({ value, onPick }: { value: string; onPick: (time: string) => void }) {
-  const [currentHour, currentMinute] = value ? value.split(':') : ['', ''];
+  const [currentHour] = value ? value.split(':') : [''];
   const [draftHour, setDraftHour] = useState<number | null>(currentHour ? Number(currentHour) : null);
   const hours = useMemo(() => Array.from({ length: 24 }, (_, i) => i), []);
   const minutes = useMemo(() => Array.from({ length: 12 }, (_, i) => i * 5), []);

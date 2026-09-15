@@ -14,12 +14,16 @@ import { getOffsetDateString, parseDateTimeParts } from './cusAppointmentUtils';
 import { DateTimePickerDialog } from '../../../design-system/forms/DateTimePickerPanels';
 import { useClickOutside } from '../../../hooks/useClickOutside';
 import { DATE_TIME_24_PLACEHOLDER, useBufferedDateTimeValue } from '../../../design-system';
+import { usePopoverPosition } from '../../../hooks/usePopoverPosition';
 
 export interface CusAppointmentPopoverProps {
   value: string | null | undefined;
   containerLabel: string;
   isOpen: boolean;
   onClose: () => void;
+  /** _34: dismissal without commit — the owner reverts the draft part so
+   *  Escape/outside never leak the abandoned value into the next open. */
+  onCancel?: () => void;
   onChange: (val: string) => void;
   /** Called on confirmation or Enter — should validate and persist the value. Return false
    *  to keep the popover open (e.g. validation failure). */
@@ -34,6 +38,7 @@ export function CusAppointmentPopover({
   containerLabel,
   isOpen,
   onClose,
+  onCancel,
   onChange,
   onCommit,
   idPrefix = 'cus-apt',
@@ -51,8 +56,6 @@ export function CusAppointmentPopover({
   const panelRef = useRef<HTMLDivElement>(null);
   const pickerTriggerRef = useRef<HTMLButtonElement>(null);
   useClickOutside(panelRef, () => setPanelOpen(false), { escapeKey: true, enabled: panelOpen, additionalRefs: [pickerTriggerRef] });
-  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
-
   useFocusTrap(popoverRef, isOpen);
   useLayoutEffect(() => {
     if (!isOpen) return;
@@ -101,48 +104,8 @@ export function CusAppointmentPopover({
     additionalRefs: triggerRef ? [triggerRef] : [],
   });
 
-  // Viewport-aware positioning relative to trigger
-  useLayoutEffect(() => {
-    if (!isOpen) return;
-    const trigger = triggerRef?.current;
-    if (!trigger) return;
+  const coords = usePopoverPosition(popoverRef, triggerRef, isOpen);
 
-    const updatePosition = () => {
-      const triggerRect = trigger.getBoundingClientRect();
-      const popoverEl = popoverRef.current;
-      const popoverWidth = popoverEl?.offsetWidth || 275;
-      const popoverHeight = popoverEl?.offsetHeight || 280;
-      const gap = 4;
-      const padding = 12;
-
-      const vh = window.innerHeight || 900;
-      const vw = window.innerWidth || 1440;
-
-      const spaceBelow = vh - triggerRect.bottom - gap - padding;
-      const spaceAbove = triggerRect.top - gap - padding;
-
-      let top: number;
-      if (popoverHeight <= spaceBelow || spaceBelow >= spaceAbove) {
-        top = triggerRect.bottom + gap;
-      } else {
-        top = triggerRect.top - gap - popoverHeight;
-      }
-      top = Math.max(padding, Math.min(top, vh - padding - popoverHeight));
-
-      let left = triggerRect.right - popoverWidth;
-      left = Math.max(padding, Math.min(left, vw - padding - popoverWidth));
-
-      setCoords({ top: Math.round(top), left: Math.round(left) });
-    };
-
-    updatePosition();
-    window.addEventListener('resize', updatePosition);
-    window.addEventListener('scroll', updatePosition, true);
-    return () => {
-      window.removeEventListener('resize', updatePosition);
-      window.removeEventListener('scroll', updatePosition, true);
-    };
-  }, [isOpen, triggerRef]);
 
   if (!isOpen) return null;
 
@@ -199,11 +162,16 @@ export function CusAppointmentPopover({
     void save();
   };
 
+  const dismissWithoutCommit = () => {
+    onCancel?.();
+    onClose();
+  };
+
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key === 'Escape') {
       event.preventDefault();
       event.stopPropagation();
-      onClose();
+      dismissWithoutCommit();
     } else if (event.key === 'Enter') {
       event.stopPropagation();
       // Buttons retain native keyboard activation (including date/time presets).
@@ -224,8 +192,11 @@ export function CusAppointmentPopover({
       <div
         className="cus-appointment-backdrop"
         style={coords ? { zIndex: 1040 } : undefined}
+        data-escape-boundary="true"
         onClick={(e) => {
           e.stopPropagation();
+          // Outside-click KEEPS the draft part (the explicit save commits it);
+          // only the Escape key reverts (see dismissWithoutCommit).
           onClose();
         }}
         onPointerDown={(e) => {
@@ -236,6 +207,7 @@ export function CusAppointmentPopover({
       />
       <div
         ref={popoverRef}
+        data-escape-boundary="true"
         className="cus-appointment-popover"
         style={coords ? {
           position: 'fixed',

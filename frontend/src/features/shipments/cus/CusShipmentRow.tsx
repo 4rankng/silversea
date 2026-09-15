@@ -26,7 +26,6 @@ import {
   appointmentGroupFactorySegment,
   derivePrimaryShipmentSignal,
   directionLabel,
-  displayNote,
   formatAppointmentGroupLine,
   formatQuantity,
   noteLines,
