@@ -77,11 +77,16 @@ export function DispatchTaskTagEditor({ value, onChange, disabled = false }: {
       const status = (submitError as { status?: number }).status;
       if (status === 409) {
         // The pool already holds this label in some casing — select it and
-        // continue instead of blocking the dispatcher.
+        // continue instead of blocking the dispatcher. Re-adding a tag that
+        // is ALREADY selected must not write a second copy into the note
+        // (that rendered duplicated Tác vụ chips on the driver app); it still
+        // closes the input with the same "đã chọn tag có sẵn" feedback.
         const normalized = label.normalize('NFC').toLowerCase().trim();
         const existing = labels.find((item) => item.normalize('NFC').toLowerCase().trim() === normalized);
         if (existing) {
-          onChange(composeNote([...selectedLabels, existing], manualText));
+          if (!selectedLabels.includes(existing)) {
+            onChange(composeNote([...selectedLabels, existing], manualText));
+          }
           setNewLabel('');
           setIsAdding(false);
           setAddNotice('Tag đã tồn tại — đã chọn tag có sẵn.');
